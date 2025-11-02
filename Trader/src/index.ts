@@ -1,4 +1,4 @@
-import app from "./app";
+import app from "./api/app";
 // import { logger } from "./services/logger";
 
 const port = process.env.EXPRESS_PORT || 3000;
