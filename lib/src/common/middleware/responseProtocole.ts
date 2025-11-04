@@ -1,4 +1,4 @@
-import { ClassResponseExceptions } from "./responseException";
+import { ClassResponseExceptions } from "./responseException.js";
 import { NextFunction, Request, Response } from "express";
 // import { logger } from "../services/logger";
 
@@ -18,15 +18,18 @@ type errType = Error
  * - Log les erreurs 500 côté serveur
  */
 export const ResponseProtocole = (err: errType, req: Request, res: Response, next: NextFunction) => {
-  let originalError;
+  // let originalError;
 
+  let errResponse;
   if(err instanceof Error){
-    originalError = err;
-    err = new ClassResponseExceptions("").UnknownError()
+    // originalError = err;
+    errResponse = new ClassResponseExceptions("").UnknownError()
+  }else{
+    errResponse = err;
   }
 
   // Log uniquement les erreurs serveur critiques
-  if (err.status >= 500) {
+  if (errResponse.status >= 500) {
     // logger.error("Server Error", {
     //   message: originalError?.message,
     //   stack: originalError?.stack,
@@ -36,6 +39,6 @@ export const ResponseProtocole = (err: errType, req: Request, res: Response, nex
     // });
   }
 
-  return res.status(err.status).json(err);
+  return res.status(errResponse.status).json(errResponse.data);
   next();
 };
