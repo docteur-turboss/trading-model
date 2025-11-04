@@ -1,7 +1,7 @@
 import helmet from "helmet";
 import express, { Request, Response, Router } from "express";
 
-import './types/user.types';
+// import './types/user.types';
 
 // import AuthRoutes from "./routers/auth.routes";
 // import UserRoutes from "./routers/user.routes";
@@ -11,11 +11,11 @@ import './types/user.types';
 // import newsletterRoutes from "./routers/newsletter.routes";
 // import TransactionRoutes from "./routers/transaction.routes";
 
-import { catchSync } from "./middleware/catchError";
+import { catchSync } from "cash-lib/middleware/catchError";
 // import { requestLogger } from "./middleware/requestLogger";
 // import { securityLogger } from "./middleware/securityLogger";
-import { ResponseException } from "./middleware/responseException";
-import { ResponseProtocole } from "./middleware/responseProtocole";
+import { ResponseException } from "cash-lib/middleware/responseException";
+import { ResponseProtocole } from "cash-lib/middleware/responseProtocole";
 
 const app = express();
 

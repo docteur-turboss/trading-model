@@ -1,25 +1,28 @@
 {
-  "name": "trader-service",
+  "name": "lib-common",
   "version": "1.0.0",
-  "description": "Agents autonomes qui s'entrainent à trader sur une paire",
+  "description": "Librairie commun entre les services",
   "keywords": [
     "trader",
     "ia"
   ],
   "license": "ISC",
   "author": "Docteur Turboss <@docteur-turboss>",
-  "type": "commonjs",
   "main": "./dist/index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "build": "tsc"
+  },
+  "exports": {
+    "./middleware/*": {
+      "types": "./dist/common/middleware/*.d.ts",
+      "default": "./dist/common/middleware/*.js"
+    }
   },
   "dependencies": {
-    "axios": "^1.13.0",
     "eslint": "^9.38.0",
     "express": "^5.1.0",
-    "helmet": "^8.1.0",
-    "ts-node": "^10.9.2",
-    "cash-lib": "file:../lib"
+    "ts-node": "^10.9.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
