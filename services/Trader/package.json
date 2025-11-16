@@ -19,7 +19,7 @@
     "express": "^5.1.0",
     "helmet": "^8.1.0",
     "ts-node": "^10.9.2",
-    "cash-lib": "file:../lib"
+    "cash-lib": "file:../../lib"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
