@@ -21,7 +21,7 @@ export class ChartCandle {
           .and(tChartCandle.interval.equals(interval))
       )
       .select(selectColumns)
-      .orderBy(tChartCandle.timestamp, "desc")
+      .orderBy(tChartCandle.openTime, "desc")
       .limit(limit)
       .offset(offset)
       .executeSelectMany()
@@ -42,7 +42,7 @@ export class ChartCandle {
           .and(tChartCandle.interval.equals(interval))
       )
       .select(selectColumns)
-      .orderBy(tChartCandle.timestamp, "desc")
+      .orderBy(tChartCandle.openTime, "desc")
       .limit(1)
       .executeSelectOne()
       .catch(handleDBError());
@@ -56,7 +56,8 @@ export class ChartCandle {
     low,
     close,
     volume,
-    timestamp,
+    openTime,
+    closeTime,
     source,
   }: {
     symbol: string;
@@ -66,7 +67,8 @@ export class ChartCandle {
     low: number;
     close: number;
     volume: number;
-    timestamp: Date;
+    openTime: Date;
+    closeTime: Date;
     source?: string;
   }) {
     return new DBConnection()
@@ -79,9 +81,46 @@ export class ChartCandle {
         low,
         close,
         volume,
-        timestamp,
+        openTime,
+        closeTime,
         source,
       })
+      .executeInsert()
+      .catch(handleDBError());
+  }
+
+  static async insertMany(candles: {
+    symbol: string;
+    interval: string;
+    openTime: number;
+    closeTime: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+    source: string;
+  }[]) {
+    if (candles.length === 0) return;
+
+    const conn = new DBConnection();
+
+    await conn
+      .insertInto(tChartCandle)
+      .values(
+        candles.map((c) => ({
+          symbol: c.symbol,
+          interval: c.interval,
+          openTime: new Date(c.openTime),
+          closeTime: new Date(c.closeTime),
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+          volume: c.volume,
+          source: c.source
+        }))
+      )
       .executeInsert()
       .catch(handleDBError());
   }
@@ -159,7 +198,7 @@ export class ChartCandle {
       .where(
         tChartCandle.symbol.equals(symbol)
           .and(tChartCandle.interval.equals(interval))
-          .and(tChartCandle.timestamp.lessThan(beforeDate))
+          .and(tChartCandle.closeTime.lessThan(beforeDate))
       )
       .executeDelete()
       .catch(handleDBError());

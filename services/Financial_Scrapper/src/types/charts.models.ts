@@ -10,7 +10,12 @@ class ChartTableDefinition extends Table<DBConnection, "tChartCandle"> {
   low = this.column("low", "double");
   close = this.column("close", "double");
   volume = this.column("volume", "double");
-  timestamp = this.column("timestamp", "localDateTime");
+  openTime = this.column("open_time", "localDateTime");
+  closeTime = this.column("close_time", "localDateTime");
+  quoteAssetVolume = this.optionalColumn("quote_asset_volume", "double");
+  numberOfTrades = this.optionalColumn("number_of_trades", "int");
+  takerBuyBaseAssetVolume = this.optionalColumn("taker_buy_base_asset_volume", "double");
+  takerBuyQuoteAssetVolume = this.optionalColumn("taker_buy_quote_asset_volume", "double");
   source = this.optionalColumn("source", "string"); // ex: 'binance', 'yahoo'
 
   constructor() {
@@ -29,7 +34,8 @@ export type ChartCandleType = {
   low: number;
   close: number;
   volume: number;
-  timestamp: Date;
+  openTime: Date;
+  closeTime: Date;
   source?: string;
 };
 
@@ -42,6 +48,83 @@ export const selectColumns = {
   low: tChartCandle.low,
   close: tChartCandle.close,
   volume: tChartCandle.volume,
-  timestamp: tChartCandle.timestamp,
+  openTime: tChartCandle.openTime,
+  closeTime: tChartCandle.closeTime,
   source: tChartCandle.source,
 };
+
+
+export interface BinanceOrderBookEntry { // only in cache
+  price: string;  // note : Binance send strings
+  qty: string;
+}
+
+export interface BinanceTrade { // db & cache
+  id: number;
+  price: string;
+  qty: string;
+  quoteQty?: string;
+  time: number;
+  isBuyerMarker: boolean;
+}
+
+export interface Binance24hrTickerStats {
+  symbol: string;
+  priceChange: string;
+  PriceChangePercent: string;
+  weightedAvgPrice: string;
+  prevClosePrice: string;
+  lastPrice: string;
+  bidPrice: string;
+  bidQty: string;
+  askPrice: string;
+  askQty: string;
+  openPrice: string;
+  highPrice: string;
+  lowPrice: string;
+  volume: string;
+  openTime: number;
+  closeTime: number;
+  firstId: number;   // First tradeId
+  lastId: number;    // Last tradeId
+  count: number;     // Trade count
+}
+
+export interface BinanceTradingDayTicker {
+  symbol: string;
+  priceChange: string;
+  priceChangePercent: string;
+  weightedAvgPrice: string;
+  openPrice: string;
+  highPrice: string;
+  lowPrice: string;
+  lastPrice: string;
+  volume: string;
+  quoteVolume: string;
+  openTime: number;
+  closeTime: number;
+  firstId: number;
+  lastId: number;
+  count: number;
+}
+
+export interface BinanceTradingDayTickerResponse extends Array<BinanceTradingDayTicker> {}
+
+
+export interface BinanceSymbolPriceTicker {
+  symbol: string;
+  price: string;
+}
+
+export interface BinanceSymbolPriceTickerResponse extends Array<BinanceSymbolPriceTicker> {}
+
+
+export interface BinanceSymbolOrderBookTicker {
+  symbol: string;
+  bidPrice: string;
+  askPrice: string;
+  bidQty: string;
+  askQty: string;
+}
+
+export interface BinanceSymbolOrderBookTickerResponse extends Array<BinanceSymbolOrderBookTicker> {}
