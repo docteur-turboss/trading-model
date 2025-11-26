@@ -31,10 +31,8 @@ export async function getOrderBook(
   limit = 100
 ): Promise<BinanceDepthResponse> {
   const weight = BINANCE_WEIGHTS.depth(limit);
-  const response = await binance.get(BINANCE_ENDPOINTS.depth(limit, symbol), {
-    weight,
-  });
-  return response.data;
+  const url = BINANCE_ENDPOINTS.depth(limit, symbol)
+  return (await binance.get(url, { weight })).data;
 }
 
 /**
@@ -49,10 +47,8 @@ export async function getRecentTrades(
   limit = 500
 ): Promise<BinanceTradeResponse> {
   const weight = BINANCE_WEIGHTS.trades();
-  const response = await binance.get(BINANCE_ENDPOINTS.trades(limit, symbol), {
-    weight,
-  });
-  return response.data;
+  const url = BINANCE_ENDPOINTS.trades(limit, symbol);
+  return (await binance.get(url, { weight })).data;
 }
 
 /**
@@ -68,12 +64,9 @@ export async function getHistoricalTrades(
   limit = 500,
   fromId: number | string
 ): Promise<BinanceHistoricalTradeResponse> {
+  const url = BINANCE_ENDPOINTS.historicalTrades(limit, symbol, fromId);
   const weight = BINANCE_WEIGHTS.historicalTrades();
-  const response = await binance.get(
-    BINANCE_ENDPOINTS.historicalTrades(limit, symbol, fromId),
-    { weight }
-  );
-  return response.data;
+  return (await binance.get(url, { weight })).data;
 }
 
 /**
@@ -107,12 +100,9 @@ export async function CandlestickData(
     | "1M",
   startTime?: number
 ): Promise<BinanceCandlestickDataResponse> {
+  const url = BINANCE_ENDPOINTS.candlesticks(symbol, interval, startTime, limit);
   const weight = BINANCE_WEIGHTS.candlesticks();
-  const response = await binance.get(
-    BINANCE_ENDPOINTS.candlesticks(symbol, interval, startTime, limit),
-    { weight }
-  );
-  return response.data;
+  return (await binance.get(url, { weight })).data;
 }
 
 
@@ -130,16 +120,9 @@ export async function getCompressedAggregateTrades(
   fromId: string | number,
   limit = 500
 ): Promise<BinanceAggregateTradeResponse> {
+  const url = BINANCE_ENDPOINTS.compressedAggregateTrades(symbol, fromId, limit);
   const weight = BINANCE_WEIGHTS.compressedAggregateTrades();
-  const response = await binance.get(
-    BINANCE_ENDPOINTS.compressedAggregateTrades(
-      symbol,
-      fromId,
-      limit
-    ),
-    { weight }
-  );
-  return response.data;
+  return (await binance.get(url, { weight })).data;
 }
 
 /**
@@ -155,11 +138,8 @@ export async function get24hrTickerStats(
   symbol?: string[]
 ): Promise<Binance24hrTickerStatsResponse> {
   const weight = BINANCE_WEIGHTS.change24hrStats((symbol??[]).length);
-  const response = await binance.get(
-    BINANCE_ENDPOINTS.change24hrStats(symbol),
-    { weight }
-  );
-  return response.data;
+  const url = BINANCE_ENDPOINTS.change24hrStats(symbol);
+  return (await binance.get(url, { weight })).data;
 }
 
 /**
@@ -174,11 +154,8 @@ export async function getTradingDayTicker(
   symbol: string[]
 ): Promise<BinanceTradingDayTickerResponse> {
   const weight = BINANCE_WEIGHTS.tradingDayTicker(symbol.length);
-  const response = await binance.get(
-    BINANCE_ENDPOINTS.TradingDayTicker(symbol),
-    { weight }
-  );
-  return response.data;
+  const url = BINANCE_ENDPOINTS.TradingDayTicker(symbol);
+  return (await binance.get(url, { weight })).data;
 }
 
 /**
@@ -191,11 +168,8 @@ export async function getSymbolPriceTicker(
   symbol?: string[]
 ): Promise<BinanceSymbolPriceTickerResponse> {
   const weight = BINANCE_WEIGHTS.symbolPriceTicker((symbol??[]).length);
-  const response = await binance.get(
-    BINANCE_ENDPOINTS.symbolPriceTicker(symbol),
-    { weight }
-  );
-  return response.data;
+  const url = BINANCE_ENDPOINTS.symbolPriceTicker(symbol);
+  return (await binance.get(url, { weight })).data;
 }
 
 /**
@@ -208,9 +182,6 @@ export async function getOrderBookTicker(
   symbol?: string[]
 ): Promise<BinanceSymbolOrderBookTickerResponse> {
   const weight = BINANCE_WEIGHTS.orderBookTicker((symbol??[]).length);
-  const response = await binance.get(
-    BINANCE_ENDPOINTS.orderBookTicker(symbol),
-    { weight }
-  );
-  return response.data;
-}
+  const url = BINANCE_ENDPOINTS.orderBookTicker(symbol);
+  return (await binance.get(url, { weight })).data;
+} // 205
