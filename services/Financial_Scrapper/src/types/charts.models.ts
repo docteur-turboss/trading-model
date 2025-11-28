@@ -39,7 +39,7 @@ export type ChartCandleType = {
   source?: string;
 };
 
-export const selectColumns = {
+export const selectChartColumns = {
   id: tChartCandle.id,
   symbol: tChartCandle.symbol,
   interval: tChartCandle.interval,
@@ -52,79 +52,3 @@ export const selectColumns = {
   closeTime: tChartCandle.closeTime,
   source: tChartCandle.source,
 };
-
-
-export interface BinanceOrderBookEntry { // only in cache
-  price: string;  // note : Binance send strings
-  qty: string;
-}
-
-export interface BinanceTrade { // db & cache
-  id: number;
-  price: string;
-  qty: string;
-  quoteQty?: string;
-  time: number;
-  isBuyerMarker: boolean;
-}
-
-export interface Binance24hrTickerStats {
-  symbol: string;
-  priceChange: string;
-  PriceChangePercent: string;
-  weightedAvgPrice: string;
-  prevClosePrice: string;
-  lastPrice: string;
-  bidPrice: string;
-  bidQty: string;
-  askPrice: string;
-  askQty: string;
-  openPrice: string;
-  highPrice: string;
-  lowPrice: string;
-  volume: string;
-  openTime: number;
-  closeTime: number;
-  firstId: number;   // First tradeId
-  lastId: number;    // Last tradeId
-  count: number;     // Trade count
-}
-
-export interface BinanceTradingDayTicker {
-  symbol: string;
-  priceChange: string;
-  priceChangePercent: string;
-  weightedAvgPrice: string;
-  openPrice: string;
-  highPrice: string;
-  lowPrice: string;
-  lastPrice: string;
-  volume: string;
-  quoteVolume: string;
-  openTime: number;
-  closeTime: number;
-  firstId: number;
-  lastId: number;
-  count: number;
-}
-
-export interface BinanceTradingDayTickerResponse extends Array<BinanceTradingDayTicker> {}
-
-
-export interface BinanceSymbolPriceTicker {
-  symbol: string;
-  price: string;
-}
-
-export interface BinanceSymbolPriceTickerResponse extends Array<BinanceSymbolPriceTicker> {}
-
-
-export interface BinanceSymbolOrderBookTicker {
-  symbol: string;
-  bidPrice: string;
-  askPrice: string;
-  bidQty: string;
-  askQty: string;
-}
-
-export interface BinanceSymbolOrderBookTickerResponse extends Array<BinanceSymbolOrderBookTicker> {}
