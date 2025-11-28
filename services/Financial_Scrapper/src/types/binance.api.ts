@@ -16,7 +16,7 @@ export interface BinanceTrade {
   qty: string;
   quoteQty: string;
   time: number;
-  isBuyerMarker: boolean;
+  isBuyerMaker: boolean;
   isBestMatch: boolean;
 }
 

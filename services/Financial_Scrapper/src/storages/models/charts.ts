@@ -1,6 +1,6 @@
-import { ChartCandleType, selectColumns, tChartCandle } from "types/charts.models";
+import { ChartCandleType, tChartCandle, selectChartColumns } from "types/charts.models";
 import { handleDBError } from "cash-lib/middleware/handleCoreResponse";
-import { DBConnection } from "../config/db";
+import { DBConnection } from "../../config/db";
 
 export class ChartCandle {
   static async findAllBySymbol({
@@ -20,7 +20,7 @@ export class ChartCandle {
         tChartCandle.symbol.equals(symbol)
           .and(tChartCandle.interval.equals(interval))
       )
-      .select(selectColumns)
+      .select(selectChartColumns)
       .orderBy(tChartCandle.openTime, "desc")
       .limit(limit)
       .offset(offset)
@@ -41,7 +41,7 @@ export class ChartCandle {
         tChartCandle.symbol.equals(symbol)
           .and(tChartCandle.interval.equals(interval))
       )
-      .select(selectColumns)
+      .select(selectChartColumns)
       .orderBy(tChartCandle.openTime, "desc")
       .limit(1)
       .executeSelectOne()
@@ -166,7 +166,7 @@ export class ChartCandle {
     return new DBConnection()
       .selectFrom(tChartCandle)
       .where(tChartCandle.id.equals(id))
-      .select(selectColumns)
+      .select(selectChartColumns)
       .executeSelectOne()
       .catch(handleDBError());
   }
