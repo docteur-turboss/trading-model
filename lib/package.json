@@ -17,6 +17,11 @@
     "./middleware/*": {
       "types": "./dist/common/middleware/*.d.ts",
       "default": "./dist/common/middleware/*.js"
+    },
+    "./config/*": {
+      "types": "./dist/common/config/*.d.ts",
+      "default": "./dist/common/config/*.js"
+
     }
   },
   "dependencies": {
