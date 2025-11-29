@@ -11,7 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
     "paths": {
-      "*": ["./src/*"]
+      "*": ["./src/common/*"]
     },
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
