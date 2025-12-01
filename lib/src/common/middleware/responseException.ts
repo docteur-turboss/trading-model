@@ -135,7 +135,7 @@ export class ClassResponseExceptions extends Error {
 
   /** Returns a 413 Payload Too Large response object */
   Gone() {
-    return { status: ResponseCodes.PayloadTooLarge, data: this.reason };
+    return { status: ResponseCodes.Gone, data: this.reason };
   }
 
   /** Returns a 404 Not Found response object */
