@@ -13,6 +13,7 @@
     "paths": {
       "*": ["./src/common/*"]
     },
+    "typeRoots": ["./node_modules/@types", "./src/types"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true
