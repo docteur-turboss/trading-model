@@ -14,6 +14,7 @@ describe("ResponseException System", () => {
     ["TooManyRequests", 429],
     ["IMATeapot", 418],
     ["PayloadTooLarge", 413],
+    ["PayloadTooLarge", 410],
     ["NotFound", 404],
     ["MethodNotAllowed", 405],
     ["Forbidden", 403],
