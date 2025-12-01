@@ -17,6 +17,7 @@ const httpResponseDefinitions = [
   { key: "TooManyRequests", code: 429 },
   { key: "IMATeapot", code: 418 },
   { key: "PayloadTooLarge", code: 413 },
+  { key: "Gone", code: 410 },
   { key: "NotFound", code: 404 },
   { key: "MethodNotAllowed", code: 405 },
   { key: "Forbidden", code: 403 },
@@ -129,6 +130,11 @@ export class ClassResponseExceptions extends Error {
 
   /** Returns a 413 Payload Too Large response object */
   PayloadTooLarge() {
+    return { status: ResponseCodes.PayloadTooLarge, data: this.reason };
+  }
+
+  /** Returns a 413 Payload Too Large response object */
+  Gone() {
     return { status: ResponseCodes.PayloadTooLarge, data: this.reason };
   }
 
