@@ -1,0 +1,49 @@
+{
+  "name": "discovery-server",
+  "version": "1.0.0",
+  "description": "Service Discovery de l'architecture micro-service",
+  "homepage": "https://github.com/docteur-turboss/trading-model#readme",
+  "bugs": {
+    "url": "https://github.com/docteur-turboss/trading-model/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docteur-turboss/trading-model.git"
+  },
+  "keywords": [
+    "service-discovery",
+    "microservice"
+  ],
+  "license": "ISC",
+  "author": "Alchimist Horus Turboss <@docteur-turboss>",
+  "main": "./dist/app/index.js",
+  "scripts": {
+    "test": "jest",
+    "eslint": "npx eslint src/**/*.{ts,js}",
+    "commit": "npx gitmoji -c",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
+    "@eslint/js": "^9.39.1",
+    "@jest/globals": "^30.2.0",
+    "@types/express": "^5.0.5",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.10.1",
+    "babel-jest": "^30.2.0",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "jest": "^30.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.0"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "cash-lib": "file:../../lib",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0"
+  }
+}
