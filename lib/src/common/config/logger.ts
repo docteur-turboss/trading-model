@@ -79,7 +79,7 @@ export class Logger {
      * @returns A unique string representing the session ID
      */
     private generateSessionId(): string {
-        return `${new Date().getFullYear()}.${new Date().getMonth()+1}.${new Date().getDate()}-${this.logLevel}_${Math.random().toString(36).substring(2, 10)}`;
+        return `${new Date().getFullYear()}.${new Date().getMonth()+1}.${new Date().getDate()}-${this.logLevel}_${(crypto.getRandomValues(new Uint32Array(10))[0] * Math.pow(2,-32)).toString(36).substring(2, 10)}`;
     }
 
     /**
