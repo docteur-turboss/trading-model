@@ -10,7 +10,6 @@
     "type": "git",
     "url": "git+https://github.com/docteur-turboss/trading-model.git"
   },
-  "type": "module",
   "keywords": [
     "trader",
     "ia"
