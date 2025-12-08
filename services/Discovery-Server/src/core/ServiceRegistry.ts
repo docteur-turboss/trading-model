@@ -1,4 +1,7 @@
+import { createHmac } from "crypto";
 import { ServiceInstance } from "./types";
+import { generateRandomStr } from "utils/generateRandomStr";
+import { ServiceInstanceName } from "cash-lib/config/services.types";
 
 /**
  * ServiceRegistry
@@ -18,12 +21,12 @@ export class ServiceRegistry {
      * - Map<serviceName, Map<instanceId, ServiceInstance>>
      */
     private services: Map<string, Map<string, ServiceInstance>> = new Map();
-
+    private token : Map<string, string> = new Map()
     /**
      * Registers or updates a service instance.
      * Idempotent: if the instance already exists, only updates metadata/heartbeat.
      */
-    registerInstance(instance: ServiceInstance): ServiceInstance {
+    registerInstance(instance: ServiceInstance) {
         const { serviceName, instanceId } = instance;
 
         if (!this.services.has(serviceName)) {
@@ -31,6 +34,7 @@ export class ServiceRegistry {
         }
 
         const instances = this.services.get(serviceName)!;
+        const token = this.generateInstanceToken(instanceId)
 
         // If instance already exists → merge/update
         if (instances.has(instanceId)) {
@@ -50,14 +54,15 @@ export class ServiceRegistry {
             });
         }
 
-        return instances.get(instanceId)!;
+        this.token.set(instanceId, token)
+        return {...instances.get(instanceId), token};
     }
 
     /**
      * Updates only the heartbeat for an instance.
      * Called by HeartbeatController.
      */
-    updateHeartbeat(serviceName: string, instanceId: string): number | false {
+    updateHeartbeat(serviceName: string, instanceId: string, newToken: string): number | false {
         const service = this.services.get(serviceName);
         if (!service) return false;
 
@@ -65,7 +70,18 @@ export class ServiceRegistry {
         if (!instance) return false;
 
         instance.lastHeartbeat = Date.now();
+
+        service.set(instanceId, instance);
+
         return instance.ttl;
+    }
+
+    updateToken(serviceId: string): string{
+        const newToken = this.generateInstanceToken(serviceId);
+        
+        this.token.set(serviceId, newToken);
+
+        return newToken;
     }
 
     /**
@@ -121,5 +137,34 @@ export class ServiceRegistry {
         }
 
         return snapshot;
+    }
+
+    generateInstanceToken(serviceId: string): string {
+        let firstRandom = generateRandomStr();
+        
+        const AuthValidation = createHmac("sha256", generateRandomStr())
+        .update(`${serviceId}.${Date.now()}.${firstRandom}`)
+        .digest("base64");
+
+        const time = Buffer.from(`${Date.now()}`, 'utf8').toString('base64url')
+        return `${serviceId}.${Date.now()}.${AuthValidation}`;
+    }
+
+    generateInstanceId(serviceName: string, address: string, port: number): string {
+        const idHashed = createHmac("sha256", generateRandomStr())
+        .update(`${serviceName}-${address}:${port}-${Date.now()}`)
+        .digest("base64");
+
+        return idHashed;
+    }
+
+    validInstanceToken(token: string, instanceId: string): boolean{
+        const storedToken = this.token.get(instanceId);
+
+        return storedToken === token;
+    }
+
+    verifyInstanceName(serviceName: string): boolean {
+        return Object.values(ServiceInstanceName).includes(serviceName);
     }
 }

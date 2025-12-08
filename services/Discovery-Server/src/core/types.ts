@@ -11,6 +11,7 @@ export interface ServiceRegisterPayload {
 export interface HeartbeatPayload {
   serviceName: string;
   instanceId: string;
+  authToken: string;
 }
 
 export interface ServicesQueryPayload {
@@ -21,15 +22,15 @@ export interface ServicesQueryPayload {
 }
 
 export interface ServiceInstance {
-    instanceId: string;
-    serviceName: string;
-    ip: string;
-    port: number;
-    protocol: string;
     metadata?: Record<string, any>;
-    registeredAt: number;
     lastHeartbeat: number;
-    ttl: number;
-    env?: string;
+    registeredAt: number;
     role?: string | null;
+    serviceName: string;
+    instanceId: string;
+    protocol: string;
+    port: number;
+    env?: string;
+    ttl: number;
+    ip: string;
 }
