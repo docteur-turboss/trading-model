@@ -1,3 +1,6 @@
+import { writeFile } from "fs";
+import path from "path";
+
 /**
  * LogLevel enumeration defines the severity levels for logging.
  * DEBUG   - Detailed debugging information
@@ -117,7 +120,7 @@ export class Logger {
         url: string = '', 
         serviceInCharge: string = ''
     ): LogEntry {
-        return {
+        const data = {
             timestamp: new Date(),
             level,
             message,
@@ -127,6 +130,10 @@ export class Logger {
             url,
             serviceInCharge
         };
+
+        writeFile(path.resolve('/log', `${new Date().getFullYear()}.${new Date().getMonth()+1}.${new Date().getDate()}-${level}`), JSON.stringify(data), {flag: "a"}, () => {})
+
+        return data
     }
 
     /**
