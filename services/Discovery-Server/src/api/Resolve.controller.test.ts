@@ -1,92 +1,178 @@
-import { ResponseException } from "cash-lib/middleware/responseException";
-import { catchSync } from "cash-lib/middleware/catchError";
-import { ServiceRegistry } from "../core/ServiceRegistry";
-import { LeaseManager } from "../core/LeaseManager";
-import { logger } from "cash-lib/config/logger";
+import { ResolveController } from "./Resolve.controller";
 
-/**
- * GET /resolve/:serviceName
- *
- * Returns a reachable instance of the requested service.
- * This controller performs:
- *  - Filtering by service name
- *  - Optional filtering by environment, role, version...
- *  - Lease validation (instance must be alive)
- *  - Simple selection strategy (round-robin or random)
- */
-export class ResolveController {
-    constructor(
-        private registry: ServiceRegistry,
-        private leaseManager: LeaseManager
-    ) {}
+// Mock middleware
+jest.mock("cash-lib/middleware/catchError", () => ({
+    catchSync: (fn: any) => fn
+}));
 
-    resolve = catchSync(async (req) => {
-        const serviceName = req.params.serviceName?.trim();
-        const { role, env, version } = req.query;
-
-        if (!serviceName) throw ResponseException({error : "Missing service name in path."}).BadRequest();
-
-        logger.debug(`[Resolve] Requesting service "${serviceName}"`);
-
-        // --- Fetch instances from registry ---
-        const instances = this.registry.getInstances(serviceName);
-
-        if (!instances || instances.length === 0) throw ResponseException({error : `No instance registered for service "${serviceName}"`}).NotFound();
-
-        // --- Filter based on criteria ---
-        let filtered = instances;
-
-        if (role) filtered = filtered.filter(i => i.role === role);
-        if (env) filtered = filtered.filter(i => i.env === env);
-        if (version) filtered = filtered.filter(i => i.metadata?.version === version);
-
-        if (filtered.length === 0) throw ResponseException(JSON.stringify({
-            error : `No instance matching criteria for service "${serviceName}"`,
-            filters: { role, env, version }
-        })).NotFound();
-
-        // --- Lease / TTL validation ---
-        const aliveInstances = filtered.filter(i => this.leaseManager.isAlive(i));
-
-        if (aliveInstances.length === 0) throw ResponseException({error: `All instances are expired or unreachable for "${serviceName}".`}).Gone();
-
-        // --- Apply selection strategy (Round-Robin by default) ---
-        const selected = this.selectInstance(serviceName, aliveInstances);
-
-        logger.info(
-            `[Resolve] Selected instance ${selected.id} for service "${serviceName}" → ${selected.address}:${selected.port}`
-        );
-
-        // --- Return resolved address ---
-        throw ResponseException({
-            instanceId: selected.id,
-            name: selected.name,
-            address: selected.address,
-            port: selected.port,
-            protocol: selected.protocol,
-            metadata: selected.metadata,
-            role: selected.role,
-            env: selected.env,
-            resolvedAt: Date.now()
-        }).Success()
-  });
-
-    /**
-     * Default selection strategy: Round Robin
-     * Could also be:
-     *  - Random
-     *  - Least connections
-     *  - Health-based selection
-     */
-    private roundRobinIndex: Record<string, number> = {};
-
-    private selectInstance(serviceName: string, instances: any[]) {
-        const idx = this.roundRobinIndex[serviceName] ?? 0;
-
-        const instance = instances[idx % instances.length];
-
-        this.roundRobinIndex[serviceName] = (idx + 1) % instances.length;
-
-        return instance;
+// Mock logger
+jest.mock("cash-lib/config/logger", () => ({
+    logger: {
+        debug: jest.fn(),
+        info: jest.fn()
     }
-}
+}));
+
+// Mock ResponseException
+jest.mock("cash-lib/middleware/responseException", () => ({
+    ResponseException: jest.fn((body: any) => ({
+        BadRequest: () => ({ type: "BadRequest", ...body }),
+        NotFound: () => ({ type: "NotFound", ...body }),
+        Gone: () => ({ type: "Gone", ...body }),
+        Success: () => ({ type: "Success", ...body }),
+    })),
+}));
+
+describe("ResolveController.resolve", () => {
+    let registry: any;
+    let leaseManager: any;
+    let controller: ResolveController;
+    let req: any;
+    let res: any;
+    let next: any;
+
+    beforeEach(() => {
+        registry = {
+            getInstances: jest.fn()
+        };
+        leaseManager = {
+            isAlive: jest.fn()
+        };
+
+        controller = new ResolveController(registry, leaseManager);
+
+        req = {
+            params: {},
+            query: {}
+        };
+        res = {};
+        next = () => {};
+    });
+
+    const exec = async () => controller.resolve(req, res, next);
+
+    const instance = (id: string, overrides: Partial<any> = {}) => ({
+        id,
+        name: "svc",
+        address: "127.0.0.1",
+        port: 3000,
+        protocol: "http",
+        metadata: {},
+        role: null,
+        env: "dev",
+        ...overrides
+    });
+
+    // --------------------------------------------------------------------
+    test("❌ Path missing → BadRequest", async () => {
+        req.params = {};
+
+        await expect(exec()).rejects.toMatchObject({
+            type: "BadRequest",
+            error: "Missing service name in path."
+        });
+    });
+
+    // --------------------------------------------------------------------
+    test("❌ No instance registered → NotFound", async () => {
+        req.params = { serviceName: "svc" };
+
+        registry.getInstances.mockReturnValue([]);
+
+        await expect(exec()).rejects.toMatchObject({
+            type: "NotFound"
+        });
+    });
+
+    // --------------------------------------------------------------------
+    test("❌ Filters match zero results → NotFound", async () => {
+        req.params = { serviceName: "svc" };
+        req.query = { role: "db" };
+
+        registry.getInstances.mockReturnValue([
+            instance("1", { role: "app" })
+        ]);
+
+        await expect(exec()).rejects.toMatchObject({
+            type: "NotFound"
+        });
+    });
+
+    // --------------------------------------------------------------------
+    test("❌ Instances not alive → Gone (TTL expired)", async () => {
+        req.params = { serviceName: "svc" };
+
+        const inst = instance("1");
+        registry.getInstances.mockReturnValue([inst]);
+        leaseManager.isAlive.mockReturnValue(false);
+
+        await expect(exec()).rejects.toMatchObject({
+            type: "Gone",
+        });
+    });
+
+    // --------------------------------------------------------------------
+    test("🎯 Success: return matching alive instance", async () => {
+        req.params = { serviceName: "svc" };
+
+        const inst = instance("1", { role: "api", env: "dev" });
+
+        registry.getInstances.mockReturnValue([inst]);
+        leaseManager.isAlive.mockReturnValue(true);
+
+        await expect(exec()).rejects.toMatchObject({
+            type: "Success",
+            instanceId: inst.id,
+            name: inst.name,
+            address: inst.address,
+            port: inst.port,
+            protocol: inst.protocol,
+            metadata: inst.metadata,
+            role: inst.role,
+            env: inst.env,
+        });
+    });
+
+    // --------------------------------------------------------------------
+    test("⚙️ Round-Robin selection over multiple instances", async () => {
+        req.params = { serviceName: "svc" };
+
+        const i1 = instance("1");
+        const i2 = instance("2");
+        const instances = [i1, i2];
+
+        registry.getInstances.mockReturnValue(instances);
+        leaseManager.isAlive.mockReturnValue(true);
+
+        // 1st call → i1
+        await expect(exec()).rejects.toMatchObject({
+            instanceId: "1"
+        });
+
+        // 2nd call → i2
+        await expect(exec()).rejects.toMatchObject({
+            instanceId: "2"
+        });
+
+        // 3rd call → i1 again (loop)
+        await expect(exec()).rejects.toMatchObject({
+            instanceId: "1"
+        });
+    });
+
+    // --------------------------------------------------------------------
+    test("🎚 Filtering by version in metadata", async () => {
+        req.params = { serviceName: "svc" };
+        req.query = { version: "1.0" };
+
+        const instOne = instance("1", { metadata: { version: "2.0" } });
+        const instTwo = instance("2", { metadata: { version: "1.0" } });
+
+        registry.getInstances.mockReturnValue([instOne, instTwo]);
+        leaseManager.isAlive.mockReturnValue(true);
+
+        await expect(exec()).rejects.toMatchObject({
+            instanceId: "2"
+        });
+    });
+});
