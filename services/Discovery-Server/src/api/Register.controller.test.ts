@@ -1,82 +1,136 @@
-import { ResponseException } from "cash-lib/middleware/responseException";
-import { catchSync } from "cash-lib/middleware/catchError";
+import { RegisterController } from "./Register.controller";
 import { ServiceRegistry } from "../core/ServiceRegistry";
-import { ServiceRegisterPayload } from "../core/types";
-import { logger } from "cash-lib/config/logger";
 
-export class RegisterController {
-    constructor(
-        private registry: ServiceRegistry,
-    ) {}
+// Mock du middleware
+jest.mock("cash-lib/middleware/catchError", () => ({
+    catchSync: (fn: any) => fn,
+}));
 
-    /**
-     * POST /register
-     *
-     * A microservice calls this endpoint when it starts.
-     * It registers itself by sending its name, address, port, protocol,
-     * and optional metadata.
-     *
-     * Responsibilities:
-     *  - validate input
-     *  - normalize metadata
-     *  - register instance in registry
-     *  - create lease (time-to-live)
-     *  - return the created instance ID + expiration
-     */
-    register = catchSync(async (req) => {
-        const body = req.body as Partial<ServiceRegisterPayload>;
+// Mock du logger
+jest.mock("cash-lib/config/logger", () => ({
+    logger: {
+        info: jest.fn(),
+        debug: jest.fn(),
+    }
+}));
 
-        // --- Validation basique ---
-        const missing = ["name", "address", "port", "protocol"].filter(
-            (key) => !body[key as keyof ServiceRegisterPayload]
-        );
+// Mock simplifié ResponseException
+jest.mock("cash-lib/middleware/responseException", () => ({
+    ResponseException: jest.fn((body: any) => ({
+        BadRequest: () => ({ type: "BadRequest", ...body }),
+        OK: () => ({ type: "OK", ...body }),
+    })),
+}));
 
-        if (missing.length > 0) throw ResponseException({error : `Missing fields: ${missing.join(", ")}`}).BadRequest();
+describe("RegisterController.register", () => {
+    let registry: jest.Mocked<ServiceRegistry>;
+    let controller: RegisterController;
+    let req: any;
+    let res: any;
+    let next: any;
 
-        // --- Payload normalizer ---
-        const payload: ServiceRegisterPayload = {
-            name: `${body.name!}`.trim(),
-            address: `${body.address!}`.trim(),
-            port: Number(body.port),
-            protocol: `${body.protocol!}`.toLowerCase() as ServiceRegisterPayload["protocol"],
-            metadata: body.metadata ?? {},
-            env: body.env? `${body.env}` : process.env.NODE_ENV ?? "unknown",
-            role: body.role ? `${body.role}` : null
+    beforeEach(() => {
+        registry = {
+            generateInstanceId: jest.fn(),
+            registerInstance: jest.fn(),
+        } as any;
+
+        controller = new RegisterController(registry);
+
+        req = { body: {} };
+        res = {};
+        next = () => {};
+    });
+
+    const exec = async () => controller.register(req, res, next);
+
+    // ----------------------------------------------------------------------
+    test("❌ Missing fields → BadRequest", async () => {
+        req.body = { name: "test" }; // manque address, port, protocol
+
+        await expect(exec()).rejects.toMatchObject({
+            type: "BadRequest",
+            error: expect.stringContaining("Missing fields")
+        });
+    });
+
+    // ----------------------------------------------------------------------
+    test("🧹 Normalisation & appels registry OK", async () => {
+        req.body = {
+            name: " Service ",
+            address: " 127.0.0.1 ",
+            port: "3000",
+            protocol: "HTTP",
+            metadata: { v: 1 }
         };
 
-        // CTO-style logging for diagnostics
-        logger.info(
-            `[Register] Registering instance of service "${payload.name}" on ${payload.address}:${payload.port}`
-        );
-
-        const idGenerated = this.registry.generateInstanceId(payload.name, payload.address, payload.port);
-
-        // --- Appel au registry (core) ---
-        const instance = this.registry.registerInstance({
-            protocol: payload.protocol, 
-            metadata: payload.metadata, 
-            serviceName: payload.name, 
-            registeredAt: Date.now(), 
-            instanceId: idGenerated,
-            ip: payload.address,
-            port: payload.port, 
-            role: payload.role,
-            lastHeartbeat: 0, 
-            env: payload.env,
-            ttl: 20_000,
+        registry.generateInstanceId.mockReturnValue("id-123");
+        registry.registerInstance.mockReturnValue({
+            instanceId: "id-123",
+            serviceName: "Service",
+            ip: "127.0.0.1",
+            port: 3000,
+            protocol: "http",
+            ttl: 20000,
+            token: "tkn"
         });
 
-        logger.debug(
-            `[Register] Lease created for ${instance.instanceId} (TTL ${instance.ttl} ms)`
+        await expect(exec()).rejects.toMatchObject({
+            type: "OK",
+            instanceId: "id-123",
+            service: "Service",
+            token: "tkn",
+            ttl: 20000,
+        });
+
+        expect(registry.generateInstanceId).toHaveBeenCalledWith(
+            "Service", "127.0.0.1", 3000
         );
 
-        throw ResponseException({
-            instanceId: instance.instanceId,
-            service: instance.serviceName,
-            leaseExpiresAt: new Date(Date.now() + (instance.ttl??0)).toISOString(),
-            ttl: instance.ttl,
-            token: instance.token,
-            message: "Service instance registered successfully"
-        }).OK();
-    })
-}
+        expect(registry.registerInstance).toHaveBeenCalledWith(
+            expect.objectContaining({
+                serviceName: "Service",
+                ip: "127.0.0.1",
+                port: 3000,
+                protocol: "http",
+                metadata: { v: 1 },
+                lastHeartbeat: 0,
+                ttl: 20000,
+            })
+        );
+    });
+
+    // ----------------------------------------------------------------------
+    test("🌍 Utilisation de l'environnement défaut si non fourni", async () => {
+        const previousEnv = process.env.NODE_ENV;
+        process.env.NODE_ENV = "dev-env";
+
+        req.body = {
+            name: "A",
+            address: "b",
+            port: 1,
+            protocol: "http"
+        };
+
+        registry.generateInstanceId.mockReturnValue("id-env");
+        registry.registerInstance.mockReturnValue({
+            instanceId: "id-env",
+            serviceName: "A",
+            ttl: 20000,
+            token: "z"
+        });
+
+        await expect(exec()).rejects.toMatchObject({
+            type: "OK",
+            instanceId: "id-env"
+        });
+
+        expect(registry.registerInstance).toHaveBeenCalledWith(
+            expect.objectContaining({
+                env: "dev-env"
+            })
+        );
+
+        process.env.NODE_ENV = previousEnv;
+    });
+});
