@@ -141,13 +141,13 @@ export class ServiceRegistry {
 
     generateInstanceToken(serviceId: string): string {
         let firstRandom = generateRandomStr();
+        const time = Buffer.from(`${Date.now()}`, 'utf8').toString('base64url');
         
         const AuthValidation = createHmac("sha256", generateRandomStr())
-        .update(`${serviceId}.${Date.now()}.${firstRandom}`)
+        .update(`${serviceId}.${time}.${firstRandom}`)
         .digest("base64");
 
-        const time = Buffer.from(`${Date.now()}`, 'utf8').toString('base64url')
-        return `${serviceId}.${Date.now()}.${AuthValidation}`;
+        return `${serviceId}.${time}.${AuthValidation}`;
     }
 
     generateInstanceId(serviceName: string, address: string, port: number): string {
