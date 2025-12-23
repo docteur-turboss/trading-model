@@ -141,12 +141,14 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# SSH keys
 .ppk
 .pub
+.pem
+.csr
+.crt
 id_rsa*
-*/log/*
-/log/*
+**/keys/*
+
+# Customs
 /.husky/*
-
-
-/keys*
