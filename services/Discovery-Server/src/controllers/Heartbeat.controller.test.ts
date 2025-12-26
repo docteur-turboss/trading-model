@@ -1,5 +1,5 @@
 import { heartbeat, rotateToken } from "./Heartbeat.controller";
-import { createReq, createRes, createNext } from "../tests/helpers/express";
+import { createReq, createRes } from "../tests/helpers/express";
 
 import { registry } from "../core/ServiceRegistry";
 

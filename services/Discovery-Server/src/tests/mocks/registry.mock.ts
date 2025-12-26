@@ -1,4 +1,4 @@
-export const registryMock = {
+export const mockRegistry = {
   verifyInstanceName: jest.fn(),
   generateInstanceId: jest.fn(),
   registerInstance: jest.fn(),
@@ -13,5 +13,5 @@ export const registryMock = {
 };
 
 jest.mock("../../core/ServiceRegistry", () => ({
-  registry: registryMock,
+  registry: mockRegistry,
 }));
