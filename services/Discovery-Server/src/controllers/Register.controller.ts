@@ -8,7 +8,7 @@ import {
   isObject,
   isValidIP,
   isValidPort,
-} from "utils/validate";
+} from "../utils/validate";
 
 /**
  * -------------------------
@@ -40,7 +40,7 @@ import {
  *   port: number
  * }
  */
-export const register = catchSync((req) => {
+export const register = catchSync(async (req) => {
   /**
    * Ensure the request body is a valid object.
    * Prevents malformed or unexpected payloads.
@@ -130,7 +130,7 @@ export const register = catchSync((req) => {
  * Returns the list of all known service names.
  * Useful for debugging, monitoring and admin tooling.
  */
-export const listServices = catchSync(() => {
+export const listServices = catchSync(async () => {
   throw ResponseException(registry.listServiceNames()).Success();
 }) as unknown as RequestHandler;
 
@@ -144,7 +144,7 @@ export const listServices = catchSync(() => {
  * Returns all active instances for a given service.
  * Dead or expired instances are excluded.
  */
-export const getServiceInstances = catchSync((req) => {
+export const getServiceInstances = catchSync(async (req) => {
   const { serviceName } = req.params;
 
   /**
@@ -171,7 +171,7 @@ export const getServiceInstances = catchSync((req) => {
  *
  * Returns detailed information for a specific instance.
  */
-export const getInstance = catchSync((req) => {
+export const getInstance = catchSync(async (req) => {
   const { serviceName, instanceId } = req.params;
 
   /**
@@ -202,6 +202,6 @@ export const getInstance = catchSync((req) => {
  * This endpoint SHOULD NOT be exposed publicly.
  * It must be protected (mTLS, IP filtering, admin-only).
  */
-export const dump = catchSync(() => {
+export const dump = catchSync(async () => {
   throw ResponseException(registry.dump()).Success();
 }) as unknown as RequestHandler;
