@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { registry } from "../core/ServiceRegistry";
 import { catchSync } from "cash-lib/middleware/catchError";
-import { isNonEmptyString, isObject } from "utils/validate";
+import { isNonEmptyString, isObject } from "../utils/validate";
 import { ResponseException } from "cash-lib/middleware/responseException";
 
 /**
@@ -35,7 +35,7 @@ import { ResponseException } from "cash-lib/middleware/responseException";
  * - 401 if token is missing or invalid
  * - 404 if the instance is unknown
  */
-export const heartbeat = catchSync((req) => {
+export const heartbeat = catchSync(async (req) => {
   /**
    * Validate request body structure.
    * Rejects non-object payloads early to prevent undefined behavior.
@@ -109,7 +109,7 @@ export const heartbeat = catchSync((req) => {
  * Required headers:
  * - x-instance-token: string (current valid token)
  */
-export const rotateToken = catchSync((req) => {
+export const rotateToken = catchSync(async (req) => {
   /**
    * Validate request body.
    */
