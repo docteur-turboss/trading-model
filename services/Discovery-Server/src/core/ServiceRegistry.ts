@@ -1,6 +1,6 @@
 import { createHmac } from "crypto";
 import { ServiceInstance } from "./types";
-import { generateRandomStr } from "utils/generateRandomStr";
+import { generateRandomStr } from "../utils/generateRandomStr";
 import { ServiceInstanceName } from "cash-lib/config/services.types";
 
 /**

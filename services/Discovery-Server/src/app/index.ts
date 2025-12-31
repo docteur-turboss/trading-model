@@ -1,8 +1,8 @@
-import { readCert } from "utils/readCert";
+import { LeaseManagerInstance } from "../core/LeaseManager";
+import { readCert } from "../utils/readCert";
+import { app } from "./app";
 import https from "https";
 import path from "path";
-import { app } from "./app";
-import { LeaseManagerInstance } from "core/LeaseManager";
 
 /**
  * -------------------------
@@ -16,7 +16,7 @@ import { LeaseManagerInstance } from "core/LeaseManager";
  *
  * No certificate should be hard-coded or committed to the repository.
  */
-const CERT_DIR = process.env.TLS_CERT_DIR ?? path.resolve(__dirname, "../keys");
+const CERT_DIR = process.env.TLS_CERT_DIR ?? path.resolve(__dirname, "../../keys");
 const KEY_FILE = process.env.TLS_KEY_FILE ?? "server-key.pem";
 const CERT_FILE = process.env.TLS_CERT_FILE ?? "server.crt";
 const CA_FILE = process.env.TLS_CA_FILE ?? "ca.crt";
