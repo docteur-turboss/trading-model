@@ -21,6 +21,7 @@
     "test": "jest",
     "eslint": "npx eslint src/**/*.{ts,js}",
     "commit": "npx gitmoji -c",
+    "dev": "ts-node src/app/index.ts",
     "build": "tsc"
   },
   "devDependencies": {
@@ -31,19 +32,21 @@
     "@jest/globals": "^30.2.0",
     "@types/express": "^5.0.5",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.3",
     "babel-jest": "^30.2.0",
     "eslint": "^9.39.1",
     "globals": "^16.5.0",
     "jest": "^30.2.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.48.0"
+    "typescript-eslint": "^8.50.1"
   },
   "dependencies": {
     "axios": "^1.13.2",
     "cash-lib": "file:../../lib",
     "express": "^5.1.0",
-    "helmet": "^8.1.0"
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jiti": "^2.6.1"
   }
 }
