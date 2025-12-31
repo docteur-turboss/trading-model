@@ -1,4 +1,6 @@
 import { ResponseProtocole } from "cash-lib/middleware/responseProtocole";
+import { heartbeatRoutes } from "../routes/heartbeat.routes";
+import { registryRoutes } from "../routes/register.routes";
 import { rateLimit } from "express-rate-limit";
 import express, { Router } from "express";
 import helmet from "helmet";
@@ -84,8 +86,8 @@ app.use(limiter);
  * - simplifies testing and maintenance
  */
 const apiRoutes: [string, Router][] = [
-  ["/registry", require('../controllers/Register.controller').registryRoutes],
-  ["/registry", require('../controllers/Heartbeat.controller').heartbeatRoutes],
+  ["/registry", registryRoutes()],
+  ["/registry", heartbeatRoutes()],
 ];
 
 /**

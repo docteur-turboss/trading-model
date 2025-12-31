@@ -1,3 +1,4 @@
+ /* eslint-disable */
 jest.mock("cash-lib/middleware/responseException", () => ({
   ResponseException: jest.fn((body: any) => ({
     BadRequest: () => ({ type: "BadRequest", error: body }),

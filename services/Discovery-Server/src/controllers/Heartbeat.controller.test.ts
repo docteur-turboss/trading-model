@@ -1,3 +1,4 @@
+ /* eslint-disable */
 import { heartbeat, rotateToken } from "./Heartbeat.controller";
 import { createReq, createRes } from "../tests/helpers/express";
 
