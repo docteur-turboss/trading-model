@@ -1,10 +1,10 @@
 import { HttpClient } from "../utils/HttpClient";
-import { TokenManager } from "./TokenManager";
+import { TokenManager } from "./tokenManager";
 import {
   RegisterServicePayload,
   ServiceInstance,
   ServiceRegistrationResponse,
-} from "./types";
+} from "./type";
 import { AddressManagerError } from "../utils/Errors";
 import { AddressManagerConfig } from "../config/AddressManagerConfig";
 
