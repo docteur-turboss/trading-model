@@ -1,31 +1,40 @@
-import { HttpClient } from "../utils/HttpClient";
+import { HttpClient } from "../utils/httpClient";
 import { TokenManager } from "./tokenManager";
 import {
   RegisterServicePayload,
   ServiceInstance,
   ServiceRegistrationResponse,
 } from "./type";
-import { AddressManagerError } from "../utils/Errors";
+import { AddressManagerError } from "../../common/utils/Errors";
 import { AddressManagerConfig } from "../config/AddressManagerConfig";
 
 /**
  * AddressManagerClient
  *
- * Responsabilités :
- * - Enregistrer le service courant auprès de l'Address Manager
- * - Rafraîchir le TTL du service
- * - Récupérer l'adresse d'un service distant
+ * Responsibilities:
+ * - Register the current service with the Address Manager
+ * - Refresh the TTL of the registered service
+ * - Retrieve the address of a remote service
  *
- * Contraintes :
- * - Aucune logique de cache
- * - Aucune logique de retry métier
- * - N'utilise QUE le token fourni par TokenManager
+ * Constraints:
+ * - No caching logic
+ * - No business retry logic
+ * - Only uses the token provided by TokenManager
+ *
+ * This class abstracts all interactions with the Address Manager API.
  */
 export class AddressManagerClient {
   private readonly httpClient: HttpClient;
   private readonly tokenManager: TokenManager;
   private readonly config: AddressManagerConfig;
 
+  /**
+   * Initializes a new AddressManagerClient.
+   *
+   * @param httpClient - HTTP client to perform API calls.
+   * @param tokenManager - Provides the authentication token.
+   * @param config - Address Manager configuration and service metadata.
+   */
   constructor(
     httpClient: HttpClient,
     tokenManager: TokenManager,
@@ -37,8 +46,18 @@ export class AddressManagerClient {
   }
 
   /**
-   * Enregistre le service courant auprès de l'Address Manager.
-   * Appelé une seule fois au bootstrap.
+   * Registers the current service with the Address Manager.
+   *
+   * - Called once during the bootstrap of the module.
+   * - Uses the token from TokenManager for authorization.
+   *
+   * @returns Promise resolving to the service registration response.
+   * @throws AddressManagerError if registration fails.
+   *
+   * @example
+   * ```ts
+   * const response = await client.registerService();
+   * ```
    */
   async registerService(): Promise<ServiceRegistrationResponse> {
     const token = this.tokenManager.getToken();
@@ -67,8 +86,17 @@ export class AddressManagerClient {
   }
 
   /**
-   * Rafraîchit le TTL du service courant.
-   * Appelé périodiquement par un cron job.
+   * Refreshes the TTL (time-to-live) of the registered service.
+   *
+   * - Typically called periodically by a scheduled job.
+   * - Ensures the service remains visible to other services.
+   *
+   * @throws AddressManagerError if the TTL refresh fails.
+   *
+   * @example
+   * ```ts
+   * await client.refreshTTL();
+   * ```
    */
   async refreshTTL(): Promise<void> {
     const token = this.tokenManager.getToken();
@@ -94,12 +122,21 @@ export class AddressManagerClient {
   }
 
   /**
-   * Récupère l'adresse d'un service par son nom.
-   * Aucune validation de disponibilité ici.
+   * Retrieves the address of a service by its name.
+   *
+   * - No health check or availability validation is performed here.
+   * - Useful for resolving service endpoints prior to invoking them.
+   *
+   * @param serviceName - The name of the target service.
+   * @returns Promise resolving to the service instance information.
+   * @throws AddressManagerError if fetching the service address fails.
+   *
+   * @example
+   * ```ts
+   * const instance = await client.getServiceAddress("user-service");
+   * ```
    */
-  async getServiceAddress(
-    serviceName: string
-  ): Promise<ServiceInstance> {
+  async getServiceAddress(serviceName: string): Promise<ServiceInstance> {
     const token = this.tokenManager.getToken();
 
     try {

@@ -1,15 +1,15 @@
-import { Request } from "express";
 import { MTLSAuthMiddleware } from "../../common/middleware/MTLSAuth";
+/* eslint-disable */
 
 // -----------------------------------------------------------------------------
 // Mocks
 // -----------------------------------------------------------------------------
 
-jest.mock("./catchError", () => ({
+jest.mock("../../common/middleware/catchError", () => ({
   catchSync: (fn: unknown) => fn,
 }));
 
-jest.mock("./responseException", () => ({
+jest.mock("../../common/middleware/responseException", () => ({
   ResponseException: jest.fn((body: string) => ({
     Forbidden: () => ({ type: "Forbidden", ...JSON.parse(body) }),
     Unauthorized: () => ({ type: "Unauthorized", ...JSON.parse(body) }),
@@ -50,14 +50,12 @@ describe("MTLSAuthMiddleware", () => {
     const res = createRes();
     const next = createNext();
 
-    await expect(
-      /* eslint-disable-next-line */
-      MTLSAuthMiddleware(req, res, next)
-    ).rejects.toMatchObject({
+    expect(() => MTLSAuthMiddleware(req as any, res as any, next))
+    .toThrow(expect.objectContaining({
       type: "Forbidden",
       error: "mTLS authorization failed",
       reason: "CERT_HAS_EXPIRED",
-    });
+    }));
 
     expect(next).not.toHaveBeenCalled();
   });
@@ -70,12 +68,11 @@ describe("MTLSAuthMiddleware", () => {
 
     req.socket.getPeerCertificate.mockReturnValue({});
 
-    await expect(
-      MTLSAuthMiddleware(req as any, res as any, next)
-    ).rejects.toMatchObject({
+    expect(() => MTLSAuthMiddleware(req as any, res as any, next))
+    .toThrow(expect.objectContaining({
       type: "Unauthorized",
       error: "Client certificate required",
-    });
+    }));
 
     expect(next).not.toHaveBeenCalled();
   });

@@ -1,19 +1,19 @@
-import { HttpClient } from '../../utils/HttpClient';
-import { AuthenticationError } from "../../utils/Errors";
-import { AddressManagerConfig } from 'adress-manager/config/AddressManagerConfig';
+import { HttpClient } from '../utils/httpClient';
+import { AuthenticationError } from "../../common/utils/Errors";
+import { AddressManagerConfig } from '../config/AddressManagerConfig';
 
 /**
  * TokenManager
  * 
- * Responsabilités : 
- * - Stocker le token en mémoire
- * - Rafraîchir le token de manière sécurisée
- * - Exposer le token courant
- * 
- * Le reste du système ne sait PAS :
- * - Comment le token est obtenu
- * - Quand il expire
- * - Comment il est renouvelé
+ * Responsibilities:
+ * - Store the authentication token in memory
+ * - Securely refresh the token when needed
+ * - Expose the current token to the system
+ *
+ * Encapsulates all token management details. The rest of the system does NOT know:
+ * - How the token is obtained
+ * - When it expires
+ * - How it is renewed
  */
 export class TokenManager {
     private readonly httpClient: HttpClient;
@@ -21,48 +21,83 @@ export class TokenManager {
 
     private token: string | null = null;
 
+    /**
+     * Initializes a new TokenManager.
+     *
+     * @param httpClient - HTTP client used to request token rotations.
+     * @param config - Configuration for the Address Manager client.
+     *
+     * @example
+     * ```ts
+     * const manager = new TokenManager(httpClient, config);
+     * await manager.refreshToken();
+     * const token = manager.getToken();
+     * ```
+     */
     constructor(httpClient: HttpClient, config: AddressManagerConfig) {
         this.httpClient = httpClient;
         this.config = config;
     }
 
     /**
-     * Retourne le token courant.
-     * 
-     * @throws AuthenticationError si le token n'est pas disponible.
-     * @return string - Le token courant.
+     * Returns the current authentication token.
+     *
+     * @throws AuthenticationError if the token is not available.
+     * @returns string - The current token.
+     *
+     * @example
+     * ```ts
+     * const token = tokenManager.getToken();
+     * ```
      */
     getToken(): string {
         if (!this.token) {
-            throw new AuthenticationError("Token is not available. Did you call refreshToken()?");
+            throw new AuthenticationError(
+                "Token is not available. Did you call refreshToken()?"
+            );
         }
 
         return this.token;
     }
 
     /**
-     * Rafraîchit le token auprès de l'Adress Manager.
-     * 
-     * Cette méthode :
-     * - Remplace atomiquement le token en mémoire
-     * - Ne fait aucun retry
-     * - Laisse la gestion temporelle au scheduler
+     * Refreshes the authentication token from the Address Manager.
+     *
+     * Behavior:
+     * - Atomically replaces the token in memory
+     * - Does NOT perform retries
+     * - Timing and scheduling of refresh is managed externally (e.g., via scheduler)
+     *
+     * @throws AuthenticationError if the token cannot be obtained or response is invalid.
+     *
+     * @example
+     * ```ts
+     * await tokenManager.refreshToken();
+     * const token = tokenManager.getToken();
+     * ```
      */
     async refreshToken(): Promise<void> {
-        try{
-            const reponse = await this.httpClient.post<{token: string}>(
+        try {
+            const response = await this.httpClient.post<{ token: string }>(
                 `${this.config.addressManagerUrl}/registry/token/rotate`,
                 {
                     instanceId: this.config.instanceId,
                     serviceName: this.config.serviceName
-                },
-            )
+                }
+            );
 
-            if(!response || !response.token) throw new AuthenticationError("Invalid token response from Address Manager");
+            if (!response || !response.token) {
+                throw new AuthenticationError(
+                    "Invalid token response from Address Manager"
+                );
+            }
 
-            this.token = reponse.token;
-        }catch(e){
-            throw new AuthenticationError("Failed to refresh authentication token", e);
+            this.token = response.token;
+        } catch (e) {
+            throw new AuthenticationError(
+                "Failed to refresh authentication token",
+                e
+            );
         }
     }
 }
