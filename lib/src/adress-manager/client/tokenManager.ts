@@ -1,4 +1,4 @@
-import { HttpClient } from '../utils/httpClient';
+import { HttpClient } from '../utils/httpClient.js';
 import { AuthenticationError } from "../../common/utils/Errors";
 import { AddressManagerConfig } from '../config/AddressManagerConfig';
 

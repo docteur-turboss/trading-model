@@ -1,5 +1,5 @@
 import { ServiceInstance } from "../client/type";
-import { HttpClient } from "../utils/httpClient";
+import { HttpClient } from "../utils/httpClient.js";
 
 /**
  * ServiceHealthChecker
