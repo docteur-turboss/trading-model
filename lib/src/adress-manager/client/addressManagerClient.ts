@@ -1,4 +1,4 @@
-import { HttpClient } from "../utils/httpClient";
+import { HttpClient } from "../utils/httpClient.js";
 import { TokenManager } from "./tokenManager";
 import {
   RegisterServicePayload,
