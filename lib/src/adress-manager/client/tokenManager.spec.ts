@@ -12,7 +12,7 @@ describe("TokenManager", () => {
     httpClient = { post: jest.fn() } as unknown as jest.Mocked<HttpClient>;
 
     config = {
-      addressManagerUrl: "https://address-manager.local",
+      addressManagerUrl: "http://localhost:8443",
       instanceId: "instance-1",
       serviceName: "test-service",
       servicePort: 8080,
@@ -71,8 +71,9 @@ describe("TokenManager", () => {
     test("should throw AuthenticationError if HttpClient.post throws", async () => {
       const error = new Error("Network failure");
       httpClient.post.mockRejectedValueOnce(error);
-
       await expect(manager.refreshToken()).rejects.toThrow(AuthenticationError);
+
+      httpClient.post.mockRejectedValueOnce(error);
       await expect(manager.refreshToken()).rejects.toMatchObject({
         message: "Failed to refresh authentication token",
       });

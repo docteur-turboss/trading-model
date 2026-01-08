@@ -94,6 +94,7 @@ export class TokenManager {
 
             this.token = response.token;
         } catch (e) {
+            if(e instanceof AuthenticationError) throw e;
             throw new AuthenticationError(
                 "Failed to refresh authentication token",
                 e

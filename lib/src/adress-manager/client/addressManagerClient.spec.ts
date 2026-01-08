@@ -17,7 +17,7 @@ describe("AddressManagerClient", () => {
     tokenManager.getToken.mockReturnValue("mock-token");
 
     config = {
-      addressManagerUrl: "https://address-manager.local",
+      addressManagerUrl: "http://localhost:8443",
       serviceName: "test-service",
       servicePort: 8080,
       tokenRefreshIntervalMs: 300_000,
