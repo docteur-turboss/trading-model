@@ -56,9 +56,10 @@ describe("AddressManagerClient", () => {
 
     test("should throw AddressManagerError if HttpClient.post fails", async () => {
       const error = new Error("Network failure");
-      httpClient.post.mockRejectedValueOnce(error);
 
+      httpClient.post.mockRejectedValueOnce(error);
       await expect(client.registerService()).rejects.toBeInstanceOf(AddressManagerError);
+      httpClient.post.mockRejectedValueOnce(error);
       await expect(client.registerService()).rejects.toMatchObject({
         message: "Failed to register service to Address Manager",
       });
@@ -80,9 +81,10 @@ describe("AddressManagerClient", () => {
 
     test("should throw AddressManagerError if HttpClient.post fails", async () => {
       const error = new Error("TTL refresh failed");
-      httpClient.post.mockRejectedValueOnce(error);
 
+      httpClient.post.mockRejectedValueOnce(error);
       await expect(client.refreshTTL()).rejects.toBeInstanceOf(AddressManagerError);
+      httpClient.post.mockRejectedValueOnce(error);
       await expect(client.refreshTTL()).rejects.toMatchObject({
         message: "Failed to refresh service TTL",
       });
@@ -116,9 +118,10 @@ describe("AddressManagerClient", () => {
 
     test("should throw AddressManagerError if HttpClient.get fails", async () => {
       const error = new Error("Service fetch failed");
+      
       httpClient.get.mockRejectedValueOnce(error);
-
       await expect(client.getServiceAddress(serviceName)).rejects.toBeInstanceOf(AddressManagerError);
+      httpClient.get.mockRejectedValueOnce(error);
       await expect(client.getServiceAddress(serviceName)).rejects.toMatchObject({
         message: `Failed to fetch service address for "${serviceName}"`,
       });
