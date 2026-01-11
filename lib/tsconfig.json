@@ -11,7 +11,8 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
     "paths": {
-      "*": ["./src/common/*"]
+      "*": ["./src/common/*"],
+      "adress-manager/*": ["./src/adress-manager/*"]
     },
     "typeRoots": ["./node_modules/@types", "./src/types"],
     "experimentalDecorators": true,
@@ -19,6 +20,6 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
+  "exclude": ["node_modules", "dist", "tests"],
   "types": ["node"]
 }
