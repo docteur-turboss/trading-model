@@ -1,13 +1,56 @@
 import { ClassResponseExceptions } from "./responseException";
 import { NextFunction, Request, Response } from "express";
 import { logger } from "../config/logger";
+import {
+  AuthenticationError,
+  ServiceNotFoundError,
+  ServiceUnreachableError,
+  AddressManagerBaseError,
+} from "../utils/Errors";
 
-type responseObj = {
-    status: number;
-    data: string;
+type ResponseObject = {
+  status: number;
+  data: string;
+};
+type ErrorInput = Error | ResponseObject;
+
+/**
+ * Maps domain / technical errors to standardized HTTP responses.
+ *
+ * This function acts as the single translation layer between
+ * internal error types and external HTTP representations.
+ */
+function mapErrorToResponse(err: Error): ResponseObject {
+  const response = new ClassResponseExceptions(err.message);
+
+  /**
+   * Address Manager / Service Discovery errors
+   */
+  if (err instanceof ServiceNotFoundError) {
+    return response.NotFound();
+  }
+
+  if (err instanceof ServiceUnreachableError) {
+    // Service exists but is temporarily unavailable
+    return response.Gone(); // 410
+  }
+
+  if (err instanceof AuthenticationError) {
+    return response.InvalidToken(); // 498
+  }
+
+  /**
+   * Known module-level errors without explicit mapping
+   */
+  if (err instanceof AddressManagerBaseError) {
+    return response.UnknownError();
+  }
+
+  /**
+   * Fallback for any untyped or unexpected error
+   */
+  return response.UnknownError();
 }
-
-type errType = Error | responseObj;
 
 /**
  * Global Express error-handling middleware.
@@ -33,36 +76,45 @@ type errType = Error | responseObj;
  * app.use(ResponseProtocole);
  */
 export const ResponseProtocole = (
-  err: errType,
+  err: ErrorInput,
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  let originalError;
+  let response: ResponseObject;
+  let originalError: Error | undefined;
 
-  let errResponse;
-  if (err instanceof Error) {
-    // Convert untyped errors into a standardized response
-    originalError = err;
-    errResponse = new ClassResponseExceptions("").UnknownError();
+  /**
+   * Case 1:
+   * Error already formatted as a response object
+   */
+  if (!(err instanceof Error)) {
+    response = err;
   } else {
-    errResponse = err;
+    /**
+     * Case 2:
+     * Standard Error → mapped via domain translation
+     */
+    originalError = err;
+    response = mapErrorToResponse(err);
   }
 
-  // Log only critical server errors
-  if (errResponse.status >= 500) {
-    logger.error("Server Error", {
+  /**
+   * Log only server-side errors (5xx)
+   */
+  if (response.status >= 500) {
+    logger.error("Server error", {
       message: originalError?.message,
       stack: originalError?.stack,
       url: req.originalUrl,
       method: req.method,
-      ip: req.ip
+      ip: req.ip,
     });
   }
 
-  // Send the standardized response to the client
-  return res.status(errResponse.status).json(errResponse.data);
-
-  // Note: `next()` after sending a response is necessary for Express to understand it as an error handler; it cannot be removed.
+  return res.status(response.status).json(response.data);
+  /**
+   * Note: `next()` after sending a response is necessary for Express to understand it as an error handler; it cannot be removed.
+   */
   next();
 };

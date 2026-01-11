@@ -1,68 +1,129 @@
 import { createHmac } from "crypto";
 import { ServiceInstance } from "./types";
-import { generateRandomStr } from "utils/generateRandomStr";
+import { generateRandomStr } from "../utils/generateRandomStr";
 import { ServiceInstanceName } from "cash-lib/config/services.types";
 
 /**
  * ServiceRegistry
  * ----------------------------
- * Maintains an in-memory index of all service instances registered in the
- * discovery system. 
- * - Supports multi-instance for each service
- * - Deduplicates registrations
- * - Updates existing instances instead of recreating them
- * - Integrates seamlessly with LeaseManager for TTL-based eviction
- * 
- * This class can later be swapped with a distributed backend (Redis, etcd).
+ *
+ * Central in-memory registry for all service instances participating
+ * in the service discovery system.
+ *
+ * Responsibilities:
+ * - Maintain a mapping between logical service names and their instances
+ * - Support multiple instances per service (horizontal scaling)
+ * - Deduplicate registrations by instanceId
+ * - Refresh metadata and heartbeats for existing instances
+ * - Issue and validate instance-scoped authentication tokens
+ * - Expose read operations for resolution and observability
+ *
+ * Design notes:
+ * - This implementation is intentionally in-memory for simplicity
+ * - The public API is designed to allow future replacement with
+ *   a distributed backend (Redis, etcd, Consul)
+ * - Lease expiration is enforced externally by the LeaseManager
  */
 export class ServiceRegistry {
     /**
-     * Index structure:
+     * -------------------------
+     * Internal Storage
+     * -------------------------
+     *
+     * services:
      * - Map<serviceName, Map<instanceId, ServiceInstance>>
+     *
+     * token:
+     * - Map<instanceId, instanceToken>
+     *
+     * Tokens are stored separately to allow rotation and validation
+     * without mutating the instance metadata.
      */
     private services: Map<string, Map<string, ServiceInstance>> = new Map();
-    private token : Map<string, string> = new Map()
+    private token: Map<string, string> = new Map();
+
     /**
+     * -------------------------
+     * Instance Registration
+     * -------------------------
+     *
      * Registers or updates a service instance.
-     * Idempotent: if the instance already exists, only updates metadata/heartbeat.
+     *
+     * Behavior:
+     * - Idempotent: repeated registrations for the same instanceId
+     *   will update metadata and refresh timestamps
+     * - Generates (or regenerates) an authentication token
+     * - Initializes heartbeat and registration timestamps server-side
+     *
+     * Returns:
+     * - The effective ServiceInstance plus its issued token
      */
     registerInstance(instance: ServiceInstance) {
         const { serviceName, instanceId } = instance;
 
+        /**
+         * Ensure the service bucket exists.
+         */
         if (!this.services.has(serviceName)) {
             this.services.set(serviceName, new Map());
         }
 
         const instances = this.services.get(serviceName)!;
-        const token = this.generateInstanceToken(instanceId)
 
-        // If instance already exists → merge/update
+        /**
+         * Generate a new instance-scoped token.
+         * Token generation is intentionally server-controlled.
+         */
+        const token = this.generateInstanceToken(instanceId);
+
+        /**
+         * If the instance already exists, merge metadata
+         * and refresh the heartbeat.
+         */
         if (instances.has(instanceId)) {
             const existing = instances.get(instanceId)!;
 
             instances.set(instanceId, {
                 ...existing,
                 ...instance,
-                lastHeartbeat: Date.now() // reset to now
+                lastHeartbeat: Date.now(),
             });
         } else {
-            // New instance registration
+            /**
+             * New instance registration.
+             */
             instances.set(instanceId, {
                 ...instance,
                 registeredAt: Date.now(),
-                lastHeartbeat: Date.now()
+                lastHeartbeat: Date.now(),
             });
         }
 
-        this.token.set(instanceId, token)
-        return {...instances.get(instanceId), token};
+        /**
+         * Persist or rotate the instance token.
+         */
+        this.token.set(instanceId, token);
+
+        /**
+         * Return the registered instance together with its token.
+         */
+        return { ...instances.get(instanceId), token };
     }
 
     /**
-     * Updates only the heartbeat for an instance.
-     * Called by HeartbeatController.
+     * -------------------------
+     * Heartbeat Handling
+     * -------------------------
+     *
+     * Updates the heartbeat timestamp for a given instance.
+     *
+     * Called by the HeartbeatController.
+     *
+     * Returns:
+     * - The instance TTL if successful
+     * - false if the service or instance does not exist
      */
-    updateHeartbeat(serviceName: string, instanceId: string, newToken: string): number | false {
+    updateHeartbeat(serviceName: string, instanceId: string): number | false {
         const service = this.services.get(serviceName);
         if (!service) return false;
 
@@ -70,22 +131,36 @@ export class ServiceRegistry {
         if (!instance) return false;
 
         instance.lastHeartbeat = Date.now();
-
         service.set(instanceId, instance);
 
         return instance.ttl;
     }
 
-    updateToken(serviceId: string): string{
+    /**
+     * -------------------------
+     * Token Rotation
+     * -------------------------
+     *
+     * Generates and stores a new authentication token
+     * for an existing instance.
+     *
+     * The previously issued token is immediately invalidated.
+     */
+    updateToken(serviceId: string): string {
         const newToken = this.generateInstanceToken(serviceId);
-        
         this.token.set(serviceId, newToken);
-
         return newToken;
     }
 
     /**
-     * Returns all live or dead instances of a service.
+     * -------------------------
+     * Query APIs
+     * -------------------------
+     */
+
+    /**
+     * Returns all instances (alive or not) of a given service.
+     * Liveness filtering is handled by higher-level components.
      */
     getInstances(serviceName: string): ServiceInstance[] {
         const service = this.services.get(serviceName);
@@ -94,15 +169,24 @@ export class ServiceRegistry {
     }
 
     /**
-     * Returns a specific instance.
+     * Returns a single service instance by service name and instanceId.
      */
-    getInstance(serviceName: string, instanceId: string): ServiceInstance | undefined {
+    getInstance(
+        serviceName: string,
+        instanceId: string
+    ): ServiceInstance | undefined {
         return this.services.get(serviceName)?.get(instanceId);
     }
 
     /**
+     * -------------------------
+     * Instance Removal
+     * -------------------------
+     *
      * Removes an instance from the registry.
-     * Called by LeaseManager when an instance expires.
+     *
+     * Typically invoked by the LeaseManager when a lease expires.
+     * Automatically cleans up empty service entries.
      */
     removeInstance(serviceName: string, instanceId: string): boolean {
         const service = this.services.get(serviceName);
@@ -110,7 +194,9 @@ export class ServiceRegistry {
 
         const deleted = service.delete(instanceId);
 
-        // If no more instances exist → remove service entry
+        /**
+         * Remove the service bucket if no instances remain.
+         */
         if (service.size === 0) {
             this.services.delete(serviceName);
         }
@@ -119,15 +205,28 @@ export class ServiceRegistry {
     }
 
     /**
-     * Returns all services in the system (names only).
+     * -------------------------
+     * Registry Introspection
+     * -------------------------
+     */
+
+    /**
+     * Returns the list of all registered service names.
      */
     listServiceNames(): string[] {
         return [...this.services.keys()];
     }
 
     /**
-     * Returns a raw snapshot of the registry, useful for
-     * GET /services endpoint.
+     * Returns a full snapshot of the registry.
+     *
+     * Intended for:
+     * - admin endpoints
+     * - debugging
+     * - observability
+     *
+     * WARNING:
+     * Should not be exposed publicly without proper access controls.
      */
     dump(): Record<string, ServiceInstance[]> {
         const snapshot: Record<string, ServiceInstance[]> = {};
@@ -139,32 +238,71 @@ export class ServiceRegistry {
         return snapshot;
     }
 
+    /**
+     * -------------------------
+     * Token & ID Generation
+     * -------------------------
+     */
+
+    /**
+     * Generates a cryptographically strong instance token.
+     *
+     * Token format:
+     *   <instanceId>.<timestamp>.<hmac>
+     *
+     * This token is used for:
+     * - heartbeat authentication
+     * - token rotation
+     */
     generateInstanceToken(serviceId: string): string {
-        let firstRandom = generateRandomStr();
-        const time = Buffer.from(`${Date.now()}`, 'utf8').toString('base64url');
-        
-        const AuthValidation = createHmac("sha256", generateRandomStr())
-        .update(`${serviceId}.${time}.${firstRandom}`)
-        .digest("base64");
+        const randomSeed = generateRandomStr();
+        const time = Buffer.from(`${Date.now()}`, "utf8").toString("base64url");
 
-        return `${serviceId}.${time}.${AuthValidation}`;
+        const hmac = createHmac("sha256", generateRandomStr())
+            .update(`${serviceId}.${time}.${randomSeed}`)
+            .digest("base64");
+
+        return `${serviceId}.${time}.${hmac}`;
     }
 
-    generateInstanceId(serviceName: string, address: string, port: number): string {
-        const idHashed = createHmac("sha256", generateRandomStr())
-        .update(`${serviceName}-${address}:${port}-${Date.now()}`)
-        .digest("base64");
-
-        return idHashed;
+    /**
+     * Generates a unique instanceId.
+     *
+     * Used when a client does not provide an explicit instanceId.
+     * Ensures uniqueness across restarts and rescheduling.
+     */
+    generateInstanceId(
+        serviceName: string,
+        address: string,
+        port: number
+    ): string {
+        return createHmac("sha256", generateRandomStr())
+            .update(`${serviceName}-${address}:${port}-${Date.now()}`)
+            .digest("base64");
     }
 
-    validInstanceToken(token: string, instanceId: string): boolean{
+    /**
+     * Validates an instance token.
+     *
+     * Used by protected endpoints (heartbeat, token rotation).
+     */
+    validInstanceToken(token: string, instanceId: string): boolean {
         const storedToken = this.token.get(instanceId);
-
         return storedToken === token;
     }
 
+    /**
+     * Validates that the service name is part of the
+     * allowed service catalog.
+     *
+     * Prevents arbitrary or rogue service registrations.
+     */
     verifyInstanceName(serviceName: string): boolean {
         return Object.values(ServiceInstanceName).includes(serviceName);
     }
 }
+
+/**
+ * Singleton registry instance used across the application.
+ */
+export const registry = new ServiceRegistry();
