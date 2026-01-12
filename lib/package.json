@@ -23,7 +23,7 @@
     "build": "tsc"
   },
   "exports": {
-    "./adress-manager": {
+    "./adress-manager/*": {
       "types": "./dist/adress-manager/*.d.ts",
       "default": "./dist/adress-manager/*.js"
     },
