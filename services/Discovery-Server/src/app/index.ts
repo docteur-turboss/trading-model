@@ -1,4 +1,5 @@
 import { LeaseManagerInstance } from "../core/LeaseManager";
+import { logger } from "cash-lib/config/logger";
 import { readCert } from "../utils/readCert";
 import { app } from "./app";
 import https from "https";
@@ -136,5 +137,5 @@ LeaseManagerInstance.start();
  * - Express routes become accessible
  */
 server.listen(PORT, () => {
-  console.log(`mTLS Express server listening on port ${PORT}`);
+  logger.info(`mTLS Express server listening on port ${PORT}`);
 });
