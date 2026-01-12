@@ -19,6 +19,7 @@
     "cash-lib": "file:../../lib",
     "eslint": "^9.38.0",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "ts-node": "^10.9.2"
   },
