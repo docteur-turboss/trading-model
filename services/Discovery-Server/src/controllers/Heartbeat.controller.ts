@@ -9,7 +9,7 @@ import { ResponseException } from "cash-lib/middleware/responseException";
  * Heartbeat Endpoint
  * -------------------------
  *
- * POST /registry/heartbeat
+ * POST /heartbeat
  *
  * Purpose:
  * Keeps a service instance marked as alive in the Service Registry.
@@ -90,7 +90,7 @@ export const heartbeat = catchSync(async (req) => {
  * Instance Token Rotation
  * -------------------------
  *
- * POST /registry/token/rotate
+ * POST /token/rotate
  *
  * Purpose:
  * Rotates the instance authentication token without re-registering

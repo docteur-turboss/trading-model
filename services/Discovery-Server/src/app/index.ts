@@ -1,141 +1,183 @@
 import { LeaseManagerInstance } from "../core/LeaseManager";
-import { logger } from "cash-lib/config/logger";
-import { readCert } from "../utils/readCert";
-import { app } from "./app";
-import https from "https";
-import path from "path";
+
 
 /**
- * -------------------------
- * TLS / mTLS Configuration
- * -------------------------
- *
- * All certificate-related paths are configurable through environment variables.
- * This allows:
- * - different certificates per environment (dev / staging / prod)
- * - integration with secret managers or mounted volumes
- *
- * No certificate should be hard-coded or committed to the repository.
- */
-const CERT_DIR = process.env.TLS_CERT_DIR ?? path.resolve(__dirname, "../../keys");
-const KEY_FILE = process.env.TLS_KEY_FILE ?? "server-key.pem";
-const CERT_FILE = process.env.TLS_CERT_FILE ?? "server.crt";
-const CA_FILE = process.env.TLS_CA_FILE ?? "ca.crt";
-
-/**
- * Listening port.
- * Defaults to 8443 to clearly indicate TLS usage.
- * Should usually be overridden by orchestration (Docker / Kubernetes).
- */
-const PORT = Number(process.env.PORT ?? 8443);
-
-/**
- * -------------------------
- * HTTPS Server Options
- * -------------------------
- *
- * Mutual TLS (mTLS) is enforced:
- * - the server presents its certificate
- * - the client MUST present a certificate signed by the trusted CA
- *
- * This guarantees:
- * - strong service-to-service authentication
- * - encrypted transport
- * - zero trust communication inside the cluster
- */
-const tlsOptions: https.ServerOptions = {
-  /**
-   * Server private key.
-   * Used to prove the server identity during TLS handshake.
-   */
-  key: readCert(CERT_DIR, KEY_FILE),
-
-  /**
-   * Server certificate.
-   * Public certificate associated with the private key.
-   */
-  cert: readCert(CERT_DIR, CERT_FILE),
-
-  /**
-   * Certificate Authority (CA) used to validate client certificates.
-   * Only clients signed by this CA will be allowed to connect.
-   */
-  ca: readCert(CERT_DIR, CA_FILE),
-
-  /**
-   * Forces clients to present a certificate.
-   * Required for mutual TLS.
-   */
-  requestCert: true,
-
-  /**
-   * Rejects connections from clients that fail certificate validation.
-   * This must ALWAYS be true in production.
-   */
-  rejectUnauthorized: true,
-
-  /**
-   * Enforces a minimum TLS version.
-   * TLS 1.2 is the minimal acceptable version for production systems.
-   */
-  minVersion: "TLSv1.2",
-
-  /**
-   * Enforces server-side cipher suite ordering.
-   * Prevents clients from downgrading to weaker ciphers.
-   */
-  honorCipherOrder: true,
-};
-
-/**
- * -------------------------
- * HTTPS Server Initialization
- * -------------------------
- *
- * The Express app is mounted on an HTTPS server
- * to ensure all incoming traffic is encrypted and authenticated.
- */
-const server = https.createServer(tlsOptions, app);
-
-/**
- * -------------------------
- * Connection Timeouts
- * -------------------------
- *
- * keepAliveTimeout:
- * Maximum time a socket is kept open between requests.
- *
- * headersTimeout:
- * Maximum time allowed to receive the full HTTP headers.
- *
- * These values help protect against:
- * - slowloris attacks
- * - resource exhaustion
- */
-server.keepAliveTimeout = 60_000;
-server.headersTimeout = 65_000;
-
-/**
- * -------------------------
- * Lease Manager Startup
- * -------------------------
+ * @file index.ts
  * 
- * Starts the background process that cleans up expired service instances.
- * This ensures the registry remains accurate and up-to-date.
+ * @description
+ * Application entry point for the Message Manager service.
+ * 
+ * This module is responsible for orchestrating the full lifecycle of the service:
+ * - Environment validation and early failure
+ * - Initialization of asynchronous infrastructure components
+ * - Startup of the HTTPS API server
+ * - Process-level error handling
+ * - Graceful shutdown on termination signals
+ * 
+ * This file must remain intentionnaly thin and declarative.
+ * All business logic and infrastructure concerns are delegated
+ * to dedicated modules.
+ * 
+ * @responsability
+ * - Bootstrap the application in the correct order
+ * - Ensure the runtime environment is loaded and validated
+ * - Coordinate startup and shutdown of core dependecies
+ * - Act as the single process entry point
+ * 
+ * @restrictions 
+ * - Must not contain business logic
+ * - Must not expose application internals
+ * - Must exit the process explicitly on fatal failures
+ * - Side effects are limited to initialization and teardown
+ * 
+ * @architecture
+ * This file belongs to the application layer and serves as the composition root of the service.
+ * 
+ * @author docteur-turboss
+ * 
+ * @version 1.0.0
+ * 
+ * @since 2026.01.24
  */
-LeaseManagerInstance.start();
+
+import { logger } from "cash-lib/config/logger";
+import { createServer } from "./server";
+import '/config/env';
 
 /**
- * -------------------------
- * Server Startup
- * -------------------------
- *
- * Starts listening for incoming mTLS connections.
- * At this stage:
- * - TLS handshake is enforced
- * - client certificate validation is mandatory
- * - Express routes become accessible
+ * Reference to the running HTTP server instance.
+ * 
+ * Stored at module scope to allow lifecycle coordination
+ * between bootstrap and shutdown handlers.
  */
-server.listen(PORT, () => {
-  logger.info(`mTLS Express server listening on port ${PORT}`);
-});
+let server: ReturnType<typeof createServer> | null = null
+
+/**
+ * Bootstraps the Message Manager service.
+ * 
+ * @function bootstrap
+ * 
+ * @description
+ * Executes the startup sequence of the application.
+ * 
+ * Any error occurring during this phase is considered fatal
+ * and results in an immediate process termination.
+ * 
+ * @returns {Promise<void>}
+ * 
+ * @throws {Error}
+ * Throws if any dependency fails to initialize or if the server 
+ * cannot be started.
+ * 
+ * @lifecycle
+ * Must be called exactly once during process startup
+ */
+async function bootstrap(): Promise<void> {
+    try {
+        logger.info('Bootstrapping Address Manager service')
+
+        /**
+         * Start the HTTPS server exposing technical endpoints
+         * (health checks, metrics, administration).
+         */
+        server = createServer()
+        LeaseManagerInstance.start();
+
+        logger.info('Address Manager started successfully')
+    } catch (error) {
+        logger.error(
+            'Fatal error during service bootstrap',
+            { err: error },
+        )
+        process.exit(1)
+    }
+}
+
+/**
+ * Gracefully shuts down the service.
+ * 
+ * @function shutdown
+ * 
+ * @description
+ * Handles process termination signals by:
+ * - Stopping the HTTP server from accepting new connections
+ * - Allowing in-flight requests and messages to complete
+ * - Closing message bus and broker connections
+ * 
+ * If shutdown fails, the process exits with a non-zero code.
+ * 
+ * @param {string} signal
+ * The OS signal that triggered the shutdown (e.g. SIGTERM, SIGINT).
+ * 
+ * @returns {Promise<void>}
+ * 
+ * @lifecycle
+ * Invoked by process signal handlers.
+ */
+async function shutdown(signal: string): Promise<void> {
+    logger.warn('Shutdown signal received', { signal })
+
+    try {
+        if (server) {
+            server.close()
+            logger.info('HTTP server closed')
+        }
+
+        LeaseManagerInstance.stop()
+
+        logger.info('Shutdown completed gracefully')
+        process.exit(0)
+    } catch (error) {
+        logger.error(
+            'Error during graceful shutdown',
+            { err: error }
+        )
+        process.exit(1)
+    }
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * Process-level safety nets
+ * ─────────────────────────────────────────────────────────────
+ */
+
+/**
+ * Handle termination signals from the operating system.
+ */
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)
+
+/**
+ * Catch synchronous, uncaught exceptions.
+ * 
+ * These indicate unrecoverable application states.
+ */
+process.on('uncaughtException', (error) => {
+    logger.error(
+        'Uncaught exception - exiting',
+        { err: error },
+    )
+    process.exit(1)
+})
+
+/**
+ * Catch unhandled promise rejections.
+ * 
+ * These are treated as fatal to avoid running
+ * in an inconsistent state
+ */
+process.on('unhandledRejection', (reason) => {
+    logger.error(
+        'Unhandled promise rejection - exiting',
+        { reason },
+    )
+    process.exit(1);
+})
+
+/**
+ * ─────────────────────────────────────────────────────────────
+ * Startup
+ * ─────────────────────────────────────────────────────────────
+ */
+bootstrap();
