@@ -29,7 +29,7 @@ export default class {
   private HTTPCLIENT : HttpClient;
 
   public getToken: () => string;
-  public start: () => Promise<{stop: () => Promise<void>;}>;
+  public start: () => {stop: () => void;};
   public findService: (serviceName: string) => Promise<ServiceInstance>
   public listenExpress: (app: Application) => void
 
@@ -64,9 +64,9 @@ export default class {
     this.getToken = this.tokenManager.getToken;
     this.listenExpress = (app) => app.use(pingRoutes);
     this.findService = this.ServiceDiscovery.findService;
-    this.start = async () => {
-      const res = await this.AddressManagerClient.registerService();
-      this.tokenManager.setToken(res.token);
+    this.start = () => {
+      this.AddressManagerClient.registerService()
+      .then(res => this.tokenManager.setToken(res.token));
 
       const scheduler = new Scheduler();
 
@@ -90,7 +90,7 @@ export default class {
        * Public API exposed to the hosting service
        */
       return {
-        stop: async () => {
+        stop: () => {
           scheduler.stop();
         },
       };
