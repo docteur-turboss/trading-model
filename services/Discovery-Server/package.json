@@ -16,6 +16,7 @@
   ],
   "license": "ISC",
   "author": "Alchimist Horus Turboss <@docteur-turboss>",
+  "type": "commonjs",
   "main": "./dist/app/index.js",
   "scripts": {
     "test": "jest",
@@ -47,6 +48,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
-    "jiti": "^2.6.1"
+    "jiti": "^2.6.1",
+    "zod": "^4.3.6"
   }
 }
