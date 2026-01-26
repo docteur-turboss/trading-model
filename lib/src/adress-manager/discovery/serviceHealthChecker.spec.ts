@@ -1,5 +1,5 @@
 import { ServiceHealthChecker } from "./serviceHealthChecker";
-import { HttpClient } from "../../common/utils/httpClient";
+import { HttpClient } from "../../common/config/httpClient";
 import { ServiceInstance } from "../client/type";
 
 /* eslint-disable */
