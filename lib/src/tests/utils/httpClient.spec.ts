@@ -1,5 +1,5 @@
 import https from "https";
-import { HttpClient, HttpClientError, HttpClientTimeoutError } from "./httpClient";
+import { HttpClient, HttpClientError, HttpClientTimeoutError } from "../../common/utils/httpClient";
 
 /* eslint-disable */
 
