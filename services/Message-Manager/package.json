@@ -2,16 +2,28 @@
   "name": "mail_delivery_service",
   "version": "1.0.0",
   "description": "Service de gestion et d'envoi des communications entre services",
+  "homepage": "https://github.com/docteur-turboss/trading-model#readme",
+  "bugs": {
+    "url": "https://github.com/docteur-turboss/trading-model/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docteur-turboss/trading-model.git"
+  },
   "keywords": [
     "mail",
     "communications"
   ],
   "license": "ISC",
-  "author": "Docteur Turboss <@docteur-turboss>",
+  "author": "Alchimist Horus Turboss <@docteur-turboss>",
   "type": "commonjs",
-  "main": "./dist/index.js",
+  "main": "./dist/app/index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "eslint": "npx eslint src/**/*.{ts,js}",
+    "commit": "npx gitmoji -c",
+    "dev": "ts-node src/app/index.ts",
+    "build": "tsc"
   },
   "dependencies": {
     "@types/jest": "^30.0.0",
@@ -21,7 +33,9 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
-    "ts-node": "^10.9.2"
+    "mongodb": "^7.0.0",
+    "ts-node": "^10.9.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

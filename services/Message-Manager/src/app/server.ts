@@ -1,111 +1,202 @@
+/**
+ * @file server.ts
+ * 
+ * @description
+ * This module is responsible for creating and managing the HTTPS Express server
+ * with mandatory mutual TLS (mTLS) authentications.
+ * 
+ * It configures:
+ * - Core Express application
+ * - Security middlewares (helmet, rate limiting)
+ * - Request parsing
+ * - mTLS authentication enforcement
+ * - Global response and error protocol handling
+ * - HTTPS server with strict TLS configuration
+ * - Graceful shutdown lifecycle
+ * 
+ * This server is intended to be used as an internal service endpoint 
+ * within a secured, service-to-service architecture.
+ * 
+ * @responsability
+ * - Expose a secured HTTPS API
+ * - Enforce client authentication using mTLS
+ * - Protect the service against common web vulnerabilities
+ * - Apply global request/response standards
+ * - Manage server lifecycle (shutdown / startup)
+ * 
+ * @restrictions
+ * - HTTP (unencrypted traffic is not supported)
+ * - Client certificates are mandatory (requestCert=true)
+ * - Only TLS v1.3 is allowed
+ * - Certificates must be provided via filesystem paths
+ * - This server is not designed for browser-facing traffic
+ * 
+ * @architecture
+ * This module acts as an infrastructure-layer component and must not
+ * contain business logic. Routes and domain logic must be defined elsewhere
+ * 
+ * @security
+ * - Mutual TLS is enforced at the transport layer
+ * - Rate limiting is applied globally
+ * - Security headers are enabled via Helmet
+ * - Unauthorized clients are rejected during the TLS handshake
+ * 
+ * @author docteur-turboss
+ * 
+ * @version 1.0.0
+ * 
+ * @since 2026.01.24
+ */
+
 import { ResponseProtocole } from "cash-lib/middleware/responseProtocole";
+import { MTLSAuthMiddleware } from "cash-lib/middleware/MTLSAuth";
+import { AddressManagerRoutes } from "config/address-manager";
+import { logger } from 'cash-lib/config/logger';
 import { rateLimit } from "express-rate-limit";
 import express, { Router } from "express";
-import type { Express } from "express";
+import { env } from 'config/env';
+import https from 'node:https';
+import path from 'node:path';
 import helmet from "helmet";
+import fs from 'node:fs';
 
 /**
- * Express application instance.
- * This file is responsible only for HTTP server configuration
- * (middlewares, routes wiring, global error handling).
- *
- * Business logic must NOT live here.
+ * Creates and starts an HTTPS Express server secured with mutual TLS.
+ * 
+ * @function createServer
+ * 
+ * @description
+ * This function initializes the Express application, applies all required 
+ * middlewares in the correct order, binds routes and starts and HTTPS server
+ * configured for strict mTLS authentication.
+ * 
+ * The server starts listening immediately on the configured port.
+ * 
+ * @returns {{close: () => Promise<void>}}
+ * An object exposing a `close` method for graceful shutdown.
+ * 
+ * @throws {Error}
+ * Throws if:
+ * - TLS certificate files cannot be read
+ * - The HTTPS server fails to start
+ * 
+ * @lifecycle
+ * Intended to be called once during application bootstrap.
+ * 
+ * @example
+ * ```ts
+ * const server = createServer();
+ * 
+ * process.on("SIGTERM", async () => {
+ *  await server.close();
+ * })
+ * ```
  */
-const app: Express = express();
+export function createServer(): {close: () => Promise<void>} {
+    const app = express()
 
-/**
- * -------------------------
- * Security Middlewares
- * -------------------------
- *
- * helmet():
- * Adds a set of HTTP headers to protect against well-known
- * web vulnerabilities (XSS, clickjacking, MIME sniffing, etc.).
- *
- * These headers are applied globally to all routes.
- */
-app.use(helmet());
+    /**
+     * ─────────────────────────────────────────────────────────────
+     * Middlewares – order matters
+     * ─────────────────────────────────────────────────────────────
+     */
 
-/**
- * -------------------------
- * Body Parsers
- * -------------------------
- *
- * express.json():
- * Parses incoming requests with JSON payloads and makes the
- * parsed body available on req.body.
- *
- * express.urlencoded():
- * Parses application/x-www-form-urlencoded payloads.
- * extended: true allows rich objects and arrays via qs library.
- */
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+    /**
+     * Adds security-related HTTP headers.
+     */
+    app.use(helmet());
 
-/**
- * -------------------------
- * Rate Limiting
- * -------------------------
- *
- * Protects the API against:
- * - brute force attacks
- * - accidental traffic spikes
- * - abusive clients
- *
- * This limiter is IP-based and applies to all routes.
- * In production, limits should be adjusted according to:
- * - expected traffic
- * - trust level (internal vs public)
- * - deployment topology (proxy / load balancer)
- */
-const limiter = rateLimit({
-  // Time window in milliseconds
-  windowMs: 15 * 6,
+    /**
+     * Enables trust for reverse proxies (required for correct IP resolution).
+     */
+    app.set('trust proxy', true)
 
-  // Maximum number of requests allowed per IP during the window
-  limit: 1,
+    /**
+     * Request body parsing with strict size limits.
+     */
+    app.use(express.json({ limit: '1mb' }))
+    app.use(express.urlencoded({ extended: false }))
 
-  // Response message returned when the limit is exceeded
-  message: "Too many requests from this IP, please try again later.",
-});
+    /**
+     * Global rate limiting to protect against brute-force
+     * and denial-of-service attacks.
+     */
+    const limiter = rateLimit({
+        windowMs: 15 * 6,
+        limit: 1,
+        message: "Too many requests from this IP, please try again later.",
+    });
 
-app.use(limiter);
-/**
- * -------------------------
- * Routes Registration
- * -------------------------
- *
- * Centralized route mounting.
- * Each feature exposes its own Router and is mounted here.
- *
- * This approach:
- * - keeps the app.ts file clean
- * - enforces modularity
- * - simplifies testing and maintenance
- */
-const apiRoutes: [string, Router][] = [
+    app.use(limiter);
 
+    /**
+     * Mutual TLS authentication middleware.
+     * 
+     * - Requires a valid client certificate
+     * - Certificate validity is ensured by the TLS handshake
+     * - Populates request identity metadata (req.clientIdentity)
+     */
+    app.use(MTLSAuthMiddleware);
+    app.use(AddressManagerRoutes);
 
-];
+    /**
+     * ─────────────────────────────────────────────────────────────
+     * Technical endpoints
+     * ─────────────────────────────────────────────────────────────
+     */
 
-/**
- * Iterates over all declared routes and mounts them on the app.
- */
-apiRoutes.forEach(([path, router]) => app.use(path, router));
+    const apiRoutes: [string, Router][] = [
 
-/**
- * -------------------------
- * Global Error Handling
- * -------------------------
- *
- * ResponseProtocole is a centralized error / response formatter.
- * It ensures:
- * - consistent response structure
- * - proper HTTP status codes
- * - no unhandled errors leaking stack traces
- *
- * This middleware MUST be registered last.
- */
-app.use(ResponseProtocole);
+    ];
 
-export { app };
+    apiRoutes.forEach(([path, router]) => app.use(path, router));
+
+    /**
+     * ─────────────────────────────────────────────────────────────
+     * Global response & error handling
+     * ─────────────────────────────────────────────────────────────
+     */
+    app.use(ResponseProtocole);
+
+    /**
+     * ─────────────────────────────────────────────────────────────
+     * HTTPS server with strict mTLS configuration
+     * ─────────────────────────────────────────────────────────────
+     */
+    const httpsServer = https.createServer(
+        {
+            key: fs.readFileSync(path.resolve(env.TLS_KEY_PATH)),
+            cert: fs.readFileSync(path.resolve(env.TLS_CERT_PATH)),
+            ca: fs.readFileSync(path.resolve(env.TLS_CA_PATH)),
+            requestCert: true,
+            rejectUnauthorized: true,
+            minVersion: 'TLSv1.3'
+        },
+        app
+    )
+
+    httpsServer.listen(env.PORT, () => {
+        logger.info(
+            'HTTPS server listening',
+            {
+                port: env.PORT,
+                mtls: true
+            }
+        )
+    })
+
+    /**
+     * Graceful shutdown
+     */
+    return {
+        close: () =>
+            new Promise<void>(async (resolve, reject) => {
+                try{
+                    httpsServer.close();
+                    resolve();
+                }catch(e){
+                    reject(e);
+                }
+            })
+    }
+}
