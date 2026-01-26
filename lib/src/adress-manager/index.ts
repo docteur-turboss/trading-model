@@ -12,10 +12,6 @@ import { ServiceInstance } from "./client/type";
 import { HttpClient } from "utils/httpClient";
 import { Application } from "express";
 
-interface AddressManagerModule {
-  stop: () => Promise<void>;
-}
-
 /**
  * Default export for the Address Manager library.
  *
@@ -33,7 +29,7 @@ export default class {
   private HTTPCLIENT : HttpClient;
 
   public getToken: () => string;
-  public start: () => Promise<AddressManagerModule>;
+  public start: () => Promise<{stop: () => Promise<void>;}>;
   public findService: (serviceName: string) => Promise<ServiceInstance>
   public listenExpress: (app: Application) => void
 
