@@ -1,11 +1,12 @@
-import { ServiceInstance } from "../client/type";
-import { AddressManagerClient } from "../client/addressManagerClient";
-import { ServiceCache } from "./serviceCache";
-import { ServiceHealthChecker } from "./serviceHealthChecker";
 import {
   ServiceNotFoundError,
   ServiceUnreachableError,
 } from "../../common/utils/Errors";
+import { AddressManagerConfig } from "adress-manager/config/AddressManagerConfig";
+import { ServiceHealthChecker } from "./serviceHealthChecker";
+import { ServiceInstance } from "../client/type";
+import { ServiceCache } from "./serviceCache";
+import { HttpClient } from "utils/httpClient";
 
 /**
  * ServiceDiscovery
@@ -23,16 +24,8 @@ import {
  * returned instances are healthy and valid.
  */
 export class ServiceDiscovery {
-  private readonly addressManagerClient: AddressManagerClient;
-  private readonly serviceCache: ServiceCache;
-  private readonly healthChecker: ServiceHealthChecker;
-
   /**
    * Creates a new ServiceDiscovery instance.
-   *
-   * @param addressManagerClient - Client to interact with the Address Manager.
-   * @param serviceCache - Cache for storing service instances.
-   * @param healthChecker - Health checker for service instances.
    *
    * @example
    * ```ts
@@ -40,14 +33,11 @@ export class ServiceDiscovery {
    * ```
    */
   constructor(
-    addressManagerClient: AddressManagerClient,
-    serviceCache: ServiceCache,
-    healthChecker: ServiceHealthChecker
-  ) {
-    this.addressManagerClient = addressManagerClient;
-    this.serviceCache = serviceCache;
-    this.healthChecker = healthChecker;
-  }
+    private readonly httpClient: HttpClient,
+    private readonly serviceCache: ServiceCache,
+    private readonly config: AddressManagerConfig,
+    private readonly healthChecker: ServiceHealthChecker,
+  ) {}
 
   /**
    * Returns a healthy instance of the requested service.
@@ -102,7 +92,9 @@ export class ServiceDiscovery {
     let instance: ServiceInstance;
 
     try {
-      instance = await this.addressManagerClient.getServiceAddress(serviceName);
+      instance = await this.httpClient.get<ServiceInstance>(
+        `${this.config.addressManagerUrl}/services/${serviceName}`,
+      );
     } catch (error) {
       throw new ServiceNotFoundError(
         `Service "${serviceName}" not found`,

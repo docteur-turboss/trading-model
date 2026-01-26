@@ -1,5 +1,5 @@
 import { TokenManager } from "./tokenManager";
-import { HttpClient } from "../utils/httpClient";
+import { HttpClient } from "../../common/utils/httpClient";
 import { AddressManagerConfig } from "../config/AddressManagerConfig";
 import { AuthenticationError } from "../../common/utils/Errors";
 
@@ -52,7 +52,7 @@ describe("TokenManager", () => {
       await manager.refreshToken();
 
       expect(httpClient.post).toHaveBeenCalledWith(
-        `${config.addressManagerUrl}/registry/token/rotate`,
+        `${config.addressManagerUrl}/token/rotate`,
         { instanceId: config.instanceId, serviceName: config.serviceName }
       );
 

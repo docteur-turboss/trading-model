@@ -1,6 +1,20 @@
-import { Application } from "express";
+import { ServiceHealthChecker } from "./discovery/serviceHealthChecker";
+import { AddressManagerClient } from "./client/addressManagerClient";
 import { AddressManagerConfig } from "./config/AddressManagerConfig";
-import { AddressManagerModule, bootstrapAddressManagerModule } from "./lifecycle/moduleBootstrap";
+import { TokenRefresherJob } from "./scheduler/tokenRefreshJob";
+import { ServiceDiscovery } from "./discovery/serviceDiscovery";
+import { TtlRefresherJob } from "./scheduler/ttlRefresherJob";
+import { ServiceCache } from "./discovery/serviceCache";
+import { pingRoutes } from "./http/routes/ping.routes";
+import { TokenManager } from "./client/tokenManager";
+import { Scheduler } from "./scheduler/scheduler";
+import { ServiceInstance } from "./client/type";
+import { HttpClient } from "utils/httpClient";
+import { Application } from "express";
+
+interface AddressManagerModule {
+  stop: () => Promise<void>;
+}
 
 /**
  * Default export for the Address Manager library.
@@ -10,24 +24,80 @@ import { AddressManagerModule, bootstrapAddressManagerModule } from "./lifecycle
  * import adrManager from "cash-lib/adress-manager";
  * ```
  */
-export default {
-  /**
-   * Initializes the Address Manager module.
-   *
-   * @param app - Express application instance
-   * @param config - Address Manager configuration
-   * @returns Promise resolving to the public API of the module
-   *
-   * @example
-   * ```ts
-   * import adrManager from "cash-lib/adress-manager";
-   * 
-   * const moduleApi = await adrManager.init(app, config);
-   * const userService = await moduleApi.serviceDiscovery.findService("user-service");
-   * await moduleApi.stop(); // gracefully stop cron jobs
-   * ```
-   */
-  init: (app: Application, config: AddressManagerConfig): Promise<AddressManagerModule> => {
-    return bootstrapAddressManagerModule(app, config);
+export default class {
+  private AddressManagerClient: AddressManagerClient;
+  private healthChecker : ServiceHealthChecker;
+  private ServiceDiscovery: ServiceDiscovery;
+  private tokenManager : TokenManager;
+  private ServiceCache: ServiceCache;
+  private HTTPCLIENT : HttpClient;
+
+  public getToken: () => string;
+  public start: () => Promise<AddressManagerModule>;
+  public findService: (serviceName: string) => Promise<ServiceInstance>
+  public listenExpress: (app: Application) => void
+
+  constructor(config: AddressManagerConfig) {
+    this.HTTPCLIENT = new HttpClient({
+      ca: config.RootCACertPath,
+      cert: config.CertificatPath,
+      key: config.KeyCertificatPath
+    });
+
+    this.tokenManager = new TokenManager(this.HTTPCLIENT, config);
+    
+    this.AddressManagerClient = new AddressManagerClient(
+      this.HTTPCLIENT,
+      this.tokenManager,
+      config
+    );
+
+    this.ServiceCache = new ServiceCache(config.cacheTtlMs);
+    this.healthChecker = new ServiceHealthChecker(
+      this.HTTPCLIENT,
+      config.servicePingTimeoutMs
+    );
+    
+    this.ServiceDiscovery = new ServiceDiscovery(
+      this.HTTPCLIENT,
+      this.ServiceCache,
+      config,
+      this.healthChecker 
+    );
+    
+    this.getToken = this.tokenManager.getToken;
+    this.listenExpress = (app) => app.use(pingRoutes);
+    this.findService = this.ServiceDiscovery.findService;
+    this.start = async () => {
+      const res = await this.AddressManagerClient.registerService();
+      this.tokenManager.setToken(res.token);
+
+      const scheduler = new Scheduler();
+
+      scheduler.register(
+        new TokenRefresherJob(
+          this.tokenManager,
+          config.tokenRefreshIntervalMs
+        )
+      );
+
+      scheduler.register(
+        new TtlRefresherJob(
+          this.AddressManagerClient,
+          config.ttlRefreshIntervalMs
+        )
+      );
+
+      scheduler.start();
+
+      /**
+       * Public API exposed to the hosting service
+       */
+      return {
+        stop: async () => {
+          scheduler.stop();
+        },
+      };
+    }
   }
-};
+}

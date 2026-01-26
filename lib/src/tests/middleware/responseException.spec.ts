@@ -6,17 +6,18 @@ import {
 } from "../../common/middleware/responseException";
 import {describe, expect, test, } from '@jest/globals';
 
-
 describe("ResponseException System", () => {
   const definitions = [
+    ["ServiceUnavailable", 503],
     ["UnknownError", 500],
     ["InvalidToken", 498],
     ["TooManyRequests", 429],
     ["IMATeapot", 418],
     ["PayloadTooLarge", 413],
     ["Gone", 410],
-    ["NotFound", 404],
+    ["Conflict", 409],
     ["MethodNotAllowed", 405],
+    ["NotFound", 404],
     ["Forbidden", 403],
     ["PaymentRequired", 402],
     ["Unauthorized", 401],

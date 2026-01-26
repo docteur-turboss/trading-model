@@ -1,4 +1,4 @@
-import { HttpClient } from '../utils/httpClient.js';
+import { HttpClient } from '../../common/utils/httpClient.js';
 import { AuthenticationError } from "../../common/utils/Errors";
 import { AddressManagerConfig } from '../config/AddressManagerConfig';
 
@@ -16,10 +16,7 @@ import { AddressManagerConfig } from '../config/AddressManagerConfig';
  * - How it is renewed
  */
 export class TokenManager {
-    private readonly httpClient: HttpClient;
-    private readonly config: AddressManagerConfig;
-
-    private token: string | null = null;
+    private token: string | null;
 
     /**
      * Initializes a new TokenManager.
@@ -34,9 +31,11 @@ export class TokenManager {
      * const token = manager.getToken();
      * ```
      */
-    constructor(httpClient: HttpClient, config: AddressManagerConfig) {
-        this.httpClient = httpClient;
-        this.config = config;
+    constructor(
+        private readonly httpClient: HttpClient,
+        private readonly config: AddressManagerConfig,
+    ) {
+        this.token = null;
     }
 
     /**
@@ -60,6 +59,10 @@ export class TokenManager {
         return this.token;
     }
 
+    setToken(token: string): void{
+        this.token = token;
+    }
+
     /**
      * Refreshes the authentication token from the Address Manager.
      *
@@ -79,7 +82,7 @@ export class TokenManager {
     async refreshToken(): Promise<void> {
         try {
             const response = await this.httpClient.post<{ token: string }>(
-                `${this.config.addressManagerUrl}/registry/token/rotate`,
+                `${this.config.addressManagerUrl}/token/rotate`,
                 {
                     instanceId: this.config.instanceId,
                     serviceName: this.config.serviceName
