@@ -6,7 +6,7 @@ import { AddressManagerConfig } from "adress-manager/config/AddressManagerConfig
 import { ServiceHealthChecker } from "./serviceHealthChecker";
 import { ServiceInstance } from "../client/type";
 import { ServiceCache } from "./serviceCache";
-import { HttpClient } from "utils/httpClient";
+import { HttpClient } from "config/httpClient";
 
 /**
  * ServiceDiscovery

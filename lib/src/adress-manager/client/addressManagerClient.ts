@@ -4,7 +4,7 @@ import {
 } from "./type";
 import { AddressManagerConfig } from "../config/AddressManagerConfig";
 import { AddressManagerError } from "../../common/utils/Errors";
-import { HttpClient } from "../../common/utils/httpClient.js";
+import { HttpClient } from "../../common/config/httpClient.js";
 import { TokenManager } from "./tokenManager";
 
 /**

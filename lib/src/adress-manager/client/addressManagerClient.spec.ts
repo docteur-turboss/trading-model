@@ -1,5 +1,5 @@
 import { AddressManagerClient } from "./addressManagerClient";
-import { HttpClient } from "../../common/utils/httpClient";
+import { HttpClient } from "../../common/config/httpClient";
 import { TokenManager } from "./tokenManager";
 import { AddressManagerConfig } from "../config/AddressManagerConfig";
 import { AddressManagerError } from "../../common/utils/Errors";

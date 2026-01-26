@@ -1,4 +1,4 @@
-import { HttpClient } from "utils/httpClient";
+import { HttpClient } from "config/httpClient";
 import { ServiceCache } from "./serviceCache";
 import { ServiceDiscovery } from "./serviceDiscovery";
 import { ServiceInstance } from "adress-manager/client/type";

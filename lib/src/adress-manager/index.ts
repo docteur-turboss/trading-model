@@ -9,7 +9,7 @@ import { pingRoutes } from "./http/routes/ping.routes";
 import { TokenManager } from "./client/tokenManager";
 import { Scheduler } from "./scheduler/scheduler";
 import { ServiceInstance } from "./client/type";
-import { HttpClient } from "utils/httpClient";
+import { HttpClient } from "config/httpClient";
 import { Application } from "express";
 
 /**
