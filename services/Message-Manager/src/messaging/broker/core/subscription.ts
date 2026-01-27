@@ -1,8 +1,8 @@
 import { findAService } from "config/address-manager";
 import { IdentifyType } from "../broker.interface";
+import { DeliveryMode } from "../broker.constants";
 import httpClient from "shared/utils/httpClient";
 import { message } from "./message";
-import { DeliveryMode } from "../broker.constants";
 
 /**
  * TODO
