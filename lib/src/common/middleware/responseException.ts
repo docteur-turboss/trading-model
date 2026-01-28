@@ -26,6 +26,7 @@ const httpResponseDefinitions = [
   { key: "PaymentRequired", code: 402 },
   { key: "Unauthorized", code: 401 },
   { key: "BadRequest", code: 400 },
+  { key: "NoContent", code: 204 },
   { key: "OK", code: 201 },
   { key: "Success", code: 200 },
 ] as const;
@@ -177,6 +178,10 @@ export class ClassResponseExceptions extends Error {
   /** Returns a 400 Bad Request response object */
   BadRequest() {
     return { status: ResponseCodes.BadRequest, data: this.reason };
+  }
+
+  NoContent() {
+    return { status: ResponseCodes.NoContent, data: undefined}
   }
 
   /** Returns a 201 OK response object */

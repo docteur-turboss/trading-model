@@ -22,6 +22,7 @@ describe("ResponseException System", () => {
     ["PaymentRequired", 402],
     ["Unauthorized", 401],
     ["BadRequest", 400],
+    ["NoContent", 204],
     ["OK", 201],
     ["Success", 200],
   ] as const;
@@ -62,10 +63,17 @@ describe("ResponseException System", () => {
 
         const result = err[key]();
 
-        expect(result).toEqual({
-          status: code,
-          data: reason,
-        });
+        if(key == "NoContent"){
+          expect(result).toEqual({
+            status: code,
+            data: undefined,
+          });
+        }else {
+          expect(result).toEqual({
+            status: code,
+            data: reason,
+          });
+        }
       });
     }
   });
