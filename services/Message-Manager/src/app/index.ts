@@ -5,39 +5,37 @@
  * Application entry point for the Message Manager service.
  * 
  * This module is responsible for orchestrating the full lifecycle of the service:
- * - Environment validation and early failure
- * - Initialization of asynchronous infrastructure components
- * - Startup of the HTTPS API server
- * - Process-level error handling
- * - Graceful shutdown on termination signals
+ * - Loading environment configuration
+ * - Bootstrapping core runtime components
+ * - Starting the HTTP server
+ * - Handling process-level errors and termination signals
  * 
  * This file must remain intentionnaly thin and declarative.
  * All business logic and infrastructure concerns are delegated
  * to dedicated modules.
  * 
  * @responsability
- * - Bootstrap the application in the correct order
- * - Ensure the runtime environment is loaded and validated
- * - Coordinate startup and shutdown of core dependecies
- * - Act as the single process entry point
+ * - Initialize the HTTP server
+ * - Bootstrap the address manager
+ * - Register process-level safety handlers
+ * - Coordinate startup and shutdown sequences
  * 
  * @restrictions 
  * - Must not contain business logic
- * - Must not expose application internals
+ * - Must not perform request handling
  * - Must exit the process explicitly on fatal failures
  * - Side effects are limited to initialization and teardown
  * 
  * @architecture
- * This file belongs to the application layer and serves as the composition root of the service.
+ * Application layer – process entry point.
  * 
  * @author docteur-turboss
  * 
  * @version 1.0.0
  * 
- * @since 2026.01.24
+ * @since 2026.01.28
  */
 
-import { initMessageBus, closeMessageBus } from 'bootstrap/message-bus.bootstrap';
 import { bootstrapAddressManager } from 'config/address-manager';
 import { logger } from 'cash-lib/config/logger';
 import { createServer } from "./server";
@@ -54,19 +52,14 @@ let addressManager: ReturnType<typeof bootstrapAddressManager> | null = null
 /**
  * Bootstraps the Message Manager service.
  * 
- * @function bootstrap
- * 
  * @description
- * Executes the startup sequence of the application.
+ * Initializes core runtime components required for the service
+ * to operate.
  * 
  * Any error occurring during this phase is considered fatal
  * and results in an immediate process termination.
  * 
  * @returns {Promise<void>}
- * 
- * @throws {Error}
- * Throws if any dependency fails to initialize or if the server 
- * cannot be started.
  * 
  * @lifecycle
  * Must be called exactly once during process startup
@@ -75,12 +68,6 @@ async function bootstrap(): Promise<void> {
     try {
         logger.info('Bootstrapping Message Manager service')
 
-        /**
-         * Initialize asynchronous infrastructure components
-         * (message broker, service registry, etc.).
-         */
-        await initMessageBus()
-        
         /**
          * Start the HTTPS server exposing technical endpoints
          * (health checks, metrics, administration).
@@ -102,23 +89,15 @@ async function bootstrap(): Promise<void> {
 /**
  * Gracefully shuts down the service.
  * 
- * @function shutdown
- * 
  * @description
  * Handles process termination signals by:
- * - Stopping the HTTP server from accepting new connections
- * - Allowing in-flight requests and messages to complete
- * - Closing message bus and broker connections
+ * - Stopping the HTTP server
+ * - Stopping the address manager
  * 
  * If shutdown fails, the process exits with a non-zero code.
  * 
  * @param {string} signal
  * The OS signal that triggered the shutdown (e.g. SIGTERM, SIGINT).
- * 
- * @returns {Promise<void>}
- * 
- * @lifecycle
- * Invoked by process signal handlers.
  */
 async function shutdown(signal: string): Promise<void> {
     logger.warn('Shutdown signal received', { signal })
@@ -132,9 +111,6 @@ async function shutdown(signal: string): Promise<void> {
         if (addressManager) {
             addressManager.stop()
         }
-
-        await closeMessageBus()
-        logger.info('Message bus connection closed')
 
         logger.info('Shutdown completed gracefully')
         process.exit(0)

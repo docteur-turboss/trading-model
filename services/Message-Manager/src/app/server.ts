@@ -2,38 +2,29 @@
  * @file server.ts
  * 
  * @description
- * This module is responsible for creating and managing the HTTPS Express server
- * with mandatory mutual TLS (mTLS) authentications.
+ * This module creates and starts an HTTPS Express server secured with mutual TLS (mTLS).
  * 
- * It configures:
- * - Core Express application
- * - Security middlewares (helmet, rate limiting)
- * - Request parsing
- * - mTLS authentication enforcement
- * - Global response and error protocol handling
- * - HTTPS server with strict TLS configuration
- * - Graceful shutdown lifecycle
- * 
- * This server is intended to be used as an internal service endpoint 
- * within a secured, service-to-service architecture.
+ * This server is designed for **internal, service-to-service communication**
+ * within a trusted infrastructure.
  * 
  * @responsability
  * - Expose a secured HTTPS API
  * - Enforce client authentication using mTLS
  * - Protect the service against common web vulnerabilities
  * - Apply global request/response standards
+ * - Bind technical service routes
  * - Manage server lifecycle (shutdown / startup)
  * 
  * @restrictions
- * - HTTP (unencrypted traffic is not supported)
+ * - Only HTTPS is supported
  * - Client certificates are mandatory (requestCert=true)
  * - Only TLS v1.3 is allowed
  * - Certificates must be provided via filesystem paths
  * - This server is not designed for browser-facing traffic
  * 
  * @architecture
- * This module acts as an infrastructure-layer component and must not
- * contain business logic. Routes and domain logic must be defined elsewhere
+ * Infrastructure layer component.
+ * This module must not contain business or domain logic.
  * 
  * @security
  * - Mutual TLS is enforced at the transport layer
@@ -45,17 +36,18 @@
  * 
  * @version 1.0.0
  * 
- * @since 2026.01.24
+ * @since 2026.01.28
  */
 
 import { ResponseProtocole } from "cash-lib/middleware/responseProtocole";
 import { MTLSAuthMiddleware } from "cash-lib/middleware/MTLSAuth";
 import { AddressManagerRoutes } from "config/address-manager";
+import { MessageManagerRoutes } from "config/message-manager";
 import { logger } from 'cash-lib/config/logger';
 import { rateLimit } from "express-rate-limit";
-import express, { Router } from "express";
 import { env } from 'config/env';
 import https from 'node:https';
+import express from "express";
 import path from 'node:path';
 import helmet from "helmet";
 import fs from 'node:fs';
@@ -63,12 +55,9 @@ import fs from 'node:fs';
 /**
  * Creates and starts an HTTPS Express server secured with mutual TLS.
  * 
- * @function createServer
- * 
  * @description
- * This function initializes the Express application, applies all required 
- * middlewares in the correct order, binds routes and starts and HTTPS server
- * configured for strict mTLS authentication.
+ * Initializes the Express application, applies global middlewares,
+ * binds routes and starts an HTTPS server configured for mTLS.
  * 
  * The server starts listening immediately on the configured port.
  * 
@@ -76,21 +65,11 @@ import fs from 'node:fs';
  * An object exposing a `close` method for graceful shutdown.
  * 
  * @throws {Error}
- * Throws if:
- * - TLS certificate files cannot be read
- * - The HTTPS server fails to start
+ * Throws if TLS certificate files cannot be read
+ * or if the HTTPS server fails to start.
  * 
  * @lifecycle
  * Intended to be called once during application bootstrap.
- * 
- * @example
- * ```ts
- * const server = createServer();
- * 
- * process.on("SIGTERM", async () => {
- *  await server.close();
- * })
- * ```
  */
 export function createServer(): {close: () => Promise<void>} {
     const app = express()
@@ -122,8 +101,8 @@ export function createServer(): {close: () => Promise<void>} {
      * and denial-of-service attacks.
      */
     const limiter = rateLimit({
-        windowMs: 15 * 6,
-        limit: 1,
+        windowMs: 15 * 60 * 1000,
+        limit: 100,
         message: "Too many requests from this IP, please try again later.",
     });
 
@@ -137,7 +116,6 @@ export function createServer(): {close: () => Promise<void>} {
      * - Populates request identity metadata (req.clientIdentity)
      */
     app.use(MTLSAuthMiddleware);
-    app.use(AddressManagerRoutes);
 
     /**
      * ─────────────────────────────────────────────────────────────
@@ -145,11 +123,11 @@ export function createServer(): {close: () => Promise<void>} {
      * ─────────────────────────────────────────────────────────────
      */
 
-    const apiRoutes: [string, Router][] = [
+    // const apiRoutes: [string, Router][] = [];
+    // apiRoutes.forEach(([path, router]) => app.use(path, router));
 
-    ];
-
-    apiRoutes.forEach(([path, router]) => app.use(path, router));
+    AddressManagerRoutes(app);
+    MessageManagerRoutes(app);
 
     /**
      * ─────────────────────────────────────────────────────────────
