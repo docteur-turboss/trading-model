@@ -24,6 +24,10 @@ export class HttpClient {
   async post<T = void>(url: string, body?: unknown, options?: HttpRequestOptions): Promise<T> {
     return this.request<T>("POST", url, body, options);
   }
+  
+  async delete<T = void>(url: string, body?: unknown, options?: HttpRequestOptions): Promise<T> {
+    return this.request<T>("DELETE", url, body, options);
+  }
 
   private async request<T>(
     method: HttpMethod,
@@ -90,7 +94,7 @@ export class HttpClient {
   }
 }
 
-type HttpMethod = "GET" | "POST";
+type HttpMethod = "GET" | "POST" | "DELETE";
 
 export interface HttpRequestOptions {
   timeoutMs?: number;

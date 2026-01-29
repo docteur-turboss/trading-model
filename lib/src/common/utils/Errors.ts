@@ -77,3 +77,46 @@ export class AddressManagerError extends AddressManagerBaseError {
     super(message, cause);
   }
 }
+
+/**
+ * Base error class for the Message Manager module.
+ *
+ * All specific errors of this module should inherit from this class.
+ */
+export abstract class MessageManagerBaseError extends Error {
+  /**
+   * Optional root cause of the error (for wrapping).
+   */
+  public readonly cause?: unknown;
+
+  /**
+   * Creates an instance of AddressManagerBaseError.
+   *
+   * @param message - Human-readable error message.
+   * @param cause - Optional underlying error that triggered this error.
+   */
+  protected constructor(message: string, cause?: unknown) {
+    super(message);
+
+    this.name = this.constructor.name;
+    this.cause = cause;
+
+    /**
+     * Necessary to maintain the prototype chain
+     * when extending Error in TypeScript.
+     */
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/**
+ * Generic error related to interactions with the Message Manager.
+ *
+ * Can be used as a fallback for unexpected errors
+ * that are not covered by more specific classes.
+ */
+export class MessageManagerError extends MessageManagerBaseError {
+  constructor(message: string, cause?: unknown){
+    super(message, cause);
+  }
+}
