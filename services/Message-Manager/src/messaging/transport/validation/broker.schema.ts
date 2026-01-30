@@ -26,8 +26,8 @@
  * @since 2026.01.28
  */
 
+import { DeliveryMode } from "cash-lib/config/deliveryMode.types";
 import { ServiceInstanceName } from "cash-lib/config/services.types";
-import { DeliveryMode } from "messaging/broker.type";
 import { z } from "zod";
 
 /**
@@ -77,7 +77,6 @@ export const PublishMetadataSchema = z.object({
   correlationId: z.string().optional(),
   schemaVersion: z.string().min(1),
   causationId: z.string().optional(),
-  messageId: z.string().min(1),
   eventType: z.string().min(1),
   topic: TopicSchema,
 
