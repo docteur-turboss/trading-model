@@ -33,7 +33,7 @@
  * 2026.01.28
  */
 
-import { DeliveryModeEnum } from "../broker.type";
+import { DeliveryModeEnum } from "cash-lib/config/deliveryMode.types";
 import { IdentifyType } from "../broker.type";
 
 /**
