@@ -52,8 +52,8 @@ import { Broker } from "../core/broker";
 export const BrokerRoutes = (broker: Broker): Router => {  
     const router = Router();
 
-    router.post('/subscription', SubscriptionToATopic(broker));
     router.post('/message', PublishAMessage(broker));
+    router.post('/subscription', SubscriptionToATopic(broker));
     router.delete("/subscription", DeleteASubscription(broker));
 
     return router;

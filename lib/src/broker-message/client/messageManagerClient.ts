@@ -1,5 +1,6 @@
 import { HttpClient } from "config/httpClient";
 import addressManagerClient from "adress-manager/index";
+import { MessageMetadata } from "../shared/types/message";
 import { ServiceInstanceName } from "config/services.types";
 import { MessageManagerConfig } from "../shared/types/config";
 import { SubscribesTopicsPayload, UnSubscribesTopicsPayload } from "../shared/types/payloads";
@@ -65,7 +66,6 @@ export class MessageManagerClient {
     async SubscribeToTopics (topics: string[]): Promise<void> {
         try{
             const target = await this.addressManagerClient.findService(ServiceInstanceName.MessageDeliveryService);
-
             if(!target) throw new ServiceUnreachableError("Unable to contact the message manager");
             
             for (const topic of topics) {
@@ -92,7 +92,6 @@ export class MessageManagerClient {
     async UnSubscribeToTopic (topics: string[]): Promise<void> {
         try{
             const target = await this.addressManagerClient.findService(ServiceInstanceName.MessageDeliveryService);
-
             if(!target) throw new ServiceUnreachableError("Unable to contact the message manager");
             
             for (const topic of topics) {
@@ -111,5 +110,49 @@ export class MessageManagerClient {
         }
     }
 
+    async publishAsyncMessage <T = unknown>(payload: T, metadata: MessageMetadata): Promise<void> {
+        try {
+            const target = await this.addressManagerClient.findService(ServiceInstanceName.MessageDeliveryService);
+            if(!target) throw new ServiceUnreachableError("Unable to contact the message manager");
+            
+            const Messagepayload = {
+                payload,
+                metadata
+            };
 
+            return await this.httpClient.post(`https://${target.ip}:${target.port}/message`, 
+                Messagepayload
+            );
+        } catch (error) {
+            if(error instanceof ServiceUnreachableError) throw error;
+            
+            throw new MessageManagerError(
+                "Failed to publish message to Message Manager",
+                error
+            )
+        }
+    }
+
+    async publishDirectMessage <T = unknown>(service: keyof typeof ServiceInstanceName, payload: T, metadata: MessageMetadata): Promise<void> {
+                try {
+            const target = await this.addressManagerClient.findService(service);
+            if(!target) throw new ServiceUnreachableError("Unable to contact the service: " + service);
+            
+            const Messagepayload = {
+                payload,
+                metadata
+            };
+
+            return await this.httpClient.post(`https://${target.ip}:${target.port}/message`, 
+                Messagepayload
+            );
+        } catch (error) {
+            if(error instanceof ServiceUnreachableError) throw error;
+            
+            throw new MessageManagerError(
+                "Failed to publish message to " + service,
+                error
+            )
+        }
+    }
 }
