@@ -14,7 +14,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "axios": "^1.13.2",
+    "axios": "^1.13.5",
     "cash-lib": "file:../../lib",
     "eslint": "^9.38.0",
     "express": "^5.1.0",
