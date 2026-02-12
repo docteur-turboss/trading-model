@@ -12,18 +12,21 @@
  * reduce duplication, and make it easy to extend the response model.
  */
 const httpResponseDefinitions = [
+  { key: "ServiceUnavailable", code: 503 },
   { key: "UnknownError", code: 500 },
   { key: "InvalidToken", code: 498 },
   { key: "TooManyRequests", code: 429 },
   { key: "IMATeapot", code: 418 },
   { key: "PayloadTooLarge", code: 413 },
   { key: "Gone", code: 410 },
-  { key: "NotFound", code: 404 },
+  { key: "Conflict", code: 409 },
   { key: "MethodNotAllowed", code: 405 },
+  { key: "NotFound", code: 404 },
   { key: "Forbidden", code: 403 },
   { key: "PaymentRequired", code: 402 },
   { key: "Unauthorized", code: 401 },
   { key: "BadRequest", code: 400 },
+  { key: "NoContent", code: 204 },
   { key: "OK", code: 201 },
   { key: "Success", code: 200 },
 ] as const;
@@ -108,6 +111,10 @@ export class ClassResponseExceptions extends Error {
     this.reason = typeof reason === "string" ? reason : JSON.stringify(reason);
   }
 
+  ServiceUnavailable() {
+    return { status: ResponseCodes.ServiceUnavailable, data: this.reason }
+  }
+
   /** Returns a 500 Unknown Error response object */
   UnknownError() {
     return { status: ResponseCodes.UnknownError, data: this.reason };
@@ -133,9 +140,14 @@ export class ClassResponseExceptions extends Error {
     return { status: ResponseCodes.PayloadTooLarge, data: this.reason };
   }
 
-  /** Returns a 413 Payload Too Large response object */
+  /** Returns a 410 Gone response object */
   Gone() {
     return { status: ResponseCodes.Gone, data: this.reason };
+  }
+
+  /** Returns a 409 Conflict response object */
+  Conflict() {
+    return { status: ResponseCodes.Conflict, data: this.reason };
   }
 
   /** Returns a 404 Not Found response object */
@@ -166,6 +178,10 @@ export class ClassResponseExceptions extends Error {
   /** Returns a 400 Bad Request response object */
   BadRequest() {
     return { status: ResponseCodes.BadRequest, data: this.reason };
+  }
+
+  NoContent() {
+    return { status: ResponseCodes.NoContent, data: undefined}
   }
 
   /** Returns a 201 OK response object */

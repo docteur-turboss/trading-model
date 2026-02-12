@@ -8,6 +8,10 @@ interface AddressManagerConfig {
   ttlRefreshIntervalMs: number;
   servicePingTimeoutMs: number;
 
+  RootCACertPath: string;
+  CertificatPath: string;
+  KeyCertificatPath: string;
+
   cacheTtlMs: number;
 }
 export { AddressManagerConfig };
