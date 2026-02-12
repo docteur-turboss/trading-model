@@ -88,13 +88,13 @@ export function createServer(): {close: () => Promise<void>} {
     /**
      * Enables trust for reverse proxies (required for correct IP resolution).
      */
-    app.set('trust proxy', true)
+    app.set('trust proxy', true);
 
     /**
      * Request body parsing with strict size limits.
      */
-    app.use(express.json({ limit: '1mb' }))
-    app.use(express.urlencoded({ extended: false }))
+    app.use(express.json({ limit: '1mb' }));
+    app.use(express.urlencoded({ extended: false }));
 
     /**
      * Global rate limiting to protect against brute-force
