@@ -15,7 +15,7 @@ import {
  * Service Registration
  * -------------------------
  *
- * POST /registry/register
+ * POST /register
  *
  * Registers or updates a service instance in the Service Registry.
  *
@@ -125,7 +125,7 @@ export const register = catchSync(async (req) => {
  * List Registered Services
  * -------------------------
  *
- * GET /registry/services
+ * GET /services
  *
  * Returns the list of all known service names.
  * Useful for debugging, monitoring and admin tooling.
@@ -139,7 +139,7 @@ export const listServices = catchSync(async () => {
  * List Service Instances
  * -------------------------
  *
- * GET /registry/services/:serviceName
+ * GET /services/:serviceName
  *
  * Returns all active instances for a given service.
  * Dead or expired instances are excluded.
@@ -167,7 +167,7 @@ export const getServiceInstances = catchSync(async (req) => {
  * Get Single Instance
  * -------------------------
  *
- * GET /registry/services/:serviceName/:instanceId
+ * GET /services/:serviceName/:instanceId
  *
  * Returns detailed information for a specific instance.
  */
@@ -193,7 +193,7 @@ export const getInstance = catchSync(async (req) => {
  * Registry Dump
  * -------------------------
  *
- * GET /registry/dump
+ * GET /dump
  *
  * Debug / administrative endpoint.
  * Returns the full internal state of the registry.

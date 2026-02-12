@@ -9,7 +9,7 @@ import { heartbeat, rotateToken } from "../controllers/Heartbeat.controller";
  * - service instance liveness (heartbeats)
  * - instance credential lifecycle (token rotation)
  *
- * These routes are mounted under the `/registry` prefix
+ * These routes are mounted under the `` prefix
  * by the main application router.
  *
  * Security considerations:
@@ -28,7 +28,7 @@ export const heartbeatRoutes = (): Router => {
    * Instance Heartbeat
    * -------------------------
    *
-   * POST /registry/heartbeat
+   * POST /heartbeat
    *
    * Called periodically by each service instance to:
    * - confirm it is still alive
@@ -44,7 +44,7 @@ export const heartbeatRoutes = (): Router => {
    * Instance Token Rotation
    * -------------------------
    *
-   * POST /registry/token/rotate
+   * POST /token/rotate
    *
    * Rotates the authentication token associated with
    * a service instance.

@@ -6,21 +6,23 @@ import {
 } from "../../common/middleware/responseException";
 import {describe, expect, test, } from '@jest/globals';
 
-
 describe("ResponseException System", () => {
   const definitions = [
+    ["ServiceUnavailable", 503],
     ["UnknownError", 500],
     ["InvalidToken", 498],
     ["TooManyRequests", 429],
     ["IMATeapot", 418],
     ["PayloadTooLarge", 413],
     ["Gone", 410],
-    ["NotFound", 404],
+    ["Conflict", 409],
     ["MethodNotAllowed", 405],
+    ["NotFound", 404],
     ["Forbidden", 403],
     ["PaymentRequired", 402],
     ["Unauthorized", 401],
     ["BadRequest", 400],
+    ["NoContent", 204],
     ["OK", 201],
     ["Success", 200],
   ] as const;
@@ -61,10 +63,17 @@ describe("ResponseException System", () => {
 
         const result = err[key]();
 
-        expect(result).toEqual({
-          status: code,
-          data: reason,
-        });
+        if(key == "NoContent"){
+          expect(result).toEqual({
+            status: code,
+            data: undefined,
+          });
+        }else {
+          expect(result).toEqual({
+            status: code,
+            data: reason,
+          });
+        }
       });
     }
   });
