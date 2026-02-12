@@ -16,7 +16,7 @@ import {
  * - instance-level lookup
  *
  * These routes form the public API of the Service Registry
- * and are mounted under the `/registry` prefix.
+ * and are mounted under the `` prefix.
  *
  * Architectural notes:
  * - Routes are thin and delegate all logic to controllers
@@ -34,7 +34,7 @@ export const registryRoutes = (): Router => {
    * Instance Registration
    * -------------------------
    *
-   * POST /registry/register
+   * POST /register
    *
    * Registers a new service instance or updates an existing one.
    *
@@ -50,7 +50,7 @@ export const registryRoutes = (): Router => {
    * Service Listing
    * -------------------------
    *
-   * GET /registry/services
+   * GET /services
    *
    * Returns the list of all registered service names.
    *
@@ -65,7 +65,7 @@ export const registryRoutes = (): Router => {
    * Service Instance Listing
    * -------------------------
    *
-   * GET /registry/services/:serviceName
+   * GET /services/:serviceName
    *
    * Returns all instances registered for a given service.
    *
@@ -80,7 +80,7 @@ export const registryRoutes = (): Router => {
    * Instance Lookup
    * -------------------------
    *
-   * GET /registry/services/:serviceName/:instanceId
+   * GET /services/:serviceName/:instanceId
    *
    * Returns detailed metadata for a specific service instance.
    *

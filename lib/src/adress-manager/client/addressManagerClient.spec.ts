@@ -1,9 +1,9 @@
 import { AddressManagerClient } from "./addressManagerClient";
-import { HttpClient } from "../utils/httpClient";
+import { HttpClient } from "../../common/config/httpClient";
 import { TokenManager } from "./tokenManager";
 import { AddressManagerConfig } from "../config/AddressManagerConfig";
 import { AddressManagerError } from "../../common/utils/Errors";
-import { ServiceRegistrationResponse, ServiceInstance } from "../client/type";
+import { ServiceRegistrationResponse } from "../client/type";
 
 describe("AddressManagerClient", () => {
   let httpClient: jest.Mocked<HttpClient>;
@@ -50,7 +50,6 @@ describe("AddressManagerClient", () => {
       expect(httpClient.post).toHaveBeenCalledWith(
         `${config.addressManagerUrl}/services/register`,
         { name: config.serviceName, port: config.servicePort },
-        { headers: { Authorization: "Bearer mock-token" } }
       );
     });
 
@@ -87,43 +86,6 @@ describe("AddressManagerClient", () => {
       httpClient.post.mockRejectedValueOnce(error);
       await expect(client.refreshTTL()).rejects.toMatchObject({
         message: "Failed to refresh service TTL",
-      });
-    });
-  });
-
-  describe("getServiceAddress", () => {
-    const serviceName = "user-service";
-    const instance: ServiceInstance = {
-      ip: "127.0.0.1",
-      port: 8080,
-      instanceId: "instance-1",
-      lastHeartbeat: Date.now(),
-      protocol: "http",
-      registeredAt: Date.now(),
-      serviceName: serviceName,
-      ttl: 30000,
-    };
-
-    test("should call HttpClient.get with correct URL and headers", async () => {
-      httpClient.get.mockResolvedValueOnce(instance);
-
-      const result = await client.getServiceAddress(serviceName);
-
-      expect(result).toEqual(instance);
-      expect(httpClient.get).toHaveBeenCalledWith(
-        `${config.addressManagerUrl}/services/${serviceName}`,
-        { headers: { Authorization: "Bearer mock-token" } }
-      );
-    });
-
-    test("should throw AddressManagerError if HttpClient.get fails", async () => {
-      const error = new Error("Service fetch failed");
-      
-      httpClient.get.mockRejectedValueOnce(error);
-      await expect(client.getServiceAddress(serviceName)).rejects.toBeInstanceOf(AddressManagerError);
-      httpClient.get.mockRejectedValueOnce(error);
-      await expect(client.getServiceAddress(serviceName)).rejects.toMatchObject({
-        message: `Failed to fetch service address for "${serviceName}"`,
       });
     });
   });

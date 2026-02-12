@@ -8,4 +8,4 @@ export const ServiceInstanceName = {
     PredictPriceService: "predict-price-service",
     RiskAnalysisService: "risk-analysis-service",
     TraderTrainingService: "trader-training-service"
-}
+} as const;
