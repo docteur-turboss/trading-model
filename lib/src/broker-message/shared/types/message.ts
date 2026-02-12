@@ -21,6 +21,55 @@ export interface IdentifyType {
 }
 
 /**
+ * RoutingType
+ * 
+ * @description
+ * Represents the Routing of a service instance within the broker system.
+ */
+export interface RoutingType {
+  /** Ensures ordering for a given business key. */
+  partitionKey?: string;
+  
+  /** Influences delivery scheduling priority. */
+  priority?: number;
+}
+
+/**
+ * DeliveryType
+ * 
+ * @description
+ * Represents the delivery settings submit to the service instance.
+ */
+export interface DeliveryType {
+  /* Delivery semantics to apply. */
+  mode: DeliveryModeEnum;
+
+  /* Message expiration in milliseconds. */
+  ttl?: number;
+
+  /* Identifier used to prevent duplicate processing. */
+  deduplicationId?: string;
+}
+
+/**
+ * SecurityType
+ * 
+ * @description
+ * Represents the security settings submit to the service instance.
+ */
+export interface SecurityType {
+  /* Authentication / authorization context. */
+  authContext?: {
+    subject: string,
+    roles: string[],
+    tenantId: string
+  };
+
+  /* Message integrity signature. */
+  signature?: string;
+}
+
+/**
  * BrokerConfig
  * 
  * @description
@@ -139,50 +188,15 @@ export interface MessageMetadata {
   /**
    * Optional routing hints.
    */
-  routing?: {
-    /**
-     * Ensures ordering for a given business key.
-     */
-    partitionKey?: string;
-
-    /**
-     * Influences delivery scheduling priority.
-     */
-    priority?: number;
-  };
+  routing?: RoutingType;
 
   /**
    * Optional delivery constraints.
    */
-  delivery?: {
-    /**
-     * Delivery semantics to apply.
-     */
-    mode: DeliveryModeEnum;
-
-    /**
-     * Message expiration in milliseconds.
-     */
-    ttl?: number;
-
-    /**
-     * Identifier used to prevent duplicate processing.
-     */
-    deduplicationId?: string;
-  };
+  delivery?: DeliveryType;
 
   /**
    * Optional security context.
    */
-  security?: {
-    /**
-     * Authentication / authorization context.
-     */
-    authContext?: unknown;
-
-    /**
-     * Message integrity signature.
-     */
-    signature?: string;
-  };
+  security?: SecurityType;
 }
