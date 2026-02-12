@@ -1,13 +1,13 @@
 import { Application } from "express";
-import { HttpClient } from "config/httpClient";
+import { HttpClient } from "../common/config/httpClient";
 import addressManagerClient from "adress-manager/index";
-import { ServiceInstanceName } from "config/services.types";
+import { ServiceInstanceName } from "../common/config/services.types";
 import { CreateCallbackRoute } from "./http/messages.routes";
 import { MessageManagerClient } from "./client/messageManagerClient";
-import { EventEnumMap, EventMessagesArgs } from "config/event.types";
 import { EventManager, Listener } from "./client/eventManagerClient";
+import { EventEnumMap, EventMap, EventMessagesArgs } from "../common/config/event.types";
 
-export default class {
+export default class<TEvents extends keyof EventMap> {
     private MessageManagerClient: MessageManagerClient;
     private topics: EventEnumMap[]|null = null;
     private event: (() => void)[] = [];
@@ -57,7 +57,7 @@ export default class {
         this.topics = null;
     }
 
-    on(event: EventEnumMap, listener: Listener<EventMessagesArgs<EventEnumMap>>) {
+    on<K extends TEvents>(event: K, listener: Listener<EventMessagesArgs<K>>) {
         this.event.push(EventManager.on(event, listener));
     }
 
