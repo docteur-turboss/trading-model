@@ -1,3 +1,4 @@
+import { MetadataBuilderError } from 'utils/Errors';
 import { 
 	MessageMetadata as MetadataType,
 	DeliveryType, 
@@ -19,26 +20,32 @@ import {
 /**
  * Represents an metadata in a message
  */
-export class MessageMetadata implements MetadataType {
-	public topic: string;
-	public eventType: string;
-	public causationId?: string;
-	public routing?: RoutingType;
-	public correlationId?: string;
-	public publisher: IdentifyType;
-	public delivery?: DeliveryType;
-	public security?: SecurityType;
-	public schemaVersion = "1.0.0";
+export class MessageMetadata {
+	private topic: string;
+	private eventType: string;
+	private causationId?: string;
+	private routing?: RoutingType;
+	private correlationId?: string;
+	private publisher: IdentifyType;
+	private delivery?: DeliveryType;
+	private security?: SecurityType;
+	private schemaVersion = "1.0.0";
 
-	public constructor(data: MetadataType) {
-		this.topic = data.topic;
-		this.routing = data.routing;
-		this.delivery = data.delivery;
-		this.security = data.security;
-		this.eventType = data.eventType;
-		this.publisher = data.publisher;
-		this.causationId = data.causationId;
-		this.correlationId = data.correlationId;
+	public constructor(data: Partial<MetadataType> = {}) {
+		const { topic, routing, delivery, security, eventType, publisher, causationId, correlationId } = data;
+		
+		this.routing = routing;
+		this.delivery = delivery;
+		this.security = security;
+		this.causationId = causationId;
+		this.correlationId = correlationId;
+		this.topic = topic? topic : "null";
+		this.eventType = eventType? eventType : "null";
+
+		this.publisher = publisher? publisher : {
+			serviceName: "MessageDeliveryService",
+			instanceId: "null"
+		};
 	}
 
 	/**
@@ -176,6 +183,12 @@ export class MessageMetadata implements MetadataType {
 	 * Transforms the embed to a plain object
 	 */
 	public toJSON(): MetadataType {
-		return { ...this };
+		const { eventType, publisher, schemaVersion, topic, causationId, correlationId, delivery, routing, security } = this;
+		
+		if(topic === "null") throw new MetadataBuilderError("You haven't defined a topic");
+		if(eventType === "null") throw new MetadataBuilderError("You haven't defined a eventType");
+		if(publisher.instanceId === "null" && this.publisher.serviceName === "MessageDeliveryService") throw new MetadataBuilderError("You haven't defined a publisher");
+		
+		return { eventType, publisher, schemaVersion, topic, causationId, correlationId, delivery, routing, security };
 	}
 }
