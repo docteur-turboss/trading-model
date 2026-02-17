@@ -1,12 +1,13 @@
 import { ResponseProtocole } from "cash-lib/middleware/responseProtocole";
+import { MessageManagerListenExpress } from "config/message-manager";
 import { MTLSAuthMiddleware } from "cash-lib/middleware/MTLSAuth";
 import { AddressManagerRoutes } from "config/address-manager";
-// import { MessageManagerRoutes } from "config/message-manager";
+import { FinancialRoutes } from "clients/http/routes";
 import { logger } from 'cash-lib/config/logger';
 import { rateLimit } from "express-rate-limit";
+import express, { Router } from "express";
 import { env } from 'config/env';
 import https from 'node:https';
-import express from "express";
 import path from 'node:path';
 import helmet from "helmet";
 import fs from 'node:fs';
@@ -63,11 +64,13 @@ export function createServer(): {close: () => Promise<void>} {
      * ─────────────────────────────────────────────────────────────
      */
 
-    // const apiRoutes: [string, Router][] = [];
-    // apiRoutes.forEach(([path, router]) => app.use(path, router));
+    const apiRoutes: [string, Router][] = [
+        ["/", FinancialRoutes()],
+    ];
+    apiRoutes.forEach(([path, router]) => app.use(path, router));
 
     AddressManagerRoutes(app);
-    // MessageManagerRoutes(app);
+    MessageManagerListenExpress(app);
 
     /**
      * ─────────────────────────────────────────────────────────────
