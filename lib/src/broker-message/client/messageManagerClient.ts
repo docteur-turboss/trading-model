@@ -1,10 +1,11 @@
 import { HttpClient } from "config/httpClient";
+import { EventEnumMap } from "config/event.types";
 import addressManagerClient from "adress-manager/index";
 import { MessageMetadata } from "../shared/types/message";
 import { ServiceInstanceName } from "config/services.types";
 import { MessageManagerConfig } from "../shared/types/config";
-import { SubscribesTopicsPayload, UnSubscribesTopicsPayload } from "../shared/types/payloads";
 import { MessageManagerError, ServiceUnreachableError } from "utils/Errors.js";
+import { SubscribesTopicsPayload, UnSubscribesTopicsPayload } from "../shared/types/payloads";
 
 /**
  */
@@ -19,7 +20,7 @@ export class MessageManagerClient {
 
   /**
    */
-    private async SubscribesToASingleTopic(topic: string, targetUrl: string): Promise<void> {
+    private async SubscribesToASingleTopic(topic: EventEnumMap, targetUrl: string): Promise<void> {
         const payload: SubscribesTopicsPayload = {
             callbackPath: this.config.callbackPath,
             consumerIdentity: {
@@ -42,7 +43,7 @@ export class MessageManagerClient {
     
     /**
      */
-    private async UnSubscribesToASingleTopic(topic: string, targetUrl: string): Promise<void> {
+    private async UnSubscribesToASingleTopic(topic: EventEnumMap, targetUrl: string): Promise<void> {
         const payload: UnSubscribesTopicsPayload = {
             instanceId: this.config.instanceId,
             topic
@@ -63,7 +64,7 @@ export class MessageManagerClient {
      * @param topics 
      * @returns 
      */
-    async SubscribeToTopics (topics: string[]): Promise<void> {
+    async SubscribeToTopics (topics: EventEnumMap[]): Promise<void> {
         try{
             const target = await this.addressManagerClient.findService(ServiceInstanceName.MessageDeliveryService);
             if(!target) throw new ServiceUnreachableError("Unable to contact the message manager");
@@ -89,7 +90,7 @@ export class MessageManagerClient {
      * @param topics 
      * @returns 
      */
-    async UnSubscribeToTopic (topics: string[]): Promise<void> {
+    async UnSubscribeToTopic (topics: EventEnumMap[]): Promise<void> {
         try{
             const target = await this.addressManagerClient.findService(ServiceInstanceName.MessageDeliveryService);
             if(!target) throw new ServiceUnreachableError("Unable to contact the message manager");

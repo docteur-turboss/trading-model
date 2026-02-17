@@ -1,13 +1,14 @@
 import { Application } from "express";
-import { HttpClient } from "../common/config/httpClient";
 import addressManagerClient from "adress-manager/index";
-import { ServiceInstanceName } from "../common/config/services.types";
+import { HttpClient } from "../common/config/httpClient";
+import { EventManager } from "./client/eventManagerClient";
+import { EventEnumMap } from "../common/config/event.types";
 import { CreateCallbackRoute } from "./http/messages.routes";
+import { MessageMetadata } from "./shared/helper/messages/message";
 import { MessageManagerClient } from "./client/messageManagerClient";
-import { EventManager, Listener } from "./client/eventManagerClient";
-import { EventEnumMap, EventMap, EventMessagesArgs } from "../common/config/event.types";
+import { ServiceInstanceName } from "../common/config/services.types";
 
-export default class<TEvents extends keyof EventMap> {
+export default class {
     private MessageManagerClient: MessageManagerClient;
     private topics: EventEnumMap[]|null = null;
     private event: (() => void)[] = [];
@@ -46,7 +47,7 @@ export default class<TEvents extends keyof EventMap> {
         }, addressManagerClient);
     }
 
-    async intents (topics: EventEnumMap[]): Promise<void> {
+    async intents (topics: Parameters<MessageManagerClient['SubscribeToTopics']>[0]): Promise<void> {
         await this.MessageManagerClient.SubscribeToTopics(topics);
         this.topics = topics;
     }
@@ -57,11 +58,24 @@ export default class<TEvents extends keyof EventMap> {
         this.topics = null;
     }
 
-    on<K extends TEvents>(event: K, listener: Listener<EventMessagesArgs<K>>) {
+    on<K extends Parameters<typeof EventManager["on"]>[0]>(event: K, listener: Parameters<typeof EventManager["on"]>[1]) {
         this.event.push(EventManager.on(event, listener));
     }
 
-    async listenExpress (app: Application) {
+    listenExpress (app: Application) {
         app.use(CreateCallbackRoute(this.callbackPath));
     }
+
+    post = {
+        direct: <T = Parameters<MessageManagerClient['publishDirectMessage']>[1]>(service: Parameters<MessageManagerClient['publishDirectMessage']>[0] , payload: T, metadata: Parameters<MessageManagerClient['publishDirectMessage']>[2]) => {
+            return this.MessageManagerClient.publishDirectMessage(service, payload, metadata);
+        },
+        indirect: <T = Parameters<MessageManagerClient['publishAsyncMessage']>[0]>(payload: T, metadata: Parameters<MessageManagerClient['publishAsyncMessage']>[1]) => {
+            return this.MessageManagerClient.publishAsyncMessage(payload, metadata);
+        }
+    }
+}
+
+export const helper = {
+    MetadataBuilder: MessageMetadata,
 }
