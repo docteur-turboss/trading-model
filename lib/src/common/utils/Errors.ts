@@ -120,3 +120,9 @@ export class MessageManagerError extends MessageManagerBaseError {
     super(message, cause);
   }
 }
+
+export class MetadataBuilderError extends MessageManagerBaseError {
+  constructor(message: string, cause?: unknown){
+    super(message, cause);
+  }
+}
