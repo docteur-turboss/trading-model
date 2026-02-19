@@ -1,3 +1,8 @@
+/**
+ * PLEASE UPDATE THE /lib/common/config/event.types.ts if your mouving here
+ */
+
+
 export type MarketType =
   | "crypto"
   | "equity"
@@ -54,6 +59,13 @@ export interface TradeEntity extends BaseMarketEntity {
 export interface OrderBookEntity extends BaseMarketEntity {
   bids: Set<{price: number, quantity: number}>;
   asks: Set<{price: number, quantity: number}>;
+}
+
+export interface BookTickerEntity extends BaseMarketEntity {
+  bidQty: number;
+  askQty: number;
+  bid: number;
+  ask: number;
 }
 
 export interface TickerEntity extends BaseMarketEntity {
