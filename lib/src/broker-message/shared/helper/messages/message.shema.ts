@@ -1,4 +1,4 @@
-import { EnumEventMessage, EventMap } from "config/event.types";
+import { EnumEventMessage, EventMap, MarketType, SourceType } from "config/event.types";
 import { ServiceInstanceName } from "config/services.types";
 import { DeliveryMode } from "config/deliveryMode.types";
 import { z } from "zod";
@@ -69,11 +69,84 @@ type ZodEventMap<T extends Record<string, any>> = {
       : z.ZodType<T[K]>;
 };
 
+const setObject = z.object({
+  price: z.number(),
+  quantity: z.number(),
+});
+
+
 const EventValidators: ZodEventMap<EventMap> = {
   [EnumEventMessage.exampleEvent]: z.void(),
   [EnumEventMessage.testEvent]: z.object({
-    debug: z.boolean(),
+    debug: z.boolean("Debug must be a boolean and is required"),
   }),
+  [EnumEventMessage.fetchRecentTrades]: z.object({
+    trades: z.array(z.object({
+      price: z.number("Price is required and must be a number"),
+      symbol: z.string("Symbol is required and must be a string"),
+      tradeId: z.bigint("TradeId is required and must be a bigint"),
+      quantity: z.number("Quantity is required and must be a number"),
+      timestamp: z.number("Timestamp is required and must be a number"),
+      side: z.enum(["buy", "sell"], "Side is required and must be `buy` or `sell`"),
+      source: z.enum(SourceType, `Source is required and must be part of: ${Object.values(SourceType).join(', ')}`),
+      market: z.enum(MarketType, `Market is required and must be part of: ${Object.values(MarketType).join(', ')}`)
+    }), "Trades is required and must be a array of object")
+  }),
+  [EnumEventMessage.fetch24hrTickerStats]: z.object({
+    ticker: z.array(z.object({
+      low: z.number("Low is required and must be a number"),
+      open: z.number("Open is required and must be a number"),
+      high: z.number("High is required and must be a number"),
+      last: z.number("Last is required and must be a number"),
+      volume: z.number("Volume is required and must be a number"),
+      symbol: z.string("Symbol is required and must be a string"),
+      timestamp: z.number("Timestamp is required and must be a number"),
+      closeTimestamp: z.number("CloseTimestamp is required and must be a number"),
+      source: z.enum(SourceType, `Source is required and must be part of: ${Object.values(SourceType).join(', ')}`),
+      market: z.enum(MarketType, `Market is required and must be part of: ${Object.values(MarketType).join(', ')}`)
+    }), "Ticker is required and must be a array of object")
+  }),
+  [EnumEventMessage.fetchCandlestickSeries]: z.object({
+    candle: z.array(z.object({
+      low: z.number("Low is required and must be a number"),
+      trades: z.number("Trades must be a number").optional(),
+      open: z.number("Open is required and must be a number"),
+      high: z.number("High is required and must be a number"),
+      close: z.number("Close is required and must be a number"),
+      symbol: z.string("Symbol is required and must be a string"),
+      volume: z.number("Volume is required and must be a number"),
+      interval: z.string("Interval is required and must be a string"),
+      timestamp: z.number("Timestamp is required and must be a number"),
+      closeTimestamp: z.number("CloseTimestamp is required and must be a number"),
+      source: z.enum(SourceType, `Source is required and must be part of: ${Object.values(SourceType).join(', ')}`),
+      market: z.enum(MarketType, `Market is required and must be part of: ${Object.values(MarketType).join(', ')}`)
+    }), "Candle is required and must be a array of object")
+  }),
+  [EnumEventMessage.fetchOrderBookSnapshot]: z.object({
+    orderBook: z.array(z.object({
+      bids: z.set(setObject),
+      asks: z.set(setObject),
+      symbol: z.string("Symbol is required and must be a string"),
+      timestamp: z.number("Timestamp is required and must be a number"),
+      source: z.enum(SourceType, `Source is required and must be part of: ${Object.values(SourceType).join(', ')}`),
+      market: z.enum(MarketType, `Market is required and must be part of: ${Object.values(MarketType).join(', ')}`)
+    }), "OrderBook is required and must be a array of object")
+  }),
+  [EnumEventMessage.fetchPriceTickerSnapshot]: z.object({
+    price: z.record(z.string("Symbol value must be string"), z.number("Price value must be a number"), "Price param is required and must be a record<string, number>")
+  }),
+  [EnumEventMessage.fetchOrderBookTickerSnapshot]: z.object({
+    bookTicker: z.array(z.object({
+      ask: z.number("Ask is required and must be a number"),
+      bid: z.number("Bid is required and must be a number"),
+      askQty: z.number("AskQty is required and must be a number"),
+      bidQty: z.number("BidQty is required and must be a number"),
+      symbol: z.string("Symbol is required and must be a string"),
+      timestamp: z.number("Timestamp is required and must be a number"),
+      source: z.enum(SourceType, `Source is required and must be part of: ${Object.values(SourceType).join(', ')}`),
+      market: z.enum(MarketType, `Market is required and must be part of: ${Object.values(MarketType).join(', ')}`)
+    }), "BookTicker is required and must be a array of object")
+  })
 };
 
 export const MessagePayloadSchema = z.discriminatedUnion("type",

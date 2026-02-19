@@ -1,6 +1,7 @@
 /**
- * Type definition
+ * PLEASE UPDATE THE /lib/common/config/event.types.ts if your mouving here
  */
+
 
 export type MarketType =
   | "crypto"
@@ -75,33 +76,3 @@ export interface TickerEntity extends BaseMarketEntity {
   volume: number;
   closeTimestamp: number;
 }
-
-/**
- * Event definition
- */
-export interface EventMap {
-  "example.show.create": void;
-  "example.debug.create": { debug: boolean };
-  "market.trade.recent.fetch": { trades: TradeEntity[] };
-  "market.ticker.24hr-stats.fetch": { ticker: TickerEntity[] };
-  "market.candlestick.series.fetch": { candle: CandleEntity[] };
-  "market.order-book.snapshot.fetch": { orderBook: OrderBookEntity[] };
-  "market.price-ticker.snapshot.fetch": { price: Record<string, number> };
-  "market.order-book-ticker.snapshot.fetch": { bookTicker: BookTickerEntity[] };
-}
-
-export const EnumEventMessage = {
-  testEvent: "example.debug.create",
-  exampleEvent: "example.show.create",
-  fetchRecentTrades: "market.trade.recent.fetch",
-  fetch24hrTickerStats: "market.ticker.24hr-stats.fetch",
-  fetchCandlestickSeries: "market.candlestick.series.fetch",
-  fetchOrderBookSnapshot: "market.order-book.snapshot.fetch",
-  fetchPriceTickerSnapshot: "market.price-ticker.snapshot.fetch",
-  fetchOrderBookTickerSnapshot: "market.order-book-ticker.snapshot.fetch",
-} as const satisfies Record<string, keyof EventMap>;
-
-type EventMessage = keyof EventMap;
-
-export type EventMessagesArgs<T extends EventMessage> = EventMap[T];
-export type EventEnumMap = typeof EnumEventMessage[keyof typeof EnumEventMessage];

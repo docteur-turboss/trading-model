@@ -9,7 +9,6 @@ export interface BinanceDepthResponse {
   asks: [string, string][];
 }
 
-
 export interface BinanceTrade {
   id: number;
   price: string;
@@ -22,10 +21,8 @@ export interface BinanceTrade {
 
 export interface BinanceTradeResponse extends Array<BinanceTrade> {}
 
-
 export interface BinanceHistoricalTrade extends BinanceTrade {}
 export interface BinanceHistoricalTradeResponse extends Array<BinanceHistoricalTrade> {}
-
 
 export interface BinanceAggregateTrade {
   a :number; // Aggregate tradeId
@@ -62,7 +59,7 @@ export interface BinanceCandlestickDataResponse extends Array<BinanceCandlestick
 export interface Binance24hrTickerStats {
   symbol: string;
   priceChange: string;
-  PriceChangePercent: string;
+  priceChangePercent: string;
   weightedAvgPrice: string;
   prevClosePrice: string;
   lastPrice: string;

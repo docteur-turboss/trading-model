@@ -27,6 +27,10 @@
       "types": "./dist/adress-manager/*.d.ts",
       "default": "./dist/adress-manager/*.js"
     },
+    "./message-manager/*": {
+      "types": "./dist/broker-message/*.d.ts",
+      "default": "./dist/broker-message/*.js"
+    },
     "./middleware/*": {
       "types": "./dist/common/middleware/*.d.ts",
       "default": "./dist/common/middleware/*.js"
