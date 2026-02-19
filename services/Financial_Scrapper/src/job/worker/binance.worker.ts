@@ -12,7 +12,6 @@
  * dans des environnements distribués.
  */
 
-import { helper } from "cash-lib/message-manager/index";
 import { 
     getOrderBook, 
     CandlestickData, 
@@ -20,8 +19,13 @@ import {
     getOrderBookTicker, 
     get24hrTickerStats, 
     getSymbolPriceTicker } from "clients/binance/binance.client";
+import { DeliveryMode } from "cash-lib/config/deliveryMode.types";
+import { EnumEventMessage } from "cash-lib/config/event.types";
 import { BinanceNormalizer } from "clients/binance/normalizer";
 import { MessageManager } from "config/message-manager";
+import { helper } from "cash-lib/message-manager/index";
+import { createHash } from "node:crypto";
+import { env } from "config/env";
 
 export interface BinanceWorkerOptions {
   symbol: string;
@@ -58,6 +62,9 @@ export class BinanceWorker {
    * });
    */
   public async run(): Promise<BinanceWorkerResult> {
+    const { v4 } = await import("uuid");
+    const uuid = v4;
+    
     const {
       symbol,
       interval = "1m",
@@ -82,10 +89,7 @@ export class BinanceWorker {
       getOrderBookTicker([symbol]),
     ]);
 
-    
-    // MessageManager.post.indirect()
-
-    return {
+    const response = {
       orderBook: BinanceNormalizer.orderBook(symbol, orderBookRaw),
       recentTrades: BinanceNormalizer.trades(symbol, tradesRaw),
       candles: BinanceNormalizer.candles(
@@ -97,6 +101,63 @@ export class BinanceWorker {
       priceTicker: BinanceNormalizer.priceTicker(priceTickerRaw),
       bookTicker: BinanceNormalizer.bookTicker(bookTickerRaw),
       fetchedAt: Date.now(),
+    }
+    
+    const authContext = {
+        roles: ["Data", "Financial", "Scrapper"],
+        subject: env.SERVICE_NAME,
+        tenantId: env.INSTANCE_ID,
     };
+
+    let signature = createHash("sha256").update(JSON.stringify(authContext)).digest("base64url")
+
+    BuilderMetadata
+    .setDelivery({
+      mode: DeliveryMode.AT_LEAST_ONCE,
+      deduplicationId: uuid(),
+    })
+    .setEventType("FetchCadlestick")
+    .setTopic(EnumEventMessage.fetchCandlestickSeries)
+    .setSecurity({
+      authContext,
+      signature
+    })
+    .setIds({
+      causationId: uuid(),
+      correlationId: uuid()
+    })
+    .setPublisher({
+      instanceId: env.INSTANCE_ID,
+      serviceName: env.SERVICE_NAME
+    });
+
+    MessageManager.post.indirect(response.candles, BuilderMetadata.toJSON());
+
+    BuilderMetadata
+    .setTopic(EnumEventMessage.fetchOrderBookSnapshot)
+    .setEventType("FetchOrderbook");
+    MessageManager.post.indirect(response.orderBook, BuilderMetadata.toJSON());
+
+    BuilderMetadata
+    .setTopic(EnumEventMessage.fetch24hrTickerStats)
+    .setEventType("FetchTicker24hr");
+    MessageManager.post.indirect(response.ticker24h, BuilderMetadata.toJSON());
+
+    BuilderMetadata
+    .setTopic(EnumEventMessage.fetchOrderBookTickerSnapshot)
+    .setEventType("FetchBookTicker");
+    MessageManager.post.indirect(response.bookTicker, BuilderMetadata.toJSON());
+
+    BuilderMetadata
+    .setTopic(EnumEventMessage.fetchPriceTickerSnapshot)
+    .setEventType("FetchPriceTicker");
+    MessageManager.post.indirect(response.priceTicker, BuilderMetadata.toJSON());
+
+    BuilderMetadata
+    .setTopic(EnumEventMessage.fetchRecentTrades)
+    .setEventType("FetchRecentTrades");
+    MessageManager.post.indirect(response.recentTrades, BuilderMetadata.toJSON());
+
+    return response;
   }
 }
