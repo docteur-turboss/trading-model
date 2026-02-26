@@ -126,3 +126,46 @@ export class MetadataBuilderError extends MessageManagerBaseError {
     super(message, cause);
   }
 }
+
+/**
+ * Base error class for the Agent module.
+ *
+ * All specific errors of this module should inherit from this class.
+ */
+export abstract class AgentBaseError extends Error {
+  /**
+   * Optional root cause of the error (for wrapping).
+   */
+  public readonly cause?: unknown;
+
+  /**
+   * Creates an instance of AgentBaseError.
+   *
+   * @param message - Human-readable error message.
+   * @param cause - Optional underlying error that triggered this error.
+   */
+  protected constructor(message: string, cause?: unknown) {
+    super(message);
+
+    this.name = new.target.name;
+    this.cause = cause;
+
+    /**
+     * Necessary to maintain the prototype chain
+     * when extending Error in TypeScript.
+     */
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+/**
+ * Generic error related to interactions with Agents.
+ *
+ * Can be used as a fallback for unexpected errors
+ * that are not covered by more specific classes.
+ */
+export class AgentError extends AgentBaseError {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause);
+  }
+}
