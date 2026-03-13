@@ -1,4 +1,4 @@
-import { writeFile } from "fs";
+import { existsSync, mkdirSync, writeFile } from "fs";
 import path from "path";
 
 /**
@@ -131,7 +131,12 @@ export class Logger {
             serviceInCharge
         };
 
-        writeFile(path.resolve('/log', `${new Date().getFullYear()}.${new Date().getMonth()+1}.${new Date().getDate()}-${level}`), JSON.stringify(data), {flag: "a"}, () => {})
+        
+        const logFilePath = path.resolve(process.cwd(), 'log');
+        const logFileName = `${new Date().getFullYear()}.${new Date().getMonth()+1}.${new Date().getDate()}-${level}.log`;
+
+        if(!existsSync(logFilePath)) mkdirSync(logFilePath, { recursive: true });
+        writeFile(path.resolve(logFilePath, logFileName), JSON.stringify(data)+'\n', {flag: "a"}, () => {})
 
         return data
     }
