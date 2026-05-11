@@ -72,7 +72,7 @@ export const MTLSAuthMiddleware = catchSync((req, res, next) => {
    * The identity is injected into the request object to be consumed
    * by downstream middlewares, controllers, or authorization layers.
    */
-  (req as unknown as (Request & { clientIdentity: string })).clientIdentity = identity;
+  (req as unknown as (Request & { clientIdentity: string | string[] })).clientIdentity = identity;
 
   // Continue request processing
   next();

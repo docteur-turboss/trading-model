@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { Scheduler, ScheduledJob } from "./scheduler";
 import cron from "node-cron";
 
@@ -15,7 +16,7 @@ describe("Scheduler", () => {
 
     mockJob = {
       schedule: "*/1 * * * *",
-      execute: jest.fn().mockResolvedValue(undefined),
+      execute: jest.fn().mockResolvedValue(undefined as never) as unknown as jest.MockedFunction<() => Promise<void>>,
     };
 
     mockTask = {
@@ -42,7 +43,7 @@ describe("Scheduler", () => {
     scheduler.register(mockJob);
     scheduler.start();
 
-    const anotherJob: ScheduledJob = { schedule: "*/5 * * * *", execute: jest.fn() };
+    const anotherJob: ScheduledJob = { schedule: "*/5 * * * *", execute: jest.fn() as () => Promise<void> };
     expect(() => scheduler.register(anotherJob)).toThrow(
       "Cannot register job after scheduler has started"
     );
@@ -68,7 +69,7 @@ describe("Scheduler", () => {
     scheduler.start();
 
     // Récupère le callback passé à cron.schedule
-    const callback = (cron.schedule as jest.Mock).mock.calls[0][1];
+    const callback = (cron.schedule as jest.Mock).mock.calls[0][1] as () => Promise<void>;
 
     await callback(); // simulate cron tick
     expect(mockJob.execute).toHaveBeenCalledTimes(1);
@@ -77,12 +78,12 @@ describe("Scheduler", () => {
   test("start should ignore errors thrown by job.execute", async () => {
     const errorJob: ScheduledJob = {
       schedule: "*/1 * * * *",
-      execute: jest.fn().mockRejectedValue(new Error("fail")),
+      execute: jest.fn().mockRejectedValue(new Error("fail") as never) as unknown as jest.MockedFunction<() => Promise<void>>,
     };
     scheduler.register(errorJob);
     scheduler.start();
 
-    const callback = (cron.schedule as jest.Mock).mock.calls[0][1];
+    const callback = (cron.schedule as jest.Mock).mock.calls[0][1] as () => Promise<void>;
 
     await expect(callback()).resolves.toBeUndefined();
   });
@@ -107,7 +108,7 @@ describe("Scheduler", () => {
     expect(mockTask.stop).toHaveBeenCalledTimes(1);
 
     // Après stop, on peut redémarrer normalement
-    const newJob: ScheduledJob = { schedule: "*/2 * * * *", execute: jest.fn() };
+    const newJob: ScheduledJob = { schedule: "*/2 * * * *", execute: jest.fn() as () => Promise<void> };
     expect(() => scheduler.register(newJob)).not.toThrow();
   });
 });

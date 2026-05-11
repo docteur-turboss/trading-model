@@ -1,5 +1,6 @@
 import https from "https";
 import { HttpClient, HttpClientError, HttpClientTimeoutError } from "../../common/config/httpClient";
+import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
 /* eslint-disable */
 
@@ -17,7 +18,7 @@ describe("HttpClient", () => {
 
   const mockResponse = (statusCode: number, data?: any, headers?: Record<string, string>) => {
     return {
-      on: jest.fn((event, cb) => {
+      on: jest.fn((event, cb: (data?: any) => void) => {
         if (event === "data" && data) cb(JSON.stringify(data));
         if (event === "end") cb();
         return mockResponse;
@@ -41,7 +42,8 @@ describe("HttpClient", () => {
     const res = mockResponse(200, { ok: true });
     const req = mockReq();
     requestMock.mockImplementation((options, cb) => {
-      cb(res as any);
+      let tmp_cb = cb as (res: any) => void;
+      tmp_cb(res as any);
       return req;
     });
 
@@ -54,7 +56,8 @@ describe("HttpClient", () => {
     const res = mockResponse(201, { created: true });
     const req = mockReq();
     requestMock.mockImplementation((options, cb) => {
-      cb(res as any);
+      let tmp_cb = cb as (res: any) => void;
+      tmp_cb(res as any);
       return req;
     });
 
@@ -69,7 +72,8 @@ describe("HttpClient", () => {
     const res = mockResponse(500, { error: "Server error" });
     const req = mockReq();
     requestMock.mockImplementation((options, cb) => {
-      cb(res as any);
+      let tmp_cb = cb as (res: any) => void;
+      tmp_cb(res as any);
       return req;
     });
 
@@ -81,7 +85,9 @@ describe("HttpClient", () => {
     requestMock.mockImplementation((options, cb) => req);
     const networkError = new Error("Network fail");
     (req.on as jest.Mock).mockImplementation((event, cb) => {
-      if (event === "error") cb(networkError);
+      let tmp_cb = cb as (networkError: any) => void;
+
+      if (event === "error") tmp_cb(networkError);
     });
 
     await expect(client.get("https://example.com/fail")).rejects.toThrow("Network fail");
@@ -92,7 +98,8 @@ describe("HttpClient", () => {
     requestMock.mockImplementation((options, cb) => req);
     let timeoutCallback: () => void;
     (req.setTimeout as jest.Mock).mockImplementation((ms, cb) => {
-      timeoutCallback = cb;
+      let tmp_cb = cb as () => void;
+      timeoutCallback = tmp_cb;
     });
 
     const promise = client.get("https://example.com/timeout", { timeoutMs: 50 });
@@ -104,7 +111,8 @@ describe("HttpClient", () => {
     const res = mockResponse(200, "plain text", { "content-type": "text/plain" });
     const req = mockReq();
     requestMock.mockImplementation((options, cb) => {
-      cb(res as any);
+      let tmp_cb = cb as (res: any) => void;
+      tmp_cb(res as any);
       return req;
     });
 
@@ -116,7 +124,8 @@ describe("HttpClient", () => {
     const res = mockResponse(204);
     const req = mockReq();
     requestMock.mockImplementation((options, cb) => {
-      cb(res as any);
+      let tmp_cb = cb as (res: any) => void;
+      tmp_cb(res as any);
       return req;
     });
 

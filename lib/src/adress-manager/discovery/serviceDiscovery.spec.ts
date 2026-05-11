@@ -8,6 +8,7 @@ import {
   ServiceNotFoundError,
   ServiceUnreachableError,
 } from "../../common/utils/Errors";
+import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
 describe("ServiceDiscovery", () => {
   let discovery: ServiceDiscovery;

@@ -1,9 +1,10 @@
+import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { LogLevel, Logger } from "../../common/config/logger";
 // disable no-explicit-any on all file for testing private methods
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 // Mock fetch for testing purposes
-global.fetch = jest.fn();
+global.fetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 
 describe('Logger.ts', () => {
     let logger: Logger;
@@ -128,7 +129,9 @@ describe('Logger.ts', () => {
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
 
-        const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+        const tmp = (global.fetch as jest.MockedFunction<typeof fetch>)
+        if(!tmp) throw new Error("Fetch should be mocked");
+        const body = JSON.parse(tmp.mock.calls[0][1]?.body as string);
         expect(body.message).toBe('prod-error');
     });
 

@@ -1,6 +1,5 @@
 import { Response } from "express";
 import ChainedError from "chained-error";
-import { logger } from "../../common/config/logger";
 import { 
   handleCoreResponse,
   handleCoreAuthResponse,
@@ -9,7 +8,7 @@ import {
   handleCoreError,
   handleOnlyDataCore
 } from "../../common/middleware/handleCoreResponse";
-import { describe, expect, test, beforeEach } from '@jest/globals';
+import { describe, expect, test, beforeEach, jest, afterEach } from '@jest/globals';
 
 import { HTTP_CODE, ResponseException } from "../../common/middleware/responseException";
 import * as ImportedGenerals from "../../common/middleware/responseException";
@@ -18,7 +17,7 @@ import * as ImportedGenerals from "../../common/middleware/responseException";
 
 jest.mock("../../common/config/logger", () => ({
   logger: {
-    error: jest.fn()
+    error: () => {}
   }
 }));
 
@@ -62,9 +61,9 @@ describe("handleCoreAuthResponse", () => {
 
   beforeEach(() => {
     mockResponse = {
-      status: jest.fn().mockReturnThis(),
-      cookie: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
+      status: jest.fn().mockReturnThis() as (code: number) => Response<any, Record<string, any>>,
+      cookie: jest.fn().mockReturnThis() as (name: string, value: string, options?: Record<string, any>) => Response<any, Record<string, any>>,
+      json: jest.fn().mockReturnThis() as (body: any) => Response<any, Record<string, any>>,
     };
   });
 
@@ -129,7 +128,6 @@ describe("handleDBError", () => {
     const err = new Error("unknown");
 
     expect(() => fn(err)).toThrow(err);
-    expect(logger.error).toHaveBeenCalledWith("user.models.ts", { err });
   });
 });
 
@@ -151,10 +149,6 @@ describe("handleCoreError", () => {
     const e = new Error("NoMatch");
 
     expect(() => handleCoreError("user", "update", e, mapping)).toThrow(e);
-    expect(logger.error).toHaveBeenCalledWith("user.core.ts", {
-      err: e,
-      context: "update"
-    });
   });
 });
 

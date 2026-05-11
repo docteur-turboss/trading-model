@@ -1,6 +1,7 @@
 import { ServiceHealthChecker } from "./serviceHealthChecker";
 import { HttpClient } from "../../common/config/httpClient";
 import { ServiceInstance } from "../client/type";
+import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
 /* eslint-disable */
 describe("ServiceHealthChecker", () => {

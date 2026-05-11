@@ -1,12 +1,13 @@
 import { TokenRefresherJob } from "./tokenRefreshJob";
 import { TokenManager } from "../client/tokenManager";
+import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
 describe("TokenRefresherJob", () => {
   let mockTokenManager: jest.Mocked<TokenManager>;
 
   beforeEach(() => {
     mockTokenManager = {
-      refreshToken: jest.fn().mockResolvedValue(undefined),
+      refreshToken: jest.fn().mockResolvedValue(undefined as never),
     } as unknown as jest.Mocked<TokenManager>;
   });
 

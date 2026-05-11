@@ -1,4 +1,5 @@
 // src/core/errors.test.ts
+import { describe, expect, test } from "@jest/globals";
 import {
   AddressManagerBaseError,
   ServiceNotFoundError,
