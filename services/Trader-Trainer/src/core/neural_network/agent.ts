@@ -9,7 +9,7 @@ export class Agent {
     hiddenSize: number,
     outputSize: number
   ) {
-    this.brain = new NeuralNetwork(inputSize, hiddenSize, outputSize);
+    this.brain = new NeuralNetwork([inputSize, hiddenSize, outputSize]);
   }
 
   /**

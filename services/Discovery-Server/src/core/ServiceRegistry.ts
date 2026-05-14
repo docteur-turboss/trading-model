@@ -298,7 +298,7 @@ export class ServiceRegistry {
      * Prevents arbitrary or rogue service registrations.
      */
     verifyInstanceName(serviceName: string): boolean {
-        return Object.values(ServiceInstanceName).includes(serviceName);
+        return Object.values(ServiceInstanceName as unknown as string).includes(serviceName);
     }
 }
 
