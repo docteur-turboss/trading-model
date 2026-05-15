@@ -1,385 +1,833 @@
+import { 
+  NeuralNetworkConfig, 
+  ActivationType, 
+  LayerMemory,
+  PooledExperience,
+  ForwardContext,
+} from "./type";
+import {
+  OptimizerHyperparams,
+  DEFAULT_HYPERPARAMS,
+  OPTIMIZERS,
+} from "./optimizer";
 import { AgentError } from "cash-lib/utils/Errors";
-
-type LossFunctionType = "mean-squared-error" | "cross-entropy" | "mean-biais-error" | "mean-absolute-error" | "root-mean-squared-error" | "huber-loss" | "log-cosh-loss" | "binary-cross-entropy" | "hinge-loss" | "Kullback-Leibler-divergence";
-type NormalisationType = "min-max" | "z-score" | "decimal-scaling" | "border" | "robust-scaling" | "logarithmic-normalization" | "none";
-type ActivationType = "sigmoid" | "tanh" | "ReLu" | "leakyReLu" | "GELU" | "softmax" | "ELU" | "mish";
-type ConnectionType = "fully-connected" | "skip-connection" | "residual-connection";
-type InitialisationType = "zeros" | "leCun" | "he" | "xavier" | "random";
+import { INITIALIZERS } from "./initializers";
+import { ACTIVATIONS } from "./activation";
+import { NORMALIZERS } from "./normalize";
+import { gaussianNoise } from "./utils";
+import { LOSSES } from "./losses";
 
 /**
- * Represents a simple fully-connected feedforward neural network
- * with a single hidden layer.
+ * Configurable fully-connected feedforward neural network with support for
+ * multiple activation functions, loss functions, normalisations, connection
+ * types, and weight initialisations.
  *
- * Architecture:
- * Input Layer → Hidden Layer (sigmoid) → Output Layer (sigmoid)
+ * Architecture: `Input → [Hidden…] → Output`
  *
- * Weights and biases are initialized randomly between -1 and 1.
+ * All intermediate and output layers share the same activation function.
  */
 export class NeuralNetwork {
-  private activations: number[][] = [];
-  private weights: number[][][] = [];
-  private bias: number[][] = [];
-  
-  constructor(
-    private neuronsByLayer: number[],
-    private deltaHuber: number = 1,
-    private learningRate: number = 0.1,
-    private activationType: ActivationType = "sigmoid",
-    private normalisationType: NormalisationType = "none",
-    private initialisationType: InitialisationType = "random",
-    private connectionType: ConnectionType = "fully-connected",
-    private lossFunctionType: LossFunctionType = "mean-squared-error",
-  ) {
-    for (let i = 0; i < this.neuronsByLayer.length - 1; i++) {
-      if (this.neuronsByLayer[i] <= 0 || this.neuronsByLayer[i + 1] <= 0) throw new AgentError(`Layer sizes must be positive integers`);
+  private readonly config: Required<NeuralNetworkConfig>;
+  private readonly optimizerHp: OptimizerHyperparams;
+  private readonly layers: LayerMemory[] = [];
+  private readonly pool: PooledExperience[] = [];
 
-      const fanIn = this.neuronsByLayer[i];
-      const fanOut = this.neuronsByLayer[i + 1];
+  constructor(cfg: NeuralNetworkConfig) {
+    this.config = {
+      useBias: cfg.useBias ?? true,
+      deltaHuber: cfg.deltaHuber ?? 1,
+      enablePool: cfg.enablePool ?? true,
+      neuronsByLayer: cfg.neuronsByLayer,
+      poolMaxSize: cfg.poolMaxSize ?? 10_000,
+      learningRate: cfg.learningRate ?? 0.001,
+      optimizerType: cfg.optimizerType ?? "sgd",
+      gradientClipNorm: cfg.gradientClipNorm ?? 5.0,
+      biasMutationScale: cfg.biasMutationScale ?? 0.05,
+      normalisationType: cfg.normalisationType ?? "none",
+      weightMutationScale: cfg.weightMutationScale ?? 0.1,
+      optimizerHyperparams: cfg.optimizerHyperparams ?? {},
+      initialisationType: cfg.initialisationType ?? "random",
+      connectionType: cfg.connectionType ?? "fully-connected",
+      lossFunctionType: cfg.lossFunctionType ?? "mean-squared-error",
+      normalizedInputRange: cfg.normalizedInputRange ?? [0, cfg.neuronsByLayer[0] - 1],
+      biasInitialisationType: cfg.biasInitialisationType ?? cfg.initialisationType ?? "random",
+      activationType: cfg.activationType ?? 
+        new Array(cfg.neuronsByLayer.length - 1).fill("ReLu"),
+    };
 
-      const initWeights = (fanIn: number, fanOut: number): number[][] => {
-        switch (this.initialisationType) {
-          case "zeros":
-            return Array.from({ length: fanOut }, () => Array(fanIn).fill(0));
-          case "leCun":
-            return Array.from({ length: fanOut }, () => Array.from({ length: fanIn }, () => (Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random())) * Math.sqrt(1 / fanIn)));
-          case "he":
-            return Array.from({ length: fanOut }, () => Array.from({ length: fanIn }, () => (Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random())) * Math.sqrt(2 / fanIn)));
-          case "xavier":
-            const limit = Math.sqrt(6 / (fanIn + fanOut));
-            return Array.from({ length: fanOut }, () => Array.from({ length: fanIn }, () => (Math.random() * 2 - 1) * limit));
-          default:
-            return Array.from({ length: fanOut }, () => Array.from({ length: fanIn }, () => Math.random() * 2 - 1));
-        }
+    this.optimizerHp = {
+      ...DEFAULT_HYPERPARAMS,
+      ...this.config.optimizerHyperparams,
+    };
+
+    const sizes = this.config.neuronsByLayer;
+
+    if(sizes.length < 2)
+      throw new AgentError(`Neural network must have at least 2 layers (input + output)`);
+
+    for (let i = 0; i < sizes.length - 1; i++) {
+      if (sizes[i] <= 0 || sizes[i + 1] <= 0) 
+        throw new AgentError(`Layer sizes must be positive integers`);
+
+      const fanIn = sizes[i];
+      const fanOut = sizes[i + 1];
+
+      const { bias, weights} = this.initParams(fanIn, fanOut);
+      const opt = OPTIMIZERS[this.config.optimizerType];
+
+      const layerConfigs = {
+        fanIn, fanOut,
+        weights, bias,
+        output: new Float32Array(fanOut),
+        z:      new Float32Array(fanOut),
+        delta:  new Float32Array(fanOut),
+        gradW:  new Float32Array(fanIn * fanOut),
+        gradB:  new Float32Array(fanOut),
+        accumGradW: new Float32Array(fanIn * fanOut),
+        accumGradB: new Float32Array(fanOut),
+        wState: opt.initState(fanIn * fanOut),
+        bState: opt.initState(fanOut),
       };
 
-      const initBias = (fanIn: number): number[] => {
-        switch (this.initialisationType) {
-          case "zeros":
-            return Array(fanOut).fill(0);
-          case "leCun":
-            return Array.from({ length: fanOut }, () => (Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random())) * Math.sqrt(1 / fanIn));
-          case "he":
-            return Array.from({ length: fanOut }, () => (Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random())) * Math.sqrt(2 / fanIn));
-          case "xavier":
-            const limit = Math.sqrt(6 / (fanIn + fanOut));
-            return Array.from({ length: fanOut }, () => (Math.random() * 2 - 1) * limit);
-          default:
-            return Array.from({ length: fanOut }, () => Math.random() * 2 - 1);
-        }
-      };
-
-      if (this.connectionType === "skip-connection") {
-        // main weights
-        this.weights.push(initWeights(fanIn, fanOut));
-        this.bias.push(initBias(fanIn));
-        // skip weights from input
-        const inputSize = this.neuronsByLayer[0];
-        this.weights.push(initWeights(inputSize, fanOut));
-        this.bias.push(initBias(inputSize));
-      } else {
-        this.weights.push(initWeights(fanIn, fanOut));
-        this.bias.push(initBias(fanIn));
-      }
+      this.layers.push(layerConfigs);
     }
+
+    let lastActivation = 
+      this.config.activationType[this.config.activationType.length - 1];
+
+    if (
+      lastActivation === "sigmoid" &&
+      this.config.lossFunctionType !== "binary-cross-entropy"
+    ) 
+      console.warn("Sigmoid output is usually paired with binary-cross-entropy");
+    if (
+      lastActivation === "softmax" && 
+      this.config.lossFunctionType !== "cross-entropy" && 
+      this.config.lossFunctionType !== "binary-cross-entropy"
+    )
+      throw new AgentError(`Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`);
+    if (cfg.activationType?.length !== this.layers.length) 
+      throw new AgentError(`ActivationType must be the same length of the layers. Expected : ${this.layers.length}, got ${cfg.activationType?.length}`)
   }
 
   /**
-   * Normalizes the input data based on the specified normalization type.
-   * @param input - Array of input values to be normalized.
-   * @param params - Optional parameters for certain normalization types (e.g., min and max for border normalization).
-   * @returns An array of normalized values.
-   */
-  private normalize(input: number[], params?: {min: number, max: number}): number[] {
-    switch (this.normalisationType) {
-      case "min-max": 
-        const min = Math.min(...input);
-        const max = Math.max(...input);
-        
-        return input.map(x => (x - min) / (max - min));
-      case "z-score":
-        const mean = input.reduce((sum, x) => sum + x) / input.length;
-        const std = Math.sqrt(input.reduce((sum, x) => sum + Math.pow(x - mean, 2)) / input.length);
-
-        return input.map(x => (x - mean) / std);
-      case "decimal-scaling":
-        const maxAbs = Math.max(...input.map(x => Math.abs(x)));
-        const j = Math.ceil(Math.log10(maxAbs + 1));
-
-        return input.map(x => x / Math.pow(10, j));
-      case "border": 
-        const borderMin = params?.min ?? Math.min(...input);
-        const borderMax = params?.max ?? Math.max(...input);
-
-        return input.map(x => x < borderMin ? borderMin : x > borderMax ? borderMax : x);
-      case "robust-scaling":
-        let sorted = [...input].sort((a, b) => a - b);
-        const median = sorted[Math.floor(sorted.length / 2)];
-        const q1 = sorted[Math.floor(sorted.length / 4)];
-        const q3 = sorted[Math.floor(sorted.length * 3 / 4)];
-        const iqr = q3 - q1;
-
-        return input.map(x => (x - median) / iqr);
-      case "logarithmic-normalization":
-        return input.map(x => Math.log(x + 1));
-      default:
-        return input;
-    }
-  }
-
-  /**
-   * Applies the specified activation function to the input array.
-   * @param x - Array of input values to be activated.
-   * @returns An array of activated values.
-   */
-  private activateFonction(x: number[]): number[] {
-    switch (this.activationType) {
-      case "sigmoid": 
-        return x.map((v) => 1 / (1 + Math.exp(-v)));
-      case "tanh":
-        return x.map((v) => Math.tanh(v));
-      case "ReLu": 
-        return x.map((v) => Math.max(0, v));
-      case "leakyReLu":
-        return x.map((v) => v > 0 ? v : 0.01 * v);
-      case "GELU":
-        return x.map((v) => 0.5 * v * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (v + 0.044715 * Math.pow(v, 3)))));
-      case "softmax":
-        const exps = x.map((v) => Math.exp(v));
-        const sumExps = exps.reduce((sum, v) => sum + v);
-
-        return exps.map((v) => v / sumExps);
-      case "ELU":
-        return x.map((v) => v >= 0 ? v : 0.01 * (Math.exp(v) - 1));
-      case "mish":
-        return x.map((v) => v * Math.tanh(Math.log(1 + Math.exp(v))));
-      default: 
-        return x;
-    }
-  }
-
-  /**
-   * Computes the loss between the output and target values based on the specified loss function type.
-   * @param output - Array of output values from the network.
-   * @param target - Array of target values to compare against.
-   * @returns The computed loss value.
-   * @throws {AgentError} If the output and target arrays have different lengths.
-   */
-  private lossFunction(output: number[], target: number[]): number {
-    if (output.length !== target.length) {
-      throw new AgentError(`Output and target must have the same length`);
-    }
-
-    switch (this.lossFunctionType) {
-      case "mean-absolute-error":
-        return output.reduce((sum, o, i) => sum + Math.abs(target[i] - o)) / output.length;
-      case "root-mean-squared-error":
-        return Math.sqrt(output.reduce((sum, o, i) => sum + Math.pow(target[i] - o, 2)) / output.length);
-      case "huber-loss":
-        const delta = this.deltaHuber ?? 1;
-
-        return output.reduce((sum, o, i) => {
-          const error = target[i] - o;
-          return sum + (Math.abs(error) <= delta ? 0.5 * Math.pow(error, 2) : delta * (Math.abs(error) - 0.5 * delta));
-        }) / output.length;
-      case "log-cosh-loss":
-        return output.reduce((sum, o, i) => sum + Math.log(Math.cosh(target[i] - o))) / output.length;
-      case "Kullback-Leibler-divergence":
-        return output.reduce((sum, o, i) => sum + target[i] * Math.log(target[i] / (o + 1e-10))) / output.length;
-      case "binary-cross-entropy":
-        return output.reduce((sum, o, i) => sum - (target[i] * Math.log(o + 1e-10) + (1 - target[i]) * Math.log(1 - o + 1e-10))) / output.length;
-      case "cross-entropy":
-        return output.reduce((sum, o, i) => sum - target[i] * Math.log(o + 1e-10)) / output.length;
-      case "hinge-loss":
-        return output.reduce((sum, o, i) => sum + Math.max(0, 1 - target[i] * o)) / output.length;
-      case "mean-biais-error": 
-        return output.reduce((sum, o, i) => sum + (target[i] - o)) / output.length;
-      default:
-        return output.reduce((sum, o, i) => sum + Math.pow(target[i] - o, 2)) / output.length;
-    }
-  }
-
-  /**
-   * Computes the loss for a given input and target output.
-   * @param input - Array of input values to be fed into the network.
-   * @param target - Array of target output values to compare against.
-   * @returns The computed loss value.
-   * @throws {AgentError} If the input and target arrays have different lengths than expected by the network.
-   */
-  public computeLoss(input: number[], target: number[]): number {
-    const output = this.forward(input);
-    return this.lossFunction(output, target);
-  }
-
-  /**
-   * Performs forward propagation through the network.
+   * Builds parameters (weights & biases) using configured initialisation strategy.
+   * 
+   * **FIXED**: Now respects `biasInitialisationType` separately from weights.
    *
-   * Steps:
-   * 1. Input → Hidden (weighted sum + bias)
-   * 2. Apply activation to hidden layer
-   * 3. Hidden → Output (weighted sum + bias)
-   * 4. Apply activation to output layer
-   *
-   * @param input - Input vector. Must match inputSize.
-   * @throws {AgentError} If the input vector size does not match inputSize.
-   * @returns Output vector after forward propagation.
+   * @param fanIn - Input dimension
+   * @param fanOut - Output dimension  
    */
-  public forward(input: number[]): number[] {
-    if (input.length !== this.neuronsByLayer[0]) 
-      throw new AgentError(`Expected input size ${this.neuronsByLayer[0]}, but got ${input.length}`);
+  private initParams(fanIn: number, fanOut: number): {
+    weights: Float32Array,
+    bias: Float32Array
+  } {
+    let bias = new Float32Array(fanOut);
+    let weights = new Float32Array(fanIn * fanOut);
+
+    // Use weight initialiser for weights
+    for(let i = 0; i < weights.length; i++)
+      weights[i] = INITIALIZERS[this.config.initialisationType].initialize(fanIn, fanOut);
+
+    // Use bias initialiser for biases (can be different!)
+    for(let i = 0; i < bias.length; i++)
+      bias[i] = INITIALIZERS[this.config.biasInitialisationType].initialize(fanIn, fanOut);
     
-    let current = this.normalize(input);
-    this.activations = [current];
+    return {
+      bias,
+      weights
+    }
+  }
 
-    for (let i = 0; i < this.neuronsByLayer.length - 1; i++) {
-      let weighted: number[];
-      if (this.connectionType === "skip-connection") {
-        const mainWeighted = this.weights[i * 2].map((row, j) => row.reduce((sum, w, k) => sum + w * current[k], this.bias[i * 2][j]));
-        const skipWeighted = this.weights[i * 2 + 1].map((row, j) => row.reduce((sum, w, k) => sum + w * this.activations[0][k], this.bias[i * 2 + 1][j]));
-        weighted = mainWeighted.map((v, j) => v + skipWeighted[j]);
+  /**
+   * Normalises an input vector in-place according to the configured strategy.
+   *
+   * @param input  - Raw input values.
+   * @param params - Optional explicit `min` / `max` for the `border` strategy.
+   * @returns Normalised copy of `input`.
+   */
+  private normalize(input: Float32Array, params?: {min: number, max: number}): Float32Array {
+    const data = new Float32Array(input);
+    const len = data.length;
+
+    if (len === 0) return data;
+    return NORMALIZERS[this.config.normalisationType].normalize(data, len, params)
+  }
+
+  /**
+   * 
+   * @param delta 
+   * @param maxNorm 
+   * @returns 
+   */
+  private clipGradients(delta: Float32Array, maxNorm: number = this.config.gradientClipNorm): Float32Array {
+    if (maxNorm <= 0) return delta;
+    let data = delta;
+
+    let sum = 0;
+    for(let x of data) sum += x * x;
+    const norm = Math.sqrt(sum);
+
+    if (norm > maxNorm) {
+      const scale = maxNorm / norm;
+      for (let i = 0; i < data.length; i++) data[i] = data[i] * scale;
+      return data;
+    }
+
+    return data;
+  }
+
+  /**
+   * Applies the configured activation function element-wise.
+   *
+   * @param x - Pre-activation values.
+   * @returns Post-activation values.
+   */
+  private activate(x: number, activation: ActivationType): number {
+    return ACTIVATIONS[activation].fn(x);
+  }
+
+  /**
+   * Derivative of the activation function with respect to its **post**-activation
+   * value (i.e. the value stored in `activations`).
+   *
+   * @param a - Post-activation values from the last forward pass.
+   * @returns Element-wise derivatives.
+   */
+  private activationDerivative(a: number, z: number, activation: ActivationType): number {
+    return ACTIVATIONS[activation].derivative(a, z)
+  }
+
+  /**
+   * Computes the scalar loss between predictions and ground-truth labels.
+   *
+   * @param output - Network predictions.
+   * @param target - Ground-truth labels.
+   * @throws {AgentError} When array lengths differ.
+   */
+  private lossFunction(output: Float32Array, target: Float32Array): number {
+    return LOSSES[this.config.lossFunctionType]
+      .loss(output, target, this.config);
+  }
+
+  /**
+   * Gradient of the loss with respect to the network output (∂L/∂ŷ).
+   *
+   * @param output - Network predictions.
+   * @param target - Ground-truth labels.
+   */
+  private dLoss_dOutput(output: Float32Array, target: Float32Array): Float32Array {
+     return LOSSES[this.config.lossFunctionType]
+    .gradient(output, target, this.config);
+  }
+
+  /**
+   * Runs a forward pass through the network.
+   * 
+   * **Stateless**: Returns an immutable {@link ForwardContext} containing all
+   * intermediate activations. Does NOT mutate internal layer state.
+   * 
+   * This enables:
+   * - Parallel forward passes without interference
+   * - Async inference without race conditions
+   * - Explicit separation of computation context from weight storage
+   * 
+   * @param input - Raw input vector. Length must match `neuronsByLayer[0]`.
+   * @throws {AgentError} When `input.length` does not match the input layer size.
+   * @returns {@link ForwardContext} containing output and all intermediate values.
+   */
+  public forward(input: Float32Array): ForwardContext {
+    const expected = this.config.neuronsByLayer[0];
+
+    if (input.length !== expected)
+      throw new AgentError(`Expected input size ${expected}, got ${input.length}`);
+
+    const normalized = this.normalize(input);
+    const originalInput = normalized;
+    
+    const layerZValues: Float32Array[] = [];
+    const layerOutputs: Float32Array[] = [];
+
+    let current = normalized;
+
+    for (let layerIndex = 0; layerIndex < this.layers.length; layerIndex++) {
+      let layer = this.layers[layerIndex];
+
+      const W = layer.weights;
+      const B = layer.bias;
+
+      const fanIn = layer.fanIn;
+      const fanOut = layer.fanOut;
+
+      // Compute pre-activations (z) for this layer
+      const Z = new Float32Array(fanOut);
+      for (let j = 0; j < fanOut; j++) {
+        let sum = this.config.useBias ? B[j] : 0;
+
+        const rowOffset = j * fanIn;
+        for (let k = 0; k < fanIn; k++) sum += W[rowOffset + k] * current[k];
+
+        Z[j] = sum;
+      }
+
+      // Compute post-activations (output) for this layer
+      const OUT = new Float32Array(fanOut);
+      const activation = this.config.activationType[layerIndex];
+
+      if (activation === "softmax") {
+        let max = Z[0];
+
+        for (let i = 1; i < fanOut; i++) if (Z[i] > max) max = Z[i];
+
+        let expSum = 0;
+
+        for (let i = 0; i < fanOut; i++) {
+          const e = Math.exp(Z[i] - max);
+          OUT[i] = e;
+          expSum += e;
+        }
+
+        const inv = 1 / expSum;
+
+        for (let i = 0; i < fanOut; i++) OUT[i] *= inv;
       } else {
-        weighted = this.weights[i].map((row, j) => row.reduce((sum, w, k) => sum + w * current[k], this.bias[i][j]));
+        for (let i = 0; i < fanOut; i++) {
+          OUT[i] = this.activate(Z[i], activation);
+        }
       }
 
-      const activated = this.activateFonction(weighted);
-      if (this.connectionType === "residual-connection" && this.neuronsByLayer[i] === this.neuronsByLayer[i + 1]) {
-        current = activated.map((v, j) => v + current[j]);
+      // Apply connection strategy (skip connections, residual, etc.)
+      if (
+        this.config.connectionType === "dense-skip" &&
+        originalInput.length === OUT.length
+      ) {
+        for (let i = 0; i < OUT.length; i++) OUT[i] += originalInput[i];
+      }
+
+      // Store activations for this layer
+      layerZValues.push(Z);
+      layerOutputs.push(OUT);
+
+      current = OUT;
+    }
+
+    return {
+      input: normalized,
+      output: current,
+      layerZValues,
+      layerOutputs,
+    };
+  }
+
+  public predict(input: Float32Array): Float32Array {
+    const context = this.forward(input);
+    return context.output;
+  }
+
+  /**
+   * **INTERNAL**: Computes output layer deltas given loss gradient.
+   * 
+   * Factored out to eliminate backprop/backpropAccumulate duplication.
+   * 
+   * @param outputZ - Pre-activation values for output layer
+   * @param output - Post-activation values for output layer
+   * @param target - Ground truth labels
+   * @param activation - Activation function type for output layer
+   * @returns Delta values for output layer
+   */
+  private computeOutputDeltas(
+    outputZ: Float32Array,
+    output: Float32Array,
+    target: Float32Array,
+    activation: ActivationType
+  ): Float32Array {
+    const delta = new Float32Array(output.length);
+    const lossGrad = this.dLoss_dOutput(output, target);
+
+    for (let j = 0; j < output.length; j++) {
+      // Special case: softmax + cross-entropy => δ = ŷ - y
+      if (activation === "softmax") {
+        delta[j] = output[j] - target[j];
       } else {
-        current = activated;
-      }
-      this.activations.push(current);
-    }
-    return current;
-  }
-
-  /**
-   * Derivative of the activation function.
-   */
-  private activationDerivative(x: number[]): number[] {
-    switch (this.activationType) {
-      case "sigmoid": 
-        return x.map(v => v * (1 - v));
-      case "tanh":
-        return x.map(v => 1 - v * v);
-      case "ReLu": 
-        return x.map(v => v > 0 ? 1 : 0);
-      case "leakyReLu":
-        return x.map(v => v > 0 ? 1 : 0.01);
-      case "GELU":
-        // Approximate derivative
-        return x.map(v => 0.5 * (1 + Math.tanh(Math.sqrt(2 / Math.PI) * (v + 0.044715 * Math.pow(v, 3)))) + 0.5 * v * (1 - Math.tanh(Math.sqrt(2 / Math.PI) * (v + 0.044715 * Math.pow(v, 3))) ** 2) * Math.sqrt(2 / Math.PI) * (1 + 3 * 0.044715 * Math.pow(v, 2)));
-      case "softmax":
-        // For softmax, derivative is complex, but for backprop, it's handled in dLoss_dOutput
-        return x.map(v => 1);
-      case "ELU":
-        return x.map(v => v >= 0 ? 1 : 0.01 * Math.exp(v));
-      case "mish":
-        // Approximate
-        return x.map(v => Math.tanh(Math.log(1 + Math.exp(v))) + v * (1 - Math.tanh(Math.log(1 + Math.exp(v))) ** 2) * (Math.exp(v) / (1 + Math.exp(v))));
-      default: 
-        return x.map(v => 1);
-    }
-  }
-
-  /**
-   * Derivative of loss with respect to output.
-   */
-  private dLoss_dOutput(output: number[], target: number[]): number[] {
-    switch (this.lossFunctionType) {
-      case "mean-squared-error":
-        return output.map((o, i) => 2 * (o - target[i]) / output.length);
-      case "cross-entropy":
-        return output.map((o, i) => -target[i] / (o + 1e-10));
-      case "mean-absolute-error":
-        return output.map((o, i) => o > target[i] ? 1 / output.length : o < target[i] ? -1 / output.length : 0);
-      case "root-mean-squared-error":
-        const mse = output.reduce((sum, o, i) => sum + Math.pow(o - target[i], 2), 0) / output.length;
-        const rmse = Math.sqrt(mse);
-        return output.map((o, i) => (o - target[i]) / (output.length * rmse + 1e-10));
-      case "huber-loss":
-        const delta = this.deltaHuber;
-        return output.map((o, i) => {
-          const error = o - target[i];
-          return Math.abs(error) <= delta ? error / output.length : (error > 0 ? delta : -delta) / output.length;
-        });
-      case "log-cosh-loss":
-        return output.map((o, i) => Math.tanh(target[i] - o) / output.length);
-      case "binary-cross-entropy":
-        return output.map((o, i) => (-target[i] / (o + 1e-10) + (1 - target[i]) / (1 - o + 1e-10)) / output.length);
-      case "hinge-loss":
-        return output.map((o, i) => target[i] * o < 1 ? -target[i] / output.length : 0);
-      case "Kullback-Leibler-divergence":
-        return output.map((o, i) => -target[i] / (o + 1e-10));
-      case "mean-biais-error":
-        return output.map((o, i) => (o - target[i]) / output.length);
-      default:
-        return output.map((o, i) => 2 * (o - target[i]) / output.length);
-    }
-  }
-
-  /**
-   * Update weights and bias for a layer.
-   */
-  private updateLayer(layerIndex: number, delta: number[], input: number[]) {
-    for (let j = 0; j < this.weights[layerIndex].length; j++) {
-      this.bias[layerIndex][j] -= this.learningRate * delta[j];
-      for (let k = 0; k < this.weights[layerIndex][j].length; k++) {
-        this.weights[layerIndex][j][k] -= this.learningRate * delta[j] * input[k];
+        const actGrad = this.activationDerivative(output[j], outputZ[j], activation);
+        delta[j] = lossGrad[j] * actGrad;
       }
     }
+
+    return this.clipGradients(delta);
   }
 
   /**
-   * Backpropagation.
+   * **INTERNAL**: Backpropagates error through hidden layers.
+   * 
+   * Factored out to eliminate duplication between backprop and backpropAccumulate.
+   * 
+   * @param nextLayerIndex - Index of the layer whose deltas are already computed
+   * @param nextDeltas - Deltas from the next (deeper) layer
+   * @param context - Forward context containing activations
+   * @returns Array of deltas for all layers from index 0 to nextLayerIndex-1
    */
-  private backprop(target: number[]) {
-    const output = this.activations[this.activations.length - 1];
-    let delta = this.dLoss_dOutput(output, target);
-    delta = delta.map((d, i) => d * this.activationDerivative(output)[i]);
+  private computeHiddenDeltas(
+    nextLayerIndex: number,
+    nextDeltas: Float32Array,
+    context: ForwardContext
+  ): Float32Array[] {
+    const deltas: Float32Array[] = [];
 
-    for (let i = this.neuronsByLayer.length - 2; i >= 0; i--) {
-      // update weights and bias for this layer
-      if (this.connectionType === "fully-connected") {
-        this.updateLayer(i, delta, this.activations[i]);
-      } else if (this.connectionType === "skip-connection") {
-        this.updateLayer(i * 2, delta, this.activations[i]);
-        this.updateLayer(i * 2 + 1, delta, this.activations[0]);
-      } else if (this.connectionType === "residual-connection") {
-        this.updateLayer(i, delta, this.activations[i]);
+    for (let l = nextLayerIndex - 1; l >= 0; l--) {
+      const current = this.layers[l];
+      const next = this.layers[l + 1];
+
+      const delta = new Float32Array(current.fanOut);
+      const currentActivation = this.config.activationType[l];
+      const currentOutput = context.layerOutputs[l];
+      const currentZ = context.layerZValues[l];
+
+      for (let i = 0; i < current.fanOut; i++) {
+        let sum = 0;
+
+        for (let j = 0; j < next.fanOut; j++) {
+          const weight = next.weights[j * next.fanIn + i];
+          sum += nextDeltas[j] * weight;
+        }
+
+        const grad = this.activationDerivative(currentOutput[i], currentZ[i], currentActivation);
+        delta[i] = sum * grad;
       }
 
-      // compute prev_delta
-      const prevDelta = Array(this.neuronsByLayer[i]).fill(0);
-      if (this.connectionType === "fully-connected") {
-        for (let j = 0; j < this.weights[i].length; j++) {
-          for (let k = 0; k < this.weights[i][j].length; k++) {
-            prevDelta[k] += delta[j] * this.weights[i][j][k];
-          }
+      deltas.unshift(this.clipGradients(delta));
+      nextDeltas = delta; // For next iteration (backward)
+    }
+
+    return deltas;
+  }
+
+  /**
+   * **INTERNAL**: Computes and optionally applies gradients for a single layer.
+   * 
+   * Factored out to support both immediate updates (backprop) and accumulation
+   * (mini-batch training).
+   * 
+   * @param layerIndex - Which layer to update
+   * @param delta - Error signal for this layer's output neurons
+   * @param layerInput - Pre-activation values from previous layer (or raw input)
+   * @param applyImmediately - If true, apply gradients via optimizer; else accumulate
+   */
+  private computeLayerGradients(
+    layerIndex: number,
+    delta: Float32Array,
+    layerInput: Float32Array,
+    applyImmediately: boolean
+  ): void {
+    const layer = this.layers[layerIndex];
+    const { fanIn, fanOut, gradW, gradB, accumGradW, accumGradB } = layer;
+
+    // Compute gradient = delta ⊗ input (outer product)
+    for (let j = 0; j < fanOut; j++) {
+      const rowOffset = j * fanIn;
+      const deltaJ = delta[j];
+
+      if (applyImmediately) {
+        gradB[j] = deltaJ;
+        for (let k = 0; k < fanIn; k++) {
+          gradW[rowOffset + k] = deltaJ * layerInput[k];
         }
-      } else if (this.connectionType === "skip-connection") {
-        for (let j = 0; j < this.weights[i * 2].length; j++) {
-          for (let k = 0; k < this.weights[i * 2][j].length; k++) {
-            prevDelta[k] += delta[j] * this.weights[i * 2][j][k];
-          }
-        }
-      } else if (this.connectionType === "residual-connection") {
-        for (let j = 0; j < this.weights[i].length; j++) {
-          for (let k = 0; k < this.weights[i][j].length; k++) {
-            prevDelta[k] += delta[j] * this.weights[i][j][k];
-          }
-        }
-        if (this.neuronsByLayer[i] === this.neuronsByLayer[i + 1]) {
-          prevDelta.forEach((_, k) => prevDelta[k] += delta[k]);
+      } else {
+        accumGradB[j] += deltaJ;
+        for (let k = 0; k < fanIn; k++) {
+          accumGradW[rowOffset + k] += deltaJ * layerInput[k];
         }
       }
-      delta = prevDelta.map((d, k) => d * this.activationDerivative(this.activations[i])[k]);
+    }
+
+    // Apply immediately if requested
+    if (applyImmediately) {
+      const opt = OPTIMIZERS[this.config.optimizerType];
+      const { weights, bias, wState, bState } = layer;
+
+      opt.step(weights, gradW, wState, this.config.learningRate, this.optimizerHp);
+
+      if (this.config.useBias) {
+        opt.step(bias, gradB, bState, this.config.learningRate, this.optimizerHp);
+      }
     }
   }
 
   /**
-   * Train the network with one sample.
+  /**
+   * Performs full backpropagation using explicit forward context.
+   * 
+   * **Refactored**: Eliminates hidden state coupling between forward() and backprop().
+   * All computation state is passed explicitly via {@link ForwardContext}.
+   * 
+   * @param context - {@link ForwardContext} from corresponding forward() call
+   * @param target - Ground truth labels for loss computation
    */
-  public train(input: number[], target: number[]) {
-    this.forward(input);
-    this.backprop(target);
+  private backprop(context: ForwardContext, target: Float32Array): void {
+    const lastLayerIndex = this.layers.length - 1;
+    const outputActivation = this.config.activationType[lastLayerIndex];
+    const outputZ = context.layerZValues[lastLayerIndex];
+    const output = context.layerOutputs[lastLayerIndex];
+
+    // 1. Compute output layer deltas
+    const outputDelta = this.computeOutputDeltas(outputZ, output, target, outputActivation);
+
+    // 2. Backpropagate to hidden layers
+    const hiddenDeltas = this.computeHiddenDeltas(lastLayerIndex, outputDelta, context);
+    const allDeltas = [...hiddenDeltas, outputDelta];
+
+    // 3. Update all layers (apply gradients immediately)
+    for (let l = 0; l < this.layers.length; l++) {
+      const layerInput = l === 0 ? context.input : context.layerOutputs[l - 1];
+      this.computeLayerGradients(l, allDeltas[l], layerInput, true); // applyImmediately = true
+    }
+  }
+
+  /**
+   * Performs backpropagation while **accumulating** gradients for mini-batch training.
+   * 
+   * Instead of applying weight updates immediately, gradients are accumulated
+   * in `layer.accumGradW` and `layer.accumGradB`. Call {@link applyAccumulatedGradients}
+   * after processing a batch to apply averaged gradients.
+   * 
+   * **Refactored**: Uses same delta computation as backprop(), eliminating
+   * duplication and sync bugs.
+   * 
+   * @param context - {@link ForwardContext} from corresponding forward() call
+   * @param target - Ground truth labels for loss computation
+   */
+  private backpropAccumulate(context: ForwardContext, target: Float32Array): void {
+    const lastLayerIndex = this.layers.length - 1;
+    const outputActivation = this.config.activationType[lastLayerIndex];
+    const outputZ = context.layerZValues[lastLayerIndex];
+    const output = context.layerOutputs[lastLayerIndex];
+
+    // 1. Compute output layer deltas (same as backprop)
+    const outputDelta = this.computeOutputDeltas(outputZ, output, target, outputActivation);
+
+    // 2. Backpropagate to hidden layers (same as backprop)
+    const hiddenDeltas = this.computeHiddenDeltas(lastLayerIndex, outputDelta, context);
+    const allDeltas = [...hiddenDeltas, outputDelta];
+
+    // 3. Accumulate gradients (do NOT apply immediately)
+    for (let l = 0; l < this.layers.length; l++) {
+      const layerInput = l === 0 ? context.input : context.layerOutputs[l - 1];
+      this.computeLayerGradients(l, allDeltas[l], layerInput, false); // applyImmediately = false
+    }
+  }
+
+  /**
+   * **INTERNAL**: Reconstructs a {@link ForwardContext} from stored {@link PooledExperience}.
+   * 
+   * Needed because forwardAndPool() stores layer activations separately (for memory efficiency),
+   * but backpropAccumulate expects a ForwardContext.
+   * 
+   * @param exp - Experience with stored activations
+   * @returns Reconstructed ForwardContext
+   */
+  private experienceToContext(exp: PooledExperience): ForwardContext {
+    return {
+      input: exp.input,
+      output: exp.output,
+      layerZValues: exp.layerActivations.map(a => a.z),
+      layerOutputs: exp.layerActivations.map(a => a.output),
+    };
+  }
+
+  /**
+   * Performs one full train step (forward + backpropagation) on a single sample.
+   *
+   * @param input  - Input vector.
+   * @param target - Expected output vector.
+   * @returns Loss value for this sample
+   */
+  public train(inputs: Float32Array, targets: Float32Array): number {
+    const expectedInput = this.config.neuronsByLayer[0];
+    const expectedOutput = this.config.neuronsByLayer[
+      this.config.neuronsByLayer.length - 1
+    ]
+
+    if (inputs.length !== expectedInput)
+      throw new AgentError(`Expected input size ${expectedInput}, got ${inputs.length}`);
+
+    if (targets.length !== expectedOutput)
+      throw new AgentError(`Expected target size ${expectedOutput}, got ${targets.length}`);
+
+    const context = this.forward(inputs);
+    this.backprop(context, targets);
+
+    return this.lossFunction(context.output, targets);
+  }
+
+  /**
+   * Performs a forward pass and stores the result in the learning pool.
+   * 
+   * This allows batching multiple forward passes before performing a grouped
+   * backpropagation. Useful for mini-batch training, experience replay, or
+   * any learning scheme where gradients should be accumulated across multiple samples.
+   * 
+   * @param input  - Input vector. Length must match `neuronsByLayer[0]`.
+   * @param target - Target output vector.
+   * @throws {AgentError} When pooling is disabled or input size doesn't match.
+   * @returns Loss value for this sample.
+   */
+  public forwardAndPool(input: Float32Array, target: Float32Array): number {
+    if (!this.config.enablePool) {
+      throw new AgentError("Learning pool is disabled. Set enablePool: true in config.");
+    }
+
+    const expectedInput = this.config.neuronsByLayer[0];
+    const expectedOutput = this.config.neuronsByLayer[
+      this.config.neuronsByLayer.length - 1
+    ];
+
+    if (input.length !== expectedInput)
+      throw new AgentError(`Expected input size ${expectedInput}, got ${input.length}`);
+
+    if (target.length !== expectedOutput)
+      throw new AgentError(`Expected target size ${expectedOutput}, got ${target.length}`);
+
+    // Perform forward pass (stateless, returns context)
+    const context = this.forward(input);
+    const loss = this.lossFunction(context.output, target);
+
+    // Store experience with context (not just activations)
+    const experience: PooledExperience = {
+      input: new Float32Array(input),
+      output: new Float32Array(context.output),
+      target: new Float32Array(target),
+      layerActivations: context.layerOutputs.map((out, idx) => ({
+        output: new Float32Array(out),
+        z: new Float32Array(context.layerZValues[idx]),
+      })),
+      loss,
+    };
+
+    this.pool.push(experience);
+
+    // Enforce max pool size (FIFO eviction)
+    if (this.pool.length > this.config.poolMaxSize) {
+      this.pool.shift();
+    }
+
+    return loss;
+  }
+
+  /**
+   * Internal method: applies averaged accumulated gradients to weights.
+   * 
+   * Divides accumulated gradients by sample count, then applies via optimizer.
+   * Resets accumulators afterward.
+   * 
+   * @param numSamples - Number of samples over which gradients were accumulated
+   */
+  private applyAccumulatedGradients(numSamples: number): void {
+    if (numSamples === 0) return;
+
+    for (let l = 0; l < this.layers.length; l++) {
+      const layer = this.layers[l];
+      const { weights, bias, accumGradW, accumGradB, gradW, gradB, wState, bState } = layer;
+      const opt = OPTIMIZERS[this.config.optimizerType];
+
+      // Average gradients by dividing by batch size
+      const scale = 1 / numSamples;
+      for (let i = 0; i < accumGradW.length; i++) gradW[i] = accumGradW[i] * scale;
+      for (let i = 0; i < accumGradB.length; i++) gradB[i] = accumGradB[i] * scale;
+
+      // Apply via optimizer
+      opt.step(weights, gradW, wState, this.config.learningRate, this.optimizerHp);
+
+      if (this.config.useBias) {
+        opt.step(bias, gradB, bState, this.config.learningRate, this.optimizerHp);
+      }
+
+      // Reset accumulators for next batch
+      accumGradW.fill(0);
+      accumGradB.fill(0);
+    }
+  }
+
+  /**
+   * Trains the network on all samples in the pool using grouped backpropagation.
+   * 
+   * This performs the following steps:
+   * 1. Accumulates gradients from all experiences in the pool
+   * 2. Averages the accumulated gradients by the pool size
+   * 3. Applies a single weight update using the averaged gradients
+   * 4. Clears the pool
+   * 
+   * Useful for mini-batch training, experience replay, or any learning
+   * scheme where multiple samples should contribute to a single weight update.
+   * 
+   * @returns Average loss across all samples in the pool, or 0 if pool is empty.
+   * @throws {AgentError} When pooling is disabled.
+   */
+  public trainPooled(): number {
+    if (!this.config.enablePool) {
+      throw new AgentError("Learning pool is disabled. Set enablePool: true in config.");
+    }
+
+    if (this.pool.length === 0) {
+      return 0;
+    }
+
+    const poolSize = this.pool.length;
+
+    // Reset accumulators
+    for (let l = 0; l < this.layers.length; l++) {
+      this.layers[l].accumGradW.fill(0);
+      this.layers[l].accumGradB.fill(0);
+    }
+
+    let totalLoss = 0;
+
+    // Accumulate gradients from all samples in the pool
+    for (const experience of this.pool) {
+      totalLoss += experience.loss;
+      const context = this.experienceToContext(experience);
+      this.backpropAccumulate(context, experience.target!);
+    }
+
+    // Apply accumulated gradients (averaged by pool size)
+    this.applyAccumulatedGradients(poolSize);
+
+    // Clear the pool
+    this.pool.length = 0;
+
+    return totalLoss / poolSize;
+  }
+
+  /**
+   * Returns the current size of the learning pool.
+   * 
+   * Useful for monitoring when pool reaches a certain threshold before
+   * calling {@link trainPooled}.
+   * 
+   * @returns Number of experiences currently in the pool.
+   */
+  public getPoolSize(): number {
+    return this.pool.length;
+  }
+
+  /**
+   * Clears all experiences from the learning pool without training.
+   * 
+   * Use this if you want to discard accumulated experiences and start fresh.
+   */
+  public clearPool(): void {
+    this.pool.length = 0;
+  }
+
+  /**
+   * Flattens every weight and bias into a single `Float64Array`.
+   *
+   * Layout per matrix block `i`:
+   * ```
+   * [ w[i][0][0], w[i][0][1], …, w[i][fanOut-1][fanIn-1], b[i][0], …, b[i][fanOut-1] ]
+   * ```
+   *
+   * The resulting buffer can be passed to {@link setWeights} or used as a
+   * parent genome in evolutionary strategies.
+   *
+   * @returns Flat parameter buffer.
+   */
+  public getWeights(): Float32Array {
+    const total = this.parameterCount();
+    const buffer = new Float32Array(total);
+
+    let cursor = 0;
+
+    for (const layer of this.layers){
+      for (let i = 0; i < layer.weights.length; i++) buffer[cursor++] = layer.weights[i];
+
+      for (let i = 0; i < layer.bias.length; i++) buffer[cursor++] = layer.bias[i];
+    }
+
+    return buffer;
+  }
+  
+  /**
+   * Loads a flat parameter buffer (as produced by {@link getWeights}) back
+   * into the network, overwriting every weight and bias value.
+   *
+   * @param buffer - `Float32Array` with exactly the same length as returned by
+   *   `getWeights()`.
+   * @throws {AgentError} When the buffer length does not match the network's
+   *   total parameter count.
+   */
+  public setWeights(buffer: Float32Array): void {
+    const expected = this.parameterCount();
+
+    if (buffer.length !== expected) 
+      throw new AgentError(`Buffer length mismatch: exprected ${expected}, got ${buffer.length}`);
+
+    let cursor = 0;
+
+    for (const layer of this.layers) {
+      for (let i = 0; i < layer.weights.length; i++) layer.weights[i] = buffer[cursor++];
+
+      for (let i = 0; i < layer.bias.length; i++) layer.bias[i] = buffer[cursor++];
+    }
+  }
+
+  /**
+   * Initialises this network's weights by sampling from a Gaussian distribution
+   * centred on the parameter vector.
+   * 
+   * Two reference mods are supported :
+   * 
+   * **Network reference** - uses the full weight vector of another network as 
+   * the distribution mean (standard neuroevolution offspring initialisation):
+   * ```
+   * θ_child = θ_parent + N(0, σ²)
+   * ```
+   *
+   * **Scalar reference** - broadcasts a single scalar as the mean for every parameter (useful when you want all weights to start near a given value, e.g. O for clean slate, or a pre-computed global average):
+   * ```
+   * θ_child[i] = μ + N(0, σ²)   ∀ i
+   * ```
+   *
+   * The reference network (when provided) must share the **same architecture** (same
+   * `neuronsByLayer` and `connectionType`) as this network.
+   *
+   * @param reference - Either a {@link NeuralNetwork} whose weights serve as the per-parameter mean, or a scalar `number` broadcast across all parameters..
+   * @param sigma     - Standard deviation of the perturbation noise. @default 0.1
+   * @throws {AgentError} When the reference buffer length does not match.
+   */
+  public distributeAroundWeights(reference: NeuralNetwork | number, sigma: number = 0.1): void {
+    const count = this.parameterCount();
+
+    let mean: Float32Array;
+
+    if (typeof reference === "number") {
+      mean = new Float32Array(count).fill(reference);
+    } else {
+      mean = reference.getWeights();
+      if (mean.length !== count) 
+        throw new AgentError(`Reference network parameter count (${mean.length}) does not match this network's parameter count (${count}).`);
+    }
+
+    const childBuffer  = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) childBuffer[i] = mean[i] + gaussianNoise(sigma);
+
+    this.setWeights(childBuffer);
+  }
+
+  /**
+   * Returns the total number of trainable parameters (weights + biases).
+   *
+   * Useful for telemetry and for validating external buffer sizes before
+   * calling {@link setWeights}.
+   */
+  public parameterCount(): number {
+    let total = 0;
+
+    for (let i = 0; i < this.layers.length; i++) {
+      total += this.layers[i].weights.length;
+      total += this.layers[i].bias.length;
+    }
+
+    return total;
   }
 }
