@@ -99,8 +99,7 @@ export class Agent {
     nextState?: Float32Array,
     done?: boolean,
   ): Float32Array {
-    const partialInput = this._applyPartialNormalization(input);
-    const output = this.nn.forward(partialInput);
+    const {output} = this.nn.forward(input);
 
     if (this.enablePool) {
       this.pool.push({ input, output: output.slice(), reward, nextState, done });
@@ -204,7 +203,7 @@ export class Agent {
       throw new AgentError("Q-learning requires `reward` and `nextState` in the experience.");
 
     const target    = exp.output.slice(); // Q(s, a) for all actions
-    const nextQ     = this.nn.forward(exp.nextState); // Q(s', a') — no pool entry
+    const nextQ     = this.nn.forward(exp.nextState).output; // Q(s', a') — no pool entry
     const maxNextQ  = exp.done ? 0 : Math.max(...nextQ);
     const actionIdx = target.indexOf(Math.max(...target)); // greedy action taken
 
@@ -212,161 +211,6 @@ export class Agent {
 
     this.nn.train(exp.input, target);
     this._removeFromPool(exp.input);
-  }
-
-  /**
-   * Applies partial normalisation: only the slice
-   * `[normalizedInputRange[0], normalizedInputRange[1]]` of the input vector
-   * is passed through the network's normalisation pipeline; the rest is
-   * forwarded as-is.
-   *
-   * Because `NeuralNetwork.normalize` is private we replicate the logic here
-   * so that the agent can selectively normalise sub-ranges without requiring
-   * changes to the base class.
-   *
-   * @internal
-   */
-  private _applyPartialNormalization(input: Float32Array): Float32Array {
-    if (this.cfg.normalisationType === "none") return input;
-
-    const [start, end] = this.cfg.normalizedInputRange!;
-    const slice = input.slice(start, end + 1);
-    const normalized = this._normalize(slice);
-
-    return new Float32Array([
-      ...input.slice(0, start),
-      ...normalized,
-      ...input.slice(end + 1),
-    ]);
-  }
-
-  /**
-   * Normalises an array of numbers using the strategy declared in the config.
-   * Mirrors `NeuralNetwork.normalize` so that partial normalisation is
-   * consistent with what the underlying network would apply to the full input.
-   *
-   * @internal
-   */
-  private _normalize(input: Float32Array, params?: {min: number, max: number}): Float32Array {
-    const data = new Float32Array(input);
-    const len = data.length;
-
-    if (len === 0) return data;
-
-    switch (this.cfg.normalisationType) {
-      case "min-max": {
-        let min = data[0];
-        let max = data[0];
-
-        for (const x of data) { if (x < min) min = x; if (x > max) max = x; };
-
-        const range = (1 / (max - min)) || 1;
-
-        for (let i = 0; i < len; i++) data[i] = (data[i] - min) * range;
-
-        return data
-      }
-
-      case "z-score": {
-        let sum = 0;
-        for (let x of data) sum += x;
-
-        const mean = sum / len;
-
-        let variance = 0;
-
-        for (let x of data) variance += (x - mean) ** 2;
-        const invStd = 1 / (Math.sqrt(variance / len) || 1);
-
-        for (let i = 0; i < len; i++) data[i] = (data[i] - mean) * invStd;
-        
-        return data;
-      }
-
-      case "decimal-scaling": {
-        let maxAbs = 0;
-
-        for (let x of data) {
-          const abs = Math.abs(x);
-          if (abs > maxAbs) maxAbs = abs;
-        }
-
-        const j = Math.ceil(Math.log10(maxAbs + 1));
-        const denom = Math.pow(10, j);
-
-        for (let i = 0; i < len; i++) {
-          data[i] = data[i] / denom;
-        }
-
-        return data;
-      }
-
-      case "border": {
-        let lo = params?.min;
-        let hi = params?.max;
-
-        if (lo === undefined || hi === undefined) {
-          let min = data[0];
-          let max = data[0];
-
-          for (const x of data) { if (x < min) min = x; if (x > max) max = x; }
-
-          if (lo === undefined) lo = min;
-          if (hi === undefined) hi = max;
-        }
-
-        for(let i = 0; i < len; i++) {
-          const x = data[i];
-
-          data[i] =
-            x < lo ? lo :
-            x > hi ? hi :
-            x;
-        }
-
-        return data;
-      }
-
-      case "robust-scaling": {
-        const sorted = new Float32Array(data);
-        sorted.sort();
-
-        const n = len;
-        
-        const q1i = (n * 0.25) | 0;
-        const q3i = (n * 0.75) | 0;
-
-        const median =
-          n & 1
-            ? sorted[n >> 1]
-            : (sorted[(n >> 1) - 1] + sorted[n >> 1]) * 0.5;
-
-        const q1 = sorted[q1i];
-        const q3 = sorted[q3i];
-
-        const invIqr = 1 / (q3 - q1 || 1);
-
-        for (let i = 0; i < len; ++i) {
-          data[i] = (data[i] - median) * invIqr;
-        }
-
-        return data;
-      }
-
-      case "logarithmic-normalization":
-        for (let i = 0; i < len; ++i) {
-          const x = data[i];
-
-          data[i] =
-            x < 0
-              ? -Math.log(1 - x)
-              : Math.log(1 + x);
-        }
-
-        return data;
-      default:
-        return data;
-    }
   }
 
   /**
