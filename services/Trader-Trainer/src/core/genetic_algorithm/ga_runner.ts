@@ -1,18 +1,20 @@
 // ================================================================
-//   ga_runner.ts — Self-adaptive Genetic Algorithm runner
+//            Self-adaptive Genetic Algorithm runner
 //   Couples with TradingAgent / AutoEnv / Deep Q-Learning agent
 // ================================================================
 
 import {
   Genome, GAControlGenome, GenomeFitnessMeta, MarketStep, FitnessType,
 } from "./genome_types";
-import {
-  createDefaultGenome, mutateGenome, crossoverGenomes,
-  selectParent, computeFitness, shapeReward,
-  makePRNG, generateId, clamp,
-} from "./ga_genome_utils";
 import TradingAgent, { TradingAgentConfig } from "../agent/trading_agent";
+import { computeFitness, shapeReward } from "./fitness";
+import { createDefaultGenome } from "./factory";
+import { crossoverGenomes } from "./crossover";
 import { AutoEnv } from "../agent/auto_env";
+import { selectParent } from "./selection";
+import { mutateGenome } from "./mutation";
+import { generateId } from "./utils";
+import { makePRNG } from "./prng";
 
 // ----------------------------------------------------------------
 // Types

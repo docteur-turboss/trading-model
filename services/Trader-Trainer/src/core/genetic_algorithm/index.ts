@@ -2,77 +2,37 @@
 //   index.ts — Public API & usage example
 // ================================================================
 
-export { GeneticAlgorithmRunner } from "./ga_runner";
-export type { GARunnerConfig, GenerationContext } from "./ga_runner";
-export {
-  createDefaultGenome,
-  mutateGenome,
-  crossoverGenomes,
-  selectParent,
-  computeFitness,
-  shapeReward,
-  makePRNG,
-  sampleNoise,
-  generateId,
-  clamp,
-} from "./ga_genome_utils";
-export * from "./genome_types";
+// Core primitives
+export { clamp, generateId }                         from "./utils";
+export { makePRNG }                                   from "./prng";
+export { sampleNoise, sampleGaussian,
+         sampleCauchy, sampleUniform, sampleLevy }   from "./noise";
 
-// ================================================================
-//   USAGE EXAMPLE
-// ================================================================
-/*
+// Genome lifecycle
+export { createDefaultGenome }                        from "./factory";
+export { mutateGenome, mutateLayer, adaptSigma }      from "./mutation";
+export { crossoverGenomes, crossoverScalar }          from "./crossover";
+export { selectParent }                               from "./selection";
+export { computeFitness, shapeReward }                from "./fitness";
 
-import { GeneticAlgorithmRunner, createDefaultGenome } from "./genetic_algorithm";
-import type { MarketStep, GAControlGenome } from "./genetic_algorithm";
+// P2 — Validation & repair
+export type { ValidationResult, ValidationError }     from "./validation";
+export { validateGenome, repairGenome }               from "./validation";
 
-// 1. Build your market data stream
-const marketData: MarketStep[] = myPriceHistory.map(bar => ({
-  price:    bar.close,
-  features: new Float32Array([
-    bar.open, bar.high, bar.low, bar.close, bar.volume,
-    bar.rsi, bar.macd, bar.signal,
-    // ... up to inputDim features
-  ]),
-  timestamp: bar.ts,
-}));
+// P3 — Complexity & topology
+export type { TopologyConstraints, TopologyViolation } from "./complexity";
+export { DEFAULT_TOPOLOGY_CONSTRAINTS,
+         complexityScore, countParams,
+         checkTopologyConstraints,
+         penalisedFitness, rejectIfViolating }        from "./complexity";
 
-// 2. Configure the runner
-const runner = new GeneticAlgorithmRunner({
-  marketData,
-  initialControl: {
-    populationSize:  30,
-    maxGenerations:  50,
-    timeBudgetMs:    10 * 60 * 1000,   // 10 minutes
-    stagnationPatience: 12,
-    fitnessType:     "sharpe",
-    selectionType:   "tournament",
-    episodesPerIndividual: 3,
-    seedsPerEval:    2,
-    envSeed:         42,
-    mutationSeed:    1337,
-    networkSeed:     7,
-  } satisfies Partial<GAControlGenome>,
+// P4 — Diversity & novelty
+export type { Species, DiversityMetrics }             from "./diversity";
+export { genomicDistance, speciate,
+         diversityMetrics, noveltyScore,
+         updateNoveltyArchive }                       from "./diversity";
 
-  onGeneration: ctx => {
-    console.log(
-      `Gen ${ctx.generation} | best=${ctx.bestFitness.toFixed(4)} ` +
-      `avg=${ctx.avgFitness.toFixed(4)} eff=${ctx.efficiencyScore.toExponential(2)} ` +
-      `stag=${ctx.stagnation} pop=${ctx.gaControl.populationSize}`
-    );
-  },
-
-  onNewBest: (genome, fitness) => {
-    console.log(`🏆 New best: ${fitness.toFixed(4)} @ gen ${genome.generation}`);
-    console.log(`   Layers:  ${genome.network.hiddenLayers.map(l => l.neurons).join(" → ")}`);
-    console.log(`   γ=${genome.rl.gamma.toFixed(3)} lr=${genome.rl.learningRate.toExponential(2)}`);
-    console.log(`   Policy:  ${genome.rl.discretePolicy.type}`);
-    console.log(`   Fitness: ${genome.gaControl.fitnessType}`);
-  },
-});
-
-// 3. Run
-const bestGenome = await runner.run();
-console.log("Best genome:", bestGenome);
-
-*/
+// P5 — Compact vectorised encoding
+export { ENCODED_DIM,
+         encodeGenome, decodeGenome,
+         encodePopulation, decodePopulation }         from "./encoding";

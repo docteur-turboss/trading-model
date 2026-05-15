@@ -8,10 +8,3 @@ export const gaussianNoise = (scale: number): number => {
   const u = Math.max(1e-10, Math.random());
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random()) * scale;
 };
-
-/** Dot product of row vector `w` with column vector `v`, offset by scalar `b`. */
-export const dot = (w: number[], v: number[], b: number): number => {
-  let s = b;
-  for (let k = 0; k < w.length; k++) s += w[k] * v[k];
-  return s;
-};
