@@ -32,8 +32,8 @@ export function createDefaultGenome(id: string, generation = 0, rng: () => numbe
     inputDim: 16,
     outputDim: 3,
     hiddenLayers: [
-      { neurons: 64, activation: "relu",    connectionType: "dense", biasType: "zeros" },
-      { neurons: 32, activation: "relu",    connectionType: "dense", biasType: "zeros" },
+      { neurons: 64, activation: "ReLu", connectionType: "dense-skip", biasType: "zeros" },
+      { neurons: 32, activation: "ReLu", connectionType: "dense-skip", biasType: "zeros" },
     ],
     normalization: "none",
   };
@@ -172,10 +172,10 @@ function adaptSigma(m: MutationGenome, rng: () => number): number {
 // ----------------------------------------------------------------
 // Structural mutations
 // ----------------------------------------------------------------
-const ACTIVATIONS: ActivationType[]    = ["relu", "sigmoid", "tanh", "leaky_relu", "elu", "swish", "linear"];
-const CONNECTION_TYPES: ConnectionType[] = ["dense", "sparse", "residual"];
-const BIAS_TYPES: InitialisationType[]  = ["zeros", "random", "xavier"];
-const NORM_TYPES: NormalisationType[]   = ["none", "batch", "layer"];
+const NORM_TYPES: NormalisationType[]   = ["none", "logarithmic-normalization", "decimal-scaling", "border", "min-max", "robust-scaling", "z-score"];
+const ACTIVATIONS: ActivationType[]    = ["ReLu", "sigmoid", "tanh", "leakyReLu", "ELU", "mish", "GELU", "softmax"];
+const CONNECTION_TYPES: ConnectionType[] = ["dense-skip", "fully-connected", "residual-connection"];
+const BIAS_TYPES: InitialisationType[]  = ["zeros", "random", "xavier", "he", "leCun"];
 
 function mutateLayer(layer: LayerGenome, m: MutationGenome, rng: () => number): LayerGenome {
   const sigma = adaptSigma(m, rng);
@@ -226,7 +226,7 @@ export function mutateGenome(g: Genome, rng: () => number): Genome {
     const newLayer: LayerGenome = {
       neurons: 16 + Math.floor(rng() * 32),
       activation: ACTIVATIONS[Math.floor(rng() * ACTIVATIONS.length)],
-      connectionType: "dense",
+      connectionType: "dense-skip",
       biasType: "zeros",
     };
     layers.splice(Math.floor(rng() * (layers.length + 1)), 0, newLayer);
