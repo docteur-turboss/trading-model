@@ -2,7 +2,7 @@
 //        network complexity scoring & topology constraints
 // ================================================================
 
-import type { Genome, NetworkGenome, LayerGenome } from "./genome_types";
+import type { Genome, NetworkGenome } from "./genome_types";
 
 // ----------------------------------------------------------------
 // Topology constraints (configurable per experiment)
