@@ -3,13 +3,13 @@
 // ================================================================
 
 import type {
-  Genome,
   NetworkGenome,
   RLGenome,
   MutationGenome,
   CrossoverGenome,
   LayerGenome,
   CrossoverType,
+  LamarckGenome,
 } from "./genome_types";
 
 // ----------------------------------------------------------------
@@ -183,10 +183,10 @@ function crossoverMutation(
 // ----------------------------------------------------------------
 
 export function crossoverGenomes(
-  parentA: Genome,
-  parentB: Genome,
+  parentA: LamarckGenome,
+  parentB: LamarckGenome,
   rng: () => number,
-): Genome {
+): LamarckGenome {
   const co = parentA.crossover;
   if (rng() > co.probability) return { ...parentA }; // skip crossover
 

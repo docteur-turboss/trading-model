@@ -2,7 +2,7 @@
 //                   parent selection operators
 // ================================================================
 
-import type { Genome, SelectionType } from "./genome_types";
+import type { LamarckGenome, SelectionType } from "./genome_types";
 
 /**
  * Select one parent from `population` using the given strategy.
@@ -13,11 +13,11 @@ import type { Genome, SelectionType } from "./genome_types";
  * @param tournamentK   Tournament size (default 3).
  */
 export function selectParent(
-  population: Genome[],
+  population: LamarckGenome[],
   type: SelectionType,
   rng: () => number,
   tournamentK = 3,
-): Genome {
+): LamarckGenome {
   switch (type) {
     // ---- Tournament ----
     case "tournament": {

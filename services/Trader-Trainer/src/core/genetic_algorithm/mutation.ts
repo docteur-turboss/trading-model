@@ -3,7 +3,6 @@
 // ================================================================
 
 import type {
-  Genome,
   NetworkGenome,
   RLGenome,
   MutationGenome,
@@ -12,6 +11,7 @@ import type {
   ConnectionType,
   InitialisationType,
   NormalisationType,
+  LamarckGenome,
 } from "./genome_types";
 import { sampleNoise, sampleGaussian } from "./noise";
 import { clamp } from "./utils";
@@ -160,7 +160,7 @@ function mutateRL(
 // Full genome mutation
 // ----------------------------------------------------------------
 
-export function mutateGenome(g: Genome, rng: () => number): Genome {
+export function mutateGenome(g: LamarckGenome, rng: () => number): LamarckGenome {
   const m = g.mutation;
   const sigma = adaptSigma(m, rng);
 

@@ -14,12 +14,9 @@
     "test": "jest"
   },
   "dependencies": {
-    "axios": "^1.16.0",
     "cash-lib": "file:../../lib",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.5.1",
-    "helmet": "^8.1.0",
-    "zod": "^4.4.3"
+    "helmet": "^8.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

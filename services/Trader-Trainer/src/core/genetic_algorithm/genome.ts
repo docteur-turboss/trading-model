@@ -154,6 +154,9 @@ export type GAControlGenome = {
   envSeed:      number;
   mutationSeed: number;
   networkSeed:  number;
+  // Mutation params
+  mutationRate: number;
+  mutationStd:  number;
 };
 
 // ---- Fitness metadata ----
@@ -179,6 +182,11 @@ export type Genome = {
   gaControl:   GAControlGenome;
   fitness?:    number;
   fitnessMeta?: GenomeFitnessMeta;
+};
+
+/** Genome extended with Lamarckian trained weights (optional on birth). */
+export type LamarckGenome = Genome & {
+  readonly trainedWeights?: Float32Array;
 };
 
 // ---- Market data ----
