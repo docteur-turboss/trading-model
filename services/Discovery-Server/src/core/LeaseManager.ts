@@ -1,6 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import { registry } from "./ServiceRegistry";
 import { ServiceInstance } from "./types";
+import { env } from "../config/env";
 
 /**
  * LeaseManager
@@ -169,7 +170,5 @@ class LeaseManager {
  * to adapt to different environments and load profiles.
  */
 export const LeaseManagerInstance = new LeaseManager({
-    cleanupIntervalMs: process.env.CLEANUP_SERVICE_INTERVAL_MS
-        ? Number(process.env.CLEANUP_SERVICE_INTERVAL_MS)
-        : 5000,
+    cleanupIntervalMs: env.CLEANUP_SERVICE_INTERVAL_MS,
 });

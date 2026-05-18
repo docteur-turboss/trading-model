@@ -54,18 +54,18 @@ const MarkerOrderBooks = new class TMarketOrderBooks {
                 } else this.marketStorage.set(d.market, [this.id]); 
 
                 if(this.sourceStorage.has(d.source)){
-                    const actualStorage = this.sourceStorage.get(d.market)!;
+                    const actualStorage = this.sourceStorage.get(d.source)!;
                     actualStorage.push(this.id);
 
                     this.sourceStorage.set(d.source, actualStorage);
-                } else this.sourceStorage.set(d.market, [this.id]);
+                } else this.sourceStorage.set(d.source, [this.id]);
 
-                if(this.symbolStorage.has(d.source)){
-                    const actualStorage = this.symbolStorage.get(d.market)!;
+                if(this.symbolStorage.has(d.symbol)){
+                    const actualStorage = this.symbolStorage.get(d.symbol)!;
                     actualStorage.push(this.id);
 
-                    this.symbolStorage.set(d.source, actualStorage);
-                } else this.symbolStorage.set(d.market, [this.id]);
+                    this.symbolStorage.set(d.symbol, actualStorage);
+                } else this.symbolStorage.set(d.symbol, [this.id]);
 
                 if(this.timestampStorage.has(d.timestamp)){
                     const actualStorage = this.timestampStorage.get(d.timestamp)!;

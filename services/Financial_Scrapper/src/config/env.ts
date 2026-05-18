@@ -35,16 +35,16 @@ const envSchema = z.object({
    */
   SERVICE_NAME: z.string().min(1),
   INSTANCE_ID: z.string().min(1),
-  CACHE_TTL_MS: z.number().int().positive().default(30000),
-  SERVICE_PING_TIMEOUT_MS: z.number().int().positive().default(2000),
-  TOKEN_REFRESH_INTERVAL_MS: z.number().int().positive().default(60000),
-  TTL_REFRESH_INTERVAL_MS: z.number().int().positive().default(15000),
+  CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),
+  SERVICE_PING_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
+  TOKEN_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
+  TTL_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
 
   /**
    * Broker services
    */
-  MESSAGE_BUS_INIT_TIMEOUT_MS: z.number().int().positive().default(2000),
-  MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: z.number().int().positive().default(2000),
+  MESSAGE_BUS_INIT_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
+  MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
 
   /**
    * External services
@@ -68,9 +68,11 @@ const envSchema = z.object({
 const parsedEnv = envSchema.safeParse(process.env);
 
 if (!parsedEnv.success) {
-  console.error("❌ Invalid environment configuration", {
-    errors: z.treeifyError(parsedEnv.error),
-  });
+  let errors: unknown = parsedEnv.error;
+  if (typeof z.treeifyError === "function") {
+    try { errors = z.treeifyError(parsedEnv.error); } catch { /* fallback */ }
+  }
+  console.error("❌ Invalid environment configuration", { errors });
   process.exit(1);
 }
 

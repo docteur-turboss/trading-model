@@ -12,8 +12,8 @@ export function createServer() {
       ca: env.TLS_CA_PATH,
     },
     rateLimit: {
-      windowMs: 15 * 6,
-      limit: 1,
+      windowMs: 15 * 60 * 1000,
+      limit: 100,
     },
     routes: (app) => {
       app.use("/", registryRoutes());

@@ -40,9 +40,11 @@ export function validateEnv<T extends z.ZodType>(schema: T): z.infer<T> {
   const parsed = schema.safeParse(process.env);
 
   if (!parsed.success) {
-    console.error("❌ Invalid environment configuration", {
-      errors: z.treeifyError(parsed.error),
-    });
+    let errors: unknown = parsed.error;
+    if (typeof z.treeifyError === "function") {
+      try { errors = z.treeifyError(parsed.error); } catch { /* fallback */ }
+    }
+    console.error("❌ Invalid environment configuration", { errors });
     process.exit(1);
   }
 

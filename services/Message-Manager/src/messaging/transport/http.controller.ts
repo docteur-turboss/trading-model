@@ -32,10 +32,10 @@
  * @since 2026.01.28
  */
 
-import { catchSync } from "@trading-model/common/middleware/catchError";
-import { Broker } from "../core/broker";
 import { PublishSchema, SubscribeSchema, UnsubscribeSchema } from "./validation/broker.schema";
 import { ResponseException } from "@trading-model/common/middleware/responseException";
+import { catchSync } from "@trading-model/common/middleware/catchError";
+import { Broker } from "../core/broker";
 
 /**
  * Subscribe a service to a topic
@@ -104,13 +104,13 @@ export const DeleteASubscription = (broker: Broker) =>
  * @throws {ResponseException.NoContent} On successful publish
  */
 export const PublishAMessage = (broker: Broker) => 
-  catchSync((req) => {
+  catchSync(async (req) => {
     const parsed = PublishSchema.safeParse(req.body);
 
     if(!parsed.success) 
         throw ResponseException(parsed.error.message).BadRequest();
 
-    broker.publish(parsed.data.payload, parsed.data.metadata);
+    await broker.publish(parsed.data.payload, parsed.data.metadata);
     
     throw ResponseException().NoContent();
 });

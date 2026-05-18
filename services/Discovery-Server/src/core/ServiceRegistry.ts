@@ -201,6 +201,8 @@ export class ServiceRegistry {
             this.services.delete(serviceName);
         }
 
+        this.token.delete(instanceId);
+
         return deleted;
     }
 

@@ -26,7 +26,7 @@
  * @since 2026.01.28
  */
 
-import { DeliveryMode } from "@trading-model/common/config/deliveryMode.types";
+import { DeliveryMode, DeliveryModeEnum } from "@trading-model/common/config/deliveryMode.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { z } from "zod";
 
@@ -88,7 +88,7 @@ export const PublishMetadataSchema = z.object({
   }).optional(),
 
   delivery: z.object({
-    mode: z.enum(DeliveryMode),
+    mode: z.enum(Object.values(DeliveryMode) as [DeliveryModeEnum, ...DeliveryModeEnum[]]),
     ttl: z.number().int().positive().optional(),
     deduplicationId: z.string().optional(),
   }).optional(),

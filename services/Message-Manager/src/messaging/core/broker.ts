@@ -30,7 +30,7 @@
  * @since 2026.01.28
  */
 
-import { uuid } from "zod";
+import { randomUUID } from "node:crypto";
 import { Dispatcher } from "./dispatcher";
 import { IdentifyType } from "../broker.type";
 import { message, MessageMetadata } from "./message";
@@ -83,7 +83,7 @@ export class Broker {
       metadata: {
         ...metadata,
         emittedAt: new Date(),
-        messageId: String(uuid()),
+        messageId: String(randomUUID()),
       },
       payload
     }
