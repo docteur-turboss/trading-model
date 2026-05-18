@@ -3,7 +3,8 @@ import { ServiceHealthChecker } from "../../src/discovery/serviceHealthChecker";
 import { HttpClient } from "@trading-model/common/config/httpClient";
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
-/* eslint-disable */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 describe("ServiceHealthChecker", () => {
   let httpClient: jest.Mocked<HttpClient>;
   let checker: ServiceHealthChecker;
