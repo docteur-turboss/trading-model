@@ -1,6 +1,8 @@
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
 import { MessageMetadata } from '../../src/shared/helper/messages/message';
 import { MetadataBuilderError } from '@trading-model/common/utils/Errors';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 function buildMinimalMetadata(): MessageMetadata {
   return new MessageMetadata()

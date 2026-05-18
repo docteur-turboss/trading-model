@@ -5,6 +5,8 @@ jest.mock('https');
 import { HttpClient, HttpClientError, HttpClientTimeoutError } from '../../src/config/httpClient';
 import https from 'https';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 describe('HttpClient', () => {
   let client: HttpClient;
   let requestCallback: ((res: any) => void) | null;

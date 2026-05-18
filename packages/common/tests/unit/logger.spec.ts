@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { Logger, LogLevel, LogEntry } from '../../src/config/logger';
+import { Logger, LogLevel } from '../../src/config/logger';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 describe('Logger', () => {
   let logger: Logger;

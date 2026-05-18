@@ -1,11 +1,11 @@
-import { HttpClient } from "@trading-model/common/config/httpClient";
-import { EventEnumMap } from "@trading-model/common/config/event.types";
-import addressManagerClient from "@trading-model/address-manager";
-import { MessageMetadata } from "../shared/types/message";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { MessageManagerConfig } from "../shared/types/config";
 import { MessageManagerError, ServiceUnreachableError } from "@trading-model/common/utils/Errors";
 import { SubscribesTopicsPayload, UnSubscribesTopicsPayload } from "../shared/types/payloads";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { EventEnumMap } from "@trading-model/common/config/event.types";
+import { HttpClient } from "@trading-model/common/config/httpClient";
+import addressManagerClient from "@trading-model/address-manager";
+import { MessageManagerConfig } from "../shared/types/config";
+import { MessageMetadata } from "../shared/types/message";
 
 /**
  */

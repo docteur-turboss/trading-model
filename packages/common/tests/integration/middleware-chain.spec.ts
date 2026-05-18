@@ -3,6 +3,9 @@ import { catchSync } from '../../src/middleware/catchError';
 import { ResponseException } from '../../src/middleware/responseException';
 import { handleCoreResponse } from '../../src/middleware/handleCoreResponse';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 describe('Middleware chain integration', () => {
   let req: any;
   let res: any;

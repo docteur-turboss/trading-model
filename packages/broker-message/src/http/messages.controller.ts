@@ -1,8 +1,8 @@
 import { MessageMetadataSchema, MessagePayloadSchema } from "../shared/helper/messages/message.schema";
 import { ResponseException } from "@trading-model/common/middleware/responseException";
-import { EventManager } from "../client/eventManagerClient";
 import { catchSync } from "@trading-model/common/middleware/catchError";
 import { EventMap } from "@trading-model/common/config/event.types";
+import { EventManager } from "../client/eventManagerClient";
 
 export const MessageController = catchSync(async (req) => {
     const metadata = req.body.metadata;

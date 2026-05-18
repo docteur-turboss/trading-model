@@ -2,6 +2,8 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { handleCoreResponse, handleCoreAuthResponse, ensureAtLeastOneField, handleOnlyDataCore, handleCoreError, handleDBError } from '../../src/middleware/handleCoreResponse';
 import ChainedError from 'chained-error';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 describe('handleCoreResponse', () => {
   let res: any;
 

@@ -2,6 +2,8 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { MessageController } from '../../src/http/messages.controller';
 import { EventManager } from '../../src/client/eventManagerClient';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 function flushMicrotasks(): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, 0));
 }

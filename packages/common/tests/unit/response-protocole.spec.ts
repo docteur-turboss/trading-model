@@ -7,6 +7,8 @@ import {
   AddressManagerError,
 } from '../../src/utils/Errors';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 describe('ResponseProtocole', () => {
   let req: any;
   let res: any;

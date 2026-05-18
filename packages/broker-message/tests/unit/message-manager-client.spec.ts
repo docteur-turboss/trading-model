@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { MessageManagerClient } from '../../src/client/messageManagerClient';
 import { MessageManagerError, ServiceUnreachableError } from '@trading-model/common/utils/Errors';
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 describe('MessageManagerClient', () => {
   let client: MessageManagerClient;
   let httpClient: any;
