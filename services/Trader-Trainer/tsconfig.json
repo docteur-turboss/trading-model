@@ -10,6 +10,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
+    "types": ["node"],
     "paths": {
       "@trading-model/common/*": ["../../packages/common/src/*"]
     },
@@ -19,5 +20,4 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "types": ["node"]
 }

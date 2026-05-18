@@ -10,6 +10,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
+    "types": ["node"],
     "paths": {
       "config/*": ["./src/config/*"],
       "messaging": ["./src/messaging/index.ts"],
@@ -23,5 +24,4 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "types": ["node"]
 }

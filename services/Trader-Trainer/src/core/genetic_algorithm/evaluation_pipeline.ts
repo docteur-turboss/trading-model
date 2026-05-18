@@ -4,8 +4,7 @@
  */
 
 import type { LamarckGenome, MarketStep } from "./genome_types";
-import type { Experience } from "core/neural_network/type";
-
+import type { Experience } from "../../core/neural_network/type";
 // RLBackend is defined in ga_runner.ts and exported from there
 // We avoid circular dependency by using a type-only reference
 export interface RLBackend {
@@ -18,6 +17,8 @@ export interface RLBackend {
   resetEpisode(): void;
   getExperiencePool(): Experience[];
 }
+import { DeepReadonly } from "./shared_types";
+import { RunningStats, computeVariance, computeSharpe } from "./utils";
 import { estimateComplexity, computeAdjustedFitness } from "./complexity_estimator";
 
 export type BackendFactory = (g: DeepReadonly<LamarckGenome>) => RLBackend;
@@ -30,25 +31,7 @@ type GenomeFitnessMeta = {
   rawScores:       number[];
 };
 
-/**
- * Running statistics using Welford's online algorithm.
- */
-class RunningStats {
-  private n = 0;
-  private mean = 0;
-  private M2   = 0;
-
-  update(x: number): void {
-    this.n++;
-    const delta = x - this.mean;
-    this.mean += delta / this.n;
-    this.M2 += delta * (x - this.mean);
-  }
-
-  get std() { return this.n < 2 ? 1 : Math.sqrt(this.M2 / (this.n - 1)); }
-  get mu()  { return this.mean; }
-  normalize(x: number) { return (x - this.mu) / (this.std + 1e-8); }
-}
+// RunningStats imported from ./utils
 
 /**
  * Apply reward shaping (normalize, sparse mode, etc).
@@ -193,19 +176,6 @@ function deepFreeze<T>(obj: T): DeepReadonly<T> {
     }
   }
   return Object.freeze(obj) as DeepReadonly<T>;
-}
-
-function computeVariance(scores: number[]): number {
-  if (scores.length < 2) return 0;
-  const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
-  return scores.reduce((s, v) => s + (v - mean) ** 2, 0) / (scores.length - 1);
-}
-
-function computeSharpe(scores: number[]): number {
-  if (scores.length < 2) return 0;
-  const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
-  const std  = Math.sqrt(computeVariance(scores));
-  return std < 1e-8 ? 0 : mean / std;
 }
 
 function computeFitness(fitnessType: string, scores: number[]): number {

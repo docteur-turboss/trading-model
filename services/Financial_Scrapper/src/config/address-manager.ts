@@ -3,8 +3,7 @@ import { env } from "./env";
 
 const addressManager = createAddressManager(env);
 
-const AddressManagerRoutes = addressManager.listenExpress;
-const findAService = addressManager.findService;
 const bootstrapAddressManager = addressManager.start;
+const AddressManagerRoutes = addressManager.listenExpress;
 
-export { AddressManagerRoutes, findAService, bootstrapAddressManager, addressManager as AddressManager };
+export { AddressManagerRoutes, bootstrapAddressManager, addressManager as AddressManager };

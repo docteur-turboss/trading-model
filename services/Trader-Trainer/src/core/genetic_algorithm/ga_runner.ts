@@ -9,12 +9,14 @@ import {
 } from "./genome_types";
 import TradingAgent, { TradingAgentConfig } from "../agent/trading_agent";
 import { computeFitness, shapeReward }      from "./fitness";
-import { Experience }                       from "core/neural_network/type";
+import { Experience }                       from "../../core/neural_network/type";
 import { createDefaultGenome }              from "./factory";
 import { crossoverGenomes }                 from "./crossover";
 import { selectParent }                     from "./selection";
 import { mutateGenome }                     from "./mutation";
-import { generateId }                       from "./utils";
+import { generateId, RunningStats,
+         computeVariance, computeSharpe }   from "./utils";
+import { crossoverWeights, mutateWeights }  from "./evolution_engine";
 import { makePRNG }                         from "./prng";
 
 // ----------------------------------------------------------------
@@ -197,26 +199,6 @@ type RankedGenome = Readonly<Genome> & {
   readonly paretoRank:   number;
   readonly crowdingDist: number;
 };
-
-// ----------------------------------------------------------------
-// Running stats — Welford online
-// ----------------------------------------------------------------
-class RunningStats {
-  private n = 0;
-  private mean = 0;
-  private M2   = 0;
-
-  update(x: number): void {
-    this.n++;
-    const delta = x - this.mean;
-    this.mean += delta / this.n;
-    this.M2 += delta * (x - this.mean);
-  }
-
-  get std() { return this.n < 2 ? 1 : Math.sqrt(this.M2 / (this.n - 1)); }
-  get mu()  { return this.mean; }
-  normalize(x: number) { return (x - this.mu) / (this.std + 1e-8); }
-}
 
 // ----------------------------------------------------------------
 // FLOPs + memory complexity estimate
@@ -403,42 +385,6 @@ function lamarckianUpdate(
 // ----------------------------------------------------------------
 // Weight-level crossover (correct Float32Array iteration)
 // ----------------------------------------------------------------
-/**
- * Per-weight uniform crossover.
- * Float32Array.map gives (value, index) — explicit loop avoids the
- * original bug where the callback received numeric indices as "layerB".
- */
-export function crossoverWeights(
-  wa: Float32Array,
-  wb: Float32Array,
-  rng: () => number,
-): Float32Array {
-  if (wa.length !== wb.length) return wa.slice(); // architecture mismatch
-  const out = new Float32Array(wa.length);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = rng() < 0.5 ? wa[i] : wb[i];
-  }
-  return out;
-}
- 
-/** Gaussian weight mutation using Box-Muller. */
-export function mutateWeights(
-  w: Float32Array,
-  rate: number,
-  std: number,
-  rng: () => number,
-): Float32Array {
-  const out = w.slice();
-  for (let i = 0; i < out.length; i++) {
-    if (rng() < rate) {
-      const u1    = Math.max(1e-10, rng());
-      const gauss = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * rng());
-      out[i]     += std * gauss;
-    }
-  }
-  return out;
-}
-
 // ----------------------------------------------------------------
 // Full per-genome evaluation (train + Lamarck + eval, all windows)
 // ----------------------------------------------------------------
@@ -858,18 +804,3 @@ export class GeneticAlgorithmRunner {
   public getGeneration(): number { return this.generation; }
 }
 
-// ----------------------------------------------------------------
-// Helpers
-// ----------------------------------------------------------------
-function computeVariance(scores: number[]): number {
-  if (scores.length < 2) return 0;
-  const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
-  return scores.reduce((s, v) => s + (v - mean) ** 2, 0) / (scores.length - 1);
-}
- 
-function computeSharpe(scores: number[]): number {
-  if (scores.length < 2) return 0;
-  const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
-  const std  = Math.sqrt(computeVariance(scores));
-  return std < 1e-8 ? 0 : mean / std;
-}
