@@ -42,33 +42,33 @@ const MarkerOrderBooks = new class TMarketOrderBooks {
         };
 
         try{
-            for(let d of data){
+            for(const d of data){
                 tableDef.parse(d);
 
                 this.storage.set(this.id, d);
                 if(this.marketStorage.has(d.market)){
-                    let actualStorage = this.marketStorage.get(d.market)!;
+                    const actualStorage = this.marketStorage.get(d.market)!;
                     actualStorage.push(this.id);
 
                     this.marketStorage.set(d.market, actualStorage);
                 } else this.marketStorage.set(d.market, [this.id]); 
 
                 if(this.sourceStorage.has(d.source)){
-                    let actualStorage = this.sourceStorage.get(d.market)!;
+                    const actualStorage = this.sourceStorage.get(d.market)!;
                     actualStorage.push(this.id);
 
                     this.sourceStorage.set(d.source, actualStorage);
                 } else this.sourceStorage.set(d.market, [this.id]);
 
                 if(this.symbolStorage.has(d.source)){
-                    let actualStorage = this.symbolStorage.get(d.market)!;
+                    const actualStorage = this.symbolStorage.get(d.market)!;
                     actualStorage.push(this.id);
 
                     this.symbolStorage.set(d.source, actualStorage);
                 } else this.symbolStorage.set(d.market, [this.id]);
 
                 if(this.timestampStorage.has(d.timestamp)){
-                    let actualStorage = this.timestampStorage.get(d.timestamp)!;
+                    const actualStorage = this.timestampStorage.get(d.timestamp)!;
                     actualStorage.push(this.id);
 
                     this.timestampStorage.set(d.timestamp, actualStorage);

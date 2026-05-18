@@ -4,6 +4,7 @@ import { selectTradesBy } from "infra/market-data/schema/trades.schema";
 import { selectTickerBy } from "infra/market-data/schema/ticker24h.schema";
 import { selectOrderBookBy } from "infra/market-data/schema/orderBook.schema";
 import { ResponseException } from "@trading-model/common/middleware/responseException";
+import { selectCandlesBy } from "infra/market-data/schema/candles-schema";
 
 /* -------------------------------------------------------------------------- */
 /*                                   Schemas                                  */
@@ -193,7 +194,7 @@ export const GetCandlesBySymbolController = catchSync(async (req) => {
 
     try{
         throw ResponseException(
-            JSON.stringify(await selectOrderBookBy.symbol(parsed.data.symbol))
+            JSON.stringify(await selectCandlesBy.symbol(parsed.data.symbol))
         ).Success();
     }catch(e) {
         if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
@@ -207,7 +208,7 @@ export const GetCandlesByTimestampController = catchSync(async (req) => {
     
     try{
         throw ResponseException(
-            JSON.stringify(await selectOrderBookBy.timestamp.after(parsed.data.timestamp.getTime()))
+            JSON.stringify(await selectCandlesBy.timestamp.after(parsed.data.timestamp))
         ).Success();
     }catch(e) {
         if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
@@ -221,7 +222,7 @@ export const GetCandlesBySourceController = catchSync(async (req) => {
     
     try{
         throw ResponseException(
-            JSON.stringify(await selectOrderBookBy.source(parsed.data.source))
+            JSON.stringify(await selectCandlesBy.source(parsed.data.source))
         ).Success();
     }catch(e) {
         if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();

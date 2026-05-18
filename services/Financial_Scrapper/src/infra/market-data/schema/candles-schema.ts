@@ -72,12 +72,21 @@ export const selectCandlesBy = {
         .select(select)
         .executeSelectMany();
     },
-    timestamp: async (timestamp: Date) => {
-        return await new DBConnection()
-        .selectFrom(tMarketCandles)
-        .where(tMarketCandles.timestamp.equals(timestamp))
-        .select(select)
-        .executeSelectMany();
+    timestamp: {
+        after : async (timestamp: Date) => {
+            return await new DBConnection()
+            .selectFrom(tMarketCandles)
+            .where(tMarketCandles.timestamp.greaterThan(timestamp))
+            .select(select)
+            .executeSelectMany();
+        },
+        before : async (timestamp: Date) => {
+            return await new DBConnection()
+            .selectFrom(tMarketCandles)
+            .where(tMarketCandles.timestamp.lessThan(timestamp))
+            .select(select)
+            .executeSelectMany();
+        }
     },
     source: async (source: string) => {
         return await new DBConnection()
