@@ -1,0 +1,16 @@
+{
+  "name": "trading-model",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "build:common": "npm run -w @trading-model/common build",
+    "build:address-manager": "npm run -w @trading-model/address-manager build",
+    "build:broker-message": "npm run -w @trading-model/broker-message build",
+    "build": "npm run build:common && npm run build:address-manager && npm run build:broker-message",
+    "test": "npm test --workspaces --if-present"
+  }
+}

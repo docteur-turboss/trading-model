@@ -28,6 +28,7 @@ trading-model/                          # Monorepo root
 ├── docs/                               # Documentation centralisée
 │   ├── ARCHITECTURE.md                 # Vue d'ensemble
 │   ├── API.md                          # Endpoints
+│   ├── TESTING.md                      # Tests standard
 │   ├── SETUP.md                        # Setup local
 │   ├── deployment/                     # Guides déploiement
 │   └── diagrams/                       # Mermaid diagrams

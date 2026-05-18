@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "Node16",
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "..",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node16",
+    "paths": {
+      "@trading-model/common/*": ["../common/src/*"],
+      "@trading-model/address-manager": ["../address-manager/src/index.ts"],
+      "@trading-model/address-manager/*": ["../address-manager/src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "tests"]
+}
