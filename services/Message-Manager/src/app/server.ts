@@ -39,11 +39,11 @@
  * @since 2026.01.28
  */
 
-import { ResponseProtocole } from "cash-lib/middleware/responseProtocole";
-import { MTLSAuthMiddleware } from "cash-lib/middleware/MTLSAuth";
+import { ResponseProtocole } from "@trading-model/common/middleware/responseProtocole";
+import { MTLSAuthMiddleware } from "@trading-model/common/middleware/MTLSAuth";
 import { AddressManagerRoutes } from "config/address-manager";
 import { MessageManagerRoutes } from "config/message-manager";
-import { logger } from 'cash-lib/config/logger';
+import { logger } from '@trading-model/common/config/logger';
 import { rateLimit } from "express-rate-limit";
 import { env } from 'config/env';
 import https from 'node:https';

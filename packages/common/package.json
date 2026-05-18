@@ -15,16 +15,32 @@
     "./utils/*": {
       "types": "./dist/utils/*.d.ts",
       "default": "./dist/utils/*.js"
+    },
+    "./server/*": {
+      "types": "./dist/server/*.d.ts",
+      "default": "./dist/server/*.js"
+    },
+    "./validation/*": {
+      "types": "./dist/validation/*.d.ts",
+      "default": "./dist/validation/*.js"
+    },
+    "./contracts/*": {
+      "types": "./dist/contracts/*.d.ts",
+      "default": "./dist/contracts/*.js"
+    },
+    "./crypto/*": {
+      "types": "./dist/crypto/*.d.ts",
+      "default": "./dist/crypto/*.js"
     }
   },
   "dependencies": {
     "chained-error": "^1.0.0",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.1",
+    "helmet": "^8.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.29.5",
-    "@babel/preset-typescript": "^7.28.5",
     "@eslint/js": "^10.0.1",
     "@jest/globals": "^30.4.1",
     "@types/express": "^5.0.6",

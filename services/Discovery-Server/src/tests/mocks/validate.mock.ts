@@ -1,5 +1,5 @@
  /* eslint-disable */
- jest.mock("../../utils/validate", () => ({
+ jest.mock("@trading-model/common/validation/primitives", () => ({
   isObject: (v: any) => v !== null && typeof v === "object",
   isNonEmptyString: (v: any) =>
     typeof v === "string" && v.trim().length > 0,

@@ -1,26 +1,26 @@
 /**
  * BinanceCronOrchestrator
  * -----------------------
- * Orchestrateur intelligent de workers Binance.
+ * Intelligent orchestrator for Binance workers.
  *
- * Responsabilités :
+ * Responsibilities:
  *  - Scheduling via node-cron
- *  - Scaling dynamique du nombre de workers
- *  - Contrôle de concurrence
- *  - Backpressure simple
+ *  - Dynamic worker scaling
+ *  - Concurrency control
+ *  - Basic backpressure handling
  *
- * Conçu pour environnements horizontaux.
+ * Designed for horizontally scaled environments.
  */
 
 import os from "os";
 import cron from "node-cron";
 import pLimit from "p-limit";
-import { logger } from "cash-lib/config/logger";
+import { logger } from "@trading-model/common/config/logger";
 import { BinanceWorker, BinanceWorkerResult } from "../worker/binance.worker";
 import { MarketDataController } from "infra/market-data/market-data.controller";
 
 export interface CronConfig {
-  schedule: string; // ex: "*/1 * * * *"
+  schedule: string; // e.g. "*/1 * * * *"
   symbols: string[];
   maxConcurrency?: number;
   candleInterval?: "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
@@ -34,23 +34,24 @@ export class BinanceCronOrchestrator {
         private readonly config: CronConfig
     ) {
         /**
-         * Concurrency par défaut :
-         * - Nombre de CPUs * 2 (I/O bound workload)
-         * - Borné par nombre de symbols
+         * Default concurrency:
+         * - Number of CPUs * 2 (I/O bound workload)
+         * - Capped by the number of symbols
          */
         const cpuBased = os.cpus().length * 2;
+
         this.maxConcurrency =
-        config.maxConcurrency ??
-        Math.min(cpuBased, config.symbols.length);
+            config.maxConcurrency ??
+            Math.min(cpuBased, config.symbols.length);
     }
 
     /**
-     * Démarre le cron scheduler.
+     * Starts the cron scheduler.
      */
     public start(): void {
         cron.schedule(this.config.schedule, async () => {
             if (this.isRunning) {
-                logger.warn("[BinanceCron] Previous execution still running.")
+                logger.warn("[BinanceCron] Previous execution still running.");
                 return;
             }
 
@@ -59,20 +60,25 @@ export class BinanceCronOrchestrator {
             try {
                 await this.executeBatch();
             } catch (err) {
-                if(err instanceof Error) logger.error("[BinanceCron] Batch execution error:", {err: err.message})
-                else logger.error("[BinanceCron] Batch execution unknow error")
+                if (err instanceof Error) {
+                    logger.error("[BinanceCron] Batch execution error:", {
+                        err: err.message,
+                    });
+                } else {
+                    logger.error("[BinanceCron] Unknown batch execution error");
+                }
             } finally {
                 this.isRunning = false;
             }
         });
 
         logger.info(
-        `[BinanceCron] Scheduled with maxConcurrency=${this.maxConcurrency}`
+            `[BinanceCron] Scheduled with maxConcurrency=${this.maxConcurrency}`
         );
     }
 
     /**
-     * Exécution batch avec limitation de concurrence.
+     * Batch execution with concurrency limiting.
      */
     private async executeBatch(): Promise<void> {
         const limiter = pLimit(this.maxConcurrency);
@@ -94,11 +100,12 @@ export class BinanceCronOrchestrator {
     }
 
     /**
-     * Méthode d’extension pour persistance.
-     * Peut être overridée ou injectée.
+     * Extension point for persistence.
+     * Can be overridden or injected.
      */
     protected async persist(data: BinanceWorkerResult): Promise<void> {
         await MarketDataController.persist(data);
+
         logger.debug("[BinanceCron] Data fetched at: " + Date.now());
     }
 }

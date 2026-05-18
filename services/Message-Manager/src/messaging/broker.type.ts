@@ -1,4 +1,4 @@
-import { ServiceInstanceName } from "cash-lib/config/services.types"
+import { ServiceInstanceName } from "@trading-model/common/config/services.types"
 
 /**
  * @file broker.type.ts

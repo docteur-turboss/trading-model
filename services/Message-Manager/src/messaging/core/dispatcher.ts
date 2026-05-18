@@ -41,7 +41,7 @@
 import { message } from "./message";
 import { Subscription } from "./subscription";
 import { IdentifyType } from "../broker.type";
-import { HttpClient } from "cash-lib/config/httpClient";
+import { HttpClient } from "@trading-model/common/config/httpClient";
 
 /**
  * Message dispatcher.

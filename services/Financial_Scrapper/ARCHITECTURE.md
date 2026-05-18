@@ -1,92 +1,99 @@
-# Architecture du Service de Web Scraper
-## Présentation
-Ce document décrit l'architecture technique du service, ses responsabilités internes et les conventions appliquées dans le projet.
-## Objectifs
-* Interroger des endpoints externes (Binance, autres APIs) avec des contraintes de débit et de volume configurables.
-* Centraliser, normaliser et stocker les données pour des usages dérivés (analyse, backtesting, signaux).
-* Exécuter un worker planifié ou continu, isolé du serveur HTTP, capable d'ingérer des données en flux régulier.
-* Maintenir une séparation claire entre logique métier, accès aux données et orchestration.
+# Architecture of the Web Scraper Service
+
+## Overview
+
+This document describes the technical architecture of the service, its internal responsibilities, and the conventions applied in the project.
+
+## Objectives
+
+* Query external endpoints (Binance, other APIs) under configurable rate and volume constraints.
+* Centralize, normalize, and store data for downstream use cases (analysis, backtesting, signals).
+* Run scheduled or continuous workers, isolated from the HTTP server, capable of ingesting data in a steady stream.
+* Maintain a clear separation between business logic, data access, and orchestration.
+
 ## Structure
 ```bash
 src/
 ├─ app/       
-│   # Démarrage du service (HTTP, workers, cron)
-│   # Setup global: logs, containers DI, monitoring, erreurs fatales
-│   # Point d'entrée commun pour le runtime
+│   # Service bootstrap (HTTP, workers, cron)
+│   # Global setup: logging, DI containers, monitoring, fatal error handling
+│   # Common runtime entrypoint
 │
 ├─ client/               
-│   # Clients bas niveaux (HTTP, WebSocket, throttling)
-│   # Ne contient aucune logique métier
-│   └─ binance/          # Wrapper statique pour les endpoints Binance
+│   # Low-level clients (HTTP, WebSocket, throttling)
+│   # Contains no business logic
+│   └─ binance/          # Static wrapper for Binance endpoints
 │
 ├─ config/
-│   # Chargement, validation et exposition des variables d'environnement
-│   # Structure normalisée pour éviter la dérive de config
-│   └─ .env              # Valeurs locales (ignoré du repo)
+│   # Environment variables loading, validation, and exposure
+│   # Normalized configuration structure to prevent config drift
+│   └─ .env              # Local values (ignored by repo)
 │
 ├─ jobs/
 │ ├─ cron/               
-│ │   # Définition des tâches programmées
-│ │   # Orchestration simple : appelle engines + services
+│ │   # Scheduled job definitions
+│ │   # Simple orchestration: calls engines + services
 │ ├─ engines/            
-│ │   # "Drivers" pour chaque source externe
-│ │   # Implémentation du pattern Strategy
-│ │   # Encapsule la façon d'appeler une API donnée
+│ │   # Drivers for each external source
+│ │   # Implements the Strategy pattern
+│ │   # Encapsulates how a given API is called
 │ ├─ services/           
-│ │   # Logique métier propre aux jobs (transformation, validation, pipeline)
+│ │   # Job-specific business logic (transformation, validation, pipeline)
 │ └─ worker/             
-│     # Worker continu/async
-│     # Récupération + traitement + persistance
-│     # Doit être isolé du serveur public
+│     # Continuous/async workers
+│     # Fetching + processing + persistence
+│     # Must be isolated from the public server
 │
-├─ models/               # Déprécié - remplacé par storage/models
-├─ repository/           # Déprécié - remplacé par storage/repositories
+├─ models/               # Deprecated - replaced by storage/models
+├─ repository/           # Deprecated - replaced by storage/repositories
 │
 ├─ scraper/              
-│   # Scraping hors APIs (HTML, DOM, extraits)
-│   # Optionnel : pipelines spécifiques selon la source
+│   # Non-API scraping (HTML, DOM extraction)
+│   # Optional: source-specific pipelines
 │
 ├─ services/             
-│   # Logique métier centrale (hors jobs)
-│   # Utilisé par le serveur HTTP ou d'autres modules internes
+│   # Core business logic (outside jobs)
+│   # Used by HTTP server or other internal modules
 │
 ├─ controller/           
-│   # Validation d'entrée/sortie
-│   # Orchestration légère avant appel des services
+│   # Input/output validation layer
+│   # Lightweight orchestration before calling services
 │
 ├─ router/               
-│   # Définition des routes HTTP
-│   # Pas de logique métier ici
+│   # HTTP route definitions
+│   # No business logic here
 │
 ├─ middleware/
-│   # Middleware HTTP (auth, rate limit, logging, sécurité)
+│   # HTTP middleware (auth, rate limiting, logging, security)
 │
 ├─ storage/
 │ ├─ models/             
-│ │   # Structures de données + schemas (ORM/QueryBuilder)
-│ │   # Modèles métiers persistés
+│ │   # Data structures + schemas (ORM/query builder)
+│ │   # Persisted business models
 │ └─ repositories/       
-│     # Accès DB (CRUD, queries, transactions)
-│     # Niveau d'abstraction unique pour la persistance
+│     # Database access layer (CRUD, queries, transactions)
+│     # Single abstraction level for persistence
 │
 ├─ utils/
-│   # Fonctions génériques : sleep, retry, format, helpers
-│   # Aucun import inversé depuis la logique métier
+│   # Generic helpers: sleep, retry, formatting, utilities
+│   # No reverse dependency from business logic
 │
 ├─ tests/
-│   # Tests unitaires + e2e
+│   # Unit + end-to-end tests
 │
 └─ types/
-    # Typage global du projet (DTO, interfaces, déclarations externes)
+    # Global type definitions (DTOs, interfaces, external declarations)
 ```
 
 ## Notes
-* **Séparation stricte des couches** : le code métier n'appelle jamais directement des clients externes ni la base de données.
-* **Clients → Engines → Services → Repository** : pipeline standard d'une ingestion.
-* **Worker isolé** : évite la congestion HTTP, garantit la stabilité.
-* **Storage comme source de vérité** : toutes les entités persistées doivent être définies sous `/storage/models`.
-* **Jobs deterministes** : pas de logique floue dans les crons ; la logique doit résider dans les services dédiés.
 
-## Points à Ajuster
-* Liste des engines actifs selon l'environnement
-* Pipeline d'ingestion complet (normalisation → mapping → persistance) 
+* **Strict layer separation**: business code never directly calls external clients or the database.
+* **Clients → Engines → Services → Repository**: standard ingestion pipeline.
+* **Isolated workers**: prevents HTTP congestion and ensures stability.
+* **Storage as source of truth**: all persisted entities must be defined under `/storage/models`.
+* **Deterministic jobs**: no ambiguous logic in cron jobs; logic must live in dedicated services.
+
+## Points to Adjust
+
+* List of active engines depending on environment
+* Full ingestion pipeline (normalization → mapping → persistence)

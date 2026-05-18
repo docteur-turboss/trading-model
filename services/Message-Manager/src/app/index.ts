@@ -37,7 +37,7 @@
  */
 
 import { bootstrapAddressManager } from 'config/address-manager';
-import { logger } from 'cash-lib/config/logger';
+import { logger } from '@trading-model/common/config/logger';
 import { createServer } from "./server";
 import '/config/env';
 

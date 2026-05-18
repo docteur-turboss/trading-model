@@ -1,5 +1,5 @@
 /**
- * PLEASE UPDATE THE /lib/common/config/event.types.ts if your mouving here
+ * PLEASE UPDATE THE /packages/common/src/config/event.types.ts if your mouving here
  */
 
 

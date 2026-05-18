@@ -1,8 +1,8 @@
 import { RequestHandler } from "express";
 import { registry } from "../core/ServiceRegistry";
-import { catchSync } from "cash-lib/middleware/catchError";
-import { isNonEmptyString, isObject } from "../utils/validate";
-import { ResponseException } from "cash-lib/middleware/responseException";
+import { catchSync } from "@trading-model/common/middleware/catchError";
+import { ResponseException } from "@trading-model/common/middleware/responseException";
+import { isNonEmptyString, isObject } from "@trading-model/common/validation/primitives";
 
 /**
  * -------------------------

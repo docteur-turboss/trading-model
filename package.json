@@ -11,6 +11,8 @@
     "build:address-manager": "npm run -w @trading-model/address-manager build",
     "build:broker-message": "npm run -w @trading-model/broker-message build",
     "build": "npm run build:common && npm run build:address-manager && npm run build:broker-message",
+    "commit": "npx gitmoji -c",
+    "eslint": "npx eslint src/**/*.{ts,js}",
     "test": "npm test --workspaces --if-present"
   }
 }

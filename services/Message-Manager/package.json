@@ -26,8 +26,9 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@trading-model/common": "*",
+    "@trading-model/address-manager": "*",
     "axios": "^1.16.0",
-    "cash-lib": "file:../../lib",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.1",
     "helmet": "^8.1.0",

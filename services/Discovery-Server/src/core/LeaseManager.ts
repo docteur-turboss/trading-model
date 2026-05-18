@@ -1,5 +1,5 @@
+import { logger } from "@trading-model/common/config/logger";
 import { registry } from "./ServiceRegistry";
-import { logger } from "cash-lib/config/logger";
 import { ServiceInstance } from "./types";
 
 /**

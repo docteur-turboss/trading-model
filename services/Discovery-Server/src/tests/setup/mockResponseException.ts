@@ -1,5 +1,5 @@
  /* eslint-disable */
-jest.mock("cash-lib/middleware/responseException", () => ({
+jest.mock("@trading-model/common/middleware/responseException", () => ({
   ResponseException: jest.fn((body: any) => ({
     BadRequest: () => ({ type: "BadRequest", error: body }),
     Unauthorized: () => ({ type: "Unauthorized", error: body }),

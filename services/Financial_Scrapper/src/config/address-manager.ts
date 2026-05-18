@@ -1,4 +1,4 @@
-import address from "cash-lib/adress-manager/index";
+import AddressManager from "@trading-model/address-manager";
 import { env } from "./env";
 
 /**
@@ -8,7 +8,7 @@ import { env } from "./env";
  * Configured once at module load time using environment variables.
  * This instance is shared across the entire application lifecycle.
  */
-const AddressManager = new address({
+const addressManager = new AddressManager({
     addressManagerUrl: env.ADDRESS_MANAGER_URL,
     cacheTtlMs: env.CACHE_TTL_MS,
     instanceId: env.INSTANCE_ID,
@@ -36,43 +36,7 @@ const AddressManager = new address({
  * @lifecycle
  * Must be called during HTTP server initialization.
  */
-const AddressManagerRoutes = AddressManager.listenExpress
-
-/**
- * Service discovery helper.
- *
- * @description
- * Resolves a service instance using the Address Manager.
- * Internally uses caching and remote resolution depending
- * on configuration.
- *
- * @param ServiceName - Service name to resolve.
- *
- * @returns {Promise<unknown>}
- *
- * @lifecycle
- * Can be called at any time after the Address Manager has been started.
- */
-const findAService = AddressManager.findService
-
-
-/**
- * Starts the Address Manager background processes.
- *
- * @description
- * Initializes internal mechanisms such as:
- * - Service registration
- * - Heartbeat / TTL refresh
- * - Token refresh
- *
- * This function does not start an HTTP server by itself.
- *
- * @returns {void}
- *
- * @lifecycle
- * Must be called once during application bootstrap,
- * before using service discovery features.
- */
-const bootstrapAddressManager = AddressManager.start
-
-export { AddressManagerRoutes, findAService, bootstrapAddressManager, AddressManager }
+const AddressManagerRoutes = addressManager.listenExpress
+const findAService = addressManager.findService
+const bootstrapAddressManager = addressManager.start
+export { AddressManagerRoutes, findAService, bootstrapAddressManager, addressManager as AddressManager }

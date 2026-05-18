@@ -1,16 +1,16 @@
 /**
  * MarketDataModel
- * ---------------
- * Repository générique pour ingestion de données de marché.
+ * ----------------
+ * Generic repository for market data ingestion.
  *
- * Compatible:
+ * Compatible with:
  *  - Crypto
- *  - Actions
- *  - Obligations
+ *  - Stocks
+ *  - Bonds
  *  - Futures
  *  - FX
  *
- * Conçu pour MySQL / MariaDB.
+ * Designed for MySQL / MariaDB.
  */
 
 import { insertTrades as IinsertTrades } from "./schema/trades.schema";

@@ -511,7 +511,7 @@ type SelectionType = 'tournament' | 'roulette' | 'rank' | 'sus'
 
 ## Code Standards
 
-See [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md) for:
+See [CODE_OF_CONDUCT.md](../../docs/CODE_OF_CONDUCT.md) for:
 - Naming conventions
 - File organization
 - JSDoc documentation

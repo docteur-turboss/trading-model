@@ -17,7 +17,7 @@ import { Application } from "express";
  *
  * This allows importing the library as:
  * ```ts
- * import adrManager from "cash-lib/adress-manager";
+ * import AddressManager from "@trading-model/address-manager";
  * ```
  */
 export default class {

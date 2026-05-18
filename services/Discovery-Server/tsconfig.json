@@ -4,14 +4,15 @@
     "module": "node16",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "../../",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
     "paths": {
-      "*": ["./src/*"]
+      "config/*": ["./src/config/*"],
+      "@trading-model/common/*": ["../../packages/common/src/*"]
     },
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,

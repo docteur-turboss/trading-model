@@ -1,9 +1,9 @@
 import z from "zod";
-import { catchSync } from "cash-lib/middleware/catchError";
+import { catchSync } from "@trading-model/common/middleware/catchError";
 import { selectTradesBy } from "infra/market-data/schema/trades.schema";
-import { ResponseException } from "cash-lib/middleware/responseException";
 import { selectTickerBy } from "infra/market-data/schema/ticker24h.schema";
 import { selectOrderBookBy } from "infra/market-data/schema/orderBook.schema";
+import { ResponseException } from "@trading-model/common/middleware/responseException";
 
 /* -------------------------------------------------------------------------- */
 /*                                   Schemas                                  */

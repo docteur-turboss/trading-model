@@ -32,10 +32,10 @@
  * @since 2026.01.28
  */
 
-import { catchSync } from "cash-lib/middleware/catchError";
+import { catchSync } from "@trading-model/common/middleware/catchError";
 import { Broker } from "../core/broker";
 import { PublishSchema, SubscribeSchema, UnsubscribeSchema } from "./validation/broker.schema";
-import { ResponseException } from "cash-lib/middleware/responseException";
+import { ResponseException } from "@trading-model/common/middleware/responseException";
 
 /**
  * Subscribe a service to a topic

@@ -1,4 +1,4 @@
  /* eslint-disable */
- jest.mock("cash-lib/middleware/catchError", () => ({
+ jest.mock("@trading-model/common/middleware/catchError", () => ({
   catchSync: (fn: any) => fn,
 }));

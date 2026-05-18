@@ -4,14 +4,18 @@
     "module": "node16",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "../../",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
     "paths": {
-      "*": ["./src/*"]
+      "config/*": ["./src/config/*"],
+      "messaging": ["./src/messaging/index.ts"],
+      "messaging/*": ["./src/messaging/*"],
+      "@trading-model/common/*": ["../../packages/common/src/*"],
+      "@trading-model/address-manager": ["../../packages/address-manager/src/index.ts"]
     },
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,

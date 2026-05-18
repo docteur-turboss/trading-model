@@ -14,7 +14,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "cash-lib": "file:../../lib",
+    "@trading-model/common": "*",
     "express": "^5.2.1",
     "helmet": "^8.1.0"
   },

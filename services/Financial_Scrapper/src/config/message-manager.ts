@@ -1,10 +1,10 @@
-import { ServiceInstanceName } from "cash-lib/config/services.types";
-// import { EnumEventMessage } from "cash-lib/config/event.types";
-import manager from "cash-lib/message-manager/index";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+// import { EnumEventMessage } from "@trading-model/common/config/event.types";
+import MessageManager from "@trading-model/broker-message";
 import { AddressManager } from "./address-manager";
 import { env } from "./env";
 
-const ma = new manager({
+const ma = new MessageManager({
     addressManagerClient: AddressManager,
     CertificatPath: env.TLS_CERT_PATH,
     instanceId: env.INSTANCE_ID,

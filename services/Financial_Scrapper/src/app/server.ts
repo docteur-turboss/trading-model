@@ -1,9 +1,9 @@
-import { ResponseProtocole } from "cash-lib/middleware/responseProtocole";
+import { ResponseProtocole } from "@trading-model/common/middleware/responseProtocole";
+import { MTLSAuthMiddleware } from "@trading-model/common/middleware/MTLSAuth";
 import { MessageManagerListenExpress } from "config/message-manager";
-import { MTLSAuthMiddleware } from "cash-lib/middleware/MTLSAuth";
 import { AddressManagerRoutes } from "config/address-manager";
+import { logger } from '@trading-model/common/config/logger';
 import { FinancialRoutes } from "clients/http/routes";
-import { logger } from 'cash-lib/config/logger';
 import { rateLimit } from "express-rate-limit";
 import express, { Router } from "express";
 import { env } from 'config/env';

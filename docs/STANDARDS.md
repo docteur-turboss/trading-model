@@ -913,12 +913,8 @@ jobs:
 
 ## ✅ Implementation Checklist
 
-- [ ] Create root `package.json` with workspaces
-- [ ] Create root `tsconfig.json` with strict config
-- [ ] Create root `eslint.config.mjs` with all rules
 - [ ] Create `.prettierrc`
 - [ ] Create `.husky/` with git hooks
-- [ ] Rename all services to kebab-case
 - [ ] Rename all files to kebab-case
 - [ ] Rewrite all imports to follow convention
 - [ ] Create `.github/workflows/lint.yml`
@@ -927,7 +923,3 @@ jobs:
 - [ ] Standardize test file names to `.spec.ts`
 - [ ] Add coverage threshold to jest.config.js
 - [ ] Document all APIs in `/docs`
-
----
-
-**Next**: [Step 3: Sécuriser avec des tests](../AUDIT.md#3-couverture-de-tests)

@@ -8,4 +8,13 @@ module.exports = {
     '^@trading-model/common/(.*)$': '<rootDir>/../common/src/$1',
   },
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
 };

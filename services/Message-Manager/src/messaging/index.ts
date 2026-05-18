@@ -29,7 +29,7 @@
  * 
  * @since 2026.01.28
  */
-import { HttpClient } from "cash-lib/config/httpClient";
+import { HttpClient } from "@trading-model/common/config/httpClient";
 import { BrokerRoutes } from "./transport/http.routes";
 import { BrokerConfig } from "./broker.type";
 import { Dispatcher } from "./core/dispatcher";
