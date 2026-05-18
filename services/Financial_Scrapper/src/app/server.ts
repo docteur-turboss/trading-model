@@ -1,123 +1,25 @@
-import { ResponseProtocole } from "@trading-model/common/middleware/responseProtocole";
-import { MTLSAuthMiddleware } from "@trading-model/common/middleware/MTLSAuth";
+import { createSecureServer } from "@trading-model/common/server/createSecureServer";
 import { MessageManagerListenExpress } from "config/message-manager";
 import { AddressManagerRoutes } from "config/address-manager";
-import { logger } from '@trading-model/common/config/logger';
 import { FinancialRoutes } from "clients/http/routes";
-import { rateLimit } from "express-rate-limit";
-import express, { Router } from "express";
-import { env } from 'config/env';
-import https from 'node:https';
-import path from 'node:path';
-import helmet from "helmet";
-import fs from 'node:fs';
+import { env } from "config/env";
 
-export function createServer(): {close: () => Promise<void>} {
-    const app = express()
-
-    /**
-     * ─────────────────────────────────────────────────────────────
-     * Middlewares – order matters
-     * ─────────────────────────────────────────────────────────────
-     */
-
-    /**
-     * Adds security-related HTTP headers.
-     */
-    app.use(helmet());
-
-    /**
-     * Enables trust for reverse proxies (required for correct IP resolution).
-     */
-    app.set('trust proxy', true);
-
-    /**
-     * Request body parsing with strict size limits.
-     */
-    app.use(express.json({ limit: '1mb' }));
-    app.use(express.urlencoded({ extended: false }));
-
-    /**
-     * Global rate limiting to protect against brute-force
-     * and denial-of-service attacks.
-     */
-    const limiter = rateLimit({
-        windowMs: 15 * 60 * 1000,
-        limit: 100,
-        message: "Too many requests from this IP, please try again later.",
-    });
-
-    app.use(limiter);
-
-    /**
-     * Mutual TLS authentication middleware.
-     * 
-     * - Requires a valid client certificate
-     * - Certificate validity is ensured by the TLS handshake
-     * - Populates request identity metadata (req.clientIdentity)
-     */
-    app.use(MTLSAuthMiddleware);
-
-    /**
-     * ─────────────────────────────────────────────────────────────
-     * Technical endpoints
-     * ─────────────────────────────────────────────────────────────
-     */
-
-    const apiRoutes: [string, Router][] = [
-        ["/", FinancialRoutes()],
-    ];
-    apiRoutes.forEach(([path, router]) => app.use(path, router));
-
-    AddressManagerRoutes(app);
-    MessageManagerListenExpress(app);
-
-    /**
-     * ─────────────────────────────────────────────────────────────
-     * Global response & error handling
-     * ─────────────────────────────────────────────────────────────
-     */
-    app.use(ResponseProtocole);
-
-    /**
-     * ─────────────────────────────────────────────────────────────
-     * HTTPS server with strict mTLS configuration
-     * ─────────────────────────────────────────────────────────────
-     */
-    const httpsServer = https.createServer(
-        {
-            key: fs.readFileSync(path.resolve(env.TLS_KEY_PATH)),
-            cert: fs.readFileSync(path.resolve(env.TLS_CERT_PATH)),
-            ca: fs.readFileSync(path.resolve(env.TLS_CA_PATH)),
-            requestCert: true,
-            rejectUnauthorized: true,
-            minVersion: 'TLSv1.3'
-        },
-        app
-    )
-
-    httpsServer.listen(env.PORT, () => {
-        logger.info(
-            'HTTPS server listening',
-            {
-                port: env.PORT,
-                mtls: true
-            }
-        )
-    })
-
-    /**
-     * Graceful shutdown
-     */
-    return {
-        close: () =>
-            new Promise<void>(async (resolve, reject) => {
-                try{
-                    httpsServer.close();
-                    resolve();
-                }catch(e){
-                    reject(e);
-                }
-            })
-    }
+export function createServer() {
+  return createSecureServer({
+    port: env.PORT,
+    tls: {
+      key: env.TLS_KEY_PATH,
+      cert: env.TLS_CERT_PATH,
+      ca: env.TLS_CA_PATH,
+    },
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      limit: 100,
+    },
+    routes: (app) => {
+      app.use("/", FinancialRoutes());
+      AddressManagerRoutes(app);
+      MessageManagerListenExpress(app);
+    },
+  });
 }

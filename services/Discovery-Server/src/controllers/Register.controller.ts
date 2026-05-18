@@ -1,4 +1,3 @@
-import { RequestHandler } from "express";
 import { ServiceInstance } from "../core/types";
 import { registry } from "../core/ServiceRegistry";
 import { catchSync } from "@trading-model/common/middleware/catchError";
@@ -9,77 +8,27 @@ import {
   isValidIP,
   isValidPort,
 } from "@trading-model/common/validation/primitives";
+import { asHandler } from "./helpers";
 
-/**
- * -------------------------
- * Service Registration
- * -------------------------
- *
- * POST /register
- *
- * Registers or updates a service instance in the Service Registry.
- *
- * This endpoint is typically called:
- * - on service startup
- * - after a crash / restart
- * - during redeployments or rescheduling
- *
- * A registration creates (or refreshes) a lease associated
- * with a service instance. The instance must then periodically
- * send heartbeats to remain active.
- *
- * Security assumptions:
- * - Transport security is enforced via mTLS
- * - Instance identity is validated at the application level
- *
- * Request body:
- * {
- *   serviceName: string,
- *   instanceId?: string,
- *   ip: string,
- *   port: number
- * }
- */
-export const register = catchSync(async (req) => {
-  /**
-   * Ensure the request body is a valid object.
-   * Prevents malformed or unexpected payloads.
-   */
+export const register = asHandler(catchSync(async (req) => {
   if (!isObject(req.body))
     throw ResponseException("Invalid request body").BadRequest();
 
   const { serviceName, instanceId, ip, port } =
     req.body as Record<string, unknown>;
 
-  /**
-   * Validate service name.
-   * serviceName represents the logical identifier of the service
-   * and must comply with registry naming conventions.
-   */
   if (!isNonEmptyString(serviceName))
     throw ResponseException("serviceName is required").BadRequest();
 
   if (!registry.verifyInstanceName(serviceName))
     throw ResponseException("Invalid service name").BadRequest();
 
-  /**
-   * Validate network addressing.
-   * IP and port define how this instance can be reached
-   * by other services in the system.
-   */
   if (!isValidIP(ip))
     throw ResponseException("Invalid IP address").BadRequest();
 
   if (!isValidPort(port))
     throw ResponseException("Invalid port").BadRequest();
 
-  /**
-   * Instance identifier handling.
-   *
-   * - If instanceId is provided, it is validated and reused
-   * - Otherwise, a deterministic instanceId is generated
-   *   based on service name and network coordinates
-   */
   let safeInstanceId: string;
 
   if (instanceId !== undefined) {
@@ -90,11 +39,6 @@ export const register = catchSync(async (req) => {
     safeInstanceId = registry.generateInstanceId(serviceName, ip, port);
   }
 
-  /**
-   * Build the ServiceInstance domain object.
-   * All timestamps are generated server-side to avoid
-   * trusting client-provided values.
-   */
   const instance: ServiceInstance = {
     instanceId: safeInstanceId,
     serviceName,
@@ -106,77 +50,30 @@ export const register = catchSync(async (req) => {
     lastHeartbeat: Date.now(),
   };
 
-  /**
-   * Register or update the instance in the registry.
-   * If the instance already exists, its lease is refreshed.
-   */
   const registered = registry.registerInstance(instance);
 
-  /**
-   * Return the registered instance metadata.
-   * This response can be used by the client to confirm
-   * the effective registration state.
-   */
   throw ResponseException(registered).OK();
-}) as unknown as RequestHandler;
+}));
 
-/**
- * -------------------------
- * List Registered Services
- * -------------------------
- *
- * GET /services
- *
- * Returns the list of all known service names.
- * Useful for debugging, monitoring and admin tooling.
- */
-export const listServices = catchSync(async () => {
+export const listServices = asHandler(catchSync(async () => {
   throw ResponseException(registry.listServiceNames()).Success();
-}) as unknown as RequestHandler;
+}));
 
-/**
- * -------------------------
- * List Service Instances
- * -------------------------
- *
- * GET /services/:serviceName
- *
- * Returns all active instances for a given service.
- * Dead or expired instances are excluded.
- */
-export const getServiceInstances = catchSync(async (req) => {
+export const getServiceInstances = asHandler(catchSync(async (req) => {
   const { serviceName } = req.params;
 
-  /**
-   * Validate service name parameter.
-   */
   if (!isNonEmptyString(serviceName))
     throw ResponseException("serviceName is required").BadRequest();
 
   if (!registry.verifyInstanceName(serviceName))
     throw ResponseException("Unknown service").NotFound();
 
-  /**
-   * Return all currently active instances.
-   */
   throw ResponseException(registry.getInstances(serviceName)).Success();
-}) as unknown as RequestHandler;
+}));
 
-/**
- * -------------------------
- * Get Single Instance
- * -------------------------
- *
- * GET /services/:serviceName/:instanceId
- *
- * Returns detailed information for a specific instance.
- */
-export const getInstance = catchSync(async (req) => {
+export const getInstance = asHandler(catchSync(async (req) => {
   const { serviceName, instanceId } = req.params;
 
-  /**
-   * Validate route parameters.
-   */
   if (!isNonEmptyString(serviceName) || !isNonEmptyString(instanceId))
     throw ResponseException("Invalid route parameters").BadRequest();
 
@@ -186,22 +83,8 @@ export const getInstance = catchSync(async (req) => {
     throw ResponseException("Instance not found").NotFound();
 
   throw ResponseException(instance).Success();
-}) as unknown as RequestHandler;
+}));
 
-/**
- * -------------------------
- * Registry Dump
- * -------------------------
- *
- * GET /dump
- *
- * Debug / administrative endpoint.
- * Returns the full internal state of the registry.
- *
- * WARNING:
- * This endpoint SHOULD NOT be exposed publicly.
- * It must be protected (mTLS, IP filtering, admin-only).
- */
-export const dump = catchSync(async () => {
+export const dump = asHandler(catchSync(async () => {
   throw ResponseException(registry.dump()).Success();
-}) as unknown as RequestHandler;
+}));

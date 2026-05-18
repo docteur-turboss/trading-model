@@ -6,226 +6,120 @@ import { selectOrderBookBy } from "infra/market-data/schema/orderBook.schema";
 import { ResponseException } from "@trading-model/common/middleware/responseException";
 import { selectCandlesBy } from "infra/market-data/schema/candles-schema";
 
-/* -------------------------------------------------------------------------- */
-/*                                   Schemas                                  */
-/* -------------------------------------------------------------------------- */
 const symbolSchema = z.object({
-    symbol: z.string("Symbol is required and must be a string.").min(1)
+  symbol: z.string("Symbol is required and must be a string.").min(1),
 });
 
 const sourceSchema = z.object({
-    source: z.string("Source is required and must be a string.").min(1)
+  source: z.string("Source is required and must be a string.").min(1),
 });
 
 const timestampSchema = z.object({
-    timestamp: z.coerce.date("Timestamp must be a valid date or a parsable date string.")
+  timestamp: z.coerce.date("Timestamp must be a valid date or a parsable date string."),
 });
 
 const orderBookTimestampSchema = z.object({
-    timestamp: z.coerce.number("Timestamp must be a valid numeric value.")
+  timestamp: z.coerce.number("Timestamp must be a valid numeric value."),
 });
+
+function createController<T>(
+  schema: z.ZodSchema<T>,
+  fetcher: (params: T) => Promise<unknown>
+) {
+  return catchSync(async (req) => {
+    const parsed = schema.safeParse(req.params);
+    if (!parsed.success)
+      throw ResponseException(parsed.error.message).BadRequest();
+
+    try {
+      throw ResponseException(
+        JSON.stringify(await fetcher(parsed.data))
+      ).Success();
+    } catch (e) {
+      if (e instanceof Error && e.message.includes("No result returned"))
+        throw ResponseException("No data found").NotFound();
+      throw e;
+    }
+  });
+}
 
 /* -------------------------------------------------------------------------- */
 /*                                Trades routes                               */
 /* -------------------------------------------------------------------------- */
 
-export const GetTradeBySymbolController = catchSync(async (req) => {
-    const parsed = symbolSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
+export const GetTradeBySymbolController = createController(
+  symbolSchema,
+  (p) => selectTradesBy.symbol(p.symbol)
+);
 
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectTradesBy.symbol(parsed.data.symbol))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
+export const GetTradeByTimestampController = createController(
+  timestampSchema,
+  (p) => selectTradesBy.timestamp(p.timestamp)
+);
 
-export const GetTradeByTimestampController = catchSync(async (req) => {
-    const parsed = timestampSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
-
-    
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectTradesBy.timestamp(parsed.data.timestamp))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
-
-export const GetTradeBySourceController = catchSync(async (req) => {
-    const parsed = sourceSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
-
-    
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectTradesBy.source(parsed.data.source))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
+export const GetTradeBySourceController = createController(
+  sourceSchema,
+  (p) => selectTradesBy.source(p.source)
+);
 
 /* -------------------------------------------------------------------------- */
 /*                                Ticker routes                               */
 /* -------------------------------------------------------------------------- */
 
-export const GetTickerBySymbolController = catchSync(async (req) => {
-    const parsed = symbolSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
+export const GetTickerBySymbolController = createController(
+  symbolSchema,
+  (p) => selectTickerBy.symbol(p.symbol)
+);
 
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectTickerBy.symbol(parsed.data.symbol))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
+export const GetTickerByTimestampController = createController(
+  timestampSchema,
+  (p) => selectTickerBy.timestamp(p.timestamp)
+);
 
-export const GetTickerByTimestampController = catchSync(async (req) => {
-    const parsed = timestampSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
-
-    
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectTickerBy.timestamp(parsed.data.timestamp))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
-
-export const GetTickerBySourceController = catchSync(async (req) => {
-    const parsed = sourceSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
-
-    
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectTickerBy.source(parsed.data.source))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
+export const GetTickerBySourceController = createController(
+  sourceSchema,
+  (p) => selectTickerBy.source(p.source)
+);
 
 /* -------------------------------------------------------------------------- */
 /*                             OrderBook routes                               */
 /* -------------------------------------------------------------------------- */
 
-export const GetOrderBookBySymbolController = catchSync(async (req) => {
-    const parsed = symbolSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
+export const GetOrderBookBySymbolController = createController(
+  symbolSchema,
+  (p) => selectOrderBookBy.symbol(p.symbol)
+);
 
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectOrderBookBy.symbol(parsed.data.symbol))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
+export const GetOrderBookByTimestampAfterController = createController(
+  orderBookTimestampSchema,
+  (p) => selectOrderBookBy.timestamp.after(p.timestamp)
+);
 
-export const GetOrderBookByTimestampAfterController = catchSync(async (req) => {
-    const parsed = orderBookTimestampSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
+export const GetOrderBookByTimestampBeforeController = createController(
+  orderBookTimestampSchema,
+  (p) => selectOrderBookBy.timestamp.before(p.timestamp)
+);
 
-    
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectOrderBookBy.timestamp.after(parsed.data.timestamp))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
-
-export const GetOrderBookByTimestampBeforeController = catchSync(async (req) => {
-    const parsed = orderBookTimestampSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
-
-    
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectOrderBookBy.timestamp.before(parsed.data.timestamp))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
-
-export const GetOrderBookBySourceController = catchSync(async (req) => {
-    const parsed = sourceSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
-
-    
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectOrderBookBy.source(parsed.data.source))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
+export const GetOrderBookBySourceController = createController(
+  sourceSchema,
+  (p) => selectOrderBookBy.source(p.source)
+);
 
 /* -------------------------------------------------------------------------- */
 /*                               Candles routes                               */
 /* -------------------------------------------------------------------------- */
 
-export const GetCandlesBySymbolController = catchSync(async (req) => {
-    const parsed = symbolSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
+export const GetCandlesBySymbolController = createController(
+  symbolSchema,
+  (p) => selectCandlesBy.symbol(p.symbol)
+);
 
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectCandlesBy.symbol(parsed.data.symbol))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
+export const GetCandlesByTimestampController = createController(
+  timestampSchema,
+  (p) => selectCandlesBy.timestamp.after(p.timestamp)
+);
 
-export const GetCandlesByTimestampController = catchSync(async (req) => {
-    const parsed = timestampSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
-    
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectCandlesBy.timestamp.after(parsed.data.timestamp))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
-
-export const GetCandlesBySourceController = catchSync(async (req) => {
-    const parsed = sourceSchema.safeParse(req.params);
-    if(!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
-    
-    try{
-        throw ResponseException(
-            JSON.stringify(await selectCandlesBy.source(parsed.data.source))
-        ).Success();
-    }catch(e) {
-        if(e instanceof Error && e.message.includes("No result returned")) throw ResponseException("No data found").NotFound();
-        throw e;
-    }
-});
+export const GetCandlesBySourceController = createController(
+  sourceSchema,
+  (p) => selectCandlesBy.source(p.source)
+);
