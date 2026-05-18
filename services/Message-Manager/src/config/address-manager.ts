@@ -7,4 +7,4 @@ const AddressManagerRoutes = addressManager.listenExpress;
 const findAService = addressManager.findService;
 const bootstrapAddressManager = addressManager.start;
 
-export { AddressManagerRoutes, findAService, bootstrapAddressManager, addressManager as AddressManager }
+export { AddressManagerRoutes, findAService, bootstrapAddressManager, addressManager as AddressManager };
