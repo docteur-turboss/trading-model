@@ -2,7 +2,7 @@
 
 ## Overview
 
-**@trading-model/common** is the foundational shared library for the AI Trading Platform monorepo. It provides cross-cutting infrastructure used by all other packages and services: HTTP client, logger, middleware, type definitions, server factories, validation, crypto utilities, and error hierarchies.
+**@trading-model/common** is the foundational shared library for the AI Trading Platform monorepo. It provides cross-cutting infrastructure used by all other packages and services: HTTP client, logger, middleware, type definitions, server factories (`createSecureServer`, `createBootstrap`), environment validation (`BaseEnvSchema`, `AddressManagerEnvSchema`), crypto utilities, shared DTOs, and a consolidated error hierarchy.
 
 This package has **zero internal dependencies** — it only depends on external npm packages (`express`, `zod`, `helmet`, `express-rate-limit`, `chained-error`).
 
@@ -168,7 +168,7 @@ logger.error("Something failed", new Error("details"));
 
 ## Deployment
 
-This package is **not deployed independently**. It is built as a workspace dependency and consumed at build time by other packages and services. The compiled output goes to `dist/` via `npm run build` (tsc).
+This package is **not deployed independently**. It is built as a workspace dependency and consumed at build time by other packages and services. The compiled output goes to `dist/` via `npm run build` (tsc, CommonJS output).
 
 All other packages reference it as:
 ```json

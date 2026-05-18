@@ -145,4 +145,4 @@ This package is built as a workspace dependency. Consuming services reference it
 "dependencies": { "@trading-model/address-manager": "*" }
 ```
 
-Build: `npm run build` (tsc). The compiled output goes to `dist/`.
+Build: `npm run build` (tsc, CommonJS output). The compiled output goes to `dist/`.

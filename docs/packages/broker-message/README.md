@@ -213,4 +213,4 @@ This package is built as a workspace dependency. Consuming services reference it
 "dependencies": { "@trading-model/broker-message": "*" }
 ```
 
-Build: `npm run build` (tsc). The compiled output goes to `dist/`.
+Build: `npm run build` (tsc, Node16 module output). The compiled output goes to `dist/`.

@@ -28,37 +28,31 @@ trading-model/                          # Monorepo root
 ├── docs/                               # Documentation centralisée
 │   ├── ARCHITECTURE.md                 # Vue d'ensemble
 │   ├── API.md                          # Endpoints
-│   ├── TESTING.md                      # Tests standard
+│   ├── SECURITY.md
+│   ├── STANDARDS.md                    # This file
 │   ├── SETUP.md                        # Setup local
+│   ├── TESTING.md                      # Tests standard
 │   ├── deployment/                     # Guides déploiement
-│   └── diagrams/                       # Mermaid diagrams
+│   ├── packages/                       # Package docs
+│   │   ├── common/
+│   │   ├── address-manager/
+│   │   └── broker-message/
+│   └── branch-docs/                    # Branch plans
+├── packages/                           # Shared libraries (npm workspaces)
+│   ├── common/                         # @trading-model/common
+│   ├── address-manager/                # @trading-model/address-manager
+│   └── broker-message/                 # @trading-model/broker-message
 ├── services/                           # Microservices
 │   ├── discovery-server/               # Service Discovery
 │   ├── financial-scraper/              # Financial Data
 │   ├── message-manager/                # Inter-service messaging
-│   ├── trader/                         # Trading logic
 │   └── trader-trainer/                 # ML Training
-├── packages/                           # Monorepo packages
-│   └── lib/                            # Shared library
-├── scripts/                            # Automation scripts
-│   ├── dev-setup.sh
-│   ├── build-all.sh
-│   └── test-all.sh
 ├── .env.example                        # Environment template
-├── .prettierrc                         # Prettier config
 ├── .gitignore                          # Git ignore patterns
 ├── package.json                        # Root package.json
-├── tsconfig.json                       # Root tsconfig
-├── tsconfig.build.json                 # Build tsconfig
-├── eslint.config.mjs                   # Root eslint
-├── jest.config.js                      # Root jest (optional)
-├── AUDIT.md                            # Audit results (this file)
-├── STANDARDS.md                        # This file
-├── ARCHITECTURE.md                     # High-level architecture
-├── CONTRIBUTING.md                     # Contribution guide
+├── eslint.config.mjs                   # Root eslint (flat config)
 ├── README.md                           # Project README
-├── LICENSE.md
-└── SECURITY.md
+└── LICENSE.md
 ```
 
 ### Standard Par Service
@@ -108,40 +102,27 @@ service-name/                           # Always kebab-case
 └── README.md
 ```
 
-### Standard Pour lib/ (Shared Package)
+### Standard Pour packages/*/ (Shared Packages)
 
 ```
-packages/lib/                           # Shared library
+packages/<name>/                        # e.g. common, address-manager, broker-message
 ├── src/
-│   ├── address-manager/                # Service discovery & address management
-│   │   ├── client/
-│   │   ├── config/
-│   │   ├── discovery/
-│   │   ├── http/
-│   │   ├── scheduler/
-│   │   ├── types/
-│   │   └── index.ts
-│   ├── message-broker/                 # Inter-service messaging
-│   │   ├── client/
-│   │   ├── handlers/
-│   │   ├── types/
-│   │   └── index.ts
-│   ├── common/                         # Common utilities
-│   │   ├── config/
-│   │   ├── middleware/
-│   │   ├── types/
-│   │   ├── utils/
-│   │   └── index.ts
-│   ├── shared/                         # Shared types/constants
-│   │   ├── types/
-│   │   ├── constants/
-│   │   └── index.ts
-│   └── index.ts                        # Main entry point
-├── tests/
-│   └── (same structure as services)
+│   ├── config/                         # Configuration, types, constants
+│   ├── middleware/                      # Express middleware (if applicable)
+│   ├── server/                         # Server factories (if applicable)
+│   ├── validation/                     # Zod schemas, validators
+│   ├── contracts/                      # Shared DTOs/interfaces
+│   ├── crypto/                         # Crypto utilities
+│   ├── utils/                          # Error classes, helpers
+│   └── index.ts                        # Package entry point
+├── tests/                              # Unit tests (co-located in src for some)
+├── docs/                               # Package documentation
+│   └── README.md
 ├── package.json
 ├── tsconfig.json
-└── eslint.config.mjs
+├── tsconfig.build.json                 # Build-specific tsconfig
+├── jest.config.js
+└── README.md
 ```
 
 ---
@@ -302,119 +283,57 @@ index.ts                   // Export all types
 ### Linter: ESLint (Comprehensive)
 
 ```javascript
-// eslint.config.mjs - ROOT CONFIG (shared)
+// eslint.config.mjs - ROOT CONFIG (flat config, shared across monorepo)
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 import js from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+import { globalIgnores, defineConfig } from 'eslint/config';
 
-export default [
-  js.configs.recommended,
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig([
+  globalIgnores(['dist']),
   {
+    files: ['**/*.{ts,js,mjs,cjs}'],
+    extends: [js.configs.recommended],
     languageOptions: {
-      globals: { ...globals.node },
-      parser: tseslint.parser,
+      ecmaVersion: 'latest',
+      globals: globals.node,
       parserOptions: {
-        ecmaVersion: 2024,
-        sourceType: 'module',
-        project: ['./tsconfig.json', './services/*/tsconfig.json', './packages/*/tsconfig.json'],
+        projectService: true,               // Auto-discover tsconfig per file
+        tsconfigRootDir: __dirname,
       },
     },
   },
   tseslint.configs.recommended,
-  tseslint.configs.strict,
-  {
-    rules: {
-      'no-console': 'warn',
-      'no-unused-vars': 'off', // TypeScript handles this
-      '@typescript-eslint/no-unused-vars': 'error',
-      '@typescript-eslint/explicit-function-return-types': 'warn',
-      '@typescript-eslint/explicit-member-accessibility': 'error',
-      '@typescript-eslint/naming-convention': [
-        'error',
-        {
-          selector: 'variable',
-          format: ['camelCase'],
-          leadingUnderscore: 'allow',
-          trailingUnderscore: 'allow',
-        },
-        {
-          selector: 'variableLike',
-          format: ['camelCase', 'UPPER_CASE'],
-          leadingUnderscore: 'allow',
-        },
-        {
-          selector: 'className',
-          format: ['PascalCase'],
-        },
-        {
-          selector: 'typeLike',
-          format: ['PascalCase'],
-        },
-      ],
-      'import/order': [
-        'error',
-        {
-          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
-          alphabeticalOrder: true,
-          caseInsensitive: true,
-        },
-      ],
-    },
-  },
-  {
-    ignores: ['dist', 'node_modules', 'coverage', 'build'],
-  },
-];
+]);
 ```
 
 ### TypeScript Configuration (Strict)
 
 ```json
-// tsconfig.json - ROOT
+// tsconfig.json - PER SERVICE/PACKAGE (no root tsconfig)
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "ESNext",
-    "lib": ["ES2020"],
+    "module": "node16",                    // or "commonjs" for packages
     "declaration": true,
-    "declarationMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitThis": true,
-    "alwaysStrict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node",
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@app/*": ["src/app/*"],
-      "@core/*": ["src/core/*"],
-      "@controllers/*": ["src/controllers/*"],
-      "@middleware/*": ["src/middleware/*"],
-      "@utils/*": ["src/utils/*"],
-      "@types/*": ["src/types/*"],
-      "@config/*": ["src/config/*"],
-      "@lib/*": ["packages/lib/src/*"]
-    }
+    "moduleResolution": "node16"
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "coverage"]
+  "exclude": ["node_modules", "dist", "src/tests/**/*", "src/**/*.test.ts"]
 }
 ```
+> **Note**: Path aliases (`@/`, `@lib/`, etc.) have been removed. Services use direct workspace package imports (`@trading-model/*`) or relative imports.
 
 ### Import Ordering
 
@@ -426,14 +345,14 @@ import path from 'path';
 
 // 2. External dependencies
 import express, { Request, Response } from 'express';
-import axios from 'axios';
+import { z } from 'zod';
 
-// 3. Internal absolute imports (with @ paths)
-import { AddressManager } from '@lib/address-manager';
-import { validate } from '@lib/common/utils';
+// 3. Workspace package imports
+import { logger } from '@trading-model/common';
+import AddressManager from '@trading-model/address-manager';
 
 // 4. Internal relative imports
-import { UserController } from '../controllers/user.controller';
+import { ServiceRegistry } from '../core/ServiceRegistry';
 import { validateToken } from '../middleware/auth.middleware';
 
 // 5. Side effects
@@ -602,20 +521,13 @@ describe('UserService', () => {
 ### Jest Configuration
 
 ```javascript
-// jest.config.js - ROOT
+// jest.config.js - PER PACKAGE/SERVICE
 export default {
   preset: 'ts-jest',
   testEnvironment: 'node',
   rootDir: '.',
-  testMatch: ['**/?(*.)+(spec|test).ts'],
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '^@app/(.*)$': '<rootDir>/src/app/$1',
-    '^@core/(.*)$': '<rootDir>/src/core/$1',
-    '^@lib/(.*)$': '<rootDir>/packages/lib/src/$1',
-  },
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/**/index.ts'],
-  coveragePathIgnorePatterns: ['/node_modules/', '/dist/'],
+  testMatch: ['**/?(*.)+(spec|test).[tj]s'],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {
     global: {
       branches: 80,
@@ -625,7 +537,6 @@ export default {
     },
   },
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
 };
 ```
 
@@ -804,46 +715,31 @@ NEW_RELIC_LICENSE_KEY=
 {
   "name": "trading-model",
   "version": "1.0.0",
-  "description": "AI Trading Platform",
   "private": true,
   "workspaces": [
-    "packages/lib",
-    "services/discovery-server",
-    "services/financial-scraper",
-    "services/message-manager",
-    "services/trader",
-    "services/trader-trainer"
+    "packages/*",
+    "services/*"
   ],
   "scripts": {
-    "lint": "eslint . --max-warnings 0",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "build": "npm run -ws build",
-    "build:lib": "npm run -w packages/lib build",
-    "dev": "npm run -ws dev --if-present",
-    "dev:discovery": "npm run -w services/discovery-server dev",
-    "clean": "rm -rf node_modules dist coverage && npm run -ws clean"
+    "build": "npm run build:common && npm run build:address-manager && npm run build:broker-message",
+    "build:common": "npm run -w @trading-model/common build",
+    "build:address-manager": "npm run -w @trading-model/address-manager build",
+    "build:broker-message": "npm run -w @trading-model/broker-message build",
+    "test": "npm test --workspaces --if-present",
+    "eslint": "npx eslint src/**/*.{ts,js}"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.29.5",
-    "@babel/preset-typescript": "^7.28.5",
-    "@eslint/js": "^10.0.1",
-    "@jest/globals": "^30.4.1",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^25.6.2",
-    "eslint": "^10.3.0",
-    "globals": "^17.6.0",
-    "husky": "^9.1.4",
-    "jest": "^30.4.2",
-    "lint-staged": "^15.2.7",
-    "prettier": "^3.2.5",
-    "ts-jest": "^29.4.9",
-    "ts-node": "^10.9.2",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.2"
+    "@eslint/js": "^10.x",
+    "@jest/globals": "^30.x",
+    "@types/jest": "^30.x",
+    "@types/node": "^25.x",
+    "eslint": "^10.x",
+    "globals": "^17.x",
+    "jest": "^30.x",
+    "prettier": "^3.x",
+    "ts-jest": "^29.x",
+    "typescript": "^6.x",
+    "typescript-eslint": "^8.x"
   }
 }
 ```
@@ -911,15 +807,16 @@ jobs:
 
 ---
 
-## ✅ Implementation Checklist
+## ✅ Implementation Status
 
-- [ ] Create `.prettierrc`
-- [ ] Create `.husky/` with git hooks
-- [ ] Rename all files to kebab-case
-- [ ] Rewrite all imports to follow convention
-- [ ] Create `.github/workflows/lint.yml`
-- [ ] Create `.github/workflows/test.yml`
-- [ ] Create `.env.example`
-- [ ] Standardize test file names to `.spec.ts`
-- [ ] Add coverage threshold to jest.config.js
-- [ ] Document all APIs in `/docs`
+| Item | Status | Notes |
+|------|--------|-------|
+| Service directory naming | ❌ Pending | Services currently use PascalCase/snake_case (`Discovery-Server`, `Financial_Scrapper`) |
+| Test file naming | ❌ Pending | Mix of `.spec.ts` and `.test.ts` |
+| File naming (kebab-case) | ❌ Pending | Some files not yet renamed |
+| Implementation imports | ❌ Pending | Services still use `@trading-model/*` via workspace deps but need cleanup |
+| `.prettierrc` | ❌ Pending | Not yet created |
+| Husky git hooks | ❌ Pending | Not yet configured |
+| GitHub Actions workflows | ❌ Pending | Not yet created |
+| API documentation | ⏳ Partial | Package docs exist; service API docs incomplete |
+| Coverage thresholds | ❌ Pending | Not yet enforced in jest configs |

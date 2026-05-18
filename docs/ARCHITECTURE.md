@@ -28,7 +28,7 @@ trading-model/
 
 | Package | Purpose | Dependencies |
 |---|---|---|
-| `@trading-model/common` | Logger, HTTP client, middleware (catchError, MTLSAuth, ResponseProtocole), event types, service types, delivery mode enum, error classes | None (only npm deps) |
+| `@trading-model/common` | Logger, HTTP client, middleware (catchError, MTLSAuth, ResponseProtocole), server factories (createSecureServer, createBootstrap), env validation (BaseEnvSchema, validateEnv), event types, service types, delivery mode enum, error classes, crypto utilities, shared DTOs | None (only npm deps) |
 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs | common |
 | `@trading-model/broker-message` | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas | common, address-manager |
 
@@ -42,8 +42,6 @@ Central service registry with mTLS-secured endpoints:
 - `GET /services` — list all services
 - `GET /services/:name` — list instances by name
 - `GET /services/:name/:id` — get specific instance
-- `GET /dump` — dump full registry (debug)
-
 In-memory storage with TTL-based lease eviction.
 
 ### Financial Scrapper (Port 8444)
@@ -80,21 +78,19 @@ Core ML training engine:
 address-manager        |
   ↑                    |
   |                    |
-@trading-model/broker-message
-  ↑         ↑
-  |         |
-Discovery  Financial  Message   Trader-
-Server     Scrapper   Manager   Trainer
+@trading-model/broker-message ---
+  ↑         ↑           ↑          ↑
+  |         |           |          |
+Discovery  Financial   Message    Trader-
+Server     Scrapper    Manager    Trainer
 ```
-
-**Known issue**: Services currently import via a legacy `cash-lib` alias (pointing to a removed `lib/` directory) instead of the workspace packages. This is a critical refactoring target.
 
 ## Technology Stack
 
 | Layer | Technology |
 |---|---|
 | Runtime | Node.js |
-| Language | TypeScript (ES2020, CommonJS) |
+| Language | TypeScript (ES2020; module: node16 or commonjs) |
 | API | Express.js |
 | Security | mTLS (except Trader-Trainer) |
 | Database | MongoDB |
@@ -112,10 +108,9 @@ Server     Scrapper   Manager   Trainer
 
 ## Known Technical Debt
 
-1. **`cash-lib` legacy alias**: Services import from a dead path instead of `@trading-model/*` packages.
-2. **Server bootstrap duplication**: HTTPS + mTLS server setup, lifecycle management, and env validation are copy-pasted across services.
-3. **Inconsistent naming**: Mix of kebab-case, PascalCase, and snake_case across files and directories.
-4. **Mixed test conventions**: Both `.spec.ts` and `.test.ts` suffixes used.
-5. **Duplicate error hierarchies**: Three nearly identical error base classes (`AddressManagerBaseError`, `MessageManagerBaseError`, `AgentBaseError`).
+1. **Inconsistent naming**: Mix of kebab-case, PascalCase, and snake_case across service directories (`Discovery-Server`, `Financial_Scrapper`).
+2. **Mixed test conventions**: Both `.spec.ts` and `.test.ts` suffixes used across services.
+3. **Legacy `config/*` path alias**: Some service tsconfigs still define a `config/*` path alias (`./src/config/*`) that should be replaced with `node16` resolution.
+4. **ESLint warnings**: ~50 lint errors remain across the codebase (unused variables, `any` types, empty interfaces, prefer-const).
 
 See [PLAN.md](./branch-docs/PLAN.md) for the detailed refactoring roadmap.
