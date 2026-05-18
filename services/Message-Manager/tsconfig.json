@@ -4,24 +4,22 @@
     "module": "node16",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "../../",
+    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
-    "types": ["node"],
+    "types": ["node", "jest"],
     "paths": {
       "config/*": ["./src/config/*"],
       "messaging": ["./src/messaging/index.ts"],
-      "messaging/*": ["./src/messaging/*"],
-      "@trading-model/common/*": ["../../packages/common/src/*"],
-      "@trading-model/address-manager": ["../../packages/address-manager/src/index.ts"]
+      "messaging/*": ["./src/messaging/*"]
     },
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
+  "exclude": ["node_modules", "dist", "src/**/*.spec.ts"],
 }

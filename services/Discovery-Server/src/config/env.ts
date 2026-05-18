@@ -7,5 +7,3 @@ const DiscoveryEnvSchema = BaseEnvSchema.extend({
 });
 
 export const env = validateEnv(DiscoveryEnvSchema);
-
-export type Env = z.infer<typeof DiscoveryEnvSchema>;

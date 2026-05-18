@@ -4,7 +4,7 @@
     "module": "node16",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "../../",
+    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -16,17 +16,14 @@
       "clients/*": ["./src/clients/*"],
       "job/*": ["./src/job/*"],
       "types/*": ["./src/types/*"],
-      "utils/*": ["./src/utils/*"],
-      "@trading-model/common/*": ["../../packages/common/src/*"],
-      "@trading-model/address-manager": ["../../packages/address-manager/src/index.ts"],
-      "@trading-model/broker-message": ["../../packages/broker-message/src/index.ts"]
+      "utils/*": ["./src/utils/*"]
     },
     "typeRoots": ["./node_modules/@types", "./src/types"],
+    "types": ["node"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "types": ["node"]
+  "exclude": ["node_modules", "dist"]
 }

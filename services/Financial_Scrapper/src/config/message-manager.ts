@@ -13,6 +13,4 @@ const ma = new MessageManagerClass({
     callbackPath: env.MESSAGE_CALLBACK_PATH
 });
 
-export const StopMessageManager = ma.stopMessageManager;
 export const MessageManagerListenExpress = ma.listenExpress;
-export const MessageManager = ma;

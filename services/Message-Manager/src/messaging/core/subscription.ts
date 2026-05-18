@@ -43,7 +43,7 @@ import { message as Message} from "./message";
  *
  * @interface SubscribersContext
  */
-export interface SubscribersContext {
+interface SubscribersContext {
   /** Timestamp when the message was successfully delivered; null until acked */
   receivedAt: Date | null;
 

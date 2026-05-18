@@ -84,7 +84,3 @@ export const getInstance = asHandler(catchSync(async (req) => {
 
   throw ResponseException(instance).Success();
 }));
-
-export const dump = asHandler(catchSync(async () => {
-  throw ResponseException(registry.dump()).Success();
-}));
