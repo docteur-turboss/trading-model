@@ -101,9 +101,9 @@ export class NeuralNetwork {
       throw new AgentError(
         `Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`
       );
-    if (cfg.activationType?.length !== this.layers.length)
+    if (this.config.activationType.length !== this.layers.length)
       throw new AgentError(
-        `ActivationType must be the same length of the layers. Expected : ${this.layers.length}, got ${cfg.activationType?.length}`
+        `ActivationType must be the same length of the layers. Expected : ${this.layers.length}, got ${this.config.activationType.length}`
       );
   }
 

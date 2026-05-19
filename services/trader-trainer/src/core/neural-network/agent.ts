@@ -54,8 +54,9 @@ export class Agent {
    * @param score - The score to record (reward, accuracy, etc.).
    */
   public addScore(score: number): void {
-    this.scores = new Float32Array(this.scores.length + 1);
-    this.scores.set([...this.scores, score]);
+    const old = this.scores;
+    this.scores = new Float32Array(old.length + 1);
+    this.scores.set([...old, score]);
   }
 
   /**
