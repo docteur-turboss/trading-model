@@ -1,9 +1,9 @@
 {
-  "name": "financial_scrapper",
+  "name": "financial-scraper",
   "version": "1.0.0",
-  "description": "Récupère les prix en temps réels des différentes assets financier",
+  "description": "Récupère les prix en temps réel des différents actifs financiers",
   "keywords": [
-    "scrapper",
+    "scraper",
     "financial"
   ],
   "license": "ISC",
@@ -11,7 +11,11 @@
   "type": "commonjs",
   "main": "./dist/index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
+    "build": "tsc",
+    "dev": "ts-node src/app/index.ts"
   },
   "dependencies": {
     "@trading-model/address-manager": "*",
