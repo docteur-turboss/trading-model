@@ -13,4 +13,6 @@ const ma = new MessageManagerClass({
     callbackPath: env.MESSAGE_CALLBACK_PATH
 });
 
+export { ma as MessageManager };
+
 export const MessageManagerListenExpress = ma.listenExpress;
