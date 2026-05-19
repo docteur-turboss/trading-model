@@ -4,7 +4,7 @@
  */
 
 export type { Genome, GAControlGenome, LamarckGenome, MarketStep } from './genome-types';
-export type { Experience } from 'core/neural-network/type';
+export type { Experience } from '../neural-network/type';
 
 export type DeepReadonly<T> = T extends (infer U)[]
   ? ReadonlyArray<DeepReadonly<U>>

@@ -1,35 +1,65 @@
-/**
- * @fileoverview Trader-Trainer Service
- *
- * Autonomous trading AI agents trained via Genetic Algorithm + Deep Q-Learning.
- * This module provides the main entry point for the service.
- *
- * @author Docteur Turboss
- * @version 1.0.0
- */
+import { EnumEventMessage } from '@trading-model/common/config/event.types';
+import { createBootstrap } from '@trading-model/common/server/bootstrap';
+import { CandleEntity } from '@trading-model/common/config/event.types';
+import { bootstrapAddressManager } from '../config/address-manager';
+import { MarketDataBuffer } from '../core/market-data-buffer';
+import { MessageManager } from '../config/message-manager';
+import { Trainer } from '../core/trainer';
+import { createServer } from './server';
+import { env } from '../config/env';
 
-import app from './server';
+let addressManager: ReturnType<typeof bootstrapAddressManager> | null = null;
 
-const PORT = process.env.PORT || 3000;
+const dataBuffer = new MarketDataBuffer(env.TRAINER_DATA_WINDOW);
+const trainer = new Trainer(dataBuffer);
+let trainingInterval: ReturnType<typeof setInterval> | null = null;
+let subscribed = false;
 
-/**
- * Start the Trader-Trainer service.
- *
- * The service initializes a genetic algorithm that evolves trading agents.
- * Agents receive real market data from the Message-Manager service.
- *
- * @listens PORT
- */
-const server = app.listen(PORT, () => {
-  console.log(`[Trader-Trainer] Service running on port ${PORT}`);
+createBootstrap({
+  name: 'Trader Trainer',
+  createServer: () => createServer(trainer),
+  onStart: async () => {
+    addressManager = bootstrapAddressManager();
+
+    MessageManager.on(
+      EnumEventMessage.fetchCandlestickSeries,
+      (data: { candle: CandleEntity[] }) => {
+        if (!data?.candle || data.candle.length === 0) return;
+
+        const symbol = data.candle[0].symbol;
+        dataBuffer.addCandles(symbol, data.candle);
+
+        if (!subscribed && dataBuffer.getCandleCount(symbol) > 50) {
+          subscribed = true;
+          startTrainingLoop();
+        }
+      }
+    );
+
+    await MessageManager.intents([EnumEventMessage.fetchCandlestickSeries]);
+  },
+  onStop: async () => {
+    if (trainingInterval) clearInterval(trainingInterval);
+    if (addressManager) addressManager.stop();
+    await MessageManager.stopMessageManager();
+  },
 });
 
-process.on('SIGTERM', () => {
-  console.log('[Trader-Trainer] SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    console.log('[Trader-Trainer] HTTP server closed');
-    process.exit(0);
-  });
-});
+function startTrainingLoop(): void {
+  const symbols = env.TRAINER_SYMBOLS.split(',').map(s => s.trim());
 
-export default server;
+  async function runTraining(): Promise<void> {
+    if (trainer.isTraining()) return;
+
+    for (const symbol of symbols) {
+      if (dataBuffer.getCandleCount(symbol) >= env.TRAINER_DATA_WINDOW * 0.1) {
+        await trainer.train(symbol);
+        break;
+      }
+    }
+  }
+
+  runTraining();
+
+  trainingInterval = setInterval(runTraining, 60_000);
+}

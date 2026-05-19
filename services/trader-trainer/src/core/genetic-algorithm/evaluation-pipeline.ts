@@ -41,8 +41,8 @@ function shapeReward(
   config: DeepReadonly<LamarckGenome['rl']['rewardShaping']>
 ): number {
   let shaped = raw;
-  if (config.clipRange) {
-    shaped = Math.max(-config.clipRange, Math.min(config.clipRange, shaped));
+  if (config.clip) {
+    shaped = Math.max(config.clipMin, Math.min(config.clipMax, shaped));
   }
   return shaped;
 }
@@ -255,7 +255,7 @@ export async function evaluateGenomeAllWindows(
       variance: computeVariance(allRaw),
       rawScores: allRaw,
     },
-    objectives: { avgPnL, sharpe, negFlops },
+    objectives: { avgPnl: avgPnL, sharpe, negFlops },
   };
 }
 

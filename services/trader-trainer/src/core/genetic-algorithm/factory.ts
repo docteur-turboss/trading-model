@@ -123,6 +123,8 @@ export function createDefaultGenome(
     envSeed: 42,
     mutationSeed: 1337,
     networkSeed: 7,
+    mutationRate: 0.1,
+    mutationStd: 0.05,
   };
 
   return { id, generation, network, rl, mutation, crossover, gaControl };

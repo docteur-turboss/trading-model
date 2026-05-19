@@ -1,72 +1,62 @@
-/**
- * @fileoverview Express Server Configuration
- *
- * Sets up the HTTP server with security middleware and health check endpoints.
- * Serves as the entry point for the Trader-Trainer microservice.
- *
- * @requires express
- * @requires helmet
- * @requires @trading-model/common/middleware
- */
-
-import helmet from 'helmet';
-import express, { Request, Response } from 'express';
-import { catchSync } from '@trading-model/common/middleware/catch-error';
+import { createSecureServer } from '@trading-model/common/server/create-secure-server';
+import { MessageManagerListenExpress } from '../config/message-manager';
+import { AddressManagerRoutes } from '../config/address-manager';
+import { Trainer } from '../core/trainer';
+import { env } from '../config/env';
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
-import { ResponseProtocole } from '@trading-model/common/middleware/response-protocole';
+import { catchSync } from '@trading-model/common/middleware/catch-error';
 
-const app = express();
+export function createServer(trainer: Trainer) {
+  return createSecureServer({
+    port: env.PORT,
+    tls: {
+      key: env.TLS_KEY_PATH,
+      cert: env.TLS_CERT_PATH,
+      ca: env.TLS_CA_PATH,
+    },
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      limit: 100,
+    },
+    routes: app => {
+      app.get(
+        '/best-agent',
+        catchSync(async (_req, res) => {
+          const summary = trainer.getBestAgentSummary();
+          if (!summary) {
+            const response = ResponseException(
+              'Aucun agent entrainé disponible pour le moment.'
+            ).NotFound();
+            res.status(response.status).json({ data: response.data });
+            return;
+          }
 
-/**
- * Security Middlewares
- *
- * Helmet provides various HTTP headers to protect from common vulnerabilities.
- */
-app.use(helmet());
+          res.json({
+            data: {
+              agent: summary,
+              training: trainer.isTraining(),
+              symbol: trainer.getCurrentSymbol(),
+              generation: trainer.getGeneration(),
+            },
+          });
+        })
+      );
 
-/**
- * Body Parsing & Request Processing
- */
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+      app.get(
+        '/training-status',
+        catchSync(async (_req, res) => {
+          res.json({
+            data: {
+              training: trainer.isTraining(),
+              symbol: trainer.getCurrentSymbol(),
+              generation: trainer.getGeneration(),
+            },
+          });
+        })
+      );
 
-/**
- * Health Check Endpoint
- *
- * Returns service status. Used for monitoring and load balancer health checks.
- *
- * @route GET /ping
- * @returns {Object} Service status response
- */
-app.get(
-  '/ping',
-  catchSync(async (req: Request, res: Response) => {
-    const response = ResponseException('Service en ligne').Success();
-    res.status(response.status).json({ data: response.data });
-  })
-);
-
-/**
- * 404 Not Found Handler
- *
- * Catches undefined routes and returns appropriate error response.
- *
- * @route All other routes
- * @returns {Object} Not found error response
- */
-app.use(
-  /(.*)/,
-  catchSync(async (req: Request, res: Response) => {
-    const response = ResponseException('Chemin ou méthode non supporté.').NotFound();
-    res.status(response.status).json({ data: response.data });
-  })
-);
-
-/**
- * Global Error Handler
- *
- * Catches any unhandled errors and formats them according to ResponseProtocole.
- */
-app.use(ResponseProtocole);
-
-export default app;
+      AddressManagerRoutes(app);
+      MessageManagerListenExpress(app);
+    },
+  });
+}

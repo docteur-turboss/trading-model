@@ -41,8 +41,7 @@ export class StateManager {
         agent.nn.setWeights(genome);
       } catch (_e) {
         void _e;
-        // fallback: distribute around provided buffer
-        agent.nn.distributeAroundWeights(genome as Float32Array, 0.01);
+        agent.nn.distributeAroundWeights(0, 0.01);
       }
     }
   }

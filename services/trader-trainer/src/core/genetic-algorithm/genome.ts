@@ -7,13 +7,13 @@ import {
   ConnectionType,
   InitialisationType,
   NormalisationType,
-} from 'core/neural-network/type';
+} from '../neural-network/type';
 export {
   ActivationType,
   NormalisationType,
   ConnectionType,
   InitialisationType,
-} from 'core/neural-network/type';
+} from '../neural-network/type';
 
 export type LayerGenome = {
   neurons: number;
