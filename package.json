@@ -12,6 +12,8 @@
     "build:broker-message": "npm run -w @trading-model/broker-message build",
     "build": "npm run build:common && npm run build:address-manager && npm run build:broker-message",
     "commit": "node scripts/commit.mjs",
+    "release": "node scripts/release.mjs",
+    "release:dry": "node scripts/release.mjs --dry-run",
     "lint": "npx eslint . --ext .ts,.js,.mjs,.cjs",
     "eslint": "npx eslint src/**/*.{ts,js}",
     "test": "npm test --workspaces --if-present",
