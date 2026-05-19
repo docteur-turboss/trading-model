@@ -1,252 +1,105 @@
-## Overview
-This repository implements a **Service Discovery & Address Manager** designed for a **microservices architecture**.
+# Architecture — discovery-server
 
-The system enables services to dynamically register themselves, maintain liveness through heartbeats, and allow other services to resolve available service instances without relying on hard-coded network addresses.
+Central service registry providing dynamic service registration, TTL-based heartbeat liveness, token authentication, and instance discovery for a microservices platform.
 
-The project is implemented in **TypeScript**, uses **Express** as the HTTP layer, and enforces **mutual TLS (mTLS)** authentication using a shared **Root CA**.
-
-## Problem Statement
-
-In a microservices environment:
-
-* Services scale horizontally (multiple instances)
-* Services are ephemeral (containers, orchestrators)
-* IP addresses and ports change frequently
-* Services communicate over HTTP, events, or message brokers
-
-Hard-coding service addresses leads to:
-
-* Tight coupling
-* Poor resilience
-* Broken deployments during scaling or rolling updates
-
-This Service Discovery component provides **dynamic address resolution**, **liveness tracking**, and **centralized service metadata management**.
-
-
-## Goals & Non-Goals
-
-### Goals
-
-* Dynamic registration of service instances
-* Secure service-to-service communication (mTLS)
-* TTL-based liveness detection (heartbeat mechanism)
-* Deterministic and idempotent registration
-* Minimal runtime dependencies
-* Simple in-memory implementation, extensible to Redis / etcd
-
-### Non-Goals
-
-* Active health checks (pull-based probing)
-* Full load-balancing strategies (client-side responsibility)
-* Persistent storage guarantees across restarts
-* Service mesh replacement (Istio, Linkerd)
-
-
-## High-Level Architecture
+## Project Structure
 
 ```
-┌────────────────────┐
-│  Microservice A    │
-│  (client)          │
-│  - register        │
-│  - heartbeat       │
-│  - resolve         │
-└─────────┬──────────┘
-          │ mTLS
-          ▼
-┌────────────────────────────┐
-│ Service Discovery Server   │
-│                            │
-│ ┌────────────┐ ┌────────┐ │
-│ │ Controllers│ │ Routes │ │
-│ └────┬───────┘ └────┬───┘ │
-│      ▼              ▼     │
-│ ┌────────────────────────┐│
-│ │   ServiceRegistry      ││
-│ └──────────┬─────────────┘│
-│            ▼               │
-│     ┌──────────────┐       │
-│     │ LeaseManager │       │
-│     └──────────────┘       │
-└────────────────────────────┘
+services/discovery-server/
+├── src/
+│   ├── app/
+│   │   ├── index.ts              # Bootstrap: createBootstrap + LeaseManager lifecycle
+│   │   └── server.ts             # Express HTTPS server via createSecureServer
+│   ├── config/
+│   │   └── env.ts                # Zod schema extended from BaseEnvSchema
+│   ├── controllers/
+│   │   ├── Register.controller.ts  # register, listServices, getServiceInstances, getInstance
+│   │   ├── Heartbeat.controller.ts # heartbeat, rotateToken
+│   │   └── helpers.ts             # asHandler, validateInstanceToken
+│   ├── core/
+│   │   ├── ServiceRegistry.ts     # In-memory registry (Map<serviceName, Map<instanceId, Instance>>)
+│   │   ├── LeaseManager.ts        # Periodic cleanup of expired instances
+│   │   └── types.ts               # Re-exports from @trading-model/common/contracts
+│   └── routes/
+│       ├── register.routes.ts     # POST /register, GET /services, GET /services/:name, GET /services/:name/:id
+│       └── heartbeat.routes.ts    # POST /heartbeat, POST /token/rotate
+├── tests/
+│   ├── fixtures/                  # Reusable test data
+│   ├── helpers/                   # Test utilities
+│   ├── unit/                      # Isolated unit tests
+│   │   └── controllers/
+│   └── integration/               # Integration tests
+├── package.json
+├── tsconfig.json
+├── jest.config.ts
+└── README.md
 ```
 
+## Layer Responsibilities
 
-## Security Architecture (mTLS)
+| Layer | Files | Responsibility |
+|---|---|---|
+| **app/** | `index.ts`, `server.ts` | Application bootstrap, HTTPS server creation via `createBootstrap` / `createSecureServer` |
+| **config/** | `env.ts` | Zod schema extending `BaseEnvSchema` with `CLEANUP_SERVICE_INTERVAL_MS` |
+| **controllers/** | `Register.controller.ts`, `Heartbeat.controller.ts`, `helpers.ts` | HTTP request handling, input validation, auth token verification |
+| **core/** | `ServiceRegistry.ts`, `LeaseManager.ts`, `types.ts` | Domain logic: registry CRUD, lease management, type exports |
+| **routes/** | `register.routes.ts`, `heartbeat.routes.ts` | Thin Express Router definitions binding paths to controllers |
 
-### Authentication Model
-
-* All clients **must present a valid client certificate**
-* Server verifies client certificate against a **shared Root CA**
-* No token-based authentication (OAuth/JWT) is used
-* Trust is established at the TLS layer
-
-### Rationale
-
-* Strong service identity
-* No credential exchange at runtime
-* Reduced attack surface
-* Aligns with zero-trust internal networks
-
-### Certificate Handling
-
-* Certificates are loaded at startup (`readCert.ts`)
-* TLS configuration is enforced at the HTTP server level
-* Unauthorized connections are rejected before reaching controllers
-
-
-## Project Structure & Responsibilities
-
-### `app/`
-
-| File       | Responsibility                                 |
-| ---------- | ---------------------------------------------- |
-| `app.ts`   | Express HTTP server initialization             |
-| `index.ts` | Application bootstrap (HTTP + background jobs) |
-
-
-### `controllers/`
-
-Controllers implement **HTTP use-cases only** and contain no business logic.
-
-| Controller                | Responsibility                       |
-| ------------------------- | ------------------------------------ |
-| `register.controller.ts`  | Register or update service instances |
-| `heartbeat.controller.ts` | Refresh service liveness (TTL)       |
-
-Tests (`*.test.ts`) validate behavior, edge cases, and error paths.
-
-
-### `routes/`
-
-Defines HTTP routing and controller binding.
-
-| Route                 | Endpoint          |
-| --------------------- | ----------------- |
-| `register.routes.ts`  | `POST /register`  |
-| `heartbeat.routes.ts` | `POST /heartbeat` |
-
-Routes are intentionally thin and contain no logic.
-
-
-### `core/`
-
-Core domain logic. **Framework-agnostic**.
-
-| File                 | Responsibility                                 |
-| -------------------- | ---------------------------------------------- |
-| `ServiceRegistry.ts` | In-memory storage and indexing of services     |
-| `LeaseManager.ts`    | TTL management and eviction of dead instances  |
-| `type.ts`            | Domain types (ServiceInstance, metadata, etc.) |
-
-This layer can be reused with:
-
-* Redis
-* etcd
-* Consul-style backends
-
-
-### `utils/`
-
-Shared utilities, stateless and side-effect free.
-
-| Utility                | Purpose                  |
-| ---------------------- | ------------------------ |
-| `generateRandomStr.ts` | Instance ID generation   |
-| `readCert.ts`          | TLS certificate loading  |
-| `validate.ts`          | Input validation helpers |
-
-
-### `types/`
-Global TypeScript type extensions.
-
-| File           | Purpose                           |
-| -------------- | --------------------------------- |
-| `express.d.ts` | Express request typing extensions |
-
-
-### `tests/`
-* Unit tests for controllers and core logic
-* No reliance on real network or TLS
-* Mocks for registry and lease manager
-
-## Service Lifecycle
-### Registration
+## Data Flow
 
 ```
-POST /register
+Client (mTLS)
+  │
+  ▼
+createSecureServer (Express + helmet + rate-limit)
+  │
+  ▼
+Routes → Controllers → ServiceRegistry / LeaseManager
+                           │
+                           ▼
+                      In-memory Map
 ```
 
-* Service registers itself
-* Instance ID generated or reused
-* TTL initialized
-* Entry added to registry
+## Key Design Decisions
 
-### Heartbeat
+### Shared infrastructure via @trading-model/common
 
-```
-POST /heartbeat
-```
+- `createSecureServer` — HTTPS + mTLS Express server with helmet and rate limiting
+- `createBootstrap` — lifecycle management (process signals, graceful shutdown)
+- `BaseEnvSchema` + `validateEnv` — environment variable validation with Zod
+- `catchSync`, `ResponseException` — error handling middleware
+- `logger` — structured logging
+- `isNonEmptyString`, `isObject`, `isValidIP`, `isValidPort` — input validators
+- `generateRandomStr` — crypto token generation
+- `ServiceInstance` and related types — shared DTOs
 
-* Service periodically refreshes its lease
-* TTL expiration is pushed forward
-* Missing heartbeats lead to eviction
+### In-memory storage
 
-### Eviction
-* LeaseManager runs periodically
-* Instances exceeding TTL are removed
-* Registry remains consistent
+The registry uses a two-level `Map<string, Map<string, ServiceInstance>>`. No external database is required. This is suitable for controlled environments and can be replaced with Redis/etcd without changing the controller or route layer.
 
-## Design Decisions
+### TTL-based lease model
 
-### In-Memory Registry (Initial Version)
-**Why**:
-* Simplicity
-* Low operational overhead
-* Suitable for small/medium clusters
+Each registered instance specifies a TTL. The `LeaseManager` runs periodically and evicts instances whose `lastHeartbeat + ttl < now`. Instances must send `POST /heartbeat` within the TTL window.
 
-**Tradeoff**:
-* No persistence across restarts
+### Two-layer authentication
 
-### Passive Health Checks (Heartbeat-based)
+1. **mTLS transport** — all connections require valid client certificates signed by the shared Root CA
+2. **Instance token** — each registration returns a HMAC-based token; sensitive operations (`/heartbeat`, `/token/rotate`) require the `x-instance-token` header
 
-**Why**:
-* Avoid network probing complexity
-* No cascading failures
-* Responsibility remains client-side
+## API Endpoints
 
-### Strict Separation of Concerns
-* Controllers = HTTP
-* Core = business logic
-* Utils = helpers
-* No cross-layer dependencies
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/register` | mTLS | Register or update a service instance |
+| `GET` | `/services` | mTLS | List registered service names |
+| `GET` | `/services/:serviceName` | mTLS | List instances for a service |
+| `GET` | `/services/:serviceName/:instanceId` | mTLS | Get a specific instance |
+| `POST` | `/heartbeat` | mTLS + token | Refresh instance lease TTL |
+| `POST` | `/token/rotate` | mTLS + token | Rotate instance auth token |
 
-## Scalability & Future Extensions
+## Testing Strategy
 
-Planned / supported extensions:
-
-* Redis-backed ServiceRegistry
-* Distributed LeaseManager using TTL keys
-* Watch / streaming API for clients
-* Client-side SDK (Address Manager)
-* Metrics (Prometheus)
-* Audit logs
-
-## Operational Considerations
-
-* Stateless process
-* Safe to restart at any time
-* Horizontal scaling supported (with shared backend)
-* TLS certificates must be rotated externally
-* Logs are structured and machine-readable
-
-## Summary
-This Service Discovery system provides:
-
-* Secure service registration (mTLS)
-* Dynamic service resolution
-* Deterministic TTL-based liveness
-* Clean architecture boundaries
-* Production-ready foundations
-
-It is designed to be **simple, secure, and evolvable**, serving as a core building block for a microservices platform.
+- **Unit tests** — pure logic (ServiceRegistry, LeaseManager.isAlive) or controller logic with mocked registry and middleware
+- **Integration tests** — real ServiceRegistry + mocked external deps (logger, env), covering full registration → heartbeat → token rotation flows
+- **Test helpers** — `createReq` / `createRes` / `createNext` for simplified Express mock objects
+- **Coverage target** — 80%+ global

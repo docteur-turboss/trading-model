@@ -1,65 +1,127 @@
-# Service Registry & Discovery Manager
+# discovery-server
 
-## Overview
+Central service registry for the microservice platform. Handles service instance registration, TTL-based heartbeat liveness, authentication token rotation, and service discovery queries.
 
-This module implements a service registry and address discovery manager designed for microservice-based architectures. Its primary responsibility is to maintain an authoritative, in-memory view of all active service instances within a secured environment.
+## Prerequisites
 
-Services register themselves, renew their presence through heartbeats, and rotate authentication tokens over time. Consumers can query the registry to discover available services and their instances. The module is intentionally focused on registry and discovery concerns and does not embed business logic from consuming services.
-
-The implementation is written in TypeScript, built on top of Express, and secured using mutual TLS authentication with a shared Root Certificate Authority.
-
-## Architecture Context
-
-The registry acts as a control-plane component inside a microservice ecosystem. It exposes a dedicated API for service instances to announce themselves and maintain liveness, and another API surface for discovery and inspection.
-
-All communications are protected using mTLS. Both clients and the registry server must present certificates signed by the same trusted Root CA. This ensures strong, certificate-based authentication at the transport layer, independent of any application-level credentials.
-
-Service liveness is managed using a TTL-based leasing model. Each registered instance must periodically send heartbeats to remain active. Expired instances are automatically evicted by an internal lease manager.
-
-## Key Responsibilities
-
-The module manages service instance registration and updates, including automatic instance identifier generation when needed. It maintains instance liveness through heartbeats and TTL enforcement. It provides service discovery endpoints to list services, enumerate instances, and retrieve instance metadata. It enforces instance-level authentication using short-lived tokens bound to registered instances. It integrates with a lease management process to evict expired or unreachable instances.
-
-This module is designed to be replaced or extended with a distributed backend such as Redis or etcd without changing its public API.
-
-## Security Model
-
-Transport security is enforced via mutual TLS. The server requires client certificates and validates them against a trusted Root CA. Unauthorized clients are rejected at the TLS layer before any HTTP request is processed.
-
-At the application layer, each service instance is issued a unique token at registration time. This token must be presented for sensitive operations such as heartbeats and token rotation. Tokens are instance-scoped and can be rotated without re-registering the service.
-
-Server-side control and administrative validation logic is planned and will be introduced in a future iteration.
+- Node.js 18+
+- TLS certificates (key, cert, CA) for mTLS
+- `@trading-model/common` workspace dependency
 
 ## Installation
 
-The module requires Node.js with native TLS support and a TypeScript-compatible runtime. Dependencies are managed via a standard package manager.
-
-After installing dependencies, the project can be built using the TypeScript compiler. Runtime execution requires valid TLS material, including a server certificate, private key, and Root CA certificate.
+```bash
+npm install
+npm run build
+```
 
 ## Configuration
 
-The service is configured primarily through environment variables. TLS certificates and keys are loaded from the filesystem, with paths configurable via environment variables. The listening port can be overridden at runtime. Cleanup intervals for expired services can also be adjusted using environment configuration.
+All configuration is via environment variables, validated by `BaseEnvSchema` + `DiscoveryEnvSchema`:
 
-All configuration defaults are suitable for local development but should be explicitly set in production environments.
+| Variable | Default | Description |
+|---|---|---|
+| `NODE_ENV` | `development` | Runtime environment |
+| `PORT` | `3000` | HTTPS listen port |
+| `TLS_KEY_PATH` | — | Path to server private key |
+| `TLS_CERT_PATH` | — | Path to server certificate |
+| `TLS_CA_PATH` | — | Path to Root CA certificate |
+| `LOG_LEVEL` | `info` | Logger level |
+| `CLEANUP_SERVICE_INTERVAL_MS` | `600000` | Lease cleanup interval |
+| `ERROR_URL_WEBHOOK` | — | Webhook URL for error forwarding |
 
-## Runtime Behavior
+Copy `.env.example` to `.env` and fill in the values.
 
-On startup, the server initializes an HTTPS Express application with strict TLS settings. Client certificates are required and unauthorized connections are rejected. The registry is initialized in memory, and the lease manager starts a periodic cleanup job.
+## Running
 
-Service instances interact with the registry by registering themselves, sending periodic heartbeats, and rotating tokens when required. Discovery clients query the registry to obtain service topology information.
+```bash
+npm run dev     # ts-node src/app/index.ts
+npm run build   # tsc
+```
 
-## API Design
+## Testing
 
-The API is REST-based and exposed over HTTPS only. Endpoints are grouped under a registry namespace and separated by responsibility. Controllers handle validation, authorization, and error handling, while routing remains thin and declarative.
+```bash
+npm test                          # all tests
+npm test -- --watch               # watch mode
+npm test -- --coverage            # with coverage report
+```
 
-Responses follow a consistent structure and error handling strategy to simplify client integration.
+### Test structure
 
-## Logging and Observability
+```
+tests/
+├── fixtures/                     # Reusable test data factories
+├── helpers/                      # Test utilities (createReq, etc.)
+├── unit/
+│   ├── ServiceRegistry.spec.ts   # Registry CRUD + token logic
+│   ├── LeaseManager.spec.ts      # Start/stop/liveness checks
+│   ├── env.spec.ts               # Environment config validation
+│   ├── helpers.spec.ts           # Controller helpers
+│   └── controllers/
+│       ├── Register.controller.spec.ts
+│       └── Heartbeat.controller.spec.ts
+└── integration/
+    └── discovery-flow.spec.ts    # Full register → heartbeat → rotate flow
+```
 
-The module integrates structured logging for lifecycle events, security-related actions, and lease cleanup operations. Logs are designed to be compatible with centralized logging systems commonly used in production environments.
+## API
 
-Metrics and advanced observability hooks can be added externally without modifying core logic.
+### POST /register
 
-## Limitations and Scope
+Register a new service instance or update an existing one.
 
-The registry is currently in-memory and intended for controlled environments or as a foundational building block. High availability, persistence, and multi-node synchronization are not yet included. Server-side control validation and advanced policy enforcement are planned for upcoming versions.
+```json
+{ "serviceName": "financial-scrapper-service", "ip": "10.0.0.1", "port": 8444, "instanceId": "optional-custom-id" }
+```
+
+Returns the registered instance with an auth token.
+
+### POST /heartbeat
+
+Refresh the lease TTL for an instance. Requires `x-instance-token` header.
+
+```json
+{ "serviceName": "financial-scrapper-service", "instanceId": "abc123" }
+```
+
+Returns `{ ttl: number }`.
+
+### POST /token/rotate
+
+Rotate the auth token for an instance. Requires `x-instance-token` header.
+
+```json
+{ "instanceId": "abc123" }
+```
+
+Returns `{ token: string }`.
+
+### GET /services
+
+List all registered service names.
+
+### GET /services/:serviceName
+
+List all instances for a service.
+
+### GET /services/:serviceName/:instanceId
+
+Get a specific instance by ID.
+
+## Technology
+
+| Layer | |
+|---|---|
+| Runtime | Node.js |
+| Language | TypeScript (ES2020, module: node16) |
+| Framework | Express 5 |
+| Security | mTLS (via `createSecureServer` from `@trading-model/common`) |
+| Validation | Zod (via `BaseEnvSchema` from `@trading-model/common`) |
+| Bootstrap | `createBootstrap` from `@trading-model/common` |
+| Testing | Jest + ts-jest |
+| Linting | ESLint 10 flat config (root) |
+
+## Dependencies
+
+- `@trading-model/common` — server factories, env validation, logger, middleware, crypto, types

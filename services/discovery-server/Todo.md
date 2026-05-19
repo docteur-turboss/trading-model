@@ -1,8 +1,5 @@
 # TODO
-## Testing
-* Add a complete test structure (integration)
-
-## Security & Authentication
+## Future — Security & Authentication
 * Add a life/shutdown token (different from heartbeat token)
 * Add a lifetime control system:
   * Server controls service activity, token validity, and token rotation
@@ -14,9 +11,9 @@
 * Include a nonce + nonce signature using mTLS keys
 * Stop relying on `Date.now()` inside authentication tokens
 
-## Logging
+## Future — Logging
 * Mask or hash tokens/identifiers inside logs
 
-## DDoS Protection
+## Future — DDoS Protection
 * Circuit breaker
 * Anti-scan protections
