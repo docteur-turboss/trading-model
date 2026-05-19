@@ -2,21 +2,34 @@
   "name": "trader-service",
   "version": "1.0.0",
   "description": "Agents autonomes qui s'entrainent à trader sur une paire",
+  "homepage": "https://github.com/docteur-turboss/trading-model#readme",
+  "bugs": {
+    "url": "https://github.com/docteur-turboss/trading-model/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docteur-turboss/trading-model.git"
+  },
   "keywords": [
     "trader",
     "ia"
   ],
   "license": "ISC",
-  "author": "Docteur Turboss <@docteur-turboss>",
+  "author": "Alchimist Horus Turboss <@docteur-turboss>",
   "type": "commonjs",
-  "main": "./dist/index.js",
+  "main": "./dist/app/index.js",
   "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/app/index.ts",
     "test": "jest"
   },
   "dependencies": {
+    "@trading-model/address-manager": "*",
+    "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
     "express": "^5.2.1",
-    "helmet": "^8.1.0"
+    "helmet": "^8.1.0",
+    "zod": "^3.24.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

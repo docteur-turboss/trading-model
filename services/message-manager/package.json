@@ -20,8 +20,6 @@
   "main": "./dist/app/index.js",
   "scripts": {
     "test": "jest",
-    "eslint": "npx eslint src/**/*.{ts,js}",
-    "commit": "npx gitmoji -c",
     "dev": "ts-node src/app/index.ts",
     "build": "tsc"
   },

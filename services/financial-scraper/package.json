@@ -2,6 +2,14 @@
   "name": "financial-scraper",
   "version": "1.0.0",
   "description": "Récupère les prix en temps réel des différents actifs financiers",
+  "homepage": "https://github.com/docteur-turboss/trading-model#readme",
+  "bugs": {
+    "url": "https://github.com/docteur-turboss/trading-model/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docteur-turboss/trading-model.git"
+  },
   "keywords": [
     "scraper",
     "financial"
@@ -9,11 +17,9 @@
   "license": "ISC",
   "author": "Docteur Turboss <@docteur-turboss>",
   "type": "commonjs",
-  "main": "./dist/index.js",
+  "main": "./dist/app/index.js",
   "scripts": {
     "test": "jest",
-    "test:coverage": "jest --coverage",
-    "test:watch": "jest --watch",
     "build": "tsc",
     "dev": "ts-node src/app/index.ts"
   },
