@@ -4,13 +4,12 @@
     "module": "node16",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
-    "types": ["node"],
     "paths": {
       "config/*": ["./src/config/*"],
     },
@@ -19,5 +18,5 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/tests/**/*", "src/**/*.test.ts"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "tests"]
 }

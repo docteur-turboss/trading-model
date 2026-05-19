@@ -25,7 +25,7 @@ import { env } from "../config/env";
  * - stale IP/port entries after rescheduling
  * - accumulation of orphaned instances
  */
-class LeaseManager {
+export class LeaseManager {
     /**
      * Interval (in milliseconds) between two cleanup executions.
      * A smaller value increases reactivity but also CPU usage.

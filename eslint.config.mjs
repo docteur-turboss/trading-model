@@ -8,9 +8,17 @@ import { globalIgnores, defineConfig } from 'eslint/config'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', '**/tests/']),
   {
-    files: ['**/*.{ts,js,mjs,cjs}'],
+    files: ['**/*.{js,mjs,cjs}'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      globals: globals.node,
+    },
+  },
+  {
+    files: ['**/*.ts'],
     extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: 'latest',
