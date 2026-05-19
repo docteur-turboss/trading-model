@@ -19,16 +19,16 @@ import {
     getOrderBookTicker, 
     get24hrTickerStats, 
     getSymbolPriceTicker 
-} from "clients/binance/binance.client";
+} from "../../clients/binance/binance.client";
 
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { DeliveryMode } from "@trading-model/common/config/deliveryMode.types";
 import { EnumEventMessage } from "@trading-model/common/config/event.types";
-import { BinanceNormalizer } from "clients/binance/normalizer";
-import { MessageManager } from "config/message-manager";
+import { BinanceNormalizer } from "../../clients/binance/normalizer";
+import { MessageManager } from "../../config/message-manager";
 import { helper } from "@trading-model/broker-message";
 import { createHash } from "node:crypto";
-import { env } from "config/env";
+import { env } from "../../config/env";
 
 export interface BinanceWorkerOptions {
   symbol: string;

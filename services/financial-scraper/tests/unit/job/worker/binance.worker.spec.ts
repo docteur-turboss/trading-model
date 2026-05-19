@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 
-jest.mock('clients/binance/binance.client', () => ({
+jest.mock('../../../../src/clients/binance/binance.client', () => ({
   getOrderBook: jest.fn(),
   CandlestickData: jest.fn(),
   getRecentTrades: jest.fn(),
@@ -9,7 +9,7 @@ jest.mock('clients/binance/binance.client', () => ({
   getSymbolPriceTicker: jest.fn(),
 }))
 
-jest.mock('clients/binance/normalizer', () => ({
+jest.mock('../../../../src/clients/binance/normalizer', () => ({
   BinanceNormalizer: {
     orderBook: jest.fn(),
     trades: jest.fn(),
@@ -20,7 +20,7 @@ jest.mock('clients/binance/normalizer', () => ({
   },
 }))
 
-jest.mock('config/message-manager', () => ({
+jest.mock('../../../../src/config/message-manager', () => ({
   MessageManager: {
     post: {
       indirect: jest.fn(),
@@ -42,7 +42,7 @@ jest.mock('@trading-model/broker-message', () => ({
   },
 }))
 
-jest.mock('config/env', () => ({
+jest.mock('../../../../src/config/env', () => ({
   env: {
     SERVICE_NAME: 'financial-scraper-service',
     INSTANCE_ID: 'test-instance-1',

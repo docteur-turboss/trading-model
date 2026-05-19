@@ -5,7 +5,7 @@ import {
   CandleEntity, 
   OrderBookEntity,
   TickerEntity,
-} from "infra/market-data/market-data.types";
+} from "../../infra/market-data/market-data.types";
 import { Binance24hrTickerStatsResponse, BinanceAggregateTradeResponse, BinanceCandlestickDataResponse, BinanceDepthResponse, BinanceHistoricalTradeResponse, BinanceSymbolOrderBookTickerResponse, BinanceSymbolPriceTickerResponse, BinanceTradeResponse, BinanceTradingDayTickerResponse } from "types/binance.api";
 
 export class BinanceNormalizer {
