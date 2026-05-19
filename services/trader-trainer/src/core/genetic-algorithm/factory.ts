@@ -23,7 +23,7 @@ export function createDefaultGenome(
 ): Genome {
   void _rng;
   const network: NetworkGenome = {
-    inputDim: 16,
+    inputDim: 32,
     outputDim: 3,
     hiddenLayers: [
       { neurons: 64, activation: 'ReLu', connectionType: 'dense-skip', biasType: 'zeros' },
