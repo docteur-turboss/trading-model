@@ -1,6 +1,5 @@
-// wallet-manager.test.ts
 import { describe, expect, test } from '@jest/globals';
-import { createWallet } from './wallet-manager';
+import { createWallet } from '../../../src/core/env/wallet-manager';
 
 describe('Wallet module', () => {
   describe('Initialization', () => {
@@ -14,19 +13,19 @@ describe('Wallet module', () => {
 
     test('should throw error for invalid initial cash', () => {
       expect(() => createWallet({ initialCash: -10, initialPrice: 50 })).toThrow(
-        'Invalid initial cash amount.'
+        'Invalid initialCash: -10'
       );
       expect(() => createWallet({ initialCash: NaN, initialPrice: 50 })).toThrow(
-        'Invalid initial cash amount.'
+        'Invalid initialCash: NaN'
       );
     });
 
     test('should throw error for invalid initial price', () => {
       expect(() => createWallet({ initialCash: 1000, initialPrice: 0 })).toThrow(
-        'Invalid initial price.'
+        'Invalid initialPrice: 0'
       );
       expect(() => createWallet({ initialCash: 1000, initialPrice: -5 })).toThrow(
-        'Invalid initial price.'
+        'Invalid initialPrice: -5'
       );
     });
   });
@@ -90,11 +89,11 @@ describe('Wallet module', () => {
       expect(wallet.getPrice()).toBe(75);
     });
 
-    test('should ignore invalid price updates (negative or non-numeric)', () => {
+    test('should throw for invalid price updates (negative or non-numeric)', () => {
       const wallet = createWallet({ initialCash: 1000, initialPrice: 50 });
-      wallet.setPrice(-10);
+      expect(() => wallet.setPrice(-10)).toThrow();
       expect(wallet.getPrice()).toBe(50);
-      wallet.setPrice(NaN);
+      expect(() => wallet.setPrice(NaN)).toThrow();
       expect(wallet.getPrice()).toBe(50);
     });
   });

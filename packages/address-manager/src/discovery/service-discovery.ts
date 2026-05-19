@@ -1,8 +1,8 @@
 import { ServiceNotFoundError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
 import { AddressManagerConfig } from '../config/address-manager-config';
-import { ServiceHealthChecker } from './serviceHealthChecker';
+import { ServiceHealthChecker } from './service-health-checker';
 import { ServiceInstance } from '../client/type';
-import { ServiceCache } from './serviceCache';
+import { ServiceCache } from './service-cache';
 import { HttpClient } from '@trading-model/common/config/http-client';
 
 /**

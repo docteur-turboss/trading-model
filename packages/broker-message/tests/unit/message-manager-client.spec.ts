@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { MessageManagerClient } from '../../src/client/messageManagerClient';
+import { MessageManagerClient } from '../../src/client/message-manager-client';
 import { MessageManagerError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

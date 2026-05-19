@@ -2,7 +2,7 @@ import { RegisterServicePayload, ServiceRegistrationResponse } from './type';
 import { AddressManagerError } from '@trading-model/common/utils/errors';
 import { AddressManagerConfig } from '../config/address-manager-config';
 import { HttpClient } from '@trading-model/common/config/http-client';
-import { TokenManager } from './tokenManager';
+import { TokenManager } from './token-manager';
 
 /**
  * AddressManagerClient

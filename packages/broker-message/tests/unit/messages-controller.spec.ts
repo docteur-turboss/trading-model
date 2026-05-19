@@ -1,6 +1,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { MessageController } from '../../src/http/messages.controller';
-import { EventManager } from '../../src/client/eventManagerClient';
+import { EventManager } from '../../src/client/event-manager-client';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

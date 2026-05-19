@@ -4,7 +4,30 @@ import express from 'express';
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 
-jest.mock('../../src/config/env', () => ({
+jest.mock<{
+  env: {
+    NODE_ENV: string;
+    PORT: number;
+    TLS_KEY_PATH: string;
+    TLS_CERT_PATH: string;
+    TLS_CA_PATH: string;
+    ADDRESS_MANAGER_URL: string;
+    CACHE_TTL_MS: number;
+    INSTANCE_ID: string;
+    SERVICE_NAME: string;
+    SERVICE_PING_TIMEOUT_MS: number;
+    TOKEN_REFRESH_INTERVAL_MS: number;
+    TTL_REFRESH_INTERVAL_MS: number;
+    MESSAGE_CALLBACK_PATH: string;
+    TRAINER_SYMBOLS: string;
+    TRAINER_DATA_WINDOW: number;
+    TRAINER_VALIDATION_SPLIT: number;
+    TRAINER_GENERATIONS: number;
+    TRAINER_POPULATION_SIZE: number;
+    TRAINER_TIME_BUDGET_MS: number;
+    TRAINER_EPISODES_PER_INDIVIDUAL: number;
+  };
+}>('../../src/config/env', () => ({
   env: {
     NODE_ENV: 'test',
     PORT: 0,

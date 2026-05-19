@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { MarketDataBuffer } from '../../../src/core/market-data-buffer';
 import { feedCandles } from '../../fixtures/market-data.fixture';
 
-jest.mock('../../../src/config/env', () => ({
+jest.mock<{ env: any }>('../../../src/config/env', () => ({
   env: {
     TRAINER_SYMBOLS: 'BTCUSDT',
     TRAINER_DATA_WINDOW: 500,

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 export const BINANCE_WEIGHTS = {
   depth: (limit: number = 100): number => {
     if (limit <= 100) return 5;
@@ -21,6 +23,6 @@ export const BINANCE_WEIGHTS = {
       'Binance trading day ticker endpoint supports a maximum of 100 symbols per request and a minimum of 1.'
     );
   },
-  symbolPriceTicker: (): number => 4,
-  orderBookTicker: (): number => 4,
+  symbolPriceTicker: (symbolLength: number): number => 4,
+  orderBookTicker: (symbolLength: number): number => 4,
 };
