@@ -2,15 +2,15 @@
 
 ## Overview
 
-**Trader-Trainer** is a microservice that autonomously trains trading AI agents using a **Genetic Algorithm (GA) + Deep Q-Learning** approach. It receives real market data from the **Message-Manager** service and prepares the best-performing agent from each training session for deployment to a **Trader-Executor** service.
+**Trader-Trainer** is a microservice that autonomously trains trading AI agents using a **Genetic Algorithm (GA) + Deep Q-Learning** approach. It receives real market data from the **Message Manager** service and prepares the best-performing agent from each training session for deployment to a **Trader-Executor** service.
 
 ### Key Responsibilities
 
 1. **Agent Evolution**: Continuously improve agents through genetic algorithm and Q-learning
-2. **Data Integration**: Consume real market data from Message-Manager service
+2. **Data Integration**: Consume real market data from Message Manager service
 3. **Performance Evaluation**: Calculate fitness metrics (Sharpe, Sortino, Calmar, PnL)
 4. **Memory Optimization**: Dynamically allocate population size based on available physical memory
-5. **Agent Export**: Deploy best agents to Trader-Executor via Message-Manager library or direct HTTPS
+5. **Agent Export**: Deploy best agents to Trader-Executor via Message Manager library or direct HTTPS
 
 ---
 
@@ -43,7 +43,7 @@
 │  └──────────────────────┘    └──────────────────────┘  │
 │                                                          │
 └─────────────────────────────────────────────────────────┘
-            ↓ Real market data from Message-Manager
+            ↓ Real market data from Message Manager
         ↓ Best agent to Trader-Executor
 ```
 
@@ -406,7 +406,7 @@ return best_genome_from(P)
 ### Input: Real Market Data
 
 ```
-Message-Manager Service
+Message Manager Service
     ↓
 [Market events: price, volume, indicators]
     ↓
@@ -420,7 +420,7 @@ Agent training on real data
 ```
 Trader-Trainer (best agent)
     ↓
-Message-Manager Library
+Message Manager Library
     ↓
 HTTP (secured) or Message Queue
     ↓

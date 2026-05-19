@@ -71,7 +71,7 @@ Real-time market data ingestion from Binance:
 
 See [services/financial-scraper/docs/architecture.md](../services/financial-scraper/docs/architecture.md) for full details.
 
-### Message-Manager (Port 8445)
+### Message Manager (Port 8445)
 Internal messaging backbone between microservices:
 - Publish/subscribe with topic routing
 - HTTP transport layer

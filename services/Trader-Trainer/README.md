@@ -4,12 +4,12 @@
 
 ## Overview
 
-Trader-Trainer is a microservice that evolves a population of neural network-based trading agents using genetic algorithms and deep reinforcement learning. It consumes real market data from the **Message-Manager** service and produces optimized trading agents ready for deployment to **Trader-Executor**.
+Trader-Trainer is a microservice that evolves a population of neural network-based trading agents using genetic algorithms and deep reinforcement learning. It consumes real market data from the **Message Manager** service and produces optimized trading agents ready for deployment to **Trader-Executor**.
 
 **Key Features**:
 - 🧬 **Genetic Algorithm Evolution**: Self-improving population of agents
 - 🤖 **Deep Q-Learning**: Neural network agents with experience replay
-- 📊 **Real Market Data**: Trains on actual price feeds from Message-Manager
+- 📊 **Real Market Data**: Trains on actual price feeds from Message Manager
 - 💾 **Memory-Aware**: Dynamically scales population based on available memory
 - ⚡ **Adaptive Control**: Automatically adjusts mutation/crossover rates
 - 🏆 **Multi-Objective**: Optimizes for Sharpe, Sortino, Calmar, and P&L simultaneously
@@ -45,7 +45,7 @@ npm run build
 ```env
 PORT=3001                    # Service port (default: 3000)
 LOG_LEVEL=info              # Logging level
-MESSAGE_MANAGER_URL=...     # Message-Manager service URL
+MESSAGE_MANAGER_URL=...     # Message Manager service URL
 TRADER_EXECUTOR_URL=...     # Trader-Executor service URL
 ```
 
@@ -318,7 +318,7 @@ fitness = 0.4 * sharpe + 0.3 * sortino + 0.2 * pnl - 0.1 * complexity_penalty
 - **BLX-α**: Blend in extended range [min-α*range, max+α*range]
 - **SBX**: Simulated Binary Crossover
 
-## Integration with Message-Manager
+## Integration with Message Manager
 
 ### Receiving Market Data
 
@@ -358,7 +358,7 @@ const payload = {
   timestamp: Date.now(),
 };
 
-// Via Message-Manager service
+// Via Message Manager service
 await messageManager.publish('trader-executor-agents', payload);
 
 // Or direct HTTPS (with authentication via cash-lib)

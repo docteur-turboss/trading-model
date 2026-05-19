@@ -1,5 +1,5 @@
 {
-  "name": "message_manager_service",
+  "name": "message-manager",
   "version": "1.0.0",
   "description": "Service de gestion et d'envoi des communications entre services",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
