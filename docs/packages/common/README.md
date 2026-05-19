@@ -34,7 +34,7 @@ This package has **zero internal dependencies** — it only depends on external 
 | `LogEntry` | interface | Structured log entry with `timestamp, level, message, context, userId`, etc. |
 | `Logger` | class | Structured logger with file output, buffer, and webhook forwarding for errors |
 | `logger` | singleton | Pre-configured logger instance (level depends on `NODE_ENV`) |
-| `ServiceInstanceName` | const | Service name constants (9 services: discovery, financial-scrapper, trader-training, etc.) |
+| `ServiceInstanceName` | const | Service name constants (9 services: discovery, financial-scraper, trader-training, etc.) |
 
 ### `middleware/` — Express Middleware
 

@@ -15,10 +15,10 @@ trading-model/
 │   ├── address-manager/  @trading-model/address-manager
 │   └── broker-message/   @trading-model/broker-message
 ├── services/          # Microservices (npm workspace packages)
-│   ├── Discovery-Server/
-│   ├── Financial_Scrapper/
-│   ├── Message-Manager/
-│   └── Trader-Trainer/
+│   ├── discovery-server/
+│   ├── financial-scraper/
+│   ├── message-manager/
+│   └── trader-trainer/
 ├── docs/              # Documentation
 ├── package.json       # Root workspace config
 └── README.md
@@ -44,14 +44,32 @@ Central service registry with mTLS-secured endpoints:
 - `GET /services/:name/:id` — get specific instance
 In-memory storage with TTL-based lease eviction.
 
-### Financial Scrapper (Port 8444)
-Market data ingestion via Binance API:
-- `GET /trade/*` — recent trades
-- `GET /ticker/*` — 24hr ticker stats
-- `GET /candles/*` — candlestick series
-- `GET /orderbook/*` — order book snapshots
+### Financial Scraper (Port 8444)
+Real-time market data ingestion from Binance:
 
-Data stored in MongoDB. Scheduled collection via node-cron jobs. Integrates address-manager and broker-message for service discovery and event publishing.
+**Data Collection:**
+- Order book snapshots (in-memory storage for fast range queries)
+- Recent & historical trades (persisted to MySQL via `ts-sql-query`)
+- Candlestick / OHLCV series (persisted to MySQL)
+- 24hr ticker stats, trading day ticker, price ticker, book ticker (persisted to MySQL)
+
+**Scheduling:**
+- `node-cron` orchestrates per-symbol `BinanceWorker` instances with concurrency control via `p-limit`
+- Each worker fetches 6 data types in parallel, normalizes responses, and publishes events to the message bus
+
+**HTTP API:**
+- `GET /trade/*` — trades by source / symbol / timestamp
+- `GET /ticker/*` — tickers by source / symbol / timestamp
+- `GET /candles/*` — candlesticks by source / symbol / timestamp
+- `GET /orderbook/*` — order books by source / symbol / timestamp range
+
+**Key design features:**
+- Token-bucket rate limiter respects Binance API weight costs per endpoint
+- Exponential backoff retry (5 retries, 300ms–10s) for transient failures
+- Zod-validated environment variables for fail-fast misconfiguration detection
+- Integrates `@trading-model/address-manager` (service discovery) and `@trading-model/broker-message` (event publishing)
+
+See [services/financial-scraper/docs/architecture.md](../services/financial-scraper/docs/architecture.md) for full details.
 
 ### Message-Manager (Port 8445)
 Internal messaging backbone between microservices:
@@ -108,9 +126,6 @@ Server     Scrapper    Manager    Trainer
 
 ## Known Technical Debt
 
-1. **Inconsistent naming**: Mix of kebab-case, PascalCase, and snake_case across service directories (`Discovery-Server`, `Financial_Scrapper`).
-2. **Mixed test conventions**: Both `.spec.ts` and `.test.ts` suffixes used across services.
-3. **Legacy `config/*` path alias**: Some service tsconfigs still define a `config/*` path alias (`./src/config/*`) that should be replaced with `node16` resolution.
-4. **ESLint warnings**: ~50 lint errors remain across the codebase (unused variables, `any` types, empty interfaces, prefer-const).
-
-See [PLAN.md](./branch-docs/PLAN.md) for the detailed refactoring roadmap.
+1. **Mixed test conventions**: Both `.spec.ts` and `.test.ts` suffixes used across services.
+2. **Legacy `config/*` path alias**: Some service tsconfigs still define a `config/*` path alias (`./src/config/*`) that should be replaced with `node16` resolution.
+3. **ESLint warnings**: ~50 lint errors remain across the codebase (unused variables, `any` types, empty interfaces, prefer-const).

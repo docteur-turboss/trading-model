@@ -120,7 +120,7 @@ am.listenExpress(app);
 const { stop } = am.start();
 
 // Discover another service
-const instance = await am.findService("financial-scrapper-service");
+const instance = await am.findService("financial-scraper-service");
 console.log(`Found at ${instance.ip}:${instance.port}`);
 
 // Get current auth token

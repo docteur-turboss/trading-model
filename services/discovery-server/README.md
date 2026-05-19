@@ -72,7 +72,7 @@ tests/
 Register a new service instance or update an existing one.
 
 ```json
-{ "serviceName": "financial-scrapper-service", "ip": "10.0.0.1", "port": 8444, "instanceId": "optional-custom-id" }
+{ "serviceName": "financial-scraper-service", "ip": "10.0.0.1", "port": 8444, "instanceId": "optional-custom-id" }
 ```
 
 Returns the registered instance with an auth token.
@@ -82,7 +82,7 @@ Returns the registered instance with an auth token.
 Refresh the lease TTL for an instance. Requires `x-instance-token` header.
 
 ```json
-{ "serviceName": "financial-scrapper-service", "instanceId": "abc123" }
+{ "serviceName": "financial-scraper-service", "instanceId": "abc123" }
 ```
 
 Returns `{ ttl: number }`.

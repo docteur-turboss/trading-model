@@ -811,12 +811,8 @@ jobs:
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Service directory naming | ❌ Pending | Services currently use PascalCase/snake_case (`Discovery-Server`, `Financial_Scrapper`) |
 | Test file naming | ❌ Pending | Mix of `.spec.ts` and `.test.ts` |
 | File naming (kebab-case) | ❌ Pending | Some files not yet renamed |
-| Implementation imports | ❌ Pending | Services still use `@trading-model/*` via workspace deps but need cleanup |
-| `.prettierrc` | ❌ Pending | Not yet created |
 | Husky git hooks | ❌ Pending | Not yet configured |
 | GitHub Actions workflows | ❌ Pending | Not yet created |
-| API documentation | ⏳ Partial | Package docs exist; service API docs incomplete |
 | Coverage thresholds | ❌ Pending | Not yet enforced in jest configs |
