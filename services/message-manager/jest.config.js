@@ -1,6 +1,3 @@
-const { pathsToModuleNameMapper } = require('ts-jest');
-const { compilerOptions } = require('./tsconfig');
-
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   preset: 'ts-jest',
@@ -18,5 +15,9 @@ module.exports = {
       statements: 80,
     },
   },
-  moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
+  moduleNameMapper: {
+    '^config/(.*)$': '<rootDir>/src/config/$1',
+    '^messaging$': '<rootDir>/src/messaging/index.ts',
+    '^messaging/(.*)$': '<rootDir>/src/messaging/$1',
+  },
 };

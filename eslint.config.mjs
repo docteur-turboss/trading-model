@@ -8,7 +8,7 @@ import { globalIgnores, defineConfig } from 'eslint/config'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig([
-  globalIgnores(['dist', '**/tests/']),
+  globalIgnores(['dist', '**/tests/', '**/jest.config.*']),
   {
     files: ['**/*.{js,mjs,cjs}'],
     extends: [js.configs.recommended],
@@ -19,7 +19,7 @@ export default defineConfig([
   },
   {
     files: ['**/*.ts'],
-    extends: [js.configs.recommended],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 'latest',
       globals: globals.node,
@@ -29,5 +29,4 @@ export default defineConfig([
       },
     },
   },
-  tseslint.configs.recommended,
 ])
