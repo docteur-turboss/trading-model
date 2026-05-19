@@ -1,5 +1,5 @@
-import { ResponseProtocole } from '../middleware/responseProtocole';
-import { MTLSAuthMiddleware } from '../middleware/MTLSAuth';
+import { ResponseProtocole } from '../middleware/response-protocole';
+import { MTLSAuthMiddleware } from '../middleware/mtls-auth';
 import { logger } from '../config/logger';
 import { rateLimit } from 'express-rate-limit';
 import express, { Application } from 'express';
