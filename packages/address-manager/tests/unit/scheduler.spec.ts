@@ -1,12 +1,12 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { Scheduler, ScheduledJob } from "../../src/scheduler/scheduler";
-import cron from "node-cron";
+import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { Scheduler, ScheduledJob } from '../../src/scheduler/scheduler';
+import cron from 'node-cron';
 
-jest.mock("node-cron", () => ({
+jest.mock('node-cron', () => ({
   schedule: jest.fn(),
 }));
 
-describe("Scheduler", () => {
+describe('Scheduler', () => {
   let scheduler: Scheduler;
   let mockJob: jest.Mocked<ScheduledJob>;
   let mockTask: { start: jest.Mock; stop: jest.Mock };
@@ -15,8 +15,10 @@ describe("Scheduler", () => {
     scheduler = new Scheduler();
 
     mockJob = {
-      schedule: "*/1 * * * *",
-      execute: jest.fn().mockResolvedValue(undefined as never) as unknown as jest.MockedFunction<() => Promise<void>>,
+      schedule: '*/1 * * * *',
+      execute: jest.fn().mockResolvedValue(undefined as never) as unknown as jest.MockedFunction<
+        () => Promise<void>
+      >,
     };
 
     mockTask = {
@@ -34,37 +36,37 @@ describe("Scheduler", () => {
   // -----------------------------------------------------------
   // REGISTER
   // -----------------------------------------------------------
-  test("should register a job before starting", () => {
+  test('should register a job before starting', () => {
     scheduler.register(mockJob);
     // no error should be thrown
   });
 
-  test("should throw if registering after start", () => {
+  test('should throw if registering after start', () => {
     scheduler.register(mockJob);
     scheduler.start();
 
-    const anotherJob: ScheduledJob = { schedule: "*/5 * * * *", execute: jest.fn() as () => Promise<void> };
+    const anotherJob: ScheduledJob = {
+      schedule: '*/5 * * * *',
+      execute: jest.fn() as () => Promise<void>,
+    };
     expect(() => scheduler.register(anotherJob)).toThrow(
-      "Cannot register job after scheduler has started"
+      'Cannot register job after scheduler has started'
     );
   });
 
   // -----------------------------------------------------------
   // START
   // -----------------------------------------------------------
-  test("start should schedule all registered jobs", () => {
+  test('start should schedule all registered jobs', () => {
     scheduler.register(mockJob);
 
     scheduler.start();
 
     expect(cron.schedule).toHaveBeenCalledTimes(1);
-    expect(cron.schedule).toHaveBeenCalledWith(
-      mockJob.schedule,
-      expect.any(Function)
-    );
+    expect(cron.schedule).toHaveBeenCalledWith(mockJob.schedule, expect.any(Function));
   });
 
-  test("start should execute job function when task callback is called", async () => {
+  test('start should execute job function when task callback is called', async () => {
     scheduler.register(mockJob);
     scheduler.start();
 
@@ -75,10 +77,14 @@ describe("Scheduler", () => {
     expect(mockJob.execute).toHaveBeenCalledTimes(1);
   });
 
-  test("start should ignore errors thrown by job.execute", async () => {
+  test('start should ignore errors thrown by job.execute', async () => {
     const errorJob: ScheduledJob = {
-      schedule: "*/1 * * * *",
-      execute: jest.fn().mockRejectedValue(new Error("fail") as never) as unknown as jest.MockedFunction<() => Promise<void>>,
+      schedule: '*/1 * * * *',
+      execute: jest
+        .fn()
+        .mockRejectedValue(new Error('fail') as never) as unknown as jest.MockedFunction<
+        () => Promise<void>
+      >,
     };
     scheduler.register(errorJob);
     scheduler.start();
@@ -88,7 +94,7 @@ describe("Scheduler", () => {
     await expect(callback()).resolves.toBeUndefined();
   });
 
-  test("calling start multiple times should not reschedule jobs", () => {
+  test('calling start multiple times should not reschedule jobs', () => {
     scheduler.register(mockJob);
     scheduler.start();
     scheduler.start(); // second start
@@ -99,7 +105,7 @@ describe("Scheduler", () => {
   // -----------------------------------------------------------
   // STOP
   // -----------------------------------------------------------
-  test("stop should call stop on all tasks and reset scheduler", () => {
+  test('stop should call stop on all tasks and reset scheduler', () => {
     scheduler.register(mockJob);
     scheduler.start();
 
@@ -108,7 +114,10 @@ describe("Scheduler", () => {
     expect(mockTask.stop).toHaveBeenCalledTimes(1);
 
     // After stop, we can restart normally
-    const newJob: ScheduledJob = { schedule: "*/2 * * * *", execute: jest.fn() as () => Promise<void> };
+    const newJob: ScheduledJob = {
+      schedule: '*/2 * * * *',
+      execute: jest.fn() as () => Promise<void>,
+    };
     expect(() => scheduler.register(newJob)).not.toThrow();
   });
 });

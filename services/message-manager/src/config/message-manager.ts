@@ -32,8 +32,8 @@
  * @since 2026.01.28
  */
 
-import broker from "messaging";
-import { env } from "./env";
+import broker from 'messaging';
+import { env } from './env';
 
 /**
  * Broker singleton instance.
@@ -45,10 +45,10 @@ import { env } from "./env";
  * This instance is shared across the entire application lifecycle.
  */
 const Broker = new broker({
-    CertificatPath: env.TLS_CERT_PATH,
-    KeyCertificatPath: env.TLS_KEY_PATH,
-    RootCACertPath: env.TLS_CA_PATH
-})
+  CertificatPath: env.TLS_CERT_PATH,
+  KeyCertificatPath: env.TLS_KEY_PATH,
+  RootCACertPath: env.TLS_CA_PATH,
+});
 
 /**
  * Message broker HTTP route binder.
@@ -64,6 +64,6 @@ const Broker = new broker({
  * @lifecycle
  * Must be registered during HTTP server initialization.
  */
-const MessageManagerRoutes = Broker.listen
+const MessageManagerRoutes = Broker.listen;
 
-export { MessageManagerRoutes }
+export { MessageManagerRoutes };

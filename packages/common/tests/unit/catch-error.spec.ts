@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { catchSync } from '../../src/middleware/catchError';
+import { catchSync } from '../../src/middleware/catch-error';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -25,7 +25,9 @@ describe('catchSync', () => {
 
   it('should reject the promise on synchronous errors', async () => {
     const error = new Error('sync error');
-    const handler = () => { throw error; };
+    const handler = () => {
+      throw error;
+    };
     const wrapped = catchSync(handler as any);
 
     await expect(wrapped(req as any, res as any, next)).rejects.toThrow(error);
@@ -34,7 +36,9 @@ describe('catchSync', () => {
 
   it('should catch asynchronous errors and pass to next', async () => {
     const error = new Error('async error');
-    const handler = async () => { throw error; };
+    const handler = async () => {
+      throw error;
+    };
     const wrapped = catchSync(handler);
 
     await wrapped(req, res, next);

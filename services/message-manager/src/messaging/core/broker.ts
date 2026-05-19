@@ -30,10 +30,10 @@
  * @since 2026.01.28
  */
 
-import { randomUUID } from "node:crypto";
-import { Dispatcher } from "./dispatcher";
-import { IdentifyType } from "../broker.type";
-import { message, MessageMetadata } from "./message";
+import { randomUUID } from 'node:crypto';
+import { Dispatcher } from './dispatcher';
+import { IdentifyType } from '../broker.type';
+import { message, MessageMetadata } from './message';
 
 /**
  * Messaging broker facade.
@@ -55,9 +55,7 @@ export class Broker {
    * @lifecycle
    * Instantiated during application bootstrap.
    */
-  constructor(
-    private readonly dispatcher: Dispatcher
-  ) {}
+  constructor(private readonly dispatcher: Dispatcher) {}
 
   /**
    * Publish a message to the broker.
@@ -78,15 +76,15 @@ export class Broker {
    * @lifecycle
    * Can be called at any time after broker instantiation.
    */
-  async publish(payload: unknown, metadata: Omit<MessageMetadata, "emittedAt"|"messageId">) {
+  async publish(payload: unknown, metadata: Omit<MessageMetadata, 'emittedAt' | 'messageId'>) {
     const Message: message = {
       metadata: {
         ...metadata,
         emittedAt: new Date(),
         messageId: String(randomUUID()),
       },
-      payload
-    }
+      payload,
+    };
 
     await this.dispatcher.dispatch(Message);
   }
@@ -103,15 +101,11 @@ export class Broker {
    * @param params.callbackPath Relative HTTP callback path.
    * @param params.consumerIdentity Identity of the subscribing service instance.
    */
-  subscribe(params: {
-    topic: string;
-    callbackPath: string; 
-    consumerIdentity: IdentifyType;
-  }) {
+  subscribe(params: { topic: string; callbackPath: string; consumerIdentity: IdentifyType }) {
     this.dispatcher.registerSubscription(params);
   }
 
-    /**
+  /**
    * Unregister a subscription from a topic.
    *
    * @description
@@ -122,10 +116,7 @@ export class Broker {
    * @param params.topic Topic name.
    * @param params.instanceId Unique service instance identifier.
    */
-  unsubscribe(params: {
-    topic: string;
-    instanceId: string;
-  }) {
-    this.dispatcher.unregisterSubscription(params)
+  unsubscribe(params: { topic: string; instanceId: string }) {
+    this.dispatcher.unregisterSubscription(params);
   }
 }

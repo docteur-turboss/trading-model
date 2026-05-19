@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { MessageManagerClient } from '../../src/client/messageManagerClient';
-import { MessageManagerError, ServiceUnreachableError } from '@trading-model/common/utils/Errors';
+import { MessageManagerError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -60,7 +60,9 @@ describe('MessageManagerClient', () => {
     it('should throw ServiceUnreachableError when service not found', async () => {
       addressManagerClient.findService.mockResolvedValue(null);
 
-      await expect(client.SubscribeToTopics(['example.debug.create'])).rejects.toThrow(ServiceUnreachableError);
+      await expect(client.SubscribeToTopics(['example.debug.create'])).rejects.toThrow(
+        ServiceUnreachableError
+      );
     });
 
     it('should swallow MessageManagerError on subscription failure', async () => {
@@ -88,13 +90,18 @@ describe('MessageManagerClient', () => {
       addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
       httpClient.post.mockResolvedValue(undefined);
 
-      const metadata = { eventType: 'test', topic: 'test.event', schemaVersion: '1.0.0', publisher: { serviceName: 'TestService', instanceId: 'uuid' } } as any;
+      const metadata = {
+        eventType: 'test',
+        topic: 'test.event',
+        schemaVersion: '1.0.0',
+        publisher: { serviceName: 'TestService', instanceId: 'uuid' },
+      } as any;
       await client.publishAsyncMessage({ hello: 'world' }, metadata);
 
-      expect(httpClient.post).toHaveBeenCalledWith(
-        'https://192.168.1.100:3001/message',
-        { payload: { hello: 'world' }, metadata }
-      );
+      expect(httpClient.post).toHaveBeenCalledWith('https://192.168.1.100:3001/message', {
+        payload: { hello: 'world' },
+        metadata,
+      });
     });
 
     it('should throw MessageManagerError on publish failure', async () => {
@@ -110,7 +117,12 @@ describe('MessageManagerClient', () => {
       addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
       httpClient.post.mockResolvedValue(undefined);
 
-      const metadata = { eventType: 'test', topic: 'test.event', schemaVersion: '1.0.0', publisher: { serviceName: 'TestService', instanceId: 'uuid' } } as any;
+      const metadata = {
+        eventType: 'test',
+        topic: 'test.event',
+        schemaVersion: '1.0.0',
+        publisher: { serviceName: 'TestService', instanceId: 'uuid' },
+      } as any;
       await client.publishDirectMessage('MessageDeliveryService', { data: 'test' }, metadata);
 
       expect(httpClient.post).toHaveBeenCalled();

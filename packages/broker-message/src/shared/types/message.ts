@@ -1,5 +1,5 @@
-import { DeliveryModeEnum } from "@trading-model/common/config/deliveryMode.types";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types"
+import { DeliveryModeEnum } from '@trading-model/common/config/delivery-mode.types';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
 /**
  * TODO
@@ -7,7 +7,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 
 /**
  * IdentifyType
- * 
+ *
  * @description
  * Represents the identity of a service instance within the broker system.
  * Used to identify publishers and subscribers for routing and load-balancing.
@@ -22,21 +22,21 @@ export interface IdentifyType {
 
 /**
  * RoutingType
- * 
+ *
  * @description
  * Represents the Routing of a service instance within the broker system.
  */
 export interface RoutingType {
   /** Ensures ordering for a given business key. */
   partitionKey?: string;
-  
+
   /** Influences delivery scheduling priority. */
   priority?: number;
 }
 
 /**
  * DeliveryType
- * 
+ *
  * @description
  * Represents the delivery settings submit to the service instance.
  */
@@ -53,16 +53,16 @@ export interface DeliveryType {
 
 /**
  * SecurityType
- * 
+ *
  * @description
  * Represents the security settings submit to the service instance.
  */
 export interface SecurityType {
   /* Authentication / authorization context. */
   authContext?: {
-    subject: string,
-    roles: string[],
-    tenantId: string
+    subject: string;
+    roles: string[];
+    tenantId: string;
   };
 
   /* Message integrity signature. */
@@ -71,7 +71,7 @@ export interface SecurityType {
 
 /**
  * BrokerConfig
- * 
+ *
  * @description
  * Configuration object for TLS-secured broker connections.
  * Contains file paths to certificates required for mutual TLS authentication.

@@ -1,20 +1,18 @@
-# 📐 Standards Cibles - Trading Model
+# 📐 Standards - Trading Model
 
-**Date**: 18 Mai 2026  
-**Scope**: Refactorisation complète du repo  
-**Timeline**: 4-6 semaines
+**Date**: 19 Mai 2026
 
 ---
 
-## 🎯 Vue d'ensemble
+## 🎯 Global view
 
-Ce document définit les conventions et standards qui seront appliqués à tout le projet après refactorisation.
+This document defines the conventions and standards that apply to the entire project.
 
-**Principe**: **ONE WAY OF DOING THINGS** - Une seule manière de faire chaque chose.
+**Principe**: **ONE WAY OF DOING THINGS**
 
 ---
 
-## 1️⃣ STRUCTURE DES DOSSIERS
+## 1️⃣ FOLDER STRUCTURE
 
 ### Standard Global
 
@@ -33,11 +31,10 @@ trading-model/                          # Monorepo root
 │   ├── SETUP.md                        # Setup local
 │   ├── TESTING.md                      # Tests standard
 │   ├── deployment/                     # Guides déploiement
-│   ├── packages/                       # Package docs
-│   │   ├── common/
-│   │   ├── address-manager/
-│   │   └── broker-message/
-│   └── branch-docs/                    # Branch plans
+│   └── packages/                       # Package docs
+│       ├── common/
+│       ├── address-manager/
+│       └── broker-message/
 ├── packages/                           # Shared libraries (npm workspaces)
 │   ├── common/                         # @trading-model/common
 │   ├── address-manager/                # @trading-model/address-manager
@@ -49,6 +46,7 @@ trading-model/                          # Monorepo root
 │   └── trader-trainer/                 # ML Training
 ├── .env.example                        # Environment template
 ├── .gitignore                          # Git ignore patterns
+├── .prettierrc
 ├── package.json                        # Root package.json
 ├── eslint.config.mjs                   # Root eslint (flat config)
 ├── README.md                           # Project README
@@ -102,7 +100,7 @@ service-name/                           # Always kebab-case
 └── README.md
 ```
 
-### Standard Pour packages/*/ (Shared Packages)
+### Standard Pour packages/\*/ (Shared Packages)
 
 ```
 packages/<name>/                        # e.g. common, address-manager, broker-message
@@ -130,6 +128,7 @@ packages/<name>/                        # e.g. common, address-manager, broker-m
 ## 2️⃣ NAMING CONVENTIONS
 
 ### Services (Kebab-case, lowercase)
+
 ```typescript
 // ✓ CORRECT
 discovery-server/
@@ -145,23 +144,25 @@ Financial_Scrapper/       // Snake case
 ```
 
 ### Files (kebab-case, lowercase)
+
 ```typescript
 // ✓ CORRECT
-address-manager.ts
-token-manager.ts
-token-refresh-job.ts
-service-discovery.ts
-error-handler.middleware.ts
-auth.middleware.ts
-wallet-manager.controller.ts
+address - manager.ts;
+token - manager.ts;
+token - refresh - job.ts;
+service - discovery.ts;
+error - handler.middleware.ts;
+auth.middleware.ts;
+wallet - manager.controller.ts;
 
 // ✗ INCORRECT
-AddressManager.ts         // PascalCase
-address_manager.ts        // snake_case
-addressManager.ts         // camelCase
+AddressManager.ts; // PascalCase
+address_manager.ts; // snake_case
+addressManager.ts; // camelCase
 ```
 
 ### Directories (kebab-case, lowercase)
+
 ```
 // ✓ CORRECT
 src/
@@ -178,6 +179,7 @@ src/Middleware/
 ```
 
 ### Variables & Functions (camelCase)
+
 ```typescript
 // ✓ CORRECT
 const addressManager = new AddressManager();
@@ -187,27 +189,33 @@ const addressCache = new Map();
 const isTokenExpired = true;
 
 // ✗ INCORRECT
-const AddressManager = new AddressManager();    // PascalCase
-const address_manager = new AddressManager();   // snake_case
-const ADDRESSMANAGER = new AddressManager();    // CONSTANT (wrong)
+const AddressManager = new AddressManager(); // PascalCase
+const address_manager = new AddressManager(); // snake_case
+const ADDRESSMANAGER = new AddressManager(); // CONSTANT (wrong)
 ```
 
 ### Classes & Types (PascalCase)
+
 ```typescript
 // ✓ CORRECT
 export class AddressManager {}
 export class TokenValidator {}
 export interface ServiceRegistry {}
-export type TokenPayload = {}
-export enum AuthMethod { MTLS, JWT, NONE }
+export type TokenPayload = {};
+export enum AuthMethod {
+  MTLS,
+  JWT,
+  NONE,
+}
 
 // ✗ INCORRECT
-export class addressManager {}              // camelCase
-export interface service_registry {}        // snake_case
-export enum auth_method {}                  // snake_case
+export class addressManager {} // camelCase
+export interface service_registry {} // snake_case
+export enum auth_method {} // snake_case
 ```
 
 ### Constants (SCREAMING_SNAKE_CASE)
+
 ```typescript
 // ✓ CORRECT
 export const DEFAULT_TIMEOUT = 30000;
@@ -215,11 +223,12 @@ export const MAX_TOKEN_LIFETIME = 3600;
 export const SERVICE_DISCOVERY_PORT = 3000;
 
 // ✗ INCORRECT
-export const defaultTimeout = 30000;        // camelCase
-export const DEFAULT_timeout = 30000;       // Mixed
+export const defaultTimeout = 30000; // camelCase
+export const DEFAULT_timeout = 30000; // Mixed
 ```
 
 ### Test Files (kebab-case with .spec.ts or .test.ts)
+
 ```
 // ✓ CORRECT (pick ONE and stick with it)
 address-manager.spec.ts    // Jest convention
@@ -233,6 +242,7 @@ address_manager.spec.ts    // snake_case
 ```
 
 ### Suffixes (Cohérents)
+
 ```typescript
 // Controllers
 *.controller.ts            // address-manager.controller.ts
@@ -302,7 +312,7 @@ export default defineConfig([
       ecmaVersion: 'latest',
       globals: globals.node,
       parserOptions: {
-        projectService: true,               // Auto-discover tsconfig per file
+        projectService: true, // Auto-discover tsconfig per file
         tsconfigRootDir: __dirname,
       },
     },
@@ -318,7 +328,7 @@ export default defineConfig([
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "node16",                    // or "commonjs" for packages
+    "module": "node16", // or "commonjs" for packages
     "declaration": true,
     "outDir": "./dist",
     "rootDir": "./src",
@@ -333,6 +343,7 @@ export default defineConfig([
   "exclude": ["node_modules", "dist", "src/tests/**/*", "src/**/*.test.ts"]
 }
 ```
+
 > **Note**: Path aliases (`@/`, `@lib/`, etc.) have been removed. Services use direct workspace package imports (`@trading-model/*`) or relative imports.
 
 ### Import Ordering
@@ -364,11 +375,12 @@ import './setup-tests';
 ## 4️⃣ ARCHITECTURE PATTERNS
 
 ### Dependency Injection
+
 ```typescript
 // ✓ CORRECT - Constructor injection
 export class UserService {
   constructor(private userRepository: UserRepository) {}
-  
+
   async getUser(id: string) {
     return this.userRepository.findById(id);
   }
@@ -384,10 +396,14 @@ export class UserService {
 ```
 
 ### Error Handling (Centralized)
+
 ```typescript
 // ✓ CORRECT - Custom error class
 export class ValidationError extends Error {
-  constructor(public message: string, public statusCode: number = 400) {
+  constructor(
+    public message: string,
+    public statusCode: number = 400
+  ) {
     super(message);
     this.name = 'ValidationError';
   }
@@ -402,6 +418,7 @@ app.use((err, req, res, next) => {
 ```
 
 ### Configuration Management
+
 ```typescript
 // ✓ CORRECT - Zod validation + env loading
 import { z } from 'zod';
@@ -420,6 +437,7 @@ const port = config.PORT;
 ```
 
 ### Database/Repository Pattern
+
 ```typescript
 // ✓ CORRECT
 export interface UserRepository {
@@ -431,7 +449,7 @@ export class MongoUserRepository implements UserRepository {
   async findById(id: string) {
     return db.collection('users').findOne({ _id: id });
   }
-  
+
   async save(user: User) {
     await db.collection('users').updateOne({ _id: user.id }, user);
   }
@@ -443,6 +461,7 @@ export class MongoUserRepository implements UserRepository {
 ## 5️⃣ TESTING STANDARDS
 
 ### Test Structure
+
 ```
 tests/
 ├── unit/                                # Isolated logic tests
@@ -469,12 +488,12 @@ tests/
 
 ```typescript
 // ✓ CORRECT
-user.service.spec.ts
-address-manager.spec.ts
-token-validator.spec.ts
+user.service.spec.ts;
+address - manager.spec.ts;
+token - validator.spec.ts;
 
 // ✗ INCORRECT (Never use .test.ts)
-user.service.test.ts
+user.service.test.ts;
 ```
 
 ### Test File Template
@@ -541,6 +560,7 @@ export default {
 ```
 
 ### Coverage Threshold
+
 ```
 MINIMUM: 80% (branches, functions, lines, statements)
 GOAL: 90%+
@@ -552,74 +572,91 @@ CRITICAL PATHS: 100% (auth, security, core logic)
 ## 6️⃣ DOCUMENTATION STANDARDS
 
 ### README.md (Service)
+
 ```markdown
 # Service Name
 
 ## Overview
+
 Brief description
 
 ## Prerequisites
+
 - Node.js 18+
 - PostgreSQL 14+
 
 ## Installation
+
 \`\`\`bash
 npm install
 \`\`\`
 
 ## Configuration
+
 Copy .env.example to .env
 
 ## Running
+
 \`\`\`bash
 npm run dev
 \`\`\`
 
 ## Testing
+
 \`\`\`bash
 npm test
 npm run test:coverage
 \`\`\`
 
 ## API Documentation
+
 See [docs/API.md](docs/API.md)
 ```
 
 ### API Documentation (Service)
+
 ```markdown
 # API Reference
 
 ## GET /api/users/:id
+
 Get user by ID
 
 ### Request
+
 - Path: /api/users/:id
 
 ### Response
+
 \`\`\`json
 {
-  "id": "123",
-  "name": "John",
-  "email": "john@example.com"
+"id": "123",
+"name": "John",
+"email": "john@example.com"
 }
 \`\`\`
 
 ### Errors
+
 - 404: User not found
 - 500: Server error
 ```
 
 ### Architecture Decision Records (ADR)
+
 ```markdown
 # ADR-001: Use MongoDB for Message Manager
 
 ## Context
+
 ...
 
 ## Decision
+
 Use MongoDB for storing messages
 
 ## Consequences
+
 - ✓ Flexible schema
 - ✗ Eventual consistency
 ```
@@ -628,40 +665,45 @@ Use MongoDB for storing messages
 
 ## 7️⃣ VERSION CONTROL STANDARDS
 
-### Commit Message Format (Conventional Commits)
+### Commit Message Format (Gitmoji)
+
 ```
-<type>(<scope>): <subject>
+<gitmoji>(<scope>): <subject>
 
 <body>
 
 <footer>
 
 // Examples:
-feat(auth): add JWT token validation
-fix(scraper): handle missing data fields
-docs(api): update endpoint documentation
-test(wallet): add unit tests for balance calculation
-refactor(core): extract token validation logic
-chore(deps): update typescript to 5.0
+✨(auth): add JWT token validation
+🐛(scraper): handle missing data fields
+📝(api): update endpoint documentation
+✅(wallet): add unit tests for balance calculation
+♻️(core): extract token validation logic
+⬆️(deps): update typescript to 5.0
 ```
 
-### Types
+### Gitmoji Types
+
 ```
-feat:     New feature
-fix:      Bug fix
-docs:     Documentation
-style:    Formatting (prettier, eslint)
-refactor: Code restructuring (no behavior change)
-perf:     Performance improvement
-test:     Test additions/modifications
-chore:    Dependencies, tooling
-ci:       CI/CD changes
+✨  feat:       New feature
+🐛  fix:        Bug fix
+📝  docs:       Documentation
+💄  style:      Formatting (prettier, eslint)
+♻️  refactor:   Code restructuring (no behavior change)
+⚡  perf:       Performance improvement
+✅  test:       Test additions/modifications
+🔧  chore:      Dependencies, tooling
+👷  ci:         CI/CD changes
+🚀  release:    Release/version bump
+🔒  security:   Security fixes
 ```
 
 ### Git Hooks (Husky)
+
 ```bash
 # pre-commit: Run prettier + eslint
-# commit-msg: Validate conventional commits
+# commit-msg: Validate gitmoji commit messages
 # pre-push: Run tests + build
 ```
 
@@ -670,6 +712,7 @@ ci:       CI/CD changes
 ## 8️⃣ ENVIRONMENT VARIABLES
 
 ### Standard .env.example
+
 ```env
 # App
 NODE_ENV=development
@@ -698,6 +741,7 @@ NEW_RELIC_LICENSE_KEY=
 ```
 
 ### Loading Order (Priority)
+
 ```
 1. .env.local (if exists) - NOT committed
 2. .env.{NODE_ENV}.local - NOT committed
@@ -711,15 +755,13 @@ NEW_RELIC_LICENSE_KEY=
 ## 9️⃣ MONOREPO STRUCTURE
 
 ### Root package.json (npm workspaces)
+
 ```json
 {
   "name": "trading-model",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "services/*"
-  ],
+  "workspaces": ["packages/*", "services/*"],
   "scripts": {
     "build": "npm run build:common && npm run build:address-manager && npm run build:broker-message",
     "build:common": "npm run -w @trading-model/common build",
@@ -749,6 +791,7 @@ NEW_RELIC_LICENSE_KEY=
 ## 🔟 GITHUB ACTIONS CI/CD
 
 ### Workflow: lint.yml
+
 ```yaml
 name: Lint
 
@@ -768,6 +811,7 @@ jobs:
 ```
 
 ### Workflow: test.yml
+
 ```yaml
 name: Test
 
@@ -793,26 +837,26 @@ jobs:
 
 ## 📝 SUMMARY TABLE
 
-| Aspect | Standard | Tool | Enforcement |
-|--------|----------|------|-------------|
-| **Naming** | kebab-case (files), camelCase (vars), PascalCase (classes) | ESLint | Pre-commit hook |
-| **Formatting** | Prettier (100 width, 2 spaces) | Prettier | Pre-commit hook |
-| **Linting** | ESLint strict + TypeScript | ESLint | Pre-commit hook |
-| **Type Checking** | strict: true | TypeScript | CI/CD |
-| **Testing** | Jest, 80%+ coverage, .spec.ts | Jest | CI/CD + threshold |
-| **Commits** | Conventional Commits | Husky | Pre-commit hook |
-| **Structure** | Service/package pattern | Manual | Code review |
-| **CI/CD** | GitHub Actions | GHA | Required |
-| **Monorepo** | npm workspaces | npm | package.json |
+| Aspect            | Standard                                                   | Tool       | Enforcement       |
+| ----------------- | ---------------------------------------------------------- | ---------- | ----------------- |
+| **Naming**        | kebab-case (files), camelCase (vars), PascalCase (classes) | ESLint     | Pre-commit hook   |
+| **Formatting**    | Prettier (100 width, 2 spaces)                             | Prettier   | Pre-commit hook   |
+| **Linting**       | ESLint strict + TypeScript                                 | ESLint     | Pre-commit hook   |
+| **Type Checking** | strict: true                                               | TypeScript | CI/CD             |
+| **Testing**       | Jest, 80%+ coverage, .spec.ts                              | Jest       | CI/CD + threshold |
+| **Commits**       | Gitmoji                                                    | Husky      | Pre-commit hook   |
+| **Structure**     | Service/package pattern                                    | Manual     | Code review       |
+| **CI/CD**         | GitHub Actions                                             | GHA        | Required          |
+| **Monorepo**      | npm workspaces                                             | npm        | package.json      |
 
 ---
 
 ## ✅ Implementation Status
 
-| Item | Status | Notes |
-|------|--------|-------|
-| Test file naming | ❌ Pending | Mix of `.spec.ts` and `.test.ts` |
-| File naming (kebab-case) | ❌ Pending | Some files not yet renamed |
-| Husky git hooks | ❌ Pending | Not yet configured |
-| GitHub Actions workflows | ❌ Pending | Not yet created |
-| Coverage thresholds | ❌ Pending | Not yet enforced in jest configs |
+| Item                     | Status     | Notes                            |
+| ------------------------ | ---------- | -------------------------------- |
+| Test file naming         | ❌ Pending | Mix of `.spec.ts` and `.test.ts` |
+| File naming (kebab-case) | ❌ Pending | Some files not yet renamed       |
+| Husky git hooks          | ❌ Pending | Not yet configured               |
+| GitHub Actions workflows | ❌ Pending | Not yet created                  |
+| Coverage thresholds      | ❌ Pending | Not yet enforced in jest configs |

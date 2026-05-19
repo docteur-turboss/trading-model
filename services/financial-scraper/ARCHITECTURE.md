@@ -67,21 +67,22 @@ const response = await binance.get(url, { weight: 5 });
 
 ### 2. Binance Client (`src/clients/binance/`)
 
-| Module | Responsibility |
-|---|---|
-| `endpoints.ts` | Pure functions that construct Binance REST API URLs for 9 endpoints |
-| `weights.ts` | Pure functions that compute Binance API weight costs for each endpoint |
-| `binance.client.ts` | 9 async functions (`getOrderBook`, `getRecentTrades`, `CandlestickData`, etc.) each calling the Axios instance with the correct weight |
-| `normalizer.ts` | `BinanceNormalizer` class (static methods) converting raw API shapes to internal entity types (`OrderBookEntity`, `TradeEntity`, `CandleEntity`, `TickerEntity`) |
+| Module              | Responsibility                                                                                                                                                   |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `endpoints.ts`      | Pure functions that construct Binance REST API URLs for 9 endpoints                                                                                              |
+| `weights.ts`        | Pure functions that compute Binance API weight costs for each endpoint                                                                                           |
+| `binance.client.ts` | 9 async functions (`getOrderBook`, `getRecentTrades`, `CandlestickData`, etc.) each calling the Axios instance with the correct weight                           |
+| `normalizer.ts`     | `BinanceNormalizer` class (static methods) converting raw API shapes to internal entity types (`OrderBookEntity`, `TradeEntity`, `CandleEntity`, `TickerEntity`) |
 
 ### 3. Worker & Cron (`src/job/`)
 
-| Component | File | Role |
-|---|---|---|
-| `BinanceWorker` | `worker/binance.worker.ts` | Per-symbol worker: fetches all 6 data types in parallel, normalizes, publishes to message bus, returns result |
-| `BinanceCronOrchestrator` | `cron/binance.cron.ts` | Schedules workers on a cron expression, manages concurrency with `p-limit`, prevents overlapping runs |
+| Component                 | File                       | Role                                                                                                          |
+| ------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `BinanceWorker`           | `worker/binance.worker.ts` | Per-symbol worker: fetches all 6 data types in parallel, normalizes, publishes to message bus, returns result |
+| `BinanceCronOrchestrator` | `cron/binance.cron.ts`     | Schedules workers on a cron expression, manages concurrency with `p-limit`, prevents overlapping runs         |
 
 The worker publishes 6 events to the message bus for each symbol:
+
 - `FetchCandlestick` → `fetchCandlestickSeries`
 - `FetchOrderbook` → `fetchOrderBookSnapshot`
 - `FetchTicker24hr` → `fetch24hrTickerStats`
@@ -91,71 +92,71 @@ The worker publishes 6 events to the message bus for each symbol:
 
 ### 4. Persistence Layer (`src/infra/market-data/`)
 
-| Component | Storage | Tables/Structures |
-|---|---|---|
-| `schema/trades.schema.ts` | MySQL (`mysql2` + `ts-sql-query`) | `market_trades` — id, symbol, market, source, side, price, quantity, tradeId, timestamp |
-| `schema/candles-schema.ts` | MySQL | `market_candles` — id, symbol, market, source, interval_value, OHLCV, trades, timestamps |
-| `schema/ticker24h.schema.ts` | MySQL | `market_tickers` — id, symbol, market, source, OHLC, volume, timestamps |
-| `schema/orderBook.schema.ts` | In-memory (`Map`) | Indexed by symbol, source, market, timestamp with reverse lookup maps |
+| Component                    | Storage                           | Tables/Structures                                                                        |
+| ---------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------- |
+| `schema/trades.schema.ts`    | MySQL (`mysql2` + `ts-sql-query`) | `market_trades` — id, symbol, market, source, side, price, quantity, tradeId, timestamp  |
+| `schema/candles-schema.ts`   | MySQL                             | `market_candles` — id, symbol, market, source, interval_value, OHLCV, trades, timestamps |
+| `schema/ticker24h.schema.ts` | MySQL                             | `market_tickers` — id, symbol, market, source, OHLC, volume, timestamps                  |
+| `schema/orderBook.schema.ts` | In-memory (`Map`)                 | Indexed by symbol, source, market, timestamp with reverse lookup maps                    |
 
 The `MarketDataModel` class provides a unified facade over all schema modules. `MarketDataController.persist()` conditionally delegates to it.
 
 ### 5. REST API (`src/clients/http/`)
 
-| Method | Path | Description |
-|---|---|---|
-| GET | `/trade/sources/:source` | Trades by source |
-| GET | `/trade/symbols/:symbol` | Trades by symbol |
-| GET | `/trade/timestamp/:timestamp` | Trades by timestamp |
-| GET | `/ticker/sources/:source` | Tickers by source |
-| GET | `/ticker/symbols/:symbol` | Tickers by symbol |
-| GET | `/ticker/timestamp/:timestamp` | Tickers by timestamp |
-| GET | `/candles/sources/:source` | Candles by source |
-| GET | `/candles/symbols/:symbol` | Candles by symbol |
-| GET | `/candles/timestamp/:timestamp` | Candles by timestamp |
-| GET | `/orderbook/sources/:source` | Order books by source |
-| GET | `/orderbook/symbols/:symbol` | Order books by symbol |
-| GET | `/orderbook/after/timestamp/:timestamp` | Order books after timestamp |
-| GET | `/orderbook/before/timestamp/:timestamp` | Order books before timestamp |
+| Method | Path                                     | Description                  |
+| ------ | ---------------------------------------- | ---------------------------- |
+| GET    | `/trade/sources/:source`                 | Trades by source             |
+| GET    | `/trade/symbols/:symbol`                 | Trades by symbol             |
+| GET    | `/trade/timestamp/:timestamp`            | Trades by timestamp          |
+| GET    | `/ticker/sources/:source`                | Tickers by source            |
+| GET    | `/ticker/symbols/:symbol`                | Tickers by symbol            |
+| GET    | `/ticker/timestamp/:timestamp`           | Tickers by timestamp         |
+| GET    | `/candles/sources/:source`               | Candles by source            |
+| GET    | `/candles/symbols/:symbol`               | Candles by symbol            |
+| GET    | `/candles/timestamp/:timestamp`          | Candles by timestamp         |
+| GET    | `/orderbook/sources/:source`             | Order books by source        |
+| GET    | `/orderbook/symbols/:symbol`             | Order books by symbol        |
+| GET    | `/orderbook/after/timestamp/:timestamp`  | Order books after timestamp  |
+| GET    | `/orderbook/before/timestamp/:timestamp` | Order books before timestamp |
 
 All routes use Zod-validated parameters and return standardized error responses via `ResponseException`.
 
 ## Key Design Decisions
 
-| Decision | Rationale |
-|---|---|
-| **Token-bucket rate limiting** | Binance enforces API weight limits per minute; a token bucket provides smooth request pacing vs. burst-and-wait |
-| **In-memory order books** | Order book snapshots change rapidly and are queried by timestamp ranges; MySQL is not suitable for this access pattern |
-| **MySQL for trades/candles/tickers** | These are append-only time-series with stable schemas; SQL allows efficient range queries and joins |
-| **Separate worker per symbol** | Avoids one slow symbol blocking others; `p-limit` caps total concurrency |
-| **Message bus publishing** | Decouples ingestion from consumption; other services (trainer, signal generator) consume normalized data without depending on the scraper's database |
-| **Zod-validated env vars** | Fail-fast on misconfiguration; clear error messages at startup |
-| **Path aliases** | `config/*`, `infra/*`, `clients/*`, `job/*`, `types/*`, `utils/*` map to `src/` subdirectories for clean imports |
+| Decision                             | Rationale                                                                                                                                            |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Token-bucket rate limiting**       | Binance enforces API weight limits per minute; a token bucket provides smooth request pacing vs. burst-and-wait                                      |
+| **In-memory order books**            | Order book snapshots change rapidly and are queried by timestamp ranges; MySQL is not suitable for this access pattern                               |
+| **MySQL for trades/candles/tickers** | These are append-only time-series with stable schemas; SQL allows efficient range queries and joins                                                  |
+| **Separate worker per symbol**       | Avoids one slow symbol blocking others; `p-limit` caps total concurrency                                                                             |
+| **Message bus publishing**           | Decouples ingestion from consumption; other services (trainer, signal generator) consume normalized data without depending on the scraper's database |
+| **Zod-validated env vars**           | Fail-fast on misconfiguration; clear error messages at startup                                                                                       |
+| **Path aliases**                     | `config/*`, `infra/*`, `clients/*`, `job/*`, `types/*`, `utils/*` map to `src/` subdirectories for clean imports                                     |
 
 ## Dependencies
 
 ### Internal (Monorepo Workspaces)
 
-| Package | Role |
-|---|---|
-| `@trading-model/common` | Bootstrap, server factory (`createSecureServer`), shared types, error classes, event types |
-| `@trading-model/address-manager` | Service discovery client (register, heartbeat, token rotation) |
-| `@trading-model/broker-message` | Message bus SDK (publish events with topics and metadata) |
+| Package                          | Role                                                                                       |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| `@trading-model/common`          | Bootstrap, server factory (`createSecureServer`), shared types, error classes, event types |
+| `@trading-model/address-manager` | Service discovery client (register, heartbeat, token rotation)                             |
+| `@trading-model/broker-message`  | Message bus SDK (publish events with topics and metadata)                                  |
 
 ### External
 
-| Package | Role |
-|---|---|
-| `axios` | HTTP client for Binance API |
-| `express` | Web framework for REST API |
-| `express-rate-limit` | Rate limiting middleware (HTTP layer) |
-| `helmet` | Security HTTP headers |
-| `node-cron` | Cron scheduling for data collection |
-| `mysql2` | MySQL database driver |
-| `ts-sql-query` | Type-safe SQL query builder |
-| `p-limit` | Promise concurrency limiter |
-| `zod` | Schema validation (env vars, request params) |
-| `uuid` | UUID generation for message tracking |
+| Package              | Role                                         |
+| -------------------- | -------------------------------------------- |
+| `axios`              | HTTP client for Binance API                  |
+| `express`            | Web framework for REST API                   |
+| `express-rate-limit` | Rate limiting middleware (HTTP layer)        |
+| `helmet`             | Security HTTP headers                        |
+| `node-cron`          | Cron scheduling for data collection          |
+| `mysql2`             | MySQL database driver                        |
+| `ts-sql-query`       | Type-safe SQL query builder                  |
+| `p-limit`            | Promise concurrency limiter                  |
+| `zod`                | Schema validation (env vars, request params) |
+| `uuid`               | UUID generation for message tracking         |
 
 ## Configuration
 
@@ -176,8 +177,8 @@ All configuration is validated at startup via Zod schemas from `@trading-model/c
 
 ## Testing Strategy
 
-| Level | Focus | Tools |
-|---|---|---|
-| **Unit** | Client functions (URLs, weights), normalizers, workers (mocked API), utils | Jest, manual mocks |
+| Level           | Focus                                                                             | Tools                       |
+| --------------- | --------------------------------------------------------------------------------- | --------------------------- |
+| **Unit**        | Client functions (URLs, weights), normalizers, workers (mocked API), utils        | Jest, manual mocks          |
 | **Integration** | Persistence pipeline (MarketDataController + model), in-memory order book storage | Jest, real in-memory stores |
-| **Fixtures** | Mock Binance API responses for all endpoints | Static fixture files |
+| **Fixtures**    | Mock Binance API responses for all endpoints                                      | Static fixture files        |

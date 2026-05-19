@@ -1,5 +1,9 @@
-import { z } from "zod";
-import { BaseEnvSchema, AddressManagerEnvSchema, validateEnv } from "@trading-model/common/validation/env";
+import { z } from 'zod';
+import {
+  BaseEnvSchema,
+  AddressManagerEnvSchema,
+  validateEnv,
+} from '@trading-model/common/validation/env';
 
 const FinancialScrapperEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape);
 

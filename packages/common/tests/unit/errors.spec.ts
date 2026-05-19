@@ -10,7 +10,7 @@ import {
   MetadataBuilderError,
   AgentBaseError,
   AgentError,
-} from '../../src/utils/Errors';
+} from '../../src/utils/errors';
 
 describe('Error classes', () => {
   describe('AddressManagerBaseError', () => {

@@ -19,7 +19,10 @@ describe('MessageController', () => {
         metadata: {
           topic: 'example.debug.create',
           eventType: 'DebugEvent',
-          publisher: { serviceName: 'DiscoveryService', instanceId: '550e8400-e29b-41d4-a716-446655440000' },
+          publisher: {
+            serviceName: 'DiscoveryService',
+            instanceId: '550e8400-e29b-41d4-a716-446655440000',
+          },
           schemaVersion: '1.0.0',
         },
         payload: { debug: true },
@@ -59,7 +62,10 @@ describe('MessageController', () => {
       metadata: {
         topic: 'example.debug.create',
         eventType: 'DebugEvent',
-        publisher: { serviceName: 'DiscoveryService', instanceId: '550e8400-e29b-41d4-a716-446655440000' },
+        publisher: {
+          serviceName: 'DiscoveryService',
+          instanceId: '550e8400-e29b-41d4-a716-446655440000',
+        },
         schemaVersion: '1.0.0',
       },
       payload: { invalid: 'data' },
@@ -81,7 +87,10 @@ describe('MessageController', () => {
         metadata: {
           topic: 'example.show.create',
           eventType: 'ShowEvent',
-          publisher: { serviceName: 'DiscoveryService', instanceId: '550e8400-e29b-41d4-a716-446655440000' },
+          publisher: {
+            serviceName: 'DiscoveryService',
+            instanceId: '550e8400-e29b-41d4-a716-446655440000',
+          },
           schemaVersion: '1.0.0',
         },
         payload: undefined,

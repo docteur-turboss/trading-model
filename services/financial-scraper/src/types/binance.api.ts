@@ -1,5 +1,5 @@
 export interface BinanceOrderBookEntry {
-  price: string;  // note : Binance send strings
+  price: string; // note : Binance send strings
   qty: string;
 }
 
@@ -19,24 +19,23 @@ export interface BinanceTrade {
   isBestMatch: boolean;
 }
 
-export interface BinanceTradeResponse extends Array<BinanceTrade> {}
+export type BinanceTradeResponse = BinanceTrade[];
 
-export interface BinanceHistoricalTrade extends BinanceTrade {}
-export interface BinanceHistoricalTradeResponse extends Array<BinanceHistoricalTrade> {}
+export type BinanceHistoricalTrade = BinanceTrade;
+export type BinanceHistoricalTradeResponse = BinanceHistoricalTrade[];
 
 export interface BinanceAggregateTrade {
-  a :number; // Aggregate tradeId
-  p : string; // Price
-  q : string; // Quantity
-  f : number; // First tradeId
-  l : number; // Last tradeId
-  T : number; // Timestamp
-  m : boolean; // Was the buyer the maker?
-  M : boolean; // Ignore
+  a: number; // Aggregate tradeId
+  p: string; // Price
+  q: string; // Quantity
+  f: number; // First tradeId
+  l: number; // Last tradeId
+  T: number; // Timestamp
+  m: boolean; // Was the buyer the maker?
+  M: boolean; // Ignore
 }
 
-export interface BinanceAggregateTradeResponse extends Array<BinanceAggregateTrade> {};
-
+export type BinanceAggregateTradeResponse = BinanceAggregateTrade[];
 
 export type BinanceCandlestickData = [
   number, // OpenTime
@@ -51,10 +50,9 @@ export type BinanceCandlestickData = [
   string, // TakerBuyBaseAssetVolume
   string, // TakerBuyQuoteAssetVolume
   string, // Ignore
-]
+];
 
-export interface BinanceCandlestickDataResponse extends Array<BinanceCandlestickData> {};
-
+export type BinanceCandlestickDataResponse = BinanceCandlestickData[];
 
 export interface Binance24hrTickerStats {
   symbol: string;
@@ -73,13 +71,12 @@ export interface Binance24hrTickerStats {
   volume: string;
   openTime: number;
   closeTime: number;
-  firstId: number;   // First tradeId
-  lastId: number;    // Last tradeId
-  count: number;     // Trade count
+  firstId: number; // First tradeId
+  lastId: number; // Last tradeId
+  count: number; // Trade count
 }
 
-export interface Binance24hrTickerStatsResponse extends Array<Binance24hrTickerStats> {}
-
+export type Binance24hrTickerStatsResponse = Binance24hrTickerStats[];
 
 export interface BinanceTradingDayTicker {
   symbol: string;
@@ -99,16 +96,14 @@ export interface BinanceTradingDayTicker {
   count: number;
 }
 
-export interface BinanceTradingDayTickerResponse extends Array<BinanceTradingDayTicker> {}
-
+export type BinanceTradingDayTickerResponse = BinanceTradingDayTicker[];
 
 export interface BinanceSymbolPriceTicker {
   symbol: string;
   price: string;
 }
 
-export interface BinanceSymbolPriceTickerResponse extends Array<BinanceSymbolPriceTicker> {}
-
+export type BinanceSymbolPriceTickerResponse = BinanceSymbolPriceTicker[];
 
 export interface BinanceSymbolOrderBookTicker {
   symbol: string;
@@ -118,4 +113,4 @@ export interface BinanceSymbolOrderBookTicker {
   askQty: string;
 }
 
-export interface BinanceSymbolOrderBookTickerResponse extends Array<BinanceSymbolOrderBookTicker> {}
+export type BinanceSymbolOrderBookTickerResponse = BinanceSymbolOrderBookTicker[];

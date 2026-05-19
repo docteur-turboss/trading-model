@@ -1,11 +1,11 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { ResponseProtocole } from '../../src/middleware/responseProtocole';
+import { ResponseProtocole } from '../../src/middleware/response-protocole';
 import {
   ServiceNotFoundError,
   ServiceUnreachableError,
   AuthenticationError,
   AddressManagerError,
-} from '../../src/utils/Errors';
+} from '../../src/utils/errors';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

@@ -1,5 +1,5 @@
-import { Router } from "express";
-import { heartbeat, rotateToken } from "../controllers/Heartbeat.controller";
+import { Router } from 'express';
+import { heartbeat, rotateToken } from '../controllers/heartbeat.controller';
 
 /**
  * Heartbeat Routes
@@ -37,7 +37,7 @@ export const heartbeatRoutes = (): Router => {
    * If heartbeats stop, the LeaseManager will eventually
    * evict the instance from the registry.
    */
-  router.post("/heartbeat", heartbeat);
+  router.post('/heartbeat', heartbeat);
 
   /**
    * -------------------------
@@ -54,7 +54,7 @@ export const heartbeatRoutes = (): Router => {
    * - security incident response
    * - short-lived token enforcement
    */
-  router.post("/token/rotate", rotateToken);
+  router.post('/token/rotate', rotateToken);
 
   /**
    * Return the configured router to be mounted by the application.

@@ -1,8 +1,8 @@
-import { jest } from "@jest/globals";
-import { HttpClient } from "@trading-model/common/config/httpClient";
-import { Subscription } from "../../src/messaging/core/subscription";
-import { Dispatcher } from "../../src/messaging/core/dispatcher";
-import { mockServiceIdentity } from "../fixtures/broker.fixture";
+import { jest } from '@jest/globals';
+import { HttpClient } from '@trading-model/common/config/http-client';
+import { Subscription } from '../../src/messaging/core/subscription';
+import { Dispatcher } from '../../src/messaging/core/dispatcher';
+import { mockServiceIdentity } from '../fixtures/broker.fixture';
 
 export function createMockHttpClient(): jest.Mocked<HttpClient> {
   return {
@@ -12,31 +12,33 @@ export function createMockHttpClient(): jest.Mocked<HttpClient> {
 }
 
 export function createMockDispatcher(
-  httpClient?: jest.Mocked<HttpClient>,
+  httpClient?: jest.Mocked<HttpClient>
 ): jest.Mocked<Dispatcher> {
   const client = httpClient ?? createMockHttpClient();
   return {
-    registerSubscription: jest.fn<(params: {
-      topic: string;
-      callbackPath: string;
-      consumerIdentity: typeof mockServiceIdentity;
-    }) => void>(),
+    registerSubscription:
+      jest.fn<
+        (params: {
+          topic: string;
+          callbackPath: string;
+          consumerIdentity: typeof mockServiceIdentity;
+        }) => void
+      >(),
     dispatch: jest.fn<(message: unknown) => Promise<void>>().mockResolvedValue(undefined),
-    unregisterSubscription: jest.fn<(params: {
-      topic: string;
-      instanceId: string;
-    }) => void>(),
+    unregisterSubscription: jest.fn<(params: { topic: string; instanceId: string }) => void>(),
   } as unknown as jest.Mocked<Dispatcher>;
 }
 
 export function createMockSubscription(
-  overrides?: Partial<Subscription>,
+  overrides?: Partial<Subscription>
 ): jest.Mocked<Subscription> {
   return {
-    topic: "test.topic",
-    callbackURL: "message/callback",
+    topic: 'test.topic',
+    callbackURL: 'message/callback',
     serviceIdentity: mockServiceIdentity,
-    dispatch: jest.fn<(httpClient: HttpClient, message: unknown) => Promise<void>>().mockResolvedValue(undefined),
+    dispatch: jest
+      .fn<(httpClient: HttpClient, message: unknown) => Promise<void>>()
+      .mockResolvedValue(undefined),
     ...overrides,
   } as unknown as jest.Mocked<Subscription>;
 }

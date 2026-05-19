@@ -8,7 +8,7 @@ import type {
   BinanceTradingDayTicker,
   BinanceSymbolPriceTicker,
   BinanceSymbolOrderBookTicker,
-} from '../../src/types/binance.api'
+} from '../../src/types/binance.api';
 
 export const mockDepthResponse: BinanceDepthResponse = {
   lastUpdateId: 1027024,
@@ -20,28 +20,61 @@ export const mockDepthResponse: BinanceDepthResponse = {
     ['0.0026', '8.0'],
     ['0.0027', '3.0'],
   ],
-}
+};
 
 export const mockTradeResponse: BinanceTradeResponse = [
-  { id: 28457, price: '4.00000100', qty: '12.00000000', quoteQty: '0.00004800', time: 1499865549590, isBuyerMaker: true, isBestMatch: true },
-  { id: 28458, price: '4.00000200', qty: '8.00000000', quoteQty: '0.00003200', time: 1499865549591, isBuyerMaker: false, isBestMatch: true },
-]
+  {
+    id: 28457,
+    price: '4.00000100',
+    qty: '12.00000000',
+    quoteQty: '0.00004800',
+    time: 1499865549590,
+    isBuyerMaker: true,
+    isBestMatch: true,
+  },
+  {
+    id: 28458,
+    price: '4.00000200',
+    qty: '8.00000000',
+    quoteQty: '0.00003200',
+    time: 1499865549591,
+    isBuyerMaker: false,
+    isBestMatch: true,
+  },
+];
 
 export const mockHistoricalTradeResponse: BinanceHistoricalTrade[] = [
-  { id: 28457, price: '4.00000100', qty: '12.00000000', quoteQty: '0.00004800', time: 1499865549590, isBuyerMaker: true, isBestMatch: true },
-]
+  {
+    id: 28457,
+    price: '4.00000100',
+    qty: '12.00000000',
+    quoteQty: '0.00004800',
+    time: 1499865549590,
+    isBuyerMaker: true,
+    isBestMatch: true,
+  },
+];
 
 export const mockAggregateTradeResponse: BinanceAggregateTradeResponse = [
   { a: 28457, p: '4.00000100', q: '12.00000000', f: 1, l: 2, T: 1499865549590, m: true, M: true },
-]
+];
 
 export const mockCandlestickResponse: BinanceCandlestickData[] = [
   [
-    1499040000000, '0.01634790', '0.80000000', '0.01575800', '0.01577100',
-    '148976.11427815', 1499644799999, '2434.19055334', 308, '1756.87402397',
-    '28.46694368', '0',
+    1499040000000,
+    '0.01634790',
+    '0.80000000',
+    '0.01575800',
+    '0.01577100',
+    '148976.11427815',
+    1499644799999,
+    '2434.19055334',
+    308,
+    '1756.87402397',
+    '28.46694368',
+    '0',
   ],
-]
+];
 
 export const mock24hrTickerResponse: Binance24hrTickerStats[] = [
   {
@@ -65,7 +98,7 @@ export const mock24hrTickerResponse: Binance24hrTickerStats[] = [
     lastId: 28460,
     count: 76,
   },
-]
+];
 
 export const mockTradingDayTickerResponse: BinanceTradingDayTicker[] = [
   {
@@ -85,10 +118,18 @@ export const mockTradingDayTickerResponse: BinanceTradingDayTicker[] = [
     lastId: 28460,
     count: 76,
   },
-]
+];
 
-export const mockPriceTickerResponse: BinanceSymbolPriceTicker[] = [{ symbol: 'BTCUSDT', price: '50000.00' }]
+export const mockPriceTickerResponse: BinanceSymbolPriceTicker[] = [
+  { symbol: 'BTCUSDT', price: '50000.00' },
+];
 
 export const mockBookTickerResponse: BinanceSymbolOrderBookTicker[] = [
-  { symbol: 'BTCUSDT', bidPrice: '49990.00', bidQty: '0.50000000', askPrice: '50010.00', askQty: '1.00000000' },
-]
+  {
+    symbol: 'BTCUSDT',
+    bidPrice: '49990.00',
+    bidQty: '0.50000000',
+    askPrice: '50010.00',
+    askQty: '1.00000000',
+  },
+];

@@ -2,7 +2,7 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
 jest.mock('https');
 
-import { HttpClient, HttpClientError, HttpClientTimeoutError } from '../../src/config/httpClient';
+import { HttpClient, HttpClientError, HttpClientTimeoutError } from '../../src/config/http-client';
 import https from 'https';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

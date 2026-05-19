@@ -1,4 +1,4 @@
-import { ServiceInstance } from "../client/type";
+import { ServiceInstance } from '../client/type';
 
 /**
  * CacheEntry

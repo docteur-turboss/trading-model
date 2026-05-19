@@ -37,13 +37,13 @@ services/discovery-server/
 
 ## Layer Responsibilities
 
-| Layer | Files | Responsibility |
-|---|---|---|
-| **app/** | `index.ts`, `server.ts` | Application bootstrap, HTTPS server creation via `createBootstrap` / `createSecureServer` |
-| **config/** | `env.ts` | Zod schema extending `BaseEnvSchema` with `CLEANUP_SERVICE_INTERVAL_MS` |
-| **controllers/** | `Register.controller.ts`, `Heartbeat.controller.ts`, `helpers.ts` | HTTP request handling, input validation, auth token verification |
-| **core/** | `ServiceRegistry.ts`, `LeaseManager.ts`, `types.ts` | Domain logic: registry CRUD, lease management, type exports |
-| **routes/** | `register.routes.ts`, `heartbeat.routes.ts` | Thin Express Router definitions binding paths to controllers |
+| Layer            | Files                                                             | Responsibility                                                                            |
+| ---------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **app/**         | `index.ts`, `server.ts`                                           | Application bootstrap, HTTPS server creation via `createBootstrap` / `createSecureServer` |
+| **config/**      | `env.ts`                                                          | Zod schema extending `BaseEnvSchema` with `CLEANUP_SERVICE_INTERVAL_MS`                   |
+| **controllers/** | `Register.controller.ts`, `Heartbeat.controller.ts`, `helpers.ts` | HTTP request handling, input validation, auth token verification                          |
+| **core/**        | `ServiceRegistry.ts`, `LeaseManager.ts`, `types.ts`               | Domain logic: registry CRUD, lease management, type exports                               |
+| **routes/**      | `register.routes.ts`, `heartbeat.routes.ts`                       | Thin Express Router definitions binding paths to controllers                              |
 
 ## Data Flow
 
@@ -88,14 +88,14 @@ Each registered instance specifies a TTL. The `LeaseManager` runs periodically a
 
 ## API Endpoints
 
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `POST` | `/register` | mTLS | Register or update a service instance |
-| `GET` | `/services` | mTLS | List registered service names |
-| `GET` | `/services/:serviceName` | mTLS | List instances for a service |
-| `GET` | `/services/:serviceName/:instanceId` | mTLS | Get a specific instance |
-| `POST` | `/heartbeat` | mTLS + token | Refresh instance lease TTL |
-| `POST` | `/token/rotate` | mTLS + token | Rotate instance auth token |
+| Method | Path                                 | Auth         | Description                           |
+| ------ | ------------------------------------ | ------------ | ------------------------------------- |
+| `POST` | `/register`                          | mTLS         | Register or update a service instance |
+| `GET`  | `/services`                          | mTLS         | List registered service names         |
+| `GET`  | `/services/:serviceName`             | mTLS         | List instances for a service          |
+| `GET`  | `/services/:serviceName/:instanceId` | mTLS         | Get a specific instance               |
+| `POST` | `/heartbeat`                         | mTLS + token | Refresh instance lease TTL            |
+| `POST` | `/token/rotate`                      | mTLS + token | Rotate instance auth token            |
 
 ## Testing Strategy
 

@@ -1,5 +1,5 @@
 export default {
-  binance : {
+  binance: {
     enabled: true,
     reportedSymbols: [
       'ETHBTC',
@@ -3505,7 +3505,7 @@ export default {
       'XRPU',
       'ESPUSDT',
       'ESPUSDC',
-      'ESPTRY'
+      'ESPTRY',
     ],
-  }
-}
+  },
+};

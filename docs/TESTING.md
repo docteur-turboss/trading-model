@@ -89,14 +89,14 @@ tests/
 
 ```typescript
 // ✓ CORRECT
-user.service.spec.ts         // Service
-address-manager.spec.ts      // Client/Manager
-auth.middleware.spec.ts      // Middleware
-error.handler.spec.ts        // Utility
+user.service.spec.ts; // Service
+address - manager.spec.ts; // Client/Manager
+auth.middleware.spec.ts; // Middleware
+error.handler.spec.ts; // Utility
 
 // Integration tests
-address-manager.integration.spec.ts
-message-broker.integration.spec.ts
+address - manager.integration.spec.ts;
+message - broker.integration.spec.ts;
 ```
 
 ### Test naming patterns
@@ -108,7 +108,7 @@ describe('MyComponent', () => {
   it('should throw error when not found', () => {});
   it('should handle concurrent requests', () => {});
   it('should retry on timeout', () => {});
-  
+
   // ✗ INCORRECT - Vague or passive
   it('works', () => {});
   it('user test', () => {});
@@ -170,10 +170,10 @@ describe('Service A & B Integration', () => {
 
   beforeEach(async () => {
     setup = createIntegrationTestSetup();
-    
+
     serviceA = new ServiceA(setup.configs.get('serviceA'));
     serviceB = new ServiceB(setup.configs.get('serviceB'));
-    
+
     setup.services.set('A', serviceA);
     setup.services.set('B', serviceB);
   });
@@ -217,10 +217,10 @@ describe('Error Handling', () => {
 import { createEventObserver } from '../helpers/integration.helper';
 
 describe('Event Emission', () => {
-  it('should emit an event on success', (done) => {
+  it('should emit an event on success', done => {
     const observer = createEventObserver();
 
-    EventManager.on('my.event', (data) => {
+    EventManager.on('my.event', data => {
       observer.observe('my.event', data);
       expect(data).toEqual(expectedData);
       done();
@@ -275,7 +275,9 @@ export const mockMyServiceConfig = {
 export const mockApiResponse = {
   id: '123',
   status: 'success',
-  data: { /* ... */ },
+  data: {
+    /* ... */
+  },
 };
 
 export const mockErrorResponse = {
@@ -303,8 +305,8 @@ beforeEach(() => {
 // Wait for a condition
 await waitFor(
   () => condition === true,
-  5000,  // timeout ms
-  100    // check interval ms
+  5000, // timeout ms
+  100 // check interval ms
 );
 
 // Wait for a delay
@@ -377,10 +379,10 @@ it('should return user', async () => {
   // ARRANGE - Prepare
   const userId = '123';
   httpClient.get.mockResolvedValue({ id: userId, name: 'John' });
-  
+
   // ACT - Execute
   const user = await service.getUser(userId);
-  
+
   // ASSERT - Verify
   expect(user.name).toBe('John');
 });
@@ -546,12 +548,12 @@ beforeEach(() => {
 
 ```typescript
 // ✗ INCORRECT - Timing dependent
-it('should emit event', (done) => {
+it('should emit event', done => {
   setTimeout(() => done(), 100); // May fail if slow
 });
 
 // ✓ CORRECT - Wait for event
-it('should emit event', (done) => {
+it('should emit event', done => {
   EventEmitter.once('event', () => {
     expect(true).toBe(true);
     done();
@@ -564,7 +566,7 @@ it('should emit event', (done) => {
 
 ## 📚 Resources
 
-* [Jest Documentation](https://jestjs.io/?utm_source=chatgpt.com)
-* [Testing Library](https://testing-library.com/?utm_source=chatgpt.com)
-* `TESTING.md` - Test overview
-* `STANDARDS.md` - Project standards
+- [Jest Documentation](https://jestjs.io/?utm_source=chatgpt.com)
+- [Testing Library](https://testing-library.com/?utm_source=chatgpt.com)
+- `TESTING.md` - Test overview
+- `STANDARDS.md` - Project standards

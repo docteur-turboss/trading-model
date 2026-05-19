@@ -1,7 +1,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { catchSync } from '../../src/middleware/catchError';
-import { ResponseException } from '../../src/middleware/responseException';
-import { handleCoreResponse } from '../../src/middleware/handleCoreResponse';
+import { catchSync } from '../../src/middleware/catch-error';
+import { ResponseException } from '../../src/middleware/response-exception';
+import { handleCoreResponse } from '../../src/middleware/handle-core-response';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */

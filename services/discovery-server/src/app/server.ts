@@ -1,7 +1,7 @@
-import { createSecureServer } from "@trading-model/common/server/createSecureServer";
-import { heartbeatRoutes } from "../routes/heartbeat.routes";
-import { registryRoutes } from "../routes/register.routes";
-import { env } from "config/env";
+import { createSecureServer } from '@trading-model/common/server/create-secure-server';
+import { heartbeatRoutes } from '../routes/heartbeat.routes';
+import { registryRoutes } from '../routes/register.routes';
+import { env } from 'config/env';
 
 export function createServer() {
   return createSecureServer({
@@ -15,9 +15,9 @@ export function createServer() {
       windowMs: 15 * 60 * 1000,
       limit: 100,
     },
-    routes: (app) => {
-      app.use("/", registryRoutes());
-      app.use("/", heartbeatRoutes());
+    routes: app => {
+      app.use('/', registryRoutes());
+      app.use('/', heartbeatRoutes());
     },
   });
 }

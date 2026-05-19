@@ -1,8 +1,8 @@
-import { createSecureServer } from "@trading-model/common/server/createSecureServer";
-import { MessageManagerListenExpress } from "config/message-manager";
-import { AddressManagerRoutes } from "config/address-manager";
-import { FinancialRoutes } from "clients/http/routes";
-import { env } from "config/env";
+import { createSecureServer } from '@trading-model/common/server/create-secure-server';
+import { MessageManagerListenExpress } from 'config/message-manager';
+import { AddressManagerRoutes } from 'config/address-manager';
+import { FinancialRoutes } from 'clients/http/routes';
+import { env } from 'config/env';
 
 export function createServer() {
   return createSecureServer({
@@ -16,8 +16,8 @@ export function createServer() {
       windowMs: 15 * 60 * 1000,
       limit: 100,
     },
-    routes: (app) => {
-      app.use("/", FinancialRoutes());
+    routes: app => {
+      app.use('/', FinancialRoutes());
       AddressManagerRoutes(app);
       MessageManagerListenExpress(app);
     },

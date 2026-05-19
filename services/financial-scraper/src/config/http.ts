@@ -1,8 +1,4 @@
-import axios, {
-  AxiosRequestConfig,
-  AxiosInstance,
-  AxiosError,
-} from "axios";
+import axios, { AxiosRequestConfig, AxiosInstance, AxiosError } from 'axios';
 
 /* -------------------------------------------------------
  * CONFIG GLOBAL
@@ -52,10 +48,7 @@ async function acquireToken(baseURL: string, weight = 1): Promise<void> {
     const elapsed = (now - bucket.lastRefill) / 1000;
 
     // refill
-    bucket.tokens = Math.min(
-      bucket.capacity,
-      bucket.tokens + elapsed * bucket.refillRate
-    );
+    bucket.tokens = Math.min(bucket.capacity, bucket.tokens + elapsed * bucket.refillRate);
     bucket.lastRefill = now;
 
     if (bucket.tokens >= weight) {
@@ -64,29 +57,29 @@ async function acquireToken(baseURL: string, weight = 1): Promise<void> {
     }
 
     const waitMs = 50;
-    await new Promise((res) => setTimeout(res, waitMs));
+    await new Promise(res => setTimeout(res, waitMs));
   }
 }
 
-  /* -------------------------------------------------------
-  * RETRY LOGIC (WITH BINANCE ERROR HANDLING)
-  * ----------------------------------------------------- */
+/* -------------------------------------------------------
+ * RETRY LOGIC (WITH BINANCE ERROR HANDLING)
+ * ----------------------------------------------------- */
 
-  function shouldRetry(error: AxiosError): boolean {
-    if (!error.response) return true; // network error → retry
+function shouldRetry(error: AxiosError): boolean {
+  if (!error.response) return true; // network error → retry
 
-    const status = error.response.status;
+  const status = error.response.status;
 
-    if (status >= 500) return true;
-    if ([403, 408, 429, 418].includes(status)) return true;
+  if (status >= 500) return true;
+  if ([403, 408, 429, 418].includes(status)) return true;
 
-    return false;
-  }
+  return false;
+}
 
-  function getBackoffDelay(attempt: number): number {
-    const delay = RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt);
-    return Math.min(delay, RETRY_CONFIG.maxDelayMs);
-  }
+function getBackoffDelay(attempt: number): number {
+  const delay = RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt);
+  return Math.min(delay, RETRY_CONFIG.maxDelayMs);
+}
 
 /* -------------------------------------------------------
  * AXIOS INSTANCE FACTORY
@@ -101,20 +94,18 @@ export function createHttpClient(baseURL: string): AxiosInstance {
   /* -----------------------------------------
    * REQUEST INTERCEPTOR
    * --------------------------------------- */
-  instance.interceptors.request.use(
-    async (config) => {
-      const weight = config.weight ?? 1;
-      await acquireToken(baseURL, weight);
+  instance.interceptors.request.use(async config => {
+    const weight = config.weight ?? 1;
+    await acquireToken(baseURL, weight);
 
-      return config;
-    }
-  );
+    return config;
+  });
 
   /* -----------------------------------------
    * RESPONSE / ERROR INTERCEPTOR (RETRY)
    * --------------------------------------- */
   instance.interceptors.response.use(
-    (response) => response,
+    response => response,
     async (error: AxiosError) => {
       const config = error.config as AxiosRequestConfig & { __retryCount?: number };
 
@@ -129,7 +120,7 @@ export function createHttpClient(baseURL: string): AxiosInstance {
       config.__retryCount++;
 
       const delay = getBackoffDelay(config.__retryCount);
-      await new Promise((res) => setTimeout(res, delay));
+      await new Promise(res => setTimeout(res, delay));
 
       return instance(config);
     }
@@ -143,6 +134,6 @@ export function createHttpClient(baseURL: string): AxiosInstance {
  * ----------------------------------------------------- */
 
 export const httpClients = {
-  binance: createHttpClient("https://api.binance.com"),
+  binance: createHttpClient('https://api.binance.com'),
   // otherApi: createHttpClient("https://example.com/api"),
 };

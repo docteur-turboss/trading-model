@@ -33,8 +33,8 @@
  * 2026.01.28
  */
 
-import { DeliveryModeEnum } from "@trading-model/common/config/deliveryMode.types";
-import { IdentifyType } from "../broker.type";
+import { DeliveryModeEnum } from '@trading-model/common/config/delivery-mode.types';
+import { IdentifyType } from '../broker.type';
 
 /**
  * Message envelope.

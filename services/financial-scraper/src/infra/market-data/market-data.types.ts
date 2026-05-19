@@ -7,4 +7,4 @@ export {
   OrderBookEntity,
   BookTickerEntity,
   TickerEntity,
-} from "@trading-model/common/config/event.types";
+} from '@trading-model/common/config/event.types';

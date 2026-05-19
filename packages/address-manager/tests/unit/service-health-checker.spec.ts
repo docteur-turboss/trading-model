@@ -1,22 +1,22 @@
-import { ServiceInstance } from "../../src/client/type";
-import { ServiceHealthChecker } from "../../src/discovery/serviceHealthChecker";
-import { HttpClient } from "@trading-model/common/config/httpClient";
-import { beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { ServiceInstance } from '../../src/client/type';
+import { ServiceHealthChecker } from '../../src/discovery/service-health-checker';
+import { HttpClient } from '@trading-model/common/config/http-client';
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-describe("ServiceHealthChecker", () => {
+describe('ServiceHealthChecker', () => {
   let httpClient: jest.Mocked<HttpClient>;
   let checker: ServiceHealthChecker;
 
   const instance: ServiceInstance = {
-    ip: "127.0.0.1",
+    ip: '127.0.0.1',
     port: 8080,
-    instanceId: "instance-1",
+    instanceId: 'instance-1',
     lastHeartbeat: Date.now(),
-    protocol: "http",
+    protocol: 'http',
     registeredAt: Date.now(),
-    serviceName: "user-service",
+    serviceName: 'user-service',
     ttl: 30000,
   };
 
@@ -28,31 +28,25 @@ describe("ServiceHealthChecker", () => {
     checker = new ServiceHealthChecker(httpClient, 2000); // timeout 2s
   });
 
-  test("returns true if the service responds successfully", async () => {
+  test('returns true if the service responds successfully', async () => {
     httpClient.get.mockResolvedValueOnce({}); // simulate successful GET
 
     const result = await checker.isHealthy(instance);
 
     expect(result).toBe(true);
-    expect(httpClient.get).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/ping",
-      { timeoutMs: 2000 }
-    );
+    expect(httpClient.get).toHaveBeenCalledWith('http://127.0.0.1:8080/ping', { timeoutMs: 2000 });
   });
 
-  test("returns false if the HTTP client throws an error", async () => {
-    httpClient.get.mockRejectedValueOnce(new Error("Network error"));
+  test('returns false if the HTTP client throws an error', async () => {
+    httpClient.get.mockRejectedValueOnce(new Error('Network error'));
 
     const result = await checker.isHealthy(instance);
 
     expect(result).toBe(false);
-    expect(httpClient.get).toHaveBeenCalledWith(
-      "http://127.0.0.1:8080/ping",
-      { timeoutMs: 2000 }
-    );
+    expect(httpClient.get).toHaveBeenCalledWith('http://127.0.0.1:8080/ping', { timeoutMs: 2000 });
   });
 
-  test("calls the HTTP client with the correct timeout", async () => {
+  test('calls the HTTP client with the correct timeout', async () => {
     httpClient.get.mockResolvedValueOnce({});
 
     await checker.isHealthy(instance);
@@ -63,9 +57,9 @@ describe("ServiceHealthChecker", () => {
     );
   });
 
-  test("buildPingUrl generates correct URL", async () => {
+  test('buildPingUrl generates correct URL', async () => {
     // Using any-cast to access private method
     const url = (checker as any).buildPingUrl(instance);
-    expect(url).toBe("http://127.0.0.1:8080/ping");
+    expect(url).toBe('http://127.0.0.1:8080/ping');
   });
 });

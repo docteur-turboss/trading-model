@@ -1,17 +1,17 @@
-import { ServiceCache } from "../../src/discovery/serviceCache";
-import { ServiceInstance } from "../../src/client/type";
-import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { ServiceCache } from '../../src/discovery/service-cache';
+import { ServiceInstance } from '../../src/client/type';
+import { afterEach, beforeEach, describe, expect, jest, test } from '@jest/globals';
 
-describe("ServiceCache", () => {
+describe('ServiceCache', () => {
   let cache: ServiceCache;
   const ttlMs = 100; // short TTL for test
-  const serviceName = "user-service";
+  const serviceName = 'user-service';
   const instance: ServiceInstance = {
-    ip: "127.0.0.1",
+    ip: '127.0.0.1',
     port: 8080,
-    instanceId: "instance-1",
+    instanceId: 'instance-1',
     lastHeartbeat: Date.now(),
-    protocol: "http",
+    protocol: 'http',
     registeredAt: Date.now(),
     serviceName: serviceName,
     ttl: 30000,
@@ -26,38 +26,47 @@ describe("ServiceCache", () => {
     jest.useRealTimers();
   });
 
-  test("should return null for missing service", () => {
-    expect(cache.get("unknown-service")).toBeNull();
+  test('should return null for missing service', () => {
+    expect(cache.get('unknown-service')).toBeNull();
   });
 
-  test("should store and retrieve a service instance", () => {
+  test('should store and retrieve a service instance', () => {
     cache.set(serviceName, instance);
     const retrieved = cache.get(serviceName);
     expect(retrieved).toEqual(instance);
   });
 
-  test("should expire an entry after TTL", () => {
+  test('should expire an entry after TTL', () => {
     cache.set(serviceName, instance);
     // advance the time beyond the TTL
     jest.advanceTimersByTime(ttlMs + 1);
     expect(cache.get(serviceName)).toBeNull();
   });
 
-  test("should invalidate a specific service", () => {
+  test('should invalidate a specific service', () => {
     cache.set(serviceName, instance);
     cache.invalidate(serviceName);
     expect(cache.get(serviceName)).toBeNull();
   });
 
-  test("should clear all services", () => {
+  test('should clear all services', () => {
     cache.set(serviceName, instance);
-    cache.set("other-service", { instanceId: "2", ip: "127.0.0.2", port: 9090, protocol: "http", lastHeartbeat: Date.now(), registeredAt: Date.now(), serviceName: "other-service", ttl: 30000 });
+    cache.set('other-service', {
+      instanceId: '2',
+      ip: '127.0.0.2',
+      port: 9090,
+      protocol: 'http',
+      lastHeartbeat: Date.now(),
+      registeredAt: Date.now(),
+      serviceName: 'other-service',
+      ttl: 30000,
+    });
     cache.clear();
     expect(cache.get(serviceName)).toBeNull();
-    expect(cache.get("other-service")).toBeNull();
+    expect(cache.get('other-service')).toBeNull();
   });
 
-  test("should not delete valid entries before TTL", () => {
+  test('should not delete valid entries before TTL', () => {
     cache.set(serviceName, instance);
     jest.advanceTimersByTime(ttlMs - 10);
     expect(cache.get(serviceName)).toEqual(instance);

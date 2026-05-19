@@ -1,34 +1,34 @@
 /**
  * @file broker.schema.ts
- * 
+ *
  * @description
  * Defines the **Zod validation schemas** used for the message broker module.
- * Includes schemas for subscribing, unsubscribing, publishing messages, and 
+ * Includes schemas for subscribing, unsubscribing, publishing messages, and
  * validating message metadata.
- * 
+ *
  * @responsability
  * - Validate input data for broker operations (subscribe, unsubscribe, publish)
  * - Ensure correct types for message metadata and payload
  * - Prevent invalid or malformed data from entering the broker
- * 
+ *
  * @restrictions
  * - Purely a validation layer; does not perform any side effects
  * - Only enforces structural and basic semantic correctness
- * 
+ *
  * @architecture
  * Utility module used by the broker layer.
  * Acts as a **data contract enforcement** component.
- * 
+ *
  * @author docteur-turboss
- * 
+ *
  * @version 1.0.0
- * 
+ *
  * @since 2026.01.28
  */
 
-import { DeliveryMode, DeliveryModeEnum } from "@trading-model/common/config/deliveryMode.types";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { z } from "zod";
+import { DeliveryMode, DeliveryModeEnum } from '@trading-model/common/config/delivery-mode.types';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import { z } from 'zod';
 
 /**
  * @description
@@ -43,10 +43,12 @@ const InstanceIdSchema = z.string().min(1);
  * Schema for identifying a service instance in the broker
  */
 const IdentifySchema = z.object({
-  serviceName: z.enum(Object.keys(ServiceInstanceName) as [
-    keyof typeof ServiceInstanceName,
-    ...(keyof typeof ServiceInstanceName)[]
-  ]),
+  serviceName: z.enum(
+    Object.keys(ServiceInstanceName) as [
+      keyof typeof ServiceInstanceName,
+      ...(keyof typeof ServiceInstanceName)[],
+    ]
+  ),
   instanceId: InstanceIdSchema,
 });
 
@@ -82,21 +84,27 @@ export const PublishMetadataSchema = z.object({
 
   publisher: IdentifySchema,
 
-  routing: z.object({
-    partitionKey: z.string().optional(),
-    priority: z.number().int().optional(),
-  }).optional(),
+  routing: z
+    .object({
+      partitionKey: z.string().optional(),
+      priority: z.number().int().optional(),
+    })
+    .optional(),
 
-  delivery: z.object({
-    mode: z.enum(Object.values(DeliveryMode) as [DeliveryModeEnum, ...DeliveryModeEnum[]]),
-    ttl: z.number().int().positive().optional(),
-    deduplicationId: z.string().optional(),
-  }).optional(),
+  delivery: z
+    .object({
+      mode: z.enum(Object.values(DeliveryMode) as [DeliveryModeEnum, ...DeliveryModeEnum[]]),
+      ttl: z.number().int().positive().optional(),
+      deduplicationId: z.string().optional(),
+    })
+    .optional(),
 
-  security: z.object({
-    authContext: z.unknown().optional(),
-    signature: z.string().optional(),
-  }).optional(),
+  security: z
+    .object({
+      authContext: z.unknown().optional(),
+      signature: z.string().optional(),
+    })
+    .optional(),
 });
 
 /**

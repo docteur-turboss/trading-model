@@ -34,23 +34,23 @@ See [.env.example](./.env.example) for all available variables.
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|---|---|---|
-| `NODE_ENV` | Runtime environment | `development` |
-| `PORT` | HTTPS server port | `8444` |
-| `TLS_KEY_PATH` | Path to TLS private key | — |
-| `TLS_CERT_PATH` | Path to TLS certificate | — |
-| `TLS_CA_PATH` | Path to CA certificate | — |
-| `SERVICE_NAME` | Service identity for registry | `financial-scraper-service` |
-| `INSTANCE_ID` | Unique instance identifier | — |
-| `ADDRESS_MANAGER_URL` | Discovery server URL | — |
-| `DB_USER` | MySQL user | — |
-| `DB_PASSWORD` | MySQL password | — |
-| `DB_NAME` | MySQL database name | — |
-| `DB_HOST` | MySQL host | `localhost` |
-| `DB_PORT` | MySQL port | `3306` |
-| `LOG_LEVEL` | Logging verbosity | `info` |
-| `ERROR_URL_WEBHOOK` | Webhook for error alerts | — |
+| Variable              | Description                   | Default                     |
+| --------------------- | ----------------------------- | --------------------------- |
+| `NODE_ENV`            | Runtime environment           | `development`               |
+| `PORT`                | HTTPS server port             | `8444`                      |
+| `TLS_KEY_PATH`        | Path to TLS private key       | —                           |
+| `TLS_CERT_PATH`       | Path to TLS certificate       | —                           |
+| `TLS_CA_PATH`         | Path to CA certificate        | —                           |
+| `SERVICE_NAME`        | Service identity for registry | `financial-scraper-service` |
+| `INSTANCE_ID`         | Unique instance identifier    | —                           |
+| `ADDRESS_MANAGER_URL` | Discovery server URL          | —                           |
+| `DB_USER`             | MySQL user                    | —                           |
+| `DB_PASSWORD`         | MySQL password                | —                           |
+| `DB_NAME`             | MySQL database name           | —                           |
+| `DB_HOST`             | MySQL host                    | `localhost`                 |
+| `DB_PORT`             | MySQL port                    | `3306`                      |
+| `LOG_LEVEL`           | Logging verbosity             | `info`                      |
+| `ERROR_URL_WEBHOOK`   | Webhook for error alerts      | —                           |
 
 ## Running
 
@@ -78,13 +78,13 @@ npm run test:watch
 
 ## Scripts
 
-| Script | Description |
-|---|---|
-| `npm run dev` | Run in development mode via `ts-node` |
-| `npm run build` | Compile TypeScript to `dist/` |
-| `npm test` | Execute all tests |
-| `npm run test:coverage` | Execute tests with coverage report |
-| `npm run test:watch` | Execute tests in watch mode |
+| Script                  | Description                           |
+| ----------------------- | ------------------------------------- |
+| `npm run dev`           | Run in development mode via `ts-node` |
+| `npm run build`         | Compile TypeScript to `dist/`         |
+| `npm test`              | Execute all tests                     |
+| `npm run test:coverage` | Execute tests with coverage report    |
+| `npm run test:watch`    | Execute tests in watch mode           |
 
 ## Project Structure
 

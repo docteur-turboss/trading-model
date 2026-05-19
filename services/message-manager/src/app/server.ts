@@ -1,7 +1,7 @@
-import { createSecureServer } from "@trading-model/common/server/createSecureServer";
-import { AddressManagerRoutes } from "config/address-manager";
-import { MessageManagerRoutes } from "config/message-manager";
-import { env } from "config/env";
+import { createSecureServer } from '@trading-model/common/server/create-secure-server';
+import { AddressManagerRoutes } from 'config/address-manager';
+import { MessageManagerRoutes } from 'config/message-manager';
+import { env } from 'config/env';
 
 export function createServer() {
   return createSecureServer({
@@ -15,7 +15,7 @@ export function createServer() {
       windowMs: 15 * 60 * 1000,
       limit: 100,
     },
-    routes: (app) => {
+    routes: app => {
       AddressManagerRoutes(app);
       MessageManagerRoutes(app);
     },

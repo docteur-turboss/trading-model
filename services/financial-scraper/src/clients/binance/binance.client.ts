@@ -8,10 +8,10 @@ import {
   BinanceTradingDayTickerResponse,
   BinanceSymbolPriceTickerResponse,
   BinanceSymbolOrderBookTickerResponse,
-} from "../../types/binance.api";
-import { httpClients } from "../../config/http";
-import { BINANCE_ENDPOINTS } from "./endpoints";
-import { BINANCE_WEIGHTS } from "./weights";
+} from '../../types/binance.api';
+import { httpClients } from '../../config/http';
+import { BINANCE_ENDPOINTS } from './endpoints';
+import { BINANCE_WEIGHTS } from './weights';
 
 const binance = httpClients.binance;
 
@@ -26,12 +26,9 @@ const binance = httpClients.binance;
  * @param limit {number} - maximum 500 - 1000
  * @returns {Promise<BinanceDepthResponse>}
  */
-export async function getOrderBook(
-  symbol: string,
-  limit = 100
-): Promise<BinanceDepthResponse> {
+export async function getOrderBook(symbol: string, limit = 100): Promise<BinanceDepthResponse> {
   const weight = BINANCE_WEIGHTS.depth(limit);
-  const url = BINANCE_ENDPOINTS.depth(limit, symbol)
+  const url = BINANCE_ENDPOINTS.depth(limit, symbol);
   return (await binance.get(url, { weight })).data;
 }
 
@@ -42,10 +39,7 @@ export async function getOrderBook(
  * @param limit {number} - maximum 500 - 1000
  * @returns {Promise<BinanceTradeResponse>}
  */
-export async function getRecentTrades(
-  symbol: string,
-  limit = 500
-): Promise<BinanceTradeResponse> {
+export async function getRecentTrades(symbol: string, limit = 500): Promise<BinanceTradeResponse> {
   const weight = BINANCE_WEIGHTS.trades();
   const url = BINANCE_ENDPOINTS.trades(limit, symbol);
   return (await binance.get(url, { weight })).data;
@@ -82,22 +76,22 @@ export async function CandlestickData(
   symbol: string,
   limit = 500,
   interval:
-    | "1s"
-    | "1m"
-    | "3m"
-    | "5m"
-    | "15m"
-    | "30m"
-    | "1h"
-    | "2h"
-    | "4h"
-    | "6h"
-    | "8h"
-    | "12h"
-    | "1d"
-    | "3d"
-    | "1w"
-    | "1M",
+    | '1s'
+    | '1m'
+    | '3m'
+    | '5m'
+    | '15m'
+    | '30m'
+    | '1h'
+    | '2h'
+    | '4h'
+    | '6h'
+    | '8h'
+    | '12h'
+    | '1d'
+    | '3d'
+    | '1w'
+    | '1M',
   startTime?: number
 ): Promise<BinanceCandlestickDataResponse> {
   const url = BINANCE_ENDPOINTS.candlesticks(symbol, interval, startTime, limit);
@@ -105,9 +99,8 @@ export async function CandlestickData(
   return (await binance.get(url, { weight })).data;
 }
 
-
 /**
- * Fetch compressed aggregate trades 
+ * Fetch compressed aggregate trades
  * Weight : 4.
  * @param symbol {string} - the symbol to fetch (e.g., BTCUSDT)
  * @param limit {number} - maximum 500 - 1000
@@ -132,12 +125,12 @@ export async function getCompressedAggregateTrades(
  *  - 21–100 symbols → 40
  *  - more than 100 symbols → 80
  * @param symbol {string[]} - the symbols to fetch (e.g., ["BTCUSDT"])
- * @returns 
+ * @returns
  */
 export async function get24hrTickerStats(
   symbol?: string[]
 ): Promise<Binance24hrTickerStatsResponse> {
-  const weight = BINANCE_WEIGHTS.change24hrStats((symbol??[]).length);
+  const weight = BINANCE_WEIGHTS.change24hrStats((symbol ?? []).length);
   const url = BINANCE_ENDPOINTS.change24hrStats(symbol);
   return (await binance.get(url, { weight })).data;
 }
@@ -148,7 +141,7 @@ export async function get24hrTickerStats(
  *  - up to 50 symbols → 4 * number of symbols
  *  - less than 100 symbols → 200
  * @param symbol {string[]} - the symbols to fetch (e.g., ["BTCUSDT"])
- * @returns 
+ * @returns
  */
 export async function getTradingDayTicker(
   symbol: string[]
@@ -167,7 +160,7 @@ export async function getTradingDayTicker(
 export async function getSymbolPriceTicker(
   symbol?: string[]
 ): Promise<BinanceSymbolPriceTickerResponse> {
-  const weight = BINANCE_WEIGHTS.symbolPriceTicker((symbol??[]).length);
+  const weight = BINANCE_WEIGHTS.symbolPriceTicker((symbol ?? []).length);
   const url = BINANCE_ENDPOINTS.symbolPriceTicker(symbol);
   return (await binance.get(url, { weight })).data;
 }
@@ -181,7 +174,7 @@ export async function getSymbolPriceTicker(
 export async function getOrderBookTicker(
   symbol?: string[]
 ): Promise<BinanceSymbolOrderBookTickerResponse> {
-  const weight = BINANCE_WEIGHTS.orderBookTicker((symbol??[]).length);
+  const weight = BINANCE_WEIGHTS.orderBookTicker((symbol ?? []).length);
   const url = BINANCE_ENDPOINTS.orderBookTicker(symbol);
   return (await binance.get(url, { weight })).data;
 } // 205

@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { MessageMetadata } from '../../src/shared/helper/messages/message';
-import { MetadataBuilderError } from '@trading-model/common/utils/Errors';
+import { MetadataBuilderError } from '@trading-model/common/utils/errors';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -25,7 +25,10 @@ describe('MessageMetadata', () => {
       const withData = new MessageMetadata({
         topic: 'test.event.created',
         eventType: 'TestEvent',
-        publisher: { serviceName: 'DiscoveryService', instanceId: '550e8400-e29b-41d4-a716-446655440000' },
+        publisher: {
+          serviceName: 'DiscoveryService',
+          instanceId: '550e8400-e29b-41d4-a716-446655440000',
+        },
       });
       const result = withData.toJSON();
       expect(result.topic).toBe('test.event.created');

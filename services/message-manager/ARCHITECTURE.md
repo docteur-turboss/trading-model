@@ -88,11 +88,11 @@ Per-instance message delivery handler. Responsibilities:
 - Sends the message via HTTPS POST to the subscriber's callback endpoint.
 - Implements a **retry loop** with configurable delivery semantics:
 
-| Mode | Behaviour |
-|---|---|
-| `at-most-once` | No retry on NACK. Single attempt, fire-and-forget. |
-| `at-least-once` | Retries indefinitely until ACK or TTL expiry. |
-| `exactly-once` | Stops after first delivery (idempotent consumer assumed). |
+| Mode            | Behaviour                                                 |
+| --------------- | --------------------------------------------------------- |
+| `at-most-once`  | No retry on NACK. Single attempt, fire-and-forget.        |
+| `at-least-once` | Retries indefinitely until ACK or TTL expiry.             |
+| `exactly-once`  | Stops after first delivery (idempotent consumer assumed). |
 
 - **TTL expiration**: If `emittedAt + ttl < now`, the message is routed to the Dead Letter Queue.
 - **DLQ**: Placeholder implementation for routing failed or expired messages to persistent storage or an HTTP endpoint.
@@ -109,17 +109,17 @@ interface message<T = unknown> {
 }
 
 interface MessageMetadata {
-  messageId: string;          // Auto-generated UUID
-  emittedAt: Date;            // Auto-generated timestamp
-  schemaVersion: string;      // Payload schema version
-  eventType: string;          // Business event name
-  topic: string;              // Routing channel
-  publisher: IdentifyType;    // { serviceName, instanceId }
-  correlationId?: string;     // Flow correlation
-  causationId?: string;       // Causality chain
-  routing?: { partitionKey?, priority? };
-  delivery?: { mode, ttl?, deduplicationId? };
-  security?: { authContext?, signature? };
+  messageId: string; // Auto-generated UUID
+  emittedAt: Date; // Auto-generated timestamp
+  schemaVersion: string; // Payload schema version
+  eventType: string; // Business event name
+  topic: string; // Routing channel
+  publisher: IdentifyType; // { serviceName, instanceId }
+  correlationId?: string; // Flow correlation
+  causationId?: string; // Causality chain
+  routing?: { partitionKey?; priority? };
+  delivery?: { mode; ttl?; deduplicationId? };
+  security?: { authContext?; signature? };
 }
 ```
 
@@ -204,14 +204,14 @@ Service A                    Broker                       Service B
 
 ## Dependencies
 
-| Dependency | Purpose |
-|---|---|
-| `@trading-model/common` | HttpClient, middleware (catchSync, ResponseException), types, server factories, error classes |
-| `@trading-model/address-manager` | Service discovery client for resolving subscriber endpoint addresses |
-| `express` | HTTP server framework |
-| `zod` | Runtime request body validation |
-| `helmet` | Security headers |
-| `express-rate-limit` | Request rate limiting |
+| Dependency                       | Purpose                                                                                       |
+| -------------------------------- | --------------------------------------------------------------------------------------------- |
+| `@trading-model/common`          | HttpClient, middleware (catchSync, ResponseException), types, server factories, error classes |
+| `@trading-model/address-manager` | Service discovery client for resolving subscriber endpoint addresses                          |
+| `express`                        | HTTP server framework                                                                         |
+| `zod`                            | Runtime request body validation                                                               |
+| `helmet`                         | Security headers                                                                              |
+| `express-rate-limit`             | Request rate limiting                                                                         |
 
 ---
 
@@ -227,10 +227,10 @@ Service A                    Broker                       Service B
 
 ## Known Design Decisions
 
-| Decision | Rationale |
-|---|---|
-| **In-memory subscription registry** | Simplifies deployment for the current scale; no external dependency for runtime state. Subscriptions do not survive restarts — services re-subscribe on startup via the `@trading-model/broker-message` SDK. |
-| **Parallel dispatch (Promise.allSettled)** | Ensures one slow or failing subscriber does not block delivery to others. |
-| **No automatic retry backoff** | The initial implementation retries immediately; future work should add exponential backoff and jitter. |
-| **DLQ is a placeholder** | Currently a no-op. Intended to route failed messages to persistent storage (MongoDB) or a dedicated DLQ HTTP endpoint. |
-| **MongoDB dependency declared but unused** | The `mongodb` package is listed as a dependency for planned message persistence features (message store, DLQ persistence). |
+| Decision                                   | Rationale                                                                                                                                                                                                    |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **In-memory subscription registry**        | Simplifies deployment for the current scale; no external dependency for runtime state. Subscriptions do not survive restarts — services re-subscribe on startup via the `@trading-model/broker-message` SDK. |
+| **Parallel dispatch (Promise.allSettled)** | Ensures one slow or failing subscriber does not block delivery to others.                                                                                                                                    |
+| **No automatic retry backoff**             | The initial implementation retries immediately; future work should add exponential backoff and jitter.                                                                                                       |
+| **DLQ is a placeholder**                   | Currently a no-op. Intended to route failed messages to persistent storage (MongoDB) or a dedicated DLQ HTTP endpoint.                                                                                       |
+| **MongoDB dependency declared but unused** | The `mongodb` package is listed as a dependency for planned message persistence features (message store, DLQ persistence).                                                                                   |

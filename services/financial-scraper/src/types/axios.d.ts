@@ -1,6 +1,6 @@
-import "axios";
+import 'axios';
 
-declare module "axios" {
+declare module 'axios' {
   export interface AxiosRequestConfig {
     weight?: number;
   }

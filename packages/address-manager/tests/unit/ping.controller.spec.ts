@@ -1,11 +1,11 @@
-import { Response } from "express";
-import { pingController } from "../../src/http/ping.controller";
-import { beforeEach, describe, expect, jest, test } from "@jest/globals";
-import { ResponseException } from "@trading-model/common/middleware/responseException";
+import { Response } from 'express';
+import { pingController } from '../../src/http/ping.controller';
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { ResponseException } from '@trading-model/common/middleware/response-exception';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-describe("pingController", () => {
+describe('pingController', () => {
   let mockRes: Partial<Response>;
 
   beforeEach(() => {
@@ -17,12 +17,12 @@ describe("pingController", () => {
     jest.clearAllMocks();
   });
 
-  test("should respond with OK and pong", () => {
-    const result = ResponseException("pong").OK();
-    expect(result).toEqual({ status: 201, data: "pong" });
+  test('should respond with OK and pong', () => {
+    const result = ResponseException('pong').OK();
+    expect(result).toEqual({ status: 201, data: 'pong' });
 
     pingController({} as any, mockRes as Response);
     expect(mockRes.status).toHaveBeenCalledWith(201);
-    expect(mockRes.json).toHaveBeenCalledWith("pong");
+    expect(mockRes.json).toHaveBeenCalledWith('pong');
   });
 });

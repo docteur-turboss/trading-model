@@ -1,5 +1,12 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { handleCoreResponse, handleCoreAuthResponse, ensureAtLeastOneField, handleOnlyDataCore, handleCoreError, handleDBError } from '../../src/middleware/handleCoreResponse';
+import {
+  handleCoreResponse,
+  handleCoreAuthResponse,
+  ensureAtLeastOneField,
+  handleOnlyDataCore,
+  handleCoreError,
+  handleDBError,
+} from '../../src/middleware/handle-core-response';
 import ChainedError from 'chained-error';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -22,9 +29,7 @@ describe('handleCoreResponse', () => {
       await handleCoreResponse(coreFn, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 200, data: 'data' })
-      );
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 200, data: 'data' }));
     });
 
     it('should handle non-success response codes', async () => {
@@ -45,10 +50,14 @@ describe('handleCoreResponse', () => {
 
       await handleCoreAuthResponse(coreFn, res);
 
-      expect(res.cookie).toHaveBeenCalledWith('token', 'token-value', expect.objectContaining({
-        httpOnly: true,
-        sameSite: 'strict',
-      }));
+      expect(res.cookie).toHaveBeenCalledWith(
+        'token',
+        'token-value',
+        expect.objectContaining({
+          httpOnly: true,
+          sameSite: 'strict',
+        })
+      );
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
@@ -111,18 +120,27 @@ describe('handleCoreResponse', () => {
   describe('handleCoreError', () => {
     it('should return mapped error tuple for known error message', () => {
       const mapping = { USER_NOT_FOUND: ['404', 'User not found'] as [string, string] };
-      const result = handleCoreError('user' as any, 'getUser', new Error('USER_NOT_FOUND'), mapping);
+      const result = handleCoreError(
+        'user' as any,
+        'getUser',
+        new Error('USER_NOT_FOUND'),
+        mapping
+      );
       expect(result).toEqual(['404', 'User not found']);
     });
 
     it('should re-throw unmapped error', () => {
       const mapping = { USER_NOT_FOUND: ['404', 'User not found'] as [string, string] };
-      expect(() => handleCoreError('user' as any, 'getUser', new Error('UNKNOWN'), mapping)).toThrow('UNKNOWN');
+      expect(() =>
+        handleCoreError('user' as any, 'getUser', new Error('UNKNOWN'), mapping)
+      ).toThrow('UNKNOWN');
     });
 
     it('should handle non-Error thrown values by re-throwing', () => {
       const mapping = {};
-      expect(() => handleCoreError('user' as any, 'test', 'string error', mapping)).toThrow('string error');
+      expect(() => handleCoreError('user' as any, 'test', 'string error', mapping)).toThrow(
+        'string error'
+      );
     });
   });
 
@@ -136,7 +154,10 @@ describe('handleCoreResponse', () => {
     it('should map errors using provided mapping', async () => {
       const fn = jest.fn<any>().mockRejectedValue(new Error('NOT_FOUND'));
       const result = await handleOnlyDataCore(
-        fn, { NOT_FOUND: ['404', 'Not found'] }, 'user' as any, 'test'
+        fn,
+        { NOT_FOUND: ['404', 'Not found'] },
+        'user' as any,
+        'test'
       );
       expect(result).toEqual(['404', 'Not found']);
     });

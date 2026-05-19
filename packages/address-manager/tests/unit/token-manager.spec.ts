@@ -1,10 +1,10 @@
-import { TokenManager } from "../../src/client/tokenManager";
-import { HttpClient } from "@trading-model/common/config/httpClient";
-import { AddressManagerConfig } from "../../src/config/AddressManagerConfig";
-import { AuthenticationError } from "@trading-model/common/utils/Errors";
-import { beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { TokenManager } from '../../src/client/token-manager';
+import { HttpClient } from '@trading-model/common/config/http-client';
+import { AddressManagerConfig } from '../../src/config/address-manager-config';
+import { AuthenticationError } from '@trading-model/common/utils/errors';
+import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
-describe("TokenManager", () => {
+describe('TokenManager', () => {
   let httpClient: jest.Mocked<HttpClient>;
   let config: AddressManagerConfig;
   let manager: TokenManager;
@@ -13,9 +13,9 @@ describe("TokenManager", () => {
     httpClient = { post: jest.fn() } as unknown as jest.Mocked<HttpClient>;
 
     config = {
-      addressManagerUrl: "http://localhost:8443",
-      instanceId: "instance-1",
-      serviceName: "test-service",
+      addressManagerUrl: 'http://localhost:8443',
+      instanceId: 'instance-1',
+      serviceName: 'test-service',
       servicePort: 8080,
       tokenRefreshIntervalMs: 300_000,
       ttlRefreshIntervalMs: 300_000,
@@ -26,16 +26,16 @@ describe("TokenManager", () => {
     manager = new TokenManager(httpClient, config);
   });
 
-  describe("getToken", () => {
-    test("should throw AuthenticationError if token is not available", () => {
+  describe('getToken', () => {
+    test('should throw AuthenticationError if token is not available', () => {
       expect(() => manager.getToken()).toThrow(AuthenticationError);
       expect(() => manager.getToken()).toThrow(
-        "Token is not available. Did you call refreshToken()?"
+        'Token is not available. Did you call refreshToken()?'
       );
     });
 
-    test("should return the token after successful refresh", async () => {
-      const mockToken = "abc123";
+    test('should return the token after successful refresh', async () => {
+      const mockToken = 'abc123';
       httpClient.post.mockResolvedValueOnce({ token: mockToken });
 
       await manager.refreshToken();
@@ -45,38 +45,38 @@ describe("TokenManager", () => {
     });
   });
 
-  describe("refreshToken", () => {
-    test("should call HttpClient.post with correct URL and payload", async () => {
-      const mockToken = "rotated-token";
+  describe('refreshToken', () => {
+    test('should call HttpClient.post with correct URL and payload', async () => {
+      const mockToken = 'rotated-token';
       httpClient.post.mockResolvedValueOnce({ token: mockToken });
 
       await manager.refreshToken();
 
-      expect(httpClient.post).toHaveBeenCalledWith(
-        `${config.addressManagerUrl}/token/rotate`,
-        { instanceId: config.instanceId, serviceName: config.serviceName }
-      );
+      expect(httpClient.post).toHaveBeenCalledWith(`${config.addressManagerUrl}/token/rotate`, {
+        instanceId: config.instanceId,
+        serviceName: config.serviceName,
+      });
 
       expect(manager.getToken()).toBe(mockToken);
     });
 
-    test("should throw AuthenticationError if response is missing token", async () => {
+    test('should throw AuthenticationError if response is missing token', async () => {
       httpClient.post.mockResolvedValueOnce({});
 
       await expect(manager.refreshToken()).rejects.toThrow(AuthenticationError);
       await expect(manager.refreshToken()).rejects.toThrow(
-        "Invalid token response from Address Manager"
+        'Invalid token response from Address Manager'
       );
     });
 
-    test("should throw AuthenticationError if HttpClient.post throws", async () => {
-      const error = new Error("Network failure");
+    test('should throw AuthenticationError if HttpClient.post throws', async () => {
+      const error = new Error('Network failure');
       httpClient.post.mockRejectedValueOnce(error);
       await expect(manager.refreshToken()).rejects.toThrow(AuthenticationError);
 
       httpClient.post.mockRejectedValueOnce(error);
       await expect(manager.refreshToken()).rejects.toMatchObject({
-        message: "Failed to refresh authentication token",
+        message: 'Failed to refresh authentication token',
       });
     });
   });

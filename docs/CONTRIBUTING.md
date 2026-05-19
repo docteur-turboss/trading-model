@@ -40,14 +40,14 @@ trading-model/
 
 ## Naming Conventions
 
-| Element | Convention | Example |
-|---|---|---|
-| Directories | kebab-case | `discovery-server/` |
-| Files | kebab-case | `address-manager.ts` |
-| Classes & Types | PascalCase | `class AddressManager` |
-| Variables & Functions | camelCase | `const addressManager` |
-| Constants | SCREAMING_SNAKE_CASE | `DEFAULT_TIMEOUT` |
-| Test files | `.spec.ts` only | `user.service.spec.ts` |
+| Element               | Convention           | Example                |
+| --------------------- | -------------------- | ---------------------- |
+| Directories           | kebab-case           | `discovery-server/`    |
+| Files                 | kebab-case           | `address-manager.ts`   |
+| Classes & Types       | PascalCase           | `class AddressManager` |
+| Variables & Functions | camelCase            | `const addressManager` |
+| Constants             | SCREAMING_SNAKE_CASE | `DEFAULT_TIMEOUT`      |
+| Test files            | `.spec.ts` only      | `user.service.spec.ts` |
 
 File suffixes: `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.middleware.ts`, `*.util.ts`, `*.spec.ts`
 
@@ -89,6 +89,7 @@ All code should include tests before being considered complete.
 Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`
 
 Examples:
+
 ```
 feat(auth): add JWT token validation
 fix(scraper): handle missing data fields

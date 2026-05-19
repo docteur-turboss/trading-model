@@ -19,16 +19,16 @@ npm run build
 
 All configuration is via environment variables, validated by `BaseEnvSchema` + `DiscoveryEnvSchema`:
 
-| Variable | Default | Description |
-|---|---|---|
-| `NODE_ENV` | `development` | Runtime environment |
-| `PORT` | `3000` | HTTPS listen port |
-| `TLS_KEY_PATH` | — | Path to server private key |
-| `TLS_CERT_PATH` | — | Path to server certificate |
-| `TLS_CA_PATH` | — | Path to Root CA certificate |
-| `LOG_LEVEL` | `info` | Logger level |
-| `CLEANUP_SERVICE_INTERVAL_MS` | `600000` | Lease cleanup interval |
-| `ERROR_URL_WEBHOOK` | — | Webhook URL for error forwarding |
+| Variable                      | Default       | Description                      |
+| ----------------------------- | ------------- | -------------------------------- |
+| `NODE_ENV`                    | `development` | Runtime environment              |
+| `PORT`                        | `3000`        | HTTPS listen port                |
+| `TLS_KEY_PATH`                | —             | Path to server private key       |
+| `TLS_CERT_PATH`               | —             | Path to server certificate       |
+| `TLS_CA_PATH`                 | —             | Path to Root CA certificate      |
+| `LOG_LEVEL`                   | `info`        | Logger level                     |
+| `CLEANUP_SERVICE_INTERVAL_MS` | `600000`      | Lease cleanup interval           |
+| `ERROR_URL_WEBHOOK`           | —             | Webhook URL for error forwarding |
 
 Copy `.env.example` to `.env` and fill in the values.
 
@@ -72,7 +72,12 @@ tests/
 Register a new service instance or update an existing one.
 
 ```json
-{ "serviceName": "financial-scraper-service", "ip": "10.0.0.1", "port": 8444, "instanceId": "optional-custom-id" }
+{
+  "serviceName": "financial-scraper-service",
+  "ip": "10.0.0.1",
+  "port": 8444,
+  "instanceId": "optional-custom-id"
+}
 ```
 
 Returns the registered instance with an auth token.
@@ -111,16 +116,16 @@ Get a specific instance by ID.
 
 ## Technology
 
-| Layer | |
-|---|---|
-| Runtime | Node.js |
-| Language | TypeScript (ES2020, module: node16) |
-| Framework | Express 5 |
-| Security | mTLS (via `createSecureServer` from `@trading-model/common`) |
-| Validation | Zod (via `BaseEnvSchema` from `@trading-model/common`) |
-| Bootstrap | `createBootstrap` from `@trading-model/common` |
-| Testing | Jest + ts-jest |
-| Linting | ESLint 10 flat config (root) |
+| Layer      |                                                              |
+| ---------- | ------------------------------------------------------------ |
+| Runtime    | Node.js                                                      |
+| Language   | TypeScript (ES2020, module: node16)                          |
+| Framework  | Express 5                                                    |
+| Security   | mTLS (via `createSecureServer` from `@trading-model/common`) |
+| Validation | Zod (via `BaseEnvSchema` from `@trading-model/common`)       |
+| Bootstrap  | `createBootstrap` from `@trading-model/common`               |
+| Testing    | Jest + ts-jest                                               |
+| Linting    | ESLint 10 flat config (root)                                 |
 
 ## Dependencies
 

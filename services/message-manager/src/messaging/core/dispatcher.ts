@@ -38,10 +38,10 @@
  * 2026.01.28
  */
 
-import { message } from "./message";
-import { Subscription } from "./subscription";
-import { IdentifyType } from "../broker.type";
-import { HttpClient } from "@trading-model/common/config/httpClient";
+import { message } from './message';
+import { Subscription } from './subscription';
+import { IdentifyType } from '../broker.type';
+import { HttpClient } from '@trading-model/common/config/http-client';
 
 /**
  * Message dispatcher.
@@ -55,7 +55,7 @@ export class Dispatcher {
    * In-memory mapping of topics to subscriptions.
    */
   private subscriptionsByTopic = new Map<string, ReadonlyArray<Subscription>>();
-  
+
   /**
    * Creates a Dispatcher instance.
    *
@@ -94,19 +94,11 @@ export class Dispatcher {
 
     const current = this.subscriptionsByTopic.get(topic) ?? [];
 
-    if (current.some(
-      s => s.serviceIdentity.instanceId === consumerIdentity.instanceId,
-    )) return;
+    if (current.some(s => s.serviceIdentity.instanceId === consumerIdentity.instanceId)) return;
 
-    const subscription = new Subscription(
-      topic, 
-      callbackPath, 
-      consumerIdentity
-    );
+    const subscription = new Subscription(topic, callbackPath, consumerIdentity);
 
-    this.subscriptionsByTopic.set(topic, 
-      [...current, subscription]
-    );
+    this.subscriptionsByTopic.set(topic, [...current, subscription]);
   }
 
   /**
@@ -125,31 +117,22 @@ export class Dispatcher {
    *
    * @returns {Promise<void>}
    */
-  async dispatch<T>(message: message<T>) { //here
+  async dispatch<T>(message: message<T>) {
+    //here
     const { topic } = message.metadata;
     const subscriptions = this.subscriptionsByTopic.get(topic);
     if (!subscriptions?.length) return;
 
-    const uniqueSubscriptionsByInstance = new Map<
-      string,
-      Subscription
-    >();
+    const uniqueSubscriptionsByInstance = new Map<string, Subscription>();
 
     for (const subscription of subscriptions) {
-      uniqueSubscriptionsByInstance.set(
-        subscription.serviceIdentity.instanceId,
-        subscription,
-      );
+      uniqueSubscriptionsByInstance.set(subscription.serviceIdentity.instanceId, subscription);
     }
 
-    const uniqueSubscriptions = [
-      ...uniqueSubscriptionsByInstance.values(),
-    ];
+    const uniqueSubscriptions = [...uniqueSubscriptionsByInstance.values()];
 
     await Promise.allSettled(
-      uniqueSubscriptions.map(subscription =>
-        subscription.dispatch(this.HTTPCLIENT, message),
-      )
+      uniqueSubscriptions.map(subscription => subscription.dispatch(this.HTTPCLIENT, message))
     );
   }
 
@@ -163,20 +146,15 @@ export class Dispatcher {
    * @param params
    * Unsubscription parameters.
    */
-  unregisterSubscription(params: {
-    topic: string;
-    instanceId: string;
-  }): void {
+  unregisterSubscription(params: { topic: string; instanceId: string }): void {
     const { topic, instanceId } = params;
-    
+
     const current = this.subscriptionsByTopic.get(topic);
-    if(!current) return;
+    if (!current) return;
 
-    const remaining = current.filter(
-      s => s.serviceIdentity.instanceId !== instanceId
-    );
+    const remaining = current.filter(s => s.serviceIdentity.instanceId !== instanceId);
 
-    if(remaining.length === 0) this.subscriptionsByTopic.delete(topic);
+    if (remaining.length === 0) this.subscriptionsByTopic.delete(topic);
     this.subscriptionsByTopic.set(topic, remaining);
   }
 }

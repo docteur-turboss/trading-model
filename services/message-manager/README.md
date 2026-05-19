@@ -34,24 +34,24 @@ See [.env.example](./.env.example) for all available variables.
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|---|---|---|
-| `NODE_ENV` | Runtime environment | `development` |
-| `PORT` | HTTPS server port | `8445` |
-| `TLS_KEY_PATH` | Path to TLS private key | — |
-| `TLS_CERT_PATH` | Path to TLS certificate | — |
-| `TLS_CA_PATH` | Path to CA certificate | — |
-| `SERVICE_NAME` | Service identity for registry | `message-delivery-service` |
-| `INSTANCE_ID` | Unique instance identifier | — |
-| `ADDRESS_MANAGER_URL` | Discovery server URL | — |
-| `CACHE_TTL_MS` | Service cache TTL | `84000000` |
-| `SERVICE_PING_TIMEOUT_MS` | Health-check ping timeout | `84000000` |
-| `TOKEN_REFRESH_INTERVAL_MS` | Auth token refresh interval | `84000000` |
-| `TTL_REFRESH_INTERVAL_MS` | Lease TTL refresh interval | `84000000` |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS` | Broker initialization timeout | `84000000` |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | Broker shutdown timeout | `84000000` |
-| `ERROR_URL_WEBHOOK` | Webhook for error alerts | — |
-| `LOG_LEVEL` | Logging verbosity | `info` |
+| Variable                          | Description                   | Default                    |
+| --------------------------------- | ----------------------------- | -------------------------- |
+| `NODE_ENV`                        | Runtime environment           | `development`              |
+| `PORT`                            | HTTPS server port             | `8445`                     |
+| `TLS_KEY_PATH`                    | Path to TLS private key       | —                          |
+| `TLS_CERT_PATH`                   | Path to TLS certificate       | —                          |
+| `TLS_CA_PATH`                     | Path to CA certificate        | —                          |
+| `SERVICE_NAME`                    | Service identity for registry | `message-delivery-service` |
+| `INSTANCE_ID`                     | Unique instance identifier    | —                          |
+| `ADDRESS_MANAGER_URL`             | Discovery server URL          | —                          |
+| `CACHE_TTL_MS`                    | Service cache TTL             | `84000000`                 |
+| `SERVICE_PING_TIMEOUT_MS`         | Health-check ping timeout     | `84000000`                 |
+| `TOKEN_REFRESH_INTERVAL_MS`       | Auth token refresh interval   | `84000000`                 |
+| `TTL_REFRESH_INTERVAL_MS`         | Lease TTL refresh interval    | `84000000`                 |
+| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | Broker initialization timeout | `84000000`                 |
+| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | Broker shutdown timeout       | `84000000`                 |
+| `ERROR_URL_WEBHOOK`               | Webhook for error alerts      | —                          |
+| `LOG_LEVEL`                       | Logging verbosity             | `info`                     |
 
 ## Running
 
@@ -79,12 +79,12 @@ npm run test:watch
 
 ## Scripts
 
-| Script | Description |
-|---|---|
-| `npm run dev` | Run in development mode via `ts-node` |
-| `npm run build` | Compile TypeScript to `dist/` |
-| `npm test` | Execute all tests |
-| `npm run eslint` | Run ESLint on source files |
+| Script           | Description                           |
+| ---------------- | ------------------------------------- |
+| `npm run dev`    | Run in development mode via `ts-node` |
+| `npm run build`  | Compile TypeScript to `dist/`         |
+| `npm test`       | Execute all tests                     |
+| `npm run eslint` | Run ESLint on source files            |
 
 ## Project Structure
 

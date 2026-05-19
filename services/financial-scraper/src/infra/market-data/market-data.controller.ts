@@ -10,43 +10,34 @@
  * Agnostique du provider (Binance aujourd’hui, Bloomberg demain).
  */
 
-import { MarketDataModel } from "./market-data.model";
-import { BinanceWorkerResult } from "../../job/worker/binance.worker";
+import { MarketDataModel } from './market-data.model';
+import { BinanceWorkerResult } from '../../job/worker/binance.worker';
 
-export const MarketDataController = new class {
+export const MarketDataController = new (class {
   constructor() {}
 
-  async persist(
-    payload: BinanceWorkerResult,
-  ): Promise<void> {
-
+  async persist(payload: BinanceWorkerResult): Promise<void> {
     const tasks: Promise<void>[] = [];
 
     /* ===========================
      * Candles
      * =========================== */
     if (payload.candles?.length) {
-      tasks.push(
-        MarketDataModel.insertCandles(payload.candles)
-      );
+      tasks.push(MarketDataModel.insertCandles(payload.candles));
     }
 
     /* ===========================
      * Trades
      * =========================== */
     if (payload.recentTrades?.length) {
-      tasks.push(
-        MarketDataModel.insertTrades(payload.recentTrades)
-      );
+      tasks.push(MarketDataModel.insertTrades(payload.recentTrades));
     }
 
     /* ===========================
      * OrderBook
      * =========================== */
     if (payload.orderBook) {
-      tasks.push(
-        MarketDataModel.insertOrderBook(payload.orderBook)
-      );
+      tasks.push(MarketDataModel.insertOrderBook(payload.orderBook));
     }
 
     // payload.priceTicker
@@ -55,11 +46,9 @@ export const MarketDataController = new class {
      * Ticker
      * =========================== */
     if (payload.ticker24h?.length) {
-      tasks.push(
-        MarketDataModel.insertTicker(payload.ticker24h)
-      );
+      tasks.push(MarketDataModel.insertTicker(payload.ticker24h));
     }
 
     await Promise.all(tasks);
   }
-}()
+})();

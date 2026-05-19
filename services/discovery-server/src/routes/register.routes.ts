@@ -1,10 +1,10 @@
-import { Router } from "express";
+import { Router } from 'express';
 import {
   register,
   listServices,
   getServiceInstances,
   getInstance,
-} from "../controllers/Register.controller";
+} from '../controllers/register.controller';
 
 /**
  * Registry Routes
@@ -43,7 +43,7 @@ export const registryRoutes = (): Router => {
    * - Supports automatic instanceId generation
    * - Initializes TTL and heartbeat metadata
    */
-  router.post("/register", register);
+  router.post('/register', register);
 
   /**
    * -------------------------
@@ -58,7 +58,7 @@ export const registryRoutes = (): Router => {
    * - service discovery clients
    * - administrative tooling
    */
-  router.get("/services", listServices);
+  router.get('/services', listServices);
 
   /**
    * -------------------------
@@ -73,7 +73,7 @@ export const registryRoutes = (): Router => {
    * - May include instances that are close to TTL expiration
    * - Liveness enforcement is handled by LeaseManager
    */
-  router.get("/services/:serviceName", getServiceInstances);
+  router.get('/services/:serviceName', getServiceInstances);
 
   /**
    * -------------------------
@@ -89,10 +89,7 @@ export const registryRoutes = (): Router => {
    * - targeted health inspection
    * - admin / observability tooling
    */
-  router.get(
-    "/services/:serviceName/:instanceId",
-    getInstance
-  );
+  router.get('/services/:serviceName/:instanceId', getInstance);
 
   /**
    * Return the configured router to be mounted by the application.

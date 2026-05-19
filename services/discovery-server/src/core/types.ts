@@ -3,4 +3,4 @@ export type {
   HeartbeatPayload,
   ServicesQueryPayload,
   ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
+} from '@trading-model/common/contracts/service-registry.types';

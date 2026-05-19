@@ -1,5 +1,10 @@
 import { describe, it, expect } from '@jest/globals';
-import { ClassResponseExceptions, ResponseException, HTTP_CODE, ResponseCodes } from '../../src/middleware/responseException';
+import {
+  ClassResponseExceptions,
+  ResponseException,
+  HTTP_CODE,
+  ResponseCodes,
+} from '../../src/middleware/response-exception';
 
 describe('ClassResponseExceptions', () => {
   describe('ResponseCodes', () => {

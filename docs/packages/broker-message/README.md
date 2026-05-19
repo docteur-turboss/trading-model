@@ -19,20 +19,20 @@ Every microservice uses this package to send and receive typed, validated messag
 
 Mounted via `broker.listenExpress(app)`:
 
-| Method | Path | Handler | Description |
-|---|---|---|---|
-| POST | `/{callbackPath}` (default: `/message`) | `MessageController` | Receives incoming broker messages, validates metadata + payload, emits event locally |
+| Method | Path                                    | Handler             | Description                                                                          |
+| ------ | --------------------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| POST   | `/{callbackPath}` (default: `/message`) | `MessageController` | Receives incoming broker messages, validates metadata + payload, emits event locally |
 
 ### Consumed (Outbound)
 
 Calls made to the Message Delivery Service:
 
-| Method | Path | Source | Purpose |
-|---|---|---|---|
-| POST | `https://{host}:{port}/subscribe` | `MessageManagerClient.SubscribeToTopics` | Subscribe to a topic |
-| DELETE | `https://{host}:{port}/subscribe` | `MessageManagerClient.UnSubscribeToTopic` | Unsubscribe from a topic |
-| POST | `https://{host}:{port}/message` | `MessageManagerClient.publishAsyncMessage` | Publish an asynchronous message |
-| POST | `https://{host}:{port}/message` | `MessageManagerClient.publishDirectMessage` | Publish directly to a specific service |
+| Method | Path                              | Source                                      | Purpose                                |
+| ------ | --------------------------------- | ------------------------------------------- | -------------------------------------- |
+| POST   | `https://{host}:{port}/subscribe` | `MessageManagerClient.SubscribeToTopics`    | Subscribe to a topic                   |
+| DELETE | `https://{host}:{port}/subscribe` | `MessageManagerClient.UnSubscribeToTopic`   | Unsubscribe from a topic               |
+| POST   | `https://{host}:{port}/message`   | `MessageManagerClient.publishAsyncMessage`  | Publish an asynchronous message        |
+| POST   | `https://{host}:{port}/message`   | `MessageManagerClient.publishDirectMessage` | Publish directly to a specific service |
 
 ## Exports
 
@@ -54,47 +54,47 @@ const broker = new BrokerMessage({
 
 **Methods:**
 
-| Method | Signature | Description |
-|---|---|---|
-| `broker.intents(topics)` | `(topics: EventEnumMap[]) => Promise<void>` | Subscribe to event topics via Message Delivery Service |
-| `broker.stopMessageManager()` | `() => Promise<void>` | Unsubscribe from all topics, remove all event listeners |
-| `broker.on(event, listener)` | `(event, listener) => () => void` | Register local event listener, returns cleanup function |
-| `broker.listenExpress(app)` | `(app: Application) => void` | Mount the callback POST route on Express app |
+| Method                        | Signature                                   | Description                                             |
+| ----------------------------- | ------------------------------------------- | ------------------------------------------------------- |
+| `broker.intents(topics)`      | `(topics: EventEnumMap[]) => Promise<void>` | Subscribe to event topics via Message Delivery Service  |
+| `broker.stopMessageManager()` | `() => Promise<void>`                       | Unsubscribe from all topics, remove all event listeners |
+| `broker.on(event, listener)`  | `(event, listener) => () => void`           | Register local event listener, returns cleanup function |
+| `broker.listenExpress(app)`   | `(app: Application) => void`                | Mount the callback POST route on Express app            |
 
 **Static Properties:**
 
-| Property | Signature | Description |
-|---|---|---|
-| `broker.post.direct(service, payload, metadata)` | `<T>(service, payload, metadata) => Promise<void>` | Publish message directly to a specific service |
-| `broker.post.indirect(payload, metadata)` | `<T>(payload, metadata) => Promise<void>` | Publish message asynchronously via delivery service |
+| Property                                         | Signature                                          | Description                                         |
+| ------------------------------------------------ | -------------------------------------------------- | --------------------------------------------------- |
+| `broker.post.direct(service, payload, metadata)` | `<T>(service, payload, metadata) => Promise<void>` | Publish message directly to a specific service      |
+| `broker.post.indirect(payload, metadata)`        | `<T>(payload, metadata) => Promise<void>`          | Publish message asynchronously via delivery service |
 
 ### Named Export — `helper`
 
 ```typescript
-import { helper } from "@trading-model/broker-message";
+import { helper } from '@trading-model/broker-message';
 // helper.MetadataBuilder — fluent MessageMetadata builder
 ```
 
-| Export | Description |
-|---|---|
+| Export                   | Description                         |
+| ------------------------ | ----------------------------------- |
 | `helper.MetadataBuilder` | `MessageMetadata` class (see below) |
 
 ### Internal Types & Classes
 
 #### Types (`shared/types/`)
 
-| Export | Kind | Description |
-|---|---|---|
-| `MessageManagerConfig` | type | `{ serviceName, callbackPath, instanceId }` |
-| `IdentifyType` | interface | `{ serviceName, instanceId }` — publisher/subscriber identity |
-| `RoutingType` | interface | `{ partitionKey?, priority? }` — routing hints |
-| `DeliveryType` | interface | `{ mode: DeliveryModeEnum, ttl?, deduplicationId? }` — delivery semantics |
-| `SecurityType` | interface | `{ authContext?, signature? }` — auth context and message signature |
-| `BrokerConfig` | interface | TLS certificate paths for broker connections |
-| `message<T>` | interface | Canonical message envelope: `{ metadata, payload }` |
-| `MessageMetadata` | interface | Full metadata structure: `correlationId, schemaVersion, causationId, eventType, topic, publisher, routing, delivery, security` |
-| `SubscribesTopicsPayload` | type | `{ topic, callbackPath, consumerIdentity }` |
-| `UnSubscribesTopicsPayload` | type | `{ topic, instanceId }` |
+| Export                      | Kind      | Description                                                                                                                    |
+| --------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `MessageManagerConfig`      | type      | `{ serviceName, callbackPath, instanceId }`                                                                                    |
+| `IdentifyType`              | interface | `{ serviceName, instanceId }` — publisher/subscriber identity                                                                  |
+| `RoutingType`               | interface | `{ partitionKey?, priority? }` — routing hints                                                                                 |
+| `DeliveryType`              | interface | `{ mode: DeliveryModeEnum, ttl?, deduplicationId? }` — delivery semantics                                                      |
+| `SecurityType`              | interface | `{ authContext?, signature? }` — auth context and message signature                                                            |
+| `BrokerConfig`              | interface | TLS certificate paths for broker connections                                                                                   |
+| `message<T>`                | interface | Canonical message envelope: `{ metadata, payload }`                                                                            |
+| `MessageMetadata`           | interface | Full metadata structure: `correlationId, schemaVersion, causationId, eventType, topic, publisher, routing, delivery, security` |
+| `SubscribesTopicsPayload`   | type      | `{ topic, callbackPath, consumerIdentity }`                                                                                    |
+| `UnSubscribesTopicsPayload` | type      | `{ topic, instanceId }`                                                                                                        |
 
 #### MessageMetadata Builder (`shared/helper/messages/message.ts`)
 
@@ -102,24 +102,24 @@ Fluent builder class for constructing `MessageMetadata`:
 
 ```typescript
 const metadata = new MessageMetadata()
-  .setTopic("market.trade.executed")
-  .setEventType("trade.executed")
-  .setPublisher({ serviceName: "TraderTrainingService", instanceId: "node-1" })
-  .setSecurity({ authContext: { subject: "svc-acct", roles: [], tenantId: "main" } })
-  .setDelivery({ mode: "at-least-once", ttl: 60000 })
-  .setRouting({ partitionKey: "trade-123", priority: 1 })
+  .setTopic('market.trade.executed')
+  .setEventType('trade.executed')
+  .setPublisher({ serviceName: 'TraderTrainingService', instanceId: 'node-1' })
+  .setSecurity({ authContext: { subject: 'svc-acct', roles: [], tenantId: 'main' } })
+  .setDelivery({ mode: 'at-least-once', ttl: 60000 })
+  .setRouting({ partitionKey: 'trade-123', priority: 1 })
   .setIds({ correlationId: uuid, causationId: uuid })
-  .setSchemaVersion("1.0.0")
+  .setSchemaVersion('1.0.0')
   .toJSON();
 ```
 
 #### Zod Schemas (`shared/helper/messages/message.schema.ts`)
 
-| Export | Description |
-|---|---|
+| Export                  | Description                                               |
+| ----------------------- | --------------------------------------------------------- |
 | `MessageMetadataSchema` | Zod schema for all metadata fields with format validation |
-| `MessagePayloadSchema` | Discriminated union validating payloads by event type |
-| `MessagePayload` | Inferred TypeScript type from schema |
+| `MessagePayloadSchema`  | Discriminated union validating payloads by event type     |
+| `MessagePayload`        | Inferred TypeScript type from schema                      |
 
 Supported event validators: `exampleEvent`, `testEvent`, `fetchRecentTrades`, `fetch24hrTickerStats`, `fetchCandlestickSeries`, `fetchOrderBookSnapshot`, `fetchPriceTickerSnapshot`, `fetchOrderBookTickerSnapshot`.
 
@@ -128,41 +128,43 @@ Supported event validators: `exampleEvent`, `testEvent`, `fetchRecentTrades`, `f
 Global singleton in-process event emitter:
 
 ```typescript
-import { EventManager } from "@trading-model/broker-message";
+import { EventManager } from '@trading-model/broker-message';
 
-EventManager.on("market.trade.recent.fetch", (data) => {
+EventManager.on('market.trade.recent.fetch', data => {
   console.log(data.trades);
 });
 ```
 
-| Method | Signature | Description |
-|---|---|---|
-| `on(event, callback)` | `(event, callback) => () => void` | Register listener, returns cleanup |
-| `off(event, callback)` | `(event, callback) => void` | Remove listener |
-| `emit(event, ...args)` | `(event, ...args) => void` | Emit event to all registered listeners |
-| `removeAllListeners()` | `() => void` | Clear all listeners |
+| Method                 | Signature                         | Description                            |
+| ---------------------- | --------------------------------- | -------------------------------------- |
+| `on(event, callback)`  | `(event, callback) => () => void` | Register listener, returns cleanup     |
+| `off(event, callback)` | `(event, callback) => void`       | Remove listener                        |
+| `emit(event, ...args)` | `(event, ...args) => void`        | Emit event to all registered listeners |
+| `removeAllListeners()` | `() => void`                      | Clear all listeners                    |
 
 ## How to Use
 
 ### Basic Setup
 
 ```typescript
-import BrokerMessage from "@trading-model/broker-message";
-import AddressManager from "@trading-model/address-manager";
-import express from "express";
+import BrokerMessage from '@trading-model/broker-message';
+import AddressManager from '@trading-model/address-manager';
+import express from 'express';
 
 const app = express();
 app.use(express.json());
 
-const am = new AddressManager({ /* config */ });
+const am = new AddressManager({
+  /* config */
+});
 const { stop: stopAM } = am.start();
 
 const broker = new BrokerMessage({
-  instanceId: "instance-1",
-  serviceName: "TraderTrainingService",
-  RootCACertPath: "/etc/certs/ca.pem",
-  CertificatPath: "/etc/certs/cert.pem",
-  KeyCertificatPath: "/etc/certs/key.pem",
+  instanceId: 'instance-1',
+  serviceName: 'TraderTrainingService',
+  RootCACertPath: '/etc/certs/ca.pem',
+  CertificatPath: '/etc/certs/cert.pem',
+  KeyCertificatPath: '/etc/certs/key.pem',
   addressManagerClient: am,
 });
 
@@ -170,21 +172,21 @@ const broker = new BrokerMessage({
 broker.listenExpress(app);
 
 // Subscribe to topics
-await broker.intents(["market.trade.recent.fetch", "market.ticker.24hr-stats.fetch"]);
+await broker.intents(['market.trade.recent.fetch', 'market.ticker.24hr-stats.fetch']);
 
 // Handle incoming messages locally
-const cleanup = broker.on("market.trade.recent.fetch", (data) => {
-  console.log("Received trades:", data.trades);
+const cleanup = broker.on('market.trade.recent.fetch', data => {
+  console.log('Received trades:', data.trades);
 });
 
 // Publish a message directly to another service
 const metadata = new MessageMetadata()
-  .setTopic("market.trade.executed")
-  .setEventType("trade.executed")
-  .setPublisher({ serviceName: "TraderTrainingService", instanceId: "node-1" })
+  .setTopic('market.trade.executed')
+  .setEventType('trade.executed')
+  .setPublisher({ serviceName: 'TraderTrainingService', instanceId: 'node-1' })
   .toJSON();
 
-await broker.post.direct("FinancialScrapperService", { symbol: "BTCUSDT" }, metadata);
+await broker.post.direct('FinancialScrapperService', { symbol: 'BTCUSDT' }, metadata);
 
 // Publish asynchronously
 await broker.post.indirect({ price: 50000 }, metadata);

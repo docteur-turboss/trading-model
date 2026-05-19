@@ -1,4 +1,4 @@
-import cron, { ScheduledTask } from "node-cron";
+import cron, { ScheduledTask } from 'node-cron';
 
 /**
  * Minimal contract that a scheduled job must implement.
@@ -50,7 +50,7 @@ export class Scheduler {
    */
   register(job: ScheduledJob): void {
     if (this.started) {
-      throw new Error("Cannot register job after scheduler has started");
+      throw new Error('Cannot register job after scheduler has started');
     }
 
     this.jobs.push(job);

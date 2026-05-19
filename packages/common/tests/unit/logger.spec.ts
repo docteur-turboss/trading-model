@@ -44,7 +44,7 @@ describe('Logger', () => {
       logger.debug('test debug');
       expect(consoleDebugSpy).toHaveBeenCalledWith(
         expect.stringContaining('[DEBUG]'),
-        expect.anything(),
+        expect.anything()
       );
     });
 
@@ -60,7 +60,7 @@ describe('Logger', () => {
       logger.info('test info');
       expect(consoleInfoSpy).toHaveBeenCalledWith(
         expect.stringContaining('[INFO]'),
-        expect.anything(),
+        expect.anything()
       );
     });
 
@@ -76,7 +76,7 @@ describe('Logger', () => {
       logger.warn('test warn');
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('[WARN]'),
-        expect.anything(),
+        expect.anything()
       );
     });
   });
@@ -86,7 +86,7 @@ describe('Logger', () => {
       logger.error('test error');
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('[ERROR]'),
-        expect.anything(),
+        expect.anything()
       );
     });
   });
@@ -121,7 +121,9 @@ describe('Logger', () => {
   describe('error with production NODE_ENV', () => {
     it('should attempt to send error to external service in production', async () => {
       process.env.NODE_ENV = 'production';
-      const fetchSpy = jest.spyOn(globalThis, 'fetch' as any).mockResolvedValue({ ok: true } as any);
+      const fetchSpy = jest
+        .spyOn(globalThis, 'fetch' as any)
+        .mockResolvedValue({ ok: true } as any);
       const prodLogger = new Logger(LogLevel.ERROR);
       prodLogger.error('prod error');
       expect(fetchSpy).toHaveBeenCalled();
@@ -130,7 +132,9 @@ describe('Logger', () => {
 
     it('should handle fetch failure gracefully', async () => {
       process.env.NODE_ENV = 'production';
-      const fetchSpy = jest.spyOn(globalThis, 'fetch' as any).mockRejectedValue(new Error('network error'));
+      const fetchSpy = jest
+        .spyOn(globalThis, 'fetch' as any)
+        .mockRejectedValue(new Error('network error'));
       const prodLogger = new Logger(LogLevel.ERROR);
       expect(() => prodLogger.error('prod error')).not.toThrow();
       fetchSpy.mockRestore();
