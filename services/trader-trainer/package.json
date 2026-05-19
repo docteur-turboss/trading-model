@@ -29,7 +29,7 @@
     "@trading-model/common": "*",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
-    "zod": "^3.24.5"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
