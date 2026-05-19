@@ -71,12 +71,32 @@ Real-time market data ingestion from Binance:
 
 See [services/financial-scraper/docs/architecture.md](../services/financial-scraper/docs/architecture.md) for full details.
 
-### Message Manager (Port 8445)
-Internal messaging backbone between microservices:
-- Publish/subscribe with topic routing
-- HTTP transport layer
-- MongoDB persistence for messages
-- Zod schema validation
+### Message Manager / Message Delivery Service (Port 8445)
+Internal messaging backbone for inter-service communication:
+
+**Messaging Model:**
+- Topic-based publish/subscribe over HTTP
+- In-memory subscription registry with instance-level deduplication
+- Three delivery semantics: `AT_MOST_ONCE`, `AT_LEAST_ONCE`, `EXACTLY_ONCE`
+- TTL-based message expiration with Dead Letter Queue routing
+- Parallel dispatch to all subscribers of a topic
+
+**HTTP API:**
+- `POST /message` — publish a message to a topic
+- `POST /subscription` — subscribe to a topic
+- `DELETE /subscription` — unsubscribe from a topic
+
+**Key design features:**
+- Zod-validated request bodies for fail-fast misconfiguration detection
+- TLS-secured callbacks to subscriber services via mTLS
+- Service discovery integration (`@trading-model/address-manager`) for target resolution
+- Fluent `MessageMetadata` builder for constructing typed message envelopes
+- Subscribers context with `ack` / `nack` / `deadLetter` controls
+
+**Client SDK:**
+- `@trading-model/broker-message` SDK provides a high-level client for subscribing, publishing, and handling incoming messages with typed event emitters.
+
+See [services/message-manager/README.md](../services/message-manager/README.md) for full details.
 
 ### Trader-Trainer (Port 3001)
 Core ML training engine:
