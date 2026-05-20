@@ -129,7 +129,9 @@ describe('AddressManager', () => {
 
   describe('start', () => {
     it('should register service, create scheduler, and return stop handle', async () => {
-      (mockAddressManagerClientInstance.registerService as any).mockResolvedValue({ token: 'new-token' });
+      (mockAddressManagerClientInstance.registerService as any).mockResolvedValue({
+        token: 'new-token',
+      });
 
       const handle = am.start();
 
