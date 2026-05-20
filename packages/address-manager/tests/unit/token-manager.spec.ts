@@ -45,6 +45,13 @@ describe('TokenManager', () => {
     });
   });
 
+  describe('setToken', () => {
+    test('should set the token and make it available via getToken', () => {
+      manager.setToken('direct-token');
+      expect(manager.getToken()).toBe('direct-token');
+    });
+  });
+
   describe('refreshToken', () => {
     test('should call HttpClient.post with correct URL and payload', async () => {
       const mockToken = 'rotated-token';
