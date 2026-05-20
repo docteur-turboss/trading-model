@@ -8,6 +8,9 @@ import {
   MessageManagerBaseError,
   MessageManagerError,
   MetadataBuilderError,
+  TimeoutError,
+  NackError,
+  DeadLetterError,
   AgentBaseError,
   AgentError,
 } from '../../src/utils/errors';
@@ -96,6 +99,60 @@ describe('Error classes', () => {
     it('should be instanceof MessageManagerBaseError', () => {
       const error = new MetadataBuilderError('err');
       expect(error).toBeInstanceOf(MessageManagerBaseError);
+    });
+  });
+
+  describe('TimeoutError', () => {
+    it('should have correct name', () => {
+      const error = new TimeoutError('timed out');
+      expect(error.name).toBe('TimeoutError');
+    });
+
+    it('should be instanceof MessageManagerBaseError', () => {
+      const error = new TimeoutError('timeout');
+      expect(error).toBeInstanceOf(MessageManagerBaseError);
+    });
+  });
+
+  describe('NackError', () => {
+    it('should have correct name and reason', () => {
+      const error = new NackError('custom reason');
+      expect(error.name).toBe('NackError');
+      expect(error.reason).toBe('custom reason');
+      expect(error.message).toBe('custom reason');
+    });
+
+    it('should use default message when reason is undefined', () => {
+      const error = new NackError();
+      expect(error.reason).toBeUndefined();
+      expect(error.message).toBe('Message negatively acknowledged');
+    });
+
+    it('should store cause', () => {
+      const cause = new Error('root');
+      const error = new NackError('reason', cause);
+      expect(error.cause).toBe(cause);
+    });
+  });
+
+  describe('DeadLetterError', () => {
+    it('should have correct name and reason', () => {
+      const error = new DeadLetterError('custom reason');
+      expect(error.name).toBe('DeadLetterError');
+      expect(error.reason).toBe('custom reason');
+      expect(error.message).toBe('custom reason');
+    });
+
+    it('should use default message when reason is undefined', () => {
+      const error = new DeadLetterError();
+      expect(error.reason).toBeUndefined();
+      expect(error.message).toBe('Message sent to dead letter queue');
+    });
+
+    it('should store cause', () => {
+      const cause = new Error('root');
+      const error = new DeadLetterError('reason', cause);
+      expect(error.cause).toBe(cause);
     });
   });
 

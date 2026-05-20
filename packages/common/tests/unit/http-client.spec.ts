@@ -44,6 +44,19 @@ describe('HttpClient', () => {
     });
   }
 
+  function simulateRawResponse(statusCode: number, contentType: string) {
+    const onMock = jest.fn((e: string, cb2: any) => {
+      if (e === 'data') cb2('{invalid json}');
+      if (e === 'end') cb2();
+    });
+    (requestCallback as any)({
+      on: onMock,
+      statusCode,
+      headers: { 'content-type': contentType },
+    });
+    return onMock;
+  }
+
   describe('get', () => {
     it('should make a GET request', async () => {
       const responseData = JSON.stringify({ data: 'test' });
@@ -74,6 +87,28 @@ describe('HttpClient', () => {
       mockReq._timeoutCb();
 
       await expect(promise).rejects.toThrow(HttpClientTimeoutError);
+    });
+
+    it('should reject on JSON parse error', async () => {
+      const promise = client.get('https://example.com/api');
+      simulateRawResponse(200, 'application/json');
+
+      await expect(promise).rejects.toThrow();
+    });
+
+    it('should handle response without content-type header', async () => {
+      const promise = client.get('https://example.com/api');
+      (requestCallback as any)({
+        on: jest.fn((e: string, cb2: any) => {
+          if (e === 'data') cb2('raw-string-data');
+          if (e === 'end') cb2();
+        }),
+        statusCode: 200,
+        headers: {},
+      });
+
+      const result = await promise;
+      expect(result).toBe('raw-string-data');
     });
   });
 

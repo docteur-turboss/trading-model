@@ -115,6 +115,23 @@ describe('handleCoreResponse', () => {
       const plainError = new Error('random error');
       expect(() => handleDBError('user')(plainError)).toThrow('random error');
     });
+
+    it('should handle ChainedError with unmatched message', () => {
+      const chainedError = new ChainedError('Some unrelated error');
+      expect(() => handleDBError('user')(chainedError)).toThrow('Some unrelated error');
+    });
+
+    it('should handle ChainedError with duplicate entry for unknown key', () => {
+      const chainedError = new ChainedError('Duplicate entry abc for key other_UNIQUE');
+      expect(() => handleDBError('user')(chainedError)).toThrow(
+        'Duplicate entry abc for key other_UNIQUE'
+      );
+    });
+
+    it('should handle ChainedError with undefined message', () => {
+      const err = Object.assign(Object.create(ChainedError.prototype), { message: undefined });
+      expect(() => handleDBError('user')(err)).toThrow('');
+    });
   });
 
   describe('handleCoreError', () => {
@@ -147,7 +164,7 @@ describe('handleCoreResponse', () => {
   describe('handleOnlyDataCore', () => {
     it('should return tuple with data and Success code', async () => {
       const fn = jest.fn<any>().mockResolvedValue({ id: 1 });
-      const result = await handleOnlyDataCore(fn, {}, 'user' as any, 'test');
+      const result = await handleOnlyDataCore(fn, {} as any, 'user' as any, 'test');
       expect(result).toEqual([{ id: 1 }, 'Success']);
     });
 
@@ -155,11 +172,17 @@ describe('handleCoreResponse', () => {
       const fn = jest.fn<any>().mockRejectedValue(new Error('NOT_FOUND'));
       const result = await handleOnlyDataCore(
         fn,
-        { NOT_FOUND: ['404', 'Not found'] },
+        { NOT_FOUND: ['404', 'Not found'] } as any,
         'user' as any,
         'test'
       );
       expect(result).toEqual(['404', 'Not found']);
+    });
+
+    it('should use default empty errorMap', async () => {
+      const fn = jest.fn<any>().mockResolvedValue('data');
+      const result = await (handleOnlyDataCore as any)(fn, undefined, 'user' as any, 'test');
+      expect(result).toEqual(['data', 'Success']);
     });
   });
 });

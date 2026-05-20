@@ -59,4 +59,10 @@ describe('ResponseProtocole', () => {
     expect(res.status).toHaveBeenCalledWith(418);
     expect(res.json).toHaveBeenCalledWith('teapot');
   });
+
+  it('should call next() after sending response', () => {
+    const err = new Error('test');
+    ResponseProtocole(err, req, res, next);
+    expect(next).toHaveBeenCalled();
+  });
 });

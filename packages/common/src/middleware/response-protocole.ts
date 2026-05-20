@@ -112,9 +112,6 @@ export const ResponseProtocole = (
     });
   }
 
-  return res.status(response.status).json(response.data) as unknown as void;
-  /**
-   * Note: `next()` after sending a response is necessary for Express to understand it as an error handler; it cannot be removed.
-   */
+  res.status(response.status).json(response.data);
   next();
 };

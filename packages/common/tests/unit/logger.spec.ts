@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { Logger, LogLevel } from '../../src/config/logger';
 
+jest.mock('fs', () => ({
+  existsSync: jest.fn().mockReturnValue(false),
+  mkdirSync: jest.fn(),
+  writeFile: jest.fn((_path: string, _data: string, _opts: unknown, cb: () => void) => cb()),
+}));
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 describe('Logger', () => {
@@ -79,6 +85,12 @@ describe('Logger', () => {
         expect.anything()
       );
     });
+
+    it('should NOT log warn messages when level is ERROR', () => {
+      const errorLogger = new Logger(LogLevel.ERROR);
+      errorLogger.warn('should not appear');
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('error', () => {
@@ -88,6 +100,12 @@ describe('Logger', () => {
         expect.stringContaining('[ERROR]'),
         expect.anything()
       );
+    });
+
+    it('should not log error when logLevel is above ERROR', () => {
+      (logger as any).logLevel = 4;
+      logger.error('should not appear');
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -148,6 +166,42 @@ describe('Logger', () => {
       }
       const logs = logger.getLogs();
       expect(logs.length).toBeLessThanOrEqual(1000);
+    });
+  });
+
+  describe('createLogEntry', () => {
+    it('should handle null sessionId', () => {
+      (logger as any).sessionId = null;
+      logger.info('test session');
+      const logs = logger.getLogs();
+      expect(logs[0].sessionId).toBeUndefined();
+    });
+  });
+
+  describe('sendToErrorService with ERROR_URL_WEBHOOK', () => {
+    it('should use ERROR_URL_WEBHOOK env var when set', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.ERROR_URL_WEBHOOK = 'https://webhook.example.com';
+      const fetchSpy = jest
+        .spyOn(globalThis, 'fetch' as any)
+        .mockResolvedValue({ ok: true } as any);
+      const prodLogger = new Logger(LogLevel.ERROR);
+      prodLogger.error('webhook test');
+      expect(fetchSpy).toHaveBeenCalledWith('https://webhook.example.com', expect.anything());
+      fetchSpy.mockRestore();
+      delete process.env.ERROR_URL_WEBHOOK;
+    });
+  });
+
+  describe('createLogEntry with metadata', () => {
+    it('should include context, url, and serviceInCharge in log entry', () => {
+      (logger as any).sessionId = 'sess-001';
+      logger.setUserId('user-001');
+      logger.info('test with meta', { key: 'val' }, 'https://example.com', 'my-service');
+      const logs = logger.getLogs();
+      expect(logs[0].context).toEqual({ key: 'val' });
+      expect(logs[0].url).toBe('https://example.com');
+      expect(logs[0].serviceInCharge).toBe('my-service');
     });
   });
 });

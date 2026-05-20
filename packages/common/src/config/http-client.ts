@@ -88,7 +88,7 @@ export class HttpClient {
           reject(
             new HttpClientTimeoutError(
               `Request timed out after ${options.timeoutMs}ms`,
-              options.timeoutMs ?? 10000
+              options.timeoutMs!
             )
           );
         });
