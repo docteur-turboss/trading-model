@@ -1,0 +1,2 @@
+npx prettier --check .
+npx eslint .

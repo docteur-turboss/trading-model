@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.git
+.gitattributes
+.gitignore
+.husky
+.github
+*.md
+.prettierrc
+eslint.config.mjs
+commitlint.config.mjs
+scripts
+.nyc_output

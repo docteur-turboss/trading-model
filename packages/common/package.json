@@ -1,0 +1,61 @@
+{
+  "name": "@trading-model/common",
+  "version": "1.0.0",
+  "license": "ISC",
+  "type": "commonjs",
+  "exports": {
+    "./config/*": {
+      "types": "./dist/config/*.d.ts",
+      "default": "./dist/config/*.js"
+    },
+    "./middleware/*": {
+      "types": "./dist/middleware/*.d.ts",
+      "default": "./dist/middleware/*.js"
+    },
+    "./utils/*": {
+      "types": "./dist/utils/*.d.ts",
+      "default": "./dist/utils/*.js"
+    },
+    "./server/*": {
+      "types": "./dist/server/*.d.ts",
+      "default": "./dist/server/*.js"
+    },
+    "./validation/*": {
+      "types": "./dist/validation/*.d.ts",
+      "default": "./dist/validation/*.js"
+    },
+    "./contracts/*": {
+      "types": "./dist/contracts/*.d.ts",
+      "default": "./dist/contracts/*.js"
+    },
+    "./crypto/*": {
+      "types": "./dist/crypto/*.d.ts",
+      "default": "./dist/crypto/*.js"
+    }
+  },
+  "dependencies": {
+    "chained-error": "^1.0.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.1",
+    "helmet": "^8.1.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@jest/globals": "^30.4.1",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.6.2",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "build": "tsc"
+  }
+}

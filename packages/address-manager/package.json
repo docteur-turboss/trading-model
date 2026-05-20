@@ -1,0 +1,37 @@
+{
+  "name": "@trading-model/address-manager",
+  "version": "1.0.0",
+  "license": "ISC",
+  "type": "commonjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "dependencies": {
+    "@trading-model/common": "*",
+    "express": "^5.2.1",
+    "node-cron": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.2",
+    "typescript": "^6.0.3",
+    "@jest/globals": "^30.4.1",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.9",
+    "globals": "^17.6.0",
+    "eslint": "^10.3.0",
+    "typescript-eslint": "^8.59.2"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "build": "tsc -p tsconfig.build.json"
+  }
+}
