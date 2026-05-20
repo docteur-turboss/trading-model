@@ -1,0 +1,51 @@
+{
+  "name": "message-manager",
+  "version": "1.0.0",
+  "description": "Service de gestion et d'envoi des communications entre services",
+  "homepage": "https://github.com/docteur-turboss/trading-model#readme",
+  "bugs": {
+    "url": "https://github.com/docteur-turboss/trading-model/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docteur-turboss/trading-model.git"
+  },
+  "keywords": [
+    "mail",
+    "communications"
+  ],
+  "license": "ISC",
+  "author": "Alchimist Horus Turboss <@docteur-turboss>",
+  "type": "commonjs",
+  "main": "./dist/app/index.js",
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "dev": "ts-node src/app/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@trading-model/common": "*",
+    "@trading-model/address-manager": "*",
+    "axios": "^1.16.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.1",
+    "helmet": "^8.1.0",
+    "mongodb": "^7.2.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@jest/globals": "^30.4.1",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.6.2",
+    "globals": "^17.6.0",
+    "eslint": "^10.3.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2"
+  }
+}

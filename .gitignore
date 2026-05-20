@@ -152,4 +152,4 @@ id_rsa*
 **/keys/*
 
 # Customs
-/.husky/*
+**/.vscode/*
