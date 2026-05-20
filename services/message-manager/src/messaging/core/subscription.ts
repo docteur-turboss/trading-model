@@ -59,22 +59,6 @@ interface SubscribersContext {
    * @returns {Promise<void>}
    */
   ack(): Promise<void>;
-
-  /**
-   * Signals a recoverable failure and requests a retry
-   *
-   * @param {string} [reason] Optional failure reason
-   * @throws {NackError}
-   */
-  nack(reason?: string): Promise<void>;
-
-  /**
-   * Signals an unrecoverable failure; message will be routed to DLQ
-   *
-   * @param {string} [reason] Optional failure reason
-   * @throws {DeadLetterError}
-   */
-  deadLetter(reason?: string): Promise<void>;
 }
 
 /**
@@ -130,14 +114,6 @@ export class Subscription {
 
       ack: async () => {
         acknowledged = true;
-      },
-
-      nack: async (reason?: string) => {
-        throw new NackError(reason);
-      },
-
-      deadLetter: async (reason?: string) => {
-        throw new DeadLetterError(reason);
       },
     };
 

@@ -146,6 +146,16 @@ describe('Subscription', () => {
 
       expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
     });
+
+    it('should fallback emittedAt to 0 when not provided', async () => {
+      mockHttpClient.post.mockResolvedValue(undefined);
+
+      const message = createMockMessage('payload', { delivery: undefined });
+      (message.metadata as any).emittedAt = undefined;
+      await subscription.dispatch(mockHttpClient as never, message);
+
+      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('topic and identity', () => {
