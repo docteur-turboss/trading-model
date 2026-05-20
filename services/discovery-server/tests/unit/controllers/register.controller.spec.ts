@@ -122,6 +122,17 @@ describe('Register.controller', () => {
 
       expect(mockGenerateInstanceId).not.toHaveBeenCalled();
     });
+
+    it('should reject empty string instanceId with BadRequest', async () => {
+      mockVerifyInstanceName.mockReturnValue(true);
+      await expect(
+        register(
+          createReq({ body: { ...validRegisterPayload, instanceId: '' } }),
+          createRes(),
+          createNext
+        )
+      ).rejects.toMatchObject({ type: 'BadRequest', error: 'Invalid instanceId' });
+    });
   });
 
   describe('listServices', () => {

@@ -87,4 +87,35 @@ describe('LeaseManager', () => {
       expect(boundary).toBe(true);
     });
   });
+
+  describe('cleanup', () => {
+    it('should remove expired instances on interval tick', () => {
+      const expired = validServiceInstance({ lastHeartbeat: Date.now() - 60_000 });
+      const alive = validServiceInstance({ instanceId: 'alive-id', lastHeartbeat: Date.now() });
+      mockDump.mockReturnValue({ 'test-service': [expired, alive] });
+
+      leaseManager.start();
+      jest.advanceTimersByTime(5000);
+
+      expect(mockRemoveInstance).toHaveBeenCalledTimes(1);
+      expect(mockRemoveInstance).toHaveBeenCalledWith('test-service', expired.instanceId);
+    });
+
+    it('should log error when cleanup throws', () => {
+      const testError = new Error('cleanup failed');
+      mockDump.mockImplementation(() => {
+        throw testError;
+      });
+
+      leaseManager.start();
+      jest.advanceTimersByTime(5000);
+
+      const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
+        '@trading-model/common/config/logger'
+      );
+      expect(logger.error).toHaveBeenCalledWith('[LeaseManager] Cleanup error:', {
+        error: testError,
+      });
+    });
+  });
 });
