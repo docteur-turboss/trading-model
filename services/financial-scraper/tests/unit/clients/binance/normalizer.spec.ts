@@ -60,6 +60,14 @@ describe('BinanceNormalizer', () => {
       expect(result[0].tradeId).toBe(BigInt(28457));
       expect(result[0].side).toBe('sell'); // m = true → sell
     });
+
+    it('should set side to buy when m is false', () => {
+      const buyPayload = [
+        { a: 28458, p: '5.0', q: '10.0', f: 1, l: 2, T: 1499865549591, m: false, M: true },
+      ];
+      const result = BinanceNormalizer.aggregateTrades('BTCUSDT', buyPayload);
+      expect(result[0].side).toBe('buy');
+    });
   });
 
   describe('candles', () => {

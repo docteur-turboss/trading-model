@@ -84,11 +84,35 @@ describe('MarkerOrderBooks (in-memory storage)', () => {
       await insertOrderBook([makeBook({ symbol: 'BTCUSDT', market: 'crypto' }) as never]);
     });
 
-    it('should retrieve by id via symbol query', async () => {
-      const results = await selectOrderBookBy.symbol('BTCUSDT');
+    it('should retrieve by id', async () => {
+      const marketData = await selectOrderBookBy.market('crypto');
+      expect(marketData).not.toBeNull();
+
+      let found = false;
+      for (let id = 10000; id < 10050; id++) {
+        const result = await selectOrderBookBy.id(id);
+        if (result && result.symbol === 'BTCUSDT') {
+          found = true;
+          break;
+        }
+      }
+      expect(found).toBe(true);
+    });
+
+    it('should return null for unknown id', async () => {
+      const result = await selectOrderBookBy.id(-1);
+      expect(result).toBeNull();
+    });
+
+    it('should retrieve by market', async () => {
+      const results = await selectOrderBookBy.market('crypto');
       expect(results).not.toBeNull();
       expect(results!.length).toBeGreaterThanOrEqual(1);
-      expect(results![0]!.symbol).toBe('BTCUSDT');
+    });
+
+    it('should return null for unknown market', async () => {
+      const results = await selectOrderBookBy.market('fx');
+      expect(results).toBeNull();
     });
   });
 

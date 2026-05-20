@@ -40,7 +40,7 @@ function getRateLimitBucket(baseURL: string): RateLimitBucket {
   return rateLimitBuckets[baseURL];
 }
 
-async function acquireToken(baseURL: string, weight = 1): Promise<void> {
+async function acquireToken(baseURL: string, weight: number): Promise<void> {
   const bucket = getRateLimitBucket(baseURL);
 
   while (true) {
@@ -77,8 +77,7 @@ function shouldRetry(error: AxiosError): boolean {
 }
 
 function getBackoffDelay(attempt: number): number {
-  const delay = RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt);
-  return Math.min(delay, RETRY_CONFIG.maxDelayMs);
+  return RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt);
 }
 
 /* -------------------------------------------------------

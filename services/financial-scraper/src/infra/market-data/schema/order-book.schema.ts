@@ -127,8 +127,6 @@ const MarkerOrderBooks = new (class TMarketOrderBooks {
 })();
 
 export const insertOrderBook = async (data: OrderBookEntity[]): Promise<void> => {
-  if (!data.length) return;
-
   MarkerOrderBooks.insertInto(data);
 };
 
@@ -146,5 +144,11 @@ export const selectOrderBookBy = {
   },
   source: async (source: string) => {
     return MarkerOrderBooks.getBySource(source);
+  },
+  id: async (id: number) => {
+    return MarkerOrderBooks.getById(id);
+  },
+  market: async (market: string) => {
+    return MarkerOrderBooks.getByMarket(market);
   },
 };

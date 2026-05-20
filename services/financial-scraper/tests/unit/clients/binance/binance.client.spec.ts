@@ -62,8 +62,18 @@ describe('BinanceClient', () => {
     expect(mockGet).toHaveBeenCalledWith('/api/v3/depth', { weight: 5 } as never);
   });
 
+  it('getOrderBook should use default limit', async () => {
+    await getOrderBook('BTCUSDT');
+    expect(mockGet).toHaveBeenCalledWith('/api/v3/depth', { weight: 5 } as never);
+  });
+
   it('getRecentTrades should call trades endpoint with weight', async () => {
     await getRecentTrades('BTCUSDT', 100);
+    expect(mockGet).toHaveBeenCalledWith('/api/v3/trades', { weight: 25 } as never);
+  });
+
+  it('getRecentTrades should use default limit', async () => {
+    await getRecentTrades('BTCUSDT');
     expect(mockGet).toHaveBeenCalledWith('/api/v3/trades', { weight: 25 } as never);
   });
 
@@ -72,13 +82,28 @@ describe('BinanceClient', () => {
     expect(mockGet).toHaveBeenCalledWith('/api/v3/historicalTrades', { weight: 25 } as never);
   });
 
+  it('getHistoricalTrades should use default limit', async () => {
+    await getHistoricalTrades('BTCUSDT', undefined, 12345);
+    expect(mockGet).toHaveBeenCalledWith('/api/v3/historicalTrades', { weight: 25 } as never);
+  });
+
   it('CandlestickData should call candlesticks endpoint with weight', async () => {
     await CandlestickData('BTCUSDT', 100, '1m', 1620000000000);
     expect(mockGet).toHaveBeenCalledWith('/api/v3/klines', { weight: 2 } as never);
   });
 
+  it('CandlestickData should use default limit', async () => {
+    await CandlestickData('BTCUSDT', undefined, '1m', 1620000000000);
+    expect(mockGet).toHaveBeenCalledWith('/api/v3/klines', { weight: 2 } as never);
+  });
+
   it('getCompressedAggregateTrades should call aggTrades endpoint with weight', async () => {
     await getCompressedAggregateTrades('BTCUSDT', 12345, 100);
+    expect(mockGet).toHaveBeenCalledWith('/api/v3/aggTrades', { weight: 4 } as never);
+  });
+
+  it('getCompressedAggregateTrades should use default limit', async () => {
+    await getCompressedAggregateTrades('BTCUSDT', 12345);
     expect(mockGet).toHaveBeenCalledWith('/api/v3/aggTrades', { weight: 4 } as never);
   });
 
@@ -92,13 +117,28 @@ describe('BinanceClient', () => {
     expect(mockGet).toHaveBeenCalledWith('/api/v3/ticker/24hr', { weight: 2 } as never);
   });
 
+  it('get24hrTickerStats should handle undefined symbol', async () => {
+    await get24hrTickerStats();
+    expect(mockGet).toHaveBeenCalledWith('/api/v3/ticker/24hr', { weight: 2 } as never);
+  });
+
   it('getSymbolPriceTicker should call price endpoint with weight', async () => {
     await getSymbolPriceTicker(['BTCUSDT']);
     expect(mockGet).toHaveBeenCalledWith('/api/v3/ticker/price', { weight: 4 } as never);
   });
 
+  it('getSymbolPriceTicker should handle undefined symbol', async () => {
+    await getSymbolPriceTicker();
+    expect(mockGet).toHaveBeenCalledWith('/api/v3/ticker/price', { weight: 4 } as never);
+  });
+
   it('getOrderBookTicker should call bookTicker endpoint with weight', async () => {
     await getOrderBookTicker(['BTCUSDT']);
+    expect(mockGet).toHaveBeenCalledWith('/api/v3/ticker/bookTicker', { weight: 4 } as never);
+  });
+
+  it('getOrderBookTicker should handle undefined symbol', async () => {
+    await getOrderBookTicker();
     expect(mockGet).toHaveBeenCalledWith('/api/v3/ticker/bookTicker', { weight: 4 } as never);
   });
 });

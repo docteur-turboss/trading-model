@@ -65,12 +65,29 @@ describe('BINANCE_ENDPOINTS', () => {
     });
   });
 
+  describe('compressedAggregateTrades', () => {
+    it('should build aggTrades URL with all params', () => {
+      const url = BINANCE_ENDPOINTS.compressedAggregateTrades('BTCUSDT', 12345, 100);
+      expect(url).toBe('/api/v3/aggTrades?symbol=BTCUSDT&fromId=12345&limit=100');
+    });
+
+    it('should build aggTrades URL without params', () => {
+      const url = BINANCE_ENDPOINTS.compressedAggregateTrades();
+      expect(url).toBe('/api/v3/aggTrades');
+    });
+  });
+
   describe('TradingDayTicker', () => {
     it('should build trading day ticker URL with symbols', () => {
       const url = BINANCE_ENDPOINTS.TradingDayTicker(['BTCUSDT', 'ETHUSDT']);
       expect(url).toContain('/api/v3/ticker/tradingDay?symbols=');
       expect(url).toContain('BTCUSDT');
       expect(url).toContain('ETHUSDT');
+    });
+
+    it('should build trading day ticker URL without symbols', () => {
+      const url = BINANCE_ENDPOINTS.TradingDayTicker();
+      expect(url).toBe('/api/v3/ticker/tradingDay');
     });
   });
 
@@ -79,12 +96,22 @@ describe('BINANCE_ENDPOINTS', () => {
       const url = BINANCE_ENDPOINTS.symbolPriceTicker(['BTCUSDT']);
       expect(url).toContain('/api/v3/ticker/price?symbols=');
     });
+
+    it('should build price ticker URL without symbols', () => {
+      const url = BINANCE_ENDPOINTS.symbolPriceTicker();
+      expect(url).toBe('/api/v3/ticker/price');
+    });
   });
 
   describe('orderBookTicker', () => {
     it('should build book ticker URL with symbols', () => {
       const url = BINANCE_ENDPOINTS.orderBookTicker(['BTCUSDT']);
       expect(url).toContain('/api/v3/ticker/bookTicker?symbols=');
+    });
+
+    it('should build book ticker URL without symbols', () => {
+      const url = BINANCE_ENDPOINTS.orderBookTicker();
+      expect(url).toBe('/api/v3/ticker/bookTicker');
     });
   });
 });
