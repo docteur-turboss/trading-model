@@ -20,6 +20,7 @@
   "main": "./dist/app/index.js",
   "scripts": {
     "build": "tsc",
+    "test:coverage": "jest --coverage",
     "dev": "ts-node src/app/index.ts",
     "test": "jest"
   },

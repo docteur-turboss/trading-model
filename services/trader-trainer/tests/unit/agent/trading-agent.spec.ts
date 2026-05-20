@@ -50,6 +50,12 @@ describe('TradingAgent', () => {
     it('should initialise epsilon from stateManagerCfg', () => {
       expect(agent.state.getEpsilon()).toBe(1.0);
     });
+
+    it('should use default wallet and state config when not provided', () => {
+      const a = new TradingAgent({ nnConfig: makeConfig().nnConfig } as TradingAgentConfig);
+      expect(a.wallet).toBeDefined();
+      expect(a.state).toBeDefined();
+    });
   });
 
   describe('mapOutputToAction', () => {
@@ -86,7 +92,7 @@ describe('TradingAgent', () => {
       expect(result.amount).toBe(5);
     });
 
-    it('should handle continuous action space', () => {
+    it('should return buy for positive continuous output', () => {
       const output = new Float32Array([0.5]);
 
       const result = agent.mapOutputToAction(output, {
@@ -95,7 +101,8 @@ describe('TradingAgent', () => {
         tradeAmount: 2,
       });
 
-      expect(['buy', 'sell', 'hold']).toContain(result.action);
+      expect(result.action).toBe('buy');
+      expect(result.amount).toBe(1);
     });
 
     it('should return hold for near-zero continuous output', () => {
@@ -105,6 +112,29 @@ describe('TradingAgent', () => {
         nnConfig: {},
         actionSpace: 'continuous',
         tradeAmount: 1,
+      });
+
+      expect(result.action).toBe('hold');
+    });
+
+    it('should return sell for negative continuous output', () => {
+      const output = new Float32Array([-0.5]);
+
+      const result = agent.mapOutputToAction(output, {
+        nnConfig: {},
+        actionSpace: 'continuous',
+        tradeAmount: 2,
+      });
+
+      expect(result.action).toBe('sell');
+    });
+
+    it('should handle empty output array in continuous action space', () => {
+      const output = new Float32Array([]);
+
+      const result = agent.mapOutputToAction(output, {
+        nnConfig: {},
+        actionSpace: 'continuous',
       });
 
       expect(result.action).toBe('hold');
@@ -139,6 +169,31 @@ describe('TradingAgent', () => {
 
       const history = agent.wallet.getHistory();
       expect(history.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should not update wallet price when price is not provided', () => {
+      agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]));
+
+      expect(agent.wallet.getPrice()).toBe(100);
+    });
+
+    it('should execute a buy action when discrete output has highest value at index 2', () => {
+      // override NN weights so output[2] = sigmoid(5) > output[0/1] = sigmoid(-5)
+      const buf = new Float32Array(agent.agent.nn.parameterCount());
+      buf[24] = 1;
+      buf[25] = 1;
+      buf[26] = 1;
+      buf[27] = 1;
+      buf[28] = 1;
+      buf[29] = 1; // hidden biases = 1
+      buf[48] = -5;
+      buf[49] = -5;
+      buf[50] = 5; // output biases: idx 0/1 low, idx 2 high
+      agent.agent.nn.setWeights(buf);
+
+      const result = agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 105);
+
+      expect(result.action).toBe('buy');
     });
   });
 

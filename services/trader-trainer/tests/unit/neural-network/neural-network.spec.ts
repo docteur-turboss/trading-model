@@ -92,6 +92,12 @@ describe('NeuralNetwork', () => {
       expect(() => nn.forward(input)).toThrow();
     });
 
+    it('should handle empty input array in normalize (len === 0)', () => {
+      const result = (nn as any).normalize(new Float32Array(0));
+      expect(result).toBeInstanceOf(Float32Array);
+      expect(result.length).toBe(0);
+    });
+
     it('should return a ForwardContext with output field', () => {
       const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
       const result = nn.forward(input);
@@ -148,6 +154,28 @@ describe('NeuralNetwork', () => {
         nn.train(new Float32Array([0.5, -0.3, 0.1, 0.8]), new Float32Array([1, 0]))
       ).toThrow();
     });
+
+    it('should clip gradients when norm exceeds gradientClipNorm', () => {
+      const nn = new NeuralNetwork({
+        neuronsByLayer: [1, 1],
+        activationType: ['ReLu'],
+        initialisationType: 'zeros',
+        lossFunctionType: 'mean-squared-error',
+        normalisationType: 'none',
+        connectionType: 'fully-connected',
+        useBias: false,
+        gradientClipNorm: 1,
+      });
+      // Set weights to large value so gradient norm exceeds clip norm
+      // parameterCount = weights(1) + bias(1) = 2
+      nn.setWeights(new Float32Array([100, 0]));
+      const input = new Float32Array([1000]);
+      const target = new Float32Array([0]);
+
+      const loss = nn.train(input, target);
+
+      expect(Number.isFinite(loss)).toBe(true);
+    });
   });
 
   describe('getWeights / setWeights', () => {
@@ -190,6 +218,22 @@ describe('NeuralNetwork', () => {
       const nn = new NeuralNetwork(makeConfig());
 
       nn.distributeAroundWeights(0, 0.01);
+
+      expect(nn.parameterCount()).toBeGreaterThan(0);
+    });
+
+    it('should accept scalar reference with default sigma', () => {
+      const nn = new NeuralNetwork(makeConfig());
+
+      nn.distributeAroundWeights(0);
+
+      expect(nn.parameterCount()).toBeGreaterThan(0);
+    });
+
+    it('should accept a non-zero scalar reference', () => {
+      const nn = new NeuralNetwork(makeConfig());
+
+      nn.distributeAroundWeights(0.5, 0.01);
 
       expect(nn.parameterCount()).toBeGreaterThan(0);
     });
@@ -257,6 +301,13 @@ describe('NeuralNetwork', () => {
       expect(nn.getPoolSize()).toBe(0);
     });
 
+    it('trainPooled should return finite loss', () => {
+      const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
+      nn.forwardAndPool(new Float32Array([0.5, -0.3, 0.1, 0.8]), new Float32Array([1, 0, 0]));
+      const loss = nn.trainPooled();
+      expect(Number.isFinite(loss)).toBe(true);
+    });
+
     it('clearPool should remove all experiences', () => {
       const nn = new NeuralNetwork(makeConfig({ enablePool: true }));
       nn.forwardAndPool(new Float32Array([0.5, -0.3, 0.1, 0.8]), new Float32Array([1, 0, 0]));
@@ -286,6 +337,27 @@ describe('NeuralNetwork', () => {
     });
   });
 
+  describe('softmax activation', () => {
+    it('should produce non-equal Z values with random init covering max-finding branch', () => {
+      const nn = new NeuralNetwork({
+        neuronsByLayer: [4, 3],
+        activationType: ['softmax'],
+        initialisationType: 'random',
+        lossFunctionType: 'cross-entropy',
+        normalisationType: 'none',
+        connectionType: 'fully-connected',
+        enablePool: false,
+      });
+
+      const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+      const result = nn.forward(input);
+
+      expect(result.output.length).toBe(3);
+      const sum = result.output.reduce((s, v) => s + v, 0);
+      expect(sum).toBeCloseTo(1, 3);
+    });
+  });
+
   describe('useBias disabled', () => {
     it('should create network with bias disabled', () => {
       const nn = new NeuralNetwork(makeConfig({ useBias: false }));
@@ -294,6 +366,13 @@ describe('NeuralNetwork', () => {
       const result = nn.forward(input);
 
       expect(result.output.length).toBe(3);
+    });
+
+    it('should train pooled without bias', () => {
+      const nn = new NeuralNetwork(makeConfig({ useBias: false, enablePool: true }));
+      nn.forwardAndPool(new Float32Array([0.5, -0.3, 0.1, 0.8]), new Float32Array([1, 0, 0]));
+      const loss = nn.trainPooled();
+      expect(Number.isFinite(loss)).toBe(true);
     });
   });
 

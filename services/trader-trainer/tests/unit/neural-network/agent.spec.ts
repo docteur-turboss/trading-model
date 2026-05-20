@@ -116,6 +116,17 @@ describe('Agent', () => {
 
       expect(noPool.getPoolSize()).toBe(0);
     });
+
+    it('should default enablePool to true', () => {
+      const cfg = makeConfig();
+      delete cfg.enablePool;
+      const agent = new Agent(cfg);
+      const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+
+      agent.fastForward(input, 1, new Float32Array([0.1, 0.2, 0.3]));
+
+      expect(agent.getPoolSize()).toBe(1);
+    });
   });
 
   describe('pool operations', () => {
@@ -176,6 +187,14 @@ describe('Agent', () => {
 
       expect(agent.getPoolSize()).toBe(0);
     });
+
+    it('should handle input not in pool without error', () => {
+      const agent = new Agent(makeConfig({ learningRate: 0.01 }));
+      const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+      const target = new Float32Array([1, 0, 0]);
+
+      expect(() => agent.learnSupervised(input, target)).not.toThrow();
+    });
   });
 
   describe('learnFromPool', () => {
@@ -189,6 +208,18 @@ describe('Agent', () => {
       const pool = agent.getPool();
       pool[0].target = new Float32Array([1, 0, 0]);
 
+      agent.learnFromPool();
+
+      expect(agent.getPoolSize()).toBe(0);
+    });
+
+    it('should skip experiences without targets and clear pool', () => {
+      const agent = new Agent(makeConfig({ learningRate: 0.01 }));
+      const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+
+      agent.fastForward(input);
+
+      // No target attached — skipes training but still clears pool
       agent.learnFromPool();
 
       expect(agent.getPoolSize()).toBe(0);
@@ -232,6 +263,20 @@ describe('Agent', () => {
         1.0,
         new Float32Array([0.1, 0.2, 0.3, 0.9]),
         false
+      );
+
+      const pool = agent.getPool();
+      const exp = pool[0];
+
+      expect(() => agent.learnQLearning(exp)).not.toThrow();
+    });
+
+    it('should process Q-learning update with done=true', () => {
+      agent.fastForward(
+        new Float32Array([0.5, -0.3, 0.1, 0.8]),
+        1.0,
+        new Float32Array([0.1, 0.2, 0.3, 0.9]),
+        true
       );
 
       const pool = agent.getPool();

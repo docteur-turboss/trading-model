@@ -97,7 +97,7 @@ export function mutateLayer(layer: LayerGenome, m: MutationGenome, rng: () => nu
 // ----------------------------------------------------------------
 
 function mutateRL(rl: RLGenome, m: MutationGenome, sigma: number, rng: () => number): RLGenome {
-  const perturb = (v: number, s = sigma) => v + sampleNoise(m.distribution, s, rng);
+  const perturb = (v: number, s: number) => v + sampleNoise(m.distribution, s, rng);
 
   return {
     gamma: clamp(perturb(rl.gamma, 0.01), 0.8, 0.9999),

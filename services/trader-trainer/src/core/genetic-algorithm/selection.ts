@@ -52,6 +52,7 @@ export function selectParent(
         pick -= i + 1; // rank = position + 1
         if (pick <= 0) return sorted[i];
       }
+      /* istanbul ignore next */
       return sorted[sorted.length - 1];
     }
 

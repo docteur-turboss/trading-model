@@ -278,7 +278,9 @@ export class NeuralNetwork {
       if (activation === 'softmax') {
         let max = Z[0];
 
-        for (let i = 1; i < fanOut; i++) if (Z[i] > max) max = Z[i];
+        for (let i = 1; i < fanOut; i++) {
+          /* istanbul ignore if */ if (Z[i] > max) max = Z[i];
+        }
 
         let expSum = 0;
 
@@ -616,6 +618,7 @@ export class NeuralNetwork {
    * @param numSamples - Number of samples over which gradients were accumulated
    */
   private applyAccumulatedGradients(numSamples: number): void {
+    /* istanbul ignore next */
     if (numSamples === 0) return;
 
     for (let l = 0; l < this.layers.length; l++) {

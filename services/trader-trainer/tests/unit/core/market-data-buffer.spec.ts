@@ -20,6 +20,12 @@ describe('MarketDataBuffer', () => {
     buffer = new MarketDataBuffer(100);
   });
 
+  it('should create buffer with default maxSize of 10000', () => {
+    const buf = new MarketDataBuffer();
+    feedCandles(buf, 'BTCUSDT', 10001);
+    expect(buf.getCandleCount('BTCUSDT')).toBe(10000);
+  });
+
   describe('addCandles', () => {
     it('should start with no symbols and zero candle count', () => {
       expect(buffer.getSymbols()).toEqual([]);
@@ -132,6 +138,38 @@ describe('MarketDataBuffer', () => {
         expect(Number.isFinite(steps[0].features[i])).toBe(true);
       }
     });
+
+    it('should handle edge case feature values gracefully', () => {
+      buffer.addCandles('BTCUSDT', [makeCandle({ symbol: 'BTCUSDT', close: 0, timestamp: 1 })]);
+      buffer.addCandles('BTCUSDT', [
+        makeCandle({ symbol: 'BTCUSDT', high: 60, low: 60, close: 0, timestamp: 2 }),
+      ]);
+
+      buffer.addTrades('BTCUSDT', [
+        {
+          symbol: 'BTCUSDT',
+          source: 'binance',
+          timestamp: 0,
+          market: 'crypto',
+          price: 100,
+          tradeId: BigInt(999),
+          quantity: 0,
+          side: 'buy' as const,
+        },
+      ]);
+
+      buffer.setTicker24h('BTCUSDT', { ...makeTicker24h('BTCUSDT'), open: 0 });
+
+      const steps = buffer.buildMarketSteps('BTCUSDT');
+      expect(steps.length).toBe(1);
+
+      expect(steps[0].features[2]).toBe(0);
+      expect(steps[0].features[3]).toBe(0);
+      expect(steps[0].features[4]).toBe(0);
+      expect(steps[0].features[18]).toBe(0.5);
+      expect(steps[0].features[19]).toBe(0);
+      expect(steps[0].features[21]).toBe(0);
+    });
   });
 
   describe('setOrderBook', () => {
@@ -217,13 +255,23 @@ describe('MarketDataBuffer', () => {
   describe('addTrades', () => {
     it('should populate trade features when candles exist', () => {
       feedCandles(buffer, 'BTCUSDT', 30);
-      buffer.addTrades('BTCUSDT', [makeTrade('BTCUSDT', 'buy'), makeTrade('BTCUSDT', 'sell')]);
+      buffer.addTrades('BTCUSDT', [makeTrade('BTCUSDT'), makeTrade('BTCUSDT', 'sell')]);
 
       const steps = buffer.buildMarketSteps('BTCUSDT');
 
       for (const idx of [16, 17, 18]) {
         expect(typeof steps[0].features[idx]).toBe('number');
       }
+    });
+
+    it('should bound trade count by maxSize', () => {
+      const buf = new MarketDataBuffer(5);
+      buf.addTrades(
+        'BTCUSDT',
+        Array.from({ length: 10 }, (_, i) => makeTrade('BTCUSDT', 'buy'))
+      );
+
+      expect(buf['states'].get('BTCUSDT')!.trades.length).toBe(5);
     });
   });
 
