@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  # ── Quality gate ───────────────────────────────────────────────────────────
+  quality:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run test:coverage
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+  # ── Docker images ─────────────────────────────────────────────────────────
+  docker:
+    needs: [quality]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: discovery-server
+            context: .
+            dockerfile: services/discovery-server/Dockerfile
+          - name: message-manager
+            context: .
+            dockerfile: services/message-manager/Dockerfile
+          - name: financial-scraper
+            context: .
+            dockerfile: services/financial-scraper/Dockerfile
+          - name: trader-trainer
+            context: .
+            dockerfile: services/trader-trainer/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.service.name }}
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.quality.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.quality.outputs.version }}
+            type=semver,pattern={{major}},value=v${{ needs.quality.outputs.version }}
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── GitHub Release ────────────────────────────────────────────────────────
+  release:
+    needs: [quality, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          {
+            echo 'notes<<EOF'
+            echo "## Docker Images"
+            echo ""
+            echo "| Service | Pull command |"
+            echo "|---------|--------------|"
+            echo "| Discovery Server | \`docker pull ghcr.io/${{ github.repository }}/discovery-server:${{ needs.quality.outputs.version }}\` |"
+            echo "| Message Manager | \`docker pull ghcr.io/${{ github.repository }}/message-manager:${{ needs.quality.outputs.version }}\` |"
+            echo "| Financial Scraper | \`docker pull ghcr.io/${{ github.repository }}/financial-scraper:${{ needs.quality.outputs.version }}\` |"
+            echo "| Trader Trainer | \`docker pull ghcr.io/${{ github.repository }}/trader-trainer:${{ needs.quality.outputs.version }}\` |"
+            echo ""
+            echo "## Quick Start"
+            echo ""
+            echo '```bash'
+            echo "git clone https://github.com/${{ github.repository }}.git"
+            echo "cd trading-model"
+            echo "cp .env.example .env"
+            echo "# edit .env, generate TLS certs, then:"
+            echo "docker compose up -d"
+            echo '```'
+            EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ needs.quality.outputs.version }}
+          body: ${{ steps.notes.outputs.notes }}
+          generate_release_notes: true
