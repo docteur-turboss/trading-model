@@ -100,17 +100,37 @@ Use **Squash & Merge** to merge into `dev`, then delete the branch.
 
 ### 4. Beta (dev)
 
-After merging into `dev`, the branch is automatically deployed as a **beta** version.
+After merging into `dev`, the branch is automatically deployed as a **beta** version using the canary deploy server.
 
-- If everything runs smoothly and no critical errors are reported → proceed to step 5 after a **few days** of validation.
-- If too many errors or regressions are found → **redeploy `main`** as the beta version instead, and fix the issues on a new feature branch.
+- The script rolls out to **2 % of machines** first (canary).
+- Health checks and error rate are monitored for ~30 min.
+- If error rate ≤ 5 % → the remaining 98 % are deployed.
+- If error rate > 5 % (or deploy fails) → **rollback to `main`** automatically.
 
 ```bash
-# On the beta server
-git checkout dev && git pull
-IMAGE_TAG=latest docker compose pull
-IMAGE_TAG=latest docker compose up -d
+# On the beta server (PowerShell — Windows)
+.\scripts\deploy-beta.ps1
+
+# On the beta server (Bash — Linux / macOS / CI)
+bash scripts/deploy-beta.sh
 ```
+
+> **Rollback manually if needed:**
+>
+> ```bash
+> .\scripts\deploy-beta.ps1 -ForceRollback      # PowerShell
+> bash scripts/deploy-beta.sh --rollback         # Bash
+> ```
+
+Canary percentage and error threshold can be overridden:
+
+```bash
+.\scripts\deploy-beta.ps1 -CanaryPercent 5 -ErrorThreshold 0.03
+bash scripts/deploy-beta.sh --canary 5 --threshold 0.03
+```
+
+Add your beta servers in [`scripts/hosts.json`](../scripts/hosts.json). The
+deploy script reads this inventory to know which machines to target.
 
 ### 5. Release
 
