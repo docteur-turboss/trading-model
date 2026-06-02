@@ -1,0 +1,34 @@
+{
+  "comment": "Beta server inventory. Add your beta hosts here.",
+  "_fields": {
+    "host": "Server hostname or IP",
+    "user": "SSH user (for remote deployment)",
+    "label": "Human-readable label",
+    "active": "true if this host is active in the beta pool"
+  },
+  "hosts": [
+    {
+      "host": "localhost",
+      "user": "",
+      "label": "Local development machine",
+      "active": true
+    }
+  ],
+  "deploy": {
+    "canary_percent": 2,
+    "error_threshold": 0.05,
+    "health_check_retries": 3,
+    "health_check_interval_sec": 10,
+    "monitor_duration_min": 30,
+    "branch_dev": "development",
+    "branch_stable": "main",
+    "image_tag_dev": "latest",
+    "services": ["discovery-server", "message-manager", "financial-scraper", "trader-trainer"],
+    "health_endpoints": {
+      "discovery-server": "https://localhost:8443/ping",
+      "message-manager": "https://localhost:8444/health",
+      "financial-scraper": "https://localhost:8445/health",
+      "trader-trainer": "https://localhost:8446/health"
+    }
+  }
+}
