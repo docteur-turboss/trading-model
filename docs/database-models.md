@@ -10,21 +10,21 @@ All tables live in the `financial_scraper` database (configurable via `MYSQL_DAT
 
 ### `market_candles` — OHLCV candle data
 
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `id` | `INT` | `AUTO_INCREMENT`, `PK` | Surrogate key |
-| `symbol` | `VARCHAR(32)` | `NOT NULL`, `PK` | Trading pair / ticker (e.g. `BTCUSDT`) |
-| `market` | `VARCHAR(16)` | `NOT NULL`, `PK` | Market type (`crypto`, `equity`, `bond`, `etf`, `fx`, `future`) |
-| `source` | `VARCHAR(32)` | `NOT NULL`, `PK` | Data provider (`binance`, `nyse`, `bloomberg`) |
-| `interval_value` | `VARCHAR(16)` | `NOT NULL`, `PK` | Candle interval (e.g. `1m`, `1h`, `1d`) |
-| `open` | `DECIMAL(20,10)` | `NOT NULL` | Open price |
-| `high` | `DECIMAL(20,10)` | `NOT NULL` | High price |
-| `low` | `DECIMAL(20,10)` | `NOT NULL` | Low price |
-| `close` | `DECIMAL(20,10)` | `NOT NULL` | Close price |
-| `volume` | `DECIMAL(30,10)` | `NOT NULL` | Volume |
-| `trades` | `INT` | `NULL` | Number of trades in the interval |
-| `timestamp` | `DATETIME(3)` | `NOT NULL`, `PK` | Candle open time |
-| `close_timestamp` | `DATETIME(3)` | `NOT NULL` | Candle close time |
+| Column            | Type             | Constraints            | Description                                                     |
+| ----------------- | ---------------- | ---------------------- | --------------------------------------------------------------- |
+| `id`              | `INT`            | `AUTO_INCREMENT`, `PK` | Surrogate key                                                   |
+| `symbol`          | `VARCHAR(32)`    | `NOT NULL`, `PK`       | Trading pair / ticker (e.g. `BTCUSDT`)                          |
+| `market`          | `VARCHAR(16)`    | `NOT NULL`, `PK`       | Market type (`crypto`, `equity`, `bond`, `etf`, `fx`, `future`) |
+| `source`          | `VARCHAR(32)`    | `NOT NULL`, `PK`       | Data provider (`binance`, `nyse`, `bloomberg`)                  |
+| `interval_value`  | `VARCHAR(16)`    | `NOT NULL`, `PK`       | Candle interval (e.g. `1m`, `1h`, `1d`)                         |
+| `open`            | `DECIMAL(20,10)` | `NOT NULL`             | Open price                                                      |
+| `high`            | `DECIMAL(20,10)` | `NOT NULL`             | High price                                                      |
+| `low`             | `DECIMAL(20,10)` | `NOT NULL`             | Low price                                                       |
+| `close`           | `DECIMAL(20,10)` | `NOT NULL`             | Close price                                                     |
+| `volume`          | `DECIMAL(30,10)` | `NOT NULL`             | Volume                                                          |
+| `trades`          | `INT`            | `NULL`                 | Number of trades in the interval                                |
+| `timestamp`       | `DATETIME(3)`    | `NOT NULL`, `PK`       | Candle open time                                                |
+| `close_timestamp` | `DATETIME(3)`    | `NOT NULL`             | Candle close time                                               |
 
 **Composite PK:** `(id, symbol, market, interval_value, timestamp, source)`
 
@@ -68,17 +68,17 @@ interface CandleEntity extends BaseMarketEntity {
 
 ### `market_trades` — Individual trade data
 
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `id` | `INT` | `AUTO_INCREMENT` | Surrogate key |
-| `symbol` | `VARCHAR(32)` | `NOT NULL`, `PK` | Trading pair / ticker |
-| `market` | `VARCHAR(16)` | `NOT NULL`, `PK` | Market type |
-| `source` | `VARCHAR(32)` | `NOT NULL`, `PK` | Data provider |
-| `trade_id` | `BIGINT` | `NOT NULL`, `PK` | Exchange-assigned trade ID |
-| `price` | `DECIMAL(20,10)` | `NOT NULL` | Execution price |
-| `quantity` | `DECIMAL(30,10)` | `NOT NULL` | Executed quantity |
-| `side` | `ENUM('buy','sell')` | `NOT NULL` | Trade direction |
-| `timestamp` | `DATETIME(3)` | `NOT NULL`, `PK` | Trade timestamp |
+| Column      | Type                 | Constraints      | Description                |
+| ----------- | -------------------- | ---------------- | -------------------------- |
+| `id`        | `INT`                | `AUTO_INCREMENT` | Surrogate key              |
+| `symbol`    | `VARCHAR(32)`        | `NOT NULL`, `PK` | Trading pair / ticker      |
+| `market`    | `VARCHAR(16)`        | `NOT NULL`, `PK` | Market type                |
+| `source`    | `VARCHAR(32)`        | `NOT NULL`, `PK` | Data provider              |
+| `trade_id`  | `BIGINT`             | `NOT NULL`, `PK` | Exchange-assigned trade ID |
+| `price`     | `DECIMAL(20,10)`     | `NOT NULL`       | Execution price            |
+| `quantity`  | `DECIMAL(30,10)`     | `NOT NULL`       | Executed quantity          |
+| `side`      | `ENUM('buy','sell')` | `NOT NULL`       | Trade direction            |
+| `timestamp` | `DATETIME(3)`        | `NOT NULL`, `PK` | Trade timestamp            |
 
 **Composite PK:** `(symbol, market, source, trade_id, timestamp)`
 
@@ -114,19 +114,19 @@ interface TradeEntity extends BaseMarketEntity {
 
 ### `market_tickers` — 24-hour ticker statistics
 
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `id` | `INT` | `AUTO_INCREMENT`, `PK` | Surrogate key |
-| `symbol` | `VARCHAR(32)` | `NOT NULL` | Trading pair / ticker |
-| `market` | `VARCHAR(16)` | `NOT NULL` | Market type |
-| `source` | `VARCHAR(32)` | `NOT NULL` | Data provider |
-| `open` | `DECIMAL(20,10)` | `NOT NULL` | Open price in 24h window |
-| `high` | `DECIMAL(20,10)` | `NOT NULL` | High price in 24h window |
-| `low` | `DECIMAL(20,10)` | `NOT NULL` | Low price in 24h window |
-| `last` | `DECIMAL(20,10)` | `NOT NULL` | Last price |
-| `volume` | `DECIMAL(30,10)` | `NOT NULL` | Volume in 24h window |
-| `timestamp` | `DATETIME(3)` | `NOT NULL` | Snapshot timestamp |
-| `close_time` | `DATETIME(3)` | `NOT NULL` | 24h window close time |
+| Column       | Type             | Constraints            | Description              |
+| ------------ | ---------------- | ---------------------- | ------------------------ |
+| `id`         | `INT`            | `AUTO_INCREMENT`, `PK` | Surrogate key            |
+| `symbol`     | `VARCHAR(32)`    | `NOT NULL`             | Trading pair / ticker    |
+| `market`     | `VARCHAR(16)`    | `NOT NULL`             | Market type              |
+| `source`     | `VARCHAR(32)`    | `NOT NULL`             | Data provider            |
+| `open`       | `DECIMAL(20,10)` | `NOT NULL`             | Open price in 24h window |
+| `high`       | `DECIMAL(20,10)` | `NOT NULL`             | High price in 24h window |
+| `low`        | `DECIMAL(20,10)` | `NOT NULL`             | Low price in 24h window  |
+| `last`       | `DECIMAL(20,10)` | `NOT NULL`             | Last price               |
+| `volume`     | `DECIMAL(30,10)` | `NOT NULL`             | Volume in 24h window     |
+| `timestamp`  | `DATETIME(3)`    | `NOT NULL`             | Snapshot timestamp       |
+| `close_time` | `DATETIME(3)`    | `NOT NULL`             | 24h window close time    |
 
 **Composite PK:** `(id, symbol, market, timestamp, source)`
 
@@ -171,9 +171,9 @@ All market entities extend:
 ```ts
 interface BaseMarketEntity {
   symbol: string;
-  source: SourceType;      // 'binance' | 'nyse' | 'bloomberg'
+  source: SourceType; // 'binance' | 'nyse' | 'bloomberg'
   timestamp: number;
-  market: MarketType;      // 'crypto' | 'equity' | 'bond' | 'etf' | 'fx' | 'future'
+  market: MarketType; // 'crypto' | 'equity' | 'bond' | 'etf' | 'fx' | 'future'
 }
 ```
 

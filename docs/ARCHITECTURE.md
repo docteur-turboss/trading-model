@@ -139,17 +139,17 @@ Server     Scraper     Manager    Trainer
 
 ## Technology Stack
 
-| Layer      | Technology                                      |
-| ---------- | ----------------------------------------------- |
-| Runtime    | Node.js                                         |
-| Language   | TypeScript (ES2020; module: node16 or commonjs) |
-| API        | Express.js                                      |
-| Security   | mTLS (except Trader-Trainer)                    |
+| Layer      | Technology                                               |
+| ---------- | -------------------------------------------------------- |
+| Runtime    | Node.js                                                  |
+| Language   | TypeScript (ES2020; module: node16 or commonjs)          |
+| API        | Express.js                                               |
+| Security   | mTLS (except Trader-Trainer)                             |
 | Database   | MySQL 8 (financial-scraper), MongoDB 7 (message-manager) |
-| Validation | Zod                                             |
-| Scheduling | node-cron                                       |
-| Formatting | Prettier                                        |
-| Linting    | ESLint 10 flat config                           |
+| Validation | Zod                                                      |
+| Scheduling | node-cron                                                |
+| Formatting | Prettier                                                 |
+| Linting    | ESLint 10 flat config                                    |
 
 ## Security Model
 

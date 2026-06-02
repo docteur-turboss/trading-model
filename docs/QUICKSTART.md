@@ -9,12 +9,12 @@ knowledge of Node.js, Docker, or TypeScript required.
 
 Install these (one-time):
 
-| Tool | Windows | macOS | Linux |
-|---|---|---|---|
-| **Git** | `winget install Git.Git` | `brew install git` | `apt install git` |
-| **Docker** | [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/) | `brew install --cask docker` | `apt install docker-compose-v2` |
-| **Node.js 20+** | `winget install OpenJS.NodeJS.LTS` | `brew install node@20` | `apt install nodejs` |
-| **OpenSSL** | Included in Git Bash | pre-installed | pre-installed |
+| Tool            | Windows                                                                    | macOS                        | Linux                           |
+| --------------- | -------------------------------------------------------------------------- | ---------------------------- | ------------------------------- |
+| **Git**         | `winget install Git.Git`                                                   | `brew install git`           | `apt install git`               |
+| **Docker**      | [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/) | `brew install --cask docker` | `apt install docker-compose-v2` |
+| **Node.js 20+** | `winget install OpenJS.NodeJS.LTS`                                         | `brew install node@20`       | `apt install nodejs`            |
+| **OpenSSL**     | Included in Git Bash                                                       | pre-installed                | pre-installed                   |
 
 ---
 
@@ -126,12 +126,12 @@ docker compose down -v    # stop and delete database data
  └──────────┘     └──────────┘
 ```
 
-| Service | What it does |
-|---|---|
-| **Discovery Server** | Central service registry — every service registers here |
-| **Message Manager** | Event bus for async inter-service messaging |
+| Service               | What it does                                              |
+| --------------------- | --------------------------------------------------------- |
+| **Discovery Server**  | Central service registry — every service registers here   |
+| **Message Manager**   | Event bus for async inter-service messaging               |
 | **Financial Scraper** | Fetches market data (OHLCV, trades, tickers) from Binance |
-| **Trader Trainer** | AI agent training via Genetic Algorithm + DRL |
+| **Trader Trainer**    | AI agent training via Genetic Algorithm + DRL             |
 
 ---
 

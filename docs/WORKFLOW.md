@@ -125,6 +125,7 @@ git push --follow-tags
 ```
 
 This triggers the **release.yml** workflow on GitHub Actions which:
+
 1. Quality gate (lint + build + test)
 2. Build Docker images for all 4 services (with GitHub Actions cache)
 3. Push to **GitHub Container Registry** (`ghcr.io/<owner>/trading-model/<service>`)
@@ -158,12 +159,12 @@ docker compose logs -f               # tail all logs
 
 ## CI/CD pipelines
 
-| Workflow | File | Trigger | What it does |
-|---|---|---|---|
-| **Lint** | `.github/workflows/lint.yml` | `push`, `pull_request` | ESLint across `.ts`, `.js`, `.mjs`, `.cjs` |
-| **Build** | `.github/workflows/build.yml` | `push`, `pull_request` | `npm run build` (compiles 3 shared packages) |
-| **Test** | `.github/workflows/test.yml` | `push`, `pull_request` | Jest with coverage threshold |
-| **Release** | `.github/workflows/release.yml` | tag `v*.*.*` | Quality gate → Docker images → GHCR → GitHub Release |
+| Workflow    | File                            | Trigger                | What it does                                         |
+| ----------- | ------------------------------- | ---------------------- | ---------------------------------------------------- |
+| **Lint**    | `.github/workflows/lint.yml`    | `push`, `pull_request` | ESLint across `.ts`, `.js`, `.mjs`, `.cjs`           |
+| **Build**   | `.github/workflows/build.yml`   | `push`, `pull_request` | `npm run build` (compiles 3 shared packages)         |
+| **Test**    | `.github/workflows/test.yml`    | `push`, `pull_request` | Jest with coverage threshold                         |
+| **Release** | `.github/workflows/release.yml` | tag `v*.*.*`           | Quality gate → Docker images → GHCR → GitHub Release |
 
 All non-release workflows run in parallel on `ubuntu-latest` with Node.js LTS
 and npm cache. Failure in any workflow blocks merging.
@@ -187,11 +188,11 @@ and npm cache. Failure in any workflow blocks merging.
 
 ## Secrets and security
 
-| Secret | Where to set |
-|---|---|
-| `MYSQL_ROOT_PASSWORD` | `.env` on the server |
+| Secret                    | Where to set                                                     |
+| ------------------------- | ---------------------------------------------------------------- |
+| `MYSQL_ROOT_PASSWORD`     | `.env` on the server                                             |
 | TLS certs (`certs/*.pem`) | Generated once with OpenSSL (see QUICKSTART.md), never committed |
-| `ERROR_URL_WEBHOOK` | `.env` (optional error notification endpoint) |
-| `GITHUB_TOKEN` | Auto-available in GitHub Actions |
+| `ERROR_URL_WEBHOOK`       | `.env` (optional error notification endpoint)                    |
+| `GITHUB_TOKEN`            | Auto-available in GitHub Actions                                 |
 
 Never commit `.env` or `certs/` to version control.

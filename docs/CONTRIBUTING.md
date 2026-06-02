@@ -27,14 +27,14 @@ To run the full stack locally, see [`QUICKSTART.md`](./QUICKSTART.md).
 
 ## What you need to know
 
-| Topic | Where to find it |
-|---|---|
-| Dev workflow, commit, PR, release | [`WORKFLOW.md`](./WORKFLOW.md) |
-| Code style, naming, ESLint, Prettier | [`STANDARDS.md`](./STANDARDS.md) |
-| Architecture, dependency graph | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| Testing conventions | [`TESTING.md`](./TESTING.md) |
-| Database schema | [`database-models.md`](./database-models.md) |
-| API endpoints | [`API.md`](./API.md) |
+| Topic                                | Where to find it                             |
+| ------------------------------------ | -------------------------------------------- |
+| Dev workflow, commit, PR, release    | [`WORKFLOW.md`](./WORKFLOW.md)               |
+| Code style, naming, ESLint, Prettier | [`STANDARDS.md`](./STANDARDS.md)             |
+| Architecture, dependency graph       | [`ARCHITECTURE.md`](./ARCHITECTURE.md)       |
+| Testing conventions                  | [`TESTING.md`](./TESTING.md)                 |
+| Database schema                      | [`database-models.md`](./database-models.md) |
+| API endpoints                        | [`API.md`](./API.md)                         |
 
 ---
 
