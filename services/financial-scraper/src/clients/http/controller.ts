@@ -1,10 +1,10 @@
 import z from 'zod';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
-import { selectTradesBy } from 'infra/market-data/schema/trades.schema';
-import { selectTickerBy } from 'infra/market-data/schema/ticker24h.schema';
-import { selectOrderBookBy } from 'infra/market-data/schema/order-book.schema';
+import { selectTradesBy } from '../../infra/market-data/schema/trades.schema';
+import { selectTickerBy } from '../../infra/market-data/schema/ticker24h.schema';
+import { selectOrderBookBy } from '../../infra/market-data/schema/order-book.schema';
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
-import { selectCandlesBy } from 'infra/market-data/schema/candles-schema';
+import { selectCandlesBy } from '../../infra/market-data/schema/candles-schema';
 
 const symbolSchema = z.object({
   symbol: z.string('Symbol is required and must be a string.').min(1),

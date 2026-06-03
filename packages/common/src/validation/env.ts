@@ -24,7 +24,7 @@ export const AddressManagerEnvSchema = z.object({
   TOKEN_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
   TTL_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
   ADDRESS_MANAGER_URL: z.url(),
-  ERROR_URL_WEBHOOK: z.url(),
+  ERROR_URL_WEBHOOK: z.union([z.string().url(), z.literal('')]).default(''),
   MESSAGE_BUS_INIT_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
   MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
   MESSAGE_CALLBACK_PATH: z.string().min(1).default('message'),

@@ -17,7 +17,7 @@ import cron from 'node-cron';
 import pLimit from 'p-limit';
 import { logger } from '@trading-model/common/config/logger';
 import { BinanceWorker, BinanceWorkerResult } from '../worker/binance.worker';
-import { MarketDataController } from 'infra/market-data/market-data.controller';
+import { MarketDataController } from '../../infra/market-data/market-data.controller';
 
 export interface CronConfig {
   schedule: string; // e.g. "*/1 * * * *"

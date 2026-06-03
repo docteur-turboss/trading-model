@@ -16,7 +16,7 @@ import {
   BinanceSymbolPriceTickerResponse,
   BinanceTradeResponse,
   BinanceTradingDayTickerResponse,
-} from 'types/binance.api';
+} from '../../types/binance.api';
 
 export class BinanceNormalizer {
   /**
