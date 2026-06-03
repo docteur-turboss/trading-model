@@ -1,0 +1,12 @@
+*.ps1
+*.sh
+*.yml
+*.yaml
+*.json
+*.sql
+*.mjs
+CHANGELOG.md
+dist
+node_modules
+coverage
+.nyc_output
