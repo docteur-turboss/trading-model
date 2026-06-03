@@ -69,7 +69,7 @@ services:
     networks:
       - trading-net
     healthcheck:
-      test: wget --no-check-certificate --quiet --spider https://localhost:3000/ping || exit 1
+      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
       interval: 15s
       timeout: 5s
       retries: 3

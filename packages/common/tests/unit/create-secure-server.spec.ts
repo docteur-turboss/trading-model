@@ -5,6 +5,7 @@ let mockApp: any;
 jest.mock('express', () => {
   mockApp = {
     use: jest.fn().mockReturnThis(),
+    get: jest.fn().mockReturnThis(),
     set: jest.fn().mockReturnThis(),
   };
   const expressFn: any = jest.fn(() => mockApp);

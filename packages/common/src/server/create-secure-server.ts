@@ -53,6 +53,10 @@ export function createSecureServer(options: SecureServerOptions): HttpServer {
 
   app.use(limiter);
 
+  app.get('/ping', (_req, res) => {
+    res.json({ status: 'ok' });
+  });
+
   app.use(MTLSAuthMiddleware);
 
   options.routes(app);
