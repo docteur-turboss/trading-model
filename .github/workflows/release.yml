@@ -113,7 +113,7 @@ jobs:
             echo "# edit .env, generate TLS certs, then:"
             echo "docker compose up -d"
             echo '```'
-            EOF
+            echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
       - name: Create Release
