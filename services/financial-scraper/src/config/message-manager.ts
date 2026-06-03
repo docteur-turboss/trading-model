@@ -15,4 +15,4 @@ const ma = new MessageManagerClass({
 
 export { ma as MessageManager };
 
-export const MessageManagerListenExpress = ma.listenExpress;
+export const MessageManagerListenExpress = ma.listenExpress.bind(ma);
