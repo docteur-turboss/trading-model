@@ -36,7 +36,6 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-financial_scraper}
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
     networks:
       - trading-net
     healthcheck:
@@ -49,7 +48,6 @@ services:
   #  Discovery Server — Service registry & lease management
   # ---------------------------------------------------------------------------
   discovery-server:
-    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/discovery-server:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: services/discovery-server/Dockerfile
@@ -80,7 +78,6 @@ services:
   #  Message Manager — Event bus / message broker
   # ---------------------------------------------------------------------------
   message-manager:
-    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/message-manager:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: services/message-manager/Dockerfile
@@ -123,7 +120,6 @@ services:
   #  Financial Scraper — Real-time market data ingestion
   # ---------------------------------------------------------------------------
   financial-scraper:
-    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/financial-scraper:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: services/financial-scraper/Dockerfile
@@ -172,7 +168,6 @@ services:
   #  Trader Trainer — GA + DQN agent evolution
   # ---------------------------------------------------------------------------
   trader-trainer:
-    image: ${IMAGE_REGISTRY:-ghcr.io/trading-model}/trader-trainer:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: services/trader-trainer/Dockerfile

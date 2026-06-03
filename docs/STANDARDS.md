@@ -1,5 +1,9 @@
 # 📐 Standards - Trading Model
 
+**Date**: 19 Mai 2026
+
+---
+
 ## 🎯 Global view
 
 This document defines the conventions and standards that apply to the entire project.
@@ -24,11 +28,9 @@ trading-model/                          # Monorepo root
 │   ├── API.md                          # Endpoints
 │   ├── SECURITY.md
 │   ├── STANDARDS.md                    # This file
-│   ├── QUICKSTART.md                   # Setup local
+│   ├── SETUP.md                        # Setup local
 │   ├── TESTING.md                      # Tests standard
-│   ├── WORKFLOW.md                     # Dev-to-prod workflow
-│   ├── TROUBLESHOOTING.md              # FAQ
-│   ├── CONFIGURATION.md                # Env vars reference
+│   ├── deployment/                     # Guides déploiement
 │   └── packages/                       # Package docs
 │       ├── common/
 │       ├── address-manager/
@@ -788,67 +790,6 @@ NEW_RELIC_LICENSE_KEY=
 
 ## 🔟 GITHUB ACTIONS CI/CD
 
-### Workflow: release.yml
-
-```yaml
-name: Release
-
-on:
-  push:
-    tags:
-      - 'v*.*.*'
-
-jobs:
-  quality:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-      - run: npm run test:coverage
-  docker:
-    needs: [quality]
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service:
-          - name: discovery-server
-            context: .
-            dockerfile: services/discovery-server/Dockerfile
-          - name: message-manager
-            context: .
-            dockerfile: services/message-manager/Dockerfile
-          - name: financial-scraper
-            context: .
-            dockerfile: services/financial-scraper/Dockerfile
-          - name: trader-trainer
-            context: .
-            dockerfile: services/trader-trainer/Dockerfile
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/metadata-action@v5
-        id: meta
-        with:
-          images: ghcr.io/${{ github.repository }}/${{ matrix.service.name }}
-          tags: type=semver,pattern={{version}}
-      - uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.service.context }}
-          file: ${{ matrix.service.dockerfile }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-```
-
 ### Workflow: lint.yml
 
 ```yaml
@@ -917,4 +858,5 @@ jobs:
 | Test file naming         | ❌ Pending | Mix of `.spec.ts` and `.test.ts` |
 | File naming (kebab-case) | ❌ Pending | Some files not yet renamed       |
 | Husky git hooks          | ❌ Pending | Not yet configured               |
+| GitHub Actions workflows | ❌ Pending | Not yet created                  |
 | Coverage thresholds      | ❌ Pending | Not yet enforced in jest configs |
