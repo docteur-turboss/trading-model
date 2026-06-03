@@ -1,5 +1,6 @@
 import https from 'https';
 import { URL } from 'url';
+import fs from 'node:fs';
 
 /**
  * HttpClient
@@ -12,9 +13,9 @@ export class HttpClient {
   private readonly key?: string;
 
   constructor(tlsConfig?: { ca?: string; cert?: string; key?: string }) {
-    this.ca = tlsConfig?.ca;
-    this.cert = tlsConfig?.cert;
-    this.key = tlsConfig?.key;
+    if (tlsConfig?.ca) this.ca = fs.readFileSync(tlsConfig.ca, 'utf8');
+    if (tlsConfig?.cert) this.cert = fs.readFileSync(tlsConfig.cert, 'utf8');
+    if (tlsConfig?.key) this.key = fs.readFileSync(tlsConfig.key, 'utf8');
   }
 
   async get<T = void>(url: string, options?: HttpRequestOptions): Promise<T> {
