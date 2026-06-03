@@ -23,6 +23,8 @@
   "devDependencies": {
     "@commitlint/cli": "^21.0.1",
     "@commitlint/config-conventional": "^21.0.1",
+    "conventional-commits-filter": "^5.0.0",
+    "conventional-commits-parser": "^6.4.0",
     "husky": "^9.1.7"
   }
 }

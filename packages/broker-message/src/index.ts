@@ -1,11 +1,15 @@
 import { Application } from 'express';
-import { EventManager } from './client/event-manager-client';
+import { EventManager, Listener } from './client/event-manager-client';
 import { CreateCallbackRoute } from './http/messages.routes';
 import addressManagerClient from '@trading-model/address-manager';
 import { MessageMetadata } from './shared/helper/messages/message';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { MessageManagerClient } from './client/message-manager-client';
-import { EventEnumMap } from '@trading-model/common/config/event.types';
+import {
+  EventEnumMap,
+  EventMessagesArgs,
+  EventMap,
+} from '@trading-model/common/config/event.types';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
 export default class {
@@ -62,10 +66,7 @@ export default class {
     this.topics = null;
   }
 
-  on<K extends Parameters<(typeof EventManager)['on']>[0]>(
-    event: K,
-    listener: Parameters<(typeof EventManager)['on']>[1]
-  ) {
+  on<K extends keyof EventMap>(event: K, listener: Listener<EventMessagesArgs<K>>) {
     this.event.push(EventManager.on(event, listener));
   }
 
