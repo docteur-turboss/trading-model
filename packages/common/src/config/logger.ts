@@ -113,6 +113,19 @@ export class Logger {
    * @param serviceInCharge - Optional identifier for the service or module responsible (default: empty string)
    * @returns A fully constructed `LogEntry` object ready for logging or buffering
    */
+  private safeStringify(value: unknown): string {
+    const seen = new WeakSet<object>();
+    return JSON.stringify(value, (_key, val) => {
+      if (typeof val === 'object' && val !== null) {
+        if (seen.has(val)) {
+          return '[Circular]';
+        }
+        seen.add(val);
+      }
+      return val;
+    });
+  }
+
   private createLogEntry(
     level: LogLevel,
     message: string,
@@ -137,7 +150,7 @@ export class Logger {
     if (!existsSync(logFilePath)) mkdirSync(logFilePath, { recursive: true });
     writeFile(
       path.resolve(logFilePath, logFileName),
-      JSON.stringify(data) + '\n',
+      this.safeStringify(data) + '\n',
       { flag: 'a' },
       () => {}
     );
@@ -325,7 +338,7 @@ export class Logger {
       await fetch(process.env.ERROR_URL_WEBHOOK ?? this.handle_error_service ?? '/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entry),
+        body: this.safeStringify(entry),
       });
     } catch (err) {
       console.error('Failed to send log to service:', err);
