@@ -1,7 +1,7 @@
 import { createSecureServer } from '@trading-model/common/server/create-secure-server';
 import { heartbeatRoutes } from '../routes/heartbeat.routes';
 import { registryRoutes } from '../routes/register.routes';
-import { env } from 'config/env';
+import { env } from '../config/env';
 
 export function createServer() {
   return createSecureServer({

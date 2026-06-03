@@ -7,7 +7,7 @@ const DiscoveryEnvSchema = BaseEnvSchema.extend({
     .int()
     .positive()
     .default(1_000 * 60 * 10),
-  ERROR_URL_WEBHOOK: z.url(),
+  ERROR_URL_WEBHOOK: z.union([z.string().url(), z.literal('')]).default(''),
 });
 
 export const env = validateEnv(DiscoveryEnvSchema);

@@ -1,7 +1,7 @@
 import { createSecureServer } from '@trading-model/common/server/create-secure-server';
-import { AddressManagerRoutes } from 'config/address-manager';
-import { MessageManagerRoutes } from 'config/message-manager';
-import { env } from 'config/env';
+import { AddressManagerRoutes } from '../config/address-manager';
+import { MessageManagerRoutes } from '../config/message-manager';
+import { env } from '../config/env';
 
 export function createServer() {
   return createSecureServer({
