@@ -58,9 +58,9 @@ export default class {
       this.healthChecker
     );
 
-    this.getToken = this.tokenManager.getToken;
+    this.getToken = this.tokenManager.getToken.bind(this.tokenManager);
     this.listenExpress = app => app.use(pingRoutes);
-    this.findService = this.ServiceDiscovery.findService;
+    this.findService = this.ServiceDiscovery.findService.bind(this.ServiceDiscovery);
     this.start = () => {
       this.AddressManagerClient.registerService().then(res =>
         this.tokenManager.setToken(res.token)
