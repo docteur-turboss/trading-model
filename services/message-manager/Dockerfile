@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/ packages/
 COPY services/message-manager/package.json services/message-manager/
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 FROM node:20-alpine AS build
 WORKDIR /app
