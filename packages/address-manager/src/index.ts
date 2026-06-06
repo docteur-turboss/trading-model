@@ -8,6 +8,7 @@ import { AddressManagerClient } from './client/address-manager-client';
 import { TokenManager } from './client/token-manager';
 import { ServiceInstance } from './client/type';
 import { AddressManagerConfig } from './config/address-manager-config';
+import { MapResolver } from './discovery/dns-resolver';
 import { ServiceCache } from './discovery/service-cache';
 import { ServiceDiscovery } from './discovery/service-discovery';
 import { ServiceHealthChecker } from './discovery/service-health-checker';
@@ -69,7 +70,7 @@ export default class AddressManager {
     this.healthChecker = new ServiceHealthChecker(
       this.httpClient,
       config.servicePingTimeoutMs,
-      config.dnsNameMap
+      config.dnsNameMap ? new MapResolver(config.dnsNameMap) : undefined
     );
 
     this.serviceDiscovery = new ServiceDiscovery(
