@@ -18,6 +18,7 @@ import { helper } from '@trading-model/broker-message';
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { EnumEventMessage } from '@trading-model/common/config/event.types';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import { deterministicStringify } from '@trading-model/common/utils/deterministic-stringify';
 
 import {
   getOrderBook,
@@ -98,12 +99,15 @@ export class BinanceWorker {
       tenantId: env.INSTANCE_ID,
     };
 
-    const signature = createHash('sha256').update(JSON.stringify(authContext)).digest('base64url');
+    const signature = createHash('sha256')
+      .update(deterministicStringify(authContext))
+      .digest('base64url');
 
-    builderMetadata.setDelivery({
-      mode: DeliveryMode.AT_LEAST_ONCE,
-      deduplicationId: uuid(),
-    })
+    builderMetadata
+      .setDelivery({
+        mode: DeliveryMode.AT_LEAST_ONCE,
+        deduplicationId: uuid(),
+      })
       .setEventType('FetchCandlestick')
       .setTopic(EnumEventMessage.fetchCandlestickSeries)
       .setSecurity({
@@ -121,9 +125,9 @@ export class BinanceWorker {
 
     MessageManager.post.indirect(response.candles, builderMetadata.toJSON());
 
-    builderMetadata.setTopic(EnumEventMessage.fetchOrderBookSnapshot).setEventType(
-      'FetchOrderbook'
-    );
+    builderMetadata
+      .setTopic(EnumEventMessage.fetchOrderBookSnapshot)
+      .setEventType('FetchOrderbook');
 
     MessageManager.post.indirect(response.orderBook, builderMetadata.toJSON());
 
@@ -131,15 +135,15 @@ export class BinanceWorker {
 
     MessageManager.post.indirect(response.ticker24h, builderMetadata.toJSON());
 
-    builderMetadata.setTopic(EnumEventMessage.fetchOrderBookTickerSnapshot).setEventType(
-      'FetchBookTicker'
-    );
+    builderMetadata
+      .setTopic(EnumEventMessage.fetchOrderBookTickerSnapshot)
+      .setEventType('FetchBookTicker');
 
     MessageManager.post.indirect(response.bookTicker, builderMetadata.toJSON());
 
-    builderMetadata.setTopic(EnumEventMessage.fetchPriceTickerSnapshot).setEventType(
-      'FetchPriceTicker'
-    );
+    builderMetadata
+      .setTopic(EnumEventMessage.fetchPriceTickerSnapshot)
+      .setEventType('FetchPriceTicker');
 
     MessageManager.post.indirect(response.priceTicker, builderMetadata.toJSON());
 
