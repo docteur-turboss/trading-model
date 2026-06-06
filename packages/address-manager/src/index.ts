@@ -17,83 +17,95 @@ import { TtlRefresherJob } from './scheduler/ttl-refresher-job';
 /**
  * Default export for the Address Manager library.
  *
- * This allows importing the library as:
+ * Allows importing the library as:
  * ```ts
  * import AddressManager from "@trading-model/address-manager";
  * ```
+ *
+ * Responsibilities:
+ * - Orchestrates service registration, token management, discovery, and health checks
+ * - Coordinates the lifecycle of all sub-systems (HttpClient, TokenManager,
+ *   AddressManagerClient, ServiceCache, ServiceHealthChecker, ServiceDiscovery, Scheduler)
+ *
+ * Each sub-system is independently configurable and testable.
+ * This class serves as the composition root that wires them together.
  */
-export default class {
-  private AddressManagerClient: AddressManagerClient;
-  private healthChecker: ServiceHealthChecker;
-  private ServiceDiscovery: ServiceDiscovery;
-  private tokenManager: TokenManager;
-  private ServiceCache: ServiceCache;
-  private HTTPCLIENT: HttpClient;
-
-  /** Returns the current authentication token. */
-  public getToken: () => string;
-  /** Starts periodic registration, token refresh, and TTL refresh cycles. Returns a handle to stop the process. */
-  public start: () => { stop: () => void };
-  /** Resolves a healthy service instance by name. */
-  public findService: (serviceName: string) => Promise<ServiceInstance>;
-  /** Registers the ping health-check endpoint on the given Express app. */
-  public listenExpress: (app: Application) => void;
+export default class AddressManager {
+  private readonly addressManagerClient: AddressManagerClient;
+  private readonly healthChecker: ServiceHealthChecker;
+  private readonly serviceDiscovery: ServiceDiscovery;
+  private readonly tokenManager: TokenManager;
+  private readonly serviceCache: ServiceCache;
+  private readonly httpClient: HttpClient;
+  private readonly tokenRefreshIntervalMs: number;
+  private readonly ttlRefreshIntervalMs: number;
 
   constructor(config: AddressManagerConfig) {
-    this.HTTPCLIENT = new HttpClient({
+    this.httpClient = new HttpClient({
       ca: config.RootCACertPath,
       cert: config.CertificatPath,
       key: config.KeyCertificatPath,
     });
 
-    this.tokenManager = new TokenManager(this.HTTPCLIENT, config);
-
-    this.AddressManagerClient = new AddressManagerClient(
-      this.HTTPCLIENT,
+    this.tokenManager = new TokenManager(this.httpClient, config);
+    this.addressManagerClient = new AddressManagerClient(
+      this.httpClient,
       this.tokenManager,
       config
     );
 
-    this.ServiceCache = new ServiceCache(config.cacheTtlMs);
-    this.healthChecker = new ServiceHealthChecker(
-      this.HTTPCLIENT,
-      config.servicePingTimeoutMs,
-      config.dnsNameMap
-    );
+    this.serviceCache = new ServiceCache(config.cacheTtlMs);
+    this.healthChecker = new ServiceHealthChecker(this.httpClient, config.servicePingTimeoutMs);
 
-    this.ServiceDiscovery = new ServiceDiscovery(
-      this.HTTPCLIENT,
-      this.ServiceCache,
+    this.serviceDiscovery = new ServiceDiscovery(
+      this.httpClient,
+      this.serviceCache,
       config,
       this.healthChecker
     );
 
-    this.getToken = this.tokenManager.getToken.bind(this.tokenManager);
-    this.listenExpress = app => app.use(pingRoutes);
-    this.findService = this.ServiceDiscovery.findService.bind(this.ServiceDiscovery);
-    this.start = () => {
-      this.AddressManagerClient.registerService().then(res =>
-        this.tokenManager.setToken(res.token)
-      );
+    this.tokenRefreshIntervalMs = config.tokenRefreshIntervalMs;
+    this.ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
+  }
 
-      const scheduler = new Scheduler();
+  /** Returns the current authentication token. */
+  getToken(): string {
+    return this.tokenManager.getToken();
+  }
 
-      scheduler.register(new TokenRefresherJob(this.tokenManager, config.tokenRefreshIntervalMs));
+  /** Resolves a healthy service instance by name. */
+  async findService(serviceName: string): Promise<ServiceInstance> {
+    return this.serviceDiscovery.findService(serviceName);
+  }
 
-      scheduler.register(
-        new TtlRefresherJob(this.AddressManagerClient, config.ttlRefreshIntervalMs)
-      );
+  /** Registers the ping health-check endpoint on the given Express app. */
+  listenExpress(app: Application): void {
+    app.use(pingRoutes);
+  }
 
-      scheduler.start();
+  /**
+   * Starts periodic registration, token refresh, and TTL refresh cycles.
+   *
+   * - Registers the service with the discovery server
+   * - Starts a scheduler with token and TTL refresh jobs
+   *
+   * @returns A handle with a `stop` method to gracefully shut down all cycles.
+   */
+  start(): { stop: () => void } {
+    this.addressManagerClient.registerService().then(res => this.tokenManager.setToken(res.token));
 
-      /**
-       * Public API exposed to the hosting service
-       */
-      return {
-        stop: () => {
-          scheduler.stop();
-        },
-      };
+    const scheduler = new Scheduler();
+
+    scheduler.register(new TokenRefresherJob(this.tokenManager, this.tokenRefreshIntervalMs));
+
+    scheduler.register(new TtlRefresherJob(this.addressManagerClient, this.ttlRefreshIntervalMs));
+
+    scheduler.start();
+
+    return {
+      stop: () => {
+        scheduler.stop();
+      },
     };
   }
 }
