@@ -108,15 +108,13 @@ describe('AddressManagerClient', () => {
       });
     });
 
-    test('should throw AddressManagerError if HttpClient.post fails', async () => {
+    test('should throw AddressManagerError preserving original cause when HttpClient.post fails', async () => {
       const error = new Error('Network failure');
 
       httpClient.post.mockRejectedValueOnce(error);
-      await expect(client.registerService()).rejects.toBeInstanceOf(AddressManagerError);
-      httpClient.post.mockRejectedValueOnce(error);
-      await expect(client.registerService()).rejects.toMatchObject({
-        message: 'Failed to register service to Address Manager',
-      });
+      const err = await client.registerService().catch(e => e);
+      expect(err).toBeInstanceOf(AddressManagerError);
+      expect(err.cause).toBe(error);
     });
   });
 
@@ -133,15 +131,13 @@ describe('AddressManagerClient', () => {
       );
     });
 
-    test('should throw AddressManagerError if HttpClient.post fails', async () => {
+    test('should throw AddressManagerError preserving original cause when HttpClient.post fails', async () => {
       const error = new Error('TTL refresh failed');
 
       httpClient.post.mockRejectedValueOnce(error);
-      await expect(client.refreshTTL()).rejects.toBeInstanceOf(AddressManagerError);
-      httpClient.post.mockRejectedValueOnce(error);
-      await expect(client.refreshTTL()).rejects.toMatchObject({
-        message: 'Failed to refresh service TTL',
-      });
+      const err = await client.refreshTTL().catch(e => e);
+      expect(err).toBeInstanceOf(AddressManagerError);
+      expect(err.cause).toBe(error);
     });
   });
 });
