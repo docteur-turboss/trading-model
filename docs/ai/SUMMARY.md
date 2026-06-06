@@ -247,7 +247,8 @@ TLS certs mounted at `/certs:ro` (from `TLS_CERTS_DIR` env, default `./certs`)
 - **`docs/deployment/` (8 files):** SETUP, ENV, DATABASE, DEPLOY, CONTRIBUTE, DOCKER, CI_CD, README
 - **`docs/architecture/api/` (8 files):** common, address-manager, broker-message, discovery-server, message-manager, financial-scraper, trader-trainer, README
 - **`docs/architecture/code/`:** TypeDoc-generated HTML per module (common, address-manager, message-manager, financial-scraper, trader-trainer)
-- **`docs/packages/` (3 files):** common, address-manager, broker-message READMEs
+- **`docs/architecture/code/@trading-model/`:** TypeDoc-generated docs for common, address-manager, broker-message
+- **`docs/architecture/api/`:** API docs for common.md, address-manager.md, broker-message.md
 
 ## 15. Scripts
 

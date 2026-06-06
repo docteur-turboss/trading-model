@@ -490,6 +490,6 @@ it('should emit event', done => {
 
 ## References
 
-- [docs/TESTING.md](../TESTING.md) — Complete testing guide
+- [TESTING.md](./TESTING.md) — Complete testing guide
 - [QUALITY.md](./QUALITY.md) — Quality standards and thresholds
 - [Jest Documentation](https://jestjs.io)

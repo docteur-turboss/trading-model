@@ -280,4 +280,4 @@ docker compose logs -f
 - [QUALITY.md](./QUALITY.md) — Quality thresholds
 - `.github/workflows/ci.yml` — CI workflow
 - `.github/workflows/release.yml` — Release workflow
-- [WORKFLOW.md](../WORKFLOW.md) — Full development workflow
+- [CONTRIBUTE.md](../deployment/CONTRIBUTE.md) — Full development workflow
