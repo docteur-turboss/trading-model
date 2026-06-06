@@ -166,22 +166,23 @@ In addition to the default export, the package exposes internal modules via deep
 - **Import**: `@trading-model/common/validation/env`
 - **Schema**: `AddressManagerEnvSchema`
 
-| Variable                          | Default     | Description               |
-| --------------------------------- | ----------- | ------------------------- |
-| `APP_NAME`                        | —           | Application name          |
-| `APP_VERSION`                     | `'1.0.0'`   | Version                   |
-| `SERVICE_NAME`                    | —           | Service identifier        |
-| `INSTANCE_ID`                     | —           | Instance UUID             |
-| `CACHE_TTL_MS`                    | `30000`     | Discovery cache TTL       |
-| `SERVICE_PING_TIMEOUT_MS`         | `2000`      | Health check timeout      |
-| `TOKEN_REFRESH_INTERVAL_MS`       | `60000`     | Token rotation interval   |
-| `TTL_REFRESH_INTERVAL_MS`         | `15000`     | TTL refresh interval      |
-| `ADDRESS_MANAGER_URL`             | —           | Discovery-server URL      |
-| `DNS_NAME_MAP`                    | `'{}'`      | Custom DNS mapping (JSON) |
-| `ERROR_URL_WEBHOOK`               | `''`        | Error webhook             |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | `2000`      | Bus init timeout          |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | `2000`      | Bus shutdown timeout      |
-| `MESSAGE_CALLBACK_PATH`           | `'message'` | Message callback path     |
+| Variable                          | Default     | Description                 |
+| --------------------------------- | ----------- | --------------------------- |
+| `APP_NAME`                        | —           | Application name            |
+| `APP_VERSION`                     | `'1.0.0'`   | Version                     |
+| `SERVICE_NAME`                    | —           | Service identifier          |
+| `INSTANCE_ID`                     | —           | Instance UUID               |
+| `CACHE_TTL_MS`                    | `30000`     | Discovery cache TTL         |
+| `DISCOVERY_TIMEOUT_MS`            | `5000`      | Discovery HTTP call timeout |
+| `SERVICE_PING_TIMEOUT_MS`         | `2000`      | Health check timeout        |
+| `TOKEN_REFRESH_INTERVAL_MS`       | `60000`     | Token rotation interval     |
+| `TTL_REFRESH_INTERVAL_MS`         | `15000`     | TTL refresh interval        |
+| `ADDRESS_MANAGER_URL`             | —           | Discovery-server URL        |
+| `DNS_NAME_MAP`                    | `'{}'`      | Custom DNS mapping (JSON)   |
+| `ERROR_URL_WEBHOOK`               | `''`        | Error webhook               |
+| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | `2000`      | Bus init timeout            |
+| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | `2000`      | Bus shutdown timeout        |
+| `MESSAGE_CALLBACK_PATH`           | `'message'` | Message callback path       |
 
 ## Internal Architecture
 
@@ -258,7 +259,7 @@ Locator that delegates to an internal `DnsResolver` strategy for name-based mapp
 | `ServiceNameLocator`    | Default `ServiceLocator` that uses `instance.serviceName` as the hostname.                                                                                   |
 | `IpAddressLocator`      | `ServiceLocator` that uses `instance.ip` directly.                                                                                                           |
 | `MappingServiceLocator` | `ServiceLocator` backed by an internal `DnsResolver` (loaded from `dnsNameMap` config / `DNS_NAME_MAP` env var).                                             |
-| `ServiceDiscovery`      | Orchestrates cache → health check → fetch flow                                                                                                               |
+| `ServiceDiscovery`      | Orchestrates cache → health check → fetch flow. Uses configurable `discoveryTimeoutMs` for HTTP calls to prevent indefinite hangs.                           |
 | `Scheduler`             | Generic `node-cron` scheduler. Logs job execution errors via `logger.error` instead of swallowing them.                                                      |
 | `RefreshJob<T>`         | Parameterized job that calls a configurable refresh function on a client instance. Replaces previously duplicated `TokenRefresherJob` and `TtlRefresherJob`. |
 
