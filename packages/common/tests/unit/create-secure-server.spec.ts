@@ -41,7 +41,7 @@ jest.mock('node:fs', () => ({
   readFileSync: jest.fn(() => 'mock-cert-content'),
 }));
 
-jest.mock('../../src/middleware/response-protocole', () => ({
+jest.mock('../../src/middleware/response-protocol', () => ({
   ResponseProtocole: 'responseProtocoleMiddleware',
 }));
 
