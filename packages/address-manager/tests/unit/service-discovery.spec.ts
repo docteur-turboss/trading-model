@@ -99,6 +99,7 @@ describe('ServiceDiscovery', () => {
 
   test('throws ServiceUnreachableError if fetched service is unhealthy', async () => {
     cache.get.mockReturnValue(null);
+    httpClient.get.mockResolvedValueOnce(instance);
     healthChecker.isHealthy.mockResolvedValue(false);
 
     await expect(discovery.findService(serviceName)).rejects.toThrow(ServiceUnreachableError);
