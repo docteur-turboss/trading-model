@@ -25,7 +25,7 @@ export class DqlRepository {
   constructor(private readonly filePath: string = './dead-letter-queue.jsonl') {}
 
   /**
-   * Persist a message to the Dead Letter Queue.
+   * Persists a message to the Dead Letter Queue.
    *
    * @param entry - The entry to persist.
    */

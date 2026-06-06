@@ -1,7 +1,12 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { unlink, writeFile } from 'node:fs/promises';
+import { readFileSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals';
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { DeadLetterError, NackError } from '@trading-model/common/utils/errors';
 import { Subscription } from '../../../../src/messaging/core/subscription';
+import { DqlRepository } from '../../../../src/messaging/core/dlq-repository';
 import { createMockHttpClient } from '../../../helpers/broker.helper';
 import { createMockMessage, mockServiceIdentity } from '../../../fixtures/broker.fixture';
 
@@ -14,10 +19,27 @@ jest.mock('config/address-manager', () => ({
 describe('Subscription', () => {
   let mockHttpClient: ReturnType<typeof createMockHttpClient>;
   let subscription: Subscription;
+  let dqlRepository: DqlRepository;
+  const dlqFilePath = join(tmpdir(), `dlq-test-sub-${Date.now()}.jsonl`);
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockHttpClient = createMockHttpClient();
-    subscription = new Subscription('test.topic', 'message/callback', mockServiceIdentity);
+    dqlRepository = new DqlRepository(dlqFilePath);
+    subscription = new Subscription(
+      'test.topic',
+      'message/callback',
+      mockServiceIdentity,
+      dqlRepository
+    );
+    if (existsSync(dlqFilePath)) {
+      await writeFile(dlqFilePath, '', 'utf-8');
+    }
+  });
+
+  afterAll(async () => {
+    if (existsSync(dlqFilePath)) {
+      await unlink(dlqFilePath);
+    }
   });
 
   describe('dispatch', () => {
@@ -59,6 +81,11 @@ describe('Subscription', () => {
       await subscription.dispatch(mockHttpClient as never, message);
 
       expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+
+      const content = readFileSync(dlqFilePath, 'utf-8').trim();
+      const entry = JSON.parse(content);
+      expect(entry.reason).toBe('Unrecoverable');
+      expect(entry.message.payload).toBe('payload');
     });
 
     it('should stop retrying and send to DLQ on TTL expiration', async () => {
@@ -75,6 +102,11 @@ describe('Subscription', () => {
       await subscription.dispatch(mockHttpClient as never, message);
 
       expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+
+      const content = readFileSync(dlqFilePath, 'utf-8').trim();
+      const entry = JSON.parse(content);
+      expect(entry.reason).toBe('TTL_EXPIRED');
+      expect(entry.message.payload).toBe('payload');
       mockDateNow.mockRestore();
     });
 

@@ -1,7 +1,12 @@
+import { unlink } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Broker } from '../../src/messaging/core/broker';
 import { Dispatcher } from '../../src/messaging/core/dispatcher';
+import { DqlRepository } from '../../src/messaging/core/dlq-repository';
 import { createMockHttpClient } from '../helpers/broker.helper';
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals';
 import { mockServiceIdentity, mockSubscriberIdentity } from '../fixtures/broker.fixture';
 
 jest.mock('config/address-manager', () => ({
@@ -14,11 +19,19 @@ describe('Message Broker Integration', () => {
   let httpClient: ReturnType<typeof createMockHttpClient>;
   let dispatcher: Dispatcher;
   let broker: Broker;
+  const dlqFilePath = join(tmpdir(), `dlq-test-int-${Date.now()}.jsonl`);
 
   beforeEach(() => {
     httpClient = createMockHttpClient();
-    dispatcher = new Dispatcher(httpClient as never);
+    const dqlRepository = new DqlRepository(dlqFilePath);
+    dispatcher = new Dispatcher(httpClient as never, dqlRepository);
     broker = new Broker(dispatcher);
+  });
+
+  afterAll(async () => {
+    if (existsSync(dlqFilePath)) {
+      await unlink(dlqFilePath);
+    }
   });
 
   it('should deliver a published message to a subscribed service', async () => {
