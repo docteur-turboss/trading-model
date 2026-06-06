@@ -3,6 +3,16 @@ import { TLSSocket } from 'node:tls';
 import { catchSync } from './catch-error';
 import { ResponseException } from './response-exception';
 
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      /** Logical client identity extracted from the mTLS client certificate. */
+      clientIdentity: string;
+    }
+  }
+}
+
 /**
  * mTLS Authentication Middleware
  *
@@ -66,7 +76,8 @@ export const MTLSAuthMiddleware = catchSync((req, res, next) => {
    * This identity is considered a *logical client identifier* and
    * should map to a service, workload, or machine identity.
    */
-  const identity = cert.subjectaltname ?? cert.subject?.CN ?? 'unknown';
+  const raw = cert.subjectaltname ?? cert.subject?.CN ?? 'unknown';
+  const identity = Array.isArray(raw) ? raw.join(', ') : raw;
 
   /**
    * Step 4 — Attach identity to request context
@@ -74,7 +85,7 @@ export const MTLSAuthMiddleware = catchSync((req, res, next) => {
    * The identity is injected into the request object to be consumed
    * by downstream middlewares, controllers, or authorization layers.
    */
-  (req as unknown as Request & { clientIdentity: string | string[] }).clientIdentity = identity;
+  req.clientIdentity = identity;
 
   // Continue request processing
   next();
