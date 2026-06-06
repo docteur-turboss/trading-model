@@ -248,4 +248,23 @@ describe('createBootstrap', () => {
     expect(mockServer.close).toHaveBeenCalled();
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
+
+  it('should exit gracefully when onStop throws during shutdown', async () => {
+    const onStop = jest.fn(() => {
+      throw new Error('onStop failed');
+    });
+    const mockServer = { close: jest.fn(async () => {}) };
+
+    const result = createBootstrap({
+      name: 'test',
+      createServer: (() => mockServer) as any,
+      onStop,
+    });
+
+    await result.shutdown('SIGTERM');
+
+    expect(mockServer.close).toHaveBeenCalled();
+    expect(onStop).toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
 });

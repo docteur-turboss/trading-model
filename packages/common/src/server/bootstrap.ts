@@ -47,7 +47,13 @@ export function createBootstrap(options: BootstrapOptions): {
       server = options.createServer();
 
       if (options.onStart) {
-        options.onStart();
+        try {
+          options.onStart();
+        } catch (error) {
+          logger.error('onStart callback failed — aborting bootstrap', { err: error });
+          hardShutdown(1);
+          return;
+        }
       }
 
       logger.info(`${options.name} started successfully`);
@@ -67,7 +73,11 @@ export function createBootstrap(options: BootstrapOptions): {
       }
 
       if (options.onStop) {
-        options.onStop();
+        try {
+          options.onStop();
+        } catch (error) {
+          logger.warn('onStop callback failed during shutdown', { err: error });
+        }
       }
 
       logger.info('Shutdown completed gracefully');

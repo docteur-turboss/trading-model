@@ -59,6 +59,7 @@ Features:
 
 - Attaches `SIGTERM`, `SIGINT` handlers
 - Captures `uncaughtException` and `unhandledRejection`
+- `onStart` and `onStop` callbacks wrapped in try/catch — failures are logged and do not crash the process
 - Graceful shutdown on fatal error: closes HTTP server and calls `onStop` before exit
 
 ## SecureServer
