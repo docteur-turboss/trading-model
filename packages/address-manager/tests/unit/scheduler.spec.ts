@@ -6,6 +6,13 @@ jest.mock('node-cron', () => ({
   schedule: jest.fn(),
 }));
 
+jest.mock('@trading-model/common/config/logger', () => ({
+  logger: { error: jest.fn() },
+}));
+
+import { logger } from '@trading-model/common/config/logger';
+const mockLoggerError = jest.mocked(logger.error);
+
 describe('Scheduler', () => {
   let scheduler: Scheduler;
   let mockJob: jest.Mocked<ScheduledJob>;
@@ -77,7 +84,7 @@ describe('Scheduler', () => {
     expect(mockJob.execute).toHaveBeenCalledTimes(1);
   });
 
-  test('start should ignore errors thrown by job.execute', async () => {
+  test('start should log errors thrown by job.execute without propagating', async () => {
     const errorJob: ScheduledJob = {
       schedule: '*/1 * * * *',
       execute: jest
@@ -92,6 +99,23 @@ describe('Scheduler', () => {
     const callback = (cron.schedule as jest.Mock).mock.calls[0][1] as () => Promise<void>;
 
     await expect(callback()).resolves.toBeUndefined();
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      '[Scheduler] Job execution failed',
+      expect.objectContaining({
+        schedule: '*/1 * * * *',
+        error: 'fail',
+      })
+    );
+  });
+
+  test('start should not log when job.execute succeeds', async () => {
+    scheduler.register(mockJob);
+    scheduler.start();
+
+    const callback = (cron.schedule as jest.Mock).mock.calls[0][1] as () => Promise<void>;
+
+    await callback();
+    expect(mockLoggerError).not.toHaveBeenCalled();
   });
 
   test('calling start multiple times should not reschedule jobs', () => {
