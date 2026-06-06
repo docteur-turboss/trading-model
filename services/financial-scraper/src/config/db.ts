@@ -2,15 +2,15 @@ import { createPool, Pool } from 'mysql2';
 import { MySqlConnection } from 'ts-sql-query/connections/MySqlConnection';
 import { MySql2PoolQueryRunner } from 'ts-sql-query/queryRunners/MySql2PoolQueryRunner';
 
-// --- Création d'un pool de connexions MySQL ---
-// On centralise les paramètres de connexion via les variables d'environnement.
-// connectionLimit définit le nombre max de connexions simultanées dans le pool.
+import { env } from './env';
+
+// Centralises MySQL connection parameters from validated environment variables.
 const pool: Pool = createPool({
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '3306', 10),
+  user: env.DB_USER,
+  password: env.DB_PASSWORD,
+  database: env.DB_NAME,
+  host: env.DB_HOST,
+  port: env.DB_PORT,
   connectionLimit: 10,
 });
 
