@@ -46,6 +46,7 @@ describe('ServiceDiscovery', () => {
       cache,
       {
         addressManagerUrl: 'ee',
+        discoveryTimeoutMs: 5000,
       } as AddressManagerConfig,
       healthChecker
     );
@@ -95,6 +96,19 @@ describe('ServiceDiscovery', () => {
     await expect(discovery.findService(serviceName)).rejects.toThrow(ServiceNotFoundError);
 
     expect(cache.invalidate).not.toHaveBeenCalled();
+  });
+
+  test('passes timeout option to HttpClient.get', async () => {
+    cache.get.mockReturnValue(null);
+    httpClient.get.mockResolvedValueOnce(instance);
+    healthChecker.isHealthy.mockResolvedValue(true);
+
+    await discovery.findService(serviceName);
+
+    expect(httpClient.get).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ timeoutMs: 5000 })
+    );
   });
 
   test('handles array response from AddressManager by taking first element', async () => {

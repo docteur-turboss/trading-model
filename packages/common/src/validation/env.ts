@@ -26,6 +26,7 @@ export const AddressManagerEnvSchema = z.object({
   INSTANCE_ID: z.string().min(1),
   CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),
   SERVICE_PING_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
+  DISCOVERY_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   TOKEN_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
   TTL_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
   ADDRESS_MANAGER_URL: z.url(),

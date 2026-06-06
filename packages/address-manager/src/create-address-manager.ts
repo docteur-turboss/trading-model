@@ -4,6 +4,7 @@ import AddressManager from './index';
 export interface AddressManagerEnv {
   ADDRESS_MANAGER_URL: string;
   CACHE_TTL_MS: number;
+  DISCOVERY_TIMEOUT_MS: number;
   INSTANCE_ID: string;
   SERVICE_NAME: string;
   SERVICE_PING_TIMEOUT_MS: number;
@@ -23,6 +24,7 @@ export function createAddressManager(env: AddressManagerEnv) {
   return new AddressManager({
     addressManagerUrl: env.ADDRESS_MANAGER_URL,
     cacheTtlMs: env.CACHE_TTL_MS,
+    discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
     instanceId: env.INSTANCE_ID,
     serviceName: env.SERVICE_NAME,
     servicePingTimeoutMs: env.SERVICE_PING_TIMEOUT_MS,

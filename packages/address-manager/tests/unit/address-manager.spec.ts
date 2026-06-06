@@ -84,6 +84,7 @@ describe('AddressManager', () => {
     tokenRefreshIntervalMs: 300000,
     ttlRefreshIntervalMs: 300000,
     servicePingTimeoutMs: 2000,
+    discoveryTimeoutMs: 5000,
     cacheTtlMs: 60000,
     RootCACertPath: '/path/to/ca.pem',
     CertificatPath: '/path/to/cert.pem',

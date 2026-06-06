@@ -22,12 +22,14 @@ import { AddressManagerConfig } from '../config/address-manager-config';
  * returned instances are healthy and valid.
  */
 export class ServiceDiscovery {
+  private readonly discoveryTimeoutMs: number;
+
   /**
    * Creates a new ServiceDiscovery instance.
    *
    * @example
    * ```ts
-   * const discovery = new ServiceDiscovery(client, cache, healthChecker);
+   * const discovery = new ServiceDiscovery(client, cache, healthChecker, config);
    * ```
    */
   constructor(
@@ -35,7 +37,9 @@ export class ServiceDiscovery {
     private readonly serviceCache: ServiceCache,
     private readonly config: AddressManagerConfig,
     private readonly healthChecker: ServiceHealthChecker
-  ) {}
+  ) {
+    this.discoveryTimeoutMs = config.discoveryTimeoutMs;
+  }
 
   /**
    * Returns a healthy instance of the requested service.
@@ -89,7 +93,8 @@ export class ServiceDiscovery {
 
     try {
       instances = await this.httpClient.get<unknown>(
-        `${this.config.addressManagerUrl}/services/${serviceName}`
+        `${this.config.addressManagerUrl}/services/${serviceName}`,
+        { timeoutMs: this.discoveryTimeoutMs }
       );
     } catch (error) {
       throw new ServiceNotFoundError(`Service "${serviceName}" not found`, error);
