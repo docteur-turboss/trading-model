@@ -14,12 +14,18 @@ import { MessageManagerClient } from './client/message-manager-client';
 import { CreateCallbackRoute } from './http/messages.routes';
 import { MessageMetadata } from './shared/helper/messages/message';
 
-
-
-
-/** Central orchestrator for broker message operations. */
-export default class {
-  private MessageManagerClient: MessageManagerClient;
+/**
+ * Central orchestrator for broker message operations.
+ *
+ * Responsibilities:
+ * - Manage an HTTP client for service communication
+ * - Coordinate topic subscriptions and unsubscriptions
+ * - Publish messages directly or via the message broker
+ * - Manage event listeners for incoming messages
+ * - Mount Express callback routes for message delivery
+ */
+export default class BrokerMessage {
+  private messageManagerClient: MessageManagerClient;
   private topics: EventEnumMap[] | null = null;
   private event: (() => void)[] = [];
   private callbackPath: string = 'message';
@@ -50,7 +56,7 @@ export default class {
       key: KeyCertificatPath,
     });
 
-    this.MessageManagerClient = new MessageManagerClient(
+    this.messageManagerClient = new MessageManagerClient(
       this.httpClient,
       {
         callbackPath: this.callbackPath,
@@ -63,13 +69,13 @@ export default class {
 
   /** Subscribes to the specified event topics. */
   async intents(topics: Parameters<MessageManagerClient['SubscribeToTopics']>[0]): Promise<void> {
-    await this.MessageManagerClient.SubscribeToTopics(topics);
+    await this.messageManagerClient.SubscribeToTopics(topics);
     this.topics = topics;
   }
 
   /** Unsubscribes from all topics and cleans up event listeners. */
   async stopMessageManager(): Promise<void> {
-    await this.MessageManagerClient.UnSubscribeToTopic(this.topics ?? []);
+    await this.messageManagerClient.UnSubscribeToTopic(this.topics ?? []);
     this.event.forEach(killFunction => killFunction());
     this.topics = null;
   }
@@ -85,23 +91,23 @@ export default class {
   }
 
   /** Publishes messages directly or indirectly to services. */
-  post = {
-    /** Sends a message directly to a specific target service. */
-    direct: <T = Parameters<MessageManagerClient['publishDirectMessage']>[1]>(
-      service: Parameters<MessageManagerClient['publishDirectMessage']>[0],
-      payload: T,
-      metadata: Parameters<MessageManagerClient['publishDirectMessage']>[2]
-    ) => {
-      return this.MessageManagerClient.publishDirectMessage(service, payload, metadata);
-    },
-    /** Publishes a message to the broker for asynchronous delivery. */
-    indirect: <T = Parameters<MessageManagerClient['publishAsyncMessage']>[0]>(
-      payload: T,
-      metadata: Parameters<MessageManagerClient['publishAsyncMessage']>[1]
-    ) => {
-      return this.MessageManagerClient.publishAsyncMessage(payload, metadata);
-    },
-  };
+  get post() {
+    return {
+      direct: <T = Parameters<MessageManagerClient['publishDirectMessage']>[1]>(
+        service: Parameters<MessageManagerClient['publishDirectMessage']>[0],
+        payload: T,
+        metadata: Parameters<MessageManagerClient['publishDirectMessage']>[2]
+      ) => {
+        return this.messageManagerClient.publishDirectMessage(service, payload, metadata);
+      },
+      indirect: <T = Parameters<MessageManagerClient['publishAsyncMessage']>[0]>(
+        payload: T,
+        metadata: Parameters<MessageManagerClient['publishAsyncMessage']>[1]
+      ) => {
+        return this.messageManagerClient.publishAsyncMessage(payload, metadata);
+      },
+    };
+  }
 }
 
 /** Metadata builder utility. */
