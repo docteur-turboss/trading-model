@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 import {
   SubscribeSchema,
   UnsubscribeSchema,
@@ -14,7 +15,7 @@ describe('Broker Schemas', () => {
         topic: 'test.topic',
         callbackPath: 'message/callback',
         consumerIdentity: {
-          serviceName: 'FinancialScrapperService',
+          serviceName: ServiceInstanceName.FinancialScrapperService,
           instanceId: 'instance-1',
         },
       });
@@ -27,7 +28,7 @@ describe('Broker Schemas', () => {
         topic: '',
         callbackPath: 'message/callback',
         consumerIdentity: {
-          serviceName: 'FinancialScrapperService',
+          serviceName: ServiceInstanceName.FinancialScrapperService,
           instanceId: 'instance-1',
         },
       });
@@ -39,7 +40,7 @@ describe('Broker Schemas', () => {
       const result = SubscribeSchema.safeParse({
         topic: 'test.topic',
         consumerIdentity: {
-          serviceName: 'FinancialScrapperService',
+          serviceName: ServiceInstanceName.FinancialScrapperService,
           instanceId: 'instance-1',
         },
       });
@@ -88,7 +89,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: 'FinancialScrapperService',
+          serviceName: ServiceInstanceName.FinancialScrapperService,
           instanceId: 'instance-1',
         },
       });
@@ -104,7 +105,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: 'FinancialScrapperService',
+          serviceName: ServiceInstanceName.FinancialScrapperService,
           instanceId: 'instance-1',
         },
         routing: {
@@ -130,7 +131,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: 'FinancialScrapperService',
+          serviceName: ServiceInstanceName.FinancialScrapperService,
           instanceId: 'instance-1',
         },
       });
@@ -144,7 +145,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: 'FinancialScrapperService',
+          serviceName: ServiceInstanceName.FinancialScrapperService,
           instanceId: 'instance-1',
         },
         delivery: {
@@ -161,7 +162,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: 'FinancialScrapperService',
+          serviceName: ServiceInstanceName.FinancialScrapperService,
           instanceId: 'instance-1',
         },
         delivery: {
@@ -183,7 +184,7 @@ describe('Broker Schemas', () => {
           eventType: 'TestEvent',
           topic: 'test.topic',
           publisher: {
-            serviceName: 'FinancialScrapperService',
+            serviceName: ServiceInstanceName.FinancialScrapperService,
             instanceId: 'instance-1',
           },
         },
@@ -200,7 +201,7 @@ describe('Broker Schemas', () => {
           eventType: 'TestEvent',
           topic: 'test.topic',
           publisher: {
-            serviceName: 'FinancialScrapperService',
+            serviceName: ServiceInstanceName.FinancialScrapperService,
             instanceId: 'instance-1',
           },
         },
@@ -216,7 +217,7 @@ describe('Broker Schemas', () => {
           eventType: 'TestEvent',
           topic: 'test.topic',
           publisher: {
-            serviceName: 'FinancialScrapperService',
+            serviceName: ServiceInstanceName.FinancialScrapperService,
             instanceId: 'instance-1',
           },
         },

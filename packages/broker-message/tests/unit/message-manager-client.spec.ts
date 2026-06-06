@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { MessageManagerClient } from '../../src/client/message-manager-client';
 import { MessageManagerError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -163,7 +164,11 @@ describe('MessageManagerClient', () => {
         schemaVersion: '1.0.0',
         publisher: { serviceName: 'TestService', instanceId: 'uuid' },
       } as any;
-      await client.publishDirectMessage('MessageDeliveryService', { data: 'test' }, metadata);
+      await client.publishDirectMessage(
+        ServiceInstanceName.MessageDeliveryService,
+        { data: 'test' },
+        metadata
+      );
 
       expect(httpClient.post).toHaveBeenCalled();
     });
@@ -172,7 +177,7 @@ describe('MessageManagerClient', () => {
       addressManagerClient.findService.mockResolvedValue(null);
 
       await expect(
-        client.publishDirectMessage('MessageDeliveryService', {}, {} as any)
+        client.publishDirectMessage(ServiceInstanceName.MessageDeliveryService, {}, {} as any)
       ).rejects.toThrow(ServiceUnreachableError);
     });
 
@@ -181,7 +186,7 @@ describe('MessageManagerClient', () => {
       httpClient.post.mockRejectedValue(new Error('Publish failed'));
 
       await expect(
-        client.publishDirectMessage('MessageDeliveryService', {}, {} as any)
+        client.publishDirectMessage(ServiceInstanceName.MessageDeliveryService, {}, {} as any)
       ).rejects.toThrow(MessageManagerError);
     });
   });

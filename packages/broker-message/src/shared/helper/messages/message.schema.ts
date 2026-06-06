@@ -67,8 +67,8 @@ export const RoutingMetadataContextPredicate = z
 /** Validates the publisher identity metadata. */
 export const PublisherMetadataContextPredicate = z.object({
   serviceName: z.enum(
-    Object.keys(ServiceInstanceName) as [string, ...string[]],
-    `publisher.serviceName value is invalid. Expected one of: ${Object.keys(ServiceInstanceName).join(', ')}.`
+    Object.values(ServiceInstanceName) as [string, ...string[]],
+    `publisher.serviceName value is invalid. Expected one of: ${Object.values(ServiceInstanceName).join(', ')}.`
   ),
   instanceId: z.uuid(
     'publisher.instanceId must be a string as a UUID identifying the service instance'

@@ -9,6 +9,6 @@ export const { MessageManager, MessageManagerListenExpress } = createMessageMana
   instanceId: env.INSTANCE_ID,
   KeyCertificatPath: env.TLS_KEY_PATH,
   RootCACertPath: env.TLS_CA_PATH,
-  serviceName: env.SERVICE_NAME as keyof typeof ServiceInstanceName,
+  serviceName: env.SERVICE_NAME as ServiceInstanceName,
   callbackPath: env.MESSAGE_CALLBACK_PATH,
 });
