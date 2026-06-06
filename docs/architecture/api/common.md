@@ -107,7 +107,7 @@ import {
 | ------------------------- | -------------------------------------------------------------------------------------- |
 | `BaseEnvSchema`           | `NODE_ENV`, `PORT`, `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `LOG_LEVEL`        |
 | `AddressManagerEnvSchema` | `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID`, `CACHE_TTL_MS`, `ADDRESS_MANAGER_URL`, etc. |
-| `validateEnv(schema)`     | Parses `process.env` and exit(1) on failure                                            |
+| `validateEnv(schema)`     | Parses `process.env` and throws `ConfigurationError` on failure                        |
 
 ## HttpClient
 
