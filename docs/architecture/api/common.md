@@ -181,7 +181,7 @@ Available codes: `ServiceUnavailable(503)`, `UnknownError(500)`, `InvalidToken(4
 
 Global Express error normalisation middleware.
 
-- **Import**: `@trading-model/common/middleware/response-protocole`
+- **Import**: `@trading-model/common/middleware/response-protocol`
 - Logs 5xx errors with stack trace, URL, method, IP
 
 ### MTLSAuth
