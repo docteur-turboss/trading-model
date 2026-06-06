@@ -167,7 +167,7 @@ mTLS authentication middleware.
 
 - **Import**: `@trading-model/common/middleware/mtls-auth`
 - Checks `socket.authorized`, extracts client certificate identity
-- Attaches `clientIdentity` to the request
+- Attaches `clientIdentity` to the request (declared via global Express `Request` augmentation — `declare global { namespace Express { interface Request { clientIdentity: string } } }`)
 
 ### handleCoreResponse / handleCoreAuthResponse
 

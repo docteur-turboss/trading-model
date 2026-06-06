@@ -71,6 +71,23 @@ describe('MTLSAuthMiddleware', () => {
     expect(next).toHaveBeenCalled();
   });
 
+  it('should handle multiple subjectAltNames by joining with comma', () => {
+    const cert = {
+      subjectaltname: ['DNS:service-a', 'DNS:service-b'],
+      subject: { CN: 'fallback-cn' },
+    };
+    req.socket = {
+      authorized: true,
+      authorizationError: undefined,
+      getPeerCertificate: jest.fn(() => cert),
+    };
+
+    MTLSAuthMiddleware(req, res, next);
+
+    expect(req.clientIdentity).toBe('DNS:service-a, DNS:service-b');
+    expect(next).toHaveBeenCalled();
+  });
+
   it('should fallback to CN when subjectaltname is not available', () => {
     const cert = {
       subjectaltname: undefined,
