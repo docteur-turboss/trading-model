@@ -64,6 +64,9 @@ function Test-Health {
     if (-not $Config -or -not $Config.deploy.health_endpoints) {
         $endpoints = @{
             "discovery-server" = "https://localhost:8443/ping"
+            "message-manager"  = "https://localhost:8444/health"
+            "financial-scraper"= "https://localhost:8445/health"
+            "trader-trainer"   = "https://localhost:8446/health"
         }
     } else {
         $endpoints = $Config.deploy.health_endpoints

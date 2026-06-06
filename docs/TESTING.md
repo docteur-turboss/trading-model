@@ -27,8 +27,8 @@ npm test
 ### Run tests for a specific service
 
 ```bash
-npm test -- --testPathPattern="lib/src/broker-message"
-npm test -- --testPathPattern="lib/src/adress-manager"
+npm test -- --testPathPattern="packages/broker-message"
+npm test -- --testPathPattern="packages/address-manager"
 npm test -- --testPathPattern="discovery-server"
 ```
 
@@ -332,18 +332,10 @@ npm test -- --coverage
 // jest.config.js
 coverageThreshold: {
   global: {
-    branches: 80,
-    functions: 80,
-    lines: 80,
-    statements: 80,
-  },
-  './lib/src/adress-manager/': {
-    lines: 90,  // Stricter for critical code
-    functions: 90,
-  },
-  './lib/src/broker-message/': {
-    lines: 85,
-    functions: 85,
+    branches: 100,
+    functions: 100,
+    lines: 100,
+    statements: 100,
   },
 }
 ```

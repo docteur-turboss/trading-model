@@ -69,7 +69,7 @@ File suffixes: `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.middlewa
 
 - **Framework**: Jest with `ts-jest`
 - **Convention**: Single `.spec.ts` suffix
-- **Coverage threshold**: 80% minimum (branches, functions, lines, statements)
+- **Coverage threshold**: 100% minimum (branches, functions, lines, statements)
 - **Structure**: Tests mirror source under `tests/unit/`, `tests/integration/`, `tests/e2e/`
 
 All code should include tests before being considered complete.
@@ -99,7 +99,8 @@ refactor(core): extract token validation logic
 ### Branching
 
 - `main` — stable, release-ready
-- Feature branches from `main`
+- `development` — integration branch for PRs
+- Feature branches from `development` (or `main` for hotfixes)
 - Use descriptive kebab-case names
 
 ## Standards Reference

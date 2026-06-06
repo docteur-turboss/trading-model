@@ -46,7 +46,7 @@ Central service registry with mTLS-secured endpoints:
 - `GET /services/:name/:id` — get specific instance
   In-memory storage with TTL-based lease eviction.
 
-### Financial Scraper (Port 8444)
+### Financial Scraper (Port 8445)
 
 Real-time market data ingestion from Binance:
 
@@ -78,7 +78,7 @@ Real-time market data ingestion from Binance:
 
 See [services/financial-scraper/docs/architecture.md](../services/financial-scraper/docs/architecture.md) for full details.
 
-### Message Manager / Message Delivery Service (Port 8445)
+### Message Manager / Message Delivery Service (Port 8444)
 
 Internal messaging backbone for inter-service communication:
 
@@ -110,7 +110,7 @@ Internal messaging backbone for inter-service communication:
 
 See [services/message-manager/README.md](../services/message-manager/README.md) for full details.
 
-### Trader-Trainer (Port 3001)
+### Trader-Trainer (Port 3000)
 
 Core ML training engine:
 
@@ -118,7 +118,7 @@ Core ML training engine:
 - Custom neural network implementation
 - Trading agent with simulated wallet
 - Reinforcement learning state manager
-- Express server (no mTLS)
+- Express server with mTLS-secured routes
 
 ## Dependency Graph
 
@@ -139,17 +139,17 @@ Server     Scrapper    Manager    Trainer
 
 ## Technology Stack
 
-| Layer      | Technology                                      |
-| ---------- | ----------------------------------------------- |
-| Runtime    | Node.js                                         |
-| Language   | TypeScript (ES2020; module: node16 or commonjs) |
-| API        | Express.js                                      |
-| Security   | mTLS (except Trader-Trainer)                    |
-| Database   | MongoDB                                         |
-| Validation | Zod                                             |
-| Scheduling | node-cron                                       |
-| Formatting | Prettier                                        |
-| Linting    | ESLint 10 flat config                           |
+| Layer      | Technology                                           |
+| ---------- | ---------------------------------------------------- |
+| Runtime    | Node.js                                              |
+| Language   | TypeScript (ES2020; module: node16 or commonjs)      |
+| API        | Express.js                                           |
+| Security   | mTLS (all services)                                  |
+| Database   | MongoDB (message-manager), MySQL (financial-scraper) |
+| Validation | Zod                                                  |
+| Scheduling | node-cron                                            |
+| Formatting | Prettier                                             |
+| Linting    | ESLint 10 flat config                                |
 
 ## Security Model
 
