@@ -251,7 +251,7 @@ Locator that delegates to an internal `DnsResolver` strategy for name-based mapp
 | Class                   | Description                                                                                                                                                  |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `TokenManager`          | In-memory token storage, refresh via `POST /token/rotate`                                                                                                    |
-| `AddressManagerClient`  | HTTP client for Discovery Server API (register, refresh TTL)                                                                                                 |
+| `AddressManagerClient`  | HTTP client for Discovery Server API (register, refresh TTL). Wraps errors in `AddressManagerError` with original error preserved in `cause` property.       |
 | `ServiceCache`          | In-memory cache with TTL expiry for service instances                                                                                                        |
 | `ServiceHealthChecker`  | Pings `https://{host}:{port}/ping` to verify liveness. Target resolution delegated to a `ServiceLocator` strategy.                                           |
 | `ServiceLocator`        | Strategy interface for determining the target hostname of a service instance.                                                                                |
