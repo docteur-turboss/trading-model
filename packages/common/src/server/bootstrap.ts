@@ -19,7 +19,7 @@ export function createBootstrap(options: BootstrapOptions): {
 } {
   let server: HttpServer | null = null;
 
-  async function bootstrap(): Promise<void> {
+  function bootstrap(): void {
     try {
       logger.info(`Bootstrapping ${options.name} service`);
 
