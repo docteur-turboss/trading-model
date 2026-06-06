@@ -29,11 +29,10 @@
  */
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { HttpClient } from '@trading-model/common/config/http-client';
+import { IdentifyType, message as Message } from '@trading-model/common/contracts/message.types';
 import { DeadLetterError, NackError } from '@trading-model/common/utils/errors';
 
 import { findAService } from '../../config/address-manager';
-import { IdentifyType } from '../broker.type';
-import { message as Message } from './message';
 
 /**
  * Runtime context provided to subscribers during message delivery.

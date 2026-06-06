@@ -32,9 +32,13 @@
 
 import { randomUUID } from 'node:crypto';
 
+import {
+  IdentifyType,
+  message,
+  MessageMetadata,
+} from '@trading-model/common/contracts/message.types';
+
 import { Dispatcher } from './dispatcher';
-import { IdentifyType } from '../broker.type';
-import { message, MessageMetadata } from './message';
 
 /**
  * Messaging broker facade.
