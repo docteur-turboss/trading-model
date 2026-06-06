@@ -54,7 +54,7 @@ export default class AddressManager {
     );
 
     this.serviceCache = new ServiceCache(config.cacheTtlMs);
-    this.healthChecker = new ServiceHealthChecker(this.httpClient, config.servicePingTimeoutMs);
+    this.healthChecker = new ServiceHealthChecker(this.httpClient, config.servicePingTimeoutMs, config.dnsNameMap);
 
     this.serviceDiscovery = new ServiceDiscovery(
       this.httpClient,
