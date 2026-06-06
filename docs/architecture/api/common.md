@@ -190,6 +190,8 @@ mTLS authentication middleware.
 
 - **Import**: `@trading-model/common/middleware/mtls-auth`
 - Checks `socket.authorized`, extracts client certificate identity
+- Identity resolution: prefers SAN (Subject Alternative Name), falls back to CN (Common Name)
+- Fails closed with **401 Unauthorized** if no SAN or CN is present on the certificate (no default identity leak)
 - Attaches `clientIdentity` to the request (declared via global Express `Request` augmentation — `declare global { namespace Express { interface Request { clientIdentity: string } } }`)
 - Rejects non-TLS connections (e.g. plain HTTP) with a Forbidden error to prevent unauthenticated access
 

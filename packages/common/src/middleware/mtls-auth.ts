@@ -88,12 +88,25 @@ export const MTLSAuthMiddleware = catchSync((req, res, next) => {
    * Identity resolution convention:
    *  - Prefer Subject Alternative Name (SAN), if present (URI / DNS)
    *  - Fallback to Common Name (CN)
-   *  - Default to "unknown" if neither is available
+   *  - Fail closed with Unauthorized if neither is available
    *
    * This identity is considered a *logical client identifier* and
    * should map to a service, workload, or machine identity.
+   *
+   * A default identity (e.g., "unknown") is intentionally NOT provided
+   * to avoid propagating an unresolvable identity to downstream
+   * authorization gates (fail closed, not open).
    */
-  const raw = cert.subjectaltname ?? cert.subject?.CN ?? 'unknown';
+  const raw = cert.subjectaltname ?? cert.subject?.CN;
+
+  if (!raw) {
+    throw ResponseException(
+      JSON.stringify({
+        error: 'Client identity could not be resolved',
+        reason: 'Certificate has no SAN or CN',
+      })
+    ).Unauthorized();
+  }
   const identity = Array.isArray(raw) ? raw.join(', ') : raw;
 
   /**

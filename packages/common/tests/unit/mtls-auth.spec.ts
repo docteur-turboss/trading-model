@@ -12,9 +12,12 @@ jest.mock('../../src/middleware/response-exception', () => ({
       });
     },
     Unauthorized: () => {
-      throw Object.assign(new Error(JSON.stringify({ error: 'Client certificate required' })), {
-        status: 401,
-      });
+      throw Object.assign(
+        new Error(JSON.stringify(data ?? { error: 'Client certificate required' })),
+        {
+          status: 401,
+        }
+      );
     },
   }),
 }));
@@ -111,7 +114,7 @@ describe('MTLSAuthMiddleware', () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it('should default to "unknown" when neither SAN nor CN is available', () => {
+  it('should throw Unauthorized when neither SAN nor CN is available', () => {
     const cert = {
       subjectaltname: undefined,
       subject: { CN: undefined },
@@ -122,9 +125,7 @@ describe('MTLSAuthMiddleware', () => {
       getPeerCertificate: jest.fn(() => cert),
     };
 
-    MTLSAuthMiddleware(req, res, next);
-
-    expect(req.clientIdentity).toBe('unknown');
-    expect(next).toHaveBeenCalled();
+    expect(() => MTLSAuthMiddleware(req, res, next)).toThrow();
+    expect(next).not.toHaveBeenCalled();
   });
 });
