@@ -137,17 +137,20 @@ const metadata = new helper.MetadataBuilder()
   .toJSON();
 ```
 
-| Method                                     | Description                                                |
-| ------------------------------------------ | ---------------------------------------------------------- |
-| `setTopic(topic)`                          | Sets the topic (`bounded-context.aggregate.action` format) |
-| `setEventType(event)`                      | Sets the event type                                        |
-| `setPublisher(context)`                    | Sets the publisher identity                                |
-| `setDelivery(context)`                     | Sets delivery mode (mode, ttl, deduplicationId)            |
-| `setRouting(context)`                      | Sets routing hints (partitionKey, priority)                |
-| `setSecurity(context)`                     | Sets security context (authContext, signature)             |
-| `setSchemaVersion(version)`                | Sets schema version (default: '1.0.0')                     |
-| `setIds({ causationId?, correlationId? })` | Sets correlation IDs                                       |
-| `toJSON()`                                 | Produces the `MessageMetadata` object                      |
+| Method                                     | Description                                                                                         |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `setTopic(topic)`                          | Sets the topic (`bounded-context.aggregate.action` format)                                          |
+| `setEventType(event)`                      | Sets the event type                                                                                 |
+| `setPublisher(context)`                    | Sets the publisher identity                                                                         |
+| `setDelivery(context)`                     | Sets delivery mode (mode, ttl, deduplicationId)                                                     |
+| `setRouting(context)`                      | Sets routing hints (partitionKey, priority)                                                         |
+| `setSecurity(context)`                     | Sets security context (authContext, signature)                                                      |
+| `setSchemaVersion(version)`                | Sets schema version (default: '1.0.0')                                                              |
+| `setIds({ causationId?, correlationId? })` | Sets correlation IDs                                                                                |
+| `toJSON()`                                 | Produces the `MessageMetadata` object. Throws `MetadataBuilderError` if required fields are missing |
+| ------------------------------------------ | ----------------------------------------------------------                                          |
+
+> **Note on required fields**: `topic`, `eventType`, and `publisher` must be set before calling `toJSON()`, otherwise a `MetadataBuilderError` is thrown. Previously, unset fields were tracked via the sentinel string `'null'`, which was indistinguishable from a legitimate value — this has been replaced with proper `undefined`-based tracking.
 
 ## Zod Schemas
 

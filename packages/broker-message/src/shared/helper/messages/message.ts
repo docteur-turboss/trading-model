@@ -1,4 +1,3 @@
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 import {
   DeliveryType,
   IdentifyType,
@@ -23,12 +22,12 @@ import {
  * Represents an metadata in a message
  */
 export class MessageMetadata {
-  private topic: string;
-  private eventType: string;
+  private topic: string | undefined;
+  private eventType: string | undefined;
   private causationId?: string;
   private routing?: RoutingType;
   private correlationId?: string;
-  private publisher: IdentifyType;
+  private publisher: IdentifyType | undefined;
   private delivery?: DeliveryType;
   private security?: SecurityType;
   private schemaVersion = '1.0.0';
@@ -42,15 +41,9 @@ export class MessageMetadata {
     this.security = security;
     this.causationId = causationId;
     this.correlationId = correlationId;
-    this.topic = topic ? topic : 'null';
-    this.eventType = eventType ? eventType : 'null';
-
-    this.publisher = publisher
-      ? publisher
-      : {
-          serviceName: ServiceInstanceName.MessageDeliveryService,
-          instanceId: 'null',
-        };
+    this.topic = topic;
+    this.eventType = eventType;
+    this.publisher = publisher;
   }
 
   /**
@@ -206,13 +199,9 @@ export class MessageMetadata {
       security,
     } = this;
 
-    if (topic === 'null') throw new MetadataBuilderError("You haven't defined a topic");
-    if (eventType === 'null') throw new MetadataBuilderError("You haven't defined a eventType");
-    if (
-      publisher.instanceId === 'null' &&
-      this.publisher.serviceName === ServiceInstanceName.MessageDeliveryService
-    )
-      throw new MetadataBuilderError("You haven't defined a publisher");
+    if (!topic) throw new MetadataBuilderError("You haven't defined a topic");
+    if (!eventType) throw new MetadataBuilderError("You haven't defined a eventType");
+    if (!publisher) throw new MetadataBuilderError("You haven't defined a publisher");
 
     return {
       eventType,
