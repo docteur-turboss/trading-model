@@ -3,7 +3,7 @@ import { Application } from 'express';
 import { configureApp, RateLimitConfig } from './configure-app';
 import { createAndStartHttpsServer, HttpServer, TlsPaths } from './server-factory';
 import { MTLSAuthMiddleware } from '../middleware/mtls-auth';
-import { ResponseProtocole } from '../middleware/response-protocole';
+import { ResponseProtocole } from '../middleware/response-protocol';
 
 export { HttpServer, TlsPaths, RateLimitConfig };
 

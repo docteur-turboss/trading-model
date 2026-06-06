@@ -142,6 +142,16 @@ describe('Register.controller', () => {
       ).rejects.toMatchObject({ type: 'BadRequest' });
     });
 
+    it('should reject unknown service name with NotFound', async () => {
+      await expect(
+        controller.getServiceInstances(
+          createReq({ params: { serviceName: 'unknown-service' } }),
+          createRes(),
+          createNext
+        )
+      ).rejects.toMatchObject({ type: 'NotFound', error: 'Unknown service' });
+    });
+
     it('should return instances for known service', async () => {
       registry.registerInstance({
         serviceName: 'financial-scrapper-service',

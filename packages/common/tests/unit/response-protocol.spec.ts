@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { ResponseProtocole } from '../../src/middleware/response-protocole';
+import { ResponseProtocole } from '../../src/middleware/response-protocol';
 import {
   ServiceNotFoundError,
   ServiceUnreachableError,
