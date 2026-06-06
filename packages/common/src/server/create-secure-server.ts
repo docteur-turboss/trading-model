@@ -1,29 +1,11 @@
-import fs from 'node:fs';
-import https from 'node:https';
-import path from 'node:path';
+import { Application } from 'express';
 
-import express, { Application } from 'express';
-import { rateLimit } from 'express-rate-limit';
-import helmet from 'helmet';
-
-import { PING_PATH } from './constants';
-import { logger } from '../config/logger';
+import { configureApp, RateLimitConfig } from './configure-app';
+import { createAndStartHttpsServer, HttpServer, TlsPaths } from './server-factory';
 import { MTLSAuthMiddleware } from '../middleware/mtls-auth';
 import { ResponseProtocole } from '../middleware/response-protocole';
 
-/** Filesystem paths to TLS certificate files. */
-export interface TlsPaths {
-  key: string;
-  cert: string;
-  ca: string;
-}
-
-/** Configuration for the rate-limiting middleware. */
-export interface RateLimitConfig {
-  windowMs: number;
-  limit: number;
-  message?: string;
-}
+export { HttpServer, TlsPaths, RateLimitConfig };
 
 /** Options for creating an mTLS-secured HTTPS server. */
 export interface SecureServerOptions {
@@ -34,35 +16,18 @@ export interface SecureServerOptions {
   trustProxy?: boolean;
 }
 
-/** Minimal abstraction over a running HTTP server. */
-export interface HttpServer {
-  close: () => Promise<void>;
-}
-
-/** Creates and starts an HTTPS server with mTLS, rate-limiting, and Helmet security. */
+/**
+ * Creates and starts an HTTPS server with mTLS, rate-limiting, and Helmet security.
+ * Composes the Express app from focused sub-modules:
+ *   - configureApp     — Helmet, trust proxy, body parsers, rate limiter, ping route
+ *   - MTLSAuthMiddleware — mTLS client certificate validation
+ *   - ResponseProtocole  — Global error normalisation middleware
+ *   - createAndStartHttpsServer — HTTPS listener with mTLS (TLSv1.3)
+ */
 export function createSecureServer(options: SecureServerOptions): HttpServer {
-  const app = express();
-
-  app.use(helmet());
-
-  if (options.trustProxy !== false) {
-    app.set('trust proxy', 1);
-  }
-
-  app.use(express.json({ limit: '1mb' }));
-  app.use(express.urlencoded({ extended: false }));
-
-  const limiter = rateLimit({
-    windowMs: options.rateLimit?.windowMs ?? 15 * 60 * 1000,
-    limit: options.rateLimit?.limit ?? 100,
-    message:
-      options.rateLimit?.message ?? 'Too many requests from this IP, please try again later.',
-  });
-
-  app.use(limiter);
-
-  app.get(PING_PATH, (_req, res) => {
-    res.json({ status: 'ok' });
+  const app = configureApp({
+    rateLimit: options.rateLimit,
+    trustProxy: options.trustProxy,
   });
 
   app.use(MTLSAuthMiddleware);
@@ -71,37 +36,5 @@ export function createSecureServer(options: SecureServerOptions): HttpServer {
 
   app.use(ResponseProtocole);
 
-  const httpsServer = https.createServer(
-    {
-      key: fs.readFileSync(path.resolve(options.tls.key)),
-      cert: fs.readFileSync(path.resolve(options.tls.cert)),
-      ca: fs.readFileSync(path.resolve(options.tls.ca)),
-      requestCert: true,
-      rejectUnauthorized: true,
-      minVersion: 'TLSv1.3',
-    },
-    app
-  );
-
-  httpsServer.listen(options.port, () => {
-    logger.info('HTTPS server listening', {
-      port: options.port,
-      mtls: true,
-    });
-  });
-
-  return {
-    /**
-     * Close the HTTPS server and wait for all in-flight connections to drain.
-     * Uses the Node.js callback form to guarantee the promise resolves only
-     * after the server has fully stopped.
-     */
-    close: () =>
-      new Promise<void>((resolve, reject) => {
-        httpsServer.close(err => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-  };
+  return createAndStartHttpsServer(app, { port: options.port, tls: options.tls });
 }

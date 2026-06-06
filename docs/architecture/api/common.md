@@ -91,6 +91,18 @@ Features:
 - `ResponseProtocole` as last middleware
 - `server.close()` returns a promise that resolves only after all in-flight connections have drained (uses Node.js callback form)
 
+### Internal Architecture
+
+`createSecureServer` delegates each concern to a focused sub-module:
+
+| Module                    | Responsibility                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| `configure-app.ts`        | Express app setup: Helmet, trust proxy, body parsers, rate limiter, `/ping` route |
+| `server-factory.ts`       | HTTPS server creation with mTLS (TLSv1.3) and `listen()`                          |
+| `create-secure-server.ts` | Orchestrator: composes app, mTLS middleware, user routes, error middleware        |
+
+This separation follows the Single Responsibility Principle — each module is independently testable and changes to one concern (e.g. rate limiting) do not risk breaking others (e.g. TLS configuration).
+
 ## Environment Validation
 
 Fail-fast validation of environment variables via Zod.
