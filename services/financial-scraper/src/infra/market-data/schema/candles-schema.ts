@@ -40,6 +40,7 @@ const select = {
   closeTimestamp: tMarketCandles.closeTimestamp,
 };
 
+/** Insert candle records into the market_candles table. */
 export const insertCandles = async (data: CandleEntity[]): Promise<void> => {
   if (!data.length) return;
 
@@ -64,6 +65,7 @@ export const insertCandles = async (data: CandleEntity[]): Promise<void> => {
     .executeInsert();
 };
 
+/** Query helpers for the market_candles table, indexed by symbol, timestamp, and source. */
 export const selectCandlesBy = {
   symbol: async (symbol: string) => {
     return await new DBConnection()

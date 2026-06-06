@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+/** Binance API weight values per endpoint, used for rate-limit token accounting. */
 export const BINANCE_WEIGHTS = {
   depth: (limit: number = 100): number => {
     if (limit <= 100) return 5;

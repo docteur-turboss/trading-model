@@ -10,6 +10,7 @@ import {
 } from '@trading-model/common/validation/primitives';
 import { asHandler } from './helpers';
 
+/** Register a new service instance or update an existing one in the registry. */
 export const register = asHandler(
   catchSync(async req => {
     if (!isObject(req.body)) throw ResponseException('Invalid request body').BadRequest();
@@ -52,12 +53,14 @@ export const register = asHandler(
   })
 );
 
+/** Return the list of all registered service names. */
 export const listServices = asHandler(
   catchSync(async () => {
     throw ResponseException(registry.listServiceNames()).Success();
   })
 );
 
+/** Return all registered instances for a given service name. */
 export const getServiceInstances = asHandler(
   catchSync(async req => {
     const { serviceName } = req.params;
@@ -72,6 +75,7 @@ export const getServiceInstances = asHandler(
   })
 );
 
+/** Return metadata for a specific service instance by service name and instance ID. */
 export const getInstance = asHandler(
   catchSync(async req => {
     const { serviceName, instanceId } = req.params;

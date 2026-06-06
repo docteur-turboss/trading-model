@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+/** Zod schema for base environment variables shared across all services. */
 export const BaseEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
 
@@ -12,8 +13,10 @@ export const BaseEnvSchema = z.object({
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
 });
 
+/** Inferred type for validated base environment variables. */
 export type BaseEnv = z.infer<typeof BaseEnvSchema>;
 
+/** Zod schema for address manager service environment variables. */
 export const AddressManagerEnvSchema = z.object({
   APP_NAME: z.string().min(1),
   APP_VERSION: z.string().default('1.0.0'),
@@ -30,8 +33,13 @@ export const AddressManagerEnvSchema = z.object({
   MESSAGE_CALLBACK_PATH: z.string().min(1).default('message'),
 });
 
+/** Inferred type for validated address manager environment variables. */
 export type AddressManagerEnv = z.infer<typeof AddressManagerEnvSchema>;
 
+/**
+ * Validates environment variables against a Zod schema.
+ * Exits the process on validation failure.
+ */
 export function validateEnv<T extends z.ZodType>(schema: T): z.infer<T> {
   const parsed = schema.safeParse(process.env);
 

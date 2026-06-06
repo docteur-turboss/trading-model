@@ -50,6 +50,7 @@ function pick<T>(arr: T[], rng: () => number): T {
 // Sigma adaptation strategies
 // ----------------------------------------------------------------
 
+/** Compute an adapted mutation sigma based on the configured adaptation strategy. */
 export function adaptSigma(m: MutationGenome, rng: () => number): number {
   switch (m.adaptation) {
     case 'fixed':
@@ -72,6 +73,7 @@ export function adaptSigma(m: MutationGenome, rng: () => number): number {
 // Layer mutation
 // ----------------------------------------------------------------
 
+/** Mutate a single hidden layer's neuron count, activation, connection type, and bias initialisation. */
 export function mutateLayer(layer: LayerGenome, m: MutationGenome, rng: () => number): LayerGenome {
   const sigma = adaptSigma(m, rng);
   const clone = { ...layer };
@@ -152,6 +154,7 @@ function mutateRL(rl: RLGenome, m: MutationGenome, sigma: number, rng: () => num
 // Full genome mutation
 // ----------------------------------------------------------------
 
+/** Apply all configured mutation operators (network structure, RL hyperparameters, self-adaptive params) to a genome. */
 export function mutateGenome(g: LamarckGenome, rng: () => number): LamarckGenome {
   const m = g.mutation;
   const sigma = adaptSigma(m, rng);

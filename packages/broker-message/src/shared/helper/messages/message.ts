@@ -158,6 +158,10 @@ export class MessageMetadata {
     return this;
   }
 
+  /** Sets the causation and correlation identifiers.
+   *
+   * @param context - Object with optional causationId and/or correlationId, or null to clear both
+   */
   public setIds(
     context: {
       causationId?: string;

@@ -8,7 +8,7 @@ import type { MutationDistribution } from './genome-types';
 // Low-level samplers
 // ----------------------------------------------------------------
 
-/** Box-Muller transform → N(0, sigma²) */
+/** Sample from a Gaussian (normal) distribution with mean 0 and given sigma. */
 export function sampleGaussian(rng: () => number, sigma: number): number {
   // Box-Muller
   const u1 = Math.max(1e-10, rng());
@@ -16,20 +16,17 @@ export function sampleGaussian(rng: () => number, sigma: number): number {
   return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * sigma;
 }
 
-/** Cauchy distribution with scale sigma */
+/** Sample from a Cauchy distribution with the given scale. */
 export function sampleCauchy(rng: () => number, sigma: number): number {
   return sigma * Math.tan(Math.PI * (rng() - 0.5));
 }
 
-/** Uniform noise in (−sigma, +sigma) */
+/** Sample uniform noise in the range (-sigma, +sigma). */
 export function sampleUniform(rng: () => number, sigma: number): number {
   return (rng() * 2 - 1) * sigma;
 }
 
-/**
- * Lévy-stable noise (α = 0.5) via Chambers–Mallows–Stuck.
- * Heavy tails — useful for escaping local optima.
- */
+/** Sample Lévy-stable noise (alpha=0.5) with heavy tails for escaping local optima. */
 export function sampleLevy(rng: () => number, sigma: number): number {
   // Lévy via Chambers–Mallows–Stuck with α=0.5
   const u = Math.PI * (rng() - 0.5);
@@ -43,6 +40,7 @@ export function sampleLevy(rng: () => number, sigma: number): number {
 // Dispatcher
 // ----------------------------------------------------------------
 
+/** Sample noise from the chosen distribution with the given sigma. */
 export function sampleNoise(dist: MutationDistribution, sigma: number, rng: () => number): number {
   switch (dist) {
     case 'gaussian':

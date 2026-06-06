@@ -41,14 +41,17 @@ function createController<T>(schema: z.ZodSchema<T>, fetcher: (params: T) => Pro
 /*                                Trades routes                               */
 /* -------------------------------------------------------------------------- */
 
+/** Controller that returns trades matching the given symbol. */
 export const GetTradeBySymbolController = createController(symbolSchema, p =>
   selectTradesBy.symbol(p.symbol)
 );
 
+/** Controller that returns trades at the given timestamp. */
 export const GetTradeByTimestampController = createController(timestampSchema, p =>
   selectTradesBy.timestamp(p.timestamp)
 );
 
+/** Controller that returns trades from the given source. */
 export const GetTradeBySourceController = createController(sourceSchema, p =>
   selectTradesBy.source(p.source)
 );
@@ -57,14 +60,17 @@ export const GetTradeBySourceController = createController(sourceSchema, p =>
 /*                                Ticker routes                               */
 /* -------------------------------------------------------------------------- */
 
+/** Controller that returns tickers matching the given symbol. */
 export const GetTickerBySymbolController = createController(symbolSchema, p =>
   selectTickerBy.symbol(p.symbol)
 );
 
+/** Controller that returns tickers at the given timestamp. */
 export const GetTickerByTimestampController = createController(timestampSchema, p =>
   selectTickerBy.timestamp(p.timestamp)
 );
 
+/** Controller that returns tickers from the given source. */
 export const GetTickerBySourceController = createController(sourceSchema, p =>
   selectTickerBy.source(p.source)
 );
@@ -73,20 +79,24 @@ export const GetTickerBySourceController = createController(sourceSchema, p =>
 /*                             OrderBook routes                               */
 /* -------------------------------------------------------------------------- */
 
+/** Controller that returns order-book snapshots matching the given symbol. */
 export const GetOrderBookBySymbolController = createController(symbolSchema, p =>
   selectOrderBookBy.symbol(p.symbol)
 );
 
+/** Controller that returns order-book snapshots after the given timestamp. */
 export const GetOrderBookByTimestampAfterController = createController(
   orderBookTimestampSchema,
   p => selectOrderBookBy.timestamp.after(p.timestamp)
 );
 
+/** Controller that returns order-book snapshots before the given timestamp. */
 export const GetOrderBookByTimestampBeforeController = createController(
   orderBookTimestampSchema,
   p => selectOrderBookBy.timestamp.before(p.timestamp)
 );
 
+/** Controller that returns order-book snapshots from the given source. */
 export const GetOrderBookBySourceController = createController(sourceSchema, p =>
   selectOrderBookBy.source(p.source)
 );
@@ -95,14 +105,17 @@ export const GetOrderBookBySourceController = createController(sourceSchema, p =
 /*                               Candles routes                               */
 /* -------------------------------------------------------------------------- */
 
+/** Controller that returns candles matching the given symbol. */
 export const GetCandlesBySymbolController = createController(symbolSchema, p =>
   selectCandlesBy.symbol(p.symbol)
 );
 
+/** Controller that returns candles after the given timestamp. */
 export const GetCandlesByTimestampController = createController(timestampSchema, p =>
   selectCandlesBy.timestamp.after(p.timestamp)
 );
 
+/** Controller that returns candles from the given source. */
 export const GetCandlesBySourceController = createController(sourceSchema, p =>
   selectCandlesBy.source(p.source)
 );

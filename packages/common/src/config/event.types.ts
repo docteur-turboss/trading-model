@@ -1,7 +1,4 @@
-/**
- * Type definition
- */
-
+/** Supported financial market categories. */
 export type MarketType = 'crypto' | 'equity' | 'bond' | 'etf' | 'fx' | 'future';
 
 export const MarketType = {
@@ -13,6 +10,7 @@ export const MarketType = {
   FUTURE: 'future',
 } as const satisfies Record<string, MarketType>;
 
+/** Supported market data sources / exchanges. */
 export type SourceType = 'binance' | 'nyse' | 'bloomberg';
 
 export const SourceType = {
@@ -21,13 +19,15 @@ export const SourceType = {
   NYSE: 'nyse',
 } as const satisfies Record<string, SourceType>;
 
+/** Common fields shared by all market data entities. */
 export interface BaseMarketEntity {
   symbol: string;
-  source: SourceType; // ex: binance, nyse, bloomberg
+  source: SourceType;
   timestamp: number;
   market: MarketType;
 }
 
+/** Represents a single OHLCV candlestick data point. */
 export interface CandleEntity extends BaseMarketEntity {
   open: number;
   high: number;
@@ -39,6 +39,7 @@ export interface CandleEntity extends BaseMarketEntity {
   closeTimestamp: number;
 }
 
+/** Represents an executed trade on a market. */
 export interface TradeEntity extends BaseMarketEntity {
   price: number;
   tradeId: bigint;
@@ -46,11 +47,13 @@ export interface TradeEntity extends BaseMarketEntity {
   side: 'buy' | 'sell';
 }
 
+/** Snapshot of the order book depth at a point in time. */
 export interface OrderBookEntity extends BaseMarketEntity {
   bids: Set<{ price: number; quantity: number }>;
   asks: Set<{ price: number; quantity: number }>;
 }
 
+/** Best bid / ask ticker snapshot. */
 export interface BookTickerEntity extends BaseMarketEntity {
   bidQty: number;
   askQty: number;
@@ -58,6 +61,7 @@ export interface BookTickerEntity extends BaseMarketEntity {
   ask: number;
 }
 
+/** 24-hour price ticker statistics. */
 export interface TickerEntity extends BaseMarketEntity {
   low: number;
   open: number;
@@ -67,9 +71,7 @@ export interface TickerEntity extends BaseMarketEntity {
   closeTimestamp: number;
 }
 
-/**
- * Event definition
- */
+/** Maps event names to their associated payload types. */
 export interface EventMap {
   'example.show.create': void;
   'example.debug.create': { debug: boolean };
@@ -81,6 +83,7 @@ export interface EventMap {
   'market.order-book-ticker.snapshot.fetch': { bookTicker: BookTickerEntity[] };
 }
 
+/** Named references for all known event message keys. */
 export const EnumEventMessage = {
   testEvent: 'example.debug.create',
   exampleEvent: 'example.show.create',
@@ -94,5 +97,7 @@ export const EnumEventMessage = {
 
 type EventMessage = keyof EventMap;
 
+/** Extracts the payload type for a given event message. */
 export type EventMessagesArgs<T extends EventMessage> = EventMap[T];
+/** Union of all valid event message string values. */
 export type EventEnumMap = (typeof EnumEventMessage)[keyof typeof EnumEventMessage];
