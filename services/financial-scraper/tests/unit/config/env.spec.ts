@@ -72,4 +72,65 @@ describe('env', () => {
 
     consoleSpy.mockRestore();
   });
+
+  it('should set default values for scraper-specific env vars', () => {
+    setRequiredVars();
+
+    const { env } = require('../../../src/config/env');
+    expect(env.BINANCE_API_KEY).toBe('');
+    expect(env.BINANCE_API_SECRET).toBe('');
+    expect(env.SYMBOLS_TO_TRACK).toEqual([]);
+    expect(env.SCRAPE_INTERVAL).toBe('*/1 * * * *');
+    expect(env.DB_USER).toBe('root');
+    expect(env.DB_PASSWORD).toBe('');
+    expect(env.DB_NAME).toBe('financial_scraper');
+    expect(env.DB_HOST).toBe('localhost');
+    expect(env.DB_PORT).toBe(3306);
+  });
+
+  it('should parse SYMBOLS_TO_TRACK from JSON string', () => {
+    setRequiredVars();
+    process.env.SYMBOLS_TO_TRACK = '["BTCUSDT","ETHUSDT"]';
+
+    const { env } = require('../../../src/config/env');
+    expect(env.SYMBOLS_TO_TRACK).toEqual(['BTCUSDT', 'ETHUSDT']);
+  });
+
+  it('should return empty array for invalid SYMBOLS_TO_TRACK JSON', () => {
+    setRequiredVars();
+    process.env.SYMBOLS_TO_TRACK = 'not-json';
+
+    const { env } = require('../../../src/config/env');
+    expect(env.SYMBOLS_TO_TRACK).toEqual([]);
+  });
+
+  it('should return empty array when SYMBOLS_TO_TRACK is valid JSON but not an array', () => {
+    setRequiredVars();
+    process.env.SYMBOLS_TO_TRACK = '{"key":"value"}';
+
+    const { env } = require('../../../src/config/env');
+    expect(env.SYMBOLS_TO_TRACK).toEqual([]);
+  });
+
+  it('should use provided scraper-specific env vars', () => {
+    setRequiredVars();
+    process.env.BINANCE_API_KEY = 'test-api-key';
+    process.env.BINANCE_API_SECRET = 'test-api-secret';
+    process.env.SCRAPE_INTERVAL = '*/5 * * * *';
+    process.env.DB_USER = 'custom_user';
+    process.env.DB_PASSWORD = 'custom_pass';
+    process.env.DB_NAME = 'custom_db';
+    process.env.DB_HOST = 'db.example.com';
+    process.env.DB_PORT = '3307';
+
+    const { env } = require('../../../src/config/env');
+    expect(env.BINANCE_API_KEY).toBe('test-api-key');
+    expect(env.BINANCE_API_SECRET).toBe('test-api-secret');
+    expect(env.SCRAPE_INTERVAL).toBe('*/5 * * * *');
+    expect(env.DB_USER).toBe('custom_user');
+    expect(env.DB_PASSWORD).toBe('custom_pass');
+    expect(env.DB_NAME).toBe('custom_db');
+    expect(env.DB_HOST).toBe('db.example.com');
+    expect(env.DB_PORT).toBe(3307);
+  });
 });
