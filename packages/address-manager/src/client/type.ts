@@ -3,10 +3,16 @@
  */
 export interface RegisterServicePayload {
   /* Logical service name (e.g. "TradingTrainer", "SocialScrapper") */
-  name: string;
+  serviceName: string;
 
   /* Port on which the service is listening */
   port: number;
+
+  /* IP address of the service instance */
+  ip: string;
+
+  /* Optional unique instance identifier */
+  instanceId?: string;
 }
 
 /**

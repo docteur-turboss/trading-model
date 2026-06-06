@@ -112,6 +112,6 @@ export const ResponseProtocole = (
     });
   }
 
-  res.status(response.status).json(response.data);
+  res.status(response.status).type('json').send(response.data);
   next();
 };

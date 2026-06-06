@@ -1,7 +1,11 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
 jest.mock('https');
+jest.mock('fs', () => ({
+  readFileSync: jest.fn((path: string) => `content-of-${path}`),
+}));
 
+import fs from 'fs';
 import { HttpClient, HttpClientError, HttpClientTimeoutError } from '../../src/config/http-client';
 import https from 'https';
 
@@ -31,6 +35,29 @@ describe('HttpClient', () => {
     });
 
     client = new HttpClient();
+  });
+
+  describe('constructor', () => {
+    it('should read TLS files when tlsConfig is provided', () => {
+      const tlsClient = new HttpClient({
+        ca: '/path/to/ca.pem',
+        cert: '/path/to/cert.pem',
+        key: '/path/to/key.pem',
+      });
+
+      expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/ca.pem', 'utf8');
+      expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/cert.pem', 'utf8');
+      expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/key.pem', 'utf8');
+      expect(tlsClient).toBeInstanceOf(HttpClient);
+    });
+
+    it('should not read TLS files when tlsConfig is empty', () => {
+      (fs.readFileSync as jest.Mock).mockClear();
+
+      new HttpClient({});
+
+      expect(fs.readFileSync).not.toHaveBeenCalled();
+    });
   });
 
   function simulateResponse(statusCode: number, body: string, contentType: string) {

@@ -84,14 +84,22 @@ export class ServiceDiscovery {
    * @private
    */
   private async resolveAndValidateService(serviceName: string): Promise<ServiceInstance> {
-    let instance: ServiceInstance;
+    let instances: unknown;
 
     try {
-      instance = await this.httpClient.get<ServiceInstance>(
+      instances = await this.httpClient.get<unknown>(
         `${this.config.addressManagerUrl}/services/${serviceName}`
       );
     } catch (error) {
       throw new ServiceNotFoundError(`Service "${serviceName}" not found`, error);
+    }
+
+    const instance = Array.isArray(instances)
+      ? (instances as ServiceInstance[])[0]
+      : (instances as ServiceInstance);
+
+    if (!instance) {
+      throw new ServiceNotFoundError(`Service "${serviceName}" has no registered instances`);
     }
 
     const isHealthy = await this.healthChecker.isHealthy(instance);
