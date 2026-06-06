@@ -18,11 +18,11 @@ import { MessageMetadata } from './shared/helper/messages/message';
  * Central orchestrator for broker message operations.
  *
  * Responsibilities:
- * - Manage an HTTP client for service communication
- * - Coordinate topic subscriptions and unsubscriptions
- * - Publish messages directly or via the message broker
- * - Manage event listeners for incoming messages
- * - Mount Express callback routes for message delivery
+ * - Manages an HTTP client for service communication
+ * - Coordinates topic subscriptions and unsubscriptions
+ * - Publishes messages directly or via the message broker
+ * - Manages event listeners for incoming messages
+ * - Mounts Express callback routes for message delivery
  */
 export default class BrokerMessage {
   private messageManagerClient: MessageManagerClient;
