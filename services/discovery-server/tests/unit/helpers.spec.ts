@@ -16,19 +16,11 @@ jest.mock('@trading-model/common/validation/primitives', () => ({
   isNonEmptyString: (v: any) => typeof v === 'string' && v.trim().length > 0,
 }));
 
-import { validateInstanceToken, asHandler } from '../../src/controllers/helpers';
+import { validateInstanceToken } from '../../src/controllers/helpers';
 import { registry } from '../../src/core/service-registry';
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
 
 describe('helpers', () => {
-  describe('asHandler', () => {
-    it('should return the same function', () => {
-      const fn = () => 'test';
-      const handler = asHandler(fn);
-      expect(handler).toBe(fn);
-    });
-  });
-
   describe('validateInstanceToken', () => {
     beforeEach(() => {
       jest.clearAllMocks();

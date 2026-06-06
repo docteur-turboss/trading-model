@@ -1,14 +1,7 @@
-import { NextFunction, Request, RequestHandler, Response } from 'express';
-
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
 import { isNonEmptyString } from '@trading-model/common/validation/primitives';
 
 import { registry } from '../core/service-registry';
-
-/** Cast a controller function to an Express RequestHandler without type inference. */
-export function asHandler(fn: (req: Request, res: Response, next: NextFunction) => unknown): RequestHandler {
-  return fn as unknown as RequestHandler;
-}
 
 /** Validate the x-instance-token header against the stored token for a given instance. */
 export function validateInstanceToken(tokenHeader: unknown, instanceId: string): void {
