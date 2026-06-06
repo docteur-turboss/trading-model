@@ -16,6 +16,7 @@ export default defineConfig([
     '**/setup.ts',
     '**/tests/fixtures/**',
     '**/tests/helpers/**',
+    '**/docs/architecture/code/**',
   ]),
   {
     files: ['**/*.{js,mjs,cjs}'],
