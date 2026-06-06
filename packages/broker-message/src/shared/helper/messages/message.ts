@@ -1,4 +1,5 @@
 import { MetadataBuilderError } from '@trading-model/common/utils/errors';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 import {
   MessageMetadata as MetadataType,
   DeliveryType,
@@ -46,7 +47,7 @@ export class MessageMetadata {
     this.publisher = publisher
       ? publisher
       : {
-          serviceName: 'MessageDeliveryService',
+          serviceName: ServiceInstanceName.MessageDeliveryService,
           instanceId: 'null',
         };
   }
@@ -206,7 +207,10 @@ export class MessageMetadata {
 
     if (topic === 'null') throw new MetadataBuilderError("You haven't defined a topic");
     if (eventType === 'null') throw new MetadataBuilderError("You haven't defined a eventType");
-    if (publisher.instanceId === 'null' && this.publisher.serviceName === 'MessageDeliveryService')
+    if (
+      publisher.instanceId === 'null' &&
+      this.publisher.serviceName === ServiceInstanceName.MessageDeliveryService
+    )
       throw new MetadataBuilderError("You haven't defined a publisher");
 
     return {

@@ -10,3 +10,5 @@ export const ServiceInstanceName = {
   RiskAnalysisService: 'risk-analysis-service',
   TraderTrainingService: 'trader-training-service',
 } as const;
+
+export type ServiceInstanceName = (typeof ServiceInstanceName)[keyof typeof ServiceInstanceName];

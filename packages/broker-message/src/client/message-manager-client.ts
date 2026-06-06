@@ -135,7 +135,7 @@ export class MessageManagerClient {
    * @param metadata - Routing and delivery metadata
    */
   async publishDirectMessage<T = unknown>(
-    service: keyof typeof ServiceInstanceName,
+    service: ServiceInstanceName,
     payload: T,
     metadata: MessageMetadata
   ): Promise<void> {

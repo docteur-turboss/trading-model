@@ -5,7 +5,7 @@ export type SubscribesTopicsPayload = {
   topic: string;
   callbackPath: string;
   consumerIdentity: {
-    serviceName: keyof typeof ServiceInstanceName;
+    serviceName: ServiceInstanceName;
     instanceId: string;
   };
 };

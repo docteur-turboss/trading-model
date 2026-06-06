@@ -35,7 +35,7 @@ export default class {
     CertificatPath: string;
     KeyCertificatPath: string;
     addressManagerClient: addressManagerClient;
-    serviceName: keyof typeof ServiceInstanceName;
+    serviceName: ServiceInstanceName;
   }) {
     this.callbackPath = callbackPath ? callbackPath : this.callbackPath;
 

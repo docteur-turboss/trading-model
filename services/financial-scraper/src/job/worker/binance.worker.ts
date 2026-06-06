@@ -122,7 +122,7 @@ export class BinanceWorker {
       })
       .setPublisher({
         instanceId: env.INSTANCE_ID,
-        serviceName: env.SERVICE_NAME as keyof typeof ServiceInstanceName,
+        serviceName: env.SERVICE_NAME as ServiceInstanceName,
       });
 
     MessageManager.post.indirect(response.candles, BuilderMetadata.toJSON());

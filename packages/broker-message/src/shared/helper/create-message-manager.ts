@@ -9,7 +9,7 @@ export type MessageManagerOptions = {
   instanceId: string;
   KeyCertificatPath: string;
   RootCACertPath: string;
-  serviceName: keyof typeof ServiceInstanceName;
+  serviceName: ServiceInstanceName;
   callbackPath: string;
 };
 
