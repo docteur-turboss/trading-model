@@ -1,11 +1,16 @@
 import { describe, it, expect, jest } from '@jest/globals';
 
 let mockApp: any;
+let pingHandler: any;
 
 jest.mock('express', () => {
   mockApp = {
     use: jest.fn().mockReturnThis(),
     set: jest.fn().mockReturnThis(),
+    get: jest.fn((path: string, handler: any) => {
+      if (path === '/ping') pingHandler = handler;
+      return mockApp;
+    }),
   };
   const expressFn: any = jest.fn(() => mockApp);
   expressFn.json = jest.fn(() => 'jsonParser');
@@ -79,6 +84,7 @@ describe('createSecureServer', () => {
 
     expect(express).toHaveBeenCalled();
     expect(mockApp.use).toHaveBeenCalledWith(helmet());
+    expect(mockApp.get).toHaveBeenCalledWith('/ping', expect.any(Function));
     expect(mockApp.use).toHaveBeenCalledWith('jsonParser');
     expect(mockApp.use).toHaveBeenCalledWith('urlencodedParser');
     expect(mockApp.use).toHaveBeenCalledWith('rateLimitMiddleware');
@@ -91,7 +97,7 @@ describe('createSecureServer', () => {
     mockApp.set.mockClear();
 
     createSecureServer({ ...defaultOptions, trustProxy: true });
-    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', true);
+    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', 1);
   });
 
   it('should not set trust proxy when trustProxy is false', () => {
@@ -147,6 +153,17 @@ describe('createSecureServer', () => {
       throw new Error('close error');
     });
     await expect(server.close()).rejects.toThrow('close error');
+  });
+
+  it('should respond with ok status on GET /ping', () => {
+    createSecureServer(defaultOptions);
+
+    const mockRes = {
+      json: jest.fn(),
+    };
+    pingHandler({} as any, mockRes);
+
+    expect(mockRes.json).toHaveBeenCalledWith({ status: 'ok' });
   });
 
   it('should apply custom rate limit config', () => {

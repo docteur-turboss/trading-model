@@ -32,7 +32,7 @@
  * @since 2026.01.28
  */
 
-import broker from 'messaging';
+import BrokerModule from '../messaging/index';
 import { env } from './env';
 
 /**
@@ -44,7 +44,7 @@ import { env } from './env';
  *
  * This instance is shared across the entire application lifecycle.
  */
-const Broker = new broker({
+const broker = new BrokerModule({
   CertificatPath: env.TLS_CERT_PATH,
   KeyCertificatPath: env.TLS_KEY_PATH,
   RootCACertPath: env.TLS_CA_PATH,
@@ -64,6 +64,6 @@ const Broker = new broker({
  * @lifecycle
  * Must be registered during HTTP server initialization.
  */
-const MessageManagerRoutes = Broker.listen;
+const MessageManagerRoutes = broker.listen;
 
 export { MessageManagerRoutes };

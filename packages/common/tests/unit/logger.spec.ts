@@ -7,6 +7,8 @@ jest.mock('fs', () => ({
   writeFile: jest.fn((_path: string, _data: string, _opts: unknown, cb: () => void) => cb()),
 }));
 
+import { writeFile } from 'fs';
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 describe('Logger', () => {
@@ -190,6 +192,22 @@ describe('Logger', () => {
       expect(fetchSpy).toHaveBeenCalledWith('https://webhook.example.com', expect.anything());
       fetchSpy.mockRestore();
       delete process.env.ERROR_URL_WEBHOOK;
+    });
+  });
+
+  describe('safeStringify', () => {
+    it('should handle circular references gracefully', () => {
+      const mockWriteFile = writeFile as unknown as jest.Mock;
+      mockWriteFile.mockClear();
+
+      const obj: Record<string, unknown> = { name: 'parent' };
+      obj.self = obj;
+
+      logger.info('circular test', obj);
+
+      expect(mockWriteFile).toHaveBeenCalled();
+      const writtenData = mockWriteFile.mock.calls[0][1];
+      expect(writtenData).toContain('[Circular]');
     });
   });
 

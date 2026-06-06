@@ -20,6 +20,7 @@ function lerpNum(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+/** Crossover two scalar values using the given strategy and return the offspring. */
 export function crossoverScalar(
   a: number,
   b: number,
@@ -174,6 +175,7 @@ function crossoverMutation(
 // Public entry point
 // ----------------------------------------------------------------
 
+/** Produce a child genome via crossover of two parents, with probability governed by parent A's crossover config. */
 export function crossoverGenomes(
   parentA: LamarckGenome,
   parentB: LamarckGenome,

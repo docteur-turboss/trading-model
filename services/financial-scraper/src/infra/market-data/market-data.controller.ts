@@ -16,6 +16,7 @@ import { BinanceWorkerResult } from '../../job/worker/binance.worker';
 export const MarketDataController = new (class {
   constructor() {}
 
+  /** Persist all normalized market-data entities (candles, trades, order book, ticker) from a worker execution to the database. */
   async persist(payload: BinanceWorkerResult): Promise<void> {
     const tasks: Promise<void>[] = [];
 

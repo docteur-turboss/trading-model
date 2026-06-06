@@ -1,3 +1,4 @@
+/** Configuration options for the Address Manager client. */
 interface AddressManagerConfig {
   instanceId: string;
   serviceName: string;

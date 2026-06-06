@@ -7,11 +7,13 @@ import {
 } from '@trading-model/common/config/event.types';
 import { MarketStep } from './genetic-algorithm/genome-types';
 
+/** Online running mean and standard deviation for z-score normalisation. */
 export class RunningNormalizer {
   private mean = 0;
   private m2 = 0;
   private count = 0;
 
+  /** Incorporate a new observation and update running statistics. */
   update(value: number): void {
     this.count++;
     const delta = value - this.mean;
@@ -20,15 +22,18 @@ export class RunningNormalizer {
     this.m2 += delta * delta2;
   }
 
+  /** Return the running mean. */
   getMean(): number {
     return this.mean;
   }
 
+  /** Return the running sample standard deviation. */
   getStd(): number {
     if (this.count < 2) return 0;
     return Math.sqrt(this.m2 / (this.count - 1));
   }
 
+  /** Normalise `value` to z-score using current running statistics. */
   normalize(value: number): number {
     const std = this.getStd();
     if (std < 1e-10) return 0;
@@ -36,6 +41,7 @@ export class RunningNormalizer {
   }
 }
 
+/** Dimension of the feature vector produced per market step. */
 export const FEATURE_DIM = 32;
 
 export type SymbolState = {
@@ -58,11 +64,13 @@ export type SymbolState = {
   tickerVolumeNorm: RunningNormalizer;
 };
 
+/** In-memory ring buffer of market data per symbol with online feature extraction. */
 export class MarketDataBuffer {
   private states: Map<string, SymbolState> = new Map();
   private maxSize: number;
   private priceSnapshot: Record<string, number> = {};
 
+  /** Create a buffer that keeps at most `maxSize` candles per symbol. */
   constructor(maxSize: number = 10000) {
     this.maxSize = maxSize;
   }
@@ -93,6 +101,7 @@ export class MarketDataBuffer {
     return s;
   }
 
+  /** Append candlesticks and update running normalisers for price/volume features. */
   addCandles(symbol: string, candles: CandleEntity[]): void {
     const s = this.getOrCreate(symbol);
     for (const c of candles) {
@@ -108,6 +117,7 @@ export class MarketDataBuffer {
     }
   }
 
+  /** Append recent trades and update price/quantity normalisers. */
   addTrades(symbol: string, trades: TradeEntity[]): void {
     const s = this.getOrCreate(symbol);
     for (const t of trades) {
@@ -120,6 +130,7 @@ export class MarketDataBuffer {
     }
   }
 
+  /** Store an order-book snapshot and update bid/ask/spread normalisers. */
   setOrderBook(symbol: string, orderBook: OrderBookEntity): void {
     const s = this.getOrCreate(symbol);
     s.orderBook = orderBook;
@@ -143,6 +154,7 @@ export class MarketDataBuffer {
     }
   }
 
+  /** Store a book-ticker snapshot and update bid/ask/spread normalisers. */
   setBookTicker(symbol: string, bt: BookTickerEntity): void {
     const s = this.getOrCreate(symbol);
     s.bookTicker = bt;
@@ -153,20 +165,24 @@ export class MarketDataBuffer {
     }
   }
 
+  /** Store a 24-hour ticker and update volume normaliser. */
   setTicker24h(symbol: string, ticker: TickerEntity): void {
     const s = this.getOrCreate(symbol);
     s.ticker24h = ticker;
     s.tickerVolumeNorm.update(ticker.volume);
   }
 
+  /** Merge a snapshot of latest prices into the internal price map. */
   setPriceSnapshot(prices: Record<string, number>): void {
     this.priceSnapshot = { ...this.priceSnapshot, ...prices };
   }
 
+  /** Return all symbol keys currently tracked in the buffer. */
   getSymbols(): string[] {
     return Array.from(this.states.keys());
   }
 
+  /** Return the number of candles stored for a given symbol. */
   getCandleCount(symbol: string): number {
     return this.states.get(symbol)?.candles.length ?? 0;
   }
@@ -199,6 +215,7 @@ export class MarketDataBuffer {
     };
   }
 
+  /** Build a train/validation split from all available market steps, or null if insufficient data. */
   getAllWindows(
     symbol: string,
     validationSplit: number = 0.2

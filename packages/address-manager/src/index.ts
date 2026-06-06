@@ -28,9 +28,13 @@ export default class {
   private ServiceCache: ServiceCache;
   private HTTPCLIENT: HttpClient;
 
+  /** Returns the current authentication token. */
   public getToken: () => string;
+  /** Starts periodic registration, token refresh, and TTL refresh cycles. Returns a handle to stop the process. */
   public start: () => { stop: () => void };
+  /** Resolves a healthy service instance by name. */
   public findService: (serviceName: string) => Promise<ServiceInstance>;
+  /** Registers the ping health-check endpoint on the given Express app. */
   public listenExpress: (app: Application) => void;
 
   constructor(config: AddressManagerConfig) {
@@ -58,9 +62,9 @@ export default class {
       this.healthChecker
     );
 
-    this.getToken = this.tokenManager.getToken;
+    this.getToken = this.tokenManager.getToken.bind(this.tokenManager);
     this.listenExpress = app => app.use(pingRoutes);
-    this.findService = this.ServiceDiscovery.findService;
+    this.findService = this.ServiceDiscovery.findService.bind(this.ServiceDiscovery);
     this.start = () => {
       this.AddressManagerClient.registerService().then(res =>
         this.tokenManager.setToken(res.token)

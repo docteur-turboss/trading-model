@@ -1,5 +1,6 @@
 import { ServiceInstance } from '../client/type';
 import { HttpClient } from '@trading-model/common/config/http-client';
+import { PING_PATH } from '@trading-model/common/server/constants';
 
 /**
  * ServiceHealthChecker
@@ -80,6 +81,24 @@ export class ServiceHealthChecker {
    * @private
    */
   private buildPingUrl(instance: ServiceInstance): string {
-    return `http://${instance.ip}:${instance.port}/ping`;
+    const hostname = this.getServiceDnsName(instance.serviceName);
+    return `http://${hostname}:${instance.port}${PING_PATH}`;
+  }
+
+  /**
+   * Maps a logical service name to its Docker Compose DNS name.
+   *
+   * The TLS certificate SAN includes the Docker Compose service names,
+   * so health checks must use these DNS names instead of IP addresses
+   * to pass hostname verification.
+   */
+  private getServiceDnsName(serviceName: string): string {
+    const dnsNameMap: Record<string, string> = {
+      'discovery-service': 'discovery-server',
+      'message-delivery-service': 'message-manager',
+      'financial-scrapper-service': 'financial-scraper',
+      'trader-training-service': 'trader-trainer',
+    };
+    return dnsNameMap[serviceName] || serviceName;
   }
 }

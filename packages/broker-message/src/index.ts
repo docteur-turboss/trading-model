@@ -12,6 +12,7 @@ import {
 } from '@trading-model/common/config/event.types';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
+/** Central orchestrator for broker message operations. */
 export default class {
   private MessageManagerClient: MessageManagerClient;
   private topics: EventEnumMap[] | null = null;
@@ -34,7 +35,7 @@ export default class {
     CertificatPath: string;
     KeyCertificatPath: string;
     addressManagerClient: addressManagerClient;
-    serviceName: keyof typeof ServiceInstanceName;
+    serviceName: ServiceInstanceName;
   }) {
     this.callbackPath = callbackPath ? callbackPath : this.callbackPath;
 
@@ -55,26 +56,32 @@ export default class {
     );
   }
 
+  /** Subscribes to the specified event topics. */
   async intents(topics: Parameters<MessageManagerClient['SubscribeToTopics']>[0]): Promise<void> {
     await this.MessageManagerClient.SubscribeToTopics(topics);
     this.topics = topics;
   }
 
+  /** Unsubscribes from all topics and cleans up event listeners. */
   async stopMessageManager(): Promise<void> {
     await this.MessageManagerClient.UnSubscribeToTopic(this.topics ?? []);
     this.event.forEach(killFunction => killFunction());
     this.topics = null;
   }
 
+  /** Registers a listener for a broker message event. */
   on<K extends keyof EventMap>(event: K, listener: Listener<EventMessagesArgs<K>>) {
     this.event.push(EventManager.on(event, listener));
   }
 
+  /** Mounts the callback route on the Express application. */
   listenExpress(app: Application) {
     app.use(CreateCallbackRoute(this.callbackPath));
   }
 
+  /** Publishes messages directly or indirectly to services. */
   post = {
+    /** Sends a message directly to a specific target service. */
     direct: <T = Parameters<MessageManagerClient['publishDirectMessage']>[1]>(
       service: Parameters<MessageManagerClient['publishDirectMessage']>[0],
       payload: T,
@@ -82,6 +89,7 @@ export default class {
     ) => {
       return this.MessageManagerClient.publishDirectMessage(service, payload, metadata);
     },
+    /** Publishes a message to the broker for asynchronous delivery. */
     indirect: <T = Parameters<MessageManagerClient['publishAsyncMessage']>[0]>(
       payload: T,
       metadata: Parameters<MessageManagerClient['publishAsyncMessage']>[1]
@@ -91,6 +99,7 @@ export default class {
   };
 }
 
+/** Metadata builder utility. */
 export const helper = {
   MetadataBuilder: MessageMetadata,
 };

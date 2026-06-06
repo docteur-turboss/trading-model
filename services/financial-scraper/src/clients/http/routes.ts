@@ -15,6 +15,7 @@ import {
   GetOrderBookByTimestampBeforeController,
 } from './controller';
 
+/** Create an Express Router with all financial-data query endpoints (trades, tickers, candles, order books). */
 export const FinancialRoutes = (): Router => {
   /**
    * Express router instance scoped to registry heartbeat concerns.

@@ -30,6 +30,7 @@ import { helper } from '@trading-model/broker-message';
 import { createHash } from 'node:crypto';
 import { env } from '../../config/env';
 
+/** Configuration options for a single BinanceWorker execution against one symbol. */
 export interface BinanceWorkerOptions {
   symbol: string;
   interval?: '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
@@ -38,6 +39,7 @@ export interface BinanceWorkerOptions {
   orderBookLimit?: number;
 }
 
+/** Normalized market data returned by a BinanceWorker execution, ready for persistence. */
 export interface BinanceWorkerResult {
   orderBook?: ReturnType<typeof BinanceNormalizer.orderBook>;
   recentTrades?: ReturnType<typeof BinanceNormalizer.trades>;
@@ -120,7 +122,7 @@ export class BinanceWorker {
       })
       .setPublisher({
         instanceId: env.INSTANCE_ID,
-        serviceName: env.SERVICE_NAME as keyof typeof ServiceInstanceName,
+        serviceName: env.SERVICE_NAME as ServiceInstanceName,
       });
 
     MessageManager.post.indirect(response.candles, BuilderMetadata.toJSON());

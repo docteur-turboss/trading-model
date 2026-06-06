@@ -21,8 +21,8 @@ openssl genrsa -out "$CERTS_DIR/server-key.pem" 4096
 # Server CSR
 openssl req -new -key "$CERTS_DIR/server-key.pem" \
   -out "$CERTS_DIR/server.csr" \
-  -subj "/CN=localhost" \
-  -addext "subjectAltName=DNS:localhost,DNS:discovery-server,DNS:message-manager,DNS:financial-scraper,DNS:trader-trainer,IP:127.0.0.1"
+  -subj "/CN=trading-discovery-1" \
+  -addext "subjectAltName=DNS:localhost,DNS:trading-discovery-1,DNS:discovery-server,DNS:message-manager,DNS:financial-scraper,DNS:trader-trainer,IP:127.0.0.1"
 
 # Server cert signed by CA
 openssl x509 -req -days 3650 \
@@ -31,7 +31,7 @@ openssl x509 -req -days 3650 \
   -CAkey "$CERTS_DIR/ca-key.pem" \
   -CAcreateserial \
   -out "$CERTS_DIR/server.crt" \
-  -extfile <(printf "subjectAltName=DNS:localhost,DNS:discovery-server,DNS:message-manager,DNS:financial-scraper,DNS:trader-trainer,IP:127.0.0.1")
+  -extfile <(printf "subjectAltName=DNS:localhost,DNS:trading-discovery-1,DNS:discovery-server,DNS:message-manager,DNS:financial-scraper,DNS:trader-trainer,IP:127.0.0.1")
 
 rm -f "$CERTS_DIR/server.csr" "$CERTS_DIR/ca-key.pem" "$CERTS_DIR/ca.srl"
 

@@ -1,4 +1,5 @@
 import { createSecureServer } from '@trading-model/common/server/create-secure-server';
+import { loadTlsConfig } from '@trading-model/common/server/load-tls-config';
 import { MessageManagerListenExpress } from '../config/message-manager';
 import { AddressManagerRoutes } from '../config/address-manager';
 import { Trainer } from '../core/trainer';
@@ -6,18 +7,11 @@ import { env } from '../config/env';
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 
+/** Create and return a secure Express server with trader-trainer routes. */
 export function createServer(trainer: Trainer) {
   return createSecureServer({
     port: env.PORT,
-    tls: {
-      key: env.TLS_KEY_PATH,
-      cert: env.TLS_CERT_PATH,
-      ca: env.TLS_CA_PATH,
-    },
-    rateLimit: {
-      windowMs: 15 * 60 * 1000,
-      limit: 100,
-    },
+    tls: loadTlsConfig(env),
     routes: app => {
       app.get(
         '/best-agent',

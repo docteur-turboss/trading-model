@@ -23,7 +23,7 @@ RUN npx tsc
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini curl
 
 COPY --from=deps /app/package.json /app/package-lock.json ./
 COPY --from=deps /app/node_modules ./node_modules

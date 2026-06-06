@@ -1,9 +1,4 @@
-/**
- * Type definition
- */
-
-export type MarketType = 'crypto' | 'equity' | 'bond' | 'etf' | 'fx' | 'future';
-
+/** Supported financial market categories. */
 export const MarketType = {
   CRYPTO: 'crypto',
   EQUITY: 'equity',
@@ -11,23 +6,28 @@ export const MarketType = {
   ETF: 'etf',
   FX: 'fx',
   FUTURE: 'future',
-} as const satisfies Record<string, MarketType>;
+} as const;
 
-export type SourceType = 'binance' | 'nyse' | 'bloomberg';
+export type MarketType = (typeof MarketType)[keyof typeof MarketType];
 
+/** Supported market data sources / exchanges. */
 export const SourceType = {
   BLOOMBERG: 'bloomberg',
   BINANCE: 'binance',
   NYSE: 'nyse',
-} as const satisfies Record<string, SourceType>;
+} as const;
 
+export type SourceType = (typeof SourceType)[keyof typeof SourceType];
+
+/** Common fields shared by all market data entities. */
 export interface BaseMarketEntity {
   symbol: string;
-  source: SourceType; // ex: binance, nyse, bloomberg
+  source: SourceType;
   timestamp: number;
   market: MarketType;
 }
 
+/** Represents a single OHLCV candlestick data point. */
 export interface CandleEntity extends BaseMarketEntity {
   open: number;
   high: number;
@@ -39,6 +39,7 @@ export interface CandleEntity extends BaseMarketEntity {
   closeTimestamp: number;
 }
 
+/** Represents an executed trade on a market. */
 export interface TradeEntity extends BaseMarketEntity {
   price: number;
   tradeId: bigint;
@@ -46,11 +47,13 @@ export interface TradeEntity extends BaseMarketEntity {
   side: 'buy' | 'sell';
 }
 
+/** Snapshot of the order book depth at a point in time. */
 export interface OrderBookEntity extends BaseMarketEntity {
   bids: Set<{ price: number; quantity: number }>;
   asks: Set<{ price: number; quantity: number }>;
 }
 
+/** Best bid / ask ticker snapshot. */
 export interface BookTickerEntity extends BaseMarketEntity {
   bidQty: number;
   askQty: number;
@@ -58,6 +61,7 @@ export interface BookTickerEntity extends BaseMarketEntity {
   ask: number;
 }
 
+/** 24-hour price ticker statistics. */
 export interface TickerEntity extends BaseMarketEntity {
   low: number;
   open: number;
@@ -67,20 +71,7 @@ export interface TickerEntity extends BaseMarketEntity {
   closeTimestamp: number;
 }
 
-/**
- * Event definition
- */
-export interface EventMap {
-  'example.show.create': void;
-  'example.debug.create': { debug: boolean };
-  'market.trade.recent.fetch': { trades: TradeEntity[] };
-  'market.ticker.24hr-stats.fetch': { ticker: TickerEntity[] };
-  'market.candlestick.series.fetch': { candle: CandleEntity[] };
-  'market.order-book.snapshot.fetch': { orderBook: OrderBookEntity[] };
-  'market.price-ticker.snapshot.fetch': { price: Record<string, number> };
-  'market.order-book-ticker.snapshot.fetch': { bookTicker: BookTickerEntity[] };
-}
-
+/** Named references for all known event message keys. */
 export const EnumEventMessage = {
   testEvent: 'example.debug.create',
   exampleEvent: 'example.show.create',
@@ -90,9 +81,23 @@ export const EnumEventMessage = {
   fetchOrderBookSnapshot: 'market.order-book.snapshot.fetch',
   fetchPriceTickerSnapshot: 'market.price-ticker.snapshot.fetch',
   fetchOrderBookTickerSnapshot: 'market.order-book-ticker.snapshot.fetch',
-} as const satisfies Record<string, keyof EventMap>;
+} as const;
 
-type EventMessage = keyof EventMap;
+type EventMessage = (typeof EnumEventMessage)[keyof typeof EnumEventMessage];
 
+/** Maps event names to their associated payload types. */
+export type EventMap = {
+  [EnumEventMessage.testEvent]: { debug: boolean };
+  [EnumEventMessage.exampleEvent]: void;
+  [EnumEventMessage.fetchRecentTrades]: { trades: TradeEntity[] };
+  [EnumEventMessage.fetch24hrTickerStats]: { ticker: TickerEntity[] };
+  [EnumEventMessage.fetchCandlestickSeries]: { candle: CandleEntity[] };
+  [EnumEventMessage.fetchOrderBookSnapshot]: { orderBook: OrderBookEntity[] };
+  [EnumEventMessage.fetchPriceTickerSnapshot]: { price: Record<string, number> };
+  [EnumEventMessage.fetchOrderBookTickerSnapshot]: { bookTicker: BookTickerEntity[] };
+};
+
+/** Extracts the payload type for a given event message. */
 export type EventMessagesArgs<T extends EventMessage> = EventMap[T];
+/** Union of all valid event message string values. */
 export type EventEnumMap = (typeof EnumEventMessage)[keyof typeof EnumEventMessage];

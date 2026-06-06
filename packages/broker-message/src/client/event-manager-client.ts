@@ -1,5 +1,6 @@
 import { EventMessagesArgs, EventMap } from '@trading-model/common/config/event.types';
 
+/** Callback signature for event listeners. */
 export type Listener<T> = [T] extends [void] ? () => void : (data: T) => void;
 
 class EventEmitter<TEvents extends keyof EventMap> {
@@ -42,4 +43,5 @@ class EventEmitter<TEvents extends keyof EventMap> {
   }
 }
 
+/** Global event manager for broker message events. */
 export const EventManager = new EventEmitter();

@@ -1,64 +1,50 @@
-# Deployment Guide
+# Deployment — Complete Guide
+
+> This document serves as the table of contents for all deployment procedures,
+> standards, and configurations related to the trading-model monorepo.
+
+---
+
+## Table of Contents
+
+| Topic                                  | Description                                                                           |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| [CI/CD Pipeline](CI_CD.md)             | GitHub Actions workflows: lint, test, build, Docker image publication, release        |
+| [Docker](DOCKER.md)                    | Docker Compose services, multi-stage Dockerfile, GHCR registry, TLS, ports, networks  |
+| [Contribution Workflow](CONTRIBUTE.md) | Full cycle from idea to production: branch, commit, PR, review, merge, release        |
+| [Setup Guide](SETUP.md)                | Prerequisites, installation, build, TLS certificates, local and fleet verification    |
+| [Deployment](DEPLOY.md)                | Local Docker Compose deployment, beta fleet deployment, rollback                      |
+| [Database](DATABASE.md)                | MySQL (financial-scraper), MongoDB (message-manager), schemas, volumes, reset         |
+| [Environment Variables](ENV.md)        | Exhaustive table of all variables: service, type, default, description                |
+| [Troubleshooting](TROUBLESHOOTING.md)  | Common issues by category: Docker, MySQL, MongoDB, TLS, npm, networking, Git, testing |
+
+---
 
 ## Overview
 
-This document describes the deployment strategy for the trading-model monorepo.
-
-## Prerequisites
-
-- Node.js 20+
-- Docker & Docker Compose (recommended)
-- Access to container registry (Docker Hub, GHCR, etc.)
-
-## Build
-
-Each package and service can be built independently:
-
-```bash
-# Build all packages
-npm run build
-
-# Build individual packages
-npm run build:common
-npm run build:address-manager
-npm run build:broker-message
+```
+                    ┌──────────┐
+                    │   Code   │
+                    └────┬─────┘
+                         │ push / PR
+                         ▼
+              ┌──────────────────────┐
+              │   CI (ci.yml)        │
+              │   lint → build → test│
+              └──────────┬───────────┘
+                         │ tag v*
+                         ▼
+              ┌──────────────────────┐
+              │   CD (release.yml)   │
+              │   quality → docker   │
+              │   → GitHub Release   │
+              └──────────┬───────────┘
+                         │ images on ghcr.io
+                         ▼
+              ┌──────────────────────┐
+              │   docker compose pull │
+              │   docker compose up   │
+              └──────────────────────┘
 ```
 
-## Docker Deployment
-
-### Service Images
-
-Each microservice has its own Dockerfile. Build images with:
-
-```bash
-docker build -t trading-model/discovery-server ./services/discovery-server
-docker build -t trading-model/financial-scraper ./services/financial-scraper
-docker build -t trading-model/message-manager ./services/message-manager
-docker build -t trading-model/trader-trainer ./services/Trader-Trainer
-```
-
-### Docker Compose
-
-Use the docker-compose file to deploy all services:
-
-```bash
-docker-compose up -d
-```
-
-## Environment Configuration
-
-1. Copy `.env.example` to `.env` for each service
-2. Set appropriate values for each environment
-3. Never commit secrets to version control
-
-## CI/CD Pipeline
-
-1. **Lint** - ESLint checks
-2. **Test** - Jest with 80%+ coverage threshold
-3. **Build** - TypeScript compilation
-4. **Deploy** - Automatic on main branch merge
-
-## Monitoring
-
-- Health check endpoints: `/health`
-- Service discovery provides real-time health status
+To get started, see [Setup Guide](SETUP.md).

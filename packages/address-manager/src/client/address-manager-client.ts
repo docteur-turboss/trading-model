@@ -1,3 +1,4 @@
+import { networkInterfaces } from 'os';
 import { RegisterServicePayload, ServiceRegistrationResponse } from './type';
 import { AddressManagerError } from '@trading-model/common/utils/errors';
 import { AddressManagerConfig } from '../config/address-manager-config';
@@ -29,28 +30,35 @@ export class AddressManagerClient {
     private readonly config: AddressManagerConfig
   ) {}
 
+  /** Resolves the local non-internal IPv4 address of this machine. Falls back to 127.0.0.1. */
+  private static getLocalIP(): string {
+    const nets = networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] ?? []) {
+        if (net.family === 'IPv4' && !net.internal) return net.address;
+      }
+    }
+    return '127.0.0.1';
+  }
+
   /**
    * Registers the current service with the Address Manager.
    *
-   * - Called once during the bootstrap of the module.
+   * Called once during bootstrap. Sends the service name, port, and local IP.
    *
-   * @returns Promise resolving to the service registration response.
-   * @throws AddressManagerError if registration fails.
-   *
-   * @example
-   * ```ts
-   * const response = await client.registerService();
-   * ```
+   * @returns The registration response containing the instance details and token.
+   * @throws AddressManagerError if the registration request fails.
    */
   async registerService(): Promise<ServiceRegistrationResponse> {
     const payload: RegisterServicePayload = {
-      name: this.config.serviceName,
+      serviceName: this.config.serviceName,
       port: this.config.servicePort,
+      ip: AddressManagerClient.getLocalIP(),
     };
 
     try {
       return await this.httpClient.post<ServiceRegistrationResponse>(
-        `${this.config.addressManagerUrl}/services/register`,
+        `${this.config.addressManagerUrl}/register`,
         payload
       );
     } catch (error) {
@@ -76,13 +84,14 @@ export class AddressManagerClient {
 
     try {
       await this.httpClient.post(
-        `${this.config.addressManagerUrl}/services/ttl/refresh`,
+        `${this.config.addressManagerUrl}/heartbeat`,
         {
           serviceName: this.config.serviceName,
+          instanceId: this.config.instanceId,
         },
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            'x-instance-token': token,
           },
         }
       );
