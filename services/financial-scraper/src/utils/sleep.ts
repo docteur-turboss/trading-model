@@ -1,3 +1,1 @@
-export function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+export { sleep } from '@trading-model/common/utils/sleep';
