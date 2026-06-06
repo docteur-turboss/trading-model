@@ -34,7 +34,7 @@ describe('ServiceHealthChecker', () => {
     const result = await checker.isHealthy(instance);
 
     expect(result).toBe(true);
-    expect(httpClient.get).toHaveBeenCalledWith('http://user-service:8080/ping', {
+    expect(httpClient.get).toHaveBeenCalledWith('https://user-service:8080/ping', {
       timeoutMs: 2000,
     });
   });
@@ -45,7 +45,7 @@ describe('ServiceHealthChecker', () => {
     const result = await checker.isHealthy(instance);
 
     expect(result).toBe(false);
-    expect(httpClient.get).toHaveBeenCalledWith('http://user-service:8080/ping', {
+    expect(httpClient.get).toHaveBeenCalledWith('https://user-service:8080/ping', {
       timeoutMs: 2000,
     });
   });
@@ -63,7 +63,7 @@ describe('ServiceHealthChecker', () => {
 
   test('buildPingUrl generates correct URL with identity mapping', async () => {
     const url = (checker as any).buildPingUrl(instance);
-    expect(url).toBe('http://user-service:8080/ping');
+    expect(url).toBe('https://user-service:8080/ping');
   });
 
   describe('DNS name mapping', () => {
@@ -76,7 +76,7 @@ describe('ServiceHealthChecker', () => {
 
       const customInstance = { ...instance, serviceName: 'user-service' };
       const url = (checker as any).buildPingUrl(customInstance);
-      expect(url).toBe('http://custom-host:8080/ping');
+      expect(url).toBe('https://custom-host:8080/ping');
     });
 
     test('falls back to service name for unmapped services', async () => {
@@ -84,7 +84,7 @@ describe('ServiceHealthChecker', () => {
       checker = new ServiceHealthChecker(httpClient, 2000, dnsMap);
 
       const url = (checker as any).buildPingUrl(instance);
-      expect(url).toBe('http://user-service:8080/ping');
+      expect(url).toBe('https://user-service:8080/ping');
     });
 
     test('uses mapped DNS name in actual health check request', async () => {
@@ -94,7 +94,7 @@ describe('ServiceHealthChecker', () => {
 
       await checker.isHealthy(instance);
 
-      expect(httpClient.get).toHaveBeenCalledWith('http://discovery-server:8080/ping', {
+      expect(httpClient.get).toHaveBeenCalledWith('https://discovery-server:8080/ping', {
         timeoutMs: 2000,
       });
     });

@@ -16,8 +16,10 @@ declare global {
 /**
  * mTLS Authentication Middleware
  *
- * This middleware enforces mutual TLS (mTLS) authentication at the transport layer.
- * It ensures that:
+ * Enforces mutual TLS (mTLS) authentication at the transport layer.
+ * Rejects non-TLS connections immediately to prevent unauthenticated access.
+ * Verifies that:
+ *  - The socket is a valid TLS socket
  *  - The TLS handshake was successfully authorized
  *  - A valid client certificate was presented
  *  - A stable client identity can be extracted from the certificate
@@ -30,8 +32,23 @@ declare global {
  *   - Used on internal / service-to-service endpoints
  */
 export const MTLSAuthMiddleware = catchSync((req, res, next) => {
-  // Express request socket is expected to be a TLS socket when mTLS is enabled
+  /**
+   * Step 0 — Validate socket is TLS
+   *
+   * `req.socket as TLSSocket` silently succeeds on non-TLS connections
+   * (HTTP, plain TCP). Verify TLS-specific properties before proceeding
+   * to ensure we fail closed when mTLS is not the transport.
+   */
   const socket = req.socket as TLSSocket;
+
+  if (typeof socket.getPeerCertificate !== 'function') {
+    throw ResponseException(
+      JSON.stringify({
+        error: 'Non-TLS connection rejected',
+        reason: 'mTLS authentication requires a TLS socket',
+      })
+    ).Forbidden();
+  }
 
   /**
    * Step 1 — Verify TLS authorization

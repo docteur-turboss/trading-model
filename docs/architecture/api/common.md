@@ -107,7 +107,7 @@ import {
 | ------------------------- | -------------------------------------------------------------------------------------- |
 | `BaseEnvSchema`           | `NODE_ENV`, `PORT`, `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `LOG_LEVEL`        |
 | `AddressManagerEnvSchema` | `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID`, `CACHE_TTL_MS`, `ADDRESS_MANAGER_URL`, etc. |
-| `validateEnv(schema)`     | Parses `process.env` and exit(1) on failure                                            |
+| `validateEnv(schema)`     | Parses `process.env` and throws `ConfigurationError` on failure                        |
 
 ## HttpClient
 
@@ -168,6 +168,7 @@ mTLS authentication middleware.
 - **Import**: `@trading-model/common/middleware/mtls-auth`
 - Checks `socket.authorized`, extracts client certificate identity
 - Attaches `clientIdentity` to the request (declared via global Express `Request` augmentation — `declare global { namespace Express { interface Request { clientIdentity: string } } }`)
+- Rejects non-TLS connections (e.g. plain HTTP) with a Forbidden error to prevent unauthenticated access
 
 ### handleCoreResponse / handleCoreAuthResponse
 

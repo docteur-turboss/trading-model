@@ -110,3 +110,10 @@ export class AgentError extends AgentBaseError {
     super(message, cause);
   }
 }
+
+/** Thrown when environment configuration validation fails. */
+export class ConfigurationError extends TradingModelError {
+  constructor(message: string, cause?: unknown) {
+    super(message, cause);
+  }
+}

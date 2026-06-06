@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { ConfigurationError } from '../utils/errors';
+
 /** Zod schema for base environment variables shared across all services. */
 export const BaseEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
@@ -41,7 +43,7 @@ export const AddressManagerEnvSchema = z.object({
     .string()
     .optional()
     .default('{}')
-    .transform((val) => {
+    .transform(val => {
       try {
         const parsed = JSON.parse(val);
         return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
@@ -58,7 +60,9 @@ export type AddressManagerEnv = z.infer<typeof AddressManagerEnvSchema>;
 
 /**
  * Validates environment variables against a Zod schema.
- * Exits the process on validation failure.
+ *
+ * @throws {ConfigurationError} When validation fails — callers should handle
+ * this at the application boundary (e.g. exit with a clear message).
  */
 export function validateEnv<T extends z.ZodType>(schema: T): z.infer<T> {
   const parsed = schema.safeParse(process.env);
@@ -72,8 +76,8 @@ export function validateEnv<T extends z.ZodType>(schema: T): z.infer<T> {
         /* fallback */
       }
     }
-    console.error('❌ Invalid environment configuration', { errors });
-    process.exit(1);
+    console.error('Invalid environment configuration', { errors });
+    throw new ConfigurationError('Environment validation failed', parsed.error);
   }
 
   return parsed.data;
