@@ -96,6 +96,27 @@ describe('Heartbeat.controller', () => {
         ttl: 30000,
       });
     });
+
+    it('should return NotFound when service does not match registered instance', async () => {
+      const registered = registry.registerInstance({
+        serviceName: 'financial-scrapper-service',
+        instanceId: 'i1',
+        ip: '1.1.1.1',
+        port: 8080,
+        ttl: 30000,
+        protocol: 'mtls',
+        registeredAt: Date.now(),
+        lastHeartbeat: Date.now(),
+      });
+      const req = createReq({
+        body: { serviceName: 'other-service', instanceId: 'i1' },
+        headers: { 'x-instance-token': registered.token },
+      });
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
+        type: 'NotFound',
+        error: 'Instance not found',
+      });
+    });
   });
 
   describe('rotateToken', () => {
