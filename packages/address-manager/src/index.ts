@@ -10,9 +10,8 @@ import { ServiceCache } from './discovery/service-cache';
 import { ServiceDiscovery } from './discovery/service-discovery';
 import { ServiceHealthChecker } from './discovery/service-health-checker';
 import { pingRoutes } from './http/routes/ping.routes';
+import { RefreshJob } from './scheduler/refresh-job';
 import { Scheduler } from './scheduler/scheduler';
-import { TokenRefresherJob } from './scheduler/token-refresh-job';
-import { TtlRefresherJob } from './scheduler/ttl-refresher-job';
 
 /**
  * Default export for the Address Manager library.
@@ -96,9 +95,13 @@ export default class AddressManager {
 
     const scheduler = new Scheduler();
 
-    scheduler.register(new TokenRefresherJob(this.tokenManager, this.tokenRefreshIntervalMs));
+    scheduler.register(
+      new RefreshJob(this.tokenManager, tm => tm.refreshToken(), this.tokenRefreshIntervalMs)
+    );
 
-    scheduler.register(new TtlRefresherJob(this.addressManagerClient, this.ttlRefreshIntervalMs));
+    scheduler.register(
+      new RefreshJob(this.addressManagerClient, c => c.refreshTTL(), this.ttlRefreshIntervalMs)
+    );
 
     scheduler.start();
 

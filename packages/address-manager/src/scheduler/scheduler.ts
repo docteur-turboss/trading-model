@@ -44,7 +44,7 @@ export class Scheduler {
    *
    * @example
    * ```ts
-   * const job = new TtlRefresherJob(addressManagerClient, 5 * 60_000);
+   * const job = new RefreshJob(addressManagerClient, c => c.refreshTTL(), 5 * 60_000);
    * scheduler.register(job);
    * ```
    */
