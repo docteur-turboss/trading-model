@@ -1,10 +1,10 @@
-import { RequestHandler } from 'express';
+import { NextFunction, Request, RequestHandler, Response } from 'express';
 import { isNonEmptyString } from '@trading-model/common/validation/primitives';
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
 import { registry } from '../core/service-registry';
 
 /** Cast a controller function to an Express RequestHandler without type inference. */
-export function asHandler(fn: (...args: unknown[]) => unknown): RequestHandler {
+export function asHandler(fn: (req: Request, res: Response, next: NextFunction) => unknown): RequestHandler {
   return fn as unknown as RequestHandler;
 }
 
