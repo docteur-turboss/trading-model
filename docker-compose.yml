@@ -32,14 +32,14 @@ services:
     container_name: trading-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-financial_scraper}
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
       - trading-net
     healthcheck:
-      test: mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD:-changeme}
+      test: mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD}
       interval: 10s
       timeout: 5s
       retries: 5
@@ -148,7 +148,7 @@ services:
       MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: '5000'
       MESSAGE_CALLBACK_PATH: message
       DB_USER: ${MYSQL_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-financial_scraper}
       DB_HOST: mysql
       DB_PORT: '3306'
