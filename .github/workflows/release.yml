@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: read
+
 jobs:
   # ── Quality gate ───────────────────────────────────────────────────────────
   quality:
@@ -31,6 +34,9 @@ jobs:
   docker:
     needs: [quality]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         service:

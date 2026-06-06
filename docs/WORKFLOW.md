@@ -15,10 +15,12 @@ dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta
                                build
                                test)         (few days, validate)
 
-main ←── merge dev ──→ tag ──→ stable deploy
-              (if OK)   npm run   docker compose
-                        release   pull + up -d
+main ←── merge dev ────→ tag ──→ stable deploy
+              (if OK)     npm run   docker compose
+                          release   pull + up -d
 ```
+
+````
 
 ---
 
@@ -26,7 +28,7 @@ main ←── merge dev ──→ tag ──→ stable deploy
 
 ```bash
 # ── Dev ──────────────────────────────────────────────────
-git checkout dev && git pull
+git checkout development && git pull
 git checkout -b feat/my-thing
 npm ci && npm run build && npm test   # one-time setup
 # ... code ...
@@ -34,9 +36,9 @@ npm run commit                        # interactive conventional commit
 git push -u origin feat/my-thing      # push → CI runs, open PR
 
 # ── Maintainer ────────────────────────────────────────────
-# Merge PR on GitHub into dev, validate beta, then:
+# Merge PR on GitHub into development, validate beta, then:
 git checkout main && git pull
-git merge dev                         # merge beta-validated changes
+git merge development                 # merge beta-validated changes
 npm run release                       # bumps version, updates CHANGELOG.md
 git add -A && git commit -m ":bookmark:(release): v$(node -p "require('./package.json').version")"
 git tag v$(node -p "require('./package.json').version")
@@ -48,7 +50,7 @@ git pull --tags
 git checkout v$(node -p "require('./package.json').version")
 IMAGE_TAG=$(node -p "require('./package.json').version") docker compose pull
 IMAGE_TAG=$(node -p "require('./package.json').version") docker compose up -d
-```
+````
 
 ---
 
@@ -57,7 +59,7 @@ IMAGE_TAG=$(node -p "require('./package.json').version") docker compose up -d
 ### 1. Develop
 
 ```bash
-git checkout dev && git pull
+git checkout development && git pull
 git checkout -b feat/my-thing
 npm ci               # clean install (uses lockfile)
 npm run build        # compile shared packages
@@ -83,7 +85,7 @@ Commit format (enforced by husky + commitlint):
 :memo:(docs): update API reference
 ```
 
-Avaiable types: `sparkles` (feat), `bug` (fix), `memo` (docs),
+Available types: `sparkles` (feat), `bug` (fix), `memo` (docs),
 `recycle` (refactor), `zap` (perf), `white_check_mark` (test),
 `wrench` (chore), `construction_worker` (ci), `lock` (security), `boom` (breaking).
 
@@ -93,14 +95,14 @@ Avaiable types: `sparkles` (feat), `bug` (fix), `memo` (docs),
 git push -u origin feat/my-thing
 ```
 
-Open a Pull Request on GitHub targeting **`dev`**. CI runs **automatically** (see pipelines below).
+Open a Pull Request on GitHub targeting **`development`**. CI runs **automatically** (see pipelines below).
 PR must be **approved** and all checks **green** before merging.
 
-Use **Squash & Merge** to merge into `dev`, then delete the branch.
+Use **Squash & Merge** to merge into `development`, then delete the branch.
 
-### 4. Beta (dev)
+### 4. Beta (development)
 
-After merging into `dev`, the branch is automatically deployed as a **beta** version using the canary deploy server.
+After merging into `development`, the branch is automatically deployed as a **beta** version using the canary deploy server.
 
 - The script rolls out to **2 % of machines** first (canary).
 - Health checks and error rate are monitored for ~30 min.
@@ -134,7 +136,7 @@ deploy script reads this inventory to know which machines to target.
 
 ### 5. Release
 
-Only maintainers. Once the beta is validated, merge `dev` into `main`, then from an up-to-date `main` branch:
+Only maintainers. Once the beta is validated, merge `development` into `main`, then from an up-to-date `main` branch:
 
 ```bash
 npm run release              # bumps root + packages, writes CHANGELOG.md
@@ -181,9 +183,7 @@ docker compose logs -f               # tail all logs
 
 | Workflow    | File                            | Trigger                | What it does                                         |
 | ----------- | ------------------------------- | ---------------------- | ---------------------------------------------------- |
-| **Lint**    | `.github/workflows/lint.yml`    | `push`, `pull_request` | ESLint across `.ts`, `.js`, `.mjs`, `.cjs`           |
-| **Build**   | `.github/workflows/build.yml`   | `push`, `pull_request` | `npm run build` (compiles 3 shared packages)         |
-| **Test**    | `.github/workflows/test.yml`    | `push`, `pull_request` | Jest with coverage threshold                         |
+| **CI**      | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Build → Test (merged into one workflow)       |
 | **Release** | `.github/workflows/release.yml` | tag `v*.*.*`           | Quality gate → Docker images → GHCR → GitHub Release |
 
 All non-release workflows run in parallel on `ubuntu-latest` with Node.js LTS

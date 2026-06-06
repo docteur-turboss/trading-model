@@ -34,15 +34,15 @@ Each microservice has its own Dockerfile. Build images with:
 docker build -t trading-model/discovery-server ./services/discovery-server
 docker build -t trading-model/financial-scraper ./services/financial-scraper
 docker build -t trading-model/message-manager ./services/message-manager
-docker build -t trading-model/trader-trainer ./services/Trader-Trainer
+docker build -t trading-model/trader-trainer ./services/trader-trainer
 ```
 
 ### Docker Compose
 
-Use the docker-compose file to deploy all services:
+Use the Docker Compose file to deploy all services:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Environment Configuration
@@ -54,11 +54,11 @@ docker-compose up -d
 ## CI/CD Pipeline
 
 1. **Lint** - ESLint checks
-2. **Test** - Jest with 80%+ coverage threshold
+2. **Test** - Jest with 100% coverage threshold
 3. **Build** - TypeScript compilation
 4. **Deploy** - Automatic on main branch merge
 
 ## Monitoring
 
-- Health check endpoints: `/health`
+- Health check endpoints: `GET /ping` (discovery-server), `GET /health` (message-manager, financial-scraper)
 - Service discovery provides real-time health status

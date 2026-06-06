@@ -124,22 +124,41 @@ deploy_host() {
     return 0
 }
 
+get_health_endpoints() {
+    if [[ -f "$CONFIG" ]]; then
+        jq -r '.deploy.health_endpoints // {} | to_entries[] | "\(.key)=\(.value)"' "$CONFIG" 2>/dev/null
+    fi
+}
+
+check_health_url() {
+    local url="$1"
+    curl -skf "$url" > /dev/null 2>&1
+}
+
 wait_for_healthy() {
     local retries="$1"
     local interval="$2"
+    local -a endpoints=()
+
+    while IFS='=' read -r name url; do
+        endpoints+=("$name|$url")
+    done < <(get_health_endpoints)
+
+    if [[ ${#endpoints[@]} -eq 0 ]]; then
+        # fallback defaults
+        endpoints=(
+            "discovery-server|https://localhost:8443/ping"
+            "message-manager|https://localhost:8444/health"
+            "financial-scraper|https://localhost:8445/health"
+            "trader-trainer|https://localhost:8446/health"
+        )
+    fi
 
     for (( r=1; r<=retries; r++ )); do
         local unhealthy=0
-        for svc in discovery-server message-manager financial-scraper trader-trainer; do
-            local port
-            case "$svc" in
-                discovery-server)  port=8443 ;;
-                message-manager)   port=8444 ;;
-                financial-scraper) port=8445 ;;
-                trader-trainer)    port=8446 ;;
-            esac
-            if ! curl -skf "https://localhost:${port}/ping" > /dev/null 2>&1 &&
-               ! curl -skf "https://localhost:${port}/health" > /dev/null 2>&1; then
+        for entry in "${endpoints[@]}"; do
+            local url="${entry#*|}"
+            if ! check_health_url "$url"; then
                 ((unhealthy++))
             fi
         done
@@ -155,21 +174,29 @@ wait_for_healthy() {
 measure_error_rate() {
     local samples="$1"
     local interval="$2"
+    local -a endpoints=()
+
+    while IFS='=' read -r name url; do
+        endpoints+=("$name|$url")
+    done < <(get_health_endpoints)
+
+    if [[ ${#endpoints[@]} -eq 0 ]]; then
+        endpoints=(
+            "discovery-server|https://localhost:8443/ping"
+            "message-manager|https://localhost:8444/health"
+            "financial-scraper|https://localhost:8445/health"
+            "trader-trainer|https://localhost:8446/health"
+        )
+    fi
+
     local errors=0
     local total=0
 
     for (( i=0; i<samples; i++ )); do
-        for svc in discovery-server message-manager financial-scraper trader-trainer; do
-            local port
-            case "$svc" in
-                discovery-server)  port=8443 ;;
-                message-manager)   port=8444 ;;
-                financial-scraper) port=8445 ;;
-                trader-trainer)    port=8446 ;;
-            esac
+        for entry in "${endpoints[@]}"; do
+            local url="${entry#*|}"
             ((total++))
-            if ! curl -skf "https://localhost:${port}/ping" > /dev/null 2>&1 &&
-               ! curl -skf "https://localhost:${port}/health" > /dev/null 2>&1; then
+            if ! check_health_url "$url"; then
                 ((errors++))
             fi
         done
