@@ -1,12 +1,11 @@
-import { TtlRefresherJob } from '../../src/scheduler/ttl-refresher-job';
+import { RefreshJob } from '../../src/scheduler/refresh-job';
 import { AddressManagerClient } from '../../src/client/address-manager-client';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
-describe('TtlRefresherJob', () => {
+describe('RefreshJob<AddressManagerClient>', () => {
   let mockClient: jest.Mocked<AddressManagerClient>;
 
   beforeEach(() => {
-    // Create a complete mock of AddressManagerClient
     mockClient = {
       refreshTTL: jest.fn(),
     } as unknown as jest.Mocked<AddressManagerClient>;
@@ -17,14 +16,14 @@ describe('TtlRefresherJob', () => {
   // -----------------------------------------------------------
   test('should set schedule correctly for given refresh interval', () => {
     const refreshIntervalMs = 5 * 60_000; // 5 minutes
-    const job = new TtlRefresherJob(mockClient, refreshIntervalMs);
+    const job = new RefreshJob(mockClient, c => c.refreshTTL(), refreshIntervalMs);
 
     // The cron expression for 5 minutes is */5 * * * *
     expect(job.schedule).toBe('*/5 * * * *');
   });
 
   test('should enforce minimum 1 minute for intervals < 1 minute', () => {
-    const job = new TtlRefresherJob(mockClient, 30_000); // 30 sec
+    const job = new RefreshJob(mockClient, c => c.refreshTTL(), 30_000); // 30 sec
     expect(job.schedule).toBe('*/1 * * * *'); // minimum 1 minute
   });
 
@@ -32,7 +31,7 @@ describe('TtlRefresherJob', () => {
   // EXECUTE METHOD
   // -----------------------------------------------------------
   test('execute should call refreshTTL on AddressManagerClient', async () => {
-    const job = new TtlRefresherJob(mockClient, 60_000);
+    const job = new RefreshJob(mockClient, c => c.refreshTTL(), 60_000);
 
     await job.execute();
 
@@ -40,7 +39,7 @@ describe('TtlRefresherJob', () => {
   });
 
   test('execute should propagate errors from AddressManagerClient', async () => {
-    const job = new TtlRefresherJob(mockClient, 60_000);
+    const job = new RefreshJob(mockClient, c => c.refreshTTL(), 60_000);
     const error = new Error('Refresh failed');
 
     mockClient.refreshTTL.mockRejectedValueOnce(error);
@@ -51,7 +50,6 @@ describe('TtlRefresherJob', () => {
   // -----------------------------------------------------------
   // PRIVATE intervalMsToCron METHOD
   // -----------------------------------------------------------
-  // We can test indirectly via the constructor
   test('intervalMsToCron generates correct cron for multiple intervals', () => {
     const intervals = [
       { ms: 60_000, expected: '*/1 * * * *' },
@@ -61,7 +59,7 @@ describe('TtlRefresherJob', () => {
     ];
 
     intervals.forEach(({ ms, expected }) => {
-      const job = new TtlRefresherJob(mockClient, ms);
+      const job = new RefreshJob(mockClient, c => c.refreshTTL(), ms);
       expect(job.schedule).toBe(expected);
     });
   });

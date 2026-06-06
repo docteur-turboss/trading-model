@@ -58,12 +58,8 @@ jest.mock('../../src/scheduler/scheduler', () => ({
   Scheduler: jest.fn().mockImplementation(() => mockSchedulerInstance),
 }));
 
-jest.mock('../../src/scheduler/token-refresh-job', () => ({
-  TokenRefresherJob: jest.fn(),
-}));
-
-jest.mock('../../src/scheduler/ttl-refresher-job', () => ({
-  TtlRefresherJob: jest.fn(),
+jest.mock('../../src/scheduler/refresh-job', () => ({
+  RefreshJob: jest.fn(),
 }));
 
 const mockPingRoutes = { get: jest.fn() };
