@@ -18,6 +18,8 @@
     "eslint": "npx eslint src/**/*.{ts,js}",
     "test": "npm test --workspaces --if-present",
     "test:coverage": "npm test --workspaces --if-present -- --coverage",
+    "docs:generate": "node scripts/generate-docs.mjs",
+    "docs:generate:dry": "node scripts/generate-docs.mjs --dry-run",
     "prepare": "husky"
   },
   "devDependencies": {
@@ -25,6 +27,7 @@
     "@commitlint/config-conventional": "^21.0.1",
     "conventional-commits-filter": "^5.0.0",
     "conventional-commits-parser": "^6.4.0",
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "typedoc": "^0.28.19"
   }
 }
