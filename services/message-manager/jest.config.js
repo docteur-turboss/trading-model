@@ -9,8 +9,6 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
-    '!src/messaging/broker.type.ts',
-    '!src/messaging/core/message.ts',
   ],
   coverageThreshold: {
     global: {

@@ -13,4 +13,4 @@
  * Messaging / contract layer.
  */
 
-export { message, MessageMetadata } from '@trading-model/common/contracts/message.types';
+export type { message, MessageMetadata } from '@trading-model/common/contracts/message.types';
