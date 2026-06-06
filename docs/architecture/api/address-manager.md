@@ -120,7 +120,7 @@ import { createAddressManager } from '@trading-model/address-manager';
 
 - Pings discovered services with `servicePingTimeoutMs` (default 2000ms)
 - Only healthy services are returned by `findService()`
-- DNS resolution is delegated to a `DnsResolver` strategy, decoupling the health checker from any specific deployment topology (Docker Compose, Kubernetes, standalone)
+- Target hostname resolution is delegated to a `ServiceLocator` strategy, decoupling the health checker from any specific deployment topology (Docker Compose, Kubernetes, standalone)
 
 ## Endpoints
 
@@ -150,7 +150,7 @@ In addition to the default export, the package exposes internal modules via deep
 
 | Import Path                                              | Exports                                                      |
 | -------------------------------------------------------- | ------------------------------------------------------------ |
-| `@trading-model/address-manager/discovery/dns-resolver`  | `DnsResolver`, `IdentityResolver`, `MapResolver`             |
+| `@trading-model/address-manager/discovery/service-locator`  | `ServiceLocator`, `ServiceNameLocator`, `IpAddressLocator`, `MappingServiceLocator`             |
 | `@trading-model/address-manager/discovery/service-health-checker` | `ServiceHealthChecker`                                        |
 | `@trading-model/address-manager/discovery/service-cache` | `ServiceCache`                                               |
 | `@trading-model/address-manager/discovery/service-discovery` | `ServiceDiscovery`                                            |
@@ -191,49 +191,60 @@ AddressManagerConfig → HttpClient (mTLS)
                      → AddressManagerClient (registration)
                      → ServiceDiscovery
                         → ServiceCache (TTL cache)
-                        → ServiceHealthChecker
-                           → DnsResolver (strategy)
-                              → IdentityResolver (default — pass-through)
-                              → MapResolver (config-driven mapping)
+                         → ServiceHealthChecker
+                            → ServiceLocator (strategy)
+                               → ServiceNameLocator (default — service name)
+                               → IpAddressLocator (direct IP)
+                               → MappingServiceLocator (config-driven via DnsResolver)
                      → Scheduler
                         → RefreshJob<TokenManager>
                         → RefreshJob<AddressManagerClient>
 ```
 
-## DNS Resolution
+## Target Resolution
 
-The `ServiceHealthChecker` delegates DNS resolution to a pluggable `DnsResolver` strategy, decoupling health-check URL construction from any specific deployment topology.
+The `ServiceHealthChecker` delegates hostname resolution to a pluggable `ServiceLocator` strategy, decoupling health-check URL construction from any specific deployment topology.
 
-### DnsResolver
+### ServiceLocator
 
 ```ts
-interface DnsResolver {
-  resolve(serviceName: string): string;
+interface ServiceLocator {
+  locate(instance: ServiceInstance): string;
 }
 ```
 
-A strategy interface that maps a logical service name to a DNS-resolvable hostname.
+A strategy interface that determines the target hostname for a given service instance. Receives the full `ServiceInstance` object, giving implementations access to `ip`, `port`, `serviceName`, and other metadata.
 
-### IdentityResolver
+### ServiceNameLocator
 
 ```ts
-class IdentityResolver implements DnsResolver {
-  resolve(serviceName: string): string;
+class ServiceNameLocator implements ServiceLocator {
+  locate(instance: ServiceInstance): string;
 }
 ```
 
-Default resolver that returns the logical service name as-is. Suitable for environments where service names are already DNS-resolvable (e.g. Docker Compose).
+Default locator that returns `instance.serviceName` as the hostname. Suitable for environments where logical service names are already DNS-resolvable (e.g. Docker Compose).
 
-### MapResolver
+### IpAddressLocator
 
 ```ts
-class MapResolver implements DnsResolver {
-  constructor(private readonly dnsNameMap: Record<string, string>) {}
-  resolve(serviceName: string): string;
+class IpAddressLocator implements ServiceLocator {
+  locate(instance: ServiceInstance): string;
 }
 ```
 
-Resolver backed by a static mapping of logical names to DNS hostnames. When a name is not found in the map, it falls back to returning the original name. The map is typically loaded from the `dnsNameMap` config field (populated by the `DNS_NAME_MAP` environment variable).
+Locator that uses `instance.ip` directly. Suitable for environments with direct IP connectivity where DNS-based service names are unavailable.
+
+### MappingServiceLocator
+
+```ts
+class MappingServiceLocator implements ServiceLocator {
+  constructor(private readonly dnsResolver: DnsResolver) {}
+  locate(instance: ServiceInstance): string;
+}
+```
+
+Locator that delegates to an internal `DnsResolver` strategy for name-based mapping. The `DnsResolver` interface and its implementations (`IdentityResolver`, `MapResolver`) remain as internal utilities. When `dnsNameMap` config is provided, an `AddressManager` creates `new MappingServiceLocator(new MapResolver(dnsNameMap))`. The `DnsResolver` is loaded from the `dnsNameMap` config field (populated by the `DNS_NAME_MAP` environment variable).
 
 ## Internal Classes
 
@@ -242,10 +253,11 @@ Resolver backed by a static mapping of logical names to DNS hostnames. When a na
 | `TokenManager`         | In-memory token storage, refresh via `POST /token/rotate`                                                                                                    |
 | `AddressManagerClient` | HTTP client for Discovery Server API (register, refresh TTL)                                                                                                 |
 | `ServiceCache`         | In-memory cache with TTL expiry for service instances                                                                                                        |
-| `ServiceHealthChecker` | Pings `https://{host}:{port}/ping` to verify liveness. DNS resolution delegated to a `DnsResolver` strategy.                                                |
-| `DnsResolver`          | Strategy interface for resolving logical service names to DNS hostnames.                                                                                     |
-| `IdentityResolver`     | Default `DnsResolver` that returns the service name as-is.                                                                                                   |
-| `MapResolver`          | `DnsResolver` backed by a static name-to-hostname mapping (loaded from `dnsNameMap` config / `DNS_NAME_MAP` env var).                                        |
+| `ServiceHealthChecker` | Pings `https://{host}:{port}/ping` to verify liveness. Target resolution delegated to a `ServiceLocator` strategy.                                                |
+| `ServiceLocator`       | Strategy interface for determining the target hostname of a service instance.                                                                                     |
+| `ServiceNameLocator`   | Default `ServiceLocator` that uses `instance.serviceName` as the hostname.                                                                                        |
+| `IpAddressLocator`     | `ServiceLocator` that uses `instance.ip` directly.                                                                                                                |
+| `MappingServiceLocator`| `ServiceLocator` backed by an internal `DnsResolver` (loaded from `dnsNameMap` config / `DNS_NAME_MAP` env var).                                                  |
 | `ServiceDiscovery`     | Orchestrates cache → health check → fetch flow                                                                                                               |
 | `Scheduler`            | Generic `node-cron` scheduler                                                                                                                                |
 | `RefreshJob<T>`        | Parameterized job that calls a configurable refresh function on a client instance. Replaces previously duplicated `TokenRefresherJob` and `TtlRefresherJob`. |
