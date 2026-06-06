@@ -159,6 +159,18 @@ Body (validated by `UnsubscribeSchema`):
 | `AT_LEAST_ONCE` | Delivered at least once (retries with exponential backoff, up to 10 attempts) |
 | `EXACTLY_ONCE`  | Delivered exactly once (idempotent)                                           |
 
+## Security Metadata
+
+Messages can include an optional `security` block within metadata, containing:
+
+- **`authContext`** — Structured authentication context with:
+  - `subject` (string) — Authenticated user or service identifier
+  - `roles` (string[]) — Assigned role identifiers
+  - `tenantId` (string) — Tenant or partition identifier
+- **`signature`** (string, optional) — Message integrity signature
+
+Previously validated as `z.unknown()`, the `authContext` object is now strictly validated against this schema to align with the canonical `SecurityType` interface in `@trading-model/common/contracts/message.types`.
+
 ## Features
 
 - **TTL**: Message expiration based on time-to-live configured in metadata
