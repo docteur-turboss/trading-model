@@ -1,4 +1,5 @@
 import z from 'zod';
+
 import { OrderBookEntity } from '../market-data.types';
 
 const aksBidsDef = z.object({

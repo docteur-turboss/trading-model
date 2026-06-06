@@ -34,6 +34,7 @@
  */
 
 import { DeliveryModeEnum } from '@trading-model/common/config/delivery-mode.types';
+
 import { IdentifyType } from '../broker.type';
 
 /**

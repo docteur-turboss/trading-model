@@ -1,4 +1,5 @@
 import { logger } from '@trading-model/common/config/logger';
+
 import { registry } from './service-registry';
 import { ServiceInstance } from './types';
 import { env } from '../config/env';

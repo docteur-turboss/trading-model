@@ -1,5 +1,6 @@
-import { ClassResponseExceptions } from './response-exception';
 import { NextFunction, Request, Response } from 'express';
+
+import { ClassResponseExceptions } from './response-exception';
 import { logger } from '../config/logger';
 import {
   AuthenticationError,

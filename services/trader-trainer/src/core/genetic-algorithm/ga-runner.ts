@@ -3,6 +3,10 @@
 //   Couples with TradingAgent / AutoEnv / Deep Q-Learning agent
 // ----------------------------------------------------------------
 
+import { crossoverGenomes } from './crossover';
+import { crossoverWeights, mutateWeights } from './evolution-engine';
+import { createDefaultGenome } from './factory';
+import { computeFitness, shapeReward } from './fitness';
 import {
   Genome,
   GAControlGenome,
@@ -10,16 +14,12 @@ import {
   MarketStep,
   LamarckGenome,
 } from './genome-types';
-import TradingAgent, { TradingAgentConfig } from '../agent/trading-agent';
-import { computeFitness, shapeReward } from './fitness';
-import { Experience } from '../../core/neural-network/type';
-import { createDefaultGenome } from './factory';
-import { crossoverGenomes } from './crossover';
-import { selectParent } from './selection';
 import { mutateGenome } from './mutation';
-import { generateId, RunningStats, computeVariance, computeSharpe } from './utils';
-import { crossoverWeights, mutateWeights } from './evolution-engine';
 import { makePRNG } from './prng';
+import { selectParent } from './selection';
+import { generateId, RunningStats, computeVariance, computeSharpe } from './utils';
+import { Experience } from '../../core/neural-network/type';
+import TradingAgent, { TradingAgentConfig } from '../agent/trading-agent';
 
 // ----------------------------------------------------------------
 // Immutability helpers

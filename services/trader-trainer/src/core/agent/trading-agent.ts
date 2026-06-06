@@ -1,6 +1,6 @@
-import { Agent } from '../neural-network/agent';
-import { createWallet, WalletConfig } from '../env/wallet-manager';
 import StateManager, { StateManagerConfig } from './state-manager';
+import { createWallet, WalletConfig } from '../env/wallet-manager';
+import { Agent } from '../neural-network/agent';
 
 /** Configuration to create a TradingAgent with neural network, wallet, and RL state management. */
 export type TradingAgentConfig = {

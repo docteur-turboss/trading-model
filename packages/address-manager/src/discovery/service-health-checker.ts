@@ -1,6 +1,7 @@
-import { ServiceInstance } from '../client/type';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { PING_PATH } from '@trading-model/common/server/constants';
+
+import { ServiceInstance } from '../client/type';
 
 /**
  * ServiceHealthChecker

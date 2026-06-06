@@ -1,4 +1,5 @@
 import { Table } from 'ts-sql-query/Table';
+
 import { DBConnection } from '../../../config/db';
 import { TickerEntity } from '../market-data.types';
 

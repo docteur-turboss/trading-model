@@ -1,11 +1,12 @@
+import { EventMap } from '@trading-model/common/config/event.types';
+import { catchSync } from '@trading-model/common/middleware/catch-error';
+import { ResponseException } from '@trading-model/common/middleware/response-exception';
+
+import { EventManager } from '../client/event-manager-client';
 import {
   MessageMetadataSchema,
   MessagePayloadSchema,
 } from '../shared/helper/messages/message.schema';
-import { ResponseException } from '@trading-model/common/middleware/response-exception';
-import { catchSync } from '@trading-model/common/middleware/catch-error';
-import { EventMap } from '@trading-model/common/config/event.types';
-import { EventManager } from '../client/event-manager-client';
 
 /** Handles incoming broker messages and dispatches them to registered event listeners. */
 export const MessageController = catchSync(async req => {

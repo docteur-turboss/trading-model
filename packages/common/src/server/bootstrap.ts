@@ -1,5 +1,5 @@
-import { logger } from '../config/logger';
 import { HttpServer } from './create-secure-server';
+import { logger } from '../config/logger';
 
 /** Options for configuring a service bootstrap lifecycle. */
 export interface BootstrapOptions {

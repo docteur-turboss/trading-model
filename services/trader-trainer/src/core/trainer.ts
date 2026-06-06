@@ -1,9 +1,9 @@
-import { GeneticAlgorithmRunner } from './genetic-algorithm/ga-runner';
 import { createDefaultGenome } from './genetic-algorithm/factory';
-import { MarketDataBuffer } from './market-data-buffer';
+import { GeneticAlgorithmRunner } from './genetic-algorithm/ga-runner';
+import { makeTradingAgentBackend, GenerationContext } from './genetic-algorithm/ga-runner';
 import { LamarckGenome } from './genetic-algorithm/genome-types';
 import { DeepReadonly } from './genetic-algorithm/shared-types';
-import { makeTradingAgentBackend, GenerationContext } from './genetic-algorithm/ga-runner';
+import { MarketDataBuffer } from './market-data-buffer';
 import { env } from '../config/env';
 
 /** Summary of the best trained agent for API responses. */

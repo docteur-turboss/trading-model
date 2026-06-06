@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 import { BaseEnvSchema, validateEnv } from '@trading-model/common/validation/env';
 
 const DiscoveryEnvSchema = BaseEnvSchema.extend({

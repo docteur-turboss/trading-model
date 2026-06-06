@@ -26,9 +26,10 @@
  * @since 2026.01.28
  */
 
+import { z } from 'zod';
+
 import { DeliveryMode, DeliveryModeEnum } from '@trading-model/common/config/delivery-mode.types';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
-import { z } from 'zod';
 
 /**
  * @description

@@ -3,8 +3,12 @@
  * Handles reward shaping, n-step returns, shadow backends, and Lamarckian updates.
  */
 
+import { estimateComplexity, computeAdjustedFitness } from './complexity-estimator';
 import type { LamarckGenome, MarketStep } from './genome-types';
+import { DeepReadonly } from './shared-types';
+import { RunningStats, computeVariance, computeSharpe } from './utils';
 import type { Experience } from '../../core/neural-network/type';
+
 // RLBackend is defined in ga_runner.ts and exported from there
 // We avoid circular dependency by using a type-only reference
 export interface RLBackend {
@@ -17,9 +21,6 @@ export interface RLBackend {
   resetEpisode(): void;
   getExperiencePool(): Experience[];
 }
-import { DeepReadonly } from './shared-types';
-import { RunningStats, computeVariance, computeSharpe } from './utils';
-import { estimateComplexity, computeAdjustedFitness } from './complexity-estimator';
 
 /** Creates a fresh RL backend for a given genome (used as a factory per evaluation). */
 export type BackendFactory = (g: DeepReadonly<LamarckGenome>) => RLBackend;

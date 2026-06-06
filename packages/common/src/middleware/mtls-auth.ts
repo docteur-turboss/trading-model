@@ -1,4 +1,5 @@
 import { TLSSocket } from 'node:tls';
+
 import { catchSync } from './catch-error';
 import { ResponseException } from './response-exception';
 

@@ -1,5 +1,6 @@
-import { NeuralNetwork } from './neural-network';
 import { AgentError } from '@trading-model/common/utils/errors';
+
+import { NeuralNetwork } from './neural-network';
 import { Experience, NeuralNetworkConfig } from './type';
 
 /**

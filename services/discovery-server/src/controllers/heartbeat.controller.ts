@@ -1,8 +1,9 @@
-import { registry } from '../core/service-registry';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
 import { isNonEmptyString, isObject } from '@trading-model/common/validation/primitives';
+
 import { asHandler, validateInstanceToken } from './helpers';
+import { registry } from '../core/service-registry';
 
 /** Extend a service instance's lease by recording a heartbeat. */
 export const heartbeat = asHandler(

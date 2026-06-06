@@ -1,6 +1,7 @@
 import { createBootstrap } from '@trading-model/common/server/bootstrap';
-import { LeaseManagerInstance } from '../core/lease-manager';
+
 import { createServer } from './server';
+import { LeaseManagerInstance } from '../core/lease-manager';
 import '../config/env';
 
 createBootstrap({

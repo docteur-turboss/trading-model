@@ -1,4 +1,5 @@
 import { Router } from 'express';
+
 import { heartbeat, rotateToken } from '../controllers/heartbeat.controller';
 
 /**

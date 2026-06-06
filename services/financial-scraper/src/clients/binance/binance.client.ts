@@ -1,3 +1,6 @@
+import { BINANCE_ENDPOINTS } from './endpoints';
+import { BINANCE_WEIGHTS } from './weights';
+import { httpClients } from '../../config/http';
 import {
   Binance24hrTickerStatsResponse,
   BinanceHistoricalTradeResponse,
@@ -9,9 +12,6 @@ import {
   BinanceSymbolPriceTickerResponse,
   BinanceSymbolOrderBookTickerResponse,
 } from '../../types/binance.api';
-import { httpClients } from '../../config/http';
-import { BINANCE_ENDPOINTS } from './endpoints';
-import { BINANCE_WEIGHTS } from './weights';
 
 const binance = httpClients.binance;
 

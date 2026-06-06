@@ -1,11 +1,12 @@
-import { MessageManagerError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
-import { SubscribesTopicsPayload, UnSubscribesTopicsPayload } from '../shared/types/payloads';
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import addressManagerClient from '@trading-model/address-manager';
 import { EventEnumMap } from '@trading-model/common/config/event.types';
 import { HttpClient } from '@trading-model/common/config/http-client';
-import addressManagerClient from '@trading-model/address-manager';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import { MessageManagerError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
+
 import { MessageManagerConfig } from '../shared/types/config';
 import { MessageMetadata } from '../shared/types/message';
+import { SubscribesTopicsPayload, UnSubscribesTopicsPayload } from '../shared/types/payloads';
 
 /** Client for interacting with the Message Delivery Service via HTTP. */
 export class MessageManagerClient {

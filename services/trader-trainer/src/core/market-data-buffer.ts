@@ -5,6 +5,7 @@ import {
   BookTickerEntity,
   TickerEntity,
 } from '@trading-model/common/config/event.types';
+
 import { MarketStep } from './genetic-algorithm/genome-types';
 
 /** Online running mean and standard deviation for z-score normalisation. */

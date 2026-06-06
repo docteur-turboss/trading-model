@@ -1,6 +1,7 @@
 import { HttpClient } from '@trading-model/common/config/http-client';
-import { AddressManagerConfig } from '../config/address-manager-config';
 import { AuthenticationError } from '@trading-model/common/utils/errors';
+
+import { AddressManagerConfig } from '../config/address-manager-config';
 
 /**
  * TokenManager

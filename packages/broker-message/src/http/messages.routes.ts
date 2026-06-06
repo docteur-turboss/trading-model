@@ -1,4 +1,5 @@
 import { Router } from 'express';
+
 import { MessageController } from './messages.controller';
 
 /** Creates an Express route to receive broker message callbacks.

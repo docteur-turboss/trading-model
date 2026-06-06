@@ -1,11 +1,12 @@
+import { catchSync } from '@trading-model/common/middleware/catch-error';
+import { ResponseException } from '@trading-model/common/middleware/response-exception';
 import { createSecureServer } from '@trading-model/common/server/create-secure-server';
 import { loadTlsConfig } from '@trading-model/common/server/load-tls-config';
-import { MessageManagerListenExpress } from '../config/message-manager';
+
 import { AddressManagerRoutes } from '../config/address-manager';
-import { Trainer } from '../core/trainer';
 import { env } from '../config/env';
-import { ResponseException } from '@trading-model/common/middleware/response-exception';
-import { catchSync } from '@trading-model/common/middleware/catch-error';
+import { MessageManagerListenExpress } from '../config/message-manager';
+import { Trainer } from '../core/trainer';
 
 /** Create and return a secure Express server with trader-trainer routes. */
 export function createServer(trainer: Trainer) {

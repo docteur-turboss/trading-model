@@ -1,9 +1,10 @@
+import { HttpClient } from '@trading-model/common/config/http-client';
 import { ServiceNotFoundError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
-import { AddressManagerConfig } from '../config/address-manager-config';
+
+import { ServiceCache } from './service-cache';
 import { ServiceHealthChecker } from './service-health-checker';
 import { ServiceInstance } from '../client/type';
-import { ServiceCache } from './service-cache';
-import { HttpClient } from '@trading-model/common/config/http-client';
+import { AddressManagerConfig } from '../config/address-manager-config';
 
 /**
  * ServiceDiscovery

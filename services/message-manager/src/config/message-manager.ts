@@ -32,8 +32,8 @@
  * @since 2026.01.28
  */
 
-import BrokerModule from '../messaging/index';
 import { env } from './env';
+import BrokerModule from '../messaging/index';
 
 /**
  * Broker singleton instance.

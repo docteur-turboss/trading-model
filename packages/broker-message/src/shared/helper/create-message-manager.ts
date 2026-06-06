@@ -1,6 +1,7 @@
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
-import MessageManagerClass from '../../index';
 import type addressManagerClient from '@trading-model/address-manager';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+
+import MessageManagerClass from '../../index';
 
 /** Configuration options for creating a MessageManager instance. */
 export type MessageManagerOptions = {

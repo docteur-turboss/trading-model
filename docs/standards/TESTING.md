@@ -92,7 +92,7 @@ describe('MyComponent', () => {
 | financial-scraper              | 100%     | 100%      | 100%    | 100%       |
 | @trading-model/address-manager | 80%      | 80%       | 80%     | 80%        |
 | @trading-model/broker-message  | 80%      | 80%       | 80%     | 80%        |
-| trader-trainer                 | Not set  | Not set   | Not set | Not set    |
+| trader-trainer                 | 80%      | 80%       | 80%     | 80%        |
 
 Coverage is checked by Jest on every test run. Below the threshold, tests fail.
 
