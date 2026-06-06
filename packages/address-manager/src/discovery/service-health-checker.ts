@@ -1,6 +1,7 @@
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { PING_PATH } from '@trading-model/common/server/constants';
 
+import { DnsResolver, IdentityResolver } from './dns-resolver';
 import { ServiceInstance } from '../client/type';
 
 /**
@@ -18,24 +19,28 @@ import { ServiceInstance } from '../client/type';
  *
  * This class provides a simple health check mechanism for services
  * by pinging a predefined endpoint and returning a boolean result.
+ *
+ * DNS resolution is delegated to a DnsResolver strategy, decoupling the
+ * health checker from any specific deployment topology (Docker Compose,
+ * Kubernetes, Consul, etc.).
  */
 export class ServiceHealthChecker {
   private readonly httpClient: HttpClient;
   private readonly timeoutMs: number;
-  private readonly dnsNameMap: Record<string, string>;
+  private readonly dnsResolver: DnsResolver;
 
   /**
    * Creates a new ServiceHealthChecker.
    *
    * @param httpClient - HTTP client used to perform the health check.
    * @param timeoutMs - Maximum duration (in milliseconds) to wait for a response.
-   * @param dnsNameMap - Optional mapping from logical service names to
-   * deployment-specific DNS names. When empty, the logical service name is used as-is.
+   * @param dnsResolver - Strategy for resolving service names to DNS hostnames.
+   * Defaults to IdentityResolver (uses the service name as-is).
    */
-  constructor(httpClient: HttpClient, timeoutMs: number, dnsNameMap: Record<string, string> = {}) {
+  constructor(httpClient: HttpClient, timeoutMs: number, dnsResolver?: DnsResolver) {
     this.httpClient = httpClient;
     this.timeoutMs = timeoutMs;
-    this.dnsNameMap = dnsNameMap;
+    this.dnsResolver = dnsResolver ?? new IdentityResolver();
   }
 
   /**
@@ -73,18 +78,7 @@ export class ServiceHealthChecker {
    * @private
    */
   private buildPingUrl(instance: ServiceInstance): string {
-    const hostname = this.resolveDnsName(instance.serviceName);
+    const hostname = this.dnsResolver.resolve(instance.serviceName);
     return `https://${hostname}:${instance.port}${PING_PATH}`;
-  }
-
-  /**
-   * Resolves a logical service name to a deployment-specific DNS name.
-   * Falls back to the logical name if no mapping is configured.
-   *
-   * @param serviceName - Logical service name to resolve.
-   * @returns The DNS name to use for the health check URL.
-   */
-  private resolveDnsName(serviceName: string): string {
-    return this.dnsNameMap[serviceName] ?? serviceName;
   }
 }
