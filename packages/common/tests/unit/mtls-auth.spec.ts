@@ -34,6 +34,12 @@ describe('MTLSAuthMiddleware', () => {
     next = jest.fn();
   });
 
+  it('should throw Forbidden when socket is not a TLSSocket', () => {
+    req.socket = { constructor: { name: 'Socket' } };
+
+    expect(() => MTLSAuthMiddleware(req, res, next)).toThrow();
+  });
+
   it('should throw Forbidden when socket is not authorized', () => {
     req.socket = {
       authorized: false,
