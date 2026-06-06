@@ -131,22 +131,22 @@ Calls made to the Discovery Server:
 - **Import**: `@trading-model/common/validation/env`
 - **Schema**: `AddressManagerEnvSchema`
 
-| Variable                          | Default     | Description             |
-| --------------------------------- | ----------- | ----------------------- |
-| `APP_NAME`                        | —           | Application name        |
-| `APP_VERSION`                     | `'1.0.0'`   | Version                 |
-| `SERVICE_NAME`                    | —           | Service identifier      |
-| `INSTANCE_ID`                     | —           | Instance UUID           |
-| `CACHE_TTL_MS`                    | `30000`     | Discovery cache TTL     |
-| `SERVICE_PING_TIMEOUT_MS`         | `2000`      | Health check timeout    |
-| `TOKEN_REFRESH_INTERVAL_MS`       | `60000`     | Token rotation interval |
-| `TTL_REFRESH_INTERVAL_MS`         | `15000`     | TTL refresh interval    |
-| `ADDRESS_MANAGER_URL`             | —           | Discovery-server URL    |
+| Variable                          | Default     | Description               |
+| --------------------------------- | ----------- | ------------------------- |
+| `APP_NAME`                        | —           | Application name          |
+| `APP_VERSION`                     | `'1.0.0'`   | Version                   |
+| `SERVICE_NAME`                    | —           | Service identifier        |
+| `INSTANCE_ID`                     | —           | Instance UUID             |
+| `CACHE_TTL_MS`                    | `30000`     | Discovery cache TTL       |
+| `SERVICE_PING_TIMEOUT_MS`         | `2000`      | Health check timeout      |
+| `TOKEN_REFRESH_INTERVAL_MS`       | `60000`     | Token rotation interval   |
+| `TTL_REFRESH_INTERVAL_MS`         | `15000`     | TTL refresh interval      |
+| `ADDRESS_MANAGER_URL`             | —           | Discovery-server URL      |
 | `DNS_NAME_MAP`                    | `'{}'`      | Custom DNS mapping (JSON) |
-| `ERROR_URL_WEBHOOK`               | `''`        | Error webhook           |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | `2000`      | Bus init timeout        |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | `2000`      | Bus shutdown timeout    |
-| `MESSAGE_CALLBACK_PATH`           | `'message'` | Message callback path   |
+| `ERROR_URL_WEBHOOK`               | `''`        | Error webhook             |
+| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | `2000`      | Bus init timeout          |
+| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | `2000`      | Bus shutdown timeout      |
+| `MESSAGE_CALLBACK_PATH`           | `'message'` | Message callback path     |
 
 ## Internal Architecture
 
@@ -157,23 +157,22 @@ AddressManagerConfig → HttpClient (mTLS)
                      → ServiceDiscovery
                         → ServiceCache (TTL cache)
                         → ServiceHealthChecker
-                     → Scheduler
-                        → TokenRefresherJob
-                        → TtlRefresherJob
+                      → Scheduler
+                         → RefreshJob\<TokenManager\>
+                         → RefreshJob\<AddressManagerClient\>
 ```
 
 ## Internal Classes
 
-| Class                  | Description                                                  |
-| ---------------------- | ------------------------------------------------------------ |
-| `TokenManager`         | In-memory token storage, refresh via `POST /token/rotate`    |
-| `AddressManagerClient` | HTTP client for Discovery Server API (register, refresh TTL) |
-| `ServiceCache`         | In-memory cache with TTL expiry for service instances        |
-| `ServiceHealthChecker` | Pings `http://{ip}:{port}/ping` to verify liveness           |
-| `ServiceDiscovery`     | Orchestrates cache → health check → fetch flow               |
-| `Scheduler`            | Generic `node-cron` scheduler                                |
-| `TokenRefresherJob`    | Periodically calls `TokenManager.refreshToken()`             |
-| `TtlRefresherJob`      | Periodically calls `AddressManagerClient.refreshTTL()`       |
+| Class                  | Description                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TokenManager`         | In-memory token storage, refresh via `POST /token/rotate`                                                                                                    |
+| `AddressManagerClient` | HTTP client for Discovery Server API (register, refresh TTL)                                                                                                 |
+| `ServiceCache`         | In-memory cache with TTL expiry for service instances                                                                                                        |
+| `ServiceHealthChecker` | Pings `http://{ip}:{port}/ping` to verify liveness                                                                                                           |
+| `ServiceDiscovery`     | Orchestrates cache → health check → fetch flow                                                                                                               |
+| `Scheduler`            | Generic `node-cron` scheduler                                                                                                                                |
+| `RefreshJob<T>`        | Parameterized job that calls a configurable refresh function on a client instance. Replaces previously duplicated `TokenRefresherJob` and `TtlRefresherJob`. |
 
 ## Usage Example
 
