@@ -88,6 +88,7 @@ Features:
 - `GET /ping` endpoint (constant `PING_PATH`)
 - `MTLSAuthMiddleware` injected automatically
 - `ResponseProtocole` as last middleware
+- `server.close()` returns a promise that resolves only after all in-flight connections have drained (uses Node.js callback form)
 
 ## Environment Validation
 

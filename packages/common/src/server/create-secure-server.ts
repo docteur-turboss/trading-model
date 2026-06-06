@@ -6,7 +6,6 @@ import express, { Application } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import helmet from 'helmet';
 
-
 import { PING_PATH } from './constants';
 import { logger } from '../config/logger';
 import { MTLSAuthMiddleware } from '../middleware/mtls-auth';
@@ -92,14 +91,17 @@ export function createSecureServer(options: SecureServerOptions): HttpServer {
   });
 
   return {
+    /**
+     * Close the HTTPS server and wait for all in-flight connections to drain.
+     * Uses the Node.js callback form to guarantee the promise resolves only
+     * after the server has fully stopped.
+     */
     close: () =>
       new Promise<void>((resolve, reject) => {
-        try {
-          httpsServer.close();
-          resolve();
-        } catch (e) {
-          reject(e);
-        }
+        httpsServer.close(err => {
+          if (err) reject(err);
+          else resolve();
+        });
       }),
   };
 }

@@ -31,7 +31,7 @@ jest.mock('node:https', () => ({
   createServer: jest.fn((_options: any, _app: any) => {
     mockHttpsServer = {
       listen: jest.fn((_port: number, cb: () => void) => cb()),
-      close: jest.fn(),
+      close: jest.fn((cb: (err?: Error) => void) => cb && cb()),
     };
     return mockHttpsServer;
   }),
@@ -147,10 +147,10 @@ describe('createSecureServer', () => {
     expect(mockHttpsServer.close).toHaveBeenCalled();
   });
 
-  it('should reject when HTTPS server close throws', async () => {
+  it('should reject when HTTPS server close returns an error', async () => {
     const server = createSecureServer(defaultOptions);
-    mockHttpsServer.close.mockImplementationOnce(() => {
-      throw new Error('close error');
+    mockHttpsServer.close.mockImplementationOnce((cb: (err: Error | undefined) => void) => {
+      cb(new Error('close error'));
     });
     await expect(server.close()).rejects.toThrow('close error');
   });
