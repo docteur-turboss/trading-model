@@ -223,4 +223,4 @@ feat: added new feature and also fixed some bugs and updated docs
 - `scripts/commit.mjs` — Interactive commit creation script
 - `.husky/` — Husky hooks configuration
 - [PR.md](./PR.md) — Pull request standards
-- [WORKFLOW.md](../WORKFLOW.md) — Full development workflow
+- [CONTRIBUTE.md](../deployment/CONTRIBUTE.md) — Full development workflow

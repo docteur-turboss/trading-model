@@ -80,7 +80,7 @@ File suffixes: `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.middlewa
 
 1. Node built-ins (`fs`, `path`)
 2. External deps (`express`, `zod`)
-3. Internal absolute (`@lib/*`)
+3. Internal absolute (`@trading-model/*`)
 4. Internal relative (`../controllers/`)
 5. Side effects (`import './setup'`)
 
@@ -88,7 +88,7 @@ File suffixes: `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.middlewa
 
 - **Framework**: Jest with `ts-jest`
 - **Convention**: Single `.spec.ts` suffix
-- **Coverage threshold**: 100% minimum (branches, functions, lines, statements)
+- **Coverage thresholds**: per-module (common/discovery 100%, address-manager/broker-message/trader-trainer 80% minimum)
 - **Structure**: Tests mirror source under `tests/unit/`, `tests/integration/`, `tests/e2e/`
 
 ---

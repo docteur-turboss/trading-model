@@ -97,10 +97,10 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 
 | Service           | Host port (dev) | Container port |
 | ----------------- | --------------- | -------------- |
-| discovery-server  | 3001            | 3000           |
-| message-manager   | 3002            | 3000           |
-| financial-scraper | 3003            | 3000           |
-| trader-trainer    | 3004            | 3000           |
+| discovery-server  | 8443            | 3000           |
+| message-manager   | 8444            | 3000           |
+| financial-scraper | 8445            | 3000           |
+| trader-trainer    | 8446            | 3000           |
 
 ### Service Structure
 
