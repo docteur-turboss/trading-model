@@ -1,7 +1,8 @@
-import { Response } from 'express';
 import ChainedError from 'chained-error';
-import { logger } from '../config/logger';
+import { Response } from 'express';
+
 import { ResponseException, ResponseCodeKey, HTTP_CODE } from './response-exception';
+import { logger } from '../config/logger';
 
 type fileHandle =
   | 'auth'

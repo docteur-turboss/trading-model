@@ -1,5 +1,5 @@
-import { ServiceInstance } from '../client/type';
 import { CacheEntry } from './type';
+import { ServiceInstance } from '../client/type';
 
 /**
  * ServiceCache

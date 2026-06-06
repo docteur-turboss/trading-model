@@ -27,9 +27,10 @@
  *
  * @since 2026.01.28
  */
-import { DeadLetterError, NackError } from '@trading-model/common/utils/errors';
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { HttpClient } from '@trading-model/common/config/http-client';
+import { DeadLetterError, NackError } from '@trading-model/common/utils/errors';
+
 import { findAService } from '../../config/address-manager';
 import { IdentifyType } from '../broker.type';
 import { message as Message } from './message';

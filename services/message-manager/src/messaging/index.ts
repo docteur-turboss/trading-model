@@ -29,12 +29,14 @@
  *
  * @since 2026.01.28
  */
-import { HttpClient } from '@trading-model/common/config/http-client';
-import { BrokerRoutes } from './transport/http.routes';
-import { BrokerConfig } from './broker.type';
-import { Dispatcher } from './core/dispatcher';
-import { Broker } from './core/broker';
 import { Application } from 'express';
+
+import { HttpClient } from '@trading-model/common/config/http-client';
+
+import { BrokerConfig } from './broker.type';
+import { Broker } from './core/broker';
+import { Dispatcher } from './core/dispatcher';
+import { BrokerRoutes } from './transport/http.routes';
 
 /**
  * BrokerModule

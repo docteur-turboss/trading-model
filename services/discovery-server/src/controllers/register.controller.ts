@@ -1,5 +1,3 @@
-import { ServiceInstance } from '../core/types';
-import { registry } from '../core/service-registry';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
 import {
@@ -8,7 +6,10 @@ import {
   isValidIP,
   isValidPort,
 } from '@trading-model/common/validation/primitives';
+
 import { asHandler } from './helpers';
+import { registry } from '../core/service-registry';
+import { ServiceInstance } from '../core/types';
 
 /** Register a new service instance or update an existing one in the registry. */
 export const register = asHandler(

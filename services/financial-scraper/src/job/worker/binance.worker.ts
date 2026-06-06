@@ -12,6 +12,13 @@
  * in distributed environments.
  */
 
+import { createHash } from 'node:crypto';
+
+import { helper } from '@trading-model/broker-message';
+import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
+import { EnumEventMessage } from '@trading-model/common/config/event.types';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+
 import {
   getOrderBook,
   CandlestickData,
@@ -20,15 +27,11 @@ import {
   get24hrTickerStats,
   getSymbolPriceTicker,
 } from '../../clients/binance/binance.client';
-
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
-import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
-import { EnumEventMessage } from '@trading-model/common/config/event.types';
 import { BinanceNormalizer } from '../../clients/binance/normalizer';
-import { MessageManager } from '../../config/message-manager';
-import { helper } from '@trading-model/broker-message';
-import { createHash } from 'node:crypto';
 import { env } from '../../config/env';
+import { MessageManager } from '../../config/message-manager';
+
+
 
 /** Configuration options for a single BinanceWorker execution against one symbol. */
 export interface BinanceWorkerOptions {

@@ -104,7 +104,7 @@ Minimum thresholds defined per module (see [TESTING.md](./TESTING.md) for detail
 | financial-scraper              | 100%      |
 | @trading-model/address-manager | 80%       |
 | @trading-model/broker-message  | 80%       |
-| trader-trainer                 | Not set   |
+| trader-trainer                 | 80%       |
 
 Coverage is verified by Jest on every test run. Below the threshold, tests fail.
 

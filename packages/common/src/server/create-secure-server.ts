@@ -1,13 +1,16 @@
-import { ResponseProtocole } from '../middleware/response-protocole';
-import { MTLSAuthMiddleware } from '../middleware/mtls-auth';
-import { logger } from '../config/logger';
-import { rateLimit } from 'express-rate-limit';
-import express, { Application } from 'express';
+import fs from 'node:fs';
 import https from 'node:https';
 import path from 'node:path';
+
+import express, { Application } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import helmet from 'helmet';
-import fs from 'node:fs';
+
+
 import { PING_PATH } from './constants';
+import { logger } from '../config/logger';
+import { MTLSAuthMiddleware } from '../middleware/mtls-auth';
+import { ResponseProtocole } from '../middleware/response-protocole';
 
 /** Filesystem paths to TLS certificate files. */
 export interface TlsPaths {

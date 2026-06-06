@@ -13,11 +13,11 @@
  * Designed for MySQL / MariaDB.
  */
 
-import { insertTrades as IinsertTrades } from './schema/trades.schema';
-import { insertTicker as IinsertTicker } from './schema/ticker24h.schema';
+import { CandleEntity, OrderBookEntity, TickerEntity, TradeEntity } from './market-data.types';
 import { insertCandles as IinsertCandles } from './schema/candles-schema';
 import { insertOrderBook as IinsertOrderBook } from './schema/order-book.schema';
-import { CandleEntity, OrderBookEntity, TickerEntity, TradeEntity } from './market-data.types';
+import { insertTicker as IinsertTicker } from './schema/ticker24h.schema';
+import { insertTrades as IinsertTrades } from './schema/trades.schema';
 
 /* ============================================================
  * MODEL

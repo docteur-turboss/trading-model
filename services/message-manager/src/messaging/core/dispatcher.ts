@@ -38,10 +38,11 @@
  * 2026.01.28
  */
 
+import { HttpClient } from '@trading-model/common/config/http-client';
+
 import { message } from './message';
 import { Subscription } from './subscription';
 import { IdentifyType } from '../broker.type';
-import { HttpClient } from '@trading-model/common/config/http-client';
 
 /**
  * Message dispatcher.

@@ -32,9 +32,10 @@
  * @since 2026.01.28
  */
 
-import { PublishSchema, SubscribeSchema, UnsubscribeSchema } from './validation/broker.schema';
-import { ResponseException } from '@trading-model/common/middleware/response-exception';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
+import { ResponseException } from '@trading-model/common/middleware/response-exception';
+
+import { PublishSchema, SubscribeSchema, UnsubscribeSchema } from './validation/broker.schema';
 import { Broker } from '../core/broker';
 
 /**

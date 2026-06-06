@@ -31,6 +31,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+
 import { Dispatcher } from './dispatcher';
 import { IdentifyType } from '../broker.type';
 import { message, MessageMetadata } from './message';

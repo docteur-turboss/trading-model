@@ -1,9 +1,13 @@
 import { networkInterfaces } from 'os';
-import { RegisterServicePayload, ServiceRegistrationResponse } from './type';
-import { AddressManagerError } from '@trading-model/common/utils/errors';
-import { AddressManagerConfig } from '../config/address-manager-config';
+
 import { HttpClient } from '@trading-model/common/config/http-client';
+import { AddressManagerError } from '@trading-model/common/utils/errors';
+
 import { TokenManager } from './token-manager';
+import { RegisterServicePayload, ServiceRegistrationResponse } from './type';
+import { AddressManagerConfig } from '../config/address-manager-config';
+
+
 
 /**
  * AddressManagerClient

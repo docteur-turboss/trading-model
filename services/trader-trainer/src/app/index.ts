@@ -7,12 +7,13 @@ import {
   TickerEntity,
 } from '@trading-model/common/config/event.types';
 import { createBootstrap } from '@trading-model/common/server/bootstrap';
-import { bootstrapAddressManager } from '../config/address-manager';
-import { MarketDataBuffer } from '../core/market-data-buffer';
-import { MessageManager } from '../config/message-manager';
-import { Trainer } from '../core/trainer';
+
 import { createServer } from './server';
+import { bootstrapAddressManager } from '../config/address-manager';
 import { env } from '../config/env';
+import { MessageManager } from '../config/message-manager';
+import { MarketDataBuffer } from '../core/market-data-buffer';
+import { Trainer } from '../core/trainer';
 
 let addressManager: ReturnType<typeof bootstrapAddressManager> | null = null;
 

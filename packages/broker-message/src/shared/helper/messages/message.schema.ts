@@ -1,3 +1,6 @@
+import { z } from 'zod';
+
+import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import {
   EnumEventMessage,
   EventMap,
@@ -5,8 +8,6 @@ import {
   SourceType,
 } from '@trading-model/common/config/event.types';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
-import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
-import { z } from 'zod';
 
 /** Validates the security metadata context (auth and signature). */
 export const SecurityMetadataContextPredicate = z

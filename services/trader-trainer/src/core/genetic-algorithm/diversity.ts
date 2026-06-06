@@ -2,8 +2,8 @@
 //        speciation, diversity metrics, novelty scoring
 // ================================================================
 
-import type { Genome } from './genome-types';
 import { encodeGenome } from './encoding';
+import type { Genome } from './genome-types';
 
 // ================================================================
 //  1. Genomic distance

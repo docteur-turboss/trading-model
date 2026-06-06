@@ -1,3 +1,10 @@
+import { AgentError } from '@trading-model/common/utils/errors';
+
+import { ACTIVATIONS } from './activation';
+import { INITIALIZERS } from './initializers';
+import { LOSSES } from './losses';
+import { NORMALIZERS } from './normalize';
+import { OptimizerHyperparams, DEFAULT_HYPERPARAMS, OPTIMIZERS } from './optimizer';
 import {
   NeuralNetworkConfig,
   ActivationType,
@@ -5,13 +12,7 @@ import {
   PooledExperience,
   ForwardContext,
 } from './type';
-import { OptimizerHyperparams, DEFAULT_HYPERPARAMS, OPTIMIZERS } from './optimizer';
-import { AgentError } from '@trading-model/common/utils/errors';
-import { INITIALIZERS } from './initializers';
-import { ACTIVATIONS } from './activation';
-import { NORMALIZERS } from './normalize';
 import { gaussianNoise } from './utils';
-import { LOSSES } from './losses';
 
 /**
  * Configurable fully-connected feedforward neural network with support for

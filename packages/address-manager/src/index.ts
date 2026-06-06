@@ -1,16 +1,19 @@
-import { ServiceHealthChecker } from './discovery/service-health-checker';
-import { AddressManagerClient } from './client/address-manager-client';
-import { AddressManagerConfig } from './config/address-manager-config';
-import { HttpClient } from '@trading-model/common/config/http-client';
-import { TokenRefresherJob } from './scheduler/token-refresh-job';
-import { ServiceDiscovery } from './discovery/service-discovery';
-import { TtlRefresherJob } from './scheduler/ttl-refresher-job';
-import { ServiceCache } from './discovery/service-cache';
-import { pingRoutes } from './http/routes/ping.routes';
-import { TokenManager } from './client/token-manager';
-import { Scheduler } from './scheduler/scheduler';
-import { ServiceInstance } from './client/type';
 import { Application } from 'express';
+
+import { HttpClient } from '@trading-model/common/config/http-client';
+
+import { AddressManagerClient } from './client/address-manager-client';
+import { TokenManager } from './client/token-manager';
+import { ServiceInstance } from './client/type';
+import { AddressManagerConfig } from './config/address-manager-config';
+import { ServiceCache } from './discovery/service-cache';
+import { ServiceDiscovery } from './discovery/service-discovery';
+import { ServiceHealthChecker } from './discovery/service-health-checker';
+import { pingRoutes } from './http/routes/ping.routes';
+import { Scheduler } from './scheduler/scheduler';
+import { TokenRefresherJob } from './scheduler/token-refresh-job';
+import { TtlRefresherJob } from './scheduler/ttl-refresher-job';
+
 
 /**
  * Default export for the Address Manager library.
