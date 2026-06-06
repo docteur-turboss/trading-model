@@ -298,8 +298,3 @@ export class ServiceRegistry {
     return Object.values(ServiceInstanceName as unknown as string).includes(serviceName);
   }
 }
-
-/**
- * Singleton registry instance used across the application.
- */
-export const registry = new ServiceRegistry();

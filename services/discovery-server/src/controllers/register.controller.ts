@@ -9,78 +9,89 @@ import {
   isValidPort,
 } from '@trading-model/common/validation/primitives';
 
-import { registry } from '../core/service-registry';
+import { ServiceRegistry } from '../core/service-registry';
 import { ServiceInstance } from '../core/types';
 
-/** Register a new service instance or update an existing one in the registry. */
-export const register: RequestHandler = catchSync(async req => {
-  if (!isObject(req.body)) throw ResponseException('Invalid request body').BadRequest();
+interface RegisterController {
+  register: RequestHandler;
+  listServices: RequestHandler;
+  getServiceInstances: RequestHandler;
+  getInstance: RequestHandler;
+}
 
-  const { serviceName, instanceId, ip, port } = req.body as Record<string, unknown>;
+export function createRegisterController(registry: ServiceRegistry): RegisterController {
+  /** Register a new service instance or update an existing one in the registry. */
+  const register: RequestHandler = catchSync(async req => {
+    if (!isObject(req.body)) throw ResponseException('Invalid request body').BadRequest();
 
-  if (!isNonEmptyString(serviceName))
-    throw ResponseException('serviceName is required').BadRequest();
+    const { serviceName, instanceId, ip, port } = req.body as Record<string, unknown>;
 
-  if (!registry.verifyInstanceName(serviceName))
-    throw ResponseException('Invalid service name').BadRequest();
+    if (!isNonEmptyString(serviceName))
+      throw ResponseException('serviceName is required').BadRequest();
 
-  if (!isValidIP(ip)) throw ResponseException('Invalid IP address').BadRequest();
+    if (!registry.verifyInstanceName(serviceName))
+      throw ResponseException('Invalid service name').BadRequest();
 
-  if (!isValidPort(port)) throw ResponseException('Invalid port').BadRequest();
+    if (!isValidIP(ip)) throw ResponseException('Invalid IP address').BadRequest();
 
-  let safeInstanceId: string;
+    if (!isValidPort(port)) throw ResponseException('Invalid port').BadRequest();
 
-  if (instanceId !== undefined) {
-    if (!isNonEmptyString(instanceId)) throw ResponseException('Invalid instanceId').BadRequest();
-    safeInstanceId = instanceId;
-  } else {
-    safeInstanceId = registry.generateInstanceId(serviceName, ip, port);
-  }
+    let safeInstanceId: string;
 
-  const instance: ServiceInstance = {
-    instanceId: safeInstanceId,
-    serviceName,
-    ip,
-    port,
-    ttl: 30_000,
-    protocol: 'mtls',
-    registeredAt: Date.now(),
-    lastHeartbeat: Date.now(),
-  };
+    if (instanceId !== undefined) {
+      if (!isNonEmptyString(instanceId)) throw ResponseException('Invalid instanceId').BadRequest();
+      safeInstanceId = instanceId;
+    } else {
+      safeInstanceId = registry.generateInstanceId(serviceName, ip, port);
+    }
 
-  const registered = registry.registerInstance(instance);
+    const instance: ServiceInstance = {
+      instanceId: safeInstanceId,
+      serviceName,
+      ip,
+      port,
+      ttl: 30_000,
+      protocol: 'mtls',
+      registeredAt: Date.now(),
+      lastHeartbeat: Date.now(),
+    };
 
-  throw ResponseException(registered).OK();
-});
+    const registered = registry.registerInstance(instance);
 
-/** Return the list of all registered service names. */
-export const listServices: RequestHandler = catchSync(async () => {
-  throw ResponseException(registry.listServiceNames()).Success();
-});
+    throw ResponseException(registered).OK();
+  });
 
-/** Return all registered instances for a given service name. */
-export const getServiceInstances: RequestHandler = catchSync(async req => {
-  const { serviceName } = req.params;
+  /** Return the list of all registered service names. */
+  const listServices: RequestHandler = catchSync(async () => {
+    throw ResponseException(registry.listServiceNames()).Success();
+  });
 
-  if (!isNonEmptyString(serviceName))
-    throw ResponseException('serviceName is required').BadRequest();
+  /** Return all registered instances for a given service name. */
+  const getServiceInstances: RequestHandler = catchSync(async req => {
+    const { serviceName } = req.params;
 
-  if (!registry.verifyInstanceName(serviceName))
-    throw ResponseException('Unknown service').NotFound();
+    if (!isNonEmptyString(serviceName))
+      throw ResponseException('serviceName is required').BadRequest();
 
-  throw ResponseException(registry.getInstances(serviceName)).Success();
-});
+    if (!registry.verifyInstanceName(serviceName))
+      throw ResponseException('Unknown service').NotFound();
 
-/** Return metadata for a specific service instance by service name and instance ID. */
-export const getInstance: RequestHandler = catchSync(async req => {
-  const { serviceName, instanceId } = req.params;
+    throw ResponseException(registry.getInstances(serviceName)).Success();
+  });
 
-  if (!isNonEmptyString(serviceName) || !isNonEmptyString(instanceId))
-    throw ResponseException('Invalid route parameters').BadRequest();
+  /** Return metadata for a specific service instance by service name and instance ID. */
+  const getInstance: RequestHandler = catchSync(async req => {
+    const { serviceName, instanceId } = req.params;
 
-  const instance = registry.getInstance(serviceName, instanceId);
+    if (!isNonEmptyString(serviceName) || !isNonEmptyString(instanceId))
+      throw ResponseException('Invalid route parameters').BadRequest();
 
-  if (!instance) throw ResponseException('Instance not found').NotFound();
+    const instance = registry.getInstance(serviceName, instanceId);
 
-  throw ResponseException(instance).Success();
-});
+    if (!instance) throw ResponseException('Instance not found').NotFound();
+
+    throw ResponseException(instance).Success();
+  });
+
+  return { register, listServices, getServiceInstances, getInstance };
+}

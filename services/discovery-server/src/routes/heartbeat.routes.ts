@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
-import { heartbeat, rotateToken } from '../controllers/heartbeat.controller';
+import { createHeartbeatController } from '../controllers/heartbeat.controller';
+import { ServiceRegistry } from '../core/service-registry';
 
 /**
  * Heartbeat Routes
@@ -18,7 +19,9 @@ import { heartbeat, rotateToken } from '../controllers/heartbeat.controller';
  * - Application-level authentication relies on instance tokens
  * - No business logic should be implemented at the routing layer
  */
-export const heartbeatRoutes = (): Router => {
+export const heartbeatRoutes = (registry: ServiceRegistry): Router => {
+  const { heartbeat, rotateToken } = createHeartbeatController(registry);
+
   /**
    * Express router instance scoped to registry heartbeat concerns.
    */

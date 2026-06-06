@@ -1,8 +1,7 @@
 import { logger } from '@trading-model/common/config/logger';
 
-import { registry } from './service-registry';
+import { ServiceRegistry } from './service-registry';
 import { ServiceInstance } from './types';
-import { env } from '../config/env';
 
 /**
  * LeaseManager
@@ -39,7 +38,10 @@ export class LeaseManager {
    */
   private intervalHandle?: NodeJS.Timeout;
 
-  constructor(options?: { cleanupIntervalMs?: number }) {
+  constructor(
+    private readonly registry: ServiceRegistry,
+    options?: { cleanupIntervalMs?: number }
+  ) {
     /**
      * Default cleanup interval.
      * This value should generally be lower than the smallest TTL
@@ -130,7 +132,7 @@ export class LeaseManager {
    * over the underlying registry structure.
    */
   private cleanupExpiredInstances(): void {
-    const snapshot = registry.dump();
+    const snapshot = this.registry.dump();
     const now = Date.now();
 
     for (const [serviceName, instances] of Object.entries(snapshot)) {
@@ -149,23 +151,9 @@ export class LeaseManager {
            * Remove the expired instance from the registry.
            * Subsequent resolve calls will no longer return it.
            */
-          registry.removeInstance(serviceName, instance.instanceId);
+          this.registry.removeInstance(serviceName, instance.instanceId);
         }
       }
     }
   }
 }
-
-/**
- * -------------------------
- * Singleton Instance
- * -------------------------
- *
- * A single LeaseManager instance is used for the whole application.
- *
- * The cleanup interval can be configured via environment variables
- * to adapt to different environments and load profiles.
- */
-export const LeaseManagerInstance = new LeaseManager({
-  cleanupIntervalMs: env.CLEANUP_SERVICE_INTERVAL_MS,
-});
