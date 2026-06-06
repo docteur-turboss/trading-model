@@ -99,7 +99,13 @@ export const PublishMetadataSchema = z.object({
 
   security: z
     .object({
-      authContext: z.unknown().optional(),
+      authContext: z
+        .object({
+          subject: z.string(),
+          roles: z.array(z.string()),
+          tenantId: z.string(),
+        })
+        .optional(),
       signature: z.string().optional(),
     })
     .optional(),
