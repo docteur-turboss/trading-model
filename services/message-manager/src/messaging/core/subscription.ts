@@ -32,6 +32,7 @@ import { HttpClient } from '@trading-model/common/config/http-client';
 import { IdentifyType, message as Message } from '@trading-model/common/contracts/message.types';
 import { DeadLetterError, NackError } from '@trading-model/common/utils/errors';
 
+import { DqlRepository } from './dlq-repository';
 import { findAService } from '../../config/address-manager';
 
 /**
@@ -79,7 +80,8 @@ export class Subscription {
   constructor(
     public readonly topic: string,
     public readonly callbackURL: string,
-    public readonly serviceIdentity: IdentifyType
+    public readonly serviceIdentity: IdentifyType,
+    private readonly dqlRepository: DqlRepository
   ) {}
 
   /**
@@ -135,12 +137,12 @@ export class Subscription {
         context.deliveryAttempt++;
 
         if (e instanceof DeadLetterError) {
-          await this.sendToDLQ(message, e.reason);
+          await this.sendToDLQ(message, e.reason, context.deliveryAttempt);
           return;
         }
 
         if (this.isExpired(ttl, emittedAt)) {
-          await this.sendToDLQ(message, 'TTL_EXPIRED');
+          await this.sendToDLQ(message, 'TTL_EXPIRED', context.deliveryAttempt);
           return;
         }
 
@@ -183,19 +185,23 @@ export class Subscription {
   /**
    * Routes a message to the Dead Letter Queue (DLQ).
    *
+   * Persists the failed message with failure metadata to the DLQ repository.
+   *
    * @template T
-   * @param {Message<T>} message Failed message
-   * @param {string} [reason] Optional failure reason
-   * @returns {Promise<void>}
-   * @description
-   * Placeholder for routing messages to an HTTP endpoint, persistent storage,
-   * or event sink.
+   * @param message - Failed message.
+   * @param reason - Human-readable failure reason.
+   * @param deliveryAttempt - Number of delivery attempts before dead-lettering.
    */
-  private async sendToDLQ<T>(_message: Message<T>, _reason?: string): Promise<void> {
-    void _message;
-    void _reason;
-    // PLACEHOLDER: HTTP ENDPOINT, STORAGE, or EVENT SINK
-    // Example:
-    // await httpClient.post("https://dlq.internal/messages", { message, reason });
+  private async sendToDLQ<T>(
+    message: Message<T>,
+    reason: string | undefined,
+    deliveryAttempt: number
+  ): Promise<void> {
+    await this.dqlRepository.add({
+      message,
+      reason,
+      deliveryAttempt,
+      timestamp: new Date().toISOString(),
+    });
   }
 }

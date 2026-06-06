@@ -162,7 +162,7 @@ Body (validated by `UnsubscribeSchema`):
 ## Features
 
 - **TTL**: Message expiration based on time-to-live configured in metadata
-- **Dead Letter Queue**: Undelivered messages after retry exhaustion
+- **Dead Letter Queue**: Undelivered messages persisted as JSON Lines (NDJSON) to `dead-letter-queue.jsonl` with failure reason, delivery attempt count, and timestamp
 - **Deduplication**: Via `deduplicationId` in delivery metadata
 - **Partitioning**: Via `partitionKey` in routing metadata
 - **Priority**: Via `priority` in routing metadata
@@ -176,6 +176,7 @@ HTTP Routes (http.routes.ts)
       → Broker (core/broker.ts)
         → Subscription Manager (core/subscription.ts)
         → Message Dispatcher (core/dispatcher.ts)
+        → Dead Letter Queue (core/dlq-repository.ts)
         → Message Store (core/message.ts + MongoDB)
 ```
 

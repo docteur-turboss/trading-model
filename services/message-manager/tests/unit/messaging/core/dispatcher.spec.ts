@@ -1,5 +1,10 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { unlink } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals';
 import { Dispatcher } from '../../../../src/messaging/core/dispatcher';
+import { DqlRepository } from '../../../../src/messaging/core/dlq-repository';
 import { createMockHttpClient } from '../../../helpers/broker.helper';
 import {
   createMockMessage,
@@ -16,10 +21,19 @@ jest.mock('config/address-manager', () => ({
 describe('Dispatcher', () => {
   let mockHttpClient: ReturnType<typeof createMockHttpClient>;
   let dispatcher: Dispatcher;
+  let dqlRepository: DqlRepository;
+  const dlqFilePath = join(tmpdir(), `dlq-test-disp-${Date.now()}.jsonl`);
 
   beforeEach(() => {
     mockHttpClient = createMockHttpClient();
-    dispatcher = new Dispatcher(mockHttpClient as never);
+    dqlRepository = new DqlRepository(dlqFilePath);
+    dispatcher = new Dispatcher(mockHttpClient as never, dqlRepository);
+  });
+
+  afterAll(async () => {
+    if (existsSync(dlqFilePath)) {
+      await unlink(dlqFilePath);
+    }
   });
 
   describe('registerSubscription', () => {
