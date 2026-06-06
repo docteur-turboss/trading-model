@@ -7,8 +7,6 @@ import { TokenManager } from './token-manager';
 import { RegisterServicePayload, ServiceRegistrationResponse } from './type';
 import { AddressManagerConfig } from '../config/address-manager-config';
 
-
-
 /**
  * AddressManagerClient
  *
@@ -53,7 +51,7 @@ export class AddressManagerClient {
    * @returns The registration response containing the instance details and token.
    * @throws AddressManagerError if the registration request fails.
    */
-  async registerService(): Promise<ServiceRegistrationResponse> {
+  async registerService(): Promise<ServiceRegistrationResponse | undefined> {
     const payload: RegisterServicePayload = {
       serviceName: this.config.serviceName,
       port: this.config.servicePort,

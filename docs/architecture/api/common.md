@@ -121,11 +121,11 @@ HTTP client with mTLS support for service-to-service calls.
 import { HttpClient } from '@trading-model/common/config/http-client';
 ```
 
-| Method                                     | Signature |
-| ------------------------------------------ | --------- |
-| `get<T>(url, options?, schema?)`           | `GET`     |
-| `post<T>(url, body?, options?, schema?)`   | `POST`    |
-| `delete<T>(url, body?, options?, schema?)` | `DELETE`  |
+| Method                                            | Signature | Returns                     |
+| ------------------------------------------------- | --------- | --------------------------- |
+| `get<T>(url, options?, schema?)`                  | `GET`     | `Promise<T \| undefined>`   |
+| `post<T>(url, body?, options?, schema?)`          | `POST`    | `Promise<T \| undefined>`   |
+| `delete<T>(url, body?, options?, schema?)`        | `DELETE`  | `Promise<T \| undefined>`   |
 
 Options: `timeoutMs`, `headers`
 
@@ -134,6 +134,8 @@ Schema validation (optional `z.ZodType<T>`):
 - When a Zod schema is provided, the response is validated at runtime against it
 - If validation fails, a `z.ZodError` is thrown
 - Without a schema, the response is cast as `T` (no runtime check)
+
+Note: Methods return `T \| undefined` because a 204 No Content response resolves without a body. Callers must handle the `undefined` case explicitly (no longer silently cast as `T`).
 
 Errors: `HttpClientError` (non-2xx status), `HttpClientTimeoutError` (timeout), `z.ZodError` (schema validation)
 

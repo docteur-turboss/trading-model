@@ -110,6 +110,9 @@ export default class AddressManager {
 
       try {
         const res = await this.addressManagerClient.registerService();
+        if (!res) {
+          throw new Error('Registration returned no content');
+        }
         this.tokenManager.setToken(res.token);
         return;
       } catch (error) {
