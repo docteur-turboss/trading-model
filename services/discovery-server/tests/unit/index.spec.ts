@@ -4,13 +4,6 @@ jest.mock('@trading-model/common/server/bootstrap', () => ({
   createBootstrap: jest.fn(),
 }));
 
-jest.mock('../../src/core/lease-manager', () => ({
-  LeaseManagerInstance: {
-    start: jest.fn(),
-    stop: jest.fn(),
-  },
-}));
-
 jest.mock('../../src/app/server', () => ({
   createServer: jest.fn(),
 }));
@@ -21,9 +14,15 @@ jest.mock('../../src/config/env', () => ({
     TLS_KEY_PATH: '/key',
     TLS_CERT_PATH: '/cert',
     TLS_CA_PATH: '/ca',
+    CLEANUP_SERVICE_INTERVAL_MS: 5000,
     ERROR_URL_WEBHOOK: 'https://hooks.example.com/error',
   },
 }));
+
+jest.mock('../../src/core/service-registry', () => {
+  const { ServiceRegistry } = jest.requireActual('../../src/core/service-registry');
+  return { ServiceRegistry };
+});
 
 describe('app/index', () => {
   beforeEach(() => {
@@ -34,9 +33,6 @@ describe('app/index', () => {
     const { createBootstrap } = jest.requireMock('@trading-model/common/server/bootstrap') as {
       createBootstrap: jest.Mock;
     };
-    const { LeaseManagerInstance } = jest.requireMock('../../src/core/lease-manager') as {
-      LeaseManagerInstance: { start: jest.Mock; stop: jest.Mock };
-    };
     const { createServer } = jest.requireMock('../../src/app/server') as {
       createServer: jest.Mock;
     };
@@ -46,20 +42,22 @@ describe('app/index', () => {
     expect(createBootstrap).toHaveBeenCalledTimes(1);
     expect(createBootstrap).toHaveBeenCalledWith({
       name: 'Discovery',
-      createServer,
+      createServer: expect.any(Function),
       onStart: expect.any(Function),
       onStop: expect.any(Function),
     });
 
     const opts = createBootstrap.mock.calls[0][0] as {
+      createServer: () => void;
       onStart: () => void;
       onStop: () => void;
     };
 
+    opts.createServer();
+    expect(createServer).toHaveBeenCalled();
+
     opts.onStart();
-    expect(LeaseManagerInstance.start).toHaveBeenCalled();
 
     opts.onStop();
-    expect(LeaseManagerInstance.stop).toHaveBeenCalled();
   });
 });

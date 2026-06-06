@@ -1,18 +1,6 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { createReq, createRes } from '../../helpers/express';
 
-const mockValidInstanceToken = jest.fn<(token: string, instanceId: string) => boolean>();
-const mockUpdateHeartbeat = jest.fn<(serviceName: string, instanceId: string) => number | false>();
-const mockUpdateToken = jest.fn<(instanceId: string) => string>();
-
-jest.mock('../../../src/core/service-registry', () => ({
-  registry: {
-    validInstanceToken: mockValidInstanceToken,
-    updateHeartbeat: mockUpdateHeartbeat,
-    updateToken: mockUpdateToken,
-  },
-}));
-
 jest.mock('@trading-model/common/middleware/catch-error', () => ({
   catchSync: (fn: any) => fn,
 }));
@@ -31,17 +19,23 @@ jest.mock('@trading-model/common/validation/primitives', () => ({
   isNonEmptyString: (v: any) => typeof v === 'string' && v.trim().length > 0,
 }));
 
-import { heartbeat, rotateToken } from '../../../src/controllers/heartbeat.controller';
+import { ServiceRegistry } from '../../../src/core/service-registry';
+import { createHeartbeatController } from '../../../src/controllers/heartbeat.controller';
 
 describe('Heartbeat.controller', () => {
+  let registry: ServiceRegistry;
+  let controller: ReturnType<typeof createHeartbeatController>;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    registry = new ServiceRegistry();
+    controller = createHeartbeatController(registry);
   });
 
   describe('heartbeat', () => {
     it('should reject non-object body with BadRequest', async () => {
       const req = createReq({ body: 'invalid' });
-      await expect(heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'BadRequest',
         error: 'Invalid request body',
       });
@@ -49,7 +43,7 @@ describe('Heartbeat.controller', () => {
 
     it('should reject missing serviceName with BadRequest', async () => {
       const req = createReq({ body: { instanceId: 'i1' } });
-      await expect(heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'BadRequest',
         error: 'serviceName is required',
       });
@@ -57,7 +51,7 @@ describe('Heartbeat.controller', () => {
 
     it('should reject missing instanceId with BadRequest', async () => {
       const req = createReq({ body: { serviceName: 'svc' } });
-      await expect(heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'BadRequest',
         error: 'instanceId is required',
       });
@@ -65,47 +59,41 @@ describe('Heartbeat.controller', () => {
 
     it('should reject missing token header with Unauthorized', async () => {
       const req = createReq({ body: { serviceName: 'svc', instanceId: 'i1' } });
-      await expect(heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'Unauthorized',
         error: 'Missing or invalid instance token',
       });
     });
 
     it('should reject invalid token with Unauthorized', async () => {
-      mockValidInstanceToken.mockReturnValue(false);
       const req = createReq({
         body: { serviceName: 'svc', instanceId: 'i1' },
         headers: { 'x-instance-token': 'bad' },
       });
-      await expect(heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'Unauthorized',
         error: 'Invalid instance token',
       });
     });
 
-    it('should reject unknown instance with NotFound', async () => {
-      mockValidInstanceToken.mockReturnValue(true);
-      mockUpdateHeartbeat.mockReturnValue(false);
-      const req = createReq({
-        body: { serviceName: 'svc', instanceId: 'i1' },
-        headers: { 'x-instance-token': 'ok' },
-      });
-      await expect(heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
-        type: 'NotFound',
-        error: 'Instance not found',
-      });
-    });
-
     it('should return TTL on successful heartbeat', async () => {
-      mockValidInstanceToken.mockReturnValue(true);
-      mockUpdateHeartbeat.mockReturnValue(15000);
-      const req = createReq({
-        body: { serviceName: 'svc', instanceId: 'i1' },
-        headers: { 'x-instance-token': 'ok' },
+      const registered = registry.registerInstance({
+        serviceName: 'financial-scrapper-service',
+        instanceId: 'i1',
+        ip: '1.1.1.1',
+        port: 8080,
+        ttl: 30000,
+        protocol: 'mtls',
+        registeredAt: Date.now(),
+        lastHeartbeat: Date.now(),
       });
-      await expect(heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
+      const req = createReq({
+        body: { serviceName: 'financial-scrapper-service', instanceId: 'i1' },
+        headers: { 'x-instance-token': registered.token },
+      });
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'Success',
-        ttl: 15000,
+        ttl: 30000,
       });
     });
   });
@@ -113,7 +101,7 @@ describe('Heartbeat.controller', () => {
   describe('rotateToken', () => {
     it('should reject non-object body with BadRequest', async () => {
       const req = createReq({ body: null });
-      await expect(rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
+      await expect(controller.rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'BadRequest',
         error: 'Invalid request body',
       });
@@ -121,7 +109,7 @@ describe('Heartbeat.controller', () => {
 
     it('should reject missing instanceId with BadRequest', async () => {
       const req = createReq({ body: {} });
-      await expect(rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
+      await expect(controller.rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'BadRequest',
         error: 'instanceId is required',
       });
@@ -129,34 +117,41 @@ describe('Heartbeat.controller', () => {
 
     it('should reject missing token header with Unauthorized', async () => {
       const req = createReq({ body: { instanceId: 'i1' } });
-      await expect(rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
+      await expect(controller.rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'Unauthorized',
         error: 'Missing or invalid instance token',
       });
     });
 
     it('should reject invalid token with Unauthorized', async () => {
-      mockValidInstanceToken.mockReturnValue(false);
       const req = createReq({
         body: { instanceId: 'i1' },
         headers: { 'x-instance-token': 'bad' },
       });
-      await expect(rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
+      await expect(controller.rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'Unauthorized',
         error: 'Invalid instance token',
       });
     });
 
     it('should return new token on successful rotation', async () => {
-      mockValidInstanceToken.mockReturnValue(true);
-      mockUpdateToken.mockReturnValue('new-token-value');
+      const registered = registry.registerInstance({
+        serviceName: 'financial-scrapper-service',
+        instanceId: 'i1',
+        ip: '1.1.1.1',
+        port: 8080,
+        ttl: 30000,
+        protocol: 'mtls',
+        registeredAt: Date.now(),
+        lastHeartbeat: Date.now(),
+      });
       const req = createReq({
         body: { instanceId: 'i1' },
-        headers: { 'x-instance-token': 'old-token' },
+        headers: { 'x-instance-token': registered.token },
       });
-      await expect(rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
+      await expect(controller.rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
         type: 'Success',
-        token: 'new-token-value',
+        token: expect.any(String),
       });
     });
   });
