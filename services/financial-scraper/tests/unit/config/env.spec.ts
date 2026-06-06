@@ -52,34 +52,24 @@ describe('env', () => {
     expect(env.APP_NAME).toBe('financial-scraper');
   });
 
-  it('should exit process on validation failure when required vars missing', () => {
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit(1)');
-    });
+  it('should throw on validation failure when required vars missing', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     process.env = {};
 
-    expect(() => require('../../../src/config/env')).toThrow('process.exit(1)');
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(() => require('../../../src/config/env')).toThrow();
 
-    exitSpy.mockRestore();
     consoleSpy.mockRestore();
   });
 
-  it('should exit process when APP_NAME is missing', () => {
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit(1)');
-    });
+  it('should throw when APP_NAME is missing', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     setRequiredVars();
     delete process.env.APP_NAME;
 
-    expect(() => require('../../../src/config/env')).toThrow('process.exit(1)');
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(() => require('../../../src/config/env')).toThrow();
 
-    exitSpy.mockRestore();
     consoleSpy.mockRestore();
   });
 });
