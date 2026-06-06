@@ -39,10 +39,9 @@
  */
 
 import { HttpClient } from '@trading-model/common/config/http-client';
+import { IdentifyType, message } from '@trading-model/common/contracts/message.types';
 
-import { message } from './message';
 import { Subscription } from './subscription';
-import { IdentifyType } from '../broker.type';
 
 /**
  * Message dispatcher.

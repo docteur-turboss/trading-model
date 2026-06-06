@@ -1,4 +1,11 @@
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import {
+  DeliveryType,
+  IdentifyType,
+  MessageMetadata as MetadataType,
+  RoutingType,
+  SecurityType,
+} from '@trading-model/common/contracts/message.types';
 import { MetadataBuilderError } from '@trading-model/common/utils/errors';
 
 import {
@@ -11,13 +18,6 @@ import {
   TopicMetadataPredicate,
   IdsMetadataPredicate,
 } from './message.schema';
-import {
-  MessageMetadata as MetadataType,
-  DeliveryType,
-  IdentifyType,
-  SecurityType,
-  RoutingType,
-} from '../../types/message';
 
 /**
  * Represents an metadata in a message
