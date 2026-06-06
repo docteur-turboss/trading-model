@@ -201,14 +201,45 @@ describe('ServiceRegistry', () => {
       expect(isValid).toBe(true);
     });
 
-    it('should return false for an invalid token', () => {
+    it('should return false for a token with wrong part count', () => {
       registry.registerInstance(validServiceInstance());
       const isValid = registry.validInstanceToken('invalid-token', 'test-instance-1');
       expect(isValid).toBe(false);
     });
 
     it('should return false for unknown instance', () => {
-      const isValid = registry.validInstanceToken('some-token', 'unknown-instance');
+      const isValid = registry.validInstanceToken('a.b.c.d', 'unknown-instance');
+      expect(isValid).toBe(false);
+    });
+
+    it('should return false when encodedId is not valid base64url', () => {
+      const isValid = registry.validInstanceToken('!!!.dGVzdA.dGVzdA.dGVzdA', 'test-instance-1');
+      expect(isValid).toBe(false);
+    });
+
+    it('should return false when decodedId does not match instanceId', () => {
+      const isValid = registry.validInstanceToken(
+        'dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.dGVzdA',
+        'wrong-instance'
+      );
+      expect(isValid).toBe(false);
+    });
+
+    it('should return false when HMAC signature is invalid', () => {
+      // Provide a 43-char signature (same length as SHA-256 base64url)
+      // but with wrong content so timingSafeEqual compares 2 same-length buffers
+      const isValid = registry.validInstanceToken(
+        'dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.' + 'a'.repeat(43),
+        'test-instance-1'
+      );
+      expect(isValid).toBe(false);
+    });
+
+    it('should return false when signature length differs from expected HMAC', () => {
+      const isValid = registry.validInstanceToken(
+        'dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.' + 'a'.repeat(100),
+        'test-instance-1'
+      );
       expect(isValid).toBe(false);
     });
   });
