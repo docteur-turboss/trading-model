@@ -48,7 +48,7 @@ describe('createAddressManager', () => {
       TLS_CERT_PATH: '/path/to/cert.pem',
       TLS_KEY_PATH: '/path/to/key.pem',
       TLS_CA_PATH: '/path/to/ca.pem',
-      DNS_NAME_MAP: '{"discovery-service":"discovery-server"}',
+      DNS_NAME_MAP: { "discovery-service": "discovery-server" },
     } as any;
 
     const am = createAddressManager(env);

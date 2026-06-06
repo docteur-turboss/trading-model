@@ -31,6 +31,26 @@ export const AddressManagerEnvSchema = z.object({
   MESSAGE_BUS_INIT_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
   MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
   MESSAGE_CALLBACK_PATH: z.string().min(1).default('message'),
+
+  /**
+   * Optional JSON mapping from logical service names to deployment-specific DNS names.
+   * Parsed safely — invalid JSON or non-object values fall back to `{}`.
+   * @example '{"discovery-service":"discovery-server","message-delivery-service":"message-manager"}'
+   */
+  DNS_NAME_MAP: z
+    .string()
+    .optional()
+    .default('{}')
+    .transform((val) => {
+      try {
+        const parsed = JSON.parse(val);
+        return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+          ? (parsed as Record<string, string>)
+          : {};
+      } catch {
+        return {};
+      }
+    }),
 });
 
 /** Inferred type for validated address manager environment variables. */
