@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals';
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
-import { DeadLetterError, NackError } from '@trading-model/common/utils/errors';
+import { DeadLetterError } from '@trading-model/common/utils/errors';
 import { Subscription } from '../../../../src/messaging/core/subscription';
 import { DqlRepository } from '../../../../src/messaging/core/dlq-repository';
 import { createMockHttpClient } from '../../../helpers/broker.helper';
@@ -115,8 +115,8 @@ describe('Subscription', () => {
       mockDateNow.mockRestore();
     });
 
-    it('should not retry on NackError with AT_MOST_ONCE mode', async () => {
-      mockHttpClient.post.mockRejectedValue(new NackError('Consumer nack'));
+    it('should not retry with AT_MOST_ONCE mode regardless of error type', async () => {
+      mockHttpClient.post.mockRejectedValue(new Error('Consumer error'));
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },
@@ -124,6 +124,21 @@ describe('Subscription', () => {
       await subscription.dispatch(mockHttpClient as never, message);
 
       expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('should send to DLQ on DeadLetterError even in AT_MOST_ONCE mode', async () => {
+      mockHttpClient.post.mockRejectedValue(new DeadLetterError('Unrecoverable'));
+
+      const message = createMockMessage('payload', {
+        delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },
+      });
+      await subscription.dispatch(mockHttpClient as never, message);
+
+      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+
+      const content = readFileSync(dlqFilePath, 'utf-8').trim();
+      const entry = JSON.parse(content);
+      expect(entry.reason).toBe('Unrecoverable');
     });
 
     it('should stop after first attempt with EXACTLY_ONCE mode', async () => {
