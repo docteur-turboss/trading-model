@@ -39,6 +39,51 @@ describe('AddressManagerClient', () => {
   });
 
   describe('registerService', () => {
+    test('should handle undefined network interface entries gracefully', async () => {
+      (networkInterfaces as jest.Mock).mockReturnValueOnce({
+        wlan0: undefined,
+        eth0: [{ family: 'IPv4', internal: false, address: '192.168.1.100' }],
+      });
+
+      httpClient.post.mockResolvedValueOnce({} as ServiceRegistrationResponse);
+      await client.registerService();
+
+      expect(httpClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          ip: '192.168.1.100',
+        })
+      );
+    });
+
+    test('should fallback to 127.0.0.1 when no non-internal IPv4 interface exists', async () => {
+      (networkInterfaces as jest.Mock).mockReturnValueOnce({
+        lo: [{ family: 'IPv4', internal: true, address: '127.0.0.1' }],
+      });
+
+      const response: ServiceRegistrationResponse = {
+        ip: '127.0.0.1',
+        port: 8080,
+        instanceId: 'instance-1',
+        lastHeartbeat: Date.now(),
+        protocol: 'http',
+        registeredAt: Date.now(),
+        serviceName: 'abc-service',
+        token: 'service-token',
+        ttl: 30000,
+      };
+      httpClient.post.mockResolvedValueOnce(response);
+
+      const result = await client.registerService();
+
+      expect(httpClient.post).toHaveBeenCalledWith(expect.any(String), {
+        serviceName: config.serviceName,
+        port: config.servicePort,
+        ip: '127.0.0.1',
+      });
+      expect(result).toEqual(response);
+    });
+
     test('should call HttpClient.post with correct URL, payload, and headers', async () => {
       const response: ServiceRegistrationResponse = {
         ip: '192.168.1.100',

@@ -97,6 +97,29 @@ describe('ServiceDiscovery', () => {
     expect(cache.invalidate).not.toHaveBeenCalled();
   });
 
+  test('handles array response from AddressManager by taking first element', async () => {
+    cache.get.mockReturnValue(null);
+    httpClient.get.mockResolvedValueOnce([instance]);
+    healthChecker.isHealthy.mockResolvedValue(true);
+
+    const result = await discovery.findService(serviceName);
+
+    expect(result).toEqual(instance);
+    expect(cache.set).toHaveBeenCalledWith(serviceName, instance);
+  });
+
+  test('throws ServiceNotFoundError when AddressManager returns empty instances', async () => {
+    cache.get.mockReturnValue(null);
+    httpClient.get.mockResolvedValueOnce(null);
+
+    await expect(discovery.findService(serviceName)).rejects.toThrow(ServiceNotFoundError);
+    await expect(discovery.findService(serviceName)).rejects.toMatchObject({
+      message: 'Service "user-service" has no registered instances',
+    });
+
+    expect(cache.invalidate).not.toHaveBeenCalled();
+  });
+
   test('throws ServiceUnreachableError if fetched service is unhealthy', async () => {
     cache.get.mockReturnValue(null);
     httpClient.get.mockResolvedValueOnce(instance);
