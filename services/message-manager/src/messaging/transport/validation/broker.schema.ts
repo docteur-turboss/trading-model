@@ -44,10 +44,7 @@ const InstanceIdSchema = z.string().min(1);
  */
 const IdentifySchema = z.object({
   serviceName: z.enum(
-    Object.keys(ServiceInstanceName) as [
-      keyof typeof ServiceInstanceName,
-      ...(keyof typeof ServiceInstanceName)[],
-    ]
+    Object.values(ServiceInstanceName) as [ServiceInstanceName, ...ServiceInstanceName[]]
   ),
   instanceId: InstanceIdSchema,
 });

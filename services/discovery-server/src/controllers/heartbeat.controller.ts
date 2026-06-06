@@ -4,6 +4,7 @@ import { ResponseException } from '@trading-model/common/middleware/response-exc
 import { isNonEmptyString, isObject } from '@trading-model/common/validation/primitives';
 import { asHandler, validateInstanceToken } from './helpers';
 
+/** Extend a service instance's lease by recording a heartbeat. */
 export const heartbeat = asHandler(
   catchSync(async req => {
     if (!isObject(req.body)) {
@@ -28,6 +29,7 @@ export const heartbeat = asHandler(
   })
 );
 
+/** Issue a new authentication token for a service instance, invalidating the previous one. */
 export const rotateToken = asHandler(
   catchSync(async req => {
     if (!isObject(req.body)) throw ResponseException('Invalid request body').BadRequest();

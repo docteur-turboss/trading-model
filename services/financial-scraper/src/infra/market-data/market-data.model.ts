@@ -25,18 +25,22 @@ import { CandleEntity, OrderBookEntity, TickerEntity, TradeEntity } from './mark
 export const MarketDataModel = new (class {
   constructor() {}
 
+  /** Insert candle records into the database. */
   async insertCandles(data: CandleEntity[]): Promise<void> {
     await IinsertCandles(data);
   }
 
+  /** Insert trade records into the database. */
   async insertTrades(data: TradeEntity[]): Promise<void> {
     await IinsertTrades(data);
   }
 
+  /** Insert an order-book snapshot into the database. */
   async insertOrderBook(data: OrderBookEntity): Promise<void> {
     await IinsertOrderBook([data]);
   }
 
+  /** Insert 24-hour ticker records into the database. */
   async insertTicker(data: TickerEntity[]): Promise<void> {
     await IinsertTicker(data);
   }

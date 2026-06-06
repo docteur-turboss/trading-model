@@ -18,6 +18,7 @@ import {
   BinanceTradingDayTickerResponse,
 } from '../../types/binance.api';
 
+/** Normalize raw Binance API responses into internal market-data entities. */
 export class BinanceNormalizer {
   /**
    * Convertit le carnet d’ordres Binance en structure normalisée.

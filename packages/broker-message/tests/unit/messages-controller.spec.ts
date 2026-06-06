@@ -1,6 +1,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { MessageController } from '../../src/http/messages.controller';
 import { EventManager } from '../../src/client/event-manager-client';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -20,7 +21,7 @@ describe('MessageController', () => {
           topic: 'example.debug.create',
           eventType: 'DebugEvent',
           publisher: {
-            serviceName: 'DiscoveryService',
+            serviceName: ServiceInstanceName.DiscoveryService,
             instanceId: '550e8400-e29b-41d4-a716-446655440000',
           },
           schemaVersion: '1.0.0',
@@ -63,7 +64,7 @@ describe('MessageController', () => {
         topic: 'example.debug.create',
         eventType: 'DebugEvent',
         publisher: {
-          serviceName: 'DiscoveryService',
+          serviceName: ServiceInstanceName.DiscoveryService,
           instanceId: '550e8400-e29b-41d4-a716-446655440000',
         },
         schemaVersion: '1.0.0',
@@ -88,7 +89,7 @@ describe('MessageController', () => {
           topic: 'example.show.create',
           eventType: 'ShowEvent',
           publisher: {
-            serviceName: 'DiscoveryService',
+            serviceName: ServiceInstanceName.DiscoveryService,
             instanceId: '550e8400-e29b-41d4-a716-446655440000',
           },
           schemaVersion: '1.0.0',

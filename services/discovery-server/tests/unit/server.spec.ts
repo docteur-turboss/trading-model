@@ -44,10 +44,6 @@ describe('createServer', () => {
         cert: '/certs/cert.pem',
         ca: '/certs/ca.pem',
       },
-      rateLimit: {
-        windowMs: 15 * 60 * 1000,
-        limit: 100,
-      },
       routes: expect.any(Function),
     });
     expect(result).toBe(mockServer);

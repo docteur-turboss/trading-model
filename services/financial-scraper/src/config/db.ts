@@ -17,12 +17,12 @@ const pool: Pool = createPool({
 // --- Classe de connexion spécifique à notre projet ---
 // DBConnection hérite de MySqlConnection fournie par ts-sql-query.
 // On associe le pool au query runner MySql2 pour exécuter les requêtes.
+/** MySQL database connection backed by a pooled ts-sql-query runner. */
 export class DBConnection extends MySqlConnection<'DBConnection'> {
   constructor() {
     super(new MySql2PoolQueryRunner(pool));
   }
 }
 
-// --- Export brut du pool ---
-// Utile si l'on a besoin d'accéder directement au driver mysql2 (ex: migrations, opérations brutes).
+/** Shared MySQL connection pool for direct driver access (migrations, raw queries). */
 export const database = pool;

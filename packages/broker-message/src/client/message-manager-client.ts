@@ -7,8 +7,7 @@ import addressManagerClient from '@trading-model/address-manager';
 import { MessageManagerConfig } from '../shared/types/config';
 import { MessageMetadata } from '../shared/types/message';
 
-/**
- */
+/** Client for interacting with the Message Delivery Service via HTTP. */
 export class MessageManagerClient {
   /**
    */
@@ -18,8 +17,7 @@ export class MessageManagerClient {
     private readonly addressManagerClient: addressManagerClient
   ) {}
 
-  /**
-   */
+  /** Subscribes to a single topic via the Message Delivery Service. */
   private async SubscribesToASingleTopic(topic: EventEnumMap, targetUrl: string): Promise<void> {
     const payload: SubscribesTopicsPayload = {
       callbackPath: this.config.callbackPath,
@@ -37,8 +35,7 @@ export class MessageManagerClient {
     }
   }
 
-  /**
-   */
+  /** Unsubscribes from a single topic via the Message Delivery Service. */
   private async UnSubscribesToASingleTopic(topic: EventEnumMap, targetUrl: string): Promise<void> {
     const payload: UnSubscribesTopicsPayload = {
       instanceId: this.config.instanceId,
@@ -53,9 +50,9 @@ export class MessageManagerClient {
   }
 
   /**
+   * Subscribes to the given event topics.
    *
-   * @param topics
-   * @returns
+   * @param topics - The topics to subscribe to
    */
   async SubscribeToTopics(topics: EventEnumMap[]): Promise<void> {
     try {
@@ -76,9 +73,9 @@ export class MessageManagerClient {
   }
 
   /**
+   * Unsubscribes from the given event topics.
    *
-   * @param topics
-   * @returns
+   * @param topics - The topics to unsubscribe from
    */
   async UnSubscribeToTopic(topics: EventEnumMap[]): Promise<void> {
     try {
@@ -101,6 +98,12 @@ export class MessageManagerClient {
     }
   }
 
+  /**
+   * Publishes a message to the broker for asynchronous delivery.
+   *
+   * @param payload - The message payload
+   * @param metadata - Routing and delivery metadata
+   */
   async publishAsyncMessage<T = unknown>(payload: T, metadata: MessageMetadata): Promise<void> {
     try {
       const target = await this.addressManagerClient.findService(
@@ -124,8 +127,15 @@ export class MessageManagerClient {
     }
   }
 
+  /**
+   * Sends a message directly to a specific service.
+   *
+   * @param service - The target service to receive the message
+   * @param payload - The message payload
+   * @param metadata - Routing and delivery metadata
+   */
   async publishDirectMessage<T = unknown>(
-    service: keyof typeof ServiceInstanceName,
+    service: ServiceInstanceName,
     payload: T,
     metadata: MessageMetadata
   ): Promise<void> {

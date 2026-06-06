@@ -8,6 +8,7 @@ import { ServiceInstanceName } from '@trading-model/common/config/services.types
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { z } from 'zod';
 
+/** Validates the security metadata context (auth and signature). */
 export const SecurityMetadataContextPredicate = z
   .object({
     authContext: z
@@ -30,6 +31,7 @@ export const SecurityMetadataContextPredicate = z
   })
   .optional();
 
+/** Validates the delivery mode metadata (mode, ttl, deduplication). */
 export const DelivryMetadataModePredicate = z
   .object({
     mode: z.enum(Object.values(DeliveryMode), {
@@ -49,6 +51,7 @@ export const DelivryMetadataModePredicate = z
   })
   .optional();
 
+/** Validates the routing metadata context (partition key, priority). */
 export const RoutingMetadataContextPredicate = z
   .object({
     partitionKey: z
@@ -61,16 +64,18 @@ export const RoutingMetadataContextPredicate = z
   })
   .optional();
 
+/** Validates the publisher identity metadata. */
 export const PublisherMetadataContextPredicate = z.object({
   serviceName: z.enum(
-    Object.keys(ServiceInstanceName) as [string, ...string[]],
-    `publisher.serviceName value is invalid. Expected one of: ${Object.keys(ServiceInstanceName).join(', ')}.`
+    Object.values(ServiceInstanceName) as [string, ...string[]],
+    `publisher.serviceName value is invalid. Expected one of: ${Object.values(ServiceInstanceName).join(', ')}.`
   ),
   instanceId: z.uuid(
     'publisher.instanceId must be a string as a UUID identifying the service instance'
   ),
 });
 
+/** Validates a UUID-formatted identifier. */
 export const IdsMetadataPredicate = z
   .uuid({
     error: iss =>
@@ -78,13 +83,14 @@ export const IdsMetadataPredicate = z
   })
   .optional();
 
+/** Validates the schema version literal ('1.0.0'). */
 export const SchemaMetadataVersionPredicate = z
   .literal(['1.0.0'], {
     error: iss => `schemaVersion value '${iss.input}' is invalid. Expected exactly '1.0.0'.`,
   })
   .optional();
 
-/* <bounded-context>.<aggregate>.<action> */
+/** Validates a topic string in the format '<bounded-context>.<aggregate>.<action>'. */
 export const TopicMetadataPredicate = z
   .string(
     "Invalid topic format. Expected pattern '<bounded-context>.<aggregate>.<action>' in lowercase (e.g. 'billing.invoice.created')."
@@ -92,10 +98,12 @@ export const TopicMetadataPredicate = z
   .toLowerCase()
   .regex(/^[a-z]+\.[a-z]+\.[a-z]+$/);
 
+/** Validates the event type string. */
 export const EventTypeMetadataPredicate = z.string(
   'eventType must be a string describing the event type.'
 );
 
+/** Validates the complete message metadata object. */
 export const MessageMetadataSchema = z.object({
   topic: TopicMetadataPredicate,
   causationId: IdsMetadataPredicate,
@@ -241,6 +249,7 @@ const EventValidators: ZodEventMap<EventMap> = {
   }),
 };
 
+/** Validates the message payload as a discriminated union by event type. */
 export const MessagePayloadSchema = z.discriminatedUnion(
   'type',
   Object.entries(EventValidators).map(([type, schema]) =>
@@ -256,4 +265,5 @@ export const MessagePayloadSchema = z.discriminatedUnion(
   ]
 );
 
+/** Inferred type from the MessagePayloadSchema. */
 export type MessagePayload = z.infer<typeof MessagePayloadSchema>;

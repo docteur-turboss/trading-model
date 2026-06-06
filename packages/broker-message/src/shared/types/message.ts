@@ -14,7 +14,7 @@ import { ServiceInstanceName } from '@trading-model/common/config/services.types
  */
 export interface IdentifyType {
   /** Logical name of the emitting service */
-  serviceName: keyof typeof ServiceInstanceName;
+  serviceName: ServiceInstanceName;
 
   /** Unique instance identifier (pod/container) */
   instanceId: string;

@@ -1,5 +1,6 @@
 import AddressManager from './index';
 
+/** Environment variables required to configure and create an Address Manager instance. */
 export interface AddressManagerEnv {
   ADDRESS_MANAGER_URL: string;
   CACHE_TTL_MS: number;
@@ -14,6 +15,7 @@ export interface AddressManagerEnv {
   TLS_CA_PATH: string;
 }
 
+/** Creates and returns a fully configured Address Manager instance from environment variables. */
 export function createAddressManager(env: AddressManagerEnv) {
   return new AddressManager({
     addressManagerUrl: env.ADDRESS_MANAGER_URL,

@@ -1,15 +1,7 @@
 import { z } from 'zod';
+import { BaseEnvSchema, validateEnv } from '@trading-model/common/validation/env';
 
-const TraderTrainerEnvSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(3000),
-
-  TLS_KEY_PATH: z.string().min(1),
-  TLS_CERT_PATH: z.string().min(1),
-  TLS_CA_PATH: z.string().min(1),
-
-  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
-
+const TraderTrainerEnvSchema = BaseEnvSchema.extend({
   APP_NAME: z.string().min(1),
   APP_VERSION: z.string().default('1.0.0'),
   SERVICE_NAME: z.string().min(1),
@@ -35,14 +27,4 @@ const TraderTrainerEnvSchema = z.object({
 
 export type Env = z.infer<typeof TraderTrainerEnvSchema>;
 
-function loadEnv(): Env {
-  const parsed = TraderTrainerEnvSchema.safeParse(process.env);
-  if (!parsed.success) {
-    const errors = parsed.error instanceof Error ? parsed.error.message : String(parsed.error);
-    console.error('Invalid environment configuration', { errors });
-    process.exit(1);
-  }
-  return parsed.data;
-}
-
-export const env = loadEnv();
+export const env = validateEnv(TraderTrainerEnvSchema);

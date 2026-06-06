@@ -1,5 +1,6 @@
 import { ServiceInstance } from '../client/type';
 import { HttpClient } from '@trading-model/common/config/http-client';
+import { PING_PATH } from '@trading-model/common/server/constants';
 
 /**
  * ServiceHealthChecker
@@ -81,7 +82,7 @@ export class ServiceHealthChecker {
    */
   private buildPingUrl(instance: ServiceInstance): string {
     const hostname = this.getServiceDnsName(instance.serviceName);
-    return `http://${hostname}:${instance.port}/ping`;
+    return `http://${hostname}:${instance.port}${PING_PATH}`;
   }
 
   /**

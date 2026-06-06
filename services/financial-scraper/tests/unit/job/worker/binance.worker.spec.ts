@@ -44,7 +44,7 @@ jest.mock('@trading-model/broker-message', () => ({
 
 jest.mock('../../../../src/config/env', () => ({
   env: {
-    SERVICE_NAME: 'financial-scraper-service',
+    SERVICE_NAME: 'financial-scrapper-service',
     INSTANCE_ID: 'test-instance-1',
   },
 }));

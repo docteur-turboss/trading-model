@@ -319,6 +319,7 @@ export class NeuralNetwork {
     };
   }
 
+  /** Run a forward pass and return only the output vector. */
   public predict(input: Float32Array): Float32Array {
     const context = this.forward(input);
     return context.output;

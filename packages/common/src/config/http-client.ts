@@ -12,20 +12,26 @@ export class HttpClient {
   private readonly cert?: string;
   private readonly key?: string;
 
+  /**
+   * @param tlsConfig - Optional paths to TLS certificate files loaded at construction.
+   */
   constructor(tlsConfig?: { ca?: string; cert?: string; key?: string }) {
     if (tlsConfig?.ca) this.ca = fs.readFileSync(tlsConfig.ca, 'utf8');
     if (tlsConfig?.cert) this.cert = fs.readFileSync(tlsConfig.cert, 'utf8');
     if (tlsConfig?.key) this.key = fs.readFileSync(tlsConfig.key, 'utf8');
   }
 
+  /** Sends a GET request and returns the parsed response. */
   async get<T = void>(url: string, options?: HttpRequestOptions): Promise<T> {
     return this.request<T>('GET', url, undefined, options);
   }
 
+  /** Sends a POST request with an optional JSON body and returns the parsed response. */
   async post<T = void>(url: string, body?: unknown, options?: HttpRequestOptions): Promise<T> {
     return this.request<T>('POST', url, body, options);
   }
 
+  /** Sends a DELETE request and returns the parsed response. */
   async delete<T = void>(url: string, body?: unknown, options?: HttpRequestOptions): Promise<T> {
     return this.request<T>('DELETE', url, body, options);
   }
@@ -104,13 +110,19 @@ export class HttpClient {
 
 type HttpMethod = 'GET' | 'POST' | 'DELETE';
 
+/** Optional parameters for an HTTP request. */
 export interface HttpRequestOptions {
   timeoutMs?: number;
   headers?: Record<string, string>;
 }
 
+/** Thrown when an HTTP response carries a non-2xx status code. */
 export class HttpClientError extends Error {
   public readonly statusCode?: number;
+  /**
+   * @param message - Human-readable error description.
+   * @param statusCode - The HTTP status code that caused the error.
+   */
   constructor(message: string, statusCode?: number) {
     super(message);
     this.name = 'HttpClientError';
@@ -119,8 +131,13 @@ export class HttpClientError extends Error {
   }
 }
 
+/** Thrown when an HTTP request exceeds the configured timeout. */
 export class HttpClientTimeoutError extends Error {
   public readonly timeoutMs: number;
+  /**
+   * @param message - Human-readable error description.
+   * @param timeoutMs - The timeout duration in milliseconds.
+   */
   constructor(message: string, timeoutMs: number) {
     super(message);
     this.name = 'HttpClientTimeoutError';
