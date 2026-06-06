@@ -23,32 +23,41 @@ export class HttpClient {
     if (tlsConfig?.key) this.key = fs.readFileSync(tlsConfig.key, 'utf8');
   }
 
-  /** Sends a GET request and returns the parsed response. */
+  /**
+   * Sends a GET request and returns the parsed response.
+   * Returns `undefined` for 204 No Content responses.
+   */
   async get<T = void>(
     url: string,
     options?: HttpRequestOptions,
     schema?: z.ZodType<T>
-  ): Promise<T> {
+  ): Promise<T | undefined> {
     return this.request<T>('GET', url, undefined, options, schema);
   }
 
-  /** Sends a POST request with an optional JSON body and returns the parsed response. */
+  /**
+   * Sends a POST request with an optional JSON body and returns the parsed response.
+   * Returns `undefined` for 204 No Content responses.
+   */
   async post<T = void>(
     url: string,
     body?: unknown,
     options?: HttpRequestOptions,
     schema?: z.ZodType<T>
-  ): Promise<T> {
+  ): Promise<T | undefined> {
     return this.request<T>('POST', url, body, options, schema);
   }
 
-  /** Sends a DELETE request and returns the parsed response. */
+  /**
+   * Sends a DELETE request and returns the parsed response.
+   * Returns `undefined` for 204 No Content responses.
+   */
   async delete<T = void>(
     url: string,
     body?: unknown,
     options?: HttpRequestOptions,
     schema?: z.ZodType<T>
-  ): Promise<T> {
+  ): Promise<T | undefined> {
     return this.request<T>('DELETE', url, body, options, schema);
   }
 
@@ -58,7 +67,7 @@ export class HttpClient {
     body?: unknown,
     options?: HttpRequestOptions,
     schema?: z.ZodType<T>
-  ): Promise<T> {
+  ): Promise<T | undefined> {
     const url = new URL(urlStr);
 
     const requestOptions: https.RequestOptions = {
@@ -76,7 +85,7 @@ export class HttpClient {
       rejectUnauthorized: true,
     };
 
-    return new Promise<T>((resolve, reject) => {
+    return new Promise<T | undefined>((resolve, reject) => {
       const req = https.request(requestOptions, res => {
         let data = '';
 
@@ -88,7 +97,7 @@ export class HttpClient {
             );
           }
 
-          if (res.statusCode === 204) return resolve(undefined as T);
+          if (res.statusCode === 204) return resolve(undefined);
 
           const contentType = res.headers['content-type'] || '';
 
