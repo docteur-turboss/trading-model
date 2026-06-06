@@ -4,14 +4,14 @@
 #  docker build -t trading-model/trader-trainer -f services/trader-trainer/Dockerfile .
 # =============================================================================
 
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/ packages/
 COPY services/trader-trainer/package.json services/trader-trainer/
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/ packages/
@@ -21,9 +21,9 @@ RUN npm run build:common
 RUN npm run build:address-manager
 RUN npm run build:broker-message
 WORKDIR /app/services/trader-trainer
-RUN npx tsc
+RUN npm run build
 
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 WORKDIR /app
 RUN apk add --no-cache tini curl
 
