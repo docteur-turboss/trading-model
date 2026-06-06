@@ -7,6 +7,7 @@ import {
 } from '../../../../src/messaging/transport/http.controller';
 import { Broker } from '../../../../src/messaging/core/broker';
 import { createMockDispatcher } from '../../../helpers/broker.helper';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
 jest.mock('@trading-model/common/middleware/catch-error', () => ({
   catchSync:
@@ -44,7 +45,7 @@ describe('HTTP Controller', () => {
           topic: 'test.topic',
           callbackPath: 'message/callback',
           consumerIdentity: {
-            serviceName: 'FinancialScrapperService',
+            serviceName: ServiceInstanceName.FinancialScrapperService,
             instanceId: 'instance-1',
           },
         },
@@ -106,7 +107,7 @@ describe('HTTP Controller', () => {
             eventType: 'TestEvent',
             topic: 'test.topic',
             publisher: {
-              serviceName: 'FinancialScrapperService',
+              serviceName: ServiceInstanceName.FinancialScrapperService,
               instanceId: 'instance-1',
             },
           },

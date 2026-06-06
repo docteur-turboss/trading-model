@@ -40,6 +40,7 @@ export function genomicDistance(a: Genome, b: Genome): number {
 //  2. Speciation
 // ================================================================
 
+/** A species cluster: a representative genome and the indices of all its members. */
 export interface Species {
   /** Index into original population array of the representative genome */
   representativeIndex: number;
@@ -96,6 +97,7 @@ export function speciate(population: Genome[], threshold = 0.3): Species[] {
 //  3. Diversity metrics
 // ================================================================
 
+/** Population-level diversity metrics: pairwise distance, species entropy, and dominance. */
 export interface DiversityMetrics {
   /** Mean pairwise genomic distance over a sample of pairs */
   meanPairwiseDistance: number;

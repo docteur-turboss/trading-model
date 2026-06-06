@@ -1,3 +1,4 @@
+/** Creates a pseudo-random number generator seeded with the given value. */
 export function makePRNG(seed: number): () => number {
   let s = seed >>> 0;
   return () => {

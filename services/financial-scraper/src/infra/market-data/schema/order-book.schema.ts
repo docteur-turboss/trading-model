@@ -126,10 +126,12 @@ const MarkerOrderBooks = new (class TMarketOrderBooks {
   }
 })();
 
+/** Persist order-book snapshots to in-memory storage. */
 export const insertOrderBook = async (data: OrderBookEntity[]): Promise<void> => {
   MarkerOrderBooks.insertInto(data);
 };
 
+/** Query helpers for in-memory order-book storage, indexed by symbol, source, market, id, and timestamp range. */
 export const selectOrderBookBy = {
   symbol: async (symbol: string) => {
     return MarkerOrderBooks.getBySymbol(symbol);

@@ -36,6 +36,7 @@ const select = {
   closeTimestamp: tMarketTicker.closeTimestamp,
 };
 
+/** Insert 24-hour ticker records into the market_tickers table. */
 export const insertTicker = async (data: TickerEntity[]): Promise<void> => {
   if (!data.length) return;
 
@@ -58,6 +59,7 @@ export const insertTicker = async (data: TickerEntity[]): Promise<void> => {
     .executeInsert();
 };
 
+/** Query helpers for the market_tickers table, indexed by symbol, timestamp, and source. */
 export const selectTickerBy = {
   symbol: async (symbol: string) => {
     return await new DBConnection()

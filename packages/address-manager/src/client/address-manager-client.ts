@@ -30,19 +30,7 @@ export class AddressManagerClient {
     private readonly config: AddressManagerConfig
   ) {}
 
-  /**
-   * Registers the current service with the Address Manager.
-   *
-   * - Called once during the bootstrap of the module.
-   *
-   * @returns Promise resolving to the service registration response.
-   * @throws AddressManagerError if registration fails.
-   *
-   * @example
-   * ```ts
-   * const response = await client.registerService();
-   * ```
-   */
+  /** Resolves the local non-internal IPv4 address of this machine. Falls back to 127.0.0.1. */
   private static getLocalIP(): string {
     const nets = networkInterfaces();
     for (const name of Object.keys(nets)) {
@@ -53,6 +41,14 @@ export class AddressManagerClient {
     return '127.0.0.1';
   }
 
+  /**
+   * Registers the current service with the Address Manager.
+   *
+   * Called once during bootstrap. Sends the service name, port, and local IP.
+   *
+   * @returns The registration response containing the instance details and token.
+   * @throws AddressManagerError if the registration request fails.
+   */
   async registerService(): Promise<ServiceRegistrationResponse> {
     const payload: RegisterServicePayload = {
       serviceName: this.config.serviceName,

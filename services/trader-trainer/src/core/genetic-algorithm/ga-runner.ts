@@ -87,6 +87,7 @@ export type BackendFactory = (g: DeepReadonly<LamarckGenome>) => RLBackend;
 // ----------------------------------------------------------------
 // TradingAgent → RLBackend adaptor
 // ----------------------------------------------------------------
+/** Build an RLBackend adaptor from a genome by creating a TradingAgent with the genome's architecture and hyperparameters. */
 export function makeTradingAgentBackend(g: DeepReadonly<LamarckGenome>): RLBackend {
   const dp = g.rl.discretePolicy;
   const rb = g.rl.replayBuffer;
@@ -696,6 +697,7 @@ async function pooledEval<T, R>(
 // ----------------------------------------------------------------
 // Main GA runner
 // ----------------------------------------------------------------
+/** Self-adaptive multi-objective genetic algorithm runner with NSGA-II, Lamarckian inheritance, and Pareto archiving. */
 export class GeneticAlgorithmRunner {
   private population: DeepReadonly<LamarckGenome>[] = [];
   private generation = 0;
@@ -708,6 +710,7 @@ export class GeneticAlgorithmRunner {
 
   constructor(private readonly cfg: GARunnerConfig) {}
 
+  /** Initialise the population from scratch (call once before `run()` or before the first `runGeneration()`). */
   public initialise(baseControl?: Partial<GAControlGenome>): void {
     const ctrl = deepFreeze({
       ...createDefaultGenome('base').gaControl,
@@ -732,6 +735,7 @@ export class GeneticAlgorithmRunner {
     this.archive = new ParetoArchive();
   }
 
+  /** Run one full generation: evaluate, rank, select, crossover, mutate, and produce offspring. */
   public async runGeneration(): Promise<GenerationContext> {
     const ctrl = this.population[0].gaControl;
     const rng = makePRNG(ctrl.mutationSeed + this.generation);
@@ -870,6 +874,7 @@ export class GeneticAlgorithmRunner {
     return ctx;
   }
 
+  /** Run the entire GA loop until a termination condition is met. Returns the best genome found. */
   public async run(): Promise<DeepReadonly<LamarckGenome>> {
     this.initialise(this.cfg.initialControl);
 
@@ -887,15 +892,19 @@ export class GeneticAlgorithmRunner {
     return this.archive.members[0] ?? this.bestGenome ?? this.population[0];
   }
 
+  /** Return the current population. */
   public getPopulation(): DeepReadonly<LamarckGenome>[] {
     return this.population;
   }
+  /** Return the best genome found so far, or null if none exists. */
   public getBestGenome(): DeepReadonly<LamarckGenome> | null {
     return this.bestGenome;
   }
+  /** Return the Pareto archive of non-dominated genomes. */
   public getArchive(): DeepReadonly<LamarckGenome>[] {
     return this.archive.members;
   }
+  /** Return the current generation number. */
   public getGeneration(): number {
     return this.generation;
   }

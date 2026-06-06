@@ -84,6 +84,7 @@ function getBackoffDelay(attempt: number): number {
  * AXIOS INSTANCE FACTORY
  * ----------------------------------------------------- */
 
+/** Create a configured Axios instance with rate-limiting and retry logic for the given API base URL. */
 export function createHttpClient(baseURL: string): AxiosInstance {
   const instance = axios.create({
     baseURL,
@@ -132,6 +133,7 @@ export function createHttpClient(baseURL: string): AxiosInstance {
  * PRE-BUILT CLIENTS (CAN ADD MORE LATER)
  * ----------------------------------------------------- */
 
+/** Pre-built HTTP clients for supported data sources (e.g. Binance). */
 export const httpClients = {
   binance: createHttpClient('https://api.binance.com'),
   // otherApi: createHttpClient("https://example.com/api"),

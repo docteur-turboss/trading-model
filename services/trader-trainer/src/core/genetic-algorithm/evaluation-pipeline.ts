@@ -21,6 +21,7 @@ import { DeepReadonly } from './shared-types';
 import { RunningStats, computeVariance, computeSharpe } from './utils';
 import { estimateComplexity, computeAdjustedFitness } from './complexity-estimator';
 
+/** Creates a fresh RL backend for a given genome (used as a factory per evaluation). */
 export type BackendFactory = (g: DeepReadonly<LamarckGenome>) => RLBackend;
 
 type GenomeFitnessMeta = {

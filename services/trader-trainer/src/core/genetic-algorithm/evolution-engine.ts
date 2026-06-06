@@ -5,10 +5,7 @@
 
 import type { Genome } from './genome-types';
 
-/**
- * Per-weight uniform crossover using separate RNG.
- * Produces a new Float32Array with weights alternating from parents.
- */
+/** Per-weight uniform crossover using separate RNG to produce a child weight vector. */
 export function crossoverWeights(
   wa: Float32Array,
   wb: Float32Array,
@@ -22,9 +19,7 @@ export function crossoverWeights(
   return out;
 }
 
-/**
- * Gaussian weight mutation using Box-Muller transform.
- */
+/** Apply Gaussian weight mutation (Box-Muller) to each element with probability `rate`. */
 export function mutateWeights(
   w: Float32Array,
   rate: number,
@@ -42,10 +37,7 @@ export function mutateWeights(
   return out;
 }
 
-/**
- * Select a parent from the population based on selection type.
- * Supported: "tournament", "roulette", "rank"
- */
+/** Select a parent from the population using the given selection strategy. */
 export function selectParent(
   population: Genome[],
   selectionType: string,

@@ -7,19 +7,23 @@ import https from 'node:https';
 import path from 'node:path';
 import helmet from 'helmet';
 import fs from 'node:fs';
+import { PING_PATH } from './constants';
 
+/** Filesystem paths to TLS certificate files. */
 export interface TlsPaths {
   key: string;
   cert: string;
   ca: string;
 }
 
+/** Configuration for the rate-limiting middleware. */
 export interface RateLimitConfig {
   windowMs: number;
   limit: number;
   message?: string;
 }
 
+/** Options for creating an mTLS-secured HTTPS server. */
 export interface SecureServerOptions {
   port: number;
   tls: TlsPaths;
@@ -28,10 +32,12 @@ export interface SecureServerOptions {
   trustProxy?: boolean;
 }
 
+/** Minimal abstraction over a running HTTP server. */
 export interface HttpServer {
   close: () => Promise<void>;
 }
 
+/** Creates and starts an HTTPS server with mTLS, rate-limiting, and Helmet security. */
 export function createSecureServer(options: SecureServerOptions): HttpServer {
   const app = express();
 
@@ -53,7 +59,7 @@ export function createSecureServer(options: SecureServerOptions): HttpServer {
 
   app.use(limiter);
 
-  app.get('/ping', (_req, res) => {
+  app.get(PING_PATH, (_req, res) => {
     res.json({ status: 'ok' });
   });
 

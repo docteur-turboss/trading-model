@@ -7,6 +7,7 @@ import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { EventMap } from '@trading-model/common/config/event.types';
 import { EventManager } from '../client/event-manager-client';
 
+/** Handles incoming broker messages and dispatches them to registered event listeners. */
 export const MessageController = catchSync(async req => {
   const metadata = req.body.metadata;
   const payload = req.body.payload;
