@@ -31,8 +31,6 @@ import { BinanceNormalizer } from '../../clients/binance/normalizer';
 import { env } from '../../config/env';
 import { MessageManager } from '../../config/message-manager';
 
-
-
 /** Configuration options for a single BinanceWorker execution against one symbol. */
 export interface BinanceWorkerOptions {
   symbol: string;
@@ -53,8 +51,6 @@ export interface BinanceWorkerResult {
   fetchedAt: number;
 }
 
-const BuilderMetadata = new helper.MetadataBuilder();
-
 export class BinanceWorker {
   constructor(private readonly options: BinanceWorkerOptions) {}
 
@@ -72,6 +68,7 @@ export class BinanceWorker {
   public async run(): Promise<BinanceWorkerResult> {
     const { v4 } = await import('uuid');
     const uuid = v4;
+    const BuilderMetadata = new helper.MetadataBuilder();
 
     const {
       symbol,
