@@ -1,3 +1,4 @@
+import { networkInterfaces } from 'os';
 import { TokenManager } from '../../src/client/token-manager';
 import { ServiceRegistrationResponse } from '../../src/client/type';
 import { AddressManagerClient } from '../../src/client/address-manager-client';
@@ -6,6 +7,8 @@ import { AddressManagerConfig } from '../../src/config/address-manager-config';
 import { AddressManagerError } from '@trading-model/common/utils/errors';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
+jest.mock('os');
+
 describe('AddressManagerClient', () => {
   let httpClient: jest.Mocked<HttpClient>;
   let tokenManager: jest.Mocked<TokenManager>;
@@ -13,6 +16,10 @@ describe('AddressManagerClient', () => {
   let client: AddressManagerClient;
 
   beforeEach(() => {
+    (networkInterfaces as jest.Mock).mockReturnValue({
+      eth0: [{ family: 'IPv4', internal: false, address: '192.168.1.100' }],
+    });
+
     httpClient = { get: jest.fn(), post: jest.fn() } as unknown as jest.Mocked<HttpClient>;
     tokenManager = { getToken: jest.fn() } as unknown as jest.Mocked<TokenManager>;
     tokenManager.getToken.mockReturnValue('mock-token');
@@ -21,6 +28,7 @@ describe('AddressManagerClient', () => {
       addressManagerUrl: 'http://localhost:8443',
       serviceName: 'test-service',
       servicePort: 8080,
+      instanceId: 'test-instance',
       tokenRefreshIntervalMs: 300_000,
       ttlRefreshIntervalMs: 300_000,
       servicePingTimeoutMs: 2000,
@@ -33,7 +41,7 @@ describe('AddressManagerClient', () => {
   describe('registerService', () => {
     test('should call HttpClient.post with correct URL, payload, and headers', async () => {
       const response: ServiceRegistrationResponse = {
-        ip: '127.0.0.1',
+        ip: '192.168.1.100',
         port: 8080,
         instanceId: 'instance-1',
         lastHeartbeat: Date.now(),
@@ -48,10 +56,11 @@ describe('AddressManagerClient', () => {
       const result = await client.registerService();
 
       expect(result).toEqual(response);
-      expect(httpClient.post).toHaveBeenCalledWith(
-        `${config.addressManagerUrl}/services/register`,
-        { name: config.serviceName, port: config.servicePort }
-      );
+      expect(httpClient.post).toHaveBeenCalledWith(`${config.addressManagerUrl}/register`, {
+        serviceName: config.serviceName,
+        port: config.servicePort,
+        ip: '192.168.1.100',
+      });
     });
 
     test('should throw AddressManagerError if HttpClient.post fails', async () => {
@@ -73,9 +82,9 @@ describe('AddressManagerClient', () => {
       await client.refreshTTL();
 
       expect(httpClient.post).toHaveBeenCalledWith(
-        `${config.addressManagerUrl}/services/ttl/refresh`,
-        { serviceName: config.serviceName },
-        { headers: { Authorization: 'Bearer mock-token' } }
+        `${config.addressManagerUrl}/heartbeat`,
+        { serviceName: config.serviceName, instanceId: config.instanceId },
+        { headers: { 'x-instance-token': 'mock-token' } }
       );
     });
 

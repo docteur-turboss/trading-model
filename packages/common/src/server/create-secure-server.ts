@@ -38,7 +38,7 @@ export function createSecureServer(options: SecureServerOptions): HttpServer {
   app.use(helmet());
 
   if (options.trustProxy !== false) {
-    app.set('trust proxy', true);
+    app.set('trust proxy', 1);
   }
 
   app.use(express.json({ limit: '1mb' }));

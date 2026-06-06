@@ -84,6 +84,11 @@ export class TokenManager {
         {
           instanceId: this.config.instanceId,
           serviceName: this.config.serviceName,
+        },
+        {
+          headers: {
+            'x-instance-token': this.getToken(),
+          },
         }
       );
 

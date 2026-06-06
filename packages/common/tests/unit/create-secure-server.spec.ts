@@ -92,7 +92,7 @@ describe('createSecureServer', () => {
     mockApp.set.mockClear();
 
     createSecureServer({ ...defaultOptions, trustProxy: true });
-    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', true);
+    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', 1);
   });
 
   it('should not set trust proxy when trustProxy is false', () => {
