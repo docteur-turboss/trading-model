@@ -43,7 +43,6 @@ describe('app/server', () => {
           cert: '/etc/tls/cert.pem',
           ca: '/etc/tls/ca.pem',
         }),
-        rateLimit: { windowMs: 900000, limit: 100 },
       })
     );
   });

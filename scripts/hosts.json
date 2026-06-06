@@ -33,7 +33,7 @@
       "discovery-server": "https://localhost:8443/ping",
       "message-manager": "https://localhost:8444/health",
       "financial-scraper": "https://localhost:8445/health",
-      "trader-trainer": "https://localhost:8446/health"
+      "trader-trainer": "https://localhost:8446/training-status"
     }
   }
 }

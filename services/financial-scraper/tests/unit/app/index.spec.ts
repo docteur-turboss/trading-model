@@ -20,7 +20,7 @@ jest.mock('config/env', () => ({
     LOG_LEVEL: 'debug',
     APP_NAME: 'financial-scraper',
     APP_VERSION: '1.0.0',
-    SERVICE_NAME: 'financial-scraper-service',
+    SERVICE_NAME: 'financial-scrapper-service',
     INSTANCE_ID: 'instance-1',
     CACHE_TTL_MS: '30000',
     SERVICE_PING_TIMEOUT_MS: '2000',
