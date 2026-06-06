@@ -37,6 +37,7 @@ describe('TokenManager', () => {
     test('should return the token after successful refresh', async () => {
       const mockToken = 'abc123';
       httpClient.post.mockResolvedValueOnce({ token: mockToken });
+      manager.setToken('initial-token');
 
       await manager.refreshToken();
 
@@ -56,19 +57,27 @@ describe('TokenManager', () => {
     test('should call HttpClient.post with correct URL and payload', async () => {
       const mockToken = 'rotated-token';
       httpClient.post.mockResolvedValueOnce({ token: mockToken });
+      manager.setToken('initial-token');
 
       await manager.refreshToken();
 
-      expect(httpClient.post).toHaveBeenCalledWith(`${config.addressManagerUrl}/token/rotate`, {
-        instanceId: config.instanceId,
-        serviceName: config.serviceName,
-      });
+      expect(httpClient.post).toHaveBeenCalledWith(
+        `${config.addressManagerUrl}/token/rotate`,
+        {
+          instanceId: config.instanceId,
+          serviceName: config.serviceName,
+        },
+        {
+          headers: { 'x-instance-token': 'initial-token' },
+        }
+      );
 
       expect(manager.getToken()).toBe(mockToken);
     });
 
     test('should throw AuthenticationError if response is missing token', async () => {
       httpClient.post.mockResolvedValueOnce({});
+      manager.setToken('initial-token');
 
       await expect(manager.refreshToken()).rejects.toThrow(AuthenticationError);
       await expect(manager.refreshToken()).rejects.toThrow(
@@ -79,9 +88,11 @@ describe('TokenManager', () => {
     test('should throw AuthenticationError if HttpClient.post throws', async () => {
       const error = new Error('Network failure');
       httpClient.post.mockRejectedValueOnce(error);
+      manager.setToken('initial-token');
       await expect(manager.refreshToken()).rejects.toThrow(AuthenticationError);
 
       httpClient.post.mockRejectedValueOnce(error);
+      manager.setToken('initial-token');
       await expect(manager.refreshToken()).rejects.toMatchObject({
         message: 'Failed to refresh authentication token',
       });

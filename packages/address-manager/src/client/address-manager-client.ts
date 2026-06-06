@@ -1,3 +1,4 @@
+import { networkInterfaces } from 'os';
 import { RegisterServicePayload, ServiceRegistrationResponse } from './type';
 import { AddressManagerError } from '@trading-model/common/utils/errors';
 import { AddressManagerConfig } from '../config/address-manager-config';
@@ -42,15 +43,26 @@ export class AddressManagerClient {
    * const response = await client.registerService();
    * ```
    */
+  private static getLocalIP(): string {
+    const nets = networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] ?? []) {
+        if (net.family === 'IPv4' && !net.internal) return net.address;
+      }
+    }
+    return '127.0.0.1';
+  }
+
   async registerService(): Promise<ServiceRegistrationResponse> {
     const payload: RegisterServicePayload = {
-      name: this.config.serviceName,
+      serviceName: this.config.serviceName,
       port: this.config.servicePort,
+      ip: AddressManagerClient.getLocalIP(),
     };
 
     try {
       return await this.httpClient.post<ServiceRegistrationResponse>(
-        `${this.config.addressManagerUrl}/services/register`,
+        `${this.config.addressManagerUrl}/register`,
         payload
       );
     } catch (error) {
@@ -76,13 +88,14 @@ export class AddressManagerClient {
 
     try {
       await this.httpClient.post(
-        `${this.config.addressManagerUrl}/services/ttl/refresh`,
+        `${this.config.addressManagerUrl}/heartbeat`,
         {
           serviceName: this.config.serviceName,
+          instanceId: this.config.instanceId,
         },
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            'x-instance-token': token,
           },
         }
       );

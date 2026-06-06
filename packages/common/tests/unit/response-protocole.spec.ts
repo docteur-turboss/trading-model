@@ -18,7 +18,9 @@ describe('ResponseProtocole', () => {
     req = { originalUrl: '/test', method: 'GET', ip: '127.0.0.1' };
     res = {
       status: jest.fn().mockReturnThis(),
+      type: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis(),
     };
     next = jest.fn();
   });
@@ -57,7 +59,7 @@ describe('ResponseProtocole', () => {
     const err = { status: 418, data: 'teapot' };
     ResponseProtocole(err as any, req, res, next);
     expect(res.status).toHaveBeenCalledWith(418);
-    expect(res.json).toHaveBeenCalledWith('teapot');
+    expect(res.send).toHaveBeenCalledWith('teapot');
   });
 
   it('should call next() after sending response', () => {

@@ -34,7 +34,9 @@ describe('ServiceHealthChecker', () => {
     const result = await checker.isHealthy(instance);
 
     expect(result).toBe(true);
-    expect(httpClient.get).toHaveBeenCalledWith('http://127.0.0.1:8080/ping', { timeoutMs: 2000 });
+    expect(httpClient.get).toHaveBeenCalledWith('http://user-service:8080/ping', {
+      timeoutMs: 2000,
+    });
   });
 
   test('returns false if the HTTP client throws an error', async () => {
@@ -43,7 +45,9 @@ describe('ServiceHealthChecker', () => {
     const result = await checker.isHealthy(instance);
 
     expect(result).toBe(false);
-    expect(httpClient.get).toHaveBeenCalledWith('http://127.0.0.1:8080/ping', { timeoutMs: 2000 });
+    expect(httpClient.get).toHaveBeenCalledWith('http://user-service:8080/ping', {
+      timeoutMs: 2000,
+    });
   });
 
   test('calls the HTTP client with the correct timeout', async () => {
@@ -60,6 +64,6 @@ describe('ServiceHealthChecker', () => {
   test('buildPingUrl generates correct URL', async () => {
     // Using any-cast to access private method
     const url = (checker as any).buildPingUrl(instance);
-    expect(url).toBe('http://127.0.0.1:8080/ping');
+    expect(url).toBe('http://user-service:8080/ping');
   });
 });
