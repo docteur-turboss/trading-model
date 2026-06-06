@@ -1,3 +1,15 @@
+## [1.3.1] - 2026-06-07
+
+### @trading-model/address-manager (1.1.0 → 1.1.1)
+
+#### Fix
+
+- :bug:(address-manager): log scheduler job execution errors instead of swallowing them silently (#114)
+
+#### Test
+
+- :white_check_mark:(address-manager): add test for error logging when job.execute throws
+
 ## [1.3.0] - 2026-06-06
 
 ### @trading-model/common (1.0.0 → 1.1.0)

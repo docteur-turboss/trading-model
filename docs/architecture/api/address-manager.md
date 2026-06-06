@@ -48,20 +48,20 @@ interface AddressManagerConfig {
 }
 ```
 
-| Field                   | Type                      | Default | Description                                                  |
-| ----------------------- | ------------------------- | ------- | ------------------------------------------------------------ |
-| `instanceId`            | `string`                  | —       | Unique identifier for this service instance                  |
-| `serviceName`           | `string`                  | —       | Logical service name (e.g. `financial-scrapper-service`)     |
-| `servicePort`           | `number`                  | —       | Port the service listens on                                  |
-| `addressManagerUrl`     | `string`                  | —       | Discovery-server base URL                                    |
-| `tokenRefreshIntervalMs`| `number`                  | `60000` | Token rotation interval                                      |
-| `ttlRefreshIntervalMs`  | `number`                  | `15000` | TTL refresh interval                                         |
-| `servicePingTimeoutMs`  | `number`                  | `2000`  | Health check timeout                                         |
-| `RootCACertPath`        | `string`                  | —       | Path to root CA certificate for mTLS                         |
-| `CertificatPath`        | `string`                  | —       | Path to client certificate for mTLS                          |
-| `KeyCertificatPath`     | `string`                  | —       | Path to client private key for mTLS                          |
-| `cacheTtlMs`            | `number`                  | `30000` | TTL for cached service instances                             |
-| `dnsNameMap`            | `Record<string, string>`  | —       | Optional mapping from logical service names to deployment-specific DNS hostnames |
+| Field                    | Type                     | Default | Description                                                                      |
+| ------------------------ | ------------------------ | ------- | -------------------------------------------------------------------------------- |
+| `instanceId`             | `string`                 | —       | Unique identifier for this service instance                                      |
+| `serviceName`            | `string`                 | —       | Logical service name (e.g. `financial-scrapper-service`)                         |
+| `servicePort`            | `number`                 | —       | Port the service listens on                                                      |
+| `addressManagerUrl`      | `string`                 | —       | Discovery-server base URL                                                        |
+| `tokenRefreshIntervalMs` | `number`                 | `60000` | Token rotation interval                                                          |
+| `ttlRefreshIntervalMs`   | `number`                 | `15000` | TTL refresh interval                                                             |
+| `servicePingTimeoutMs`   | `number`                 | `2000`  | Health check timeout                                                             |
+| `RootCACertPath`         | `string`                 | —       | Path to root CA certificate for mTLS                                             |
+| `CertificatPath`         | `string`                 | —       | Path to client certificate for mTLS                                              |
+| `KeyCertificatPath`      | `string`                 | —       | Path to client private key for mTLS                                              |
+| `cacheTtlMs`             | `number`                 | `30000` | TTL for cached service instances                                                 |
+| `dnsNameMap`             | `Record<string, string>` | —       | Optional mapping from logical service names to deployment-specific DNS hostnames |
 
 ### Public Methods
 
@@ -148,18 +148,18 @@ Calls made to the Discovery Server:
 
 In addition to the default export, the package exposes internal modules via deep imports:
 
-| Import Path                                              | Exports                                                      |
-| -------------------------------------------------------- | ------------------------------------------------------------ |
-| `@trading-model/address-manager/discovery/service-locator`  | `ServiceLocator`, `ServiceNameLocator`, `IpAddressLocator`, `MappingServiceLocator`             |
-| `@trading-model/address-manager/discovery/service-health-checker` | `ServiceHealthChecker`                                        |
-| `@trading-model/address-manager/discovery/service-cache` | `ServiceCache`                                               |
-| `@trading-model/address-manager/discovery/service-discovery` | `ServiceDiscovery`                                            |
-| `@trading-model/address-manager/client/token-manager`    | `TokenManager`                                               |
-| `@trading-model/address-manager/client/address-manager-client` | `AddressManagerClient`                                        |
-| `@trading-model/address-manager/client/type`             | `ServiceInstance`, `RegisterServicePayload`, `ServiceRegistrationResponse` |
-| `@trading-model/address-manager/scheduler/scheduler`     | `Scheduler`                                                  |
-| `@trading-model/address-manager/scheduler/refresh-job`   | `RefreshJob`                                                 |
-| `@trading-model/address-manager/config/address-manager-config` | `AddressManagerConfig`                                        |
+| Import Path                                                       | Exports                                                                             |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `@trading-model/address-manager/discovery/service-locator`        | `ServiceLocator`, `ServiceNameLocator`, `IpAddressLocator`, `MappingServiceLocator` |
+| `@trading-model/address-manager/discovery/service-health-checker` | `ServiceHealthChecker`                                                              |
+| `@trading-model/address-manager/discovery/service-cache`          | `ServiceCache`                                                                      |
+| `@trading-model/address-manager/discovery/service-discovery`      | `ServiceDiscovery`                                                                  |
+| `@trading-model/address-manager/client/token-manager`             | `TokenManager`                                                                      |
+| `@trading-model/address-manager/client/address-manager-client`    | `AddressManagerClient`                                                              |
+| `@trading-model/address-manager/client/type`                      | `ServiceInstance`, `RegisterServicePayload`, `ServiceRegistrationResponse`          |
+| `@trading-model/address-manager/scheduler/scheduler`              | `Scheduler`                                                                         |
+| `@trading-model/address-manager/scheduler/refresh-job`            | `RefreshJob`                                                                        |
+| `@trading-model/address-manager/config/address-manager-config`    | `AddressManagerConfig`                                                              |
 
 ## Environment Schema
 
@@ -248,19 +248,19 @@ Locator that delegates to an internal `DnsResolver` strategy for name-based mapp
 
 ## Internal Classes
 
-| Class                  | Description                                                                                                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TokenManager`         | In-memory token storage, refresh via `POST /token/rotate`                                                                                                    |
-| `AddressManagerClient` | HTTP client for Discovery Server API (register, refresh TTL)                                                                                                 |
-| `ServiceCache`         | In-memory cache with TTL expiry for service instances                                                                                                        |
-| `ServiceHealthChecker` | Pings `https://{host}:{port}/ping` to verify liveness. Target resolution delegated to a `ServiceLocator` strategy.                                                |
-| `ServiceLocator`       | Strategy interface for determining the target hostname of a service instance.                                                                                     |
-| `ServiceNameLocator`   | Default `ServiceLocator` that uses `instance.serviceName` as the hostname.                                                                                        |
-| `IpAddressLocator`     | `ServiceLocator` that uses `instance.ip` directly.                                                                                                                |
-| `MappingServiceLocator`| `ServiceLocator` backed by an internal `DnsResolver` (loaded from `dnsNameMap` config / `DNS_NAME_MAP` env var).                                                  |
-| `ServiceDiscovery`     | Orchestrates cache → health check → fetch flow                                                                                                               |
-| `Scheduler`            | Generic `node-cron` scheduler                                                                                                                                |
-| `RefreshJob<T>`        | Parameterized job that calls a configurable refresh function on a client instance. Replaces previously duplicated `TokenRefresherJob` and `TtlRefresherJob`. |
+| Class                   | Description                                                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TokenManager`          | In-memory token storage, refresh via `POST /token/rotate`                                                                                                    |
+| `AddressManagerClient`  | HTTP client for Discovery Server API (register, refresh TTL)                                                                                                 |
+| `ServiceCache`          | In-memory cache with TTL expiry for service instances                                                                                                        |
+| `ServiceHealthChecker`  | Pings `https://{host}:{port}/ping` to verify liveness. Target resolution delegated to a `ServiceLocator` strategy.                                           |
+| `ServiceLocator`        | Strategy interface for determining the target hostname of a service instance.                                                                                |
+| `ServiceNameLocator`    | Default `ServiceLocator` that uses `instance.serviceName` as the hostname.                                                                                   |
+| `IpAddressLocator`      | `ServiceLocator` that uses `instance.ip` directly.                                                                                                           |
+| `MappingServiceLocator` | `ServiceLocator` backed by an internal `DnsResolver` (loaded from `dnsNameMap` config / `DNS_NAME_MAP` env var).                                             |
+| `ServiceDiscovery`      | Orchestrates cache → health check → fetch flow                                                                                                               |
+| `Scheduler`             | Generic `node-cron` scheduler. Logs job execution errors via `logger.error` instead of swallowing them.                                                      |
+| `RefreshJob<T>`         | Parameterized job that calls a configurable refresh function on a client instance. Replaces previously duplicated `TokenRefresherJob` and `TtlRefresherJob`. |
 
 ## Usage Example
 
