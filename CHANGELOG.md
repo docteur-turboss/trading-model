@@ -1,3 +1,15 @@
+## [1.3.3] - 2026-06-07
+
+### trader-service (1.3.2 → 1.3.3)
+
+#### Fix
+
+- :bug:(trainer): add input length validation to all loss functions to prevent silent NaN propagation on output/target mismatch (#118)
+
+#### Test
+
+- :white_check_mark:(trainer): add validation tests for length mismatch in all loss and gradient functions
+
 ## [1.3.2] - 2026-06-07
 
 ### trader-service (1.3.1 → 1.3.2)
