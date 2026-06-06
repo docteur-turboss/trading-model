@@ -2,6 +2,8 @@ import https from 'https';
 import fs from 'node:fs';
 import { URL } from 'url';
 
+import { z } from 'zod';
+
 /**
  * HttpClient
  *
@@ -22,25 +24,40 @@ export class HttpClient {
   }
 
   /** Sends a GET request and returns the parsed response. */
-  async get<T = void>(url: string, options?: HttpRequestOptions): Promise<T> {
-    return this.request<T>('GET', url, undefined, options);
+  async get<T = void>(
+    url: string,
+    options?: HttpRequestOptions,
+    schema?: z.ZodType<T>
+  ): Promise<T> {
+    return this.request<T>('GET', url, undefined, options, schema);
   }
 
   /** Sends a POST request with an optional JSON body and returns the parsed response. */
-  async post<T = void>(url: string, body?: unknown, options?: HttpRequestOptions): Promise<T> {
-    return this.request<T>('POST', url, body, options);
+  async post<T = void>(
+    url: string,
+    body?: unknown,
+    options?: HttpRequestOptions,
+    schema?: z.ZodType<T>
+  ): Promise<T> {
+    return this.request<T>('POST', url, body, options, schema);
   }
 
   /** Sends a DELETE request and returns the parsed response. */
-  async delete<T = void>(url: string, body?: unknown, options?: HttpRequestOptions): Promise<T> {
-    return this.request<T>('DELETE', url, body, options);
+  async delete<T = void>(
+    url: string,
+    body?: unknown,
+    options?: HttpRequestOptions,
+    schema?: z.ZodType<T>
+  ): Promise<T> {
+    return this.request<T>('DELETE', url, body, options, schema);
   }
 
   private async request<T>(
     method: HttpMethod,
     urlStr: string,
     body?: unknown,
-    options?: HttpRequestOptions
+    options?: HttpRequestOptions,
+    schema?: z.ZodType<T>
   ): Promise<T> {
     const url = new URL(urlStr);
 
@@ -77,9 +94,10 @@ export class HttpClient {
 
           try {
             if (contentType.includes('application/json')) {
-              resolve(JSON.parse(data) as T);
+              const parsed = JSON.parse(data);
+              resolve(schema ? schema.parse(parsed) : (parsed as T));
             } else {
-              resolve(data as unknown as T);
+              resolve(schema ? schema.parse(data) : (data as unknown as T));
             }
           } catch (err) {
             reject(err);

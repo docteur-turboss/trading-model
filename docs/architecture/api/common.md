@@ -121,14 +121,21 @@ HTTP client with mTLS support for service-to-service calls.
 import { HttpClient } from '@trading-model/common/config/http-client';
 ```
 
-| Method                            | Signature |
-| --------------------------------- | --------- |
-| `get<T>(url, options?)`           | `GET`     |
-| `post<T>(url, body?, options?)`   | `POST`    |
-| `delete<T>(url, body?, options?)` | `DELETE`  |
+| Method                                     | Signature |
+| ------------------------------------------ | --------- |
+| `get<T>(url, options?, schema?)`           | `GET`     |
+| `post<T>(url, body?, options?, schema?)`   | `POST`    |
+| `delete<T>(url, body?, options?, schema?)` | `DELETE`  |
 
 Options: `timeoutMs`, `headers`
-Errors: `HttpClientError` (non-2xx status), `HttpClientTimeoutError` (timeout)
+
+Schema validation (optional `z.ZodType<T>`):
+
+- When a Zod schema is provided, the response is validated at runtime against it
+- If validation fails, a `z.ZodError` is thrown
+- Without a schema, the response is cast as `T` (no runtime check)
+
+Errors: `HttpClientError` (non-2xx status), `HttpClientTimeoutError` (timeout), `z.ZodError` (schema validation)
 
 ## Middleware
 
