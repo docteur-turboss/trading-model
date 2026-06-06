@@ -1,6 +1,6 @@
 import { ServiceInstance } from '../../src/client/type';
 import { ServiceHealthChecker } from '../../src/discovery/service-health-checker';
-import { MapResolver } from '../../src/discovery/dns-resolver';
+import { IdentityResolver, MapResolver } from '../../src/discovery/dns-resolver';
 import { MappingServiceLocator, IpAddressLocator } from '../../src/discovery/service-locator';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
@@ -97,6 +97,17 @@ describe('ServiceHealthChecker', () => {
         httpClient,
         2000,
         new MappingServiceLocator(new MapResolver(dnsMap))
+      );
+
+      const url = (checker as any).buildPingUrl(instance);
+      expect(url).toBe('https://user-service:8080/ping');
+    });
+
+    test('uses IdentityResolver fallback when no mapping resolver provided', async () => {
+      checker = new ServiceHealthChecker(
+        httpClient,
+        2000,
+        new MappingServiceLocator(new IdentityResolver())
       );
 
       const url = (checker as any).buildPingUrl(instance);
