@@ -12,6 +12,7 @@ import { MapResolver } from './discovery/dns-resolver';
 import { ServiceCache } from './discovery/service-cache';
 import { ServiceDiscovery } from './discovery/service-discovery';
 import { ServiceHealthChecker } from './discovery/service-health-checker';
+import { MappingServiceLocator } from './discovery/service-locator';
 import { pingRoutes } from './http/routes/ping.routes';
 import { RefreshJob } from './scheduler/refresh-job';
 import { Scheduler } from './scheduler/scheduler';
@@ -70,7 +71,7 @@ export default class AddressManager {
     this.healthChecker = new ServiceHealthChecker(
       this.httpClient,
       config.servicePingTimeoutMs,
-      config.dnsNameMap ? new MapResolver(config.dnsNameMap) : undefined
+      config.dnsNameMap ? new MappingServiceLocator(new MapResolver(config.dnsNameMap)) : undefined
     );
 
     this.serviceDiscovery = new ServiceDiscovery(

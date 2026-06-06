@@ -1,7 +1,7 @@
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { PING_PATH } from '@trading-model/common/server/constants';
 
-import { DnsResolver, IdentityResolver } from './dns-resolver';
+import { ServiceLocator, ServiceNameLocator } from './service-locator';
 import { ServiceInstance } from '../client/type';
 
 /**
@@ -20,27 +20,27 @@ import { ServiceInstance } from '../client/type';
  * This class provides a simple health check mechanism for services
  * by pinging a predefined endpoint and returning a boolean result.
  *
- * DNS resolution is delegated to a DnsResolver strategy, decoupling the
- * health checker from any specific deployment topology (Docker Compose,
- * Kubernetes, Consul, etc.).
+ * Target resolution is delegated to a ServiceLocator strategy, decoupling
+ * the health checker from any specific deployment topology (Docker Compose,
+ * Kubernetes, direct IP, etc.).
  */
 export class ServiceHealthChecker {
   private readonly httpClient: HttpClient;
   private readonly timeoutMs: number;
-  private readonly dnsResolver: DnsResolver;
+  private readonly serviceLocator: ServiceLocator;
 
   /**
    * Creates a new ServiceHealthChecker.
    *
    * @param httpClient - HTTP client used to perform the health check.
    * @param timeoutMs - Maximum duration (in milliseconds) to wait for a response.
-   * @param dnsResolver - Strategy for resolving service names to DNS hostnames.
-   * Defaults to IdentityResolver (uses the service name as-is).
+   * @param serviceLocator - Strategy for resolving the target hostname of a
+   * service instance. Defaults to ServiceNameLocator (uses the logical name).
    */
-  constructor(httpClient: HttpClient, timeoutMs: number, dnsResolver?: DnsResolver) {
+  constructor(httpClient: HttpClient, timeoutMs: number, serviceLocator?: ServiceLocator) {
     this.httpClient = httpClient;
     this.timeoutMs = timeoutMs;
-    this.dnsResolver = dnsResolver ?? new IdentityResolver();
+    this.serviceLocator = serviceLocator ?? new ServiceNameLocator();
   }
 
   /**
@@ -78,7 +78,7 @@ export class ServiceHealthChecker {
    * @private
    */
   private buildPingUrl(instance: ServiceInstance): string {
-    const hostname = this.dnsResolver.resolve(instance.serviceName);
+    const hostname = this.serviceLocator.locate(instance);
     return `https://${hostname}:${instance.port}${PING_PATH}`;
   }
 }
