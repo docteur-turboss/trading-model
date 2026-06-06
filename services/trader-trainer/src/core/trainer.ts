@@ -37,6 +37,23 @@ export type BestAgentSummary = {
   };
 };
 
+/** Indicates that training completed successfully with the resulting best genome. */
+export type TrainingSuccess = {
+  success: true;
+  symbol: string;
+  bestGenome: DeepReadonly<LamarckGenome>;
+};
+
+/** Indicates that training failed with an error. */
+export type TrainingFailure = {
+  success: false;
+  symbol: string;
+  error: Error;
+};
+
+/** Discriminated result of a training cycle. */
+export type TrainingResult = TrainingSuccess | TrainingFailure;
+
 /** Orchestrates GA training cycles: feeds market data, runs generations, tracks best genome. */
 export class Trainer {
   private runner: GeneticAlgorithmRunner | null = null;
@@ -62,15 +79,24 @@ export class Trainer {
     return this.runner?.getGeneration() ?? 0;
   }
 
-  /** Run a full GA training cycle for the given symbol. Skips if already training or insufficient data. */
-  async train(symbol: string): Promise<void> {
-    if (this.training) return;
+  /**
+   * Run a full GA training cycle for the given symbol.
+   * Skips if already training or insufficient data.
+   *
+   * @param symbol - Market symbol to train on.
+   * @returns TrainingResult indicating success or failure.
+   */
+  async train(symbol: string): Promise<TrainingResult> {
+    if (this.training) return { success: false, symbol, error: new Error('Already training') };
 
     const windowSet = this.dataBuffer.getAllWindows(symbol, env.TRAINER_VALIDATION_SPLIT);
 
     if (!windowSet || windowSet.train.length < 10) {
-      console.warn(`[Trainer] Not enough data for ${symbol}, need at least 10 steps`);
-      return;
+      return {
+        success: false,
+        symbol,
+        error: new Error(`Not enough data for ${symbol}, need at least 10 steps`),
+      };
     }
 
     this.currentSymbol = symbol;
@@ -112,8 +138,11 @@ export class Trainer {
         `[Trainer] Training complete for ${symbol}. ` +
           `Best fitness: ${(result.fitness ?? 0).toFixed(4)}`
       );
+      return { success: true, symbol, bestGenome: result };
     } catch (err) {
-      console.error(`[Trainer] Training failed for ${symbol}:`, err);
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error(`[Trainer] Training failed for ${symbol}:`, error);
+      return { success: false, symbol, error };
     } finally {
       this.training = false;
     }
