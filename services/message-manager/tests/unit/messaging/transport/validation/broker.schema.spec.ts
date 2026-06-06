@@ -118,12 +118,33 @@ describe('Broker Schemas', () => {
           deduplicationId: 'dedup-789',
         },
         security: {
-          authContext: { user: 'test' },
+          authContext: {
+            subject: 'test-subject',
+            roles: ['admin', 'user'],
+            tenantId: 'tenant-1',
+          },
           signature: 'sig-abc',
         },
       });
 
       expect(result.success).toBe(true);
+    });
+
+    it('should reject authContext with invalid shape', () => {
+      const result = PublishMetadataSchema.safeParse({
+        schemaVersion: '1.0',
+        eventType: 'TestEvent',
+        topic: 'test.topic',
+        publisher: {
+          serviceName: ServiceInstanceName.FinancialScrapperService,
+          instanceId: 'instance-1',
+        },
+        security: {
+          authContext: { user: 'test' },
+        },
+      });
+
+      expect(result.success).toBe(false);
     });
 
     it('should reject missing schemaVersion', () => {
