@@ -19,6 +19,27 @@ export function createBootstrap(options: BootstrapOptions): {
 } {
   let server: HttpServer | null = null;
 
+  /**
+   * Attempt a graceful shutdown before forcing the process to exit.
+   * Closes the HTTP server and calls the user-supplied onStop callback
+   * so that open connections and resources can be released.
+   */
+  function hardShutdown(code: number): void {
+    if (server) {
+      server.close().catch(() => {});
+    }
+
+    if (options.onStop) {
+      try {
+        options.onStop();
+      } catch {
+        /* cleanup error during forced shutdown — ignore */
+      }
+    }
+
+    process.exit(code);
+  }
+
   function bootstrap(): void {
     try {
       logger.info(`Bootstrapping ${options.name} service`);
@@ -32,7 +53,7 @@ export function createBootstrap(options: BootstrapOptions): {
       logger.info(`${options.name} started successfully`);
     } catch (error) {
       logger.error('Fatal error during service bootstrap', { err: error });
-      process.exit(1);
+      hardShutdown(1);
     }
   }
 
@@ -53,7 +74,7 @@ export function createBootstrap(options: BootstrapOptions): {
       process.exit(0);
     } catch (error) {
       logger.error('Error during graceful shutdown', { err: error });
-      process.exit(1);
+      hardShutdown(1);
     }
   }
 
@@ -62,12 +83,12 @@ export function createBootstrap(options: BootstrapOptions): {
 
   process.on('uncaughtException', error => {
     logger.error('Uncaught exception - exiting', { err: error });
-    process.exit(1);
+    hardShutdown(1);
   });
 
   process.on('unhandledRejection', reason => {
     logger.error('Unhandled promise rejection - exiting', { reason });
-    process.exit(1);
+    hardShutdown(1);
   });
 
   bootstrap();
