@@ -41,6 +41,7 @@
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { IdentifyType, message } from '@trading-model/common/contracts/message.types';
 
+import { DqlRepository } from './dlq-repository';
 import { Subscription } from './subscription';
 
 /**
@@ -69,7 +70,10 @@ export class Dispatcher {
    * @lifecycle
    * Instantiated during application bootstrap.
    */
-  constructor(private HTTPCLIENT: HttpClient) {}
+  constructor(
+    private HTTPCLIENT: HttpClient,
+    private readonly dlqRepository: DqlRepository
+  ) {}
 
   /**
    * Register a subscription for a topic.
@@ -96,7 +100,12 @@ export class Dispatcher {
 
     if (current.some(s => s.serviceIdentity.instanceId === consumerIdentity.instanceId)) return;
 
-    const subscription = new Subscription(topic, callbackPath, consumerIdentity);
+    const subscription = new Subscription(
+      topic,
+      callbackPath,
+      consumerIdentity,
+      this.dlqRepository
+    );
 
     this.subscriptionsByTopic.set(topic, [...current, subscription]);
   }

@@ -36,6 +36,7 @@ import { HttpClient } from '@trading-model/common/config/http-client';
 import { BrokerConfig } from './broker.type';
 import { Broker } from './core/broker';
 import { Dispatcher } from './core/dispatcher';
+import { DqlRepository } from './core/dlq-repository';
 import { BrokerRoutes } from './transport/http.routes';
 
 /**
@@ -72,7 +73,8 @@ export default class BrokerModule {
       key: config.KeyCertificatPath,
     });
 
-    this.Dispatcher = new Dispatcher(this.HTTPCLIENT);
+    const dqlRepository = new DqlRepository();
+    this.Dispatcher = new Dispatcher(this.HTTPCLIENT, dqlRepository);
     this.Broker = new Broker(this.Dispatcher);
 
     this.listen = app => app.use(BrokerRoutes(this.Broker));
