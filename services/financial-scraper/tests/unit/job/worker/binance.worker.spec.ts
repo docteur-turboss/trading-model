@@ -28,17 +28,19 @@ jest.mock('../../../../src/config/message-manager', () => ({
   },
 }));
 
+const mockMetadataBuilderCtor = jest.fn(() => ({
+  setDelivery: jest.fn().mockReturnThis(),
+  setEventType: jest.fn().mockReturnThis(),
+  setTopic: jest.fn().mockReturnThis(),
+  setSecurity: jest.fn().mockReturnThis(),
+  setIds: jest.fn().mockReturnThis(),
+  setPublisher: jest.fn().mockReturnThis(),
+  toJSON: jest.fn().mockReturnValue({}),
+}));
+
 jest.mock('@trading-model/broker-message', () => ({
   helper: {
-    MetadataBuilder: jest.fn(() => ({
-      setDelivery: jest.fn().mockReturnThis(),
-      setEventType: jest.fn().mockReturnThis(),
-      setTopic: jest.fn().mockReturnThis(),
-      setSecurity: jest.fn().mockReturnThis(),
-      setIds: jest.fn().mockReturnThis(),
-      setPublisher: jest.fn().mockReturnThis(),
-      toJSON: jest.fn().mockReturnValue({}),
-    })),
+    MetadataBuilder: mockMetadataBuilderCtor,
   },
 }));
 
@@ -159,6 +161,12 @@ describe('BinanceWorker', () => {
 
       expect(mockRecentTrades).toHaveBeenCalledWith('ETHUSDT', 100);
       expect(mockCandlestickData).toHaveBeenCalledWith('ETHUSDT', 100, '1m');
+    });
+
+    it('should create a fresh MetadataBuilder per invocation (not shared singleton)', async () => {
+      const callCountBefore = mockMetadataBuilderCtor.mock.calls.length;
+      await worker.run();
+      expect(mockMetadataBuilderCtor.mock.calls.length).toBe(callCountBefore + 1);
     });
   });
 });

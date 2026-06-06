@@ -31,8 +31,6 @@ import { BinanceNormalizer } from '../../clients/binance/normalizer';
 import { env } from '../../config/env';
 import { MessageManager } from '../../config/message-manager';
 
-
-
 /** Configuration options for a single BinanceWorker execution against one symbol. */
 export interface BinanceWorkerOptions {
   symbol: string;
@@ -53,8 +51,6 @@ export interface BinanceWorkerResult {
   fetchedAt: number;
 }
 
-const BuilderMetadata = new helper.MetadataBuilder();
-
 export class BinanceWorker {
   constructor(private readonly options: BinanceWorkerOptions) {}
 
@@ -62,16 +58,11 @@ export class BinanceWorker {
    * Main worker execution.
    * Can be directly invoked from node-cron.
    *
-   * @example
-   * cron.schedule("* * * * *", async () => {
-   *   const worker = new BinanceWorker({ symbol: "BTCUSDT" });
-   *   const data = await worker.run();
-   *   await persistenceLayer.store(data);
-   * });
    */
   public async run(): Promise<BinanceWorkerResult> {
     const { v4 } = await import('uuid');
     const uuid = v4;
+    const builderMetadata = new helper.MetadataBuilder();
 
     const {
       symbol,
@@ -109,7 +100,7 @@ export class BinanceWorker {
 
     const signature = createHash('sha256').update(JSON.stringify(authContext)).digest('base64url');
 
-    BuilderMetadata.setDelivery({
+    builderMetadata.setDelivery({
       mode: DeliveryMode.AT_LEAST_ONCE,
       deduplicationId: uuid(),
     })
@@ -128,33 +119,33 @@ export class BinanceWorker {
         serviceName: env.SERVICE_NAME as ServiceInstanceName,
       });
 
-    MessageManager.post.indirect(response.candles, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.candles, builderMetadata.toJSON());
 
-    BuilderMetadata.setTopic(EnumEventMessage.fetchOrderBookSnapshot).setEventType(
+    builderMetadata.setTopic(EnumEventMessage.fetchOrderBookSnapshot).setEventType(
       'FetchOrderbook'
     );
 
-    MessageManager.post.indirect(response.orderBook, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.orderBook, builderMetadata.toJSON());
 
-    BuilderMetadata.setTopic(EnumEventMessage.fetch24hrTickerStats).setEventType('FetchTicker24hr');
+    builderMetadata.setTopic(EnumEventMessage.fetch24hrTickerStats).setEventType('FetchTicker24hr');
 
-    MessageManager.post.indirect(response.ticker24h, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.ticker24h, builderMetadata.toJSON());
 
-    BuilderMetadata.setTopic(EnumEventMessage.fetchOrderBookTickerSnapshot).setEventType(
+    builderMetadata.setTopic(EnumEventMessage.fetchOrderBookTickerSnapshot).setEventType(
       'FetchBookTicker'
     );
 
-    MessageManager.post.indirect(response.bookTicker, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.bookTicker, builderMetadata.toJSON());
 
-    BuilderMetadata.setTopic(EnumEventMessage.fetchPriceTickerSnapshot).setEventType(
+    builderMetadata.setTopic(EnumEventMessage.fetchPriceTickerSnapshot).setEventType(
       'FetchPriceTicker'
     );
 
-    MessageManager.post.indirect(response.priceTicker, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.priceTicker, builderMetadata.toJSON());
 
-    BuilderMetadata.setTopic(EnumEventMessage.fetchRecentTrades).setEventType('FetchRecentTrades');
+    builderMetadata.setTopic(EnumEventMessage.fetchRecentTrades).setEventType('FetchRecentTrades');
 
-    MessageManager.post.indirect(response.recentTrades, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.recentTrades, builderMetadata.toJSON());
 
     return response;
   }
