@@ -170,9 +170,46 @@ Health check endpoint (via `PING_PATH` constant).
 }
 ```
 
+## Architecture
+
+The discovery-server follows a dependency injection pattern. No singletons are used — all components are explicitly wired together at the composition root.
+
+### Core Classes
+
+| Class / Factory                          | Instantiator                 | Notes                                          |
+| ---------------------------------------- | ---------------------------- | ---------------------------------------------- |
+| `new ServiceRegistry()`                  | `app/index.ts`               | Central in-memory registry (no singleton export) |
+| `new LeaseManager(registry, options?)`   | `app/index.ts`               | Accepts `ServiceRegistry` in constructor       |
+| `createServer(registry)`                 | `app/index.ts`               | HTTPS server factory                           |
+
+### Controller & Route Factories
+
+All controllers and routes receive their dependencies via factory parameters:
+
+| Factory                                | Returns                                                        |
+| -------------------------------------- | -------------------------------------------------------------- |
+| `createRegisterController(registry)`   | `{ register, listServices, getServiceInstances, getInstance }` |
+| `createHeartbeatController(registry)`  | `{ heartbeat, rotateToken }`                                   |
+| `registryRoutes(registry)`             | `Router`                                                       |
+| `heartbeatRoutes(registry)`            | `Router`                                                       |
+
+### Composition Root (`app/index.ts`)
+
+```ts
+const registry = new ServiceRegistry();
+const leaseManager = new LeaseManager(registry, {
+  cleanupIntervalMs: env.CLEANUP_SERVICE_INTERVAL_MS,
+});
+createBootstrap({
+  createServer: () => createServer(registry),
+  onStart: () => leaseManager.start(),
+  onStop: () => leaseManager.stop(),
+});
+```
+
 ## LeaseManager
 
-Manages leases and periodically cleans up expired instances.
+Manages leases and periodically cleans up expired instances. Accepts a `ServiceRegistry` instance in its constructor.
 
 | Environment variable          | Default           | Description                       |
 | ----------------------------- | ----------------- | --------------------------------- |
@@ -188,11 +225,13 @@ Instances are automatically removed from the registry if their TTL expires witho
 
 ## Controllers
 
-| File                         | Routes                                                                              |
-| ---------------------------- | ----------------------------------------------------------------------------------- |
-| `routes/register.routes.ts`  | `POST /register`, `GET /services`, `GET /services/:name`, `GET /services/:name/:id` |
-| `routes/heartbeat.routes.ts` | `POST /heartbeat`, `POST /token/rotate`                                             |
+Controllers are created via factories that accept a `ServiceRegistry` instance.
+
+| File                         | Factory                           | Routes                                                                              |
+| ---------------------------- | --------------------------------- | ----------------------------------------------------------------------------------- |
+| `routes/register.routes.ts`  | `registryRoutes(registry)`        | `POST /register`, `GET /services`, `GET /services/:name`, `GET /services/:name/:id` |
+| `routes/heartbeat.routes.ts` | `heartbeatRoutes(registry)`       | `POST /heartbeat`, `POST /token/rotate`                                             |
 
 ## Deployment
 
-The service is bootstrapped via `createBootstrap()` which attaches `SIGTERM`/`SIGINT` handlers. The `LeaseManager` is started in `onStart` and stopped in `onStop`.
+The service is bootstrapped via `createBootstrap()` which attaches `SIGTERM`/`SIGINT` handlers. The composition root (`src/app/index.ts`) creates a `new ServiceRegistry()` and `new LeaseManager(registry)`, then passes the registry to `createServer(registry)`. The `LeaseManager` is started in `onStart` and stopped in `onStop`.

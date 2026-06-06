@@ -1,11 +1,7 @@
 import { Router } from 'express';
 
-import {
-  register,
-  listServices,
-  getServiceInstances,
-  getInstance,
-} from '../controllers/register.controller';
+import { createRegisterController } from '../controllers/register.controller';
+import { ServiceRegistry } from '../core/service-registry';
 
 /**
  * Registry Routes
@@ -24,7 +20,10 @@ import {
  * - Validation and error handling are handled at controller level
  * - Transport security is enforced upstream (mTLS)
  */
-export const registryRoutes = (): Router => {
+export const registryRoutes = (registry: ServiceRegistry): Router => {
+  const { register, listServices, getServiceInstances, getInstance } =
+    createRegisterController(registry);
+
   /**
    * Express router scoped to registry responsibilities.
    */
