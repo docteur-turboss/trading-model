@@ -1,0 +1,484 @@
+<!doctype html>
+<html class="default" lang="en" data-base="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="IE=edge" />
+    <title>message-manager - v1.0.0</title>
+    <meta name="description" content="Documentation for message-manager" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/highlight.css" />
+    <script defer src="assets/main.js"></script>
+    <script async src="assets/icons.js" id="tsd-icons-script"></script>
+    <script async src="assets/search.js" id="tsd-search-script"></script>
+    <script async src="assets/navigation.js" id="tsd-nav-script"></script>
+  </head>
+  <body>
+    <script>
+      document.documentElement.dataset.theme = localStorage.getItem('tsd-theme') || 'os';
+      document.body.style.display = 'none';
+      setTimeout(
+        () => (window.app ? app.showPage() : document.body.style.removeProperty('display')),
+        500
+      );
+    </script>
+    <header class="tsd-page-toolbar">
+      <div class="tsd-toolbar-contents container">
+        <a href="index.html" class="title">message-manager - v1.0.0</a>
+        <div id="tsd-toolbar-links"></div>
+        <button id="tsd-search-trigger" class="tsd-widget" aria-label="Search">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <use href="assets/icons.svg#icon-search"></use>
+          </svg>
+        </button>
+        <dialog id="tsd-search" aria-label="Search">
+          <input
+            role="combobox"
+            id="tsd-search-input"
+            aria-controls="tsd-search-results"
+            aria-autocomplete="list"
+            aria-expanded="true"
+            autocapitalize="off"
+            autocomplete="off"
+            placeholder="Search the docs"
+            maxlength="100"
+          />
+          <ul role="listbox" id="tsd-search-results"></ul>
+          <div id="tsd-search-status" aria-live="polite" aria-atomic="true">
+            <div>Preparing search index...</div>
+          </div>
+        </dialog>
+        <a
+          href="#"
+          class="tsd-widget menu"
+          id="tsd-toolbar-menu-trigger"
+          data-toggle="menu"
+          aria-label="Menu"
+          ><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <use href="assets/icons.svg#icon-menu"></use></svg
+        ></a>
+      </div>
+    </header>
+    <div class="container container-main">
+      <div class="col-content">
+        <div class="tsd-page-title"><h1>message-manager - v1.0.0</h1></div>
+        <div class="tsd-panel tsd-typography">
+          <h1 id="message-delivery-service" class="tsd-anchor-link">
+            Message Delivery Service<a
+              href="#message-delivery-service"
+              aria-label="Permalink"
+              class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h1>
+          <h2 id="overview" class="tsd-anchor-link">
+            Overview<a href="#overview" aria-label="Permalink" class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <p>
+            Internal messaging backbone for inter-service communication. Provides topic-based
+            publish/subscribe over HTTP with in-memory subscription management, configurable
+            delivery semantics (at-most-once, at-least-once, exactly-once), TTL expiration, and Dead
+            Letter Queue routing. Used by all microservices via the
+            <code>@trading-model/broker-message</code> SDK.
+          </p>
+          <h2 id="prerequisites" class="tsd-anchor-link">
+            Prerequisites<a href="#prerequisites" aria-label="Permalink" class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <ul>
+            <li>Node.js 20+</li>
+            <li>MongoDB 7+ (for message persistence — planned)</li>
+            <li>
+              Access to a running <a href="media/README.md">Discovery Server</a> (service registry)
+            </li>
+            <li>TLS certificates for mTLS communication</li>
+          </ul>
+          <h2 id="installation" class="tsd-anchor-link">
+            Installation<a href="#installation" aria-label="Permalink" class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <pre><code class="bash"><span class="hl-0"># From the monorepo root</span><br/><span class="hl-1">npm</span><span class="hl-2"> </span><span class="hl-3">install</span><br/><br/><span class="hl-0"># Or from this directory</span><br/><span class="hl-1">cd</span><span class="hl-2"> </span><span class="hl-3">services/message-manager</span><br/><span class="hl-1">npm</span><span class="hl-2"> </span><span class="hl-3">install</span>
+</code><button type="button">Copy</button></pre>
+
+          <h2 id="configuration" class="tsd-anchor-link">
+            Configuration<a href="#configuration" aria-label="Permalink" class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <p>
+            Copy <code>.env.example</code> to <code>.env</code> and fill in the required values:
+          </p>
+          <pre><code class="bash"><span class="hl-1">cp</span><span class="hl-2"> </span><span class="hl-3">.env.example</span><span class="hl-2"> </span><span class="hl-3">.env</span>
+</code><button type="button">Copy</button></pre>
+
+          <p>See <a href="media/.env.example">.env.example</a> for all available variables.</p>
+          <h2 id="environment-variables" class="tsd-anchor-link">
+            Environment Variables<a
+              href="#environment-variables"
+              aria-label="Permalink"
+              class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Variable</th>
+                <th>Description</th>
+                <th>Default</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>NODE_ENV</code></td>
+                <td>Runtime environment</td>
+                <td><code>development</code></td>
+              </tr>
+              <tr>
+                <td><code>PORT</code></td>
+                <td>HTTPS server port</td>
+                <td><code>8445</code></td>
+              </tr>
+              <tr>
+                <td><code>TLS_KEY_PATH</code></td>
+                <td>Path to TLS private key</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>TLS_CERT_PATH</code></td>
+                <td>Path to TLS certificate</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>TLS_CA_PATH</code></td>
+                <td>Path to CA certificate</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>SERVICE_NAME</code></td>
+                <td>Service identity for registry</td>
+                <td><code>message-delivery-service</code></td>
+              </tr>
+              <tr>
+                <td><code>INSTANCE_ID</code></td>
+                <td>Unique instance identifier</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>ADDRESS_MANAGER_URL</code></td>
+                <td>Discovery server URL</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>CACHE_TTL_MS</code></td>
+                <td>Service cache TTL</td>
+                <td><code>84000000</code></td>
+              </tr>
+              <tr>
+                <td><code>SERVICE_PING_TIMEOUT_MS</code></td>
+                <td>Health-check ping timeout</td>
+                <td><code>84000000</code></td>
+              </tr>
+              <tr>
+                <td><code>TOKEN_REFRESH_INTERVAL_MS</code></td>
+                <td>Auth token refresh interval</td>
+                <td><code>84000000</code></td>
+              </tr>
+              <tr>
+                <td><code>TTL_REFRESH_INTERVAL_MS</code></td>
+                <td>Lease TTL refresh interval</td>
+                <td><code>84000000</code></td>
+              </tr>
+              <tr>
+                <td><code>MESSAGE_BUS_INIT_TIMEOUT_MS</code></td>
+                <td>Broker initialization timeout</td>
+                <td><code>84000000</code></td>
+              </tr>
+              <tr>
+                <td><code>MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS</code></td>
+                <td>Broker shutdown timeout</td>
+                <td><code>84000000</code></td>
+              </tr>
+              <tr>
+                <td><code>ERROR_URL_WEBHOOK</code></td>
+                <td>Webhook for error alerts</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td><code>LOG_LEVEL</code></td>
+                <td>Logging verbosity</td>
+                <td><code>info</code></td>
+              </tr>
+            </tbody>
+          </table>
+          <h2 id="running" class="tsd-anchor-link">
+            Running<a href="#running" aria-label="Permalink" class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <pre><code class="bash"><span class="hl-0"># Development (with ts-node)</span><br/><span class="hl-1">npm</span><span class="hl-2"> </span><span class="hl-3">run</span><span class="hl-2"> </span><span class="hl-3">dev</span><br/><br/><span class="hl-0"># Production build</span><br/><span class="hl-1">npm</span><span class="hl-2"> </span><span class="hl-3">run</span><span class="hl-2"> </span><span class="hl-3">build</span><br/><span class="hl-1">node</span><span class="hl-2"> </span><span class="hl-3">dist/src/app/index.js</span>
+</code><button type="button">Copy</button></pre>
+
+          <h2 id="testing" class="tsd-anchor-link">
+            Testing<a href="#testing" aria-label="Permalink" class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <pre><code class="bash"><span class="hl-0"># All tests</span><br/><span class="hl-1">npm</span><span class="hl-2"> </span><span class="hl-3">test</span><br/><br/><span class="hl-0"># With coverage</span><br/><span class="hl-1">npm</span><span class="hl-2"> </span><span class="hl-3">run</span><span class="hl-2"> </span><span class="hl-3">test:coverage</span><br/><br/><span class="hl-0"># Watch mode</span><br/><span class="hl-1">npm</span><span class="hl-2"> </span><span class="hl-3">run</span><span class="hl-2"> </span><span class="hl-3">test:watch</span>
+</code><button type="button">Copy</button></pre>
+
+          <h2 id="scripts" class="tsd-anchor-link">
+            Scripts<a href="#scripts" aria-label="Permalink" class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Script</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>npm run dev</code></td>
+                <td>Run in development mode via <code>ts-node</code></td>
+              </tr>
+              <tr>
+                <td><code>npm run build</code></td>
+                <td>Compile TypeScript to <code>dist/</code></td>
+              </tr>
+              <tr>
+                <td><code>npm test</code></td>
+                <td>Execute all tests</td>
+              </tr>
+              <tr>
+                <td><code>npm run eslint</code></td>
+                <td>Run ESLint on source files</td>
+              </tr>
+            </tbody>
+          </table>
+          <h2 id="project-structure" class="tsd-anchor-link">
+            Project Structure<a
+              href="#project-structure"
+              aria-label="Permalink"
+              class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <pre><code><span class="hl-4">src</span><span class="hl-2">/</span><br/><span class="hl-2">├── </span><span class="hl-4">app</span><span class="hl-2">/                        # </span><span class="hl-4">Service</span><span class="hl-2"> </span><span class="hl-4">bootstrap</span><span class="hl-2"> &amp; </span><span class="hl-5">HTTP</span><span class="hl-2"> </span><span class="hl-4">server</span><br/><span class="hl-2">│   ├── </span><span class="hl-4">index</span><span class="hl-2">.</span><span class="hl-4">ts</span><span class="hl-2">                # </span><span class="hl-4">Entry</span><span class="hl-2"> </span><span class="hl-1">point</span><span class="hl-2"> (</span><span class="hl-4">lifecycle</span><span class="hl-2"> </span><span class="hl-4">via</span><span class="hl-2"> </span><span class="hl-4">createBootstrap</span><span class="hl-2">)</span><br/><span class="hl-2">│   └── </span><span class="hl-4">server</span><span class="hl-2">.</span><span class="hl-4">ts</span><span class="hl-2">               # </span><span class="hl-4">Express</span><span class="hl-2"> </span><span class="hl-4">server</span><span class="hl-2"> </span><span class="hl-1">factory</span><span class="hl-2"> (</span><span class="hl-4">createSecureServer</span><span class="hl-2">)</span><br/><span class="hl-2">├── </span><span class="hl-4">config</span><span class="hl-2">/</span><br/><span class="hl-2">│   ├── </span><span class="hl-4">env</span><span class="hl-2">.</span><span class="hl-4">ts</span><span class="hl-2">                  # </span><span class="hl-4">Zod</span><span class="hl-2">-</span><span class="hl-4">validated</span><span class="hl-2"> </span><span class="hl-4">environment</span><span class="hl-2"> </span><span class="hl-4">variables</span><br/><span class="hl-2">│   ├── </span><span class="hl-4">address</span><span class="hl-2">-</span><span class="hl-4">manager</span><span class="hl-2">.</span><span class="hl-4">ts</span><span class="hl-2">      # </span><span class="hl-4">Service</span><span class="hl-2"> </span><span class="hl-4">discovery</span><span class="hl-2"> </span><span class="hl-4">client</span><span class="hl-2"> </span><span class="hl-4">setup</span><br/><span class="hl-2">│   └── </span><span class="hl-4">message</span><span class="hl-2">-</span><span class="hl-4">manager</span><span class="hl-2">.</span><span class="hl-4">ts</span><span class="hl-2">      # </span><span class="hl-4">Broker</span><span class="hl-2"> </span><span class="hl-4">singleton</span><span class="hl-2"> &amp; </span><span class="hl-4">route</span><span class="hl-2"> </span><span class="hl-4">binder</span><br/><span class="hl-2">├── </span><span class="hl-4">messaging</span><span class="hl-2">/</span><br/><span class="hl-2">│   ├── </span><span class="hl-4">index</span><span class="hl-2">.</span><span class="hl-4">ts</span><span class="hl-2">                # </span><span class="hl-4">BrokerModule</span><span class="hl-2"> </span><span class="hl-4">entry</span><span class="hl-2"> </span><span class="hl-1">point</span><span class="hl-2"> (</span><span class="hl-4">composition</span><span class="hl-2"> </span><span class="hl-4">root</span><span class="hl-2">)</span><br/><span class="hl-2">│   ├── </span><span class="hl-4">broker</span><span class="hl-2">.</span><span class="hl-4">type</span><span class="hl-2">.</span><span class="hl-4">ts</span><span class="hl-2">          # </span><span class="hl-4">IdentifyType</span><span class="hl-2">, </span><span class="hl-4">BrokerConfig</span><span class="hl-2"> </span><span class="hl-6">type</span><span class="hl-2"> </span><span class="hl-7">definitions</span><br/><span class="hl-2">│   ├── core/                   # Messaging domain logic</span><br/><span class="hl-2">│   │   ├── broker.ts           # Broker facade (publish, subscribe, unsubscribe)</span><br/><span class="hl-2">│   │   ├── dispatcher.ts       # In-memory subscription registry &amp; message routing</span><br/><span class="hl-2">│   │   ├── message.ts          # Message envelope &amp; metadata interfaces</span><br/><span class="hl-2">│   │   └── subscription.ts     # Per-subscriber delivery (retry, TTL, DLQ)</span><br/><span class="hl-2">│   └── transport/              # HTTP transport layer</span><br/><span class="hl-2">│       ├── http.controller.ts  # Request handlers (subscribe, unsubscribe, publish)</span><br/><span class="hl-2">│       ├── http.routes.ts      # Express route definitions</span><br/><span class="hl-2">│       └── validation/</span><br/><span class="hl-2">│           └── broker.schema.ts # Zod schemas for request validation</span><br/><br/><span class="hl-2">tests/</span><br/><span class="hl-2">├── unit/                       # Unit tests mirroring src structure</span><br/><span class="hl-2">├── integration/                # Integration test for broker system</span><br/><span class="hl-2">├── fixtures/                   # Test fixture data</span><br/><span class="hl-2">└── helpers/                    # Test utility factories</span>
+</code><button>Copy</button></pre>
+
+          <h2 id="architecture" class="tsd-anchor-link">
+            Architecture<a href="#architecture" aria-label="Permalink" class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <p>
+            See <a href="./docs/architecture.md">docs/architecture.md</a> for the detailed
+            architecture documentation.
+          </p>
+          <h2 id="api-endpoints" class="tsd-anchor-link">
+            API Endpoints<a href="#api-endpoints" aria-label="Permalink" class="tsd-anchor-icon"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <use href="assets/icons.svg#icon-anchor"></use></svg
+            ></a>
+          </h2>
+          <p>See <a href="./docs/api.md">docs/api.md</a> for the REST API reference.</p>
+        </div>
+      </div>
+      <div class="col-sidebar">
+        <div class="page-menu">
+          <div class="tsd-navigation settings">
+            <details class="tsd-accordion">
+              <summary class="tsd-accordion-summary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <use href="assets/icons.svg#icon-chevronDown"></use>
+                </svg>
+                <h3>Settings</h3>
+              </summary>
+              <div class="tsd-accordion-details">
+                <div class="tsd-filter-visibility">
+                  <span class="settings-label">Member Visibility</span>
+                  <ul id="tsd-filter-options">
+                    <li class="tsd-filter-item">
+                      <label class="tsd-filter-input"
+                        ><input type="checkbox" id="tsd-filter-protected" name="protected" /><svg
+                          width="32"
+                          height="32"
+                          viewBox="0 0 32 32"
+                          aria-hidden="true"
+                        >
+                          <rect
+                            class="tsd-checkbox-background"
+                            width="30"
+                            height="30"
+                            x="1"
+                            y="1"
+                            rx="6"
+                            fill="none"
+                          ></rect>
+                          <path
+                            class="tsd-checkbox-checkmark"
+                            d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25"
+                            stroke="none"
+                            stroke-width="3.5"
+                            stroke-linejoin="round"
+                            fill="none"
+                          ></path></svg
+                        ><span>Protected</span></label
+                      >
+                    </li>
+                    <li class="tsd-filter-item">
+                      <label class="tsd-filter-input"
+                        ><input
+                          type="checkbox"
+                          id="tsd-filter-inherited"
+                          name="inherited"
+                          checked
+                        /><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
+                          <rect
+                            class="tsd-checkbox-background"
+                            width="30"
+                            height="30"
+                            x="1"
+                            y="1"
+                            rx="6"
+                            fill="none"
+                          ></rect>
+                          <path
+                            class="tsd-checkbox-checkmark"
+                            d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25"
+                            stroke="none"
+                            stroke-width="3.5"
+                            stroke-linejoin="round"
+                            fill="none"
+                          ></path></svg
+                        ><span>Inherited</span></label
+                      >
+                    </li>
+                    <li class="tsd-filter-item">
+                      <label class="tsd-filter-input"
+                        ><input type="checkbox" id="tsd-filter-external" name="external" /><svg
+                          width="32"
+                          height="32"
+                          viewBox="0 0 32 32"
+                          aria-hidden="true"
+                        >
+                          <rect
+                            class="tsd-checkbox-background"
+                            width="30"
+                            height="30"
+                            x="1"
+                            y="1"
+                            rx="6"
+                            fill="none"
+                          ></rect>
+                          <path
+                            class="tsd-checkbox-checkmark"
+                            d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25"
+                            stroke="none"
+                            stroke-width="3.5"
+                            stroke-linejoin="round"
+                            fill="none"
+                          ></path></svg
+                        ><span>External</span></label
+                      >
+                    </li>
+                  </ul>
+                </div>
+                <div class="tsd-theme-toggle">
+                  <label class="settings-label" for="tsd-theme">Theme</label
+                  ><select id="tsd-theme">
+                    <option value="os">OS</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </div>
+              </div>
+            </details>
+          </div>
+          <details open class="tsd-accordion tsd-page-navigation">
+            <summary class="tsd-accordion-summary">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <use href="assets/icons.svg#icon-chevronDown"></use>
+              </svg>
+              <h3>On This Page</h3>
+            </summary>
+            <div class="tsd-accordion-details">
+              <a href="#message-delivery-service"
+                ><span>Message <wbr />Delivery <wbr />Service</span></a
+              >
+              <ul>
+                <li>
+                  <a href="#overview"><span>Overview</span></a>
+                </li>
+                <li>
+                  <a href="#prerequisites"><span>Prerequisites</span></a>
+                </li>
+                <li>
+                  <a href="#installation"><span>Installation</span></a>
+                </li>
+                <li>
+                  <a href="#configuration"><span>Configuration</span></a>
+                </li>
+                <li>
+                  <a href="#environment-variables"
+                    ><span>Environment <wbr />Variables</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#running"><span>Running</span></a>
+                </li>
+                <li>
+                  <a href="#testing"><span>Testing</span></a>
+                </li>
+                <li>
+                  <a href="#scripts"><span>Scripts</span></a>
+                </li>
+                <li>
+                  <a href="#project-structure"
+                    ><span>Project <wbr />Structure</span></a
+                  >
+                </li>
+                <li>
+                  <a href="#architecture"><span>Architecture</span></a>
+                </li>
+                <li>
+                  <a href="#api-endpoints"
+                    ><span>API <wbr />Endpoints</span></a
+                  >
+                </li>
+              </ul>
+            </div>
+          </details>
+        </div>
+        <div class="site-menu">
+          <nav class="tsd-navigation">
+            <a href="modules.html">message-manager - v1.0.0</a>
+            <ul class="tsd-small-nested-navigation" id="tsd-nav-container">
+              <li>Loading...</li>
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </div>
+    <footer></footer>
+    <div class="overlay"></div>
+  </body>
+</html>
