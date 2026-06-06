@@ -88,6 +88,8 @@ function nStepReturn(buf: Float32Array, t: number, g: DeepReadonly<LamarckGenome
 /**
  * Train phase: backend learns from pre-computed reward buffer.
  * rewardBuf MUST have been computed by a shadow backend beforehand.
+ * Skips training when the experience pool has fewer than 2 entries to
+ * prevent out-of-bounds access on pool[pool.length - 2].
  */
 async function trainPhase(
   backend: RLBackend,
@@ -105,18 +107,18 @@ async function trainPhase(
     backend.step(trainData[t].features, trainData[t].price);
 
     const pool = backend.getExperiencePool();
-    if (pool.length >= 2) {
-      const prev = pool[pool.length - 2];
-      backend.train(
-        {
-          ...prev,
-          reward: nStepReturn(rewardBuf, t, g),
-          nextState: trainData[t].features,
-          done: t === maxT - 1,
-        },
-        g.rl.gamma
-      );
-    }
+    if (pool.length < 2) continue;
+
+    const prev = pool[pool.length - 2];
+    backend.train(
+      {
+        ...prev,
+        reward: nStepReturn(rewardBuf, t, g),
+        nextState: trainData[t].features,
+        done: t === maxT - 1,
+      },
+      g.rl.gamma
+    );
   }
 }
 
@@ -183,6 +185,9 @@ function lamarckianUpdate(
 
 function deepFreeze<T>(obj: T): DeepReadonly<T> {
   if (obj === null || typeof obj !== 'object') return obj as DeepReadonly<T>;
+
+  if (ArrayBuffer.isView(obj)) return obj as DeepReadonly<T>;
+
   for (const key of Object.keys(obj)) {
     const val = (obj as Record<string, unknown>)[key];
     if (val !== null && typeof val === 'object' && !Object.isFrozen(val)) {
