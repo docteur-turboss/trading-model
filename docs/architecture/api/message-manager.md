@@ -153,15 +153,18 @@ Body (validated by `UnsubscribeSchema`):
 
 ## Delivery Semantics
 
-| Mode            | Description                                               |
-| --------------- | --------------------------------------------------------- |
-| `AT_MOST_ONCE`  | Delivered at most once (no retries)                       |
-| `AT_LEAST_ONCE` | Delivered at least once (retries until ACK or TTL expiry) |
-| `EXACTLY_ONCE`  | Delivered exactly once (idempotent)                       |
+| Mode            | Description                                                                   |
+| --------------- | ----------------------------------------------------------------------------- |
+| `AT_MOST_ONCE`  | Delivered at most once (no retries)                                           |
+| `AT_LEAST_ONCE` | Delivered at least once (retries with exponential backoff, up to 10 attempts) |
+| `EXACTLY_ONCE`  | Delivered exactly once (idempotent)                                           |
 
 ## Features
 
 - **TTL**: Message expiration based on time-to-live configured in metadata
+- **Retry with backoff**: `AT_LEAST_ONCE` retries up to 10 times with exponential backoff (1s base, 60s cap) and ±20% random jitter
+- **Circuit breaker**: After 5 consecutive dispatch failures, new messages are routed directly to the Dead Letter Queue to prevent cascading failures; the breaker resets on the next successful delivery
+- **Alerting**: Persistent delivery failures are logged at ERROR level with topic, service name, and attempt count
 - **Dead Letter Queue**: Undelivered messages persisted as JSON Lines (NDJSON) to `dead-letter-queue.jsonl` with failure reason, delivery attempt count, and timestamp
 - **Deduplication**: Via `deduplicationId` in delivery metadata
 - **Partitioning**: Via `partitionKey` in routing metadata

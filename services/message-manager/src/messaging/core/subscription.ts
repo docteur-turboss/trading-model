@@ -31,9 +31,26 @@ import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { IdentifyType, message as Message } from '@trading-model/common/contracts/message.types';
 import { DeadLetterError, NackError } from '@trading-model/common/utils/errors';
+import { sleep } from '@trading-model/common/utils/sleep';
 
 import { DqlRepository } from './dlq-repository';
 import { findAService } from '../../config/address-manager';
+import { logger } from '../../config/logger';
+
+/** Maximum number of delivery retries before routing to DLQ. */
+const MAX_RETRIES = 10;
+
+/** Base delay (ms) for exponential backoff between retries. */
+const BASE_DELAY_MS = 1000;
+
+/** Maximum delay (ms) cap for exponential backoff. */
+const MAX_DELAY_MS = 60_000;
+
+/** Random jitter factor applied to backoff delay (±20%). */
+const JITTER_FACTOR = 0.2;
+
+/** Consecutive dispatch failures before the circuit breaker opens. */
+const CIRCUIT_BREAKER_THRESHOLD = 5;
 
 /**
  * Runtime context provided to subscribers during message delivery.
@@ -72,10 +89,14 @@ interface SubscribersContext {
  * @class Subscription
  */
 export class Subscription {
+  /** Consecutive dispatch failures across messages (circuit breaker state). */
+  private failureCount = 0;
+
   /**
-   * @param {string} topic Topic name subscribed to
-   * @param {string} callbackURL Relative HTTP endpoint for message delivery
-   * @param {IdentifyType} serviceIdentity Identity of the consuming service
+   * @param topic - Topic name subscribed to.
+   * @param callbackURL - Relative HTTP endpoint for message delivery.
+   * @param serviceIdentity - Identity of the consuming service.
+   * @param dqlRepository - Repository for dead-lettered messages.
    */
   constructor(
     public readonly topic: string,
@@ -85,27 +106,50 @@ export class Subscription {
   ) {}
 
   /**
+   * Compute exponential backoff delay with random jitter.
+   *
+   * @param attempt - Zero-based delivery attempt number.
+   * @returns Delay in milliseconds.
+   */
+  private static backoffDelay(attempt: number): number {
+    const exponential = Math.min(BASE_DELAY_MS * Math.pow(2, attempt), MAX_DELAY_MS);
+    const jitter = exponential * JITTER_FACTOR * (Math.random() * 2 - 1);
+    return Math.round(exponential + jitter);
+  }
+
+  /**
    * Dispatches a message to the subscribed service.
    *
-   * @description
    * Resolves the target service address, sends the message via HTTP,
-   * retries according to delivery semantics, and handles TTL expiration.
+   * retries with exponential backoff up to MAX_RETRIES, and falls
+   * back to the Dead Letter Queue when all retries are exhausted.
+   * A circuit breaker prevents cascading failures when the target
+   * service is persistently unavailable.
    *
    * Delivery behavior depends on `DeliveryMode`:
-   * - `AT_LEAST_ONCE`: retries until ACK or TTL expiry
+   * - `AT_LEAST_ONCE`: retries until ACK, max retries, or TTL expiry
    * - `AT_MOST_ONCE`: no retry on NACK
    * - `EXACTLY_ONCE`: stops after first delivery
    *
-   * @template T Message payload type
-   * @param {Message<T>} message Message to dispatch
-   * @param {HttpClient} httpClient HTTP client instance
-   * @returns {Promise<void>}
+   * @template T - Message payload type.
+   * @param httpClient - HTTP client instance.
+   * @param message - Message to dispatch.
    */
   async dispatch<T>(httpClient: HttpClient, message: Message<T>): Promise<void> {
     const ttl = message.metadata.delivery?.ttl ?? 0;
     const deliveryMode = message.metadata.delivery?.mode ?? DeliveryMode.AT_LEAST_ONCE;
 
     const emittedAt = new Date(message.metadata.emittedAt ?? 0).getTime();
+
+    if (this.failureCount >= CIRCUIT_BREAKER_THRESHOLD) {
+      logger.warn('Circuit breaker open — rejecting dispatch', {
+        topic: this.topic,
+        service: this.serviceIdentity.serviceName,
+        failureCount: this.failureCount,
+      });
+      await this.sendToDLQ(message, 'CIRCUIT_OPEN', this.failureCount);
+      return;
+    }
 
     let acknowledged = false;
 
@@ -150,13 +194,25 @@ export class Subscription {
           return;
         }
 
-        // retry (AT LEAST ONCE)
-        // FUTURE: backof / jitter / circuit breaker;
+        if (context.deliveryAttempt >= MAX_RETRIES) {
+          this.failureCount++;
+          logger.error('Max retries exceeded — routing to DLQ', {
+            topic: this.topic,
+            service: this.serviceIdentity.serviceName,
+            deliveryAttempt: context.deliveryAttempt,
+          });
+          await this.sendToDLQ(message, 'MAX_RETRIES_EXCEEDED', context.deliveryAttempt);
+          return;
+        }
+
+        await sleep(Subscription.backoffDelay(context.deliveryAttempt));
       }
 
       if (deliveryMode === DeliveryMode.EXACTLY_ONCE || deliveryMode === DeliveryMode.AT_MOST_ONCE)
         return;
     }
+
+    this.failureCount = 0;
   }
 
   /**
