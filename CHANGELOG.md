@@ -5,10 +5,14 @@
 #### Fix
 
 - :bug:(address-manager): log scheduler job execution errors instead of swallowing them silently (#114)
+- :bug:(address-manager): preserve original error type via cause property in AddressManagerError (#115)
+- :bug:(address-manager): add configurable timeout to findService HTTP calls to prevent indefinite hangs (#116)
 
 #### Test
 
 - :white_check_mark:(address-manager): add test for error logging when job.execute throws
+- :white_check_mark:(address-manager): add tests verifying original error is preserved via cause property
+- :white_check_mark:(address-manager): add test verifying timeout option is passed to HttpClient.get
 
 ## [1.3.0] - 2026-06-06
 

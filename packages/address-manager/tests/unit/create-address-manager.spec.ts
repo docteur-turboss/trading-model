@@ -19,6 +19,7 @@ describe('createAddressManager', () => {
     const env = {
       ADDRESS_MANAGER_URL: 'http://localhost:8443',
       CACHE_TTL_MS: 60000,
+      DISCOVERY_TIMEOUT_MS: 5000,
       INSTANCE_ID: 'instance-1',
       SERVICE_NAME: 'test-service',
       SERVICE_PING_TIMEOUT_MS: 2000,
@@ -39,6 +40,7 @@ describe('createAddressManager', () => {
     const env = {
       ADDRESS_MANAGER_URL: 'http://localhost:8443',
       CACHE_TTL_MS: 60000,
+      DISCOVERY_TIMEOUT_MS: 5000,
       INSTANCE_ID: 'instance-1',
       SERVICE_NAME: 'test-service',
       SERVICE_PING_TIMEOUT_MS: 2000,

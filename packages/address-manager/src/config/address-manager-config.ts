@@ -8,6 +8,7 @@ interface AddressManagerConfig {
   tokenRefreshIntervalMs: number;
   ttlRefreshIntervalMs: number;
   servicePingTimeoutMs: number;
+  discoveryTimeoutMs: number;
 
   RootCACertPath: string;
   CertificatPath: string;
