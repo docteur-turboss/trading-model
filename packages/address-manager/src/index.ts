@@ -1,6 +1,8 @@
 import { Application } from 'express';
 
 import { HttpClient } from '@trading-model/common/config/http-client';
+import { logger } from '@trading-model/common/config/logger';
+import { sleep } from '@trading-model/common/utils/sleep';
 
 import { AddressManagerClient } from './client/address-manager-client';
 import { TokenManager } from './client/token-manager';
@@ -12,6 +14,15 @@ import { ServiceHealthChecker } from './discovery/service-health-checker';
 import { pingRoutes } from './http/routes/ping.routes';
 import { RefreshJob } from './scheduler/refresh-job';
 import { Scheduler } from './scheduler/scheduler';
+
+/** Maximum registration retry attempts before giving up. */
+const MAX_REGISTRATION_RETRIES = 10;
+
+/** Base delay (ms) for exponential backoff between registration retries. */
+const REGISTRATION_BASE_DELAY_MS = 1000;
+
+/** Maximum delay (ms) cap for registration retry backoff. */
+const REGISTRATION_MAX_DELAY_MS = 30_000;
 
 /**
  * Default export for the Address Manager library.
@@ -38,6 +49,7 @@ export default class AddressManager {
   private readonly httpClient: HttpClient;
   private readonly tokenRefreshIntervalMs: number;
   private readonly ttlRefreshIntervalMs: number;
+  private shouldRetryRegistration = true;
 
   constructor(config: AddressManagerConfig) {
     this.httpClient = new HttpClient({
@@ -54,7 +66,11 @@ export default class AddressManager {
     );
 
     this.serviceCache = new ServiceCache(config.cacheTtlMs);
-    this.healthChecker = new ServiceHealthChecker(this.httpClient, config.servicePingTimeoutMs, config.dnsNameMap);
+    this.healthChecker = new ServiceHealthChecker(
+      this.httpClient,
+      config.servicePingTimeoutMs,
+      config.dnsNameMap
+    );
 
     this.serviceDiscovery = new ServiceDiscovery(
       this.httpClient,
@@ -83,15 +99,51 @@ export default class AddressManager {
   }
 
   /**
+   * Register the service with exponential backoff retry.
+   *
+   * Attempts to register until success, max retries are exhausted,
+   * or `stop()` is called. Each failure is logged with attempt count.
+   */
+  private async retryRegistration(): Promise<void> {
+    for (let attempt = 1; attempt <= MAX_REGISTRATION_RETRIES; attempt++) {
+      if (!this.shouldRetryRegistration) return;
+
+      try {
+        const res = await this.addressManagerClient.registerService();
+        this.tokenManager.setToken(res.token);
+        return;
+      } catch (error) {
+        logger.error('Service registration failed', {
+          attempt,
+          maxRetries: MAX_REGISTRATION_RETRIES,
+          error,
+        });
+
+        if (attempt < MAX_REGISTRATION_RETRIES) {
+          const delay = Math.min(
+            REGISTRATION_BASE_DELAY_MS * Math.pow(2, attempt),
+            REGISTRATION_MAX_DELAY_MS
+          );
+          await sleep(delay);
+        }
+      }
+    }
+
+    logger.error('Service registration failed after max retries', {
+      maxRetries: MAX_REGISTRATION_RETRIES,
+    });
+  }
+
+  /**
    * Starts periodic registration, token refresh, and TTL refresh cycles.
    *
-   * - Registers the service with the discovery server
+   * - Registers the service with the discovery server (with retry)
    * - Starts a scheduler with token and TTL refresh jobs
    *
    * @returns A handle with a `stop` method to gracefully shut down all cycles.
    */
   start(): { stop: () => void } {
-    this.addressManagerClient.registerService().then(res => this.tokenManager.setToken(res.token));
+    this.retryRegistration();
 
     const scheduler = new Scheduler();
 
@@ -107,6 +159,7 @@ export default class AddressManager {
 
     return {
       stop: () => {
+        this.shouldRetryRegistration = false;
         scheduler.stop();
       },
     };

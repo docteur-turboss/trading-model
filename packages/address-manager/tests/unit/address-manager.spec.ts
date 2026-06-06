@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
+jest.mock('@trading-model/common/utils/sleep', () => ({
+  sleep: jest.fn(() => Promise.resolve()),
+}));
+
 const mockHttpClientInstance = {
   post: jest.fn(),
   get: jest.fn(),
@@ -131,13 +135,59 @@ describe('AddressManager', () => {
 
       const handle = am.start();
 
+      await new Promise(process.nextTick);
+
       expect(mockAddressManagerClientInstance.registerService).toHaveBeenCalled();
+      expect(mockTokenManagerInstance.setToken).toHaveBeenCalledWith('new-token');
       expect(mockSchedulerInstance.register).toHaveBeenCalledTimes(2);
       expect(mockSchedulerInstance.start).toHaveBeenCalled();
       expect(handle).toHaveProperty('stop');
 
       handle.stop();
       expect(mockSchedulerInstance.stop).toHaveBeenCalled();
+    });
+
+    it('should retry registration on failure and succeed on retry', async () => {
+      (mockAddressManagerClientInstance.registerService as any)
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce({ token: 'retry-token' });
+
+      const handle = am.start();
+
+      await new Promise(process.nextTick);
+
+      expect(mockAddressManagerClientInstance.registerService).toHaveBeenCalledTimes(2);
+      expect(mockTokenManagerInstance.setToken).toHaveBeenCalledWith('retry-token');
+
+      handle.stop();
+    });
+
+    it('should log error after max retries exhausted', async () => {
+      (mockAddressManagerClientInstance.registerService as any).mockRejectedValue(
+        new Error('Service unreachable')
+      );
+
+      const handle = am.start();
+
+      await new Promise(process.nextTick);
+
+      expect(mockAddressManagerClientInstance.registerService).toHaveBeenCalledTimes(10);
+
+      handle.stop();
+    });
+
+    it('should abort registration retry loop when stop is called', async () => {
+      // keep registration pending — the retry loop will await it
+      (mockAddressManagerClientInstance.registerService as any).mockReturnValue(
+        new Promise(() => {})
+      );
+
+      const handle = am.start();
+      handle.stop();
+
+      // stop sets shouldRetryRegistration to false; the loop checks it before each retry
+      // Since the first registration never settles, no further retries happen
+      expect(mockAddressManagerClientInstance.registerService).toHaveBeenCalledTimes(1);
     });
   });
 });

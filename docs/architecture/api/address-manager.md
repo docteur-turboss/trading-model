@@ -88,6 +88,8 @@ import { createAddressManager } from '@trading-model/address-manager';
 
 1. `start()` → registers the service via `POST /register` on the discovery-server
 2. The received token is stored in the `TokenManager`
+3. Registration retries with exponential backoff (1s base, 30s cap, up to 10 attempts) if the discovery-server is unreachable; errors are logged at each attempt
+4. Registration aborts early if `stop()` is called during retry
 
 ### TTL Refresh
 
