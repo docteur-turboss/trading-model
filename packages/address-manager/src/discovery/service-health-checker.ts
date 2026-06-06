@@ -22,21 +22,20 @@ import { ServiceInstance } from '../client/type';
 export class ServiceHealthChecker {
   private readonly httpClient: HttpClient;
   private readonly timeoutMs: number;
+  private readonly dnsNameMap: Record<string, string>;
 
   /**
    * Creates a new ServiceHealthChecker.
    *
    * @param httpClient - HTTP client used to perform the health check.
    * @param timeoutMs - Maximum duration (in milliseconds) to wait for a response.
-   *
-   * @example
-   * ```ts
-   * const checker = new ServiceHealthChecker(httpClient, 2000); // 2s timeout
-   * ```
+   * @param dnsNameMap - Optional mapping from logical service names to
+   * deployment-specific DNS names. When empty, the logical service name is used as-is.
    */
-  constructor(httpClient: HttpClient, timeoutMs: number) {
+  constructor(httpClient: HttpClient, timeoutMs: number, dnsNameMap: Record<string, string> = {}) {
     this.httpClient = httpClient;
     this.timeoutMs = timeoutMs;
+    this.dnsNameMap = dnsNameMap;
   }
 
   /**
@@ -47,14 +46,6 @@ export class ServiceHealthChecker {
    *
    * @param instance - The service instance to check.
    * @returns Promise resolving to `true` if healthy, `false` otherwise.
-   *
-   * @example
-   * ```ts
-   * const healthy = await checker.isHealthy(instance);
-   * if (!healthy) {
-   *   console.warn("Service is unreachable");
-   * }
-   * ```
    */
   async isHealthy(instance: ServiceInstance): Promise<boolean> {
     const url = this.buildPingUrl(instance);
@@ -82,24 +73,18 @@ export class ServiceHealthChecker {
    * @private
    */
   private buildPingUrl(instance: ServiceInstance): string {
-    const hostname = this.getServiceDnsName(instance.serviceName);
+    const hostname = this.resolveDnsName(instance.serviceName);
     return `http://${hostname}:${instance.port}${PING_PATH}`;
   }
 
   /**
-   * Maps a logical service name to its Docker Compose DNS name.
+   * Resolves a logical service name to a deployment-specific DNS name.
+   * Falls back to the logical name if no mapping is configured.
    *
-   * The TLS certificate SAN includes the Docker Compose service names,
-   * so health checks must use these DNS names instead of IP addresses
-   * to pass hostname verification.
+   * @param serviceName - Logical service name to resolve.
+   * @returns The DNS name to use for the health check URL.
    */
-  private getServiceDnsName(serviceName: string): string {
-    const dnsNameMap: Record<string, string> = {
-      'discovery-service': 'discovery-server',
-      'message-delivery-service': 'message-manager',
-      'financial-scrapper-service': 'financial-scraper',
-      'trader-training-service': 'trader-trainer',
-    };
-    return dnsNameMap[serviceName] || serviceName;
+  private resolveDnsName(serviceName: string): string {
+    return this.dnsNameMap[serviceName] ?? serviceName;
   }
 }

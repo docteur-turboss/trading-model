@@ -44,6 +44,7 @@ interface AddressManagerConfig {
   CertificatPath: string;
   KeyCertificatPath: string;
   cacheTtlMs: number;
+  dnsNameMap?: Record<string, string>;
 }
 ```
 
@@ -141,6 +142,7 @@ Calls made to the Discovery Server:
 | `TOKEN_REFRESH_INTERVAL_MS`       | `60000`     | Token rotation interval |
 | `TTL_REFRESH_INTERVAL_MS`         | `15000`     | TTL refresh interval    |
 | `ADDRESS_MANAGER_URL`             | —           | Discovery-server URL    |
+| `DNS_NAME_MAP`                    | `'{}'`      | Custom DNS mapping (JSON) |
 | `ERROR_URL_WEBHOOK`               | `''`        | Error webhook           |
 | `MESSAGE_BUS_INIT_TIMEOUT_MS`     | `2000`      | Bus init timeout        |
 | `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | `2000`      | Bus shutdown timeout    |

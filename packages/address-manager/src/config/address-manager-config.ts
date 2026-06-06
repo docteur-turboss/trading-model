@@ -14,5 +14,8 @@ interface AddressManagerConfig {
   KeyCertificatPath: string;
 
   cacheTtlMs: number;
+
+  /** Optional mapping from logical service names to deployment-specific DNS names. */
+  dnsNameMap?: Record<string, string>;
 }
 export { AddressManagerConfig };

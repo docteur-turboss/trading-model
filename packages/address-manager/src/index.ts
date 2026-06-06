@@ -14,7 +14,6 @@ import { Scheduler } from './scheduler/scheduler';
 import { TokenRefresherJob } from './scheduler/token-refresh-job';
 import { TtlRefresherJob } from './scheduler/ttl-refresher-job';
 
-
 /**
  * Default export for the Address Manager library.
  *
@@ -56,7 +55,11 @@ export default class {
     );
 
     this.ServiceCache = new ServiceCache(config.cacheTtlMs);
-    this.healthChecker = new ServiceHealthChecker(this.HTTPCLIENT, config.servicePingTimeoutMs);
+    this.healthChecker = new ServiceHealthChecker(
+      this.HTTPCLIENT,
+      config.servicePingTimeoutMs,
+      config.dnsNameMap
+    );
 
     this.ServiceDiscovery = new ServiceDiscovery(
       this.HTTPCLIENT,
