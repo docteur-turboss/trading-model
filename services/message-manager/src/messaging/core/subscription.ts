@@ -30,7 +30,7 @@
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { IdentifyType, message as Message } from '@trading-model/common/contracts/message.types';
-import { DeadLetterError, NackError } from '@trading-model/common/utils/errors';
+import { DeadLetterError } from '@trading-model/common/utils/errors';
 import { sleep } from '@trading-model/common/utils/sleep';
 
 import { DqlRepository } from './dlq-repository';
@@ -190,7 +190,7 @@ export class Subscription {
           return;
         }
 
-        if (deliveryMode === DeliveryMode.AT_MOST_ONCE && e instanceof NackError) {
+        if (deliveryMode === DeliveryMode.AT_MOST_ONCE) {
           return;
         }
 
