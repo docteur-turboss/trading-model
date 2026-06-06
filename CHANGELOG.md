@@ -1,3 +1,68 @@
+## [1.3.0] - 2026-06-06
+
+### @trading-model/common (1.0.0 → 1.1.0)
+
+#### Refactor
+
+- fa2bb7e **common:** centralize ServiceInstance, makePRNG, message-manager config, rateLimit, loadTlsConfig, PING_PATH, sleep, trader-trainer env, naming bug, hosts.json endpoint
+- 1668c70 **common:** derive types from const (MarketType/SourceType), computed EventMap keys, export ServiceInstanceName type, fix key-name bugs in schemas/tests
+- 8086f93 **common:** centralize duplicated code, add comprehensive JSDoc, improve TypeScript patterns (#66)
+
+#### Fix
+
+- cfe1799 **common:** fix JSON.stringify circular reference in logger
+- 42d9589 **common:** fix HttpClient PEM cert loading and AddressManager this binding
+- 04ad1f2 **common:** add /ping healthcheck and curl for container healthchecks
+
+### @trading-model/address-manager (1.0.0 → 1.1.0)
+
+#### Fix
+
+- d2c22b5 **address-manager:** resolve double-encoding in ResponseProtocole and service resolution in AddressManager (#64)
+
+### @trading-model/broker-message (1.0.0 → 1.1.0)
+
+#### Fix
+
+- 6389e6a **message-manager:** fix path alias and this binding in broker configs
+
+### trader-service (1.2.0 → 1.3.0)
+
+#### Test
+
+- d0a0c4a **trader-trainer:** set minimum test coverage to 80%
+
+### services
+
+#### Docs
+
+- 28c01a4 **docs:** restructure documentation into standards/deployment/architecture hierarchy with TypeDoc, PR/issue templates, and AI summary
+- 3abf8b8 **docs:** add JSDoc to all source files following JSDOC_STANDARD.md
+
+#### Ci
+
+- d5c0e4d **github-actions:** upgrade actions/checkout/setup-node to v5 (Node.js 24), fix eslint any in helpers.ts
+- 55d7dc9 **github-actions:** merge lint/build/test into ci.yml, add explicit workflow permissions; fix docs and deploy scripts alignment (#65)
+- ddc24ea **scripts:** add trading-discovery-1 to cert SANs and use as CN
+
+### Docker / Deployment
+
+#### Fix
+
+- d675b13 **docker:** fix financial-scraper p-limit CJS compat, docker ignore-scripts
+
+#### Ci
+
+- 567f6d7 **github-actions:** fix heredoc syntax in release notes generation
+- 2d56843 **ci:** use GHCR_TOKEN PAT for docker push permissions
+- 594ebb5 **ci:** fix lockfile sync, ignore husky scripts in Docker deps, fix event type narrowing
+- 5572d14 **ci:** add buildx setup and sync lockfile for release workflow
+
+#### Docs
+
+- 19bf308 **financial-scraper:** add VM host setup guide and beta server inventory
+- 28caaf5 **config:** add beta canary deploy server with 2% rollout (#62)
+
 ## [1.2.0] - 2026-06-03
 
 ### trader-service (1.1.0 → 1.2.0)

@@ -1,6 +1,6 @@
 {
   "name": "@trading-model/address-manager",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "license": "ISC",
   "type": "commonjs",
   "exports": {
