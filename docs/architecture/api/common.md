@@ -121,11 +121,11 @@ HTTP client with mTLS support for service-to-service calls.
 import { HttpClient } from '@trading-model/common/config/http-client';
 ```
 
-| Method                                            | Signature | Returns                     |
-| ------------------------------------------------- | --------- | --------------------------- |
-| `get<T>(url, options?, schema?)`                  | `GET`     | `Promise<T \| undefined>`   |
-| `post<T>(url, body?, options?, schema?)`          | `POST`    | `Promise<T \| undefined>`   |
-| `delete<T>(url, body?, options?, schema?)`        | `DELETE`  | `Promise<T \| undefined>`   |
+| Method                                     | Signature | Returns                   |
+| ------------------------------------------ | --------- | ------------------------- |
+| `get<T>(url, options?, schema?)`           | `GET`     | `Promise<T \| undefined>` |
+| `post<T>(url, body?, options?, schema?)`   | `POST`    | `Promise<T \| undefined>` |
+| `delete<T>(url, body?, options?, schema?)` | `DELETE`  | `Promise<T \| undefined>` |
 
 Options: `timeoutMs`, `headers`
 
