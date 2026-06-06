@@ -299,6 +299,14 @@ TradingModelError (abstract)
 sleep(ms: number): Promise<void>
 ```
 
+- **Import**: `@trading-model/common/utils/deterministic-stringify`
+
+```ts
+deterministicStringify(value: unknown): string
+```
+
+Deterministic JSON serialisation for cryptographic signing. Recursively sorts object keys in lexicographic order so the same logical value always produces the same string, regardless of insertion order. Preserves array order, handles primitives, nulls, and nested objects.
+
 ## Deployment
 
 This package is **not deployed independently**. It is built as a workspace dependency and consumed at build time by other packages and services. The compiled output goes to `dist/` via `npm run build` (tsc, CommonJS output).
