@@ -13,6 +13,12 @@ export interface AddressManagerEnv {
   TLS_CERT_PATH: string;
   TLS_KEY_PATH: string;
   TLS_CA_PATH: string;
+
+  /**
+   * Optional JSON mapping from logical service names to deployment-specific DNS names.
+   * Example: '{"discovery-service":"discovery-server","message-delivery-service":"message-manager"}'
+   */
+  DNS_NAME_MAP?: string;
 }
 
 /** Creates and returns a fully configured Address Manager instance from environment variables. */
@@ -29,5 +35,6 @@ export function createAddressManager(env: AddressManagerEnv) {
     CertificatPath: env.TLS_CERT_PATH,
     KeyCertificatPath: env.TLS_KEY_PATH,
     RootCACertPath: env.TLS_CA_PATH,
+    dnsNameMap: env.DNS_NAME_MAP ? JSON.parse(env.DNS_NAME_MAP) : undefined,
   });
 }
