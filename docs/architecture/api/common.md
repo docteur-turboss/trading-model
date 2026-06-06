@@ -59,7 +59,7 @@ Features:
 
 - Attaches `SIGTERM`, `SIGINT` handlers
 - Captures `uncaughtException` and `unhandledRejection`
-- Immediate exit on fatal error
+- Graceful shutdown on fatal error: closes HTTP server and calls `onStop` before exit
 
 ## SecureServer
 
