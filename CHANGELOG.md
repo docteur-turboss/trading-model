@@ -1,3 +1,15 @@
+## [1.3.2] - 2026-06-07
+
+### trader-service (1.3.1 → 1.3.2)
+
+#### Fix
+
+- :bug:(trainer): add pool bounds guard in trainPhase to prevent out-of-bounds access on pool[pool.length - 2] (#117)
+
+#### Test
+
+- :white_check_mark:(trainer): add unit tests for evaluation-pipeline trainPhase pool bounds check and pooledEval
+
 ## [1.3.1] - 2026-06-07
 
 ### @trading-model/address-manager (1.1.0 → 1.1.1)
