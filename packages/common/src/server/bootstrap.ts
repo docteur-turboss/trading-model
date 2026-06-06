@@ -1,6 +1,7 @@
 import { logger } from '../config/logger';
 import { HttpServer } from './create-secure-server';
 
+/** Options for configuring a service bootstrap lifecycle. */
 export interface BootstrapOptions {
   name: string;
   createServer: () => HttpServer;
@@ -8,6 +9,10 @@ export interface BootstrapOptions {
   onStop?: () => void;
 }
 
+/**
+ * Initializes and starts a service, binding process-level shutdown handlers.
+ * Returns handles to the running server and a shutdown trigger.
+ */
 export function createBootstrap(options: BootstrapOptions): {
   server: HttpServer | null;
   shutdown: (signal: string) => Promise<void>;

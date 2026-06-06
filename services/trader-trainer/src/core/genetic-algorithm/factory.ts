@@ -16,6 +16,7 @@ import type {
   ReplayBufferGenome,
 } from './genome-types';
 
+/** Create a genome with sensible default values for network, RL hyperparameters, mutation, crossover, and GA control. */
 export function createDefaultGenome(
   id: string,
   generation = 0,

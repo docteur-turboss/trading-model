@@ -28,9 +28,13 @@ export default class {
   private ServiceCache: ServiceCache;
   private HTTPCLIENT: HttpClient;
 
+  /** Returns the current authentication token. */
   public getToken: () => string;
+  /** Starts periodic registration, token refresh, and TTL refresh cycles. Returns a handle to stop the process. */
   public start: () => { stop: () => void };
+  /** Resolves a healthy service instance by name. */
   public findService: (serviceName: string) => Promise<ServiceInstance>;
+  /** Registers the ping health-check endpoint on the given Express app. */
   public listenExpress: (app: Application) => void;
 
   constructor(config: AddressManagerConfig) {

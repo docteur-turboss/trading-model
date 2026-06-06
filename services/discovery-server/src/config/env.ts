@@ -10,4 +10,5 @@ const DiscoveryEnvSchema = BaseEnvSchema.extend({
   ERROR_URL_WEBHOOK: z.union([z.string().url(), z.literal('')]).default(''),
 });
 
+/** Runtime environment variables validated against the extended discovery schema. */
 export const env = validateEnv(DiscoveryEnvSchema);

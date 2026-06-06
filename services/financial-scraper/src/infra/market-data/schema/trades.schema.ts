@@ -32,6 +32,7 @@ const select = {
   timestamp: tMarketTrades.timestamp,
 };
 
+/** Insert trade records into the market_trades table. */
 export const insertTrades = async (data: TradeEntity[]): Promise<void> => {
   if (!data.length) return;
 
@@ -52,6 +53,7 @@ export const insertTrades = async (data: TradeEntity[]): Promise<void> => {
     .executeInsert();
 };
 
+/** Query helpers for the market_trades table, indexed by symbol, timestamp, and source. */
 export const selectTradesBy = {
   symbol: async (symbol: string) => {
     return await new DBConnection()

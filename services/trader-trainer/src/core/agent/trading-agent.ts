@@ -2,6 +2,7 @@ import { Agent } from '../neural-network/agent';
 import { createWallet, WalletConfig } from '../env/wallet-manager';
 import StateManager, { StateManagerConfig } from './state-manager';
 
+/** Configuration to create a TradingAgent with neural network, wallet, and RL state management. */
 export type TradingAgentConfig = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   nnConfig: any;
@@ -11,6 +12,7 @@ export type TradingAgentConfig = {
   stateManagerCfg?: StateManagerConfig;
 };
 
+/** RL agent that couples a neural network with a simulated wallet and epsilon-greedy policy. */
 export class TradingAgent {
   public readonly agent: Agent;
   public readonly wallet: ReturnType<typeof createWallet>;

@@ -111,6 +111,7 @@ export class ClassResponseExceptions extends Error {
     this.reason = typeof reason === 'string' ? reason : JSON.stringify(reason);
   }
 
+  /** Returns a 503 Service Unavailable response object. */
   ServiceUnavailable() {
     return { status: ResponseCodes.ServiceUnavailable, data: this.reason };
   }
@@ -180,6 +181,7 @@ export class ClassResponseExceptions extends Error {
     return { status: ResponseCodes.BadRequest, data: this.reason };
   }
 
+  /** Returns a 204 No Content response object. */
   NoContent() {
     return { status: ResponseCodes.NoContent, data: undefined };
   }

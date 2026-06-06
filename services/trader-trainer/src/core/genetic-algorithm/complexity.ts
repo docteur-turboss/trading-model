@@ -8,6 +8,7 @@ import type { Genome, NetworkGenome } from './genome-types';
 // Topology constraints (configurable per experiment)
 // ----------------------------------------------------------------
 
+/** Bounds that define how complex a network topology is allowed to be. */
 export interface TopologyConstraints {
   /** Maximum number of hidden layers */
   maxDepth: number;
@@ -21,6 +22,7 @@ export interface TopologyConstraints {
   minNeuronsPerLayer: number;
 }
 
+/** Sensible default topology bounds for a trading-agent network. */
 export const DEFAULT_TOPOLOGY_CONSTRAINTS: TopologyConstraints = {
   maxDepth: 8,
   maxNeuronsPerLayer: 512,
@@ -33,17 +35,7 @@ export const DEFAULT_TOPOLOGY_CONSTRAINTS: TopologyConstraints = {
 // Parameter counting
 // ----------------------------------------------------------------
 
-/**
- * Estimate the number of trainable parameters in the network.
- *
- * Counting rule:
- *   - Input → first hidden:  inputDim × h[0].neurons + h[0].neurons (bias)
- *   - Hidden i → i+1:        h[i].neurons × h[i+1].neurons + h[i+1].neurons
- *   - Last hidden → output:  h[last].neurons × outputDim + outputDim
- *
- * Skip/residual connections add identity projections when width changes —
- * we approximate the overhead as +inputDim×h[i].neurons per skip-capable layer.
- */
+/** Count total trainable parameters (weights + biases) in a network topology. */
 export function countParams(net: NetworkGenome): number {
   const layers = net.hiddenLayers;
   if (layers.length === 0) return net.inputDim * net.outputDim + net.outputDim;
@@ -98,6 +90,7 @@ export function complexityScore(
 // Topology violation report
 // ----------------------------------------------------------------
 
+/** Describes a single topology constraint that a network violates. */
 export interface TopologyViolation {
   rule: string;
   actual: number | string;

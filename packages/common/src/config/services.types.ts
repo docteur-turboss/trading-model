@@ -1,3 +1,4 @@
+/** Well-known service instance identifiers used across the system. */
 export const ServiceInstanceName = {
   CoreBalancerService: 'core-balancer-service',
   DiscoveryService: 'discovery-service',

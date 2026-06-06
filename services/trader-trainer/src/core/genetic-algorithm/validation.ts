@@ -16,6 +16,7 @@ import { clamp } from './utils';
 // Result type
 // ----------------------------------------------------------------
 
+/** Describes a single genome validation failure. */
 export interface ValidationError {
   /** Dot-path of the offending field, e.g. "rl.gamma" */
   path: string;
@@ -24,6 +25,7 @@ export interface ValidationError {
   actual: unknown;
 }
 
+/** Result of genome validation: overall valid flag and list of individual errors. */
 export interface ValidationResult {
   valid: boolean;
   errors: ValidationError[];
@@ -89,6 +91,7 @@ function checkPositiveInt(errors: ValidationError[], path: string, v: unknown, m
 // validateGenome
 // ----------------------------------------------------------------
 
+/** Validate a genome against all constraints. Returns a list of violations (empty list = valid). */
 export function validateGenome(g: Genome): ValidationResult {
   const errors: ValidationError[] = [];
 

@@ -6,6 +6,7 @@ import { DeepReadonly } from './genetic-algorithm/shared-types';
 import { makeTradingAgentBackend, GenerationContext } from './genetic-algorithm/ga-runner';
 import { env } from '../config/env';
 
+/** Summary of the best trained agent for API responses. */
 export type BestAgentSummary = {
   id: string;
   generation: number;
@@ -36,6 +37,7 @@ export type BestAgentSummary = {
   };
 };
 
+/** Orchestrates GA training cycles: feeds market data, runs generations, tracks best genome. */
 export class Trainer {
   private runner: GeneticAlgorithmRunner | null = null;
   private bestGenome: DeepReadonly<LamarckGenome> | null = null;
@@ -45,18 +47,22 @@ export class Trainer {
 
   constructor(private readonly dataBuffer: MarketDataBuffer) {}
 
+  /** Return whether a training cycle is currently in progress. */
   isTraining(): boolean {
     return this.training;
   }
 
+  /** Return the symbol currently being trained on. */
   getCurrentSymbol(): string {
     return this.currentSymbol;
   }
 
+  /** Return the current generation number (0 if not started). */
   getGeneration(): number {
     return this.runner?.getGeneration() ?? 0;
   }
 
+  /** Run a full GA training cycle for the given symbol. Skips if already training or insufficient data. */
   async train(symbol: string): Promise<void> {
     if (this.training) return;
 
@@ -113,6 +119,7 @@ export class Trainer {
     }
   }
 
+  /** Build a serialisable summary of the best genome for API consumption. Returns null if no genome exists. */
   getBestAgentSummary(): BestAgentSummary | null {
     if (!this.bestGenome) return null;
 
