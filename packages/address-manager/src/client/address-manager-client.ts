@@ -49,7 +49,8 @@ export class AddressManagerClient {
    * Called once during bootstrap. Sends the service name, port, and local IP.
    *
    * @returns The registration response containing the instance details and token.
-   * @throws AddressManagerError if the registration request fails.
+   * @throws AddressManagerError if the registration request fails. The original
+   *   error (network, timeout, HTTP) is preserved in the `cause` property.
    */
   async registerService(): Promise<ServiceRegistrationResponse | undefined> {
     const payload: RegisterServicePayload = {
@@ -74,12 +75,8 @@ export class AddressManagerClient {
    * - Typically called periodically by a scheduled job.
    * - Ensures the service remains visible to other services.
    *
-   * @throws AddressManagerError if the TTL refresh fails.
-   *
-   * @example
-   * ```ts
-   * await client.refreshTTL();
-   * ```
+   * @throws AddressManagerError if the TTL refresh fails. The original
+   *   error (network, timeout, HTTP) is preserved in the `cause` property.
    */
   async refreshTTL(): Promise<void> {
     const token = this.tokenManager.getToken();
