@@ -124,7 +124,7 @@ Calls made to the Discovery Server:
 | POST   | `{addressManagerUrl}/services/ttl/refresh`   | `AddressManagerClient` | Refresh service lease TTL (Bearer token auth) |
 | POST   | `{addressManagerUrl}/token/rotate`           | `TokenManager`         | Rotate authentication token                   |
 | GET    | `{addressManagerUrl}/services/{serviceName}` | `ServiceDiscovery`     | Fetch a specific service instance             |
-| GET    | `http://{ip}:{port}/ping`                    | `ServiceHealthChecker` | Health-check a discovered service             |
+| GET    | `https://{host}:{port}/ping`                 | `ServiceHealthChecker` | Health-check a discovered service             |
 
 ## Environment Schema
 
@@ -169,7 +169,7 @@ AddressManagerConfig → HttpClient (mTLS)
 | `TokenManager`         | In-memory token storage, refresh via `POST /token/rotate`                                                                                                    |
 | `AddressManagerClient` | HTTP client for Discovery Server API (register, refresh TTL)                                                                                                 |
 | `ServiceCache`         | In-memory cache with TTL expiry for service instances                                                                                                        |
-| `ServiceHealthChecker` | Pings `http://{ip}:{port}/ping` to verify liveness                                                                                                           |
+| `ServiceHealthChecker` | Pings `https://{host}:{port}/ping` to verify liveness                                                                                                        |
 | `ServiceDiscovery`     | Orchestrates cache → health check → fetch flow                                                                                                               |
 | `Scheduler`            | Generic `node-cron` scheduler                                                                                                                                |
 | `RefreshJob<T>`        | Parameterized job that calls a configurable refresh function on a client instance. Replaces previously duplicated `TokenRefresherJob` and `TtlRefresherJob`. |

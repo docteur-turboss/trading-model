@@ -74,7 +74,7 @@ export class ServiceHealthChecker {
    */
   private buildPingUrl(instance: ServiceInstance): string {
     const hostname = this.resolveDnsName(instance.serviceName);
-    return `http://${hostname}:${instance.port}${PING_PATH}`;
+    return `https://${hostname}:${instance.port}${PING_PATH}`;
   }
 
   /**
