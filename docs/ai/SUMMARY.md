@@ -64,7 +64,7 @@ trading-model/
   - `getToken()` → `string` — current HMAC instance token
   - `listenExpress(app)` — mounts ping routes
 - **factory:** `createAddressManager(env)` — reads env vars
-- **internal:** ServiceDiscovery, TokenManager, ServiceCache, ServiceHealthChecker, Scheduler, TokenRefresherJob, TtlRefresherJob
+- **internal:** ServiceDiscovery, TokenManager, ServiceCache, ServiceHealthChecker, DnsResolver, IdentityResolver, MapResolver, RefreshJob, Scheduler
 - **deps:** common, express 5, node-cron
 - **test coverage threshold:** 80% all metrics
 
