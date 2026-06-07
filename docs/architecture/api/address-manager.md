@@ -159,6 +159,7 @@ In addition to the default export, the package exposes internal modules via deep
 | `@trading-model/address-manager/client/type`                      | `ServiceInstance`, `RegisterServicePayload`, `ServiceRegistrationResponse`          |
 | `@trading-model/address-manager/scheduler/scheduler`              | `Scheduler`                                                                         |
 | `@trading-model/address-manager/scheduler/refresh-job`            | `RefreshJob`                                                                        |
+| `@trading-model/address-manager/scheduler/cron.util`              | `intervalMsToCron`                                                                  |
 | `@trading-model/address-manager/config/address-manager-config`    | `AddressManagerConfig`                                                              |
 
 ## Environment Schema
