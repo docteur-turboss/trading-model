@@ -24,7 +24,7 @@
 import { Router } from 'express';
 
 import { SubscriptionToATopic, DeleteASubscription, PublishAMessage } from './http.controller';
-import { Broker } from '../core/broker';
+import { Dispatcher } from '../core/dispatcher';
 
 /**
  * BrokerRoutes
@@ -37,15 +37,15 @@ import { Broker } from '../core/broker';
  * - DELETE `/subscription` → unsubscribe from a topic
  * - POST `/message` → publish a message to a topic
  *
- * @param {Broker} broker Instance of the broker used to handle requests
+ * @param dispatcher - Instance of the dispatcher used to handle requests.
  * @returns {Router} Configured Express Router
  */
-export const BrokerRoutes = (broker: Broker): Router => {
+export const BrokerRoutes = (dispatcher: Dispatcher): Router => {
   const router = Router();
 
-  router.post('/message', PublishAMessage(broker));
-  router.post('/subscription', SubscriptionToATopic(broker));
-  router.delete('/subscription', DeleteASubscription(broker));
+  router.post('/message', PublishAMessage(dispatcher));
+  router.post('/subscription', SubscriptionToATopic(dispatcher));
+  router.delete('/subscription', DeleteASubscription(dispatcher));
 
   return router;
 };

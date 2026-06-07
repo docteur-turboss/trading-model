@@ -16,6 +16,17 @@ export function createMockDispatcher(
 ): jest.Mocked<Dispatcher> {
   const client = httpClient ?? createMockHttpClient();
   return {
+    publish: jest
+      .fn<(payload: unknown, metadata: unknown) => Promise<void>>()
+      .mockResolvedValue(undefined),
+    subscribe:
+      jest.fn<
+        (params: {
+          topic: string;
+          callbackPath: string;
+          consumerIdentity: typeof mockServiceIdentity;
+        }) => void
+      >(),
     registerSubscription:
       jest.fn<
         (params: {
@@ -25,6 +36,7 @@ export function createMockDispatcher(
         }) => void
       >(),
     dispatch: jest.fn<(message: unknown) => Promise<void>>().mockResolvedValue(undefined),
+    unsubscribe: jest.fn<(params: { topic: string; instanceId: string }) => void>(),
     unregisterSubscription: jest.fn<(params: { topic: string; instanceId: string }) => void>(),
   } as unknown as jest.Mocked<Dispatcher>;
 }

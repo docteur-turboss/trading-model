@@ -30,29 +30,29 @@ import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
 import { PublishSchema, SubscribeSchema, UnsubscribeSchema } from './validation/broker.schema';
-import { Broker } from '../core/broker';
+import { Dispatcher } from '../core/dispatcher';
 
 /**
  * Subscribe a service to a topic
  *
  * @description
  * Validates the request body against the `SubscribeSchema` and forwards
- * the subscription request to the Broker instance.
+ * the subscription request to the Dispatcher instance.
  * Responds with HTTP 204 No Content on success.
  *
- * @param {Broker} broker The Broker instance used to manage subscriptions
+ * @param dispatcher - The Dispatcher instance used to manage subscriptions.
  * @returns Express-compatible middleware function
  *
  * @throws {ResponseException.BadRequest} If validation fails
  * @throws {ResponseException.NoContent} On successful subscription
  */
-export const SubscriptionToATopic = (broker: Broker) =>
+export const SubscriptionToATopic = (dispatcher: Dispatcher) =>
   catchSync(req => {
     const parsed = SubscribeSchema.safeParse(req.body);
 
     if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
 
-    broker.subscribe(parsed.data);
+    dispatcher.subscribe(parsed.data);
 
     return sendResponse(undefined, 204);
   });
@@ -62,19 +62,19 @@ export const SubscriptionToATopic = (broker: Broker) =>
  *
  * @description
  * Validates the request body against the `UnsubscribeSchema` and forwards
- * the unsubscription request to the Broker instance.
+ * the unsubscription request to the Dispatcher instance.
  * Responds with HTTP 204 No Content on success.
  *
- * @param {Broker} broker The Broker instance used to manage subscriptions
+ * @param dispatcher - The Dispatcher instance used to manage subscriptions.
  * @returns Express-compatible middleware function
  */
-export const DeleteASubscription = (broker: Broker) =>
+export const DeleteASubscription = (dispatcher: Dispatcher) =>
   catchSync(req => {
     const parsed = UnsubscribeSchema.safeParse(req.body);
 
     if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
 
-    broker.unsubscribe(parsed.data);
+    dispatcher.unsubscribe(parsed.data);
 
     return sendResponse(undefined, 204);
   });
@@ -84,19 +84,19 @@ export const DeleteASubscription = (broker: Broker) =>
  *
  * @description
  * Validates the request body against the `PublishSchema` and forwards
- * the payload and metadata to the Broker instance.
+ * the payload and metadata to the Dispatcher instance.
  * Responds with HTTP 204 No Content on success.
  *
- * @param {Broker} broker The Broker instance used to publish messages
+ * @param dispatcher - The Dispatcher instance used to publish messages.
  * @returns Express-compatible middleware function
  */
-export const PublishAMessage = (broker: Broker) =>
+export const PublishAMessage = (dispatcher: Dispatcher) =>
   catchSync(async req => {
     const parsed = PublishSchema.safeParse(req.body);
 
     if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
 
-    await broker.publish(parsed.data.payload, parsed.data.metadata);
+    await dispatcher.publish(parsed.data.payload, parsed.data.metadata);
 
     return sendResponse(undefined, 204);
   });
