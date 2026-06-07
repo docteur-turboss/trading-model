@@ -71,7 +71,7 @@ const response = await binance.get(url, { weight: 5 });
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `endpoints.ts`      | Pure functions that construct Binance REST API URLs for 9 endpoints                                                                                              |
 | `weights.ts`        | Pure functions that compute Binance API weight costs for each endpoint                                                                                           |
-| `binance.client.ts` | 9 async functions (`getOrderBook`, `getRecentTrades`, `CandlestickData`, etc.) each calling the Axios instance with the correct weight                           |
+| `binance.client.ts` | 9 async functions (`getOrderBook`, `getRecentTrades`, `getCandlestickData`, etc.) each calling the Axios instance with the correct weight                        |
 | `normalizer.ts`     | `BinanceNormalizer` class (static methods) converting raw API shapes to internal entity types (`OrderBookEntity`, `TradeEntity`, `CandleEntity`, `TickerEntity`) |
 
 ### 3. Worker & Cron (`src/job/`)
