@@ -6,10 +6,7 @@ module.exports = {
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {
     global: {
       branches: 100,

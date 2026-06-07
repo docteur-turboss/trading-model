@@ -8,15 +8,15 @@ The rendering matches [discord.js](https://discord.js.org/docs/packages/discord.
 
 ## Modules
 
-| Module                         | Documentation                                              |
-| ------------------------------ | ---------------------------------------------------------- |
-| @trading-model/common          | [View docs](./@trading-model/common/index.html)            |
-| @trading-model/address-manager | [View docs](./@trading-model/address-manager/index.html)   |
-| @trading-model/broker-message  | [View docs](./@trading-model/broker-message/index.html)    |
-| discovery-server               | [View docs](./discovery-server/index.html)                 |
-| message-manager                | [View docs](./message-manager/index.html)                  |
-| financial-scraper              | [View docs](./financial-scraper/index.html)                |
-| trader-trainer                 | [View docs](./trader-trainer/index.html)                   |
+| Module                         | Documentation                                            |
+| ------------------------------ | -------------------------------------------------------- |
+| @trading-model/common          | [View docs](./@trading-model/common/index.html)          |
+| @trading-model/address-manager | [View docs](./@trading-model/address-manager/index.html) |
+| @trading-model/broker-message  | [View docs](./@trading-model/broker-message/index.html)  |
+| discovery-server               | [View docs](./discovery-server/index.html)               |
+| message-manager                | [View docs](./message-manager/index.html)                |
+| financial-scraper              | [View docs](./financial-scraper/index.html)              |
+| trader-trainer                 | [View docs](./trader-trainer/index.html)                 |
 
 ## Generation
 

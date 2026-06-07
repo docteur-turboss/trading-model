@@ -6,7 +6,7 @@ Market data collection service from Binance, with MySQL persistence and REST API
 
 | Property         | Value                                                                                                          |
 | ---------------- | -------------------------------------------------------------------------------------------------------------- |
-| Service name     | `financial-scraper-service`                                                                                   |
+| Service name     | `financial-scraper-service`                                                                                    |
 | Port (host)      | `8445`                                                                                                         |
 | Port (container) | `3000`                                                                                                         |
 | Dependencies     | `@trading-model/common`, `@trading-model/address-manager`, `@trading-model/broker-message`, MySQL, Binance API |

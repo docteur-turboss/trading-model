@@ -176,22 +176,22 @@ The discovery-server follows a dependency injection pattern. No singletons are u
 
 ### Core Classes
 
-| Class / Factory                          | Instantiator                 | Notes                                          |
-| ---------------------------------------- | ---------------------------- | ---------------------------------------------- |
-| `new ServiceRegistry()`                  | `app/index.ts`               | Central in-memory registry (no singleton export) |
-| `new LeaseManager(registry, options?)`   | `app/index.ts`               | Accepts `ServiceRegistry` in constructor       |
-| `createServer(registry)`                 | `app/index.ts`               | HTTPS server factory                           |
+| Class / Factory                        | Instantiator   | Notes                                            |
+| -------------------------------------- | -------------- | ------------------------------------------------ |
+| `new ServiceRegistry()`                | `app/index.ts` | Central in-memory registry (no singleton export) |
+| `new LeaseManager(registry, options?)` | `app/index.ts` | Accepts `ServiceRegistry` in constructor         |
+| `createServer(registry)`               | `app/index.ts` | HTTPS server factory                             |
 
 ### Controller & Route Factories
 
 All controllers and routes receive their dependencies via factory parameters:
 
-| Factory                                | Returns                                                        |
-| -------------------------------------- | -------------------------------------------------------------- |
-| `createRegisterController(registry)`   | `{ register, listServices, getServiceInstances, getInstance }` |
-| `createHeartbeatController(registry)`  | `{ heartbeat, rotateToken }`                                   |
-| `registryRoutes(registry)`             | `Router`                                                       |
-| `heartbeatRoutes(registry)`            | `Router`                                                       |
+| Factory                               | Returns                                                        |
+| ------------------------------------- | -------------------------------------------------------------- |
+| `createRegisterController(registry)`  | `{ register, listServices, getServiceInstances, getInstance }` |
+| `createHeartbeatController(registry)` | `{ heartbeat, rotateToken }`                                   |
+| `registryRoutes(registry)`            | `Router`                                                       |
+| `heartbeatRoutes(registry)`           | `Router`                                                       |
 
 ### Composition Root (`app/index.ts`)
 
@@ -227,10 +227,10 @@ Instances are automatically removed from the registry if their TTL expires witho
 
 Controllers are created via factories that accept a `ServiceRegistry` instance.
 
-| File                         | Factory                           | Routes                                                                              |
-| ---------------------------- | --------------------------------- | ----------------------------------------------------------------------------------- |
-| `routes/register.routes.ts`  | `registryRoutes(registry)`        | `POST /register`, `GET /services`, `GET /services/:name`, `GET /services/:name/:id` |
-| `routes/heartbeat.routes.ts` | `heartbeatRoutes(registry)`       | `POST /heartbeat`, `POST /token/rotate`                                             |
+| File                         | Factory                     | Routes                                                                              |
+| ---------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| `routes/register.routes.ts`  | `registryRoutes(registry)`  | `POST /register`, `GET /services`, `GET /services/:name`, `GET /services/:name/:id` |
+| `routes/heartbeat.routes.ts` | `heartbeatRoutes(registry)` | `POST /heartbeat`, `POST /token/rotate`                                             |
 
 ## Deployment
 

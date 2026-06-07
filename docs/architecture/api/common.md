@@ -68,13 +68,16 @@ Process signal and error handler registration, extracted from bootstrap for SRP.
 - **Import**: `@trading-model/common/server/signal-handler`
 
 ```ts
-import { setupProcessHandlers, removeProcessHandlers } from '@trading-model/common/server/signal-handler';
+import {
+  setupProcessHandlers,
+  removeProcessHandlers,
+} from '@trading-model/common/server/signal-handler';
 ```
 
-| Function                  | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `setupProcessHandlers`    | Registers SIGTERM, SIGINT, uncaughtException, unhandledRejection handlers |
-| `removeProcessHandlers`   | Removes all registered handlers (test cleanup)    |
+| Function                | Description                                                               |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `setupProcessHandlers`  | Registers SIGTERM, SIGINT, uncaughtException, unhandledRejection handlers |
+| `removeProcessHandlers` | Removes all registered handlers (test cleanup)                            |
 
 ## SecureServer
 
