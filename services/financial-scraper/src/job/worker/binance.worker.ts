@@ -14,6 +14,8 @@
 
 import { createHash } from 'node:crypto';
 
+import { v4 as uuidv4 } from 'uuid';
+
 import { helper } from '@trading-model/broker-message';
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { EnumEventMessage } from '@trading-model/common/config/event.types';
@@ -61,7 +63,6 @@ export class BinanceWorker {
    *
    */
   public async run(): Promise<BinanceWorkerResult> {
-    const { v4: uuidv4 } = await import('uuid');
     const builderMetadata = new helper.MetadataBuilder();
 
     const {
