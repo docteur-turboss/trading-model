@@ -33,7 +33,7 @@ export const catchSync =
   ) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await Promise.resolve(errorFunction(req, res, next));
+      const result = await errorFunction(req, res, next);
       if (result && typeof result === 'object' && 'status' in result) {
         res
           .status(result.status)
