@@ -127,7 +127,6 @@ export class Dispatcher {
    * @returns {Promise<void>}
    */
   async dispatch<T>(message: message<T>) {
-    //here
     const { topic } = message.metadata;
     const subscriptions = this.subscriptionsByTopic.get(topic);
     if (!subscriptions?.length) return;
