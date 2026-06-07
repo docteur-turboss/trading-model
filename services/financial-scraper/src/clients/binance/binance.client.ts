@@ -72,7 +72,7 @@ export async function getHistoricalTrades(
  * @param startTime {number} - timestamp in ms to start from (inclusive)
  * @returns {Promise<BinanceCandlestickDataResponse>}
  */
-export async function CandlestickData(
+export async function getCandlestickData(
   symbol: string,
   limit = 500,
   interval:
