@@ -159,6 +159,57 @@ describe('evaluateGenomeAllWindows', () => {
     const result = await evaluateGenomeAllWindows(genome as any, windowSets, backendFactory as any);
     expect(result.updatedGenome).toBeDefined();
   });
+
+  it('should apply reward shaping with clip and normalize', async () => {
+    const genome = {
+      ...minimalGenome,
+      rl: {
+        ...minimalGenome.rl,
+        rewardShaping: {
+          clip: true,
+          clipMin: -1,
+          clipMax: 1,
+          scale: false,
+          scaleFactor: 1,
+          normalize: true,
+          sparse: false,
+        },
+      },
+    };
+    const windowSets = [
+      {
+        id: 'w1',
+        train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+        validation: [makeStep([0.7, 0.8, 0.9])],
+      },
+    ];
+    const backendFactory = jest.fn(() => makeMockBackend(2));
+    const result = await evaluateGenomeAllWindows(genome as any, windowSets, backendFactory as any);
+    expect(result.updatedGenome).toBeDefined();
+  });
+
+  it('should handle genome with hidden layers for complexity estimation', async () => {
+    const genome = {
+      ...minimalGenome,
+      network: {
+        ...minimalGenome.network,
+        hiddenLayers: [
+          { neurons: 10, activation: 'relu' },
+          { neurons: 5, activation: 'sigmoid' },
+        ],
+      },
+    };
+    const windowSets = [
+      {
+        id: 'w1',
+        train: [makeStep([0.1, 0.2, 0.3])],
+        validation: [makeStep([0.7, 0.8, 0.9])],
+      },
+    ];
+    const backendFactory = jest.fn(() => makeMockBackend(2));
+    const result = await evaluateGenomeAllWindows(genome as any, windowSets, backendFactory as any);
+    expect(result.objectives.negFlops).toBeLessThan(0);
+  });
 });
 
 describe('pooledEval', () => {

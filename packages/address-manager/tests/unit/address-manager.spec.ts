@@ -177,6 +177,18 @@ describe('AddressManager', () => {
       handle.stop();
     });
 
+    it('should handle null registration response and retry', async () => {
+      (mockAddressManagerClientInstance.registerService as any).mockResolvedValue(null);
+
+      const handle = am.start();
+
+      await new Promise(process.nextTick);
+
+      expect(mockAddressManagerClientInstance.registerService).toHaveBeenCalledTimes(10);
+
+      handle.stop();
+    });
+
     it('should abort registration retry loop when stop is called', async () => {
       // keep registration pending — the retry loop will await it
       (mockAddressManagerClientInstance.registerService as any).mockReturnValue(
