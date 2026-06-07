@@ -123,35 +123,31 @@ export class LeaseManager {
    * Periodic cleanup job.
    *
    * Strategy:
-   * - Take a snapshot of the registry state
-   * - Iterate over all services and their instances
+   * - Iterate over all services via listServiceNames()
+   * - For each service, iterate over its instances via getInstances()
    * - Remove instances whose lease has expired
-   *
-   * Note:
-   * The snapshot approach avoids mutation issues while iterating
-   * over the underlying registry structure.
    */
   private cleanupExpiredInstances(): void {
-    const snapshot = this.registry.dump();
     const now = Date.now();
 
-    for (const [serviceName, instances] of Object.entries(snapshot)) {
-      for (const instance of instances) {
+    for (const serviceName of this.registry.listServiceNames()) {
+      for (const instance of this.registry.getInstances(serviceName)) {
         const expired = now - instance.lastHeartbeat > instance.ttl;
 
         if (expired) {
-          /**
-           * Log eviction for traceability and incident analysis.
-           */
           logger.warn(
             `[LeaseManager] Expired instance removed: ${instance.instanceId} (service=${serviceName})`
           );
 
-          /**
-           * Remove the expired instance from the registry.
-           * Subsequent resolve calls will no longer return it.
-           */
-          this.registry.removeInstance(serviceName, instance.instanceId);
+          try {
+            this.registry.removeInstance(serviceName, instance.instanceId);
+          } catch (err) {
+            logger.error('[LeaseManager] Failed to remove expired instance:', {
+              serviceName,
+              instanceId: instance.instanceId,
+              error: err,
+            });
+          }
         }
       }
     }

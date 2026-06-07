@@ -39,6 +39,7 @@
  */
 
 import { HttpClient } from '@trading-model/common/config/http-client';
+import { logger } from '@trading-model/common/config/logger';
 import { IdentifyType, message } from '@trading-model/common/contracts/message.types';
 
 import { DqlRepository } from './dlq-repository';
@@ -114,8 +115,7 @@ export class Dispatcher {
    * Dispatch a message to all subscribers of its topic.
    *
    * @description
-   * Resolves all subscriptions matching the message topic,
-   * deduplicates them by service instance identifier,
+   * Resolves all subscriptions matching the message topic
    * and dispatches the message to each subscription in parallel.
    *
    * Message delivery failures are isolated and do not prevent
@@ -131,17 +131,15 @@ export class Dispatcher {
     const subscriptions = this.subscriptionsByTopic.get(topic);
     if (!subscriptions?.length) return;
 
-    const uniqueSubscriptionsByInstance = new Map<string, Subscription>();
-
-    for (const subscription of subscriptions) {
-      uniqueSubscriptionsByInstance.set(subscription.serviceIdentity.instanceId, subscription);
-    }
-
-    const uniqueSubscriptions = [...uniqueSubscriptionsByInstance.values()];
-
-    await Promise.allSettled(
-      uniqueSubscriptions.map(subscription => subscription.dispatch(this.HTTPCLIENT, message))
+    const results = await Promise.allSettled(
+      subscriptions.map(subscription => subscription.dispatch(this.HTTPCLIENT, message))
     );
+
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        logger.error('[Dispatcher] Message delivery failed:', { error: result.reason });
+      }
+    }
   }
 
   /**
