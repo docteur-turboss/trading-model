@@ -39,7 +39,7 @@ Features:
 
 ## Bootstrap
 
-Lifecycle manager for services.
+Lifecycle manager for services. Signal handling is delegated to a separate module (`signal-handler.ts`) to respect SRP.
 
 - **Import**: `@trading-model/common/server/bootstrap`
 - **Function**: `createBootstrap(options)`
@@ -57,10 +57,24 @@ import { createBootstrap } from '@trading-model/common/server/bootstrap';
 
 Features:
 
-- Attaches `SIGTERM`, `SIGINT` handlers
-- Captures `uncaughtException` and `unhandledRejection`
+- Delegates `SIGTERM`, `SIGINT`, `uncaughtException`, and `unhandledRejection` handling to `setupProcessHandlers()`
 - `onStart` and `onStop` callbacks wrapped in try/catch — failures are logged and do not crash the process
 - Graceful shutdown on fatal error: closes HTTP server and calls `onStop` before exit
+
+## SignalHandler
+
+Process signal and error handler registration, extracted from bootstrap for SRP.
+
+- **Import**: `@trading-model/common/server/signal-handler`
+
+```ts
+import { setupProcessHandlers, removeProcessHandlers } from '@trading-model/common/server/signal-handler';
+```
+
+| Function                  | Description                                      |
+| ------------------------- | ------------------------------------------------ |
+| `setupProcessHandlers`    | Registers SIGTERM, SIGINT, uncaughtException, unhandledRejection handlers |
+| `removeProcessHandlers`   | Removes all registered handlers (test cleanup)    |
 
 ## SecureServer
 
