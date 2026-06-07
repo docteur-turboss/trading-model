@@ -18,12 +18,6 @@
  * @architecture
  * Utility module used by the broker layer.
  * Acts as a **data contract enforcement** component.
- *
- * @author docteur-turboss
- *
- * @version 1.0.0
- *
- * @since 2026.01.28
  */
 
 import { z } from 'zod';

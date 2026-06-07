@@ -20,12 +20,6 @@
  * @architecture
  * Infrastructure / messaging layer component.
  * Acts as a delivery orchestrator for the Broker service.
- *
- * @author docteur-turboss
- *
- * @version 1.0.0
- *
- * @since 2026.01.28
  */
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { HttpClient } from '@trading-model/common/config/http-client';

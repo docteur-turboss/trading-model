@@ -22,12 +22,6 @@
  * Application / messaging layer.
  * This class exposes the public API of the messaging system and delegates
  * all delivery responsibilities to the dispatcher.
- *
- * @author docteur-turboss
- *
- * @version 1.0.0
- *
- * @since 2026.01.28
  */
 
 import { randomUUID } from 'node:crypto';

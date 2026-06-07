@@ -28,14 +28,6 @@
  * Messaging / application layer component.
  * This class acts as an in-memory dispatcher and delegates
  * actual delivery to `Subscription` instances.
- *
- * @author docteur-turboss
- *
- * @version
- * 1.0.0
- *
- * @since
- * 2026.01.28
  */
 
 import { HttpClient } from '@trading-model/common/config/http-client';
