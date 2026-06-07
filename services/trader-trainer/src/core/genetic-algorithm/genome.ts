@@ -305,7 +305,7 @@ function validateLayer(errors: ValidationError[], path: string, l: LayerGenome):
   }
 }
 
-function repairLayer(l: LayerGenome, _index: number): LayerGenome {
+function repairLayer(l: LayerGenome): LayerGenome {
   return {
     neurons: Math.max(1, Math.round(l.neurons ?? 32)),
     activation: VALID_ACTIVATIONS.has(l.activation) ? l.activation : 'ReLu',
@@ -414,7 +414,7 @@ export function repairGenome(g: Genome): Genome {
   // ---- Network layers ----
   let hiddenLayers: LayerGenome[] = (
     Array.isArray(g.network.hiddenLayers) ? g.network.hiddenLayers : []
-  ).map((l, i) => repairLayer(l, i));
+  ).map(l => repairLayer(l));
 
   // Must have at least one hidden layer
   if (hiddenLayers.length === 0) {

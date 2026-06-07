@@ -54,8 +54,7 @@ export class TradingAgent {
   /** Perform one environment step: update price, infer action, apply to wallet, and record reward */
   public step(
     input: Float32Array,
-    price?: number,
-    _done: boolean = false
+    price?: number
   ): { action: string; reward: number; metrics: Record<string, unknown> } {
     if (price !== undefined) this.wallet.setPrice(price);
 

@@ -63,7 +63,7 @@ export function selectParent(
  * Apply structural mutations to a genome.
  * Mutates network architecture (layers, neurons, activation functions).
  */
-export function mutateGenome(g: Genome, _rng: () => number): Genome {
+export function mutateGenome(g: Genome): Genome {
   // Placeholder: implement structural mutations
   // - add/remove hidden layer
   // - change layer size
@@ -76,7 +76,7 @@ export function mutateGenome(g: Genome, _rng: () => number): Genome {
  * Structural crossover at the topology level.
  * Blends network architectures from two parents.
  */
-export function crossoverGenomes(pA: Genome, _pB: Genome, _rng: () => number): Genome {
+export function crossoverGenomes(pA: Genome): Genome {
   // Placeholder: implement structural crossover
   // - blend layer counts
   // - blend neuron counts
