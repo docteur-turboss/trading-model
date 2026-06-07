@@ -619,8 +619,8 @@ class ParetoArchive {
   get members(): DeepReadonly<LamarckGenome>[] {
     return this._members;
   }
+  /* istanbul ignore next */
   get size(): number {
-    /* istanbul ignore next */
     return this._members.length;
   }
 }

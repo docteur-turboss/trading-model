@@ -284,6 +284,24 @@ describe('Trainer', () => {
       expect(trainer.isTraining()).toBe(false);
     });
 
+    it('should handle non-Error thrown by runner', async () => {
+      mockRunImpl = async () => {
+        throw 'string error';
+      };
+      const { Trainer } = await import('../../../src/core/trainer');
+      const trainer = new Trainer(dataBuffer);
+      feedCandles(dataBuffer, 'BTCUSDT', 100);
+
+      const result = await trainer.train('BTCUSDT');
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.symbol).toBe('BTCUSDT');
+        expect(result.error.message).toBe('string error');
+      }
+      expect(trainer.isTraining()).toBe(false);
+    });
+
     it('should handle null fitness in training result', async () => {
       mockRunImpl = async () => ({ id: 'no-fitness' });
       const { Trainer } = await import('../../../src/core/trainer');

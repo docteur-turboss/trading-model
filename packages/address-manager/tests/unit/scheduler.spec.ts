@@ -84,6 +84,30 @@ describe('Scheduler', () => {
     expect(mockJob.execute).toHaveBeenCalledTimes(1);
   });
 
+  test('start should log non-Error thrown by job.execute as string', async () => {
+    const errorJob: ScheduledJob = {
+      schedule: '*/1 * * * *',
+      execute: jest
+        .fn()
+        .mockRejectedValue('raw string error' as never) as unknown as jest.MockedFunction<
+        () => Promise<void>
+      >,
+    };
+    scheduler.register(errorJob);
+    scheduler.start();
+
+    const callback = (cron.schedule as jest.Mock).mock.calls[0][1] as () => Promise<void>;
+
+    await expect(callback()).resolves.toBeUndefined();
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      '[Scheduler] Job execution failed',
+      expect.objectContaining({
+        schedule: '*/1 * * * *',
+        error: 'raw string error',
+      })
+    );
+  });
+
   test('start should log errors thrown by job.execute without propagating', async () => {
     const errorJob: ScheduledJob = {
       schedule: '*/1 * * * *',

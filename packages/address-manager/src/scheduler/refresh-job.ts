@@ -1,3 +1,4 @@
+import { intervalMsToCron } from './cron.util';
 import { ScheduledJob } from './scheduler';
 
 /**
@@ -28,7 +29,7 @@ export class RefreshJob<T> implements ScheduledJob {
   constructor(client: T, executeFn: (client: T) => Promise<void>, refreshIntervalMs: number) {
     this.client = client;
     this.executeFn = executeFn;
-    this.schedule = this.intervalMsToCron(refreshIntervalMs);
+    this.schedule = intervalMsToCron(refreshIntervalMs);
   }
 
   /**
@@ -38,19 +39,5 @@ export class RefreshJob<T> implements ScheduledJob {
    */
   async execute(): Promise<void> {
     await this.executeFn(this.client);
-  }
-
-  /**
-   * Converts a millisecond interval into a cron expression
-   * compatible with node-cron.
-   *
-   * Deliberate limitation: minute-level precision only.
-   *
-   * @param intervalMs - Interval in milliseconds.
-   * @returns Cron expression string.
-   */
-  private intervalMsToCron(intervalMs: number): string {
-    const minutes = Math.max(1, Math.floor(intervalMs / 60000));
-    return `*/${minutes} * * * *`;
   }
 }
