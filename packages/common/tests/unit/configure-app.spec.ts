@@ -39,9 +39,15 @@ describe('configureApp', () => {
     expect(mockApp.get).toHaveBeenCalledWith('/ping', expect.any(Function));
   });
 
-  it('should set trust proxy by default', () => {
+  it('should not set trust proxy by default', () => {
     mockApp.set.mockClear();
     configureApp();
+    expect(mockApp.set).not.toHaveBeenCalled();
+  });
+
+  it('should set trust proxy when explicitly enabled', () => {
+    mockApp.set.mockClear();
+    configureApp({ trustProxy: true });
     expect(mockApp.set).toHaveBeenCalledWith('trust proxy', 1);
   });
 
