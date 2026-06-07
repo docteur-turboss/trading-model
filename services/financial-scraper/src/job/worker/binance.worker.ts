@@ -15,7 +15,7 @@
 import { createHash } from 'node:crypto';
 
 import { helper } from '@trading-model/broker-message';
-import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
+import { DeliveryMode, DeliveryModeEnum } from '@trading-model/common/config/delivery-mode.types';
 import { EnumEventMessage } from '@trading-model/common/config/event.types';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 import { deterministicStringify } from '@trading-model/common/utils/deterministic-stringify';
@@ -39,6 +39,7 @@ export interface BinanceWorkerOptions {
   candleLimit?: number;
   tradeLimit?: number;
   orderBookLimit?: number;
+  deliveryMode?: DeliveryModeEnum;
 }
 
 /** Normalized market data returned by a BinanceWorker execution, ready for persistence. */
@@ -104,7 +105,7 @@ export class BinanceWorker {
 
     builderMetadata
       .setDelivery({
-        mode: DeliveryMode.AT_LEAST_ONCE,
+        mode: this.options.deliveryMode ?? DeliveryMode.AT_LEAST_ONCE,
         deduplicationId: uuidv4(),
       })
       .setEventType('FetchCandlestick')
