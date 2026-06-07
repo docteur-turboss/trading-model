@@ -22,7 +22,7 @@ export function configureApp(
 
   app.use(helmet());
 
-  if (config.trustProxy !== false) {
+  if (config.trustProxy ?? true) {
     app.set('trust proxy', 1);
   }
 
