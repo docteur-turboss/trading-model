@@ -45,7 +45,7 @@ Body (validated by `PublishSchema`):
     "eventType": "market.trade.recent.fetch",
     "schemaVersion": "1.0.0",
     "publisher": {
-      "serviceName": "financial-scrapper-service",
+      "serviceName": "financial-scraper-service",
       "instanceId": "uuid-123"
     },
     "delivery": {
@@ -75,7 +75,7 @@ Retrieves a single message by its ID.
     "eventType": "market.trade.recent.fetch",
     "schemaVersion": "1.0.0",
     "publisher": {
-      "serviceName": "financial-scrapper-service",
+      "serviceName": "financial-scraper-service",
       "instanceId": "uuid-123"
     }
   },

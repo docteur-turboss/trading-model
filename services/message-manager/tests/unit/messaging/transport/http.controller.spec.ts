@@ -39,7 +39,7 @@ describe('HTTP Controller', () => {
           topic: 'test.topic',
           callbackPath: 'message/callback',
           consumerIdentity: {
-            serviceName: ServiceInstanceName.FinancialScrapperService,
+            serviceName: ServiceInstanceName.FinancialScraperService,
             instanceId: 'instance-1',
           },
         },
@@ -91,7 +91,7 @@ describe('HTTP Controller', () => {
             eventType: 'TestEvent',
             topic: 'test.topic',
             publisher: {
-              serviceName: ServiceInstanceName.FinancialScrapperService,
+              serviceName: ServiceInstanceName.FinancialScraperService,
               instanceId: 'instance-1',
             },
           },

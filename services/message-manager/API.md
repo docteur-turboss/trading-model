@@ -1,6 +1,6 @@
 # Message Delivery Service — API Reference
 
-All endpoints accept and return **JSON**. Responses follow the `ResponseProtocole` standard defined in `@trading-model/common`. All requests require **mTLS client certificates**.
+All endpoints accept and return **JSON**. Responses follow the `ResponseProtocol` standard defined in `@trading-model/common`. All requests require **mTLS client certificates**.
 
 ## POST /message
 
@@ -80,7 +80,7 @@ Register a service instance as a subscriber to a topic. Duplicate subscriptions 
   "topic": "market.trade.executed",
   "callbackPath": "message",
   "consumerIdentity": {
-    "serviceName": "FinancialScrapperService",
+    "serviceName": "FinancialScraperService",
     "instanceId": "instance-1"
   }
 }

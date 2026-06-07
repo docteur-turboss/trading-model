@@ -29,7 +29,7 @@ Registers or updates a service instance. Requires a valid TLS client certificate
 
 ```json
 {
-  "name": "financial-scrapper-service",
+  "name": "financial-scraper-service",
   "version": "1.0.0",
   "host": "192.168.1.10",
   "port": 3000,
@@ -57,7 +57,7 @@ Extends the TTL (lease) of a service instance. Called periodically by each servi
 
 ```json
 {
-  "serviceName": "financial-scrapper-service",
+  "serviceName": "financial-scraper-service",
   "instanceId": "uuid-instance-id",
   "authToken": "hmac-sha256-token-value"
 }
@@ -98,7 +98,7 @@ Lists all registered service names.
 [
   {
     "id": "svc-abc-123",
-    "name": "financial-scrapper-service",
+    "name": "financial-scraper-service",
     "host": "192.168.1.10",
     "port": 3000
   },
@@ -122,7 +122,7 @@ Lists all instances of a given service.
 ```json
 [
   {
-    "serviceName": "financial-scrapper-service",
+    "serviceName": "financial-scraper-service",
     "instanceId": "uuid-instance-id",
     "ip": "192.168.1.10",
     "port": 3000,
@@ -144,7 +144,7 @@ Returns detailed metadata for a specific service instance.
 
 ```json
 {
-  "serviceName": "financial-scrapper-service",
+  "serviceName": "financial-scraper-service",
   "instanceId": "uuid-instance-id",
   "ip": "192.168.1.10",
   "port": 3000,

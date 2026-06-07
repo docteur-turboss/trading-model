@@ -103,7 +103,7 @@ Per-instance message delivery handler. Responsibilities:
 Canonical message envelope shared across producers, broker, and consumers:
 
 ```typescript
-interface message<T = unknown> {
+interface Message<T = unknown> {
   metadata: MessageMetadata;
   payload: T;
 }

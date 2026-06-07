@@ -7,7 +7,7 @@ import '../config/env';
 let addressManager: ReturnType<typeof bootstrapAddressManager> | null = null;
 
 createBootstrap({
-  name: 'Financial Scrapper',
+  name: 'Financial Scraper',
   createServer,
   onStart: () => {
     addressManager = bootstrapAddressManager();

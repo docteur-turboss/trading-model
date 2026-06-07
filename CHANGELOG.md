@@ -58,7 +58,7 @@
 
 #### Fix
 
-- d2c22b5 **address-manager:** resolve double-encoding in ResponseProtocole and service resolution in AddressManager (#64)
+- d2c22b5 **address-manager:** resolve double-encoding in ResponseProtocol and service resolution in AddressManager (#64)
 
 ### @trading-model/broker-message (1.0.0 → 1.1.0)
 

@@ -15,7 +15,7 @@ describe('Broker Schemas', () => {
         topic: 'test.topic',
         callbackPath: 'message/callback',
         consumerIdentity: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
       });
@@ -28,7 +28,7 @@ describe('Broker Schemas', () => {
         topic: '',
         callbackPath: 'message/callback',
         consumerIdentity: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
       });
@@ -40,7 +40,7 @@ describe('Broker Schemas', () => {
       const result = SubscribeSchema.safeParse({
         topic: 'test.topic',
         consumerIdentity: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
       });
@@ -89,7 +89,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
       });
@@ -105,7 +105,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
         routing: {
@@ -136,7 +136,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
         security: {
@@ -152,7 +152,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
       });
@@ -166,7 +166,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
         delivery: {
@@ -183,7 +183,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
         delivery: {
@@ -205,7 +205,7 @@ describe('Broker Schemas', () => {
           eventType: 'TestEvent',
           topic: 'test.topic',
           publisher: {
-            serviceName: ServiceInstanceName.FinancialScrapperService,
+            serviceName: ServiceInstanceName.FinancialScraperService,
             instanceId: 'instance-1',
           },
         },
@@ -222,7 +222,7 @@ describe('Broker Schemas', () => {
           eventType: 'TestEvent',
           topic: 'test.topic',
           publisher: {
-            serviceName: ServiceInstanceName.FinancialScrapperService,
+            serviceName: ServiceInstanceName.FinancialScraperService,
             instanceId: 'instance-1',
           },
         },
@@ -238,7 +238,7 @@ describe('Broker Schemas', () => {
           eventType: 'TestEvent',
           topic: 'test.topic',
           publisher: {
-            serviceName: ServiceInstanceName.FinancialScrapperService,
+            serviceName: ServiceInstanceName.FinancialScraperService,
             instanceId: 'instance-1',
           },
         },

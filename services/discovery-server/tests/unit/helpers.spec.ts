@@ -38,7 +38,7 @@ describe('helpers', () => {
 
     it('should not throw if token is valid', () => {
       const registered = registry.registerInstance({
-        serviceName: 'financial-scrapper-service',
+        serviceName: 'financial-scraper-service',
         instanceId: 'instance-1',
         ip: '1.1.1.1',
         port: 8080,

@@ -28,7 +28,7 @@ import { randomUUID } from 'node:crypto';
 
 import {
   IdentifyType,
-  message,
+  Message,
   MessageMetadata,
 } from '@trading-model/common/contracts/message.types';
 
@@ -76,7 +76,7 @@ export class Broker {
    * Can be called at any time after broker instantiation.
    */
   async publish(payload: unknown, metadata: Omit<MessageMetadata, 'emittedAt' | 'messageId'>) {
-    const Message: message = {
+    const Msg: Message = {
       metadata: {
         ...metadata,
         emittedAt: new Date(),
@@ -85,7 +85,7 @@ export class Broker {
       payload,
     };
 
-    await this.dispatcher.dispatch(Message);
+    await this.dispatcher.dispatch(Msg);
   }
 
   /**

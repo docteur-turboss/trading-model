@@ -4,7 +4,7 @@ process.env.TLS_KEY_PATH = '/etc/tls/key.pem';
 process.env.TLS_CERT_PATH = '/etc/tls/cert.pem';
 process.env.TLS_CA_PATH = '/etc/tls/ca.pem';
 process.env.APP_NAME = 'financial-scraper';
-process.env.SERVICE_NAME = 'financial-scrapper-service';
+process.env.SERVICE_NAME = 'financial-scraper-service';
 process.env.INSTANCE_ID = 'instance-1';
 process.env.ADDRESS_MANAGER_URL = 'https://address-manager.example.com';
 
