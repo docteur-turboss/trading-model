@@ -110,6 +110,11 @@ services:
       - ${TLS_CERTS_DIR:-./certs}:/certs:ro
     networks:
       - trading-net
+    healthcheck:
+      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
     depends_on:
       mongo:
         condition: service_healthy
@@ -162,7 +167,7 @@ services:
       discovery-server:
         condition: service_healthy
       message-manager:
-        condition: service_started
+        condition: service_healthy
 
   # ---------------------------------------------------------------------------
   #  Trader Trainer — GA + DQN agent evolution
@@ -206,11 +211,16 @@ services:
       - ${TLS_CERTS_DIR:-./certs}:/certs:ro
     networks:
       - trading-net
+    healthcheck:
+      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
     depends_on:
       discovery-server:
         condition: service_healthy
       message-manager:
-        condition: service_started
+        condition: service_healthy
 
 networks:
   trading-net:
