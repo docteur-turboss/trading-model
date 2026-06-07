@@ -63,6 +63,12 @@ describe('ResponseProtocole', () => {
     expect(res.send).toHaveBeenCalledWith('teapot');
   });
 
+  it('should log server error for pre-formatted 500 response', () => {
+    const err = { status: 500, data: 'Internal error' };
+    ResponseProtocole(err as any, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
   it('should call next() after sending response', () => {
     const err = new Error('test');
     ResponseProtocole(err, req, res, next);

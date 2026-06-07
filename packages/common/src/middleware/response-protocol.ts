@@ -9,7 +9,7 @@ type ErrorInput = Error | ResponseObject;
 /**
  * Maps domain / technical errors to standardized HTTP responses.
  *
- * This function acts as the single translation layer between
+ * Acts as the single translation layer between
  * internal error types and external HTTP representations.
  */
 function mapErrorToResponse(err: Error): ResponseObject {
@@ -38,24 +38,35 @@ function mapErrorToResponse(err: Error): ResponseObject {
 }
 
 /**
+ * Log server-side errors (HTTP 5xx) with request context.
+ *
+ * Separated from the response middleware to isolate the logging concern.
+ */
+function logServerError(err: ErrorInput, req: Request, response: ResponseObject): void {
+  if (response.status >= 500) {
+    const originalError = err instanceof Error ? err : undefined;
+    logger.error('Server error', {
+      message: originalError?.message,
+      stack: originalError?.stack,
+      url: req.originalUrl,
+      method: req.method,
+      ip: req.ip,
+    });
+  }
+}
+
+/**
  * Global Express error-handling middleware.
  *
- * This middleware standardizes all outgoing JSON error responses and logs
- * critical server-side errors (HTTP 5xx) for monitoring and debugging purposes.
+ * Composes three concerns:
+ *  1. Error mapping (`mapErrorToResponse`) — domain → HTTP response
+ *  2. Server error logging (`logServerError`) — 5xx monitoring
+ *  3. Response sending — standardized JSON output
  *
- * Features:
- *  - Converts unstructured errors into a consistent JSON format using
- *    `ClassResponseExceptions`.
- *  - Logs server errors (status >= 500) with full stack trace and request context.
- *  - Sends the standardized response to the client with the correct HTTP status.
- *
- * @param err - The error caught in the request pipeline, either an instance
- *              of `Error` or a pre-formatted response object.
- * @param req - Express request object, used for logging request details.
- * @param res - Express response object, used to send the final standardized response.
- * @param next - Express next function; included for middleware compliance.
- *
- * @returns The standardized JSON error response sent to the client.
+ * @param err - The error caught in the request pipeline.
+ * @param req - Express request object.
+ * @param res - Express response object.
+ * @param next - Express next function.
  *
  * @example
  * app.use(ResponseProtocole);
@@ -66,36 +77,9 @@ export const ResponseProtocole = (
   res: Response,
   next: NextFunction
 ) => {
-  let response: ResponseObject;
-  let originalError: Error | undefined;
+  const response = err instanceof Error ? mapErrorToResponse(err) : err;
 
-  /**
-   * Case 1:
-   * Error already formatted as a response object
-   */
-  if (!(err instanceof Error)) {
-    response = err;
-  } else {
-    /**
-     * Case 2:
-     * Standard Error → mapped via domain translation
-     */
-    originalError = err;
-    response = mapErrorToResponse(err);
-  }
-
-  /**
-   * Log only server-side errors (5xx)
-   */
-  if (response.status >= 500) {
-    logger.error('Server error', {
-      message: originalError?.message,
-      stack: originalError?.stack,
-      url: req.originalUrl,
-      method: req.method,
-      ip: req.ip,
-    });
-  }
+  logServerError(err, req, response);
 
   res.status(response.status).type('json').send(response.data);
   next();
