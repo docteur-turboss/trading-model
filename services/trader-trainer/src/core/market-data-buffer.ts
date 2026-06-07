@@ -19,8 +19,6 @@ import {
   fromSymbol,
 } from './market-data-types';
 
-export { FEATURE_DIM, NormalizationStats, TradingSymbol, toSymbol, fromSymbol, SymbolState };
-
 /** Minimum number of market steps required before training can start. */
 export const MIN_TRAINING_STEPS = 10;
 

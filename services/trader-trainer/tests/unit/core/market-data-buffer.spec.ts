@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import {
   MarketDataBuffer,
+} from '../../../src/core/market-data-buffer';
+import {
   NormalizationStats,
   TradingSymbol,
   toSymbol,
   fromSymbol,
-} from '../../../src/core/market-data-buffer';
+} from '../../../src/core/market-data-types';
 import {
   makeCandle,
   makeTrade,
