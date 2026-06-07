@@ -736,9 +736,55 @@ export class GeneticAlgorithmRunner {
   public async runGeneration(): Promise<GenerationContext> {
     const ctrl = this.population[0].gaControl;
     const rng = makePRNG(ctrl.mutationSeed + this.generation);
+
+    const { popWithMeta, objectives, metas, popMeta, avgFit, avgEff, newCtrl } =
+      await this.evaluatePopulation(rng, ctrl);
+
+    this.updateArchive(popWithMeta, objectives, popMeta);
+
+    this.trackStagnation(popWithMeta, metas, avgEff);
+
+    const ranked = this.sortPopulation(popWithMeta, popMeta);
+
+    const elites = this.selectElites(ranked, newCtrl);
+
+    const offspring = this.createOffspring(ranked, newCtrl, ctrl, rng);
+
+    this.population = [...elites, ...offspring].slice(0, newCtrl.populationSize);
+    this.generation++;
+
+    const ctx: GenerationContext = {
+      generation: this.generation,
+      population: this.population,
+      archive: this.archive.members,
+      bestFitness: this.bestFitness,
+      /* istanbul ignore next */
+      bestGenome: this.bestGenome as DeepReadonly<LamarckGenome>,
+      avgFitness: avgFit,
+      efficiencyScore: avgEff,
+      elapsedMs: Date.now() - this.startTime,
+      stagnation: this.stagnation,
+      gaControl: newCtrl,
+    };
+
+    this.cfg.onGeneration?.(ctx);
+    return ctx;
+  }
+
+  private async evaluatePopulation(
+    rng: () => number,
+    ctrl: DeepReadonly<GAControlGenome>
+  ): Promise<{
+    popWithMeta: DeepReadonly<LamarckGenome>[];
+    objectives: ObjectiveVector[];
+    metas: GenomeFitnessMeta[];
+    popMeta: PopulationMeta;
+    avgFit: number;
+    avgEff: number;
+    newCtrl: Readonly<GAControlGenome>;
+  }> {
     const concurrency = this.cfg.evalConcurrency ?? 4;
 
-    // Parallel evaluation — each returns updated (Lamarckian) genome
     const evalResults = await pooledEval(this.population, concurrency, g =>
       evaluateGenomeAllWindows(g, this.cfg.windowSets, this.cfg.backendFactory)
     );
@@ -748,7 +794,6 @@ export class GeneticAlgorithmRunner {
     const metas = evalResults.map(r => r.meta);
     const popMeta = buildPopulationMeta(objectives, rng);
 
-    // Attach meta immutably
     const popWithMeta = updatedPop.map((g, i) =>
       withGenome(g, {
         fitness: metas[i].efficiencyScore,
@@ -756,7 +801,20 @@ export class GeneticAlgorithmRunner {
       } as Partial<LamarckGenome>)
     );
 
-    // Update persistent Pareto archive
+    /* istanbul ignore next */
+    const avgFit = popWithMeta.reduce((s, g) => s + (g.fitness ?? 0), 0) / popWithMeta.length;
+    const avgEff = metas.reduce((s, m) => s + m.efficiencyScore, 0) / metas.length;
+
+    const newCtrl = adaptGAControl(ctrl, this.efficiencyHistory, this.stagnation);
+
+    return { popWithMeta, objectives, metas, popMeta, avgFit, avgEff, newCtrl };
+  }
+
+  private updateArchive(
+    popWithMeta: DeepReadonly<LamarckGenome>[],
+    objectives: ObjectiveVector[],
+    popMeta: PopulationMeta
+  ): void {
     const frontIdx = popMeta.paretoRank.reduce(
       (acc, r, i) => (r === 0 ? [...acc, i] : acc),
       [] as number[]
@@ -770,8 +828,13 @@ export class GeneticAlgorithmRunner {
     ) {
       this.cfg.onArchiveUpdate?.(this.archive.members);
     }
+  }
 
-    // Stagnation
+  private trackStagnation(
+    popWithMeta: DeepReadonly<LamarckGenome>[],
+    metas: GenomeFitnessMeta[],
+    avgEff: number
+  ): void {
     /* istanbul ignore next */
     const bestScalar = Math.max(...popWithMeta.map(g => g.fitness ?? -Infinity));
     if (bestScalar > this.bestFitness + 1e-6) {
@@ -785,46 +848,53 @@ export class GeneticAlgorithmRunner {
       this.stagnation++;
     }
 
-    /* istanbul ignore next */
-    const avgFit = popWithMeta.reduce((s, g) => s + (g.fitness ?? 0), 0) / popWithMeta.length;
-    const avgEff = metas.reduce((s, m) => s + m.efficiencyScore, 0) / metas.length;
     this.efficiencyHistory.push(avgEff);
+  }
 
-    const newCtrl = adaptGAControl(ctrl, this.efficiencyHistory, this.stagnation);
-
-    // NSGA-II sorted index array (no genome copies until reproduction)
+  private sortPopulation(
+    popWithMeta: DeepReadonly<LamarckGenome>[],
+    popMeta: PopulationMeta
+  ): Genome[] {
     const sortedIdx = Array.from({ length: popWithMeta.length }, (_, i) => i).sort((a, b) =>
       popMeta.paretoRank[a] !== popMeta.paretoRank[b]
         ? popMeta.paretoRank[a] - popMeta.paretoRank[b]
         : popMeta.crowdingDist[b] - popMeta.crowdingDist[a]
     );
 
-    const ranked = sortedIdx.map(i => popWithMeta[i] as Genome);
+    return sortedIdx.map(i => popWithMeta[i] as Genome);
+  }
 
-    // Elitism
+  private selectElites(
+    ranked: Genome[],
+    newCtrl: Readonly<GAControlGenome>
+  ): DeepReadonly<LamarckGenome>[] {
     const nElite = Math.max(1, Math.round(newCtrl.elitismFraction * newCtrl.populationSize));
-    const elites = ranked
+    return ranked
       .slice(0, nElite)
       .map(g => withGenome(g, { gaControl: newCtrl } as Partial<LamarckGenome>));
+  }
 
-    // separate mutRng and coRng streams (were both coRng before)
+  private createOffspring(
+    ranked: Genome[],
+    newCtrl: Readonly<GAControlGenome>,
+    ctrl: DeepReadonly<GAControlGenome>,
+    rng: () => number
+  ): DeepReadonly<LamarckGenome>[] {
+    const nElite = Math.max(1, Math.round(newCtrl.elitismFraction * newCtrl.populationSize));
+    const nOffspring = newCtrl.populationSize - nElite;
+
     const mutRng = makePRNG(ctrl.mutationSeed + this.generation + 1000);
     const coRng = makePRNG(ctrl.mutationSeed + this.generation + 2000);
 
-    const nOffspring = newCtrl.populationSize - nElite;
-    const offspring: DeepReadonly<LamarckGenome>[] = Array.from({ length: nOffspring }, () => {
+    return Array.from({ length: nOffspring }, () => {
       const pA = selectParent(ranked, newCtrl.selectionType, rng) as LamarckGenome;
       const pB = selectParent(ranked, newCtrl.selectionType, rng) as LamarckGenome;
 
-      // Structural crossover (topology level)
-      // mutateGenome uses mutRng, crossover uses coRng
       const childStruct = mutateGenome(crossoverGenomes(pA, pB, coRng), mutRng);
 
-      // Weight-level crossover + Gaussian mutation (Lamarckian)
       let childWeights: Float32Array | undefined;
       /* istanbul ignore if */
       if (pA.trainedWeights && pB.trainedWeights) {
-        // mutation params from gaControl, not magic defaults
         const rate = newCtrl.mutationRate ?? 0.1;
         const noiseStd = newCtrl.mutationStd ?? 0.05;
         childWeights = mutateWeights(
@@ -849,26 +919,6 @@ export class GeneticAlgorithmRunner {
         fitnessMeta: undefined,
       }) as DeepReadonly<LamarckGenome>;
     });
-
-    this.population = [...elites, ...offspring].slice(0, newCtrl.populationSize);
-    this.generation++;
-
-    const ctx: GenerationContext = {
-      generation: this.generation,
-      population: this.population,
-      archive: this.archive.members,
-      bestFitness: this.bestFitness,
-      /* istanbul ignore next */
-      bestGenome: this.bestGenome as DeepReadonly<LamarckGenome>,
-      avgFitness: avgFit,
-      efficiencyScore: avgEff,
-      elapsedMs: Date.now() - this.startTime,
-      stagnation: this.stagnation,
-      gaControl: newCtrl,
-    };
-
-    this.cfg.onGeneration?.(ctx);
-    return ctx;
   }
 
   /** Run the entire GA loop until a termination condition is met. Returns the best genome found. */
