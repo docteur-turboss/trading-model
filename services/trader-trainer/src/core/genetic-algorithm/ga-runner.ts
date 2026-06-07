@@ -15,9 +15,9 @@ import {
   LamarckGenome,
 } from './genome-types';
 import { mutateGenome } from './mutation';
+import { ParetoArchive } from './pareto-engine';
 import { makePRNG } from './prng';
 import { selectParent } from './selection';
-import { ParetoArchive } from './pareto-engine';
 import { generateId, RunningStats, computeVariance, computeSharpe } from './utils';
 import { Experience } from '../../core/neural-network/type';
 import TradingAgent, { TradingAgentConfig } from '../agent/trading-agent';
@@ -680,7 +680,6 @@ export class GeneticAlgorithmRunner {
       ...createDefaultGenome('base').gaControl,
       ...baseControl,
     } as GAControlGenome);
-    const rng = makePRNG(ctrl.networkSeed);
 
     this.population = Array.from({ length: ctrl.populationSize }, (_, i) => {
       const g = createDefaultGenome(`g0_${i}`, 0) as LamarckGenome;
