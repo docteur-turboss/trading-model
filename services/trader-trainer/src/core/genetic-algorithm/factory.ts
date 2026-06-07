@@ -22,7 +22,6 @@ export function createDefaultGenome(
   generation = 0,
   _rng?: () => number // reserved for future stochastic factories
 ): Genome {
-  void _rng;
   const network: NetworkGenome = {
     inputDim: 32,
     outputDim: 3,

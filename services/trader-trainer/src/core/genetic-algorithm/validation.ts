@@ -314,7 +314,6 @@ export function repairGenome(g: Genome): Genome {
 }
 
 function repairLayer(l: LayerGenome, _index: number): LayerGenome {
-  void _index;
   return {
     neurons: Math.max(1, Math.round(l.neurons ?? 32)),
     activation: VALID_ACTIVATIONS.has(l.activation) ? l.activation : 'ReLu',

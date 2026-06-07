@@ -57,7 +57,6 @@ export class TradingAgent {
     price?: number,
     _done: boolean = false
   ): { action: string; reward: number; metrics: Record<string, unknown> } {
-    void _done;
     if (price !== undefined) this.wallet.setPrice(price);
 
     const currentPnL = this.wallet.getPnL();

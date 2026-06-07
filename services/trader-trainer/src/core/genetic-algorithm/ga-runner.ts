@@ -125,8 +125,6 @@ export function makeTradingAgentBackend(g: DeepReadonly<LamarckGenome>): RLBacke
       agent.agent.nn.setWeights(new Float32Array(g.trainedWeights));
     } catch (_) {
       /* architecture mismatch after structural mutation — start fresh */
-      /* istanbul ignore next */
-      void _;
     }
   }
 
@@ -138,8 +136,7 @@ export function makeTradingAgentBackend(g: DeepReadonly<LamarckGenome>): RLBacke
       try {
         agent.agent.learnQLearning(e, γ);
       } catch (_) {
-        /* istanbul ignore next */
-        void _;
+        /* Q-learning error skipped — continue training */
       }
     },
     getWeights: () => agent.agent.nn.getWeights(),
