@@ -292,7 +292,7 @@ function repairLayer(l: LayerGenome, _index: number): LayerGenome {
   };
 }
 
-/** Validate a genome against all constraints. Returns a list of violations (empty list = valid). */
+/** Validates a genome against all constraints. Returns a list of violations (empty list = valid). */
 export function validateGenome(g: Genome): ValidationResult {
   const errors: ValidationError[] = [];
 
@@ -381,7 +381,7 @@ export function validateGenome(g: Genome): ValidationResult {
 }
 
 /**
- * Return a corrected deep copy of `g`.
+ * Returns a corrected deep copy of `g`.
  *
  * Repair strategy: clamp numbers to valid bounds, reset enum fields to
  * sensible defaults, ensure structural invariants (e.g. at least one layer,

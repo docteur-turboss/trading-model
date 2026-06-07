@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach } from '@jest/globals';
 import {
   MarketDataBuffer,
   RunningNormalizer,
+  TradingSymbol,
   toSymbol,
+  fromSymbol,
 } from '../../../src/core/market-data-buffer';
 import {
   makeCandle,
@@ -15,6 +17,38 @@ import {
   feedCandles,
   resetFixtureSeq,
 } from '../../fixtures/market-data.fixture';
+
+describe('TradingSymbol', () => {
+  it('should create branded symbol via toSymbol', () => {
+    const sym = toSymbol('BTCUSDT');
+    expect(fromSymbol(sym)).toBe('BTCUSDT');
+  });
+
+  it('should preserve identity through roundtrip', () => {
+    const original = 'ETHUSDT';
+    expect(fromSymbol(toSymbol(original))).toBe(original);
+  });
+
+  it('should create distinct symbols for different strings', () => {
+    const a = toSymbol('BTCUSDT');
+    const b = toSymbol('ETHUSDT');
+    expect(fromSymbol(a)).not.toBe(fromSymbol(b));
+  });
+
+  it('should work as Map key', () => {
+    const m = new Map<TradingSymbol, number>();
+    const s1 = toSymbol('BTCUSDT');
+    const s2 = toSymbol('BTCUSDT');
+    m.set(s1, 100);
+    expect(m.get(s2)).toBe(100);
+  });
+
+  it('TradingSymbol should be assignable to string', () => {
+    const sym = toSymbol('TEST');
+    const str: string = sym;
+    expect(typeof str).toBe('string');
+  });
+});
 
 describe('MarketDataBuffer', () => {
   let buffer: MarketDataBuffer;
