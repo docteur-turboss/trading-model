@@ -22,9 +22,9 @@ describe('RefreshJob<AddressManagerClient>', () => {
     expect(job.schedule).toBe('*/5 * * * *');
   });
 
-  test('should enforce minimum 1 minute for intervals < 1 minute', () => {
+  test('should use seconds-based cron for intervals < 1 minute', () => {
     const job = new RefreshJob(mockClient, c => c.refreshTTL(), 30_000); // 30 sec
-    expect(job.schedule).toBe('*/1 * * * *'); // minimum 1 minute
+    expect(job.schedule).toBe('*/30 * * * * *');
   });
 
   // -----------------------------------------------------------
@@ -55,7 +55,7 @@ describe('RefreshJob<AddressManagerClient>', () => {
       { ms: 60_000, expected: '*/1 * * * *' },
       { ms: 5 * 60_000, expected: '*/5 * * * *' },
       { ms: 120_000, expected: '*/2 * * * *' },
-      { ms: 5000, expected: '*/1 * * * *' }, // < 1 min
+      { ms: 5000, expected: '*/5 * * * * *' }, // 5 seconds
     ];
 
     intervals.forEach(({ ms, expected }) => {

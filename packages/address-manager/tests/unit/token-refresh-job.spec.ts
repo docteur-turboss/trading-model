@@ -19,9 +19,9 @@ describe('RefreshJob<TokenManager>', () => {
     expect(job.schedule).toBe('*/5 * * * *');
   });
 
-  test('should generate minimum cron expression for interval < 1 minute', () => {
+  test('should use seconds-based cron for interval < 1 minute', () => {
     const job = new RefreshJob(mockTokenManager, tm => tm.refreshToken(), 10_000); // 10 seconds
-    expect(job.schedule).toBe('*/1 * * * *'); // minimum 1 minute
+    expect(job.schedule).toBe('*/10 * * * * *');
   });
 
   test('should generate cron expression rounding down fractional minutes', () => {
