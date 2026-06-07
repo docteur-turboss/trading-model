@@ -22,6 +22,12 @@ describe('MessageMetadata', () => {
       expect(m).toBeInstanceOf(MessageMetadata);
     });
 
+    it('should throw on invalid data', () => {
+      expect(
+        () => new MessageMetadata({ topic: '' } as any)
+      ).toThrow();
+    });
+
     it('should accept partial data', () => {
       const withData = new MessageMetadata({
         topic: 'test.event.created',
