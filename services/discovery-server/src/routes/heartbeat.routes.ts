@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 
 import { createHeartbeatController } from '../controllers/heartbeat.controller';
 import { ServiceRegistry } from '../core/service-registry';
@@ -27,6 +28,14 @@ export const heartbeatRoutes = (registry: ServiceRegistry): Router => {
    */
   const router = Router();
 
+  const heartbeatLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many heartbeat requests, please try again later' },
+  });
+
   /**
    * -------------------------
    * Instance Heartbeat
@@ -41,7 +50,7 @@ export const heartbeatRoutes = (registry: ServiceRegistry): Router => {
    * If heartbeats stop, the LeaseManager will eventually
    * evict the instance from the registry.
    */
-  router.post('/heartbeat', heartbeat);
+  router.post('/heartbeat', heartbeatLimiter, heartbeat);
 
   /**
    * -------------------------
@@ -58,7 +67,7 @@ export const heartbeatRoutes = (registry: ServiceRegistry): Router => {
    * - security incident response
    * - short-lived token enforcement
    */
-  router.post('/token/rotate', rotateToken);
+  router.post('/token/rotate', heartbeatLimiter, rotateToken);
 
   /**
    * Return the configured router to be mounted by the application.

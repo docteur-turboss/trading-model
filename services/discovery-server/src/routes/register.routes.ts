@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 
 import { createRegisterController } from '../controllers/register.controller';
 import { ServiceRegistry } from '../core/service-registry';
@@ -29,6 +30,14 @@ export const registryRoutes = (registry: ServiceRegistry): Router => {
    */
   const router = Router();
 
+  const registerLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many registration requests, please try again later' },
+  });
+
   /**
    * -------------------------
    * Instance Registration
@@ -43,7 +52,7 @@ export const registryRoutes = (registry: ServiceRegistry): Router => {
    * - Supports automatic instanceId generation
    * - Initializes TTL and heartbeat metadata
    */
-  router.post('/register', register);
+  router.post('/register', registerLimiter, register);
 
   /**
    * -------------------------

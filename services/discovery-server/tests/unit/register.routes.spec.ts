@@ -33,7 +33,7 @@ describe('registryRoutes', () => {
 
     expect(router).toBe(mockRouter);
     expect(mockRouter.post).toHaveBeenCalledTimes(1);
-    expect(mockRouter.post).toHaveBeenCalledWith('/register', 'register-handler');
+    expect(mockRouter.post).toHaveBeenCalledWith('/register', expect.any(Function), 'register-handler');
     expect(mockRouter.get).toHaveBeenCalledTimes(3);
     expect(mockRouter.get).toHaveBeenCalledWith('/services', 'list-services-handler');
     expect(mockRouter.get).toHaveBeenCalledWith(

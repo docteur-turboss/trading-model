@@ -1,16 +1,21 @@
 import { RequestHandler } from 'express';
+import { z } from 'zod';
 
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
-import {
-  isNonEmptyString,
-  isObject,
-  isValidIP,
-  isValidPort,
-} from '@trading-model/common/validation/primitives';
+import { isNonEmptyString } from '@trading-model/common/validation/primitives';
 
 import { ServiceRegistry } from '../core/service-registry';
 import { ServiceInstance } from '../core/types';
+
+const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+
+const registerSchema = z.object({
+  serviceName: z.string().min(1, 'serviceName is required'),
+  instanceId: z.string().min(1).optional(),
+  ip: z.string().regex(ipv4Regex, 'Invalid IP address'),
+  port: z.number().int().min(1).max(65535, 'Invalid port'),
+});
 
 interface RegisterController {
   register: RequestHandler;
@@ -22,24 +27,22 @@ interface RegisterController {
 export function createRegisterController(registry: ServiceRegistry): RegisterController {
   /** Register a new service instance or update an existing one in the registry. */
   const register: RequestHandler = catchSync(async req => {
-    if (!isObject(req.body)) return sendResponse({ error: 'Invalid request body' }, 400);
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return sendResponse(
+        { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
+        400
+      );
+    }
 
-    const { serviceName, instanceId, ip, port } = req.body as Record<string, unknown>;
-
-    if (!isNonEmptyString(serviceName))
-      return sendResponse({ error: 'serviceName is required' }, 400);
+    const { serviceName, instanceId, ip, port } = parsed.data;
 
     if (!registry.verifyInstanceName(serviceName))
       return sendResponse({ error: 'Invalid service name' }, 400);
 
-    if (!isValidIP(ip)) return sendResponse({ error: 'Invalid IP address' }, 400);
-
-    if (!isValidPort(port)) return sendResponse({ error: 'Invalid port' }, 400);
-
     let safeInstanceId: string;
 
     if (instanceId !== undefined) {
-      if (!isNonEmptyString(instanceId)) return sendResponse({ error: 'Invalid instanceId' }, 400);
       safeInstanceId = instanceId;
     } else {
       safeInstanceId = registry.generateInstanceId(serviceName, ip, port);

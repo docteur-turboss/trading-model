@@ -1,11 +1,20 @@
 import { RequestHandler } from 'express';
+import { z } from 'zod';
 
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
-import { isNonEmptyString, isObject } from '@trading-model/common/validation/primitives';
 
 import { validateInstanceToken } from './helpers';
 import { ServiceRegistry } from '../core/service-registry';
+
+const heartbeatSchema = z.object({
+  serviceName: z.string().min(1, 'serviceName is required'),
+  instanceId: z.string().min(1, 'instanceId is required'),
+});
+
+const rotateTokenSchema = z.object({
+  instanceId: z.string().min(1, 'instanceId is required'),
+});
 
 interface HeartbeatController {
   heartbeat: RequestHandler;
@@ -15,17 +24,15 @@ interface HeartbeatController {
 export function createHeartbeatController(registry: ServiceRegistry): HeartbeatController {
   /** Extend a service instance's lease by recording a heartbeat. */
   const heartbeat: RequestHandler = catchSync(async req => {
-    if (!isObject(req.body)) {
-      return sendResponse({ error: 'Invalid request body' }, 400);
+    const parsed = heartbeatSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return sendResponse(
+        { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
+        400
+      );
     }
 
-    const { serviceName, instanceId } = req.body as Record<string, unknown>;
-
-    if (!isNonEmptyString(serviceName))
-      return sendResponse({ error: 'serviceName is required' }, 400);
-
-    if (!isNonEmptyString(instanceId))
-      return sendResponse({ error: 'instanceId is required' }, 400);
+    const { serviceName, instanceId } = parsed.data;
 
     validateInstanceToken(registry, req.headers['x-instance-token'], instanceId);
 
@@ -38,12 +45,15 @@ export function createHeartbeatController(registry: ServiceRegistry): HeartbeatC
 
   /** Issue a new authentication token for a service instance, invalidating the previous one. */
   const rotateToken: RequestHandler = catchSync(async req => {
-    if (!isObject(req.body)) return sendResponse({ error: 'Invalid request body' }, 400);
+    const parsed = rotateTokenSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return sendResponse(
+        { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
+        400
+      );
+    }
 
-    const { instanceId } = req.body as Record<string, unknown>;
-
-    if (!isNonEmptyString(instanceId))
-      return sendResponse({ error: 'instanceId is required' }, 400);
+    const { instanceId } = parsed.data;
 
     validateInstanceToken(registry, req.headers['x-instance-token'], instanceId);
 

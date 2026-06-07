@@ -17,13 +17,6 @@ jest.mock('@trading-model/common/middleware/response-exception', () => {
   return { sendResponse, ResponseException };
 });
 
-jest.mock('@trading-model/common/validation/primitives', () => ({
-  isObject: (v: any) => v !== null && typeof v === 'object',
-  isNonEmptyString: (v: any) => typeof v === 'string' && v.trim().length > 0,
-  isValidIP: (v: any) => typeof v === 'string' && v.length > 0,
-  isValidPort: (v: any) => typeof v === 'number' && v > 0,
-}));
-
 import { ServiceRegistry } from '../../../src/core/service-registry';
 import { createRegisterController } from '../../../src/controllers/register.controller';
 
@@ -51,7 +44,7 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).resolves.toMatchObject({ status: 400, data: { error: 'serviceName is required' } });
+      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid request body' } });
     });
 
     it('should reject invalid service name with BadRequest', async () => {
@@ -64,11 +57,11 @@ describe('Register.controller', () => {
     it('should reject invalid IP with BadRequest', async () => {
       await expect(
         controller.register(
-          createReq({ body: { ...validRegisterPayload, ip: null } }),
+          createReq({ body: { ...validRegisterPayload, ip: 'not-an-ip' } }),
           createRes(),
           createNext
         )
-      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid IP address' } });
+      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid request body' } });
     });
 
     it('should reject invalid port with BadRequest', async () => {
@@ -78,7 +71,7 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid port' } });
+      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid request body' } });
     });
 
     it('should register a new instance and return OK with generated instanceId', async () => {
@@ -107,7 +100,7 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid instanceId' } });
+      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid request body' } });
     });
   });
 
