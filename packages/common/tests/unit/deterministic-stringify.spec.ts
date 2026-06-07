@@ -57,12 +57,12 @@ describe('deterministicStringify', () => {
   it('should match a known deterministic hash input', () => {
     const authContext = {
       roles: ['Data', 'Financial', 'Scraper'],
-      subject: 'financial-scrapper-service',
+      subject: 'financial-scraper-service',
       tenantId: 'instance-1',
     };
     const serialised = deterministicStringify(authContext);
     expect(serialised).toBe(
-      '{"roles":["Data","Financial","Scraper"],"subject":"financial-scrapper-service","tenantId":"instance-1"}'
+      '{"roles":["Data","Financial","Scraper"],"subject":"financial-scraper-service","tenantId":"instance-1"}'
     );
   });
 

@@ -83,6 +83,8 @@ export const createWallet = ({
   if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate >= 1)
     throw new Error(`Invalid feeRate: ${feeRate}. Must be in [0, 1[`);
   if (maxPosition <= 0) throw new Error(`Invalid maxPosition: ${maxPosition}`);
+  if (!Number.isInteger(decimals) || decimals < 1 || decimals > 15)
+    throw new Error(`Invalid decimals: ${decimals}. Must be an integer in [1, 15]`);
 
   // --- Mutable state ---
   let price = initialPrice;

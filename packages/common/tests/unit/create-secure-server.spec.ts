@@ -42,7 +42,7 @@ jest.mock('node:fs', () => ({
 }));
 
 jest.mock('../../src/middleware/response-protocol', () => ({
-  ResponseProtocole: 'responseProtocoleMiddleware',
+  ResponseProtocol: 'responseProtocolMiddleware',
 }));
 
 jest.mock('../../src/middleware/mtls-auth', () => ({
@@ -89,7 +89,7 @@ describe('createSecureServer', () => {
     expect(mockApp.use).toHaveBeenCalledWith('urlencodedParser');
     expect(mockApp.use).toHaveBeenCalledWith('rateLimitMiddleware');
     expect(mockApp.use).toHaveBeenCalledWith('mtlsAuthMiddleware');
-    expect(mockApp.use).toHaveBeenCalledWith('responseProtocoleMiddleware');
+    expect(mockApp.use).toHaveBeenCalledWith('responseProtocolMiddleware');
     expect(defaultOptions.routes).toHaveBeenCalledWith(mockApp);
   });
 

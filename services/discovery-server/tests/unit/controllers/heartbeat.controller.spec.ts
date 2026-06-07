@@ -79,7 +79,7 @@ describe('Heartbeat.controller', () => {
 
     it('should return TTL on successful heartbeat', async () => {
       const registered = registry.registerInstance({
-        serviceName: 'financial-scrapper-service',
+        serviceName: 'financial-scraper-service',
         instanceId: 'i1',
         ip: '1.1.1.1',
         port: 8080,
@@ -89,7 +89,7 @@ describe('Heartbeat.controller', () => {
         lastHeartbeat: Date.now(),
       });
       const req = createReq({
-        body: { serviceName: 'financial-scrapper-service', instanceId: 'i1' },
+        body: { serviceName: 'financial-scraper-service', instanceId: 'i1' },
         headers: { 'x-instance-token': registered.token },
       });
       await expect(controller.heartbeat(req, createRes(), jest.fn())).resolves.toMatchObject({
@@ -100,7 +100,7 @@ describe('Heartbeat.controller', () => {
 
     it('should return NotFound when service does not match registered instance', async () => {
       const registered = registry.registerInstance({
-        serviceName: 'financial-scrapper-service',
+        serviceName: 'financial-scraper-service',
         instanceId: 'i1',
         ip: '1.1.1.1',
         port: 8080,
@@ -158,7 +158,7 @@ describe('Heartbeat.controller', () => {
 
     it('should return new token on successful rotation', async () => {
       const registered = registry.registerInstance({
-        serviceName: 'financial-scrapper-service',
+        serviceName: 'financial-scraper-service',
         instanceId: 'i1',
         ip: '1.1.1.1',
         port: 8080,

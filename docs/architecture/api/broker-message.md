@@ -132,7 +132,7 @@ import BrokerMessage, { helper } from '@trading-model/broker-message';
 const metadata = new helper.MetadataBuilder()
   .setTopic('market.trade.recent.fetch')
   .setEventType('market.trade.recent.fetch')
-  .setPublisher({ serviceName: 'financial-scrapper-service', instanceId: 'uuid' })
+  .setPublisher({ serviceName: 'financial-scraper-service', instanceId: 'uuid' })
   .setDelivery({ mode: 'at-least-once' })
   .toJSON();
 ```
@@ -220,7 +220,7 @@ interface MessageMetadata {
   security?: SecurityType;
 }
 
-interface message<T = unknown> {
+interface Message<T = unknown> {
   metadata: MessageMetadata;
   payload: T;
 }
@@ -263,7 +263,7 @@ const metadata = new helper.MetadataBuilder()
   .setPublisher({ serviceName: 'TraderTrainingService', instanceId: 'node-1' })
   .toJSON();
 
-await broker.post.direct('FinancialScrapperService', { symbol: 'BTCUSDT' }, metadata);
+await broker.post.direct('FinancialScraperService', { symbol: 'BTCUSDT' }, metadata);
 await broker.post.indirect({ price: 50000 }, metadata);
 
 cleanup();

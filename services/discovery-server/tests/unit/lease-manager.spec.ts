@@ -111,7 +111,7 @@ describe('LeaseManager', () => {
       const registry = new ServiceRegistry();
 
       registry.registerInstance({
-        serviceName: 'financial-scrapper-service',
+        serviceName: 'financial-scraper-service',
         instanceId: 'expired-id',
         ip: '1.1.1.1',
         port: 8080,
@@ -120,7 +120,7 @@ describe('LeaseManager', () => {
       });
 
       registry.registerInstance({
-        serviceName: 'financial-scrapper-service',
+        serviceName: 'financial-scraper-service',
         instanceId: 'alive-id',
         ip: '1.1.1.2',
         port: 8081,
@@ -132,7 +132,7 @@ describe('LeaseManager', () => {
       lm.start();
       jest.advanceTimersByTime(5000);
 
-      const remaining = registry.getInstances('financial-scrapper-service');
+      const remaining = registry.getInstances('financial-scraper-service');
       expect(remaining).toHaveLength(1);
       expect(remaining[0].instanceId).toBe('alive-id');
     });

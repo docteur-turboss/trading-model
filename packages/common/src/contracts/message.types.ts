@@ -97,7 +97,7 @@ export interface BrokerConfig {
  *
  * @template T - Type of the business payload.
  */
-export interface message<T = unknown> {
+export interface Message<T = unknown> {
   /** Technical and routing metadata. */
   metadata: MessageMetadata;
 

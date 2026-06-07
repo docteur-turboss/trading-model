@@ -120,7 +120,7 @@ describe('Register.controller', () => {
 
     it('should return registered service names', async () => {
       registry.registerInstance({
-        serviceName: 'financial-scrapper-service',
+        serviceName: 'financial-scraper-service',
         instanceId: 'i1',
         ip: '1.1.1.1',
         port: 8080,
@@ -155,7 +155,7 @@ describe('Register.controller', () => {
 
     it('should return instances for known service', async () => {
       registry.registerInstance({
-        serviceName: 'financial-scrapper-service',
+        serviceName: 'financial-scraper-service',
         instanceId: 'i1',
         ip: '1.1.1.1',
         port: 8080,
@@ -167,7 +167,7 @@ describe('Register.controller', () => {
 
       await expect(
         controller.getServiceInstances(
-          createReq({ params: { serviceName: 'financial-scrapper-service' } }),
+          createReq({ params: { serviceName: 'financial-scraper-service' } }),
           createRes(),
           createNext
         )
@@ -198,7 +198,7 @@ describe('Register.controller', () => {
 
     it('should return instance when found', async () => {
       registry.registerInstance({
-        serviceName: 'financial-scrapper-service',
+        serviceName: 'financial-scraper-service',
         instanceId: 'i1',
         ip: '1.1.1.1',
         port: 8080,
@@ -211,7 +211,7 @@ describe('Register.controller', () => {
       await expect(
         controller.getInstance(
           createReq({
-            params: { serviceName: 'financial-scrapper-service', instanceId: 'i1' },
+            params: { serviceName: 'financial-scraper-service', instanceId: 'i1' },
           }),
           createRes(),
           createNext

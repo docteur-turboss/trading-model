@@ -19,7 +19,7 @@ describe('Discovery Service — Full Flow Integration', () => {
 
   it('should register an instance and find it via getInstances', () => {
     const result = registry.registerInstance({
-      serviceName: 'financial-scrapper-service',
+      serviceName: 'financial-scraper-service',
       instanceId: 'node-1',
       ip: '10.0.0.1',
       port: 8444,
@@ -32,14 +32,14 @@ describe('Discovery Service — Full Flow Integration', () => {
     expect(result.instanceId).toBe('node-1');
     expect(result.token).toBeDefined();
 
-    const instances = registry.getInstances('financial-scrapper-service');
+    const instances = registry.getInstances('financial-scraper-service');
     expect(instances).toHaveLength(1);
     expect(instances[0].ip).toBe('10.0.0.1');
   });
 
   it('should register multiple instances for the same service', () => {
     registry.registerInstance({
-      serviceName: 'financial-scrapper-service',
+      serviceName: 'financial-scraper-service',
       instanceId: 'node-1',
       ip: '10.0.0.1',
       port: 8444,
@@ -50,7 +50,7 @@ describe('Discovery Service — Full Flow Integration', () => {
     });
 
     registry.registerInstance({
-      serviceName: 'financial-scrapper-service',
+      serviceName: 'financial-scraper-service',
       instanceId: 'node-2',
       ip: '10.0.0.2',
       port: 8444,
@@ -60,12 +60,12 @@ describe('Discovery Service — Full Flow Integration', () => {
       lastHeartbeat: Date.now(),
     });
 
-    expect(registry.getInstances('financial-scrapper-service')).toHaveLength(2);
+    expect(registry.getInstances('financial-scraper-service')).toHaveLength(2);
   });
 
   it('should validate instance tokens after registration', () => {
     const registered = registry.registerInstance({
-      serviceName: 'financial-scrapper-service',
+      serviceName: 'financial-scraper-service',
       instanceId: 'node-1',
       ip: '10.0.0.1',
       port: 8444,
@@ -81,7 +81,7 @@ describe('Discovery Service — Full Flow Integration', () => {
 
   it('should handle full heartbeat flow', () => {
     const registered = registry.registerInstance({
-      serviceName: 'financial-scrapper-service',
+      serviceName: 'financial-scraper-service',
       instanceId: 'node-1',
       ip: '10.0.0.1',
       port: 8444,
@@ -94,7 +94,7 @@ describe('Discovery Service — Full Flow Integration', () => {
     const token = registered.token as string;
     expect(registry.validInstanceToken(token, 'node-1')).toBe(true);
 
-    const ttl = registry.updateHeartbeat('financial-scrapper-service', 'node-1');
+    const ttl = registry.updateHeartbeat('financial-scraper-service', 'node-1');
     expect(ttl).toBe(30_000);
 
     const newToken = registry.updateToken('node-1');
@@ -105,7 +105,7 @@ describe('Discovery Service — Full Flow Integration', () => {
 
   it('should remove instance and update token on removeInstance', () => {
     registry.registerInstance({
-      serviceName: 'financial-scrapper-service',
+      serviceName: 'financial-scraper-service',
       instanceId: 'node-1',
       ip: '10.0.0.1',
       port: 8444,
@@ -126,16 +126,16 @@ describe('Discovery Service — Full Flow Integration', () => {
       lastHeartbeat: Date.now(),
     });
 
-    const removed = registry.removeInstance('financial-scrapper-service', 'node-1');
+    const removed = registry.removeInstance('financial-scraper-service', 'node-1');
     expect(removed).toBe(true);
-    expect(registry.getInstances('financial-scrapper-service')).toHaveLength(0);
+    expect(registry.getInstances('financial-scraper-service')).toHaveLength(0);
     expect(registry.validInstanceToken('any-token', 'node-1')).toBe(false);
     expect(registry.listServiceNames()).toEqual(['message-delivery-service']);
   });
 
   it('should expose a dump of current registry state', () => {
     registry.registerInstance({
-      serviceName: 'financial-scrapper-service',
+      serviceName: 'financial-scraper-service',
       instanceId: 'node-1',
       ip: '10.0.0.1',
       port: 8444,
@@ -146,12 +146,12 @@ describe('Discovery Service — Full Flow Integration', () => {
     });
 
     const snapshot = registry.dump();
-    expect(snapshot['financial-scrapper-service']).toBeDefined();
-    expect(snapshot['financial-scrapper-service']).toHaveLength(1);
+    expect(snapshot['financial-scraper-service']).toBeDefined();
+    expect(snapshot['financial-scraper-service']).toHaveLength(1);
   });
 
   it('should verify instance names against known services', () => {
-    expect(registry.verifyInstanceName('financial-scrapper-service')).toBe(true);
+    expect(registry.verifyInstanceName('financial-scraper-service')).toBe(true);
     expect(registry.verifyInstanceName('message-delivery-service')).toBe(true);
     expect(registry.verifyInstanceName('discovery-service')).toBe(true);
     expect(registry.verifyInstanceName('completely-fake-service')).toBe(false);

@@ -8,7 +8,7 @@ import {
 } from './genetic-algorithm/ga-runner';
 import { LamarckGenome } from './genetic-algorithm/genome-types';
 import { DeepReadonly } from './genetic-algorithm/shared-types';
-import { MarketDataBuffer } from './market-data-buffer';
+import { MarketDataBuffer, MIN_TRAINING_STEPS } from './market-data-buffer';
 import { env } from '../config/env';
 
 /** Summary of the best trained agent for API responses. */
@@ -96,11 +96,13 @@ export class Trainer {
 
     const windowSet = this.dataBuffer.getAllWindows(symbol, env.TRAINER_VALIDATION_SPLIT);
 
-    if (!windowSet || windowSet.train.length < 10) {
+    if (!windowSet || windowSet.train.length < MIN_TRAINING_STEPS) {
       return {
         success: false,
         symbol,
-        error: new Error(`Not enough data for ${symbol}, need at least 10 steps`),
+        error: new Error(
+          `Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
+        ),
       };
     }
 

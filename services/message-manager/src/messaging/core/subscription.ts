@@ -23,7 +23,7 @@
  */
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { HttpClient } from '@trading-model/common/config/http-client';
-import { IdentifyType, message as Message } from '@trading-model/common/contracts/message.types';
+import { IdentifyType, Message } from '@trading-model/common/contracts/message.types';
 import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 import { sleep } from '@trading-model/common/utils/sleep';
 

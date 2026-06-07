@@ -32,7 +32,7 @@
 
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { logger } from '@trading-model/common/config/logger';
-import { IdentifyType, message } from '@trading-model/common/contracts/message.types';
+import { IdentifyType, Message } from '@trading-model/common/contracts/message.types';
 
 import { DqlRepository } from './dlq-repository';
 import { Subscription } from './subscription';
@@ -118,7 +118,7 @@ export class Dispatcher {
    *
    * @returns {Promise<void>}
    */
-  async dispatch<T>(message: message<T>) {
+  async dispatch<T>(message: Message<T>) {
     const { topic } = message.metadata;
     const subscriptions = this.subscriptionsByTopic.get(topic);
     if (!subscriptions?.length) return;

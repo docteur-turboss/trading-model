@@ -102,7 +102,7 @@ Features:
 - Helmet security headers
 - `GET /ping` endpoint (constant `PING_PATH`)
 - `MTLSAuthMiddleware` injected automatically
-- `ResponseProtocole` as last middleware
+- `ResponseProtocol` as last middleware
 - `server.close()` returns a promise that resolves only after all in-flight connections have drained (uses Node.js callback form)
 
 ### Internal Architecture
@@ -191,7 +191,7 @@ ResponseException().NoContent(); // { status: 204, data: undefined }
 
 Available codes: `ServiceUnavailable(503)`, `UnknownError(500)`, `InvalidToken(498)`, `TooManyRequests(429)`, `IMATeapot(418)`, `PayloadTooLarge(413)`, `Gone(410)`, `Conflict(409)`, `MethodNotAllowed(405)`, `NotFound(404)`, `Forbidden(403)`, `PaymentRequired(402)`, `Unauthorized(401)`, `BadRequest(400)`, `NoContent(204)`, `OK(201)`, `Success(200)`
 
-### ResponseProtocole
+### ResponseProtocol
 
 Global Express error normalisation middleware.
 
@@ -252,9 +252,9 @@ Response normalisation utilities.
 ```ts
 ServiceInstanceName.DiscoveryService; // 'discovery-service'
 ServiceInstanceName.MessageDeliveryService; // 'message-delivery-service'
-ServiceInstanceName.FinancialScrapperService; // 'financial-scrapper-service'
+ServiceInstanceName.FinancialScraperService; // 'financial-scraper-service'
 ServiceInstanceName.TraderTrainingService; // 'trader-training-service'
-// + CoreBalancerService, OfficialDataScrapperService, etc.
+// + CoreBalancerService, OfficialDataScraperService, etc.
 ```
 
 ## Delivery Types

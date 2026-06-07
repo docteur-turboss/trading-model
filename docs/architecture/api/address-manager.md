@@ -51,7 +51,7 @@ interface AddressManagerConfig {
 | Field                    | Type                     | Default | Description                                                                      |
 | ------------------------ | ------------------------ | ------- | -------------------------------------------------------------------------------- |
 | `instanceId`             | `string`                 | —       | Unique identifier for this service instance                                      |
-| `serviceName`            | `string`                 | —       | Logical service name (e.g. `financial-scrapper-service`)                         |
+| `serviceName`            | `string`                 | —       | Logical service name (e.g. `financial-scraper-service`)                         |
 | `servicePort`            | `number`                 | —       | Port the service listens on                                                      |
 | `addressManagerUrl`      | `string`                 | —       | Discovery-server base URL                                                        |
 | `tokenRefreshIntervalMs` | `number`                 | `60000` | Token rotation interval                                                          |
@@ -305,7 +305,7 @@ const am = new AddressManager({
   // ...
   dnsNameMap: {
     'discovery-service': 'discovery-server',
-    'financial-scrapper-service': 'scraper',
+    'financial-scraper-service': 'scraper',
     'message-delivery-service': 'msg-svc',
   },
 });

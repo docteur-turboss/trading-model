@@ -6,7 +6,7 @@ import {
   validateEnv,
 } from '@trading-model/common/validation/env';
 
-const FinancialScrapperEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape).extend({
+const FinancialScraperEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape).extend({
   BINANCE_API_KEY: z.string().default(''),
 
   BINANCE_API_SECRET: z.string().default(''),
@@ -32,6 +32,6 @@ const FinancialScrapperEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.
   DB_PORT: z.coerce.number().int().positive().default(3306),
 });
 
-export const env = validateEnv(FinancialScrapperEnvSchema);
+export const env = validateEnv(FinancialScraperEnvSchema);
 
-export type Env = z.infer<typeof FinancialScrapperEnvSchema>;
+export type Env = z.infer<typeof FinancialScraperEnvSchema>;
