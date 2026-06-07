@@ -104,7 +104,8 @@ services/trader-trainer/
 │ ├── diversity.ts # Speciation and novelty search
 │ ├── noise.ts # Noise distributions for mutation
 │ ├── prng.ts # Pseudo-random number generator
-│ ├── utils.ts # Shared utilities (clamp, generateId, RunningStats)
+│ ├── utils.ts # Shared utilities (clamp, generateId, etc.)
+│ ├── normalization-stats.ts # Online running mean/std for z-score normalization
 │ └── index.ts # Barrel exports
 │ │
 │ ├── Constraints & Validation:
