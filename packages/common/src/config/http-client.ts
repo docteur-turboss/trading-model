@@ -102,7 +102,7 @@ export class HttpClient {
           const contentType = res.headers['content-type'] || '';
 
           try {
-            if (contentType.includes('application/json')) {
+            if (contentType.startsWith('application/json')) {
               const parsed = JSON.parse(data);
               resolve(schema ? schema.parse(parsed) : (parsed as T));
             } else {

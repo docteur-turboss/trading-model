@@ -153,9 +153,9 @@ export class ServiceRegistry {
    *
    * The previously issued token is immediately invalidated.
    */
-  updateToken(serviceId: string): string {
-    const newToken = this.generateInstanceToken(serviceId);
-    this.token.set(serviceId, newToken);
+  updateToken(instanceId: string): string {
+    const newToken = this.generateInstanceToken(instanceId);
+    this.token.set(instanceId, newToken);
     return newToken;
   }
 
