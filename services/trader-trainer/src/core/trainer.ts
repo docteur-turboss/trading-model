@@ -1,6 +1,11 @@
+import { logger } from '@trading-model/common/config/logger';
+
 import { createDefaultGenome } from './genetic-algorithm/factory';
-import { GeneticAlgorithmRunner } from './genetic-algorithm/ga-runner';
-import { makeTradingAgentBackend, GenerationContext } from './genetic-algorithm/ga-runner';
+import {
+  GeneticAlgorithmRunner,
+  makeTradingAgentBackend,
+  GenerationContext,
+} from './genetic-algorithm/ga-runner';
 import { LamarckGenome } from './genetic-algorithm/genome-types';
 import { DeepReadonly } from './genetic-algorithm/shared-types';
 import { MarketDataBuffer } from './market-data-buffer';
@@ -118,7 +123,7 @@ export class Trainer {
       onGeneration: (ctx: GenerationContext) => {
         this.generationContext = ctx;
         this.bestGenome = ctx.bestGenome;
-        console.log(
+        logger.info(
           `[Trainer] Gen ${ctx.generation}: best=${ctx.bestFitness.toFixed(4)}, ` +
             `avg=${ctx.avgFitness.toFixed(4)}, archive=${ctx.archive.length}, ` +
             `stagnation=${ctx.stagnation}, elapsed=${(ctx.elapsedMs / 1000).toFixed(1)}s`
@@ -134,14 +139,14 @@ export class Trainer {
     try {
       const result = await this.runner.run();
       this.bestGenome = result;
-      console.log(
+      logger.info(
         `[Trainer] Training complete for ${symbol}. ` +
           `Best fitness: ${(result.fitness ?? 0).toFixed(4)}`
       );
       return { success: true, symbol, bestGenome: result };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      console.error(`[Trainer] Training failed for ${symbol}:`, error);
+      logger.error(`[Trainer] Training failed for ${symbol}:`, { err: error.message });
       return { success: false, symbol, error };
     } finally {
       this.training = false;

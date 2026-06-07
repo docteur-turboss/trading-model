@@ -4,7 +4,7 @@ import { ServiceRegistrationResponse } from '../../src/client/type';
 import { AddressManagerClient } from '../../src/client/address-manager-client';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { AddressManagerConfig } from '../../src/config/address-manager-config';
-import { AddressManagerError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 jest.mock('os');
@@ -113,8 +113,8 @@ describe('AddressManagerClient', () => {
 
       httpClient.post.mockRejectedValueOnce(error);
       const err = await client.registerService().catch(e => e);
-      expect(err).toBeInstanceOf(AddressManagerError);
-      expect(err.cause).toBe(error);
+      expect(err).toBeInstanceOf(AppError);
+      expect((err as AppError).cause).toBe(error);
     });
   });
 
@@ -136,8 +136,8 @@ describe('AddressManagerClient', () => {
 
       httpClient.post.mockRejectedValueOnce(error);
       const err = await client.refreshTTL().catch(e => e);
-      expect(err).toBeInstanceOf(AddressManagerError);
-      expect(err.cause).toBe(error);
+      expect(err).toBeInstanceOf(AppError);
+      expect((err as AppError).cause).toBe(error);
     });
   });
 });

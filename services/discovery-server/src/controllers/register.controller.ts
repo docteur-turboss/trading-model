@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 
 import { catchSync } from '@trading-model/common/middleware/catch-error';
-import { ResponseException } from '@trading-model/common/middleware/response-exception';
+import { sendResponse } from '@trading-model/common/middleware/response-exception';
 import {
   isNonEmptyString,
   isObject,
@@ -22,24 +22,24 @@ interface RegisterController {
 export function createRegisterController(registry: ServiceRegistry): RegisterController {
   /** Register a new service instance or update an existing one in the registry. */
   const register: RequestHandler = catchSync(async req => {
-    if (!isObject(req.body)) throw ResponseException('Invalid request body').BadRequest();
+    if (!isObject(req.body)) return sendResponse({ error: 'Invalid request body' }, 400);
 
     const { serviceName, instanceId, ip, port } = req.body as Record<string, unknown>;
 
     if (!isNonEmptyString(serviceName))
-      throw ResponseException('serviceName is required').BadRequest();
+      return sendResponse({ error: 'serviceName is required' }, 400);
 
     if (!registry.verifyInstanceName(serviceName))
-      throw ResponseException('Invalid service name').BadRequest();
+      return sendResponse({ error: 'Invalid service name' }, 400);
 
-    if (!isValidIP(ip)) throw ResponseException('Invalid IP address').BadRequest();
+    if (!isValidIP(ip)) return sendResponse({ error: 'Invalid IP address' }, 400);
 
-    if (!isValidPort(port)) throw ResponseException('Invalid port').BadRequest();
+    if (!isValidPort(port)) return sendResponse({ error: 'Invalid port' }, 400);
 
     let safeInstanceId: string;
 
     if (instanceId !== undefined) {
-      if (!isNonEmptyString(instanceId)) throw ResponseException('Invalid instanceId').BadRequest();
+      if (!isNonEmptyString(instanceId)) return sendResponse({ error: 'Invalid instanceId' }, 400);
       safeInstanceId = instanceId;
     } else {
       safeInstanceId = registry.generateInstanceId(serviceName, ip, port);
@@ -58,12 +58,12 @@ export function createRegisterController(registry: ServiceRegistry): RegisterCon
 
     const registered = registry.registerInstance(instance);
 
-    throw ResponseException(registered).OK();
+    return sendResponse(registered, 201);
   });
 
   /** Return the list of all registered service names. */
   const listServices: RequestHandler = catchSync(async () => {
-    throw ResponseException(registry.listServiceNames()).Success();
+    return sendResponse(registry.listServiceNames(), 200);
   });
 
   /** Return all registered instances for a given service name. */
@@ -71,12 +71,12 @@ export function createRegisterController(registry: ServiceRegistry): RegisterCon
     const { serviceName } = req.params;
 
     if (!isNonEmptyString(serviceName))
-      throw ResponseException('serviceName is required').BadRequest();
+      return sendResponse({ error: 'serviceName is required' }, 400);
 
     if (!registry.verifyInstanceName(serviceName))
-      throw ResponseException('Unknown service').NotFound();
+      return sendResponse({ error: 'Unknown service' }, 404);
 
-    throw ResponseException(registry.getInstances(serviceName)).Success();
+    return sendResponse(registry.getInstances(serviceName), 200);
   });
 
   /** Return metadata for a specific service instance by service name and instance ID. */
@@ -84,13 +84,13 @@ export function createRegisterController(registry: ServiceRegistry): RegisterCon
     const { serviceName, instanceId } = req.params;
 
     if (!isNonEmptyString(serviceName) || !isNonEmptyString(instanceId))
-      throw ResponseException('Invalid route parameters').BadRequest();
+      return sendResponse({ error: 'Invalid route parameters' }, 400);
 
     const instance = registry.getInstance(serviceName, instanceId);
 
-    if (!instance) throw ResponseException('Instance not found').NotFound();
+    if (!instance) return sendResponse({ error: 'Instance not found' }, 404);
 
-    throw ResponseException(instance).Success();
+    return sendResponse(instance, 200);
   });
 
   return { register, listServices, getServiceInstances, getInstance };

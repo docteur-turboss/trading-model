@@ -1,6 +1,6 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { validateEnv, BaseEnvSchema, AddressManagerEnvSchema } from '../../src/validation/env';
-import { ConfigurationError } from '../../src/utils/errors';
+import { AppError, ErrorCodes } from '../../src/utils/errors';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -37,7 +37,7 @@ describe('validateEnv', () => {
     delete process.env.TLS_CERT_PATH;
     delete process.env.TLS_CA_PATH;
 
-    expect(() => validateEnv(BaseEnvSchema)).toThrow(ConfigurationError);
+    expect(() => validateEnv(BaseEnvSchema)).toThrow(AppError);
   });
 
   it('should apply default values', () => {
@@ -96,7 +96,7 @@ describe('validateEnv', () => {
     delete process.env.TLS_CERT_PATH;
     delete process.env.TLS_CA_PATH;
 
-    expect(() => validateEnv(BaseEnvSchema)).toThrow(ConfigurationError);
+    expect(() => validateEnv(BaseEnvSchema)).toThrow(AppError);
   });
 
   it('should handle invalid env when treeifyError is not a function', () => {
@@ -109,7 +109,7 @@ describe('validateEnv', () => {
     delete process.env.TLS_CERT_PATH;
     delete process.env.TLS_CA_PATH;
 
-    expect(() => validateEnv(BaseEnvSchema)).toThrow(ConfigurationError);
+    expect(() => validateEnv(BaseEnvSchema)).toThrow(AppError);
 
     zod.z.treeifyError = origTreeifyError;
   });

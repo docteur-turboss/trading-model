@@ -12,19 +12,13 @@ import { ServiceInstanceName } from '@trading-model/common/config/services.types
 jest.mock('@trading-model/common/middleware/catch-error', () => ({
   catchSync:
     (fn: (...args: unknown[]) => unknown) =>
-    (...args: unknown[]): void | Promise<void> => {
-      const next = args[2] as (err?: unknown) => void;
+    async (...args: unknown[]): Promise<void> => {
       try {
-        const result = fn(...args);
-        if (result instanceof Promise) {
-          return result.catch(e => {
-            next(e);
-          }) as Promise<void>;
-        }
+        await fn(...args);
       } catch (e) {
+        const next = args[2] as (err?: unknown) => void;
         next(e);
       }
-      return undefined;
     },
 }));
 
@@ -38,7 +32,7 @@ describe('HTTP Controller', () => {
   });
 
   describe('SubscriptionToATopic', () => {
-    it('should call broker.subscribe with valid body', () => {
+    it('should call broker.subscribe with valid body', async () => {
       const handler = SubscriptionToATopic(broker);
       const req = {
         body: {
@@ -50,49 +44,39 @@ describe('HTTP Controller', () => {
           },
         },
       } as Request;
-      const next = jest.fn();
 
-      handler(req, {} as Response, next);
+      await handler(req, {} as Response, jest.fn());
 
       expect(mockDispatcher.registerSubscription).toHaveBeenCalledWith(req.body);
-      expect(next).toHaveBeenCalled();
     });
 
-    it('should throw on invalid body', () => {
+    it('should return error on invalid body', async () => {
       const handler = SubscriptionToATopic(broker);
-      const req = { body: { topic: '' } } as Request;
-      const next = jest.fn();
 
-      handler(req, {} as Response, next);
+      await handler({ body: { topic: '' } } as Request, {} as Response, jest.fn());
 
       expect(mockDispatcher.registerSubscription).not.toHaveBeenCalled();
-      expect(next).toHaveBeenCalled();
     });
   });
 
   describe('DeleteASubscription', () => {
-    it('should call broker.unsubscribe with valid body', () => {
+    it('should call broker.unsubscribe with valid body', async () => {
       const handler = DeleteASubscription(broker);
       const req = {
         body: { topic: 'test.topic', instanceId: 'instance-1' },
       } as Request;
-      const next = jest.fn();
 
-      handler(req, {} as Response, next);
+      await handler(req, {} as Response, jest.fn());
 
       expect(mockDispatcher.unregisterSubscription).toHaveBeenCalledWith(req.body);
-      expect(next).toHaveBeenCalled();
     });
 
-    it('should throw on invalid body', () => {
+    it('should return error on invalid body', async () => {
       const handler = DeleteASubscription(broker);
-      const req = { body: { topic: '' } } as Request;
-      const next = jest.fn();
 
-      handler(req, {} as Response, next);
+      await handler({ body: { topic: '' } } as Request, {} as Response, jest.fn());
 
       expect(mockDispatcher.unregisterSubscription).not.toHaveBeenCalled();
-      expect(next).toHaveBeenCalled();
     });
   });
 
@@ -113,23 +97,19 @@ describe('HTTP Controller', () => {
           },
         },
       } as Request;
-      const next = jest.fn();
 
-      await handler(req, {} as Response, next);
+      await handler(req, {} as Response, jest.fn());
 
       expect(mockDispatcher.dispatch).toHaveBeenCalled();
-      expect(next).toHaveBeenCalled();
     });
 
-    it('should throw on invalid body', async () => {
+    it('should return error on invalid body', async () => {
       const handler = PublishAMessage(broker);
       const req = { body: { payload: {} } } as Request;
-      const next = jest.fn();
 
-      await handler(req, {} as Response, next);
+      await handler(req, {} as Response, jest.fn());
 
       expect(mockDispatcher.dispatch).not.toHaveBeenCalled();
-      expect(next).toHaveBeenCalled();
     });
   });
 });

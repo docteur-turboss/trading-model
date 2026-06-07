@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals';
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
-import { DeadLetterError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 import { Subscription } from '../../../../src/messaging/core/subscription';
 import { DqlRepository } from '../../../../src/messaging/core/dlq-repository';
 import { createMockHttpClient } from '../../../helpers/broker.helper';
@@ -78,7 +78,9 @@ describe('Subscription', () => {
     });
 
     it('should stop retrying and send to DLQ on DeadLetterError', async () => {
-      mockHttpClient.post.mockRejectedValue(new DeadLetterError('Unrecoverable'));
+      mockHttpClient.post.mockRejectedValue(
+        new AppError('Unrecoverable', ErrorCodes.DEAD_LETTER_ERROR, { reason: 'Unrecoverable' })
+      );
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
@@ -127,7 +129,9 @@ describe('Subscription', () => {
     });
 
     it('should send to DLQ on DeadLetterError even in AT_MOST_ONCE mode', async () => {
-      mockHttpClient.post.mockRejectedValue(new DeadLetterError('Unrecoverable'));
+      mockHttpClient.post.mockRejectedValue(
+        new AppError('Unrecoverable', ErrorCodes.DEAD_LETTER_ERROR, { reason: 'Unrecoverable' })
+      );
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },

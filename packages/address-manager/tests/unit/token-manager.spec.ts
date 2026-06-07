@@ -1,7 +1,7 @@
 import { TokenManager } from '../../src/client/token-manager';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { AddressManagerConfig } from '../../src/config/address-manager-config';
-import { AuthenticationError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 describe('TokenManager', () => {
@@ -28,7 +28,7 @@ describe('TokenManager', () => {
 
   describe('getToken', () => {
     test('should throw AuthenticationError if token is not available', () => {
-      expect(() => manager.getToken()).toThrow(AuthenticationError);
+      expect(() => manager.getToken()).toThrow(AppError);
       expect(() => manager.getToken()).toThrow(
         'Token is not available. Did you call refreshToken()?'
       );
@@ -79,7 +79,7 @@ describe('TokenManager', () => {
       httpClient.post.mockResolvedValueOnce({});
       manager.setToken('initial-token');
 
-      await expect(manager.refreshToken()).rejects.toThrow(AuthenticationError);
+      await expect(manager.refreshToken()).rejects.toThrow(AppError);
       await expect(manager.refreshToken()).rejects.toThrow(
         'Invalid token response from Address Manager'
       );
@@ -89,7 +89,7 @@ describe('TokenManager', () => {
       const error = new Error('Network failure');
       httpClient.post.mockRejectedValueOnce(error);
       manager.setToken('initial-token');
-      await expect(manager.refreshToken()).rejects.toThrow(AuthenticationError);
+      await expect(manager.refreshToken()).rejects.toThrow(AppError);
 
       httpClient.post.mockRejectedValueOnce(error);
       manager.setToken('initial-token');

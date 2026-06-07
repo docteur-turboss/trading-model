@@ -16,22 +16,23 @@ describe('catchSync', () => {
 
   it('should call the wrapped function with req, res, next', async () => {
     const handler = jest.fn();
-    const wrapped = catchSync(handler);
+    const wrapped = catchSync(handler as any);
 
     await wrapped(req, res, next);
 
     expect(handler).toHaveBeenCalledWith(req, res, next);
   });
 
-  it('should reject the promise on synchronous errors', async () => {
+  it('should forward synchronous errors to next', async () => {
     const error = new Error('sync error');
     const handler = () => {
       throw error;
     };
     const wrapped = catchSync(handler as any);
 
-    await expect(wrapped(req as any, res as any, next)).rejects.toThrow(error);
-    expect(next).not.toHaveBeenCalled();
+    await wrapped(req as any, res as any, next);
+
+    expect(next).toHaveBeenCalledWith(error);
   });
 
   it('should catch asynchronous errors and pass to next', async () => {
@@ -39,7 +40,7 @@ describe('catchSync', () => {
     const handler = async () => {
       throw error;
     };
-    const wrapped = catchSync(handler);
+    const wrapped = catchSync(handler as any);
 
     await wrapped(req, res, next);
 
@@ -48,10 +49,27 @@ describe('catchSync', () => {
 
   it('should not call next if handler succeeds', async () => {
     const handler = jest.fn();
-    const wrapped = catchSync(handler);
+    const wrapped = catchSync(handler as any);
 
     await wrapped(req, res, next);
 
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('should send response object via res when handler returns ResponseObject', async () => {
+    const mockRes = {
+      status: jest.fn().mockReturnThis(),
+      type: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+      send: jest.fn().mockReturnThis(),
+    };
+    const handler = () => ({ status: 201, data: { id: 'abc' } });
+    const wrapped = catchSync(handler as any);
+
+    await wrapped(req, mockRes as any, next);
+
+    expect(mockRes.status).toHaveBeenCalledWith(201);
+    expect(mockRes.send).toHaveBeenCalledWith({ id: 'abc' });
     expect(next).not.toHaveBeenCalled();
   });
 });

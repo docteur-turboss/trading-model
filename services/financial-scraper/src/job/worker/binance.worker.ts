@@ -22,7 +22,7 @@ import { deterministicStringify } from '@trading-model/common/utils/deterministi
 
 import {
   getOrderBook,
-  CandlestickData,
+  getCandlestickData,
   getRecentTrades,
   getOrderBookTicker,
   get24hrTickerStats,
@@ -61,8 +61,7 @@ export class BinanceWorker {
    *
    */
   public async run(): Promise<BinanceWorkerResult> {
-    const { v4 } = await import('uuid');
-    const uuid = v4;
+    const { v4: uuidv4 } = await import('uuid');
     const builderMetadata = new helper.MetadataBuilder();
 
     const {
@@ -77,7 +76,7 @@ export class BinanceWorker {
       await Promise.all([
         getOrderBook(symbol, orderBookLimit),
         getRecentTrades(symbol, tradeLimit),
-        CandlestickData(symbol, candleLimit, interval),
+        getCandlestickData(symbol, candleLimit, interval),
         get24hrTickerStats([symbol]),
         getSymbolPriceTicker([symbol]),
         getOrderBookTicker([symbol]),
@@ -94,7 +93,7 @@ export class BinanceWorker {
     };
 
     const authContext = {
-      roles: ['Data', 'Financial', 'Scrapper'],
+      roles: ['Data', 'Financial', 'Scraper'],
       subject: env.SERVICE_NAME,
       tenantId: env.INSTANCE_ID,
     };
@@ -106,7 +105,7 @@ export class BinanceWorker {
     builderMetadata
       .setDelivery({
         mode: DeliveryMode.AT_LEAST_ONCE,
-        deduplicationId: uuid(),
+        deduplicationId: uuidv4(),
       })
       .setEventType('FetchCandlestick')
       .setTopic(EnumEventMessage.fetchCandlestickSeries)
@@ -115,8 +114,8 @@ export class BinanceWorker {
         signature,
       })
       .setIds({
-        causationId: uuid(),
-        correlationId: uuid(),
+        causationId: uuidv4(),
+        correlationId: uuidv4(),
       })
       .setPublisher({
         instanceId: env.INSTANCE_ID,

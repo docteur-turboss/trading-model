@@ -1,11 +1,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { ResponseProtocole } from '../../src/middleware/response-protocol';
-import {
-  ServiceNotFoundError,
-  ServiceUnreachableError,
-  AuthenticationError,
-  AddressManagerError,
-} from '../../src/utils/errors';
+import { AppError, ErrorCodes } from '../../src/utils/errors';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -25,32 +20,38 @@ describe('ResponseProtocole', () => {
     next = jest.fn();
   });
 
-  it('should map ServiceNotFoundError to 404', () => {
-    const err = new ServiceNotFoundError('Service not found');
+  it('should map SERVICE_NOT_FOUND to 404', () => {
+    const err = new AppError('Service not found', ErrorCodes.SERVICE_NOT_FOUND);
     ResponseProtocole(err, req, res, next);
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  it('should map ServiceUnreachableError to 410', () => {
-    const err = new ServiceUnreachableError('Service down');
+  it('should map SERVICE_UNREACHABLE to 410', () => {
+    const err = new AppError('Service down', ErrorCodes.SERVICE_UNREACHABLE);
     ResponseProtocole(err, req, res, next);
     expect(res.status).toHaveBeenCalledWith(410);
   });
 
-  it('should map AuthenticationError to 498', () => {
-    const err = new AuthenticationError('Invalid token');
+  it('should map AUTHENTICATION_ERROR to 498', () => {
+    const err = new AppError('Invalid token', ErrorCodes.AUTHENTICATION_ERROR);
     ResponseProtocole(err, req, res, next);
     expect(res.status).toHaveBeenCalledWith(498);
   });
 
-  it('should map AddressManagerError to 500', () => {
-    const err = new AddressManagerError('Generic error');
+  it('should map ADDRESS_MANAGER_ERROR to 500', () => {
+    const err = new AppError('Generic error', ErrorCodes.ADDRESS_MANAGER_ERROR);
     ResponseProtocole(err, req, res, next);
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
   it('should map unknown errors to 500', () => {
     const err = new Error('Unknown');
+    ResponseProtocole(err, req, res, next);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it('should map AppError with unknown code to 500', () => {
+    const err = new AppError('Config error', ErrorCodes.CONFIGURATION_ERROR);
     ResponseProtocole(err, req, res, next);
     expect(res.status).toHaveBeenCalledWith(500);
   });

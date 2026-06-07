@@ -33,7 +33,7 @@
  */
 
 import { catchSync } from '@trading-model/common/middleware/catch-error';
-import { ResponseException } from '@trading-model/common/middleware/response-exception';
+import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
 import { PublishSchema, SubscribeSchema, UnsubscribeSchema } from './validation/broker.schema';
 import { Broker } from '../core/broker';
@@ -56,11 +56,11 @@ export const SubscriptionToATopic = (broker: Broker) =>
   catchSync(req => {
     const parsed = SubscribeSchema.safeParse(req.body);
 
-    if (!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
+    if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
 
     broker.subscribe(parsed.data);
 
-    throw ResponseException().NoContent();
+    return sendResponse(undefined, 204);
   });
 
 /**
@@ -73,19 +73,16 @@ export const SubscriptionToATopic = (broker: Broker) =>
  *
  * @param {Broker} broker The Broker instance used to manage subscriptions
  * @returns Express-compatible middleware function
- *
- * @throws {ResponseException.BadRequest} If validation fails
- * @throws {ResponseException.NoContent} On successful unsubscription
  */
 export const DeleteASubscription = (broker: Broker) =>
   catchSync(req => {
     const parsed = UnsubscribeSchema.safeParse(req.body);
 
-    if (!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
+    if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
 
     broker.unsubscribe(parsed.data);
 
-    throw ResponseException().NoContent();
+    return sendResponse(undefined, 204);
   });
 
 /**
@@ -98,17 +95,14 @@ export const DeleteASubscription = (broker: Broker) =>
  *
  * @param {Broker} broker The Broker instance used to publish messages
  * @returns Express-compatible middleware function
- *
- * @throws {ResponseException.BadRequest} If validation fails
- * @throws {ResponseException.NoContent} On successful publish
  */
 export const PublishAMessage = (broker: Broker) =>
   catchSync(async req => {
     const parsed = PublishSchema.safeParse(req.body);
 
-    if (!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
+    if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
 
     await broker.publish(parsed.data.payload, parsed.data.metadata);
 
-    throw ResponseException().NoContent();
+    return sendResponse(undefined, 204);
   });

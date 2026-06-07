@@ -6,6 +6,7 @@ jest.mock('@trading-model/common/middleware/catch-error', () => ({
 }));
 
 jest.mock('@trading-model/common/middleware/response-exception', () => ({
+  sendResponse: (data: any, status: number) => ({ status, data }),
   ResponseException: jest.fn((body: any) => ({
     BadRequest: () => ({ type: 'BadRequest' as const, error: body }),
     Unauthorized: () => ({ type: 'Unauthorized' as const, error: body }),
@@ -35,25 +36,25 @@ describe('Heartbeat.controller', () => {
   describe('heartbeat', () => {
     it('should reject non-object body with BadRequest', async () => {
       const req = createReq({ body: 'invalid' });
-      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
-        type: 'BadRequest',
-        error: 'Invalid request body',
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).resolves.toMatchObject({
+        status: 400,
+        data: { error: 'Invalid request body' },
       });
     });
 
     it('should reject missing serviceName with BadRequest', async () => {
       const req = createReq({ body: { instanceId: 'i1' } });
-      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
-        type: 'BadRequest',
-        error: 'serviceName is required',
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).resolves.toMatchObject({
+        status: 400,
+        data: { error: 'serviceName is required' },
       });
     });
 
     it('should reject missing instanceId with BadRequest', async () => {
       const req = createReq({ body: { serviceName: 'svc' } });
-      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
-        type: 'BadRequest',
-        error: 'instanceId is required',
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).resolves.toMatchObject({
+        status: 400,
+        data: { error: 'instanceId is required' },
       });
     });
 
@@ -91,9 +92,9 @@ describe('Heartbeat.controller', () => {
         body: { serviceName: 'financial-scrapper-service', instanceId: 'i1' },
         headers: { 'x-instance-token': registered.token },
       });
-      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
-        type: 'Success',
-        ttl: 30000,
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).resolves.toMatchObject({
+        status: 200,
+        data: { ttl: 30000 },
       });
     });
 
@@ -112,9 +113,9 @@ describe('Heartbeat.controller', () => {
         body: { serviceName: 'other-service', instanceId: 'i1' },
         headers: { 'x-instance-token': registered.token },
       });
-      await expect(controller.heartbeat(req, createRes(), jest.fn())).rejects.toMatchObject({
-        type: 'NotFound',
-        error: 'Instance not found',
+      await expect(controller.heartbeat(req, createRes(), jest.fn())).resolves.toMatchObject({
+        status: 404,
+        data: { error: 'Instance not found' },
       });
     });
   });
@@ -122,17 +123,17 @@ describe('Heartbeat.controller', () => {
   describe('rotateToken', () => {
     it('should reject non-object body with BadRequest', async () => {
       const req = createReq({ body: null });
-      await expect(controller.rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
-        type: 'BadRequest',
-        error: 'Invalid request body',
+      await expect(controller.rotateToken(req, createRes(), jest.fn())).resolves.toMatchObject({
+        status: 400,
+        data: { error: 'Invalid request body' },
       });
     });
 
     it('should reject missing instanceId with BadRequest', async () => {
       const req = createReq({ body: {} });
-      await expect(controller.rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
-        type: 'BadRequest',
-        error: 'instanceId is required',
+      await expect(controller.rotateToken(req, createRes(), jest.fn())).resolves.toMatchObject({
+        status: 400,
+        data: { error: 'instanceId is required' },
       });
     });
 
@@ -170,9 +171,9 @@ describe('Heartbeat.controller', () => {
         body: { instanceId: 'i1' },
         headers: { 'x-instance-token': registered.token },
       });
-      await expect(controller.rotateToken(req, createRes(), jest.fn())).rejects.toMatchObject({
-        type: 'Success',
-        token: expect.any(String),
+      await expect(controller.rotateToken(req, createRes(), jest.fn())).resolves.toMatchObject({
+        status: 200,
+        data: { token: expect.any(String) },
       });
     });
   });

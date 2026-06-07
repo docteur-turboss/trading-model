@@ -4,7 +4,7 @@ import { ServiceInstance } from '../../src/client/type';
 import { ServiceHealthChecker } from '../../src/discovery/service-health-checker';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { AddressManagerConfig } from '../../src/config/address-manager-config';
-import { ServiceNotFoundError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 describe('ServiceDiscovery', () => {
@@ -93,7 +93,7 @@ describe('ServiceDiscovery', () => {
     cache.get.mockReturnValue(null);
     httpClient.get.mockRejectedValue('');
 
-    await expect(discovery.findService(serviceName)).rejects.toThrow(ServiceNotFoundError);
+    await expect(discovery.findService(serviceName)).rejects.toThrow(AppError);
 
     expect(cache.invalidate).not.toHaveBeenCalled();
   });
@@ -126,7 +126,7 @@ describe('ServiceDiscovery', () => {
     cache.get.mockReturnValue(null);
     httpClient.get.mockResolvedValueOnce(null);
 
-    await expect(discovery.findService(serviceName)).rejects.toThrow(ServiceNotFoundError);
+    await expect(discovery.findService(serviceName)).rejects.toThrow(AppError);
     await expect(discovery.findService(serviceName)).rejects.toMatchObject({
       message: 'Service "user-service" has no registered instances',
     });
@@ -139,7 +139,7 @@ describe('ServiceDiscovery', () => {
     httpClient.get.mockResolvedValueOnce(instance);
     healthChecker.isHealthy.mockResolvedValue(false);
 
-    await expect(discovery.findService(serviceName)).rejects.toThrow(ServiceUnreachableError);
+    await expect(discovery.findService(serviceName)).rejects.toThrow(AppError);
 
     expect(cache.invalidate).toHaveBeenCalledWith(serviceName);
     expect(cache.set).not.toHaveBeenCalled();

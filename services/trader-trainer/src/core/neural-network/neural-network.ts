@@ -1,4 +1,4 @@
-import { AgentError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 
 import { ACTIVATIONS } from './activation';
 import { INITIALIZERS } from './initializers';
@@ -59,11 +59,14 @@ export class NeuralNetwork {
     const sizes = this.config.neuronsByLayer;
 
     if (sizes.length < 2)
-      throw new AgentError(`Neural network must have at least 2 layers (input + output)`);
+      throw new AppError(
+        `Neural network must have at least 2 layers (input + output)`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     for (let i = 0; i < sizes.length - 1; i++) {
       if (sizes[i] <= 0 || sizes[i + 1] <= 0)
-        throw new AgentError(`Layer sizes must be positive integers`);
+        throw new AppError(`Layer sizes must be positive integers`, ErrorCodes.AGENT_ERROR);
 
       const fanIn = sizes[i];
       const fanOut = sizes[i + 1];
@@ -99,12 +102,14 @@ export class NeuralNetwork {
       this.config.lossFunctionType !== 'cross-entropy' &&
       this.config.lossFunctionType !== 'binary-cross-entropy'
     )
-      throw new AgentError(
-        `Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`
+      throw new AppError(
+        `Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`,
+        ErrorCodes.AGENT_ERROR
       );
     if (this.config.activationType.length !== this.layers.length)
-      throw new AgentError(
-        `ActivationType must be the same length of the layers. Expected : ${this.layers.length}, got ${this.config.activationType.length}`
+      throw new AppError(
+        `ActivationType must be the same length of the layers. Expected : ${this.layers.length}, got ${this.config.activationType.length}`,
+        ErrorCodes.AGENT_ERROR
       );
   }
 
@@ -242,7 +247,10 @@ export class NeuralNetwork {
     const expected = this.config.neuronsByLayer[0];
 
     if (input.length !== expected)
-      throw new AgentError(`Expected input size ${expected}, got ${input.length}`);
+      throw new AppError(
+        `Expected input size ${expected}, got ${input.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     const normalized = this.normalize(input);
     const originalInput = normalized;
@@ -548,10 +556,16 @@ export class NeuralNetwork {
     const expectedOutput = this.config.neuronsByLayer[this.config.neuronsByLayer.length - 1];
 
     if (inputs.length !== expectedInput)
-      throw new AgentError(`Expected input size ${expectedInput}, got ${inputs.length}`);
+      throw new AppError(
+        `Expected input size ${expectedInput}, got ${inputs.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     if (targets.length !== expectedOutput)
-      throw new AgentError(`Expected target size ${expectedOutput}, got ${targets.length}`);
+      throw new AppError(
+        `Expected target size ${expectedOutput}, got ${targets.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     const context = this.forward(inputs);
     this.backprop(context, targets);
@@ -573,17 +587,26 @@ export class NeuralNetwork {
    */
   public forwardAndPool(input: Float32Array, target: Float32Array): number {
     if (!this.config.enablePool) {
-      throw new AgentError('Learning pool is disabled. Set enablePool: true in config.');
+      throw new AppError(
+        'Learning pool is disabled. Set enablePool: true in config.',
+        ErrorCodes.AGENT_ERROR
+      );
     }
 
     const expectedInput = this.config.neuronsByLayer[0];
     const expectedOutput = this.config.neuronsByLayer[this.config.neuronsByLayer.length - 1];
 
     if (input.length !== expectedInput)
-      throw new AgentError(`Expected input size ${expectedInput}, got ${input.length}`);
+      throw new AppError(
+        `Expected input size ${expectedInput}, got ${input.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     if (target.length !== expectedOutput)
-      throw new AgentError(`Expected target size ${expectedOutput}, got ${target.length}`);
+      throw new AppError(
+        `Expected target size ${expectedOutput}, got ${target.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     // Perform forward pass (stateless, returns context)
     const context = this.forward(input);
@@ -663,7 +686,10 @@ export class NeuralNetwork {
    */
   public trainPooled(): number {
     if (!this.config.enablePool) {
-      throw new AgentError('Learning pool is disabled. Set enablePool: true in config.');
+      throw new AppError(
+        'Learning pool is disabled. Set enablePool: true in config.',
+        ErrorCodes.AGENT_ERROR
+      );
     }
 
     if (this.pool.length === 0) {
@@ -758,7 +784,10 @@ export class NeuralNetwork {
     const expected = this.parameterCount();
 
     if (buffer.length !== expected)
-      throw new AgentError(`Buffer length mismatch: exprected ${expected}, got ${buffer.length}`);
+      throw new AppError(
+        `Buffer length mismatch: exprected ${expected}, got ${buffer.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     let cursor = 0;
 
@@ -803,8 +832,9 @@ export class NeuralNetwork {
     } else {
       mean = reference.getWeights();
       if (mean.length !== count)
-        throw new AgentError(
-          `Reference network parameter count (${mean.length}) does not match this network's parameter count (${count}).`
+        throw new AppError(
+          `Reference network parameter count (${mean.length}) does not match this network's parameter count (${count}).`,
+          ErrorCodes.AGENT_ERROR
         );
     }
 

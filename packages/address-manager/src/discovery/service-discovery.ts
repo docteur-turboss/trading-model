@@ -1,5 +1,5 @@
 import { HttpClient } from '@trading-model/common/config/http-client';
-import { ServiceNotFoundError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 
 import { ServiceCache } from './service-cache';
 import { ServiceHealthChecker } from './service-health-checker';
@@ -97,7 +97,9 @@ export class ServiceDiscovery {
         { timeoutMs: this.discoveryTimeoutMs }
       );
     } catch (error) {
-      throw new ServiceNotFoundError(`Service "${serviceName}" not found`, error);
+      throw new AppError(`Service "${serviceName}" not found`, ErrorCodes.SERVICE_NOT_FOUND, {
+        cause: error,
+      });
     }
 
     const instance = Array.isArray(instances)
@@ -105,7 +107,10 @@ export class ServiceDiscovery {
       : (instances as ServiceInstance);
 
     if (!instance) {
-      throw new ServiceNotFoundError(`Service "${serviceName}" has no registered instances`);
+      throw new AppError(
+        `Service "${serviceName}" has no registered instances`,
+        ErrorCodes.SERVICE_NOT_FOUND
+      );
     }
 
     const isHealthy = await this.healthChecker.isHealthy(instance);
@@ -113,7 +118,7 @@ export class ServiceDiscovery {
     if (!isHealthy) {
       this.serviceCache.invalidate(serviceName);
 
-      throw new ServiceUnreachableError(`Service "${serviceName}" is unreachable`);
+      throw new AppError(`Service "${serviceName}" is unreachable`, ErrorCodes.SERVICE_UNREACHABLE);
     }
 
     this.serviceCache.set(serviceName, instance);

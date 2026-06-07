@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 jest.mock('../../../../src/clients/binance/binance.client', () => ({
   getOrderBook: jest.fn(),
-  CandlestickData: jest.fn(),
+  getCandlestickData: jest.fn(),
   getRecentTrades: jest.fn(),
   getOrderBookTicker: jest.fn(),
   get24hrTickerStats: jest.fn(),
@@ -61,7 +61,7 @@ import { MessageManager } from '../../../../src/config/message-manager';
 import { BinanceWorker } from '../../../../src/job/worker/binance.worker';
 
 const mockGetOrderBook = jest.mocked(binanceClient.getOrderBook);
-const mockCandlestickData = jest.mocked(binanceClient.CandlestickData);
+const mockCandlestickData = jest.mocked(binanceClient.getCandlestickData);
 const mockRecentTrades = jest.mocked(binanceClient.getRecentTrades);
 const mockOrderBookTicker = jest.mocked(binanceClient.getOrderBookTicker);
 const mock24hrTickerStats = jest.mocked(binanceClient.get24hrTickerStats);
