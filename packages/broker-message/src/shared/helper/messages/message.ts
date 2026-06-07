@@ -5,7 +5,7 @@ import {
   RoutingType,
   SecurityType,
 } from '@trading-model/common/contracts/message.types';
-import { MetadataBuilderError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 
 import {
   SecurityMetadataContextPredicate,
@@ -199,9 +199,12 @@ export class MessageMetadata {
       security,
     } = this;
 
-    if (!topic) throw new MetadataBuilderError("You haven't defined a topic");
-    if (!eventType) throw new MetadataBuilderError("You haven't defined a eventType");
-    if (!publisher) throw new MetadataBuilderError("You haven't defined a publisher");
+    if (!topic)
+      throw new AppError("You haven't defined a topic", ErrorCodes.METADATA_BUILDER_ERROR);
+    if (!eventType)
+      throw new AppError("You haven't defined a eventType", ErrorCodes.METADATA_BUILDER_ERROR);
+    if (!publisher)
+      throw new AppError("You haven't defined a publisher", ErrorCodes.METADATA_BUILDER_ERROR);
 
     return {
       eventType,
