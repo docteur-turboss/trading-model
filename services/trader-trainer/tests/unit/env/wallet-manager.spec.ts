@@ -50,6 +50,28 @@ describe('Wallet module', () => {
       );
     });
 
+    test('should throw error for invalid decimals', () => {
+      expect(() => createWallet({ initialCash: 1000, initialPrice: 50, decimals: 0 })).toThrow(
+        'Invalid decimals'
+      );
+      expect(() => createWallet({ initialCash: 1000, initialPrice: 50, decimals: 16 })).toThrow(
+        'Invalid decimals'
+      );
+      expect(() => createWallet({ initialCash: 1000, initialPrice: 50, decimals: 2.5 })).toThrow(
+        'Invalid decimals'
+      );
+    });
+
+    test('should create wallet with valid decimals', () => {
+      const wallet = createWallet({
+        initialCash: 1000,
+        initialPrice: 50,
+        decimals: 4,
+      });
+      expect(wallet.getCash()).toBe(1000);
+      expect(wallet.getPosition()).toBe(0);
+    });
+
     test('should create wallet with valid feeRate and maxPosition', () => {
       const wallet = createWallet({
         initialCash: 1000,

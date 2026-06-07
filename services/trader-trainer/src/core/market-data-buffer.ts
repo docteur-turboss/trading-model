@@ -4,6 +4,10 @@ import {
   OrderBookEntity,
   BookTickerEntity,
   TickerEntity,
+  getAvgBid,
+  getAvgAsk,
+  getBidTotalQty,
+  getAskTotalQty,
 } from '@trading-model/common/config/event.types';
 
 import { MarketStep } from './genetic-algorithm/genome-types';
@@ -44,6 +48,9 @@ export class RunningNormalizer {
 
 /** Dimension of the feature vector produced per market step. */
 export const FEATURE_DIM = 32;
+
+/** Minimum number of market steps required before training can start. */
+export const MIN_TRAINING_STEPS = 10;
 
 export type SymbolState = {
   candles: CandleEntity[];
@@ -136,17 +143,8 @@ export class MarketDataBuffer {
     const s = this.getOrCreate(symbol);
     s.orderBook = orderBook;
 
-    let bidSum = 0;
-    for (const b of orderBook.bids) {
-      bidSum += b.price;
-    }
-    const avgBid = orderBook.bids.size > 0 ? bidSum / orderBook.bids.size : 0;
-
-    let askSum = 0;
-    for (const a of orderBook.asks) {
-      askSum += a.price;
-    }
-    const avgAsk = orderBook.asks.size > 0 ? askSum / orderBook.asks.size : 0;
+    const avgBid = getAvgBid(orderBook);
+    const avgAsk = getAvgAsk(orderBook);
 
     if (avgBid > 0) s.bidNorm.update(avgBid);
     if (avgAsk > 0) s.askNorm.update(avgAsk);
@@ -222,7 +220,7 @@ export class MarketDataBuffer {
     validationSplit: number = 0.2
   ): { id: string; train: MarketStep[]; validation: MarketStep[] } | null {
     const steps = this.buildMarketSteps(symbol);
-    if (steps.length < 10) return null;
+    if (steps.length < MIN_TRAINING_STEPS) return null;
     return this.splitTrainValidation(steps, validationSplit);
   }
 
@@ -311,23 +309,11 @@ export class MarketDataBuffer {
   } | null {
     if (s.orderBook) {
       const ob = s.orderBook;
-      let bidSum = 0;
-      let bidQty = 0;
-      for (const b of ob.bids) {
-        bidSum += b.price;
-        bidQty += b.quantity;
-      }
-      let askSum = 0;
-      let askQty = 0;
-      for (const a of ob.asks) {
-        askSum += a.price;
-        askQty += a.quantity;
-      }
       return {
-        avgBid: ob.bids.size > 0 ? bidSum / ob.bids.size : 0,
-        avgAsk: ob.asks.size > 0 ? askSum / ob.asks.size : 0,
-        bidQty,
-        askQty,
+        avgBid: getAvgBid(ob),
+        avgAsk: getAvgAsk(ob),
+        bidQty: getBidTotalQty(ob),
+        askQty: getAskTotalQty(ob),
       };
     }
     return null;
