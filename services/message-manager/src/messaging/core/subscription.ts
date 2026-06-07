@@ -30,7 +30,7 @@
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { IdentifyType, message as Message } from '@trading-model/common/contracts/message.types';
-import { DeadLetterError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 import { sleep } from '@trading-model/common/utils/sleep';
 
 import { DqlRepository } from './dlq-repository';
@@ -180,7 +180,7 @@ export class Subscription {
       } catch (e) {
         context.deliveryAttempt++;
 
-        if (e instanceof DeadLetterError) {
+        if (e instanceof AppError && e.code === ErrorCodes.DEAD_LETTER_ERROR) {
           await this.sendToDLQ(message, e.reason, context.deliveryAttempt);
           return;
         }
