@@ -8,7 +8,13 @@ import {
 } from './genetic-algorithm/ga-runner';
 import { LamarckGenome } from './genetic-algorithm/genome-types';
 import { DeepReadonly } from './genetic-algorithm/shared-types';
-import { MarketDataBuffer, MIN_TRAINING_STEPS } from './market-data-buffer';
+import {
+  MarketDataBuffer,
+  MIN_TRAINING_STEPS,
+  TradingSymbol,
+  toSymbol,
+  fromSymbol,
+} from './market-data-buffer';
 import { env } from '../config/env';
 
 /** Summary of the best trained agent for API responses. */
@@ -65,7 +71,7 @@ export class Trainer {
   private bestGenome: DeepReadonly<LamarckGenome> | null = null;
   private training = false;
   private generationContext: GenerationContext | null = null;
-  private currentSymbol: string = '';
+  private currentSymbol: TradingSymbol = toSymbol('');
 
   constructor(private readonly dataBuffer: MarketDataBuffer) {}
 
@@ -76,7 +82,7 @@ export class Trainer {
 
   /** Return the symbol currently being trained on. */
   getCurrentSymbol(): string {
-    return this.currentSymbol;
+    return fromSymbol(this.currentSymbol);
   }
 
   /** Return the current generation number (0 if not started). */
@@ -106,7 +112,7 @@ export class Trainer {
       };
     }
 
-    this.currentSymbol = symbol;
+    this.currentSymbol = toSymbol(symbol);
     this.training = true;
 
     const defaultControl = createDefaultGenome('ctrl').gaControl;

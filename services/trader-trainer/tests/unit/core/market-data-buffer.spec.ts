@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { MarketDataBuffer, RunningNormalizer } from '../../../src/core/market-data-buffer';
+import {
+  MarketDataBuffer,
+  RunningNormalizer,
+  toSymbol,
+} from '../../../src/core/market-data-buffer';
 import {
   makeCandle,
   makeTrade,
@@ -271,7 +275,7 @@ describe('MarketDataBuffer', () => {
         Array.from({ length: 10 }, (_, i) => makeTrade('BTCUSDT', 'buy'))
       );
 
-      expect(buf['states'].get('BTCUSDT')!.trades.length).toBe(5);
+      expect(buf['states'].get(toSymbol('BTCUSDT'))!.trades.length).toBe(5);
     });
   });
 
