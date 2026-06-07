@@ -40,6 +40,7 @@ export default defineConfig([
     },
     plugins: { ix },
     rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'ix/order': [
         'error',
         {
