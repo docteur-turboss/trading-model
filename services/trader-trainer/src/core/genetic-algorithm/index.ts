@@ -30,7 +30,7 @@ export {
 } from './complexity';
 
 // Diversity & novelty
-export type { Species, DiversityMetrics } from './diversity';
+export type { Species, DiversityMetrics, NoveltyArchiveConfig } from './diversity';
 export {
   genomicDistance,
   speciate,
