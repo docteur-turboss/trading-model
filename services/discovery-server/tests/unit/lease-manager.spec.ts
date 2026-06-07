@@ -20,6 +20,7 @@ describe('LeaseManager', () => {
   });
 
   afterEach(() => {
+    jest.clearAllMocks();
     leaseManager.stop();
   });
 
@@ -114,10 +115,8 @@ describe('LeaseManager', () => {
         instanceId: 'expired-id',
         ip: '1.1.1.1',
         port: 8080,
-        ttl: 30000,
+        ttl: 1,
         protocol: 'mtls',
-        registeredAt: Date.now(),
-        lastHeartbeat: Date.now(),
       });
 
       registry.registerInstance({
@@ -125,38 +124,11 @@ describe('LeaseManager', () => {
         instanceId: 'alive-id',
         ip: '1.1.1.2',
         port: 8081,
-        ttl: 30000,
+        ttl: 60000,
         protocol: 'mtls',
-        registeredAt: Date.now(),
-        lastHeartbeat: Date.now(),
       });
 
       const lm = new LeaseManager(registry);
-      jest.spyOn(registry, 'dump').mockReturnValue({
-        'financial-scrapper-service': [
-          {
-            serviceName: 'financial-scrapper-service',
-            instanceId: 'expired-id',
-            ip: '1.1.1.1',
-            port: 8080,
-            ttl: 30000,
-            protocol: 'mtls',
-            registeredAt: Date.now() - 120_000,
-            lastHeartbeat: Date.now() - 60_000,
-          },
-          {
-            serviceName: 'financial-scrapper-service',
-            instanceId: 'alive-id',
-            ip: '1.1.1.2',
-            port: 8081,
-            ttl: 30000,
-            protocol: 'mtls',
-            registeredAt: Date.now() - 1000,
-            lastHeartbeat: Date.now(),
-          },
-        ],
-      });
-
       lm.start();
       jest.advanceTimersByTime(5000);
 
@@ -165,12 +137,45 @@ describe('LeaseManager', () => {
       expect(remaining[0].instanceId).toBe('alive-id');
     });
 
-    it('should log error when cleanup throws', () => {
+    it('should log error when removeInstance throws', () => {
       const registry = new ServiceRegistry();
       const lm = new LeaseManager(registry);
 
-      jest.spyOn(registry, 'dump').mockImplementation(() => {
-        throw new Error('cleanup failed');
+      registry.registerInstance({
+        serviceName: 'test-service',
+        instanceId: 'test-id',
+        ip: '1.1.1.1',
+        port: 8080,
+        ttl: 1,
+        protocol: 'mtls',
+      });
+
+      jest.spyOn(registry, 'removeInstance').mockImplementation(() => {
+        throw new Error('remove failed');
+      });
+
+      lm.start();
+      jest.advanceTimersByTime(5000);
+
+      const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
+        '@trading-model/common/config/logger'
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        '[LeaseManager] Failed to remove expired instance:',
+        {
+          serviceName: 'test-service',
+          instanceId: 'test-id',
+          error: new Error('remove failed'),
+        }
+      );
+    });
+
+    it('should log error when listServiceNames throws in start catch', () => {
+      const registry = new ServiceRegistry();
+      const lm = new LeaseManager(registry);
+
+      jest.spyOn(registry, 'listServiceNames').mockImplementation(() => {
+        throw new Error('unexpected error');
       });
 
       lm.start();
@@ -180,7 +185,7 @@ describe('LeaseManager', () => {
         '@trading-model/common/config/logger'
       );
       expect(logger.error).toHaveBeenCalledWith('[LeaseManager] Cleanup error:', {
-        error: new Error('cleanup failed'),
+        error: new Error('unexpected error'),
       });
     });
   });
