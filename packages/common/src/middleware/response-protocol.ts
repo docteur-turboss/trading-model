@@ -28,7 +28,7 @@ function mapErrorToResponse(err: Error): ResponseObject {
           err.code === ErrorCodes.ADDRESS_MANAGER_ERROR ||
           err.code.startsWith('ADDRESS_MANAGER_')
         ) {
-          return response.UnknownError();
+          return response.ServiceUnavailable();
         }
         break;
     }

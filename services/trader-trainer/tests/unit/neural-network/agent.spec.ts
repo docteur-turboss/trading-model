@@ -1,16 +1,13 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { Agent } from '../../../src/core/neural-network/agent';
-import type { NeuralNetworkConfig } from '../../../src/core/neural-network/type';
+import type { NetworkArchitecture } from '../../../src/core/neural-network/type';
 
-function makeConfig(overrides?: Partial<NeuralNetworkConfig>): NeuralNetworkConfig {
+function makeConfig(overrides?: Partial<NetworkArchitecture>): NetworkArchitecture {
   return {
     neuronsByLayer: [4, 6, 3],
     activationType: ['ReLu', 'sigmoid'],
-    initialisationType: 'zeros',
-    lossFunctionType: 'mean-squared-error',
     normalisationType: 'none',
     connectionType: 'fully-connected',
-    learningRate: 0.01,
     enablePool: true,
     poolMaxSize: 100,
     ...overrides,
@@ -178,7 +175,7 @@ describe('Agent', () => {
 
   describe('learnSupervised', () => {
     it('should train on a single sample and remove it from pool', () => {
-      const agent = new Agent(makeConfig({ learningRate: 0.01 }));
+      const agent = new Agent(makeConfig());
       const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
       const target = new Float32Array([1, 0, 0]);
 
@@ -189,7 +186,7 @@ describe('Agent', () => {
     });
 
     it('should handle input not in pool without error', () => {
-      const agent = new Agent(makeConfig({ learningRate: 0.01 }));
+      const agent = new Agent(makeConfig());
       const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
       const target = new Float32Array([1, 0, 0]);
 
@@ -199,7 +196,7 @@ describe('Agent', () => {
 
   describe('learnFromPool', () => {
     it('should train on all pooled experiences with targets', () => {
-      const agent = new Agent(makeConfig({ learningRate: 0.01 }));
+      const agent = new Agent(makeConfig());
       const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 
       agent.fastForward(input);
@@ -214,7 +211,7 @@ describe('Agent', () => {
     });
 
     it('should skip experiences without targets and clear pool', () => {
-      const agent = new Agent(makeConfig({ learningRate: 0.01 }));
+      const agent = new Agent(makeConfig());
       const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 
       agent.fastForward(input);
@@ -230,7 +227,7 @@ describe('Agent', () => {
     let agent: Agent;
 
     beforeEach(() => {
-      agent = new Agent(makeConfig({ learningRate: 0.01 }));
+      agent = new Agent(makeConfig());
     });
 
     it('should throw when reward is missing', () => {

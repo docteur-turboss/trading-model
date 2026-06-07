@@ -1,4 +1,5 @@
 import { HttpServer } from './create-secure-server';
+import { setupProcessHandlers } from './signal-handler';
 import { logger } from '../config/logger';
 
 /** Options for configuring a service bootstrap lifecycle. */
@@ -10,7 +11,8 @@ export interface BootstrapOptions {
 }
 
 /**
- * Initializes and starts a service, binding process-level shutdown handlers.
+ * Initializes and starts a service, delegating process signal management to
+ * {@link setupProcessHandlers} (SRP).
  * Returns handles to the running server and a shutdown trigger.
  */
 export function createBootstrap(options: BootstrapOptions): {
@@ -88,18 +90,7 @@ export function createBootstrap(options: BootstrapOptions): {
     }
   }
 
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
-
-  process.on('uncaughtException', error => {
-    logger.error('Uncaught exception - exiting', { err: error });
-    hardShutdown(1);
-  });
-
-  process.on('unhandledRejection', reason => {
-    logger.error('Unhandled promise rejection - exiting', { reason });
-    hardShutdown(1);
-  });
+  setupProcessHandlers(shutdown, hardShutdown);
 
   bootstrap();
 

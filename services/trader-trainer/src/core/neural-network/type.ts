@@ -35,11 +35,8 @@ export type ConnectionType = 'fully-connected' | 'dense-skip' | 'residual-connec
 export type InitialisationType = 'zeros' | 'leCun' | 'he' | 'xavier' | 'random';
 export type OptimizerType = 'sgd' | 'adam' | 'rmsprop';
 
-/**
- * Full set of hyperparameters required to build an NeuralNetwork.
- */
-
-export interface NeuralNetworkConfig {
+/** Network topology and layer configuration. */
+export interface NetworkArchitecture {
   /** Number of neurons per layer, from input to output. */
   neuronsByLayer: number[];
 
@@ -48,12 +45,6 @@ export interface NeuralNetworkConfig {
 
   /** How to connect layers. */
   connectionType?: ConnectionType;
-
-  /** Strategy used to initialise weight matrices. */
-  initialisationType?: InitialisationType;
-
-  /** Loss function used during backpropagation. */
-  lossFunctionType?: LossFunctionType;
 
   /** Normalisation applied to the input vector before the forward pass. */
   normalisationType?: NormalisationType;
@@ -65,11 +56,51 @@ export interface NeuralNetworkConfig {
    */
   normalizedInputRange?: [number, number];
 
-  /** Step size used during gradient descent. @default 0.1 */
-  learningRate?: number;
+  /**
+   * Enable the experience replay pool.
+   * When `false` the pool is never populated and no memory is allocated for it.
+   * @default true
+   */
+  enablePool?: boolean;
+
+  /** Maximum number of experiences kept in the pool (FIFO). @default 10_000 */
+  poolMaxSize?: number;
+}
+
+/** Hyperparameters controlling the loss computation. */
+export interface LossConfig {
+  /** Loss function used during backpropagation. */
+  lossFunctionType?: LossFunctionType;
 
   /** Delta threshold for Huber loss. @default 1 */
   deltaHuber?: number;
+}
+
+/** Hyperparameters controlling the optimisation loop. */
+export interface OptimizerConfig {
+  /**
+   * Which optimizer to use for weight updates.
+   * @default "sgd"
+   */
+  optimizerType?: OptimizerType;
+
+  /**
+   * Overrides for optimizer hyperparameters (beta1, beta2, epsilon).
+   * Unset fields fall back to DEFAULT_HYPERPARAMS.
+   */
+  optimizerHyperparams?: Partial<OptimizerHyperparams>;
+
+  /** Step size used during gradient descent. @default 0.1 */
+  learningRate?: number;
+
+  /** Norm used to clip gradients during backpropagation. @default 5.0 */
+  gradientClipNorm?: number;
+}
+
+/** Weight and bias initialisation settings. */
+export interface InitializationConfig {
+  /** Strategy used to initialise weight matrices. */
+  initialisationType?: InitialisationType;
 
   /**
    * When `false` bias vectors are zeroed and never updated.
@@ -82,7 +113,10 @@ export interface NeuralNetworkConfig {
    * weights.  Falls back to `initialisationType` when omitted.
    */
   biasInitialisationType?: InitialisationType;
+}
 
+/** Mutation scale factors for genetic algorithm operators. */
+export interface MutationConfig {
   /**
    * Scale factor applied to bias mutations when calling Agent.mutate.
    * Weights use their own scale; biases can be mutated at a different rate.
@@ -95,32 +129,14 @@ export interface NeuralNetworkConfig {
    * @default 0.1
    */
   weightMutationScale?: number;
-
-  /**
-   * Enable the experience replay pool.
-   * When `false` the pool is never populated and no memory is allocated for it.
-   * @default true
-   */
-  enablePool?: boolean;
-
-  /** Maximum number of experiences kept in the pool (FIFO). @default 10_000 */
-  poolMaxSize?: number;
-
-  /** Norm used to clip gradients during backpropagation. @default 5.0 */
-  gradientClipNorm?: number;
-
-  /**
-   * Which optimizer to use for weight updates.
-   * @default "sgd"
-   */
-  optimizerType?: OptimizerType;
-
-  /**
-   * Overrides for optimizer hyperparameters (beta1, beta2, epsilon).
-   * Unset fields fall back to DEFAULT_HYPERPARAMS.
-   */
-  optimizerHyperparams?: Partial<OptimizerHyperparams>;
 }
+
+/**
+ * Full set of hyperparameters required to build an NeuralNetwork.
+ * Composes smaller focused interfaces (ISP).
+ */
+export interface NeuralNetworkConfig
+  extends NetworkArchitecture, LossConfig, OptimizerConfig, InitializationConfig, MutationConfig {}
 
 /**
  * A single experience tuple stored in the replay pool.

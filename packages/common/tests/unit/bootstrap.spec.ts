@@ -11,6 +11,7 @@ jest.mock('../../src/config/logger', () => ({
 }));
 
 import { createBootstrap } from '../../src/server/bootstrap';
+import { removeProcessHandlers } from '../../src/server/signal-handler';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -24,6 +25,7 @@ describe('createBootstrap', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    removeProcessHandlers();
   });
 
   it('should create server and call onStart', () => {
