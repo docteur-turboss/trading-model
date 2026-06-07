@@ -3,6 +3,7 @@
 //   Couples with TradingAgent / AutoEnv / Deep Q-Learning agent
 // ----------------------------------------------------------------
 
+import { estimateComplexity } from './complexity-estimator';
 import { crossoverGenomes } from './crossover';
 import { crossoverWeights, mutateWeights } from './evolution-engine';
 import { createDefaultGenome } from './factory';
@@ -15,9 +16,12 @@ import {
   LamarckGenome,
 } from './genome-types';
 import { mutateGenome } from './mutation';
+import { buildPopulationMeta } from './nsga2';
+import type { PopulationMeta, ObjectiveVector } from './nsga2';
 import { ParetoArchive } from './pareto-engine';
 import { makePRNG } from './prng';
 import { selectParent } from './selection';
+import { DeepReadonly } from './shared-types';
 import { generateId, RunningStats, computeVariance, computeSharpe } from './utils';
 import { Experience } from '../../core/neural-network/type';
 import TradingAgent, { TradingAgentConfig } from '../agent/trading-agent';
@@ -25,12 +29,6 @@ import TradingAgent, { TradingAgentConfig } from '../agent/trading-agent';
 // ----------------------------------------------------------------
 // Immutability helpers
 // ----------------------------------------------------------------
-type DeepReadonly<T> = T extends (infer U)[]
-  ? ReadonlyArray<DeepReadonly<U>>
-  : T extends object
-    ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
-    : T;
-
 function deepFreeze<T>(obj: T): DeepReadonly<T> {
   /* istanbul ignore if */
   if (obj === null || typeof obj !== 'object') return obj as DeepReadonly<T>;
@@ -166,24 +164,8 @@ export type WindowSet = {
 };
 
 // ----------------------------------------------------------------
-// Types
+// Configuration type
 // ----------------------------------------------------------------
-/** All objectives we optimise simultaneously. */
-type ObjectiveVector = {
-  /** Average PnL across windows. */
-  avgPnl: number;
-  /** Sharpe-like ratio. */
-  sharpe: number;
-  /** −estimated_inference_flops. */
-  negFlops: number;
-};
-
-/** Index-parallel arrays — avoids genome-copy explosion. */
-type PopulationMeta = {
-  objectives: ObjectiveVector[]; // [i] for genome at index i
-  paretoRank: number[];
-  crowdingDist: number[];
-};
 
 /** Configuration for the GeneticAlgorithmRunner. */
 export type GARunnerConfig = {
@@ -214,61 +196,6 @@ export type GenerationContext = {
 };
 
 /** Attach objectives and Pareto rank to a genome (immutably). */
-
-// ----------------------------------------------------------------
-// FLOPs + memory complexity estimate
-// ----------------------------------------------------------------
-
-const EXACT_NSGA2_THRESHOLD = 300;
-const FLOP_SOFT_CAP = 5_000_000; // 5M MACs
-const MEM_SOFT_CAP = 200_000_000; // 200 MB
-
-// Activation cost multipliers (rough relative cost vs linear)
-const ACT_COST: Record<string, number> = {
-  relu: 1,
-  sigmoid: 4,
-  tanh: 4,
-  gelu: 8,
-  swish: 6,
-  linear: 1,
-};
-
-type ComplexityProfile = {
-  inferenceFLOPs: number; // multiply-accumulate ops for one forward pass
-  /** Combined penalty in [0, 1]. */
-  penalty: number;
-};
-
-function estimateComplexity(g: DeepReadonly<LamarckGenome>): ComplexityProfile {
-  const dims = [
-    g.network.inputDim,
-    ...g.network.hiddenLayers.map(l => l.neurons),
-    g.network.outputDim,
-  ];
-
-  let flops = 0;
-  let params = 0;
-
-  for (let i = 1; i < dims.length; i++) {
-    const w = dims[i - 1] * dims[i];
-    const b = dims[i];
-    const act = g.network.hiddenLayers[i - 1]?.activation ?? 'linear';
-    flops += 2 * w + b * (ACT_COST[act] ?? 2);
-    params += w + b;
-  }
-
-  const effectiveFlops = flops / Math.max(1, g.rl.horizon.frameSkip);
-  const paramBytes = params * 4;
-  const replayBytes = g.rl.replayBuffer.bufferSize * g.network.inputDim * 4 * 2;
-
-  const flopPenalty = Math.min(1, effectiveFlops / FLOP_SOFT_CAP);
-  const memPenalty = Math.min(1, (paramBytes + replayBytes) / MEM_SOFT_CAP);
-
-  return {
-    inferenceFLOPs: flops,
-    penalty: 0.6 * flopPenalty + 0.4 * memPenalty,
-  };
-}
 
 // ----------------------------------------------------------------
 // PrecomputeRewards operates on RLBackend (not TradingAgent)
@@ -478,115 +405,6 @@ async function evaluateGenomeAllWindows(
     },
     objectives: { avgPnl, sharpe, negFlops },
   };
-}
-
-// ----------------------------------------------------------------
-// NSGA-II: exact O(n²) and approximate O(n·k)
-// ----------------------------------------------------------------
-function dominates(a: ObjectiveVector, b: ObjectiveVector): boolean {
-  return (
-    a.avgPnl >= b.avgPnl &&
-    a.sharpe >= b.sharpe &&
-    a.negFlops >= b.negFlops &&
-    (a.avgPnl > b.avgPnl || a.sharpe > b.sharpe || a.negFlops > b.negFlops)
-  );
-}
-
-function nondominatedSortExact(objectives: ObjectiveVector[]): number[] {
-  const n = objectives.length;
-  const dominated = new Int32Array(n);
-  const dominates_ = Array.from({ length: n }, () => [] as number[]);
-
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      if (i === j) continue;
-      if (dominates(objectives[i], objectives[j])) dominates_[i].push(j);
-      else if (dominates(objectives[j], objectives[i])) dominated[i]++;
-    }
-  }
-
-  const ranks = new Array<number>(n).fill(0);
-  let front = Array.from({ length: n }, (_, i) => i).filter(i => dominated[i] === 0);
-  let rank = 0;
-
-  while (front.length > 0) {
-    const next: number[] = [];
-    for (const i of front) {
-      ranks[i] = rank;
-      for (const j of dominates_[i]) {
-        if (--dominated[j] === 0) next.push(j);
-      }
-    }
-    front = next;
-    rank++;
-  }
-
-  return ranks;
-}
-
-/* istanbul ignore next */
-function nondominatedSortApprox(objectives: ObjectiveVector[], rng: () => number): number[] {
-  const n = objectives.length;
-  const k = Math.min(n - 1, Math.ceil(Math.sqrt(n) * 4));
-  const dominated = new Int32Array(n);
-
-  for (let i = 0; i < n; i++) {
-    const pool = Array.from({ length: n - 1 }, (_, j) => (j >= i ? j + 1 : j));
-    for (let s = 0; s < k; s++) {
-      const idx = s + Math.floor(rng() * (pool.length - s));
-      [pool[s], pool[idx]] = [pool[idx], pool[s]];
-      if (dominates(objectives[pool[s]], objectives[i])) dominated[i]++;
-    }
-  }
-
-  return Array.from(dominated);
-}
-
-/* istanbul ignore next */
-function assignCrowding(
-  indices: number[],
-  objectives: ObjectiveVector[],
-  crowding: number[]
-): void {
-  if (indices.length <= 2) {
-    for (const i of indices) crowding[i] = Infinity;
-    return;
-  }
-
-  const keys: (keyof ObjectiveVector)[] = ['avgPnl', 'sharpe', 'negFlops'];
-  for (const i of indices) crowding[i] = 0;
-
-  for (const k of keys) {
-    const sorted = [...indices].sort((a, b) => objectives[a][k] - objectives[b][k]);
-    crowding[sorted[0]] = crowding[sorted[sorted.length - 1]] = Infinity;
-    const range = objectives[sorted[sorted.length - 1]][k] - objectives[sorted[0]][k];
-    if (range === 0) continue;
-    for (let m = 1; m < sorted.length - 1; m++) {
-      crowding[sorted[m]] += (objectives[sorted[m + 1]][k] - objectives[sorted[m - 1]][k]) / range;
-    }
-  }
-}
-
-function buildPopulationMeta(objectives: ObjectiveVector[], rng: () => number): PopulationMeta {
-  const n = objectives.length;
-  /* istanbul ignore next */
-  const paretoRank =
-    n > EXACT_NSGA2_THRESHOLD
-      ? nondominatedSortApprox(objectives, rng)
-      : nondominatedSortExact(objectives);
-
-  const crowdingDist = new Array<number>(n).fill(0);
-  const maxRank = Math.max(...paretoRank);
-
-  for (let r = 0; r <= maxRank; r++) {
-    const front = paretoRank.reduce(
-      (acc, rank, i) => (rank === r ? [...acc, i] : acc),
-      [] as number[]
-    );
-    assignCrowding(front, objectives, crowdingDist);
-  }
-
-  return { objectives, paretoRank, crowdingDist };
 }
 
 // ----------------------------------------------------------------

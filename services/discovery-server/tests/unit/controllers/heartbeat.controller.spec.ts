@@ -15,11 +15,6 @@ jest.mock('@trading-model/common/middleware/response-exception', () => ({
   })),
 }));
 
-jest.mock('@trading-model/common/validation/primitives', () => ({
-  isObject: (v: any) => v !== null && typeof v === 'object',
-  isNonEmptyString: (v: any) => typeof v === 'string' && v.trim().length > 0,
-}));
-
 import { ServiceRegistry } from '../../../src/core/service-registry';
 import { createHeartbeatController } from '../../../src/controllers/heartbeat.controller';
 
@@ -46,7 +41,7 @@ describe('Heartbeat.controller', () => {
       const req = createReq({ body: { instanceId: 'i1' } });
       await expect(controller.heartbeat(req, createRes(), jest.fn())).resolves.toMatchObject({
         status: 400,
-        data: { error: 'serviceName is required' },
+        data: { error: 'Invalid request body' },
       });
     });
 
@@ -54,7 +49,7 @@ describe('Heartbeat.controller', () => {
       const req = createReq({ body: { serviceName: 'svc' } });
       await expect(controller.heartbeat(req, createRes(), jest.fn())).resolves.toMatchObject({
         status: 400,
-        data: { error: 'instanceId is required' },
+        data: { error: 'Invalid request body' },
       });
     });
 
@@ -133,7 +128,7 @@ describe('Heartbeat.controller', () => {
       const req = createReq({ body: {} });
       await expect(controller.rotateToken(req, createRes(), jest.fn())).resolves.toMatchObject({
         status: 400,
-        data: { error: 'instanceId is required' },
+        data: { error: 'Invalid request body' },
       });
     });
 

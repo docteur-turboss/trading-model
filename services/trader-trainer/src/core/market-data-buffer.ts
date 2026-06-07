@@ -6,54 +6,20 @@ import {
   TickerEntity,
   getAvgBid,
   getAvgAsk,
-  getBidTotalQty,
-  getAskTotalQty,
 } from '@trading-model/common/config/event.types';
 
+import { buildFeatures as buildFeaturesFn } from './feature-builder';
 import { MarketStep } from './genetic-algorithm/genome-types';
-import { NormalizationStats } from './normalization-stats';
-
-export { NormalizationStats };
-
-/** A branded string representing a trading pair symbol (e.g. "BTCUSDT"). */
-export type TradingSymbol = string & { readonly __brand: unique symbol };
-
-/** Convert a plain string to a TradingSymbol (runtime identity, compile-time type safety). */
-export function toSymbol(s: string): TradingSymbol {
-  return s as TradingSymbol;
-}
-
-/** Convert a TradingSymbol back to a plain string for external use. */
-export function fromSymbol(s: TradingSymbol): string {
-  return s;
-}
-
-/** Number of features produced by buildFeatures per market step. */
-export const FEATURE_DIM = 32;
+import {
+  NormalizationStats,
+  SymbolState,
+  TradingSymbol,
+  toSymbol,
+  fromSymbol,
+} from './market-data-types';
 
 /** Minimum number of market steps required before training can start. */
 export const MIN_TRAINING_STEPS = 10;
-
-/** Per-symbol state: candles, trades, order book, ticker, and running normalisers. */
-export type SymbolState = {
-  candles: CandleEntity[];
-  trades: TradeEntity[];
-  orderBook: OrderBookEntity | null;
-  bookTicker: BookTickerEntity | null;
-  ticker24h: TickerEntity | null;
-
-  closeNorm: NormalizationStats;
-  volumeNorm: NormalizationStats;
-  openNorm: NormalizationStats;
-  highNorm: NormalizationStats;
-  lowNorm: NormalizationStats;
-  tradePriceNorm: NormalizationStats;
-  tradeQtyNorm: NormalizationStats;
-  bidNorm: NormalizationStats;
-  askNorm: NormalizationStats;
-  spreadNorm: NormalizationStats;
-  tickerVolumeNorm: NormalizationStats;
-};
 
 /** In-memory ring buffer of market data per symbol with online feature extraction. */
 export class MarketDataBuffer {
@@ -176,7 +142,7 @@ export class MarketDataBuffer {
 
     const steps: MarketStep[] = [];
     for (let i = 1; i < s.candles.length; i++) {
-      const features = this.buildFeatures(s, i);
+      const features = buildFeaturesFn(s, i, this.priceSnapshot);
       steps.push({
         price: s.candles[i].close,
         features,
@@ -209,98 +175,4 @@ export class MarketDataBuffer {
     return this.splitTrainValidation(steps, validationSplit);
   }
 
-  private buildFeatures(s: SymbolState, idx: number): Float32Array {
-    const f = new Float32Array(FEATURE_DIM);
-    const cur = s.candles[idx];
-    const prev = s.candles[idx - 1];
-
-    // ---- Candle-derived (0-8) ----
-    f[0] = s.closeNorm.normalize(cur.close);
-    f[1] = s.volumeNorm.normalize(cur.volume);
-    f[2] = prev.close > 0 ? (cur.close - prev.close) / prev.close : 0;
-    f[3] = cur.high - cur.low > 0 ? (cur.close - cur.open) / (cur.high - cur.low) : 0;
-    f[4] = cur.close > 0 ? (cur.high - cur.low) / cur.close : 0;
-    f[5] = s.openNorm.normalize(cur.open);
-    f[6] = s.highNorm.normalize(cur.high);
-    f[7] = s.lowNorm.normalize(cur.low);
-
-    const volStd = s.volumeNorm.getStd();
-    f[8] = volStd > 1e-10 ? cur.volume / volStd : 0;
-
-    // ---- Order book (9-12) ----
-    const obAvg = this.orderBookAverages(s);
-    if (obAvg) {
-      f[9] = s.bidNorm.normalize(obAvg.avgBid);
-      f[10] = s.askNorm.normalize(obAvg.avgAsk);
-      f[11] =
-        obAvg.avgAsk > 0 && obAvg.avgBid > 0 ? (obAvg.avgAsk - obAvg.avgBid) / obAvg.avgAsk : 0;
-      const totalQty = obAvg.bidQty + obAvg.askQty;
-      f[12] = totalQty > 0 ? (obAvg.bidQty - obAvg.askQty) / totalQty : 0;
-    }
-
-    // ---- Book ticker (13-15) ----
-    if (s.bookTicker) {
-      const bt = s.bookTicker;
-      f[13] = s.bidNorm.normalize(bt.bid);
-      f[14] = s.askNorm.normalize(bt.ask);
-      const spread = bt.ask - bt.bid;
-      f[15] = bt.ask > 0 ? spread / bt.ask : 0;
-    }
-
-    // ---- Recent trades (16-18) ----
-    const recentTrades = s.trades.filter(t => t.timestamp >= cur.timestamp - 60000);
-    if (recentTrades.length > 0) {
-      const avgPrice = recentTrades.reduce((a, t) => a + t.price, 0) / recentTrades.length;
-      const totalQty = recentTrades.reduce((a, t) => a + t.quantity, 0);
-      const buyQty = recentTrades.filter(t => t.side === 'buy').reduce((a, t) => a + t.quantity, 0);
-      f[16] = s.tradePriceNorm.normalize(avgPrice);
-      f[17] = s.tradeQtyNorm.normalize(totalQty);
-      f[18] = totalQty > 0 ? buyQty / totalQty : 0.5;
-    }
-
-    // ---- 24h ticker (19-21) ----
-    if (s.ticker24h) {
-      const tk = s.ticker24h;
-      f[19] = tk.open > 0 ? (tk.last - tk.open) / tk.open : 0;
-      f[20] = s.tickerVolumeNorm.normalize(tk.volume);
-      f[21] = tk.open > 0 ? (tk.high - tk.low) / tk.open : 0;
-    }
-
-    // ---- Price ticker snapshot (22) ----
-    const snapPrice = this.priceSnapshot[s.candles[idx].symbol as TradingSymbol] ?? cur.close;
-    f[22] = s.closeNorm.normalize(snapPrice);
-
-    // ---- Sliding window: last 8 closes (23-30) ----
-    const lookbackStart = Math.max(0, idx - 8);
-    let fi = 23;
-    for (let j = lookbackStart; j < idx && fi < 31; j++) {
-      f[fi++] = s.closeNorm.normalize(s.candles[j].close);
-    }
-    while (fi < 31) {
-      f[fi++] = 0;
-    }
-
-    // ---- Bias (31) ----
-    f[31] = 1.0;
-
-    return f;
-  }
-
-  private orderBookAverages(s: SymbolState): {
-    avgBid: number;
-    avgAsk: number;
-    bidQty: number;
-    askQty: number;
-  } | null {
-    if (s.orderBook) {
-      const ob = s.orderBook;
-      return {
-        avgBid: getAvgBid(ob),
-        avgAsk: getAvgAsk(ob),
-        bidQty: getBidTotalQty(ob),
-        askQty: getAskTotalQty(ob),
-      };
-    }
-    return null;
-  }
 }

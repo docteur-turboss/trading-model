@@ -65,6 +65,11 @@ export class TokenManager {
     this.token = token;
   }
 
+  /** Explicitly clear the stored token from memory. */
+  clearToken(): void {
+    this.token = null;
+  }
+
   /**
    * Refreshes the authentication token from the Address Manager.
    *

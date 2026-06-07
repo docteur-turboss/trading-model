@@ -17,7 +17,7 @@ services:
     volumes:
       - mongo-data:/data/db
     networks:
-      - trading-net
+      - data-net
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh --quiet
       interval: 10s
@@ -33,13 +33,14 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-financial_scraper}
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
-      - trading-net
+      - data-net
     healthcheck:
-      test: mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD}
+      test: mysqladmin ping -h localhost -u root
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,7 +68,7 @@ services:
     volumes:
       - ${TLS_CERTS_DIR:-./certs}:/certs:ro
     networks:
-      - trading-net
+      - backend-net
     healthcheck:
       test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
       interval: 15s
@@ -109,7 +110,8 @@ services:
     volumes:
       - ${TLS_CERTS_DIR:-./certs}:/certs:ro
     networks:
-      - trading-net
+      - backend-net
+      - data-net
     healthcheck:
       test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
       interval: 15s
@@ -160,7 +162,8 @@ services:
     volumes:
       - ${TLS_CERTS_DIR:-./certs}:/certs:ro
     networks:
-      - trading-net
+      - backend-net
+      - data-net
     depends_on:
       mysql:
         condition: service_healthy
@@ -210,7 +213,7 @@ services:
     volumes:
       - ${TLS_CERTS_DIR:-./certs}:/certs:ro
     networks:
-      - trading-net
+      - backend-net
     healthcheck:
       test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
       interval: 15s
@@ -223,8 +226,12 @@ services:
         condition: service_healthy
 
 networks:
-  trading-net:
-    name: trading-network
+  data-net:
+    name: trading-data-network
+    driver: bridge
+    internal: true
+  backend-net:
+    name: trading-backend-network
     driver: bridge
 
 volumes:
