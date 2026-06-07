@@ -144,43 +144,63 @@ describe('BinanceClient', () => {
 
   describe('symbol validation', () => {
     it('getOrderBook throws on empty symbol', async () => {
-      await expect(getOrderBook('')).rejects.toThrow('getOrderBook: symbol must be a non-empty string');
+      await expect(getOrderBook('')).rejects.toThrow(
+        'getOrderBook: symbol must be a non-empty string'
+      );
     });
 
     it('getOrderBook throws on blank symbol', async () => {
-      await expect(getOrderBook('   ')).rejects.toThrow('getOrderBook: symbol must be a non-empty string');
+      await expect(getOrderBook('   ')).rejects.toThrow(
+        'getOrderBook: symbol must be a non-empty string'
+      );
     });
 
     it('getRecentTrades throws on empty symbol', async () => {
-      await expect(getRecentTrades('')).rejects.toThrow('getRecentTrades: symbol must be a non-empty string');
+      await expect(getRecentTrades('')).rejects.toThrow(
+        'getRecentTrades: symbol must be a non-empty string'
+      );
     });
 
     it('getHistoricalTrades throws on empty symbol', async () => {
-      await expect(getHistoricalTrades('', 500, 1)).rejects.toThrow('getHistoricalTrades: symbol must be a non-empty string');
+      await expect(getHistoricalTrades('', 500, 1)).rejects.toThrow(
+        'getHistoricalTrades: symbol must be a non-empty string'
+      );
     });
 
     it('getCandlestickData throws on empty symbol', async () => {
-      await expect(getCandlestickData('', 100, '1m')).rejects.toThrow('getCandlestickData: symbol must be a non-empty string');
+      await expect(getCandlestickData('', 100, '1m')).rejects.toThrow(
+        'getCandlestickData: symbol must be a non-empty string'
+      );
     });
 
     it('getCompressedAggregateTrades throws on empty symbol', async () => {
-      await expect(getCompressedAggregateTrades('', 1)).rejects.toThrow('getCompressedAggregateTrades: symbol must be a non-empty string');
+      await expect(getCompressedAggregateTrades('', 1)).rejects.toThrow(
+        'getCompressedAggregateTrades: symbol must be a non-empty string'
+      );
     });
 
     it('getTradingDayTicker throws on empty symbol in array', async () => {
-      await expect(getTradingDayTicker([''])).rejects.toThrow('getTradingDayTicker: symbol must be a non-empty string');
+      await expect(getTradingDayTicker([''])).rejects.toThrow(
+        'getTradingDayTicker: symbol must be a non-empty string'
+      );
     });
 
     it('get24hrTickerStats throws on empty symbol in array', async () => {
-      await expect(get24hrTickerStats([''])).rejects.toThrow('get24hrTickerStats: symbol must be a non-empty string');
+      await expect(get24hrTickerStats([''])).rejects.toThrow(
+        'get24hrTickerStats: symbol must be a non-empty string'
+      );
     });
 
     it('getSymbolPriceTicker throws on empty symbol in array', async () => {
-      await expect(getSymbolPriceTicker([''])).rejects.toThrow('getSymbolPriceTicker: symbol must be a non-empty string');
+      await expect(getSymbolPriceTicker([''])).rejects.toThrow(
+        'getSymbolPriceTicker: symbol must be a non-empty string'
+      );
     });
 
     it('getOrderBookTicker throws on empty symbol in array', async () => {
-      await expect(getOrderBookTicker([''])).rejects.toThrow('getOrderBookTicker: symbol must be a non-empty string');
+      await expect(getOrderBookTicker([''])).rejects.toThrow(
+        'getOrderBookTicker: symbol must be a non-empty string'
+      );
     });
   });
 });

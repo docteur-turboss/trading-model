@@ -23,9 +23,7 @@ describe('MessageMetadata', () => {
     });
 
     it('should throw on invalid data', () => {
-      expect(
-        () => new MessageMetadata({ topic: '' } as any)
-      ).toThrow();
+      expect(() => new MessageMetadata({ topic: '' } as any)).toThrow();
     });
 
     it('should accept partial data', () => {

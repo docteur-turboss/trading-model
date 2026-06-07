@@ -52,87 +52,97 @@
 ## Directory Structure
 
 ```
-services/Trader-Trainer/
-├── src/
-│   ├── app/
-│   │   ├── index.ts              # Service entry point
-│   │   └── server.ts             # Express server setup
-│   │
-│   └── core/
-│       ├── agent/
-│       │   ├── trading_agent.ts       # Orchestrates NN + Wallet + StateManager
-│       │   ├── trading_agent.spec.ts  # Unit tests
-│       │   ├── state_manager.ts       # Q-learning state & epsilon-decay
-│       │   ├── state_manager.spec.ts  # Unit tests
-│       │   └── auto_env.ts            # GA-compatible environment wrapper
-│       │
-│       ├── env/
-│       │   ├── wallet-manager.ts      # Simulates trading account
-│       │   └── wallet-manager.test.ts # Unit tests
-│       │
-│       ├── neural_network/
-│       │   ├── neural-network.ts      # Core NN implementation
-│       │   ├── neural-network.spec.ts # Unit tests
-│       │   ├── agent.ts               # NN + experience replay wrapper
-│       │   ├── type.ts                # Type definitions
-│       │   ├── activation.ts          # Activation functions
-│       │   ├── initializers.ts        # Weight initialization strategies
-│       │   ├── optimizer.ts           # Optimization algorithms (SGD, Adam, etc.)
-│       │   ├── losses.ts              # Loss functions (MSE, CE, Huber)
-│       │   ├── normalize.ts           # Normalization strategies
-│       │   └── utils.ts               # Utilities
-│       │
-│       └── genetic_algorithm/
-│           ├── ga_runner.ts           # Main GA evolution loop
-│           ├── ga_runner_refactored.ts # Modular GA runner
-│           ├── ga.spec.ts             # Unit tests (mutation, crossover, fitness)
-│           │
-│           ├── Core Operators:
-│           │   ├── mutation.ts        # Adaptive gaussian/levy mutation
-│           │   ├── crossover.ts       # Uniform/BLX-α/SBX crossover
-│           │   ├── selection.ts       # Tournament, roulette, rank-based
-│           │   └── evolution_engine.ts # Low-level evolution functions
-│           │
-│           ├── Evaluation & Fitness:
-│           │   ├── fitness.ts         # Sharpe, Sortino, Calmar metrics
-│           │   ├── evaluation_pipeline.ts # Multi-window evaluation
-│           │   └── complexity_estimator.ts # Complexity penalty & fitness adjustment
-│           │
-│           ├── Constraints & Validation:
-│           │   ├── complexity.ts      # Topology constraints
-│           │   ├── validation.ts      # Genome validation & repair
-│           │   └── adaptive_control_system.ts # Adaptive GA parameters
-│           │
-│           ├── Diversity & Speciation:
-│           │   ├── diversity.ts       # Speciation & novelty
-│           │   └── pareto_engine.ts   # Multi-objective optimization
-│           │
-│           ├── Genome & Encoding:
-│           │   ├── genome.ts          # Genome structure definition
-│           │   ├── genome_types.ts    # Type exports
-│           │   ├── encoding.ts        # Genome vectorization
-│           │   └── factory.ts         # Default genome creation
-│           │
-│           └── Infrastructure:
-│               ├── prng.ts            # Seeded random number generator
-│               ├── noise.ts           # Gaussian, Levy, Cauchy distributions
-│               ├── utils.ts           # Clamp, generateId
-│               └── index.ts           # Public API barrel export
-│
-├── docs/                 # Technical documentation
-│   ├── GENETIC_ALGORITHM.md
-│   ├── NEURAL_NETWORK.md
-│   ├── TRAINING_PROCESS.md
-│   ├── API.md
-│   └── INTEGRATION.md
-│
-├── package.json          # Dependencies
-├── tsconfig.json         # TypeScript config
-├── jest.config.js        # Jest testing config
-├── eslint.config.js      # ESLint rules
-├── ARCHITECTURE.md       # This file
-└── README.md             # User guide
+
 ```
+
+services/trader-trainer/
+├── src/
+│ ├── app/
+│ │ ├── index.ts # Service entry point
+│ │ └── server.ts # Express server setup
+│ │
+│ └── core/
+│ ├── agent/
+│ │ ├── trading-agent.ts # Orchestrates NN + Wallet + StateManager
+│ │ ├── trading-agent.spec.ts # Unit tests
+│ │ ├── state-manager.ts # Q-learning state & epsilon-decay
+│ │ ├── state-manager.spec.ts # Unit tests
+│ │ └── auto-env.ts # GA-compatible environment wrapper
+│ │
+│ ├── env/
+│ │ ├── wallet-manager.ts # Simulates trading account
+│ │ └── wallet-manager.spec.ts # Unit tests
+│ │
+│ ├── neural-network/
+│ │ ├── neural-network.ts # Core NN implementation
+│ │ ├── neural-network.spec.ts # Unit tests
+│ │ ├── agent.ts # NN + experience replay wrapper
+│ │ ├── type.ts # Type definitions
+│ │ ├── activation.ts # Activation functions
+│ │ ├── initializers.ts # Weight initialization strategies
+│ │ ├── optimizer.ts # Optimization algorithms (SGD, Adam, etc.)
+│ │ ├── losses.ts # Loss functions (MSE, CE, Huber)
+│ │ ├── normalize.ts # Normalization strategies
+│ │ └── utils.ts # Utilities
+│ │
+│ └── genetic-algorithm/
+│ ├── ga-runner.ts # Main GA evolution loop with NSGA-II, Lamarckian inheritance, and Pareto archiving
+│ ├── genome.ts # Full genome type definitions and validation
+│ ├── validation.ts # Re-exports validation from genome.ts (avoids Feature Envy)
+│ ├── genome-types.ts # Additional genome type aliases
+│ ├── mutation.ts # Adaptive gaussian/levy mutation
+│ ├── crossover.ts # Uniform/BLX-α/SBX crossover
+│ ├── selection.ts # Tournament, roulette, rank-based
+│ ├── evolution-engine.ts # Low-level weight evolution functions
+│ ├── fitness.ts # Sharpe, Sortino, Calmar metrics
+│ ├── evaluation-pipeline.ts # Multi-window evaluation pipeline
+│ ├── complexity-estimator.ts # Complexity penalty & fitness adjustment
+│ ├── pareto-engine.ts # NSGA-II exact and approximate sorting
+│ ├── adaptive-control-system.ts # Self-adaptive GA parameter control
+│ ├── factory.ts # Default genome factory
+│ ├── encoding.ts # Genome encode/decode
+│ ├── diversity.ts # Speciation and novelty search
+│ ├── noise.ts # Noise distributions for mutation
+│ ├── prng.ts # Pseudo-random number generator
+│ ├── utils.ts # Shared utilities (clamp, generateId, RunningStats)
+│ └── index.ts # Barrel exports
+│ │
+│ ├── Constraints & Validation:
+│ │ ├── complexity.ts # Topology constraints
+│ │ ├── validation.ts # Genome validation & repair
+│ │ └── adaptive_control_system.ts # Adaptive GA parameters
+│ │
+│ ├── Diversity & Speciation:
+│ │ ├── diversity.ts # Speciation & novelty
+│ │ └── pareto_engine.ts # Multi-objective optimization
+│ │
+│ ├── Genome & Encoding:
+│ │ ├── genome.ts # Genome structure definition
+│ │ ├── genome_types.ts # Type exports
+│ │ ├── encoding.ts # Genome vectorization
+│ │ └── factory.ts # Default genome creation
+│ │
+│ └── Infrastructure:
+│ ├── prng.ts # Seeded random number generator
+│ ├── noise.ts # Gaussian, Levy, Cauchy distributions
+│ ├── utils.ts # Clamp, generateId
+│ └── index.ts # Public API barrel export
+│
+├── docs/ # Technical documentation
+│ ├── GENETIC_ALGORITHM.md
+│ ├── NEURAL_NETWORK.md
+│ ├── TRAINING_PROCESS.md
+│ ├── API.md
+│ └── INTEGRATION.md
+│
+├── package.json # Dependencies
+├── tsconfig.json # TypeScript config
+├── jest.config.js # Jest testing config
+├── eslint.config.js # ESLint rules
+├── ARCHITECTURE.md # This file
+└── README.md # User guide
+
+````
 
 ---
 
@@ -159,7 +169,7 @@ public step(input: Float32Array, price?: number, done: boolean = false): {
   reward: number,
   metrics: any
 }
-```
+````
 
 **Key Methods**:
 

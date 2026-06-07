@@ -51,7 +51,7 @@ interface AddressManagerConfig {
 | Field                    | Type                     | Default | Description                                                                      |
 | ------------------------ | ------------------------ | ------- | -------------------------------------------------------------------------------- |
 | `instanceId`             | `string`                 | —       | Unique identifier for this service instance                                      |
-| `serviceName`            | `string`                 | —       | Logical service name (e.g. `financial-scraper-service`)                         |
+| `serviceName`            | `string`                 | —       | Logical service name (e.g. `financial-scraper-service`)                          |
 | `servicePort`            | `number`                 | —       | Port the service listens on                                                      |
 | `addressManagerUrl`      | `string`                 | —       | Discovery-server base URL                                                        |
 | `tokenRefreshIntervalMs` | `number`                 | `60000` | Token rotation interval                                                          |

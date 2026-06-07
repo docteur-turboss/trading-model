@@ -13,33 +13,33 @@ Welcome to the **trading-model** documentation.
 
 Development conventions, processes, and quality gates:
 
-| File | Content |
-|------|---------|
-| [ARCHITECTURE.md](standards/ARCHITECTURE.md) | Monorepo structure, service/package conventions, tech stack |
-| [WRITING.md](standards/WRITING.md) | Code style, naming, ESLint, JSDoc, import order |
-| [COMMIT.md](standards/COMMIT.md) | Gitmoji commit format, scopes, body/footer |
-| [PR.md](standards/PR.md) | PR template, review process, labels |
-| [CI_CD.md](standards/CI_CD.md) | CI and CD pipeline details |
-| [TESTING.md](standards/TESTING.md) | Jest framework, test structure, coverage thresholds |
-| [QUALITY.md](standards/QUALITY.md) | Linting, coverage, TypeScript strict, gates |
-| [SECURITY.md](standards/SECURITY.md) | mTLS, HMAC tokens, env validation, vulnerability reporting |
-| [CODE_OF_CONDUCT.md](standards/CODE_OF_CONDUCT.md) | Contributor Covenant |
-| [DOCUMENTATION.md](standards/DOCUMENTATION.md) | Documentation structure and conventions |
-| [JSDOC_STANDARD.md](standards/JSDOC_STANDARD.md) | JSDoc formatting rules |
-| [DATABASE_MODELS.md](standards/DATABASE_MODELS.md) | MySQL schemas, MongoDB status |
+| File                                               | Content                                                     |
+| -------------------------------------------------- | ----------------------------------------------------------- |
+| [ARCHITECTURE.md](standards/ARCHITECTURE.md)       | Monorepo structure, service/package conventions, tech stack |
+| [WRITING.md](standards/WRITING.md)                 | Code style, naming, ESLint, JSDoc, import order             |
+| [COMMIT.md](standards/COMMIT.md)                   | Gitmoji commit format, scopes, body/footer                  |
+| [PR.md](standards/PR.md)                           | PR template, review process, labels                         |
+| [CI_CD.md](standards/CI_CD.md)                     | CI and CD pipeline details                                  |
+| [TESTING.md](standards/TESTING.md)                 | Jest framework, test structure, coverage thresholds         |
+| [QUALITY.md](standards/QUALITY.md)                 | Linting, coverage, TypeScript strict, gates                 |
+| [SECURITY.md](standards/SECURITY.md)               | mTLS, HMAC tokens, env validation, vulnerability reporting  |
+| [CODE_OF_CONDUCT.md](standards/CODE_OF_CONDUCT.md) | Contributor Covenant                                        |
+| [DOCUMENTATION.md](standards/DOCUMENTATION.md)     | Documentation structure and conventions                     |
+| [JSDOC_STANDARD.md](standards/JSDOC_STANDARD.md)   | JSDoc formatting rules                                      |
+| [DATABASE_MODELS.md](standards/DATABASE_MODELS.md) | MySQL schemas, MongoDB status                               |
 
 ## Deployment & Operations (`docs/deployment/`)
 
-| File | Content |
-|------|---------|
-| [CONTRIBUTE.md](deployment/CONTRIBUTE.md) | Full workflow: branch, commit, PR, review, release |
-| [SETUP.md](deployment/SETUP.md) | Machine setup, prerequisites, installation |
-| [ENV.md](deployment/ENV.md) | Environment variable reference |
-| [DATABASE.md](deployment/DATABASE.md) | MySQL and MongoDB setup |
-| [DEPLOY.md](deployment/DEPLOY.md) | Local, beta, and production deployment |
-| [DOCKER.md](deployment/DOCKER.md) | Docker Compose, images, networks |
-| [CI_CD.md](deployment/CI_CD.md) | Workflow details and Docker patterns |
-| [TROUBLESHOOTING.md](deployment/TROUBLESHOOTING.md) | Common issues by category |
+| File                                                | Content                                            |
+| --------------------------------------------------- | -------------------------------------------------- |
+| [CONTRIBUTE.md](deployment/CONTRIBUTE.md)           | Full workflow: branch, commit, PR, review, release |
+| [SETUP.md](deployment/SETUP.md)                     | Machine setup, prerequisites, installation         |
+| [ENV.md](deployment/ENV.md)                         | Environment variable reference                     |
+| [DATABASE.md](deployment/DATABASE.md)               | MySQL and MongoDB setup                            |
+| [DEPLOY.md](deployment/DEPLOY.md)                   | Local, beta, and production deployment             |
+| [DOCKER.md](deployment/DOCKER.md)                   | Docker Compose, images, networks                   |
+| [CI_CD.md](deployment/CI_CD.md)                     | Workflow details and Docker patterns               |
+| [TROUBLESHOOTING.md](deployment/TROUBLESHOOTING.md) | Common issues by category                          |
 
 ## Architecture (`docs/architecture/`)
 

@@ -378,15 +378,22 @@ describe('GeneticAlgorithmRunner', () => {
   it('should select elites based on elitismFraction', async () => {
     const features = new Float32Array([0.5, 0.5, 0.5]);
     const runner = new GeneticAlgorithmRunner({
-      windowSets: [{
-        id: 'w1',
-        train: [{ features, price: 100 }],
-        validation: [{ features, price: 100 }],
-      }],
+      windowSets: [
+        {
+          id: 'w1',
+          train: [{ features, price: 100 }],
+          validation: [{ features, price: 100 }],
+        },
+      ],
       backendFactory: mockBackendFactory as any,
       evalConcurrency: 1,
     });
-    runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 10, elitismFraction: 0.3 });
+    runner.initialise({
+      networkSeed: 42,
+      mutationSeed: 42,
+      populationSize: 10,
+      elitismFraction: 0.3,
+    });
     await runner.runGeneration();
     const pop = runner.getPopulation();
     expect(pop.length).toBe(10);
@@ -396,11 +403,13 @@ describe('GeneticAlgorithmRunner', () => {
   it('should produce offspring with some new IDs after runGeneration (elites carry over)', async () => {
     const features = new Float32Array([0.5, 0.5, 0.5]);
     const runner = new GeneticAlgorithmRunner({
-      windowSets: [{
-        id: 'w1',
-        train: [{ features, price: 100 }],
-        validation: [{ features, price: 100 }],
-      }],
+      windowSets: [
+        {
+          id: 'w1',
+          train: [{ features, price: 100 }],
+          validation: [{ features, price: 100 }],
+        },
+      ],
       backendFactory: mockBackendFactory as any,
       evalConcurrency: 1,
     });
@@ -418,11 +427,13 @@ describe('GeneticAlgorithmRunner', () => {
     const features = new Float32Array([0.5, 0.5, 0.5]);
     const onArchiveUpdate = jest.fn();
     const runner = new GeneticAlgorithmRunner({
-      windowSets: [{
-        id: 'w1',
-        train: [{ features, price: 100 }],
-        validation: [{ features, price: 100 }],
-      }],
+      windowSets: [
+        {
+          id: 'w1',
+          train: [{ features, price: 100 }],
+          validation: [{ features, price: 100 }],
+        },
+      ],
       backendFactory: mockBackendFactory as any,
       evalConcurrency: 1,
       onArchiveUpdate,
@@ -439,11 +450,13 @@ describe('GeneticAlgorithmRunner', () => {
   it('should track stagnation when fitness does not improve', async () => {
     const features = new Float32Array([0.5, 0.5, 0.5]);
     const runner = new GeneticAlgorithmRunner({
-      windowSets: [{
-        id: 'w1',
-        train: [{ features, price: 100 }],
-        validation: [{ features, price: 100 }],
-      }],
+      windowSets: [
+        {
+          id: 'w1',
+          train: [{ features, price: 100 }],
+          validation: [{ features, price: 100 }],
+        },
+      ],
       backendFactory: mockBackendFactory as any,
       evalConcurrency: 1,
     });
@@ -456,11 +469,13 @@ describe('GeneticAlgorithmRunner', () => {
   it('should sort population by Pareto rank and crowding distance', async () => {
     const features = new Float32Array([0.5, 0.5, 0.5]);
     const runner = new GeneticAlgorithmRunner({
-      windowSets: [{
-        id: 'w1',
-        train: [{ features, price: 100 }],
-        validation: [{ features, price: 100 }],
-      }],
+      windowSets: [
+        {
+          id: 'w1',
+          train: [{ features, price: 100 }],
+          validation: [{ features, price: 100 }],
+        },
+      ],
       backendFactory: mockBackendFactory as any,
       evalConcurrency: 1,
     });

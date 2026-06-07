@@ -59,12 +59,13 @@ export class RunningNormalizer {
   }
 }
 
-/** Dimension of the feature vector produced per market step. */
+/** Number of features produced by buildFeatures per market step. */
 export const FEATURE_DIM = 32;
 
 /** Minimum number of market steps required before training can start. */
 export const MIN_TRAINING_STEPS = 10;
 
+/** Per-symbol state: candles, trades, order book, ticker, and running normalisers. */
 export type SymbolState = {
   candles: CandleEntity[];
   trades: TradeEntity[];
@@ -194,11 +195,12 @@ export class MarketDataBuffer {
     return Array.from(this.states.keys()).map(fromSymbol);
   }
 
-  /** Return the number of candles stored for a given symbol. */
+  /** Returns the number of candles stored for a given symbol. */
   getCandleCount(symbol: string): number {
     return this.states.get(toSymbol(symbol))?.candles.length ?? 0;
   }
 
+  /** Builds a feature vector for each candle step (N candles → N-1 steps). */
   buildMarketSteps(symbol: string): MarketStep[] {
     const s = this.states.get(toSymbol(symbol));
     if (!s || s.candles.length < 2) return [];
@@ -215,6 +217,7 @@ export class MarketDataBuffer {
     return steps;
   }
 
+  /** Splits market steps into train/validation sets by a given ratio. */
   splitTrainValidation(
     steps: MarketStep[],
     validationSplit: number

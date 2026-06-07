@@ -74,10 +74,13 @@ export interface RLBackend {
   train(experience: Experience, gamma: number): void;
   /** Flat weight snapshot for Lamarckian storage. */
   getWeights(): Float32Array;
-  /** Restore weights from a Lamarckian snapshot. */
+  /** Restores weights from a Lamarckian snapshot. */
   setWeights(w: Float32Array): void;
+  /** Returns the current profit and loss of the backend's wallet. */
   getPnL(): number;
+  /** Resets the episode state — wallet, pool, and internal counters. */
   resetEpisode(): void;
+  /** Returns the accumulated experience pool for training. */
   getExperiencePool(): Experience[];
 }
 
@@ -181,18 +184,21 @@ type PopulationMeta = {
   crowdingDist: number[];
 };
 
+/** Configuration for the GeneticAlgorithmRunner. */
 export type GARunnerConfig = {
-  windowSets: WindowSet[]; // single field, no duplication
+  windowSets: WindowSet[];
   backendFactory: BackendFactory;
   /** Worker concurrency cap for parallel evaluation. */
   evalConcurrency?: number;
   /** Hook called after each generation. */
   onGeneration?: (ctx: GenerationContext) => void;
+  /** Hook called when the Pareto archive is updated. */
   onArchiveUpdate?: (archive: DeepReadonly<LamarckGenome>[]) => void;
   /** Override initial GA control parameters. */
   initialControl?: Partial<GAControlGenome>;
 };
 
+/** Context passed to the onGeneration hook after each GA generation. */
 export type GenerationContext = {
   generation: number;
   population: DeepReadonly<LamarckGenome>[];

@@ -224,7 +224,11 @@ describe('evaluateGenomeAllWindows', () => {
       ...makeMockBackend(1),
       train: trainMock,
     }));
-    const result = await evaluateGenomeAllWindows(minimalGenome as any, windowSets, backendFactory as any);
+    const result = await evaluateGenomeAllWindows(
+      minimalGenome as any,
+      windowSets,
+      backendFactory as any
+    );
     expect(result.updatedGenome).toBeDefined();
     expect(trainMock).not.toHaveBeenCalled();
   });

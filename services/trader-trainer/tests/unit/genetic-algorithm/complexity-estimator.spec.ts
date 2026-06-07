@@ -1,5 +1,8 @@
 import { describe, it, expect } from '@jest/globals';
-import { estimateComplexity, computeAdjustedFitness } from '../../../src/core/genetic-algorithm/complexity-estimator';
+import {
+  estimateComplexity,
+  computeAdjustedFitness,
+} from '../../../src/core/genetic-algorithm/complexity-estimator';
 
 describe('estimateComplexity', () => {
   const baseGenome = {
