@@ -3,6 +3,12 @@ import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 import { ACTIVATIONS } from './activation';
 import { INITIALIZERS } from './initializers';
 import { LOSSES } from './losses';
+import {
+  getWeights as getWeightsFn,
+  setWeights as setWeightsFn,
+  parameterCount as parameterCountFn,
+  distributeAroundWeights as distributeAroundWeightsFn,
+} from './network-serialization';
 import { NORMALIZERS } from './normalize';
 import { OptimizerHyperparams, DEFAULT_HYPERPARAMS, OPTIMIZERS } from './optimizer';
 import {
@@ -12,7 +18,6 @@ import {
   PooledExperience,
   ForwardContext,
 } from './type';
-import { gaussianNoise } from './utils';
 
 /**
  * Configurable fully-connected feedforward neural network with support for
@@ -748,122 +753,20 @@ export class NeuralNetwork {
     this.pool.length = 0;
   }
 
-  /**
-   * Flattens every weight and bias into a single `Float64Array`.
-   *
-   * Layout per matrix block `i`:
-   * ```
-   * [ w[i][0][0], w[i][0][1], …, w[i][fanOut-1][fanIn-1], b[i][0], …, b[i][fanOut-1] ]
-   * ```
-   *
-   * The resulting buffer can be passed to {@link setWeights} or used as a
-   * parent genome in evolutionary strategies.
-   *
-   * @returns Flat parameter buffer.
-   */
   public getWeights(): Float32Array {
-    const total = this.parameterCount();
-    const buffer = new Float32Array(total);
-
-    let cursor = 0;
-
-    for (const layer of this.layers) {
-      for (let i = 0; i < layer.weights.length; i++) buffer[cursor++] = layer.weights[i];
-
-      for (let i = 0; i < layer.bias.length; i++) buffer[cursor++] = layer.bias[i];
-    }
-
-    return buffer;
+    return getWeightsFn(this.layers);
   }
 
-  /**
-   * Loads a flat parameter buffer (as produced by {@link getWeights}) back
-   * into the network, overwriting every weight and bias value.
-   *
-   * @param buffer - `Float32Array` with exactly the same length as returned by
-   *   `getWeights()`.
-   * @throws {AgentError} When the buffer length does not match the network's
-   *   total parameter count.
-   */
   public setWeights(buffer: Float32Array): void {
-    const expected = this.parameterCount();
-
-    if (buffer.length !== expected)
-      throw new AppError(
-        `Buffer length mismatch: exprected ${expected}, got ${buffer.length}`,
-        ErrorCodes.AGENT_ERROR
-      );
-
-    let cursor = 0;
-
-    for (const layer of this.layers) {
-      for (let i = 0; i < layer.weights.length; i++) layer.weights[i] = buffer[cursor++];
-
-      for (let i = 0; i < layer.bias.length; i++) layer.bias[i] = buffer[cursor++];
-    }
+    setWeightsFn(this.layers, buffer);
   }
 
-  /**
-   * Initialises this network's weights by sampling from a Gaussian distribution
-   * centred on the parameter vector.
-   *
-   * Two reference mods are supported :
-   *
-   * **Network reference** - uses the full weight vector of another network as
-   * the distribution mean (standard neuroevolution offspring initialisation):
-   * ```
-   * θ_child = θ_parent + N(0, σ²)
-   * ```
-   *
-   * **Scalar reference** - broadcasts a single scalar as the mean for every parameter (useful when you want all weights to start near a given value, e.g. O for clean slate, or a pre-computed global average):
-   * ```
-   * θ_child[i] = μ + N(0, σ²)   ∀ i
-   * ```
-   *
-   * The reference network (when provided) must share the **same architecture** (same
-   * `neuronsByLayer` and `connectionType`) as this network.
-   *
-   * @param reference - Either a {@link NeuralNetwork} whose weights serve as the per-parameter mean, or a scalar `number` broadcast across all parameters..
-   * @param sigma     - Standard deviation of the perturbation noise. @default 0.1
-   * @throws {AgentError} When the reference buffer length does not match.
-   */
   public distributeAroundWeights(reference: NeuralNetwork | number, sigma: number = 0.1): void {
-    const count = this.parameterCount();
-
-    let mean: Float32Array;
-
-    if (typeof reference === 'number') {
-      mean = new Float32Array(count).fill(reference);
-    } else {
-      mean = reference.getWeights();
-      if (mean.length !== count)
-        throw new AppError(
-          `Reference network parameter count (${mean.length}) does not match this network's parameter count (${count}).`,
-          ErrorCodes.AGENT_ERROR
-        );
-    }
-
-    const childBuffer = new Float32Array(count);
-
-    for (let i = 0; i < count; i++) childBuffer[i] = mean[i] + gaussianNoise(sigma);
-
-    this.setWeights(childBuffer);
+    const ref = typeof reference === 'number' ? reference : reference.getWeights();
+    distributeAroundWeightsFn(this.layers, ref, sigma);
   }
 
-  /**
-   * Returns the total number of trainable parameters (weights + biases).
-   *
-   * Useful for telemetry and for validating external buffer sizes before
-   * calling {@link setWeights}.
-   */
   public parameterCount(): number {
-    let total = 0;
-
-    for (let i = 0; i < this.layers.length; i++) {
-      total += this.layers[i].weights.length;
-      total += this.layers[i].bias.length;
-    }
-
-    return total;
+    return parameterCountFn(this.layers);
   }
 }
