@@ -69,9 +69,9 @@ function logServerError(err: ErrorInput, req: Request, response: ResponseObject)
  * @param next - Express next function.
  *
  * @example
- * app.use(ResponseProtocole);
+ * app.use(ResponseProtocol);
  */
-export const ResponseProtocole = (
+export const ResponseProtocol = (
   err: ErrorInput,
   req: Request,
   res: Response,

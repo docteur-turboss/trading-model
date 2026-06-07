@@ -3,7 +3,7 @@ import { Application } from 'express';
 import { configureApp, RateLimitConfig } from './configure-app';
 import { createAndStartHttpsServer, HttpServer, TlsPaths } from './server-factory';
 import { MTLSAuthMiddleware } from '../middleware/mtls-auth';
-import { ResponseProtocole } from '../middleware/response-protocol';
+import { ResponseProtocol } from '../middleware/response-protocol';
 
 export { HttpServer, TlsPaths, RateLimitConfig };
 
@@ -21,7 +21,7 @@ export interface SecureServerOptions {
  * Composes the Express app from focused sub-modules:
  *   - configureApp     — Helmet, trust proxy, body parsers, rate limiter, ping route
  *   - MTLSAuthMiddleware — mTLS client certificate validation
- *   - ResponseProtocole  — Global error normalisation middleware
+ *   - ResponseProtocol  — Global error normalisation middleware
  *   - createAndStartHttpsServer — HTTPS listener with mTLS (TLSv1.3)
  */
 export function createSecureServer(options: SecureServerOptions): HttpServer {
@@ -34,7 +34,7 @@ export function createSecureServer(options: SecureServerOptions): HttpServer {
 
   options.routes(app);
 
-  app.use(ResponseProtocole);
+  app.use(ResponseProtocol);
 
   return createAndStartHttpsServer(app, { port: options.port, tls: options.tls });
 }
