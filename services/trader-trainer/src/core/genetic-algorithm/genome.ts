@@ -16,6 +16,7 @@ export {
   InitialisationType,
 } from '../neural-network/type';
 
+/** Configuration for a single neural network hidden layer. */
 export type LayerGenome = {
   neurons: number;
   activation: ActivationType;
@@ -23,6 +24,7 @@ export type LayerGenome = {
   biasType: InitialisationType;
 };
 
+/** Neural network architecture definition within a genome. */
 export type NetworkGenome = {
   inputDim: number;
   outputDim: number;
@@ -32,6 +34,7 @@ export type NetworkGenome = {
 
 // ---- Reward shaping genome ----
 
+/** Reward shaping configuration: clipping, scaling, normalisation, and sparse/dense mode. */
 export type RewardShapingGenome = {
   clip: boolean;
   clipMin: number;
@@ -45,6 +48,7 @@ export type RewardShapingGenome = {
 
 // ---- Episode horizon genome ----
 
+/** Episode horizon parameters: length, n-step return depth, and frame skip. */
 export type HorizonGenome = {
   maxEpisodeLength: number;
   nStepReturn: number; // n-step TD target depth
@@ -53,8 +57,10 @@ export type HorizonGenome = {
 
 // ---- Policy genomes ----
 
+/** Supported discrete action selection strategies. */
 export type DiscretePolicyType = 'epsilon_greedy' | 'softmax';
 
+/** Discrete policy hyperparameters for epsilon-greedy or softmax selection. */
 export type DiscretePolicyGenome = {
   type: DiscretePolicyType;
   epsilonStart: number;
@@ -63,8 +69,10 @@ export type DiscretePolicyGenome = {
   temperature: number; // for softmax
 };
 
+/** Supported continuous action space strategies. */
 export type ContinuousPolicyType = 'action_clipping' | 'tanh_squashing' | 'exploration_noise';
 
+/** Continuous policy hyperparameters for action clipping and exploration noise. */
 export type ContinuousPolicyGenome = {
   type: ContinuousPolicyType;
   clipMin: number;
@@ -75,6 +83,7 @@ export type ContinuousPolicyGenome = {
 
 // ---- Replay buffer genome ----
 
+/** Experience replay buffer configuration. */
 export type ReplayBufferGenome = {
   bufferSize: number;
   prioritized: boolean;
@@ -85,6 +94,7 @@ export type ReplayBufferGenome = {
 
 // ---- Full RL genome ----
 
+/** Complete reinforcement learning hyperparameter set. */
 export type RLGenome = {
   gamma: number;
   learningRate: number;
@@ -97,10 +107,14 @@ export type RLGenome = {
 
 // ---- Mutation genome ----
 
+/** Distribution shapes for mutation noise. */
 export type MutationDistribution = 'gaussian' | 'levy' | 'uniform' | 'cauchy';
+/** Strategy for adapting mutation rates over time. */
 export type MutationAdaptation = 'fixed' | 'sigma_adaptive' | 'self_adaptive' | 'cma';
+/** Scope at which mutation is applied. */
 export type MutationScope = 'global' | 'per_layer' | 'correlated';
 
+/** Mutation operator configuration: rates, distribution, adaptation, and structural mutations. */
 export type MutationGenome = {
   rate: number;
   sigma: number;
@@ -126,8 +140,10 @@ export type MutationGenome = {
 
 // ---- Crossover genome ----
 
+/** Supported crossover strategies for genome recombination. */
 export type CrossoverType = 'one_point' | 'two_point' | 'uniform' | 'arithmetic' | 'blend' | 'sbx';
 
+/** Crossover operator configuration. */
 export type CrossoverGenome = {
   type: CrossoverType;
   probability: number;
@@ -137,9 +153,12 @@ export type CrossoverGenome = {
 
 // ---- GA control (self-adaptive meta-parameters) ----
 
+/** Parent selection strategies for the GA. */
 export type SelectionType = 'tournament' | 'roulette' | 'rank' | 'truncation' | 'sus';
+/** Fitness evaluation metrics for genome ranking. */
 export type FitnessType = 'total_pnl' | 'sharpe' | 'sortino' | 'calmar' | 'composite';
 
+/** Self-adaptive GA control parameters (population size, selection, stopping criteria, seeds). */
 export type GAControlGenome = {
   // Population
   populationSize: number;
@@ -167,6 +186,7 @@ export type GAControlGenome = {
 
 // ---- Fitness metadata ----
 
+/** Metadata attached to a genome after fitness evaluation. */
 export type GenomeFitnessMeta = {
   episodesRun: number;
   computeMs: number;
@@ -178,6 +198,7 @@ export type GenomeFitnessMeta = {
 
 // ---- Top-level genome ----
 
+/** Top-level genome: network architecture, RL hyperparameters, mutation, crossover, and GA control. */
 export type Genome = {
   id: string;
   generation: number;
@@ -197,6 +218,7 @@ export type LamarckGenome = Genome & {
 
 // ---- Market data ----
 
+/** A single market observation: price, feature vector, and optional timestamp. */
 export type MarketStep = {
   price: number;
   features: Float32Array; // observation vector fed to the network
