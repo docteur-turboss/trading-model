@@ -152,7 +152,7 @@ describe('evaluateGenomeAllWindows', () => {
       {
         id: 'w1',
         train: Array.from({ length: 10 }, (_, i) => makeStep([i * 0.1, i * 0.1, i * 0.1])),
-        validation: [makeStep([0.7, 0.8, 0.9])],
+        validation: Array.from({ length: 5 }, (_, i) => makeStep([i * 0.1, i * 0.1, i * 0.1])),
       },
     ];
     const backendFactory = jest.fn(() => makeMockBackend(2));
@@ -209,6 +209,53 @@ describe('evaluateGenomeAllWindows', () => {
     const backendFactory = jest.fn(() => makeMockBackend(2));
     const result = await evaluateGenomeAllWindows(genome as any, windowSets, backendFactory as any);
     expect(result.objectives.negFlops).toBeLessThan(0);
+  });
+
+  it('should skip training when pool has fewer than 2 entries', async () => {
+    const windowSets = [
+      {
+        id: 'w1',
+        train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+        validation: [makeStep([0.7, 0.8, 0.9])],
+      },
+    ];
+    const trainMock = jest.fn();
+    const backendFactory = jest.fn(() => ({
+      ...makeMockBackend(1),
+      train: trainMock,
+    }));
+    const result = await evaluateGenomeAllWindows(minimalGenome as any, windowSets, backendFactory as any);
+    expect(result.updatedGenome).toBeDefined();
+    expect(trainMock).not.toHaveBeenCalled();
+  });
+
+  it('should handle sparse reward mode', async () => {
+    const genome = {
+      ...minimalGenome,
+      rl: {
+        ...minimalGenome.rl,
+        rewardShaping: {
+          clip: true,
+          clipMin: -1,
+          clipMax: 1,
+          scale: false,
+          scaleFactor: 1,
+          normalize: false,
+          sparse: true,
+        },
+      },
+    };
+    const windowSets = [
+      {
+        id: 'w1',
+        train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+        validation: [makeStep([0.7, 0.8, 0.9])],
+      },
+    ];
+    const backendFactory = jest.fn(() => makeMockBackend(2));
+    const result = await evaluateGenomeAllWindows(genome as any, windowSets, backendFactory as any);
+    expect(result.updatedGenome).toBeDefined();
+    expect(result.meta.rawScores.length).toBeGreaterThan(0);
   });
 });
 

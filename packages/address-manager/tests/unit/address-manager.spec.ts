@@ -63,7 +63,7 @@ jest.mock('../../src/scheduler/scheduler', () => ({
 }));
 
 jest.mock('../../src/scheduler/refresh-job', () => ({
-  RefreshJob: jest.fn(),
+  RefreshJob: jest.fn((manager: unknown, callback: (m: unknown) => void) => callback(manager)),
 }));
 
 const mockPingRoutes = { get: jest.fn() };
@@ -99,6 +99,15 @@ describe('AddressManager', () => {
   describe('constructor', () => {
     it('should create an instance', () => {
       expect(am).toBeInstanceOf(AddressManager);
+    });
+
+    it('should accept config with dnsNameMap', () => {
+      const configWithDnsMap = {
+        ...defaultConfig,
+        dnsNameMap: { 'my-service': 'my-host.local' },
+      };
+      const amWithDnsMap = new AddressManager(configWithDnsMap);
+      expect(amWithDnsMap).toBeInstanceOf(AddressManager);
     });
   });
 
@@ -190,16 +199,27 @@ describe('AddressManager', () => {
     });
 
     it('should abort registration retry loop when stop is called', async () => {
-      // keep registration pending — the retry loop will await it
-      (mockAddressManagerClientInstance.registerService as any).mockReturnValue(
-        new Promise(() => {})
+      let resolveRegistration: (value: unknown) => void;
+      (mockAddressManagerClientInstance.registerService as any).mockImplementation(
+        () =>
+          new Promise(resolve => {
+            resolveRegistration = resolve;
+          })
       );
 
       const handle = am.start();
-      handle.stop();
 
-      // stop sets shouldRetryRegistration to false; the loop checks it before each retry
-      // Since the first registration never settles, no further retries happen
+      // First registration call is in-flight
+      expect(mockAddressManagerClientInstance.registerService).toHaveBeenCalledTimes(1);
+
+      handle.stop();
+      resolveRegistration!(undefined);
+
+      // Allow retry loop to check shouldRetryRegistration and exit
+      await new Promise(process.nextTick);
+      await new Promise(process.nextTick);
+
+      // stop() was called, so no further retries
       expect(mockAddressManagerClientInstance.registerService).toHaveBeenCalledTimes(1);
     });
   });
