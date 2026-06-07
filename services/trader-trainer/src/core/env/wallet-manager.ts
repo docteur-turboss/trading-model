@@ -64,18 +64,13 @@ type WalletAPI = {
  *
  * wallet.reset();       // back to initial state, ready for next episode
  */
-export const createWallet = ({
+function validateConfig({
   initialCash,
   initialPrice,
-  feeRate = 0,
-  maxPosition = Infinity,
-  decimals = 8,
-}: WalletConfig): WalletAPI => {
-  const rnd = (v: number) => {
-    const factor = Math.pow(10, decimals);
-    return Math.round(v * factor) / factor;
-  };
-  // --- Init validation ---
+  feeRate,
+  maxPosition,
+  decimals,
+}: Required<WalletConfig>): void {
   if (!Number.isFinite(initialCash) || initialCash < 0)
     throw new Error(`Invalid initialCash: ${initialCash}`);
   if (!Number.isFinite(initialPrice) || initialPrice <= 0)
@@ -85,6 +80,21 @@ export const createWallet = ({
   if (maxPosition <= 0) throw new Error(`Invalid maxPosition: ${maxPosition}`);
   if (!Number.isInteger(decimals) || decimals < 1 || decimals > 15)
     throw new Error(`Invalid decimals: ${decimals}. Must be an integer in [1, 15]`);
+}
+
+export const createWallet = ({
+  initialCash,
+  initialPrice,
+  feeRate = 0,
+  maxPosition = Infinity,
+  decimals = 8,
+}: WalletConfig): WalletAPI => {
+  validateConfig({ initialCash, initialPrice, feeRate, maxPosition, decimals });
+
+  const rnd = (v: number) => {
+    const factor = Math.pow(10, decimals);
+    return Math.round(v * factor) / factor;
+  };
 
   // --- Mutable state ---
   let price = initialPrice;
