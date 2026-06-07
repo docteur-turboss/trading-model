@@ -38,10 +38,10 @@ describe('ResponseProtocole', () => {
     expect(res.status).toHaveBeenCalledWith(498);
   });
 
-  it('should map ADDRESS_MANAGER_ERROR to 500', () => {
+  it('should map ADDRESS_MANAGER_ERROR to 503', () => {
     const err = new AppError('Generic error', ErrorCodes.ADDRESS_MANAGER_ERROR);
     ResponseProtocole(err, req, res, next);
-    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.status).toHaveBeenCalledWith(503);
   });
 
   it('should map unknown errors to 500', () => {
