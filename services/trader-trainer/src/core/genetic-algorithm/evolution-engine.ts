@@ -64,7 +64,6 @@ export function selectParent(
  * Mutates network architecture (layers, neurons, activation functions).
  */
 export function mutateGenome(g: Genome, _rng: () => number): Genome {
-  void _rng;
   // Placeholder: implement structural mutations
   // - add/remove hidden layer
   // - change layer size
@@ -78,8 +77,6 @@ export function mutateGenome(g: Genome, _rng: () => number): Genome {
  * Blends network architectures from two parents.
  */
 export function crossoverGenomes(pA: Genome, _pB: Genome, _rng: () => number): Genome {
-  void _pB;
-  void _rng;
   // Placeholder: implement structural crossover
   // - blend layer counts
   // - blend neuron counts

@@ -16,6 +16,7 @@ import {
   EventTypeMetadataPredicate,
   TopicMetadataPredicate,
   IdsMetadataPredicate,
+  MessageMetadataSchema,
 } from './message.schema';
 
 /**
@@ -33,6 +34,8 @@ export class MessageMetadata {
   private schemaVersion = '1.0.0';
 
   public constructor(data: Partial<MetadataType> = {}) {
+    MessageMetadataSchema.partial().parse(data);
+
     const { topic, routing, delivery, security, eventType, publisher, causationId, correlationId } =
       data;
 

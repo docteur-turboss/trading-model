@@ -161,7 +161,7 @@ describe('BinanceCronOrchestrator', () => {
       mockWorkerRun.mockRejectedValue('String error' as never);
 
       await expect(cronHandler()).resolves.toBeUndefined();
-      expect(mockLogger.error).toHaveBeenCalledWith('[BinanceCron] Unknown batch execution error');
+      expect(mockLogger.error).toHaveBeenCalledWith('[BinanceCron] Unknown batch execution error:', { err: 'String error' });
     });
 
     it('should reset isRunning after execution', async () => {

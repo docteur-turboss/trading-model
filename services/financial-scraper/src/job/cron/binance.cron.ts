@@ -65,7 +65,7 @@ export class BinanceCronOrchestrator {
             err: err.message,
           });
         } else {
-          logger.error('[BinanceCron] Unknown batch execution error');
+          logger.error('[BinanceCron] Unknown batch execution error:', { err: String(err) });
         }
       } finally {
         this.isRunning = false;

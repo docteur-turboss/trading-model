@@ -86,7 +86,7 @@ export class Broker {
       metadata: {
         ...metadata,
         emittedAt: new Date(),
-        messageId: String(randomUUID()),
+        messageId: randomUUID(),
       },
       payload,
     };
