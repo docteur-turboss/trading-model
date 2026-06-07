@@ -1,18 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { ClassResponseExceptions } from './response-exception';
+import { ClassResponseExceptions, ResponseObject } from './response-exception';
 import { logger } from '../config/logger';
-import {
-  AuthenticationError,
-  ServiceNotFoundError,
-  ServiceUnreachableError,
-  AddressManagerBaseError,
-} from '../utils/errors';
+import { AppError, ErrorCodes } from '../utils/errors';
 
-type ResponseObject = {
-  status: number;
-  data: string;
-};
 type ErrorInput = Error | ResponseObject;
 
 /**
@@ -24,32 +15,25 @@ type ErrorInput = Error | ResponseObject;
 function mapErrorToResponse(err: Error): ResponseObject {
   const response = new ClassResponseExceptions(err.message);
 
-  /**
-   * Address Manager / Service Discovery errors
-   */
-  if (err instanceof ServiceNotFoundError) {
-    return response.NotFound();
+  if (err instanceof AppError) {
+    switch (err.code) {
+      case ErrorCodes.SERVICE_NOT_FOUND:
+        return response.NotFound();
+      case ErrorCodes.SERVICE_UNREACHABLE:
+        return response.Gone();
+      case ErrorCodes.AUTHENTICATION_ERROR:
+        return response.InvalidToken();
+      default:
+        if (
+          err.code === ErrorCodes.ADDRESS_MANAGER_ERROR ||
+          err.code.startsWith('ADDRESS_MANAGER_')
+        ) {
+          return response.UnknownError();
+        }
+        break;
+    }
   }
 
-  if (err instanceof ServiceUnreachableError) {
-    // Service exists but is temporarily unavailable
-    return response.Gone(); // 410
-  }
-
-  if (err instanceof AuthenticationError) {
-    return response.InvalidToken(); // 498
-  }
-
-  /**
-   * Known module-level errors without explicit mapping
-   */
-  if (err instanceof AddressManagerBaseError) {
-    return response.UnknownError();
-  }
-
-  /**
-   * Fallback for any untyped or unexpected error
-   */
   return response.UnknownError();
 }
 
