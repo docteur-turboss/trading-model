@@ -115,7 +115,17 @@ export class Logger {
    */
   private safeStringify(value: unknown): string {
     const seen = new WeakSet<object>();
-    return JSON.stringify(value, (_key, val) => {
+    const SENSITIVE_KEYS = new Set([
+      'password',
+      'token',
+      'secret',
+      'authorization',
+      'cookie',
+      'apiKey',
+      'MYSQL_ROOT_PASSWORD',
+    ]);
+    return JSON.stringify(value, (key, val) => {
+      if (SENSITIVE_KEYS.has(key)) return '[REDACTED]';
       if (typeof val === 'object' && val !== null) {
         if (seen.has(val)) {
           return '[Circular]';
