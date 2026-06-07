@@ -9,7 +9,7 @@ import {
 import { LamarckGenome } from './genetic-algorithm/genome-types';
 import { DeepReadonly } from './genetic-algorithm/shared-types';
 import { MarketDataBuffer, MIN_TRAINING_STEPS } from './market-data-buffer';
-import { NormalizationStats, TradingSymbol, toSymbol, fromSymbol } from './market-data-types';
+import { TradingSymbol, toSymbol, fromSymbol } from './market-data-types';
 import { env } from '../config/env';
 
 /** Summary of the best trained agent for API responses. */

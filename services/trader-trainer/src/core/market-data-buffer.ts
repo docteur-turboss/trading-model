@@ -11,7 +11,6 @@ import {
 import { buildFeatures as buildFeaturesFn } from './feature-builder';
 import { MarketStep } from './genetic-algorithm/genome-types';
 import {
-  FEATURE_DIM,
   NormalizationStats,
   SymbolState,
   TradingSymbol,

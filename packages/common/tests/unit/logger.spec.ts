@@ -209,6 +209,30 @@ describe('Logger', () => {
       const writtenData = mockWriteFile.mock.calls[0][1];
       expect(writtenData).toContain('[Circular]');
     });
+
+    it('should redact sensitive keys like password, token, secret, authorization', () => {
+      const mockWriteFile = writeFile as unknown as jest.Mock;
+      mockWriteFile.mockClear();
+
+      const context = {
+        password: 'supersecret',
+        token: 'abc123',
+        secret: 'my-secret',
+        authorization: 'Bearer xyz',
+        normalKey: 'visible',
+      };
+
+      logger.info('test sensitive redaction', context);
+
+      expect(mockWriteFile).toHaveBeenCalled();
+      const writtenData = mockWriteFile.mock.calls[0][1];
+      expect(writtenData).toContain('"[REDACTED]"');
+      expect(writtenData).not.toContain('supersecret');
+      expect(writtenData).not.toContain('abc123');
+      expect(writtenData).not.toContain('my-secret');
+      expect(writtenData).not.toContain('Bearer xyz');
+      expect(writtenData).toContain('visible');
+    });
   });
 
   describe('createLogEntry with metadata', () => {
