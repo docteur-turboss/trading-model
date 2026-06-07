@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import { catchSync } from '@trading-model/common/middleware/catch-error';
-import { ResponseException } from '@trading-model/common/middleware/response-exception';
+import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
 import { selectCandlesBy } from '../../infra/market-data/schema/candles-schema';
 import { selectOrderBookBy } from '../../infra/market-data/schema/order-book.schema';
@@ -27,13 +27,13 @@ const orderBookTimestampSchema = z.object({
 function createController<T>(schema: z.ZodSchema<T>, fetcher: (params: T) => Promise<unknown>) {
   return catchSync(async req => {
     const parsed = schema.safeParse(req.params);
-    if (!parsed.success) throw ResponseException(parsed.error.message).BadRequest();
+    if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
 
     try {
-      throw ResponseException(JSON.stringify(await fetcher(parsed.data))).Success();
+      return sendResponse(JSON.stringify(await fetcher(parsed.data)), 200);
     } catch (e) {
       if (e instanceof Error && e.message.includes('No result returned'))
-        throw ResponseException('No data found').NotFound();
+        return sendResponse({ error: 'No data found' }, 404);
       throw e;
     }
   });

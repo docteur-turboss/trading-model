@@ -198,6 +198,14 @@ export class ClassResponseExceptions extends Error {
 }
 
 /**
+ * Response object type returned by all response helpers.
+ */
+export type ResponseObject = {
+  status: number;
+  data: unknown;
+};
+
+/**
  * Factory function to create a new instance of ClassResponseExceptions.
  *
  * This provides a convenient way to generate standardized response objects
@@ -212,3 +220,16 @@ export class ClassResponseExceptions extends Error {
  * // returns: { status: 401, data: "Invalid token" }
  */
 export const ResponseException = (reason: unknown = '') => new ClassResponseExceptions(reason);
+
+/**
+ * Create a response object without throwing an exception.
+ * Use this in controllers instead of `throw ResponseException(...).Method()`.
+ *
+ * @param data - Response payload (JSON-serializable).
+ * @param status - HTTP status code.
+ * @returns A response object compatible with catchSync.
+ */
+export const sendResponse = (data: unknown, status: number): ResponseObject => ({
+  status,
+  data,
+});
