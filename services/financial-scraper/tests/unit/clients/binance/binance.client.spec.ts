@@ -41,7 +41,7 @@ import {
   getOrderBook,
   getRecentTrades,
   getHistoricalTrades,
-  CandlestickData,
+  getCandlestickData,
   getCompressedAggregateTrades,
   get24hrTickerStats,
   getTradingDayTicker,
@@ -87,13 +87,13 @@ describe('BinanceClient', () => {
     expect(mockGet).toHaveBeenCalledWith('/api/v3/historicalTrades', { weight: 25 } as never);
   });
 
-  it('CandlestickData should call candlesticks endpoint with weight', async () => {
-    await CandlestickData('BTCUSDT', 100, '1m', 1620000000000);
+  it('getCandlestickData should call candlesticks endpoint with weight', async () => {
+    await getCandlestickData('BTCUSDT', 100, '1m', 1620000000000);
     expect(mockGet).toHaveBeenCalledWith('/api/v3/klines', { weight: 2 } as never);
   });
 
-  it('CandlestickData should use default limit', async () => {
-    await CandlestickData('BTCUSDT', undefined, '1m', 1620000000000);
+  it('getCandlestickData should use default limit', async () => {
+    await getCandlestickData('BTCUSDT', undefined, '1m', 1620000000000);
     expect(mockGet).toHaveBeenCalledWith('/api/v3/klines', { weight: 2 } as never);
   });
 

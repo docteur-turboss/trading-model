@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { MessageMetadata } from '../../src/shared/helper/messages/message';
-import { MetadataBuilderError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -81,7 +81,7 @@ describe('MessageMetadata', () => {
         serviceName: ServiceInstanceName.DiscoveryService,
         instanceId: '550e8400-e29b-41d4-a716-446655440000',
       });
-      expect(() => m.toJSON()).toThrow(MetadataBuilderError);
+      expect(() => m.toJSON()).toThrow(AppError);
     });
 
     it('should throw if eventType not set', () => {
@@ -89,12 +89,12 @@ describe('MessageMetadata', () => {
         serviceName: ServiceInstanceName.DiscoveryService,
         instanceId: '550e8400-e29b-41d4-a716-446655440000',
       });
-      expect(() => m.toJSON()).toThrow(MetadataBuilderError);
+      expect(() => m.toJSON()).toThrow(AppError);
     });
 
     it('should throw if publisher not set', () => {
       const m = new MessageMetadata().setTopic('test.event.created').setEventType('Test');
-      expect(() => m.toJSON()).toThrow(MetadataBuilderError);
+      expect(() => m.toJSON()).toThrow(AppError);
     });
 
     it('should return complete metadata', () => {

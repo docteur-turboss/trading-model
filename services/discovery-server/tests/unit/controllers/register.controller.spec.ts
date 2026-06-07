@@ -7,13 +7,14 @@ jest.mock('@trading-model/common/middleware/catch-error', () => ({
 }));
 
 jest.mock('@trading-model/common/middleware/response-exception', () => {
+  const sendResponse = (data: any, status: number) => ({ status, data });
   const ResponseException = jest.fn((body: any) => ({
     BadRequest: () => ({ type: 'BadRequest' as const, error: body }),
     NotFound: () => ({ type: 'NotFound' as const, error: body }),
     OK: () => ({ type: 'OK' as const, ...body }),
     Success: () => ({ type: 'Success' as const, ...body }),
   }));
-  return { ResponseException };
+  return { sendResponse, ResponseException };
 });
 
 jest.mock('@trading-model/common/validation/primitives', () => ({
@@ -40,7 +41,7 @@ describe('Register.controller', () => {
     it('should reject null body with BadRequest', async () => {
       await expect(
         controller.register(createReq({ body: null }), createRes(), createNext)
-      ).rejects.toMatchObject({ type: 'BadRequest', error: 'Invalid request body' });
+      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid request body' } });
     });
 
     it('should reject missing serviceName with BadRequest', async () => {
@@ -50,14 +51,14 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).rejects.toMatchObject({ type: 'BadRequest', error: 'serviceName is required' });
+      ).resolves.toMatchObject({ status: 400, data: { error: 'serviceName is required' } });
     });
 
     it('should reject invalid service name with BadRequest', async () => {
       const invalidPayload = { ...validRegisterPayload, serviceName: 'unknown-service' };
       await expect(
         controller.register(createReq({ body: invalidPayload }), createRes(), createNext)
-      ).rejects.toMatchObject({ type: 'BadRequest', error: 'Invalid service name' });
+      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid service name' } });
     });
 
     it('should reject invalid IP with BadRequest', async () => {
@@ -67,7 +68,7 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).rejects.toMatchObject({ type: 'BadRequest', error: 'Invalid IP address' });
+      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid IP address' } });
     });
 
     it('should reject invalid port with BadRequest', async () => {
@@ -77,15 +78,15 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).rejects.toMatchObject({ type: 'BadRequest', error: 'Invalid port' });
+      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid port' } });
     });
 
     it('should register a new instance and return OK with generated instanceId', async () => {
       await expect(
         controller.register(createReq({ body: validRegisterPayload }), createRes(), createNext)
-      ).rejects.toMatchObject({
-        type: 'OK',
-        serviceName: validRegisterPayload.serviceName,
+      ).resolves.toMatchObject({
+        status: 201,
+        data: { serviceName: validRegisterPayload.serviceName },
       });
     });
 
@@ -93,9 +94,9 @@ describe('Register.controller', () => {
       const body = { ...validRegisterPayload, instanceId: 'custom-id' };
       await expect(
         controller.register(createReq({ body }), createRes(), createNext)
-      ).rejects.toMatchObject({
-        type: 'OK',
-        instanceId: 'custom-id',
+      ).resolves.toMatchObject({
+        status: 201,
+        data: { instanceId: 'custom-id' },
       });
     });
 
@@ -106,7 +107,7 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).rejects.toMatchObject({ type: 'BadRequest', error: 'Invalid instanceId' });
+      ).resolves.toMatchObject({ status: 400, data: { error: 'Invalid instanceId' } });
     });
   });
 
@@ -114,7 +115,7 @@ describe('Register.controller', () => {
     it('should return list of service names', async () => {
       await expect(
         controller.listServices(createReq(), createRes(), createNext)
-      ).rejects.toMatchObject({ type: 'Success' });
+      ).resolves.toMatchObject({ status: 200 });
     });
 
     it('should return registered service names', async () => {
@@ -131,7 +132,7 @@ describe('Register.controller', () => {
 
       await expect(
         controller.listServices(createReq(), createRes(), createNext)
-      ).rejects.toMatchObject({ type: 'Success' });
+      ).resolves.toMatchObject({ status: 200 });
     });
   });
 
@@ -139,7 +140,7 @@ describe('Register.controller', () => {
     it('should reject missing serviceName with BadRequest', async () => {
       await expect(
         controller.getServiceInstances(createReq({ params: {} }), createRes(), createNext)
-      ).rejects.toMatchObject({ type: 'BadRequest' });
+      ).resolves.toMatchObject({ status: 400 });
     });
 
     it('should reject unknown service name with NotFound', async () => {
@@ -149,7 +150,7 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).rejects.toMatchObject({ type: 'NotFound', error: 'Unknown service' });
+      ).resolves.toMatchObject({ status: 404, data: { error: 'Unknown service' } });
     });
 
     it('should return instances for known service', async () => {
@@ -170,7 +171,7 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).rejects.toMatchObject({ type: 'Success' });
+      ).resolves.toMatchObject({ status: 200 });
     });
   });
 
@@ -182,7 +183,7 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).rejects.toMatchObject({ type: 'BadRequest' });
+      ).resolves.toMatchObject({ status: 400 });
     });
 
     it('should reject unknown instance with NotFound', async () => {
@@ -192,7 +193,7 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).rejects.toMatchObject({ type: 'NotFound' });
+      ).resolves.toMatchObject({ status: 404 });
     });
 
     it('should return instance when found', async () => {
@@ -215,7 +216,7 @@ describe('Register.controller', () => {
           createRes(),
           createNext
         )
-      ).rejects.toMatchObject({ type: 'Success' });
+      ).resolves.toMatchObject({ status: 200 });
     });
   });
 });
