@@ -84,10 +84,20 @@ Data is stored in a `MarketDataBuffer` (configurable window via `TRAINER_DATA_WI
 
 ## Neural Network
 
-- Configurable architecture (layers, neurons per layer)
+Configurable via `NeuralNetworkConfig` (a composition of focused interfaces per ISP):
+
+| Interface               | Properties                                      |
+| ----------------------- | ----------------------------------------------- |
+| `NetworkArchitecture`   | neuronsByLayer, activationType, connectionType, normalisationType, normalizedInputRange, enablePool, poolMaxSize |
+| `LossConfig`            | lossFunctionType, deltaHuber |
+| `OptimizerConfig`       | optimizerType, optimizerHyperparams, learningRate, gradientClipNorm |
+| `InitializationConfig`  | initialisationType, useBias, biasInitialisationType |
+| `MutationConfig`        | biasMutationScale, weightMutationScale |
+
 - Activation functions: ReLU, sigmoid, tanh, etc.
 - Optimisers: Adam, SGD, etc.
 - Weights encoded in the genetic algorithm genome
+- `Agent` accepts `NetworkArchitecture` only (ISP) and passes through to `NeuralNetwork`
 
 ## Environment Variables (TRAINER\_\*)
 
