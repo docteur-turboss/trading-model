@@ -33,12 +33,9 @@ Services interact with the broker through the `@trading-model/broker-message` SD
 ├────────────────────────────────────────────────────┤
 │                     Core                            │
 │  ┌──────────────────────────────────────────────┐  │
-│  │   Broker (broker.ts)                          │  │
-│  │   Facade: publish / subscribe / unsubscribe  │  │
-│  │   Enriches messageId + emittedAt              │  │
-│  └──────────────────────────────────────────────┘  │
-│  ┌──────────────────────────────────────────────┐  │
 │  │   Dispatcher (dispatcher.ts)                  │  │
+│  │   publish / subscribe / unsubscribe          │  │
+│  │   Enriches messageId + emittedAt              │  │
 │  │   In-memory topic → [Subscription] map       │  │
 │  │   Deduplicates by instanceId                 │  │
 │  │   Parallel dispatch via Promise.allSettled   │  │
@@ -61,23 +58,15 @@ Services interact with the broker through the `@trading-model/broker-message` SD
 
 ## Components
 
-### Broker (`messaging/core/broker.ts`)
-
-Public facade exposing the messaging API. Responsibilities:
-
-- **`publish(payload, metadata)`** — Creates a `message` envelope with auto-generated `messageId` (UUID) and `emittedAt` timestamp, then delegates to the Dispatcher.
-- **`subscribe({ topic, callbackPath, consumerIdentity })`** — Registers a subscription for a service instance.
-- **`unsubscribe({ topic, instanceId })`** — Removes a subscription.
-
-The Broker does **not** perform persistence, routing, or delivery logic — it is a thin orchestration layer over the Dispatcher.
-
 ### Dispatcher (`messaging/core/dispatcher.ts`)
 
-In-memory message router. Responsibilities:
+Central message router exposing the messaging API. Responsibilities:
 
+- **`publish(payload, metadata)`** — Creates a `message` envelope with auto-generated `messageId` (UUID) and `emittedAt` timestamp, then dispatches to subscribers.
+- **`subscribe({ topic, callbackPath, consumerIdentity })`** — Registers a subscription for a service instance.
+- **`unsubscribe({ topic, instanceId })`** — Removes a subscription.
 - Maintains a `Map<string, ReadonlyArray<Subscription>>` mapping topic names to subscriber subscriptions.
-- **`registerSubscription()`** — Adds a subscription, skipping duplicates (same topic + instanceId).
-- **`unregisterSubscription()`** — Removes a subscription by topic + instanceId.
+- Deduplicates subscriptions by `instanceId` (same topic + instanceId).
 - **`dispatch(message)`** — Looks up subscriptions by message topic, deduplicates by instanceId, and dispatches to all matching subscribers in parallel via `Promise.allSettled`. Individual failures are isolated.
 
 ### Subscription (`messaging/core/subscription.ts`)
@@ -139,7 +128,7 @@ Zod schemas enforce payload correctness at the HTTP boundary:
 ### Subscribe → Publish → Deliver
 
 ```
-Service A                    Broker                       Service B
+Service A                    Dispatcher                    Service B
    |                           |                              |
    |— POST /subscription ——→   |                              |
    |  { topic, callbackPath,   |                              |
@@ -220,7 +209,7 @@ Service A                    Broker                       Service B
 - All HTTP communication is over **HTTPS with mutual TLS** (mTLS).
 - The service validates client certificates on every request.
 - Subscriber callbacks are delivered over HTTPS using mTLS to the discovered service endpoint.
-- Zod schema validation prevents malformed or malicious payloads from entering the broker.
+- Zod schema validation prevents malformed or malicious payloads from entering the dispatcher.
 - Rate limiting (100 requests per 15-minute window by default) protects against abuse.
 
 ---

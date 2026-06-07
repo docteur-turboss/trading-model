@@ -17,11 +17,7 @@ import type {
 } from './genome-types';
 
 /** Create a genome with sensible default values for network, RL hyperparameters, mutation, crossover, and GA control. */
-export function createDefaultGenome(
-  id: string,
-  generation = 0,
-  _rng?: () => number // reserved for future stochastic factories
-): Genome {
+export function createDefaultGenome(id: string, generation = 0): Genome {
   const network: NetworkGenome = {
     inputDim: 32,
     outputDim: 3,

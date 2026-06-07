@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import {
   MarketDataBuffer,
-  RunningNormalizer,
+  NormalizationStats,
   TradingSymbol,
   toSymbol,
   fromSymbol,
@@ -374,11 +374,11 @@ describe('MarketDataBuffer', () => {
   });
 });
 
-describe('RunningNormalizer', () => {
-  let norm: RunningNormalizer;
+describe('NormalizationStats', () => {
+  let norm: NormalizationStats;
 
   beforeEach(() => {
-    norm = new RunningNormalizer();
+    norm = new NormalizationStats();
   });
 
   it('should start with mean and std of zero', () => {

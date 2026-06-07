@@ -40,10 +40,10 @@ describe('Utils - generateId', () => {
   });
 });
 
-describe('Utils - RunningStats', () => {
-  test('should have default std of 1 and mu of 0', () => {
+describe('Utils - NormalizationStats', () => {
+  test('should have default std of 0 and mu of 0', () => {
     const stats = new RunningStats();
-    expect(stats.std).toBe(1);
+    expect(stats.std).toBe(0);
     expect(stats.mu).toBe(0);
   });
 

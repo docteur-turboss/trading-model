@@ -15,6 +15,7 @@ import {
   LamarckGenome,
 } from './genome-types';
 import { mutateGenome } from './mutation';
+import { ParetoArchive } from './pareto-engine';
 import { makePRNG } from './prng';
 import { selectParent } from './selection';
 import { generateId, RunningStats, computeVariance, computeSharpe } from './utils';
@@ -589,46 +590,6 @@ function buildPopulationMeta(objectives: ObjectiveVector[], rng: () => number): 
 }
 
 // ----------------------------------------------------------------
-// Elitist Pareto archive (persists across generations)
-// ----------------------------------------------------------------
-class ParetoArchive {
-  private _members: DeepReadonly<LamarckGenome>[] = [];
-  private _objs: ObjectiveVector[] = [];
-
-  /**
-   * Offer new candidates to the archive.
-   * A candidate is accepted if it is not dominated by any current archive member.
-   * Any archive members dominated by the new candidate are evicted.
-   * Returns true if the archive changed.
-   */
-  update(genomes: DeepReadonly<LamarckGenome>[], objectives: ObjectiveVector[]): boolean {
-    let changed = false;
-
-    for (let ci = 0; ci < genomes.length; ci++) {
-      const cObj = objectives[ci];
-      /* istanbul ignore if */
-      if (this._objs.some(aObj => dominates(aObj, cObj))) continue;
-
-      // Evict dominated archive members
-      const keep = this._members.map((_, ai) => !dominates(cObj, this._objs[ai]));
-      this._members = [...this._members.filter((_, i) => keep[i]), genomes[ci]];
-      this._objs = [...this._objs.filter((_, i) => keep[i]), cObj];
-      changed = true;
-    }
-
-    return changed;
-  }
-
-  get members(): DeepReadonly<LamarckGenome>[] {
-    return this._members;
-  }
-  /* istanbul ignore next */
-  get size(): number {
-    return this._members.length;
-  }
-}
-
-// ----------------------------------------------------------------
 // Self-adaptive GA control update
 // ----------------------------------------------------------------
 function adaptGAControl(
@@ -719,10 +680,9 @@ export class GeneticAlgorithmRunner {
       ...createDefaultGenome('base').gaControl,
       ...baseControl,
     } as GAControlGenome);
-    const rng = makePRNG(ctrl.networkSeed);
 
     this.population = Array.from({ length: ctrl.populationSize }, (_, i) => {
-      const g = createDefaultGenome(`g0_${i}`, 0, rng) as LamarckGenome;
+      const g = createDefaultGenome(`g0_${i}`, 0) as LamarckGenome;
       return deepFreeze({
         ...g,
         gaControl: ctrl,

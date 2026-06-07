@@ -28,7 +28,6 @@ import { Application } from 'express';
 import { HttpClient } from '@trading-model/common/config/http-client';
 
 import { BrokerConfig } from './broker.type';
-import { Broker } from './core/broker';
 import { Dispatcher } from './core/dispatcher';
 import { DqlRepository } from './core/dlq-repository';
 import { BrokerRoutes } from './transport/http.routes';
@@ -38,13 +37,10 @@ import { BrokerRoutes } from './transport/http.routes';
  *
  * @description
  * Encapsulates the broker system initialization.
- * Instantiates the HTTP client, dispatcher, and broker core,
+ * Instantiates the HTTP client and dispatcher,
  * and exposes an Express listener to attach broker routes.
  */
 export default class BrokerModule {
-  /** Core Broker instance */
-  private Broker: Broker;
-
   /** Dispatcher managing subscriptions and message delivery */
   private Dispatcher: Dispatcher;
 
@@ -69,8 +65,7 @@ export default class BrokerModule {
 
     const dqlRepository = new DqlRepository();
     this.Dispatcher = new Dispatcher(this.HTTPCLIENT, dqlRepository);
-    this.Broker = new Broker(this.Dispatcher);
 
-    this.listen = app => app.use(BrokerRoutes(this.Broker));
+    this.listen = app => app.use(BrokerRoutes(this.Dispatcher));
   }
 }

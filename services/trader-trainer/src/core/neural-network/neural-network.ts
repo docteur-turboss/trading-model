@@ -432,25 +432,19 @@ export class NeuralNetwork {
     const layer = this.layers[layerIndex];
     const { fanIn, fanOut, gradW, gradB, accumGradW, accumGradB } = layer;
 
-    // Compute gradient = delta ⊗ input (outer product)
     for (let j = 0; j < fanOut; j++) {
       const rowOffset = j * fanIn;
       const deltaJ = delta[j];
 
       if (applyImmediately) {
         gradB[j] = deltaJ;
-        for (let k = 0; k < fanIn; k++) {
-          gradW[rowOffset + k] = deltaJ * layerInput[k];
-        }
+        this.computeWeightGradient(gradW, rowOffset, deltaJ, layerInput, fanIn);
       } else {
         accumGradB[j] += deltaJ;
-        for (let k = 0; k < fanIn; k++) {
-          accumGradW[rowOffset + k] += deltaJ * layerInput[k];
-        }
+        this.computeWeightGradient(accumGradW, rowOffset, deltaJ, layerInput, fanIn);
       }
     }
 
-    // Apply immediately if requested
     if (applyImmediately) {
       const opt = OPTIMIZERS[this.config.optimizerType];
       const { weights, bias, wState, bState } = layer;
@@ -463,13 +457,24 @@ export class NeuralNetwork {
     }
   }
 
-  /**
+  private computeWeightGradient(
+    weightBuf: Float32Array,
+    rowOffset: number,
+    deltaJ: number,
+    input: Float32Array,
+    fanIn: number
+  ): void {
+    for (let k = 0; k < fanIn; k++) {
+      weightBuf[rowOffset + k] += deltaJ * input[k];
+    }
+  }
+
   /**
    * Performs full backpropagation using explicit forward context.
-   * 
+   *
    * **Refactored**: Eliminates hidden state coupling between forward() and backprop().
    * All computation state is passed explicitly via {@link ForwardContext}.
-   * 
+   *
    * @param context - {@link ForwardContext} from corresponding forward() call
    * @param target - Ground truth labels for loss computation
    */

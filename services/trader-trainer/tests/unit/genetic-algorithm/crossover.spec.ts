@@ -1,46 +1,46 @@
 import { describe, expect, test } from '@jest/globals';
 import { crossoverScalar, crossoverGenomes } from '../../../src/core/genetic-algorithm/crossover';
 import { createDefaultGenome } from '../../../src/core/genetic-algorithm/factory';
-import type { CrossoverType } from '../../../src/core/genetic-algorithm/genome-types';
 
 describe('Crossover - crossoverScalar', () => {
   const rng = () => 0.5;
+  const co = { type: 'arithmetic' as const, probability: 1, blendAlpha: 0.5, sbxEta: 2 };
   const alpha = 0.5;
   const eta = 2;
 
   test('arithmetic crossover should interpolate', () => {
-    const result = crossoverScalar(10, 20, 'arithmetic', alpha, eta, rng);
+    const result = crossoverScalar(10, 20, co, rng);
     expect(result).toBe(15);
   });
 
   test('blend crossover should return value within range', () => {
-    const result = crossoverScalar(10, 20, 'blend', alpha, eta, rng);
+    const result = crossoverScalar(10, 20, { ...co, type: 'blend' }, rng);
     expect(result).toBeGreaterThanOrEqual(5);
     expect(result).toBeLessThanOrEqual(25);
   });
 
   test('sbx crossover should return valid value', () => {
-    const result = crossoverScalar(10, 20, 'sbx', alpha, eta, rng);
+    const result = crossoverScalar(10, 20, { ...co, type: 'sbx' }, rng);
     expect(Number.isFinite(result)).toBe(true);
   });
 
   test('uniform crossover should pick one of the parents', () => {
-    const result = crossoverScalar(10, 20, 'uniform', alpha, eta, rng);
+    const result = crossoverScalar(10, 20, { ...co, type: 'uniform' }, rng);
     expect([10, 20]).toContain(result);
   });
 
   test('uniform crossover with rng < 0.5 picks first parent', () => {
-    const result = crossoverScalar(10, 20, 'uniform', alpha, eta, () => 0.3);
+    const result = crossoverScalar(10, 20, { ...co, type: 'uniform' }, () => 0.3);
     expect(result).toBe(10);
   });
 
   test('uniform crossover with rng >= 0.5 picks second parent', () => {
-    const result = crossoverScalar(10, 20, 'uniform', alpha, eta, () => 0.7);
+    const result = crossoverScalar(10, 20, { ...co, type: 'uniform' }, () => 0.7);
     expect(result).toBe(20);
   });
 
   test('sbx crossover with u < 0.5 should use first beta branch', () => {
-    const result = crossoverScalar(10, 20, 'sbx', alpha, eta, () => 0.3);
+    const result = crossoverScalar(10, 20, { ...co, type: 'sbx' }, () => 0.3);
     expect(Number.isFinite(result)).toBe(true);
   });
 });
