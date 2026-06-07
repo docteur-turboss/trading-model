@@ -11,6 +11,9 @@ import {
 } from '@trading-model/common/config/event.types';
 
 import { MarketStep } from './genetic-algorithm/genome-types';
+import { NormalizationStats } from './normalization-stats';
+
+export { NormalizationStats };
 
 /** A branded string representing a trading pair symbol (e.g. "BTCUSDT"). */
 export type TradingSymbol = string & { readonly __brand: unique symbol };
@@ -23,40 +26,6 @@ export function toSymbol(s: string): TradingSymbol {
 /** Convert a TradingSymbol back to a plain string for external use. */
 export function fromSymbol(s: TradingSymbol): string {
   return s;
-}
-
-/** Online running mean and standard deviation for z-score normalisation. */
-export class RunningNormalizer {
-  private mean = 0;
-  private m2 = 0;
-  private count = 0;
-
-  /** Incorporate a new observation and update running statistics. */
-  update(value: number): void {
-    this.count++;
-    const delta = value - this.mean;
-    this.mean += delta / this.count;
-    const delta2 = value - this.mean;
-    this.m2 += delta * delta2;
-  }
-
-  /** Return the running mean. */
-  getMean(): number {
-    return this.mean;
-  }
-
-  /** Return the running sample standard deviation. */
-  getStd(): number {
-    if (this.count < 2) return 0;
-    return Math.sqrt(this.m2 / (this.count - 1));
-  }
-
-  /** Normalise `value` to z-score using current running statistics. */
-  normalize(value: number): number {
-    const std = this.getStd();
-    if (std < 1e-10) return 0;
-    return (value - this.mean) / std;
-  }
 }
 
 /** Number of features produced by buildFeatures per market step. */
@@ -73,17 +42,17 @@ export type SymbolState = {
   bookTicker: BookTickerEntity | null;
   ticker24h: TickerEntity | null;
 
-  closeNorm: RunningNormalizer;
-  volumeNorm: RunningNormalizer;
-  openNorm: RunningNormalizer;
-  highNorm: RunningNormalizer;
-  lowNorm: RunningNormalizer;
-  tradePriceNorm: RunningNormalizer;
-  tradeQtyNorm: RunningNormalizer;
-  bidNorm: RunningNormalizer;
-  askNorm: RunningNormalizer;
-  spreadNorm: RunningNormalizer;
-  tickerVolumeNorm: RunningNormalizer;
+  closeNorm: NormalizationStats;
+  volumeNorm: NormalizationStats;
+  openNorm: NormalizationStats;
+  highNorm: NormalizationStats;
+  lowNorm: NormalizationStats;
+  tradePriceNorm: NormalizationStats;
+  tradeQtyNorm: NormalizationStats;
+  bidNorm: NormalizationStats;
+  askNorm: NormalizationStats;
+  spreadNorm: NormalizationStats;
+  tickerVolumeNorm: NormalizationStats;
 };
 
 /** In-memory ring buffer of market data per symbol with online feature extraction. */
@@ -106,17 +75,17 @@ export class MarketDataBuffer {
         orderBook: null,
         bookTicker: null,
         ticker24h: null,
-        closeNorm: new RunningNormalizer(),
-        volumeNorm: new RunningNormalizer(),
-        openNorm: new RunningNormalizer(),
-        highNorm: new RunningNormalizer(),
-        lowNorm: new RunningNormalizer(),
-        tradePriceNorm: new RunningNormalizer(),
-        tradeQtyNorm: new RunningNormalizer(),
-        bidNorm: new RunningNormalizer(),
-        askNorm: new RunningNormalizer(),
-        spreadNorm: new RunningNormalizer(),
-        tickerVolumeNorm: new RunningNormalizer(),
+        closeNorm: new NormalizationStats(),
+        volumeNorm: new NormalizationStats(),
+        openNorm: new NormalizationStats(),
+        highNorm: new NormalizationStats(),
+        lowNorm: new NormalizationStats(),
+        tradePriceNorm: new NormalizationStats(),
+        tradeQtyNorm: new NormalizationStats(),
+        bidNorm: new NormalizationStats(),
+        askNorm: new NormalizationStats(),
+        spreadNorm: new NormalizationStats(),
+        tickerVolumeNorm: new NormalizationStats(),
       };
       this.states.set(symbol, s);
     }

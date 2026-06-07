@@ -8,29 +8,11 @@ export function generateId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-/** Online running mean and standard deviation for z-score normalisation in reward shaping. */
-export class RunningStats {
-  private n = 0;
-  private mean = 0;
-  private M2 = 0;
+import { NormalizationStats } from '../normalization-stats';
 
-  update(x: number): void {
-    this.n++;
-    const delta = x - this.mean;
-    this.mean += delta / this.n;
-    this.M2 += delta * (x - this.mean);
-  }
-
-  get std() {
-    return this.n < 2 ? 1 : Math.sqrt(this.M2 / (this.n - 1));
-  }
-  get mu() {
-    return this.mean;
-  }
-  normalize(x: number) {
-    return (x - this.mu) / (this.std + 1e-8);
-  }
-}
+export type RunningStats = NormalizationStats;
+/** @deprecated Use `NormalizationStats` instead. */
+export const RunningStats = NormalizationStats;
 
 /** Compute the unbiased sample variance of an array of scores. */
 export function computeVariance(scores: number[]): number {
