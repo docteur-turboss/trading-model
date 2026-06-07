@@ -1,7 +1,7 @@
 import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 
 import { NeuralNetwork } from './neural-network';
-import { Experience, NeuralNetworkConfig } from './type';
+import { Experience, NetworkArchitecture, NeuralNetworkConfig } from './type';
 
 /**
  * High-level agent that wraps a {@link NeuralNetwork} and adds:
@@ -41,11 +41,10 @@ export class Agent {
   private readonly enablePool: boolean;
 
   /**
-   * @param cfg - Full network configuration forwarded to {@link NeuralNetwork}.
-   *   `enablePool` and `poolMaxSize` are consumed by the agent layer;
-   *   everything else is forwarded verbatim.
+   * @param cfg - Architecture settings consumed by the agent layer;
+   *   forwarded to {@link NeuralNetwork} with defaults for the rest.
    */
-  constructor(private readonly cfg: NeuralNetworkConfig) {
+  constructor(private readonly cfg: NetworkArchitecture) {
     if (cfg.neuronsByLayer.length < 2)
       throw new AppError(
         'neuronsByLayer must contain at least 2 entries (input + output).',
@@ -54,7 +53,7 @@ export class Agent {
 
     this.enablePool = cfg.enablePool ?? true;
     this.poolMaxSize = cfg.poolMaxSize ?? 10_000;
-    this.nn = new NeuralNetwork(cfg);
+    this.nn = new NeuralNetwork(cfg as NeuralNetworkConfig);
   }
 
   /**

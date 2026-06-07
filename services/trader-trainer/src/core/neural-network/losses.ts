@@ -1,4 +1,4 @@
-import { LossFunctionType, NeuralNetworkConfig } from './type';
+import { LossConfig, LossFunctionType } from './type';
 
 const EPSILON = 1e-10;
 
@@ -18,10 +18,10 @@ export interface LossDefinition {
    *
    * @param output - Network output activations.
    * @param target - Expected target values.
-   * @param config - Network configuration.
+   * @param config - Loss configuration.
    * @returns The scalar loss value.
    */
-  loss(output: Float32Array, target: Float32Array, config: Required<NeuralNetworkConfig>): number;
+  loss(output: Float32Array, target: Float32Array, config: Required<LossConfig>): number;
 
   /**
    * Compute the gradient of the loss with respect to the network output.
@@ -29,14 +29,10 @@ export interface LossDefinition {
    *
    * @param output - Network output activations.
    * @param target - Expected target values.
-   * @param config - Network configuration.
+   * @param config - Loss configuration.
    * @returns Gradient array of the same length as output.
    */
-  gradient(
-    output: Float32Array,
-    target: Float32Array,
-    config: Required<NeuralNetworkConfig>
-  ): Float32Array;
+  gradient(output: Float32Array, target: Float32Array, config: Required<LossConfig>): Float32Array;
 }
 
 export const LOSSES: Record<LossFunctionType, LossDefinition> = {
