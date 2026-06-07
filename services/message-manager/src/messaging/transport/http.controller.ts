@@ -24,12 +24,6 @@
  * @architecture
  * Layer connecting the **core Broker** to HTTP endpoints.
  * No business logic is performed here; purely request/response orchestration.
- *
- * @author docteur-turboss
- *
- * @version 1.0.0
- *
- * @since 2026.01.28
  */
 
 import { catchSync } from '@trading-model/common/middleware/catch-error';

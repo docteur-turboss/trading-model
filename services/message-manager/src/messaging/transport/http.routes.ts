@@ -19,12 +19,6 @@
  * @architecture
  * Part of the **API layer** in the broker system.
  * Delegates all logic to controllers and Broker core services.
- *
- * @author docteur-turboss
- *
- * @version 1.0.0
- *
- * @since 2026.01.28
  */
 
 import { Router } from 'express';

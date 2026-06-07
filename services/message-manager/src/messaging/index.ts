@@ -22,12 +22,6 @@
  * - `Dispatcher` → manages subscriptions and message delivery
  * - `Broker` → exposes publish/subscribe API
  * - `BrokerRoutes` → maps HTTP endpoints to broker actions
- *
- * @author docteur-turboss
- *
- * @version 1.0.0
- *
- * @since 2026.01.28
  */
 import { Application } from 'express';
 
