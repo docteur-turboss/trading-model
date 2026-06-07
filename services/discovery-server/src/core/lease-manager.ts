@@ -123,13 +123,9 @@ export class LeaseManager {
    * Periodic cleanup job.
    *
    * Strategy:
-   * - Take a snapshot of the registry state
-   * - Iterate over all services and their instances
+   * - Iterate over all services via listServiceNames()
+   * - For each service, iterate over its instances via getInstances()
    * - Remove instances whose lease has expired
-   *
-   * Note:
-   * The snapshot approach avoids mutation issues while iterating
-   * over the underlying registry structure.
    */
   private cleanupExpiredInstances(): void {
     const now = Date.now();

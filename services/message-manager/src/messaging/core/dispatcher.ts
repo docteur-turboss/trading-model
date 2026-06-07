@@ -115,8 +115,7 @@ export class Dispatcher {
    * Dispatch a message to all subscribers of its topic.
    *
    * @description
-   * Resolves all subscriptions matching the message topic,
-   * deduplicates them by service instance identifier,
+   * Resolves all subscriptions matching the message topic
    * and dispatches the message to each subscription in parallel.
    *
    * Message delivery failures are isolated and do not prevent
