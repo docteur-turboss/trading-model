@@ -24,8 +24,8 @@ jest.mock('../../src/http/messages.routes', () => ({
 
 import BrokerMessage from '../../src/index';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+ 
+ 
 
 describe('BrokerMessage', () => {
   let broker: any;

@@ -4,7 +4,7 @@ import { ServiceInstance } from '../../src/client/type';
 import { ServiceHealthChecker } from '../../src/discovery/service-health-checker';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { AddressManagerConfig } from '../../src/config/address-manager-config';
-import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import { AppError } from '@trading-model/common/utils/errors';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 describe('ServiceDiscovery', () => {

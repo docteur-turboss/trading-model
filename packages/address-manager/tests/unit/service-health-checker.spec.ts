@@ -5,7 +5,7 @@ import { MappingServiceLocator, IpAddressLocator } from '../../src/discovery/ser
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('ServiceHealthChecker', () => {
   let httpClient: jest.Mocked<HttpClient>;

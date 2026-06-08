@@ -73,7 +73,7 @@ describe('MarketDataController — persist integration', () => {
   });
 
   it('should call all insert methods concurrently', async () => {
-    let order: string[] = [];
+    const order: string[] = [];
 
     (MarketDataModel.insertCandles as Mock).mockImplementation(async () => {
       order.push('candles');

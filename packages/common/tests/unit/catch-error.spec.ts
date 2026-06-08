@@ -1,7 +1,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { catchSync } from '../../src/middleware/catch-error';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('catchSync', () => {
   let req: any;

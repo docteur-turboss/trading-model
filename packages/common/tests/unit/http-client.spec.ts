@@ -10,7 +10,7 @@ import fs from 'fs';
 import { HttpClient, HttpClientError, HttpClientTimeoutError } from '../../src/config/http-client';
 import https from 'https';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('HttpClient', () => {
   let client: HttpClient;

@@ -1,8 +1,8 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { validateEnv, BaseEnvSchema, AddressManagerEnvSchema } from '../../src/validation/env';
-import { AppError, ErrorCodes } from '../../src/utils/errors';
+import { AppError } from '../../src/utils/errors';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('validateEnv', () => {
   const OLD_ENV = process.env;

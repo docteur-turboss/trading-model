@@ -66,7 +66,7 @@ import { rateLimit } from 'express-rate-limit';
 import https from 'node:https';
 import fs from 'node:fs/promises';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('createSecureServer', () => {
   const defaultOptions = {

@@ -10,7 +10,7 @@ jest.mock('fs', () => ({
 import { appendFile } from 'fs';
 const mockAppendFile = appendFile as unknown as jest.Mock;
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('Logger', () => {
   let logger: Logger;

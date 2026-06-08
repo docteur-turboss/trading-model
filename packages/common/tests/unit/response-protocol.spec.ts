@@ -2,7 +2,7 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { ResponseProtocol } from '../../src/middleware/response-protocol';
 import { AppError, ErrorCodes } from '../../src/utils/errors';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('ResponseProtocol', () => {
   let req: any;

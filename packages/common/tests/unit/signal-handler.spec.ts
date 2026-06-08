@@ -12,7 +12,7 @@ jest.mock('../../src/config/logger', () => ({
 
 import { setupProcessHandlers, removeProcessHandlers } from '../../src/server/signal-handler';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('signal-handler', () => {
   let processOnSpy: any;

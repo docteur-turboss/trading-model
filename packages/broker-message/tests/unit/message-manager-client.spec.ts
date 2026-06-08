@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { MessageManagerClient } from '../../src/client/message-manager-client';
-import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import { AppError } from '@trading-model/common/utils/errors';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('MessageManagerClient', () => {
   let client: MessageManagerClient;

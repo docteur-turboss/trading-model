@@ -1,9 +1,9 @@
 import { describe, it, expect } from '@jest/globals';
 import { MessageMetadata } from '../../src/shared/helper/messages/message';
-import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import { AppError } from '@trading-model/common/utils/errors';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 function buildMinimalMetadata(): MessageMetadata {
   return new MessageMetadata()

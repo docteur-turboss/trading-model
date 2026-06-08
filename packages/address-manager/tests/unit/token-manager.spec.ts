@@ -1,7 +1,7 @@
 import { TokenManager } from '../../src/client/token-manager';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { AddressManagerConfig } from '../../src/config/address-manager-config';
-import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import { AppError } from '@trading-model/common/utils/errors';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 describe('TokenManager', () => {

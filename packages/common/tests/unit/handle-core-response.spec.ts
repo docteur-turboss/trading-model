@@ -11,7 +11,7 @@ import {
 } from '../../src/middleware/handle-core-error';
 import ChainedError from 'chained-error';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('handleCoreResponse', () => {
   let res: any;

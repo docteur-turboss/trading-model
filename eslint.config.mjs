@@ -26,6 +26,7 @@ export default defineConfig([
   },
   {
     files: ['**/*.ts'],
+    ignores: ['**/tests/**', '**/integration/**'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 'latest',
@@ -68,6 +69,22 @@ export default defineConfig([
           ],
         },
       },
+    },
+  },
+  {
+    files: ['**/tests/**/*.ts', '**/integration/**/*.ts'],
+    ignores: ['**/node_modules/**'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      globals: { ...globals.node, ...globals.jest },
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-unsafe-function-type': 'off',
+      'no-useless-assignment': 'off',
     },
   },
 ]);
