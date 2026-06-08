@@ -4,14 +4,14 @@
 #  docker build -t trading-model/message-manager -f services/message-manager/Dockerfile .
 # =============================================================================
 
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/ packages/
 COPY services/message-manager/package.json services/message-manager/
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/ packages/
@@ -22,7 +22,7 @@ RUN npm run build:address-manager
 WORKDIR /app/services/message-manager
 RUN npm run build
 
-FROM node:22-alpine AS runtime
+FROM node:26-alpine AS runtime
 WORKDIR /app
 RUN apk add --no-cache tini curl
 
