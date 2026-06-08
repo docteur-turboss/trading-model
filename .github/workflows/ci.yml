@@ -54,6 +54,10 @@ jobs:
       - run: npm run build
       - run: npm run test:coverage
 
+      - name: Import Codecov GPG key
+        run: |
+          gpg --keyserver keyserver.ubuntu.com --recv-keys 27034E7FDB850E0BBC2C62FF806BB28AED779869
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
