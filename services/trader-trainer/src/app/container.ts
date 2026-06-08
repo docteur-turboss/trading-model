@@ -5,6 +5,7 @@ import {
   BookTickerData,
   TickerData,
   EnumEventMessage,
+  EventEnumMap,
 } from '@trading-model/common/config/event.types';
 
 import { MarketDataBuffer, MarketDataBufferConfig } from '../core/market-data-buffer';
@@ -75,7 +76,7 @@ export class ApplicationContainer {
     this.dataBuffer.setPriceSnapshot(data.price);
   }
 
-  getSubscribedIntents(): string[] {
+  getSubscribedIntents(): EventEnumMap[] {
     return [
       EnumEventMessage.fetchCandlestickSeries,
       EnumEventMessage.fetchRecentTrades,
