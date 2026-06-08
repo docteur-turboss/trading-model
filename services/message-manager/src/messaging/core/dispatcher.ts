@@ -17,6 +17,8 @@ import {
 } from '@trading-model/common/contracts/message.types';
 
 import { DqlRepository } from './dlq-repository';
+import { HttpMessageDelivery } from './http-message-delivery';
+import { sanitizePayload } from './payload-sanitizer';
 import { Subscription } from './subscription';
 
 /** Coordinates message delivery between published messages and registered subscriptions. */
@@ -25,11 +27,14 @@ export class Dispatcher {
    * In-memory mapping of topics to subscriptions.
    */
   private subscriptionsByTopic = new Map<string, ReadonlyArray<Subscription>>();
+  private readonly deliveryPort: HttpMessageDelivery;
 
   constructor(
     private httpClient: HttpClient,
     private readonly dlqRepository: DqlRepository
-  ) {}
+  ) {
+    this.deliveryPort = new HttpMessageDelivery(httpClient, dlqRepository);
+  }
 
   /** Publish a message to subscribers. */
   async publish(payload: unknown, metadata: Omit<MessageMetadata, 'emittedAt' | 'messageId'>) {
@@ -39,7 +44,7 @@ export class Dispatcher {
         emittedAt: new Date(),
         messageId: randomUUID(),
       },
-      payload,
+      payload: sanitizePayload(payload),
     };
 
     await this.dispatch(Msg);
@@ -53,12 +58,7 @@ export class Dispatcher {
 
     if (current.some(s => s.serviceIdentity.instanceId === consumerIdentity.instanceId)) return;
 
-    const subscription = new Subscription(
-      topic,
-      callbackPath,
-      consumerIdentity,
-      this.dlqRepository
-    );
+    const subscription = new Subscription(topic, callbackPath, consumerIdentity, this.deliveryPort);
 
     this.subscriptionsByTopic.set(topic, [...current, subscription]);
   }
@@ -70,12 +70,12 @@ export class Dispatcher {
     if (!subscriptions?.length) return;
 
     const results = await Promise.allSettled(
-      subscriptions.map(subscription => subscription.dispatch(this.httpClient, message))
+      subscriptions.map(subscription => subscription.dispatch(message))
     );
 
     for (const result of results) {
       if (result.status === 'rejected') {
-        logger.error('[Dispatcher] Message delivery failed:', { error: result.reason });
+        logger.error('Message delivery failed', { error: result.reason });
       }
     }
   }

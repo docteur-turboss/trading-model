@@ -1,4 +1,5 @@
 import { logger } from '@trading-model/common/config/logger';
+import { normalizeError } from '@trading-model/common/utils/errors';
 
 import { ServiceRegistry } from './service-registry';
 import { ServiceInstance } from './types';
@@ -74,11 +75,11 @@ export class LeaseManager {
          * Errors must be caught to avoid crashing the scheduler.
          * Any unexpected failure is logged for observability.
          */
-        logger.error('[LeaseManager] Cleanup error:', { error: err });
+        logger.error('Cleanup error', { error: normalizeError(err) });
       }
     }, this.cleanupIntervalMs);
 
-    logger.info(`[LeaseManager] Started. Cleanup every ${this.cleanupIntervalMs}ms`);
+    logger.info('Cleanup loop started', { cleanupIntervalMs: this.cleanupIntervalMs });
   }
 
   /**
@@ -91,7 +92,7 @@ export class LeaseManager {
     if (this.intervalHandle) {
       clearInterval(this.intervalHandle);
       this.intervalHandle = undefined;
-      logger.info('[LeaseManager] Stopped.');
+      logger.info('Cleanup loop stopped');
     }
   }
 
@@ -135,17 +136,18 @@ export class LeaseManager {
         const expired = now - instance.lastHeartbeat > instance.ttl;
 
         if (expired) {
-          logger.warn(
-            `[LeaseManager] Expired instance removed: ${instance.instanceId} (service=${serviceName})`
-          );
+          logger.warn('Expired instance removed', {
+            serviceName,
+            instanceId: instance.instanceId,
+          });
 
           try {
             this.registry.removeInstance(serviceName, instance.instanceId);
           } catch (err) {
-            logger.error('[LeaseManager] Failed to remove expired instance:', {
+            logger.error('Failed to remove expired instance', {
               serviceName,
               instanceId: instance.instanceId,
-              error: err,
+              error: normalizeError(err),
             });
           }
         }

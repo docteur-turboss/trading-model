@@ -55,7 +55,7 @@ export class BinanceCronOrchestrator {
   public start(): void {
     cron.schedule(this.config.schedule, async () => {
       if (this.isRunning) {
-        logger.warn('[BinanceCron] Previous execution still running.');
+        logger.warn('Previous execution still running');
         return;
       }
 
@@ -65,18 +65,18 @@ export class BinanceCronOrchestrator {
         await this.executeBatch();
       } catch (err) {
         if (err instanceof Error) {
-          logger.error('[BinanceCron] Batch execution error:', {
+          logger.error('Batch execution error', {
             err: err.message,
           });
         } else {
-          logger.error('[BinanceCron] Unknown batch execution error:', { err: String(err) });
+          logger.error('Unknown batch execution error', { err: String(err) });
         }
       } finally {
         this.isRunning = false;
       }
     });
 
-    logger.info(`[BinanceCron] Scheduled with maxConcurrency=${this.maxConcurrency}`);
+    logger.info('Scheduler started', { maxConcurrency: this.maxConcurrency });
   }
 
   /**
@@ -111,6 +111,6 @@ export class BinanceCronOrchestrator {
   protected async persist(data: BinanceWorkerResult): Promise<void> {
     await MarketDataController.persist(data);
 
-    logger.debug('[BinanceCron] Data fetched at: ' + Date.now());
+    logger.debug('Data persisted');
   }
 }

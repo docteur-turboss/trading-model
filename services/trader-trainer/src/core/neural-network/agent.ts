@@ -19,8 +19,7 @@ import { Experience, NetworkArchitecture, NeuralNetworkConfig } from './type';
  * |
  */
 export class Agent {
-  /** Underlying neural network — exposed as `readonly` for direct access. */
-  public readonly nn: NeuralNetwork;
+  private readonly nn: NeuralNetwork;
 
   /** Accumulated scores added via {@link addScore}. */
   private scores: number[] = [];
@@ -115,7 +114,18 @@ export class Agent {
 
     if (this.enablePool) {
       const id = this.nextPoolId++;
-      this.poolMap.set(id, { input, output: output.slice(), reward, nextState, done });
+      const exp: Experience =
+        reward !== undefined && nextState !== undefined
+          ? {
+              kind: 'qlearning',
+              input,
+              output: output.slice(),
+              reward,
+              nextState,
+              done: done ?? false,
+            }
+          : { kind: 'bare', input, output: output.slice() };
+      this.poolMap.set(id, exp);
       this.poolInputToId.set(input, id);
       if (this.poolMap.size > this.poolMaxSize) {
         const firstKey = this.poolMap.keys().next().value!;
@@ -148,6 +158,26 @@ export class Agent {
    * Call this after a backpropagation pass so stale experiences are not
    * reused in the next episode.
    */
+  public forward(input: Float32Array): { output: Float32Array } {
+    return this.nn.forward(input);
+  }
+
+  public getWeights(): Float32Array {
+    return this.nn.getWeights();
+  }
+
+  public setWeights(w: Float32Array): void {
+    this.nn.setWeights(w);
+  }
+
+  public parameterCount(): number {
+    return this.nn.parameterCount();
+  }
+
+  public distributeAroundWeights(mean: number, std: number): void {
+    this.nn.distributeAroundWeights(mean, std);
+  }
+
   public clearPool(): void {
     this.poolMap.clear();
     this.poolInputToId = new WeakMap();
@@ -201,7 +231,7 @@ export class Agent {
    */
   public learnFromPool(): void {
     for (const exp of this.poolMap.values()) {
-      if (exp.target) this.nn.train(exp.input, exp.target);
+      if (exp.kind === 'supervised') this.nn.train(exp.input, exp.target);
     }
     this.clearPool();
   }
@@ -223,7 +253,7 @@ export class Agent {
    * @throws {AgentError} When `reward` or `nextState` is missing.
    */
   public learnQLearning(exp: Experience, gamma: number = 0.99): void {
-    if (exp.reward === undefined || !exp.nextState)
+    if (exp.kind !== 'qlearning')
       throw new AppError(
         'Q-learning requires `reward` and `nextState` in the experience.',
         ErrorCodes.AGENT_ERROR

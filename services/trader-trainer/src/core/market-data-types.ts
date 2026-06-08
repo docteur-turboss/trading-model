@@ -1,9 +1,9 @@
 import {
-  CandleEntity,
-  TradeEntity,
-  OrderBookEntity,
-  BookTickerEntity,
-  TickerEntity,
+  CandleData,
+  TradeData,
+  OrderBookData,
+  BookTickerData,
+  TickerData,
 } from '@trading-model/common/config/event.types';
 
 import { NormalizationStats } from './normalization-stats';
@@ -28,11 +28,11 @@ export const FEATURE_DIM = 32;
 
 /** Per-symbol state: candles, trades, order book, ticker, and running normalisers. */
 export type SymbolState = {
-  candles: CandleEntity[];
-  trades: TradeEntity[];
-  orderBook: OrderBookEntity | null;
-  bookTicker: BookTickerEntity | null;
-  ticker24h: TickerEntity | null;
+  candles: CandleData[];
+  trades: TradeData[];
+  orderBook: OrderBookData | null;
+  bookTicker: BookTickerData | null;
+  ticker24h: TickerData | null;
 
   closeNorm: NormalizationStats;
   volumeNorm: NormalizationStats;

@@ -92,11 +92,11 @@ describe('Discovery Lifecycle — Full HTTP Integration', () => {
     app.use(express.json());
     app.use('/', registryRoutes(registry));
     app.use('/', heartbeatRoutes(registry));
-      return new Promise<void>(resolve => {
-        server = app.listen(0, () => {
-          resolve();
-        });
+    return new Promise<void>(resolve => {
+      server = app.listen(0, () => {
+        resolve();
       });
+    });
   });
 
   afterEach(() => {

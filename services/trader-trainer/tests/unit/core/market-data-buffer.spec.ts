@@ -55,13 +55,20 @@ describe('MarketDataBuffer', () => {
 
   beforeEach(() => {
     resetFixtureSeq();
-    buffer = new MarketDataBuffer(100);
+    buffer = new MarketDataBuffer({ maxSize: 100 });
   });
 
   it('should create buffer with default maxSize of 10000', () => {
     const buf = new MarketDataBuffer();
     feedCandles(buf, 'BTCUSDT', 10001);
     expect(buf.getCandleCount('BTCUSDT')).toBe(10000);
+  });
+
+  it('should evict oldest symbol under memory pressure with LRU policy', () => {
+    const buf = new MarketDataBuffer({ maxMemoryMb: 0.001, evictionPolicy: 'LRU' });
+    buf.addCandles('BTCUSDT', [makeCandle({ symbol: 'BTCUSDT', close: 50000, timestamp: 1 })]);
+    buf.addCandles('ETHUSDT', [makeCandle({ symbol: 'ETHUSDT', close: 3000, timestamp: 1 })]);
+    expect(buf.getCandleCount('BTCUSDT')).toBe(1);
   });
 
   describe('addCandles', () => {
@@ -92,7 +99,7 @@ describe('MarketDataBuffer', () => {
     });
 
     it('should respect maxSize bound', () => {
-      const small = new MarketDataBuffer(5);
+      const small = new MarketDataBuffer({ maxSize: 5 });
       feedCandles(small, 'BTCUSDT', 10);
 
       expect(small.getCandleCount('BTCUSDT')).toBe(5);
@@ -303,7 +310,7 @@ describe('MarketDataBuffer', () => {
     });
 
     it('should bound trade count by maxSize', () => {
-      const buf = new MarketDataBuffer(5);
+      const buf = new MarketDataBuffer({ maxSize: 5 });
       buf.addTrades(
         'BTCUSDT',
         Array.from({ length: 10 }, (_, _i) => makeTrade('BTCUSDT', 'buy'))

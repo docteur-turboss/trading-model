@@ -1,10 +1,10 @@
 import {
   MarketType,
   SourceType,
-  TradeEntity,
-  CandleEntity,
-  OrderBookEntity,
-  TickerEntity,
+  TradeData,
+  CandleData,
+  OrderBookData,
+  TickerData,
 } from '../../infra/market-data/market-data.types';
 import {
   Binance24hrTickerStatsResponse,
@@ -23,7 +23,7 @@ export class BinanceNormalizer {
   /**
    * Convertit le carnet d’ordres Binance en structure normalisée.
    */
-  static orderBook(symbol: string, payload: BinanceDepthResponse): OrderBookEntity {
+  static orderBook(symbol: string, payload: BinanceDepthResponse): OrderBookData {
     const bids = new Set(
       payload.bids.map(([price, qty]) => ({
         price: Number(price),
@@ -54,7 +54,7 @@ export class BinanceNormalizer {
   static trades(
     symbol: string,
     payload: BinanceTradeResponse | BinanceHistoricalTradeResponse
-  ): TradeEntity[] {
+  ): TradeData[] {
     return payload.map(t => ({
       symbol,
       tradeId: BigInt(t.id),
@@ -70,7 +70,7 @@ export class BinanceNormalizer {
   /**
    * Normalise les aggregate trades.
    */
-  static aggregateTrades(symbol: string, payload: BinanceAggregateTradeResponse): TradeEntity[] {
+  static aggregateTrades(symbol: string, payload: BinanceAggregateTradeResponse): TradeData[] {
     return payload.map(t => ({
       symbol,
       tradeId: BigInt(t.a),
@@ -90,7 +90,7 @@ export class BinanceNormalizer {
     symbol: string,
     interval: string,
     payload: BinanceCandlestickDataResponse
-  ): CandleEntity[] {
+  ): CandleData[] {
     return payload.map(c => ({
       symbol,
       interval,
@@ -110,7 +110,7 @@ export class BinanceNormalizer {
   /**
    * Normalise ticker 24h.
    */
-  static ticker24h(payload: Binance24hrTickerStatsResponse): TickerEntity[] {
+  static ticker24h(payload: Binance24hrTickerStatsResponse): TickerData[] {
     return payload.map(t => ({
       market: MarketType.CRYPTO,
       source: SourceType.BINANCE,
@@ -128,7 +128,7 @@ export class BinanceNormalizer {
   /**
    * Normalise trading day ticker.
    */
-  static tradingDayTicker(payload: BinanceTradingDayTickerResponse): TickerEntity[] {
+  static tradingDayTicker(payload: BinanceTradingDayTickerResponse): TickerData[] {
     return payload.map(t => ({
       market: MarketType.CRYPTO,
       source: SourceType.BINANCE,

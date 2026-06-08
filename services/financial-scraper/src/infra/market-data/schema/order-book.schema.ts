@@ -1,6 +1,8 @@
 import z from 'zod';
 
-import { OrderBookEntity } from '../market-data.types';
+import { normalizeError } from '@trading-model/common/utils/errors';
+
+import { OrderBookData } from '../market-data.types';
 
 const aksBidsDef = z.object({
   quantity: z.number(),
@@ -16,7 +18,7 @@ const tableDef = z.object({
 });
 
 const MarkerOrderBooks = new (class TMarketOrderBooks {
-  private storage: Map<number, OrderBookEntity> = new Map();
+  private storage: Map<number, OrderBookData> = new Map();
   private marketStorage: Map<string, number[]> = new Map();
   private sourceStorage: Map<string, number[]> = new Map();
   private symbolStorage: Map<string, number[]> = new Map();
@@ -24,7 +26,7 @@ const MarkerOrderBooks = new (class TMarketOrderBooks {
   private id: number = 10000;
   constructor() {}
 
-  insertInto(data: OrderBookEntity[]) {
+  insertInto(data: OrderBookData[]) {
     if (!data.length) return;
     const saveBeforeUpdate = {
       storage: this.storage,
@@ -78,7 +80,7 @@ const MarkerOrderBooks = new (class TMarketOrderBooks {
       this.symbolStorage = saveBeforeUpdate.symbolStorage;
       this.timestampStorage = saveBeforeUpdate.timestampStorage;
 
-      throw e;
+      throw normalizeError(e);
     }
     return this;
   }
@@ -128,7 +130,7 @@ const MarkerOrderBooks = new (class TMarketOrderBooks {
 })();
 
 /** Persist order-book snapshots to in-memory storage. */
-export const insertOrderBook = async (data: OrderBookEntity[]): Promise<void> => {
+export const insertOrderBook = async (data: OrderBookData[]): Promise<void> => {
   MarkerOrderBooks.insertInto(data);
 };
 

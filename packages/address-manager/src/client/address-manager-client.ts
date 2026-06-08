@@ -1,7 +1,7 @@
 import { networkInterfaces } from 'os';
 
 import { HttpClient } from '@trading-model/common/config/http-client';
-import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes, normalizeError } from '@trading-model/common/utils/errors';
 
 import { TokenManager } from './token-manager';
 import { RegisterServicePayload, ServiceRegistrationResponse } from './type';
@@ -62,7 +62,7 @@ export class AddressManagerClient {
       throw new AppError(
         'Failed to register service to Address Manager',
         ErrorCodes.ADDRESS_MANAGER_ERROR,
-        { cause: error }
+        { cause: normalizeError(error) }
       );
     }
   }
@@ -94,7 +94,7 @@ export class AddressManagerClient {
       );
     } catch (error) {
       throw new AppError('Failed to refresh service TTL', ErrorCodes.ADDRESS_MANAGER_ERROR, {
-        cause: error,
+        cause: normalizeError(error),
       });
     }
   }

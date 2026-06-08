@@ -14,7 +14,7 @@ import {
 
 describe('BinanceNormalizer', () => {
   describe('orderBook', () => {
-    it('should normalize depth response to OrderBookEntity', () => {
+    it('should normalize depth response to OrderBookData', () => {
       const result = BinanceNormalizer.orderBook('BTCUSDT', mockDepthResponse);
       expect(result.symbol).toBe('BTCUSDT');
       expect(result.source).toBe('binance');
@@ -33,7 +33,7 @@ describe('BinanceNormalizer', () => {
   });
 
   describe('trades', () => {
-    it('should normalize trade response to TradeEntity array', () => {
+    it('should normalize trade response to TradeData array', () => {
       const result = BinanceNormalizer.trades('BTCUSDT', mockTradeResponse);
       expect(result).toHaveLength(2);
       expect(result[0].symbol).toBe('BTCUSDT');
@@ -71,7 +71,7 @@ describe('BinanceNormalizer', () => {
   });
 
   describe('candles', () => {
-    it('should normalize candlestick response to CandleEntity array', () => {
+    it('should normalize candlestick response to CandleData array', () => {
       const result = BinanceNormalizer.candles('BTCUSDT', '1m', mockCandlestickResponse);
       expect(result).toHaveLength(1);
       expect(result[0].symbol).toBe('BTCUSDT');
@@ -88,7 +88,7 @@ describe('BinanceNormalizer', () => {
   });
 
   describe('ticker24h', () => {
-    it('should normalize 24hr ticker response to TickerEntity array', () => {
+    it('should normalize 24hr ticker response to TickerData array', () => {
       const result = BinanceNormalizer.ticker24h(mock24hrTickerResponse);
       expect(result).toHaveLength(1);
       expect(result[0].symbol).toBe('BTCUSDT');

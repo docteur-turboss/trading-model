@@ -138,7 +138,7 @@ describe('Server routes', () => {
   let server: http.Server;
 
   beforeEach(() => {
-    dataBuffer = new MarketDataBuffer(500);
+    dataBuffer = new MarketDataBuffer({ maxSize: 500 });
     trainer = new Trainer(dataBuffer);
     const app = express();
     createRoutes(app, trainer);

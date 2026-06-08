@@ -75,11 +75,9 @@ export interface RLBackend {
   getWeights(): Float32Array;
   /** Restores weights from a Lamarckian snapshot. */
   setWeights(w: Float32Array): void;
-  /** Returns the current profit and loss of the backend's wallet. */
   getPnL(): number;
   /** Resets the episode state — wallet, pool, and internal counters. */
   resetEpisode(): void;
-  /** Returns the accumulated experience pool for training. */
   getExperiencePool(): Experience[];
 }
 
@@ -121,31 +119,31 @@ export function makeTradingAgentBackend(g: DeepReadonly<LamarckGenome>): RLBacke
 
   const agent = new TradingAgent(cfg);
 
-  // Lamarckian weight injection via actual nn API
+  // Lamarckian weight injection
   if (g.trainedWeights) {
     try {
-      agent.agent.nn.setWeights(new Float32Array(g.trainedWeights));
+      agent.setWeights(new Float32Array(g.trainedWeights));
     } catch (_) {
       /* architecture mismatch after structural mutation — start fresh */
     }
   }
 
   return {
-    // nn.forward is the pure, no-pool-push path; fastForward pushes to pool
-    forwardPass: f => agent.agent.nn.forward(f).output,
+    // pure forward pass — no pool interaction
+    forwardPass: f => agent.forwardPass(f).output,
     step: (f, p) => agent.step(f, p),
     train: (e, γ) => {
       try {
-        agent.agent.learnQLearning(e, γ);
+        agent.learnQLearning(e, γ);
       } catch (_) {
         /* Q-learning error skipped — continue training */
       }
     },
-    getWeights: () => agent.agent.nn.getWeights(),
-    setWeights: w => agent.agent.nn.setWeights(w),
+    getWeights: () => agent.getWeights(),
+    setWeights: w => agent.setWeights(w),
     getPnL: () => agent.wallet.getPnL(),
     resetEpisode: () => agent.resetEpisode(),
-    getExperiencePool: () => agent.agent.getPool(),
+    getExperiencePool: () => agent.getExperiencePool(),
   };
 }
 
@@ -267,6 +265,7 @@ async function trainPhase(
       backend.train(
         {
           ...prev,
+          kind: 'qlearning' as const,
           reward: nStepReturn(rewardBuf, t, g),
           nextState: trainData[t].features,
           done: t === maxT - 1,
@@ -723,19 +722,15 @@ export class GeneticAlgorithmRunner {
     return this.archive.members[0] ?? this.bestGenome ?? this.population[0];
   }
 
-  /** Return the current population. */
   public getPopulation(): DeepReadonly<LamarckGenome>[] {
     return this.population;
   }
-  /** Return the best genome found so far, or null if none exists. */
   public getBestGenome(): DeepReadonly<LamarckGenome> | null {
     return this.bestGenome;
   }
-  /** Return the Pareto archive of non-dominated genomes. */
   public getArchive(): DeepReadonly<LamarckGenome>[] {
     return this.archive.members;
   }
-  /** Return the current generation number. */
   public getGeneration(): number {
     return this.generation;
   }

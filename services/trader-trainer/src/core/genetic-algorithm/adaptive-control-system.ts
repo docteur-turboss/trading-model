@@ -70,9 +70,10 @@ export function adaptGAControl(
   } as GAControlGenome);
 }
 
+export type StopCondition = { shouldStop: true; reason: string } | { shouldStop: false };
+
 /**
  * Check if any termination condition is met.
- * Returns { shouldStop: boolean, reason?: string }
  */
 export function checkTerminationConditions(
   generation: number,
@@ -80,7 +81,7 @@ export function checkTerminationConditions(
   stagnation: number,
   elapsedMs: number,
   ctrl: DeepReadonly<GAControlGenome>
-): { shouldStop: boolean; reason?: string } {
+): StopCondition {
   if (bestFitness >= ctrl.rewardThreshold) {
     return { shouldStop: true, reason: 'Reward threshold reached' };
   }

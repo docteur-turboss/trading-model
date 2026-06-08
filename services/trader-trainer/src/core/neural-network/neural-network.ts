@@ -1,3 +1,4 @@
+import { logger } from '@trading-model/common/config/logger';
 import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 
 import { ACTIVATIONS } from './activation';
@@ -101,7 +102,7 @@ export class NeuralNetwork {
     const lastActivation = this.config.activationType[this.config.activationType.length - 1];
 
     if (lastActivation === 'sigmoid' && this.config.lossFunctionType !== 'binary-cross-entropy')
-      console.warn('Sigmoid output is usually paired with binary-cross-entropy');
+      logger.warn('Sigmoid output is usually paired with binary-cross-entropy');
     if (
       lastActivation === 'softmax' &&
       this.config.lossFunctionType !== 'cross-entropy' &&
@@ -624,6 +625,7 @@ export class NeuralNetwork {
 
     // Store experience with context (not just activations)
     const experience: PooledExperience = {
+      kind: 'supervised',
       input: new Float32Array(input),
       output: new Float32Array(context.output),
       target: new Float32Array(target),

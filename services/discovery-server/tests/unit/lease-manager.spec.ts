@@ -160,14 +160,11 @@ describe('LeaseManager', () => {
       const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
         '@trading-model/common/config/logger'
       );
-      expect(logger.error).toHaveBeenCalledWith(
-        '[LeaseManager] Failed to remove expired instance:',
-        {
-          serviceName: 'test-service',
-          instanceId: 'test-id',
-          error: new Error('remove failed'),
-        }
-      );
+      expect(logger.error).toHaveBeenCalledWith('Failed to remove expired instance', {
+        serviceName: 'test-service',
+        instanceId: 'test-id',
+        error: new Error('remove failed'),
+      });
     });
 
     it('should log error when listServiceNames throws in start catch', () => {
@@ -184,7 +181,7 @@ describe('LeaseManager', () => {
       const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
         '@trading-model/common/config/logger'
       );
-      expect(logger.error).toHaveBeenCalledWith('[LeaseManager] Cleanup error:', {
+      expect(logger.error).toHaveBeenCalledWith('Cleanup error', {
         error: new Error('unexpected error'),
       });
     });

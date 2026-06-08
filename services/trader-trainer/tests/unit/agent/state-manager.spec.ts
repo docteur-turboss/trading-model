@@ -25,7 +25,7 @@ describe('StateManager', () => {
     });
 
     it('should have gamma at 0.99 by default', () => {
-      expect(sm.gamma).toBe(0.99);
+      expect(sm.getGamma()).toBe(0.99);
     });
 
     it('should decay epsilon multiplicatively', () => {
@@ -80,7 +80,7 @@ describe('StateManager', () => {
     it('should use provided gamma', () => {
       const sm = new StateManager({ gamma: 0.95 });
 
-      expect(sm.gamma).toBe(0.95);
+      expect(sm.getGamma()).toBe(0.95);
     });
   });
 
@@ -138,11 +138,11 @@ describe('StateManager', () => {
     it('should initialise agent with scalar genome (broadcast)', () => {
       const sm = new StateManager();
       const agent = makeAgent();
-      const weightsBefore = agent.nn.getWeights();
+      const weightsBefore = agent.getWeights();
 
       sm.initialiseFromGenome(agent, 0);
 
-      const weightsAfter = agent.nn.getWeights();
+      const weightsAfter = agent.getWeights();
       expect(weightsAfter.length).toBe(weightsBefore.length);
       expect(weightsAfter).not.toEqual(weightsBefore);
     });
@@ -150,7 +150,7 @@ describe('StateManager', () => {
     it('should initialise agent with Float32Array genome (direct setWeights)', () => {
       const sm = new StateManager();
       const agent = makeAgent();
-      const genome = agent.nn.getWeights();
+      const genome = agent.getWeights();
 
       const modifiedGenome = new Float32Array(genome.length);
       for (let i = 0; i < modifiedGenome.length; i++) {
@@ -159,7 +159,7 @@ describe('StateManager', () => {
 
       sm.initialiseFromGenome(agent, modifiedGenome);
 
-      const newWeights = agent.nn.getWeights();
+      const newWeights = agent.getWeights();
       for (let i = 0; i < newWeights.length; i++) {
         expect(newWeights[i]).toBe(0.5);
       }
@@ -172,7 +172,7 @@ describe('StateManager', () => {
 
       sm.initialiseFromGenome(agent, wrongGenome);
 
-      expect(agent.nn.parameterCount()).toBeGreaterThan(0);
+      expect(agent.parameterCount()).toBeGreaterThan(0);
     });
   });
 });

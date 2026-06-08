@@ -6,6 +6,7 @@ module.exports = {
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   moduleNameMapper: {
+    '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
     '^infra/(.*)$': '<rootDir>/src/infra/$1',
     '^config/(.*)$': '<rootDir>/src/config/$1',
     '^clients/(.*)$': '<rootDir>/src/clients/$1',

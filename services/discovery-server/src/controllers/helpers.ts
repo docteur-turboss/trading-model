@@ -6,7 +6,7 @@ import { ServiceRegistry } from '../core/service-registry';
 /** Validate the x-instance-token header against the stored token for a given instance. */
 export function validateInstanceToken(
   registry: ServiceRegistry,
-  tokenHeader: unknown,
+  tokenHeader: string | string[] | undefined,
   instanceId: string
 ): void {
   if (!isNonEmptyString(tokenHeader))

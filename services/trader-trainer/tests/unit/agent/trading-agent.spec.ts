@@ -36,8 +36,7 @@ describe('TradingAgent', () => {
   });
 
   describe('constructor', () => {
-    it('should create agent with nn, wallet, and state', () => {
-      expect(agent.agent).toBeDefined();
+    it('should create agent with wallet and state', () => {
       expect(agent.wallet).toBeDefined();
       expect(agent.state).toBeDefined();
     });
@@ -54,7 +53,6 @@ describe('TradingAgent', () => {
     it('should use default wallet and state config when not provided', () => {
       const a = new TradingAgent({ nnConfig: makeConfig().nnConfig } as TradingAgentConfig);
       expect(a.wallet).toBeDefined();
-      expect(a.state).toBeDefined();
     });
   });
 
@@ -182,7 +180,7 @@ describe('TradingAgent', () => {
 
     it('should execute a buy action when discrete output has highest value at index 2', () => {
       // override NN weights so output[2] = sigmoid(5) > output[0/1] = sigmoid(-5)
-      const buf = new Float32Array(agent.agent.nn.parameterCount());
+      const buf = new Float32Array(agent.parameterCount());
       buf[24] = 1;
       buf[25] = 1;
       buf[26] = 1;
@@ -192,7 +190,7 @@ describe('TradingAgent', () => {
       buf[48] = -5;
       buf[49] = -5;
       buf[50] = 5; // output biases: idx 0/1 low, idx 2 high
-      agent.agent.nn.setWeights(buf);
+      agent.setWeights(buf);
 
       const result = agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 105);
 
@@ -224,7 +222,7 @@ describe('TradingAgent', () => {
 
       agent.resetEpisode();
 
-      expect(agent.agent.getPoolSize()).toBe(0);
+      expect(agent.getExperiencePool().length).toBe(0);
     });
   });
 });

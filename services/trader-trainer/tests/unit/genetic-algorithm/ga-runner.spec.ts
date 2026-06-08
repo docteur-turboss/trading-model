@@ -2,20 +2,16 @@ import { describe, it, expect, jest } from '@jest/globals';
 
 jest.mock('../../../src/core/agent/trading-agent', () => {
   const makeMockAgent = () => ({
-    agent: {
-      nn: {
-        forward: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
-        getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
-        setWeights: jest.fn(),
-      },
-      getPool: jest.fn(() => []),
-      learnQLearning: jest.fn(),
-    },
+    forwardPass: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
+    getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
+    setWeights: jest.fn(),
+    getExperiencePool: jest.fn(() => []),
+    learnQLearning: jest.fn(),
+    step: jest.fn(() => ({ reward: 1 })),
+    resetEpisode: jest.fn(),
     wallet: {
       getPnL: jest.fn(() => 50),
     },
-    step: jest.fn(() => ({ reward: 1 })),
-    resetEpisode: jest.fn(),
   });
   return {
     __esModule: true,

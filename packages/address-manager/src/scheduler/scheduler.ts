@@ -76,7 +76,7 @@ export class Scheduler {
         try {
           await job.execute();
         } catch (err) {
-          logger.error('[Scheduler] Job execution failed', {
+          logger.error('Job execution failed', {
             schedule: job.schedule,
             error: err instanceof Error ? err.message : String(err),
           });

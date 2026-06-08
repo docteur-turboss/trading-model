@@ -22,12 +22,11 @@
  * Acts as a delivery orchestrator for the Broker service.
  */
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
-import { HttpClient } from '@trading-model/common/config/http-client';
 import { IdentifyType, Message } from '@trading-model/common/contracts/message.types';
 import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 import { sleep } from '@trading-model/common/utils/sleep';
 
-import { DqlRepository } from './dlq-repository';
+import { MessageDeliveryContext, MessageDeliveryPort } from './message-delivery-port';
 import { findAService } from '../../config/address-manager';
 import { logger } from '../../config/logger';
 
@@ -90,13 +89,13 @@ export class Subscription {
    * @param topic - Topic name subscribed to.
    * @param callbackURL - Relative HTTP endpoint for message delivery.
    * @param serviceIdentity - Identity of the consuming service.
-   * @param dqlRepository - Repository for dead-lettered messages.
+   * @param deliveryPort - Abstract delivery port for sending and dead-lettering.
    */
   constructor(
     public readonly topic: string,
     public readonly callbackURL: string,
     public readonly serviceIdentity: IdentifyType,
-    private readonly dqlRepository: DqlRepository
+    private readonly deliveryPort: MessageDeliveryPort
   ) {}
 
   /**
@@ -126,10 +125,9 @@ export class Subscription {
    * - `EXACTLY_ONCE`: stops after first delivery
    *
    * @template T - Message payload type.
-   * @param httpClient - HTTP client instance.
    * @param message - Message to dispatch.
    */
-  async dispatch<T>(httpClient: HttpClient, message: Message<T>): Promise<void> {
+  async dispatch<T>(message: Message<T>): Promise<void> {
     const ttl = message.metadata.delivery?.ttl ?? 0;
     const deliveryMode = message.metadata.delivery?.mode ?? DeliveryMode.AT_LEAST_ONCE;
 
@@ -141,7 +139,7 @@ export class Subscription {
         service: this.serviceIdentity.serviceName,
         failureCount: this.failureCount,
       });
-      await this.sendToDLQ(message, 'CIRCUIT_OPEN', this.failureCount);
+      await this.deliveryPort.markDeadLetter(message, 'CIRCUIT_OPEN', this.failureCount);
       return;
     }
 
@@ -161,13 +159,11 @@ export class Subscription {
       try {
         const target = await this.resolveTarget();
 
-        await httpClient.post(target, {
-          message,
-          context: {
-            deliveryAttempt: context.deliveryAttempt,
-            consumerGroup: context.consumerGroup,
-          },
-        });
+        const deliveryContext: MessageDeliveryContext = {
+          deliveryAttempt: context.deliveryAttempt,
+          consumerGroup: context.consumerGroup,
+        };
+        await this.deliveryPort.send(target, message, deliveryContext);
 
         context.receivedAt = new Date();
         await context.ack();
@@ -175,12 +171,12 @@ export class Subscription {
         context.deliveryAttempt++;
 
         if (e instanceof AppError && e.code === ErrorCodes.DEAD_LETTER_ERROR) {
-          await this.sendToDLQ(message, e.reason, context.deliveryAttempt);
+          await this.deliveryPort.markDeadLetter(message, e.reason, context.deliveryAttempt);
           return;
         }
 
         if (this.isExpired(ttl, emittedAt)) {
-          await this.sendToDLQ(message, 'TTL_EXPIRED', context.deliveryAttempt);
+          await this.deliveryPort.markDeadLetter(message, 'TTL_EXPIRED', context.deliveryAttempt);
           return;
         }
 
@@ -195,7 +191,11 @@ export class Subscription {
             service: this.serviceIdentity.serviceName,
             deliveryAttempt: context.deliveryAttempt,
           });
-          await this.sendToDLQ(message, 'MAX_RETRIES_EXCEEDED', context.deliveryAttempt);
+          await this.deliveryPort.markDeadLetter(
+            message,
+            'MAX_RETRIES_EXCEEDED',
+            context.deliveryAttempt
+          );
           return;
         }
 
@@ -230,28 +230,5 @@ export class Subscription {
   private isExpired(ttl: number, emittedAt: number): boolean {
     if (ttl <= 0 || emittedAt <= 0) return false;
     return emittedAt + ttl < Date.now();
-  }
-
-  /**
-   * Routes a message to the Dead Letter Queue (DLQ).
-   *
-   * Persists the failed message with failure metadata to the DLQ repository.
-   *
-   * @template T
-   * @param message - Failed message.
-   * @param reason - Human-readable failure reason.
-   * @param deliveryAttempt - Number of delivery attempts before dead-lettering.
-   */
-  private async sendToDLQ<T>(
-    message: Message<T>,
-    reason: string | undefined,
-    deliveryAttempt: number
-  ): Promise<void> {
-    await this.dqlRepository.add({
-      message,
-      reason,
-      deliveryAttempt,
-      timestamp: new Date().toISOString(),
-    });
   }
 }

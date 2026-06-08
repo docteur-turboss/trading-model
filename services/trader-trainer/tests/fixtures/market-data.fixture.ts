@@ -1,9 +1,9 @@
 import type {
-  CandleEntity,
-  TradeEntity,
-  OrderBookEntity,
-  BookTickerEntity,
-  TickerEntity,
+  CandleData,
+  TradeData,
+  OrderBookData,
+  BookTickerData,
+  TickerData,
 } from '@trading-model/common/config/event.types';
 
 let seq = 0;
@@ -12,7 +12,7 @@ export function resetFixtureSeq(): void {
   seq = 0;
 }
 
-export function makeCandle(overrides: Partial<CandleEntity> & { symbol: string }): CandleEntity {
+export function makeCandle(overrides: Partial<CandleData> & { symbol: string }): CandleData {
   const t = Date.now() + seq++ * 60000;
   return {
     source: 'binance',
@@ -29,7 +29,7 @@ export function makeCandle(overrides: Partial<CandleEntity> & { symbol: string }
   };
 }
 
-export function makeTrade(symbol: string, side: 'buy' | 'sell' = 'buy'): TradeEntity {
+export function makeTrade(symbol: string, side: 'buy' | 'sell' = 'buy'): TradeData {
   return {
     symbol,
     source: 'binance',
@@ -42,7 +42,7 @@ export function makeTrade(symbol: string, side: 'buy' | 'sell' = 'buy'): TradeEn
   };
 }
 
-export function makeOrderBook(symbol: string): OrderBookEntity {
+export function makeOrderBook(symbol: string): OrderBookData {
   return {
     symbol,
     source: 'binance',
@@ -59,7 +59,7 @@ export function makeOrderBook(symbol: string): OrderBookEntity {
   };
 }
 
-export function makeOrderBookEmpty(symbol: string): OrderBookEntity {
+export function makeOrderBookEmpty(symbol: string): OrderBookData {
   return {
     symbol,
     source: 'binance',
@@ -70,7 +70,7 @@ export function makeOrderBookEmpty(symbol: string): OrderBookEntity {
   };
 }
 
-export function makeBookTicker(symbol: string): BookTickerEntity {
+export function makeBookTicker(symbol: string): BookTickerData {
   return {
     symbol,
     source: 'binance',
@@ -83,7 +83,7 @@ export function makeBookTicker(symbol: string): BookTickerEntity {
   };
 }
 
-export function makeBookTickerZeroBidAsk(symbol: string): BookTickerEntity {
+export function makeBookTickerZeroBidAsk(symbol: string): BookTickerData {
   return {
     symbol,
     source: 'binance',
@@ -96,7 +96,7 @@ export function makeBookTickerZeroBidAsk(symbol: string): BookTickerEntity {
   };
 }
 
-export function makeTicker24h(symbol: string): TickerEntity {
+export function makeTicker24h(symbol: string): TickerData {
   return {
     symbol,
     source: 'binance',
@@ -112,7 +112,7 @@ export function makeTicker24h(symbol: string): TickerEntity {
 }
 
 export function feedCandles(
-  buffer: { addCandles(symbol: string, candles: CandleEntity[]): void },
+  buffer: { addCandles(symbol: string, candles: CandleData[]): void },
   symbol: string,
   count: number
 ): void {

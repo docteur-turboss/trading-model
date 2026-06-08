@@ -114,6 +114,7 @@ async function trainPhase(
     backend.train(
       {
         ...prev,
+        kind: 'qlearning' as const,
         reward: nStepReturn(rewardBuf, t, g),
         nextState: trainData[t].features,
         done: t === maxT - 1,
@@ -206,6 +207,64 @@ function computeFitness(fitnessType: string, scores: number[]): number {
   return scores.reduce((s, v) => s + v, 0) / scores.length;
 }
 
+export type EvaluationResult = {
+  updatedGenome: DeepReadonly<LamarckGenome>;
+  rawScores: number[];
+  finalPnL: number;
+};
+
+function invariant(condition: boolean, message: string): asserts condition {
+  if (!condition) throw new Error(`[Invariant] ${message}`);
+}
+
+/**
+ * Evaluate a single genome on a single window set.
+ * Pure function (no side effects): returns new genome + scores.
+ */
+export async function evaluateSingleGenomeOnWindow(
+  g: DeepReadonly<LamarckGenome>,
+  windowSet: { id: string; train: MarketStep[]; validation: MarketStep[] },
+  backendFactory: BackendFactory
+): Promise<EvaluationResult> {
+  invariant(g.network.inputDim > 0, 'inputDim must be positive');
+  invariant(g.network.outputDim > 0, 'outputDim must be positive');
+  invariant(
+    typeof g.rl.rewardShaping?.clipMin === 'number',
+    'rewardShaping.clipMin must be a number'
+  );
+  invariant(
+    typeof g.rl.rewardShaping?.clipMax === 'number',
+    'rewardShaping.clipMax must be a number'
+  );
+  invariant(windowSet.train.length > 0, 'windowSet.train must not be empty');
+  invariant(windowSet.validation.length > 0, 'windowSet.validation must not be empty');
+
+  const shadowBackend = backendFactory(g);
+  const shadowStats = new RunningStats();
+  const rewardBuf = precomputeRewards(shadowBackend, windowSet.train, g, shadowStats);
+
+  const trainBackend = backendFactory(g);
+  await trainPhase(trainBackend, windowSet.train, rewardBuf, g);
+
+  const updatedGenome = deepFreeze(lamarckianUpdate(g, trainBackend));
+
+  const evalResult = await evalPhase(updatedGenome, windowSet.validation, backendFactory);
+
+  invariant(
+    Number.isFinite(evalResult.finalPnL),
+    `finalPnL must be finite, got ${evalResult.finalPnL}`
+  );
+  for (const score of evalResult.rawScores) {
+    invariant(Number.isFinite(score), `rawScore must be finite, got ${score}`);
+  }
+
+  return {
+    updatedGenome,
+    rawScores: evalResult.rawScores,
+    finalPnL: evalResult.finalPnL,
+  };
+}
+
 /**
  * Evaluate a single genome across all window sets:
  * - Train phase on each window's training data
@@ -229,23 +288,10 @@ export async function evaluateGenomeAllWindows(
   let currentGenome = g;
 
   for (const ws of windowSets) {
-    // shadow backend pre-computes reward buffer without touching trainBackend
-    const shadowBackend = backendFactory(currentGenome);
-    const shadowStats = new RunningStats();
-    const rewardBuf = precomputeRewards(shadowBackend, ws.train, currentGenome, shadowStats);
-    // shadowBackend state is now polluted; it is discarded here
-
-    // live training backend receives the pre-computed buffer
-    const trainBackend = backendFactory(currentGenome);
-    await trainPhase(trainBackend, ws.train, rewardBuf, currentGenome);
-
-    // Lamarckian: freeze trained weights into genome before eval
-    currentGenome = deepFreeze(lamarckianUpdate(currentGenome, trainBackend));
-
-    // Evaluate on held-out validation only
-    const evalResult = await evalPhase(currentGenome, ws.validation, backendFactory);
-    allRaw.push(...evalResult.rawScores);
-    allPnL.push(evalResult.finalPnL);
+    const result = await evaluateSingleGenomeOnWindow(currentGenome, ws, backendFactory);
+    currentGenome = result.updatedGenome;
+    allRaw.push(...result.rawScores);
+    allPnL.push(result.finalPnL);
   }
 
   const complexity = estimateComplexity(currentGenome);

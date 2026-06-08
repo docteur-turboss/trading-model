@@ -5,6 +5,9 @@ const tsJestTransformCfg = createDefaultPreset().transform;
 /** @type {import("jest").Config} **/
 module.exports = {
   testEnvironment: 'node',
+  moduleNameMapper: {
+    '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
+  },
   transform: {
     ...tsJestTransformCfg,
   },

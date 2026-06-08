@@ -132,7 +132,7 @@ describe('Trainer', () => {
   let dataBuffer: MarketDataBuffer;
 
   beforeEach(() => {
-    dataBuffer = new MarketDataBuffer(500);
+    dataBuffer = new MarketDataBuffer({ maxSize: 500 });
     capturedOnGeneration = null;
     capturedOnArchiveUpdate = null;
     mockRunImpl = null;

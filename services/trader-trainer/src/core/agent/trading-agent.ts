@@ -1,7 +1,7 @@
 import StateManager, { StateManagerConfig } from './state-manager';
 import { createWallet, WalletConfig } from '../env/wallet-manager';
 import { Agent } from '../neural-network/agent';
-import { NeuralNetworkConfig } from '../neural-network/type';
+import { Experience, NeuralNetworkConfig } from '../neural-network/type';
 
 /** Configuration to create a TradingAgent with neural network, wallet, and RL state management. */
 export type TradingAgentConfig = {
@@ -14,7 +14,7 @@ export type TradingAgentConfig = {
 
 /** RL agent that couples a neural network with a simulated wallet and epsilon-greedy policy. */
 export class TradingAgent {
-  public readonly agent: Agent;
+  private readonly agent: Agent;
   public readonly wallet: ReturnType<typeof createWallet>;
   public readonly state: StateManager;
 
@@ -80,6 +80,30 @@ export class TradingAgent {
     this.state.decayEpsilon();
 
     return { action: executed ? action : 'none', reward, metrics: this.wallet.getMetrics() };
+  }
+
+  public forwardPass(input: Float32Array): { output: Float32Array } {
+    return this.agent.forward(input);
+  }
+
+  public getWeights(): Float32Array {
+    return this.agent.getWeights();
+  }
+
+  public setWeights(w: Float32Array): void {
+    this.agent.setWeights(w);
+  }
+
+  public parameterCount(): number {
+    return this.agent.parameterCount();
+  }
+
+  public getExperiencePool(): Experience[] {
+    return this.agent.getPool();
+  }
+
+  public learnQLearning(exp: Experience, gamma: number): void {
+    this.agent.learnQLearning(exp, gamma);
   }
 
   public resetEpisode(): void {

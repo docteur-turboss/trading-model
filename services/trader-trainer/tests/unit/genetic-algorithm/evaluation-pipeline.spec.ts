@@ -4,6 +4,7 @@ import {
   pooledEval,
 } from '../../../src/core/genetic-algorithm/evaluation-pipeline';
 import type { RLBackend } from '../../../src/core/genetic-algorithm/evaluation-pipeline';
+import type { Experience } from '../../../src/core/genetic-algorithm/shared-types';
 
 const minimalGenome = {
   id: 'test',
@@ -89,18 +90,15 @@ function makeStep(features: number[]) {
 }
 
 function makeMockBackend(poolSize: number): RLBackend {
-  const pool: Array<{
-    input: Float32Array;
-    output: Float32Array;
-    reward: number;
-    nextState: Float32Array;
-  }> = [];
+  const pool: Experience[] = [];
   for (let i = 0; i < poolSize; i++) {
     pool.push({
+      kind: 'qlearning',
       input: new Float32Array([0.1, 0.2, 0.3]),
       output: new Float32Array([0.1, 0.2, 0.3]),
       reward: 1,
       nextState: new Float32Array([0.1, 0.2, 0.3]),
+      done: false,
     });
   }
   return {

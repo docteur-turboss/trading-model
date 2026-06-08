@@ -4,6 +4,8 @@ import { z } from 'zod';
 jest.mock('https');
 jest.mock('fs', () => ({
   readFileSync: jest.fn((path: string) => `content-of-${path}`),
+  accessSync: jest.fn(),
+  constants: { R_OK: 4 },
 }));
 
 import fs from 'fs';

@@ -12,12 +12,12 @@ import {
   isBuyTrade,
   isSellTrade,
 } from '../../src/config/event-utils';
-import { OrderBookEntity, CandleEntity, TradeEntity } from '../../src/config/event.types';
+import { OrderBookData, CandleData, TradeData } from '../../src/config/event.types';
 
 function makeOb(
   bids: Array<{ price: number; quantity: number }>,
   asks: Array<{ price: number; quantity: number }>
-): OrderBookEntity {
+): OrderBookData {
   return {
     bids: new Set(bids),
     asks: new Set(asks),
@@ -28,7 +28,7 @@ function makeOb(
   };
 }
 
-function makeCandle(open: number, close: number): CandleEntity {
+function makeCandle(open: number, close: number): CandleData {
   return {
     open,
     close,
@@ -44,7 +44,7 @@ function makeCandle(open: number, close: number): CandleEntity {
   };
 }
 
-function makeTrade(side: 'buy' | 'sell'): TradeEntity {
+function makeTrade(side: 'buy' | 'sell'): TradeData {
   return {
     side,
     price: 50000,
