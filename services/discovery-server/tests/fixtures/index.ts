@@ -1,7 +1,7 @@
 import type { ServiceInstance } from '../../src/core/types';
 
 export const validServiceInstance = (overrides?: Partial<ServiceInstance>): ServiceInstance => ({
-  serviceName: 'financial-scrapper-service',
+  serviceName: 'financial-scraper-service',
   instanceId: 'test-instance-1',
   ip: '192.168.1.10',
   port: 8444,
@@ -13,7 +13,7 @@ export const validServiceInstance = (overrides?: Partial<ServiceInstance>): Serv
 });
 
 export const secondServiceInstance = (overrides?: Partial<ServiceInstance>): ServiceInstance => ({
-  serviceName: 'financial-scrapper-service',
+  serviceName: 'financial-scraper-service',
   instanceId: 'test-instance-2',
   ip: '192.168.1.11',
   port: 8445,
@@ -37,7 +37,7 @@ export const otherServiceInstance = (overrides?: Partial<ServiceInstance>): Serv
 });
 
 export const validRegisterPayload = {
-  serviceName: 'financial-scrapper-service',
+  serviceName: 'financial-scraper-service',
   ip: '192.168.1.10',
   port: 8444,
 };

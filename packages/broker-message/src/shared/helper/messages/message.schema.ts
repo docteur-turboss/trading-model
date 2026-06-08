@@ -1,3 +1,6 @@
+import { z } from 'zod';
+
+import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import {
   EnumEventMessage,
   EventMap,
@@ -5,8 +8,6 @@ import {
   SourceType,
 } from '@trading-model/common/config/event.types';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
-import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
-import { z } from 'zod';
 
 /** Validates the security metadata context (auth and signature). */
 export const SecurityMetadataContextPredicate = z
@@ -32,7 +33,7 @@ export const SecurityMetadataContextPredicate = z
   .optional();
 
 /** Validates the delivery mode metadata (mode, ttl, deduplication). */
-export const DelivryMetadataModePredicate = z
+export const DeliveryMetadataModePredicate = z
   .object({
     mode: z.enum(Object.values(DeliveryMode), {
       error: () =>
@@ -40,8 +41,8 @@ export const DelivryMetadataModePredicate = z
     }),
     ttl: z
       .number('delivery.ttl must be a number representing time-to-live in milliseconds.')
-      .int('routing.ttl must be a number')
-      .positive('routing.ttl must be positive')
+      .int('delivery.ttl must be a number')
+      .positive('delivery.ttl must be positive')
       .optional(),
     deduplicationId: z
       .string(
@@ -109,7 +110,7 @@ export const MessageMetadataSchema = z.object({
   causationId: IdsMetadataPredicate,
   correlationId: IdsMetadataPredicate,
   eventType: EventTypeMetadataPredicate,
-  delivery: DelivryMetadataModePredicate,
+  delivery: DeliveryMetadataModePredicate,
   routing: RoutingMetadataContextPredicate,
   security: SecurityMetadataContextPredicate,
   publisher: PublisherMetadataContextPredicate,

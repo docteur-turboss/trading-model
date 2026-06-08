@@ -1,5 +1,5 @@
-import { ServiceInstance } from '../client/type';
 import { CacheEntry } from './type';
+import { ServiceInstance } from '../client/type';
 
 /**
  * ServiceCache
@@ -17,9 +17,26 @@ import { CacheEntry } from './type';
  * Intended to be used by the service discovery layer
  * to reduce repeated network calls for service instance information.
  */
+/** Lightweight mutex to serialise concurrent access. */
+class SimpleMutex {
+  private promise: Promise<void> = Promise.resolve();
+
+  async acquire(): Promise<() => void> {
+    let release: () => void;
+    const next = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const prev = this.promise;
+    this.promise = next;
+    await prev;
+    return release!;
+  }
+}
+
 export class ServiceCache {
   private readonly ttlMs: number;
   private readonly cache: Map<string, CacheEntry>;
+  private readonly mutex = new SimpleMutex();
 
   /**
    * Initializes a new ServiceCache instance.
@@ -53,19 +70,24 @@ export class ServiceCache {
    * }
    * ```
    */
-  get(serviceName: string): ServiceInstance | null {
-    const entry = this.cache.get(serviceName);
+  async get(serviceName: string): Promise<ServiceInstance | null> {
+    const release = await this.mutex.acquire();
+    try {
+      const entry = this.cache.get(serviceName);
 
-    if (!entry) {
-      return null;
+      if (!entry) {
+        return null;
+      }
+
+      if (this.isExpired(entry)) {
+        this.cache.delete(serviceName);
+        return null;
+      }
+
+      return entry.instance;
+    } finally {
+      release();
     }
-
-    if (this.isExpired(entry)) {
-      this.cache.delete(serviceName);
-      return null;
-    }
-
-    return entry.instance;
   }
 
   /**
@@ -82,11 +104,16 @@ export class ServiceCache {
    * cache.set("user-service", instance);
    * ```
    */
-  set(serviceName: string, instance: ServiceInstance): void {
-    this.cache.set(serviceName, {
-      instance,
-      expiresAt: Date.now() + this.ttlMs,
-    });
+  async set(serviceName: string, instance: ServiceInstance): Promise<void> {
+    const release = await this.mutex.acquire();
+    try {
+      this.cache.set(serviceName, {
+        instance,
+        expiresAt: Date.now() + this.ttlMs,
+      });
+    } finally {
+      release();
+    }
   }
 
   /**
@@ -101,8 +128,13 @@ export class ServiceCache {
    * cache.invalidate("user-service");
    * ```
    */
-  invalidate(serviceName: string): void {
-    this.cache.delete(serviceName);
+  async invalidate(serviceName: string): Promise<void> {
+    const release = await this.mutex.acquire();
+    try {
+      this.cache.delete(serviceName);
+    } finally {
+      release();
+    }
   }
 
   /**
@@ -115,8 +147,13 @@ export class ServiceCache {
    * cache.clear();
    * ```
    */
-  clear(): void {
-    this.cache.clear();
+  async clear(): Promise<void> {
+    const release = await this.mutex.acquire();
+    try {
+      this.cache.clear();
+    } finally {
+      release();
+    }
   }
 
   /**

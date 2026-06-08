@@ -48,8 +48,7 @@ describe('env configuration', () => {
     expect(env.CLEANUP_SERVICE_INTERVAL_MS).toBe(10000);
   });
 
-  it('should exit process on invalid env', () => {
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+  it('should throw ConfigurationError on invalid env', () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     process.env.TLS_KEY_PATH = '';
@@ -58,11 +57,9 @@ describe('env configuration', () => {
     process.env.ERROR_URL_WEBHOOK = 'not-a-url';
 
     jest.isolateModules(() => {
-      require('../../src/config/env');
+      expect(() => require('../../src/config/env')).toThrow('Environment validation failed');
     });
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
-    exitSpy.mockRestore();
     errorSpy.mockRestore();
   });
 });

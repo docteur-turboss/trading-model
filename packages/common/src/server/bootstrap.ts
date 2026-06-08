@@ -1,16 +1,18 @@
-import { logger } from '../config/logger';
 import { HttpServer } from './create-secure-server';
+import { setupProcessHandlers } from './signal-handler';
+import { logger } from '../config/logger';
 
 /** Options for configuring a service bootstrap lifecycle. */
 export interface BootstrapOptions {
   name: string;
-  createServer: () => HttpServer;
+  createServer: () => HttpServer | Promise<HttpServer>;
   onStart?: () => void;
   onStop?: () => void;
 }
 
 /**
- * Initializes and starts a service, binding process-level shutdown handlers.
+ * Initializes and starts a service, delegating process signal management to
+ * {@link setupProcessHandlers} (SRP).
  * Returns handles to the running server and a shutdown trigger.
  */
 export function createBootstrap(options: BootstrapOptions): {
@@ -19,20 +21,64 @@ export function createBootstrap(options: BootstrapOptions): {
 } {
   let server: HttpServer | null = null;
 
-  async function bootstrap(): Promise<void> {
+  /**
+   * Attempt a graceful shutdown before forcing the process to exit.
+   * Closes the HTTP server and calls the user-supplied onStop callback
+   * so that open connections and resources can be released.
+   */
+  function hardShutdown(code: number): void {
+    if (server) {
+      server.close().catch(() => {});
+    }
+
+    if (options.onStop) {
+      try {
+        options.onStop();
+      } catch {
+        /* cleanup error during forced shutdown — ignore */
+      }
+    }
+
+    logger.warn('Forced shutdown', { exitCode: code });
+    if (code !== 0) {
+      process.exitCode = code;
+    }
+  }
+
+  function bootstrap(): void {
     try {
       logger.info(`Bootstrapping ${options.name} service`);
 
-      server = options.createServer();
-
-      if (options.onStart) {
-        options.onStart();
+      const result = options.createServer();
+      if (result instanceof Promise) {
+        result.then(s => {
+          server = s;
+          finishBootstrap();
+        }).catch(err => {
+          logger.error('Fatal error during service bootstrap', { err });
+          hardShutdown(1);
+        });
+        return;
       }
 
-      logger.info(`${options.name} started successfully`);
+      server = result;
+      finishBootstrap();
     } catch (error) {
       logger.error('Fatal error during service bootstrap', { err: error });
-      process.exit(1);
+      hardShutdown(1);
+    }
+
+    function finishBootstrap(): void {
+      if (options.onStart) {
+        try {
+          options.onStart();
+        } catch (error) {
+          logger.error('onStart callback failed — aborting bootstrap', { err: error });
+          hardShutdown(1);
+          return;
+        }
+      }
+      logger.info(`${options.name} started successfully`);
     }
   }
 
@@ -46,29 +92,21 @@ export function createBootstrap(options: BootstrapOptions): {
       }
 
       if (options.onStop) {
-        options.onStop();
+        try {
+          options.onStop();
+        } catch (error) {
+          logger.warn('onStop callback failed during shutdown', { err: error });
+        }
       }
 
       logger.info('Shutdown completed gracefully');
-      process.exit(0);
     } catch (error) {
       logger.error('Error during graceful shutdown', { err: error });
-      process.exit(1);
+      hardShutdown(1);
     }
   }
 
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
-
-  process.on('uncaughtException', error => {
-    logger.error('Uncaught exception - exiting', { err: error });
-    process.exit(1);
-  });
-
-  process.on('unhandledRejection', reason => {
-    logger.error('Unhandled promise rejection - exiting', { reason });
-    process.exit(1);
-  });
+  setupProcessHandlers(shutdown, hardShutdown);
 
   bootstrap();
 

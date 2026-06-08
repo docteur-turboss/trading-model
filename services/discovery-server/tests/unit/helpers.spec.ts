@@ -1,10 +1,4 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-
-jest.mock('../../src/core/service-registry', () => ({
-  registry: {
-    validInstanceToken: jest.fn<(token: string, instanceId: string) => boolean>(),
-  },
-}));
+import { describe, it, expect, beforeEach } from '@jest/globals';
 
 jest.mock('@trading-model/common/middleware/response-exception', () => ({
   ResponseException: jest.fn((body: any) => ({
@@ -16,42 +10,45 @@ jest.mock('@trading-model/common/validation/primitives', () => ({
   isNonEmptyString: (v: any) => typeof v === 'string' && v.trim().length > 0,
 }));
 
-import { validateInstanceToken, asHandler } from '../../src/controllers/helpers';
-import { registry } from '../../src/core/service-registry';
+import { ServiceRegistry } from '../../src/core/service-registry';
+import { validateInstanceToken } from '../../src/controllers/helpers';
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
 
 describe('helpers', () => {
-  describe('asHandler', () => {
-    it('should return the same function', () => {
-      const fn = () => 'test';
-      const handler = asHandler(fn);
-      expect(handler).toBe(fn);
-    });
+  let registry: ServiceRegistry;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    registry = new ServiceRegistry();
   });
 
   describe('validateInstanceToken', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
     it('should throw Unauthorized if token header is missing', () => {
-      expect(() => validateInstanceToken(null, 'instance-1')).toThrow();
+      expect(() => validateInstanceToken(registry, null, 'instance-1')).toThrow();
       expect(ResponseException).toHaveBeenCalledWith('Missing or invalid instance token');
     });
 
     it('should throw Unauthorized if token header is empty string', () => {
-      expect(() => validateInstanceToken('', 'instance-1')).toThrow();
+      expect(() => validateInstanceToken(registry, '', 'instance-1')).toThrow();
     });
 
     it('should throw Unauthorized if token is invalid', () => {
-      (registry.validInstanceToken as jest.Mock).mockReturnValue(false);
-      expect(() => validateInstanceToken('invalid-token', 'instance-1')).toThrow();
-      expect(registry.validInstanceToken).toHaveBeenCalledWith('invalid-token', 'instance-1');
+      expect(() => validateInstanceToken(registry, 'invalid-token', 'instance-1')).toThrow();
     });
 
     it('should not throw if token is valid', () => {
-      (registry.validInstanceToken as jest.Mock).mockReturnValue(true);
-      expect(() => validateInstanceToken('valid-token', 'instance-1')).not.toThrow();
+      const registered = registry.registerInstance({
+        serviceName: 'financial-scraper-service',
+        instanceId: 'instance-1',
+        ip: '1.1.1.1',
+        port: 8080,
+        ttl: 30000,
+        protocol: 'mtls',
+        registeredAt: Date.now(),
+        lastHeartbeat: Date.now(),
+      });
+
+      expect(() => validateInstanceToken(registry, registered.token, 'instance-1')).not.toThrow();
     });
   });
 });

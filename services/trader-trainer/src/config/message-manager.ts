@@ -1,5 +1,6 @@
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 import { createMessageManager } from '@trading-model/broker-message/shared/helper/create-message-manager';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+
 import { AddressManager } from './address-manager';
 import { env } from './env';
 

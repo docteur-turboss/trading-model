@@ -76,11 +76,11 @@ The **discovery-server** depends only on `@trading-model/common`. All other serv
 
 ### Package Dependency Details
 
-| Package                          | Purpose                                                                                                                                                                                                                                                                      | Dependencies            |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| `@trading-model/common`          | Logger, HTTP client, middleware (catchError, MTLSAuth, ResponseProtocole), server factories (createSecureServer, createBootstrap), env validation (BaseEnvSchema, validateEnv), event types, service types, delivery mode enum, error classes, crypto utilities, shared DTOs | None (only npm deps)    |
-| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs                                                                                                                                                                                  | common                  |
-| `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                                                                                                                                            | common, address-manager |
+| Package                          | Purpose                                                                                                                                                                                                                                                                     | Dependencies            |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `@trading-model/common`          | Logger, HTTP client, middleware (catchError, MTLSAuth, ResponseProtocol), server factories (createSecureServer, createBootstrap), env validation (BaseEnvSchema, validateEnv), event types, service types, delivery mode enum, error classes, crypto utilities, shared DTOs | None (only npm deps)    |
+| `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs                                                                                                                                                                                 | common                  |
+| `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                                                                                                                                           | common, address-manager |
 
 ## Security Model
 
@@ -97,10 +97,10 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 
 | Service           | Host port (dev) | Container port |
 | ----------------- | --------------- | -------------- |
-| discovery-server  | 3001            | 3000           |
-| message-manager   | 3002            | 3000           |
-| financial-scraper | 3003            | 3000           |
-| trader-trainer    | 3004            | 3000           |
+| discovery-server  | 8443            | 3000           |
+| message-manager   | 8444            | 3000           |
+| financial-scraper | 8445            | 3000           |
+| trader-trainer    | 8446            | 3000           |
 
 ### Service Structure
 

@@ -1,17 +1,19 @@
 import { createSecureServer } from '@trading-model/common/server/create-secure-server';
 import { loadTlsConfig } from '@trading-model/common/server/load-tls-config';
+
+import { env } from '../config/env';
+import { ServiceRegistry } from '../core/service-registry';
 import { heartbeatRoutes } from '../routes/heartbeat.routes';
 import { registryRoutes } from '../routes/register.routes';
-import { env } from '../config/env';
 
 /** Create and return an HTTPS server with mounted registry and heartbeat routes. */
-export function createServer() {
+export function createServer(registry: ServiceRegistry) {
   return createSecureServer({
     port: env.PORT,
     tls: loadTlsConfig(env),
     routes: app => {
-      app.use('/', registryRoutes());
-      app.use('/', heartbeatRoutes());
+      app.use('/', registryRoutes(registry));
+      app.use('/', heartbeatRoutes(registry));
     },
   });
 }

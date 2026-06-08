@@ -5,6 +5,7 @@ jest.mock('@trading-model/common/middleware/catch-error', () => ({
 }));
 
 jest.mock('@trading-model/common/middleware/response-exception', () => ({
+  sendResponse: (data: any, status: number) => ({ status, data }),
   ResponseException: (reason: string) => ({
     BadRequest: () => {
       throw { status: 400, data: reason };
@@ -79,15 +80,6 @@ import {
   GetCandlesBySourceController,
 } from '../../../../src/clients/http/controller';
 
-const expectRejects = async (fn: Function): Promise<any> => {
-  try {
-    await fn();
-    return { threw: false };
-  } catch (e: any) {
-    return { threw: true, value: e };
-  }
-};
-
 describe('HTTP Controllers', () => {
   const mockReq = (params: Record<string, any>) => ({ params }) as any;
   const mockRes = {} as any;
@@ -105,69 +97,69 @@ describe('HTTP Controllers', () => {
     });
 
     it('GetTradeBySymbolController should call selectTradesBy.symbol with valid symbol', async () => {
-      const result = await expectRejects(() =>
-        GetTradeBySymbolController(mockReq({ symbol: 'BTCUSDT' }), mockRes, mockNext)
+      const result = await GetTradeBySymbolController(
+        mockReq({ symbol: 'BTCUSDT' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectTradesBy.symbol).toHaveBeenCalledWith('BTCUSDT');
     });
 
     it('GetTradeBySymbolController should throw BadRequest with missing symbol', async () => {
-      const result = await expectRejects(() =>
-        GetTradeBySymbolController(mockReq({}), mockRes, mockNext)
-      );
-      expect(result.threw).toBe(true);
-      expect(result.value).toMatchObject({ status: 400 });
+      const result = await GetTradeBySymbolController(mockReq({}), mockRes, mockNext);
+      expect(result).toMatchObject({ status: 400 });
     });
 
     it('GetTradeByTimestampController should call selectTradesBy.timestamp with valid date', async () => {
-      const result = await expectRejects(() =>
-        GetTradeByTimestampController(mockReq({ timestamp: '2024-01-01' }), mockRes, mockNext)
+      const result = await GetTradeByTimestampController(
+        mockReq({ timestamp: '2024-01-01' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectTradesBy.timestamp).toHaveBeenCalled();
     });
 
     it('GetTradeByTimestampController should throw BadRequest with invalid timestamp', async () => {
-      const result = await expectRejects(() =>
-        GetTradeByTimestampController(mockReq({ timestamp: '' }), mockRes, mockNext)
+      const result = await GetTradeByTimestampController(
+        mockReq({ timestamp: '' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
-      expect(result.value).toMatchObject({ status: 400 });
+      expect(result).toMatchObject({ status: 400 });
     });
 
     it('GetTradeBySourceController should call selectTradesBy.source with valid source', async () => {
-      const result = await expectRejects(() =>
-        GetTradeBySourceController(mockReq({ source: 'binance' }), mockRes, mockNext)
+      const result = await GetTradeBySourceController(
+        mockReq({ source: 'binance' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectTradesBy.source).toHaveBeenCalledWith('binance');
     });
 
     it('GetTradeBySourceController should throw BadRequest with missing source', async () => {
-      const result = await expectRejects(() =>
-        GetTradeBySourceController(mockReq({}), mockRes, mockNext)
-      );
-      expect(result.threw).toBe(true);
-      expect(result.value).toMatchObject({ status: 400 });
+      const result = await GetTradeBySourceController(mockReq({}), mockRes, mockNext);
+      expect(result).toMatchObject({ status: 400 });
     });
 
     it('should throw NotFound when fetcher returns no result', async () => {
       mockSelectTradesBy.symbol.mockRejectedValue(new Error('No result returned'));
-      const result = await expectRejects(() =>
-        GetTradeBySymbolController(mockReq({ symbol: 'UNKNOWN' }), mockRes, mockNext)
+      const result = await GetTradeBySymbolController(
+        mockReq({ symbol: 'UNKNOWN' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
-      expect(result.value).toMatchObject({ status: 404 });
+      expect(result).toMatchObject({ status: 404 });
     });
 
     it('should rethrow unexpected errors from fetcher', async () => {
       mockSelectTradesBy.symbol.mockRejectedValue(new Error('Database connection failed'));
-      const result = await expectRejects(() =>
+      await expect(
         GetTradeBySymbolController(mockReq({ symbol: 'BTCUSDT' }), mockRes, mockNext)
-      );
-      expect(result.threw).toBe(true);
-      expect(result.value.message).toBe('Database connection failed');
+      ).rejects.toThrow('Database connection failed');
     });
   });
 
@@ -179,26 +171,32 @@ describe('HTTP Controllers', () => {
     });
 
     it('GetTickerBySymbolController should call selectTickerBy.symbol', async () => {
-      const result = await expectRejects(() =>
-        GetTickerBySymbolController(mockReq({ symbol: 'BTCUSDT' }), mockRes, mockNext)
+      const result = await GetTickerBySymbolController(
+        mockReq({ symbol: 'BTCUSDT' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectTickerBy.symbol).toHaveBeenCalledWith('BTCUSDT');
     });
 
     it('GetTickerByTimestampController should call selectTickerBy.timestamp', async () => {
-      const result = await expectRejects(() =>
-        GetTickerByTimestampController(mockReq({ timestamp: '2024-01-01' }), mockRes, mockNext)
+      const result = await GetTickerByTimestampController(
+        mockReq({ timestamp: '2024-01-01' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectTickerBy.timestamp).toHaveBeenCalled();
     });
 
     it('GetTickerBySourceController should call selectTickerBy.source', async () => {
-      const result = await expectRejects(() =>
-        GetTickerBySourceController(mockReq({ source: 'binance' }), mockRes, mockNext)
+      const result = await GetTickerBySourceController(
+        mockReq({ source: 'binance' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectTickerBy.source).toHaveBeenCalledWith('binance');
     });
   });
@@ -212,47 +210,52 @@ describe('HTTP Controllers', () => {
     });
 
     it('GetOrderBookBySymbolController should call selectOrderBookBy.symbol', async () => {
-      const result = await expectRejects(() =>
-        GetOrderBookBySymbolController(mockReq({ symbol: 'BTCUSDT' }), mockRes, mockNext)
+      const result = await GetOrderBookBySymbolController(
+        mockReq({ symbol: 'BTCUSDT' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectOrderBookBy.symbol).toHaveBeenCalledWith('BTCUSDT');
     });
 
     it('GetOrderBookByTimestampAfterController should call selectOrderBookBy.timestamp.after', async () => {
-      const result = await expectRejects(() =>
-        GetOrderBookByTimestampAfterController(mockReq({ timestamp: '1000' }), mockRes, mockNext)
+      const result = await GetOrderBookByTimestampAfterController(
+        mockReq({ timestamp: '1000' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectOrderBookBy.timestamp.after).toHaveBeenCalledWith(1000);
     });
 
     it('GetOrderBookByTimestampBeforeController should call selectOrderBookBy.timestamp.before', async () => {
-      const result = await expectRejects(() =>
-        GetOrderBookByTimestampBeforeController(mockReq({ timestamp: '9999' }), mockRes, mockNext)
+      const result = await GetOrderBookByTimestampBeforeController(
+        mockReq({ timestamp: '9999' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectOrderBookBy.timestamp.before).toHaveBeenCalledWith(9999);
     });
 
     it('GetOrderBookBySourceController should call selectOrderBookBy.source', async () => {
-      const result = await expectRejects(() =>
-        GetOrderBookBySourceController(mockReq({ source: 'binance' }), mockRes, mockNext)
+      const result = await GetOrderBookBySourceController(
+        mockReq({ source: 'binance' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectOrderBookBy.source).toHaveBeenCalledWith('binance');
     });
 
     it('should throw BadRequest for invalid order book timestamp', async () => {
-      const result = await expectRejects(() =>
-        GetOrderBookByTimestampAfterController(
-          mockReq({ timestamp: 'not-a-number' }),
-          mockRes,
-          mockNext
-        )
+      const result = await GetOrderBookByTimestampAfterController(
+        mockReq({ timestamp: 'not-a-number' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
-      expect(result.value).toMatchObject({ status: 400 });
+      expect(result).toMatchObject({ status: 400 });
     });
   });
 
@@ -264,26 +267,32 @@ describe('HTTP Controllers', () => {
     });
 
     it('GetCandlesBySymbolController should call selectCandlesBy.symbol', async () => {
-      const result = await expectRejects(() =>
-        GetCandlesBySymbolController(mockReq({ symbol: 'BTCUSDT' }), mockRes, mockNext)
+      const result = await GetCandlesBySymbolController(
+        mockReq({ symbol: 'BTCUSDT' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectCandlesBy.symbol).toHaveBeenCalledWith('BTCUSDT');
     });
 
     it('GetCandlesByTimestampController should call selectCandlesBy.timestamp.after', async () => {
-      const result = await expectRejects(() =>
-        GetCandlesByTimestampController(mockReq({ timestamp: '2024-01-01' }), mockRes, mockNext)
+      const result = await GetCandlesByTimestampController(
+        mockReq({ timestamp: '2024-01-01' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectCandlesBy.timestamp.after).toHaveBeenCalled();
     });
 
     it('GetCandlesBySourceController should call selectCandlesBy.source', async () => {
-      const result = await expectRejects(() =>
-        GetCandlesBySourceController(mockReq({ source: 'binance' }), mockRes, mockNext)
+      const result = await GetCandlesBySourceController(
+        mockReq({ source: 'binance' }),
+        mockRes,
+        mockNext
       );
-      expect(result.threw).toBe(true);
+      expect(result).toMatchObject({ status: 200 });
       expect(mockSelectCandlesBy.source).toHaveBeenCalledWith('binance');
     });
   });

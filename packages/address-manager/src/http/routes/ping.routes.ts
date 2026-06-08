@@ -1,6 +1,8 @@
 import { Router } from 'express';
-import { pingController } from '../ping.controller';
+
 import { PING_PATH } from '@trading-model/common/server/constants';
+
+import { pingController } from '../ping.controller';
 
 const router = Router();
 

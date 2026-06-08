@@ -24,16 +24,10 @@
  * @architecture
  * Infrastructure / integration layer.
  * This module wires the messaging broker into the HTTP server.
- *
- * @author docteur-turboss
- *
- * @version 1.0.0
- *
- * @since 2026.01.28
  */
 
-import BrokerModule from '../messaging/index';
 import { env } from './env';
+import BrokerModule from '../messaging/index';
 
 /**
  * Broker singleton instance.

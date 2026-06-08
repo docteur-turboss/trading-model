@@ -1,8 +1,8 @@
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
-import { message, MessageMetadata } from '../../src/messaging/core/message';
+import { Message, MessageMetadata } from '../../src/messaging/core/message';
 
 export const mockServiceIdentity = {
-  serviceName: 'FinancialScrapperService' as const,
+  serviceName: 'FinancialScraperService' as const,
   instanceId: 'instance-1',
 };
 
@@ -30,7 +30,7 @@ export const createMockMessageMetadata = (
 export const createMockMessage = <T = unknown>(
   payload: T,
   overrides?: Partial<MessageMetadata>
-): message<T> => ({
+): Message<T> => ({
   metadata: createMockMessageMetadata(overrides),
   payload,
 });

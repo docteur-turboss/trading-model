@@ -31,14 +31,14 @@ jest.mock('../../../src/config/env', () => ({
 import { createServer } from '../../../src/app/server';
 
 describe('app/server', () => {
-  it('should create server', () => {
-    const server = createServer();
+  it('should create server', async () => {
+    const server = await createServer();
     expect(server).toBeDefined();
     expect(server.close).toBeDefined();
   });
 
-  it('should call createSecureServer with correct options', () => {
-    createServer();
+  it('should call createSecureServer with correct options', async () => {
+    await createServer();
     expect(mockCreateSecureServer).toHaveBeenCalledWith(
       expect.objectContaining({
         port: 3000,

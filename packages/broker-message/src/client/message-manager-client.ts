@@ -1,11 +1,12 @@
-import { MessageManagerError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
-import { SubscribesTopicsPayload, UnSubscribesTopicsPayload } from '../shared/types/payloads';
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import addressManagerClient from '@trading-model/address-manager';
 import { EventEnumMap } from '@trading-model/common/config/event.types';
 import { HttpClient } from '@trading-model/common/config/http-client';
-import addressManagerClient from '@trading-model/address-manager';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import { MessageMetadata } from '@trading-model/common/contracts/message.types';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+
 import { MessageManagerConfig } from '../shared/types/config';
-import { MessageMetadata } from '../shared/types/message';
+import { SubscribesTopicsPayload, UnSubscribesTopicsPayload } from '../shared/types/payloads';
 
 /** Client for interacting with the Message Delivery Service via HTTP. */
 export class MessageManagerClient {
@@ -31,7 +32,11 @@ export class MessageManagerClient {
     try {
       return await this.httpClient.post(targetUrl, payload);
     } catch (error) {
-      throw new MessageManagerError('Failed to subscribe topic to Message Manager', error);
+      throw new AppError(
+        'Failed to subscribe topic to Message Manager',
+        ErrorCodes.MESSAGE_MANAGER_ERROR,
+        { cause: error }
+      );
     }
   }
 
@@ -45,7 +50,11 @@ export class MessageManagerClient {
     try {
       return await this.httpClient.delete(targetUrl, payload);
     } catch (error) {
-      throw new MessageManagerError('Failed to unsubscribe topic to Message Manager', error);
+      throw new AppError(
+        'Failed to unsubscribe topic to Message Manager',
+        ErrorCodes.MESSAGE_MANAGER_ERROR,
+        { cause: error }
+      );
     }
   }
 
@@ -59,16 +68,21 @@ export class MessageManagerClient {
       const target = await this.addressManagerClient.findService(
         ServiceInstanceName.MessageDeliveryService
       );
-      if (!target) throw new ServiceUnreachableError('Unable to contact the message manager');
+      if (!target)
+        throw new AppError('Unable to contact the message manager', ErrorCodes.SERVICE_UNREACHABLE);
 
       for (const topic of topics) {
         await this.SubscribesToASingleTopic(topic, `https://${target.ip}:${target.port}/subscribe`);
       }
     } catch (e) {
-      if (e instanceof ServiceUnreachableError) throw e;
-      if (e instanceof MessageManagerError) return;
+      if (e instanceof AppError && e.code === ErrorCodes.SERVICE_UNREACHABLE) throw e;
+      if (e instanceof AppError && e.code === ErrorCodes.MESSAGE_MANAGER_ERROR) return;
 
-      throw new MessageManagerError('Failed to subscribe topic to Message Manager', e);
+      throw new AppError(
+        'Failed to subscribe topic to Message Manager',
+        ErrorCodes.MESSAGE_MANAGER_ERROR,
+        { cause: e }
+      );
     }
   }
 
@@ -82,7 +96,8 @@ export class MessageManagerClient {
       const target = await this.addressManagerClient.findService(
         ServiceInstanceName.MessageDeliveryService
       );
-      if (!target) throw new ServiceUnreachableError('Unable to contact the message manager');
+      if (!target)
+        throw new AppError('Unable to contact the message manager', ErrorCodes.SERVICE_UNREACHABLE);
 
       for (const topic of topics) {
         await this.UnSubscribesToASingleTopic(
@@ -91,10 +106,14 @@ export class MessageManagerClient {
         );
       }
     } catch (e) {
-      if (e instanceof ServiceUnreachableError) throw e;
-      if (e instanceof MessageManagerError) return;
+      if (e instanceof AppError && e.code === ErrorCodes.SERVICE_UNREACHABLE) throw e;
+      if (e instanceof AppError && e.code === ErrorCodes.MESSAGE_MANAGER_ERROR) return;
 
-      throw new MessageManagerError('Failed to unsubscribe topic to Message Manager', e);
+      throw new AppError(
+        'Failed to unsubscribe topic to Message Manager',
+        ErrorCodes.MESSAGE_MANAGER_ERROR,
+        { cause: e }
+      );
     }
   }
 
@@ -109,7 +128,8 @@ export class MessageManagerClient {
       const target = await this.addressManagerClient.findService(
         ServiceInstanceName.MessageDeliveryService
       );
-      if (!target) throw new ServiceUnreachableError('Unable to contact the message manager');
+      if (!target)
+        throw new AppError('Unable to contact the message manager', ErrorCodes.SERVICE_UNREACHABLE);
 
       const Messagepayload = {
         payload,
@@ -121,9 +141,13 @@ export class MessageManagerClient {
         Messagepayload
       );
     } catch (error) {
-      if (error instanceof ServiceUnreachableError) throw error;
+      if (error instanceof AppError && error.code === ErrorCodes.SERVICE_UNREACHABLE) throw error;
 
-      throw new MessageManagerError('Failed to publish message to Message Manager', error);
+      throw new AppError(
+        'Failed to publish message to Message Manager',
+        ErrorCodes.MESSAGE_MANAGER_ERROR,
+        { cause: error }
+      );
     }
   }
 
@@ -141,7 +165,11 @@ export class MessageManagerClient {
   ): Promise<void> {
     try {
       const target = await this.addressManagerClient.findService(service);
-      if (!target) throw new ServiceUnreachableError('Unable to contact the service: ' + service);
+      if (!target)
+        throw new AppError(
+          'Unable to contact the service: ' + service,
+          ErrorCodes.SERVICE_UNREACHABLE
+        );
 
       const Messagepayload = {
         payload,
@@ -153,9 +181,13 @@ export class MessageManagerClient {
         Messagepayload
       );
     } catch (error) {
-      if (error instanceof ServiceUnreachableError) throw error;
+      if (error instanceof AppError && error.code === ErrorCodes.SERVICE_UNREACHABLE) throw error;
 
-      throw new MessageManagerError('Failed to publish message to ' + service, error);
+      throw new AppError(
+        'Failed to publish message to ' + service,
+        ErrorCodes.MESSAGE_MANAGER_ERROR,
+        { cause: error }
+      );
     }
   }
 }

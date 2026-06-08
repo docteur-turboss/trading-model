@@ -5,6 +5,8 @@ export type WalletConfig = {
   feeRate?: number;
   /** Max units holdable (position cap). Default: Infinity */
   maxPosition?: number;
+  /** Decimal precision for rounding operations. Default: 8 */
+  decimals?: number;
 };
 
 export type TradeRecord = {
@@ -47,9 +49,6 @@ type WalletAPI = {
   reset: () => void;
 };
 
-const round = (value: number, decimals = 8): number =>
-  Math.round(value * 10 ** decimals) / 10 ** decimals;
-
 /**
  * Create a simulated financial portfolio for RL/genetic algorithm trading.
  *
@@ -65,13 +64,13 @@ const round = (value: number, decimals = 8): number =>
  *
  * wallet.reset();       // back to initial state, ready for next episode
  */
-export const createWallet = ({
+function validateConfig({
   initialCash,
   initialPrice,
-  feeRate = 0,
-  maxPosition = Infinity,
-}: WalletConfig): WalletAPI => {
-  // --- Init validation ---
+  feeRate,
+  maxPosition,
+  decimals,
+}: Required<WalletConfig>): void {
   if (!Number.isFinite(initialCash) || initialCash < 0)
     throw new Error(`Invalid initialCash: ${initialCash}`);
   if (!Number.isFinite(initialPrice) || initialPrice <= 0)
@@ -79,6 +78,23 @@ export const createWallet = ({
   if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate >= 1)
     throw new Error(`Invalid feeRate: ${feeRate}. Must be in [0, 1[`);
   if (maxPosition <= 0) throw new Error(`Invalid maxPosition: ${maxPosition}`);
+  if (!Number.isInteger(decimals) || decimals < 1 || decimals > 15)
+    throw new Error(`Invalid decimals: ${decimals}. Must be an integer in [1, 15]`);
+}
+
+export const createWallet = ({
+  initialCash,
+  initialPrice,
+  feeRate = 0,
+  maxPosition = Infinity,
+  decimals = 8,
+}: WalletConfig): WalletAPI => {
+  validateConfig({ initialCash, initialPrice, feeRate, maxPosition, decimals });
+
+  const rnd = (v: number) => {
+    const factor = Math.pow(10, decimals);
+    return Math.round(v * factor) / factor;
+  };
 
   // --- Mutable state ---
   let price = initialPrice;
@@ -93,7 +109,7 @@ export const createWallet = ({
   const history: TradeRecord[] = [];
 
   // --- Helpers ---
-  const currentValuation = () => round(cash + position * price);
+  const currentValuation = () => rnd(cash + position * price);
 
   const updatePeak = () => {
     const val = currentValuation();
@@ -109,18 +125,18 @@ export const createWallet = ({
   const buy = (amount: number): boolean => {
     if (!Number.isFinite(amount) || amount <= 0) return false;
 
-    const newPosition = round(position + amount);
+    const newPosition = rnd(position + amount);
     if (newPosition > maxPosition) return false;
 
-    const baseCost = round(amount * price);
-    const fee = round(baseCost * feeRate);
-    const totalCost = round(baseCost + fee);
+    const baseCost = rnd(amount * price);
+    const fee = rnd(baseCost * feeRate);
+    const totalCost = rnd(baseCost + fee);
 
     if (totalCost > cash) return false;
 
     position = newPosition;
-    cash = round(cash - totalCost);
-    totalFeesPaid = round(totalFeesPaid + fee);
+    cash = rnd(cash - totalCost);
+    totalFeesPaid = rnd(totalFeesPaid + fee);
     tradeCount++;
     updatePeak();
 
@@ -143,13 +159,13 @@ export const createWallet = ({
   const sell = (amount: number): boolean => {
     if (!Number.isFinite(amount) || amount <= 0 || amount > position) return false;
 
-    const baseProceeds = round(amount * price);
-    const fee = round(baseProceeds * feeRate);
-    const netProceeds = round(baseProceeds - fee);
+    const baseProceeds = rnd(amount * price);
+    const fee = rnd(baseProceeds * feeRate);
+    const netProceeds = rnd(baseProceeds - fee);
 
-    position = round(position - amount);
-    cash = round(cash + netProceeds);
-    totalFeesPaid = round(totalFeesPaid + fee);
+    position = rnd(position - amount);
+    cash = rnd(cash + netProceeds);
+    totalFeesPaid = rnd(totalFeesPaid + fee);
     tradeCount++;
     updatePeak();
 
@@ -184,17 +200,17 @@ export const createWallet = ({
   const getPrice = (): number => price;
 
   /** Net profit/loss vs initial cash */
-  const getPnL = (): number => round(currentValuation() - initialCash);
+  const getPnL = (): number => rnd(currentValuation() - initialCash);
 
   /** Consolidated metrics — useful as RL observation features or episode summary */
   const getMetrics = (): WalletMetrics => {
     const valuation = currentValuation();
     return {
-      pnl: round(valuation - initialCash),
-      returnRate: round((valuation - initialCash) / initialCash),
+      pnl: rnd(valuation - initialCash),
+      returnRate: rnd((valuation - initialCash) / initialCash),
       peakValuation,
       /** Max % drop from peak — key risk metric */
-      drawdown: peakValuation > 0 ? round((peakValuation - valuation) / peakValuation) : 0,
+      drawdown: peakValuation > 0 ? rnd((peakValuation - valuation) / peakValuation) : 0,
       totalFeesPaid,
       tradeCount,
     };

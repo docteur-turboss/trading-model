@@ -1,4 +1,5 @@
 import AddressManagerClass from '@trading-model/address-manager';
+
 import { env } from './env';
 
 const addressManager = new AddressManagerClass({

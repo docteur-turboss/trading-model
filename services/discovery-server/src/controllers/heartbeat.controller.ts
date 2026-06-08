@@ -1,48 +1,66 @@
-import { registry } from '../core/service-registry';
-import { catchSync } from '@trading-model/common/middleware/catch-error';
-import { ResponseException } from '@trading-model/common/middleware/response-exception';
-import { isNonEmptyString, isObject } from '@trading-model/common/validation/primitives';
-import { asHandler, validateInstanceToken } from './helpers';
+import { RequestHandler } from 'express';
+import { z } from 'zod';
 
-/** Extend a service instance's lease by recording a heartbeat. */
-export const heartbeat = asHandler(
-  catchSync(async req => {
-    if (!isObject(req.body)) {
-      throw ResponseException('Invalid request body').BadRequest();
+import { catchSync } from '@trading-model/common/middleware/catch-error';
+import { sendResponse } from '@trading-model/common/middleware/response-exception';
+
+import { validateInstanceToken } from './helpers';
+import { ServiceRegistry } from '../core/service-registry';
+
+const heartbeatSchema = z.object({
+  serviceName: z.string().min(1, 'serviceName is required'),
+  instanceId: z.string().min(1, 'instanceId is required'),
+});
+
+const rotateTokenSchema = z.object({
+  instanceId: z.string().min(1, 'instanceId is required'),
+});
+
+interface HeartbeatController {
+  heartbeat: RequestHandler;
+  rotateToken: RequestHandler;
+}
+
+export function createHeartbeatController(registry: ServiceRegistry): HeartbeatController {
+  /** Extend a service instance's lease by recording a heartbeat. */
+  const heartbeat: RequestHandler = catchSync(async req => {
+    const parsed = heartbeatSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return sendResponse(
+        { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
+        400
+      );
     }
 
-    const { serviceName, instanceId } = req.body as Record<string, unknown>;
+    const { serviceName, instanceId } = parsed.data;
 
-    if (!isNonEmptyString(serviceName))
-      throw ResponseException('serviceName is required').BadRequest();
-
-    if (!isNonEmptyString(instanceId))
-      throw ResponseException('instanceId is required').BadRequest();
-
-    validateInstanceToken(req.headers['x-instance-token'], instanceId);
+    validateInstanceToken(registry, req.headers['x-instance-token'], instanceId);
 
     const ttl = registry.updateHeartbeat(serviceName, instanceId);
 
-    if (!ttl) throw ResponseException('Instance not found').NotFound();
+    if (!ttl) return sendResponse({ error: 'Instance not found' }, 404);
 
-    throw ResponseException({ ttl }).Success();
-  })
-);
+    return sendResponse({ ttl }, 200);
+  });
 
-/** Issue a new authentication token for a service instance, invalidating the previous one. */
-export const rotateToken = asHandler(
-  catchSync(async req => {
-    if (!isObject(req.body)) throw ResponseException('Invalid request body').BadRequest();
+  /** Issue a new authentication token for a service instance, invalidating the previous one. */
+  const rotateToken: RequestHandler = catchSync(async req => {
+    const parsed = rotateTokenSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return sendResponse(
+        { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
+        400
+      );
+    }
 
-    const { instanceId } = req.body as Record<string, unknown>;
+    const { instanceId } = parsed.data;
 
-    if (!isNonEmptyString(instanceId))
-      throw ResponseException('instanceId is required').BadRequest();
-
-    validateInstanceToken(req.headers['x-instance-token'], instanceId);
+    validateInstanceToken(registry, req.headers['x-instance-token'], instanceId);
 
     const newToken = registry.updateToken(instanceId);
 
-    throw ResponseException({ token: newToken }).Success();
-  })
-);
+    return sendResponse({ token: newToken }, 200);
+  });
+
+  return { heartbeat, rotateToken };
+}

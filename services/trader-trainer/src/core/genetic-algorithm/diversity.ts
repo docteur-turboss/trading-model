@@ -2,8 +2,8 @@
 //        speciation, diversity metrics, novelty scoring
 // ================================================================
 
-import type { Genome } from './genome-types';
 import { encodeGenome } from './encoding';
+import type { Genome } from './genome-types';
 
 // ================================================================
 //  1. Genomic distance
@@ -192,11 +192,21 @@ export function noveltyScore(
 //  5. Archive management
 // ================================================================
 
+/** Configuration for updating the novelty archive. */
+export interface NoveltyArchiveConfig {
+  /** Minimum novelty score required for archive admission. */
+  threshold?: number;
+  /** Maximum archive size; least novel members are evicted when exceeded. */
+  maxSize?: number;
+  /** Current population (used for re-evaluating novelty when evicting). */
+  population?: Genome[];
+}
+
 /**
  * Optionally add a genome to the novelty archive.
  *
- * A genome is added when its novelty score exceeds `threshold`.
- * The archive is bounded to `maxSize`; least novel members are evicted.
+ * A genome is added when its novelty score exceeds `config.threshold`.
+ * The archive is bounded to `config.maxSize`; least novel members are evicted.
  *
  * @returns Updated archive (may be the same array mutated in-place).
  */
@@ -204,10 +214,9 @@ export function updateNoveltyArchive(
   g: Genome,
   archive: Genome[],
   score: number,
-  threshold = 0.1,
-  maxSize = 500,
-  population: Genome[] = []
+  config: NoveltyArchiveConfig = {}
 ): Genome[] {
+  const { threshold = 0.1, maxSize = 500, population = [] } = config;
   if (score < threshold) return archive;
 
   archive.push(g);

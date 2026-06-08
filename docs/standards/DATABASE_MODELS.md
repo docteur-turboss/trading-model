@@ -6,7 +6,7 @@ The project uses two database engines managed by the **Financial Scraper** (MySQ
 
 ## MySQL — Financial Scraper (`financial-scraper`)
 
-All tables live in the `financial_scraper` database (configurable via `MYSQL_DATABASE` env var). The ORM is [`ts-sql-query`](https://github.com/vernic/ts-sql-query) with a custom `DBConnection` wrapper.
+All tables live in the `financial_scraper` database (configurable via `DB_NAME` env var). The ORM is [`ts-sql-query`](https://github.com/vernic/ts-sql-query) with a custom `DBConnection` wrapper.
 
 ### `market_candles` — OHLCV candle data
 

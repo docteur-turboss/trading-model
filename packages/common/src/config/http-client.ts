@@ -1,6 +1,8 @@
 import https from 'https';
-import { URL } from 'url';
 import fs from 'node:fs';
+import { URL } from 'url';
+
+import { z } from 'zod';
 
 /**
  * HttpClient
@@ -21,27 +23,51 @@ export class HttpClient {
     if (tlsConfig?.key) this.key = fs.readFileSync(tlsConfig.key, 'utf8');
   }
 
-  /** Sends a GET request and returns the parsed response. */
-  async get<T = void>(url: string, options?: HttpRequestOptions): Promise<T> {
-    return this.request<T>('GET', url, undefined, options);
+  /**
+   * Sends a GET request and returns the parsed response.
+   * Returns `undefined` for 204 No Content responses.
+   */
+  async get<T = void>(
+    url: string,
+    options?: HttpRequestOptions,
+    schema?: z.ZodType<T>
+  ): Promise<T | undefined> {
+    return this.request<T>('GET', url, undefined, options, schema);
   }
 
-  /** Sends a POST request with an optional JSON body and returns the parsed response. */
-  async post<T = void>(url: string, body?: unknown, options?: HttpRequestOptions): Promise<T> {
-    return this.request<T>('POST', url, body, options);
+  /**
+   * Sends a POST request with an optional JSON body and returns the parsed response.
+   * Returns `undefined` for 204 No Content responses.
+   */
+  async post<T = void>(
+    url: string,
+    body?: unknown,
+    options?: HttpRequestOptions,
+    schema?: z.ZodType<T>
+  ): Promise<T | undefined> {
+    return this.request<T>('POST', url, body, options, schema);
   }
 
-  /** Sends a DELETE request and returns the parsed response. */
-  async delete<T = void>(url: string, body?: unknown, options?: HttpRequestOptions): Promise<T> {
-    return this.request<T>('DELETE', url, body, options);
+  /**
+   * Sends a DELETE request and returns the parsed response.
+   * Returns `undefined` for 204 No Content responses.
+   */
+  async delete<T = void>(
+    url: string,
+    body?: unknown,
+    options?: HttpRequestOptions,
+    schema?: z.ZodType<T>
+  ): Promise<T | undefined> {
+    return this.request<T>('DELETE', url, body, options, schema);
   }
 
   private async request<T>(
     method: HttpMethod,
     urlStr: string,
     body?: unknown,
-    options?: HttpRequestOptions
-  ): Promise<T> {
+    options?: HttpRequestOptions,
+    schema?: z.ZodType<T>
+  ): Promise<T | undefined> {
     const url = new URL(urlStr);
 
     const requestOptions: https.RequestOptions = {
@@ -59,7 +85,7 @@ export class HttpClient {
       rejectUnauthorized: true,
     };
 
-    return new Promise<T>((resolve, reject) => {
+    return new Promise<T | undefined>((resolve, reject) => {
       const req = https.request(requestOptions, res => {
         let data = '';
 
@@ -71,15 +97,16 @@ export class HttpClient {
             );
           }
 
-          if (res.statusCode === 204) return resolve(undefined as T);
+          if (res.statusCode === 204) return resolve(undefined);
 
           const contentType = res.headers['content-type'] || '';
 
           try {
-            if (contentType.includes('application/json')) {
-              resolve(JSON.parse(data) as T);
+            if (contentType.startsWith('application/json')) {
+              const parsed = JSON.parse(data);
+              resolve(schema ? schema.parse(parsed) : (parsed as T));
             } else {
-              resolve(data as unknown as T);
+              resolve(schema ? schema.parse(data) : (data as unknown as T));
             }
           } catch (err) {
             reject(err);
@@ -90,7 +117,7 @@ export class HttpClient {
       req.on('error', err => reject(err));
 
       if (options?.timeoutMs) {
-        req.setTimeout(options.timeoutMs, () => {
+        const onTimeout = () => {
           req.destroy();
           reject(
             new HttpClientTimeoutError(
@@ -98,6 +125,11 @@ export class HttpClient {
               options.timeoutMs!
             )
           );
+        };
+        req.setTimeout(options.timeoutMs, onTimeout);
+        req.on('close', () => {
+          if (req.destroyed) return;
+          req.removeListener('timeout', onTimeout);
         });
       }
 

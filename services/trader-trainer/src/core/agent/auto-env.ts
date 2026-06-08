@@ -19,7 +19,7 @@ export class AutoEnv {
 
   /** Incoming market message. `features` is the observation vector; `price` updates wallet price. */
   public onMessage(features: Float32Array, price: number): void {
-    const res = this.agent.step(features, price, false);
+    const res = this.agent.step(features, price);
     if (this.cfg.onStep) this.cfg.onStep(res);
   }
 

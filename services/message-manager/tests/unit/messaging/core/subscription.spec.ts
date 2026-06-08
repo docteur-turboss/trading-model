@@ -1,9 +1,18 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { unlink, writeFile } from 'node:fs/promises';
+import { readFileSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals';
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
-import { DeadLetterError, NackError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 import { Subscription } from '../../../../src/messaging/core/subscription';
+import { DqlRepository } from '../../../../src/messaging/core/dlq-repository';
 import { createMockHttpClient } from '../../../helpers/broker.helper';
 import { createMockMessage, mockServiceIdentity } from '../../../fixtures/broker.fixture';
+
+jest.mock('@trading-model/common/utils/sleep', () => ({
+  sleep: jest.fn(() => Promise.resolve()),
+}));
 
 jest.mock('config/address-manager', () => ({
   findAService: jest
@@ -14,10 +23,27 @@ jest.mock('config/address-manager', () => ({
 describe('Subscription', () => {
   let mockHttpClient: ReturnType<typeof createMockHttpClient>;
   let subscription: Subscription;
+  let dqlRepository: DqlRepository;
+  const dlqFilePath = join(tmpdir(), `dlq-test-sub-${Date.now()}.jsonl`);
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockHttpClient = createMockHttpClient();
-    subscription = new Subscription('test.topic', 'message/callback', mockServiceIdentity);
+    dqlRepository = new DqlRepository(dlqFilePath);
+    subscription = new Subscription(
+      'test.topic',
+      'message/callback',
+      mockServiceIdentity,
+      dqlRepository
+    );
+    if (existsSync(dlqFilePath)) {
+      await writeFile(dlqFilePath, '', 'utf-8');
+    }
+  });
+
+  afterAll(async () => {
+    if (existsSync(dlqFilePath)) {
+      await unlink(dlqFilePath);
+    }
   });
 
   describe('dispatch', () => {
@@ -36,7 +62,7 @@ describe('Subscription', () => {
       expect(body).toBeDefined();
     });
 
-    it('should retry on generic error with AT_LEAST_ONCE mode', async () => {
+    it('should retry with exponential backoff on generic error with AT_LEAST_ONCE mode', async () => {
       mockHttpClient.post
         .mockRejectedValueOnce(new Error('Network error'))
         .mockRejectedValueOnce(new Error('Network error'))
@@ -45,13 +71,16 @@ describe('Subscription', () => {
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
       });
+
       await subscription.dispatch(mockHttpClient as never, message);
 
       expect(mockHttpClient.post).toHaveBeenCalledTimes(3);
     });
 
     it('should stop retrying and send to DLQ on DeadLetterError', async () => {
-      mockHttpClient.post.mockRejectedValue(new DeadLetterError('Unrecoverable'));
+      mockHttpClient.post.mockRejectedValue(
+        new AppError('Unrecoverable', ErrorCodes.DEAD_LETTER_ERROR, { reason: 'Unrecoverable' })
+      );
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
@@ -59,6 +88,11 @@ describe('Subscription', () => {
       await subscription.dispatch(mockHttpClient as never, message);
 
       expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+
+      const content = readFileSync(dlqFilePath, 'utf-8').trim();
+      const entry = JSON.parse(content);
+      expect(entry.reason).toBe('Unrecoverable');
+      expect(entry.message.payload).toBe('payload');
     });
 
     it('should stop retrying and send to DLQ on TTL expiration', async () => {
@@ -75,11 +109,16 @@ describe('Subscription', () => {
       await subscription.dispatch(mockHttpClient as never, message);
 
       expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+
+      const content = readFileSync(dlqFilePath, 'utf-8').trim();
+      const entry = JSON.parse(content);
+      expect(entry.reason).toBe('TTL_EXPIRED');
+      expect(entry.message.payload).toBe('payload');
       mockDateNow.mockRestore();
     });
 
-    it('should not retry on NackError with AT_MOST_ONCE mode', async () => {
-      mockHttpClient.post.mockRejectedValue(new NackError('Consumer nack'));
+    it('should not retry with AT_MOST_ONCE mode regardless of error type', async () => {
+      mockHttpClient.post.mockRejectedValue(new Error('Consumer error'));
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },
@@ -87,6 +126,23 @@ describe('Subscription', () => {
       await subscription.dispatch(mockHttpClient as never, message);
 
       expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('should send to DLQ on DeadLetterError even in AT_MOST_ONCE mode', async () => {
+      mockHttpClient.post.mockRejectedValue(
+        new AppError('Unrecoverable', ErrorCodes.DEAD_LETTER_ERROR, { reason: 'Unrecoverable' })
+      );
+
+      const message = createMockMessage('payload', {
+        delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },
+      });
+      await subscription.dispatch(mockHttpClient as never, message);
+
+      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+
+      const content = readFileSync(dlqFilePath, 'utf-8').trim();
+      const entry = JSON.parse(content);
+      expect(entry.reason).toBe('Unrecoverable');
     });
 
     it('should stop after first attempt with EXACTLY_ONCE mode', async () => {
@@ -98,6 +154,67 @@ describe('Subscription', () => {
       await subscription.dispatch(mockHttpClient as never, message);
 
       expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+    });
+
+    it('should route to DLQ when max retries exceeded', async () => {
+      mockHttpClient.post.mockRejectedValue(new Error('Transient error'));
+
+      const message = createMockMessage('payload', {
+        delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+      });
+
+      await subscription.dispatch(mockHttpClient as never, message);
+
+      const content = readFileSync(dlqFilePath, 'utf-8').trim();
+      const entry = JSON.parse(content);
+      expect(entry.reason).toBe('MAX_RETRIES_EXCEEDED');
+    });
+
+    it('should open circuit breaker after threshold failures and reject directly to DLQ', async () => {
+      mockHttpClient.post.mockRejectedValue(new Error('Service down'));
+
+      const message = createMockMessage('payload', {
+        delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+      });
+
+      // exhaust retries 5 times to reach CIRCUIT_BREAKER_THRESHOLD
+      for (let i = 0; i < 5; i++) {
+        await subscription.dispatch(mockHttpClient as never, message);
+      }
+
+      // 6th dispatch — circuit is open, goes directly to DLQ with CIRCUIT_OPEN
+      await subscription.dispatch(mockHttpClient as never, message);
+
+      const content = readFileSync(dlqFilePath, 'utf-8').trim();
+      const lines = content.split('\n');
+      const lastEntry = JSON.parse(lines[lines.length - 1]);
+      expect(lastEntry.reason).toBe('CIRCUIT_OPEN');
+    });
+
+    it('should reset circuit breaker on successful delivery', async () => {
+      mockHttpClient.post
+        .mockRejectedValue(new Error('Service down'))
+        .mockResolvedValueOnce(undefined);
+
+      const message = createMockMessage('payload', {
+        delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+      });
+
+      // first message — fails (retries exhausted), failureCount = 1
+      await subscription.dispatch(mockHttpClient as never, message);
+
+      // second message — succeeds, failureCount resets to 0
+      mockHttpClient.post.mockReset();
+      mockHttpClient.post.mockResolvedValue(undefined);
+
+      await subscription.dispatch(mockHttpClient as never, message);
+
+      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+
+      // third message — also succeeds, confirming failureCount was reset
+      await subscription.dispatch(mockHttpClient as never, message);
+
+      expect(mockHttpClient.post).toHaveBeenCalledTimes(2);
     });
 
     it('should succeed on first attempt with AT_MOST_ONCE mode', async () => {

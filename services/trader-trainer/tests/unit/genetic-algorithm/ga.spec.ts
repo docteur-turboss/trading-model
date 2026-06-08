@@ -18,7 +18,7 @@ import { createDefaultGenome } from '../../../src/core/genetic-algorithm/factory
 describe('Genetic Algorithm - Core Operators', () => {
   let baseGenome: any;
 
-  const rng = Math.random;
+  const rng: () => number = () => 0.5;
 
   beforeEach(() => {
     baseGenome = createDefaultGenome('base');

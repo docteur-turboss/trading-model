@@ -18,17 +18,12 @@
  * @architecture
  * Utility module used by the broker layer.
  * Acts as a **data contract enforcement** component.
- *
- * @author docteur-turboss
- *
- * @version 1.0.0
- *
- * @since 2026.01.28
  */
+
+import { z } from 'zod';
 
 import { DeliveryMode, DeliveryModeEnum } from '@trading-model/common/config/delivery-mode.types';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
-import { z } from 'zod';
 
 /**
  * @description
@@ -98,7 +93,13 @@ export const PublishMetadataSchema = z.object({
 
   security: z
     .object({
-      authContext: z.unknown().optional(),
+      authContext: z
+        .object({
+          subject: z.string(),
+          roles: z.array(z.string()),
+          tenantId: z.string(),
+        })
+        .optional(),
       signature: z.string().optional(),
     })
     .optional(),

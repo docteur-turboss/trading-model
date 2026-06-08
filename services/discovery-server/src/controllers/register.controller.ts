@@ -1,36 +1,48 @@
-import { ServiceInstance } from '../core/types';
-import { registry } from '../core/service-registry';
+import { RequestHandler } from 'express';
+import { z } from 'zod';
+
 import { catchSync } from '@trading-model/common/middleware/catch-error';
-import { ResponseException } from '@trading-model/common/middleware/response-exception';
-import {
-  isNonEmptyString,
-  isObject,
-  isValidIP,
-  isValidPort,
-} from '@trading-model/common/validation/primitives';
-import { asHandler } from './helpers';
+import { sendResponse } from '@trading-model/common/middleware/response-exception';
+import { isNonEmptyString } from '@trading-model/common/validation/primitives';
 
-/** Register a new service instance or update an existing one in the registry. */
-export const register = asHandler(
-  catchSync(async req => {
-    if (!isObject(req.body)) throw ResponseException('Invalid request body').BadRequest();
+import { ServiceRegistry } from '../core/service-registry';
+import { ServiceInstance } from '../core/types';
 
-    const { serviceName, instanceId, ip, port } = req.body as Record<string, unknown>;
+const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
 
-    if (!isNonEmptyString(serviceName))
-      throw ResponseException('serviceName is required').BadRequest();
+const registerSchema = z.object({
+  serviceName: z.string().min(1, 'serviceName is required'),
+  instanceId: z.string().min(1).optional(),
+  ip: z.string().regex(ipv4Regex, 'Invalid IP address'),
+  port: z.number().int().min(1).max(65535, 'Invalid port'),
+});
+
+interface RegisterController {
+  register: RequestHandler;
+  listServices: RequestHandler;
+  getServiceInstances: RequestHandler;
+  getInstance: RequestHandler;
+}
+
+export function createRegisterController(registry: ServiceRegistry): RegisterController {
+  /** Register a new service instance or update an existing one in the registry. */
+  const register: RequestHandler = catchSync(async req => {
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return sendResponse(
+        { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
+        400
+      );
+    }
+
+    const { serviceName, instanceId, ip, port } = parsed.data;
 
     if (!registry.verifyInstanceName(serviceName))
-      throw ResponseException('Invalid service name').BadRequest();
-
-    if (!isValidIP(ip)) throw ResponseException('Invalid IP address').BadRequest();
-
-    if (!isValidPort(port)) throw ResponseException('Invalid port').BadRequest();
+      return sendResponse({ error: 'Invalid service name' }, 400);
 
     let safeInstanceId: string;
 
     if (instanceId !== undefined) {
-      if (!isNonEmptyString(instanceId)) throw ResponseException('Invalid instanceId').BadRequest();
       safeInstanceId = instanceId;
     } else {
       safeInstanceId = registry.generateInstanceId(serviceName, ip, port);
@@ -49,44 +61,40 @@ export const register = asHandler(
 
     const registered = registry.registerInstance(instance);
 
-    throw ResponseException(registered).OK();
-  })
-);
+    return sendResponse(registered, 201);
+  });
 
-/** Return the list of all registered service names. */
-export const listServices = asHandler(
-  catchSync(async () => {
-    throw ResponseException(registry.listServiceNames()).Success();
-  })
-);
+  /** Return the list of all registered service names. */
+  const listServices: RequestHandler = catchSync(async () => {
+    return sendResponse(registry.listServiceNames(), 200);
+  });
 
-/** Return all registered instances for a given service name. */
-export const getServiceInstances = asHandler(
-  catchSync(async req => {
+  /** Return all registered instances for a given service name. */
+  const getServiceInstances: RequestHandler = catchSync(async req => {
     const { serviceName } = req.params;
 
     if (!isNonEmptyString(serviceName))
-      throw ResponseException('serviceName is required').BadRequest();
+      return sendResponse({ error: 'serviceName is required' }, 400);
 
     if (!registry.verifyInstanceName(serviceName))
-      throw ResponseException('Unknown service').NotFound();
+      return sendResponse({ error: 'Unknown service' }, 404);
 
-    throw ResponseException(registry.getInstances(serviceName)).Success();
-  })
-);
+    return sendResponse(registry.getInstances(serviceName), 200);
+  });
 
-/** Return metadata for a specific service instance by service name and instance ID. */
-export const getInstance = asHandler(
-  catchSync(async req => {
+  /** Return metadata for a specific service instance by service name and instance ID. */
+  const getInstance: RequestHandler = catchSync(async req => {
     const { serviceName, instanceId } = req.params;
 
     if (!isNonEmptyString(serviceName) || !isNonEmptyString(instanceId))
-      throw ResponseException('Invalid route parameters').BadRequest();
+      return sendResponse({ error: 'Invalid route parameters' }, 400);
 
     const instance = registry.getInstance(serviceName, instanceId);
 
-    if (!instance) throw ResponseException('Instance not found').NotFound();
+    if (!instance) return sendResponse({ error: 'Instance not found' }, 404);
 
-    throw ResponseException(instance).Success();
-  })
-);
+    return sendResponse(instance, 200);
+  });
+
+  return { register, listServices, getServiceInstances, getInstance };
+}

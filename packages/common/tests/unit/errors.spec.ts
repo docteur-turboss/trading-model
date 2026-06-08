@@ -1,181 +1,122 @@
 import { describe, it, expect } from '@jest/globals';
-import {
-  AddressManagerBaseError,
-  ServiceNotFoundError,
-  ServiceUnreachableError,
-  AuthenticationError,
-  AddressManagerError,
-  MessageManagerBaseError,
-  MessageManagerError,
-  MetadataBuilderError,
-  TimeoutError,
-  NackError,
-  DeadLetterError,
-  AgentBaseError,
-  AgentError,
-} from '../../src/utils/errors';
+import { AppError, ErrorCodes } from '../../src/utils/errors';
 
-describe('Error classes', () => {
-  describe('AddressManagerBaseError', () => {
-    it('should be constructable via subclass', () => {
-      const error = new ServiceNotFoundError('test');
-      expect(error).toBeInstanceOf(Error);
-      expect(error).toBeInstanceOf(AddressManagerBaseError);
-      expect(error.name).toBe('ServiceNotFoundError');
-    });
-
-    it('should store cause', () => {
-      const cause = new Error('root');
-      const error = new ServiceNotFoundError('test', cause);
-      expect(error.cause).toBe(cause);
-    });
-
-    it('should store cause when undefined', () => {
-      const error = new ServiceNotFoundError('test');
-      expect(error.cause).toBeUndefined();
-    });
+describe('AppError', () => {
+  it('should be constructable with message and code', () => {
+    const error = new AppError('test', ErrorCodes.SERVICE_NOT_FOUND);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.message).toBe('test');
+    expect(error.code).toBe('SERVICE_NOT_FOUND');
   });
 
-  describe('ServiceNotFoundError', () => {
-    it('should have correct name and message', () => {
-      const error = new ServiceNotFoundError('Service X not found');
-      expect(error.name).toBe('ServiceNotFoundError');
-      expect(error.message).toBe('Service X not found');
-    });
+  it('should store cause', () => {
+    const cause = new Error('root');
+    const error = new AppError('test', ErrorCodes.SERVICE_NOT_FOUND, { cause });
+    expect(error.cause).toBe(cause);
   });
 
-  describe('ServiceUnreachableError', () => {
-    it('should have correct name', () => {
-      const error = new ServiceUnreachableError('Cannot reach');
-      expect(error.name).toBe('ServiceUnreachableError');
-    });
-
-    it('should be instanceof AddressManagerBaseError', () => {
-      const error = new ServiceUnreachableError('down');
-      expect(error).toBeInstanceOf(AddressManagerBaseError);
-    });
+  it('should have cause undefined when not provided', () => {
+    const error = new AppError('test', ErrorCodes.SERVICE_NOT_FOUND);
+    expect(error.cause).toBeUndefined();
   });
 
-  describe('AuthenticationError', () => {
-    it('should have correct name', () => {
-      const error = new AuthenticationError('Invalid token');
-      expect(error.name).toBe('AuthenticationError');
-    });
+  it('should set constructor name for correct error chain', () => {
+    const error = new AppError('Service X not found', ErrorCodes.SERVICE_NOT_FOUND);
+    expect(error.name).toBe('AppError');
   });
 
-  describe('AddressManagerError', () => {
-    it('should have correct name', () => {
-      const error = new AddressManagerError('Generic error');
-      expect(error.name).toBe('AddressManagerError');
-    });
+  it('should have correct code for SERVICE_NOT_FOUND', () => {
+    const error = new AppError('Service X not found', ErrorCodes.SERVICE_NOT_FOUND);
+    expect(error.code).toBe('SERVICE_NOT_FOUND');
   });
 
-  describe('MessageManagerBaseError', () => {
-    it('should be constructable via subclass', () => {
-      const error = new MessageManagerError('msg');
-      expect(error).toBeInstanceOf(MessageManagerBaseError);
-    });
-
-    it('should store cause', () => {
-      const cause = new Error('root cause');
-      const error = new MessageManagerError('msg', cause);
-      expect(error.cause).toBe(cause);
-    });
+  it('should have correct code for SERVICE_UNREACHABLE', () => {
+    const error = new AppError('Cannot reach', ErrorCodes.SERVICE_UNREACHABLE);
+    expect(error.code).toBe('SERVICE_UNREACHABLE');
   });
 
-  describe('MessageManagerError', () => {
-    it('should have correct name', () => {
-      const error = new MessageManagerError('Failed');
-      expect(error.name).toBe('MessageManagerError');
-    });
+  it('should have correct code for AUTHENTICATION_ERROR', () => {
+    const error = new AppError('Invalid token', ErrorCodes.AUTHENTICATION_ERROR);
+    expect(error.code).toBe('AUTHENTICATION_ERROR');
   });
 
-  describe('MetadataBuilderError', () => {
-    it('should have correct name', () => {
-      const error = new MetadataBuilderError('Missing field');
-      expect(error.name).toBe('MetadataBuilderError');
-    });
-
-    it('should be instanceof MessageManagerBaseError', () => {
-      const error = new MetadataBuilderError('err');
-      expect(error).toBeInstanceOf(MessageManagerBaseError);
-    });
+  it('should have correct code for ADDRESS_MANAGER_ERROR', () => {
+    const error = new AppError('Generic error', ErrorCodes.ADDRESS_MANAGER_ERROR);
+    expect(error.code).toBe('ADDRESS_MANAGER_ERROR');
   });
 
-  describe('TimeoutError', () => {
-    it('should have correct name', () => {
-      const error = new TimeoutError('timed out');
-      expect(error.name).toBe('TimeoutError');
-    });
-
-    it('should be instanceof MessageManagerBaseError', () => {
-      const error = new TimeoutError('timeout');
-      expect(error).toBeInstanceOf(MessageManagerBaseError);
-    });
+  it('should have correct code for MESSAGE_MANAGER_ERROR', () => {
+    const error = new AppError('Failed', ErrorCodes.MESSAGE_MANAGER_ERROR);
+    expect(error.code).toBe('MESSAGE_MANAGER_ERROR');
   });
 
-  describe('NackError', () => {
-    it('should have correct name and reason', () => {
-      const error = new NackError('custom reason');
-      expect(error.name).toBe('NackError');
-      expect(error.reason).toBe('custom reason');
-      expect(error.message).toBe('custom reason');
-    });
-
-    it('should use default message when reason is undefined', () => {
-      const error = new NackError();
-      expect(error.reason).toBeUndefined();
-      expect(error.message).toBe('Message negatively acknowledged');
-    });
-
-    it('should store cause', () => {
-      const cause = new Error('root');
-      const error = new NackError('reason', cause);
-      expect(error.cause).toBe(cause);
-    });
+  it('should have correct code for METADATA_BUILDER_ERROR', () => {
+    const error = new AppError('Missing field', ErrorCodes.METADATA_BUILDER_ERROR);
+    expect(error.code).toBe('METADATA_BUILDER_ERROR');
   });
 
-  describe('DeadLetterError', () => {
-    it('should have correct name and reason', () => {
-      const error = new DeadLetterError('custom reason');
-      expect(error.name).toBe('DeadLetterError');
-      expect(error.reason).toBe('custom reason');
-      expect(error.message).toBe('custom reason');
-    });
-
-    it('should use default message when reason is undefined', () => {
-      const error = new DeadLetterError();
-      expect(error.reason).toBeUndefined();
-      expect(error.message).toBe('Message sent to dead letter queue');
-    });
-
-    it('should store cause', () => {
-      const cause = new Error('root');
-      const error = new DeadLetterError('reason', cause);
-      expect(error.cause).toBe(cause);
-    });
+  it('should have correct code for TIMEOUT_ERROR', () => {
+    const error = new AppError('timed out', ErrorCodes.TIMEOUT_ERROR);
+    expect(error.code).toBe('TIMEOUT_ERROR');
   });
 
-  describe('AgentBaseError', () => {
-    it('should be constructable via subclass', () => {
-      const error = new AgentError('agent error');
-      expect(error).toBeInstanceOf(Error);
-      expect(error).toBeInstanceOf(AgentBaseError);
-      expect(error.name).toBe('AgentError');
-    });
-
-    it('should store cause', () => {
-      const cause = new Error('root');
-      const error = new AgentError('msg', cause);
-      expect(error.cause).toBe(cause);
-    });
+  it('should support reason via options', () => {
+    const error = new AppError('custom reason', ErrorCodes.NACK_ERROR, { reason: 'custom reason' });
+    expect(error.code).toBe('NACK_ERROR');
+    expect(error.reason).toBe('custom reason');
+    expect(error.message).toBe('custom reason');
   });
 
-  describe('AgentError', () => {
-    it('should have correct name', () => {
-      const error = new AgentError('ML failure');
-      expect(error.name).toBe('AgentError');
-      expect(error.message).toBe('ML failure');
+  it('should support NACK_ERROR without reason', () => {
+    const error = new AppError('Message negatively acknowledged', ErrorCodes.NACK_ERROR);
+    expect(error.reason).toBeUndefined();
+    expect(error.message).toBe('Message negatively acknowledged');
+  });
+
+  it('should store cause with NACK_ERROR', () => {
+    const cause = new Error('root');
+    const error = new AppError('reason', ErrorCodes.NACK_ERROR, { reason: 'reason', cause });
+    expect(error.cause).toBe(cause);
+    expect(error.reason).toBe('reason');
+  });
+
+  it('should support DEAD_LETTER_ERROR with reason', () => {
+    const error = new AppError('custom reason', ErrorCodes.DEAD_LETTER_ERROR, {
+      reason: 'custom reason',
     });
+    expect(error.code).toBe('DEAD_LETTER_ERROR');
+    expect(error.reason).toBe('custom reason');
+    expect(error.message).toBe('custom reason');
+  });
+
+  it('should support DEAD_LETTER_ERROR without reason', () => {
+    const error = new AppError('Message sent to dead letter queue', ErrorCodes.DEAD_LETTER_ERROR);
+    expect(error.reason).toBeUndefined();
+    expect(error.message).toBe('Message sent to dead letter queue');
+  });
+
+  it('should store cause with DEAD_LETTER_ERROR', () => {
+    const cause = new Error('root');
+    const error = new AppError('reason', ErrorCodes.DEAD_LETTER_ERROR, { reason: 'reason', cause });
+    expect(error.cause).toBe(cause);
+    expect(error.reason).toBe('reason');
+  });
+
+  it('should have correct code for AGENT_ERROR', () => {
+    const error = new AppError('agent error', ErrorCodes.AGENT_ERROR);
+    expect(error.code).toBe('AGENT_ERROR');
+  });
+
+  it('should store cause with AGENT_ERROR', () => {
+    const cause = new Error('root');
+    const error = new AppError('msg', ErrorCodes.AGENT_ERROR, { cause });
+    expect(error.cause).toBe(cause);
+  });
+
+  it('should have correct message and code for AGENT_ERROR', () => {
+    const error = new AppError('ML failure', ErrorCodes.AGENT_ERROR);
+    expect(error.code).toBe('AGENT_ERROR');
+    expect(error.message).toBe('ML failure');
   });
 });

@@ -34,21 +34,22 @@ Used by `message-manager`, `financial-scraper`, and `trader-trainer` to register
 
 Defined in `@trading-model/common` (`AddressManagerEnvSchema`).
 
-| Variable                          | Type   | Default                         | Required | Description                              | Services   |
-| --------------------------------- | ------ | ------------------------------- | -------- | ---------------------------------------- | ---------- |
-| `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                 | MM, FS, TT |
-| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version                      | MM, FS, TT |
-| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity registered in discovery | MM, FS, TT |
-| `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier               | MM, FS, TT |
-| `CACHE_TTL_MS`                    | number | `30000`                         | no       | In-memory cache TTL                      | MM, FS, TT |
-| `SERVICE_PING_TIMEOUT_MS`         | number | `2000`                          | no       | Timeout for health check pings           | MM, FS, TT |
-| `TOKEN_REFRESH_INTERVAL_MS`       | number | `60000`                         | no       | Auth token refresh interval              | MM, FS, TT |
-| `TTL_REFRESH_INTERVAL_MS`         | number | `15000`                         | no       | Service lease TTL refresh interval       | MM, FS, TT |
-| `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                | MM, FS, TT |
-| `ERROR_URL_WEBHOOK`               | URL    | _(empty)_                       | **yes**  | Error notification webhook endpoint      | All        |
-| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout          | MM, FS, TT |
-| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout      | MM, FS, TT |
-| `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages      | MM, FS, TT |
+| Variable                          | Type   | Default                         | Required | Description                                      | Services   |
+| --------------------------------- | ------ | ------------------------------- | -------- | ------------------------------------------------ | ---------- |
+| `APP_NAME`                        | string | _varies_                        | **yes**  | Logical application name                         | MM, FS, TT |
+| `APP_VERSION`                     | string | `1.0.0`                         | no       | Application version                              | MM, FS, TT |
+| `SERVICE_NAME`                    | string | _varies_                        | **yes**  | Service identity registered in discovery         | MM, FS, TT |
+| `INSTANCE_ID`                     | string | _varies_                        | **yes**  | Unique instance identifier                       | MM, FS, TT |
+| `CACHE_TTL_MS`                    | number | `30000`                         | no       | In-memory cache TTL                              | MM, FS, TT |
+| `SERVICE_PING_TIMEOUT_MS`         | number | `2000`                          | no       | Timeout for health check pings                   | MM, FS, TT |
+| `TOKEN_REFRESH_INTERVAL_MS`       | number | `60000`                         | no       | Auth token refresh interval                      | MM, FS, TT |
+| `TTL_REFRESH_INTERVAL_MS`         | number | `15000`                         | no       | Service lease TTL refresh interval               | MM, FS, TT |
+| `ADDRESS_MANAGER_URL`             | URL    | `https://discovery-server:3000` | **yes**  | Discovery server base URL                        | MM, FS, TT |
+| `DNS_NAME_MAP`                    | string | `'{}'`                          | no       | Custom DNS name to address mapping (JSON object) | MM, FS, TT |
+| `ERROR_URL_WEBHOOK`               | URL    | _(empty)_                       | **yes**  | Error notification webhook endpoint              | All        |
+| `MESSAGE_BUS_INIT_TIMEOUT_MS`     | number | `5000`                          | no       | Message bus client init timeout                  | MM, FS, TT |
+| `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | number | `5000`                          | no       | Message bus client shutdown timeout              | MM, FS, TT |
+| `MESSAGE_CALLBACK_PATH`           | string | `message`                       | no       | Callback path for incoming messages              | MM, FS, TT |
 
 ---
 

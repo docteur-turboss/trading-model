@@ -5,100 +5,82 @@ import {
   DeleteASubscription,
   PublishAMessage,
 } from '../../../../src/messaging/transport/http.controller';
-import { Broker } from '../../../../src/messaging/core/broker';
+import { Dispatcher } from '../../../../src/messaging/core/dispatcher';
 import { createMockDispatcher } from '../../../helpers/broker.helper';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
 jest.mock('@trading-model/common/middleware/catch-error', () => ({
   catchSync:
     (fn: (...args: unknown[]) => unknown) =>
-    (...args: unknown[]): void | Promise<void> => {
-      const next = args[2] as (err?: unknown) => void;
+    async (...args: unknown[]): Promise<void> => {
       try {
-        const result = fn(...args);
-        if (result instanceof Promise) {
-          return result.catch(e => {
-            next(e);
-          }) as Promise<void>;
-        }
+        await fn(...args);
       } catch (e) {
+        const next = args[2] as (err?: unknown) => void;
         next(e);
       }
-      return undefined;
     },
 }));
 
 describe('HTTP Controller', () => {
-  let broker: Broker;
   let mockDispatcher: ReturnType<typeof createMockDispatcher>;
 
   beforeEach(() => {
     mockDispatcher = createMockDispatcher();
-    broker = new Broker(mockDispatcher as never);
   });
 
   describe('SubscriptionToATopic', () => {
-    it('should call broker.subscribe with valid body', () => {
-      const handler = SubscriptionToATopic(broker);
+    it('should call dispatcher.subscribe with valid body', async () => {
+      const handler = SubscriptionToATopic(mockDispatcher as never);
       const req = {
         body: {
           topic: 'test.topic',
           callbackPath: 'message/callback',
           consumerIdentity: {
-            serviceName: ServiceInstanceName.FinancialScrapperService,
+            serviceName: ServiceInstanceName.FinancialScraperService,
             instanceId: 'instance-1',
           },
         },
       } as Request;
-      const next = jest.fn();
 
-      handler(req, {} as Response, next);
+      await handler(req, {} as Response, jest.fn());
 
-      expect(mockDispatcher.registerSubscription).toHaveBeenCalledWith(req.body);
-      expect(next).toHaveBeenCalled();
+      expect(mockDispatcher.subscribe).toHaveBeenCalledWith(req.body);
     });
 
-    it('should throw on invalid body', () => {
-      const handler = SubscriptionToATopic(broker);
-      const req = { body: { topic: '' } } as Request;
-      const next = jest.fn();
+    it('should return error on invalid body', async () => {
+      const handler = SubscriptionToATopic(mockDispatcher as never);
 
-      handler(req, {} as Response, next);
+      await handler({ body: { topic: '' } } as Request, {} as Response, jest.fn());
 
-      expect(mockDispatcher.registerSubscription).not.toHaveBeenCalled();
-      expect(next).toHaveBeenCalled();
+      expect(mockDispatcher.subscribe).not.toHaveBeenCalled();
     });
   });
 
   describe('DeleteASubscription', () => {
-    it('should call broker.unsubscribe with valid body', () => {
-      const handler = DeleteASubscription(broker);
+    it('should call dispatcher.unsubscribe with valid body', async () => {
+      const handler = DeleteASubscription(mockDispatcher as never);
       const req = {
         body: { topic: 'test.topic', instanceId: 'instance-1' },
       } as Request;
-      const next = jest.fn();
 
-      handler(req, {} as Response, next);
+      await handler(req, {} as Response, jest.fn());
 
-      expect(mockDispatcher.unregisterSubscription).toHaveBeenCalledWith(req.body);
-      expect(next).toHaveBeenCalled();
+      expect(mockDispatcher.unsubscribe).toHaveBeenCalledWith(req.body);
     });
 
-    it('should throw on invalid body', () => {
-      const handler = DeleteASubscription(broker);
-      const req = { body: { topic: '' } } as Request;
-      const next = jest.fn();
+    it('should return error on invalid body', async () => {
+      const handler = DeleteASubscription(mockDispatcher as never);
 
-      handler(req, {} as Response, next);
+      await handler({ body: { topic: '' } } as Request, {} as Response, jest.fn());
 
-      expect(mockDispatcher.unregisterSubscription).not.toHaveBeenCalled();
-      expect(next).toHaveBeenCalled();
+      expect(mockDispatcher.unsubscribe).not.toHaveBeenCalled();
     });
   });
 
   describe('PublishAMessage', () => {
-    it('should call broker.publish with valid body', async () => {
-      const handler = PublishAMessage(broker);
+    it('should call dispatcher.publish with valid body', async () => {
+      const handler = PublishAMessage(mockDispatcher as never);
       const req = {
         body: {
           payload: { key: 'value' },
@@ -107,29 +89,25 @@ describe('HTTP Controller', () => {
             eventType: 'TestEvent',
             topic: 'test.topic',
             publisher: {
-              serviceName: ServiceInstanceName.FinancialScrapperService,
+              serviceName: ServiceInstanceName.FinancialScraperService,
               instanceId: 'instance-1',
             },
           },
         },
       } as Request;
-      const next = jest.fn();
 
-      await handler(req, {} as Response, next);
+      await handler(req, {} as Response, jest.fn());
 
-      expect(mockDispatcher.dispatch).toHaveBeenCalled();
-      expect(next).toHaveBeenCalled();
+      expect(mockDispatcher.publish).toHaveBeenCalled();
     });
 
-    it('should throw on invalid body', async () => {
-      const handler = PublishAMessage(broker);
+    it('should return error on invalid body', async () => {
+      const handler = PublishAMessage(mockDispatcher as never);
       const req = { body: { payload: {} } } as Request;
-      const next = jest.fn();
 
-      await handler(req, {} as Response, next);
+      await handler(req, {} as Response, jest.fn());
 
-      expect(mockDispatcher.dispatch).not.toHaveBeenCalled();
-      expect(next).toHaveBeenCalled();
+      expect(mockDispatcher.publish).not.toHaveBeenCalled();
     });
   });
 });

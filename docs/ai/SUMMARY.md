@@ -49,7 +49,7 @@ trading-model/
   - `catchSync()` / `ResponseException` / `HTTP_CODE` / `ResponseCodes`
   - `EventMap` (8 event message keys: test, example, recentTrades, 24hrTicker, candles, orderBook, priceTicker, orderBookTicker)
   - `EnumEventMessage` (event name constants)
-  - `ServiceInstanceName` (well-known: discovery-service, financial-scrapper-service, message-delivery-service, trader-training-service, etc.)
+  - `ServiceInstanceName` (well-known: discovery-service, financial-scraper-service, message-delivery-service, trader-training-service, etc.)
   - `DeliveryMode` (AT_MOST_ONCE, AT_LEAST_ONCE, EXACTLY_ONCE)
   - `sleep()`, `prng` (seeded RNG)
 - **deps:** express 5, helmet, zod 4, express-rate-limit, chained-error
@@ -64,7 +64,7 @@ trading-model/
   - `getToken()` → `string` — current HMAC instance token
   - `listenExpress(app)` — mounts ping routes
 - **factory:** `createAddressManager(env)` — reads env vars
-- **internal:** ServiceDiscovery, TokenManager, ServiceCache, ServiceHealthChecker, Scheduler, TokenRefresherJob, TtlRefresherJob
+- **internal:** ServiceDiscovery, TokenManager, ServiceCache, ServiceHealthChecker, ServiceLocator, ServiceNameLocator, IpAddressLocator, MappingServiceLocator, RefreshJob, Scheduler
 - **deps:** common, express 5, node-cron
 - **test coverage threshold:** 80% all metrics
 
@@ -121,7 +121,7 @@ trading-model/
 
 ### financial-scraper (port 8445)
 
-- **service name:** `financial-scrapper-service`
+- **service name:** `financial-scraper-service`
 - **data source:** Binance (REST API)
 - **persistence:** MySQL 8 via mysql2 + ts-sql-query
 - **tables:** `market_candles`, `market_trades`, `market_tickers` (see `scripts/init-db.sql`)
@@ -247,7 +247,8 @@ TLS certs mounted at `/certs:ro` (from `TLS_CERTS_DIR` env, default `./certs`)
 - **`docs/deployment/` (8 files):** SETUP, ENV, DATABASE, DEPLOY, CONTRIBUTE, DOCKER, CI_CD, README
 - **`docs/architecture/api/` (8 files):** common, address-manager, broker-message, discovery-server, message-manager, financial-scraper, trader-trainer, README
 - **`docs/architecture/code/`:** TypeDoc-generated HTML per module (common, address-manager, message-manager, financial-scraper, trader-trainer)
-- **`docs/packages/` (3 files):** common, address-manager, broker-message READMEs
+- **`docs/architecture/code/@trading-model/`:** TypeDoc-generated docs for common, address-manager, broker-message
+- **`docs/architecture/api/`:** API docs for common.md, address-manager.md, broker-message.md
 
 ## 15. Scripts
 

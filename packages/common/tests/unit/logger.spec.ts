@@ -4,12 +4,13 @@ import { Logger, LogLevel } from '../../src/config/logger';
 jest.mock('fs', () => ({
   existsSync: jest.fn().mockReturnValue(false),
   mkdirSync: jest.fn(),
-  writeFile: jest.fn((_path: string, _data: string, _opts: unknown, cb: () => void) => cb()),
+  appendFile: jest.fn((_path: string, _data: string, cb: (err: Error | null) => void) => cb(null)),
 }));
 
-import { writeFile } from 'fs';
+import { appendFile } from 'fs';
+const mockAppendFile = appendFile as unknown as jest.Mock;
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('Logger', () => {
   let logger: Logger;
@@ -134,7 +135,7 @@ describe('Logger', () => {
   describe('setErrorHandlerService', () => {
     it('should set the error handler service URL', () => {
       (logger as any).setErrorHandlerService('https://errors.example.com');
-      expect((logger as any).handle_error_service).toBe('https://errors.example.com');
+      expect((logger as any).handleErrorServiceUrl).toBe('https://errors.example.com');
     });
   });
 
@@ -178,6 +179,14 @@ describe('Logger', () => {
       const logs = logger.getLogs();
       expect(logs[0].sessionId).toBeUndefined();
     });
+
+    it('should log appendFile error to console.error', () => {
+      mockAppendFile.mockImplementationOnce(((_path: string, _data: string, cb: (err: Error | null) => void) => cb(new Error('disk full'))) as jest.Mock);
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      logger.info('write fail test');
+      expect(consoleErrorSpy).toHaveBeenCalledWith('[Logger] Failed to write log file:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   describe('sendToErrorService with ERROR_URL_WEBHOOK', () => {
@@ -197,17 +206,39 @@ describe('Logger', () => {
 
   describe('safeStringify', () => {
     it('should handle circular references gracefully', () => {
-      const mockWriteFile = writeFile as unknown as jest.Mock;
-      mockWriteFile.mockClear();
+      mockAppendFile.mockClear();
 
       const obj: Record<string, unknown> = { name: 'parent' };
       obj.self = obj;
 
       logger.info('circular test', obj);
 
-      expect(mockWriteFile).toHaveBeenCalled();
-      const writtenData = mockWriteFile.mock.calls[0][1];
+      expect(mockAppendFile).toHaveBeenCalled();
+      const writtenData = mockAppendFile.mock.calls[0][1];
       expect(writtenData).toContain('[Circular]');
+    });
+
+    it('should redact sensitive keys like password, token, secret, authorization', () => {
+      mockAppendFile.mockClear();
+
+      const context = {
+        password: 'supersecret',
+        token: 'abc123',
+        secret: 'my-secret',
+        authorization: 'Bearer xyz',
+        normalKey: 'visible',
+      };
+
+      logger.info('test sensitive redaction', context);
+
+      expect(mockAppendFile).toHaveBeenCalled();
+      const writtenData = mockAppendFile.mock.calls[0][1];
+      expect(writtenData).toContain('"[REDACTED]"');
+      expect(writtenData).not.toContain('supersecret');
+      expect(writtenData).not.toContain('abc123');
+      expect(writtenData).not.toContain('my-secret');
+      expect(writtenData).not.toContain('Bearer xyz');
+      expect(writtenData).toContain('visible');
     });
   });
 

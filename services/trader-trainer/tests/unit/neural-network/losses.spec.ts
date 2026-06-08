@@ -231,3 +231,34 @@ describe('Loss Functions', () => {
     });
   });
 });
+
+describe('Loss function input validation', () => {
+  const output = makeOutput([0.2, 0.5, 0.8]);
+  const longTarget = makeTarget([1, 0, 1, 0]);
+  const shortTarget = makeTarget([1]);
+  const cfg = makeConfig();
+
+  const lossNames = Object.keys(LOSSES) as Array<keyof typeof LOSSES>;
+
+  for (const name of lossNames) {
+    describe(name, () => {
+      test('loss should throw on output longer than target', () => {
+        expect(() => LOSSES[name].loss(output, shortTarget, cfg)).toThrow(RangeError);
+      });
+
+      test('loss should throw on output shorter than target', () => {
+        const short = makeOutput([0.2]);
+        expect(() => LOSSES[name].loss(short, longTarget, cfg)).toThrow(RangeError);
+      });
+
+      test('gradient should throw on output longer than target', () => {
+        expect(() => LOSSES[name].gradient(output, shortTarget, cfg)).toThrow(RangeError);
+      });
+
+      test('gradient should throw on output shorter than target', () => {
+        const short = makeOutput([0.2]);
+        expect(() => LOSSES[name].gradient(short, longTarget, cfg)).toThrow(RangeError);
+      });
+    });
+  }
+});

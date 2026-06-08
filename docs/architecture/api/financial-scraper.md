@@ -6,7 +6,7 @@ Market data collection service from Binance, with MySQL persistence and REST API
 
 | Property         | Value                                                                                                          |
 | ---------------- | -------------------------------------------------------------------------------------------------------------- |
-| Service name     | `financial-scrapper-service`                                                                                   |
+| Service name     | `financial-scraper-service`                                                                                    |
 | Port (host)      | `8445`                                                                                                         |
 | Port (container) | `3000`                                                                                                         |
 | Dependencies     | `@trading-model/common`, `@trading-model/address-manager`, `@trading-model/broker-message`, MySQL, Binance API |
@@ -137,7 +137,7 @@ All endpoints are **GET** and return the requested financial data.
 
 ## MySQL Tables
 
-All tables live in the `financial_scraper` database (configurable via `MYSQL_DATABASE` env var). The ORM is `ts-sql-query` with a custom `DBConnection` wrapper.
+All tables live in the `financial_scraper` database (configurable via `DB_NAME` env var). The ORM is `ts-sql-query` with a custom `DBConnection` wrapper.
 
 ### `market_candles` — OHLCV candle data
 

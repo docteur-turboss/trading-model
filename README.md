@@ -107,6 +107,7 @@ The system is designed to aggregate and correlate multiple categories of signals
   - fail-safe mechanisms
 
 See [`SECURITY.md`](./SECURITY.md) for responsible disclosure and security policies.
+See [`docs/README.md`](docs/README.md) for the full documentation index.
 
 ## Disclaimer
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import {
   ClassResponseExceptions,
   ResponseException,
+  sendResponse,
   HTTP_CODE,
   ResponseCodes,
 } from '../../src/middleware/response-exception';
@@ -149,6 +150,18 @@ describe('ClassResponseExceptions', () => {
     it('should default to empty string', () => {
       const result = ResponseException().Success();
       expect(result.data).toBe('');
+    });
+  });
+
+  describe('sendResponse', () => {
+    it('should return ResponseObject with given data and status', () => {
+      const result = sendResponse({ id: 1 }, 201);
+      expect(result).toEqual({ status: 201, data: { id: 1 } });
+    });
+
+    it('should return ResponseObject with null data', () => {
+      const result = sendResponse(null, 204);
+      expect(result).toEqual({ status: 204, data: null });
     });
   });
 });

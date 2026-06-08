@@ -55,9 +55,6 @@ docs/
 │       └── trader-trainer/
 └── ai/                                 # AI/LLM-optimized summaries
     └── SUMMARY.md
-├── packages/                # Per-package documentation
-│   ├── common/
-│   └── address-manager/
 └── standards/               # This folder — detailed standards
     ├── README.md            # Standards index
     ├── ARCHITECTURE.md      # Architecture standards
@@ -124,21 +121,24 @@ The documentation is organized into focused subdirectories with a clear separati
 | `broker-message.md`    | @trading-model/broker-message package API           |
 | `discovery-server.md`  | discovery-service API endpoints                     |
 | `message-manager.md`   | message-delivery-service API endpoints              |
-| `financial-scraper.md` | financial-scrapper-service API endpoints            |
+| `financial-scraper.md` | financial-scraper-service API endpoints             |
 | `trader-trainer.md`    | trader-training-service API endpoints               |
 
-### Service-Specific Documentation (`services/<name>/docs/`)
+### Service-Specific Documentation
 
-Each service has its own docs subdirectory for service-specific content (internal architecture, business concepts):
+Each service has API docs in `docs/architecture/api/` and TypeDoc-generated code docs in `docs/architecture/code/`. Some services also maintain additional documentation in `services/<name>/` at the service root:
 
 ```
-services/trader-trainer/docs/
-├── NEURAL_NETWORK.md
-├── GENETIC_ALGORITHM.md
-├── TRAINING_PROCESS.md
-├── TECHNICAL_OVERVIEW.md
-├── INTEGRATION.md
-└── API.md
+services/trader-trainer/
+├── ARCHITECTURE.md          # Service-specific architecture
+├── README.md                # Service overview
+└── docs/                    # Internal architecture docs
+    ├── NEURAL_NETWORK.md
+    ├── GENETIC_ALGORITHM.md
+    ├── TRAINING_PROCESS.md
+    ├── TECHNICAL_OVERVIEW.md
+    ├── INTEGRATION.md
+    └── API.md
 ```
 
 ## How

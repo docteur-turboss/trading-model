@@ -87,7 +87,10 @@ describe('TradingAgent', () => {
       const agentWithAmount = new TradingAgent(makeConfig({ tradeAmount: 5 }));
       const output = new Float32Array([0.0, 0.0, 1.0]);
 
-      const result = agentWithAmount.mapOutputToAction(output, { nnConfig: {}, tradeAmount: 5 });
+      const result = agentWithAmount.mapOutputToAction(output, {
+        nnConfig: { neuronsByLayer: [4, 6, 3] },
+        tradeAmount: 5,
+      });
 
       expect(result.amount).toBe(5);
     });
@@ -96,7 +99,7 @@ describe('TradingAgent', () => {
       const output = new Float32Array([0.5]);
 
       const result = agent.mapOutputToAction(output, {
-        nnConfig: {},
+        nnConfig: { neuronsByLayer: [4, 6, 3] },
         actionSpace: 'continuous',
         tradeAmount: 2,
       });
@@ -109,7 +112,7 @@ describe('TradingAgent', () => {
       const output = new Float32Array([0.0]);
 
       const result = agent.mapOutputToAction(output, {
-        nnConfig: {},
+        nnConfig: { neuronsByLayer: [4, 6, 3] },
         actionSpace: 'continuous',
         tradeAmount: 1,
       });
@@ -121,7 +124,7 @@ describe('TradingAgent', () => {
       const output = new Float32Array([-0.5]);
 
       const result = agent.mapOutputToAction(output, {
-        nnConfig: {},
+        nnConfig: { neuronsByLayer: [4, 6, 3] },
         actionSpace: 'continuous',
         tradeAmount: 2,
       });
@@ -133,7 +136,7 @@ describe('TradingAgent', () => {
       const output = new Float32Array([]);
 
       const result = agent.mapOutputToAction(output, {
-        nnConfig: {},
+        nnConfig: { neuronsByLayer: [4, 6, 3] },
         actionSpace: 'continuous',
       });
 

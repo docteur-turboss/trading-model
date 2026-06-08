@@ -1,11 +1,11 @@
-import { Agent } from '../neural-network/agent';
-import { createWallet, WalletConfig } from '../env/wallet-manager';
 import StateManager, { StateManagerConfig } from './state-manager';
+import { createWallet, WalletConfig } from '../env/wallet-manager';
+import { Agent } from '../neural-network/agent';
+import { NeuralNetworkConfig } from '../neural-network/type';
 
 /** Configuration to create a TradingAgent with neural network, wallet, and RL state management. */
 export type TradingAgentConfig = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  nnConfig: any;
+  nnConfig: NeuralNetworkConfig;
   wallet?: WalletConfig;
   actionSpace?: 'discrete' | 'continuous';
   tradeAmount?: number; // default fixed units per trade
@@ -54,16 +54,14 @@ export class TradingAgent {
   /** Perform one environment step: update price, infer action, apply to wallet, and record reward */
   public step(
     input: Float32Array,
-    price?: number,
-    _done: boolean = false
+    price?: number
   ): { action: string; reward: number; metrics: Record<string, unknown> } {
-    void _done;
     if (price !== undefined) this.wallet.setPrice(price);
 
     const currentPnL = this.wallet.getPnL();
     const output = this.agent.fastForward(input);
 
-    const { action, amount } = this.mapOutputToAction(output, { nnConfig: undefined });
+    const { action, amount } = this.mapOutputToAction(output);
 
     let executed = false;
     if (action === 'buy') executed = this.wallet.buy(amount);

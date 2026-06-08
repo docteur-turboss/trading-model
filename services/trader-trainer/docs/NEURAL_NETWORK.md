@@ -14,6 +14,20 @@ The neural network module (`src/core/neural-network/`) implements a configurable
 
 ## Architecture
 
+### Module Files
+
+| File | Responsibility |
+|---|---|
+| `neural-network.ts` | Core network class: forward/backward pass, training, pooling |
+| `network-serialization.ts` | Weight serialization: `getWeights`, `setWeights`, `parameterCount`, `distributeAroundWeights` |
+| `activation.ts` | Activation functions |
+| `initializers.ts` | Weight/bias initializers |
+| `losses.ts` | Loss functions |
+| `normalize.ts` | Input normalization strategies |
+| `optimizer.ts` | Optimizers (SGD, Adam, RMSprop) |
+| `type.ts` | Shared types |
+| `utils.ts` | Utilities |
+
 ### `NeuralNetwork` (`neural-network.ts`)
 
 The core network class. Structure: `Input → Hidden Layer × N → Output`.

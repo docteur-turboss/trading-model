@@ -73,10 +73,27 @@ import { globalIgnores, defineConfig } from 'eslint/config';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores([
+    '**/dist/**',
+    '**/*.spec.ts',
+    '**/jest.config.*',
+    '**/jest.setup.ts',
+    '**/setup.ts',
+    '**/tests/fixtures/**',
+    '**/tests/helpers/**',
+    '**/docs/architecture/code/**',
+  ]),
   {
-    files: ['**/*.{ts,js,mjs,cjs}'],
+    files: ['**/*.{js,mjs,cjs}'],
     extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      globals: globals.node,
+    },
+  },
+  {
+    files: ['**/*.ts'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 'latest',
       globals: globals.node,
@@ -85,12 +102,31 @@ export default defineConfig([
         tsconfigRootDir: __dirname,
       },
     },
+    plugins: { ix },
+    rules: {
+      'ix/order': ['error', {
+        groups: [['builtin'], ['external'], ['internal'], ['parent', 'sibling'], ['index']],
+        pathGroups: [{ pattern: '@trading-model/**', group: 'internal', position: 'after' }],
+        pathGroupsExcludedImportTypes: ['builtin'],
+        newlines-between: 'always',
+        alphabetize: { order: 'asc' },
+      }],
+    },
+    settings: {
+      'import-x/resolver': {
+        typescript: {
+          alwaysTryTypes: true,
+          project: ['packages/*/tsconfig.json', 'packages/*/tsconfig.build.json', 'services/*/tsconfig.json'],
+        },
+      },
+    },
   },
-  tseslint.configs.recommended,
 ]);
 ```
 
-Ignored files: `**/dist/**`, `**/*.spec.ts`, `**/jest.config.*`, `**/jest.setup.ts`, `**/setup.ts`, `**/tests/fixtures/**`, `**/tests/helpers/**`
+Ignored files: `**/dist/**`, `**/*.spec.ts`, `**/jest.config.*`, `**/jest.setup.ts`, `**/setup.ts`, `**/tests/fixtures/**`, `**/tests/helpers/**`, `**/docs/architecture/code/**`
+
+Import order enforced via `eslint-plugin-import-x` (see `eslint.config.mjs` for full rule config).
 
 ## Test Coverage
 
@@ -104,7 +140,7 @@ Minimum thresholds defined per module (see [TESTING.md](./TESTING.md) for detail
 | financial-scraper              | 100%      |
 | @trading-model/address-manager | 80%       |
 | @trading-model/broker-message  | 80%       |
-| trader-trainer                 | Not set   |
+| trader-trainer                 | 80%       |
 
 Coverage is verified by Jest on every test run. Below the threshold, tests fail.
 

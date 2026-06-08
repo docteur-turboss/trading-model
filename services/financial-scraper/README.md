@@ -34,23 +34,27 @@ See [.env.example](./.env.example) for all available variables.
 
 ## Environment Variables
 
-| Variable              | Description                   | Default                     |
-| --------------------- | ----------------------------- | --------------------------- |
-| `NODE_ENV`            | Runtime environment           | `development`               |
-| `PORT`                | HTTPS server port             | `8444`                      |
-| `TLS_KEY_PATH`        | Path to TLS private key       | —                           |
-| `TLS_CERT_PATH`       | Path to TLS certificate       | —                           |
-| `TLS_CA_PATH`         | Path to CA certificate        | —                           |
-| `SERVICE_NAME`        | Service identity for registry | `financial-scraper-service` |
-| `INSTANCE_ID`         | Unique instance identifier    | —                           |
-| `ADDRESS_MANAGER_URL` | Discovery server URL          | —                           |
-| `DB_USER`             | MySQL user                    | —                           |
-| `DB_PASSWORD`         | MySQL password                | —                           |
-| `DB_NAME`             | MySQL database name           | —                           |
-| `DB_HOST`             | MySQL host                    | `localhost`                 |
-| `DB_PORT`             | MySQL port                    | `3306`                      |
-| `LOG_LEVEL`           | Logging verbosity             | `info`                      |
-| `ERROR_URL_WEBHOOK`   | Webhook for error alerts      | —                           |
+| Variable              | Description                         | Default                     |
+| --------------------- | ----------------------------------- | --------------------------- |
+| `NODE_ENV`            | Runtime environment                 | `development`               |
+| `PORT`                | HTTPS server port                   | `8444`                      |
+| `TLS_KEY_PATH`        | Path to TLS private key             | —                           |
+| `TLS_CERT_PATH`       | Path to TLS certificate             | —                           |
+| `TLS_CA_PATH`         | Path to CA certificate              | —                           |
+| `SERVICE_NAME`        | Service identity for registry       | `financial-scraper-service` |
+| `INSTANCE_ID`         | Unique instance identifier          | —                           |
+| `ADDRESS_MANAGER_URL` | Discovery server URL                | —                           |
+| `BINANCE_API_KEY`     | Binance API key (optional)          | `''`                        |
+| `BINANCE_API_SECRET`  | Binance API secret (optional)       | `''`                        |
+| `SYMBOLS_TO_TRACK`    | JSON array of symbols to fetch      | `[]`                        |
+| `SCRAPE_INTERVAL`     | Cron expression for scrape schedule | `*/1 * * * *`               |
+| `DB_USER`             | MySQL user                          | `root`                      |
+| `DB_PASSWORD`         | MySQL password                      | `''`                        |
+| `DB_NAME`             | MySQL database name                 | `financial_scraper`         |
+| `DB_HOST`             | MySQL host                          | `localhost`                 |
+| `DB_PORT`             | MySQL port                          | `3306`                      |
+| `LOG_LEVEL`           | Logging verbosity                   | `info`                      |
+| `ERROR_URL_WEBHOOK`   | Webhook for error alerts            | —                           |
 
 ## Running
 

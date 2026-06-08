@@ -71,6 +71,46 @@ export interface TickerEntity extends BaseMarketEntity {
   closeTimestamp: number;
 }
 
+/** Compute a price-weighted average bid from an order book. */
+export function getAvgBid(orderBook: OrderBookEntity): number {
+  let totalQty = 0;
+  let totalValue = 0;
+  for (const { price, quantity } of orderBook.bids) {
+    totalValue += price * quantity;
+    totalQty += quantity;
+  }
+  return totalQty > 0 ? totalValue / totalQty : 0;
+}
+
+/** Compute a price-weighted average ask from an order book. */
+export function getAvgAsk(orderBook: OrderBookEntity): number {
+  let totalQty = 0;
+  let totalValue = 0;
+  for (const { price, quantity } of orderBook.asks) {
+    totalValue += price * quantity;
+    totalQty += quantity;
+  }
+  return totalQty > 0 ? totalValue / totalQty : 0;
+}
+
+/** Total quantity available on the bid side of an order book. */
+export function getBidTotalQty(orderBook: OrderBookEntity): number {
+  let total = 0;
+  for (const { quantity } of orderBook.bids) {
+    total += quantity;
+  }
+  return total;
+}
+
+/** Total quantity available on the ask side of an order book. */
+export function getAskTotalQty(orderBook: OrderBookEntity): number {
+  let total = 0;
+  for (const { quantity } of orderBook.asks) {
+    total += quantity;
+  }
+  return total;
+}
+
 /** Named references for all known event message keys. */
 export const EnumEventMessage = {
   testEvent: 'example.debug.create',

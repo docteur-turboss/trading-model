@@ -6,7 +6,7 @@ export { ServiceInstance };
  * Payload sent during the initial registration of the service with the AM.
  */
 export interface RegisterServicePayload {
-  /** Logical service name (e.g. "TradingTrainer", "SocialScrapper") */
+  /** Logical service name (e.g. "TradingTrainer", "SocialScraper") */
   serviceName: string;
 
   /** Port on which the service is listening */

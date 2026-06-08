@@ -1,112 +1,31 @@
-/** Base error class for all domain-specific errors in the trading model. */
-export abstract class TradingModelError extends Error {
+export const ErrorCodes = {
+  SERVICE_NOT_FOUND: 'SERVICE_NOT_FOUND',
+  SERVICE_UNREACHABLE: 'SERVICE_UNREACHABLE',
+  AUTHENTICATION_ERROR: 'AUTHENTICATION_ERROR',
+  ADDRESS_MANAGER_ERROR: 'ADDRESS_MANAGER_ERROR',
+  MESSAGE_MANAGER_ERROR: 'MESSAGE_MANAGER_ERROR',
+  METADATA_BUILDER_ERROR: 'METADATA_BUILDER_ERROR',
+  TIMEOUT_ERROR: 'TIMEOUT_ERROR',
+  NACK_ERROR: 'NACK_ERROR',
+  DEAD_LETTER_ERROR: 'DEAD_LETTER_ERROR',
+  AGENT_ERROR: 'AGENT_ERROR',
+  CONFIGURATION_ERROR: 'CONFIGURATION_ERROR',
+} as const;
+
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+
+/** Single application error class with a discriminant `code` property. */
+export class AppError extends Error {
+  public readonly code: ErrorCode;
   public readonly cause?: unknown;
+  public readonly reason?: string;
 
-  /**
-   * @param message - Human-readable error description.
-   * @param cause - Optional underlying cause of the error.
-   */
-  protected constructor(message: string, cause?: unknown) {
+  constructor(message: string, code: ErrorCode, options?: { cause?: unknown; reason?: string }) {
     super(message);
-    this.name = this.constructor.name;
-    this.cause = cause;
+    this.name = 'AppError';
+    this.code = code;
+    this.cause = options?.cause;
+    this.reason = options?.reason;
     Object.setPrototypeOf(this, new.target.prototype);
-  }
-}
-
-/** Base class for address / service-discovery related errors. */
-export abstract class AddressManagerBaseError extends TradingModelError {
-  protected constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}
-
-/** Thrown when a requested service cannot be found in the registry. */
-export class ServiceNotFoundError extends AddressManagerBaseError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}
-
-/** Thrown when a service is known but cannot be reached. */
-export class ServiceUnreachableError extends AddressManagerBaseError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}
-
-/** Thrown when authentication with a service or registry fails. */
-export class AuthenticationError extends AddressManagerBaseError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}
-
-/** Generic error for address manager failures. */
-export class AddressManagerError extends AddressManagerBaseError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}
-
-/** Base class for message bus / queue related errors. */
-export abstract class MessageManagerBaseError extends TradingModelError {
-  protected constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}
-
-/** Generic error for message manager failures. */
-export class MessageManagerError extends MessageManagerBaseError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}
-
-/** Thrown when message metadata construction fails. */
-export class MetadataBuilderError extends MessageManagerBaseError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}
-
-/** Thrown when a message operation exceeds its allowed timeout. */
-export class TimeoutError extends MessageManagerBaseError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}
-
-/** Thrown when a message is negatively acknowledged by the consumer. */
-export class NackError extends MessageManagerBaseError {
-  constructor(
-    public readonly reason?: string,
-    cause?: unknown
-  ) {
-    super(reason ?? 'Message negatively acknowledged', cause);
-  }
-}
-
-/** Thrown when a message is routed to the dead-letter queue. */
-export class DeadLetterError extends MessageManagerBaseError {
-  constructor(
-    public readonly reason?: string,
-    cause?: unknown
-  ) {
-    super(reason ?? 'Message sent to dead letter queue', cause);
-  }
-}
-
-/** Base class for agent / trading algorithm errors. */
-export abstract class AgentBaseError extends TradingModelError {
-  protected constructor(message: string, cause?: unknown) {
-    super(message, cause);
-  }
-}
-
-/** Generic error for agent-level failures. */
-export class AgentError extends AgentBaseError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause);
   }
 }

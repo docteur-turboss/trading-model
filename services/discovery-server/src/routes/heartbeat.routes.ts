@@ -1,5 +1,8 @@
 import { Router } from 'express';
-import { heartbeat, rotateToken } from '../controllers/heartbeat.controller';
+import rateLimit from 'express-rate-limit';
+
+import { createHeartbeatController } from '../controllers/heartbeat.controller';
+import { ServiceRegistry } from '../core/service-registry';
 
 /**
  * Heartbeat Routes
@@ -17,11 +20,21 @@ import { heartbeat, rotateToken } from '../controllers/heartbeat.controller';
  * - Application-level authentication relies on instance tokens
  * - No business logic should be implemented at the routing layer
  */
-export const heartbeatRoutes = (): Router => {
+export const heartbeatRoutes = (registry: ServiceRegistry): Router => {
+  const { heartbeat, rotateToken } = createHeartbeatController(registry);
+
   /**
    * Express router instance scoped to registry heartbeat concerns.
    */
   const router = Router();
+
+  const heartbeatLimiter = rateLimit({
+    windowMs: 60_000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many heartbeat requests, please try again later' },
+  });
 
   /**
    * -------------------------
@@ -37,7 +50,7 @@ export const heartbeatRoutes = (): Router => {
    * If heartbeats stop, the LeaseManager will eventually
    * evict the instance from the registry.
    */
-  router.post('/heartbeat', heartbeat);
+  router.post('/heartbeat', heartbeatLimiter, heartbeat);
 
   /**
    * -------------------------
@@ -54,7 +67,7 @@ export const heartbeatRoutes = (): Router => {
    * - security incident response
    * - short-lived token enforcement
    */
-  router.post('/token/rotate', rotateToken);
+  router.post('/token/rotate', heartbeatLimiter, rotateToken);
 
   /**
    * Return the configured router to be mounted by the application.

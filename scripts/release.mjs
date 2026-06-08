@@ -139,15 +139,37 @@ function formatChangelogLine(c) {
   return `- ${c.hash} ${scope}${c.subject}`;
 }
 
-function main() {
-  const dryRun = process.argv.includes('--dry-run');
-  if (dryRun) console.log('\n  ⚠️  DRY RUN — no files will be modified\n');
+function parseArgs() {
+  const args = { dryRun: false, bump: null, version: null };
+  for (let i = 2; i < process.argv.length; i++) {
+    const arg = process.argv[i];
+    if (arg === '--dry-run') args.dryRun = true;
+    else if (arg === '--bump') args.bump = process.argv[++i] || null;
+    else if (arg === '--version') args.version = process.argv[++i] || null;
+  }
+  if (args.bump && !['major', 'minor', 'patch'].includes(args.bump)) {
+    console.error(`  Invalid bump type: "${args.bump}". Use major, minor, or patch.`);
+    process.exit(1);
+  }
+  if (args.version && !/^\d+\.\d+\.\d+$/.test(args.version)) {
+    console.error(`  Invalid version: "${args.version}". Use semver format (e.g. 1.4.0).`);
+    process.exit(1);
+  }
+  return args;
+}
 
+function main() {
+  const args = parseArgs();
+  if (args.dryRun) console.log('\n  ⚠️  DRY RUN — no files will be modified\n');
+
+  // ── Collect commits ──
   const lastTag = run('git describe --tags --abbrev=0 2>/dev/null');
   const range = lastTag ? `${lastTag}..HEAD` : 'HEAD';
   let rawCommits;
 
-  if (lastTag) {
+  if (args.version) {
+    console.log(`\n  Explicit version: ${args.version} (skipping commit auto-detection)\n`);
+  } else if (lastTag) {
     rawCommits = run(`git log ${range} --format="%H %s" --no-merges`);
     console.log(`\n  Since tag: ${lastTag}`);
   } else {
@@ -155,8 +177,8 @@ function main() {
     console.log('\n  No tags found — using full history');
   }
 
-  const allCommits = parseCommits(rawCommits);
-  if (allCommits.length === 0) {
+  const allCommits = rawCommits ? parseCommits(rawCommits) : [];
+  if (!args.version && allCommits.length === 0) {
     console.log('  No new commits to release.\n');
     return;
   }
@@ -173,25 +195,43 @@ function main() {
     }
   }
 
+  // ── Determine bump type ──
+  const rootPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
+  const oldRootVer = rootPkg.version;
+
+  if (args.version) {
+    // Skip per-package version bumps when using --version
+    console.log(`  Root: ${oldRootVer} → ${args.version}\n`);
+    if (!args.dryRun) {
+      rootPkg.version = args.version;
+      writeFileSync(join(ROOT, 'package.json'), JSON.stringify(rootPkg, null, 2) + '\n', 'utf-8');
+    }
+    // Output summary
+    console.log(`\n  ── Release ${args.version} ──\n`);
+    if (args.dryRun) console.log(`  ⚠️  Dry run — no files written\n`);
+    else console.log(`  ✓ package.json updated`);
+    console.log();
+    return;
+  }
+
+  const rootBump = args.bump || getBumpType(allCommits);
+  const newRootVer = bumpVersion(oldRootVer, rootBump);
+
   // Bump versions per package
   const bumps = [];
   for (const [scope, commits] of Object.entries(scoped)) {
     const pkgPath = SCOPE_TO_PACKAGE[scope];
     if (!pkgPath) continue;
-    const type = getBumpType(commits);
+    const type = args.bump || getBumpType(commits);
     const filePath = join(ROOT, pkgPath, 'package.json');
     const pkg = JSON.parse(readFileSync(filePath, 'utf-8'));
     const newVersion = bumpVersion(pkg.version, type);
-    const oldVersion = dryRun ? pkg.version : updatePackageJson(pkgPath, newVersion);
+    const oldVersion = args.dryRun ? pkg.version : updatePackageJson(pkgPath, newVersion);
     bumps.push({ scope, pkg: pkg.name, path: pkgPath, oldVersion, newVersion, type });
   }
 
-  // Root version bump (overall project)
-  const rootPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
-  const rootBump = getBumpType(allCommits);
-  const oldRootVer = rootPkg.version;
-  const newRootVer = bumpVersion(rootPkg.version, rootBump);
-  if (!dryRun) {
+  // Root version bump
+  if (!args.dryRun) {
     rootPkg.version = newRootVer;
     writeFileSync(join(ROOT, 'package.json'), JSON.stringify(rootPkg, null, 2) + '\n', 'utf-8');
   }
@@ -253,7 +293,7 @@ function main() {
     }
   }
 
-  if (!dryRun) {
+  if (!args.dryRun) {
     const changelogPath = join(ROOT, 'CHANGELOG.md');
     let existing = '';
     if (existsSync(changelogPath)) {
@@ -264,7 +304,7 @@ function main() {
 
   // Output summary
   console.log(`\n  ── Release ${newVersion} ──\n`);
-  if (dryRun) console.log(`  ⚠️  Dry run — no files written\n`);
+  if (args.dryRun) console.log(`  ⚠️  Dry run — no files written\n`);
   else console.log(`  ✓ CHANGELOG.md updated\n`);
   if (bumps.length > 0) {
     console.log('  Package bumps:');

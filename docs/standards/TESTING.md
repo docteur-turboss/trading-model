@@ -84,15 +84,15 @@ describe('MyComponent', () => {
 
 ## Coverage Thresholds
 
-| Package / Service              | Branches | Functions | Lines   | Statements |
-| ------------------------------ | -------- | --------- | ------- | ---------- |
-| @trading-model/common          | 100%     | 100%      | 100%    | 100%       |
-| discovery-server               | 100%     | 100%      | 100%    | 100%       |
-| message-manager                | 100%     | 100%      | 100%    | 100%       |
-| financial-scraper              | 100%     | 100%      | 100%    | 100%       |
-| @trading-model/address-manager | 80%      | 80%       | 80%     | 80%        |
-| @trading-model/broker-message  | 80%      | 80%       | 80%     | 80%        |
-| trader-trainer                 | Not set  | Not set   | Not set | Not set    |
+| Package / Service              | Branches | Functions | Lines | Statements |
+| ------------------------------ | -------- | --------- | ----- | ---------- |
+| @trading-model/common          | 100%     | 100%      | 100%  | 100%       |
+| discovery-server               | 100%     | 100%      | 100%  | 100%       |
+| message-manager                | 100%     | 100%      | 100%  | 100%       |
+| financial-scraper              | 100%     | 100%      | 100%  | 100%       |
+| @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        |
+| @trading-model/broker-message  | 80%      | 80%       | 80%   | 80%        |
+| trader-trainer                 | 80%      | 80%       | 80%   | 80%        |
 
 Coverage is checked by Jest on every test run. Below the threshold, tests fail.
 
@@ -490,6 +490,6 @@ it('should emit event', done => {
 
 ## References
 
-- [docs/TESTING.md](../TESTING.md) — Complete testing guide
+- [TESTING.md](./TESTING.md) — Complete testing guide
 - [QUALITY.md](./QUALITY.md) — Quality standards and thresholds
 - [Jest Documentation](https://jestjs.io)

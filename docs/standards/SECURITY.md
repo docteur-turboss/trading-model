@@ -139,7 +139,7 @@ MTLS_KEY_PATH=/etc/ssl/private/
 
 ## Reporting a Vulnerability
 
-Refer to [docs/SECURITY.md](../SECURITY.md) — the root security document contains:
+Refer to [SECURITY.md](../../SECURITY.md) — the root security document contains:
 
 - Private reporting procedure (email: `docteur.turboss@gmail.com`)
 - Prioritized vulnerability categories (RCE, auth bypass, mTLS, order manipulation, etc.)
@@ -167,7 +167,7 @@ Refer to [docs/SECURITY.md](../SECURITY.md) — the root security document conta
 
 ## References
 
-- [docs/SECURITY.md](../SECURITY.md) — Security policy (reporting, procedure)
+- [SECURITY.md](../../SECURITY.md) — Security policy (reporting, procedure)
 - `scripts/generate-certs.sh` — mTLS certificate generation script
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Network security overview
 - [QUALITY.md](./QUALITY.md) — Quality standards including security

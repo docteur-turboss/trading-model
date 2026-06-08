@@ -1,6 +1,7 @@
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+
 import { NeuralNetwork } from './neural-network';
-import { AgentError } from '@trading-model/common/utils/errors';
-import { Experience, NeuralNetworkConfig } from './type';
+import { Experience, NetworkArchitecture, NeuralNetworkConfig } from './type';
 
 /**
  * High-level agent that wraps a {@link NeuralNetwork} and adds:
@@ -22,10 +23,16 @@ export class Agent {
   public readonly nn: NeuralNetwork;
 
   /** Accumulated scores added via {@link addScore}. */
-  private scores: Float32Array = new Float32Array();
+  private scores: number[] = [];
 
   /** Experiences collected by {@link fastForward}. */
-  private pool: Experience[] = [];
+  private poolMap = new Map<number, Experience>();
+
+  /** Maps input Float32Array to pool entry ID for O(1) removal. */
+  private poolInputToId = new WeakMap<Float32Array, number>();
+
+  /** Auto-incrementing counter for pool entry IDs. */
+  private nextPoolId = 0;
 
   /** Maximum number of experiences kept in the pool (FIFO). */
   private readonly poolMaxSize: number;
@@ -34,17 +41,19 @@ export class Agent {
   private readonly enablePool: boolean;
 
   /**
-   * @param cfg - Full network configuration forwarded to {@link NeuralNetwork}.
-   *   `enablePool` and `poolMaxSize` are consumed by the agent layer;
-   *   everything else is forwarded verbatim.
+   * @param cfg - Architecture settings consumed by the agent layer;
+   *   forwarded to {@link NeuralNetwork} with defaults for the rest.
    */
-  constructor(private readonly cfg: NeuralNetworkConfig) {
+  constructor(private readonly cfg: NetworkArchitecture) {
     if (cfg.neuronsByLayer.length < 2)
-      throw new AgentError('neuronsByLayer must contain at least 2 entries (input + output).');
+      throw new AppError(
+        'neuronsByLayer must contain at least 2 entries (input + output).',
+        ErrorCodes.AGENT_ERROR
+      );
 
     this.enablePool = cfg.enablePool ?? true;
     this.poolMaxSize = cfg.poolMaxSize ?? 10_000;
-    this.nn = new NeuralNetwork(cfg);
+    this.nn = new NeuralNetwork(cfg as NeuralNetworkConfig);
   }
 
   /**
@@ -54,9 +63,7 @@ export class Agent {
    * @param score - The score to record (reward, accuracy, etc.).
    */
   public addScore(score: number): void {
-    const old = this.scores;
-    this.scores = new Float32Array(old.length + 1);
-    this.scores.set([...old, score]);
+    this.scores.push(score);
   }
 
   /**
@@ -64,21 +71,25 @@ export class Agent {
    */
   public getAverageScore(): number {
     if (this.scores.length === 0) return 0;
-    return this.scores.reduce((s, v) => s + v, 0) / this.scores.length;
+    let sum = 0;
+    for (let i = 0; i < this.scores.length; i++) sum += this.scores[i];
+    return sum / this.scores.length;
   }
 
   /**
    * Returns the cumulative sum of all recorded scores.
    */
   public getTotalScore(): number {
-    return this.scores.reduce((s, v) => s + v, 0);
+    let sum = 0;
+    for (let i = 0; i < this.scores.length; i++) sum += this.scores[i];
+    return sum;
   }
 
   /**
    * Resets the score history.
    */
   public resetScores(): void {
-    this.scores = new Float32Array();
+    this.scores = [];
   }
 
   /**
@@ -103,9 +114,15 @@ export class Agent {
     const { output } = this.nn.forward(input);
 
     if (this.enablePool) {
-      this.pool.push({ input, output: output.slice(), reward, nextState, done });
-      // FIFO eviction
-      if (this.pool.length > this.poolMaxSize) this.pool.shift();
+      const id = this.nextPoolId++;
+      this.poolMap.set(id, { input, output: output.slice(), reward, nextState, done });
+      this.poolInputToId.set(input, id);
+      if (this.poolMap.size > this.poolMaxSize) {
+        const firstKey = this.poolMap.keys().next().value!;
+        const oldest = this.poolMap.get(firstKey);
+        this.poolMap.delete(firstKey);
+        this.poolInputToId.delete(oldest!.input);
+      }
     }
 
     return output;
@@ -116,14 +133,14 @@ export class Agent {
    * The pool is empty when `enablePool` was set to `false` at construction.
    */
   public getPool(): Experience[] {
-    return [...this.pool];
+    return [...this.poolMap.values()];
   }
 
   /**
    * Returns the current number of experiences stored in the pool.
    */
   public getPoolSize(): number {
-    return this.pool.length;
+    return this.poolMap.size;
   }
 
   /**
@@ -132,7 +149,8 @@ export class Agent {
    * reused in the next episode.
    */
   public clearPool(): void {
-    this.pool = [];
+    this.poolMap.clear();
+    this.poolInputToId = new WeakMap();
   }
 
   /**
@@ -144,13 +162,18 @@ export class Agent {
    * @throws {AgentError} If the pool contains fewer experiences than requested.
    */
   public samplePool(batchSize: number): Experience[] {
-    if (batchSize > this.pool.length)
-      throw new AgentError(
-        `Requested batch size ${batchSize} exceeds pool size ${this.pool.length}.`
+    const entries = [...this.poolMap.values()];
+    if (batchSize > entries.length)
+      throw new AppError(
+        `Requested batch size ${batchSize} exceeds pool size ${entries.length}.`,
+        ErrorCodes.AGENT_ERROR
       );
 
-    const shuffled = [...this.pool].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, batchSize);
+    for (let i = entries.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [entries[i], entries[j]] = [entries[j], entries[i]];
+    }
+    return entries.slice(0, batchSize);
   }
 
   /**
@@ -177,7 +200,7 @@ export class Agent {
    * 3. Call `learnFromPool()`.
    */
   public learnFromPool(): void {
-    for (const exp of this.pool) {
+    for (const exp of this.poolMap.values()) {
       if (exp.target) this.nn.train(exp.input, exp.target);
     }
     this.clearPool();
@@ -201,7 +224,10 @@ export class Agent {
    */
   public learnQLearning(exp: Experience, gamma: number = 0.99): void {
     if (exp.reward === undefined || !exp.nextState)
-      throw new AgentError('Q-learning requires `reward` and `nextState` in the experience.');
+      throw new AppError(
+        'Q-learning requires `reward` and `nextState` in the experience.',
+        ErrorCodes.AGENT_ERROR
+      );
 
     const target = exp.output.slice(); // Q(s, a) for all actions
     const nextQ = this.nn.forward(exp.nextState).output; // Q(s', a') — no pool entry
@@ -222,9 +248,10 @@ export class Agent {
    * @internal
    */
   private _removeFromPool(input: Float32Array): void {
-    const idx = this.pool.findIndex(
-      e => e.input.length === input.length && e.input.every((v, i) => v === input[i])
-    );
-    if (idx !== -1) this.pool.splice(idx, 1);
+    const id = this.poolInputToId.get(input);
+    if (id !== undefined) {
+      this.poolMap.delete(id);
+      this.poolInputToId.delete(input);
+    }
   }
 }

@@ -1,5 +1,7 @@
 # Contribute — Full Workflow from Idea to Production
 
+> **Quick start:** See [CONTRIBUTING.md](../../CONTRIBUTING.md) for a concise overview before diving into the full workflow.
+
 ## Branch Strategy
 
 ```
@@ -78,7 +80,7 @@ File suffixes: `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.middlewa
 
 1. Node built-ins (`fs`, `path`)
 2. External deps (`express`, `zod`)
-3. Internal absolute (`@lib/*`)
+3. Internal absolute (`@trading-model/*`)
 4. Internal relative (`../controllers/`)
 5. Side effects (`import './setup'`)
 
@@ -86,7 +88,7 @@ File suffixes: `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.middlewa
 
 - **Framework**: Jest with `ts-jest`
 - **Convention**: Single `.spec.ts` suffix
-- **Coverage threshold**: 100% minimum (branches, functions, lines, statements)
+- **Coverage thresholds**: per-module (common/discovery 100%, address-manager/broker-message/trader-trainer 80% minimum)
 - **Structure**: Tests mirror source under `tests/unit/`, `tests/integration/`, `tests/e2e/`
 
 ---
@@ -218,10 +220,11 @@ main ←── merge dev ────→ tag ──→ stable deploy
 
 ### New contributor
 
-1. Set up the machine (see [SETUP.md](SETUP.md))
-2. Create an Issue or pick an existing one
-3. Create a branch and submit your first PR
-4. Request a review from a maintainer
+1. Read [CONTRIBUTING.md](../../CONTRIBUTING.md) for a quick overview
+2. Set up the machine (see [SETUP.md](SETUP.md))
+3. Create an Issue or pick an existing one
+4. Create a branch and submit your first PR
+5. Request a review from a maintainer
 
 ### General developer / Maintainer
 

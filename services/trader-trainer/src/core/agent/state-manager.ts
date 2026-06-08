@@ -45,7 +45,6 @@ export class StateManager {
       try {
         agent.nn.setWeights(genome);
       } catch (_e) {
-        void _e;
         agent.nn.distributeAroundWeights(0, 0.01);
       }
     }

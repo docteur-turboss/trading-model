@@ -1,28 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import type { ServiceInstance } from '../../src/core/types';
 
-const mockDump = jest.fn<() => Record<string, ServiceInstance[]>>();
-const mockRemoveInstance = jest.fn<(serviceName: string, instanceId: string) => boolean>();
-
-jest.mock('../../src/core/service-registry', () => ({
-  registry: {
-    dump: mockDump,
-    removeInstance: mockRemoveInstance,
-  },
-}));
-
 jest.mock('@trading-model/common/config/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-jest.mock('../../src/config/env', () => ({
-  env: { CLEANUP_SERVICE_INTERVAL_MS: 5000 },
-}));
-
 jest.useFakeTimers();
 
+import { ServiceRegistry } from '../../src/core/service-registry';
 import { LeaseManager } from '../../src/core/lease-manager';
-import { validServiceInstance } from '../fixtures/index';
 
 describe('LeaseManager', () => {
   let leaseManager: LeaseManager;
@@ -30,10 +16,11 @@ describe('LeaseManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.clearAllTimers();
-    leaseManager = new LeaseManager();
+    leaseManager = new LeaseManager(new ServiceRegistry());
   });
 
   afterEach(() => {
+    jest.clearAllMocks();
     leaseManager.stop();
   });
 
@@ -71,50 +58,134 @@ describe('LeaseManager', () => {
 
   describe('isAlive', () => {
     it('should return true for recent heartbeat', () => {
-      const alive = leaseManager.isAlive(validServiceInstance({ lastHeartbeat: Date.now() }));
-      expect(alive).toBe(true);
+      const registry = new ServiceRegistry();
+      const lm = new LeaseManager(registry);
+      const instance: ServiceInstance = {
+        serviceName: 'test',
+        instanceId: 'i1',
+        ip: '1.1.1.1',
+        port: 8080,
+        ttl: 30000,
+        protocol: 'mtls',
+        registeredAt: Date.now() - 1000,
+        lastHeartbeat: Date.now(),
+      };
+      expect(lm.isAlive(instance)).toBe(true);
     });
 
     it('should return false for expired heartbeat', () => {
-      const instance = validServiceInstance({ lastHeartbeat: Date.now() - 60_000 });
-      const expired = leaseManager.isAlive(instance);
-      expect(expired).toBe(false);
+      const registry = new ServiceRegistry();
+      const lm = new LeaseManager(registry);
+      const instance: ServiceInstance = {
+        serviceName: 'test',
+        instanceId: 'i1',
+        ip: '1.1.1.1',
+        port: 8080,
+        ttl: 30000,
+        protocol: 'mtls',
+        registeredAt: Date.now() - 120_000,
+        lastHeartbeat: Date.now() - 60_000,
+      };
+      expect(lm.isAlive(instance)).toBe(false);
     });
 
     it('should return true at TTL boundary', () => {
-      const instance = validServiceInstance({ lastHeartbeat: Date.now() - 30_000 });
-      const boundary = leaseManager.isAlive(instance);
-      expect(boundary).toBe(true);
+      const registry = new ServiceRegistry();
+      const lm = new LeaseManager(registry);
+      const instance: ServiceInstance = {
+        serviceName: 'test',
+        instanceId: 'i1',
+        ip: '1.1.1.1',
+        port: 8080,
+        ttl: 30000,
+        protocol: 'mtls',
+        registeredAt: Date.now() - 60_000,
+        lastHeartbeat: Date.now() - 30_000,
+      };
+      expect(lm.isAlive(instance)).toBe(true);
     });
   });
 
   describe('cleanup', () => {
     it('should remove expired instances on interval tick', () => {
-      const expired = validServiceInstance({ lastHeartbeat: Date.now() - 60_000 });
-      const alive = validServiceInstance({ instanceId: 'alive-id', lastHeartbeat: Date.now() });
-      mockDump.mockReturnValue({ 'test-service': [expired, alive] });
+      const registry = new ServiceRegistry();
 
-      leaseManager.start();
-      jest.advanceTimersByTime(5000);
-
-      expect(mockRemoveInstance).toHaveBeenCalledTimes(1);
-      expect(mockRemoveInstance).toHaveBeenCalledWith('test-service', expired.instanceId);
-    });
-
-    it('should log error when cleanup throws', () => {
-      const testError = new Error('cleanup failed');
-      mockDump.mockImplementation(() => {
-        throw testError;
+      registry.registerInstance({
+        serviceName: 'financial-scraper-service',
+        instanceId: 'expired-id',
+        ip: '1.1.1.1',
+        port: 8080,
+        ttl: 1,
+        protocol: 'mtls',
       });
 
-      leaseManager.start();
+      registry.registerInstance({
+        serviceName: 'financial-scraper-service',
+        instanceId: 'alive-id',
+        ip: '1.1.1.2',
+        port: 8081,
+        ttl: 60000,
+        protocol: 'mtls',
+      });
+
+      const lm = new LeaseManager(registry);
+      lm.start();
+      jest.advanceTimersByTime(5000);
+
+      const remaining = registry.getInstances('financial-scraper-service');
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].instanceId).toBe('alive-id');
+    });
+
+    it('should log error when removeInstance throws', () => {
+      const registry = new ServiceRegistry();
+      const lm = new LeaseManager(registry);
+
+      registry.registerInstance({
+        serviceName: 'test-service',
+        instanceId: 'test-id',
+        ip: '1.1.1.1',
+        port: 8080,
+        ttl: 1,
+        protocol: 'mtls',
+      });
+
+      jest.spyOn(registry, 'removeInstance').mockImplementation(() => {
+        throw new Error('remove failed');
+      });
+
+      lm.start();
+      jest.advanceTimersByTime(5000);
+
+      const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
+        '@trading-model/common/config/logger'
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        '[LeaseManager] Failed to remove expired instance:',
+        {
+          serviceName: 'test-service',
+          instanceId: 'test-id',
+          error: new Error('remove failed'),
+        }
+      );
+    });
+
+    it('should log error when listServiceNames throws in start catch', () => {
+      const registry = new ServiceRegistry();
+      const lm = new LeaseManager(registry);
+
+      jest.spyOn(registry, 'listServiceNames').mockImplementation(() => {
+        throw new Error('unexpected error');
+      });
+
+      lm.start();
       jest.advanceTimersByTime(5000);
 
       const { logger } = jest.requireMock<{ logger: { error: jest.Mock } }>(
         '@trading-model/common/config/logger'
       );
       expect(logger.error).toHaveBeenCalledWith('[LeaseManager] Cleanup error:', {
-        error: testError,
+        error: new Error('unexpected error'),
       });
     });
   });

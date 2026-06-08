@@ -1,7 +1,11 @@
-import { Broker } from '../../src/messaging/core/broker';
+import { unlink } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Dispatcher } from '../../src/messaging/core/dispatcher';
+import { DqlRepository } from '../../src/messaging/core/dlq-repository';
 import { createMockHttpClient } from '../helpers/broker.helper';
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals';
 import { mockServiceIdentity, mockSubscriberIdentity } from '../fixtures/broker.fixture';
 
 jest.mock('config/address-manager', () => ({
@@ -13,24 +17,30 @@ jest.mock('config/address-manager', () => ({
 describe('Message Broker Integration', () => {
   let httpClient: ReturnType<typeof createMockHttpClient>;
   let dispatcher: Dispatcher;
-  let broker: Broker;
+  const dlqFilePath = join(tmpdir(), `dlq-test-int-${Date.now()}.jsonl`);
 
   beforeEach(() => {
     httpClient = createMockHttpClient();
-    dispatcher = new Dispatcher(httpClient as never);
-    broker = new Broker(dispatcher);
+    const dqlRepository = new DqlRepository(dlqFilePath);
+    dispatcher = new Dispatcher(httpClient as never, dqlRepository);
+  });
+
+  afterAll(async () => {
+    if (existsSync(dlqFilePath)) {
+      await unlink(dlqFilePath);
+    }
   });
 
   it('should deliver a published message to a subscribed service', async () => {
     httpClient.post.mockResolvedValue(undefined);
 
-    broker.subscribe({
+    dispatcher.subscribe({
       topic: 'market.data',
       callbackPath: 'message/receive',
       consumerIdentity: mockSubscriberIdentity,
     });
 
-    await broker.publish(
+    await dispatcher.publish(
       { price: 50000, symbol: 'BTCUSDT' },
       {
         schemaVersion: '1.0',
@@ -56,19 +66,19 @@ describe('Message Broker Integration', () => {
   it('should deliver to multiple subscribers of the same topic', async () => {
     httpClient.post.mockResolvedValue(undefined);
 
-    broker.subscribe({
+    dispatcher.subscribe({
       topic: 'market.data',
       callbackPath: 'msg/recv',
       consumerIdentity: { ...mockSubscriberIdentity, instanceId: 'sub-1' },
     });
 
-    broker.subscribe({
+    dispatcher.subscribe({
       topic: 'market.data',
       callbackPath: 'msg/recv',
       consumerIdentity: { ...mockSubscriberIdentity, instanceId: 'sub-2' },
     });
 
-    await broker.publish(
+    await dispatcher.publish(
       { price: 50000 },
       {
         schemaVersion: '1.0',
@@ -84,18 +94,18 @@ describe('Message Broker Integration', () => {
   it('should not deliver to unsubscribed services', async () => {
     httpClient.post.mockResolvedValue(undefined);
 
-    broker.subscribe({
+    dispatcher.subscribe({
       topic: 'market.data',
       callbackPath: 'msg/recv',
       consumerIdentity: mockSubscriberIdentity,
     });
 
-    broker.unsubscribe({
+    dispatcher.unsubscribe({
       topic: 'market.data',
       instanceId: mockSubscriberIdentity.instanceId,
     });
 
-    await broker.publish(
+    await dispatcher.publish(
       { price: 50000 },
       {
         schemaVersion: '1.0',
@@ -111,13 +121,13 @@ describe('Message Broker Integration', () => {
   it('should not deliver to services subscribed to a different topic', async () => {
     httpClient.post.mockResolvedValue(undefined);
 
-    broker.subscribe({
+    dispatcher.subscribe({
       topic: 'other.topic',
       callbackPath: 'msg/recv',
       consumerIdentity: mockSubscriberIdentity,
     });
 
-    await broker.publish(
+    await dispatcher.publish(
       { price: 50000 },
       {
         schemaVersion: '1.0',
@@ -135,19 +145,19 @@ describe('Message Broker Integration', () => {
       .mockRejectedValueOnce(new Error('Subscriber 1 failed'))
       .mockResolvedValueOnce(undefined);
 
-    broker.subscribe({
+    dispatcher.subscribe({
       topic: 'market.data',
       callbackPath: 'msg/recv',
       consumerIdentity: { ...mockSubscriberIdentity, instanceId: 'sub-1' },
     });
 
-    broker.subscribe({
+    dispatcher.subscribe({
       topic: 'market.data',
       callbackPath: 'msg/recv',
       consumerIdentity: { ...mockSubscriberIdentity, instanceId: 'sub-2' },
     });
 
-    await broker.publish(
+    await dispatcher.publish(
       { price: 50000 },
       {
         schemaVersion: '1.0',
@@ -163,13 +173,13 @@ describe('Message Broker Integration', () => {
   it('should generate unique message IDs for each publish', async () => {
     httpClient.post.mockResolvedValue(undefined);
 
-    broker.subscribe({
+    dispatcher.subscribe({
       topic: 'test',
       callbackPath: 'msg',
       consumerIdentity: mockSubscriberIdentity,
     });
 
-    await broker.publish(
+    await dispatcher.publish(
       { data: 1 },
       {
         schemaVersion: '1.0',
@@ -179,7 +189,7 @@ describe('Message Broker Integration', () => {
       }
     );
 
-    await broker.publish(
+    await dispatcher.publish(
       { data: 2 },
       {
         schemaVersion: '1.0',

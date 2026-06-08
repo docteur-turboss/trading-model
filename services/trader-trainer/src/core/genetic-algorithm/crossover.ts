@@ -8,7 +8,6 @@ import type {
   MutationGenome,
   CrossoverGenome,
   LayerGenome,
-  CrossoverType,
   LamarckGenome,
 } from './genome-types';
 
@@ -24,27 +23,26 @@ function lerpNum(a: number, b: number, t: number): number {
 export function crossoverScalar(
   a: number,
   b: number,
-  type: CrossoverType,
-  alpha: number,
-  eta: number,
+  co: CrossoverGenome,
   rng: () => number
 ): number {
-  switch (type) {
+  switch (co.type) {
     case 'arithmetic':
-      return lerpNum(a, b, alpha);
+      return lerpNum(a, b, co.blendAlpha);
 
     case 'blend': {
       const lo = Math.min(a, b);
       const hi = Math.max(a, b);
       const d = hi - lo;
-      return lo - alpha * d + rng() * (d + 2 * alpha * d);
+      return lo - co.blendAlpha * d + rng() * (d + 2 * co.blendAlpha * d);
     }
 
     case 'sbx': {
-      // Simulated Binary Crossover
       const u = rng();
       const beta =
-        u < 0.5 ? Math.pow(2 * u, 1 / (eta + 1)) : Math.pow(1 / (2 * (1 - u)), 1 / (eta + 1));
+        u < 0.5
+          ? Math.pow(2 * u, 1 / (co.sbxEta + 1))
+          : Math.pow(1 / (2 * (1 - u)), 1 / (co.sbxEta + 1));
       return 0.5 * ((1 + beta) * a + (1 - beta) * b);
     }
 
@@ -68,8 +66,7 @@ function crossoverNetwork(
   const maxLen = Math.max(a.hiddenLayers.length, b.hiddenLayers.length);
   const longer = a.hiddenLayers.length >= b.hiddenLayers.length ? a.hiddenLayers : b.hiddenLayers;
 
-  const x = (va: number, vb: number) =>
-    crossoverScalar(va, vb, co.type, co.blendAlpha, co.sbxEta, rng);
+  const x = (va: number, vb: number) => crossoverScalar(va, vb, co, rng);
 
   const hiddenLayers: LayerGenome[] = [];
   for (let i = 0; i < maxLen; i++) {
@@ -96,8 +93,7 @@ function crossoverNetwork(
 }
 
 function crossoverRL(a: RLGenome, b: RLGenome, co: CrossoverGenome, rng: () => number): RLGenome {
-  const x = (va: number, vb: number) =>
-    crossoverScalar(va, vb, co.type, co.blendAlpha, co.sbxEta, rng);
+  const x = (va: number, vb: number) => crossoverScalar(va, vb, co, rng);
 
   return {
     gamma: x(a.gamma, b.gamma),

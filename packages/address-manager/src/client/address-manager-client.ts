@@ -1,43 +1,39 @@
 import { networkInterfaces } from 'os';
-import { RegisterServicePayload, ServiceRegistrationResponse } from './type';
-import { AddressManagerError } from '@trading-model/common/utils/errors';
-import { AddressManagerConfig } from '../config/address-manager-config';
-import { HttpClient } from '@trading-model/common/config/http-client';
-import { TokenManager } from './token-manager';
 
-/**
- * AddressManagerClient
- *
- * Responsibilities:
- * - Register the current service with the Address Manager
- * - Refresh the TTL of the registered service
- * - Retrieve the address of a remote service
- *
- * Constraints:
- * - No caching logic
- * - No business retry logic
- * - Only uses the token provided by TokenManager
- *
- * This class abstracts all interactions with the Address Manager API.
- */
+import { HttpClient } from '@trading-model/common/config/http-client';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+
+import { TokenManager } from './token-manager';
+import { RegisterServicePayload, ServiceRegistrationResponse } from './type';
+import { AddressManagerConfig } from '../config/address-manager-config';
+
 export class AddressManagerClient {
-  /**
-   * Initializes a new AddressManagerClient.
-   */
   constructor(
     private readonly httpClient: HttpClient,
     private readonly tokenManager: TokenManager,
     private readonly config: AddressManagerConfig
   ) {}
 
-  /** Resolves the local non-internal IPv4 address of this machine. Falls back to 127.0.0.1. */
+  /** Cached local IP, resolved once. Reset in tests via {@link resetLocalIP}. */
+  private static localIP: string | null = null;
+
+  /** Reset the cached local IP (test support). */
+  static resetLocalIP(): void {
+    AddressManagerClient.localIP = null;
+  }
+
   private static getLocalIP(): string {
+    if (AddressManagerClient.localIP) return AddressManagerClient.localIP;
     const nets = networkInterfaces();
     for (const name of Object.keys(nets)) {
       for (const net of nets[name] ?? []) {
-        if (net.family === 'IPv4' && !net.internal) return net.address;
+        if (net.family === 'IPv4' && !net.internal) {
+          AddressManagerClient.localIP = net.address;
+          return net.address;
+        }
       }
     }
+    AddressManagerClient.localIP = '127.0.0.1';
     return '127.0.0.1';
   }
 
@@ -47,9 +43,10 @@ export class AddressManagerClient {
    * Called once during bootstrap. Sends the service name, port, and local IP.
    *
    * @returns The registration response containing the instance details and token.
-   * @throws AddressManagerError if the registration request fails.
+   * @throws AddressManagerError if the registration request fails. The original
+   *   error (network, timeout, HTTP) is preserved in the `cause` property.
    */
-  async registerService(): Promise<ServiceRegistrationResponse> {
+  async registerService(): Promise<ServiceRegistrationResponse | undefined> {
     const payload: RegisterServicePayload = {
       serviceName: this.config.serviceName,
       port: this.config.servicePort,
@@ -62,7 +59,11 @@ export class AddressManagerClient {
         payload
       );
     } catch (error) {
-      throw new AddressManagerError('Failed to register service to Address Manager', error);
+      throw new AppError(
+        'Failed to register service to Address Manager',
+        ErrorCodes.ADDRESS_MANAGER_ERROR,
+        { cause: error }
+      );
     }
   }
 
@@ -72,12 +73,8 @@ export class AddressManagerClient {
    * - Typically called periodically by a scheduled job.
    * - Ensures the service remains visible to other services.
    *
-   * @throws AddressManagerError if the TTL refresh fails.
-   *
-   * @example
-   * ```ts
-   * await client.refreshTTL();
-   * ```
+   * @throws AddressManagerError if the TTL refresh fails. The original
+   *   error (network, timeout, HTTP) is preserved in the `cause` property.
    */
   async refreshTTL(): Promise<void> {
     const token = this.tokenManager.getToken();
@@ -96,7 +93,9 @@ export class AddressManagerClient {
         }
       );
     } catch (error) {
-      throw new AddressManagerError('Failed to refresh service TTL', error);
+      throw new AppError('Failed to refresh service TTL', ErrorCodes.ADDRESS_MANAGER_ERROR, {
+        cause: error,
+      });
     }
   }
 }

@@ -45,7 +45,7 @@ Body (validated by `PublishSchema`):
     "eventType": "market.trade.recent.fetch",
     "schemaVersion": "1.0.0",
     "publisher": {
-      "serviceName": "financial-scrapper-service",
+      "serviceName": "financial-scraper-service",
       "instanceId": "uuid-123"
     },
     "delivery": {
@@ -75,7 +75,7 @@ Retrieves a single message by its ID.
     "eventType": "market.trade.recent.fetch",
     "schemaVersion": "1.0.0",
     "publisher": {
-      "serviceName": "financial-scrapper-service",
+      "serviceName": "financial-scraper-service",
       "instanceId": "uuid-123"
     }
   },
@@ -153,16 +153,31 @@ Body (validated by `UnsubscribeSchema`):
 
 ## Delivery Semantics
 
-| Mode            | Description                                               |
-| --------------- | --------------------------------------------------------- |
-| `AT_MOST_ONCE`  | Delivered at most once (no retries)                       |
-| `AT_LEAST_ONCE` | Delivered at least once (retries until ACK or TTL expiry) |
-| `EXACTLY_ONCE`  | Delivered exactly once (idempotent)                       |
+| Mode            | Description                                                                   |
+| --------------- | ----------------------------------------------------------------------------- |
+| `AT_MOST_ONCE`  | Delivered at most once (no retries)                                           |
+| `AT_LEAST_ONCE` | Delivered at least once (retries with exponential backoff, up to 10 attempts) |
+| `EXACTLY_ONCE`  | Delivered exactly once (idempotent)                                           |
+
+## Security Metadata
+
+Messages can include an optional `security` block within metadata, containing:
+
+- **`authContext`** — Structured authentication context with:
+  - `subject` (string) — Authenticated user or service identifier
+  - `roles` (string[]) — Assigned role identifiers
+  - `tenantId` (string) — Tenant or partition identifier
+- **`signature`** (string, optional) — Message integrity signature
+
+Previously validated as `z.unknown()`, the `authContext` object is now strictly validated against this schema to align with the canonical `SecurityType` interface in `@trading-model/common/contracts/message.types`.
 
 ## Features
 
 - **TTL**: Message expiration based on time-to-live configured in metadata
-- **Dead Letter Queue**: Undelivered messages after retry exhaustion
+- **Retry with backoff**: `AT_LEAST_ONCE` retries up to 10 times with exponential backoff (1s base, 60s cap) and ±20% random jitter
+- **Circuit breaker**: After 5 consecutive dispatch failures, new messages are routed directly to the Dead Letter Queue to prevent cascading failures; the breaker resets on the next successful delivery
+- **Alerting**: Persistent delivery failures are logged at ERROR level with topic, service name, and attempt count
+- **Dead Letter Queue**: Undelivered messages persisted as JSON Lines (NDJSON) to `dead-letter-queue.jsonl` with failure reason, delivery attempt count, and timestamp
 - **Deduplication**: Via `deduplicationId` in delivery metadata
 - **Partitioning**: Via `partitionKey` in routing metadata
 - **Priority**: Via `priority` in routing metadata
@@ -176,6 +191,7 @@ HTTP Routes (http.routes.ts)
       → Broker (core/broker.ts)
         → Subscription Manager (core/subscription.ts)
         → Message Dispatcher (core/dispatcher.ts)
+        → Dead Letter Queue (core/dlq-repository.ts)
         → Message Store (core/message.ts + MongoDB)
 ```
 
