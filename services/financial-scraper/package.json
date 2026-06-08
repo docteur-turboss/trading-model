@@ -33,7 +33,7 @@
     "express-rate-limit": "^8.5.1",
     "helmet": "^8.2.0",
     "node-cron": "^4.2.1",
-    "mysql2": "^3.14.0",
+    "mysql2": "^3.22.5",
     "p-limit": "^7.3.0",
     "ts-sql-query": "^1.67.0",
     "uuid": "^14.0.0",
