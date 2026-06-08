@@ -15,7 +15,6 @@
 import os from 'os';
 
 import cron from 'node-cron';
-import pLimit from 'p-limit';
 
 import { logger } from '@trading-model/common/config/logger';
 
@@ -79,6 +78,7 @@ export class BinanceCronOrchestrator {
    * Batch execution with concurrency limiting.
    */
   private async executeBatch(): Promise<void> {
+    const { default: pLimit } = await import('p-limit') as unknown as { default: (concurrency: number) => import('p-limit').Limit };
     const limiter = pLimit(this.maxConcurrency);
 
     const tasks = this.config.symbols.map(symbol =>

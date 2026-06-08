@@ -11,6 +11,7 @@ const TraderTrainerEnvSchema = BaseEnvSchema.extend({
   SERVICE_PING_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
   TOKEN_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
   TTL_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
+  DISCOVERY_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   ADDRESS_MANAGER_URL: z.string(),
   ERROR_URL_WEBHOOK: z.string(),
   MESSAGE_BUS_INIT_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),

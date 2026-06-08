@@ -5,6 +5,7 @@ import { env } from './env';
 const addressManager = new AddressManagerClass({
   addressManagerUrl: env.ADDRESS_MANAGER_URL,
   cacheTtlMs: env.CACHE_TTL_MS,
+  discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
   instanceId: env.INSTANCE_ID,
   serviceName: env.SERVICE_NAME,
   servicePingTimeoutMs: env.SERVICE_PING_TIMEOUT_MS,
