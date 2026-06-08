@@ -1,6 +1,6 @@
 {
   "name": "financial-scraper",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Récupère les prix en temps réel des différents actifs financiers",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {

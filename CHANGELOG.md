@@ -1,3 +1,12 @@
+## [2.0.3] - 2026-06-08
+
+### financial-scraper (1.2.0 → 1.2.1)
+
+#### Fix
+
+- 6776f2e **financial-scraper:** fix p-limit dynamic import type reference for v7.x
+
+
 ## [2.0.2] - 2026-06-08
 
 
