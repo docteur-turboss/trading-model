@@ -109,8 +109,6 @@ describe('buildPopulationMeta', () => {
 });
 
 describe('ParetoArchive', () => {
-  const rng = () => 0.5;
-
   test('starts empty', () => {
     const archive = new ParetoArchive();
     expect(archive.size).toBe(0);

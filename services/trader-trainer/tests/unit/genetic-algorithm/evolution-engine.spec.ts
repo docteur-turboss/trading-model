@@ -107,7 +107,6 @@ describe('EvolutionEngine', () => {
   describe('crossoverGenomes', () => {
     it('should return a shallow copy of the first parent', () => {
       const pA = createDefaultGenome('parentA');
-      const pB = createDefaultGenome('parentB');
       const result = crossoverGenomes(pA);
       expect(result).not.toBe(pA);
       expect(result.id).toBe('parentA');

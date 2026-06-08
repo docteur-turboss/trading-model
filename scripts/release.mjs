@@ -336,6 +336,10 @@ function main() {
   if (args.publish && !args.dryRun) {
     console.log('\n  ── Publishing release ──\n');
 
+    // Generate docs
+    console.log('  → Generating documentation...');
+    run('npm run docs:generate');
+
     // Stage all changes
     console.log('  → Staging files...');
     run('git add -A');

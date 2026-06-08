@@ -7,9 +7,8 @@ import { mockServiceIdentity } from '../fixtures/broker.fixture';
 export const createMockHttpClient = createCommonMockHttpClient;
 
 export function createMockDispatcher(
-  httpClient?: jest.Mocked<HttpClient>
+  _httpClient?: jest.Mocked<HttpClient>
 ): jest.Mocked<Dispatcher> {
-  const client = httpClient ?? createMockHttpClient();
   return {
     publish: jest
       .fn<(payload: unknown, metadata: unknown) => Promise<void>>()

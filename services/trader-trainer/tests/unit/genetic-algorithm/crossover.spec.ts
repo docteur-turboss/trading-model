@@ -5,8 +5,7 @@ import { createDefaultGenome } from '../../../src/core/genetic-algorithm/factory
 describe('Crossover - crossoverScalar', () => {
   const rng = () => 0.5;
   const co = { type: 'arithmetic' as const, probability: 1, blendAlpha: 0.5, sbxEta: 2 };
-  const alpha = 0.5;
-  const eta = 2;
+
 
   test('arithmetic crossover should interpolate', () => {
     const result = crossoverScalar(10, 20, co, rng);

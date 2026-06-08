@@ -1,7 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { validateGenome, repairGenome } from '../../../src/core/genetic-algorithm/validation';
 import { createDefaultGenome } from '../../../src/core/genetic-algorithm/factory';
-import type { Genome } from '../../../src/core/genetic-algorithm/genome-types';
 
 describe('Validation - validateGenome', () => {
   test('should validate a default genome as valid', () => {

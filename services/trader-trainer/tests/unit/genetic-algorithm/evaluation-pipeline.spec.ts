@@ -104,7 +104,7 @@ function makeMockBackend(poolSize: number): RLBackend {
     });
   }
   return {
-    forwardPass: jest.fn((f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
+    forwardPass: jest.fn((_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
     step: jest.fn(() => ({ reward: 1 })),
     train: jest.fn(),
     getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),

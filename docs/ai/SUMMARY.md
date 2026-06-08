@@ -2,265 +2,280 @@
 
 ## 1. Identity
 
-- **name:** trading-model
-- **version:** 1.2.0
+- **name:** trading-model (v2.0.3)
 - **license:** PolyForm Noncommercial 1.0.0
-- **type:** monorepo (npm workspaces: packages/\*, services/\*)
-- **lang:** TypeScript 6.0.3 (strict, target ES2020, commonjs modules)
-- **runtime:** Node.js 20+ (alpine in Docker)
-- **format:** Prettier (semi, singleQuote, printWidth 100, arrowParens: avoid, trailingComma: es5, tabWidth: 2, lf)
+- **type:** monorepo (npm workspaces: 3 packages, 4 services)
+- **lang:** TypeScript 6 (strict, ES2020, module node16)
+- **runtime:** Node.js 20+, Alpine in Docker
+- **format:** Prettier (semi, singleQuote, printWidth 100, arrowParens avoid, trailingComma es5, tabWidth 2, LF)
 - **lint:** ESLint 10 flat config (tseslint recommended, ignores dist/spec/jest/fixtures/helpers/typedoc)
-- **root scripts:** test, test:coverage, build, lint, commit, release, docs:generate
+- **hooks:** Husky — pre-commit (lint-staged: prettier+eslint), commit-msg (commitlint), pre-push (build+test)
 
-## 2. Repo Structure
+## 2. Structure
 
 ```
 trading-model/
-├── packages/          # shared libs (3)
-├── services/          # microservices (4)
-├── docs/              # markdown docs + typedoc
-├── scripts/           # tooling (8 files)
-├── .github/           # workflows + templates
-├── certs/             # TLS (gitignored)
-├── .husky/            # git hooks
-├── .env / .env.example
-├── docker-compose.yml
-├── commitlint.config.mjs
-├── eslint.config.mjs
-├── .prettierrc
-├── .gitignore / .dockerignore
-├── package.json
-└── LICENSE.md
+├── packages/           # @trading-model/common, address-manager, broker-message
+├── services/           # discovery-server, message-manager, financial-scraper, trader-trainer
+├── docs/               # standards/, deployment/, architecture/api/, architecture/code/, ai/
+├── scripts/            # commit.mjs, release.mjs, generate-docs.mjs, deploy-*.ps1/sh, generate-certs.sh, hosts.json, init-db.sql
+├── .github/workflows/  # ci.yml, release.yml
+├── certs/              # TLS (gitignored)
+├── .husky/
+├── docker-compose.yml  # 6 services (mongo, mysql + 4 app)
+└── eslint.config.mjs, .prettierrc, commitlint.config.mjs
 ```
 
 ## 3. Packages
 
-### @trading-model/common (v1.0.0)
-
-- **source files:** 22 (`src/config/*`, `src/middleware/*`, `src/utils/*`, `src/server/*`, `src/validation/*`, `src/contracts/*`, `src/crypto/*`)
-- **exports:** sub-path via `exports` map (`./config/*`, `./middleware/*`, `./utils/*`, `./server/*`, `./validation/*`, `./contracts/*`, `./crypto/*`)
-- **key exports:**
-  - `Logger` (singleton, log levels: error/warn/info/debug)
-  - `createBootstrap()` (express app factory with mTLS, helmet, rate-limit)
-  - `createSecureServer()` (HTTPS server with TLS config)
-  - `HttpClient` (axios-based with cert auth)
-  - `BaseEnvSchema` (Zod: NODE_ENV, PORT, TLS_KEY/CERT/CA_PATH, LOG_LEVEL)
-  - `AddressManagerEnvSchema` (extends Base: APP_NAME/VER, SERVICE_NAME, INSTANCE_ID, CACHE_TTL_MS, PING_TIMEOUT, TOKEN/TTL_REFRESH_INTERVAL, ADDRESS_MANAGER_URL, ERROR_URL_WEBHOOK, MESSAGE_BUS_INIT/SHUTDOWN_TIMEOUT, MESSAGE_CALLBACK_PATH)
-  - `catchSync()` / `ResponseException` / `HTTP_CODE` / `ResponseCodes`
-  - `EventMap` (8 event message keys: test, example, recentTrades, 24hrTicker, candles, orderBook, priceTicker, orderBookTicker)
-  - `EnumEventMessage` (event name constants)
-  - `ServiceInstanceName` (well-known: discovery-service, financial-scraper-service, message-delivery-service, trader-training-service, etc.)
-  - `DeliveryMode` (AT_MOST_ONCE, AT_LEAST_ONCE, EXACTLY_ONCE)
-  - `sleep()`, `prng` (seeded RNG)
+### @trading-model/common
+- **exports:** sub-path via `exports` map: `./config/*`, `./middleware/*`, `./utils/*`, `./server/*`, `./validation/*`, `./contracts/*`, `./crypto/*`
+- **key:** Logger, createBootstrap(), createSecureServer(), HttpClient, BaseEnvSchema, AddressManagerEnvSchema, catchSync/ResponseException/HTTP_CODE, EventMap (8 keys), EnumEventMessage, ServiceInstanceName, DeliveryMode, sleep(), prng
 - **deps:** express 5, helmet, zod 4, express-rate-limit, chained-error
-- **test coverage threshold:** 100% all metrics
+- **coverage threshold:** 100%
 
-### @trading-model/address-manager (v1.0.0)
-
-- **source files:** 15
-- **class `AddressManager(config)`**
-  - `start()` → `{stop}` — registers service, starts token refresh + TTL refresh schedulers
-  - `findService(name)` → `ServiceInstance` — cached discovery with health check
-  - `getToken()` → `string` — current HMAC instance token
-  - `listenExpress(app)` — mounts ping routes
-- **factory:** `createAddressManager(env)` — reads env vars
-- **internal:** ServiceDiscovery, TokenManager, ServiceCache, ServiceHealthChecker, ServiceLocator, ServiceNameLocator, IpAddressLocator, MappingServiceLocator, RefreshJob, Scheduler
+### @trading-model/address-manager
+- **class `AddressManager(config)`:** start()→{stop}, findService(name), getToken(), listenExpress(app)
+- **factory:** createAddressManager(env)
+- **internal:** ServiceDiscovery, TokenManager, ServiceCache, ServiceHealthChecker, ServiceLocator, RefreshJob, Scheduler
 - **deps:** common, express 5, node-cron
-- **test coverage threshold:** 80% all metrics
+- **coverage threshold:** 80%
 
-### @trading-model/broker-message (v1.0.0)
-
-- **source files:** 11
-- **class `MessageManagerClient(config)`**
-  - `intents(topics)` — subscribe to event topics
-  - `stopMessageManager()` — unsubscribe + cleanup
-  - `on(event, listener)` — register event handler (via EventManager)
-  - `listenExpress(app)` — mount callback route
-  - `post.direct(service, payload, metadata)` — direct service message
-  - `post.indirect(payload, metadata)` — async broker publish
-- **helper:** `MessageMetadata` (MetadataBuilder: topic, eventType, causationId, routing, correlationId, publisher, security, deliveryMode, schemaVersion)
-- **validators:** `MessageMetadataSchema` (Zod), `MessagePayloadSchema` (Zod)
+### @trading-model/broker-message
+- **class `MessageManagerClient(config)`:** intents(topics), stopMessageManager(), on(event,listener), listenExpress(app), post.direct(service,payload,metadata), post.indirect(payload,metadata)
+- **helpers:** MessageMetadata (MetadataBuilder), MessageMetadataSchema/PayloadSchema (Zod)
 - **deps:** common, address-manager, express 5, zod 4
-- **test coverage threshold:** 80% all metrics
+- **coverage threshold:** 80%
 
 ## 4. Services
 
-### discovery-server (port 8443)
+| Service | Host:Port | Name | Key |
+|---------|-----------|------|-----|
+| discovery-server | 8443 | discovery-service | POST /register (HMAC token), /heartbeat, /token/rotate, GET /services, /services/:name, /services/:name/:id — in-memory TTL registry |
+| message-manager | 8444 | message-delivery-service | POST /message, /subscription, DELETE /subscription — MongoDB 7, DLQ, Zod validation, 3 delivery modes |
+| financial-scraper | 8445 | financial-scraper-service | Binance REST → MySQL 8 (market_candles, trades, tickers) — node-cron per symbol, p-limit, token-bucket rate limiter |
+| trader-trainer | 8446 | trader-training-service | Custom GA + NN (TS impl), subscribes to 6 market events, trains every 60s per symbol |
 
-- **service name:** `discovery-service`
-- **routes:**
-  | Method | Path | Description |
-  |--------|------|-------------|
-  | POST | /register | Register instance (HMAC-SHA256 token issued) |
-  | POST | /heartbeat | Renew lease |
-  | POST | /token/rotate | Rotate instance token |
-  | GET | /services | List all registered services |
-  | GET | /services/:name | List instances by service name |
-  | GET | /services/:name/:id | Get specific instance |
-- **auth:** HMAC-SHA256 via `x-instance-token` header
-- **storage:** in-memory registry (TTL lease eviction via CLEANUP_SERVICE_INTERVAL_MS, default 10min)
-- **deps:** common, axios, express 5, helmet, express-rate-limit, zod 4
-- **env extra:** CLEANUP_SERVICE_INTERVAL_MS, ERROR_URL_WEBHOOK
-- **test coverage threshold:** 100% all metrics
+All use mTLS, HMAC-SHA256 token auth, Zod env validation (fail-fast at startup).
 
-### message-manager (port 8444)
-
-- **service name:** `message-delivery-service`
-- **routes:**
-  | Method | Path | Description |
-  |--------|------|-------------|
-  | POST | /message | Publish message |
-  | POST | /subscription | Subscribe to topics |
-  | DELETE | /subscription | Unsubscribe |
-- **delivery modes:** AT_MOST_ONCE, AT_LEAST_ONCE, EXACTLY_ONCE
-- **storage:** MongoDB 7 (connection: `MONGODB_URI`)
-- **features:** TTL expiration, DLQ (dead-letter queue), Zod validation
-- **internal:** Broker, Dispatcher, Message, Subscription
-- **deps:** common, address-manager, mongodb 7, express 5, axios, helmet, express-rate-limit, zod 4
-- **test coverage threshold:** 100% all metrics
-
-### financial-scraper (port 8445)
-
-- **service name:** `financial-scraper-service`
-- **data source:** Binance (REST API)
-- **persistence:** MySQL 8 via mysql2 + ts-sql-query
-- **tables:** `market_candles`, `market_trades`, `market_tickers` (see `scripts/init-db.sql`)
-- **background:** node-cron per symbol, p-limit concurrency
-- **rate limit:** token-bucket, exponential backoff retry
-- **routes (GET):**
-  - `/trade/:symbol`, `/ticker/:symbol`, `/candles/:symbol`, `/orderbook/:symbol`, `/heartbeat/:symbol`
-- **deps:** common, address-manager, broker-message, mysql2, ts-sql-query, node-cron, p-limit, uuid, axios, express 5, helmet, express-rate-limit
-- **env extra:** DB_USER, DB_PASSWORD, DB_NAME, DB_HOST, DB_PORT (from docker-compose; not in Zod schema — read directly from process.env)
-- **test coverage threshold:** 100% all metrics
-
-### trader-trainer (port 8446)
-
-- **service name:** `trader-training-service`
-- **algorithm:** genetic algorithm + neural network (custom TS implementation)
-  - GA: genome, population, selection, crossover, mutation, fitness, pareto, diversity, adaptive control
-  - NN: activation (relu/tanh/sigmoid/leakyRelu/linear/softmax), initializers, losses (mse/mae/bce/huber), optimizer (sgd/adam/adagrad/rmsprop), normalize, agent
-- **subscription:** 6 market event topics — TRADE, TICKER, CANDLE, ORDER_BOOK, PRICE_TICKER, BOOK_TICKER
-- **training loop:** every 60s per symbol (node-cron)
-- **env vars:** `TRAINER_SYMBOLS`, `TRAINER_DATA_WINDOW`, `TRAINER_VALIDATION_SPLIT`, `TRAINER_GENERATIONS`, `TRAINER_POPULATION_SIZE`, `TRAINER_TIME_BUDGET_MS`, `TRAINER_EPISODES_PER_INDIVIDUAL` + all address-manager vars
-- **deps:** common, address-manager, broker-message, express 5, helmet, zod 4
-- **test coverage threshold:** not set (no coverage config in jest.config.js)
-
-## 5. Dependency Graph
+## 5. Dependency Graph & Ports
 
 ```
 common ← address-manager ← broker-message ← financial-scraper
-common ← discovery-server                    ← trader-trainer
-                                             ← message-manager
+common ← discovery-server                  ← trader-trainer
+                                           ← message-manager
 ```
 
-- discovery-server depends ONLY on common
-- mTLS enforced at every inter-service hop
+| Service | Host | Container |
+|---------|------|-----------|
+| discovery-server | 8443 | 3000 |
+| message-manager | 8444 | 3000 |
+| financial-scraper | 8445 | 3000 |
+| trader-trainer | 8446 | 3000 |
 
-## 6. Ports
+TLS certs: `/certs:ro` (from TLS_CERTS_DIR env, default ./certs)
 
-| Service           | Host Port | Container Port |
-| ----------------- | --------- | -------------- |
-| discovery-server  | 8443      | 3000           |
-| message-manager   | 8444      | 3000           |
-| financial-scraper | 8445      | 3000           |
-| trader-trainer    | 8446      | 3000           |
+## 6. Databases
 
-TLS certs mounted at `/certs:ro` (from `TLS_CERTS_DIR` env, default `./certs`)
+- **MongoDB 7** — message-manager (connection: mongodb://mongo:27017/message-manager), persistence planned
+- **MySQL 8** — financial-scraper, DB `financial_scraper`, 3 tables with composite PKs:
+
+| Table | PK | Key columns |
+|-------|----|-----------|
+| market_candles | (id,symbol,market,interval_value,timestamp,source) | open/high/low/close DECIMAL(20,10), volume DECIMAL(30,10), trades INT, close_timestamp DATETIME(3) |
+| market_trades | (symbol,market,source,trade_id,timestamp) | price DECIMAL(20,10), quantity DECIMAL(30,10), side ENUM(buy,sell) |
+| market_tickers | (id,symbol,market,timestamp,source) | open/high/low/last/volume, close_time DATETIME(3) |
+
+Indexes: invisible on timestamp, visible on symbol. ORM: ts-sql-query via mysql2.
 
 ## 7. Docker
 
-- **multi-stage build:** deps → build → runtime
-- **base image:** `node:20-alpine` with tini init
-- **container images:** `ghcr.io/trading-model/<service-name>`
-- **docker-compose:** 6 services (mongo, mysql, discovery-server, message-manager, financial-scraper, trader-trainer) on `trading-network` bridge
-- **healthchecks:** every service, using curl over HTTPS with client certs
-- **volumes:** `mongo-data` (MongoDB 7), `mysql-data` (MySQL 8)
+- **Multi-stage build:** deps (prod deps) → build (dev + tsc) → runtime (minimal)
+- **Base image:** `node:20-alpine` with tini init (`/sbin/tini --`)
+- **Registry:** `ghcr.io/<repo>/<service-name>`
+- **Context:** root of monorepo (`.`)
+- **Healthchecks:** curl over HTTPS with client certs
+- **compose volumes:** mongo-data, mysql-data
 
-## 8. Databases
+## 8. CI/CD
 
-- **MongoDB 7** — message-manager persistence, `MONGODB_URI: mongodb://mongo:27017/message-manager`
-- **MySQL 8** — financial-scraper persistence, database `financial_scraper`, tables: market_candles, market_trades, market_tickers
-- Data persisted via named volumes
-
-## 9. CI/CD
-
-### ci.yml
-
+### CI (ci.yml)
 - **trigger:** push, pull_request
-- **permissions:** contents: read
 - **jobs:** lint (npm ci → lint), test (npm ci → build → test:coverage)
+- **permissions:** contents: read
 
-### release.yml
+### CD Release (release.yml)
+- **trigger:** tag `v*.*.*`
+- **jobs (sequential):** quality (lint+build+test:coverage) → docker (buildx+push 4 images to GHCR, semver+sha tags) → release (GitHub Release)
+- **permissions:** quality=read, docker=read+packages:write, release=contents:write
+- **secret:** GHCR_TOKEN (classic PAT with write:packages scope)
 
-- **trigger:** tag v\*.\*.\*
-- **permissions:** quality — contents:read; docker — contents:read + packages:write; release — contents:write
-- **jobs:**
-  1. quality: lint + build + test:coverage → extract version
-  2. docker: buildx + push to ghcr.io (4 images, semver + sha tags) — depends on quality
-  3. release: GitHub Release with auto-generated notes — depends on quality + docker
+## 9. Commit Convention
 
-## 10. Commit Convention
-
-- **format:** `:emoji:(scope): subject`
-- **enforced by:** commitlint + husky (`commit-msg` hook)
+- **format:** `:emoji:(scope): subject` (e.g. `:recycle:(common): centralize ServiceInstance type`)
+- **breaking:** add `!` after scope: `:emoji:(scope)!: subject`
+- **enforced:** commitlint + Husky commit-msg hook
+- **tool:** `npm run commit` (scripts/commit.mjs — interactive)
 - **scopes:** auth, scraper, api, wallet, core, deps, discovery, broker, trainer, router, common, config, database, middleware, utils, types, address-manager, message-manager, financial-scraper, trader-trainer, discovery-server, docs, github-actions, husky, eslint
-- **hooks:** pre-commit (prettier --check, eslint), pre-push (test, build)
+- **gitmoji map:** sparkles=feat, bug=fix, memo=docs, recycle=refactor, zap=perf, white_check_mark=test, wrench=chore, construction_worker=ci, lock=security, rocket=release, boom=breaking (+ variants in scripts/release.mjs)
+- **body:** multi-line explaining why/how (optional)
+- **footer:** references to issues (optional)
 
-## 11. Environment Variables
+## 10. Pull Request Standards
 
-| Category            | Variables                                                                                                                                                                                                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Base**            | NODE_ENV, PORT, TLS_KEY_PATH, TLS_CERT_PATH, TLS_CA_PATH, LOG_LEVEL                                                                                                                                                                                                      |
-| **Address-manager** | APP_NAME, APP_VERSION, SERVICE_NAME, INSTANCE_ID, CACHE_TTL_MS, SERVICE_PING_TIMEOUT_MS, TOKEN_REFRESH_INTERVAL_MS, TTL_REFRESH_INTERVAL_MS, ADDRESS_MANAGER_URL, ERROR_URL_WEBHOOK, MESSAGE_BUS_INIT_TIMEOUT_MS, MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS, MESSAGE_CALLBACK_PATH |
-| **Discovery**       | CLEANUP_SERVICE_INTERVAL_MS                                                                                                                                                                                                                                              |
-| **Trader-trainer**  | TRAINER_SYMBOLS, TRAINER_DATA_WINDOW, TRAINER_VALIDATION_SPLIT, TRAINER_GENERATIONS, TRAINER_POPULATION_SIZE, TRAINER_TIME_BUDGET_MS, TRAINER_EPISODES_PER_INDIVIDUAL                                                                                                    |
-| **Scraper DB**      | DB_USER, DB_PASSWORD, DB_NAME, DB_HOST, DB_PORT (read directly from process.env, not Zod)                                                                                                                                                                                |
-| **Docker compose**  | DISCOVERY_PORT, MESSAGE_PORT, SCRAPER_PORT, TRAINER_PORT, TLS_CERTS_DIR, MYSQL_ROOT_PASSWORD, MYSQL_DATABASE                                                                                                                                                             |
+- **target:** feature→development, release→main, hotfix→main+cherry-pick dev
+- **branch naming:** `feature/*`, `fix/*`, `refactor/*`, `docs/*`, `chore/*`
+- **required CI:** lint, build, test:coverage (all must pass)
+- **review:** >= 1 approval, squash & merge into development
+- **labels:** enhancement, bug, documentation, refactor, dependencies
+- **template:** .github/PULL_REQUEST_TEMPLATE.md (description, type, changes, breaking, tests, checklist)
+
+## 11. Code Standards
+
+### Naming
+| Element | Convention | Example |
+|---------|-----------|---------|
+| vars/fns | camelCase | `const addressManager`, `validateToken()` |
+| booleans | camelCase | `isTokenExpired` |
+| classes/interfaces/types/enums | PascalCase | `AddressManager`, `ServiceRegistry` |
+| files/dirs | kebab-case | `address-manager.service.ts` |
+| constants | SCREAMING_SNAKE | `DEFAULT_TIMEOUT = 30000` |
+
+### JSDoc
+- 3rd person singular: Returns, Parses, Validates
+- No @param/@returns type (TypeScript provides it)
+- Dash separator: `@param name - Description`
+- @throws only for non-obvious cases
+- One-liner if description fits
+- No @typedef, no @example unless truly non-obvious
+
+### Import order
+1. Node builtins → 2. External → 3. Workspace (@trading-model/*) → 4. Relative → 5. Side effects
+
+### TypeScript strict
+- strict: true, noImplicitAny, strictNullChecks, ES2020, module node16, no path aliases
 
 ## 12. Testing
 
 - **framework:** Jest 30 + ts-jest 29
-- **structure:** `tests/unit/`, `tests/integration/`, `tests/fixtures/`, `tests/helpers/`
-- **naming:** `*.spec.ts`
-- **coverage thresholds:**
-  | Module | Branches | Functions | Lines | Statements |
-  |--------|----------|-----------|-------|------------|
-  | common | 100 | 100 | 100 | 100 |
-  | address-manager | 80 | 80 | 80 | 80 |
-  | broker-message | 80 | 80 | 80 | 80 |
-  | discovery-server | 100 | 100 | 100 | 100 |
-  | message-manager | 100 | 100 | 100 | 100 |
-  | financial-scraper | 100 | 100 | 100 | 100 |
-  | trader-trainer | not set | not set | not set | not set |
+- **structure:** `tests/{unit,integration,e2e,fixtures,helpers}/`
+- **naming:** `*.spec.ts` (preferred), `*.test.ts` (legacy transition)
+- **pattern:** AAA (Arrange-Act-Assert)
+- **mocks:** `__mocks__/` next to mocked module
 
-## 13. Security
+### Coverage thresholds
 
-- **mTLS:** enforced at every inter-service hop (server cert verification, client cert authentication)
-- **HMAC-SHA256:** instance tokens for service registration auth
-- **Zod env validation:** fail-fast (process.exit(1) on invalid env)
-- **no secrets in repo:** .env gitignored, sensitive files in certs/ gitignored, _.pem/_.crt/\*.key gitignored
-- **Dependabot:** active (implicit via GitHub)
+| Module | Branches | Functions | Lines | Statements |
+|--------|----------|-----------|-------|------------|
+| common | 100% | 100% | 100% | 100% |
+| address-manager | 80% | 80% | 80% | 80% |
+| broker-message | 80% | 80% | 80% | 80% |
+| discovery-server | 100% | 100% | 100% | 100% |
+| message-manager | 100% | 100% | 100% | 100% |
+| financial-scraper | 100% | 100% | 100% | 100% |
+| trader-trainer | not set | not set | not set | not set |
 
-## 14. Documentation
+## 13. Quality Gates
 
-- **`docs/standards/` (10 files):** ARCHITECTURE, README, QUALITY, TESTING, SECURITY, CI_CD, PR, COMMIT, DOCUMENTATION, WRITING
-- **`docs/deployment/` (8 files):** SETUP, ENV, DATABASE, DEPLOY, CONTRIBUTE, DOCKER, CI_CD, README
-- **`docs/architecture/api/` (8 files):** common, address-manager, broker-message, discovery-server, message-manager, financial-scraper, trader-trainer, README
-- **`docs/architecture/code/`:** TypeDoc-generated HTML per module (common, address-manager, message-manager, financial-scraper, trader-trainer)
-- **`docs/architecture/code/@trading-model/`:** TypeDoc-generated docs for common, address-manager, broker-message
-- **`docs/architecture/api/`:** API docs for common.md, address-manager.md, broker-message.md
+- **ESLint:** 0 errors in CI (warnings tolerated short-term)
+- **Pre-commit:** lint-staged (prettier --check + eslint on staged)
+- **Pre-push:** npm run build + npm test
+- **CI:** lint → build → test:coverage
+- **Deps:** npm audit + Dependabot (automatic PRs, merge quickly)
 
-## 15. Scripts
+## 14. Verification Protocol
 
-| Script                      | Purpose                                           |
-| --------------------------- | ------------------------------------------------- |
-| `scripts/commit.mjs`        | Interactive gitmoji commit helper                 |
-| `scripts/release.mjs`       | Changelog generation + version bump (+ --dry-run) |
-| `scripts/generate-docs.mjs` | TypeDoc runner (+ --dry-run)                      |
-| `scripts/deploy-beta.ps1`   | Canary deploy (Windows)                           |
-| `scripts/deploy-beta.sh`    | Canary deploy (Unix)                              |
-| `scripts/generate-certs.sh` | TLS certificate generation                        |
-| `scripts/hosts.json`        | Fleet inventory for beta deployment               |
-| `scripts/init-db.sql`       | MySQL schema (3 tables)                           |
+### Before commit
+1. `git diff --cached` — review staged changes
+2. Grep for secrets (tokens, passwords, keys)
+3. Commit msg follows gitmoji format
+4. No debug/commented code (console.log, debugger, TODO, FIXME)
+5. Pre-commit hooks pass (prettier, eslint, commitlint)
 
-Deploy config: canary 2%, error threshold 5%, health retries 3, interval 10s, monitor 30min, branch dev→stable.
+### Before PR
+1. Branch up to date with base
+2. lint (0 errors) + build + test:coverage pass
+3. New code covered (≥80%)
+4. PR description follows template
+5. No breaking changes without migration path
+6. Labels set, target branch correct
+
+### During PR review
+1. CI checks pass (automated)
+2. Code conventions, naming, structure (reviewer)
+3. Coverage adequate, no regressions (reviewer)
+4. ≥1 approval, all comments resolved
+
+### Before release
+1. development branch CI green
+2. All PRs merged into development
+3. main up to date locally
+4. Dependabot PRs merged
+5. CHANGELOG reflects changes
+6. Bump type correct (--bump major/minor/patch or --version x.y.z)
+7. GHCR_TOKEN secret configured
+
+### During release
+1. `git checkout main`
+2. `git merge development`
+3. `npm run release` (bump + changelog) or `npm run release:publish` (auto merge+bump+commit+tag+push)
+4. Verify CI release workflow triggered (tag push)
+5. Monitor: quality → docker (4 images) → release
+6. Verify GitHub Release created
+
+### After release
+1. Docker images published to GHCR
+2. GitHub Release has correct notes
+3. Tag exists and pushed
+4. development synced with main: `git checkout development && git merge main`
+5. Deploy: `IMAGE_TAG=<ver> docker compose pull && docker compose up -d`
+6. Smoke test: `curl -k https://<host>:<port>/ping`
+7. Monitor logs: `docker compose logs -f --tail=100`
+
+## 15. Security
+
+- **mTLS:** all services, certs via scripts/generate-certs.sh (CA with SAN: localhost + all service names)
+- **Token auth:** HMAC-SHA256 via `x-instance-token` header, issued by discovery-server
+- **Zod env validation:** fail-fast at startup (process.exit on invalid)
+- **Secrets:** .env, *.key, *.pem, *.crt in .gitignore; GHCR_TOKEN in GitHub Secrets
+- **Deps:** npm audit + Dependabot PRs (high priority)
+- **Reporting:** email docteur.turboss@gmail.com, <72h acknowledgement
+
+## 16. Scripts
+
+| Script | Purpose |
+|--------|---------|
+| scripts/commit.mjs | Interactive gitmoji commit |
+| scripts/release.mjs | Changelog + version bump (--dry-run, --publish, --bump, --version) |
+| scripts/generate-docs.mjs | TypeDoc runner (+ --dry-run) |
+| scripts/deploy-beta.ps1 | Canary deploy Windows (2% canary, 5% error threshold) |
+| scripts/deploy-beta.sh | Canary deploy Unix |
+| scripts/generate-certs.sh | TLS cert generation |
+| scripts/hosts.json | Fleet inventory |
+| scripts/init-db.sql | MySQL schema (3 tables) |
+
+## 17. Environment Variables
+
+| Category | Vars |
+|----------|------|
+| Base | NODE_ENV, PORT, TLS_KEY/CERT/CA_PATH, LOG_LEVEL |
+| Address-manager | APP_NAME/VER, SERVICE_NAME, INSTANCE_ID, CACHE_TTL_MS, PING_TIMEOUT, TOKEN/TTL_REFRESH_INTERVAL, ADDRESS_MANAGER_URL, ERROR_URL_WEBHOOK, MESSAGE_BUS_INIT/SHUTDOWN_TIMEOUT, MESSAGE_CALLBACK_PATH |
+| Discovery | CLEANUP_SERVICE_INTERVAL_MS |
+| Trader-trainer | TRAINER_SYMBOLS, DATA_WINDOW, VALIDATION_SPLIT, GENERATIONS, POPULATION_SIZE, TIME_BUDGET_MS, EPISODES_PER_INDIVIDUAL |
+| Scraper DB | DB_USER, DB_PASSWORD, DB_NAME, DB_HOST, DB_PORT (from process.env, no Zod) |
+| Docker compose | DISCOVERY/MESSAGE/SCRAPER/TRAINER_PORT, TLS_CERTS_DIR, MYSQL_ROOT_PASSWORD, MYSQL_DATABASE |
+
+## 18. Code of Conduct
+
+Harassment-free environment. Project maintainers enforce standards. Report violations privately to maintainers. Based on Contributor Covenant v2.1.
+
+## 19. Configuration Files Reference
+
+| File | Purpose |
+|------|---------|
+| eslint.config.mjs | ESLint 10 flat config (shared monorepo) |
+| .prettierrc | Prettier config |
+| commitlint.config.mjs | Commit message validation rules |
+| docker-compose.yml | 6 services (mongo, mysql + 4 app) |
+| .gitignore | env, certs, dist, node_modules |
+| .dockerignore | node_modules, .git, docs |

@@ -306,7 +306,7 @@ describe('MarketDataBuffer', () => {
       const buf = new MarketDataBuffer(5);
       buf.addTrades(
         'BTCUSDT',
-        Array.from({ length: 10 }, (_, i) => makeTrade('BTCUSDT', 'buy'))
+        Array.from({ length: 10 }, (_, _i) => makeTrade('BTCUSDT', 'buy'))
       );
 
       expect(buf['states'].get(toSymbol('BTCUSDT'))!.trades.length).toBe(5);

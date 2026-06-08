@@ -318,7 +318,6 @@ describe('Trainer', () => {
   describe('computeSharpe', () => {
     it('should return 0 for empty scores array', async () => {
       const { Trainer } = await import('../../../src/core/trainer');
-      const trainer = new Trainer(dataBuffer);
 
       const computeSharpe = (Trainer.prototype as unknown as Record<string, unknown>)
         .computeSharpe as (scores: number[]) => number;
@@ -328,7 +327,6 @@ describe('Trainer', () => {
 
     it('should return 0 for single-element scores array', async () => {
       const { Trainer } = await import('../../../src/core/trainer');
-      const trainer = new Trainer(dataBuffer);
 
       const computeSharpe = (Trainer.prototype as unknown as Record<string, unknown>)
         .computeSharpe as (scores: number[]) => number;
@@ -338,7 +336,6 @@ describe('Trainer', () => {
 
     it('should return mean when all scores are identical (std is zero)', async () => {
       const { Trainer } = await import('../../../src/core/trainer');
-      const trainer = new Trainer(dataBuffer);
 
       const computeSharpe = (Trainer.prototype as unknown as Record<string, unknown>)
         .computeSharpe as (scores: number[]) => number;
@@ -348,7 +345,6 @@ describe('Trainer', () => {
 
     it('should return positive value for increasing scores', async () => {
       const { Trainer } = await import('../../../src/core/trainer');
-      const trainer = new Trainer(dataBuffer);
 
       const computeSharpe = (Trainer.prototype as unknown as Record<string, unknown>)
         .computeSharpe as (scores: number[]) => number;

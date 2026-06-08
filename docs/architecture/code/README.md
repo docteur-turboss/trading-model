@@ -36,7 +36,7 @@ generates a root `index.html` listing all modules.
 - Node.js 20+
 - TypeScript 5.8+
 
-## Todo
+## Hosting
 
-- [ ] Add `npm run docs:generate` to the release workflow
-- [ ] Host documentation on GitHub Pages or Vercel
+Documentation is auto-generated during release and deployed to **GitHub Pages**.
+See `.github/workflows/release.yml` for the deploy-docs job configuration.

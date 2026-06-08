@@ -5,7 +5,7 @@ import {
   DeleteASubscription,
   PublishAMessage,
 } from '../../../../src/messaging/transport/http.controller';
-import { Dispatcher } from '../../../../src/messaging/core/dispatcher';
+
 import { createMockDispatcher } from '../../../helpers/broker.helper';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
