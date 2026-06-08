@@ -21,6 +21,11 @@ import { logger } from '@trading-model/common/config/logger';
 import { MarketDataController } from '../../infra/market-data/market-data.controller';
 import { BinanceWorker, BinanceWorkerResult } from '../worker/binance.worker';
 
+type LimitFunction = <A extends unknown[], R>(
+  fn: (...args: A) => PromiseLike<R> | R,
+  ...args: A
+) => Promise<R>;
+
 /** Configuration for scheduling a BinanceCronOrchestrator instance. */
 export interface CronConfig {
   schedule: string; // e.g. "*/1 * * * *"
@@ -78,7 +83,9 @@ export class BinanceCronOrchestrator {
    * Batch execution with concurrency limiting.
    */
   private async executeBatch(): Promise<void> {
-    const { default: pLimit } = await import('p-limit') as unknown as { default: (concurrency: number) => import('p-limit').Limit };
+    const { default: pLimit } = (await import('p-limit')) as unknown as {
+      default: (concurrency: number) => LimitFunction;
+    };
     const limiter = pLimit(this.maxConcurrency);
 
     const tasks = this.config.symbols.map(symbol =>
