@@ -80,7 +80,9 @@ describe('deterministicStringify', () => {
   });
 
   it('should handle nested Date objects', () => {
-    const result = deterministicStringify({ meta: { created: new Date('2024-06-01T00:00:00.000Z'), count: 5 } });
+    const result = deterministicStringify({
+      meta: { created: new Date('2024-06-01T00:00:00.000Z'), count: 5 },
+    });
     expect(result).toBe('{"meta":{"count":5,"created":"2024-06-01T00:00:00.000Z"}}');
   });
 });

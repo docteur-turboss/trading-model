@@ -36,6 +36,7 @@ export default {
         'github-actions',
         'husky',
         'eslint',
+        'release',
       ],
     ],
     'scope-case': [2, 'always', 'lowerCase'],

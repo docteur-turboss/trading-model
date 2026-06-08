@@ -297,5 +297,4 @@ export const logger = new Logger(
       : LogLevel.WARN
 );
 
-
 export const _private = Logger;

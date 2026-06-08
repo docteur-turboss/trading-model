@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { EventManager } from '../../src/client/event-manager-client';
 
- 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 describe('EventManager', () => {

@@ -14,7 +14,10 @@ import {
 } from '../../src/config/event-utils';
 import { OrderBookEntity, CandleEntity, TradeEntity } from '../../src/config/event.types';
 
-function makeOb(bids: Array<{ price: number; quantity: number }>, asks: Array<{ price: number; quantity: number }>): OrderBookEntity {
+function makeOb(
+  bids: Array<{ price: number; quantity: number }>,
+  asks: Array<{ price: number; quantity: number }>
+): OrderBookEntity {
   return {
     bids: new Set(bids),
     asks: new Set(asks),
@@ -57,7 +60,13 @@ function makeTrade(side: 'buy' | 'sell'): TradeEntity {
 describe('event-utils', () => {
   describe('getAvgBid', () => {
     it('should compute average bid price', () => {
-      const ob = makeOb([{ price: 100, quantity: 1 }, { price: 200, quantity: 1 }], []);
+      const ob = makeOb(
+        [
+          { price: 100, quantity: 1 },
+          { price: 200, quantity: 1 },
+        ],
+        []
+      );
       expect(getAvgBid(ob)).toBe(150);
     });
 
@@ -69,7 +78,13 @@ describe('event-utils', () => {
 
   describe('getAvgAsk', () => {
     it('should compute average ask price', () => {
-      const ob = makeOb([], [{ price: 101, quantity: 1 }, { price: 201, quantity: 1 }]);
+      const ob = makeOb(
+        [],
+        [
+          { price: 101, quantity: 1 },
+          { price: 201, quantity: 1 },
+        ]
+      );
       expect(getAvgAsk(ob)).toBe(151);
     });
 
@@ -95,14 +110,26 @@ describe('event-utils', () => {
 
   describe('getBidTotalQty', () => {
     it('should sum all bid quantities', () => {
-      const ob = makeOb([{ price: 100, quantity: 0.5 }, { price: 101, quantity: 1.5 }], []);
+      const ob = makeOb(
+        [
+          { price: 100, quantity: 0.5 },
+          { price: 101, quantity: 1.5 },
+        ],
+        []
+      );
       expect(getBidTotalQty(ob)).toBe(2);
     });
   });
 
   describe('getAskTotalQty', () => {
     it('should sum all ask quantities', () => {
-      const ob = makeOb([], [{ price: 110, quantity: 2 }, { price: 111, quantity: 3 }]);
+      const ob = makeOb(
+        [],
+        [
+          { price: 110, quantity: 2 },
+          { price: 111, quantity: 3 },
+        ]
+      );
       expect(getAskTotalQty(ob)).toBe(5);
     });
   });

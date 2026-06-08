@@ -10,8 +10,6 @@ jest.mock('fs', () => ({
 import { appendFile } from 'fs';
 const mockAppendFile = appendFile as unknown as jest.Mock;
 
- 
-
 describe('Logger', () => {
   let logger: Logger;
   let consoleDebugSpy: jest.SpiedFunction<typeof console.debug>;
@@ -181,10 +179,17 @@ describe('Logger', () => {
     });
 
     it('should log appendFile error to console.error', () => {
-      mockAppendFile.mockImplementationOnce(((_path: string, _data: string, cb: (err: Error | null) => void) => cb(new Error('disk full'))) as jest.Mock);
+      mockAppendFile.mockImplementationOnce(((
+        _path: string,
+        _data: string,
+        cb: (err: Error | null) => void
+      ) => cb(new Error('disk full'))) as jest.Mock);
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       logger.info('write fail test');
-      expect(consoleErrorSpy).toHaveBeenCalledWith('[Logger] Failed to write log file:', expect.any(Error));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[Logger] Failed to write log file:',
+        expect.any(Error)
+      );
       consoleErrorSpy.mockRestore();
     });
   });

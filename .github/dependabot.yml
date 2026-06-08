@@ -1,26 +1,26 @@
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
 
-  - package-ecosystem: "docker"
-    directory: "/services/discovery-server"
+  - package-ecosystem: 'docker'
+    directory: '/services/discovery-server'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
 
-  - package-ecosystem: "docker"
-    directory: "/services/financial-scraper"
+  - package-ecosystem: 'docker'
+    directory: '/services/financial-scraper'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
 
-  - package-ecosystem: "docker"
-    directory: "/services/message-manager"
+  - package-ecosystem: 'docker'
+    directory: '/services/message-manager'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
 
-  - package-ecosystem: "docker"
-    directory: "/services/trader-trainer"
+  - package-ecosystem: 'docker'
+    directory: '/services/trader-trainer'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'

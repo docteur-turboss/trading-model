@@ -10,8 +10,6 @@ import fs from 'fs';
 import { HttpClient, HttpClientError, HttpClientTimeoutError } from '../../src/config/http-client';
 import https from 'https';
 
- 
-
 describe('HttpClient', () => {
   let client: HttpClient;
   let requestCallback: ((res: any) => void) | null;

@@ -38,21 +38,16 @@ export default defineConfig([
     },
     plugins: { ix },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
       'ix/order': [
         'error',
         {
-          groups: [
-            ['builtin'],
-            ['external'],
-            ['internal'],
-            ['parent', 'sibling'],
-            ['index'],
-          ],
-          'pathGroups': [
-            { pattern: '@trading-model/**', group: 'internal', position: 'after' },
-          ],
-          'pathGroupsExcludedImportTypes': ['builtin'],
+          groups: [['builtin'], ['external'], ['internal'], ['parent', 'sibling'], ['index']],
+          pathGroups: [{ pattern: '@trading-model/**', group: 'internal', position: 'after' }],
+          pathGroupsExcludedImportTypes: ['builtin'],
           'newlines-between': 'always',
           alphabetize: { order: 'asc' },
         },
@@ -80,7 +75,10 @@ export default defineConfig([
       globals: { ...globals.node, ...globals.jest },
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-unsafe-function-type': 'off',

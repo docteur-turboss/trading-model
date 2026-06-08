@@ -3,9 +3,6 @@ import { catchSync } from '../../src/middleware/catch-error';
 import { ResponseException } from '../../src/middleware/response-exception';
 import { handleCoreResponse } from '../../src/middleware/handle-core-response';
 
- 
- 
-
 describe('Middleware chain integration', () => {
   let req: any;
   let res: any;

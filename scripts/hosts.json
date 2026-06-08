@@ -12,7 +12,8 @@
       "user": "",
       "label": "Local development machine",
       "active": true
-    },{
+    },
+    {
       "host": "192.168.47.131",
       "user": "dreamguard@Trading-Model",
       "label": "Beta Server 1",

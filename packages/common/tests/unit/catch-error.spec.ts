@@ -1,8 +1,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { catchSync } from '../../src/middleware/catch-error';
 
- 
-
 describe('catchSync', () => {
   let req: any;
   let res: any;

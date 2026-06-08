@@ -67,9 +67,7 @@ describe('buildPopulationMeta', () => {
   });
 
   test('crowding distance is Infinity for single front with <= 2 members', () => {
-    const objs: ObjectiveVector[] = [
-      { avgPnl: 10, sharpe: 2, negFlops: -100 },
-    ];
+    const objs: ObjectiveVector[] = [{ avgPnl: 10, sharpe: 2, negFlops: -100 }];
     const meta = buildPopulationMeta(objs, rng);
     expect(meta.crowdingDist[0]).toBe(Infinity);
   });
@@ -150,12 +148,8 @@ describe('ParetoArchive', () => {
     const archive = new ParetoArchive();
     const g1 = createDefaultGenome('g1');
     const g2 = createDefaultGenome('g2');
-    const weakObjs: ObjectiveVector[] = [
-      { avgPnl: 5, sharpe: 1, negFlops: -200 },
-    ];
-    const strongObjs: ObjectiveVector[] = [
-      { avgPnl: 10, sharpe: 2, negFlops: -100 },
-    ];
+    const weakObjs: ObjectiveVector[] = [{ avgPnl: 5, sharpe: 1, negFlops: -200 }];
+    const strongObjs: ObjectiveVector[] = [{ avgPnl: 10, sharpe: 2, negFlops: -100 }];
     archive.update([g1], weakObjs);
     expect(archive.size).toBe(1);
     const changed = archive.update([g2], strongObjs);
@@ -168,12 +162,8 @@ describe('ParetoArchive', () => {
     const archive = new ParetoArchive();
     const g1 = createDefaultGenome('g1');
     const g2 = createDefaultGenome('g2');
-    const strong: ObjectiveVector[] = [
-      { avgPnl: 10, sharpe: 2, negFlops: -100 },
-    ];
-    const weak: ObjectiveVector[] = [
-      { avgPnl: 3, sharpe: 0.5, negFlops: -300 },
-    ];
+    const strong: ObjectiveVector[] = [{ avgPnl: 10, sharpe: 2, negFlops: -100 }];
+    const weak: ObjectiveVector[] = [{ avgPnl: 3, sharpe: 0.5, negFlops: -300 }];
     expect(archive.update([g1], strong)).toBe(true);
     expect(archive.update([g2], weak)).toBe(false);
   });
@@ -181,9 +171,7 @@ describe('ParetoArchive', () => {
   test('members getter returns readonly array', () => {
     const archive = new ParetoArchive();
     const g = createDefaultGenome('g');
-    const objs: ObjectiveVector[] = [
-      { avgPnl: 10, sharpe: 2, negFlops: -100 },
-    ];
+    const objs: ObjectiveVector[] = [{ avgPnl: 10, sharpe: 2, negFlops: -100 }];
     archive.update([g], objs);
     const members = archive.members;
     expect(members).toHaveLength(1);

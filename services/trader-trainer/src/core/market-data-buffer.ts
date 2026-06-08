@@ -174,5 +174,4 @@ export class MarketDataBuffer {
     if (steps.length < MIN_TRAINING_STEPS) return null;
     return this.splitTrainValidation(steps, validationSplit);
   }
-
 }

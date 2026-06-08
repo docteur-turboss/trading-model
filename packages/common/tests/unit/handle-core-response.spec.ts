@@ -11,8 +11,6 @@ import {
 } from '../../src/middleware/handle-core-error';
 import ChainedError from 'chained-error';
 
- 
-
 describe('handleCoreResponse', () => {
   let res: any;
 

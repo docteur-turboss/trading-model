@@ -2,8 +2,6 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { ResponseProtocol } from '../../src/middleware/response-protocol';
 import { AppError, ErrorCodes } from '../../src/utils/errors';
 
- 
-
 describe('ResponseProtocol', () => {
   let req: any;
   let res: any;
