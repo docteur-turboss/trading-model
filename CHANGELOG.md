@@ -1,3 +1,16 @@
+## [2.0.1] - 2026-06-08
+
+### @trading-model/common (1.2.0 → 1.2.1)
+
+#### Refactor
+
+- 03ec2dd **common:** centralize message contracts into @trading-model/common (#188)
+
+#### Chore
+
+- a157830 **common:** add release:publish script, verification protocol, GHCR_TOKEN docs
+
+
 ## [1.3.3] - 2026-06-07
 
 ### trader-service (1.3.2 → 1.3.3)

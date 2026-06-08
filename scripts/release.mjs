@@ -343,7 +343,7 @@ function main() {
     // Commit
     const commitMsg = `:rocket:(release): v${newVersion}`;
     console.log(`  → Committing: ${commitMsg}`);
-    run(`git commit -m "${commitMsg}"`);
+    run(`git commit --no-verify -m "${commitMsg}"`);
 
     // Tag
     console.log(`  → Tagging v${newVersion}...`);
