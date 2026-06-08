@@ -1,8 +1,8 @@
 import { Application } from 'express';
 
 import { configureApp, RateLimitConfig } from './configure-app';
-import { createAndStartHttpsServer, HttpServer } from './server-factory';
 import { TlsConfig } from './load-tls-config';
+import { createAndStartHttpsServer, HttpServer } from './server-factory';
 import { MTLSAuthMiddleware } from '../middleware/mtls-auth';
 import { ResponseProtocol } from '../middleware/response-protocol';
 

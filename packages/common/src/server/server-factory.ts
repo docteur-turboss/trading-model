@@ -4,8 +4,8 @@ import path from 'node:path';
 
 import { Application } from 'express';
 
-import { logger } from '../config/logger';
 import { TlsConfig } from './load-tls-config';
+import { logger } from '../config/logger';
 
 /** Options for creating the HTTPS server. */
 export interface HttpsServerOptions {
