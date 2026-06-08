@@ -11,12 +11,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig([
   globalIgnores([
     '**/dist/**',
-    '**/*.spec.ts',
     '**/jest.config.*',
     '**/jest.setup.ts',
     '**/setup.ts',
-    '**/tests/fixtures/**',
-    '**/tests/helpers/**',
     '**/docs/architecture/code/**',
   ]),
   {

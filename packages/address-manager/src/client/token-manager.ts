@@ -88,17 +88,18 @@ export class TokenManager {
    */
   async refreshToken(): Promise<void> {
     try {
+      const headers: Record<string, string> = {};
+      if (this.token) {
+        headers['x-instance-token'] = this.token;
+      }
+
       const response = await this.httpClient.post<{ token: string }>(
         `${this.config.addressManagerUrl}/token/rotate`,
         {
           instanceId: this.config.instanceId,
           serviceName: this.config.serviceName,
         },
-        {
-          headers: {
-            'x-instance-token': this.getToken(),
-          },
-        }
+        { headers }
       );
 
       if (!response || !response.token) {

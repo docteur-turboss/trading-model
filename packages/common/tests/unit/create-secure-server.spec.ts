@@ -37,8 +37,8 @@ jest.mock('node:https', () => ({
   }),
 }));
 
-jest.mock('node:fs', () => ({
-  readFileSync: jest.fn(() => 'mock-cert-content'),
+jest.mock('node:fs/promises', () => ({
+  readFile: jest.fn(() => Promise.resolve('mock-cert-content')),
 }));
 
 jest.mock('../../src/middleware/response-protocol', () => ({
@@ -64,7 +64,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import https from 'node:https';
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -79,8 +79,8 @@ describe('createSecureServer', () => {
     routes: jest.fn(),
   };
 
-  it('should create express app and configure middleware', () => {
-    createSecureServer(defaultOptions);
+  it('should create express app and configure middleware', async () => {
+    await createSecureServer(defaultOptions);
 
     expect(express).toHaveBeenCalled();
     expect(mockApp.use).toHaveBeenCalledWith(helmet());
@@ -93,26 +93,32 @@ describe('createSecureServer', () => {
     expect(defaultOptions.routes).toHaveBeenCalledWith(mockApp);
   });
 
-  it('should set trust proxy when trustProxy is not false', () => {
+  it('should set trust proxy when trustProxy is not false', async () => {
     mockApp.set.mockClear();
 
-    createSecureServer({ ...defaultOptions, trustProxy: true });
-    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', 1);
+    await createSecureServer({ ...defaultOptions, trustProxy: true });
+    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', 'loopback');
   });
 
-  it('should not set trust proxy when trustProxy is false', () => {
+  it('should not set trust proxy when trustProxy is false', async () => {
     mockApp.set.mockClear();
 
-    createSecureServer({ ...defaultOptions, trustProxy: false });
+    await createSecureServer({ ...defaultOptions, trustProxy: false });
     expect(mockApp.set).not.toHaveBeenCalled();
   });
 
-  it('should read TLS files and create HTTPS server', () => {
-    createSecureServer(defaultOptions);
+  it('should read TLS files and create HTTPS server', async () => {
+    await createSecureServer(defaultOptions);
 
-    expect(fs.readFileSync).toHaveBeenCalledWith(expect.stringContaining('key.pem'));
-    expect(fs.readFileSync).toHaveBeenCalledWith(expect.stringContaining('cert.pem'));
-    expect(fs.readFileSync).toHaveBeenCalledWith(expect.stringContaining('ca.pem'));
+    expect(fs.readFile).toHaveBeenCalledWith(
+      expect.stringContaining('key.pem'),
+      expect.any(String)
+    );
+    expect(fs.readFile).toHaveBeenCalledWith(
+      expect.stringContaining('cert.pem'),
+      expect.any(String)
+    );
+    expect(fs.readFile).toHaveBeenCalledWith(expect.stringContaining('ca.pem'), expect.any(String));
     expect(https.createServer).toHaveBeenCalledWith(
       expect.objectContaining({
         key: 'mock-cert-content',
@@ -126,37 +132,37 @@ describe('createSecureServer', () => {
     );
   });
 
-  it('should start listening on the specified port', () => {
+  it('should start listening on the specified port', async () => {
     mockHttpsServer.listen.mockClear();
 
-    createSecureServer(defaultOptions);
+    await createSecureServer(defaultOptions);
     expect(mockHttpsServer.listen).toHaveBeenCalledWith(8443, expect.any(Function));
   });
 
-  it('should return HttpServer with close method', () => {
-    const server = createSecureServer(defaultOptions);
+  it('should return HttpServer with close method', async () => {
+    const server = await createSecureServer(defaultOptions);
     expect(server).toHaveProperty('close');
   });
 
   it('should close the HTTPS server when close is called', async () => {
-    createSecureServer(defaultOptions);
+    await createSecureServer(defaultOptions);
     mockHttpsServer.close.mockClear();
 
-    const server = createSecureServer(defaultOptions);
+    const server = await createSecureServer(defaultOptions);
     await server.close();
     expect(mockHttpsServer.close).toHaveBeenCalled();
   });
 
   it('should reject when HTTPS server close returns an error', async () => {
-    const server = createSecureServer(defaultOptions);
+    const server = await createSecureServer(defaultOptions);
     mockHttpsServer.close.mockImplementationOnce((cb: (err: Error | undefined) => void) => {
       cb(new Error('close error'));
     });
     await expect(server.close()).rejects.toThrow('close error');
   });
 
-  it('should respond with ok status on GET /ping', () => {
-    createSecureServer(defaultOptions);
+  it('should respond with ok status on GET /ping', async () => {
+    await createSecureServer(defaultOptions);
 
     const mockRes = {
       json: jest.fn(),
@@ -166,8 +172,8 @@ describe('createSecureServer', () => {
     expect(mockRes.json).toHaveBeenCalledWith({ status: 'ok' });
   });
 
-  it('should apply custom rate limit config', () => {
-    createSecureServer({
+  it('should apply custom rate limit config', async () => {
+    await createSecureServer({
       ...defaultOptions,
       rateLimit: { windowMs: 60000, limit: 50 },
     });

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFile } from 'fs';
+import { existsSync, mkdirSync, appendFile } from 'fs';
 import path from 'path';
 
 /**
@@ -55,7 +55,8 @@ export class Logger {
   private maxLogs: number = 1000; // Maximum buffer size
   private sessionId: string | null; // Session identifier
   private userId: string | null = null; // Optional user identifier
-  private handle_error_service: string | null = null; // Optional external error service URL
+  private handleErrorServiceUrl: string | null = null; // Optional external error service URL
+  private readonly env: string | undefined;
 
   /**
    * Initializes a new Logger instance.
@@ -68,6 +69,7 @@ export class Logger {
    */
   constructor(logLevel: LogLevel = LogLevel.INFO) {
     this.logLevel = logLevel;
+    this.env = process.env.NODE_ENV;
     this.sessionId = this.generateSessionId();
   }
 
@@ -82,7 +84,8 @@ export class Logger {
    * @returns A unique string representing the session ID
    */
   private generateSessionId(): string {
-    return `${new Date().getFullYear()}.${new Date().getMonth() + 1}.${new Date().getDate()}-${this.logLevel}_${(crypto.getRandomValues(new Uint32Array(10))[0] * Math.pow(2, -32)).toString(36).substring(2, 10)}`;
+    const now = new Date();
+    return `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}-${this.logLevel}_${(crypto.getRandomValues(new Uint32Array(10))[0] * Math.pow(2, -32)).toString(36).substring(2, 10)}`;
   }
 
   /**
@@ -115,17 +118,19 @@ export class Logger {
    */
   private safeStringify(value: unknown): string {
     const seen = new WeakSet<object>();
-    const SENSITIVE_KEYS = new Set([
-      'password',
-      'token',
-      'secret',
-      'authorization',
-      'cookie',
-      'apiKey',
-      'MYSQL_ROOT_PASSWORD',
-    ]);
+    const SENSITIVE_KEY_PATTERNS = [
+      /^password$/i,
+      /^token$/i,
+      /^secret$/i,
+      /^authorization$/i,
+      /^cookie$/i,
+      /^api[-_]?key$/i,
+      /^mysql_root_password$/i,
+      /\.secret$/i,
+      /\.token$/i,
+    ];
     return JSON.stringify(value, (key, val) => {
-      if (SENSITIVE_KEYS.has(key)) return '[REDACTED]';
+      if (key && SENSITIVE_KEY_PATTERNS.some(p => p.test(key))) return '[REDACTED]';
       if (typeof val === 'object' && val !== null) {
         if (seen.has(val)) {
           return '[Circular]';
@@ -143,8 +148,9 @@ export class Logger {
     url: string = '',
     serviceInCharge: string = ''
   ): LogEntry {
+    const now = new Date();
     const data = {
-      timestamp: new Date(),
+      timestamp: now,
       level,
       message,
       context,
@@ -155,15 +161,12 @@ export class Logger {
     };
 
     const logFilePath = path.resolve(process.cwd(), 'log');
-    const logFileName = `${new Date().getFullYear()}.${new Date().getMonth() + 1}.${new Date().getDate()}-${level}.log`;
+    const logFileName = `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}-${level}.log`;
 
     if (!existsSync(logFilePath)) mkdirSync(logFilePath, { recursive: true });
-    writeFile(
-      path.resolve(logFilePath, logFileName),
-      this.safeStringify(data) + '\n',
-      { flag: 'a' },
-      () => {}
-    );
+    appendFile(path.resolve(logFilePath, logFileName), this.safeStringify(data) + '\n', err => {
+      if (err) console.error('[Logger] Failed to write log file:', err);
+    });
 
     return data;
   }
@@ -284,7 +287,7 @@ export class Logger {
     this.addToBuffer(logEntry);
     console.error(`[ERROR] [${logEntry.timestamp.toISOString()}] ${message}`, context || '');
 
-    if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging') {
+    if (this.env === 'production' || this.env === 'staging') {
       this.sendToErrorService(logEntry);
     }
   }
@@ -311,7 +314,7 @@ export class Logger {
    * @param url - The endpoint of the external error-handling service
    */
   setErrorHandlerService(url: string) {
-    this.handle_error_service = url;
+    this.handleErrorServiceUrl = url;
   }
 
   /**
@@ -345,7 +348,7 @@ export class Logger {
    */
   private async sendToErrorService(entry: LogEntry): Promise<void> {
     try {
-      await fetch(process.env.ERROR_URL_WEBHOOK ?? this.handle_error_service ?? '/', {
+      await fetch(process.env.ERROR_URL_WEBHOOK ?? this.handleErrorServiceUrl ?? '/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: this.safeStringify(entry),

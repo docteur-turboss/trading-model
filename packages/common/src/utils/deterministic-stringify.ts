@@ -20,13 +20,18 @@ export function deterministicStringify(value: unknown): string {
 }
 
 const deterministicReplacer = (_key: string, value: unknown): unknown => {
-  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-    const keys = Object.keys(value).sort();
-    const sorted: Record<string, unknown> = {};
-    for (const key of keys) {
-      sorted[key] = (value as Record<string, unknown>)[key];
+  if (typeof value === 'object' && value !== null) {
+    if (value instanceof Date) {
+      return value.toISOString();
     }
-    return sorted;
+    if (!Array.isArray(value)) {
+      const keys = Object.keys(value).sort();
+      const sorted: Record<string, unknown> = {};
+      for (const key of keys) {
+        sorted[key] = (value as Record<string, unknown>)[key];
+      }
+      return sorted;
+    }
   }
 
   return value;

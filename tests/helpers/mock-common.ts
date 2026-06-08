@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { HttpClient } from '@trading-model/common/config/http-client';
 
 /** Pre-configured mock logger for tests that need a logger. */
 export function createMockLogger() {
@@ -18,25 +19,11 @@ export function createMockDiscoveryEnv(overrides?: Record<string, unknown>) {
   };
 }
 
-/** Utility mock object for axios-based http clients. */
-export function createMockHttpClient() {
+type MockHttpClient = { [K in keyof HttpClient]: jest.Mock };
+/** Utility mock object for HttpClient-based tests. */
+export function createMockHttpClient(): MockHttpClient {
   return {
-    get: jest
-      .fn<(...args: unknown[]) => Promise<{ data: unknown }>>()
-      .mockResolvedValue({ data: {} }),
-    post: jest
-      .fn<(...args: unknown[]) => Promise<{ data: unknown }>>()
-      .mockResolvedValue({ data: {} }),
-    put: jest
-      .fn<(...args: unknown[]) => Promise<{ data: unknown }>>()
-      .mockResolvedValue({ data: {} }),
-    delete: jest
-      .fn<(...args: unknown[]) => Promise<{ data: unknown }>>()
-      .mockResolvedValue({ data: {} }),
-    interceptors: {
-      request: { use: jest.fn() },
-      response: { use: jest.fn() },
-    },
-    defaults: {},
+    get: jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined),
+    post: jest.fn<() => Promise<unknown>>().mockResolvedValue(undefined),
   };
 }

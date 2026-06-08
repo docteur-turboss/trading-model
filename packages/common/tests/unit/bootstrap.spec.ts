@@ -16,16 +16,16 @@ import { removeProcessHandlers } from '../../src/server/signal-handler';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 describe('createBootstrap', () => {
-  let exitSpy: any;
+  let exitCodeSpy: any;
 
   beforeEach(() => {
-    exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
     jest.spyOn(process, 'on').mockImplementation(() => process as any);
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
     removeProcessHandlers();
+    process.exitCode = undefined;
   });
 
   it('should create server and call onStart', () => {
@@ -67,10 +67,10 @@ describe('createBootstrap', () => {
 
     expect(mockServer.close).toHaveBeenCalled();
     expect(onStop).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(process.exitCode).toBeUndefined();
   });
 
-  it('should call process.exit on bootstrap error', () => {
+  it('should set exitCode on bootstrap error', () => {
     createBootstrap({
       name: 'test',
       createServer: (() => {
@@ -78,7 +78,7 @@ describe('createBootstrap', () => {
       }) as any,
     });
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should handle shutdown error gracefully', async () => {
@@ -93,7 +93,7 @@ describe('createBootstrap', () => {
 
     await result.shutdown('SIGTERM');
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should call onStop via hardShutdown when shutdown fails', async () => {
@@ -111,7 +111,7 @@ describe('createBootstrap', () => {
     await result.shutdown('SIGTERM');
 
     expect(onStop).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should not throw when onStop throws during hardShutdown', async () => {
@@ -131,7 +131,7 @@ describe('createBootstrap', () => {
     await result.shutdown('SIGTERM');
 
     expect(onStop).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should handle uncaughtException', () => {
@@ -147,7 +147,7 @@ describe('createBootstrap', () => {
 
     handler(new Error('crash'));
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should call onStop via hardShutdown on uncaughtException', () => {
@@ -166,7 +166,7 @@ describe('createBootstrap', () => {
     handler(new Error('crash'));
 
     expect(onStop).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should call onStop via hardShutdown on bootstrap error after server created', () => {
@@ -186,7 +186,7 @@ describe('createBootstrap', () => {
 
     expect(createServer).toHaveBeenCalled();
     expect(onStop).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should handle unhandledRejection', () => {
@@ -202,7 +202,7 @@ describe('createBootstrap', () => {
 
     handler(new Error('rejected'));
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should call onStop via hardShutdown on unhandledRejection', () => {
@@ -221,7 +221,7 @@ describe('createBootstrap', () => {
     handler(new Error('rejected'));
 
     expect(onStop).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should not close server on shutdown when server is null', async () => {
@@ -234,7 +234,7 @@ describe('createBootstrap', () => {
 
     await result.shutdown('SIGTERM');
 
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should handle shutdown without onStop when close succeeds', async () => {
@@ -248,7 +248,7 @@ describe('createBootstrap', () => {
     await result.shutdown('SIGTERM');
 
     expect(mockServer.close).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(process.exitCode).toBeUndefined();
   });
 
   it('should exit gracefully when onStop throws during shutdown', async () => {
@@ -267,6 +267,6 @@ describe('createBootstrap', () => {
 
     expect(mockServer.close).toHaveBeenCalled();
     expect(onStop).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(process.exitCode).toBeUndefined();
   });
 });

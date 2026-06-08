@@ -6,11 +6,11 @@ export type ShutdownHandler = (signal: string) => Promise<void>;
 /** Callback signature for forced shutdown. */
 export type HardShutdownHandler = (code: number) => void;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SignalListener = (...args: any[]) => void;
+type CleanupFn = () => void;
 
-/** Tracks registered signal listeners for cleanup. */
-const registeredSignals = new Map<string, SignalListener>();
+/** Tracks cleanup functions for registered listeners. */
+const cleanupFns: CleanupFn[] = [];
+let handlersRegistered = false;
 
 /**
  * Registers process-level signal and error handlers.
@@ -23,6 +23,9 @@ export function setupProcessHandlers(
   shutdown: ShutdownHandler,
   hardShutdown: HardShutdownHandler
 ): void {
+  if (handlersRegistered) return;
+  handlersRegistered = true;
+
   const onSigTerm = async () => {
     logger.warn('SIGTERM received');
     await shutdown('SIGTERM');
@@ -48,10 +51,10 @@ export function setupProcessHandlers(
   process.on('uncaughtException', onUncaughtException);
   process.on('unhandledRejection', onUnhandledRejection);
 
-  registeredSignals.set('SIGTERM', onSigTerm);
-  registeredSignals.set('SIGINT', onSigInt);
-  registeredSignals.set('uncaughtException', onUncaughtException);
-  registeredSignals.set('unhandledRejection', onUnhandledRejection);
+  cleanupFns.push(() => process.removeListener('SIGTERM', onSigTerm));
+  cleanupFns.push(() => process.removeListener('SIGINT', onSigInt));
+  cleanupFns.push(() => process.removeListener('uncaughtException', onUncaughtException));
+  cleanupFns.push(() => process.removeListener('unhandledRejection', onUnhandledRejection));
 }
 
 /**
@@ -59,8 +62,9 @@ export function setupProcessHandlers(
  * Useful for test cleanup to avoid side effects between tests.
  */
 export function removeProcessHandlers(): void {
-  for (const [signal, handler] of registeredSignals) {
-    process.removeListener(signal, handler);
+  for (const cleanup of cleanupFns) {
+    cleanup();
   }
-  registeredSignals.clear();
+  cleanupFns.length = 0;
+  handlersRegistered = false;
 }

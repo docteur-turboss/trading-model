@@ -4,10 +4,10 @@ import { Logger, LogLevel } from '../../src/config/logger';
 jest.mock('fs', () => ({
   existsSync: jest.fn().mockReturnValue(false),
   mkdirSync: jest.fn(),
-  writeFile: jest.fn((_path: string, _data: string, _opts: unknown, cb: () => void) => cb()),
+  appendFile: jest.fn((_path: string, _data: string, cb: () => void) => cb()),
 }));
 
-import { writeFile } from 'fs';
+import { appendFile } from 'fs';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -134,7 +134,7 @@ describe('Logger', () => {
   describe('setErrorHandlerService', () => {
     it('should set the error handler service URL', () => {
       (logger as any).setErrorHandlerService('https://errors.example.com');
-      expect((logger as any).handle_error_service).toBe('https://errors.example.com');
+      expect((logger as any).handleErrorServiceUrl).toBe('https://errors.example.com');
     });
   });
 
@@ -197,22 +197,22 @@ describe('Logger', () => {
 
   describe('safeStringify', () => {
     it('should handle circular references gracefully', () => {
-      const mockWriteFile = writeFile as unknown as jest.Mock;
-      mockWriteFile.mockClear();
+      const mockAppendFile = appendFile as unknown as jest.Mock;
+      mockAppendFile.mockClear();
 
       const obj: Record<string, unknown> = { name: 'parent' };
       obj.self = obj;
 
       logger.info('circular test', obj);
 
-      expect(mockWriteFile).toHaveBeenCalled();
-      const writtenData = mockWriteFile.mock.calls[0][1];
+      expect(mockAppendFile).toHaveBeenCalled();
+      const writtenData = mockAppendFile.mock.calls[0][1];
       expect(writtenData).toContain('[Circular]');
     });
 
     it('should redact sensitive keys like password, token, secret, authorization', () => {
-      const mockWriteFile = writeFile as unknown as jest.Mock;
-      mockWriteFile.mockClear();
+      const mockAppendFile = appendFile as unknown as jest.Mock;
+      mockAppendFile.mockClear();
 
       const context = {
         password: 'supersecret',
@@ -224,8 +224,8 @@ describe('Logger', () => {
 
       logger.info('test sensitive redaction', context);
 
-      expect(mockWriteFile).toHaveBeenCalled();
-      const writtenData = mockWriteFile.mock.calls[0][1];
+      expect(mockAppendFile).toHaveBeenCalled();
+      const writtenData = mockAppendFile.mock.calls[0][1];
       expect(writtenData).toContain('"[REDACTED]"');
       expect(writtenData).not.toContain('supersecret');
       expect(writtenData).not.toContain('abc123');

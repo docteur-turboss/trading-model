@@ -117,7 +117,7 @@ export class HttpClient {
       req.on('error', err => reject(err));
 
       if (options?.timeoutMs) {
-        req.setTimeout(options.timeoutMs, () => {
+        const onTimeout = () => {
           req.destroy();
           reject(
             new HttpClientTimeoutError(
@@ -125,6 +125,11 @@ export class HttpClient {
               options.timeoutMs!
             )
           );
+        };
+        req.setTimeout(options.timeoutMs, onTimeout);
+        req.on('close', () => {
+          if (req.destroyed) return;
+          req.removeListener('timeout', onTimeout);
         });
       }
 

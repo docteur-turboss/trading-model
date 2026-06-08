@@ -12,7 +12,7 @@ import {
   PublisherMetadataContextPredicate,
   RoutingMetadataContextPredicate,
   SchemaMetadataVersionPredicate,
-  DelivryMetadataModePredicate,
+  DeliveryMetadataModePredicate,
   EventTypeMetadataPredicate,
   TopicMetadataPredicate,
   IdsMetadataPredicate,
@@ -77,7 +77,7 @@ export class MessageMetadata {
       return this;
     }
 
-    DelivryMetadataModePredicate.parse(context);
+    DeliveryMetadataModePredicate.parse(context);
 
     this.delivery = context;
     return this;
@@ -109,7 +109,7 @@ export class MessageMetadata {
     // Data assertions
     RoutingMetadataContextPredicate.parse(context);
 
-    this.routing = context ?? undefined;
+    this.routing = context;
     return this;
   }
 

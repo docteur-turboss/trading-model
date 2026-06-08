@@ -94,7 +94,7 @@ services:
       TLS_CA_PATH: /certs/ca.crt
       LOG_LEVEL: ${LOG_LEVEL:-info}
       APP_NAME: message-manager
-      APP_VERSION: ${APP_VERSION:-1.0.0}
+      APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: message-delivery-service
       INSTANCE_ID: ${INSTANCE_ID:-message-manager-1}
       CACHE_TTL_MS: '30000'
@@ -142,7 +142,7 @@ services:
       TLS_CA_PATH: /certs/ca.crt
       LOG_LEVEL: ${LOG_LEVEL:-info}
       APP_NAME: financial-scraper
-      APP_VERSION: ${APP_VERSION:-1.0.0}
+      APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: financial-scrapper-service
       INSTANCE_ID: ${INSTANCE_ID:-financial-scraper-1}
       CACHE_TTL_MS: '30000'
@@ -191,7 +191,7 @@ services:
       TLS_CA_PATH: /certs/ca.crt
       LOG_LEVEL: ${LOG_LEVEL:-info}
       APP_NAME: trader-trainer
-      APP_VERSION: ${APP_VERSION:-1.0.0}
+      APP_VERSION: ${APP_VERSION:-1.3.0}
       SERVICE_NAME: trader-training-service
       INSTANCE_ID: ${INSTANCE_ID:-trader-trainer-1}
       CACHE_TTL_MS: '30000'

@@ -18,8 +18,8 @@
     "release:version": "node scripts/release.mjs --version",
     "lint": "npx eslint . --ext .ts,.js,.mjs,.cjs",
     "eslint": "npx eslint src/**/*.{ts,js}",
-    "test": "npm test --workspaces --if-present",
-    "test:coverage": "npm test --workspaces --if-present -- --coverage",
+    "test": "npm test --workspaces",
+    "test:coverage": "npm test --workspaces -- --coverage",
     "docs:generate": "node scripts/generate-docs.mjs",
     "docs:generate:dry": "node scripts/generate-docs.mjs --dry-run",
     "prepare": "husky"

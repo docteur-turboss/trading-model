@@ -61,7 +61,7 @@ export class ServiceDiscovery {
    * ```
    */
   async findService(serviceName: string): Promise<ServiceInstance> {
-    const cachedInstance = this.serviceCache.get(serviceName);
+    const cachedInstance = await this.serviceCache.get(serviceName);
 
     if (cachedInstance) {
       const isHealthy = await this.healthChecker.isHealthy(cachedInstance);
@@ -69,7 +69,7 @@ export class ServiceDiscovery {
         return cachedInstance;
       }
 
-      this.serviceCache.invalidate(serviceName);
+      await this.serviceCache.invalidate(serviceName);
     }
 
     return this.resolveAndValidateService(serviceName);
@@ -116,12 +116,12 @@ export class ServiceDiscovery {
     const isHealthy = await this.healthChecker.isHealthy(instance);
 
     if (!isHealthy) {
-      this.serviceCache.invalidate(serviceName);
+      await this.serviceCache.invalidate(serviceName);
 
       throw new AppError(`Service "${serviceName}" is unreachable`, ErrorCodes.SERVICE_UNREACHABLE);
     }
 
-    this.serviceCache.set(serviceName, instance);
+    await this.serviceCache.set(serviceName, instance);
     return instance;
   }
 }

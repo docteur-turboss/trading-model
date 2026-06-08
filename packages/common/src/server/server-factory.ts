@@ -1,22 +1,16 @@
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import https from 'node:https';
 import path from 'node:path';
 
 import { Application } from 'express';
 
 import { logger } from '../config/logger';
-
-/** Filesystem paths to TLS certificate files. */
-export interface TlsPaths {
-  key: string;
-  cert: string;
-  ca: string;
-}
+import { TlsConfig } from './load-tls-config';
 
 /** Options for creating the HTTPS server. */
 export interface HttpsServerOptions {
   port: number;
-  tls: TlsPaths;
+  tls: TlsConfig;
 }
 
 /** Minimal abstraction over a running HTTP server. */
@@ -32,15 +26,21 @@ export interface HttpServer {
  * @param options - Port and TLS certificate paths.
  * @returns An HttpServer with a close method that drains connections.
  */
-export function createAndStartHttpsServer(
+export async function createAndStartHttpsServer(
   app: Application,
   options: HttpsServerOptions
-): HttpServer {
+): Promise<HttpServer> {
+  const [key, cert, ca] = await Promise.all([
+    fs.readFile(path.resolve(options.tls.key), 'utf8'),
+    fs.readFile(path.resolve(options.tls.cert), 'utf8'),
+    fs.readFile(path.resolve(options.tls.ca), 'utf8'),
+  ]);
+
   const httpsServer = https.createServer(
     {
-      key: fs.readFileSync(path.resolve(options.tls.key)),
-      cert: fs.readFileSync(path.resolve(options.tls.cert)),
-      ca: fs.readFileSync(path.resolve(options.tls.ca)),
+      key,
+      cert,
+      ca,
       requestCert: true,
       rejectUnauthorized: true,
       minVersion: 'TLSv1.3',

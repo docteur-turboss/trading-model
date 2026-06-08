@@ -39,7 +39,10 @@ export function createBootstrap(options: BootstrapOptions): {
       }
     }
 
-    process.exit(code);
+    logger.warn('Forced shutdown', { exitCode: code });
+    if (code !== 0) {
+      process.exitCode = code;
+    }
   }
 
   function bootstrap(): void {
@@ -83,7 +86,6 @@ export function createBootstrap(options: BootstrapOptions): {
       }
 
       logger.info('Shutdown completed gracefully');
-      process.exit(0);
     } catch (error) {
       logger.error('Error during graceful shutdown', { err: error });
       hardShutdown(1);

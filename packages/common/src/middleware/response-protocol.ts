@@ -2,9 +2,16 @@ import { NextFunction, Request, Response } from 'express';
 
 import { ClassResponseExceptions, ResponseObject } from './response-exception';
 import { logger } from '../config/logger';
-import { AppError, ErrorCodes } from '../utils/errors';
+import { AppError, ErrorCodes, ErrorCode } from '../utils/errors';
 
 type ErrorInput = Error | ResponseObject;
+
+const SERVICE_UNAVAILABLE_CODES: ReadonlySet<ErrorCode> = new Set([
+  ErrorCodes.ADDRESS_MANAGER_ERROR,
+  ErrorCodes.MESSAGE_MANAGER_ERROR,
+  ErrorCodes.DEAD_LETTER_ERROR,
+  ErrorCodes.AGENT_ERROR,
+]);
 
 /**
  * Maps domain / technical errors to standardized HTTP responses.
@@ -24,10 +31,7 @@ function mapErrorToResponse(err: Error): ResponseObject {
       case ErrorCodes.AUTHENTICATION_ERROR:
         return response.InvalidToken();
       default:
-        if (
-          err.code === ErrorCodes.ADDRESS_MANAGER_ERROR ||
-          err.code.startsWith('ADDRESS_MANAGER_')
-        ) {
+        if (SERVICE_UNAVAILABLE_CODES.has(err.code)) {
           return response.ServiceUnavailable();
         }
         break;
@@ -75,12 +79,11 @@ export const ResponseProtocol = (
   err: ErrorInput,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction // kept for Express error middleware arity detection
 ) => {
   const response = err instanceof Error ? mapErrorToResponse(err) : err;
 
   logServerError(err, req, response);
 
   res.status(response.status).type('json').send(response.data);
-  next();
 };

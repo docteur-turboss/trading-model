@@ -48,7 +48,7 @@ describe('configureApp', () => {
   it('should set trust proxy when explicitly enabled', () => {
     mockApp.set.mockClear();
     configureApp({ trustProxy: true });
-    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', 1);
+    expect(mockApp.set).toHaveBeenCalledWith('trust proxy', 'loopback');
   });
 
   it('should skip trust proxy when false', () => {

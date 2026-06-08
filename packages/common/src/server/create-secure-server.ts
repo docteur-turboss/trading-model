@@ -1,16 +1,17 @@
 import { Application } from 'express';
 
 import { configureApp, RateLimitConfig } from './configure-app';
-import { createAndStartHttpsServer, HttpServer, TlsPaths } from './server-factory';
+import { createAndStartHttpsServer, HttpServer } from './server-factory';
+import { TlsConfig } from './load-tls-config';
 import { MTLSAuthMiddleware } from '../middleware/mtls-auth';
 import { ResponseProtocol } from '../middleware/response-protocol';
 
-export { HttpServer, TlsPaths, RateLimitConfig };
+export { HttpServer, TlsConfig as TlsPaths, RateLimitConfig };
 
 /** Options for creating an mTLS-secured HTTPS server. */
 export interface SecureServerOptions {
   port: number;
-  tls: TlsPaths;
+  tls: TlsConfig;
   routes: (app: Application) => void;
   rateLimit?: RateLimitConfig;
   trustProxy?: boolean;
@@ -24,7 +25,7 @@ export interface SecureServerOptions {
  *   - ResponseProtocol  — Global error normalisation middleware
  *   - createAndStartHttpsServer — HTTPS listener with mTLS (TLSv1.3)
  */
-export function createSecureServer(options: SecureServerOptions): HttpServer {
+export async function createSecureServer(options: SecureServerOptions): Promise<HttpServer> {
   const app = configureApp({
     rateLimit: options.rateLimit,
     trustProxy: options.trustProxy,
@@ -36,5 +37,5 @@ export function createSecureServer(options: SecureServerOptions): HttpServer {
 
   app.use(ResponseProtocol);
 
-  return createAndStartHttpsServer(app, { port: options.port, tls: options.tls });
+  return await createAndStartHttpsServer(app, { port: options.port, tls: options.tls });
 }

@@ -69,9 +69,10 @@ describe('ResponseProtocol', () => {
     expect(res.status).toHaveBeenCalledWith(500);
   });
 
-  it('should call next() after sending response', () => {
+  it('should send response without calling next', () => {
     const err = new Error('test');
     ResponseProtocol(err, req, res, next);
-    expect(next).toHaveBeenCalled();
+    expect(res.send).toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
   });
 });

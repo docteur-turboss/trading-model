@@ -23,7 +23,7 @@ export function configureApp(
   app.use(helmet());
 
   if (config.trustProxy ?? false) {
-    app.set('trust proxy', 1);
+    app.set('trust proxy', 'loopback');
   }
 
   app.use(express.json({ limit: '1mb' }));

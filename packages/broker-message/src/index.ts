@@ -27,7 +27,7 @@ import { MessageMetadata } from './shared/helper/messages/message';
 export default class BrokerMessage {
   private messageManagerClient: MessageManagerClient;
   private topics: EventEnumMap[] | null = null;
-  private event: (() => void)[] = [];
+  private cleanupFns: (() => void)[] = [];
   private callbackPath: string = 'message';
   private httpClient: HttpClient;
 
@@ -36,7 +36,7 @@ export default class BrokerMessage {
     KeyCertificatPath,
     RootCACertPath,
     CertificatPath,
-    callbackPath,
+    callbackPath: userCallbackPath,
     instanceId,
     serviceName,
   }: {
@@ -48,7 +48,7 @@ export default class BrokerMessage {
     addressManagerClient: addressManagerClient;
     serviceName: ServiceInstanceName;
   }) {
-    this.callbackPath = callbackPath ? callbackPath : this.callbackPath;
+    if (userCallbackPath) this.callbackPath = userCallbackPath;
 
     this.httpClient = new HttpClient({
       ca: RootCACertPath,
@@ -76,13 +76,13 @@ export default class BrokerMessage {
   /** Unsubscribes from all topics and cleans up event listeners. */
   async stopMessageManager(): Promise<void> {
     await this.messageManagerClient.UnSubscribeToTopic(this.topics ?? []);
-    this.event.forEach(killFunction => killFunction());
+    this.cleanupFns.forEach(fn => fn());
     this.topics = null;
   }
 
   /** Registers a listener for a broker message event. */
   on<K extends keyof EventMap>(event: K, listener: Listener<EventMessagesArgs<K>>) {
-    this.event.push(EventManager.on(event, listener));
+    this.cleanupFns.push(EventManager.on(event, listener));
   }
 
   /** Mounts the callback route on the Express application. */

@@ -90,7 +90,7 @@ describe('BrokerMessage', () => {
 
     it('should call kill functions from event array', async () => {
       const killFn = jest.fn();
-      broker.event = [killFn];
+      (broker as any).cleanupFns = [killFn];
       await broker.stopMessageManager();
       expect(killFn).toHaveBeenCalled();
     });
@@ -105,9 +105,9 @@ describe('BrokerMessage', () => {
   describe('on', () => {
     it('should register an event listener and push kill function', () => {
       const listener = jest.fn();
-      const initialLength = broker.event.length;
+      const initialLength = (broker as any).cleanupFns.length;
       broker.on('example.debug.create', listener);
-      expect(broker.event.length).toBe(initialLength + 1);
+      expect((broker as any).cleanupFns.length).toBe(initialLength + 1);
     });
 
     it('should trigger listener when event is emitted', () => {
