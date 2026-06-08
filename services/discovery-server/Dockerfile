@@ -4,14 +4,14 @@
 #  docker build -t trading-model/discovery-server -f services/discovery-server/Dockerfile .
 # =============================================================================
 
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/ packages/
 COPY services/discovery-server/package.json services/discovery-server/
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/ packages/
@@ -21,7 +21,7 @@ RUN npm run build:common
 WORKDIR /app/services/discovery-server
 RUN npm run build
 
-FROM node:22-alpine AS runtime
+FROM node:26-alpine AS runtime
 WORKDIR /app
 RUN apk add --no-cache tini curl
 
