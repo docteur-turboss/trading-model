@@ -270,9 +270,18 @@ docker compose logs -f
 
 ## Sensitive Variables (GitHub Secrets)
 
-| Secret       | Usage                                                          |
-| ------------ | -------------------------------------------------------------- |
-| `GHCR_TOKEN` | GitHub token with `packages:write` permissions for Docker push |
+| Secret       | Usage                                                            |
+| ------------ | ---------------------------------------------------------------- |
+| `GHCR_TOKEN` | GitHub token with `write:packages` scope for Docker push to GHCR |
+
+### Setting up GHCR_TOKEN
+
+The `release.yml` workflow uses `${{ secrets.GHCR_TOKEN }}` to authenticate with GitHub Container Registry.
+
+1. Create a classic [Personal Access Token](https://github.com/settings/tokens) with the `write:packages` scope
+2. Add it as a repository secret named `GHCR_TOKEN` at: `https://github.com/<owner>/<repo>/settings/secrets/actions`
+
+> **Note:** The `GITHUB_TOKEN` automatically available in workflows has `packages: write` permission on the `docker` job, but must be explicitly enabled via `permissions.packages: write` (already set in `release.yml`).
 
 ## References
 

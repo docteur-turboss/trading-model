@@ -128,6 +128,14 @@ Jest with ts-jest. Structure: `tests/{unit,integration,e2e,fixtures,helpers}/`. 
 
 ---
 
+## Verification Protocol
+
+Every change follows a mandatory verification protocol that covers before commit, before/during PR, before/during/after release. The protocol ensures nothing is skipped at any stage.
+
+- [VERIFICATION_PROTOCOL.md](./VERIFICATION_PROTOCOL.md)
+
+---
+
 ## Quality
 
 Tools: ESLint (0 errors), Prettier, Jest (coverage thresholds), TypeScript strict, commitlint, Husky. Gates: pre-commit (lint-staged), pre-push (build + test). CI verifies everything. Dependencies audited regularly (npm audit, Dependabot).

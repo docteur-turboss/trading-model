@@ -140,12 +140,13 @@ function formatChangelogLine(c) {
 }
 
 function parseArgs() {
-  const args = { dryRun: false, bump: null, version: null };
+  const args = { dryRun: false, bump: null, version: null, publish: false };
   for (let i = 2; i < process.argv.length; i++) {
     const arg = process.argv[i];
     if (arg === '--dry-run') args.dryRun = true;
     else if (arg === '--bump') args.bump = process.argv[++i] || null;
     else if (arg === '--version') args.version = process.argv[++i] || null;
+    else if (arg === '--publish') args.publish = true;
   }
   if (args.bump && !['major', 'minor', 'patch'].includes(args.bump)) {
     console.error(`  Invalid bump type: "${args.bump}". Use major, minor, or patch.`);
@@ -314,6 +315,43 @@ function main() {
     console.log();
   }
   console.log(`  Root: ${oldRootVer} → ${newVersion} (${rootBump})\n`);
+
+  // ── Publish (git merge, commit, tag, push) ──
+  if (args.publish && !args.dryRun) {
+    const branch = run('git rev-parse --abbrev-ref HEAD');
+    if (branch !== 'main') {
+      console.error(`  --publish requires being on main branch (currently on ${branch}).\n`);
+      process.exit(1);
+    }
+
+    console.log('  ── Publishing release ──\n');
+
+    // Merge development into main
+    console.log('  → Merging development into main...');
+    const mergeOut = run('git merge development --no-edit 2>&1');
+    if (mergeOut === '' && run('git diff --name-only --diff-filter=U')) {
+      console.error('  ✖ Merge conflicts detected. Resolve them and retry.\n');
+      process.exit(1);
+    }
+
+    // Stage all changes
+    console.log('  → Staging files...');
+    run('git add -A');
+
+    // Commit
+    const commitMsg = `:rocket:(release): v${newVersion}`;
+    console.log(`  → Committing: ${commitMsg}`);
+    run(`git commit -m "${commitMsg}"`);
+
+    // Tag
+    console.log(`  → Tagging v${newVersion}...`);
+    run(`git tag -a v${newVersion} -m "${commitMsg}"`);
+
+    // Push
+    console.log('  → Pushing commits and tags...');
+    run('git push --follow-tags');
+    console.log(`\n  ✓ Release v${newVersion} published.\n`);
+  }
 }
 
 main();
