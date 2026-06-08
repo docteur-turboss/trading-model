@@ -187,8 +187,8 @@ function decodeLayers(vec: Float32Array, depth: number, template: Genome) {
 
     hiddenLayers.push({
       neurons,
-      activation: ACTIVATIONS[actIdx] ?? 'ReLu',
-      connectionType: CONNECTION_TYPES[ctIdx] ?? 'dense-skip',
+      activation: ACTIVATIONS[actIdx],
+      connectionType: CONNECTION_TYPES[ctIdx],
       biasType: template.network.hiddenLayers[i]?.biasType ?? 'zeros',
     });
   }

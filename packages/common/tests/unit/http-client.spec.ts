@@ -318,4 +318,18 @@ describe('HttpClient', () => {
       expect(mockReq.removeListener).not.toHaveBeenCalled();
     });
   });
+
+  describe('non-Error rejection handling', () => {
+    it('should handle non-Error reject in JSON parse', async () => {
+      jest.spyOn(JSON, 'parse').mockImplementationOnce(() => {
+        throw 'parse-error-string';
+      });
+
+      const promise = client.get('https://example.com/api');
+      simulateResponse(200, JSON.stringify({ ok: true }), 'application/json');
+
+      await expect(promise).rejects.toThrow('parse-error-string');
+      jest.restoreAllMocks();
+    });
+  });
 });

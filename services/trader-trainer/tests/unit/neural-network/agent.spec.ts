@@ -15,6 +15,22 @@ function makeConfig(overrides?: Partial<NetworkArchitecture>): NetworkArchitectu
 }
 
 describe('Agent', () => {
+  describe('forward', () => {
+    let agent: Agent;
+
+    beforeEach(() => {
+      agent = new Agent(makeConfig());
+    });
+
+    it('should delegate to neural network and return output', () => {
+      const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+      const result = agent.forward(input);
+      expect(result).toHaveProperty('output');
+      expect(result.output).toBeInstanceOf(Float32Array);
+      expect(result.output.length).toBe(3);
+    });
+  });
+
   describe('constructor', () => {
     it('should create an Agent with valid config', () => {
       const agent = new Agent(makeConfig());

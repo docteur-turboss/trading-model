@@ -20,6 +20,23 @@ describe('sanitizeForLog', () => {
     expect(result).toHaveProperty('stack');
   });
 
+  it('should handle Error instances without a stack property', () => {
+    const err = new Error('test');
+    Object.defineProperty(err, 'stack', { value: undefined });
+    const result = sanitizeForLog(err) as Record<string, unknown>;
+    expect(result).toHaveProperty('name', 'Error');
+    expect(result).toHaveProperty('message', 'test');
+    expect(result).not.toHaveProperty('stack');
+  });
+
+  it('should handle plain objects with name/message but not Error instances', () => {
+    const err = { name: 'TypeError', message: 'bad' };
+    const result = sanitizeForLog(err) as Record<string, unknown>;
+    expect(result).toHaveProperty('name', 'TypeError');
+    expect(result).toHaveProperty('message', 'bad');
+    expect(result).not.toHaveProperty('stack');
+  });
+
   it('should map arrays recursively', () => {
     const input = ['a', new Error('err'), { key: '-----BEGIN KEY-----\nxxxx\n-----END KEY-----' }];
     const result = sanitizeForLog(input) as unknown[];

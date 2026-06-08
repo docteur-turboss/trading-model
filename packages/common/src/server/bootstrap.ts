@@ -41,9 +41,7 @@ export function createBootstrap(options: BootstrapOptions): {
     }
 
     logger.warn('Forced shutdown', { exitCode: code });
-    if (code !== 0) {
-      process.exitCode = code;
-    }
+    process.exitCode = code;
   }
 
   function bootstrap(): void {

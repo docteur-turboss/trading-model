@@ -161,6 +161,13 @@ describe('HTTP Controllers', () => {
         GetTradeBySymbolController(mockReq({ symbol: 'BTCUSDT' }), mockRes, mockNext)
       ).rejects.toThrow('Database connection failed');
     });
+
+    it('should wrap non-Error rejections from fetcher as Error', async () => {
+      mockSelectTradesBy.symbol.mockRejectedValue('plain string error');
+      await expect(
+        GetTradeBySymbolController(mockReq({ symbol: 'BTCUSDT' }), mockRes, mockNext)
+      ).rejects.toThrow('plain string error');
+    });
   });
 
   describe('Ticker controllers', () => {

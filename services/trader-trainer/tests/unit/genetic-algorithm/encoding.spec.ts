@@ -91,6 +91,28 @@ describe('encoding', () => {
         expect(vec[base]).toBe(0);
       }
     });
+
+    test('should skip unknown activation type in one-hot encoding', () => {
+      const g = createDefaultGenome('unknown-act');
+      g.network.hiddenLayers[0].activation = 'UnknownAct' as ActivationType;
+      const vec = encodeGenome(g);
+      const base = 23;
+      for (let i = 0; i < 8; i++) {
+        expect(vec[base + 1 + i]).toBe(0);
+      }
+      expect(vec[base + 1 + 8 + 0]).toBe(1);
+    });
+
+    test('should skip unknown connection type in one-hot encoding', () => {
+      const g = createDefaultGenome('unknown-ct');
+      g.network.hiddenLayers[0].connectionType = 'UnknownConn' as ConnectionType;
+      const vec = encodeGenome(g);
+      const base = 23;
+      expect(vec[base + 1 + 0]).toBe(1);
+      for (let i = 0; i < 3; i++) {
+        expect(vec[base + 1 + 8 + i]).toBe(0);
+      }
+    });
   });
 
   describe('decodeGenome', () => {

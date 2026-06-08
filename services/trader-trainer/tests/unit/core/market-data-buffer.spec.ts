@@ -110,6 +110,29 @@ describe('MarketDataBuffer', () => {
 
       expect(buffer.getCandleCount('BTCUSDT')).toBe(0);
     });
+
+    it('should report the configured maxSize', () => {
+      const small = new MarketDataBuffer({ maxSize: 50 });
+      expect(small.getMaxSize()).toBe(50);
+    });
+
+    it('should handle eviction with orphaned accessOrder entry', () => {
+      const buf = new MarketDataBuffer({ maxMemoryMb: 0.00001, evictionPolicy: 'LRU' });
+      feedCandles(buf, 'BTCUSDT', 3);
+      feedCandles(buf, 'ETHUSDT', 3);
+      buf['accessOrder'][0] = undefined as any;
+      buf.addCandles('SOLUSDT', [makeCandle({ symbol: 'SOLUSDT', close: 100, timestamp: 1 })]);
+      expect(buf.getSymbols().length).toBeGreaterThan(0);
+    });
+
+    it('should handle eviction with symbol missing from states', () => {
+      const buf = new MarketDataBuffer({ maxMemoryMb: 0.00001, evictionPolicy: 'LRU' });
+      feedCandles(buf, 'BTCUSDT', 3);
+      feedCandles(buf, 'ETHUSDT', 3);
+      buf['states'].delete(buf['accessOrder'][0]);
+      feedCandles(buf, 'SOLUSDT', 3);
+      expect(buf.getSymbols().length).toBeLessThanOrEqual(3);
+    });
   });
 
   describe('buildMarketSteps', () => {
@@ -227,6 +250,14 @@ describe('MarketDataBuffer', () => {
       for (const idx of [9, 10, 11, 12]) {
         expect(typeof steps[0].features[idx]).toBe('number');
       }
+    });
+
+    it('should account for orderBook size in eviction memory estimate', () => {
+      const buf = new MarketDataBuffer({ maxMemoryMb: 0.0001, evictionPolicy: 'LRU' });
+      buf.addCandles('BTCUSDT', [makeCandle({ symbol: 'BTCUSDT', close: 50000, timestamp: 1 })]);
+      buf.setOrderBook('BTCUSDT', makeOrderBook('BTCUSDT'));
+      buf.addCandles('ETHUSDT', [makeCandle({ symbol: 'ETHUSDT', close: 3000, timestamp: 1 })]);
+      expect(buf.getCandleCount('BTCUSDT')).toBe(0);
     });
 
     it('should handle empty bids and asks gracefully', () => {

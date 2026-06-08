@@ -41,6 +41,32 @@ describe('TradingAgent', () => {
       expect(agent.state).toBeDefined();
     });
 
+    it('should expose getWeights returning a Float32Array', () => {
+      const weights = agent.getWeights();
+      expect(weights).toBeInstanceOf(Float32Array);
+      expect(weights.length).toBeGreaterThan(0);
+    });
+
+    it('should expose forwardPass returning output', () => {
+      const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+      const result = agent.forwardPass(input);
+      expect(result).toHaveProperty('output');
+      expect(result.output).toBeInstanceOf(Float32Array);
+      expect(result.output.length).toBe(3);
+    });
+
+    it('should delegate learnQLearning to underlying agent', () => {
+      const exp = {
+        kind: 'qlearning' as const,
+        input: new Float32Array([0.5, -0.3, 0.1, 0.8]),
+        output: new Float32Array([0.1, 0.2, 0.3]),
+        reward: 1,
+        nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]),
+        done: false,
+      };
+      expect(() => agent.learnQLearning(exp, 0.99)).not.toThrow();
+    });
+
     it('should initialise wallet with given cash and price', () => {
       expect(agent.wallet.getCash()).toBe(1000);
       expect(agent.wallet.getPrice()).toBe(100);

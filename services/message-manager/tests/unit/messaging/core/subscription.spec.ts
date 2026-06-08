@@ -262,6 +262,24 @@ describe('Subscription', () => {
 
       expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
     });
+
+    it('should use NO_REASON fallback when DeadLetterError has no reason', async () => {
+      mockDeliveryPort.send.mockRejectedValue(
+        new AppError('Unrecoverable', ErrorCodes.DEAD_LETTER_ERROR)
+      );
+
+      const message = createMockMessage('payload', {
+        delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+      });
+      await subscription.dispatch(message);
+
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+        message,
+        'NO_REASON',
+        expect.any(Number)
+      );
+    });
   });
 
   describe('topic and identity', () => {
