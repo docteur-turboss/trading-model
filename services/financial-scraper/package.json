@@ -28,7 +28,7 @@
     "@trading-model/address-manager": "*",
     "@trading-model/broker-message": "*",
     "@trading-model/common": "*",
-    "axios": "^1.16.0",
+    "axios": "^1.17.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.1",
     "helmet": "^8.1.0",
