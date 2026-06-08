@@ -5,7 +5,7 @@ import { logger } from '../config/logger';
 /** Options for configuring a service bootstrap lifecycle. */
 export interface BootstrapOptions {
   name: string;
-  createServer: () => HttpServer;
+  createServer: () => HttpServer | Promise<HttpServer>;
   onStart?: () => void;
   onStop?: () => void;
 }
@@ -45,11 +45,11 @@ export function createBootstrap(options: BootstrapOptions): {
     }
   }
 
-  function bootstrap(): void {
+  async function bootstrap(): Promise<void> {
     try {
       logger.info(`Bootstrapping ${options.name} service`);
 
-      server = options.createServer();
+      server = await options.createServer();
 
       if (options.onStart) {
         try {
