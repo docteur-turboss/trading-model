@@ -51,13 +51,15 @@ export function createBootstrap(options: BootstrapOptions): {
 
       const result = options.createServer();
       if (result instanceof Promise) {
-        result.then(s => {
-          server = s;
-          finishBootstrap();
-        }).catch(err => {
-          logger.error('Fatal error during service bootstrap', { err });
-          hardShutdown(1);
-        });
+        result
+          .then(s => {
+            server = s;
+            finishBootstrap();
+          })
+          .catch(err => {
+            logger.error('Fatal error during service bootstrap', { err });
+            hardShutdown(1);
+          });
         return;
       }
 

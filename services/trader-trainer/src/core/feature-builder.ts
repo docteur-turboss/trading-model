@@ -34,8 +34,7 @@ export function buildFeatures(
   if (obAvg) {
     f[9] = s.bidNorm.normalize(obAvg.avgBid);
     f[10] = s.askNorm.normalize(obAvg.avgAsk);
-    f[11] =
-      obAvg.avgAsk > 0 && obAvg.avgBid > 0 ? (obAvg.avgAsk - obAvg.avgBid) / obAvg.avgAsk : 0;
+    f[11] = obAvg.avgAsk > 0 && obAvg.avgBid > 0 ? (obAvg.avgAsk - obAvg.avgBid) / obAvg.avgAsk : 0;
     const totalQty = obAvg.bidQty + obAvg.askQty;
     f[12] = totalQty > 0 ? (obAvg.bidQty - obAvg.askQty) / totalQty : 0;
   }

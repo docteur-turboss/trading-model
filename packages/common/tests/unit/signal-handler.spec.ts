@@ -12,8 +12,6 @@ jest.mock('../../src/config/logger', () => ({
 
 import { setupProcessHandlers, removeProcessHandlers } from '../../src/server/signal-handler';
 
- 
-
 describe('signal-handler', () => {
   let processOnSpy: any;
   let removeListenerSpy: any;

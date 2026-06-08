@@ -24,9 +24,6 @@ jest.mock('../../src/http/messages.routes', () => ({
 
 import BrokerMessage from '../../src/index';
 
- 
- 
-
 describe('BrokerMessage', () => {
   let broker: any;
 

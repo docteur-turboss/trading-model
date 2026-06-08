@@ -3,8 +3,6 @@ import { MessageMetadata } from '../../src/shared/helper/messages/message';
 import { AppError } from '@trading-model/common/utils/errors';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
- 
-
 function buildMinimalMetadata(): MessageMetadata {
   return new MessageMetadata()
     .setTopic('test.event.created')

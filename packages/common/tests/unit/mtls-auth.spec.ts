@@ -24,8 +24,6 @@ jest.mock('../../src/middleware/response-exception', () => ({
 
 import { MTLSAuthMiddleware } from '../../src/middleware/mtls-auth';
 
- 
-
 describe('MTLSAuthMiddleware', () => {
   let req: any;
   let res: any;

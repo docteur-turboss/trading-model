@@ -3,8 +3,6 @@ import { pingController } from '../../src/http/ping.controller';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { ResponseException } from '@trading-model/common/middleware/response-exception';
 
- 
-
 describe('pingController', () => {
   let mockRes: Partial<Response>;
 

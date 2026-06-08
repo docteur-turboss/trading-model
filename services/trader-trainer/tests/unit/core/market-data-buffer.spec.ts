@@ -1,7 +1,5 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import {
-  MarketDataBuffer,
-} from '../../../src/core/market-data-buffer';
+import { MarketDataBuffer } from '../../../src/core/market-data-buffer';
 import {
   NormalizationStats,
   TradingSymbol,

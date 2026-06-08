@@ -28,8 +28,12 @@ describe('ServiceDiscovery', () => {
 
   function createMockCache(): jest.Mocked<ServiceCache> {
     return {
-      get: jest.fn<(serviceName: string) => Promise<ServiceInstance | null>>().mockResolvedValue(null),
-      set: jest.fn<(serviceName: string, instance: ServiceInstance) => Promise<void>>().mockResolvedValue(undefined),
+      get: jest
+        .fn<(serviceName: string) => Promise<ServiceInstance | null>>()
+        .mockResolvedValue(null),
+      set: jest
+        .fn<(serviceName: string, instance: ServiceInstance) => Promise<void>>()
+        .mockResolvedValue(undefined),
       invalidate: jest.fn<(serviceName: string) => Promise<void>>().mockResolvedValue(undefined),
       clear: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<ServiceCache>;
@@ -37,7 +41,9 @@ describe('ServiceDiscovery', () => {
 
   function createMockHttpClient(): jest.Mocked<HttpClient> {
     return {
-      get: jest.fn<(url: string, options?: Record<string, unknown>) => Promise<unknown>>().mockResolvedValue(undefined),
+      get: jest
+        .fn<(url: string, options?: Record<string, unknown>) => Promise<unknown>>()
+        .mockResolvedValue(undefined),
     } as unknown as jest.Mocked<HttpClient>;
   }
 

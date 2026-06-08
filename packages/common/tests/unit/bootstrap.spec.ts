@@ -13,8 +13,6 @@ jest.mock('../../src/config/logger', () => ({
 import { createBootstrap } from '../../src/server/bootstrap';
 import { removeProcessHandlers } from '../../src/server/signal-handler';
 
- 
-
 describe('createBootstrap', () => {
   beforeEach(() => {
     jest.spyOn(process, 'on').mockImplementation(() => process as any);

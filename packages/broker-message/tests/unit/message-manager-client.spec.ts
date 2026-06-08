@@ -3,8 +3,6 @@ import { MessageManagerClient } from '../../src/client/message-manager-client';
 import { AppError } from '@trading-model/common/utils/errors';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
- 
-
 describe('MessageManagerClient', () => {
   let client: MessageManagerClient;
   let httpClient: any;

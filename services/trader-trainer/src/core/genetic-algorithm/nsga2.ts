@@ -98,7 +98,10 @@ function assignCrowding(
 
 const EXACT_NSGA2_THRESHOLD = 300;
 
-export function buildPopulationMeta(objectives: ObjectiveVector[], rng: () => number): PopulationMeta {
+export function buildPopulationMeta(
+  objectives: ObjectiveVector[],
+  rng: () => number
+): PopulationMeta {
   const n = objectives.length;
   /* istanbul ignore next */
   const paretoRank =

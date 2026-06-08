@@ -31,7 +31,15 @@ describe('heartbeatRoutes', () => {
 
     expect(router).toBe(mockRouter);
     expect(mockRouter.post).toHaveBeenCalledTimes(2);
-    expect(mockRouter.post).toHaveBeenCalledWith('/heartbeat', expect.any(Function), 'heartbeat-handler');
-    expect(mockRouter.post).toHaveBeenCalledWith('/token/rotate', expect.any(Function), 'rotate-token-handler');
+    expect(mockRouter.post).toHaveBeenCalledWith(
+      '/heartbeat',
+      expect.any(Function),
+      'heartbeat-handler'
+    );
+    expect(mockRouter.post).toHaveBeenCalledWith(
+      '/token/rotate',
+      expect.any(Function),
+      'rotate-token-handler'
+    );
   });
 });

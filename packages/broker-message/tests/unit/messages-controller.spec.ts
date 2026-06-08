@@ -3,8 +3,6 @@ import { MessageController } from '../../src/http/messages.controller';
 import { EventManager } from '../../src/client/event-manager-client';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
- 
-
 function flushMicrotasks(): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, 0));
 }
