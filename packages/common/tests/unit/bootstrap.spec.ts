@@ -81,6 +81,17 @@ describe('createBootstrap', () => {
     expect(process.exitCode).toBe(1);
   });
 
+  it('should not set exitCode when hardShutdown code is 0', () => {
+    process.exitCode = 2;
+    const mockServer = { close: jest.fn(async () => {}) };
+    const result = createBootstrap({
+      name: 'test',
+      createServer: (() => mockServer) as any,
+    });
+    result.shutdown('SIGTERM');
+    expect(process.exitCode).toBe(2);
+  });
+
   it('should handle shutdown error gracefully', async () => {
     const mockServer = {
       close: jest.fn(() => Promise.reject(new Error('close failed'))),

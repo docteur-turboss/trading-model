@@ -124,6 +124,15 @@ describe('HttpClient', () => {
       await expect(promise).rejects.toThrow();
     });
 
+    it('should handle request with timeout that completes normally', async () => {
+      const responseData = JSON.stringify({ data: 'ok' });
+      const promise = client.get('https://example.com/api', { timeoutMs: 1000 });
+      simulateResponse(200, responseData, 'application/json');
+
+      const result = await promise;
+      expect(result).toEqual({ data: 'ok' });
+    });
+
     it('should handle response without content-type header', async () => {
       const promise = client.get('https://example.com/api');
       (requestCallback as any)({

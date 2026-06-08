@@ -36,6 +36,17 @@ describe('signal-handler', () => {
     expect(processOnSpy).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
   });
 
+  it('should be idempotent when called multiple times', () => {
+    setupProcessHandlers(jest.fn() as any, jest.fn() as any);
+    processOnSpy.mockClear();
+    removeListenerSpy.mockClear();
+
+    setupProcessHandlers(jest.fn() as any, jest.fn() as any);
+
+    expect(processOnSpy).not.toHaveBeenCalled();
+    expect(removeListenerSpy).not.toHaveBeenCalled();
+  });
+
   it('should register SIGINT handler', () => {
     setupProcessHandlers(jest.fn() as any, jest.fn() as any);
     expect(processOnSpy).toHaveBeenCalledWith('SIGINT', expect.any(Function));

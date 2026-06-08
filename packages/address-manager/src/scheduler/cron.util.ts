@@ -13,6 +13,6 @@ export function intervalMsToCron(intervalMs: number): string {
     return `*/${seconds} * * * * *`;
   }
 
-  const minutes = Math.floor(intervalMs / 60_000);
+  const minutes = Math.max(1, Math.round(intervalMs / 60_000));
   return `*/${minutes} * * * *`;
 }

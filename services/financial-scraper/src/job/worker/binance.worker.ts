@@ -12,6 +12,7 @@
  * in distributed environments.
  */
 
+import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 
 import { helper } from '@trading-model/broker-message';
@@ -62,7 +63,6 @@ export class BinanceWorker {
    *
    */
   public async run(): Promise<BinanceWorkerResult> {
-    const { v4: uuidv4 } = await import('uuid');
     const builderMetadata = new helper.MetadataBuilder();
 
     const {
@@ -106,7 +106,7 @@ export class BinanceWorker {
     builderMetadata
       .setDelivery({
         mode: this.options.deliveryMode ?? DeliveryMode.AT_LEAST_ONCE,
-        deduplicationId: uuidv4(),
+        deduplicationId: randomUUID(),
       })
       .setEventType('FetchCandlestick')
       .setTopic(EnumEventMessage.fetchCandlestickSeries)
@@ -115,8 +115,8 @@ export class BinanceWorker {
         signature,
       })
       .setIds({
-        causationId: uuidv4(),
-        correlationId: uuidv4(),
+        causationId: randomUUID(),
+        correlationId: randomUUID(),
       })
       .setPublisher({
         instanceId: env.INSTANCE_ID,

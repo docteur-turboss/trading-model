@@ -13,6 +13,9 @@ const SERVICE_UNAVAILABLE_CODES: ReadonlySet<ErrorCode> = new Set([
   ErrorCodes.AGENT_ERROR,
 ]);
 
+const isServiceUnavailable = (code: ErrorCode): boolean =>
+  SERVICE_UNAVAILABLE_CODES.has(code);
+
 /**
  * Maps domain / technical errors to standardized HTTP responses.
  *
@@ -31,7 +34,7 @@ function mapErrorToResponse(err: Error): ResponseObject {
       case ErrorCodes.AUTHENTICATION_ERROR:
         return response.InvalidToken();
       default:
-        if (SERVICE_UNAVAILABLE_CODES.has(err.code)) {
+        if (isServiceUnavailable(err.code)) {
           return response.ServiceUnavailable();
         }
         break;

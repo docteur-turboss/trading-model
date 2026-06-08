@@ -7,39 +7,33 @@ import { TokenManager } from './token-manager';
 import { RegisterServicePayload, ServiceRegistrationResponse } from './type';
 import { AddressManagerConfig } from '../config/address-manager-config';
 
-/**
- * AddressManagerClient
- *
- * Responsibilities:
- * - Register the current service with the Address Manager
- * - Refresh the TTL of the registered service
- * - Retrieve the address of a remote service
- *
- * Constraints:
- * - No caching logic
- * - No business retry logic
- * - Only uses the token provided by TokenManager
- *
- * This class abstracts all interactions with the Address Manager API.
- */
 export class AddressManagerClient {
-  /**
-   * Initializes a new AddressManagerClient.
-   */
   constructor(
     private readonly httpClient: HttpClient,
     private readonly tokenManager: TokenManager,
     private readonly config: AddressManagerConfig
   ) {}
 
-  /** Resolves the local non-internal IPv4 address of this machine. Falls back to 127.0.0.1. */
+  /** Cached local IP, resolved once. Reset in tests via {@link resetLocalIP}. */
+  private static localIP: string | null = null;
+
+  /** Reset the cached local IP (test support). */
+  static resetLocalIP(): void {
+    AddressManagerClient.localIP = null;
+  }
+
   private static getLocalIP(): string {
+    if (AddressManagerClient.localIP) return AddressManagerClient.localIP;
     const nets = networkInterfaces();
     for (const name of Object.keys(nets)) {
       for (const net of nets[name] ?? []) {
-        if (net.family === 'IPv4' && !net.internal) return net.address;
+        if (net.family === 'IPv4' && !net.internal) {
+          AddressManagerClient.localIP = net.address;
+          return net.address;
+        }
       }
     }
+    AddressManagerClient.localIP = '127.0.0.1';
     return '127.0.0.1';
   }
 

@@ -4,10 +4,11 @@ import { Logger, LogLevel } from '../../src/config/logger';
 jest.mock('fs', () => ({
   existsSync: jest.fn().mockReturnValue(false),
   mkdirSync: jest.fn(),
-  appendFile: jest.fn((_path: string, _data: string, cb: () => void) => cb()),
+  appendFile: jest.fn((_path: string, _data: string, cb: (err: Error | null) => void) => cb(null)),
 }));
 
 import { appendFile } from 'fs';
+const mockAppendFile = appendFile as unknown as jest.Mock;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -178,6 +179,14 @@ describe('Logger', () => {
       const logs = logger.getLogs();
       expect(logs[0].sessionId).toBeUndefined();
     });
+
+    it('should log appendFile error to console.error', () => {
+      mockAppendFile.mockImplementationOnce(((_path: string, _data: string, cb: (err: Error | null) => void) => cb(new Error('disk full'))) as jest.Mock);
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      logger.info('write fail test');
+      expect(consoleErrorSpy).toHaveBeenCalledWith('[Logger] Failed to write log file:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   describe('sendToErrorService with ERROR_URL_WEBHOOK', () => {
@@ -197,7 +206,6 @@ describe('Logger', () => {
 
   describe('safeStringify', () => {
     it('should handle circular references gracefully', () => {
-      const mockAppendFile = appendFile as unknown as jest.Mock;
       mockAppendFile.mockClear();
 
       const obj: Record<string, unknown> = { name: 'parent' };
@@ -211,7 +219,6 @@ describe('Logger', () => {
     });
 
     it('should redact sensitive keys like password, token, secret, authorization', () => {
-      const mockAppendFile = appendFile as unknown as jest.Mock;
       mockAppendFile.mockClear();
 
       const context = {

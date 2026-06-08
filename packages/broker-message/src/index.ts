@@ -81,8 +81,8 @@ export default class BrokerMessage {
   }
 
   /** Registers a listener for a broker message event. */
-  on<K extends keyof EventMap>(event: K, listener: Listener<EventMessagesArgs<K>>) {
-    this.cleanupFns.push(EventManager.on(event, listener));
+  on<K extends keyof EventMap>(eventName: K, listener: Listener<EventMessagesArgs<K>>) {
+    this.cleanupFns.push(EventManager.on(eventName, listener));
   }
 
   /** Mounts the callback route on the Express application. */

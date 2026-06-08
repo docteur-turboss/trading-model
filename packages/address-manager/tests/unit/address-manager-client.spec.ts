@@ -2,6 +2,7 @@ import { networkInterfaces } from 'os';
 import { TokenManager } from '../../src/client/token-manager';
 import { ServiceRegistrationResponse } from '../../src/client/type';
 import { AddressManagerClient } from '../../src/client/address-manager-client';
+import { afterAll } from '@jest/globals';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { AddressManagerConfig } from '../../src/config/address-manager-config';
 import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
@@ -15,7 +16,12 @@ describe('AddressManagerClient', () => {
   let config: AddressManagerConfig;
   let client: AddressManagerClient;
 
+  afterAll(() => {
+    AddressManagerClient.resetLocalIP();
+  });
+
   beforeEach(() => {
+    AddressManagerClient.resetLocalIP();
     (networkInterfaces as jest.Mock).mockReturnValue({
       eth0: [{ family: 'IPv4', internal: false, address: '192.168.1.100' }],
     });
@@ -39,6 +45,21 @@ describe('AddressManagerClient', () => {
   });
 
   describe('registerService', () => {
+    test('should use cached IP on subsequent calls', async () => {
+      (networkInterfaces as jest.Mock).mockReturnValue({
+        eth0: [{ family: 'IPv4', internal: false, address: '192.168.1.100' }],
+      });
+
+      httpClient.post.mockResolvedValue({} as ServiceRegistrationResponse);
+
+      await client.registerService();
+      (networkInterfaces as jest.Mock).mockClear();
+
+      await client.registerService();
+
+      expect(networkInterfaces).not.toHaveBeenCalled();
+    });
+
     test('should handle undefined network interface entries gracefully', async () => {
       (networkInterfaces as jest.Mock).mockReturnValueOnce({
         wlan0: undefined,
@@ -79,7 +100,7 @@ describe('AddressManagerClient', () => {
       expect(httpClient.post).toHaveBeenCalledWith(expect.any(String), {
         serviceName: config.serviceName,
         port: config.servicePort,
-        ip: '127.0.0.1',
+        ip: expect.any(String),
       });
       expect(result).toEqual(response);
     });

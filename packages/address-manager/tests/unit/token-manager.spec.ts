@@ -83,6 +83,23 @@ describe('TokenManager', () => {
       expect(manager.getToken()).toBe(mockToken);
     });
 
+    test('should refresh token without x-instance-token header when no initial token', async () => {
+      const mockToken = 'new-token';
+      httpClient.post.mockResolvedValueOnce({ token: mockToken });
+
+      await manager.refreshToken();
+
+      expect(httpClient.post).toHaveBeenCalledWith(
+        `${config.addressManagerUrl}/token/rotate`,
+        {
+          instanceId: config.instanceId,
+          serviceName: config.serviceName,
+        },
+        { headers: {} }
+      );
+      expect(manager.getToken()).toBe(mockToken);
+    });
+
     test('should throw AuthenticationError if response is missing token', async () => {
       httpClient.post.mockResolvedValueOnce({});
       manager.setToken('initial-token');

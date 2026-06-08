@@ -26,27 +26,31 @@ describe('ServiceDiscovery', () => {
     ttl: 30000,
   };
 
-  beforeEach(() => {
-    cache = {
-      get: jest
-        .fn<(serviceName: string) => Promise<ServiceInstance | null>>()
-        .mockResolvedValue(null),
-      set: jest
-        .fn<(serviceName: string, instance: ServiceInstance) => Promise<void>>()
-        .mockResolvedValue(undefined),
+  function createMockCache(): jest.Mocked<ServiceCache> {
+    return {
+      get: jest.fn<(serviceName: string) => Promise<ServiceInstance | null>>().mockResolvedValue(null),
+      set: jest.fn<(serviceName: string, instance: ServiceInstance) => Promise<void>>().mockResolvedValue(undefined),
       invalidate: jest.fn<(serviceName: string) => Promise<void>>().mockResolvedValue(undefined),
       clear: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<ServiceCache>;
+  }
 
-    httpClient = {
-      get: jest
-        .fn<(url: string, options?: Record<string, unknown>) => Promise<unknown>>()
-        .mockResolvedValue(undefined),
+  function createMockHttpClient(): jest.Mocked<HttpClient> {
+    return {
+      get: jest.fn<(url: string, options?: Record<string, unknown>) => Promise<unknown>>().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<HttpClient>;
+  }
 
-    healthChecker = {
+  function createMockHealthChecker(): jest.Mocked<ServiceHealthChecker> {
+    return {
       isHealthy: jest.fn<(instance: ServiceInstance) => Promise<boolean>>().mockResolvedValue(true),
     } as unknown as jest.Mocked<ServiceHealthChecker>;
+  }
+
+  beforeEach(() => {
+    cache = createMockCache();
+    httpClient = createMockHttpClient();
+    healthChecker = createMockHealthChecker();
 
     discovery = new ServiceDiscovery(
       httpClient,

@@ -1,7 +1,7 @@
 import { EventMessagesArgs, EventMap } from '@trading-model/common/config/event.types';
 
 /** Callback signature for event listeners. */
-export type Listener<T> = [T] extends [void] ? () => void : (data: T) => void;
+export type Listener<T> = (data: T) => void;
 
 class EventEmitter<TEvents extends keyof EventMap> {
   private listeners: {
@@ -33,13 +33,9 @@ class EventEmitter<TEvents extends keyof EventMap> {
     const listeners = this.listeners[eventName];
     if (!listeners) return;
 
-    listeners.forEach(cb => {
-      if (args.length === 0) {
-        (cb as () => void)();
-      } else {
-        (cb as (data: EventMessagesArgs<K>) => void)(args[0]);
-      }
-    });
+    for (const cb of listeners) {
+      cb(args[0] as EventMessagesArgs<K>);
+    }
   }
 }
 

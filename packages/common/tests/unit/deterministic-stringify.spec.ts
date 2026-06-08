@@ -72,4 +72,15 @@ describe('deterministicStringify', () => {
     const second = deterministicStringify(obj);
     expect(first).toBe(second);
   });
+
+  it('should convert Date objects to ISO strings', () => {
+    const date = new Date('2024-01-15T10:30:00.000Z');
+    const result = deterministicStringify({ timestamp: date });
+    expect(result).toBe('{"timestamp":"2024-01-15T10:30:00.000Z"}');
+  });
+
+  it('should handle nested Date objects', () => {
+    const result = deterministicStringify({ meta: { created: new Date('2024-06-01T00:00:00.000Z'), count: 5 } });
+    expect(result).toBe('{"meta":{"count":5,"created":"2024-06-01T00:00:00.000Z"}}');
+  });
 });

@@ -29,93 +29,32 @@ export interface LogEntry {
   serviceInCharge?: string; // Optional service or module responsible
 }
 
-/**
- * Logger class for structured logging with multiple severity levels.
- *
- * Features:
- *  - Supports DEBUG, INFO, WARN, and ERROR log levels.
- *  - Buffers log entries in-memory up to a configurable maximum.
- *  - Associates logs with a unique session ID and optional user ID.
- *  - Optionally sends ERROR-level logs to an external error-handling service
- *    in production or staging environments.
- *  - Provides methods for standardized logging across services, including
- *    context, URL, and service/module metadata.
- *
- * Private Fields:
- *  - logLevel: Minimum log level to record (DEBUG, INFO, WARN, ERROR)
- *  - logs: Internal buffer of recorded log entries
- *  - maxLogs: Maximum number of entries to keep in the buffer
- *  - sessionId: Unique session identifier for this logger instance
- *  - userId: Optional user identifier associated with log entries
- *  - handle_error_service: Optional URL for sending logs to an external service
- */
+/** Structured logger with multiple severity levels. */
 export class Logger {
   private logLevel: LogLevel; // Minimum log level to record
   private logs: LogEntry[] = []; // Internal buffer of log entries
   private maxLogs: number = 1000; // Maximum buffer size
   private sessionId: string | null; // Session identifier
   private userId: string | null = null; // Optional user identifier
-  private handleErrorServiceUrl: string | null = null; // Optional external error service URL
+  private handleErrorServiceUrl: string | null = null;
   private readonly env: string | undefined;
 
-  /**
-   * Initializes a new Logger instance.
-   *
-   * The constructor sets the minimum log level that will be recorded and
-   * generates a unique session ID for this logger instance.
-   *
-   * @param logLevel - The minimum severity level to log (default: LogLevel.INFO)
-   *                   Only messages with this level or higher will be recorded.
-   */
+  /** @param logLevel - Minimum severity level to log (default: LogLevel.INFO) */
   constructor(logLevel: LogLevel = LogLevel.INFO) {
     this.logLevel = logLevel;
     this.env = process.env.NODE_ENV;
     this.sessionId = this.generateSessionId();
   }
 
-  /**
-   * Generates a unique session identifier for the logger instance.
-   *
-   * The session ID is composed of the current date (year, month, day),
-   * the logger's configured log level, and a random alphanumeric string.
-   * This ensures that each logger session can be uniquely identified
-   * across different runs or requests.
-   *
-   * @returns A unique string representing the session ID
-   */
   private generateSessionId(): string {
     const now = new Date();
     return `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}-${this.logLevel}_${(crypto.getRandomValues(new Uint32Array(10))[0] * Math.pow(2, -32)).toString(36).substring(2, 10)}`;
   }
 
-  /**
-   * Determines whether a log entry at the specified level should be recorded.
-   *
-   * This method compares the provided log level against the logger's current
-   * configured `logLevel`. Only entries with a severity equal to or higher
-   * than the current log level will be recorded.
-   *
-   * @param level - The severity level of the log to check
-   * @returns `true` if the log should be recorded, `false` otherwise
-   */
   private shouldLog(level: LogLevel): boolean {
     return level >= this.logLevel;
   }
 
-  /**
-   * Constructs a `LogEntry` object from the provided data.
-   *
-   * This method centralizes the creation of log entries, ensuring a consistent
-   * structure including timestamp, log level, message, optional context, and
-   * associated metadata such as user ID, session ID, URL, and service information.
-   *
-   * @param level - The severity level of the log (DEBUG, INFO, WARN, ERROR)
-   * @param message - The main log message
-   * @param context - Optional additional contextual data to include in the log
-   * @param url - Optional URL associated with the log event (default: empty string)
-   * @param serviceInCharge - Optional identifier for the service or module responsible (default: empty string)
-   * @returns A fully constructed `LogEntry` object ready for logging or buffering
-   */
   private safeStringify(value: unknown): string {
     const seen = new WeakSet<object>();
     const SENSITIVE_KEY_PATTERNS = [
@@ -149,6 +88,9 @@ export class Logger {
     serviceInCharge: string = ''
   ): LogEntry {
     const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const d = now.getDate();
     const data = {
       timestamp: now,
       level,
@@ -161,7 +103,7 @@ export class Logger {
     };
 
     const logFilePath = path.resolve(process.cwd(), 'log');
-    const logFileName = `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}-${level}.log`;
+    const logFileName = `${y}.${m}.${d}-${level}.log`;
 
     if (!existsSync(logFilePath)) mkdirSync(logFilePath, { recursive: true });
     appendFile(path.resolve(logFilePath, logFileName), this.safeStringify(data) + '\n', err => {
@@ -332,20 +274,7 @@ export class Logger {
     return this.logs;
   }
 
-  /**
-   * Sends a log entry to an external error-handling service.
-   *
-   * This method is typically invoked for ERROR-level logs in production or staging environments.
-   * It posts the log entry as JSON to the URL specified by:
-   *   1. `process.env.ERROR_URL_WEBHOOK` (highest priority)
-   *   2. `this.handle_error_service` (if set via `setErrorHandlerService`)
-   *   3. `/` (fallback default)
-   *
-   * Errors occurring during the HTTP request are caught and logged to the console,
-   * ensuring that logging failures do not interrupt application flow.
-   *
-   * @param entry - The log entry to be sent to the external service
-   */
+  /** Sends a log entry to an external error-handling service. */
   private async sendToErrorService(entry: LogEntry): Promise<void> {
     try {
       await fetch(process.env.ERROR_URL_WEBHOOK ?? this.handleErrorServiceUrl ?? '/', {
@@ -359,17 +288,7 @@ export class Logger {
   }
 }
 
-/**
- * Global logger instance pre-configured based on the current environment.
- *
- * Logging levels per environment:
- *  - Development: DEBUG (detailed logs for development and debugging)
- *  - Staging: INFO (general informational logs suitable for testing)
- *  - Production: WARN (only warnings and errors to reduce noise)
- *
- * This singleton can be imported and used across the application
- * to ensure consistent logging behavior and log level enforcement.
- */
+/** Global logger instance pre-configured based on the current environment. */
 export const logger = new Logger(
   process.env.NODE_ENV === 'development'
     ? LogLevel.DEBUG
@@ -378,7 +297,5 @@ export const logger = new Logger(
       : LogLevel.WARN
 );
 
-/**
- * Exposes the Logger class for testing or advanced usage.
- */
+
 export const _private = Logger;
