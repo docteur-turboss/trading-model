@@ -93,6 +93,24 @@ export function getAvgAsk(orderBook: OrderBookEntity): number {
   return totalQty > 0 ? totalValue / totalQty : 0;
 }
 
+/** Total quantity available on the bid side of an order book. */
+export function getBidTotalQty(orderBook: OrderBookEntity): number {
+  let total = 0;
+  for (const { quantity } of orderBook.bids) {
+    total += quantity;
+  }
+  return total;
+}
+
+/** Total quantity available on the ask side of an order book. */
+export function getAskTotalQty(orderBook: OrderBookEntity): number {
+  let total = 0;
+  for (const { quantity } of orderBook.asks) {
+    total += quantity;
+  }
+  return total;
+}
+
 /** Named references for all known event message keys. */
 export const EnumEventMessage = {
   testEvent: 'example.debug.create',
