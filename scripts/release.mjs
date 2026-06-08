@@ -76,7 +76,7 @@ const SCOPE_TO_PACKAGE = {
 
 function run(cmd) {
   try {
-    return execSync(cmd, { cwd: ROOT, encoding: 'utf-8' }).trim();
+    return execSync(cmd, { cwd: ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
   } catch {
     return '';
   }
@@ -163,8 +163,24 @@ function main() {
   const args = parseArgs();
   if (args.dryRun) console.log('\n  ⚠️  DRY RUN — no files will be modified\n');
 
+  // ── When --publish: merge development first, then collect commits ──
+  if (args.publish && !args.dryRun) {
+    const branch = run('git rev-parse --abbrev-ref HEAD');
+    if (branch !== 'main') {
+      console.error(`  --publish requires being on main branch (currently on ${branch}).\n`);
+      process.exit(1);
+    }
+    console.log('\n  → Merging development into main...');
+    const mergeOut = run('git merge development --no-edit');
+    if (mergeOut === '' && run('git diff --name-only --diff-filter=U')) {
+      console.error('  ✖ Merge conflicts detected. Resolve them and retry.\n');
+      process.exit(1);
+    }
+    console.log('  ✓ Merged development into main\n');
+  }
+
   // ── Collect commits ──
-  const lastTag = run('git describe --tags --abbrev=0 2>/dev/null');
+  const lastTag = run('git describe --tags --abbrev=0');
   const range = lastTag ? `${lastTag}..HEAD` : 'HEAD';
   let rawCommits;
 
@@ -316,23 +332,9 @@ function main() {
   }
   console.log(`  Root: ${oldRootVer} → ${newVersion} (${rootBump})\n`);
 
-  // ── Publish (git merge, commit, tag, push) ──
+  // ── Publish (commit, tag, push) ──
   if (args.publish && !args.dryRun) {
-    const branch = run('git rev-parse --abbrev-ref HEAD');
-    if (branch !== 'main') {
-      console.error(`  --publish requires being on main branch (currently on ${branch}).\n`);
-      process.exit(1);
-    }
-
-    console.log('  ── Publishing release ──\n');
-
-    // Merge development into main
-    console.log('  → Merging development into main...');
-    const mergeOut = run('git merge development --no-edit 2>&1');
-    if (mergeOut === '' && run('git diff --name-only --diff-filter=U')) {
-      console.error('  ✖ Merge conflicts detected. Resolve them and retry.\n');
-      process.exit(1);
-    }
+    console.log('\n  ── Publishing release ──\n');
 
     // Stage all changes
     console.log('  → Staging files...');
@@ -350,7 +352,7 @@ function main() {
     // Push
     console.log('  → Pushing commits and tags...');
     run('git push --follow-tags');
-    console.log(`\n  ✓ Release v${newVersion} published.\n`);
+    console.log(`  ✓ Release v${newVersion} published.\n`);
   }
 }
 
