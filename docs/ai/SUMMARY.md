@@ -49,7 +49,7 @@ trading-model/
   - `catchSync()` / `ResponseException` / `HTTP_CODE` / `ResponseCodes`
   - `EventMap` (8 event message keys: test, example, recentTrades, 24hrTicker, candles, orderBook, priceTicker, orderBookTicker)
   - `EnumEventMessage` (event name constants)
-  - `ServiceInstanceName` (well-known: discovery-service, financial-scrapper-service, message-delivery-service, trader-training-service, etc.)
+  - `ServiceInstanceName` (well-known: discovery-service, financial-scraper-service, message-delivery-service, trader-training-service, etc.)
   - `DeliveryMode` (AT_MOST_ONCE, AT_LEAST_ONCE, EXACTLY_ONCE)
   - `sleep()`, `prng` (seeded RNG)
 - **deps:** express 5, helmet, zod 4, express-rate-limit, chained-error
@@ -64,7 +64,7 @@ trading-model/
   - `getToken()` → `string` — current HMAC instance token
   - `listenExpress(app)` — mounts ping routes
 - **factory:** `createAddressManager(env)` — reads env vars
-- **internal:** ServiceDiscovery, TokenManager, ServiceCache, ServiceHealthChecker, Scheduler, TokenRefresherJob, TtlRefresherJob
+- **internal:** ServiceDiscovery, TokenManager, ServiceCache, ServiceHealthChecker, ServiceLocator, ServiceNameLocator, IpAddressLocator, MappingServiceLocator, RefreshJob, Scheduler
 - **deps:** common, express 5, node-cron
 - **test coverage threshold:** 80% all metrics
 
@@ -121,7 +121,7 @@ trading-model/
 
 ### financial-scraper (port 8445)
 
-- **service name:** `financial-scrapper-service`
+- **service name:** `financial-scraper-service`
 - **data source:** Binance (REST API)
 - **persistence:** MySQL 8 via mysql2 + ts-sql-query
 - **tables:** `market_candles`, `market_trades`, `market_tickers` (see `scripts/init-db.sql`)

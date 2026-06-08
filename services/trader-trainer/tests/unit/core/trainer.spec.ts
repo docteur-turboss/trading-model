@@ -179,13 +179,14 @@ describe('Trainer', () => {
   });
 
   describe('train with insufficient data', () => {
-    it('should not start training with fewer than 10 steps', async () => {
+    it('should return failure result with fewer than 10 steps', async () => {
       const { Trainer } = await import('../../../src/core/trainer');
       const trainer = new Trainer(dataBuffer);
       feedCandles(dataBuffer, 'BTCUSDT', 5);
 
-      await trainer.train('BTCUSDT');
+      const result = await trainer.train('BTCUSDT');
 
+      expect(result.success).toBe(false);
       expect(trainer.isTraining()).toBe(false);
       expect(trainer.getBestAgentSummary()).toBeNull();
     });
@@ -195,33 +196,40 @@ describe('Trainer', () => {
       const trainer = new Trainer(dataBuffer);
       feedCandles(dataBuffer, 'BTCUSDT', 11);
 
-      await trainer.train('BTCUSDT');
+      const result = await trainer.train('BTCUSDT');
 
+      expect(result.success).toBe(false);
       expect(trainer.isTraining()).toBe(false);
       expect(trainer.getBestAgentSummary()).toBeNull();
     });
 
-    it('should return immediately if already training', async () => {
+    it('should return failure result if already training', async () => {
       const { Trainer } = await import('../../../src/core/trainer');
       const trainer = new Trainer(dataBuffer);
       feedCandles(dataBuffer, 'BTCUSDT', 100);
 
       Object.defineProperty(trainer, 'training', { value: true, writable: false });
 
-      await trainer.train('BTCUSDT');
+      const result = await trainer.train('BTCUSDT');
 
+      expect(result.success).toBe(false);
       expect(trainer.isTraining()).toBe(true);
     });
   });
 
   describe('train with sufficient data', () => {
-    it('should start training with enough data', async () => {
+    it('should return success result with enough data', async () => {
       const { Trainer } = await import('../../../src/core/trainer');
       const trainer = new Trainer(dataBuffer);
       feedCandles(dataBuffer, 'BTCUSDT', 100);
 
-      await trainer.train('BTCUSDT');
+      const result = await trainer.train('BTCUSDT');
 
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.symbol).toBe('BTCUSDT');
+        expect(result.bestGenome).toBeDefined();
+      }
       expect(trainer.isTraining()).toBe(false);
     });
 
@@ -250,14 +258,15 @@ describe('Trainer', () => {
       const trainer = new Trainer(dataBuffer);
       feedCandles(dataBuffer, 'BTCUSDT', 100);
 
-      await trainer.train('BTCUSDT');
+      const result = await trainer.train('BTCUSDT');
 
+      expect(result.success).toBe(true);
       const summary = trainer.getBestAgentSummary();
       expect(summary).not.toBeNull();
       expect(summary!.id).toBe('mock-result');
     });
 
-    it('should handle training failure gracefully', async () => {
+    it('should return failure result with error details when training throws', async () => {
       mockRunImpl = async () => {
         throw new Error('training error');
       };
@@ -265,8 +274,31 @@ describe('Trainer', () => {
       const trainer = new Trainer(dataBuffer);
       feedCandles(dataBuffer, 'BTCUSDT', 100);
 
-      await trainer.train('BTCUSDT');
+      const result = await trainer.train('BTCUSDT');
 
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.symbol).toBe('BTCUSDT');
+        expect(result.error.message).toBe('training error');
+      }
+      expect(trainer.isTraining()).toBe(false);
+    });
+
+    it('should handle non-Error thrown by runner', async () => {
+      mockRunImpl = async () => {
+        throw 'string error';
+      };
+      const { Trainer } = await import('../../../src/core/trainer');
+      const trainer = new Trainer(dataBuffer);
+      feedCandles(dataBuffer, 'BTCUSDT', 100);
+
+      const result = await trainer.train('BTCUSDT');
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.symbol).toBe('BTCUSDT');
+        expect(result.error.message).toBe('string error');
+      }
       expect(trainer.isTraining()).toBe(false);
     });
 
@@ -276,8 +308,9 @@ describe('Trainer', () => {
       const trainer = new Trainer(dataBuffer);
       feedCandles(dataBuffer, 'BTCUSDT', 100);
 
-      await trainer.train('BTCUSDT');
+      const result = await trainer.train('BTCUSDT');
 
+      expect(result.success).toBe(true);
       expect(trainer.isTraining()).toBe(false);
     });
   });

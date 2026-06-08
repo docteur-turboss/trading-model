@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { MessageManagerClient } from '../../src/client/message-manager-client';
-import { MessageManagerError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
+import { AppError } from '@trading-model/common/utils/errors';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('MessageManagerClient', () => {
   let client: MessageManagerClient;
@@ -61,9 +61,7 @@ describe('MessageManagerClient', () => {
     it('should throw ServiceUnreachableError when service not found', async () => {
       addressManagerClient.findService.mockResolvedValue(null);
 
-      await expect(client.SubscribeToTopics(['example.debug.create'])).rejects.toThrow(
-        ServiceUnreachableError
-      );
+      await expect(client.SubscribeToTopics(['example.debug.create'])).rejects.toThrow(AppError);
     });
 
     it('should swallow MessageManagerError on subscription failure', async () => {
@@ -77,9 +75,7 @@ describe('MessageManagerClient', () => {
     it('should throw MessageManagerError on generic error in subscribe', async () => {
       addressManagerClient.findService.mockRejectedValue(new Error('Generic error'));
 
-      await expect(client.SubscribeToTopics(['example.debug.create'])).rejects.toThrow(
-        MessageManagerError
-      );
+      await expect(client.SubscribeToTopics(['example.debug.create'])).rejects.toThrow(AppError);
     });
   });
 
@@ -96,9 +92,7 @@ describe('MessageManagerClient', () => {
     it('should rethrow ServiceUnreachableError when service not found', async () => {
       addressManagerClient.findService.mockResolvedValue(null);
 
-      await expect(client.UnSubscribeToTopic(['example.debug.create'])).rejects.toThrow(
-        ServiceUnreachableError
-      );
+      await expect(client.UnSubscribeToTopic(['example.debug.create'])).rejects.toThrow(AppError);
     });
 
     it('should swallow MessageManagerError on unsubscribe failure', async () => {
@@ -112,9 +106,7 @@ describe('MessageManagerClient', () => {
     it('should throw MessageManagerError on generic error in unsubscribe', async () => {
       addressManagerClient.findService.mockRejectedValue(new Error('Generic error'));
 
-      await expect(client.UnSubscribeToTopic(['example.debug.create'])).rejects.toThrow(
-        MessageManagerError
-      );
+      await expect(client.UnSubscribeToTopic(['example.debug.create'])).rejects.toThrow(AppError);
     });
   });
 
@@ -140,16 +132,14 @@ describe('MessageManagerClient', () => {
     it('should rethrow ServiceUnreachableError when service not found', async () => {
       addressManagerClient.findService.mockResolvedValue(null);
 
-      await expect(client.publishAsyncMessage({}, {} as any)).rejects.toThrow(
-        ServiceUnreachableError
-      );
+      await expect(client.publishAsyncMessage({}, {} as any)).rejects.toThrow(AppError);
     });
 
     it('should throw MessageManagerError on publish failure', async () => {
       addressManagerClient.findService.mockResolvedValue(mockServiceInstance);
       httpClient.post.mockRejectedValue(new Error('Publish failed'));
 
-      await expect(client.publishAsyncMessage({}, {} as any)).rejects.toThrow(MessageManagerError);
+      await expect(client.publishAsyncMessage({}, {} as any)).rejects.toThrow(AppError);
     });
   });
 
@@ -178,7 +168,7 @@ describe('MessageManagerClient', () => {
 
       await expect(
         client.publishDirectMessage(ServiceInstanceName.MessageDeliveryService, {}, {} as any)
-      ).rejects.toThrow(ServiceUnreachableError);
+      ).rejects.toThrow(AppError);
     });
 
     it('should throw MessageManagerError on direct publish failure', async () => {
@@ -187,7 +177,7 @@ describe('MessageManagerClient', () => {
 
       await expect(
         client.publishDirectMessage(ServiceInstanceName.MessageDeliveryService, {}, {} as any)
-      ).rejects.toThrow(MessageManagerError);
+      ).rejects.toThrow(AppError);
     });
   });
 });

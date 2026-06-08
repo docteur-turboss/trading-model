@@ -121,7 +121,7 @@ The documentation is organized into focused subdirectories with a clear separati
 | `broker-message.md`    | @trading-model/broker-message package API           |
 | `discovery-server.md`  | discovery-service API endpoints                     |
 | `message-manager.md`   | message-delivery-service API endpoints              |
-| `financial-scraper.md` | financial-scrapper-service API endpoints            |
+| `financial-scraper.md` | financial-scraper-service API endpoints             |
 | `trader-trainer.md`    | trader-training-service API endpoints               |
 
 ### Service-Specific Documentation

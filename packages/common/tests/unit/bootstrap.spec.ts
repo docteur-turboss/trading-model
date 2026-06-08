@@ -11,19 +11,19 @@ jest.mock('../../src/config/logger', () => ({
 }));
 
 import { createBootstrap } from '../../src/server/bootstrap';
+import { removeProcessHandlers } from '../../src/server/signal-handler';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('createBootstrap', () => {
-  let exitSpy: any;
-
   beforeEach(() => {
-    exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
     jest.spyOn(process, 'on').mockImplementation(() => process as any);
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+    removeProcessHandlers();
+    process.exitCode = undefined;
   });
 
   it('should create server and call onStart', () => {
@@ -65,10 +65,10 @@ describe('createBootstrap', () => {
 
     expect(mockServer.close).toHaveBeenCalled();
     expect(onStop).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(process.exitCode).toBeUndefined();
   });
 
-  it('should call process.exit on bootstrap error', () => {
+  it('should set exitCode on bootstrap error', () => {
     createBootstrap({
       name: 'test',
       createServer: (() => {
@@ -76,7 +76,18 @@ describe('createBootstrap', () => {
       }) as any,
     });
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('should not set exitCode when hardShutdown code is 0', () => {
+    process.exitCode = 2;
+    const mockServer = { close: jest.fn(async () => {}) };
+    const result = createBootstrap({
+      name: 'test',
+      createServer: (() => mockServer) as any,
+    });
+    result.shutdown('SIGTERM');
+    expect(process.exitCode).toBe(2);
   });
 
   it('should handle shutdown error gracefully', async () => {
@@ -91,7 +102,45 @@ describe('createBootstrap', () => {
 
     await result.shutdown('SIGTERM');
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('should call onStop via hardShutdown when shutdown fails', async () => {
+    const onStop = jest.fn();
+    const mockServer = {
+      close: jest.fn(() => Promise.reject(new Error('close failed'))),
+    };
+
+    const result = createBootstrap({
+      name: 'test',
+      createServer: (() => mockServer) as any,
+      onStop,
+    });
+
+    await result.shutdown('SIGTERM');
+
+    expect(onStop).toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('should not throw when onStop throws during hardShutdown', async () => {
+    const onStop = jest.fn(() => {
+      throw new Error('onStop failed');
+    });
+    const mockServer = {
+      close: jest.fn(() => Promise.reject(new Error('close failed'))),
+    };
+
+    const result = createBootstrap({
+      name: 'test',
+      createServer: (() => mockServer) as any,
+      onStop,
+    });
+
+    await result.shutdown('SIGTERM');
+
+    expect(onStop).toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
   });
 
   it('should handle uncaughtException', () => {
@@ -107,7 +156,46 @@ describe('createBootstrap', () => {
 
     handler(new Error('crash'));
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('should call onStop via hardShutdown on uncaughtException', () => {
+    const onStop = jest.fn();
+    createBootstrap({
+      name: 'test',
+      createServer: (() => ({ close: jest.fn(async () => {}) })) as any,
+      onStop,
+    });
+    const mockOn = process.on as unknown as jest.Mock;
+    const call = mockOn.mock.calls.find(
+      (c: unknown[]) => (c as unknown[])[0] === 'uncaughtException'
+    );
+    const handler: (err: Error) => void = (call ? (call as unknown[])[1] : undefined) as any;
+
+    handler(new Error('crash'));
+
+    expect(onStop).toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('should call onStop via hardShutdown on bootstrap error after server created', () => {
+    const onStop = jest.fn();
+    const mockServer = { close: jest.fn(async () => {}) };
+    const createServer = jest.fn(() => mockServer);
+    const onStart = jest.fn(() => {
+      throw new Error('onStart failed');
+    });
+
+    createBootstrap({
+      name: 'test',
+      createServer: createServer as any,
+      onStart,
+      onStop,
+    });
+
+    expect(createServer).toHaveBeenCalled();
+    expect(onStop).toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
   });
 
   it('should handle unhandledRejection', () => {
@@ -123,7 +211,26 @@ describe('createBootstrap', () => {
 
     handler(new Error('rejected'));
 
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('should call onStop via hardShutdown on unhandledRejection', () => {
+    const onStop = jest.fn();
+    createBootstrap({
+      name: 'test',
+      createServer: (() => ({ close: jest.fn(async () => {}) })) as any,
+      onStop,
+    });
+    const mockOn = process.on as unknown as jest.Mock;
+    const call = mockOn.mock.calls.find(
+      (c: unknown[]) => (c as unknown[])[0] === 'unhandledRejection'
+    );
+    const handler: (reason: unknown) => void = (call ? (call as unknown[])[1] : undefined) as any;
+
+    handler(new Error('rejected'));
+
+    expect(onStop).toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
   });
 
   it('should not close server on shutdown when server is null', async () => {
@@ -136,7 +243,7 @@ describe('createBootstrap', () => {
 
     await result.shutdown('SIGTERM');
 
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(process.exitCode).toBe(1);
   });
 
   it('should handle shutdown without onStop when close succeeds', async () => {
@@ -150,6 +257,25 @@ describe('createBootstrap', () => {
     await result.shutdown('SIGTERM');
 
     expect(mockServer.close).toHaveBeenCalled();
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('should exit gracefully when onStop throws during shutdown', async () => {
+    const onStop = jest.fn(() => {
+      throw new Error('onStop failed');
+    });
+    const mockServer = { close: jest.fn(async () => {}) };
+
+    const result = createBootstrap({
+      name: 'test',
+      createServer: (() => mockServer) as any,
+      onStop,
+    });
+
+    await result.shutdown('SIGTERM');
+
+    expect(mockServer.close).toHaveBeenCalled();
+    expect(onStop).toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
   });
 });

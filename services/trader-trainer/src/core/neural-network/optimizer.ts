@@ -63,7 +63,6 @@ export const OPTIMIZERS: Record<OptimizerType, Optimizer> = {
   // Stochastic Gradient Descent
   sgd: {
     initState: (_size: number): OptimizerState => {
-      void _size;
       return { t: 0 };
     },
 

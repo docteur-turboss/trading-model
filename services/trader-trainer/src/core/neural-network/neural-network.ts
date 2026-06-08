@@ -1,8 +1,14 @@
-import { AgentError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 
 import { ACTIVATIONS } from './activation';
 import { INITIALIZERS } from './initializers';
 import { LOSSES } from './losses';
+import {
+  getWeights as getWeightsFn,
+  setWeights as setWeightsFn,
+  parameterCount as parameterCountFn,
+  distributeAroundWeights as distributeAroundWeightsFn,
+} from './network-serialization';
 import { NORMALIZERS } from './normalize';
 import { OptimizerHyperparams, DEFAULT_HYPERPARAMS, OPTIMIZERS } from './optimizer';
 import {
@@ -12,7 +18,6 @@ import {
   PooledExperience,
   ForwardContext,
 } from './type';
-import { gaussianNoise } from './utils';
 
 /**
  * Configurable fully-connected feedforward neural network with support for
@@ -59,11 +64,14 @@ export class NeuralNetwork {
     const sizes = this.config.neuronsByLayer;
 
     if (sizes.length < 2)
-      throw new AgentError(`Neural network must have at least 2 layers (input + output)`);
+      throw new AppError(
+        `Neural network must have at least 2 layers (input + output)`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     for (let i = 0; i < sizes.length - 1; i++) {
       if (sizes[i] <= 0 || sizes[i + 1] <= 0)
-        throw new AgentError(`Layer sizes must be positive integers`);
+        throw new AppError(`Layer sizes must be positive integers`, ErrorCodes.AGENT_ERROR);
 
       const fanIn = sizes[i];
       const fanOut = sizes[i + 1];
@@ -99,12 +107,14 @@ export class NeuralNetwork {
       this.config.lossFunctionType !== 'cross-entropy' &&
       this.config.lossFunctionType !== 'binary-cross-entropy'
     )
-      throw new AgentError(
-        `Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`
+      throw new AppError(
+        `Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`,
+        ErrorCodes.AGENT_ERROR
       );
     if (this.config.activationType.length !== this.layers.length)
-      throw new AgentError(
-        `ActivationType must be the same length of the layers. Expected : ${this.layers.length}, got ${this.config.activationType.length}`
+      throw new AppError(
+        `ActivationType must be the same length of the layers. Expected : ${this.layers.length}, got ${this.config.activationType.length}`,
+        ErrorCodes.AGENT_ERROR
       );
   }
 
@@ -242,7 +252,10 @@ export class NeuralNetwork {
     const expected = this.config.neuronsByLayer[0];
 
     if (input.length !== expected)
-      throw new AgentError(`Expected input size ${expected}, got ${input.length}`);
+      throw new AppError(
+        `Expected input size ${expected}, got ${input.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     const normalized = this.normalize(input);
     const originalInput = normalized;
@@ -424,25 +437,19 @@ export class NeuralNetwork {
     const layer = this.layers[layerIndex];
     const { fanIn, fanOut, gradW, gradB, accumGradW, accumGradB } = layer;
 
-    // Compute gradient = delta ⊗ input (outer product)
     for (let j = 0; j < fanOut; j++) {
       const rowOffset = j * fanIn;
       const deltaJ = delta[j];
 
       if (applyImmediately) {
         gradB[j] = deltaJ;
-        for (let k = 0; k < fanIn; k++) {
-          gradW[rowOffset + k] = deltaJ * layerInput[k];
-        }
+        this.computeWeightGradient(gradW, rowOffset, deltaJ, layerInput, fanIn);
       } else {
         accumGradB[j] += deltaJ;
-        for (let k = 0; k < fanIn; k++) {
-          accumGradW[rowOffset + k] += deltaJ * layerInput[k];
-        }
+        this.computeWeightGradient(accumGradW, rowOffset, deltaJ, layerInput, fanIn);
       }
     }
 
-    // Apply immediately if requested
     if (applyImmediately) {
       const opt = OPTIMIZERS[this.config.optimizerType];
       const { weights, bias, wState, bState } = layer;
@@ -455,13 +462,24 @@ export class NeuralNetwork {
     }
   }
 
-  /**
+  private computeWeightGradient(
+    weightBuf: Float32Array,
+    rowOffset: number,
+    deltaJ: number,
+    input: Float32Array,
+    fanIn: number
+  ): void {
+    for (let k = 0; k < fanIn; k++) {
+      weightBuf[rowOffset + k] += deltaJ * input[k];
+    }
+  }
+
   /**
    * Performs full backpropagation using explicit forward context.
-   * 
+   *
    * **Refactored**: Eliminates hidden state coupling between forward() and backprop().
    * All computation state is passed explicitly via {@link ForwardContext}.
-   * 
+   *
    * @param context - {@link ForwardContext} from corresponding forward() call
    * @param target - Ground truth labels for loss computation
    */
@@ -548,10 +566,16 @@ export class NeuralNetwork {
     const expectedOutput = this.config.neuronsByLayer[this.config.neuronsByLayer.length - 1];
 
     if (inputs.length !== expectedInput)
-      throw new AgentError(`Expected input size ${expectedInput}, got ${inputs.length}`);
+      throw new AppError(
+        `Expected input size ${expectedInput}, got ${inputs.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     if (targets.length !== expectedOutput)
-      throw new AgentError(`Expected target size ${expectedOutput}, got ${targets.length}`);
+      throw new AppError(
+        `Expected target size ${expectedOutput}, got ${targets.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     const context = this.forward(inputs);
     this.backprop(context, targets);
@@ -573,17 +597,26 @@ export class NeuralNetwork {
    */
   public forwardAndPool(input: Float32Array, target: Float32Array): number {
     if (!this.config.enablePool) {
-      throw new AgentError('Learning pool is disabled. Set enablePool: true in config.');
+      throw new AppError(
+        'Learning pool is disabled. Set enablePool: true in config.',
+        ErrorCodes.AGENT_ERROR
+      );
     }
 
     const expectedInput = this.config.neuronsByLayer[0];
     const expectedOutput = this.config.neuronsByLayer[this.config.neuronsByLayer.length - 1];
 
     if (input.length !== expectedInput)
-      throw new AgentError(`Expected input size ${expectedInput}, got ${input.length}`);
+      throw new AppError(
+        `Expected input size ${expectedInput}, got ${input.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     if (target.length !== expectedOutput)
-      throw new AgentError(`Expected target size ${expectedOutput}, got ${target.length}`);
+      throw new AppError(
+        `Expected target size ${expectedOutput}, got ${target.length}`,
+        ErrorCodes.AGENT_ERROR
+      );
 
     // Perform forward pass (stateless, returns context)
     const context = this.forward(input);
@@ -663,7 +696,10 @@ export class NeuralNetwork {
    */
   public trainPooled(): number {
     if (!this.config.enablePool) {
-      throw new AgentError('Learning pool is disabled. Set enablePool: true in config.');
+      throw new AppError(
+        'Learning pool is disabled. Set enablePool: true in config.',
+        ErrorCodes.AGENT_ERROR
+      );
     }
 
     if (this.pool.length === 0) {
@@ -717,118 +753,20 @@ export class NeuralNetwork {
     this.pool.length = 0;
   }
 
-  /**
-   * Flattens every weight and bias into a single `Float64Array`.
-   *
-   * Layout per matrix block `i`:
-   * ```
-   * [ w[i][0][0], w[i][0][1], …, w[i][fanOut-1][fanIn-1], b[i][0], …, b[i][fanOut-1] ]
-   * ```
-   *
-   * The resulting buffer can be passed to {@link setWeights} or used as a
-   * parent genome in evolutionary strategies.
-   *
-   * @returns Flat parameter buffer.
-   */
   public getWeights(): Float32Array {
-    const total = this.parameterCount();
-    const buffer = new Float32Array(total);
-
-    let cursor = 0;
-
-    for (const layer of this.layers) {
-      for (let i = 0; i < layer.weights.length; i++) buffer[cursor++] = layer.weights[i];
-
-      for (let i = 0; i < layer.bias.length; i++) buffer[cursor++] = layer.bias[i];
-    }
-
-    return buffer;
+    return getWeightsFn(this.layers);
   }
 
-  /**
-   * Loads a flat parameter buffer (as produced by {@link getWeights}) back
-   * into the network, overwriting every weight and bias value.
-   *
-   * @param buffer - `Float32Array` with exactly the same length as returned by
-   *   `getWeights()`.
-   * @throws {AgentError} When the buffer length does not match the network's
-   *   total parameter count.
-   */
   public setWeights(buffer: Float32Array): void {
-    const expected = this.parameterCount();
-
-    if (buffer.length !== expected)
-      throw new AgentError(`Buffer length mismatch: exprected ${expected}, got ${buffer.length}`);
-
-    let cursor = 0;
-
-    for (const layer of this.layers) {
-      for (let i = 0; i < layer.weights.length; i++) layer.weights[i] = buffer[cursor++];
-
-      for (let i = 0; i < layer.bias.length; i++) layer.bias[i] = buffer[cursor++];
-    }
+    setWeightsFn(this.layers, buffer);
   }
 
-  /**
-   * Initialises this network's weights by sampling from a Gaussian distribution
-   * centred on the parameter vector.
-   *
-   * Two reference mods are supported :
-   *
-   * **Network reference** - uses the full weight vector of another network as
-   * the distribution mean (standard neuroevolution offspring initialisation):
-   * ```
-   * θ_child = θ_parent + N(0, σ²)
-   * ```
-   *
-   * **Scalar reference** - broadcasts a single scalar as the mean for every parameter (useful when you want all weights to start near a given value, e.g. O for clean slate, or a pre-computed global average):
-   * ```
-   * θ_child[i] = μ + N(0, σ²)   ∀ i
-   * ```
-   *
-   * The reference network (when provided) must share the **same architecture** (same
-   * `neuronsByLayer` and `connectionType`) as this network.
-   *
-   * @param reference - Either a {@link NeuralNetwork} whose weights serve as the per-parameter mean, or a scalar `number` broadcast across all parameters..
-   * @param sigma     - Standard deviation of the perturbation noise. @default 0.1
-   * @throws {AgentError} When the reference buffer length does not match.
-   */
   public distributeAroundWeights(reference: NeuralNetwork | number, sigma: number = 0.1): void {
-    const count = this.parameterCount();
-
-    let mean: Float32Array;
-
-    if (typeof reference === 'number') {
-      mean = new Float32Array(count).fill(reference);
-    } else {
-      mean = reference.getWeights();
-      if (mean.length !== count)
-        throw new AgentError(
-          `Reference network parameter count (${mean.length}) does not match this network's parameter count (${count}).`
-        );
-    }
-
-    const childBuffer = new Float32Array(count);
-
-    for (let i = 0; i < count; i++) childBuffer[i] = mean[i] + gaussianNoise(sigma);
-
-    this.setWeights(childBuffer);
+    const ref = typeof reference === 'number' ? reference : reference.getWeights();
+    distributeAroundWeightsFn(this.layers, ref, sigma);
   }
 
-  /**
-   * Returns the total number of trainable parameters (weights + biases).
-   *
-   * Useful for telemetry and for validating external buffer sizes before
-   * calling {@link setWeights}.
-   */
   public parameterCount(): number {
-    let total = 0;
-
-    for (let i = 0; i < this.layers.length; i++) {
-      total += this.layers[i].weights.length;
-      total += this.layers[i].bias.length;
-    }
-
-    return total;
+    return parameterCountFn(this.layers);
   }
 }

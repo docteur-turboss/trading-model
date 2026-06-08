@@ -4,7 +4,7 @@ import { ServiceInstance } from '../../src/client/type';
 import { ServiceHealthChecker } from '../../src/discovery/service-health-checker';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { AddressManagerConfig } from '../../src/config/address-manager-config';
-import { ServiceNotFoundError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
+import { AppError } from '@trading-model/common/utils/errors';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 
 describe('ServiceDiscovery', () => {
@@ -13,46 +13,58 @@ describe('ServiceDiscovery', () => {
   let httpClient: jest.Mocked<HttpClient>;
   let healthChecker: jest.Mocked<ServiceHealthChecker>;
 
+  const FIXED_TIMESTAMP = 1_700_000_000_000;
   const serviceName = 'user-service';
   const instance: ServiceInstance = {
     ip: '127.0.0.1',
     port: 8080,
     instanceId: 'instance-1',
-    lastHeartbeat: Date.now(),
+    lastHeartbeat: FIXED_TIMESTAMP,
     protocol: 'http',
-    registeredAt: Date.now(),
+    registeredAt: FIXED_TIMESTAMP,
     serviceName: serviceName,
     ttl: 30000,
   };
 
-  beforeEach(() => {
-    cache = {
-      get: jest.fn(),
-      set: jest.fn(),
-      invalidate: jest.fn(),
-      clear: jest.fn(),
+  function createMockCache(): jest.Mocked<ServiceCache> {
+    return {
+      get: jest.fn<(serviceName: string) => Promise<ServiceInstance | null>>().mockResolvedValue(null),
+      set: jest.fn<(serviceName: string, instance: ServiceInstance) => Promise<void>>().mockResolvedValue(undefined),
+      invalidate: jest.fn<(serviceName: string) => Promise<void>>().mockResolvedValue(undefined),
+      clear: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<ServiceCache>;
+  }
 
-    httpClient = {
-      get: jest.fn(),
+  function createMockHttpClient(): jest.Mocked<HttpClient> {
+    return {
+      get: jest.fn<(url: string, options?: Record<string, unknown>) => Promise<unknown>>().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<HttpClient>;
+  }
 
-    healthChecker = {
-      isHealthy: jest.fn(),
+  function createMockHealthChecker(): jest.Mocked<ServiceHealthChecker> {
+    return {
+      isHealthy: jest.fn<(instance: ServiceInstance) => Promise<boolean>>().mockResolvedValue(true),
     } as unknown as jest.Mocked<ServiceHealthChecker>;
+  }
+
+  beforeEach(() => {
+    cache = createMockCache();
+    httpClient = createMockHttpClient();
+    healthChecker = createMockHealthChecker();
 
     discovery = new ServiceDiscovery(
       httpClient,
       cache,
       {
         addressManagerUrl: 'ee',
+        discoveryTimeoutMs: 5000,
       } as AddressManagerConfig,
       healthChecker
     );
   });
 
   test('returns cached instance if healthy', async () => {
-    cache.get.mockReturnValue(instance);
+    cache.get.mockResolvedValue(instance);
     healthChecker.isHealthy.mockResolvedValue(true);
 
     const result = await discovery.findService(serviceName);
@@ -64,7 +76,7 @@ describe('ServiceDiscovery', () => {
   });
 
   test('fetches from AddressManager if cache is empty', async () => {
-    cache.get.mockReturnValue(null);
+    cache.get.mockResolvedValue(null);
     httpClient.get.mockResolvedValueOnce(instance);
     healthChecker.isHealthy.mockResolvedValue(true);
 
@@ -76,10 +88,10 @@ describe('ServiceDiscovery', () => {
   });
 
   test('invalidates cache and refetches if cached instance is unhealthy', async () => {
-    cache.get.mockReturnValue(instance);
+    cache.get.mockResolvedValue(instance);
     httpClient.get.mockResolvedValueOnce(instance);
-    healthChecker.isHealthy.mockResolvedValueOnce(false); // cached instance unhealthy
-    healthChecker.isHealthy.mockResolvedValueOnce(true); // newly fetched instance healthy
+    healthChecker.isHealthy.mockResolvedValueOnce(false);
+    healthChecker.isHealthy.mockResolvedValueOnce(true);
 
     const result = await discovery.findService(serviceName);
 
@@ -89,16 +101,29 @@ describe('ServiceDiscovery', () => {
   });
 
   test('throws ServiceNotFoundError if service not registered', async () => {
-    cache.get.mockReturnValue(null);
+    cache.get.mockResolvedValue(null);
     httpClient.get.mockRejectedValue('');
 
-    await expect(discovery.findService(serviceName)).rejects.toThrow(ServiceNotFoundError);
+    await expect(discovery.findService(serviceName)).rejects.toThrow(AppError);
 
     expect(cache.invalidate).not.toHaveBeenCalled();
   });
 
+  test('passes timeout option to HttpClient.get', async () => {
+    cache.get.mockResolvedValue(null);
+    httpClient.get.mockResolvedValueOnce(instance);
+    healthChecker.isHealthy.mockResolvedValue(true);
+
+    await discovery.findService(serviceName);
+
+    expect(httpClient.get).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ timeoutMs: 5000 })
+    );
+  });
+
   test('handles array response from AddressManager by taking first element', async () => {
-    cache.get.mockReturnValue(null);
+    cache.get.mockResolvedValue(null);
     httpClient.get.mockResolvedValueOnce([instance]);
     healthChecker.isHealthy.mockResolvedValue(true);
 
@@ -109,10 +134,10 @@ describe('ServiceDiscovery', () => {
   });
 
   test('throws ServiceNotFoundError when AddressManager returns empty instances', async () => {
-    cache.get.mockReturnValue(null);
+    cache.get.mockResolvedValue(null);
     httpClient.get.mockResolvedValueOnce(null);
 
-    await expect(discovery.findService(serviceName)).rejects.toThrow(ServiceNotFoundError);
+    await expect(discovery.findService(serviceName)).rejects.toThrow(AppError);
     await expect(discovery.findService(serviceName)).rejects.toMatchObject({
       message: 'Service "user-service" has no registered instances',
     });
@@ -121,18 +146,18 @@ describe('ServiceDiscovery', () => {
   });
 
   test('throws ServiceUnreachableError if fetched service is unhealthy', async () => {
-    cache.get.mockReturnValue(null);
+    cache.get.mockResolvedValue(null);
     httpClient.get.mockResolvedValueOnce(instance);
     healthChecker.isHealthy.mockResolvedValue(false);
 
-    await expect(discovery.findService(serviceName)).rejects.toThrow(ServiceUnreachableError);
+    await expect(discovery.findService(serviceName)).rejects.toThrow(AppError);
 
     expect(cache.invalidate).toHaveBeenCalledWith(serviceName);
     expect(cache.set).not.toHaveBeenCalled();
   });
 
   test('sets fetched healthy service in cache', async () => {
-    cache.get.mockReturnValue(null);
+    cache.get.mockResolvedValue(null);
     httpClient.get.mockResolvedValueOnce(instance);
     healthChecker.isHealthy.mockResolvedValue(true);
 

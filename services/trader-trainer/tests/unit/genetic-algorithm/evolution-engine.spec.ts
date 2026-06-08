@@ -97,7 +97,7 @@ describe('EvolutionEngine', () => {
   describe('mutateGenome', () => {
     it('should return a shallow copy of the genome', () => {
       const genome = createDefaultGenome('test');
-      const result = mutateGenome(genome, rng);
+      const result = mutateGenome(genome);
       expect(result).not.toBe(genome);
       expect(result.id).toBe('test');
       expect(result.rl.gamma).toBe(genome.rl.gamma);
@@ -108,7 +108,7 @@ describe('EvolutionEngine', () => {
     it('should return a shallow copy of the first parent', () => {
       const pA = createDefaultGenome('parentA');
       const pB = createDefaultGenome('parentB');
-      const result = crossoverGenomes(pA, pB, rng);
+      const result = crossoverGenomes(pA);
       expect(result).not.toBe(pA);
       expect(result.id).toBe('parentA');
       expect(result.rl.gamma).toBe(pA.rl.gamma);

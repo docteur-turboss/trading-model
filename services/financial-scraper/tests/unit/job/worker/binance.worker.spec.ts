@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 jest.mock('../../../../src/clients/binance/binance.client', () => ({
   getOrderBook: jest.fn(),
-  CandlestickData: jest.fn(),
+  getCandlestickData: jest.fn(),
   getRecentTrades: jest.fn(),
   getOrderBookTicker: jest.fn(),
   get24hrTickerStats: jest.fn(),
@@ -28,23 +28,25 @@ jest.mock('../../../../src/config/message-manager', () => ({
   },
 }));
 
+const mockMetadataBuilderCtor = jest.fn(() => ({
+  setDelivery: jest.fn().mockReturnThis(),
+  setEventType: jest.fn().mockReturnThis(),
+  setTopic: jest.fn().mockReturnThis(),
+  setSecurity: jest.fn().mockReturnThis(),
+  setIds: jest.fn().mockReturnThis(),
+  setPublisher: jest.fn().mockReturnThis(),
+  toJSON: jest.fn().mockReturnValue({}),
+}));
+
 jest.mock('@trading-model/broker-message', () => ({
   helper: {
-    MetadataBuilder: jest.fn(() => ({
-      setDelivery: jest.fn().mockReturnThis(),
-      setEventType: jest.fn().mockReturnThis(),
-      setTopic: jest.fn().mockReturnThis(),
-      setSecurity: jest.fn().mockReturnThis(),
-      setIds: jest.fn().mockReturnThis(),
-      setPublisher: jest.fn().mockReturnThis(),
-      toJSON: jest.fn().mockReturnValue({}),
-    })),
+    MetadataBuilder: mockMetadataBuilderCtor,
   },
 }));
 
 jest.mock('../../../../src/config/env', () => ({
   env: {
-    SERVICE_NAME: 'financial-scrapper-service',
+    SERVICE_NAME: 'financial-scraper-service',
     INSTANCE_ID: 'test-instance-1',
   },
 }));
@@ -59,7 +61,7 @@ import { MessageManager } from '../../../../src/config/message-manager';
 import { BinanceWorker } from '../../../../src/job/worker/binance.worker';
 
 const mockGetOrderBook = jest.mocked(binanceClient.getOrderBook);
-const mockCandlestickData = jest.mocked(binanceClient.CandlestickData);
+const mockCandlestickData = jest.mocked(binanceClient.getCandlestickData);
 const mockRecentTrades = jest.mocked(binanceClient.getRecentTrades);
 const mockOrderBookTicker = jest.mocked(binanceClient.getOrderBookTicker);
 const mock24hrTickerStats = jest.mocked(binanceClient.get24hrTickerStats);
@@ -159,6 +161,12 @@ describe('BinanceWorker', () => {
 
       expect(mockRecentTrades).toHaveBeenCalledWith('ETHUSDT', 100);
       expect(mockCandlestickData).toHaveBeenCalledWith('ETHUSDT', 100, '1m');
+    });
+
+    it('should create a fresh MetadataBuilder per invocation (not shared singleton)', async () => {
+      const callCountBefore = mockMetadataBuilderCtor.mock.calls.length;
+      await worker.run();
+      expect(mockMetadataBuilderCtor.mock.calls.length).toBe(callCountBefore + 1);
     });
   });
 });

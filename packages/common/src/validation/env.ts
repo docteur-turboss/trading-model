@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { AppError, ErrorCodes } from '../utils/errors';
+
 /** Zod schema for base environment variables shared across all services. */
 export const BaseEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
@@ -24,6 +26,7 @@ export const AddressManagerEnvSchema = z.object({
   INSTANCE_ID: z.string().min(1),
   CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),
   SERVICE_PING_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
+  DISCOVERY_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   TOKEN_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
   TTL_REFRESH_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
   ADDRESS_MANAGER_URL: z.url(),
@@ -31,6 +34,26 @@ export const AddressManagerEnvSchema = z.object({
   MESSAGE_BUS_INIT_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
   MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(2000),
   MESSAGE_CALLBACK_PATH: z.string().min(1).default('message'),
+
+  /**
+   * Optional JSON mapping from logical service names to deployment-specific DNS names.
+   * Parsed safely — invalid JSON or non-object values fall back to `{}`.
+   * @example '{"discovery-service":"discovery-server","message-delivery-service":"message-manager"}'
+   */
+  DNS_NAME_MAP: z
+    .string()
+    .optional()
+    .default('{}')
+    .transform(val => {
+      try {
+        const parsed = JSON.parse(val);
+        return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+          ? (parsed as Record<string, string>)
+          : {};
+      } catch {
+        return {};
+      }
+    }),
 });
 
 /** Inferred type for validated address manager environment variables. */
@@ -38,7 +61,9 @@ export type AddressManagerEnv = z.infer<typeof AddressManagerEnvSchema>;
 
 /**
  * Validates environment variables against a Zod schema.
- * Exits the process on validation failure.
+ *
+ * @throws {ConfigurationError} When validation fails — callers should handle
+ * this at the application boundary (e.g. exit with a clear message).
  */
 export function validateEnv<T extends z.ZodType>(schema: T): z.infer<T> {
   const parsed = schema.safeParse(process.env);
@@ -52,8 +77,10 @@ export function validateEnv<T extends z.ZodType>(schema: T): z.infer<T> {
         /* fallback */
       }
     }
-    console.error('❌ Invalid environment configuration', { errors });
-    process.exit(1);
+    console.error('Invalid environment configuration', { errors });
+    throw new AppError('Environment validation failed', ErrorCodes.CONFIGURATION_ERROR, {
+      cause: parsed.error,
+    });
   }
 
   return parsed.data;

@@ -12,16 +12,18 @@
  * in distributed environments.
  */
 
+import { randomUUID } from 'node:crypto';
 import { createHash } from 'node:crypto';
 
 import { helper } from '@trading-model/broker-message';
-import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
+import { DeliveryMode, DeliveryModeEnum } from '@trading-model/common/config/delivery-mode.types';
 import { EnumEventMessage } from '@trading-model/common/config/event.types';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import { deterministicStringify } from '@trading-model/common/utils/deterministic-stringify';
 
 import {
   getOrderBook,
-  CandlestickData,
+  getCandlestickData,
   getRecentTrades,
   getOrderBookTicker,
   get24hrTickerStats,
@@ -31,8 +33,6 @@ import { BinanceNormalizer } from '../../clients/binance/normalizer';
 import { env } from '../../config/env';
 import { MessageManager } from '../../config/message-manager';
 
-
-
 /** Configuration options for a single BinanceWorker execution against one symbol. */
 export interface BinanceWorkerOptions {
   symbol: string;
@@ -40,6 +40,7 @@ export interface BinanceWorkerOptions {
   candleLimit?: number;
   tradeLimit?: number;
   orderBookLimit?: number;
+  deliveryMode?: DeliveryModeEnum;
 }
 
 /** Normalized market data returned by a BinanceWorker execution, ready for persistence. */
@@ -53,8 +54,6 @@ export interface BinanceWorkerResult {
   fetchedAt: number;
 }
 
-const BuilderMetadata = new helper.MetadataBuilder();
-
 export class BinanceWorker {
   constructor(private readonly options: BinanceWorkerOptions) {}
 
@@ -62,16 +61,9 @@ export class BinanceWorker {
    * Main worker execution.
    * Can be directly invoked from node-cron.
    *
-   * @example
-   * cron.schedule("* * * * *", async () => {
-   *   const worker = new BinanceWorker({ symbol: "BTCUSDT" });
-   *   const data = await worker.run();
-   *   await persistenceLayer.store(data);
-   * });
    */
   public async run(): Promise<BinanceWorkerResult> {
-    const { v4 } = await import('uuid');
-    const uuid = v4;
+    const builderMetadata = new helper.MetadataBuilder();
 
     const {
       symbol,
@@ -85,7 +77,7 @@ export class BinanceWorker {
       await Promise.all([
         getOrderBook(symbol, orderBookLimit),
         getRecentTrades(symbol, tradeLimit),
-        CandlestickData(symbol, candleLimit, interval),
+        getCandlestickData(symbol, candleLimit, interval),
         get24hrTickerStats([symbol]),
         getSymbolPriceTicker([symbol]),
         getOrderBookTicker([symbol]),
@@ -102,17 +94,20 @@ export class BinanceWorker {
     };
 
     const authContext = {
-      roles: ['Data', 'Financial', 'Scrapper'],
+      roles: ['Data', 'Financial', 'Scraper'],
       subject: env.SERVICE_NAME,
       tenantId: env.INSTANCE_ID,
     };
 
-    const signature = createHash('sha256').update(JSON.stringify(authContext)).digest('base64url');
+    const signature = createHash('sha256')
+      .update(deterministicStringify(authContext))
+      .digest('base64url');
 
-    BuilderMetadata.setDelivery({
-      mode: DeliveryMode.AT_LEAST_ONCE,
-      deduplicationId: uuid(),
-    })
+    builderMetadata
+      .setDelivery({
+        mode: this.options.deliveryMode ?? DeliveryMode.AT_LEAST_ONCE,
+        deduplicationId: randomUUID(),
+      })
       .setEventType('FetchCandlestick')
       .setTopic(EnumEventMessage.fetchCandlestickSeries)
       .setSecurity({
@@ -120,41 +115,41 @@ export class BinanceWorker {
         signature,
       })
       .setIds({
-        causationId: uuid(),
-        correlationId: uuid(),
+        causationId: randomUUID(),
+        correlationId: randomUUID(),
       })
       .setPublisher({
         instanceId: env.INSTANCE_ID,
         serviceName: env.SERVICE_NAME as ServiceInstanceName,
       });
 
-    MessageManager.post.indirect(response.candles, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.candles, builderMetadata.toJSON());
 
-    BuilderMetadata.setTopic(EnumEventMessage.fetchOrderBookSnapshot).setEventType(
-      'FetchOrderbook'
-    );
+    builderMetadata
+      .setTopic(EnumEventMessage.fetchOrderBookSnapshot)
+      .setEventType('FetchOrderbook');
 
-    MessageManager.post.indirect(response.orderBook, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.orderBook, builderMetadata.toJSON());
 
-    BuilderMetadata.setTopic(EnumEventMessage.fetch24hrTickerStats).setEventType('FetchTicker24hr');
+    builderMetadata.setTopic(EnumEventMessage.fetch24hrTickerStats).setEventType('FetchTicker24hr');
 
-    MessageManager.post.indirect(response.ticker24h, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.ticker24h, builderMetadata.toJSON());
 
-    BuilderMetadata.setTopic(EnumEventMessage.fetchOrderBookTickerSnapshot).setEventType(
-      'FetchBookTicker'
-    );
+    builderMetadata
+      .setTopic(EnumEventMessage.fetchOrderBookTickerSnapshot)
+      .setEventType('FetchBookTicker');
 
-    MessageManager.post.indirect(response.bookTicker, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.bookTicker, builderMetadata.toJSON());
 
-    BuilderMetadata.setTopic(EnumEventMessage.fetchPriceTickerSnapshot).setEventType(
-      'FetchPriceTicker'
-    );
+    builderMetadata
+      .setTopic(EnumEventMessage.fetchPriceTickerSnapshot)
+      .setEventType('FetchPriceTicker');
 
-    MessageManager.post.indirect(response.priceTicker, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.priceTicker, builderMetadata.toJSON());
 
-    BuilderMetadata.setTopic(EnumEventMessage.fetchRecentTrades).setEventType('FetchRecentTrades');
+    builderMetadata.setTopic(EnumEventMessage.fetchRecentTrades).setEventType('FetchRecentTrades');
 
-    MessageManager.post.indirect(response.recentTrades, BuilderMetadata.toJSON());
+    MessageManager.post.indirect(response.recentTrades, builderMetadata.toJSON());
 
     return response;
   }

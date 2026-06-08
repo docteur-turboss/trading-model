@@ -1,5 +1,5 @@
 import { HttpClient } from '@trading-model/common/config/http-client';
-import { AuthenticationError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 
 import { AddressManagerConfig } from '../config/address-manager-config';
 
@@ -52,7 +52,10 @@ export class TokenManager {
    */
   getToken(): string {
     if (!this.token) {
-      throw new AuthenticationError('Token is not available. Did you call refreshToken()?');
+      throw new AppError(
+        'Token is not available. Did you call refreshToken()?',
+        ErrorCodes.AUTHENTICATION_ERROR
+      );
     }
 
     return this.token;
@@ -60,6 +63,11 @@ export class TokenManager {
 
   setToken(token: string): void {
     this.token = token;
+  }
+
+  /** Explicitly clear the stored token from memory. */
+  clearToken(): void {
+    this.token = null;
   }
 
   /**
@@ -80,27 +88,35 @@ export class TokenManager {
    */
   async refreshToken(): Promise<void> {
     try {
+      const headers: Record<string, string> = {};
+      if (this.token) {
+        headers['x-instance-token'] = this.token;
+      }
+
       const response = await this.httpClient.post<{ token: string }>(
         `${this.config.addressManagerUrl}/token/rotate`,
         {
           instanceId: this.config.instanceId,
           serviceName: this.config.serviceName,
         },
-        {
-          headers: {
-            'x-instance-token': this.getToken(),
-          },
-        }
+        { headers }
       );
 
       if (!response || !response.token) {
-        throw new AuthenticationError('Invalid token response from Address Manager');
+        throw new AppError(
+          'Invalid token response from Address Manager',
+          ErrorCodes.AUTHENTICATION_ERROR
+        );
       }
 
       this.token = response.token;
     } catch (e) {
-      if (e instanceof AuthenticationError) throw e;
-      throw new AuthenticationError('Failed to refresh authentication token', e);
+      if (e instanceof AppError && e.code === ErrorCodes.AUTHENTICATION_ERROR) throw e;
+      throw new AppError(
+        'Failed to refresh authentication token',
+        ErrorCodes.AUTHENTICATION_ERROR,
+        { cause: e }
+      );
     }
   }
 }

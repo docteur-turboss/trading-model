@@ -11,12 +11,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig([
   globalIgnores([
     '**/dist/**',
-    '**/*.spec.ts',
     '**/jest.config.*',
     '**/jest.setup.ts',
     '**/setup.ts',
-    '**/tests/fixtures/**',
-    '**/tests/helpers/**',
     '**/docs/architecture/code/**',
   ]),
   {
@@ -29,6 +26,7 @@ export default defineConfig([
   },
   {
     files: ['**/*.ts'],
+    ignores: ['**/tests/**', '**/integration/**'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 'latest',
@@ -40,6 +38,7 @@ export default defineConfig([
     },
     plugins: { ix },
     rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'ix/order': [
         'error',
         {
@@ -70,6 +69,22 @@ export default defineConfig([
           ],
         },
       },
+    },
+  },
+  {
+    files: ['**/tests/**/*.ts', '**/integration/**/*.ts'],
+    ignores: ['**/node_modules/**'],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      globals: { ...globals.node, ...globals.jest },
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      '@typescript-eslint/no-unsafe-function-type': 'off',
+      'no-useless-assignment': 'off',
     },
   },
 ]);

@@ -1,16 +1,14 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { BrokerRoutes } from '../../../../src/messaging/transport/http.routes';
-import { Broker } from '../../../../src/messaging/core/broker';
+import { Dispatcher } from '../../../../src/messaging/core/dispatcher';
 import { createMockDispatcher } from '../../../helpers/broker.helper';
 
 describe('BrokerRoutes', () => {
-  let broker: Broker;
   let router: ReturnType<typeof BrokerRoutes>;
 
   beforeEach(() => {
     const mockDispatcher = createMockDispatcher();
-    broker = new Broker(mockDispatcher as never);
-    router = BrokerRoutes(broker);
+    router = BrokerRoutes(mockDispatcher as never);
   });
 
   it('should return an Express Router', () => {

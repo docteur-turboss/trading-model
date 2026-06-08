@@ -1,20 +1,44 @@
-import { LossFunctionType, NeuralNetworkConfig } from './type';
+import { LossConfig, LossFunctionType } from './type';
 
 const EPSILON = 1e-10;
 
-export interface LossDefinition {
-  loss(output: Float32Array, target: Float32Array, config: Required<NeuralNetworkConfig>): number;
+/** Throws if output and target arrays differ in length. */
+function validateLengths(output: Float32Array, target: Float32Array): void {
+  if (output.length !== target.length) {
+    throw new RangeError(
+      `Loss function input/output length mismatch: output.length=${output.length}, target.length=${target.length}`
+    );
+  }
+}
 
-  gradient(
-    output: Float32Array,
-    target: Float32Array,
-    config: Required<NeuralNetworkConfig>
-  ): Float32Array;
+export interface LossDefinition {
+  /**
+   * Compute the loss value between network output and expected target.
+   * Throws if output and target lengths differ.
+   *
+   * @param output - Network output activations.
+   * @param target - Expected target values.
+   * @param config - Loss configuration.
+   * @returns The scalar loss value.
+   */
+  loss(output: Float32Array, target: Float32Array, config: Required<LossConfig>): number;
+
+  /**
+   * Compute the gradient of the loss with respect to the network output.
+   * Throws if output and target lengths differ.
+   *
+   * @param output - Network output activations.
+   * @param target - Expected target values.
+   * @param config - Loss configuration.
+   * @returns Gradient array of the same length as output.
+   */
+  gradient(output: Float32Array, target: Float32Array, config: Required<LossConfig>): Float32Array;
 }
 
 export const LOSSES: Record<LossFunctionType, LossDefinition> = {
   'mean-squared-error': {
     loss: (output, target) => {
+      validateLengths(output, target);
       const n = output.length;
 
       let sum = 0;
@@ -27,6 +51,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
       return sum / n;
     },
     gradient: (output, target) => {
+      validateLengths(output, target);
       const n = output.length;
       const out = new Float32Array(n);
 
@@ -43,6 +68,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
 
   'mean-absolute-error': {
     loss(output, target) {
+      validateLengths(output, target);
       const n = output.length;
 
       let sum = 0;
@@ -56,6 +82,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
     },
 
     gradient(output, target) {
+      validateLengths(output, target);
       const n = output.length;
       const out = new Float32Array(n);
 
@@ -73,6 +100,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
 
   'root-mean-squared-error': {
     loss(output, target) {
+      validateLengths(output, target);
       const n = output.length;
 
       let sum = 0;
@@ -86,6 +114,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
     },
 
     gradient(output, target) {
+      validateLengths(output, target);
       const n = output.length;
       const out = new Float32Array(n);
 
@@ -112,6 +141,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
 
   'mean-biais-error': {
     loss(output, target) {
+      validateLengths(output, target);
       const n = output.length;
 
       let sum = 0;
@@ -124,6 +154,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
     },
 
     gradient(output, target) {
+      validateLengths(output, target);
       const n = output.length;
       const out = new Float32Array(n);
 
@@ -139,6 +170,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
 
   'huber-loss': {
     loss(output, target, config) {
+      validateLengths(output, target);
       const n = output.length;
 
       let sum = 0;
@@ -156,6 +188,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
     },
 
     gradient(output, target, config) {
+      validateLengths(output, target);
       const n = output.length;
       const out = new Float32Array(n);
 
@@ -174,6 +207,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
 
   'log-cosh-loss': {
     loss(output, target) {
+      validateLengths(output, target);
       const n = output.length;
 
       let sum = 0;
@@ -186,6 +220,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
     },
 
     gradient(output, target) {
+      validateLengths(output, target);
       const n = output.length;
       const out = new Float32Array(n);
 
@@ -201,6 +236,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
 
   'cross-entropy': {
     loss(output, target) {
+      validateLengths(output, target);
       const n = output.length;
 
       let sum = 0;
@@ -215,6 +251,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
     },
 
     gradient(output, target) {
+      validateLengths(output, target);
       const n = output.length;
       const out = new Float32Array(n);
 
@@ -230,6 +267,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
 
   'binary-cross-entropy': {
     loss(output, target) {
+      validateLengths(output, target);
       const n = output.length;
 
       let sum = 0;
@@ -245,6 +283,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
     },
 
     gradient(output, target) {
+      validateLengths(output, target);
       const n = output.length;
       const out = new Float32Array(n);
 
@@ -263,6 +302,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
 
   'hinge-loss': {
     loss(output, target) {
+      validateLengths(output, target);
       const n = output.length;
 
       let sum = 0;
@@ -277,6 +317,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
     },
 
     gradient(output, target) {
+      validateLengths(output, target);
       const n = output.length;
       const out = new Float32Array(n);
 
@@ -295,6 +336,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
 
   'Kullback-Leibler-divergence': {
     loss(output, target) {
+      validateLengths(output, target);
       const n = output.length;
 
       let sum = 0;
@@ -309,6 +351,7 @@ export const LOSSES: Record<LossFunctionType, LossDefinition> = {
     },
 
     gradient(output, target) {
+      validateLengths(output, target);
       const n = output.length;
       const out = new Float32Array(n);
 

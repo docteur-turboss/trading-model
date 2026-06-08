@@ -1,4 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { z } from 'zod';
 
 jest.mock('https');
 jest.mock('fs', () => ({
@@ -9,7 +10,7 @@ import fs from 'fs';
 import { HttpClient, HttpClientError, HttpClientTimeoutError } from '../../src/config/http-client';
 import https from 'https';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('HttpClient', () => {
   let client: HttpClient;
@@ -123,6 +124,15 @@ describe('HttpClient', () => {
       await expect(promise).rejects.toThrow();
     });
 
+    it('should handle request with timeout that completes normally', async () => {
+      const responseData = JSON.stringify({ data: 'ok' });
+      const promise = client.get('https://example.com/api', { timeoutMs: 1000 });
+      simulateResponse(200, responseData, 'application/json');
+
+      const result = await promise;
+      expect(result).toEqual({ data: 'ok' });
+    });
+
     it('should handle response without content-type header', async () => {
       const promise = client.get('https://example.com/api');
       (requestCallback as any)({
@@ -165,6 +175,73 @@ describe('HttpClient', () => {
 
       const result = await promise;
       expect(result).toBe('true');
+    });
+  });
+
+  describe('schema validation', () => {
+    it('should validate JSON response with schema', async () => {
+      const responseData = JSON.stringify({ data: 'test' });
+      const schema = z.object({ data: z.string() });
+
+      const promise = client.get('https://example.com/api', undefined, schema);
+      simulateResponse(200, responseData, 'application/json');
+
+      const result = await promise;
+      expect(result).toEqual({ data: 'test' });
+    });
+
+    it('should reject when JSON response does not match schema', async () => {
+      const responseData = JSON.stringify({ data: 123 });
+      const schema = z.object({ data: z.string() });
+
+      const promise = client.get('https://example.com/api', undefined, schema);
+      simulateResponse(200, responseData, 'application/json');
+
+      await expect(promise).rejects.toThrow(z.ZodError);
+    });
+
+    it('should validate non-JSON response with schema', async () => {
+      const schema = z.literal('raw-string');
+
+      const promise = client.get('https://example.com/api', undefined, schema);
+      (requestCallback as any)({
+        on: jest.fn((e: string, cb2: any) => {
+          if (e === 'data') cb2('raw-string');
+          if (e === 'end') cb2();
+        }),
+        statusCode: 200,
+        headers: {},
+      });
+
+      const result = await promise;
+      expect(result).toBe('raw-string');
+    });
+
+    it('should reject when non-JSON response does not match schema', async () => {
+      const schema = z.literal('expected');
+
+      const promise = client.get('https://example.com/api', undefined, schema);
+      (requestCallback as any)({
+        on: jest.fn((e: string, cb2: any) => {
+          if (e === 'data') cb2('actual');
+          if (e === 'end') cb2();
+        }),
+        statusCode: 200,
+        headers: {},
+      });
+
+      await expect(promise).rejects.toThrow(z.ZodError);
+    });
+
+    it('should validate post response with schema', async () => {
+      const responseData = JSON.stringify({ id: 1, name: 'test' });
+      const schema = z.object({ id: z.number(), name: z.string() });
+
+      const promise = client.post('https://example.com/api', { name: 'test' }, undefined, schema);
+      simulateResponse(201, responseData, 'application/json');
+
+      const result = await promise;
+      expect(result).toEqual({ id: 1, name: 'test' });
     });
   });
 });

@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { MarketDataBuffer, RunningNormalizer } from '../../../src/core/market-data-buffer';
+import {
+  MarketDataBuffer,
+} from '../../../src/core/market-data-buffer';
+import {
+  NormalizationStats,
+  TradingSymbol,
+  toSymbol,
+  fromSymbol,
+} from '../../../src/core/market-data-types';
 import {
   makeCandle,
   makeTrade,
@@ -11,6 +19,38 @@ import {
   feedCandles,
   resetFixtureSeq,
 } from '../../fixtures/market-data.fixture';
+
+describe('TradingSymbol', () => {
+  it('should create branded symbol via toSymbol', () => {
+    const sym = toSymbol('BTCUSDT');
+    expect(fromSymbol(sym)).toBe('BTCUSDT');
+  });
+
+  it('should preserve identity through roundtrip', () => {
+    const original = 'ETHUSDT';
+    expect(fromSymbol(toSymbol(original))).toBe(original);
+  });
+
+  it('should create distinct symbols for different strings', () => {
+    const a = toSymbol('BTCUSDT');
+    const b = toSymbol('ETHUSDT');
+    expect(fromSymbol(a)).not.toBe(fromSymbol(b));
+  });
+
+  it('should work as Map key', () => {
+    const m = new Map<TradingSymbol, number>();
+    const s1 = toSymbol('BTCUSDT');
+    const s2 = toSymbol('BTCUSDT');
+    m.set(s1, 100);
+    expect(m.get(s2)).toBe(100);
+  });
+
+  it('TradingSymbol should be assignable to string', () => {
+    const sym = toSymbol('TEST');
+    const str: string = sym;
+    expect(typeof str).toBe('string');
+  });
+});
 
 describe('MarketDataBuffer', () => {
   let buffer: MarketDataBuffer;
@@ -271,7 +311,7 @@ describe('MarketDataBuffer', () => {
         Array.from({ length: 10 }, (_, i) => makeTrade('BTCUSDT', 'buy'))
       );
 
-      expect(buf['states'].get('BTCUSDT')!.trades.length).toBe(5);
+      expect(buf['states'].get(toSymbol('BTCUSDT'))!.trades.length).toBe(5);
     });
   });
 
@@ -336,11 +376,11 @@ describe('MarketDataBuffer', () => {
   });
 });
 
-describe('RunningNormalizer', () => {
-  let norm: RunningNormalizer;
+describe('NormalizationStats', () => {
+  let norm: NormalizationStats;
 
   beforeEach(() => {
-    norm = new RunningNormalizer();
+    norm = new NormalizationStats();
   });
 
   it('should start with mean and std of zero', () => {

@@ -1,6 +1,7 @@
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { PING_PATH } from '@trading-model/common/server/constants';
 
+import { ServiceLocator, ServiceNameLocator } from './service-locator';
 import { ServiceInstance } from '../client/type';
 
 /**
@@ -18,25 +19,28 @@ import { ServiceInstance } from '../client/type';
  *
  * This class provides a simple health check mechanism for services
  * by pinging a predefined endpoint and returning a boolean result.
+ *
+ * Target resolution is delegated to a ServiceLocator strategy, decoupling
+ * the health checker from any specific deployment topology (Docker Compose,
+ * Kubernetes, direct IP, etc.).
  */
 export class ServiceHealthChecker {
   private readonly httpClient: HttpClient;
   private readonly timeoutMs: number;
+  private readonly serviceLocator: ServiceLocator;
 
   /**
    * Creates a new ServiceHealthChecker.
    *
    * @param httpClient - HTTP client used to perform the health check.
    * @param timeoutMs - Maximum duration (in milliseconds) to wait for a response.
-   *
-   * @example
-   * ```ts
-   * const checker = new ServiceHealthChecker(httpClient, 2000); // 2s timeout
-   * ```
+   * @param serviceLocator - Strategy for resolving the target hostname of a
+   * service instance. Defaults to ServiceNameLocator (uses the logical name).
    */
-  constructor(httpClient: HttpClient, timeoutMs: number) {
+  constructor(httpClient: HttpClient, timeoutMs: number, serviceLocator?: ServiceLocator) {
     this.httpClient = httpClient;
     this.timeoutMs = timeoutMs;
+    this.serviceLocator = serviceLocator ?? new ServiceNameLocator();
   }
 
   /**
@@ -47,14 +51,6 @@ export class ServiceHealthChecker {
    *
    * @param instance - The service instance to check.
    * @returns Promise resolving to `true` if healthy, `false` otherwise.
-   *
-   * @example
-   * ```ts
-   * const healthy = await checker.isHealthy(instance);
-   * if (!healthy) {
-   *   console.warn("Service is unreachable");
-   * }
-   * ```
    */
   async isHealthy(instance: ServiceInstance): Promise<boolean> {
     const url = this.buildPingUrl(instance);
@@ -82,24 +78,7 @@ export class ServiceHealthChecker {
    * @private
    */
   private buildPingUrl(instance: ServiceInstance): string {
-    const hostname = this.getServiceDnsName(instance.serviceName);
-    return `http://${hostname}:${instance.port}${PING_PATH}`;
-  }
-
-  /**
-   * Maps a logical service name to its Docker Compose DNS name.
-   *
-   * The TLS certificate SAN includes the Docker Compose service names,
-   * so health checks must use these DNS names instead of IP addresses
-   * to pass hostname verification.
-   */
-  private getServiceDnsName(serviceName: string): string {
-    const dnsNameMap: Record<string, string> = {
-      'discovery-service': 'discovery-server',
-      'message-delivery-service': 'message-manager',
-      'financial-scrapper-service': 'financial-scraper',
-      'trader-training-service': 'trader-trainer',
-    };
-    return dnsNameMap[serviceName] || serviceName;
+    const hostname = this.serviceLocator.locate(instance);
+    return `https://${hostname}:${instance.port}${PING_PATH}`;
   }
 }

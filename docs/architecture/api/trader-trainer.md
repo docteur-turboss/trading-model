@@ -73,21 +73,33 @@ Data is stored in a `MarketDataBuffer` (configurable window via `TRAINER_DATA_WI
 ## GA Components (Genetic Algorithm)
 
 - **Population**: set of agents
-- **Genome**: neural network parameter encoding
-- **Selection**: best individual selection (elitism + tournament)
-- **Crossover**: two-parent genome recombination
-- **Mutation**: random gene perturbation
-- **Fitness**: performance function (returns, Sharpe ratio, drawdown)
-- **Evolution Engine**: main evolution driver
-- **Pareto Front**: multi-objective optimisation
-- **Adaptive Control**: adaptive GA parameter control
+- **Genome**: neural network parameter encoding (`genome.ts`)
+- **Selection**: best individual selection (elitism + tournament, `selection.ts`)
+- **Crossover**: two-parent genome recombination (`crossover.ts`)
+- **Mutation**: random gene perturbation (`mutation.ts`)
+- **Fitness**: performance function (returns, Sharpe ratio, drawdown, `fitness.ts`)
+- **Evaluation Pipeline**: multi-window train/eval with Lamarckian inheritance (`evaluation-pipeline.ts`)
+- **Pareto Front**: multi-objective optimisation via NSGA-II (`pareto-engine.ts`)
+- **Adaptive Control**: self-adaptive GA parameter control (`adaptive-control-system.ts`)
+- **Complexity Estimation**: FLOPs and memory complexity penalty (`complexity-estimator.ts`)
+- **Validation**: genome validation co-located with types (`genome.ts` → `validation.ts`)
 
 ## Neural Network
 
-- Configurable architecture (layers, neurons per layer)
+Configurable via `NeuralNetworkConfig` (a composition of focused interfaces per ISP):
+
+| Interface              | Properties                                                                                                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `NetworkArchitecture`  | neuronsByLayer, activationType, connectionType, normalisationType, normalizedInputRange, enablePool, poolMaxSize |
+| `LossConfig`           | lossFunctionType, deltaHuber                                                                                     |
+| `OptimizerConfig`      | optimizerType, optimizerHyperparams, learningRate, gradientClipNorm                                              |
+| `InitializationConfig` | initialisationType, useBias, biasInitialisationType                                                              |
+| `MutationConfig`       | biasMutationScale, weightMutationScale                                                                           |
+
 - Activation functions: ReLU, sigmoid, tanh, etc.
 - Optimisers: Adam, SGD, etc.
 - Weights encoded in the genetic algorithm genome
+- `Agent` accepts `NetworkArchitecture` only (ISP) and passes through to `NeuralNetwork`
 
 ## Environment Variables (TRAINER\_\*)
 

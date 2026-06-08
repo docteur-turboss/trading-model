@@ -1,8 +1,7 @@
 import { logger } from '@trading-model/common/config/logger';
 
-import { registry } from './service-registry';
+import { ServiceRegistry } from './service-registry';
 import { ServiceInstance } from './types';
-import { env } from '../config/env';
 
 /**
  * LeaseManager
@@ -39,7 +38,10 @@ export class LeaseManager {
    */
   private intervalHandle?: NodeJS.Timeout;
 
-  constructor(options?: { cleanupIntervalMs?: number }) {
+  constructor(
+    private readonly registry: ServiceRegistry,
+    options?: { cleanupIntervalMs?: number }
+  ) {
     /**
      * Default cleanup interval.
      * This value should generally be lower than the smallest TTL
@@ -121,51 +123,33 @@ export class LeaseManager {
    * Periodic cleanup job.
    *
    * Strategy:
-   * - Take a snapshot of the registry state
-   * - Iterate over all services and their instances
+   * - Iterate over all services via listServiceNames()
+   * - For each service, iterate over its instances via getInstances()
    * - Remove instances whose lease has expired
-   *
-   * Note:
-   * The snapshot approach avoids mutation issues while iterating
-   * over the underlying registry structure.
    */
   private cleanupExpiredInstances(): void {
-    const snapshot = registry.dump();
     const now = Date.now();
 
-    for (const [serviceName, instances] of Object.entries(snapshot)) {
-      for (const instance of instances) {
+    for (const serviceName of this.registry.listServiceNames()) {
+      for (const instance of this.registry.getInstances(serviceName)) {
         const expired = now - instance.lastHeartbeat > instance.ttl;
 
         if (expired) {
-          /**
-           * Log eviction for traceability and incident analysis.
-           */
           logger.warn(
             `[LeaseManager] Expired instance removed: ${instance.instanceId} (service=${serviceName})`
           );
 
-          /**
-           * Remove the expired instance from the registry.
-           * Subsequent resolve calls will no longer return it.
-           */
-          registry.removeInstance(serviceName, instance.instanceId);
+          try {
+            this.registry.removeInstance(serviceName, instance.instanceId);
+          } catch (err) {
+            logger.error('[LeaseManager] Failed to remove expired instance:', {
+              serviceName,
+              instanceId: instance.instanceId,
+              error: err,
+            });
+          }
         }
       }
     }
   }
 }
-
-/**
- * -------------------------
- * Singleton Instance
- * -------------------------
- *
- * A single LeaseManager instance is used for the whole application.
- *
- * The cleanup interval can be configured via environment variables
- * to adapt to different environments and load profiles.
- */
-export const LeaseManagerInstance = new LeaseManager({
-  cleanupIntervalMs: env.CLEANUP_SERVICE_INTERVAL_MS,
-});

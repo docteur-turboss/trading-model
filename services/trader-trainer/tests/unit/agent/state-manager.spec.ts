@@ -6,11 +6,8 @@ function makeAgent(): Agent {
   return new Agent({
     neuronsByLayer: [4, 6, 3],
     activationType: ['ReLu', 'sigmoid'],
-    initialisationType: 'zeros',
-    lossFunctionType: 'mean-squared-error',
     normalisationType: 'none',
     connectionType: 'fully-connected',
-    learningRate: 0.01,
     enablePool: false,
   });
 }

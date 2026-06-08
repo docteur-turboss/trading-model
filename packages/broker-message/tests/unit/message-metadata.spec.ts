@@ -1,9 +1,9 @@
 import { describe, it, expect } from '@jest/globals';
 import { MessageMetadata } from '../../src/shared/helper/messages/message';
-import { MetadataBuilderError } from '@trading-model/common/utils/errors';
+import { AppError } from '@trading-model/common/utils/errors';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 function buildMinimalMetadata(): MessageMetadata {
   return new MessageMetadata()
@@ -20,6 +20,10 @@ describe('MessageMetadata', () => {
     it('should create with defaults', () => {
       const m = new MessageMetadata();
       expect(m).toBeInstanceOf(MessageMetadata);
+    });
+
+    it('should throw on invalid data', () => {
+      expect(() => new MessageMetadata({ topic: '' } as any)).toThrow();
     });
 
     it('should accept partial data', () => {
@@ -81,7 +85,7 @@ describe('MessageMetadata', () => {
         serviceName: ServiceInstanceName.DiscoveryService,
         instanceId: '550e8400-e29b-41d4-a716-446655440000',
       });
-      expect(() => m.toJSON()).toThrow(MetadataBuilderError);
+      expect(() => m.toJSON()).toThrow(AppError);
     });
 
     it('should throw if eventType not set', () => {
@@ -89,12 +93,12 @@ describe('MessageMetadata', () => {
         serviceName: ServiceInstanceName.DiscoveryService,
         instanceId: '550e8400-e29b-41d4-a716-446655440000',
       });
-      expect(() => m.toJSON()).toThrow(MetadataBuilderError);
+      expect(() => m.toJSON()).toThrow(AppError);
     });
 
     it('should throw if publisher not set', () => {
       const m = new MessageMetadata().setTopic('test.event.created').setEventType('Test');
-      expect(() => m.toJSON()).toThrow(MetadataBuilderError);
+      expect(() => m.toJSON()).toThrow(AppError);
     });
 
     it('should return complete metadata', () => {

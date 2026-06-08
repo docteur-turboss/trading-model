@@ -31,6 +31,10 @@
     "./crypto/*": {
       "types": "./dist/crypto/*.d.ts",
       "default": "./dist/crypto/*.js"
+    },
+    "./tests/*": {
+      "types": "./tests/*.d.ts",
+      "default": "./tests/*.js"
     }
   },
   "dependencies": {

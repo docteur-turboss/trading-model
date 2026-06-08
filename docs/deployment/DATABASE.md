@@ -10,7 +10,7 @@ The project uses two database engines managed by the **Financial Scraper** (MySQ
 
 **Container:** `trading-mysql`
 
-**Database:** `financial_scraper` (configurable via `MYSQL_DATABASE` env var)
+**Database:** `financial_scraper` (configurable via `DB_NAME` env var)
 
 **ORM:** `ts-sql-query` with a custom `DBConnection` wrapper.
 

@@ -39,7 +39,7 @@ Features:
 
 ## Bootstrap
 
-Lifecycle manager for services.
+Lifecycle manager for services. Signal handling is delegated to a separate module (`signal-handler.ts`) to respect SRP.
 
 - **Import**: `@trading-model/common/server/bootstrap`
 - **Function**: `createBootstrap(options)`
@@ -57,9 +57,27 @@ import { createBootstrap } from '@trading-model/common/server/bootstrap';
 
 Features:
 
-- Attaches `SIGTERM`, `SIGINT` handlers
-- Captures `uncaughtException` and `unhandledRejection`
-- Immediate exit on fatal error
+- Delegates `SIGTERM`, `SIGINT`, `uncaughtException`, and `unhandledRejection` handling to `setupProcessHandlers()`
+- `onStart` and `onStop` callbacks wrapped in try/catch — failures are logged and do not crash the process
+- Graceful shutdown on fatal error: closes HTTP server and calls `onStop` before exit
+
+## SignalHandler
+
+Process signal and error handler registration, extracted from bootstrap for SRP.
+
+- **Import**: `@trading-model/common/server/signal-handler`
+
+```ts
+import {
+  setupProcessHandlers,
+  removeProcessHandlers,
+} from '@trading-model/common/server/signal-handler';
+```
+
+| Function                | Description                                                               |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `setupProcessHandlers`  | Registers SIGTERM, SIGINT, uncaughtException, unhandledRejection handlers |
+| `removeProcessHandlers` | Removes all registered handlers (test cleanup)                            |
 
 ## SecureServer
 
@@ -87,7 +105,20 @@ Features:
 - Helmet security headers
 - `GET /ping` endpoint (constant `PING_PATH`)
 - `MTLSAuthMiddleware` injected automatically
-- `ResponseProtocole` as last middleware
+- `ResponseProtocol` as last middleware
+- `server.close()` returns a promise that resolves only after all in-flight connections have drained (uses Node.js callback form)
+
+### Internal Architecture
+
+`createSecureServer` delegates each concern to a focused sub-module:
+
+| Module                    | Responsibility                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| `configure-app.ts`        | Express app setup: Helmet, trust proxy, body parsers, rate limiter, `/ping` route |
+| `server-factory.ts`       | HTTPS server creation with mTLS (TLSv1.3) and `listen()`                          |
+| `create-secure-server.ts` | Orchestrator: composes app, mTLS middleware, user routes, error middleware        |
+
+This separation follows the Single Responsibility Principle — each module is independently testable and changes to one concern (e.g. rate limiting) do not risk breaking others (e.g. TLS configuration).
 
 ## Environment Validation
 
@@ -107,7 +138,7 @@ import {
 | ------------------------- | -------------------------------------------------------------------------------------- |
 | `BaseEnvSchema`           | `NODE_ENV`, `PORT`, `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `LOG_LEVEL`        |
 | `AddressManagerEnvSchema` | `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID`, `CACHE_TTL_MS`, `ADDRESS_MANAGER_URL`, etc. |
-| `validateEnv(schema)`     | Parses `process.env` and exit(1) on failure                                            |
+| `validateEnv(schema)`     | Parses `process.env` and throws `ConfigurationError` on failure                        |
 
 ## HttpClient
 
@@ -119,14 +150,23 @@ HTTP client with mTLS support for service-to-service calls.
 import { HttpClient } from '@trading-model/common/config/http-client';
 ```
 
-| Method                            | Signature |
-| --------------------------------- | --------- |
-| `get<T>(url, options?)`           | `GET`     |
-| `post<T>(url, body?, options?)`   | `POST`    |
-| `delete<T>(url, body?, options?)` | `DELETE`  |
+| Method                                     | Signature | Returns                   |
+| ------------------------------------------ | --------- | ------------------------- |
+| `get<T>(url, options?, schema?)`           | `GET`     | `Promise<T \| undefined>` |
+| `post<T>(url, body?, options?, schema?)`   | `POST`    | `Promise<T \| undefined>` |
+| `delete<T>(url, body?, options?, schema?)` | `DELETE`  | `Promise<T \| undefined>` |
 
 Options: `timeoutMs`, `headers`
-Errors: `HttpClientError` (non-2xx status), `HttpClientTimeoutError` (timeout)
+
+Schema validation (optional `z.ZodType<T>`):
+
+- When a Zod schema is provided, the response is validated at runtime against it
+- If validation fails, a `z.ZodError` is thrown
+- Without a schema, the response is cast as `T` (no runtime check)
+
+Note: Methods return `T \| undefined` because a 204 No Content response resolves without a body. Callers must handle the `undefined` case explicitly (no longer silently cast as `T`).
+
+Errors: `HttpClientError` (non-2xx status), `HttpClientTimeoutError` (timeout), `z.ZodError` (schema validation)
 
 ## Middleware
 
@@ -154,11 +194,11 @@ ResponseException().NoContent(); // { status: 204, data: undefined }
 
 Available codes: `ServiceUnavailable(503)`, `UnknownError(500)`, `InvalidToken(498)`, `TooManyRequests(429)`, `IMATeapot(418)`, `PayloadTooLarge(413)`, `Gone(410)`, `Conflict(409)`, `MethodNotAllowed(405)`, `NotFound(404)`, `Forbidden(403)`, `PaymentRequired(402)`, `Unauthorized(401)`, `BadRequest(400)`, `NoContent(204)`, `OK(201)`, `Success(200)`
 
-### ResponseProtocole
+### ResponseProtocol
 
 Global Express error normalisation middleware.
 
-- **Import**: `@trading-model/common/middleware/response-protocole`
+- **Import**: `@trading-model/common/middleware/response-protocol`
 - Logs 5xx errors with stack trace, URL, method, IP
 
 ### MTLSAuth
@@ -167,7 +207,10 @@ mTLS authentication middleware.
 
 - **Import**: `@trading-model/common/middleware/mtls-auth`
 - Checks `socket.authorized`, extracts client certificate identity
-- Attaches `clientIdentity` to the request
+- Identity resolution: prefers SAN (Subject Alternative Name), falls back to CN (Common Name)
+- Fails closed with **401 Unauthorized** if no SAN or CN is present on the certificate (no default identity leak)
+- Attaches `clientIdentity` to the request (declared via global Express `Request` augmentation — `declare global { namespace Express { interface Request { clientIdentity: string } } }`)
+- Rejects non-TLS connections (e.g. plain HTTP) with a Forbidden error to prevent unauthenticated access
 
 ### handleCoreResponse / handleCoreAuthResponse
 
@@ -212,9 +255,9 @@ Response normalisation utilities.
 ```ts
 ServiceInstanceName.DiscoveryService; // 'discovery-service'
 ServiceInstanceName.MessageDeliveryService; // 'message-delivery-service'
-ServiceInstanceName.FinancialScrapperService; // 'financial-scrapper-service'
+ServiceInstanceName.FinancialScraperService; // 'financial-scraper-service'
 ServiceInstanceName.TraderTrainingService; // 'trader-training-service'
-// + CoreBalancerService, OfficialDataScrapperService, etc.
+// + CoreBalancerService, OfficialDataScraperService, etc.
 ```
 
 ## Delivery Types
@@ -272,6 +315,14 @@ TradingModelError (abstract)
 ```ts
 sleep(ms: number): Promise<void>
 ```
+
+- **Import**: `@trading-model/common/utils/deterministic-stringify`
+
+```ts
+deterministicStringify(value: unknown): string
+```
+
+Deterministic JSON serialisation for cryptographic signing. Recursively sorts object keys in lexicographic order so the same logical value always produces the same string, regardless of insertion order. Preserves array order, handles primitives, nulls, and nested objects.
 
 ## Deployment
 

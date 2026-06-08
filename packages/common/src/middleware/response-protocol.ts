@@ -1,0 +1,92 @@
+import { NextFunction, Request, Response } from 'express';
+
+import { ClassResponseExceptions, ResponseObject } from './response-exception';
+import { logger } from '../config/logger';
+import { AppError, ErrorCodes, ErrorCode } from '../utils/errors';
+
+type ErrorInput = Error | ResponseObject;
+
+const SERVICE_UNAVAILABLE_CODES: ReadonlySet<ErrorCode> = new Set([
+  ErrorCodes.ADDRESS_MANAGER_ERROR,
+  ErrorCodes.MESSAGE_MANAGER_ERROR,
+  ErrorCodes.DEAD_LETTER_ERROR,
+  ErrorCodes.AGENT_ERROR,
+]);
+
+const isServiceUnavailable = (code: ErrorCode): boolean =>
+  SERVICE_UNAVAILABLE_CODES.has(code);
+
+/**
+ * Maps domain / technical errors to standardized HTTP responses.
+ *
+ * Acts as the single translation layer between
+ * internal error types and external HTTP representations.
+ */
+function mapErrorToResponse(err: Error): ResponseObject {
+  const response = new ClassResponseExceptions(err.message);
+
+  if (err instanceof AppError) {
+    switch (err.code) {
+      case ErrorCodes.SERVICE_NOT_FOUND:
+        return response.NotFound();
+      case ErrorCodes.SERVICE_UNREACHABLE:
+        return response.Gone();
+      case ErrorCodes.AUTHENTICATION_ERROR:
+        return response.InvalidToken();
+      default:
+        if (isServiceUnavailable(err.code)) {
+          return response.ServiceUnavailable();
+        }
+        break;
+    }
+  }
+
+  return response.UnknownError();
+}
+
+/**
+ * Log server-side errors (HTTP 5xx) with request context.
+ *
+ * Separated from the response middleware to isolate the logging concern.
+ */
+function logServerError(err: ErrorInput, req: Request, response: ResponseObject): void {
+  if (response.status >= 500) {
+    const originalError = err instanceof Error ? err : undefined;
+    logger.error('Server error', {
+      message: originalError?.message,
+      stack: originalError?.stack,
+      url: req.originalUrl,
+      method: req.method,
+      ip: req.ip,
+    });
+  }
+}
+
+/**
+ * Global Express error-handling middleware.
+ *
+ * Composes three concerns:
+ *  1. Error mapping (`mapErrorToResponse`) — domain → HTTP response
+ *  2. Server error logging (`logServerError`) — 5xx monitoring
+ *  3. Response sending — standardized JSON output
+ *
+ * @param err - The error caught in the request pipeline.
+ * @param req - Express request object.
+ * @param res - Express response object.
+ * @param next - Express next function.
+ *
+ * @example
+ * app.use(ResponseProtocol);
+ */
+export const ResponseProtocol = (
+  err: ErrorInput,
+  req: Request,
+  res: Response,
+  _next: NextFunction // kept for Express error middleware arity detection
+) => {
+  const response = err instanceof Error ? mapErrorToResponse(err) : err;
+
+  logServerError(err, req, response);
+
+  res.status(response.status).type('json').send(response.data);
+};

@@ -3,11 +3,23 @@ import { TLSSocket } from 'node:tls';
 import { catchSync } from './catch-error';
 import { ResponseException } from './response-exception';
 
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      /** Logical client identity extracted from the mTLS client certificate. */
+      clientIdentity: string;
+    }
+  }
+}
+
 /**
  * mTLS Authentication Middleware
  *
- * This middleware enforces mutual TLS (mTLS) authentication at the transport layer.
- * It ensures that:
+ * Enforces mutual TLS (mTLS) authentication at the transport layer.
+ * Rejects non-TLS connections immediately to prevent unauthenticated access.
+ * Verifies that:
+ *  - The socket is a valid TLS socket
  *  - The TLS handshake was successfully authorized
  *  - A valid client certificate was presented
  *  - A stable client identity can be extracted from the certificate
@@ -20,8 +32,23 @@ import { ResponseException } from './response-exception';
  *   - Used on internal / service-to-service endpoints
  */
 export const MTLSAuthMiddleware = catchSync((req, res, next) => {
-  // Express request socket is expected to be a TLS socket when mTLS is enabled
+  /**
+   * Step 0 — Validate socket is TLS
+   *
+   * `req.socket as TLSSocket` silently succeeds on non-TLS connections
+   * (HTTP, plain TCP). Verify TLS-specific properties before proceeding
+   * to ensure we fail closed when mTLS is not the transport.
+   */
   const socket = req.socket as TLSSocket;
+
+  if (typeof socket.getPeerCertificate !== 'function') {
+    throw ResponseException(
+      JSON.stringify({
+        error: 'Non-TLS connection rejected',
+        reason: 'mTLS authentication requires a TLS socket',
+      })
+    ).Forbidden();
+  }
 
   /**
    * Step 1 — Verify TLS authorization
@@ -61,12 +88,26 @@ export const MTLSAuthMiddleware = catchSync((req, res, next) => {
    * Identity resolution convention:
    *  - Prefer Subject Alternative Name (SAN), if present (URI / DNS)
    *  - Fallback to Common Name (CN)
-   *  - Default to "unknown" if neither is available
+   *  - Fail closed with Unauthorized if neither is available
    *
    * This identity is considered a *logical client identifier* and
    * should map to a service, workload, or machine identity.
+   *
+   * A default identity (e.g., "unknown") is intentionally NOT provided
+   * to avoid propagating an unresolvable identity to downstream
+   * authorization gates (fail closed, not open).
    */
-  const identity = cert.subjectaltname ?? cert.subject?.CN ?? 'unknown';
+  const raw = cert.subjectaltname ?? cert.subject?.CN;
+
+  if (!raw) {
+    throw ResponseException(
+      JSON.stringify({
+        error: 'Client identity could not be resolved',
+        reason: 'Certificate has no SAN or CN',
+      })
+    ).Unauthorized();
+  }
+  const identity = Array.isArray(raw) ? raw.join(', ') : raw;
 
   /**
    * Step 4 — Attach identity to request context
@@ -74,7 +115,7 @@ export const MTLSAuthMiddleware = catchSync((req, res, next) => {
    * The identity is injected into the request object to be consumed
    * by downstream middlewares, controllers, or authorization layers.
    */
-  (req as unknown as Request & { clientIdentity: string | string[] }).clientIdentity = identity;
+  req.clientIdentity = identity;
 
   // Continue request processing
   next();

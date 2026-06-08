@@ -15,6 +15,12 @@ import {
 
 const binance = httpClients.binance;
 
+function assertNonEmptySymbol(symbol: string, context: string): void {
+  if (!symbol || symbol.trim().length === 0) {
+    throw new Error(`${context}: symbol must be a non-empty string`);
+  }
+}
+
 /**
  * Fetch order book
  * Weight varies by limit:
@@ -27,6 +33,7 @@ const binance = httpClients.binance;
  * @returns {Promise<BinanceDepthResponse>}
  */
 export async function getOrderBook(symbol: string, limit = 100): Promise<BinanceDepthResponse> {
+  assertNonEmptySymbol(symbol, 'getOrderBook');
   const weight = BINANCE_WEIGHTS.depth(limit);
   const url = BINANCE_ENDPOINTS.depth(limit, symbol);
   return (await binance.get(url, { weight })).data;
@@ -40,6 +47,7 @@ export async function getOrderBook(symbol: string, limit = 100): Promise<Binance
  * @returns {Promise<BinanceTradeResponse>}
  */
 export async function getRecentTrades(symbol: string, limit = 500): Promise<BinanceTradeResponse> {
+  assertNonEmptySymbol(symbol, 'getRecentTrades');
   const weight = BINANCE_WEIGHTS.trades();
   const url = BINANCE_ENDPOINTS.trades(limit, symbol);
   return (await binance.get(url, { weight })).data;
@@ -58,6 +66,7 @@ export async function getHistoricalTrades(
   limit = 500,
   fromId: number | string
 ): Promise<BinanceHistoricalTradeResponse> {
+  assertNonEmptySymbol(symbol, 'getHistoricalTrades');
   const url = BINANCE_ENDPOINTS.historicalTrades(limit, symbol, fromId);
   const weight = BINANCE_WEIGHTS.historicalTrades();
   return (await binance.get(url, { weight })).data;
@@ -72,7 +81,7 @@ export async function getHistoricalTrades(
  * @param startTime {number} - timestamp in ms to start from (inclusive)
  * @returns {Promise<BinanceCandlestickDataResponse>}
  */
-export async function CandlestickData(
+export async function getCandlestickData(
   symbol: string,
   limit = 500,
   interval:
@@ -94,6 +103,7 @@ export async function CandlestickData(
     | '1M',
   startTime?: number
 ): Promise<BinanceCandlestickDataResponse> {
+  assertNonEmptySymbol(symbol, 'getCandlestickData');
   const url = BINANCE_ENDPOINTS.candlesticks(symbol, interval, startTime, limit);
   const weight = BINANCE_WEIGHTS.candlesticks();
   return (await binance.get(url, { weight })).data;
@@ -113,6 +123,7 @@ export async function getCompressedAggregateTrades(
   fromId: string | number,
   limit = 500
 ): Promise<BinanceAggregateTradeResponse> {
+  assertNonEmptySymbol(symbol, 'getCompressedAggregateTrades');
   const url = BINANCE_ENDPOINTS.compressedAggregateTrades(symbol, fromId, limit);
   const weight = BINANCE_WEIGHTS.compressedAggregateTrades();
   return (await binance.get(url, { weight })).data;
@@ -130,6 +141,7 @@ export async function getCompressedAggregateTrades(
 export async function get24hrTickerStats(
   symbol?: string[]
 ): Promise<Binance24hrTickerStatsResponse> {
+  if (symbol) symbol.forEach(s => assertNonEmptySymbol(s, 'get24hrTickerStats'));
   const weight = BINANCE_WEIGHTS.change24hrStats((symbol ?? []).length);
   const url = BINANCE_ENDPOINTS.change24hrStats(symbol);
   return (await binance.get(url, { weight })).data;
@@ -146,6 +158,7 @@ export async function get24hrTickerStats(
 export async function getTradingDayTicker(
   symbol: string[]
 ): Promise<BinanceTradingDayTickerResponse> {
+  symbol.forEach(s => assertNonEmptySymbol(s, 'getTradingDayTicker'));
   const weight = BINANCE_WEIGHTS.tradingDayTicker(symbol.length);
   const url = BINANCE_ENDPOINTS.TradingDayTicker(symbol);
   return (await binance.get(url, { weight })).data;
@@ -160,6 +173,7 @@ export async function getTradingDayTicker(
 export async function getSymbolPriceTicker(
   symbol?: string[]
 ): Promise<BinanceSymbolPriceTickerResponse> {
+  if (symbol) symbol.forEach(s => assertNonEmptySymbol(s, 'getSymbolPriceTicker'));
   const weight = BINANCE_WEIGHTS.symbolPriceTicker((symbol ?? []).length);
   const url = BINANCE_ENDPOINTS.symbolPriceTicker(symbol);
   return (await binance.get(url, { weight })).data;
@@ -174,6 +188,7 @@ export async function getSymbolPriceTicker(
 export async function getOrderBookTicker(
   symbol?: string[]
 ): Promise<BinanceSymbolOrderBookTickerResponse> {
+  if (symbol) symbol.forEach(s => assertNonEmptySymbol(s, 'getOrderBookTicker'));
   const weight = BINANCE_WEIGHTS.orderBookTicker((symbol ?? []).length);
   const url = BINANCE_ENDPOINTS.orderBookTicker(symbol);
   return (await binance.get(url, { weight })).data;

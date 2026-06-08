@@ -1,4 +1,3 @@
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 import {
   DeliveryType,
   IdentifyType,
@@ -6,34 +5,37 @@ import {
   RoutingType,
   SecurityType,
 } from '@trading-model/common/contracts/message.types';
-import { MetadataBuilderError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 
 import {
   SecurityMetadataContextPredicate,
   PublisherMetadataContextPredicate,
   RoutingMetadataContextPredicate,
   SchemaMetadataVersionPredicate,
-  DelivryMetadataModePredicate,
+  DeliveryMetadataModePredicate,
   EventTypeMetadataPredicate,
   TopicMetadataPredicate,
   IdsMetadataPredicate,
+  MessageMetadataSchema,
 } from './message.schema';
 
 /**
  * Represents an metadata in a message
  */
 export class MessageMetadata {
-  private topic: string;
-  private eventType: string;
+  private topic: string | undefined;
+  private eventType: string | undefined;
   private causationId?: string;
   private routing?: RoutingType;
   private correlationId?: string;
-  private publisher: IdentifyType;
+  private publisher: IdentifyType | undefined;
   private delivery?: DeliveryType;
   private security?: SecurityType;
   private schemaVersion = '1.0.0';
 
   public constructor(data: Partial<MetadataType> = {}) {
+    MessageMetadataSchema.partial().parse(data);
+
     const { topic, routing, delivery, security, eventType, publisher, causationId, correlationId } =
       data;
 
@@ -42,15 +44,9 @@ export class MessageMetadata {
     this.security = security;
     this.causationId = causationId;
     this.correlationId = correlationId;
-    this.topic = topic ? topic : 'null';
-    this.eventType = eventType ? eventType : 'null';
-
-    this.publisher = publisher
-      ? publisher
-      : {
-          serviceName: ServiceInstanceName.MessageDeliveryService,
-          instanceId: 'null',
-        };
+    this.topic = topic;
+    this.eventType = eventType;
+    this.publisher = publisher;
   }
 
   /**
@@ -81,7 +77,7 @@ export class MessageMetadata {
       return this;
     }
 
-    DelivryMetadataModePredicate.parse(context);
+    DeliveryMetadataModePredicate.parse(context);
 
     this.delivery = context;
     return this;
@@ -113,7 +109,7 @@ export class MessageMetadata {
     // Data assertions
     RoutingMetadataContextPredicate.parse(context);
 
-    this.routing = context ?? undefined;
+    this.routing = context;
     return this;
   }
 
@@ -206,13 +202,12 @@ export class MessageMetadata {
       security,
     } = this;
 
-    if (topic === 'null') throw new MetadataBuilderError("You haven't defined a topic");
-    if (eventType === 'null') throw new MetadataBuilderError("You haven't defined a eventType");
-    if (
-      publisher.instanceId === 'null' &&
-      this.publisher.serviceName === ServiceInstanceName.MessageDeliveryService
-    )
-      throw new MetadataBuilderError("You haven't defined a publisher");
+    if (!topic)
+      throw new AppError("You haven't defined a topic", ErrorCodes.METADATA_BUILDER_ERROR);
+    if (!eventType)
+      throw new AppError("You haven't defined a eventType", ErrorCodes.METADATA_BUILDER_ERROR);
+    if (!publisher)
+      throw new AppError("You haven't defined a publisher", ErrorCodes.METADATA_BUILDER_ERROR);
 
     return {
       eventType,

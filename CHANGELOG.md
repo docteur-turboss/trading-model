@@ -1,3 +1,43 @@
+## [1.3.3] - 2026-06-07
+
+### trader-service (1.3.2 → 1.3.3)
+
+#### Fix
+
+- :bug:(trainer): add input length validation to all loss functions to prevent silent NaN propagation on output/target mismatch (#118)
+
+#### Test
+
+- :white_check_mark:(trainer): add validation tests for length mismatch in all loss and gradient functions
+
+## [1.3.2] - 2026-06-07
+
+### trader-service (1.3.1 → 1.3.2)
+
+#### Fix
+
+- :bug:(trainer): add pool bounds guard in trainPhase to prevent out-of-bounds access on pool[pool.length - 2] (#117)
+
+#### Test
+
+- :white_check_mark:(trainer): add unit tests for evaluation-pipeline trainPhase pool bounds check and pooledEval
+
+## [1.3.1] - 2026-06-07
+
+### @trading-model/address-manager (1.1.0 → 1.1.1)
+
+#### Fix
+
+- :bug:(address-manager): log scheduler job execution errors instead of swallowing them silently (#114)
+- :bug:(address-manager): preserve original error type via cause property in AddressManagerError (#115)
+- :bug:(address-manager): add configurable timeout to findService HTTP calls to prevent indefinite hangs (#116)
+
+#### Test
+
+- :white_check_mark:(address-manager): add test for error logging when job.execute throws
+- :white_check_mark:(address-manager): add tests verifying original error is preserved via cause property
+- :white_check_mark:(address-manager): add test verifying timeout option is passed to HttpClient.get
+
 ## [1.3.0] - 2026-06-06
 
 ### @trading-model/common (1.0.0 → 1.1.0)
@@ -18,7 +58,7 @@
 
 #### Fix
 
-- d2c22b5 **address-manager:** resolve double-encoding in ResponseProtocole and service resolution in AddressManager (#64)
+- d2c22b5 **address-manager:** resolve double-encoding in ResponseProtocol and service resolution in AddressManager (#64)
 
 ### @trading-model/broker-message (1.0.0 → 1.1.0)
 

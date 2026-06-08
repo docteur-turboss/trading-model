@@ -1,21 +1,27 @@
 import { jest } from '@jest/globals';
-import { HttpClient } from '@trading-model/common/config/http-client';
+import { createMockHttpClient as createCommonMockHttpClient } from '@trading-model/common/tests/helpers/mock-common';
 import { Subscription } from '../../src/messaging/core/subscription';
 import { Dispatcher } from '../../src/messaging/core/dispatcher';
 import { mockServiceIdentity } from '../fixtures/broker.fixture';
 
-export function createMockHttpClient(): jest.Mocked<HttpClient> {
-  return {
-    post: jest.fn<(url: string, data: unknown) => Promise<unknown>>().mockResolvedValue(undefined),
-    get: jest.fn<(url: string) => Promise<unknown>>().mockResolvedValue(undefined),
-  } as unknown as jest.Mocked<HttpClient>;
-}
+export const createMockHttpClient = createCommonMockHttpClient;
 
 export function createMockDispatcher(
   httpClient?: jest.Mocked<HttpClient>
 ): jest.Mocked<Dispatcher> {
   const client = httpClient ?? createMockHttpClient();
   return {
+    publish: jest
+      .fn<(payload: unknown, metadata: unknown) => Promise<void>>()
+      .mockResolvedValue(undefined),
+    subscribe:
+      jest.fn<
+        (params: {
+          topic: string;
+          callbackPath: string;
+          consumerIdentity: typeof mockServiceIdentity;
+        }) => void
+      >(),
     registerSubscription:
       jest.fn<
         (params: {
@@ -25,6 +31,7 @@ export function createMockDispatcher(
         }) => void
       >(),
     dispatch: jest.fn<(message: unknown) => Promise<void>>().mockResolvedValue(undefined),
+    unsubscribe: jest.fn<(params: { topic: string; instanceId: string }) => void>(),
     unregisterSubscription: jest.fn<(params: { topic: string; instanceId: string }) => void>(),
   } as unknown as jest.Mocked<Dispatcher>;
 }

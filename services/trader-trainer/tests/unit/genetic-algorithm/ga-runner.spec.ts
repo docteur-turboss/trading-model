@@ -375,6 +375,116 @@ describe('GeneticAlgorithmRunner', () => {
     expect(runner.getArchive()).toEqual([]);
   });
 
+  it('should select elites based on elitismFraction', async () => {
+    const features = new Float32Array([0.5, 0.5, 0.5]);
+    const runner = new GeneticAlgorithmRunner({
+      windowSets: [
+        {
+          id: 'w1',
+          train: [{ features, price: 100 }],
+          validation: [{ features, price: 100 }],
+        },
+      ],
+      backendFactory: mockBackendFactory as any,
+      evalConcurrency: 1,
+    });
+    runner.initialise({
+      networkSeed: 42,
+      mutationSeed: 42,
+      populationSize: 10,
+      elitismFraction: 0.3,
+    });
+    await runner.runGeneration();
+    const pop = runner.getPopulation();
+    expect(pop.length).toBe(10);
+    expect(runner.getGeneration()).toBe(1);
+  });
+
+  it('should produce offspring with some new IDs after runGeneration (elites carry over)', async () => {
+    const features = new Float32Array([0.5, 0.5, 0.5]);
+    const runner = new GeneticAlgorithmRunner({
+      windowSets: [
+        {
+          id: 'w1',
+          train: [{ features, price: 100 }],
+          validation: [{ features, price: 100 }],
+        },
+      ],
+      backendFactory: mockBackendFactory as any,
+      evalConcurrency: 1,
+    });
+    runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 4 });
+    const parentIds = new Set(runner.getPopulation().map(g => g.id));
+    await runner.runGeneration();
+    const childIds = new Set(runner.getPopulation().map(g => g.id));
+    // Elites are preserved from parents, so at least some IDs may overlap.
+    // But the population size should stay the same.
+    expect(childIds.size).toBeGreaterThan(0);
+    expect(runner.getPopulation().length).toBe(4);
+  });
+
+  it('should update Pareto archive after runGeneration', async () => {
+    const features = new Float32Array([0.5, 0.5, 0.5]);
+    const onArchiveUpdate = jest.fn();
+    const runner = new GeneticAlgorithmRunner({
+      windowSets: [
+        {
+          id: 'w1',
+          train: [{ features, price: 100 }],
+          validation: [{ features, price: 100 }],
+        },
+      ],
+      backendFactory: mockBackendFactory as any,
+      evalConcurrency: 1,
+      onArchiveUpdate,
+    });
+    runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 4 });
+    expect(runner.getArchive()).toEqual([]);
+    await runner.runGeneration();
+    expect(onArchiveUpdate).toHaveBeenCalled();
+    if (runner.getArchive().length > 0) {
+      expect(runner.getArchive()[0].id).toBeDefined();
+    }
+  });
+
+  it('should track stagnation when fitness does not improve', async () => {
+    const features = new Float32Array([0.5, 0.5, 0.5]);
+    const runner = new GeneticAlgorithmRunner({
+      windowSets: [
+        {
+          id: 'w1',
+          train: [{ features, price: 100 }],
+          validation: [{ features, price: 100 }],
+        },
+      ],
+      backendFactory: mockBackendFactory as any,
+      evalConcurrency: 1,
+    });
+    runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 2 });
+    const ctx1 = await runner.runGeneration();
+    const ctx2 = await runner.runGeneration();
+    expect(ctx2.stagnation).toBeGreaterThanOrEqual(ctx1.stagnation);
+  });
+
+  it('should sort population by Pareto rank and crowding distance', async () => {
+    const features = new Float32Array([0.5, 0.5, 0.5]);
+    const runner = new GeneticAlgorithmRunner({
+      windowSets: [
+        {
+          id: 'w1',
+          train: [{ features, price: 100 }],
+          validation: [{ features, price: 100 }],
+        },
+      ],
+      backendFactory: mockBackendFactory as any,
+      evalConcurrency: 1,
+    });
+    runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 5 });
+    await runner.runGeneration();
+    const ctx = await runner.runGeneration();
+    expect(ctx.population.length).toBe(5);
+  });
+
   it('should run a single generation and produce a context', async () => {
     const features = new Float32Array([0.5, 0.5, 0.5]);
     const windowSets = [

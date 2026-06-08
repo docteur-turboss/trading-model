@@ -1,5 +1,5 @@
 import { HttpClient } from '@trading-model/common/config/http-client';
-import { ServiceNotFoundError, ServiceUnreachableError } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 
 import { ServiceCache } from './service-cache';
 import { ServiceHealthChecker } from './service-health-checker';
@@ -22,12 +22,14 @@ import { AddressManagerConfig } from '../config/address-manager-config';
  * returned instances are healthy and valid.
  */
 export class ServiceDiscovery {
+  private readonly discoveryTimeoutMs: number;
+
   /**
    * Creates a new ServiceDiscovery instance.
    *
    * @example
    * ```ts
-   * const discovery = new ServiceDiscovery(client, cache, healthChecker);
+   * const discovery = new ServiceDiscovery(client, cache, healthChecker, config);
    * ```
    */
   constructor(
@@ -35,7 +37,9 @@ export class ServiceDiscovery {
     private readonly serviceCache: ServiceCache,
     private readonly config: AddressManagerConfig,
     private readonly healthChecker: ServiceHealthChecker
-  ) {}
+  ) {
+    this.discoveryTimeoutMs = config.discoveryTimeoutMs;
+  }
 
   /**
    * Returns a healthy instance of the requested service.
@@ -57,7 +61,7 @@ export class ServiceDiscovery {
    * ```
    */
   async findService(serviceName: string): Promise<ServiceInstance> {
-    const cachedInstance = this.serviceCache.get(serviceName);
+    const cachedInstance = await this.serviceCache.get(serviceName);
 
     if (cachedInstance) {
       const isHealthy = await this.healthChecker.isHealthy(cachedInstance);
@@ -65,7 +69,7 @@ export class ServiceDiscovery {
         return cachedInstance;
       }
 
-      this.serviceCache.invalidate(serviceName);
+      await this.serviceCache.invalidate(serviceName);
     }
 
     return this.resolveAndValidateService(serviceName);
@@ -89,10 +93,13 @@ export class ServiceDiscovery {
 
     try {
       instances = await this.httpClient.get<unknown>(
-        `${this.config.addressManagerUrl}/services/${serviceName}`
+        `${this.config.addressManagerUrl}/services/${serviceName}`,
+        { timeoutMs: this.discoveryTimeoutMs }
       );
     } catch (error) {
-      throw new ServiceNotFoundError(`Service "${serviceName}" not found`, error);
+      throw new AppError(`Service "${serviceName}" not found`, ErrorCodes.SERVICE_NOT_FOUND, {
+        cause: error,
+      });
     }
 
     const instance = Array.isArray(instances)
@@ -100,18 +107,21 @@ export class ServiceDiscovery {
       : (instances as ServiceInstance);
 
     if (!instance) {
-      throw new ServiceNotFoundError(`Service "${serviceName}" has no registered instances`);
+      throw new AppError(
+        `Service "${serviceName}" has no registered instances`,
+        ErrorCodes.SERVICE_NOT_FOUND
+      );
     }
 
     const isHealthy = await this.healthChecker.isHealthy(instance);
 
     if (!isHealthy) {
-      this.serviceCache.invalidate(serviceName);
+      await this.serviceCache.invalidate(serviceName);
 
-      throw new ServiceUnreachableError(`Service "${serviceName}" is unreachable`);
+      throw new AppError(`Service "${serviceName}" is unreachable`, ErrorCodes.SERVICE_UNREACHABLE);
     }
 
-    this.serviceCache.set(serviceName, instance);
+    await this.serviceCache.set(serviceName, instance);
     return instance;
   }
 }

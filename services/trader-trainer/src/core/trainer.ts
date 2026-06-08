@@ -1,9 +1,15 @@
+import { logger } from '@trading-model/common/config/logger';
+
 import { createDefaultGenome } from './genetic-algorithm/factory';
-import { GeneticAlgorithmRunner } from './genetic-algorithm/ga-runner';
-import { makeTradingAgentBackend, GenerationContext } from './genetic-algorithm/ga-runner';
+import {
+  GeneticAlgorithmRunner,
+  makeTradingAgentBackend,
+  GenerationContext,
+} from './genetic-algorithm/ga-runner';
 import { LamarckGenome } from './genetic-algorithm/genome-types';
 import { DeepReadonly } from './genetic-algorithm/shared-types';
-import { MarketDataBuffer } from './market-data-buffer';
+import { MarketDataBuffer, MIN_TRAINING_STEPS } from './market-data-buffer';
+import { TradingSymbol, toSymbol, fromSymbol } from './market-data-types';
 import { env } from '../config/env';
 
 /** Summary of the best trained agent for API responses. */
@@ -37,13 +43,30 @@ export type BestAgentSummary = {
   };
 };
 
+/** Indicates that training completed successfully with the resulting best genome. */
+export type TrainingSuccess = {
+  success: true;
+  symbol: string;
+  bestGenome: DeepReadonly<LamarckGenome>;
+};
+
+/** Indicates that training failed with an error. */
+export type TrainingFailure = {
+  success: false;
+  symbol: string;
+  error: Error;
+};
+
+/** Discriminated result of a training cycle. */
+export type TrainingResult = TrainingSuccess | TrainingFailure;
+
 /** Orchestrates GA training cycles: feeds market data, runs generations, tracks best genome. */
 export class Trainer {
   private runner: GeneticAlgorithmRunner | null = null;
   private bestGenome: DeepReadonly<LamarckGenome> | null = null;
   private training = false;
   private generationContext: GenerationContext | null = null;
-  private currentSymbol: string = '';
+  private currentSymbol: TradingSymbol = toSymbol('');
 
   constructor(private readonly dataBuffer: MarketDataBuffer) {}
 
@@ -54,7 +77,7 @@ export class Trainer {
 
   /** Return the symbol currently being trained on. */
   getCurrentSymbol(): string {
-    return this.currentSymbol;
+    return fromSymbol(this.currentSymbol);
   }
 
   /** Return the current generation number (0 if not started). */
@@ -62,18 +85,29 @@ export class Trainer {
     return this.runner?.getGeneration() ?? 0;
   }
 
-  /** Run a full GA training cycle for the given symbol. Skips if already training or insufficient data. */
-  async train(symbol: string): Promise<void> {
-    if (this.training) return;
+  /**
+   * Run a full GA training cycle for the given symbol.
+   * Skips if already training or insufficient data.
+   *
+   * @param symbol - Market symbol to train on.
+   * @returns TrainingResult indicating success or failure.
+   */
+  async train(symbol: string): Promise<TrainingResult> {
+    if (this.training) return { success: false, symbol, error: new Error('Already training') };
 
     const windowSet = this.dataBuffer.getAllWindows(symbol, env.TRAINER_VALIDATION_SPLIT);
 
-    if (!windowSet || windowSet.train.length < 10) {
-      console.warn(`[Trainer] Not enough data for ${symbol}, need at least 10 steps`);
-      return;
+    if (!windowSet || windowSet.train.length < MIN_TRAINING_STEPS) {
+      return {
+        success: false,
+        symbol,
+        error: new Error(
+          `Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
+        ),
+      };
     }
 
-    this.currentSymbol = symbol;
+    this.currentSymbol = toSymbol(symbol);
     this.training = true;
 
     const defaultControl = createDefaultGenome('ctrl').gaControl;
@@ -92,7 +126,7 @@ export class Trainer {
       onGeneration: (ctx: GenerationContext) => {
         this.generationContext = ctx;
         this.bestGenome = ctx.bestGenome;
-        console.log(
+        logger.info(
           `[Trainer] Gen ${ctx.generation}: best=${ctx.bestFitness.toFixed(4)}, ` +
             `avg=${ctx.avgFitness.toFixed(4)}, archive=${ctx.archive.length}, ` +
             `stagnation=${ctx.stagnation}, elapsed=${(ctx.elapsedMs / 1000).toFixed(1)}s`
@@ -108,12 +142,15 @@ export class Trainer {
     try {
       const result = await this.runner.run();
       this.bestGenome = result;
-      console.log(
+      logger.info(
         `[Trainer] Training complete for ${symbol}. ` +
           `Best fitness: ${(result.fitness ?? 0).toFixed(4)}`
       );
+      return { success: true, symbol, bestGenome: result };
     } catch (err) {
-      console.error(`[Trainer] Training failed for ${symbol}:`, err);
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error(`[Trainer] Training failed for ${symbol}:`, { err: error.message });
+      return { success: false, symbol, error };
     } finally {
       this.training = false;
     }

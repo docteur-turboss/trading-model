@@ -1,11 +1,21 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { unlink } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals';
 import { Dispatcher } from '../../../../src/messaging/core/dispatcher';
+import { Subscription } from '../../../../src/messaging/core/subscription';
+import { DqlRepository } from '../../../../src/messaging/core/dlq-repository';
 import { createMockHttpClient } from '../../../helpers/broker.helper';
 import {
   createMockMessage,
   mockSubscriberIdentity,
   mockSubscribeParams,
 } from '../../../fixtures/broker.fixture';
+
+jest.mock('@trading-model/common/config/logger', () => ({
+  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 
 jest.mock('config/address-manager', () => ({
   findAService: jest
@@ -16,10 +26,19 @@ jest.mock('config/address-manager', () => ({
 describe('Dispatcher', () => {
   let mockHttpClient: ReturnType<typeof createMockHttpClient>;
   let dispatcher: Dispatcher;
+  let dqlRepository: DqlRepository;
+  const dlqFilePath = join(tmpdir(), `dlq-test-disp-${Date.now()}.jsonl`);
 
   beforeEach(() => {
     mockHttpClient = createMockHttpClient();
-    dispatcher = new Dispatcher(mockHttpClient as never);
+    dqlRepository = new DqlRepository(dlqFilePath);
+    dispatcher = new Dispatcher(mockHttpClient as never, dqlRepository);
+  });
+
+  afterAll(async () => {
+    if (existsSync(dlqFilePath)) {
+      await unlink(dlqFilePath);
+    }
   });
 
   describe('registerSubscription', () => {
@@ -113,6 +132,26 @@ describe('Dispatcher', () => {
       await dispatcher.dispatch(message);
 
       expect(mockHttpClient.post).toHaveBeenCalledTimes(3);
+    });
+
+    it('should log allSettled rejections when subscription.dispatch rejects', async () => {
+      jest
+        .spyOn(Subscription.prototype, 'dispatch')
+        .mockRejectedValue(new Error('Unhandled error'));
+
+      dispatcher.registerSubscription(mockSubscribeParams);
+
+      const message = createMockMessage('test');
+      await dispatcher.dispatch(message);
+
+      const { logger } = jest.requireMock('@trading-model/common/config/logger') as {
+        logger: { info: jest.Mock; warn: jest.Mock; error: jest.Mock };
+      };
+      expect(logger.error).toHaveBeenCalledWith('[Dispatcher] Message delivery failed:', {
+        error: new Error('Unhandled error'),
+      });
+
+      jest.restoreAllMocks();
     });
 
     it('should deduplicate subscriptions by instanceId', async () => {

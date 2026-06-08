@@ -1,7 +1,8 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { validateEnv, BaseEnvSchema } from '../../src/validation/env';
+import { validateEnv, BaseEnvSchema, AddressManagerEnvSchema } from '../../src/validation/env';
+import { AppError } from '../../src/utils/errors';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 describe('validateEnv', () => {
   const OLD_ENV = process.env;
@@ -10,7 +11,6 @@ describe('validateEnv', () => {
     jest.restoreAllMocks();
     process.env = { ...OLD_ENV };
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
   });
 
   afterEach(() => {
@@ -31,14 +31,13 @@ describe('validateEnv', () => {
     expect(result.TLS_CA_PATH).toBe('/some/ca');
   });
 
-  it('should exit process on invalid env', () => {
+  it('should throw ConfigurationError on invalid env', () => {
     delete process.env.NODE_ENV;
     delete process.env.TLS_KEY_PATH;
     delete process.env.TLS_CERT_PATH;
     delete process.env.TLS_CA_PATH;
 
-    validateEnv(BaseEnvSchema);
-    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(() => validateEnv(BaseEnvSchema)).toThrow(AppError);
   });
 
   it('should apply default values', () => {
@@ -82,8 +81,7 @@ describe('validateEnv', () => {
       delete process.env.TLS_CERT_PATH;
       delete process.env.TLS_CA_PATH;
 
-      validate2(BaseSchema2);
-      expect(process.exit).toHaveBeenCalledWith(1);
+      expect(() => validate2(BaseSchema2)).toThrow('Environment validation failed');
     });
   });
 
@@ -98,8 +96,7 @@ describe('validateEnv', () => {
     delete process.env.TLS_CERT_PATH;
     delete process.env.TLS_CA_PATH;
 
-    validateEnv(BaseEnvSchema);
-    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(() => validateEnv(BaseEnvSchema)).toThrow(AppError);
   });
 
   it('should handle invalid env when treeifyError is not a function', () => {
@@ -112,9 +109,79 @@ describe('validateEnv', () => {
     delete process.env.TLS_CERT_PATH;
     delete process.env.TLS_CA_PATH;
 
-    validateEnv(BaseEnvSchema);
-    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(() => validateEnv(BaseEnvSchema)).toThrow(AppError);
 
     zod.z.treeifyError = origTreeifyError;
+  });
+});
+
+describe('AddressManagerEnvSchema — DNS_NAME_MAP', () => {
+  const OLD_ENV = process.env;
+
+  beforeEach(() => {
+    jest.restoreAllMocks();
+    process.env = { ...OLD_ENV };
+  });
+
+  afterEach(() => {
+    process.env = OLD_ENV;
+    jest.restoreAllMocks();
+  });
+
+  it('should default to empty object when DNS_NAME_MAP is not set', () => {
+    delete process.env.DNS_NAME_MAP;
+    process.env.APP_NAME = 'test';
+    process.env.SERVICE_NAME = 'test';
+    process.env.INSTANCE_ID = 'test';
+    process.env.ADDRESS_MANAGER_URL = 'http://localhost';
+
+    const result = validateEnv(AddressManagerEnvSchema);
+    expect(result.DNS_NAME_MAP).toEqual({});
+  });
+
+  it('should parse valid JSON object from DNS_NAME_MAP', () => {
+    process.env.DNS_NAME_MAP = '{"discovery-service":"discovery-server"}';
+    process.env.APP_NAME = 'test';
+    process.env.SERVICE_NAME = 'test';
+    process.env.INSTANCE_ID = 'test';
+    process.env.ADDRESS_MANAGER_URL = 'http://localhost';
+
+    const result = validateEnv(AddressManagerEnvSchema);
+    expect(result.DNS_NAME_MAP).toEqual({
+      'discovery-service': 'discovery-server',
+    });
+  });
+
+  it('should fall back to empty object on invalid JSON', () => {
+    process.env.DNS_NAME_MAP = '{invalid-json}';
+    process.env.APP_NAME = 'test';
+    process.env.SERVICE_NAME = 'test';
+    process.env.INSTANCE_ID = 'test';
+    process.env.ADDRESS_MANAGER_URL = 'http://localhost';
+
+    const result = validateEnv(AddressManagerEnvSchema);
+    expect(result.DNS_NAME_MAP).toEqual({});
+  });
+
+  it('should fall back to empty object when JSON is not an object', () => {
+    process.env.DNS_NAME_MAP = '"just a string"';
+    process.env.APP_NAME = 'test';
+    process.env.SERVICE_NAME = 'test';
+    process.env.INSTANCE_ID = 'test';
+    process.env.ADDRESS_MANAGER_URL = 'http://localhost';
+
+    const result = validateEnv(AddressManagerEnvSchema);
+    expect(result.DNS_NAME_MAP).toEqual({});
+  });
+
+  it('should fall back to empty object when JSON is an array', () => {
+    process.env.DNS_NAME_MAP = '["a","b"]';
+    process.env.APP_NAME = 'test';
+    process.env.SERVICE_NAME = 'test';
+    process.env.INSTANCE_ID = 'test';
+    process.env.ADDRESS_MANAGER_URL = 'http://localhost';
+
+    const result = validateEnv(AddressManagerEnvSchema);
+    expect(result.DNS_NAME_MAP).toEqual({});
   });
 });

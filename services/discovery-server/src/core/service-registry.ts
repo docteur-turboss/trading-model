@@ -1,4 +1,4 @@
-import { createHmac } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 import { generateRandomStr } from '@trading-model/common/crypto/random';
@@ -41,8 +41,13 @@ export class ServiceRegistry {
    * Tokens are stored separately to allow rotation and validation
    * without mutating the instance metadata.
    */
+  private readonly signingSecret: string;
   private services: Map<string, Map<string, ServiceInstance>> = new Map();
   private token: Map<string, string> = new Map();
+
+  constructor(signingSecret?: string) {
+    this.signingSecret = signingSecret ?? randomBytes(32).toString('hex');
+  }
 
   /**
    * -------------------------
@@ -148,9 +153,9 @@ export class ServiceRegistry {
    *
    * The previously issued token is immediately invalidated.
    */
-  updateToken(serviceId: string): string {
-    const newToken = this.generateInstanceToken(serviceId);
-    this.token.set(serviceId, newToken);
+  updateToken(instanceId: string): string {
+    const newToken = this.generateInstanceToken(instanceId);
+    this.token.set(instanceId, newToken);
     return newToken;
   }
 
@@ -249,21 +254,30 @@ export class ServiceRegistry {
    * Generates a cryptographically strong instance token.
    *
    * Token format:
-   *   <instanceId>.<timestamp>.<hmac>
+   *   <base64(instanceId)>.<base64(timestamp)>.<base64(nonce)>.<hmac>
+   *
+   * - instanceId identifies the service instance
+   * - timestamp records when the token was issued (base64-encoded)
+   * - nonce is a cryptographically random string ensuring uniqueness
+   * - hmac is an HMAC-SHA256 of the three fields above, keyed with the
+   *   fixed server-side signing secret
+   *
+   * The HMAC makes token forgery infeasible without access to the secret.
    *
    * This token is used for:
    * - heartbeat authentication
    * - token rotation
    */
-  generateInstanceToken(serviceId: string): string {
-    const randomSeed = generateRandomStr();
-    const time = Buffer.from(`${Date.now()}`, 'utf8').toString('base64url');
+  generateInstanceToken(instanceId: string): string {
+    const encodedId = Buffer.from(instanceId, 'utf8').toString('base64url');
+    const timestamp = Buffer.from(`${Date.now()}`, 'utf8').toString('base64url');
+    const nonce = generateRandomStr();
 
-    const hmac = createHmac('sha256', generateRandomStr())
-      .update(`${serviceId}.${time}.${randomSeed}`)
-      .digest('base64');
+    const hmac = createHmac('sha256', this.signingSecret)
+      .update(`${encodedId}.${timestamp}.${nonce}`)
+      .digest('base64url');
 
-    return `${serviceId}.${time}.${hmac}`;
+    return `${encodedId}.${timestamp}.${nonce}.${hmac}`;
   }
 
   /**
@@ -279,11 +293,38 @@ export class ServiceRegistry {
   }
 
   /**
-   * Validates an instance token.
+   * Validates an instance token by verifying its HMAC signature and
+   * comparing against the stored token for revocation detection.
+   *
+   * Two-layer validation:
+   * 1. HMAC verification — ensures the token was signed by this server
+   *    (prevents forged tokens even if the token map is compromised)
+   * 2. Stored token comparison — detects revoked tokens after rotation
+   *    (an old token is cryptographically valid but no longer authorized)
    *
    * Used by protected endpoints (heartbeat, token rotation).
    */
   validInstanceToken(token: string, instanceId: string): boolean {
+    const parts = token.split('.');
+    if (parts.length !== 4) return false;
+
+    const [encodedId, timestamp, nonce, signature] = parts;
+
+    const decodedId = Buffer.from(encodedId, 'base64url').toString('utf8');
+    if (decodedId !== instanceId) return false;
+
+    const expectedHmac = createHmac('sha256', this.signingSecret)
+      .update(`${encodedId}.${timestamp}.${nonce}`)
+      .digest('base64url');
+
+    try {
+      if (!timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(signature))) {
+        return false;
+      }
+    } catch {
+      return false;
+    }
+
     const storedToken = this.token.get(instanceId);
     return storedToken === token;
   }
@@ -298,8 +339,3 @@ export class ServiceRegistry {
     return Object.values(ServiceInstanceName as unknown as string).includes(serviceName);
   }
 }
-
-/**
- * Singleton registry instance used across the application.
- */
-export const registry = new ServiceRegistry();

@@ -135,59 +135,48 @@ export function encodeGenome(g: Genome): Float32Array {
 // decodeGenome
 // ----------------------------------------------------------------
 
-/**
- * Reconstruct a Genome from its encoded vector.
- *
- * A `template` genome provides identity/meta fields (id, generation,
- * crossover, gaControl) that are not encoded in the vector.
- *
- * Decoded numeric values are clamped to valid ranges.
- * Categorical fields are resolved by argmax of the one-hot block;
- * ties are broken by index order.
- */
-export function decodeGenome(vec: Float32Array, template: Genome): Genome {
-  if (vec.length !== ENCODED_DIM) {
-    throw new Error(`decodeGenome: expected vector of length ${ENCODED_DIM}, got ${vec.length}`);
-  }
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
 
-  function clamp(v: number, lo: number, hi: number) {
-    return Math.max(lo, Math.min(hi, v));
+function argmax(arr: Float32Array, start: number, len: number): number {
+  let best = start;
+  for (let i = start + 1; i < start + len; i++) {
+    if (arr[i] > arr[best]) best = i;
   }
-  function argmax(arr: Float32Array, start: number, len: number): number {
-    let best = start;
-    for (let i = start + 1; i < start + len; i++) {
-      if (arr[i] > arr[best]) best = i;
-    }
-    return best - start;
-  }
+  return best - start;
+}
 
-  // ---- Scalars ----
-  const gamma = clamp(vec[0], 0.8, 0.9999);
-  const learningRate = clamp(10 ** ((vec[1] - 1) * 6), 1e-6, 1e-1);
-  const clipMin = vec[2];
-  const clipMax = vec[3];
-  const scaleFactor = clamp(10 ** ((vec[4] - 1) * 3), 0.001, 1000);
-  const maxEpisodeLength = clamp(Math.round(vec[5] * 2_000), 10, 20_000);
-  const nStepReturn = clamp(Math.round(vec[6] * 20), 1, 20);
-  const frameSkip = clamp(Math.round(vec[7] * 10), 1, 10);
-  const epsilonStart = clamp(vec[8], 0.1, 1.0);
-  const epsilonMin = clamp(vec[9] * 0.2, 0.001, 0.2);
-  const epsilonDecay = clamp(vec[10], 0.9, 0.9999);
-  const temperature = clamp(10 ** ((vec[11] - 0.5) * 2), 0.01, 100);
-  const noiseStd = clamp(vec[12] * 5, 0.001, 5);
-  const noiseDecay = clamp(vec[13], 0.9, 0.9999);
-  const bufferSize = clamp(Math.round(10 ** (vec[14] * 6)), 100, 1_000_000);
-  const alphaPER = clamp(vec[15], 0, 1);
-  const betaPER = clamp(vec[16], 0, 1);
-  const mutationRate = clamp(vec[17] * 0.5, 0.001, 0.5);
-  const sigma = clamp(10 ** ((vec[18] - 1.25) * 4), 1e-5, 10);
-  const selfSigma = clamp(10 ** ((vec[19] - 1.25) * 4), 1e-5, 10);
-  const inputDim = clamp(Math.round(vec[20] * 256), 1, 256);
-  const outputDim = clamp(Math.round(vec[21] * 64), 1, 64);
-  const depth = clamp(Math.round(vec[22] * MAX_DEPTH), 1, MAX_DEPTH);
+function decodeScalars(vec: Float32Array) {
+  return {
+    gamma: clamp(vec[0], 0.8, 0.9999),
+    learningRate: clamp(10 ** ((vec[1] - 1) * 6), 1e-6, 1e-1),
+    clipMin: vec[2],
+    clipMax: vec[3],
+    scaleFactor: clamp(10 ** ((vec[4] - 1) * 3), 0.001, 1000),
+    maxEpisodeLength: clamp(Math.round(vec[5] * 2_000), 10, 20_000),
+    nStepReturn: clamp(Math.round(vec[6] * 20), 1, 20),
+    frameSkip: clamp(Math.round(vec[7] * 10), 1, 10),
+    epsilonStart: clamp(vec[8], 0.1, 1.0),
+    epsilonMin: clamp(vec[9] * 0.2, 0.001, 0.2),
+    epsilonDecay: clamp(vec[10], 0.9, 0.9999),
+    temperature: clamp(10 ** ((vec[11] - 0.5) * 2), 0.01, 100),
+    noiseStd: clamp(vec[12] * 5, 0.001, 5),
+    noiseDecay: clamp(vec[13], 0.9, 0.9999),
+    bufferSize: clamp(Math.round(10 ** (vec[14] * 6)), 100, 1_000_000),
+    alphaPER: clamp(vec[15], 0, 1),
+    betaPER: clamp(vec[16], 0, 1),
+    mutationRate: clamp(vec[17] * 0.5, 0.001, 0.5),
+    sigma: clamp(10 ** ((vec[18] - 1.25) * 4), 1e-5, 10),
+    selfSigma: clamp(10 ** ((vec[19] - 1.25) * 4), 1e-5, 10),
+    inputDim: clamp(Math.round(vec[20] * 256), 1, 256),
+    outputDim: clamp(Math.round(vec[21] * 64), 1, 64),
+    depth: clamp(Math.round(vec[22] * MAX_DEPTH), 1, MAX_DEPTH),
+  };
+}
 
-  // ---- Layers ----
-  const hiddenLayers = [];
+function decodeLayers(vec: Float32Array, depth: number, template: Genome) {
+  const hiddenLayers: Genome['network']['hiddenLayers'] = [];
   const layerOffset = SCALAR_DIM;
 
   for (let i = 0; i < depth; i++) {
@@ -203,6 +192,26 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
       biasType: template.network.hiddenLayers[i]?.biasType ?? 'zeros',
     });
   }
+  return hiddenLayers;
+}
+
+/**
+ * Reconstruct a Genome from its encoded vector.
+ *
+ * A `template` genome provides identity/meta fields (id, generation,
+ * crossover, gaControl) that are not encoded in the vector.
+ *
+ * Decoded numeric values are clamped to valid ranges.
+ * Categorical fields are resolved by argmax of the one-hot block;
+ * ties are broken by index order.
+ */
+export function decodeGenome(vec: Float32Array, template: Genome): Genome {
+  if (vec.length !== ENCODED_DIM) {
+    throw new Error(`decodeGenome: expected vector of length ${ENCODED_DIM}, got ${vec.length}`);
+  }
+
+  const s = decodeScalars(vec);
+  const hiddenLayers = decodeLayers(vec, s.depth, template);
 
   return {
     id: template.id,
@@ -210,49 +219,53 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
     fitness: template.fitness,
 
     network: {
-      inputDim,
-      outputDim,
+      inputDim: s.inputDim,
+      outputDim: s.outputDim,
       hiddenLayers,
       normalization: template.network.normalization,
     },
 
     rl: {
-      gamma,
-      learningRate,
+      gamma: s.gamma,
+      learningRate: s.learningRate,
       rewardShaping: {
         ...template.rl.rewardShaping,
-        clipMin: Math.min(clipMin, clipMax - 1e-6),
-        clipMax: Math.max(clipMax, clipMin + 1e-6),
-        scaleFactor,
+        clipMin: Math.min(s.clipMin, s.clipMax - 1e-6),
+        clipMax: Math.max(s.clipMax, s.clipMin + 1e-6),
+        scaleFactor: s.scaleFactor,
       },
-      horizon: { maxEpisodeLength, nStepReturn, frameSkip },
+      horizon: {
+        maxEpisodeLength: s.maxEpisodeLength,
+        nStepReturn: s.nStepReturn,
+        frameSkip: s.frameSkip,
+      },
       discretePolicy: {
         ...template.rl.discretePolicy,
-        epsilonStart,
-        epsilonMin,
-        epsilonDecay,
-        temperature,
+        epsilonStart: s.epsilonStart,
+        epsilonMin: s.epsilonMin,
+        epsilonDecay: s.epsilonDecay,
+        temperature: s.temperature,
       },
       continuousPolicy: {
         ...template.rl.continuousPolicy,
-        noiseStd,
-        noiseDecay,
+        noiseStd: s.noiseStd,
+        noiseDecay: s.noiseDecay,
         clipMin: template.rl.continuousPolicy.clipMin,
         clipMax: template.rl.continuousPolicy.clipMax,
       },
       replayBuffer: {
         ...template.rl.replayBuffer,
-        bufferSize,
-        alphaPER,
-        betaPER,
+        bufferSize: s.bufferSize,
+        alphaPER: s.alphaPER,
+        betaPER: s.betaPER,
       },
     },
 
     mutation: {
       ...template.mutation,
-      rate: mutationRate,
-      sigma,
-      selfSigma,
+      rate: s.mutationRate,
+      sigma: s.sigma,
+      selfSigma: s.selfSigma,
     },
 
     crossover: { ...template.crossover },

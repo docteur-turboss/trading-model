@@ -15,7 +15,7 @@ describe('Broker Schemas', () => {
         topic: 'test.topic',
         callbackPath: 'message/callback',
         consumerIdentity: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
       });
@@ -28,7 +28,7 @@ describe('Broker Schemas', () => {
         topic: '',
         callbackPath: 'message/callback',
         consumerIdentity: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
       });
@@ -40,7 +40,7 @@ describe('Broker Schemas', () => {
       const result = SubscribeSchema.safeParse({
         topic: 'test.topic',
         consumerIdentity: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
       });
@@ -89,7 +89,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
       });
@@ -105,7 +105,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
         routing: {
@@ -118,7 +118,11 @@ describe('Broker Schemas', () => {
           deduplicationId: 'dedup-789',
         },
         security: {
-          authContext: { user: 'test' },
+          authContext: {
+            subject: 'test-subject',
+            roles: ['admin', 'user'],
+            tenantId: 'tenant-1',
+          },
           signature: 'sig-abc',
         },
       });
@@ -126,12 +130,29 @@ describe('Broker Schemas', () => {
       expect(result.success).toBe(true);
     });
 
+    it('should reject authContext with invalid shape', () => {
+      const result = PublishMetadataSchema.safeParse({
+        schemaVersion: '1.0',
+        eventType: 'TestEvent',
+        topic: 'test.topic',
+        publisher: {
+          serviceName: ServiceInstanceName.FinancialScraperService,
+          instanceId: 'instance-1',
+        },
+        security: {
+          authContext: { user: 'test' },
+        },
+      });
+
+      expect(result.success).toBe(false);
+    });
+
     it('should reject missing schemaVersion', () => {
       const result = PublishMetadataSchema.safeParse({
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
       });
@@ -145,7 +166,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
         delivery: {
@@ -162,7 +183,7 @@ describe('Broker Schemas', () => {
         eventType: 'TestEvent',
         topic: 'test.topic',
         publisher: {
-          serviceName: ServiceInstanceName.FinancialScrapperService,
+          serviceName: ServiceInstanceName.FinancialScraperService,
           instanceId: 'instance-1',
         },
         delivery: {
@@ -184,7 +205,7 @@ describe('Broker Schemas', () => {
           eventType: 'TestEvent',
           topic: 'test.topic',
           publisher: {
-            serviceName: ServiceInstanceName.FinancialScrapperService,
+            serviceName: ServiceInstanceName.FinancialScraperService,
             instanceId: 'instance-1',
           },
         },
@@ -201,7 +222,7 @@ describe('Broker Schemas', () => {
           eventType: 'TestEvent',
           topic: 'test.topic',
           publisher: {
-            serviceName: ServiceInstanceName.FinancialScrapperService,
+            serviceName: ServiceInstanceName.FinancialScraperService,
             instanceId: 'instance-1',
           },
         },
@@ -217,7 +238,7 @@ describe('Broker Schemas', () => {
           eventType: 'TestEvent',
           topic: 'test.topic',
           publisher: {
-            serviceName: ServiceInstanceName.FinancialScrapperService,
+            serviceName: ServiceInstanceName.FinancialScraperService,
             instanceId: 'instance-1',
           },
         },
