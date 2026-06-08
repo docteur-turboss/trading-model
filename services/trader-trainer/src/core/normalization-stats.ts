@@ -13,23 +13,19 @@ export class NormalizationStats {
     this.m2 += delta * delta2;
   }
 
-  /** Return the running mean. */
   getMean(): number {
     return this.mean;
   }
 
-  /** Return the running mean (getter). */
   get mu(): number {
     return this.mean;
   }
 
-  /** Return the running sample standard deviation. */
   getStd(): number {
     if (this.count < 2) return 0;
     return Math.sqrt(this.m2 / (this.count - 1));
   }
 
-  /** Return the running sample standard deviation (getter). */
   get std(): number {
     return this.getStd();
   }

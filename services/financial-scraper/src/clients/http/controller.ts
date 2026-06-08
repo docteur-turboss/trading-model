@@ -34,7 +34,7 @@ function createController<T>(schema: z.ZodSchema<T>, fetcher: (params: T) => Pro
     } catch (e) {
       if (e instanceof Error && e.message.includes('No result returned'))
         return sendResponse({ error: 'No data found' }, 404);
-      throw e;
+      throw e instanceof Error ? e : new Error(String(e));
     }
   });
 }

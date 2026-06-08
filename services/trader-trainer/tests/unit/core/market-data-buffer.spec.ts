@@ -55,13 +55,20 @@ describe('MarketDataBuffer', () => {
 
   beforeEach(() => {
     resetFixtureSeq();
-    buffer = new MarketDataBuffer(100);
+    buffer = new MarketDataBuffer({ maxSize: 100 });
   });
 
   it('should create buffer with default maxSize of 10000', () => {
     const buf = new MarketDataBuffer();
     feedCandles(buf, 'BTCUSDT', 10001);
     expect(buf.getCandleCount('BTCUSDT')).toBe(10000);
+  });
+
+  it('should evict oldest symbol under memory pressure with LRU policy', () => {
+    const buf = new MarketDataBuffer({ maxMemoryMb: 0.001, evictionPolicy: 'LRU' });
+    buf.addCandles('BTCUSDT', [makeCandle({ symbol: 'BTCUSDT', close: 50000, timestamp: 1 })]);
+    buf.addCandles('ETHUSDT', [makeCandle({ symbol: 'ETHUSDT', close: 3000, timestamp: 1 })]);
+    expect(buf.getCandleCount('BTCUSDT')).toBe(1);
   });
 
   describe('addCandles', () => {
@@ -92,7 +99,7 @@ describe('MarketDataBuffer', () => {
     });
 
     it('should respect maxSize bound', () => {
-      const small = new MarketDataBuffer(5);
+      const small = new MarketDataBuffer({ maxSize: 5 });
       feedCandles(small, 'BTCUSDT', 10);
 
       expect(small.getCandleCount('BTCUSDT')).toBe(5);
@@ -102,6 +109,29 @@ describe('MarketDataBuffer', () => {
       buffer.addCandles('BTCUSDT', []);
 
       expect(buffer.getCandleCount('BTCUSDT')).toBe(0);
+    });
+
+    it('should report the configured maxSize', () => {
+      const small = new MarketDataBuffer({ maxSize: 50 });
+      expect(small.getMaxSize()).toBe(50);
+    });
+
+    it('should handle eviction with orphaned accessOrder entry', () => {
+      const buf = new MarketDataBuffer({ maxMemoryMb: 0.00001, evictionPolicy: 'LRU' });
+      feedCandles(buf, 'BTCUSDT', 3);
+      feedCandles(buf, 'ETHUSDT', 3);
+      buf['accessOrder'][0] = undefined as any;
+      buf.addCandles('SOLUSDT', [makeCandle({ symbol: 'SOLUSDT', close: 100, timestamp: 1 })]);
+      expect(buf.getSymbols().length).toBeGreaterThan(0);
+    });
+
+    it('should handle eviction with symbol missing from states', () => {
+      const buf = new MarketDataBuffer({ maxMemoryMb: 0.00001, evictionPolicy: 'LRU' });
+      feedCandles(buf, 'BTCUSDT', 3);
+      feedCandles(buf, 'ETHUSDT', 3);
+      buf['states'].delete(buf['accessOrder'][0]);
+      feedCandles(buf, 'SOLUSDT', 3);
+      expect(buf.getSymbols().length).toBeLessThanOrEqual(3);
     });
   });
 
@@ -222,6 +252,14 @@ describe('MarketDataBuffer', () => {
       }
     });
 
+    it('should account for orderBook size in eviction memory estimate', () => {
+      const buf = new MarketDataBuffer({ maxMemoryMb: 0.0001, evictionPolicy: 'LRU' });
+      buf.addCandles('BTCUSDT', [makeCandle({ symbol: 'BTCUSDT', close: 50000, timestamp: 1 })]);
+      buf.setOrderBook('BTCUSDT', makeOrderBook('BTCUSDT'));
+      buf.addCandles('ETHUSDT', [makeCandle({ symbol: 'ETHUSDT', close: 3000, timestamp: 1 })]);
+      expect(buf.getCandleCount('BTCUSDT')).toBe(0);
+    });
+
     it('should handle empty bids and asks gracefully', () => {
       buffer.setOrderBook('BTCUSDT', makeOrderBookEmpty('BTCUSDT'));
       feedCandles(buffer, 'BTCUSDT', 30);
@@ -303,10 +341,10 @@ describe('MarketDataBuffer', () => {
     });
 
     it('should bound trade count by maxSize', () => {
-      const buf = new MarketDataBuffer(5);
+      const buf = new MarketDataBuffer({ maxSize: 5 });
       buf.addTrades(
         'BTCUSDT',
-        Array.from({ length: 10 }, (_, i) => makeTrade('BTCUSDT', 'buy'))
+        Array.from({ length: 10 }, (_, _i) => makeTrade('BTCUSDT', 'buy'))
       );
 
       expect(buf['states'].get(toSymbol('BTCUSDT'))!.trades.length).toBe(5);

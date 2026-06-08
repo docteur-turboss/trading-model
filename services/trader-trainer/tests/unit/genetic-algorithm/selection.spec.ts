@@ -1,10 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { selectParent } from '../../../src/core/genetic-algorithm/selection';
 import { createDefaultGenome } from '../../../src/core/genetic-algorithm/factory';
-import type {
-  LamarckGenome,
-  SelectionType,
-} from '../../../src/core/genetic-algorithm/genome-types';
+import type { LamarckGenome } from '../../../src/core/genetic-algorithm/genome-types';
 
 function makePopulation(): LamarckGenome[] {
   const pop: LamarckGenome[] = [];

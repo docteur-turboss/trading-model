@@ -4,6 +4,17 @@ import { URL } from 'url';
 
 import { z } from 'zod';
 
+function readTlsFile(filePath: string, label: string): string {
+  try {
+    fs.accessSync(filePath, fs.constants.R_OK);
+    return fs.readFileSync(filePath, 'utf8');
+  } catch (err) {
+    const original = err instanceof Error ? err : new Error(String(err));
+    original.message = `Failed to read TLS ${label} from "${filePath}": ${original.message}`;
+    throw original;
+  }
+}
+
 /**
  * HttpClient
  *
@@ -18,9 +29,9 @@ export class HttpClient {
    * @param tlsConfig - Optional paths to TLS certificate files loaded at construction.
    */
   constructor(tlsConfig?: { ca?: string; cert?: string; key?: string }) {
-    if (tlsConfig?.ca) this.ca = fs.readFileSync(tlsConfig.ca, 'utf8');
-    if (tlsConfig?.cert) this.cert = fs.readFileSync(tlsConfig.cert, 'utf8');
-    if (tlsConfig?.key) this.key = fs.readFileSync(tlsConfig.key, 'utf8');
+    if (tlsConfig?.ca) this.ca = readTlsFile(tlsConfig.ca, 'CA certificate');
+    if (tlsConfig?.cert) this.cert = readTlsFile(tlsConfig.cert, 'client certificate');
+    if (tlsConfig?.key) this.key = readTlsFile(tlsConfig.key, 'client key');
   }
 
   /**
@@ -59,6 +70,20 @@ export class HttpClient {
     schema?: z.ZodType<T>
   ): Promise<T | undefined> {
     return this.request<T>('DELETE', url, body, options, schema);
+  }
+
+  /**
+   * Creates an HttpClient configured with TLS certificates.
+   *
+   * Centralises the three-file mapping that was previously duplicated
+   * across address-manager, broker-message, and message-manager.
+   */
+  static createWithTls(certPaths: TlsClientPaths): HttpClient {
+    return new HttpClient({
+      ca: certPaths.RootCACertPath,
+      cert: certPaths.CertificatPath,
+      key: certPaths.KeyCertificatPath,
+    });
   }
 
   private async request<T>(
@@ -103,35 +128,33 @@ export class HttpClient {
 
           try {
             if (contentType.startsWith('application/json')) {
-              const parsed = JSON.parse(data);
+              // JSON.parse returns any, which is directly assignable to T via as T
+              const parsed: unknown = JSON.parse(data);
               resolve(schema ? schema.parse(parsed) : (parsed as T));
             } else {
-              resolve(schema ? schema.parse(data) : (data as unknown as T));
+              // non-JSON body (plain text) — must go through unknown because
+              // string is not guaranteed assignable to generic T
+              const parsed: unknown = data;
+              resolve(schema ? schema.parse(parsed) : (parsed as T));
             }
           } catch (err) {
-            reject(err);
+            reject(err instanceof Error ? err : new Error(String(err)));
           }
         });
       });
 
       req.on('error', err => reject(err));
 
-      if (options?.timeoutMs) {
-        const onTimeout = () => {
-          req.destroy();
-          reject(
-            new HttpClientTimeoutError(
-              `Request timed out after ${options.timeoutMs}ms`,
-              options.timeoutMs!
-            )
-          );
-        };
-        req.setTimeout(options.timeoutMs, onTimeout);
-        req.on('close', () => {
-          if (req.destroyed) return;
-          req.removeListener('timeout', onTimeout);
-        });
-      }
+      const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+      const onTimeout = () => {
+        req.destroy();
+        reject(new HttpClientTimeoutError(`Request timed out after ${timeoutMs}ms`, timeoutMs));
+      };
+      req.setTimeout(timeoutMs, onTimeout);
+      req.on('close', () => {
+        if (req.destroyed) return;
+        req.removeListener('timeout', onTimeout);
+      });
 
       if (body) req.write(JSON.stringify(body));
 
@@ -139,6 +162,8 @@ export class HttpClient {
     });
   }
 }
+
+const DEFAULT_TIMEOUT_MS = 5_000;
 
 type HttpMethod = 'GET' | 'POST' | 'DELETE';
 
@@ -161,6 +186,15 @@ export class HttpClientError extends Error {
     this.statusCode = statusCode;
     Object.setPrototypeOf(this, new.target.prototype);
   }
+}
+
+/**
+ * Standard TLS certificate paths used by all services.
+ */
+export interface TlsClientPaths {
+  RootCACertPath: string;
+  CertificatPath: string;
+  KeyCertificatPath: string;
 }
 
 /** Thrown when an HTTP request exceeds the configured timeout. */

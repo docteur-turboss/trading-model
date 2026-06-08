@@ -20,7 +20,7 @@ export const SourceType = {
 export type SourceType = (typeof SourceType)[keyof typeof SourceType];
 
 /** Common fields shared by all market data entities. */
-export interface BaseMarketEntity {
+export interface BaseMarketData {
   symbol: string;
   source: SourceType;
   timestamp: number;
@@ -28,7 +28,7 @@ export interface BaseMarketEntity {
 }
 
 /** Represents a single OHLCV candlestick data point. */
-export interface CandleEntity extends BaseMarketEntity {
+export interface CandleData extends BaseMarketData {
   open: number;
   high: number;
   low: number;
@@ -40,7 +40,7 @@ export interface CandleEntity extends BaseMarketEntity {
 }
 
 /** Represents an executed trade on a market. */
-export interface TradeEntity extends BaseMarketEntity {
+export interface TradeData extends BaseMarketData {
   price: number;
   tradeId: bigint;
   quantity: number;
@@ -48,13 +48,13 @@ export interface TradeEntity extends BaseMarketEntity {
 }
 
 /** Snapshot of the order book depth at a point in time. */
-export interface OrderBookEntity extends BaseMarketEntity {
+export interface OrderBookData extends BaseMarketData {
   bids: Set<{ price: number; quantity: number }>;
   asks: Set<{ price: number; quantity: number }>;
 }
 
 /** Best bid / ask ticker snapshot. */
-export interface BookTickerEntity extends BaseMarketEntity {
+export interface BookTickerData extends BaseMarketData {
   bidQty: number;
   askQty: number;
   bid: number;
@@ -62,7 +62,7 @@ export interface BookTickerEntity extends BaseMarketEntity {
 }
 
 /** 24-hour price ticker statistics. */
-export interface TickerEntity extends BaseMarketEntity {
+export interface TickerData extends BaseMarketData {
   low: number;
   open: number;
   high: number;
@@ -72,7 +72,7 @@ export interface TickerEntity extends BaseMarketEntity {
 }
 
 /** Compute a price-weighted average bid from an order book. */
-export function getAvgBid(orderBook: OrderBookEntity): number {
+export function getAvgBid(orderBook: OrderBookData): number {
   let totalQty = 0;
   let totalValue = 0;
   for (const { price, quantity } of orderBook.bids) {
@@ -83,7 +83,7 @@ export function getAvgBid(orderBook: OrderBookEntity): number {
 }
 
 /** Compute a price-weighted average ask from an order book. */
-export function getAvgAsk(orderBook: OrderBookEntity): number {
+export function getAvgAsk(orderBook: OrderBookData): number {
   let totalQty = 0;
   let totalValue = 0;
   for (const { price, quantity } of orderBook.asks) {
@@ -94,7 +94,7 @@ export function getAvgAsk(orderBook: OrderBookEntity): number {
 }
 
 /** Total quantity available on the bid side of an order book. */
-export function getBidTotalQty(orderBook: OrderBookEntity): number {
+export function getBidTotalQty(orderBook: OrderBookData): number {
   let total = 0;
   for (const { quantity } of orderBook.bids) {
     total += quantity;
@@ -103,7 +103,7 @@ export function getBidTotalQty(orderBook: OrderBookEntity): number {
 }
 
 /** Total quantity available on the ask side of an order book. */
-export function getAskTotalQty(orderBook: OrderBookEntity): number {
+export function getAskTotalQty(orderBook: OrderBookData): number {
   let total = 0;
   for (const { quantity } of orderBook.asks) {
     total += quantity;
@@ -129,12 +129,12 @@ type EventMessage = (typeof EnumEventMessage)[keyof typeof EnumEventMessage];
 export type EventMap = {
   [EnumEventMessage.testEvent]: { debug: boolean };
   [EnumEventMessage.exampleEvent]: void;
-  [EnumEventMessage.fetchRecentTrades]: { trades: TradeEntity[] };
-  [EnumEventMessage.fetch24hrTickerStats]: { ticker: TickerEntity[] };
-  [EnumEventMessage.fetchCandlestickSeries]: { candle: CandleEntity[] };
-  [EnumEventMessage.fetchOrderBookSnapshot]: { orderBook: OrderBookEntity[] };
+  [EnumEventMessage.fetchRecentTrades]: { trades: TradeData[] };
+  [EnumEventMessage.fetch24hrTickerStats]: { ticker: TickerData[] };
+  [EnumEventMessage.fetchCandlestickSeries]: { candle: CandleData[] };
+  [EnumEventMessage.fetchOrderBookSnapshot]: { orderBook: OrderBookData[] };
   [EnumEventMessage.fetchPriceTickerSnapshot]: { price: Record<string, number> };
-  [EnumEventMessage.fetchOrderBookTickerSnapshot]: { bookTicker: BookTickerEntity[] };
+  [EnumEventMessage.fetchOrderBookTickerSnapshot]: { bookTicker: BookTickerData[] };
 };
 
 /** Extracts the payload type for a given event message. */

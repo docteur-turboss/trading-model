@@ -2,6 +2,7 @@ import ChainedError from 'chained-error';
 
 import { ResponseException, HTTP_CODE } from './response-exception';
 import { logger } from '../config/logger';
+import { normalizeError } from '../utils/errors';
 
 type fileHandle =
   | 'auth'
@@ -74,7 +75,7 @@ export const handleDBError = (file: string) => (e: unknown) => {
     }
   }
 
-  logger.error(`${file}.models.ts`, { err: e });
+  logger.error('Model operation failed', { file, err: normalizeError(e) });
   throw e;
 };
 
@@ -120,7 +121,7 @@ export const handleCoreError = (
 ): [string, string] | never => {
   if (e instanceof Error && mapping[e.message]) return mapping[e.message];
 
-  logger.error(`${file}.core.ts`, { err: e, context });
+  logger.error('Core operation failed', { file, context, err: normalizeError(e) });
   throw e;
 };
 

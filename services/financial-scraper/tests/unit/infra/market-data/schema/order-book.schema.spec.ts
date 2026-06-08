@@ -6,7 +6,7 @@ import {
 } from '../../../../../src/infra/market-data/schema/order-book.schema';
 
 // The Zod schema in the source validates against arrays + Date,
-// not the OrderBookEntity TS type (Set + number).
+// not the OrderBookData TS type (Set + number).
 const makeBook = (overrides: Record<string, unknown> = {}) => ({
   symbol: 'BTCUSDT',
   source: 'binance',

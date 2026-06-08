@@ -98,8 +98,7 @@ export type ResponseCodeValue = (typeof ResponseCodes)[ResponseCodeKey];
  * // returns: { status: 401, data: "Invalid token" }
  */
 export class ClassResponseExceptions extends Error {
-  /** The reason or message describing the response/error */
-  reason: string;
+  readonly reason: string;
 
   /**
    * Creates a new instance of ClassResponseExceptions.
@@ -111,87 +110,70 @@ export class ClassResponseExceptions extends Error {
     this.reason = typeof reason === 'string' ? reason : JSON.stringify(reason);
   }
 
-  /** Returns a 503 Service Unavailable response object. */
   ServiceUnavailable() {
     return { status: ResponseCodes.ServiceUnavailable, data: this.reason };
   }
 
-  /** Returns a 500 Unknown Error response object */
   UnknownError() {
     return { status: ResponseCodes.UnknownError, data: this.reason };
   }
 
-  /** Returns a 498 Invalid Token response object */
   InvalidToken() {
     return { status: ResponseCodes.InvalidToken, data: this.reason };
   }
 
-  /** Returns a 429 Too Many Requests response object */
   TooManyRequests() {
     return { status: ResponseCodes.TooManyRequests, data: this.reason };
   }
 
-  /** Returns a 418 I'm a Teapot response object */
   IMATeapot() {
     return { status: ResponseCodes.IMATeapot, data: this.reason };
   }
 
-  /** Returns a 413 Payload Too Large response object */
   PayloadTooLarge() {
     return { status: ResponseCodes.PayloadTooLarge, data: this.reason };
   }
 
-  /** Returns a 410 Gone response object */
   Gone() {
     return { status: ResponseCodes.Gone, data: this.reason };
   }
 
-  /** Returns a 409 Conflict response object */
   Conflict() {
     return { status: ResponseCodes.Conflict, data: this.reason };
   }
 
-  /** Returns a 404 Not Found response object */
   NotFound() {
     return { status: ResponseCodes.NotFound, data: this.reason };
   }
 
-  /** Returns a 405 Method Not Allowed response object */
   MethodNotAllowed() {
     return { status: ResponseCodes.MethodNotAllowed, data: this.reason };
   }
 
-  /** Returns a 403 Forbidden response object */
   Forbidden() {
     return { status: ResponseCodes.Forbidden, data: this.reason };
   }
 
-  /** Returns a 402 Payment Required response object */
   PaymentRequired() {
     return { status: ResponseCodes.PaymentRequired, data: this.reason };
   }
 
-  /** Returns a 401 Unauthorized response object */
   Unauthorized() {
     return { status: ResponseCodes.Unauthorized, data: this.reason };
   }
 
-  /** Returns a 400 Bad Request response object */
   BadRequest() {
     return { status: ResponseCodes.BadRequest, data: this.reason };
   }
 
-  /** Returns a 204 No Content response object. */
   NoContent() {
     return { status: ResponseCodes.NoContent, data: undefined };
   }
 
-  /** Returns a 201 OK response object */
   OK() {
     return { status: ResponseCodes.OK, data: this.reason };
   }
 
-  /** Returns a 200 Success response object */
   Success() {
     return { status: ResponseCodes.Success, data: this.reason };
   }

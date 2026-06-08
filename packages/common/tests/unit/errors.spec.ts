@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { AppError, ErrorCodes } from '../../src/utils/errors';
+import { AppError, ErrorCodes, normalizeError } from '../../src/utils/errors';
 
 describe('AppError', () => {
   it('should be constructable with message and code', () => {
@@ -118,5 +118,30 @@ describe('AppError', () => {
     const error = new AppError('ML failure', ErrorCodes.AGENT_ERROR);
     expect(error.code).toBe('AGENT_ERROR');
     expect(error.message).toBe('ML failure');
+  });
+
+  describe('normalizeError', () => {
+    it('should return Error instance unchanged', () => {
+      const err = new Error('test');
+      expect(normalizeError(err)).toBe(err);
+    });
+
+    it('should wrap string in Error', () => {
+      const result = normalizeError('something broke');
+      expect(result).toBeInstanceOf(Error);
+      expect(result.message).toBe('something broke');
+    });
+
+    it('should wrap object with message property', () => {
+      const result = normalizeError({ message: 'object error' });
+      expect(result).toBeInstanceOf(Error);
+      expect(result.message).toBe('object error');
+    });
+
+    it('should wrap unknown type with default message', () => {
+      const result = normalizeError(42);
+      expect(result).toBeInstanceOf(Error);
+      expect(result.message).toBe('Unknown error: 42');
+    });
   });
 });

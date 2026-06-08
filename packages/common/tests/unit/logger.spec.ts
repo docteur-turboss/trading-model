@@ -245,6 +245,36 @@ describe('Logger', () => {
       expect(writtenData).not.toContain('Bearer xyz');
       expect(writtenData).toContain('visible');
     });
+
+    it('should redact TLS and certificate-related keys', () => {
+      mockAppendFile.mockClear();
+
+      const context = {
+        tlsKey: 'server-key-content',
+        tlsCert: 'server-cert-content',
+        tlsCa: 'ca-cert-content',
+        certificatPath: '/certs/client.crt',
+        keyCertificatPath: '/certs/client.key',
+        rootCACertPath: '/certs/ca.crt',
+        apiSecret: 'my-api-token',
+        db_password: 'db-pass-123',
+        normalField: 'visible',
+      };
+
+      logger.info('test tls redaction', context);
+
+      expect(mockAppendFile).toHaveBeenCalled();
+      const writtenData = mockAppendFile.mock.calls[0][1];
+      expect(writtenData).not.toContain('server-key-content');
+      expect(writtenData).not.toContain('server-cert-content');
+      expect(writtenData).not.toContain('ca-cert-content');
+      expect(writtenData).not.toContain('/certs/client.crt');
+      expect(writtenData).not.toContain('/certs/client.key');
+      expect(writtenData).not.toContain('/certs/ca.crt');
+      expect(writtenData).not.toContain('my-api-token');
+      expect(writtenData).not.toContain('db-pass-123');
+      expect(writtenData).toContain('visible');
+    });
   });
 
   describe('createLogEntry with metadata', () => {

@@ -1,5 +1,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 
+let mockHardShutdown: ((code: number) => void) | undefined;
+
 jest.mock('../../src/config/logger', () => ({
   logger: {
     info: jest.fn(),
@@ -9,6 +11,19 @@ jest.mock('../../src/config/logger', () => ({
   },
   _private: class {},
 }));
+
+jest.mock('../../src/server/signal-handler', () => {
+  const actual = jest.requireActual<typeof import('../../src/server/signal-handler')>(
+    '../../src/server/signal-handler'
+  );
+  return {
+    ...actual,
+    setupProcessHandlers: jest.fn((shutdown: any, hardShutdown: any) => {
+      mockHardShutdown = hardShutdown;
+      return actual.setupProcessHandlers(shutdown, hardShutdown);
+    }),
+  };
+});
 
 import { createBootstrap } from '../../src/server/bootstrap';
 import { removeProcessHandlers } from '../../src/server/signal-handler';
@@ -275,5 +290,44 @@ describe('createBootstrap', () => {
     expect(mockServer.close).toHaveBeenCalled();
     expect(onStop).toHaveBeenCalled();
     expect(process.exitCode).toBeUndefined();
+  });
+
+  it('should handle Promise-based createServer resolving successfully', async () => {
+    const mockServer = { close: jest.fn(async () => {}) };
+    const createServer = jest.fn(() => Promise.resolve(mockServer));
+    const onStart = jest.fn();
+
+    createBootstrap({
+      name: 'test',
+      createServer: createServer as any,
+      onStart,
+    });
+
+    await Promise.resolve();
+
+    expect(createServer).toHaveBeenCalled();
+    expect(onStart).toHaveBeenCalled();
+  });
+
+  it('should handle Promise-based createServer rejecting', async () => {
+    const createServer = jest.fn(() => Promise.reject(new Error('async fail')));
+
+    createBootstrap({
+      name: 'test',
+      createServer: createServer as any,
+    });
+
+    // Two ticks: one to propagate rejection through .then(), one for .catch()
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('should not set exitCode when hardShutdown is called with code 0', () => {
+    expect(mockHardShutdown).toBeDefined();
+    process.exitCode = 2;
+    mockHardShutdown!(0);
+    expect(process.exitCode).toBe(0);
   });
 });

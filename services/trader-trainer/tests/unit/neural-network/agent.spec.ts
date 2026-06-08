@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { Agent } from '../../../src/core/neural-network/agent';
-import type { NetworkArchitecture } from '../../../src/core/neural-network/type';
+import type { NetworkArchitecture, Experience } from '../../../src/core/neural-network/type';
 
 function makeConfig(overrides?: Partial<NetworkArchitecture>): NetworkArchitecture {
   return {
@@ -15,11 +15,27 @@ function makeConfig(overrides?: Partial<NetworkArchitecture>): NetworkArchitectu
 }
 
 describe('Agent', () => {
+  describe('forward', () => {
+    let agent: Agent;
+
+    beforeEach(() => {
+      agent = new Agent(makeConfig());
+    });
+
+    it('should delegate to neural network and return output', () => {
+      const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
+      const result = agent.forward(input);
+      expect(result).toHaveProperty('output');
+      expect(result.output).toBeInstanceOf(Float32Array);
+      expect(result.output.length).toBe(3);
+    });
+  });
+
   describe('constructor', () => {
     it('should create an Agent with valid config', () => {
       const agent = new Agent(makeConfig());
 
-      expect(agent.nn).toBeDefined();
+      expect(agent.parameterCount()).toBeGreaterThan(0);
     });
 
     it('should throw when neuronsByLayer has fewer than 2 entries', () => {
@@ -29,7 +45,7 @@ describe('Agent', () => {
     it('should create neural network inside agent', () => {
       const agent = new Agent(makeConfig());
 
-      expect(agent.nn.parameterCount()).toBeGreaterThan(0);
+      expect(agent.parameterCount()).toBeGreaterThan(0);
     });
   });
 
@@ -100,9 +116,14 @@ describe('Agent', () => {
       agent.fastForward(input, 1.5, new Float32Array([0.1, 0.2, 0.3]), false);
 
       const pool = agent.getPool();
+      const exp = pool[0];
 
-      expect(pool[0].reward).toBe(1.5);
-      expect(pool[0].done).toBe(false);
+      if (exp.kind === 'qlearning') {
+        expect(exp.reward).toBe(1.5);
+        expect(exp.done).toBe(false);
+      } else {
+        throw new Error('Expected qlearning experience');
+      }
     });
 
     it('should not push to pool when enablePool is false', () => {
@@ -203,7 +224,8 @@ describe('Agent', () => {
 
       // Manually attach target to pool entries
       const pool = agent.getPool();
-      pool[0].target = new Float32Array([1, 0, 0]);
+      (pool[0] as { kind: string; target: Float32Array }).kind = 'supervised';
+      (pool[0] as { kind: string; target: Float32Array }).target = new Float32Array([1, 0, 0]);
 
       agent.learnFromPool();
 
@@ -231,27 +253,23 @@ describe('Agent', () => {
     });
 
     it('should throw when reward is missing', () => {
-      const exp = {
+      const exp: Experience = {
+        kind: 'bare',
         input: new Float32Array([0.5, -0.3, 0.1, 0.8]),
         output: new Float32Array([0.1, 0.2, 0.3]),
-        nextState: new Float32Array([0.1, 0.2, 0.3]),
       };
 
-      expect(() =>
-        agent.learnQLearning(exp as unknown as Parameters<typeof agent.learnQLearning>[0])
-      ).toThrow();
+      expect(() => agent.learnQLearning(exp)).toThrow();
     });
 
     it('should throw when nextState is missing', () => {
-      const exp = {
+      const exp: Experience = {
+        kind: 'bare',
         input: new Float32Array([0.5, -0.3, 0.1, 0.8]),
         output: new Float32Array([0.1, 0.2, 0.3]),
-        reward: 1,
       };
 
-      expect(() =>
-        agent.learnQLearning(exp as unknown as Parameters<typeof agent.learnQLearning>[0])
-      ).toThrow();
+      expect(() => agent.learnQLearning(exp)).toThrow();
     });
 
     it('should process Q-learning update without error', () => {

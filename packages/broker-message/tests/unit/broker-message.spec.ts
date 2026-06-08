@@ -13,7 +13,10 @@ jest.mock('../../src/client/message-manager-client', () => ({
 }));
 
 jest.mock('@trading-model/common/config/http-client', () => ({
-  HttpClient: jest.fn().mockImplementation(() => ({})),
+  HttpClient: Object.assign(
+    jest.fn().mockImplementation(() => ({})),
+    { createWithTls: jest.fn(() => ({})) }
+  ),
 }));
 
 const mockCreateCallbackRoute = jest.fn();

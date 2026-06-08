@@ -1,9 +1,9 @@
 import {
-  CandleEntity,
-  TradeEntity,
-  OrderBookEntity,
-  BookTickerEntity,
-  TickerEntity,
+  CandleData,
+  TradeData,
+  OrderBookData,
+  BookTickerData,
+  TickerData,
   getAvgBid,
   getAvgAsk,
 } from '@trading-model/common/config/event.types';
@@ -21,15 +21,32 @@ import {
 /** Minimum number of market steps required before training can start. */
 export const MIN_TRAINING_STEPS = 10;
 
+/** Default fraction of data held out for validation during training. */
+export const DEFAULT_VALIDATION_SPLIT = 0.2;
+
+export interface MarketDataBufferConfig {
+  maxSize?: number;
+  maxMemoryMb?: number;
+  evictionPolicy?: 'LRU' | 'none';
+}
+
 /** In-memory ring buffer of market data per symbol with online feature extraction. */
 export class MarketDataBuffer {
   private states: Map<TradingSymbol, SymbolState> = new Map();
   private maxSize: number;
+  private maxMemoryBytes: number;
+  private evictionPolicy: 'LRU' | 'none';
+  private accessOrder: TradingSymbol[] = [];
   private priceSnapshot: Record<TradingSymbol, number> = {} as Record<TradingSymbol, number>;
 
-  /** Create a buffer that keeps at most `maxSize` candles per symbol. */
-  constructor(maxSize: number = 10000) {
-    this.maxSize = maxSize;
+  constructor(config: MarketDataBufferConfig = {}) {
+    this.maxSize = config.maxSize ?? 10000;
+    this.maxMemoryBytes = (config.maxMemoryMb ?? 512) * 1024 * 1024;
+    this.evictionPolicy = config.evictionPolicy ?? 'none';
+  }
+
+  getMaxSize(): number {
+    return this.maxSize;
   }
 
   private getOrCreate(symbol: TradingSymbol): SymbolState {
@@ -55,11 +72,42 @@ export class MarketDataBuffer {
       };
       this.states.set(symbol, s);
     }
+    if (this.evictionPolicy === 'LRU') {
+      const idx = this.accessOrder.indexOf(symbol);
+      if (idx !== -1) this.accessOrder.splice(idx, 1);
+      this.accessOrder.push(symbol);
+    }
     return s;
   }
 
+  private estimateMemoryBytes(s: SymbolState): number {
+    const candleBytes = s.candles.length * 200;
+    const tradeBytes = s.trades.length * 100;
+    const orderBookBytes = s.orderBook ? 5000 : 0;
+    return candleBytes + tradeBytes + orderBookBytes;
+  }
+
+  private enforceMemoryLimit(): void {
+    if (this.evictionPolicy !== 'LRU') return;
+
+    let total = 0;
+    for (const state of this.states.values()) {
+      total += this.estimateMemoryBytes(state);
+    }
+
+    while (total > this.maxMemoryBytes && this.accessOrder.length > 1) {
+      const victim = this.accessOrder.shift();
+      if (!victim) break;
+      const state = this.states.get(victim);
+      if (state) {
+        total -= this.estimateMemoryBytes(state);
+      }
+      this.states.delete(victim);
+    }
+  }
+
   /** Append candlesticks and update running normalisers for price/volume features. */
-  addCandles(symbol: string, candles: CandleEntity[]): void {
+  addCandles(symbol: string, candles: CandleData[]): void {
     const s = this.getOrCreate(toSymbol(symbol));
     for (const c of candles) {
       s.candles.push(c);
@@ -72,10 +120,11 @@ export class MarketDataBuffer {
     if (s.candles.length > this.maxSize) {
       s.candles = s.candles.slice(-this.maxSize);
     }
+    this.enforceMemoryLimit();
   }
 
   /** Append recent trades and update price/quantity normalisers. */
-  addTrades(symbol: string, trades: TradeEntity[]): void {
+  addTrades(symbol: string, trades: TradeData[]): void {
     const s = this.getOrCreate(toSymbol(symbol));
     for (const t of trades) {
       s.trades.push(t);
@@ -85,10 +134,11 @@ export class MarketDataBuffer {
     if (s.trades.length > this.maxSize) {
       s.trades = s.trades.slice(-this.maxSize);
     }
+    this.enforceMemoryLimit();
   }
 
   /** Store an order-book snapshot and update bid/ask/spread normalisers. */
-  setOrderBook(symbol: string, orderBook: OrderBookEntity): void {
+  setOrderBook(symbol: string, orderBook: OrderBookData): void {
     const s = this.getOrCreate(toSymbol(symbol));
     s.orderBook = orderBook;
 
@@ -100,10 +150,11 @@ export class MarketDataBuffer {
     if (avgAsk > 0 && avgBid > 0) {
       s.spreadNorm.update(avgAsk - avgBid);
     }
+    this.enforceMemoryLimit();
   }
 
   /** Store a book-ticker snapshot and update bid/ask/spread normalisers. */
-  setBookTicker(symbol: string, bt: BookTickerEntity): void {
+  setBookTicker(symbol: string, bt: BookTickerData): void {
     const s = this.getOrCreate(toSymbol(symbol));
     s.bookTicker = bt;
     if (bt.bid > 0) s.bidNorm.update(bt.bid);
@@ -111,13 +162,15 @@ export class MarketDataBuffer {
     if (bt.ask > 0 && bt.bid > 0) {
       s.spreadNorm.update(bt.ask - bt.bid);
     }
+    this.enforceMemoryLimit();
   }
 
   /** Store a 24-hour ticker and update volume normaliser. */
-  setTicker24h(symbol: string, ticker: TickerEntity): void {
+  setTicker24h(symbol: string, ticker: TickerData): void {
     const s = this.getOrCreate(toSymbol(symbol));
     s.ticker24h = ticker;
     s.tickerVolumeNorm.update(ticker.volume);
+    this.enforceMemoryLimit();
   }
 
   /** Merge a snapshot of latest prices into the internal price map. */
@@ -125,12 +178,10 @@ export class MarketDataBuffer {
     this.priceSnapshot = { ...this.priceSnapshot, ...prices } as Record<TradingSymbol, number>;
   }
 
-  /** Return all symbol keys currently tracked in the buffer. */
   getSymbols(): string[] {
     return Array.from(this.states.keys()).map(fromSymbol);
   }
 
-  /** Returns the number of candles stored for a given symbol. */
   getCandleCount(symbol: string): number {
     return this.states.get(toSymbol(symbol))?.candles.length ?? 0;
   }
@@ -168,7 +219,7 @@ export class MarketDataBuffer {
   /** Build a train/validation split from all available market steps, or null if insufficient data. */
   getAllWindows(
     symbol: string,
-    validationSplit: number = 0.2
+    validationSplit: number = DEFAULT_VALIDATION_SPLIT
   ): { id: string; train: MarketStep[]; validation: MarketStep[] } | null {
     const steps = this.buildMarketSteps(symbol);
     if (steps.length < MIN_TRAINING_STEPS) return null;

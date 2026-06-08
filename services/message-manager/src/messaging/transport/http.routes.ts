@@ -1,51 +1,67 @@
-/**
- * @file broker.routes.ts
- *
- * @description
- * This module exposes **HTTP endpoints** for broker operations
- * such as subscribing to topics, unsubscribing, and publishing messages.
- * It defines an Express router that delegates requests to the broker instance.
- *
- * @responsability
- * - Expose RESTful endpoints for broker interactions
- * - Validate and forward HTTP requests to the Broker instance
- * - Provide a consistent response protocol (via controllers)
- *
- * @restrictions
- * - Endpoints are intended for internal service-to-service communication
- * - No business logic is implemented here; only request routing and validation
- * - All payloads must conform to broker schema validation
- *
- * @architecture
- * Part of the **API layer** in the broker system.
- * Delegates all logic to controllers and Broker core services.
- */
-
-import { Router } from 'express';
+import { NextFunction, Request, Response, Router } from 'express';
+import rateLimit from 'express-rate-limit';
 
 import { SubscriptionToATopic, DeleteASubscription, PublishAMessage } from './http.controller';
+import { PublishSchema, SubscribeSchema, UnsubscribeSchema } from './validation/broker.schema';
+import { validateSchema } from './validation/validate-schema.middleware';
 import { Dispatcher } from '../core/dispatcher';
 
-/**
- * BrokerRoutes
- *
- * @description
- * Creates an Express Router that exposes broker-related endpoints.
- *
- * Routes:
- * - POST `/subscription` → subscribe to a topic
- * - DELETE `/subscription` → unsubscribe from a topic
- * - POST `/message` → publish a message to a topic
- *
- * @param dispatcher - Instance of the dispatcher used to handle requests.
- * @returns {Router} Configured Express Router
- */
+const PUBLISH_TIMEOUT_MS = 30_000;
+const SUBSCRIPTION_TIMEOUT_MS = 10_000;
+
+const publishLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many publications, please try again later' },
+});
+
+const subscribeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many subscription requests, please try again later' },
+});
+
+const unsubscribeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many unsubscription requests, please try again later' },
+});
+
+const withTimeout = (ms: number) => (req: Request, _res: Response, next: NextFunction) => {
+  req.setTimeout(ms);
+  next();
+};
+
 export const BrokerRoutes = (dispatcher: Dispatcher): Router => {
   const router = Router();
 
-  router.post('/message', PublishAMessage(dispatcher));
-  router.post('/subscription', SubscriptionToATopic(dispatcher));
-  router.delete('/subscription', DeleteASubscription(dispatcher));
+  router.post(
+    '/message',
+    withTimeout(PUBLISH_TIMEOUT_MS),
+    publishLimiter,
+    validateSchema(PublishSchema),
+    PublishAMessage(dispatcher)
+  );
+  router.post(
+    '/subscription',
+    withTimeout(SUBSCRIPTION_TIMEOUT_MS),
+    subscribeLimiter,
+    validateSchema(SubscribeSchema),
+    SubscriptionToATopic(dispatcher)
+  );
+  router.delete(
+    '/subscription',
+    withTimeout(SUBSCRIPTION_TIMEOUT_MS),
+    unsubscribeLimiter,
+    validateSchema(UnsubscribeSchema),
+    DeleteASubscription(dispatcher)
+  );
 
   return router;
 };

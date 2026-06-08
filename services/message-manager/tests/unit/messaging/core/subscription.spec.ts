@@ -1,13 +1,8 @@
-import { unlink, writeFile } from 'node:fs/promises';
-import { readFileSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { DeliveryMode } from '@trading-model/common/config/delivery-mode.types';
 import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import { MessageDeliveryPort } from '../../../../src/messaging/core/message-delivery-port';
 import { Subscription } from '../../../../src/messaging/core/subscription';
-import { DqlRepository } from '../../../../src/messaging/core/dlq-repository';
-import { createMockHttpClient } from '../../../helpers/broker.helper';
 import { createMockMessage, mockServiceIdentity } from '../../../fixtures/broker.fixture';
 
 jest.mock('@trading-model/common/utils/sleep', () => ({
@@ -21,49 +16,45 @@ jest.mock('config/address-manager', () => ({
 }));
 
 describe('Subscription', () => {
-  let mockHttpClient: ReturnType<typeof createMockHttpClient>;
+  let mockDeliveryPort: jest.Mocked<MessageDeliveryPort>;
   let subscription: Subscription;
-  let dqlRepository: DqlRepository;
-  const dlqFilePath = join(tmpdir(), `dlq-test-sub-${Date.now()}.jsonl`);
 
   beforeEach(async () => {
-    mockHttpClient = createMockHttpClient();
-    dqlRepository = new DqlRepository(dlqFilePath);
+    mockDeliveryPort = {
+      send: jest.fn<MessageDeliveryPort['send']>(),
+      markDeadLetter: jest.fn<MessageDeliveryPort['markDeadLetter']>(),
+    };
     subscription = new Subscription(
       'test.topic',
       'message/callback',
       mockServiceIdentity,
-      dqlRepository
+      mockDeliveryPort
     );
-    if (existsSync(dlqFilePath)) {
-      await writeFile(dlqFilePath, '', 'utf-8');
-    }
-  });
-
-  afterAll(async () => {
-    if (existsSync(dlqFilePath)) {
-      await unlink(dlqFilePath);
-    }
   });
 
   describe('dispatch', () => {
-    it('should deliver message via HTTP POST on success', async () => {
-      mockHttpClient.post.mockResolvedValue(undefined);
+    it('should deliver message via delivery port on success', async () => {
+      mockDeliveryPort.send.mockResolvedValue(undefined);
 
       const message = createMockMessage('payload');
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-      const [targetUrl, body] = mockHttpClient.post.mock.calls[0] as [string, unknown];
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
+      const [targetUrl, body, context] = mockDeliveryPort.send.mock.calls[0] as [
+        string,
+        unknown,
+        { deliveryAttempt: number; consumerGroup: string },
+      ];
 
       expect(targetUrl).toContain('10.0.0.1');
       expect(targetUrl).toContain('8444');
       expect(targetUrl).toContain('message/callback');
       expect(body).toBeDefined();
+      expect(context.deliveryAttempt).toBe(0);
     });
 
     it('should retry with exponential backoff on generic error with AT_LEAST_ONCE mode', async () => {
-      mockHttpClient.post
+      mockDeliveryPort.send
         .mockRejectedValueOnce(new Error('Network error'))
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValueOnce(undefined);
@@ -72,27 +63,27 @@ describe('Subscription', () => {
         delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
       });
 
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(3);
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(3);
     });
 
     it('should stop retrying and send to DLQ on DeadLetterError', async () => {
-      mockHttpClient.post.mockRejectedValue(
+      mockDeliveryPort.send.mockRejectedValue(
         new AppError('Unrecoverable', ErrorCodes.DEAD_LETTER_ERROR, { reason: 'Unrecoverable' })
       );
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
       });
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-
-      const content = readFileSync(dlqFilePath, 'utf-8').trim();
-      const entry = JSON.parse(content);
-      expect(entry.reason).toBe('Unrecoverable');
-      expect(entry.message.payload).toBe('payload');
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+        message,
+        'Unrecoverable',
+        expect.any(Number)
+      );
     });
 
     it('should stop retrying and send to DLQ on TTL expiration', async () => {
@@ -100,99 +91,102 @@ describe('Subscription', () => {
         .spyOn(Date, 'now')
         .mockReturnValue(new Date('2026-02-01T00:00:00Z').getTime());
 
-      mockHttpClient.post.mockRejectedValue(new Error('Timeout'));
+      mockDeliveryPort.send.mockRejectedValue(new Error('Timeout'));
 
       const message = createMockMessage('payload', {
         emittedAt: new Date('2026-01-01T00:00:00Z'),
         delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 1 },
       });
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-
-      const content = readFileSync(dlqFilePath, 'utf-8').trim();
-      const entry = JSON.parse(content);
-      expect(entry.reason).toBe('TTL_EXPIRED');
-      expect(entry.message.payload).toBe('payload');
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+        message,
+        'TTL_EXPIRED',
+        expect.any(Number)
+      );
       mockDateNow.mockRestore();
     });
 
     it('should not retry with AT_MOST_ONCE mode regardless of error type', async () => {
-      mockHttpClient.post.mockRejectedValue(new Error('Consumer error'));
+      mockDeliveryPort.send.mockRejectedValue(new Error('Consumer error'));
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },
       });
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
     });
 
     it('should send to DLQ on DeadLetterError even in AT_MOST_ONCE mode', async () => {
-      mockHttpClient.post.mockRejectedValue(
+      mockDeliveryPort.send.mockRejectedValue(
         new AppError('Unrecoverable', ErrorCodes.DEAD_LETTER_ERROR, { reason: 'Unrecoverable' })
       );
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },
       });
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-
-      const content = readFileSync(dlqFilePath, 'utf-8').trim();
-      const entry = JSON.parse(content);
-      expect(entry.reason).toBe('Unrecoverable');
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+        message,
+        'Unrecoverable',
+        expect.any(Number)
+      );
     });
 
     it('should stop after first attempt with EXACTLY_ONCE mode', async () => {
-      mockHttpClient.post.mockRejectedValue(new Error('Transient error'));
+      mockDeliveryPort.send.mockRejectedValue(new Error('Transient error'));
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.EXACTLY_ONCE, ttl: 60000 },
       });
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
     });
 
     it('should route to DLQ when max retries exceeded', async () => {
-      mockHttpClient.post.mockRejectedValue(new Error('Transient error'));
+      mockDeliveryPort.send.mockRejectedValue(new Error('Transient error'));
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
       });
 
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      const content = readFileSync(dlqFilePath, 'utf-8').trim();
-      const entry = JSON.parse(content);
-      expect(entry.reason).toBe('MAX_RETRIES_EXCEEDED');
+      expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+        message,
+        'MAX_RETRIES_EXCEEDED',
+        expect.any(Number)
+      );
     });
 
     it('should open circuit breaker after threshold failures and reject directly to DLQ', async () => {
-      mockHttpClient.post.mockRejectedValue(new Error('Service down'));
+      mockDeliveryPort.send.mockRejectedValue(new Error('Service down'));
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
       });
 
-      // exhaust retries 5 times to reach CIRCUIT_BREAKER_THRESHOLD
       for (let i = 0; i < 5; i++) {
-        await subscription.dispatch(mockHttpClient as never, message);
+        await subscription.dispatch(message);
       }
 
-      // 6th dispatch — circuit is open, goes directly to DLQ with CIRCUIT_OPEN
-      await subscription.dispatch(mockHttpClient as never, message);
+      mockDeliveryPort.markDeadLetter.mockClear();
+      await subscription.dispatch(message);
 
-      const content = readFileSync(dlqFilePath, 'utf-8').trim();
-      const lines = content.split('\n');
-      const lastEntry = JSON.parse(lines[lines.length - 1]);
-      expect(lastEntry.reason).toBe('CIRCUIT_OPEN');
+      expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+        message,
+        'CIRCUIT_OPEN',
+        expect.any(Number)
+      );
     });
 
     it('should reset circuit breaker on successful delivery', async () => {
-      mockHttpClient.post
+      mockDeliveryPort.send
         .mockRejectedValue(new Error('Service down'))
         .mockResolvedValueOnce(undefined);
 
@@ -200,78 +194,91 @@ describe('Subscription', () => {
         delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
       });
 
-      // first message — fails (retries exhausted), failureCount = 1
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      // second message — succeeds, failureCount resets to 0
-      mockHttpClient.post.mockReset();
-      mockHttpClient.post.mockResolvedValue(undefined);
+      mockDeliveryPort.send.mockReset();
+      mockDeliveryPort.send.mockResolvedValue(undefined);
 
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
-
-      // third message — also succeeds, confirming failureCount was reset
-      await subscription.dispatch(mockHttpClient as never, message);
-
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(2);
+      await subscription.dispatch(message);
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(2);
     });
 
     it('should succeed on first attempt with AT_MOST_ONCE mode', async () => {
-      mockHttpClient.post.mockResolvedValue(undefined);
+      mockDeliveryPort.send.mockResolvedValue(undefined);
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.AT_MOST_ONCE, ttl: 60000 },
       });
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
     });
 
     it('should succeed on first attempt with EXACTLY_ONCE mode', async () => {
-      mockHttpClient.post.mockResolvedValue(undefined);
+      mockDeliveryPort.send.mockResolvedValue(undefined);
 
       const message = createMockMessage('payload', {
         delivery: { mode: DeliveryMode.EXACTLY_ONCE, ttl: 60000 },
       });
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
     });
 
-    it('should include delivery attempt context in POST body', async () => {
-      mockHttpClient.post.mockResolvedValue(undefined);
+    it('should include delivery attempt context in send body', async () => {
+      mockDeliveryPort.send.mockResolvedValue(undefined);
 
       const message = createMockMessage('payload');
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      const [, body] = mockHttpClient.post.mock.calls[0] as [
+      const [, , context] = mockDeliveryPort.send.mock.calls[0] as [
         string,
-        { message: unknown; context: { deliveryAttempt: number } },
+        unknown,
+        { deliveryAttempt: number; consumerGroup: string },
       ];
 
-      expect(body.context).toBeDefined();
-      expect(body.context.deliveryAttempt).toBe(0);
-      expect(body.message).toEqual(message);
+      expect(context).toBeDefined();
+      expect(context.deliveryAttempt).toBe(0);
     });
 
     it('should use default TTL=0 and AT_LEAST_ONCE when delivery is undefined', async () => {
-      mockHttpClient.post.mockResolvedValue(undefined);
+      mockDeliveryPort.send.mockResolvedValue(undefined);
 
       const message = createMockMessage('payload', { delivery: undefined });
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
     });
 
     it('should fallback emittedAt to 0 when not provided', async () => {
-      mockHttpClient.post.mockResolvedValue(undefined);
+      mockDeliveryPort.send.mockResolvedValue(undefined);
 
       const message = createMockMessage('payload', { delivery: undefined });
       (message.metadata as any).emittedAt = undefined;
-      await subscription.dispatch(mockHttpClient as never, message);
+      await subscription.dispatch(message);
 
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use NO_REASON fallback when DeadLetterError has no reason', async () => {
+      mockDeliveryPort.send.mockRejectedValue(
+        new AppError('Unrecoverable', ErrorCodes.DEAD_LETTER_ERROR)
+      );
+
+      const message = createMockMessage('payload', {
+        delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },
+      });
+      await subscription.dispatch(message);
+
+      expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
+      expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+        message,
+        'NO_REASON',
+        expect.any(Number)
+      );
     });
   });
 

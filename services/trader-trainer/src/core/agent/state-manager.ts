@@ -11,16 +11,19 @@ export type StateManagerConfig = {
 /** Manages epsilon-greedy exploration schedule and agent weight initialisation from genomes. */
 export class StateManager {
   private epsilon: number;
-  public readonly gamma: number;
+  private readonly gamma: number;
 
   constructor(private readonly cfg: StateManagerConfig = {}) {
     this.epsilon = cfg.epsilonStart ?? 1.0;
     this.gamma = cfg.gamma ?? 0.99;
   }
 
-  /** Return the current epsilon value for epsilon-greedy exploration. */
   getEpsilon(): number {
     return this.epsilon;
+  }
+
+  getGamma(): number {
+    return this.gamma;
   }
 
   /** Decay epsilon multiplicatively towards its configured minimum. */
@@ -39,13 +42,13 @@ export class StateManager {
   public initialiseFromGenome(agent: Agent, genome: Float32Array | number): void {
     if (typeof genome === 'number') {
       // broadcast scalar around weights
-      agent.nn.distributeAroundWeights(genome, 0.1);
+      agent.distributeAroundWeights(genome, 0.1);
     } else {
       // direct weight copy if length matches
       try {
-        agent.nn.setWeights(genome);
+        agent.setWeights(genome);
       } catch (_e) {
-        agent.nn.distributeAroundWeights(0, 0.01);
+        agent.distributeAroundWeights(0, 0.01);
       }
     }
   }

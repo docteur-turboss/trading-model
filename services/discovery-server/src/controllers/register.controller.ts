@@ -64,12 +64,10 @@ export function createRegisterController(registry: ServiceRegistry): RegisterCon
     return sendResponse(registered, 201);
   });
 
-  /** Return the list of all registered service names. */
   const listServices: RequestHandler = catchSync(async () => {
     return sendResponse(registry.listServiceNames(), 200);
   });
 
-  /** Return all registered instances for a given service name. */
   const getServiceInstances: RequestHandler = catchSync(async req => {
     const { serviceName } = req.params;
 
@@ -82,7 +80,6 @@ export function createRegisterController(registry: ServiceRegistry): RegisterCon
     return sendResponse(registry.getInstances(serviceName), 200);
   });
 
-  /** Return metadata for a specific service instance by service name and instance ID. */
   const getInstance: RequestHandler = catchSync(async req => {
     const { serviceName, instanceId } = req.params;
 

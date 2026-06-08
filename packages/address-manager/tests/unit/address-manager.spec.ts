@@ -11,7 +11,10 @@ const mockHttpClientInstance = {
 };
 
 jest.mock('@trading-model/common/config/http-client', () => ({
-  HttpClient: jest.fn().mockImplementation(() => mockHttpClientInstance),
+  HttpClient: Object.assign(
+    jest.fn().mockImplementation(() => mockHttpClientInstance),
+    { createWithTls: jest.fn(() => mockHttpClientInstance) }
+  ),
 }));
 
 const mockTokenManagerInstance = {

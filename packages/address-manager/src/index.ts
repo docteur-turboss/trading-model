@@ -2,6 +2,7 @@ import { Application } from 'express';
 
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { logger } from '@trading-model/common/config/logger';
+import { normalizeError } from '@trading-model/common/utils/errors';
 import { sleep } from '@trading-model/common/utils/sleep';
 
 import { AddressManagerClient } from './client/address-manager-client';
@@ -54,11 +55,7 @@ export default class AddressManager {
   private shouldRetryRegistration = true;
 
   constructor(config: AddressManagerConfig) {
-    this.httpClient = new HttpClient({
-      ca: config.RootCACertPath,
-      cert: config.CertificatPath,
-      key: config.KeyCertificatPath,
-    });
+    this.httpClient = HttpClient.createWithTls(config);
 
     this.tokenManager = new TokenManager(this.httpClient, config);
     this.addressManagerClient = new AddressManagerClient(
@@ -85,7 +82,6 @@ export default class AddressManager {
     this.ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
   }
 
-  /** Returns the current authentication token. */
   getToken(): string {
     return this.tokenManager.getToken();
   }
@@ -121,7 +117,7 @@ export default class AddressManager {
         logger.error('Service registration failed', {
           attempt,
           maxRetries: MAX_REGISTRATION_RETRIES,
-          error,
+          error: normalizeError(error),
         });
 
         if (attempt < MAX_REGISTRATION_RETRIES) {

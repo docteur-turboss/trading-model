@@ -50,8 +50,6 @@ export class MessageMetadata {
   }
 
   /**
-   * Sets the security context of this message
-   *
    * @param context The context to set.
    */
   public setSecurity(context: SecurityType | null): this {
@@ -67,8 +65,6 @@ export class MessageMetadata {
   }
 
   /**
-   * Sets the delivery context of this message
-   *
    * @param context The context for the delivery mode
    */
   public setDelivery(context: DeliveryType | null): this {
@@ -84,8 +80,6 @@ export class MessageMetadata {
   }
 
   /**
-   * Sets the Author of this message
-   *
    * @param context The context of the Author.
    */
   public setPublisher(context: IdentifyType): this {
@@ -96,8 +90,6 @@ export class MessageMetadata {
   }
 
   /**
-   * Sets the routing context of this message
-   *
    * @param context The routing context  of the message
    */
   public setRouting(context: RoutingType | null): this {
@@ -114,8 +106,6 @@ export class MessageMetadata {
   }
 
   /**
-   * Sets the version schema used
-   *
    * @param version The version
    */
   public setSchemaVersion(version: string | null): this {
@@ -131,8 +121,6 @@ export class MessageMetadata {
   }
 
   /**
-   * Sets the event type of this message
-   *
    * @param event The event of this message
    */
   public setEventType(event: string): this {
@@ -144,8 +132,6 @@ export class MessageMetadata {
   }
 
   /**
-   * Sets the topic of this message
-   *
    * @param topic The topic of the message
    */
   public setTopic(topic: string): this {
@@ -156,8 +142,7 @@ export class MessageMetadata {
     return this;
   }
 
-  /** Sets the causation and correlation identifiers.
-   *
+  /**
    * @param context - Object with optional causationId and/or correlationId, or null to clear both
    */
   public setIds(

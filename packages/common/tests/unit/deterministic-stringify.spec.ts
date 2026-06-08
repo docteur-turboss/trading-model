@@ -85,4 +85,10 @@ describe('deterministicStringify', () => {
     });
     expect(result).toBe('{"meta":{"count":5,"created":"2024-06-01T00:00:00.000Z"}}');
   });
+
+  it('should convert Date as root value to ISO string', () => {
+    const date = new Date('2024-06-01T00:00:00.000Z');
+    const result = deterministicStringify(date);
+    expect(result).toBe('"2024-06-01T00:00:00.000Z"');
+  });
 });

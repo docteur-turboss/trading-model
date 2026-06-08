@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   # ── Quality gate ───────────────────────────────────────────────────────────
   quality:
@@ -23,8 +27,21 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
-      - run: npm run build
+      - name: Build packages (dependency order)
+        run: npm run build
+      - name: Type-check services
+        run: |
+          npm run -w services/message-manager build
+          npm run -w services/discovery-server build
+          npm run -w services/financial-scraper build
+          npm run -w services/trader-trainer build
       - run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
 
       - name: Extract version from tag
         id: version
@@ -129,3 +146,33 @@ jobs:
           name: Release ${{ needs.quality.outputs.version }}
           body: ${{ steps.notes.outputs.notes }}
           generate_release_notes: true
+
+  # ── Documentation (GitHub Pages) ──────────────────────────────────────────
+  docs:
+    needs: [quality]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run docs:generate
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/architecture/code
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

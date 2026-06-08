@@ -50,10 +50,10 @@ export default class BrokerMessage {
   }) {
     if (userCallbackPath) this.callbackPath = userCallbackPath;
 
-    this.httpClient = new HttpClient({
-      ca: RootCACertPath,
-      cert: CertificatPath,
-      key: KeyCertificatPath,
+    this.httpClient = HttpClient.createWithTls({
+      RootCACertPath,
+      CertificatPath,
+      KeyCertificatPath,
     });
 
     this.messageManagerClient = new MessageManagerClient(

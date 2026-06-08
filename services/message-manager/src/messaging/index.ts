@@ -42,30 +42,23 @@ import { BrokerRoutes } from './transport/http.routes';
  */
 export default class BrokerModule {
   /** Dispatcher managing subscriptions and message delivery */
-  private Dispatcher: Dispatcher;
+  private dispatcher: Dispatcher;
 
   /** HTTP client for internal broker communication */
-  private HTTPCLIENT: HttpClient;
+  private httpClient: HttpClient;
 
   /** Method to attach broker routes to an Express app */
   public listen: (app: Application) => void;
 
   /**
-   * Constructor
-   *
-   * @param {BrokerConfig} config
-   * TLS and connection configuration for the broker
+   * @param config - Broker TLS and connection configuration.
    */
   constructor(config: BrokerConfig) {
-    this.HTTPCLIENT = new HttpClient({
-      ca: config.RootCACertPath,
-      cert: config.CertificatPath,
-      key: config.KeyCertificatPath,
-    });
+    this.httpClient = HttpClient.createWithTls(config);
 
     const dqlRepository = new DqlRepository();
-    this.Dispatcher = new Dispatcher(this.HTTPCLIENT, dqlRepository);
+    this.dispatcher = new Dispatcher(this.httpClient, dqlRepository);
 
-    this.listen = app => app.use(BrokerRoutes(this.Dispatcher));
+    this.listen = app => app.use(BrokerRoutes(this.dispatcher));
   }
 }

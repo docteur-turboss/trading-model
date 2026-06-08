@@ -5,6 +5,7 @@ import {
   GeneticAlgorithmRunner,
   makeTradingAgentBackend,
   GenerationContext,
+  WindowSet,
 } from './genetic-algorithm/ga-runner';
 import { LamarckGenome } from './genetic-algorithm/genome-types';
 import { DeepReadonly } from './genetic-algorithm/shared-types';
@@ -70,17 +71,14 @@ export class Trainer {
 
   constructor(private readonly dataBuffer: MarketDataBuffer) {}
 
-  /** Return whether a training cycle is currently in progress. */
   isTraining(): boolean {
     return this.training;
   }
 
-  /** Return the symbol currently being trained on. */
   getCurrentSymbol(): string {
     return fromSymbol(this.currentSymbol);
   }
 
-  /** Return the current generation number (0 if not started). */
   getGeneration(): number {
     return this.runner?.getGeneration() ?? 0;
   }
@@ -93,26 +91,58 @@ export class Trainer {
    * @returns TrainingResult indicating success or failure.
    */
   async train(symbol: string): Promise<TrainingResult> {
-    if (this.training) return { success: false, symbol, error: new Error('Already training') };
-
-    const windowSet = this.dataBuffer.getAllWindows(symbol, env.TRAINER_VALIDATION_SPLIT);
-
-    if (!windowSet || windowSet.train.length < MIN_TRAINING_STEPS) {
-      return {
-        success: false,
-        symbol,
-        error: new Error(
-          `Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
-        ),
-      };
-    }
+    const validation = this.validateTrainingPrerequisites(symbol);
+    if (!validation.ok) return validation.error;
 
     this.currentSymbol = toSymbol(symbol);
     this.training = true;
+    this.runner = this.createRunner(validation.windowSet);
 
+    try {
+      const result = await this.runner.run();
+      this.bestGenome = result;
+      logger.info('Training complete', { symbol, bestFitness: result.fitness ?? 0 });
+      return { success: true, symbol, bestGenome: result };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      logger.error('Training failed', { symbol, err: error.message });
+      return { success: false, symbol, error };
+    } finally {
+      this.training = false;
+    }
+  }
+
+  private validateTrainingPrerequisites(
+    symbol: string
+  ): { ok: true; windowSet: WindowSet } | { ok: false; error: TrainingFailure } {
+    if (this.training) {
+      return {
+        ok: false,
+        error: { success: false, symbol, error: new Error('Already training') },
+      };
+    }
+
+    const windowSet = this.dataBuffer.getAllWindows(symbol, env.TRAINER_VALIDATION_SPLIT);
+    if (!windowSet || windowSet.train.length < MIN_TRAINING_STEPS) {
+      return {
+        ok: false,
+        error: {
+          success: false,
+          symbol,
+          error: new Error(
+            `Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
+          ),
+        },
+      };
+    }
+
+    return { ok: true, windowSet };
+  }
+
+  private createRunner(windowSet: WindowSet): GeneticAlgorithmRunner {
     const defaultControl = createDefaultGenome('ctrl').gaControl;
 
-    this.runner = new GeneticAlgorithmRunner({
+    return new GeneticAlgorithmRunner({
       windowSets: [windowSet],
       backendFactory: makeTradingAgentBackend,
       evalConcurrency: 4,
@@ -126,11 +156,14 @@ export class Trainer {
       onGeneration: (ctx: GenerationContext) => {
         this.generationContext = ctx;
         this.bestGenome = ctx.bestGenome;
-        logger.info(
-          `[Trainer] Gen ${ctx.generation}: best=${ctx.bestFitness.toFixed(4)}, ` +
-            `avg=${ctx.avgFitness.toFixed(4)}, archive=${ctx.archive.length}, ` +
-            `stagnation=${ctx.stagnation}, elapsed=${(ctx.elapsedMs / 1000).toFixed(1)}s`
-        );
+        logger.info('Generation completed', {
+          generation: ctx.generation,
+          bestFitness: ctx.bestFitness,
+          avgFitness: ctx.avgFitness,
+          archiveSize: ctx.archive.length,
+          stagnation: ctx.stagnation,
+          elapsedSec: ctx.elapsedMs / 1000,
+        });
       },
       onArchiveUpdate: (archive: DeepReadonly<LamarckGenome>[]) => {
         if (archive.length > 0) {
@@ -138,22 +171,6 @@ export class Trainer {
         }
       },
     });
-
-    try {
-      const result = await this.runner.run();
-      this.bestGenome = result;
-      logger.info(
-        `[Trainer] Training complete for ${symbol}. ` +
-          `Best fitness: ${(result.fitness ?? 0).toFixed(4)}`
-      );
-      return { success: true, symbol, bestGenome: result };
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      logger.error(`[Trainer] Training failed for ${symbol}:`, { err: error.message });
-      return { success: false, symbol, error };
-    } finally {
-      this.training = false;
-    }
   }
 
   /** Build a serialisable summary of the best genome for API consumption. Returns null if no genome exists. */

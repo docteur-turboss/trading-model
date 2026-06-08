@@ -16,7 +16,6 @@ jest.mock('../../src/config/env', () => ({
 describe('Discovery Lifecycle — Full HTTP Integration', () => {
   let registry: ServiceRegistry;
   let server: http.Server;
-  let baseUrl: string;
 
   function postJson(
     path: string,
@@ -95,10 +94,6 @@ describe('Discovery Lifecycle — Full HTTP Integration', () => {
     app.use('/', heartbeatRoutes(registry));
     return new Promise<void>(resolve => {
       server = app.listen(0, () => {
-        const addr = server.address();
-        if (addr && typeof addr !== 'string') {
-          baseUrl = `http://localhost:${addr.port}`;
-        }
         resolve();
       });
     });

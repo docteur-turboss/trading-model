@@ -66,6 +66,7 @@ export type { ComplexityProfile } from './complexity-estimator';
 
 // Adaptive control system
 export { adaptGAControl, checkTerminationConditions } from './adaptive-control-system';
+export type { StopCondition } from './adaptive-control-system';
 
 // Evolution engine (genetic operators)
 export {

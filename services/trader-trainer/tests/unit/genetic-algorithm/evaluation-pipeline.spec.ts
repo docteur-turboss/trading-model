@@ -4,6 +4,7 @@ import {
   pooledEval,
 } from '../../../src/core/genetic-algorithm/evaluation-pipeline';
 import type { RLBackend } from '../../../src/core/genetic-algorithm/evaluation-pipeline';
+import type { Experience } from '../../../src/core/genetic-algorithm/shared-types';
 
 const minimalGenome = {
   id: 'test',
@@ -89,22 +90,19 @@ function makeStep(features: number[]) {
 }
 
 function makeMockBackend(poolSize: number): RLBackend {
-  const pool: Array<{
-    input: Float32Array;
-    output: Float32Array;
-    reward: number;
-    nextState: Float32Array;
-  }> = [];
+  const pool: Experience[] = [];
   for (let i = 0; i < poolSize; i++) {
     pool.push({
+      kind: 'qlearning',
       input: new Float32Array([0.1, 0.2, 0.3]),
       output: new Float32Array([0.1, 0.2, 0.3]),
       reward: 1,
       nextState: new Float32Array([0.1, 0.2, 0.3]),
+      done: false,
     });
   }
   return {
-    forwardPass: jest.fn((f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
+    forwardPass: jest.fn((_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
     step: jest.fn(() => ({ reward: 1 })),
     train: jest.fn(),
     getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
@@ -231,6 +229,24 @@ describe('evaluateGenomeAllWindows', () => {
     );
     expect(result.updatedGenome).toBeDefined();
     expect(trainMock).not.toHaveBeenCalled();
+  });
+
+  it('should throw invariant error when inputDim is invalid', async () => {
+    const badGenome = {
+      ...minimalGenome,
+      network: { ...minimalGenome.network, inputDim: 0 },
+    };
+    const windowSets = [
+      {
+        id: 'w1',
+        train: [makeStep([0.1, 0.2, 0.3]), makeStep([0.4, 0.5, 0.6])],
+        validation: [makeStep([0.7, 0.8, 0.9])],
+      },
+    ];
+    const backendFactory = jest.fn(() => makeMockBackend(2));
+    await expect(
+      evaluateGenomeAllWindows(badGenome as any, windowSets, backendFactory as any)
+    ).rejects.toThrow('[Invariant] inputDim must be positive');
   });
 
   it('should handle sparse reward mode', async () => {

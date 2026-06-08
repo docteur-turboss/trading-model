@@ -1,6 +1,7 @@
 import { HttpServer } from './create-secure-server';
 import { setupProcessHandlers } from './signal-handler';
 import { logger } from '../config/logger';
+import { normalizeError } from '../utils/errors';
 
 /** Options for configuring a service bootstrap lifecycle. */
 export interface BootstrapOptions {
@@ -40,14 +41,12 @@ export function createBootstrap(options: BootstrapOptions): {
     }
 
     logger.warn('Forced shutdown', { exitCode: code });
-    if (code !== 0) {
-      process.exitCode = code;
-    }
+    process.exitCode = code;
   }
 
   function bootstrap(): void {
     try {
-      logger.info(`Bootstrapping ${options.name} service`);
+      logger.info('Bootstrapping service', { name: options.name });
 
       const result = options.createServer();
       if (result instanceof Promise) {
@@ -57,7 +56,7 @@ export function createBootstrap(options: BootstrapOptions): {
             finishBootstrap();
           })
           .catch(err => {
-            logger.error('Fatal error during service bootstrap', { err });
+            logger.error('Fatal error during service bootstrap', { err: normalizeError(err) });
             hardShutdown(1);
           });
         return;
@@ -66,7 +65,7 @@ export function createBootstrap(options: BootstrapOptions): {
       server = result;
       finishBootstrap();
     } catch (error) {
-      logger.error('Fatal error during service bootstrap', { err: error });
+      logger.error('Fatal error during service bootstrap', { err: normalizeError(error) });
       hardShutdown(1);
     }
 
@@ -75,12 +74,14 @@ export function createBootstrap(options: BootstrapOptions): {
         try {
           options.onStart();
         } catch (error) {
-          logger.error('onStart callback failed — aborting bootstrap', { err: error });
+          logger.error('onStart callback failed — aborting bootstrap', {
+            err: normalizeError(error),
+          });
           hardShutdown(1);
           return;
         }
       }
-      logger.info(`${options.name} started successfully`);
+      logger.info('Service started successfully', { name: options.name });
     }
   }
 
@@ -97,13 +98,13 @@ export function createBootstrap(options: BootstrapOptions): {
         try {
           options.onStop();
         } catch (error) {
-          logger.warn('onStop callback failed during shutdown', { err: error });
+          logger.warn('onStop callback failed during shutdown', { err: normalizeError(error) });
         }
       }
 
       logger.info('Shutdown completed gracefully');
     } catch (error) {
-      logger.error('Error during graceful shutdown', { err: error });
+      logger.error('Error during graceful shutdown', { err: normalizeError(error) });
       hardShutdown(1);
     }
   }

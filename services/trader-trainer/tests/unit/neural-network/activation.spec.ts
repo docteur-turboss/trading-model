@@ -1,6 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
 import { ACTIVATIONS } from '../../../src/core/neural-network/activation';
-import type { ActivationType } from '../../../src/core/neural-network/type';
 
 describe('Activation Functions', () => {
   describe('sigmoid', () => {

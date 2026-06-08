@@ -139,23 +139,51 @@ export interface NeuralNetworkConfig
   extends NetworkArchitecture, LossConfig, OptimizerConfig, InitializationConfig, MutationConfig {}
 
 /**
- * A single experience tuple stored in the replay pool.
- * Used for backpropagation (supervised) or Q-learning.
+ * A bare experience tuple stored during fastForward when no RL signal is available.
  */
-export interface Experience {
+export interface BareExperience {
+  kind: 'bare';
   /** Raw input fed to the network. */
   input: Float32Array;
   /** Output produced by the network for that input. */
   output: Float32Array;
-  /** Target label for supervised learning (optional for Q-learning). */
-  target?: Float32Array;
-  /** Reward received after the action (Q-learning). */
-  reward?: number;
-  /** Next state observed after the action (Q-learning). */
-  nextState?: Float32Array;
-  /** Whether the episode terminated after this step (Q-learning). */
-  done?: boolean;
 }
+
+/**
+ * A Q-learning experience tuple stored in the replay pool.
+ */
+export interface QLearningExperience {
+  kind: 'qlearning';
+  /** Raw input fed to the network. */
+  input: Float32Array;
+  /** Output produced by the network for that input. */
+  output: Float32Array;
+  /** Reward received after the action (Q-learning). */
+  reward: number;
+  /** Next state observed after the action (Q-learning). */
+  nextState: Float32Array;
+  /** Whether the episode terminated after this step (Q-learning). */
+  done: boolean;
+}
+
+/**
+ * A supervised-learning experience tuple (ground-truth target available).
+ */
+export interface SupervisedExperience {
+  kind: 'supervised';
+  /** Raw input fed to the network. */
+  input: Float32Array;
+  /** Output produced by the network for that input. */
+  output: Float32Array;
+  /** Target label for supervised learning. */
+  target: Float32Array;
+}
+
+/**
+ * A single experience tuple stored in the replay pool.
+ * Discriminated by the `kind` field: `'bare'`, `'qlearning'`, or `'supervised'`.
+ */
+export type Experience = BareExperience | QLearningExperience | SupervisedExperience;
 
 /**
  * Immutable computation context returned by forward().
@@ -181,7 +209,7 @@ export interface LayerActivation {
   z: Float32Array;
 }
 
-export interface PooledExperience extends Experience {
+export interface PooledExperience extends SupervisedExperience {
   /** Cached activations for each layer from the forward pass. */
   layerActivations: LayerActivation[];
   /** Loss computed during the forward pass. */

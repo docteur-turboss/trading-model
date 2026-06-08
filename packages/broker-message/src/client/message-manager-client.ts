@@ -3,7 +3,7 @@ import { EventEnumMap } from '@trading-model/common/config/event.types';
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
 import { MessageMetadata } from '@trading-model/common/contracts/message.types';
-import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes, normalizeError } from '@trading-model/common/utils/errors';
 
 import { MessageManagerConfig } from '../shared/types/config';
 import { SubscribesTopicsPayload, UnSubscribesTopicsPayload } from '../shared/types/payloads';
@@ -35,7 +35,7 @@ export class MessageManagerClient {
       throw new AppError(
         'Failed to subscribe topic to Message Manager',
         ErrorCodes.MESSAGE_MANAGER_ERROR,
-        { cause: error }
+        { cause: normalizeError(error) }
       );
     }
   }
@@ -53,7 +53,7 @@ export class MessageManagerClient {
       throw new AppError(
         'Failed to unsubscribe topic to Message Manager',
         ErrorCodes.MESSAGE_MANAGER_ERROR,
-        { cause: error }
+        { cause: normalizeError(error) }
       );
     }
   }
@@ -81,7 +81,7 @@ export class MessageManagerClient {
       throw new AppError(
         'Failed to subscribe topic to Message Manager',
         ErrorCodes.MESSAGE_MANAGER_ERROR,
-        { cause: e }
+        { cause: normalizeError(e) }
       );
     }
   }
@@ -112,7 +112,7 @@ export class MessageManagerClient {
       throw new AppError(
         'Failed to unsubscribe topic to Message Manager',
         ErrorCodes.MESSAGE_MANAGER_ERROR,
-        { cause: e }
+        { cause: normalizeError(e) }
       );
     }
   }
@@ -146,7 +146,7 @@ export class MessageManagerClient {
       throw new AppError(
         'Failed to publish message to Message Manager',
         ErrorCodes.MESSAGE_MANAGER_ERROR,
-        { cause: error }
+        { cause: normalizeError(error) }
       );
     }
   }
@@ -186,7 +186,7 @@ export class MessageManagerClient {
       throw new AppError(
         'Failed to publish message to ' + service,
         ErrorCodes.MESSAGE_MANAGER_ERROR,
-        { cause: error }
+        { cause: normalizeError(error) }
       );
     }
   }

@@ -100,7 +100,7 @@ describe('Scheduler', () => {
 
     await expect(callback()).resolves.toBeUndefined();
     expect(mockLoggerError).toHaveBeenCalledWith(
-      '[Scheduler] Job execution failed',
+      'Job execution failed',
       expect.objectContaining({
         schedule: '*/1 * * * *',
         error: 'raw string error',
@@ -124,7 +124,7 @@ describe('Scheduler', () => {
 
     await expect(callback()).resolves.toBeUndefined();
     expect(mockLoggerError).toHaveBeenCalledWith(
-      '[Scheduler] Job execution failed',
+      'Job execution failed',
       expect.objectContaining({
         schedule: '*/1 * * * *',
         error: 'fail',

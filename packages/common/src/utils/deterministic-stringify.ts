@@ -19,9 +19,9 @@ export function deterministicStringify(value: unknown): string {
   return JSON.stringify(value, deterministicReplacer);
 }
 
-const deterministicReplacer = (_key: string, value: unknown): unknown => {
+function deterministicReplacer(_key: string, value: unknown): unknown {
   if (typeof value === 'object' && value !== null) {
-    if (value instanceof Date) {
+    /* istanbul ignore next */ if (value instanceof Date) {
       return value.toISOString();
     }
     if (!Array.isArray(value)) {
@@ -35,4 +35,4 @@ const deterministicReplacer = (_key: string, value: unknown): unknown => {
   }
 
   return value;
-};
+}

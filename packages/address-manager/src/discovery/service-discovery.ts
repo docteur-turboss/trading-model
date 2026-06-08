@@ -1,5 +1,5 @@
 import { HttpClient } from '@trading-model/common/config/http-client';
-import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes, normalizeError } from '@trading-model/common/utils/errors';
 
 import { ServiceCache } from './service-cache';
 import { ServiceHealthChecker } from './service-health-checker';
@@ -98,7 +98,7 @@ export class ServiceDiscovery {
       );
     } catch (error) {
       throw new AppError(`Service "${serviceName}" not found`, ErrorCodes.SERVICE_NOT_FOUND, {
-        cause: error,
+        cause: normalizeError(error),
       });
     }
 

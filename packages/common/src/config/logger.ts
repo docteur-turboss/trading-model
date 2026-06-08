@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, appendFile } from 'fs';
 import path from 'path';
 
+import { normalizeError } from '../utils/errors';
+
 /**
  * LogLevel enumeration defines the severity levels for logging.
  * DEBUG   - Detailed debugging information
@@ -64,7 +66,15 @@ export class Logger {
       /^authorization$/i,
       /^cookie$/i,
       /^api[-_]?key$/i,
+      /^api[-_]?secret$/i,
       /^mysql_root_password$/i,
+      /^db_password$/i,
+      /^jwt[-_]?secret$/i,
+      /^private[-_]?key$/i,
+      /^tls[-_]?(key|cert|ca)$/i,
+      /^certificatpath$/i,
+      /^keycertificatpath$/i,
+      /^rootcacertpath$/i,
       /\.secret$/i,
       /\.token$/i,
     ];
@@ -283,7 +293,8 @@ export class Logger {
         body: this.safeStringify(entry),
       });
     } catch (err) {
-      console.error('Failed to send log to service:', err);
+      const normalized = normalizeError(err);
+      console.error('Failed to send log to service:', normalized.message);
     }
   }
 }

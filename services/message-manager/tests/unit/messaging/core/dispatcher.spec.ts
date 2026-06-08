@@ -147,7 +147,7 @@ describe('Dispatcher', () => {
       const { logger } = jest.requireMock('@trading-model/common/config/logger') as {
         logger: { info: jest.Mock; warn: jest.Mock; error: jest.Mock };
       };
-      expect(logger.error).toHaveBeenCalledWith('[Dispatcher] Message delivery failed:', {
+      expect(logger.error).toHaveBeenCalledWith('Message delivery failed', {
         error: new Error('Unhandled error'),
       });
 

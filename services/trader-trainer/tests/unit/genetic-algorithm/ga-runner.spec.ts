@@ -1,21 +1,17 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 
 jest.mock('../../../src/core/agent/trading-agent', () => {
   const makeMockAgent = () => ({
-    agent: {
-      nn: {
-        forward: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
-        getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
-        setWeights: jest.fn(),
-      },
-      getPool: jest.fn(() => []),
-      learnQLearning: jest.fn(),
-    },
+    forwardPass: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
+    getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
+    setWeights: jest.fn(),
+    getExperiencePool: jest.fn(() => []),
+    learnQLearning: jest.fn(),
+    step: jest.fn(() => ({ reward: 1 })),
+    resetEpisode: jest.fn(),
     wallet: {
       getPnL: jest.fn(() => 50),
     },
-    step: jest.fn(() => ({ reward: 1 })),
-    resetEpisode: jest.fn(),
   });
   return {
     __esModule: true,
@@ -317,7 +313,7 @@ function getMinimalGenome() {
 
 describe('GeneticAlgorithmRunner', () => {
   const mockBackendFactory = () => ({
-    forwardPass: jest.fn((f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
+    forwardPass: jest.fn((_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
     step: jest.fn(() => ({ reward: 1 })),
     train: jest.fn(),
     getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
@@ -414,7 +410,6 @@ describe('GeneticAlgorithmRunner', () => {
       evalConcurrency: 1,
     });
     runner.initialise({ networkSeed: 42, mutationSeed: 42, populationSize: 4 });
-    const parentIds = new Set(runner.getPopulation().map(g => g.id));
     await runner.runGeneration();
     const childIds = new Set(runner.getPopulation().map(g => g.id));
     // Elites are preserved from parents, so at least some IDs may overlap.
@@ -533,7 +528,7 @@ describe('full GA loop', () => {
           nextState: new Float32Array([0.4, 0.5, 0.6]),
         },
       ]),
-      forwardPass: jest.fn((f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
+      forwardPass: jest.fn((_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
     });
 
     const features = new Float32Array([0.5, 0.5, 0.5]);
@@ -579,7 +574,7 @@ describe('full GA loop', () => {
             nextState: new Float32Array([0.1, 0.2, 0.3]),
           },
         ]),
-        forwardPass: jest.fn((f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
+        forwardPass: jest.fn((_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
       };
     };
 
@@ -640,7 +635,7 @@ describe('full GA loop', () => {
         getPnL: jest.fn(() => 50),
         resetEpisode: jest.fn(),
         getExperiencePool: jest.fn(() => []),
-        forwardPass: jest.fn((f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
+        forwardPass: jest.fn((_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
       })) as any,
       evalConcurrency: 1,
       initialControl: { populationSize: 2, maxGenerations: 100, rewardThreshold: 0 } as any,
@@ -668,7 +663,7 @@ describe('full GA loop', () => {
         getPnL: jest.fn(() => 50),
         resetEpisode: jest.fn(),
         getExperiencePool: jest.fn(() => []),
-        forwardPass: jest.fn((f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
+        forwardPass: jest.fn((_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
       })) as any,
       evalConcurrency: 1,
       initialControl: { populationSize: 2, maxGenerations: 100, stagnationPatience: 0 } as any,
@@ -696,7 +691,7 @@ describe('full GA loop', () => {
         getPnL: jest.fn(() => 50),
         resetEpisode: jest.fn(),
         getExperiencePool: jest.fn(() => []),
-        forwardPass: jest.fn((f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
+        forwardPass: jest.fn((_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
       })) as any,
       evalConcurrency: 1,
       initialControl: { populationSize: 2, maxGenerations: 100, timeBudgetMs: 1 } as any,
@@ -729,7 +724,7 @@ describe('full GA loop', () => {
           nextState: new Float32Array([0.4, 0.5, 0.6]),
         },
       ]),
-      forwardPass: jest.fn((f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
+      forwardPass: jest.fn((_f: Float32Array) => new Float32Array([0.5, 0.5, 0.5])),
     });
 
     const features = new Float32Array([0.5, 0.5, 0.5]);

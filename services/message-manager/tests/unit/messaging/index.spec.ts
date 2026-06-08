@@ -2,12 +2,12 @@ import { describe, it, expect, jest } from '@jest/globals';
 
 import BrokerModule from '../../../src/messaging/index';
 
-jest.mock('@trading-model/common/config/http-client', () => ({
-  HttpClient: jest.fn().mockImplementation(() => ({
-    post: jest.fn(),
-    get: jest.fn(),
-  })),
-}));
+jest.mock('@trading-model/common/config/http-client', () => {
+  const mockInstance = { post: jest.fn(), get: jest.fn() };
+  const MockHttpClient = jest.fn().mockImplementation(() => mockInstance);
+  MockHttpClient.createWithTls = jest.fn(() => mockInstance);
+  return { HttpClient: MockHttpClient };
+});
 
 describe('BrokerModule', () => {
   it('should construct without error', () => {

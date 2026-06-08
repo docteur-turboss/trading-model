@@ -2,7 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 import { LOSSES } from '../../../src/core/neural-network/losses';
 import type { NeuralNetworkConfig } from '../../../src/core/neural-network/type';
 
-function makeConfig(overrides?: Partial<NeuralNetworkConfig>): Required<NeuralNetworkConfig> {
+function makeConfig(_overrides?: Partial<NeuralNetworkConfig>): Required<NeuralNetworkConfig> {
   return {
     neuronsByLayer: [4, 6, 3],
     activationType: ['ReLu', 'sigmoid'],

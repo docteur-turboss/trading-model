@@ -10,6 +10,7 @@ export function createServer() {
   return createSecureServer({
     port: env.PORT,
     tls: loadTlsConfig(env),
+    trustProxy: true,
     routes: app => {
       AddressManagerRoutes(app);
       MessageManagerRoutes(app);

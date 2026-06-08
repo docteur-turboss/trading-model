@@ -87,7 +87,7 @@ describe('buildPopulationMeta', () => {
 
   test('should handle many objectives (triggers approximate sort)', () => {
     const rng = linearRng();
-    const objs = Array.from({ length: 350 }, (_, i) => ({
+    const objs = Array.from({ length: 350 }, (_, _i) => ({
       avgPnl: Math.random() * 100,
       sharpe: Math.random() * 5,
       negFlops: -Math.random() * 1000,
