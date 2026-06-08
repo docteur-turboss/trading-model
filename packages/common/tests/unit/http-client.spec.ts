@@ -244,4 +244,78 @@ describe('HttpClient', () => {
       expect(result).toEqual({ id: 1, name: 'test' });
     });
   });
+
+  describe('createWithTls', () => {
+    it('should create HttpClient with TLS paths', () => {
+      (fs.readFileSync as jest.Mock).mockClear();
+      (fs.accessSync as jest.Mock).mockClear();
+
+      const client = HttpClient.createWithTls({
+        RootCACertPath: '/etc/ca.pem',
+        CertificatPath: '/etc/cert.pem',
+        KeyCertificatPath: '/etc/key.pem',
+      });
+
+      expect(client).toBeInstanceOf(HttpClient);
+      expect(fs.readFileSync).toHaveBeenCalledWith('/etc/ca.pem', 'utf8');
+      expect(fs.readFileSync).toHaveBeenCalledWith('/etc/cert.pem', 'utf8');
+      expect(fs.readFileSync).toHaveBeenCalledWith('/etc/key.pem', 'utf8');
+    });
+  });
+
+  describe('TLS error handling', () => {
+    it('should throw descriptive error when TLS file cannot be read (Error thrown)', () => {
+      (fs.accessSync as jest.Mock).mockImplementationOnce(() => {
+        throw new Error('ENOENT: no such file');
+      });
+
+      expect(() => new HttpClient({ ca: '/bad/path.pem' })).toThrow(
+        'Failed to read TLS CA certificate from "/bad/path.pem"'
+      );
+    });
+
+    it('should handle non-Error rejection from TLS file read', () => {
+      (fs.accessSync as jest.Mock).mockImplementationOnce(() => {
+        throw 'string error';
+      });
+
+      expect(() => new HttpClient({ ca: '/bad/path.pem' })).toThrow(
+        'Failed to read TLS CA certificate from "/bad/path.pem"'
+      );
+    });
+  });
+
+  describe('request close handling', () => {
+    it('should clean up timeout listener on request close after normal completion', async () => {
+      mockReq.removeListener = jest.fn();
+      mockReq.destroyed = false;
+
+      const promise = client.get('https://example.com/api', { timeoutMs: 1000 });
+      simulateResponse(200, JSON.stringify({ ok: true }), 'application/json');
+
+      const closeCall = mockReq.on.mock.calls.find((c: unknown[]) => c[0] === 'close');
+      const closeHandler = closeCall![1] as () => void;
+      closeHandler();
+
+      await promise;
+
+      expect(mockReq.removeListener).toHaveBeenCalledWith('timeout', expect.any(Function));
+    });
+
+    it('should not clean up timeout listener when request was destroyed', async () => {
+      mockReq.removeListener = jest.fn();
+      mockReq.destroyed = true;
+
+      const promise = client.get('https://example.com/api', { timeoutMs: 1000 });
+      simulateResponse(200, JSON.stringify({ ok: true }), 'application/json');
+
+      const closeCall = mockReq.on.mock.calls.find((c: unknown[]) => c[0] === 'close');
+      const closeHandler = closeCall![1] as () => void;
+      closeHandler();
+
+      await promise;
+
+      expect(mockReq.removeListener).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -171,7 +171,8 @@ export class Subscription {
         context.deliveryAttempt++;
 
         if (e instanceof AppError && e.code === ErrorCodes.DEAD_LETTER_ERROR) {
-          await this.deliveryPort.markDeadLetter(message, e.reason, context.deliveryAttempt);
+          const reason: string = e.reason ?? 'NO_REASON';
+          await this.deliveryPort.markDeadLetter(message, reason, context.deliveryAttempt);
           return;
         }
 
