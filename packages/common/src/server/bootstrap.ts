@@ -45,12 +45,30 @@ export function createBootstrap(options: BootstrapOptions): {
     }
   }
 
-  async function bootstrap(): Promise<void> {
+  function bootstrap(): void {
     try {
       logger.info(`Bootstrapping ${options.name} service`);
 
-      server = await options.createServer();
+      const result = options.createServer();
+      if (result instanceof Promise) {
+        result.then(s => {
+          server = s;
+          finishBootstrap();
+        }).catch(err => {
+          logger.error('Fatal error during service bootstrap', { err });
+          hardShutdown(1);
+        });
+        return;
+      }
 
+      server = result;
+      finishBootstrap();
+    } catch (error) {
+      logger.error('Fatal error during service bootstrap', { err: error });
+      hardShutdown(1);
+    }
+
+    function finishBootstrap(): void {
       if (options.onStart) {
         try {
           options.onStart();
@@ -60,11 +78,7 @@ export function createBootstrap(options: BootstrapOptions): {
           return;
         }
       }
-
       logger.info(`${options.name} started successfully`);
-    } catch (error) {
-      logger.error('Fatal error during service bootstrap', { err: error });
-      hardShutdown(1);
     }
   }
 
