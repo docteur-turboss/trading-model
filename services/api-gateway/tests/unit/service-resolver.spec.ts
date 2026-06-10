@@ -103,4 +103,70 @@ describe('ServiceResolver', () => {
     await resolver.resolve('sector-allocator', 1);
     expect(mockHttpClient.get).toHaveBeenCalledTimes(2);
   });
+
+  it('should return null from handleFallback when cache is empty', async () => {
+    mockHttpClient.get.mockRejectedValue(new Error('Connection refused'));
+
+    const target = await resolver.resolve('fresh-service', 1);
+    expect(target).toBeNull();
+  });
+
+  it('should handle non-array discovery response', async () => {
+    mockHttpClient.get.mockResolvedValue({ data: null });
+
+    const target = await resolver.resolve('sector-allocator', 1);
+    expect(target).toBeNull();
+  });
+
+  it('should return null when discovery returns empty array (no stale)', async () => {
+    await resolver.resolve('sector-allocator', 1);
+
+    jest.advanceTimersByTime(6000);
+
+    mockHttpClient.get.mockResolvedValue([]);
+
+    const target = await resolver.resolve('sector-allocator', 1);
+    expect(target).toBeNull();
+  });
+
+  it('should handle empty cached instances expiry correctly', async () => {
+    mockHttpClient.get.mockResolvedValue([]);
+
+    const first = await resolver.resolve('new-service', 1);
+    expect(first).toBeNull();
+
+    jest.advanceTimersByTime(6000);
+
+    const second = await resolver.resolve('new-service', 1);
+    expect(second).toBeNull();
+  });
+
+  it('should return null from cache when cached instances are empty within TTL', async () => {
+    mockHttpClient.get.mockResolvedValue([]);
+
+    const first = await resolver.resolve('cache-empty-service', 1);
+    expect(first).toBeNull();
+
+    const second = await resolver.resolve('cache-empty-service', 1);
+    expect(second).toBeNull();
+
+    expect(mockHttpClient.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('should construct without httpClient (uses default)', () => {
+    const r = new ServiceResolver('https://discovery:3000', 5000);
+    expect(r).toBeInstanceOf(ServiceResolver);
+  });
+
+  it('should invalidate cache only for matching service key', async () => {
+    await resolver.resolve('sector-allocator', 1);
+    await resolver.resolve('other-service', 2);
+
+    resolver.invalidateCache('sector-allocator');
+
+    const cached = await resolver.resolve('other-service', 2);
+    expect(cached).not.toBeNull();
+
+    expect(mockHttpClient.get).toHaveBeenCalledTimes(2);
+  });
 });

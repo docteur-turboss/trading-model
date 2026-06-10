@@ -170,6 +170,142 @@ describe('proxy-handler', () => {
     await expect(forward(req, mockTarget, '/test')).rejects.toThrow('timeout');
   });
 
+  it('should handle array headers by joining with comma', async () => {
+    const { mockRes, mockReq, events } = createMockResponse(200, '{}');
+
+    const https = require('node:https');
+    https.request = createMockHttps((_opts: any, callback: (res: any) => void) => {
+      callback(mockRes);
+      if (events.data) {
+        for (const h of events.data) h(Buffer.from('{}'));
+      }
+      if (events.end) {
+        for (const h of events.end) h();
+      }
+      return mockReq;
+    });
+
+    const { forwardRequest: forward } = await Promise.resolve(
+      require('../../src/core/proxy-handler'),
+    );
+    const req = createReq({
+      method: 'GET',
+      headers: {
+        'x-request-id': 'req-123',
+        'accept': ['text/html', 'application/json'],
+      },
+    });
+    const result = await forward(req, mockTarget, '/test');
+    expect(result.status).toBe(200);
+  });
+
+  it('should handle non-string non-array header value (implicit else branch)', async () => {
+    const { mockRes, mockReq, events } = createMockResponse(200, '{}');
+
+    const https = require('node:https');
+    https.request = createMockHttps((_opts: any, callback: (res: any) => void) => {
+      callback(mockRes);
+      if (events.data) {
+        for (const h of events.data) h(Buffer.from('{}'));
+      }
+      if (events.end) {
+        for (const h of events.end) h();
+      }
+      return mockReq;
+    });
+
+    const { forwardRequest: forward } = await Promise.resolve(
+      require('../../src/core/proxy-handler'),
+    );
+    const req = createReq({
+      method: 'GET',
+      headers: { 'x-request-id': 'req-123', 'content-length': 42 },
+    });
+    const result = await forward(req, mockTarget, '/test');
+    expect(result.status).toBe(200);
+  });
+
+  it('should use socket.remoteAddress when req.ip is undefined', async () => {
+    const { mockRes, mockReq, events } = createMockResponse(200, '{}');
+
+    const https = require('node:https');
+    https.request = createMockHttps((_opts: any, callback: (res: any) => void) => {
+      callback(mockRes);
+      if (events.data) {
+        for (const h of events.data) h(Buffer.from('{}'));
+      }
+      if (events.end) {
+        for (const h of events.end) h();
+      }
+      return mockReq;
+    });
+
+    const { forwardRequest: forward } = await Promise.resolve(
+      require('../../src/core/proxy-handler'),
+    );
+    const req = createReq({
+      method: 'GET',
+      ip: undefined,
+      socket: { remoteAddress: '10.0.0.1' },
+    });
+    const result = await forward(req, mockTarget, '/test');
+    expect(result.status).toBe(200);
+  });
+
+  it('should fallback to unknown when both ip and socket.remoteAddress are undefined', async () => {
+    const { mockRes, mockReq, events } = createMockResponse(200, '{}');
+
+    const https = require('node:https');
+    https.request = createMockHttps((_opts: any, callback: (res: any) => void) => {
+      callback(mockRes);
+      if (events.data) {
+        for (const h of events.data) h(Buffer.from('{}'));
+      }
+      if (events.end) {
+        for (const h of events.end) h();
+      }
+      return mockReq;
+    });
+
+    const { forwardRequest: forward } = await Promise.resolve(
+      require('../../src/core/proxy-handler'),
+    );
+    const req = createReq({
+      method: 'GET',
+      ip: undefined,
+      socket: { remoteAddress: undefined },
+    });
+    const result = await forward(req, mockTarget, '/test');
+    expect(result.status).toBe(200);
+  });
+
+  it('should fallback to 503 when statusCode is null', async () => {
+    const { mockRes, mockReq, events } = createMockResponse(
+      0 as unknown as number,
+      'error',
+    );
+    mockRes.statusCode = null;
+
+    const https = require('node:https');
+    https.request = createMockHttps((_opts: any, callback: (res: any) => void) => {
+      callback(mockRes);
+      if (events.data) {
+        for (const h of events.data) h(Buffer.from('error'));
+      }
+      if (events.end) {
+        for (const h of events.end) h();
+      }
+      return mockReq;
+    });
+
+    const { forwardRequest: forward } = await Promise.resolve(
+      require('../../src/core/proxy-handler'),
+    );
+    const req = createReq({ method: 'GET' });
+    const result = await forward(req, mockTarget, '/test');
+    expect(result.status).toBe(503);
+  });
+
   it('should forward POST body', async () => {
     const { mockRes, mockReq, events } = createMockResponse(
       200,
