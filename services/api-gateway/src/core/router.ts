@@ -23,7 +23,10 @@ export function createRouter(): Router {
     res.json({ status: 'ok', service: 'api-gateway' });
   });
 
-  router.all('/v:version/:serviceName/*', authMiddleware, defaultLimiter, catchSync(async req => {
+  router.use(authMiddleware);
+  router.use(defaultLimiter);
+
+  router.use(catchSync(async req => {
     const match = req.path.match(VERSION_PATH_REGEX);
     if (!match) {
       return sendResponse({ error: 'Invalid route format. Expected /v{version}/{serviceName}/**' }, 400);

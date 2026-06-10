@@ -5,15 +5,17 @@ import { sendResponse } from '@trading-model/common/middleware/response-exceptio
 
 import { env } from '../config/env';
 
-const validTokens = new Set(
-  env.AUTH_TOKENS
-    .split(',')
-    .map(t => t.trim())
-    .filter(t => t.length > 0)
-);
-
 export interface AuthRequest {
   clientIdentity: string;
+}
+
+function getValidTokens(): Set<string> {
+  return new Set(
+    env.AUTH_TOKENS
+      .split(',')
+      .map(t => t.trim())
+      .filter(t => t.length > 0),
+  );
 }
 
 export const authMiddleware: RequestHandler = catchSync(async req => {
@@ -24,6 +26,7 @@ export const authMiddleware: RequestHandler = catchSync(async req => {
     return sendResponse({ error: 'Missing authentication token' }, 401);
   }
 
+  const validTokens = getValidTokens();
   if (validTokens.size > 0 && !validTokens.has(token)) {
     return sendResponse({ error: 'Invalid authentication token' }, 401);
   }
