@@ -23,6 +23,7 @@ describe('ServiceDiscovery', () => {
     protocol: 'http',
     registeredAt: FIXED_TIMESTAMP,
     serviceName: serviceName,
+    version: '1.0.0',
     ttl: 30000,
   };
 

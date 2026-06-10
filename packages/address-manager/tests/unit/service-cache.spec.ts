@@ -14,6 +14,7 @@ describe('ServiceCache', () => {
     protocol: 'http',
     registeredAt: Date.now(),
     serviceName: serviceName,
+    version: '1.0.0',
     ttl: 30000,
   };
 

@@ -17,6 +17,7 @@ describe('ServiceHealthChecker', () => {
     protocol: 'http',
     registeredAt: Date.now(),
     serviceName: 'user-service',
+    version: '1.0.0',
     ttl: 30000,
   };
 

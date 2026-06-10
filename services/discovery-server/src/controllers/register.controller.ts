@@ -15,6 +15,7 @@ const registerSchema = z.object({
   instanceId: z.string().min(1).optional(),
   ip: z.string().regex(ipv4Regex, 'Invalid IP address'),
   port: z.number().int().min(1).max(65535, 'Invalid port'),
+  version: z.string().optional(),
 });
 
 interface RegisterController {
@@ -35,7 +36,7 @@ export function createRegisterController(registry: ServiceRegistry): RegisterCon
       );
     }
 
-    const { serviceName, instanceId, ip, port } = parsed.data;
+    const { serviceName, instanceId, ip, port, version } = parsed.data;
 
     if (!registry.verifyInstanceName(serviceName))
       return sendResponse({ error: 'Invalid service name' }, 400);
@@ -53,6 +54,7 @@ export function createRegisterController(registry: ServiceRegistry): RegisterCon
       serviceName,
       ip,
       port,
+      version: version ?? '1.0.0',
       ttl: 30_000,
       protocol: 'mtls',
       registeredAt: Date.now(),
