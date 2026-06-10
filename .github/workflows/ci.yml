@@ -41,6 +41,8 @@ jobs:
           npm run -w services/discovery-server build
           npm run -w services/financial-scraper build
           npm run -w services/trader-trainer build
+          npm run -w services/certificate-authority build
+          npm run -w packages/certificate-utils build
 
   test:
     runs-on: ubuntu-latest

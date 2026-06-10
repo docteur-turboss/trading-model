@@ -32,12 +32,12 @@ export async function signCertificate(req: Request, res: Response): Promise<void
 
 export async function getCertificate(req: Request, res: Response): Promise<void> {
   try {
-    const serviceId = String(req.params.serviceId);
-
-    if (!serviceId) {
+    if (!req.params.serviceId) {
       res.status(400).json({ error: 'serviceId is required' });
       return;
     }
+
+    const serviceId = String(req.params.serviceId);
 
     const cert = await certificateStore.getByServiceId(serviceId);
 

@@ -5,7 +5,8 @@ module.exports = {
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
+  maxWorkers: 1,
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/app/index.ts', '!src/config/env.ts'],
   moduleNameMapper: {
     '^config/(.*)$': '<rootDir>/src/config/$1',
   },
