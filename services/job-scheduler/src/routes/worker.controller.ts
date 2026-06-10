@@ -3,8 +3,8 @@ import { RequestHandler } from 'express';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
-import { WorkerRegistry } from '../worker/worker-registry';
 import { RegisterWorkerSchema, WorkerHeartbeatSchema } from './worker.schema';
+import { WorkerRegistry } from '../worker/worker-registry';
 
 export function createWorkerController(workers: WorkerRegistry) {
   const register: RequestHandler = catchSync(async req => {

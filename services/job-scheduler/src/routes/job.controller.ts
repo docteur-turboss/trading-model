@@ -3,8 +3,8 @@ import { RequestHandler } from 'express';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
-import { JobScheduler } from '../scheduler/job-scheduler';
 import { SubmitJobSchema } from './job.schema';
+import { JobScheduler } from '../scheduler/job-scheduler';
 
 export function createJobController(scheduler: JobScheduler) {
   const submit: RequestHandler = catchSync(async req => {
@@ -38,7 +38,7 @@ export function createJobController(scheduler: JobScheduler) {
   });
 
   const getById: RequestHandler = catchSync(async req => {
-    const job = await scheduler.repository.findById(req.params.id);
+    const job = await scheduler.repository.findById(String(req.params.id));
     if (!job) return sendResponse({ error: 'Job not found' }, 404);
 
     return sendResponse(job, 200);
@@ -46,7 +46,7 @@ export function createJobController(scheduler: JobScheduler) {
 
   const cancel: RequestHandler = catchSync(async req => {
     try {
-      await scheduler.cancel(req.params.id);
+      await scheduler.cancel(String(req.params.id));
       return sendResponse({ status: 'cancelled' }, 200);
     } catch (err) {
       if (err instanceof Error && err.message.includes('Cannot cancel')) {

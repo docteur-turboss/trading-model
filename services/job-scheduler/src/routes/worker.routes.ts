@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
-import { WorkerRegistry } from '../worker/worker-registry';
 import { createWorkerController } from './worker.controller';
+import { WorkerRegistry } from '../worker/worker-registry';
 
 export function workerRoutes(workers: WorkerRegistry): Router {
   const router = Router();
