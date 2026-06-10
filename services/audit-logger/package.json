@@ -1,0 +1,56 @@
+{
+  "name": "@trading-model/audit-logger",
+  "version": "1.0.0",
+  "description": "Service de traçabilité complète et immuable de toutes les décisions, transactions et erreurs",
+  "homepage": "https://github.com/docteur-turboss/trading-model#readme",
+  "bugs": {
+    "url": "https://github.com/docteur-turboss/trading-model/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docteur-turboss/trading-model.git"
+  },
+  "keywords": [
+    "audit",
+    "logger",
+    "tracing",
+    "immutable"
+  ],
+  "license": "ISC",
+  "author": "Docteur Turboss <@docteur-turboss>",
+  "type": "commonjs",
+  "main": "./dist/app/index.js",
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "build": "tsc",
+    "dev": "ts-node src/app/index.ts"
+  },
+  "dependencies": {
+    "@trading-model/address-manager": "*",
+    "@trading-model/broker-message": "*",
+    "@trading-model/common": "*",
+    "express": "^5.2.1",
+    "mongodb": "^7.2.0",
+    "uuid": "^14.0.0",
+    "ws": "^8.16.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@jest/globals": "^30.4.1",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.2",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.16.0",
+    "eslint": "^10.4.1",
+    "globals": "^17.6.0",
+    "jest": "^30.4.2",
+    "standard-version": "^9.5.0",
+    "ts-jest": "^29.4.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2"
+  }
+}

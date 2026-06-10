@@ -121,6 +121,10 @@ export const EnumEventMessage = {
   fetchOrderBookSnapshot: 'market.order-book.snapshot.fetch',
   fetchPriceTickerSnapshot: 'market.price-ticker.snapshot.fetch',
   fetchOrderBookTickerSnapshot: 'market.order-book-ticker.snapshot.fetch',
+
+  /** Audit system events */
+  auditHeartbeat: 'audit.heartbeat',
+  auditGapDetected: 'audit.gap.detected',
 } as const;
 
 type EventMessage = (typeof EnumEventMessage)[keyof typeof EnumEventMessage];
@@ -135,6 +139,10 @@ export type EventMap = {
   [EnumEventMessage.fetchOrderBookSnapshot]: { orderBook: OrderBookData[] };
   [EnumEventMessage.fetchPriceTickerSnapshot]: { price: Record<string, number> };
   [EnumEventMessage.fetchOrderBookTickerSnapshot]: { bookTicker: BookTickerData[] };
+
+  /** Audit system events */
+  [EnumEventMessage.auditHeartbeat]: { serviceName: string; instanceId: string };
+  [EnumEventMessage.auditGapDetected]: { from: Date; to: Date; lostCount?: number };
 };
 
 /** Extracts the payload type for a given event message. */
