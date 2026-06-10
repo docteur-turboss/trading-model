@@ -11,8 +11,6 @@ jest.mock('@trading-model/common/config/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { forwardRequest } from '../../src/core/proxy-handler';
-
 const mockTarget = { host: '10.0.1.5', port: 3000, version: '1.0.0' };
 
 function createMockResponse(

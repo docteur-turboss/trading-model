@@ -1,11 +1,11 @@
 import https from 'node:https';
 
-import { Request, Response } from 'express';
+import { Request } from 'express';
 
 import { logger } from '@trading-model/common/config/logger';
 
-import { env } from '../config/env';
 import { ResolvedTarget } from './service-resolver';
+import { env } from '../config/env';
 
 export interface ProxyResult {
   status: number;

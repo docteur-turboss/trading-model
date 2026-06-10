@@ -267,6 +267,44 @@ services:
       message-manager:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  #  API Gateway — Point d'entrée unique externe
+  # ---------------------------------------------------------------------------
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: trading-gateway
+    restart: unless-stopped
+    ports:
+      - '${GATEWAY_PORT:-8448}:3000'
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: '3000'
+      TLS_KEY_PATH: /certs/server-key.pem
+      TLS_CERT_PATH: /certs/server.crt
+      TLS_CA_PATH: /certs/ca.crt
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DISCOVERY_SERVICE_URL: https://discovery-server:3000
+      RATE_LIMIT_WINDOW_MS: '60000'
+      RATE_LIMIT_MAX: '100'
+      CACHE_TTL_MS: '30000'
+      AUTH_TOKEN_HEADER: x-api-key
+      AUTH_TOKENS: ''
+      PROXY_TIMEOUT_MS: '10000'
+    volumes:
+      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+    networks:
+      - backend-net
+    healthcheck:
+      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+
 networks:
   data-net:
     name: trading-data-network

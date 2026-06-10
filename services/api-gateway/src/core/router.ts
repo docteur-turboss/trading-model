@@ -4,12 +4,12 @@ import { logger } from '@trading-model/common/config/logger';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
-import { env } from '../config/env';
 import { authMiddleware } from './auth';
 import { ResponseCache } from './cache';
 import { forwardRequest } from './proxy-handler';
 import { defaultLimiter } from './rate-limiter';
 import { ServiceResolver } from './service-resolver';
+import { env } from '../config/env';
 
 const resolver = new ServiceResolver(env.DISCOVERY_SERVICE_URL, env.CACHE_TTL_MS);
 const cache = new ResponseCache(env.CACHE_TTL_MS);

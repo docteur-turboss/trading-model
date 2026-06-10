@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { ServiceResolver } from '../../src/core/service-resolver';
-import { mockDiscoveryResponse, mockResolvedTarget } from '../fixtures/index';
+import { mockDiscoveryResponse } from '../fixtures/index';
 
 describe('ServiceResolver', () => {
   let resolver: ServiceResolver;

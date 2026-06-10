@@ -35,6 +35,8 @@ jobs:
           npm run -w services/discovery-server build
           npm run -w services/financial-scraper build
           npm run -w services/trader-trainer build
+          npm run -w services/certificate-authority build
+          npm run -w services/api-gateway build
       - run: npm run test:coverage
 
       - name: Upload coverage to Codecov
@@ -72,6 +74,9 @@ jobs:
           - name: certificate-authority
             context: .
             dockerfile: services/certificate-authority/Dockerfile
+          - name: api-gateway
+            context: .
+            dockerfile: services/api-gateway/Dockerfile
     steps:
       - uses: actions/checkout@v5
 

@@ -12,6 +12,7 @@
     "build:broker-message": "npm run -w @trading-model/broker-message build",
     "build:certificate-utils": "npm run -w @trading-model/certificate-utils build",
     "build:certificate-authority": "npm run -w certificate-authority build",
+    "build:api-gateway": "npm run -w api-gateway build",
     "build": "npm run build:common && npm run build:address-manager && npm run build:broker-message && npm run build:certificate-utils",
     "commit": "node scripts/commit.mjs",
     "release": "node scripts/release.mjs",

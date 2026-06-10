@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { createReq, createRes, createNext } from '../helpers/express';
+import { createReq, createNext } from '../helpers/express';
 
 jest.mock('../../src/config/env', () => ({
   env: {
