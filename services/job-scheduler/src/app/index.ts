@@ -1,12 +1,12 @@
 import { MongoClient } from 'mongodb';
 
-import { createBootstrap } from '@trading-model/common/server/bootstrap';
 import { logger } from '@trading-model/common/config/logger';
+import { createBootstrap } from '@trading-model/common/server/bootstrap';
 
+import { createServer } from './server';
 import { bootstrapAddressManager } from '../config/address-manager';
 import { env } from '../config/env';
 import { JobRepository } from '../persistence/job-repository';
-import { createServer } from './server';
 import { JobScheduler } from '../scheduler/job-scheduler';
 import { WorkerProtocol } from '../worker/worker-protocol';
 
@@ -26,11 +26,10 @@ createBootstrap({
 
     scheduler = new JobScheduler(repository);
 
-    const server = createServer(scheduler);
-    const serverInstance = server as unknown as import('net').Server;
+    const server = await createServer(scheduler);
 
     workerProtocol = new WorkerProtocol(
-      serverInstance as unknown as import('stream').Duplex,
+      server.raw,
       scheduler.workers,
       (workerId: string) => scheduler!.onWorkerDisconnect(workerId),
     );

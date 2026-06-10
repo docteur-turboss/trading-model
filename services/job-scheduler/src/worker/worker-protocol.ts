@@ -1,18 +1,18 @@
-import { Duplex } from 'stream';
+import https from 'node:https';
 
 import WebSocket, { WebSocketServer } from 'ws';
 
 import { logger } from '@trading-model/common/config/logger';
 
-import { SchedulerOutgoingMessage, WorkerIncomingMessage } from '../types/worker.types';
 import { WorkerRegistry } from './worker-registry';
+import { SchedulerOutgoingMessage, WorkerIncomingMessage } from '../types/worker.types';
 
 export class WorkerProtocol {
   private readonly wss: WebSocketServer;
   private readonly connections: Map<string, WebSocket> = new Map();
 
   constructor(
-    server: Duplex,
+    server: https.Server,
     private readonly workerRegistry: WorkerRegistry,
     private readonly onWorkerDisconnect: (workerId: string) => void,
   ) {

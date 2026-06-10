@@ -1,8 +1,8 @@
 import { logger } from '@trading-model/common/config/logger';
 
+import { ReAllocator } from './re-allocator';
 import { JobRepository } from '../persistence/job-repository';
 import { WorkerRegistry } from '../worker/worker-registry';
-import { ReAllocator } from './re-allocator';
 
 export class OrphanDetector {
   private intervalHandle: ReturnType<typeof setInterval> | null = null;

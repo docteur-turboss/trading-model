@@ -2,15 +2,15 @@ import { randomUUID } from 'node:crypto';
 
 import { logger } from '@trading-model/common/config/logger';
 
-import { env } from '../config/env';
-import { Job, JobEvent, JobStatus } from '../types/job.types';
-import { JobRepository } from '../persistence/job-repository';
-import { WorkerRegistry } from '../worker/worker-registry';
-import { WorkerProtocol } from '../worker/worker-protocol';
-import { InternalQueue } from './internal-queue';
 import { BackPressure } from './back-pressure';
+import { InternalQueue } from './internal-queue';
+import { env } from '../config/env';
+import { JobRepository } from '../persistence/job-repository';
 import { OrphanDetector } from '../recovery/orphan-detector';
 import { ReAllocator } from '../recovery/re-allocator';
+import { Job } from '../types/job.types';
+import { WorkerProtocol } from '../worker/worker-protocol';
+import { WorkerRegistry } from '../worker/worker-registry';
 
 export class JobScheduler {
   readonly queue: InternalQueue;

@@ -1,6 +1,6 @@
 import { Collection, Db } from 'mongodb';
 
-import { Job, JobStatus, JOB_STATUS_NON_TERMINAL } from '../types/job.types';
+import { Job, JobStatus } from '../types/job.types';
 
 const COLLECTION = 'jobs';
 

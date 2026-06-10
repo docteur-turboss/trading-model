@@ -1,9 +1,9 @@
 import { logger } from '@trading-model/common/config/logger';
 
 import { env } from '../config/env';
+import { JobRepository } from '../persistence/job-repository';
 import { InternalQueue } from '../scheduler/internal-queue';
 import { Job } from '../types/job.types';
-import { JobRepository } from '../persistence/job-repository';
 
 export class ReAllocator {
   constructor(
