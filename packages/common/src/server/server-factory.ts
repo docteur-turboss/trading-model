@@ -16,6 +16,8 @@ export interface HttpsServerOptions {
 /** Minimal abstraction over a running HTTP server. */
 export interface HttpServer {
   close: () => Promise<void>;
+  /** The underlying Node.js HTTPS server instance, useful for WebSocket upgrades. */
+  raw: https.Server;
 }
 
 /**
@@ -56,6 +58,7 @@ export async function createAndStartHttpsServer(
   });
 
   return {
+    raw: httpsServer,
     close: () =>
       new Promise<void>((resolve, reject) => {
         httpsServer.close(err => {
