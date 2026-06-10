@@ -1,0 +1,48 @@
+{
+  "name": "certificate-authority",
+  "version": "1.0.0",
+  "description": "Centralised mTLS Certificate Authority — X.509 certificate generation, signing, rotation, distribution, and revocation",
+  "homepage": "https://github.com/docteur-turboss/trading-model#readme",
+  "bugs": {
+    "url": "https://github.com/docteur-turboss/trading-model/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/docteur-turboss/trading-model.git"
+  },
+  "license": "ISC",
+  "author": "Alchimist Horus Turboss <@docteur-turboss>",
+  "type": "commonjs",
+  "main": "./dist/app/index.js",
+  "scripts": {
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "dev": "ts-node src/app/index.ts",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
+    "@eslint/js": "^10.0.1",
+    "@jest/globals": "^30.4.1",
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.2",
+    "eslint": "^10.4.1",
+    "globals": "^17.6.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2"
+  },
+  "dependencies": {
+    "@trading-model/certificate-utils": "*",
+    "@trading-model/common": "*",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.1",
+    "helmet": "^8.2.0",
+    "mongodb": "^6.3.0",
+    "zod": "^4.4.3"
+  }
+}
