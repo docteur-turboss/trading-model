@@ -76,6 +76,48 @@ services:
       retries: 3
 
   # ---------------------------------------------------------------------------
+  #  Certificate Authority — X.509 certificate issuance & lifecycle
+  # ---------------------------------------------------------------------------
+  certificate-authority:
+    build:
+      context: .
+      dockerfile: services/certificate-authority/Dockerfile
+    container_name: trading-ca
+    restart: unless-stopped
+    ports:
+      - '${CA_PORT:-8447}:3000'
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: '3000'
+      TLS_KEY_PATH: /certs/server-key.pem
+      TLS_CERT_PATH: /certs/server.crt
+      TLS_CA_PATH: /certs/ca.crt
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MONGODB_URI: mongodb://mongo:27017/certificate-authority
+      CA_KEY_PATH: /etc/ca-keys/ca-key.pem
+      CA_CERT_TTL_MS: '31536000000'
+      CERT_ROTATION_INTERVAL_MS: '86400000'
+      CERT_ROTATION_MARGIN_MS: '17280000'
+      CERT_DEFAULT_TTL_MS: '604800000'
+      DISCOVERY_SERVICE_URL: https://discovery-server:3000
+    volumes:
+      - ${TLS_CERTS_DIR:-./certs}:/certs:ro
+      - ca-keys:/etc/ca-keys
+    networks:
+      - backend-net
+      - data-net
+    healthcheck:
+      test: curl -sk --cert /certs/server.crt --key /certs/server-key.pem https://localhost:3000/ping || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      mongo:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
   #  Message Manager — Event bus / message broker
   # ---------------------------------------------------------------------------
   message-manager:
@@ -237,3 +279,4 @@ networks:
 volumes:
   mongo-data:
   mysql-data:
+  ca-keys:
