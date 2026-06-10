@@ -248,6 +248,16 @@ const EventValidators: ZodEventMap<EventMap> = {
       'BookTicker is required and must be a array of object'
     ),
   }),
+
+  [EnumEventMessage.auditHeartbeat]: z.object({
+    serviceName: z.string(),
+    instanceId: z.string(),
+  }),
+  [EnumEventMessage.auditGapDetected]: z.object({
+    from: z.string().transform((s) => new Date(s)),
+    to: z.string().transform((s) => new Date(s)),
+    lostCount: z.number().int().optional(),
+  }),
 };
 
 /** Validates the message payload as a discriminated union by event type. */
