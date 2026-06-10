@@ -5,6 +5,7 @@ export interface ServiceRegisterPayload {
   port: number;
   protocol: 'http' | 'https';
   env?: string;
+  version?: string;
 }
 
 /** Payload sent periodically to signal that a service instance is alive. */
@@ -32,4 +33,5 @@ export interface ServiceInstance {
   env?: string;
   ttl: number;
   ip: string;
+  version: string;
 }

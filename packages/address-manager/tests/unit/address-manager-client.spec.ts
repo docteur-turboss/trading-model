@@ -92,6 +92,7 @@ describe('AddressManagerClient', () => {
         serviceName: 'abc-service',
         token: 'service-token',
         ttl: 30000,
+        version: '1.0.0',
       };
       httpClient.post.mockResolvedValueOnce(response);
 
@@ -116,6 +117,7 @@ describe('AddressManagerClient', () => {
         serviceName: 'abc-service',
         token: 'service-token',
         ttl: 30000,
+        version: '1.0.0',
       };
       httpClient.post.mockResolvedValueOnce(response);
 

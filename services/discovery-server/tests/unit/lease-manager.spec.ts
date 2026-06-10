@@ -67,6 +67,7 @@ describe('LeaseManager', () => {
         port: 8080,
         ttl: 30000,
         protocol: 'mtls',
+        version: '1.0.0',
         registeredAt: Date.now() - 1000,
         lastHeartbeat: Date.now(),
       };
@@ -83,6 +84,7 @@ describe('LeaseManager', () => {
         port: 8080,
         ttl: 30000,
         protocol: 'mtls',
+        version: '1.0.0',
         registeredAt: Date.now() - 120_000,
         lastHeartbeat: Date.now() - 60_000,
       };
@@ -99,6 +101,7 @@ describe('LeaseManager', () => {
         port: 8080,
         ttl: 30000,
         protocol: 'mtls',
+        version: '1.0.0',
         registeredAt: Date.now() - 60_000,
         lastHeartbeat: Date.now() - 30_000,
       };

@@ -14,6 +14,7 @@ describe('ServiceCache', () => {
     protocol: 'http',
     registeredAt: Date.now(),
     serviceName: serviceName,
+    version: '1.0.0',
     ttl: 30000,
   };
 
@@ -58,6 +59,7 @@ describe('ServiceCache', () => {
       lastHeartbeat: Date.now(),
       registeredAt: Date.now(),
       serviceName: 'other-service',
+      version: '1.0.0',
       ttl: 30000,
     });
     await cache.clear();

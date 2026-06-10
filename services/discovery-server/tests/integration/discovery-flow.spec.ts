@@ -25,6 +25,7 @@ describe('Discovery Service — Full Flow Integration', () => {
       port: 8444,
       ttl: 30_000,
       protocol: 'mtls',
+      version: '1.0.0',
       registeredAt: Date.now(),
       lastHeartbeat: Date.now(),
     });
@@ -45,6 +46,7 @@ describe('Discovery Service — Full Flow Integration', () => {
       port: 8444,
       ttl: 30_000,
       protocol: 'mtls',
+      version: '1.0.0',
       registeredAt: Date.now(),
       lastHeartbeat: Date.now(),
     });
@@ -56,6 +58,7 @@ describe('Discovery Service — Full Flow Integration', () => {
       port: 8444,
       ttl: 30_000,
       protocol: 'mtls',
+      version: '1.0.0',
       registeredAt: Date.now(),
       lastHeartbeat: Date.now(),
     });
@@ -71,6 +74,7 @@ describe('Discovery Service — Full Flow Integration', () => {
       port: 8444,
       ttl: 30_000,
       protocol: 'mtls',
+      version: '1.0.0',
       registeredAt: Date.now(),
       lastHeartbeat: Date.now(),
     });
@@ -87,6 +91,7 @@ describe('Discovery Service — Full Flow Integration', () => {
       port: 8444,
       ttl: 30_000,
       protocol: 'mtls',
+      version: '1.0.0',
       registeredAt: Date.now(),
       lastHeartbeat: Date.now(),
     });
@@ -111,6 +116,7 @@ describe('Discovery Service — Full Flow Integration', () => {
       port: 8444,
       ttl: 30_000,
       protocol: 'mtls',
+      version: '1.0.0',
       registeredAt: Date.now(),
       lastHeartbeat: Date.now(),
     });
@@ -122,6 +128,7 @@ describe('Discovery Service — Full Flow Integration', () => {
       port: 8445,
       ttl: 60_000,
       protocol: 'mtls',
+      version: '1.0.0',
       registeredAt: Date.now(),
       lastHeartbeat: Date.now(),
     });
@@ -141,6 +148,7 @@ describe('Discovery Service — Full Flow Integration', () => {
       port: 8444,
       ttl: 30_000,
       protocol: 'mtls',
+      version: '1.0.0',
       registeredAt: Date.now(),
       lastHeartbeat: Date.now(),
     });

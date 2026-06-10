@@ -44,6 +44,7 @@ describe('helpers', () => {
         port: 8080,
         ttl: 30000,
         protocol: 'mtls',
+        version: '1.0.0',
         registeredAt: Date.now(),
         lastHeartbeat: Date.now(),
       });
