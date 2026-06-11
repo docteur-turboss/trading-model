@@ -104,7 +104,7 @@ export function Workers() {
       </Box>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<MemoryIcon />}
             value={`${data?.stats.activeWorkers ?? 0} / ${data?.stats.totalWorkers ?? 0}`}
@@ -113,7 +113,7 @@ export function Workers() {
             deltaColor="success.main"
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<BoltIcon />}
             value={`${data?.stats.avgCpu ?? 0}%`}
@@ -121,7 +121,7 @@ export function Workers() {
             delta="12% stable over 4h"
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<DnsIcon />}
             value={`${data?.stats.totalJobsPerMin ?? 0}`}
@@ -129,7 +129,7 @@ export function Workers() {
             delta="Capacity: 2,500/min"
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<StorageIcon />}
             value={`${data?.stats.clusterMemory ?? 0} GB`}

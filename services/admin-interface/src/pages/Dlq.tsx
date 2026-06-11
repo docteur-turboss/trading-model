@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Typography, Button, Checkbox, CircularProgress, Grid } from '@mui/material';
+import { Box, Typography, Button, CircularProgress, Grid } from '@mui/material';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -16,7 +16,7 @@ import type { Column } from '../components/DataTable';
 import { InfoBox } from '../components/InfoBox';
 
 export function Dlq() {
-  const { data, loading, refetch } = useApi(() => api.getDlqMessages());
+  const { data, loading } = useApi(() => api.getDlqMessages());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const columns: Column<DlqMessage>[] = [
@@ -80,28 +80,28 @@ export function Dlq() {
       </Box>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<WarningAmberIcon />}
             value={String(data?.stats.pending ?? 0)}
             label="MESSAGES EN ATTENTE"
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<RefreshIcon />}
             value={`${data?.stats.retryRate ?? 0}%`}
             label="TAUX DE RETRY"
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<StorageIcon />}
             value={`${data?.stats.totalSize ?? 0} MB`}
             label="TAILLE TOTALE"
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<AccessTimeIcon />}
             value={data?.stats.lastIncident ?? '-'}

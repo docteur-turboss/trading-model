@@ -5,7 +5,6 @@ import {
   DialogActions,
   Button,
   Typography,
-  Box,
   IconButton,
   Alert,
   List,

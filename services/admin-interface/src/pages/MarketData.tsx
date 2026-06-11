@@ -105,7 +105,7 @@ export function MarketData() {
       </Box>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={
               change >= 0 ? <TrendingUpIcon color="success" /> : <TrendingDownIcon color="error" />
@@ -116,13 +116,13 @@ export function MarketData() {
             deltaColor={change >= 0 ? 'success.main' : 'error.main'}
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard icon={<InfoIcon />} value={'-'} label="HAUT 24H" />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard icon={<WarningAmberIcon color="error" />} value={'-'} label="BAS 24H" />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard icon={<StorageIcon />} value={'-'} label="VOLUME 24H" />
         </Grid>
       </Grid>

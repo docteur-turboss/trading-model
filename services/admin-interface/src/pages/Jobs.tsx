@@ -4,12 +4,6 @@ import {
   Typography,
   Button,
   CircularProgress,
-  Timeline,
-  TimelineItem,
-  TimelineSeparator,
-  TimelineDot,
-  TimelineConnector,
-  TimelineContent,
   Chip,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -123,23 +117,33 @@ export function Jobs() {
                 {
                   label: 'Timeline',
                   content: (
-                    <Timeline>
+                    <Box>
                       {jobDetail.timeline.map((entry, i) => (
-                        <TimelineItem key={i}>
-                          <TimelineSeparator>
-                            <TimelineDot color={entry.active ? 'primary' : 'grey'} />
-                            {i < jobDetail.timeline.length - 1 && <TimelineConnector />}
-                          </TimelineSeparator>
-                          <TimelineContent>
+                        <Box key={i} sx={{ display: 'flex', gap: 2, pb: i < jobDetail.timeline.length - 1 ? 2 : 0 }}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <Box
+                              sx={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: '50%',
+                                bgcolor: entry.active ? 'primary.main' : 'grey.400',
+                                flexShrink: 0,
+                              }}
+                            />
+                            {i < jobDetail.timeline.length - 1 && (
+                              <Box sx={{ width: 2, flexGrow: 1, bgcolor: 'divider', minHeight: 20 }} />
+                            )}
+                          </Box>
+                          <Box>
                             <Typography variant="subtitle2">{entry.event}</Typography>
                             <Typography variant="caption" color="text.secondary">
                               {entry.timestamp}
                             </Typography>
                             <Typography variant="body2">{entry.description}</Typography>
-                          </TimelineContent>
-                        </TimelineItem>
+                          </Box>
+                        </Box>
                       ))}
-                    </Timeline>
+                    </Box>
                   ),
                 },
                 {

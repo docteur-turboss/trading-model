@@ -4,7 +4,6 @@ import {
   Typography,
   Button,
   Card,
-  CardContent,
   Grid,
   TextField,
   MenuItem,
@@ -23,7 +22,7 @@ import { DataTable } from '../components/DataTable';
 import type { Column } from '../components/DataTable';
 
 export function Services() {
-  const { data, loading, error, refetch } = useServices();
+  const { data, loading, refetch } = useServices();
   const [filter, setFilter] = useState('');
 
   const columns: Column<{
@@ -93,7 +92,7 @@ export function Services() {
       </Box>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<DnsIcon />}
             value={`${data?.services.length ?? 0} / ${data?.services.length ?? 0}`}
@@ -102,7 +101,7 @@ export function Services() {
             deltaColor="success.main"
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<ActivityIcon />}
             value={`${flatServices.reduce((a, s) => a + s.instances, 0)}`}
@@ -111,7 +110,7 @@ export function Services() {
             deltaColor="success.main"
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<ShieldIcon />}
             value="0.04%"
@@ -120,7 +119,7 @@ export function Services() {
             deltaColor="success.main"
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<BoltIcon />}
             value="42ms"

@@ -4,8 +4,6 @@ import {
   Typography,
   Button,
   CircularProgress,
-  Card,
-  CardContent,
   Chip,
   Grid,
 } from '@mui/material';
@@ -79,7 +77,7 @@ export function TrainingResults() {
       </Box>
 
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<TrackChangesIcon />}
             value="0.824"
@@ -88,7 +86,7 @@ export function TrainingResults() {
             deltaColor="success.main"
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={{ xs: 3 }}>
           <StatsCard
             icon={<TrendingUpIcon />}
             value="2.14"
