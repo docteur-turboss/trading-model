@@ -1,4 +1,4 @@
-import { useApi } from './useApi';
+import { useApi } from './use-api';
 import { api } from '../api/api-client';
 import type { ServiceRegistry } from '../types/dtos';
 

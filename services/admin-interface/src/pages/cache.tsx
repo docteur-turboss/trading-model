@@ -4,14 +4,14 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import HistoryIcon from '@mui/icons-material/History';
 import StorageIcon from '@mui/icons-material/Storage';
-import { useApi } from '../hooks/useApi';
+import { useApi } from '../hooks/use-api';
 import { api } from '../api/api-client';
 import type { CacheEntry } from '../types/dtos';
-import { StatsCard } from '../components/StatsCard';
-import { StatusBadge } from '../components/StatusBadge';
-import { DataTable } from '../components/DataTable';
-import type { Column } from '../components/DataTable';
-import { ModalConfirm } from '../components/ModalConfirm';
+import { StatsCard } from '../components/stats-card';
+import { StatusBadge } from '../components/status-badge';
+import { DataTable } from '../components/data-table';
+import type { Column } from '../components/data-table';
+import { ModalConfirm } from '../components/modal-confirm';
 
 export function Cache() {
   const { data, loading, refetch } = useApi(() => api.getCacheEntries());

@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DrawerPanel } from '../../src/components/DrawerPanel';
+import { DrawerPanel } from '../../src/components/drawer-panel';
 
 describe('DrawerPanel', () => {
   it('should render title and close button when open', () => {

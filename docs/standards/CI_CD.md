@@ -46,7 +46,9 @@ jobs:
 **Jobs**:
 
 - `lint` — ESLint across the entire monorepo
-- `test` — Build + tests with coverage
+- `typecheck` — Build packages + type-check all services
+- `build-admin` — Build admin-interface SPA (requires common first for DTOs)
+- `test` — Build + tests with coverage (includes admin-interface Vitest coverage)
 
 **Permissions**: `contents: read` (read-only)
 
@@ -105,6 +107,15 @@ jobs:
           - name: trader-trainer
             context: .
             dockerfile: services/trader-trainer/Dockerfile
+          - name: certificate-authority
+            context: .
+            dockerfile: services/certificate-authority/Dockerfile
+          - name: api-gateway
+            context: .
+            dockerfile: services/api-gateway/Dockerfile
+          - name: admin-interface
+            context: .
+            dockerfile: services/admin-interface/Dockerfile
     steps:
       - uses: actions/checkout@v5
       - uses: docker/login-action@v3
@@ -164,7 +175,7 @@ jobs:
 
 | Workflow    | File                            | Trigger                | What it does                                         |
 | ----------- | ------------------------------- | ---------------------- | ---------------------------------------------------- |
-| **CI**      | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Build → Test                                  |
+| **CI**      | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Typecheck → Build Admin → Test                |
 | **Release** | `.github/workflows/release.yml` | tag `v*.*.*`           | Quality gate → Docker images → GHCR → GitHub Release |
 
 All workflows run on `ubuntu-latest` with Node.js LTS and npm cache. Failure in any workflow blocks merging.
@@ -208,13 +219,15 @@ CMD ["node", "services/discovery-server/dist/app/index.js"]
 
 **Docker Conventions**:
 
-- **Base image**: `node:20-alpine`
-- **Init system**: `tini` (`/sbin/tini`) for signal handling
+- **Base image**: `node:20-alpine` (Node.js services); `node:26-alpine` build + `nginx:alpine` runtime (admin-interface SPA)
+- **Init system**: `tini` (`/sbin/tini`) for signal handling (Node.js services only)
 - **TLS Alpine**: Alpine's musl libc includes native TLS support
 - **Multi-stage build**: `deps` (prod deps) → `build` (dev deps + compilation) → `runtime` (minimal)
-- **Port**: 3000 (exposed in container)
+- **Port**: 3000 (Node.js services), 80 (admin-interface SPA via nginx)
 - **Context**: Root of monorepo (`.`)
 - **Caching**: GitHub Actions cache for layers (via `docker/build-push-action`)
+
+> The **admin-interface** deviates from the standard Docker pattern because it is a static SPA built with Vite, served by nginx, and does not run a Node.js runtime in production.
 
 ## Development to Production Workflow
 

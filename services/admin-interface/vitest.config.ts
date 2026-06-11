@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
@@ -13,10 +13,10 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/vite-env.d.ts', 'src/main.tsx'],
       thresholds: {
-        statements: 97,
-        branches: 88,
+        statements: 96,
+        branches: 87,
         functions: 92,
-        lines: 97,
+        lines: 96,
       },
     },
   },

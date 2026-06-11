@@ -5,14 +5,14 @@ import MemoryIcon from '@mui/icons-material/Memory';
 import BoltIcon from '@mui/icons-material/Bolt';
 import DnsIcon from '@mui/icons-material/Dns';
 import StorageIcon from '@mui/icons-material/Storage';
-import { useApi } from '../hooks/useApi';
+import { useApi } from '../hooks/use-api';
 import { api } from '../api/api-client';
 import type { WorkerEntry } from '../types/dtos';
-import { StatusBadge } from '../components/StatusBadge';
-import { StatsCard } from '../components/StatsCard';
-import { DataTable } from '../components/DataTable';
-import type { Column } from '../components/DataTable';
-import { InfoBox } from '../components/InfoBox';
+import { StatusBadge } from '../components/status-badge';
+import { StatsCard } from '../components/stats-card';
+import { DataTable } from '../components/data-table';
+import type { Column } from '../components/data-table';
+import { InfoBox } from '../components/info-box';
 
 function LoadBar({ value, color }: { value: number; color?: string }) {
   return (

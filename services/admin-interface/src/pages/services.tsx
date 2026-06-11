@@ -15,11 +15,11 @@ import DnsIcon from '@mui/icons-material/Dns';
 import ActivityIcon from '@mui/icons-material/Timeline';
 import ShieldIcon from '@mui/icons-material/Shield';
 import BoltIcon from '@mui/icons-material/Bolt';
-import { useServices } from '../hooks/useServices';
-import { StatusBadge } from '../components/StatusBadge';
-import { StatsCard } from '../components/StatsCard';
-import { DataTable } from '../components/DataTable';
-import type { Column } from '../components/DataTable';
+import { useServices } from '../hooks/use-services';
+import { StatusBadge } from '../components/status-badge';
+import { StatsCard } from '../components/stats-card';
+import { DataTable } from '../components/data-table';
+import type { Column } from '../components/data-table';
 
 export function Services() {
   const { data, loading, refetch } = useServices();

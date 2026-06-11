@@ -16,12 +16,12 @@ import InfoIcon from '@mui/icons-material/Info';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import StorageIcon from '@mui/icons-material/Storage';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useApi } from '../hooks/useApi';
+import { useApi } from '../hooks/use-api';
 import { api } from '../api/api-client';
 import type { Candle } from '../types/dtos';
-import { StatsCard } from '../components/StatsCard';
-import { DataTable } from '../components/DataTable';
-import type { Column } from '../components/DataTable';
+import { StatsCard } from '../components/stats-card';
+import { DataTable } from '../components/data-table';
+import type { Column } from '../components/data-table';
 
 export function MarketData() {
   const [symbol, setSymbol] = useState('BTCUSDT');

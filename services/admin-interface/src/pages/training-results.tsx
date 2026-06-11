@@ -12,13 +12,13 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 import TrackChangesIcon from '@mui/icons-material/TrackChanges';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import { useApi } from '../hooks/useApi';
+import { useApi } from '../hooks/use-api';
 import { api } from '../api/api-client';
 import type { TrainingResult } from '../types/dtos';
-import { StatsCard } from '../components/StatsCard';
-import { DataTable } from '../components/DataTable';
-import type { Column } from '../components/DataTable';
-import { DrawerPanel } from '../components/DrawerPanel';
+import { StatsCard } from '../components/stats-card';
+import { DataTable } from '../components/data-table';
+import type { Column } from '../components/data-table';
+import { DrawerPanel } from '../components/drawer-panel';
 
 export function TrainingResults() {
   const { data, loading, refetch } = useApi(() => api.getTrainingResults());

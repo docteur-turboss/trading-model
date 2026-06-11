@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import StorageIcon from '@mui/icons-material/Storage';
-import { StatsCard } from '../../src/components/StatsCard';
+import { StatsCard } from '../../src/components/stats-card';
 
 describe('StatsCard', () => {
   it('should render value and label', () => {

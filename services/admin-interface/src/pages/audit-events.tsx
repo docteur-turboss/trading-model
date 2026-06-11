@@ -4,12 +4,12 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useAuditEvents } from '../hooks/useAuditEvents';
+import { useAuditEvents } from '../hooks/use-audit-events';
 import type { AuditFilter, AuditEvent } from '../types/dtos';
-import { StatsCard } from '../components/StatsCard';
-import { SeverityBadge } from '../components/SeverityBadge';
-import { DataTable } from '../components/DataTable';
-import type { Column } from '../components/DataTable';
+import { StatsCard } from '../components/stats-card';
+import { SeverityBadge } from '../components/severity-badge';
+import { DataTable } from '../components/data-table';
+import type { Column } from '../components/data-table';
 
 export function AuditEvents() {
   const [filter, setFilter] = useState<AuditFilter>({});

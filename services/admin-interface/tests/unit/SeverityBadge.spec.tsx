@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { SeverityBadge } from '../../src/components/SeverityBadge';
+import { SeverityBadge } from '../../src/components/severity-badge';
 
 describe('SeverityBadge', () => {
   it('should render with severity text', () => {

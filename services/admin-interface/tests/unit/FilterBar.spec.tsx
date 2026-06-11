@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { FilterBar } from '../../src/components/FilterBar';
+import { FilterBar } from '../../src/components/filter-bar';
 
 describe('FilterBar', () => {
   it('should render search input with placeholder', () => {

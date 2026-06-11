@@ -37,11 +37,8 @@ jobs:
           npm run -w services/trader-trainer build
           npm run -w services/certificate-authority build
           npm run -w services/api-gateway build
+          npm run -w services/admin-interface build
           npm run -w packages/certificate-utils build
-      - name: Build admin-interface
-        run: |
-          npm ci --prefix services/admin-interface
-          npm run build --prefix services/admin-interface
       - run: npm run test:coverage
 
       - name: Upload coverage to Codecov

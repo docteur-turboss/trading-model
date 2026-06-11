@@ -25,7 +25,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['**/*.ts'],
+    files: ['**/*.{ts,tsx}'],
     ignores: ['**/tests/**', '**/integration/**'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
@@ -72,7 +72,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['**/tests/**/*.ts', '**/integration/**/*.ts'],
+    files: ['**/tests/**/*.{ts,tsx}', '**/integration/**/*.{ts,tsx}'],
     ignores: ['**/node_modules/**'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {

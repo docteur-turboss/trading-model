@@ -6,14 +6,14 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import StorageIcon from '@mui/icons-material/Storage';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import { useApi } from '../hooks/useApi';
+import { useApi } from '../hooks/use-api';
 import { api } from '../api/api-client';
 import type { DlqMessage } from '../types/dtos';
-import { StatsCard } from '../components/StatsCard';
-import { StatusBadge } from '../components/StatusBadge';
-import { DataTable } from '../components/DataTable';
-import type { Column } from '../components/DataTable';
-import { InfoBox } from '../components/InfoBox';
+import { StatsCard } from '../components/stats-card';
+import { StatusBadge } from '../components/status-badge';
+import { DataTable } from '../components/data-table';
+import type { Column } from '../components/data-table';
+import { InfoBox } from '../components/info-box';
 
 export function Dlq() {
   const { data, loading } = useApi(() => api.getDlqMessages());

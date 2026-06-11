@@ -6,7 +6,9 @@ Tests are the guarantee of code reliability and regression prevention. Strict co
 
 ## Framework
 
-**Jest with ts-jest** — configuration per package/service.
+**Jest with ts-jest** — configuration per package/service (Node.js backend services).
+
+**Vitest** — configuration per `vitest.config.ts` (frontend SPA: admin-interface). Vitest uses a Vite-compatible config with jsdom environment for React component testing. See `services/admin-interface/vitest.config.ts`.
 
 ```javascript
 // jest.config.js — PER PACKAGE/SERVICE
@@ -84,15 +86,16 @@ describe('MyComponent', () => {
 
 ## Coverage Thresholds
 
-| Package / Service              | Branches | Functions | Lines | Statements |
-| ------------------------------ | -------- | --------- | ----- | ---------- |
-| @trading-model/common          | 100%     | 100%      | 100%  | 100%       |
-| discovery-server               | 100%     | 100%      | 100%  | 100%       |
-| message-manager                | 100%     | 100%      | 100%  | 100%       |
-| financial-scraper              | 100%     | 100%      | 100%  | 100%       |
-| @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        |
-| @trading-model/broker-message  | 80%      | 80%       | 80%   | 80%        |
-| trader-trainer                 | 80%      | 80%       | 80%   | 80%        |
+| Package / Service              | Branches | Functions | Lines | Statements | Framework |
+| ------------------------------ | -------- | --------- | ----- | ---------- | --------- |
+| @trading-model/common          | 100%     | 100%      | 100%  | 100%       | Jest      |
+| discovery-server               | 100%     | 100%      | 100%  | 100%       | Jest      |
+| message-manager                | 100%     | 100%      | 100%  | 100%       | Jest      |
+| financial-scraper              | 100%     | 100%      | 100%  | 100%       | Jest      |
+| @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        | Jest      |
+| @trading-model/broker-message  | 80%      | 80%       | 80%   | 80%        | Jest      |
+| trader-trainer                 | 80%      | 80%       | 80%   | 80%        | Jest      |
+| admin-interface                | 87%      | 92%       | 96%   | 96%        | Vitest    |
 
 Coverage is checked by Jest on every test run. Below the threshold, tests fail.
 

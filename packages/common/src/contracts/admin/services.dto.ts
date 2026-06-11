@@ -9,7 +9,7 @@ export interface ServiceInstance {
   host: string;
   port: number;
   version: string;
-  heartbeat: Date;
+  heartbeat: string;
   status: 'healthy' | 'degraded' | 'down';
 }
 
