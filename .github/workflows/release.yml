@@ -37,6 +37,11 @@ jobs:
           npm run -w services/trader-trainer build
           npm run -w services/certificate-authority build
           npm run -w services/api-gateway build
+          npm run -w packages/certificate-utils build
+      - name: Build admin-interface
+        run: |
+          npm ci --prefix services/admin-interface
+          npm run build --prefix services/admin-interface
       - run: npm run test:coverage
 
       - name: Upload coverage to Codecov
@@ -77,6 +82,9 @@ jobs:
           - name: api-gateway
             context: .
             dockerfile: services/api-gateway/Dockerfile
+          - name: admin-interface
+            context: .
+            dockerfile: services/admin-interface/Dockerfile
     steps:
       - uses: actions/checkout@v5
 
@@ -134,6 +142,7 @@ jobs:
             echo "| Message Manager | \`docker pull ghcr.io/${{ github.repository }}/message-manager:${{ needs.quality.outputs.version }}\` |"
             echo "| Financial Scraper | \`docker pull ghcr.io/${{ github.repository }}/financial-scraper:${{ needs.quality.outputs.version }}\` |"
             echo "| Trader Trainer | \`docker pull ghcr.io/${{ github.repository }}/trader-trainer:${{ needs.quality.outputs.version }}\` |"
+            echo "| Admin Interface | \`docker pull ghcr.io/${{ github.repository }}/admin-interface:${{ needs.quality.outputs.version }}\` |"
             echo ""
             echo "## Quick Start"
             echo ""

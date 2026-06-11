@@ -45,6 +45,17 @@ jobs:
           npm run -w services/api-gateway build
           npm run -w packages/certificate-utils build
 
+  build-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+      - run: npm ci --prefix services/admin-interface
+      - run: npm run build --prefix services/admin-interface
+
   test:
     runs-on: ubuntu-latest
     steps:

@@ -305,6 +305,26 @@ services:
       discovery-server:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  #  Admin Interface — React SPA served by nginx
+  # ---------------------------------------------------------------------------
+  admin-interface:
+    build:
+      context: .
+      dockerfile: services/admin-interface/Dockerfile
+    container_name: trading-admin
+    restart: unless-stopped
+    ports:
+      - '${ADMIN_PORT:-8449}:80'
+    networks:
+      - backend-net
+    environment:
+      VITE_API_GATEWAY_URL: https://api-gateway:3000/v1
+      VITE_ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
 networks:
   data-net:
     name: trading-data-network
