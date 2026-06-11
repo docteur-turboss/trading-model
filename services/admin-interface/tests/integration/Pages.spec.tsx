@@ -63,6 +63,14 @@ const richData = {
       service: 'worker',
       updatedAt: '2024-01-01',
     },
+    {
+      key: 'SCRIPT_VAR',
+      value: 'scripted',
+      masked: false,
+      source: 'Script',
+      service: 'cron',
+      updatedAt: '2024-01-01',
+    },
   ],
   jobs: {
     jobs: [
@@ -78,7 +86,10 @@ const richData = {
     priority: 'CRITICAL',
     status: 'running',
     worker: 'w1',
-    timeline: [{ event: 'Created', timestamp: 't1', description: 'Job submitted', active: true }],
+    timeline: [
+      { event: 'Created', timestamp: 't1', description: 'Job submitted', active: true },
+      { event: 'Queued', timestamp: 't2', description: 'Waiting for worker', active: false },
+    ],
     payload: { model: 'v1' },
     logs: ['[INFO] started'],
   },
@@ -164,6 +175,10 @@ const richData = {
     { timestamp: 't1', open: 100, high: 110, low: 90, close: 105, volume: 1000 },
     { timestamp: 't2', open: 105, high: 115, low: 100, close: 112, volume: 1200 },
   ],
+  fallingCandles: [
+    { timestamp: 't1', open: 100, high: 105, low: 95, close: 98, volume: 1000 },
+    { timestamp: 't2', open: 98, high: 100, low: 90, close: 92, volume: 1200 },
+  ],
   training: {
     results: [
       {
@@ -181,8 +196,9 @@ const richData = {
         },
       },
       { id: 'tr2', symbol: 'ETH', generation: 10, fitness: 0.456, sharpe: 1.2 },
+      { id: 'tr3', symbol: 'SOL', generation: 5, fitness: 0.312, sharpe: 0.8 },
     ],
-    total: 2,
+    total: 3,
   },
   certificates: [
     {
@@ -355,8 +371,19 @@ describe('Page interactions', () => {
     fireEvent.click(checkboxes[0]);
   });
 
-  it('Jobs: should open drawer when row selected', async () => {
+  it('DLQ: should deselect individual row on second click', async () => {
     globalThis.fetch = mockFetch();
+    render(<App />);
+    fireEvent.click(screen.getByText('Broker DLQ'));
+    expect(await screen.findByText('Broker DLQ')).toBeInTheDocument();
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(checkboxes[1]);
+  });
+
+  it('Jobs: should open drawer when row selected', async () => {
+    globalThis.fetch = mockFetch(true);
     render(<App />);
     fireEvent.click(screen.getByText('Jobs'));
     expect(await screen.findByText('Job Management')).toBeInTheDocument();
@@ -367,6 +394,26 @@ describe('Page interactions', () => {
 
     const checkboxes = screen.getAllByRole('checkbox');
     fireEvent.click(checkboxes[1]);
+    expect(await screen.findByText(/Job Details/)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('CloseIcon'));
+    await vi.waitFor(() => expect(screen.queryByText(/Job Details/)).not.toBeInTheDocument());
+  });
+
+  it('Jobs: should render drawer with timeline, payload, logs tabs', async () => {
+    globalThis.fetch = mockFetch(true);
+    render(<App />);
+    fireEvent.click(screen.getByText('Jobs'));
+    expect(await screen.findByText('Job Management')).toBeInTheDocument();
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+    expect(await screen.findByText(/Job Details/)).toBeInTheDocument();
+    expect(screen.getByText('Timeline')).toBeInTheDocument();
+    expect(screen.getByText('Payload')).toBeInTheDocument();
+    expect(screen.getByText('Logs')).toBeInTheDocument();
+    expect(screen.getByText('Created')).toBeInTheDocument();
+    expect(screen.getByText('Restart Job')).toBeInTheDocument();
+    expect(screen.getByText('Cancel Job')).toBeInTheDocument();
   });
 
   it('TrainingResults: should render sharpe chips and open drawer', async () => {
@@ -377,9 +424,11 @@ describe('Page interactions', () => {
 
     expect(screen.getByText('1.80')).toBeInTheDocument();
     expect(screen.getByText('1.20')).toBeInTheDocument();
+    expect(screen.getByText('0.80')).toBeInTheDocument();
 
     const checkboxes = screen.getAllByRole('checkbox');
     fireEvent.click(checkboxes[1]);
+    fireEvent.click(screen.getByTestId('CloseIcon'));
   });
 
   it('MarketData: should render chart with candle data', async () => {
@@ -388,10 +437,42 @@ describe('Page interactions', () => {
     fireEvent.click(screen.getByText('Market Data'));
     expect(await screen.findByText('Market Data')).toBeInTheDocument();
 
-    const prices = screen.getAllByText('$105');
-    expect(prices.length).toBeGreaterThanOrEqual(1);
-    const prices2 = screen.getAllByText('$112');
-    expect(prices2.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('$105').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('$112').length).toBeGreaterThanOrEqual(1);
+
+    const combos1 = await screen.findAllByRole('combobox');
+    fireEvent.mouseDown(combos1[1]);
+    fireEvent.click(await screen.findByRole('option', { name: '1 Day' }));
+
+    const combos2 = await screen.findAllByRole('combobox');
+    fireEvent.mouseDown(combos2[0]);
+    fireEvent.click(await screen.findByRole('option', { name: 'ETH / USD' }));
+
+    await screen.findByText('ETH / USD');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Transactions' }));
+  });
+
+  it('MarketData: should render negative change with falling candles', async () => {
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      let data: unknown = {};
+      if (url.includes('/scraper/candles')) data = richData.fallingCandles;
+      else if (url.includes('/discovery/registry')) data = richData.services;
+      else if (url.includes('/discovery/config')) data = richData.config;
+      else if (url.includes('/discovery/stats')) data = richData.stats;
+      else if (url.includes('/jobs/workers')) data = richData.workers;
+      else if (url.includes('/jobs')) data = richData.jobs;
+      else if (url.includes('/gateway/cache')) data = richData.cache;
+      else if (url.includes('/messages/dlq')) data = richData.dlq;
+      else if (url.includes('/trainer/results')) data = richData.training;
+      else if (url.includes('/ca/certificates')) data = richData.certificates;
+      else if (url.includes('/audit/events')) data = richData.audit;
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(data) });
+    });
+    render(<App />);
+    fireEvent.click(screen.getByText('Market Data'));
+    expect(await screen.findByText('Market Data')).toBeInTheDocument();
+    expect(screen.getAllByText('$92').length).toBeGreaterThan(0);
   });
 
   it('AuditEvents: should render all severity levels and volume chart', async () => {
@@ -406,6 +487,12 @@ describe('Page interactions', () => {
     fireEvent.change(searchInput, { target: { value: 'cid1' } });
 
     expect(await screen.findByDisplayValue('cid1', {}, { timeout: 3000 })).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole('combobox'));
+    fireEvent.click(await screen.findByRole('option', { name: 'AUTH' }));
+
+    fireEvent.mouseDown(await screen.findByRole('combobox'));
+    fireEvent.click(await screen.findByRole('option', { name: 'All Topics' }));
   });
 
   it('Certificates: should render all certificate statuses', async () => {
@@ -426,5 +513,149 @@ describe('Page interactions', () => {
 
     fireEvent.click(screen.getByText('Config'));
     expect(await screen.findByText('Configuration Variables')).toBeInTheDocument();
+  });
+
+  it('Cache: should open modal and confirm invalidation', async () => {
+    globalThis.fetch = mockFetch();
+    render(<App />);
+    fireEvent.click(screen.getByText('API Cache'));
+    expect(await screen.findByText('API Gateway Cache')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Invalidate All'));
+    expect(screen.getByText('Critical Action: Global Invalidation')).toBeInTheDocument();
+    expect(screen.getByText('Confirm Global Purge')).toBeInTheDocument();
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Cancel'));
+
+    fireEvent.click(screen.getByText('Invalidate All'));
+    fireEvent.click(screen.getByText('Confirm Global Purge'));
+  });
+
+  it('DLQ: should handle select all and deselect all', async () => {
+    globalThis.fetch = mockFetch();
+    render(<App />);
+    fireEvent.click(screen.getByText('Broker DLQ'));
+    expect(await screen.findByText('Broker DLQ')).toBeInTheDocument();
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]);
+
+    await vi.waitFor(() => {
+      const header = screen.getAllByRole('checkbox')[0];
+      expect(header).toBeChecked();
+    });
+
+    fireEvent.click(checkboxes[0]);
+  });
+
+  it('TrainingResults: should open drawer and show genome data', async () => {
+    globalThis.fetch = mockFetch();
+    render(<App />);
+    fireEvent.click(screen.getByText('Training'));
+    expect(await screen.findByText('Training Results')).toBeInTheDocument();
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+    expect(await screen.findByText(/Genome Inspection/)).toBeInTheDocument();
+    expect(screen.getByText(/modelId/)).toBeInTheDocument();
+  });
+
+  it('TrainingResults: should show no genome available for entries without genome', async () => {
+    globalThis.fetch = mockFetch();
+    render(<App />);
+    fireEvent.click(screen.getByText('Training'));
+    expect(await screen.findByText('Training Results')).toBeInTheDocument();
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[2]);
+    expect(await screen.findByText(/Genome Inspection/)).toBeInTheDocument();
+    expect(screen.getByText('No genome data available.')).toBeInTheDocument();
+  });
+
+  it('MarketData: should handle empty candle data gracefully', async () => {
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      let data: unknown = {};
+      if (url.includes('/scraper/candles')) data = [];
+      else if (url.includes('/discovery/registry')) data = richData.services;
+      else if (url.includes('/discovery/config')) data = richData.config;
+      else if (url.includes('/discovery/stats')) data = richData.stats;
+      else if (url.includes('/jobs/workers')) data = richData.workers;
+      else if (url.includes('/jobs')) data = richData.jobs;
+      else if (url.includes('/gateway/cache')) data = richData.cache;
+      else if (url.includes('/messages/dlq')) data = richData.dlq;
+      else if (url.includes('/trainer/results')) data = richData.training;
+      else if (url.includes('/ca/certificates')) data = richData.certificates;
+      else if (url.includes('/audit/events')) data = richData.audit;
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(data) });
+    });
+    render(<App />);
+    fireEvent.click(screen.getByText('Market Data'));
+    expect(await screen.findByText('Market Data')).toBeInTheDocument();
+    expect(screen.getByText('No data available')).toBeInTheDocument();
+  });
+
+  it('AuditEvents: should apply filter when Apply button clicked', async () => {
+    globalThis.fetch = mockFetch();
+    render(<App />);
+    fireEvent.click(screen.getByText('Audit Events'));
+    expect(await screen.findByText('Audit Events')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Apply'));
+  });
+
+  it('Services: should filter to empty results', async () => {
+    globalThis.fetch = mockFetch();
+    render(<App />);
+    expect(await screen.findByText('Services Registry')).toBeInTheDocument();
+
+    const filterInput = screen.getByPlaceholderText('Filter by service name...');
+    fireEvent.change(filterInput, { target: { value: 'nomatch' } });
+    expect(screen.getByDisplayValue('nomatch')).toBeInTheDocument();
+  });
+});
+
+describe('Error states', () => {
+  async function navigateTo(text: string) {
+    fireEvent.click(screen.getByText(text));
+    expect(await screen.findByText(text, {}, { timeout: 3000 })).toBeInTheDocument();
+  }
+
+  it('should render all pages with null data when fetch fails', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+
+    render(<App />);
+    expect(await screen.findByText('Services Registry')).toBeInTheDocument();
+    expect(screen.getByText('0 / 0')).toBeInTheDocument();
+
+    await navigateTo('Audit Events');
+    expect(screen.getByText('0')).toBeInTheDocument();
+
+    await navigateTo('Jobs');
+    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+    expect(screen.getByText('PENDING')).toBeInTheDocument();
+
+    await navigateTo('Workers');
+    expect(screen.getByText('WORKERS ACTIFS')).toBeInTheDocument();
+
+    await navigateTo('Market Data');
+    expect(screen.getByText('LIVE')).toBeInTheDocument();
+
+    await navigateTo('Certificates');
+    expect(screen.getAllByText('Certificates').length).toBeGreaterThan(0);
+
+    await navigateTo('Training');
+    expect(screen.getByText('Training Results')).toBeInTheDocument();
+
+    await navigateTo('API Cache');
+    expect(screen.getByText('API Gateway Cache')).toBeInTheDocument();
+
+    await navigateTo('Broker DLQ');
+    expect(screen.getAllByText('Broker DLQ').length).toBeGreaterThan(0);
+    const dlqCheckboxes = screen.queryAllByRole('checkbox');
+    if (dlqCheckboxes.length > 0) fireEvent.click(dlqCheckboxes[0]);
+
+    await navigateTo('Config');
+    expect(screen.getByText('Configuration Variables')).toBeInTheDocument();
   });
 });

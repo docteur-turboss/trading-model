@@ -32,7 +32,9 @@ export default defineConfig([
       ecmaVersion: 'latest',
       globals: globals.node,
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ['*.config.*'],
+        },
         tsconfigRootDir: __dirname,
       },
     },
@@ -67,6 +69,7 @@ export default defineConfig([
             'packages/*/tsconfig.build.json',
             'services/*/tsconfig.json',
           ],
+          noWarnOnMultipleProjects: true,
         },
       },
     },

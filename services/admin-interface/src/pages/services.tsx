@@ -1,4 +1,9 @@
-import { useState } from 'react';
+import AddIcon from '@mui/icons-material/Add';
+import BoltIcon from '@mui/icons-material/Bolt';
+import DnsIcon from '@mui/icons-material/Dns';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ShieldIcon from '@mui/icons-material/Shield';
+import ActivityIcon from '@mui/icons-material/Timeline';
 import {
   Box,
   Typography,
@@ -9,17 +14,13 @@ import {
   MenuItem,
   CircularProgress,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import AddIcon from '@mui/icons-material/Add';
-import DnsIcon from '@mui/icons-material/Dns';
-import ActivityIcon from '@mui/icons-material/Timeline';
-import ShieldIcon from '@mui/icons-material/Shield';
-import BoltIcon from '@mui/icons-material/Bolt';
-import { useServices } from '../hooks/use-services';
-import { StatusBadge } from '../components/status-badge';
-import { StatsCard } from '../components/stats-card';
+import { useState } from 'react';
+
 import { DataTable } from '../components/data-table';
 import type { Column } from '../components/data-table';
+import { StatsCard } from '../components/stats-card';
+import { StatusBadge } from '../components/status-badge';
+import { useServices } from '../hooks/use-services';
 
 export function Services() {
   const { data, loading, refetch } = useServices();

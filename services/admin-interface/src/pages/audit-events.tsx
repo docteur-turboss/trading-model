@@ -1,15 +1,16 @@
-import { useState } from 'react';
-import { Box, Typography, Button, TextField, MenuItem, CircularProgress } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { Box, Typography, Button, TextField, MenuItem, CircularProgress } from '@mui/material';
+import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useAuditEvents } from '../hooks/use-audit-events';
-import type { AuditFilter, AuditEvent } from '../types/dtos';
-import { StatsCard } from '../components/stats-card';
-import { SeverityBadge } from '../components/severity-badge';
+
 import { DataTable } from '../components/data-table';
 import type { Column } from '../components/data-table';
+import { SeverityBadge } from '../components/severity-badge';
+import { StatsCard } from '../components/stats-card';
+import { useAuditEvents } from '../hooks/use-audit-events';
+import type { AuditFilter, AuditEvent } from '../types/dtos';
 
 export function AuditEvents() {
   const [filter, setFilter] = useState<AuditFilter>({});

@@ -1,4 +1,8 @@
-import { useState } from 'react';
+import InfoIcon from '@mui/icons-material/Info';
+import StorageIcon from '@mui/icons-material/Storage';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {
   Box,
   Typography,
@@ -10,18 +14,15 @@ import {
   CircularProgress,
   Grid,
 } from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import InfoIcon from '@mui/icons-material/Info';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import StorageIcon from '@mui/icons-material/Storage';
+import { useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useApi } from '../hooks/use-api';
+
 import { api } from '../api/api-client';
-import type { Candle } from '../types/dtos';
-import { StatsCard } from '../components/stats-card';
 import { DataTable } from '../components/data-table';
 import type { Column } from '../components/data-table';
+import { StatsCard } from '../components/stats-card';
+import { useApi } from '../hooks/use-api';
+import type { Candle } from '../types/dtos';
 
 export function MarketData() {
   const [symbol, setSymbol] = useState('BTCUSDT');

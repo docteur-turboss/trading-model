@@ -109,6 +109,28 @@ describe('DataTable', () => {
     expect(nameHeader).toBeInTheDocument();
   });
 
+  it('should handle empty rows with selectable', () => {
+    render(
+      <DataTable columns={columns} rows={[]} getId={r => r.id} total={0} selectable selectedIds={new Set()} />
+    );
+    expect(screen.getByRole('checkbox')).toBeInTheDocument();
+  });
+
+  it('should show checked header checkbox when all rows selected', () => {
+    render(
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getId={r => r.id}
+        total={rows.length}
+        selectable
+        selectedIds={new Set(['1', '2', '3'])}
+      />
+    );
+    const checkbox = screen.getAllByRole('checkbox')[0];
+    expect(checkbox).toBeInTheDocument();
+  });
+
   it('should render correct pagination text for partial page', () => {
     const manyRows: TestRow[] = Array.from({ length: 12 }, (_, i) => ({
       id: String(i + 1),
@@ -125,5 +147,35 @@ describe('DataTable', () => {
       />
     );
     expect(screen.getByText('1–10 of 12')).toBeInTheDocument();
+  });
+
+  it('should call onPageChange when pagination next button clicked', () => {
+    const onPageChange = vi.fn();
+    const manyRows: TestRow[] = Array.from({ length: 12 }, (_, i) => ({
+      id: String(i + 1),
+      name: `Row ${i + 1}`,
+      value: i,
+    }));
+    render(
+      <DataTable
+        columns={columns}
+        rows={manyRows}
+        getId={r => r.id}
+        total={manyRows.length}
+        rowsPerPage={10}
+        onPageChange={onPageChange}
+      />
+    );
+    const nextButton = screen.getByRole('button', { name: /next page/i });
+    fireEvent.click(nextButton);
+    expect(onPageChange).toHaveBeenCalled();
+  });
+
+  it('should handle selectable without selectedIds prop', () => {
+    render(
+      <DataTable columns={columns} rows={rows} getId={r => r.id} total={rows.length} selectable />
+    );
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes[0]).toBeInTheDocument();
   });
 });

@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import SyncIcon from '@mui/icons-material/Sync';
 import {
   Box,
   Typography,
@@ -6,17 +9,15 @@ import {
   CircularProgress,
   Chip,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import ScheduleIcon from '@mui/icons-material/Schedule';
-import SyncIcon from '@mui/icons-material/Sync';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import { useJobs, useJobDetail } from '../hooks/use-jobs';
-import type { JobEntry } from '../types/dtos';
-import { StatusBadge } from '../components/status-badge';
-import { StatsCard } from '../components/stats-card';
+import { useState } from 'react';
+
 import { DataTable } from '../components/data-table';
 import type { Column } from '../components/data-table';
 import { DrawerPanel } from '../components/drawer-panel';
+import { StatsCard } from '../components/stats-card';
+import { StatusBadge } from '../components/status-badge';
+import { useJobs, useJobDetail } from '../hooks/use-jobs';
+import type { JobEntry } from '../types/dtos';
 
 export function Jobs() {
   const { data, loading, refetch } = useJobs();

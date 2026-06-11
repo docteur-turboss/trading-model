@@ -1,3 +1,8 @@
+import AddIcon from '@mui/icons-material/Add';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import LockIcon from '@mui/icons-material/Lock';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import SyncIcon from '@mui/icons-material/Sync';
 import {
   Box,
   Typography,
@@ -5,17 +10,13 @@ import {
   Chip,
   CircularProgress,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import AddIcon from '@mui/icons-material/Add';
-import LockIcon from '@mui/icons-material/Lock';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import SyncIcon from '@mui/icons-material/Sync';
-import { useApi } from '../hooks/use-api';
+
 import { api } from '../api/api-client';
-import type { ConfigEntry } from '../types/dtos';
 import { DataTable } from '../components/data-table';
 import type { Column } from '../components/data-table';
 import { InfoBox } from '../components/info-box';
+import { useApi } from '../hooks/use-api';
+import type { ConfigEntry } from '../types/dtos';
 
 const SOURCE_COLORS: Record<string, 'secondary' | 'default' | 'info' | 'warning'> = {
   Vault: 'secondary',

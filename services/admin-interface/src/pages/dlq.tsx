@@ -1,23 +1,39 @@
-import { useState } from 'react';
-import { Box, Typography, Button, CircularProgress, Grid } from '@mui/material';
-import GetAppIcon from '@mui/icons-material/GetApp';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import GetAppIcon from '@mui/icons-material/GetApp';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import StorageIcon from '@mui/icons-material/Storage';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import { useApi } from '../hooks/use-api';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { Box, Typography, Button, CircularProgress, Grid } from '@mui/material';
+import { useState } from 'react';
+
 import { api } from '../api/api-client';
-import type { DlqMessage } from '../types/dtos';
-import { StatsCard } from '../components/stats-card';
-import { StatusBadge } from '../components/status-badge';
 import { DataTable } from '../components/data-table';
 import type { Column } from '../components/data-table';
 import { InfoBox } from '../components/info-box';
+import { StatsCard } from '../components/stats-card';
+import { StatusBadge } from '../components/status-badge';
+import { useApi } from '../hooks/use-api';
+import type { DlqMessage } from '../types/dtos';
 
 export function Dlq() {
   const { data, loading } = useApi(() => api.getDlqMessages());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedIds(
+      checked
+        ? new Set((data?.messages ?? []).map(r => r.messageId))
+        : new Set()
+    );
+  };
+
+  const handleSelectOne = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
 
   const columns: Column<DlqMessage>[] = [
     { id: 'timestamp', label: 'Timestamp', render: r => r.timestamp },
@@ -117,19 +133,8 @@ export function Dlq() {
         total={data?.messages.length ?? 0}
         selectable
         selectedIds={selectedIds}
-        onSelectAll={checked => {
-          if (checked) {
-            setSelectedIds(new Set((data?.messages ?? []).map(r => r.messageId)));
-          } else {
-            setSelectedIds(new Set());
-          }
-        }}
-        onSelectOne={id => {
-          const next = new Set(selectedIds);
-          if (next.has(id)) next.delete(id);
-          else next.add(id);
-          setSelectedIds(next);
-        }}
+        onSelectAll={handleSelectAll}
+        onSelectOne={handleSelectOne}
       />
 
       <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>

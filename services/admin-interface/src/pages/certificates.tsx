@@ -1,12 +1,13 @@
-import { Box, Typography, Button, CircularProgress } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
-import { useApi } from '../hooks/use-api';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { Box, Typography, Button, CircularProgress } from '@mui/material';
+
 import { api } from '../api/api-client';
-import type { CertificateEntry } from '../types/dtos';
-import { StatusBadge } from '../components/status-badge';
 import { DataTable } from '../components/data-table';
 import type { Column } from '../components/data-table';
+import { StatusBadge } from '../components/status-badge';
+import { useApi } from '../hooks/use-api';
+import type { CertificateEntry } from '../types/dtos';
 
 export function Certificates() {
   const { data, loading, refetch } = useApi<CertificateEntry[]>(() => api.getCertificates());

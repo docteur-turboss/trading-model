@@ -1,3 +1,5 @@
+import CloseIcon from '@mui/icons-material/Close';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {
   Dialog,
   DialogTitle,
@@ -11,8 +13,6 @@ import {
   ListItem,
   ListItemText,
 } from '@mui/material';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import CloseIcon from '@mui/icons-material/Close';
 
 interface ModalConfirmProps {
   open: boolean;

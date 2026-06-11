@@ -1,18 +1,19 @@
-import { Box, Typography, Button, LinearProgress, CircularProgress, Grid } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
-import MemoryIcon from '@mui/icons-material/Memory';
 import BoltIcon from '@mui/icons-material/Bolt';
 import DnsIcon from '@mui/icons-material/Dns';
+import MemoryIcon from '@mui/icons-material/Memory';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import StorageIcon from '@mui/icons-material/Storage';
-import { useApi } from '../hooks/use-api';
+import { Box, Typography, Button, LinearProgress, CircularProgress, Grid } from '@mui/material';
+
 import { api } from '../api/api-client';
-import type { WorkerEntry } from '../types/dtos';
-import { StatusBadge } from '../components/status-badge';
-import { StatsCard } from '../components/stats-card';
 import { DataTable } from '../components/data-table';
 import type { Column } from '../components/data-table';
 import { InfoBox } from '../components/info-box';
+import { StatsCard } from '../components/stats-card';
+import { StatusBadge } from '../components/status-badge';
+import { useApi } from '../hooks/use-api';
+import type { WorkerEntry } from '../types/dtos';
 
 function LoadBar({ value, color }: { value: number; color?: string }) {
   return (

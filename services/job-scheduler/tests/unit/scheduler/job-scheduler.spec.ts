@@ -543,34 +543,6 @@ describe('JobScheduler', () => {
   });
 
   describe('handleAckTimeout', () => {
-    async function triggerAckTimeout(jobMocks: { findById?: any; updateStatus?: any } = {}) {
-      scheduler.workers.register('w1', {
-        workerId: 'w1',
-        address: '10.0.0.1',
-        port: 9000,
-        capabilities: ['test-type'],
-        maxConcurrency: 5,
-        currentLoad: 3,
-      });
-
-      mockRepository.insert.mockResolvedValue(undefined);
-      mockRepository.updateStatus.mockResolvedValue(undefined);
-
-      if (jobMocks.findById) {
-        mockRepository.findById.mockResolvedValue(jobMocks.findById);
-      }
-      if (jobMocks.updateStatus !== undefined) {
-        mockRepository.updateStatus.mockResolvedValue(jobMocks.updateStatus);
-      }
-
-      await scheduler.submit('test-type', {}, 1, 3);
-
-      jest.advanceTimersByTime(30001);
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-    }
-
     it('should mark job as orphaned on ACK timeout', async () => {
       mockRepository.findById.mockResolvedValue({
         id: 'job-timeout',

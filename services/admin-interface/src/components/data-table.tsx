@@ -57,6 +57,8 @@ export function DataTable<T>({
   };
 
   const allSelected = selectable && rows.length > 0 && selectedIds?.size === rows.length;
+  const hasSelection = selectable && (selectedIds?.size ?? 0) > 0;
+  const indeterminate = hasSelection && !allSelected;
 
   return (
     <Paper variant="outlined">
@@ -68,7 +70,7 @@ export function DataTable<T>({
                 <TableCell padding="checkbox">
                   <Checkbox
                     checked={!!allSelected}
-                    indeterminate={selectable && (selectedIds?.size ?? 0) > 0 && !allSelected}
+                    indeterminate={indeterminate}
                     onChange={e => onSelectAll?.(e.target.checked)}
                   />
                 </TableCell>

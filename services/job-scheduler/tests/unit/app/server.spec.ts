@@ -18,8 +18,6 @@ const mockJobRoutes = jest.fn();
 const mockAckRoutes = jest.fn();
 const mockWorkerRoutes = jest.fn();
 const mockHealthRoutes = jest.fn();
-const mockAddressManagerRoutes = jest.fn();
-
 jest.mock('@trading-model/common/server/create-secure-server', () => ({
   createSecureServer: jest.fn(() => Promise.resolve(mockServer)),
 }));

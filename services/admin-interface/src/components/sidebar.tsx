@@ -1,4 +1,15 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import DescriptionIcon from '@mui/icons-material/Description';
+import LanguageIcon from '@mui/icons-material/Language';
+import LogoutIcon from '@mui/icons-material/Logout';
+import MemoryIcon from '@mui/icons-material/Memory';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import SettingsIcon from '@mui/icons-material/Settings';
+import ShieldIcon from '@mui/icons-material/Shield';
+import StorageIcon from '@mui/icons-material/Storage';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import WarningIcon from '@mui/icons-material/Warning';
 import {
   Box,
   List,
@@ -11,18 +22,7 @@ import {
   Avatar,
   Chip,
 } from '@mui/material';
-import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
-import ShieldIcon from '@mui/icons-material/Shield';
-import DescriptionIcon from '@mui/icons-material/Description';
-import ScheduleIcon from '@mui/icons-material/Schedule';
-import WarningIcon from '@mui/icons-material/Warning';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import StorageIcon from '@mui/icons-material/Storage';
-import MemoryIcon from '@mui/icons-material/Memory';
-import LanguageIcon from '@mui/icons-material/Language';
-import SettingsIcon from '@mui/icons-material/Settings';
-import LogoutIcon from '@mui/icons-material/Logout';
-import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface NavItem {
   label: string;

@@ -1,4 +1,8 @@
-import { useState } from 'react';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import StopIcon from '@mui/icons-material/Stop';
+import TrackChangesIcon from '@mui/icons-material/TrackChanges';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import {
   Box,
   Typography,
@@ -7,18 +11,15 @@ import {
   Chip,
   Grid,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import StopIcon from '@mui/icons-material/Stop';
-import TrackChangesIcon from '@mui/icons-material/TrackChanges';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import { useApi } from '../hooks/use-api';
+import { useState } from 'react';
+
 import { api } from '../api/api-client';
-import type { TrainingResult } from '../types/dtos';
-import { StatsCard } from '../components/stats-card';
 import { DataTable } from '../components/data-table';
 import type { Column } from '../components/data-table';
 import { DrawerPanel } from '../components/drawer-panel';
+import { StatsCard } from '../components/stats-card';
+import { useApi } from '../hooks/use-api';
+import type { TrainingResult } from '../types/dtos';
 
 export function TrainingResults() {
   const { data, loading, refetch } = useApi(() => api.getTrainingResults());
