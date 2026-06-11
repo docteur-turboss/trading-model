@@ -1,5 +1,5 @@
-import { Drawer, Box, Typography, IconButton, Tabs, Tab } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { Drawer, Box, Typography, IconButton, Tabs, Tab } from '@mui/material';
 import type { ReactNode } from 'react';
 
 interface DrawerPanelProps {

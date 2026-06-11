@@ -1,15 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+
 import { Layout } from './components/layout';
-import { Services } from './pages/services';
-import { Certificates } from './pages/certificates';
 import { AuditEvents } from './pages/audit-events';
-import { Jobs } from './pages/jobs';
-import { Dlq } from './pages/dlq';
-import { TrainingResults } from './pages/training-results';
 import { Cache } from './pages/cache';
-import { Workers } from './pages/workers';
-import { MarketData } from './pages/market-data';
+import { Certificates } from './pages/certificates';
 import { Config } from './pages/config';
+import { Dlq } from './pages/dlq';
+import { Jobs } from './pages/jobs';
+import { MarketData } from './pages/market-data';
+import { Services } from './pages/services';
+import { TrainingResults } from './pages/training-results';
+import { Workers } from './pages/workers';
 
 export function App() {
   return (
