@@ -40,7 +40,9 @@ function fetchJson(server: http.Server, path: string): Promise<{ status: number;
     }
     const req = http.get(`http://localhost:${addr.port}${path}`, res => {
       let data = '';
-      res.on('data', (chunk: string) => { data += chunk; });
+      res.on('data', (chunk: string) => {
+        data += chunk;
+      });
       res.on('end', () => {
         try {
           resolve({ status: res.statusCode ?? 500, body: JSON.parse(data) });
@@ -70,7 +72,9 @@ describe('API Gateway — Routes Integration', () => {
 
   it('GET /ping should return 200', async () => {
     const app = createApp();
-    await new Promise<void>(resolve => { server = app.listen(0, () => resolve()); });
+    await new Promise<void>(resolve => {
+      server = app.listen(0, () => resolve());
+    });
     const result = await fetchJson(server, '/ping');
     expect(result.status).toBe(200);
     expect(result.body).toHaveProperty('status', 'ok');

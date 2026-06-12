@@ -117,18 +117,20 @@ describe('Job Scheduler entry point (index.ts)', () => {
       expect(JobRepository).toHaveBeenCalledWith(mockDb);
       expect(mockRepositoryInstance.ensureIndexes).toHaveBeenCalledTimes(1);
       expect(JobScheduler).toHaveBeenCalledWith(mockRepositoryInstance);
-      expect(createServer).toHaveBeenCalledWith(expect.objectContaining({
-        workers: mockSchedulerInstance.workers,
-        setWorkerProtocol: mockSchedulerInstance.setWorkerProtocol,
-        start: mockSchedulerInstance.start,
-      }));
+      expect(createServer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workers: mockSchedulerInstance.workers,
+          setWorkerProtocol: mockSchedulerInstance.setWorkerProtocol,
+          start: mockSchedulerInstance.start,
+        })
+      );
       expect(WorkerProtocol).toHaveBeenCalledWith(
         'mock-raw-server',
         expect.objectContaining({ register: expect.any(Function) }),
-        expect.any(Function),
+        expect.any(Function)
       );
       expect(mockSchedulerInstance.setWorkerProtocol).toHaveBeenCalledWith(
-        mockWorkerProtocolInstance,
+        mockWorkerProtocolInstance
       );
       expect(mockSchedulerInstance.start).toHaveBeenCalledTimes(1);
       expect(server).toBe(mockHttpServer);
@@ -154,7 +156,7 @@ describe('Job Scheduler entry point (index.ts)', () => {
           port: 3000,
           maxQueueDepth: 10000,
           ackTimeoutMs: 30000,
-        }),
+        })
       );
     });
   });

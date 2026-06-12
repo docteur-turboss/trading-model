@@ -3,14 +3,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import StopIcon from '@mui/icons-material/Stop';
 import TrackChangesIcon from '@mui/icons-material/TrackChanges';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import {
-  Box,
-  Typography,
-  Button,
-  CircularProgress,
-  Chip,
-  Grid,
-} from '@mui/material';
+import { Box, Typography, Button, CircularProgress, Chip, Grid } from '@mui/material';
 import { useState } from 'react';
 
 import { api } from '../api/api-client';

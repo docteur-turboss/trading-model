@@ -13,11 +13,7 @@ jest.mock('@trading-model/common/config/logger', () => ({
 
 const mockTarget = { host: '10.0.1.5', port: 3000, version: '1.0.0' };
 
-function createMockResponse(
-  statusCode: number,
-  body: string,
-  headers?: Record<string, string>,
-) {
+function createMockResponse(statusCode: number, body: string, headers?: Record<string, string>) {
   const events: Record<string, Array<(...args: any[]) => void>> = {};
 
   const mockRes: any = {
@@ -51,9 +47,7 @@ function createMockResponse(
   return { mockRes, mockReq, events };
 }
 
-function createMockHttps(
-  makeReq: (opts: any, callback: (res: any) => void) => any,
-) {
+function createMockHttps(makeReq: (opts: any, callback: (res: any) => void) => any) {
   return jest.fn().mockImplementation(makeReq);
 }
 
@@ -64,10 +58,7 @@ describe('proxy-handler', () => {
   });
 
   it('should forward a GET request and return the response', async () => {
-    const { mockRes, mockReq, events } = createMockResponse(
-      200,
-      JSON.stringify({ data: 'ok' }),
-    );
+    const { mockRes, mockReq, events } = createMockResponse(200, JSON.stringify({ data: 'ok' }));
 
     const https = require('node:https');
     https.request = createMockHttps((_opts: any, callback: (res: any) => void) => {
@@ -84,7 +75,7 @@ describe('proxy-handler', () => {
     });
 
     const { forwardRequest: forward } = await Promise.resolve(
-      require('../../src/core/proxy-handler'),
+      require('../../src/core/proxy-handler')
     );
     const req = createReq({ method: 'GET', headers: { 'x-request-id': 'req-123' } });
     const result = await forward(req, mockTarget, '/v1/api/data');
@@ -111,7 +102,7 @@ describe('proxy-handler', () => {
     });
 
     const { forwardRequest: forward } = await Promise.resolve(
-      require('../../src/core/proxy-handler'),
+      require('../../src/core/proxy-handler')
     );
     const req = createReq({
       method: 'GET',
@@ -138,7 +129,7 @@ describe('proxy-handler', () => {
     });
 
     const { forwardRequest: forward } = await Promise.resolve(
-      require('../../src/core/proxy-handler'),
+      require('../../src/core/proxy-handler')
     );
     const req = createReq({ method: 'GET' });
     await expect(forward(req, mockTarget, '/test')).rejects.toThrow('ECONNREFUSED');
@@ -164,7 +155,7 @@ describe('proxy-handler', () => {
     });
 
     const { forwardRequest: forward } = await Promise.resolve(
-      require('../../src/core/proxy-handler'),
+      require('../../src/core/proxy-handler')
     );
     const req = createReq({ method: 'GET' });
     await expect(forward(req, mockTarget, '/test')).rejects.toThrow('timeout');
@@ -186,13 +177,13 @@ describe('proxy-handler', () => {
     });
 
     const { forwardRequest: forward } = await Promise.resolve(
-      require('../../src/core/proxy-handler'),
+      require('../../src/core/proxy-handler')
     );
     const req = createReq({
       method: 'GET',
       headers: {
         'x-request-id': 'req-123',
-        'accept': ['text/html', 'application/json'],
+        accept: ['text/html', 'application/json'],
       },
     });
     const result = await forward(req, mockTarget, '/test');
@@ -215,7 +206,7 @@ describe('proxy-handler', () => {
     });
 
     const { forwardRequest: forward } = await Promise.resolve(
-      require('../../src/core/proxy-handler'),
+      require('../../src/core/proxy-handler')
     );
     const req = createReq({
       method: 'GET',
@@ -241,7 +232,7 @@ describe('proxy-handler', () => {
     });
 
     const { forwardRequest: forward } = await Promise.resolve(
-      require('../../src/core/proxy-handler'),
+      require('../../src/core/proxy-handler')
     );
     const req = createReq({
       method: 'GET',
@@ -268,7 +259,7 @@ describe('proxy-handler', () => {
     });
 
     const { forwardRequest: forward } = await Promise.resolve(
-      require('../../src/core/proxy-handler'),
+      require('../../src/core/proxy-handler')
     );
     const req = createReq({
       method: 'GET',
@@ -280,10 +271,7 @@ describe('proxy-handler', () => {
   });
 
   it('should fallback to 503 when statusCode is null', async () => {
-    const { mockRes, mockReq, events } = createMockResponse(
-      0 as unknown as number,
-      'error',
-    );
+    const { mockRes, mockReq, events } = createMockResponse(0 as unknown as number, 'error');
     mockRes.statusCode = null;
 
     const https = require('node:https');
@@ -299,7 +287,7 @@ describe('proxy-handler', () => {
     });
 
     const { forwardRequest: forward } = await Promise.resolve(
-      require('../../src/core/proxy-handler'),
+      require('../../src/core/proxy-handler')
     );
     const req = createReq({ method: 'GET' });
     const result = await forward(req, mockTarget, '/test');
@@ -307,10 +295,7 @@ describe('proxy-handler', () => {
   });
 
   it('should forward POST body', async () => {
-    const { mockRes, mockReq, events } = createMockResponse(
-      200,
-      JSON.stringify({ saved: true }),
-    );
+    const { mockRes, mockReq, events } = createMockResponse(200, JSON.stringify({ saved: true }));
 
     const https = require('node:https');
     https.request = createMockHttps((_opts: any, callback: (res: any) => void) => {
@@ -327,7 +312,7 @@ describe('proxy-handler', () => {
     });
 
     const { forwardRequest: forward } = await Promise.resolve(
-      require('../../src/core/proxy-handler'),
+      require('../../src/core/proxy-handler')
     );
     const req = createReq({
       method: 'POST',

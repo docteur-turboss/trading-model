@@ -31,10 +31,10 @@ export class JobScheduler {
       this.workers,
       repository,
       this.reAllocator,
-      env.ORPHAN_SCAN_INTERVAL_MS,
+      env.ORPHAN_SCAN_INTERVAL_MS
     );
 
-    this.queue.setOnAckTimeout((jobId) => {
+    this.queue.setOnAckTimeout(jobId => {
       this.handleAckTimeout(jobId);
     });
   }
@@ -47,14 +47,14 @@ export class JobScheduler {
     type: string,
     payload: unknown,
     priority: 1 | 2 | 3 | 4 | 5 = 3,
-    maxRetries: number = env.MAX_RETRIES_PER_JOB,
+    maxRetries: number = env.MAX_RETRIES_PER_JOB
   ): Promise<string> {
     if (!this.backPressure.canAccept()) {
       logger.warn('Back pressure active — rejecting job submission');
-      throw Object.assign(
-        new Error('Job scheduler at capacity'),
-        { code: 'BACK_PRESSURE', retryAfter: this.backPressure.retryAfterSeconds() },
-      );
+      throw Object.assign(new Error('Job scheduler at capacity'), {
+        code: 'BACK_PRESSURE',
+        retryAfter: this.backPressure.retryAfterSeconds(),
+      });
     }
 
     const jobId = randomUUID();
@@ -84,7 +84,7 @@ export class JobScheduler {
     const updated: Job = { ...job, status: 'queued' };
     this.queue.enqueue(updated);
     this.backPressure.updateQueueDepth(this.queue.depth());
-    this.repository.updateStatus(job.id, 'queued').catch((err) => {
+    this.repository.updateStatus(job.id, 'queued').catch(err => {
       logger.error('Failed to persist queued status', { jobId: job.id, error: String(err) });
     });
     this.distributeNext();
@@ -125,12 +125,17 @@ export class JobScheduler {
     worker.currentLoad += 1;
     this.backPressure.updateWorkerLoad(worker.workerId, worker.currentLoad / worker.maxConcurrency);
 
-    this.repository.updateStatus(assignedJob.id, 'assigned', {
-      assignedWorkerId: worker.workerId,
-      ackDeadline: deadline,
-    }).catch((err) => {
-      logger.error('Failed to persist assigned status', { jobId: assignedJob.id, error: String(err) });
-    });
+    this.repository
+      .updateStatus(assignedJob.id, 'assigned', {
+        assignedWorkerId: worker.workerId,
+        ackDeadline: deadline,
+      })
+      .catch(err => {
+        logger.error('Failed to persist assigned status', {
+          jobId: assignedJob.id,
+          error: String(err),
+        });
+      });
 
     logger.info('Job assigned to worker', {
       jobId: assignedJob.id,
@@ -141,32 +146,47 @@ export class JobScheduler {
   private handleAckTimeout(jobId: string): void {
     logger.warn('ACK timeout for job', { jobId });
 
-    this.repository.findById(jobId).then((job) => {
-      if (!job || job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') return;
+    this.repository
+      .findById(jobId)
+      .then(job => {
+        if (
+          !job ||
+          job.status === 'completed' ||
+          job.status === 'failed' ||
+          job.status === 'cancelled'
+        )
+          return;
 
-      const workerId = job.assignedWorkerId;
-      if (workerId) {
-        const worker = this.workers.get(workerId);
-        if (worker) {
-          worker.currentLoad = Math.max(0, worker.currentLoad - 1);
-          this.backPressure.updateWorkerLoad(workerId, worker.currentLoad / worker.maxConcurrency);
+        const workerId = job.assignedWorkerId;
+        if (workerId) {
+          const worker = this.workers.get(workerId);
+          if (worker) {
+            worker.currentLoad = Math.max(0, worker.currentLoad - 1);
+            this.backPressure.updateWorkerLoad(
+              workerId,
+              worker.currentLoad / worker.maxConcurrency
+            );
+          }
         }
-      }
 
-      this.repository.updateStatus(jobId, 'orphaned').then(() => {
-        this.reAllocator.reallocate(job);
-      }).catch((err) => {
-        logger.error('Failed to persist orphaned status on ACK timeout', {
+        this.repository
+          .updateStatus(jobId, 'orphaned')
+          .then(() => {
+            this.reAllocator.reallocate(job);
+          })
+          .catch(err => {
+            logger.error('Failed to persist orphaned status on ACK timeout', {
+              jobId,
+              error: String(err),
+            });
+          });
+      })
+      .catch(err => {
+        logger.error('Failed to find job on ACK timeout', {
           jobId,
           error: String(err),
         });
       });
-    }).catch((err) => {
-      logger.error('Failed to find job on ACK timeout', {
-        jobId,
-        error: String(err),
-      });
-    });
   }
 
   async ack(jobId: string): Promise<void> {
@@ -187,7 +207,7 @@ export class JobScheduler {
         worker.currentLoad = Math.max(0, worker.currentLoad - 1);
         this.backPressure.updateWorkerLoad(
           job.assignedWorkerId,
-          worker.currentLoad / worker.maxConcurrency,
+          worker.currentLoad / worker.maxConcurrency
         );
       }
     }
@@ -208,7 +228,7 @@ export class JobScheduler {
         worker.currentLoad = Math.max(0, worker.currentLoad - 1);
         this.backPressure.updateWorkerLoad(
           job.assignedWorkerId,
-          worker.currentLoad / worker.maxConcurrency,
+          worker.currentLoad / worker.maxConcurrency
         );
       }
     }

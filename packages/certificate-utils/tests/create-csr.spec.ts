@@ -103,7 +103,12 @@ describe('createCsr', () => {
   });
 });
 
-function decodeCsr(csr: string): { commonName: string; san: string[]; publicKey: string; signature: string } {
+function decodeCsr(csr: string): {
+  commonName: string;
+  san: string[];
+  publicKey: string;
+  signature: string;
+} {
   const lines = csr.split('\n').filter(l => !l.includes('BEGIN') && !l.includes('END'));
   const body = Buffer.from(lines.join(''), 'base64').toString('utf8');
   return JSON.parse(body);

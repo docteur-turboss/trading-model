@@ -72,7 +72,7 @@ describe('AckController', () => {
       const result = await controller.ack(
         createReq({ params: { id: 'job-1' } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 200, data: { status: 'acknowledged' } });
@@ -85,7 +85,7 @@ describe('AckController', () => {
       const result = await controller.complete(
         createReq({ params: { id: 'job-1' }, body: null }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 400 });
@@ -97,7 +97,7 @@ describe('AckController', () => {
       const result = await controller.complete(
         createReq({ params: { id: 'job-1' }, body: { result: { data: 42 } } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 200, data: { status: 'completed' } });
@@ -110,7 +110,7 @@ describe('AckController', () => {
       const result = await controller.fail(
         createReq({ params: { id: 'job-1' }, body: null }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 400 });
@@ -120,7 +120,7 @@ describe('AckController', () => {
       const result = await controller.fail(
         createReq({ params: { id: 'job-1' }, body: {} }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 400 });
@@ -132,7 +132,7 @@ describe('AckController', () => {
       const result = await controller.fail(
         createReq({ params: { id: 'job-1' }, body: { error: 'timeout' } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 200, data: { status: 'failed' } });

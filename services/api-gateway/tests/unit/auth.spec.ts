@@ -32,7 +32,7 @@ describe('authMiddleware', () => {
     const result = await authMiddleware(
       createReq({ headers: { 'x-api-key': 'invalid' } }),
       createRes(),
-      createNext,
+      createNext
     );
     expect(result).toMatchObject({ status: 401, data: { error: 'Invalid authentication token' } });
   });
@@ -41,7 +41,7 @@ describe('authMiddleware', () => {
     const result = await authMiddleware(
       createReq({ headers: { 'x-api-key': 'valid-token-1' } }),
       createRes(),
-      createNext,
+      createNext
     );
     expect(result).toBeUndefined();
   });
@@ -50,7 +50,7 @@ describe('authMiddleware', () => {
     const result = await authMiddleware(
       createReq({ headers: { authorization: 'valid-token-2' } }),
       createRes(),
-      createNext,
+      createNext
     );
     expect(result).toBeUndefined();
   });

@@ -64,7 +64,7 @@ describe('router', () => {
 
   it('should have a ping route', () => {
     const pingRoute = router.stack.find(
-      (layer: any) => layer.route && layer.route.path === '/ping',
+      (layer: any) => layer.route && layer.route.path === '/ping'
     );
     expect(pingRoute).toBeDefined();
   });
@@ -74,7 +74,7 @@ describe('router', () => {
     const res = { json: jest.fn() };
 
     const pingLayer = router.stack.find(
-      (layer: any) => layer.route && layer.route.path === '/ping',
+      (layer: any) => layer.route && layer.route.path === '/ping'
     );
     expect(pingLayer).toBeDefined();
 
@@ -85,19 +85,17 @@ describe('router', () => {
   });
 
   it('should have the catch-all middleware', () => {
-    const middlewareLayers = router.stack.filter(
-      (layer: any) => !layer.route,
-    );
+    const middlewareLayers = router.stack.filter((layer: any) => !layer.route);
     expect(middlewareLayers.length).toBeGreaterThanOrEqual(3);
   });
 
   it('should have auth middleware mounted', () => {
-    const nonRouteLayers = router.stack.filter(
-      (layer: any) => !layer.route,
-    );
+    const nonRouteLayers = router.stack.filter((layer: any) => !layer.route);
 
     const authLayer = nonRouteLayers.find(
-      (layer: any) => layer.name === 'authMiddleware' || layer.handle === require('../../src/core/auth').authMiddleware,
+      (layer: any) =>
+        layer.name === 'authMiddleware' ||
+        layer.handle === require('../../src/core/auth').authMiddleware
     );
 
     expect(authLayer).toBeDefined();
@@ -121,27 +119,47 @@ describe('router', () => {
 
     it('should return 400 for invalid route format', async () => {
       const handler = getHandler();
-      const result = await handler(createReq({ method: 'GET', path: '/bad-route', url: '/bad-route' }));
-      expect(result).toEqual({ status: 400, data: { error: 'Invalid route format. Expected /v{version}/{serviceName}/**' } });
+      const result = await handler(
+        createReq({ method: 'GET', path: '/bad-route', url: '/bad-route' })
+      );
+      expect(result).toEqual({
+        status: 400,
+        data: { error: 'Invalid route format. Expected /v{version}/{serviceName}/**' },
+      });
     });
 
     it('should return 400 for invalid version number', async () => {
       const handler = getHandler();
-      const result = await handler(createReq({ method: 'GET', path: '/v0/invalid/path', url: '/v0/invalid/path' }));
+      const result = await handler(
+        createReq({ method: 'GET', path: '/v0/invalid/path', url: '/v0/invalid/path' })
+      );
       expect(result).toEqual({ status: 400, data: { error: 'Invalid version number' } });
     });
 
     it('should return 404 when service not found', async () => {
       const handler = getHandler();
-      const result = await handler(createReq({ method: 'GET', path: '/v1/unknown-service/path', url: '/v1/unknown-service/path' }));
-      expect(result).toEqual({ status: 404, data: { error: 'Service not found', service: 'unknown-service', version: 1 } });
+      const result = await handler(
+        createReq({
+          method: 'GET',
+          path: '/v1/unknown-service/path',
+          url: '/v1/unknown-service/path',
+        })
+      );
+      expect(result).toEqual({
+        status: 404,
+        data: { error: 'Service not found', service: 'unknown-service', version: 1 },
+      });
     });
 
     it('should cache and return cached response on subsequent GET', async () => {
       mockForwardSuccess({ data: 'ok' });
 
       const handler = getHandler();
-      const req = createReq({ method: 'GET', path: '/v1/sector-allocator/cached-test', url: '/v1/sector-allocator/cached-test' });
+      const req = createReq({
+        method: 'GET',
+        path: '/v1/sector-allocator/cached-test',
+        url: '/v1/sector-allocator/cached-test',
+      });
 
       const first = await handler(req);
       expect(first).toEqual({ status: 200, data: { data: 'ok' } });
@@ -158,16 +176,30 @@ describe('router', () => {
       forwardRequest.mockRejectedValue(new Error('Connection timeout'));
 
       const handler = getHandler();
-      const req = createReq({ method: 'GET', path: '/v1/sector-allocator/error-path', url: '/v1/sector-allocator/error-path' });
+      const req = createReq({
+        method: 'GET',
+        path: '/v1/sector-allocator/error-path',
+        url: '/v1/sector-allocator/error-path',
+      });
       const result = await handler(req);
-      expect(result).toEqual({ status: 503, data: { error: 'Service unavailable', details: 'Connection timeout' } });
+      expect(result).toEqual({
+        status: 503,
+        data: { error: 'Service unavailable', details: 'Connection timeout' },
+      });
     });
 
     it('should handle POST requests (no cache)', async () => {
       mockForwardSuccess({ saved: true });
 
       const handler = getHandler();
-      const result = await handler(createReq({ method: 'POST', path: '/v1/sector-allocator/create', url: '/v1/sector-allocator/create', body: { name: 'test' } }));
+      const result = await handler(
+        createReq({
+          method: 'POST',
+          path: '/v1/sector-allocator/create',
+          url: '/v1/sector-allocator/create',
+          body: { name: 'test' },
+        })
+      );
       expect(result).toEqual({ status: 200, data: { saved: true } });
     });
 
@@ -181,7 +213,13 @@ describe('router', () => {
       });
 
       const handler = getHandler();
-      const result = await handler(createReq({ method: 'GET', path: '/v1/sector-allocator/data', url: '/v1/sector-allocator/data' }));
+      const result = await handler(
+        createReq({
+          method: 'GET',
+          path: '/v1/sector-allocator/data',
+          url: '/v1/sector-allocator/data',
+        })
+      );
       expect(result).toEqual({ status: 200, data: 'plain text response' });
     });
 
@@ -189,7 +227,9 @@ describe('router', () => {
       mockForwardSuccess({ ok: true });
 
       const handler = getHandler();
-      const result = await handler(createReq({ method: 'GET', path: '/v1/sector-allocator', url: '/v1/sector-allocator' }));
+      const result = await handler(
+        createReq({ method: 'GET', path: '/v1/sector-allocator', url: '/v1/sector-allocator' })
+      );
       expect(result).toEqual({ status: 200, data: { ok: true } });
     });
 
@@ -199,9 +239,16 @@ describe('router', () => {
       forwardRequest.mockRejectedValue('string error');
 
       const handler = getHandler();
-      const req = createReq({ method: 'GET', path: '/v1/sector-allocator/bad', url: '/v1/sector-allocator/bad' });
+      const req = createReq({
+        method: 'GET',
+        path: '/v1/sector-allocator/bad',
+        url: '/v1/sector-allocator/bad',
+      });
       const result = await handler(req);
-      expect(result).toEqual({ status: 503, data: { error: 'Service unavailable', details: 'Unknown error' } });
+      expect(result).toEqual({
+        status: 503,
+        data: { error: 'Service unavailable', details: 'Unknown error' },
+      });
     });
   });
 });

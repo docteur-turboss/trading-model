@@ -75,7 +75,11 @@ describe('createServer', () => {
   });
 
   it('should create a secure server and register all routes', async () => {
-    const scheduler = { workers: 'workers-mock', queue: 'queue-mock', backPressure: 'back-pressure-mock' } as any;
+    const scheduler = {
+      workers: 'workers-mock',
+      queue: 'queue-mock',
+      backPressure: 'back-pressure-mock',
+    } as any;
 
     const server = await createServer(scheduler);
 
@@ -84,7 +88,7 @@ describe('createServer', () => {
       expect.objectContaining({
         port: 3000,
         tls: mockTlsConfig,
-      }),
+      })
     );
 
     expect(loadTlsConfig).toHaveBeenCalledWith(
@@ -92,7 +96,7 @@ describe('createServer', () => {
         TLS_KEY_PATH: '/some/key.pem',
         TLS_CERT_PATH: '/some/cert.pem',
         TLS_CA_PATH: '/some/ca.pem',
-      }),
+      })
     );
 
     const secureServerOptions = (createSecureServer as jest.Mock).mock.calls[0][0] as any;
@@ -102,7 +106,11 @@ describe('createServer', () => {
     expect(jobRoutes).toHaveBeenCalledWith(scheduler);
     expect(ackRoutes).toHaveBeenCalledWith(scheduler);
     expect(workerRoutes).toHaveBeenCalledWith(scheduler.workers);
-    expect(healthRoutes).toHaveBeenCalledWith(scheduler.queue, scheduler.backPressure, scheduler.workers);
+    expect(healthRoutes).toHaveBeenCalledWith(
+      scheduler.queue,
+      scheduler.backPressure,
+      scheduler.workers
+    );
 
     expect(mockApp.use).toHaveBeenCalledWith('/', mockJobRoutes);
     expect(mockApp.use).toHaveBeenCalledWith('/', mockAckRoutes);

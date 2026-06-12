@@ -42,7 +42,9 @@ describe('validateCertificate', () => {
   });
 
   it('should return invalid for a tampered certificate body', () => {
-    const lines = signed.certPem.split('\n').filter(l => !l.includes('BEGIN') && !l.includes('END'));
+    const lines = signed.certPem
+      .split('\n')
+      .filter(l => !l.includes('BEGIN') && !l.includes('END'));
     const decoded = Buffer.from(lines.join(''), 'base64').toString('utf8');
     const parsed = JSON.parse(decoded);
     parsed.body = parsed.body + ' TAMPERED';
@@ -56,7 +58,9 @@ describe('validateCertificate', () => {
   });
 
   it('should return invalid for a wrong CA certificate', () => {
-    const lines = signed.certPem.split('\n').filter(l => !l.includes('BEGIN') && !l.includes('END'));
+    const lines = signed.certPem
+      .split('\n')
+      .filter(l => !l.includes('BEGIN') && !l.includes('END'));
     const decoded = Buffer.from(lines.join(''), 'base64').toString('utf8');
     const parsed = JSON.parse(decoded);
     const wrongCaKey = generateKeyPair(KeyAlgorithm.RSA_4096);
@@ -71,7 +75,8 @@ describe('validateCertificate', () => {
   });
 
   it('should return invalid for certificate with missing Not After date', () => {
-    const body = 'Serial: SN-001\nSubject: CN=test\nIssuer: CN=CA\nNot Before: 2024-01-01T00:00:00.000Z\nSAN: test.internal';
+    const body =
+      'Serial: SN-001\nSubject: CN=test\nIssuer: CN=CA\nNot Before: 2024-01-01T00:00:00.000Z\nSAN: test.internal';
     const pemContent = Buffer.from(
       JSON.stringify({ body, signature: '', issuerCert: '' })
     ).toString('base64');
@@ -85,7 +90,10 @@ describe('validateCertificate', () => {
 
   it('should return invalid for certificate with missing Not Before date', () => {
     const futureDate = new Date(Date.now() + 86400000).toISOString();
-    const body = 'Serial: SN-001\nSubject: CN=test\nIssuer: CN=CA\nNot After: ' + futureDate + '\nSAN: test.internal';
+    const body =
+      'Serial: SN-001\nSubject: CN=test\nIssuer: CN=CA\nNot After: ' +
+      futureDate +
+      '\nSAN: test.internal';
     const pemContent = Buffer.from(
       JSON.stringify({ body, signature: '', issuerCert: '' })
     ).toString('base64');

@@ -3,13 +3,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LockIcon from '@mui/icons-material/Lock';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SyncIcon from '@mui/icons-material/Sync';
-import {
-  Box,
-  Typography,
-  Button,
-  Chip,
-  CircularProgress,
-} from '@mui/material';
+import { Box, Typography, Button, Chip, CircularProgress } from '@mui/material';
 
 import { api } from '../api/api-client';
 import { DataTable } from '../components/data-table';

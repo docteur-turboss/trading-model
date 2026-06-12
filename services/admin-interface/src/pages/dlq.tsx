@@ -21,11 +21,7 @@ export function Dlq() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedIds(
-      checked
-        ? new Set((data?.messages ?? []).map(r => r.messageId))
-        : new Set()
-    );
+    setSelectedIds(checked ? new Set((data?.messages ?? []).map(r => r.messageId)) : new Set());
   };
 
   const handleSelectOne = (id: string) => {

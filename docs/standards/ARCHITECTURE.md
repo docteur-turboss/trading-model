@@ -106,15 +106,15 @@ The **admin-interface** is a React SPA (not a Node.js microservice). It imports 
 
 Each service exposes an HTTPS server with mTLS enabled. The internal container port is always **3000**, with a unique host port mapping.
 
-| Service           | Host port (dev) | Container port | Notes              |
-| ----------------- | --------------- | -------------- | ------------------ |
-| discovery-server  | 8443            | 3000           |                    |
-| message-manager   | 8444            | 3000           |                    |
-| financial-scraper | 8445            | 3000           |                    |
-| trader-trainer    | 8446            | 3000           |                    |
-| audit-logger      | 8450            | 3000           |                    |
-| job-scheduler     | 8451            | 3000           |                    |
-| admin-interface   | 5173 (dev)      | 80             | SPA via nginx      |
+| Service           | Host port (dev) | Container port | Notes         |
+| ----------------- | --------------- | -------------- | ------------- |
+| discovery-server  | 8443            | 3000           |               |
+| message-manager   | 8444            | 3000           |               |
+| financial-scraper | 8445            | 3000           |               |
+| trader-trainer    | 8446            | 3000           |               |
+| audit-logger      | 8450            | 3000           |               |
+| job-scheduler     | 8451            | 3000           |               |
+| admin-interface   | 5173 (dev)      | 80             | SPA via nginx |
 
 ### Service Structure
 

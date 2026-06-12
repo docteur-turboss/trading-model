@@ -72,7 +72,8 @@ describe('certificateInfo', () => {
   });
 
   it('should return empty string for missing serial number', () => {
-    const body = 'Subject: CN=test\nIssuer: CN=CA\nNot Before: 2024-01-01T00:00:00.000Z\nNot After: 2025-01-01T00:00:00.000Z\nSAN: test.internal';
+    const body =
+      'Subject: CN=test\nIssuer: CN=CA\nNot Before: 2024-01-01T00:00:00.000Z\nNot After: 2025-01-01T00:00:00.000Z\nSAN: test.internal';
     const pem = makeCertPem(body);
 
     const info = certificateInfo(pem);
@@ -81,7 +82,8 @@ describe('certificateInfo', () => {
   });
 
   it('should return empty string for missing subject', () => {
-    const body = 'Serial: SN-001\nIssuer: CN=CA\nNot Before: 2024-01-01T00:00:00.000Z\nNot After: 2025-01-01T00:00:00.000Z\nSAN: test.internal';
+    const body =
+      'Serial: SN-001\nIssuer: CN=CA\nNot Before: 2024-01-01T00:00:00.000Z\nNot After: 2025-01-01T00:00:00.000Z\nSAN: test.internal';
     const pem = makeCertPem(body);
 
     const info = certificateInfo(pem);
@@ -90,7 +92,8 @@ describe('certificateInfo', () => {
   });
 
   it('should return empty string for missing issuer', () => {
-    const body = 'Serial: SN-001\nSubject: CN=test\nNot Before: 2024-01-01T00:00:00.000Z\nNot After: 2025-01-01T00:00:00.000Z\nSAN: test.internal';
+    const body =
+      'Serial: SN-001\nSubject: CN=test\nNot Before: 2024-01-01T00:00:00.000Z\nNot After: 2025-01-01T00:00:00.000Z\nSAN: test.internal';
     const pem = makeCertPem(body);
 
     const info = certificateInfo(pem);
@@ -99,7 +102,8 @@ describe('certificateInfo', () => {
   });
 
   it('should return Invalid Date for missing notBefore', () => {
-    const body = 'Serial: SN-001\nSubject: CN=test\nIssuer: CN=CA\nNot After: 2025-01-01T00:00:00.000Z\nSAN: test.internal';
+    const body =
+      'Serial: SN-001\nSubject: CN=test\nIssuer: CN=CA\nNot After: 2025-01-01T00:00:00.000Z\nSAN: test.internal';
     const pem = makeCertPem(body);
 
     const info = certificateInfo(pem);
@@ -108,7 +112,8 @@ describe('certificateInfo', () => {
   });
 
   it('should return Invalid Date for missing notAfter', () => {
-    const body = 'Serial: SN-001\nSubject: CN=test\nIssuer: CN=CA\nNot Before: 2024-01-01T00:00:00.000Z\nSAN: test.internal';
+    const body =
+      'Serial: SN-001\nSubject: CN=test\nIssuer: CN=CA\nNot Before: 2024-01-01T00:00:00.000Z\nSAN: test.internal';
     const pem = makeCertPem(body);
 
     const info = certificateInfo(pem);
@@ -117,7 +122,8 @@ describe('certificateInfo', () => {
   });
 
   it('should return empty SAN when none present', () => {
-    const body = 'Serial: SN-001\nSubject: CN=test\nIssuer: CN=CA\nNot Before: 2024-01-01T00:00:00.000Z\nNot After: 2025-01-01T00:00:00.000Z\nSAN: ';
+    const body =
+      'Serial: SN-001\nSubject: CN=test\nIssuer: CN=CA\nNot Before: 2024-01-01T00:00:00.000Z\nNot After: 2025-01-01T00:00:00.000Z\nSAN: ';
     const pem = makeCertPem(body);
 
     const info = certificateInfo(pem);

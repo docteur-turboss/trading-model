@@ -8,7 +8,7 @@ import { WorkerRegistry } from '../worker/worker-registry';
 export function healthRoutes(
   queue: InternalQueue,
   backPressure: BackPressure,
-  workers: WorkerRegistry,
+  workers: WorkerRegistry
 ): Router {
   const router = Router();
   const controller = createHealthController(queue, backPressure, workers);

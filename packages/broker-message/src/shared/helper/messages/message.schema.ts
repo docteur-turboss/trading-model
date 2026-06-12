@@ -254,8 +254,8 @@ const EventValidators: ZodEventMap<EventMap> = {
     instanceId: z.string(),
   }),
   [EnumEventMessage.auditGapDetected]: z.object({
-    from: z.string().transform((s) => new Date(s)),
-    to: z.string().transform((s) => new Date(s)),
+    from: z.string().transform(s => new Date(s)),
+    to: z.string().transform(s => new Date(s)),
     lostCount: z.number().int().optional(),
   }),
 };

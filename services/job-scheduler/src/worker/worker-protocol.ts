@@ -14,7 +14,7 @@ export class WorkerProtocol {
   constructor(
     server: https.Server,
     private readonly workerRegistry: WorkerRegistry,
-    private readonly onWorkerDisconnect: (workerId: string) => void,
+    private readonly onWorkerDisconnect: (workerId: string) => void
   ) {
     this.wss = new WebSocketServer({ server });
 
@@ -54,7 +54,10 @@ export class WorkerProtocol {
     });
   }
 
-  private handleRegister(message: WorkerIncomingMessage & { type: 'register' }, ws: WebSocket): void {
+  private handleRegister(
+    message: WorkerIncomingMessage & { type: 'register' },
+    ws: WebSocket
+  ): void {
     this.workerRegistry.register(message.workerId, {
       workerId: message.workerId,
       address: message.address,

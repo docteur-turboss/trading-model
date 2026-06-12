@@ -111,7 +111,14 @@ describe('DataTable', () => {
 
   it('should handle empty rows with selectable', () => {
     render(
-      <DataTable columns={columns} rows={[]} getId={r => r.id} total={0} selectable selectedIds={new Set()} />
+      <DataTable
+        columns={columns}
+        rows={[]}
+        getId={r => r.id}
+        total={0}
+        selectable
+        selectedIds={new Set()}
+      />
     );
     expect(screen.getByRole('checkbox')).toBeInTheDocument();
   });

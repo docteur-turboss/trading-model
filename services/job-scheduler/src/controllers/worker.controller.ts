@@ -12,7 +12,7 @@ export function createWorkerController(workers: WorkerRegistry) {
     if (!parsed.success) {
       return sendResponse(
         { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
-        400,
+        400
       );
     }
 
@@ -35,7 +35,7 @@ export function createWorkerController(workers: WorkerRegistry) {
     if (!parsed.success) {
       return sendResponse(
         { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
-        400,
+        400
       );
     }
 

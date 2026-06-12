@@ -17,7 +17,7 @@ export function forwardRequest(
   req: Request,
   target: ResolvedTarget,
   path: string,
-  timeoutMs: number = env.PROXY_TIMEOUT_MS,
+  timeoutMs: number = env.PROXY_TIMEOUT_MS
 ): Promise<ProxyResult> {
   return new Promise((resolve, reject) => {
     const safeHeaders: Record<string, string> = {};
@@ -25,11 +25,11 @@ export function forwardRequest(
     for (const [key, value] of Object.entries(req.headers)) {
       const lower = key.toLowerCase();
       if (
-        lower === 'x-api-key'
-        || lower === 'authorization'
-        || lower === 'host'
-        || lower === 'connection'
-        || lower === 'keep-alive'
+        lower === 'x-api-key' ||
+        lower === 'authorization' ||
+        lower === 'host' ||
+        lower === 'connection' ||
+        lower === 'keep-alive'
       ) {
         continue;
       }

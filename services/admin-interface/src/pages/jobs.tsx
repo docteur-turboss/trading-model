@@ -2,13 +2,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import SyncIcon from '@mui/icons-material/Sync';
-import {
-  Box,
-  Typography,
-  Button,
-  CircularProgress,
-  Chip,
-} from '@mui/material';
+import { Box, Typography, Button, CircularProgress, Chip } from '@mui/material';
 import { useState } from 'react';
 
 import { DataTable } from '../components/data-table';
@@ -120,8 +114,17 @@ export function Jobs() {
                   content: (
                     <Box>
                       {jobDetail.timeline.map((entry, i) => (
-                        <Box key={i} sx={{ display: 'flex', gap: 2, pb: i < jobDetail.timeline.length - 1 ? 2 : 0 }}>
-                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <Box
+                          key={i}
+                          sx={{
+                            display: 'flex',
+                            gap: 2,
+                            pb: i < jobDetail.timeline.length - 1 ? 2 : 0,
+                          }}
+                        >
+                          <Box
+                            sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+                          >
                             <Box
                               sx={{
                                 width: 12,
@@ -132,7 +135,9 @@ export function Jobs() {
                               }}
                             />
                             {i < jobDetail.timeline.length - 1 && (
-                              <Box sx={{ width: 2, flexGrow: 1, bgcolor: 'divider', minHeight: 20 }} />
+                              <Box
+                                sx={{ width: 2, flexGrow: 1, bgcolor: 'divider', minHeight: 20 }}
+                              />
                             )}
                           </Box>
                           <Box>

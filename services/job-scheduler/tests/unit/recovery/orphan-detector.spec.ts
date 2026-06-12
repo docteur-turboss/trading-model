@@ -98,7 +98,10 @@ describe('OrphanDetector', () => {
 
       jest.advanceTimersByTime(5000);
 
-      expect(mockRepository.findByWorker).toHaveBeenCalledWith('stale-worker', ['assigned', 'running']);
+      expect(mockRepository.findByWorker).toHaveBeenCalledWith('stale-worker', [
+        'assigned',
+        'running',
+      ]);
     });
 
     it('should log error but not crash when detection fails', () => {
