@@ -1,6 +1,6 @@
 import { describe, it, expect, jest } from '@jest/globals';
 
-jest.mock('../../../src/routes/health.controller', () => ({
+jest.mock('../../../src/controllers/health.controller', () => ({
   createHealthController: jest.fn(),
 }));
 
@@ -13,7 +13,7 @@ jest.mock('express', () => ({
 }));
 
 import { healthRoutes } from '../../../src/routes/health.routes';
-import { createHealthController } from '../../../src/routes/health.controller';
+import { createHealthController } from '../../../src/controllers/health.controller';
 
 describe('healthRoutes', () => {
   it('should register all health routes', () => {

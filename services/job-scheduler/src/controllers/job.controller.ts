@@ -3,7 +3,7 @@ import { RequestHandler } from 'express';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
-import { SubmitJobSchema } from './job.schema';
+import { SubmitJobSchema } from '../routes/job.schema';
 import { JobScheduler } from '../scheduler/job-scheduler';
 
 export function createJobController(scheduler: JobScheduler) {

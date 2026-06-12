@@ -3,7 +3,7 @@ import { RequestHandler } from 'express';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
-import { CompleteJobSchema, FailJobSchema } from './ack.schema';
+import { CompleteJobSchema, FailJobSchema } from '../routes/ack.schema';
 import { JobScheduler } from '../scheduler/job-scheduler';
 
 export function createAckController(scheduler: JobScheduler) {

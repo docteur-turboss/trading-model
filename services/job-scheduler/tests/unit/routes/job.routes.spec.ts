@@ -1,6 +1,6 @@
 import { describe, it, expect, jest } from '@jest/globals';
 
-jest.mock('../../../src/routes/job.controller', () => ({
+jest.mock('../../../src/controllers/job.controller', () => ({
   createJobController: jest.fn(),
 }));
 
@@ -14,7 +14,7 @@ jest.mock('express', () => ({
 }));
 
 import { jobRoutes } from '../../../src/routes/job.routes';
-import { createJobController } from '../../../src/routes/job.controller';
+import { createJobController } from '../../../src/controllers/job.controller';
 
 describe('jobRoutes', () => {
   it('should register all job routes', () => {

@@ -3,7 +3,7 @@ import { RequestHandler } from 'express';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
-import { RegisterWorkerSchema, WorkerHeartbeatSchema } from './worker.schema';
+import { RegisterWorkerSchema, WorkerHeartbeatSchema } from '../routes/worker.schema';
 import { WorkerRegistry } from '../worker/worker-registry';
 
 export function createWorkerController(workers: WorkerRegistry) {

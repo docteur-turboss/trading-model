@@ -12,7 +12,7 @@ jest.mock('@trading-model/common/middleware/response-exception', () => {
 });
 
 import { WorkerRegistry } from '../../../src/worker/worker-registry';
-import { createWorkerController } from '../../../src/routes/worker.controller';
+import { createWorkerController } from '../../../src/controllers/worker.controller';
 
 describe('WorkerController', () => {
   let workers: WorkerRegistry;
