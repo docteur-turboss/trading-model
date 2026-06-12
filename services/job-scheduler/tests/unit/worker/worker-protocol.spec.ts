@@ -29,7 +29,7 @@ jest.mock('ws', () => {
 });
 
 import { logger } from '@trading-model/common/config/logger';
-import WebSocket, { WebSocketServer } from 'ws';
+import { WebSocketServer } from 'ws';
 
 import { WorkerProtocol } from '../../../src/worker/worker-protocol';
 import { WorkerRegistry } from '../../../src/worker/worker-registry';

@@ -1,25 +1,25 @@
 # Architecture — api-gateway
 
-Point d'entrée unique externe du système. Route, authentifie, limite et proxyfie toutes les requêtes entrantes vers les services internes.
+Single external entry point for the system. Routes, authenticates, rate-limits and proxies all incoming requests to internal services.
 
-## Fonctionnement
+## Operation
 
 ```
 Client → /v1/{service}/... → API Gateway → auth → rate-limit → resolve Discovery → proxy mTLS → service
 ```
 
-- **Routage versionné** : `/v{major}/{serviceName}/**` → résolution via Discovery Server, filtrage par version majeure
-- **Auth** : header `x-api-key` ou `authorization`, validation contre liste configurable via `AUTH_TOKENS`
+- **Versioned routing** : `/v{major}/{serviceName}/**` → resolved via Discovery Server, filtered by major version
+- **Auth** : `x-api-key` or `authorization` header, validated against a configurable list via `AUTH_TOKENS`
 - **Rate limiting** : `express-rate-limit`, configurable (default 100 req/min)
-- **Cache** : réponses GET en mémoire avec TTL configurable
-- **Proxy mTLS** : forwarde la requête au service cible, supprime `x-api-key` des headers, timeout configurable
+- **Cache** : in-memory GET responses with configurable TTL
+- **mTLS Proxy** : forwards the request to the target service, strips `x-api-key` from headers, configurable timeout
 
-## Ordre de démarrage
+## Startup order
 
-Position 6 — après job-scheduler, port 8448. Dépend uniquement de `discovery-server:healthy`.
+Position 6 — after job-scheduler, port 8448. Depends only on `discovery-server:healthy`.
 
-## Impact panne
+## Failure impact
 
-- **Services internes**: aucun impact (communication directe en mTLS)
-- **Externe**: toutes les requêtes API échouent
-- **Récupération**: Docker relance le container (20-50s), ré-enregistrement Discovery
+- **Internal services**: no impact (direct mTLS communication)
+- **External**: all API requests fail
+- **Recovery**: Docker restarts the container (20-50s), re-registers with Discovery
