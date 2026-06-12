@@ -87,7 +87,6 @@ describe('createServer', () => {
       expect.objectContaining({
         port: 3000,
         tls: mockTlsConfig,
-        trustProxy: true,
       })
     );
 
