@@ -39,9 +39,11 @@ function fetchJson(server: http.Server, path: string): Promise<{ status: number;
       reject(new Error('Server not listening'));
       return;
     }
-    const req = http.get(`http://localhost:${addr.port}${path}`, res => {
+    const req = http.get(`http://localhost:${addr.port}${path}`, { agent: false }, res => {
       let data = '';
-      res.on('data', (chunk: string) => { data += chunk; });
+      res.on('data', (chunk: string) => {
+        data += chunk;
+      });
       res.on('end', () => {
         try {
           resolve({ status: res.statusCode ?? 500, body: JSON.parse(data) });
@@ -62,6 +64,7 @@ describe('Certificate Authority — Routes Integration', () => {
     jest.restoreAllMocks();
     return new Promise<void>(resolve => {
       if (server?.listening) {
+        server.closeAllConnections();
         server.close(() => resolve());
       } else {
         resolve();
@@ -71,7 +74,9 @@ describe('Certificate Authority — Routes Integration', () => {
 
   it('GET /ping should return 200', async () => {
     const app = createApp();
-    await new Promise<void>(resolve => { server = app.listen(0, () => resolve()); });
+    await new Promise<void>(resolve => {
+      server = app.listen(0, () => resolve());
+    });
     const result = await fetchJson(server, '/ping');
     expect(result.status).toBe(200);
     expect(result.body).toHaveProperty('status', 'ok');

@@ -2,11 +2,11 @@ import { Request, Response } from 'express';
 
 import { logger } from '@trading-model/common/config/logger';
 
-import { crlStore } from '../app/index';
+import { container } from '../app/container';
 
 export async function getCrl(_req: Request, res: Response): Promise<void> {
   try {
-    const crl = await crlStore.getAll();
+    const crl = await container.crlStore.getAll();
 
     res.status(200).json({
       lastUpdate: new Date(),
