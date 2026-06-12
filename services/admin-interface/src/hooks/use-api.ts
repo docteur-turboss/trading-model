@@ -9,6 +9,7 @@ interface UseApiResult<T> {
   refetch: () => void;
 }
 
+/** Generic data-fetching hook that tracks loading, error, and refetch state. */
 export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): UseApiResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
