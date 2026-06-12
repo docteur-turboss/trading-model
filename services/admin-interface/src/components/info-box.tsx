@@ -8,6 +8,7 @@ interface InfoBoxProps {
   color?: string;
 }
 
+/** Informational card displaying an icon, title, and description. */
 export function InfoBox({ icon, title, description, color = 'primary.main' }: InfoBoxProps) {
   return (
     <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>

@@ -11,6 +11,7 @@ interface SeverityBadgeProps {
   severity: string;
 }
 
+/** Colored chip indicating a severity level (INFO, WARNING, ERROR, CRITICAL). */
 export function SeverityBadge({ severity }: SeverityBadgeProps) {
   const style = SEVERITY_STYLES[severity.toUpperCase()] ?? {
     color: '#757575',

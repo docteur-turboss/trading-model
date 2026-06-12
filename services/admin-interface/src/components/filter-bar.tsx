@@ -10,6 +10,7 @@ interface FilterBarProps {
   onReset?: () => void;
 }
 
+/** Search bar with optional filter controls and apply/reset actions. */
 export function FilterBar({
   searchPlaceholder = 'Search...',
   searchValue,

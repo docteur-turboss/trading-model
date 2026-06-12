@@ -9,6 +9,7 @@ interface StatsCardProps {
   deltaColor?: string;
 }
 
+/** Metric card displaying a value, label, and optional delta indicator. */
 export function StatsCard({ icon, value, label, delta, deltaColor }: StatsCardProps) {
   return (
     <Card sx={{ height: '100%' }}>

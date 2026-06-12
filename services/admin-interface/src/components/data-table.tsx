@@ -34,6 +34,7 @@ interface DataTableProps<T> {
   selectable?: boolean;
 }
 
+/** Generic sortable data table with pagination and optional multi-select. */
 export function DataTable<T>({
   columns,
   rows,

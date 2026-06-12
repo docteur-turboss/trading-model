@@ -13,6 +13,7 @@ interface DrawerPanelProps {
   actions?: ReactNode;
 }
 
+/** Right-side drawer panel with optional tabs and action buttons. */
 export function DrawerPanel({
   open,
   title,

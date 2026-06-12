@@ -26,6 +26,7 @@ interface ModalConfirmProps {
   extraContent?: React.ReactNode;
 }
 
+/** Confirmation dialog with impact list and confirm/cancel actions. */
 export function ModalConfirm({
   open,
   title,

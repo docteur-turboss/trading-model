@@ -22,6 +22,7 @@ interface StatusBadgeProps {
   label?: string;
 }
 
+/** Renders a colored chip representing a service or instance health status. */
 export function StatusBadge({ status, label }: StatusBadgeProps) {
   const color = STATUS_COLORS[status.toLowerCase()] ?? 'default';
   return (
