@@ -5,6 +5,9 @@ module.exports = {
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  moduleNameMapper: {
+    '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
+  },
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/app/index.ts'],
   coverageThreshold: {
     global: {
