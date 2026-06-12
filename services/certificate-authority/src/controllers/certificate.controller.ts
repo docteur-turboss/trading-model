@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 
 import { logger } from '@trading-model/common/config/logger';
 
-import { ca, certificateStore } from '../app/index';
+import { container } from '../app/container';
 
 export async function signCertificate(req: Request, res: Response): Promise<void> {
   try {
@@ -13,7 +13,7 @@ export async function signCertificate(req: Request, res: Response): Promise<void
       return;
     }
 
-    const signed = await ca.signServiceCertificate(serviceId, csr, ttlMs);
+    const signed = await container.ca.signServiceCertificate(serviceId, csr, ttlMs);
 
     logger.info('Certificate signed', { serviceId, serialNumber: signed.serialNumber });
 
@@ -39,7 +39,7 @@ export async function getCertificate(req: Request, res: Response): Promise<void>
 
     const serviceId = String(req.params.serviceId);
 
-    const cert = await certificateStore.getByServiceId(serviceId);
+    const cert = await container.certificateStore.getByServiceId(serviceId);
 
     if (!cert) {
       res.status(404).json({ error: 'Certificate not found' });
@@ -69,7 +69,7 @@ export async function revokeCertificate(req: Request, res: Response): Promise<vo
       return;
     }
 
-    await ca.revokeCertificate(serialNumber, reason);
+    await container.ca.revokeCertificate(serialNumber, reason);
 
     logger.info('Certificate revoked', { serialNumber, reason });
 

@@ -4,13 +4,15 @@ import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
 import fr from './locales/fr.json';
 
-const lng = typeof navigator !== 'undefined' && navigator.language?.startsWith('fr') ? 'fr' : 'en';
+export function detectLanguage(): string {
+  return typeof navigator !== 'undefined' && navigator.language?.startsWith('fr') ? 'fr' : 'en';
+}
 
 i18n.use(initReactI18next);
 
 i18n.init({
   resources: { en, fr },
-  lng,
+  lng: detectLanguage(),
   fallbackLng: 'en',
   ns: Object.keys(en),
   defaultNS: 'services',
