@@ -18,6 +18,7 @@ const mockJobRoutes = jest.fn();
 const mockAckRoutes = jest.fn();
 const mockWorkerRoutes = jest.fn();
 const mockHealthRoutes = jest.fn();
+const mockAddressManagerRoutes = jest.fn();
 jest.mock('@trading-model/common/server/create-secure-server', () => ({
   createSecureServer: jest.fn(() => Promise.resolve(mockServer)),
 }));
@@ -83,7 +84,6 @@ describe('createServer', () => {
       expect.objectContaining({
         port: 3000,
         tls: mockTlsConfig,
-        trustProxy: true,
       }),
     );
 
