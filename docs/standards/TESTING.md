@@ -95,6 +95,8 @@ describe('MyComponent', () => {
 | @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/broker-message  | 80%      | 80%       | 80%   | 80%        | Jest      |
 | trader-trainer                 | 80%      | 80%       | 80%   | 80%        | Jest      |
+| audit-logger                   | 100%     | 100%      | 100%  | 100%       | Jest      |
+| job-scheduler                  | 100%     | 100%      | 100%  | 100%       | Jest      |
 | admin-interface                | 100%     | 100%      | 100%  | 100%       | Vitest    |
 
 Coverage is checked by Jest on every test run. Below the threshold, tests fail.

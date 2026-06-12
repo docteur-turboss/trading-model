@@ -21,6 +21,8 @@ trading-model/
 │   ├── trader-trainer/
 │   ├── certificate-authority/
 │   ├── api-gateway/
+│   ├── audit-logger/
+│   ├── job-scheduler/
 │   └── admin-interface/ # React SPA (Vite, MUI, Vitest)
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
@@ -66,12 +68,12 @@ All developers contributing to the codebase. Every architectural decision aims t
     ↑
 @trading-model/broker-message
     ↑
-┌──────────────────────┬───────────────────┬──────────────────┐
-│  message-manager     │ financial-scraper │ trader-trainer   │
-│  (deps: common,      │ (deps: common,    │ (deps: common,   │
-│   address-manager)   │  address-manager, │  address-manager,│
-│                      │  broker-message)  │  broker-message) │
-└──────────────────────┴───────────────────┴──────────────────┘
+┌──────────────────────┬───────────────────┬──────────────────┬───────────────────┬───────────────────┐
+│  message-manager     │ financial-scraper │ trader-trainer   │ audit-logger      │ job-scheduler     │
+│  (deps: common,      │ (deps: common,    │ (deps: common,   │ (deps: common,    │ (deps: common,    │
+│   address-manager)   │  address-manager, │  address-manager,│  address-manager, │  address-manager, │
+│                      │  broker-message)  │  broker-message) │  broker-message)  │  broker-message)  │
+└──────────────────────┴───────────────────┴──────────────────┴───────────────────┴───────────────────┘
           ↑
 discovery-server (depends only on @trading-model/common)
 
@@ -110,6 +112,8 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 | message-manager   | 8444            | 3000           |                    |
 | financial-scraper | 8445            | 3000           |                    |
 | trader-trainer    | 8446            | 3000           |                    |
+| audit-logger      | 8450            | 3000           |                    |
+| job-scheduler     | 8451            | 3000           |                    |
 | admin-interface   | 5173 (dev)      | 80             | SPA via nginx      |
 
 ### Service Structure
