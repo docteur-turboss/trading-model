@@ -3,10 +3,12 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 const mockIsInitialized = jest.fn();
 const mockGetCaCertPem = jest.fn();
 
-jest.mock('../../src/app/index', () => ({
-  ca: {
-    isInitialized: mockIsInitialized,
-    getCaCertPem: mockGetCaCertPem,
+jest.mock('../../src/app/container', () => ({
+  container: {
+    ca: {
+      isInitialized: mockIsInitialized,
+      getCaCertPem: mockGetCaCertPem,
+    },
   },
 }));
 

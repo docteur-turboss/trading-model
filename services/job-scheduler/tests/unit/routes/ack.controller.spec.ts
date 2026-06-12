@@ -23,7 +23,7 @@ jest.mock('../../../src/config/env', () => ({
 }));
 
 import { JobScheduler } from '../../../src/scheduler/job-scheduler';
-import { createAckController } from '../../../src/routes/ack.controller';
+import { createAckController } from '../../../src/controllers/ack.controller';
 
 function createMockScheduler(): jest.Mocked<JobScheduler> {
   return {

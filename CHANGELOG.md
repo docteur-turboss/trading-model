@@ -7,9 +7,6 @@
 - 6776f2e **financial-scraper:** fix p-limit dynamic import type reference for v7.x
 
 
-## [2.0.2] - 2026-06-08
-
-
 ## [2.0.1] - 2026-06-08
 
 ### @trading-model/common (1.2.0 → 1.2.1)

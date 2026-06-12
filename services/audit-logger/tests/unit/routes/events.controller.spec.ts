@@ -12,7 +12,7 @@ jest.mock('@trading-model/common/middleware/response-exception', () => {
 });
 
 import { AuditRepository } from '../../../src/persistence/audit-repository';
-import { createEventsController } from '../../../src/routes/events.controller';
+import { createEventsController } from '../../../src/controllers/events.controller';
 
 describe('EventsController', () => {
   let mockRepo: jest.Mocked<AuditRepository>;

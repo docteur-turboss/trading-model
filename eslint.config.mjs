@@ -25,14 +25,16 @@ export default defineConfig([
     },
   },
   {
-    files: ['**/*.ts'],
+    files: ['**/*.{ts,tsx}'],
     ignores: ['**/tests/**', '**/integration/**'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 'latest',
       globals: globals.node,
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ['*.config.*'],
+        },
         tsconfigRootDir: __dirname,
       },
     },
@@ -67,12 +69,13 @@ export default defineConfig([
             'packages/*/tsconfig.build.json',
             'services/*/tsconfig.json',
           ],
+          noWarnOnMultipleProjects: true,
         },
       },
     },
   },
   {
-    files: ['**/tests/**/*.ts', '**/integration/**/*.ts'],
+    files: ['**/tests/**/*.{ts,tsx}', '**/integration/**/*.{ts,tsx}'],
     ignores: ['**/node_modules/**'],
     extends: [js.configs.recommended, tseslint.configs.recommended],
     languageOptions: {

@@ -5,16 +5,17 @@ module.exports = {
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   moduleNameMapper: {
     '^config/(.*)$': '<rootDir>/src/config/$1',
+    '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
   },
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {
     global: {
-      branches: 90,
-      functions: 95,
-      lines: 95,
-      statements: 95,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
     },
   },
 };

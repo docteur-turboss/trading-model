@@ -4,7 +4,7 @@
 
 - **name:** trading-model (v2.0.3)
 - **license:** PolyForm Noncommercial 1.0.0
-- **type:** monorepo (npm workspaces: 3 packages, 4 services)
+- **type:** monorepo (npm workspaces: 5 packages, 7 services)
 - **lang:** TypeScript 6 (strict, ES2020, module node16)
 - **runtime:** Node.js 20+, Alpine in Docker
 - **format:** Prettier (semi, singleQuote, printWidth 100, arrowParens avoid, trailingComma es5, tabWidth 2, LF)
@@ -17,13 +17,13 @@
 ```
 trading-model/
 ├── packages/           # @trading-model/common, address-manager, broker-message
-├── services/           # discovery-server, message-manager, financial-scraper, trader-trainer
+├── services/           # discovery-server, message-manager, financial-scraper, trader-trainer, certificate-authority, api-gateway, audit-logger, job-scheduler, admin-interface
 ├── docs/               # standards/, deployment/, architecture/api/, architecture/code/, ai/
 ├── scripts/            # commit.mjs, release.mjs, generate-docs.mjs, deploy-*.ps1/sh, generate-certs.sh, hosts.json, init-db.sql
 ├── .github/workflows/  # ci.yml, release.yml
 ├── certs/              # TLS (gitignored)
 ├── .husky/
-├── docker-compose.yml  # 6 services (mongo, mysql + 4 app)
+├── docker-compose.yml  # 10 services (mongo, mysql + 8 app)
 └── eslint.config.mjs, .prettierrc, commitlint.config.mjs
 ```
 
@@ -45,6 +45,12 @@ trading-model/
 - **deps:** common, express 5, node-cron
 - **coverage threshold:** 80%
 
+### @trading-model/certificate-utils
+
+- **exports:** `CertificateInfo`, `createCsr`, `CrlManager`, `generateKeyPair`, `signCertificate`, `validateCertificate`, `types`
+- **deps:** common, node-forge
+- **coverage threshold:** not set (used by certificate-authority)
+
 ### @trading-model/broker-message
 
 - **class `MessageManagerClient(config)`:** intents(topics), stopMessageManager(), on(event,listener), listenExpress(app), post.direct(service,payload,metadata), post.indirect(payload,metadata)
@@ -54,12 +60,16 @@ trading-model/
 
 ## 4. Services
 
-| Service           | Host:Port | Name                      | Key                                                                                                                                                                                                                                                                                                                                                              |
-| ----------------- | --------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| discovery-server  | 8443      | discovery-service         | POST /register (HMAC token), /heartbeat, /token/rotate, GET /services, /services/:name, /services/:name/:id — in-memory TTL registry; structured logging for cleanup lifecycle; normalized error handling                                                                                                                                                        |
-| message-manager   | 8444      | message-delivery-service  | POST /message (1000/min rate-limit), /subscription (500/min), DELETE /subscription (500/min) — MongoDB 7, DLQ, Zod validation middleware (`validateSchema`), 3 delivery modes, `MessageDeliveryPort` interface decouples dispatcher from HttpClient/DqlRepository, `withTimeout` middleware (30s publish, 10s subscribe), payload sanitization (NoSQL injection) |
-| financial-scraper | 8445      | financial-scraper-service | Binance REST → MySQL 8 (market_candles, trades, tickers) — node-cron per symbol, p-limit, token-bucket rate limiter, structured log messages                                                                                                                                                                                                                     |
-| trader-trainer    | 8446      | trader-training-service   | Custom GA + NN (TS impl), subscribes to 6 market events, trains every 60s per symbol; `ApplicationContainer` DI replaces module-level singletons; consolidated NSGA-II (nsga2.ts re-exports from pareto-engine); `Trainer.train()` refactored (63→24 lines); LRU memory limits on MarketDataBuffer; structured training lifecycle logs                           |
+| Service               | Host:Port | Name                      | Key                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------- | --------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| discovery-server      | 8443      | discovery-service         | POST /register (HMAC token), /heartbeat, /token/rotate, GET /services, /services/:name, /services/:name/:id — in-memory TTL registry; structured logging for cleanup lifecycle; normalized error handling                                                                                                                                                        |
+| message-manager       | 8444      | message-delivery-service  | POST /message (1000/min rate-limit), /subscription (500/min), DELETE /subscription (500/min) — MongoDB 7, DLQ, Zod validation middleware (`validateSchema`), 3 delivery modes, `MessageDeliveryPort` interface decouples dispatcher from HttpClient/DqlRepository, `withTimeout` middleware (30s publish, 10s subscribe), payload sanitization (NoSQL injection) |
+| financial-scraper     | 8445      | financial-scraper-service | Binance REST → MySQL 8 (market_candles, trades, tickers) — node-cron per symbol, p-limit, token-bucket rate limiter, structured log messages                                                                                                                                                                                                                     |
+| trader-trainer        | 8446      | trader-training-service   | Custom GA + NN (TS impl), subscribes to 6 market events, trains every 60s per symbol; `ApplicationContainer` DI replaces module-level singletons; consolidated NSGA-II (nsga2.ts re-exports from pareto-engine); `Trainer.train()` refactored (63→24 lines); LRU memory limits on MarketDataBuffer; structured training lifecycle logs                           |
+| certificate-authority | 8447      | certificate-authority     | X.509 certificate lifecycle: CSR signing, CRL management, automatic rotation, distribution via MongoDB — mTLS issuance pipeline                                                                                                                                                                                                                                  |
+| api-gateway           | 8448      | api-gateway               | Unique external entry point: versioned routing, API key auth, rate limiting, caching, proxy timeout — central gateway for admin-interface and external clients                                                                                                                                                                                                   |
+| audit-logger          | 8450      | audit-logger-service      | Immutable event audit trail: stores all decisions/transactions/errors from subscribed topics; MongoDB persistence; query/filter by topic, publisher, correlationId, date range                                                                                                                                                                                   |
+| job-scheduler         | 8451      | job-scheduler-service     | Distributed job orchestrator: priority queue, ACK protocol, worker registry, back-pressure, recovery (orphan detection, re-allocation), WebSocket worker protocol                                                                                                                                                                                                |
 
 All use mTLS, HMAC-SHA256 token auth, Zod env validation (fail-fast at startup).
 
@@ -68,15 +78,21 @@ All use mTLS, HMAC-SHA256 token auth, Zod env validation (fail-fast at startup).
 ```
 common ← address-manager ← broker-message ← financial-scraper
 common ← discovery-server                  ← trader-trainer
-                                           ← message-manager
+                                            ← message-manager
+                                            ← audit-logger
+                                            ← job-scheduler
 ```
 
-| Service           | Host | Container |
-| ----------------- | ---- | --------- |
-| discovery-server  | 8443 | 3000      |
-| message-manager   | 8444 | 3000      |
-| financial-scraper | 8445 | 3000      |
-| trader-trainer    | 8446 | 3000      |
+| Service               | Host | Container |
+| --------------------- | ---- | --------- |
+| discovery-server      | 8443 | 3000      |
+| message-manager       | 8444 | 3000      |
+| financial-scraper     | 8445 | 3000      |
+| trader-trainer        | 8446 | 3000      |
+| certificate-authority | 8447 | 3000      |
+| api-gateway           | 8448 | 3000      |
+| audit-logger          | 8450 | 3000      |
+| job-scheduler         | 8451 | 3000      |
 
 TLS certs: `/certs:ro` (from TLS_CERTS_DIR env, default ./certs)
 
@@ -115,7 +131,7 @@ Indexes: invisible on timestamp, visible on symbol. ORM: ts-sql-query via mysql2
 ### CD Release (release.yml)
 
 - **trigger:** tag `v*.*.*`
-- **jobs (sequential):** quality (lint+typecheck+build+test:coverage+codecov) → docker (buildx+push 4 images to GHCR, semver+sha tags) → release (GitHub Release)
+- **jobs (sequential):** quality (lint+typecheck+build+test:coverage+codecov) → docker (buildx+push 9 images to GHCR, semver+sha tags) → release (GitHub Release)
 - **permissions:** quality=read, docker=read+packages:write, release=contents:write
 - **secret:** GHCR_TOKEN (classic PAT with write:packages scope)
 
@@ -125,7 +141,7 @@ Indexes: invisible on timestamp, visible on symbol. ORM: ts-sql-query via mysql2
 - **breaking:** add `!` after scope: `:emoji:(scope)!: subject`
 - **enforced:** commitlint + Husky commit-msg hook
 - **tool:** `npm run commit` (scripts/commit.mjs — interactive)
-- **scopes:** auth, scraper, api, wallet, core, deps, discovery, broker, trainer, router, common, config, database, middleware, utils, types, address-manager, message-manager, financial-scraper, trader-trainer, discovery-server, docs, github-actions, husky, eslint
+- **scopes:** auth, scraper, api, wallet, core, deps, discovery, broker, trainer, router, common, config, database, middleware, utils, types, address-manager, message-manager, financial-scraper, trader-trainer, discovery-server, certificate-authority, api-gateway, audit-logger, job-scheduler, admin-interface, docs, github-actions, husky, eslint
 - **gitmoji map:** sparkles=feat, bug=fix, memo=docs, recycle=refactor, zap=perf, white_check_mark=test, wrench=chore, construction_worker=ci, lock=security, rocket=release, boom=breaking (+ variants in scripts/release.mjs)
 - **body:** multi-line explaining why/how (optional)
 - **footer:** references to issues (optional)
@@ -210,15 +226,21 @@ A comprehensive audit resolved 19 findings across the monorepo:
 
 ### Coverage thresholds
 
-| Module            | Branches | Functions | Lines   | Statements |
-| ----------------- | -------- | --------- | ------- | ---------- |
-| common            | 100%     | 100%      | 100%    | 100%       |
-| address-manager   | 80%      | 80%       | 80%     | 80%        |
-| broker-message    | 80%      | 80%       | 80%     | 80%        |
-| discovery-server  | 100%     | 100%      | 100%    | 100%       |
-| message-manager   | 100%     | 100%      | 100%    | 100%       |
-| financial-scraper | 100%     | 100%      | 100%    | 100%       |
-| trader-trainer    | not set  | not set   | not set | not set    |
+| Module                | Branches | Functions | Lines   | Statements |
+| --------------------- | -------- | --------- | ------- | ---------- |
+| common                | 100%     | 100%      | 100%    | 100%       |
+| address-manager       | 80%      | 80%       | 80%     | 80%        |
+| broker-message        | 80%      | 80%       | 80%     | 80%        |
+| certificate-utils     | not set  | not set   | not set | not set    |
+| discovery-server      | 100%     | 100%      | 100%    | 100%       |
+| message-manager       | 100%     | 100%      | 100%    | 100%       |
+| financial-scraper     | 100%     | 100%      | 100%    | 100%       |
+| trader-trainer        | not set  | not set   | not set | not set    |
+| certificate-authority | 100%     | 100%      | 100%    | 100%       |
+| api-gateway           | 100%     | 100%      | 100%    | 100%       |
+| audit-logger          | 100%     | 100%      | 100%    | 100%       |
+| job-scheduler         | 100%     | 100%      | 100%    | 100%       |
+| admin-interface       | 100%     | 100%      | 100%    | 100%       |
 
 ## 14. Verification Protocol
 
@@ -305,8 +327,10 @@ A comprehensive audit resolved 19 findings across the monorepo:
 | Address-manager | APP_NAME/VER, SERVICE_NAME, INSTANCE_ID, CACHE_TTL_MS, PING_TIMEOUT, TOKEN/TTL_REFRESH_INTERVAL, ADDRESS_MANAGER_URL, ERROR_URL_WEBHOOK, MESSAGE_BUS_INIT/SHUTDOWN_TIMEOUT, MESSAGE_CALLBACK_PATH |
 | Discovery       | CLEANUP_SERVICE_INTERVAL_MS                                                                                                                                                                       |
 | Trader-trainer  | TRAINER_SYMBOLS, DATA_WINDOW, VALIDATION_SPLIT, GENERATIONS, POPULATION_SIZE, TIME_BUDGET_MS, EPISODES_PER_INDIVIDUAL                                                                             |
+| Audit-logger    | MONGODB_URI, INSTANCE_ID, APP_NAME, APP_VERSION, SERVICE_NAME                                                                                                                                     |
+| Job-scheduler   | MONGODB_URI, INSTANCE_ID, APP_NAME, APP_VERSION, SERVICE_NAME, MAX_QUEUE_DEPTH, ACK_TIMEOUT_MS                                                                                                    |
 | Scraper DB      | DB_USER, DB_PASSWORD, DB_NAME, DB_HOST, DB_PORT (from process.env, no Zod)                                                                                                                        |
-| Docker compose  | DISCOVERY/MESSAGE/SCRAPER/TRAINER_PORT, TLS_CERTS_DIR, MYSQL_ROOT_PASSWORD, MYSQL_DATABASE                                                                                                        |
+| Docker compose  | DISCOVERY/MESSAGE/SCRAPER/TRAINER/CA/GATEWAY/AUDIT/SCHEDULER_PORT, TLS_CERTS_DIR, MYSQL_ROOT_PASSWORD, MYSQL_DATABASE                                                                             |
 
 ## 18. Code of Conduct
 

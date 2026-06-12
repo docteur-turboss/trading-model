@@ -8,13 +8,15 @@ const mockSignServiceCertificate = jest.fn();
 const mockGetByServiceId = jest.fn();
 const mockRevokeCertificate = jest.fn();
 
-jest.mock('../../src/app/index', () => ({
-  ca: {
-    signServiceCertificate: mockSignServiceCertificate,
-    revokeCertificate: mockRevokeCertificate,
-  },
-  certificateStore: {
-    getByServiceId: mockGetByServiceId,
+jest.mock('../../src/app/container', () => ({
+  container: {
+    ca: {
+      signServiceCertificate: mockSignServiceCertificate,
+      revokeCertificate: mockRevokeCertificate,
+    },
+    certificateStore: {
+      getByServiceId: mockGetByServiceId,
+    },
   },
 }));
 

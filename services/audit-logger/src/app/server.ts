@@ -15,7 +15,6 @@ export function createServer(scheduler: JobScheduler, auditRepo: AuditRepository
   return createSecureServer({
     port: env.PORT,
     tls: loadTlsConfig(env),
-    trustProxy: true,
     routes: app => {
       app.use('/', healthRoutes(scheduler.queue, scheduler.backPressure, scheduler.workers));
       app.use('/', eventsRoutes(auditRepo));

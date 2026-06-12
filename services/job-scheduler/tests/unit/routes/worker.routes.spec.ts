@@ -1,6 +1,6 @@
 import { describe, it, expect, jest } from '@jest/globals';
 
-jest.mock('../../../src/routes/worker.controller', () => ({
+jest.mock('../../../src/controllers/worker.controller', () => ({
   createWorkerController: jest.fn(),
 }));
 
@@ -14,7 +14,7 @@ jest.mock('express', () => ({
 }));
 
 import { workerRoutes } from '../../../src/routes/worker.routes';
-import { createWorkerController } from '../../../src/routes/worker.controller';
+import { createWorkerController } from '../../../src/controllers/worker.controller';
 
 describe('workerRoutes', () => {
   it('should register all worker routes', () => {

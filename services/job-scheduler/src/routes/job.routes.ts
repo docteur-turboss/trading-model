@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { createJobController } from './job.controller';
+import { createJobController } from '../controllers/job.controller';
 import { JobScheduler } from '../scheduler/job-scheduler';
 
 export function jobRoutes(scheduler: JobScheduler): Router {

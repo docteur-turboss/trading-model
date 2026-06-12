@@ -1,5 +1,5 @@
 {
-  "name": "@trading-model/job-scheduler",
+  "name": "job-scheduler",
   "version": "1.0.0",
   "description": "Orchestrateur central de job distribué avec files d'attente, ACK et reprise sur panne",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
@@ -16,7 +16,7 @@
     "orchestrator"
   ],
   "license": "ISC",
-  "author": "Docteur Turboss <@docteur-turboss>",
+  "author": "Alchimist Horus Turboss <@docteur-turboss>",
   "type": "commonjs",
   "main": "./dist/app/index.js",
   "scripts": {
