@@ -26,61 +26,69 @@ export function createRouter(): Router {
   router.use(authMiddleware);
   router.use(defaultLimiter);
 
-  router.use(catchSync(async req => {
-    const match = req.path.match(VERSION_PATH_REGEX);
-    if (!match) {
-      return sendResponse({ error: 'Invalid route format. Expected /v{version}/{serviceName}/**' }, 400);
-    }
-
-    const majorVersion = parseInt(match[1], 10);
-    const serviceName = match[2];
-    const path = match[3] ?? '/';
-
-    if (Number.isNaN(majorVersion) || majorVersion < 1) {
-      return sendResponse({ error: 'Invalid version number' }, 400);
-    }
-
-    const target = await resolver.resolve(serviceName, majorVersion);
-    if (!target) {
-      logger.warn('Service not found', { serviceName, majorVersion });
-      return sendResponse({
-        error: 'Service not found',
-        service: serviceName,
-        version: majorVersion,
-      }, 404);
-    }
-
-    const cacheKey = `${req.method}:${req.path}`;
-    if (req.method === 'GET') {
-      const cached = cache.get(cacheKey);
-      if (cached) {
-        return sendResponse(cached.data, cached.status);
+  router.use(
+    catchSync(async req => {
+      const match = req.path.match(VERSION_PATH_REGEX);
+      if (!match) {
+        return sendResponse(
+          { error: 'Invalid route format. Expected /v{version}/{serviceName}/**' },
+          400
+        );
       }
-    }
 
-    try {
-      const result = await forwardRequest(req, target, path);
+      const majorVersion = parseInt(match[1], 10);
+      const serviceName = match[2];
+      const path = match[3] ?? '/';
 
-      if (req.method === 'GET' && result.status === 200) {
-        const parsed = tryParseJson(result.body);
-        if (parsed) {
-          cache.set(cacheKey, parsed, result.status);
+      if (Number.isNaN(majorVersion) || majorVersion < 1) {
+        return sendResponse({ error: 'Invalid version number' }, 400);
+      }
+
+      const target = await resolver.resolve(serviceName, majorVersion);
+      if (!target) {
+        logger.warn('Service not found', { serviceName, majorVersion });
+        return sendResponse(
+          {
+            error: 'Service not found',
+            service: serviceName,
+            version: majorVersion,
+          },
+          404
+        );
+      }
+
+      const cacheKey = `${req.method}:${req.path}`;
+      if (req.method === 'GET') {
+        const cached = cache.get(cacheKey);
+        if (cached) {
+          return sendResponse(cached.data, cached.status);
         }
       }
 
-      const parsedBody = tryParseJson(result.body);
-      return sendResponse(parsedBody ?? result.body, result.status);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      logger.error('Proxy error', {
-        serviceName,
-        majorVersion,
-        target: `${target.host}:${target.port}`,
-        error: message,
-      });
-      return sendResponse({ error: 'Service unavailable', details: message }, 503);
-    }
-  }));
+      try {
+        const result = await forwardRequest(req, target, path);
+
+        if (req.method === 'GET' && result.status === 200) {
+          const parsed = tryParseJson(result.body);
+          if (parsed) {
+            cache.set(cacheKey, parsed, result.status);
+          }
+        }
+
+        const parsedBody = tryParseJson(result.body);
+        return sendResponse(parsedBody ?? result.body, result.status);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        logger.error('Proxy error', {
+          serviceName,
+          majorVersion,
+          target: `${target.host}:${target.port}`,
+          error: message,
+        });
+        return sendResponse({ error: 'Service unavailable', details: message }, 503);
+      }
+    })
+  );
 
   return router;
 }

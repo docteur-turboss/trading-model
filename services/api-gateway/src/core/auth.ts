@@ -11,10 +11,9 @@ export interface AuthRequest {
 
 function getValidTokens(): Set<string> {
   return new Set(
-    env.AUTH_TOKENS
-      .split(',')
+    env.AUTH_TOKENS.split(',')
       .map(t => t.trim())
-      .filter(t => t.length > 0),
+      .filter(t => t.length > 0)
   );
 }
 

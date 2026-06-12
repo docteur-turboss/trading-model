@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { createEventsController } from './events.controller';
+import { createEventsController } from '../controllers/events.controller';
 import { AuditRepository } from '../persistence/audit-repository';
 
 export function eventsRoutes(auditRepo: AuditRepository): Router {

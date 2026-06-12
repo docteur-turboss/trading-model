@@ -3,7 +3,7 @@ import { RequestHandler } from 'express';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
-import { CompleteJobSchema, FailJobSchema } from './ack.schema';
+import { CompleteJobSchema, FailJobSchema } from '../routes/ack.schema';
 import { JobScheduler } from '../scheduler/job-scheduler';
 
 export function createAckController(scheduler: JobScheduler) {
@@ -17,7 +17,7 @@ export function createAckController(scheduler: JobScheduler) {
     if (!parsed.success) {
       return sendResponse(
         { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
-        400,
+        400
       );
     }
 
@@ -30,7 +30,7 @@ export function createAckController(scheduler: JobScheduler) {
     if (!parsed.success) {
       return sendResponse(
         { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
-        400,
+        400
       );
     }
 

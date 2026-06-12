@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { createHealthController } from './health.controller';
+import { createHealthController } from '../controllers/health.controller';
 import { BackPressure } from '../scheduler/back-pressure';
 import { InternalQueue } from '../scheduler/internal-queue';
 import { WorkerRegistry } from '../worker/worker-registry';
@@ -8,7 +8,7 @@ import { WorkerRegistry } from '../worker/worker-registry';
 export function healthRoutes(
   queue: InternalQueue,
   backPressure: BackPressure,
-  workers: WorkerRegistry,
+  workers: WorkerRegistry
 ): Router {
   const router = Router();
   const controller = createHealthController(queue, backPressure, workers);

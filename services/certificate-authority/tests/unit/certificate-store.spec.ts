@@ -115,10 +115,7 @@ describe('CertificateStore', () => {
 
       const result = await store.getByServiceId('svc-1');
 
-      expect(mockFindOne).toHaveBeenCalledWith(
-        { serviceId: 'svc-1' },
-        { sort: { issuedAt: -1 } }
-      );
+      expect(mockFindOne).toHaveBeenCalledWith({ serviceId: 'svc-1' }, { sort: { issuedAt: -1 } });
       expect(result).toEqual(sampleCert);
     });
 

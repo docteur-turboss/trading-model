@@ -9,7 +9,7 @@ jest.mock('express', () => ({
   Router: jest.fn(() => mockRouter),
 }));
 
-jest.mock('../../../src/routes/events.controller', () => ({
+jest.mock('../../../src/controllers/events.controller', () => ({
   createEventsController: jest.fn(() => mockController),
 }));
 

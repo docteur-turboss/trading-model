@@ -13,7 +13,6 @@ export function createServer(scheduler: JobScheduler) {
   return createSecureServer({
     port: env.PORT,
     tls: loadTlsConfig(env),
-    trustProxy: true,
     routes: app => {
       app.use('/', jobRoutes(scheduler));
       app.use('/', ackRoutes(scheduler));

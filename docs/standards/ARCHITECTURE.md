@@ -18,7 +18,12 @@ trading-model/
 │   ├── discovery-server/
 │   ├── message-manager/
 │   ├── financial-scraper/
-│   └── trader-trainer/
+│   ├── trader-trainer/
+│   ├── certificate-authority/
+│   ├── api-gateway/
+│   ├── audit-logger/
+│   ├── job-scheduler/
+│   └── admin-interface/ # React SPA (Vite, MUI, Vitest)
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
 ├── scripts/            # Utilities (commit, release, certs)
@@ -41,17 +46,18 @@ All developers contributing to the codebase. Every architectural decision aims t
 
 ### Technology Stack
 
-| Layer      | Technology                                           |
-| ---------- | ---------------------------------------------------- |
-| Runtime    | Node.js                                              |
-| Language   | TypeScript (ES2020; module: node16 or commonjs)      |
-| API        | Express.js                                           |
-| Security   | mTLS (all services)                                  |
-| Database   | MongoDB (message-manager), MySQL (financial-scraper) |
-| Validation | Zod                                                  |
-| Scheduling | node-cron                                            |
-| Formatting | Prettier                                             |
-| Linting    | ESLint 10 flat config                                |
+| Layer        | Technology                                           |
+| ------------ | ---------------------------------------------------- |
+| Runtime      | Node.js                                              |
+| Language     | TypeScript (ES2020; module: node16 or commonjs)      |
+| API          | Express.js                                           |
+| Frontend SPA | React 19 + Vite + MUI 7 + Recharts + Vitest          |
+| Security     | mTLS (all services)                                  |
+| Database     | MongoDB (message-manager), MySQL (financial-scraper) |
+| Validation   | Zod                                                  |
+| Scheduling   | node-cron                                            |
+| Formatting   | Prettier                                             |
+| Linting      | ESLint 10 flat config                                |
 
 ## Dependency Graph
 
@@ -62,17 +68,22 @@ All developers contributing to the codebase. Every architectural decision aims t
     ↑
 @trading-model/broker-message
     ↑
-┌──────────────────────┬───────────────────┬──────────────────┐
-│  message-manager     │ financial-scraper │ trader-trainer   │
-│  (deps: common,      │ (deps: common,    │ (deps: common,   │
-│   address-manager)   │  address-manager, │  address-manager,│
-│                      │  broker-message)  │  broker-message) │
-└──────────────────────┴───────────────────┴──────────────────┘
+┌──────────────────────┬───────────────────┬──────────────────┬───────────────────┬───────────────────┐
+│  message-manager     │ financial-scraper │ trader-trainer   │ audit-logger      │ job-scheduler     │
+│  (deps: common,      │ (deps: common,    │ (deps: common,   │ (deps: common,    │ (deps: common,    │
+│   address-manager)   │  address-manager, │  address-manager,│  address-manager, │  address-manager, │
+│                      │  broker-message)  │  broker-message) │  broker-message)  │  broker-message)  │
+└──────────────────────┴───────────────────┴──────────────────┴───────────────────┴───────────────────┘
           ↑
 discovery-server (depends only on @trading-model/common)
+
+admin-interface (depends only on @trading-model/common/contracts for DTOs)
+- React SPA served by nginx, not a Node.js microservice
 ```
 
 The **discovery-server** depends only on `@trading-model/common`. All other services depend on `common`, `address-manager`, and `broker-message` as needed.
+
+The **admin-interface** is a React SPA (not a Node.js microservice). It imports DTO types from `@trading-model/common/contracts/admin` and communicates with the backend exclusively via HTTP through the **api-gateway**. It is built with Vite, tested with Vitest, and served via nginx in production.
 
 ### Package Dependency Details
 
@@ -95,12 +106,15 @@ The **discovery-server** depends only on `@trading-model/common`. All other serv
 
 Each service exposes an HTTPS server with mTLS enabled. The internal container port is always **3000**, with a unique host port mapping.
 
-| Service           | Host port (dev) | Container port |
-| ----------------- | --------------- | -------------- |
-| discovery-server  | 8443            | 3000           |
-| message-manager   | 8444            | 3000           |
-| financial-scraper | 8445            | 3000           |
-| trader-trainer    | 8446            | 3000           |
+| Service           | Host port (dev) | Container port | Notes         |
+| ----------------- | --------------- | -------------- | ------------- |
+| discovery-server  | 8443            | 3000           |               |
+| message-manager   | 8444            | 3000           |               |
+| financial-scraper | 8445            | 3000           |               |
+| trader-trainer    | 8446            | 3000           |               |
+| audit-logger      | 8450            | 3000           |               |
+| job-scheduler     | 8451            | 3000           |               |
+| admin-interface   | 5173 (dev)      | 80             | SPA via nginx |
 
 ### Service Structure
 

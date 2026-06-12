@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { createHealthController } from './health.controller';
+import { createHealthController } from '../controllers/health.controller';
 import { BackPressure } from '../scheduler/back-pressure';
 import { InternalQueue } from '../scheduler/internal-queue';
 import { WorkerRegistry } from '../worker/worker-registry';

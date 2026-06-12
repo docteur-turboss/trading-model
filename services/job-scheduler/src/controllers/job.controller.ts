@@ -3,7 +3,7 @@ import { RequestHandler } from 'express';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 
-import { SubmitJobSchema } from './job.schema';
+import { SubmitJobSchema } from '../routes/job.schema';
 import { JobScheduler } from '../scheduler/job-scheduler';
 
 export function createJobController(scheduler: JobScheduler) {
@@ -12,14 +12,19 @@ export function createJobController(scheduler: JobScheduler) {
     if (!parsed.success) {
       return sendResponse(
         { error: 'Invalid request body', details: parsed.error.flatten().fieldErrors },
-        400,
+        400
       );
     }
 
     const { type, payload, priority, maxRetries } = parsed.data;
 
     try {
-      const jobId = await scheduler.submit(type, payload, priority as 1 | 2 | 3 | 4 | 5, maxRetries);
+      const jobId = await scheduler.submit(
+        type,
+        payload,
+        priority as 1 | 2 | 3 | 4 | 5,
+        maxRetries
+      );
       return sendResponse({ jobId, status: 'queued' }, 201);
     } catch (err) {
       if (err instanceof Error && (err as Error & { code: string }).code === 'BACK_PRESSURE') {
@@ -30,7 +35,7 @@ export function createJobController(scheduler: JobScheduler) {
             message: `Job scheduler at capacity. Retry after ${retryAfter} seconds.`,
             retryAfter,
           },
-          429,
+          429
         );
       }
       throw err;

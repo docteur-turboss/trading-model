@@ -12,7 +12,7 @@ jest.mock('@trading-model/common/middleware/response-exception', () => {
 });
 
 import { WorkerRegistry } from '../../../src/worker/worker-registry';
-import { createWorkerController } from '../../../src/routes/worker.controller';
+import { createWorkerController } from '../../../src/controllers/worker.controller';
 
 describe('WorkerController', () => {
   let workers: WorkerRegistry;
@@ -25,11 +25,7 @@ describe('WorkerController', () => {
 
   describe('register', () => {
     it('should reject invalid body with 400', async () => {
-      const result = await controller.register(
-        createReq({ body: null }),
-        createRes(),
-        createNext,
-      );
+      const result = await controller.register(createReq({ body: null }), createRes(), createNext);
 
       expect(result).toMatchObject({ status: 400 });
     });
@@ -46,10 +42,13 @@ describe('WorkerController', () => {
       const result = await controller.register(
         createReq({ body: payload }),
         createRes(),
-        createNext,
+        createNext
       );
 
-      expect(result).toMatchObject({ status: 201, data: { status: 'registered', workerId: 'worker-1' } });
+      expect(result).toMatchObject({
+        status: 201,
+        data: { status: 'registered', workerId: 'worker-1' },
+      });
       expect(workers.count()).toBe(1);
     });
 
@@ -57,7 +56,7 @@ describe('WorkerController', () => {
       const result = await controller.register(
         createReq({ body: { workerId: 'w1', port: 9000 } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 400 });
@@ -66,11 +65,7 @@ describe('WorkerController', () => {
 
   describe('heartbeat', () => {
     it('should reject invalid body with 400', async () => {
-      const result = await controller.heartbeat(
-        createReq({ body: null }),
-        createRes(),
-        createNext,
-      );
+      const result = await controller.heartbeat(createReq({ body: null }), createRes(), createNext);
 
       expect(result).toMatchObject({ status: 400 });
     });
@@ -88,7 +83,7 @@ describe('WorkerController', () => {
       const result = await controller.heartbeat(
         createReq({ body: { workerId: 'worker-1', currentLoad: 2 } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 200, data: { status: 'ok' } });

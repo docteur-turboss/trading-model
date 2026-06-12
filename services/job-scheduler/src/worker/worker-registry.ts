@@ -8,7 +8,10 @@ export class WorkerRegistry {
     this.heartbeatTtlMs = heartbeatTtlMs;
   }
 
-  register(workerId: string, registration: Omit<WorkerRegistration, 'lastHeartbeat' | 'status'>): void {
+  register(
+    workerId: string,
+    registration: Omit<WorkerRegistration, 'lastHeartbeat' | 'status'>
+  ): void {
     this.workers.set(workerId, {
       ...registration,
       lastHeartbeat: new Date(),

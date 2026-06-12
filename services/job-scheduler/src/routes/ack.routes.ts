@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { createAckController } from './ack.controller';
+import { createAckController } from '../controllers/ack.controller';
 import { JobScheduler } from '../scheduler/job-scheduler';
 
 export function ackRoutes(scheduler: JobScheduler): Router {

@@ -34,11 +34,7 @@ export class ResponseCache {
   }
 
   invalidate(pattern: string): void {
-    const regex = new RegExp(
-      pattern
-        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        .replace(/\\\*/g, '.*'),
-    );
+    const regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*'));
 
     for (const key of this.store.keys()) {
       if (regex.test(key)) {

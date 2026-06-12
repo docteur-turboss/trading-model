@@ -1,6 +1,6 @@
 import { describe, it, expect, jest } from '@jest/globals';
 
-jest.mock('../../../src/routes/ack.controller', () => ({
+jest.mock('../../../src/controllers/ack.controller', () => ({
   createAckController: jest.fn(),
 }));
 
@@ -13,7 +13,7 @@ jest.mock('express', () => ({
 }));
 
 import { ackRoutes } from '../../../src/routes/ack.routes';
-import { createAckController } from '../../../src/routes/ack.controller';
+import { createAckController } from '../../../src/controllers/ack.controller';
 
 describe('ackRoutes', () => {
   it('should register all ack routes', () => {

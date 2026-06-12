@@ -23,7 +23,7 @@ jest.mock('../../../src/config/env', () => ({
 }));
 
 import { JobScheduler } from '../../../src/scheduler/job-scheduler';
-import { createJobController } from '../../../src/routes/job.controller';
+import { createJobController } from '../../../src/controllers/job.controller';
 
 function createMockScheduler(): jest.Mocked<JobScheduler> {
   return {
@@ -67,11 +67,7 @@ describe('JobController', () => {
 
   describe('submit', () => {
     it('should reject invalid body with 400', async () => {
-      const result = await controller.submit(
-        createReq({ body: null }),
-        createRes(),
-        createNext,
-      );
+      const result = await controller.submit(createReq({ body: null }), createRes(), createNext);
 
       expect(result).toMatchObject({ status: 400 });
     });
@@ -80,7 +76,7 @@ describe('JobController', () => {
       const result = await controller.submit(
         createReq({ body: { type: '' } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 400 });
@@ -92,10 +88,13 @@ describe('JobController', () => {
       const result = await controller.submit(
         createReq({ body: { type: 'test-type', payload: {} } }),
         createRes(),
-        createNext,
+        createNext
       );
 
-      expect(result).toMatchObject({ status: 201, data: { jobId: 'new-job-id', status: 'queued' } });
+      expect(result).toMatchObject({
+        status: 201,
+        data: { jobId: 'new-job-id', status: 'queued' },
+      });
     });
 
     it('should return 429 on back pressure', async () => {
@@ -103,13 +102,13 @@ describe('JobController', () => {
         Object.assign(new Error('Job scheduler at capacity'), {
           code: 'BACK_PRESSURE',
           retryAfter: 30,
-        }),
+        })
       );
 
       const result = await controller.submit(
         createReq({ body: { type: 'test-type', payload: {} } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 429, data: { error: 'BACK_PRESSURE' } });
@@ -119,13 +118,13 @@ describe('JobController', () => {
       (scheduler.submit as any).mockRejectedValue(
         Object.assign(new Error('Job scheduler at capacity'), {
           code: 'BACK_PRESSURE',
-        }),
+        })
       );
 
       const result = await controller.submit(
         createReq({ body: { type: 'test', payload: {} } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 429, data: { retryAfter: 30 } });
@@ -139,7 +138,7 @@ describe('JobController', () => {
       const result = await controller.getById(
         createReq({ params: { id: 'unknown' } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 404 });
@@ -152,7 +151,7 @@ describe('JobController', () => {
       const result = await controller.getById(
         createReq({ params: { id: 'job-1' } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 200, data: mockJob });
@@ -161,12 +160,14 @@ describe('JobController', () => {
 
   describe('cancel', () => {
     it('should return 409 when cancellation is not allowed', async () => {
-      (scheduler.cancel as any).mockRejectedValue(new Error('Cannot cancel a running or completed job'));
+      (scheduler.cancel as any).mockRejectedValue(
+        new Error('Cannot cancel a running or completed job')
+      );
 
       const result = await controller.cancel(
         createReq({ params: { id: 'running-job' } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 409 });
@@ -178,7 +179,7 @@ describe('JobController', () => {
       const result = await controller.cancel(
         createReq({ params: { id: 'queued-job' } }),
         createRes(),
-        createNext,
+        createNext
       );
 
       expect(result).toMatchObject({ status: 200, data: { status: 'cancelled' } });
@@ -199,11 +200,7 @@ describe('JobController — rethrow errors', () => {
     (scheduler.submit as any).mockRejectedValue(new Error('DB connection failed'));
 
     await expect(
-      controller.submit(
-        createReq({ body: { type: 'test', payload: {} } }),
-        createRes(),
-        createNext,
-      ),
+      controller.submit(createReq({ body: { type: 'test', payload: {} } }), createRes(), createNext)
     ).rejects.toThrow('DB connection failed');
   });
 
@@ -211,11 +208,7 @@ describe('JobController — rethrow errors', () => {
     (scheduler.cancel as any).mockRejectedValue(new Error('DB connection failed'));
 
     await expect(
-      controller.cancel(
-        createReq({ params: { id: 'job-1' } }),
-        createRes(),
-        createNext,
-      ),
+      controller.cancel(createReq({ params: { id: 'job-1' } }), createRes(), createNext)
     ).rejects.toThrow('DB connection failed');
   });
 });

@@ -54,7 +54,11 @@ describe('createCrl', () => {
   it('should include all provided revoked entries', () => {
     const entries = [
       makeRevokedEntry({ serialNumber: 'SN-001', serviceId: 'svc-1', reason: 'key_compromise' }),
-      makeRevokedEntry({ serialNumber: 'SN-002', serviceId: 'svc-2', reason: 'cessation_of_operation' }),
+      makeRevokedEntry({
+        serialNumber: 'SN-002',
+        serviceId: 'svc-2',
+        reason: 'cessation_of_operation',
+      }),
       makeRevokedEntry({ serialNumber: 'SN-003', serviceId: 'svc-3', reason: 'superseded' }),
     ];
 
@@ -95,7 +99,9 @@ describe('isRevoked', () => {
 
   it('should return false for an expired revocation entry', () => {
     const moreThanAYearAgo = new Date(Date.now() - 366 * 24 * 60 * 60 * 1000);
-    const crl = createCrl([makeRevokedEntry({ serialNumber: 'SN-EXPIRED', revokedAt: moreThanAYearAgo })]);
+    const crl = createCrl([
+      makeRevokedEntry({ serialNumber: 'SN-EXPIRED', revokedAt: moreThanAYearAgo }),
+    ]);
 
     expect(isRevoked('SN-EXPIRED', crl)).toBe(false);
   });
@@ -109,7 +115,9 @@ describe('isRevoked', () => {
 
   it('should return false for a revocation exactly at the expiry boundary', () => {
     const exactlyOneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
-    const crl = createCrl([makeRevokedEntry({ serialNumber: 'SN-BOUNDARY', revokedAt: exactlyOneYearAgo })]);
+    const crl = createCrl([
+      makeRevokedEntry({ serialNumber: 'SN-BOUNDARY', revokedAt: exactlyOneYearAgo }),
+    ]);
 
     expect(isRevoked('SN-BOUNDARY', crl)).toBe(true);
   });

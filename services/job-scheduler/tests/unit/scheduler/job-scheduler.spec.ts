@@ -20,7 +20,9 @@ import { JobRepository } from '../../../src/persistence/job-repository';
 import type { WorkerProtocol } from '../../../src/worker/worker-protocol';
 
 type MockLogger = { info: jest.Mock; warn: jest.Mock; error: jest.Mock; debug: jest.Mock };
-const mockLogger = (jest.requireMock('@trading-model/common/config/logger') as { logger: MockLogger }).logger;
+const mockLogger = (
+  jest.requireMock('@trading-model/common/config/logger') as { logger: MockLogger }
+).logger;
 
 describe('JobScheduler', () => {
   let scheduler: JobScheduler;
@@ -57,18 +59,13 @@ describe('JobScheduler', () => {
       expect(jobId).toBeDefined();
       expect(typeof jobId).toBe('string');
       expect(mockRepository.insert).toHaveBeenCalled();
-      expect(mockRepository.updateStatus).toHaveBeenCalledWith(
-        jobId,
-        'queued',
-      );
+      expect(mockRepository.updateStatus).toHaveBeenCalledWith(jobId, 'queued');
     });
 
     it('should throw BACK_PRESSURE when queue is full', async () => {
       scheduler.backPressure.updateQueueDepth(99999);
 
-      await expect(
-        scheduler.submit('test-type', {}),
-      ).rejects.toThrow('Job scheduler at capacity');
+      await expect(scheduler.submit('test-type', {})).rejects.toThrow('Job scheduler at capacity');
     });
 
     it('should log error when enqueueJob updateStatus fails', async () => {
@@ -79,7 +76,7 @@ describe('JobScheduler', () => {
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to persist queued status',
-        expect.objectContaining({ error: 'Error: DB error' }),
+        expect.objectContaining({ error: 'Error: DB error' })
       );
     });
   });
@@ -125,7 +122,7 @@ describe('JobScheduler', () => {
       expect(mockRepository.updateStatus).toHaveBeenCalledWith(
         'job-1',
         'completed',
-        expect.objectContaining({ result: { result: 'ok' } }),
+        expect.objectContaining({ result: { result: 'ok' } })
       );
     });
 
@@ -150,7 +147,7 @@ describe('JobScheduler', () => {
       expect(mockRepository.updateStatus).toHaveBeenCalledWith(
         'job-no-worker',
         'completed',
-        expect.any(Object),
+        expect.any(Object)
       );
     });
 
@@ -201,7 +198,7 @@ describe('JobScheduler', () => {
       expect(mockRepository.updateStatus).toHaveBeenCalledWith(
         'job-retry',
         'queued',
-        expect.any(Object),
+        expect.any(Object)
       );
       expect(scheduler.queue.depth()).toBe(1);
     });
@@ -231,16 +228,14 @@ describe('JobScheduler', () => {
       expect(mockRepository.updateStatus).toHaveBeenCalledWith(
         'job-fail',
         'failed',
-        expect.objectContaining({ error: 'fatal' }),
+        expect.objectContaining({ error: 'fatal' })
       );
     });
 
     it('should do nothing for unknown job', async () => {
       mockRepository.findById.mockResolvedValue(null);
 
-      await expect(
-        scheduler.fail('unknown', 'error'),
-      ).resolves.not.toThrow();
+      await expect(scheduler.fail('unknown', 'error')).resolves.not.toThrow();
     });
 
     it('should decrement worker load when failing with assigned worker', async () => {
@@ -794,7 +789,7 @@ describe('JobScheduler', () => {
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to persist orphaned status on ACK timeout',
-        expect.objectContaining({ error: 'Error: orphan persist failed' }),
+        expect.objectContaining({ error: 'Error: orphan persist failed' })
       );
     });
 
@@ -821,7 +816,7 @@ describe('JobScheduler', () => {
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to find job on ACK timeout',
-        expect.objectContaining({ error: 'Error: DB find failed' }),
+        expect.objectContaining({ error: 'Error: DB find failed' })
       );
     });
   });
@@ -849,7 +844,7 @@ describe('JobScheduler', () => {
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         'Failed to persist assigned status',
-        expect.objectContaining({ error: 'Error: DB write failed' }),
+        expect.objectContaining({ error: 'Error: DB write failed' })
       );
     });
   });

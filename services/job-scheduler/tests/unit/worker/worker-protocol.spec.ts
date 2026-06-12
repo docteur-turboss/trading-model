@@ -58,11 +58,15 @@ describe('WorkerProtocol', () => {
   }
 
   function getMessageHandler(ws: any): jest.Mock {
-    return (ws.on as jest.Mock).mock.calls.find((c: any) => c[0] === 'message')![1] as unknown as jest.Mock;
+    return (ws.on as jest.Mock).mock.calls.find(
+      (c: any) => c[0] === 'message'
+    )![1] as unknown as jest.Mock;
   }
 
   function getCloseHandler(ws: any): jest.Mock {
-    return (ws.on as jest.Mock).mock.calls.find((c: any) => c[0] === 'close')![1] as unknown as jest.Mock;
+    return (ws.on as jest.Mock).mock.calls.find(
+      (c: any) => c[0] === 'close'
+    )![1] as unknown as jest.Mock;
   }
 
   beforeEach(() => {
@@ -84,15 +88,11 @@ describe('WorkerProtocol', () => {
 
     onWorkerDisconnect = jest.fn();
 
-    protocol = new WorkerProtocol(
-      {} as any,
-      mockRegistry,
-      onWorkerDisconnect,
-    );
+    protocol = new WorkerProtocol({} as any, mockRegistry, onWorkerDisconnect);
 
     wssInstance = MockWebSocketServer.mock.results[0].value;
     connectionHandler = (wssInstance.on as jest.Mock).mock.calls.find(
-      (c: any) => c[0] === 'connection',
+      (c: any) => c[0] === 'connection'
     )![1] as unknown as Function;
   });
 
@@ -122,14 +122,16 @@ describe('WorkerProtocol', () => {
         simulateConnection(ws);
         const messageHandler = getMessageHandler(ws);
 
-        messageHandler(JSON.stringify({
-          type: 'register',
-          workerId: 'w1',
-          address: '10.0.0.1',
-          port: 9000,
-          capabilities: ['type-a'],
-          maxConcurrency: 5,
-        }));
+        messageHandler(
+          JSON.stringify({
+            type: 'register',
+            workerId: 'w1',
+            address: '10.0.0.1',
+            port: 9000,
+            capabilities: ['type-a'],
+            maxConcurrency: 5,
+          })
+        );
 
         expect(mockRegistry.register).toHaveBeenCalledWith('w1', {
           workerId: 'w1',
@@ -149,22 +151,26 @@ describe('WorkerProtocol', () => {
         simulateConnection(ws);
         const messageHandler = getMessageHandler(ws);
 
-        messageHandler(JSON.stringify({
-          type: 'register',
-          workerId: 'w1',
-          address: '10.0.0.1',
-          port: 9000,
-          capabilities: ['type-a'],
-          maxConcurrency: 5,
-        }));
+        messageHandler(
+          JSON.stringify({
+            type: 'register',
+            workerId: 'w1',
+            address: '10.0.0.1',
+            port: 9000,
+            capabilities: ['type-a'],
+            maxConcurrency: 5,
+          })
+        );
 
         jest.clearAllMocks();
 
-        messageHandler(JSON.stringify({
-          type: 'heartbeat',
-          workerId: 'w1',
-          currentLoad: 3,
-        }));
+        messageHandler(
+          JSON.stringify({
+            type: 'heartbeat',
+            workerId: 'w1',
+            currentLoad: 3,
+          })
+        );
 
         expect(mockRegistry.heartbeat).toHaveBeenCalledWith('w1');
         expect(mockRegistry.updateLoad).toHaveBeenCalledWith('w1', 3);
@@ -176,22 +182,26 @@ describe('WorkerProtocol', () => {
         simulateConnection(ws);
         const messageHandler = getMessageHandler(ws);
 
-        messageHandler(JSON.stringify({
-          type: 'register',
-          workerId: 'w1',
-          address: '10.0.0.1',
-          port: 9000,
-          capabilities: [],
-          maxConcurrency: 5,
-        }));
+        messageHandler(
+          JSON.stringify({
+            type: 'register',
+            workerId: 'w1',
+            address: '10.0.0.1',
+            port: 9000,
+            capabilities: [],
+            maxConcurrency: 5,
+          })
+        );
 
         jest.clearAllMocks();
 
-        messageHandler(JSON.stringify({
-          type: 'heartbeat',
-          workerId: 'w1',
-          currentLoad: 1,
-        }));
+        messageHandler(
+          JSON.stringify({
+            type: 'heartbeat',
+            workerId: 'w1',
+            currentLoad: 1,
+          })
+        );
 
         expect(ws.send).not.toHaveBeenCalled();
       });
@@ -201,22 +211,26 @@ describe('WorkerProtocol', () => {
         simulateConnection(ws);
         const messageHandler = getMessageHandler(ws);
 
-        messageHandler(JSON.stringify({
-          type: 'register',
-          workerId: 'w1',
-          address: '10.0.0.1',
-          port: 9000,
-          capabilities: [],
-          maxConcurrency: 5,
-        }));
+        messageHandler(
+          JSON.stringify({
+            type: 'register',
+            workerId: 'w1',
+            address: '10.0.0.1',
+            port: 9000,
+            capabilities: [],
+            maxConcurrency: 5,
+          })
+        );
 
         jest.clearAllMocks();
 
-        messageHandler(JSON.stringify({
-          type: 'disconnect',
-          workerId: 'w1',
-          reason: 'shutting down',
-        }));
+        messageHandler(
+          JSON.stringify({
+            type: 'disconnect',
+            workerId: 'w1',
+            reason: 'shutting down',
+          })
+        );
 
         expect(mockRegistry.unregister).toHaveBeenCalledWith('w1');
         expect(onWorkerDisconnect).toHaveBeenCalledWith('w1');
@@ -243,7 +257,11 @@ describe('WorkerProtocol', () => {
         simulateConnection(ws);
         const messageHandler = getMessageHandler(ws);
 
-        messageHandler({ toString: () => { throw 'primitive-error'; } });
+        messageHandler({
+          toString: () => {
+            throw 'primitive-error';
+          },
+        });
 
         expect(logger.error).toHaveBeenCalledWith('Invalid WebSocket message from worker', {
           error: 'primitive-error',
@@ -270,14 +288,16 @@ describe('WorkerProtocol', () => {
         const messageHandler = getMessageHandler(ws);
         const closeHandler = getCloseHandler(ws);
 
-        messageHandler(JSON.stringify({
-          type: 'register',
-          workerId: 'w1',
-          address: '10.0.0.1',
-          port: 9000,
-          capabilities: [],
-          maxConcurrency: 5,
-        }));
+        messageHandler(
+          JSON.stringify({
+            type: 'register',
+            workerId: 'w1',
+            address: '10.0.0.1',
+            port: 9000,
+            capabilities: [],
+            maxConcurrency: 5,
+          })
+        );
 
         jest.clearAllMocks();
 
@@ -301,14 +321,16 @@ describe('WorkerProtocol', () => {
       it('should not match close for a different WebSocket than the one in the map', () => {
         const ws1 = createWs();
         simulateConnection(ws1);
-        getMessageHandler(ws1)(JSON.stringify({
-          type: 'register',
-          workerId: 'w1',
-          address: '10.0.0.1',
-          port: 9000,
-          capabilities: [],
-          maxConcurrency: 5,
-        }));
+        getMessageHandler(ws1)(
+          JSON.stringify({
+            type: 'register',
+            workerId: 'w1',
+            address: '10.0.0.1',
+            port: 9000,
+            capabilities: [],
+            maxConcurrency: 5,
+          })
+        );
 
         const ws2 = createWs();
         simulateConnection(ws2);
@@ -330,14 +352,16 @@ describe('WorkerProtocol', () => {
       simulateConnection(ws);
       const messageHandler = getMessageHandler(ws);
 
-      messageHandler(JSON.stringify({
-        type: 'register',
-        workerId: 'w1',
-        address: '10.0.0.1',
-        port: 9000,
-        capabilities: [],
-        maxConcurrency: 5,
-      }));
+      messageHandler(
+        JSON.stringify({
+          type: 'register',
+          workerId: 'w1',
+          address: '10.0.0.1',
+          port: 9000,
+          capabilities: [],
+          maxConcurrency: 5,
+        })
+      );
 
       protocol.sendToWorker('w1', { type: 'drain' });
 
@@ -358,14 +382,16 @@ describe('WorkerProtocol', () => {
       simulateConnection(ws);
       const messageHandler = getMessageHandler(ws);
 
-      messageHandler(JSON.stringify({
-        type: 'register',
-        workerId: 'w1',
-        address: '10.0.0.1',
-        port: 9000,
-        capabilities: [],
-        maxConcurrency: 5,
-      }));
+      messageHandler(
+        JSON.stringify({
+          type: 'register',
+          workerId: 'w1',
+          address: '10.0.0.1',
+          port: 9000,
+          capabilities: [],
+          maxConcurrency: 5,
+        })
+      );
 
       protocol.sendToWorker('w1', { type: 'drain' });
 
@@ -389,25 +415,29 @@ describe('WorkerProtocol', () => {
 
       const ws1 = createWs();
       simulateConnection(ws1);
-      getMessageHandler(ws1)(JSON.stringify({
-        type: 'register',
-        workerId: 'w1',
-        address: '10.0.0.1',
-        port: 9000,
-        capabilities: [],
-        maxConcurrency: 5,
-      }));
+      getMessageHandler(ws1)(
+        JSON.stringify({
+          type: 'register',
+          workerId: 'w1',
+          address: '10.0.0.1',
+          port: 9000,
+          capabilities: [],
+          maxConcurrency: 5,
+        })
+      );
 
       const ws2 = createWs();
       simulateConnection(ws2);
-      getMessageHandler(ws2)(JSON.stringify({
-        type: 'register',
-        workerId: 'w2',
-        address: '10.0.0.2',
-        port: 9000,
-        capabilities: [],
-        maxConcurrency: 5,
-      }));
+      getMessageHandler(ws2)(
+        JSON.stringify({
+          type: 'register',
+          workerId: 'w2',
+          address: '10.0.0.2',
+          port: 9000,
+          capabilities: [],
+          maxConcurrency: 5,
+        })
+      );
 
       jest.clearAllMocks();
 
@@ -424,25 +454,29 @@ describe('WorkerProtocol', () => {
 
       const ws1 = createWs();
       simulateConnection(ws1);
-      getMessageHandler(ws1)(JSON.stringify({
-        type: 'register',
-        workerId: 'w1',
-        address: '10.0.0.1',
-        port: 9000,
-        capabilities: [],
-        maxConcurrency: 5,
-      }));
+      getMessageHandler(ws1)(
+        JSON.stringify({
+          type: 'register',
+          workerId: 'w1',
+          address: '10.0.0.1',
+          port: 9000,
+          capabilities: [],
+          maxConcurrency: 5,
+        })
+      );
 
       const ws2 = createWs();
       simulateConnection(ws2);
-      getMessageHandler(ws2)(JSON.stringify({
-        type: 'register',
-        workerId: 'w2',
-        address: '10.0.0.2',
-        port: 9000,
-        capabilities: [],
-        maxConcurrency: 5,
-      }));
+      getMessageHandler(ws2)(
+        JSON.stringify({
+          type: 'register',
+          workerId: 'w2',
+          address: '10.0.0.2',
+          port: 9000,
+          capabilities: [],
+          maxConcurrency: 5,
+        })
+      );
 
       jest.clearAllMocks();
 

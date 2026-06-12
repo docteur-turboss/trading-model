@@ -11,7 +11,7 @@ export class OrphanDetector {
     private readonly workers: WorkerRegistry,
     private readonly repository: JobRepository,
     private readonly reAllocator: ReAllocator,
-    private readonly intervalMs: number,
+    private readonly intervalMs: number
   ) {}
 
   start(): void {

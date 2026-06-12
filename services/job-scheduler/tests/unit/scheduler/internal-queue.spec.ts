@@ -109,7 +109,9 @@ describe('InternalQueue', () => {
   describe('markDelivered without callback', () => {
     it('should not throw when ack timeout fires without callback set', () => {
       queue.markDelivered('job-1');
-      expect(() => { jest.advanceTimersByTime(30000); }).not.toThrow();
+      expect(() => {
+        jest.advanceTimersByTime(30000);
+      }).not.toThrow();
     });
   });
 

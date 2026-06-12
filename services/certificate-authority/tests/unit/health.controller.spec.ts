@@ -3,10 +3,12 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 const mockIsInitialized = jest.fn();
 const mockGetCaCertPem = jest.fn();
 
-jest.mock('../../src/app/index', () => ({
-  ca: {
-    isInitialized: mockIsInitialized,
-    getCaCertPem: mockGetCaCertPem,
+jest.mock('../../src/app/container', () => ({
+  container: {
+    ca: {
+      isInitialized: mockIsInitialized,
+      getCaCertPem: mockGetCaCertPem,
+    },
   },
 }));
 
@@ -39,7 +41,9 @@ describe('health.controller', () => {
       const res = { status } as any;
 
       mockIsInitialized.mockReturnValue(true);
-      mockGetCaCertPem.mockReturnValue('-----BEGIN CERTIFICATE-----\nca-cert\n-----END CERTIFICATE-----');
+      mockGetCaCertPem.mockReturnValue(
+        '-----BEGIN CERTIFICATE-----\nca-cert\n-----END CERTIFICATE-----'
+      );
 
       await health(req, res);
 

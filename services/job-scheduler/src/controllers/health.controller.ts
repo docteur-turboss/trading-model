@@ -10,7 +10,7 @@ import { WorkerRegistry } from '../worker/worker-registry';
 export function createHealthController(
   queue: InternalQueue,
   backPressure: BackPressure,
-  workers: WorkerRegistry,
+  workers: WorkerRegistry
 ) {
   const ping: RequestHandler = catchSync(async () => {
     return sendResponse({ status: 'ok', timestamp: new Date().toISOString() }, 200);
@@ -28,7 +28,7 @@ export function createHealthController(
         averageLoad: workers.averageLoad(),
         timestamp: new Date().toISOString(),
       },
-      200,
+      200
     );
   });
 

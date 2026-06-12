@@ -1,6 +1,8 @@
 import type { WorkerRegistration } from '../../src/types/worker.types';
 
-export const createWorkerRegistration = (overrides?: Partial<WorkerRegistration>): WorkerRegistration => ({
+export const createWorkerRegistration = (
+  overrides?: Partial<WorkerRegistration>
+): WorkerRegistration => ({
   workerId: 'test-worker-1',
   address: '192.168.1.10',
   port: 9000,

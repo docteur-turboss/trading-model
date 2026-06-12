@@ -14,7 +14,7 @@ jest.mock('@trading-model/common/middleware/response-exception', () => {
 import { InternalQueue } from '../../../src/scheduler/internal-queue';
 import { BackPressure } from '../../../src/scheduler/back-pressure';
 import { WorkerRegistry } from '../../../src/worker/worker-registry';
-import { createHealthController } from '../../../src/routes/health.controller';
+import { createHealthController } from '../../../src/controllers/health.controller';
 
 describe('HealthController', () => {
   let queue: InternalQueue;
@@ -41,7 +41,18 @@ describe('HealthController', () => {
 
   describe('health', () => {
     it('should return 200 with health metrics', async () => {
-      queue.enqueue({ id: 'j1', type: 't', payload: {}, priority: 3, status: 'queued', ackDeadline: 0, maxRetries: 3, retryCount: 0, createdAt: new Date(), history: [] });
+      queue.enqueue({
+        id: 'j1',
+        type: 't',
+        payload: {},
+        priority: 3,
+        status: 'queued',
+        ackDeadline: 0,
+        maxRetries: 3,
+        retryCount: 0,
+        createdAt: new Date(),
+        history: [],
+      });
 
       const result = await controller.health(createReq(), createRes(), createNext);
 
