@@ -17,7 +17,6 @@ i18n.init({
   ns: Object.keys(en),
   defaultNS: 'services',
   interpolation: { escapeValue: false },
-  initImmediate: false,
 });
 
 export default i18n;
