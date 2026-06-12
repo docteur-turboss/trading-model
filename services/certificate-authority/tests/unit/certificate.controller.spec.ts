@@ -18,7 +18,11 @@ jest.mock('../../src/app/index', () => ({
   },
 }));
 
-import { signCertificate, getCertificate, revokeCertificate } from '../../src/controllers/certificate.controller';
+import {
+  signCertificate,
+  getCertificate,
+  revokeCertificate,
+} from '../../src/controllers/certificate.controller';
 
 function mockReqRes() {
   const json = jest.fn();
@@ -159,7 +163,9 @@ describe('certificate.controller', () => {
       await revokeCertificate(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.status().json).toHaveBeenCalledWith({ error: 'serialNumber and reason are required' });
+      expect(res.status().json).toHaveBeenCalledWith({
+        error: 'serialNumber and reason are required',
+      });
     });
 
     it('should return 400 when reason is missing', async () => {

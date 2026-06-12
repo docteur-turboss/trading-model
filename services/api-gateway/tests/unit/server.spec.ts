@@ -3,12 +3,12 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 const mockTlsConfig = { key: '/certs/key.pem', cert: '/certs/cert.pem', ca: '/certs/ca.pem' };
 
 jest.mock('@trading-model/common/server/create-secure-server', () => ({
-  createSecureServer: jest.fn().mockImplementation(
-    (opts: { port: number; tls: unknown; routes: (app: any) => void }) => {
+  createSecureServer: jest
+    .fn()
+    .mockImplementation((opts: { port: number; tls: unknown; routes: (app: any) => void }) => {
       opts.routes({ use: jest.fn() });
       return Promise.resolve({ close: jest.fn(), raw: {} });
-    },
-  ),
+    }),
 }));
 
 jest.mock('@trading-model/common/server/load-tls-config', () => ({
@@ -51,7 +51,7 @@ describe('server', () => {
       expect.objectContaining({
         port: 3000,
         tls: expect.objectContaining(mockTlsConfig),
-      }),
+      })
     );
   });
 

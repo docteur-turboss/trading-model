@@ -9,7 +9,9 @@ import { Distributor } from '../../src/core/distributor';
 
 const mockCa = {
   isInitialized: jest.fn(),
-  getCaCertPem: jest.fn().mockReturnValue('-----BEGIN CERTIFICATE-----\nca-cert\n-----END CERTIFICATE-----'),
+  getCaCertPem: jest
+    .fn()
+    .mockReturnValue('-----BEGIN CERTIFICATE-----\nca-cert\n-----END CERTIFICATE-----'),
   signServiceCertificate: jest.fn(),
   revokeCertificate: jest.fn(),
   getCrl: jest.fn(),
@@ -99,7 +101,11 @@ describe('Distributor', () => {
       const newCert = { ...fakeCert, serialNumber: 'SN-BOOT' };
       mockCa.signServiceCertificate.mockResolvedValue(newCert);
 
-      const result = await distributor.requestCertificate('svc-boot', 'csr-body', 'bootstrap-token-123');
+      const result = await distributor.requestCertificate(
+        'svc-boot',
+        'csr-body',
+        'bootstrap-token-123'
+      );
 
       expect(mockCa.signServiceCertificate).toHaveBeenCalledWith('svc-boot', 'csr-body');
       expect(result.serialNumber).toBe('SN-BOOT');

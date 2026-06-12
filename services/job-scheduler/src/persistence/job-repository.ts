@@ -95,7 +95,11 @@ export class JobRepository {
     return doc ? fromDocument(doc) : null;
   }
 
-  async updateStatus(jobId: string, status: JobStatus, extras?: Partial<Pick<Job, 'result' | 'error' | 'assignedWorkerId' | 'ackDeadline'>>): Promise<void> {
+  async updateStatus(
+    jobId: string,
+    status: JobStatus,
+    extras?: Partial<Pick<Job, 'result' | 'error' | 'assignedWorkerId' | 'ackDeadline'>>
+  ): Promise<void> {
     const current = await this.collection.findOne({ jobId });
     if (!current) return;
 
@@ -121,7 +125,7 @@ export class JobRepository {
             reason: extras?.error || status,
           },
         },
-      },
+      }
     );
   }
 

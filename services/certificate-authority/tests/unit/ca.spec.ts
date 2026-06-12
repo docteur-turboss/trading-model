@@ -83,7 +83,10 @@ function createCa() {
 
 function setupBootstrapMocks() {
   const mockSign: any = { update: jest.fn(), sign: jest.fn().mockReturnValue('fake-signature') };
-  const mockHash: any = { update: jest.fn(), digest: jest.fn().mockReturnValue('fake-fingerprint') };
+  const mockHash: any = {
+    update: jest.fn(),
+    digest: jest.fn().mockReturnValue('fake-fingerprint'),
+  };
   mockHash.update.mockReturnValue(mockHash);
   mockCreatePublicKey.mockReturnValue({ export: jest.fn().mockReturnValue('fake-public-key-pem') });
   mockCreateSign.mockReturnValue(mockSign);
@@ -120,7 +123,9 @@ describe('CertificateAuthority', () => {
     it('should load existing CA key and cert from store', async () => {
       setupBootstrapMocks();
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue('-----BEGIN PRIVATE KEY-----\nexisting-key\n-----END PRIVATE KEY-----');
+      mockReadFileSync.mockReturnValue(
+        '-----BEGIN PRIVATE KEY-----\nexisting-key\n-----END PRIVATE KEY-----'
+      );
       mockCaStore.getLatest.mockResolvedValue({
         id: 'SN-001',
         caCertPem: '-----BEGIN CERTIFICATE-----\nexisting-cert\n-----END CERTIFICATE-----',
@@ -141,7 +146,9 @@ describe('CertificateAuthority', () => {
     it('should bootstrap when key exists but no stored CA metadata', async () => {
       setupBootstrapMocks();
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue('-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----');
+      mockReadFileSync.mockReturnValue(
+        '-----BEGIN PRIVATE KEY-----\nkey\n-----END PRIVATE KEY-----'
+      );
       mockCaStore.getLatest.mockResolvedValue(null);
       (generateKeyPair as jest.Mock).mockReturnValue({
         publicKey: 'pk',
@@ -160,7 +167,9 @@ describe('CertificateAuthority', () => {
     it('should throw if CA not initialized', async () => {
       const ca = createCa();
 
-      await expect(ca.signServiceCertificate('svc-1', 'csr-data')).rejects.toThrow('CA not initialized');
+      await expect(ca.signServiceCertificate('svc-1', 'csr-data')).rejects.toThrow(
+        'CA not initialized'
+      );
     });
 
     it('should sign a certificate and save to store', async () => {
@@ -199,7 +208,8 @@ describe('CertificateAuthority', () => {
       setupBootstrapMocks();
       mockExistsSync.mockReturnValue(false);
       (generateKeyPair as jest.Mock).mockReturnValue({
-        publicKey: 'pk', privateKey: 'sk',
+        publicKey: 'pk',
+        privateKey: 'sk',
       });
       mockCaStore.getLatest.mockResolvedValue(null);
       mockCertStore.getBySerial.mockResolvedValue(null);
@@ -217,7 +227,8 @@ describe('CertificateAuthority', () => {
       setupBootstrapMocks();
       mockExistsSync.mockReturnValue(false);
       (generateKeyPair as jest.Mock).mockReturnValue({
-        publicKey: 'pk', privateKey: 'sk',
+        publicKey: 'pk',
+        privateKey: 'sk',
       });
       mockCaStore.getLatest.mockResolvedValue(null);
       mockCertStore.getBySerial.mockResolvedValue({
@@ -251,7 +262,8 @@ describe('CertificateAuthority', () => {
       setupBootstrapMocks();
       mockExistsSync.mockReturnValue(false);
       (generateKeyPair as jest.Mock).mockReturnValue({
-        publicKey: 'pk', privateKey: 'sk',
+        publicKey: 'pk',
+        privateKey: 'sk',
       });
       mockCaStore.getLatest.mockResolvedValue(null);
       mockCrlStore.getAll.mockResolvedValue([
@@ -278,7 +290,8 @@ describe('CertificateAuthority', () => {
       setupBootstrapMocks();
       mockExistsSync.mockReturnValue(false);
       (generateKeyPair as jest.Mock).mockReturnValue({
-        publicKey: 'pk', privateKey: 'sk',
+        publicKey: 'pk',
+        privateKey: 'sk',
       });
       mockCaStore.getLatest.mockResolvedValue(null);
 

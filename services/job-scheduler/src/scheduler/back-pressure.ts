@@ -4,7 +4,7 @@ export class BackPressure {
 
   constructor(
     private readonly maxQueueDepth: number,
-    private readonly maxWorkerLoadRatio: number,
+    private readonly maxWorkerLoadRatio: number
   ) {}
 
   updateQueueDepth(depth: number): void {

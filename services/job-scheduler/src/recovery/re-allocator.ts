@@ -8,7 +8,7 @@ import { Job } from '../types/job.types';
 export class ReAllocator {
   constructor(
     private readonly repository: JobRepository,
-    private readonly queue: InternalQueue,
+    private readonly queue: InternalQueue
   ) {}
 
   async reallocate(job: Job): Promise<void> {

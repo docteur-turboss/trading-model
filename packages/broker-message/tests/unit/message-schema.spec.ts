@@ -18,7 +18,7 @@ describe('MessagePayloadSchema', () => {
         MessagePayloadSchema.parse({
           type: 'audit.heartbeat' as const,
           data: { serviceName: 'audit-logger' },
-        }),
+        })
       ).toThrow();
     });
   });

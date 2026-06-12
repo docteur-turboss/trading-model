@@ -148,7 +148,9 @@ describe('Rotator', () => {
       (logger.info as jest.Mock)
         .mockReturnValueOnce(undefined)
         .mockReturnValueOnce(undefined)
-        .mockImplementationOnce(() => { throw err; });
+        .mockImplementationOnce(() => {
+          throw err;
+        });
 
       mockCertificateStore.getExpiring.mockResolvedValue([
         {

@@ -40,10 +40,12 @@ export class ServiceResolver {
 
     try {
       const response = await this.httpClient.get<{ data: ServiceInstance[] }>(
-        `${this.discoveryUrl}/services/${serviceName}`,
+        `${this.discoveryUrl}/services/${serviceName}`
       );
 
-      const instances = Array.isArray(response) ? response : (response as { data: ServiceInstance[] }).data;
+      const instances = Array.isArray(response)
+        ? response
+        : (response as { data: ServiceInstance[] }).data;
 
       if (!Array.isArray(instances)) {
         return this.handleFallback(cacheKey);

@@ -39,7 +39,9 @@ describe('health.controller', () => {
       const res = { status } as any;
 
       mockIsInitialized.mockReturnValue(true);
-      mockGetCaCertPem.mockReturnValue('-----BEGIN CERTIFICATE-----\nca-cert\n-----END CERTIFICATE-----');
+      mockGetCaCertPem.mockReturnValue(
+        '-----BEGIN CERTIFICATE-----\nca-cert\n-----END CERTIFICATE-----'
+      );
 
       await health(req, res);
 

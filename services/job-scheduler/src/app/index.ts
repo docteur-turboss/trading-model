@@ -28,10 +28,8 @@ createBootstrap({
 
     const server = await createServer(scheduler);
 
-    workerProtocol = new WorkerProtocol(
-      server.raw,
-      scheduler.workers,
-      (workerId: string) => scheduler!.onWorkerDisconnect(workerId),
+    workerProtocol = new WorkerProtocol(server.raw, scheduler.workers, (workerId: string) =>
+      scheduler!.onWorkerDisconnect(workerId)
     );
     scheduler.setWorkerProtocol(workerProtocol);
 

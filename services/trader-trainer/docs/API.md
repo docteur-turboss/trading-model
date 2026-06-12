@@ -80,7 +80,7 @@ Returns the best trained agent summary from the most recent generation. If no ag
 {
   "data": {
     "status": 404,
-    "message": "Aucun agent entrainé disponible pour le moment."
+    "message": "No trained agent available at the moment."
   }
 }
 ```

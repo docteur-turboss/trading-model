@@ -41,7 +41,18 @@ describe('HealthController', () => {
 
   describe('health', () => {
     it('should return 200 with health metrics', async () => {
-      queue.enqueue({ id: 'j1', type: 't', payload: {}, priority: 3, status: 'queued', ackDeadline: 0, maxRetries: 3, retryCount: 0, createdAt: new Date(), history: [] });
+      queue.enqueue({
+        id: 'j1',
+        type: 't',
+        payload: {},
+        priority: 3,
+        status: 'queued',
+        ackDeadline: 0,
+        maxRetries: 3,
+        retryCount: 0,
+        createdAt: new Date(),
+        history: [],
+      });
 
       const result = await controller.health(createReq(), createRes(), createNext);
 

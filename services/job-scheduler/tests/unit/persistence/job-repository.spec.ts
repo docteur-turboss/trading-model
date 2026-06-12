@@ -18,7 +18,7 @@ jest.mock('mongodb', () => ({
 }));
 
 import { JobRepository } from '../../../src/persistence/job-repository';
-import { Job, JobStatus } from '../../../src/types/job.types';
+import { Job } from '../../../src/types/job.types';
 
 function makeJob(overrides: Partial<Job> = {}): Job {
   return {
@@ -65,7 +65,10 @@ describe('JobRepository', () => {
       expect(mockCollection.createIndex).toHaveBeenCalledTimes(4);
       expect(mockCollection.createIndex).toHaveBeenCalledWith({ jobId: 1 }, { unique: true });
       expect(mockCollection.createIndex).toHaveBeenCalledWith({ status: 1 });
-      expect(mockCollection.createIndex).toHaveBeenCalledWith({ assignedWorkerId: 1 }, { sparse: true });
+      expect(mockCollection.createIndex).toHaveBeenCalledWith(
+        { assignedWorkerId: 1 },
+        { sparse: true }
+      );
       expect(mockCollection.createIndex).toHaveBeenCalledWith({ type: 1, status: 1 });
     });
   });
@@ -90,7 +93,12 @@ describe('JobRepository', () => {
       mockCollection.insertOne.mockResolvedValue({ insertedId: 'job-1' });
       const job = makeJob({
         history: [
-          { fromStatus: 'pending', toStatus: 'queued', timestamp: new Date('2025-01-01'), reason: 'submitted' },
+          {
+            fromStatus: 'pending',
+            toStatus: 'queued',
+            timestamp: new Date('2025-01-01'),
+            reason: 'submitted',
+          },
         ],
       });
 
@@ -130,7 +138,12 @@ describe('JobRepository', () => {
         result: { data: 'ok' },
         error: undefined,
         history: [
-          { fromStatus: 'pending', toStatus: 'queued', timestamp: new Date('2025-01-01T00:00:00Z'), reason: 'submitted' },
+          {
+            fromStatus: 'pending',
+            toStatus: 'queued',
+            timestamp: new Date('2025-01-01T00:00:00Z'),
+            reason: 'submitted',
+          },
         ],
       };
       mockCollection.findOne.mockResolvedValue(doc);
@@ -187,7 +200,7 @@ describe('JobRepository', () => {
         { jobId: 'job-1' },
         expect.objectContaining({
           $set: expect.objectContaining({ status: 'running', startedAt: expect.any(Date) }),
-        }),
+        })
       );
     });
 
@@ -198,7 +211,7 @@ describe('JobRepository', () => {
         { jobId: 'job-1' },
         expect.objectContaining({
           $set: expect.objectContaining({ status: 'completed', completedAt: expect.any(Date) }),
-        }),
+        })
       );
     });
 
@@ -209,7 +222,7 @@ describe('JobRepository', () => {
         { jobId: 'job-1' },
         expect.objectContaining({
           $set: expect.objectContaining({ status: 'failed', completedAt: expect.any(Date) }),
-        }),
+        })
       );
     });
 
@@ -240,7 +253,7 @@ describe('JobRepository', () => {
             assignedWorkerId: 'worker-1',
             ackDeadline: 99999,
           }),
-        }),
+        })
       );
     });
 
@@ -263,7 +276,7 @@ describe('JobRepository', () => {
 
       expect(mockCollection.updateOne).toHaveBeenCalledWith(
         { jobId: 'job-1' },
-        { $inc: { retryCount: 1 } },
+        { $inc: { retryCount: 1 } }
       );
     });
   });
@@ -271,8 +284,30 @@ describe('JobRepository', () => {
   describe('findNonTerminal', () => {
     it('should query with $nin statuses', async () => {
       const docs = [
-        { jobId: 'j1', type: 't', payload: {}, priority: 3, status: 'queued', ackDeadline: 0, maxRetries: 3, retryCount: 0, createdAt: new Date(), history: [] },
-        { jobId: 'j2', type: 't', payload: {}, priority: 3, status: 'running', ackDeadline: 0, maxRetries: 3, retryCount: 0, createdAt: new Date(), history: [] },
+        {
+          jobId: 'j1',
+          type: 't',
+          payload: {},
+          priority: 3,
+          status: 'queued',
+          ackDeadline: 0,
+          maxRetries: 3,
+          retryCount: 0,
+          createdAt: new Date(),
+          history: [],
+        },
+        {
+          jobId: 'j2',
+          type: 't',
+          payload: {},
+          priority: 3,
+          status: 'running',
+          ackDeadline: 0,
+          maxRetries: 3,
+          retryCount: 0,
+          createdAt: new Date(),
+          history: [],
+        },
       ];
       const toArray = jest.fn<any>().mockResolvedValue(docs);
       mockCollection.find.mockReturnValue({ toArray });
@@ -291,7 +326,18 @@ describe('JobRepository', () => {
   describe('findByWorker', () => {
     it('should query with assignedWorkerId and $in statuses', async () => {
       const docs = [
-        { jobId: 'j1', type: 't', payload: {}, priority: 3, status: 'running', ackDeadline: 0, maxRetries: 3, retryCount: 0, createdAt: new Date(), history: [] },
+        {
+          jobId: 'j1',
+          type: 't',
+          payload: {},
+          priority: 3,
+          status: 'running',
+          ackDeadline: 0,
+          maxRetries: 3,
+          retryCount: 0,
+          createdAt: new Date(),
+          history: [],
+        },
       ];
       const toArray = jest.fn<any>().mockResolvedValue(docs);
       mockCollection.find.mockReturnValue({ toArray });
@@ -310,7 +356,18 @@ describe('JobRepository', () => {
   describe('findByStatus', () => {
     it('should query by status', async () => {
       const docs = [
-        { jobId: 'j1', type: 't', payload: {}, priority: 3, status: 'queued', ackDeadline: 0, maxRetries: 3, retryCount: 0, createdAt: new Date(), history: [] },
+        {
+          jobId: 'j1',
+          type: 't',
+          payload: {},
+          priority: 3,
+          status: 'queued',
+          ackDeadline: 0,
+          maxRetries: 3,
+          retryCount: 0,
+          createdAt: new Date(),
+          history: [],
+        },
       ];
       const toArray = jest.fn<any>().mockResolvedValue(docs);
       mockCollection.find.mockReturnValue({ toArray });

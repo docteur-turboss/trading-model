@@ -46,7 +46,7 @@ describe('ReAllocator', () => {
       expect(mockRepository.updateStatus).toHaveBeenCalledWith(
         job.id,
         'failed',
-        expect.objectContaining({ error: expect.stringContaining('max retries') }),
+        expect.objectContaining({ error: expect.stringContaining('max retries') })
       );
     });
 
@@ -58,7 +58,7 @@ describe('ReAllocator', () => {
       expect(mockRepository.updateStatus).toHaveBeenCalledWith(
         job.id,
         'queued',
-        expect.objectContaining({ ackDeadline: expect.any(Number) }),
+        expect.objectContaining({ ackDeadline: expect.any(Number) })
       );
       expect(mockQueue.depth()).toBe(1);
     });
