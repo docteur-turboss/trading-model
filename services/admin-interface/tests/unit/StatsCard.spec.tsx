@@ -5,9 +5,9 @@ import { StatsCard } from '../../src/components/stats-card';
 
 describe('StatsCard', () => {
   it('should render value and label', () => {
-    render(<StatsCard icon={<StorageIcon />} value="94.2%" label="TAUX DE RÉUSSITE" />);
+    render(<StatsCard icon={<StorageIcon />} value="94.2%" label="HIT RATE" />);
     expect(screen.getByText('94.2%')).toBeInTheDocument();
-    expect(screen.getByText('TAUX DE RÉUSSITE')).toBeInTheDocument();
+    expect(screen.getByText('HIT RATE')).toBeInTheDocument();
   });
 
   it('should render delta when provided', () => {
@@ -15,7 +15,7 @@ describe('StatsCard', () => {
       <StatsCard
         icon={<StorageIcon />}
         value="1.2M"
-        label="ENTRÉES ACTIVES"
+        label="ACTIVE ENTRIES"
         delta="+5% increase today"
         deltaColor="warning.main"
       />

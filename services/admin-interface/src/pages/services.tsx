@@ -15,6 +15,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { DataTable } from '../components/data-table';
 import type { Column } from '../components/data-table';
@@ -23,6 +24,7 @@ import { StatusBadge } from '../components/status-badge';
 import { useServices } from '../hooks/use-services';
 
 export function Services() {
+  const { t } = useTranslation('services');
   const { data, loading, refetch } = useServices();
   const [filter, setFilter] = useState('');
 
@@ -34,14 +36,14 @@ export function Services() {
     heartbeat: string;
     status: string;
   }>[] = [
-    { id: 'name', label: 'Service Name', render: r => r.serviceName },
-    { id: 'instances', label: 'Instances', render: r => String(r.instances) },
-    { id: 'ip', label: 'IP:Port', render: r => r.ipPort },
-    { id: 'version', label: 'Version', render: r => r.version },
-    { id: 'heartbeat', label: 'Heartbeat', render: r => r.heartbeat },
+    { id: 'name', label: t('serviceName'), render: r => r.serviceName },
+    { id: 'instances', label: t('instances'), render: r => String(r.instances) },
+    { id: 'ip', label: t('ipPort'), render: r => r.ipPort },
+    { id: 'version', label: t('version'), render: r => r.version },
+    { id: 'heartbeat', label: t('heartbeat'), render: r => r.heartbeat },
     {
       id: 'status',
-      label: 'Status',
+      label: t('status'),
       render: r => <StatusBadge status={r.status} />,
     },
   ];
@@ -76,18 +78,18 @@ export function Services() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Box>
           <Typography variant="h4" fontWeight={700}>
-            Services Registry
+            {t('title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage and monitor real-time microservice health and instance lifecycle.
+            {t('subtitle')}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button variant="outlined" startIcon={<RefreshIcon />} onClick={refetch}>
-            Refresh
+            {t('refresh')}
           </Button>
           <Button variant="contained" startIcon={<AddIcon />}>
-            New Service
+            {t('newService')}
           </Button>
         </Box>
       </Box>
@@ -97,7 +99,7 @@ export function Services() {
           <StatsCard
             icon={<DnsIcon />}
             value={`${data?.services.length ?? 0} / ${data?.services.length ?? 0}`}
-            label="SERVICES ACTIFS"
+            label={t('activeServices')}
             delta="+2.5% vs last hour"
             deltaColor="success.main"
           />
@@ -106,7 +108,7 @@ export function Services() {
           <StatsCard
             icon={<ActivityIcon />}
             value={`${flatServices.reduce((a, s) => a + s.instances, 0)}`}
-            label="INSTANCES TOTALES"
+            label={t('totalInstances')}
             delta="+12 vs last hour"
             deltaColor="success.main"
           />
@@ -115,7 +117,7 @@ export function Services() {
           <StatsCard
             icon={<ShieldIcon />}
             value="0.04%"
-            label="ERREURS (5XX)"
+            label={t('errors5xx')}
             delta="-0.01% vs last hour"
             deltaColor="success.main"
           />
@@ -124,7 +126,7 @@ export function Services() {
           <StatsCard
             icon={<BoltIcon />}
             value="42ms"
-            label="LATENCE MOY."
+            label={t('avgLatency')}
             delta="-4ms vs last hour"
             deltaColor="success.main"
           />
@@ -132,27 +134,27 @@ export function Services() {
       </Grid>
 
       <Typography variant="h6" sx={{ mb: 1 }}>
-        Network Topology
+        {t('networkTopology')}
       </Typography>
       <Card variant="outlined" sx={{ mb: 3, p: 2, minHeight: 100 }}>
         <Typography variant="body2" color="text.secondary">
-          Topology diagram visualization (nodes and connections)
+          {t('topologyPlaceholder')}
         </Typography>
       </Card>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
         <TextField
           size="small"
-          placeholder="Filter by service name..."
+          placeholder={t('filterPlaceholder')}
           value={filter}
           onChange={e => setFilter(e.target.value)}
           sx={{ minWidth: 240 }}
         />
         <TextField size="small" select defaultValue="" sx={{ minWidth: 140 }}>
-          <MenuItem value="">All Statuses</MenuItem>
-          <MenuItem value="healthy">Healthy</MenuItem>
-          <MenuItem value="degraded">Degraded</MenuItem>
-          <MenuItem value="down">Down</MenuItem>
+          <MenuItem value="">{t('allStatuses')}</MenuItem>
+          <MenuItem value="healthy">{t('healthy')}</MenuItem>
+          <MenuItem value="degraded">{t('degraded')}</MenuItem>
+          <MenuItem value="down">{t('down')}</MenuItem>
         </TextField>
       </Box>
 

@@ -4,6 +4,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import StorageIcon from '@mui/icons-material/Storage';
 import { Box, Typography, Button, CircularProgress } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { api } from '../api/api-client';
 import { DataTable } from '../components/data-table';
@@ -15,15 +16,16 @@ import { useApi } from '../hooks/use-api';
 import type { CacheEntry } from '../types/dtos';
 
 export function Cache() {
+  const { t } = useTranslation('cache');
   const { data, loading, refetch } = useApi(() => api.getCacheEntries());
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const columns: Column<CacheEntry>[] = [
-    { id: 'key', label: 'Cache Key', render: r => r.key },
-    { id: 'service', label: 'Service', render: r => r.service },
-    { id: 'expiration', label: 'Expiration', render: r => r.expiration },
-    { id: 'size', label: 'Size', render: r => r.size },
-    { id: 'lastAccess', label: 'Last Access', render: r => r.lastAccess },
+    { id: 'key', label: t('cacheKey'), render: r => r.key },
+    { id: 'service', label: t('service'), render: r => r.service },
+    { id: 'expiration', label: t('expiration'), render: r => r.expiration },
+    { id: 'size', label: t('size'), render: r => r.size },
+    { id: 'lastAccess', label: t('lastAccess'), render: r => r.lastAccess },
     {
       id: 'status',
       label: 'Status',
@@ -44,15 +46,15 @@ export function Cache() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Box>
           <Typography variant="h4" fontWeight={700}>
-            API Gateway Cache
+            {t('title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage and monitor the distributed cache layer.
+            {t('subtitle')}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button variant="outlined" startIcon={<HistoryIcon />}>
-            Invalidation History
+            {t('invalidationHistory')}
           </Button>
           <Button
             variant="contained"
@@ -60,7 +62,7 @@ export function Cache() {
             startIcon={<DeleteSweepIcon />}
             onClick={() => setConfirmOpen(true)}
           >
-            Invalidate All
+            {t('invalidateAll')}
           </Button>
         </Box>
       </Box>
@@ -70,7 +72,7 @@ export function Cache() {
           <StatsCard
             icon={<RefreshIcon />}
             value={`${data?.stats.hitRate ?? 0}%`}
-            label="TAUX DE RÉUSSITE"
+            label={t('hitRate')}
             delta="Based on last 5 minutes"
           />
         </Box>
@@ -78,7 +80,7 @@ export function Cache() {
           <StatsCard
             icon={<StorageIcon />}
             value={(data?.stats.activeEntries ?? 0).toLocaleString()}
-            label="ENTRÉES ACTIVES"
+            label={t('activeEntries')}
             delta="5% increase today"
             deltaColor="warning.main"
           />
@@ -94,14 +96,14 @@ export function Cache() {
 
       <ModalConfirm
         open={confirmOpen}
-        title="Critical Action: Global Invalidation"
-        description="You are about to purge the entire API Gateway cache. This action may cause immediate backend overload during the cache warm-up phase."
-        confirmLabel="Confirm Global Purge"
+        title={t('criticalAction')}
+        description={t('confirmDescription')}
+        confirmLabel={t('confirmLabel')}
         confirmColor="error"
         impactItems={[
-          `${data?.stats.activeEntries?.toLocaleString() ?? 'N/A'} entries will be permanently deleted.`,
-          'Expected 300% p99 latency increase for approximately 2 minutes.',
-          'All cache instances (12 clusters) will be affected.',
+          t('entriesDeleted', { count: data?.stats.activeEntries ?? 0 }),
+          t('latencyWarning'),
+          t('clustersAffected'),
         ]}
         onConfirm={() => {
           api.invalidateCache().then(() => {

@@ -1,6 +1,8 @@
+import { I18nextProvider } from 'react-i18next';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { Layout } from './components/layout';
+import i18n from './i18n/config';
 import { AuditEvents } from './pages/audit-events';
 import { Cache } from './pages/cache';
 import { Certificates } from './pages/certificates';
@@ -14,6 +16,7 @@ import { Workers } from './pages/workers';
 
 export function App() {
   return (
+    <I18nextProvider i18n={i18n}>
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
@@ -31,5 +34,6 @@ export function App() {
         </Route>
       </Routes>
     </BrowserRouter>
+    </I18nextProvider>
   );
 }

@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 
+import i18n from '../../src/i18n/config';
+
 afterEach(() => {
   cleanup();
 });
