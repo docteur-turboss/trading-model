@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, appendFile } from 'fs';
-import path from 'path';
+import { appendFile } from 'fs';
+import { mkdir } from 'fs/promises';
+import path from 'node:path';
 
 import { normalizeError } from '../utils/errors';
 
@@ -72,8 +73,8 @@ export class Logger {
       /^jwt[-_]?secret$/i,
       /^private[-_]?key$/i,
       /^tls[-_]?(key|cert|ca)$/i,
-      /^certificatpath$/i,
-      /^keycertificatpath$/i,
+      /^certificatepath$/i,
+      /^keycertificatepath$/i,
       /^rootcacertpath$/i,
       /\.secret$/i,
       /\.token$/i,
@@ -112,13 +113,16 @@ export class Logger {
       serviceInCharge,
     };
 
-    const logFilePath = path.resolve(process.cwd(), 'log');
-    const logFileName = `${y}.${m}.${d}-${level}.log`;
+    const logDir = process.env.LOG_DIR;
+    if (logDir) {
+      const logFilePath = path.resolve(logDir);
+      const logFileName = `${y}.${m}.${d}-${level}.log`;
 
-    if (!existsSync(logFilePath)) mkdirSync(logFilePath, { recursive: true });
-    appendFile(path.resolve(logFilePath, logFileName), this.safeStringify(data) + '\n', err => {
-      if (err) console.error('[Logger] Failed to write log file:', err);
-    });
+      mkdir(logFilePath, { recursive: true }).catch(() => {});
+      appendFile(path.resolve(logFilePath, logFileName), this.safeStringify(data) + '\n', err => {
+        if (err) console.error('[Logger] Failed to write log file:', err);
+      });
+    }
 
     return data;
   }

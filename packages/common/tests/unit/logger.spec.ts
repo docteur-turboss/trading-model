@@ -2,9 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 import { Logger, LogLevel } from '../../src/config/logger';
 
 jest.mock('fs', () => ({
-  existsSync: jest.fn().mockReturnValue(false),
-  mkdirSync: jest.fn(),
   appendFile: jest.fn((_path: string, _data: string, cb: (err: Error | null) => void) => cb(null)),
+}));
+
+jest.mock('fs/promises', () => ({
+  mkdir: jest.fn(() => Promise.resolve()),
 }));
 
 import { appendFile } from 'fs';
@@ -21,6 +23,7 @@ describe('Logger', () => {
 
   beforeEach(() => {
     originalNodeEnv = process.env.NODE_ENV;
+    process.env.LOG_DIR = 'log';
     consoleDebugSpy = jest.spyOn(console, 'debug').mockImplementation(() => {});
     consoleInfoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -31,6 +34,7 @@ describe('Logger', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     process.env.NODE_ENV = originalNodeEnv;
+    delete process.env.LOG_DIR;
   });
 
   describe('constructor', () => {
@@ -170,6 +174,22 @@ describe('Logger', () => {
     });
   });
 
+  describe('file logging', () => {
+    it('should not write to file when LOG_DIR is not set', () => {
+      delete process.env.LOG_DIR;
+      mockAppendFile.mockClear();
+      logger.info('stdout only');
+      expect(mockAppendFile).not.toHaveBeenCalled();
+    });
+
+    it('should write to file when LOG_DIR is set', () => {
+      process.env.LOG_DIR = 'log';
+      mockAppendFile.mockClear();
+      logger.info('file write test');
+      expect(mockAppendFile).toHaveBeenCalled();
+    });
+  });
+
   describe('createLogEntry', () => {
     it('should handle null sessionId', () => {
       (logger as any).sessionId = null;
@@ -253,8 +273,8 @@ describe('Logger', () => {
         tlsKey: 'server-key-content',
         tlsCert: 'server-cert-content',
         tlsCa: 'ca-cert-content',
-        certificatPath: '/certs/client.crt',
-        keyCertificatPath: '/certs/client.key',
+        certificatePath: '/certs/client.crt',
+        keyCertificatePath: '/certs/client.key',
         rootCACertPath: '/certs/ca.crt',
         apiSecret: 'my-api-token',
         db_password: 'db-pass-123',
