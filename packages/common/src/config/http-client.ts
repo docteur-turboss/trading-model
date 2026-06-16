@@ -193,6 +193,8 @@ function recordServiceFailure(serviceName: string, instanceCount?: number): void
 
 /**
  * Returns true if the service's circuit breaker is open (or half-open).
+ * Side-effect: transitions 'open' → 'half-open' when the cooldown period
+ * has elapsed, allowing a probe request through to test recovery.
  * Used by ServiceDiscovery to reject lookups early.
  */
 export function isServiceCircuitOpen(serviceName: string): boolean {
@@ -325,6 +327,11 @@ export class HttpClient {
     });
   }
 
+  /**
+   * Core request dispatcher: checks circuit breakers, runs retry loop with
+   * exponential backoff, and records success/failure to update breaker state.
+   * Lazy-loads TLS certificates on first invocation if paths are configured.
+   */
   private async request<T>(
     method: HttpMethod,
     urlStr: string,
