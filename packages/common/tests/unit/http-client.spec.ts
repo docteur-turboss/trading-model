@@ -618,6 +618,136 @@ describe('HttpClient', () => {
       expect(isServiceCircuitOpen('halfopen-service-2')).toBe(true);
     });
   });
+
+  describe('ensureTlsLoaded edge cases', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      (fs as any).promises.access.mockResolvedValue(undefined);
+      (fs as any).promises.readFile.mockResolvedValue('cert-pem');
+    });
+
+    it('should return early when TLS already loaded', async () => {
+      const tlsClient = new HttpClient({ ca: '/etc/ca.pem' }) as any;
+      tlsClient.tlsLoaded = true;
+      tlsClient.tlsPaths = { ca: '/etc/ca.pem' };
+      await tlsClient.ensureTlsLoaded();
+      expect((fs as any).promises.readFile).not.toHaveBeenCalled();
+    });
+
+    it('should return existing tlsLoadPromise when one is in flight', async () => {
+      const tlsClient = new HttpClient({ ca: '/etc/ca.pem' }) as any;
+      const fakePromise = Promise.resolve();
+      tlsClient.tlsLoadPromise = fakePromise;
+      const result = await tlsClient.ensureTlsLoaded();
+      expect(result).toBeUndefined();
+    });
+
+    it('should handle tlsPaths becoming falsy inside TLS load promise', async () => {
+      const tlsClient = new HttpClient({ ca: '/etc/ca.pem' }) as any;
+      let callCount = 0;
+      const origPaths = tlsClient.tlsPaths;
+      Object.defineProperty(tlsClient, 'tlsPaths', {
+        get: () => {
+          callCount++;
+          return callCount <= 1 ? origPaths : undefined;
+        },
+        configurable: true,
+      });
+      await tlsClient.ensureTlsLoaded();
+      expect(tlsClient.tlsLoaded).toBe(true);
+    });
+
+    it('should skip reading CA when ca path is not provided', async () => {
+      const tlsClient = new HttpClient({ cert: '/etc/cert.pem', key: '/etc/key.pem' }) as any;
+      await tlsClient.ensureTlsLoaded();
+      expect((fs as any).promises.readFile).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('fallback throw edge cases', () => {
+    it('should throw generic error when retryCount < 0 (loop never runs)', async () => {
+      const promise = client.get('https://example.com/api', { retryCount: -1 });
+      await expect(promise).rejects.toThrow('Request failed');
+    });
+
+    it('should handle non-Error rejection from executeRequest', async () => {
+      const promise = client.get('https://example.com/api', { retryCount: 0 });
+      errorHandler!('something went wrong' as any);
+      await expect(promise).rejects.toThrow('something went wrong');
+    });
+  });
+
+  describe('shouldRetry for timeout errors', () => {
+    it('should treat HttpClientTimeoutError as retryable and succeed on retry', async () => {
+      const promise = client.get('https://example.com/api', { retryCount: 1, timeoutMs: 100 });
+      mockReq._timeoutCb();
+      await new Promise(resolve => setTimeout(resolve, 300));
+      simulateResponse(200, JSON.stringify({ ok: true }), 'application/json');
+      const result = await promise;
+      expect(result).toEqual({ ok: true });
+    });
+  });
+
+  describe('shouldRetry for network errors', () => {
+    it('should retry on ECONNRESET error', async () => {
+      const promise = client.get('https://example.com/api', { retryCount: 1, timeoutMs: 100 });
+      errorHandler!(new Error('read ECONNRESET'));
+      await new Promise(resolve => setTimeout(resolve, 300));
+      simulateResponse(200, JSON.stringify({ ok: true }), 'application/json');
+      const result = await promise;
+      expect(result).toEqual({ ok: true });
+    });
+  });
+
+  describe('gzip and deflate content encoding', () => {
+    it('should handle gzip-encoded response', async () => {
+      const gzipData = 'gzip-compressed-data';
+      const mockGunzip = { on: jest.fn() };
+
+      (mockGunzip.on as unknown as jest.Mock).mockImplementation((e: unknown, cb2: unknown) => {
+        if (e === 'data') (cb2 as (d: string) => void)(gzipData);
+        if (e === 'end') (cb2 as () => void)();
+      });
+
+      const mockRes = {
+        pipe: jest.fn(() => mockGunzip),
+        statusCode: 200,
+        headers: { 'content-type': 'text/plain', 'content-encoding': 'gzip' },
+      };
+
+      (https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
+        cb(mockRes);
+        return { write: jest.fn(), end: jest.fn(), on: jest.fn(), setTimeout: jest.fn(), destroy: jest.fn() };
+      });
+
+      const result = await client.get('https://example.com/data');
+      expect(result).toBe('gzip-compressed-data');
+    });
+
+    it('should handle deflate-encoded response', async () => {
+      const deflateData = 'deflate-compressed-data';
+      const mockInflate = { on: jest.fn() };
+
+      (mockInflate.on as unknown as jest.Mock).mockImplementation((e: unknown, cb2: unknown) => {
+        if (e === 'data') (cb2 as (d: string) => void)(deflateData);
+        if (e === 'end') (cb2 as () => void)();
+      });
+
+      const mockRes = {
+        pipe: jest.fn(() => mockInflate),
+        statusCode: 200,
+        headers: { 'content-type': 'text/plain', 'content-encoding': 'deflate' },
+      };
+
+      (https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
+        cb(mockRes);
+        return { write: jest.fn(), end: jest.fn(), on: jest.fn(), setTimeout: jest.fn(), destroy: jest.fn() };
+      });
+
+      const result = await client.get('https://example.com/data');
+      expect(result).toBe('deflate-compressed-data');
+    });
+  });
 });
 
 describe('computeAdaptiveTimeout', () => {
@@ -646,5 +776,23 @@ describe('isServiceCircuitOpen', () => {
   it('should return false for a service with no recorded failures', () => {
     // Accesses the internal map implicitly: after a success the circuit remains closed
     expect(isServiceCircuitOpen('fresh-service')).toBe(false);
+  });
+});
+
+describe('computeAdaptiveTimeout', () => {
+  it('should return baseMs × 2 when no EWMA latency', () => {
+    expect(computeAdaptiveTimeout(5000)).toBe(10000);
+  });
+
+  it('should return max(baseMs, ewmaLatencyMs × 3) when latency is known', () => {
+    expect(computeAdaptiveTimeout(5000, 2000)).toBe(6000);
+  });
+
+  it('should return baseMs when EWMA is very small', () => {
+    expect(computeAdaptiveTimeout(5000, 100)).toBe(5000);
+  });
+
+  it('should handle zero baseMs', () => {
+    expect(computeAdaptiveTimeout(0, 1000)).toBe(3000);
   });
 });

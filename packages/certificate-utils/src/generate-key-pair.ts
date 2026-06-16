@@ -1,6 +1,6 @@
-import { generateKeyPairSync } from 'node:crypto';
+import { generateKeyPairSync as nodeGenerateKeyPairSync, randomUUID } from 'node:crypto';
 
-import { KeyPair } from './types';
+import { KeyPair, KeyPairWithId } from './types';
 
 export const KeyAlgorithm = {
   RSA_4096: 'rsa',
@@ -14,7 +14,7 @@ export function generateKeyPair(algorithm: KeyAlgorithm = KeyAlgorithm.EC_P384):
     algorithm === KeyAlgorithm.RSA_4096 ? { modulusLength: 4096 } : { namedCurve: 'P-384' };
 
   const { publicKey, privateKey } = (
-    generateKeyPairSync as (
+    nodeGenerateKeyPairSync as (
       type: string,
       options: Record<string, unknown>
     ) => { publicKey: unknown; privateKey: unknown }
@@ -29,3 +29,12 @@ export function generateKeyPair(algorithm: KeyAlgorithm = KeyAlgorithm.EC_P384):
     privateKey: privateKey as string,
   };
 }
+
+export const generateKeyPairSync = generateKeyPair;
+
+export function generateKeyPairWithId(algorithm: KeyAlgorithm = KeyAlgorithm.EC_P384): KeyPairWithId {
+  const pair = generateKeyPair(algorithm);
+  return { ...pair, id: randomUUID() };
+}
+
+export const generateKeyPairWithIdSync = generateKeyPairWithId;

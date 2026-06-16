@@ -411,4 +411,24 @@ describe('createBootstrap', () => {
 
     expect(setupAutoRenew).toHaveBeenCalledWith('raw-server');
   });
+
+  it('should handle server close timeout with a hanging close', async () => {
+    jest.useFakeTimers();
+    process.exitCode = undefined;
+    const mockServer = {
+      close: jest.fn(() => new Promise<void>(() => {})), // never resolves
+    };
+
+    const result = createBootstrap({
+      name: 'test',
+      createServer: (() => mockServer) as any,
+    });
+
+    const shutdownPromise = result.shutdown('SIGTERM');
+    jest.advanceTimersByTime(10001);
+    await shutdownPromise;
+
+    expect(process.exitCode).toBe(1);
+    jest.useRealTimers();
+  });
 });

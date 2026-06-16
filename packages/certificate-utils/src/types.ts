@@ -34,6 +34,8 @@ export interface KeyPair {
   privateKey: string;
 }
 
+export type KeyPairWithId = KeyPair & { id: string };
+
 export interface CertificateInfo {
   serialNumber: string;
   subject: string;

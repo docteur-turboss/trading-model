@@ -10,7 +10,9 @@ jest.mock('fs/promises', () => ({
 }));
 
 import { appendFile } from 'fs';
+import { mkdir } from 'fs/promises';
 const mockAppendFile = appendFile as unknown as jest.Mock;
+const mockMkdir = mkdir as unknown as jest.Mock;
 
 describe('Logger', () => {
   let logger: Logger;
@@ -306,6 +308,13 @@ describe('Logger', () => {
       expect(logs[0].context).toEqual({ key: 'val' });
       expect(logs[0].url).toBe('https://example.com');
       expect(logs[0].serviceInCharge).toBe('my-service');
+    });
+  });
+
+  describe('mkdir failure', () => {
+    it('should handle mkdir rejection gracefully', () => {
+      (mockMkdir as jest.Mock).mockImplementationOnce(() => Promise.reject(new Error('disk full')));
+      expect(() => logger.info('test mkdir fail')).not.toThrow();
     });
   });
 });
