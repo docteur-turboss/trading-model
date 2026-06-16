@@ -3,12 +3,15 @@ import { z } from 'zod';
 
 jest.mock('https');
 jest.mock('fs', () => ({
-  readFileSync: jest.fn((path: string) => `content-of-${path}`),
-  accessSync: jest.fn(),
+  promises: {
+    access: jest.fn(() => Promise.resolve()),
+    readFile: jest.fn((path: string) => Promise.resolve(`content-of-${path}`)),
+  },
   constants: { R_OK: 4 },
+  readFileSync: jest.fn(),
 }));
 
-import fs from 'fs';
+import fs from 'node:fs';
 import { HttpClient, HttpClientError, HttpClientTimeoutError } from '../../src/config/http-client';
 import https from 'https';
 
@@ -39,25 +42,23 @@ describe('HttpClient', () => {
   });
 
   describe('constructor', () => {
-    it('should read TLS files when tlsConfig is provided', () => {
+    it('should not read TLS files eagerly when tlsConfig is provided', () => {
       const tlsClient = new HttpClient({
         ca: '/path/to/ca.pem',
         cert: '/path/to/cert.pem',
         key: '/path/to/key.pem',
       });
 
-      expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/ca.pem', 'utf8');
-      expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/cert.pem', 'utf8');
-      expect(fs.readFileSync).toHaveBeenCalledWith('/path/to/key.pem', 'utf8');
+      expect((fs as any).promises.readFile).not.toHaveBeenCalled();
       expect(tlsClient).toBeInstanceOf(HttpClient);
     });
 
     it('should not read TLS files when tlsConfig is empty', () => {
-      (fs.readFileSync as jest.Mock).mockClear();
+      (fs as any).promises.readFile.mockClear();
 
       new HttpClient({});
 
-      expect(fs.readFileSync).not.toHaveBeenCalled();
+      expect((fs as any).promises.readFile).not.toHaveBeenCalled();
     });
   });
 
@@ -111,7 +112,7 @@ describe('HttpClient', () => {
     });
 
     it('should reject on timeout', async () => {
-      const promise = client.get('https://example.com/api', { timeoutMs: 100 });
+      const promise = client.get('https://example.com/api', { timeoutMs: 100, retryCount: 0 });
       mockReq._timeoutCb();
 
       await expect(promise).rejects.toThrow(HttpClientTimeoutError);
@@ -246,40 +247,46 @@ describe('HttpClient', () => {
   });
 
   describe('createWithTls', () => {
-    it('should create HttpClient with TLS paths', () => {
-      (fs.readFileSync as jest.Mock).mockClear();
-      (fs.accessSync as jest.Mock).mockClear();
+    it('should create HttpClient with TLS paths (lazy load)', () => {
+      (fs as any).promises.readFile.mockClear();
+      (fs as any).promises.access.mockClear();
 
       const client = HttpClient.createWithTls({
         RootCACertPath: '/etc/ca.pem',
-        CertificatPath: '/etc/cert.pem',
-        KeyCertificatPath: '/etc/key.pem',
+        CertificatePath: '/etc/cert.pem',
+        KeyCertificatePath: '/etc/key.pem',
       });
 
       expect(client).toBeInstanceOf(HttpClient);
-      expect(fs.readFileSync).toHaveBeenCalledWith('/etc/ca.pem', 'utf8');
-      expect(fs.readFileSync).toHaveBeenCalledWith('/etc/cert.pem', 'utf8');
-      expect(fs.readFileSync).toHaveBeenCalledWith('/etc/key.pem', 'utf8');
+      expect((fs as any).promises.readFile).not.toHaveBeenCalled();
     });
   });
 
   describe('TLS error handling', () => {
-    it('should throw descriptive error when TLS file cannot be read (Error thrown)', () => {
-      (fs.accessSync as jest.Mock).mockImplementationOnce(() => {
-        throw new Error('ENOENT: no such file');
-      });
+    beforeEach(() => {
+      jest.clearAllMocks();
+      (fs as any).promises.access.mockReset();
+      (fs as any).promises.readFile.mockReset();
+    });
 
-      expect(() => new HttpClient({ ca: '/bad/path.pem' })).toThrow(
+    it('should throw descriptive error when TLS file cannot be read (Error thrown)', async () => {
+      (fs as any).promises.access.mockRejectedValueOnce(new Error('ENOENT: no such file'));
+
+      const client = new HttpClient({ ca: '/bad/path.pem' });
+      const promise = client.get('https://example.com/api');
+
+      await expect(promise).rejects.toThrow(
         'Failed to read TLS CA certificate from "/bad/path.pem"'
       );
     });
 
-    it('should handle non-Error rejection from TLS file read', () => {
-      (fs.accessSync as jest.Mock).mockImplementationOnce(() => {
-        throw 'string error';
-      });
+    it('should handle non-Error rejection from TLS file read', async () => {
+      (fs as any).promises.access.mockRejectedValueOnce('string error');
 
-      expect(() => new HttpClient({ ca: '/bad/path.pem' })).toThrow(
+      const client = new HttpClient({ ca: '/bad/path.pem' });
+      const promise = client.get('https://example.com/api');
+
+      await expect(promise).rejects.toThrow(
         'Failed to read TLS CA certificate from "/bad/path.pem"'
       );
     });
