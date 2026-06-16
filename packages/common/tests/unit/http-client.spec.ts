@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { z } from 'zod';
 
 jest.mock('https');
@@ -12,20 +12,31 @@ jest.mock('fs', () => ({
 }));
 
 import fs from 'node:fs';
-import { HttpClient, HttpClientError, HttpClientTimeoutError } from '../../src/config/http-client';
+import {
+  HttpClient,
+  HttpClientError,
+  HttpClientTimeoutError,
+  computeAdaptiveTimeout,
+  isServiceCircuitOpen,
+} from '../../src/config/http-client';
 import https from 'https';
 
 describe('HttpClient', () => {
   let client: HttpClient;
   let requestCallback: ((res: any) => void) | null;
   let mockReq: any;
+  let errorHandler: ((err: Error) => void) | null;
 
   beforeEach(() => {
     requestCallback = null;
+    errorHandler = null;
     mockReq = {
       write: jest.fn(),
       end: jest.fn(),
-      on: jest.fn(),
+      on: jest.fn((event: string, cb: (...args: any[]) => void) => {
+        if (event === 'error') errorHandler = cb as (err: Error) => void;
+        return mockReq;
+      }),
       setTimeout: jest.fn((ms: number, cb: () => void) => {
         mockReq._timeoutCb = cb;
         return mockReq;
@@ -106,7 +117,7 @@ describe('HttpClient', () => {
 
     it('should reject on request error', async () => {
       const promise = client.get('https://example.com/api');
-      mockReq.on.mock.calls[0][1](new Error('connection failed'));
+      errorHandler!(new Error('connection failed'));
 
       await expect(promise).rejects.toThrow('connection failed');
     });
@@ -338,5 +349,302 @@ describe('HttpClient', () => {
       await expect(promise).rejects.toThrow('parse-error-string');
       jest.restoreAllMocks();
     });
+  });
+
+  describe('circuit breaker (hostname)', () => {
+    beforeEach(() => {
+      (https.request as jest.Mock).mockClear();
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should succeed on first request to a hostname', async () => {
+      const promise = client.get('https://cb-first.example.com/api');
+      simulateResponse(200, JSON.stringify({ ok: true }), 'application/json');
+      await expect(promise).resolves.toEqual({ ok: true });
+    });
+
+    it('should fail after consecutive failures and eventually reject with circuit open', async () => {
+      for (let i = 0; i < 6; i++) {
+        const promise = client.get('https://cb-sequential.example.com/api', { retryCount: 0 });
+        if (i < 5) {
+          errorHandler!(new Error('ECONNRESET'));
+          await expect(promise).rejects.toThrow('ECONNRESET');
+        } else {
+          await expect(promise).rejects.toThrow(HttpClientError);
+          await expect(promise).rejects.toThrow('Circuit breaker open for cb-sequential.example.com');
+        }
+      }
+    });
+
+    it('should reset circuit on success after half-open', async () => {
+      for (let i = 0; i < 5; i++) {
+        const promise = client.get('https://cb-reset.example.com/api', { retryCount: 0 });
+        errorHandler!(new Error('ECONNRESET'));
+        await expect(promise).rejects.toThrow();
+      }
+
+      // Advance past cooldown
+      jest.advanceTimersByTime(30_001);
+
+      const promise = client.get('https://cb-reset.example.com/api', { retryCount: 0 });
+      simulateResponse(200, JSON.stringify({ ok: true }), 'application/json');
+      await expect(promise).resolves.toEqual({ ok: true });
+    });
+  });
+
+  describe('circuit breaker (service)', () => {
+    beforeEach(() => {
+      (https.request as jest.Mock).mockClear();
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should open after threshold failures and reject via isServiceCircuitOpen', async () => {
+      for (let i = 0; i < 5; i++) {
+        const promise = client.get('https://cb-svc-1.example.com/api', { retryCount: 0, serviceName: 'my-service' });
+        errorHandler!(new Error('ECONNRESET'));
+        await expect(promise).rejects.toThrow();
+      }
+
+      expect(isServiceCircuitOpen('my-service')).toBe(true);
+    });
+
+    it('should respect dynamic threshold based on instance count', async () => {
+      isServiceCircuitOpen('dynamic-service'); // warm up entry
+
+      for (let i = 0; i < 6; i++) {
+        const promise = client.get(`https://cb-svc-dyn-${i}.example.com/api`, {
+          retryCount: 0,
+          serviceName: 'dynamic-service',
+          serviceInstanceCount: 3,
+        });
+        errorHandler!(new Error('ECONNRESET'));
+        await expect(promise).rejects.toThrow();
+      }
+
+      expect(isServiceCircuitOpen('dynamic-service')).toBe(true);
+    });
+
+    it('should reset service circuit on success after cooldown', async () => {
+      for (let i = 0; i < 5; i++) {
+        const promise = client.get('https://cb-svc-3.example.com/api', { retryCount: 0, serviceName: 'reset-service' });
+        errorHandler!(new Error('ECONNRESET'));
+        await expect(promise).rejects.toThrow();
+      }
+
+      jest.advanceTimersByTime(30_001);
+
+      const promise = client.get('https://cb-svc-3.example.com/api', { retryCount: 0, serviceName: 'reset-service' });
+      simulateResponse(200, JSON.stringify({ ok: true }), 'application/json');
+      await expect(promise).resolves.toEqual({ ok: true });
+
+      expect(isServiceCircuitOpen('reset-service')).toBe(false);
+    });
+  });
+
+  describe('retry logic', () => {
+    beforeEach(() => {
+      (https.request as jest.Mock).mockClear();
+    });
+
+    it('should retry on 503 status and eventually succeed', async () => {
+      let callCount = 0;
+      (https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
+        callCount++;
+        if (callCount <= 2) {
+          cb({
+            on: jest.fn((e: string, cb2: any) => {
+              if (e === 'data') cb2('');
+              if (e === 'end') cb2();
+            }),
+            statusCode: 503,
+            headers: { 'content-type': 'text/plain' },
+          });
+        } else {
+          cb({
+            on: jest.fn((e: string, cb2: any) => {
+              if (e === 'data') cb2(JSON.stringify({ ok: true }));
+              if (e === 'end') cb2();
+            }),
+            statusCode: 200,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
+        return { write: jest.fn(), end: jest.fn(), on: jest.fn(), setTimeout: jest.fn(), destroy: jest.fn() };
+      });
+
+      const result = await client.get('https://example.com/api');
+      expect(result).toEqual({ ok: true });
+      expect(callCount).toBe(3);
+    });
+
+    it('should exhaust retries and throw the last error', async () => {
+      (https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
+        cb({
+          on: jest.fn((e: string, cb2: any) => {
+            if (e === 'data') cb2('');
+            if (e === 'end') cb2();
+          }),
+          statusCode: 503,
+          headers: { 'content-type': 'text/plain' },
+        });
+        return { write: jest.fn(), end: jest.fn(), on: jest.fn(), setTimeout: jest.fn(), destroy: jest.fn() };
+      });
+
+      const promise = client.get('https://example.com/api', { retryCount: 1 });
+      await expect(promise).rejects.toThrow(HttpClientError);
+    });
+  });
+
+  describe('TLS lazy loading', () => {
+    beforeEach(() => {
+      (https.request as jest.Mock).mockClear();
+      (fs as any).promises.access.mockResolvedValue(undefined);
+      (fs as any).promises.readFile.mockResolvedValue('cert-pem-content');
+    });
+
+    it('should not read TLS files before a request is made (lazy)', () => {
+      new HttpClient({ ca: '/etc/ca.pem' });
+      expect((fs as any).promises.readFile).not.toHaveBeenCalled();
+    });
+
+    it('should read all three cert files when provided', async () => {
+      (fs as any).promises.readFile.mockClear();
+      const tlsClient = new HttpClient({
+        ca: '/etc/ca.pem',
+        cert: '/etc/cert.pem',
+        key: '/etc/key.pem',
+      }) as any;
+
+      await tlsClient.ensureTlsLoaded();
+
+      expect((fs as any).promises.readFile).toHaveBeenCalledWith('/etc/ca.pem', 'utf8');
+      expect((fs as any).promises.readFile).toHaveBeenCalledWith('/etc/cert.pem', 'utf8');
+      expect((fs as any).promises.readFile).toHaveBeenCalledWith('/etc/key.pem', 'utf8');
+    });
+
+    it('should read only CA when cert and key are not provided', async () => {
+      (fs as any).promises.readFile.mockClear();
+      const tlsClient = new HttpClient({ ca: '/etc/ca.pem' }) as any;
+
+      await tlsClient.ensureTlsLoaded();
+
+      expect((fs as any).promises.readFile).toHaveBeenCalledTimes(1);
+      expect((fs as any).promises.readFile).toHaveBeenCalledWith('/etc/ca.pem', 'utf8');
+    });
+
+    it('should set tlsLoaded flag after loading completes', async () => {
+      const tlsClient = new HttpClient({ ca: '/etc/ca.pem' }) as any;
+
+      expect(tlsClient.tlsLoaded).toBe(false);
+      await tlsClient.ensureTlsLoaded();
+      expect(tlsClient.tlsLoaded).toBe(true);
+    });
+  });
+
+  describe('service circuit open rejection', () => {
+    beforeEach(() => {
+      (https.request as jest.Mock).mockClear();
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should throw circuit breaker error when making request with open service circuit', async () => {
+      for (let i = 0; i < 5; i++) {
+        const promise = client.get('https://cb-svc-open-host.example.com/api', {
+          retryCount: 0,
+          serviceName: 'open-test-service',
+        });
+        errorHandler!(new Error('ECONNRESET'));
+        await expect(promise).rejects.toThrow();
+      }
+
+      const promise = client.get('https://different-host-for-svc.example.com/api', {
+        retryCount: 0,
+        serviceName: 'open-test-service',
+      });
+      await expect(promise).rejects.toThrow('Circuit breaker open for service open-test-service');
+    });
+  });
+
+  describe('isServiceCircuitOpen half-open transitions', () => {
+    beforeEach(() => {
+      (https.request as jest.Mock).mockClear();
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should transition to half-open after cooldown and return false from isServiceCircuitOpen', async () => {
+      for (let i = 0; i < 5; i++) {
+        const promise = client.get('https://cb-halfopen.example.com/api', {
+          retryCount: 0,
+          serviceName: 'halfopen-service',
+        });
+        errorHandler!(new Error('ECONNRESET'));
+        await expect(promise).rejects.toThrow();
+      }
+
+      jest.advanceTimersByTime(30_001);
+
+      expect(isServiceCircuitOpen('halfopen-service')).toBe(false);
+    });
+
+    it('should return true for half-open state when no request resets it', async () => {
+      for (let i = 0; i < 5; i++) {
+        const promise = client.get('https://cb-halfopen2.example.com/api', {
+          retryCount: 0,
+          serviceName: 'halfopen-service-2',
+        });
+        errorHandler!(new Error('ECONNRESET'));
+        await expect(promise).rejects.toThrow();
+      }
+
+      jest.advanceTimersByTime(30_001);
+
+      isServiceCircuitOpen('halfopen-service-2');
+      expect(isServiceCircuitOpen('halfopen-service-2')).toBe(true);
+    });
+  });
+});
+
+describe('computeAdaptiveTimeout', () => {
+  it('should return baseMs × 2 when no EWMA latency', () => {
+    expect(computeAdaptiveTimeout(5000)).toBe(10000);
+  });
+
+  it('should return max(baseMs, ewmaLatencyMs × 3) when latency is known', () => {
+    expect(computeAdaptiveTimeout(5000, 2000)).toBe(6000);
+  });
+
+  it('should return baseMs when EWMA is very small', () => {
+    expect(computeAdaptiveTimeout(5000, 100)).toBe(5000);
+  });
+
+  it('should handle zero baseMs', () => {
+    expect(computeAdaptiveTimeout(0, 1000)).toBe(3000);
+  });
+});
+
+describe('isServiceCircuitOpen', () => {
+  it('should return false for unknown service', () => {
+    expect(isServiceCircuitOpen('nonexistent')).toBe(false);
+  });
+
+  it('should return false for a service with no recorded failures', () => {
+    // Accesses the internal map implicitly: after a success the circuit remains closed
+    expect(isServiceCircuitOpen('fresh-service')).toBe(false);
   });
 });

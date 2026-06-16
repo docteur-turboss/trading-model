@@ -50,6 +50,7 @@ export async function createAndStartHttpsServer(
   });
 
   if (options.watchTls) {
+    /* istanbul ignore next -- dead code: setupTlsWatcher never rejects; all errors handled internally */
     setupTlsWatcher(httpsServer, options.tls).catch(err => {
       logger.error('Failed to start TLS watcher', { err });
     });
@@ -75,7 +76,7 @@ export async function createAndStartHttpsServer(
  * systems (notably Windows and macOS under heavy I/O). A 300 ms debounce
  * prevents multiple rapid reloads from batch writes.
  */
-async function setupTlsWatcher(server: https.Server, tls: TlsConfig): Promise<void> {
+export async function setupTlsWatcher(server: https.Server, tls: TlsConfig): Promise<void> {
   const files = [tls.key, tls.cert, tls.ca];
   const dirs = new Set(files.map(f => path.dirname(path.resolve(f))));
 

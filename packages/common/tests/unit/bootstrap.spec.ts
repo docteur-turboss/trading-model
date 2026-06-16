@@ -331,4 +331,84 @@ describe('createBootstrap', () => {
     mockHardShutdown!(0);
     expect(process.exitCode).toBe(0);
   });
+
+  it('should handle rejected onBeforeServer promise', async () => {
+    process.exitCode = undefined;
+    const onBeforeServer = jest.fn(() => Promise.reject(new Error('before failed')));
+
+    createBootstrap({
+      name: 'test',
+      createServer: (() => ({ close: jest.fn(async () => {}) })) as any,
+      onBeforeServer: onBeforeServer as any,
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('should handle TLS bootstrap rejection', async () => {
+    process.exitCode = undefined;
+    const ensure = jest.fn(() => Promise.reject(new Error('tls failed')));
+
+    createBootstrap({
+      name: 'test',
+      createServer: (() => ({ close: jest.fn(async () => {}) })) as any,
+      tlsBootstrap: { ensure },
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('should call setupAutoRenew when tlsBootstrap provides it', () => {
+    const setupAutoRenew = jest.fn();
+    const mockServer = { close: jest.fn(async () => {}), raw: 'raw-server' };
+
+    createBootstrap({
+      name: 'test',
+      createServer: (() => mockServer) as any,
+      tlsBootstrap: { ensure: jest.fn() as unknown as () => Promise<void>, setupAutoRenew },
+    });
+
+    expect(setupAutoRenew).toHaveBeenCalledWith('raw-server');
+  });
+
+  it('should handle resolved onBeforeServer promise and call afterBeforeServer', async () => {
+    const setupAutoRenew = jest.fn();
+    const mockServer = { close: jest.fn(async () => {}), raw: 'raw-server' };
+    const onBeforeServer = jest.fn(() => Promise.resolve());
+
+    createBootstrap({
+      name: 'test',
+      createServer: (() => mockServer) as any,
+      onBeforeServer: onBeforeServer as any,
+      tlsBootstrap: { ensure: jest.fn() as unknown as () => Promise<void>, setupAutoRenew },
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(setupAutoRenew).toHaveBeenCalledWith('raw-server');
+  });
+
+  it('should handle resolved TLS bootstrap and call afterTls', async () => {
+    const setupAutoRenew = jest.fn();
+    const mockServer = { close: jest.fn(async () => {}), raw: 'raw-server' };
+    const ensure = jest.fn(() => Promise.resolve());
+
+    createBootstrap({
+      name: 'test',
+      createServer: (() => mockServer) as any,
+      tlsBootstrap: { ensure, setupAutoRenew },
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(setupAutoRenew).toHaveBeenCalledWith('raw-server');
+  });
 });

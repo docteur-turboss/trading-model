@@ -65,6 +65,7 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import https from 'node:https';
 import fs from 'node:fs/promises';
+import { logger } from '../../src/config/logger';
 
 describe('createSecureServer', () => {
   const defaultOptions = {
@@ -182,5 +183,16 @@ describe('createSecureServer', () => {
         limit: 50,
       })
     );
+  });
+
+  it('should skip TLS watcher when watchTls is false', async () => {
+    (logger.warn as jest.Mock).mockClear();
+
+    await createSecureServer({
+      ...defaultOptions,
+      watchTls: false,
+    });
+
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 });
