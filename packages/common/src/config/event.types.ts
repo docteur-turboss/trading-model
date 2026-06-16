@@ -125,6 +125,10 @@ export const EnumEventMessage = {
   /** Audit system events */
   auditHeartbeat: 'audit.heartbeat',
   auditGapDetected: 'audit.gap.detected',
+
+  /** CA / Certificate Infrastructure events */
+  certificateRevoked: 'certificate.revoked',
+  caKeyRotated: 'ca.key.rotated',
 } as const;
 
 type EventMessage = (typeof EnumEventMessage)[keyof typeof EnumEventMessage];
@@ -143,6 +147,10 @@ export type EventMap = {
   /** Audit system events */
   [EnumEventMessage.auditHeartbeat]: { serviceName: string; instanceId: string };
   [EnumEventMessage.auditGapDetected]: { from: Date; to: Date; lostCount?: number };
+
+  /** CA / Certificate Infrastructure events */
+  [EnumEventMessage.certificateRevoked]: { serialNumber: string; serviceId: string; reason: string; revokedAt: string; instanceId: string };
+  [EnumEventMessage.caKeyRotated]: { keyId: string; keyVersion: number; instanceId: string };
 };
 
 /** Extracts the payload type for a given event message. */

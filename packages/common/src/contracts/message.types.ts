@@ -34,6 +34,9 @@ export interface IdentifyType {
 
   /** Unique instance identifier (pod / container). */
   instanceId: string;
+
+  /** Deployment region for geo-affinity routing. */
+  region?: string;
 }
 
 /**
@@ -42,6 +45,9 @@ export interface IdentifyType {
 export interface RoutingType {
   /** Ensures ordering for a given business key. */
   partitionKey?: string;
+
+  /** Monotonically increasing sequence number per partition key. */
+  sequenceNumber?: number;
 
   /** Influences delivery scheduling priority. */
   priority?: number;
@@ -85,10 +91,10 @@ export interface BrokerConfig {
   RootCACertPath: string;
 
   /** Path to the client certificate. */
-  CertificatPath: string;
+  CertificatePath: string;
 
   /** Path to the client key. */
-  KeyCertificatPath: string;
+  KeyCertificatePath: string;
 }
 
 /**
