@@ -44,6 +44,10 @@ export function setupProcessHandlers(
   const onUnhandledRejection = (reason: unknown) => {
     logger.error('Unhandled promise rejection - exiting', { reason });
     hardShutdown(1);
+    // Node.js 15+ does not terminate on unhandledRejection when a handler exists.
+    // If active handles (WebSocket, timers) keep the loop busy, setImmediate may
+    // never fire — call exit directly so the process doesn't remain zombie.
+    process.exit(1);
   };
 
   process.on('SIGTERM', onSigTerm);
@@ -51,10 +55,12 @@ export function setupProcessHandlers(
   process.on('uncaughtException', onUncaughtException);
   process.on('unhandledRejection', onUnhandledRejection);
 
-  cleanupFns.push(() => process.removeListener('SIGTERM', onSigTerm));
-  cleanupFns.push(() => process.removeListener('SIGINT', onSigInt));
-  cleanupFns.push(() => process.removeListener('uncaughtException', onUncaughtException));
-  cleanupFns.push(() => process.removeListener('unhandledRejection', onUnhandledRejection));
+  cleanupFns.push(() => {
+    process.removeListener('SIGTERM', onSigTerm);
+    process.removeListener('SIGINT', onSigInt);
+    process.removeListener('uncaughtException', onUncaughtException);
+    process.removeListener('unhandledRejection', onUnhandledRejection);
+  });
 }
 
 /**

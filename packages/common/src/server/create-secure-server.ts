@@ -15,6 +15,7 @@ export interface SecureServerOptions {
   routes: (app: Application) => void;
   rateLimit?: RateLimitConfig;
   trustProxy?: boolean;
+  watchTls?: boolean;
 }
 
 /**
@@ -37,5 +38,9 @@ export async function createSecureServer(options: SecureServerOptions): Promise<
 
   app.use(ResponseProtocol);
 
-  return await createAndStartHttpsServer(app, { port: options.port, tls: options.tls });
+  return await createAndStartHttpsServer(app, {
+    port: options.port,
+    tls: options.tls,
+    watchTls: options.watchTls ?? true,
+  });
 }

@@ -1,14 +1,24 @@
+import https from 'node:https';
+
 import { HttpServer } from './create-secure-server';
 import { setupProcessHandlers } from './signal-handler';
 import { logger } from '../config/logger';
 import { normalizeError } from '../utils/errors';
 
+/** TLS bootstrap configuration for automatic certificate lifecycle management. */
+export interface TlsBootstrapOptions {
+  ensure: () => Promise<void>;
+  setupAutoRenew?: (server: https.Server) => void;
+}
+
 /** Options for configuring a service bootstrap lifecycle. */
 export interface BootstrapOptions {
   name: string;
   createServer: () => HttpServer | Promise<HttpServer>;
+  onBeforeServer?: () => void | Promise<void>;
   onStart?: () => void;
   onStop?: () => void;
+  tlsBootstrap?: TlsBootstrapOptions | null;
 }
 
 /**
@@ -29,14 +39,14 @@ export function createBootstrap(options: BootstrapOptions): {
    */
   function hardShutdown(code: number): void {
     if (server) {
-      server.close().catch(() => {});
+      server.close().catch(err => logger.warn('Server close during forced shutdown failed', { err: normalizeError(err) }));
     }
 
     if (options.onStop) {
       try {
         options.onStop();
-      } catch {
-        /* cleanup error during forced shutdown — ignore */
+      } catch (err) {
+        logger.warn('onStop callback failed during forced shutdown', { err: normalizeError(err) });
       }
     }
 
@@ -48,27 +58,77 @@ export function createBootstrap(options: BootstrapOptions): {
     try {
       logger.info('Bootstrapping service', { name: options.name });
 
-      const result = options.createServer();
-      if (result instanceof Promise) {
-        result
-          .then(s => {
-            server = s;
-            finishBootstrap();
-          })
+      const tlsResult = options.tlsBootstrap?.ensure();
+
+      const afterTls = (): void => {
+        const beforeServerResult = options.onBeforeServer?.();
+
+        const afterBeforeServer = (): void => {
+          const result = options.createServer();
+          if (result instanceof Promise) {
+            result
+              .then(s => {
+                server = s;
+                setupAutoRenew(s);
+                finishBootstrap();
+              })
+              .catch(err => {
+                logger.error('Fatal error during service bootstrap', { err: normalizeError(err) });
+                hardShutdown(1);
+              });
+            return;
+          }
+
+          server = result;
+          setupAutoRenew(result);
+          finishBootstrap();
+        };
+
+        if (beforeServerResult instanceof Promise) {
+          beforeServerResult
+            .then(() => afterBeforeServer())
+            .catch(err => {
+              logger.error('Fatal error in onBeforeServer hook', { err: normalizeError(err) });
+              hardShutdown(1);
+            });
+          return;
+        }
+
+        afterBeforeServer();
+      };
+
+      if (tlsResult instanceof Promise) {
+        tlsResult
+          .then(() => afterTls())
           .catch(err => {
-            logger.error('Fatal error during service bootstrap', { err: normalizeError(err) });
+            logger.error('Fatal error in TLS bootstrap', { err: normalizeError(err) });
             hardShutdown(1);
           });
         return;
       }
 
-      server = result;
-      finishBootstrap();
+      afterTls();
     } catch (error) {
       logger.error('Fatal error during service bootstrap', { err: normalizeError(error) });
       hardShutdown(1);
     }
 
+    /**
+     * Hooks the TLS auto-renew callback into the server lifecycle.
+     * Called once after the server is created — the callback wires into
+     * file watchers or ACME challenge handlers that rotate certificates
+     * without restarting the process.
+     */
+    function setupAutoRenew(s: HttpServer): void {
+      if (options.tlsBootstrap?.setupAutoRenew) {
+        options.tlsBootstrap.setupAutoRenew(s.raw);
+      }
+    }
+
+    /**
+     * Fires the onStart callback and logs successful completion.
+     * If onStart throws, the process is shut down with code 1.
+     */
     function finishBootstrap(): void {
       if (options.onStart) {
         try {
@@ -90,7 +150,13 @@ export function createBootstrap(options: BootstrapOptions): {
 
     try {
       if (server) {
-        await server.close();
+        const closeTimeout = 10000;
+        await Promise.race([
+          server.close(),
+          new Promise<void>((_, reject) => {
+            setTimeout(() => reject(new Error('Server close timed out')), closeTimeout);
+          }),
+        ]);
         logger.info('HTTP server closed');
       }
 

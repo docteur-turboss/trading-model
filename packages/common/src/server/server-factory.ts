@@ -1,41 +1,33 @@
-import fs from 'node:fs/promises';
+import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
 import https from 'node:https';
 import path from 'node:path';
 
 import { Application } from 'express';
 
+import { normalizeError } from '../utils/errors';
 import { TlsConfig } from './load-tls-config';
 import { logger } from '../config/logger';
 
-/** Options for creating the HTTPS server. */
 export interface HttpsServerOptions {
   port: number;
   tls: TlsConfig;
+  watchTls?: boolean;
 }
 
-/** Minimal abstraction over a running HTTP server. */
 export interface HttpServer {
   close: () => Promise<void>;
-  /** The underlying Node.js HTTPS server instance, useful for WebSocket upgrades. */
   raw: https.Server;
 }
 
-/**
- * Create an HTTPS server with mTLS (TLSv1.3, requestCert, rejectUnauthorized),
- * start listening on the given port, and return an HttpServer handle.
- *
- * @param app - The configured Express Application to serve.
- * @param options - Port and TLS certificate paths.
- * @returns An HttpServer with a close method that drains connections.
- */
 export async function createAndStartHttpsServer(
   app: Application,
   options: HttpsServerOptions
 ): Promise<HttpServer> {
   const [key, cert, ca] = await Promise.all([
-    fs.readFile(path.resolve(options.tls.key), 'utf8'),
-    fs.readFile(path.resolve(options.tls.cert), 'utf8'),
-    fs.readFile(path.resolve(options.tls.ca), 'utf8'),
+    fsPromises.readFile(path.resolve(options.tls.key), 'utf8'),
+    fsPromises.readFile(path.resolve(options.tls.cert), 'utf8'),
+    fsPromises.readFile(path.resolve(options.tls.ca), 'utf8'),
   ]);
 
   const httpsServer = https.createServer(
@@ -57,6 +49,12 @@ export async function createAndStartHttpsServer(
     });
   });
 
+  if (options.watchTls) {
+    setupTlsWatcher(httpsServer, options.tls).catch(err => {
+      logger.error('Failed to start TLS watcher', { err });
+    });
+  }
+
   return {
     raw: httpsServer,
     close: () =>
@@ -67,4 +65,50 @@ export async function createAndStartHttpsServer(
         });
       }),
   };
+}
+
+/**
+ * Watches the TLS certificate directories for file changes and reloads
+ * the server's secure context without restarting the process.
+ *
+ * Uses fs.watch which is platform-native but may be unreliable on some
+ * systems (notably Windows and macOS under heavy I/O). A 300 ms debounce
+ * prevents multiple rapid reloads from batch writes.
+ */
+async function setupTlsWatcher(server: https.Server, tls: TlsConfig): Promise<void> {
+  const files = [tls.key, tls.cert, tls.ca];
+  const dirs = new Set(files.map(f => path.dirname(path.resolve(f))));
+
+  const reloadTls = async (eventType: string, filename: string | null): Promise<void> => {
+    if (eventType !== 'change') return;
+
+    try {
+      const [key, cert, ca] = await Promise.all([
+        fsPromises.readFile(path.resolve(tls.key), 'utf8'),
+        fsPromises.readFile(path.resolve(tls.cert), 'utf8'),
+        fsPromises.readFile(path.resolve(tls.ca), 'utf8'),
+      ]);
+
+      server.setSecureContext({ key, cert, ca });
+      logger.info('TLS context reloaded', { event: eventType, file: filename });
+    } catch (err) {
+      logger.error('Failed to reload TLS context', { err });
+    }
+  };
+
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const debouncedReload = (eventType: string, filename: string | null): void => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => { reloadTls(eventType, filename); }, 300);
+  };
+
+  await Promise.all([...dirs].map(async (dir) => {
+    try {
+      await fsPromises.access(dir, fs.constants.R_OK);
+      const watcher = fs.watch(dir, debouncedReload);
+      watcher.unref();
+    } catch (err) {
+      logger.warn('Cannot watch TLS directory', { dir, err: normalizeError(err) });
+    }
+  }));
 }

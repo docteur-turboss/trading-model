@@ -31,6 +31,7 @@ import { removeProcessHandlers } from '../../src/server/signal-handler';
 describe('createBootstrap', () => {
   beforeEach(() => {
     jest.spyOn(process, 'on').mockImplementation(() => process as any);
+    jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
   });
 
   afterEach(() => {
