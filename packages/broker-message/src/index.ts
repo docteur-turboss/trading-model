@@ -33,9 +33,9 @@ export default class BrokerMessage {
 
   constructor({
     addressManagerClient,
-    KeyCertificatPath,
+    KeyCertificatePath,
     RootCACertPath,
-    CertificatPath,
+    CertificatePath,
     callbackPath: userCallbackPath,
     instanceId,
     serviceName,
@@ -43,8 +43,8 @@ export default class BrokerMessage {
     instanceId: string;
     callbackPath?: string;
     RootCACertPath: string;
-    CertificatPath: string;
-    KeyCertificatPath: string;
+    CertificatePath: string;
+    KeyCertificatePath: string;
     addressManagerClient: addressManagerClient;
     serviceName: ServiceInstanceName;
   }) {
@@ -52,8 +52,8 @@ export default class BrokerMessage {
 
     this.httpClient = HttpClient.createWithTls({
       RootCACertPath,
-      CertificatPath,
-      KeyCertificatPath,
+      CertificatePath,
+      KeyCertificatePath,
     });
 
     this.messageManagerClient = new MessageManagerClient(

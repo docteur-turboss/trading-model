@@ -1,5 +1,6 @@
 import { logger } from '@trading-model/common/config/logger';
 import { normalizeError } from '@trading-model/common/utils/errors';
+
 import AddressManager from './index';
 
 /** Environment variables required to configure and create an Address Manager instance. */

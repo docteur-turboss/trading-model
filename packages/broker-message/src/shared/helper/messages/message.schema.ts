@@ -258,6 +258,16 @@ const EventValidators: ZodEventMap<EventMap> = {
     to: z.string().transform(s => new Date(s)),
     lostCount: z.number().int().optional(),
   }),
+  [EnumEventMessage.certificateRevoked]: z.object({
+    serialNumber: z.string(),
+    subject: z.string(),
+    revokedAt: z.string().transform(s => new Date(s)),
+  }),
+  [EnumEventMessage.caKeyRotated]: z.object({
+    previousKeyId: z.string(),
+    newKeyId: z.string(),
+    rotatedAt: z.string().transform(s => new Date(s)),
+  }),
 };
 
 /** Validates the message payload as a discriminated union by event type. */
