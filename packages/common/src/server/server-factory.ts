@@ -5,9 +5,9 @@ import path from 'node:path';
 
 import { Application } from 'express';
 
-import { normalizeError } from '../utils/errors';
 import { TlsConfig } from './load-tls-config';
 import { logger } from '../config/logger';
+import { normalizeError } from '../utils/errors';
 
 export interface HttpsServerOptions {
   port: number;

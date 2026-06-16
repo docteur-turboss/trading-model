@@ -5,8 +5,8 @@ import { createGunzip, createInflate } from 'zlib';
 
 import { z } from 'zod';
 
-import { sleep } from '../utils/sleep';
 import { normalizeError } from '../utils/errors';
+import { sleep } from '../utils/sleep';
 
 /**
  * Reads a TLS file (key, cert, or CA) from disk.
