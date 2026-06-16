@@ -6,9 +6,9 @@ import MessageManagerClass from '../../index';
 /** Configuration options for creating a MessageManager instance. */
 export type MessageManagerOptions = {
   addressManagerClient: addressManagerClient;
-  CertificatPath: string;
+  CertificatePath: string;
   instanceId: string;
-  KeyCertificatPath: string;
+  KeyCertificatePath: string;
   RootCACertPath: string;
   serviceName: ServiceInstanceName;
   callbackPath: string;
@@ -22,9 +22,9 @@ export type MessageManagerOptions = {
 export function createMessageManager(options: MessageManagerOptions) {
   const ma = new MessageManagerClass({
     addressManagerClient: options.addressManagerClient,
-    CertificatPath: options.CertificatPath,
+    CertificatePath: options.CertificatePath,
     instanceId: options.instanceId,
-    KeyCertificatPath: options.KeyCertificatPath,
+    KeyCertificatePath: options.KeyCertificatePath,
     RootCACertPath: options.RootCACertPath,
     serviceName: options.serviceName,
     callbackPath: options.callbackPath,
