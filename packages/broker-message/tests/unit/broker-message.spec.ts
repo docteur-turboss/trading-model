@@ -33,8 +33,8 @@ describe('BrokerMessage', () => {
   const defaultParams: any = {
     instanceId: '550e8400-e29b-41d4-a716-446655440000',
     RootCACertPath: '/path/to/ca.pem',
-    CertificatPath: '/path/to/cert.pem',
-    KeyCertificatPath: '/path/to/key.pem',
+    CertificatePath: '/path/to/cert.pem',
+    KeyCertificatePath: '/path/to/key.pem',
     addressManagerClient: { findService: jest.fn() },
     serviceName: 'MessageDeliveryService',
   };

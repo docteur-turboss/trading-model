@@ -4,6 +4,7 @@ import { env } from './env';
 
 const addressManager = new AddressManagerClass({
   addressManagerUrl: env.ADDRESS_MANAGER_URL,
+  discoveryUrls: [env.ADDRESS_MANAGER_URL],
   cacheTtlMs: env.CACHE_TTL_MS,
   discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
   instanceId: env.INSTANCE_ID,
@@ -12,8 +13,8 @@ const addressManager = new AddressManagerClass({
   servicePort: env.PORT,
   tokenRefreshIntervalMs: env.TOKEN_REFRESH_INTERVAL_MS,
   ttlRefreshIntervalMs: env.TTL_REFRESH_INTERVAL_MS,
-  CertificatPath: env.TLS_CERT_PATH,
-  KeyCertificatPath: env.TLS_KEY_PATH,
+  CertificatePath: env.TLS_CERT_PATH,
+  KeyCertificatePath: env.TLS_KEY_PATH,
   RootCACertPath: env.TLS_CA_PATH,
 });
 

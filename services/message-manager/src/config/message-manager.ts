@@ -39,8 +39,8 @@ import BrokerModule from '../messaging/index';
  * This instance is shared across the entire application lifecycle.
  */
 const broker = new BrokerModule({
-  CertificatPath: env.TLS_CERT_PATH,
-  KeyCertificatPath: env.TLS_KEY_PATH,
+  CertificatePath: env.TLS_CERT_PATH,
+  KeyCertificatePath: env.TLS_KEY_PATH,
   RootCACertPath: env.TLS_CA_PATH,
 });
 

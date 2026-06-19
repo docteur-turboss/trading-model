@@ -18,9 +18,9 @@ import { createMessageManager } from '../../src/shared/helper/create-message-man
 describe('createMessageManager', () => {
   const options = {
     addressManagerClient: {} as any,
-    CertificatPath: '/path/to/cert.pem',
+    CertificatePath: '/path/to/cert.pem',
     instanceId: '550e8400-e29b-41d4-a716-446655440000',
-    KeyCertificatPath: '/path/to/key.pem',
+    KeyCertificatePath: '/path/to/key.pem',
     RootCACertPath: '/path/to/ca.pem',
     serviceName: ServiceInstanceName.MessageDeliveryService,
     callbackPath: '/callback',
@@ -37,9 +37,9 @@ describe('createMessageManager', () => {
 
     expect(MessageManagerClass).toHaveBeenCalledWith({
       addressManagerClient: options.addressManagerClient,
-      CertificatPath: options.CertificatPath,
+      CertificatePath: options.CertificatePath,
       instanceId: options.instanceId,
-      KeyCertificatPath: options.KeyCertificatPath,
+      KeyCertificatePath: options.KeyCertificatePath,
       RootCACertPath: options.RootCACertPath,
       serviceName: options.serviceName,
       callbackPath: options.callbackPath,

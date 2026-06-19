@@ -90,8 +90,8 @@ describe('AddressManager', () => {
     discoveryTimeoutMs: 5000,
     cacheTtlMs: 60000,
     RootCACertPath: '/path/to/ca.pem',
-    CertificatPath: '/path/to/cert.pem',
-    KeyCertificatPath: '/path/to/key.pem',
+    CertificatePath: '/path/to/cert.pem',
+    KeyCertificatePath: '/path/to/key.pem',
   };
 
   beforeEach(() => {

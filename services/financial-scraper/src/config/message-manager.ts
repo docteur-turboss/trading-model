@@ -6,9 +6,9 @@ import { env } from './env';
 
 export const { MessageManager, MessageManagerListenExpress } = createMessageManager({
   addressManagerClient: AddressManager,
-  CertificatPath: env.TLS_CERT_PATH,
+  CertificatePath: env.TLS_CERT_PATH,
   instanceId: env.INSTANCE_ID,
-  KeyCertificatPath: env.TLS_KEY_PATH,
+  KeyCertificatePath: env.TLS_KEY_PATH,
   RootCACertPath: env.TLS_CA_PATH,
   serviceName: env.SERVICE_NAME as ServiceInstanceName,
   callbackPath: env.MESSAGE_CALLBACK_PATH,
