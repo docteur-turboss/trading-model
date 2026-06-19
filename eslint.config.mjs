@@ -15,6 +15,7 @@ export default defineConfig([
     '**/jest.setup.ts',
     '**/setup.ts',
     '**/docs/architecture/code/**',
+    '**/knexfile.ts',
   ]),
   {
     files: ['**/*.{js,mjs,cjs}'],

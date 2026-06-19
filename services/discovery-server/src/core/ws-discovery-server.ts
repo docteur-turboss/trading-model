@@ -1,9 +1,9 @@
 import https from 'node:https';
+
 import WebSocket, { WebSocketServer } from 'ws';
 
 import { logger } from '@trading-model/common/config/logger';
 import { normalizeError } from '@trading-model/common/utils/errors';
-import { ServiceInstance } from '@trading-model/common/contracts/service-registry.types';
 
 const CLIENT_TIMEOUT_MS = 60_000;
 
@@ -100,7 +100,7 @@ export class WsDiscoveryServer {
     this.broadcastInvalidation(serviceName);
   }
 
-  notifyInstanceRemoved(serviceName: string, instanceId: string): void {
+  notifyInstanceRemoved(serviceName: string, _instanceId: string): void {
     this.broadcastInvalidation(serviceName);
   }
 

@@ -305,7 +305,7 @@ describe('WorkerClient defaults and reconnection', () => {
       maxConcurrency: 3,
     });
 
-    const promise = client.connect();
+    client.connect();
     const ws = getWs();
     if (ws) getCallbacks(ws).open();
     jest.clearAllMocks();

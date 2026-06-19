@@ -1,5 +1,5 @@
-import { EventEnumMap } from '../config/event.types';
 import { IdentifyType, MessageMetadata } from './message.types';
+import { EventEnumMap } from '../config/event.types';
 
 export type WsClientMessageType = 'subscribe' | 'unsubscribe' | 'publish_async' | 'publish_direct';
 

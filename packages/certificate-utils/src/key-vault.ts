@@ -1,8 +1,9 @@
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import { constants } from 'node:fs';
+import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 
 import { logger } from '@trading-model/common/config/logger';
 import { normalizeError } from '@trading-model/common/utils/errors';
+
 import { KeyAlgorithm, generateKeyPairWithId } from './generate-key-pair';
 import { KeyPair, KeyPairWithId } from './types';
 

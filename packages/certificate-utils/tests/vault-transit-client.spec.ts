@@ -1,14 +1,14 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockPost: any = jest.fn();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockGet: any = jest.fn();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockDelete: any = jest.fn();
 const mockHttpClientInstance = { post: mockPost, get: mockGet, delete: mockDelete };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const MockHttpClient: any = jest.fn(() => mockHttpClientInstance);
 MockHttpClient.createWithTls = jest.fn();
 

@@ -2,10 +2,10 @@ import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
 import Redis, { Cluster, RedisOptions } from 'ioredis';
 
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
-import { generateRandomStr } from '@trading-model/common/crypto/random';
-import { RegistryBackend, ServiceInstance } from '@trading-model/common/contracts/service-registry.types';
 import { logger } from '@trading-model/common/config/logger';
+import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import { RegistryBackend, ServiceInstance } from '@trading-model/common/contracts/service-registry.types';
+import { generateRandomStr } from '@trading-model/common/crypto/random';
 import { normalizeError } from '@trading-model/common/utils/errors';
 
 // ─── Connection Configuration Types ─────────────────────────────────────────

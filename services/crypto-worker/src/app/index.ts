@@ -1,7 +1,7 @@
-import { createBootstrap } from '@trading-model/common/server/bootstrap';
-import { warmupPool } from '@trading-model/certificate-utils/lazy-pool';
 import { createTlsBootstrap } from '@trading-model/certificate-client';
+import { warmupPool } from '@trading-model/certificate-utils/lazy-pool';
 import { logger } from '@trading-model/common/config/logger';
+import { createBootstrap } from '@trading-model/common/server/bootstrap';
 
 import { createServer } from './server';
 import { env } from '../config/env';

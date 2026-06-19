@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 import { WorkerClient, WorkerClientConfig } from './worker-client';
-import { SchedulerWsJobAssignedMessage } from '../contracts/worker-protocol.types';
 import { HttpClient } from '../config/http-client';
+import { SchedulerWsJobAssignedMessage } from '../contracts/worker-protocol.types';
 
 export interface BaseWorkerConfig {
   workerId?: string;

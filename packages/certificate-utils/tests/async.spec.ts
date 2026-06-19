@@ -153,7 +153,7 @@ describe('async module - remote client path', () => {
 
   it('parseKeyAsync should delegate to remote client', async () => {
     mockParseKey.mockResolvedValue({ publicKey: 'pk', privateKey: 'sk' });
-    const result = await parseKeyAsync('private-key');
+    await parseKeyAsync('private-key');
     expect(mockParseKey).toHaveBeenCalledWith('private-key');
   });
 

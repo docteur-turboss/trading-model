@@ -136,8 +136,8 @@ describe('WsDiscoveryServer', () => {
     });
 
     it('should log client connect and disconnect', () => {
+      const { ws } = makeConnection();
       const { logger } = require('@trading-model/common/config/logger');
-      const { server, ws } = makeConnection();
       expect(logger.info).toHaveBeenCalledWith('Discovery WS client connected', expect.any(Object));
       ws.handlers.close!();
       expect(logger.info).toHaveBeenCalledWith('Discovery WS client disconnected', expect.any(Object));

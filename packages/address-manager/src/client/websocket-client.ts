@@ -1,4 +1,5 @@
 import WebSocket from 'ws';
+
 import { logger } from '@trading-model/common/config/logger';
 import { normalizeError } from '@trading-model/common/utils/errors';
 

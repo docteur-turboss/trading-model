@@ -1,10 +1,11 @@
 import { BaseWorker, BaseWorkerConfig } from '@trading-model/common/worker/base-worker';
-import { generateKeyPair, KeyAlgorithm, generateKeyPairWithIdSync } from './generate-key-pair';
-import { signCertificate, SignOptions } from './sign-certificate';
+
 import { createCsr, CsrOptions } from './create-csr';
-import { validateCertificate } from './validate-certificate';
+import { generateKeyPair, KeyAlgorithm, generateKeyPairWithIdSync } from './generate-key-pair';
 import { parseKey, sign } from './sign';
+import { signCertificate, SignOptions } from './sign-certificate';
 import { KeyPair, KeyPairWithId } from './types';
+import { validateCertificate } from './validate-certificate';
 
 export function createCryptoWorker(config: BaseWorkerConfig): BaseWorker {
   const worker = new BaseWorker(config);

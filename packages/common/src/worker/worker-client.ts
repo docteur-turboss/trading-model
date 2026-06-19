@@ -1,18 +1,19 @@
-import WebSocket from 'ws';
-
+/* eslint-disable @typescript-eslint/no-unsafe-declaration-merging */
 import { EventEmitter } from 'node:events';
 
-import { logger } from '../config/logger';
-import { normalizeError } from '../utils/errors';
+import WebSocket from 'ws';
 
+
+import { logger } from '../config/logger';
 import {
   WorkerWsRegisterMessage,
   WorkerWsHeartbeatMessage,
   SchedulerWsJobAssignedMessage,
-  SchedulerWsDrainMessage,
   SchedulerOutgoingMessage,
   WorkerIncomingMessage,
 } from '../contracts/worker-protocol.types';
+import { normalizeError } from '../utils/errors';
+
 
 export interface WorkerClientConfig {
   workerId: string;

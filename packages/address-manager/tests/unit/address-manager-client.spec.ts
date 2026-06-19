@@ -206,9 +206,7 @@ describe('AddressManagerClient', () => {
       } as AddressManagerConfig;
       client = new AddressManagerClient(httpClient, tokenManager, config);
 
-      httpClient.post
-        .mockRejectedValueOnce(new Error('DS1 down'))
-        .mockResolvedValueOnce(undefined);
+      httpClient.post.mockRejectedValueOnce(new Error('DS1 down')).mockResolvedValueOnce(undefined);
 
       await expect(client.refreshTTL()).resolves.toBeUndefined();
     });

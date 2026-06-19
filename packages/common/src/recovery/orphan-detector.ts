@@ -1,7 +1,7 @@
-import { logger } from '../config/logger';
-import { WorkerRegistry } from '../worker/worker-registry';
 import { IJobRepository } from './job-repository.interface';
 import { ReAllocator } from './re-allocator';
+import { logger } from '../config/logger';
+import { WorkerRegistry } from '../worker/worker-registry';
 
 export class OrphanDetector {
   private intervalHandle: ReturnType<typeof setInterval> | null = null;

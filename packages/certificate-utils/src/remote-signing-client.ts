@@ -1,11 +1,11 @@
-import { HttpClient, HttpClientError } from '@trading-model/common/config/http-client';
+import { HttpClient } from '@trading-model/common/config/http-client';
 import { TlsClientPaths } from '@trading-model/common/config/http-client';
 
+import { CsrOptions } from './create-csr';
 import { KeyAlgorithm } from './generate-key-pair';
 import { SignOptions } from './sign-certificate';
-import { CsrOptions } from './create-csr';
-import { ValidationResult } from './validate-certificate';
 import { KeyPair, KeyPairWithId, SignedCertificate } from './types';
+import { ValidationResult } from './validate-certificate';
 
 export interface RemoteSigningConfig {
   baseUrl: string;

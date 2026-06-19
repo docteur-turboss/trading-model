@@ -43,7 +43,7 @@ jest.mock('../../src/certificate-client', () => ({
 }));
 
 const mockApp = { use: jest.fn() };
-const mockConfigureApp = jest.fn((...args: any[]) => mockApp);
+const mockConfigureApp = jest.fn((..._args: any[]) => mockApp);
 jest.mock('@trading-model/common/server/configure-app', () => ({
   configureApp: mockConfigureApp,
 }));
@@ -59,7 +59,7 @@ jest.mock('@trading-model/common/middleware/response-protocol', () => ({
 }));
 
 const mockHttpsServer = { raw: { setSecureContext: jest.fn() } };
-const mockCreateAndStartHttpsServer = jest.fn((...args: any[]) => Promise.resolve(mockHttpsServer));
+const mockCreateAndStartHttpsServer = jest.fn((..._args: any[]) => Promise.resolve(mockHttpsServer));
 jest.mock('@trading-model/common/server/server-factory', () => ({
   createAndStartHttpsServer: mockCreateAndStartHttpsServer,
 }));

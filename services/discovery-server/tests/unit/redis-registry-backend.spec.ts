@@ -550,7 +550,6 @@ describe('RedisRegistryBackend', () => {
       const origRandom = Math.random;
       Math.random = jest.fn(() => 0);
 
-      const { logger } = require('@trading-model/common/config/logger');
       const backend = new RedisRegistryBackend('redis://localhost:6379');
       backend.start();
 

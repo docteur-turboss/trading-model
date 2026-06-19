@@ -1,5 +1,10 @@
 import { describe, it, expect } from '@jest/globals';
-import { generateKeyPair, generateKeyPairWithId, generateKeyPairWithIdSync, KeyAlgorithm } from '../src/generate-key-pair';
+import {
+  generateKeyPair,
+  generateKeyPairWithId,
+  generateKeyPairWithIdSync,
+  KeyAlgorithm,
+} from '../src/generate-key-pair';
 
 describe('generateKeyPair', () => {
   it('should generate an RSA 4096 key pair', () => {

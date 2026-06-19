@@ -1,4 +1,4 @@
-import { createPublicKey, X509Certificate } from 'node:crypto';
+import { createPrivateKey, createPublicKey, X509Certificate } from 'node:crypto';
 
 import forge from 'node-forge';
 
@@ -49,8 +49,6 @@ export function parseCertInfo(pem: string): {
   };
 }
 
-import { createPrivateKey } from 'node:crypto';
-
 export function privateKeyFromPem(pem: string): forge.pki.PrivateKey {
   const keyObject = createPrivateKey(pem);
   const keyType = keyObject.asymmetricKeyType;
@@ -71,11 +69,11 @@ export function parseCsrInfo(csrPem: string): {
   const cn = csr.subject.getField('CN')?.value ?? '';
   const sanAttr = csr.getAttribute({ name: 'extensionRequest' });
   const san: string[] = [];
-  if (sanAttr && (sanAttr as any).extensions) {
-    for (const ext of (sanAttr as any).extensions as any[]) {
+  if (sanAttr && (sanAttr as unknown as { extensions: Array<{ name: string; altNames: Array<{ type: number; value: string }> }> }).extensions) {
+    for (const ext of (sanAttr as unknown as { extensions: Array<{ name: string; altNames: Array<{ type: number; value: string }> }> }).extensions) {
       if (ext.name === 'subjectAltName' && ext.altNames) {
         for (const alt of ext.altNames) {
-          if (alt.type === 2) san.push(alt.value as string);
+          if (alt.type === 2) san.push(alt.value);
         }
       }
     }

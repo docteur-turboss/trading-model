@@ -9,9 +9,9 @@ import {
   parseKeyAsync,
   signAsync,
 } from '@trading-model/certificate-utils/async';
+import { CsrOptions } from '@trading-model/certificate-utils/create-csr';
 import { KeyAlgorithm } from '@trading-model/certificate-utils/generate-key-pair';
 import { SignOptions } from '@trading-model/certificate-utils/sign-certificate';
-import { CsrOptions } from '@trading-model/certificate-utils/create-csr';
 import { logger } from '@trading-model/common/config/logger';
 import { normalizeError } from '@trading-model/common/utils/errors';
 

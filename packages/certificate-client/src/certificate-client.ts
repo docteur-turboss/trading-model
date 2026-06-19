@@ -1,10 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { CaClient } from '@trading-model/common/ca/ca-client';
-import { logger } from '@trading-model/common/config/logger';
 import { generateKeyPairAsync, createCsrAsync } from '@trading-model/certificate-utils/async';
 import { KeyAlgorithm } from '@trading-model/certificate-utils/generate-key-pair';
+import { CaClient } from '@trading-model/common/ca/ca-client';
+import { logger } from '@trading-model/common/config/logger';
 
 export interface CertificateClientConfig {
   caUrl: string;

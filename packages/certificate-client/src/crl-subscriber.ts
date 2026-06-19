@@ -1,8 +1,8 @@
+import { EventManager } from '@trading-model/broker-message';
+import type BrokerMessage from '@trading-model/broker-message';
 import { clearValidationCache } from '@trading-model/certificate-utils/validate-certificate';
 import { EnumEventMessage } from '@trading-model/common/config/event.types';
-import { EventManager } from '@trading-model/broker-message';
 
-import type BrokerMessage from '@trading-model/broker-message';
 
 export interface CrlSubscriberCallbacks {
   onCertificateRevoked?: (payload: { serialNumber: string; serviceId: string }) => void;

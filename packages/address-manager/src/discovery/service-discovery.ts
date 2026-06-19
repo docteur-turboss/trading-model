@@ -144,7 +144,10 @@ export class ServiceDiscovery {
     return instance;
   }
 
-  private async resolveAndValidateServiceInRegion(serviceName: string, region: string): Promise<ServiceInstance> {
+  private async resolveAndValidateServiceInRegion(
+    serviceName: string,
+    region: string
+  ): Promise<ServiceInstance> {
     let instances: unknown;
     try {
       instances = await this.httpClient.get<unknown>(

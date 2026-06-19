@@ -1,7 +1,7 @@
+import { IJobQueue } from './job-queue.interface';
+import { IJobRepository } from './job-repository.interface';
 import { logger } from '../config/logger';
 import { Job } from '../contracts/recovery.types';
-import { IJobRepository } from './job-repository.interface';
-import { IJobQueue } from './job-queue.interface';
 
 export class ReAllocator {
   constructor(

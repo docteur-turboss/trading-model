@@ -1,10 +1,10 @@
-import { KeyAlgorithm } from './generate-key-pair';
-import { SignOptions } from './sign-certificate';
 import { CsrOptions } from './create-csr';
-import { ValidationResult } from './validate-certificate';
-import { KeyPair, KeyPairWithId, SignedCertificate } from './types';
-import { RemoteSigningClient } from './remote-signing-client';
+import { KeyAlgorithm } from './generate-key-pair';
 import { getPool } from './lazy-pool';
+import { RemoteSigningClient } from './remote-signing-client';
+import { SignOptions } from './sign-certificate';
+import { KeyPair, KeyPairWithId, SignedCertificate } from './types';
+import { ValidationResult } from './validate-certificate';
 
 let remoteClient: RemoteSigningClient | null = null;
 

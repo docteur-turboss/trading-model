@@ -8,10 +8,10 @@ import { generateKeyPairAsync, createCsrAsync } from '@trading-model/certificate
 import { KeyAlgorithm } from '@trading-model/certificate-utils/generate-key-pair';
 import { CaClient } from '@trading-model/common/ca/ca-client';
 import { logger } from '@trading-model/common/config/logger';
-import { normalizeError } from '@trading-model/common/utils/errors';
+import type { TlsBootstrapOptions } from '@trading-model/common/server/bootstrap';
 import type { TlsConfig } from '@trading-model/common/server/load-tls-config';
 import type { HttpServer } from '@trading-model/common/server/server-factory';
-import type { TlsBootstrapOptions } from '@trading-model/common/server/bootstrap';
+import { normalizeError } from '@trading-model/common/utils/errors';
 
 import { CertificateClient } from './certificate-client';
 

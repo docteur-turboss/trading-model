@@ -1,6 +1,7 @@
-import { availableParallelism } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
+import { Worker } from 'node:worker_threads';
 
 
 
@@ -122,7 +123,6 @@ export class WorkerPool {
   }
 
   private spawnWorker(): void {
-    const { Worker } = require('node:worker_threads') as typeof import('node:worker_threads');
     const worker = new Worker(this.workerScript);
 
     const entry: WorkerEntry = { worker, busy: false };

@@ -1,9 +1,9 @@
-import { parentPort } from 'node:worker_threads';
 import { createPublicKey, createSign } from 'node:crypto';
+import { parentPort } from 'node:worker_threads';
 
-import { generateKeyPair, generateKeyPairWithIdSync, KeyAlgorithm } from './generate-key-pair';
-import { signCertificate, SignOptions } from './sign-certificate';
 import { createCsr, CsrOptions } from './create-csr';
+import { generateKeyPair, generateKeyPairWithIdSync } from './generate-key-pair';
+import { signCertificate, SignOptions } from './sign-certificate';
 import { validateCertificate } from './validate-certificate';
 
 interface WorkerTask {

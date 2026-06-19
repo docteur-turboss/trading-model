@@ -2,9 +2,8 @@ import https from 'node:https';
 
 import WebSocket, { WebSocketServer } from 'ws';
 
-import { logger } from '../config/logger';
-
 import { WorkerRegistry } from './worker-registry';
+import { logger } from '../config/logger';
 import { SchedulerOutgoingMessage, WorkerIncomingMessage } from '../contracts/worker-protocol.types';
 
 export class WorkerProtocol {

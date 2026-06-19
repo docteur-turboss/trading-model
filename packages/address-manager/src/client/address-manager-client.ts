@@ -61,10 +61,7 @@ export class AddressManagerClient {
 
     for (const url of urls) {
       try {
-        return await this.httpClient.post<ServiceRegistrationResponse>(
-          `${url}/register`,
-          payload
-        );
+        return await this.httpClient.post<ServiceRegistrationResponse>(`${url}/register`, payload);
       } catch (error) {
         lastError = error;
       }
