@@ -82,6 +82,17 @@ describe('ServiceDiscovery', () => {
     expect(cache.invalidate).not.toHaveBeenCalled();
   });
 
+  test('findServiceInRegion returns cached instance if healthy', async () => {
+    cache.get.mockResolvedValue(instance);
+    healthChecker.isHealthy.mockResolvedValue(true);
+
+    const result = await discovery.findServiceInRegion(serviceName, 'us-east-1');
+
+    expect(result).toEqual(instance);
+    expect(cache.get).toHaveBeenCalledWith(serviceName);
+    expect(cache.invalidate).not.toHaveBeenCalled();
+  });
+
   test('fetches from AddressManager if cache is empty', async () => {
     cache.get.mockResolvedValue(null);
     httpClient.get.mockResolvedValueOnce(instance);
@@ -171,5 +182,53 @@ describe('ServiceDiscovery', () => {
     await discovery.findService(serviceName);
 
     expect(cache.set).toHaveBeenCalledWith(serviceName, instance);
+  });
+
+  test('findServiceInRegion invalidates cache when cached instance is unhealthy', async () => {
+    cache.get.mockResolvedValue(instance);
+    healthChecker.isHealthy.mockResolvedValueOnce(false);
+    httpClient.get.mockResolvedValueOnce(instance);
+    healthChecker.isHealthy.mockResolvedValueOnce(true);
+
+    const result = await discovery.findServiceInRegion(serviceName, 'us-east-1');
+
+    expect(cache.invalidate).toHaveBeenCalledWith(serviceName);
+    expect(result).toEqual(instance);
+  });
+
+  test('findServiceInRegion falls back to non-region lookup when region HTTP fails', async () => {
+    cache.get.mockResolvedValue(null);
+    httpClient.get.mockRejectedValueOnce(new Error('region unavailable'));
+    httpClient.get.mockResolvedValueOnce(instance);
+    healthChecker.isHealthy.mockResolvedValue(true);
+
+    const result = await discovery.findServiceInRegion(serviceName, 'us-east-1');
+
+    expect(result).toEqual(instance);
+    expect(httpClient.get).toHaveBeenCalledTimes(2);
+  });
+
+  test('findServiceInRegion falls back when all region instances are unhealthy', async () => {
+    cache.get.mockResolvedValue(null);
+    httpClient.get.mockResolvedValueOnce([instance]);
+    healthChecker.isHealthy.mockResolvedValueOnce(false);
+    httpClient.get.mockResolvedValueOnce(instance);
+    healthChecker.isHealthy.mockResolvedValueOnce(true);
+
+    const result = await discovery.findServiceInRegion(serviceName, 'us-east-1');
+
+    expect(result).toEqual(instance);
+    expect(httpClient.get).toHaveBeenCalledTimes(2);
+  });
+
+  test('findServiceInRegion skips null entries in region instance list', async () => {
+    cache.get.mockResolvedValue(null);
+    httpClient.get.mockResolvedValueOnce([null, instance]);
+    healthChecker.isHealthy.mockResolvedValueOnce(true);
+
+    const result = await discovery.findServiceInRegion(serviceName, 'us-east-1');
+
+    expect(result).toEqual(instance);
+    expect(healthChecker.isHealthy).toHaveBeenCalledTimes(1);
   });
 });

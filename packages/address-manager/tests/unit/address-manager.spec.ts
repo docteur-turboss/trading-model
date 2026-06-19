@@ -92,6 +92,7 @@ describe('AddressManager', () => {
     RootCACertPath: '/path/to/ca.pem',
     CertificatePath: '/path/to/cert.pem',
     KeyCertificatePath: '/path/to/key.pem',
+    discoveryUrls: ['http://localhost:8443'],
   };
 
   beforeEach(() => {

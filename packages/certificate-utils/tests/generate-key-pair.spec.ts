@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { generateKeyPair, KeyAlgorithm } from '../src/generate-key-pair';
+import { generateKeyPair, generateKeyPairWithId, generateKeyPairWithIdSync, KeyAlgorithm } from '../src/generate-key-pair';
 
 describe('generateKeyPair', () => {
   it('should generate an RSA 4096 key pair', () => {
@@ -43,5 +43,31 @@ describe('generateKeyPair', () => {
 
     expect(kp1.privateKey).not.toBe(kp2.privateKey);
     expect(kp1.publicKey).not.toBe(kp2.publicKey);
+  });
+
+  it('generateKeyPairWithId should generate a key pair with an id', () => {
+    const result = generateKeyPairWithId(KeyAlgorithm.EC_P384);
+
+    expect(result.publicKey).toBeDefined();
+    expect(result.privateKey).toBeDefined();
+    expect(result.id).toBeDefined();
+    expect(typeof result.id).toBe('string');
+  });
+
+  it('generateKeyPairWithId should default to EC P-384', () => {
+    const result = generateKeyPairWithId();
+
+    expect(result.publicKey).toBeDefined();
+    expect(result.privateKey).toBeDefined();
+    expect(result.id).toBeDefined();
+  });
+
+  it('generateKeyPairWithIdSync should generate a key pair with an id', () => {
+    const result = generateKeyPairWithIdSync(KeyAlgorithm.RSA_4096);
+
+    expect(result.publicKey).toBeDefined();
+    expect(result.privateKey).toBeDefined();
+    expect(result.id).toBeDefined();
+    expect(typeof result.id).toBe('string');
   });
 });

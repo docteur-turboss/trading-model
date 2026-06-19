@@ -162,5 +162,55 @@ describe('AddressManagerClient', () => {
       expect(err).toBeInstanceOf(AppError);
       expect((err as AppError).cause).toBe(error);
     });
+
+    test('should use discoveryUrls for concurrent TTL refresh when multiple URLs configured', async () => {
+      config = {
+        ...config,
+        discoveryUrls: ['https://ds1:3000', 'https://ds2:3000'],
+      } as AddressManagerConfig;
+      client = new AddressManagerClient(httpClient, tokenManager, config);
+      httpClient.post.mockResolvedValue(undefined);
+
+      await client.refreshTTL();
+
+      expect(httpClient.post).toHaveBeenCalledWith(
+        'https://ds1:3000/heartbeat',
+        expect.any(Object),
+        expect.any(Object)
+      );
+      expect(httpClient.post).toHaveBeenCalledWith(
+        'https://ds2:3000/heartbeat',
+        expect.any(Object),
+        expect.any(Object)
+      );
+    });
+
+    test('should throw when all concurrent TTL refresh URLs fail', async () => {
+      config = {
+        ...config,
+        discoveryUrls: ['https://ds1:3000', 'https://ds2:3000'],
+      } as AddressManagerConfig;
+      client = new AddressManagerClient(httpClient, tokenManager, config);
+
+      httpClient.post
+        .mockRejectedValueOnce(new Error('DS1 down'))
+        .mockRejectedValueOnce(new Error('DS2 down'));
+
+      await expect(client.refreshTTL()).rejects.toThrow(AppError);
+    });
+
+    test('should succeed when at least one concurrent TTL refresh URL succeeds', async () => {
+      config = {
+        ...config,
+        discoveryUrls: ['https://ds1:3000', 'https://ds2:3000'],
+      } as AddressManagerConfig;
+      client = new AddressManagerClient(httpClient, tokenManager, config);
+
+      httpClient.post
+        .mockRejectedValueOnce(new Error('DS1 down'))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(client.refreshTTL()).resolves.toBeUndefined();
+    });
   });
 });

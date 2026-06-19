@@ -61,6 +61,10 @@ export class ServiceDiscovery {
    * ```
    */
   async findService(serviceName: string): Promise<ServiceInstance> {
+    if (this.config.region) {
+      return this.findServiceInRegion(serviceName, this.config.region);
+    }
+
     const cachedInstance = await this.serviceCache.get(serviceName);
 
     if (cachedInstance) {
@@ -73,6 +77,21 @@ export class ServiceDiscovery {
     }
 
     return this.resolveAndValidateService(serviceName);
+  }
+
+  async findServiceInRegion(serviceName: string, region: string): Promise<ServiceInstance> {
+    const cachedInstance = await this.serviceCache.get(serviceName);
+
+    if (cachedInstance) {
+      const isHealthy = await this.healthChecker.isHealthy(cachedInstance);
+      if (isHealthy) {
+        return cachedInstance;
+      }
+
+      await this.serviceCache.invalidate(serviceName);
+    }
+
+    return this.resolveAndValidateServiceInRegion(serviceName, region);
   }
 
   /**
@@ -123,5 +142,33 @@ export class ServiceDiscovery {
 
     await this.serviceCache.set(serviceName, instance);
     return instance;
+  }
+
+  private async resolveAndValidateServiceInRegion(serviceName: string, region: string): Promise<ServiceInstance> {
+    let instances: unknown;
+    try {
+      instances = await this.httpClient.get<unknown>(
+        `${this.config.addressManagerUrl}/services/${serviceName}/region/${region}`,
+        { timeoutMs: this.discoveryTimeoutMs }
+      );
+    } catch {
+      return this.resolveAndValidateService(serviceName);
+    }
+
+    const instanceList = Array.isArray(instances)
+      ? (instances as ServiceInstance[])
+      : [instances as ServiceInstance];
+
+    for (const instance of instanceList) {
+      if (instance) {
+        const isHealthy = await this.healthChecker.isHealthy(instance);
+        if (isHealthy) {
+          await this.serviceCache.set(serviceName, instance);
+          return instance;
+        }
+      }
+    }
+
+    return this.resolveAndValidateService(serviceName);
   }
 }

@@ -19,7 +19,7 @@ export function buildFeatures(
   // ---- Candle-derived (0-8) ----
   f[0] = s.closeNorm.normalize(cur.close);
   f[1] = s.volumeNorm.normalize(cur.volume);
-  f[2] = prev.close > 0 ? (cur.close - prev.close) / prev.close : 0;
+  f[2] = prev && prev.close > 0 ? (cur.close - prev.close) / prev.close : 0;
   f[3] = cur.high - cur.low > 0 ? (cur.close - cur.open) / (cur.high - cur.low) : 0;
   f[4] = cur.close > 0 ? (cur.high - cur.low) / cur.close : 0;
   f[5] = s.openNorm.normalize(cur.open);

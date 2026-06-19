@@ -53,18 +53,28 @@ export class AddressManagerClient {
       ip: AddressManagerClient.getLocalIP(),
     };
 
-    try {
-      return await this.httpClient.post<ServiceRegistrationResponse>(
-        `${this.config.addressManagerUrl}/register`,
-        payload
-      );
-    } catch (error) {
-      throw new AppError(
-        'Failed to register service to Address Manager',
-        ErrorCodes.ADDRESS_MANAGER_ERROR,
-        { cause: normalizeError(error) }
-      );
+    const urls = this.config.discoveryUrls?.length
+      ? this.config.discoveryUrls
+      : [this.config.addressManagerUrl];
+
+    let lastError: unknown;
+
+    for (const url of urls) {
+      try {
+        return await this.httpClient.post<ServiceRegistrationResponse>(
+          `${url}/register`,
+          payload
+        );
+      } catch (error) {
+        lastError = error;
+      }
     }
+
+    throw new AppError(
+      'Failed to register service to Address Manager',
+      ErrorCodes.ADDRESS_MANAGER_ERROR,
+      { cause: normalizeError(lastError) }
+    );
   }
 
   /**
@@ -79,22 +89,53 @@ export class AddressManagerClient {
   async refreshTTL(): Promise<void> {
     const token = this.tokenManager.getToken();
 
-    try {
-      await this.httpClient.post(
-        `${this.config.addressManagerUrl}/heartbeat`,
-        {
-          serviceName: this.config.serviceName,
-          instanceId: this.config.instanceId,
-        },
-        {
-          headers: {
-            'x-instance-token': token,
+    const urls = this.config.discoveryUrls?.length
+      ? this.config.discoveryUrls
+      : [this.config.addressManagerUrl];
+
+    if (urls.length === 1) {
+      try {
+        await this.httpClient.post(
+          `${urls[0]}/heartbeat`,
+          {
+            serviceName: this.config.serviceName,
+            instanceId: this.config.instanceId,
           },
-        }
-      );
-    } catch (error) {
+          {
+            headers: {
+              'x-instance-token': token,
+            },
+          }
+        );
+      } catch (error) {
+        throw new AppError('Failed to refresh service TTL', ErrorCodes.ADDRESS_MANAGER_ERROR, {
+          cause: normalizeError(error),
+        });
+      }
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      urls.map(url =>
+        this.httpClient.post(
+          `${url}/heartbeat`,
+          {
+            serviceName: this.config.serviceName,
+            instanceId: this.config.instanceId,
+          },
+          {
+            headers: {
+              'x-instance-token': token,
+            },
+          }
+        )
+      )
+    );
+
+    const failures = results.filter(r => r.status === 'rejected');
+    if (failures.length === results.length) {
       throw new AppError('Failed to refresh service TTL', ErrorCodes.ADDRESS_MANAGER_ERROR, {
-        cause: normalizeError(error),
+        cause: normalizeError((failures[0] as PromiseRejectedResult).reason),
       });
     }
   }
