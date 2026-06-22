@@ -149,7 +149,13 @@ export type EventMap = {
   [EnumEventMessage.auditGapDetected]: { from: Date; to: Date; lostCount?: number };
 
   /** CA / Certificate Infrastructure events */
-  [EnumEventMessage.certificateRevoked]: { serialNumber: string; serviceId: string; reason: string; revokedAt: string; instanceId: string };
+  [EnumEventMessage.certificateRevoked]: {
+    serialNumber: string;
+    serviceId: string;
+    reason: string;
+    revokedAt: string;
+    instanceId: string;
+  };
   [EnumEventMessage.caKeyRotated]: { keyId: string; keyVersion: number; instanceId: string };
 };
 

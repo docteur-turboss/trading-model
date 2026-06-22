@@ -69,8 +69,19 @@ export function parseCsrInfo(csrPem: string): {
   const cn = csr.subject.getField('CN')?.value ?? '';
   const sanAttr = csr.getAttribute({ name: 'extensionRequest' });
   const san: string[] = [];
-  if (sanAttr && (sanAttr as unknown as { extensions: Array<{ name: string; altNames: Array<{ type: number; value: string }> }> }).extensions) {
-    for (const ext of (sanAttr as unknown as { extensions: Array<{ name: string; altNames: Array<{ type: number; value: string }> }> }).extensions) {
+  if (
+    sanAttr &&
+    (
+      sanAttr as unknown as {
+        extensions: Array<{ name: string; altNames: Array<{ type: number; value: string }> }>;
+      }
+    ).extensions
+  ) {
+    for (const ext of (
+      sanAttr as unknown as {
+        extensions: Array<{ name: string; altNames: Array<{ type: number; value: string }> }>;
+      }
+    ).extensions) {
       if (ext.name === 'subjectAltName' && ext.altNames) {
         for (const alt of ext.altNames) {
           if (alt.type === 2) san.push(alt.value);

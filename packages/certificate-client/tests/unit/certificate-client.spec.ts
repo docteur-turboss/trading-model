@@ -31,10 +31,7 @@ jest.mock('@trading-model/common/config/logger', () => ({
 }));
 
 import fs from 'node:fs/promises';
-import {
-  generateKeyPairAsync,
-  createCsrAsync,
-} from '@trading-model/certificate-utils/async';
+import { generateKeyPairAsync, createCsrAsync } from '@trading-model/certificate-utils/async';
 import { CaClient } from '@trading-model/common/ca/ca-client';
 import { CertificateClient } from '../../src/certificate-client';
 

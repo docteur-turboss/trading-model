@@ -8,7 +8,14 @@ import { validateCertificate } from './validate-certificate';
 
 interface WorkerTask {
   id: string;
-  type: 'generateKeyPair' | 'generateKeyPairWithId' | 'signCertificate' | 'createCsr' | 'validateCertificate' | 'parseKey' | 'sign';
+  type:
+    | 'generateKeyPair'
+    | 'generateKeyPairWithId'
+    | 'signCertificate'
+    | 'createCsr'
+    | 'validateCertificate'
+    | 'parseKey'
+    | 'sign';
   data: Record<string, unknown>;
 }
 
@@ -24,12 +31,16 @@ pp.on('message', (task: WorkerTask) => {
 
     switch (task.type) {
       case 'generateKeyPair': {
-        result = generateKeyPair(task.data.algorithm as unknown as import('./generate-key-pair').KeyAlgorithm);
+        result = generateKeyPair(
+          task.data.algorithm as unknown as import('./generate-key-pair').KeyAlgorithm
+        );
         break;
       }
 
       case 'generateKeyPairWithId': {
-        result = generateKeyPairWithIdSync(task.data.algorithm as unknown as import('./generate-key-pair').KeyAlgorithm);
+        result = generateKeyPairWithIdSync(
+          task.data.algorithm as unknown as import('./generate-key-pair').KeyAlgorithm
+        );
         break;
       }
 

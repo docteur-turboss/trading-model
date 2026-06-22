@@ -4,7 +4,10 @@ import Redis, { Cluster, RedisOptions } from 'ioredis';
 
 import { logger } from '@trading-model/common/config/logger';
 import { ServiceInstanceName } from '@trading-model/common/config/services.types';
-import { RegistryBackend, ServiceInstance } from '@trading-model/common/contracts/service-registry.types';
+import {
+  RegistryBackend,
+  ServiceInstance,
+} from '@trading-model/common/contracts/service-registry.types';
 import { generateRandomStr } from '@trading-model/common/crypto/random';
 import { normalizeError } from '@trading-model/common/utils/errors';
 
@@ -77,9 +80,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 
     // In Cluster mode, wrap the prefix with hash-tag braces so all multi()-related
     // keys hash to the same slot and avoid CROSSSLOT errors.
-    const isCluster =
-      typeof configOrUrl !== 'string' &&
-      configOrUrl.mode === 'cluster';
+    const isCluster = typeof configOrUrl !== 'string' && configOrUrl.mode === 'cluster';
     this.prefix = isCluster ? `{${prefix.replace(/[{}]/g, '').replace(/:$/, '')}}:` : prefix;
 
     const baseOptions: RedisOptions = {
@@ -169,16 +170,20 @@ export class RedisRegistryBackend implements RegistryBackend {
     };
 
     // Check if instance already exists to preserve original registration time
-    const existingJson = await this.redis.get(
-      `${this.prefix}instance:${instanceId}:metadata`
-    );
+    const existingJson = await this.redis.get(`${this.prefix}instance:${instanceId}:metadata`);
     if (existingJson) {
       try {
         const existing: ServiceInstance = JSON.parse(existingJson);
         storedInstance.registeredAt = existing.registeredAt;
-        storedInstance.lastHeartbeat = Math.max(storedInstance.lastHeartbeat, existing.lastHeartbeat);
+        storedInstance.lastHeartbeat = Math.max(
+          storedInstance.lastHeartbeat,
+          existing.lastHeartbeat
+        );
       } catch (err) {
-        logger.warn('Failed to parse existing instance metadata', { instanceId, err: normalizeError(err) });
+        logger.warn('Failed to parse existing instance metadata', {
+          instanceId,
+          err: normalizeError(err),
+        });
       }
     }
 
@@ -209,20 +214,18 @@ export class RedisRegistryBackend implements RegistryBackend {
       instance.lastHeartbeat = Math.max(instance.lastHeartbeat, Date.now());
 
       const multi = this.redis.multi();
-      multi.set(
-        `${this.prefix}instance:${instanceId}:metadata`,
-        JSON.stringify(instance)
-      );
+      multi.set(`${this.prefix}instance:${instanceId}:metadata`, JSON.stringify(instance));
       // Tag which server last updated this instance for skew attribution
-      multi.set(
-        `${this.prefix}instance:${instanceId}:updatedBy`,
-        `${serviceName}:${instanceId}`
-      );
+      multi.set(`${this.prefix}instance:${instanceId}:updatedBy`, `${serviceName}:${instanceId}`);
       await multi.exec();
 
       return instance.ttl;
     } catch (err) {
-      logger.warn('Failed to update heartbeat in Redis', { serviceName, instanceId, err: normalizeError(err) });
+      logger.warn('Failed to update heartbeat in Redis', {
+        serviceName,
+        instanceId,
+        err: normalizeError(err),
+      });
       return false;
     }
   }
@@ -238,9 +241,7 @@ export class RedisRegistryBackend implements RegistryBackend {
   // ─── Query ──────────────────────────────────────────────────────────────────
 
   async getInstances(serviceName: string): Promise<ServiceInstance[]> {
-    const instanceIds = await this.redis.smembers(
-      `${this.prefix}service:${serviceName}:instances`
-    );
+    const instanceIds = await this.redis.smembers(`${this.prefix}service:${serviceName}:instances`);
 
     if (instanceIds.length === 0) return [];
 
@@ -268,7 +269,10 @@ export class RedisRegistryBackend implements RegistryBackend {
     try {
       return JSON.parse(json);
     } catch (err) {
-      logger.warn('Failed to parse instance metadata from Redis', { instanceId, err: normalizeError(err) });
+      logger.warn('Failed to parse instance metadata from Redis', {
+        instanceId,
+        err: normalizeError(err),
+      });
       return undefined;
     }
   }
@@ -377,7 +381,10 @@ export class RedisRegistryBackend implements RegistryBackend {
       }, this.cleanupIntervalMs);
     }, initialDelay);
 
-    logger.info('RedisRegistryBackend started', { cleanupIntervalMs: this.cleanupIntervalMs, initialDelay });
+    logger.info('RedisRegistryBackend started', {
+      cleanupIntervalMs: this.cleanupIntervalMs,
+      initialDelay,
+    });
   }
 
   stop(): void {

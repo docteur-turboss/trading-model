@@ -3,8 +3,6 @@ import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 
-
-
 export interface WorkerPoolOptions {
   size?: number;
   workerScript?: string;
@@ -37,8 +35,7 @@ export class WorkerPool {
   constructor(options: WorkerPoolOptions = {}) {
     this.poolSize = options.size ?? availableParallelism();
     this.maxQueueSize = options.maxQueueSize ?? Infinity;
-    this.workerScript =
-      options.workerScript ?? join(__dirname, 'worker-script.js');
+    this.workerScript = options.workerScript ?? join(__dirname, 'worker-script.js');
   }
 
   /** Crée les workers s'ils ne le sont pas encore — idempotent. */
@@ -107,9 +104,7 @@ export class WorkerPool {
     for (const w of this.workers) {
       w.worker.removeAllListeners();
     }
-    await Promise.all(
-      this.workers.map(w => w.worker.terminate())
-    );
+    await Promise.all(this.workers.map(w => w.worker.terminate()));
     this.workers.length = 0;
   }
 
@@ -127,21 +122,24 @@ export class WorkerPool {
 
     const entry: WorkerEntry = { worker, busy: false };
 
-    worker.on('message', (msg: { id: string; success: boolean; data?: unknown; error?: string }) => {
-      entry.busy = false;
+    worker.on(
+      'message',
+      (msg: { id: string; success: boolean; data?: unknown; error?: string }) => {
+        entry.busy = false;
 
-      const task = this.pendingTasks.get(msg.id);
-      if (task) {
-        this.pendingTasks.delete(msg.id);
-        if (msg.success) {
-          task.resolve(msg.data);
-        } else {
-          task.reject(new Error(msg.error ?? 'Unknown worker error'));
+        const task = this.pendingTasks.get(msg.id);
+        if (task) {
+          this.pendingTasks.delete(msg.id);
+          if (msg.success) {
+            task.resolve(msg.data);
+          } else {
+            task.reject(new Error(msg.error ?? 'Unknown worker error'));
+          }
         }
-      }
 
-      this.processQueue();
-    });
+        this.processQueue();
+      }
+    );
 
     worker.on('error', () => {
       entry.busy = false;

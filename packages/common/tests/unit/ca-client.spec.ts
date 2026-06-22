@@ -69,10 +69,10 @@ describe('CaClient', () => {
 
       const result = await client.signCertificate('my-service', '-----BEGIN CSR-----');
 
-      expect(mockPost).toHaveBeenCalledWith(
-        'https://ca.example.com:8443/api/v1/certificate/sign',
-        { serviceId: 'my-service', csr: '-----BEGIN CSR-----' }
-      );
+      expect(mockPost).toHaveBeenCalledWith('https://ca.example.com:8443/api/v1/certificate/sign', {
+        serviceId: 'my-service',
+        csr: '-----BEGIN CSR-----',
+      });
       expect(result).toEqual(signResponse);
     });
 
@@ -84,26 +84,28 @@ describe('CaClient', () => {
         bootstrapToken: 'token-123',
       });
 
-      expect(mockPost).toHaveBeenCalledWith(
-        'https://ca.example.com:8443/api/v1/certificate/sign',
-        { serviceId: 'my-service', csr: 'csr', ttlMs: 86400000, bootstrapToken: 'token-123' }
-      );
+      expect(mockPost).toHaveBeenCalledWith('https://ca.example.com:8443/api/v1/certificate/sign', {
+        serviceId: 'my-service',
+        csr: 'csr',
+        ttlMs: 86400000,
+        bootstrapToken: 'token-123',
+      });
     });
 
     it('should throw when response is empty', async () => {
       mockPost.mockResolvedValueOnce(undefined);
 
-      await expect(
-        client.signCertificate('my-service', 'csr')
-      ).rejects.toThrow('Empty response from CA sign endpoint');
+      await expect(client.signCertificate('my-service', 'csr')).rejects.toThrow(
+        'Empty response from CA sign endpoint'
+      );
     });
 
     it('should propagate HttpClient errors', async () => {
       mockPost.mockRejectedValueOnce(new Error('Connection refused'));
 
-      await expect(
-        client.signCertificate('my-service', 'csr')
-      ).rejects.toThrow('Connection refused');
+      await expect(client.signCertificate('my-service', 'csr')).rejects.toThrow(
+        'Connection refused'
+      );
     });
   });
 
@@ -153,9 +155,9 @@ describe('CaClient', () => {
     it('should propagate HttpClient errors', async () => {
       mockPost.mockRejectedValueOnce(new Error('Timeout'));
 
-      await expect(
-        client.revokeCertificate('serial-123', 'key-compromise')
-      ).rejects.toThrow('Timeout');
+      await expect(client.revokeCertificate('serial-123', 'key-compromise')).rejects.toThrow(
+        'Timeout'
+      );
     });
   });
 });

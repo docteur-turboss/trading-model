@@ -4,7 +4,10 @@ import WebSocket, { WebSocketServer } from 'ws';
 
 import { WorkerRegistry } from './worker-registry';
 import { logger } from '../config/logger';
-import { SchedulerOutgoingMessage, WorkerIncomingMessage } from '../contracts/worker-protocol.types';
+import {
+  SchedulerOutgoingMessage,
+  WorkerIncomingMessage,
+} from '../contracts/worker-protocol.types';
 
 export class WorkerProtocol {
   private readonly wss: WebSocketServer;

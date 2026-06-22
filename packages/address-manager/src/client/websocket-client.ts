@@ -56,7 +56,10 @@ export class WebSocketClient {
           const message = JSON.parse(data.toString()) as WsMessage;
           this.eventHandler?.(message);
         } catch (err) {
-          logger.warn('Failed to parse WebSocket message', { data: data.toString(), err: normalizeError(err) });
+          logger.warn('Failed to parse WebSocket message', {
+            data: data.toString(),
+            err: normalizeError(err),
+          });
         }
       });
 

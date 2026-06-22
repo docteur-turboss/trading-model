@@ -78,7 +78,9 @@ export const AddressManagerEnvSchema = z.object({
           ? (parsed as Record<string, string>)
           : {};
       } catch (err) {
-        logger.warn('Failed to parse DNS_NAME_MAP env var, falling back to {}', { err: normalizeError(err) });
+        logger.warn('Failed to parse DNS_NAME_MAP env var, falling back to {}', {
+          err: normalizeError(err),
+        });
         return {};
       }
     }),

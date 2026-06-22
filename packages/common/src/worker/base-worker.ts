@@ -14,9 +14,11 @@ export interface BaseWorkerConfig {
   tlsConfig?: { ca?: string; cert?: string; key?: string };
 }
 
-export type JobHandler<T = unknown> = (
-  job: { id: string; type: string; payload: T }
-) => Promise<unknown>;
+export type JobHandler<T = unknown> = (job: {
+  id: string;
+  type: string;
+  payload: T;
+}) => Promise<unknown>;
 
 interface ActiveJob {
   id: string;
@@ -79,11 +81,19 @@ export class BaseWorker {
     }
 
     const remaining = job.ackDeadline - Date.now();
-    const ackTimer = setTimeout(() => {
-      this.activeJobs.delete(job.id);
-    }, Math.max(remaining, 0));
+    const ackTimer = setTimeout(
+      () => {
+        this.activeJobs.delete(job.id);
+      },
+      Math.max(remaining, 0)
+    );
 
-    const activeJob: ActiveJob = { id: job.id, type: job.type, ackDeadline: job.ackDeadline, timer: ackTimer };
+    const activeJob: ActiveJob = {
+      id: job.id,
+      type: job.type,
+      ackDeadline: job.ackDeadline,
+      timer: ackTimer,
+    };
     this.activeJobs.set(job.id, activeJob);
 
     try {
@@ -112,7 +122,9 @@ export class BaseWorker {
   }
 
   private async completeJob(jobId: string, result: unknown): Promise<void> {
-    await this.httpClient.post(`${this.config.schedulerHttpUrl}/jobs/${jobId}/complete`, { result });
+    await this.httpClient.post(`${this.config.schedulerHttpUrl}/jobs/${jobId}/complete`, {
+      result,
+    });
   }
 
   private async failJob(jobId: string, error: string): Promise<void> {

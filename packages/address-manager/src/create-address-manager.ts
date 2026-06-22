@@ -112,15 +112,14 @@ function resolveWsSubscribedServices(raw?: string): string[] | undefined {
       return parsed.map(String);
     }
   } catch (err) {
-    logger.warn('Failed to parse WS_SUBSCRIBED_SERVICES, subscribing to all services', { err: normalizeError(err) });
+    logger.warn('Failed to parse WS_SUBSCRIBED_SERVICES, subscribing to all services', {
+      err: normalizeError(err),
+    });
   }
   return undefined;
 }
 
-function resolveDiscoveryUrls(
-  singleUrl: string,
-  urlsJson?: string
-): string[] {
+function resolveDiscoveryUrls(singleUrl: string, urlsJson?: string): string[] {
   if (urlsJson) {
     try {
       const parsed = JSON.parse(urlsJson);
@@ -128,7 +127,9 @@ function resolveDiscoveryUrls(
         return parsed.map(String);
       }
     } catch (err) {
-      logger.warn('Failed to parse ADDRESS_MANAGER_URLS, falling back to single URL', { err: normalizeError(err) });
+      logger.warn('Failed to parse ADDRESS_MANAGER_URLS, falling back to single URL', {
+        err: normalizeError(err),
+      });
     }
   }
   return [singleUrl];

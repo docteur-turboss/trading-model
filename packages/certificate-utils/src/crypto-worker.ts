@@ -30,20 +30,26 @@ export function createCryptoWorker(config: BaseWorkerConfig): BaseWorker {
     return result;
   });
 
-  worker.registerHandler<{ certPem: string; caCertPem?: string }>('validateCertificate', async job => {
-    const result = validateCertificate(job.payload.certPem, job.payload.caCertPem ?? '');
-    return result;
-  });
+  worker.registerHandler<{ certPem: string; caCertPem?: string }>(
+    'validateCertificate',
+    async job => {
+      const result = validateCertificate(job.payload.certPem, job.payload.caCertPem ?? '');
+      return result;
+    }
+  );
 
   worker.registerHandler<{ privateKey: string }>('parseKey', async job => {
     const result = parseKey(job.payload.privateKey);
     return result;
   });
 
-  worker.registerHandler<{ algorithm: string; body: string; privateKey: string }>('sign', async job => {
-    const result = sign(job.payload.algorithm, job.payload.body, job.payload.privateKey);
-    return result;
-  });
+  worker.registerHandler<{ algorithm: string; body: string; privateKey: string }>(
+    'sign',
+    async job => {
+      const result = sign(job.payload.algorithm, job.payload.body, job.payload.privateKey);
+      return result;
+    }
+  );
 
   return worker;
 }

@@ -7,10 +7,12 @@ jest.mock('node:fs', () => {
   mockWatcher = { unref: jest.fn() };
   mockWatchCallback = null;
   return {
-    watch: jest.fn((_dir: string, callback: (eventType: string, filename: string | null) => void) => {
-      mockWatchCallback = callback;
-      return mockWatcher;
-    }),
+    watch: jest.fn(
+      (_dir: string, callback: (eventType: string, filename: string | null) => void) => {
+        mockWatchCallback = callback;
+        return mockWatcher;
+      }
+    ),
     constants: { R_OK: 4 },
   };
 });
@@ -49,7 +51,9 @@ describe('setupTlsWatcher', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    (fsPromises.readFile as jest.Mock).mockImplementation(() => Promise.resolve('mock-cert-content'));
+    (fsPromises.readFile as jest.Mock).mockImplementation(() =>
+      Promise.resolve('mock-cert-content')
+    );
     (fsPromises.access as jest.Mock).mockImplementation(() => Promise.resolve());
   });
 
@@ -75,7 +79,9 @@ describe('setupTlsWatcher', () => {
   });
 
   it('should log warning when directory is not readable', async () => {
-    (fsPromises.access as jest.Mock).mockImplementationOnce(() => Promise.reject(new Error('ENOENT')));
+    (fsPromises.access as jest.Mock).mockImplementationOnce(() =>
+      Promise.reject(new Error('ENOENT'))
+    );
 
     await setupTlsWatcher(mockServer, tlsConfig);
 
@@ -113,7 +119,9 @@ describe('setupTlsWatcher', () => {
     });
 
     it('should log error when TLS reload fails', async () => {
-      (fsPromises.readFile as jest.Mock).mockImplementation(() => Promise.reject(new Error('read failed')));
+      (fsPromises.readFile as jest.Mock).mockImplementation(() =>
+        Promise.reject(new Error('read failed'))
+      );
 
       await setupTlsWatcher(mockServer, tlsConfig);
 

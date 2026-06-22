@@ -170,7 +170,9 @@ describe('InMemoryRegistryBackend', () => {
     it('should return all unique service names', async () => {
       const backend = new InMemoryRegistryBackend();
       await backend.registerInstance(makeInstance({ serviceName: 'financial-scraper-service' }));
-      await backend.registerInstance(makeInstance({ serviceName: 'message-delivery-service', instanceId: 'm1' }));
+      await backend.registerInstance(
+        makeInstance({ serviceName: 'message-delivery-service', instanceId: 'm1' })
+      );
       const names = await backend.listServiceNames();
       expect(names).toContain('financial-scraper-service');
       expect(names).toContain('message-delivery-service');
@@ -189,7 +191,9 @@ describe('InMemoryRegistryBackend', () => {
       const backend = new InMemoryRegistryBackend();
       await backend.registerInstance(makeInstance({ instanceId: 'i1' }));
       await backend.registerInstance(makeInstance({ instanceId: 'i2' }));
-      await backend.registerInstance(makeInstance({ serviceName: 'message-delivery-service', instanceId: 'm1' }));
+      await backend.registerInstance(
+        makeInstance({ serviceName: 'message-delivery-service', instanceId: 'm1' })
+      );
       const snapshot = await backend.dump();
       expect(Object.keys(snapshot)).toHaveLength(2);
       expect(snapshot['financial-scraper-service']).toHaveLength(2);
@@ -241,7 +245,7 @@ describe('InMemoryRegistryBackend', () => {
       const backend = new InMemoryRegistryBackend();
       const result = await backend.validInstanceToken(
         'dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.dGVzdA',
-        'wrong-id',
+        'wrong-id'
       );
       expect(result).toBe(false);
     });
@@ -250,7 +254,7 @@ describe('InMemoryRegistryBackend', () => {
       const backend = new InMemoryRegistryBackend();
       const result = await backend.validInstanceToken(
         'dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.' + 'a'.repeat(43),
-        'test-instance-1',
+        'test-instance-1'
       );
       expect(result).toBe(false);
     });
@@ -267,7 +271,7 @@ describe('InMemoryRegistryBackend', () => {
       const backend = new InMemoryRegistryBackend();
       const result = await backend.validInstanceToken(
         'dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.' + 'a'.repeat(100),
-        'test-instance-1',
+        'test-instance-1'
       );
       expect(result).toBe(false);
     });

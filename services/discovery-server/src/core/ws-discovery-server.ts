@@ -52,7 +52,10 @@ export class WsDiscoveryServer {
 
       ws.on('message', (data: WebSocket.Data) => {
         try {
-          const message = JSON.parse(data.toString()) as { type: string; payload?: Record<string, unknown> };
+          const message = JSON.parse(data.toString()) as {
+            type: string;
+            payload?: Record<string, unknown>;
+          };
           this.handleMessage(clientId, client, message);
         } catch (error) {
           logger.warn('Failed to parse WS message', { clientId, err: normalizeError(error) });
@@ -67,13 +70,17 @@ export class WsDiscoveryServer {
         logger.info('Discovery WS client disconnected', { clientId });
       });
 
-      ws.on('error', (error) => {
+      ws.on('error', error => {
         logger.warn('Discovery WS client error', { clientId, err: normalizeError(error) });
       });
     });
   }
 
-  private handleMessage(clientId: string, client: ConnectedClient, message: { type: string; payload?: Record<string, unknown> }): void {
+  private handleMessage(
+    clientId: string,
+    client: ConnectedClient,
+    message: { type: string; payload?: Record<string, unknown> }
+  ): void {
     switch (message.type) {
       case 'subscribe': {
         const services = message.payload?.services;
@@ -82,11 +89,16 @@ export class WsDiscoveryServer {
         } else {
           client.subscribedServices.add('*');
         }
-        logger.info('Discovery WS client subscribed', { clientId, services: [...client.subscribedServices] });
+        logger.info('Discovery WS client subscribed', {
+          clientId,
+          services: [...client.subscribedServices],
+        });
         break;
       }
       case 'heartbeat': {
-        const payload = message.payload as { serviceName?: string; instanceId?: string } | undefined;
+        const payload = message.payload as
+          | { serviceName?: string; instanceId?: string }
+          | undefined;
         if (payload?.serviceName) client.serviceName = payload.serviceName;
         if (payload?.instanceId) client.instanceId = payload.instanceId;
         break;
@@ -112,11 +124,15 @@ export class WsDiscoveryServer {
 
     for (const [clientId, client] of this.clients) {
       if (client.ws.readyState !== WebSocket.OPEN) continue;
-      if (!client.subscribedServices.has('*') && !client.subscribedServices.has(serviceName)) continue;
+      if (!client.subscribedServices.has('*') && !client.subscribedServices.has(serviceName))
+        continue;
       try {
         client.ws.send(message);
       } catch (error) {
-        logger.warn('Failed to send cache.invalidate to client', { clientId, err: normalizeError(error) });
+        logger.warn('Failed to send cache.invalidate to client', {
+          clientId,
+          err: normalizeError(error),
+        });
       }
     }
   }

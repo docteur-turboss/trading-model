@@ -74,7 +74,11 @@ export class SystemMetrics {
       totalTick += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
     }
 
-    const { percent, previousCpuTimes } = computeCpuPercent(totalIdle, totalTick, this.previousCpuTimes);
+    const { percent, previousCpuTimes } = computeCpuPercent(
+      totalIdle,
+      totalTick,
+      this.previousCpuTimes
+    );
     this.previousCpuTimes = previousCpuTimes;
     return percent;
   }

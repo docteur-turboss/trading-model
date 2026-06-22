@@ -51,10 +51,7 @@ export const insertOrderBookSnapshot = async (data: OrderBookData[]): Promise<vo
     timestamp: new Date(d.timestamp),
   }));
 
-  await new DBConnection()
-    .insertInto(tOrderBook)
-    .values(rows)
-    .executeInsert();
+  await new DBConnection().insertInto(tOrderBook).values(rows).executeInsert();
 };
 
 export const selectOrderBookSnapshotsBy = {

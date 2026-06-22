@@ -4,12 +4,12 @@ Centralised distributed job orchestrator with priority queues, ACK-based deliver
 
 ## General Information
 
-| Property     | Value                                                             |
-| ------------ | ----------------------------------------------------------------- |
-| Service name | `job-scheduler-service`                                           |
-| Port (host)  | `8451`                                                            |
-| Port (container) | `3000`                                                        |
-| Dependencies | `@trading-model/common`, `@trading-model/address-manager`, `@trading-model/broker-message`, MongoDB |
+| Property         | Value                                                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| Service name     | `job-scheduler-service`                                                                             |
+| Port (host)      | `8451`                                                                                              |
+| Port (container) | `3000`                                                                                              |
+| Dependencies     | `@trading-model/common`, `@trading-model/address-manager`, `@trading-model/broker-message`, MongoDB |
 
 ## REST Endpoints
 
@@ -295,15 +295,15 @@ Startup Recovery: loads all non-terminal jobs from MongoDB
 
 ## Environment Variables
 
-| Variable                  | Default                                        | Description                      |
-| ------------------------- | ---------------------------------------------- | -------------------------------- |
-| `PORT`                    | `3000`                                         | Service listen port              |
-| `MONGODB_URI`             | `mongodb://localhost:27017/job-scheduler`      | MongoDB connection               |
-| `SERVICE_NAME`            | `job-scheduler-service`                        | Discovery service name           |
-| `ADDRESS_MANAGER_URL`     | `https://discovery-server:3000`                | Discovery server URL             |
-| `MAX_QUEUE_DEPTH`         | `10000`                                        | Max internal queue depth         |
-| `MAX_WORKER_LOAD_RATIO`   | `0.85`                                         | Back-pressure threshold          |
-| `ACK_TIMEOUT_MS`          | `30000`                                        | Worker ACK deadline (ms)         |
-| `MAX_RETRIES_PER_JOB`     | `3`                                            | Max job retry count              |
-| `ORPHAN_SCAN_INTERVAL_MS` | `10000`                                        | Orphan job scan interval         |
-| `WORKER_HEARTBEAT_TTL_MS` | `30000`                                        | Worker heartbeat TTL (ms)        |
+| Variable                  | Default                                   | Description               |
+| ------------------------- | ----------------------------------------- | ------------------------- |
+| `PORT`                    | `3000`                                    | Service listen port       |
+| `MONGODB_URI`             | `mongodb://localhost:27017/job-scheduler` | MongoDB connection        |
+| `SERVICE_NAME`            | `job-scheduler-service`                   | Discovery service name    |
+| `ADDRESS_MANAGER_URL`     | `https://discovery-server:3000`           | Discovery server URL      |
+| `MAX_QUEUE_DEPTH`         | `10000`                                   | Max internal queue depth  |
+| `MAX_WORKER_LOAD_RATIO`   | `0.85`                                    | Back-pressure threshold   |
+| `ACK_TIMEOUT_MS`          | `30000`                                   | Worker ACK deadline (ms)  |
+| `MAX_RETRIES_PER_JOB`     | `3`                                       | Max job retry count       |
+| `ORPHAN_SCAN_INTERVAL_MS` | `10000`                                   | Orphan job scan interval  |
+| `WORKER_HEARTBEAT_TTL_MS` | `30000`                                   | Worker heartbeat TTL (ms) |

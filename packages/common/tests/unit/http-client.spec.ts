@@ -375,7 +375,9 @@ describe('HttpClient', () => {
           await expect(promise).rejects.toThrow('ECONNRESET');
         } else {
           await expect(promise).rejects.toThrow(HttpClientError);
-          await expect(promise).rejects.toThrow('Circuit breaker open for cb-sequential.example.com');
+          await expect(promise).rejects.toThrow(
+            'Circuit breaker open for cb-sequential.example.com'
+          );
         }
       }
     });
@@ -408,7 +410,10 @@ describe('HttpClient', () => {
 
     it('should open after threshold failures and reject via isServiceCircuitOpen', async () => {
       for (let i = 0; i < 5; i++) {
-        const promise = client.get('https://cb-svc-1.example.com/api', { retryCount: 0, serviceName: 'my-service' });
+        const promise = client.get('https://cb-svc-1.example.com/api', {
+          retryCount: 0,
+          serviceName: 'my-service',
+        });
         errorHandler!(new Error('ECONNRESET'));
         await expect(promise).rejects.toThrow();
       }
@@ -434,14 +439,20 @@ describe('HttpClient', () => {
 
     it('should reset service circuit on success after cooldown', async () => {
       for (let i = 0; i < 5; i++) {
-        const promise = client.get('https://cb-svc-3.example.com/api', { retryCount: 0, serviceName: 'reset-service' });
+        const promise = client.get('https://cb-svc-3.example.com/api', {
+          retryCount: 0,
+          serviceName: 'reset-service',
+        });
         errorHandler!(new Error('ECONNRESET'));
         await expect(promise).rejects.toThrow();
       }
 
       jest.advanceTimersByTime(30_001);
 
-      const promise = client.get('https://cb-svc-3.example.com/api', { retryCount: 0, serviceName: 'reset-service' });
+      const promise = client.get('https://cb-svc-3.example.com/api', {
+        retryCount: 0,
+        serviceName: 'reset-service',
+      });
       simulateResponse(200, JSON.stringify({ ok: true }), 'application/json');
       await expect(promise).resolves.toEqual({ ok: true });
 
@@ -477,7 +488,13 @@ describe('HttpClient', () => {
             headers: { 'content-type': 'application/json' },
           });
         }
-        return { write: jest.fn(), end: jest.fn(), on: jest.fn(), setTimeout: jest.fn(), destroy: jest.fn() };
+        return {
+          write: jest.fn(),
+          end: jest.fn(),
+          on: jest.fn(),
+          setTimeout: jest.fn(),
+          destroy: jest.fn(),
+        };
       });
 
       const result = await client.get('https://example.com/api');
@@ -495,7 +512,13 @@ describe('HttpClient', () => {
           statusCode: 503,
           headers: { 'content-type': 'text/plain' },
         });
-        return { write: jest.fn(), end: jest.fn(), on: jest.fn(), setTimeout: jest.fn(), destroy: jest.fn() };
+        return {
+          write: jest.fn(),
+          end: jest.fn(),
+          on: jest.fn(),
+          setTimeout: jest.fn(),
+          destroy: jest.fn(),
+        };
       });
 
       const promise = client.get('https://example.com/api', { retryCount: 1 });
@@ -717,7 +740,13 @@ describe('HttpClient', () => {
 
       (https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
         cb(mockRes);
-        return { write: jest.fn(), end: jest.fn(), on: jest.fn(), setTimeout: jest.fn(), destroy: jest.fn() };
+        return {
+          write: jest.fn(),
+          end: jest.fn(),
+          on: jest.fn(),
+          setTimeout: jest.fn(),
+          destroy: jest.fn(),
+        };
       });
 
       const result = await client.get('https://example.com/data');
@@ -741,7 +770,13 @@ describe('HttpClient', () => {
 
       (https.request as jest.Mock).mockImplementation((_opts: any, cb: any) => {
         cb(mockRes);
-        return { write: jest.fn(), end: jest.fn(), on: jest.fn(), setTimeout: jest.fn(), destroy: jest.fn() };
+        return {
+          write: jest.fn(),
+          end: jest.fn(),
+          on: jest.fn(),
+          setTimeout: jest.fn(),
+          destroy: jest.fn(),
+        };
       });
 
       const result = await client.get('https://example.com/data');

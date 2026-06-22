@@ -39,7 +39,11 @@ export function createBootstrap(options: BootstrapOptions): {
    */
   function hardShutdown(code: number): void {
     if (server) {
-      server.close().catch(err => logger.warn('Server close during forced shutdown failed', { err: normalizeError(err) }));
+      server
+        .close()
+        .catch(err =>
+          logger.warn('Server close during forced shutdown failed', { err: normalizeError(err) })
+        );
     }
 
     if (options.onStop) {

@@ -28,7 +28,10 @@ export async function generateKeyPairWithIdAsync(
 
 export async function signCertificateAsync(options: SignOptions): Promise<SignedCertificate> {
   if (remoteClient) return remoteClient.signCertificate(options);
-  return getPool().execute<SignedCertificate>('signCertificate', options as unknown as Record<string, unknown>);
+  return getPool().execute<SignedCertificate>(
+    'signCertificate',
+    options as unknown as Record<string, unknown>
+  );
 }
 
 export async function createCsrAsync(options: CsrOptions): Promise<string> {

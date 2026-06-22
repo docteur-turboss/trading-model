@@ -1,9 +1,6 @@
 import { z } from 'zod';
 
-import {
-  BaseEnvSchema,
-  validateEnv,
-} from '@trading-model/common/validation/env';
+import { BaseEnvSchema, validateEnv } from '@trading-model/common/validation/env';
 
 const CryptoWorkerEnvSchema = BaseEnvSchema.extend({
   WORKER_POOL_SIZE: z.coerce.number().int().positive().default(0),

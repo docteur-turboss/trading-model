@@ -103,8 +103,14 @@ describe('BaseWorker', () => {
       await jest.runAllTimersAsync();
 
       expect(mockPost).toHaveBeenCalledWith('https://scheduler:3000/jobs/job-1/ack');
-      expect(handler).toHaveBeenCalledWith({ id: 'job-1', type: 'test-type', payload: { data: 42 } });
-      expect(mockPost).toHaveBeenCalledWith('https://scheduler:3000/jobs/job-1/complete', { result: 'done' });
+      expect(handler).toHaveBeenCalledWith({
+        id: 'job-1',
+        type: 'test-type',
+        payload: { data: 42 },
+      });
+      expect(mockPost).toHaveBeenCalledWith('https://scheduler:3000/jobs/job-1/complete', {
+        result: 'done',
+      });
     });
 
     it('should fail the job if no handler is registered for the type', async () => {

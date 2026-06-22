@@ -31,7 +31,9 @@ export interface BootstrapConfig {
   };
 }
 
-export function bootstrapConfigFromEnv(env: Record<string, string | undefined>): BootstrapConfig | null {
+export function bootstrapConfigFromEnv(
+  env: Record<string, string | undefined>
+): BootstrapConfig | null {
   const caUrl = env.CERT_CLIENT_CA_URL;
   if (!caUrl) return null;
 
@@ -49,12 +51,18 @@ export function bootstrapConfigFromEnv(env: Record<string, string | undefined>):
     caPath: env.TLS_CA_PATH ?? '/etc/tls/ca.pem',
     bootstrapToken: env.CERT_CLIENT_BOOTSTRAP_TOKEN,
     tls: env.CA_CLIENT_TLS_KEY
-      ? { key: env.CA_CLIENT_TLS_KEY, cert: env.CA_CLIENT_TLS_CERT ?? '', ca: env.CA_CLIENT_TLS_CA ?? '' }
+      ? {
+          key: env.CA_CLIENT_TLS_KEY,
+          cert: env.CA_CLIENT_TLS_CERT ?? '',
+          ca: env.CA_CLIENT_TLS_CA ?? '',
+        }
       : undefined,
   };
 }
 
-export async function bootstrapFromEnv(env: Record<string, string | undefined>): Promise<TlsConfig | null> {
+export async function bootstrapFromEnv(
+  env: Record<string, string | undefined>
+): Promise<TlsConfig | null> {
   const config = bootstrapConfigFromEnv(env);
   if (!config) return null;
   return await bootstrapCertificate(config);
@@ -69,7 +77,9 @@ export async function bootstrapCertificate(config: BootstrapConfig): Promise<Tls
     });
     return { key: config.keyPath, cert: config.certPath, ca: config.caPath };
   } catch (err) {
-    logger.warn('TLS certificate files not found — proceeding with bootstrap', { err: normalizeError(err) });
+    logger.warn('TLS certificate files not found — proceeding with bootstrap', {
+      err: normalizeError(err),
+    });
   }
 
   logger.info('Obtaining TLS certificate from CA', {
@@ -132,7 +142,9 @@ export interface CreateHttpsServerOptions {
  *
  * Returns `null` when `CERT_CLIENT_CA_URL` is not set (static TLS).
  */
-export function createTlsBootstrap(env: Record<string, string | undefined>): TlsBootstrapOptions | null {
+export function createTlsBootstrap(
+  env: Record<string, string | undefined>
+): TlsBootstrapOptions | null {
   const config = bootstrapConfigFromEnv(env);
   if (!config) return null;
 

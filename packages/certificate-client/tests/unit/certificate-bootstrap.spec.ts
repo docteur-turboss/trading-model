@@ -59,16 +59,15 @@ jest.mock('@trading-model/common/middleware/response-protocol', () => ({
 }));
 
 const mockHttpsServer = { raw: { setSecureContext: jest.fn() } };
-const mockCreateAndStartHttpsServer = jest.fn((..._args: any[]) => Promise.resolve(mockHttpsServer));
+const mockCreateAndStartHttpsServer = jest.fn((..._args: any[]) =>
+  Promise.resolve(mockHttpsServer)
+);
 jest.mock('@trading-model/common/server/server-factory', () => ({
   createAndStartHttpsServer: mockCreateAndStartHttpsServer,
 }));
 
 import fs from 'node:fs/promises';
-import {
-  generateKeyPairAsync,
-  createCsrAsync,
-} from '@trading-model/certificate-utils/async';
+import { generateKeyPairAsync, createCsrAsync } from '@trading-model/certificate-utils/async';
 import {
   bootstrapConfigFromEnv,
   bootstrapFromEnv,
@@ -367,7 +366,11 @@ describe('createTlsBootstrap', () => {
   });
 
   it('setupAutoRenew onRenew should log error when setSecureContext throws', () => {
-    const server = { setSecureContext: jest.fn(() => { throw new Error('boom'); }) };
+    const server = {
+      setSecureContext: jest.fn(() => {
+        throw new Error('boom');
+      }),
+    };
 
     const result = createTlsBootstrap({ CERT_CLIENT_CA_URL: 'https://ca:8447' });
     (result as any).setupAutoRenew(server);
@@ -375,7 +378,9 @@ describe('createTlsBootstrap', () => {
     const { onRenew } = (mockCertificateClient as any).mock.calls[0][0] as any;
     onRenew({ keyPem: 'key', certPem: 'cert', caPem: 'ca' });
 
-    expect(logger.error).toHaveBeenCalledWith('Failed to hot-reload TLS context', { err: expect.any(Error) });
+    expect(logger.error).toHaveBeenCalledWith('Failed to hot-reload TLS context', {
+      err: expect.any(Error),
+    });
   });
 });
 
@@ -453,7 +458,11 @@ describe('createHttpsServer', () => {
     const { onRenew } = (mockCertificateClient as any).mock.calls[0][0] as any;
     onRenew({ keyPem: 'key', certPem: 'cert', caPem: 'ca' });
 
-    expect(mockHttpsServer.raw.setSecureContext).toHaveBeenCalledWith({ key: 'key', cert: 'cert', ca: 'ca' });
+    expect(mockHttpsServer.raw.setSecureContext).toHaveBeenCalledWith({
+      key: 'key',
+      cert: 'cert',
+      ca: 'ca',
+    });
   });
 
   it('should schedule startAutoRenew via setTimeout when env config present', async () => {

@@ -7,7 +7,10 @@ const mockWebSocketInstance: Record<string, unknown> = {
   close: jest.fn(),
   readyState: 1, // OPEN
 };
-const mockWebSocket = jest.fn(() => mockWebSocketInstance) as jest.Mock & { OPEN: number; CONNECTING: number };
+const mockWebSocket = jest.fn(() => mockWebSocketInstance) as jest.Mock & {
+  OPEN: number;
+  CONNECTING: number;
+};
 mockWebSocket.OPEN = 1;
 mockWebSocket.CONNECTING = 0;
 jest.mock('ws', () => ({
@@ -200,16 +203,21 @@ describe('WebSocketClient', () => {
 
       client.connect();
       const onMock = mockWebSocketInstance.on as jest.Mock;
-      const closeHandler = onMock.mock.calls.find((c: unknown[]) => c[0] === 'close')![1] as () => void;
+      const closeHandler = onMock.mock.calls.find(
+        (c: unknown[]) => c[0] === 'close'
+      )![1] as () => void;
 
       for (let i = 0; i <= 3; i++) {
         closeHandler();
       }
 
-      expect(mockWarn).toHaveBeenCalledWith('WebSocket max reconnect attempts reached', expect.objectContaining({
-        url: 'ws://localhost:3000',
-        attempts: 3,
-      }));
+      expect(mockWarn).toHaveBeenCalledWith(
+        'WebSocket max reconnect attempts reached',
+        expect.objectContaining({
+          url: 'ws://localhost:3000',
+          attempts: 3,
+        })
+      );
     });
 
     test('should call connect again when reconnect timer fires', () => {
@@ -220,7 +228,9 @@ describe('WebSocketClient', () => {
       expect(mockWebSocket).toHaveBeenCalledTimes(1);
 
       const onMock = mockWebSocketInstance.on as jest.Mock;
-      const closeHandler = onMock.mock.calls.find((c: unknown[]) => c[0] === 'close')![1] as () => void;
+      const closeHandler = onMock.mock.calls.find(
+        (c: unknown[]) => c[0] === 'close'
+      )![1] as () => void;
       closeHandler();
 
       expect(client.getReconnectAttempts()).toBe(1);
@@ -238,7 +248,9 @@ describe('WebSocketClient', () => {
       client.disconnect();
 
       const onMock = mockWebSocketInstance.on as jest.Mock;
-      const closeHandler = onMock.mock.calls.find((c: unknown[]) => c[0] === 'close')![1] as () => void;
+      const closeHandler = onMock.mock.calls.find(
+        (c: unknown[]) => c[0] === 'close'
+      )![1] as () => void;
       closeHandler();
 
       expect(client.getReconnectAttempts()).toBe(0);

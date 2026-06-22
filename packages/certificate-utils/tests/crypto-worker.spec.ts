@@ -16,7 +16,15 @@ jest.mock('../src/generate-key-pair', () => ({
 }));
 
 jest.mock('../src/sign-certificate', () => ({
-  signCertificate: jest.fn(() => ({ serialNumber: 'SN-001', certPem: 'cert', caPem: 'ca', serviceId: 'svc', issuedAt: new Date(), expiresAt: new Date(), fingerprint: 'fp' })),
+  signCertificate: jest.fn(() => ({
+    serialNumber: 'SN-001',
+    certPem: 'cert',
+    caPem: 'ca',
+    serviceId: 'svc',
+    issuedAt: new Date(),
+    expiresAt: new Date(),
+    fingerprint: 'fp',
+  })),
 }));
 
 jest.mock('../src/create-csr', () => ({
@@ -41,12 +49,17 @@ import { parseKey, sign } from '../src/sign';
 
 function getHandler(type: string): (job: any) => any {
   const call = mockRegisterHandler.mock.calls.find((c: any[]) => c[0] === type);
-  return call ? (call[1] as (job: any) => any) : (() => {});
+  return call ? (call[1] as (job: any) => any) : () => {};
 }
 
 describe('createCryptoWorker', () => {
   it('should create a BaseWorker and register all handlers', () => {
-    const config = { serverUrl: 'ws://localhost', schedulerHttpUrl: 'http://localhost', capabilities: ['crypto'], maxConcurrency: 1 };
+    const config = {
+      serverUrl: 'ws://localhost',
+      schedulerHttpUrl: 'http://localhost',
+      capabilities: ['crypto'],
+      maxConcurrency: 1,
+    };
     const worker = createCryptoWorker(config);
 
     expect(worker).toBeDefined();
@@ -74,7 +87,13 @@ describe('createCryptoWorker', () => {
   it('should register signCertificate handler', async () => {
     createCryptoWorker({} as any);
     const handler = getHandler('signCertificate');
-    const opts = { csr: 'csr', serviceId: 'svc', caKeyPair: {} as any, caCertPem: 'ca', ttlMs: 3600000 };
+    const opts = {
+      csr: 'csr',
+      serviceId: 'svc',
+      caKeyPair: {} as any,
+      caCertPem: 'ca',
+      ttlMs: 3600000,
+    };
     const result = await handler({ payload: opts });
 
     expect(signCertificate).toHaveBeenCalledWith(opts);
@@ -121,7 +140,9 @@ describe('createCryptoWorker', () => {
   it('should register sign handler', async () => {
     createCryptoWorker({} as any);
     const handler = getHandler('sign');
-    const result = await handler({ payload: { algorithm: 'sha256', body: 'body', privateKey: 'key' } });
+    const result = await handler({
+      payload: { algorithm: 'sha256', body: 'body', privateKey: 'key' },
+    });
 
     expect(sign).toHaveBeenCalledWith('sha256', 'body', 'key');
     expect(result).toBe('signature');

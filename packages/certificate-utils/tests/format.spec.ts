@@ -65,7 +65,9 @@ describe('parsePem', () => {
 
 describe('extractPublicKeyFromBody', () => {
   it('should throw with deprecation message', () => {
-    expect(() => extractPublicKeyFromBody('body')).toThrow('extractPublicKeyFromBody is deprecated');
+    expect(() => extractPublicKeyFromBody('body')).toThrow(
+      'extractPublicKeyFromBody is deprecated'
+    );
   });
 });
 
@@ -94,7 +96,8 @@ describe('parseCertInfo', () => {
       issuer: 'CN=TradingModelCA',
       validFrom: now.toISOString(),
       validTo: later.toISOString(),
-      fingerprint256: 'AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB',
+      fingerprint256:
+        'AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB:CD:EF:01:23:45:67:89:AB',
       subjectAltName: 'DNS:test.internal, DNS:test2.internal',
     };
     MockX509.mockReturnValue(mockX509);
@@ -108,7 +111,9 @@ describe('parseCertInfo', () => {
     expect(info.serialNumber).toBe('1234567890ABCDEF');
     expect(info.notBefore.getTime()).toBe(now.getTime());
     expect(info.notAfter.getTime()).toBe(later.getTime());
-    expect(info.fingerprint).toBe('abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789ab');
+    expect(info.fingerprint).toBe(
+      'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789ab'
+    );
     expect(info.san).toEqual(['test.internal', 'test2.internal']);
   });
 
@@ -119,7 +124,8 @@ describe('parseCertInfo', () => {
       issuer: 'CN=CA',
       validFrom: new Date().toISOString(),
       validTo: new Date(Date.now() + 3600000).toISOString(),
-      fingerprint256: 'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99',
+      fingerprint256:
+        'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99',
       subjectAltName: null,
     };
     MockX509.mockReturnValue(mockX509);
@@ -167,7 +173,9 @@ describe('parseCsrInfo', () => {
   it('should parse CSR info with SAN extensions', () => {
     const mockCsr = {
       subject: {
-        getField: jest.fn((name: string) => name === 'CN' ? { value: 'test-service' } : undefined),
+        getField: jest.fn((name: string) =>
+          name === 'CN' ? { value: 'test-service' } : undefined
+        ),
       },
       getAttribute: jest.fn(() => ({
         extensions: [

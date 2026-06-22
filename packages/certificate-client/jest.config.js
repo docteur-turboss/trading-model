@@ -9,7 +9,13 @@ module.exports = {
     '^@trading-model/common/(.*)$': '<rootDir>/../common/src/$1',
     '^@trading-model/certificate-utils/(.*)$': '<rootDir>/../certificate-utils/src/$1',
   },
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/index.ts', '!src/crl-subscriber.ts', '!src/certificate-client.ts'],
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/index.ts',
+    '!src/crl-subscriber.ts',
+    '!src/certificate-client.ts',
+  ],
   coverageThreshold: {
     global: {
       branches: 100,

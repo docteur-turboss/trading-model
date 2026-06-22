@@ -39,7 +39,10 @@ jest.mock('node:os', () => ({
 
 import { WorkerPool } from '../src/worker-pool';
 
-function triggerMessage(worker: FakeWorker, msg: { id: string; success: boolean; data?: unknown; error?: string }): void {
+function triggerMessage(
+  worker: FakeWorker,
+  msg: { id: string; success: boolean; data?: unknown; error?: string }
+): void {
   const handlers = worker._listeners.get('message') ?? [];
   for (const h of handlers) {
     h(msg);
@@ -104,7 +107,11 @@ describe('WorkerPool', () => {
     const promise = pool.execute('generateKeyPair', { algorithm: 'ec' });
 
     const call = fakeWorkers[0].postMessage.mock.calls[0][0] as { id: string };
-    triggerMessage(fakeWorkers[0], { id: call.id, success: true, data: { publicKey: 'pk', privateKey: 'sk' } });
+    triggerMessage(fakeWorkers[0], {
+      id: call.id,
+      success: true,
+      data: { publicKey: 'pk', privateKey: 'sk' },
+    });
 
     const result = await promise;
     expect(result).toEqual({ publicKey: 'pk', privateKey: 'sk' });
@@ -143,7 +150,11 @@ describe('WorkerPool', () => {
     expect(pool.pending).toBe(1);
 
     const call1 = fakeWorkers[0].postMessage.mock.calls[0][0] as { id: string };
-    triggerMessage(fakeWorkers[0], { id: call1.id, success: true, data: { publicKey: 'pk', privateKey: 'sk' } });
+    triggerMessage(fakeWorkers[0], {
+      id: call1.id,
+      success: true,
+      data: { publicKey: 'pk', privateKey: 'sk' },
+    });
 
     await p1;
 
@@ -175,7 +186,9 @@ describe('WorkerPool', () => {
     const pool = new WorkerPool({ size: 1, workerScript: '/fake/worker.js' });
     await pool.terminate();
 
-    await expect(pool.execute('generateKeyPair', { algorithm: 'ec' })).rejects.toThrow('terminated');
+    await expect(pool.execute('generateKeyPair', { algorithm: 'ec' })).rejects.toThrow(
+      'terminated'
+    );
   });
 
   it('should replace worker on error', () => {
@@ -250,7 +263,9 @@ describe('WorkerPool', () => {
   it('should reject when queue exceeds maxQueueSize', async () => {
     const pool = new WorkerPool({ size: 0, maxQueueSize: 0, workerScript: '/fake/worker.js' });
 
-    await expect(pool.execute('generateKeyPair', { algorithm: 'ec' })).rejects.toThrow('WorkerPool queue is full');
+    await expect(pool.execute('generateKeyPair', { algorithm: 'ec' })).rejects.toThrow(
+      'WorkerPool queue is full'
+    );
     pool.terminate();
   });
 

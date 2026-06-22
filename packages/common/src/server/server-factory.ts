@@ -100,16 +100,20 @@ export async function setupTlsWatcher(server: https.Server, tls: TlsConfig): Pro
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   const debouncedReload = (eventType: string, filename: string | null): void => {
     if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => { reloadTls(eventType, filename); }, 300);
+    debounceTimer = setTimeout(() => {
+      reloadTls(eventType, filename);
+    }, 300);
   };
 
-  await Promise.all([...dirs].map(async (dir) => {
-    try {
-      await fsPromises.access(dir, fs.constants.R_OK);
-      const watcher = fs.watch(dir, debouncedReload);
-      watcher.unref();
-    } catch (err) {
-      logger.warn('Cannot watch TLS directory', { dir, err: normalizeError(err) });
-    }
-  }));
+  await Promise.all(
+    [...dirs].map(async dir => {
+      try {
+        await fsPromises.access(dir, fs.constants.R_OK);
+        const watcher = fs.watch(dir, debouncedReload);
+        watcher.unref();
+      } catch (err) {
+        logger.warn('Cannot watch TLS directory', { dir, err: normalizeError(err) });
+      }
+    })
+  );
 }

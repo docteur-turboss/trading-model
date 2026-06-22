@@ -48,17 +48,17 @@ and low-latency service-to-service communication.
 
 The discovery-server uses a pluggable `RegistryBackend` interface:
 
-| Backend | Storage | Use Case |
-|---------|---------|----------|
-| `InMemoryRegistryBackend` | In-memory `Map` | Development, single-node |
-| `RedisRegistryBackend` | Redis (distributed) | Production, multi-node, multi-region |
+| Backend                   | Storage             | Use Case                             |
+| ------------------------- | ------------------- | ------------------------------------ |
+| `InMemoryRegistryBackend` | In-memory `Map`     | Development, single-node             |
+| `RedisRegistryBackend`    | Redis (distributed) | Production, multi-node, multi-region |
 
 To enable the Redis backend, set `REDIS_URL` on the discovery-server:
 
 ```yaml
 environment:
   REDIS_URL: redis://:password@redis-cluster:6379
-  REDIS_KEY_PREFIX: "discovery:prod:"
+  REDIS_KEY_PREFIX: 'discovery:prod:'
 ```
 
 All discovery-server instances connected to the same Redis instance/cluster
@@ -78,6 +78,7 @@ ADDRESS_MANAGER_URLS='["https://ds-us-east:3000","https://ds-eu-west:3000"]'
 ```
 
 The client tries each URL sequentially:
+
 1. Primary discovery server
 2. Secondary (on failure / timeout)
 3. Tertiary, etc.
@@ -98,6 +99,7 @@ When `findService(serviceName)` is called, the address-manager:
 3. Falls back to any region if no healthy instance is found in the preferred region
 
 This enables:
+
 - Low-latency routing (services prefer local instances)
 - Automatic disaster recovery (region failure → cross-region fallback)
 
@@ -159,10 +161,10 @@ A Redis cluster is required for the distributed registry backend:
 
 ### Database Replication
 
-| Database | Replication Strategy |
-|----------|---------------------|
-| MySQL | Primary-replica cross-region replication |
-| MongoDB | Replica set with members in multiple regions |
+| Database | Replication Strategy                         |
+| -------- | -------------------------------------------- |
+| MySQL    | Primary-replica cross-region replication     |
+| MongoDB  | Replica set with members in multiple regions |
 
 ## Deployment Phases
 
@@ -200,6 +202,7 @@ When the `us-east-1` discovery-server or services become unreachable:
 ### Recovery after region restart
 
 When `us-east-1` comes back:
+
 1. Services re-register with the same `instanceId`
 2. If `INSTANCE_TOKEN_SECRET` is set, tokens are recovered without
    re-registration

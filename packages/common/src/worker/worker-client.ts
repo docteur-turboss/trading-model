@@ -3,7 +3,6 @@ import { EventEmitter } from 'node:events';
 
 import WebSocket from 'ws';
 
-
 import { logger } from '../config/logger';
 import {
   WorkerWsRegisterMessage,
@@ -13,7 +12,6 @@ import {
   WorkerIncomingMessage,
 } from '../contracts/worker-protocol.types';
 import { normalizeError } from '../utils/errors';
-
 
 export interface WorkerClientConfig {
   workerId: string;
@@ -109,7 +107,7 @@ export class WorkerClient extends EventEmitter {
         }
       });
 
-      this.ws.on('error', (err) => {
+      this.ws.on('error', err => {
         this.emit('error', err);
         if (this.reconnectAttempt === 0) {
           reject(err);
@@ -178,7 +176,12 @@ export class WorkerClient extends EventEmitter {
     this.emit('reconnecting', { attempt: this.reconnectAttempt, delay });
 
     this.reconnectTimer = setTimeout(() => {
-      this.doConnect().catch(err => logger.warn('Failed to reconnect worker client', { attempt: this.reconnectAttempt, err: normalizeError(err) }));
+      this.doConnect().catch(err =>
+        logger.warn('Failed to reconnect worker client', {
+          attempt: this.reconnectAttempt,
+          err: normalizeError(err),
+        })
+      );
     }, delay);
   }
 

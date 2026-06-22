@@ -61,7 +61,15 @@ describe('async module - pool path', () => {
   });
 
   it('signCertificateAsync should delegate to pool', async () => {
-    mockExecute.mockResolvedValue({ serialNumber: 'SN-001', certPem: 'cert', caPem: 'ca', serviceId: 'svc-1', issuedAt: new Date(), expiresAt: new Date(), fingerprint: 'fp' });
+    mockExecute.mockResolvedValue({
+      serialNumber: 'SN-001',
+      certPem: 'cert',
+      caPem: 'ca',
+      serviceId: 'svc-1',
+      issuedAt: new Date(),
+      expiresAt: new Date(),
+      fingerprint: 'fp',
+    });
     const result = await signCertificateAsync({} as any);
     expect(mockExecute).toHaveBeenCalledWith('signCertificate', {});
     expect(result.serialNumber).toBe('SN-001');
@@ -77,14 +85,20 @@ describe('async module - pool path', () => {
   it('validateCertificateAsync should delegate to pool', async () => {
     mockExecute.mockResolvedValue({ valid: true });
     const result = await validateCertificateAsync('cert');
-    expect(mockExecute).toHaveBeenCalledWith('validateCertificate', { certPem: 'cert', caCertPem: undefined });
+    expect(mockExecute).toHaveBeenCalledWith('validateCertificate', {
+      certPem: 'cert',
+      caCertPem: undefined,
+    });
     expect(result.valid).toBe(true);
   });
 
   it('validateCertificateAsync with caCertPem should delegate to pool', async () => {
     mockExecute.mockResolvedValue({ valid: true });
     const result = await validateCertificateAsync('cert', 'ca-cert');
-    expect(mockExecute).toHaveBeenCalledWith('validateCertificate', { certPem: 'cert', caCertPem: 'ca-cert' });
+    expect(mockExecute).toHaveBeenCalledWith('validateCertificate', {
+      certPem: 'cert',
+      caCertPem: 'ca-cert',
+    });
     expect(result.valid).toBe(true);
   });
 
@@ -98,7 +112,11 @@ describe('async module - pool path', () => {
   it('signAsync should delegate to pool', async () => {
     mockExecute.mockResolvedValue('signature');
     const result = await signAsync('sha256', 'body', 'private-key');
-    expect(mockExecute).toHaveBeenCalledWith('sign', { algorithm: 'sha256', body: 'body', privateKey: 'private-key' });
+    expect(mockExecute).toHaveBeenCalledWith('sign', {
+      algorithm: 'sha256',
+      body: 'body',
+      privateKey: 'private-key',
+    });
     expect(result).toBe('signature');
   });
 });
@@ -131,7 +149,15 @@ describe('async module - remote client path', () => {
   });
 
   it('signCertificateAsync should delegate to remote client', async () => {
-    mockSignCertificate.mockResolvedValue({ serialNumber: 'SN-001', certPem: 'cert', caPem: 'ca', serviceId: 'svc-1', issuedAt: new Date(), expiresAt: new Date(), fingerprint: 'fp' });
+    mockSignCertificate.mockResolvedValue({
+      serialNumber: 'SN-001',
+      certPem: 'cert',
+      caPem: 'ca',
+      serviceId: 'svc-1',
+      issuedAt: new Date(),
+      expiresAt: new Date(),
+      fingerprint: 'fp',
+    });
     const result = await signCertificateAsync({} as any);
     expect(mockSignCertificate).toHaveBeenCalledWith({});
     expect(result.serialNumber).toBe('SN-001');

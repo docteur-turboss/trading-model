@@ -26,7 +26,9 @@ function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 function createMockCache(): jest.Mocked<ServiceCache> {
   return {
     get: jest.fn<(name: string) => Promise<ServiceInstance | null>>().mockResolvedValue(null),
-    set: jest.fn<(name: string, inst: ServiceInstance, latencyMs?: number) => Promise<void>>().mockResolvedValue(undefined),
+    set: jest
+      .fn<(name: string, inst: ServiceInstance, latencyMs?: number) => Promise<void>>()
+      .mockResolvedValue(undefined),
     invalidate: jest.fn<(name: string) => Promise<void>>().mockResolvedValue(undefined),
     clear: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<ServiceCache>;
@@ -81,7 +83,8 @@ describe('Multi-Region ServiceDiscovery', () => {
       healthChecker.isHealthy.mockResolvedValue(true);
 
       discovery = new ServiceDiscovery(
-        httpClient, cache,
+        httpClient,
+        cache,
         { addressManagerUrl: 'https://ds:3000', discoveryTimeoutMs: 5000 } as AddressManagerConfig,
         healthChecker
       );
@@ -102,7 +105,8 @@ describe('Multi-Region ServiceDiscovery', () => {
       healthChecker.isHealthy.mockResolvedValueOnce(true);
 
       discovery = new ServiceDiscovery(
-        httpClient, cache,
+        httpClient,
+        cache,
         { addressManagerUrl: 'https://ds:3000', discoveryTimeoutMs: 5000 } as AddressManagerConfig,
         healthChecker
       );
@@ -118,7 +122,8 @@ describe('Multi-Region ServiceDiscovery', () => {
       healthChecker.isHealthy.mockResolvedValue(true);
 
       discovery = new ServiceDiscovery(
-        httpClient, cache,
+        httpClient,
+        cache,
         {
           addressManagerUrl: 'https://ds:3000',
           discoveryTimeoutMs: 5000,
@@ -135,10 +140,11 @@ describe('Multi-Region ServiceDiscovery', () => {
   describe('multi-instance region filtering', () => {
     test('should pick the healthy instance from preferred region', async () => {
       httpClient.get.mockResolvedValueOnce([usInstance, euInstance]);
-      healthChecker.isHealthy.mockImplementation(async (inst) => inst.region === 'us-east-1');
+      healthChecker.isHealthy.mockImplementation(async inst => inst.region === 'us-east-1');
 
       discovery = new ServiceDiscovery(
-        httpClient, cache,
+        httpClient,
+        cache,
         { addressManagerUrl: 'https://ds:3000', discoveryTimeoutMs: 5000 } as AddressManagerConfig,
         healthChecker
       );
@@ -154,7 +160,8 @@ describe('Multi-Region ServiceDiscovery', () => {
       healthChecker.isHealthy.mockResolvedValue(true);
 
       discovery = new ServiceDiscovery(
-        httpClient, cache,
+        httpClient,
+        cache,
         { addressManagerUrl: 'https://ds:3000', discoveryTimeoutMs: 5000 } as AddressManagerConfig,
         healthChecker
       );

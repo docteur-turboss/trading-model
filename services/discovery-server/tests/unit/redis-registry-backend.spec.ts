@@ -136,14 +136,16 @@ describe('RedisRegistryBackend', () => {
       expect(mockRedis.set).toHaveBeenCalledWith(
         expect.stringMatching(/^{discovery}:instance:i1:token/),
         expect.any(String),
-        'NX',
+        'NX'
       );
     });
 
     it('should log redis connection errors via event handler', () => {
       const { logger } = require('@trading-model/common/config/logger');
       const backend = new RedisRegistryBackend('redis://localhost:6379');
-      const errorHandler = mockRedis.on.mock.calls.find((c: unknown[]) => c[0] === 'error')?.[1] as (err: Error) => void;
+      const errorHandler = mockRedis.on.mock.calls.find(
+        (c: unknown[]) => c[0] === 'error'
+      )?.[1] as (err: Error) => void;
       errorHandler(new Error('ECONNREFUSED'));
       expect(logger.error).toHaveBeenCalledWith('Redis connection error', expect.any(Object));
       backend.stop();
@@ -164,7 +166,9 @@ describe('RedisRegistryBackend', () => {
       };
       new RedisRegistryBackend(config);
       const args = MockCluster.mock.calls[0];
-      const clusterRetryStrategy = (args[1] as any).clusterRetryStrategy as (times: number) => number;
+      const clusterRetryStrategy = (args[1] as any).clusterRetryStrategy as (
+        times: number
+      ) => number;
       expect(clusterRetryStrategy(1)).toBe(200);
       expect(clusterRetryStrategy(100)).toBe(5000);
     });
@@ -176,7 +180,11 @@ describe('RedisRegistryBackend', () => {
       const token = await backend.registerInstance(makeInstance());
       expect(token).toBeDefined();
       expect(typeof token).toBe('string');
-      expect(mockRedis.set).toHaveBeenCalledWith(expect.stringContaining(':token'), expect.any(String), 'NX');
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        expect.stringContaining(':token'),
+        expect.any(String),
+        'NX'
+      );
       expect(mockMulti.sadd).toHaveBeenCalled();
       expect(mockMulti.set).toHaveBeenCalled();
       expect(mockMulti.exec).toHaveBeenCalled();
@@ -214,7 +222,10 @@ describe('RedisRegistryBackend', () => {
       mockRedis.get.mockResolvedValue('invalid-json');
       const backend = new RedisRegistryBackend('redis://localhost:6379');
       await backend.registerInstance(makeInstance());
-      expect(logger.warn).toHaveBeenCalledWith('Failed to parse existing instance metadata', expect.any(Object));
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to parse existing instance metadata',
+        expect.any(Object)
+      );
     });
 
     it('should preserve the provided registeredAt value', async () => {
@@ -278,7 +289,10 @@ describe('RedisRegistryBackend', () => {
       const backend = new RedisRegistryBackend('redis://localhost:6379');
       const result = await backend.updateHeartbeat('financial-scraper-service', 'test-instance-1');
       expect(result).toBe(false);
-      expect(logger.warn).toHaveBeenCalledWith('Failed to update heartbeat in Redis', expect.any(Object));
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to update heartbeat in Redis',
+        expect.any(Object)
+      );
     });
   });
 
@@ -287,10 +301,7 @@ describe('RedisRegistryBackend', () => {
       const backend = new RedisRegistryBackend('redis://localhost:6379');
       const token = await backend.updateToken('test-instance-1');
       expect(token).toBeDefined();
-      expect(mockRedis.set).toHaveBeenCalledWith(
-        expect.stringContaining(':token'),
-        token,
-      );
+      expect(mockRedis.set).toHaveBeenCalledWith(expect.stringContaining(':token'), token);
     });
   });
 
@@ -315,11 +326,17 @@ describe('RedisRegistryBackend', () => {
     it('should skip corrupt entries with a warning', async () => {
       const { logger } = require('@trading-model/common/config/logger');
       mockRedis.smembers.mockResolvedValue(['i1', 'i2']);
-      mockRedis.mget.mockResolvedValue([JSON.stringify(makeInstance({ instanceId: 'i1' })), 'corrupt']);
+      mockRedis.mget.mockResolvedValue([
+        JSON.stringify(makeInstance({ instanceId: 'i1' })),
+        'corrupt',
+      ]);
       const backend = new RedisRegistryBackend('redis://localhost:6379');
       const instances = await backend.getInstances('financial-scraper-service');
       expect(instances).toHaveLength(1);
-      expect(logger.warn).toHaveBeenCalledWith('Skipping corrupt instance entry in Redis', expect.any(Object));
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Skipping corrupt instance entry in Redis',
+        expect.any(Object)
+      );
     });
 
     it('should skip null entries from mget', async () => {
@@ -354,7 +371,10 @@ describe('RedisRegistryBackend', () => {
       const backend = new RedisRegistryBackend('redis://localhost:6379');
       const result = await backend.getInstance('financial-scraper-service', 'test-instance-1');
       expect(result).toBeUndefined();
-      expect(logger.warn).toHaveBeenCalledWith('Failed to parse instance metadata from Redis', expect.any(Object));
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to parse instance metadata from Redis',
+        expect.any(Object)
+      );
     });
   });
 
@@ -363,7 +383,10 @@ describe('RedisRegistryBackend', () => {
       const backend = new RedisRegistryBackend('redis://localhost:6379');
       const result = await backend.removeInstance('financial-scraper-service', 'test-instance-1');
       expect(result).toBe(true);
-      expect(mockMulti.srem).toHaveBeenCalledWith(expect.stringContaining(':service:financial-scraper-service:instances'), 'test-instance-1');
+      expect(mockMulti.srem).toHaveBeenCalledWith(
+        expect.stringContaining(':service:financial-scraper-service:instances'),
+        'test-instance-1'
+      );
       expect(mockMulti.del).toHaveBeenCalledTimes(3);
     });
 
@@ -456,7 +479,7 @@ describe('RedisRegistryBackend', () => {
       const backend = new RedisRegistryBackend('redis://localhost:6379');
       const result = await backend.validInstanceToken(
         'dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.dGVzdA',
-        'wrong-id',
+        'wrong-id'
       );
       expect(result).toBe(false);
     });
@@ -578,7 +601,7 @@ describe('RedisRegistryBackend', () => {
 
       expect(logger.warn).toHaveBeenCalledWith(
         'Expired instance removed',
-        expect.objectContaining({ instanceId: 'i1' }),
+        expect.objectContaining({ instanceId: 'i1' })
       );
     });
 
@@ -598,10 +621,7 @@ describe('RedisRegistryBackend', () => {
       const backend = new RedisRegistryBackend('redis://localhost:6379');
       await (backend as any).cleanupExpiredInstances();
 
-      expect(logger.warn).not.toHaveBeenCalledWith(
-        'Expired instance removed',
-        expect.anything(),
-      );
+      expect(logger.warn).not.toHaveBeenCalledWith('Expired instance removed', expect.anything());
     });
 
     it('should log error if cleanup throws', async () => {

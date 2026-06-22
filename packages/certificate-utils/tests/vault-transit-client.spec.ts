@@ -1,14 +1,12 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
- 
 const mockPost: any = jest.fn();
- 
+
 const mockGet: any = jest.fn();
- 
+
 const mockDelete: any = jest.fn();
 const mockHttpClientInstance = { post: mockPost, get: mockGet, delete: mockDelete };
 
- 
 const MockHttpClient: any = jest.fn(() => mockHttpClientInstance);
 MockHttpClient.createWithTls = jest.fn();
 
@@ -23,7 +21,7 @@ jest.mock('@trading-model/common/config/logger', () => ({
 }));
 
 jest.mock('@trading-model/common/utils/errors', () => ({
-  normalizeError: jest.fn((err: unknown) => err instanceof Error ? err : new Error(String(err))),
+  normalizeError: jest.fn((err: unknown) => (err instanceof Error ? err : new Error(String(err)))),
 }));
 
 import { VaultTransitClient } from '../src/vault-transit-client';
@@ -50,7 +48,11 @@ describe('VaultTransitClient', () => {
     const client = new VaultTransitClient({
       vaultUrl: 'https://vault.example.com',
       token: 's.test',
-      tls: { RootCACertPath: '/ca.pem', CertificatePath: '/cert.pem', KeyCertificatePath: '/key.pem' },
+      tls: {
+        RootCACertPath: '/ca.pem',
+        CertificatePath: '/cert.pem',
+        KeyCertificatePath: '/key.pem',
+      },
     });
     expect(MockHttpClient.createWithTls).toHaveBeenCalledWith({
       RootCACertPath: '/ca.pem',
@@ -98,11 +100,10 @@ describe('VaultTransitClient', () => {
 
       await client.createKey('my-key', 'ecdsa-p384');
 
-      expect(mockPost).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(Object),
-        { headers: { 'X-Vault-Token': 's.test-token', 'X-Vault-Namespace': 'ns1' }, timeoutMs: 30000 }
-      );
+      expect(mockPost).toHaveBeenCalledWith(expect.any(String), expect.any(Object), {
+        headers: { 'X-Vault-Token': 's.test-token', 'X-Vault-Namespace': 'ns1' },
+        timeoutMs: 30000,
+      });
     });
   });
 
@@ -134,7 +135,9 @@ describe('VaultTransitClient', () => {
       mockPost.mockResolvedValue(null);
       const client = createClient();
 
-      await expect(client.sign('my-key', 'sha256', 'data')).rejects.toThrow('Empty response from Vault Transit sign');
+      await expect(client.sign('my-key', 'sha256', 'data')).rejects.toThrow(
+        'Empty response from Vault Transit sign'
+      );
     });
 
     it('should map algorithm to vault hash algorithm', async () => {
@@ -192,21 +195,25 @@ describe('VaultTransitClient', () => {
       mockPost.mockResolvedValue(null);
       const client = createClient();
 
-      await expect(client.signBytes('my-key', 'der')).rejects.toThrow('Empty response from Vault Transit sign');
+      await expect(client.signBytes('my-key', 'der')).rejects.toThrow(
+        'Empty response from Vault Transit sign'
+      );
     });
   });
 
   describe('readPublicKey', () => {
     it('should read public key from vault', async () => {
-      mockGet.mockResolvedValue({ data: { keys: { '1': 'public-key-pem', '2': 'public-key-pem-v2' } } });
+      mockGet.mockResolvedValue({
+        data: { keys: { '1': 'public-key-pem', '2': 'public-key-pem-v2' } },
+      });
       const client = createClient();
 
       const result = await client.readPublicKey('my-key');
 
-      expect(mockGet).toHaveBeenCalledWith(
-        'https://vault.example.com/v1/transit/keys/my-key',
-        { headers: { 'X-Vault-Token': 's.test-token' }, timeoutMs: 30000 }
-      );
+      expect(mockGet).toHaveBeenCalledWith('https://vault.example.com/v1/transit/keys/my-key', {
+        headers: { 'X-Vault-Token': 's.test-token' },
+        timeoutMs: 30000,
+      });
       expect(result).toBe('public-key-pem-v2');
     });
 

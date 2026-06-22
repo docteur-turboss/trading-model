@@ -2,26 +2,88 @@ import { describe, expect, test } from '@jest/globals';
 import { NormalizationStats } from '../../../src/core/normalization-stats';
 import { buildFeatures } from '../../../src/core/feature-builder';
 import { FEATURE_DIM } from '../../../src/core/market-data-types';
-import { CandleData, TradeData, OrderBookData, BookTickerData, TickerData } from '@trading-model/common/config/event.types';
+import {
+  CandleData,
+  TradeData,
+  OrderBookData,
+  BookTickerData,
+  TickerData,
+} from '@trading-model/common/config/event.types';
 
 function baseCandle(overrides?: Partial<CandleData>): CandleData {
-  return { symbol: 'BTCUSDT', source: 'binance' as never, timestamp: 2000, market: 'crypto' as never, open: 100, high: 110, low: 90, close: 105, volume: 1000, interval: '1m', closeTimestamp: 3000, ...overrides };
+  return {
+    symbol: 'BTCUSDT',
+    source: 'binance' as never,
+    timestamp: 2000,
+    market: 'crypto' as never,
+    open: 100,
+    high: 110,
+    low: 90,
+    close: 105,
+    volume: 1000,
+    interval: '1m',
+    closeTimestamp: 3000,
+    ...overrides,
+  };
 }
 
 function baseTrade(overrides?: Partial<TradeData>): TradeData {
-  return { symbol: 'BTCUSDT', source: 'binance' as never, timestamp: 1500, market: 'crypto' as never, price: 104, tradeId: 1n, quantity: 10, side: 'buy', ...overrides };
+  return {
+    symbol: 'BTCUSDT',
+    source: 'binance' as never,
+    timestamp: 1500,
+    market: 'crypto' as never,
+    price: 104,
+    tradeId: 1n,
+    quantity: 10,
+    side: 'buy',
+    ...overrides,
+  };
 }
 
 function makeOrderBook(bidPrice: number, askPrice: number): OrderBookData {
-  return { symbol: 'BTCUSDT', source: 'binance' as never, timestamp: 2000, market: 'crypto' as never, bids: new Set([{ price: bidPrice, quantity: 5 }]), asks: new Set([{ price: askPrice, quantity: 3 }]) };
+  return {
+    symbol: 'BTCUSDT',
+    source: 'binance' as never,
+    timestamp: 2000,
+    market: 'crypto' as never,
+    bids: new Set([{ price: bidPrice, quantity: 5 }]),
+    asks: new Set([{ price: askPrice, quantity: 3 }]),
+  };
 }
 
 function makeBookTicker(bid: number, ask: number, bidQty = 10, askQty = 10): BookTickerData {
-  return { symbol: 'BTCUSDT', source: 'binance' as never, timestamp: 2000, market: 'crypto' as never, bid, ask, bidQty, askQty };
+  return {
+    symbol: 'BTCUSDT',
+    source: 'binance' as never,
+    timestamp: 2000,
+    market: 'crypto' as never,
+    bid,
+    ask,
+    bidQty,
+    askQty,
+  };
 }
 
-function makeTicker24h(open: number, high: number, low: number, last: number, volume: number): TickerData {
-  return { symbol: 'BTCUSDT', source: 'binance' as never, timestamp: 2000, market: 'crypto' as never, open, high, low, last, volume, closeTimestamp: 3000 };
+function makeTicker24h(
+  open: number,
+  high: number,
+  low: number,
+  last: number,
+  volume: number
+): TickerData {
+  return {
+    symbol: 'BTCUSDT',
+    source: 'binance' as never,
+    timestamp: 2000,
+    market: 'crypto' as never,
+    open,
+    high,
+    low,
+    last,
+    volume,
+    closeTimestamp: 3000,
+  };
 }
 
 function trainedNorm(values: number[]): NormalizationStats {
@@ -33,7 +95,10 @@ function trainedNorm(values: number[]): NormalizationStats {
 describe('buildFeatures', () => {
   test('returns Float32Array of correct dimension', () => {
     const s = {
-      candles: [baseCandle({ close: 100, open: 95, high: 105, low: 92, volume: 800 }), baseCandle({ close: 105, open: 102, high: 110, low: 100, volume: 1000 })],
+      candles: [
+        baseCandle({ close: 100, open: 95, high: 105, low: 92, volume: 800 }),
+        baseCandle({ close: 105, open: 102, high: 110, low: 100, volume: 1000 }),
+      ],
       trades: [],
       orderBook: null,
       bookTicker: null,
@@ -60,7 +125,10 @@ describe('buildFeatures', () => {
   describe('candle features (indices 0-8)', () => {
     test('computes candle-derived features', () => {
       const s = {
-        candles: [baseCandle({ close: 100, open: 98, high: 102, low: 97, volume: 500 }), baseCandle({ close: 105, open: 102, high: 110, low: 100, volume: 1000 })],
+        candles: [
+          baseCandle({ close: 100, open: 98, high: 102, low: 97, volume: 500 }),
+          baseCandle({ close: 105, open: 102, high: 110, low: 100, volume: 1000 }),
+        ],
         trades: [],
         orderBook: null,
         bookTicker: null,
@@ -231,8 +299,14 @@ describe('buildFeatures', () => {
   describe('trade features (indices 16-18)', () => {
     test('computes features from recent trades', () => {
       const s = {
-        candles: [baseCandle({ timestamp: 0, closeTimestamp: 1000 }), baseCandle({ timestamp: 1000, closeTimestamp: 2000 })],
-        trades: [baseTrade({ timestamp: 1500, price: 104, quantity: 10, side: 'buy' }), baseTrade({ timestamp: 1600, price: 106, quantity: 5, side: 'sell' })],
+        candles: [
+          baseCandle({ timestamp: 0, closeTimestamp: 1000 }),
+          baseCandle({ timestamp: 1000, closeTimestamp: 2000 }),
+        ],
+        trades: [
+          baseTrade({ timestamp: 1500, price: 104, quantity: 10, side: 'buy' }),
+          baseTrade({ timestamp: 1600, price: 106, quantity: 5, side: 'sell' }),
+        ],
         orderBook: null,
         bookTicker: null,
         ticker24h: null,
@@ -257,7 +331,10 @@ describe('buildFeatures', () => {
 
     test('skips trades outside 60s window', () => {
       const s = {
-        candles: [baseCandle({ timestamp: 0, closeTimestamp: 1000 }), baseCandle({ timestamp: 100000, closeTimestamp: 101000 })],
+        candles: [
+          baseCandle({ timestamp: 0, closeTimestamp: 1000 }),
+          baseCandle({ timestamp: 100000, closeTimestamp: 101000 }),
+        ],
         trades: [baseTrade({ timestamp: 100, price: 100 })],
         orderBook: null,
         bookTicker: null,

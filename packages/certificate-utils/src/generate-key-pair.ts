@@ -32,7 +32,9 @@ export function generateKeyPair(algorithm: KeyAlgorithm = KeyAlgorithm.EC_P384):
 
 export const generateKeyPairSync = generateKeyPair;
 
-export function generateKeyPairWithId(algorithm: KeyAlgorithm = KeyAlgorithm.EC_P384): KeyPairWithId {
+export function generateKeyPairWithId(
+  algorithm: KeyAlgorithm = KeyAlgorithm.EC_P384
+): KeyPairWithId {
   const pair = generateKeyPair(algorithm);
   return { ...pair, id: randomUUID() };
 }

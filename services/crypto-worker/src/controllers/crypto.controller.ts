@@ -83,7 +83,11 @@ export async function parseKeyHandler(req: Request, res: Response): Promise<void
 
 export async function signHandler(req: Request, res: Response): Promise<void> {
   try {
-    const { algorithm, body, privateKey } = req.body as { algorithm: string; body: string; privateKey: string };
+    const { algorithm, body, privateKey } = req.body as {
+      algorithm: string;
+      body: string;
+      privateKey: string;
+    };
     const result = await signAsync(algorithm, body, privateKey);
     res.json(result);
   } catch (err) {

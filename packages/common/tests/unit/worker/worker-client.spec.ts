@@ -4,7 +4,9 @@ jest.mock('ws', () => {
   const MockWebSocket = jest.fn(() => ({
     on: jest.fn(),
     send: jest.fn(),
-    get readyState() { return 1; },
+    get readyState() {
+      return 1;
+    },
     close: jest.fn(),
   }));
 
@@ -313,9 +315,7 @@ describe('WorkerClient defaults and reconnection', () => {
     jest.advanceTimersByTime(15000);
 
     if (ws) {
-      expect(ws.send).toHaveBeenCalledWith(
-        expect.stringContaining('"type":"heartbeat"')
-      );
+      expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('"type":"heartbeat"'));
     }
   });
 

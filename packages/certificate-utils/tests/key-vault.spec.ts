@@ -19,7 +19,7 @@ jest.mock('@trading-model/common/config/logger', () => ({
 }));
 
 jest.mock('@trading-model/common/utils/errors', () => ({
-  normalizeError: jest.fn((err: any) => err instanceof Error ? err : new Error(String(err))),
+  normalizeError: jest.fn((err: any) => (err instanceof Error ? err : new Error(String(err)))),
 }));
 
 jest.mock('../src/generate-key-pair', () => ({

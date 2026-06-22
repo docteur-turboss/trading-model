@@ -21,9 +21,7 @@ export class RemoteSigningClient {
   constructor(config: RemoteSigningConfig) {
     this.baseUrl = config.baseUrl.replace(/\/+$/, '');
     this.timeoutMs = config.timeoutMs ?? 30000;
-    this.httpClient = config.tls
-      ? HttpClient.createWithTls(config.tls)
-      : new HttpClient();
+    this.httpClient = config.tls ? HttpClient.createWithTls(config.tls) : new HttpClient();
   }
 
   async generateKeyPair(algorithm: KeyAlgorithm = KeyAlgorithm.EC_P384): Promise<KeyPair> {
@@ -36,7 +34,9 @@ export class RemoteSigningClient {
     return result;
   }
 
-  async generateKeyPairWithId(algorithm: KeyAlgorithm = KeyAlgorithm.EC_P384): Promise<KeyPairWithId> {
+  async generateKeyPairWithId(
+    algorithm: KeyAlgorithm = KeyAlgorithm.EC_P384
+  ): Promise<KeyPairWithId> {
     const result = await this.httpClient.post<KeyPairWithId>(
       `${this.baseUrl}/api/v1/crypto/generate-key-pair-with-id`,
       { algorithm },

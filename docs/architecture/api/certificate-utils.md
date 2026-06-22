@@ -33,19 +33,19 @@ import {
 ### generateKeyPair
 
 ```ts
-function generateKeyPair(algorithm?: KeyAlgorithm): KeyPair
+function generateKeyPair(algorithm?: KeyAlgorithm): KeyPair;
 ```
 
 Generates an asymmetric key pair.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
+| Parameter   | Type           | Default                | Description                             |
+| ----------- | -------------- | ---------------------- | --------------------------------------- |
 | `algorithm` | `KeyAlgorithm` | `KeyAlgorithm.EC_P384` | `'rsa'` (RSA 4096) or `'ec'` (EC P-384) |
 
 ```ts
 interface KeyPair {
-  publicKey: string;   // PEM-encoded SPKI
-  privateKey: string;  // PEM-encoded PKCS#8
+  publicKey: string; // PEM-encoded SPKI
+  privateKey: string; // PEM-encoded PKCS#8
 }
 ```
 
@@ -68,12 +68,12 @@ import {
 
 Async variants of the heavy crypto operations, executed off the main thread via a `worker_threads` pool (`WorkerPool` from `@trading-model/certificate-utils/worker-pool`).
 
-| Async function | Sync equivalent | Benefit |
-|---|---|---|
-| `generateKeyPairAsync(algorithm?)` | `generateKeyPair()` | Non-blocking key generation (especially RSA 4096) |
-| `signCertificateAsync(options)` | `signCertificate()` | Non-blocking signing |
-| `createCsrAsync(options)` | `createCsr()` | Consistent API (negligible perf gain) |
-| `validateCertificateAsync(certPem, caCertPem)` | `validateCertificate()` | Consistent API (negligible perf gain) |
+| Async function                                 | Sync equivalent         | Benefit                                           |
+| ---------------------------------------------- | ----------------------- | ------------------------------------------------- |
+| `generateKeyPairAsync(algorithm?)`             | `generateKeyPair()`     | Non-blocking key generation (especially RSA 4096) |
+| `signCertificateAsync(options)`                | `signCertificate()`     | Non-blocking signing                              |
+| `createCsrAsync(options)`                      | `createCsr()`           | Consistent API (negligible perf gain)             |
+| `validateCertificateAsync(certPem, caCertPem)` | `validateCertificate()` | Consistent API (negligible perf gain)             |
 
 The worker pool is lazily initialized: the first call to any async function spawns `availableParallelism()` workers. Workers are reused for subsequent calls. Call `WorkerPool::terminate()` on the pool instance to shut down cleanly.
 
@@ -97,7 +97,7 @@ const KeyAlgorithm = {
 ### createCsr
 
 ```ts
-function createCsr(options: CsrOptions): string
+function createCsr(options: CsrOptions): string;
 ```
 
 Creates a Certificate Signing Request in custom PEM format.
@@ -115,7 +115,7 @@ Returns a PEM-armored string containing a base64-encoded JSON body with `{ commo
 ### signCertificate
 
 ```ts
-function signCertificate(options: SignOptions): SignedCertificate
+function signCertificate(options: SignOptions): SignedCertificate;
 ```
 
 Signs a CSR using the CA key and returns a signed certificate.
@@ -130,13 +130,13 @@ interface SignOptions {
 }
 
 interface SignedCertificate {
-  serialNumber: string;   // 16-char hex from UUID
-  certPem: string;        // Custom PEM format
+  serialNumber: string; // 16-char hex from UUID
+  certPem: string; // Custom PEM format
   caPem: string;
   serviceId: string;
   issuedAt: Date;
   expiresAt: Date;
-  fingerprint: string;    // SHA-256 hex digest of certPem
+  fingerprint: string; // SHA-256 hex digest of certPem
 }
 ```
 
@@ -145,7 +145,7 @@ The certificate body contains `{ body, signature, issuerCert }` where `body` inc
 ### validateCertificate
 
 ```ts
-function validateCertificate(certPem: string, caCertPem: string): ValidationResult
+function validateCertificate(certPem: string, caCertPem: string): ValidationResult;
 ```
 
 Validates a certificate's signature chain and temporal validity.
@@ -158,6 +158,7 @@ interface ValidationResult {
 ```
 
 Checks performed:
+
 1. Signature verification against the CA public key
 2. `notBefore` ≤ now ≤ `notAfter`
 3. CA chain validation (if `caChain` present — see hierarchical CA)
@@ -170,7 +171,7 @@ Returns `{ valid: false, reason: '…' }` for malformed PEM, expired certs, sign
 ### certificateInfo
 
 ```ts
-function certificateInfo(certPem: string): CertificateInfo
+function certificateInfo(certPem: string): CertificateInfo;
 ```
 
 Extracts metadata from a signed certificate without validating it.
@@ -182,7 +183,7 @@ interface CertificateInfo {
   issuer: string;
   notBefore: Date;
   notAfter: Date;
-  fingerprint: string;  // SHA-256 hex digest
+  fingerprint: string; // SHA-256 hex digest
   san: string[];
 }
 ```
@@ -190,15 +191,15 @@ interface CertificateInfo {
 ### createCrl
 
 ```ts
-function createCrl(revoked: RevokedCertificate[], ttlMs?: number): Crl
+function createCrl(revoked: RevokedCertificate[], ttlMs?: number): Crl;
 ```
 
 Creates an in-memory Certificate Revocation List.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `revoked` | `RevokedCertificate[]` | — | List of revoked certificates |
-| `ttlMs` | `number` | 7 days | CRL validity period for `nextUpdate` |
+| Parameter | Type                   | Default | Description                          |
+| --------- | ---------------------- | ------- | ------------------------------------ |
+| `revoked` | `RevokedCertificate[]` | —       | List of revoked certificates         |
+| `ttlMs`   | `number`               | 7 days  | CRL validity period for `nextUpdate` |
 
 ```ts
 interface RevokedCertificate {
@@ -218,7 +219,7 @@ interface Crl {
 ### isRevoked
 
 ```ts
-function isRevoked(serialNumber: string, crl: Crl): boolean
+function isRevoked(serialNumber: string, crl: Crl): boolean;
 ```
 
 Checks if a serial number appears in the CRL. Revocation entries expire after **365 days** (hardcoded, not configurable).
@@ -231,31 +232,32 @@ Checks if a serial number appears in the CRL. Revocation entries expire after **
 
 All functions are **synchronous** — they use `generateKeyPairSync`, `createSign`, `createVerify`, etc. This means every call blocks Node.js's single-threaded event loop.
 
-| Operation | Duration (EC P-384) | Duration (RSA 4096) | Impact |
-|-----------|---------------------|---------------------|--------|
-| `generateKeyPair` | 10 – 50 ms | 1 – 5 s | Blocks all other requests |
-| `signCertificate` | 10 – 50 ms | 100 – 500 ms | Blocks heartbeat, discovery, etc. |
-| `validateCertificate` | < 10 ms | < 10 ms | Low impact |
-| `createCsr` | < 10 ms | < 10 ms | Low impact |
+| Operation             | Duration (EC P-384) | Duration (RSA 4096) | Impact                            |
+| --------------------- | ------------------- | ------------------- | --------------------------------- |
+| `generateKeyPair`     | 10 – 50 ms          | 1 – 5 s             | Blocks all other requests         |
+| `signCertificate`     | 10 – 50 ms          | 100 – 500 ms        | Blocks heartbeat, discovery, etc. |
+| `validateCertificate` | < 10 ms             | < 10 ms             | Low impact                        |
+| `createCsr`           | < 10 ms             | < 10 ms             | Low impact                        |
 
 In the context of the `certificate-authority` service, a single `POST /api/v1/certificate/sign` with RSA 4096 blocks the event loop for 100–500 ms, delaying:
+
 - Heartbeats to the discovery-server (may trigger lease expiry)
 - Other certificate requests in the queue
 - Metrics collection and health checks
 
 ### Limits & Thresholds
 
-| Limit | Value | Impact |
-|---|---|---|
-| Key generation (RSA 4096) | 1 – 5 s synchronous | Blocks event loop entirely |
-| Key generation (EC P-384) | 10 – 50 ms synchronous | Brief event loop block |
-| Certificate signing (RSA 4096) | 100 – 500 ms synchronous | Delays heartbeat + other requests |
-| CSR creation | < 10 ms synchronous | Negligible |
-| Validation | < 10 ms synchronous | Negligible |
-| CRL revocation expiry | 365 days (hardcoded) | Revocations never auto-clean after 1 year |
-| CRL entries | Unlimited in-memory array | No pagination; grows unbounded |
-| Coverage enforcement | 100 % branches / functions / lines / statements | Quality guarantee; `maxWorkers: 1` confirms no parallelism |
-| Validation cache | 1000 entries / 60s TTL / LRU eviction | Caches `validateCertificate` results by PEM hash; avoids re-parsing and re-verifying on repeated calls |
+| Limit                          | Value                                           | Impact                                                                                                 |
+| ------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Key generation (RSA 4096)      | 1 – 5 s synchronous                             | Blocks event loop entirely                                                                             |
+| Key generation (EC P-384)      | 10 – 50 ms synchronous                          | Brief event loop block                                                                                 |
+| Certificate signing (RSA 4096) | 100 – 500 ms synchronous                        | Delays heartbeat + other requests                                                                      |
+| CSR creation                   | < 10 ms synchronous                             | Negligible                                                                                             |
+| Validation                     | < 10 ms synchronous                             | Negligible                                                                                             |
+| CRL revocation expiry          | 365 days (hardcoded)                            | Revocations never auto-clean after 1 year                                                              |
+| CRL entries                    | Unlimited in-memory array                       | No pagination; grows unbounded                                                                         |
+| Coverage enforcement           | 100 % branches / functions / lines / statements | Quality guarantee; `maxWorkers: 1` confirms no parallelism                                             |
+| Validation cache               | 1000 entries / 60s TTL / LRU eviction           | Caches `validateCertificate` results by PEM hash; avoids re-parsing and re-verifying on repeated calls |
 
 ### Orphan Detector / Re-Allocator
 
@@ -274,11 +276,11 @@ const keyPair = await generateKeyPairAsync('rsa');
 
 The sync API (`generateKeyPair`, `signCertificate`, etc.) remains unchanged and still executes on the main thread. Consumers should use the async variants in request handlers to avoid blocking the event loop:
 
-| Context | Use |
-|---|---|
-| Express request handler (e.g. `POST /api/v1/certificate/sign`) | `signCertificateAsync()` |
-| Bootstrap / startup (blocking is acceptable) | `generateKeyPair()` |
-| CPU-intensive batch signing (10+ RPS) | `signCertificateAsync()` with `Promise.all` |
+| Context                                                        | Use                                         |
+| -------------------------------------------------------------- | ------------------------------------------- |
+| Express request handler (e.g. `POST /api/v1/certificate/sign`) | `signCertificateAsync()`                    |
+| Bootstrap / startup (blocking is acceptable)                   | `generateKeyPair()`                         |
+| CPU-intensive batch signing (10+ RPS)                          | `signCertificateAsync()` with `Promise.all` |
 
 The underlying `WorkerPool` class is also available directly:
 
@@ -298,12 +300,12 @@ await pool.terminate();
 
 The certificate format is **not RFC 5280** — certs are JSON objects (`{ body, signature, issuerCert }`) base64-encoded inside PEM headers/footers. This means:
 
-| Limitation | Consequence |
-|---|---|
-| Incompatible with OpenSSL | Cannot use `openssl x509 -text`, `openssl verify`, etc. |
-| Incompatible with Java keytool | Cannot import into Java truststores |
-| Incompatible with standard TLS libraries | Only usable within this platform's custom validation logic |
-| No ASN.1 encoding | Serial numbers, validity, and extensions are plain-text fields |
+| Limitation                               | Consequence                                                    |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| Incompatible with OpenSSL                | Cannot use `openssl x509 -text`, `openssl verify`, etc.        |
+| Incompatible with Java keytool           | Cannot import into Java truststores                            |
+| Incompatible with standard TLS libraries | Only usable within this platform's custom validation logic     |
+| No ASN.1 encoding                        | Serial numbers, validity, and extensions are plain-text fields |
 
 ### CRL grows unbounded
 
@@ -343,13 +345,13 @@ With synchronous crypto, Node.js's event loop is blocked during every key genera
 
 ### Gaps for distributed multi-region deployment
 
-| Gap | Status | Problem |
-|---|---|---|
-| **Hierarchical CA** | ✅ Resolved | Root CA + intermediate CA per region supported. `caChain` in `SignedCertificate` + `issuerCaCertPem`/`isRoot` in `CaMetadata`. The intermediate CA cert is pre-generated and signed by the offline root CA. |
-| **Async signing** | ✅ Resolved | `signCertificateAsync` offloads to worker threads. See [Async API](#async-api-worker-thread-pool). |
-| **Active-active replication** | ❌ Not implemented | A single CA signs all certificates. If the CA's region goes down, no new certificates can be issued. |
-| **Distributed CRL cache** | ❌ Not implemented | The CRL exists only in memory + MongoDB (via the certificate-authority service). Each CA instance must re-fetch from MongoDB; no pub/sub CRL distribution. |
-| **Single CA private key** | ❌ Not implemented | The CA key pair is stored in MongoDB + disk. No HSM integration, no automatic rotation. |
+| Gap                           | Status             | Problem                                                                                                                                                                                                     |
+| ----------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hierarchical CA**           | ✅ Resolved        | Root CA + intermediate CA per region supported. `caChain` in `SignedCertificate` + `issuerCaCertPem`/`isRoot` in `CaMetadata`. The intermediate CA cert is pre-generated and signed by the offline root CA. |
+| **Async signing**             | ✅ Resolved        | `signCertificateAsync` offloads to worker threads. See [Async API](#async-api-worker-thread-pool).                                                                                                          |
+| **Active-active replication** | ❌ Not implemented | A single CA signs all certificates. If the CA's region goes down, no new certificates can be issued.                                                                                                        |
+| **Distributed CRL cache**     | ❌ Not implemented | The CRL exists only in memory + MongoDB (via the certificate-authority service). Each CA instance must re-fetch from MongoDB; no pub/sub CRL distribution.                                                  |
+| **Single CA private key**     | ❌ Not implemented | The CA key pair is stored in MongoDB + disk. No HSM integration, no automatic rotation.                                                                                                                     |
 
 ### Recommendations for multi-region
 

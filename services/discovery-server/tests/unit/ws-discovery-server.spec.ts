@@ -103,10 +103,18 @@ describe('WsDiscoveryServer', () => {
       const server = new WsDiscoveryServer();
       const mockServer = new EventEmitter();
       server.attach(mockServer as any);
-      const upgradeHandler = mockServer.listeners('upgrade')[0] as (req: any, socket: any, head: any) => void;
+      const upgradeHandler = mockServer.listeners('upgrade')[0] as (
+        req: any,
+        socket: any,
+        head: any
+      ) => void;
       upgradeHandler({ url: '/ws' } as any, {} as any, Buffer.alloc(0));
       expect(mockWss.handleUpgrade).toHaveBeenCalled();
-      expect(mockWss.emit).toHaveBeenCalledWith('connection', expect.any(Object), expect.any(Object));
+      expect(mockWss.emit).toHaveBeenCalledWith(
+        'connection',
+        expect.any(Object),
+        expect.any(Object)
+      );
       server.stop();
     });
 
@@ -116,7 +124,11 @@ describe('WsDiscoveryServer', () => {
       const server = new WsDiscoveryServer();
       const mockServer = new EventEmitter();
       server.attach(mockServer as any);
-      const upgradeHandler = mockServer.listeners('upgrade')[0] as (req: any, socket: any, head: any) => void;
+      const upgradeHandler = mockServer.listeners('upgrade')[0] as (
+        req: any,
+        socket: any,
+        head: any
+      ) => void;
       upgradeHandler({ url: '/other' } as any, {} as any, Buffer.alloc(0));
       expect(mockWss.handleUpgrade).not.toHaveBeenCalled();
     });
@@ -140,7 +152,10 @@ describe('WsDiscoveryServer', () => {
       const { logger } = require('@trading-model/common/config/logger');
       expect(logger.info).toHaveBeenCalledWith('Discovery WS client connected', expect.any(Object));
       ws.handlers.close!();
-      expect(logger.info).toHaveBeenCalledWith('Discovery WS client disconnected', expect.any(Object));
+      expect(logger.info).toHaveBeenCalledWith(
+        'Discovery WS client disconnected',
+        expect.any(Object)
+      );
     });
 
     it('should handle close without timeout in map', () => {
@@ -148,7 +163,10 @@ describe('WsDiscoveryServer', () => {
       const { server, ws } = makeConnection();
       (server as any).clientTimeouts.clear();
       ws.handlers.close!();
-      expect(logger.info).toHaveBeenCalledWith('Discovery WS client disconnected', expect.any(Object));
+      expect(logger.info).toHaveBeenCalledWith(
+        'Discovery WS client disconnected',
+        expect.any(Object)
+      );
     });
 
     it('should log client errors', () => {
@@ -170,13 +188,18 @@ describe('WsDiscoveryServer', () => {
     it('should subscribe with services array', () => {
       const { logger } = require('@trading-model/common/config/logger');
       const { ws } = makeConnection();
-      ws.handlers.message!(JSON.stringify({
-        type: 'subscribe',
-        payload: { services: ['financial-scraper-service'] },
-      }));
-      expect(logger.info).toHaveBeenCalledWith('Discovery WS client subscribed', expect.objectContaining({
-        services: ['financial-scraper-service'],
-      }));
+      ws.handlers.message!(
+        JSON.stringify({
+          type: 'subscribe',
+          payload: { services: ['financial-scraper-service'] },
+        })
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        'Discovery WS client subscribed',
+        expect.objectContaining({
+          services: ['financial-scraper-service'],
+        })
+      );
     });
 
     it('should subscribe with wildcard when no services array', () => {
@@ -184,23 +207,30 @@ describe('WsDiscoveryServer', () => {
       ws.handlers.message!(JSON.stringify({ type: 'subscribe', payload: {} }));
       server.notifyServiceChanged('any-service');
       expect(ws.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'cache.invalidate', payload: { serviceName: 'any-service' } }),
+        JSON.stringify({ type: 'cache.invalidate', payload: { serviceName: 'any-service' } })
       );
     });
 
     it('should handle heartbeat message', () => {
       const { server, ws } = makeConnection();
-      ws.handlers.message!(JSON.stringify({
-        type: 'subscribe',
-        payload: { services: ['financial-scraper-service'] },
-      }));
-      ws.handlers.message!(JSON.stringify({
-        type: 'heartbeat',
-        payload: { serviceName: 'financial-scraper-service', instanceId: 'i1' },
-      }));
+      ws.handlers.message!(
+        JSON.stringify({
+          type: 'subscribe',
+          payload: { services: ['financial-scraper-service'] },
+        })
+      );
+      ws.handlers.message!(
+        JSON.stringify({
+          type: 'heartbeat',
+          payload: { serviceName: 'financial-scraper-service', instanceId: 'i1' },
+        })
+      );
       server.notifyServiceChanged('financial-scraper-service');
       expect(ws.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'cache.invalidate', payload: { serviceName: 'financial-scraper-service' } }),
+        JSON.stringify({
+          type: 'cache.invalidate',
+          payload: { serviceName: 'financial-scraper-service' },
+        })
       );
     });
 
@@ -213,30 +243,42 @@ describe('WsDiscoveryServer', () => {
 
     it('should handle heartbeat with no payload fields', () => {
       const { server, ws } = makeConnection();
-      ws.handlers.message!(JSON.stringify({
-        type: 'subscribe',
-        payload: { services: ['financial-scraper-service'] },
-      }));
-      ws.handlers.message!(JSON.stringify({
-        type: 'heartbeat',
-        payload: {},
-      }));
+      ws.handlers.message!(
+        JSON.stringify({
+          type: 'subscribe',
+          payload: { services: ['financial-scraper-service'] },
+        })
+      );
+      ws.handlers.message!(
+        JSON.stringify({
+          type: 'heartbeat',
+          payload: {},
+        })
+      );
       server.notifyServiceChanged('financial-scraper-service');
       expect(ws.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'cache.invalidate', payload: { serviceName: 'financial-scraper-service' } }),
+        JSON.stringify({
+          type: 'cache.invalidate',
+          payload: { serviceName: 'financial-scraper-service' },
+        })
       );
     });
 
     it('should handle heartbeat with missing payload', () => {
       const { server, ws } = makeConnection();
-      ws.handlers.message!(JSON.stringify({
-        type: 'subscribe',
-        payload: { services: ['financial-scraper-service'] },
-      }));
+      ws.handlers.message!(
+        JSON.stringify({
+          type: 'subscribe',
+          payload: { services: ['financial-scraper-service'] },
+        })
+      );
       ws.handlers.message!(JSON.stringify({ type: 'heartbeat' }));
       server.notifyServiceChanged('financial-scraper-service');
       expect(ws.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'cache.invalidate', payload: { serviceName: 'financial-scraper-service' } }),
+        JSON.stringify({
+          type: 'cache.invalidate',
+          payload: { serviceName: 'financial-scraper-service' },
+        })
       );
     });
   });
@@ -244,23 +286,30 @@ describe('WsDiscoveryServer', () => {
   describe('notifyServiceChanged', () => {
     it('should broadcast invalidation to subscribed clients', () => {
       const { server, ws } = makeConnection();
-      ws.handlers.message!(JSON.stringify({
-        type: 'subscribe',
-        payload: { services: ['financial-scraper-service'] },
-      }));
+      ws.handlers.message!(
+        JSON.stringify({
+          type: 'subscribe',
+          payload: { services: ['financial-scraper-service'] },
+        })
+      );
       ws.send.mockClear();
       server.notifyServiceChanged('financial-scraper-service');
       expect(ws.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'cache.invalidate', payload: { serviceName: 'financial-scraper-service' } }),
+        JSON.stringify({
+          type: 'cache.invalidate',
+          payload: { serviceName: 'financial-scraper-service' },
+        })
       );
     });
 
     it('should not broadcast to clients not subscribed to the service', () => {
       const { server, ws } = makeConnection();
-      ws.handlers.message!(JSON.stringify({
-        type: 'subscribe',
-        payload: { services: ['other-service'] },
-      }));
+      ws.handlers.message!(
+        JSON.stringify({
+          type: 'subscribe',
+          payload: { services: ['other-service'] },
+        })
+      );
       ws.send.mockClear();
       server.notifyServiceChanged('financial-scraper-service');
       expect(ws.send).not.toHaveBeenCalled();
@@ -274,7 +323,9 @@ describe('WsDiscoveryServer', () => {
       server.attach(mockServer as any);
       const ws = createMockWs();
       ws.readyState = 2;
-      mockWss.getConnectionHandler()!(ws, { socket: { remoteAddress: '127.0.0.1', remotePort: 12345 } });
+      mockWss.getConnectionHandler()!(ws, {
+        socket: { remoteAddress: '127.0.0.1', remotePort: 12345 },
+      });
       ws.handlers.message!(JSON.stringify({ type: 'subscribe', payload: {} }));
       ws.send.mockClear();
       server.notifyServiceChanged('financial-scraper-service');
@@ -286,23 +337,33 @@ describe('WsDiscoveryServer', () => {
       const { logger } = require('@trading-model/common/config/logger');
       const { server, ws } = makeConnection();
       ws.handlers.message!(JSON.stringify({ type: 'subscribe', payload: { services: ['*'] } }));
-      ws.send.mockImplementation(() => { throw new Error('Send failed'); });
+      ws.send.mockImplementation(() => {
+        throw new Error('Send failed');
+      });
       server.notifyServiceChanged('financial-scraper-service');
-      expect(logger.warn).toHaveBeenCalledWith('Failed to send cache.invalidate to client', expect.any(Object));
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to send cache.invalidate to client',
+        expect.any(Object)
+      );
     });
   });
 
   describe('notifyInstanceRemoved', () => {
     it('should broadcast invalidation', () => {
       const { server, ws } = makeConnection();
-      ws.handlers.message!(JSON.stringify({
-        type: 'subscribe',
-        payload: { services: ['financial-scraper-service'] },
-      }));
+      ws.handlers.message!(
+        JSON.stringify({
+          type: 'subscribe',
+          payload: { services: ['financial-scraper-service'] },
+        })
+      );
       ws.send.mockClear();
       server.notifyInstanceRemoved('financial-scraper-service', 'i1');
       expect(ws.send).toHaveBeenCalledWith(
-        JSON.stringify({ type: 'cache.invalidate', payload: { serviceName: 'financial-scraper-service' } }),
+        JSON.stringify({
+          type: 'cache.invalidate',
+          payload: { serviceName: 'financial-scraper-service' },
+        })
       );
     });
   });
@@ -314,7 +375,9 @@ describe('WsDiscoveryServer', () => {
       const server = new WsDiscoveryServer();
       server.attach(new EventEmitter() as any);
       const ws = createMockWs();
-      mockWss.getConnectionHandler()!(ws, { socket: { remoteAddress: '127.0.0.1', remotePort: 12345 } });
+      mockWss.getConnectionHandler()!(ws, {
+        socket: { remoteAddress: '127.0.0.1', remotePort: 12345 },
+      });
       server.stop();
       expect(ws.close).toHaveBeenCalled();
       expect(mockWss.close).toHaveBeenCalled();
@@ -341,7 +404,9 @@ describe('WsDiscoveryServer', () => {
       const server = new WsDiscoveryServer();
       server.attach(new EventEmitter() as any);
       const ws = createMockWs();
-      mockWss.getConnectionHandler()!(ws, { socket: { remoteAddress: '127.0.0.1', remotePort: 12345 } });
+      mockWss.getConnectionHandler()!(ws, {
+        socket: { remoteAddress: '127.0.0.1', remotePort: 12345 },
+      });
       (server as any).clientTimeouts.clear();
       server.stop();
       expect(ws.close).toHaveBeenCalled();
@@ -368,7 +433,10 @@ describe('WsDiscoveryServer', () => {
       const { ws } = makeConnection();
       ws.handlers.close!();
       jest.advanceTimersByTime(60000);
-      expect(logger.warn).not.toHaveBeenCalledWith('Discovery WS client timed out', expect.any(Object));
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        'Discovery WS client timed out',
+        expect.any(Object)
+      );
     });
 
     it('should reset client timeout on each message', () => {
@@ -386,7 +454,11 @@ describe('WsDiscoveryServer', () => {
       const server = new WsDiscoveryServer();
       const mockServer = new EventEmitter();
       server.attach(mockServer as any);
-      const upgradeHandler = mockServer.listeners('upgrade')[0] as (req: any, socket: any, head: any) => void;
+      const upgradeHandler = mockServer.listeners('upgrade')[0] as (
+        req: any,
+        socket: any,
+        head: any
+      ) => void;
       upgradeHandler({ url: '/ws' } as any, {} as any, Buffer.alloc(0));
       expect(mockWss.handleUpgrade).toHaveBeenCalled();
     });
@@ -397,7 +469,11 @@ describe('WsDiscoveryServer', () => {
       const server = new WsDiscoveryServer({ path: '/custom-ws' });
       const mockServer = new EventEmitter();
       server.attach(mockServer as any);
-      const upgradeHandler = mockServer.listeners('upgrade')[0] as (req: any, socket: any, head: any) => void;
+      const upgradeHandler = mockServer.listeners('upgrade')[0] as (
+        req: any,
+        socket: any,
+        head: any
+      ) => void;
       upgradeHandler({ url: '/custom-ws' } as any, {} as any, Buffer.alloc(0));
       expect(mockWss.handleUpgrade).toHaveBeenCalled();
     });

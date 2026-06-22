@@ -81,10 +81,7 @@ function checkHostnameCircuit(hostname: string): void {
       entry.state = 'half-open';
       return;
     }
-    throw new HttpClientError(
-      `Circuit breaker open for ${hostname}`,
-      503
-    );
+    throw new HttpClientError(`Circuit breaker open for ${hostname}`, 503);
   }
 }
 
@@ -161,10 +158,7 @@ function checkServiceCircuit(serviceName: string): void {
       entry.state = 'half-open';
       return;
     }
-    throw new HttpClientError(
-      `Circuit breaker open for service ${serviceName}`,
-      503
-    );
+    throw new HttpClientError(`Circuit breaker open for service ${serviceName}`, 503);
   }
 }
 
@@ -355,7 +349,14 @@ export class HttpClient {
 
     for (let attempt = 0; attempt <= retryCount; attempt++) {
       try {
-        const result = await this.executeRequest<T>(method, urlStr, body, schema, timeoutMs, options);
+        const result = await this.executeRequest<T>(
+          method,
+          urlStr,
+          body,
+          schema,
+          timeoutMs,
+          options
+        );
         recordHostnameSuccess(hostname);
         if (serviceName) recordServiceSuccess(serviceName);
         return result;
@@ -383,8 +384,14 @@ export class HttpClient {
    */
   private shouldRetry(error: Error): boolean {
     if (error instanceof HttpClientTimeoutError) return true;
-    if (error instanceof HttpClientError && error.statusCode && isRetryableStatus(error.statusCode)) return true;
-    if (error.message.includes('ECONNRESET') || error.message.includes('ETIMEDOUT') || error.message.includes('ECONNREFUSED')) return true;
+    if (error instanceof HttpClientError && error.statusCode && isRetryableStatus(error.statusCode))
+      return true;
+    if (
+      error.message.includes('ECONNRESET') ||
+      error.message.includes('ETIMEDOUT') ||
+      error.message.includes('ECONNREFUSED')
+    )
+      return true;
     return false;
   }
 

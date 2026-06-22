@@ -4,12 +4,12 @@ Immutable traceability service for all decisions, transactions, and errors. Subs
 
 ## General Information
 
-| Property     | Value                                                             |
-| ------------ | ----------------------------------------------------------------- |
-| Service name | `audit-logger-service`                                            |
-| Port (host)  | `8450`                                                            |
-| Port (container) | `3000`                                                        |
-| Dependencies | `@trading-model/common`, `@trading-model/address-manager`, `@trading-model/broker-message`, MongoDB |
+| Property         | Value                                                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| Service name     | `audit-logger-service`                                                                              |
+| Port (host)      | `8450`                                                                                              |
+| Port (container) | `3000`                                                                                              |
+| Dependencies     | `@trading-model/common`, `@trading-model/address-manager`, `@trading-model/broker-message`, MongoDB |
 
 ## REST Endpoints
 
@@ -53,15 +53,15 @@ List and filter audit events.
 
 **Query Parameters:**
 
-| Parameter      | Type     | Description                 |
-| -------------- | -------- | --------------------------- |
-| `topic`        | string   | Filter by event topic       |
-| `publisher`    | string   | Filter by publisher service |
-| `correlationId`| string   | Filter by correlation ID    |
-| `startDate`    | ISO date | Start of date range         |
-| `endDate`      | ISO date | End of date range           |
-| `page`         | number   | Page number (default: 1)    |
-| `limit`        | number   | Results per page (max: 1000)|
+| Parameter       | Type     | Description                  |
+| --------------- | -------- | ---------------------------- |
+| `topic`         | string   | Filter by event topic        |
+| `publisher`     | string   | Filter by publisher service  |
+| `correlationId` | string   | Filter by correlation ID     |
+| `startDate`     | ISO date | Start of date range          |
+| `endDate`       | ISO date | End of date range            |
+| `page`          | number   | Page number (default: 1)     |
+| `limit`         | number   | Results per page (max: 1000) |
 
 **Response:** `200 OK`
 
@@ -135,14 +135,14 @@ Receive an event bus message for audit logging (called internally by the message
 The service exposes a WebSocket upgrade path on the same HTTPS server for worker communication.
 The protocol is shared with `job-scheduler` — see [Worker WebSocket Protocol](../worker-protocol.md) for full specification.
 
-| Message Type    | Direction       | Description                              |
-| --------------- | --------------- | ---------------------------------------- |
-| `register`      | Worker → Server | Register as a worker                     |
-| `heartbeat`     | Worker → Server | Worker heartbeat                         |
-| `disconnect`    | Worker → Server | Worker disconnecting                     |
-| `job.assigned`  | Server → Worker | Assign a job to a worker                 |
-| `heartbeat.ack` | Server → Worker | Heartbeat acknowledgment                 |
-| `drain`         | Server → Worker | Signal worker to drain pending jobs      |
+| Message Type    | Direction       | Description                         |
+| --------------- | --------------- | ----------------------------------- |
+| `register`      | Worker → Server | Register as a worker                |
+| `heartbeat`     | Worker → Server | Worker heartbeat                    |
+| `disconnect`    | Worker → Server | Worker disconnecting                |
+| `job.assigned`  | Server → Worker | Assign a job to a worker            |
+| `heartbeat.ack` | Server → Worker | Heartbeat acknowledgment            |
+| `drain`         | Server → Worker | Signal worker to drain pending jobs |
 
 ## Architecture
 
@@ -165,17 +165,17 @@ Event Bus (Message Manager) ──POST /message──→ Audit Logger ──→ 
 
 ## Environment Variables
 
-| Variable                  | Default                                         | Description                      |
-| ------------------------- | ----------------------------------------------- | -------------------------------- |
-| `PORT`                    | `3000`                                          | Service listen port              |
-| `MONGODB_URI`             | `mongodb://localhost:27017/audit-logger`         | MongoDB connection               |
-| `SERVICE_NAME`            | `audit-logger-service`                          | Discovery service name           |
-| `ADDRESS_MANAGER_URL`     | `https://localhost:8443`                        | Discovery server URL             |
-| `MAX_QUEUE_DEPTH`         | `10000`                                         | Max internal queue depth         |
-| `MAX_WORKER_LOAD_RATIO`   | `0.85`                                          | Back-pressure threshold          |
-| `ACK_TIMEOUT_MS`          | `30000`                                         | Worker ACK deadline (ms)         |
-| `MAX_RETRIES_PER_JOB`     | `3`                                             | Max job retry count              |
-| `ORPHAN_SCAN_INTERVAL_MS` | `10000`                                         | Orphan job scan interval         |
-| `WORKER_HEARTBEAT_TTL_MS` | `30000`                                         | Worker heartbeat TTL (ms)        |
-| `AUDIT_RETENTION_DAYS`    | `90`                                            | Audit event retention in days    |
-| `GAP_DETECTION_INTERVAL_MS` | `60000`                                       | Gap detection interval (ms)      |
+| Variable                    | Default                                  | Description                   |
+| --------------------------- | ---------------------------------------- | ----------------------------- |
+| `PORT`                      | `3000`                                   | Service listen port           |
+| `MONGODB_URI`               | `mongodb://localhost:27017/audit-logger` | MongoDB connection            |
+| `SERVICE_NAME`              | `audit-logger-service`                   | Discovery service name        |
+| `ADDRESS_MANAGER_URL`       | `https://localhost:8443`                 | Discovery server URL          |
+| `MAX_QUEUE_DEPTH`           | `10000`                                  | Max internal queue depth      |
+| `MAX_WORKER_LOAD_RATIO`     | `0.85`                                   | Back-pressure threshold       |
+| `ACK_TIMEOUT_MS`            | `30000`                                  | Worker ACK deadline (ms)      |
+| `MAX_RETRIES_PER_JOB`       | `3`                                      | Max job retry count           |
+| `ORPHAN_SCAN_INTERVAL_MS`   | `10000`                                  | Orphan job scan interval      |
+| `WORKER_HEARTBEAT_TTL_MS`   | `30000`                                  | Worker heartbeat TTL (ms)     |
+| `AUDIT_RETENTION_DAYS`      | `90`                                     | Audit event retention in days |
+| `GAP_DETECTION_INTERVAL_MS` | `60000`                                  | Gap detection interval (ms)   |

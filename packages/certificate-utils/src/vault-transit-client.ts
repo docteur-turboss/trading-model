@@ -22,9 +22,7 @@ export class VaultTransitClient {
     this.token = config.token;
     this.namespace = config.namespace ?? '';
     this.timeoutMs = config.timeoutMs ?? 30000;
-    this.httpClient = config.tls
-      ? HttpClient.createWithTls(config.tls)
-      : new HttpClient();
+    this.httpClient = config.tls ? HttpClient.createWithTls(config.tls) : new HttpClient();
   }
 
   async createKey(name: string, keyType: 'rsa-4096' | 'ecdsa-p384'): Promise<void> {
@@ -83,7 +81,10 @@ export class VaultTransitClient {
       await this.readPublicKey(name);
       return true;
     } catch (err) {
-      logger.warn('Vault key existence check failed — assuming key does not exist', { keyName: name, err: normalizeError(err) });
+      logger.warn('Vault key existence check failed — assuming key does not exist', {
+        keyName: name,
+        err: normalizeError(err),
+      });
       return false;
     }
   }
@@ -106,10 +107,10 @@ export class VaultTransitClient {
 
   private toVaultHashAlgorithm(algorithm: string): string {
     const map: Record<string, string> = {
-      'sha256': 'sha2-256',
-      'sha384': 'sha2-384',
-      'sha512': 'sha2-512',
-      'sha1': 'sha1',
+      sha256: 'sha2-256',
+      sha384: 'sha2-384',
+      sha512: 'sha2-512',
+      sha1: 'sha1',
     };
     return map[algorithm] ?? 'sha2-256';
   }

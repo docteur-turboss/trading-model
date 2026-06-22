@@ -4,12 +4,12 @@ Single external entry point for the system. Routes, authenticates, rate-limits, 
 
 ## General Information
 
-| Property     | Value                                |
-| ------------ | ------------------------------------ |
-| Service name | `api-gateway`                        |
-| Port (host)  | `8448`                               |
-| Port (container) | `3000`                           |
-| Dependencies | `@trading-model/common`, discovery-server |
+| Property         | Value                                     |
+| ---------------- | ----------------------------------------- |
+| Service name     | `api-gateway`                             |
+| Port (host)      | `8448`                                    |
+| Port (container) | `3000`                                    |
+| Dependencies     | `@trading-model/common`, discovery-server |
 
 ## REST Endpoints
 
@@ -30,30 +30,30 @@ Lightweight health check.
 
 ### Proxy Routes
 
-**`* /v{version}/{serviceName}/**`**
+**`\* /v{version}/{serviceName}/**`\*\*
 
 Proxies all HTTP methods (GET, POST, PUT, DELETE, etc.) to the target internal service. The version and service name are resolved via the Discovery Server.
 
 **Headers:**
 
-| Header              | Required | Description                         |
-| ------------------- | -------- | ----------------------------------- |
-| `x-api-key`         | Yes*     | API key for authentication          |
-| `authorization`     | No       | Fallback auth header                |
+| Header          | Required | Description                |
+| --------------- | -------- | -------------------------- |
+| `x-api-key`     | Yes\*    | API key for authentication |
+| `authorization` | No       | Fallback auth header       |
 
-*All routes except `/ping` require authentication via `x-api-key` (or `authorization` fallback). Validated against `AUTH_TOKENS`.
+\*All routes except `/ping` require authentication via `x-api-key` (or `authorization` fallback). Validated against `AUTH_TOKENS`.
 
 **Response (success):** Proxied response from target service (status code and body forwarded as-is).
 
 **Response (errors):**
 
-| Status | Condition         | Body                                        |
-| ------ | ----------------- | ------------------------------------------- |
-| `400`  | Invalid route     | `{ "error": "Invalid route format" }`       |
-| `401`  | Missing/invalid auth | `{ "error": "Unauthorized" }`            |
-| `429`  | Rate limited      | `{ "error": "Too many requests", "retryAfter": <seconds> }` |
-| `404`  | Service not found | `{ "error": "Service not found" }`          |
-| `503`  | Service unavailable | `{ "error": "Service unavailable" }`      |
+| Status | Condition            | Body                                                        |
+| ------ | -------------------- | ----------------------------------------------------------- |
+| `400`  | Invalid route        | `{ "error": "Invalid route format" }`                       |
+| `401`  | Missing/invalid auth | `{ "error": "Unauthorized" }`                               |
+| `429`  | Rate limited         | `{ "error": "Too many requests", "retryAfter": <seconds> }` |
+| `404`  | Service not found    | `{ "error": "Service not found" }`                          |
+| `503`  | Service unavailable  | `{ "error": "Service unavailable" }`                        |
 
 ## Rate Limiting
 
@@ -79,13 +79,13 @@ Client → /v{major}/{service}/... → API Gateway → auth → rate-limit → r
 
 ## Environment Variables
 
-| Variable              | Default                                        | Description                  |
-| --------------------- | ---------------------------------------------- | ---------------------------- |
-| `PORT`                | `3000`                                         | Service listen port          |
-| `DISCOVERY_SERVICE_URL` | `https://discovery-server:3000`              | Discovery server URL         |
-| `RATE_LIMIT_WINDOW_MS`  | `60000`                                      | Rate limit window (ms)       |
-| `RATE_LIMIT_MAX`      | `100`                                          | Max requests per window      |
-| `CACHE_TTL_MS`        | `30000`                                        | In-memory cache TTL (ms)     |
-| `AUTH_TOKEN_HEADER`   | `x-api-key`                                    | Header name for auth token   |
-| `AUTH_TOKENS`         | `''` (empty = no auth)                         | Comma-separated valid tokens |
-| `PROXY_TIMEOUT_MS`    | `10000`                                        | Proxy request timeout (ms)   |
+| Variable                | Default                         | Description                  |
+| ----------------------- | ------------------------------- | ---------------------------- |
+| `PORT`                  | `3000`                          | Service listen port          |
+| `DISCOVERY_SERVICE_URL` | `https://discovery-server:3000` | Discovery server URL         |
+| `RATE_LIMIT_WINDOW_MS`  | `60000`                         | Rate limit window (ms)       |
+| `RATE_LIMIT_MAX`        | `100`                           | Max requests per window      |
+| `CACHE_TTL_MS`          | `30000`                         | In-memory cache TTL (ms)     |
+| `AUTH_TOKEN_HEADER`     | `x-api-key`                     | Header name for auth token   |
+| `AUTH_TOKENS`           | `''` (empty = no auth)          | Comma-separated valid tokens |
+| `PROXY_TIMEOUT_MS`      | `10000`                         | Proxy request timeout (ms)   |
