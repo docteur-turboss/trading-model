@@ -7,7 +7,7 @@ import { certificateInfo } from '../src/certificate-info';
 let signed: ReturnType<typeof signCertificate>;
 
 beforeAll(() => {
-  const caKeyPair = generateKeyPair(KeyAlgorithm.RSA_4096);
+  const caKeyPair = generateKeyPair(KeyAlgorithm.EC_P384);
   const caCertPem = caKeyPair.publicKey;
   const serviceKeyPair = generateKeyPair(KeyAlgorithm.EC_P384);
   const csr = createCsr({

@@ -1,4 +1,4 @@
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, jest, afterAll } from '@jest/globals';
 
 const mockRegisterHandler = jest.fn<any>();
 
@@ -146,5 +146,13 @@ describe('createCryptoWorker', () => {
 
     expect(sign).toHaveBeenCalledWith('sha256', 'body', 'key');
     expect(result).toBe('signature');
+  });
+
+  afterAll(() => {
+    jest.unmock('../src/generate-key-pair');
+    jest.unmock('../src/sign-certificate');
+    jest.unmock('../src/create-csr');
+    jest.unmock('../src/validate-certificate');
+    jest.unmock('../src/sign');
   });
 });

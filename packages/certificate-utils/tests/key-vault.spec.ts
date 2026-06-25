@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterAll } from '@jest/globals';
 
 const mockReadFile = jest.fn<any>();
 const mockWriteFile = jest.fn<any>();
@@ -23,6 +23,7 @@ jest.mock('@trading-model/common/utils/errors', () => ({
 }));
 
 jest.mock('../src/generate-key-pair', () => ({
+  generateKeyPair: jest.fn(() => ({ publicKey: 'pk', privateKey: 'sk' })),
   generateKeyPairWithId: jest.fn(() => ({ publicKey: 'pk', privateKey: 'sk', id: 'key-id' })),
   KeyAlgorithm: { RSA_4096: 'rsa', EC_P384: 'ec' },
 }));
@@ -96,5 +97,9 @@ describe('FileKeyVault', () => {
 
     expect(mockAccess).toHaveBeenCalledWith('/path/to/key.pem', 4);
     expect(result).toBe(false);
+  });
+
+  afterAll(() => {
+    jest.unmock('../src/generate-key-pair');
   });
 });
