@@ -155,12 +155,19 @@ export function createBootstrap(options: BootstrapOptions): {
     try {
       if (server) {
         const closeTimeout = 10000;
-        await Promise.race([
-          server.close(),
-          new Promise<void>((_, reject) => {
-            setTimeout(() => reject(new Error('Server close timed out')), closeTimeout);
-          }),
-        ]);
+        let rejectTimeout: ((reason: Error) => void) | undefined;
+        const timeoutPromise = new Promise<void>((_, reject) => {
+          rejectTimeout = reject;
+        });
+        const timeoutHandle = setTimeout(
+          () => rejectTimeout?.(new Error('Server close timed out')),
+          closeTimeout
+        );
+        try {
+          await Promise.race([server.close(), timeoutPromise]);
+        } finally {
+          clearTimeout(timeoutHandle);
+        }
         logger.info('HTTP server closed');
       }
 
