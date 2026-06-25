@@ -161,6 +161,8 @@ describe('WsDiscoveryServer', () => {
     it('should handle close without timeout in map', () => {
       const { logger } = require('@trading-model/common/config/logger');
       const { server, ws } = makeConnection();
+      const timeout = (server as any).clientTimeouts.get('127.0.0.1:12345');
+      if (timeout) clearTimeout(timeout);
       (server as any).clientTimeouts.clear();
       ws.handlers.close!();
       expect(logger.info).toHaveBeenCalledWith(
@@ -407,6 +409,8 @@ describe('WsDiscoveryServer', () => {
       mockWss.getConnectionHandler()!(ws, {
         socket: { remoteAddress: '127.0.0.1', remotePort: 12345 },
       });
+      const timeout = (server as any).clientTimeouts.get('127.0.0.1:12345');
+      if (timeout) clearTimeout(timeout);
       (server as any).clientTimeouts.clear();
       server.stop();
       expect(ws.close).toHaveBeenCalled();
