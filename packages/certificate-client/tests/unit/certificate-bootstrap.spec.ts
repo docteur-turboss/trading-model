@@ -353,6 +353,7 @@ describe('createTlsBootstrap', () => {
   });
 
   it('setupAutoRenew onRenew should call setSecureContext and log on success', () => {
+    jest.useFakeTimers();
     const server = { setSecureContext: jest.fn() };
 
     const result = createTlsBootstrap({ CERT_CLIENT_CA_URL: 'https://ca:8447' });
@@ -363,9 +364,11 @@ describe('createTlsBootstrap', () => {
 
     expect(server.setSecureContext).toHaveBeenCalledWith({ key: 'key', cert: 'cert', ca: 'ca' });
     expect(logger.info).toHaveBeenCalledWith('TLS context hot-reloaded after certificate renewal');
+    jest.useRealTimers();
   });
 
   it('setupAutoRenew onRenew should log error when setSecureContext throws', () => {
+    jest.useFakeTimers();
     const server = {
       setSecureContext: jest.fn(() => {
         throw new Error('boom');
@@ -381,6 +384,7 @@ describe('createTlsBootstrap', () => {
     expect(logger.error).toHaveBeenCalledWith('Failed to hot-reload TLS context', {
       err: expect.any(Error),
     });
+    jest.useRealTimers();
   });
 });
 
@@ -419,6 +423,7 @@ describe('createHttpsServer', () => {
   });
 
   it('should bootstrap TLS from env and set up auto-renew CertificateClient', async () => {
+    jest.useFakeTimers();
     mockResolved(fs.access, undefined);
     const routes = jest.fn();
     const tls = { key: '/fallback.pem', cert: '/fallback.pem', ca: '/fallback.pem' };
@@ -442,9 +447,11 @@ describe('createHttpsServer', () => {
     expect(configArg.caUrl).toBe('https://ca:8447');
     expect(typeof configArg.onRenew).toBe('function');
     expect(result).toBe(mockHttpsServer);
+    jest.useRealTimers();
   });
 
   it('onRenew should call server.raw.setSecureContext', async () => {
+    jest.useFakeTimers();
     mockResolved(fs.access, undefined);
     const routes = jest.fn();
 
@@ -463,6 +470,7 @@ describe('createHttpsServer', () => {
       cert: 'cert',
       ca: 'ca',
     });
+    jest.useRealTimers();
   });
 
   it('should schedule startAutoRenew via setTimeout when env config present', async () => {
