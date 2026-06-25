@@ -27,7 +27,7 @@ function signNewCert(ttlMs = 3600000) {
 }
 
 beforeAll(() => {
-  caKeyPair = generateKeyPair(KeyAlgorithm.RSA_4096);
+  caKeyPair = generateKeyPair(KeyAlgorithm.EC_P384);
   caCertPem = caKeyPair.publicKey;
   serviceKeyPair = generateKeyPair(KeyAlgorithm.EC_P384);
   signed = signNewCert();
@@ -44,7 +44,7 @@ describe('validateCertificate', () => {
   it('should return invalid for a tampered certificate body', () => {
     const lines = signed.certPem
       .split('\n')
-      .filter(l => !l.includes('BEGIN') && !l.includes('END'));
+      .filter(l => !l.startsWith('-----BEGIN') && !l.startsWith('-----END'));
     const decoded = Buffer.from(lines.join(''), 'base64').toString('utf8');
     const parsed = JSON.parse(decoded);
     parsed.body = parsed.body + ' TAMPERED';
@@ -60,7 +60,7 @@ describe('validateCertificate', () => {
   it('should return invalid for a wrong CA certificate', () => {
     const lines = signed.certPem
       .split('\n')
-      .filter(l => !l.includes('BEGIN') && !l.includes('END'));
+      .filter(l => !l.startsWith('-----BEGIN') && !l.startsWith('-----END'));
     const decoded = Buffer.from(lines.join(''), 'base64').toString('utf8');
     const parsed = JSON.parse(decoded);
     const wrongCaKey = generateKeyPair(KeyAlgorithm.RSA_4096);

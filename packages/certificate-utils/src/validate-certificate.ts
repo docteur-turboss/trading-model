@@ -36,7 +36,9 @@ function parseCert(certPem: string): {
   signature: string;
   issuerCert: string;
 } {
-  const lines = certPem.split('\n').filter(l => !l.includes('BEGIN') && !l.includes('END'));
+  const lines = certPem
+    .split('\n')
+    .filter(l => !l.startsWith('-----BEGIN') && !l.startsWith('-----END'));
   const decoded = Buffer.from(lines.join(''), 'base64').toString('utf8');
   return JSON.parse(decoded);
 }
