@@ -26,6 +26,7 @@
   },
   "scripts": {
     "test": "jest",
+    "test:detectOpenHandles": "jest --detectOpenHandles",
     "test:coverage": "jest --coverage",
     "build": "tsc"
   }

@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 
 jest.mock('node:worker_threads', () => {
   const FakeWorker = jest.fn().mockImplementation(() => ({
@@ -15,27 +15,29 @@ jest.mock('node:os', () => ({
 }));
 
 describe('lazy-pool', () => {
-  beforeEach(() => {
-    jest.resetModules();
-  });
-
   it('should create and return a WorkerPool singleton', () => {
-    const { getPool } = require('../src/lazy-pool');
-    const pool1 = getPool();
-    const pool2 = getPool();
-    expect(pool1).toBe(pool2);
+    jest.isolateModules(() => {
+      const { getPool } = require('../src/lazy-pool');
+      const pool1 = getPool();
+      const pool2 = getPool();
+      expect(pool1).toBe(pool2);
+    });
   });
 
   it('should create pool with custom size', () => {
-    const { getPool } = require('../src/lazy-pool');
-    const pool = getPool(4);
-    expect(pool).toBeDefined();
+    jest.isolateModules(() => {
+      const { getPool } = require('../src/lazy-pool');
+      const pool = getPool(4);
+      expect(pool).toBeDefined();
+    });
   });
 
   it('warmupPool should start the pool', () => {
-    const { getPool, warmupPool } = require('../src/lazy-pool');
-    warmupPool(2);
-    const p = getPool();
-    expect(p.size).toBe(2);
+    jest.isolateModules(() => {
+      const { getPool, warmupPool } = require('../src/lazy-pool');
+      warmupPool(2);
+      const p = getPool();
+      expect(p.size).toBe(2);
+    });
   });
 });

@@ -22,6 +22,7 @@
   "main": "./dist/app/index.js",
   "scripts": {
     "test": "jest",
+    "test:detectOpenHandles": "jest --detectOpenHandles",
     "test:coverage": "jest --coverage",
     "build": "tsc",
     "dev": "ts-node src/app/index.ts"

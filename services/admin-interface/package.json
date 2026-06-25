@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint src/",
     "test": "vitest run",
+    "test:detectOpenHandles": "vitest run --detectOpenHandles",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"
   },

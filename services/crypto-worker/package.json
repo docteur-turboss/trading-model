@@ -6,6 +6,7 @@
   "main": "./dist/app/index.js",
   "scripts": {
     "test": "jest --passWithNoTests",
+    "test:detectOpenHandles": "jest --detectOpenHandles",
     "test:coverage": "jest --coverage --passWithNoTests",
     "dev": "ts-node src/app/index.ts",
     "build": "tsc"
