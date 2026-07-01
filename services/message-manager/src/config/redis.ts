@@ -1,4 +1,4 @@
-import Redis, { Cluster } from 'ioredis';
+import Redis, { Cluster, RedisOptions } from 'ioredis';
 
 import { env } from './env';
 import { logger } from './logger';
@@ -60,9 +60,13 @@ function buildRedisInstance(): Redis {
         ? (JSON.parse(env.REDIS_SENTINEL_NODES) as Array<{ host: string; port: number }>)
         : [{ host: env.REDIS_HOST, port: env.REDIS_PORT }];
     } catch (cause) {
-      throw new Error(`Invalid REDIS_SENTINEL_NODES JSON: ${(cause as Error).message}`, { cause });
+      const err = new Error(
+        `Invalid REDIS_SENTINEL_NODES JSON: ${(cause as Error).message}`
+      );
+      (err as { cause?: unknown }).cause = cause;
+      throw err;
     }
-    return new Redis({
+    const sentinelOpts: Record<string, unknown> = {
       sentinels: sentinelNodes,
       name: env.REDIS_SENTINEL_MASTER_NAME,
       password: env.REDIS_SENTINEL_PASSWORD || undefined,
@@ -71,8 +75,11 @@ function buildRedisInstance(): Redis {
       lazyConnect: true,
       maxRetriesPerRequest: null,
       enableReadyCheck: true,
-      ...(env.REDIS_TLS_ENABLED ? { tls: { rejectUnauthorized: true } } : {}),
-    } as unknown as Redis);
+    };
+    if (env.REDIS_TLS_ENABLED) {
+      sentinelOpts.tls = { rejectUnauthorized: true };
+    }
+    return new Redis(sentinelOpts as RedisOptions) as unknown as Redis;
   }
 
   if (env.REDIS_CLUSTER_NODES) {
@@ -80,7 +87,11 @@ function buildRedisInstance(): Redis {
     try {
       clusterNodes = JSON.parse(env.REDIS_CLUSTER_NODES) as Array<{ host: string; port: number }>;
     } catch (cause) {
-      throw new Error(`Invalid REDIS_CLUSTER_NODES JSON: ${(cause as Error).message}`, { cause });
+      const err = new Error(
+        `Invalid REDIS_CLUSTER_NODES JSON: ${(cause as Error).message}`
+      );
+      (err as { cause?: unknown }).cause = cause;
+      throw err;
     }
     return new Cluster(clusterNodes, {
       redisOptions: {
@@ -105,7 +116,7 @@ function buildRedisInstance(): Redis {
   }
 
   const options = buildRedisOptions();
-  return new Redis(options as unknown as Redis.RedisOptions);
+  return new Redis(options as RedisOptions);
 }
 
 function redisRetryDelay(retries: number): number | null {

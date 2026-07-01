@@ -11,11 +11,6 @@
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
     "types": ["node", "jest"],
-    "paths": {
-      "config/*": ["./src/config/*"],
-      "messaging": ["./src/messaging/index.ts"],
-      "messaging/*": ["./src/messaging/*"]
-    },
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true,

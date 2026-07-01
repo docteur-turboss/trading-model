@@ -1,8 +1,8 @@
 import { Message } from '@trading-model/common/contracts/message.types';
 
-import { messageStore } from './message-store';
-import { env } from '../../config/env';
-import { logger } from '../../config/logger';
+import { messageStore } from './message-store.js';
+import { env } from '../../config/env.js';
+import { logger } from '../../config/logger.js';
 
 interface ArchiveEntry {
   messageId: string;
@@ -79,7 +79,7 @@ export class MongoArchiveStore {
   private startTopicsCacheRefresh(): void {
     this.topicsCacheTimer = setInterval(async () => {
       try {
-        const { getSubscriptionClient } = await import('../../config/redis');
+        const { getSubscriptionClient } = await import('../../config/redis.js');
         const redis = await getSubscriptionClient();
         const topics = await redis.smembers(`${env.REDIS_PREFIX}topics`);
         this.topicsCache = topics;
@@ -115,7 +115,7 @@ export class MongoArchiveStore {
         if (messages.length === 0) continue;
 
         const entries: ArchiveEntry[] = messages.map((msg: Message) => ({
-          messageId: msg.metadata.messageId,
+          messageId: msg.metadata.messageId ?? '',
           topic: msg.metadata.topic,
           eventType: msg.metadata.eventType,
           producer: msg.metadata.publisher?.serviceName ?? 'unknown',

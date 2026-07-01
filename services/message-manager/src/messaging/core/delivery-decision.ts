@@ -1,6 +1,9 @@
+import {
+  DeliveryMode,
+  DeliveryModeEnum,
+} from '@trading-model/common/config/delivery-mode.types';
 import { ErrorCodes } from '@trading-model/common/utils/errors';
 
-import { DeliveryMode } from '../../../common/contracts/message.types';
 
 interface DeliveryDecision {
   retry: boolean;
@@ -13,7 +16,7 @@ interface DeliveryDecision {
  */
 export function classifyDeliveryFailure(
   error: Error & { code?: string; statusCode?: number; reason?: string },
-  deliveryMode: DeliveryMode,
+  deliveryMode: DeliveryModeEnum,
   deliveryAttempt: number,
   maxRetries: number
 ): DeliveryDecision {
