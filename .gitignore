@@ -153,3 +153,6 @@ id_rsa*
 
 # Customs
 **/.vscode/*
+
+# Compiled JS test artifacts (source is .ts)
+packages/certificate-utils/tests/*.js
