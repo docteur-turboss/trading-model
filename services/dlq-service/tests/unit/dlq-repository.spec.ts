@@ -1,0 +1,456 @@
+import { describe, it, expect, jest } from '@jest/globals';
+
+const mockInsertOne = jest.fn();
+const mockFind = jest.fn();
+const mockFindOne = jest.fn();
+const mockFindOneAndUpdate = jest.fn();
+const mockBulkWrite = jest.fn();
+const mockDeleteMany = jest.fn();
+const mockUpdateOne = jest.fn();
+const mockUpdateMany = jest.fn();
+const mockEstimatedDocumentCount = jest.fn();
+
+function createCursor(docs: unknown[]) {
+  let i = 0;
+  return {
+    toArray: () => Promise.resolve(docs),
+    [Symbol.asyncIterator]: () => ({
+      next: () => {
+        if (i < docs.length) {
+          return Promise.resolve({ value: docs[i++], done: false });
+        }
+        return Promise.resolve({ value: undefined, done: true });
+      },
+    }),
+  };
+}
+
+const mockCollection = jest.fn(() => ({
+  insertOne: mockInsertOne,
+  find: mockFind,
+  findOne: mockFindOne,
+  findOneAndUpdate: mockFindOneAndUpdate,
+  bulkWrite: mockBulkWrite,
+  deleteMany: mockDeleteMany,
+  updateOne: mockUpdateOne,
+  updateMany: mockUpdateMany,
+  estimatedDocumentCount: mockEstimatedDocumentCount,
+}));
+
+jest.mock('../../src/config/db', () => ({
+  getCollection: mockCollection,
+}));
+
+jest.mock('../../src/config/env', () => ({
+  env: {
+    DLQ_RETRY_MAX_ATTEMPTS: 3,
+    MAX_ENTRIES: 100,
+    DLQ_AUTO_RETRY_LIMIT: 50,
+  },
+}));
+
+const DlqEntry = { topic: 'test.topic.event', message: { data: 1 }, reason: 'timeout', deliveryAttempt: 2, timestamp: new Date().toISOString() };
+
+describe('DlqRepository', () => {
+  let DlqRepositoryClass: { new(): { add: Function; list: Function; delete: Function; count: Function; prune: Function; claimEntriesForRetry: Function; claimEntry: Function; markRetried: Function; releaseStaleClaims: Function; releaseAllActiveClaims: Function; releaseClaimsByInstance: Function; abandonExhaustedEntries: Function; incrementRetryCount: Function; listQueuable: Function } };
+
+  beforeAll(() => {
+    const mod = jest.requireActual('../../src/dlq/repository');
+    DlqRepositoryClass = mod.DlqRepository;
+  });
+
+  afterAll(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('add', () => {
+    beforeEach(() => {
+      mockFindOne.mockReset();
+      mockInsertOne.mockReset();
+    });
+
+    it('should insert a new document and return the id', () => {
+      const repo = new DlqRepositoryClass();
+      mockFindOne.mockResolvedValue(null);
+      mockInsertOne.mockResolvedValue({ insertedId: { toHexString: () => 'abc123' } });
+
+      return repo.add(DlqEntry).then((id: string) => {
+        expect(id).toBe('abc123');
+        expect(mockInsertOne).toHaveBeenCalledWith(expect.objectContaining({
+          topic: 'test.topic.event',
+          retryCount: 0,
+          messageId: expect.any(String),
+          contentHash: expect.any(String),
+          dlqPassCount: 1,
+        }));
+      });
+    });
+
+    it('should detect ping-pong and increment dlqPassCount', () => {
+      const repo = new DlqRepositoryClass();
+      mockFindOne.mockResolvedValueOnce({ _id: { toHexString: () => 'prev-id' }, dlqPassCount: 1 });
+      mockFindOne.mockResolvedValue(null);
+      mockInsertOne.mockResolvedValue({ insertedId: { toHexString: () => 'abc123' } });
+
+      return repo.add(DlqEntry).then((id: string) => {
+        expect(id).toBe('abc123');
+        expect(mockInsertOne).toHaveBeenCalledWith(expect.objectContaining({
+          contentHash: expect.any(String),
+          dlqPassCount: 2,
+        }));
+        const callArg = mockInsertOne.mock.calls[0][0] as Record<string, unknown>;
+        expect(callArg.status).toBeUndefined();
+      });
+    });
+
+    it('should auto-abandon on excessive ping-pong cycles', () => {
+      const repo = new DlqRepositoryClass();
+      mockFindOne.mockResolvedValueOnce({ _id: { toHexString: () => 'prev-id' }, dlqPassCount: 3 });
+      mockFindOne.mockResolvedValue(null);
+      mockInsertOne.mockResolvedValue({ insertedId: { toHexString: () => 'abc123' } });
+
+      return repo.add(DlqEntry).then((id: string) => {
+        expect(id).toBe('abc123');
+        expect(mockInsertOne).toHaveBeenCalledWith(expect.objectContaining({
+          dlqPassCount: 4,
+          status: 'abandoned',
+          lastError: expect.stringContaining('Ping-pong detected'),
+        }));
+      });
+    });
+
+    it('should return existing id on duplicate (dedup via findOne)', () => {
+      const repo = new DlqRepositoryClass();
+      mockFindOne.mockResolvedValueOnce(null);
+      mockFindOne.mockResolvedValue({ _id: { toHexString: () => 'existing-id' } });
+
+      return repo.add(DlqEntry).then((id: string) => {
+        expect(id).toBe('existing-id');
+        expect(mockFindOne).toHaveBeenCalledTimes(2);
+        expect(mockInsertOne).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should handle race condition on duplicate insert (E11000)', () => {
+      const repo = new DlqRepositoryClass();
+      mockFindOne.mockResolvedValueOnce(null);
+      mockFindOne.mockResolvedValueOnce(null);
+      const duplicateError = new Error('E11000 duplicate key');
+      (duplicateError as Record<string, unknown>).code = 11000;
+      mockInsertOne.mockRejectedValueOnce(duplicateError);
+      mockFindOne.mockResolvedValueOnce({ _id: { toHexString: () => 'race-id' } });
+
+      return repo.add(DlqEntry).then((id: string) => {
+        expect(id).toBe('race-id');
+        expect(mockFindOne).toHaveBeenCalledTimes(3);
+        expect(mockInsertOne).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe('list', () => {
+    beforeEach(() => {
+      mockFind.mockReset();
+      mockFind.mockReturnValue(createCursor([]));
+    });
+
+    it('should return mapped documents with offset', () => {
+      const repo = new DlqRepositoryClass();
+      const fakeDoc = { _id: { toHexString: () => 'id1' }, topic: 't1', message: { x: 1 }, reason: 'r1', deliveryAttempt: 1, createdAt: new Date('2024-01-01') };
+      mockFind.mockReturnValueOnce(createCursor([fakeDoc]));
+
+      return repo.list(undefined, 10, 0).then((result: Array<{ id: string }>) => {
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe('id1');
+        expect(mockFind).toHaveBeenCalledWith(
+          {},
+          expect.objectContaining({ sort: { createdAt: -1 }, skip: 0, limit: 10 })
+        );
+      });
+    });
+
+    it('should support cursor-based pagination with before parameter', () => {
+      const repo = new DlqRepositoryClass();
+      const fakeDocs = [
+        { _id: { toHexString: () => 'id2' }, topic: 't1', message: { x: 2 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-02') },
+        { _id: { toHexString: () => 'id1' }, topic: 't1', message: { x: 1 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-01') },
+      ];
+      mockFind.mockReturnValueOnce(createCursor(fakeDocs));
+
+      return repo.list(undefined, 10, 0, 'aaaaaaaaaaaaaaaaaaaaaaaa').then((result: Array<{ id: string }>) => {
+        expect(result).toHaveLength(2);
+        expect(result[0].id).toBe('id2');
+        expect(mockFind).toHaveBeenCalledWith(
+          { _id: { $lt: expect.any(Object) } },
+          expect.objectContaining({ sort: { createdAt: -1 }, skip: 0, limit: 10 })
+        );
+      });
+    });
+  });
+
+  describe('delete', () => {
+    it('should delete only non-processing documents and return count', () => {
+      const repo = new DlqRepositoryClass();
+      mockDeleteMany.mockResolvedValueOnce({ deletedCount: 3 });
+      return repo.delete(['aaaaaaaaaaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbb', 'cccccccccccccccccccccccc']).then((result: number) => {
+        expect(result).toBe(3);
+        expect(mockDeleteMany).toHaveBeenCalledWith({
+          _id: { $in: [expect.any(Object), expect.any(Object), expect.any(Object)] },
+          processingAt: { $exists: false },
+        });
+      });
+    });
+  });
+
+  describe('count', () => {
+    it('should return document count', () => {
+      const repo = new DlqRepositoryClass();
+      mockEstimatedDocumentCount.mockResolvedValueOnce(42);
+
+      return repo.count().then((result: number) => {
+        expect(result).toBe(42);
+      });
+    });
+  });
+
+  describe('prune', () => {
+    it('should return 0 if no documents to prune', () => {
+      const repo = new DlqRepositoryClass();
+      mockFind.mockReturnValueOnce(createCursor([]));
+
+      return repo.prune(100).then((result: number) => {
+        expect(result).toBe(0);
+      });
+    });
+
+    it('should delete documents older than the eldest kept entry by createdAt', () => {
+      const repo = new DlqRepositoryClass();
+      const eldestDate = new Date('2024-06-01');
+      mockFind.mockReturnValueOnce(createCursor([{ createdAt: eldestDate }]));
+      mockDeleteMany.mockResolvedValueOnce({ deletedCount: 50 });
+
+      return repo.prune(100).then((result: number) => {
+        expect(result).toBe(50);
+        expect(mockDeleteMany).toHaveBeenCalledWith({ createdAt: { $lt: eldestDate }, processingAt: { $exists: false } });
+      });
+    });
+  });
+
+  describe('claimEntriesForRetry', () => {
+    beforeEach(() => {
+      mockFind.mockReset();
+      mockFind.mockReturnValue(createCursor([]));
+      mockBulkWrite.mockReset();
+      mockBulkWrite.mockResolvedValue({ modifiedCount: 0 });
+    });
+
+    it('should claim entries via bulkWrite (2 round-trips instead of N)', () => {
+      const repo = new DlqRepositoryClass();
+      const fakeDoc1 = { _id: { toHexString: () => 'id1' }, topic: 't1', message: { x: 1 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-01') };
+      const fakeDoc2 = { _id: { toHexString: () => 'id2' }, topic: 't2', message: { y: 2 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-02') };
+      const fakeDocs = [fakeDoc1, fakeDoc2];
+
+      mockFind
+        .mockReturnValueOnce(createCursor(fakeDocs))
+        .mockReturnValueOnce(createCursor(fakeDocs));
+      mockBulkWrite.mockResolvedValueOnce({ modifiedCount: 2 });
+
+      return repo.claimEntriesForRetry(10, 'batch-1', 'instance-1').then((result: Array<{ id: string }>) => {
+        expect(result).toHaveLength(2);
+        expect(result[0].id).toBe('id1');
+        expect(result[1].id).toBe('id2');
+        expect(mockFind).toHaveBeenCalledWith(
+          { retryCount: { $lt: 3 }, processingAt: { $exists: false }, status: { $nin: ['completed', 'abandoned'] }, consecutiveErrors: { $lt: 3 } },
+          expect.objectContaining({ sort: { createdAt: -1 }, limit: 10 })
+        );
+        expect(mockBulkWrite).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('should return empty if no candidates found', () => {
+      const repo = new DlqRepositoryClass();
+
+      return repo.claimEntriesForRetry(10, 'batch-1', 'instance-1').then((result: Array<{ id: string }>) => {
+        expect(result).toHaveLength(0);
+        expect(mockBulkWrite).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should skip documents already claimed (bulkWrite modifiedCount < candidates)', () => {
+      const repo = new DlqRepositoryClass();
+      const fakeDoc1 = { _id: { toHexString: () => 'id1' }, topic: 't1', message: { x: 1 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-01') };
+      const fakeDoc2 = { _id: { toHexString: () => 'id2' }, topic: 't2', message: { y: 2 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-02') };
+      const fakeDocs = [fakeDoc1, fakeDoc2];
+
+      mockFind
+        .mockReturnValueOnce(createCursor(fakeDocs))
+        .mockReturnValueOnce(createCursor([fakeDoc2]));
+      mockBulkWrite.mockResolvedValueOnce({ modifiedCount: 1 });
+
+      return repo.claimEntriesForRetry(10, 'batch-1', 'instance-1').then((result: Array<{ id: string }>) => {
+        expect(result).toHaveLength(1);
+        expect(result[0].id).toBe('id2');
+      });
+    });
+  });
+
+  describe('claimEntry', () => {
+    it('should claim a single entry by ID via findOneAndUpdate', () => {
+      const repo = new DlqRepositoryClass();
+      const fakeDoc = { _id: { toHexString: () => 'id1' }, topic: 't1', message: { x: 1 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-01') };
+      mockFindOneAndUpdate.mockResolvedValueOnce(fakeDoc);
+
+      return repo.claimEntry('aaaaaaaaaaaaaaaaaaaaaaaa', 'batch-1', 'instance-1').then((result) => {
+        expect(result).not.toBeNull();
+        expect(result!.id).toBe('id1');
+        expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
+          { _id: expect.any(Object), retryCount: { $lt: 3 }, processingAt: { $exists: false }, status: { $nin: ['completed', 'abandoned'] }, consecutiveErrors: { $lt: 3 } },
+          { $set: expect.objectContaining({ processingInstance: 'instance-1', lastBatchId: 'batch-1' }) },
+          expect.objectContaining({ returnDocument: 'after' })
+        );
+      });
+    });
+
+    it('should return null if entry is already claimed or completed', () => {
+      const repo = new DlqRepositoryClass();
+      mockFindOneAndUpdate.mockResolvedValueOnce(null);
+
+      return repo.claimEntry('aaaaaaaaaaaaaaaaaaaaaaaa', 'batch-1', 'instance-1').then((result) => {
+        expect(result).toBeNull();
+      });
+    });
+  });
+
+  describe('releaseStaleClaims', () => {
+    it('should unset processingAt for stale entries', () => {
+      const repo = new DlqRepositoryClass();
+      mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 5 });
+
+      return repo.releaseStaleClaims(30_000).then((result: number) => {
+        expect(result).toBe(5);
+        expect(mockUpdateMany).toHaveBeenCalledWith(
+          { processingAt: { $lt: expect.any(Date) } },
+          { $unset: { processingAt: '', processingInstance: '' } }
+        );
+      });
+    });
+  });
+
+  describe('releaseAllActiveClaims', () => {
+    it('should unset processingAt for all entries with active claims', () => {
+      const repo = new DlqRepositoryClass();
+      mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 3 });
+
+      return repo.releaseAllActiveClaims().then((result: number) => {
+        expect(result).toBe(3);
+        expect(mockUpdateMany).toHaveBeenCalledWith(
+          { processingAt: { $exists: true } },
+          { $unset: { processingAt: '', processingInstance: '' } }
+        );
+      });
+    });
+  });
+
+  describe('releaseClaimsByInstance', () => {
+    it('should unset processingAt for claims of the specified instance', () => {
+      const repo = new DlqRepositoryClass();
+      mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 2 });
+
+      return repo.releaseClaimsByInstance('instance-1').then((result: number) => {
+        expect(result).toBe(2);
+        expect(mockUpdateMany).toHaveBeenCalledWith(
+          { processingInstance: 'instance-1' },
+          { $unset: { processingAt: '', processingInstance: '' } }
+        );
+      });
+    });
+  });
+
+  describe('abandonExhaustedEntries', () => {
+    it('should mark entries as abandoned', () => {
+      const repo = new DlqRepositoryClass();
+      mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 3 });
+
+      return repo.abandonExhaustedEntries().then((result: number) => {
+        expect(result).toBe(3);
+        expect(mockUpdateMany).toHaveBeenCalledWith(
+          { status: { $ne: 'abandoned' }, processingAt: { $exists: false }, $or: [{ retryCount: { $gte: 3 } }, { consecutiveErrors: { $gte: 3 } }] },
+          { $set: expect.objectContaining({ status: 'abandoned', abandonedAt: expect.any(Date) }) }
+        );
+      });
+    });
+  });
+
+  describe('markRetried', () => {
+    beforeEach(() => {
+      mockFindOne.mockReset();
+      mockFindOneAndUpdate.mockReset();
+      mockUpdateOne.mockReset();
+    });
+
+    it('should set completed status on success without incrementing retryCount', () => {
+      const repo = new DlqRepositoryClass();
+      mockFindOne.mockResolvedValue(null);
+      mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
+
+      return repo.markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', true).then(() => {
+        expect(mockFindOne).toHaveBeenCalledWith(
+          { _id: expect.any(Object) },
+          { projection: { status: 1, processingInstance: 1 } }
+        );
+        expect(mockUpdateOne).toHaveBeenCalledWith(
+          { _id: expect.any(Object), processingInstance: 'instance-1' },
+          {
+            $set: expect.objectContaining({ status: 'completed', completedAt: expect.any(Date), lastBatchId: 'batch-1' }),
+            $unset: { processingAt: '', processingInstance: '' },
+          }
+        );
+      });
+    });
+
+    it('should increment retryCount and set lastError on failure via aggregation pipeline', () => {
+      const repo = new DlqRepositoryClass();
+      mockFindOneAndUpdate.mockResolvedValue({ _id: 'id1' });
+
+      return repo.markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', false).then(() => {
+        expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
+          { _id: expect.any(Object), retryCount: { $lt: 3 } },
+          expect.arrayContaining([
+            expect.objectContaining({
+              $set: expect.objectContaining({
+                retryCount: { $add: ['$retryCount', 1] },
+                lastError: 'Replay failed',
+              }),
+            }),
+          ]),
+          { returnDocument: 'after', projection: { _id: 1 } }
+        );
+        expect(mockUpdateOne).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should skip update on abandoned entry for success path', () => {
+      const repo = new DlqRepositoryClass();
+      mockFindOne.mockResolvedValue({ _id: 'id1', status: 'abandoned' });
+
+      return repo.markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', true).then(() => {
+        expect(mockFindOne).toHaveBeenCalled();
+        expect(mockUpdateOne).not.toHaveBeenCalled();
+      });
+    });
+
+    it('should release claim on failure when retryCount already at max', () => {
+      const repo = new DlqRepositoryClass();
+      mockFindOneAndUpdate.mockResolvedValue(null);
+      mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
+
+      return repo.markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', false).then(() => {
+        expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(1);
+        expect(mockUpdateOne).toHaveBeenCalledWith(
+          { _id: expect.any(Object) },
+          { $unset: { processingAt: '', processingInstance: '' } }
+        );
+      });
+    });
+  });
+});
