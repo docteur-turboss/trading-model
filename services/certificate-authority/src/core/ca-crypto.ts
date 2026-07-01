@@ -9,7 +9,8 @@ import { createCipheriv, createDecipheriv, randomBytes as cryptoRandomBytes } fr
 export function encryptKey(pem: string, keyBase64: string | undefined): string {
   if (!keyBase64) return pem;
   const key = Buffer.from(keyBase64, 'base64');
-  if (key.length !== 32) throw new Error('CA_KEY_ENCRYPTION_KEY must be 32 bytes (256 bits), encoded as base64');
+  if (key.length !== 32)
+    throw new Error('CA_KEY_ENCRYPTION_KEY must be 32 bytes (256 bits), encoded as base64');
   const iv = cryptoRandomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
   let encrypted = cipher.update(pem, 'utf8', 'hex');
@@ -33,7 +34,8 @@ export function decryptKey(data: string, keyBase64: string | undefined): string 
   const parts = data.slice(prefix.length).split(':');
   if (parts.length !== 3) throw new Error('Invalid encrypted key format');
   const key = Buffer.from(keyBase64, 'base64');
-  if (key.length !== 32) throw new Error('CA_KEY_ENCRYPTION_KEY must be 32 bytes (256 bits), encoded as base64');
+  if (key.length !== 32)
+    throw new Error('CA_KEY_ENCRYPTION_KEY must be 32 bytes (256 bits), encoded as base64');
   const iv = Buffer.from(parts[0], 'hex');
   const tag = Buffer.from(parts[1], 'hex');
   const encrypted = parts[2];

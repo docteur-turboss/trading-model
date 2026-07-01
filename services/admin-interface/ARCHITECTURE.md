@@ -111,18 +111,18 @@ services/admin-interface/
 
 ## Component Architecture
 
-| Component | Props | Purpose |
-|-----------|-------|---------|
-| **Layout** | — | Shell: sidebar + `<Outlet />` + footer |
-| **Sidebar** | — | 10-item nav with MUI icons, search, user avatar |
-| **DataTable** | `columns`, `rows`, `sortable`, `selectable` | Generic table with pagination, sort, multi-select |
-| **FilterBar** | `onSearch`, `filters`, `onApply` | Search field + dropdown filters + Apply/Reset |
-| **DrawerPanel** | `open`, `tabs`, `onClose` | Right-side detail drawer with tabbed content |
-| **StatsCard** | `icon`, `value`, `label`, `delta` | Metric display card |
-| **StatusBadge** | `status` | Colored MUI Chip (healthy/degraded/down) |
-| **SeverityBadge** | `severity` | Colored MUI Chip (INFO/WARNING/ERROR/CRITICAL) |
-| **ModalConfirm** | `open`, `title`, `onConfirm`, `onCancel` | Action confirmation dialog with impact summary |
-| **InfoBox** | `icon`, `title`, `children` | Alert/info card with contextual message |
+| Component         | Props                                       | Purpose                                           |
+| ----------------- | ------------------------------------------- | ------------------------------------------------- |
+| **Layout**        | —                                           | Shell: sidebar + `<Outlet />` + footer            |
+| **Sidebar**       | —                                           | 10-item nav with MUI icons, search, user avatar   |
+| **DataTable**     | `columns`, `rows`, `sortable`, `selectable` | Generic table with pagination, sort, multi-select |
+| **FilterBar**     | `onSearch`, `filters`, `onApply`            | Search field + dropdown filters + Apply/Reset     |
+| **DrawerPanel**   | `open`, `tabs`, `onClose`                   | Right-side detail drawer with tabbed content      |
+| **StatsCard**     | `icon`, `value`, `label`, `delta`           | Metric display card                               |
+| **StatusBadge**   | `status`                                    | Colored MUI Chip (healthy/degraded/down)          |
+| **SeverityBadge** | `severity`                                  | Colored MUI Chip (INFO/WARNING/ERROR/CRITICAL)    |
+| **ModalConfirm**  | `open`, `title`, `onConfirm`, `onCancel`    | Action confirmation dialog with impact summary    |
+| **InfoBox**       | `icon`, `title`, `children`                 | Alert/info card with contextual message           |
 
 ## Data Flow
 
@@ -158,15 +158,19 @@ User clicks "Revoke" on certificate row
 There is **no global state library** (no Redux, Zustand, etc.). Each page manages its own data via the `useApi<T>` custom hook:
 
 ```typescript
-function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []): {
-  data: T | null;    // Response data (null before first fetch)
-  loading: boolean;  // True during fetch
+function useApi<T>(
+  fetcher: () => Promise<T>,
+  deps: unknown[] = []
+): {
+  data: T | null; // Response data (null before first fetch)
+  loading: boolean; // True during fetch
   error: string | null; // Error message or null
-  refetch: () => void;  // Manual re-fetch trigger
-}
+  refetch: () => void; // Manual re-fetch trigger
+};
 ```
 
 Key design points:
+
 - `useRef` tracks mounted state to prevent state updates after unmount
 - `error` is typed as `ApiError` when the server returns HTTP errors
 - `deps` array controls when to automatically re-fetch (e.g., `[JSON.stringify(params)]`)
@@ -175,19 +179,19 @@ Key design points:
 
 All routes are nested under a single `<Layout>` component:
 
-| Route | Page | Description |
-|-------|------|-------------|
-| `/` | Redirect → `/services` | Default landing |
-| `/services` | `Services` | Service registry + network topology |
-| `/certificates` | `Certificates` | Certificate list + revocation |
-| `/audit/events` | `AuditEvents` | Paginated audit log with topic chart |
-| `/jobs` | `Jobs` | Job queue with detail drawer |
-| `/broker/dlq` | `Dlq` | Dead letter queue management |
-| `/training/results` | `TrainingResults` | Training results + genome inspection |
-| `/cache` | `Cache` | API gateway cache management |
-| `/workers` | `Workers` | Worker node monitoring |
-| `/market-data` | `MarketData` | Candles chart, order book, tickers |
-| `/config` | `Config` | Service configuration viewer |
+| Route               | Page                   | Description                          |
+| ------------------- | ---------------------- | ------------------------------------ |
+| `/`                 | Redirect → `/services` | Default landing                      |
+| `/services`         | `Services`             | Service registry + network topology  |
+| `/certificates`     | `Certificates`         | Certificate list + revocation        |
+| `/audit/events`     | `AuditEvents`          | Paginated audit log with topic chart |
+| `/jobs`             | `Jobs`                 | Job queue with detail drawer         |
+| `/broker/dlq`       | `Dlq`                  | Dead letter queue management         |
+| `/training/results` | `TrainingResults`      | Training results + genome inspection |
+| `/cache`            | `Cache`                | API gateway cache management         |
+| `/workers`          | `Workers`              | Worker node monitoring               |
+| `/market-data`      | `MarketData`           | Candles chart, order book, tickers   |
+| `/config`           | `Config`               | Service configuration viewer         |
 
 ## i18n
 
@@ -224,26 +228,26 @@ Health check: `wget -qO- http://localhost:80/ping || exit 1`
 
 **Production:**
 
-| Package | Purpose |
-|---------|---------|
-| `react`, `react-dom` | UI framework |
-| `@mui/material`, `@mui/icons-material` | Material-UI components |
-| `@emotion/react`, `@emotion/styled` | MUI styling engine |
-| `react-router-dom` | Client-side routing (BrowserRouter) |
-| `recharts` | Charts (audit volume bar chart, market data area chart) |
-| `i18next`, `react-i18next` | Internationalization |
-| `@trading-model/common` | Shared DTOs (`contracts/admin`) |
+| Package                                | Purpose                                                 |
+| -------------------------------------- | ------------------------------------------------------- |
+| `react`, `react-dom`                   | UI framework                                            |
+| `@mui/material`, `@mui/icons-material` | Material-UI components                                  |
+| `@emotion/react`, `@emotion/styled`    | MUI styling engine                                      |
+| `react-router-dom`                     | Client-side routing (BrowserRouter)                     |
+| `recharts`                             | Charts (audit volume bar chart, market data area chart) |
+| `i18next`, `react-i18next`             | Internationalization                                    |
+| `@trading-model/common`                | Shared DTOs (`contracts/admin`)                         |
 
 **Development:**
 
-| Package | Purpose |
-|---------|---------|
-| `vite` + `@vitejs/plugin-react` | Build tool |
-| `vitest` + `@vitest/coverage-v8` | Test runner |
-| `@testing-library/react`, `@testing-library/jest-dom` | React component testing |
-| `jsdom` | DOM environment for tests |
-| `typescript` | TypeScript compiler |
-| `eslint` | Linting |
+| Package                                               | Purpose                   |
+| ----------------------------------------------------- | ------------------------- |
+| `vite` + `@vitejs/plugin-react`                       | Build tool                |
+| `vitest` + `@vitest/coverage-v8`                      | Test runner               |
+| `@testing-library/react`, `@testing-library/jest-dom` | React component testing   |
+| `jsdom`                                               | DOM environment for tests |
+| `typescript`                                          | TypeScript compiler       |
+| `eslint`                                              | Linting                   |
 
 ## Testing Strategy
 

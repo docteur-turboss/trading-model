@@ -6,6 +6,7 @@
 **Severity:** SEV1-SEV2
 
 ### Symptom Check
+
 ```bash
 # Check MySQL pod status
 kubectl exec -n trading-model statefulset/mysql -- mysqladmin ping -h localhost -u root -p
@@ -20,6 +21,7 @@ kubectl logs -n trading-model deployment/financial-scraper --tail=20 | grep -i "
 ### Recovery
 
 **If MySQL pod is running but slow:**
+
 ```bash
 # Restart MySQL pod (StatefulSet)
 kubectl delete pod -n trading-model mysql-0
@@ -28,6 +30,7 @@ kubectl delete pod -n trading-model mysql-0
 ```
 
 **If MySQL PVC is corrupted:**
+
 1. Scale down financial-scraper to prevent writes:
    ```bash
    kubectl scale deployment -n trading-model financial-scraper --replicas=0
@@ -53,6 +56,7 @@ kubectl delete pod -n trading-model mysql-0
 **Severity:** SEV1
 
 ### Symptom Check
+
 ```bash
 # Check replica set status
 kubectl exec -n trading-model mongo-dlq-0 -- mongosh --quiet --eval "rs.status()"
@@ -62,7 +66,9 @@ kubectl exec -n trading-model mongo-dlq-0 -- mongosh --quiet --eval "rs.isMaster
 ```
 
 ### Recovery
+
 MongoDB replica set should auto-failover. If it does not:
+
 ```bash
 # Force re-election
 kubectl exec -n trading-model mongo-dlq-0 -- mongosh --quiet --eval "rs.stepDown()"
@@ -74,6 +80,7 @@ kubectl exec -n trading-model mongo-dlq-0 -- mongosh --quiet --eval "rs.add('mon
 ```
 
 ### Full data loss
+
 1. Restore from latest mongodump backup:
    ```bash
    mongorestore --host <restored-host> --drop backup_<date>/
@@ -89,6 +96,7 @@ kubectl exec -n trading-model mongo-dlq-0 -- mongosh --quiet --eval "rs.add('mon
 **Severity:** SEV1-SEV2
 
 ### Symptom Check
+
 ```bash
 # Check Redis primary
 kubectl exec -n trading-model redis-primary-0 -- redis-cli ping
@@ -98,14 +106,18 @@ kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel ma
 ```
 
 ### Recovery
+
 Redis Sentinel should auto-failover. If not:
+
 ```bash
 # Force sentinel failover
 kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel failover mymaster
 ```
 
 ### Full Redis data loss
+
 Redis will rebuild from AOF/RDB on restart. If persistence is corrupted:
+
 1. Clear Redis data:
    ```bash
    kubectl exec -n trading-model redis-primary-0 -- redis-cli FLUSHALL

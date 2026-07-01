@@ -14,15 +14,15 @@ npm run -w api-gateway dev
 
 ## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | HTTPS listen port |
-| `DISCOVERY_SERVICE_URL` | `https://discovery-server:3000` | Discovery server URL |
-| `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window (ms) |
-| `RATE_LIMIT_MAX` | `100` | Max requests per window |
-| `CACHE_TTL_MS` | `30000` | In-memory cache TTL (ms) |
-| `AUTH_TOKENS` | `''` | Comma-separated valid admin tokens |
-| `PROXY_TIMEOUT_MS` | `10000` | Proxy request timeout (ms) |
+| Variable                | Default                         | Description                        |
+| ----------------------- | ------------------------------- | ---------------------------------- |
+| `PORT`                  | `3000`                          | HTTPS listen port                  |
+| `DISCOVERY_SERVICE_URL` | `https://discovery-server:3000` | Discovery server URL               |
+| `RATE_LIMIT_WINDOW_MS`  | `60000`                         | Rate limit window (ms)             |
+| `RATE_LIMIT_MAX`        | `100`                           | Max requests per window            |
+| `CACHE_TTL_MS`          | `30000`                         | In-memory cache TTL (ms)           |
+| `AUTH_TOKENS`           | `''`                            | Comma-separated valid admin tokens |
+| `PROXY_TIMEOUT_MS`      | `10000`                         | Proxy request timeout (ms)         |
 
 ## API
 

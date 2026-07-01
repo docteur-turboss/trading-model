@@ -52,7 +52,10 @@ export function configureErrorTracking(opts: ErrorTrackingConfig): void {
 
   if (config.endpoint) {
     startFlushTimer();
-    logger.info('Error tracking configured', { endpoint: config.endpoint, service: config.serviceName });
+    logger.info('Error tracking configured', {
+      endpoint: config.endpoint,
+      service: config.serviceName,
+    });
   }
 }
 
@@ -77,7 +80,11 @@ async function flush(): Promise<void> {
     await fetch(config.endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ errors: batch, service: config.serviceName, instanceId: config.instanceId }),
+      body: JSON.stringify({
+        errors: batch,
+        service: config.serviceName,
+        instanceId: config.instanceId,
+      }),
     });
   } catch (err) {
     console.error('[ErrorTracking] Failed to flush error reports:', normalizeError(err).message);
@@ -110,7 +117,7 @@ export function reportError(err: unknown, req: Request, statusCode: number): voi
 }
 
 export function errorTrackingMiddleware(
-  endpoint?: string,
+  endpoint?: string
 ): (err: Error, req: Request, res: Response, next: NextFunction) => void {
   if (endpoint) {
     configureErrorTracking({ endpoint: endpoint || process.env.ERROR_URL_WEBHOOK });

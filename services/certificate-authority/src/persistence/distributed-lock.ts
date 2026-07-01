@@ -44,7 +44,8 @@ export class DistributedLock {
     this.ttlMs = options.ttlMs;
     this.instanceId = randomUUID().substring(0, 8);
     this.redisUrl = options.redisUrl ?? null;
-    this.fallbackDir = options.fallbackDir ?? path.join(process.cwd(), 'data', 'ca-fallback', 'locks');
+    this.fallbackDir =
+      options.fallbackDir ?? path.join(process.cwd(), 'data', 'ca-fallback', 'locks');
   }
 
   async connect(): Promise<void> {
@@ -75,7 +76,9 @@ export class DistributedLock {
         retryStrategy: () => null,
         lazyConnect: true,
       });
-      this.redisClient.on('error', () => { this.redisAvailable = false; });
+      this.redisClient.on('error', () => {
+        this.redisAvailable = false;
+      });
     } catch {
       this.redisClient = null;
     }
@@ -83,7 +86,11 @@ export class DistributedLock {
 
   async disconnect(): Promise<void> {
     if (!MongoManager.isInitialized()) {
-      try { await this.client.close(); } catch { /* closing */ }
+      try {
+        await this.client.close();
+      } catch {
+        /* closing */
+      }
     }
     this.redisClient?.disconnect();
   }
@@ -98,7 +105,11 @@ export class DistributedLock {
     if (this.mongoConnected && this.collection) {
       try {
         const doc = await this.collection.findOne({ name: this.lockName });
-        if (!doc || doc.instanceId !== this.instanceId || doc.fencingToken !== this.currentFencingToken) {
+        if (
+          !doc ||
+          doc.instanceId !== this.instanceId ||
+          doc.fencingToken !== this.currentFencingToken
+        ) {
           this.currentFencingToken = -1;
           return -1;
         }
@@ -139,10 +150,7 @@ export class DistributedLock {
         const result = await this.collection.findOneAndUpdate(
           {
             name: this.lockName,
-            $or: [
-              { expiresAt: { $lt: now } },
-              { expiresAt: { $exists: false } },
-            ],
+            $or: [{ expiresAt: { $lt: now } }, { expiresAt: { $exists: false } }],
           },
           {
             $set: {
@@ -207,12 +215,16 @@ export class DistributedLock {
           // file doesn't exist or is invalid — lock is free
         }
         const fencingToken = Date.now();
-        await fs.writeFile(lockFile, JSON.stringify({
-          instanceId: this.instanceId,
-          acquiredAt: Date.now(),
-          ttlMs: this.ttlMs,
-          fencingToken,
-        }), { mode: 0o600 });
+        await fs.writeFile(
+          lockFile,
+          JSON.stringify({
+            instanceId: this.instanceId,
+            acquiredAt: Date.now(),
+            ttlMs: this.ttlMs,
+            fencingToken,
+          }),
+          { mode: 0o600 }
+        );
         this.currentFencingToken = fencingToken;
         return true;
       } catch {
@@ -220,7 +232,9 @@ export class DistributedLock {
         return false;
       }
     }
-    logger.error('No lock backend available (MongoDB, Redis) and filesystem fallback is disabled in production');
+    logger.error(
+      'No lock backend available (MongoDB, Redis) and filesystem fallback is disabled in production'
+    );
     return false;
   }
 
@@ -230,7 +244,11 @@ export class DistributedLock {
 
     if (this.mongoConnected && this.collection) {
       try {
-        await this.collection.deleteOne({ name: this.lockName, instanceId: this.instanceId, fencingToken: savedToken });
+        await this.collection.deleteOne({
+          name: this.lockName,
+          instanceId: this.instanceId,
+          fencingToken: savedToken,
+        });
         return;
       } catch {
         this.mongoConnected = false;

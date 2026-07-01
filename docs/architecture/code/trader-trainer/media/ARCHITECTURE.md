@@ -493,14 +493,7 @@ function calculateMaxPopulation(): number {
 ```typescript
 // Activation functions
 type ActivationType =
-  | 'sigmoid'
-  | 'tanh'
-  | 'relu'
-  | 'gelu'
-  | 'softmax'
-  | 'elu'
-  | 'mish'
-  | 'leakyRelu';
+  'sigmoid' | 'tanh' | 'relu' | 'gelu' | 'softmax' | 'elu' | 'mish' | 'leakyRelu';
 
 // Connection types
 type ConnectionType = 'fully-connected' | 'dense-skip' | 'residual-connection';

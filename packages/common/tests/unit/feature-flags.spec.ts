@@ -2,10 +2,30 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { FeatureFlags, FeatureFlagDefinition } from '../../src/config/feature-flags';
 
 const testFlags: FeatureFlagDefinition[] = [
-  { name: 'ENABLE_NEW_PIPELINE', defaultEnabled: false, description: 'Use the new data pipeline', owner: '@trading-model/data' },
-  { name: 'DISABLE_CACHE', defaultEnabled: false, description: 'Bypass all Redis caching', owner: '@trading-model/platform' },
-  { name: 'STRICT_VALIDATION', defaultEnabled: true, description: 'Enforce strict schema validation', owner: '@trading-model/core' },
-  { name: 'CANARY_ROUTING', defaultEnabled: false, description: 'Route traffic to canary instances', owner: '@trading-model/platform' },
+  {
+    name: 'ENABLE_NEW_PIPELINE',
+    defaultEnabled: false,
+    description: 'Use the new data pipeline',
+    owner: '@trading-model/data',
+  },
+  {
+    name: 'DISABLE_CACHE',
+    defaultEnabled: false,
+    description: 'Bypass all Redis caching',
+    owner: '@trading-model/platform',
+  },
+  {
+    name: 'STRICT_VALIDATION',
+    defaultEnabled: true,
+    description: 'Enforce strict schema validation',
+    owner: '@trading-model/core',
+  },
+  {
+    name: 'CANARY_ROUTING',
+    defaultEnabled: false,
+    description: 'Route traffic to canary instances',
+    owner: '@trading-model/platform',
+  },
 ];
 
 describe('FeatureFlags', () => {

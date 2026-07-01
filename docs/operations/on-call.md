@@ -1,6 +1,7 @@
 # On-Call Procedures
 
 ## Rotation
+
 - **Duration:** 1 week (Monday to Monday)
 - **Shift start:** 09:00 local time
 - **Handoff:** Friday 16:00, overlapping with incoming engineer
@@ -8,6 +9,7 @@
 ## Responsibilities
 
 ### During shift
+
 1. Respond to alerts within SLO (15 min SEV1, 1 hour SEV2)
 2. Acknowledge all alerts in PagerDuty/Opsgenie within 5 minutes
 3. Triage and escalate as needed
@@ -15,6 +17,7 @@
 5. Document all actions for post-mortem
 
 ### At shift start
+
 - [ ] Review open incidents from previous shift
 - [ ] Check dashboards for anomalies
 - [ ] Verify alert routing is working
@@ -22,6 +25,7 @@
 - [ ] Review any new runbooks or procedures
 
 ### At shift end
+
 - [ ] Handoff all open incidents to incoming engineer
 - [ ] Update incident status and notes
 - [ ] Ensure all runbooks are current
@@ -30,6 +34,7 @@
 ## Quick Reference
 
 ### Health check endpoints
+
 ```
 discovery-server:       curl -sk https://discovery-server:3000/ping
 message-manager:        curl -sk https://message-manager:3000/health/ready
@@ -43,11 +48,13 @@ admin-interface:        curl -s http://admin-interface:80/ping
 ```
 
 ### Key dashboards
+
 - **Grafana:** https://grafana.trading-model.example.com
 - **Jaeger:** https://jaeger.trading-model.example.com
 - **Prometheus:** https://prometheus.trading-model.example.com
 
 ### Useful commands
+
 ```bash
 # Get pod status
 kubectl get pods -n trading-model
@@ -72,6 +79,7 @@ kubectl exec -n trading-model -it deployment/<service-name> -- sh
 ```
 
 ### Alert acknowledgement
+
 ```bash
 # Silence alert for 30 minutes (maintenance)
 kubectl annotate --overwrite -n trading-model prometheusrule/trading-model-alerts \

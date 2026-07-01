@@ -4,6 +4,7 @@
 **Alert:** Manual detection or anomaly in data
 
 ## Detection
+
 - Financial scraper returns inconsistent market data
 - Audit logger shows gap in event sequence
 - DLQ messages have unparseable payloads
@@ -13,6 +14,7 @@
 ## Immediate Response
 
 ### 1. Isolate the affected data
+
 ```bash
 # Scale down consumer services to prevent spreading corruption
 kubectl scale deployment -n trading-model financial-scraper --replicas=0
@@ -20,6 +22,7 @@ kubectl scale deployment -n trading-model trader-trainer --replicas=0
 ```
 
 ### 2. Take forensic snapshot
+
 ```bash
 # MySQL dump
 kubectl exec -n trading-model statefulset/mysql -- \
@@ -36,6 +39,7 @@ kubectl exec -n trading-model redis-primary-0 -- redis-cli SAVE
 ### 3. Restore from backup
 
 **MySQL:**
+
 ```bash
 # Find latest known-good backup
 ls -la /backups/mysql/
@@ -50,6 +54,7 @@ kubectl exec -n trading-model statefulset/mysql -- \
 ```
 
 **MongoDB:**
+
 ```bash
 # Find latest known-good backup
 ls -la /backups/mongodb/
@@ -65,6 +70,7 @@ kubectl exec -n trading-model deployment/dlq-service -- \
 
 **Redis:**
 Redis data is ephemeral and can be rebuilt. If corruption is detected:
+
 ```bash
 kubectl exec -n trading-model redis-primary-0 -- redis-cli FLUSHALL
 # Services will repopulate cache from source data
@@ -73,6 +79,7 @@ kubectl exec -n trading-model redis-primary-0 -- redis-cli FLUSHALL
 ## Root Cause Investigation
 
 ### Database corruption causes:
+
 1. Hardware failure (disk errors)
 2. Software bug in write path
 3. Concurrent write conflict
@@ -80,6 +87,7 @@ kubectl exec -n trading-model redis-primary-0 -- redis-cli FLUSHALL
 5. Malicious data injection
 
 ### Check for software bugs:
+
 ```bash
 # Check service logs around corruption time window
 kubectl logs -n trading-model deployment/financial-scraper \
@@ -87,6 +95,7 @@ kubectl logs -n trading-model deployment/financial-scraper \
 ```
 
 ## Prevention
+
 - Enable MySQL `innodb_checksum_algorithm=crc32`
 - MongoDB default checksums on WiredTiger
 - Redis RDB persistence (900s + 300s checkpoints)

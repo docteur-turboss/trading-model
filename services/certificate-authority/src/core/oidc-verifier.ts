@@ -54,12 +54,12 @@ interface JwtHeader {
  * public key as an HMAC secret.
  */
 const ALGORITHM_MAP: Record<string, string> = {
-  'RS256': 'RSA-SHA256',
-  'RS384': 'RSA-SHA384',
-  'RS512': 'RSA-SHA512',
-  'ES256': 'SHA256',
-  'ES384': 'SHA384',
-  'ES512': 'SHA512',
+  RS256: 'RSA-SHA256',
+  RS384: 'RSA-SHA384',
+  RS512: 'RSA-SHA512',
+  ES256: 'SHA256',
+  ES384: 'SHA384',
+  ES512: 'SHA512',
 };
 
 export class OidcVerifier {
@@ -71,9 +71,7 @@ export class OidcVerifier {
 
   constructor(config: OidcConfig) {
     this.config = config;
-    this.allowedAlgorithms = new Set(
-      config.allowedAlgorithms ?? ['RS256', 'ES256']
-    );
+    this.allowedAlgorithms = new Set(config.allowedAlgorithms ?? ['RS256', 'ES256']);
   }
 
   async verifyAndExtract(token: string): Promise<OidcClaims> {
@@ -116,9 +114,7 @@ export class OidcVerifier {
 
     // 6a: Use algorithm from whitelist — safe from alg:none and alg confusion
     const algorithm = this.toNodeCryptoAlgorithm(header.alg);
-    const verified = createVerify(algorithm)
-      .update(message)
-      .verify(signingKey, signature);
+    const verified = createVerify(algorithm).update(message).verify(signingKey, signature);
 
     if (!verified) {
       throw new Error('JWT signature verification failed');
@@ -159,7 +155,7 @@ export class OidcVerifier {
       if (!response.ok) {
         throw new Error(`JWKS fetch failed: ${response.status}`);
       }
-      const jwks = await response.json() as JwksResponse;
+      const jwks = (await response.json()) as JwksResponse;
       this.cachedKeys = new Map<string, KeyObject>();
 
       for (const jwk of jwks.keys) {

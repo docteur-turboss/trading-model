@@ -4,13 +4,16 @@
 **Severity:** SEV1
 
 ## Architecture Context
+
 The message bus (message-manager) is the central event backbone. All services depend on it for inter-service communication. An outage affects:
+
 - financial-scraper (cannot publish market data)
 - trader-trainer (cannot receive market data)
 - audit-logger (cannot ingest events)
 - dlq-service (cannot receive DLQ entries from message-manager)
 
 ## Detection
+
 - Prometheus alerts: `ServiceDown`, `BackpressureHigh`, `DLQSizeGrowing`
 - Grafana: message-manager dashboard showing queue depth, consumer lag
 - Services report connection refused or timeout to message-manager
@@ -35,8 +38,10 @@ kubectl exec -n trading-model deployment/message-manager -- \
 ## Common Causes
 
 ### 1. Redis Down
+
 **Symptoms:** message-manager cannot connect to Redis, all delivery stops  
 **Fix:**
+
 ```bash
 # Restart Redis primary
 kubectl delete pod -n trading-model redis-primary-0
@@ -47,8 +52,10 @@ kubectl exec -n trading-model redis-sentinel-0 -- redis-cli -p 26379 sentinel ma
 ```
 
 ### 2. Backpressure from slow subscribers
+
 **Symptoms:** `BackpressureHigh` alert, high queue depth  
 **Check:**
+
 ```bash
 # Check subscriber delivery concurrency
 kubectl exec -n trading-model deployment/message-manager -- \
@@ -58,7 +65,9 @@ kubectl exec -n trading-model deployment/message-manager -- \
 kubectl exec -n trading-model deployment/message-manager -- \
   curl -sk https://localhost:3000/metrics | grep redis_stream_size
 ```
+
 **Fix:**
+
 ```bash
 # Scale up message-manager
 kubectl scale deployment -n trading-model message-manager --replicas=5
@@ -68,16 +77,21 @@ kubectl set env deployment -n trading-model message-manager MAX_CONCURRENT_DELIV
 ```
 
 ### 3. DLQ Service Down
+
 **Symptoms:** Messages failing delivery, DLQ buffer filling up  
 **Check:**
+
 ```bash
 kubectl get pods -n trading-model -l app.kubernetes.io/component=dlq-service
 ```
+
 **Fix:** Restore DLQ service first, then message-manager will drain DLQ buffer.
 
 ### 4. WAL Corruption
+
 **Symptoms:** message-manager crash loop with WAL errors  
 **Fix:**
+
 ```bash
 # Scale down to stop writes
 kubectl scale deployment -n trading-model message-manager --replicas=0
@@ -111,6 +125,7 @@ kubectl exec -n trading-model deployment/message-manager -- \
 ```
 
 ## Prevention
+
 - Configure HPA to scale message-manager before backpressure builds
 - Set `MAX_CONCURRENT_DELIVERIES` proportional to expected subscriber count
 - Monitor Redis stream lag as leading indicator

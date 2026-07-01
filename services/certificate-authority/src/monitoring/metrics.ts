@@ -87,7 +87,7 @@ export function sendAlertWebhook(
   title: string,
   message: string,
   severity: 'info' | 'warning' | 'error' = 'error',
-  labels?: Record<string, string>,
+  labels?: Record<string, string>
 ): void {
   if (!webhookUrl) return;
 
@@ -105,13 +105,15 @@ export function sendAlertWebhook(
     headers: { 'Content-Type': 'application/json' },
     body,
     signal: AbortSignal.timeout(10_000),
-  }).then(res => {
-    if (!res.ok) {
-      logger.warn('Alert webhook returned non-OK status', { status: res.status, webhookUrl });
-    }
-  }).catch(err => {
-    logger.warn('Alert webhook delivery failed', { err: (err as Error).message, webhookUrl });
-  });
+  })
+    .then(res => {
+      if (!res.ok) {
+        logger.warn('Alert webhook returned non-OK status', { status: res.status, webhookUrl });
+      }
+    })
+    .catch(err => {
+      logger.warn('Alert webhook delivery failed', { err: (err as Error).message, webhookUrl });
+    });
 }
 
 export const metricsHandler: RequestHandler = async (_req, res) => {

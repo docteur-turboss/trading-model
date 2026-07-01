@@ -8,7 +8,9 @@ function createMockCache(): jest.Mocked<IServiceCache> {
     set: jest.fn(),
     invalidate: jest.fn(),
     clear: jest.fn<() => Promise<void>>().mockResolvedValue(),
-    entries: jest.fn<() => Promise<Array<{ serviceName: string; instance: any; region?: string }>>>().mockResolvedValue([]),
+    entries: jest
+      .fn<() => Promise<Array<{ serviceName: string; instance: any; region?: string }>>>()
+      .mockResolvedValue([]),
     stop: jest.fn(),
     setCircuitState: jest.fn<() => Promise<void>>().mockResolvedValue(),
     getCircuitState: jest.fn<() => Promise<any>>().mockResolvedValue(null),
@@ -147,7 +149,11 @@ describe('CircuitBreaker', () => {
     });
 
     it('should load state from store on loadFromStore', async () => {
-      const persistedState: CircuitState = { failures: 5, lastFailureTime: Date.now() - 5000, state: 'OPEN' };
+      const persistedState: CircuitState = {
+        failures: 5,
+        lastFailureTime: Date.now() - 5000,
+        state: 'OPEN',
+      };
       mockCache.getCircuitState.mockResolvedValue(persistedState);
 
       await circuitBreaker.loadFromStore('instance-1');

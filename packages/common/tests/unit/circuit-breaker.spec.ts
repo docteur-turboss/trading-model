@@ -17,7 +17,9 @@ describe('CircuitBreaker', () => {
 
   it('opens after exceeding max failures', async () => {
     const cb = new CircuitBreaker({ name: 'test', maxFailures: 2, resetTimeoutMs: 60000 });
-    const fn = async () => { throw new Error('fail'); };
+    const fn = async () => {
+      throw new Error('fail');
+    };
 
     await expect(cb.call(fn)).rejects.toThrow('fail');
     expect(cb.getState()).toBe('CLOSED');
@@ -30,7 +32,9 @@ describe('CircuitBreaker', () => {
 
   it('transitions to HALF_OPEN after reset timeout', async () => {
     const cb = new CircuitBreaker({ name: 'test', maxFailures: 1, resetTimeoutMs: 50 });
-    const failFn = async () => { throw new Error('fail'); };
+    const failFn = async () => {
+      throw new Error('fail');
+    };
 
     await expect(cb.call(failFn)).rejects.toThrow('fail');
     expect(cb.getState()).toBe('OPEN');
@@ -49,7 +53,9 @@ describe('CircuitBreaker', () => {
       resetTimeoutMs: 50,
       successThreshold: 2,
     });
-    const failFn = async () => { throw new Error('fail'); };
+    const failFn = async () => {
+      throw new Error('fail');
+    };
 
     await expect(cb.call(failFn)).rejects.toThrow('fail');
     expect(cb.getState()).toBe('OPEN');
@@ -65,7 +71,9 @@ describe('CircuitBreaker', () => {
 
   it('re-opens if a call fails in HALF_OPEN state', async () => {
     const cb = new CircuitBreaker({ name: 'test', maxFailures: 1, resetTimeoutMs: 50 });
-    const failFn = async () => { throw new Error('fail'); };
+    const failFn = async () => {
+      throw new Error('fail');
+    };
 
     await expect(cb.call(failFn)).rejects.toThrow('fail');
     expect(cb.getState()).toBe('OPEN');

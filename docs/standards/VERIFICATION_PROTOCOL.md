@@ -67,15 +67,15 @@ Every change — from a single commit to a full release — carries risk. This p
 
 ## After Release
 
-| #   | Check                                | How                                                               |
+| # | Check | How |
 | --- | ------------------------------------ | ----------------------------------------------------------------- | ------- |
-| 1   | Docker images are published to GHCR  | `docker pull ghcr.io/<owner>/<repo>/<service>:<version>`          |
-| 2   | GitHub Release has correct notes     | Check release page                                                |
-| 3   | Tag exists and is pushed             | `git tag -l                                                       | grep v` |
-| 4   | `development` is synced with `main`  | `git checkout development && git merge main`                      |
-| 5   | Deploy to production (if applicable) | `IMAGE_TAG=<version> docker compose pull && docker compose up -d` |
-| 6   | Smoke test production endpoints      | `curl -k https://<host>:<port>/ping`                              |
-| 7   | Monitor logs for errors              | `docker compose logs -f --tail=100`                               |
+| 1 | Docker images are published to GHCR | `docker pull ghcr.io/<owner>/<repo>/<service>:<version>` |
+| 2 | GitHub Release has correct notes | Check release page |
+| 3 | Tag exists and is pushed | `git tag -l                                                       | grep v` |
+| 4 | `development` is synced with `main` | `git checkout development && git merge main` |
+| 5 | Deploy to production (if applicable) | `IMAGE_TAG=<version> docker compose pull && docker compose up -d` |
+| 6 | Smoke test production endpoints | `curl -k https://<host>:<port>/ping` |
+| 7 | Monitor logs for errors | `docker compose logs -f --tail=100` |
 
 ## Quick Reference
 

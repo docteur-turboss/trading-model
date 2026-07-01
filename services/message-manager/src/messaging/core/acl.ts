@@ -7,7 +7,9 @@ const ACL_CACHE_MAX_SIZE = 1000;
 const aclCache = new Map<string, { services: string[]; expiresAt: number }>();
 const aclLoading = new Map<string, Promise<void>>();
 
-function extractServiceName(req: { headers: Record<string, string | string[] | undefined> }): string | null {
+function extractServiceName(req: {
+  headers: Record<string, string | string[] | undefined>;
+}): string | null {
   const cn = req.headers['x-service-name'];
   if (cn) return Array.isArray(cn) ? cn[0] : cn;
   return null;

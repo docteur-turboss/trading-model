@@ -5,6 +5,7 @@
 **Affected:** Any trading-model service
 
 ## Detection
+
 - Prometheus alert `ServiceDown` fires
 - Grafana dashboard shows `up == 0` for a target
 - Clients report connection errors to a specific service
@@ -26,9 +27,11 @@ kubectl logs -n trading-model deployment/<service-name> --tail=50
 ## Common Causes
 
 ### 1. OOMKilled (Out of Memory)
+
 **Symptoms:** Pod status `OOMKilled`, `CrashLoopBackOff`  
 **Check:** `kubectl describe pod -n trading-model <pod> | grep -A5 "Last State"`  
 **Fix:**
+
 ```bash
 # Increase memory limits
 kubectl patch deployment -n trading-model <service-name> -p \
@@ -36,19 +39,24 @@ kubectl patch deployment -n trading-model <service-name> -p \
 ```
 
 ### 2. CrashLoopBackOff
+
 **Symptoms:** Pod starts then crashes repeatedly  
 **Check:** `kubectl logs -n trading-model deployment/<service-name> --tail=50 --previous`  
 **Fix:**
+
 - If config error: check ConfigMap values, fix and redeploy
 - If code error: rollback deployment
+
 ```bash
 kubectl rollout undo -n trading-model deployment/<service-name>
 ```
 
 ### 3. ImagePullBackOff
+
 **Symptoms:** Pod stuck in `ImagePullBackOff`  
 **Check:** `kubectl describe pod -n trading-model <pod> | grep "Failed to pull image"`  
 **Fix:**
+
 ```bash
 # Verify image exists in GHCR
 # Check imagePullSecrets
@@ -61,17 +69,21 @@ kubectl create secret docker-registry -n trading-model ghcr-secret \
 ```
 
 ### 4. Pending (unschedulable)
+
 **Symptoms:** Pod stuck in `Pending`  
 **Check:** `kubectl describe pod -n trading-model <pod> | grep -A5 Events`  
 **Fix:**
+
 - Insufficient resources: add nodes or reduce requests
 - PVC pending: check storage class availability
 - Node selector mismatch: fix labels/selectors
 
 ### 5. TLS Certificate Expired
+
 **Symptoms:** Service starts but health check fails, mTLS handshake errors  
 **Check:** Service logs show TLS errors  
 **Fix:**
+
 ```bash
 # Check certificate expiry
 echo | openssl s_client -connect <service>:3000 -cert <(kubectl get secret -n trading-model trading-model-tls -o jsonpath='{.data.server\.crt}' | base64 -d) 2>/dev/null | openssl x509 -noout -enddate
@@ -98,6 +110,7 @@ kubectl exec -n trading-model deployment/<service-name> -- curl -sk https://loca
 ## Escalation
 
 If the service does not recover within 15 minutes:
+
 1. Escalate to Engineering Manager
 2. Consider full incident response process
 3. In severe cases, route traffic away from affected service

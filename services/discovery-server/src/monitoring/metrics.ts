@@ -78,7 +78,12 @@ const leaseCleanupCyclesTotal = new client.Counter({
   registers: [register],
 });
 
-export function trackRequest(method: string, path: string, status: number, durationMs: number): void {
+export function trackRequest(
+  method: string,
+  path: string,
+  status: number,
+  durationMs: number
+): void {
   httpRequestsTotal.inc({ method, path, status });
   httpRequestDurationSeconds.observe({ method, path }, durationMs / 1000);
 }

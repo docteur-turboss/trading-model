@@ -56,19 +56,19 @@ services/message-manager/src/
 
 ### Migration Phases
 
-| Phase | Effort | Description |
-|-------|--------|-------------|
-| **1** — Extract ports | 3d | Create `application/ports/` interfaces. Existing classes implement them via `implements` |
-| **2** — Move infra | 5d | Move Redis/MongoDB/file code to `infrastructure/` adapters. Update imports |
-| **3** — Split domain | 3d | Extract pure domain logic into `domain/` files |
-| **4** — Wire container | 2d | Create DI container in `config/container.ts`. Wire ports → adapters |
+| Phase                  | Effort | Description                                                                              |
+| ---------------------- | ------ | ---------------------------------------------------------------------------------------- |
+| **1** — Extract ports  | 3d     | Create `application/ports/` interfaces. Existing classes implement them via `implements` |
+| **2** — Move infra     | 5d     | Move Redis/MongoDB/file code to `infrastructure/` adapters. Update imports               |
+| **3** — Split domain   | 3d     | Extract pure domain logic into `domain/` files                                           |
+| **4** — Wire container | 2d     | Create DI container in `config/container.ts`. Wire ports → adapters                      |
 
 ## Alternatives Considered
 
-| Alternative | Reason for Rejection |
-|---|---|
+| Alternative            | Reason for Rejection                                                       |
+| ---------------------- | -------------------------------------------------------------------------- |
 | Keep current structure | Tech debt accumulates. Every config change requires touching "domain" code |
-| Full rewrite | Too risky. Incremental migration preserves existing test coverage |
+| Full rewrite           | Too risky. Incremental migration preserves existing test coverage          |
 
 ## Current State (Post-Extraction)
 
@@ -79,6 +79,7 @@ services/message-manager/src/
 ## Dependencies on This Migration
 
 The 3 SPOFs identified in the architecture audit (message-manager, certificate-authority, discovery-server) would benefit from hexagonal refactoring to support:
+
 - Multiple storage backends (Redis, Kafka, NATS — pluggable via ports)
 - Graceful degradation (no-database mode via fallback adapters)
 - Testability (domain logic testable without Redis/MongoDB)

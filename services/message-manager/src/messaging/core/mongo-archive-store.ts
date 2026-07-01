@@ -19,7 +19,10 @@ interface MongoClient {
   db: (name: string) => {
     collection: (name: string) => {
       insertMany: (docs: unknown[]) => Promise<unknown>;
-      createIndex: (keys: Record<string, number>, opts?: Record<string, unknown>) => Promise<string>;
+      createIndex: (
+        keys: Record<string, number>,
+        opts?: Record<string, unknown>
+      ) => Promise<string>;
       countDocuments: (filter: Record<string, unknown>) => Promise<number>;
       deleteMany: (filter: Record<string, unknown>) => Promise<{ deletedCount: number }>;
       bulkWrite: (ops: unknown[]) => Promise<unknown>;
@@ -89,7 +92,7 @@ export class MongoArchiveStore {
 
   private startArchiveTimer(): void {
     this.archiveTimer = setInterval(() => {
-      this.archiveBatch().catch((err) => {
+      this.archiveBatch().catch(err => {
         logger.warn('MongoDB archive batch failed', { error: (err as Error).message });
       });
     }, env.MONGO_ARCHIVE_INTERVAL_MS);
@@ -104,7 +107,11 @@ export class MongoArchiveStore {
 
     for (const topic of topics) {
       try {
-        const messages = await messageStore.getMessagesAfter(topic, Date.now() - 3600_000, env.MONGO_ARCHIVE_BATCH_SIZE);
+        const messages = await messageStore.getMessagesAfter(
+          topic,
+          Date.now() - 3600_000,
+          env.MONGO_ARCHIVE_BATCH_SIZE
+        );
         if (messages.length === 0) continue;
 
         const entries: ArchiveEntry[] = messages.map((msg: Message) => ({

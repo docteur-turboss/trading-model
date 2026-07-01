@@ -58,7 +58,10 @@ export class NonceStore {
       }
       this.collection = db.collection<NonceDocument>('nonces');
       await this.collection.createIndex({ nonce: 1 }, { unique: true });
-      await this.collection.createIndex({ createdAt: 1 }, { expireAfterSeconds: Math.ceil(this.ttlMs / 1000) });
+      await this.collection.createIndex(
+        { createdAt: 1 },
+        { expireAfterSeconds: Math.ceil(this.ttlMs / 1000) }
+      );
       await this.loadFromMongo();
       logger.info('NonceStore connected to MongoDB', { existingNonces: this.l1.size });
     } catch (err) {
@@ -163,15 +166,22 @@ export class NonceStore {
   }
 
   private startCleanup(): void {
-    this.cleanupTimer = setInterval(() => {
-      const now = Date.now();
-      for (const [nonce, entry] of this.l1) {
-        if (now - entry.createdAt > this.ttlMs) {
-          this.l1.delete(nonce);
+    this.cleanupTimer = setInterval(
+      () => {
+        const now = Date.now();
+        for (const [nonce, entry] of this.l1) {
+          if (now - entry.createdAt > this.ttlMs) {
+            this.l1.delete(nonce);
+          }
         }
-      }
-    }, Math.min(this.ttlMs / 2, 60_000));
-    if (this.cleanupTimer && typeof this.cleanupTimer === 'object' && 'unref' in this.cleanupTimer) {
+      },
+      Math.min(this.ttlMs / 2, 60_000)
+    );
+    if (
+      this.cleanupTimer &&
+      typeof this.cleanupTimer === 'object' &&
+      'unref' in this.cleanupTimer
+    ) {
       this.cleanupTimer.unref();
     }
   }

@@ -43,8 +43,12 @@ export async function getDb(): Promise<Db> {
         client = newClient;
         db = newClient.db(env.MONGO_DB);
         connected = true;
-        newClient.on('close', () => { connected = false; });
-        newClient.on('reconnect', () => { connected = true; });
+        newClient.on('close', () => {
+          connected = false;
+        });
+        newClient.on('reconnect', () => {
+          connected = true;
+        });
         logger.info('MongoDB connected', { database: env.MONGO_DB });
         return db;
       } catch (err) {
@@ -52,9 +56,12 @@ export async function getDb(): Promise<Db> {
         await newClient.close().catch(() => {});
         if (attempt < MONGO_CONNECT_MAX_RETRIES - 1) {
           const backoff = MONGO_CONNECT_RETRY_BASE_MS * Math.pow(2, attempt);
-          logger.warn(`MongoDB connection attempt ${attempt + 1} failed, retrying in ${backoff}ms`, {
-            error: (err as Error).message,
-          });
+          logger.warn(
+            `MongoDB connection attempt ${attempt + 1} failed, retrying in ${backoff}ms`,
+            {
+              error: (err as Error).message,
+            }
+          );
           await new Promise(r => setTimeout(r, backoff));
         }
       }
@@ -83,8 +90,14 @@ export async function getCollection(): Promise<Collection> {
       { key: { processingAt: 1 }, options: { sparse: true } },
       { key: { processingInstance: 1 } },
       { key: { status: 1, retryCount: 1 } },
-      { key: { retryCount: 1, createdAt: -1 }, options: { partialFilterExpression: { processingAt: { $exists: false } } } },
-      { key: { retryCount: 1, status: 1, createdAt: -1 }, options: { partialFilterExpression: { processingAt: { $exists: false } } } },
+      {
+        key: { retryCount: 1, createdAt: -1 },
+        options: { partialFilterExpression: { processingAt: { $exists: false } } },
+      },
+      {
+        key: { retryCount: 1, status: 1, createdAt: -1 },
+        options: { partialFilterExpression: { processingAt: { $exists: false } } },
+      },
       { key: { contentHash: 1, status: 1 }, options: { sparse: true } },
     ];
     const criticalIndexSpecs = CRITICAL_INDEX_KEYS.map(key => ({ key }));

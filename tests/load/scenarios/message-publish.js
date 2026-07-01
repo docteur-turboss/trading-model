@@ -50,7 +50,7 @@ export default function () {
   });
 
   check(res, {
-    'publish accepted (204)': (r) => r.status === 204,
+    'publish accepted (204)': r => r.status === 204,
   });
 
   sleep(1);

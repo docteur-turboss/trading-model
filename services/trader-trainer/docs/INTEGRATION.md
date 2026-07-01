@@ -7,14 +7,15 @@
 The primary data source. Trader-Trainer subscribes to market data events and listens at `/message` callback endpoint.
 
 **Consumed events**:
-| Event | Data | Frequency |
-|-------|------|-----------|
-| `fetchCandlestickSeries` | OHLCV arrays | Periodic |
-| `fetchRecentTrades` | Trade arrays | Real-time |
-| `fetchOrderBookSnapshot` | Order book depth | Snapshot |
-| `fetchOrderBookTickerSnapshot` | Best bid/ask | Real-time |
-| `fetch24hrTickerStats` | 24h statistics | Periodic |
-| `fetchPriceTickerSnapshot` | Current prices | Real-time |
+
+| Event                          | Data             | Frequency |
+| ------------------------------ | ---------------- | --------- |
+| `fetchCandlestickSeries`       | OHLCV arrays     | Periodic  |
+| `fetchRecentTrades`            | Trade arrays     | Real-time |
+| `fetchOrderBookSnapshot`       | Order book depth | Snapshot  |
+| `fetchOrderBookTickerSnapshot` | Best bid/ask     | Real-time |
+| `fetch24hrTickerStats`         | 24h statistics   | Periodic  |
+| `fetchPriceTickerSnapshot`     | Current prices   | Real-time |
 
 **Configuration**: All message manager setup in `config/message-manager.ts` using environment variables for TLS, service identity, and callback path.
 

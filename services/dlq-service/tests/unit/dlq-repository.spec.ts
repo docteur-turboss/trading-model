@@ -49,10 +49,33 @@ jest.mock('../../src/config/env', () => ({
   },
 }));
 
-const DlqEntry = { topic: 'test.topic.event', message: { data: 1 }, reason: 'timeout', deliveryAttempt: 2, timestamp: new Date().toISOString() };
+const DlqEntry = {
+  topic: 'test.topic.event',
+  message: { data: 1 },
+  reason: 'timeout',
+  deliveryAttempt: 2,
+  timestamp: new Date().toISOString(),
+};
 
 describe('DlqRepository', () => {
-  let DlqRepositoryClass: { new(): { add: Function; list: Function; delete: Function; count: Function; prune: Function; claimEntriesForRetry: Function; claimEntry: Function; markRetried: Function; releaseStaleClaims: Function; releaseAllActiveClaims: Function; releaseClaimsByInstance: Function; abandonExhaustedEntries: Function; incrementRetryCount: Function; listQueuable: Function } };
+  let DlqRepositoryClass: {
+    new (): {
+      add: Function;
+      list: Function;
+      delete: Function;
+      count: Function;
+      prune: Function;
+      claimEntriesForRetry: Function;
+      claimEntry: Function;
+      markRetried: Function;
+      releaseStaleClaims: Function;
+      releaseAllActiveClaims: Function;
+      releaseClaimsByInstance: Function;
+      abandonExhaustedEntries: Function;
+      incrementRetryCount: Function;
+      listQueuable: Function;
+    };
+  };
 
   beforeAll(() => {
     const mod = jest.requireActual('../../src/dlq/repository');
@@ -76,13 +99,15 @@ describe('DlqRepository', () => {
 
       return repo.add(DlqEntry).then((id: string) => {
         expect(id).toBe('abc123');
-        expect(mockInsertOne).toHaveBeenCalledWith(expect.objectContaining({
-          topic: 'test.topic.event',
-          retryCount: 0,
-          messageId: expect.any(String),
-          contentHash: expect.any(String),
-          dlqPassCount: 1,
-        }));
+        expect(mockInsertOne).toHaveBeenCalledWith(
+          expect.objectContaining({
+            topic: 'test.topic.event',
+            retryCount: 0,
+            messageId: expect.any(String),
+            contentHash: expect.any(String),
+            dlqPassCount: 1,
+          })
+        );
       });
     });
 
@@ -94,10 +119,12 @@ describe('DlqRepository', () => {
 
       return repo.add(DlqEntry).then((id: string) => {
         expect(id).toBe('abc123');
-        expect(mockInsertOne).toHaveBeenCalledWith(expect.objectContaining({
-          contentHash: expect.any(String),
-          dlqPassCount: 2,
-        }));
+        expect(mockInsertOne).toHaveBeenCalledWith(
+          expect.objectContaining({
+            contentHash: expect.any(String),
+            dlqPassCount: 2,
+          })
+        );
         const callArg = mockInsertOne.mock.calls[0][0] as Record<string, unknown>;
         expect(callArg.status).toBeUndefined();
       });
@@ -111,11 +138,13 @@ describe('DlqRepository', () => {
 
       return repo.add(DlqEntry).then((id: string) => {
         expect(id).toBe('abc123');
-        expect(mockInsertOne).toHaveBeenCalledWith(expect.objectContaining({
-          dlqPassCount: 4,
-          status: 'abandoned',
-          lastError: expect.stringContaining('Ping-pong detected'),
-        }));
+        expect(mockInsertOne).toHaveBeenCalledWith(
+          expect.objectContaining({
+            dlqPassCount: 4,
+            status: 'abandoned',
+            lastError: expect.stringContaining('Ping-pong detected'),
+          })
+        );
       });
     });
 
@@ -156,7 +185,14 @@ describe('DlqRepository', () => {
 
     it('should return mapped documents with offset', () => {
       const repo = new DlqRepositoryClass();
-      const fakeDoc = { _id: { toHexString: () => 'id1' }, topic: 't1', message: { x: 1 }, reason: 'r1', deliveryAttempt: 1, createdAt: new Date('2024-01-01') };
+      const fakeDoc = {
+        _id: { toHexString: () => 'id1' },
+        topic: 't1',
+        message: { x: 1 },
+        reason: 'r1',
+        deliveryAttempt: 1,
+        createdAt: new Date('2024-01-01'),
+      };
       mockFind.mockReturnValueOnce(createCursor([fakeDoc]));
 
       return repo.list(undefined, 10, 0).then((result: Array<{ id: string }>) => {
@@ -172,19 +208,35 @@ describe('DlqRepository', () => {
     it('should support cursor-based pagination with before parameter', () => {
       const repo = new DlqRepositoryClass();
       const fakeDocs = [
-        { _id: { toHexString: () => 'id2' }, topic: 't1', message: { x: 2 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-02') },
-        { _id: { toHexString: () => 'id1' }, topic: 't1', message: { x: 1 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-01') },
+        {
+          _id: { toHexString: () => 'id2' },
+          topic: 't1',
+          message: { x: 2 },
+          reason: null,
+          deliveryAttempt: 1,
+          createdAt: new Date('2024-01-02'),
+        },
+        {
+          _id: { toHexString: () => 'id1' },
+          topic: 't1',
+          message: { x: 1 },
+          reason: null,
+          deliveryAttempt: 1,
+          createdAt: new Date('2024-01-01'),
+        },
       ];
       mockFind.mockReturnValueOnce(createCursor(fakeDocs));
 
-      return repo.list(undefined, 10, 0, 'aaaaaaaaaaaaaaaaaaaaaaaa').then((result: Array<{ id: string }>) => {
-        expect(result).toHaveLength(2);
-        expect(result[0].id).toBe('id2');
-        expect(mockFind).toHaveBeenCalledWith(
-          { _id: { $lt: expect.any(Object) } },
-          expect.objectContaining({ sort: { createdAt: -1 }, skip: 0, limit: 10 })
-        );
-      });
+      return repo
+        .list(undefined, 10, 0, 'aaaaaaaaaaaaaaaaaaaaaaaa')
+        .then((result: Array<{ id: string }>) => {
+          expect(result).toHaveLength(2);
+          expect(result[0].id).toBe('id2');
+          expect(mockFind).toHaveBeenCalledWith(
+            { _id: { $lt: expect.any(Object) } },
+            expect.objectContaining({ sort: { createdAt: -1 }, skip: 0, limit: 10 })
+          );
+        });
     });
   });
 
@@ -192,13 +244,19 @@ describe('DlqRepository', () => {
     it('should delete only non-processing documents and return count', () => {
       const repo = new DlqRepositoryClass();
       mockDeleteMany.mockResolvedValueOnce({ deletedCount: 3 });
-      return repo.delete(['aaaaaaaaaaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbbbbbbbbbb', 'cccccccccccccccccccccccc']).then((result: number) => {
-        expect(result).toBe(3);
-        expect(mockDeleteMany).toHaveBeenCalledWith({
-          _id: { $in: [expect.any(Object), expect.any(Object), expect.any(Object)] },
-          processingAt: { $exists: false },
+      return repo
+        .delete([
+          'aaaaaaaaaaaaaaaaaaaaaaaa',
+          'bbbbbbbbbbbbbbbbbbbbbbbb',
+          'cccccccccccccccccccccccc',
+        ])
+        .then((result: number) => {
+          expect(result).toBe(3);
+          expect(mockDeleteMany).toHaveBeenCalledWith({
+            _id: { $in: [expect.any(Object), expect.any(Object), expect.any(Object)] },
+            processingAt: { $exists: false },
+          });
         });
-      });
     });
   });
 
@@ -231,7 +289,10 @@ describe('DlqRepository', () => {
 
       return repo.prune(100).then((result: number) => {
         expect(result).toBe(50);
-        expect(mockDeleteMany).toHaveBeenCalledWith({ createdAt: { $lt: eldestDate }, processingAt: { $exists: false } });
+        expect(mockDeleteMany).toHaveBeenCalledWith({
+          createdAt: { $lt: eldestDate },
+          processingAt: { $exists: false },
+        });
       });
     });
   });
@@ -246,8 +307,22 @@ describe('DlqRepository', () => {
 
     it('should claim entries via bulkWrite (2 round-trips instead of N)', () => {
       const repo = new DlqRepositoryClass();
-      const fakeDoc1 = { _id: { toHexString: () => 'id1' }, topic: 't1', message: { x: 1 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-01') };
-      const fakeDoc2 = { _id: { toHexString: () => 'id2' }, topic: 't2', message: { y: 2 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-02') };
+      const fakeDoc1 = {
+        _id: { toHexString: () => 'id1' },
+        topic: 't1',
+        message: { x: 1 },
+        reason: null,
+        deliveryAttempt: 1,
+        createdAt: new Date('2024-01-01'),
+      };
+      const fakeDoc2 = {
+        _id: { toHexString: () => 'id2' },
+        topic: 't2',
+        message: { y: 2 },
+        reason: null,
+        deliveryAttempt: 1,
+        createdAt: new Date('2024-01-02'),
+      };
       const fakeDocs = [fakeDoc1, fakeDoc2];
 
       mockFind
@@ -255,31 +330,54 @@ describe('DlqRepository', () => {
         .mockReturnValueOnce(createCursor(fakeDocs));
       mockBulkWrite.mockResolvedValueOnce({ modifiedCount: 2 });
 
-      return repo.claimEntriesForRetry(10, 'batch-1', 'instance-1').then((result: Array<{ id: string }>) => {
-        expect(result).toHaveLength(2);
-        expect(result[0].id).toBe('id1');
-        expect(result[1].id).toBe('id2');
-        expect(mockFind).toHaveBeenCalledWith(
-          { retryCount: { $lt: 3 }, processingAt: { $exists: false }, status: { $nin: ['completed', 'abandoned'] }, consecutiveErrors: { $lt: 3 } },
-          expect.objectContaining({ sort: { createdAt: -1 }, limit: 10 })
-        );
-        expect(mockBulkWrite).toHaveBeenCalledTimes(1);
-      });
+      return repo
+        .claimEntriesForRetry(10, 'batch-1', 'instance-1')
+        .then((result: Array<{ id: string }>) => {
+          expect(result).toHaveLength(2);
+          expect(result[0].id).toBe('id1');
+          expect(result[1].id).toBe('id2');
+          expect(mockFind).toHaveBeenCalledWith(
+            {
+              retryCount: { $lt: 3 },
+              processingAt: { $exists: false },
+              status: { $nin: ['completed', 'abandoned'] },
+              consecutiveErrors: { $lt: 3 },
+            },
+            expect.objectContaining({ sort: { createdAt: -1 }, limit: 10 })
+          );
+          expect(mockBulkWrite).toHaveBeenCalledTimes(1);
+        });
     });
 
     it('should return empty if no candidates found', () => {
       const repo = new DlqRepositoryClass();
 
-      return repo.claimEntriesForRetry(10, 'batch-1', 'instance-1').then((result: Array<{ id: string }>) => {
-        expect(result).toHaveLength(0);
-        expect(mockBulkWrite).not.toHaveBeenCalled();
-      });
+      return repo
+        .claimEntriesForRetry(10, 'batch-1', 'instance-1')
+        .then((result: Array<{ id: string }>) => {
+          expect(result).toHaveLength(0);
+          expect(mockBulkWrite).not.toHaveBeenCalled();
+        });
     });
 
     it('should skip documents already claimed (bulkWrite modifiedCount < candidates)', () => {
       const repo = new DlqRepositoryClass();
-      const fakeDoc1 = { _id: { toHexString: () => 'id1' }, topic: 't1', message: { x: 1 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-01') };
-      const fakeDoc2 = { _id: { toHexString: () => 'id2' }, topic: 't2', message: { y: 2 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-02') };
+      const fakeDoc1 = {
+        _id: { toHexString: () => 'id1' },
+        topic: 't1',
+        message: { x: 1 },
+        reason: null,
+        deliveryAttempt: 1,
+        createdAt: new Date('2024-01-01'),
+      };
+      const fakeDoc2 = {
+        _id: { toHexString: () => 'id2' },
+        topic: 't2',
+        message: { y: 2 },
+        reason: null,
+        deliveryAttempt: 1,
+        createdAt: new Date('2024-01-02'),
+      };
       const fakeDocs = [fakeDoc1, fakeDoc2];
 
       mockFind
@@ -287,25 +385,45 @@ describe('DlqRepository', () => {
         .mockReturnValueOnce(createCursor([fakeDoc2]));
       mockBulkWrite.mockResolvedValueOnce({ modifiedCount: 1 });
 
-      return repo.claimEntriesForRetry(10, 'batch-1', 'instance-1').then((result: Array<{ id: string }>) => {
-        expect(result).toHaveLength(1);
-        expect(result[0].id).toBe('id2');
-      });
+      return repo
+        .claimEntriesForRetry(10, 'batch-1', 'instance-1')
+        .then((result: Array<{ id: string }>) => {
+          expect(result).toHaveLength(1);
+          expect(result[0].id).toBe('id2');
+        });
     });
   });
 
   describe('claimEntry', () => {
     it('should claim a single entry by ID via findOneAndUpdate', () => {
       const repo = new DlqRepositoryClass();
-      const fakeDoc = { _id: { toHexString: () => 'id1' }, topic: 't1', message: { x: 1 }, reason: null, deliveryAttempt: 1, createdAt: new Date('2024-01-01') };
+      const fakeDoc = {
+        _id: { toHexString: () => 'id1' },
+        topic: 't1',
+        message: { x: 1 },
+        reason: null,
+        deliveryAttempt: 1,
+        createdAt: new Date('2024-01-01'),
+      };
       mockFindOneAndUpdate.mockResolvedValueOnce(fakeDoc);
 
-      return repo.claimEntry('aaaaaaaaaaaaaaaaaaaaaaaa', 'batch-1', 'instance-1').then((result) => {
+      return repo.claimEntry('aaaaaaaaaaaaaaaaaaaaaaaa', 'batch-1', 'instance-1').then(result => {
         expect(result).not.toBeNull();
         expect(result!.id).toBe('id1');
         expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
-          { _id: expect.any(Object), retryCount: { $lt: 3 }, processingAt: { $exists: false }, status: { $nin: ['completed', 'abandoned'] }, consecutiveErrors: { $lt: 3 } },
-          { $set: expect.objectContaining({ processingInstance: 'instance-1', lastBatchId: 'batch-1' }) },
+          {
+            _id: expect.any(Object),
+            retryCount: { $lt: 3 },
+            processingAt: { $exists: false },
+            status: { $nin: ['completed', 'abandoned'] },
+            consecutiveErrors: { $lt: 3 },
+          },
+          {
+            $set: expect.objectContaining({
+              processingInstance: 'instance-1',
+              lastBatchId: 'batch-1',
+            }),
+          },
           expect.objectContaining({ returnDocument: 'after' })
         );
       });
@@ -315,7 +433,7 @@ describe('DlqRepository', () => {
       const repo = new DlqRepositoryClass();
       mockFindOneAndUpdate.mockResolvedValueOnce(null);
 
-      return repo.claimEntry('aaaaaaaaaaaaaaaaaaaaaaaa', 'batch-1', 'instance-1').then((result) => {
+      return repo.claimEntry('aaaaaaaaaaaaaaaaaaaaaaaa', 'batch-1', 'instance-1').then(result => {
         expect(result).toBeNull();
       });
     });
@@ -374,7 +492,11 @@ describe('DlqRepository', () => {
       return repo.abandonExhaustedEntries().then((result: number) => {
         expect(result).toBe(3);
         expect(mockUpdateMany).toHaveBeenCalledWith(
-          { status: { $ne: 'abandoned' }, processingAt: { $exists: false }, $or: [{ retryCount: { $gte: 3 } }, { consecutiveErrors: { $gte: 3 } }] },
+          {
+            status: { $ne: 'abandoned' },
+            processingAt: { $exists: false },
+            $or: [{ retryCount: { $gte: 3 } }, { consecutiveErrors: { $gte: 3 } }],
+          },
           { $set: expect.objectContaining({ status: 'abandoned', abandonedAt: expect.any(Date) }) }
         );
       });
@@ -393,50 +515,60 @@ describe('DlqRepository', () => {
       mockFindOne.mockResolvedValue(null);
       mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
-      return repo.markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', true).then(() => {
-        expect(mockFindOne).toHaveBeenCalledWith(
-          { _id: expect.any(Object) },
-          { projection: { status: 1, processingInstance: 1 } }
-        );
-        expect(mockUpdateOne).toHaveBeenCalledWith(
-          { _id: expect.any(Object), processingInstance: 'instance-1' },
-          {
-            $set: expect.objectContaining({ status: 'completed', completedAt: expect.any(Date), lastBatchId: 'batch-1' }),
-            $unset: { processingAt: '', processingInstance: '' },
-          }
-        );
-      });
+      return repo
+        .markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', true)
+        .then(() => {
+          expect(mockFindOne).toHaveBeenCalledWith(
+            { _id: expect.any(Object) },
+            { projection: { status: 1, processingInstance: 1 } }
+          );
+          expect(mockUpdateOne).toHaveBeenCalledWith(
+            { _id: expect.any(Object), processingInstance: 'instance-1' },
+            {
+              $set: expect.objectContaining({
+                status: 'completed',
+                completedAt: expect.any(Date),
+                lastBatchId: 'batch-1',
+              }),
+              $unset: { processingAt: '', processingInstance: '' },
+            }
+          );
+        });
     });
 
     it('should increment retryCount and set lastError on failure via aggregation pipeline', () => {
       const repo = new DlqRepositoryClass();
       mockFindOneAndUpdate.mockResolvedValue({ _id: 'id1' });
 
-      return repo.markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', false).then(() => {
-        expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
-          { _id: expect.any(Object), retryCount: { $lt: 3 } },
-          expect.arrayContaining([
-            expect.objectContaining({
-              $set: expect.objectContaining({
-                retryCount: { $add: ['$retryCount', 1] },
-                lastError: 'Replay failed',
+      return repo
+        .markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', false)
+        .then(() => {
+          expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
+            { _id: expect.any(Object), retryCount: { $lt: 3 } },
+            expect.arrayContaining([
+              expect.objectContaining({
+                $set: expect.objectContaining({
+                  retryCount: { $add: ['$retryCount', 1] },
+                  lastError: 'Replay failed',
+                }),
               }),
-            }),
-          ]),
-          { returnDocument: 'after', projection: { _id: 1 } }
-        );
-        expect(mockUpdateOne).not.toHaveBeenCalled();
-      });
+            ]),
+            { returnDocument: 'after', projection: { _id: 1 } }
+          );
+          expect(mockUpdateOne).not.toHaveBeenCalled();
+        });
     });
 
     it('should skip update on abandoned entry for success path', () => {
       const repo = new DlqRepositoryClass();
       mockFindOne.mockResolvedValue({ _id: 'id1', status: 'abandoned' });
 
-      return repo.markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', true).then(() => {
-        expect(mockFindOne).toHaveBeenCalled();
-        expect(mockUpdateOne).not.toHaveBeenCalled();
-      });
+      return repo
+        .markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', true)
+        .then(() => {
+          expect(mockFindOne).toHaveBeenCalled();
+          expect(mockUpdateOne).not.toHaveBeenCalled();
+        });
     });
 
     it('should release claim on failure when retryCount already at max', () => {
@@ -444,13 +576,15 @@ describe('DlqRepository', () => {
       mockFindOneAndUpdate.mockResolvedValue(null);
       mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
-      return repo.markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', false).then(() => {
-        expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(1);
-        expect(mockUpdateOne).toHaveBeenCalledWith(
-          { _id: expect.any(Object) },
-          { $unset: { processingAt: '', processingInstance: '' } }
-        );
-      });
+      return repo
+        .markRetried('aaaaaaaaaaaaaaaaaaaaaaaa', 'instance-1', 'batch-1', false)
+        .then(() => {
+          expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(1);
+          expect(mockUpdateOne).toHaveBeenCalledWith(
+            { _id: expect.any(Object) },
+            { $unset: { processingAt: '', processingInstance: '' } }
+          );
+        });
     });
   });
 });

@@ -211,21 +211,23 @@ export class CircuitBreaker {
 
   private persistState(instanceId: string, state: InstanceState): void {
     if (!this.stateStore) return;
-    this.stateStore.setCircuitState(instanceId, {
-      failures: state.failures,
-      lastFailureTime: state.lastFailureTime,
-      state: state.state,
-    }).catch((err) => {
-      logger.warn('Failed to persist circuit breaker state', {
-        instanceId,
-        error: normalizeError(err),
+    this.stateStore
+      .setCircuitState(instanceId, {
+        failures: state.failures,
+        lastFailureTime: state.lastFailureTime,
+        state: state.state,
+      })
+      .catch(err => {
+        logger.warn('Failed to persist circuit breaker state', {
+          instanceId,
+          error: normalizeError(err),
+        });
       });
-    });
   }
 
   private deletePersistedState(instanceId: string): void {
     if (!this.stateStore) return;
-    this.stateStore.deleteCircuitState(instanceId).catch((err) => {
+    this.stateStore.deleteCircuitState(instanceId).catch(err => {
       logger.warn('Failed to delete persisted circuit breaker state', {
         instanceId,
         error: normalizeError(err),

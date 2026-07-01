@@ -7,12 +7,21 @@ import RedisStore from 'rate-limit-redis';
 
 import { deterministicStringify } from '@trading-model/common/utils/deterministic-stringify';
 
-import { AddEntry, ListEntries, DeleteEntries, HealthCheck, ReadyCheck, ReplayEntries } from './controller';
+import {
+  AddEntry,
+  ListEntries,
+  DeleteEntries,
+  HealthCheck,
+  ReadyCheck,
+  ReplayEntries,
+} from './controller';
 import { env, resolveAuthHmacSecret } from '../config/env';
 import { logger } from '../config/logger';
 import { metricsHandler } from '../config/metrics';
 
-const ALLOWED_SERVICES = env.DLQ_ALLOWED_SERVICES.split(',').map(s => s.trim()).filter(Boolean);
+const ALLOWED_SERVICES = env.DLQ_ALLOWED_SERVICES.split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 
 const activeRateLimiters: Array<{ resetKey: (key: string) => void }> = [];
 
@@ -43,13 +52,19 @@ function verifySignature(req: Request, serviceName: string): boolean {
 
   const newParts = [serviceName, timestampStr, bodyHash, req.method, req.path].join(':');
   const expectedNew = createHmac('sha256', secret).update(newParts).digest('hex');
-  if (provided.length === expectedNew.length && timingSafeEqual(Buffer.from(provided), Buffer.from(expectedNew))) {
+  if (
+    provided.length === expectedNew.length &&
+    timingSafeEqual(Buffer.from(provided), Buffer.from(expectedNew))
+  ) {
     return true;
   }
 
   const oldParts = [serviceName, timestampStr, bodyString, req.method, req.path].join(':');
   const expectedOld = createHmac('sha256', secret).update(oldParts).digest('hex');
-  if (provided.length === expectedOld.length && timingSafeEqual(Buffer.from(provided), Buffer.from(expectedOld))) {
+  if (
+    provided.length === expectedOld.length &&
+    timingSafeEqual(Buffer.from(provided), Buffer.from(expectedOld))
+  ) {
     return true;
   }
 
@@ -81,7 +96,7 @@ function getOrCreateRedis(): Redis | null {
   try {
     sharedRedisClient = new Redis(env.REDIS_URL, {
       lazyConnect: true,
-      retryStrategy: (times) => {
+      retryStrategy: times => {
         const delay = Math.min(times * 200, 5_000);
         return delay;
       },
@@ -103,7 +118,7 @@ function createStore(): undefined | RedisStore {
     return undefined;
   }
   const sendCommand = (...args: string[]): Promise<number> => {
-    return (client.call(args[0], ...args.slice(1)) as Promise<unknown>) as Promise<number>;
+    return client.call(args[0], ...args.slice(1)) as Promise<unknown> as Promise<number>;
   };
   return new RedisStore({ sendCommand });
 }

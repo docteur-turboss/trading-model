@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { CachedRegistryBackend } from '../../src/core/cached-registry-backend';
-import { RegistryBackend, ServiceInstance } from '@trading-model/common/contracts/service-registry.types';
+import {
+  RegistryBackend,
+  ServiceInstance,
+} from '@trading-model/common/contracts/service-registry.types';
 
 function createMockBackend(): jest.Mocked<RegistryBackend> {
   return {
@@ -147,7 +150,7 @@ describe('CachedRegistryBackend', () => {
 
   describe('eviction', () => {
     it('should evict oldest entry when maxEntries exceeded', async () => {
-      mockBackend.getInstances.mockImplementation(async (name) => {
+      mockBackend.getInstances.mockImplementation(async name => {
         if (name === 'svc-a') return [makeInstance('i-1')];
         if (name === 'svc-b') return [makeInstance('i-2')];
         if (name === 'svc-c') return [makeInstance('i-3')];

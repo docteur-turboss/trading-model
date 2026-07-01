@@ -30,10 +30,10 @@ interface WsAuthMessage {
  * Prevents brute-force attacks on the bootstrap token.
  */
 const unauthSignAttempts = new Map<string, { count: number; resetAt: number }>();
-const UNAUTH_RATE_LIMIT = 3;            // max unauthenticated sign requests
-const UNAUTH_WINDOW_MS = 60_000;         // per 60s window
-const UNAUTH_BAN_MS = 300_000;           // 5 min ban after exceeding limit
-const UNAUTH_CLEANUP_MS = 60_000;        // purge expired entries every 60s
+const UNAUTH_RATE_LIMIT = 3; // max unauthenticated sign requests
+const UNAUTH_WINDOW_MS = 60_000; // per 60s window
+const UNAUTH_BAN_MS = 300_000; // 5 min ban after exceeding limit
+const UNAUTH_CLEANUP_MS = 60_000; // purge expired entries every 60s
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of unauthSignAttempts) {
@@ -62,13 +62,18 @@ function checkUnauthRateLimit(clientIdentity: string): boolean {
 }
 
 /** Per-connection rate limiter for all WSS sign requests (authenticated or not). */
-const AUTH_RATE_LIMIT_MAX = 100;          // max sign requests per connection
-const AUTH_RATE_LIMIT_MS = 60_000;         // per 60s window
-const AUTH_ATTEMPT_MAX = 5;               // max auth attempts before connection close
+const AUTH_RATE_LIMIT_MAX = 100; // max sign requests per connection
+const AUTH_RATE_LIMIT_MS = 60_000; // per 60s window
+const AUTH_ATTEMPT_MAX = 5; // max auth attempts before connection close
 
 /** Validates that a token has plausible format (not just any non-empty string). */
 function isValidTokenFormat(token: string): boolean {
-  return typeof token === 'string' && token.length >= 16 && token.length <= 1024 && /^[\x20-\x7E]+$/.test(token);
+  return (
+    typeof token === 'string' &&
+    token.length >= 16 &&
+    token.length <= 1024 &&
+    /^[\x20-\x7E]+$/.test(token)
+  );
 }
 
 export function attachWsServer(httpsServer: https.Server): WebSocketServer {
@@ -120,7 +125,9 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
       if (msg.type === 'auth') {
         authAttempts++;
         if (authAttempts > AUTH_ATTEMPT_MAX) {
-          logger.warn('WSS client exceeded max auth attempts, closing connection', { clientIdentity });
+          logger.warn('WSS client exceeded max auth attempts, closing connection', {
+            clientIdentity,
+          });
           ws.close(4001, 'Too many authentication attempts');
           return;
         }
@@ -128,11 +135,22 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
         if (typeof authMsg.token === 'string' && isValidTokenFormat(authMsg.token)) {
           bootstrapToken = authMsg.token;
           tokenProvided = true;
-          logger.info('WSS client provided bootstrap token via post-connect auth message', { clientIdentity });
+          logger.info('WSS client provided bootstrap token via post-connect auth message', {
+            clientIdentity,
+          });
           ws.send(JSON.stringify({ type: 'auth:response', success: true }));
         } else {
-          logger.warn('WSS client sent invalid auth token format', { clientIdentity, length: authMsg.token?.length ?? 0 });
-          ws.send(JSON.stringify({ type: 'auth:response', success: false, error: { message: 'Authentication failed' } }));
+          logger.warn('WSS client sent invalid auth token format', {
+            clientIdentity,
+            length: authMsg.token?.length ?? 0,
+          });
+          ws.send(
+            JSON.stringify({
+              type: 'auth:response',
+              success: false,
+              error: { message: 'Authentication failed' },
+            })
+          );
         }
         return;
       }
@@ -141,12 +159,14 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
       const parsed = WsSignSchema.safeParse(msg);
       if (!parsed.success) {
         logger.warn('WSS invalid sign request', { issues: parsed.error.issues });
-        ws.send(JSON.stringify({
-          type: 'sign:response',
-          id: (msg as Record<string, unknown>).id as string ?? 'unknown',
-          success: false,
-          error: { message: 'Invalid request' },
-        }));
+        ws.send(
+          JSON.stringify({
+            type: 'sign:response',
+            id: ((msg as Record<string, unknown>).id as string) ?? 'unknown',
+            success: false,
+            error: { message: 'Invalid request' },
+          })
+        );
         return;
       }
 
@@ -155,12 +175,14 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
       // 5c: Rate-limit sign requests that carry no bootstrap token
       // (strict limit prevents brute-force guessing of tokens)
       if (!tokenProvided && !checkUnauthRateLimit(limiterKey)) {
-        ws.send(JSON.stringify({
-          type: 'sign:response',
-          id: signMsg.id,
-          success: false,
-          error: { message: 'Rate limit exceeded for unauthenticated requests', code: 429 },
-        }));
+        ws.send(
+          JSON.stringify({
+            type: 'sign:response',
+            id: signMsg.id,
+            success: false,
+            error: { message: 'Rate limit exceeded for unauthenticated requests', code: 429 },
+          })
+        );
         return;
       }
 
@@ -172,7 +194,10 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
       } else {
         requestCount++;
         if (requestCount > AUTH_RATE_LIMIT_MAX) {
-          logger.warn('WSS per-connection rate limit exceeded, closing', { clientIdentity, requestCount });
+          logger.warn('WSS per-connection rate limit exceeded, closing', {
+            clientIdentity,
+            requestCount,
+          });
           ws.close(4001, 'Rate limit exceeded');
           return;
         }
@@ -186,31 +211,35 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
           signMsg.data.serviceId,
           signMsg.data.csr,
           tokenProvided ? bootstrapToken : undefined,
-          clientIdentity,
+          clientIdentity
         );
 
-        ws.send(JSON.stringify({
-          type: 'sign:response',
-          id: signMsg.id,
-          success: true,
-          data: {
-            cert: cert.certPem,
-            caPem: cert.caPem,
-            serialNumber: cert.serialNumber,
-            expiresAt: cert.expiresAt.toISOString(),
-            fingerprint: cert.fingerprint,
-          },
-        }));
+        ws.send(
+          JSON.stringify({
+            type: 'sign:response',
+            id: signMsg.id,
+            success: true,
+            data: {
+              cert: cert.certPem,
+              caPem: cert.caPem,
+              serialNumber: cert.serialNumber,
+              expiresAt: cert.expiresAt.toISOString(),
+              fingerprint: cert.fingerprint,
+            },
+          })
+        );
       } catch (err) {
         const statusCode = (err as Record<string, unknown>).statusCode ?? 500;
         logger.warn('WSS sign error', { err: normalizeError(err as Error) });
 
-        ws.send(JSON.stringify({
-          type: 'sign:response',
-          id: signMsg.id,
-          success: false,
-          error: { message: 'Certificate signing failed', code: statusCode },
-        }));
+        ws.send(
+          JSON.stringify({
+            type: 'sign:response',
+            id: signMsg.id,
+            success: false,
+            error: { message: 'Certificate signing failed', code: statusCode },
+          })
+        );
       }
     });
 
@@ -219,7 +248,7 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
       unauthSignAttempts.delete(limiterKey);
     });
 
-    ws.on('error', (err) => {
+    ws.on('error', err => {
       logger.error('WSS connection error', { err: err.message, clientIdentity });
     });
   });

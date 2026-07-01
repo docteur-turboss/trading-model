@@ -42,7 +42,7 @@ export class DlqRedisQueue {
       }
       this.client = new Redis(url, {
         lazyConnect: true,
-        retryStrategy: (times) => {
+        retryStrategy: times => {
           const delay = Math.min(times * 200, 5_000);
           return delay;
         },
@@ -55,8 +55,10 @@ export class DlqRedisQueue {
         }
         this.wasEverConnected = true;
       });
-      this.client.on('close', () => { this.connected = false; });
-      this.client.on('error', (err) => {
+      this.client.on('close', () => {
+        this.connected = false;
+      });
+      this.client.on('error', err => {
         logger.error('Redis queue client error', { error: err.message });
         this.connected = false;
       });
@@ -65,7 +67,9 @@ export class DlqRedisQueue {
       this.wasEverConnected = true;
       return true;
     } catch (err) {
-      logger.warn('Redis queue unavailable — falling back to MongoDB polling', { error: (err as Error).message });
+      logger.warn('Redis queue unavailable — falling back to MongoDB polling', {
+        error: (err as Error).message,
+      });
       this.client = null;
       this.connected = false;
       return false;
@@ -79,7 +83,11 @@ export class DlqRedisQueue {
     try {
       const size = await this.client.llen(this.queueKey);
       if (size >= maxQueueSize) {
-        logger.warn('Redis queue size limit reached — dropping push', { queueKey: this.queueKey, size, maxSize: maxQueueSize });
+        logger.warn('Redis queue size limit reached — dropping push', {
+          queueKey: this.queueKey,
+          size,
+          maxSize: maxQueueSize,
+        });
         return false;
       }
       await this.client.lpush(this.queueKey, entryId);

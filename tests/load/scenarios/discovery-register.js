@@ -32,7 +32,7 @@ export default function () {
   );
 
   check(registerRes, {
-    'register accepted (201)': (r) => r.status === 201,
+    'register accepted (201)': r => r.status === 201,
   });
 
   sleep(2);

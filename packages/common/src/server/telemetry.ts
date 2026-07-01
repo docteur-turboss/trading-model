@@ -34,10 +34,7 @@ export function initializeTelemetry(config: TelemetryConfig): void {
     traceExporter: new OTLPTraceExporter({
       url: `${config.otlpEndpoint}/v1/traces`,
     }),
-    instrumentations: [
-      new HttpInstrumentation(),
-      new ExpressInstrumentation(),
-    ],
+    instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()],
   });
 
   sdk.start();

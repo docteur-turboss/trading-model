@@ -82,7 +82,10 @@ export async function notifyAudit(event: AuditEvent): Promise<void> {
     auditCircuitFailures++;
     if (auditCircuitFailures >= AUDIT_CIRCUIT_THRESHOLD) {
       auditCircuitOpenUntil = Date.now() + AUDIT_CIRCUIT_RESET_MS;
-      logger.warn('Audit-logger circuit breaker opened — suppressing notifications', { failures: auditCircuitFailures, resetMs: AUDIT_CIRCUIT_RESET_MS });
+      logger.warn('Audit-logger circuit breaker opened — suppressing notifications', {
+        failures: auditCircuitFailures,
+        resetMs: AUDIT_CIRCUIT_RESET_MS,
+      });
     } else {
       logger.warn('Audit notification failed (non-fatal)', {
         error: (err as Error)?.message,

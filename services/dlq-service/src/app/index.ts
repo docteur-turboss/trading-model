@@ -39,10 +39,12 @@ function createResilientTlsBootstrap(): TlsBootstrapOptions | null {
     const tls = createTlsBootstrap(process.env as Record<string, string>);
     if (tls && tls.setupAutoRenew) {
       const originalSetupAutoRenew = tls.setupAutoRenew.bind(tls);
-      tls.setupAutoRenew = (server) => {
+      tls.setupAutoRenew = server => {
         originalSetupAutoRenew(server);
         reloadHttpClientTls().catch((err: unknown) => {
-          logger.warn('Failed to reload HTTP client TLS after certificate renewal', { error: normalizeError(err) });
+          logger.warn('Failed to reload HTTP client TLS after certificate renewal', {
+            error: normalizeError(err),
+          });
         });
       };
     }
@@ -65,9 +67,12 @@ createBootstrap({
       logger.info('DLQ Service database connected', { mongoDb: env.MONGO_DB });
       await releaseStaleClaims();
     } catch (err) {
-      logger.error('MongoDB unavailable — service cannot persist messages. Rejecting incoming entries.', {
-        error: normalizeError(err),
-      });
+      logger.error(
+        'MongoDB unavailable — service cannot persist messages. Rejecting incoming entries.',
+        {
+          error: normalizeError(err),
+        }
+      );
       await resetDbState();
     }
   },

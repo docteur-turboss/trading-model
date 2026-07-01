@@ -29,7 +29,7 @@ export default function () {
     for (const url of endpoints) {
       const res = http.get(url, { tls: { insecureSkipTLSVerify: true } });
       check(res, {
-        [`${url} status < 500`]: (r) => r.status < 500,
+        [`${url} status < 500`]: r => r.status < 500,
       });
     }
   });
@@ -39,7 +39,7 @@ export default function () {
       tls: { insecureSkipTLSVerify: true },
     });
     check(res, {
-      'registry response status < 500': (r) => r.status < 500,
+      'registry response status < 500': r => r.status < 500,
     });
   });
 

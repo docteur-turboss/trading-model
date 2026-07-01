@@ -8,7 +8,12 @@ export interface CircuitState {
 
 export interface IServiceCache {
   get(serviceName: string, region?: string): Promise<ServiceInstance | null>;
-  set(serviceName: string, instance: ServiceInstance, region?: string, version?: number): Promise<void>;
+  set(
+    serviceName: string,
+    instance: ServiceInstance,
+    region?: string,
+    version?: number
+  ): Promise<void>;
   invalidate(serviceName: string, region?: string): Promise<void>;
   clear(): Promise<void>;
   entries(): Promise<Array<{ serviceName: string; instance: ServiceInstance; region?: string }>>;

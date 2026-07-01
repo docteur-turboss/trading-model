@@ -42,7 +42,11 @@ export class MemoryWalFlusher {
 
   async flush(): Promise<void> {
     if (this.flushing) return;
-    if (this.redisDownSince > 0 && Date.now() - this.redisDownSince < MEMORY_WAL_REDIS_RETRY_AFTER_MS) return;
+    if (
+      this.redisDownSince > 0 &&
+      Date.now() - this.redisDownSince < MEMORY_WAL_REDIS_RETRY_AFTER_MS
+    )
+      return;
     if (this.buffer.length === 0) {
       this.backoff = WAL_FLUSH_RETRY_BASE_MS;
       return;
@@ -65,7 +69,10 @@ export class MemoryWalFlusher {
           if (anyFailed) {
             this.redisDownSince = Date.now();
             this.backoff = Math.min(this.backoff * 2, WAL_FLUSH_RETRY_MAX_MS);
-            logger.warn('Memory WAL flush partial failure — re-queuing batch', { batchSize: batch.length, backoff: this.backoff });
+            logger.warn('Memory WAL flush partial failure — re-queuing batch', {
+              batchSize: batch.length,
+              backoff: this.backoff,
+            });
             this.buffer.unshift(...batch);
             await this.sleepWithJitter(this.backoff);
             return;
@@ -76,7 +83,11 @@ export class MemoryWalFlusher {
       } catch (err) {
         this.redisDownSince = Date.now();
         this.backoff = Math.min(this.backoff * 2, WAL_FLUSH_RETRY_MAX_MS);
-        logger.warn('Memory WAL flush failed — re-queuing batch', { batchSize: batch.length, backoff: this.backoff, error: (err as Error).message });
+        logger.warn('Memory WAL flush failed — re-queuing batch', {
+          batchSize: batch.length,
+          backoff: this.backoff,
+          error: (err as Error).message,
+        });
         this.buffer.unshift(...batch);
         await this.sleepWithJitter(this.backoff);
       }

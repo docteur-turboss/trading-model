@@ -89,7 +89,11 @@ export class CachedRegistryBackend implements RegistryBackend {
     return this.backend.getInstanceCount(serviceName);
   }
 
-  async getInstances(serviceName: string, offset?: number, limit?: number): Promise<ServiceInstance[]> {
+  async getInstances(
+    serviceName: string,
+    offset?: number,
+    limit?: number
+  ): Promise<ServiceInstance[]> {
     // When pagination is requested, bypass cache to get exact slice
     if (offset !== undefined || limit !== undefined) {
       return this.backend.getInstances(serviceName, offset, limit);
@@ -112,7 +116,9 @@ export class CachedRegistryBackend implements RegistryBackend {
         logger.warn('Backend unhealthy — serving stale cached instance list for', { serviceName });
         return stale;
       }
-      logger.warn('Backend unhealthy — no stale data available, returning empty list for', { serviceName });
+      logger.warn('Backend unhealthy — no stale data available, returning empty list for', {
+        serviceName,
+      });
       return [];
     }
 
@@ -181,7 +187,9 @@ export class CachedRegistryBackend implements RegistryBackend {
    *  When Redis is unhealthy, skip backend call entirely — stale data is better than failure. */
   private async refreshCache(serviceName: string): Promise<void> {
     if (!this.redisHealthy && !this.fallbackActive) {
-      logger.warn('Backend unhealthy — skipping cache refresh, serving stale data', { serviceName });
+      logger.warn('Backend unhealthy — skipping cache refresh, serving stale data', {
+        serviceName,
+      });
       return;
     }
     try {
@@ -246,7 +254,7 @@ export class CachedRegistryBackend implements RegistryBackend {
               logger.info('Redis backend is healthy again — resumed normal operation');
             }
             this.consecutiveFailures = 0;
-            } else {
+          } else {
             this.consecutiveFailures++;
             if (this.consecutiveFailures >= this.redisFailureThreshold) {
               this.redisHealthy = false;
@@ -362,15 +370,26 @@ export class CachedRegistryBackend implements RegistryBackend {
     this.cache.clear();
     this.staleData.clear();
     if (this.pubSub) {
-      try { this.pubSub.unsubscribe('cache:invalidate'); } catch { /* ignore */ }
-      try { this.pubSub.disconnect(); } catch { /* ignore */ }
+      try {
+        this.pubSub.unsubscribe('cache:invalidate');
+      } catch {
+        /* ignore */
+      }
+      try {
+        this.pubSub.disconnect();
+      } catch {
+        /* ignore */
+      }
       this.pubSub = undefined;
     }
     if (this.originalBackend) {
-      try { this.originalBackend.stop(); } catch { /* ignore */ }
+      try {
+        this.originalBackend.stop();
+      } catch {
+        /* ignore */
+      }
       this.originalBackend = undefined;
     }
     this.backend.stop();
   }
-
 }

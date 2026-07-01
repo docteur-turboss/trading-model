@@ -6,7 +6,6 @@ import { env } from '../../config/env';
 import { logger } from '../../config/logger';
 import { getSubscriptionClient } from '../../config/redis';
 
-
 export type SubscriptionEntry = {
   id: string;
   topic: string;
@@ -82,14 +81,24 @@ export class SubscriptionStore {
     if (!results) return;
     // If instance has no more topics, remove from active set
     const instanceScard = results[results.length - 2];
-    if (instanceScard[0] === null && typeof instanceScard[1] === 'number' && (instanceScard[1] as number) === 0) {
+    if (
+      instanceScard[0] === null &&
+      typeof instanceScard[1] === 'number' &&
+      (instanceScard[1] as number) === 0
+    ) {
       try {
         await redis.srem(this.activeInstancesKey(), instanceId);
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
     // Read scard result from pipeline (last result) to avoid extra round-trip
     const scardResult = results[results.length - 1];
-    if (scardResult[0] === null && typeof scardResult[1] === 'number' && (scardResult[1] as number) === 0) {
+    if (
+      scardResult[0] === null &&
+      typeof scardResult[1] === 'number' &&
+      (scardResult[1] as number) === 0
+    ) {
       try {
         await redis.srem(this.topicsSetKey(), topic);
       } catch {
@@ -159,10 +168,7 @@ export class SubscriptionStore {
     for (const topic of topics) {
       multi.hset(`${this.prefix}lease:${instanceId}`, topic, now);
       multi.hset(`${this.prefix}lease:${instanceId}`, 'heartbeat', now);
-      multi.expire(
-        `${this.prefix}lease:${instanceId}`,
-        Math.ceil(SUBSCRIPTION_TTL_MS / 1000)
-      );
+      multi.expire(`${this.prefix}lease:${instanceId}`, Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
       const subKey = this.subKey(topic, instanceId);
       multi.expire(subKey, Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
     }
@@ -231,11 +237,16 @@ export class SubscriptionStore {
             if (remaining === 0) {
               await redis.srem(this.topicsSetKey(), topic);
             }
-          } catch { /* best-effort */ }
+          } catch {
+            /* best-effort */
+          }
         }
 
         removed += topics.length;
-        logger.info('Removed stale subscription by heartbeat', { instanceId, topics: topics.join(',') });
+        logger.info('Removed stale subscription by heartbeat', {
+          instanceId,
+          topics: topics.join(','),
+        });
       }
     } while (scanCursor !== '0');
 

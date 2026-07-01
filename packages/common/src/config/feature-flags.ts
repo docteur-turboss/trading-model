@@ -28,10 +28,7 @@ export class FeatureFlags {
   private readonly store = new Map<string, InternalFlag>();
   private readonly envPrefix: string;
 
-  constructor(
-    definitions: FeatureFlagDefinition[],
-    options?: FeatureFlagOptions,
-  ) {
+  constructor(definitions: FeatureFlagDefinition[], options?: FeatureFlagOptions) {
     this.envPrefix = options?.envPrefix ?? ENV_PREFIX_DEFAULT;
 
     for (const def of definitions) {

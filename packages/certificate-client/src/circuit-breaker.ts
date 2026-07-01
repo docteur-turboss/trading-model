@@ -30,7 +30,10 @@ export class CircuitBreaker {
     if (this.state === 'open') {
       const elapsed = Date.now() - this.lastFailureTime;
       if (elapsed >= this.effectiveCooldownMs * 0.7) {
-        const proba = Math.min(1, (elapsed - this.effectiveCooldownMs * 0.7) / (this.effectiveCooldownMs * 0.3));
+        const proba = Math.min(
+          1,
+          (elapsed - this.effectiveCooldownMs * 0.7) / (this.effectiveCooldownMs * 0.3)
+        );
         if (Math.random() < proba) {
           this.state = 'half-open';
         }
@@ -53,7 +56,10 @@ export class CircuitBreaker {
   private async withTimeout<T>(fn: () => Promise<T>): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | null = null;
     const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`Request timed out after ${this.timeoutMs}ms`)), this.timeoutMs);
+      timer = setTimeout(
+        () => reject(new Error(`Request timed out after ${this.timeoutMs}ms`)),
+        this.timeoutMs
+      );
     });
     try {
       return await Promise.race([fn(), timeout]);

@@ -26,6 +26,7 @@ npm run release         # Version bump + changelog + tag + push
 ## Build order (dependency chain)
 
 Packages must be built in this order before services:
+
 1. `@trading-model/common`
 2. `@trading-model/address-manager`
 3. `@trading-model/broker-message`

@@ -97,8 +97,7 @@ export class WsDiscoveryServer {
       }
       case 'heartbeat': {
         const payload = message.payload as
-          | { serviceName?: string; instanceId?: string }
-          | undefined;
+          { serviceName?: string; instanceId?: string } | undefined;
         if (payload?.serviceName) client.serviceName = payload.serviceName;
         if (payload?.instanceId) client.instanceId = payload.instanceId;
         break;

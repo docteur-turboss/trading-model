@@ -4,6 +4,7 @@
 **Alert:** `HighErrorRate`, `ServiceDown` post-deployment
 
 ## Detection
+
 - Prometheus alerts fire immediately after deployment
 - Synthetic monitoring shows error rate increase
 - Rollout status shows `CrashLoopBackOff` or unavailable replicas
@@ -12,6 +13,7 @@
 ## Immediate Response
 
 ### Automatic Rollback (Kubernetes)
+
 ```bash
 # Undo the last deployment
 kubectl rollout undo -n trading-model deployment/<service-name>
@@ -25,6 +27,7 @@ kubectl exec -n trading-model deployment/<service-name> -- \
 ```
 
 ### Rollback to Specific Version
+
 ```bash
 # View rollout history
 kubectl rollout history -n trading-model deployment/<service-name>
@@ -37,7 +40,9 @@ kubectl rollout status -n trading-model deployment/<service-name>
 ```
 
 ### Full Cluster Rollback (multi-service deployment)
+
 If multiple services were deployed together:
+
 ```bash
 # Revert to previous known-good image tags
 for service in discovery-server message-manager financial-scraper trader-trainer \
@@ -52,6 +57,7 @@ kubectl rollout status -n trading-model deployment/message-manager
 ```
 
 ## Canary Deployment Rollback (via deploy scripts)
+
 ```bash
 # If using canary deployment script
 ./scripts/deploy-beta.sh --rollback
@@ -63,6 +69,7 @@ kubectl rollout status -n trading-model deployment/message-manager
 ## Root Cause Investigation
 
 ### 1. Check what changed
+
 ```bash
 # Compare current vs previous deployment
 kubectl diff -n trading-model -f deploy/k8s/
@@ -72,6 +79,7 @@ kubectl get deployment -n trading-model <service-name> -o jsonpath='{.spec.templ
 ```
 
 ### 2. Check logs
+
 ```bash
 # Previous pod logs (before crash)
 kubectl logs -n trading-model deployment/<service-name> --previous --tail=100
@@ -81,6 +89,7 @@ kubectl logs -n trading-model deployment/<service-name> --tail=100
 ```
 
 ### 3. Check resource issues
+
 ```bash
 kubectl describe pod -n trading-model -l app.kubernetes.io/component=<service-name>
 ```
@@ -88,12 +97,14 @@ kubectl describe pod -n trading-model -l app.kubernetes.io/component=<service-na
 ## Post-Recovery
 
 ### After successful rollback
+
 - [ ] Verify all health endpoints return 200
 - [ ] Run E2E smoke tests (`npm run test:e2e:docker`)
 - [ ] Confirm Prometheus alerts resolve
 - [ ] Document deployment failure in post-mortem
 
 ### Before re-deploying
+
 - [ ] Identify root cause (config error, code bug, resource limit, etc.)
 - [ ] Fix in development branch
 - [ ] Run full CI pipeline on fix branch
@@ -102,6 +113,7 @@ kubectl describe pod -n trading-model -l app.kubernetes.io/component=<service-na
 - [ ] If staging passes, deploy to production with canary
 
 ## Prevention Checklist
+
 - [ ] Pre-deployment: verify ConfigMap changes match acceptance criteria
 - [ ] Pre-deployment: run E2E smoke tests
 - [ ] Pre-deployment: verify resource requests/limits

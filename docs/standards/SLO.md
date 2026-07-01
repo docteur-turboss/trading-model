@@ -19,23 +19,23 @@ and Error Budgets for the trading-model microservices platform.
 
 - **Definition:** 95th percentile of HTTP request duration.
 - **Measurement:** Prometheus `histogram_quantile(0.95,
-  rate(http_requests_duration_seconds_bucket[5m]))`.
+rate(http_requests_duration_seconds_bucket[5m]))`.
 - **Source:** All HTTP-serving services.
 
 ### 3. Error Rate
 
 - **Definition:** Proportion of HTTP responses with status 5xx.
 - **Measurement:** Prometheus `rate(http_requests_duration_seconds_count{status=~"5.."}[5m])
-  / rate(http_requests_duration_seconds_count[5m])`.
+/ rate(http_requests_duration_seconds_count[5m])`.
 - **Source:** All HTTP-serving services.
 
 ## SLOs
 
-| SLI | Target | Window | Burn Rate Alert (fast) | Burn Rate Alert (slow) |
-|-----|--------|--------|----------------------|-----------------------|
-| Availability | ≥ 99.9% | 30d | > 2% error rate over 5m | > 0.5% error rate over 1h |
-| Latency P95 | ≤ 2s | 30d | P95 > 5s over 5m | P95 > 3s over 1h |
-| Error Rate | < 1% | 30d | > 5% over 5m | > 2% over 1h |
+| SLI          | Target  | Window | Burn Rate Alert (fast)  | Burn Rate Alert (slow)    |
+| ------------ | ------- | ------ | ----------------------- | ------------------------- |
+| Availability | ≥ 99.9% | 30d    | > 2% error rate over 5m | > 0.5% error rate over 1h |
+| Latency P95  | ≤ 2s    | 30d    | P95 > 5s over 5m        | P95 > 3s over 1h          |
+| Error Rate   | < 1%    | 30d    | > 5% over 5m            | > 2% over 1h              |
 
 ### Availability SLO (99.9%)
 

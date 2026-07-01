@@ -236,9 +236,7 @@ import express from 'express';
 const app = express();
 app.use(express.json());
 
-const am = new AddressManager({
-  /* config */
-});
+const am = new AddressManager({/* config */});
 const { stop: stopAM } = am.start();
 
 const broker = new BrokerMessage({

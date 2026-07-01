@@ -17,7 +17,11 @@ const HTTP_RETRY_BASE_MS = 500;
 const HTTP_RETRY_MAX_MS = 15000;
 const HTTP_RETRY_MAX_ATTEMPTS = 5;
 
-export type WssMessageHandler = (topic: string, payload: unknown, metadata: MessageMetadata) => void;
+export type WssMessageHandler = (
+  topic: string,
+  payload: unknown,
+  metadata: MessageMetadata
+) => void;
 
 interface PendingPublish {
   payload: unknown;
@@ -51,21 +55,21 @@ export class WssClient {
   private connected = false;
   private httpFallback: FallbackPublishFn | null = null;
 
-  constructor(
-    config: {
-      wssUrl: string;
-      httpFallbackUrl: string;
-      tlsConfig: { ca?: string; cert?: string; key?: string };
-      serviceName: string;
-      instanceId: string;
-    }
-  ) {
+  constructor(config: {
+    wssUrl: string;
+    httpFallbackUrl: string;
+    tlsConfig: { ca?: string; cert?: string; key?: string };
+    serviceName: string;
+    instanceId: string;
+  }) {
     this.wsUrl = config.wssUrl;
     this.httpFallbackUrl = config.httpFallbackUrl;
     this.serviceName = config.serviceName;
     this.instanceId = config.instanceId;
     this.tlsCa = config.tlsConfig.ca ? fs.readFileSync(config.tlsConfig.ca, 'utf8') : undefined;
-    this.tlsCert = config.tlsConfig.cert ? fs.readFileSync(config.tlsConfig.cert, 'utf8') : undefined;
+    this.tlsCert = config.tlsConfig.cert
+      ? fs.readFileSync(config.tlsConfig.cert, 'utf8')
+      : undefined;
     this.tlsKey = config.tlsConfig.key ? fs.readFileSync(config.tlsConfig.key, 'utf8') : undefined;
     this.startFlusher();
   }
@@ -85,7 +89,11 @@ export class WssClient {
 
   private connectWs(): void {
     if (this.ws) {
-      try { this.ws.close(); } catch { logger.warn('Failed to close existing WSS connection'); }
+      try {
+        this.ws.close();
+      } catch {
+        logger.warn('Failed to close existing WSS connection');
+      }
       this.ws = null;
     }
 
@@ -146,7 +154,11 @@ export class WssClient {
         this.connected = false;
         logger.warn('WSS error', { error: err.message });
         if (this.ws) {
-          try { this.ws.close(); } catch { /* ignore */ }
+          try {
+            this.ws.close();
+          } catch {
+            /* ignore */
+          }
           this.ws = null;
         }
         this.scheduleReconnect();
@@ -163,17 +175,18 @@ export class WssClient {
     if (this.reconnectAttempts >= WSS_MAX_RECONNECT_ATTEMPTS) {
       if (!this.permanentlyFellBack) {
         this.permanentlyFellBack = true;
-        logger.warn('WSS max reconnect attempts reached, falling back to HTTP — will periodically retry WSS');
+        logger.warn(
+          'WSS max reconnect attempts reached, falling back to HTTP — will periodically retry WSS'
+        );
         this.flushAllPendingToHttp();
         this.startReconnectPolling();
       }
       return;
     }
     this.reconnectAttempts++;
-    const delay = Math.min(
-      WSS_RECONNECT_BASE_MS * Math.pow(2, this.reconnectAttempts),
-      WSS_RECONNECT_MAX_MS
-    ) + Math.random() * 1000;
+    const delay =
+      Math.min(WSS_RECONNECT_BASE_MS * Math.pow(2, this.reconnectAttempts), WSS_RECONNECT_MAX_MS) +
+      Math.random() * 1000;
 
     setTimeout(() => {
       if (this.shouldReconnect) {
@@ -220,25 +233,24 @@ export class WssClient {
       entry.reject(new Error('WSS disconnected and no HTTP fallback configured'));
       return;
     }
-    this.httpFallback(entry.payload, entry.metadata).then(() => {
-      entry.resolve();
-    }).catch((err) => {
-      if (attempt < HTTP_RETRY_MAX_ATTEMPTS) {
-        const delay = Math.min(
-          HTTP_RETRY_BASE_MS * Math.pow(2, attempt),
-          HTTP_RETRY_MAX_MS
-        );
-        logger.warn(`HTTP fallback attempt ${attempt + 1} failed, retrying in ${delay}ms`, {
-          error: normalizeError(err),
-        });
-        setTimeout(() => this.retryHttpFallback(entry, attempt + 1), delay).unref();
-      } else {
-        logger.error('HTTP fallback max retries exceeded', {
-          error: normalizeError(err),
-        });
-        entry.reject(new Error('HTTP fallback failed after max retries'));
-      }
-    });
+    this.httpFallback(entry.payload, entry.metadata)
+      .then(() => {
+        entry.resolve();
+      })
+      .catch(err => {
+        if (attempt < HTTP_RETRY_MAX_ATTEMPTS) {
+          const delay = Math.min(HTTP_RETRY_BASE_MS * Math.pow(2, attempt), HTTP_RETRY_MAX_MS);
+          logger.warn(`HTTP fallback attempt ${attempt + 1} failed, retrying in ${delay}ms`, {
+            error: normalizeError(err),
+          });
+          setTimeout(() => this.retryHttpFallback(entry, attempt + 1), delay).unref();
+        } else {
+          logger.error('HTTP fallback max retries exceeded', {
+            error: normalizeError(err),
+          });
+          entry.reject(new Error('HTTP fallback failed after max retries'));
+        }
+      });
   }
 
   setHttpFallback(fn: FallbackPublishFn): void {
@@ -270,7 +282,10 @@ export class WssClient {
 
     if (this.httpFallback) {
       if (this.pendingQueue.length >= WSS_PENDING_QUEUE_MAX) {
-        return this.retryHttpFallback({ payload, metadata, resolve: () => {}, reject: () => {}, timestamp: Date.now() }, 0);
+        return this.retryHttpFallback(
+          { payload, metadata, resolve: () => {}, reject: () => {}, timestamp: Date.now() },
+          0
+        );
       }
       return new Promise<void>((resolve, reject) => {
         this.pendingQueue.push({ payload, metadata, resolve, reject, timestamp: Date.now() });
@@ -285,7 +300,10 @@ export class WssClient {
 
     const httpBatch: PendingPublish[] = [];
     for (const entry of batch) {
-      if (this.connected && this.sendJson({ type: 'publish', payload: entry.payload, metadata: entry.metadata })) {
+      if (
+        this.connected &&
+        this.sendJson({ type: 'publish', payload: entry.payload, metadata: entry.metadata })
+      ) {
         entry.resolve();
       } else if (this.httpFallback) {
         httpBatch.push(entry);
@@ -346,7 +364,11 @@ export class WssClient {
       this.retryHttpFallback(entry, 0);
     }
     if (this.ws) {
-      try { this.ws.close(1000, 'Client shutdown'); } catch { /* ignore */ }
+      try {
+        this.ws.close(1000, 'Client shutdown');
+      } catch {
+        /* ignore */
+      }
       this.ws = null;
     }
     this.connected = false;

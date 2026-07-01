@@ -1,12 +1,5 @@
 export type JobStatus =
-  | 'pending'
-  | 'queued'
-  | 'assigned'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-  | 'orphaned';
+  'pending' | 'queued' | 'assigned' | 'running' | 'completed' | 'failed' | 'cancelled' | 'orphaned';
 
 export interface JobEvent {
   fromStatus: JobStatus;

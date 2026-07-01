@@ -37,22 +37,23 @@ For each symbol, `getAllWindows()`:
 2. Splits into train/validation sets using `TRAINER_VALIDATION_SPLIT`
 
 **Feature vector** (32 dimensions):
-| Index | Feature |
-|-------|---------|
-| 0 | Normalized close price |
-| 1 | Normalized volume |
-| 2 | Price change % |
-| 3 | Close position within candle |
-| 4 | High-low range / close |
-| 5-7 | Normalized open, high, low |
-| 8 | Volume ratio |
-| 9-12 | Order book (bid/ask averages, spread, imbalance) |
-| 13-15 | Book ticker (bid, ask, spread) |
-| 16-18 | Recent trades (avg price, volume, buy ratio) |
-| 19-21 | 24h ticker (change, volume, range) |
-| 22 | Price snapshot |
-| 23-30 | Last 8 closes sliding window |
-| 31 | Bias (constant 1.0) |
+
+| Index | Feature                                          |
+| ----- | ------------------------------------------------ |
+| 0     | Normalized close price                           |
+| 1     | Normalized volume                                |
+| 2     | Price change %                                   |
+| 3     | Close position within candle                     |
+| 4     | High-low range / close                           |
+| 5-7   | Normalized open, high, low                       |
+| 8     | Volume ratio                                     |
+| 9-12  | Order book (bid/ask averages, spread, imbalance) |
+| 13-15 | Book ticker (bid, ask, spread)                   |
+| 16-18 | Recent trades (avg price, volume, buy ratio)     |
+| 19-21 | 24h ticker (change, volume, range)               |
+| 22    | Price snapshot                                   |
+| 23-30 | Last 8 closes sliding window                     |
+| 31    | Bias (constant 1.0)                              |
 
 ### 4. Training Session (`Trainer.train()`)
 

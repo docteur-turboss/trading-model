@@ -161,7 +161,9 @@ describe('DLQ Routes', () => {
 
     const stack = router.stack || [];
     const paths = stack
-      .filter((layer: { route?: { path?: string; methods?: Record<string, boolean> } }) => layer.route)
+      .filter(
+        (layer: { route?: { path?: string; methods?: Record<string, boolean> } }) => layer.route
+      )
       .map((layer: { route: { path: string; methods: Record<string, boolean> } }) => ({
         path: layer.route.path,
         methods: Object.keys(layer.route.methods),
@@ -174,7 +176,10 @@ describe('DLQ Routes', () => {
         expect.objectContaining({ path: '/dlq/delete', methods: expect.arrayContaining(['post']) }),
         expect.objectContaining({ path: '/dlq/replay', methods: expect.arrayContaining(['post']) }),
         expect.objectContaining({ path: '/health', methods: expect.arrayContaining(['get']) }),
-        expect.objectContaining({ path: '/health/ready', methods: expect.arrayContaining(['get']) }),
+        expect.objectContaining({
+          path: '/health/ready',
+          methods: expect.arrayContaining(['get']),
+        }),
         expect.objectContaining({ path: '/metrics', methods: expect.arrayContaining(['get']) }),
       ])
     );

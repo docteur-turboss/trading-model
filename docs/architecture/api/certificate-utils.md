@@ -50,10 +50,11 @@ interface KeyPair {
 ```
 
 **Performance note**:
-| Algorithm | Typical duration | Impact |
-|-----------|-----------------|--------|
-| `KeyAlgorithm.EC_P384` | 10 – 50 ms | Safe for runtime use |
-| `KeyAlgorithm.RSA_4096` | 1 – 5 s | **Blocks the event loop** — avoid on hot paths |
+
+| Algorithm               | Typical duration | Impact                                         |
+| ----------------------- | ---------------- | ---------------------------------------------- |
+| `KeyAlgorithm.EC_P384`  | 10 – 50 ms       | Safe for runtime use                           |
+| `KeyAlgorithm.RSA_4096` | 1 – 5 s          | **Blocks the event loop** — avoid on hot paths |
 
 ### Async API (Worker Thread Pool)
 

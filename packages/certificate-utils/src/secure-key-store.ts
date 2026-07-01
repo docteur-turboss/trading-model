@@ -19,7 +19,11 @@ const stores = new Set<SecureKeyStore>();
 
 function globalCleanup(): void {
   for (const store of stores) {
-    try { store.destroy(); } catch { /* cleanup */ }
+    try {
+      store.destroy();
+    } catch {
+      /* cleanup */
+    }
   }
   stores.clear();
 }

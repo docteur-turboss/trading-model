@@ -21,9 +21,21 @@ function normalizeBody(body: unknown): unknown {
   return body ?? {};
 }
 
-function signRequest(serviceName: string, method: string, path: string, body: unknown, secretBuf?: Buffer): { timestamp: string; signature: string } {
+function signRequest(
+  serviceName: string,
+  method: string,
+  path: string,
+  body: unknown,
+  secretBuf?: Buffer
+): { timestamp: string; signature: string } {
   const timestamp = String(Date.now());
-  const parts = [serviceName, timestamp, deterministicStringify(normalizeBody(body)), method, path].join(':');
+  const parts = [
+    serviceName,
+    timestamp,
+    deterministicStringify(normalizeBody(body)),
+    method,
+    path,
+  ].join(':');
   const buf = secretBuf ?? getHmacSecretBuffer();
   try {
     if (buf.length < 16) {
@@ -37,7 +49,12 @@ function signRequest(serviceName: string, method: string, path: string, body: un
   }
 }
 
-function signedOptions(method: string, path: string, body: unknown, extra?: Partial<HttpRequestOptions>): HttpRequestOptions {
+function signedOptions(
+  method: string,
+  path: string,
+  body: unknown,
+  extra?: Partial<HttpRequestOptions>
+): HttpRequestOptions {
   const opts: HttpRequestOptions & { headers: Record<string, string> } = {
     timeoutMs: 5000,
     ...extra,
@@ -83,9 +100,13 @@ export class DlqServiceClient {
       logger.info('DLQ entry sent to DLQ service', { reason: entry.reason });
     } catch (err) {
       if (attempt <= MAX_RETRIES) {
-        const delay = Math.round(Math.min(200 * Math.pow(2, attempt - 1), 5000) * (0.5 + Math.random() * 0.5));
+        const delay = Math.round(
+          Math.min(200 * Math.pow(2, attempt - 1), 5000) * (0.5 + Math.random() * 0.5)
+        );
         logger.warn('Retrying DLQ send after error', {
-          attempt, delay, reason: entry.reason,
+          attempt,
+          delay,
+          reason: entry.reason,
           error: normalizeError(err as Error),
         });
         await new Promise(r => setTimeout(r, delay));

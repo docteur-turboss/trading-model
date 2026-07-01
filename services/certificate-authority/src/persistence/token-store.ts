@@ -49,14 +49,8 @@ export class TokenStore {
 
   private async createIndexes(): Promise<void> {
     if (!this.collection) return;
-    await this.collection.createIndex(
-      { expiresAt: 1 },
-      { expireAfterSeconds: 0 }
-    );
-    await this.collection.createIndex(
-      { tokenHash: 1 },
-      { unique: true }
-    );
+    await this.collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+    await this.collection.createIndex({ tokenHash: 1 }, { unique: true });
   }
 
   async tryUseToken(token: string, serviceId: string, ttlMs?: number): Promise<boolean> {

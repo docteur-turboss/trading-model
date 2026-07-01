@@ -9,21 +9,21 @@ Automatic mTLS certificate provisioning for services. On startup, the client boo
 
 ## Dependencies
 
-| Dependency | Type |
-|-----------|------|
-| `@trading-model/common` | runtime |
+| Dependency                         | Type    |
+| ---------------------------------- | ------- |
+| `@trading-model/common`            | runtime |
 | `@trading-model/certificate-utils` | runtime |
-| `@trading-model/broker-message` | runtime |
+| `@trading-model/broker-message`    | runtime |
 
 ## Exports
 
-| Export | Description |
-|--------|-------------|
+| Export               | Description                                                      |
+| -------------------- | ---------------------------------------------------------------- |
 | `createTlsBootstrap` | Main entry point — provisions certificate and returns TLS config |
-| `CertificateClient` | Client class for manual lifecycle management |
-| `CrlSubscriber` | Subscribes to certificate revocation events |
-| `CircuitBreaker` | Failure isolation for CA communication |
-| `Transport` | TLS transport utility |
+| `CertificateClient`  | Client class for manual lifecycle management                     |
+| `CrlSubscriber`      | Subscribes to certificate revocation events                      |
+| `CircuitBreaker`     | Failure isolation for CA communication                           |
+| `Transport`          | TLS transport utility                                            |
 
 ## Environment Variables
 

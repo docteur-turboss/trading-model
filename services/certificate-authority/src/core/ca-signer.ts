@@ -8,7 +8,10 @@ import forge from 'node-forge';
  *
  * Mutates the passed-in certificate object (cert.signature, cert.signatureOid, cert.siginfo).
  */
-export function signCertWithCaKey(cert: forge.pki.Certificate, getCaPrivateKey: () => string): void {
+export function signCertWithCaKey(
+  cert: forge.pki.Certificate,
+  getCaPrivateKey: () => string
+): void {
   const pem = Buffer.from(getCaPrivateKey(), 'utf8');
   try {
     const nodeKey = createPrivateKey(pem);
@@ -27,7 +30,9 @@ export function signCertWithCaKey(cert: forge.pki.Certificate, getCaPrivateKey: 
       throw new Error('Unexpected ASN.1 structure: expected at least 3 elements');
     }
     if (asn1Values[0].type !== forge.asn1.Type.SEQUENCE) {
-      throw new Error('Unexpected ASN.1 structure: first element is not a SEQUENCE (TBS certificate)');
+      throw new Error(
+        'Unexpected ASN.1 structure: first element is not a SEQUENCE (TBS certificate)'
+      );
     }
     const tbs = asn1Values[0];
     const tbsDer = forge.asn1.toDer(tbs).getBytes();
@@ -51,8 +56,9 @@ export function signCertWithCaKey(cert: forge.pki.Certificate, getCaPrivateKey: 
 
     cert.signature = signedCert.signature;
     cert.signatureOid = signedCert.signatureOid;
-    (cert as unknown as Record<string, unknown>).siginfo =
-      (signedCert as unknown as Record<string, unknown>).siginfo;
+    (cert as unknown as Record<string, unknown>).siginfo = (
+      signedCert as unknown as Record<string, unknown>
+    ).siginfo;
   } finally {
     pem.fill(0);
   }

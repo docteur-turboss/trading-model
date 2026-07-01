@@ -4,12 +4,15 @@
 **Severity:** SEV2 (warning), SEV1 (if expired)
 
 ## Detection
+
 - Prometheus alert: `CertificateExpiry` fires when last renewal > 7 days
 - mTLS handshake failures between services
 - Logs show "certificate expired" or "x509: certificate has expired"
 
 ## Automated Renewal
+
 The certificate-client package handles automatic mTLS certificate renewal:
+
 - Renewal is triggered before expiry (margin: `CERT_ROTATION_MARGIN_MS` = 17280000ms = 5 days)
 - The CA issues new certificates automatically
 - Services hot-reload TLS config via `reloadTlsPaths()` on `HttpClient`
@@ -17,6 +20,7 @@ The certificate-client package handles automatic mTLS certificate renewal:
 ## Manual Renewal
 
 ### If automatic renewal failed:
+
 ```bash
 # 1. Check CA is operational
 kubectl exec -n trading-model deployment/certificate-authority -- \
@@ -38,6 +42,7 @@ kubectl exec -n trading-model deployment/discovery-server -- \
 ```
 
 ### Full PKI renewal (if CA cert itself is expiring):
+
 ```bash
 # 1. Generate new CA cert
 cd scripts
@@ -55,16 +60,19 @@ kubectl rollout restart -n trading-model deployment -l app.kubernetes.io/part-of
 ```
 
 ## CA Certificate Management
+
 The CA root certificate has a 10-year validity (`CA_CERT_TTL_MS: 31536000000`).
 Intermediate certificates are rotated daily (`CERT_ROTATION_INTERVAL_MS: 86400000`).
 
 ### Monitor CA cert expiry
+
 ```bash
 kubectl exec -n trading-model deployment/certificate-authority -- \
   openssl x509 -in /etc/ca-keys/ca-cert.pem -noout -enddate
 ```
 
 ## Prevention
+
 - CA automatic rotation is enabled and monitored
 - Certificate expiry alert at 7 days before expiration
 - Keep `scripts/generate-certs.sh` available for emergency re-issuance

@@ -43,12 +43,16 @@ interface IncomingWssMessage {
   messageId?: string;
 }
 
-type MessageHandler = (msg: IncomingWssMessage, ws: WebSocket, ctx: {
-  instanceId: string;
-  serviceName: string;
-  topics: Set<string>;
-  subKey: string;
-}) => Promise<void> | void;
+type MessageHandler = (
+  msg: IncomingWssMessage,
+  ws: WebSocket,
+  ctx: {
+    instanceId: string;
+    serviceName: string;
+    topics: Set<string>;
+    subKey: string;
+  }
+) => Promise<void> | void;
 
 export class WssTransport {
   private wss: WebSocketServer | null = null;
@@ -106,7 +110,11 @@ export class WssTransport {
 
   // ─── Dispatch table handlers for WSS message types ──────────────────────
 
-  private handleSubscribe(msg: IncomingWssMessage, ws: WebSocket, ctx: { instanceId: string; topics: Set<string> }): void {
+  private handleSubscribe(
+    msg: IncomingWssMessage,
+    ws: WebSocket,
+    ctx: { instanceId: string; topics: Set<string> }
+  ): void {
     const msgInstanceId = msg.instanceId;
     if (msgInstanceId && msgInstanceId !== ctx.instanceId) {
       ws.send(JSON.stringify({ type: 'error', message: 'instanceId mismatch' }));
@@ -123,7 +131,11 @@ export class WssTransport {
     ws.send(JSON.stringify({ type: 'subscribed', topics: [...ctx.topics] }));
   }
 
-  private handleUnsubscribe(msg: IncomingWssMessage, ws: WebSocket, ctx: { instanceId: string; topics: Set<string> }): void {
+  private handleUnsubscribe(
+    msg: IncomingWssMessage,
+    ws: WebSocket,
+    ctx: { instanceId: string; topics: Set<string> }
+  ): void {
     const msgInstanceId = msg.instanceId;
     if (msgInstanceId && msgInstanceId !== ctx.instanceId) {
       ws.send(JSON.stringify({ type: 'error', message: 'instanceId mismatch' }));
@@ -140,21 +152,29 @@ export class WssTransport {
     ws.send(JSON.stringify({ type: 'unsubscribed', topics: [...ctx.topics] }));
   }
 
-  private async handlePublish(msg: IncomingWssMessage, ws: WebSocket, ctx: { instanceId: string; serviceName: string }): Promise<void> {
+  private async handlePublish(
+    msg: IncomingWssMessage,
+    ws: WebSocket,
+    ctx: { instanceId: string; serviceName: string }
+  ): Promise<void> {
     if (!this.checkWssRateLimit(ctx.serviceName)) {
       ws.send(JSON.stringify({ type: 'error', message: 'Rate limit exceeded' }));
       return;
     }
     const topic = (msg.metadata as Record<string, unknown>)?.topic as string | undefined;
     if (topic) {
-      const result = await authorizeTopic({ headers: { 'x-service-name': ctx.serviceName } } as never, topic);
+      const result = await authorizeTopic(
+        { headers: { 'x-service-name': ctx.serviceName } } as never,
+        topic
+      );
       if (!result.allowed) {
         ws.send(JSON.stringify({ type: 'error', message: result.reason }));
         return;
       }
     }
     const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
-    const dedupId = (wssMetadata?.delivery as Record<string, unknown> | undefined)?.deduplicationId as string | undefined;
+    const dedupId = (wssMetadata?.delivery as Record<string, unknown> | undefined)
+      ?.deduplicationId as string | undefined;
     if (dedupId) {
       if (this.processedWssDeduplicationIds.has(dedupId)) return;
       this.processedWssDeduplicationIds.set(dedupId, true);
@@ -163,11 +183,15 @@ export class WssTransport {
         const key = `${env.REDIS_PREFIX}wss-dedup:${dedupId}`;
         const acquired = await redis.set(key, '1', 'EX', 300, 'NX');
         if (!acquired) return;
-      } catch { /* Redis unavailable — local cache suffices */ }
+      } catch {
+        /* Redis unavailable — local cache suffices */
+      }
     }
     const bpRatio = this.dispatcher.getBackpressureRatio();
     if (bpRatio > 0.9) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Server backpressure too high — try again later' }));
+      ws.send(
+        JSON.stringify({ type: 'error', message: 'Server backpressure too high — try again later' })
+      );
       return;
     }
     try {
@@ -177,10 +201,16 @@ export class WssTransport {
         const carrier = { traceparent };
         const extractedCtx = propagation.extract(context.active(), carrier);
         publishPromise = context.with(extractedCtx, () =>
-          this.dispatcher.publish(msg.payload, msg.metadata as Omit<MessageMetadata, 'messageId' | 'emittedAt'>)
+          this.dispatcher.publish(
+            msg.payload,
+            msg.metadata as Omit<MessageMetadata, 'messageId' | 'emittedAt'>
+          )
         );
       } else {
-        publishPromise = this.dispatcher.publish(msg.payload, msg.metadata as Omit<MessageMetadata, 'messageId' | 'emittedAt'>);
+        publishPromise = this.dispatcher.publish(
+          msg.payload,
+          msg.metadata as Omit<MessageMetadata, 'messageId' | 'emittedAt'>
+        );
       }
       const messageId = await publishPromise;
       ws.send(JSON.stringify({ type: 'published', messageId }));
@@ -232,7 +262,14 @@ export class WssTransport {
       const serviceName = req.headers['x-service-name'] as string;
       const instanceId = req.headers['x-instance-id'] as string;
       const topicsHeader = req.headers['x-subscribed-topics'] as string;
-      const topics = new Set(topicsHeader ? topicsHeader.split(',').map(t => t.trim()).filter(Boolean) : []);
+      const topics = new Set(
+        topicsHeader
+          ? topicsHeader
+              .split(',')
+              .map(t => t.trim())
+              .filter(Boolean)
+          : []
+      );
 
       const subKey = `${serviceName}:${instanceId}`;
 
@@ -279,7 +316,9 @@ export class WssTransport {
             ws.send(JSON.stringify({ type: 'error', message: 'Server error processing message' }));
           }
         } else {
-          ws.send(JSON.stringify({ type: 'error', message: `Unknown message type: ${incoming.type}` }));
+          ws.send(
+            JSON.stringify({ type: 'error', message: `Unknown message type: ${incoming.type}` })
+          );
         }
       });
 
@@ -289,7 +328,7 @@ export class WssTransport {
         logger.info('WSS client disconnected', { serviceName, instanceId });
       });
 
-      ws.on('error', (err) => {
+      ws.on('error', err => {
         logger.warn('WSS connection error', { error: err.message, serviceName, instanceId });
         ws.close(1011, 'Internal server error');
       });
@@ -351,7 +390,7 @@ export class WssTransport {
         sub.ws.close(1001, 'Server shutdown');
       }
       this.subscriptions.clear();
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         const timer = setTimeout(() => {
           this.wss = null;
           resolve();

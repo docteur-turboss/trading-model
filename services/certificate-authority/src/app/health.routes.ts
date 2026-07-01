@@ -16,9 +16,12 @@ export function healthRoutes(): Router {
     checks.redis = container.redisCache?.isAvailable() ? 'ok' : 'degraded';
     checks.ca = container.ca?.isOperational() ? 'ok' : 'degraded';
     checks.crl_store = container.crlStore?.isConnected() ? 'ok' : 'degraded';
-    checks.signing = container.ca?.signingQueueLength() !== undefined
-      ? (container.ca.signingQueueLength() < 100 ? 'ok' : 'backpressure')
-      : 'unknown';
+    checks.signing =
+      container.ca?.signingQueueLength() !== undefined
+        ? container.ca.signingQueueLength() < 100
+          ? 'ok'
+          : 'backpressure'
+        : 'unknown';
 
     const allOk = Object.values(checks).every(v => v === 'ok');
     const statusCode = allOk ? 200 : 503;

@@ -120,11 +120,11 @@ Open `http://localhost:5173` in your browser. Navigate to **Services** to see th
 
 ## Next Steps
 
-| If you want to... | Follow this guide |
-|---|---|
-| Understand the full architecture | `docs/standards/ARCHITECTURE.md` |
-| Train a trading agent | `services/trader-trainer/README.md` |
-| Debug a failed message | `docs/operations/runbook-message-bus-outage.md` |
-| Set up monitoring | `docs/deployment/DOCKER.md#monitoring` |
-| Deploy to Kubernetes | `docs/deployment/KUBERNETES.md` |
-| Run the full test suite | `npm test --workspaces` |
+| If you want to...                | Follow this guide                               |
+| -------------------------------- | ----------------------------------------------- |
+| Understand the full architecture | `docs/standards/ARCHITECTURE.md`                |
+| Train a trading agent            | `services/trader-trainer/README.md`             |
+| Debug a failed message           | `docs/operations/runbook-message-bus-outage.md` |
+| Set up monitoring                | `docs/deployment/DOCKER.md#monitoring`          |
+| Deploy to Kubernetes             | `docs/deployment/KUBERNETES.md`                 |
+| Run the full test suite          | `npm test --workspaces`                         |

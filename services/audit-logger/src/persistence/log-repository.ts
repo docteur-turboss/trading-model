@@ -86,7 +86,9 @@ export class LogRepository {
     await col.insertMany(docs as never[], { ordered: false });
   }
 
-  async query(params: LogQuery): Promise<{ docs: ServiceLogDocument[]; total: number; page: number; limit: number }> {
+  async query(
+    params: LogQuery
+  ): Promise<{ docs: ServiceLogDocument[]; total: number; page: number; limit: number }> {
     const col = await this.getCollection();
     const filter: Record<string, unknown> = {};
 
@@ -95,8 +97,10 @@ export class LogRepository {
     if (params.correlationId) filter.correlationId = params.correlationId;
     if (params.startDate || params.endDate) {
       filter.receivedAt = {} as Record<string, Date>;
-      if (params.startDate) (filter.receivedAt as Record<string, Date>).$gte = new Date(params.startDate);
-      if (params.endDate) (filter.receivedAt as Record<string, Date>).$lte = new Date(params.endDate);
+      if (params.startDate)
+        (filter.receivedAt as Record<string, Date>).$gte = new Date(params.startDate);
+      if (params.endDate)
+        (filter.receivedAt as Record<string, Date>).$lte = new Date(params.endDate);
     }
     if (params.search) {
       filter.message = { $regex: params.search, $options: 'i' };
@@ -114,22 +118,26 @@ export class LogRepository {
   async getStats(): Promise<LogStats> {
     const col = await this.getCollection();
 
-    const [aggResult] = await col.aggregate([
-      {
-        $facet: {
-          byService: [{ $group: { _id: '$service.name', count: { $sum: 1 } } }],
-          byLevel: [{ $group: { _id: '$level', count: { $sum: 1 } } }],
-          dateRange: [{
-            $group: {
-              _id: null,
-              earliest: { $min: '$receivedAt' },
-              latest: { $max: '$receivedAt' },
-            },
-          }],
-          total: [{ $count: 'count' }],
+    const [aggResult] = await col
+      .aggregate([
+        {
+          $facet: {
+            byService: [{ $group: { _id: '$service.name', count: { $sum: 1 } } }],
+            byLevel: [{ $group: { _id: '$level', count: { $sum: 1 } } }],
+            dateRange: [
+              {
+                $group: {
+                  _id: null,
+                  earliest: { $min: '$receivedAt' },
+                  latest: { $max: '$receivedAt' },
+                },
+              },
+            ],
+            total: [{ $count: 'count' }],
+          },
         },
-      },
-    ]).toArray();
+      ])
+      .toArray();
 
     const byService: Record<string, number> = {};
     for (const s of (aggResult?.byService as Array<{ _id: string; count: number }>) ?? []) {

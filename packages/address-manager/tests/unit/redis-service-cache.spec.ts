@@ -31,7 +31,12 @@ describe('RedisServiceCache', () => {
         JSON.stringify({ serviceName: 'svc', instanceId: 'i-1', ip: '127.0.0.1', port: 8080 })
       );
 
-      await cache.set('svc', { serviceName: 'svc', instanceId: 'i-1', ip: '127.0.0.1', port: 8080 } as any);
+      await cache.set('svc', {
+        serviceName: 'svc',
+        instanceId: 'i-1',
+        ip: '127.0.0.1',
+        port: 8080,
+      } as any);
       const result = await cache.get('svc');
 
       expect(mockRedisInstance.setex).toHaveBeenCalledWith(
@@ -90,7 +95,13 @@ describe('RedisServiceCache', () => {
 
       await cache.clear();
 
-      expect(mockRedisInstance.scan).toHaveBeenCalledWith('0', 'MATCH', 'discovery:cache:*', 'COUNT', 200);
+      expect(mockRedisInstance.scan).toHaveBeenCalledWith(
+        '0',
+        'MATCH',
+        'discovery:cache:*',
+        'COUNT',
+        200
+      );
     });
 
     it('should handle empty scan result', async () => {

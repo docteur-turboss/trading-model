@@ -9,19 +9,19 @@ Data shall be retained only as long as necessary for the purposes for which it i
 
 ## Retention Schedule
 
-| Data Type | System | Retention Period | Legal Basis | Deletion Mechanism |
-|-----------|--------|-----------------|-------------|-------------------|
-| **Market data** (candles, trades, tickers) | MySQL `financial_scraper` | **5 years** | MiFID II Art. 72 (record-keeping of transactions) | `PURGE_MARKET_DATA_BEFORE_DAYS` env var (default: 1827) |
-| **Audit events** | MongoDB `audit_events` | **5 years** | MiFID II (record-keeping), GDPR Art. 30 (processing register evidence) | TTL index on `recordedAt` field |
-| **Service messages** (transit) | Redis Streams | **2 hours** | Operational necessity only — transient routing | Stream MAXLEN ~500000 entries |
-| **Message archive** | MongoDB `message_archive` | **90 days** | Operational debugging | TTL index (disabled by default; enable via config) |
-| **Dead letter entries** | MongoDB `dlq_entries` | **30 days** | Operational — messages not delivered after retries | Prune cron (daily) + `ENTRY_TTL_MS` |
-| **Certificates (active)** | MongoDB + disk | **7 days** (auto-rotation) | Security best practice | `CERT_DEFAULT_TTL_MS` = 604800000 |
-| **Certificates (revoked/expired)** | MongoDB `crl_entries` | **90 days** | CRL history for audit | TTL index |
-| **CA keys** | Filesystem (AES-256 GCM) | **3 versions** (current + 2 previous) | Key rollback capability | `CA_KEY_RETENTION_VERSIONS` = 3 |
-| **Service tokens** | K8s Secrets | **Until rotated** (weekly) | Security | Manual rotation via `scripts/rotate-secrets.sh` |
-| **Operational logs** | stdout / Promtail → Loki | **30 days** | Operational debugging | Loki retention: `744h` (configurable) |
-| **Prometheus metrics** | Prometheus TSDB | **15 days** | Operational monitoring | `--storage.tsdb.retention.time=15d` |
+| Data Type                                  | System                    | Retention Period                      | Legal Basis                                                            | Deletion Mechanism                                      |
+| ------------------------------------------ | ------------------------- | ------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |
+| **Market data** (candles, trades, tickers) | MySQL `financial_scraper` | **5 years**                           | MiFID II Art. 72 (record-keeping of transactions)                      | `PURGE_MARKET_DATA_BEFORE_DAYS` env var (default: 1827) |
+| **Audit events**                           | MongoDB `audit_events`    | **5 years**                           | MiFID II (record-keeping), GDPR Art. 30 (processing register evidence) | TTL index on `recordedAt` field                         |
+| **Service messages** (transit)             | Redis Streams             | **2 hours**                           | Operational necessity only — transient routing                         | Stream MAXLEN ~500000 entries                           |
+| **Message archive**                        | MongoDB `message_archive` | **90 days**                           | Operational debugging                                                  | TTL index (disabled by default; enable via config)      |
+| **Dead letter entries**                    | MongoDB `dlq_entries`     | **30 days**                           | Operational — messages not delivered after retries                     | Prune cron (daily) + `ENTRY_TTL_MS`                     |
+| **Certificates (active)**                  | MongoDB + disk            | **7 days** (auto-rotation)            | Security best practice                                                 | `CERT_DEFAULT_TTL_MS` = 604800000                       |
+| **Certificates (revoked/expired)**         | MongoDB `crl_entries`     | **90 days**                           | CRL history for audit                                                  | TTL index                                               |
+| **CA keys**                                | Filesystem (AES-256 GCM)  | **3 versions** (current + 2 previous) | Key rollback capability                                                | `CA_KEY_RETENTION_VERSIONS` = 3                         |
+| **Service tokens**                         | K8s Secrets               | **Until rotated** (weekly)            | Security                                                               | Manual rotation via `scripts/rotate-secrets.sh`         |
+| **Operational logs**                       | stdout / Promtail → Loki  | **30 days**                           | Operational debugging                                                  | Loki retention: `744h` (configurable)                   |
+| **Prometheus metrics**                     | Prometheus TSDB           | **15 days**                           | Operational monitoring                                                 | `--storage.tsdb.retention.time=15d`                     |
 
 ## Financial Regulatory Justification
 
@@ -63,6 +63,7 @@ See `scripts/migrations/` for the migration to create this event.
 ### MongoDB Audit Retention
 
 Configure via environment variable:
+
 ```bash
 AUDIT_RETENTION_DAYS=1827  # 5 years (default: 90)
 ```
@@ -72,6 +73,7 @@ The TTL index on `recordedAt` is created automatically at startup by the audit-l
 ### Exceptions
 
 Data may be retained longer if:
+
 - Required by law enforcement or regulatory investigation (legal hold)
 - Subject to litigation preservation
 - Necessary for the establishment, exercise, or defense of legal claims

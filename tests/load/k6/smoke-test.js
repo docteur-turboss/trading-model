@@ -25,7 +25,7 @@ export default function () {
     for (const url of endpoints) {
       const res = http.get(url, { tls: { insecureSkipTLSVerify: true } });
       check(res, {
-        [`${url} returns 200`]: (r) => r.status === 200,
+        [`${url} returns 200`]: r => r.status === 200,
       });
     }
   });
@@ -35,8 +35,8 @@ export default function () {
       tls: { insecureSkipTLSVerify: true },
     });
     check(res, {
-      'services endpoint returns 200': (r) => r.status === 200,
-      'services returns JSON': (r) => r.headers['Content-Type'] === 'application/json',
+      'services endpoint returns 200': r => r.status === 200,
+      'services returns JSON': r => r.headers['Content-Type'] === 'application/json',
     });
   });
 

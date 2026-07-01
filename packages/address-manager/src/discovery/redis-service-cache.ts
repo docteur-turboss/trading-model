@@ -33,9 +33,7 @@ export class RedisServiceCache implements IServiceCache {
       maxRetriesPerRequest: 3,
       ...(cacheOptions?.password ? { password: cacheOptions.password } : {}),
       ...(cacheOptions?.tls ? { tls: cacheOptions.tls } : {}),
-      ...(cacheOptions?.sentinels
-        ? { sentinels: cacheOptions.sentinels, name: 'mymaster' }
-        : {}),
+      ...(cacheOptions?.sentinels ? { sentinels: cacheOptions.sentinels, name: 'mymaster' } : {}),
     };
     this.redis = new Redis(redisUrl, baseOptions);
     this.prefix = prefix;
@@ -78,7 +76,12 @@ export class RedisServiceCache implements IServiceCache {
     }
   }
 
-  async set(serviceName: string, instance: ServiceInstance, region?: string, version?: number): Promise<void> {
+  async set(
+    serviceName: string,
+    instance: ServiceInstance,
+    region?: string,
+    version?: number
+  ): Promise<void> {
     try {
       const entry = { instance, version: version ?? 0 };
       await this.redis.setex(
@@ -105,7 +108,11 @@ export class RedisServiceCache implements IServiceCache {
       const keysToDelete: string[] = [];
       do {
         const [nextCursor, batch] = await this.redis.scan(
-          cursor, 'MATCH', `${this.prefix}*`, 'COUNT', 200
+          cursor,
+          'MATCH',
+          `${this.prefix}*`,
+          'COUNT',
+          200
         );
         cursor = nextCursor;
         keysToDelete.push(...batch);
@@ -123,13 +130,20 @@ export class RedisServiceCache implements IServiceCache {
     }
   }
 
-  async entries(): Promise<Array<{ serviceName: string; instance: ServiceInstance; region?: string }>> {
+  async entries(): Promise<
+    Array<{ serviceName: string; instance: ServiceInstance; region?: string }>
+  > {
     try {
-      const results: Array<{ serviceName: string; instance: ServiceInstance; region?: string }> = [];
+      const results: Array<{ serviceName: string; instance: ServiceInstance; region?: string }> =
+        [];
       let cursor = '0';
       do {
         const [nextCursor, batch] = await this.redis.scan(
-          cursor, 'MATCH', `${this.prefix}*`, 'COUNT', 200
+          cursor,
+          'MATCH',
+          `${this.prefix}*`,
+          'COUNT',
+          200
         );
         cursor = nextCursor;
         for (const key of batch) {
@@ -144,7 +158,9 @@ export class RedisServiceCache implements IServiceCache {
               ? [suffix.split('::')[0], suffix.split('::')[1]]
               : [suffix, undefined];
             results.push({ serviceName, instance: instance as ServiceInstance, region });
-          } catch { /* skip corrupt entry */ }
+          } catch {
+            /* skip corrupt entry */
+          }
         }
       } while (cursor !== '0');
       return results;
@@ -186,6 +202,10 @@ export class RedisServiceCache implements IServiceCache {
   }
 
   stop(): void {
-    try { this.redis.disconnect(); } catch { /* ignore */ }
+    try {
+      this.redis.disconnect();
+    } catch {
+      /* ignore */
+    }
   }
 }

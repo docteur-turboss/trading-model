@@ -4,8 +4,8 @@ This directory contains OpenAPI 3.0 specifications for the trading-model platfor
 
 ## Current Status
 
-| Specification | Status | Coverage |
-|---|---|---|
+| Specification      | Status       | Coverage                              |
+| ------------------ | ------------ | ------------------------------------- |
 | `api-gateway.yaml` | ✅ Published | External-facing routes (18 endpoints) |
 
 ## Approach

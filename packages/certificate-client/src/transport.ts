@@ -70,14 +70,17 @@ export class TransportManager {
   private sendWsAuth(): void {
     const token = this.config.bootstrapToken;
     if (!token || token.length === 0 || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    this.ws.send(JSON.stringify({
-      type: 'auth',
-      token,
-    }), (err) => {
-      if (err) {
-        logger.error('Failed to send WSS auth message', { err: err.message });
+    this.ws.send(
+      JSON.stringify({
+        type: 'auth',
+        token,
+      }),
+      err => {
+        if (err) {
+          logger.error('Failed to send WSS auth message', { err: err.message });
+        }
       }
-    });
+    );
   }
 
   private connectWs(): void {
@@ -96,7 +99,8 @@ export class TransportManager {
       // Note: secureOptions for blocking older protocol versions is redundant
       // once minVersion is set, but kept as defense-in-depth.
       wsOptions.minVersion = 'TLSv1.3';
-      wsOptions.ciphers = 'TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256';
+      wsOptions.ciphers =
+        'TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256';
 
       // NOTE: bootstrap token is intentionally NOT sent in the Upgrade header.
       // It is sent as a dedicated auth message after connection (see sendWsAuth).
@@ -170,7 +174,7 @@ export class TransportManager {
         }
       });
 
-      this.ws.on('error', (err) => {
+      this.ws.on('error', err => {
         clearTimeout(connectTimeout);
         logger.error('WSS transport error', { err: err.message });
         if (!this.wsConnected) {
@@ -221,17 +225,20 @@ export class TransportManager {
         return;
       }
 
-      ws.send(JSON.stringify({
-        type: 'sign',
-        id,
-        data: { serviceId, csr, ttlMs: options?.ttlMs },
-      }), (err) => {
-        if (err) {
-          clearTimeout(timer);
-          this.pending.delete(id);
-          reject(err);
+      ws.send(
+        JSON.stringify({
+          type: 'sign',
+          id,
+          data: { serviceId, csr, ttlMs: options?.ttlMs },
+        }),
+        err => {
+          if (err) {
+            clearTimeout(timer);
+            this.pending.delete(id);
+            reject(err);
+          }
         }
-      });
+      );
     });
   }
 
@@ -262,7 +269,9 @@ export class TransportManager {
     return this.httpsClient.signCertificate(serviceId, csr, options);
   }
 
-  async getCertificate(serviceId: string): Promise<import('@trading-model/common/ca/ca-client').GetCertificateResponse | null> {
+  async getCertificate(
+    serviceId: string
+  ): Promise<import('@trading-model/common/ca/ca-client').GetCertificateResponse | null> {
     return this.httpsClient.getCertificate(serviceId);
   }
 
@@ -270,7 +279,11 @@ export class TransportManager {
     return this.httpsClient.revokeCertificate(serialNumber, reason);
   }
 
-  async getCrl(since?: string): Promise<Array<{ serialNumber: string; serviceId: string; revokedAt: string; reason: string }>> {
+  async getCrl(
+    since?: string
+  ): Promise<
+    Array<{ serialNumber: string; serviceId: string; revokedAt: string; reason: string }>
+  > {
     return this.httpsClient.getCrl(since);
   }
 
@@ -279,7 +292,9 @@ export class TransportManager {
       try {
         this.ws.removeAllListeners();
         this.ws.close();
-      } catch { /* closing gracefully */ }
+      } catch {
+        /* closing gracefully */
+      }
       this.ws = null;
     }
     this.wsConnected = false;

@@ -70,7 +70,6 @@ const TradePayload = MarketDataPayload.extend({
  * Each entry documents a producer-consumer agreement.
  */
 const contracts: Contract[] = [
-
   // ── financial-scraper → trader-trainer ─────────────────────────────────
   {
     producer: 'financial-scraper',
@@ -480,9 +479,15 @@ describe('Contract Backward Compatibility', () => {
 
   it('all producers are valid service names', () => {
     const validServices = [
-      'financial-scraper', 'trader-trainer', 'audit-logger',
-      'certificate-authority', 'message-manager', 'api-gateway',
-      'discovery-server', 'dlq-service', 'admin-interface',
+      'financial-scraper',
+      'trader-trainer',
+      'audit-logger',
+      'certificate-authority',
+      'message-manager',
+      'api-gateway',
+      'discovery-server',
+      'dlq-service',
+      'admin-interface',
     ];
     for (const c of contracts) {
       expect(validServices).toContain(c.producer);
@@ -491,9 +496,15 @@ describe('Contract Backward Compatibility', () => {
 
   it('all consumers are valid service names', () => {
     const validServices = [
-      'financial-scraper', 'trader-trainer', 'audit-logger',
-      'certificate-authority', 'message-manager', 'api-gateway',
-      'discovery-server', 'dlq-service', 'admin-interface',
+      'financial-scraper',
+      'trader-trainer',
+      'audit-logger',
+      'certificate-authority',
+      'message-manager',
+      'api-gateway',
+      'discovery-server',
+      'dlq-service',
+      'admin-interface',
     ];
     for (const c of contracts) {
       for (const consumer of c.consumers) {

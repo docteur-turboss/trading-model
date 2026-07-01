@@ -96,7 +96,9 @@ export class CheckpointManager {
           fitness: meta.fitness,
           savedAt: meta.savedAt,
         });
-      } catch { /* skip unreadable */ }
+      } catch {
+        /* skip unreadable */
+      }
     }
     return results.sort((a, b) => b.savedAt - a.savedAt).slice(0, this.maxCheckpoints);
   }
@@ -219,5 +221,3 @@ interface SymbolStateSerializable {
   spreadNorm: ReturnType<NormalizationStats['toJSON']>;
   tickerVolumeNorm: ReturnType<NormalizationStats['toJSON']>;
 }
-
-

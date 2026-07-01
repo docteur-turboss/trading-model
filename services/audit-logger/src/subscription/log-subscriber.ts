@@ -20,18 +20,22 @@ const LogEntrySchema = z.object({
   environment: z.string().optional(),
   userId: z.string().nullable().optional(),
   sessionId: z.string().nullable().optional(),
-  error: z.object({
-    name: z.string().optional(),
-    message: z.string().optional(),
-    stack: z.string().optional(),
-    code: z.string().optional(),
-  }).optional(),
-  request: z.object({
-    method: z.string().optional(),
-    url: z.string().optional(),
-    statusCode: z.number().optional(),
-    durationMs: z.number().optional(),
-  }).optional(),
+  error: z
+    .object({
+      name: z.string().optional(),
+      message: z.string().optional(),
+      stack: z.string().optional(),
+      code: z.string().optional(),
+    })
+    .optional(),
+  request: z
+    .object({
+      method: z.string().optional(),
+      url: z.string().optional(),
+      statusCode: z.number().optional(),
+      durationMs: z.number().optional(),
+    })
+    .optional(),
   timestamp: z.string().optional(),
 });
 
@@ -52,11 +56,15 @@ export function createLogHandler(logRepo: LogRepository) {
 
     for (const entry of parsed.data.logs) {
       const context = entry.context ?? {};
-      const errorObj = entry.error ?? (context.err || context.error ? {
-        name: ((context.err as Error)?.name ?? (context.error as Error)?.name),
-        message: ((context.err as Error)?.message ?? (context.error as Error)?.message),
-        stack: ((context.err as Error)?.stack ?? (context.error as Error)?.stack),
-      } : undefined);
+      const errorObj =
+        entry.error ??
+        (context.err || context.error
+          ? {
+              name: (context.err as Error)?.name ?? (context.error as Error)?.name,
+              message: (context.err as Error)?.message ?? (context.error as Error)?.message,
+              stack: (context.err as Error)?.stack ?? (context.error as Error)?.stack,
+            }
+          : undefined);
 
       const doc: ServiceLogDocument = {
         receivedAt,
@@ -69,7 +77,8 @@ export function createLogHandler(logRepo: LogRepository) {
         },
         module: entry.module,
         correlationId: entry.correlationId,
-        context: Object.keys(context).length > 0 && !context.err && !context.error ? context : undefined,
+        context:
+          Object.keys(context).length > 0 && !context.err && !context.error ? context : undefined,
         error: errorObj,
         environment: entry.environment,
       };

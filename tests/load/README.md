@@ -35,21 +35,21 @@ docker run --rm -i -v $PWD/tests/load:/tests grafana/k6 run /tests/scenarios/api
 
 ## Scenarios
 
-| Scenario | Description | Target RPS | P95 Target |
-|----------|-------------|------------|------------|
-| `api-gateway-health.js` | Serial health checks ramping 10→100 VUs | 100 | <2s |
-| `message-publish.js` | Serial message publishing 5→20 VUs | 20 | <3s |
-| `discovery-register.js` | Service registration 5→10 VUs | 10 | <1s |
+| Scenario                | Description                             | Target RPS | P95 Target |
+| ----------------------- | --------------------------------------- | ---------- | ---------- |
+| `api-gateway-health.js` | Serial health checks ramping 10→100 VUs | 100        | <2s        |
+| `message-publish.js`    | Serial message publishing 5→20 VUs      | 20         | <3s        |
+| `discovery-register.js` | Service registration 5→10 VUs           | 10         | <1s        |
 
 ## Capacity Targets
 
 Based on SLO definitions (`docs/standards/SLO.md`):
 
-| Metric | Target |
-|--------|--------|
+| Metric       | Target                     |
+| ------------ | -------------------------- |
 | Availability | 99.9% (43m downtime/month) |
-| P95 Latency | <2s |
-| Error Rate | <1% |
+| P95 Latency  | <2s                        |
+| Error Rate   | <1%                        |
 
 ## Running a Full Capacity Test
 

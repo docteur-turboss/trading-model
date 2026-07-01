@@ -6,6 +6,7 @@
 ## Context
 
 A trading platform handling financial data requires strong authentication and encryption between all services. The security model must:
+
 - Prevent unauthorized services from joining the mesh
 - Encrypt all traffic in transit
 - Support automated certificate rotation
@@ -34,12 +35,12 @@ Use **mutual TLS (mTLS)** for all inter-service HTTPS communication, with a dedi
 
 ## Alternatives Considered
 
-| Alternative | Reason for Rejection |
-|---|---|
-| Pre-shared keys (PSK) | No revocation; key rotation harder; no PKI |
-| JWT-based auth | No transport encryption; requires separate TLS anyway |
-| Vault PKI | External dependency; operational complexity for 9 services |
-| Self-signed certs per service | No central authority; no revocation; manual management |
+| Alternative                   | Reason for Rejection                                       |
+| ----------------------------- | ---------------------------------------------------------- |
+| Pre-shared keys (PSK)         | No revocation; key rotation harder; no PKI                 |
+| JWT-based auth                | No transport encryption; requires separate TLS anyway      |
+| Vault PKI                     | External dependency; operational complexity for 9 services |
+| Self-signed certs per service | No central authority; no revocation; manual management     |
 
 ## Consequences
 

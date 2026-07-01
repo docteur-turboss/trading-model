@@ -25,8 +25,8 @@ export default function () {
   });
 
   check(res, {
-    'status is 200': (r) => r.status === 200,
-    'response has status ok': (r) => r.json('status') === 'ok',
+    'status is 200': r => r.status === 200,
+    'response has status ok': r => r.json('status') === 'ok',
   });
 
   sleep(1);

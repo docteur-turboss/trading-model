@@ -10,10 +10,10 @@ This directory contains executable examples for interacting with the trading-mod
 
 ## Available Examples
 
-| File | Description |
-|------|-------------|
-| [`publish-message.sh`](./publish-message.sh) | Publish a market data event to the message bus |
-| [`register-service.sh`](./register-service.sh) | Register a mock service with the discovery server |
-| [`view-audit-trail.sh`](./view-audit-trail.sh) | Query recent audit events |
-| [`manage-dlq.sh`](./manage-dlq.sh) | List, retry, and purge DLQ messages |
+| File                                                     | Description                                         |
+| -------------------------------------------------------- | --------------------------------------------------- |
+| [`publish-message.sh`](./publish-message.sh)             | Publish a market data event to the message bus      |
+| [`register-service.sh`](./register-service.sh)           | Register a mock service with the discovery server   |
+| [`view-audit-trail.sh`](./view-audit-trail.sh)           | Query recent audit events                           |
+| [`manage-dlq.sh`](./manage-dlq.sh)                       | List, retry, and purge DLQ messages                 |
 | [`certificate-lifecycle.sh`](./certificate-lifecycle.sh) | Full mTLS certificate lifecycle (sign, get, revoke) |

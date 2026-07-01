@@ -9,27 +9,27 @@ Stores and manages dead letter entries — messages that could not be delivered 
 
 ## Dependencies
 
-| Dependency | Type |
-|-----------|------|
-| `@trading-model/common` | runtime |
-| `@trading-model/address-manager` | runtime |
-| `@trading-model/certificate-client` | runtime |
-| MongoDB | persistence |
-| Redis | rate limiting |
+| Dependency                          | Type          |
+| ----------------------------------- | ------------- |
+| `@trading-model/common`             | runtime       |
+| `@trading-model/address-manager`    | runtime       |
+| `@trading-model/certificate-client` | runtime       |
+| MongoDB                             | persistence   |
+| Redis                               | rate limiting |
 
 ## Endpoints
 
 All endpoints are mTLS-secured and served on **container port 3000**:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/dlq` | Store a new dead letter entry |
-| `GET` | `/dlq` | List dead letter entries (paginated) |
-| `GET` | `/dlq/:id` | Get a single dead letter entry |
-| `POST` | `/dlq/:id/replay` | Replay a single dead letter entry |
-| `POST` | `/dlq/replay` | Replay multiple entries by filter |
-| `DELETE` | `/dlq/:id` | Delete a dead letter entry |
-| `GET` | `/health` | Health check |
+| Method   | Path              | Description                          |
+| -------- | ----------------- | ------------------------------------ |
+| `POST`   | `/dlq`            | Store a new dead letter entry        |
+| `GET`    | `/dlq`            | List dead letter entries (paginated) |
+| `GET`    | `/dlq/:id`        | Get a single dead letter entry       |
+| `POST`   | `/dlq/:id/replay` | Replay a single dead letter entry    |
+| `POST`   | `/dlq/replay`     | Replay multiple entries by filter    |
+| `DELETE` | `/dlq/:id`        | Delete a dead letter entry           |
+| `GET`    | `/health`         | Health check                         |
 
 See source code at `services/dlq-service/src/dlq/` for detailed request/response schemas.
 

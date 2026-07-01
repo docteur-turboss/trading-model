@@ -117,8 +117,19 @@ export default class AddressManager {
     );
 
     this.serviceCache = config.redisCacheUrl
-      ? new RedisServiceCache(config.redisCacheUrl, 'discovery:cache:', config.cacheTtlMs, config.redisCacheOptions)
-      : new ServiceCache(config.cacheTtlMs, config.maxCacheTtlMs, config.discoveryCacheDir, undefined, config.maxCacheEntries);
+      ? new RedisServiceCache(
+          config.redisCacheUrl,
+          'discovery:cache:',
+          config.cacheTtlMs,
+          config.redisCacheOptions
+        )
+      : new ServiceCache(
+          config.cacheTtlMs,
+          config.maxCacheTtlMs,
+          config.discoveryCacheDir,
+          undefined,
+          config.maxCacheEntries
+        );
 
     this.circuitBreaker = new CircuitBreaker(
       config.circuitBreakerFailureThreshold ?? 3,
@@ -174,7 +185,7 @@ export default class AddressManager {
         if (message.type === 'cache.invalidate') {
           const serviceName = message.payload?.serviceName as string | undefined;
           if (serviceName) {
-            this.serviceCache.invalidate(serviceName).catch((err) => {
+            this.serviceCache.invalidate(serviceName).catch(err => {
               logger.warn('WebSocket cache invalidation failed', {
                 serviceName,
                 error: normalizeError(err),
@@ -274,9 +285,12 @@ export default class AddressManager {
     discoveryCallsTotal.inc({ service_name: serviceName, result: 'failure' });
     discoveryDurationMs.observe({ service_name: serviceName }, Date.now() - startTime);
 
-    throw lastError ?? new AppError(
-      `Service "${serviceName}" unreachable after ${AddressManager.CIRCUIT_BREAKER_MAX_RETRIES + 1} attempts`,
-      ErrorCodes.SERVICE_UNREACHABLE
+    throw (
+      lastError ??
+      new AppError(
+        `Service "${serviceName}" unreachable after ${AddressManager.CIRCUIT_BREAKER_MAX_RETRIES + 1} attempts`,
+        ErrorCodes.SERVICE_UNREACHABLE
+      )
     );
   }
 
@@ -347,7 +361,9 @@ export default class AddressManager {
       logger.info('Sticky registration: found existing token, attempting heartbeat to validate');
       try {
         await this.addressManagerClient.refreshTTL();
-        logger.info('Sticky registration: heartbeat succeeded with existing token, registration valid');
+        logger.info(
+          'Sticky registration: heartbeat succeeded with existing token, registration valid'
+        );
         return;
       } catch {
         logger.warn('Sticky registration: heartbeat with existing token failed, re-registering');
@@ -416,10 +432,7 @@ export default class AddressManager {
       }
 
       const jitteredInterval = REGISTRATION_BACKGROUND_RETRY_INTERVAL_MS + Math.random() * 5000;
-      await Promise.race([
-        sleep(jitteredInterval),
-        stopPromise,
-      ]);
+      await Promise.race([sleep(jitteredInterval), stopPromise]);
 
       await new Promise<void>(resolve => setImmediate(resolve));
     }
@@ -455,9 +468,13 @@ export default class AddressManager {
     );
 
     scheduler.register(
-      new RefreshJob(this.addressManagerClient, async _c => {
-        await this.performHeartbeat();
-      }, this.ttlRefreshIntervalMs)
+      new RefreshJob(
+        this.addressManagerClient,
+        async _c => {
+          await this.performHeartbeat();
+        },
+        this.ttlRefreshIntervalMs
+      )
     );
 
     if (!(this.serviceCache instanceof RedisServiceCache)) {
@@ -541,10 +558,7 @@ export default class AddressManager {
 
   private async performHeartbeat(): Promise<void> {
     if (this.wsClient?.isConnected()) {
-      const sent = this.wsClient.sendHeartbeat(
-        this.serviceName,
-        this.instanceId
-      );
+      const sent = this.wsClient.sendHeartbeat(this.serviceName, this.instanceId);
       if (sent) {
         heartbeatTotal.inc({ result: 'success' });
         this.consecutiveHeartbeatFailures = 0;
@@ -564,7 +578,10 @@ export default class AddressManager {
         error: normalizeError(err),
       });
 
-      if (this.consecutiveHeartbeatFailures >= AddressManager.MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER) {
+      if (
+        this.consecutiveHeartbeatFailures >=
+        AddressManager.MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
+      ) {
         logger.warn('Too many heartbeat failures — forcing re-registration');
         this.consecutiveHeartbeatFailures = 0;
         try {

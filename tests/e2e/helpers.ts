@@ -7,12 +7,15 @@ export interface FetchResult {
   body: string;
 }
 
-export function fetchUrl(url: string, options?: {
-  method?: string;
-  body?: unknown;
-  headers?: Record<string, string>;
-  timeout?: number;
-}): Promise<FetchResult> {
+export function fetchUrl(
+  url: string,
+  options?: {
+    method?: string;
+    body?: unknown;
+    headers?: Record<string, string>;
+    timeout?: number;
+  }
+): Promise<FetchResult> {
   return new Promise((resolve, reject) => {
     const isHttps = url.startsWith('https');
     const lib = isHttps ? https : http;
@@ -30,7 +33,7 @@ export function fetchUrl(url: string, options?: {
         rejectUnauthorized: false,
         timeout: options?.timeout || 10000,
       },
-      (res) => {
+      res => {
         let data = '';
         res.on('data', (chunk: string) => (data += chunk));
         res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data }));

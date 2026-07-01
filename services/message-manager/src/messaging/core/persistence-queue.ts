@@ -47,7 +47,9 @@ export class PersistenceRetryQueue {
         if (op.retries < this.maxRetries) {
           failed.push({ ...op, retries: op.retries + 1 });
         } else {
-          logger.error('Persistence operation failed after max retries — giving up', { label: op.label });
+          logger.error('Persistence operation failed after max retries — giving up', {
+            label: op.label,
+          });
         }
       }
     }

@@ -16,14 +16,14 @@ Requires MongoDB 7+ running at `MONGODB_URI`.
 
 ## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | HTTPS listen port |
-| `MONGODB_URI` | `mongodb://localhost:27017/audit-logger` | MongoDB connection |
-| `SERVICE_NAME` | `audit-logger-service` | Discovery service name |
-| `ADDRESS_MANAGER_URL` | `https://localhost:8443` | Discovery server URL |
-| `MAX_QUEUE_DEPTH` | `10000` | Max internal queue depth |
-| `AUDIT_RETENTION_DAYS` | `90` | Audit event retention in days |
+| Variable               | Default                                  | Description                   |
+| ---------------------- | ---------------------------------------- | ----------------------------- |
+| `PORT`                 | `3000`                                   | HTTPS listen port             |
+| `MONGODB_URI`          | `mongodb://localhost:27017/audit-logger` | MongoDB connection            |
+| `SERVICE_NAME`         | `audit-logger-service`                   | Discovery service name        |
+| `ADDRESS_MANAGER_URL`  | `https://localhost:8443`                 | Discovery server URL          |
+| `MAX_QUEUE_DEPTH`      | `10000`                                  | Max internal queue depth      |
+| `AUDIT_RETENTION_DAYS` | `90`                                     | Audit event retention in days |
 
 ## API
 

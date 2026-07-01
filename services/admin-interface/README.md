@@ -31,29 +31,29 @@ npm run -w admin-interface dev
 
 ## Scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm run -w admin-interface dev` | Vite dev server with HMR |
-| `npm run -w admin-interface build` | `tsc -b && vite build` |
-| `npm run -w admin-interface preview` | Preview production build |
-| `npm run -w admin-interface test` | Vitest (all tests) |
+| Script                                     | Description               |
+| ------------------------------------------ | ------------------------- |
+| `npm run -w admin-interface dev`           | Vite dev server with HMR  |
+| `npm run -w admin-interface build`         | `tsc -b && vite build`    |
+| `npm run -w admin-interface preview`       | Preview production build  |
+| `npm run -w admin-interface test`          | Vitest (all tests)        |
 | `npm run -w admin-interface test:coverage` | Vitest with 100% coverage |
-| `npm run -w admin-interface lint` | ESLint |
+| `npm run -w admin-interface lint`          | ESLint                    |
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | React 19 |
-| UI Library | MUI 7 (Material-UI) |
-| Build Tool | Vite 6 |
-| TypeScript | TypeScript 6, ESNext modules |
-| Routing | React Router 7 (nested routes) |
-| Charts | Recharts 2 |
-| i18n | i18next + react-i18next (en/fr) |
-| Testing | Vitest 3 + jsdom |
-| Coverage | 100% (statements, branches, functions, lines) |
-| Linting | ESLint 10 (root config) |
+| Layer      | Technology                                    |
+| ---------- | --------------------------------------------- |
+| Framework  | React 19                                      |
+| UI Library | MUI 7 (Material-UI)                           |
+| Build Tool | Vite 6                                        |
+| TypeScript | TypeScript 6, ESNext modules                  |
+| Routing    | React Router 7 (nested routes)                |
+| Charts     | Recharts 2                                    |
+| i18n       | i18next + react-i18next (en/fr)               |
+| Testing    | Vitest 3 + jsdom                              |
+| Coverage   | 100% (statements, branches, functions, lines) |
+| Linting    | ESLint 10 (root config)                       |
 
 ## Project Structure
 
@@ -106,7 +106,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture, component br
 
 ## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `VITE_API_GATEWAY_URL` | `/v1` | Backend API base URL (proxied by Vite/nginx) |
-| `VITE_ADMIN_TOKEN` | `''` | Admin token sent as `x-api-key` header |
+| Variable               | Default | Description                                  |
+| ---------------------- | ------- | -------------------------------------------- |
+| `VITE_API_GATEWAY_URL` | `/v1`   | Backend API base URL (proxied by Vite/nginx) |
+| `VITE_ADMIN_TOKEN`     | `''`    | Admin token sent as `x-api-key` header       |

@@ -77,7 +77,11 @@ export class MessageStore {
 
   private async flushMemoryWal(): Promise<void> {
     if (this.flushingMemoryWal) return;
-    if (this.memoryWalRedisDownSince > 0 && Date.now() - this.memoryWalRedisDownSince < MEMORY_WAL_REDIS_RETRY_AFTER_MS) return;
+    if (
+      this.memoryWalRedisDownSince > 0 &&
+      Date.now() - this.memoryWalRedisDownSince < MEMORY_WAL_REDIS_RETRY_AFTER_MS
+    )
+      return;
     if (this.memoryWalBuffer.length === 0) {
       this.memoryWalBackoff = WAL_FLUSH_RETRY_BASE_MS;
       return;
@@ -101,7 +105,10 @@ export class MessageStore {
           if (anyFailed) {
             this.memoryWalRedisDownSince = Date.now();
             this.memoryWalBackoff = Math.min(this.memoryWalBackoff * 2, WAL_FLUSH_RETRY_MAX_MS);
-            logger.warn('Memory WAL flush partial failure — re-queuing batch', { batchSize: batch.length, backoff: this.memoryWalBackoff });
+            logger.warn('Memory WAL flush partial failure — re-queuing batch', {
+              batchSize: batch.length,
+              backoff: this.memoryWalBackoff,
+            });
             this.memoryWalBuffer.unshift(...batch);
             await this.sleepWithJitter(this.memoryWalBackoff);
             return;
@@ -112,7 +119,11 @@ export class MessageStore {
       } catch (err) {
         this.memoryWalRedisDownSince = Date.now();
         this.memoryWalBackoff = Math.min(this.memoryWalBackoff * 2, WAL_FLUSH_RETRY_MAX_MS);
-        logger.warn('Memory WAL flush failed — re-queuing batch', { batchSize: batch.length, backoff: this.memoryWalBackoff, error: (err as Error).message });
+        logger.warn('Memory WAL flush failed — re-queuing batch', {
+          batchSize: batch.length,
+          backoff: this.memoryWalBackoff,
+          error: (err as Error).message,
+        });
         this.memoryWalBuffer.unshift(...batch);
         await this.sleepWithJitter(this.memoryWalBackoff);
       }
@@ -176,10 +187,16 @@ export class MessageStore {
           const msgId = batch[i];
           const data = batch[i + 1];
           try {
-            const entry = JSON.parse(data) as { topic: string; subscriberUrl: string; message: Message; pendingAt?: number };
-            const age = entry.pendingAt !== undefined
-              ? (now - entry.pendingAt)
-              : (now - new Date(entry.message.metadata.emittedAt ?? 0).getTime());
+            const entry = JSON.parse(data) as {
+              topic: string;
+              subscriberUrl: string;
+              message: Message;
+              pendingAt?: number;
+            };
+            const age =
+              entry.pendingAt !== undefined
+                ? now - entry.pendingAt
+                : now - new Date(entry.message.metadata.emittedAt ?? 0).getTime();
             if (age > maxAgeMs) {
               toDelete.push(msgId);
             }
@@ -191,7 +208,9 @@ export class MessageStore {
 
       if (toDelete.length > 0) {
         await redis.hdel(pendingKey, ...toDelete);
-        logger.info(`Recovered ${toDelete.length} stale pending acks for instance ${ownInstanceId}`);
+        logger.info(
+          `Recovered ${toDelete.length} stale pending acks for instance ${ownInstanceId}`
+        );
       }
       return toDelete.length;
     } catch (err) {
@@ -236,7 +255,10 @@ export class MessageStore {
 
           if (claimable.length > 0) {
             const claimed = await redis.xclaim(
-              streamKey, groupName, consumerId, minIdleMs,
+              streamKey,
+              groupName,
+              consumerId,
+              minIdleMs,
               ...claimable
             );
             total += (claimed as unknown[]).length;
@@ -247,7 +269,9 @@ export class MessageStore {
       }
 
       if (total > 0) {
-        logger.info(`Claimed ${total} pending messages for ${consumerId} across ${topics.length} topics`);
+        logger.info(
+          `Claimed ${total} pending messages for ${consumerId} across ${topics.length} topics`
+        );
       }
       return total;
     } catch (err) {
@@ -259,9 +283,13 @@ export class MessageStore {
         try {
           await redis.eval(
             "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-            1, LOCK_KEY, consumerId
+            1,
+            LOCK_KEY,
+            consumerId
           );
-        } catch { /* best-effort */ }
+        } catch {
+          /* best-effort */
+        }
       }
     }
   }
@@ -416,7 +444,10 @@ export class MessageStore {
           const redis = await getStreamClient();
           const multi = redis.multi();
           for (const entry of removed) {
-            multi.rpush(this.walKey(), JSON.stringify({ topic: entry.topic, serialized: entry.serialized }));
+            multi.rpush(
+              this.walKey(),
+              JSON.stringify({ topic: entry.topic, serialized: entry.serialized })
+            );
           }
           await multi.exec();
           saved = true;
@@ -428,10 +459,13 @@ export class MessageStore {
           const lines = removed.map(e => JSON.stringify(e)).join('\n');
           const fileWritten = await retryFileAppend(env.DLQ_LOCAL_FALLBACK_PATH, lines);
           if (!fileWritten) {
-            logger.error('Memory WAL buffer eviction: all persistence layers exhausted — messages lost', {
-              evictedCount: removed.length,
-              buffer: 'memory-wal',
-            });
+            logger.error(
+              'Memory WAL buffer eviction: all persistence layers exhausted — messages lost',
+              {
+                evictedCount: removed.length,
+                buffer: 'memory-wal',
+              }
+            );
           }
         }
       }
@@ -466,13 +500,22 @@ export class MessageStore {
       const redis = await getStreamClient();
       let consecutiveErrors = 0;
       while (true) {
-        const raw = await redis.eval(ATOMIC_WAL_READ_LUA, 1, this.walKey(), WAL_BATCH_SIZE.toString()) as string[];
+        const raw = (await redis.eval(
+          ATOMIC_WAL_READ_LUA,
+          1,
+          this.walKey(),
+          WAL_BATCH_SIZE.toString()
+        )) as string[];
         if (raw.length === 0) break;
 
         const multi = redis.multi();
         for (const entry of raw) {
           try {
-            const parsed = JSON.parse(entry) as { topic: string; serialized?: string; message?: Message };
+            const parsed = JSON.parse(entry) as {
+              topic: string;
+              serialized?: string;
+              message?: Message;
+            };
             const key = this.streamKey(parsed.topic);
             const data = parsed.serialized ?? safeStringify(parsed.message!);
             multi.xadd(key, 'MAXLEN', '~', env.REDIS_STREAM_MAXLEN, '*', 'data', data);
@@ -489,12 +532,19 @@ export class MessageStore {
             const anyFailed = results.some(r => r[0] !== null);
             if (anyFailed) {
               consecutiveErrors++;
-              logger.warn('WAL flush pipeline: some commands failed — retrying batch', { consecutiveErrors, batchSize: raw.length });
+              logger.warn('WAL flush pipeline: some commands failed — retrying batch', {
+                consecutiveErrors,
+                batchSize: raw.length,
+              });
               if (consecutiveErrors >= 5) {
                 logger.error('WAL flush: too many consecutive errors — switching to memory buffer');
                 for (const entry of raw) {
                   try {
-                    const parsed = JSON.parse(entry) as { topic: string; serialized?: string; message?: Message };
+                    const parsed = JSON.parse(entry) as {
+                      topic: string;
+                      serialized?: string;
+                      message?: Message;
+                    };
                     if (parsed.message) {
                       this.memoryWalBuffer.push({ topic: parsed.topic, message: parsed.message });
                     } else if (parsed.serialized) {
@@ -503,7 +553,9 @@ export class MessageStore {
                         message: JSON.parse(parsed.serialized),
                       });
                     }
-                  } catch { continue; }
+                  } catch {
+                    continue;
+                  }
                 }
               } else {
                 if (raw.length > 0) {
@@ -516,13 +568,19 @@ export class MessageStore {
                   } catch {
                     for (const entry of raw) {
                       try {
-                        const p = JSON.parse(entry) as { topic: string; serialized?: string; message?: Message };
+                        const p = JSON.parse(entry) as {
+                          topic: string;
+                          serialized?: string;
+                          message?: Message;
+                        };
                         this.memoryWalBuffer.push({
                           topic: p.topic,
                           serialized: p.serialized ?? safeStringify(p.message!),
                           message: p.message ?? JSON.parse(p.serialized!),
                         });
-                      } catch { continue; }
+                      } catch {
+                        continue;
+                      }
                     }
                   }
                 }
@@ -536,18 +594,28 @@ export class MessageStore {
         } catch (err) {
           consecutiveErrors++;
           const backoff = Math.min(1000 * Math.pow(2, consecutiveErrors), 30000);
-          logger.error('WAL flush exec failed — retrying', { error: (err as Error).message, consecutiveErrors, backoff });
+          logger.error('WAL flush exec failed — retrying', {
+            error: (err as Error).message,
+            consecutiveErrors,
+            backoff,
+          });
           if (consecutiveErrors >= 5) {
             logger.error('WAL flush: too many consecutive errors — switching to memory buffer');
             for (const entry of raw) {
               try {
-                const parsed = JSON.parse(entry) as { topic: string; serialized?: string; message?: Message };
+                const parsed = JSON.parse(entry) as {
+                  topic: string;
+                  serialized?: string;
+                  message?: Message;
+                };
                 this.memoryWalBuffer.push({
                   topic: parsed.topic,
                   serialized: parsed.serialized ?? safeStringify(parsed.message!),
                   message: parsed.message ?? JSON.parse(parsed.serialized!),
                 });
-              } catch { continue; }
+              } catch {
+                continue;
+              }
             }
           } else {
             if (raw.length > 0) {
@@ -560,13 +628,19 @@ export class MessageStore {
               } catch {
                 for (const entry of raw) {
                   try {
-                    const p = JSON.parse(entry) as { topic: string; serialized?: string; message?: Message };
+                    const p = JSON.parse(entry) as {
+                      topic: string;
+                      serialized?: string;
+                      message?: Message;
+                    };
                     this.memoryWalBuffer.push({
                       topic: p.topic,
                       serialized: p.serialized ?? safeStringify(p.message!),
                       message: p.message ?? JSON.parse(p.serialized!),
                     });
-                  } catch { continue; }
+                  } catch {
+                    continue;
+                  }
                 }
               }
             }
@@ -586,7 +660,11 @@ export class MessageStore {
       }
       const waiters = this.walFlushWaiters.splice(0);
       for (const w of waiters) {
-        try { w(); } catch { /* best-effort */ }
+        try {
+          w();
+        } catch {
+          /* best-effort */
+        }
       }
     }
   }
@@ -604,7 +682,7 @@ export class MessageStore {
 
       await this.flushWal();
 
-      return new Promise<void>((resolve) => {
+      return new Promise<void>(resolve => {
         const timer = setTimeout(() => {
           if (this.walDrainGen === gen) {
             this.walDrainResolve = null;
@@ -686,19 +764,17 @@ export class MessageStore {
     return (result?.pending as number) || 0;
   }
 
-  async getMessagesAfter(
-    topic: string,
-    afterTimestamp: number,
-    limit = 100
-  ): Promise<Message[]> {
+  async getMessagesAfter(topic: string, afterTimestamp: number, limit = 100): Promise<Message[]> {
     const redis = await getStreamClient();
     const minId = `${afterTimestamp}-0`;
     const results = await redis.xrange(this.streamKey(topic), minId, '+', 'COUNT', limit);
-    return results.map(([, fields]) => {
-      const dataIdx = fields.indexOf('data');
-      if (dataIdx === -1) return null;
-      return JSON.parse(fields[dataIdx + 1]) as Message;
-    }).filter(Boolean) as Message[];
+    return results
+      .map(([, fields]) => {
+        const dataIdx = fields.indexOf('data');
+        if (dataIdx === -1) return null;
+        return JSON.parse(fields[dataIdx + 1]) as Message;
+      })
+      .filter(Boolean) as Message[];
   }
 
   async getMessagesBetween(
@@ -711,11 +787,13 @@ export class MessageStore {
     const minId = `${fromMs}-0`;
     const maxId = `${toMs}-0`;
     const results = await redis.xrange(this.streamKey(topic), minId, maxId, 'COUNT', limit);
-    return results.map(([, fields]) => {
-      const dataIdx = fields.indexOf('data');
-      if (dataIdx === -1) return null;
-      return JSON.parse(fields[dataIdx + 1]) as Message;
-    }).filter(Boolean) as Message[];
+    return results
+      .map(([, fields]) => {
+        const dataIdx = fields.indexOf('data');
+        if (dataIdx === -1) return null;
+        return JSON.parse(fields[dataIdx + 1]) as Message;
+      })
+      .filter(Boolean) as Message[];
   }
 
   async addPendingAck(
@@ -737,14 +815,19 @@ export class MessageStore {
     await redis.hdel(this.pendingKey(instanceId), messageId);
   }
 
-  async getPendingAcks(instanceId: string): Promise<
-    Record<string, { topic: string; subscriberUrl: string; message: Message }>
-  > {
+  async getPendingAcks(
+    instanceId: string
+  ): Promise<Record<string, { topic: string; subscriberUrl: string; message: Message }>> {
     const redis = await getStreamClient();
     const result: Record<string, { topic: string; subscriberUrl: string; message: Message }> = {};
     let cursor = '0';
     do {
-      const [nextCursor, batch] = await redis.hscan(this.pendingKey(instanceId), cursor, 'COUNT', 200);
+      const [nextCursor, batch] = await redis.hscan(
+        this.pendingKey(instanceId),
+        cursor,
+        'COUNT',
+        200
+      );
       cursor = nextCursor;
       for (let i = 0; i < batch.length; i += 2) {
         try {

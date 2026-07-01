@@ -359,9 +359,7 @@ export const mockMyServiceConfig = {
 export const mockApiResponse = {
   id: '123',
   status: 'success',
-  data: {
-    /* ... */
-  },
+  data: {/* ... */},
 };
 
 export const mockErrorResponse = {

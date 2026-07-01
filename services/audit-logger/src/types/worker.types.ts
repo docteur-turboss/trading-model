@@ -33,9 +33,7 @@ export interface WorkerWsDisconnectMessage {
 }
 
 export type WorkerIncomingMessage =
-  | WorkerWsRegisterMessage
-  | WorkerWsHeartbeatMessage
-  | WorkerWsDisconnectMessage;
+  WorkerWsRegisterMessage | WorkerWsHeartbeatMessage | WorkerWsDisconnectMessage;
 
 export interface SchedulerWsJobAssignedMessage {
   type: 'job.assigned';
@@ -56,6 +54,4 @@ export interface SchedulerWsDrainMessage {
 }
 
 export type SchedulerOutgoingMessage =
-  | SchedulerWsJobAssignedMessage
-  | SchedulerWsHeartbeatAckMessage
-  | SchedulerWsDrainMessage;
+  SchedulerWsJobAssignedMessage | SchedulerWsHeartbeatAckMessage | SchedulerWsDrainMessage;

@@ -62,6 +62,7 @@ kubectl apply -k deploy/k8s/secrets/
 ```
 
 For production, use SealedSecrets or an external secrets operator:
+
 ```bash
 # Example with Bitnami SealedSecrets
 kubeseal < deploy/k8s/secrets/secrets.yaml > deploy/k8s/secrets/sealed-secrets.yaml
@@ -90,17 +91,20 @@ kubectl apply -k deploy/k8s/
 ## Deployment Strategy
 
 ### Standard deployment
+
 ```bash
 ./deploy/k8s/scripts/deploy-k8s.sh apply <service-name>
 ```
 
 ### Canary deployment
+
 ```bash
 # Deploy to 10% of instances first, monitor, then full rollout
 ./deploy/k8s/scripts/deploy-k8s.sh canary <service-name> 10
 ```
 
 ### Rollback
+
 ```bash
 # Rollback to previous version
 ./deploy/k8s/scripts/deploy-k8s.sh rollback <service-name>
@@ -113,21 +117,23 @@ kubectl rollout history -n trading-model deployment/<service-name>
 ## Scaling
 
 ### Autoscaling
+
 HPAs are configured for all services in their respective ConfigMap manifests:
 
-| Service | Min | Max | Metric |
-|---------|-----|-----|--------|
-| discovery-server | 3 | 10 | CPU 70%, Memory 75% |
-| message-manager | 3 | 12 | CPU 65%, Memory 70%, Queue depth |
-| api-gateway | 2 | 8 | CPU 70%, Memory 75% |
-| certificate-authority | 2 | 4 | CPU 70% |
-| financial-scraper | 2 | 6 | CPU 70% |
-| trader-trainer | 1 | 3 | CPU 80% |
-| audit-logger | 2 | 5 | CPU 70% |
-| dlq-service | 2 | 4 | CPU 70% |
-| admin-interface | 2 | 5 | CPU 70% |
+| Service               | Min | Max | Metric                           |
+| --------------------- | --- | --- | -------------------------------- |
+| discovery-server      | 3   | 10  | CPU 70%, Memory 75%              |
+| message-manager       | 3   | 12  | CPU 65%, Memory 70%, Queue depth |
+| api-gateway           | 2   | 8   | CPU 70%, Memory 75%              |
+| certificate-authority | 2   | 4   | CPU 70%                          |
+| financial-scraper     | 2   | 6   | CPU 70%                          |
+| trader-trainer        | 1   | 3   | CPU 80%                          |
+| audit-logger          | 2   | 5   | CPU 70%                          |
+| dlq-service           | 2   | 4   | CPU 70%                          |
+| admin-interface       | 2   | 5   | CPU 70%                          |
 
 ### Manual scaling
+
 ```bash
 kubectl scale deployment -n trading-model <service-name> --replicas=5
 ```
@@ -135,12 +141,14 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 ## Infrastructure Components
 
 ### MySQL
+
 - StatefulSet with 1 replica
 - 10Gi PVC for data persistence
 - Initial schema loaded via ConfigMap
 - PodDisruptionBudget: minAvailable 1
 
 ### MongoDB (Replica Set)
+
 - StatefulSet with 3 replicas
 - 20Gi PVC per replica
 - Replica set initialized via init Job
@@ -148,12 +156,14 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 - PodDisruptionBudget: minAvailable 2
 
 ### Redis + Sentinel
+
 - Redis primary: StatefulSet, 1 replica, 10Gi PVC
 - Redis sentinel: StatefulSet, 3 replicas, anti-affinity
 - Sentinel configuration via ConfigMap
 - Services for primary and sentinel discovery
 
 ### Observability Stack
+
 - **OpenTelemetry Collector:** 2 replicas, accepts OTLP HTTP
 - **Jaeger:** 1 replica, OTLP gRPC receiver
 - **Prometheus:** StatefulSet, 50Gi PVC, 30d retention, mTLS scrape
@@ -162,17 +172,21 @@ kubectl scale deployment -n trading-model <service-name> --replicas=5
 ## Security
 
 ### Network Policies
+
 All services have NetworkPolicies that restrict ingress/egress:
+
 - Ingress: only from `trading-model` namespace (except api-gateway and admin-interface)
 - Egress: only to required infrastructure ports
 - External egress: only for financial-scraper (Binance API)
 
 ### Secrets Management
+
 - **Development:** Kubernetes Secrets with generator values
 - **Production:** Use SealedSecrets, External Secrets Operator, or Vault
 - **TLS certificates:** Managed via cert-manager ClusterIssuer + K8s Secrets
 
 ### Service Accounts
+
 Each service has a dedicated ServiceAccount with `automountServiceAccountToken: false` (no pods need K8s API access).
 
 ## Known Limitations (current version)

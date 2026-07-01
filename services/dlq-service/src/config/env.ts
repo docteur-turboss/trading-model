@@ -15,11 +15,17 @@ const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape).extend(
   MAX_ENTRIES: z.coerce.number().int().positive().default(100000),
   DLQ_RETRY_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(100).default(5),
   MESSAGE_MANAGER_URL: z.string().optional(),
-  DLQ_AUTH_HMAC_SECRET: z.string().min(16, 'DLQ_AUTH_HMAC_SECRET must be at least 16 characters').optional(),
+  DLQ_AUTH_HMAC_SECRET: z
+    .string()
+    .min(16, 'DLQ_AUTH_HMAC_SECRET must be at least 16 characters')
+    .optional(),
   DLQ_AUTH_HMAC_SECRET_PATH: z.string().optional(),
   DLQ_ALLOWED_SERVICES: z.string().default('message-manager,admin'),
   DLQ_PRUNE_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
-  DLQ_AUTO_RETRY_ENABLED: z.string().default('false').transform(v => v === 'true' || v === '1'),
+  DLQ_AUTO_RETRY_ENABLED: z
+    .string()
+    .default('false')
+    .transform(v => v === 'true' || v === '1'),
   DLQ_AUTO_RETRY_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
   DLQ_AUTO_RETRY_LIMIT: z.coerce.number().int().positive().max(100).default(50),
   REDIS_URL: z.string().optional(),

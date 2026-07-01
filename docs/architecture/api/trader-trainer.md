@@ -36,9 +36,7 @@ Training service for trading agents using genetic algorithms and neural networks
 ```json
 {
   "data": {
-    "agent": {
-      /* best agent summary */
-    },
+    "agent": {/* best agent summary */},
     "training": true,
     "symbol": "BTCUSDT",
     "generation": 42

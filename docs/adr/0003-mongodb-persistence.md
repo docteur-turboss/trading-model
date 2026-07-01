@@ -6,6 +6,7 @@
 ## Context
 
 Three services require persistent storage:
+
 - **audit-logger**: Immutable event stream with flexible query patterns
 - **certificate-authority**: Certificate metadata, CRL entries, CA key storage
 - **dlq-service**: Dead letter messages with replay metadata
@@ -24,11 +25,11 @@ Each service uses a separate database within the same MongoDB instance:
 
 ## Alternatives Considered
 
-| Alternative | Reason for Rejection |
-|---|---|
-| PostgreSQL | Schema rigidity; JSONB queries less ergonomic for audit logs |
-| Separate MongoDB per service | Operational overhead of managing 3 DB clusters |
-| SQLite | Not network-accessible; no replication |
+| Alternative                  | Reason for Rejection                                         |
+| ---------------------------- | ------------------------------------------------------------ |
+| PostgreSQL                   | Schema rigidity; JSONB queries less ergonomic for audit logs |
+| Separate MongoDB per service | Operational overhead of managing 3 DB clusters               |
+| SQLite                       | Not network-accessible; no replication                       |
 
 ## Consequences
 

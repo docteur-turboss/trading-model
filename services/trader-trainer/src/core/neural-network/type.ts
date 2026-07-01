@@ -22,14 +22,7 @@ export type NormalisationType =
   | 'none';
 
 export type ActivationType =
-  | 'sigmoid'
-  | 'tanh'
-  | 'ReLu'
-  | 'leakyReLu'
-  | 'GELU'
-  | 'softmax'
-  | 'ELU'
-  | 'mish';
+  'sigmoid' | 'tanh' | 'ReLu' | 'leakyReLu' | 'GELU' | 'softmax' | 'ELU' | 'mish';
 
 export type ConnectionType = 'fully-connected' | 'dense-skip' | 'residual-connection';
 export type InitialisationType = 'zeros' | 'leCun' | 'he' | 'xavier' | 'random';

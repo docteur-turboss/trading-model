@@ -11,7 +11,9 @@ const IV_LENGTH = 12;
 function deriveKey(base64Key: string): Buffer {
   const key = Buffer.from(base64Key, 'base64');
   if (key.length !== 32) {
-    throw new Error(`FS_ENCRYPTION_KEY must be 32 bytes (got ${key.length}). Generate with: node -e "console.log(crypto.randomBytes(32).toString('base64'))"`);
+    throw new Error(
+      `FS_ENCRYPTION_KEY must be 32 bytes (got ${key.length}). Generate with: node -e "console.log(crypto.randomBytes(32).toString('base64'))"`
+    );
   }
   return key;
 }
@@ -56,13 +58,15 @@ export class FsStore {
       } else if (process.env.NODE_ENV === 'production') {
         throw new Error(
           'FsStore: FS_ENCRYPTION_KEY is required in production for encrypted fallback storage. ' +
-          'Generate with: node -e "console.log(crypto.randomBytes(32).toString(\'base64\'))". ' +
-          'To disable the filesystem fallback entirely (relying solely on MongoDB), set CA_DISABLE_FS_FALLBACK=true. ' +
-          'Note: disabling FsStore means the CA will crash if MongoDB becomes unavailable.'
+            'Generate with: node -e "console.log(crypto.randomBytes(32).toString(\'base64\'))". ' +
+            'To disable the filesystem fallback entirely (relying solely on MongoDB), set CA_DISABLE_FS_FALLBACK=true. ' +
+            'Note: disabling FsStore means the CA will crash if MongoDB becomes unavailable.'
         );
       } else {
         this.encryptionKey = null;
-        logger.warn('FsStore: FS_ENCRYPTION_KEY not set — fallback data stored unencrypted. Acceptable for dev only.');
+        logger.warn(
+          'FsStore: FS_ENCRYPTION_KEY not set — fallback data stored unencrypted. Acceptable for dev only.'
+        );
       }
     } else {
       this.encryptionKey = null;
@@ -73,7 +77,10 @@ export class FsStore {
   async init(): Promise<void> {
     if (this.disabled) return;
     await fs.mkdir(this.baseDir, { recursive: true });
-    logger.info('FsStore initialized', { baseDir: this.baseDir, encrypted: this.encryptionKey !== null });
+    logger.info('FsStore initialized', {
+      baseDir: this.baseDir,
+      encrypted: this.encryptionKey !== null,
+    });
   }
 
   private filePath(key: string): string {
@@ -119,7 +126,10 @@ export class FsStore {
           const decrypted = this.encryptionKey ? decrypt(raw, this.encryptionKey) : raw;
           results.push(JSON.parse(decrypted) as T);
         } catch (err) {
-          logger.warn('Skipping corrupted fallback file', { file, err: normalizeError(err as Error) });
+          logger.warn('Skipping corrupted fallback file', {
+            file,
+            err: normalizeError(err as Error),
+          });
         }
       }
       return results;

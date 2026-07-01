@@ -4,7 +4,6 @@ import { logger } from '@trading-model/common/config/logger';
 
 import { MongoManager } from './mongo-manager';
 
-
 export interface AuditEntry {
   action: 'sign' | 'revoke' | 'renew' | 'rotate' | 'ca_key_rotation';
   serviceId: string;
@@ -27,9 +26,7 @@ export class AuditStore {
   private readonly BATCH_SIZE = 200;
 
   constructor(private uri: string) {
-    this.client = MongoManager.isInitialized()
-      ? MongoManager.getClient()
-      : new MongoClient(uri);
+    this.client = MongoManager.isInitialized() ? MongoManager.getClient() : new MongoClient(uri);
     this.startFlushTimer();
   }
 
@@ -68,12 +65,16 @@ export class AuditStore {
       this.flushTimer = null;
     }
     if (!MongoManager.isInitialized()) {
-      try { await this.client.close(); } catch { /* closing */ }
+      try {
+        await this.client.close();
+      } catch {
+        /* closing */
+      }
     }
   }
 
   async log(entry: AuditEntry): Promise<void> {
-    if (!await this.ensureMongo() || !this.collection) {
+    if (!(await this.ensureMongo()) || !this.collection) {
       this.buffer(entry);
       return;
     }
@@ -89,7 +90,10 @@ export class AuditStore {
   private buffer(entry: AuditEntry): void {
     if (this.pendingEntries.length >= this.MAX_BUFFER) {
       const dropped = this.pendingEntries.shift()!;
-      logger.warn('AuditStore: buffer full, dropping oldest entry', { action: dropped.action, serialNumber: dropped.serialNumber });
+      logger.warn('AuditStore: buffer full, dropping oldest entry', {
+        action: dropped.action,
+        serialNumber: dropped.serialNumber,
+      });
     }
     this.pendingEntries.push(entry);
   }
@@ -103,7 +107,7 @@ export class AuditStore {
 
   private async flush(): Promise<void> {
     if (this.pendingEntries.length === 0) return;
-    if (!await this.ensureMongo() || !this.collection) return;
+    if (!(await this.ensureMongo()) || !this.collection) return;
 
     const batch = this.pendingEntries.splice(0, this.BATCH_SIZE);
     try {

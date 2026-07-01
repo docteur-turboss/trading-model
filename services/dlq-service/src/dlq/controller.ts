@@ -50,9 +50,15 @@ let autoRetryStartTimer: ReturnType<typeof setTimeout> | null = null;
 let redisRetryTimer: ReturnType<typeof setTimeout> | null = null;
 export class ActiveReplayCounter {
   private _count = 0;
-  get count(): number { return this._count; }
-  increment(): void { this._count++; }
-  decrement(): void { if (this._count > 0) this._count--; }
+  get count(): number {
+    return this._count;
+  }
+  increment(): void {
+    this._count++;
+  }
+  decrement(): void {
+    if (this._count > 0) this._count--;
+  }
 }
 export const activeReplays = new ActiveReplayCounter();
 let activeBatches = 0;
@@ -83,7 +89,9 @@ export async function reloadHttpClientTls(): Promise<void> {
       await client.reloadTlsPaths();
       logger.info('HTTP client TLS certificates reloaded');
     } catch (err) {
-      logger.error('Failed to reload HTTP client TLS certificates', { error: (err as Error).message });
+      logger.error('Failed to reload HTTP client TLS certificates', {
+        error: (err as Error).message,
+      });
     }
   }
 }
@@ -136,19 +144,35 @@ function recordMMResult(success: boolean): void {
       mmHalfOpenAttempts++;
       if (mmHalfOpenAttempts >= MM_CIRCUIT_HALF_OPEN_MAX_ATTEMPTS) {
         mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
-        logger.warn('Message-manager circuit breaker re-opened during half-open', { failures: mmCircuitFailures, halfOpenAttempts: mmHalfOpenAttempts, resetMs: MM_CIRCUIT_RESET_MS });
+        logger.warn('Message-manager circuit breaker re-opened during half-open', {
+          failures: mmCircuitFailures,
+          halfOpenAttempts: mmHalfOpenAttempts,
+          resetMs: MM_CIRCUIT_RESET_MS,
+        });
       }
     }
     if (mmCircuitFailures >= MM_CIRCUIT_THRESHOLD) {
       mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
-      logger.warn('Message-manager circuit breaker opened', { failures: mmCircuitFailures, resetMs: MM_CIRCUIT_RESET_MS });
+      logger.warn('Message-manager circuit breaker opened', {
+        failures: mmCircuitFailures,
+        resetMs: MM_CIRCUIT_RESET_MS,
+      });
     }
   }
 }
 
-async function doReplayBatch(entries: Array<{ id: string; message: unknown }>, messageManagerUrl: string, batchId: string, instanceId: string): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
+async function doReplayBatch(
+  entries: Array<{ id: string; message: unknown }>,
+  messageManagerUrl: string,
+  batchId: string,
+  instanceId: string
+): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
   if (activeBatches >= MAX_CONCURRENT_BATCHES) {
-    logger.warn('Too many concurrent replay batches — rejecting', { batchId, entryCount: entries.length, activeBatches });
+    logger.warn('Too many concurrent replay batches — rejecting', {
+      batchId,
+      entryCount: entries.length,
+      activeBatches,
+    });
     const errors = entries.map(e => ({ id: e.id, error: 'Too many concurrent replay batches' }));
     return { success: 0, errors };
   }
@@ -159,8 +183,14 @@ async function doReplayBatch(entries: Array<{ id: string; message: unknown }>, m
     const REPLAY_TIMEOUT_MS = 10_000;
 
     if (isMMCircuitOpen() && entries.length > 0) {
-      logger.warn('Message-manager circuit breaker open — rejecting replay batch', { batchId, entryCount: entries.length });
-      const errors = entries.map(e => ({ id: e.id, error: 'Message-manager circuit breaker open' }));
+      logger.warn('Message-manager circuit breaker open — rejecting replay batch', {
+        batchId,
+        entryCount: entries.length,
+      });
+      const errors = entries.map(e => ({
+        id: e.id,
+        error: 'Message-manager circuit breaker open',
+      }));
       return { success: 0, errors };
     }
 
@@ -177,38 +207,55 @@ async function doReplayBatch(entries: Array<{ id: string; message: unknown }>, m
             (async () => {
               let delivered = false;
               try {
-              activeReplays.increment();
-              if (shuttingDown) throw new Error('Server shutting down');
-                await client.post(
-                  `${messageManagerUrl}/message`,
-                  entry.message,
-                  {
-                    timeoutMs: REPLAY_TIMEOUT_MS,
-                    serviceName: ServiceInstanceName.MessageDeliveryService,
-                    retryCount: 3,
-                  }
-                );
+                activeReplays.increment();
+                if (shuttingDown) throw new Error('Server shutting down');
+                await client.post(`${messageManagerUrl}/message`, entry.message, {
+                  timeoutMs: REPLAY_TIMEOUT_MS,
+                  serviceName: ServiceInstanceName.MessageDeliveryService,
+                  retryCount: 3,
+                });
                 delivered = true;
                 await dlqRepository.markRetried(entry.id, instanceId, batchId, true);
               } catch (err) {
                 if (batchTimedOut) throw err;
                 if (delivered) {
-                  logger.warn('Message delivered but failed to mark as completed — releasing claim', { entryId: entry.id, error: (err as Error).message });
+                  logger.warn(
+                    'Message delivered but failed to mark as completed — releasing claim',
+                    { entryId: entry.id, error: (err as Error).message }
+                  );
                   await dlqRepository.releaseClaimWithoutCount(entry.id).catch(e => {
-                    logger.error('CRITICAL: Failed to release claim after successful delivery', { entryId: entry.id, error: (e as Error).message });
+                    logger.error('CRITICAL: Failed to release claim after successful delivery', {
+                      entryId: entry.id,
+                      error: (e as Error).message,
+                    });
                   });
                   return;
                 } else {
                   const httpError = (err as Error).message;
                   try {
-                    await dlqRepository.markRetried(entry.id, instanceId, batchId, false, httpError);
+                    await dlqRepository.markRetried(
+                      entry.id,
+                      instanceId,
+                      batchId,
+                      false,
+                      httpError
+                    );
                   } catch (markErr) {
-                    logger.error('Failed to mark entry as failed — releasing claim without count', { entryId: entry.id, error: (markErr as Error).message });
+                    logger.error('Failed to mark entry as failed — releasing claim without count', {
+                      entryId: entry.id,
+                      error: (markErr as Error).message,
+                    });
                     await dlqRepository.incrementRetryCount(entry.id).catch(e => {
-                      logger.error('CRITICAL: Failed to increment retryCount after markRetried failure', { entryId: entry.id, error: (e as Error).message });
+                      logger.error(
+                        'CRITICAL: Failed to increment retryCount after markRetried failure',
+                        { entryId: entry.id, error: (e as Error).message }
+                      );
                     });
                     await dlqRepository.releaseClaimWithoutCount(entry.id).catch(e => {
-                      logger.error('CRITICAL: Failed to release claim after error', { entryId: entry.id, error: (e as Error).message });
+                      logger.error('CRITICAL: Failed to release claim after error', {
+                        entryId: entry.id,
+                        error: (e as Error).message,
+                      });
                     });
                   }
                 }
@@ -228,7 +275,10 @@ async function doReplayBatch(entries: Array<{ id: string; message: unknown }>, m
             hasSuccess = true;
           } else {
             hasFailure = true;
-            errors.push({ id: entry?.id ?? 'unknown', error: (result.reason as Error)?.message ?? 'unknown error' });
+            errors.push({
+              id: entry?.id ?? 'unknown',
+              error: (result.reason as Error)?.message ?? 'unknown error',
+            });
             logger.error('DLQ replay entry failed', {
               entryId: entry?.id,
               error: (result.reason as Error)?.message,
@@ -239,11 +289,15 @@ async function doReplayBatch(entries: Array<{ id: string; message: unknown }>, m
       }
     })();
 
-    let timeoutHandle: ReturnType<typeof setTimeout> = undefined as unknown as ReturnType<typeof setTimeout>;
-    const timeoutPromise = new Promise<void>((resolve) => {
+    let timeoutHandle: ReturnType<typeof setTimeout> = undefined as unknown as ReturnType<
+      typeof setTimeout
+    >;
+    const timeoutPromise = new Promise<void>(resolve => {
       timeoutHandle = setTimeout(() => {
         batchTimedOut = true;
-        logger.warn('DLQ batch replay timeout — stopping new requests, waiting for in-flight', { batchId });
+        logger.warn('DLQ batch replay timeout — stopping new requests, waiting for in-flight', {
+          batchId,
+        });
         resolve();
       }, REPLAY_BATCH_TIMEOUT_MS);
     });
@@ -266,7 +320,11 @@ async function doReplayBatch(entries: Array<{ id: string; message: unknown }>, m
   }
 }
 
-async function notifyAddAudit(id: string, topic: string | undefined, reason: string | undefined): Promise<void> {
+async function notifyAddAudit(
+  id: string,
+  topic: string | undefined,
+  reason: string | undefined
+): Promise<void> {
   notifyAudit({
     timestamp: new Date().toISOString(),
     topic: topic ?? 'unknown',
@@ -277,7 +335,12 @@ async function notifyAddAudit(id: string, topic: string | undefined, reason: str
   }).catch(() => {});
 }
 
-async function notifyReplayAudit(batchId: string, topic: string | undefined, success: number, failed: number): Promise<void> {
+async function notifyReplayAudit(
+  batchId: string,
+  topic: string | undefined,
+  success: number,
+  failed: number
+): Promise<void> {
   if (success === 0 && failed === 0) return;
   notifyAudit({
     timestamp: new Date().toISOString(),
@@ -337,7 +400,13 @@ export const AddEntry = catchSync(async req => {
       if (!isDbConnected()) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: 'Storage unavailable' });
         span.end();
-        return sendResponse({ error: 'Storage unavailable — message not persisted. Retry later.', code: 'STORAGE_UNAVAILABLE' }, 503);
+        return sendResponse(
+          {
+            error: 'Storage unavailable — message not persisted. Retry later.',
+            code: 'STORAGE_UNAVAILABLE',
+          },
+          503
+        );
       }
 
       const id = await dlqRepository.add(parsed.data);
@@ -352,7 +421,10 @@ export const AddEntry = catchSync(async req => {
           }),
         ]);
       } catch (err) {
-        logger.warn('Failed to push entry to Redis queue', { entryId: id, error: (err as Error)?.message });
+        logger.warn('Failed to push entry to Redis queue', {
+          entryId: id,
+          error: (err as Error)?.message,
+        });
       }
       notifyAddAudit(id, parsed.data.topic, parsed.data.reason);
       span.setStatus({ code: SpanStatusCode.OK });
@@ -364,11 +436,19 @@ export const AddEntry = catchSync(async req => {
         span.end();
         return sendResponse({ error: 'DLQ capacity limit reached, entry rejected' }, 429);
       }
-      logger.error('Failed to persist DLQ entry — storage error', { error: normalizeError(err).message });
+      logger.error('Failed to persist DLQ entry — storage error', {
+        error: normalizeError(err).message,
+      });
       span.recordException(err as Error);
       span.setStatus({ code: SpanStatusCode.ERROR, message: (err as Error).message });
       span.end();
-      return sendResponse({ error: 'Storage unavailable — message not persisted. Retry later.', code: 'STORAGE_UNAVAILABLE' }, 503);
+      return sendResponse(
+        {
+          error: 'Storage unavailable — message not persisted. Retry later.',
+          code: 'STORAGE_UNAVAILABLE',
+        },
+        503
+      );
     }
   });
 });
@@ -411,12 +491,18 @@ export const ReadyCheck = catchSync(async _req => {
   }
   const missingIndexes = getMissingCriticalIndexes();
   if (missingIndexes.length > 0) {
-    return sendResponse({ status: 'degraded', reason: `Missing critical indexes: ${missingIndexes.join(', ')}` }, 503);
+    return sendResponse(
+      { status: 'degraded', reason: `Missing critical indexes: ${missingIndexes.join(', ')}` },
+      503
+    );
   }
   const redisOk = dlqRedisQueue.isAvailable();
   const status = redisOk ? 'ready' : 'degraded';
   const count = await dlqRepository.count();
-  return sendResponse({ status, entries: count, redis: redisOk ? 'connected' : 'unavailable' }, 200);
+  return sendResponse(
+    { status, entries: count, redis: redisOk ? 'connected' : 'unavailable' },
+    200
+  );
 });
 
 export const ReplayEntries = catchSync(async req => {
@@ -434,15 +520,26 @@ export const ReplayEntries = catchSync(async req => {
 
       const messageManagerUrl = await resolveMessageManagerUrl();
       if (!messageManagerUrl) {
-        span.setStatus({ code: SpanStatusCode.ERROR, message: 'Cannot resolve message-manager URL' });
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: 'Cannot resolve message-manager URL',
+        });
         span.end();
-        return sendResponse({ error: 'Cannot resolve message-manager URL (no env var, no address-manager)' }, 500);
+        return sendResponse(
+          { error: 'Cannot resolve message-manager URL (no env var, no address-manager)' },
+          500
+        );
       }
 
       const batchId = parsed.data.batchId || randomUUID();
       span.setAttribute('batchId', batchId);
       await dlqRepository.releaseStaleClaims();
-      const entries = await dlqRepository.claimEntriesForRetry(parsed.data.limit, batchId, env.INSTANCE_ID, parsed.data.topic);
+      const entries = await dlqRepository.claimEntriesForRetry(
+        parsed.data.limit,
+        batchId,
+        env.INSTANCE_ID,
+        parsed.data.topic
+      );
       if (entries.length === 0) {
         span.setStatus({ code: SpanStatusCode.OK });
         span.end();
@@ -469,7 +566,11 @@ export const ReplayEntries = catchSync(async req => {
       span.setAttribute('replayed', successCount);
       span.setAttribute('failed', errors.length);
 
-      const details: Record<string, unknown> = { batchId, replayed: successCount, failed: errors.length };
+      const details: Record<string, unknown> = {
+        batchId,
+        replayed: successCount,
+        failed: errors.length,
+      };
       if (errors.length > 0) details.errors = errors;
       if (successCount > 0) metrics.entriesReplayed.inc(successCount);
       if (errors.length > 0) metrics.entriesReplayFailed.inc(errors.length);
@@ -534,7 +635,11 @@ export async function autoRetryTick(): Promise<void> {
 
   const batchId = `auto-retry-${Date.now()}-${randomUUID().slice(0, 8)}`;
   const topic = undefined;
-  const entries = await dlqRepository.claimEntriesForRetry(env.DLQ_AUTO_RETRY_LIMIT, batchId, env.INSTANCE_ID);
+  const entries = await dlqRepository.claimEntriesForRetry(
+    env.DLQ_AUTO_RETRY_LIMIT,
+    batchId,
+    env.INSTANCE_ID
+  );
   if (entries.length === 0) {
     const abandoned = await dlqRepository.abandonExhaustedEntries();
     if (abandoned > 0) {
@@ -616,7 +721,12 @@ async function processRedisQueue(): Promise<void> {
   if (entries.length === 0) return;
 
   logger.info(`DLQ Redis queue: replaying ${entries.length} entries`);
-  const { success, errors } = await doReplayBatch(entries, messageManagerUrl, batchId, env.INSTANCE_ID);
+  const { success, errors } = await doReplayBatch(
+    entries,
+    messageManagerUrl,
+    batchId,
+    env.INSTANCE_ID
+  );
 
   if (success > 0) metrics.entriesReplayed.inc(success);
   if (errors.length > 0) metrics.entriesReplayFailed.inc(errors.length);
@@ -707,20 +817,28 @@ export async function shutdownSchedulers(): Promise<void> {
   stopPeriodicPrune();
   stopAutoRetry();
 
-    if (activeReplays.count > 0) {
-      logger.info(`Waiting for ${activeReplays.count} in-flight replays to complete`);
-      const drainTimeout = 10_000;
-      const deadline = Date.now() + drainTimeout;
-      while (activeReplays.count > 0 && Date.now() < deadline) {
-        await new Promise<void>(r => { const t = setTimeout(r, 100); t.unref(); });
-      }
-      if (activeReplays.count > 0) {
-        logger.warn(`${activeReplays.count} replays did not complete within drain timeout — releasing their claims`);
-        await dlqRepository.releaseAllActiveClaims();
-        await new Promise<void>(r => { const t = setTimeout(r, 500); t.unref(); });
-        await dlqRepository.releaseAllActiveClaims();
-      }
+  if (activeReplays.count > 0) {
+    logger.info(`Waiting for ${activeReplays.count} in-flight replays to complete`);
+    const drainTimeout = 10_000;
+    const deadline = Date.now() + drainTimeout;
+    while (activeReplays.count > 0 && Date.now() < deadline) {
+      await new Promise<void>(r => {
+        const t = setTimeout(r, 100);
+        t.unref();
+      });
     }
+    if (activeReplays.count > 0) {
+      logger.warn(
+        `${activeReplays.count} replays did not complete within drain timeout — releasing their claims`
+      );
+      await dlqRepository.releaseAllActiveClaims();
+      await new Promise<void>(r => {
+        const t = setTimeout(r, 500);
+        t.unref();
+      });
+      await dlqRepository.releaseAllActiveClaims();
+    }
+  }
 
   const releasedCount = await dlqRepository.releaseClaimsByInstance(env.INSTANCE_ID);
   if (releasedCount > 0 && dlqRedisQueue.isAvailable()) {

@@ -16,13 +16,7 @@ export class DistributedLock {
   }
 
   async acquire(instanceId: string): Promise<boolean> {
-    const acquired = await this.redis.set(
-      this.key,
-      instanceId,
-      'EX',
-      LOCK_TTL,
-      'NX'
-    );
+    const acquired = await this.redis.set(this.key, instanceId, 'EX', LOCK_TTL, 'NX');
     if (acquired === 'OK') {
       this.startRenewal(instanceId);
       return true;
@@ -32,13 +26,16 @@ export class DistributedLock {
 
   private startRenewal(instanceId: string): void {
     if (this.renewalInterval) clearInterval(this.renewalInterval);
-    this.renewalInterval = setInterval(async () => {
-      try {
-        await this.redis.set(this.key, instanceId, 'EX', LOCK_TTL, 'XX');
-      } catch {
-        // Logged by caller
-      }
-    }, (LOCK_TTL / 2) * 1000);
+    this.renewalInterval = setInterval(
+      async () => {
+        try {
+          await this.redis.set(this.key, instanceId, 'EX', LOCK_TTL, 'XX');
+        } catch {
+          // Logged by caller
+        }
+      },
+      (LOCK_TTL / 2) * 1000
+    );
   }
 
   async release(instanceId: string): Promise<void> {

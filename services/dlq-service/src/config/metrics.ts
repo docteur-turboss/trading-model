@@ -48,7 +48,13 @@ export const metrics = {
   }),
 };
 
-export function metricsHandler(_req: unknown, res: { setHeader: (k: string, v: string) => void; status: (c: number) => { end: (v: string) => void } }): void {
+export function metricsHandler(
+  _req: unknown,
+  res: {
+    setHeader: (k: string, v: string) => void;
+    status: (c: number) => { end: (v: string) => void };
+  }
+): void {
   res.setHeader('Content-Type', register.contentType);
   register.metrics().then(data => {
     res.status(200).end(data);

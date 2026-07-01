@@ -85,7 +85,10 @@ describe('metrics', () => {
 
       await metricsHandler(req, res);
 
-      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', expect.stringContaining('text/plain'));
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        expect.stringContaining('text/plain')
+      );
       expect(res.end).toHaveBeenCalledWith('mock_metrics 1');
     });
   });

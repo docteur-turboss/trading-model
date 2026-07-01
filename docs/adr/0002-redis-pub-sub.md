@@ -6,6 +6,7 @@
 ## Context
 
 Microservices need a reliable, low-latency messaging backbone for asynchronous communication. Key requirements:
+
 - Topic-based publish/subscribe
 - At-least-once delivery with retries
 - Message persistence for audit
@@ -30,12 +31,12 @@ Publisher → HTTP POST /message → message-manager → Redis Stream → Subscr
 
 ## Alternatives Considered
 
-| Alternative | Reason for Rejection |
-|---|---|
-| RabbitMQ | Additional infrastructure; HTTP overhead for AMQP bridging |
-| Apache Kafka | Overkill for <1000 msg/s; requires Zookeeper/Kraft; operational complexity |
-| NATS | No persistence guarantees; no DLQ concept |
-| Redis Pub/Sub (classic) | No persistence; messages lost on disconnect |
+| Alternative             | Reason for Rejection                                                       |
+| ----------------------- | -------------------------------------------------------------------------- |
+| RabbitMQ                | Additional infrastructure; HTTP overhead for AMQP bridging                 |
+| Apache Kafka            | Overkill for <1000 msg/s; requires Zookeeper/Kraft; operational complexity |
+| NATS                    | No persistence guarantees; no DLQ concept                                  |
+| Redis Pub/Sub (classic) | No persistence; messages lost on disconnect                                |
 
 ## Consequences
 

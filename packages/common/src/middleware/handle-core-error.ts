@@ -5,13 +5,7 @@ import { logger } from '../config/logger';
 import { normalizeError } from '../utils/errors';
 
 type fileHandle =
-  | 'auth'
-  | 'newsletter'
-  | 'settings'
-  | 'user'
-  | 'contact'
-  | 'transaction'
-  | 'kiff-score';
+  'auth' | 'newsletter' | 'settings' | 'user' | 'contact' | 'transaction' | 'kiff-score';
 
 export type CoreResponse<T = string> = Promise<[T, string]>;
 

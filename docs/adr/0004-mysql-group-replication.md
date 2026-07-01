@@ -6,6 +6,7 @@
 ## Context
 
 The financial-scraper service stores market data (candles, trades, tickers) with strict consistency requirements. Data must be:
+
 - ACID-compliant (no partial writes)
 - Queryable by symbol, timestamp, and interval
 - Highly available with automatic failover
@@ -24,12 +25,12 @@ Each data type has a dedicated table with composite primary keys:
 
 ## Alternatives Considered
 
-| Alternative | Reason for Rejection |
-|---|---|
-| TimescaleDB (PostgreSQL) | Additional infrastructure; team has less PostgreSQL expertise |
-| InfluxDB | Time-series optimized but adds another DB platform |
-| MongoDB | No ACID guarantees for financial data; eventual consistency risk |
-| SQLite | Not network-accessible; no replication |
+| Alternative              | Reason for Rejection                                             |
+| ------------------------ | ---------------------------------------------------------------- |
+| TimescaleDB (PostgreSQL) | Additional infrastructure; team has less PostgreSQL expertise    |
+| InfluxDB                 | Time-series optimized but adds another DB platform               |
+| MongoDB                  | No ACID guarantees for financial data; eventual consistency risk |
+| SQLite                   | Not network-accessible; no replication                           |
 
 ## Consequences
 

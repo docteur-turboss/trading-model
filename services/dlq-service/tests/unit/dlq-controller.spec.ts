@@ -106,7 +106,13 @@ interface MockReq {
 }
 
 describe('DLQ Controller', () => {
-  let controller: { AddEntry: Function; ListEntries: Function; DeleteEntries: Function; HealthCheck: Function; ReadyCheck: Function };
+  let controller: {
+    AddEntry: Function;
+    ListEntries: Function;
+    DeleteEntries: Function;
+    HealthCheck: Function;
+    ReadyCheck: Function;
+  };
 
   beforeAll(() => {
     controller = jest.requireActual('../../src/dlq/controller');
@@ -120,11 +126,20 @@ describe('DLQ Controller', () => {
     it('should return 201 with id on valid entry', () => {
       mockAdd.mockResolvedValueOnce('entry-1');
 
-      const req = { body: { topic: 'test.event', message: { data: 1 }, deliveryAttempt: 1, timestamp: new Date().toISOString() } };
-      return controller.AddEntry(req as MockReq).then((result: { statusCode: number; data: { id: string } }) => {
-        expect(result.statusCode).toBe(201);
-        expect(result.data).toEqual({ id: 'entry-1' });
-      });
+      const req = {
+        body: {
+          topic: 'test.event',
+          message: { data: 1 },
+          deliveryAttempt: 1,
+          timestamp: new Date().toISOString(),
+        },
+      };
+      return controller
+        .AddEntry(req as MockReq)
+        .then((result: { statusCode: number; data: { id: string } }) => {
+          expect(result.statusCode).toBe(201);
+          expect(result.data).toEqual({ id: 'entry-1' });
+        });
     });
 
     it('should return 400 on invalid entry', () => {
@@ -140,24 +155,31 @@ describe('DLQ Controller', () => {
       mockList.mockResolvedValueOnce([{ id: '1', topic: 't1' }]);
 
       const req = { query: { limit: '10', offset: '0' } };
-      return controller.ListEntries(req as unknown as MockReq).then((result: { statusCode: number; data: { entries: unknown[]; hasMore: boolean } }) => {
-        expect(result.statusCode).toBe(200);
-        expect(result.data.entries).toHaveLength(1);
-        expect(result.data.entries[0]).toMatchObject({ id: '1' });
-        expect(result.data.hasMore).toBe(false);
-      });
+      return controller
+        .ListEntries(req as unknown as MockReq)
+        .then((result: { statusCode: number; data: { entries: unknown[]; hasMore: boolean } }) => {
+          expect(result.statusCode).toBe(200);
+          expect(result.data.entries).toHaveLength(1);
+          expect(result.data.entries[0]).toMatchObject({ id: '1' });
+          expect(result.data.hasMore).toBe(false);
+        });
     });
 
     it('should support cursor-based pagination', () => {
-      mockList.mockResolvedValueOnce([{ id: '5', topic: 't1' }, { id: '4', topic: 't1' }]);
+      mockList.mockResolvedValueOnce([
+        { id: '5', topic: 't1' },
+        { id: '4', topic: 't1' },
+      ]);
 
       const req = { query: { limit: '2', cursor: 'abc' } };
-      return controller.ListEntries(req as unknown as MockReq).then((result: { statusCode: number; data: { cursor?: string; hasMore: boolean } }) => {
-        expect(result.statusCode).toBe(200);
-        expect(result.data.cursor).toBe('4');
-        expect(result.data).not.toHaveProperty('offset');
-        expect(result.data.hasMore).toBe(true);
-      });
+      return controller
+        .ListEntries(req as unknown as MockReq)
+        .then((result: { statusCode: number; data: { cursor?: string; hasMore: boolean } }) => {
+          expect(result.statusCode).toBe(200);
+          expect(result.data.cursor).toBe('4');
+          expect(result.data).not.toHaveProperty('offset');
+          expect(result.data.hasMore).toBe(true);
+        });
     });
   });
 
@@ -166,10 +188,12 @@ describe('DLQ Controller', () => {
       mockDelete.mockResolvedValueOnce(2);
 
       const req = { body: { ids: ['a', 'b'] } };
-      return controller.DeleteEntries(req as MockReq).then((result: { statusCode: number; data: { deleted: number } }) => {
-        expect(result.statusCode).toBe(200);
-        expect(result.data.deleted).toBe(2);
-      });
+      return controller
+        .DeleteEntries(req as MockReq)
+        .then((result: { statusCode: number; data: { deleted: number } }) => {
+          expect(result.statusCode).toBe(200);
+          expect(result.data.deleted).toBe(2);
+        });
     });
 
     it('should return 400 on empty ids', () => {
@@ -184,10 +208,12 @@ describe('DLQ Controller', () => {
     it('should return status ok with entry count', () => {
       mockCount.mockResolvedValueOnce(5);
 
-      return controller.HealthCheck({} as MockReq).then((result: { statusCode: number; data: { status: string; entries: number } }) => {
-        expect(result.statusCode).toBe(200);
-        expect(result.data).toEqual({ status: 'ok', entries: 5 });
-      });
+      return controller
+        .HealthCheck({} as MockReq)
+        .then((result: { statusCode: number; data: { status: string; entries: number } }) => {
+          expect(result.statusCode).toBe(200);
+          expect(result.data).toEqual({ status: 'ok', entries: 5 });
+        });
     });
   });
 
@@ -195,11 +221,13 @@ describe('DLQ Controller', () => {
     it('should return ready when db and redis are connected', () => {
       mockCount.mockResolvedValueOnce(10);
 
-      return controller.ReadyCheck({} as MockReq).then((result: { statusCode: number; data: { status: string; redis: string } }) => {
-        expect(result.statusCode).toBe(200);
-        expect(result.data.status).toBe('ready');
-        expect(result.data.redis).toBe('connected');
-      });
+      return controller
+        .ReadyCheck({} as MockReq)
+        .then((result: { statusCode: number; data: { status: string; redis: string } }) => {
+          expect(result.statusCode).toBe(200);
+          expect(result.data.status).toBe('ready');
+          expect(result.data.redis).toBe('connected');
+        });
     });
   });
 });

@@ -156,15 +156,15 @@ step(features, price):
 
 ### Loss Functions (`losses.ts`)
 
-| Loss                     | Formula                      | When to use                |
+| Loss | Formula | When to use |
 | ------------------------ | ---------------------------- | -------------------------- | ------------- | --- | --------- | ----------------- |
-| **MSE**                  | `½(ŷ - y)²`                  | Regression                 |
-| **Cross-Entropy**        | `-Σ y·log(ŷ)`                | Multi-class classification |
-| **Binary Cross-Entropy** | `-y·log(ŷ) - (1-y)·log(1-ŷ)` | Binary classification      |
-| **Huber**                | `0.5·d²` if `                | d                          | <δ`, else `δ· | d   | - 0.5·δ²` | Robust regression |
-| **Smooth L1**            | Same as Huber                | Object detection style     |
-| **Hinge**                | `max(0, 1 - y·ŷ)`            | SVM-style                  |
-| **Log-Cosh**             | `log(cosh(ŷ - y))`           | Smooth L1 alternative      |
+| **MSE** | `½(ŷ - y)²` | Regression |
+| **Cross-Entropy** | `-Σ y·log(ŷ)` | Multi-class classification |
+| **Binary Cross-Entropy** | `-y·log(ŷ) - (1-y)·log(1-ŷ)` | Binary classification |
+| **Huber** | `0.5·d²` if `                | d                          | <δ`, else `δ· | d   | - 0.5·δ²` | Robust regression |
+| **Smooth L1** | Same as Huber | Object detection style |
+| **Hinge** | `max(0, 1 - y·ŷ)` | SVM-style |
+| **Log-Cosh** | `log(cosh(ŷ - y))` | Smooth L1 alternative |
 
 ---
 
@@ -182,19 +182,19 @@ step(features, price):
 
 ### Normalization Strategies (`normalize.ts`)
 
-| Strategy            | Method                              |
+| Strategy | Method |
 | ------------------- | ----------------------------------- | --- | --- |
-| **none**            | Pass-through                        |
-| **min-max**         | `(x - min) / (max - min)`           |
-| **z-score**         | `(x - mean) / std`                  |
-| **robust**          | `(x - median) / IQR`                |
-| **max**             | `x / max(                           | x   | )`  |
-| **log**             | `log(1 + x)`                        |
-| **decimal-scaling** | `x / 10^k`                          |
-| **border**          | `(x - a) / (b - a)` in [a,b], 0 o/w |
-| **batch**           | Batch normalization placeholder     |
-| **layer**           | Layer normalization placeholder     |
-| **instance**        | Instance normalization placeholder  |
+| **none** | Pass-through |
+| **min-max** | `(x - min) / (max - min)` |
+| **z-score** | `(x - mean) / std` |
+| **robust** | `(x - median) / IQR` |
+| **max** | `x / max(                           | x   | )` |
+| **log** | `log(1 + x)` |
+| **decimal-scaling** | `x / 10^k` |
+| **border** | `(x - a) / (b - a)` in [a,b], 0 o/w |
+| **batch** | Batch normalization placeholder |
+| **layer** | Layer normalization placeholder |
+| **instance** | Instance normalization placeholder |
 
 ---
 

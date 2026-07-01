@@ -1,5 +1,8 @@
 import { logger } from '@trading-model/common/config/logger';
-import { CircuitState, CircuitBreaker as SharedCB } from '@trading-model/common/reliability/circuit-breaker';
+import {
+  CircuitState,
+  CircuitBreaker as SharedCB,
+} from '@trading-model/common/reliability/circuit-breaker';
 
 interface BinanceCircuitBreakerConfig {
   failureThreshold: number;

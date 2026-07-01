@@ -22,12 +22,12 @@ Use a hybrid approach combining **Genetic Algorithms (GA)** for population-level
 
 ## Alternatives Considered
 
-| Alternative | Reason for Rejection |
-|---|---|
-| Pure DQN (single agent) | Converges to local optima; no population diversity |
-| Pure GA (no learning) | Cannot adapt within a generation; slow convergence |
-| PPO / SAC (policy gradient) | Higher sample complexity; harder to parallelize across population |
-| Evolutionary Strategies (ES) | Less sample-efficient than GA + DQN for this domain |
+| Alternative                  | Reason for Rejection                                              |
+| ---------------------------- | ----------------------------------------------------------------- |
+| Pure DQN (single agent)      | Converges to local optima; no population diversity                |
+| Pure GA (no learning)        | Cannot adapt within a generation; slow convergence                |
+| PPO / SAC (policy gradient)  | Higher sample complexity; harder to parallelize across population |
+| Evolutionary Strategies (ES) | Less sample-efficient than GA + DQN for this domain               |
 
 ## Consequences
 

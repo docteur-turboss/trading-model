@@ -5,6 +5,7 @@
 **Response time:** Immediate, 24/7
 
 ## Detection
+
 - Unauthorized certificate issuance detected
 - CA private key exposed (repo leak, compromised vault, etc.)
 - Suspicious certificates observed in traffic
@@ -13,6 +14,7 @@
 ## Immediate Response (first 15 minutes)
 
 ### 1. Isolate the CA
+
 ```bash
 # Block all incoming traffic to CA
 kubectl label pods -n trading-model -l app.kubernetes.io/component=certificate-authority isolate=true
@@ -22,6 +24,7 @@ kubectl scale deployment -n trading-model certificate-authority --replicas=0
 ```
 
 ### 2. Revoke ALL certificates issued by the compromised CA
+
 ```bash
 # Use generate-certs.sh with a NEW CA key
 # Generate new CA key pair
@@ -39,7 +42,9 @@ kubectl set env deployment -n trading-model certificate-authority \
 ```
 
 ### 3. Force certificate rotation for ALL services
+
 Trigger immediate certificate re-issuance:
+
 ```bash
 for service in discovery-server message-manager financial-scraper trader-trainer \
                api-gateway audit-logger dlq-service admin-interface; do
@@ -48,6 +53,7 @@ done
 ```
 
 ### 4. Update all mTLS trust stores
+
 ```bash
 # Deploy new CA cert
 kubectl create secret generic -n trading-model trading-model-tls-v2 \
@@ -55,6 +61,7 @@ kubectl create secret generic -n trading-model trading-model-tls-v2 \
 ```
 
 ## Service Recovery Order
+
 1. **certificate-authority** — Must be online first to issue new certs
 2. **discovery-server** — Required by all services for service discovery
 3. **message-manager** — Required by data services for event bus
@@ -64,6 +71,7 @@ kubectl create secret generic -n trading-model trading-model-tls-v2 \
 7. **admin-interface** — UI (least critical)
 
 ## Verification
+
 ```bash
 # Verify CA is operational
 kubectl exec -n trading-model deployment/certificate-authority -- \
@@ -81,18 +89,21 @@ npm run test:e2e:docker
 ## Post-Incident
 
 ### Immediate (within 24h)
+
 - [ ] Rotate ALL secrets that were in the cluster at time of compromise
 - [ ] Audit certificate-authority access logs
 - [ ] Identify leak source and remediate
 - [ ] Generate new long-term CA key pair in secure offline environment
 
 ### Short-term (within 1 week)
+
 - [ ] Revoke old CA cert at all layers
 - [ ] Update backup strategies to exclude compromised keys
 - [ ] Implement CA key ceremony policy
 - [ ] Deploy Vault/HashiCorp Vault for CA key management
 
 ### Long-term
+
 - [ ] Implement automated CA key rotation (quarterly)
 - [ ] Add intrusion detection for CA access patterns
 - [ ] Consider hardware security module (HSM) for CA keys

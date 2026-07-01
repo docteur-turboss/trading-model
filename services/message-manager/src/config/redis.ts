@@ -127,7 +127,11 @@ function redisRetryDelay(retries: number): number | null {
 
 function destroyClient(client: Redis): void {
   client.removeAllListeners();
-  try { client.disconnect(); } catch { /* best-effort */ }
+  try {
+    client.disconnect();
+  } catch {
+    /* best-effort */
+  }
   allClients.delete(client);
 }
 
@@ -137,7 +141,10 @@ async function getOrCreateClient(slot: ManagedRedis): Promise<Redis> {
   if (slot.promise) return slot.promise;
 
   // If existing client is reconnecting, wait for it before creating a new one
-  if (slot.client && (slot.client.status === 'connecting' || slot.client.status === 'reconnecting')) {
+  if (
+    slot.client &&
+    (slot.client.status === 'connecting' || slot.client.status === 'reconnecting')
+  ) {
     try {
       const RECONNECT_TIMEOUT_MS = 30000;
       await new Promise<void>((resolve, reject) => {
@@ -171,7 +178,11 @@ async function getOrCreateClient(slot: ManagedRedis): Promise<Redis> {
       if (redisClosed) return;
       logger.info(`${slot.name}: ready`);
       for (const cb of onReconnectedCallbacks) {
-        try { cb(); } catch { /* best-effort */ }
+        try {
+          cb();
+        } catch {
+          /* best-effort */
+        }
       }
     };
 
@@ -237,8 +248,16 @@ export async function getSubscriptionClient(): Promise<Redis> {
 export async function closeRedis(): Promise<void> {
   redisClosed = true;
   for (const client of allClients) {
-    try { client.removeAllListeners(); } catch { /* best-effort */ }
-    try { client.disconnect(); } catch { /* best-effort */ }
+    try {
+      client.removeAllListeners();
+    } catch {
+      /* best-effort */
+    }
+    try {
+      client.disconnect();
+    } catch {
+      /* best-effort */
+    }
   }
   allClients.clear();
   for (const [, slot] of Object.entries(clients)) {

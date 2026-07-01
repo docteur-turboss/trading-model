@@ -12,7 +12,11 @@ interface NonceStore {
 }
 
 interface CertificateAuthority {
-  signServiceCertificate(serviceId: string, csr: string, ttlMs?: number): Promise<SignedCertificate>;
+  signServiceCertificate(
+    serviceId: string,
+    csr: string,
+    ttlMs?: number
+  ): Promise<SignedCertificate>;
 }
 
 interface DistributedLock {
@@ -58,7 +62,7 @@ export class CertRenewalService {
     csr: string
   ): Promise<SignedCertificate> {
     // 1. Verify the nonce was issued for this service (prevents replay attacks)
-    if (!await this.nonceStore.consume(nonce, serviceId)) {
+    if (!(await this.nonceStore.consume(nonce, serviceId))) {
       throw new CertRenewalError('Invalid or expired nonce', 401);
     }
 

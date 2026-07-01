@@ -6,6 +6,7 @@
 ## Context
 
 The platform consists of 5 shared libraries and 9 microservices that must be developed, tested, and deployed together. Key requirements:
+
 - Shared type definitions across all services
 - Consistent build and test tooling
 - Atomic commits across packages and services
@@ -29,12 +30,12 @@ trading-model/
 
 ## Alternatives Considered
 
-| Alternative | Reason for Rejection |
-|---|---|
+| Alternative                             | Reason for Rejection                                                               |
+| --------------------------------------- | ---------------------------------------------------------------------------------- |
 | Multi-repo (separate repos per service) | Coordination overhead; no atomic cross-repo changes; harder shared type management |
-| Lerna | Additional tooling; npm workspaces now support all needed features |
-| pnpm workspaces | Faster installs but adds toolchain complexity; team familiar with npm |
-| Bazel | Overkill for this project size; steep learning curve |
+| Lerna                                   | Additional tooling; npm workspaces now support all needed features                 |
+| pnpm workspaces                         | Faster installs but adds toolchain complexity; team familiar with npm              |
+| Bazel                                   | Overkill for this project size; steep learning curve                               |
 
 ## Consequences
 

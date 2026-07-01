@@ -43,16 +43,11 @@ function extractServiceName(clientIdentity: string): string | null {
  * router.use('/admin', MTLSAuthorizationMiddleware('admin-service', ['admin-interface']));
  * ```
  */
-export function MTLSAuthorizationMiddleware(
-  targetService: string,
-  allowedCallers?: string[]
-) {
+export function MTLSAuthorizationMiddleware(targetService: string, allowedCallers?: string[]) {
   return catchSync((req: Request, _res, next) => {
     const callerIdentity = req.clientIdentity;
     if (!callerIdentity) {
-      throw ResponseException(
-        JSON.stringify({ error: 'Unauthenticated' })
-      ).Unauthorized();
+      throw ResponseException(JSON.stringify({ error: 'Unauthenticated' })).Unauthorized();
     }
 
     const callerName = extractServiceName(callerIdentity);
