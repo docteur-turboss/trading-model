@@ -45,7 +45,6 @@ jobs:
           npm run -w services/api-gateway build
           npm run -w services/admin-interface build
           npm run -w services/audit-logger build
-          npm run -w services/job-scheduler build
           npm run -w packages/certificate-utils build
 
   test:

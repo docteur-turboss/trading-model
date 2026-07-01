@@ -39,7 +39,6 @@ jobs:
           npm run -w services/api-gateway build
           npm run -w services/admin-interface build
           npm run -w services/audit-logger build
-          npm run -w services/job-scheduler build
           npm run -w packages/certificate-utils build
       - run: npm run test:coverage
 
@@ -84,9 +83,6 @@ jobs:
           - name: audit-logger
             context: .
             dockerfile: services/audit-logger/Dockerfile
-          - name: job-scheduler
-            context: .
-            dockerfile: services/job-scheduler/Dockerfile
           - name: admin-interface
             context: .
             dockerfile: services/admin-interface/Dockerfile
@@ -148,7 +144,6 @@ jobs:
             echo "| Financial Scraper | \`docker pull ghcr.io/${{ github.repository }}/financial-scraper:${{ needs.quality.outputs.version }}\` |"
             echo "| Trader Trainer | \`docker pull ghcr.io/${{ github.repository }}/trader-trainer:${{ needs.quality.outputs.version }}\` |"
             echo "| Audit Logger | \`docker pull ghcr.io/${{ github.repository }}/audit-logger:${{ needs.quality.outputs.version }}\` |"
-            echo "| Job Scheduler | \`docker pull ghcr.io/${{ github.repository }}/job-scheduler:${{ needs.quality.outputs.version }}\` |"
             echo "| Admin Interface | \`docker pull ghcr.io/${{ github.repository }}/admin-interface:${{ needs.quality.outputs.version }}\` |"
             echo ""
             echo "## Quick Start"
