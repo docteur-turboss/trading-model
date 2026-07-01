@@ -1,0 +1,76 @@
+{
+  "title": "Message Manager — Messaging",
+  "uid": "trading-message-manager",
+  "panels": [
+    {
+      "title": "Messages Published (msg/s)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "sum(rate(mm_messages_published_total[5m]))", "legendFormat": "msg/s" }
+      ]
+    },
+    {
+      "title": "Queue Depth (In-Flight)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "mm_in_flight_messages", "legendFormat": "in-flight" },
+        { "expr": "mm_backpressure_ratio", "legendFormat": "backpressure" }
+      ]
+    },
+    {
+      "title": "Delivery Latency (P99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "histogram_quantile(0.99, sum(rate(mm_delivery_latency_seconds_bucket[5m])) by (le))", "legendFormat": "P99" }
+      ]
+    },
+    {
+      "title": "DLQ Messages by Reason",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "sum(increase(mm_messages_dlq_total[24h])) by (reason)", "legendFormat": "{{reason}}" }
+      ]
+    },
+    {
+      "title": "Delivered Messages",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
+      "targets": [
+        { "expr": "sum(rate(mm_messages_delivered_total{status='success'}[5m])) by (topic)", "legendFormat": "{{topic}}" }
+      ]
+    },
+    {
+      "title": "Circuit Breaker State",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "targets": [
+        { "expr": "mm_circuit_breaker_state", "legendFormat": "{{subscriber}}" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "value": "0", "text": "CLOSED" },
+            { "type": "value", "value": "1", "text": "OPEN" },
+            { "type": "value", "value": "2", "text": "HALF-OPEN" }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "red", "value": 1 }
+          ]}
+        }
+      }
+    },
+    {
+      "title": "WSS Connections",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "targets": [
+        { "expr": "mm_wss_connections", "legendFormat": "connections" }
+      ]
+    }
+  ]
+}

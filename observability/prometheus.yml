@@ -1,0 +1,105 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - 'alerting.yml'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# Production TLS configuration:
+# Prometheus authenticates to each service's metrics endpoint using mTLS.
+# Certificates are mounted from the trading-model-tls secret via the
+# Prometheus Deployment volume.  For development, set env PROMETHEUS_TLS_SKIP_VERIFY=true
+# to bypass certificate verification (see k8s infra/prometheus.yaml).
+#
+# To generate certificates for Prometheus, use scripts/generate-certs.sh
+# and mount the resulting certs into /etc/prometheus/tls/.
+
+scrape_configs:
+  - job_name: 'message-manager'
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/tls/ca.crt
+      cert_file: /etc/prometheus/tls/server.crt
+      key_file: /etc/prometheus/tls/server-key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['message-manager:3000']
+
+  - job_name: 'discovery-server'
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/tls/ca.crt
+      cert_file: /etc/prometheus/tls/server.crt
+      key_file: /etc/prometheus/tls/server-key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['discovery-server:3000']
+
+  - job_name: 'certificate-authority'
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/tls/ca.crt
+      cert_file: /etc/prometheus/tls/server.crt
+      key_file: /etc/prometheus/tls/server-key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['certificate-authority:3000']
+
+  - job_name: 'dlq-service'
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/tls/ca.crt
+      cert_file: /etc/prometheus/tls/server.crt
+      key_file: /etc/prometheus/tls/server-key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['dlq-service:3000']
+
+  - job_name: 'api-gateway'
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/tls/ca.crt
+      cert_file: /etc/prometheus/tls/server.crt
+      key_file: /etc/prometheus/tls/server-key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api-gateway:3000']
+
+  - job_name: 'audit-logger'
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/tls/ca.crt
+      cert_file: /etc/prometheus/tls/server.crt
+      key_file: /etc/prometheus/tls/server-key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['audit-logger:3000']
+
+  - job_name: 'financial-scraper'
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/tls/ca.crt
+      cert_file: /etc/prometheus/tls/server.crt
+      key_file: /etc/prometheus/tls/server-key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['financial-scraper:3000']
+
+  - job_name: 'trader-trainer'
+    scheme: https
+    tls_config:
+      ca_file: /etc/prometheus/tls/ca.crt
+      cert_file: /etc/prometheus/tls/server.crt
+      key_file: /etc/prometheus/tls/server-key.pem
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['trader-trainer:3000']
+
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8888']
