@@ -33,14 +33,14 @@ export class WebSocketClient {
     reconnectIntervalMs: number = 5000,
     subscribedServices: string[] = ['*'],
     token?: string,
-    _maxReconnectAttempts?: number,
+    maxReconnectAttempts?: number,
     _unused?: unknown,
     maxQueueSize?: number,
     maxBufferedAmount?: number
   ) {
     this.url = url;
     this.reconnectIntervalMs = reconnectIntervalMs;
-    this.maxReconnectAttempts = 10;
+    this.maxReconnectAttempts = maxReconnectAttempts ?? 10;
     this.subscribedServices = subscribedServices;
     this.initialToken = token;
     this.maxQueueSize = maxQueueSize ?? 5000;

@@ -43,7 +43,7 @@ describe('CachedRegistryBackend', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     mockBackend = createMockBackend();
-    cachedBackend = new CachedRegistryBackend(mockBackend, 5000, 60_000, undefined, 3);
+    cachedBackend = new CachedRegistryBackend(mockBackend, 5000, undefined, 3);
   });
 
   afterEach(() => {
@@ -163,7 +163,7 @@ describe('CachedRegistryBackend', () => {
       await cachedBackend.getInstances('svc-d');
 
       expect(mockBackend.getInstances).toHaveBeenCalledTimes(4);
-      expect((cachedBackend as any).cache.length).toBe(3);
+      expect((cachedBackend as any).cache.size).toBe(3);
 
       mockBackend.getInstances.mockResolvedValue([makeInstance('i-1')]);
       await cachedBackend.getInstances('svc-a');
@@ -220,13 +220,17 @@ describe('CachedRegistryBackend', () => {
   });
 
   describe('sweep', () => {
-    it('should remove expired cache entries on sweep interval', async () => {
+    it('should re-fetch on cache miss after TTL via lazy expiration', async () => {
       mockBackend.getInstances.mockResolvedValue([makeInstance('i-1')]);
       await cachedBackend.getInstances('svc');
 
       jest.advanceTimersByTime(60_000);
 
-      expect((cachedBackend as any).cache.length).toBe(0);
+      const result = await cachedBackend.getInstances('svc');
+
+      expect(mockBackend.getInstances).toHaveBeenCalledTimes(2);
+      expect(result).toHaveLength(1);
+      expect(result[0].instanceId).toBe('i-1');
     });
   });
 });

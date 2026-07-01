@@ -173,7 +173,7 @@ describe('DLQ Routes', () => {
       expect.arrayContaining([
         expect.objectContaining({ path: '/dlq', methods: expect.arrayContaining(['post']) }),
         expect.objectContaining({ path: '/dlq', methods: expect.arrayContaining(['get']) }),
-        expect.objectContaining({ path: '/dlq/delete', methods: expect.arrayContaining(['post']) }),
+        expect.objectContaining({ path: '/dlq', methods: expect.arrayContaining(['delete']) }),
         expect.objectContaining({ path: '/dlq/replay', methods: expect.arrayContaining(['post']) }),
         expect.objectContaining({ path: '/health', methods: expect.arrayContaining(['get']) }),
         expect.objectContaining({

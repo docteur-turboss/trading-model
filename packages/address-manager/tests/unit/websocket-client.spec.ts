@@ -199,7 +199,7 @@ describe('WebSocketClient', () => {
     });
 
     test('should log warning when max reconnect attempts reached', () => {
-      client = new WebSocketClient('ws://localhost:3000', 5000, 3, ['*']);
+      client = new WebSocketClient('ws://localhost:3000', 5000, ['*'], undefined, 3);
 
       client.connect();
       const onMock = mockWebSocketInstance.on as jest.Mock;
@@ -222,7 +222,7 @@ describe('WebSocketClient', () => {
 
     test('should call connect again when reconnect timer fires', () => {
       jest.useFakeTimers();
-      client = new WebSocketClient('ws://localhost:3000', 50, 5, ['*']);
+      client = new WebSocketClient('ws://localhost:3000', 50, ['*'], undefined, 5);
 
       client.connect();
       expect(mockWebSocket).toHaveBeenCalledTimes(1);
@@ -242,7 +242,7 @@ describe('WebSocketClient', () => {
     });
 
     test('should not reconnect when disconnect was called before close', () => {
-      client = new WebSocketClient('ws://localhost:3000', 5000, 10, ['*']);
+      client = new WebSocketClient('ws://localhost:3000', 5000, ['*'], undefined, 10);
       client.connect();
 
       client.disconnect();

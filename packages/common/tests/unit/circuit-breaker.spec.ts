@@ -1,96 +1,61 @@
 import { describe, it, expect } from '@jest/globals';
 
-import { CircuitBreaker, CircuitBreakerOpenError } from '../../src/reliability/circuit-breaker';
+import { CircuitBreaker } from '../../src/reliability/circuit-breaker';
 
 describe('CircuitBreaker', () => {
-  it('starts in CLOSED state', () => {
-    const cb = new CircuitBreaker({ name: 'test' });
-    expect(cb.getState()).toBe('CLOSED');
+  it('starts in closed state for any key', () => {
+    const cb = new CircuitBreaker();
+    expect(cb.check('svc-a')).toBe('closed');
   });
 
-  it('passes through successful calls', async () => {
-    const cb = new CircuitBreaker({ name: 'test' });
-    const result = await cb.call(async () => 'ok');
-    expect(result).toBe('ok');
-    expect(cb.getState()).toBe('CLOSED');
+  it('opens after exceeding failure threshold', () => {
+    const cb = new CircuitBreaker({ failureThreshold: 3, cooldownMs: 60000 });
+
+    expect(cb.check('svc-a')).toBe('closed');
+    cb.recordFailure('svc-a');
+    expect(cb.check('svc-a')).toBe('closed');
+    cb.recordFailure('svc-a');
+    expect(cb.check('svc-a')).toBe('closed');
+    cb.recordFailure('svc-a');
+    expect(cb.check('svc-a')).toBe('open');
   });
 
-  it('opens after exceeding max failures', async () => {
-    const cb = new CircuitBreaker({ name: 'test', maxFailures: 2, resetTimeoutMs: 60000 });
-    const fn = async () => {
-      throw new Error('fail');
-    };
+  it('closes again after recordSuccess', () => {
+    const cb = new CircuitBreaker({ failureThreshold: 1, cooldownMs: 60000 });
 
-    await expect(cb.call(fn)).rejects.toThrow('fail');
-    expect(cb.getState()).toBe('CLOSED');
+    cb.recordFailure('svc-a');
+    expect(cb.check('svc-a')).toBe('open');
 
-    await expect(cb.call(fn)).rejects.toThrow('fail');
-    expect(cb.getState()).toBe('OPEN');
-
-    await expect(cb.call(fn)).rejects.toThrow(CircuitBreakerOpenError);
+    cb.recordSuccess('svc-a');
+    expect(cb.check('svc-a')).toBe('closed');
   });
 
-  it('transitions to HALF_OPEN after reset timeout', async () => {
-    const cb = new CircuitBreaker({ name: 'test', maxFailures: 1, resetTimeoutMs: 50 });
-    const failFn = async () => {
-      throw new Error('fail');
-    };
+  it('uses default config when no options provided', () => {
+    const cb = new CircuitBreaker();
 
-    await expect(cb.call(failFn)).rejects.toThrow('fail');
-    expect(cb.getState()).toBe('OPEN');
-
-    await new Promise(r => setTimeout(r, 60));
-
-    const successFn = async () => 'recovered';
-    const result = await cb.call(successFn);
-    expect(result).toBe('recovered');
+    expect(cb.check('svc')).toBe('closed');
+    for (let i = 0; i < 5; i++) {
+      cb.recordFailure('svc');
+    }
+    expect(cb.check('svc')).toBe('open');
   });
 
-  it('closes after success threshold in HALF_OPEN', async () => {
-    const cb = new CircuitBreaker({
-      name: 'test',
-      maxFailures: 1,
-      resetTimeoutMs: 50,
-      successThreshold: 2,
-    });
-    const failFn = async () => {
-      throw new Error('fail');
-    };
+  it('tracks keys independently', () => {
+    const cb = new CircuitBreaker({ failureThreshold: 2, cooldownMs: 60000 });
 
-    await expect(cb.call(failFn)).rejects.toThrow('fail');
-    expect(cb.getState()).toBe('OPEN');
-
-    await new Promise(r => setTimeout(r, 60));
-
-    await cb.call(async () => 'first');
-    expect(cb.getState()).toBe('HALF_OPEN');
-
-    await cb.call(async () => 'second');
-    expect(cb.getState()).toBe('CLOSED');
+    cb.recordFailure('svc-a');
+    cb.recordFailure('svc-a');
+    expect(cb.check('svc-a')).toBe('open');
+    expect(cb.check('svc-b')).toBe('closed');
   });
 
-  it('re-opens if a call fails in HALF_OPEN state', async () => {
-    const cb = new CircuitBreaker({ name: 'test', maxFailures: 1, resetTimeoutMs: 50 });
-    const failFn = async () => {
-      throw new Error('fail');
-    };
+  it('transitions to half-open after cooldown', async () => {
+    const cb = new CircuitBreaker({ failureThreshold: 1, cooldownMs: 10 });
 
-    await expect(cb.call(failFn)).rejects.toThrow('fail');
-    expect(cb.getState()).toBe('OPEN');
+    cb.recordFailure('svc-a');
+    expect(cb.check('svc-a')).toBe('open');
 
-    await new Promise(r => setTimeout(r, 60));
-
-    await expect(cb.call(failFn)).rejects.toThrow('fail');
-    expect(cb.getState()).toBe('OPEN');
-  });
-
-  it('provides metrics', () => {
-    const cb = new CircuitBreaker({ name: 'test-metrics' });
-    const metrics = cb.getMetrics();
-    expect(metrics.name).toBe('test-metrics');
-    expect(metrics.state).toBe('CLOSED');
-    expect(metrics.failures).toBe(0);
-    expect(metrics.bucket.failures).toBe(0);
-    expect(metrics.bucket.successes).toBe(0);
+    await new Promise(r => setTimeout(r, 15));
+    expect(cb.check('svc-a')).toBe('half-open');
   });
 });
