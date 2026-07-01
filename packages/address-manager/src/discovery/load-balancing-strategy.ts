@@ -1,0 +1,102 @@
+import { ServiceInstance } from '../client/type';
+
+export interface LoadBalancingStrategy {
+  select(instances: ServiceInstance[]): ServiceInstance;
+}
+
+export interface ConnectionCountingStrategy extends LoadBalancingStrategy {
+  acquire(instanceId: string): void;
+  release(instanceId: string): void;
+}
+
+export class RandomStrategy implements LoadBalancingStrategy {
+  select(instances: ServiceInstance[]): ServiceInstance {
+    const idx = Math.floor(Math.random() * instances.length);
+    return instances[idx];
+  }
+}
+
+export class RoundRobinStrategy implements LoadBalancingStrategy {
+  private index = 0;
+
+  select(instances: ServiceInstance[]): ServiceInstance {
+    const idx = this.index % instances.length;
+    this.index = (idx + 1) % instances.length;
+    return instances[idx];
+  }
+
+  reset(): void {
+    this.index = 0;
+  }
+}
+
+/**
+ * Least-connections strategy.
+ *
+ * NOTE: The connection count is process-local only. In a horizontally-scaled
+ * deployment (multiple replicas of the same service), each replica has its
+ * own independent counter. This strategy does NOT provide global connection
+ * distribution across the fleet.
+ *
+ * For global load distribution, use a dedicated load balancer (e.g. Nginx)
+ * or accept that round-robin / random give adequate distribution in practice
+ * for most high-throughput scenarios.
+ */
+export class LeastConnectionsStrategy implements ConnectionCountingStrategy {
+  private readonly connections = new Map<string, number>();
+  private sweepHandle?: NodeJS.Timeout;
+
+  constructor() {
+    this.sweepHandle = setInterval(() => this.sweepStaleEntries(), 60_000);
+  }
+
+  private sweepStaleEntries(): void {
+    for (const [id, count] of this.connections) {
+      if (count <= 0) {
+        this.connections.delete(id);
+      }
+    }
+  }
+
+  select(instances: ServiceInstance[]): ServiceInstance {
+    let min = Infinity;
+    let selected = instances[0];
+
+    for (const inst of instances) {
+      const count = this.connections.get(inst.instanceId) ?? 0;
+      if (count < min) {
+        min = count;
+        selected = inst;
+      }
+    }
+
+    return selected;
+  }
+
+  acquire(instanceId: string): void {
+    this.connections.set(instanceId, (this.connections.get(instanceId) ?? 0) + 1);
+  }
+
+  release(instanceId: string): void {
+    const current = this.connections.get(instanceId) ?? 0;
+    if (current <= 1) {
+      this.connections.delete(instanceId);
+    } else {
+      this.connections.set(instanceId, current - 1);
+    }
+  }
+}
+
+export function createLoadBalancer(strategy: string): LoadBalancingStrategy {
+  switch (strategy) {
+    case 'random':
+      return new RandomStrategy();
+    case 'round-robin':
+      return new RoundRobinStrategy();
+    case 'least-connections':
+      return new LeastConnectionsStrategy();
+    default:
+      // Round-robin is the recommended default for high-throughput scenarios
+      return new RoundRobinStrategy();
+  }
+}

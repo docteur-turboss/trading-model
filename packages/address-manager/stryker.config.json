@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "mutate": ["src/**/*.ts", "!src/**/*.d.ts"],
+  "testRunner": "jest",
+  "jest": { "configFile": "jest.config.js" },
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "concurrency": 4,
+  "coverageAnalysis": "perTest",
+  "reporters": ["clear-text", "progress"],
+  "tempDirName": "stryker-tmp",
+  "cleanTempDir": true,
+  "thresholds": { "high": 80, "low": 60, "break": null }
+}
