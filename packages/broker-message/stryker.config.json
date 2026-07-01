@@ -1,0 +1,28 @@
+{
+    "reporters":  [
+                      "clear-text",
+                      "progress"
+                  ],
+    "thresholds":  {
+                       "low":  60,
+                       "break":  null,
+                       "high":  80
+                   },
+    "checkers":  [
+                     "typescript"
+                 ],
+    "cleanTempDir":  true,
+    "concurrency":  4,
+    "testRunner":  "jest",
+    "tempDirName":  "stryker-tmp",
+    "mutate":  [
+                   "src/**/*.ts",
+                   "!src/**/*.d.ts"
+               ],
+    "coverageAnalysis":  "perTest",
+    "$schema":  "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+    "tsconfigFile":  "tsconfig.json",
+    "jest":  {
+                 "configFile":  "jest.config.js"
+             }
+}
