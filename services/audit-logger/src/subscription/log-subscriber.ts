@@ -56,9 +56,7 @@ export function createLogHandler(logRepo: LogRepository) {
 
     for (const entry of parsed.data.logs) {
       const context = entry.context ?? {};
-      const errorObj:
-        | { name: string; message: string; stack?: string; code?: string }
-        | undefined =
+      const errorObj: { name: string; message: string; stack?: string; code?: string } | undefined =
         entry.error
           ? {
               name: entry.error.name ?? 'Error',

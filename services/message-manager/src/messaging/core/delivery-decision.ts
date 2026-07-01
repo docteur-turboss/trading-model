@@ -1,9 +1,5 @@
-import {
-  DeliveryMode,
-  DeliveryModeEnum,
-} from '@trading-model/common/config/delivery-mode.types';
+import { DeliveryMode, DeliveryModeEnum } from '@trading-model/common/config/delivery-mode.types';
 import { ErrorCodes } from '@trading-model/common/utils/errors';
-
 
 interface DeliveryDecision {
   retry: boolean;

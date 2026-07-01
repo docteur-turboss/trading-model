@@ -60,9 +60,7 @@ function buildRedisInstance(): Redis {
         ? (JSON.parse(env.REDIS_SENTINEL_NODES) as Array<{ host: string; port: number }>)
         : [{ host: env.REDIS_HOST, port: env.REDIS_PORT }];
     } catch (cause) {
-      const err = new Error(
-        `Invalid REDIS_SENTINEL_NODES JSON: ${(cause as Error).message}`
-      );
+      const err = new Error(`Invalid REDIS_SENTINEL_NODES JSON: ${(cause as Error).message}`);
       (err as { cause?: unknown }).cause = cause;
       throw err;
     }
@@ -87,9 +85,7 @@ function buildRedisInstance(): Redis {
     try {
       clusterNodes = JSON.parse(env.REDIS_CLUSTER_NODES) as Array<{ host: string; port: number }>;
     } catch (cause) {
-      const err = new Error(
-        `Invalid REDIS_CLUSTER_NODES JSON: ${(cause as Error).message}`
-      );
+      const err = new Error(`Invalid REDIS_CLUSTER_NODES JSON: ${(cause as Error).message}`);
       (err as { cause?: unknown }).cause = cause;
       throw err;
     }

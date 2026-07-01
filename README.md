@@ -15,41 +15,41 @@ See [Quick Start Tutorial](docs/tutorials/QUICKSTART.md) for a 10-minute hands-o
 
 ## Architecture
 
-| Layer | Technology |
-|-------|-----------|
-| Runtime | Node.js 22+ |
-| Language | TypeScript (ES2022) |
-| API | Express 5 |
-| Frontend | React 19 + Vite + MUI 7 |
-| Security | mTLS everywhere (TLS 1.3) |
-| Databases | MongoDB 7, MySQL 8 (Group Replication), Redis 7 (Sentinel) |
-| Validation | Zod |
-| Testing | Jest + Vitest + Stryker (mutation) |
-| Observability | Prometheus + Grafana + Jaeger + Loki |
+| Layer         | Technology                                                 |
+| ------------- | ---------------------------------------------------------- |
+| Runtime       | Node.js 22+                                                |
+| Language      | TypeScript (ES2022)                                        |
+| API           | Express 5                                                  |
+| Frontend      | React 19 + Vite + MUI 7                                    |
+| Security      | mTLS everywhere (TLS 1.3)                                  |
+| Databases     | MongoDB 7, MySQL 8 (Group Replication), Redis 7 (Sentinel) |
+| Validation    | Zod                                                        |
+| Testing       | Jest + Vitest + Stryker (mutation)                         |
+| Observability | Prometheus + Grafana + Jaeger + Loki                       |
 
 ### Services
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| `discovery-server` | 8443 | Service registry with TTL-based lease management + HMAC tokens |
-| `message-manager` | 8444 | Topic-based pub/sub broker with DLQ routing |
-| `financial-scraper` | 8445 | Binance market data ingestion (candles, trades, order books) |
-| `trader-trainer` | 8446 | GA + DQN agent evolution engine |
-| `certificate-authority` | 8447 | X.509 certificate lifecycle: signing, rotation, CRL |
-| `api-gateway` | 8448 | Single external entry point: auth, rate-limit, cache, proxy |
-| `admin-interface` | 8449 | React SPA dashboard (SPA via nginx) |
-| `audit-logger` | 8450 | Immutable event traceability + centralized log aggregation |
-| `dlq-service` | 8452 | Dead letter queue storage with auto-retry + replay |
+| Service                 | Port | Purpose                                                        |
+| ----------------------- | ---- | -------------------------------------------------------------- |
+| `discovery-server`      | 8443 | Service registry with TTL-based lease management + HMAC tokens |
+| `message-manager`       | 8444 | Topic-based pub/sub broker with DLQ routing                    |
+| `financial-scraper`     | 8445 | Binance market data ingestion (candles, trades, order books)   |
+| `trader-trainer`        | 8446 | GA + DQN agent evolution engine                                |
+| `certificate-authority` | 8447 | X.509 certificate lifecycle: signing, rotation, CRL            |
+| `api-gateway`           | 8448 | Single external entry point: auth, rate-limit, cache, proxy    |
+| `admin-interface`       | 8449 | React SPA dashboard (SPA via nginx)                            |
+| `audit-logger`          | 8450 | Immutable event traceability + centralized log aggregation     |
+| `dlq-service`           | 8452 | Dead letter queue storage with auto-retry + replay             |
 
 ### Shared Packages
 
-| Package | Purpose |
-|---------|---------|
-| `@trading-model/common` | HTTP client, logger, middleware, server factories, env validation, circuit breaker, SSRF protection |
-| `@trading-model/address-manager` | Service discovery client with health-checking and token rotation |
-| `@trading-model/broker-message` | Inter-service messaging SDK with typed event subscriptions |
-| `@trading-model/certificate-utils` | X.509 certificate generation, signing, validation, CRL management |
-| `@trading-model/certificate-client` | Automatic mTLS certificate provisioning and renewal |
+| Package                             | Purpose                                                                                             |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `@trading-model/common`             | HTTP client, logger, middleware, server factories, env validation, circuit breaker, SSRF protection |
+| `@trading-model/address-manager`    | Service discovery client with health-checking and token rotation                                    |
+| `@trading-model/broker-message`     | Inter-service messaging SDK with typed event subscriptions                                          |
+| `@trading-model/certificate-utils`  | X.509 certificate generation, signing, validation, CRL management                                   |
+| `@trading-model/certificate-client` | Automatic mTLS certificate provisioning and renewal                                                 |
 
 ## Commands
 
@@ -109,6 +109,7 @@ Pre-push git hook runs: `prettier` → `eslint` → `npm audit` → `build:ts` �
 ## Status
 
 **Production-ready with ongoing improvements.** Audited across 19 dimensions:
+
 - Architecture, Backup/DR, CI/CD, Clean Architecture, Code Smells, Compliance, Concurrency, Documentation, Error Handling, Operations, Performance, Security (OWASP), SOLID, Testing.
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
