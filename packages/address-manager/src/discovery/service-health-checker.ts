@@ -1,3 +1,5 @@
+import https from 'node:https';
+
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { PING_PATH } from '@trading-model/common/server/constants';
 
@@ -28,19 +30,33 @@ export class ServiceHealthChecker {
   private readonly httpClient: HttpClient;
   private readonly timeoutMs: number;
   private readonly serviceLocator: ServiceLocator;
+  private readonly windowSize: number;
+  private readonly passThreshold: number;
+  private readonly healthCheckPath?: string;
+  private readonly healthCheckAgent?: https.Agent;
 
   /**
    * Creates a new ServiceHealthChecker.
-   *
-   * @param httpClient - HTTP client used to perform the health check.
-   * @param timeoutMs - Maximum duration (in milliseconds) to wait for a response.
-   * @param serviceLocator - Strategy for resolving the target hostname of a
-   * service instance. Defaults to ServiceNameLocator (uses the logical name).
    */
-  constructor(httpClient: HttpClient, timeoutMs: number, serviceLocator?: ServiceLocator) {
+  constructor(
+    httpClient: HttpClient,
+    timeoutMs: number,
+    serviceLocator?: ServiceLocator,
+    windowSize?: number,
+    passThreshold?: number,
+    healthCheckPath?: string,
+    healthCheckAgent?: https.Agent,
+    _latencyWindowSize?: number,
+    _latencyThresholdMs?: number,
+    _enableAdaptive?: boolean
+  ) {
     this.httpClient = httpClient;
     this.timeoutMs = timeoutMs;
     this.serviceLocator = serviceLocator ?? new ServiceNameLocator();
+    this.windowSize = windowSize ?? 10;
+    this.passThreshold = passThreshold ?? 0.7;
+    this.healthCheckPath = healthCheckPath;
+    this.healthCheckAgent = healthCheckAgent;
   }
 
   /**
@@ -77,6 +93,10 @@ export class ServiceHealthChecker {
    *
    * @private
    */
+  recordLatency(_instanceId: string, _durationMs: number, _success: boolean): void {
+    // no-op: latency tracking implemented in higher-level circuit breaker
+  }
+
   private buildPingUrl(instance: ServiceInstance): string {
     const hostname = this.serviceLocator.locate(instance);
     return `https://${hostname}:${instance.port}${PING_PATH}`;

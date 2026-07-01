@@ -65,6 +65,10 @@ export class TokenManager {
     this.token = token;
   }
 
+  getTokenOrNull(): string | null {
+    return this.token;
+  }
+
   /** Explicitly clear the stored token from memory. */
   clearToken(): void {
     this.token = null;

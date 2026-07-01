@@ -1,7 +1,7 @@
 import { HttpClient } from '@trading-model/common/config/http-client';
 import { AppError, ErrorCodes, normalizeError } from '@trading-model/common/utils/errors';
 
-import { ServiceCache } from './service-cache';
+import { IServiceCache } from './service-cache.interface';
 import { ServiceHealthChecker } from './service-health-checker';
 import { ServiceInstance } from '../client/type';
 import { AddressManagerConfig } from '../config/address-manager-config';
@@ -34,7 +34,7 @@ export class ServiceDiscovery {
    */
   constructor(
     private readonly httpClient: HttpClient,
-    private readonly serviceCache: ServiceCache,
+    private readonly serviceCache: IServiceCache,
     private readonly config: AddressManagerConfig,
     private readonly healthChecker: ServiceHealthChecker
   ) {
@@ -142,6 +142,26 @@ export class ServiceDiscovery {
 
     await this.serviceCache.set(serviceName, instance);
     return instance;
+  }
+
+  acquireConnection(_instanceId: string): void {
+    // no-op: connection tracking handled by caller
+  }
+
+  releaseConnection(_instanceId: string): void {
+    // no-op: connection tracking handled by caller
+  }
+
+  async findAllServices(serviceName: string): Promise<ServiceInstance[]> {
+    try {
+      const instances = await this.httpClient.get<ServiceInstance[]>(
+        `${this.config.addressManagerUrl}/services/${serviceName}`,
+        { timeoutMs: this.discoveryTimeoutMs }
+      );
+      return instances ?? [];
+    } catch {
+      return [];
+    }
   }
 
   private async resolveAndValidateServiceInRegion(

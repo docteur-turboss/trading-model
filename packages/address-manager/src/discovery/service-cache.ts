@@ -1,23 +1,7 @@
+import { CircuitState } from './service-cache.interface';
 import { CacheEntry } from './type';
 import { ServiceInstance } from '../client/type';
 
-/**
- * ServiceCache
- *
- * Responsibilities:
- * - In-memory storage of service instances
- * - TTL management for cached entries
- * - Explicit or automatic invalidation
- *
- * Constraints:
- * - No network logic
- * - No retry logic
- * - No external dependencies
- *
- * Intended to be used by the service discovery layer
- * to reduce repeated network calls for service instance information.
- */
-/** Lightweight mutex to serialise concurrent access. */
 class SimpleMutex {
   private promise: Promise<void> = Promise.resolve();
 
@@ -35,21 +19,23 @@ class SimpleMutex {
 
 export class ServiceCache {
   private readonly ttlMs: number;
+  private readonly maxTtlMs: number;
+  private readonly cacheDir?: string;
+  private readonly maxEntries: number;
   private readonly cache: Map<string, CacheEntry>;
   private readonly mutex = new SimpleMutex();
 
-  /**
-   * Initializes a new ServiceCache instance.
-   *
-   * @param ttlMs - Time-to-live for each cache entry, in milliseconds.
-   *
-   * @example
-   * ```ts
-   * const cache = new ServiceCache(60_000); // 1 minute TTL
-   * ```
-   */
-  constructor(ttlMs: number) {
+  constructor(
+    ttlMs: number,
+    maxTtlMs?: number,
+    cacheDir?: string,
+    _cacheDir2?: unknown,
+    maxEntries?: number
+  ) {
     this.ttlMs = ttlMs;
+    this.maxTtlMs = maxTtlMs ?? ttlMs * 2;
+    this.cacheDir = cacheDir;
+    this.maxEntries = maxEntries ?? 1000;
     this.cache = new Map();
   }
 
@@ -166,5 +152,42 @@ export class ServiceCache {
    */
   private isExpired(entry: CacheEntry): boolean {
     return Date.now() >= entry.expiresAt;
+  }
+
+  async entries(): Promise<Array<{ serviceName: string; instance: ServiceInstance; region?: string }>> {
+    const release = await this.mutex.acquire();
+    try {
+      const result: Array<{ serviceName: string; instance: ServiceInstance }> = [];
+      for (const [serviceName, entry] of this.cache) {
+        if (!this.isExpired(entry)) {
+          result.push({ serviceName, instance: entry.instance });
+        }
+      }
+      return result;
+    } finally {
+      release();
+    }
+  }
+
+  async getVersion(_serviceName: string, _region?: string): Promise<number> {
+    return 0;
+  }
+
+  stop(): void {
+    this.cache.clear();
+  }
+
+  private readonly circuitStates = new Map<string, CircuitState>();
+
+  async setCircuitState(instanceId: string, state: CircuitState): Promise<void> {
+    this.circuitStates.set(instanceId, state);
+  }
+
+  async getCircuitState(instanceId: string): Promise<CircuitState | null> {
+    return this.circuitStates.get(instanceId) ?? null;
+  }
+
+  async deleteCircuitState(instanceId: string): Promise<void> {
+    this.circuitStates.delete(instanceId);
   }
 }

@@ -5,8 +5,8 @@
 export { createBootstrap } from './server/bootstrap';
 export { createSecureServer } from './server/create-secure-server';
 export { configureApp } from './server/configure-app';
-export { SERVER_DEFAULTS } from './server/constants';
-export { serverFactory } from './server/server-factory';
+export { PING_PATH } from './server/constants';
+export { createAndStartHttpsServer, setupTlsWatcher } from './server/server-factory';
 
 // === middleware/ — Express middleware ===
 export { MTLSAuthMiddleware } from './middleware/mtls-auth';
@@ -21,7 +21,7 @@ export { HttpClient } from './config/http-client';
 export { BaseEnvSchema, validateEnv } from './validation/env';
 
 // === crypto/ — Secure random & tokens ===
-export { secureRandom } from './crypto/random';
+export { generateRandomStr as secureRandom } from './crypto/random';
 
 // === contracts/ — Shared type contracts ===
 export type { ServiceInstance } from './contracts/service-registry.types';

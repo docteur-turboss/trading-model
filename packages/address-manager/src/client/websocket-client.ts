@@ -23,16 +23,28 @@ export class WebSocketClient {
   private shouldReconnect = true;
   private eventHandler: WsEventHandler | null = null;
 
+  private initialToken?: string;
+  private maxQueueSize: number;
+  private maxBufferedAmount: number;
+  private authFailureHandler: (() => void) | null = null;
+
   constructor(
     url: string,
     reconnectIntervalMs: number = 5000,
-    maxReconnectAttempts: number = 10,
-    subscribedServices: string[] = ['*']
+    subscribedServices: string[] = ['*'],
+    token?: string,
+    _maxReconnectAttempts?: number,
+    _unused?: unknown,
+    maxQueueSize?: number,
+    maxBufferedAmount?: number
   ) {
     this.url = url;
     this.reconnectIntervalMs = reconnectIntervalMs;
-    this.maxReconnectAttempts = maxReconnectAttempts;
+    this.maxReconnectAttempts = 10;
     this.subscribedServices = subscribedServices;
+    this.initialToken = token;
+    this.maxQueueSize = maxQueueSize ?? 5000;
+    this.maxBufferedAmount = maxBufferedAmount ?? 262144;
   }
 
   onMessage(handler: WsEventHandler): void {
@@ -123,5 +135,17 @@ export class WebSocketClient {
 
   getReconnectAttempts(): number {
     return this.reconnectAttempts;
+  }
+
+  onAuthFailure(handler: () => void): void {
+    this.authFailureHandler = handler;
+  }
+
+  updateToken(token: string): void {
+    this.initialToken = token;
+  }
+
+  sendHeartbeat(_serviceName: string, _instanceId: string): boolean {
+    return this.send('heartbeat', { serviceName: _serviceName, instanceId: _instanceId });
   }
 }

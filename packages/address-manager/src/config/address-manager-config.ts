@@ -5,26 +5,11 @@ interface AddressManagerConfig {
   servicePort: number;
   /** Single discovery URL (backwards compatible). */
   addressManagerUrl: string;
-  /** Ordered list of discovery URLs for multi-region failover.
-   *  The client will try each URL in sequence on failure. */
+  /** Ordered list of discovery URLs for multi-region failover. */
   discoveryUrls: string[];
 
-  /**
-   * Local discovery server URL for region-scoped heartbeats.
-   * When set together with `region`, heartbeats are sent to this URL first
-   * instead of racing all discovery URLs — avoids cross-region round trips
-   * on every heartbeat cycle.
-   */
   localDiscoveryUrl?: string;
-
-  /** Deployment region / datacenter identifier. */
   region?: string;
-
-  /**
-   * Public / external IP to advertise for cross-region connectivity.
-   * When set, services in other regions connect via this IP instead of
-   * the private (local) IP, which is not routable between regions.
-   */
   publicIp?: string;
 
   tokenRefreshIntervalMs: number;
@@ -37,26 +22,42 @@ interface AddressManagerConfig {
   KeyCertificatePath: string;
 
   cacheTtlMs: number;
-
-  /** Maximum cache TTL after adaptive scaling. Default: 120000. */
   maxCacheTtlMs?: number;
-
-  /** Optional mapping from logical service names to deployment-specific DNS names. */
   dnsNameMap?: Record<string, string>;
-
-  /** Interval (ms) between system metrics collections. Default: 15000. */
   metricsIntervalMs?: number;
 
-  /** WebSocket URL for persistent connection to the discovery server (optional). */
   wsUrl?: string;
-
-  /** Service names to subscribe to via WS push notifications. Defaults to ['*'] (all). */
   wsSubscribedServices?: string[];
-
-  /** Max records retained by the service call tracker. Default: 1000. */
   maxCallRecords?: number;
-
-  /** Preferred network interface name for local IP resolution (F42). E.g. "eth0". */
   preferredNetworkInterface?: string;
+
+  // TLS cert PEM overrides (inline, not file paths)
+  pems?: { ca: string; cert: string; key: string };
+
+  // Redis cache config
+  redisCacheUrl?: string;
+  redisCacheOptions?: Record<string, unknown>;
+
+  // File-based cache dir
+  discoveryCacheDir?: string;
+  maxCacheEntries?: number;
+
+  // Circuit breaker config
+  circuitBreakerFailureThreshold?: number;
+  circuitBreakerHalfOpenTimeoutMs?: number;
+  circuitBreakerCooldownMs?: number;
+  circuitBreakerCacheTtlMs?: number;
+  circuitBreakerLatencyWindowSize?: number;
+  circuitBreakerLatencyThresholdMs?: number;
+
+  // Health check config
+  healthCheckWindowSize?: number;
+  healthCheckPassThreshold?: number;
+  healthCheckPath?: string;
+  healthCheckTlsOptions?: { ca: string; cert: string; key: string };
+
+  // WebSocket config
+  wsMaxQueueSize?: number;
+  wsMaxBufferedAmount?: number;
 }
 export { AddressManagerConfig };

@@ -14,7 +14,7 @@ export async function retryFileAppend(
 ): Promise<boolean> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      const { promises: fs } = await import('node:fs/promises');
+      const fs = await import('node:fs/promises');
       await fs.appendFile(filePath, content + '\n', 'utf-8');
       return true;
     } catch {

@@ -105,6 +105,10 @@ export class VaultTransitClient {
     return headers;
   }
 
+  destroy(): void {
+    // no-op: HttpClient has no connection state to clean up
+  }
+
   private toVaultHashAlgorithm(algorithm: string): string {
     const map: Record<string, string> = {
       sha256: 'sha2-256',

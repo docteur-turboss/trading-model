@@ -14,10 +14,8 @@ export class AddressManagerClient {
     private readonly config: AddressManagerConfig
   ) {}
 
-  /** Cached local IP, resolved once. Reset in tests via {@link resetLocalIP}. */
   private static localIP: string | null = null;
 
-  /** Reset the cached local IP (test support). */
   static resetLocalIP(): void {
     AddressManagerClient.localIP = null;
   }
@@ -37,15 +35,6 @@ export class AddressManagerClient {
     return '127.0.0.1';
   }
 
-  /**
-   * Registers the current service with the Address Manager.
-   *
-   * Called once during bootstrap. Sends the service name, port, and local IP.
-   *
-   * @returns The registration response containing the instance details and token.
-   * @throws AddressManagerError if the registration request fails. The original
-   *   error (network, timeout, HTTP) is preserved in the `cause` property.
-   */
   async registerService(): Promise<ServiceRegistrationResponse | undefined> {
     const payload: RegisterServicePayload = {
       serviceName: this.config.serviceName,
@@ -74,15 +63,6 @@ export class AddressManagerClient {
     );
   }
 
-  /**
-   * Refreshes the TTL (time-to-live) of the registered service.
-   *
-   * - Typically called periodically by a scheduled job.
-   * - Ensures the service remains visible to other services.
-   *
-   * @throws AddressManagerError if the TTL refresh fails. The original
-   *   error (network, timeout, HTTP) is preserved in the `cause` property.
-   */
   async refreshTTL(): Promise<void> {
     const token = this.tokenManager.getToken();
 
@@ -135,5 +115,43 @@ export class AddressManagerClient {
         cause: normalizeError((failures[0] as PromiseRejectedResult).reason),
       });
     }
+  }
+
+  async unregisterService(): Promise<void> {
+    const token = this.tokenManager.getToken();
+    const urls = this.config.discoveryUrls?.length
+      ? this.config.discoveryUrls
+      : [this.config.addressManagerUrl];
+
+    for (const url of urls) {
+      try {
+        await this.httpClient.post(
+          `${url}/unregister`,
+          { serviceName: this.config.serviceName, instanceId: this.config.instanceId },
+          { headers: { 'x-instance-token': token } }
+        );
+        return;
+      } catch {
+        // try next URL
+      }
+    }
+  }
+
+  private static cachedLocalIP: string | null = null;
+
+  hasIpChanged(): boolean {
+    const nets = networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] ?? []) {
+        if (net.family === 'IPv4' && !net.internal) {
+          if (AddressManagerClient.cachedLocalIP === null) {
+            AddressManagerClient.cachedLocalIP = net.address;
+            return false;
+          }
+          return net.address !== AddressManagerClient.cachedLocalIP;
+        }
+      }
+    }
+    return false;
   }
 }
