@@ -1,163 +1,118 @@
-# AI Trading Platform
+# trading-model
 
-## Overview
+Microservices-based AI trading platform. Ingests market data, trains autonomous agents via Genetic Algorithm + Deep Q-Learning, and routes inter-service messages through an internal pub/sub broker.
 
-This repository hosts a **microservices-based AI trading platform** designed to ingest heterogeneous data sources (social, financial, economic, and market data), predict future price movements using **Transformer-based models**, and train an autonomous trading agent via **Deep Reinforcement Learning**, optimized by a **Genetic Algorithm**.
+## Quick Start
 
-The system is intended to **execute real market orders**, while remaining strictly controlled by a **central monitoring service** enforcing risk limits, safety constraints, and execution policies.
-
-This project is currently in an **early development phase**.
-
-## High-Level Architecture
-
-The platform is built as a **distributed system**, following microservice principles:
-
-- Independent services with clear responsibilities
-- Secure service-to-service communication (HTTPS / mTLS)
-- Event-driven and API-based interactions
-- Centralized supervision for live trading execution
-
-```
-Data Sources ──▶ Scrapers ──▶ Feature Pipelines ──▶ Models
-                                              │
-                                              ▼
-                                        Trader (DRL)
-                                              │
-                                              ▼
-                                    Central Monitor
-                                              │
-                                              ▼
-                                      Market Execution
+```bash
+git clone <repo-url> && cd trading-model
+npm ci
+bash scripts/generate-certs.sh
+docker compose up -d
 ```
 
-## Data Sources
+See [Quick Start Tutorial](docs/tutorials/QUICKSTART.md) for a 10-minute hands-on walkthrough.
 
-The system is designed to aggregate and correlate multiple categories of signals:
+## Architecture
 
-- **Social data**
-  - Sentiment, trends, public discourse (planned)
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Node.js 22+ |
+| Language | TypeScript (ES2022) |
+| API | Express 5 |
+| Frontend | React 19 + Vite + MUI 7 |
+| Security | mTLS everywhere (TLS 1.3) |
+| Databases | MongoDB 7, MySQL 8 (Group Replication), Redis 7 (Sentinel) |
+| Validation | Zod |
+| Testing | Jest + Vitest + Stryker (mutation) |
+| Observability | Prometheus + Grafana + Jaeger + Loki |
 
-- **Financial data**
-  - Company-level metrics and market data
+### Services
 
-- **Economic data**
-  - State-level indicators (e.g. unemployment, inflation)
+| Service | Port | Purpose |
+|---------|------|---------|
+| `discovery-server` | 8443 | Service registry with TTL-based lease management + HMAC tokens |
+| `message-manager` | 8444 | Topic-based pub/sub broker with DLQ routing |
+| `financial-scraper` | 8445 | Binance market data ingestion (candles, trades, order books) |
+| `trader-trainer` | 8446 | GA + DQN agent evolution engine |
+| `certificate-authority` | 8447 | X.509 certificate lifecycle: signing, rotation, CRL |
+| `api-gateway` | 8448 | Single external entry point: auth, rate-limit, cache, proxy |
+| `admin-interface` | 8449 | React SPA dashboard (SPA via nginx) |
+| `audit-logger` | 8450 | Immutable event traceability + centralized log aggregation |
+| `dlq-service` | 8452 | Dead letter queue storage with auto-retry + replay |
 
-- **Market data**
-  - Price, volume, order book, volatility
+### Shared Packages
 
-## Current Project Status
+| Package | Purpose |
+|---------|---------|
+| `@trading-model/common` | HTTP client, logger, middleware, server factories, env validation, circuit breaker, SSRF protection |
+| `@trading-model/address-manager` | Service discovery client with health-checking and token rotation |
+| `@trading-model/broker-message` | Inter-service messaging SDK with typed event subscriptions |
+| `@trading-model/certificate-utils` | X.509 certificate generation, signing, validation, CRL management |
+| `@trading-model/certificate-client` | Automatic mTLS certificate provisioning and renewal |
 
-### ❌ Implemented
+## Commands
 
-- Nothing is considered stable or production-ready yet
+```bash
+npm ci                       # Install all workspace dependencies
+npm run build                # Build 4 shared packages in dependency order
+npm run build:ts             # Full build (packages + 9 services)
+npm run lint                 # ESLint across the monorepo
+npm test --workspaces        # All workspace tests
+npm run test:coverage        # All tests with coverage
+npm run test:contract        # Contract tests
+npm run test:e2e             # E2E tests (requires Docker Compose up)
+npm run docs:generate        # TypeDoc HTML
+npm run commit               # Interactive gitmoji commit CLI
+npm run release              # Version bump + changelog + tag + push
+```
 
-### 🚧 In Progress
+## Deployment
 
-#### Service Discovery
+- **Docker Compose:** `docker compose up -d` (all 20+ containers with health-check ordering)
+- **Kubernetes:** `kubectl apply -k deploy/k8s/overlays/production` (HPA, PDBs, NetworkPolicies, SealedSecrets)
+- **Backup:** Daily CronJob → MongoDB + MySQL + Redis + CA keys + S3 off-site
+- **Secrets:** SealedSecrets (SealedSecret → controller decrypts → standard Secret)
+- **Probes:** `startupProbe` (90s window) + `livenessProbe` + `readinessProbe` on all services
 
-- Central registry for microservices
-- Handles dynamic service registration and discovery
-- Designed to support:
-  - containerized environments
-  - secure communication (mTLS)
+## CI/CD
 
-#### Financial Scraper
+12+ automated jobs on every push/PR: lint, typecheck, audit, test+coverage, mutation test, K8s validate, container scan, secrets scan, SBOM, contract tests, E2E, load tests.
 
-- Initial implementation using **Binance API**
-- Responsible for:
-  - fetching market data
-  - normalizing and publishing financial signals
-- This is a temporary data source, subject to change
+Pre-push git hook runs: `prettier` → `eslint` → `npm audit` → `build:ts` → `test:coverage`.
 
-#### Mail Service
+## Documentation
 
-- Internal messaging service between microservices
-- Intended for:
-  - event notifications
-  - alerts
-  - asynchronous communication
-- Not user-facing email delivery
+- [Documentation Index](docs/README.md) — 84 markdown files across 4 sections
+- [Architecture Standards](docs/standards/ARCHITECTURE.md) — C4 diagrams, dependency graph, service conventions
+- [OpenAPI 3.0](docs/architecture/api/openapi/api-gateway.yaml) — 18 external-facing endpoints
+- [ADR Index](docs/adr/README.md) — 9 architecture decision records
+- [Compliance](docs/compliance/) — GDPR register, DPIA, retention policy, breach notification
+- [Operations](docs/operations/) — 9 runbooks + diagnostic guide + incident response
+- [Tutorials](docs/tutorials/QUICKSTART.md) — 10-minute hands-on introduction
+- [Examples](examples/) — 5 executable bash scripts for common API workflows
 
-#### Trader
+## Security
 
-- Core trading logic
-- Uses a **Genetic Algorithm** to evolve trading agents
-- Agents are trained via **Deep Reinforcement Learning**
-- Still experimental and not connected to live execution
+- **OWASP-hardened:** SSRF protection, anti-noSQL injection, timed-safe token comparison, triple-layer log redaction
+- **mTLS everywhere:** certificate-authority manages full X.509 lifecycle with automatic rotation
+- **Secrets:** SealedSecrets + Vault Transit for CA key signing, git-secret-cleanup script
+- **Key zeroing:** SecureKeyStore with buffer zeroing + heap dump protection, AES-256-GCM at rest
 
-## Planned Components (Non-Exhaustive)
+## Monitoring
 
-- Social data scrapers (news, social media)
-- Economic data ingestion (macro indicators)
-- Transformer-based prediction models
-- Feature stores and time-series pipelines
-- Backtesting and simulation environment
-- Central monitoring & risk control service
-- Execution engine with broker abstraction
-- Observability (metrics, logs, alerts)
+- **Dashboards:** 4 Grafana dashboards (SLO, services, message-manager, trader-trainer)
+- **Alerts:** 17 Prometheus rules (6 SLO burn rates + 11 operational) → Alertmanager → Slack/PagerDuty
+- **Traces:** OpenTelemetry → OTLP Collector → Jaeger (8/9 services instrumented)
+- **Logs:** Pino structured JSON → Promtail → Loki + centralized log aggregation to audit-logger
 
-## Security Model
+## Status
 
-- All inter-service communication is expected to use **HTTPS with mutual TLS**
-- No service trusts another without explicit certificate validation
-- Live trading execution will be gated by:
-  - risk limits
-  - capital exposure constraints
-  - fail-safe mechanisms
+**Production-ready with ongoing improvements.** Audited across 19 dimensions:
+- Architecture, Backup/DR, CI/CD, Clean Architecture, Code Smells, Compliance, Concurrency, Documentation, Error Handling, Operations, Performance, Security (OWASP), SOLID, Testing.
 
-See [`SECURITY.md`](./SECURITY.md) for responsible disclosure and security policies.
-See [`docs/README.md`](docs/README.md) for the full documentation index.
-
-## Disclaimer
-
-⚠️ **This project is experimental.**
-
-- It is **not audited**
-- It is **not production-ready**
-- It may interact with **real financial markets**
-- Improper use can lead to **financial loss**
-
-Use at your own risk.
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 
-This project is licensed under the **PolyForm Noncommercial License 1.0.0**.
-
-- Non-commercial use only
-- Research, experimentation, and personal use are permitted
-- Commercial usage requires explicit authorization
-
-See [`LICENSE`](./LICENSE.md) for full terms.
-
-## Contributing
-
-Contributions are welcome for:
-
-- research
-- experimentation
-- architecture discussions
-
-By contributing, you agree that your contributions are licensed under the same license as the project.
-
-## Roadmap Philosophy
-
-This project prioritizes:
-
-- correctness over speed
-- safety over performance
-- observability over blind automation
-
-No component will be considered production-ready without:
-
-- explicit testing
-- documented assumptions
-- clear failure modes
-
-## Contact
-
-For security-related issues, see [`SECURITY.md`](./SECURITY.md).
-For general discussions or architecture questions, open an issue.
-
-**Status:** 🚧 Early Development
-**Type:** Research / Experimental AI Trading System
+PolyForm Noncommercial License 1.0.0. See [LICENSE](LICENSE.md).
