@@ -1,7 +1,8 @@
 import { Message } from '@trading-model/common/contracts/message.types';
-import { logger } from '../../config/logger';
-import { env } from '../../config/env';
+
 import { messageStore } from './message-store';
+import { env } from '../../config/env';
+import { logger } from '../../config/logger';
 
 interface ArchiveEntry {
   messageId: string;

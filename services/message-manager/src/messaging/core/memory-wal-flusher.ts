@@ -1,4 +1,5 @@
 import { logger } from '@trading-model/common/config/logger';
+
 import { getStreamClient } from '../../config/redis';
 
 const WAL_BATCH_SIZE = 50;

@@ -4,10 +4,10 @@ import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 import { normalizeError } from '@trading-model/common/utils/errors';
 
-import { LogRepository, ServiceLogDocument } from '../persistence/log-repository';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
 import { logsIngestedTotal, logsStoredTotal } from '../config/metrics';
+import { LogRepository, ServiceLogDocument } from '../persistence/log-repository';
 
 const LogEntrySchema = z.object({
   level: z.enum(['debug', 'info', 'warn', 'error']),

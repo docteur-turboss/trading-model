@@ -1,12 +1,12 @@
 import Redis from 'ioredis';
 
 import { logger } from '@trading-model/common/config/logger';
-import { LruCache } from '@trading-model/common/utils/lru-cache';
 import {
   RegistryBackend,
   ServiceInstance,
 } from '@trading-model/common/contracts/service-registry.types';
 import { normalizeError } from '@trading-model/common/utils/errors';
+import { LruCache } from '@trading-model/common/utils/lru-cache';
 
 interface CacheEntry {
   data: ServiceInstance[];

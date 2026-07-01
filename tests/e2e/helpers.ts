@@ -16,8 +16,6 @@ export function fetchUrl(url: string, options?: {
   return new Promise((resolve, reject) => {
     const isHttps = url.startsWith('https');
     const lib = isHttps ? https : http;
-    const urlObj = new URL(url);
-
     const bodyData = options?.body ? JSON.stringify(options.body) : undefined;
 
     const req = lib.request(

@@ -21,8 +21,8 @@ export const requestContext = new AsyncLocalStorage<RequestStore>();
 export function requestContextMiddleware(req: Request, _res: unknown, next: () => void): void {
   const store: RequestStore = {
     clientIdentity: (req as unknown as Record<string, string>).clientIdentity ?? 'unknown',
-    requestId: (req.headers['x-request-id'] as string) ?? (req as any).correlationId ?? '',
-    correlationId: (req as any).correlationId ?? '',
+    requestId: (req.headers['x-request-id'] as string) ?? (req as unknown as Record<string, string>).correlationId ?? '',
+    correlationId: (req as unknown as Record<string, string>).correlationId ?? '',
   };
   requestContext.run(store, next);
 }

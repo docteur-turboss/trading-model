@@ -1,4 +1,4 @@
-import { createPublicKey, createVerify } from 'node:crypto';
+import { createPublicKey, createVerify, X509Certificate } from 'node:crypto';
 
 /**
  * Proof-of-possession (POP) verification.
@@ -15,7 +15,7 @@ export class PopVerifier {
    */
   verify(certPem: string, nonce: string, signature: string): boolean {
     try {
-      const cert = new (require('node:crypto')).X509Certificate(certPem);
+      const cert = new X509Certificate(certPem);
       const publicKey = createPublicKey(cert.publicKey);
       const verify = createVerify('sha256');
       verify.update(Buffer.from(nonce, 'utf8'));

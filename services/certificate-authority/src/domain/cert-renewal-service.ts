@@ -28,8 +28,6 @@ export class CertRenewalError extends Error {
     this.statusCode = statusCode;
     Object.setPrototypeOf(this, new.target.prototype);
   }
-    this.statusCode = statusCode;
-  }
 }
 
 /**

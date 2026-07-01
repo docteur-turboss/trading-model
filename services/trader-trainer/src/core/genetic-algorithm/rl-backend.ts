@@ -1,5 +1,5 @@
-import type { Experience } from '../../core/neural-network/type';
 import type { DeepReadonly, LamarckGenome } from './shared-types';
+import type { Experience } from '../../core/neural-network/type';
 
 /**
  * RL backend interface decouples the GA runner and evaluation pipeline
