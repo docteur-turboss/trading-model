@@ -1,0 +1,20 @@
+# CODEOWNERS — required reviewers for PRs
+# Order matters: last matching pattern wins.
+
+# CI/CD pipeline changes require engineer review
+/.github/   @trading-model/engineering
+
+# Security-sensitive paths require security review
+/deploy/k8s/secrets/    @trading-model/security
+/certs/                  @trading-model/security
+scripts/generate-certs.sh @trading-model/security
+
+# Core shared packages require architecture review
+/packages/common/        @trading-model/architecture
+/packages/address-manager/ @trading-model/architecture
+/packages/broker-message/  @trading-model/architecture
+
+# Production infrastructure requires ops review
+/deploy/                 @trading-model/ops
+/docker-compose.yml      @trading-model/ops
+/observability/          @trading-model/ops
