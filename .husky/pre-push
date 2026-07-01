@@ -1,4 +1,4 @@
 npx prettier --check .
 npx eslint .
 npm run build
-npm run test:coverage
+npm test
