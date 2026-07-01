@@ -91,7 +91,9 @@ export class NonceStore {
         });
       } catch (err) {
         logger.warn('Failed to persist nonce to MongoDB', { err });
-        throw new Error('Failed to persist nonce', { cause: err });
+        const error = new Error('Failed to persist nonce');
+        (error as { cause?: unknown }).cause = err;
+        throw error;
       }
     }
     this.l1.set(nonce, entry);

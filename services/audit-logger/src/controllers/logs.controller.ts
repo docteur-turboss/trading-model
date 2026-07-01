@@ -25,7 +25,7 @@ export function getLogsController(logRepo: LogRepository) {
     }),
 
     getLogById: catchSync(async req => {
-      const doc = await logRepo.getById(req.params.id);
+      const doc = await logRepo.getById(String(req.params.id));
       if (!doc) {
         return sendResponse({ error: 'Log entry not found' }, 404);
       }

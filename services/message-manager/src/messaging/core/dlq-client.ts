@@ -4,7 +4,7 @@ import { HttpClient, HttpRequestOptions } from '@trading-model/common/config/htt
 import { deterministicStringify } from '@trading-model/common/utils/deterministic-stringify';
 import { AppError, ErrorCodes, normalizeError } from '@trading-model/common/utils/errors';
 
-import { DlqEntry } from './dlq-repository';
+import { DqlEntry as DlqEntry } from './dlq-repository';
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
 import { messagesDlqErrorTotal } from '../../config/metrics';

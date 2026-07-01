@@ -5,7 +5,7 @@ import { getRedisClient } from '../../config/redis';
 const ACL_CACHE_TTL_MS = 300_000;
 const ACL_CACHE_MAX_SIZE = 1000;
 const aclCache = new Map<string, { services: string[]; expiresAt: number }>();
-const aclLoading = new Map<string, Promise<void>>();
+const aclLoading = new Map<string, Promise<string[] | 'deny'>>();
 
 function extractServiceName(req: {
   headers: Record<string, string | string[] | undefined>;

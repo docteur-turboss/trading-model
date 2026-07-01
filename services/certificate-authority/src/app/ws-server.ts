@@ -210,8 +210,7 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
         const cert = await container.distributor.requestCertificate(
           signMsg.data.serviceId,
           signMsg.data.csr,
-          tokenProvided ? bootstrapToken : undefined,
-          clientIdentity
+          tokenProvided ? bootstrapToken : undefined
         );
 
         ws.send(

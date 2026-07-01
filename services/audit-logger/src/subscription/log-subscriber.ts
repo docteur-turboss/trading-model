@@ -1,18 +1,18 @@
 import { z } from 'zod';
 
+import { logger } from '@trading-model/common/config/logger';
 import { catchSync } from '@trading-model/common/middleware/catch-error';
 import { sendResponse } from '@trading-model/common/middleware/response-exception';
 import { normalizeError } from '@trading-model/common/utils/errors';
 
 import { env } from '../config/env';
-import { logger } from '../config/logger';
 import { logsIngestedTotal, logsStoredTotal } from '../config/metrics';
 import { LogRepository, ServiceLogDocument } from '../persistence/log-repository';
 
 const LogEntrySchema = z.object({
   level: z.enum(['debug', 'info', 'warn', 'error']),
   message: z.string(),
-  context: z.record(z.unknown()).optional(),
+  context: z.record(z.string(), z.unknown()).optional(),
   serviceName: z.string().optional(),
   instanceId: z.string().optional(),
   module: z.string().optional(),
@@ -56,15 +56,26 @@ export function createLogHandler(logRepo: LogRepository) {
 
     for (const entry of parsed.data.logs) {
       const context = entry.context ?? {};
-      const errorObj =
-        entry.error ??
-        (context.err || context.error
+      const errorObj:
+        | { name: string; message: string; stack?: string; code?: string }
+        | undefined =
+        entry.error
           ? {
-              name: (context.err as Error)?.name ?? (context.error as Error)?.name,
-              message: (context.err as Error)?.message ?? (context.error as Error)?.message,
-              stack: (context.err as Error)?.stack ?? (context.error as Error)?.stack,
+              name: entry.error.name ?? 'Error',
+              message: entry.error.message ?? 'Unknown error',
+              stack: entry.error.stack,
+              code: entry.error.code,
             }
-          : undefined);
+          : context.err || context.error
+            ? {
+                name: (context.err as Error)?.name ?? (context.error as Error)?.name ?? 'Error',
+                message:
+                  (context.err as Error)?.message ??
+                  (context.error as Error)?.message ??
+                  'Unknown error',
+                stack: (context.err as Error)?.stack ?? (context.error as Error)?.stack,
+              }
+            : undefined;
 
       const doc: ServiceLogDocument = {
         receivedAt,
