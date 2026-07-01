@@ -154,7 +154,9 @@ export class ServiceCache {
     return Date.now() >= entry.expiresAt;
   }
 
-  async entries(): Promise<Array<{ serviceName: string; instance: ServiceInstance; region?: string }>> {
+  async entries(): Promise<
+    Array<{ serviceName: string; instance: ServiceInstance; region?: string }>
+  > {
     const release = await this.mutex.acquire();
     try {
       const result: Array<{ serviceName: string; instance: ServiceInstance }> = [];

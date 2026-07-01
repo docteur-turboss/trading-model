@@ -106,8 +106,16 @@ export default class AddressManager {
 
   constructor(config: AddressManagerConfig) {
     this.httpClient = config.pems
-      ? HttpClient.createWithTls({ RootCACertPath: config.pems.ca, CertificatePath: config.pems.cert, KeyCertificatePath: config.pems.key })
-      : HttpClient.createWithTls({ RootCACertPath: config.RootCACertPath, CertificatePath: config.CertificatePath, KeyCertificatePath: config.KeyCertificatePath });
+      ? HttpClient.createWithTls({
+          RootCACertPath: config.pems.ca,
+          CertificatePath: config.pems.cert,
+          KeyCertificatePath: config.pems.key,
+        })
+      : HttpClient.createWithTls({
+          RootCACertPath: config.RootCACertPath,
+          CertificatePath: config.CertificatePath,
+          KeyCertificatePath: config.KeyCertificatePath,
+        });
 
     this.tokenManager = new TokenManager(this.httpClient, config);
     this.addressManagerClient = new AddressManagerClient(

@@ -273,9 +273,13 @@ export class Logger {
     this.handleErrorServiceUrl = url;
   }
 
-  private auditResolver: (() => Promise<{ url: string; tls: { key: string; cert: string; ca: string } } | null>) | null = null;
+  private auditResolver:
+    (() => Promise<{ url: string; tls: { key: string; cert: string; ca: string } } | null>) | null =
+    null;
 
-  setAuditResolver(resolver: () => Promise<{ url: string; tls: { key: string; cert: string; ca: string } } | null>): void {
+  setAuditResolver(
+    resolver: () => Promise<{ url: string; tls: { key: string; cert: string; ca: string } } | null>
+  ): void {
     this.auditResolver = resolver;
   }
 
