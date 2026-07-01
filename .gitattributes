@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Husky hooks must stay LF on Windows too (Git Bash needs them)
+.husky/** text eol=lf
