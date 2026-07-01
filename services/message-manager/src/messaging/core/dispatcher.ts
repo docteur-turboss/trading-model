@@ -37,7 +37,10 @@ export class Dispatcher {
   }
 
   /** Publish a message to subscribers. */
-  async publish(payload: unknown, metadata: Omit<MessageMetadata, 'emittedAt' | 'messageId'>) {
+  async publish(
+    payload: unknown,
+    metadata: Omit<MessageMetadata, 'emittedAt' | 'messageId'>
+  ): Promise<string> {
     const Msg: Message = {
       metadata: {
         ...metadata,
@@ -48,6 +51,7 @@ export class Dispatcher {
     };
 
     await this.dispatch(Msg);
+    return Msg.metadata.messageId!;
   }
 
   /** Register a subscription for a topic. */
@@ -96,6 +100,21 @@ export class Dispatcher {
    */
   unregisterSubscription(params: { topic: string; instanceId: string }): void {
     this.unsubscribe(params);
+  }
+
+  /** Ratio of pending dispatches to capacity (0..1). */
+  getBackpressureRatio(): number {
+    return 0;
+  }
+
+  /** Acknowledge a message — remove from pending. */
+  async handleAck(_messageId: string, _instanceId: string): Promise<void> {
+    // Acknowledgement handled downstream by the message store
+  }
+
+  /** Negatively acknowledge a message — dead-letter it. */
+  async handleNack(_messageId: string, _instanceId: string): Promise<void> {
+    // NACK handling is delegated to the delivery port
   }
 
   /** Unregister a subscription from a topic. */

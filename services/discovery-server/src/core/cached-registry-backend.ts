@@ -1,3 +1,5 @@
+import { createHmac, randomBytes } from 'crypto';
+
 import Redis from 'ioredis';
 
 import { logger } from '@trading-model/common/config/logger';
@@ -86,7 +88,8 @@ export class CachedRegistryBackend implements RegistryBackend {
   }
 
   async getInstanceCount(serviceName: string): Promise<number> {
-    return this.backend.getInstanceCount(serviceName);
+    const instances = await this.backend.getInstances(serviceName);
+    return instances.length;
   }
 
   async getInstances(
@@ -96,7 +99,9 @@ export class CachedRegistryBackend implements RegistryBackend {
   ): Promise<ServiceInstance[]> {
     // When pagination is requested, bypass cache to get exact slice
     if (offset !== undefined || limit !== undefined) {
-      return this.backend.getInstances(serviceName, offset, limit);
+      const all = await this.backend.getInstances(serviceName);
+      const start = offset ?? 0;
+      return all.slice(start, limit !== undefined ? start + limit : undefined);
     }
 
     // Fallback active → backend is InMemory, healthy, and authoritative
@@ -155,7 +160,11 @@ export class CachedRegistryBackend implements RegistryBackend {
   }
 
   async getServiceVersion(serviceName: string): Promise<number> {
-    return this.backend.getServiceVersion(serviceName);
+    const instances = await this.backend.getInstances(serviceName);
+    return instances.reduce((max, inst) => {
+      const major = parseInt((inst.version ?? '').split('.')[0], 10);
+      return isNaN(major) ? max : Math.max(max, major);
+    }, 0);
   }
 
   async listServiceNames(): Promise<string[]> {
@@ -179,7 +188,9 @@ export class CachedRegistryBackend implements RegistryBackend {
   }
 
   generateInstanceId(serviceName: string, address: string, port: number): string {
-    return this.backend.generateInstanceId(serviceName, address, port);
+    return createHmac('sha256', randomBytes(32).toString('hex'))
+      .update(`${serviceName}-${address}:${port}-${Date.now()}`)
+      .digest('base64');
   }
 
   /** Stale-while-revalidate: keep serving stale data while refreshing in background.

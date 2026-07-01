@@ -4,6 +4,7 @@ import { container } from './container';
 import { createServer } from './server';
 import { env } from '../config/env';
 import { CertificateAuthority } from '../core/ca';
+import { Distributor } from '../core/distributor';
 import { Rotator } from '../core/rotator';
 import { CaStore } from '../persistence/ca-store';
 import { CertificateStore } from '../persistence/certificate-store';
@@ -29,6 +30,12 @@ createBootstrap({
       caStore: container.caStore,
     });
     await container.ca.initialize();
+
+    container.distributor = new Distributor({
+      ca: container.ca,
+      certificateStore: container.certificateStore,
+      crlStore: container.crlStore,
+    });
 
     const rotator = new Rotator({
       ca: container.ca,

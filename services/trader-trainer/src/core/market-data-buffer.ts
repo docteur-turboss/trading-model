@@ -178,8 +178,25 @@ export class MarketDataBuffer {
     this.priceSnapshot = { ...this.priceSnapshot, ...prices } as Record<TradingSymbol, number>;
   }
 
+  /** Return a copy of the current price snapshot. */
+  getPriceSnapshot(): Record<string, number> {
+    return { ...this.priceSnapshot };
+  }
+
   getSymbols(): string[] {
     return Array.from(this.states.keys()).map(fromSymbol);
+  }
+
+  /** Return a shallow copy of the state for a symbol, or undefined. */
+  getSymbolState(symbol: string): SymbolState | undefined {
+    const s = this.states.get(toSymbol(symbol));
+    if (!s) return undefined;
+    return { ...s };
+  }
+
+  /** Restore a full symbol state from a previously saved snapshot. */
+  restoreSymbolState(symbol: string, state: SymbolState): void {
+    this.states.set(toSymbol(symbol), state);
   }
 
   getCandleCount(symbol: string): number {

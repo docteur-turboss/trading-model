@@ -40,6 +40,10 @@
       "types": "./dist/recovery/*.d.ts",
       "default": "./dist/recovery/*.js"
     },
+    "./reliability/*": {
+      "types": "./dist/reliability/*.d.ts",
+      "default": "./dist/reliability/*.js"
+    },
     "./ca/*": {
       "types": "./dist/ca/*.d.ts",
       "default": "./dist/ca/*.js"

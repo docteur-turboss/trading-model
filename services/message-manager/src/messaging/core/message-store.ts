@@ -546,10 +546,15 @@ export class MessageStore {
                       message?: Message;
                     };
                     if (parsed.message) {
-                      this.memoryWalBuffer.push({ topic: parsed.topic, message: parsed.message });
+                      this.memoryWalBuffer.push({
+                        topic: parsed.topic,
+                        serialized: parsed.serialized ?? safeStringify(parsed.message),
+                        message: parsed.message,
+                      });
                     } else if (parsed.serialized) {
                       this.memoryWalBuffer.push({
                         topic: parsed.topic,
+                        serialized: parsed.serialized,
                         message: JSON.parse(parsed.serialized),
                       });
                     }

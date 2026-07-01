@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { IdentifyType } from '@trading-model/common/contracts/message.types';
 import { normalizeError } from '@trading-model/common/utils/errors';
 
 import { env } from '../../config/env';

@@ -16,6 +16,7 @@ const AuditLoggerEnvSchema = BaseEnvSchema.extend({
   ORPHAN_SCAN_INTERVAL_MS: z.coerce.number().int().positive().default(10000),
   WORKER_HEARTBEAT_TTL_MS: z.coerce.number().int().positive().default(30000),
   GAP_DETECTION_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
+  LOG_RETENTION_DAYS: z.coerce.number().int().positive().default(1827),
   AUDIT_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
 });
 

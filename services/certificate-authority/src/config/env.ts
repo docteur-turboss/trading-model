@@ -15,6 +15,8 @@ const CertificateAuthorityEnvSchema = BaseEnvSchema.extend({
 
   CERT_DEFAULT_TTL_MS: z.coerce.number().int().positive().default(604800000),
 
+  CERT_MAX_TTL_MS: z.coerce.number().int().positive().default(31536000000),
+
   DISCOVERY_SERVICE_URL: z.string().url().default('https://discovery-server:3000'),
 });
 

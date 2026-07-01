@@ -3,6 +3,18 @@ import promClient from 'prom-client';
 
 promClient.collectDefaultMetrics({ prefix: 'audit_' });
 
+export const logsIngestedTotal = new promClient.Counter({
+  name: 'audit_logs_ingested_total',
+  help: 'Total service logs ingested',
+  labelNames: ['level', 'service_name'] as const,
+});
+
+export const logsStoredTotal = new promClient.Counter({
+  name: 'audit_logs_stored_total',
+  help: 'Total service logs persisted to MongoDB',
+  labelNames: ['status'] as const,
+});
+
 export const eventsIngestedTotal = new promClient.Counter({
   name: 'audit_events_ingested_total',
   help: 'Total audit events ingested',

@@ -36,4 +36,18 @@ export class NormalizationStats {
     if (std < 1e-10) return 0;
     return (value - this.mean) / std;
   }
+
+  /** Serialize internal state for checkpointing. */
+  toJSON(): { count: number; mean: number; m2: number } {
+    return { count: this.count, mean: this.mean, m2: this.m2 };
+  }
+
+  /** Deserialize and create a NormalizationStats from a saved snapshot. */
+  static fromJSON(data: { count: number; mean: number; m2: number }): NormalizationStats {
+    const ns = new NormalizationStats();
+    ns.count = data.count;
+    ns.mean = data.mean;
+    ns.m2 = data.m2;
+    return ns;
+  }
 }
