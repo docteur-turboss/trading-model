@@ -1,0 +1,72 @@
+# =============================================================================
+#  migration-job.yaml — Database Migration Job
+#  Runs pending SQL migrations against the MySQL database before deployment.
+#
+#  The CI/CD pipeline creates a ConfigMap from the migration files, applies
+#  this job, waits for completion, then removes both the job and ConfigMap.
+# =============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  namespace: trading-model
+  annotations:
+    description: "Runs pending MySQL schema migrations"
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 2
+  activeDeadlineSeconds: 180
+  template:
+    spec:
+      serviceAccountName: migration-runner
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: node:26-alpine
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              apk add --no-cache curl
+              cd /migrations
+              npm install mysql2 2>/dev/null
+              node /migrations/migrate.mjs up
+          env:
+            - name: DB_HOST
+              value: mysql-primary
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_USER
+              value: root
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+            - name: DB_NAME
+              value: financial_scraper
+          volumeMounts:
+            - name: migration-files
+              mountPath: /migrations
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: migration-files
+          configMap:
+            name: migration-files
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: migration-runner
+  namespace: trading-model
+  annotations:
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

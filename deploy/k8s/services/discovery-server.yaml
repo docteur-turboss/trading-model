@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: discovery-server
+  labels:
+    app.kubernetes.io/component: discovery-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: https
+    - port: 8443
+      targetPort: 3000
+      name: lb-https
+  selector:
+    app.kubernetes.io/component: discovery-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discovery-server
+  labels:
+    app.kubernetes.io/component: discovery-server
+    app.kubernetes.io/part-of: trading-model
+spec:
+  replicas: 3
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: discovery-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: discovery-server
+        app.kubernetes.io/part-of: trading-model
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/scheme: "https"
+    spec:
+      serviceAccountName: discovery-server
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: discovery-server
+          image: ghcr.io/trading-model/discovery-server:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: https
+          envFrom:
+            - configMapRef:
+                name: discovery-server-config
+          env:
+            - name: SIGNING_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: SIGNING_SECRET
+            - name: CERT_CLIENT_BOOTSTRAP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: SERVICE_BOOTSTRAP_TOKEN
+            - name: ERROR_URL_WEBHOOK
+              value: ""
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /etc/tls
+              readOnly: true
+            - name: tls-certs
+              mountPath: /certs
+              readOnly: true
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -sk
+                - --cert
+                - /certs/server.crt
+                - --key
+                - /certs/server-key.pem
+                - https://localhost:3000/ping
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - curl
+                - -sk
+                - --cert
+                - /certs/server.crt
+                - --key
+                - /certs/server-key.pem
+                - https://localhost:3000/health/ready
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+          startupProbe:
+            exec:
+              command:
+                - curl
+                - -sk
+                - --cert
+                - /certs/server.crt
+                - --key
+                - /certs/server-key.pem
+                - https://localhost:3000/ping
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 12
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: trading-model-tls
+            optional: false

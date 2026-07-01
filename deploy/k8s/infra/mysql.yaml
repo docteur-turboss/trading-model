@@ -1,0 +1,367 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  clusterIP: None
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+  selector:
+    app.kubernetes.io/component: mysql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-primary
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+  selector:
+    app.kubernetes.io/component: mysql
+    statefulset.kubernetes.io/pod-name: mysql-0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+  selector:
+    app.kubernetes.io/component: mysql
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  serviceName: mysql-headless
+  replicas: 3
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: mysql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: mysql
+        app.kubernetes.io/part-of: trading-model
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/component: mysql
+                topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: mysql
+          image: mysql:8
+          ports:
+            - containerPort: 3306
+              name: mysql
+            - containerPort: 33060
+              name: mysqlx
+            - containerPort: 33061
+              name: group-repl
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              value: financial_scraper
+            - name: MYSQL_USER
+              value: scraper
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_PASSWORD
+            - name: MYSQL_INITDB_SKIP_TZINFO
+              value: "1"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+            - name: mysql-init
+              mountPath: /docker-entrypoint-initdb.d
+            - name: mysql-config
+              mountPath: /etc/mysql/conf.d
+          livenessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+                - -u
+                - root
+                - -p$(MYSQL_ROOT_PASSWORD)
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - -h
+                - localhost
+                - -u
+                - root
+                - -p$(MYSQL_ROOT_PASSWORD)
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+      volumes:
+        - name: mysql-init
+          configMap:
+            name: mysql-init-sql
+        - name: mysql-config
+          configMap:
+            name: mysql-group-replication-config
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-group-replication-config
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+data:
+  group-replication.cnf: |
+    [mysqld]
+    plugin-load=group_replication.so
+    loose-group_replication_group_name=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+    loose-group_replication_start_on_boot=off
+    loose-group_replication_local_address=mysql-$(POD_INDEX).mysql-headless:33061
+    loose-group_replication_group_seeds=mysql-0.mysql-headless:33061,mysql-1.mysql-headless:33061,mysql-2.mysql-headless:33061
+    loose-group_replication_bootstrap_group=off
+    loose-group_replication_single_primary_mode=on
+    loose-group_replication_enforce_update_everywhere_checks=off
+    loose-group_replication_ip_whitelist=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+    loose-group_replication_components_stop_timeout=30
+    loose-group_replication_recovery_get_public_key=on
+    server-id=1
+    binlog-format=ROW
+    log-bin=mysql-bin
+    relay-log=mysql-relay
+    relay-log-recovery=ON
+    enforce-gtid-consistency=ON
+    gtid-mode=ON
+    transaction-write-set-extraction=XXHASH64
+    loose-group_replication_recovery_use_ssl=ON
+    loose-group_replication_ssl_mode=REQUIRED
+    # InnoDB encryption at rest (GDPR Art. 32 — data protection)
+    innodb_encrypt_tables=ON
+    innodb_encrypt_log=ON
+    encrypt-binlog=ON
+    innodb_encryption_threads=4
+    innodb_encrypt_online_alter_logs=ON
+    table_encryption_privilege_check=OFF
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-cluster-init
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mysql-init
+          image: mysql:8
+          command:
+            - sh
+            - -c
+            - |
+              MYSQL_ROOT_PASSWORD=$(cat /etc/mysql-root-password/password)
+              for i in $(seq 1 30); do
+                if mysqladmin ping -h mysql-0.mysql-headless -u root -p"$MYSQL_ROOT_PASSWORD" 2>/dev/null; then
+                  echo "MySQL-0 is ready"
+                  break
+                fi
+                echo "Waiting for MySQL-0... ($i/30)"
+                sleep 5
+              done
+
+              mysql -h mysql-0.mysql-headless -u root -p"$MYSQL_ROOT_PASSWORD" <<-EOSQL
+                SET SQL_LOG_BIN=0;
+                CREATE USER IF NOT EXISTS 'repl'@'%' IDENTIFIED BY '$MYSQL_ROOT_PASSWORD' REQUIRE SSL;
+                GRANT REPLICATION SLAVE, BACKUP_ADMIN ON *.* TO 'repl'@'%';
+                GRANT GROUP_REPLICATION_STREAM ON *.* TO 'repl'@'%';
+                FLUSH PRIVILEGES;
+                SET SQL_LOG_BIN=1;
+
+                CHANGE REPLICATION SOURCE TO
+                  SOURCE_USER='repl',
+                  SOURCE_PASSWORD='$MYSQL_ROOT_PASSWORD'
+                  FOR CHANNEL 'group_replication_recovery';
+
+                INSTALL PLUGIN group_replication SONAME 'group_replication.so';
+                SET GLOBAL group_replication_bootstrap_group=ON;
+                START GROUP_REPLICATION;
+                SET GLOBAL group_replication_bootstrap_group=OFF;
+                SELECT * FROM performance_schema.replication_group_members;
+              EOSQL
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-model-secrets
+                  key: MYSQL_ROOT_PASSWORD
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init-sql
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+data:
+  init-db.sql: |
+    CREATE TABLE IF NOT EXISTS `market_candles` (
+      `id`               INT NOT NULL AUTO_INCREMENT,
+      `symbol`           VARCHAR(32) NOT NULL,
+      `market`           VARCHAR(16) NOT NULL,
+      `source`           VARCHAR(32) NOT NULL,
+      `interval_value`   VARCHAR(16) NOT NULL,
+      `open`             DECIMAL(20,10) NOT NULL,
+      `high`             DECIMAL(20,10) NOT NULL,
+      `low`              DECIMAL(20,10) NOT NULL,
+      `close`            DECIMAL(20,10) NOT NULL,
+      `volume`           DECIMAL(30,10) NOT NULL,
+      `trades`           INT NULL,
+      `timestamp`        DATETIME(3) NOT NULL,
+      `close_timestamp`  DATETIME(3) NOT NULL,
+      `created_at`       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`, `symbol`, `market`, `interval_value`, `timestamp`, `source`),
+      INDEX `idx_candles_timestamp` (`timestamp` ASC) INVISIBLE,
+      INDEX `idx_candles_symbol` (`symbol` ASC) VISIBLE
+    ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS `market_trades` (
+      `id`          INT NOT NULL AUTO_INCREMENT,
+      `symbol`      VARCHAR(32) NOT NULL,
+      `market`      VARCHAR(16) NOT NULL,
+      `source`      VARCHAR(32) NOT NULL,
+      `trade_id`    BIGINT NOT NULL,
+      `price`       DECIMAL(20,10) NOT NULL,
+      `quantity`    DECIMAL(30,10) NOT NULL,
+      `side`        ENUM('buy', 'sell') NOT NULL,
+      `timestamp`   DATETIME(3) NOT NULL,
+      `created_at`  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`symbol`, `market`, `source`, `trade_id`, `timestamp`),
+      INDEX `idx_trades_timestamp` (`timestamp` ASC) INVISIBLE,
+      INDEX `idx_trades_symbol` (`symbol` ASC) VISIBLE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS `market_tickers` (
+      `id`               INT NOT NULL AUTO_INCREMENT,
+      `symbol`           VARCHAR(32) NOT NULL,
+      `market`           VARCHAR(16) NOT NULL,
+      `source`           VARCHAR(32) NOT NULL,
+      `open`             DECIMAL(20,10) NOT NULL,
+      `high`             DECIMAL(20,10) NOT NULL,
+      `low`              DECIMAL(20,10) NOT NULL,
+      `last`             DECIMAL(20,10) NOT NULL,
+      `volume`           DECIMAL(30,10) NOT NULL,
+      `timestamp`        DATETIME(3) NOT NULL,
+      `close_time`       DATETIME(3) NOT NULL,
+      `created_at`       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`, `symbol`, `market`, `timestamp`, `source`),
+      INDEX `idx_tickers_timestamp` (`timestamp` ASC) INVISIBLE,
+      INDEX `idx_tickers_symbol` (`symbol` ASC) VISIBLE
+    ) ENGINE = InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mysql-pdb
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: mysql
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mysql-network-policy
+  labels:
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: mysql
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trading-model
+      ports:
+        - port: 3306
+          protocol: TCP
+        - port: 33061
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trading-model
+      ports:
+        - port: 3306
+          protocol: TCP
+        - port: 33061
+          protocol: TCP

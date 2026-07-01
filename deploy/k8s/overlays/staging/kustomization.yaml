@@ -1,0 +1,53 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: trading-model-staging
+
+resources:
+  - ../../base
+
+# Staging-specific image tags (non-:latest, for reproducible deployments)
+images:
+  - name: ghcr.io/trading-model/discovery-server
+    newTag: staging
+  - name: ghcr.io/trading-model/message-manager
+    newTag: staging
+  - name: ghcr.io/trading-model/financial-scraper
+    newTag: staging
+  - name: ghcr.io/trading-model/trader-trainer
+    newTag: staging
+  - name: ghcr.io/trading-model/certificate-authority
+    newTag: staging
+  - name: ghcr.io/trading-model/api-gateway
+    newTag: staging
+  - name: ghcr.io/trading-model/audit-logger
+    newTag: staging
+  - name: ghcr.io/trading-model/dlq-service
+    newTag: staging
+  - name: ghcr.io/trading-model/admin-interface
+    newTag: staging
+
+# Staging-specific resource reductions (smaller than production)
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  - target:
+      kind: StatefulSet
+      name: "^(mysql|redis-primary|redis-sentinel|mongo-dlq|mongo-audit)$"
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  - target:
+      kind: Deployment
+      name: "^(discovery-server|message-manager)$"
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1

@@ -1,0 +1,167 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-manager-config
+  labels:
+    app.kubernetes.io/component: message-manager
+    app.kubernetes.io/part-of: trading-model
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  TLS_KEY_PATH: "/etc/tls/key.pem"
+  TLS_CERT_PATH: "/etc/tls/cert.pem"
+  TLS_CA_PATH: "/etc/tls/ca.pem"
+  LOG_LEVEL: "info"
+  APP_NAME: "message-manager"
+  APP_VERSION: "1.3.0"
+  SERVICE_NAME: "message-delivery-service"
+  CACHE_TTL_MS: "30000"
+  SERVICE_PING_TIMEOUT_MS: "2000"
+  TOKEN_REFRESH_INTERVAL_MS: "60000"
+  TTL_REFRESH_INTERVAL_MS: "15000"
+  ADDRESS_MANAGER_URL: "https://discovery-server:3000"
+  MESSAGE_BUS_INIT_TIMEOUT_MS: "5000"
+  MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS: "5000"
+  MESSAGE_CALLBACK_PATH: "message"
+  CERT_CLIENT_CA_URL: "https://certificate-authority:3000"
+  CERT_CLIENT_SERVICE_ID: "message-manager"
+  CERT_CLIENT_SANS: "message-manager,localhost"
+  CA_CLIENT_TLS_KEY: "/certs/server-key.pem"
+  CA_CLIENT_TLS_CERT: "/certs/server.crt"
+  CA_CLIENT_TLS_CA: "/certs/ca.crt"
+  REDIS_HOST: "redis-primary"
+  REDIS_PORT: "6379"
+  REDIS_PREFIX: "mm:"
+  REDIS_SENTINEL_MASTER_NAME: "mymaster"
+  REDIS_SENTINEL_NODES: "redis-sentinel-0.redis-sentinel-headless:26379,redis-sentinel-1.redis-sentinel-headless:26379,redis-sentinel-2.redis-sentinel-headless:26379"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+  DLQ_SERVICE_URL: "https://dlq-service:3000"
+  PARTITION_COUNT: "8"
+  WSS_ENABLED: "true"
+  WSS_PATH: "/ws"
+  DYNAMIC_PARTITIONS_ENABLED: "true"
+  MAX_CONCURRENT_PER_SUBSCRIBER: "10"
+  MAX_DELIVERY_RETRIES: "10"
+  TOKEN_BUCKET_CAPACITY: "50000"
+  TOKEN_BUCKET_REFILL_RATE: "5000"
+  DLQ_BUFFER_MAX_SIZE: "1000"
+  DLQ_BUFFER_FLUSH_INTERVAL_MS: "1000"
+  MEMORY_WAL_BUFFER_SIZE: "500000"
+  BACKPRESSURE_MAX_QUEUE_SIZE: "50000"
+  MAX_CONCURRENT_DELIVERIES: "500"
+  CLUSTER_ENABLED: "true"
+  CLUSTER_WORKERS: "0"
+  MONGO_ARCHIVE_URI: ""
+  MONGO_ARCHIVE_DB: "message_archive"
+  MONGO_ARCHIVE_COLLECTION: "messages"
+  MONGO_ARCHIVE_INTERVAL_MS: "5000"
+  MONGO_ARCHIVE_BATCH_SIZE: "100"
+  MONGO_ARCHIVE_RETENTION_DAYS: "90"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: message-manager-hpa
+  labels:
+    app.kubernetes.io/component: message-manager
+    app.kubernetes.io/part-of: trading-model
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: message-manager
+  minReplicas: 3
+  maxReplicas: 12
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Pods
+      pods:
+        metric:
+          name: message_queue_depth
+        target:
+          type: AverageValue
+          averageValue: "1000"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 180
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 15
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+        - type: Pods
+          value: 2
+          periodSeconds: 15
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: message-manager-pdb
+  labels:
+    app.kubernetes.io/component: message-manager
+    app.kubernetes.io/part-of: trading-model
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: message-manager
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: message-manager-network-policy
+  labels:
+    app.kubernetes.io/component: message-manager
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: message-manager
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trading-model
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trading-model
+      ports:
+        - port: 6379
+          protocol: TCP
+        - port: 26379
+          protocol: TCP
+        - port: 3000
+          protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: message-manager
+  labels:
+    app.kubernetes.io/component: message-manager
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

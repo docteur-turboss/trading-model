@@ -1,0 +1,104 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-gateway-ingress
+  labels:
+    app.kubernetes.io/component: api-gateway
+    app.kubernetes.io/part-of: trading-model
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/proxy-ssl-verify: "on"
+    nginx.ingress.kubernetes.io/proxy-ssl-secret: trading-model/trading-model-tls
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-rpm: "6000"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.trading-model.example.com
+      secretName: api-trading-model-tls
+  rules:
+    - host: api.trading-model.example.com
+      http:
+        paths:
+          - path: /v1/(discovery|services)(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: discovery-server
+                port:
+                  number: 3000
+          - path: /v1/(certificate|crl)(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: certificate-authority
+                port:
+                  number: 3000
+          - path: /v1/(events|audit)(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: audit-logger
+                port:
+                  number: 3000
+          - path: /v1/(dlq)(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: dlq-service
+                port:
+                  number: 3000
+          - path: /v1/(market|candles|ticker|trade)(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: financial-scraper
+                port:
+                  number: 3000
+          - path: /v1/(trainer|training)(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: trader-trainer
+                port:
+                  number: 3000
+          - path: /v1/(message|publish)(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: message-manager
+                port:
+                  number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: admin-interface-ingress
+  labels:
+    app.kubernetes.io/component: admin-interface
+    app.kubernetes.io/part-of: trading-model
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - admin.trading-model.example.com
+      secretName: admin-trading-model-tls
+  rules:
+    - host: admin.trading-model.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-interface
+                port:
+                  number: 80

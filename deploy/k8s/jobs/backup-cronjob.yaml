@@ -1,0 +1,215 @@
+# =============================================================================
+#  backup-cronjob.yaml — Daily Database Backup CronJob
+#  Runs backup-k8s.sh at 2:00 AM daily inside the K8s cluster.
+#
+#  Required secrets:
+#    - trading-model-secrets (for MYSQL_ROOT_PASSWORD etc.)
+#
+#  Optional (S3 off-site):
+#    - trading-model-backup-s3 (with keys: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  namespace: trading-model
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+  annotations:
+    description: "Daily backup of MongoDB, MySQL, Redis, CA keys, and checkpoints"
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 3
+  startingDeadlineSeconds: 300
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          serviceAccountName: backup-runner
+          restartPolicy: Never
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        app.kubernetes.io/component: backup
+                    topologyKey: kubernetes.io/hostname
+          initContainers:
+            - name: install-tools
+              image: alpine:3.21
+              command:
+                - sh
+                - -c
+                - |
+                  apk add --no-cache aws-cli mysql-client redis
+                  cp /usr/bin/aws /tools/
+                  cp /usr/bin/mysql /tools/
+                  cp /usr/bin/redis-cli /tools/
+              volumeMounts:
+                - name: tools
+                  mountPath: /tools
+          containers:
+            - name: backup
+              image: bitnami/kubectl:1.32
+              command:
+                - sh
+                - -c
+                - |
+                  set -euo pipefail
+                  cp /tools/* /usr/local/bin/
+                  chmod +x /usr/local/bin/aws /usr/local/bin/mysql /usr/local/bin/redis-cli
+                  /scripts/backup-k8s.sh \
+                    --components mongodb,mysql,redis,ca-keys,checkpoints
+              env:
+                - name: BACKUP_DIR
+                  value: /backups
+                - name: RETENTION_DAYS
+                  value: "30"
+                - name: K8S_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: BACKUP_S3_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: BACKUP_S3_BUCKET
+                      optional: true
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_ACCESS_KEY_ID
+                      optional: true
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_SECRET_ACCESS_KEY
+                      optional: true
+                - name: AWS_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_REGION
+                      optional: true
+                - name: AWS_DEFAULT_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: trading-model-backup-s3
+                      key: AWS_REGION
+                      optional: true
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: tools
+                  mountPath: /tools
+                  readOnly: true
+                - name: backup-data
+                  mountPath: /backups
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 256Mi
+                limits:
+                  cpu: "1"
+                  memory: 1Gi
+          volumes:
+            - name: scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0555
+            - name: tools
+              emptyDir: {}
+            - name: backup-data
+              persistentVolumeClaim:
+                claimName: backup-data
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            fsGroup: 1001
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-scripts
+  namespace: trading-model
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+data:
+  backup-k8s.sh: |
+{{ .Files.Get "scripts/backup-k8s.sh" | indent 4 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-data
+  namespace: trading-model
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-runner
+  namespace: trading-model
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-runner
+  namespace: trading-model
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    resourceNames: ["statefulset/mongo-dlq", "statefulset/mongo-audit", "statefulset/mysql", "deployment/redis-primary", "deployment/certificate-authority", "deployment/trader-trainer"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["trading-model-tls", "trading-model-ca-keys", "trading-model-secrets"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-runner
+  namespace: trading-model
+  labels:
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: trading-model
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backup-runner
+subjects:
+  - kind: ServiceAccount
+    name: backup-runner
+    namespace: trading-model

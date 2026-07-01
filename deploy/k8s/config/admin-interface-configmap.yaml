@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: admin-interface-config
+  labels:
+    app.kubernetes.io/component: admin-interface
+    app.kubernetes.io/part-of: trading-model
+data:
+  VITE_API_GATEWAY_URL: "https://api-gateway:3000/v1"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: admin-interface-hpa
+  labels:
+    app.kubernetes.io/component: admin-interface
+    app.kubernetes.io/part-of: trading-model
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: admin-interface
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 15
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: admin-interface-pdb
+  labels:
+    app.kubernetes.io/component: admin-interface
+    app.kubernetes.io/part-of: trading-model
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: admin-interface
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: admin-interface-network-policy
+  labels:
+    app.kubernetes.io/component: admin-interface
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: admin-interface
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - port: 80
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trading-model
+      ports:
+        - port: 3000
+          protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-interface
+  labels:
+    app.kubernetes.io/component: admin-interface
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

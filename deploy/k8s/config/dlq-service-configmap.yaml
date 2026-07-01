@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dlq-service-config
+  labels:
+    app.kubernetes.io/component: dlq-service
+    app.kubernetes.io/part-of: trading-model
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  LOG_LEVEL: "info"
+  TLS_KEY_PATH: "/etc/tls/key.pem"
+  TLS_CERT_PATH: "/etc/tls/cert.pem"
+  TLS_CA_PATH: "/etc/tls/ca.pem"
+  MONGO_URI: "mongodb://mongo-dlq-0.mongo-dlq-headless:27017,mongo-dlq-1.mongo-dlq-headless:27017,mongo-dlq-2.mongo-dlq-headless:27017/dlq?replicaSet=rs0"
+  MONGO_DB: "dlq"
+  MONGO_COLLECTION: "dlq_entries"
+  MAX_ENTRIES: "100000"
+  DLQ_RETRY_MAX_ATTEMPTS: "3"
+  MESSAGE_MANAGER_URL: "https://message-manager:3000"
+  REDIS_URL: "redis://redis-primary:6379"
+  CERT_CLIENT_CA_URL: "https://certificate-authority:3000"
+  CERT_CLIENT_SERVICE_ID: "dlq-service"
+  CERT_CLIENT_SANS: "dlq-service,localhost"
+  CA_CLIENT_TLS_KEY: "/certs/server-key.pem"
+  CA_CLIENT_TLS_CERT: "/certs/server.crt"
+  CA_CLIENT_TLS_CA: "/certs/ca.crt"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dlq-service-hpa
+  labels:
+    app.kubernetes.io/component: dlq-service
+    app.kubernetes.io/part-of: trading-model
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dlq-service
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 30
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dlq-service-pdb
+  labels:
+    app.kubernetes.io/component: dlq-service
+    app.kubernetes.io/part-of: trading-model
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: dlq-service
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dlq-service-network-policy
+  labels:
+    app.kubernetes.io/component: dlq-service
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: dlq-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trading-model
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trading-model
+      ports:
+        - port: 27017
+          protocol: TCP
+        - port: 6379
+          protocol: TCP
+        - port: 3000
+          protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dlq-service
+  labels:
+    app.kubernetes.io/component: dlq-service
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: trading-model
+
+resources:
+  - namespace.yaml
+  - ../secrets
+  - ../config/discovery-server-configmap.yaml
+  - ../config/message-manager-configmap.yaml
+  - ../config/financial-scraper-configmap.yaml
+  - ../config/trader-trainer-configmap.yaml
+  - ../config/certificate-authority-configmap.yaml
+  - ../config/api-gateway-configmap.yaml
+  - ../config/audit-logger-configmap.yaml
+  - ../config/dlq-service-configmap.yaml
+  - ../infra/redis.yaml
+  - ../infra/mysql.yaml
+  - ../infra/mongodb.yaml
+  - ../infra/mongo-audit.yaml
+  - ../infra/otel-collector.yaml
+  - ../infra/jaeger.yaml
+  - ../infra/prometheus.yaml
+  - ../infra/alertmanager.yaml
+  - ../infra/blackbox-exporter.yaml
+  - ../infra/grafana.yaml
+  - ../services/discovery-server.yaml
+  - ../services/message-manager.yaml
+  - ../services/financial-scraper.yaml
+  - ../services/trader-trainer.yaml
+  - ../services/certificate-authority.yaml
+  - ../services/api-gateway.yaml
+  - ../services/audit-logger.yaml
+  - ../services/dlq-service.yaml
+  - ../services/admin-interface.yaml
+  - ../ingress/gateway-ingress.yaml
+  - ../ingress/grafana-ingress.yaml
+  - ../monitoring/prometheusrule-alerts.yaml
+  - ../jobs/backup-cronjob.yaml
+  - ../jobs/secret-rotation-cronjob.yaml
+  - ../autoscaling/vpa-default.yaml

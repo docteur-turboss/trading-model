@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: certificate-authority-config
+  labels:
+    app.kubernetes.io/component: certificate-authority
+    app.kubernetes.io/part-of: trading-model
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  TLS_KEY_PATH: "/certs/server-key.pem"
+  TLS_CERT_PATH: "/certs/server.crt"
+  TLS_CA_PATH: "/certs/ca.crt"
+  LOG_LEVEL: "info"
+  CA_KEY_PATH: "/etc/ca-keys/ca-key.pem"
+  CA_CERT_TTL_MS: "31536000000"
+  CERT_ROTATION_INTERVAL_MS: "86400000"
+  CERT_ROTATION_MARGIN_MS: "17280000"
+  CERT_DEFAULT_TTL_MS: "604800000"
+  DISCOVERY_SERVICE_URL: "https://discovery-server:3000"
+  REDIS_URL: "redis://redis-cert:6379"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: certificate-authority-hpa
+  labels:
+    app.kubernetes.io/component: certificate-authority
+    app.kubernetes.io/part-of: trading-model
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: certificate-authority
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 180
+    scaleUp:
+      stabilizationWindowSeconds: 30
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: certificate-authority-pdb
+  labels:
+    app.kubernetes.io/component: certificate-authority
+    app.kubernetes.io/part-of: trading-model
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: certificate-authority
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: certificate-authority-network-policy
+  labels:
+    app.kubernetes.io/component: certificate-authority
+    app.kubernetes.io/part-of: trading-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: certificate-authority
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trading-model
+      ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: trading-model
+      ports:
+        - port: 6379
+          protocol: TCP
+        - port: 27017
+          protocol: TCP
+        - port: 3000
+          protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: certificate-authority
+  labels:
+    app.kubernetes.io/component: certificate-authority
+    app.kubernetes.io/part-of: trading-model
+automountServiceAccountToken: false

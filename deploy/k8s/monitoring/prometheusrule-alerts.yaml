@@ -1,0 +1,137 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: trading-model-alerts
+  labels:
+    app.kubernetes.io/part-of: trading-model
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: trading-model
+      interval: 30s
+      rules:
+        # ── SLO Burn Rate Alerts ───────────────────────────────────
+        - alert: SLOAvailabilityFastBurn
+          expr: rate(http_requests_duration_seconds_count{status=~"5.."}[5m]) / rate(http_requests_duration_seconds_count[5m]) > 0.02
+          for: 2m
+          labels:
+            severity: critical
+            slo: availability
+          annotations:
+            summary: "Availability SLO fast burn rate exceeded"
+            description: "Error rate > 2% over 5m — check {{ $labels.job }} logs."
+
+        - alert: SLOAvailabilitySlowBurn
+          expr: rate(http_requests_duration_seconds_count{status=~"5.."}[1h]) / rate(http_requests_duration_seconds_count[1h]) > 0.005
+          for: 10m
+          labels:
+            severity: warning
+            slo: availability
+          annotations:
+            summary: "Availability SLO slow burn rate exceeded"
+            description: "Error rate > 0.5% over 1h — approaching error budget exhaustion."
+
+        - alert: SLOLatencyFastBurn
+          expr: histogram_quantile(0.95, rate(http_requests_duration_seconds_bucket[5m])) > 5
+          for: 2m
+          labels:
+            severity: critical
+            slo: latency
+          annotations:
+            summary: "Latency SLO fast burn rate exceeded"
+            description: "P95 latency > 5s over 5m."
+
+        - alert: SLOLatencySlowBurn
+          expr: histogram_quantile(0.95, rate(http_requests_duration_seconds_bucket[1h])) > 3
+          for: 10m
+          labels:
+            severity: warning
+            slo: latency
+          annotations:
+            summary: "Latency SLO slow burn rate exceeded"
+            description: "P95 latency > 3s over 1h."
+
+        - alert: SLOErrorRateFastBurn
+          expr: rate(http_requests_duration_seconds_count{status=~"5.."}[5m]) / rate(http_requests_duration_seconds_count[5m]) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+            slo: error_rate
+          annotations:
+            summary: "Error rate SLO fast burn rate exceeded"
+            description: "Error rate > 5% over 5m."
+
+        - alert: SLOErrorRateSlowBurn
+          expr: rate(http_requests_duration_seconds_count{status=~"5.."}[1h]) / rate(http_requests_duration_seconds_count[1h]) > 0.02
+          for: 10m
+          labels:
+            severity: warning
+            slo: error_rate
+          annotations:
+            summary: "Error rate SLO slow burn rate exceeded"
+            description: "Error rate > 2% over 1h."
+
+        # ── Operational Alerts ─────────────────────────────────────
+        - alert: ServiceDown
+          expr: up == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Service {{ $labels.job }} is down"
+            description: "Service {{ $labels.job }} has been unreachable for over 1 minute."
+
+        - alert: HighErrorRate
+          expr: rate(http_requests_duration_seconds_count{status=~"5.."}[5m]) / rate(http_requests_duration_seconds_count[5m]) > 0.05
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High error rate on {{ $labels.job }}"
+            description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes."
+
+        - alert: HighLatency
+          expr: histogram_quantile(0.95, rate(http_requests_duration_seconds_bucket[5m])) > 5
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High latency on {{ $labels.job }}"
+            description: "P95 latency is {{ $value }}s for the last 5 minutes."
+
+        - alert: HighMemoryUsage
+          expr: nodejs_heap_size_used_bytes / nodejs_heap_size_total_bytes > 0.9
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage on {{ $labels.job }}"
+            description: "Heap usage is {{ $value | humanizePercentage }}."
+
+        - alert: CircuitBreakerOpen
+          expr: mm_circuit_breaker_state == 1
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Circuit breaker open on {{ $labels.subscriber }}"
+            description: "Circuit breaker for subscriber is in OPEN state."
+
+        - alert: BackupFailed
+          expr: time() - backup_last_success_timestamp > 90000
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: "Database backup failed or too old"
+            description: "Last successful backup was more than 25 hours ago."
+
+        - alert: BackupNotRunning
+          expr: backup_last_success_timestamp == 0
+          for: 24h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Database backup has never succeeded"
+            description: "No successful backup has ever been recorded."
