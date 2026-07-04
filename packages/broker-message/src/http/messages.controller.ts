@@ -26,7 +26,7 @@ export const MESSAGE_CONTROLLER = catchSync(async (req) => {
 	});
 
 	if (!resultPayload.success) {
-		throw ResponseException("Invalid payload format").BadRequest();
+		throw ResponseException("Invalid payload format").badRequest();
 	}
 
 	EVENT_MANAGER.emit(resultMetadata.data.topic as keyof EventMap, payload);
