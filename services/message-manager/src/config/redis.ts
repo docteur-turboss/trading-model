@@ -167,8 +167,9 @@ async function getOrCreateClient(slot: ManagedRedis): Promise<Redis> {
 	if (slot.client && slot.client.status === "ready") {
 		return slot.client;
 	}
-	if (await slot.promise) {
-		return slot.promise;
+	const existing = slot.promise ? await slot.promise : null;
+	if (existing) {
+		return existing;
 	}
 
 	// If existing client is reconnecting, wait for it before creating a new one

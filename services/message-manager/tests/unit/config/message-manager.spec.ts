@@ -10,7 +10,7 @@ jest.mock("messaging", () => {
 });
 
 jest.mock("../../../src/config/env", () => ({
-	env: {
+	ENV: {
 		TLS_CERT_PATH: "/etc/tls/cert.pem",
 		TLS_KEY_PATH: "/etc/tls/key.pem",
 		TLS_CA_PATH: "/etc/tls/ca.pem",

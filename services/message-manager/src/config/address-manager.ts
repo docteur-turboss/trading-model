@@ -1,8 +1,8 @@
 import { createAddressManager } from "@trading-model/address-manager/create-address-manager";
 
-import { env } from "./env";
+import { ENV } from "./env";
 
-const ADDRESS_MANAGER = createAddressManager(env);
+const ADDRESS_MANAGER = createAddressManager(ENV);
 
 /** Express route binder for address-manager HTTP endpoints. */
 const ADDRESS_MANAGER_ROUTES = ADDRESS_MANAGER.listenExpress;
