@@ -46,7 +46,6 @@ jobs:
           npm run -w services/admin-interface build
           npm run -w services/audit-logger build
           npm run -w services/dlq-service build
-          npm run -w packages/certificate-utils build
 
   test:
     runs-on: ubuntu-latest

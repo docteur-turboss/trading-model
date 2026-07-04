@@ -44,7 +44,7 @@ function createResilientTlsBootstrap(): TlsBootstrapOptions | null {
 		const tls = createTlsBootstrap(process.env as Record<string, string>);
 		if (tls?.setupAutoRenew) {
 			const originalSetupAutoRenew = tls.setupAutoRenew.bind(tls);
-			tls.setupAutoRenew = (server) => {
+			tls.setupAutoRenew = (server: import("node:https").Server) => {
 				originalSetupAutoRenew(server);
 				reloadHttpClientTls().catch((err: unknown) => {
 					logger.warn(
