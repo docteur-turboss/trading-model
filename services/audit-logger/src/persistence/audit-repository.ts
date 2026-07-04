@@ -159,16 +159,12 @@ export class AuditRepository {
 		const [totalEvents, topicAgg, publisherAgg, dateRange] = await Promise.all([
 			this._collection.estimatedDocumentCount(),
 			this._collection
-				.aggregate<{
-					_id: string;
-					count: number;
-				}>([{ [MGROUP]: { [MID]: "$metadata.topic", count: { [MSUM]: 1 } } }])
+				.aggregate<Record<typeof MID, string> & { count: number }>([
+					{ [MGROUP]: { [MID]: "$metadata.topic", count: { [MSUM]: 1 } } },
+				])
 				.toArray(),
 			this._collection
-				.aggregate<{
-					_id: string;
-					count: number;
-				}>([
+				.aggregate<Record<typeof MID, string> & { count: number }>([
 					{ [MGROUP]: { [MID]: "$metadata.publisher", count: { [MSUM]: 1 } } },
 				])
 				.toArray(),

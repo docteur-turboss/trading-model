@@ -68,7 +68,7 @@ describe("createHttpClient", () => {
 		createHttpClient("https://api.example.com");
 		jest.useFakeTimers();
 
-		const error = { config: { __retryCount: 0 }, response: { status: 500 } };
+		const error = { config: { retryCount: 0 }, response: { status: 500 } };
 		const promise = mockResponseRejectedHandler!(error).catch((e: any) => e);
 		jest.advanceTimersByTime(20000);
 		await promise;
@@ -79,7 +79,7 @@ describe("createHttpClient", () => {
 	it("response rejected interceptor should not retry on 400", async () => {
 		createHttpClient("https://api.example.com");
 
-		const error = { config: { __retryCount: 0 }, response: { status: 400 } };
+		const error = { config: { retryCount: 0 }, response: { status: 400 } };
 		let threw = false;
 		try {
 			await mockResponseRejectedHandler!(error);
@@ -93,7 +93,7 @@ describe("createHttpClient", () => {
 		createHttpClient("https://api.example.com");
 		jest.useFakeTimers();
 
-		const error = { config: { __retryCount: 0 }, response: { status: 429 } };
+		const error = { config: { retryCount: 0 }, response: { status: 429 } };
 		const promise = mockResponseRejectedHandler!(error).catch((e: any) => e);
 		jest.advanceTimersByTime(20000);
 		await promise;
@@ -105,7 +105,7 @@ describe("createHttpClient", () => {
 		createHttpClient("https://api.example.com");
 		jest.useFakeTimers();
 
-		const error = { config: { __retryCount: 0 }, response: { status: 403 } };
+		const error = { config: { retryCount: 0 }, response: { status: 403 } };
 		const promise = mockResponseRejectedHandler!(error).catch((e: any) => e);
 		jest.advanceTimersByTime(20000);
 		await promise;
@@ -116,7 +116,7 @@ describe("createHttpClient", () => {
 	it("response rejected interceptor should stop retrying after max retries", async () => {
 		createHttpClient("https://api.example.com");
 
-		const error = { config: { __retryCount: 5 }, response: { status: 500 } };
+		const error = { config: { retryCount: 5 }, response: { status: 500 } };
 		let threw = false;
 		try {
 			await mockResponseRejectedHandler!(error);
@@ -139,7 +139,7 @@ describe("createHttpClient", () => {
 		expect(threw).toBe(true);
 	});
 
-	it("response rejected interceptor should handle missing __retryCount", async () => {
+	it("response rejected interceptor should handle missing retryCount", async () => {
 		createHttpClient("https://api.example.com");
 		jest.useFakeTimers();
 
@@ -155,7 +155,7 @@ describe("createHttpClient", () => {
 		createHttpClient("https://api.example.com");
 		jest.useFakeTimers();
 
-		const error = { config: { __retryCount: 0 }, response: undefined };
+		const error = { config: { retryCount: 0 }, response: undefined };
 		const promise = mockResponseRejectedHandler!(error).catch((e: any) => e);
 		jest.advanceTimersByTime(20000);
 		await promise;

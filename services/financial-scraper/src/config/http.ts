@@ -121,22 +121,22 @@ export function createHttpClient(baseURL: string): AxiosInstance {
 		(response) => response,
 		async (error: AxiosError) => {
 			const config = error.config as AxiosRequestConfig & {
-				__retryCount?: number;
+				retryCount?: number;
 			};
 
 			if (!config) {
 				throw error;
 			}
 
-			config.__retryCount = config.__retryCount ?? 0;
+			config.retryCount = config.retryCount ?? 0;
 
-			if (config.__retryCount >= RETRY_CONFIG.retries || !shouldRetry(error)) {
+			if (config.retryCount >= RETRY_CONFIG.retries || !shouldRetry(error)) {
 				throw error;
 			}
 
-			config.__retryCount++;
+			config.retryCount++;
 
-			const delay = getBackoffDelay(config.__retryCount);
+			const delay = getBackoffDelay(config.retryCount);
 			await new Promise((res) => setTimeout(res, delay));
 
 			return instance(config);

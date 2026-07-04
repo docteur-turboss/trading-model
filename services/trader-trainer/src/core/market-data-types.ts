@@ -11,7 +11,7 @@ import { NormalizationStats } from "./normalization-stats";
 export { NormalizationStats };
 
 /** A branded string representing a trading pair symbol (e.g. "BTCUSDT"). */
-export type TradingSymbol = string & { readonly __brand: unique symbol };
+export type TradingSymbol = string & { readonly brand: unique symbol };
 
 /** Convert a plain string to a TradingSymbol (runtime identity, compile-time type safety). */
 export function toSymbol(_symbol: string): TradingSymbol {

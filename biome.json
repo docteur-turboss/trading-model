@@ -194,6 +194,12 @@
 								},
 								"match": "I(.*)|(.*?)Error|(.+)",
 								"formats": ["PascalCase"]
+							},
+							{
+								"selector": {
+									"kind": "typeProperty"
+								},
+								"formats": ["camelCase", "CONSTANT_CASE", "snake_case"]
 							}
 						]
 					}
