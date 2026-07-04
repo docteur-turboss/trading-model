@@ -34,7 +34,6 @@ export class CachedRegistryBackend implements RegistryBackend {
 		redisFailureThreshold = 3,
 		redisHealthCheckIntervalMs = 15_000
 	) {
-		this.cacheTtlMs = cacheTtlMs;
 		this._redisUrlForPubSub = redisUrlForPubSub;
 		this._redisFailureThreshold = redisFailureThreshold;
 		this._redisHealthCheckIntervalMs = redisHealthCheckIntervalMs;
