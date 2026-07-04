@@ -21,8 +21,10 @@ async function getAuditHttpClient(): Promise<HttpClient> {
 	if (httpClient) {
 		return httpClient;
 	}
-	if (await httpClientPromise) {
-		return httpClientPromise;
+	const existingClient =
+		httpClientPromise === null ? null : await httpClientPromise;
+	if (existingClient) {
+		return existingClient;
 	}
 
 	httpClientPromise = (() => {

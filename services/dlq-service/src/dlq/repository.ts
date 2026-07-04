@@ -195,7 +195,7 @@ export class DlqRepository {
 	}
 
 	async claimEntriesForRetry(
-		limit,
+		limit: number,
 		batchId: string,
 		instanceId: string,
 		topic?: string

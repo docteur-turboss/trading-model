@@ -69,8 +69,10 @@ async function getHttpClient(): Promise<HttpClient> {
 	if (httpClient) {
 		return httpClient;
 	}
-	if (await httpClientPromise) {
-		return httpClientPromise;
+	const existingClient =
+		httpClientPromise === null ? null : await httpClientPromise;
+	if (existingClient) {
+		return existingClient;
 	}
 
 	httpClientPromise = (() => {
@@ -446,8 +448,8 @@ export const AddEntry = catchSync((req) => {
 				return sendResponse({ error: parsed.error.message }, 400);
 			}
 
-			span.setAttribute("topic", parsed.data.topic);
-			span.setAttribute("reason", parsed.data.reason);
+			span.setAttribute("topic", parsed.data.topic ?? "");
+			span.setAttribute("reason", parsed.data.reason ?? "");
 
 			const messageStr = JSON.stringify(parsed.data.message);
 			const msgSize = Buffer.byteLength(messageStr, "utf8");

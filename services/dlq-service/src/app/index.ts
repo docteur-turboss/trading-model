@@ -94,14 +94,7 @@ createBootstrap({
 			instanceId: process.env.INSTANCE_ID ?? "dlq-1",
 			otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
 		});
-		AddressManager.start().catch((err) => {
-			logger.warn(
-				"Address-manager start failed (non-fatal, env var fallback used)",
-				{
-					error: normalizeError(err),
-				}
-			);
-		});
+		AddressManager.start();
 		void ensureRedisQueue();
 		startPeriodicPrune();
 		if (env.DLQ_AUTO_RETRY_ENABLED) {

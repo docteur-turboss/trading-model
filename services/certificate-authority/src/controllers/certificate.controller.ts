@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { Request, Response } from "express";
 
-import { CONTAINER } from "../app/CONTAINER";
+import { CONTAINER } from "../app/container";
 
 export async function signCertificate(
 	req: Request,

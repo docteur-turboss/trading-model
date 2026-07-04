@@ -5,6 +5,5 @@ import { env } from "./env";
 const addressManager = createAddressManager(env);
 
 const findAService = addressManager.findService.bind(addressManager);
-const findAllServices = addressManager.findAllServices.bind(addressManager);
 
-export { addressManager as AddressManager, findAllServices, findAService };
+export { addressManager as AddressManager, findAService };

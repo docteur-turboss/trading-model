@@ -58,7 +58,7 @@ async function request<TData>(
 			(err as { error?: string }).error ?? "Unknown error"
 		);
 	}
-	return res.json() as Promise<T>;
+	return res.json() as Promise<TData>;
 }
 
 export const API_CLIENT = {

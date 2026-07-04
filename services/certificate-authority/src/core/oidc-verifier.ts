@@ -224,7 +224,7 @@ export class OidcVerifier {
 	private _parseBase64Json<TData>(str: string): TData {
 		try {
 			const decoded = Buffer.from(str, "base64url").toString("utf8");
-			return JSON.parse(decoded) as T;
+			return JSON.parse(decoded) as TData;
 		} catch {
 			throw new Error("Failed to parse JWT segment");
 		}

@@ -26,8 +26,9 @@ export async function getDb(): Promise<Db> {
 	if (db) {
 		return db;
 	}
-	if (await dbPromise) {
-		return dbPromise;
+	const existingDb = dbPromise === null ? null : await dbPromise;
+	if (existingDb) {
+		return existingDb;
 	}
 
 	dbPromise = (async () => {
@@ -80,8 +81,10 @@ export async function getCollection(): Promise<Collection> {
 	if (collection) {
 		return collection;
 	}
-	if (await collectionPromise) {
-		return collectionPromise;
+	const existingCollection =
+		collectionPromise === null ? null : await collectionPromise;
+	if (existingCollection) {
+		return existingCollection;
 	}
 
 	collectionPromise = (async () => {
@@ -116,7 +119,10 @@ export async function getCollection(): Promise<Collection> {
 
 		for (const spec of indexSpecs) {
 			try {
-				await col.createIndex(spec.key, spec.options);
+				await col.createIndex(
+					spec.key as unknown as Record<string, 1 | -1>,
+					spec.options
+				);
 			} catch (err) {
 				const keyStr = JSON.stringify(spec.key);
 				const isCritical = criticalIndexSpecs.some(
