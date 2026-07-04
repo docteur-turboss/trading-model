@@ -160,8 +160,9 @@ export class Subscription {
 			consumerGroup: this.serviceIdentity.serviceName,
 			deliveryAttempt: 0,
 
-			ack: async () => {
+			ack: () => {
 				acknowledged = true;
+				return Promise.resolve();
 			},
 		};
 

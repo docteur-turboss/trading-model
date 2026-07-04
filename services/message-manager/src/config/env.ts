@@ -29,8 +29,16 @@ const MM_EXTRA_SHAPE = {
 	MAX_PAYLOAD_BYTES: z.coerce.number().int().positive().default(1_048_576),
 	MEMORY_WAL_BUFFER_SIZE: z.coerce.number().int().positive().default(1000),
 	MEMORY_WAL_BUFFER_WARN_PCT: z.coerce.number().min(0).max(1).default(0.8),
-	STALE_HEARTBEAT_INTERVAL_MS: z.coerce.number().int().positive().default(10_000),
-	STALE_MISSED_HEARTBEAT_THRESHOLD: z.coerce.number().int().positive().default(3),
+	STALE_HEARTBEAT_INTERVAL_MS: z.coerce
+		.number()
+		.int()
+		.positive()
+		.default(10_000),
+	STALE_MISSED_HEARTBEAT_THRESHOLD: z.coerce
+		.number()
+		.int()
+		.positive()
+		.default(3),
 	STALE_GRACE_PERIOD_MS: z.coerce.number().int().positive().default(30_000),
 	OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
 	BROKER_INSTANCE_ID: z.string().default("message-manager-1"),
