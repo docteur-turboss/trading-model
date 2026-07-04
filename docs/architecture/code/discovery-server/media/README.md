@@ -125,7 +125,7 @@ Get a specific instance by ID.
 | Validation | Zod (via `BaseEnvSchema` from `@trading-model/common`)       |
 | Bootstrap  | `createBootstrap` from `@trading-model/common`               |
 | Testing    | Jest + ts-jest                                               |
-| Linting    | ESLint 10 flat config (root)                                 |
+| Linting    | Biome (root config)                                          |
 
 ## Dependencies
 

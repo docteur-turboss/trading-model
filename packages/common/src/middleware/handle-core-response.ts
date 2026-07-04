@@ -1,6 +1,6 @@
-import { Response } from 'express';
+import type { Response } from "express";
 
-import { ResponseException, ResponseCodeKey } from './response-exception';
+import { type ResponseCodeKey, ResponseException } from "./response-exception";
 
 /**
  * Generic utility for returning a standardized HTTP response from a core service.
@@ -24,12 +24,15 @@ import { ResponseException, ResponseCodeKey } from './response-exception';
  * //   data: "User created"
  * // });
  */
-export async function handleCoreResponse(coreFn: () => Promise<[unknown, string]>, res: Response) {
-  const [response, code] = await coreFn();
+export async function handleCoreResponse(
+	coreFn: () => Promise<[unknown, string]>,
+	res: Response
+) {
+	const [response, code] = await coreFn();
 
-  const clientResponse = ResponseException(response)[code as ResponseCodeKey]();
+	const clientResponse = ResponseException(response)[code as ResponseCodeKey]();
 
-  res.status(clientResponse.status).json(clientResponse);
+	res.status(clientResponse.status).json(clientResponse);
 }
 
 /**
@@ -57,21 +60,21 @@ export async function handleCoreResponse(coreFn: () => Promise<[unknown, string]
  * // res.status(200).json({ status: 200, data: "jwt-token-value" });
  */
 export async function handleCoreAuthResponse(
-  coreFn: () => Promise<[unknown, string]>,
-  res: Response
+	coreFn: () => Promise<[unknown, string]>,
+	res: Response
 ) {
-  const [response, code] = await coreFn();
+	const [response, code] = await coreFn();
 
-  const clientResponse = ResponseException(response)[code as ResponseCodeKey]();
+	const clientResponse = ResponseException(response)[code as ResponseCodeKey]();
 
-  res
-    .status(clientResponse.status)
-    .cookie('token', clientResponse.data, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',
-    })
-    .json(clientResponse);
+	res
+		.status(clientResponse.status)
+		.cookie("token", clientResponse.data, {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === "production",
+			sameSite: "strict",
+			maxAge: 7 * 24 * 60 * 60 * 1000,
+			path: "/",
+		})
+		.json(clientResponse);
 }

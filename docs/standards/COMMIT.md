@@ -37,7 +37,7 @@ Examples:
 | ✨    | `:sparkles:`            | feat     | New feature                   |
 | 🐛    | `:bug:`                 | fix      | Bug fix                       |
 | 📝    | `:memo:`                | docs     | Documentation                 |
-| 💄    | `:lipstick:`            | style    | Formatting (Prettier, ESLint) |
+| 💄    | `:lipstick:`            | style    | Formatting (Biome) |
 | ♻️    | `:recycle:`             | refactor | Code restructuring            |
 | ⚡    | `:zap:`                 | perf     | Performance improvement       |
 | ✅    | `:white_check_mark:`    | test     | Test additions/modifications  |
@@ -77,7 +77,7 @@ For the full list including variants (🏷️ feat-types, 🎉 feat-init, 🚑 f
 | `docs`              | Documentation                          |
 | `github-actions`    | GitHub Actions workflows               |
 | `husky`             | Husky configuration                    |
-| `eslint`            | ESLint configuration                   |
+| `biome`             | Biome configuration                    |
 
 ## Body and Footer (Optional)
 
@@ -109,7 +109,7 @@ A `commit-msg` Husky hook validates the commit message via commitlint. The confi
 
 Configured Husky hooks:
 
-- **pre-commit**: prettier + eslint (lint-staged)
+- **pre-commit**: biome (lint-staged)
 - **commit-msg**: message validation via commitlint
 - **pre-push**: tests + build
 

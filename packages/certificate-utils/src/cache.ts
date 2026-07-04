@@ -1,47 +1,49 @@
-interface CacheEntry<T> {
-  value: T;
-  expiresAt: number;
+interface CacheEntry<TValue> {
+	value: TValue;
+	expiresAt: number;
 }
 
-export class LruCache<T> {
-  private readonly maxSize: number;
-  private readonly ttlMs: number;
-  private readonly map = new Map<string, CacheEntry<T>>();
+export class LruCache<TValue> {
+	private readonly _maxSize: number;
+	private readonly _ttlMs: number;
+	private readonly _map = new Map<string, CacheEntry<TValue>>();
 
-  constructor(maxSize: number = 1000, ttlMs: number = 60000) {
-    this.maxSize = maxSize;
-    this.ttlMs = ttlMs;
-  }
+	constructor(maxSize = 1000, ttlMs = 60000) {
+		this._maxSize = maxSize;
+		this._ttlMs = ttlMs;
+	}
 
-  get(key: string): T | undefined {
-    const entry = this.map.get(key);
-    if (!entry) return undefined;
-    if (Date.now() > entry.expiresAt) {
-      this.map.delete(key);
-      return undefined;
-    }
-    this.map.delete(key);
-    this.map.set(key, entry);
-    return entry.value;
-  }
+	get(key: string): TValue | undefined {
+		const entry = this._map.get(key);
+		if (!entry) {
+			return;
+		}
+		if (Date.now() > entry.expiresAt) {
+			this._map.delete(key);
+			return;
+		}
+		this._map.delete(key);
+		this._map.set(key, entry);
+		return entry.value;
+	}
 
-  set(key: string, value: T): void {
-    if (this.map.has(key)) {
-      this.map.delete(key);
-    } else if (this.map.size >= this.maxSize) {
-      const firstKey = this.map.keys().next().value;
-      if (firstKey !== undefined) {
-        this.map.delete(firstKey);
-      }
-    }
-    this.map.set(key, { value, expiresAt: Date.now() + this.ttlMs });
-  }
+	set(key: string, value: TValue): void {
+		if (this._map.has(key)) {
+			this._map.delete(key);
+		} else if (this._map.size >= this._maxSize) {
+			const firstKey = this._map.keys().next().value;
+			if (firstKey !== undefined) {
+				this._map.delete(firstKey);
+			}
+		}
+		this._map.set(key, { value, expiresAt: Date.now() + this._ttlMs });
+	}
 
-  clear(): void {
-    this.map.clear();
-  }
+	clear(): void {
+		this._map.clear();
+	}
 
-  get size(): number {
-    return this.map.size;
-  }
+	get size(): number {
+		return this._map.size;
+	}
 }

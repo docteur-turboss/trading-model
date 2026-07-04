@@ -1,165 +1,166 @@
 import {
-  MarketType,
-  SourceType,
-  TradeData,
-  CandleData,
-  OrderBookData,
-  TickerData,
-} from '../../infra/market-data/market-data.types';
-import {
-  Binance24hrTickerStatsResponse,
-  BinanceAggregateTradeResponse,
-  BinanceCandlestickDataResponse,
-  BinanceDepthResponse,
-  BinanceHistoricalTradeResponse,
-  BinanceSymbolOrderBookTickerResponse,
-  BinanceSymbolPriceTickerResponse,
-  BinanceTradeResponse,
-  BinanceTradingDayTickerResponse,
-} from '../../types/binance.api';
+	type CandleData,
+	MarketType,
+	type OrderBookData,
+	SourceType,
+	type TickerData,
+	type TradeData,
+} from "../../infra/market-data/market-data.types";
+import type {
+	Binance24hrTickerStatsResponse,
+	BinanceAggregateTradeResponse,
+	BinanceCandlestickDataResponse,
+	BinanceDepthResponse,
+	BinanceHistoricalTradeResponse,
+	BinanceSymbolOrderBookTickerResponse,
+	BinanceSymbolPriceTickerResponse,
+	BinanceTradeResponse,
+	BinanceTradingDayTickerResponse,
+} from "../../types/binance.api";
 
 /** Normalize raw Binance API responses into internal market-data entities. */
-export class BinanceNormalizer {
-  /**
-   * Convertit le carnet d’ordres Binance en structure normalisée.
-   */
-  static orderBook(symbol: string, payload: BinanceDepthResponse): OrderBookData {
-    const bids = new Set(
-      payload.bids.map(([price, qty]) => ({
-        price: Number(price),
-        quantity: Number(qty),
-      }))
-    );
+export const BinanceNormalizer = {
+	/**
+	 * Convertit le carnet d'ordres Binance en structure normalisée.
+	 */
+	orderBook(symbol: string, payload: BinanceDepthResponse): OrderBookData {
+		const bids = new Set(
+			payload.bids.map(([price, qty]) => ({
+				price: Number(price),
+				quantity: Number(qty),
+			}))
+		);
 
-    const asks = new Set(
-      payload.asks.map(([price, qty]) => ({
-        price: Number(price),
-        quantity: Number(qty),
-      }))
-    );
+		const asks = new Set(
+			payload.asks.map(([price, qty]) => ({
+				price: Number(price),
+				quantity: Number(qty),
+			}))
+		);
 
-    return {
-      symbol,
-      source: SourceType.BINANCE,
-      market: MarketType.CRYPTO,
-      bids: bids,
-      asks: asks,
-      timestamp: Date.now(),
-    };
-  }
+		return {
+			symbol,
+			source: SourceType.BINANCE,
+			market: MarketType.CRYPTO,
+			bids: bids,
+			asks: asks,
+			timestamp: Date.now(),
+		};
+	},
 
-  /**
-   * Normalise les trades (recent + historical).
-   */
-  static trades(
-    symbol: string,
-    payload: BinanceTradeResponse | BinanceHistoricalTradeResponse
-  ): TradeData[] {
-    return payload.map(t => ({
-      symbol,
-      tradeId: BigInt(t.id),
-      price: Number(t.price),
-      quantity: Number(t.qty),
-      timestamp: t.time,
-      side: t.isBuyerMaker ? 'sell' : 'buy',
-      source: SourceType.BINANCE,
-      market: MarketType.CRYPTO,
-    }));
-  }
+	/**
+	 * Normalise les trades (recent + historical).
+	 */
+	trades(
+		symbol: string,
+		payload: BinanceTradeResponse | BinanceHistoricalTradeResponse
+	): TradeData[] {
+		return payload.map((trade) => ({
+			symbol,
+			tradeId: BigInt(trade.id),
+			price: Number(trade.price),
+			quantity: Number(trade.qty),
+			timestamp: trade.time,
+			side: trade.isBuyerMaker ? "sell" : "buy",
+			source: SourceType.BINANCE,
+			market: MarketType.CRYPTO,
+		}));
+	},
 
-  /**
-   * Normalise les aggregate trades.
-   */
-  static aggregateTrades(symbol: string, payload: BinanceAggregateTradeResponse): TradeData[] {
-    return payload.map(t => ({
-      symbol,
-      tradeId: BigInt(t.a),
-      price: Number(t.p),
-      quantity: Number(t.q),
-      timestamp: t.T,
-      side: t.m ? 'sell' : 'buy',
-      source: SourceType.BINANCE,
-      market: MarketType.CRYPTO,
-    }));
-  }
+	/**
+	 * Normalise les aggregate trades.
+	 */
+	aggregateTrades(
+		symbol: string,
+		payload: BinanceAggregateTradeResponse
+	): TradeData[] {
+		return payload.map((trade) => ({
+			symbol,
+			tradeId: BigInt(trade.aggregateTradeId),
+			price: Number(trade.price),
+			quantity: Number(trade.quantity),
+			timestamp: trade.time,
+			side: trade.isBuyerMaker ? "sell" : "buy",
+			source: SourceType.BINANCE,
+			market: MarketType.CRYPTO,
+		}));
+	},
 
-  /**
-   * Normalise les chandeliers.
-   */
-  static candles(
-    symbol: string,
-    interval: string,
-    payload: BinanceCandlestickDataResponse
-  ): CandleData[] {
-    return payload.map(c => ({
-      symbol,
-      interval,
-      open: Number(c[1]),
-      high: Number(c[2]),
-      low: Number(c[3]),
-      close: Number(c[4]),
-      volume: Number(c[5]),
-      closeTimestamp: Number(c[6]),
-      trades: c[8],
-      timestamp: c[0],
-      source: SourceType.BINANCE,
-      market: MarketType.CRYPTO,
-    }));
-  }
+	/**
+	 * Normalise les chandeliers.
+	 */
+	candles(
+		symbol: string,
+		interval: string,
+		payload: BinanceCandlestickDataResponse
+	): CandleData[] {
+		return payload.map((candle) => ({
+			symbol,
+			interval,
+			open: Number(candle[1]),
+			high: Number(candle[2]),
+			low: Number(candle[3]),
+			close: Number(candle[4]),
+			volume: Number(candle[5]),
+			closeTimestamp: Number(candle[6]),
+			trades: candle[8],
+			timestamp: candle[0],
+			source: SourceType.BINANCE,
+			market: MarketType.CRYPTO,
+		}));
+	},
 
-  /**
-   * Normalise ticker 24h.
-   */
-  static ticker24h(payload: Binance24hrTickerStatsResponse): TickerData[] {
-    return payload.map(t => ({
-      market: MarketType.CRYPTO,
-      source: SourceType.BINANCE,
-      timestamp: t.openTime,
-      symbol: t.symbol,
-      open: Number(t.openPrice),
-      high: Number(t.highPrice),
-      low: Number(t.lowPrice),
-      last: Number(t.lastPrice),
-      volume: Number(t.volume),
-      closeTimestamp: t.closeTime,
-    }));
-  }
+	/**
+	 * Normalise ticker 24h.
+	 */
+	ticker24h(payload: Binance24hrTickerStatsResponse): TickerData[] {
+		return payload.map((item) => ({
+			market: MarketType.CRYPTO,
+			source: SourceType.BINANCE,
+			timestamp: item.openTime,
+			symbol: item.symbol,
+			open: Number(item.openPrice),
+			high: Number(item.highPrice),
+			low: Number(item.lowPrice),
+			last: Number(item.lastPrice),
+			volume: Number(item.volume),
+			closeTimestamp: item.closeTime,
+		}));
+	},
 
-  /**
-   * Normalise trading day ticker.
-   */
-  static tradingDayTicker(payload: BinanceTradingDayTickerResponse): TickerData[] {
-    return payload.map(t => ({
-      market: MarketType.CRYPTO,
-      source: SourceType.BINANCE,
-      timestamp: t.openTime,
-      symbol: t.symbol,
-      open: Number(t.openPrice),
-      high: Number(t.highPrice),
-      low: Number(t.lowPrice),
-      last: Number(t.lastPrice),
-      volume: Number(t.volume),
-      closeTimestamp: t.closeTime,
-    }));
-  }
+	tradingDayTicker(payload: BinanceTradingDayTickerResponse): TickerData[] {
+		return payload.map((item) => ({
+			market: MarketType.CRYPTO,
+			source: SourceType.BINANCE,
+			timestamp: item.openTime,
+			symbol: item.symbol,
+			open: Number(item.openPrice),
+			high: Number(item.highPrice),
+			low: Number(item.lowPrice),
+			last: Number(item.lastPrice),
+			volume: Number(item.volume),
+			closeTimestamp: item.closeTime,
+		}));
+	},
 
-  /**
-   * Normalise price ticker.
-   */
-  static priceTicker(payload: BinanceSymbolPriceTickerResponse): Record<string, number> {
-    return Object.fromEntries(payload.map(p => [p.symbol, Number(p.price)]));
-  }
+	priceTicker(
+		payload: BinanceSymbolPriceTickerResponse
+	): Record<string, number> {
+		return Object.fromEntries(
+			payload.map((priceEntry) => [priceEntry.symbol, Number(priceEntry.price)])
+		);
+	},
 
-  /**
-   * Normalise book ticker.
-   */
-  static bookTicker(payload: BinanceSymbolOrderBookTickerResponse) {
-    return payload.map(b => ({
-      symbol: b.symbol,
-      bid: Number(b.bidPrice),
-      ask: Number(b.askPrice),
-      bidQty: Number(b.bidQty),
-      askQty: Number(b.askQty),
-    }));
-  }
-}
+	/**
+	 * Normalise book ticker.
+	 */
+	bookTicker(payload: BinanceSymbolOrderBookTickerResponse) {
+		return payload.map((item) => ({
+			symbol: item.symbol,
+			bid: Number(item.bidPrice),
+			ask: Number(item.askPrice),
+			bidQty: Number(item.bidQty),
+			askQty: Number(item.askQty),
+		}));
+	},
+};

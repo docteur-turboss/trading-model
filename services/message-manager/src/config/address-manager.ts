@@ -1,21 +1,21 @@
-import { createAddressManager } from '@trading-model/address-manager/create-address-manager';
+import { createAddressManager } from "@trading-model/address-manager/create-address-manager";
 
-import { env } from './env';
+import { env } from "./env";
 
-const addressManager = createAddressManager(env);
+const ADDRESS_MANAGER = createAddressManager(env);
 
 /** Express route binder for address-manager HTTP endpoints. */
-const AddressManagerRoutes = addressManager.listenExpress;
+const ADDRESS_MANAGER_ROUTES = ADDRESS_MANAGER.listenExpress;
 
 /** Resolve a service instance's address for a given service name. */
-const findAService = addressManager.findService;
+const FIND_A_SERVICE = ADDRESS_MANAGER.findService;
 
 /** Start the address manager's background lifecycle (e.g. periodic service resolution). */
-const bootstrapAddressManager = addressManager.start;
+const BOOTSTRAP_ADDRESS_MANAGER = ADDRESS_MANAGER.start;
 
 export {
-  AddressManagerRoutes,
-  findAService,
-  bootstrapAddressManager,
-  addressManager as AddressManager,
+	ADDRESS_MANAGER as AddressManager,
+	ADDRESS_MANAGER_ROUTES,
+	BOOTSTRAP_ADDRESS_MANAGER,
+	FIND_A_SERVICE,
 };

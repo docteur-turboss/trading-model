@@ -129,7 +129,7 @@ services/Trader-Trainer/
 ├── package.json          # Dependencies
 ├── tsconfig.json         # TypeScript config
 ├── jest.config.js        # Jest testing config
-├── eslint.config.js      # ESLint rules
+├── biome.json            # Biome config
 ├── ARCHITECTURE.md       # This file
 └── README.md             # User guide
 ```
@@ -532,7 +532,7 @@ type SelectionType = 'tournament' | 'roulette' | 'rank' | 'sus';
 - `typescript@~6.0.3`: Language
 - `jest@^30.4.2`: Testing
 - `ts-jest@^29.4.9`: TypeScript support for Jest
-- `eslint@^10.3.0`: Linting
+- `@biomejs/biome`: Linting + formatting
 
 ---
 

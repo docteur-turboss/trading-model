@@ -1,98 +1,98 @@
-import { Request, Response } from 'express';
-import promClient from 'prom-client';
+import type { Request, Response } from "express";
+import promClient from "prom-client";
 
-promClient.collectDefaultMetrics({ prefix: 'mm_' });
+promClient.collectDefaultMetrics({ prefix: "mm_" });
 
-export const messagesPublishedTotal = new promClient.Counter({
-  name: 'mm_messages_published_total',
-  help: 'Total number of messages published',
-  labelNames: ['topic'] as const,
+export const MESSAGES_PUBLISHED_TOTAL = new promClient.Counter({
+	name: "mm_messages_published_total",
+	help: "Total number of messages published",
+	labelNames: ["topic"] as const,
 });
 
-export const messagesDeliveredTotal = new promClient.Counter({
-  name: 'mm_messages_delivered_total',
-  help: 'Total number of messages delivered',
-  labelNames: ['topic', 'status'] as const,
+export const MESSAGES_DELIVERED_TOTAL = new promClient.Counter({
+	name: "mm_messages_delivered_total",
+	help: "Total number of messages delivered",
+	labelNames: ["topic", "status"] as const,
 });
 
-export const messagesDlqTotal = new promClient.Counter({
-  name: 'mm_messages_dlq_total',
-  help: 'Total number of messages sent to DLQ',
-  labelNames: ['topic', 'reason'] as const,
+export const MESSAGES_DLQ_TOTAL = new promClient.Counter({
+	name: "mm_messages_dlq_total",
+	help: "Total number of messages sent to DLQ",
+	labelNames: ["topic", "reason"] as const,
 });
 
-export const messagesDlqErrorTotal = new promClient.Counter({
-  name: 'mm_messages_dlq_error_total',
-  help: 'Total number of DLQ storage errors (file or service)',
-  labelNames: ['target'] as const,
+export const MESSAGES_DLQ_ERROR_TOTAL = new promClient.Counter({
+	name: "mm_messages_dlq_error_total",
+	help: "Total number of DLQ storage errors (file or service)",
+	labelNames: ["target"] as const,
 });
 
-export const deliveryLatencySeconds = new promClient.Histogram({
-  name: 'mm_delivery_latency_seconds',
-  help: 'Message delivery latency in seconds',
-  labelNames: ['topic'] as const,
-  buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10],
+export const DELIVERY_LATENCY_SECONDS = new promClient.Histogram({
+	name: "mm_delivery_latency_seconds",
+	help: "Message delivery latency in seconds",
+	labelNames: ["topic"] as const,
+	buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5, 10],
 });
 
-export const subscriptionCount = new promClient.Gauge({
-  name: 'mm_subscription_count',
-  help: 'Number of active subscriptions',
-  labelNames: ['topic'] as const,
+export const SUBSCRIPTION_COUNT = new promClient.Gauge({
+	name: "mm_subscription_count",
+	help: "Number of active subscriptions",
+	labelNames: ["topic"] as const,
 });
 
-export const circuitBreakerState = new promClient.Gauge({
-  name: 'mm_circuit_breaker_state',
-  help: 'Circuit breaker state (0=closed, 1=open, 2=half-open)',
-  labelNames: ['subscriber'] as const,
+export const CIRCUIT_BREAKER_STATE = new promClient.Gauge({
+	name: "mm_circuit_breaker_state",
+	help: "Circuit breaker state (0=closed, 1=open, 2=half-open)",
+	labelNames: ["subscriber"] as const,
 });
 
-export const redisStreamSize = new promClient.Gauge({
-  name: 'mm_redis_stream_size',
-  help: 'Size of Redis stream per topic',
-  labelNames: ['topic'] as const,
+export const REDIS_STREAM_SIZE = new promClient.Gauge({
+	name: "mm_redis_stream_size",
+	help: "Size of Redis stream per topic",
+	labelNames: ["topic"] as const,
 });
 
-export const inFlightMessages = new promClient.Gauge({
-  name: 'mm_in_flight_messages',
-  help: 'Number of messages currently being delivered',
+export const IN_FLIGHT_MESSAGES = new promClient.Gauge({
+	name: "mm_in_flight_messages",
+	help: "Number of messages currently being delivered",
 });
 
-export const backpressureRatio = new promClient.Gauge({
-  name: 'mm_backpressure_ratio',
-  help: 'Token bucket usage ratio (0=idle, 1=full)',
+export const BACKPRESSURE_RATIO = new promClient.Gauge({
+	name: "mm_backpressure_ratio",
+	help: "Token bucket usage ratio (0=idle, 1=full)",
 });
 
-export const wssConnectionCount = new promClient.Gauge({
-  name: 'mm_wss_connections',
-  help: 'Number of active WSS connections',
+export const WSS_CONNECTION_COUNT = new promClient.Gauge({
+	name: "mm_wss_connections",
+	help: "Number of active WSS connections",
 });
 
-export const subscriberDeliveryConcurrency = new promClient.Gauge({
-  name: 'mm_subscriber_delivery_concurrency',
-  help: 'Current delivery concurrency per subscriber',
-  labelNames: ['subscriber'] as const,
+export const SUBSCRIBER_DELIVERY_CONCURRENCY = new promClient.Gauge({
+	name: "mm_subscriber_delivery_concurrency",
+	help: "Current delivery concurrency per subscriber",
+	labelNames: ["subscriber"] as const,
 });
 
-export const redisStreamLag = new promClient.Gauge({
-  name: 'mm_redis_stream_lag_ms',
-  help: 'Redis stream lag in milliseconds per topic',
-  labelNames: ['topic'] as const,
+export const REDIS_STREAM_LAG = new promClient.Gauge({
+	name: "mm_redis_stream_lag_ms",
+	help: "Redis stream lag in milliseconds per topic",
+	labelNames: ["topic"] as const,
 });
 
-export const dlqBufferSize = new promClient.Gauge({
-  name: 'mm_dlq_buffer_size',
-  help: 'Current DLQ buffer size',
+export const DLQ_BUFFER_SIZE = new promClient.Gauge({
+	name: "mm_dlq_buffer_size",
+	help: "Current DLQ buffer size",
 });
 
-export const bufferDroppedTotal = new promClient.Counter({
-  name: 'mm_buffer_dropped_total',
-  help: 'Total number of messages dropped due to buffer overflow',
-  labelNames: ['buffer', 'reason'] as const,
+export const BUFFER_DROPPED_TOTAL = new promClient.Counter({
+	name: "mm_buffer_dropped_total",
+	help: "Total number of messages dropped due to buffer overflow",
+	labelNames: ["buffer", "reason"] as const,
 });
 
 export function metricsHandler(_req: Request, res: Response): void {
-  res.set('Content-Type', promClient.register.contentType);
-  promClient.register.metrics().then(data => res.send(data));
+	res.set("Content-Type", promClient.register.contentType);
+	promClient.register.metrics().then((data) => res.send(data));
 }
 
 /*

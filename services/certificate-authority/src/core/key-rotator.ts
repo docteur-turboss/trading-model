@@ -1,61 +1,63 @@
-import { logger } from '@trading-model/common/config/logger';
+import { logger } from "@trading-model/common/config/logger";
 
 export interface CaKeyRotator {
-  getCurrentKeyId(): string;
-  getKeyVersion(): number;
-  rotateKey(): Promise<string>;
-  cleanupKeyHistory(retentionCount: number): Promise<void>;
+	getCurrentKeyId(): string;
+	getKeyVersion(): number;
+	rotateKey(): Promise<string>;
+	cleanupKeyHistory(retentionCount: number): Promise<void>;
 }
 
 export interface KeyRotatorOptions {
-  ca: CaKeyRotator;
-  intervalMs: number;
-  retentionCount: number;
+	ca: CaKeyRotator;
+	intervalMs: number;
+	retentionCount: number;
 }
 
 export class KeyRotator {
-  private readonly options: KeyRotatorOptions;
-  private timer: ReturnType<typeof setInterval> | null = null;
+	private readonly _options: KeyRotatorOptions;
+	private _timer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(options: KeyRotatorOptions) {
-    this.options = options;
-  }
+	constructor(options: KeyRotatorOptions) {
+		this._options = options;
+	}
 
-  start(): void {
-    if (this.timer) return;
+	start(): void {
+		if (this._timer) {
+			return;
+		}
 
-    logger.info('Starting CA key rotator', {
-      intervalMs: this.options.intervalMs,
-      retentionCount: this.options.retentionCount,
-    });
+		logger.info("Starting CA key rotator", {
+			intervalMs: this._options.intervalMs,
+			retentionCount: this._options.retentionCount,
+		});
 
-    this.timer = setInterval(() => {
-      this.rotate().catch(err => {
-        logger.error('CA key rotation failed', { err });
-      });
-    }, this.options.intervalMs);
-  }
+		this._timer = setInterval(() => {
+			this._rotate().catch((err) => {
+				logger.error("CA key rotation failed", { err });
+			});
+		}, this._options.intervalMs);
+	}
 
-  stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-      logger.info('CA key rotator stopped');
-    }
-  }
+	stop(): void {
+		if (this._timer) {
+			clearInterval(this._timer);
+			this._timer = null;
+			logger.info("CA key rotator stopped");
+		}
+	}
 
-  private async rotate(): Promise<void> {
-    const previousKeyId = this.options.ca.getCurrentKeyId();
-    const previousVersion = this.options.ca.getKeyVersion();
+	private async _rotate(): Promise<void> {
+		const previousKeyId = this._options.ca.getCurrentKeyId();
+		const previousVersion = this._options.ca.getKeyVersion();
 
-    const newKeyId = await this.options.ca.rotateKey();
-    await this.options.ca.cleanupKeyHistory(this.options.retentionCount);
+		const newKeyId = await this._options.ca.rotateKey();
+		await this._options.ca.cleanupKeyHistory(this._options.retentionCount);
 
-    logger.info('CA key rotated', {
-      previousKeyId,
-      previousVersion,
-      newKeyId,
-      newVersion: this.options.ca.getKeyVersion(),
-    });
-  }
+		logger.info("CA key rotated", {
+			previousKeyId,
+			previousVersion,
+			newKeyId,
+			newVersion: this._options.ca.getKeyVersion(),
+		});
+	}
 }

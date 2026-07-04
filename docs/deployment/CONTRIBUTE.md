@@ -37,22 +37,23 @@ The project is an npm workspaces monorepo:
 
 ```
 trading-model/
-├── packages/     # Shared libraries (@trading-model/*)
-│   └── lib/      # Common utilities, types, middleware
-├── services/     # Microservices (kebab-case directory names)
-│   └── <service>/
-│       ├── src/
-│       │   ├── app/           # Entry points & routes
-│       │   ├── config/        # Environment & app config
-│       │   ├── core/          # Business logic (services, repositories)
-│       │   ├── controllers/   # HTTP controllers
-│       │   ├── middleware/    # Express middleware
-│       │   └── types/         # Type definitions
-│       ├── tests/
-│       │   ├── unit/
-│       │   ├── integration/
-│       │   └── e2e/
-│       └── docs/
+├── packages/     # 5 shared libraries (@trading-model/*)
+│   ├── common/              # Base types, schemas, utilities
+│   ├── address-manager/     # Service discovery client
+│   ├── broker-message/      # Message bus protocol types
+│   ├── certificate-utils/   # X.509 certificate utilities
+│   └── certificate-client/  # Certificate authority HTTP client
+├── services/     # 9 microservices (kebab-case directory names)
+│   ├── discovery-server/
+│   ├── message-manager/
+│   ├── financial-scraper/
+│   ├── trader-trainer/      # npm name: trader-service
+│   ├── certificate-authority/
+│   ├── api-gateway/
+│   ├── audit-logger/
+│   ├── dlq-service/
+│   └── admin-interface/     # React SPA (Vite + Vitest)
+├── deploy/       # K8s manifests + nginx configs
 ├── docs/         # Centralized documentation
 └── scripts/      # Automation scripts
 ```
@@ -72,8 +73,8 @@ File suffixes: `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.middlewa
 
 ## Code Style
 
-- **Formatter**: Prettier with `printWidth: 100`, `singleQuote`, `trailingComma: "es5"`, `arrowParens: "avoid"`
-- **Linter**: ESLint with TypeScript strict rules
+- **Formatter**: Biome with `printWidth: 100`, `singleQuote`, `trailingComma: "es5"`, `arrowParens: "avoid"`
+- **Linter**: Biome with TypeScript strict rules
 - **TypeScript**: `strict: true`, target ES2020
 
 ### Import Order
@@ -86,9 +87,9 @@ File suffixes: `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.middlewa
 
 ## Testing
 
-- **Framework**: Jest with `ts-jest`
-- **Convention**: Single `.spec.ts` suffix
-- **Coverage thresholds**: per-module (common/discovery 100%, address-manager/broker-message/trader-trainer 80% minimum)
+- **Framework**: Jest with `ts-jest` (most services); **Vitest** (admin-interface only)
+- **Convention**: Single `.spec.ts` or `.spec.tsx` (admin-interface) suffix
+- **Coverage thresholds**: 100% for common, discovery, most packages; 80-85% for trader-service, dlq-service
 - **Structure**: Tests mirror source under `tests/unit/`, `tests/integration/`, `tests/e2e/`
 
 ---
@@ -121,7 +122,7 @@ Refer to code standards in `docs/standards/`.
 ### 4. Local validation
 
 ```bash
-npm run lint       # ESLint
+npm run lint       # Biome
 npm run build      # TypeScript
 npm test           # Jest — minimum 80% coverage
 ```
@@ -183,9 +184,10 @@ git push --follow-tags           # triggers release.yml
 This triggers:
 
 1. Quality gate (lint + build + test)
-2. Build Docker images for all 4 services
+2. Build Docker images for all 9 services
 3. Push to **GitHub Container Registry** (`ghcr.io/trading-model/<service>`)
-4. Create a **GitHub Release** with changelog + pull commands
+4. Generate TypeDoc and publish to GitHub Pages
+5. Create a **GitHub Release** with changelog + pull commands
 
 ### 11. Deploy (Production)
 
@@ -203,15 +205,17 @@ IMAGE_TAG=$(node -p "require('./package.json').version") docker compose up -d
 ## Workflow at a Glance
 
 ```
-dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta deploy
+dev  ──→ commit ──→ push ──→ PR ──→ merge ──→ beta deploy (canary)
         npm run     git push  (auto      dev    docker compose
         commit                 lint               pull + up -d
-                               build
+                               typecheck
                                test)         (validate)
 
-main ←── merge dev ────→ tag ──→ stable deploy
-              (if OK)     npm run   docker compose
-                          release   pull + up -d
+main ←── merge dev ────→ tag v* ──→ release.yml ──→ stable deploy
+              (if OK)     npm run   quality           docker compose
+                          release   docker (8 images) pull + up -d
+                                    docs (GitHub Pages)
+                                    GitHub Release
 ```
 
 ---

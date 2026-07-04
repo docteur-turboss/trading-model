@@ -151,10 +151,9 @@ Client ──GET /api/v1/crl────────────────→ 
 | `PORT`                      | `3000`                                        | Service listen port                                         |
 | `MONGODB_URI`               | `mongodb://mongo:27017/certificate-authority` | MongoDB connection                                          |
 | `CA_KEY_PATH`               | `/etc/ca-keys/ca-key.pem`                     | Path to CA private key                                      |
-| `CA_CERT_PATH`              | `/etc/ca-keys/ca-cert.pem`                    | Path to CA certificate (intermediate in hierarchical mode)  |
 | `CA_CERT_TTL_MS`            | `31536000000` (1 year)                        | CA root certificate validity                                |
-| `ROOT_CA_CERT_PATH`         | _(none)_                                      | Optional: path to root CA cert PEM for hierarchical CA mode |
 | `CERT_ROTATION_INTERVAL_MS` | `86400000` (24h)                              | Check interval for expiring certs                           |
-| `CERT_ROTATION_MARGIN_MS`   | `172800000` (48h)                             | Rotation margin before expiry                               |
+| `CERT_ROTATION_MARGIN_MS`   | `17280000` (~4.8h)                            | Rotation margin before expiry                               |
 | `CERT_DEFAULT_TTL_MS`       | `604800000` (7 days)                          | Default issued certificate TTL                              |
+| `CERT_MAX_TTL_MS`           | `31536000000` (1 year)                        | Maximum allowed TTL for issued certificates                 |
 | `DISCOVERY_SERVICE_URL`     | `https://discovery-server:3000`               | Discovery server URL                                        |

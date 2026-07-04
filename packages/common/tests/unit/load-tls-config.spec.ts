@@ -1,48 +1,38 @@
-import { describe, it, expect } from '@jest/globals';
-import { loadTlsConfig } from '../../src/server/load-tls-config';
+import { describe, expect, it } from "@jest/globals";
+import { loadTlsConfig } from "../../src/server/load-tls-config";
 
-describe('loadTlsConfig', () => {
-  it('should return TLS config from env object', () => {
-    const env = {
-      TLS_KEY_PATH: '/etc/tls/key.pem',
-      TLS_CERT_PATH: '/etc/tls/cert.pem',
-      TLS_CA_PATH: '/etc/tls/ca.pem',
-    };
+describe("loadTlsConfig", () => {
+	it("should return TLS config from paths", () => {
+		const result = loadTlsConfig(
+			"/etc/tls/key.pem",
+			"/etc/tls/cert.pem",
+			"/etc/tls/ca.pem"
+		);
 
-    const result = loadTlsConfig(env);
+		expect(result).toEqual({
+			key: "/etc/tls/key.pem",
+			cert: "/etc/tls/cert.pem",
+			ca: "/etc/tls/ca.pem",
+		});
+	});
 
-    expect(result).toEqual({
-      key: '/etc/tls/key.pem',
-      cert: '/etc/tls/cert.pem',
-      ca: '/etc/tls/ca.pem',
-    });
-  });
+	it("should return empty strings when paths are empty", () => {
+		const result = loadTlsConfig("", "", "");
 
-  it('should return empty strings when paths are empty', () => {
-    const env = {
-      TLS_KEY_PATH: '',
-      TLS_CERT_PATH: '',
-      TLS_CA_PATH: '',
-    };
+		expect(result).toEqual({ key: "", cert: "", ca: "" });
+	});
 
-    const result = loadTlsConfig(env);
+	it("should return TLS config with special characters in paths", () => {
+		const result = loadTlsConfig(
+			"C:\\Program Files\\app\\tls\\key.pem",
+			"/path/with spaces/cert.pem",
+			"/path/with/dashes/ca.pem"
+		);
 
-    expect(result).toEqual({ key: '', cert: '', ca: '' });
-  });
-
-  it('should return TLS config with special characters in paths', () => {
-    const env = {
-      TLS_KEY_PATH: 'C:\\Program Files\\app\\tls\\key.pem',
-      TLS_CERT_PATH: '/path/with spaces/cert.pem',
-      TLS_CA_PATH: '/path/with/dashes/ca.pem',
-    };
-
-    const result = loadTlsConfig(env);
-
-    expect(result).toEqual({
-      key: 'C:\\Program Files\\app\\tls\\key.pem',
-      cert: '/path/with spaces/cert.pem',
-      ca: '/path/with/dashes/ca.pem',
-    });
-  });
+		expect(result).toEqual({
+			key: "C:\\Program Files\\app\\tls\\key.pem",
+			cert: "/path/with spaces/cert.pem",
+			ca: "/path/with/dashes/ca.pem",
+		});
+	});
 });

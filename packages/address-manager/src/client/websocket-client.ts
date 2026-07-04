@@ -1,151 +1,176 @@
-import WebSocket from 'ws';
+import { logger } from "@trading-model/common/config/logger";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import WebSocket from "ws";
 
-import { logger } from '@trading-model/common/config/logger';
-import { normalizeError } from '@trading-model/common/utils/errors';
-
-export type WsMessageType = 'heartbeat' | 'register' | 'subscribe' | 'cache.invalidate';
+export type WsMessageType =
+	| "heartbeat"
+	| "register"
+	| "subscribe"
+	| "cache.invalidate";
 
 export interface WsMessage {
-  type: WsMessageType;
-  payload: Record<string, unknown>;
+	type: WsMessageType;
+	payload: Record<string, unknown>;
 }
 
 export type WsEventHandler = (message: WsMessage) => void;
 
 export class WebSocketClient {
-  private ws: WebSocket | null = null;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly url: string;
-  private readonly reconnectIntervalMs: number;
-  private readonly maxReconnectAttempts: number;
-  private readonly subscribedServices: string[];
-  private reconnectAttempts = 0;
-  private shouldReconnect = true;
-  private eventHandler: WsEventHandler | null = null;
+	private _ws: WebSocket | null = null;
+	private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	private readonly _baseUrl: string;
+	private readonly _reconnectIntervalMs: number;
+	private readonly _maxReconnectAttempts: number;
+	private readonly _subscribedServices: string[];
+	private _reconnectAttempts = 0;
+	private _shouldReconnect = true;
+	private _eventHandler: WsEventHandler | null = null;
+	private _authFailureHandler: (() => void) | null = null;
+	private _token?: string;
 
-  private initialToken?: string;
-  private maxQueueSize: number;
-  private maxBufferedAmount: number;
-  private authFailureHandler: (() => void) | null = null;
+	constructor(
+		url: string,
+		reconnectIntervalMs = 5000,
+		subscribedServices: string[] = ["*"],
+		token?: string,
+		maxReconnectAttempts?: number,
+		_unused?: unknown,
+		_maxQueueSize?: number,
+		_maxBufferedAmount?: number
+	) {
+		this._baseUrl = url;
+		this._token = token;
+		this._reconnectIntervalMs = reconnectIntervalMs;
+		this._maxReconnectAttempts = maxReconnectAttempts ?? 10;
+		this._subscribedServices = subscribedServices;
+	}
 
-  constructor(
-    url: string,
-    reconnectIntervalMs: number = 5000,
-    subscribedServices: string[] = ['*'],
-    token?: string,
-    maxReconnectAttempts?: number,
-    _unused?: unknown,
-    maxQueueSize?: number,
-    maxBufferedAmount?: number
-  ) {
-    this.url = url;
-    this.reconnectIntervalMs = reconnectIntervalMs;
-    this.maxReconnectAttempts = maxReconnectAttempts ?? 10;
-    this.subscribedServices = subscribedServices;
-    this.initialToken = token;
-    this.maxQueueSize = maxQueueSize ?? 5000;
-    this.maxBufferedAmount = maxBufferedAmount ?? 262144;
-  }
+	private get _url(): string {
+		if (!this._token) {
+			return this._baseUrl;
+		}
+		const url = new URL(this._baseUrl);
+		url.searchParams.set("token", this._token);
+		return url.toString();
+	}
 
-  onMessage(handler: WsEventHandler): void {
-    this.eventHandler = handler;
-  }
+	onMessage(handler: WsEventHandler): void {
+		this._eventHandler = handler;
+	}
 
-  connect(): void {
-    if (this.ws) return;
+	connect(): void {
+		if (this._ws) {
+			return;
+		}
 
-    try {
-      this.ws = new WebSocket(this.url);
+		try {
+			this._ws = new WebSocket(this._url);
 
-      this.ws.on('open', () => {
-        this.reconnectAttempts = 0;
-        logger.info('WebSocket connected to discovery server', { url: this.url });
-        this.send('subscribe', { services: this.subscribedServices });
-      });
+			this._ws.on("open", () => {
+				this._reconnectAttempts = 0;
+				logger.info("WebSocket connected to discovery server", {
+					url: this._url,
+				});
+				this.send("subscribe", { services: this._subscribedServices });
+			});
 
-      this.ws.on('message', (data: WebSocket.Data) => {
-        try {
-          const message = JSON.parse(data.toString()) as WsMessage;
-          this.eventHandler?.(message);
-        } catch (err) {
-          logger.warn('Failed to parse WebSocket message', {
-            data: data.toString(),
-            err: normalizeError(err),
-          });
-        }
-      });
+			this._ws.on("message", (data: WebSocket.Data) => {
+				try {
+					const message = JSON.parse(data.toString()) as WsMessage;
+					this._eventHandler?.(message);
+				} catch (err) {
+					logger.warn("Failed to parse WebSocket message", {
+						data: data.toString(),
+						err: normalizeError(err),
+					});
+				}
+			});
 
-      this.ws.on('close', () => {
-        this.ws = null;
-        this.scheduleReconnect();
-      });
+			this._ws.on("close", (code: number) => {
+				this._ws = null;
+				if (code === 4001) {
+					this._authFailureHandler?.();
+					return;
+				}
+				this._scheduleReconnect();
+			});
 
-      this.ws.on('error', (error: Error) => {
-        logger.error('WebSocket error', { error: normalizeError(error) });
-      });
-    } catch (error) {
-      logger.error('WebSocket connection failed', { error: normalizeError(error) });
-      this.ws = null;
-      this.scheduleReconnect();
-    }
-  }
+			this._ws.on("error", (error: Error) => {
+				logger.error("WebSocket error", { error: normalizeError(error) });
+			});
+		} catch (error) {
+			logger.error("WebSocket connection failed", {
+				error: normalizeError(error),
+			});
+			this._ws = null;
+			this._scheduleReconnect();
+		}
+	}
 
-  send(type: WsMessageType, payload: Record<string, unknown>): boolean {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
+	send(type: WsMessageType, payload: Record<string, unknown>): boolean {
+		if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
+			return false;
+		}
 
-    const message: WsMessage = { type, payload };
-    this.ws.send(JSON.stringify(message));
-    return true;
-  }
+		const message: WsMessage = { type, payload };
+		this._ws.send(JSON.stringify(message));
+		return true;
+	}
 
-  disconnect(): void {
-    this.shouldReconnect = false;
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
-  }
+	disconnect(): void {
+		this._shouldReconnect = false;
+		if (this._reconnectTimer) {
+			clearTimeout(this._reconnectTimer);
+			this._reconnectTimer = null;
+		}
+		if (this._ws) {
+			this._ws.close();
+			this._ws = null;
+		}
+	}
 
-  isConnected(): boolean {
-    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
-  }
+	isConnected(): boolean {
+		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
+	}
 
-  private scheduleReconnect(): void {
-    if (!this.shouldReconnect) return;
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      logger.warn('WebSocket max reconnect attempts reached', {
-        url: this.url,
-        attempts: this.reconnectAttempts,
-      });
-      return;
-    }
-    this.reconnectAttempts++;
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.connect();
-    }, this.reconnectIntervalMs);
-  }
+	private _scheduleReconnect(): void {
+		if (!this._shouldReconnect) {
+			return;
+		}
+		if (this._reconnectAttempts >= this._maxReconnectAttempts) {
+			logger.warn("WebSocket max reconnect attempts reached", {
+				url: this._url,
+				attempts: this._reconnectAttempts,
+			});
+			return;
+		}
+		this._reconnectAttempts++;
+		if (this._reconnectTimer) {
+			clearTimeout(this._reconnectTimer);
+		}
+		this._reconnectTimer = setTimeout(() => {
+			this._reconnectTimer = null;
+			this.connect();
+		}, this._reconnectIntervalMs);
+		this._reconnectTimer.unref();
+	}
 
-  getReconnectAttempts(): number {
-    return this.reconnectAttempts;
-  }
+	getReconnectAttempts(): number {
+		return this._reconnectAttempts;
+	}
 
-  onAuthFailure(handler: () => void): void {
-    this.authFailureHandler = handler;
-  }
+	onAuthFailure(handler: () => void): void {
+		this._authFailureHandler = handler;
+	}
 
-  updateToken(token: string): void {
-    this.initialToken = token;
-  }
+	updateToken(token: string): void {
+		this._token = token;
+	}
 
-  sendHeartbeat(_serviceName: string, _instanceId: string): boolean {
-    return this.send('heartbeat', { serviceName: _serviceName, instanceId: _instanceId });
-  }
+	sendHeartbeat(_serviceName: string, _instanceId: string): boolean {
+		return this.send("heartbeat", {
+			serviceName: _serviceName,
+			instanceId: _instanceId,
+		});
+	}
 }

@@ -1,13 +1,18 @@
-import ChainedError from 'chained-error';
+import ChainedError from "chained-error";
+import { logger } from "../config/logger";
+import { normalizeError } from "../utils/errors";
+import { HTTP_CODE, ResponseException } from "./response-exception";
 
-import { ResponseException, HTTP_CODE } from './response-exception';
-import { logger } from '../config/logger';
-import { normalizeError } from '../utils/errors';
+type FileHandle =
+	| "auth"
+	| "newsletter"
+	| "settings"
+	| "user"
+	| "contact"
+	| "transaction"
+	| "kiff-score";
 
-type fileHandle =
-  'auth' | 'newsletter' | 'settings' | 'user' | 'contact' | 'transaction' | 'kiff-score';
-
-export type CoreResponse<T = string> = Promise<[T, string]>;
+export type CoreResponse<TData = string> = Promise<[TData, string]>;
 
 /**
  * Ensures that at least one field in the provided object contains
@@ -27,9 +32,9 @@ export type CoreResponse<T = string> = Promise<[T, string]>;
  * // ✅ At least one field is truthy, continues execution
  */
 export function ensureAtLeastOneField(fields: Record<string, unknown>) {
-  if (!Object.values(fields).some(Boolean)) {
-    throw ResponseException('Aucun paramètres fournis').BadRequest();
-  }
+	if (!Object.values(fields).some(Boolean)) {
+		throw ResponseException("Aucun paramètres fournis").badRequest();
+	}
 }
 
 /**
@@ -59,18 +64,24 @@ export function ensureAtLeastOneField(fields: Record<string, unknown>) {
  *   handleDBError("user")(err); // logs and normalizes DB errors
  * }
  */
-export const handleDBError = (file: string) => (e: unknown) => {
-  if (e instanceof ChainedError) {
-    const msg = e.message ?? '';
-    if (msg.includes('No result returned')) throw new Error('404');
-    if (msg.includes('Duplicate entry')) {
-      if (msg.includes('name_UNIQUE')) throw new Error('Nom exist');
-      if (msg.includes('email_UNIQUE')) throw new Error('Email exist');
-    }
-  }
+export const handleDBError = (file: string) => (err: unknown) => {
+	if (err instanceof ChainedError) {
+		const msg = err.message ?? "";
+		if (msg.includes("No result returned")) {
+			throw new Error("404");
+		}
+		if (msg.includes("Duplicate entry")) {
+			if (msg.includes("name_UNIQUE")) {
+				throw new Error("Nom exist");
+			}
+			if (msg.includes("email_UNIQUE")) {
+				throw new Error("Email exist");
+			}
+		}
+	}
 
-  logger.error('Model operation failed', { file, err: normalizeError(e) });
-  throw e;
+	logger.error("Model operation failed", { file, err: normalizeError(err) });
+	throw err;
 };
 
 /**
@@ -108,15 +119,21 @@ export const handleDBError = (file: string) => (e: unknown) => {
  * }
  */
 export const handleCoreError = (
-  file: fileHandle,
-  context: string,
-  e: unknown,
-  mapping: Record<string, [string, string]>
+	file: FileHandle,
+	context: string,
+	err: unknown,
+	mapping: Record<string, [string, string]>
 ): [string, string] | never => {
-  if (e instanceof Error && mapping[e.message]) return mapping[e.message];
+	if (err instanceof Error && mapping[err.message]) {
+		return mapping[err.message];
+	}
 
-  logger.error('Core operation failed', { file, context, err: normalizeError(e) });
-  throw e;
+	logger.error("Core operation failed", {
+		file,
+		context,
+		err: normalizeError(err),
+	});
+	throw err;
 };
 
 /**
@@ -140,7 +157,7 @@ export const handleCoreError = (
  * @param context - Additional contextual information about the operation, also logged on error.
  *
  * @returns A `CoreResponse` tuple containing either:
- *   - `[data, HTTP_CODE.Success]` on success, or
+ *   - `[data, HTTP_CODE.success]` on success, or
  *   - The mapped error tuple from `handleCoreError`.
  *
  * @example
@@ -151,16 +168,16 @@ export const handleCoreError = (
  *   "getUser"
  * );
  */
-export const handleOnlyDataCore = async <T>(
-  fn: () => Promise<T>,
-  errorMap: Record<string, [string, string]> = {},
-  file: fileHandle,
-  context: string
-): Promise<CoreResponse<T | string>> => {
-  try {
-    const result = await fn();
-    return [result, HTTP_CODE.Success];
-  } catch (e) {
-    return handleCoreError(file, context, e, errorMap);
-  }
+export const handleOnlyDataCore = async <TData>(
+	fn: () => Promise<TData>,
+	errorMap: Record<string, [string, string]>,
+	file: FileHandle,
+	context: string
+): Promise<CoreResponse<TData | string>> => {
+	try {
+		const result = await fn();
+		return [result, HTTP_CODE.success];
+	} catch (err) {
+		return handleCoreError(file, context, err, errorMap);
+	}
 };

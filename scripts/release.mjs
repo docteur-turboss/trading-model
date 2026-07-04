@@ -76,7 +76,11 @@ const SCOPE_TO_PACKAGE = {
 
 function run(cmd) {
   try {
-    return execSync(cmd, { cwd: ROOT, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+    return execSync(cmd, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'ignore'],
+    }).trim();
   } catch {
     return '';
   }
@@ -130,7 +134,7 @@ function updatePackageJson(pkgPath, newVersion) {
   const pkg = JSON.parse(readFileSync(filePath, 'utf-8'));
   const oldVersion = pkg.version;
   pkg.version = newVersion;
-  writeFileSync(filePath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
+  writeFileSync(filePath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf-8');
   return oldVersion;
 }
 
@@ -221,7 +225,7 @@ function main() {
     console.log(`  Root: ${oldRootVer} → ${args.version}\n`);
     if (!args.dryRun) {
       rootPkg.version = args.version;
-      writeFileSync(join(ROOT, 'package.json'), JSON.stringify(rootPkg, null, 2) + '\n', 'utf-8');
+      writeFileSync(join(ROOT, 'package.json'), `${JSON.stringify(rootPkg, null, 2)}\n`, 'utf-8');
     }
     // Output summary
     console.log(`\n  ── Release ${args.version} ──\n`);
@@ -250,7 +254,7 @@ function main() {
   // Root version bump
   if (!args.dryRun) {
     rootPkg.version = newRootVer;
-    writeFileSync(join(ROOT, 'package.json'), JSON.stringify(rootPkg, null, 2) + '\n', 'utf-8');
+    writeFileSync(join(ROOT, 'package.json'), `${JSON.stringify(rootPkg, null, 2)}\n`, 'utf-8');
   }
 
   // Build CHANGELOG
@@ -316,7 +320,7 @@ function main() {
     if (existsSync(changelogPath)) {
       existing = readFileSync(changelogPath, 'utf-8');
     }
-    writeFileSync(changelogPath, changelog + (existing ? '\n' + existing : ''), 'utf-8');
+    writeFileSync(changelogPath, changelog + (existing ? `\n${existing}` : ''), 'utf-8');
   }
 
   // Output summary

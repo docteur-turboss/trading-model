@@ -1,20 +1,23 @@
-import { logger } from '../config/logger';
+import { logger } from "../config/logger";
 
 /**
  * Minimal Redis client interface for CRL cache cross-instance propagation.
  */
 export interface CrlRedisClient {
-  sadd(key: string, value: string): Promise<number>;
-  sismember(key: string, value: string): Promise<number>;
-  smembers(key: string): Promise<string[]>;
-  publish(channel: string, message: string): Promise<number>;
-  subscribe(channel: string, callback: (channel: string, message: string) => void): Promise<void>;
-  unsubscribe(channel: string): Promise<void>;
-  del(key: string): Promise<number>;
+	sadd(key: string, value: string): Promise<number>;
+	sismember(key: string, value: string): Promise<number>;
+	smembers(key: string): Promise<string[]>;
+	publish(channel: string, message: string): Promise<number>;
+	subscribe(
+		channel: string,
+		callback: (channel: string, message: string) => void
+	): Promise<void>;
+	unsubscribe(channel: string): Promise<void>;
+	del(key: string): Promise<number>;
 }
 
-const CRL_REDIS_SET_KEY = 'crl:revoked';
-const CRL_REDIS_CHANNEL = 'crl:updates';
+const CRL_REDIS_SET_KEY = "crl:revoked";
+const CRL_REDIS_CHANNEL = "crl:updates";
 
 /**
  * In-memory CRL cache that stores revoked certificate serial numbers.
@@ -29,153 +32,164 @@ const CRL_REDIS_CHANNEL = 'crl:updates';
  * clearAsync) also synchronize with Redis.
  */
 export class CrlCache {
-  private revoked = new Set<string>();
-  private redis: CrlRedisClient | null = null;
-  private redisChannelCleanup: (() => void) | null = null;
-  private initialized = false;
+	private _revoked = new Set<string>();
+	private _redis: CrlRedisClient | null = null;
+	private _redisChannelCleanup: (() => void) | null = null;
 
-  constructor(redisClient?: CrlRedisClient) {
-    if (redisClient) {
-      this.redis = redisClient;
-    }
-  }
+	constructor(redisClient?: CrlRedisClient) {
+		if (redisClient) {
+			this._redis = redisClient;
+		}
+	}
 
-  /** Configure Redis client post-construction (for global singleton). */
-  setRedisClient(client: CrlRedisClient): void {
-    this.redis = client;
-  }
+	/** Configure Redis client post-construction (for global singleton). */
+	setRedisClient(client: CrlRedisClient): void {
+		this._redis = client;
+	}
 
-  /** Force-initialize from Redis (blocking). Call during service bootstrap. */
-  async initialize(): Promise<void> {
-    if (this.redis) {
-      await this.initFromRedis();
-      await this.subscribeToRedis();
-    } else if (process.env.NODE_ENV === 'production') {
-      logger.error('CrlCache: Redis client required in production for cross-instance CRL sync');
-      throw new Error('REDIS_URL must be configured for CRL cache in production');
-    }
-    this.initialized = true;
-  }
+	/** Force-initialize from Redis (blocking). Call during service bootstrap. */
+	async initialize(): Promise<void> {
+		if (this._redis) {
+			await this._initFromRedis();
+			await this._subscribeToRedis();
+		} else if (process.env.NODE_ENV === "production") {
+			logger.error(
+				"CrlCache: Redis client required in production for cross-instance CRL sync"
+			);
+			throw new Error(
+				"REDIS_URL must be configured for CRL cache in production"
+			);
+		}
+	}
 
-  /**
-   * Mark a certificate as revoked in the local cache.
-   */
-  addRevoked(serialNumber: string): void {
-    this.revoked.add(serialNumber.toUpperCase());
-  }
+	/**
+	 * Mark a certificate as revoked in the local cache.
+	 */
+	addRevoked(serialNumber: string): void {
+		this._revoked.add(serialNumber.toUpperCase());
+	}
 
-  /**
-   * Mark a certificate as revoked in local cache + Redis (fire-and-forget).
-   */
-  async addRevokedAsync(serialNumber: string): Promise<void> {
-    const sn = serialNumber.toUpperCase();
-    this.revoked.add(sn);
-    if (this.redis) {
-      try {
-        await this.redis.sadd(CRL_REDIS_SET_KEY, sn);
-        await this.redis.publish(CRL_REDIS_CHANNEL, sn);
-      } catch {
-        // Redis failure is non-fatal for CRL cache
-      }
-    }
-  }
+	/**
+	 * Mark a certificate as revoked in local cache + Redis (fire-and-forget).
+	 */
+	async addRevokedAsync(serialNumber: string): Promise<void> {
+		const sn = serialNumber.toUpperCase();
+		this._revoked.add(sn);
+		if (this._redis) {
+			try {
+				await this._redis.sadd(CRL_REDIS_SET_KEY, sn);
+				await this._redis.publish(CRL_REDIS_CHANNEL, sn);
+			} catch {
+				// Redis failure is non-fatal for CRL cache
+			}
+		}
+	}
 
-  /**
-   * Returns true if the given serial number has been revoked.
-   * Checks local cache only (sync). Use isRevokedAsync for Redis-backed check.
-   */
-  isRevoked(serialNumber: string): boolean {
-    return this.revoked.has(serialNumber.toUpperCase());
-  }
+	/**
+	 * Returns true if the given serial number has been revoked.
+	 * Checks local cache only (sync). Use isRevokedAsync for Redis-backed check.
+	 */
+	isRevoked(serialNumber: string): boolean {
+		return this._revoked.has(serialNumber.toUpperCase());
+	}
 
-  /**
-   * Returns true if the given serial number has been revoked.
-   * Checks local cache first, then Redis if configured.
-   */
-  async isRevokedAsync(serialNumber: string): Promise<boolean> {
-    const sn = serialNumber.toUpperCase();
-    if (this.revoked.has(sn)) return true;
-    if (this.redis) {
-      try {
-        const inRedis = await this.redis.sismember(CRL_REDIS_SET_KEY, sn);
-        if (inRedis) {
-          this.revoked.add(sn);
-          return true;
-        }
-      } catch {
-        // Redis failure is non-fatal
-      }
-    }
-    return false;
-  }
+	/**
+	 * Returns true if the given serial number has been revoked.
+	 * Checks local cache first, then Redis if configured.
+	 */
+	async isRevokedAsync(serialNumber: string): Promise<boolean> {
+		const sn = serialNumber.toUpperCase();
+		if (this._revoked.has(sn)) {
+			return true;
+		}
+		if (this._redis) {
+			try {
+				const inRedis = await this._redis.sismember(CRL_REDIS_SET_KEY, sn);
+				if (inRedis) {
+					this._revoked.add(sn);
+					return true;
+				}
+			} catch {
+				// Redis failure is non-fatal
+			}
+		}
+		return false;
+	}
 
-  /**
-   * Returns true if the cache contains no revoked serials.
-   */
-  get size(): number {
-    return this.revoked.size;
-  }
+	/**
+	 * Returns true if the cache contains no revoked serials.
+	 */
+	get size(): number {
+		return this._revoked.size;
+	}
 
-  /**
-   * Removes all entries from the local cache.
-   */
-  clear(): void {
-    this.revoked.clear();
-  }
+	/**
+	 * Removes all entries from the local cache.
+	 */
+	clear(): void {
+		this._revoked.clear();
+	}
 
-  /**
-   * Removes all entries from local cache and Redis.
-   */
-  async clearAsync(): Promise<void> {
-    this.revoked.clear();
-    if (this.redis) {
-      try {
-        await this.redis.del(CRL_REDIS_SET_KEY);
-      } catch {
-        // Redis failure is non-fatal
-      }
-    }
-  }
+	/**
+	 * Removes all entries from local cache and Redis.
+	 */
+	async clearAsync(): Promise<void> {
+		this._revoked.clear();
+		if (this._redis) {
+			try {
+				await this._redis.del(CRL_REDIS_SET_KEY);
+			} catch {
+				// Redis failure is non-fatal
+			}
+		}
+	}
 
-  /**
-   * Cleanup Redis subscriptions.
-   */
-  destroy(): void {
-    if (this.redisChannelCleanup) {
-      this.redisChannelCleanup();
-      this.redisChannelCleanup = null;
-    }
-    this.redis = null;
-    this.revoked.clear();
-  }
+	/**
+	 * Cleanup Redis subscriptions.
+	 */
+	destroy(): void {
+		if (this._redisChannelCleanup) {
+			this._redisChannelCleanup();
+			this._redisChannelCleanup = null;
+		}
+		this._redis = null;
+		this._revoked.clear();
+	}
 
-  private async initFromRedis(): Promise<void> {
-    if (!this.redis) return;
-    const members = await this.redis.smembers(CRL_REDIS_SET_KEY);
-    for (const member of members) {
-      this.revoked.add(member.toUpperCase());
-    }
-    logger.info('CrlCache initialized from Redis', { count: members.length });
-  }
+	private async _initFromRedis(): Promise<void> {
+		if (!this._redis) {
+			return;
+		}
+		const members = await this._redis.smembers(CRL_REDIS_SET_KEY);
+		for (const member of members) {
+			this._revoked.add(member.toUpperCase());
+		}
+		logger.info("CrlCache initialized from Redis", { count: members.length });
+	}
 
-  private async subscribeToRedis(): Promise<void> {
-    if (!this.redis) return;
-    await this.redis.subscribe(CRL_REDIS_CHANNEL, (_channel: string, message: string) => {
-      this.revoked.add(message.toUpperCase());
-    });
-    this.redisChannelCleanup = async () => {
-      try {
-        await this.redis?.unsubscribe(CRL_REDIS_CHANNEL);
-      } catch {
-        // best effort
-      }
-    };
-    logger.info('CrlCache subscribed to Redis CRL updates');
-  }
+	private async _subscribeToRedis(): Promise<void> {
+		if (!this._redis) {
+			return;
+		}
+		await this._redis.subscribe(
+			CRL_REDIS_CHANNEL,
+			(_channel: string, message: string) => {
+				this._revoked.add(message.toUpperCase());
+			}
+		);
+		this._redisChannelCleanup = async () => {
+			try {
+				await this._redis?.unsubscribe(CRL_REDIS_CHANNEL);
+			} catch {
+				// best effort
+			}
+		};
+		logger.info("CrlCache subscribed to Redis CRL updates");
+	}
 }
 
 /**
  * Singleton shared across all services in the same process.
  * Initialize via globalCrlCache.initialize() during bootstrap.
  */
-export const globalCrlCache = new CrlCache();
+export const GLOBAL_CRL_CACHE = new CrlCache();

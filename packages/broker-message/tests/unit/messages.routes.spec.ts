@@ -1,19 +1,19 @@
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, expect, it, jest } from "@jest/globals";
 
-jest.mock('../../src/http/messages.controller', () => ({
-  MessageController: jest.fn(),
+jest.mock("../../src/http/messages.controller", () => ({
+	MESSAGE_CONTROLLER: jest.fn(),
 }));
 
-import { CreateCallbackRoute } from '../../src/http/messages.routes';
+import { CREATE_CALLBACK_ROUTE } from "../../src/http/messages.routes";
 
-describe('CreateCallbackRoute', () => {
-  it('should return a router', () => {
-    const router = CreateCallbackRoute('/message');
-    expect(router).toBeDefined();
-  });
+describe("CREATE_CALLBACK_ROUTE", () => {
+	it("should return a router", () => {
+		const router = CREATE_CALLBACK_ROUTE("/message");
+		expect(router).toBeDefined();
+	});
 
-  it('should use the provided callback path', () => {
-    const router = CreateCallbackRoute('/custom-path');
-    expect(router).toBeDefined();
-  });
+	it("should use the provided callback path", () => {
+		const router = CREATE_CALLBACK_ROUTE("/custom-path");
+		expect(router).toBeDefined();
+	});
 });

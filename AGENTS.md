@@ -8,7 +8,7 @@ npm run build           # Build 4 shared packages in order
 npm run build:ts        # Build everything (packages + all 9 services)
 npm test --workspaces   # Run all workspace tests
 npm test -w <name>      # Run a single workspace's tests
-npm run lint            # ESLint across the whole monorepo
+npm run lint            # Biome check across the whole monorepo
 npm run test:coverage   # All tests with coverage
 npm run test:contract   # Contract tests (tests/contract/)
 npm run test:e2e        # E2E tests (requires Docker Compose up)
@@ -58,17 +58,17 @@ The root script references the directory path: `npm run -w services/trader-train
 
 ## Git hooks (Husky) & commit format
 
-- **`pre-push`** runs: prettier check → eslint → build → test:coverage (must all pass to push)
+- **`pre-push`** runs: biome check → build → test (must all pass to push)
 - **`commit-msg`** enforces gitmoji format via commitlint: `:emoji:(scope): subject`
 - Scopes are lowercased and must be from the allowed enum in `commitlint.config.mjs`
 - Use `npm run commit` for an interactive TUI that helps craft valid commits
 
-## ESLint (flat config)
+## Linting (Biome)
 
-- Uses `eslint-plugin-import-x` with enforced import ordering
-- `@trading-model/*` imports are treated as `internal` group
-- Test files get relaxed rules: no-unused-vars → warn, no-explicit-any → off
-- Ignores: `dist/`, `jest.config.*`, `jest.setup.ts`, `docs/architecture/code/`, `knexfile.ts`
+- ESLint fully removed v2.0.4 — Biome gère lint, format, et organiseImports
+- `organizeImports` remplace `eslint-plugin-import-x` pour le tri des imports
+- Les règles TypeScript avancées (PascalCase interfaces, naming convention) sont configurées dans `biome.json`
+- Test files get relaxed rules via `overrides` dans biome.json
 
 ## TypeScript
 

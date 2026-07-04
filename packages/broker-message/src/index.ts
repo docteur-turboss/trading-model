@@ -1,18 +1,17 @@
-import { Application } from 'express';
+import type addressManagerClient from "@trading-model/address-manager";
+import type {
+	EventEnumMap,
+	EventMap,
+	EventMessagesArgs,
+} from "@trading-model/common/config/event.types";
+import { HttpClient } from "@trading-model/common/config/http-client";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { Application } from "express";
 
-import addressManagerClient from '@trading-model/address-manager';
-import {
-  EventEnumMap,
-  EventMessagesArgs,
-  EventMap,
-} from '@trading-model/common/config/event.types';
-import { HttpClient } from '@trading-model/common/config/http-client';
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
-
-import { EventManager, Listener } from './client/event-manager-client';
-import { MessageManagerClient } from './client/message-manager-client';
-import { CreateCallbackRoute } from './http/messages.routes';
-import { MessageMetadata } from './shared/helper/messages/message';
+import { EVENT_MANAGER, type Listener } from "./client/event-manager-client";
+import { MessageManagerClient } from "./client/message-manager-client";
+import { CREATE_CALLBACK_ROUTE } from "./http/messages.routes";
+import { MessageMetadata } from "./shared/helper/messages/message";
 
 /**
  * Central orchestrator for broker message operations.
@@ -25,92 +24,119 @@ import { MessageMetadata } from './shared/helper/messages/message';
  * - Mounts Express callback routes for message delivery
  */
 export default class BrokerMessage {
-  private messageManagerClient: MessageManagerClient;
-  private topics: EventEnumMap[] | null = null;
-  private cleanupFns: (() => void)[] = [];
-  private callbackPath: string = 'message';
-  private httpClient: HttpClient;
+	private _messageManagerClient: MessageManagerClient;
 
-  constructor({
-    addressManagerClient,
-    KeyCertificatePath,
-    RootCACertPath,
-    CertificatePath,
-    callbackPath: userCallbackPath,
-    instanceId,
-    serviceName,
-  }: {
-    instanceId: string;
-    callbackPath?: string;
-    RootCACertPath: string;
-    CertificatePath: string;
-    KeyCertificatePath: string;
-    addressManagerClient: addressManagerClient;
-    serviceName: ServiceInstanceName;
-  }) {
-    if (userCallbackPath) this.callbackPath = userCallbackPath;
+	/** Currently subscribed topics (null when not subscribed). */
+	topics: EventEnumMap[] | null = null;
 
-    this.httpClient = HttpClient.createWithTls({
-      RootCACertPath,
-      CertificatePath,
-      KeyCertificatePath,
-    });
+	/** Cleanup functions to be called on stop. */
+	cleanupFns: (() => void)[] = [];
 
-    this.messageManagerClient = new MessageManagerClient(
-      this.httpClient,
-      {
-        callbackPath: this.callbackPath,
-        instanceId,
-        serviceName,
-      },
-      addressManagerClient
-    );
-  }
+	private _callbackPath = "message";
+	private _httpClient: HttpClient;
 
-  /** Subscribes to the specified event topics. */
-  async intents(topics: Parameters<MessageManagerClient['SubscribeToTopics']>[0]): Promise<void> {
-    await this.messageManagerClient.SubscribeToTopics(topics);
-    this.topics = topics;
-  }
+	constructor({
+		addressManagerClient,
+		keyCertificatePath,
+		rootCACertPath,
+		certificatePath,
+		callbackPath: userCallbackPath,
+		instanceId,
+		serviceName,
+	}: {
+		instanceId: string;
+		callbackPath?: string;
+		rootCACertPath: string;
+		certificatePath: string;
+		keyCertificatePath: string;
+		addressManagerClient: addressManagerClient;
+		serviceName: ServiceInstanceName;
+	}) {
+		if (userCallbackPath) {
+			this._callbackPath = userCallbackPath;
+		}
 
-  /** Unsubscribes from all topics and cleans up event listeners. */
-  async stopMessageManager(): Promise<void> {
-    await this.messageManagerClient.UnSubscribeToTopic(this.topics ?? []);
-    this.cleanupFns.forEach(fn => fn());
-    this.topics = null;
-  }
+		this._httpClient = HttpClient.createWithTls({
+			rootCACertPath,
+			certificatePath,
+			keyCertificatePath,
+		});
 
-  /** Registers a listener for a broker message event. */
-  on<K extends keyof EventMap>(eventName: K, listener: Listener<EventMessagesArgs<K>>) {
-    this.cleanupFns.push(EventManager.on(eventName, listener));
-  }
+		this._messageManagerClient = new MessageManagerClient(
+			this._httpClient,
+			{
+				callbackPath: this._callbackPath,
+				instanceId,
+				serviceName,
+			},
+			addressManagerClient
+		);
+	}
 
-  /** Mounts the callback route on the Express application. */
-  listenExpress(app: Application) {
-    app.use(CreateCallbackRoute(this.callbackPath));
-  }
+	/** Subscribes to the specified event topics. */
+	async intents(
+		topics: Parameters<MessageManagerClient["subscribeToTopics"]>[0]
+	): Promise<void> {
+		await this._messageManagerClient.subscribeToTopics(topics);
+		this.topics = topics;
+	}
 
-  /** Publishes messages directly or indirectly to services. */
-  get post() {
-    return {
-      direct: <T = Parameters<MessageManagerClient['publishDirectMessage']>[1]>(
-        service: Parameters<MessageManagerClient['publishDirectMessage']>[0],
-        payload: T,
-        metadata: Parameters<MessageManagerClient['publishDirectMessage']>[2]
-      ) => {
-        return this.messageManagerClient.publishDirectMessage(service, payload, metadata);
-      },
-      indirect: <T = Parameters<MessageManagerClient['publishAsyncMessage']>[0]>(
-        payload: T,
-        metadata: Parameters<MessageManagerClient['publishAsyncMessage']>[1]
-      ) => {
-        return this.messageManagerClient.publishAsyncMessage(payload, metadata);
-      },
-    };
-  }
+	/** Unsubscribes from all topics and cleans up event listeners. */
+	async stopMessageManager(): Promise<void> {
+		await this._messageManagerClient.unSubscribeToTopic(this.topics ?? []);
+		this.cleanupFns.forEach((fn) => {
+			fn();
+		});
+		this.topics = null;
+	}
+
+	/** Registers a listener for a broker message event. */
+	on<TEvent extends keyof EventMap>(
+		eventName: TEvent,
+		listener: Listener<EventMessagesArgs<TEvent>>
+	) {
+		this.cleanupFns.push(EVENT_MANAGER.on(eventName, listener));
+	}
+
+	/** Mounts the callback route on the Express application. */
+	listenExpress(app: Application) {
+		app.use(CREATE_CALLBACK_ROUTE(this._callbackPath));
+	}
+
+	/** Publishes messages directly or indirectly to services. */
+	get post() {
+		return {
+			direct: <
+				TPayload = Parameters<MessageManagerClient["publishDirectMessage"]>[1],
+			>(
+				service: Parameters<MessageManagerClient["publishDirectMessage"]>[0],
+				payload: TPayload,
+				metadata: Parameters<MessageManagerClient["publishDirectMessage"]>[2]
+			) => {
+				return this._messageManagerClient.publishDirectMessage(
+					service,
+					payload,
+					metadata
+				);
+			},
+			indirect: <
+				TPayload = Parameters<MessageManagerClient["publishAsyncMessage"]>[0],
+			>(
+				payload: TPayload,
+				metadata: Parameters<MessageManagerClient["publishAsyncMessage"]>[1]
+			) => {
+				return this._messageManagerClient.publishAsyncMessage(
+					payload,
+					metadata
+				);
+			},
+		};
+	}
 }
 
 /** Metadata builder utility. */
-export const helper = {
-  MetadataBuilder: MessageMetadata,
+export const HELPER = {
+	metadataBuilder: MessageMetadata,
 };
+
+export { EVENT_MANAGER } from "./client/event-manager-client";

@@ -1,45 +1,45 @@
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, expect, it, jest } from "@jest/globals";
 
-import { ServiceRegistry } from '../../src/core/service-registry';
+import { ServiceRegistry } from "../../src/core/service-registry";
 
-const mockRouter = {
-  post: jest.fn(),
-  get: jest.fn(),
+const MOCK_ROUTER = {
+	post: jest.fn(),
+	get: jest.fn(),
 };
 
-jest.mock('express', () => ({
-  Router: () => mockRouter,
+jest.mock("express", () => ({
+	Router: () => MOCK_ROUTER,
 }));
 
-jest.mock('../../src/controllers/heartbeat.controller', () => ({
-  createHeartbeatController: jest.fn(),
+jest.mock("../../src/controllers/heartbeat.controller", () => ({
+	createHeartbeatController: jest.fn(),
 }));
 
-import { heartbeatRoutes } from '../../src/routes/heartbeat.routes';
-import { createHeartbeatController } from '../../src/controllers/heartbeat.controller';
+import { createHeartbeatController } from "../../src/controllers/heartbeat.controller";
+import { HEARTBEAT_ROUTES } from "../../src/routes/heartbeat.routes";
 
-describe('heartbeatRoutes', () => {
-  it('should return a router and register all routes', () => {
-    const registry = new ServiceRegistry();
-    const mockController = {
-      heartbeat: 'heartbeat-handler',
-      rotateToken: 'rotate-token-handler',
-    };
-    (createHeartbeatController as jest.Mock).mockReturnValue(mockController);
+describe("HEARTBEAT_ROUTES", () => {
+	it("should return a router and register all routes", () => {
+		const registry = new ServiceRegistry();
+		const mockController = {
+			heartbeat: "heartbeat-handler",
+			rotateToken: "rotate-token-handler",
+		};
+		(createHeartbeatController as jest.Mock).mockReturnValue(mockController);
 
-    const router = heartbeatRoutes(registry);
+		const router = HEARTBEAT_ROUTES(registry);
 
-    expect(router).toBe(mockRouter);
-    expect(mockRouter.post).toHaveBeenCalledTimes(2);
-    expect(mockRouter.post).toHaveBeenCalledWith(
-      '/heartbeat',
-      expect.any(Function),
-      'heartbeat-handler'
-    );
-    expect(mockRouter.post).toHaveBeenCalledWith(
-      '/token/rotate',
-      expect.any(Function),
-      'rotate-token-handler'
-    );
-  });
+		expect(router).toBe(MOCK_ROUTER);
+		expect(MOCK_ROUTER.post).toHaveBeenCalledTimes(2);
+		expect(MOCK_ROUTER.post).toHaveBeenCalledWith(
+			"/heartbeat",
+			expect.any(Function),
+			"heartbeat-handler"
+		);
+		expect(MOCK_ROUTER.post).toHaveBeenCalledWith(
+			"/token/rotate",
+			expect.any(Function),
+			"rotate-token-handler"
+		);
+	});
 });

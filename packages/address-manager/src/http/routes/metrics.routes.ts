@@ -1,9 +1,9 @@
-import { Router } from 'express';
+import { Router } from "express";
 
-import { metricsController } from '../metrics.controller';
+import { metricsController } from "../metrics.controller";
 
-const router = Router();
+const ROUTER = Router();
 
-router.get('/metrics', metricsController);
+ROUTER.get("/metrics", metricsController);
 
-export const metricsRoutes = router;
+export const METRICS_ROUTES = ROUTER;

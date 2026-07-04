@@ -1,71 +1,73 @@
-import fs from 'node:fs';
-import fsPromises from 'node:fs/promises';
-import https from 'node:https';
-import path from 'node:path';
+import fs from "node:fs";
+import fsPromises from "node:fs/promises";
+import https from "node:https";
+import path from "node:path";
 
-import { Application } from 'express';
-
-import { TlsConfig } from './load-tls-config';
-import { logger } from '../config/logger';
-import { normalizeError } from '../utils/errors';
+import type { Application } from "express";
+import { logger } from "../config/logger";
+import { normalizeError } from "../utils/errors";
+import type { TlsConfig } from "./load-tls-config";
 
 export interface HttpsServerOptions {
-  port: number;
-  tls: TlsConfig;
-  watchTls?: boolean;
+	port: number;
+	tls: TlsConfig;
+	watchTls?: boolean;
 }
 
 export interface HttpServer {
-  close: () => Promise<void>;
-  raw: https.Server;
+	close: () => Promise<void>;
+	raw: https.Server;
 }
 
 export async function createAndStartHttpsServer(
-  app: Application,
-  options: HttpsServerOptions
+	app: Application,
+	options: HttpsServerOptions
 ): Promise<HttpServer> {
-  const [key, cert, ca] = await Promise.all([
-    fsPromises.readFile(path.resolve(options.tls.key), 'utf8'),
-    fsPromises.readFile(path.resolve(options.tls.cert), 'utf8'),
-    fsPromises.readFile(path.resolve(options.tls.ca), 'utf8'),
-  ]);
+	const [key, cert, ca] = await Promise.all([
+		fsPromises.readFile(path.resolve(options.tls.key), "utf8"),
+		fsPromises.readFile(path.resolve(options.tls.cert), "utf8"),
+		fsPromises.readFile(path.resolve(options.tls.ca), "utf8"),
+	]);
 
-  const httpsServer = https.createServer(
-    {
-      key,
-      cert,
-      ca,
-      requestCert: true,
-      rejectUnauthorized: true,
-      minVersion: 'TLSv1.3',
-    },
-    app
-  );
+	const httpsServer = https.createServer(
+		{
+			key,
+			cert,
+			ca,
+			requestCert: true,
+			rejectUnauthorized: true,
+			minVersion: "TLSv1.3",
+		},
+		app
+	);
 
-  httpsServer.listen(options.port, () => {
-    logger.info('HTTPS server listening', {
-      port: options.port,
-      mtls: true,
-    });
-  });
+	httpsServer.listen(options.port, () => {
+		logger.info("HTTPS server listening", {
+			port: options.port,
+			mtls: true,
+		});
+	});
 
-  if (options.watchTls) {
-    /* istanbul ignore next -- dead code: setupTlsWatcher never rejects; all errors handled internally */
-    setupTlsWatcher(httpsServer, options.tls).catch(err => {
-      logger.error('Failed to start TLS watcher', { err });
-    });
-  }
+	if (options.watchTls) {
+		/* istanbul ignore next -- dead code: setupTlsWatcher never rejects; all errors handled internally */
+		setupTlsWatcher(httpsServer, options.tls).catch((err) => {
+			logger.error("Failed to start TLS watcher", { err });
+		});
+	}
 
-  return {
-    raw: httpsServer,
-    close: () =>
-      new Promise<void>((resolve, reject) => {
-        httpsServer.close(err => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-  };
+	return {
+		raw: httpsServer,
+		close: () =>
+			new Promise<void>((resolve, reject) => {
+				httpsServer.close((err) => {
+					if (err) {
+						reject(err);
+					} else {
+						resolve();
+					}
+				});
+			}),
+	};
 }
 
 /**
@@ -76,44 +78,60 @@ export async function createAndStartHttpsServer(
  * systems (notably Windows and macOS under heavy I/O). A 300 ms debounce
  * prevents multiple rapid reloads from batch writes.
  */
-export async function setupTlsWatcher(server: https.Server, tls: TlsConfig): Promise<void> {
-  const files = [tls.key, tls.cert, tls.ca];
-  const dirs = new Set(files.map(f => path.dirname(path.resolve(f))));
+export async function setupTlsWatcher(
+	server: https.Server,
+	tls: TlsConfig
+): Promise<void> {
+	const files = [tls.key, tls.cert, tls.ca];
+	const dirs = new Set(files.map((file) => path.dirname(path.resolve(file))));
 
-  const reloadTls = async (eventType: string, filename: string | null): Promise<void> => {
-    if (eventType !== 'change') return;
+	const reloadTls = async (
+		eventType: string,
+		filename: string | null
+	): Promise<void> => {
+		if (eventType !== "change") {
+			return;
+		}
 
-    try {
-      const [key, cert, ca] = await Promise.all([
-        fsPromises.readFile(path.resolve(tls.key), 'utf8'),
-        fsPromises.readFile(path.resolve(tls.cert), 'utf8'),
-        fsPromises.readFile(path.resolve(tls.ca), 'utf8'),
-      ]);
+		try {
+			const [key, cert, ca] = await Promise.all([
+				fsPromises.readFile(path.resolve(tls.key), "utf8"),
+				fsPromises.readFile(path.resolve(tls.cert), "utf8"),
+				fsPromises.readFile(path.resolve(tls.ca), "utf8"),
+			]);
 
-      server.setSecureContext({ key, cert, ca });
-      logger.info('TLS context reloaded', { event: eventType, file: filename });
-    } catch (err) {
-      logger.error('Failed to reload TLS context', { err });
-    }
-  };
+			server.setSecureContext({ key, cert, ca });
+			logger.info("TLS context reloaded", { event: eventType, file: filename });
+		} catch (err) {
+			logger.error("Failed to reload TLS context", { err });
+		}
+	};
 
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  const debouncedReload = (eventType: string, filename: string | null): void => {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      reloadTls(eventType, filename);
-    }, 300);
-  };
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	const debouncedReload = (
+		eventType: string,
+		filename: string | null
+	): void => {
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
+		debounceTimer = setTimeout(() => {
+			void reloadTls(eventType, filename);
+		}, 300);
+	};
 
-  await Promise.all(
-    [...dirs].map(async dir => {
-      try {
-        await fsPromises.access(dir, fs.constants.R_OK);
-        const watcher = fs.watch(dir, debouncedReload);
-        watcher.unref();
-      } catch (err) {
-        logger.warn('Cannot watch TLS directory', { dir, err: normalizeError(err) });
-      }
-    })
-  );
+	await Promise.all(
+		[...dirs].map(async (dir) => {
+			try {
+				await fsPromises.access(dir, fs.constants.R_OK);
+				const watcher = fs.watch(dir, debouncedReload);
+				watcher.unref();
+			} catch (err) {
+				logger.warn("Cannot watch TLS directory", {
+					dir,
+					err: normalizeError(err),
+				});
+			}
+		})
+	);
 }

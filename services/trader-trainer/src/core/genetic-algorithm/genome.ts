@@ -2,228 +2,252 @@
 //        Full genome type definitions for the trading GA
 // ================================================================
 
-import { clamp } from './utils';
-import {
-  ActivationType,
-  ConnectionType,
-  InitialisationType,
-  NormalisationType,
-} from '../neural-network/type';
+import type {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	NormalisationType,
+} from "../neural-network/type";
+import { clamp } from "./utils";
+
 export {
-  ActivationType,
-  NormalisationType,
-  ConnectionType,
-  InitialisationType,
-} from '../neural-network/type';
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	NormalisationType,
+} from "../neural-network/type";
 
 /** Configuration for a single neural network hidden layer. */
-export type LayerGenome = {
-  neurons: number;
-  activation: ActivationType;
-  connectionType: ConnectionType;
-  biasType: InitialisationType;
-};
+export interface LayerGenome {
+	neurons: number;
+	activation: ActivationType;
+	connectionType: ConnectionType;
+	biasType: InitialisationType;
+}
 
 /** Neural network architecture definition within a genome. */
-export type NetworkGenome = {
-  inputDim: number;
-  outputDim: number;
-  hiddenLayers: LayerGenome[];
-  normalization: NormalisationType;
-};
+export interface NetworkGenome {
+	inputDim: number;
+	outputDim: number;
+	hiddenLayers: LayerGenome[];
+	normalization: NormalisationType;
+}
 
 // ---- Reward shaping genome ----
 
 /** Reward shaping configuration: clipping, scaling, normalisation, and sparse/dense mode. */
-export type RewardShapingGenome = {
-  clip: boolean;
-  clipMin: number;
-  clipMax: number;
-  scale: boolean;
-  scaleFactor: number;
-  normalize: boolean;
-  /** Only reward at episode end (sparse) vs each step (dense) */
-  sparse: boolean;
-};
+export interface RewardShapingGenome {
+	clip: boolean;
+	clipMin: number;
+	clipMax: number;
+	scale: boolean;
+	scaleFactor: number;
+	normalize: boolean;
+	/** Only reward at episode end (sparse) vs each step (dense) */
+	sparse: boolean;
+}
 
 // ---- Episode horizon genome ----
 
 /** Episode horizon parameters: length, n-step return depth, and frame skip. */
-export type HorizonGenome = {
-  maxEpisodeLength: number;
-  nStepReturn: number; // n-step TD target depth
-  frameSkip: number; // repeat action N ticks before re-inferring
-};
+export interface HorizonGenome {
+	maxEpisodeLength: number;
+	nStepReturn: number; // n-step TD target depth
+	frameSkip: number; // repeat action N ticks before re-inferring
+}
 
 // ---- Policy genomes ----
 
 /** Supported discrete action selection strategies. */
-export type DiscretePolicyType = 'epsilon_greedy' | 'softmax';
+export type DiscretePolicyType = "epsilon_greedy" | "softmax";
 
 /** Discrete policy hyperparameters for epsilon-greedy or softmax selection. */
-export type DiscretePolicyGenome = {
-  type: DiscretePolicyType;
-  epsilonStart: number;
-  epsilonMin: number;
-  epsilonDecay: number;
-  temperature: number; // for softmax
-};
+export interface DiscretePolicyGenome {
+	type: DiscretePolicyType;
+	epsilonStart: number;
+	epsilonMin: number;
+	epsilonDecay: number;
+	temperature: number; // for softmax
+}
 
 /** Supported continuous action space strategies. */
-export type ContinuousPolicyType = 'action_clipping' | 'tanh_squashing' | 'exploration_noise';
+export type ContinuousPolicyType =
+	| "action_clipping"
+	| "tanh_squashing"
+	| "exploration_noise";
 
 /** Continuous policy hyperparameters for action clipping and exploration noise. */
-export type ContinuousPolicyGenome = {
-  type: ContinuousPolicyType;
-  clipMin: number;
-  clipMax: number;
-  noiseStd: number;
-  noiseDecay: number;
-};
+export interface ContinuousPolicyGenome {
+	type: ContinuousPolicyType;
+	clipMin: number;
+	clipMax: number;
+	noiseStd: number;
+	noiseDecay: number;
+}
 
 // ---- Replay buffer genome ----
 
 /** Experience replay buffer configuration. */
-export type ReplayBufferGenome = {
-  bufferSize: number;
-  prioritized: boolean;
-  alphaPER: number; // priority exponent  ∈ [0,1]
-  betaPER: number; // IS correction exponent ∈ [0,1]
-  betaAnneal: boolean;
-};
+export interface ReplayBufferGenome {
+	bufferSize: number;
+	prioritized: boolean;
+	alphaPER: number; // priority exponent  ∈ [0,1]
+	betaPER: number; // IS correction exponent ∈ [0,1]
+	betaAnneal: boolean;
+}
 
 // ---- Full RL genome ----
 
 /** Complete reinforcement learning hyperparameter set. */
-export type RLGenome = {
-  gamma: number;
-  learningRate: number;
-  rewardShaping: RewardShapingGenome;
-  horizon: HorizonGenome;
-  discretePolicy: DiscretePolicyGenome;
-  continuousPolicy: ContinuousPolicyGenome;
-  replayBuffer: ReplayBufferGenome;
-};
+export interface RLGenome {
+	gamma: number;
+	learningRate: number;
+	rewardShaping: RewardShapingGenome;
+	horizon: HorizonGenome;
+	discretePolicy: DiscretePolicyGenome;
+	continuousPolicy: ContinuousPolicyGenome;
+	replayBuffer: ReplayBufferGenome;
+}
 
 // ---- Mutation genome ----
 
 /** Distribution shapes for mutation noise. */
-export type MutationDistribution = 'gaussian' | 'levy' | 'uniform' | 'cauchy';
+export type MutationDistribution = "gaussian" | "levy" | "uniform" | "cauchy";
 /** Strategy for adapting mutation rates over time. */
-export type MutationAdaptation = 'fixed' | 'sigma_adaptive' | 'self_adaptive' | 'cma';
+export type MutationAdaptation =
+	| "fixed"
+	| "sigma_adaptive"
+	| "self_adaptive"
+	| "cma";
 /** Scope at which mutation is applied. */
-export type MutationScope = 'global' | 'per_layer' | 'correlated';
+export type MutationScope = "global" | "per_layer" | "correlated";
 
 /** Mutation operator configuration: rates, distribution, adaptation, and structural mutations. */
-export type MutationGenome = {
-  rate: number;
-  sigma: number;
-  noiseStd: number;
-  distribution: MutationDistribution;
-  adaptation: MutationAdaptation;
-  scope: MutationScope;
-  /** Evolved sigma for self-adaptive ES */
-  selfSigma: number;
-  // Activation
-  mutateActivations: boolean;
-  activationMutationRate: number;
-  // Hyperparameter mutation flag
-  mutateHyperparams: boolean;
-  // Structural rates
-  addNeuronRate: number;
-  removeNeuronRate: number;
-  addLayerRate: number;
-  removeLayerRate: number;
-  addConnectionRate: number;
-  removeConnectionRate: number;
-};
+export interface MutationGenome {
+	rate: number;
+	sigma: number;
+	noiseStd: number;
+	distribution: MutationDistribution;
+	adaptation: MutationAdaptation;
+	scope: MutationScope;
+	/** Evolved sigma for self-adaptive ES */
+	selfSigma: number;
+	// Activation
+	mutateActivations: boolean;
+	activationMutationRate: number;
+	// Hyperparameter mutation flag
+	mutateHyperparams: boolean;
+	// Structural rates
+	addNeuronRate: number;
+	removeNeuronRate: number;
+	addLayerRate: number;
+	removeLayerRate: number;
+	addConnectionRate: number;
+	removeConnectionRate: number;
+}
 
 // ---- Crossover genome ----
 
 /** Supported crossover strategies for genome recombination. */
-export type CrossoverType = 'one_point' | 'two_point' | 'uniform' | 'arithmetic' | 'blend' | 'sbx';
+export type CrossoverType =
+	| "one_point"
+	| "two_point"
+	| "uniform"
+	| "arithmetic"
+	| "blend"
+	| "sbx";
 
 /** Crossover operator configuration. */
-export type CrossoverGenome = {
-  type: CrossoverType;
-  probability: number;
-  blendAlpha: number; // α for blend / arithmetic
-  sbxEta: number; // η for SBX distribution index
-};
+export interface CrossoverGenome {
+	type: CrossoverType;
+	probability: number;
+	blendAlpha: number; // α for blend / arithmetic
+	sbxEta: number; // η for SBX distribution index
+}
 
 // ---- GA control (self-adaptive meta-parameters) ----
 
 /** Parent selection strategies for the GA. */
-export type SelectionType = 'tournament' | 'roulette' | 'rank' | 'truncation' | 'sus';
-/** Fitness evaluation metrics for genome ranking. */
-export type FitnessType = 'total_pnl' | 'sharpe' | 'sortino' | 'calmar' | 'composite';
+export type SelectionType =
+	| "tournament"
+	| "roulette"
+	| "rank"
+	| "truncation"
+	| "sus";
+/** Fitness evaluation metrics for genome rankingenome. */
+export type FitnessType =
+	| "total_pnl"
+	| "sharpe"
+	| "sortino"
+	| "calmar"
+	| "composite";
 
 /** Self-adaptive GA control parameters (population size, selection, stopping criteria, seeds). */
-export type GAControlGenome = {
-  // Population
-  populationSize: number;
-  elitismFraction: number;
-  survivorFraction: number;
-  // Selection & fitness
-  selectionType: SelectionType;
-  fitnessType: FitnessType;
-  // Evaluation budget
-  episodesPerIndividual: number;
-  seedsPerEval: number;
-  // Stopping criteria
-  rewardThreshold: number;
-  stagnationPatience: number;
-  maxGenerations: number;
-  timeBudgetMs: number;
-  // Reproducibility seeds
-  envSeed: number;
-  mutationSeed: number;
-  networkSeed: number;
-  // Mutation params
-  mutationRate: number;
-  mutationStd: number;
-};
+export interface GAControlGenome {
+	// Population
+	populationSize: number;
+	elitismFraction: number;
+	survivorFraction: number;
+	// Selection & fitness
+	selectionType: SelectionType;
+	fitnessType: FitnessType;
+	// Evaluation budget
+	episodesPerIndividual: number;
+	seedsPerEval: number;
+	// Stopping criteria
+	rewardThreshold: number;
+	stagnationPatience: number;
+	maxGenerations: number;
+	timeBudgetMs: number;
+	// Reproducibility seeds
+	envSeed: number;
+	mutationSeed: number;
+	networkSeed: number;
+	// Mutation params
+	mutationRate: number;
+	mutationStd: number;
+}
 
 // ---- Fitness metadata ----
 
 /** Metadata attached to a genome after fitness evaluation. */
-export type GenomeFitnessMeta = {
-  episodesRun: number;
-  computeMs: number;
-  /** fitness / computeMs  — core efficiency signal for self-adaptation */
-  efficiencyScore: number;
-  variance: number;
-  rawScores: number[];
-};
+export interface GenomeFitnessMeta {
+	episodesRun: number;
+	computeMs: number;
+	/** fitness / computeMs  — core efficiency signal for self-adaptation */
+	efficiencyScore: number;
+	variance: number;
+	rawScores: number[];
+}
 
 // ---- Top-level genome ----
 
 /** Top-level genome: network architecture, RL hyperparameters, mutation, crossover, and GA control. */
-export type Genome = {
-  id: string;
-  generation: number;
-  network: NetworkGenome;
-  rl: RLGenome;
-  mutation: MutationGenome;
-  crossover: CrossoverGenome;
-  gaControl: GAControlGenome;
-  fitness?: number;
-  fitnessMeta?: GenomeFitnessMeta;
-};
+export interface Genome {
+	id: string;
+	generation: number;
+	network: NetworkGenome;
+	rl: RLGenome;
+	mutation: MutationGenome;
+	crossover: CrossoverGenome;
+	gaControl: GAControlGenome;
+	fitness?: number;
+	fitnessMeta?: GenomeFitnessMeta;
+}
 
 /** Genome extended with Lamarckian trained weights (optional on birth). */
 export type LamarckGenome = Genome & {
-  readonly trainedWeights?: Float32Array;
+	readonly trainedWeights?: Float32Array;
 };
 
 // ---- Market data ----
 
 /** A single market observation: price, feature vector, and optional timestamp. */
-export type MarketStep = {
-  price: number;
-  features: Float32Array; // observation vector fed to the network
-  timestamp?: number;
-};
+export interface MarketStep {
+	price: number;
+	features: Float32Array; // observation vector fed to the network
+	timestamp?: number;
+}
 
 // ----------------------------------------------------------------
 // Genome validation (co-located with types to avoid Feature Envy)
@@ -231,290 +255,434 @@ export type MarketStep = {
 
 /** Describes a single genome validation failure. */
 export interface ValidationError {
-  /** Dot-path of the offending field, e.g. "rl.gamma" */
-  path: string;
-  message: string;
-  /** Value that failed validation */
-  actual: unknown;
+	/** Dot-path of the offending field, e.genome. "rl.gamma" */
+	path: string;
+	message: string;
+	/** Value that failed validation */
+	actual: unknown;
 }
 
 /** Result of genome validation: overall valid flag and list of individual errors. */
 export interface ValidationResult {
-  valid: boolean;
-  errors: ValidationError[];
+	valid: boolean;
+	errors: ValidationError[];
 }
 
 const VALID_ACTIVATIONS = new Set<ActivationType>([
-  'ReLu',
-  'sigmoid',
-  'tanh',
-  'leakyReLu',
-  'ELU',
-  'mish',
-  'GELU',
-  'softmax',
+	"relu",
+	"sigmoid",
+	"tanh",
+	"leakyReLu",
+	"elu",
+	"mish",
+	"gelu",
+	"softmax",
 ]);
 const VALID_CONNECTION_TYPES = new Set<ConnectionType>([
-  'dense-skip',
-  'fully-connected',
-  'residual-connection',
+	"dense-skip",
+	"fully-connected",
+	"residual-connection",
 ]);
-const VALID_BIAS_TYPES = new Set<InitialisationType>(['zeros', 'random', 'xavier', 'he', 'leCun']);
+const VALID_BIAS_TYPES = new Set<InitialisationType>([
+	"zeros",
+	"random",
+	"xavier",
+	"he",
+	"leCun",
+]);
 const VALID_NORM_TYPES = new Set<NormalisationType>([
-  'none',
-  'logarithmic-normalization',
-  'decimal-scaling',
-  'border',
-  'min-max',
-  'robust-scaling',
-  'z-score',
+	"none",
+	"logarithmic-normalization",
+	"decimal-scaling",
+	"border",
+	"min-max",
+	"robust-scaling",
+	"z-score",
 ]);
 
-function err(errors: ValidationError[], path: string, message: string, actual: unknown): void {
-  errors.push({ path, message, actual });
+function err(
+	errors: ValidationError[],
+	path: string,
+	message: string,
+	actual: unknown
+): void {
+	errors.push({ path, message, actual });
 }
 
 function checkRange(
-  errors: ValidationError[],
-  path: string,
-  v: unknown,
-  lo: number,
-  hi: number
+	errors: ValidationError[],
+	path: string,
+	value: unknown,
+	lo: number,
+	hi: number
 ): void {
-  if (typeof v !== 'number' || !isFinite(v) || v < lo || v > hi) {
-    err(errors, path, `must be a finite number in [${lo}, ${hi}]`, v);
-  }
+	if (
+		typeof value !== "number" ||
+		!Number.isFinite(value) ||
+		value < lo ||
+		value > hi
+	) {
+		err(errors, path, `must be a finite number in [${lo}, ${hi}]`, value);
+	}
 }
 
-function checkPositiveInt(errors: ValidationError[], path: string, v: unknown, min = 1): void {
-  if (!Number.isInteger(v) || (v as number) < min) {
-    err(errors, path, `must be an integer ≥ ${min}`, v);
-  }
+function checkPositiveInt(
+	errors: ValidationError[],
+	path: string,
+	value: unknown,
+	min = 1
+): void {
+	if (!Number.isInteger(value) || (value as number) < min) {
+		err(errors, path, `must be an integer ≥ ${min}`, value);
+	}
 }
 
-function validateLayer(errors: ValidationError[], path: string, l: LayerGenome): void {
-  checkPositiveInt(errors, `${path}.neurons`, l.neurons);
-  if (!VALID_ACTIVATIONS.has(l.activation)) {
-    err(errors, `${path}.activation`, 'unknown activation type', l.activation);
-  }
-  if (!VALID_CONNECTION_TYPES.has(l.connectionType)) {
-    err(errors, `${path}.connectionType`, 'unknown connection type', l.connectionType);
-  }
-  if (!VALID_BIAS_TYPES.has(l.biasType)) {
-    err(errors, `${path}.biasType`, 'unknown bias type', l.biasType);
-  }
+function validateLayer(
+	errors: ValidationError[],
+	path: string,
+	layer: LayerGenome
+): void {
+	checkPositiveInt(errors, `${path}.neurons`, layer.neurons);
+	if (!VALID_ACTIVATIONS.has(layer.activation)) {
+		err(
+			errors,
+			`${path}.activation`,
+			"unknown activation type",
+			layer.activation
+		);
+	}
+	if (!VALID_CONNECTION_TYPES.has(layer.connectionType)) {
+		err(
+			errors,
+			`${path}.connectionType`,
+			"unknown connection type",
+			layer.connectionType
+		);
+	}
+	if (!VALID_BIAS_TYPES.has(layer.biasType)) {
+		err(errors, `${path}.biasType`, "unknown bias type", layer.biasType);
+	}
 }
 
-function repairLayer(l: LayerGenome): LayerGenome {
-  return {
-    neurons: Math.max(1, Math.round(l.neurons ?? 32)),
-    activation: VALID_ACTIVATIONS.has(l.activation) ? l.activation : 'ReLu',
-    connectionType: VALID_CONNECTION_TYPES.has(l.connectionType) ? l.connectionType : 'dense-skip',
-    biasType: VALID_BIAS_TYPES.has(l.biasType) ? l.biasType : 'zeros',
-  };
+function repairLayer(layer: LayerGenome): LayerGenome {
+	return {
+		neurons: Math.max(1, Math.round(layer.neurons ?? 32)),
+		activation: VALID_ACTIVATIONS.has(layer.activation)
+			? layer.activation
+			: "relu",
+		connectionType: VALID_CONNECTION_TYPES.has(layer.connectionType)
+			? layer.connectionType
+			: "dense-skip",
+		biasType: VALID_BIAS_TYPES.has(layer.biasType) ? layer.biasType : "zeros",
+	};
 }
 
 /** Validates a genome against all constraints. Returns a list of violations (empty list = valid). */
-export function validateGenome(g: Genome): ValidationResult {
-  const errors: ValidationError[] = [];
+export function validateGenome(genome: Genome): ValidationResult {
+	const errors: ValidationError[] = [];
 
-  // ---- Identity ----
-  if (typeof g.id !== 'string' || g.id.length === 0) {
-    err(errors, 'id', 'must be a non-empty string', g.id);
-  }
-  if (!Number.isInteger(g.generation) || g.generation < 0) {
-    err(errors, 'generation', 'must be a non-negative integer', g.generation);
-  }
+	// ---- Identity ----
+	if (typeof genome.id !== "string" || genome.id.length === 0) {
+		err(errors, "id", "must be a non-empty string", genome.id);
+	}
+	if (!Number.isInteger(genome.generation) || genome.generation < 0) {
+		err(
+			errors,
+			"generation",
+			"must be a non-negative integer",
+			genome.generation
+		);
+	}
 
-  // ---- Network ----
-  checkPositiveInt(errors, 'network.inputDim', g.network.inputDim);
-  checkPositiveInt(errors, 'network.outputDim', g.network.outputDim);
+	// ---- Network ----
+	checkPositiveInt(errors, "network.inputDim", genome.network.inputDim);
+	checkPositiveInt(errors, "network.outputDim", genome.network.outputDim);
 
-  if (!Array.isArray(g.network.hiddenLayers) || g.network.hiddenLayers.length === 0) {
-    err(errors, 'network.hiddenLayers', 'must be a non-empty array', g.network.hiddenLayers);
-  } else {
-    g.network.hiddenLayers.forEach((l, i) =>
-      validateLayer(errors, `network.hiddenLayers[${i}]`, l)
-    );
-  }
+	if (
+		!Array.isArray(genome.network.hiddenLayers) ||
+		genome.network.hiddenLayers.length === 0
+	) {
+		err(
+			errors,
+			"network.hiddenLayers",
+			"must be a non-empty array",
+			genome.network.hiddenLayers
+		);
+	} else {
+		genome.network.hiddenLayers.forEach((layer, index) => {
+			validateLayer(errors, `network.hiddenLayers[${index}]`, layer);
+		});
+	}
 
-  if (!VALID_NORM_TYPES.has(g.network.normalization)) {
-    err(errors, 'network.normalization', 'unknown normalization type', g.network.normalization);
-  }
+	if (!VALID_NORM_TYPES.has(genome.network.normalization)) {
+		err(
+			errors,
+			"network.normalization",
+			"unknown normalization type",
+			genome.network.normalization
+		);
+	}
 
-  // ---- RL ----
-  checkRange(errors, 'rl.gamma', g.rl.gamma, 0.8, 0.9999);
-  checkRange(errors, 'rl.learningRate', g.rl.learningRate, 1e-6, 1e-1);
+	// ---- RL ----
+	checkRange(errors, "rl.gamma", genome.rl.gamma, 0.8, 0.9999);
+	checkRange(errors, "rl.learningRate", genome.rl.learningRate, 1e-6, 1e-1);
 
-  const rs = g.rl.rewardShaping;
-  if (rs.clipMin >= rs.clipMax) {
-    err(errors, 'rl.rewardShaping.clip', 'clipMin must be < clipMax', {
-      clipMin: rs.clipMin,
-      clipMax: rs.clipMax,
-    });
-  }
-  checkRange(errors, 'rl.rewardShaping.scaleFactor', rs.scaleFactor, 0.001, 1000);
+	const rs = genome.rl.rewardShaping;
+	if (rs.clipMin >= rs.clipMax) {
+		err(errors, "rl.rewardShapingenome.clip", "clipMin must be < clipMax", {
+			clipMin: rs.clipMin,
+			clipMax: rs.clipMax,
+		});
+	}
+	checkRange(
+		errors,
+		"rl.rewardShapingenome.scaleFactor",
+		rs.scaleFactor,
+		0.001,
+		1000
+	);
 
-  checkPositiveInt(errors, 'rl.horizon.maxEpisodeLength', g.rl.horizon.maxEpisodeLength, 10);
-  checkPositiveInt(errors, 'rl.horizon.nStepReturn', g.rl.horizon.nStepReturn);
-  checkPositiveInt(errors, 'rl.horizon.frameSkip', g.rl.horizon.frameSkip);
+	checkPositiveInt(
+		errors,
+		"rl.horizon.maxEpisodeLength",
+		genome.rl.horizon.maxEpisodeLength,
+		10
+	);
+	checkPositiveInt(
+		errors,
+		"rl.horizon.nStepReturn",
+		genome.rl.horizon.nStepReturn
+	);
+	checkPositiveInt(errors, "rl.horizon.frameSkip", genome.rl.horizon.frameSkip);
 
-  const dp = g.rl.discretePolicy;
-  checkRange(errors, 'rl.discretePolicy.epsilonStart', dp.epsilonStart, 0.1, 1.0);
-  checkRange(errors, 'rl.discretePolicy.epsilonMin', dp.epsilonMin, 0.001, 0.2);
-  checkRange(errors, 'rl.discretePolicy.epsilonDecay', dp.epsilonDecay, 0.9, 0.9999);
-  checkRange(errors, 'rl.discretePolicy.temperature', dp.temperature, 0.01, 100);
+	const dp = genome.rl.discretePolicy;
+	checkRange(
+		errors,
+		"rl.discretePolicy.epsilonStart",
+		dp.epsilonStart,
+		0.1,
+		1.0
+	);
+	checkRange(errors, "rl.discretePolicy.epsilonMin", dp.epsilonMin, 0.001, 0.2);
+	checkRange(
+		errors,
+		"rl.discretePolicy.epsilonDecay",
+		dp.epsilonDecay,
+		0.9,
+		0.9999
+	);
+	checkRange(
+		errors,
+		"rl.discretePolicy.temperature",
+		dp.temperature,
+		0.01,
+		100
+	);
 
-  const cp = g.rl.continuousPolicy;
-  if (cp.clipMin >= cp.clipMax) {
-    err(errors, 'rl.continuousPolicy.clip', 'clipMin must be < clipMax', {
-      clipMin: cp.clipMin,
-      clipMax: cp.clipMax,
-    });
-  }
-  checkRange(errors, 'rl.continuousPolicy.noiseStd', cp.noiseStd, 0.001, 5);
-  checkRange(errors, 'rl.continuousPolicy.noiseDecay', cp.noiseDecay, 0.9, 0.9999);
+	const cp = genome.rl.continuousPolicy;
+	if (cp.clipMin >= cp.clipMax) {
+		err(errors, "rl.continuousPolicy.clip", "clipMin must be < clipMax", {
+			clipMin: cp.clipMin,
+			clipMax: cp.clipMax,
+		});
+	}
+	checkRange(errors, "rl.continuousPolicy.noiseStd", cp.noiseStd, 0.001, 5);
+	checkRange(
+		errors,
+		"rl.continuousPolicy.noiseDecay",
+		cp.noiseDecay,
+		0.9,
+		0.9999
+	);
 
-  const rb = g.rl.replayBuffer;
-  checkPositiveInt(errors, 'rl.replayBuffer.bufferSize', rb.bufferSize, 100);
-  checkRange(errors, 'rl.replayBuffer.alphaPER', rb.alphaPER, 0, 1);
-  checkRange(errors, 'rl.replayBuffer.betaPER', rb.betaPER, 0, 1);
+	const rb = genome.rl.replayBuffer;
+	checkPositiveInt(errors, "rl.replayBuffer.bufferSize", rb.bufferSize, 100);
+	checkRange(errors, "rl.replayBuffer.alphaPER", rb.alphaPER, 0, 1);
+	checkRange(errors, "rl.replayBuffer.betaPER", rb.betaPER, 0, 1);
 
-  // ---- Mutation ----
-  const m = g.mutation;
-  checkRange(errors, 'mutation.rate', m.rate, 0.001, 0.5);
-  checkRange(errors, 'mutation.sigma', m.sigma, 1e-5, 10);
-  checkRange(errors, 'mutation.selfSigma', m.selfSigma, 1e-5, 10);
+	// ---- Mutation ----
+	const _mutationConfig = genome.mutation;
+	checkRange(errors, "mutation.rate", _mutationConfig.rate, 0.001, 0.5);
+	checkRange(errors, "mutation.sigma", _mutationConfig.sigma, 1e-5, 10);
+	checkRange(errors, "mutation.selfSigma", _mutationConfig.selfSigma, 1e-5, 10);
 
-  // ---- Crossover ----
-  checkRange(errors, 'crossover.probability', g.crossover.probability, 0, 1);
-  checkRange(errors, 'crossover.blendAlpha', g.crossover.blendAlpha, 0, 1);
-  checkRange(errors, 'crossover.sbxEta', g.crossover.sbxEta, 1, 100);
+	// ---- Crossover ----
+	checkRange(
+		errors,
+		"crossover.probability",
+		genome.crossover.probability,
+		0,
+		1
+	);
+	checkRange(errors, "crossover.blendAlpha", genome.crossover.blendAlpha, 0, 1);
+	checkRange(errors, "crossover.sbxEta", genome.crossover.sbxEta, 1, 100);
 
-  // ---- GA control ----
-  const ga = g.gaControl;
-  checkPositiveInt(errors, 'gaControl.populationSize', ga.populationSize, 2);
-  checkRange(errors, 'gaControl.elitismFraction', ga.elitismFraction, 0, 1);
-  checkRange(errors, 'gaControl.survivorFraction', ga.survivorFraction, 0, 1);
-  checkPositiveInt(errors, 'gaControl.maxGenerations', ga.maxGenerations);
-  checkPositiveInt(errors, 'gaControl.episodesPerIndividual', ga.episodesPerIndividual);
+	const ga = genome.gaControl;
+	checkPositiveInt(errors, "gaControl.populationSize", ga.populationSize, 2);
+	checkRange(errors, "gaControl.elitismFraction", ga.elitismFraction, 0, 1);
+	checkRange(errors, "gaControl.survivorFraction", ga.survivorFraction, 0, 1);
+	checkPositiveInt(errors, "gaControl.maxGenerations", ga.maxGenerations);
+	checkPositiveInt(
+		errors,
+		"gaControl.episodesPerIndividual",
+		ga.episodesPerIndividual
+	);
 
-  return { valid: errors.length === 0, errors };
+	return { valid: errors.length === 0, errors };
 }
 
 /**
  * Returns a corrected deep copy of `g`.
  *
  * Repair strategy: clamp numbers to valid bounds, reset enum fields to
- * sensible defaults, ensure structural invariants (e.g. at least one layer,
+ * sensible defaults, ensure structural invariants (e.genome. at least one layer,
  * clipMin < clipMax). Repair never throws — if a field is completely
  * unrecognisable it is replaced with the corresponding default value.
  */
-export function repairGenome(g: Genome): Genome {
-  // ---- Network layers ----
-  let hiddenLayers: LayerGenome[] = (
-    Array.isArray(g.network.hiddenLayers) ? g.network.hiddenLayers : []
-  ).map(l => repairLayer(l));
+export function repairGenome(genome: Genome): Genome {
+	// ---- Network layers ----
+	let hiddenLayers: LayerGenome[] = (
+		Array.isArray(genome.network.hiddenLayers)
+			? genome.network.hiddenLayers
+			: []
+	).map((layer) => repairLayer(layer));
 
-  // Must have at least one hidden layer
-  if (hiddenLayers.length === 0) {
-    hiddenLayers = [
-      { neurons: 32, activation: 'ReLu', connectionType: 'dense-skip', biasType: 'zeros' },
-    ];
-  }
+	// Must have at least one hidden layer
+	if (hiddenLayers.length === 0) {
+		hiddenLayers = [
+			{
+				neurons: 32,
+				activation: "relu",
+				connectionType: "dense-skip",
+				biasType: "zeros",
+			},
+		];
+	}
 
-  const network = {
-    inputDim: Math.max(1, Math.round(g.network.inputDim ?? 1)),
-    outputDim: Math.max(1, Math.round(g.network.outputDim ?? 1)),
-    hiddenLayers,
-    normalization: VALID_NORM_TYPES.has(g.network.normalization) ? g.network.normalization : 'none',
-  };
+	const network = {
+		inputDim: Math.max(1, Math.round(genome.network.inputDim ?? 1)),
+		outputDim: Math.max(1, Math.round(genome.network.outputDim ?? 1)),
+		hiddenLayers,
+		normalization: VALID_NORM_TYPES.has(genome.network.normalization)
+			? genome.network.normalization
+			: "none",
+	};
 
-  // ---- RL ----
-  const rs = g.rl.rewardShaping;
-  const rawClipMin = rs.clipMin ?? -1;
-  const rawClipMax = rs.clipMax ?? 1;
-  const clipMin = Math.min(rawClipMin, rawClipMax - 1e-6);
-  const clipMax = Math.max(rawClipMax, rawClipMin + 1e-6);
+	// ---- RL ----
+	const rs = genome.rl.rewardShaping;
+	const rawClipMin = rs.clipMin ?? -1;
+	const rawClipMax = rs.clipMax ?? 1;
+	const clipMin = Math.min(rawClipMin, rawClipMax - 1e-6);
+	const clipMax = Math.max(rawClipMax, rawClipMin + 1e-6);
 
-  const cp = g.rl.continuousPolicy;
-  const cpClipMin = Math.min(cp.clipMin ?? -1, (cp.clipMax ?? 1) - 1e-6);
-  const cpClipMax = Math.max(cp.clipMax ?? 1, (cp.clipMin ?? -1) + 1e-6);
+	const cp = genome.rl.continuousPolicy;
+	const cpClipMin = Math.min(cp.clipMin ?? -1, (cp.clipMax ?? 1) - 1e-6);
+	const cpClipMax = Math.max(cp.clipMax ?? 1, (cp.clipMin ?? -1) + 1e-6);
 
-  const rl: typeof g.rl = {
-    gamma: clamp(g.rl.gamma ?? 0.99, 0.8, 0.9999),
-    learningRate: clamp(g.rl.learningRate ?? 1e-3, 1e-6, 1e-1),
-    rewardShaping: {
-      clip: Boolean(rs.clip),
-      clipMin,
-      clipMax,
-      scale: Boolean(rs.scale),
-      scaleFactor: Math.max(0.001, rs.scaleFactor ?? 1),
-      normalize: Boolean(rs.normalize),
-      sparse: Boolean(rs.sparse),
-    },
-    horizon: {
-      maxEpisodeLength: Math.max(10, Math.round(g.rl.horizon.maxEpisodeLength ?? 500)),
-      nStepReturn: Math.max(1, Math.round(g.rl.horizon.nStepReturn ?? 1)),
-      frameSkip: Math.max(1, Math.round(g.rl.horizon.frameSkip ?? 1)),
-    },
-    discretePolicy: {
-      type: g.rl.discretePolicy.type ?? 'epsilon_greedy',
-      epsilonStart: clamp(g.rl.discretePolicy.epsilonStart ?? 1.0, 0.1, 1.0),
-      epsilonMin: clamp(g.rl.discretePolicy.epsilonMin ?? 0.05, 0.001, 0.2),
-      epsilonDecay: clamp(g.rl.discretePolicy.epsilonDecay ?? 0.995, 0.9, 0.9999),
-      temperature: Math.max(0.01, g.rl.discretePolicy.temperature ?? 1.0),
-    },
-    continuousPolicy: {
-      type: g.rl.continuousPolicy.type ?? 'tanh_squashing',
-      clipMin: cpClipMin,
-      clipMax: cpClipMax,
-      noiseStd: Math.max(0.001, cp.noiseStd ?? 0.1),
-      noiseDecay: clamp(cp.noiseDecay ?? 0.999, 0.9, 0.9999),
-    },
-    replayBuffer: {
-      bufferSize: Math.max(100, Math.round(g.rl.replayBuffer.bufferSize ?? 10_000)),
-      prioritized: Boolean(g.rl.replayBuffer.prioritized),
-      alphaPER: clamp(g.rl.replayBuffer.alphaPER ?? 0.6, 0, 1),
-      betaPER: clamp(g.rl.replayBuffer.betaPER ?? 0.4, 0, 1),
-      betaAnneal: Boolean(g.rl.replayBuffer.betaAnneal),
-    },
-  };
+	const rl: typeof genome.rl = {
+		gamma: clamp(genome.rl.gamma ?? 0.99, 0.8, 0.9999),
+		learningRate: clamp(genome.rl.learningRate ?? 1e-3, 1e-6, 1e-1),
+		rewardShaping: {
+			clip: rs.clip,
+			clipMin,
+			clipMax,
+			scale: rs.scale,
+			scaleFactor: Math.max(0.001, rs.scaleFactor ?? 1),
+			normalize: rs.normalize,
+			sparse: rs.sparse,
+		},
+		horizon: {
+			maxEpisodeLength: Math.max(
+				10,
+				Math.round(genome.rl.horizon.maxEpisodeLength ?? 500)
+			),
+			nStepReturn: Math.max(1, Math.round(genome.rl.horizon.nStepReturn ?? 1)),
+			frameSkip: Math.max(1, Math.round(genome.rl.horizon.frameSkip ?? 1)),
+		},
+		discretePolicy: {
+			type: genome.rl.discretePolicy.type ?? "epsilon_greedy",
+			epsilonStart: clamp(
+				genome.rl.discretePolicy.epsilonStart ?? 1.0,
+				0.1,
+				1.0
+			),
+			epsilonMin: clamp(
+				genome.rl.discretePolicy.epsilonMin ?? 0.05,
+				0.001,
+				0.2
+			),
+			epsilonDecay: clamp(
+				genome.rl.discretePolicy.epsilonDecay ?? 0.995,
+				0.9,
+				0.9999
+			),
+			temperature: Math.max(0.01, genome.rl.discretePolicy.temperature ?? 1.0),
+		},
+		continuousPolicy: {
+			type: genome.rl.continuousPolicy.type ?? "tanh_squashing",
+			clipMin: cpClipMin,
+			clipMax: cpClipMax,
+			noiseStd: Math.max(0.001, cp.noiseStd ?? 0.1),
+			noiseDecay: clamp(cp.noiseDecay ?? 0.999, 0.9, 0.9999),
+		},
+		replayBuffer: {
+			bufferSize: Math.max(
+				100,
+				Math.round(genome.rl.replayBuffer.bufferSize ?? 10_000)
+			),
+			prioritized: genome.rl.replayBuffer.prioritized,
+			alphaPER: clamp(genome.rl.replayBuffer.alphaPER ?? 0.6, 0, 1),
+			betaPER: clamp(genome.rl.replayBuffer.betaPER ?? 0.4, 0, 1),
+			betaAnneal: genome.rl.replayBuffer.betaAnneal,
+		},
+	};
 
-  // ---- Mutation ----
-  const mutation: typeof g.mutation = {
-    ...g.mutation,
-    rate: clamp(g.mutation.rate ?? 0.1, 0.001, 0.5),
-    sigma: Math.max(1e-5, g.mutation.sigma ?? 0.05),
-    selfSigma: Math.max(1e-5, g.mutation.selfSigma ?? 0.05),
-  };
+	// ---- Mutation ----
+	const mutation: typeof genome.mutation = {
+		...genome.mutation,
+		rate: clamp(genome.mutation.rate ?? 0.1, 0.001, 0.5),
+		sigma: Math.max(1e-5, genome.mutation.sigma ?? 0.05),
+		selfSigma: Math.max(1e-5, genome.mutation.selfSigma ?? 0.05),
+	};
 
-  // ---- Crossover ----
-  const crossover: typeof g.crossover = {
-    ...g.crossover,
-    probability: clamp(g.crossover.probability ?? 0.7, 0, 1),
-    blendAlpha: clamp(g.crossover.blendAlpha ?? 0.5, 0, 1),
-    sbxEta: Math.max(1, g.crossover.sbxEta ?? 2),
-  };
+	// ---- Crossover ----
+	const crossover: typeof genome.crossover = {
+		...genome.crossover,
+		probability: clamp(genome.crossover.probability ?? 0.7, 0, 1),
+		blendAlpha: clamp(genome.crossover.blendAlpha ?? 0.5, 0, 1),
+		sbxEta: Math.max(1, genome.crossover.sbxEta ?? 2),
+	};
 
-  // ---- GA control ----
-  const gaControl: typeof g.gaControl = {
-    ...g.gaControl,
-    populationSize: Math.max(2, Math.round(g.gaControl.populationSize ?? 20)),
-    elitismFraction: clamp(g.gaControl.elitismFraction ?? 0.1, 0, 1),
-    survivorFraction: clamp(g.gaControl.survivorFraction ?? 0.5, 0, 1),
-    episodesPerIndividual: Math.max(1, Math.round(g.gaControl.episodesPerIndividual ?? 3)),
-    maxGenerations: Math.max(1, Math.round(g.gaControl.maxGenerations ?? 100)),
-  };
+	// ---- GA control ----
+	const gaControl: typeof genome.gaControl = {
+		...genome.gaControl,
+		populationSize: Math.max(
+			2,
+			Math.round(genome.gaControl.populationSize ?? 20)
+		),
+		elitismFraction: clamp(genome.gaControl.elitismFraction ?? 0.1, 0, 1),
+		survivorFraction: clamp(genome.gaControl.survivorFraction ?? 0.5, 0, 1),
+		episodesPerIndividual: Math.max(
+			1,
+			Math.round(genome.gaControl.episodesPerIndividual ?? 3)
+		),
+		maxGenerations: Math.max(
+			1,
+			Math.round(genome.gaControl.maxGenerations ?? 100)
+		),
+	};
 
-  return {
-    id: typeof g.id === 'string' && g.id.length > 0 ? g.id : 'repaired',
-    generation: Math.max(0, Math.round(g.generation ?? 0)),
-    network,
-    rl,
-    mutation,
-    crossover,
-    gaControl,
-    fitness: g.fitness,
-  };
+	return {
+		id:
+			typeof genome.id === "string" && genome.id.length > 0
+				? genome.id
+				: "repaired",
+		generation: Math.max(0, Math.round(genome.generation ?? 0)),
+		network,
+		rl,
+		mutation,
+		crossover,
+		gaControl,
+		fitness: genome.fitness,
+	};
 }

@@ -1,10 +1,10 @@
 export {
-  MarketType,
-  SourceType,
-  BaseMarketData,
-  CandleData,
-  TradeData,
-  OrderBookData,
-  BookTickerData,
-  TickerData,
-} from '@trading-model/common/config/event.types';
+	BaseMarketData,
+	BookTickerData,
+	CandleData,
+	MarketType,
+	OrderBookData,
+	SourceType,
+	TickerData,
+	TradeData,
+} from "@trading-model/common/config/event.types";

@@ -1,42 +1,49 @@
-import z from 'zod';
+import { catchSync } from "@trading-model/common/middleware/catch-error";
+import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import zod from "zod";
 
-import { catchSync } from '@trading-model/common/middleware/catch-error';
-import { sendResponse } from '@trading-model/common/middleware/response-exception';
+import { selectCandlesBy } from "../../infra/market-data/schema/candles-schema";
+import { selectOrderBookBy } from "../../infra/market-data/schema/order-book.schema";
+import { selectTickerBy } from "../../infra/market-data/schema/ticker24h.schema";
+import { selectTradesBy } from "../../infra/market-data/schema/trades.schema";
 
-import { selectCandlesBy } from '../../infra/market-data/schema/candles-schema';
-import { selectOrderBookBy } from '../../infra/market-data/schema/order-book.schema';
-import { selectTickerBy } from '../../infra/market-data/schema/ticker24h.schema';
-import { selectTradesBy } from '../../infra/market-data/schema/trades.schema';
-
-const symbolSchema = z.object({
-  symbol: z.string('Symbol is required and must be a string.').min(1),
+const SYMBOL_SCHEMA = zod.object({
+	symbol: zod.string("Symbol is required and must be a string.").min(1),
 });
 
-const sourceSchema = z.object({
-  source: z.string('Source is required and must be a string.').min(1),
+const SOURCE_SCHEMA = zod.object({
+	source: zod.string("Source is required and must be a string.").min(1),
 });
 
-const timestampSchema = z.object({
-  timestamp: z.coerce.date('Timestamp must be a valid date or a parsable date string.'),
+const TIMESTAMP_SCHEMA = zod.object({
+	timestamp: zod.coerce.date(
+		"Timestamp must be a valid date or a parsable date string."
+	),
 });
 
-const orderBookTimestampSchema = z.object({
-  timestamp: z.coerce.number('Timestamp must be a valid numeric value.'),
+const ORDER_BOOK_TIMESTAMP_SCHEMA = zod.object({
+	timestamp: zod.coerce.number("Timestamp must be a valid numeric value."),
 });
 
-function createController<T>(schema: z.ZodSchema<T>, fetcher: (params: T) => Promise<unknown>) {
-  return catchSync(async req => {
-    const parsed = schema.safeParse(req.params);
-    if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
+function createController<TBody>(
+	schema: zod.ZodSchema<TBody>,
+	fetcher: (params: TBody) => Promise<unknown>
+) {
+	return catchSync(async (req) => {
+		const parsed = schema.safeParse(req.params);
+		if (!parsed.success) {
+			return sendResponse({ error: parsed.error.message }, 400);
+		}
 
-    try {
-      return sendResponse(JSON.stringify(await fetcher(parsed.data)), 200);
-    } catch (e) {
-      if (e instanceof Error && e.message.includes('No result returned'))
-        return sendResponse({ error: 'No data found' }, 404);
-      throw e instanceof Error ? e : new Error(String(e));
-    }
-  });
+		try {
+			return sendResponse(JSON.stringify(await fetcher(parsed.data)), 200);
+		} catch (err) {
+			if (err instanceof Error && err.message.includes("No result returned")) {
+				return sendResponse({ error: "No data found" }, 404);
+			}
+			throw err instanceof Error ? err : new Error(String(err));
+		}
+	});
 }
 
 /* -------------------------------------------------------------------------- */
@@ -44,18 +51,21 @@ function createController<T>(schema: z.ZodSchema<T>, fetcher: (params: T) => Pro
 /* -------------------------------------------------------------------------- */
 
 /** Controller that returns trades matching the given symbol. */
-export const GetTradeBySymbolController = createController(symbolSchema, p =>
-  selectTradesBy.symbol(p.symbol)
+export const GET_TRADE_BY_SYMBOL_CONTROLLER = createController(
+	SYMBOL_SCHEMA,
+	(params) => selectTradesBy.symbol(params.symbol)
 );
 
 /** Controller that returns trades at the given timestamp. */
-export const GetTradeByTimestampController = createController(timestampSchema, p =>
-  selectTradesBy.timestamp(p.timestamp)
+export const GET_TRADE_BY_TIMESTAMP_CONTROLLER = createController(
+	TIMESTAMP_SCHEMA,
+	(params) => selectTradesBy.timestamp(params.timestamp)
 );
 
 /** Controller that returns trades from the given source. */
-export const GetTradeBySourceController = createController(sourceSchema, p =>
-  selectTradesBy.source(p.source)
+export const GET_TRADE_BY_SOURCE_CONTROLLER = createController(
+	SOURCE_SCHEMA,
+	(params) => selectTradesBy.source(params.source)
 );
 
 /* -------------------------------------------------------------------------- */
@@ -63,18 +73,21 @@ export const GetTradeBySourceController = createController(sourceSchema, p =>
 /* -------------------------------------------------------------------------- */
 
 /** Controller that returns tickers matching the given symbol. */
-export const GetTickerBySymbolController = createController(symbolSchema, p =>
-  selectTickerBy.symbol(p.symbol)
+export const GET_TICKER_BY_SYMBOL_CONTROLLER = createController(
+	SYMBOL_SCHEMA,
+	(params) => selectTickerBy.symbol(params.symbol)
 );
 
 /** Controller that returns tickers at the given timestamp. */
-export const GetTickerByTimestampController = createController(timestampSchema, p =>
-  selectTickerBy.timestamp(p.timestamp)
+export const GET_TICKER_BY_TIMESTAMP_CONTROLLER = createController(
+	TIMESTAMP_SCHEMA,
+	(params) => selectTickerBy.timestamp(params.timestamp)
 );
 
 /** Controller that returns tickers from the given source. */
-export const GetTickerBySourceController = createController(sourceSchema, p =>
-  selectTickerBy.source(p.source)
+export const GET_TICKER_BY_SOURCE_CONTROLLER = createController(
+	SOURCE_SCHEMA,
+	(params) => selectTickerBy.source(params.source)
 );
 
 /* -------------------------------------------------------------------------- */
@@ -82,25 +95,27 @@ export const GetTickerBySourceController = createController(sourceSchema, p =>
 /* -------------------------------------------------------------------------- */
 
 /** Controller that returns order-book snapshots matching the given symbol. */
-export const GetOrderBookBySymbolController = createController(symbolSchema, p =>
-  selectOrderBookBy.symbol(p.symbol)
+export const GET_ORDER_BOOK_BY_SYMBOL_CONTROLLER = createController(
+	SYMBOL_SCHEMA,
+	(params) => selectOrderBookBy.symbol(params.symbol)
 );
 
 /** Controller that returns order-book snapshots after the given timestamp. */
-export const GetOrderBookByTimestampAfterController = createController(
-  orderBookTimestampSchema,
-  p => selectOrderBookBy.timestamp.after(p.timestamp)
+export const GET_ORDER_BOOK_BY_TIMESTAMP_AFTER_CONTROLLER = createController(
+	ORDER_BOOK_TIMESTAMP_SCHEMA,
+	(params) => selectOrderBookBy.timestamp.after(params.timestamp)
 );
 
 /** Controller that returns order-book snapshots before the given timestamp. */
-export const GetOrderBookByTimestampBeforeController = createController(
-  orderBookTimestampSchema,
-  p => selectOrderBookBy.timestamp.before(p.timestamp)
+export const GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER = createController(
+	ORDER_BOOK_TIMESTAMP_SCHEMA,
+	(params) => selectOrderBookBy.timestamp.before(params.timestamp)
 );
 
 /** Controller that returns order-book snapshots from the given source. */
-export const GetOrderBookBySourceController = createController(sourceSchema, p =>
-  selectOrderBookBy.source(p.source)
+export const GET_ORDER_BOOK_BY_SOURCE_CONTROLLER = createController(
+	SOURCE_SCHEMA,
+	(params) => selectOrderBookBy.source(params.source)
 );
 
 /* -------------------------------------------------------------------------- */
@@ -108,16 +123,19 @@ export const GetOrderBookBySourceController = createController(sourceSchema, p =
 /* -------------------------------------------------------------------------- */
 
 /** Controller that returns candles matching the given symbol. */
-export const GetCandlesBySymbolController = createController(symbolSchema, p =>
-  selectCandlesBy.symbol(p.symbol)
+export const GET_CANDLES_BY_SYMBOL_CONTROLLER = createController(
+	SYMBOL_SCHEMA,
+	(params) => selectCandlesBy.symbol(params.symbol)
 );
 
 /** Controller that returns candles after the given timestamp. */
-export const GetCandlesByTimestampController = createController(timestampSchema, p =>
-  selectCandlesBy.timestamp.after(p.timestamp)
+export const GET_CANDLES_BY_TIMESTAMP_CONTROLLER = createController(
+	TIMESTAMP_SCHEMA,
+	(params) => selectCandlesBy.timestamp.after(params.timestamp)
 );
 
 /** Controller that returns candles from the given source. */
-export const GetCandlesBySourceController = createController(sourceSchema, p =>
-  selectCandlesBy.source(p.source)
+export const GET_CANDLES_BY_SOURCE_CONTROLLER = createController(
+	SOURCE_SCHEMA,
+	(params) => selectCandlesBy.source(params.source)
 );

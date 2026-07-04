@@ -10,8 +10,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node16",
-    "types": ["node"],
-    "resolveJsonModule": true
+		"types": ["node"],
+		"resolveJsonModule": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts", "tests"]

@@ -1,19 +1,22 @@
-import { NextFunction, Request, Response } from 'express';
-
-import { ClassResponseExceptions, ResponseObject } from './response-exception';
-import { logger } from '../config/logger';
-import { AppError, ErrorCodes, ErrorCode } from '../utils/errors';
+import type { NextFunction, Request, Response } from "express";
+import { logger } from "../config/logger";
+import { AppError, type ErrorCode, ErrorCodes } from "../utils/errors";
+import {
+	ClassResponseExceptions,
+	type ResponseObject,
+} from "./response-exception";
 
 type ErrorInput = Error | ResponseObject;
 
 const SERVICE_UNAVAILABLE_CODES: ReadonlySet<ErrorCode> = new Set([
-  ErrorCodes.ADDRESS_MANAGER_ERROR,
-  ErrorCodes.MESSAGE_MANAGER_ERROR,
-  ErrorCodes.DEAD_LETTER_ERROR,
-  ErrorCodes.AGENT_ERROR,
+	ErrorCodes.ADDRESS_MANAGER_ERROR,
+	ErrorCodes.MESSAGE_MANAGER_ERROR,
+	ErrorCodes.DEAD_LETTER_ERROR,
+	ErrorCodes.AGENT_ERROR,
 ]);
 
-const isServiceUnavailable = (code: ErrorCode): boolean => SERVICE_UNAVAILABLE_CODES.has(code);
+const IS_SERVICE_UNAVAILABLE = (code: ErrorCode): boolean =>
+	SERVICE_UNAVAILABLE_CODES.has(code);
 
 /**
  * Maps domain / technical errors to standardized HTTP responses.
@@ -22,25 +25,25 @@ const isServiceUnavailable = (code: ErrorCode): boolean => SERVICE_UNAVAILABLE_C
  * internal error types and external HTTP representations.
  */
 function mapErrorToResponse(err: Error): ResponseObject {
-  const response = new ClassResponseExceptions(err.message);
+	const response = new ClassResponseExceptions(err.message);
 
-  if (err instanceof AppError) {
-    switch (err.code) {
-      case ErrorCodes.SERVICE_NOT_FOUND:
-        return response.NotFound();
-      case ErrorCodes.SERVICE_UNREACHABLE:
-        return response.Gone();
-      case ErrorCodes.AUTHENTICATION_ERROR:
-        return response.InvalidToken();
-      default:
-        if (isServiceUnavailable(err.code)) {
-          return response.ServiceUnavailable();
-        }
-        break;
-    }
-  }
+	if (err instanceof AppError) {
+		switch (err.code) {
+			case ErrorCodes.SERVICE_NOT_FOUND:
+				return response.notFound();
+			case ErrorCodes.SERVICE_UNREACHABLE:
+				return response.gone();
+			case ErrorCodes.AUTHENTICATION_ERROR:
+				return response.invalidToken();
+			default:
+				if (IS_SERVICE_UNAVAILABLE(err.code)) {
+					return response.serviceUnavailable();
+				}
+				break;
+		}
+	}
 
-  return response.UnknownError();
+	return response.unknownError();
 }
 
 /**
@@ -48,17 +51,21 @@ function mapErrorToResponse(err: Error): ResponseObject {
  *
  * Separated from the response middleware to isolate the logging concern.
  */
-function logServerError(err: ErrorInput, req: Request, response: ResponseObject): void {
-  if (response.status >= 500) {
-    const originalError = err instanceof Error ? err : undefined;
-    logger.error('Server error', {
-      message: originalError?.message,
-      stack: originalError?.stack,
-      url: req.originalUrl,
-      method: req.method,
-      ip: req.ip,
-    });
-  }
+function logServerError(
+	err: ErrorInput,
+	req: Request,
+	response: ResponseObject
+): void {
+	if (response.status >= 500) {
+		const originalError = err instanceof Error ? err : undefined;
+		logger.error("Server error", {
+			message: originalError?.message,
+			stack: originalError?.stack,
+			url: req.originalUrl,
+			method: req.method,
+			ip: req.ip,
+		});
+	}
 }
 
 /**
@@ -78,14 +85,14 @@ function logServerError(err: ErrorInput, req: Request, response: ResponseObject)
  * app.use(ResponseProtocol);
  */
 export const ResponseProtocol = (
-  err: ErrorInput,
-  req: Request,
-  res: Response,
-  _next: NextFunction // kept for Express error middleware arity detection
+	err: ErrorInput,
+	req: Request,
+	res: Response,
+	_next: NextFunction // kept for Express error middleware arity detection
 ) => {
-  const response = err instanceof Error ? mapErrorToResponse(err) : err;
+	const response = err instanceof Error ? mapErrorToResponse(err) : err;
 
-  logServerError(err, req, response);
+	logServerError(err, req, response);
 
-  res.status(response.status).type('json').send(response.data);
+	res.status(response.status).type("json").send(response.data);
 };

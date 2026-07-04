@@ -17,7 +17,7 @@ Centralised service instance registry with TTL-based lease management and HMAC-S
 
 ### Register Service
 
-**`POST /api/services/register`** or **`POST /register`**
+**`POST /register`**
 
 Registers or updates a service instance. Requires a valid TLS client certificate.
 
@@ -49,7 +49,7 @@ Registers or updates a service instance. Requires a valid TLS client certificate
 
 ### Heartbeat
 
-**`POST /api/services/heartbeat`** or **`POST /heartbeat`**
+**`POST /heartbeat`**
 
 Extends the TTL (lease) of a service instance. Called periodically by each service via the AddressManager client.
 
@@ -88,7 +88,7 @@ Rotates the HMAC-SHA256 authentication token for a service instance. Requires mT
 
 ### Get All Services
 
-**`GET /api/services`** or **`GET /services`**
+**`GET /services`**
 
 Lists all registered service names.
 
@@ -214,6 +214,7 @@ Manages leases and periodically cleans up expired instances. Accepts a `ServiceR
 | Environment variable          | Default           | Description                       |
 | ----------------------------- | ----------------- | --------------------------------- |
 | `CLEANUP_SERVICE_INTERVAL_MS` | `600000` (10 min) | Expired instance cleanup interval |
+| `ERROR_URL_WEBHOOK`           | _(none)_          | Webhook URL for error notifications |
 
 Instances are automatically removed from the registry if their TTL expires without a heartbeat.
 

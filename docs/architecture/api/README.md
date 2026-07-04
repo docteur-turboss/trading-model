@@ -15,15 +15,22 @@ The system is in **early development**. No component is production-ready.
 | `@trading-model/common`          | `packages/common/`          | [common.md](./common.md)                   |
 | `@trading-model/address-manager` | `packages/address-manager/` | [address-manager.md](./address-manager.md) |
 | `@trading-model/broker-message`  | `packages/broker-message/`  | [broker-message.md](./broker-message.md)   |
+| `@trading-model/certificate-utils` | `packages/certificate-utils/` | [certificate-utils.md](./certificate-utils.md) |
+| `@trading-model/certificate-client` | `packages/certificate-client/` | [certificate-client.md](./certificate-client.md) |
 
 ## Services
 
-| Service           | Path                          | Documentation                                  |
-| ----------------- | ----------------------------- | ---------------------------------------------- |
-| discovery-server  | `services/discovery-server/`  | [discovery-server.md](./discovery-server.md)   |
-| message-manager   | `services/message-manager/`   | [message-manager.md](./message-manager.md)     |
-| financial-scraper | `services/financial-scraper/` | [financial-scraper.md](./financial-scraper.md) |
-| trader-trainer    | `services/trader-trainer/`    | [trader-trainer.md](./trader-trainer.md)       |
+| Service               | Path                              | Documentation                                      |
+| --------------------- | --------------------------------- | -------------------------------------------------- |
+| discovery-server      | `services/discovery-server/`      | [discovery-server.md](./discovery-server.md)       |
+| message-manager       | `services/message-manager/`       | [message-manager.md](./message-manager.md)         |
+| financial-scraper     | `services/financial-scraper/`     | [financial-scraper.md](./financial-scraper.md)     |
+| trader-trainer        | `services/trader-trainer/`        | [trader-trainer.md](./trader-trainer.md)           |
+| certificate-authority | `services/certificate-authority/` | [certificate-authority.md](./certificate-authority.md) |
+| api-gateway           | `services/api-gateway/`           | [api-gateway.md](./api-gateway.md)                 |
+| audit-logger          | `services/audit-logger/`          | [audit-logger.md](./audit-logger.md)               |
+| dlq-service           | `services/dlq-service/`           | [dlq-service.md](./dlq-service.md)                 |
+| admin-interface       | `services/admin-interface/`       | _(React SPA, no API docs)_                         |
 
 ## Dependency Graph
 
@@ -36,10 +43,12 @@ address-manager        |
   ↑                    |
   |                    |
 @trading-model/broker-message ---
-  ↑         ↑           ↑          ↑
-  |         |           |          |
-Discovery  Financial   Message    Trader-
-Server     Scrapper    Manager    Trainer
+  ↑         ↑           ↑          ↑           ↑               ↑
+  |         |           |          |           |               |
+Discovery  Financial   Message    Trader-    Certificate     Audit-
+Server     Scraper     Manager    Trainer    Authority       Logger
+                                                                 ↑
+                                                            DLQ Service
 ```
 
 ### mermaid
@@ -53,6 +62,10 @@ graph TD
     mm["message-manager"]
     fs["financial-scraper"]
     tt["trader-trainer"]
+    ca["certificate-authority"]
+    al["audit-logger"]
+    dlq["dlq-service"]
+    gw["api-gateway"]
 
     addr --> common
     broker --> addr
@@ -66,6 +79,15 @@ graph TD
     tt --> addr
     tt --> broker
     tt --> common
+    ca --> common
+    ca --> broker
+    al --> addr
+    al --> broker
+    al --> common
+    dlq --> addr
+    dlq --> common
+    gw --> ds
+    gw --> common
 ```
 
 ## Technology Stack
@@ -79,8 +101,8 @@ graph TD
 | Database   | MongoDB (message-manager), MySQL (financial-scraper) |
 | Validation | Zod                                                  |
 | Scheduling | node-cron                                            |
-| Formatting | Prettier                                             |
-| Linting    | ESLint 10 flat config                                |
+| Formatting | Biome                                                |
+| Linting    | Biome                                                |
 
 ## Security Model
 
@@ -93,4 +115,3 @@ graph TD
 
 1. **Mixed test conventions**: Both `.spec.ts` and `.test.ts` suffixes used across services.
 2. **Legacy `config/*` path alias**: Some service tsconfigs still define a `config/*` path alias (`./src/config/*`) that should be replaced with `node16` resolution.
-3. **ESLint warnings**: ~50 lint errors remain across the codebase (unused variables, `any` types, empty interfaces, prefer-const).

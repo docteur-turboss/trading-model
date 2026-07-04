@@ -1,32 +1,34 @@
-export class Deque<T> {
-  private items: Record<number, T> = {};
-  private front = 0;
-  private back = 0;
+export class Deque<TData> {
+	private _items: Record<number, TData> = {};
+	private _front = 0;
+	private _back = 0;
 
-  push(value: T): void {
-    this.items[this.back] = value;
-    this.back++;
-  }
+	push(value: TData): void {
+		this._items[this._back] = value;
+		this._back++;
+	}
 
-  shift(): T | undefined {
-    if (this.front === this.back) return undefined;
-    const item = this.items[this.front];
-    delete this.items[this.front];
-    this.front++;
-    return item;
-  }
+	shift(): TData | undefined {
+		if (this._front === this._back) {
+			return;
+		}
+		const item = this._items[this._front];
+		delete this._items[this._front];
+		this._front++;
+		return item;
+	}
 
-  peekFront(): T | undefined {
-    return this.items[this.front];
-  }
+	peekFront(): TData | undefined {
+		return this._items[this._front];
+	}
 
-  get length(): number {
-    return this.back - this.front;
-  }
+	get length(): number {
+		return this._back - this._front;
+	}
 
-  clear(): void {
-    this.items = {};
-    this.front = 0;
-    this.back = 0;
-  }
+	clear(): void {
+		this._items = {};
+		this._front = 0;
+		this._back = 0;
+	}
 }

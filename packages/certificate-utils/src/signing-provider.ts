@@ -10,25 +10,25 @@
  * provider (Vault, KMS) MUST be used — LocalSigningProvider will throw
  * at startup if NODE_ENV === 'production' and no remote provider is set.
  */
-import { createPrivateKey, sign as nodeSign } from 'node:crypto';
+import { createPrivateKey, sign as nodeSign } from "node:crypto";
 
-import { KeyPair } from './types';
+import type { KeyPair } from "./types";
 
 export interface SigningProvider {
-  /** Returns the public key PEM of the CA signing key. */
-  getPublicKey(): Promise<string>;
+	/** Returns the public key PEM of the CA signing key. */
+	getPublicKey(): Promise<string>;
 
-  /**
-   * Signs the given DER-encoded TBS certificate bytes.
-   * Returns the raw signature bytes (not ASN.1-wrapped).
-   */
-  sign(tbsDerBytes: Buffer): Promise<Buffer>;
+	/**
+	 * Signs the given DER-encoded TBS certificate bytes.
+	 * Returns the raw signature bytes (not ASN.1-wrapped).
+	 */
+	sign(tbsDerBytes: Buffer): Promise<Buffer>;
 
-  /** Returns true if the provider is backed by a remote HSM/KMS. */
-  isRemote(): boolean;
+	/** Returns true if the provider is backed by a remote HSM/KMS. */
+	isRemote(): boolean;
 
-  /** Cleanup any held resources (secure key stores, connections). */
-  destroy(): void;
+	/** Cleanup any held resources (secure key stores, connections). */
+	destroy(): void;
 }
 
 /**
@@ -38,27 +38,28 @@ export interface SigningProvider {
  * remote signing provider (Vault Transit, AWS KMS, etc.).
  */
 export class LocalSigningProvider implements SigningProvider {
-  private readonly keyPair: KeyPair;
+	private readonly _keyPair: KeyPair;
 
-  constructor(keyPair: KeyPair) {
-    this.keyPair = keyPair;
-  }
+	constructor(keyPair: KeyPair) {
+		this._keyPair = keyPair;
+	}
 
-  async getPublicKey(): Promise<string> {
-    return this.keyPair.publicKey;
-  }
+	getPublicKey(): Promise<string> {
+		return Promise.resolve(this._keyPair.publicKey);
+	}
 
-  async sign(tbsDerBytes: Buffer): Promise<Buffer> {
-    const nodeKey = createPrivateKey(this.keyPair.privateKey);
-    const algorithm = nodeKey.asymmetricKeyType === 'rsa' ? 'RSA-SHA256' : 'sha256';
-    return nodeSign(algorithm, tbsDerBytes, nodeKey);
-  }
+	sign(tbsDerBytes: Buffer): Promise<Buffer> {
+		const nodeKey = createPrivateKey(this._keyPair.privateKey);
+		const algorithm =
+			nodeKey.asymmetricKeyType === "rsa" ? "RSA-SHA256" : "sha256";
+		return Promise.resolve(nodeSign(algorithm, tbsDerBytes, nodeKey));
+	}
 
-  isRemote(): boolean {
-    return false;
-  }
+	isRemote(): boolean {
+		return false;
+	}
 
-  destroy(): void {
-    // Nothing to clean up for local provider
-  }
+	destroy(): void {
+		// Nothing to clean up for local provider
+	}
 }

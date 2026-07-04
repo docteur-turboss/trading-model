@@ -77,10 +77,9 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']),
   PORT: z.coerce.number().default(3000),
-  DATABASE_URL: z.string().url(),
-  JWT_SECRET: z.string().min(32),
-  MTLS_CERT_PATH: z.string(),
-  MTLS_KEY_PATH: z.string(),
+  TLS_KEY_PATH: z.string().min(1),
+  TLS_CERT_PATH: z.string().min(1),
+  TLS_CA_PATH: z.string().min(1),
 });
 
 export const config = envSchema.parse(process.env);
@@ -111,13 +110,14 @@ NODE_ENV=development
 PORT=3000
 LOG_LEVEL=info
 
-# Database
-DATABASE_URL=mongodb://localhost:27017/trading-model
+# TLS
+TLS_KEY_PATH=./certs/server-key.pem
+TLS_CERT_PATH=./certs/server.crt
+TLS_CA_PATH=./certs/ca.crt
 
-# Security
-JWT_SECRET=your-secret-key-min-32-chars-long
-MTLS_CERT_PATH=/etc/ssl/certs/
-MTLS_KEY_PATH=/etc/ssl/private/
+# Gateway auth (api-gateway)
+AUTH_TOKENS=your-api-key-here
+AUTH_TOKEN_HEADER=x-api-key
 ```
 
 ### Loading Order (Priority)

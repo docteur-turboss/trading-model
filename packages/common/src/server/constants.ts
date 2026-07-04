@@ -1,1 +1,1 @@
-export const PING_PATH = '/ping';
+export const PING_PATH = "/ping";

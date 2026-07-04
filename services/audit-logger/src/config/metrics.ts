@@ -1,61 +1,61 @@
-import { Request, Response } from 'express';
-import promClient from 'prom-client';
+import type { Request, Response } from "express";
+import promClient from "prom-client";
 
-promClient.collectDefaultMetrics({ prefix: 'audit_' });
+promClient.collectDefaultMetrics({ prefix: "audit_" });
 
-export const logsIngestedTotal = new promClient.Counter({
-  name: 'audit_logs_ingested_total',
-  help: 'Total service logs ingested',
-  labelNames: ['level', 'service_name'] as const,
+export const LOGS_INGESTED_TOTAL = new promClient.Counter({
+	name: "audit_logs_ingested_total",
+	help: "Total service logs ingested",
+	labelNames: ["level", "service_name"] as const,
 });
 
-export const logsStoredTotal = new promClient.Counter({
-  name: 'audit_logs_stored_total',
-  help: 'Total service logs persisted to MongoDB',
-  labelNames: ['status'] as const,
+export const LOGS_STORED_TOTAL = new promClient.Counter({
+	name: "audit_logs_stored_total",
+	help: "Total service logs persisted to MongoDB",
+	labelNames: ["status"] as const,
 });
 
-export const eventsIngestedTotal = new promClient.Counter({
-  name: 'audit_events_ingested_total',
-  help: 'Total audit events ingested',
-  labelNames: ['topic'] as const,
+export const EVENTS_INGESTED_TOTAL = new promClient.Counter({
+	name: "audit_events_ingested_total",
+	help: "Total audit events ingested",
+	labelNames: ["topic"] as const,
 });
 
-export const eventsStoredTotal = new promClient.Counter({
-  name: 'audit_events_stored_total',
-  help: 'Total audit events persisted to MongoDB',
-  labelNames: ['status'] as const,
+export const EVENTS_STORED_TOTAL = new promClient.Counter({
+	name: "audit_events_stored_total",
+	help: "Total audit events persisted to MongoDB",
+	labelNames: ["status"] as const,
 });
 
-export const eventsQueryDurationSeconds = new promClient.Histogram({
-  name: 'audit_events_query_duration_seconds',
-  help: 'Audit event query latency in seconds',
-  buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
+export const EVENTS_QUERY_DURATION_SECONDS = new promClient.Histogram({
+	name: "audit_events_query_duration_seconds",
+	help: "Audit event query latency in seconds",
+	buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
 });
 
-export const jobCount = new promClient.Gauge({
-  name: 'audit_job_count',
-  help: 'Number of active jobs',
-  labelNames: ['status'] as const,
+export const JOB_COUNT = new promClient.Gauge({
+	name: "audit_job_count",
+	help: "Number of active jobs",
+	labelNames: ["status"] as const,
 });
 
-export const backpressureRatio = new promClient.Gauge({
-  name: 'audit_backpressure_ratio',
-  help: 'Backpressure ratio (0=idle, 1=full)',
+export const BACKPRESSURE_RATIO = new promClient.Gauge({
+	name: "audit_backpressure_ratio",
+	help: "Backpressure ratio (0=idle, 1=full)",
 });
 
-export const workerCount = new promClient.Gauge({
-  name: 'audit_worker_count',
-  help: 'Number of registered workers',
-  labelNames: ['status'] as const,
+export const WORKER_COUNT = new promClient.Gauge({
+	name: "audit_worker_count",
+	help: "Number of registered workers",
+	labelNames: ["status"] as const,
 });
 
-export const orphanJobsTotal = new promClient.Counter({
-  name: 'audit_orphan_jobs_total',
-  help: 'Total orphan jobs detected and recovered',
+export const ORPHAN_JOBS_TOTAL = new promClient.Counter({
+	name: "audit_orphan_jobs_total",
+	help: "Total orphan jobs detected and recovered",
 });
 
 export function metricsHandler(_req: Request, res: Response): void {
-  res.set('Content-Type', promClient.register.contentType);
-  promClient.register.metrics().then(data => res.send(data));
+	res.set("Content-Type", promClient.register.contentType);
+	promClient.register.metrics().then((data) => res.send(data));
 }

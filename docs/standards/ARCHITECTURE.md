@@ -11,9 +11,11 @@ The project follows a monorepo structure with **npm workspaces**. All shared com
 ```
 trading-model/
 ├── packages/           # Shared libraries (npm workspace)
-│   ├── common/         # @trading-model/common
-│   ├── address-manager/# @trading-model/address-manager
-│   └── broker-message/ # @trading-model/broker-message
+│   ├── common/              # @trading-model/common
+│   ├── address-manager/     # @trading-model/address-manager
+│   ├── broker-message/      # @trading-model/broker-message
+│   ├── certificate-utils/   # @trading-model/certificate-utils
+│   └── certificate-client/  # @trading-model/certificate-client
 ├── services/           # Microservices
 │   ├── discovery-server/
 │   ├── message-manager/
@@ -22,19 +24,19 @@ trading-model/
 │   ├── certificate-authority/
 │   ├── api-gateway/
 │   ├── audit-logger/
-│   ├── job-scheduler/
+│   ├── dlq-service/
 │   └── admin-interface/ # React SPA (Vite, MUI, Vitest)
 ├── .github/workflows/  # CI/CD
 ├── docs/               # Centralized documentation
 ├── scripts/            # Utilities (commit, release, certs)
-└── eslint.config.mjs   # Root ESLint flat config
+└── biome.json           # Root Biome config
 ```
 
 ### Where
 
 | Location      | Role                                        |
 | ------------- | ------------------------------------------- |
-| **Root**      | Shared config (ESLint, Prettier, tsconfig)  |
+| **Root**      | Shared config (Biome, tsconfig)  |
 | **packages/** | Reusable libraries (public or internal)     |
 | **services/** | Independently deployable microservices      |
 | **docs/**     | Centralized project documentation           |
@@ -56,8 +58,8 @@ All developers contributing to the codebase. Every architectural decision aims t
 | Database     | MongoDB (message-manager), MySQL (financial-scraper) |
 | Validation   | Zod                                                  |
 | Scheduling   | node-cron                                            |
-| Formatting   | Prettier                                             |
-| Linting      | ESLint 10 flat config                                |
+| Formatting   | Biome                                                |
+| Linting      | Biome                                                |
 
 ## Dependency Graph
 
@@ -69,7 +71,7 @@ All developers contributing to the codebase. Every architectural decision aims t
 @trading-model/broker-message
     ↑
 ┌──────────────────────┬───────────────────┬──────────────────┬───────────────────┬───────────────────┐
-│  message-manager     │ financial-scraper │ trader-trainer   │ audit-logger      │ job-scheduler     │
+│  message-manager     │ financial-scraper │ trader-trainer   │ audit-logger      │ dlq-service       │
 │  (deps: common,      │ (deps: common,    │ (deps: common,   │ (deps: common,    │ (deps: common,    │
 │   address-manager)   │  address-manager, │  address-manager,│  address-manager, │  address-manager, │
 │                      │  broker-message)  │  broker-message) │  broker-message)  │  broker-message)  │
@@ -79,6 +81,9 @@ discovery-server (depends only on @trading-model/common)
 
 admin-interface (depends only on @trading-model/common/contracts for DTOs)
 - React SPA served by nginx, not a Node.js microservice
+
+@trading-model/certificate-client (depends on common, certificate-utils, broker-message)
+- Client-side certificate lifecycle management
 ```
 
 The **discovery-server** depends only on `@trading-model/common`. All other services depend on `common`, `address-manager`, and `broker-message` as needed.
@@ -92,6 +97,8 @@ The **admin-interface** is a React SPA (not a Node.js microservice). It imports 
 | `@trading-model/common`          | Logger, HTTP client, middleware (catchError, MTLSAuth, ResponseProtocol), server factories (createSecureServer, createBootstrap), env validation (BaseEnvSchema, validateEnv), event types, service types, delivery mode enum, error classes, crypto utilities, shared DTOs | None (only npm deps)    |
 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs                                                                                                                                                                                 | common                  |
 | `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                                                                                                                                           | common, address-manager |
+| `@trading-model/certificate-utils` | X.509 certificate generation, signing, validation, CRL management, key pair generation, CSR creation                                                                                                                                                                      | common |
+| `@trading-model/certificate-client` | Automatic mTLS certificate provisioning and renewal from the certificate-authority                                                                                                                                                                                         | common, certificate-utils, broker-message |
 
 ## Security Model
 
@@ -113,8 +120,10 @@ Each service exposes an HTTPS server with mTLS enabled. The internal container p
 | financial-scraper | 8445            | 3000           |               |
 | trader-trainer    | 8446            | 3000           |               |
 | audit-logger      | 8450            | 3000           |               |
-| job-scheduler     | 8451            | 3000           |               |
+| dlq-service       | 8452            | 3000           |               |
 | admin-interface   | 5173 (dev)      | 80             | SPA via nginx |
+| api-gateway       | 8448            | 3000           |               |
+| certificate-authority | 8447         | 3000           |               |
 
 ### Service Structure
 
@@ -246,7 +255,7 @@ services/my-service/
 │   ├── integration/
 │   └── fixtures/
 ├── docs/
-├── Dockerfile              # Multi-stage, node:20-alpine, tini
+├── Dockerfile              # Multi-stage, node:26-alpine, tini
 ├── package.json            # Depends on @trading-model/common and others as needed
 ├── tsconfig.json
 └── jest.config.js
@@ -271,4 +280,3 @@ services/my-service/
 
 1. **Mixed test conventions**: Both `.spec.ts` and `.test.ts` suffixes used across services.
 2. **Legacy `config/*` path alias**: Some service tsconfigs still define a `config/*` path alias (`./src/config/*`) that should be replaced with `node16` resolution.
-3. **ESLint warnings**: ~50 lint errors remain across the codebase (unused variables, `any` types, empty interfaces, prefer-const).

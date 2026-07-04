@@ -1,57 +1,61 @@
-export type WorkerStatus = 'active' | 'draining' | 'offline';
+export type WorkerStatus = "active" | "draining" | "offline";
 
 export interface WorkerRegistration {
-  workerId: string;
-  address: string;
-  port: number;
-  capabilities: string[];
-  maxConcurrency: number;
-  currentLoad: number;
-  lastHeartbeat: Date;
-  status: WorkerStatus;
+	workerId: string;
+	address: string;
+	port: number;
+	capabilities: string[];
+	maxConcurrency: number;
+	currentLoad: number;
+	lastHeartbeat: Date;
+	status: WorkerStatus;
 }
 
 export interface WorkerWsRegisterMessage {
-  type: 'register';
-  workerId: string;
-  address: string;
-  port: number;
-  capabilities: string[];
-  maxConcurrency: number;
+	type: "register";
+	workerId: string;
+	address: string;
+	port: number;
+	capabilities: string[];
+	maxConcurrency: number;
 }
 
 export interface WorkerWsHeartbeatMessage {
-  type: 'heartbeat';
-  workerId: string;
-  currentLoad: number;
+	type: "heartbeat";
+	workerId: string;
+	currentLoad: number;
 }
 
 export interface WorkerWsDisconnectMessage {
-  type: 'disconnect';
-  workerId: string;
-  reason?: string;
+	type: "disconnect";
+	workerId: string;
+	reason?: string;
 }
 
 export type WorkerIncomingMessage =
-  WorkerWsRegisterMessage | WorkerWsHeartbeatMessage | WorkerWsDisconnectMessage;
+	| WorkerWsRegisterMessage
+	| WorkerWsHeartbeatMessage
+	| WorkerWsDisconnectMessage;
 
 export interface SchedulerWsJobAssignedMessage {
-  type: 'job.assigned';
-  job: {
-    id: string;
-    type: string;
-    payload: unknown;
-    ackDeadline: number;
-  };
+	type: "job.assigned";
+	job: {
+		id: string;
+		type: string;
+		payload: unknown;
+		ackDeadline: number;
+	};
 }
 
 export interface SchedulerWsHeartbeatAckMessage {
-  type: 'heartbeat.ack';
+	type: "heartbeat.ack";
 }
 
 export interface SchedulerWsDrainMessage {
-  type: 'drain';
+	type: "drain";
 }
 
 export type SchedulerOutgoingMessage =
-  SchedulerWsJobAssignedMessage | SchedulerWsHeartbeatAckMessage | SchedulerWsDrainMessage;
+	| SchedulerWsJobAssignedMessage
+	| SchedulerWsHeartbeatAckMessage
+	| SchedulerWsDrainMessage;

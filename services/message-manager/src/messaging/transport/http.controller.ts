@@ -26,17 +26,20 @@
  * No business logic is performed here; purely request/response orchestration.
  */
 
-import { catchSync } from '@trading-model/common/middleware/catch-error';
-import { sendResponse } from '@trading-model/common/middleware/response-exception';
-
-import { PublishSchema, SubscribeSchema, UnsubscribeSchema } from './validation/broker.schema';
-import { Dispatcher } from '../core/dispatcher';
+import { catchSync } from "@trading-model/common/middleware/catch-error";
+import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import type { Dispatcher } from "../core/dispatcher";
+import {
+	PUBLISH_SCHEMA,
+	SUBSCRIBE_SCHEMA,
+	UNSUBSCRIBE_SCHEMA,
+} from "./validation/broker.schema";
 
 /**
  * Subscribe a service to a topic
  *
  * @description
- * Validates the request body against the `SubscribeSchema` and forwards
+ * Validates the request body against the `SUBSCRIBE_SCHEMA` and forwards
  * the subscription request to the Dispatcher instance.
  * Responds with HTTP 204 No Content on success.
  *
@@ -46,57 +49,63 @@ import { Dispatcher } from '../core/dispatcher';
  * @throws {ResponseException.BadRequest} If validation fails
  * @throws {ResponseException.NoContent} On successful subscription
  */
-export const SubscriptionToATopic = (dispatcher: Dispatcher) =>
-  catchSync(req => {
-    const parsed = SubscribeSchema.safeParse(req.body);
+export const SUBSCRIPTION_TO_A_TOPIC = (dispatcher: Dispatcher) =>
+	catchSync((req) => {
+		const parsed = SUBSCRIBE_SCHEMA.safeParse(req.body);
 
-    if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
+		if (!parsed.success) {
+			return sendResponse({ error: parsed.error.message }, 400);
+		}
 
-    dispatcher.subscribe(parsed.data);
+		dispatcher.subscribe(parsed.data);
 
-    return sendResponse(undefined, 204);
-  });
+		return sendResponse(undefined, 204);
+	});
 
 /**
  * Unsubscribe a service from a topic
  *
  * @description
- * Validates the request body against the `UnsubscribeSchema` and forwards
+ * Validates the request body against the `UNSUBSCRIBE_SCHEMA` and forwards
  * the unsubscription request to the Dispatcher instance.
  * Responds with HTTP 204 No Content on success.
  *
  * @param dispatcher - The Dispatcher instance used to manage subscriptions.
  * @returns Express-compatible middleware function
  */
-export const DeleteASubscription = (dispatcher: Dispatcher) =>
-  catchSync(req => {
-    const parsed = UnsubscribeSchema.safeParse(req.body);
+export const DELETE_A_SUBSCRIPTION = (dispatcher: Dispatcher) =>
+	catchSync((req) => {
+		const parsed = UNSUBSCRIBE_SCHEMA.safeParse(req.body);
 
-    if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
+		if (!parsed.success) {
+			return sendResponse({ error: parsed.error.message }, 400);
+		}
 
-    dispatcher.unsubscribe(parsed.data);
+		dispatcher.unsubscribe(parsed.data);
 
-    return sendResponse(undefined, 204);
-  });
+		return sendResponse(undefined, 204);
+	});
 
 /**
  * Publish a message to a topic
  *
  * @description
- * Validates the request body against the `PublishSchema` and forwards
+ * Validates the request body against the `PUBLISH_SCHEMA` and forwards
  * the payload and metadata to the Dispatcher instance.
  * Responds with HTTP 204 No Content on success.
  *
  * @param dispatcher - The Dispatcher instance used to publish messages.
  * @returns Express-compatible middleware function
  */
-export const PublishAMessage = (dispatcher: Dispatcher) =>
-  catchSync(async req => {
-    const parsed = PublishSchema.safeParse(req.body);
+export const PUBLISH_A_MESSAGE = (dispatcher: Dispatcher) =>
+	catchSync(async (req) => {
+		const parsed = PUBLISH_SCHEMA.safeParse(req.body);
 
-    if (!parsed.success) return sendResponse({ error: parsed.error.message }, 400);
+		if (!parsed.success) {
+			return sendResponse({ error: parsed.error.message }, 400);
+		}
 
-    await dispatcher.publish(parsed.data.payload, parsed.data.metadata);
+		await dispatcher.publish(parsed.data.payload, parsed.data.metadata);
 
-    return sendResponse(undefined, 204);
-  });
+		return sendResponse(undefined, 204);
+	});

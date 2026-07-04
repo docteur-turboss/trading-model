@@ -1,49 +1,45 @@
-import { createPublicKey, createVerify, KeyObject } from 'node:crypto';
+import { createPublicKey, createVerify, type KeyObject } from "node:crypto";
 
-import { logger } from '@trading-model/common/config/logger';
+import { logger } from "@trading-model/common/config/logger";
 
 export interface OidcConfig {
-  issuer: string;
-  audience: string;
-  jwksUri: string;
-  /**
-   * Whitelist of allowed JWT signing algorithms.
-   * Prevents algorithm confusion attacks (e.g., alg:none, or HMAC with RSA public key).
-   * @default ['RS256', 'ES256']
-   */
-  allowedAlgorithms?: string[];
+	issuer: string;
+	audience: string;
+	jwksUri: string;
+	/**
+	 * Whitelist of allowed JWT signing algorithms.
+	 * Prevents algorithm confusion attacks (e.g., alg:none, or HMAC with RSA public key).
+	 * @default ['RS256', 'ES256']
+	 */
+	allowedAlgorithms?: string[];
 }
 
 export interface OidcClaims {
-  sub: string;
-  iss: string;
-  aud: string | string[];
-  exp: number;
-  iat: number;
-  nbf?: number;
-  [key: string]: unknown;
+	sub: string;
+	iss: string;
+	aud: string | string[];
+	exp: number;
+	iat: number;
+	nbf?: number;
+	[key: string]: unknown;
 }
 
-interface Jwk {
-  kid?: string;
-  kty: string;
-  alg?: string;
-  use?: string;
-  n?: string;
-  e?: string;
-  x?: string;
-  y?: string;
-  crv?: string;
+interface Jwk extends Record<string, string | undefined> {
+	kid?: string;
+	kty: string;
+	alg?: string;
+	use?: string;
+	crv?: string;
 }
 
 interface JwksResponse {
-  keys: Jwk[];
+	keys: Jwk[];
 }
 
 interface JwtHeader {
-  alg: string;
-  kid?: string;
-  typ?: string;
+	alg: string;
+	kid?: string;
+	typ?: string;
 }
 
 /**
@@ -53,154 +49,184 @@ interface JwtHeader {
  * to prevent key confusion attacks where an attacker uses the JWKS
  * public key as an HMAC secret.
  */
-const ALGORITHM_MAP: Record<string, string> = {
-  RS256: 'RSA-SHA256',
-  RS384: 'RSA-SHA384',
-  RS512: 'RSA-SHA512',
-  ES256: 'SHA256',
-  ES384: 'SHA384',
-  ES512: 'SHA512',
-};
+const ALGORITHM_MAP = new Map<string, string>([
+	["RS256", "RSA-SHA256"],
+	["RS384", "RSA-SHA384"],
+	["RS512", "RSA-SHA512"],
+	["ES256", "SHA256"],
+	["ES384", "SHA384"],
+	["ES512", "SHA512"],
+]);
 
 export class OidcVerifier {
-  private readonly config: OidcConfig;
-  private readonly allowedAlgorithms: Set<string>;
-  private cachedKeys: Map<string, KeyObject> | null = null;
-  private lastFetch = 0;
-  private readonly cacheTtlMs = 3_600_000;
+	private readonly _config: OidcConfig;
+	private readonly _allowedAlgorithms: Set<string>;
+	private _cachedKeys: Map<string, KeyObject> | null = null;
+	private _lastFetch = 0;
+	private readonly _cacheTtlMs = 3_600_000;
 
-  constructor(config: OidcConfig) {
-    this.config = config;
-    this.allowedAlgorithms = new Set(config.allowedAlgorithms ?? ['RS256', 'ES256']);
-  }
+	constructor(config: OidcConfig) {
+		this._config = config;
+		this._allowedAlgorithms = new Set(
+			config.allowedAlgorithms ?? ["RS256", "ES256"]
+		);
+	}
 
-  async verifyAndExtract(token: string): Promise<OidcClaims> {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      throw new Error('Invalid JWT format');
-    }
+	async verifyAndExtract(token: string): Promise<OidcClaims> {
+		const parts = token.split(".");
+		if (parts.length !== 3) {
+			throw new Error("Invalid JWT format");
+		}
 
-    const header = this.parseBase64Json<JwtHeader>(parts[0]);
-    const payload = this.parseBase64Json<OidcClaims>(parts[1]);
+		const header = this._parseBase64Json<JwtHeader>(parts[0]);
+		const payload = this._parseBase64Json<OidcClaims>(parts[1]);
 
-    // 6a: Reject tokens with disallowed algorithms
-    if (!this.allowedAlgorithms.has(header.alg)) {
-      throw new Error(
-        `JWT algorithm "${header.alg}" is not allowed. Must be one of: ${[...this.allowedAlgorithms].join(', ')}`
-      );
-    }
+		// 6a: Reject tokens with disallowed algorithms
+		if (!this._allowedAlgorithms.has(header.alg)) {
+			throw new Error(
+				`JWT algorithm "${header.alg}" is not allowed. Must be one of: ${[...this._allowedAlgorithms].join(", ")}`
+			);
+		}
 
-    if (payload.iss !== this.config.issuer) {
-      throw new Error(`JWT issuer mismatch: expected ${this.config.issuer}, got ${payload.iss}`);
-    }
+		if (payload.iss !== this._config.issuer) {
+			throw new Error(
+				`JWT issuer mismatch: expected ${this._config.issuer}, got ${payload.iss}`
+			);
+		}
 
-    const aud = payload.aud;
-    const audiences = Array.isArray(aud) ? aud : [aud];
-    if (!audiences.includes(this.config.audience)) {
-      throw new Error(`JWT audience mismatch: expected ${this.config.audience}`);
-    }
+		const aud = payload.aud;
+		const audiences = Array.isArray(aud) ? aud : [aud];
+		if (!audiences.includes(this._config.audience)) {
+			throw new Error(
+				`JWT audience mismatch: expected ${this._config.audience}`
+			);
+		}
 
-    if (payload.exp * 1000 < Date.now()) {
-      throw new Error('JWT expired');
-    }
+		if (payload.exp * 1000 < Date.now()) {
+			throw new Error("JWT expired");
+		}
 
-    if (payload.nbf && payload.nbf * 1000 > Date.now()) {
-      throw new Error('JWT not yet valid (nbf)');
-    }
+		if (payload.nbf && payload.nbf * 1000 > Date.now()) {
+			throw new Error("JWT not yet valid (nbf)");
+		}
 
-    const signingKey = await this.resolveSigningKey(header.kid);
-    const message = `${parts[0]}.${parts[1]}`;
-    const signature = Buffer.from(parts[2], 'base64url');
+		const signingKey = await this._resolveSigningKey(header.kid);
+		const message = `${parts[0]}.${parts[1]}`;
+		const signature = Buffer.from(parts[2], "base64url");
 
-    // 6a: Use algorithm from whitelist — safe from alg:none and alg confusion
-    const algorithm = this.toNodeCryptoAlgorithm(header.alg);
-    const verified = createVerify(algorithm).update(message).verify(signingKey, signature);
+		// 6a: Use algorithm from whitelist — safe from alg:none and alg confusion
+		const algorithm = this._toNodeCryptoAlgorithm(header.alg);
+		const verified = createVerify(algorithm)
+			.update(message)
+			.verify(signingKey, signature);
 
-    if (!verified) {
-      throw new Error('JWT signature verification failed');
-    }
+		if (!verified) {
+			throw new Error("JWT signature verification failed");
+		}
 
-    return payload;
-  }
+		return payload;
+	}
 
-  private async resolveSigningKey(kid?: string): Promise<KeyObject> {
-    await this.refreshKeys();
-    if (this.cachedKeys) {
-      if (kid) {
-        const key = this.cachedKeys.get(kid);
-        if (key) return key;
-      }
-      if (!kid && this.cachedKeys.size === 1) {
-        const firstKey = this.cachedKeys.values().next().value;
-        if (firstKey) return firstKey;
-      }
-    }
-    throw new Error(`Signing key not found (kid: ${kid ?? 'none'})`);
-  }
+	private async _resolveSigningKey(kid?: string): Promise<KeyObject> {
+		await this._refreshKeys();
+		if (this._cachedKeys) {
+			if (kid) {
+				const key = this._cachedKeys.get(kid);
+				if (key) {
+					return key;
+				}
+			}
+			if (!kid && this._cachedKeys.size === 1) {
+				const firstKey = this._cachedKeys.values().next().value;
+				if (firstKey) {
+					return firstKey;
+				}
+			}
+		}
+		throw new Error(`Signing key not found (kid: ${kid ?? "none"})`);
+	}
 
-  private async refreshKeys(): Promise<void> {
-    if (this.cachedKeys && Date.now() - this.lastFetch < this.cacheTtlMs) {
-      return;
-    }
+	private async _refreshKeys(): Promise<void> {
+		if (this._cachedKeys && Date.now() - this._lastFetch < this._cacheTtlMs) {
+			return;
+		}
 
-    const jwksUri = this.config.jwksUri;
-    if (!jwksUri) {
-      throw new Error('JWKS URI not configured');
-    }
+		const jwksUri = this._config.jwksUri;
+		if (!jwksUri) {
+			throw new Error("JWKS URI not configured");
+		}
 
-    try {
-      const response = await fetch(jwksUri, {
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok) {
-        throw new Error(`JWKS fetch failed: ${response.status}`);
-      }
-      const jwks = (await response.json()) as JwksResponse;
-      this.cachedKeys = new Map<string, KeyObject>();
+		try {
+			const response = await fetch(jwksUri, {
+				signal: AbortSignal.timeout(10_000),
+			});
+			if (!response.ok) {
+				throw new Error(`JWKS fetch failed: ${response.status}`);
+			}
+			const jwks = (await response.json()) as JwksResponse;
+			this._cachedKeys = new Map<string, KeyObject>();
 
-      for (const jwk of jwks.keys) {
-        if (jwk.kty === 'RSA' && jwk.n && jwk.e) {
-          const key = createPublicKey({
-            key: { kty: jwk.kty, n: jwk.n, e: jwk.e },
-            format: 'jwk',
-          });
-          const kid = jwk.kid ?? jwk.n.slice(0, 16);
-          this.cachedKeys.set(kid, key);
-        } else if (jwk.kty === 'EC' && jwk.x && jwk.y && jwk.crv) {
-          const key = createPublicKey({
-            key: { kty: jwk.kty, x: jwk.x, y: jwk.y, crv: jwk.crv },
-            format: 'jwk',
-          });
-          const kid = jwk.kid ?? jwk.x.slice(0, 16);
-          this.cachedKeys.set(kid, key);
-        }
-      }
+			for (const entry of jwks.keys) {
+				const fieldN = "n";
+				const fieldE = "e";
+				const fieldX = "x";
+				const fieldY = "y";
+				const jwkAny = entry as Record<string, string | undefined>;
+				const modulus = jwkAny[fieldN];
+				const exponent = jwkAny[fieldE];
+				const xCoord = jwkAny[fieldX];
+				const yCoord = jwkAny[fieldY];
+				if (entry.kty === "RSA" && modulus && exponent) {
+					const rsaKey: Record<string, string> = { kty: entry.kty };
+					rsaKey[fieldN] = modulus;
+					rsaKey[fieldE] = exponent;
+					const key = createPublicKey({
+						key: rsaKey,
+						format: "jwk",
+					});
+					const kid = entry.kid ?? modulus.slice(0, 16);
+					this._cachedKeys.set(kid, key);
+				} else if (entry.kty === "EC" && xCoord && yCoord && entry.crv) {
+					const ecKey: Record<string, string> = {
+						kty: entry.kty,
+						crv: entry.crv,
+					};
+					ecKey[fieldX] = xCoord;
+					ecKey[fieldY] = yCoord;
+					const key = createPublicKey({
+						key: ecKey,
+						format: "jwk",
+					});
+					const kid = entry.kid ?? xCoord.slice(0, 16);
+					this._cachedKeys.set(kid, key);
+				}
+			}
 
-      this.lastFetch = Date.now();
-      logger.info('JWKS keys refreshed', { count: this.cachedKeys.size });
-    } catch (err) {
-      if (this.cachedKeys && this.cachedKeys.size > 0) {
-        logger.warn('JWKS refresh failed, using cached keys', { err });
-        return;
-      }
-      throw err;
-    }
-  }
+			this._lastFetch = Date.now();
+			logger.info("JWKS keys refreshed", { count: this._cachedKeys.size });
+		} catch (err) {
+			if (this._cachedKeys && this._cachedKeys.size > 0) {
+				logger.warn("JWKS refresh failed, using cached keys", { err });
+				return;
+			}
+			throw err;
+		}
+	}
 
-  private toNodeCryptoAlgorithm(alg: string): string {
-    const mapped = ALGORITHM_MAP[alg];
-    if (!mapped) {
-      throw new Error(`Unsupported JWT algorithm: ${alg}`);
-    }
-    return mapped;
-  }
+	private _toNodeCryptoAlgorithm(alg: string): string {
+		const mapped = ALGORITHM_MAP.get(alg);
+		if (!mapped) {
+			throw new Error(`Unsupported JWT algorithm: ${alg}`);
+		}
+		return mapped;
+	}
 
-  private parseBase64Json<T>(str: string): T {
-    try {
-      const decoded = Buffer.from(str, 'base64url').toString('utf8');
-      return JSON.parse(decoded) as T;
-    } catch {
-      throw new Error('Failed to parse JWT segment');
-    }
-  }
+	private _parseBase64Json<TData>(str: string): TData {
+		try {
+			const decoded = Buffer.from(str, "base64url").toString("utf8");
+			return JSON.parse(decoded) as T;
+		} catch {
+			throw new Error("Failed to parse JWT segment");
+		}
+	}
 }

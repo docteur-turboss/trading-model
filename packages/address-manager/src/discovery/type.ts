@@ -1,4 +1,4 @@
-import { ServiceInstance } from '../client/type';
+import type { ServiceInstance } from "../client/type";
 
 /**
  * CacheEntry
@@ -16,13 +16,13 @@ import { ServiceInstance } from '../client/type';
  * @internal
  */
 export interface CacheEntry {
-  /**
-   * The cached service instance.
-   */
-  instance: ServiceInstance;
+	/**
+	 * The cached service instance.
+	 */
+	instance: ServiceInstance;
 
-  /**
-   * Timestamp (in milliseconds) at which this cache entry expires.
-   */
-  expiresAt: number;
+	/**
+	 * Timestamp (in milliseconds) at which this cache entry expires.
+	 */
+	expiresAt: number;
 }

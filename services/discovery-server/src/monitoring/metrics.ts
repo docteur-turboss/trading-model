@@ -1,132 +1,135 @@
-import { RequestHandler } from 'express';
-import client from 'prom-client';
+import type { RequestHandler } from "express";
+import client from "prom-client";
 
-const register = new client.Registry();
+const METRICS_REGISTRY = new client.Registry();
 
-client.collectDefaultMetrics({ register });
+client.collectDefaultMetrics({ register: METRICS_REGISTRY });
 
-const httpRequestsTotal = new client.Counter({
-  name: 'discovery_http_requests_total',
-  help: 'Total HTTP requests by method, path, and status',
-  labelNames: ['method', 'path', 'status'],
-  registers: [register],
+const HTTP_REQUESTS_TOTAL = new client.Counter({
+	name: "discovery_http_requests_total",
+	help: "Total HTTP requests by method, path, and status",
+	labelNames: ["method", "path", "status"],
+	registers: [METRICS_REGISTRY],
 });
 
-const httpRequestDurationSeconds = new client.Histogram({
-  name: 'discovery_http_request_duration_seconds',
-  help: 'HTTP request latency in seconds',
-  labelNames: ['method', 'path'],
-  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
-  registers: [register],
+const HTTP_REQUEST_DURATION_SECONDS = new client.Histogram({
+	name: "discovery_http_request_duration_seconds",
+	help: "HTTP request latency in seconds",
+	labelNames: ["method", "path"],
+	buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
+	registers: [METRICS_REGISTRY],
 });
 
-const activeConnections = new client.Gauge({
-  name: 'discovery_ws_active_connections',
-  help: 'Number of currently connected WebSocket clients',
-  registers: [register],
+const ACTIVE_CONNECTIONS = new client.Gauge({
+	name: "discovery_ws_active_connections",
+	help: "Number of currently connected WebSocket clients",
+	registers: [METRICS_REGISTRY],
 });
 
-const registeredInstances = new client.Gauge({
-  name: 'discovery_registered_instances',
-  help: 'Number of registered service instances',
-  registers: [register],
+const REGISTERED_INSTANCES = new client.Gauge({
+	name: "discovery_registered_instances",
+	help: "Number of registered service instances",
+	registers: [METRICS_REGISTRY],
 });
 
-const registeredInstancesPerService = new client.Gauge({
-  name: 'discovery_registered_instances_per_service',
-  help: 'Number of registered service instances per service',
-  labelNames: ['service'] as const,
-  registers: [register],
+const REGISTERED_INSTANCES_PER_SERVICE = new client.Gauge({
+	name: "discovery_registered_instances_per_service",
+	help: "Number of registered service instances per service",
+	labelNames: ["service"] as const,
+	registers: [METRICS_REGISTRY],
 });
 
-const heartbeatsTotal = new client.Counter({
-  name: 'discovery_heartbeats_total',
-  help: 'Total heartbeats received per service',
-  labelNames: ['service'] as const,
-  registers: [register],
+const HEARTBEATS_TOTAL = new client.Counter({
+	name: "discovery_heartbeats_total",
+	help: "Total heartbeats received per service",
+	labelNames: ["service"] as const,
+	registers: [METRICS_REGISTRY],
 });
 
-const cacheInvalidationsTotal = new client.Counter({
-  name: 'discovery_cache_invalidations_total',
-  help: 'Total cache invalidation events broadcast',
-  registers: [register],
+const CACHE_INVALIDATIONS_TOTAL = new client.Counter({
+	name: "discovery_cache_invalidations_total",
+	help: "Total cache invalidation events broadcast",
+	registers: [METRICS_REGISTRY],
 });
 
-const cleanupDurationSeconds = new client.Histogram({
-  name: 'discovery_cleanup_duration_seconds',
-  help: 'Duration of lease cleanup cycles',
-  buckets: [0.01, 0.05, 0.1, 0.5, 1, 5],
-  registers: [register],
+const CLEANUP_DURATION_SECONDS = new client.Histogram({
+	name: "discovery_cleanup_duration_seconds",
+	help: "Duration of lease cleanup cycles",
+	buckets: [0.01, 0.05, 0.1, 0.5, 1, 5],
+	registers: [METRICS_REGISTRY],
 });
 
-const wsDroppedMessagesTotal = new client.Counter({
-  name: 'discovery_ws_dropped_messages_total',
-  help: 'Total WebSocket messages dropped due to queue overflow',
-  registers: [register],
+const WS_DROPPED_MESSAGES_TOTAL = new client.Counter({
+	name: "discovery_ws_dropped_messages_total",
+	help: "Total WebSocket messages dropped due to queue overflow",
+	registers: [METRICS_REGISTRY],
 });
 
-const operationErrorsTotal = new client.Counter({
-  name: 'discovery_operation_errors_total',
-  help: 'Total operation errors by type',
-  labelNames: ['operation'] as const,
-  registers: [register],
+const OPERATION_ERRORS_TOTAL = new client.Counter({
+	name: "discovery_operation_errors_total",
+	help: "Total operation errors by type",
+	labelNames: ["operation"] as const,
+	registers: [METRICS_REGISTRY],
 });
 
-const leaseCleanupCyclesTotal = new client.Counter({
-  name: 'discovery_lease_cleanup_cycles_total',
-  help: 'Total lease cleanup cycles executed',
-  registers: [register],
+const LEASE_CLEANUP_CYCLES_TOTAL = new client.Counter({
+	name: "discovery_lease_cleanup_cycles_total",
+	help: "Total lease cleanup cycles executed",
+	registers: [METRICS_REGISTRY],
 });
 
 export function trackRequest(
-  method: string,
-  path: string,
-  status: number,
-  durationMs: number
+	method: string,
+	path: string,
+	status: number,
+	durationMs: number
 ): void {
-  httpRequestsTotal.inc({ method, path, status });
-  httpRequestDurationSeconds.observe({ method, path }, durationMs / 1000);
+	HTTP_REQUESTS_TOTAL.inc({ method, path, status });
+	HTTP_REQUEST_DURATION_SECONDS.observe({ method, path }, durationMs / 1000);
 }
 
 export function setActiveWsConnections(count: number): void {
-  activeConnections.set(count);
+	ACTIVE_CONNECTIONS.set(count);
 }
 
 export function setRegisteredInstances(count: number): void {
-  registeredInstances.set(count);
+	REGISTERED_INSTANCES.set(count);
 }
 
-export function setRegisteredInstancesPerService(service: string, count: number): void {
-  registeredInstancesPerService.set({ service }, count);
+export function setRegisteredInstancesPerService(
+	service: string,
+	count: number
+): void {
+	REGISTERED_INSTANCES_PER_SERVICE.set({ service }, count);
 }
 
 export function incHeartbeatsTotal(service: string): void {
-  heartbeatsTotal.inc({ service });
+	HEARTBEATS_TOTAL.inc({ service });
 }
 
 export function incCacheInvalidations(): void {
-  cacheInvalidationsTotal.inc();
+	CACHE_INVALIDATIONS_TOTAL.inc();
 }
 
 export function observeCleanupDuration(durationMs: number): void {
-  cleanupDurationSeconds.observe(durationMs / 1000);
+	CLEANUP_DURATION_SECONDS.observe(durationMs / 1000);
 }
 
 export function incWsDroppedMessages(): void {
-  wsDroppedMessagesTotal.inc();
+	WS_DROPPED_MESSAGES_TOTAL.inc();
 }
 
 export function incOperationError(operation: string): void {
-  operationErrorsTotal.inc({ operation });
+	OPERATION_ERRORS_TOTAL.inc({ operation });
 }
 
 export function incLeaseCleanupCycle(): void {
-  leaseCleanupCyclesTotal.inc();
+	LEASE_CLEANUP_CYCLES_TOTAL.inc();
 }
 
-export const metricsHandler: RequestHandler = async (_req, res) => {
-  res.setHeader('Content-Type', register.contentType);
-  res.end(await register.metrics());
+export const METRICS_HANDLER: RequestHandler = async (_req, res) => {
+	res.setHeader("Content-Type", METRICS_REGISTRY.contentType);
+	res.end(await METRICS_REGISTRY.metrics());
 };
 
-export { register };
+export { METRICS_REGISTRY };

@@ -1,22 +1,21 @@
-import { Application } from 'express';
+import { HttpClient } from "@trading-model/common/config/http-client";
+import { logger } from "@trading-model/common/config/logger";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import { sleep } from "@trading-model/common/utils/sleep";
+import type { Application } from "express";
 
-import { HttpClient } from '@trading-model/common/config/http-client';
-import { logger } from '@trading-model/common/config/logger';
-import { normalizeError } from '@trading-model/common/utils/errors';
-import { sleep } from '@trading-model/common/utils/sleep';
-
-import { AddressManagerClient } from './client/address-manager-client';
-import { TokenManager } from './client/token-manager';
-import { ServiceInstance } from './client/type';
-import { AddressManagerConfig } from './config/address-manager-config';
-import { MapResolver } from './discovery/dns-resolver';
-import { ServiceCache } from './discovery/service-cache';
-import { ServiceDiscovery } from './discovery/service-discovery';
-import { ServiceHealthChecker } from './discovery/service-health-checker';
-import { MappingServiceLocator } from './discovery/service-locator';
-import { pingRoutes } from './http/routes/ping.routes';
-import { RefreshJob } from './scheduler/refresh-job';
-import { Scheduler } from './scheduler/scheduler';
+import { AddressManagerClient } from "./client/address-manager-client";
+import { TokenManager } from "./client/token-manager";
+import type { ServiceInstance } from "./client/type";
+import type { AddressManagerConfig } from "./config/address-manager-config";
+import { MapResolver } from "./discovery/dns-resolver";
+import { ServiceCache } from "./discovery/service-cache";
+import { ServiceDiscovery } from "./discovery/service-discovery";
+import { ServiceHealthChecker } from "./discovery/service-health-checker";
+import { MappingServiceLocator } from "./discovery/service-locator";
+import { PING_ROUTES } from "./http/routes/ping.routes";
+import { RefreshJob } from "./scheduler/refresh-job";
+import { Scheduler } from "./scheduler/scheduler";
 
 /** Maximum registration retry attempts before giving up. */
 const MAX_REGISTRATION_RETRIES = 10;
@@ -44,125 +43,137 @@ const REGISTRATION_MAX_DELAY_MS = 30_000;
  * This class serves as the composition root that wires them together.
  */
 export default class AddressManager {
-  private readonly addressManagerClient: AddressManagerClient;
-  private readonly healthChecker: ServiceHealthChecker;
-  private readonly serviceDiscovery: ServiceDiscovery;
-  private readonly tokenManager: TokenManager;
-  private readonly serviceCache: ServiceCache;
-  private readonly httpClient: HttpClient;
-  private readonly tokenRefreshIntervalMs: number;
-  private readonly ttlRefreshIntervalMs: number;
-  private shouldRetryRegistration = true;
+	private readonly _addressManagerClient: AddressManagerClient;
+	private readonly _healthChecker: ServiceHealthChecker;
+	private readonly _serviceDiscovery: ServiceDiscovery;
+	private readonly _tokenManager: TokenManager;
+	private readonly _serviceCache: ServiceCache;
+	private readonly _httpClient: HttpClient;
+	private readonly _tokenRefreshIntervalMs: number;
+	private readonly _ttlRefreshIntervalMs: number;
+	private _shouldRetryRegistration = true;
 
-  constructor(config: AddressManagerConfig) {
-    this.httpClient = HttpClient.createWithTls(config);
+	constructor(config: AddressManagerConfig) {
+		this._httpClient = HttpClient.createWithTls(config);
 
-    this.tokenManager = new TokenManager(this.httpClient, config);
-    this.addressManagerClient = new AddressManagerClient(
-      this.httpClient,
-      this.tokenManager,
-      config
-    );
+		this._tokenManager = new TokenManager(this._httpClient, config);
+		this._addressManagerClient = new AddressManagerClient(
+			this._httpClient,
+			this._tokenManager,
+			config
+		);
 
-    this.serviceCache = new ServiceCache(config.cacheTtlMs);
-    this.healthChecker = new ServiceHealthChecker(
-      this.httpClient,
-      config.servicePingTimeoutMs,
-      config.dnsNameMap ? new MappingServiceLocator(new MapResolver(config.dnsNameMap)) : undefined
-    );
+		this._serviceCache = new ServiceCache(config.cacheTtlMs);
+		this._healthChecker = new ServiceHealthChecker(
+			this._httpClient,
+			config.servicePingTimeoutMs,
+			config.dnsNameMap
+				? new MappingServiceLocator(new MapResolver(config.dnsNameMap))
+				: undefined
+		);
 
-    this.serviceDiscovery = new ServiceDiscovery(
-      this.httpClient,
-      this.serviceCache,
-      config,
-      this.healthChecker
-    );
+		this._serviceDiscovery = new ServiceDiscovery(
+			this._httpClient,
+			this._serviceCache,
+			config,
+			this._healthChecker
+		);
 
-    this.tokenRefreshIntervalMs = config.tokenRefreshIntervalMs;
-    this.ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
-  }
+		this._tokenRefreshIntervalMs = config.tokenRefreshIntervalMs;
+		this._ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
+	}
 
-  getToken(): string {
-    return this.tokenManager.getToken();
-  }
+	getToken(): string {
+		return this._tokenManager.getToken();
+	}
 
-  /** Resolves a healthy service instance by name. */
-  async findService(serviceName: string): Promise<ServiceInstance> {
-    return this.serviceDiscovery.findService(serviceName);
-  }
+	/** Resolves a healthy service instance by name. */
+	async findService(serviceName: string): Promise<ServiceInstance> {
+		return await this._serviceDiscovery.findService(serviceName);
+	}
 
-  /** Registers the ping health-check endpoint on the given Express app. */
-  listenExpress(app: Application): void {
-    app.use(pingRoutes);
-  }
+	/** Registers the ping health-check endpoint on the given Express app. */
+	listenExpress(app: Application): void {
+		app.use(PING_ROUTES);
+	}
 
-  /**
-   * Register the service with exponential backoff retry.
-   *
-   * Attempts to register until success, max retries are exhausted,
-   * or `stop()` is called. Each failure is logged with attempt count.
-   */
-  private async retryRegistration(): Promise<void> {
-    for (let attempt = 1; attempt <= MAX_REGISTRATION_RETRIES; attempt++) {
-      if (!this.shouldRetryRegistration) return;
+	/**
+	 * Register the service with exponential backoff retry.
+	 *
+	 * Attempts to register until success, max retries are exhausted,
+	 * or `stop()` is called. Each failure is logged with attempt count.
+	 */
+	private async _retryRegistration(): Promise<void> {
+		for (let attempt = 1; attempt <= MAX_REGISTRATION_RETRIES; attempt++) {
+			if (!this._shouldRetryRegistration) {
+				return;
+			}
 
-      try {
-        const res = await this.addressManagerClient.registerService();
-        if (!res) {
-          throw new Error('Registration returned no content');
-        }
-        this.tokenManager.setToken(res.token);
-        return;
-      } catch (error) {
-        logger.error('Service registration failed', {
-          attempt,
-          maxRetries: MAX_REGISTRATION_RETRIES,
-          error: normalizeError(error),
-        });
+			try {
+				const res = await this._addressManagerClient.registerService();
+				if (!res) {
+					throw new Error("Registration returned no content");
+				}
+				this._tokenManager.setToken(res.token);
+				return;
+			} catch (error) {
+				logger.error("Service registration failed", {
+					attempt,
+					maxRetries: MAX_REGISTRATION_RETRIES,
+					error: normalizeError(error),
+				});
 
-        if (attempt < MAX_REGISTRATION_RETRIES) {
-          const delay = Math.min(
-            REGISTRATION_BASE_DELAY_MS * Math.pow(2, attempt),
-            REGISTRATION_MAX_DELAY_MS
-          );
-          await sleep(delay);
-        }
-      }
-    }
+				if (attempt < MAX_REGISTRATION_RETRIES) {
+					const delay = Math.min(
+						REGISTRATION_BASE_DELAY_MS * 2 ** attempt,
+						REGISTRATION_MAX_DELAY_MS
+					);
+					await sleep(delay);
+				}
+			}
+		}
 
-    logger.error('Service registration failed after max retries', {
-      maxRetries: MAX_REGISTRATION_RETRIES,
-    });
-  }
+		logger.error("Service registration failed after max retries", {
+			maxRetries: MAX_REGISTRATION_RETRIES,
+		});
+	}
 
-  /**
-   * Starts periodic registration, token refresh, and TTL refresh cycles.
-   *
-   * - Registers the service with the discovery server (with retry)
-   * - Starts a scheduler with token and TTL refresh jobs
-   *
-   * @returns A handle with a `stop` method to gracefully shut down all cycles.
-   */
-  start(): { stop: () => void } {
-    this.retryRegistration();
+	/**
+	 * Starts periodic registration, token refresh, and TTL refresh cycles.
+	 *
+	 * - Registers the service with the discovery server (with retry)
+	 * - Starts a scheduler with token and TTL refresh jobs
+	 *
+	 * @returns A handle with a `stop` method to gracefully shut down all cycles.
+	 */
+	start(): { stop: () => void } {
+		void this._retryRegistration();
 
-    const scheduler = new Scheduler();
+		const scheduler = new Scheduler();
 
-    scheduler.register(
-      new RefreshJob(this.tokenManager, tm => tm.refreshToken(), this.tokenRefreshIntervalMs)
-    );
+		scheduler.register(
+			new RefreshJob(
+				this._tokenManager,
+				(tm) => tm.refreshToken(),
+				this._tokenRefreshIntervalMs
+			)
+		);
 
-    scheduler.register(
-      new RefreshJob(this.addressManagerClient, c => c.refreshTTL(), this.ttlRefreshIntervalMs)
-    );
+		scheduler.register(
+			new RefreshJob(
+				this._addressManagerClient,
+				(client) => client.refreshTTL(),
+				this._ttlRefreshIntervalMs
+			)
+		);
 
-    scheduler.start();
+		scheduler.start();
 
-    return {
-      stop: () => {
-        this.shouldRetryRegistration = false;
-        scheduler.stop();
-      },
-    };
-  }
+		return {
+			stop: () => {
+				this._shouldRetryRegistration = false;
+				scheduler.stop();
+			},
+		};
+	}
 }

@@ -1,59 +1,67 @@
-export class LruCache<T> {
-  private readonly maxSize: number;
-  private readonly ttlMs: number;
-  private readonly store = new Map<string, { value: T; expiresAt: number }>();
+export class LruCache<TValue> {
+	private readonly _maxSize: number;
+	private readonly _ttlMs: number;
+	private readonly _store = new Map<
+		string,
+		{ value: TValue; expiresAt: number }
+	>();
 
-  constructor(maxSize: number, ttlMs: number = 0) {
-    this.maxSize = maxSize;
-    this.ttlMs = ttlMs;
-  }
+	constructor(maxSize: number, ttlMs = 0) {
+		this._maxSize = maxSize;
+		this._ttlMs = ttlMs;
+	}
 
-  has(key: string): boolean {
-    const entry = this.store.get(key);
-    if (!entry) return false;
-    if (this.ttlMs > 0 && Date.now() > entry.expiresAt) {
-      this.store.delete(key);
-      return false;
-    }
-    return true;
-  }
+	has(key: string): boolean {
+		const entry = this._store.get(key);
+		if (!entry) {
+			return false;
+		}
+		if (this._ttlMs > 0 && Date.now() > entry.expiresAt) {
+			this._store.delete(key);
+			return false;
+		}
+		return true;
+	}
 
-  get(key: string): T | undefined {
-    const entry = this.store.get(key);
-    if (!entry) return undefined;
-    if (this.ttlMs > 0 && Date.now() > entry.expiresAt) {
-      this.store.delete(key);
-      return undefined;
-    }
-    this.store.delete(key);
-    this.store.set(key, entry);
-    return entry.value;
-  }
+	get(key: string): TValue | undefined {
+		const entry = this._store.get(key);
+		if (!entry) {
+			return;
+		}
+		if (this._ttlMs > 0 && Date.now() > entry.expiresAt) {
+			this._store.delete(key);
+			return;
+		}
+		this._store.delete(key);
+		this._store.set(key, entry);
+		return entry.value;
+	}
 
-  set(key: string, value: T): void {
-    if (this.store.has(key)) {
-      this.store.delete(key);
-    } else if (this.store.size >= this.maxSize) {
-      const oldest = this.store.keys().next();
-      if (!oldest.done) {
-        this.store.delete(oldest.value);
-      }
-    }
-    this.store.set(key, {
-      value,
-      expiresAt: this.ttlMs > 0 ? Date.now() + this.ttlMs : Infinity,
-    });
-  }
+	set(key: string, value: TValue): void {
+		if (this._store.has(key)) {
+			this._store.delete(key);
+		} else if (this._store.size >= this._maxSize) {
+			const oldest = this._store.keys().next();
+			if (!oldest.done) {
+				this._store.delete(oldest.value);
+			}
+		}
+		this._store.set(key, {
+			value,
+			expiresAt:
+				this._ttlMs > 0 ? Date.now() + this._ttlMs : Number.POSITIVE_INFINITY,
+		});
+	}
 
-  delete(key: string): void {
-    this.store.delete(key);
-  }
+	delete(key: string): void {
+		this._store.delete(key);
+	}
 
-  get size(): number {
-    return this.store.size;
-  }
+	get size(): number {
+		return this._store.size;
+	}
 
-  clear(): void {
-    this.store.clear();
-  }
+	clear(): void {
+		this._store.clear();
+	}
 }

@@ -1,33 +1,46 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const mockRouter = {
-  get: jest.fn(),
+const MOCK_ROUTER = {
+	get: jest.fn(),
 };
-const mockController = { listEvents: jest.fn(), getEvent: jest.fn(), getStats: jest.fn() };
+const MOCK_CONTROLLER = {
+	listEvents: jest.fn(),
+	getEvent: jest.fn(),
+	getStats: jest.fn(),
+};
 
-jest.mock('express', () => ({
-  Router: jest.fn(() => mockRouter),
+jest.mock("express", () => ({
+	Router: jest.fn(() => MOCK_ROUTER),
 }));
 
-jest.mock('../../../src/controllers/events.controller', () => ({
-  createEventsController: jest.fn(() => mockController),
+jest.mock("../../../src/controllers/events.controller", () => ({
+	createEventsController: jest.fn(() => MOCK_CONTROLLER),
 }));
 
-import { eventsRoutes } from '../../../src/routes/events.routes';
+import { eventsRoutes } from "../../../src/routes/events.routes";
 
-describe('eventsRoutes', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+describe("eventsRoutes", () => {
+	beforeEach(() => {
+		jest.clearAllMocks();
+	});
 
-  it('should register GET routes for events', () => {
-    const auditRepo = {} as any;
+	it("should register GET routes for events", () => {
+		const auditRepo = {} as any;
 
-    const router = eventsRoutes(auditRepo);
+		const router = eventsRoutes(auditRepo);
 
-    expect(router).toBe(mockRouter);
-    expect(mockRouter.get).toHaveBeenCalledWith('/events', mockController.listEvents);
-    expect(mockRouter.get).toHaveBeenCalledWith('/events/stats', mockController.getStats);
-    expect(mockRouter.get).toHaveBeenCalledWith('/events/:messageId', mockController.getEvent);
-  });
+		expect(router).toBe(MOCK_ROUTER);
+		expect(MOCK_ROUTER.get).toHaveBeenCalledWith(
+			"/events",
+			MOCK_CONTROLLER.listEvents
+		);
+		expect(MOCK_ROUTER.get).toHaveBeenCalledWith(
+			"/events/stats",
+			MOCK_CONTROLLER.getStats
+		);
+		expect(MOCK_ROUTER.get).toHaveBeenCalledWith(
+			"/events/:messageId",
+			MOCK_CONTROLLER.getEvent
+		);
+	});
 });

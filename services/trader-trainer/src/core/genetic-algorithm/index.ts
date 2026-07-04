@@ -2,77 +2,87 @@
 //   index.ts — Public API & usage example
 // ================================================================
 
-// Core primitives
-export { clamp, generateId } from './utils';
-export { makePRNG } from './prng';
-export { sampleNoise, sampleGaussian, sampleCauchy, sampleUniform, sampleLevy } from './noise';
-
-// Genome lifecycle
-export { createDefaultGenome } from './factory';
-export { mutateGenome, mutateLayer, adaptSigma } from './mutation';
-export { crossoverGenomes, crossoverScalar } from './crossover';
-export { selectParent } from './selection';
-export { computeFitness, shapeReward } from './fitness';
-
-// Validation & repair
-export type { ValidationResult, ValidationError } from './validation';
-export { validateGenome, repairGenome } from './validation';
-
+export type { StopCondition } from "./adaptive-control-system";
+// Adaptive control system
+export {
+	adaptGAControl,
+	checkTerminationConditions,
+} from "./adaptive-control-system";
 // Complexity & topology
-export type { TopologyConstraints, TopologyViolation } from './complexity';
+export type { TopologyConstraints, TopologyViolation } from "./complexity";
 export {
-  DEFAULT_TOPOLOGY_CONSTRAINTS,
-  complexityScore,
-  countParams,
-  checkTopologyConstraints,
-  penalisedFitness,
-  rejectIfViolating,
-} from './complexity';
-
+	checkTopologyConstraints,
+	complexityScore,
+	countParams,
+	DEFAULT_TOPOLOGY_CONSTRAINTS,
+	penalisedFitness,
+	rejectIfViolating,
+} from "./complexity";
+export type { ComplexityProfile } from "./complexity-estimator";
+// Complexity estimation
+export {
+	computeAdjustedFitness,
+	estimateComplexity,
+} from "./complexity-estimator";
+export { crossoverGenomes, crossoverScalar } from "./crossover";
 // Diversity & novelty
-export type { Species, DiversityMetrics, NoveltyArchiveConfig } from './diversity';
+export type {
+	DiversityMetrics,
+	NoveltyArchiveConfig,
+	Species,
+} from "./diversity";
 export {
-  genomicDistance,
-  speciate,
-  diversityMetrics,
-  noveltyScore,
-  updateNoveltyArchive,
-} from './diversity';
-
+	diversityMetrics,
+	genomicDistance,
+	noveltyScore,
+	speciate,
+	updateNoveltyArchive,
+} from "./diversity";
 // Compact vectorised encoding
 export {
-  ENCODED_DIM,
-  encodeGenome,
-  decodeGenome,
-  encodePopulation,
-  decodePopulation,
-} from './encoding';
-
-// Main orchestrator
-export { GeneticAlgorithmRunner, makeTradingAgentBackend } from './ga-runner';
-export type { RLBackend, WindowSet, GARunnerConfig, GenerationContext } from './ga-runner';
-
+	decodeGenome,
+	decodePopulation,
+	ENCODED_DIM,
+	encodeGenome,
+	encodePopulation,
+} from "./encoding";
+export type { BackendFactory } from "./evaluation-pipeline";
 // Evaluation pipeline
-export { evaluateGenomeAllWindows, pooledEval } from './evaluation-pipeline';
-export type { BackendFactory } from './evaluation-pipeline';
-
-// Pareto optimization (NSGA-II)
-export { ParetoArchive, buildPopulationMeta, dominates } from './pareto-engine';
-export type { ObjectiveVector, PopulationMeta } from './pareto-engine';
-
-// Complexity estimation
-export { estimateComplexity, computeAdjustedFitness } from './complexity-estimator';
-export type { ComplexityProfile } from './complexity-estimator';
-
-// Adaptive control system
-export { adaptGAControl, checkTerminationConditions } from './adaptive-control-system';
-export type { StopCondition } from './adaptive-control-system';
-
+export { evaluateGenomeAllWindows, pooledEval } from "./evaluation-pipeline";
 // Evolution engine (genetic operators)
 export {
-  crossoverWeights,
-  mutateWeights,
-  selectParent as selectParentEvolution,
-  mutateGenome as mutateGenomeEvolution,
-  crossoverGenomes as crossoverGenomesEvolution,
-} from './evolution-engine';
+	crossoverGenomes as crossoverGenomesEvolution,
+	crossoverWeights,
+	mutateGenome as mutateGenomeEvolution,
+	mutateWeights,
+	selectParent as selectParentEvolution,
+} from "./evolution-engine";
+// Genome lifecycle
+export { createDefaultGenome } from "./factory";
+export { computeFitness, shapeReward } from "./fitness";
+export type {
+	GARunnerConfig,
+	GenerationContext,
+	RLBackend,
+	WindowSet,
+} from "./ga-runner";
+// Main orchestrator
+export { GeneticAlgorithmRunner, makeTradingAgentBackend } from "./ga-runner";
+export { adaptSigma, mutateGenome, mutateLayer } from "./mutation";
+export {
+	sampleCauchy,
+	sampleGaussian,
+	sampleLevy,
+	sampleNoise,
+	sampleUniform,
+} from "./noise";
+export type { ObjectiveVector, PopulationMeta } from "./pareto-engine";
+// Pareto optimization (NSGA-II)
+export { buildPopulationMeta, dominates, ParetoArchive } from "./pareto-engine";
+export { makePRNG } from "./prng";
+export { selectParent } from "./selection";
+// Core primitives
+export { clamp, generateId } from "./utils";
+// Validation & repair
+export type { ValidationError, ValidationResult } from "./validation";
+export { repairGenome, validateGenome } from "./validation";

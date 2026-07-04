@@ -1,229 +1,246 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock('os', () => ({
-  cpus: jest.fn(() => Array(4).fill({})),
+jest.mock("os", () => ({
+	cpus: jest.fn(() => new Array(4).fill({})),
 }));
 
-const mockCronSchedule = jest.fn<any>();
-jest.mock('node-cron', () => ({
-  schedule: mockCronSchedule,
+const MOCK_CRON_SCHEDULE = jest.fn<any>();
+jest.mock("node-cron", () => ({
+	schedule: MOCK_CRON_SCHEDULE,
 }));
 
-const mockLimit = jest.fn((fn: Function) => fn());
-jest.mock('p-limit', () => {
-  const pLimit = jest.fn(() => mockLimit);
-  return pLimit;
+const MOCK_LIMIT = jest.fn((fn: (...args: unknown[]) => unknown) => fn());
+jest.mock("p-limit", () => {
+	const pLimit = jest.fn(() => MOCK_LIMIT);
+	return pLimit;
 });
 
-jest.mock('@trading-model/common/config/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-  },
+jest.mock("@trading-model/common/config/logger", () => ({
+	logger: {
+		info: jest.fn(),
+		warn: jest.fn(),
+		error: jest.fn(),
+		debug: jest.fn(),
+	},
 }));
 
-const mockWorkerRun = jest.fn<any>();
-jest.mock('../../../../src/job/worker/binance.worker', () => ({
-  BinanceWorker: jest.fn(() => ({
-    run: mockWorkerRun,
-  })),
+const MOCK_WORKER_RUN = jest.fn<any>();
+jest.mock("../../../../src/job/worker/binance.worker", () => ({
+	BinanceWorker: jest.fn(() => ({
+		run: MOCK_WORKER_RUN,
+	})),
 }));
 
-jest.mock('../../../../src/infra/market-data/market-data.controller', () => ({
-  MarketDataController: {
-    persist: jest.fn<any>(),
-  },
+jest.mock("../../../../src/infra/market-data/market-data.controller", () => ({
+	MarketDataController: {
+		persist: jest.fn<any>(),
+	},
 }));
 
-import { BinanceCronOrchestrator } from '../../../../src/job/cron/binance.cron';
-import { logger } from '@trading-model/common/config/logger';
-import { MarketDataController } from '../../../../src/infra/market-data/market-data.controller';
+import { logger } from "@trading-model/common/config/logger";
+import { MarketDataController } from "../../../../src/infra/market-data/market-data.controller";
+import { BinanceCronOrchestrator } from "../../../../src/job/cron/binance.cron";
 
-const mockLogger = jest.mocked(logger);
-const mockPersist = jest.mocked(MarketDataController.persist);
+const MOCK_LOGGER = jest.mocked(logger);
+const MOCK_PERSIST = jest.mocked(MarketDataController.persist);
 
-const getCronHandler = (): Function => mockCronSchedule.mock.calls[0][1] as Function;
+const GET_CRON_HANDLER = (): ((...args: unknown[]) => Promise<unknown>) =>
+	MOCK_CRON_SCHEDULE.mock.calls[0][1] as (
+		...args: unknown[]
+	) => Promise<unknown>;
 
-describe('BinanceCronOrchestrator', () => {
-  const defaultConfig = {
-    schedule: '*/1 * * * *',
-    symbols: ['BTCUSDT', 'ETHUSDT'],
-  };
+describe("BinanceCronOrchestrator", () => {
+	const defaultConfig = {
+		schedule: "*/1 * * * *",
+		symbols: ["BTCUSDT", "ETHUSDT"],
+	};
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockWorkerRun.mockResolvedValue({ fetchedAt: Date.now() });
-  });
+	beforeEach(() => {
+		jest.clearAllMocks();
+		MOCK_WORKER_RUN.mockResolvedValue({ fetchedAt: Date.now() });
+	});
 
-  describe('constructor', () => {
-    it('should create instance with default concurrency based on cpus * 2', () => {
-      const orchestrator = new BinanceCronOrchestrator({ ...defaultConfig });
-      expect(orchestrator).toBeDefined();
-    });
+	describe("constructor", () => {
+		it("should create instance with default concurrency based on cpus * 2", () => {
+			const orchestrator = new BinanceCronOrchestrator({ ...defaultConfig });
+			expect(orchestrator).toBeDefined();
+		});
 
-    it('should use provided maxConcurrency when specified', () => {
-      const orchestrator = new BinanceCronOrchestrator({
-        ...defaultConfig,
-        maxConcurrency: 3,
-      });
-      expect(orchestrator).toBeDefined();
-    });
+		it("should use provided maxConcurrency when specified", () => {
+			const orchestrator = new BinanceCronOrchestrator({
+				...defaultConfig,
+				maxConcurrency: 3,
+			});
+			expect(orchestrator).toBeDefined();
+		});
 
-    it('should cap concurrency at symbols length', () => {
-      const orchestrator = new BinanceCronOrchestrator({
-        schedule: '*/1 * * * *',
-        symbols: ['BTCUSDT'],
-        maxConcurrency: 100,
-      });
-      expect(orchestrator).toBeDefined();
-    });
-  });
+		it("should cap concurrency at symbols length", () => {
+			const orchestrator = new BinanceCronOrchestrator({
+				schedule: "*/1 * * * *",
+				symbols: ["BTCUSDT"],
+				maxConcurrency: 100,
+			});
+			expect(orchestrator).toBeDefined();
+		});
+	});
 
-  describe('start', () => {
-    it('should schedule cron with provided schedule', () => {
-      const orchestrator = new BinanceCronOrchestrator(defaultConfig);
-      orchestrator.start();
-      expect(mockCronSchedule).toHaveBeenCalledWith('*/1 * * * *', expect.any(Function));
-    });
+	describe("start", () => {
+		it("should schedule cron with provided schedule", () => {
+			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
+			orchestrator.start();
+			expect(MOCK_CRON_SCHEDULE).toHaveBeenCalledWith(
+				"*/1 * * * *",
+				expect.any(Function)
+			);
+		});
 
-    it('should log info on start', () => {
-      const orchestrator = new BinanceCronOrchestrator(defaultConfig);
-      orchestrator.start();
-      expect(mockLogger.info).toHaveBeenCalled();
-    });
+		it("should log info on start", () => {
+			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
+			orchestrator.start();
+			expect(MOCK_LOGGER.info).toHaveBeenCalled();
+		});
 
-    it('should execute batch when cron fires', async () => {
-      const orchestrator = new BinanceCronOrchestrator(defaultConfig);
-      orchestrator.start();
+		it("should execute batch when cron fires", async () => {
+			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
+			orchestrator.start();
 
-      const cronHandler = getCronHandler();
-      mockWorkerRun.mockResolvedValue({ fetchedAt: Date.now() });
-      mockPersist.mockResolvedValue(undefined);
+			const cronHandler = GET_CRON_HANDLER();
+			MOCK_WORKER_RUN.mockResolvedValue({ fetchedAt: Date.now() });
+			MOCK_PERSIST.mockResolvedValue(undefined);
 
-      await cronHandler();
+			await cronHandler();
 
-      expect(mockWorkerRun).toHaveBeenCalledTimes(2);
-      expect(mockPersist).toHaveBeenCalledTimes(2);
-    });
+			expect(MOCK_WORKER_RUN).toHaveBeenCalledTimes(2);
+			expect(MOCK_PERSIST).toHaveBeenCalledTimes(2);
+		});
 
-    it('should skip execution if already running', async () => {
-      const orchestrator = new BinanceCronOrchestrator(defaultConfig);
-      orchestrator.start();
+		it("should skip execution if already running", async () => {
+			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
+			orchestrator.start();
 
-      const cronHandler = getCronHandler();
+			const cronHandler = GET_CRON_HANDLER();
 
-      let resolveFirstRun: Function;
-      const firstRunPromise = new Promise<void>(resolve => {
-        resolveFirstRun = resolve;
-      });
+			let resolveFirstRun: () => void;
+			const firstRunPromise = new Promise<void>((resolve) => {
+				resolveFirstRun = resolve;
+			});
 
-      mockWorkerRun.mockImplementationOnce(
-        () =>
-          new Promise<void>(resolve =>
-            setTimeout(() => {
-              resolve();
-              resolveFirstRun!();
-            }, 100)
-          )
-      );
-      mockPersist.mockResolvedValue(undefined);
+			MOCK_WORKER_RUN.mockImplementationOnce(
+				() =>
+					new Promise<void>((resolve) =>
+						setTimeout(() => {
+							resolve();
+							resolveFirstRun!();
+						}, 100)
+					)
+			);
+			MOCK_PERSIST.mockResolvedValue(undefined);
 
-      const run1 = cronHandler();
-      const run2 = cronHandler();
+			const run1 = cronHandler();
+			const run2 = cronHandler();
 
-      await firstRunPromise;
-      await run1;
-      await run2;
+			await firstRunPromise;
+			await run1;
+			await run2;
 
-      expect(mockLogger.warn).toHaveBeenCalledWith('Previous execution still running');
-    });
+			expect(MOCK_LOGGER.warn).toHaveBeenCalledWith(
+				"Previous execution still running"
+			);
+		});
 
-    it('should handle errors during batch execution', async () => {
-      const orchestrator = new BinanceCronOrchestrator(defaultConfig);
-      orchestrator.start();
+		it("should handle errors during batch execution", async () => {
+			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
+			orchestrator.start();
 
-      const cronHandler = getCronHandler();
-      mockWorkerRun.mockRejectedValue(new Error('Worker failed'));
+			const cronHandler = GET_CRON_HANDLER();
+			MOCK_WORKER_RUN.mockRejectedValue(new Error("Worker failed"));
 
-      await expect(cronHandler()).resolves.toBeUndefined();
-      expect(mockLogger.error).toHaveBeenCalled();
-    });
+			await expect(cronHandler()).resolves.toBeUndefined();
+			expect(MOCK_LOGGER.error).toHaveBeenCalled();
+		});
 
-    it('should handle unknown errors during batch execution', async () => {
-      const orchestrator = new BinanceCronOrchestrator(defaultConfig);
-      orchestrator.start();
+		it("should handle unknown errors during batch execution", async () => {
+			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
+			orchestrator.start();
 
-      const cronHandler = getCronHandler();
-      mockWorkerRun.mockRejectedValue('String error' as never);
+			const cronHandler = GET_CRON_HANDLER();
+			MOCK_WORKER_RUN.mockRejectedValue("String error" as never);
 
-      await expect(cronHandler()).resolves.toBeUndefined();
-      expect(mockLogger.error).toHaveBeenCalledWith('Unknown batch execution error', {
-        err: 'String error',
-      });
-    });
+			await expect(cronHandler()).resolves.toBeUndefined();
+			expect(MOCK_LOGGER.error).toHaveBeenCalledWith(
+				"Unknown batch execution error",
+				{
+					err: "String error",
+				}
+			);
+		});
 
-    it('should reset isRunning after execution', async () => {
-      const orchestrator = new BinanceCronOrchestrator(defaultConfig);
-      orchestrator.start();
+		it("should reset isRunning after execution", async () => {
+			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
+			orchestrator.start();
 
-      const cronHandler = getCronHandler();
-      mockWorkerRun.mockResolvedValue({ fetchedAt: Date.now() });
-      mockPersist.mockResolvedValue(undefined);
+			const cronHandler = GET_CRON_HANDLER();
+			MOCK_WORKER_RUN.mockResolvedValue({ fetchedAt: Date.now() });
+			MOCK_PERSIST.mockResolvedValue(undefined);
 
-      await cronHandler();
-      await cronHandler();
+			await cronHandler();
+			await cronHandler();
 
-      expect(mockLogger.warn).not.toHaveBeenCalled();
-      expect(mockWorkerRun).toHaveBeenCalledTimes(4);
-    });
+			expect(MOCK_LOGGER.warn).not.toHaveBeenCalled();
+			expect(MOCK_WORKER_RUN).toHaveBeenCalledTimes(4);
+		});
 
-    it('should use default candle interval when not provided', async () => {
-      const orchestrator = new BinanceCronOrchestrator(defaultConfig);
-      orchestrator.start();
+		it("should use default candle interval when not provided", async () => {
+			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
+			orchestrator.start();
 
-      const cronHandler = getCronHandler();
-      const BinanceWorker = (jest.requireMock('../../../../src/job/worker/binance.worker') as any)
-        .BinanceWorker;
+			const cronHandler = GET_CRON_HANDLER();
+			const BinanceWorker = (
+				jest.requireMock("../../../../src/job/worker/binance.worker") as any
+			).BinanceWorker;
 
-      mockWorkerRun.mockResolvedValue({ fetchedAt: Date.now() });
-      mockPersist.mockResolvedValue(undefined);
+			MOCK_WORKER_RUN.mockResolvedValue({ fetchedAt: Date.now() });
+			MOCK_PERSIST.mockResolvedValue(undefined);
 
-      await cronHandler();
+			await cronHandler();
 
-      expect(BinanceWorker).toHaveBeenCalledWith(expect.objectContaining({ interval: '1m' }));
-    });
+			expect(BinanceWorker).toHaveBeenCalledWith(
+				expect.objectContaining({ interval: "1m" })
+			);
+		});
 
-    it('should use provided candle interval', async () => {
-      const orchestrator = new BinanceCronOrchestrator({
-        ...defaultConfig,
-        candleInterval: '5m',
-      });
-      orchestrator.start();
+		it("should use provided candle interval", async () => {
+			const orchestrator = new BinanceCronOrchestrator({
+				...defaultConfig,
+				candleInterval: "5m",
+			});
+			orchestrator.start();
 
-      const cronHandler = getCronHandler();
-      const BinanceWorker = (jest.requireMock('../../../../src/job/worker/binance.worker') as any)
-        .BinanceWorker;
+			const cronHandler = GET_CRON_HANDLER();
+			const BinanceWorker = (
+				jest.requireMock("../../../../src/job/worker/binance.worker") as any
+			).BinanceWorker;
 
-      mockWorkerRun.mockResolvedValue({ fetchedAt: Date.now() });
-      mockPersist.mockResolvedValue(undefined);
+			MOCK_WORKER_RUN.mockResolvedValue({ fetchedAt: Date.now() });
+			MOCK_PERSIST.mockResolvedValue(undefined);
 
-      await cronHandler();
+			await cronHandler();
 
-      expect(BinanceWorker).toHaveBeenCalledWith(expect.objectContaining({ interval: '5m' }));
-    });
-  });
+			expect(BinanceWorker).toHaveBeenCalledWith(
+				expect.objectContaining({ interval: "5m" })
+			);
+		});
+	});
 
-  describe('persist', () => {
-    it('should call MarketDataController.persist with data', async () => {
-      const data = { fetchedAt: Date.now() };
-      const orchestrator = new BinanceCronOrchestrator(defaultConfig);
+	describe("persist", () => {
+		it("should call MarketDataController.persist with data", async () => {
+			const data = { fetchedAt: Date.now() };
+			const orchestrator = new BinanceCronOrchestrator(defaultConfig);
 
-      await (orchestrator as any).persist(data);
+			await (orchestrator as any).persist(data);
 
-      expect(mockPersist).toHaveBeenCalledWith(data);
-      expect(mockLogger.debug).toHaveBeenCalled();
-    });
-  });
+			expect(MOCK_PERSIST).toHaveBeenCalledWith(data);
+			expect(MOCK_LOGGER.debug).toHaveBeenCalled();
+		});
+	});
 });

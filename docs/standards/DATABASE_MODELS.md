@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS `market_candles` (
 **TS entity interface** (`@trading-model/common` — `packages/common/src/config/event.types.ts`):
 
 ```ts
-interface CandleEntity extends BaseMarketEntity {
+interface CandleData extends BaseMarketData {
   open: number;
   high: number;
   low: number;
@@ -102,7 +102,7 @@ CREATE TABLE `market_trades` (
 **TS entity interface** (`@trading-model/common`):
 
 ```ts
-interface TradeEntity extends BaseMarketEntity {
+interface TradeData extends BaseMarketData {
   price: number;
   tradeId: bigint;
   quantity: number;
@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS `market_tickers` (
 **TS entity interface** (`@trading-model/common`):
 
 ```ts
-interface TickerEntity extends BaseMarketEntity {
+interface TickerData extends BaseMarketData {
   low: number;
   open: number;
   high: number;
@@ -164,12 +164,12 @@ interface TickerEntity extends BaseMarketEntity {
 
 ---
 
-### Shared base interface (`BaseMarketEntity`)
+### Shared base interface (`BaseMarketData`)
 
-All market entities extend:
+All market data interfaces extend:
 
 ```ts
-interface BaseMarketEntity {
+interface BaseMarketData {
   symbol: string;
   source: SourceType; // 'binance' | 'nyse' | 'bloomberg'
   timestamp: number;
@@ -183,7 +183,14 @@ interface BaseMarketEntity {
 
 MongoDB 7 is provisioned in `docker-compose.yml` for the `message-manager` service (connection string: `mongodb://mongo:27017/message-manager`).
 
-**Currently, no Mongoose models or MongoDB schemas are defined in the codebase.** The message broker operates entirely in-memory with **Zod validation schemas** (`services/message-manager/src/messaging/transport/validation/broker.schema.ts`) that enforce the shape of published messages, subscriptions, and metadata. Persistence to MongoDB is **planned but not yet implemented**.
+**No Mongoose models are defined in the codebase.** MongoDB is accessed through the native `mongodb` driver in several services:
+
+- **certificate-authority** — certificate storage, CRL, CA metadata, tokens, nonces, audit, distributed locks
+- **audit-logger** — audit event persistence
+- **dlq-service** — dead letter entry storage
+- **message-manager** — message archival store
+
+The message broker also uses **Zod validation schemas** (`services/message-manager/src/messaging/transport/validation/broker.schema.ts`) to enforce the shape of published messages, subscriptions, and metadata.
 
 ---
 
@@ -191,8 +198,8 @@ MongoDB 7 is provisioned in `docker-compose.yml` for the `message-manager` servi
 
 These interfaces exist in `@trading-model/common` but have **no corresponding table** yet:
 
-- `OrderBookEntity` — order book depth snapshots (`bids` / `asks`)
-- `BookTickerEntity` — best bid/ask ticker (`bid`, `ask`, `bidQty`, `askQty`)
+- `OrderBookData` — order book depth snapshots (`bids` / `asks`)
+- `BookTickerData` — best bid/ask ticker (`bid`, `ask`, `bidQty`, `askQty`)
 
 ---
 

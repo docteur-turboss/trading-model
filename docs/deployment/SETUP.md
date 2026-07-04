@@ -50,6 +50,9 @@ Compiles the monorepo packages in this order:
 1. `common` (`packages/common`)
 2. `address-manager` (`packages/address-manager`)
 3. `broker-message` (`packages/broker-message`)
+4. `certificate-utils` (`packages/certificate-utils`)
+
+Packages are used by all 9 microservices as `@trading-model/*` workspace dependencies.
 
 ### 4. Generate TLS certificates
 
@@ -108,20 +111,39 @@ First run downloads database images (MongoDB 7, MySQL 8) and builds service imag
 docker compose ps
 ```
 
-All 6 services should show `Up` or `healthy`:
+All 10 containers should show `Up` or `healthy`:
 
 ```
 trading-mongo      Up (healthy)
 trading-mysql      Up (healthy)
 trading-discovery  Up (healthy)
+trading-ca         Up (healthy)
 trading-message    Up (healthy)
 trading-scraper    Up (healthy)
 trading-trainer    Up (healthy)
+trading-gateway    Up (healthy)
+trading-audit      Up (healthy)
+trading-admin      Up (healthy)
 ```
 
 ```bash
-curl -k https://localhost:8443/ping   # discovery-server responds
-docker compose logs -f                # real-time logs
+# Verify core services
+curl -sk https://localhost:8443/ping     # discovery-server
+curl -sk https://localhost:8444/ping     # message-manager
+curl -sk https://localhost:8445/ping     # financial-scraper
+curl -sk https://localhost:8446/ping     # trader-trainer
+curl -sk https://localhost:8447/ping     # certificate-authority
+curl -sk https://localhost:8448/ping     # api-gateway
+curl -sk https://localhost:8450/ping     # audit-logger
+
+# Admin interface (HTTP)
+curl http://localhost:8449/
+
+# List registered services
+curl -sk https://localhost:8443/services | jq .
+
+# Real-time logs
+docker compose logs -f
 ```
 
 ### 9. Run tests
@@ -408,22 +430,30 @@ docker compose ps
 Expected:
 
 ```
-NAME               IMAGE                                          STATUS
-trading-mongo      mongo:7                                        Up (healthy)
-trading-mysql      mysql:8                                        Up (healthy)
-trading-discovery  ghcr.io/trading-model/discovery-server:latest  Up (healthy)
-trading-message    ghcr.io/trading-model/message-manager:latest   Up (healthy)
-trading-scraper    ghcr.io/trading-model/financial-scraper:latest Up (healthy)
-trading-trainer    ghcr.io/trading-model/trader-trainer:latest    Up (healthy)
+NAME               IMAGE                                                   STATUS
+trading-mongo      mongo:7                                                 Up (healthy)
+trading-mysql      mysql:8                                                 Up (healthy)
+trading-discovery  ghcr.io/trading-model/discovery-server:latest           Up (healthy)
+trading-ca         ghcr.io/trading-model/certificate-authority:latest      Up (healthy)
+trading-message    ghcr.io/trading-model/message-manager:latest            Up (healthy)
+trading-scraper    ghcr.io/trading-model/financial-scraper:latest          Up (healthy)
+trading-trainer    ghcr.io/trading-model/trader-trainer:latest             Up (healthy)
+trading-gateway    ghcr.io/trading-model/api-gateway:latest                Up (healthy)
+trading-audit      ghcr.io/trading-model/audit-logger:latest               Up (healthy)
+trading-admin      ghcr.io/trading-model/admin-interface:latest            Up (healthy)
 ```
 
 Individual health checks:
 
 ```bash
 curl -sk https://localhost:8443/ping    # Discovery Server
-curl -sk https://localhost:8444/health  # Message Manager
-curl -sk https://localhost:8445/health  # Financial Scraper
-curl -sk https://localhost:8446/health  # Trader Trainer
+curl -sk https://localhost:8444/ping    # Message Manager
+curl -sk https://localhost:8445/ping    # Financial Scraper
+curl -sk https://localhost:8446/ping    # Trader Trainer
+curl -sk https://localhost:8447/ping    # Certificate Authority
+curl -sk https://localhost:8448/ping    # API Gateway
+curl -sk https://localhost:8450/ping    # Audit Logger
+curl http://localhost:8449/             # Admin Interface (HTTP)
 ```
 
 List registered services:

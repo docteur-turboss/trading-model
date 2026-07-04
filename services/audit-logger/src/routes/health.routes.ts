@@ -1,20 +1,20 @@
-import { Router } from 'express';
+import { Router } from "express";
 
-import { createHealthController } from '../controllers/health.controller';
-import { BackPressure } from '../scheduler/back-pressure';
-import { InternalQueue } from '../scheduler/internal-queue';
-import { WorkerRegistry } from '../worker/worker-registry';
+import { createHealthController } from "../controllers/health.controller";
+import type { BackPressure } from "../scheduler/back-pressure";
+import type { InternalQueue } from "../scheduler/internal-queue";
+import type { WorkerRegistry } from "../worker/worker-registry";
 
 export function healthRoutes(
-  queue: InternalQueue,
-  backPressure: BackPressure,
-  workers: WorkerRegistry
+	queue: InternalQueue,
+	backPressure: BackPressure,
+	workers: WorkerRegistry
 ): Router {
-  const router = Router();
-  const controller = createHealthController(queue, backPressure, workers);
+	const router = Router();
+	const controller = createHealthController(queue, backPressure, workers);
 
-  router.get('/ping', controller.ping);
-  router.get('/health', controller.health);
+	router.get("/ping", controller.ping);
+	router.get("/health", controller.health);
 
-  return router;
+	return router;
 }

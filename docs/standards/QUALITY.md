@@ -8,8 +8,8 @@ Guarantee that code is production-ready, maintainable over time, and respects th
 
 | Tool           | Usage                      | Configuration                 |
 | -------------- | -------------------------- | ----------------------------- |
-| **ESLint**     | Static code analysis       | `eslint.config.mjs`           |
-| **Prettier**   | Automatic formatting       | `.prettierrc`                 |
+| **Biome**     | Static code analysis + formatting | `biome.json`           |
+| **Biome**      | Automatic formatting + lint | `biome.json`                  |
 | **Jest**       | Unit and integration tests | `jest.config.js` (per module) |
 | **TypeScript** | Type checking              | `tsconfig.json` (per module)  |
 | **commitlint** | Commit message validation  | `.commitlintrc`               |
@@ -26,7 +26,7 @@ Triggered on every `git commit` — fast, must pass in seconds:
 npx lint-staged
 ```
 
-`lint-staged` applies Prettier and ESLint only to modified files.
+`lint-staged` applies `@biomejs/biome` only to modified files.
 
 ### Pre-push (Husky)
 
@@ -50,83 +50,36 @@ npm run test:coverage
 
 ## Linting
 
-- **0 ESLint errors** — No tolerance in CI
+- **0 Biome errors** — No tolerance in CI
 - **Warnings** — Tolerated short-term but must trend toward 0
 - Linting covers all `.ts`, `.js`, `.mjs`, `.cjs` files
 - Test files (`.spec.ts`) and fixtures are excluded from linting
 
 ```bash
-npm run lint  # npx eslint . --ext .ts,.js,.mjs,.cjs
+npm run lint  # npx @biomejs/biome check .
 ```
 
-### ESLint Configuration
+### Biome Configuration
 
-```javascript
-// eslint.config.mjs - ROOT CONFIG (flat config, shared across monorepo)
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
-import js from '@eslint/js';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
-import { globalIgnores, defineConfig } from 'eslint/config';
+Configuration at root `biome.json`:
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-export default defineConfig([
-  globalIgnores([
-    '**/dist/**',
-    '**/*.spec.ts',
-    '**/jest.config.*',
-    '**/jest.setup.ts',
-    '**/setup.ts',
-    '**/tests/fixtures/**',
-    '**/tests/helpers/**',
-    '**/docs/architecture/code/**',
-  ]),
-  {
-    files: ['**/*.{js,mjs,cjs}'],
-    extends: [js.configs.recommended],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      globals: globals.node,
-    },
+```json
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "organizeImports": { "enabled": true },
+  "linter": {
+    "enabled": true,
+    "rules": { "recommended": true }
   },
-  {
-    files: ['**/*.ts'],
-    extends: [js.configs.recommended, tseslint.configs.recommended],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      globals: globals.node,
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: __dirname,
-      },
-    },
-    plugins: { ix },
-    rules: {
-      'ix/order': ['error', {
-        groups: [['builtin'], ['external'], ['internal'], ['parent', 'sibling'], ['index']],
-        pathGroups: [{ pattern: '@trading-model/**', group: 'internal', position: 'after' }],
-        pathGroupsExcludedImportTypes: ['builtin'],
-        newlines-between: 'always',
-        alphabetize: { order: 'asc' },
-      }],
-    },
-    settings: {
-      'import-x/resolver': {
-        typescript: {
-          alwaysTryTypes: true,
-          project: ['packages/*/tsconfig.json', 'packages/*/tsconfig.build.json', 'services/*/tsconfig.json'],
-        },
-      },
-    },
-  },
-]);
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  }
+}
 ```
 
-Ignored files: `**/dist/**`, `**/*.spec.ts`, `**/jest.config.*`, `**/jest.setup.ts`, `**/setup.ts`, `**/tests/fixtures/**`, `**/tests/helpers/**`, `**/docs/architecture/code/**`
-
-Import order enforced via `eslint-plugin-import-x` (see `eslint.config.mjs` for full rule config).
+Import order enforced via Biome's `organizeImports` (see `biome.json`).
 
 ## Test Coverage
 

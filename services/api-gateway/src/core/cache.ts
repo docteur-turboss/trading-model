@@ -1,53 +1,62 @@
-export interface CacheEntry<T = unknown> {
-  data: T;
-  status: number;
-  expiresAt: number;
+export interface CacheEntry<TData = unknown> {
+	data: TData;
+	status: number;
+	expiresAt: number;
 }
 
 export class ResponseCache {
-  private readonly store = new Map<string, CacheEntry>();
+	private readonly _store = new Map<string, CacheEntry>();
 
-  private readonly defaultTtlMs: number;
+	private readonly _defaultTtlMs: number;
 
-  constructor(defaultTtlMs: number) {
-    this.defaultTtlMs = defaultTtlMs;
-  }
+	constructor(defaultTtlMs: number) {
+		this._defaultTtlMs = defaultTtlMs;
+	}
 
-  get<T = unknown>(key: string): CacheEntry<T> | undefined {
-    const entry = this.store.get(key);
-    if (!entry) return undefined;
+	get<TData = unknown>(key: string): CacheEntry<TData> | undefined {
+		const entry = this._store.get(key);
+		if (!entry) {
+			return;
+		}
 
-    if (Date.now() > entry.expiresAt) {
-      this.store.delete(key);
-      return undefined;
-    }
+		if (Date.now() > entry.expiresAt) {
+			this._store.delete(key);
+			return;
+		}
 
-    return entry as CacheEntry<T>;
-  }
+		return entry as CacheEntry<TData>;
+	}
 
-  set<T = unknown>(key: string, data: T, status: number, ttlMs?: number): void {
-    this.store.set(key, {
-      data,
-      status,
-      expiresAt: Date.now() + (ttlMs ?? this.defaultTtlMs),
-    });
-  }
+	set<TData = unknown>(
+		key: string,
+		data: TData,
+		status: number,
+		ttlMs?: number
+	): void {
+		this._store.set(key, {
+			data,
+			status,
+			expiresAt: Date.now() + (ttlMs ?? this._defaultTtlMs),
+		});
+	}
 
-  invalidate(pattern: string): void {
-    const regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*'));
+	invalidate(pattern: string): void {
+		const regex = new RegExp(
+			pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\*/g, ".*")
+		);
 
-    for (const key of this.store.keys()) {
-      if (regex.test(key)) {
-        this.store.delete(key);
-      }
-    }
-  }
+		for (const key of this._store.keys()) {
+			if (regex.test(key)) {
+				this._store.delete(key);
+			}
+		}
+	}
 
-  clear(): void {
-    this.store.clear();
-  }
+	clear(): void {
+		this._store.clear();
+	}
 
-  get size(): number {
-    return this.store.size;
-  }
+	get size(): number {
+		return this._store.size;
+	}
 }

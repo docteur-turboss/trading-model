@@ -1,6 +1,6 @@
 # @trading-model/certificate-utils — Certificate Utilities
 
-Lightweight, synchronous X.509 certificate utility library using only Node.js built-in `node:crypto`. No external crypto dependencies.
+Lightweight X.509 certificate utility library using Node.js built-in `node:crypto` and `node-forge` for CSR and PEM operations.
 
 ## Overview
 
@@ -9,6 +9,7 @@ Lightweight, synchronous X.509 certificate utility library using only Node.js bu
 ## Dependencies
 
 - `@trading-model/common` — types only
+- `node-forge` — CSR/PEM parsing and ASN.1 encoding
 - `node:crypto` (built-in) — `generateKeyPairSync`, `createSign`, `createVerify`, `createPublicKey`, `createHash`, `randomUUID`
 
 ---
@@ -162,12 +163,10 @@ Checks performed:
 
 1. Signature verification against the CA public key
 2. `notBefore` ≤ now ≤ `notAfter`
-3. CA chain validation (if `caChain` present — see hierarchical CA)
-4. Root CA self-signature verification (if chain present)
 
 Returns `{ valid: false, reason: '…' }` for malformed PEM, expired certs, signature mismatch, or parsing errors.
 
-**Validation cache**: Results are cached in an in-memory LRU cache (1000 entries, 60s TTL). Repeated calls with the same `certPem` return the cached result without re-parsing or re-verifying. Call `clearValidationCache()` to reset.
+**Validation cache**: Currently a no-op. `clearValidationCache()` exists as a stub; no in-memory cache is implemented.
 
 ### certificateInfo
 
@@ -257,12 +256,12 @@ In the context of the `certificate-authority` service, a single `POST /api/v1/ce
 | Validation                     | < 10 ms synchronous                             | Negligible                                                                                             |
 | CRL revocation expiry          | 365 days (hardcoded)                            | Revocations never auto-clean after 1 year                                                              |
 | CRL entries                    | Unlimited in-memory array                       | No pagination; grows unbounded                                                                         |
-| Coverage enforcement           | 100 % branches / functions / lines / statements | Quality guarantee; `maxWorkers: 1` confirms no parallelism                                             |
-| Validation cache               | 1000 entries / 60s TTL / LRU eviction           | Caches `validateCertificate` results by PEM hash; avoids re-parsing and re-verifying on repeated calls |
+| Coverage enforcement           | 80 % branches / functions / lines / statements  | Quality guarantee; `maxWorkers: 1` confirms no parallelism                                             |
+| Validation cache               | None (no-op stub)                               | `clearValidationCache()` exists but no caching is implemented                                           |
 
 ### Orphan Detector / Re-Allocator
 
-Not present. This package has zero awareness of `@trading-model/common/recovery/`. The orphan detector and re-allocator belong to the **job worker system** (worker-registry, job-queue) used by `job-scheduler` and `audit-logger` — completely orthogonal.
+Not present. This package has zero awareness of `@trading-model/common/recovery/`. The orphan detector and re-allocator belong to the **job worker system** (worker-registry, job-queue) used by `audit-logger` — completely orthogonal.
 
 ### Workers
 

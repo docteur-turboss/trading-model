@@ -1,7 +1,11 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      diagnostics: { ignoreCodes: [151002] },
+    }],
+  },
   rootDir: '.',
   testMatch: ['**/?(*.)+(spec).ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
@@ -17,10 +21,10 @@ module.exports = {
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
   coverageThreshold: {
     global: {
-      branches: 10,
-      functions: 10,
-      lines: 10,
-      statements: 10,
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
     },
   },
 };

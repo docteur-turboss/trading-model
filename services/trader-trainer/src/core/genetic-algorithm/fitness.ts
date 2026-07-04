@@ -2,8 +2,8 @@
 //            fitness computation & reward shaping
 // ================================================================
 
-import type { FitnessType, RewardShapingGenome } from './genome-types';
-import { clamp } from './utils';
+import type { FitnessType, RewardShapingGenome } from "./genome-types";
+import { clamp } from "./utils";
 
 // ----------------------------------------------------------------
 // Fitness aggregation
@@ -16,54 +16,66 @@ import { clamp } from './utils';
  * @param scores  Per-episode returns.
  */
 export function computeFitness(type: FitnessType, scores: number[]): number {
-  if (scores.length === 0) return -Infinity;
+	if (scores.length === 0) {
+		return Number.NEGATIVE_INFINITY;
+	}
 
-  const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
+	const mean = scores.reduce((sum, value) => sum + value, 0) / scores.length;
 
-  switch (type) {
-    case 'total_pnl':
-      return mean;
+	switch (type) {
+		case "total_pnl":
+			return mean;
 
-    case 'sharpe': {
-      const variance =
-        scores.map(v => (v - mean) ** 2).reduce((s, v) => s + v, 0) /
-        Math.max(1, scores.length - 1);
-      const std = Math.sqrt(variance);
-      return std < 1e-10 ? mean : mean / std;
-    }
+		case "sharpe": {
+			const variance =
+				scores
+					.map((value) => (value - mean) ** 2)
+					.reduce((sum, value) => sum + value, 0) /
+				Math.max(1, scores.length - 1);
+			const std = Math.sqrt(variance);
+			return std < 1e-10 ? mean : mean / std;
+		}
 
-    case 'sortino': {
-      const negReturns = scores.filter(v => v < 0);
-      const downDev =
-        negReturns.length === 0
-          ? 1e-10
-          : Math.sqrt(negReturns.map(v => v ** 2).reduce((s, v) => s + v, 0) / negReturns.length);
-      return mean / downDev;
-    }
+		case "sortino": {
+			const negReturns = scores.filter((value) => value < 0);
+			const downDev =
+				negReturns.length === 0
+					? 1e-10
+					: Math.sqrt(
+							negReturns
+								.map((value) => value ** 2)
+								.reduce((sum, value) => sum + value, 0) / negReturns.length
+						);
+			return mean / downDev;
+		}
 
-    case 'calmar': {
-      // Calmar = mean return / max drawdown (computed on cumulative returns)
-      let maxDD = 0;
-      let peak = -Infinity;
-      let running = 0;
-      for (const r of scores) {
-        running += r;
-        if (running > peak) peak = running;
-        const dd = peak - running;
-        if (dd > maxDD) maxDD = dd;
-      }
-      return maxDD < 1e-10 ? mean : mean / maxDD;
-    }
+		case "calmar": {
+			// Calmar = mean return / max drawdown (computed on cumulative returns)
+			let maxDD = 0;
+			let peak = Number.NEGATIVE_INFINITY;
+			let running = 0;
+			for (const result of scores) {
+				running += result;
+				if (running > peak) {
+					peak = running;
+				}
+				const dd = peak - running;
+				if (dd > maxDD) {
+					maxDD = dd;
+				}
+			}
+			return maxDD < 1e-10 ? mean : mean / maxDD;
+		}
 
-    case 'composite': {
-      const sharpe = computeFitness('sharpe', scores);
-      const sortino = computeFitness('sortino', scores);
-      return 0.4 * mean + 0.3 * sharpe + 0.3 * sortino;
-    }
+		case "composite": {
+			const sharpe = computeFitness("sharpe", scores);
+			const sortino = computeFitness("sortino", scores);
+			return 0.4 * mean + 0.3 * sharpe + 0.3 * sortino;
+		}
 
-    default:
-      return mean;
-  }
+		default:
+			return mean;
+	}
 }
 
 // ----------------------------------------------------------------
@@ -75,8 +87,12 @@ export function computeFitness(type: FitnessType, scores: number[]): number {
  * Z-score normalisation is handled externally via running statistics.
  */
 export function shapeReward(raw: number, cfg: RewardShapingGenome): number {
-  let r = raw;
-  if (cfg.scale) r *= cfg.scaleFactor;
-  if (cfg.clip) r = clamp(r, cfg.clipMin, cfg.clipMax);
-  return r;
+	let result = raw;
+	if (cfg.scale) {
+		result *= cfg.scaleFactor;
+	}
+	if (cfg.clip) {
+		result = clamp(result, cfg.clipMin, cfg.clipMax);
+	}
+	return result;
 }

@@ -1,12 +1,11 @@
-import { Router } from 'express';
+import { PING_PATH } from "@trading-model/common/server/constants";
+import { Router } from "express";
 
-import { PING_PATH } from '@trading-model/common/server/constants';
+import { pingController } from "../ping.controller";
 
-import { pingController } from '../ping.controller';
+const ROUTER = Router();
 
-const router = Router();
-
-router.get(PING_PATH, pingController);
+ROUTER.get(PING_PATH, pingController);
 
 /** Express router that mounts the ping health-check endpoint. */
-export const pingRoutes = router;
+export const PING_ROUTES = ROUTER;

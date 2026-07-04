@@ -1,38 +1,36 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
-
-import Redis, { Cluster, RedisOptions } from 'ioredis';
-
-import { logger } from '@trading-model/common/config/logger';
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
-import {
-  RegistryBackend,
-  ServiceInstance,
-} from '@trading-model/common/contracts/service-registry.types';
-import { generateRandomStr } from '@trading-model/common/crypto/random';
-import { normalizeError } from '@trading-model/common/utils/errors';
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { logger } from "@trading-model/common/config/logger";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type {
+	RegistryBackend,
+	ServiceInstance,
+} from "@trading-model/common/contracts/service-registry.types";
+import { generateRandomStr } from "@trading-model/common/crypto/random";
+import { normalizeError } from "@trading-model/common/utils/errors";
+import Redis, { Cluster, type RedisOptions } from "ioredis";
 
 // ─── Connection Configuration Types ─────────────────────────────────────────
 
 export interface RedisSentinelConfig {
-  /** Sentinel nodes to discover the current master. */
-  sentinels: Array<{ host: string; port: number }>;
-  /** Logical name of the master set (default: mymaster). */
-  name: string;
-  /** Optional password for Redis (when requirepass is set). */
-  password?: string;
+	/** Sentinel nodes to discover the current master. */
+	sentinels: Array<{ host: string; port: number }>;
+	/** Logical name of the master set (default: mymaster). */
+	name: string;
+	/** Optional password for Redis (when requirepass is set). */
+	password?: string;
 }
 
 export interface RedisClusterNodesConfig {
-  /** Cluster seed nodes. The Cluster client discovers the full topology. */
-  nodes: Array<{ host: string; port: number }>;
-  /** Optional password for Cluster nodes. */
-  password?: string;
+	/** Cluster seed nodes. The Cluster client discovers the full topology. */
+	nodes: Array<{ host: string; port: number }>;
+	/** Optional password for Cluster nodes. */
+	password?: string;
 }
 
 export type RedisConnectionConfig =
-  | { mode: 'single'; url: string }
-  | { mode: 'sentinel'; config: RedisSentinelConfig }
-  | { mode: 'cluster'; config: RedisClusterNodesConfig };
+	| { mode: "single"; url: string }
+	| { mode: "sentinel"; config: RedisSentinelConfig }
+	| { mode: "cluster"; config: RedisClusterNodesConfig };
 
 // ─── Backend ────────────────────────────────────────────────────────────────
 
@@ -63,358 +61,427 @@ export type RedisConnectionConfig =
  * only storage is distributed.
  */
 export class RedisRegistryBackend implements RegistryBackend {
-  private readonly redis: Redis | Cluster;
-  private readonly prefix: string;
-  private readonly signingSecret: string;
-  private readonly cleanupIntervalMs: number;
-  private cleanupHandle?: NodeJS.Timeout;
+	private readonly _redis: Redis | Cluster;
+	private readonly _prefix: string;
+	private readonly _signingSecret: string;
+	private readonly _cleanupIntervalMs: number;
+	private _cleanupHandle?: NodeJS.Timeout;
 
-  constructor(
-    configOrUrl: string | RedisConnectionConfig,
-    prefix = 'discovery:',
-    signingSecret?: string,
-    cleanupIntervalMs = 10_000
-  ) {
-    this.signingSecret = signingSecret ?? randomBytes(32).toString('hex');
-    this.cleanupIntervalMs = cleanupIntervalMs;
+	constructor(
+		configOrUrl: string | RedisConnectionConfig,
+		prefix = "discovery:",
+		signingSecret?: string,
+		cleanupIntervalMs = 10_000
+	) {
+		this._signingSecret = signingSecret ?? randomBytes(32).toString("hex");
+		this._cleanupIntervalMs = cleanupIntervalMs;
 
-    // In Cluster mode, wrap the prefix with hash-tag braces so all multi()-related
-    // keys hash to the same slot and avoid CROSSSLOT errors.
-    const isCluster = typeof configOrUrl !== 'string' && configOrUrl.mode === 'cluster';
-    this.prefix = isCluster ? `{${prefix.replace(/[{}]/g, '').replace(/:$/, '')}}:` : prefix;
+		// In Cluster mode, wrap the prefix with hash-tag braces so all multi()-related
+		// keys hash to the same slot and avoid CROSSSLOT errors.
+		const isCluster =
+			typeof configOrUrl !== "string" && configOrUrl.mode === "cluster";
+		this._prefix = isCluster
+			? `{${prefix.replace(/[{}]/g, "").replace(/:$/, "")}}:`
+			: prefix;
 
-    const baseOptions: RedisOptions = {
-      retryStrategy: (times: number) => {
-        const delay = Math.min(times * 200, 5000);
-        return delay;
-      },
-      maxRetriesPerRequest: 5,
-      lazyConnect: true,
-    };
+		const baseOptions: RedisOptions = {
+			retryStrategy: (times: number) => {
+				const delay = Math.min(times * 200, 5000);
+				return delay;
+			},
+			maxRetriesPerRequest: 5,
+			lazyConnect: true,
+		};
 
-    if (typeof configOrUrl === 'string') {
-      // Legacy: single Redis URL
-      this.redis = new Redis(configOrUrl, baseOptions);
-    } else {
-      switch (configOrUrl.mode) {
-        case 'single':
-          this.redis = new Redis(configOrUrl.url, baseOptions);
-          break;
+		if (typeof configOrUrl === "string") {
+			// Legacy: single Redis URL
+			this._redis = new Redis(configOrUrl, baseOptions);
+		} else {
+			switch (configOrUrl.mode) {
+				case "single":
+					this._redis = new Redis(configOrUrl.url, baseOptions);
+					break;
 
-        case 'sentinel': {
-          const { sentinels, name, password } = configOrUrl.config;
-          this.redis = new Redis({
-            ...baseOptions,
-            sentinels,
-            name,
-            password,
-            // SentinelConnector requires an explicit role; 'master' by default
-          });
-          break;
-        }
+				case "sentinel": {
+					const { sentinels, name, password } = configOrUrl.config;
+					this._redis = new Redis({
+						...baseOptions,
+						sentinels,
+						name,
+						password,
+						// SentinelConnector requires an explicit role; 'master' by default
+					});
+					break;
+				}
 
-        case 'cluster': {
-          const { nodes, password } = configOrUrl.config;
-          // Cluster doesn't support multi-key operations across slots.
-          // Register/remove operations use multi() on keys that may span
-          // different slots — use hash tags ({prefix}) in key names when
-          // running in Cluster mode to keep them on the same slot.
-          this.redis = new Cluster(nodes, {
-            redisOptions: {
-              ...baseOptions,
-              password,
-            },
-            clusterRetryStrategy: (times: number) => {
-              const delay = Math.min(times * 200, 5000);
-              return delay;
-            },
-          });
-          break;
-        }
+				case "cluster": {
+					const { nodes, password } = configOrUrl.config;
+					// Cluster doesn't support multi-key operations across slots.
+					// Register/remove operations use multi() on keys that may span
+					// different slots — use hash tags ({prefix}) in key names when
+					// running in Cluster mode to keep them on the same slot.
+					this._redis = new Cluster(nodes, {
+						redisOptions: {
+							...baseOptions,
+							password,
+						},
+						clusterRetryStrategy: (times: number) => {
+							const delay = Math.min(times * 200, 5000);
+							return delay;
+						},
+					});
+					break;
+				}
 
-        default:
-          throw new Error(
-            `Unknown Redis connection mode: ${(configOrUrl as RedisConnectionConfig).mode}`
-          );
-      }
-    }
+				default:
+					throw new Error(
+						`Unknown Redis connection mode: ${(configOrUrl as RedisConnectionConfig).mode}`
+					);
+			}
+		}
 
-    this.redis.on('error', (err: Error) => {
-      logger.error('Redis connection error', { error: normalizeError(err) });
-    });
-  }
+		this._redis.on("error", (err: Error) => {
+			logger.error("Redis connection error", { error: normalizeError(err) });
+		});
+	}
 
-  // ─── Registration ──────────────────────────────────────────────────────────
+	// ─── Registration ──────────────────────────────────────────────────────────
 
-  async registerInstance(instance: ServiceInstance): Promise<string> {
-    const { serviceName, instanceId } = instance;
-    const now = Date.now();
+	async registerInstance(instance: ServiceInstance): Promise<string> {
+		const { serviceName, instanceId } = instance;
+		const now = Date.now();
 
-    // F23: Use SET NX for the token to prevent race conditions when two
-    // servers generate a token for the same instanceId — first writer wins.
-    const tokenKey = `${this.prefix}instance:${instanceId}:token`;
-    const token = this.generateInstanceToken(instanceId);
-    const tokenSet = await this.redis.set(tokenKey, token, 'NX');
-    const finalToken = tokenSet === 'OK' ? token : await this.redis.get(tokenKey);
+		// F23: Use SET NX for the token to prevent race conditions when two
+		// servers generate a token for the same instanceId — first writer wins.
+		const tokenKey = `${this._prefix}instance:${instanceId}:token`;
+		const token = this.generateInstanceToken(instanceId);
+		const tokenSet = await this._redis.set(tokenKey, token, "NX");
+		const finalToken =
+			tokenSet === "OK" ? token : await this._redis.get(tokenKey);
 
-    const multi = this.redis.multi();
+		const multi = this._redis.multi();
 
-    // Add instance to service set
-    multi.sadd(`${this.prefix}service:${serviceName}:instances`, instanceId);
+		// Add instance to service set
+		multi.sadd(`${this._prefix}service:${serviceName}:instances`, instanceId);
 
-    // Store instance metadata (always set registeredAt and lastHeartbeat server-side)
-    const storedInstance: ServiceInstance = {
-      ...instance,
-      registeredAt: instance.registeredAt ?? now,
-      lastHeartbeat: now,
-    };
+		// Store instance metadata (always set registeredAt and lastHeartbeat server-side)
+		const storedInstance: ServiceInstance = {
+			...instance,
+			registeredAt: instance.registeredAt ?? now,
+			lastHeartbeat: now,
+		};
 
-    // Check if instance already exists to preserve original registration time
-    const existingJson = await this.redis.get(`${this.prefix}instance:${instanceId}:metadata`);
-    if (existingJson) {
-      try {
-        const existing: ServiceInstance = JSON.parse(existingJson);
-        storedInstance.registeredAt = existing.registeredAt;
-        storedInstance.lastHeartbeat = Math.max(
-          storedInstance.lastHeartbeat,
-          existing.lastHeartbeat
-        );
-      } catch (err) {
-        logger.warn('Failed to parse existing instance metadata', {
-          instanceId,
-          err: normalizeError(err),
-        });
-      }
-    }
+		// Check if instance already exists to preserve original registration time
+		const existingJson = await this._redis.get(
+			`${this._prefix}instance:${instanceId}:metadata`
+		);
+		if (existingJson) {
+			try {
+				const existing: ServiceInstance = JSON.parse(existingJson);
+				storedInstance.registeredAt = existing.registeredAt;
+				storedInstance.lastHeartbeat = Math.max(
+					storedInstance.lastHeartbeat,
+					existing.lastHeartbeat
+				);
+			} catch (err) {
+				logger.warn("Failed to parse existing instance metadata", {
+					instanceId,
+					err: normalizeError(err),
+				});
+			}
+		}
 
-    multi.set(`${this.prefix}instance:${instanceId}:metadata`, JSON.stringify(storedInstance));
+		multi.set(
+			`${this._prefix}instance:${instanceId}:metadata`,
+			JSON.stringify(storedInstance)
+		);
 
-    await multi.exec();
+		await multi.exec();
 
-    return finalToken ?? token;
-  }
+		return finalToken ?? token;
+	}
 
-  // ─── Heartbeat ──────────────────────────────────────────────────────────────
+	// ─── Heartbeat ──────────────────────────────────────────────────────────────
 
-  async updateHeartbeat(serviceName: string, instanceId: string): Promise<number | false> {
-    const exists = await this.redis.sismember(
-      `${this.prefix}service:${serviceName}:instances`,
-      instanceId
-    );
+	async updateHeartbeat(
+		serviceName: string,
+		instanceId: string
+	): Promise<number | false> {
+		const exists = await this._redis.sismember(
+			`${this._prefix}service:${serviceName}:instances`,
+			instanceId
+		);
 
-    if (!exists) return false;
+		if (!exists) {
+			return false;
+		}
 
-    const json = await this.redis.get(`${this.prefix}instance:${instanceId}:metadata`);
-    if (!json) return false;
+		const json = await this._redis.get(
+			`${this._prefix}instance:${instanceId}:metadata`
+		);
+		if (!json) {
+			return false;
+		}
 
-    try {
-      const instance: ServiceInstance = JSON.parse(json);
-      // F30-32: Ensure monotonic heartbeat — clock skew must never
-      // push lastHeartbeat backwards or expire healthy instances.
-      instance.lastHeartbeat = Math.max(instance.lastHeartbeat, Date.now());
+		try {
+			const instance: ServiceInstance = JSON.parse(json);
+			// F30-32: Ensure monotonic heartbeat — clock skew must never
+			// push lastHeartbeat backwards or expire healthy instances.
+			instance.lastHeartbeat = Math.max(instance.lastHeartbeat, Date.now());
 
-      const multi = this.redis.multi();
-      multi.set(`${this.prefix}instance:${instanceId}:metadata`, JSON.stringify(instance));
-      // Tag which server last updated this instance for skew attribution
-      multi.set(`${this.prefix}instance:${instanceId}:updatedBy`, `${serviceName}:${instanceId}`);
-      await multi.exec();
+			const multi = this._redis.multi();
+			multi.set(
+				`${this._prefix}instance:${instanceId}:metadata`,
+				JSON.stringify(instance)
+			);
+			// Tag which server last updated this instance for skew attribution
+			multi.set(
+				`${this._prefix}instance:${instanceId}:updatedBy`,
+				`${serviceName}:${instanceId}`
+			);
+			await multi.exec();
 
-      return instance.ttl;
-    } catch (err) {
-      logger.warn('Failed to update heartbeat in Redis', {
-        serviceName,
-        instanceId,
-        err: normalizeError(err),
-      });
-      return false;
-    }
-  }
+			return instance.ttl;
+		} catch (err) {
+			logger.warn("Failed to update heartbeat in Redis", {
+				serviceName,
+				instanceId,
+				err: normalizeError(err),
+			});
+			return false;
+		}
+	}
 
-  // ─── Token ──────────────────────────────────────────────────────────────────
+	// ─── Token ──────────────────────────────────────────────────────────────────
 
-  async updateToken(instanceId: string): Promise<string> {
-    const newToken = this.generateInstanceToken(instanceId);
-    await this.redis.set(`${this.prefix}instance:${instanceId}:token`, newToken);
-    return newToken;
-  }
+	async updateToken(instanceId: string): Promise<string> {
+		const newToken = this.generateInstanceToken(instanceId);
+		await this._redis.set(
+			`${this._prefix}instance:${instanceId}:token`,
+			newToken
+		);
+		return newToken;
+	}
 
-  // ─── Query ──────────────────────────────────────────────────────────────────
+	// ─── Query ──────────────────────────────────────────────────────────────────
 
-  async getInstances(serviceName: string): Promise<ServiceInstance[]> {
-    const instanceIds = await this.redis.smembers(`${this.prefix}service:${serviceName}:instances`);
+	async getInstances(serviceName: string): Promise<ServiceInstance[]> {
+		const instanceIds = await this._redis.smembers(
+			`${this._prefix}service:${serviceName}:instances`
+		);
 
-    if (instanceIds.length === 0) return [];
+		if (instanceIds.length === 0) {
+			return [];
+		}
 
-    const keys = instanceIds.map(id => `${this.prefix}instance:${id}:metadata`);
-    const results = await this.redis.mget(keys);
+		const keys = instanceIds.map(
+			(id) => `${this._prefix}instance:${id}:metadata`
+		);
+		const results = await this._redis.mget(keys);
 
-    const instances: ServiceInstance[] = [];
-    for (const json of results) {
-      if (json) {
-        try {
-          instances.push(JSON.parse(json));
-        } catch (err) {
-          logger.warn('Skipping corrupt instance entry in Redis', { err: normalizeError(err) });
-        }
-      }
-    }
+		const instances: ServiceInstance[] = [];
+		for (const json of results) {
+			if (json) {
+				try {
+					instances.push(JSON.parse(json));
+				} catch (err) {
+					logger.warn("Skipping corrupt instance entry in Redis", {
+						err: normalizeError(err),
+					});
+				}
+			}
+		}
 
-    return instances;
-  }
+		return instances;
+	}
 
-  async getInstance(serviceName: string, instanceId: string): Promise<ServiceInstance | undefined> {
-    const json = await this.redis.get(`${this.prefix}instance:${instanceId}:metadata`);
-    if (!json) return undefined;
+	async getInstance(
+		_serviceName: string,
+		instanceId: string
+	): Promise<ServiceInstance | undefined> {
+		const json = await this._redis.get(
+			`${this._prefix}instance:${instanceId}:metadata`
+		);
+		if (!json) {
+			return;
+		}
 
-    try {
-      return JSON.parse(json);
-    } catch (err) {
-      logger.warn('Failed to parse instance metadata from Redis', {
-        instanceId,
-        err: normalizeError(err),
-      });
-      return undefined;
-    }
-  }
+		try {
+			return JSON.parse(json);
+		} catch (err) {
+			logger.warn("Failed to parse instance metadata from Redis", {
+				instanceId,
+				err: normalizeError(err),
+			});
+		}
+	}
 
-  // ─── Removal ────────────────────────────────────────────────────────────────
+	// ─── Removal ────────────────────────────────────────────────────────────────
 
-  async removeInstance(serviceName: string, instanceId: string): Promise<boolean> {
-    const multi = this.redis.multi();
-    multi.srem(`${this.prefix}service:${serviceName}:instances`, instanceId);
-    multi.del(`${this.prefix}instance:${instanceId}:metadata`);
-    multi.del(`${this.prefix}instance:${instanceId}:token`);
-    multi.del(`${this.prefix}instance:${instanceId}:updatedBy`);
+	async removeInstance(
+		serviceName: string,
+		instanceId: string
+	): Promise<boolean> {
+		const multi = this._redis.multi();
+		multi.srem(`${this._prefix}service:${serviceName}:instances`, instanceId);
+		multi.del(`${this._prefix}instance:${instanceId}:metadata`);
+		multi.del(`${this._prefix}instance:${instanceId}:token`);
+		multi.del(`${this._prefix}instance:${instanceId}:updatedBy`);
 
-    const results = await multi.exec();
-    if (!results) return false;
+		const results = await multi.exec();
+		if (!results) {
+			return false;
+		}
 
-    // results[0] is the srem result — [error, count]
-    const sremResult = results[0];
-    return sremResult?.[1] === 1;
-  }
+		// results[0] is the srem result — [error, count]
+		const sremResult = results[0];
+		return sremResult?.[1] === 1;
+	}
 
-  // ─── Introspection ──────────────────────────────────────────────────────────
+	// ─── Introspection ──────────────────────────────────────────────────────────
 
-  async listServiceNames(): Promise<string[]> {
-    const keys = await this.redis.keys(`${this.prefix}service:*:instances`);
-    return keys
-      .map(k => {
-        const match = k.match(new RegExp(`^${this.prefix}service:(.+):instances$`));
-        return match ? match[1] : null;
-      })
-      .filter((name): name is string => name !== null);
-  }
+	async listServiceNames(): Promise<string[]> {
+		const keys = await this._redis.keys(`${this._prefix}service:*:instances`);
+		return keys
+			.map((key) => {
+				const match = key.match(
+					new RegExp(`^${this._prefix}service:(.+):instances$`)
+				);
+				return match ? match[1] : null;
+			})
+			.filter((name): name is string => name !== null);
+	}
 
-  async dump(): Promise<Record<string, ServiceInstance[]>> {
-    const serviceNames = await this.listServiceNames();
-    const snapshot: Record<string, ServiceInstance[]> = {};
+	async dump(): Promise<Record<string, ServiceInstance[]>> {
+		const serviceNames = await this.listServiceNames();
+		const snapshot: Record<string, ServiceInstance[]> = {};
 
-    for (const name of serviceNames) {
-      snapshot[name] = await this.getInstances(name);
-    }
+		for (const name of serviceNames) {
+			snapshot[name] = await this.getInstances(name);
+		}
 
-    return snapshot;
-  }
+		return snapshot;
+	}
 
-  // ─── Token / ID validation ─────────────────────────────────────────────────
+	// ─── Token / ID validation ─────────────────────────────────────────────────
 
-  generateInstanceToken(instanceId: string): string {
-    const encodedId = Buffer.from(instanceId, 'utf8').toString('base64url');
-    const timestamp = Buffer.from(`${Date.now()}`, 'utf8').toString('base64url');
-    const nonce = generateRandomStr();
+	generateInstanceToken(instanceId: string): string {
+		const encodedId = Buffer.from(instanceId, "utf8").toString("base64url");
+		const timestamp = Buffer.from(`${Date.now()}`, "utf8").toString(
+			"base64url"
+		);
+		const nonce = generateRandomStr();
 
-    const hmac = createHmac('sha256', this.signingSecret)
-      .update(`${encodedId}.${timestamp}.${nonce}`)
-      .digest('base64url');
+		const hmac = createHmac("sha256", this._signingSecret)
+			.update(`${encodedId}.${timestamp}.${nonce}`)
+			.digest("base64url");
 
-    return `${encodedId}.${timestamp}.${nonce}.${hmac}`;
-  }
+		return `${encodedId}.${timestamp}.${nonce}.${hmac}`;
+	}
 
-  async validInstanceToken(token: string, instanceId: string): Promise<boolean> {
-    const parts = token.split('.');
-    if (parts.length !== 4) return false;
+	async validInstanceToken(
+		token: string,
+		instanceId: string
+	): Promise<boolean> {
+		const parts = token.split(".");
+		if (parts.length !== 4) {
+			return false;
+		}
 
-    const [encodedId, timestamp, nonce, signature] = parts;
+		const [encodedId, timestamp, nonce, signature] = parts;
 
-    const decodedId = Buffer.from(encodedId, 'base64url').toString('utf8');
-    if (decodedId !== instanceId) return false;
+		const decodedId = Buffer.from(encodedId, "base64url").toString("utf8");
+		if (decodedId !== instanceId) {
+			return false;
+		}
 
-    const expectedHmac = createHmac('sha256', this.signingSecret)
-      .update(`${encodedId}.${timestamp}.${nonce}`)
-      .digest('base64url');
+		const expectedHmac = createHmac("sha256", this._signingSecret)
+			.update(`${encodedId}.${timestamp}.${nonce}`)
+			.digest("base64url");
 
-    try {
-      if (!timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(signature))) {
-        return false;
-      }
-    } catch (err) {
-      logger.warn('Token validation failed', { instanceId, err: normalizeError(err) });
-      return false;
-    }
+		try {
+			if (!timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(signature))) {
+				return false;
+			}
+		} catch (err) {
+			logger.warn("Token validation failed", {
+				instanceId,
+				err: normalizeError(err),
+			});
+			return false;
+		}
 
-    const storedToken = await this.redis.get(`${this.prefix}instance:${instanceId}:token`);
-    return storedToken === token;
-  }
+		const storedToken = await this._redis.get(
+			`${this._prefix}instance:${instanceId}:token`
+		);
+		return storedToken === token;
+	}
 
-  verifyInstanceName(serviceName: string): boolean {
-    return (Object.values(ServiceInstanceName) as readonly string[]).includes(serviceName);
-  }
+	verifyInstanceName(serviceName: string): boolean {
+		return (Object.values(ServiceInstanceName) as readonly string[]).includes(
+			serviceName
+		);
+	}
 
-  // ─── Lifecycle ─────────────────────────────────────────────────────────────
+	// ─── Lifecycle ─────────────────────────────────────────────────────────────
 
-  start(): void {
-    this.redis.connect().catch(err => {
-      logger.error('Failed to connect to Redis', { error: normalizeError(err) });
-    });
+	start(): void {
+		this._redis.connect().catch((err) => {
+			logger.error("Failed to connect to Redis", {
+				error: normalizeError(err),
+			});
+		});
 
-    // F38: Add a random initial delay (0 … cleanupIntervalMs) so that
-    // multiple discovery-server instances don't run cleanup simultaneously.
-    // Clock skew is already handled by a 2000ms tolerance in
-    // cleanupExpiredInstances().
-    const initialDelay = Math.floor(Math.random() * this.cleanupIntervalMs);
-    setTimeout(() => {
-      this.cleanupHandle = setInterval(() => {
-        this.cleanupExpiredInstances().catch(err => {
-          logger.error('Redis cleanup error', { error: normalizeError(err) });
-        });
-      }, this.cleanupIntervalMs);
-    }, initialDelay);
+		// F38: Add a random initial delay (0 … cleanupIntervalMs) so that
+		// multiple discovery-server instances don't run cleanup simultaneously.
+		// Clock skew is already handled by a 2000ms tolerance in
+		// cleanupExpiredInstances().
+		const initialDelay = Math.floor(Math.random() * this._cleanupIntervalMs);
+		setTimeout(() => {
+			this._cleanupHandle = setInterval(() => {
+				this._cleanupExpiredInstances().catch((err) => {
+					logger.error("Redis cleanup error", { error: normalizeError(err) });
+				});
+			}, this._cleanupIntervalMs);
+		}, initialDelay);
 
-    logger.info('RedisRegistryBackend started', {
-      cleanupIntervalMs: this.cleanupIntervalMs,
-      initialDelay,
-    });
-  }
+		logger.info("RedisRegistryBackend started", {
+			cleanupIntervalMs: this._cleanupIntervalMs,
+			initialDelay,
+		});
+	}
 
-  stop(): void {
-    if (this.cleanupHandle) {
-      clearInterval(this.cleanupHandle);
-      this.cleanupHandle = undefined;
-    }
-    this.redis.disconnect();
-    logger.info('RedisRegistryBackend stopped');
-  }
+	stop(): void {
+		if (this._cleanupHandle) {
+			clearInterval(this._cleanupHandle);
+			this._cleanupHandle = undefined;
+		}
+		this._redis.disconnect();
+		logger.info("RedisRegistryBackend stopped");
+	}
 
-  private async cleanupExpiredInstances(): Promise<void> {
-    const CLOCK_SKEW_TOLERANCE_MS = 2000;
-    const now = Date.now();
-    const serviceNames = await this.listServiceNames();
+	private async _cleanupExpiredInstances(): Promise<void> {
+		const ClockSkewToleranceMs = 2000;
+		const now = Date.now();
+		const serviceNames = await this.listServiceNames();
 
-    for (const serviceName of serviceNames) {
-      const instances = await this.getInstances(serviceName);
+		for (const serviceName of serviceNames) {
+			const instances = await this.getInstances(serviceName);
 
-      for (const instance of instances) {
-        if (now - instance.lastHeartbeat > instance.ttl + CLOCK_SKEW_TOLERANCE_MS) {
-          logger.warn('Expired instance removed', {
-            serviceName,
-            instanceId: instance.instanceId,
-            heartbeatAge: now - instance.lastHeartbeat,
-            ttl: instance.ttl,
-          });
-          await this.removeInstance(serviceName, instance.instanceId);
-        }
-      }
-    }
-  }
+			for (const instance of instances) {
+				if (
+					now - instance.lastHeartbeat >
+					instance.ttl + ClockSkewToleranceMs
+				) {
+					logger.warn("Expired instance removed", {
+						serviceName,
+						instanceId: instance.instanceId,
+						heartbeatAge: now - instance.lastHeartbeat,
+						ttl: instance.ttl,
+					});
+					await this.removeInstance(serviceName, instance.instanceId);
+				}
+			}
+		}
+	}
 }

@@ -89,15 +89,17 @@ describe('MyComponent', () => {
 | Package / Service              | Branches | Functions | Lines | Statements | Framework |
 | ------------------------------ | -------- | --------- | ----- | ---------- | --------- |
 | @trading-model/common          | 100%     | 100%      | 100%  | 100%       | Jest      |
+| @trading-model/certificate-utils | 100%   | 100%      | 100%  | 100%       | Jest      |
 | discovery-server               | 100%     | 100%      | 100%  | 100%       | Jest      |
 | message-manager                | 100%     | 100%      | 100%  | 100%       | Jest      |
 | financial-scraper              | 100%     | 100%      | 100%  | 100%       | Jest      |
+| certificate-authority          | 100%     | 100%      | 100%  | 100%       | Jest      |
+| audit-logger                   | 100%     | 100%      | 100%  | 100%       | Jest      |
+| admin-interface                | 100%     | 100%      | 100%  | 100%       | Vitest    |
 | @trading-model/address-manager | 80%      | 80%       | 80%   | 80%        | Jest      |
 | @trading-model/broker-message  | 80%      | 80%       | 80%   | 80%        | Jest      |
 | trader-trainer                 | 80%      | 80%       | 80%   | 80%        | Jest      |
-| audit-logger                   | 100%     | 100%      | 100%  | 100%       | Jest      |
-| job-scheduler                  | 100%     | 100%      | 100%  | 100%       | Jest      |
-| admin-interface                | 100%     | 100%      | 100%  | 100%       | Vitest    |
+| dlq-service                    | 80%      | 80%       | 80%   | 80%        | Jest      |
 
 Coverage is checked by Jest on every test run. Below the threshold, tests fail.
 

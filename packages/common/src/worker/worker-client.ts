@@ -1,214 +1,222 @@
 /* eslint-disable @typescript-eslint/no-unsafe-declaration-merging */
-import { EventEmitter } from 'node:events';
+import { EventEmitter } from "node:events";
 
-import WebSocket from 'ws';
+import WebSocket from "ws";
 
-import { logger } from '../config/logger';
-import {
-  WorkerWsRegisterMessage,
-  WorkerWsHeartbeatMessage,
-  SchedulerWsJobAssignedMessage,
-  SchedulerOutgoingMessage,
-  WorkerIncomingMessage,
-} from '../contracts/worker-protocol.types';
-import { normalizeError } from '../utils/errors';
+import { logger } from "../config/logger";
+import type {
+	SchedulerOutgoingMessage,
+	SchedulerWsJobAssignedMessage,
+	WorkerIncomingMessage,
+	WorkerWsHeartbeatMessage,
+	WorkerWsRegisterMessage,
+} from "../contracts/worker-protocol.types";
+import { normalizeError } from "../utils/errors";
 
 export interface WorkerClientConfig {
-  workerId: string;
-  serverUrl: string;
-  capabilities: string[];
-  maxConcurrency: number;
-  heartbeatIntervalMs?: number;
-  reconnectBaseDelayMs?: number;
-  reconnectMaxDelayMs?: number;
+	workerId: string;
+	serverUrl: string;
+	capabilities: string[];
+	maxConcurrency: number;
+	heartbeatIntervalMs?: number;
+	reconnectBaseDelayMs?: number;
+	reconnectMaxDelayMs?: number;
 }
 
 export interface WorkerClientEvents {
-  connected: [];
-  disconnected: [];
-  'heartbeat.ack': [];
-  drain: [];
-  'job.assigned': [job: SchedulerWsJobAssignedMessage['job']];
-  reconnecting: [info: { attempt: number; delay: number }];
-  error: [error: Error];
-  unknown: [message: Record<string, unknown>];
+	connected: [];
+	disconnected: [];
+	"heartbeat.ack": [];
+	drain: [];
+	"job.assigned": [job: SchedulerWsJobAssignedMessage["job"]];
+	reconnecting: [info: { attempt: number; delay: number }];
+	error: [error: Error];
+	unknown: [message: Record<string, unknown>];
 }
 
-export declare interface WorkerClient {
-  on<Event extends keyof WorkerClientEvents>(
-    event: Event,
-    listener: (...args: WorkerClientEvents[Event]) => void
-  ): this;
-  emit<Event extends keyof WorkerClientEvents>(
-    event: Event,
-    ...args: WorkerClientEvents[Event]
-  ): boolean;
-}
-
-function normalizeConfig(config: WorkerClientConfig): Required<WorkerClientConfig> {
-  return {
-    workerId: config.workerId,
-    serverUrl: config.serverUrl,
-    capabilities: config.capabilities,
-    maxConcurrency: config.maxConcurrency,
-    heartbeatIntervalMs: config.heartbeatIntervalMs ?? 15000,
-    reconnectBaseDelayMs: config.reconnectBaseDelayMs ?? 1000,
-    reconnectMaxDelayMs: config.reconnectMaxDelayMs ?? 30000,
-  };
+function normalizeConfig(
+	config: WorkerClientConfig
+): Required<WorkerClientConfig> {
+	return {
+		workerId: config.workerId,
+		serverUrl: config.serverUrl,
+		capabilities: config.capabilities,
+		maxConcurrency: config.maxConcurrency,
+		heartbeatIntervalMs: config.heartbeatIntervalMs ?? 15000,
+		reconnectBaseDelayMs: config.reconnectBaseDelayMs ?? 1000,
+		reconnectMaxDelayMs: config.reconnectMaxDelayMs ?? 30000,
+	};
 }
 
 export class WorkerClient extends EventEmitter {
-  private ws: WebSocket | null = null;
-  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private reconnectAttempt = 0;
-  private currentLoad = 0;
-  private intentionalClose = false;
-  private readonly cfg: Required<WorkerClientConfig>;
+	on<Event extends keyof WorkerClientEvents>(
+		event: Event,
+		listener: (...args: WorkerClientEvents[Event]) => void
+	): this {
+		return super.on(event, listener as (...args: unknown[]) => void);
+	}
 
-  constructor(config: WorkerClientConfig) {
-    super();
-    this.cfg = normalizeConfig(config);
-  }
+	emit<Event extends keyof WorkerClientEvents>(
+		event: Event,
+		...args: WorkerClientEvents[Event]
+	): boolean {
+		return super.emit(event, ...args);
+	}
 
-  async connect(): Promise<void> {
-    this.intentionalClose = false;
-    this.reconnectAttempt = 0;
-    return this.doConnect();
-  }
+	private _ws: WebSocket | null = null;
+	private _heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+	private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	private _reconnectAttempt = 0;
+	private _currentLoad = 0;
+	private _intentionalClose = false;
+	private readonly _cfg: Required<WorkerClientConfig>;
 
-  private doConnect(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(this.cfg.serverUrl);
+	constructor(config: WorkerClientConfig) {
+		super();
+		this._cfg = normalizeConfig(config);
+	}
 
-      this.ws.on('open', () => {
-        this.reconnectAttempt = 0;
-        this.sendRegister();
-        this.startHeartbeat();
-        this.emit('connected');
-        resolve();
-      });
+	async connect(): Promise<void> {
+		this._intentionalClose = false;
+		this._reconnectAttempt = 0;
+		return await this._doConnect();
+	}
 
-      this.ws.on('message', (data: WebSocket.Data) => {
-        try {
-          const message: Record<string, unknown> = JSON.parse(data.toString());
-          this.handleMessage(message);
-        } catch (err) {
-          this.emit('error', new Error(`Invalid message from server: ${err}`));
-        }
-      });
+	private _doConnect(): Promise<void> {
+		return new Promise((resolve, reject) => {
+			this._ws = new WebSocket(this._cfg.serverUrl);
 
-      this.ws.on('close', () => {
-        this.stopHeartbeat();
-        this.ws = null;
-        this.emit('disconnected');
-        if (!this.intentionalClose) {
-          this.scheduleReconnect();
-        }
-      });
+			this._ws.on("open", () => {
+				this._reconnectAttempt = 0;
+				this._sendRegister();
+				this._startHeartbeat();
+				this.emit("connected");
+				resolve();
+			});
 
-      this.ws.on('error', err => {
-        this.emit('error', err);
-        if (this.reconnectAttempt === 0) {
-          reject(err);
-        }
-      });
-    });
-  }
+			this._ws.on("message", (data: WebSocket.Data) => {
+				try {
+					const message: Record<string, unknown> = JSON.parse(data.toString());
+					this._handleMessage(message);
+				} catch (err) {
+					this.emit("error", new Error(`Invalid message from server: ${err}`));
+				}
+			});
 
-  private sendRegister(): void {
-    const msg: WorkerWsRegisterMessage = {
-      type: 'register',
-      workerId: this.cfg.workerId,
-      address: '',
-      port: 0,
-      capabilities: this.cfg.capabilities,
-      maxConcurrency: this.cfg.maxConcurrency,
-    };
-    this.send(msg);
-  }
+			this._ws.on("close", () => {
+				this._stopHeartbeat();
+				this._ws = null;
+				this.emit("disconnected");
+				if (!this._intentionalClose) {
+					this._scheduleReconnect();
+				}
+			});
 
-  sendHeartbeat(currentLoad: number): void {
-    this.currentLoad = currentLoad;
-    const msg: WorkerWsHeartbeatMessage = {
-      type: 'heartbeat',
-      workerId: this.cfg.workerId,
-      currentLoad,
-    };
-    this.send(msg);
-  }
+			this._ws.on("error", (err) => {
+				this.emit("error", err);
+				if (this._reconnectAttempt === 0) {
+					reject(err);
+				}
+			});
+		});
+	}
 
-  private handleMessage(message: Record<string, unknown>): void {
-    switch (message.type) {
-      case 'job.assigned':
-        this.emit('job.assigned', (message as unknown as SchedulerWsJobAssignedMessage).job);
-        break;
-      case 'heartbeat.ack':
-        this.emit('heartbeat.ack');
-        break;
-      case 'drain':
-        this.emit('drain');
-        break;
-      default:
-        this.emit('unknown', message);
-    }
-  }
+	private _sendRegister(): void {
+		const msg: WorkerWsRegisterMessage = {
+			type: "register",
+			workerId: this._cfg.workerId,
+			address: "",
+			port: 0,
+			capabilities: this._cfg.capabilities,
+			maxConcurrency: this._cfg.maxConcurrency,
+		};
+		this.send(msg);
+	}
 
-  private startHeartbeat(): void {
-    this.heartbeatTimer = setInterval(() => {
-      this.sendHeartbeat(this.currentLoad);
-    }, this.cfg.heartbeatIntervalMs);
-  }
+	sendHeartbeat(currentLoad: number): void {
+		this._currentLoad = currentLoad;
+		const msg: WorkerWsHeartbeatMessage = {
+			type: "heartbeat",
+			workerId: this._cfg.workerId,
+			currentLoad,
+		};
+		this.send(msg);
+	}
 
-  private stopHeartbeat(): void {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
-  }
+	private _handleMessage(message: Record<string, unknown>): void {
+		switch (message.type) {
+			case "job.assigned":
+				this.emit(
+					"job.assigned",
+					(message as unknown as SchedulerWsJobAssignedMessage).job
+				);
+				break;
+			case "heartbeat.ack":
+				this.emit("heartbeat.ack");
+				break;
+			case "drain":
+				this.emit("drain");
+				break;
+			default:
+				this.emit("unknown", message);
+		}
+	}
 
-  private scheduleReconnect(): void {
-    const delay = Math.min(
-      this.cfg.reconnectBaseDelayMs * Math.pow(2, this.reconnectAttempt),
-      this.cfg.reconnectMaxDelayMs
-    );
-    this.reconnectAttempt++;
-    this.emit('reconnecting', { attempt: this.reconnectAttempt, delay });
+	private _startHeartbeat(): void {
+		this._heartbeatTimer = setInterval(() => {
+			this.sendHeartbeat(this._currentLoad);
+		}, this._cfg.heartbeatIntervalMs);
+	}
 
-    this.reconnectTimer = setTimeout(() => {
-      this.doConnect().catch(err =>
-        logger.warn('Failed to reconnect worker client', {
-          attempt: this.reconnectAttempt,
-          err: normalizeError(err),
-        })
-      );
-    }, delay);
-  }
+	private _stopHeartbeat(): void {
+		if (this._heartbeatTimer) {
+			clearInterval(this._heartbeatTimer);
+			this._heartbeatTimer = null;
+		}
+	}
 
-  send(data: SchedulerOutgoingMessage | WorkerIncomingMessage): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(data));
-    }
-  }
+	private _scheduleReconnect(): void {
+		const delay = Math.min(
+			this._cfg.reconnectBaseDelayMs * 2 ** this._reconnectAttempt,
+			this._cfg.reconnectMaxDelayMs
+		);
+		this._reconnectAttempt++;
+		this.emit("reconnecting", { attempt: this._reconnectAttempt, delay });
 
-  disconnect(): void {
-    this.intentionalClose = true;
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
-    this.stopHeartbeat();
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
-  }
+		this._reconnectTimer = setTimeout(() => {
+			this._doConnect().catch((err) =>
+				logger.warn("Failed to reconnect worker client", {
+					attempt: this._reconnectAttempt,
+					err: normalizeError(err),
+				})
+			);
+		}, delay);
+	}
 
-  get isConnected(): boolean {
-    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
-  }
+	send(data: SchedulerOutgoingMessage | WorkerIncomingMessage): void {
+		if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+			this._ws.send(JSON.stringify(data));
+		}
+	}
 
-  get workerId(): string {
-    return this.cfg.workerId;
-  }
+	disconnect(): void {
+		this._intentionalClose = true;
+		if (this._reconnectTimer) {
+			clearTimeout(this._reconnectTimer);
+			this._reconnectTimer = null;
+		}
+		this._stopHeartbeat();
+		if (this._ws) {
+			this._ws.close();
+			this._ws = null;
+		}
+	}
+
+	get isConnected(): boolean {
+		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
+	}
+
+	get workerId(): string {
+		return this._cfg.workerId;
+	}
 }

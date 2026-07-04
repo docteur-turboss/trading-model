@@ -1,21 +1,20 @@
-import { Application } from 'express';
+import type { Application } from "express";
+import { MTLSAuthMiddleware } from "../middleware/mtls-auth";
+import { ResponseProtocol } from "../middleware/response-protocol";
+import { configureApp, RateLimitConfig } from "./configure-app";
+import { TlsConfig } from "./load-tls-config";
+import { createAndStartHttpsServer, HttpServer } from "./server-factory";
 
-import { configureApp, RateLimitConfig } from './configure-app';
-import { TlsConfig } from './load-tls-config';
-import { createAndStartHttpsServer, HttpServer } from './server-factory';
-import { MTLSAuthMiddleware } from '../middleware/mtls-auth';
-import { ResponseProtocol } from '../middleware/response-protocol';
-
-export { HttpServer, TlsConfig as TlsPaths, RateLimitConfig };
+export { HttpServer, RateLimitConfig, TlsConfig as TlsPaths };
 
 /** Options for creating an mTLS-secured HTTPS server. */
 export interface SecureServerOptions {
-  port: number;
-  tls: TlsConfig;
-  routes: (app: Application) => void;
-  rateLimit?: RateLimitConfig;
-  trustProxy?: boolean;
-  watchTls?: boolean;
+	port: number;
+	tls: TlsConfig;
+	routes: (app: Application) => void;
+	rateLimit?: RateLimitConfig;
+	trustProxy?: boolean;
+	watchTls?: boolean;
 }
 
 /**
@@ -26,21 +25,23 @@ export interface SecureServerOptions {
  *   - ResponseProtocol  — Global error normalisation middleware
  *   - createAndStartHttpsServer — HTTPS listener with mTLS (TLSv1.3)
  */
-export async function createSecureServer(options: SecureServerOptions): Promise<HttpServer> {
-  const app = configureApp({
-    rateLimit: options.rateLimit,
-    trustProxy: options.trustProxy,
-  });
+export async function createSecureServer(
+	options: SecureServerOptions
+): Promise<HttpServer> {
+	const app = configureApp({
+		rateLimit: options.rateLimit,
+		trustProxy: options.trustProxy,
+	});
 
-  app.use(MTLSAuthMiddleware);
+	app.use(MTLSAuthMiddleware);
 
-  options.routes(app);
+	options.routes(app);
 
-  app.use(ResponseProtocol);
+	app.use(ResponseProtocol);
 
-  return await createAndStartHttpsServer(app, {
-    port: options.port,
-    tls: options.tls,
-    watchTls: options.watchTls ?? true,
-  });
+	return await createAndStartHttpsServer(app, {
+		port: options.port,
+		tls: options.tls,
+		watchTls: options.watchTls ?? true,
+	});
 }

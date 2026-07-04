@@ -1,28 +1,33 @@
-import { EventMap } from '@trading-model/common/config/event.types';
-import { catchSync } from '@trading-model/common/middleware/catch-error';
-import { ResponseException } from '@trading-model/common/middleware/response-exception';
+import type { EventMap } from "@trading-model/common/config/event.types";
+import { catchSync } from "@trading-model/common/middleware/catch-error";
+import { ResponseException } from "@trading-model/common/middleware/response-exception";
 
-import { EventManager } from '../client/event-manager-client';
+import { EVENT_MANAGER } from "../client/event-manager-client";
 import {
-  MessageMetadataSchema,
-  MessagePayloadSchema,
-} from '../shared/helper/messages/message.schema';
+	MESSAGE_METADATA_SCHEMA,
+	MESSAGE_PAYLOAD_SCHEMA,
+} from "../shared/helper/messages/message.schema";
 
 /** Handles incoming broker messages and dispatches them to registered event listeners. */
-export const MessageController = catchSync(async req => {
-  const metadata = req.body.metadata;
-  const payload = req.body.payload;
+export const MESSAGE_CONTROLLER = catchSync(async (req) => {
+	const metadata = req.body.metadata;
+	const payload = req.body.payload;
 
-  const resultMetadata = await MessageMetadataSchema.safeParseAsync(metadata);
-  if (!resultMetadata.success)
-    throw ResponseException(resultMetadata.error!.issues[0].message).BadRequest();
+	const resultMetadata = await MESSAGE_METADATA_SCHEMA.safeParseAsync(metadata);
+	if (!resultMetadata.success) {
+		throw ResponseException(
+			resultMetadata.error!.issues[0].message
+		).badRequest();
+	}
 
-  const resultPayload = await MessagePayloadSchema.safeParseAsync({
-    type: resultMetadata.data.topic,
-    data: payload,
-  });
+	const resultPayload = await MESSAGE_PAYLOAD_SCHEMA.safeParseAsync({
+		type: resultMetadata.data.topic,
+		data: payload,
+	});
 
-  if (!resultPayload.success) throw ResponseException('Invalid payload format').BadRequest();
+	if (!resultPayload.success) {
+		throw ResponseException("Invalid payload format").BadRequest();
+	}
 
-  EventManager.emit(resultMetadata.data.topic as keyof EventMap, payload);
+	EVENT_MANAGER.emit(resultMetadata.data.topic as keyof EventMap, payload);
 });

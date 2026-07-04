@@ -1,6 +1,6 @@
-import { NextFunction, Request, Response } from 'express';
+import type { NextFunction, Request, Response } from "express";
 
-import { ResponseObject } from './response-exception';
+import type { ResponseObject } from "./response-exception";
 
 /**
  * Wraps an asynchronous Express handler and forwards any thrown errors
@@ -24,23 +24,23 @@ import { ResponseObject } from './response-exception';
  * );
  */
 export const catchSync =
-  (
-    errorFunction: (
-      req: Request,
-      res: Response,
-      next: NextFunction
-    ) => void | ResponseObject | Promise<ResponseObject | void>
-  ) =>
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const result = await errorFunction(req, res, next);
-      if (result && typeof result === 'object' && 'status' in result) {
-        res
-          .status(result.status)
-          .type('json')
-          .send((result as ResponseObject).data);
-      }
-    } catch (err) {
-      next(err);
-    }
-  };
+	(
+		errorFunction: (
+			req: Request,
+			res: Response,
+			next: NextFunction
+		) => undefined | ResponseObject | Promise<ResponseObject | undefined>
+	) =>
+	async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const result = await errorFunction(req, res, next);
+			if (result && typeof result === "object" && "status" in result) {
+				res
+					.status(result.status)
+					.type("json")
+					.send((result as ResponseObject).data);
+			}
+		} catch (err) {
+			next(err);
+		}
+	};

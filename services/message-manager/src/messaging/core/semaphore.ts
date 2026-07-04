@@ -1,53 +1,53 @@
-import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
 
 export class Semaphore {
-  private current = 0;
-  private queue: Array<() => void> = [];
+	private _current = 0;
+	private _queue: Array<() => void> = [];
 
-  constructor(
-    private max: number,
-    private maxQueue: number = Infinity
-  ) {}
+	constructor(
+		private _max: number,
+		private _maxQueue: number = Number.POSITIVE_INFINITY
+	) {}
 
-  async acquire(): Promise<void> {
-    if (this.current < this.max) {
-      this.current++;
-      return;
-    }
-    if (this.queue.length >= this.maxQueue) {
-      throw new AppError(
-        'Semaphore queue full — too many pending operations',
-        ErrorCodes.BACKPRESSURE
-      );
-    }
-    return new Promise<void>(resolve => {
-      this.queue.push(resolve);
-    });
-  }
+	acquire(): Promise<void> {
+		if (this._current < this._max) {
+			this._current++;
+			return Promise.resolve();
+		}
+		if (this._queue.length >= this._maxQueue) {
+			throw new AppError(
+				"Semaphore queue full — too many pending operations",
+				ErrorCodes.BACKPRESSURE
+			);
+		}
+		return new Promise<void>((resolve) => {
+			this._queue.push(resolve);
+		});
+	}
 
-  release(): void {
-    const next = this.queue.shift();
-    if (next) {
-      queueMicrotask(next);
-    } else {
-      this.current = Math.max(0, this.current - 1);
-    }
-  }
+	release(): void {
+		const next = this._queue.shift();
+		if (next) {
+			queueMicrotask(next);
+		} else {
+			this._current = Math.max(0, this._current - 1);
+		}
+	}
 
-  get waiting(): number {
-    return this.queue.length;
-  }
+	get waiting(): number {
+		return this._queue.length;
+	}
 
-  get running(): number {
-    return this.current;
-  }
+	get running(): number {
+		return this._current;
+	}
 
-  async run<T>(fn: () => Promise<T>): Promise<T> {
-    await this.acquire();
-    try {
-      return await fn();
-    } finally {
-      this.release();
-    }
-  }
+	async run<TData>(fn: () => Promise<TData>): Promise<TData> {
+		await this.acquire();
+		try {
+			return await fn();
+		} finally {
+			this.release();
+		}
+	}
 }

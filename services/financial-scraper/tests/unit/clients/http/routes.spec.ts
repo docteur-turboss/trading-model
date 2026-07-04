@@ -1,162 +1,166 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const mockGetTradeBySourceController = jest.fn();
-const mockGetTradeBySymbolController = jest.fn();
-const mockGetTickerBySourceController = jest.fn();
-const mockGetTickerBySymbolController = jest.fn();
-const mockGetCandlesBySourceController = jest.fn();
-const mockGetCandlesBySymbolController = jest.fn();
-const mockGetTradeByTimestampController = jest.fn();
-const mockGetOrderBookBySourceController = jest.fn();
-const mockGetTickerByTimestampController = jest.fn();
-const mockGetOrderBookBySymbolController = jest.fn();
-const mockGetCandlesByTimestampController = jest.fn();
-const mockGetOrderBookByTimestampAfterController = jest.fn();
-const mockGetOrderBookByTimestampBeforeController = jest.fn();
+const MOCK_GET_TRADE_BY_SOURCE_CONTROLLER = jest.fn();
+const MOCK_GET_TRADE_BY_SYMBOL_CONTROLLER = jest.fn();
+const MOCK_GET_TICKER_BY_SOURCE_CONTROLLER = jest.fn();
+const MOCK_GET_TICKER_BY_SYMBOL_CONTROLLER = jest.fn();
+const MOCK_GET_CANDLES_BY_SOURCE_CONTROLLER = jest.fn();
+const MOCK_GET_CANDLES_BY_SYMBOL_CONTROLLER = jest.fn();
+const MOCK_GET_TRADE_BY_TIMESTAMP_CONTROLLER = jest.fn();
+const MOCK_GET_ORDER_BOOK_BY_SOURCE_CONTROLLER = jest.fn();
+const MOCK_GET_TICKER_BY_TIMESTAMP_CONTROLLER = jest.fn();
+const MOCK_GET_ORDER_BOOK_BY_SYMBOL_CONTROLLER = jest.fn();
+const MOCK_GET_CANDLES_BY_TIMESTAMP_CONTROLLER = jest.fn();
+const MOCK_GET_ORDER_BOOK_BY_TIMESTAMP_AFTER_CONTROLLER = jest.fn();
+const MOCK_GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER = jest.fn();
 
-jest.mock('../../../../src/clients/http/controller', () => ({
-  GetTradeBySourceController: mockGetTradeBySourceController,
-  GetTradeBySymbolController: mockGetTradeBySymbolController,
-  GetTickerBySourceController: mockGetTickerBySourceController,
-  GetTickerBySymbolController: mockGetTickerBySymbolController,
-  GetCandlesBySourceController: mockGetCandlesBySourceController,
-  GetCandlesBySymbolController: mockGetCandlesBySymbolController,
-  GetTradeByTimestampController: mockGetTradeByTimestampController,
-  GetOrderBookBySourceController: mockGetOrderBookBySourceController,
-  GetTickerByTimestampController: mockGetTickerByTimestampController,
-  GetOrderBookBySymbolController: mockGetOrderBookBySymbolController,
-  GetCandlesByTimestampController: mockGetCandlesByTimestampController,
-  GetOrderBookByTimestampAfterController: mockGetOrderBookByTimestampAfterController,
-  GetOrderBookByTimestampBeforeController: mockGetOrderBookByTimestampBeforeController,
+jest.mock("../../../../src/clients/http/controller", () => ({
+	GET_TRADE_BY_SOURCE_CONTROLLER: MOCK_GET_TRADE_BY_SOURCE_CONTROLLER,
+	GET_TRADE_BY_SYMBOL_CONTROLLER: MOCK_GET_TRADE_BY_SYMBOL_CONTROLLER,
+	GET_TICKER_BY_SOURCE_CONTROLLER: MOCK_GET_TICKER_BY_SOURCE_CONTROLLER,
+	GET_TICKER_BY_SYMBOL_CONTROLLER: MOCK_GET_TICKER_BY_SYMBOL_CONTROLLER,
+	GET_CANDLES_BY_SOURCE_CONTROLLER: MOCK_GET_CANDLES_BY_SOURCE_CONTROLLER,
+	GET_CANDLES_BY_SYMBOL_CONTROLLER: MOCK_GET_CANDLES_BY_SYMBOL_CONTROLLER,
+	GET_TRADE_BY_TIMESTAMP_CONTROLLER: MOCK_GET_TRADE_BY_TIMESTAMP_CONTROLLER,
+	GET_ORDER_BOOK_BY_SOURCE_CONTROLLER: MOCK_GET_ORDER_BOOK_BY_SOURCE_CONTROLLER,
+	GET_TICKER_BY_TIMESTAMP_CONTROLLER: MOCK_GET_TICKER_BY_TIMESTAMP_CONTROLLER,
+	GET_ORDER_BOOK_BY_SYMBOL_CONTROLLER: MOCK_GET_ORDER_BOOK_BY_SYMBOL_CONTROLLER,
+	GET_CANDLES_BY_TIMESTAMP_CONTROLLER: MOCK_GET_CANDLES_BY_TIMESTAMP_CONTROLLER,
+	GET_ORDER_BOOK_BY_TIMESTAMP_AFTER_CONTROLLER:
+		MOCK_GET_ORDER_BOOK_BY_TIMESTAMP_AFTER_CONTROLLER,
+	GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER:
+		MOCK_GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER,
 }));
 
-import { FinancialRoutes } from '../../../../src/clients/http/routes';
+import { FINANCIAL_ROUTES } from "../../../../src/clients/http/routes";
 
-describe('FinancialRoutes', () => {
-  let router: any;
-  let routes: Array<{ method: string; path: string; handler: any }>;
+describe("FINANCIAL_ROUTES", () => {
+	let router: any;
+	let routes: Array<{ method: string; path: string; handler: any }>;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    routes = [];
+	beforeEach(() => {
+		jest.clearAllMocks();
+		routes = [];
 
-    const mockRouter = {
-      get: jest.fn((path: string, handler: any) => {
-        routes.push({ method: 'get', path, handler });
-        return mockRouter;
-      }),
-    };
+		const mockRouter = {
+			get: jest.fn((path: string, handler: any) => {
+				routes.push({ method: "get", path, handler });
+				return mockRouter;
+			}),
+		};
 
-    jest.spyOn(require('express'), 'Router').mockReturnValue(mockRouter);
-    router = FinancialRoutes();
-  });
+		jest.spyOn(require("express"), "Router").mockReturnValue(mockRouter);
+		router = FINANCIAL_ROUTES();
+	});
 
-  it('should create an Express router', () => {
-    expect(router).toBeDefined();
-  });
+	it("should create an Express router", () => {
+		expect(router).toBeDefined();
+	});
 
-  it('should register all trade routes', () => {
-    expect(routes.filter(r => r.path.includes('/trade'))).toHaveLength(3);
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/trade/sources/:source',
-        handler: mockGetTradeBySourceController,
-      })
-    );
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/trade/symbols/:symbol',
-        handler: mockGetTradeBySymbolController,
-      })
-    );
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/trade/timestamp/:timestamp',
-        handler: mockGetTradeByTimestampController,
-      })
-    );
-  });
+	it("should register all trade routes", () => {
+		expect(routes.filter((r) => r.path.includes("/trade"))).toHaveLength(3);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/trade/sources/:source",
+				handler: MOCK_GET_TRADE_BY_SOURCE_CONTROLLER,
+			})
+		);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/trade/symbols/:symbol",
+				handler: MOCK_GET_TRADE_BY_SYMBOL_CONTROLLER,
+			})
+		);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/trade/timestamp/:timestamp",
+				handler: MOCK_GET_TRADE_BY_TIMESTAMP_CONTROLLER,
+			})
+		);
+	});
 
-  it('should register all ticker routes', () => {
-    expect(routes.filter(r => r.path.includes('/ticker'))).toHaveLength(3);
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/ticker/sources/:source',
-        handler: mockGetTickerBySourceController,
-      })
-    );
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/ticker/symbols/:symbol',
-        handler: mockGetTickerBySymbolController,
-      })
-    );
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/ticker/timestamp/:timestamp',
-        handler: mockGetTickerByTimestampController,
-      })
-    );
-  });
+	it("should register all ticker routes", () => {
+		expect(routes.filter((r) => r.path.includes("/ticker"))).toHaveLength(3);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/ticker/sources/:source",
+				handler: MOCK_GET_TICKER_BY_SOURCE_CONTROLLER,
+			})
+		);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/ticker/symbols/:symbol",
+				handler: MOCK_GET_TICKER_BY_SYMBOL_CONTROLLER,
+			})
+		);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/ticker/timestamp/:timestamp",
+				handler: MOCK_GET_TICKER_BY_TIMESTAMP_CONTROLLER,
+			})
+		);
+	});
 
-  it('should register all candles routes', () => {
-    expect(routes.filter(r => r.path.includes('/candles'))).toHaveLength(3);
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/candles/sources/:source',
-        handler: mockGetCandlesBySourceController,
-      })
-    );
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/candles/symbols/:symbol',
-        handler: mockGetCandlesBySymbolController,
-      })
-    );
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/candles/timestamp/:timestamp',
-        handler: mockGetCandlesByTimestampController,
-      })
-    );
-  });
+	it("should register all candles routes", () => {
+		expect(routes.filter((r) => r.path.includes("/candles"))).toHaveLength(3);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/candles/sources/:source",
+				handler: MOCK_GET_CANDLES_BY_SOURCE_CONTROLLER,
+			})
+		);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/candles/symbols/:symbol",
+				handler: MOCK_GET_CANDLES_BY_SYMBOL_CONTROLLER,
+			})
+		);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/candles/timestamp/:timestamp",
+				handler: MOCK_GET_CANDLES_BY_TIMESTAMP_CONTROLLER,
+			})
+		);
+	});
 
-  it('should register all orderbook routes', () => {
-    const orderBookRoutes = routes.filter(
-      r => r.path.includes('/orderbook') || r.path.includes('/heartbeat')
-    );
-    expect(orderBookRoutes).toHaveLength(4);
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/orderbook/sources/:source',
-        handler: mockGetOrderBookBySourceController,
-      })
-    );
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/orderbook/symbols/:symbol',
-        handler: mockGetOrderBookBySymbolController,
-      })
-    );
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/orderbook/after/timestamp/:timestamp',
-        handler: mockGetOrderBookByTimestampAfterController,
-      })
-    );
-    expect(routes).toContainEqual(
-      expect.objectContaining({
-        path: '/heartbeat/before/timestamp/:timestamp',
-        handler: mockGetOrderBookByTimestampBeforeController,
-      })
-    );
-  });
+	it("should register all orderbook routes", () => {
+		const orderBookRoutes = routes.filter(
+			(r) => r.path.includes("/orderbook") || r.path.includes("/heartbeat")
+		);
+		expect(orderBookRoutes).toHaveLength(4);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/orderbook/sources/:source",
+				handler: MOCK_GET_ORDER_BOOK_BY_SOURCE_CONTROLLER,
+			})
+		);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/orderbook/symbols/:symbol",
+				handler: MOCK_GET_ORDER_BOOK_BY_SYMBOL_CONTROLLER,
+			})
+		);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/orderbook/after/timestamp/:timestamp",
+				handler: MOCK_GET_ORDER_BOOK_BY_TIMESTAMP_AFTER_CONTROLLER,
+			})
+		);
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				path: "/heartbeat/before/timestamp/:timestamp",
+				handler: MOCK_GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER,
+			})
+		);
+	});
 
-  it('should register exactly 13 routes', () => {
-    expect(routes).toHaveLength(13);
-  });
+	it("should register exactly 13 routes", () => {
+		expect(routes).toHaveLength(13);
+	});
 
-  it('should only use GET method', () => {
-    routes.forEach(r => expect(r.method).toBe('get'));
-  });
+	it("should only use GET method", () => {
+		routes.forEach((r) => {
+			expect(r.method).toBe("get");
+		});
+	});
 });

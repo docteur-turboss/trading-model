@@ -1,15 +1,15 @@
-import { Router } from 'express';
+import { Router } from "express";
 
-import { createEventsController } from '../controllers/events.controller';
-import { AuditRepository } from '../persistence/audit-repository';
+import { createEventsController } from "../controllers/events.controller";
+import type { AuditRepository } from "../persistence/audit-repository";
 
 export function eventsRoutes(auditRepo: AuditRepository): Router {
-  const router = Router();
-  const controller = createEventsController(auditRepo);
+	const router = Router();
+	const controller = createEventsController(auditRepo);
 
-  router.get('/events', controller.listEvents);
-  router.get('/events/stats', controller.getStats);
-  router.get('/events/:messageId', controller.getEvent);
+	router.get("/events", controller.listEvents);
+	router.get("/events/stats", controller.getStats);
+	router.get("/events/:messageId", controller.getEvent);
 
-  return router;
+	return router;
 }

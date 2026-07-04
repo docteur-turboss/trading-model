@@ -3,7 +3,8 @@
     --dim-toolbar-contents-height: 2.5rem;
     --dim-toolbar-border-bottom-width: 1px;
     --dim-header-height: calc(
-      var(--dim-toolbar-border-bottom-width) + var(--dim-toolbar-contents-height)
+      var(--dim-toolbar-border-bottom-width) +
+      var(--dim-toolbar-contents-height)
     );
 
     /* 0rem For mobile; unit is required for calculation in `calc` */
@@ -250,7 +251,7 @@
     }
   }
 
-  :root[data-theme='light'] {
+  :root[data-theme="light"] {
     --color-background: var(--light-color-background);
     --color-background-secondary: var(--light-color-background-secondary);
     --color-background-active: var(--light-color-background-active);
@@ -305,7 +306,7 @@
     --color-scheme: var(--light-color-scheme);
   }
 
-  :root[data-theme='dark'] {
+  :root[data-theme="dark"] {
     --color-background: var(--dark-color-background);
     --color-background-secondary: var(--dark-color-background-secondary);
     --color-background-active: var(--dark-color-background-active);
@@ -447,8 +448,11 @@
     margin: var(--dim-container-main-margin-y) auto;
     /* toolbar, footer, margin */
     min-height: calc(
-      100svh - var(--dim-header-height) - var(--dim-footer-height) - 2 *
-        var(--dim-container-main-margin-y)
+      100svh -
+      var(--dim-header-height) -
+      var(--dim-footer-height) -
+      2 *
+      var(--dim-container-main-margin-y)
     );
   }
 
@@ -489,8 +493,8 @@
   body {
     background: var(--color-background);
     font-family:
-      -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif,
-      'Apple Color Emoji', 'Segoe UI Emoji';
+      -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif,
+      "Apple Color Emoji", "Segoe UI Emoji";
     font-size: 16px;
     color: var(--color-text);
     margin: 0;
@@ -503,7 +507,7 @@
   a:hover {
     text-decoration: underline;
   }
-  a.external[target='_blank'] {
+  a.external[target="_blank"] {
     background-image: var(--external-icon);
     background-position: top 3px right;
     background-repeat: no-repeat;
@@ -518,7 +522,7 @@
 
   code,
   pre {
-    font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
     padding: 0.2em;
     margin: 0;
     font-size: 0.875rem;
@@ -692,7 +696,7 @@
     display: inline;
   }
   .tsd-breadcrumb li:after {
-    content: ' / ';
+    content: " / ";
   }
 
   .tsd-comment-tags {
@@ -726,7 +730,7 @@
 
   dl.tsd-comment-tag-group dd:before,
   dl.tsd-comment-tag-group dd:after {
-    content: ' ';
+    content: " ";
   }
   dl.tsd-comment-tag-group dd pre,
   dl.tsd-comment-tag-group dd:after {
@@ -765,14 +769,14 @@
     user-select: none;
     cursor: pointer;
   }
-  .tsd-filter-input input[type='checkbox'] {
+  .tsd-filter-input input[type="checkbox"] {
     cursor: pointer;
     position: absolute;
     width: 1.5em;
     height: 1.5em;
     opacity: 0;
   }
-  .tsd-filter-input input[type='checkbox']:disabled {
+  .tsd-filter-input input[type="checkbox"]:disabled {
     pointer-events: none;
   }
   .tsd-filter-input svg {
@@ -785,13 +789,13 @@
         Don't remove unless you know what you're doing. */
     opacity: 0.99;
   }
-  .tsd-filter-input input[type='checkbox']:focus-visible + svg {
+  .tsd-filter-input input[type="checkbox"]:focus-visible + svg {
     outline: 2px solid var(--color-focus-outline);
   }
   .tsd-checkbox-background {
     fill: var(--color-accent);
   }
-  input[type='checkbox']:checked ~ svg .tsd-checkbox-checkmark {
+  input[type="checkbox"]:checked ~ svg .tsd-checkbox-checkmark {
     stroke: var(--color-text);
   }
   .tsd-filter-input input:disabled ~ svg > .tsd-checkbox-background {
@@ -857,10 +861,10 @@
   .tsd-full-hierarchy svg[data-dropdown] {
     cursor: pointer;
   }
-  .tsd-full-hierarchy svg[data-dropdown='false'] {
+  .tsd-full-hierarchy svg[data-dropdown="false"] {
     transform: rotate(-90deg);
   }
-  .tsd-full-hierarchy svg[data-dropdown='false'] ~ ul {
+  .tsd-full-hierarchy svg[data-dropdown="false"] ~ ul {
     display: none;
   }
 
@@ -1176,7 +1180,7 @@
   #tsd-search-results > li:nth-child(even) {
     background-color: var(--color-background-secondary);
   }
-  #tsd-search-results > li:is(:hover, [aria-selected='true']) {
+  #tsd-search-results > li:is(:hover, [aria-selected="true"]) {
     background-color: var(--color-background-active);
     color: var(--color-contrast-text);
   }
@@ -1216,7 +1220,7 @@
     margin: 0 0 1rem 0;
     padding: 1rem 0.5rem;
     border: 1px solid var(--color-accent);
-    font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
     font-size: 14px;
     overflow-x: auto;
   }
@@ -1489,7 +1493,7 @@
       padding-bottom: 20px;
     }
     .overlay {
-      content: '';
+      content: "";
       display: block;
       position: fixed;
       z-index: 1023;
@@ -1545,7 +1549,7 @@
     .container-main {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-      grid-template-areas: 'sidebar content';
+      grid-template-areas: "sidebar content";
       --dim-container-main-margin-y: 2rem;
     }
 
@@ -1564,8 +1568,11 @@
   @media (min-width: 770px) and (max-width: 1399px) {
     .col-sidebar {
       max-height: calc(
-        100vh - var(--dim-header-height) - var(--dim-footer-height) - 2 *
-          var(--dim-container-main-margin-y)
+        100vh -
+        var(--dim-header-height) -
+        var(--dim-footer-height) -
+        2 *
+        var(--dim-container-main-margin-y)
       );
       overflow: auto;
       position: sticky;
@@ -1580,7 +1587,7 @@
   @media (min-width: 1200px) {
     .container-main {
       grid-template-columns: minmax(0, 1fr) minmax(0, 2.5fr) minmax(0, 20rem);
-      grid-template-areas: 'sidebar content toc';
+      grid-template-areas: "sidebar content toc";
     }
 
     .col-sidebar {
@@ -1602,8 +1609,11 @@
     .page-menu,
     .site-menu {
       max-height: calc(
-        100vh - var(--dim-header-height) - var(--dim-footer-height) - 2 *
-          var(--dim-container-main-margin-y)
+        100vh -
+        var(--dim-header-height) -
+        var(--dim-footer-height) -
+        2 *
+        var(--dim-container-main-margin-y)
       );
       overflow: auto;
       position: sticky;

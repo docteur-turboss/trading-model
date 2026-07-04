@@ -100,12 +100,26 @@ IMAGE_TAG=<tag> docker compose up -d
     "branch_stable": "main",
     "image_tag_dev": "latest",
     "image_tag_stable": "latest",
-    "services": ["discovery-server", "message-manager", "financial-scraper", "trader-trainer"],
+    "services": [
+      "discovery-server",
+      "message-manager",
+      "financial-scraper",
+      "trader-trainer",
+      "certificate-authority",
+      "api-gateway",
+      "audit-logger",
+      "dlq-service",
+      "admin-interface"
+    ],
     "health_endpoints": {
       "discovery-server": "https://localhost:8443/ping",
-      "message-manager": "https://localhost:8444/health",
-      "financial-scraper": "https://localhost:8445/health",
-      "trader-trainer": "https://localhost:8446/training-status"
+      "message-manager": "https://localhost:8444/ping",
+      "financial-scraper": "https://localhost:8445/ping",
+      "trader-trainer": "https://localhost:8446/ping",
+      "certificate-authority": "https://localhost:8447/ping",
+      "api-gateway": "https://localhost:8448/ping",
+      "audit-logger": "https://localhost:8450/ping",
+      "admin-interface": "http://localhost:8449/"
     }
   }
 }
@@ -144,12 +158,26 @@ Edit `scripts/hosts.json` on your deployment machine:
     "branch_dev": "development",
     "branch_stable": "main",
     "image_tag_dev": "latest",
-    "services": ["discovery-server", "message-manager", "financial-scraper", "trader-trainer"],
+    "services": [
+      "discovery-server",
+      "message-manager",
+      "financial-scraper",
+      "trader-trainer",
+      "certificate-authority",
+      "api-gateway",
+      "audit-logger",
+      "dlq-service",
+      "admin-interface"
+    ],
     "health_endpoints": {
       "discovery-server": "https://localhost:8443/ping",
-      "message-manager": "https://localhost:8444/health",
-      "financial-scraper": "https://localhost:8445/health",
-      "trader-trainer": "https://localhost:8446/health"
+      "message-manager": "https://localhost:8444/ping",
+      "financial-scraper": "https://localhost:8445/ping",
+      "trader-trainer": "https://localhost:8446/ping",
+      "certificate-authority": "https://localhost:8447/ping",
+      "api-gateway": "https://localhost:8448/ping",
+      "audit-logger": "https://localhost:8450/ping",
+      "admin-interface": "http://localhost:8449/"
     }
   }
 }
@@ -189,10 +217,25 @@ bash scripts/deploy-beta.sh --rollback
 
 ---
 
+## Using pre-built images (production)
+
+Instead of building locally, pull published images from GHCR:
+
+```bash
+# Authenticate to GitHub Container Registry
+echo $GITHUB_TOKEN | docker login ghcr.io -u <USERNAME> --password-stdin
+
+# Pull all services
+IMAGE_TAG=2.0.3 docker compose pull
+
+# Or pull a specific service
+docker pull ghcr.io/trading-model/discovery-server:2.0.3
+```
+
 ## Production deployment
 
 1. A tag `v*.*.*` is pushed on `main`
-2. `release.yml` builds and publishes images to `ghcr.io`
+2. `release.yml` builds and publishes 8 images to `ghcr.io`
 3. An operator manually pulls the new images on the fleet:
 
 ```bash

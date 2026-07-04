@@ -43,13 +43,24 @@ Common issues grouped by category.
 
 ---
 
+## Admin Interface
+
+| Symptom                                        | Likely cause                        | Fix                                                              |
+| ---------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------- |
+| Admin page shows blank / white screen          | Vite build error or missing assets  | Check `docker compose logs admin-interface` for build errors     |
+| `VITE_API_GATEWAY_URL` not working              | Wrong API gateway URL               | Ensure `api-gateway` is healthy and URL in `.env` is correct     |
+| Admin can't reach API                          | Network isolation                   | admin-interface is on `backend-net`; API gateway is reachable    |
+| CORS errors in browser console                 | Gateway CORS config                 | API gateway does not set CORS headers — use nginx reverse proxy  |
+
+---
+
 ## TLS / SSL
 
 | Symptom                           | Likely cause                          | Fix                                                                            |
 | --------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
 | `ECONNREFUSED` on startup         | TLS certs missing or invalid          | Run OpenSSL commands from [SETUP.md](SETUP.md) step 4                          |
 | Certificate errors in logs        | Wrong paths in `.env`                 | Verify `TLS_CERTS_DIR` and that `server-key.pem`, `server.crt`, `ca.crt` exist |
-| `wget` health check fails         | Self-signed cert not trusted          | Expected for local dev — the health check uses `--no-check-certificate`        |
+| `wget` health check fails         | Self-signed cert not trusted          | Expected for local dev — the health check uses `curl -sk` (skip verify)        |
 | `UNABLE_TO_VERIFY_LEAF_SIGNATURE` | mTLS misconfiguration                 | Regenerate certificates matching the CA chain                                  |
 | Certificate expired               | Certs generated with short expiry     | Re-run OpenSSL commands with `-days 365` or longer                             |
 | `SSL_ERROR_BAD_CERT_DOMAIN`       | Certificate CN doesn't match hostname | Use `-subj "/CN=<hostname>"` when generating server cert                       |
@@ -63,7 +74,7 @@ Common issues grouped by category.
 | `npm ci` fails                                          | Node.js < 20                            | Run `node --version`; install Node.js 20+                                       |
 | `npm run build` fails                                   | Missing dependencies                    | Run `npm ci` first (clean install from lockfile)                                |
 | Test coverage below threshold                           | New code not fully tested               | Write tests for uncovered paths. Run `npm test -- --coverage` to see the report |
-| `command not found: eslint`                             | `npm ci` not run                        | Run `npm ci` to install dev dependencies                                        |
+| `command not found: biome`                              | `npm ci` not run                        | Run `npm ci` to install dev dependencies                                        |
 | `npm ci` fails with `Missing: <package> from lock file` | Lock file out of sync with package.json | Run `npm install` to update lock file                                           |
 | `ERR_OSSL_EVP_UNSUPPORTED`                              | Node.js 17+ OpenSSL changes             | Set `NODE_OPTIONS=--openssl-legacy-provider` or upgrade to Node.js 20+          |
 
@@ -78,12 +89,12 @@ Common issues grouped by category.
 
 ---
 
-## ESLint / VS Code
+## Biome / VS Code
 
-| Symptom                                                     | Likely cause                                          | Fix                                                                                     |
-| ----------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Flat config errors in VS Code (`ConfigNotFoundException`)   | VS Code ESLint extension uses older `eslintrc` format | Update `vscode-eslint` extension to v3+ which supports flat config (`eslint.config.js`) |
-| `ESLint is disabled since its execution has been cancelled` | ESLint process timeout                                | Increase `eslint.timeout` in VS Code settings to 30000ms                                |
+| Issue                                                                        | Cause                                  | Solution                                                 |
+| ---------------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------- |
+| Biome not running in VS Code                                                 | Biome VS Code extension not installed  | Install `biomejs.biome` extension from marketplace       |
+| Biome format conflicts with editor settings                                  | Editor uses default formatter          | Set `"editor.defaultFormatter": "biomejs.biome"` in settings |
 | `Parsing error: Cannot find module 'typescript'`            | TypeScript not installed in workspace                 | Run `npm ci` to install dependencies                                                    |
 
 ---

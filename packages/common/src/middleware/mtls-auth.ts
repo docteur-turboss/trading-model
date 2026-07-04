@@ -1,16 +1,16 @@
-import { TLSSocket } from 'node:tls';
+import type { TLSSocket } from "node:tls";
 
-import { catchSync } from './catch-error';
-import { ResponseException } from './response-exception';
+import { catchSync } from "./catch-error";
+import { ResponseException } from "./response-exception";
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface Request {
-      /** Logical client identity extracted from the mTLS client certificate. */
-      clientIdentity: string;
-    }
-  }
+	// eslint-disable-next-line @typescript-eslint/no-namespace
+	namespace Express {
+		interface Request {
+			/** Logical client identity extracted from the mTLS client certificate. */
+			clientIdentity: string;
+		}
+	}
 }
 
 /**
@@ -31,92 +31,92 @@ declare global {
  *   - Mounted early in the middleware chain
  *   - Used on internal / service-to-service endpoints
  */
-export const MTLSAuthMiddleware = catchSync((req, res, next) => {
-  /**
-   * Step 0 — Validate socket is TLS
-   *
-   * `req.socket as TLSSocket` silently succeeds on non-TLS connections
-   * (HTTP, plain TCP). Verify TLS-specific properties before proceeding
-   * to ensure we fail closed when mTLS is not the transport.
-   */
-  const socket = req.socket as TLSSocket;
+export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
+	/**
+	 * Step 0 — Validate socket is TLS
+	 *
+	 * `req.socket as TLSSocket` silently succeeds on non-TLS connections
+	 * (HTTP, plain TCP). Verify TLS-specific properties before proceeding
+	 * to ensure we fail closed when mTLS is not the transport.
+	 */
+	const socket = req.socket as TLSSocket;
 
-  if (typeof socket.getPeerCertificate !== 'function') {
-    throw ResponseException(
-      JSON.stringify({
-        error: 'Non-TLS connection rejected',
-        reason: 'mTLS authentication requires a TLS socket',
-      })
-    ).Forbidden();
-  }
+	if (typeof socket.getPeerCertificate !== "function") {
+		throw ResponseException(
+			JSON.stringify({
+				error: "Non-TLS connection rejected",
+				reason: "mTLS authentication requires a TLS socket",
+			})
+		).forbidden();
+	}
 
-  /**
-   * Step 1 — Verify TLS authorization
-   *
-   * `socket.authorized` is set by Node.js during the TLS handshake.
-   * A value of `false` indicates that the client certificate failed
-   * validation (unknown CA, expired cert, invalid chain, etc.).
-   */
-  if (!socket.authorized) {
-    throw ResponseException(
-      JSON.stringify({
-        error: 'mTLS authorization failed',
-        reason: socket.authorizationError,
-      })
-    ).Forbidden();
-  }
+	/**
+	 * Step 1 — Verify TLS authorization
+	 *
+	 * `socket.authorized` is set by Node.js during the TLS handshake.
+	 * A value of `false` indicates that the client certificate failed
+	 * validation (unknown CA, expired cert, invalid chain, etc.).
+	 */
+	if (!socket.authorized) {
+		throw ResponseException(
+			JSON.stringify({
+				error: "mTLS authorization failed",
+				reason: socket.authorizationError,
+			})
+		).forbidden();
+	}
 
-  /**
-   * Step 2 — Ensure a client certificate is present
-   *
-   * Even if the TLS handshake succeeded, the peer certificate may be empty
-   * if the client did not provide one.
-   */
-  const cert = socket.getPeerCertificate();
+	/**
+	 * Step 2 — Ensure a client certificate is present
+	 *
+	 * Even if the TLS handshake succeeded, the peer certificate may be empty
+	 * if the client did not provide one.
+	 */
+	const cert = socket.getPeerCertificate();
 
-  if (!cert || Object.keys(cert).length === 0) {
-    throw ResponseException(
-      JSON.stringify({
-        error: 'Client certificate required',
-      })
-    ).Unauthorized();
-  }
+	if (!cert || Object.keys(cert).length === 0) {
+		throw ResponseException(
+			JSON.stringify({
+				error: "Client certificate required",
+			})
+		).unauthorized();
+	}
 
-  /**
-   * Step 3 — Extract client identity from certificate
-   *
-   * Identity resolution convention:
-   *  - Prefer Subject Alternative Name (SAN), if present (URI / DNS)
-   *  - Fallback to Common Name (CN)
-   *  - Fail closed with Unauthorized if neither is available
-   *
-   * This identity is considered a *logical client identifier* and
-   * should map to a service, workload, or machine identity.
-   *
-   * A default identity (e.g., "unknown") is intentionally NOT provided
-   * to avoid propagating an unresolvable identity to downstream
-   * authorization gates (fail closed, not open).
-   */
-  const raw = cert.subjectaltname ?? cert.subject?.CN;
+	/**
+	 * Step 3 — Extract client identity from certificate
+	 *
+	 * Identity resolution convention:
+	 *  - Prefer Subject Alternative Name (SAN), if present (URI / DNS)
+	 *  - Fallback to Common Name (CN)
+	 *  - Fail closed with Unauthorized if neither is available
+	 *
+	 * This identity is considered a *logical client identifier* and
+	 * should map to a service, workload, or machine identity.
+	 *
+	 * A default identity (e.g., "unknown") is intentionally NOT provided
+	 * to avoid propagating an unresolvable identity to downstream
+	 * authorization gates (fail closed, not open).
+	 */
+	const raw = cert.subjectaltname ?? cert.subject?.CN;
 
-  if (!raw) {
-    throw ResponseException(
-      JSON.stringify({
-        error: 'Client identity could not be resolved',
-        reason: 'Certificate has no SAN or CN',
-      })
-    ).Unauthorized();
-  }
-  const identity = Array.isArray(raw) ? raw.join(', ') : raw;
+	if (!raw) {
+		throw ResponseException(
+			JSON.stringify({
+				error: "Client identity could not be resolved",
+				reason: "Certificate has no SAN or CN",
+			})
+		).unauthorized();
+	}
+	const identity = Array.isArray(raw) ? raw.join(", ") : raw;
 
-  /**
-   * Step 4 — Attach identity to request context
-   *
-   * The identity is injected into the request object to be consumed
-   * by downstream middlewares, controllers, or authorization layers.
-   */
-  req.clientIdentity = identity;
+	/**
+	 * Step 4 — Attach identity to request context
+	 *
+	 * The identity is injected into the request object to be consumed
+	 * by downstream middlewares, controllers, or authorization layers.
+	 */
+	req.clientIdentity = identity;
 
-  // Continue request processing
-  next();
+	// Continue request processing
+	next();
 });

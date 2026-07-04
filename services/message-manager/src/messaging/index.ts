@@ -21,16 +21,16 @@
  * - `HttpClient` → handles secure HTTP communication
  * - `Dispatcher` → manages subscriptions and message delivery
  * - `Broker` → exposes publish/subscribe API
- * - `BrokerRoutes` → maps HTTP endpoints to broker actions
+ * - `BROKER_ROUTES` → maps HTTP endpoints to broker actions
  */
-import { Application } from 'express';
 
-import { HttpClient } from '@trading-model/common/config/http-client';
+import { HttpClient } from "@trading-model/common/config/http-client";
+import type { Application } from "express";
 
-import { BrokerConfig } from './broker.type';
-import { Dispatcher } from './core/dispatcher';
-import { DqlRepository } from './core/dlq-repository';
-import { BrokerRoutes } from './transport/http.routes';
+import type { BrokerConfig } from "./broker.type";
+import { Dispatcher } from "./core/dispatcher";
+import { DqlRepository } from "./core/dlq-repository";
+import { BROKER_ROUTES } from "./transport/http.routes";
 
 /**
  * BrokerModule
@@ -41,24 +41,24 @@ import { BrokerRoutes } from './transport/http.routes';
  * and exposes an Express listener to attach broker routes.
  */
 export default class BrokerModule {
-  /** Dispatcher managing subscriptions and message delivery */
-  private dispatcher: Dispatcher;
+	/** Dispatcher managing subscriptions and message delivery */
+	private _dispatcher: Dispatcher;
 
-  /** HTTP client for internal broker communication */
-  private httpClient: HttpClient;
+	/** HTTP client for internal broker communication */
+	private _httpClient: HttpClient;
 
-  /** Method to attach broker routes to an Express app */
-  public listen: (app: Application) => void;
+	/** Method to attach broker routes to an Express app */
+	public listen: (app: Application) => void;
 
-  /**
-   * @param config - Broker TLS and connection configuration.
-   */
-  constructor(config: BrokerConfig) {
-    this.httpClient = HttpClient.createWithTls(config);
+	/**
+	 * @param config - Broker TLS and connection configuration.
+	 */
+	constructor(config: BrokerConfig) {
+		this._httpClient = HttpClient.createWithTls(config);
 
-    const dqlRepository = new DqlRepository();
-    this.dispatcher = new Dispatcher(this.httpClient, dqlRepository);
+		const dqlRepository = new DqlRepository();
+		this._dispatcher = new Dispatcher(this._httpClient, dqlRepository);
 
-    this.listen = app => app.use(BrokerRoutes(this.dispatcher));
-  }
+		this.listen = (app) => app.use(BROKER_ROUTES(this._dispatcher));
+	}
 }

@@ -71,7 +71,7 @@ const SCOPES = [
   'docs',
   'github-actions',
   'husky',
-  'eslint',
+
 ];
 
 const stdin = process.stdin;

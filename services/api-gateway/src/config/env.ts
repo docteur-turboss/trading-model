@@ -1,23 +1,28 @@
-import { z } from 'zod';
+import {
+	BaseEnvSchema,
+	validateEnv,
+} from "@trading-model/common/validation/env";
+import { z } from "zod";
 
-import { BaseEnvSchema, validateEnv } from '@trading-model/common/validation/env';
+const API_GATEWAY_ENV_DEFS = [
+	[
+		"DISCOVERY_SERVICE_URL",
+		z.string().url().default("https://discovery-server:3000"),
+	],
+	["RATE_LIMIT_WINDOW_MS", z.coerce.number().int().positive().default(60000)],
+	["RATE_LIMIT_MAX", z.coerce.number().int().positive().default(100)],
+	["CACHE_TTL_MS", z.coerce.number().int().positive().default(30000)],
+	["AUTH_TOKEN_HEADER", z.string().default("x-api-key")],
+	["AUTH_TOKENS", z.string().default("")],
+	["PROXY_TIMEOUT_MS", z.coerce.number().int().positive().default(10000)],
+] as const satisfies readonly (readonly [string, z.ZodTypeAny])[];
 
-const ApiGatewayEnvSchema = BaseEnvSchema.extend({
-  DISCOVERY_SERVICE_URL: z.string().url().default('https://discovery-server:3000'),
+const API_GATEWAY_ENV_SHAPE = Object.fromEntries(
+	API_GATEWAY_ENV_DEFS
+) as Record<string, z.ZodTypeAny>;
 
-  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
+const API_GATEWAY_ENV_SCHEMA = BaseEnvSchema.extend(API_GATEWAY_ENV_SHAPE);
 
-  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+export type ApiGatewayEnv = z.infer<typeof API_GATEWAY_ENV_SCHEMA>;
 
-  CACHE_TTL_MS: z.coerce.number().int().positive().default(30000),
-
-  AUTH_TOKEN_HEADER: z.string().default('x-api-key'),
-
-  AUTH_TOKENS: z.string().default(''),
-
-  PROXY_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
-});
-
-export type ApiGatewayEnv = z.infer<typeof ApiGatewayEnvSchema>;
-
-export const env = validateEnv(ApiGatewayEnvSchema);
+export const ENV = validateEnv(API_GATEWAY_ENV_SCHEMA);

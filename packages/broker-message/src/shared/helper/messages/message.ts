@@ -1,209 +1,232 @@
-import {
-  DeliveryType,
-  IdentifyType,
-  MessageMetadata as MetadataType,
-  RoutingType,
-  SecurityType,
-} from '@trading-model/common/contracts/message.types';
-import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
+import type {
+	DeliveryType,
+	MessageMetadata as MetadataType,
+	RoutingType,
+	SecurityType,
+	ServiceIdentity,
+} from "@trading-model/common/contracts/message.types";
+import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
 
 import {
-  SecurityMetadataContextPredicate,
-  PublisherMetadataContextPredicate,
-  RoutingMetadataContextPredicate,
-  SchemaMetadataVersionPredicate,
-  DeliveryMetadataModePredicate,
-  EventTypeMetadataPredicate,
-  TopicMetadataPredicate,
-  IdsMetadataPredicate,
-  MessageMetadataSchema,
-} from './message.schema';
+	DELIVERY_METADATA_MODE_PREDICATE,
+	EVENT_TYPE_METADATA_PREDICATE,
+	IDS_METADATA_PREDICATE,
+	MESSAGE_METADATA_SCHEMA,
+	PUBLISHER_METADATA_CONTEXT_PREDICATE,
+	ROUTING_METADATA_CONTEXT_PREDICATE,
+	SCHEMA_METADATA_VERSION_PREDICATE,
+	SECURITY_METADATA_CONTEXT_PREDICATE,
+	TOPIC_METADATA_PREDICATE,
+} from "./message.schema";
 
 /**
  * Represents an metadata in a message
  */
 export class MessageMetadata {
-  private topic: string | undefined;
-  private eventType: string | undefined;
-  private causationId?: string;
-  private routing?: RoutingType;
-  private correlationId?: string;
-  private publisher: IdentifyType | undefined;
-  private delivery?: DeliveryType;
-  private security?: SecurityType;
-  private schemaVersion = '1.0.0';
+	public topic!: string;
+	public routing?: RoutingType;
+	public delivery?: DeliveryType;
+	public security?: SecurityType;
+	public eventType!: string;
+	public publisher!: ServiceIdentity;
+	public schemaVersion = "1.0.0";
+	private _causationId?: string;
+	private _correlationId?: string;
 
-  public constructor(data: Partial<MetadataType> = {}) {
-    MessageMetadataSchema.partial().parse(data);
+	public constructor(data: Partial<MetadataType> = {}) {
+		MESSAGE_METADATA_SCHEMA.partial().parse(data);
 
-    const { topic, routing, delivery, security, eventType, publisher, causationId, correlationId } =
-      data;
+		const {
+			topic,
+			routing,
+			delivery,
+			security,
+			eventType,
+			publisher,
+			causationId,
+			correlationId,
+		} = data;
 
-    this.routing = routing;
-    this.delivery = delivery;
-    this.security = security;
-    this.causationId = causationId;
-    this.correlationId = correlationId;
-    this.topic = topic;
-    this.eventType = eventType;
-    this.publisher = publisher;
-  }
+		this.routing = routing;
+		this.delivery = delivery;
+		this.security = security;
+		this._causationId = causationId;
+		this._correlationId = correlationId;
+		this.topic = topic!;
+		this.eventType = eventType!;
+		this.publisher = publisher!;
 
-  /**
-   * @param context The context to set.
-   */
-  public setSecurity(context: SecurityType | null): this {
-    if (context === null) {
-      this.security = undefined;
-      return this;
-    }
+		void this._causationId;
+		void this._correlationId;
+	}
 
-    SecurityMetadataContextPredicate.parse(context);
+	/**
+	 * @param context The context to set.
+	 */
+	public setSecurity(context: SecurityType | null): this {
+		if (context === null) {
+			this.security = undefined;
+			return this;
+		}
 
-    this.security = context;
-    return this;
-  }
+		SECURITY_METADATA_CONTEXT_PREDICATE.parse(context);
 
-  /**
-   * @param context The context for the delivery mode
-   */
-  public setDelivery(context: DeliveryType | null): this {
-    if (context === null) {
-      this.delivery = undefined;
-      return this;
-    }
+		this.security = context;
+		return this;
+	}
 
-    DeliveryMetadataModePredicate.parse(context);
+	/**
+	 * @param context The context for the delivery mode
+	 */
+	public setDelivery(context: DeliveryType | null): this {
+		if (context === null) {
+			this.delivery = undefined;
+			return this;
+		}
 
-    this.delivery = context;
-    return this;
-  }
+		DELIVERY_METADATA_MODE_PREDICATE.parse(context);
 
-  /**
-   * @param context The context of the Author.
-   */
-  public setPublisher(context: IdentifyType): this {
-    PublisherMetadataContextPredicate.parse(context);
+		this.delivery = context;
+		return this;
+	}
 
-    this.publisher = context;
-    return this;
-  }
+	/**
+	 * @param context The context of the Author.
+	 */
+	public setPublisher(context: ServiceIdentity): this {
+		PUBLISHER_METADATA_CONTEXT_PREDICATE.parse(context);
 
-  /**
-   * @param context The routing context  of the message
-   */
-  public setRouting(context: RoutingType | null): this {
-    if (context === null) {
-      this.routing = undefined;
-      return this;
-    }
+		this.publisher = context;
+		return this;
+	}
 
-    // Data assertions
-    RoutingMetadataContextPredicate.parse(context);
+	/**
+	 * @param context The routing context  of the message
+	 */
+	public setRouting(context: RoutingType | null): this {
+		if (context === null) {
+			this.routing = undefined;
+			return this;
+		}
 
-    this.routing = context;
-    return this;
-  }
+		// Data assertions
+		ROUTING_METADATA_CONTEXT_PREDICATE.parse(context);
 
-  /**
-   * @param version The version
-   */
-  public setSchemaVersion(version: string | null): this {
-    if (version === null) {
-      this.schemaVersion = '1.0.0';
-      return this;
-    }
+		this.routing = context;
+		return this;
+	}
 
-    SchemaMetadataVersionPredicate.parse(version);
+	/**
+	 * @param version The version
+	 */
+	public setSchemaVersion(version: string | null): this {
+		if (version === null) {
+			this.schemaVersion = "1.0.0";
+			return this;
+		}
 
-    this.schemaVersion = version;
-    return this;
-  }
+		SCHEMA_METADATA_VERSION_PREDICATE.parse(version);
 
-  /**
-   * @param event The event of this message
-   */
-  public setEventType(event: string): this {
-    // Data assertions
-    EventTypeMetadataPredicate.parse(event);
+		this.schemaVersion = version;
+		return this;
+	}
 
-    this.eventType = event;
-    return this;
-  }
+	/**
+	 * @param event The event of this message
+	 */
+	public setEventType(event: string): this {
+		// Data assertions
+		EVENT_TYPE_METADATA_PREDICATE.parse(event);
 
-  /**
-   * @param topic The topic of the message
-   */
-  public setTopic(topic: string): this {
-    // Data assertions
-    TopicMetadataPredicate.parse(topic);
+		this.eventType = event;
+		return this;
+	}
 
-    this.topic = topic;
-    return this;
-  }
+	/**
+	 * @param topic The topic of the message
+	 */
+	public setTopic(topic: string): this {
+		// Data assertions
+		TOPIC_METADATA_PREDICATE.parse(topic);
 
-  /**
-   * @param context - Object with optional causationId and/or correlationId, or null to clear both
-   */
-  public setIds(
-    context: {
-      causationId?: string;
-      correlationId?: string;
-    } | null
-  ): this {
-    if (context === null) {
-      this.causationId = undefined;
-      this.correlationId = undefined;
-      return this;
-    }
+		this.topic = topic;
+		return this;
+	}
 
-    // Data assertions
-    if (context.causationId) {
-      IdsMetadataPredicate.parse(context?.causationId);
-      this.causationId = context.causationId;
-    }
+	/**
+	 * @param context - Object with optional causationId and/or correlationId, or null to clear both
+	 */
+	public setIds(
+		context: {
+			causationId?: string;
+			correlationId?: string;
+		} | null
+	): this {
+		if (context === null) {
+			this._causationId = undefined;
+			this._correlationId = undefined;
+			return this;
+		}
 
-    if (context.correlationId) {
-      IdsMetadataPredicate.parse(context?.correlationId);
-      this.correlationId = context.correlationId;
-    }
+		// Data assertions
+		if (context.causationId) {
+			IDS_METADATA_PREDICATE.parse(context?.causationId);
+			this._causationId = context.causationId;
+		}
 
-    return this;
-  }
+		if (context.correlationId) {
+			IDS_METADATA_PREDICATE.parse(context?.correlationId);
+			this._correlationId = context.correlationId;
+		}
 
-  /**
-   * Transforms the embed to a plain object
-   */
-  public toJSON(): MetadataType {
-    const {
-      eventType,
-      publisher,
-      schemaVersion,
-      topic,
-      causationId,
-      correlationId,
-      delivery,
-      routing,
-      security,
-    } = this;
+		return this;
+	}
 
-    if (!topic)
-      throw new AppError("You haven't defined a topic", ErrorCodes.METADATA_BUILDER_ERROR);
-    if (!eventType)
-      throw new AppError("You haven't defined a eventType", ErrorCodes.METADATA_BUILDER_ERROR);
-    if (!publisher)
-      throw new AppError("You haven't defined a publisher", ErrorCodes.METADATA_BUILDER_ERROR);
+	/**
+	 * Transforms the embed to a plain object
+	 */
+	public toJSON(): MetadataType {
+		const {
+			eventType,
+			publisher,
+			schemaVersion,
+			topic,
+			_causationId: causationId,
+			_correlationId: correlationId,
+			delivery,
+			routing,
+			security,
+		} = this;
 
-    return {
-      eventType,
-      publisher,
-      schemaVersion,
-      topic,
-      causationId,
-      correlationId,
-      delivery,
-      routing,
-      security,
-    };
-  }
+		if (!topic) {
+			throw new AppError(
+				"You haven't defined a topic",
+				ErrorCodes.METADATA_BUILDER_ERROR
+			);
+		}
+		if (!eventType) {
+			throw new AppError(
+				"You haven't defined a eventType",
+				ErrorCodes.METADATA_BUILDER_ERROR
+			);
+		}
+		if (!publisher) {
+			throw new AppError(
+				"You haven't defined a publisher",
+				ErrorCodes.METADATA_BUILDER_ERROR
+			);
+		}
+
+		return {
+			eventType,
+			publisher,
+			schemaVersion,
+			topic,
+			causationId,
+			correlationId,
+			delivery,
+			routing,
+			security,
+		};
+	}
 }

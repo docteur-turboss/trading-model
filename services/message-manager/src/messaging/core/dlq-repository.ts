@@ -1,18 +1,18 @@
-import { appendFile } from 'node:fs/promises';
+import { appendFile } from "node:fs/promises";
 
 /** Single entry written to the Dead Letter Queue. */
 export interface DqlEntry {
-  /** The failed message payload and metadata. */
-  message: unknown;
+	/** The failed message payload and metadata. */
+	message: unknown;
 
-  /** Human-readable reason for the failure. */
-  reason?: string;
+	/** Human-readable reason for the failure. */
+	reason?: string;
 
-  /** Number of delivery attempts made before the message was dead-lettered. */
-  deliveryAttempt: number;
+	/** Number of delivery attempts made before the message was dead-lettered. */
+	deliveryAttempt: number;
 
-  /** ISO-8601 timestamp when the entry was created. */
-  timestamp: string;
+	/** ISO-8601 timestamp when the entry was created. */
+	timestamp: string;
 }
 
 /**
@@ -22,14 +22,16 @@ export interface DqlEntry {
  * Each line is a JSON-serialized DqlEntry.
  */
 export class DqlRepository {
-  constructor(private readonly filePath: string = './dead-letter-queue.jsonl') {}
+	constructor(
+		private readonly _filePath: string = "./dead-letter-queue.jsonl"
+	) {}
 
-  /**
-   * Persists a message to the Dead Letter Queue.
-   *
-   * @param entry - The entry to persist.
-   */
-  async add(entry: DqlEntry): Promise<void> {
-    await appendFile(this.filePath, JSON.stringify(entry) + '\n', 'utf-8');
-  }
+	/**
+	 * Persists a message to the Dead Letter Queue.
+	 *
+	 * @param entry - The entry to persist.
+	 */
+	async add(entry: DqlEntry): Promise<void> {
+		await appendFile(this._filePath, `${JSON.stringify(entry)}\n`, "utf-8");
+	}
 }

@@ -16,23 +16,23 @@
  * @returns A JSON string with deterministically ordered keys.
  */
 export function deterministicStringify(value: unknown): string {
-  return JSON.stringify(value, deterministicReplacer);
+	return JSON.stringify(value, deterministicReplacer);
 }
 
 function deterministicReplacer(_key: string, value: unknown): unknown {
-  if (typeof value === 'object' && value !== null) {
-    /* istanbul ignore next */ if (value instanceof Date) {
-      return value.toISOString();
-    }
-    if (!Array.isArray(value)) {
-      const keys = Object.keys(value).sort();
-      const sorted: Record<string, unknown> = {};
-      for (const key of keys) {
-        sorted[key] = (value as Record<string, unknown>)[key];
-      }
-      return sorted;
-    }
-  }
+	if (typeof value === "object" && value !== null) {
+		/* istanbul ignore next */ if (value instanceof Date) {
+			return value.toISOString();
+		}
+		if (!Array.isArray(value)) {
+			const keys = Object.keys(value).sort();
+			const sorted: Record<string, unknown> = {};
+			for (const key of keys) {
+				sorted[key] = (value as Record<string, unknown>)[key];
+			}
+			return sorted;
+		}
+	}
 
-  return value;
+	return value;
 }

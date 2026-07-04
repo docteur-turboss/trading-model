@@ -1,5 +1,5 @@
-import { intervalMsToCron } from './cron.util';
-import { ScheduledJob } from './scheduler';
+import { intervalMsToCron } from "./cron.util";
+import type { ScheduledJob } from "./scheduler";
 
 /**
  * Parameterized scheduled job that periodically executes a refresh function
@@ -7,37 +7,37 @@ import { ScheduledJob } from './scheduler';
  *
  * Replaces previously duplicated TokenRefresherJob and TtlRefresherJob.
  *
- * @template T - Client type used by the refresh function.
+ * @template TClient - Client type used by the refresh function.
  */
-export class RefreshJob<T> implements ScheduledJob {
-  /**
-   * Cron expression representing the refresh schedule.
-   */
-  public readonly schedule: string;
+export class RefreshJob<TClient> implements ScheduledJob {
+	/**
+	 * Cron expression representing the refresh schedule.
+	 */
+	public readonly schedule: string;
 
-  private readonly client: T;
+	private readonly _client: TClient;
 
-  private readonly executeFn: (client: T) => Promise<void>;
+	private readonly _executeFn: (client: TClient) => Promise<void>;
 
-  /**
-   * Creates a new RefreshJob.
-   *
-   * @param client - Client instance used during execution.
-   * @param executeFn - Function invoked on every schedule tick, receives the client.
-   * @param refreshIntervalMs - Interval in milliseconds at which the refresh should run.
-   */
-  constructor(client: T, executeFn: (client: T) => Promise<void>, refreshIntervalMs: number) {
-    this.client = client;
-    this.executeFn = executeFn;
-    this.schedule = intervalMsToCron(refreshIntervalMs);
-  }
+	/**
+	 * Creates a new RefreshJob.
+	 */
+	constructor(
+		client: TClient,
+		executeFn: (client: TClient) => Promise<void>,
+		refreshIntervalMs: number
+	) {
+		this._client = client;
+		this._executeFn = executeFn;
+		this.schedule = intervalMsToCron(refreshIntervalMs);
+	}
 
-  /**
-   * Executes the registered refresh function.
-   *
-   * Called by the scheduler at the interval defined by `schedule`.
-   */
-  async execute(): Promise<void> {
-    await this.executeFn(this.client);
-  }
+	/**
+	 * Executes the registered refresh function.
+	 *
+	 * Called by the scheduler at the interval defined by `schedule`.
+	 */
+	async execute(): Promise<void> {
+		await this._executeFn(this._client);
+	}
 }

@@ -15,75 +15,79 @@
  */
 
 // Track all created stores for cleanup on process exit
-const stores = new Set<SecureKeyStore>();
+const STORES = new Set<SecureKeyStore>();
 
 function globalCleanup(): void {
-  for (const store of stores) {
-    try {
-      store.destroy();
-    } catch {
-      /* cleanup */
-    }
-  }
-  stores.clear();
+	for (const store of STORES) {
+		try {
+			store.destroy();
+		} catch {
+			/* cleanup */
+		}
+	}
+	STORES.clear();
 }
 
-process.once('exit', globalCleanup);
-process.once('SIGINT', globalCleanup);
-process.once('SIGTERM', globalCleanup);
+process.once("exit", globalCleanup);
+process.once("SIGINT", globalCleanup);
+process.once("SIGTERM", globalCleanup);
 // Zero keys before heap dump to prevent capture via --heapsnapshot
 // Save and chain any existing handler to avoid replacing it
-const prevSigUsr2 = process.listeners('SIGUSR2')[0] as (() => void) | undefined;
-process.removeAllListeners('SIGUSR2');
-process.on('SIGUSR2', () => {
-  globalCleanup();
-  if (prevSigUsr2) {
-    prevSigUsr2();
-  } else {
-    process.kill(process.pid, 'SIGUSR2');
-  }
+const PREV_SIG_USR2 = process.listeners("SIGUSR2")[0] as
+	| (() => void)
+	| undefined;
+process.removeAllListeners("SIGUSR2");
+process.on("SIGUSR2", () => {
+	globalCleanup();
+	if (PREV_SIG_USR2) {
+		PREV_SIG_USR2();
+	} else {
+		process.kill(process.pid, "SIGUSR2");
+	}
 });
 
 export class SecureKeyStore {
-  private buffer: Buffer | null;
-  private disposed = false;
+	private _buffer: Buffer | null;
+	private _disposed = false;
 
-  constructor(pem: string) {
-    const len = Buffer.byteLength(pem, 'utf8');
-    this.buffer = Buffer.alloc(len); // safe: zeroed, no residual data leak
-    this.buffer.write(pem, 'utf8');
-    stores.add(this);
-  }
+	constructor(pem: string) {
+		const len = Buffer.byteLength(pem, "utf8");
+		this._buffer = Buffer.alloc(len); // safe: zeroed, no residual data leak
+		this._buffer.write(pem, "utf8");
+		STORES.add(this);
+	}
 
-  read(): string {
-    if (this.disposed || !this.buffer) {
-      throw new Error('SecureKeyStore has been destroyed');
-    }
-    return this.buffer.toString('utf8');
-  }
+	read(): string {
+		if (this._disposed || !this._buffer) {
+			throw new Error("SecureKeyStore has been destroyed");
+		}
+		return this._buffer.toString("utf8");
+	}
 
-  get raw(): Buffer | null {
-    return this.buffer;
-  }
+	get raw(): Buffer | null {
+		return this._buffer;
+	}
 
-  destroy(): void {
-    this.disposed = true;
-    if (this.buffer) {
-      this.buffer.fill(0);
-      this.buffer = null;
-    }
-    stores.delete(this);
-  }
+	destroy(): void {
+		this._disposed = true;
+		if (this._buffer) {
+			this._buffer.fill(0);
+			this._buffer = null;
+		}
+		STORES.delete(this);
+	}
 
-  toJSON(): never {
-    throw new Error('SecureKeyStore cannot be serialized to JSON');
-  }
+	toJSON(): never {
+		throw new Error("SecureKeyStore cannot be serialized to JSON");
+	}
 
-  toString(): never {
-    throw new Error('SecureKeyStore cannot be converted to string directly; use .read()');
-  }
+	toString(): never {
+		throw new Error(
+			"SecureKeyStore cannot be converted to string directly; use .read()"
+		);
+	}
 
-  get [Symbol.toStringTag](): string {
-    return 'SecureKeyStore';
-  }
+	get [Symbol.toStringTag](): string {
+		return "SecureKeyStore";
+	}
 }

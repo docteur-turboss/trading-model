@@ -33,17 +33,17 @@ All trading-model services expose health check endpoints for Kubernetes probes.
 
 ## Current Compliance
 
-| Service               | `/ping`       | `/health/ready` | `/health` | `/metrics` |
-| --------------------- | ------------- | --------------- | --------- | ---------- |
-| discovery-server      | ✅            | ✅              | ❌        | ✅         |
-| message-manager       | ✅            | ✅              | ❌        | ✅         |
-| certificate-authority | ✅            | ✅              | ✅        | ✅         |
-| financial-scraper     | ✅            | ✅              | ❌        | ✅         |
-| trader-trainer        | ✅            | ✅              | ❌        | ✅         |
-| api-gateway           | ✅            | ✅              | ❌        | ✅         |
-| audit-logger          | ✅            | ✅              | ✅        | ✅         |
-| dlq-service           | ✅            | ✅              | ✅        | ✅         |
-| admin-interface       | nginx `/ping` | nginx `/ping`   | ❌        | ❌         |
+| Service               | `/ping`        | `/health/ready` | `/health` | `/metrics` |
+| --------------------- | -------------- | --------------- | --------- | ---------- |
+| discovery-server      | ✅ (via common)| ❌              | ❌        | ❌         |
+| message-manager       | ✅ (via common)| ❌              | ❌        | ❌         |
+| certificate-authority | ✅             | ❌              | ✅        | ❌         |
+| financial-scraper     | ✅ (via common)| ❌              | ❌        | ❌         |
+| trader-trainer        | ✅ (via common)| ❌              | ❌        | ❌         |
+| api-gateway           | ✅             | ❌              | ❌        | ❌         |
+| audit-logger          | ✅             | ❌              | ✅        | ❌         |
+| dlq-service           | ✅             | ✅              | ✅        | ✅         |
+| admin-interface       | nginx `/ping`  | ❌              | ❌        | ❌         |
 
 ## Migration Target
 

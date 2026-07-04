@@ -1,159 +1,188 @@
-import z from 'zod';
+import { normalizeError } from "@trading-model/common/utils/errors";
+import zod from "zod";
 
-import { normalizeError } from '@trading-model/common/utils/errors';
+import type { OrderBookData } from "../market-data.types";
 
-import { OrderBookData } from '../market-data.types';
-
-const aksBidsDef = z.object({
-  quantity: z.number(),
-  price: z.number(),
+const ASKS_BIDS_DEF = zod.object({
+	quantity: zod.number(),
+	price: zod.number(),
 });
-const tableDef = z.object({
-  symbol: z.string(),
-  market: z.enum(['crypto', 'equity', 'bond', 'etf', 'fx', 'future']),
-  source: z.string(),
-  bids: z.array(aksBidsDef),
-  asks: z.array(aksBidsDef),
-  timestamp: z.date(),
+const TABLE_DEF = zod.object({
+	symbol: zod.string(),
+	market: zod.enum(["crypto", "equity", "bond", "etf", "fx", "future"]),
+	source: zod.string(),
+	bids: zod.array(ASKS_BIDS_DEF),
+	asks: zod.array(ASKS_BIDS_DEF),
+	timestamp: zod.date(),
 });
 
-const MarkerOrderBooks = new (class TMarketOrderBooks {
-  private storage: Map<number, OrderBookData> = new Map();
-  private marketStorage: Map<string, number[]> = new Map();
-  private sourceStorage: Map<string, number[]> = new Map();
-  private symbolStorage: Map<string, number[]> = new Map();
-  private timestampStorage: Map<number, number[]> = new Map();
-  private id: number = 10000;
-  constructor() {}
+const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
+	private _storage: Map<number, OrderBookData> = new Map();
+	private _marketStorage: Map<string, number[]> = new Map();
+	private _sourceStorage: Map<string, number[]> = new Map();
+	private _symbolStorage: Map<string, number[]> = new Map();
+	private _timestampStorage: Map<number, number[]> = new Map();
+	private _id = 10000;
 
-  insertInto(data: OrderBookData[]) {
-    if (!data.length) return;
-    const saveBeforeUpdate = {
-      storage: this.storage,
-      marketStorage: this.marketStorage,
-      sourceStorage: this.sourceStorage,
-      symbolStorage: this.symbolStorage,
-      timestampStorage: this.timestampStorage,
-      id: this.id,
-    };
+	insertInto(data: OrderBookData[]) {
+		if (!data.length) {
+			return;
+		}
+		const saveBeforeUpdate = {
+			storage: this._storage,
+			marketStorage: this._marketStorage,
+			sourceStorage: this._sourceStorage,
+			symbolStorage: this._symbolStorage,
+			timestampStorage: this._timestampStorage,
+			id: this._id,
+		};
 
-    try {
-      for (const d of data) {
-        tableDef.parse(d);
+		try {
+			for (const entry of data) {
+				TABLE_DEF.parse(entry);
 
-        this.storage.set(this.id, d);
-        if (this.marketStorage.has(d.market)) {
-          const actualStorage = this.marketStorage.get(d.market)!;
-          actualStorage.push(this.id);
+				this._storage.set(this._id, entry);
+				if (this._marketStorage.has(entry.market)) {
+					const marketEntries = this._marketStorage.get(entry.market)!;
+					marketEntries.push(this._id);
 
-          this.marketStorage.set(d.market, actualStorage);
-        } else this.marketStorage.set(d.market, [this.id]);
+					this._marketStorage.set(entry.market, marketEntries);
+				} else {
+					this._marketStorage.set(entry.market, [this._id]);
+				}
 
-        if (this.sourceStorage.has(d.source)) {
-          const actualStorage = this.sourceStorage.get(d.source)!;
-          actualStorage.push(this.id);
+				if (this._sourceStorage.has(entry.source)) {
+					const sourceEntries = this._sourceStorage.get(entry.source)!;
+					sourceEntries.push(this._id);
 
-          this.sourceStorage.set(d.source, actualStorage);
-        } else this.sourceStorage.set(d.source, [this.id]);
+					this._sourceStorage.set(entry.source, sourceEntries);
+				} else {
+					this._sourceStorage.set(entry.source, [this._id]);
+				}
 
-        if (this.symbolStorage.has(d.symbol)) {
-          const actualStorage = this.symbolStorage.get(d.symbol)!;
-          actualStorage.push(this.id);
+				if (this._symbolStorage.has(entry.symbol)) {
+					const symbolEntries = this._symbolStorage.get(entry.symbol)!;
+					symbolEntries.push(this._id);
 
-          this.symbolStorage.set(d.symbol, actualStorage);
-        } else this.symbolStorage.set(d.symbol, [this.id]);
+					this._symbolStorage.set(entry.symbol, symbolEntries);
+				} else {
+					this._symbolStorage.set(entry.symbol, [this._id]);
+				}
 
-        if (this.timestampStorage.has(d.timestamp)) {
-          const actualStorage = this.timestampStorage.get(d.timestamp)!;
-          actualStorage.push(this.id);
+				if (this._timestampStorage.has(entry.timestamp)) {
+					const timestampEntries = this._timestampStorage.get(entry.timestamp)!;
+					timestampEntries.push(this._id);
 
-          this.timestampStorage.set(d.timestamp, actualStorage);
-        } else this.timestampStorage.set(d.timestamp, [this.id]);
+					this._timestampStorage.set(entry.timestamp, timestampEntries);
+				} else {
+					this._timestampStorage.set(entry.timestamp, [this._id]);
+				}
 
-        this.id++;
-      }
-    } catch (e) {
-      this.id = saveBeforeUpdate.id;
-      this.storage = saveBeforeUpdate.storage;
-      this.marketStorage = saveBeforeUpdate.marketStorage;
-      this.sourceStorage = saveBeforeUpdate.sourceStorage;
-      this.symbolStorage = saveBeforeUpdate.symbolStorage;
-      this.timestampStorage = saveBeforeUpdate.timestampStorage;
+				this._id++;
+			}
+		} catch (err) {
+			this._id = saveBeforeUpdate.id;
+			this._storage = saveBeforeUpdate.storage;
+			this._marketStorage = saveBeforeUpdate.marketStorage;
+			this._sourceStorage = saveBeforeUpdate.sourceStorage;
+			this._symbolStorage = saveBeforeUpdate.symbolStorage;
+			this._timestampStorage = saveBeforeUpdate.timestampStorage;
 
-      throw normalizeError(e);
-    }
-    return this;
-  }
+			throw normalizeError(err);
+		}
+		return this;
+	}
 
-  getById(id: number) {
-    if (!this.storage.has(id)) return null;
-    return this.storage.get(id);
-  }
+	getById(id: number) {
+		if (!this._storage.has(id)) {
+			return null;
+		}
+		return this._storage.get(id);
+	}
 
-  getBySymbol(symbol: string) {
-    if (!this.symbolStorage.has(symbol)) return null;
-    const symbols = this.symbolStorage.get(symbol)!;
-    return symbols.map(d => this.storage.get(d));
-  }
+	getBySymbol(symbol: string) {
+		if (!this._symbolStorage.has(symbol)) {
+			return null;
+		}
+		const symbols = this._symbolStorage.get(symbol)!;
+		return symbols.map((entryId) => this._storage.get(entryId));
+	}
 
-  getByMarket(market: string) {
-    if (!this.marketStorage.has(market)) return null;
-    const markets = this.marketStorage.get(market)!;
-    return markets.map(d => this.storage.get(d));
-  }
+	getByMarket(market: string) {
+		if (!this._marketStorage.has(market)) {
+			return null;
+		}
+		const markets = this._marketStorage.get(market)!;
+		return markets.map((entryId) => this._storage.get(entryId));
+	}
 
-  getBySource(source: string) {
-    if (!this.sourceStorage.has(source)) return null;
-    const sources = this.sourceStorage.get(source)!;
-    return sources.map(d => this.storage.get(d));
-  }
+	getBySource(source: string) {
+		if (!this._sourceStorage.has(source)) {
+			return null;
+		}
+		const sources = this._sourceStorage.get(source)!;
+		return sources.map((entryId) => this._storage.get(entryId));
+	}
 
-  getAfterTimestamp(timestamp: number) {
-    const result = [];
+	getAfterTimestamp(timestamp: number) {
+		const result = [];
 
-    for (const [ts, ids] of this.timestampStorage.entries()) {
-      if (ts > timestamp) for (const id of ids) result.push(this.storage.get(id)!);
-    }
+		for (const [storedTs, entryIds] of this._timestampStorage.entries()) {
+			if (storedTs > timestamp) {
+				for (const entryId of entryIds) {
+					result.push(this._storage.get(entryId)!);
+				}
+			}
+		}
 
-    return result.sort((a, b) => a.timestamp - b.timestamp);
-  }
+		return result.sort((left, right) => left.timestamp - right.timestamp);
+	}
 
-  getBeforeTimestamp(timestamp: number) {
-    const result = [];
+	getBeforeTimestamp(timestamp: number) {
+		const result = [];
 
-    for (const [ts, ids] of this.timestampStorage.entries()) {
-      if (ts < timestamp) for (const id of ids) result.push(this.storage.get(id)!);
-    }
+		for (const [storedTs, entryIds] of this._timestampStorage.entries()) {
+			if (storedTs < timestamp) {
+				for (const entryId of entryIds) {
+					result.push(this._storage.get(entryId)!);
+				}
+			}
+		}
 
-    return result.sort((a, b) => a.timestamp - b.timestamp);
-  }
+		return result.sort((left, right) => left.timestamp - right.timestamp);
+	}
 })();
 
 /** Persist order-book snapshots to in-memory storage. */
-export const insertOrderBook = async (data: OrderBookData[]): Promise<void> => {
-  MarkerOrderBooks.insertInto(data);
+export const insertOrderBook = (data: OrderBookData[]): Promise<void> => {
+	try {
+		MARKER_ORDER_BOOKS.insertInto(data);
+		return Promise.resolve();
+	} catch (err) {
+		return Promise.reject(err);
+	}
 };
 
 /** Query helpers for in-memory order-book storage, indexed by symbol, source, market, id, and timestamp range. */
 export const selectOrderBookBy = {
-  symbol: async (symbol: string) => {
-    return MarkerOrderBooks.getBySymbol(symbol);
-  },
-  timestamp: {
-    after: async (timestamp: number) => {
-      return MarkerOrderBooks.getAfterTimestamp(timestamp);
-    },
-    before: async (timestamp: number) => {
-      return MarkerOrderBooks.getBeforeTimestamp(timestamp);
-    },
-  },
-  source: async (source: string) => {
-    return MarkerOrderBooks.getBySource(source);
-  },
-  id: async (id: number) => {
-    return MarkerOrderBooks.getById(id);
-  },
-  market: async (market: string) => {
-    return MarkerOrderBooks.getByMarket(market);
-  },
+	symbol: (symbol: string) => {
+		return Promise.resolve(MARKER_ORDER_BOOKS.getBySymbol(symbol));
+	},
+	timestamp: {
+		after: (timestamp: number) => {
+			return Promise.resolve(MARKER_ORDER_BOOKS.getAfterTimestamp(timestamp));
+		},
+		before: (timestamp: number) => {
+			return Promise.resolve(MARKER_ORDER_BOOKS.getBeforeTimestamp(timestamp));
+		},
+	},
+	source: (source: string) => {
+		return Promise.resolve(MARKER_ORDER_BOOKS.getBySource(source));
+	},
+	id: (id: number) => {
+		return Promise.resolve(MARKER_ORDER_BOOKS.getById(id));
+	},
+	market: (market: string) => {
+		return Promise.resolve(MARKER_ORDER_BOOKS.getByMarket(market));
+	},
 };

@@ -12,7 +12,7 @@ Every change — from a single commit to a full release — carries risk. This p
 | 2   | No secrets or credentials in the diff | Grep for tokens, passwords, private keys                    |
 | 3   | Commit message follows COMMIT.md      | `<gitmoji>(<scope>): <subject>` format                      |
 | 4   | No debug / commented code left behind | `console.log`, `debugger`, `TODO`, `FIXME`                  |
-| 5   | Pre-commit hooks pass                 | Prettier formatting, ESLint, commitlint (enforced by husky) |
+| 5   | Pre-commit hooks pass                 | Biome formatting + lint, commitlint (enforced by husky) |
 
 ## Before Every PR
 

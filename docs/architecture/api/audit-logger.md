@@ -133,7 +133,6 @@ Receive an event bus message for audit logging (called internally by the message
 ## WebSocket Protocol
 
 The service exposes a WebSocket upgrade path on the same HTTPS server for worker communication.
-The protocol is shared with `job-scheduler` — see [Worker WebSocket Protocol](../worker-protocol.md) for full specification.
 
 | Message Type    | Direction       | Description                         |
 | --------------- | --------------- | ----------------------------------- |

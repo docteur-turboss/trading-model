@@ -26,8 +26,8 @@
  * This module wires the messaging broker into the HTTP server.
  */
 
-import { env } from './env';
-import BrokerModule from '../messaging/index';
+import BrokerModule from "../messaging/index";
+import { env } from "./env";
 
 /**
  * Broker singleton instance.
@@ -38,10 +38,10 @@ import BrokerModule from '../messaging/index';
  *
  * This instance is shared across the entire application lifecycle.
  */
-const broker = new BrokerModule({
-  CertificatePath: env.TLS_CERT_PATH,
-  KeyCertificatePath: env.TLS_KEY_PATH,
-  RootCACertPath: env.TLS_CA_PATH,
+const BROKER = new BrokerModule({
+	certificatePath: env.TLS_CERT_PATH,
+	keyCertificatePath: env.TLS_KEY_PATH,
+	rootCACertPath: env.TLS_CA_PATH,
 });
 
 /**
@@ -58,6 +58,6 @@ const broker = new BrokerModule({
  * @lifecycle
  * Must be registered during HTTP server initialization.
  */
-const MessageManagerRoutes = broker.listen;
+const MESSAGE_MANAGER_ROUTES = BROKER.listen;
 
-export { MessageManagerRoutes };
+export { MESSAGE_MANAGER_ROUTES };

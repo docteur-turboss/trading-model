@@ -1,4 +1,3 @@
-npx prettier --check .
-npx eslint .
+npx @biomejs/biome check .
 npm run build
 npm test

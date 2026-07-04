@@ -1,33 +1,34 @@
-import { ServiceInstance } from '../client/type';
+import type { ServiceInstance } from "../client/type";
 
 export interface LoadBalancingStrategy {
-  select(instances: ServiceInstance[]): ServiceInstance;
+	select(instances: ServiceInstance[]): ServiceInstance;
 }
 
 export interface ConnectionCountingStrategy extends LoadBalancingStrategy {
-  acquire(instanceId: string): void;
-  release(instanceId: string): void;
+	acquire(instanceId: string): void;
+	release(instanceId: string): void;
+	dispose(): void;
 }
 
 export class RandomStrategy implements LoadBalancingStrategy {
-  select(instances: ServiceInstance[]): ServiceInstance {
-    const idx = Math.floor(Math.random() * instances.length);
-    return instances[idx];
-  }
+	select(instances: ServiceInstance[]): ServiceInstance {
+		const idx = Math.floor(Math.random() * instances.length);
+		return instances[idx];
+	}
 }
 
 export class RoundRobinStrategy implements LoadBalancingStrategy {
-  private index = 0;
+	private _index = 0;
 
-  select(instances: ServiceInstance[]): ServiceInstance {
-    const idx = this.index % instances.length;
-    this.index = (idx + 1) % instances.length;
-    return instances[idx];
-  }
+	select(instances: ServiceInstance[]): ServiceInstance {
+		const idx = this._index % instances.length;
+		this._index = (idx + 1) % instances.length;
+		return instances[idx];
+	}
 
-  reset(): void {
-    this.index = 0;
-  }
+	reset(): void {
+		this._index = 0;
+	}
 }
 
 /**
@@ -43,60 +44,71 @@ export class RoundRobinStrategy implements LoadBalancingStrategy {
  * for most high-throughput scenarios.
  */
 export class LeastConnectionsStrategy implements ConnectionCountingStrategy {
-  private readonly connections = new Map<string, number>();
-  private sweepHandle?: NodeJS.Timeout;
+	private readonly _connections = new Map<string, number>();
+	private _sweepHandle?: NodeJS.Timeout;
 
-  constructor() {
-    this.sweepHandle = setInterval(() => this.sweepStaleEntries(), 60_000);
-  }
+	constructor() {
+		this._sweepHandle = setInterval(() => this._sweepStaleEntries(), 60_000);
+		this._sweepHandle.unref();
+	}
 
-  private sweepStaleEntries(): void {
-    for (const [id, count] of this.connections) {
-      if (count <= 0) {
-        this.connections.delete(id);
-      }
-    }
-  }
+	dispose(): void {
+		if (this._sweepHandle) {
+			clearInterval(this._sweepHandle);
+			this._sweepHandle = undefined;
+		}
+	}
 
-  select(instances: ServiceInstance[]): ServiceInstance {
-    let min = Infinity;
-    let selected = instances[0];
+	private _sweepStaleEntries(): void {
+		for (const [id, count] of this._connections) {
+			if (count <= 0) {
+				this._connections.delete(id);
+			}
+		}
+	}
 
-    for (const inst of instances) {
-      const count = this.connections.get(inst.instanceId) ?? 0;
-      if (count < min) {
-        min = count;
-        selected = inst;
-      }
-    }
+	select(instances: ServiceInstance[]): ServiceInstance {
+		let min = Number.POSITIVE_INFINITY;
+		let selected = instances[0];
 
-    return selected;
-  }
+		for (const inst of instances) {
+			const count = this._connections.get(inst.instanceId) ?? 0;
+			if (count < min) {
+				min = count;
+				selected = inst;
+			}
+		}
 
-  acquire(instanceId: string): void {
-    this.connections.set(instanceId, (this.connections.get(instanceId) ?? 0) + 1);
-  }
+		return selected;
+	}
 
-  release(instanceId: string): void {
-    const current = this.connections.get(instanceId) ?? 0;
-    if (current <= 1) {
-      this.connections.delete(instanceId);
-    } else {
-      this.connections.set(instanceId, current - 1);
-    }
-  }
+	acquire(instanceId: string): void {
+		this._connections.set(
+			instanceId,
+			(this._connections.get(instanceId) ?? 0) + 1
+		);
+	}
+
+	release(instanceId: string): void {
+		const current = this._connections.get(instanceId) ?? 0;
+		if (current <= 1) {
+			this._connections.delete(instanceId);
+		} else {
+			this._connections.set(instanceId, current - 1);
+		}
+	}
 }
 
 export function createLoadBalancer(strategy: string): LoadBalancingStrategy {
-  switch (strategy) {
-    case 'random':
-      return new RandomStrategy();
-    case 'round-robin':
-      return new RoundRobinStrategy();
-    case 'least-connections':
-      return new LeastConnectionsStrategy();
-    default:
-      // Round-robin is the recommended default for high-throughput scenarios
-      return new RoundRobinStrategy();
-  }
+	switch (strategy) {
+		case "random":
+			return new RandomStrategy();
+		case "round-robin":
+			return new RoundRobinStrategy();
+		case "least-connections":
+			return new LeastConnectionsStrategy();
+		default:
+			// Round-robin is the recommended default for high-throughput scenarios
+			return new RoundRobinStrategy();
+	}
 }

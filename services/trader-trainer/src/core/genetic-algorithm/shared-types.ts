@@ -3,11 +3,16 @@
  * Centralized to avoid circular dependencies between modules.
  */
 
-export type { Genome, GAControlGenome, LamarckGenome, MarketStep } from './genome-types';
-export type { Experience } from '../neural-network/type';
+export type { Experience } from "../neural-network/type";
+export type {
+	GAControlGenome,
+	Genome,
+	LamarckGenome,
+	MarketStep,
+} from "./genome-types";
 
-export type DeepReadonly<T> = T extends (infer U)[]
-  ? ReadonlyArray<DeepReadonly<U>>
-  : T extends object
-    ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
-    : T;
+export type DeepReadonly<TValue> = TValue extends (infer UValue)[]
+	? readonly DeepReadonly<UValue>[]
+	: TValue extends object
+		? { readonly [KValue in keyof TValue]: DeepReadonly<TValue[KValue]> }
+		: TValue;

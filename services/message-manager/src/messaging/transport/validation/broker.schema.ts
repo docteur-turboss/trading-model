@@ -20,96 +20,103 @@
  * Acts as a **data contract enforcement** component.
  */
 
-import { z } from 'zod';
-
-import { DeliveryMode, DeliveryModeEnum } from '@trading-model/common/config/delivery-mode.types';
-import { ServiceInstanceName } from '@trading-model/common/config/services.types';
+import {
+	DeliveryMode,
+	type DeliveryModeEnum,
+} from "@trading-model/common/config/delivery-mode.types";
+import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { z } from "zod";
 
 /**
  * @description
  * Shared primitive validators for topics, callback paths, and instance IDs
  */
-const TopicSchema = z.string().min(1);
-const CallbackPathSchema = z.string().min(1);
-const InstanceIdSchema = z.string().min(1);
+const TOPIC_SCHEMA = z.string().min(1);
+const CALLBACK_PATH_SCHEMA = z.string().min(1);
+const INSTANCE_ID_SCHEMA = z.string().min(1);
 
 /**
  * @description
  * Schema for identifying a service instance in the broker
  */
-const IdentifySchema = z.object({
-  serviceName: z.enum(
-    Object.values(ServiceInstanceName) as [ServiceInstanceName, ...ServiceInstanceName[]]
-  ),
-  instanceId: InstanceIdSchema,
+const IDENTIFY_SCHEMA = z.object({
+	serviceName: z.enum(
+		Object.values(ServiceInstanceName) as [
+			ServiceInstanceName,
+			...ServiceInstanceName[],
+		]
+	),
+	instanceId: INSTANCE_ID_SCHEMA,
 });
 
 /**
  * @description
  * Schema for subscribing to a topic
  */
-export const SubscribeSchema = z.object({
-  topic: TopicSchema,
-  callbackPath: CallbackPathSchema,
-  consumerIdentity: IdentifySchema,
+export const SUBSCRIBE_SCHEMA = z.object({
+	topic: TOPIC_SCHEMA,
+	callbackPath: CALLBACK_PATH_SCHEMA,
+	consumerIdentity: IDENTIFY_SCHEMA,
 });
 
 /**
  * @description
  * Schema for unsubscribing from a topic
  */
-export const UnsubscribeSchema = z.object({
-  topic: TopicSchema,
-  instanceId: InstanceIdSchema,
+export const UNSUBSCRIBE_SCHEMA = z.object({
+	topic: TOPIC_SCHEMA,
+	instanceId: INSTANCE_ID_SCHEMA,
 });
 
 /**
  * @description
  * Schema for the metadata portion of published messages
  */
-export const PublishMetadataSchema = z.object({
-  correlationId: z.string().optional(),
-  schemaVersion: z.string().min(1),
-  causationId: z.string().optional(),
-  eventType: z.string().min(1),
-  topic: TopicSchema,
+export const PUBLISH_METADATA_SCHEMA = z.object({
+	correlationId: z.string().optional(),
+	schemaVersion: z.string().min(1),
+	causationId: z.string().optional(),
+	eventType: z.string().min(1),
+	topic: TOPIC_SCHEMA,
 
-  publisher: IdentifySchema,
+	publisher: IDENTIFY_SCHEMA,
 
-  routing: z
-    .object({
-      partitionKey: z.string().optional(),
-      priority: z.number().int().optional(),
-    })
-    .optional(),
+	routing: z
+		.object({
+			partitionKey: z.string().optional(),
+			priority: z.number().int().optional(),
+		})
+		.optional(),
 
-  delivery: z
-    .object({
-      mode: z.enum(Object.values(DeliveryMode) as [DeliveryModeEnum, ...DeliveryModeEnum[]]),
-      ttl: z.number().int().positive().optional(),
-      deduplicationId: z.string().optional(),
-    })
-    .optional(),
+	delivery: z
+		.object({
+			mode: z.enum(
+				Object.values(DeliveryMode) as [DeliveryModeEnum, ...DeliveryModeEnum[]]
+			),
+			ttl: z.number().int().positive().optional(),
+			deduplicationId: z.string().optional(),
+		})
+		.optional(),
 
-  security: z
-    .object({
-      authContext: z
-        .object({
-          subject: z.string(),
-          roles: z.array(z.string()),
-          tenantId: z.string(),
-        })
-        .optional(),
-      signature: z.string().optional(),
-    })
-    .optional(),
+	security: z
+		.object({
+			authContext: z
+				.object({
+					subject: z.string(),
+					roles: z.array(z.string()),
+					tenantId: z.string(),
+				})
+				.optional(),
+			signature: z.string().optional(),
+		})
+		.optional(),
 });
 
 /**
  * @description
  * Schema for publishing a message, including payload and metadata
  */
-export const PublishSchema = z.object({
-  payload: z.unknown(),
-  metadata: PublishMetadataSchema,
+export const PUBLISH_SCHEMA = z.object({
+	payload: z.unknown(),
+	metadata: PUBLISH_METADATA_SCHEMA,
 });

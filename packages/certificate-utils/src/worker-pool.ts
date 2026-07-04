@@ -1,188 +1,203 @@
-import { randomUUID } from 'node:crypto';
-import { availableParallelism } from 'node:os';
-import { join } from 'node:path';
-import { Worker } from 'node:worker_threads';
+import { randomUUID } from "node:crypto";
+import { availableParallelism } from "node:os";
+import { join } from "node:path";
+import { Worker } from "node:worker_threads";
 
 export interface WorkerPoolOptions {
-  size?: number;
-  workerScript?: string;
-  maxQueueSize?: number;
+	size?: number;
+	workerScript?: string;
+	maxQueueSize?: number;
 }
 
 interface TaskEntry {
-  id: string;
-  type: string;
-  data: Record<string, unknown>;
-  resolve: (value: unknown) => void;
-  reject: (reason: unknown) => void;
+	id: string;
+	type: string;
+	data: Record<string, unknown>;
+	resolve: (value: unknown) => void;
+	reject: (reason: unknown) => void;
 }
 
 interface WorkerEntry {
-  worker: import('node:worker_threads').Worker;
-  busy: boolean;
+	worker: import("node:worker_threads").Worker;
+	busy: boolean;
 }
 
 export class WorkerPool {
-  private readonly workers: WorkerEntry[] = [];
-  private readonly pendingTasks = new Map<string, TaskEntry>();
-  private readonly queue: TaskEntry[] = [];
-  private readonly workerScript: string;
-  private readonly poolSize: number;
-  private readonly maxQueueSize: number;
-  private started = false;
-  private terminated = false;
+	private readonly _workers: WorkerEntry[] = [];
+	private readonly _pendingTasks = new Map<string, TaskEntry>();
+	private readonly _queue: TaskEntry[] = [];
+	private readonly _workerScript: string;
+	private readonly _poolSize: number;
+	private readonly _maxQueueSize: number;
+	private _started = false;
+	private _terminated = false;
 
-  constructor(options: WorkerPoolOptions = {}) {
-    this.poolSize = options.size ?? availableParallelism();
-    this.maxQueueSize = options.maxQueueSize ?? Infinity;
-    this.workerScript = options.workerScript ?? join(__dirname, 'worker-script.js');
-  }
+	constructor(options: WorkerPoolOptions = {}) {
+		this._poolSize = options.size ?? availableParallelism();
+		this._maxQueueSize = options.maxQueueSize ?? Number.POSITIVE_INFINITY;
+		this._workerScript =
+			options.workerScript ?? join(__dirname, "worker-script.js");
+	}
 
-  /** Crée les workers s'ils ne le sont pas encore — idempotent. */
-  start(): void {
-    this.ensureStarted();
-  }
+	/** Crée les workers s'ils ne le sont pas encore — idempotent. */
+	start(): void {
+		this._ensureStarted();
+	}
 
-  execute<T>(type: string, data: Record<string, unknown>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      if (this.terminated) {
-        reject(new Error('WorkerPool is terminated'));
-        return;
-      }
+	execute<TValue>(
+		type: string,
+		data: Record<string, unknown>
+	): Promise<TValue> {
+		return new Promise((resolve, reject) => {
+			if (this._terminated) {
+				reject(new Error("WorkerPool is terminated"));
+				return;
+			}
 
-      this.ensureStarted();
+			this._ensureStarted();
 
-      if (this.queue.length >= this.maxQueueSize) {
-        reject(new Error('WorkerPool queue is full'));
-        return;
-      }
+			if (this._queue.length >= this._maxQueueSize) {
+				reject(new Error("WorkerPool queue is full"));
+				return;
+			}
 
-      const entry: TaskEntry = {
-        id: randomUUID(),
-        type,
-        data,
-        resolve: resolve as (value: unknown) => void,
-        reject,
-      };
+			const entry: TaskEntry = {
+				id: randomUUID(),
+				type,
+				data,
+				resolve: resolve as (value: unknown) => void,
+				reject,
+			};
 
-      this.pendingTasks.set(entry.id, entry);
+			this._pendingTasks.set(entry.id, entry);
 
-      const idleWorker = this.workers.find(w => !w.busy);
-      if (idleWorker) {
-        this.dispatch(idleWorker, entry);
-      } else {
-        this.queue.push(entry);
-      }
-    });
-  }
+			const idleWorker = this._workers.find((workerEntry) => !workerEntry.busy);
+			if (idleWorker) {
+				this._dispatch(idleWorker, entry);
+			} else {
+				this._queue.push(entry);
+			}
+		});
+	}
 
-  get pending(): number {
-    return this.queue.length;
-  }
+	get pending(): number {
+		return this._queue.length;
+	}
 
-  get active(): number {
-    return this.workers.filter(w => w.busy).length;
-  }
+	get active(): number {
+		return this._workers.filter((workerEntry) => workerEntry.busy).length;
+	}
 
-  get size(): number {
-    return this.workers.length;
-  }
+	get size(): number {
+		return this._workers.length;
+	}
 
-  async terminate(): Promise<void> {
-    this.terminated = true;
+	async terminate(): Promise<void> {
+		this._terminated = true;
 
-    for (const entry of this.queue) {
-      entry.reject(new Error('WorkerPool terminated'));
-    }
-    this.queue.length = 0;
+		for (const entry of this._queue) {
+			entry.reject(new Error("WorkerPool terminated"));
+		}
+		this._queue.length = 0;
 
-    for (const entry of this.pendingTasks.values()) {
-      entry.reject(new Error('WorkerPool terminated'));
-    }
-    this.pendingTasks.clear();
+		for (const entry of this._pendingTasks.values()) {
+			entry.reject(new Error("WorkerPool terminated"));
+		}
+		this._pendingTasks.clear();
 
-    for (const w of this.workers) {
-      w.worker.removeAllListeners();
-    }
-    await Promise.all(this.workers.map(w => w.worker.terminate()));
-    this.workers.length = 0;
-  }
+		for (const workerEntry of this._workers) {
+			workerEntry.worker.removeAllListeners();
+		}
+		await Promise.all(
+			this._workers.map((workerEntry) => workerEntry.worker.terminate())
+		);
+		this._workers.length = 0;
+	}
 
-  private ensureStarted(): void {
-    if (this.started) return;
-    this.started = true;
+	private _ensureStarted(): void {
+		if (this._started) {
+			return;
+		}
+		this._started = true;
 
-    for (let i = 0; i < this.poolSize; i++) {
-      this.spawnWorker();
-    }
-  }
+		for (let i = 0; i < this._poolSize; i++) {
+			this._spawnWorker();
+		}
+	}
 
-  private spawnWorker(): void {
-    const worker = new Worker(this.workerScript);
+	private _spawnWorker(): void {
+		const worker = new Worker(this._workerScript);
 
-    const entry: WorkerEntry = { worker, busy: false };
+		const entry: WorkerEntry = { worker, busy: false };
 
-    worker.on(
-      'message',
-      (msg: { id: string; success: boolean; data?: unknown; error?: string }) => {
-        entry.busy = false;
+		worker.on(
+			"message",
+			(msg: {
+				id: string;
+				success: boolean;
+				data?: unknown;
+				error?: string;
+			}) => {
+				entry.busy = false;
 
-        const task = this.pendingTasks.get(msg.id);
-        if (task) {
-          this.pendingTasks.delete(msg.id);
-          if (msg.success) {
-            task.resolve(msg.data);
-          } else {
-            task.reject(new Error(msg.error ?? 'Unknown worker error'));
-          }
-        }
+				const task = this._pendingTasks.get(msg.id);
+				if (task) {
+					this._pendingTasks.delete(msg.id);
+					if (msg.success) {
+						task.resolve(msg.data);
+					} else {
+						task.reject(new Error(msg.error ?? "Unknown worker error"));
+					}
+				}
 
-        this.processQueue();
-      }
-    );
+				this._processQueue();
+			}
+		);
 
-    worker.on('error', () => {
-      entry.busy = false;
-      this.replaceWorker(entry);
-    });
+		worker.on("error", () => {
+			entry.busy = false;
+			this._replaceWorker(entry);
+		});
 
-    worker.on('exit', (code: number) => {
-      entry.busy = false;
-      if (code !== 0 && !this.terminated) {
-        this.replaceWorker(entry);
-      }
-    });
+		worker.on("exit", (code: number) => {
+			entry.busy = false;
+			if (code !== 0 && !this._terminated) {
+				this._replaceWorker(entry);
+			}
+		});
 
-    this.workers.push(entry);
-  }
+		this._workers.push(entry);
+	}
 
-  private replaceWorker(entry: WorkerEntry): void {
-    const idx = this.workers.indexOf(entry);
-    if (idx !== -1) {
-      entry.worker.removeAllListeners();
-      this.workers.splice(idx, 1);
-      if (!this.terminated) {
-        this.spawnWorker();
-      }
-    }
-  }
+	private _replaceWorker(entry: WorkerEntry): void {
+		const idx = this._workers.indexOf(entry);
+		if (idx !== -1) {
+			entry.worker.removeAllListeners();
+			this._workers.splice(idx, 1);
+			if (!this._terminated) {
+				this._spawnWorker();
+			}
+		}
+	}
 
-  private dispatch(entry: WorkerEntry, task: TaskEntry): void {
-    entry.busy = true;
-    entry.worker.postMessage({
-      id: task.id,
-      type: task.type,
-      data: task.data,
-    });
-  }
+	private _dispatch(entry: WorkerEntry, task: TaskEntry): void {
+		entry.busy = true;
+		entry.worker.postMessage({
+			id: task.id,
+			type: task.type,
+			data: task.data,
+		});
+	}
 
-  private processQueue(): void {
-    while (this.queue.length > 0) {
-      const idleWorker = this.workers.find(w => !w.busy);
-      if (!idleWorker) break;
+	private _processQueue(): void {
+		while (this._queue.length > 0) {
+			const idleWorker = this._workers.find((workerEntry) => !workerEntry.busy);
+			if (!idleWorker) {
+				break;
+			}
 
-      const next = this.queue.shift()!;
-      this.dispatch(idleWorker, next);
-    }
-  }
+			const next = this._queue.shift()!;
+			this._dispatch(idleWorker, next);
+		}
+	}
 }

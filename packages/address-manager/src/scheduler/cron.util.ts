@@ -8,11 +8,11 @@
  * @returns Cron expression string compatible with node-cron.
  */
 export function intervalMsToCron(intervalMs: number): string {
-  if (intervalMs < 60_000) {
-    const seconds = Math.max(1, Math.round(intervalMs / 1_000));
-    return `*/${seconds} * * * * *`;
-  }
+	if (intervalMs < 60_000) {
+		const seconds = Math.max(1, Math.round(intervalMs / 1_000));
+		return `*/${seconds} * * * * *`;
+	}
 
-  const minutes = Math.max(1, Math.round(intervalMs / 60_000));
-  return `*/${minutes} * * * *`;
+	const minutes = Math.max(1, Math.round(intervalMs / 60_000));
+	return `*/${minutes} * * * *`;
 }

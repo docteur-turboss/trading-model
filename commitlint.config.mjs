@@ -31,7 +31,6 @@ export default {
         'dlq-service',
         'docs',
         'docker',
-        'eslint',
         'examples',
         'financial-scraper',
         'github-actions',

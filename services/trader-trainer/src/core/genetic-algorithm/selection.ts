@@ -2,7 +2,7 @@
 //                   parent selection operators
 // ================================================================
 
-import type { LamarckGenome, SelectionType } from './genome-types';
+import type { LamarckGenome, SelectionType } from "./genome-types";
 
 /**
  * Select one parent from `population` using the given strategy.
@@ -13,53 +13,58 @@ import type { LamarckGenome, SelectionType } from './genome-types';
  * @param tournamentK   Tournament size (default 3).
  */
 export function selectParent(
-  population: LamarckGenome[],
-  type: SelectionType,
-  rng: () => number,
-  tournamentK = 3
+	population: LamarckGenome[],
+	type: SelectionType,
+	rng: () => number,
+	tournamentK = 3
 ): LamarckGenome {
-  switch (type) {
-    // ---- Tournament ----
-    case 'tournament': {
-      let best = population[Math.floor(rng() * population.length)];
-      for (let i = 1; i < tournamentK; i++) {
-        const challenger = population[Math.floor(rng() * population.length)];
-        if ((challenger.fitness ?? -Infinity) > (best.fitness ?? -Infinity)) {
-          best = challenger;
-        }
-      }
-      return best;
-    }
+	switch (type) {
+		// ---- Tournament ----
+		case "tournament": {
+			let best = population[Math.floor(rng() * population.length)];
+			for (let i = 1; i < tournamentK; i++) {
+				const challenger = population[Math.floor(rng() * population.length)];
+				if (
+					(challenger.fitness ?? Number.NEGATIVE_INFINITY) >
+					(best.fitness ?? Number.NEGATIVE_INFINITY)
+				) {
+					best = challenger;
+				}
+			}
+			return best;
+		}
 
-    // ---- Fitness-proportionate (roulette) ----
-    case 'roulette': {
-      const fits = population.map(g => Math.max(0, g.fitness ?? 0));
-      const total = fits.reduce((s, v) => s + v, 0) || 1;
-      let pick = rng() * total;
-      for (let i = 0; i < population.length; i++) {
-        pick -= fits[i];
-        if (pick <= 0) return population[i];
-      }
-      return population[population.length - 1];
-    }
+		// ---- Fitness-proportionate (roulette) ----
+		case "roulette": {
+			const fits = population.map((genome) => Math.max(0, genome.fitness ?? 0));
+			const total = fits.reduce((sum, value) => sum + value, 0) || 1;
+			let pick = rng() * total;
+			for (let i = 0; i < population.length; i++) {
+				pick -= fits[i];
+				if (pick <= 0) {
+					return population[i];
+				}
+			}
+			return population[population.length - 1];
+		}
 
-    // ---- Rank-based ----
-    case 'rank': {
-      const sorted = [...population].sort((a, b) => (a.fitness ?? 0) - (b.fitness ?? 0));
-      const total = (sorted.length * (sorted.length + 1)) / 2; // ∑ 1..n
-      let pick = rng() * total;
-      for (let i = 0; i < sorted.length; i++) {
-        pick -= i + 1; // rank = position + 1
-        if (pick <= 0) return sorted[i];
-      }
-      /* istanbul ignore next */
-      return sorted[sorted.length - 1];
-    }
-
-    // ---- Truncation / SUS / fallback ----
-    case 'truncation':
-    case 'sus':
-    default:
-      return population[Math.floor(rng() * population.length)];
-  }
+		// ---- Rank-based ----
+		case "rank": {
+			const sorted = [...population].sort(
+				(left, right) => (left.fitness ?? 0) - (right.fitness ?? 0)
+			);
+			const total = (sorted.length * (sorted.length + 1)) / 2; // ∑ 1..n
+			let pick = rng() * total;
+			for (let i = 0; i < sorted.length; i++) {
+				pick -= i + 1; // rank = position + 1
+				if (pick <= 0) {
+					return sorted[i];
+				}
+			}
+			/* istanbul ignore next */
+			return sorted[sorted.length - 1];
+		}
+		default:
+			return population[Math.floor(rng() * population.length)];
+	}
 }

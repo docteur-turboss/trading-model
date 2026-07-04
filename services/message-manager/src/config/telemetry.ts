@@ -1,52 +1,56 @@
-import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
-import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
-import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis';
-import { resourceFromAttributes } from '@opentelemetry/resources';
-import { NodeSDK } from '@opentelemetry/sdk-node';
+import { DiagConsoleLogger, DiagLogLevel, diag } from "@opentelemetry/api";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
+import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
+import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
+import { resourceFromAttributes } from "@opentelemetry/resources";
+import { NodeSDK } from "@opentelemetry/sdk-node";
 
-import { env } from './env';
-import { logger } from './logger';
+import { ENV } from "./env";
+import { logger } from "./logger";
 
 let sdk: NodeSDK | null = null;
 
 export function initializeTelemetry(): void {
-  if (!env.OTEL_EXPORTER_OTLP_ENDPOINT) {
-    logger.info('OpenTelemetry disabled (no endpoint configured)');
-    return;
-  }
+	if (!ENV.OTEL_EXPORTER_OTLP_ENDPOINT) {
+		logger.info("OpenTelemetry disabled (no endpoint configured)");
+		return;
+	}
 
-  diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
+	diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
 
-  sdk = new NodeSDK({
-    resource: resourceFromAttributes({
-      ['service.name']: env.APP_NAME,
-      ['service.version']: env.APP_VERSION,
-      ['service.instance.id']: env.INSTANCE_ID,
-    }),
-    traceExporter: new OTLPTraceExporter({
-      url: `${env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
-    }),
-    instrumentations: [
-      new HttpInstrumentation(),
-      new ExpressInstrumentation(),
-      new IORedisInstrumentation(),
-    ],
-  });
+	sdk = new NodeSDK({
+		resource: resourceFromAttributes({
+			"service.name": ENV.APP_NAME,
+			"service.version": ENV.APP_VERSION,
+			"service.instance.id": ENV.INSTANCE_ID,
+		}),
+		traceExporter: new OTLPTraceExporter({
+			url: `${ENV.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
+		}),
+		instrumentations: [
+			new HttpInstrumentation(),
+			new ExpressInstrumentation(),
+			new IORedisInstrumentation(),
+		],
+	});
 
-  sdk.start();
-  logger.info('OpenTelemetry initialized', { endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT });
+	sdk.start();
+	logger.info("OpenTelemetry initialized", {
+		endpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
+	});
 }
 
 export async function shutdownTelemetry(): Promise<void> {
-  if (sdk) {
-    try {
-      await sdk.shutdown();
-      logger.info('OpenTelemetry shut down');
-    } catch (err) {
-      logger.warn('OpenTelemetry shutdown error', { error: (err as Error).message });
-    }
-    sdk = null;
-  }
+	if (sdk) {
+		try {
+			await sdk.shutdown();
+			logger.info("OpenTelemetry shut down");
+		} catch (err) {
+			logger.warn("OpenTelemetry shutdown error", {
+				error: (err as Error).message,
+			});
+		}
+		sdk = null;
+	}
 }

@@ -17,8 +17,8 @@ See [Quick Start Tutorial](docs/tutorials/QUICKSTART.md) for a 10-minute hands-o
 
 | Layer         | Technology                                                 |
 | ------------- | ---------------------------------------------------------- |
-| Runtime       | Node.js 22+                                                |
-| Language      | TypeScript (ES2022)                                        |
+| Runtime       | Node.js 26+                                                |
+| Language      | TypeScript (ES2020)                                        |
 | API           | Express 5                                                  |
 | Frontend      | React 19 + Vite + MUI 7                                    |
 | Security      | mTLS everywhere (TLS 1.3)                                  |
@@ -57,7 +57,7 @@ See [Quick Start Tutorial](docs/tutorials/QUICKSTART.md) for a 10-minute hands-o
 npm ci                       # Install all workspace dependencies
 npm run build                # Build 4 shared packages in dependency order
 npm run build:ts             # Full build (packages + 9 services)
-npm run lint                 # ESLint across the monorepo
+npm run lint                 # Biome check across the monorepo
 npm test --workspaces        # All workspace tests
 npm run test:coverage        # All tests with coverage
 npm run test:contract        # Contract tests
@@ -79,14 +79,14 @@ npm run release              # Version bump + changelog + tag + push
 
 12+ automated jobs on every push/PR: lint, typecheck, audit, test+coverage, mutation test, K8s validate, container scan, secrets scan, SBOM, contract tests, E2E, load tests.
 
-Pre-push git hook runs: `prettier` → `eslint` → `npm audit` → `build:ts` → `test:coverage`.
+Pre-push git hook runs: `@biomejs/biome check` → `npm audit` → `build:ts` → `test:coverage`.
 
 ## Documentation
 
-- [Documentation Index](docs/README.md) — 84 markdown files across 4 sections
+- [Documentation Index](docs/README.md) — 90+ markdown files across 7 sections
 - [Architecture Standards](docs/standards/ARCHITECTURE.md) — C4 diagrams, dependency graph, service conventions
 - [OpenAPI 3.0](docs/architecture/api/openapi/api-gateway.yaml) — 18 external-facing endpoints
-- [ADR Index](docs/adr/README.md) — 9 architecture decision records
+- [ADR Index](docs/adr/README.md) — 10 architecture decision records
 - [Compliance](docs/compliance/) — GDPR register, DPIA, retention policy, breach notification
 - [Operations](docs/operations/) — 9 runbooks + diagnostic guide + incident response
 - [Tutorials](docs/tutorials/QUICKSTART.md) — 10-minute hands-on introduction

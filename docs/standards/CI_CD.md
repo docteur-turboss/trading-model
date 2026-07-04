@@ -30,6 +30,30 @@ jobs:
       - run: npm ci
       - run: npm run lint
 
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+      - run: npm ci
+      - name: Build packages (dependency order)
+        run: npm run build
+      - name: Type-check services
+        run: |
+          npm run -w services/message-manager build
+          npm run -w services/discovery-server build
+          npm run -w services/financial-scraper build
+          npm run -w services/trader-trainer build
+          npm run -w services/certificate-authority build
+          npm run -w services/api-gateway build
+          npm run -w services/admin-interface build
+          npm run -w services/audit-logger build
+          npm run -w services/dlq-service build
+          npm run -w packages/certificate-utils build
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -39,16 +63,15 @@ jobs:
           node-version: 'lts/*'
           cache: 'npm'
       - run: npm ci
-      - run: npm run build --if-present
+      - run: npm run build
       - run: npm run test:coverage
 ```
 
 **Jobs**:
 
-- `lint` — ESLint across the entire monorepo
-- `typecheck` — Build packages + type-check all services
-- `build-admin` — Build admin-interface SPA (requires common first for DTOs)
-- `test` — Build + tests with coverage (includes admin-interface Vitest coverage)
+- `lint` — Biome check across the entire monorepo
+- `typecheck` — Build packages + type-check all services (including admin-interface)
+- `test` — Build + tests with coverage
 
 **Permissions**: `contents: read` (read-only)
 
@@ -116,6 +139,12 @@ jobs:
           - name: admin-interface
             context: .
             dockerfile: services/admin-interface/Dockerfile
+          - name: audit-logger
+            context: .
+            dockerfile: services/audit-logger/Dockerfile
+          - name: dlq-service
+            context: .
+            dockerfile: services/dlq-service/Dockerfile
     steps:
       - uses: actions/checkout@v5
       - uses: docker/login-action@v3
@@ -175,7 +204,7 @@ jobs:
 
 | Workflow    | File                            | Trigger                | What it does                                         |
 | ----------- | ------------------------------- | ---------------------- | ---------------------------------------------------- |
-| **CI**      | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Typecheck → Build Admin → Test                |
+| **CI**      | `.github/workflows/ci.yml`      | `push`, `pull_request` | Lint → Typecheck → Test                |
 | **Release** | `.github/workflows/release.yml` | tag `v*.*.*`           | Quality gate → Docker images → GHCR → GitHub Release |
 
 All workflows run on `ubuntu-latest` with Node.js LTS and npm cache. Failure in any workflow blocks merging.
@@ -186,14 +215,14 @@ All services use the same Docker pattern:
 
 ```dockerfile
 # Example: services/discovery-server/Dockerfile
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/ packages/
 COPY services/discovery-server/package.json services/discovery-server/
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-FROM node:20-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/ packages/
@@ -203,7 +232,7 @@ RUN npm run build:common
 WORKDIR /app/services/discovery-server
 RUN npx tsc
 
-FROM node:20-alpine AS runtime
+FROM node:26-alpine AS runtime
 WORKDIR /app
 RUN apk add --no-cache tini curl
 COPY --from=deps /app/package.json /app/package-lock.json ./
@@ -219,7 +248,7 @@ CMD ["node", "services/discovery-server/dist/app/index.js"]
 
 **Docker Conventions**:
 
-- **Base image**: `node:20-alpine` (Node.js services); `node:26-alpine` build + `nginx:alpine` runtime (admin-interface SPA)
+- **Base image**: `node:26-alpine` (Node.js services); `nginx:alpine` runtime (admin-interface SPA)
 - **Init system**: `tini` (`/sbin/tini`) for signal handling (Node.js services only)
 - **TLS Alpine**: Alpine's musl libc includes native TLS support
 - **Multi-stage build**: `deps` (prod deps) → `build` (dev deps + compilation) → `runtime` (minimal)

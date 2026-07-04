@@ -43,7 +43,7 @@ trading-model/
 
 - Single `npm ci` installs all dependencies
 - Shared TypeScript types via `@trading-model/*` without publishing
-- ESLint, Prettier, and TypeScript config shared at root level
+- Biome and TypeScript config shared at root level
 - Husky hooks enforce commit format, linting, and tests before push
 - CI/CD can build and test everything in one workflow
 

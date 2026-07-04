@@ -1,87 +1,93 @@
-import { unlink } from 'node:fs/promises';
-import { readFileSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterAll, describe, expect, it } from '@jest/globals';
-import { DqlRepository, DqlEntry } from '../../../../src/messaging/core/dlq-repository';
+import { existsSync, readFileSync } from "node:fs";
+import { unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, describe, expect, it } from "@jest/globals";
+import {
+	type DqlEntry,
+	DqlRepository,
+} from "../../../../src/messaging/core/dlq-repository";
 
-describe('DqlRepository', () => {
-  const testFilePath = join(tmpdir(), `dlq-test-${Date.now()}.jsonl`);
+describe("DqlRepository", () => {
+	const testFilePath = join(tmpdir(), `dlq-test-${Date.now()}.jsonl`);
 
-  afterAll(async () => {
-    if (existsSync(testFilePath)) {
-      await unlink(testFilePath);
-    }
-  });
+	afterAll(async () => {
+		if (existsSync(testFilePath)) {
+			await unlink(testFilePath);
+		}
+	});
 
-  describe('add', () => {
-    it('should append a JSON line to the file', async () => {
-      const repo = new DqlRepository(testFilePath);
+	describe("add", () => {
+		it("should append a JSON line to the file", async () => {
+			const repo = new DqlRepository(testFilePath);
 
-      const entry: DqlEntry = {
-        message: { payload: 'test', metadata: { topic: 'test.topic' } },
-        reason: 'DeadLetterError',
-        deliveryAttempt: 3,
-        timestamp: '2026-06-06T12:00:00.000Z',
-      };
+			const entry: DqlEntry = {
+				message: { payload: "test", metadata: { topic: "test.topic" } },
+				reason: "DeadLetterError",
+				deliveryAttempt: 3,
+				timestamp: "2026-06-06T12:00:00.000Z",
+			};
 
-      await repo.add(entry);
+			await repo.add(entry);
 
-      const lines = readFileSync(testFilePath, 'utf-8').trim().split('\n');
-      expect(lines).toHaveLength(1);
+			const lines = readFileSync(testFilePath, "utf-8").trim().split("\n");
+			expect(lines).toHaveLength(1);
 
-      const parsed = JSON.parse(lines[0]);
-      expect(parsed.message).toEqual(entry.message);
-      expect(parsed.reason).toBe('DeadLetterError');
-      expect(parsed.deliveryAttempt).toBe(3);
-      expect(parsed.timestamp).toBe('2026-06-06T12:00:00.000Z');
-    });
+			const parsed = JSON.parse(lines[0]);
+			expect(parsed.message).toEqual(entry.message);
+			expect(parsed.reason).toBe("DeadLetterError");
+			expect(parsed.deliveryAttempt).toBe(3);
+			expect(parsed.timestamp).toBe("2026-06-06T12:00:00.000Z");
+		});
 
-    it('should append multiple entries as separate lines', async () => {
-      const repo = new DqlRepository(testFilePath);
+		it("should append multiple entries as separate lines", async () => {
+			const repo = new DqlRepository(testFilePath);
 
-      await repo.add({
-        message: { id: 1 },
-        deliveryAttempt: 1,
-        timestamp: '2026-06-06T12:00:01.000Z',
-      });
+			await repo.add({
+				message: { id: 1 },
+				deliveryAttempt: 1,
+				timestamp: "2026-06-06T12:00:01.000Z",
+			});
 
-      await repo.add({
-        message: { id: 2 },
-        reason: 'TTL_EXPIRED',
-        deliveryAttempt: 2,
-        timestamp: '2026-06-06T12:00:02.000Z',
-      });
+			await repo.add({
+				message: { id: 2 },
+				reason: "TTL_EXPIRED",
+				deliveryAttempt: 2,
+				timestamp: "2026-06-06T12:00:02.000Z",
+			});
 
-      const lines = readFileSync(testFilePath, 'utf-8').trim().split('\n');
-      expect(lines).toHaveLength(3);
+			const lines = readFileSync(testFilePath, "utf-8").trim().split("\n");
+			expect(lines).toHaveLength(3);
 
-      const first = JSON.parse(lines[1]);
-      expect(first.message).toEqual({ id: 1 });
+			const first = JSON.parse(lines[1]);
+			expect(first.message).toEqual({ id: 1 });
 
-      const second = JSON.parse(lines[2]);
-      expect(second.message).toEqual({ id: 2 });
-      expect(second.reason).toBe('TTL_EXPIRED');
-    });
+			const second = JSON.parse(lines[2]);
+			expect(second.message).toEqual({ id: 2 });
+			expect(second.reason).toBe("TTL_EXPIRED");
+		});
 
-    it('should work with default file path when no path provided', () => {
-      const repo = new DqlRepository();
-      expect(repo).toBeInstanceOf(DqlRepository);
-    });
+		it("should work with default file path when no path provided", () => {
+			const repo = new DqlRepository();
+			expect(repo).toBeInstanceOf(DqlRepository);
+		});
 
-    it('should handle entry without reason', async () => {
-      const repo = new DqlRepository(testFilePath);
+		it("should handle entry without reason", async () => {
+			const repo = new DqlRepository(testFilePath);
 
-      await repo.add({
-        message: 'plain string payload',
-        deliveryAttempt: 0,
-        timestamp: '2026-06-06T12:00:03.000Z',
-      });
+			await repo.add({
+				message: "plain string payload",
+				deliveryAttempt: 0,
+				timestamp: "2026-06-06T12:00:03.000Z",
+			});
 
-      const line = readFileSync(testFilePath, 'utf-8').trim().split('\n').pop()!;
-      const parsed = JSON.parse(line);
-      expect(parsed.reason).toBeUndefined();
-      expect(parsed.message).toBe('plain string payload');
-    });
-  });
+			const line = readFileSync(testFilePath, "utf-8")
+				.trim()
+				.split("\n")
+				.pop()!;
+			const parsed = JSON.parse(line);
+			expect(parsed.reason).toBeUndefined();
+			expect(parsed.message).toBe("plain string payload");
+		});
+	});
 });

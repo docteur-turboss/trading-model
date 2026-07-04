@@ -1,4 +1,4 @@
-import { logger } from '@trading-model/common/config/logger';
+import { logger } from "@trading-model/common/config/logger";
 
 /**
  * Pure application orchestration for DLQ replay.
@@ -6,79 +6,85 @@ import { logger } from '@trading-model/common/config/logger';
  * No HTTP, no MongoDB, no Redis — receives pre-resolved dependencies.
  */
 export class ReplayOrchestrator {
-  private circuitState: 'closed' | 'open' | 'half-open' = 'closed';
-  private circuitFailures = 0;
-  private circuitOpenUntil = 0;
-  private halfOpenAttempts = 0;
-  private activeBatches = 0;
+	private _circuitState: "closed" | "open" | "half-open" = "closed";
+	private _circuitFailures = 0;
+	private _circuitOpenUntil = 0;
+	private _halfOpenAttempts = 0;
+	private _activeBatches = 0;
 
-  constructor(
-    private readonly circuitThreshold = 5,
-    private readonly circuitCooldownMs = 30_000,
-    private readonly halfOpenMaxAttempts = 2,
-    private readonly maxConcurrentBatches = 2
-  ) {}
+	constructor(
+		private readonly _circuitThreshold = 5,
+		private readonly _circuitCooldownMs = 30_000,
+		private readonly _halfOpenMaxAttempts = 2,
+		private readonly _maxConcurrentBatches = 2
+	) {}
 
-  /** Check if the circuit allows a request. Returns false if OPEN. */
-  canProceed(): boolean {
-    if (this.circuitOpenUntil > Date.now()) return false;
-    if (this.circuitOpenUntil > 0) {
-      this.circuitFailures = 0;
-      this.circuitOpenUntil = 0;
-      this.halfOpenAttempts = 0;
-    }
-    return true;
-  }
+	/** Check if the circuit allows a request. Returns false if OPEN. */
+	canProceed(): boolean {
+		if (this._circuitOpenUntil > Date.now()) {
+			return false;
+		}
+		if (this._circuitOpenUntil > 0) {
+			this._circuitFailures = 0;
+			this._circuitOpenUntil = 0;
+			this._halfOpenAttempts = 0;
+		}
+		return true;
+	}
 
-  /** Record the result of a batch replay. */
-  recordResult(success: boolean): void {
-    if (success) {
-      if (this.circuitFailures > 0) this.circuitFailures = 0;
-      this.circuitOpenUntil = 0;
-      this.halfOpenAttempts = 0;
-    } else {
-      this.circuitFailures++;
-      if (this.circuitOpenUntil > 0) {
-        this.halfOpenAttempts++;
-        if (this.halfOpenAttempts >= this.halfOpenMaxAttempts) {
-          this.circuitOpenUntil = Date.now() + this.circuitCooldownMs;
-          logger.warn('Replay circuit breaker re-opened during half-open', {
-            failures: this.circuitFailures,
-            halfOpenAttempts: this.halfOpenAttempts,
-          });
-        }
-      }
-      if (this.circuitFailures >= this.circuitThreshold) {
-        this.circuitOpenUntil = Date.now() + this.circuitCooldownMs;
-        logger.warn('Replay circuit breaker opened', {
-          failures: this.circuitFailures,
-          cooldownMs: this.circuitCooldownMs,
-        });
-      }
-    }
-  }
+	/** Record the result of a batch replay. */
+	recordResult(success: boolean): void {
+		if (success) {
+			if (this._circuitFailures > 0) {
+				this._circuitFailures = 0;
+			}
+			this._circuitOpenUntil = 0;
+			this._halfOpenAttempts = 0;
+		} else {
+			this._circuitFailures++;
+			if (this._circuitOpenUntil > 0) {
+				this._halfOpenAttempts++;
+				if (this._halfOpenAttempts >= this._halfOpenMaxAttempts) {
+					this._circuitOpenUntil = Date.now() + this._circuitCooldownMs;
+					logger.warn("Replay circuit breaker re-opened during half-open", {
+						failures: this._circuitFailures,
+						halfOpenAttempts: this._halfOpenAttempts,
+					});
+				}
+			}
+			if (this._circuitFailures >= this._circuitThreshold) {
+				this._circuitOpenUntil = Date.now() + this._circuitCooldownMs;
+				logger.warn("Replay circuit breaker opened", {
+					failures: this._circuitFailures,
+					cooldownMs: this._circuitCooldownMs,
+				});
+			}
+		}
+	}
 
-  /** Check if batch concurrency limit has been reached. */
-  canStartBatch(): boolean {
-    if (this.activeBatches >= this.maxConcurrentBatches) {
-      logger.warn('Too many concurrent replay batches', {
-        activeBatches: this.activeBatches,
-        max: this.maxConcurrentBatches,
-      });
-      return false;
-    }
-    return true;
-  }
+	/** Check if batch concurrency limit has been reached. */
+	canStartBatch(): boolean {
+		if (this._activeBatches >= this._maxConcurrentBatches) {
+			logger.warn("Too many concurrent replay batches", {
+				activeBatches: this._activeBatches,
+				max: this._maxConcurrentBatches,
+			});
+			return false;
+		}
+		return true;
+	}
 
-  acquireBatch(): void {
-    this.activeBatches++;
-  }
+	acquireBatch(): void {
+		this._activeBatches++;
+	}
 
-  releaseBatch(): void {
-    if (this.activeBatches > 0) this.activeBatches--;
-  }
+	releaseBatch(): void {
+		if (this._activeBatches > 0) {
+			this._activeBatches--;
+		}
+	}
 
-  getCircuitState(): string {
-    return this.circuitState;
-  }
+	getCircuitState(): string {
+		return this._circuitState;
+	}
 }

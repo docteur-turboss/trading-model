@@ -12,105 +12,107 @@
  * Designed for horizontally scaled environments.
  */
 
-import os from 'os';
+import os from "node:os";
+import { logger } from "@trading-model/common/config/logger";
+import cron from "node-cron";
 
-import cron from 'node-cron';
+import { MarketDataController } from "../../infra/market-data/market-data.controller";
+import {
+	BinanceWorker,
+	type BinanceWorkerResult,
+} from "../worker/binance.worker";
 
-import { logger } from '@trading-model/common/config/logger';
-
-import { MarketDataController } from '../../infra/market-data/market-data.controller';
-import { BinanceWorker, BinanceWorkerResult } from '../worker/binance.worker';
-
-type LimitFunction = <A extends unknown[], R>(
-  fn: (...args: A) => PromiseLike<R> | R,
-  ...args: A
-) => Promise<R>;
+type LimitFunction = <TArgs extends unknown[], TResult>(
+	fn: (...args: TArgs) => PromiseLike<TResult> | TResult,
+	...args: TArgs
+) => Promise<TResult>;
 
 /** Configuration for scheduling a BinanceCronOrchestrator instance. */
 export interface CronConfig {
-  schedule: string; // e.g. "*/1 * * * *"
-  symbols: string[];
-  maxConcurrency?: number;
-  candleInterval?: '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
+	schedule: string; // e.g. "*/1 * * * *"
+	symbols: string[];
+	maxConcurrency?: number;
+	candleInterval?: "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
 }
 
 export class BinanceCronOrchestrator {
-  private readonly maxConcurrency: number;
-  private isRunning = false;
+	private readonly _maxConcurrency: number;
+	private _isRunning = false;
 
-  constructor(private readonly config: CronConfig) {
-    /**
-     * Default concurrency:
-     * - Number of CPUs * 2 (I/O bound workload)
-     * - Capped by the number of symbols
-     */
-    const cpuBased = os.cpus().length * 2;
+	constructor(private readonly _config: CronConfig) {
+		/**
+		 * Default concurrency:
+		 * - Number of CPUs * 2 (I/O bound workload)
+		 * - Capped by the number of symbols
+		 */
+		const cpuBased = os.cpus().length * 2;
 
-    this.maxConcurrency = config.maxConcurrency ?? Math.min(cpuBased, config.symbols.length);
-  }
+		this._maxConcurrency =
+			_config.maxConcurrency ?? Math.min(cpuBased, _config.symbols.length);
+	}
 
-  /**
-   * Starts the cron scheduler.
-   */
-  public start(): void {
-    cron.schedule(this.config.schedule, async () => {
-      if (this.isRunning) {
-        logger.warn('Previous execution still running');
-        return;
-      }
+	/**
+	 * Starts the cron scheduler.
+	 */
+	public start(): void {
+		cron.schedule(this._config.schedule, async () => {
+			if (this._isRunning) {
+				logger.warn("Previous execution still running");
+				return;
+			}
 
-      this.isRunning = true;
+			this._isRunning = true;
 
-      try {
-        await this.executeBatch();
-      } catch (err) {
-        if (err instanceof Error) {
-          logger.error('Batch execution error', {
-            err: err.message,
-          });
-        } else {
-          logger.error('Unknown batch execution error', { err: String(err) });
-        }
-      } finally {
-        this.isRunning = false;
-      }
-    });
+			try {
+				await this._executeBatch();
+			} catch (err) {
+				if (err instanceof Error) {
+					logger.error("Batch execution error", {
+						err: err.message,
+					});
+				} else {
+					logger.error("Unknown batch execution error", { err: String(err) });
+				}
+			} finally {
+				this._isRunning = false;
+			}
+		});
 
-    logger.info('Scheduler started', { maxConcurrency: this.maxConcurrency });
-  }
+		logger.info("Scheduler started", { maxConcurrency: this._maxConcurrency });
+	}
 
-  /**
-   * Batch execution with concurrency limiting.
-   */
-  private async executeBatch(): Promise<void> {
-    const { default: pLimit } = (await import('p-limit')) as unknown as {
-      default: (concurrency: number) => LimitFunction;
-    };
-    const limiter = pLimit(this.maxConcurrency);
+	/**
+	 * Batch execution with concurrency limiting.
+	 */
+	private async _executeBatch(): Promise<void> {
+		const { default: pLimit } = (await import("p-limit")) as unknown as {
+			default: (concurrency: number) => LimitFunction;
+		};
+		const limiter = pLimit(this._maxConcurrency);
 
-    const tasks = this.config.symbols.map(symbol =>
-      limiter(async () => {
-        const worker = new BinanceWorker({
-          symbol,
-          interval: this.config.candleInterval ?? '1m',
-        });
+		const tasks = this._config.symbols.map((symbol) =>
+			limiter(async () => {
+				const worker = new BinanceWorker({
+					symbol,
+					interval: this._config.candleInterval ?? "1m",
+				});
 
-        const result = await worker.run();
+				const result = await worker.run();
 
-        await this.persist(result);
-      })
-    );
+				await this.persist(result);
+			})
+		);
 
-    await Promise.all(tasks);
-  }
+		await Promise.all(tasks);
+	}
 
-  /**
-   * Extension point for persistence.
-   * Can be overridden or injected.
-   */
-  protected async persist(data: BinanceWorkerResult): Promise<void> {
-    await MarketDataController.persist(data);
+	/**
+	 * Extension point for persistence.
+	 * Can be overridden or injected.
+	 */
+	protected async persist(data: BinanceWorkerResult): Promise<void> {
+		await MarketDataController.persist(data);
 
-    logger.debug('Data persisted');
-  }
+		logger.debug("Data persisted");
+	}
 }

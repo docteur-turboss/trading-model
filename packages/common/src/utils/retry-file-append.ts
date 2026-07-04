@@ -8,20 +8,20 @@
  * @returns true if the write succeeded, false if all attempts failed
  */
 export async function retryFileAppend(
-  filePath: string,
-  content: string,
-  maxAttempts = 3
+	filePath: string,
+	content: string,
+	maxAttempts = 3
 ): Promise<boolean> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      const fs = await import('node:fs/promises');
-      await fs.appendFile(filePath, content + '\n', 'utf-8');
-      return true;
-    } catch {
-      if (attempt < maxAttempts - 1) {
-        await new Promise(r => setTimeout(r, 100 * Math.pow(2, attempt)));
-      }
-    }
-  }
-  return false;
+	for (let attempt = 0; attempt < maxAttempts; attempt++) {
+		try {
+			const fs = await import("node:fs/promises");
+			await fs.appendFile(filePath, `${content}\n`, "utf-8");
+			return true;
+		} catch {
+			if (attempt < maxAttempts - 1) {
+				await new Promise((resolve) => setTimeout(resolve, 100 * 2 ** attempt));
+			}
+		}
+	}
+	return false;
 }

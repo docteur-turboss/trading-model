@@ -1,47 +1,47 @@
 export interface CertificateRequest {
-  serviceId: string;
-  csr: string;
-  ttlMs: number;
+	serviceId: string;
+	csr: string;
+	ttlMs: number;
 }
 
 export interface SignedCertificate {
-  serialNumber: string;
-  certPem: string;
-  caPem: string;
-  serviceId: string;
-  issuedAt: Date;
-  expiresAt: Date;
-  fingerprint: string;
+	serialNumber: string;
+	certPem: string;
+	caPem: string;
+	serviceId: string;
+	issuedAt: Date;
+	expiresAt: Date;
+	fingerprint: string;
 }
 
 export interface RevokedCertificate {
-  serialNumber: string;
-  serviceId: string;
-  revokedAt: Date;
-  reason: string;
+	serialNumber: string;
+	serviceId: string;
+	revokedAt: Date;
+	reason: string;
 }
 
 export interface CaMetadata {
-  id: string;
-  caCertPem: string;
-  createdAt: Date;
-  expiresAt: Date;
-  fingerprint: string;
+	id: string;
+	caCertPem: string;
+	createdAt: Date;
+	expiresAt: Date;
+	fingerprint: string;
 }
 
 export interface KeyPair {
-  publicKey: string;
-  privateKey: string;
+	publicKey: string;
+	privateKey: string;
 }
 
 export type KeyPairWithId = KeyPair & { id: string };
 
 export interface CertificateInfo {
-  serialNumber: string;
-  subject: string;
-  issuer: string;
-  notBefore: Date;
-  notAfter: Date;
-  fingerprint: string;
-  san: string[];
+	serialNumber: string;
+	subject: string;
+	issuer: string;
+	notBefore: Date;
+	notAfter: Date;
+	fingerprint: string;
+	san: string[];
 }

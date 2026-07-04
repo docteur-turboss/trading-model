@@ -39,6 +39,7 @@ jobs:
           npm run -w services/api-gateway build
           npm run -w services/admin-interface build
           npm run -w services/audit-logger build
+          npm run -w services/dlq-service build
           npm run -w packages/certificate-utils build
       - run: npm run test:coverage
 
@@ -86,6 +87,9 @@ jobs:
           - name: admin-interface
             context: .
             dockerfile: services/admin-interface/Dockerfile
+          - name: dlq-service
+            context: .
+            dockerfile: services/dlq-service/Dockerfile
     steps:
       - uses: actions/checkout@v5
 
@@ -143,8 +147,11 @@ jobs:
             echo "| Message Manager | \`docker pull ghcr.io/${{ github.repository }}/message-manager:${{ needs.quality.outputs.version }}\` |"
             echo "| Financial Scraper | \`docker pull ghcr.io/${{ github.repository }}/financial-scraper:${{ needs.quality.outputs.version }}\` |"
             echo "| Trader Trainer | \`docker pull ghcr.io/${{ github.repository }}/trader-trainer:${{ needs.quality.outputs.version }}\` |"
+            echo "| Certificate Authority | \`docker pull ghcr.io/${{ github.repository }}/certificate-authority:${{ needs.quality.outputs.version }}\` |"
+            echo "| API Gateway | \`docker pull ghcr.io/${{ github.repository }}/api-gateway:${{ needs.quality.outputs.version }}\` |"
             echo "| Audit Logger | \`docker pull ghcr.io/${{ github.repository }}/audit-logger:${{ needs.quality.outputs.version }}\` |"
             echo "| Admin Interface | \`docker pull ghcr.io/${{ github.repository }}/admin-interface:${{ needs.quality.outputs.version }}\` |"
+            echo "| DLQ Service | \`docker pull ghcr.io/${{ github.repository }}/dlq-service:${{ needs.quality.outputs.version }}\` |"
             echo ""
             echo "## Quick Start"
             echo ""

@@ -1,1 +1,1 @@
-export { CrlCache, globalCrlCache } from './crl-cache';
+export { CrlCache, GLOBAL_CRL_CACHE } from "./crl-cache";

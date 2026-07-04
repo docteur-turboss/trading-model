@@ -1,10 +1,7 @@
-import https from 'node:https';
-
-import { HttpClient } from '@trading-model/common/config/http-client';
-import { PING_PATH } from '@trading-model/common/server/constants';
-
-import { ServiceLocator, ServiceNameLocator } from './service-locator';
-import { ServiceInstance } from '../client/type';
+import type { HttpClient } from "@trading-model/common/config/http-client";
+import { PING_PATH } from "@trading-model/common/server/constants";
+import type { ServiceInstance } from "../client/type";
+import { type ServiceLocator, ServiceNameLocator } from "./service-locator";
 
 /**
  * ServiceHealthChecker
@@ -27,78 +24,67 @@ import { ServiceInstance } from '../client/type';
  * Kubernetes, direct IP, etc.).
  */
 export class ServiceHealthChecker {
-  private readonly httpClient: HttpClient;
-  private readonly timeoutMs: number;
-  private readonly serviceLocator: ServiceLocator;
-  private readonly windowSize: number;
-  private readonly passThreshold: number;
-  private readonly healthCheckPath?: string;
-  private readonly healthCheckAgent?: https.Agent;
+	private readonly _httpClient: HttpClient;
+	private readonly _timeoutMs: number;
+	private readonly _serviceLocator: ServiceLocator;
 
-  /**
-   * Creates a new ServiceHealthChecker.
-   */
-  constructor(
-    httpClient: HttpClient,
-    timeoutMs: number,
-    serviceLocator?: ServiceLocator,
-    windowSize?: number,
-    passThreshold?: number,
-    healthCheckPath?: string,
-    healthCheckAgent?: https.Agent,
-    _latencyWindowSize?: number,
-    _latencyThresholdMs?: number,
-    _enableAdaptive?: boolean
-  ) {
-    this.httpClient = httpClient;
-    this.timeoutMs = timeoutMs;
-    this.serviceLocator = serviceLocator ?? new ServiceNameLocator();
-    this.windowSize = windowSize ?? 10;
-    this.passThreshold = passThreshold ?? 0.7;
-    this.healthCheckPath = healthCheckPath;
-    this.healthCheckAgent = healthCheckAgent;
-  }
+	/**
+	 * Creates a new ServiceHealthChecker.
+	 */
+	constructor(
+		httpClient: HttpClient,
+		timeoutMs: number,
+		serviceLocator?: ServiceLocator
+	) {
+		this._httpClient = httpClient;
+		this._timeoutMs = timeoutMs;
+		this._serviceLocator = serviceLocator ?? new ServiceNameLocator();
+	}
 
-  /**
-   * Checks whether a service instance is healthy.
-   *
-   * - Returns `true` if the service responds within the timeout.
-   * - Returns `false` if the service does not respond or an error occurs.
-   *
-   * @param instance - The service instance to check.
-   * @returns Promise resolving to `true` if healthy, `false` otherwise.
-   */
-  async isHealthy(instance: ServiceInstance): Promise<boolean> {
-    const url = this.buildPingUrl(instance);
+	/**
+	 * Checks whether a service instance is healthy.
+	 *
+	 * - Returns `true` if the service responds within the timeout.
+	 * - Returns `false` if the service does not respond or an error occurs.
+	 *
+	 * @param instance - The service instance to check.
+	 * @returns Promise resolving to `true` if healthy, `false` otherwise.
+	 */
+	async isHealthy(instance: ServiceInstance): Promise<boolean> {
+		const url = this._buildPingUrl(instance);
 
-    try {
-      await this.httpClient.get(url, {
-        timeoutMs: this.timeoutMs,
-      });
+		try {
+			await this._httpClient.get(url, {
+				timeoutMs: this._timeoutMs,
+			});
 
-      return true;
-    } catch {
-      return false;
-    }
-  }
+			return true;
+		} catch {
+			return false;
+		}
+	}
 
-  /**
-   * Builds the ping URL for the service instance.
-   *
-   * Convention:
-   * - Each service exposes a GET /ping endpoint for health checks.
-   *
-   * @param instance - The service instance.
-   * @returns The full URL to ping.
-   *
-   * @private
-   */
-  recordLatency(_instanceId: string, _durationMs: number, _success: boolean): void {
-    // no-op: latency tracking implemented in higher-level circuit breaker
-  }
+	/**
+	 * Builds the ping URL for the service instance.
+	 *
+	 * Convention:
+	 * - Each service exposes a GET /ping endpoint for health checks.
+	 *
+	 * @param instance - The service instance.
+	 * @returns The full URL to ping.
+	 *
+	 * @private
+	 */
+	recordLatency(
+		_instanceId: string,
+		_durationMs: number,
+		_success: boolean
+	): void {
+		// no-op: latency tracking implemented in higher-level circuit breaker
+	}
 
-  private buildPingUrl(instance: ServiceInstance): string {
-    const hostname = this.serviceLocator.locate(instance);
-    return `https://${hostname}:${instance.port}${PING_PATH}`;
-  }
+	private _buildPingUrl(instance: ServiceInstance): string {
+		const hostname = this._serviceLocator.locate(instance);
+		return `https://${hostname}:${instance.port}${PING_PATH}`;
+	}
 }

@@ -2,26 +2,32 @@
 
 ## Why
 
-Ensure readability, maintainability, and compatibility with automated tools (ESLint, Prettier, JSDoc generation). Uniform writing conventions reduce cognitive load during code reviews and ease onboarding for new contributors.
+Ensure readability, maintainability, and compatibility with automated tools (Biome, JSDoc generation). Uniform writing conventions reduce cognitive load during code reviews and ease onboarding for new contributors.
 
-## Code Style (Prettier)
+## Code Style (Biome)
 
-Configuration `.prettierrc` applied across the entire monorepo:
+Configuration `biome.json` applied across the entire monorepo:
 
 ```json
 {
-  "semi": true,
-  "trailingComma": "es5",
-  "singleQuote": true,
-  "printWidth": 100,
-  "tabWidth": 2,
-  "useTabs": false,
-  "arrowParens": "avoid",
-  "endOfLine": "lf"
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "es5",
+      "arrowParentheses": "asNeeded",
+      "semicolons": "always"
+    }
+  }
 }
 ```
 
-Run: `npx prettier --check .` (CI) / `npx prettier --write .` (local formatting).
+Run: `npx @biomejs/biome format .` (CI) / `npx @biomejs/biome format --write .` (local formatting).
 
 ## Naming Conventions
 
@@ -84,51 +90,38 @@ services/DiscoveryServer/
 services/Financial_Scrapper/       // Snake case
 ```
 
-## ESLint
+## Biome
 
-Configuration in **flat config** (eslint.config.mjs) — ESLint v10, shared across the monorepo:
+Configuration in `biome.json` at the monorepo root — Biome replaces both ESLint and Prettier:
 
-```javascript
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
-import js from '@eslint/js';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
-import { globalIgnores, defineConfig } from 'eslint/config';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-export default defineConfig([
-  globalIgnores([
-    '**/dist/**',
-    '**/*.spec.ts',
-    '**/jest.config.*',
-    '**/jest.setup.ts',
-    '**/setup.ts',
-    '**/tests/fixtures/**',
-    '**/tests/helpers/**',
-    '**/docs/architecture/code/**',
-  ]),
-  {
-    files: ['**/*.{js,mjs,cjs}'],
-    extends: [js.configs.recommended],
-    languageOptions: { ecmaVersion: 'latest', globals: globals.node },
+```json
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "organizeImports": { "enabled": true },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "complexity": {
+        "noBannedTypes": "error",
+        "noUselessConstructor": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "error"
+      }
+    }
   },
-  {
-    files: ['**/*.ts'],
-    extends: [js.configs.recommended, tseslint.configs.recommended],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      globals: globals.node,
-      parserOptions: { projectService: true, tsconfigRootDir: __dirname },
-    },
-  },
-]);
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  }
+}
 ```
 
 - **TypeScript strict** enabled
-- **0 ESLint errors allowed** in CI
-- Warnings are tolerated short-term but should trend toward 0
+- **0 Biome errors allowed** in CI
+- Run: `npx @biomejs/biome check .` (CI) / `npx @biomejs/biome check --write .` (local fix)
 
 ## Code Organization
 

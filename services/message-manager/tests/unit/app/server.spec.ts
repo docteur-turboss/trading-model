@@ -1,56 +1,58 @@
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, expect, it, jest } from "@jest/globals";
 
-const mockApp = { use: jest.fn() };
-const mockCreateSecureServer = jest.fn<any>().mockReturnValue({ close: jest.fn() });
+const MOCK_APP = { use: jest.fn() };
+const MOCK_CREATE_SECURE_SERVER = jest
+	.fn<any>()
+	.mockReturnValue({ close: jest.fn() });
 
-jest.mock('@trading-model/common/server/create-secure-server', () => ({
-  createSecureServer: mockCreateSecureServer,
+jest.mock("@trading-model/common/server/create-secure-server", () => ({
+	createSecureServer: MOCK_CREATE_SECURE_SERVER,
 }));
 
-jest.mock('config/address-manager', () => ({
-  AddressManagerRoutes: jest.fn(),
+jest.mock("config/address-manager", () => ({
+	ADDRESS_MANAGER_ROUTES: jest.fn(),
 }));
 
-jest.mock('config/message-manager', () => ({
-  MessageManagerRoutes: jest.fn((app: any) => app),
+jest.mock("config/message-manager", () => ({
+	MESSAGE_MANAGER_ROUTES: jest.fn((app: any) => app),
 }));
 
-jest.mock('config/env', () => ({
-  env: {
-    PORT: 3000,
-    TLS_KEY_PATH: '/etc/tls/key.pem',
-    TLS_CERT_PATH: '/etc/tls/cert.pem',
-    TLS_CA_PATH: '/etc/tls/ca.pem',
-  },
+jest.mock("config/env", () => ({
+	ENV: {
+		PORT: 3000,
+		TLS_KEY_PATH: "/etc/tls/key.pem",
+		TLS_CERT_PATH: "/etc/tls/cert.pem",
+		TLS_CA_PATH: "/etc/tls/ca.pem",
+	},
 }));
 
-import { createServer } from '../../../src/app/server';
+import { createServer } from "../../../src/app/server";
 
-describe('app/server', () => {
-  it('should create server', () => {
-    const server = createServer();
-    expect(server).toBeDefined();
-    expect(server.close).toBeDefined();
-  });
+describe("app/server", () => {
+	it("should create server", () => {
+		const server = createServer();
+		expect(server).toBeDefined();
+		expect(server.close).toBeDefined();
+	});
 
-  it('should call createSecureServer with correct options', () => {
-    createServer();
-    expect(mockCreateSecureServer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        port: 3000,
-        tls: expect.objectContaining({
-          key: '/etc/tls/key.pem',
-          cert: '/etc/tls/cert.pem',
-          ca: '/etc/tls/ca.pem',
-        }),
-      })
-    );
-  });
+	it("should call createSecureServer with correct options", () => {
+		void createServer();
+		expect(MOCK_CREATE_SECURE_SERVER).toHaveBeenCalledWith(
+			expect.objectContaining({
+				port: 3000,
+				tls: expect.objectContaining({
+					key: "/etc/tls/key.pem",
+					cert: "/etc/tls/cert.pem",
+					ca: "/etc/tls/ca.pem",
+				}),
+			})
+		);
+	});
 
-  it('should register routes callback', () => {
-    createServer();
-    const options: any = mockCreateSecureServer.mock.calls[0][0];
-    expect(typeof options.routes).toBe('function');
-    expect(() => options.routes(mockApp)).not.toThrow();
-  });
+	it("should register routes callback", () => {
+		void createServer();
+		const options: any = MOCK_CREATE_SECURE_SERVER.mock.calls[0][0];
+		expect(typeof options.routes).toBe("function");
+		expect(() => options.routes(MOCK_APP)).not.toThrow();
+	});
 });

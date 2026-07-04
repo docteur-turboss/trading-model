@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import { Router } from "express";
+import rateLimit from "express-rate-limit";
 
-import { createRegisterController } from '../controllers/register.controller';
-import { ServiceRegistry } from '../core/service-registry';
+import { createRegisterController } from "../controllers/register.controller";
+import type { ServiceRegistry } from "../core/service-registry";
 
 /**
  * Registry Routes
@@ -21,87 +21,89 @@ import { ServiceRegistry } from '../core/service-registry';
  * - Validation and error handling are handled at controller level
  * - Transport security is enforced upstream (mTLS)
  */
-export const registryRoutes = (registry: ServiceRegistry): Router => {
-  const { register, listServices, getServiceInstances, getInstance } =
-    createRegisterController(registry);
+export const REGISTRY_ROUTES = (registry: ServiceRegistry): Router => {
+	const { register, listServices, getServiceInstances, getInstance } =
+		createRegisterController(registry);
 
-  /**
-   * Express router scoped to registry responsibilities.
-   */
-  const router = Router();
+	/**
+	 * Express router scoped to registry responsibilities.
+	 */
+	const router = Router();
 
-  const registerLimiter = rateLimit({
-    windowMs: 60_000,
-    max: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Too many registration requests, please try again later' },
-  });
+	const registerLimiter = rateLimit({
+		windowMs: 60_000,
+		max: 30,
+		standardHeaders: true,
+		legacyHeaders: false,
+		message: {
+			error: "Too many registration requests, please try again later",
+		},
+	});
 
-  /**
-   * -------------------------
-   * Instance Registration
-   * -------------------------
-   *
-   * POST /register
-   *
-   * Registers a new service instance or updates an existing one.
-   *
-   * Characteristics:
-   * - Idempotent per (serviceName + instanceId)
-   * - Supports automatic instanceId generation
-   * - Initializes TTL and heartbeat metadata
-   */
-  router.post('/register', registerLimiter, register);
+	/**
+	 * -------------------------
+	 * Instance Registration
+	 * -------------------------
+	 *
+	 * POST /register
+	 *
+	 * Registers a new service instance or updates an existing one.
+	 *
+	 * Characteristics:
+	 * - Idempotent per (serviceName + instanceId)
+	 * - Supports automatic instanceId generation
+	 * - Initializes TTL and heartbeat metadata
+	 */
+	router.post("/register", registerLimiter, register);
 
-  /**
-   * -------------------------
-   * Service Listing
-   * -------------------------
-   *
-   * GET /services
-   *
-   * Returns the list of all registered service names.
-   *
-   * Intended usage:
-   * - service discovery clients
-   * - administrative tooling
-   */
-  router.get('/services', listServices);
+	/**
+	 * -------------------------
+	 * Service Listing
+	 * -------------------------
+	 *
+	 * GET /services
+	 *
+	 * Returns the list of all registered service names.
+	 *
+	 * Intended usage:
+	 * - service discovery clients
+	 * - administrative tooling
+	 */
+	router.get("/services", listServices);
 
-  /**
-   * -------------------------
-   * Service Instance Listing
-   * -------------------------
-   *
-   * GET /services/:serviceName
-   *
-   * Returns all instances registered for a given service.
-   *
-   * Notes:
-   * - May include instances that are close to TTL expiration
-   * - Liveness enforcement is handled by LeaseManager
-   */
-  router.get('/services/:serviceName', getServiceInstances);
+	/**
+	 * -------------------------
+	 * Service Instance Listing
+	 * -------------------------
+	 *
+	 * GET /services/:serviceName
+	 *
+	 * Returns all instances registered for a given service.
+	 *
+	 * Notes:
+	 * - May include instances that are close to TTL expiration
+	 * - Liveness enforcement is handled by LeaseManager
+	 */
+	router.get("/services/:serviceName", getServiceInstances);
 
-  /**
-   * -------------------------
-   * Instance Lookup
-   * -------------------------
-   *
-   * GET /services/:serviceName/:instanceId
-   *
-   * Returns detailed metadata for a specific service instance.
-   *
-   * Typical use cases:
-   * - debugging
-   * - targeted health inspection
-   * - admin / observability tooling
-   */
-  router.get('/services/:serviceName/:instanceId', getInstance);
+	/**
+	 * -------------------------
+	 * Instance Lookup
+	 * -------------------------
+	 *
+	 * GET /services/:serviceName/:instanceId
+	 *
+	 * Returns detailed metadata for a specific service instance.
+	 *
+	 * Typical use cases:
+	 * - debugging
+	 * - targeted health inspection
+	 * - admin / observability tooling
+	 */
+	router.get("/services/:serviceName/:instanceId", getInstance);
 
-  /**
-   * Return the configured router to be mounted by the application.
-   */
-  return router;
+	/**
+	 * Return the configured router to be mounted by the application.
+	 */
+	return router;
 };

@@ -1,5 +1,5 @@
 /**
- * MongoManager — singleton MongoDB connection pool for the CA service.
+ * MONGO_MANAGER — singleton MongoDB connection pool for the CA service.
  *
  * All persistence stores (CertificateStore, CrlStore, CaStore, TokenStore, etc.)
  * share a single MongoClient instance through this manager, avoiding connection
@@ -15,107 +15,125 @@
  * Formula: (max concurrent rotations × batch size) + query overhead
  * Example: 10 concurrent × 10 batch + 10 overhead = 110
  */
-import { MongoClient, Db } from 'mongodb';
 
-import { logger } from '@trading-model/common/config/logger';
+import { logger } from "@trading-model/common/config/logger";
+import { type Db, MongoClient } from "mongodb";
 
-export class MongoManager {
-  private static client: MongoClient | null = null;
-  private static db: Db | null = null;
-  private static uri: string = '';
-  private static poolSize: number = 50;
-  private static initialized = false;
+let client: MongoClient | null = null;
+let db: Db | null = null;
+let uri = "";
+let poolSize = 50;
+let initialized = false;
 
-  /**
-   * Initializes the shared MongoDB connection pool.
-   * Call once at service startup (from CA bootstrap).
-   */
-  static async initialize(uri: string, poolSize?: number): Promise<void> {
-    if (this.initialized) return;
-    this.uri = uri;
-    this.poolSize = poolSize ?? parseInt(process.env.MONGO_POOL_SIZE ?? '50', 10);
+/**
+ * Initializes the shared MongoDB connection pool.
+ * Call once at service startup (from CA bootstrap).
+ */
+async function initialize(
+	uriParam: string,
+	poolSizeParam?: number
+): Promise<void> {
+	if (initialized) {
+		return;
+	}
+	uri = uriParam;
+	poolSize =
+		poolSizeParam ?? Number.parseInt(process.env.MONGO_POOL_SIZE ?? "50", 10);
 
-    this.client = new MongoClient(uri, {
-      maxPoolSize: this.poolSize,
-      minPoolSize: Math.max(2, Math.floor(this.poolSize / 5)),
-      serverSelectionTimeoutMS: 5000,
-      connectTimeoutMS: 5000,
-      retryWrites: true,
-      retryReads: true,
-    });
+	client = new MongoClient(uri, {
+		maxPoolSize: poolSize,
+		minPoolSize: Math.max(2, Math.floor(poolSize / 5)),
+		serverSelectionTimeoutMS: 5000,
+		connectTimeoutMS: 5000,
+		retryWrites: true,
+		retryReads: true,
+	});
 
-    await this.client.connect();
-    this.db = this.client.db();
-    this.initialized = true;
+	await client.connect();
+	db = client.db();
+	initialized = true;
 
-    logger.info('MongoManager initialized', {
-      poolSize: this.poolSize,
-      database: this.db.databaseName,
-    });
-  }
-
-  /** Returns the shared MongoClient instance. */
-  static getClient(): MongoClient {
-    if (!this.client) {
-      throw new Error('MongoManager not initialized. Call MongoManager.initialize() first.');
-    }
-    return this.client;
-  }
-
-  /** Returns the shared Db instance. */
-  static getDb(): Db {
-    if (!this.db) {
-      throw new Error('MongoManager not initialized. Call MongoManager.initialize() first.');
-    }
-    return this.db;
-  }
-
-  /** Returns the configured pool size. */
-  static getPoolSize(): number {
-    return this.poolSize;
-  }
-
-  /** Returns true if the manager has been initialized. */
-  static isInitialized(): boolean {
-    return this.initialized;
-  }
-
-  /**
-   * Attempts to reconnect if the MongoDB connection was lost.
-   * Called by persistence stores when an operation fails.
-   */
-  static async tryReconnect(): Promise<boolean> {
-    if (this.client) {
-      try {
-        await this.client.close();
-      } catch {
-        // ignore close errors
-      }
-      this.client = null;
-      this.db = null;
-      this.initialized = false;
-    }
-    try {
-      await this.initialize(this.uri, this.poolSize);
-      return true;
-    } catch {
-      logger.warn('MongoManager reconnection failed');
-      return false;
-    }
-  }
-
-  /** Closes the shared connection pool. Call once at service shutdown. */
-  static async close(): Promise<void> {
-    if (this.client) {
-      try {
-        await this.client.close();
-      } catch (err) {
-        logger.warn('MongoManager close error', { err });
-      }
-      this.client = null;
-      this.db = null;
-      this.initialized = false;
-      logger.info('MongoManager connection pool closed');
-    }
-  }
+	logger.info("MONGO_MANAGER initialized", {
+		poolSize,
+		database: db.databaseName,
+	});
 }
+
+/** Returns the shared MongoClient instance. */
+function getClient(): MongoClient {
+	if (!client) {
+		throw new Error(
+			"MONGO_MANAGER not initialized. Call MONGO_MANAGER.initialize() first."
+		);
+	}
+	return client;
+}
+
+/** Returns the shared Db instance. */
+function getDb(): Db {
+	if (!db) {
+		throw new Error(
+			"MONGO_MANAGER not initialized. Call MONGO_MANAGER.initialize() first."
+		);
+	}
+	return db;
+}
+
+/** Returns the configured pool size. */
+function getPoolSize(): number {
+	return poolSize;
+}
+
+/** Returns true if the manager has been initialized. */
+function isInitialized(): boolean {
+	return initialized;
+}
+
+/**
+ * Attempts to reconnect if the MongoDB connection was lost.
+ * Called by persistence stores when an operation fails.
+ */
+async function tryReconnect(): Promise<boolean> {
+	if (client) {
+		try {
+			await client.close();
+		} catch {
+			// ignore close errors
+		}
+		client = null;
+		db = null;
+		initialized = false;
+	}
+	try {
+		await initialize(uri, poolSize);
+		return true;
+	} catch {
+		logger.warn("MONGO_MANAGER reconnection failed");
+		return false;
+	}
+}
+
+/** Closes the shared connection pool. Call once at service shutdown. */
+async function close(): Promise<void> {
+	if (client) {
+		try {
+			await client.close();
+		} catch (err) {
+			logger.warn("MONGO_MANAGER close error", { err });
+		}
+		client = null;
+		db = null;
+		initialized = false;
+		logger.info("MONGO_MANAGER connection pool closed");
+	}
+}
+
+export const MONGO_MANAGER = {
+	initialize,
+	getClient,
+	getDb,
+	getPoolSize,
+	isInitialized,
+	tryReconnect,
+	close,
+};

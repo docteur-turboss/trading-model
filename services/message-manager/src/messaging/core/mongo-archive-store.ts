@@ -1,169 +1,205 @@
-import { Message } from '@trading-model/common/contracts/message.types';
+import type { Message } from "@trading-model/common/contracts/message.types";
+import { ENV } from "../../config/env";
+import { logger } from "../../config/logger";
+import { messageStore } from "./message-store";
 
-import { messageStore } from './message-store.js';
-import { env } from '../../config/env.js';
-import { logger } from '../../config/logger.js';
+const SET_ON_INSERT = "$setOnInsert";
 
 interface ArchiveEntry {
-  messageId: string;
-  topic: string;
-  eventType: string;
-  producer: string;
-  payload: unknown;
-  metadata: Record<string, unknown>;
-  archivedAt: Date;
-  ttl: Date;
+	messageId: string;
+	topic: string;
+	eventType: string;
+	producer: string;
+	payload: unknown;
+	metadata: Record<string, unknown>;
+	archivedAt: Date;
+	ttl: Date;
 }
 
 interface MongoClient {
-  db: (name: string) => {
-    collection: (name: string) => {
-      insertMany: (docs: unknown[]) => Promise<unknown>;
-      createIndex: (
-        keys: Record<string, number>,
-        opts?: Record<string, unknown>
-      ) => Promise<string>;
-      countDocuments: (filter: Record<string, unknown>) => Promise<number>;
-      deleteMany: (filter: Record<string, unknown>) => Promise<{ deletedCount: number }>;
-      bulkWrite: (ops: unknown[]) => Promise<unknown>;
-    };
-  };
-  close: () => Promise<void>;
+	db: (name: string) => {
+		collection: (name: string) => {
+			insertMany: (docs: unknown[]) => Promise<unknown>;
+			createIndex: (
+				keys: Record<string, number>,
+				opts?: Record<string, unknown>
+			) => Promise<string>;
+			countDocuments: (filter: Record<string, unknown>) => Promise<number>;
+			deleteMany: (
+				filter: Record<string, unknown>
+			) => Promise<{ deletedCount: number }>;
+			bulkWrite: (ops: unknown[]) => Promise<unknown>;
+		};
+	};
+	close: () => Promise<void>;
 }
 
 export class MongoArchiveStore {
-  private client: MongoClient | null = null;
-  private archiveTimer: ReturnType<typeof setInterval> | null = null;
-  private started = false;
-  private topicsCache: string[] = [];
-  private topicsCacheTimer: ReturnType<typeof setInterval> | null = null;
+	private _client: MongoClient | null = null;
+	private _archiveTimer: ReturnType<typeof setInterval> | null = null;
+	private _started = false;
+	private _topicsCache: string[] = [];
+	private _topicsCacheTimer: ReturnType<typeof setInterval> | null = null;
 
-  async start(): Promise<void> {
-    if (!env.MONGO_ARCHIVE_URI) {
-      logger.info('MongoDB archival not configured — skipping');
-      return;
-    }
-    if (this.started) return;
-    this.started = true;
+	async start(): Promise<void> {
+		if (!ENV.MONGO_ARCHIVE_URI) {
+			logger.info("MongoDB archival not configured — skipping");
+			return;
+		}
+		if (this._started) {
+			return;
+		}
+		this._started = true;
 
-    try {
-      const { MongoClient } = await import('mongodb');
-      this.client = new MongoClient(env.MONGO_ARCHIVE_URI) as unknown as MongoClient;
-      await (this.client as unknown as { connect: () => Promise<void> }).connect();
-      logger.info('MongoDB archival store connected');
+		try {
+			const { MongoClient } = await import("mongodb");
+			this._client = new MongoClient(
+				ENV.MONGO_ARCHIVE_URI
+			) as unknown as MongoClient;
+			await (
+				this._client as unknown as { connect: () => Promise<void> }
+			).connect();
+			logger.info("MongoDB archival store connected");
 
-      await this.ensureIndexes();
-      this.startArchiveTimer();
-      this.startTopicsCacheRefresh();
-    } catch (err) {
-      logger.warn('MongoDB archival store failed to start — continuing without archival', {
-        error: (err as Error).message,
-      });
-      this.client = null;
-    }
-  }
+			await this._ensureIndexes();
+			this._startArchiveTimer();
+			this._startTopicsCacheRefresh();
+		} catch (err) {
+			logger.warn(
+				"MongoDB archival store failed to start — continuing without archival",
+				{
+					error: (err as Error).message,
+				}
+			);
+			this._client = null;
+		}
+	}
 
-  private async ensureIndexes(): Promise<void> {
-    if (!this.client) return;
-    try {
-      const col = this.client.db(env.MONGO_ARCHIVE_DB).collection(env.MONGO_ARCHIVE_COLLECTION);
-      await col.createIndex({ messageId: 1 }, { unique: true, background: true });
-      await col.createIndex({ topic: 1, archivedAt: -1 }, { background: true });
-      await col.createIndex({ ttl: 1 }, { expireAfterSeconds: 0, background: true });
-      logger.info('MongoDB archive indexes ensured');
-    } catch (err) {
-      logger.warn('Failed to create archive indexes', { error: (err as Error).message });
-    }
-  }
+	private async _ensureIndexes(): Promise<void> {
+		if (!this._client) {
+			return;
+		}
+		try {
+			const col = this._client
+				.db(ENV.MONGO_ARCHIVE_DB)
+				.collection(ENV.MONGO_ARCHIVE_COLLECTION);
+			await col.createIndex(
+				{ messageId: 1 },
+				{ unique: true, background: true }
+			);
+			await col.createIndex({ topic: 1, archivedAt: -1 }, { background: true });
+			await col.createIndex(
+				{ ttl: 1 },
+				{ expireAfterSeconds: 0, background: true }
+			);
+			logger.info("MongoDB archive indexes ensured");
+		} catch (err) {
+			logger.warn("Failed to create archive indexes", {
+				error: (err as Error).message,
+			});
+		}
+	}
 
-  private startTopicsCacheRefresh(): void {
-    this.topicsCacheTimer = setInterval(async () => {
-      try {
-        const { getSubscriptionClient } = await import('../../config/redis.js');
-        const redis = await getSubscriptionClient();
-        const topics = await redis.smembers(`${env.REDIS_PREFIX}topics`);
-        this.topicsCache = topics;
-      } catch {
-        // best-effort
-      }
-    }, 30_000);
-    this.topicsCacheTimer.unref();
-  }
+	private _startTopicsCacheRefresh(): void {
+		this._topicsCacheTimer = setInterval(async () => {
+			try {
+				const { getSubscriptionClient } = await import("../../config/redis.js");
+				const redis = await getSubscriptionClient();
+				const topics = await redis.smembers(`${ENV.REDIS_PREFIX}topics`);
+				this._topicsCache = topics;
+			} catch {
+				// best-effort
+			}
+		}, 30_000);
+		this._topicsCacheTimer.unref();
+	}
 
-  private startArchiveTimer(): void {
-    this.archiveTimer = setInterval(() => {
-      this.archiveBatch().catch(err => {
-        logger.warn('MongoDB archive batch failed', { error: (err as Error).message });
-      });
-    }, env.MONGO_ARCHIVE_INTERVAL_MS);
-    this.archiveTimer.unref();
-  }
+	private _startArchiveTimer(): void {
+		this._archiveTimer = setInterval(() => {
+			this._archiveBatch().catch((err) => {
+				logger.warn("MongoDB archive batch failed", {
+					error: (err as Error).message,
+				});
+			});
+		}, ENV.MONGO_ARCHIVE_INTERVAL_MS);
+		this._archiveTimer.unref();
+	}
 
-  private async archiveBatch(): Promise<void> {
-    if (!this.client) return;
+	private async _archiveBatch(): Promise<void> {
+		if (!this._client) {
+			return;
+		}
 
-    const topics = this.topicsCache;
-    if (topics.length === 0) return;
+		const topics = this._topicsCache;
+		if (topics.length === 0) {
+			return;
+		}
 
-    for (const topic of topics) {
-      try {
-        const messages = await messageStore.getMessagesAfter(
-          topic,
-          Date.now() - 3600_000,
-          env.MONGO_ARCHIVE_BATCH_SIZE
-        );
-        if (messages.length === 0) continue;
+		for (const topic of topics) {
+			try {
+				const messages = await messageStore.getMessagesAfter(
+					topic,
+					Date.now() - 3600_000,
+					ENV.MONGO_ARCHIVE_BATCH_SIZE
+				);
+				if (messages.length === 0) {
+					continue;
+				}
 
-        const entries: ArchiveEntry[] = messages.map((msg: Message) => ({
-          messageId: msg.metadata.messageId ?? '',
-          topic: msg.metadata.topic,
-          eventType: msg.metadata.eventType,
-          producer: msg.metadata.publisher?.serviceName ?? 'unknown',
-          payload: msg.payload,
-          metadata: msg.metadata as unknown as Record<string, unknown>,
-          archivedAt: new Date(),
-          ttl: new Date(Date.now() + env.MONGO_ARCHIVE_RETENTION_DAYS * 86400_000),
-        }));
+				const entries: ArchiveEntry[] = messages.map((msg: Message) => ({
+					messageId: msg.metadata.messageId ?? "",
+					topic: msg.metadata.topic,
+					eventType: msg.metadata.eventType,
+					producer: msg.metadata.publisher?.serviceName ?? "unknown",
+					payload: msg.payload,
+					metadata: msg.metadata as unknown as Record<string, unknown>,
+					archivedAt: new Date(),
+					ttl: new Date(
+						Date.now() + ENV.MONGO_ARCHIVE_RETENTION_DAYS * 86400_000
+					),
+				}));
 
-        const col = this.client.db(env.MONGO_ARCHIVE_DB).collection(env.MONGO_ARCHIVE_COLLECTION);
-        const bulkOps = entries
-          .filter(e => e.messageId)
-          .map(e => ({
-            updateOne: {
-              filter: { messageId: e.messageId },
-              update: { $setOnInsert: e },
-              upsert: true,
-            },
-          }));
+				const col = this._client
+					.db(ENV.MONGO_ARCHIVE_DB)
+					.collection(ENV.MONGO_ARCHIVE_COLLECTION);
+				const bulkOps = entries
+					.filter((entry) => entry.messageId)
+					.map((entry) => ({
+						updateOne: {
+							filter: { messageId: entry.messageId },
+							update: { [SET_ON_INSERT]: entry },
+							upsert: true,
+						},
+					}));
 
-        if (bulkOps.length > 0) {
-          await col.bulkWrite(bulkOps);
-        }
-      } catch {
-        // continue to next topic
-      }
-    }
-  }
+				if (bulkOps.length > 0) {
+					await col.bulkWrite(bulkOps);
+				}
+			} catch {
+				// continue to next topic
+			}
+		}
+	}
 
-  async stop(): Promise<void> {
-    if (this.archiveTimer) {
-      clearInterval(this.archiveTimer);
-      this.archiveTimer = null;
-    }
-    if (this.topicsCacheTimer) {
-      clearInterval(this.topicsCacheTimer);
-      this.topicsCacheTimer = null;
-    }
-    if (this.client) {
-      try {
-        await this.client.close();
-      } catch {
-        // best-effort
-      }
-      this.client = null;
-    }
-    this.started = false;
-  }
+	async stop(): Promise<void> {
+		if (this._archiveTimer) {
+			clearInterval(this._archiveTimer);
+			this._archiveTimer = null;
+		}
+		if (this._topicsCacheTimer) {
+			clearInterval(this._topicsCacheTimer);
+			this._topicsCacheTimer = null;
+		}
+		if (this._client) {
+			try {
+				await this._client.close();
+			} catch {
+				// best-effort
+			}
+			this._client = null;
+		}
+		this._started = false;
+	}
 }
 
 export const mongoArchiveStore = new MongoArchiveStore();

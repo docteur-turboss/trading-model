@@ -1,5 +1,5 @@
-import { DnsResolver } from './dns-resolver';
-import { ServiceInstance } from '../client/type';
+import type { ServiceInstance } from "../client/type";
+import type { DnsResolver } from "./dns-resolver";
 
 /**
  * Strategy for determining the target hostname to reach a service instance.
@@ -14,8 +14,8 @@ import { ServiceInstance } from '../client/type';
  * - `MappingServiceLocator` — delegates to a DnsResolver for name mapping
  */
 export interface ServiceLocator {
-  /** Resolve the hostname for a service instance. */
-  locate(instance: ServiceInstance): string;
+	/** Resolve the hostname for a service instance. */
+	locate(instance: ServiceInstance): string;
 }
 
 /**
@@ -25,9 +25,9 @@ export interface ServiceLocator {
  * (Docker Compose, Kubernetes with DNS).
  */
 export class ServiceNameLocator implements ServiceLocator {
-  locate(instance: ServiceInstance): string {
-    return instance.serviceName;
-  }
+	locate(instance: ServiceInstance): string {
+		return instance.serviceName;
+	}
 }
 
 /**
@@ -37,9 +37,9 @@ export class ServiceNameLocator implements ServiceLocator {
  * without DNS-based service discovery.
  */
 export class IpAddressLocator implements ServiceLocator {
-  locate(instance: ServiceInstance): string {
-    return instance.ip;
-  }
+	locate(instance: ServiceInstance): string {
+		return instance.ip;
+	}
 }
 
 /**
@@ -47,9 +47,9 @@ export class IpAddressLocator implements ServiceLocator {
  * logical service name when the resolver has no mapping.
  */
 export class MappingServiceLocator implements ServiceLocator {
-  constructor(private readonly dnsResolver: DnsResolver) {}
+	constructor(private readonly _dnsResolver: DnsResolver) {}
 
-  locate(instance: ServiceInstance): string {
-    return this.dnsResolver.resolve(instance.serviceName);
-  }
+	locate(instance: ServiceInstance): string {
+		return this._dnsResolver.resolve(instance.serviceName);
+	}
 }

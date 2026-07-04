@@ -22,11 +22,11 @@ The project is a **monorepo** with npm workspaces. Shared libraries live in `pac
 
 ## Writing (Code & JSDoc)
 
-Code follows Prettier conventions (semi, trailingComma es5, singleQuote, printWidth 100, tabWidth 2, arrowParens avoid, LF). Variables and functions use `camelCase`, classes/types use `PascalCase`, files/directories use `kebab-case`. JSDoc follows the rules in JSDOC_STANDARD.md (3rd person, no @param type, dash separator, @throws for non-obvious).
+Code follows Biome conventions (semi, trailingComma es5, singleQuote, printWidth 100, tabWidth 2, arrowParens avoid, LF). Variables and functions use `camelCase`, classes/types use `PascalCase`, files/directories use `kebab-case`. JSDoc follows the rules in JSDOC_STANDARD.md (3rd person, no @param type, dash separator, @throws for non-obvious).
 
-- Prettier config: semi, singleQuote, printWidth 100, LF
+- Biome config: semi, singleQuote, printWidth 100, LF
 - Naming: camelCase (vars/fns), PascalCase (classes/types), kebab-case (files/dirs)
-- ESLint flat config v10, TypeScript strict
+- Biome (lint + format), TypeScript strict
 - JSDoc: 3rd person, no redundant types, dash separator, one-liner if possible
 - Import order: Node → External → Workspace → Relative → Side effects
 
@@ -82,11 +82,11 @@ Feature branches (`feature/*`, `fix/*`, etc.) merge into `development`. Releases
 
 ## CI/CD
 
-CI (`.github/workflows/ci.yml`) runs lint + build + test on every push/PR. CD (`.github/workflows/release.yml`) triggers on tag `v*.*.*`: quality gate, Docker build+push to GHCR, GitHub Release. Multi-stage Docker images on node:20-alpine with tini.
+CI (`.github/workflows/ci.yml`) runs lint + build + test on every push/PR. CD (`.github/workflows/release.yml`) triggers on tag `v*.*.*`: quality gate, Docker build+push to GHCR, GitHub Release. Multi-stage Docker images on node:26-alpine with tini.
 
 - CI: lint + build + test on push/PR
 - CD: on tag v\*, multi-stage Docker build, push GHCR, GitHub Release
-- Docker: node:20-alpine, tini, multi-stage builds
+- Docker: node:26-alpine, tini, multi-stage builds
 - Permissions: CI read-only, CD contents:write + packages:write
 
 - [CI_CD.md](./CI_CD.md)
@@ -138,11 +138,11 @@ Every change follows a mandatory verification protocol that covers before commit
 
 ## Quality
 
-Tools: ESLint (0 errors), Prettier, Jest (coverage thresholds), TypeScript strict, commitlint, Husky. Gates: pre-commit (lint-staged), pre-push (build + test). CI verifies everything. Dependencies audited regularly (npm audit, Dependabot).
+Tools: Biome (0 errors), Jest (coverage thresholds), TypeScript strict, commitlint, Husky. Gates: pre-commit (lint-staged), pre-push (build + test). CI verifies everything. Dependencies audited regularly (npm audit, Dependabot).
 
-- ESLint: 0 errors in CI (warnings tolerated temporarily)
+- Biome: 0 errors in CI (warnings tolerated temporarily)
 - TypeScript: strict mode, noImplicitAny, strictNullChecks
-- Pre-commit: lint-staged (Prettier + ESLint)
+- Pre-commit: lint-staged (Biome)
 - Pre-push: build + tests
 - Coverage: minimum thresholds per module
 - Dependencies: npm audit + Dependabot PRs

@@ -1,43 +1,50 @@
 export type JobStatus =
-  'pending' | 'queued' | 'assigned' | 'running' | 'completed' | 'failed' | 'cancelled' | 'orphaned';
+	| "pending"
+	| "queued"
+	| "assigned"
+	| "running"
+	| "completed"
+	| "failed"
+	| "cancelled"
+	| "orphaned";
 
 export interface JobEvent {
-  fromStatus: JobStatus;
-  toStatus: JobStatus;
-  timestamp: Date;
-  reason: string;
+	fromStatus: JobStatus;
+	toStatus: JobStatus;
+	timestamp: Date;
+	reason: string;
 }
 
-export interface Job<T = unknown> {
-  id: string;
-  type: string;
-  payload: T;
-  priority: 1 | 2 | 3 | 4 | 5;
-  status: JobStatus;
-  assignedWorkerId?: string;
-  ackDeadline: number;
-  maxRetries: number;
-  retryCount: number;
-  createdAt: Date;
-  startedAt?: Date;
-  completedAt?: Date;
-  result?: unknown;
-  error?: string;
-  history: JobEvent[];
+export interface Job<TData = unknown> {
+	id: string;
+	type: string;
+	payload: TData;
+	priority: 1 | 2 | 3 | 4 | 5;
+	status: JobStatus;
+	assignedWorkerId?: string;
+	ackDeadline: number;
+	maxRetries: number;
+	retryCount: number;
+	createdAt: Date;
+	startedAt?: Date;
+	completedAt?: Date;
+	result?: unknown;
+	error?: string;
+	history: JobEvent[];
 }
 
-export interface QueuedJob<T = unknown> {
-  job: Job<T>;
-  state: 'queued' | 'delivered' | 'acknowledged';
-  deliveryAttempts: number;
-  expiresAt: number;
-  assignedAt?: Date;
+export interface QueuedJob<TData = unknown> {
+	job: Job<TData>;
+	state: "queued" | "delivered" | "acknowledged";
+	deliveryAttempts: number;
+	expiresAt: number;
+	assignedAt?: Date;
 }
 
 export const JOB_STATUS_NON_TERMINAL: JobStatus[] = [
-  'pending',
-  'queued',
-  'assigned',
-  'running',
-  'orphaned',
+	"pending",
+	"queued",
+	"assigned",
+	"running",
+	"orphaned",
 ];

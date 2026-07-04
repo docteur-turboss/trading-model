@@ -9,10 +9,10 @@
  * Each module gets its own subdirectory with TypeDoc HTML output.
  */
 
-import { existsSync, mkdirSync, rmSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = dirname(dirname(__filename));
@@ -75,7 +75,7 @@ function buildTypedocArgs(mod) {
     ...mod.entryPoints.map(ep => `"${posix(ep)}"`),
     `--out "${posix(join(OUT_DIR, mod.label))}"`,
     `--tsconfig "${posix(mod.tsconfig)}"`,
-    '--name "' + mod.label + '"',
+    `--name "${mod.label}"`,
     '--includeVersion',
     '--cleanOutputDir',
     '--hideGenerator',
@@ -238,7 +238,7 @@ const indexHtml = `<!DOCTYPE html>
 </html>`;
 
 const indexPath = join(OUT_DIR, 'index.html');
-const { writeFileSync } = await import('fs');
+const { writeFileSync } = await import('node:fs');
 writeFileSync(indexPath, indexHtml, 'utf-8');
 
 console.log(`\n✓ Root index: ${indexPath}`);

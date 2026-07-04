@@ -1,62 +1,62 @@
-import promClient from 'prom-client';
+import promClient from "prom-client";
 
 const register = new promClient.Registry();
 
 promClient.collectDefaultMetrics({ register });
 
 export const metrics = {
-  entriesAdded: new promClient.Counter({
-    name: 'dlq_entries_added_total',
-    help: 'Total number of DLQ entries added',
-    registers: [register],
-  }),
-  entriesDeleted: new promClient.Counter({
-    name: 'dlq_entries_deleted_total',
-    help: 'Total number of DLQ entries deleted',
-    registers: [register],
-  }),
-  entriesReplayed: new promClient.Counter({
-    name: 'dlq_entries_replayed_total',
-    help: 'Total number of DLQ entries successfully replayed',
-    registers: [register],
-  }),
-  entriesReplayFailed: new promClient.Counter({
-    name: 'dlq_entries_replay_failed_total',
-    help: 'Total number of DLQ entries that failed replay',
-    registers: [register],
-  }),
-  entriesPruned: new promClient.Counter({
-    name: 'dlq_entries_pruned_total',
-    help: 'Total number of old DLQ entries pruned',
-    registers: [register],
-  }),
-  pruneErrors: new promClient.Counter({
-    name: 'dlq_prune_errors_total',
-    help: 'Total number of prune operation errors',
-    registers: [register],
-  }),
-  entrySizeBytes: new promClient.Histogram({
-    name: 'dlq_entry_size_bytes',
-    help: 'Size distribution of DLQ entry payloads in bytes',
-    buckets: [1024, 5120, 10240, 51200, 102400, 512000, 1048576, 5242880],
-    registers: [register],
-  }),
-  collectionSize: new promClient.Gauge({
-    name: 'dlq_collection_size',
-    help: 'Current number of entries in the DLQ collection',
-    registers: [register],
-  }),
+	entriesAdded: new promClient.Counter({
+		name: "dlq_entries_added_total",
+		help: "Total number of DLQ entries added",
+		registers: [register],
+	}),
+	entriesDeleted: new promClient.Counter({
+		name: "dlq_entries_deleted_total",
+		help: "Total number of DLQ entries deleted",
+		registers: [register],
+	}),
+	entriesReplayed: new promClient.Counter({
+		name: "dlq_entries_replayed_total",
+		help: "Total number of DLQ entries successfully replayed",
+		registers: [register],
+	}),
+	entriesReplayFailed: new promClient.Counter({
+		name: "dlq_entries_replay_failed_total",
+		help: "Total number of DLQ entries that failed replay",
+		registers: [register],
+	}),
+	entriesPruned: new promClient.Counter({
+		name: "dlq_entries_pruned_total",
+		help: "Total number of old DLQ entries pruned",
+		registers: [register],
+	}),
+	pruneErrors: new promClient.Counter({
+		name: "dlq_prune_errors_total",
+		help: "Total number of prune operation errors",
+		registers: [register],
+	}),
+	entrySizeBytes: new promClient.Histogram({
+		name: "dlq_entry_size_bytes",
+		help: "Size distribution of DLQ entry payloads in bytes",
+		buckets: [1024, 5120, 10240, 51200, 102400, 512000, 1048576, 5242880],
+		registers: [register],
+	}),
+	collectionSize: new promClient.Gauge({
+		name: "dlq_collection_size",
+		help: "Current number of entries in the DLQ collection",
+		registers: [register],
+	}),
 };
 
 export function metricsHandler(
-  _req: unknown,
-  res: {
-    setHeader: (k: string, v: string) => void;
-    status: (c: number) => { end: (v: string) => void };
-  }
+	_req: unknown,
+	res: {
+		setHeader: (key: string, value: string) => void;
+		status: (code: number) => { end: (value: string) => void };
+	}
 ): void {
-  res.setHeader('Content-Type', register.contentType);
-  register.metrics().then(data => {
-    res.status(200).end(data);
-  });
+	res.setHeader("Content-Type", register.contentType);
+	register.metrics().then((data) => {
+		res.status(200).end(data);
+	});
 }

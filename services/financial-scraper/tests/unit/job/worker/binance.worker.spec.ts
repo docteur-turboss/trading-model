@@ -1,172 +1,190 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock('../../../../src/clients/binance/binance.client', () => ({
-  getOrderBook: jest.fn(),
-  getCandlestickData: jest.fn(),
-  getRecentTrades: jest.fn(),
-  getOrderBookTicker: jest.fn(),
-  get24hrTickerStats: jest.fn(),
-  getSymbolPriceTicker: jest.fn(),
+jest.mock("../../../../src/clients/binance/binance.client", () => ({
+	getOrderBook: jest.fn(),
+	getCandlestickData: jest.fn(),
+	getRecentTrades: jest.fn(),
+	getOrderBookTicker: jest.fn(),
+	get24hrTickerStats: jest.fn(),
+	getSymbolPriceTicker: jest.fn(),
 }));
 
-jest.mock('../../../../src/clients/binance/normalizer', () => ({
-  BinanceNormalizer: {
-    orderBook: jest.fn(),
-    trades: jest.fn(),
-    candles: jest.fn(),
-    ticker24h: jest.fn(),
-    priceTicker: jest.fn(),
-    bookTicker: jest.fn(),
-  },
+jest.mock("../../../../src/clients/binance/normalizer", () => ({
+	BinanceNormalizer: {
+		orderBook: jest.fn(),
+		trades: jest.fn(),
+		candles: jest.fn(),
+		ticker24h: jest.fn(),
+		priceTicker: jest.fn(),
+		bookTicker: jest.fn(),
+	},
 }));
 
-jest.mock('../../../../src/config/message-manager', () => ({
-  MessageManager: {
-    post: {
-      indirect: jest.fn(),
-    },
-  },
+jest.mock("../../../../src/config/message-manager", () => ({
+	MessageManager: {
+		post: {
+			indirect: jest.fn(),
+		},
+	},
 }));
 
-const mockMetadataBuilderCtor = jest.fn(() => ({
-  setDelivery: jest.fn().mockReturnThis(),
-  setEventType: jest.fn().mockReturnThis(),
-  setTopic: jest.fn().mockReturnThis(),
-  setSecurity: jest.fn().mockReturnThis(),
-  setIds: jest.fn().mockReturnThis(),
-  setPublisher: jest.fn().mockReturnThis(),
-  toJSON: jest.fn().mockReturnValue({}),
+const MOCK_METADATA_BUILDER_CTOR = jest.fn(() => ({
+	setDelivery: jest.fn().mockReturnThis(),
+	setEventType: jest.fn().mockReturnThis(),
+	setTopic: jest.fn().mockReturnThis(),
+	setSecurity: jest.fn().mockReturnThis(),
+	setIds: jest.fn().mockReturnThis(),
+	setPublisher: jest.fn().mockReturnThis(),
+	toJSON: jest.fn().mockReturnValue({}),
 }));
 
-jest.mock('@trading-model/broker-message', () => ({
-  helper: {
-    MetadataBuilder: mockMetadataBuilderCtor,
-  },
+jest.mock("@trading-model/broker-message", () => ({
+	HELPER: {
+		metadataBuilder: MOCK_METADATA_BUILDER_CTOR,
+	},
 }));
 
-jest.mock('../../../../src/config/env', () => ({
-  env: {
-    SERVICE_NAME: 'financial-scraper-service',
-    INSTANCE_ID: 'test-instance-1',
-  },
+jest.mock("../../../../src/config/env", () => ({
+	env: {
+		SERVICE_NAME: "financial-scraper-service",
+		INSTANCE_ID: "test-instance-1",
+	},
 }));
 
-jest.mock('uuid', () => ({
-  v4: () => '00000000-0000-0000-0000-000000000000',
+jest.mock("uuid", () => ({
+	v4: () => "00000000-0000-0000-0000-000000000000",
 }));
 
-import * as binanceClient from '../../../../src/clients/binance/binance.client';
-import { BinanceNormalizer } from '../../../../src/clients/binance/normalizer';
-import { MessageManager } from '../../../../src/config/message-manager';
-import { BinanceWorker } from '../../../../src/job/worker/binance.worker';
+import * as binanceClient from "../../../../src/clients/binance/binance.client";
+import { BinanceNormalizer } from "../../../../src/clients/binance/normalizer";
+import { MessageManager } from "../../../../src/config/message-manager";
+import { BinanceWorker } from "../../../../src/job/worker/binance.worker";
 
-const mockGetOrderBook = jest.mocked(binanceClient.getOrderBook);
-const mockCandlestickData = jest.mocked(binanceClient.getCandlestickData);
-const mockRecentTrades = jest.mocked(binanceClient.getRecentTrades);
-const mockOrderBookTicker = jest.mocked(binanceClient.getOrderBookTicker);
-const mock24hrTickerStats = jest.mocked(binanceClient.get24hrTickerStats);
-const mockSymbolPriceTicker = jest.mocked(binanceClient.getSymbolPriceTicker);
+const MOCK_GET_ORDER_BOOK = jest.mocked(binanceClient.getOrderBook);
+const MOCK_CANDLESTICK_DATA = jest.mocked(binanceClient.getCandlestickData);
+const MOCK_RECENT_TRADES = jest.mocked(binanceClient.getRecentTrades);
+const MOCK_ORDER_BOOK_TICKER = jest.mocked(binanceClient.getOrderBookTicker);
+const MOCK24HR_TICKER_STATS = jest.mocked(binanceClient.get24hrTickerStats);
+const MOCK_SYMBOL_PRICE_TICKER = jest.mocked(
+	binanceClient.getSymbolPriceTicker
+);
 
-const mockNormalizerOrderBook = jest.mocked(BinanceNormalizer.orderBook);
-const mockNormalizerTrades = jest.mocked(BinanceNormalizer.trades);
-const mockNormalizerCandles = jest.mocked(BinanceNormalizer.candles);
-const mockNormalizerTicker24h = jest.mocked(BinanceNormalizer.ticker24h);
-const mockNormalizerPriceTicker = jest.mocked(BinanceNormalizer.priceTicker);
-const mockNormalizerBookTicker = jest.mocked(BinanceNormalizer.bookTicker);
+const MOCK_NORMALIZER_ORDER_BOOK = jest.mocked(BinanceNormalizer.orderBook);
+const MOCK_NORMALIZER_TRADES = jest.mocked(BinanceNormalizer.trades);
+const MOCK_NORMALIZER_CANDLES = jest.mocked(BinanceNormalizer.candles);
+const MOCK_NORMALIZER_TICKER24H = jest.mocked(BinanceNormalizer.ticker24h);
+const MOCK_NORMALIZER_PRICE_TICKER = jest.mocked(BinanceNormalizer.priceTicker);
+const MOCK_NORMALIZER_BOOK_TICKER = jest.mocked(BinanceNormalizer.bookTicker);
 
-const mockMessageManagerIndirect = jest.mocked(MessageManager.post.indirect);
+const MOCK_MESSAGE_MANAGER_INDIRECT = jest.mocked(MessageManager.post.indirect);
 
-describe('BinanceWorker', () => {
-  let worker: BinanceWorker;
+describe("BinanceWorker", () => {
+	let worker: BinanceWorker;
 
-  const mockNormalized = {
-    orderBook: { symbol: 'BTCUSDT' },
-    recentTrades: [{ tradeId: 1 }],
-    candles: [{ symbol: 'BTCUSDT', interval: '1m' }],
-    ticker24h: [{ symbol: 'BTCUSDT' }],
-    priceTicker: { BTCUSDT: 50000 },
-    bookTicker: [{ symbol: 'BTCUSDT' }],
-  };
+	const mockNormalized = {
+		orderBook: { symbol: "BTCUSDT" },
+		recentTrades: [{ tradeId: 1 }],
+		candles: [{ symbol: "BTCUSDT", interval: "1m" }],
+		ticker24h: [{ symbol: "BTCUSDT" }],
+		priceTicker: { BTCUSDT: 50000 },
+		bookTicker: [{ symbol: "BTCUSDT" }],
+	};
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+	beforeEach(() => {
+		jest.clearAllMocks();
 
-    mockGetOrderBook.mockResolvedValue({ bids: [], asks: [], lastUpdateId: 0 });
-    mockCandlestickData.mockResolvedValue([]);
-    mockRecentTrades.mockResolvedValue([]);
-    mockOrderBookTicker.mockResolvedValue([]);
-    mock24hrTickerStats.mockResolvedValue([]);
-    mockSymbolPriceTicker.mockResolvedValue([]);
+		MOCK_GET_ORDER_BOOK.mockResolvedValue({
+			bids: [],
+			asks: [],
+			lastUpdateId: 0,
+		});
+		MOCK_CANDLESTICK_DATA.mockResolvedValue([]);
+		MOCK_RECENT_TRADES.mockResolvedValue([]);
+		MOCK_ORDER_BOOK_TICKER.mockResolvedValue([]);
+		MOCK24HR_TICKER_STATS.mockResolvedValue([]);
+		MOCK_SYMBOL_PRICE_TICKER.mockResolvedValue([]);
 
-    mockNormalizerOrderBook.mockReturnValue(mockNormalized.orderBook as never);
-    mockNormalizerTrades.mockReturnValue(mockNormalized.recentTrades as never);
-    mockNormalizerCandles.mockReturnValue(mockNormalized.candles as never);
-    mockNormalizerTicker24h.mockReturnValue(mockNormalized.ticker24h as never);
-    mockNormalizerPriceTicker.mockReturnValue(mockNormalized.priceTicker as never);
-    mockNormalizerBookTicker.mockReturnValue(mockNormalized.bookTicker as never);
+		MOCK_NORMALIZER_ORDER_BOOK.mockReturnValue(
+			mockNormalized.orderBook as never
+		);
+		MOCK_NORMALIZER_TRADES.mockReturnValue(
+			mockNormalized.recentTrades as never
+		);
+		MOCK_NORMALIZER_CANDLES.mockReturnValue(mockNormalized.candles as never);
+		MOCK_NORMALIZER_TICKER24H.mockReturnValue(
+			mockNormalized.ticker24h as never
+		);
+		MOCK_NORMALIZER_PRICE_TICKER.mockReturnValue(
+			mockNormalized.priceTicker as never
+		);
+		MOCK_NORMALIZER_BOOK_TICKER.mockReturnValue(
+			mockNormalized.bookTicker as never
+		);
 
-    worker = new BinanceWorker({
-      symbol: 'BTCUSDT',
-      interval: '1m',
-      candleLimit: 50,
-      tradeLimit: 50,
-      orderBookLimit: 10,
-    });
-  });
+		worker = new BinanceWorker({
+			symbol: "BTCUSDT",
+			interval: "1m",
+			candleLimit: 50,
+			tradeLimit: 50,
+			orderBookLimit: 10,
+		});
+	});
 
-  describe('run', () => {
-    it('should call all 6 Binance client functions in parallel', async () => {
-      await worker.run();
+	describe("run", () => {
+		it("should call all 6 Binance client functions in parallel", async () => {
+			await worker.run();
 
-      expect(mockGetOrderBook).toHaveBeenCalledWith('BTCUSDT', 10);
-      expect(mockRecentTrades).toHaveBeenCalledWith('BTCUSDT', 50);
-      expect(mockCandlestickData).toHaveBeenCalledWith('BTCUSDT', 50, '1m');
-      expect(mock24hrTickerStats).toHaveBeenCalledWith(['BTCUSDT']);
-      expect(mockSymbolPriceTicker).toHaveBeenCalledWith(['BTCUSDT']);
-      expect(mockOrderBookTicker).toHaveBeenCalledWith(['BTCUSDT']);
-    });
+			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith("BTCUSDT", 10);
+			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith("BTCUSDT", 50);
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith("BTCUSDT", 50, "1m");
+			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith(["BTCUSDT"]);
+			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledWith(["BTCUSDT"]);
+			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledWith(["BTCUSDT"]);
+		});
 
-    it('should normalize all raw responses', async () => {
-      await worker.run();
+		it("should normalize all raw responses", async () => {
+			await worker.run();
 
-      expect(mockNormalizerOrderBook).toHaveBeenCalled();
-      expect(mockNormalizerTrades).toHaveBeenCalled();
-      expect(mockNormalizerCandles).toHaveBeenCalled();
-      expect(mockNormalizerTicker24h).toHaveBeenCalled();
-      expect(mockNormalizerPriceTicker).toHaveBeenCalled();
-      expect(mockNormalizerBookTicker).toHaveBeenCalled();
-    });
+			expect(MOCK_NORMALIZER_ORDER_BOOK).toHaveBeenCalled();
+			expect(MOCK_NORMALIZER_TRADES).toHaveBeenCalled();
+			expect(MOCK_NORMALIZER_CANDLES).toHaveBeenCalled();
+			expect(MOCK_NORMALIZER_TICKER24H).toHaveBeenCalled();
+			expect(MOCK_NORMALIZER_PRICE_TICKER).toHaveBeenCalled();
+			expect(MOCK_NORMALIZER_BOOK_TICKER).toHaveBeenCalled();
+		});
 
-    it('should return normalized result with fetchedAt', async () => {
-      const result = await worker.run();
+		it("should return normalized result with fetchedAt", async () => {
+			const result = await worker.run();
 
-      expect(result.orderBook).toEqual(mockNormalized.orderBook);
-      expect(result.recentTrades).toEqual(mockNormalized.recentTrades);
-      expect(result.candles).toEqual(mockNormalized.candles);
-      expect(result.ticker24h).toEqual(mockNormalized.ticker24h);
-      expect(result.priceTicker).toEqual(mockNormalized.priceTicker);
-      expect(result.bookTicker).toEqual(mockNormalized.bookTicker);
-      expect(typeof result.fetchedAt).toBe('number');
-    });
+			expect(result.orderBook).toEqual(mockNormalized.orderBook);
+			expect(result.recentTrades).toEqual(mockNormalized.recentTrades);
+			expect(result.candles).toEqual(mockNormalized.candles);
+			expect(result.ticker24h).toEqual(mockNormalized.ticker24h);
+			expect(result.priceTicker).toEqual(mockNormalized.priceTicker);
+			expect(result.bookTicker).toEqual(mockNormalized.bookTicker);
+			expect(typeof result.fetchedAt).toBe("number");
+		});
 
-    it('should publish 6 messages via MessageManager', async () => {
-      await worker.run();
+		it("should publish 6 messages via MessageManager", async () => {
+			await worker.run();
 
-      expect(mockMessageManagerIndirect).toHaveBeenCalledTimes(6);
-    });
+			expect(MOCK_MESSAGE_MANAGER_INDIRECT).toHaveBeenCalledTimes(6);
+		});
 
-    it('should use default options when not provided', async () => {
-      const defaultWorker = new BinanceWorker({ symbol: 'ETHUSDT' });
-      await defaultWorker.run();
+		it("should use default options when not provided", async () => {
+			const defaultWorker = new BinanceWorker({ symbol: "ETHUSDT" });
+			await defaultWorker.run();
 
-      expect(mockRecentTrades).toHaveBeenCalledWith('ETHUSDT', 100);
-      expect(mockCandlestickData).toHaveBeenCalledWith('ETHUSDT', 100, '1m');
-    });
+			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith("ETHUSDT", 100);
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith("ETHUSDT", 100, "1m");
+		});
 
-    it('should create a fresh MetadataBuilder per invocation (not shared singleton)', async () => {
-      const callCountBefore = mockMetadataBuilderCtor.mock.calls.length;
-      await worker.run();
-      expect(mockMetadataBuilderCtor.mock.calls.length).toBe(callCountBefore + 1);
-    });
-  });
+		it("should create a fresh MetadataBuilder per invocation (not shared singleton)", async () => {
+			const callCountBefore = MOCK_METADATA_BUILDER_CTOR.mock.calls.length;
+			await worker.run();
+			expect(MOCK_METADATA_BUILDER_CTOR.mock.calls.length).toBe(
+				callCountBefore + 1
+			);
+		});
+	});
 });

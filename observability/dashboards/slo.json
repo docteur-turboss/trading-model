@@ -9,7 +9,7 @@
       {
         "title": "Availability SLO — Request Success Rate",
         "type": "bargauge",
-        "gridPos": {"h": 10, "w": 12, "x": 0, "y": 0},
+        "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
         "targets": [
           {
             "expr": "sum(rate(http_requests_duration_seconds_count{status!~\"5..\"}[28d])) / sum(rate(http_requests_duration_seconds_count[28d])) * 100",
@@ -24,9 +24,9 @@
             "thresholds": {
               "mode": "absolute",
               "steps": [
-                {"color": "red", "value": null},
-                {"color": "orange", "value": 99.9},
-                {"color": "green", "value": 99.95}
+                { "color": "red", "value": null },
+                { "color": "orange", "value": 99.9 },
+                { "color": "green", "value": 99.95 }
               ]
             }
           }
@@ -35,7 +35,7 @@
       {
         "title": "Latency SLO — P95 Response Time",
         "type": "timeseries",
-        "gridPos": {"h": 10, "w": 12, "x": 12, "y": 0},
+        "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
         "targets": [
           {
             "expr": "histogram_quantile(0.95, sum(rate(http_requests_duration_seconds_bucket[5m])) by (le))",
@@ -48,21 +48,21 @@
             "thresholds": {
               "mode": "absolute",
               "steps": [
-                {"color": "green", "value": null},
-                {"color": "orange", "value": 2},
-                {"color": "red", "value": 5}
+                { "color": "green", "value": null },
+                { "color": "orange", "value": 2 },
+                { "color": "red", "value": 5 }
               ]
             }
           }
         },
         "options": {
-          "legend": {"displayMode": "list", "placement": "bottom"}
+          "legend": { "displayMode": "list", "placement": "bottom" }
         }
       },
       {
         "title": "Error Budget Burn Rate — Fast Burn (5m)",
         "type": "timeseries",
-        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 10},
+        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
         "targets": [
           {
             "expr": "rate(http_requests_duration_seconds_count{status=~\"5..\"}[5m]) / rate(http_requests_duration_seconds_count[5m])",
@@ -74,10 +74,7 @@
             "unit": "percentunit",
             "thresholds": {
               "mode": "absolute",
-              "steps": [
-                {"color": "green", "value": null},
-                {"color": "red", "value": 0.02}
-              ]
+              "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.02 }]
             }
           }
         }
@@ -85,7 +82,7 @@
       {
         "title": "Error Budget Burn Rate — Slow Burn (1h)",
         "type": "timeseries",
-        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 10},
+        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
         "targets": [
           {
             "expr": "rate(http_requests_duration_seconds_count{status=~\"5..\"}[1h]) / rate(http_requests_duration_seconds_count[1h])",
@@ -97,10 +94,7 @@
             "unit": "percentunit",
             "thresholds": {
               "mode": "absolute",
-              "steps": [
-                {"color": "green", "value": null},
-                {"color": "red", "value": 0.005}
-              ]
+              "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.005 }]
             }
           }
         }
@@ -108,7 +102,7 @@
       {
         "title": "Error Budget Remaining",
         "type": "gauge",
-        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 10},
+        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
         "targets": [
           {
             "expr": "(1 - sum(rate(http_requests_duration_seconds_count{status=~\"5..\"}[28d])) / sum(rate(http_requests_duration_seconds_count[28d]))) / 0.001 * 100",
@@ -123,9 +117,9 @@
             "thresholds": {
               "mode": "absolute",
               "steps": [
-                {"color": "red", "value": null},
-                {"color": "orange", "value": 50},
-                {"color": "green", "value": 80}
+                { "color": "red", "value": null },
+                { "color": "orange", "value": 50 },
+                { "color": "green", "value": 80 }
               ]
             }
           }
@@ -134,7 +128,7 @@
       {
         "title": "Service Uptime",
         "type": "stat",
-        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 18},
+        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 18 },
         "targets": [
           {
             "expr": "avg(up{job=\"discovery-server\"}) * 100",
@@ -156,10 +150,7 @@
             "max": 100,
             "thresholds": {
               "mode": "absolute",
-              "steps": [
-                {"color": "red", "value": null},
-                {"color": "green", "value": 99.9}
-              ]
+              "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 99.9 }]
             }
           }
         }
@@ -167,7 +158,7 @@
       {
         "title": "P95 Latency by Service",
         "type": "table",
-        "gridPos": {"h": 6, "w": 10, "x": 6, "y": 18},
+        "gridPos": { "h": 6, "w": 10, "x": 6, "y": 18 },
         "targets": [
           {
             "expr": "histogram_quantile(0.95, sum(rate(http_requests_duration_seconds_bucket[5m])) by (le, job))",
@@ -180,14 +171,17 @@
             "unit": "s"
           },
           "overrides": [
-            {"matcher": {"id": "byName", "options": "Value"}, "properties": [{"id": "unit", "value": "s"}]}
+            {
+              "matcher": { "id": "byName", "options": "Value" },
+              "properties": [{ "id": "unit", "value": "s" }]
+            }
           ]
         }
       },
       {
         "title": "Circuit Breaker Status",
         "type": "stat",
-        "gridPos": {"h": 6, "w": 8, "x": 16, "y": 18},
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 18 },
         "targets": [
           {
             "expr": "circuit_breaker_state",
@@ -197,17 +191,14 @@
         "fieldConfig": {
           "defaults": {
             "mappings": [
-              {"type": "value", "value": "0", "text": "CLOSED"},
-              {"type": "value", "value": "1", "text": "OPEN"},
-              {"type": "value", "value": "2", "text": "HALF-OPEN"}
+              { "type": "value", "value": "0", "text": "CLOSED" },
+              { "type": "value", "value": "1", "text": "OPEN" },
+              { "type": "value", "value": "2", "text": "HALF-OPEN" }
             ],
-            "color": {"mode": "thresholds"},
+            "color": { "mode": "thresholds" },
             "thresholds": {
               "mode": "absolute",
-              "steps": [
-                {"color": "green", "value": null},
-                {"color": "red", "value": 1}
-              ]
+              "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }]
             }
           }
         }
@@ -215,7 +206,7 @@
       {
         "title": "Backpressure Ratio",
         "type": "timeseries",
-        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 24},
+        "gridPos": { "h": 6, "w": 12, "x": 0, "y": 24 },
         "targets": [
           {
             "expr": "message_manager_backpressure_ratio",
@@ -230,9 +221,9 @@
             "thresholds": {
               "mode": "absolute",
               "steps": [
-                {"color": "green", "value": null},
-                {"color": "orange", "value": 0.6},
-                {"color": "red", "value": 0.8}
+                { "color": "green", "value": null },
+                { "color": "orange", "value": 0.6 },
+                { "color": "red", "value": 0.8 }
               ]
             }
           }
@@ -241,7 +232,7 @@
       {
         "title": "DLQ Growth Rate",
         "type": "timeseries",
-        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 24},
+        "gridPos": { "h": 6, "w": 12, "x": 12, "y": 24 },
         "targets": [
           {
             "expr": "rate(dlq_entries_added_total[15m])",
@@ -259,6 +250,6 @@
         }
       }
     ],
-    "time": {"from": "now-1h", "to": "now"}
+    "time": { "from": "now-1h", "to": "now" }
   }
 }

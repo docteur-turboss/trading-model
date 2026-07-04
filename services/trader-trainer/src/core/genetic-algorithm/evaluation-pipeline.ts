@@ -3,35 +3,39 @@
  * Handles reward shaping, n-step returns, shadow backends, and Lamarckian updates.
  */
 
-import { estimateComplexity, computeAdjustedFitness } from './complexity-estimator';
-import type { LamarckGenome, MarketStep } from './genome-types';
-import { DeepReadonly } from './shared-types';
-import { RunningStats, computeVariance, computeSharpe } from './utils';
-import type { Experience } from '../../core/neural-network/type';
+import type { Experience } from "../../core/neural-network/type";
+import { NormalizationStats } from "../normalization-stats";
+import {
+	computeAdjustedFitness,
+	estimateComplexity,
+} from "./complexity-estimator";
+import type { LamarckGenome, MarketStep } from "./genome-types";
+import type { DeepReadonly } from "./shared-types";
+import { computeSharpe, computeVariance, type RunningStats } from "./utils";
 
 // RLBackend is defined in ga_runner.ts and exported from there
 // We avoid circular dependency by using a type-only reference
 export interface RLBackend {
-  forwardPass(features: Float32Array): Float32Array;
-  step(features: Float32Array, price: number): { reward: number };
-  train(experience: Experience, gamma: number): void;
-  getWeights(): Float32Array;
-  setWeights(w: Float32Array): void;
-  getPnL(): number;
-  resetEpisode(): void;
-  getExperiencePool(): Experience[];
+	forwardPass(features: Float32Array): Float32Array;
+	step(features: Float32Array, price: number): { reward: number };
+	train(experience: Experience, gamma: number): void;
+	getWeights(): Float32Array;
+	setWeights(weights: Float32Array): void;
+	getPnL(): number;
+	resetEpisode(): void;
+	getExperiencePool(): Experience[];
 }
 
 /** Creates a fresh RL backend for a given genome (used as a factory per evaluation). */
-export type BackendFactory = (g: DeepReadonly<LamarckGenome>) => RLBackend;
+export type BackendFactory = (genome: DeepReadonly<LamarckGenome>) => RLBackend;
 
-type GenomeFitnessMeta = {
-  episodesRun: number;
-  computeMs: number;
-  efficiencyScore: number;
-  variance: number;
-  rawScores: number[];
-};
+interface GenomeFitnessMeta {
+	episodesRun: number;
+	computeMs: number;
+	efficiencyScore: number;
+	variance: number;
+	rawScores: number[];
+}
 
 // RunningStats imported from ./utils
 
@@ -39,14 +43,14 @@ type GenomeFitnessMeta = {
  * Apply reward shaping (normalize, sparse mode, etc).
  */
 function shapeReward(
-  raw: number,
-  config: DeepReadonly<LamarckGenome['rl']['rewardShaping']>
+	raw: number,
+	config: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>
 ): number {
-  let shaped = raw;
-  if (config.clip) {
-    shaped = Math.max(config.clipMin, Math.min(config.clipMax, shaped));
-  }
-  return shaped;
+	let shaped = raw;
+	if (config.clip) {
+		shaped = Math.max(config.clipMin, Math.min(config.clipMax, shaped));
+	}
+	return shaped;
 }
 
 /**
@@ -54,36 +58,40 @@ function shapeReward(
  * WARNING: mutates the shadow backend (wallet, pool). Always pass a fresh one.
  */
 function precomputeRewards(
-  backend: RLBackend,
-  data: MarketStep[],
-  g: DeepReadonly<LamarckGenome>,
-  runStats?: RunningStats
+	backend: RLBackend,
+	data: MarketStep[],
+	genome: DeepReadonly<LamarckGenome>,
+	runStats?: RunningStats
 ): Float32Array {
-  const rShape = g.rl.rewardShaping;
-  const buf = new Float32Array(data.length);
-  for (let t = 0; t < data.length; t++) {
-    const { reward } = backend.step(data[t].features, data[t].price);
-    let shaped = shapeReward(reward, rShape);
-    if (rShape.normalize) {
-      runStats?.update(shaped);
-      /* istanbul ignore next */
-      shaped = runStats?.normalize(shaped) ?? shaped;
-    }
-    buf[t] = shaped;
-  }
-  return buf;
+	const rShape = genome.rl.rewardShaping;
+	const buf = new Float32Array(data.length);
+	for (let index = 0; index < data.length; index++) {
+		const { reward } = backend.step(data[index].features, data[index].price);
+		let shaped = shapeReward(reward, rShape);
+		if (rShape.normalize) {
+			runStats?.update(shaped);
+			/* istanbul ignore next */
+			shaped = runStats?.normalize(shaped) ?? shaped;
+		}
+		buf[index] = shaped;
+	}
+	return buf;
 }
 
 /**
  * Compute n-step discounted return from reward buffer.
  */
-function nStepReturn(buf: Float32Array, t: number, g: DeepReadonly<LamarckGenome>): number {
-  let ret = 0;
-  const n = g.rl.horizon.nStepReturn;
-  for (let i = 0; i < n && t + i < buf.length; i++) {
-    ret += Math.pow(g.rl.gamma, i) * buf[t + i];
-  }
-  return ret;
+function nStepReturn(
+	buf: Float32Array,
+	index: number,
+	genome: DeepReadonly<LamarckGenome>
+): number {
+	let ret = 0;
+	const count = genome.rl.horizon.nStepReturn;
+	for (let i = 0; i < count && index + i < buf.length; i++) {
+		ret += genome.rl.gamma ** i * buf[index + i];
+	}
+	return ret;
 }
 
 /**
@@ -92,83 +100,97 @@ function nStepReturn(buf: Float32Array, t: number, g: DeepReadonly<LamarckGenome
  * Skips training when the experience pool has fewer than 2 entries to
  * prevent out-of-bounds access on pool[pool.length - 2].
  */
-async function trainPhase(
-  backend: RLBackend,
-  trainData: MarketStep[],
-  rewardBuf: Float32Array,
-  g: DeepReadonly<LamarckGenome>
-): Promise<void> {
-  const horizon = g.rl.horizon;
-  const maxT = Math.min(trainData.length, horizon.maxEpisodeLength);
+function trainPhase(
+	backend: RLBackend,
+	trainData: MarketStep[],
+	rewardBuf: Float32Array,
+	genome: DeepReadonly<LamarckGenome>
+): void {
+	const horizon = genome.rl.horizon;
+	const maxT = Math.min(trainData.length, horizon.maxEpisodeLength);
 
-  for (let t = 0; t < maxT; t++) {
-    if (t % horizon.frameSkip !== 0) continue;
+	for (let index = 0; index < maxT; index++) {
+		if (index % horizon.frameSkip !== 0) {
+			continue;
+		}
 
-    // step() already does inference + action + wallet update internally
-    backend.step(trainData[t].features, trainData[t].price);
+		// step() already does inference + action + wallet update internally
+		backend.step(trainData[index].features, trainData[index].price);
 
-    const pool = backend.getExperiencePool();
-    if (pool.length < 2) continue;
+		const pool = backend.getExperiencePool();
+		if (pool.length < 2) {
+			continue;
+		}
 
-    const prev = pool[pool.length - 2];
-    backend.train(
-      {
-        ...prev,
-        kind: 'qlearning' as const,
-        reward: nStepReturn(rewardBuf, t, g),
-        nextState: trainData[t].features,
-        done: t === maxT - 1,
-      },
-      g.rl.gamma
-    );
-  }
+		const prev = pool[pool.length - 2];
+		backend.train(
+			{
+				...prev,
+				kind: "qlearning" as const,
+				reward: nStepReturn(rewardBuf, index, genome),
+				nextState: trainData[index].features,
+				done: index === maxT - 1,
+			},
+			genome.rl.gamma
+		);
+	}
 }
 
 /**
  * Eval phase: evaluate genome on held-out validation data.
  * Does NOT update weights; only accumulates PnL.
  */
-async function evalPhase(
-  g: DeepReadonly<LamarckGenome>,
-  validationData: MarketStep[],
-  backendFactory: BackendFactory
-): Promise<{ rawScores: number[]; finalPnL: number }> {
-  const ctrl = g.gaControl;
-  const rShape = g.rl.rewardShaping;
-  const horizon = g.rl.horizon;
-  const rawScores: number[] = [];
+function evalPhase(
+	genome: DeepReadonly<LamarckGenome>,
+	validationData: MarketStep[],
+	backendFactory: BackendFactory
+): { rawScores: number[]; finalPnL: number } {
+	const ctrl = genome.gaControl;
+	const rShape = genome.rl.rewardShaping;
+	const horizon = genome.rl.horizon;
+	const rawScores: number[] = [];
 
-  for (let ep = 0; ep < ctrl.episodesPerIndividual; ep++) {
-    const backend = backendFactory(g); // fresh backend with Lamarckian weights
-    const runStats = new RunningStats();
-    let epReward = 0;
+	for (let ep = 0; ep < ctrl.episodesPerIndividual; ep++) {
+		const backend = backendFactory(genome); // fresh backend with Lamarckian weights
+		const runStats = new NormalizationStats();
+		let epReward = 0;
 
-    const maxT = Math.min(validationData.length, horizon.maxEpisodeLength);
+		const maxT = Math.min(validationData.length, horizon.maxEpisodeLength);
 
-    for (let t = 0; t < maxT; t++) {
-      if (t % horizon.frameSkip !== 0) continue;
+		for (let index = 0; index < maxT; index++) {
+			if (index % horizon.frameSkip !== 0) {
+				continue;
+			}
 
-      // step() handles everything — no forwardPass() call before it
-      const { reward } = backend.step(validationData[t].features, validationData[t].price);
+			// step() handles everything — no forwardPass() call before it
+			const { reward } = backend.step(
+				validationData[index].features,
+				validationData[index].price
+			);
 
-      let shaped = shapeReward(reward, rShape);
-      if (rShape.normalize) {
-        runStats?.update(shaped);
-        /* istanbul ignore next */
-        shaped = runStats?.normalize(shaped) ?? shaped;
-      }
-      if (!rShape.sparse) epReward += shaped;
-    }
+			let shaped = shapeReward(reward, rShape);
+			if (rShape.normalize) {
+				runStats?.update(shaped);
+				/* istanbul ignore next */
+				shaped = runStats?.normalize(shaped) ?? shaped;
+			}
+			if (!rShape.sparse) {
+				epReward += shaped;
+			}
+		}
 
-    if (rShape.sparse) epReward = backend.getPnL();
-    rawScores.push(epReward);
-    backend.resetEpisode();
-  }
+		if (rShape.sparse) {
+			epReward = backend.getPnL();
+		}
+		rawScores.push(epReward);
+		backend.resetEpisode();
+	}
 
-  return {
-    rawScores,
-    finalPnL: rawScores.reduce((s, v) => s + v, 0) / rawScores.length,
-  };
+	return {
+		rawScores,
+		finalPnL:
+			rawScores.reduce((sum, value) => sum + value, 0) / rawScores.length,
+	};
 }
 
 /**
@@ -176,93 +198,111 @@ async function evalPhase(
  * Returns a new deep-frozen genome; original untouched.
  */
 function lamarckianUpdate(
-  g: DeepReadonly<LamarckGenome>,
-  backend: RLBackend
+	genome: DeepReadonly<LamarckGenome>,
+	backend: RLBackend
 ): DeepReadonly<LamarckGenome> {
-  const snapshot = backend.getWeights().slice();
-  return {
-    ...g,
-    trainedWeights: snapshot,
-  } as DeepReadonly<LamarckGenome>;
+	const snapshot = backend.getWeights().slice();
+	return {
+		...genome,
+		trainedWeights: snapshot,
+	} as DeepReadonly<LamarckGenome>;
 }
 
-function deepFreeze<T>(obj: T): DeepReadonly<T> {
-  // istanbul ignore if: defensive — always called with a real object
-  if (obj === null || typeof obj !== 'object') return obj as DeepReadonly<T>;
+function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
+	// istanbul ignore if: defensive — always called with a real object
+	if (obj === null || typeof obj !== "object") {
+		return obj as DeepReadonly<TValue>;
+	}
 
-  // istanbul ignore if: defensive — always called with a plain object
-  if (ArrayBuffer.isView(obj)) return obj as DeepReadonly<T>;
+	// istanbul ignore if: defensive — always called with a plain object
+	if (ArrayBuffer.isView(obj)) {
+		return obj as DeepReadonly<TValue>;
+	}
 
-  for (const key of Object.keys(obj)) {
-    const val = (obj as Record<string, unknown>)[key];
-    if (val !== null && typeof val === 'object' && !Object.isFrozen(val)) {
-      deepFreeze(val);
-    }
-  }
-  return Object.freeze(obj) as DeepReadonly<T>;
+	for (const key of Object.keys(obj)) {
+		const val = (obj as Record<string, unknown>)[key];
+		if (val !== null && typeof val === "object" && !Object.isFrozen(val)) {
+			deepFreeze(val);
+		}
+	}
+	return Object.freeze(obj) as DeepReadonly<TValue>;
 }
 
-function computeFitness(fitnessType: string, scores: number[]): number {
-  // Placeholder: implement based on your fitnessType logic
-  return scores.reduce((s, v) => s + v, 0) / scores.length;
+function computeFitness(_fitnessType: string, scores: number[]): number {
+	// Placeholder: implement based on your fitnessType logic
+	return scores.reduce((sum, value) => sum + value, 0) / scores.length;
 }
 
-export type EvaluationResult = {
-  updatedGenome: DeepReadonly<LamarckGenome>;
-  rawScores: number[];
-  finalPnL: number;
-};
+export interface EvaluationResult {
+	updatedGenome: DeepReadonly<LamarckGenome>;
+	rawScores: number[];
+	finalPnL: number;
+}
 
 function invariant(condition: boolean, message: string): asserts condition {
-  if (!condition) throw new Error(`[Invariant] ${message}`);
+	if (!condition) {
+		throw new Error(`[Invariant] ${message}`);
+	}
 }
 
 /**
  * Evaluate a single genome on a single window set.
  * Pure function (no side effects): returns new genome + scores.
  */
-export async function evaluateSingleGenomeOnWindow(
-  g: DeepReadonly<LamarckGenome>,
-  windowSet: { id: string; train: MarketStep[]; validation: MarketStep[] },
-  backendFactory: BackendFactory
-): Promise<EvaluationResult> {
-  invariant(g.network.inputDim > 0, 'inputDim must be positive');
-  invariant(g.network.outputDim > 0, 'outputDim must be positive');
-  invariant(
-    typeof g.rl.rewardShaping?.clipMin === 'number',
-    'rewardShaping.clipMin must be a number'
-  );
-  invariant(
-    typeof g.rl.rewardShaping?.clipMax === 'number',
-    'rewardShaping.clipMax must be a number'
-  );
-  invariant(windowSet.train.length > 0, 'windowSet.train must not be empty');
-  invariant(windowSet.validation.length > 0, 'windowSet.validation must not be empty');
+export function evaluateSingleGenomeOnWindow(
+	genome: DeepReadonly<LamarckGenome>,
+	windowSet: { id: string; train: MarketStep[]; validation: MarketStep[] },
+	backendFactory: BackendFactory
+): EvaluationResult {
+	invariant(genome.network.inputDim > 0, "inputDim must be positive");
+	invariant(genome.network.outputDim > 0, "outputDim must be positive");
+	invariant(
+		typeof genome.rl.rewardShaping?.clipMin === "number",
+		"rewardShaping.clipMin must be a number"
+	);
+	invariant(
+		typeof genome.rl.rewardShaping?.clipMax === "number",
+		"rewardShaping.clipMax must be a number"
+	);
+	invariant(windowSet.train.length > 0, "windowSet.train must not be empty");
+	invariant(
+		windowSet.validation.length > 0,
+		"windowSet.validation must not be empty"
+	);
 
-  const shadowBackend = backendFactory(g);
-  const shadowStats = new RunningStats();
-  const rewardBuf = precomputeRewards(shadowBackend, windowSet.train, g, shadowStats);
+	const shadowBackend = backendFactory(genome);
+	const shadowStats = new NormalizationStats();
+	const rewardBuf = precomputeRewards(
+		shadowBackend,
+		windowSet.train,
+		genome,
+		shadowStats
+	);
 
-  const trainBackend = backendFactory(g);
-  await trainPhase(trainBackend, windowSet.train, rewardBuf, g);
+	const trainBackend = backendFactory(genome);
+	trainPhase(trainBackend, windowSet.train, rewardBuf, genome);
 
-  const updatedGenome = deepFreeze(lamarckianUpdate(g, trainBackend));
+	const updatedGenome = deepFreeze(lamarckianUpdate(genome, trainBackend));
 
-  const evalResult = await evalPhase(updatedGenome, windowSet.validation, backendFactory);
+	const evalResult = evalPhase(
+		updatedGenome,
+		windowSet.validation,
+		backendFactory
+	);
 
-  invariant(
-    Number.isFinite(evalResult.finalPnL),
-    `finalPnL must be finite, got ${evalResult.finalPnL}`
-  );
-  for (const score of evalResult.rawScores) {
-    invariant(Number.isFinite(score), `rawScore must be finite, got ${score}`);
-  }
+	invariant(
+		Number.isFinite(evalResult.finalPnL),
+		`finalPnL must be finite, got ${evalResult.finalPnL}`
+	);
+	for (const score of evalResult.rawScores) {
+		invariant(Number.isFinite(score), `rawScore must be finite, got ${score}`);
+	}
 
-  return {
-    updatedGenome,
-    rawScores: evalResult.rawScores,
-    finalPnL: evalResult.finalPnL,
-  };
+	return {
+		updatedGenome,
+		rawScores: evalResult.rawScores,
+		finalPnL: evalResult.finalPnL,
+	};
 }
 
 /**
@@ -273,68 +313,81 @@ export async function evaluateSingleGenomeOnWindow(
  * - Returns updated genome + fitness meta + objectives
  */
 export async function evaluateGenomeAllWindows(
-  g: DeepReadonly<LamarckGenome>,
-  windowSets: Array<{ id: string; train: MarketStep[]; validation: MarketStep[] }>,
-  backendFactory: BackendFactory
+	genome: DeepReadonly<LamarckGenome>,
+	windowSets: Array<{
+		id: string;
+		train: MarketStep[];
+		validation: MarketStep[];
+	}>,
+	backendFactory: BackendFactory
 ): Promise<{
-  updatedGenome: DeepReadonly<LamarckGenome>;
-  meta: GenomeFitnessMeta;
-  objectives: { avgPnl: number; sharpe: number; negFlops: number };
+	updatedGenome: DeepReadonly<LamarckGenome>;
+	meta: GenomeFitnessMeta;
+	objectives: { avgPnl: number; sharpe: number; negFlops: number };
 }> {
-  const t0 = Date.now();
-  const allRaw: number[] = [];
-  const allPnL: number[] = [];
+	const t0 = Date.now();
+	const allRaw: number[] = [];
+	const allPnL: number[] = [];
 
-  let currentGenome = g;
+	let currentGenome = genome;
 
-  for (const ws of windowSets) {
-    const result = await evaluateSingleGenomeOnWindow(currentGenome, ws, backendFactory);
-    currentGenome = result.updatedGenome;
-    allRaw.push(...result.rawScores);
-    allPnL.push(result.finalPnL);
-  }
+	for (const ws of windowSets) {
+		const result = evaluateSingleGenomeOnWindow(
+			currentGenome,
+			ws,
+			backendFactory
+		);
+		currentGenome = result.updatedGenome;
+		allRaw.push(...result.rawScores);
+		allPnL.push(result.finalPnL);
+	}
 
-  const complexity = estimateComplexity(currentGenome);
-  const LAMBDA = 0.15;
-  const fitness = computeFitness(g.gaControl.fitnessType, allRaw);
-  const adjFitness = computeAdjustedFitness(fitness, complexity, LAMBDA);
+	const complexity = estimateComplexity(currentGenome);
+	const Lambda = 0.15;
+	const fitness = computeFitness(genome.gaControl.fitnessType, allRaw);
+	const adjFitness = computeAdjustedFitness(fitness, complexity, Lambda);
 
-  const avgPnL = allPnL.reduce((s, v) => s + v, 0) / allPnL.length;
-  const sharpe = computeSharpe(allRaw);
-  const negFlops = -complexity.inferenceFLOPs;
+	const avgPnL = allPnL.reduce((sum, value) => sum + value, 0) / allPnL.length;
+	const sharpe = computeSharpe(allRaw);
+	const negFlops = -complexity.inferenceFLOPs;
 
-  return {
-    updatedGenome: currentGenome,
-    meta: {
-      episodesRun: allRaw.length,
-      computeMs: Date.now() - t0,
-      efficiencyScore: adjFitness,
-      variance: computeVariance(allRaw),
-      rawScores: allRaw,
-    },
-    objectives: { avgPnl: avgPnL, sharpe, negFlops },
-  };
+	await Promise.resolve();
+
+	return {
+		updatedGenome: currentGenome,
+		meta: {
+			episodesRun: allRaw.length,
+			computeMs: Date.now() - t0,
+			efficiencyScore: adjFitness,
+			variance: computeVariance(allRaw),
+			rawScores: allRaw,
+		},
+		objectives: { avgPnl: avgPnL, sharpe, negFlops },
+	};
 }
 
 /**
  * Parallel evaluation with bounded concurrency.
  */
-export async function pooledEval<T, R>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let nextIndex = 0;
+export async function pooledEval<TItem, TResult>(
+	items: TItem[],
+	concurrency: number,
+	fn: (item: TItem) => Promise<TResult>
+): Promise<TResult[]> {
+	const results: TResult[] = new Array(items.length);
+	let nextIndex = 0;
 
-  async function worker() {
-    while (nextIndex < items.length) {
-      const i = nextIndex++;
-      results[i] = await fn(items[i]);
-    }
-  }
+	async function worker() {
+		while (nextIndex < items.length) {
+			const i = nextIndex++;
+			results[i] = await fn(items[i]);
+		}
+	}
 
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, worker);
-  await Promise.all(workers);
-  return results;
+	const workers = Array.from(
+		{ length: Math.min(concurrency, items.length) },
+		worker
+	);
+	await Promise.all(workers);
+	return results;
 }

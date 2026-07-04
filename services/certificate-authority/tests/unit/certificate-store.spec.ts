@@ -1,163 +1,175 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-const mockInsertOne = jest.fn();
-const mockFindOne = jest.fn();
-const mockFind = jest.fn();
-const mockCreateIndex = jest.fn();
-const mockCollection = jest.fn();
-const mockDb = jest.fn();
-const mockClose = jest.fn();
+const MOCK_INSERT_ONE = jest.fn();
+const MOCK_FIND_ONE = jest.fn();
+const MOCK_FIND = jest.fn();
+const MOCK_CREATE_INDEX = jest.fn();
+const MOCK_COLLECTION = jest.fn();
+const MOCK_DB = jest.fn();
+const MOCK_CLOSE = jest.fn();
 
-jest.mock('mongodb', () => ({
-  MongoClient: jest.fn().mockImplementation(() => ({
-    connect: jest.fn().mockResolvedValue(undefined),
-    close: mockClose,
-    db: mockDb,
-  })),
+jest.mock("mongodb", () => ({
+	MongoClient: jest.fn().mockImplementation(() => ({
+		connect: jest.fn().mockResolvedValue(undefined),
+		close: MOCK_CLOSE,
+		db: MOCK_DB,
+	})),
 }));
 
-mockDb.mockReturnValue({
-  collection: mockCollection,
+MOCK_DB.mockReturnValue({
+	collection: MOCK_COLLECTION,
 });
 
-mockCollection.mockReturnValue({
-  insertOne: mockInsertOne,
-  findOne: mockFindOne,
-  find: mockFind,
-  createIndex: mockCreateIndex,
+MOCK_COLLECTION.mockReturnValue({
+	insertOne: MOCK_INSERT_ONE,
+	findOne: MOCK_FIND_ONE,
+	find: MOCK_FIND,
+	createIndex: MOCK_CREATE_INDEX,
 });
 
-import { CertificateStore } from '../../src/persistence/certificate-store';
+import { CertificateStore } from "../../src/persistence/certificate-store";
 
-const sampleCert = {
-  serialNumber: 'SN-001',
-  certPem: 'cert-pem',
-  caPem: 'ca-pem',
-  serviceId: 'svc-1',
-  issuedAt: new Date('2024-01-01'),
-  expiresAt: new Date('2025-01-01'),
-  fingerprint: 'abc123',
+const SAMPLE_CERT = {
+	serialNumber: "SN-001",
+	certPem: "cert-pem",
+	caPem: "ca-pem",
+	serviceId: "svc-1",
+	issuedAt: new Date("2024-01-01"),
+	expiresAt: new Date("2025-01-01"),
+	fingerprint: "abc123",
 };
 
-describe('CertificateStore', () => {
-  let store: CertificateStore;
+describe("CertificateStore", () => {
+	let store: CertificateStore;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    store = new CertificateStore('mongodb://localhost:27017/test');
-  });
+	beforeEach(() => {
+		jest.clearAllMocks();
+		store = new CertificateStore("mongodb://localhost:27017/test");
+	});
 
-  describe('connect', () => {
-    it('should connect and create indexes', async () => {
-      await store.connect();
+	describe("connect", () => {
+		it("should connect and create indexes", async () => {
+			await store.connect();
 
-      expect(mockCreateIndex).toHaveBeenCalledWith({ serialNumber: 1 }, { unique: true });
-      expect(mockCreateIndex).toHaveBeenCalledWith({ serviceId: 1 });
-      expect(mockCreateIndex).toHaveBeenCalledWith({ expiresAt: 1 });
-    });
-  });
+			expect(MOCK_CREATE_INDEX).toHaveBeenCalledWith(
+				{ serialNumber: 1 },
+				{ unique: true }
+			);
+			expect(MOCK_CREATE_INDEX).toHaveBeenCalledWith({ serviceId: 1 });
+			expect(MOCK_CREATE_INDEX).toHaveBeenCalledWith({ expiresAt: 1 });
+		});
+	});
 
-  describe('disconnect', () => {
-    it('should close the connection', async () => {
-      await store.connect();
-      await store.disconnect();
+	describe("disconnect", () => {
+		it("should close the connection", async () => {
+			await store.connect();
+			await store.disconnect();
 
-      expect(mockClose).toHaveBeenCalled();
-    });
-  });
+			expect(MOCK_CLOSE).toHaveBeenCalled();
+		});
+	});
 
-  describe('save', () => {
-    it('should throw if not connected', async () => {
-      await expect(store.save(sampleCert)).rejects.toThrow('Not connected');
-    });
+	describe("save", () => {
+		it("should throw if not connected", async () => {
+			await expect(store.save(SAMPLE_CERT)).rejects.toThrow("Not connected");
+		});
 
-    it('should insert certificate document', async () => {
-      await store.connect();
-      await store.save(sampleCert);
+		it("should insert certificate document", async () => {
+			await store.connect();
+			await store.save(SAMPLE_CERT);
 
-      expect(mockInsertOne).toHaveBeenCalledWith(sampleCert);
-    });
-  });
+			expect(MOCK_INSERT_ONE).toHaveBeenCalledWith(SAMPLE_CERT);
+		});
+	});
 
-  describe('getBySerial', () => {
-    it('should throw if not connected', async () => {
-      await expect(store.getBySerial('SN-001')).rejects.toThrow('Not connected');
-    });
+	describe("getBySerial", () => {
+		it("should throw if not connected", async () => {
+			await expect(store.getBySerial("SN-001")).rejects.toThrow(
+				"Not connected"
+			);
+		});
 
-    it('should return certificate by serial number', async () => {
-      mockFindOne.mockResolvedValue(sampleCert);
-      await store.connect();
+		it("should return certificate by serial number", async () => {
+			MOCK_FIND_ONE.mockResolvedValue(SAMPLE_CERT);
+			await store.connect();
 
-      const result = await store.getBySerial('SN-001');
+			const result = await store.getBySerial("SN-001");
 
-      expect(mockFindOne).toHaveBeenCalledWith({ serialNumber: 'SN-001' });
-      expect(result).toEqual(sampleCert);
-    });
+			expect(MOCK_FIND_ONE).toHaveBeenCalledWith({ serialNumber: "SN-001" });
+			expect(result).toEqual(SAMPLE_CERT);
+		});
 
-    it('should return null when not found', async () => {
-      mockFindOne.mockResolvedValue(null);
-      await store.connect();
+		it("should return null when not found", async () => {
+			MOCK_FIND_ONE.mockResolvedValue(null);
+			await store.connect();
 
-      const result = await store.getBySerial('SN-MISSING');
+			const result = await store.getBySerial("SN-MISSING");
 
-      expect(result).toBeNull();
-    });
-  });
+			expect(result).toBeNull();
+		});
+	});
 
-  describe('getByServiceId', () => {
-    it('should throw if not connected', async () => {
-      await expect(store.getByServiceId('svc-1')).rejects.toThrow('Not connected');
-    });
+	describe("getByServiceId", () => {
+		it("should throw if not connected", async () => {
+			await expect(store.getByServiceId("svc-1")).rejects.toThrow(
+				"Not connected"
+			);
+		});
 
-    it('should return latest certificate by serviceId', async () => {
-      mockFindOne.mockResolvedValue(sampleCert);
-      await store.connect();
+		it("should return latest certificate by serviceId", async () => {
+			MOCK_FIND_ONE.mockResolvedValue(SAMPLE_CERT);
+			await store.connect();
 
-      const result = await store.getByServiceId('svc-1');
+			const result = await store.getByServiceId("svc-1");
 
-      expect(mockFindOne).toHaveBeenCalledWith({ serviceId: 'svc-1' }, { sort: { issuedAt: -1 } });
-      expect(result).toEqual(sampleCert);
-    });
+			expect(MOCK_FIND_ONE).toHaveBeenCalledWith(
+				{ serviceId: "svc-1" },
+				{ sort: { issuedAt: -1 } }
+			);
+			expect(result).toEqual(SAMPLE_CERT);
+		});
 
-    it('should return null when not found', async () => {
-      mockFindOne.mockResolvedValue(null);
-      await store.connect();
+		it("should return null when not found", async () => {
+			MOCK_FIND_ONE.mockResolvedValue(null);
+			await store.connect();
 
-      const result = await store.getByServiceId('svc-missing');
+			const result = await store.getByServiceId("svc-missing");
 
-      expect(result).toBeNull();
-    });
-  });
+			expect(result).toBeNull();
+		});
+	});
 
-  describe('getExpiring', () => {
-    it('should throw if not connected', async () => {
-      await expect(store.getExpiring(86400000)).rejects.toThrow('Not connected');
-    });
+	describe("getExpiring", () => {
+		it("should throw if not connected", async () => {
+			await expect(store.getExpiring(86400000)).rejects.toThrow(
+				"Not connected"
+			);
+		});
 
-    it('should return certificates expiring within margin', async () => {
-      mockFind.mockReturnValue({
-        toArray: jest.fn().mockResolvedValue([sampleCert]),
-      });
-      await store.connect();
+		it("should return certificates expiring within margin", async () => {
+			MOCK_FIND.mockReturnValue({
+				toArray: jest.fn().mockResolvedValue([SAMPLE_CERT]),
+			});
+			await store.connect();
 
-      const result = await store.getExpiring(86400000);
+			const result = await store.getExpiring(86400000);
 
-      expect(mockFind).toHaveBeenCalledWith({
-        expiresAt: { $lte: expect.any(Date) },
-      });
-      expect(result).toHaveLength(1);
-      expect(result[0].serialNumber).toBe('SN-001');
-    });
+			expect(MOCK_FIND).toHaveBeenCalledWith({
+				expiresAt: { $lte: expect.any(Date) },
+			});
+			expect(result).toHaveLength(1);
+			expect(result[0].serialNumber).toBe("SN-001");
+		});
 
-    it('should return empty array when none expiring', async () => {
-      mockFind.mockReturnValue({
-        toArray: jest.fn().mockResolvedValue([]),
-      });
-      await store.connect();
+		it("should return empty array when none expiring", async () => {
+			MOCK_FIND.mockReturnValue({
+				toArray: jest.fn().mockResolvedValue([]),
+			});
+			await store.connect();
 
-      const result = await store.getExpiring(86400000);
+			const result = await store.getExpiring(86400000);
 
-      expect(result).toEqual([]);
-    });
-  });
+			expect(result).toEqual([]);
+		});
+	});
 });

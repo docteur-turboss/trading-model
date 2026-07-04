@@ -12,4 +12,7 @@
  * Messaging / contract layer.
  */
 
-export type { IdentifyType, BrokerConfig } from '@trading-model/common/contracts/message.types';
+export type {
+	BrokerConfig,
+	ServiceIdentity,
+} from "@trading-model/common/contracts/message.types";

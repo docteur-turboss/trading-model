@@ -8,20 +8,21 @@ module.exports = {
   moduleNameMapper: {
     '^@trading-model/common/(.*)$': '<rootDir>/../common/src/$1',
     '^@trading-model/certificate-utils/(.*)$': '<rootDir>/../certificate-utils/src/$1',
+    '^@trading-model/broker-message$': '<rootDir>/../broker-message/src/index.ts',
   },
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/index.ts',
     '!src/crl-subscriber.ts',
-    '!src/certificate-client.ts',
+    '!src/transport.ts',
   ],
   coverageThreshold: {
     global: {
-      branches: 10,
-      functions: 10,
-      lines: 10,
-      statements: 10,
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
     },
   },
 };

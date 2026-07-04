@@ -7,7 +7,6 @@ coverage
 .husky
 .github
 *.md
-.prettierrc
 eslint.config.mjs
 commitlint.config.mjs
 scripts

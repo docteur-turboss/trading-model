@@ -1,16 +1,17 @@
-import '@testing-library/jest-dom';
-import { cleanup } from '@testing-library/react';
+import "@testing-library/jest-dom";
+import { cleanup } from "@testing-library/react";
 
-import '../../src/i18n';
+import "../../src/i18n";
 
 afterEach(() => {
-  cleanup();
+	cleanup();
 });
 
 class ResizeObserverMock {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+	observe() {}
+	unobserve() {}
+	disconnect() {}
 }
 
-globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+globalThis.ResizeObserver =
+	ResizeObserverMock as unknown as typeof ResizeObserver;

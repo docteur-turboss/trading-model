@@ -1,24 +1,24 @@
-import { BINANCE_ENDPOINTS } from './endpoints';
-import { BINANCE_WEIGHTS } from './weights';
-import { httpClients } from '../../config/http';
-import {
-  Binance24hrTickerStatsResponse,
-  BinanceHistoricalTradeResponse,
-  BinanceCandlestickDataResponse,
-  BinanceAggregateTradeResponse,
-  BinanceDepthResponse,
-  BinanceTradeResponse,
-  BinanceTradingDayTickerResponse,
-  BinanceSymbolPriceTickerResponse,
-  BinanceSymbolOrderBookTickerResponse,
-} from '../../types/binance.api';
+import { httpClients } from "../../config/http";
+import type {
+	Binance24hrTickerStatsResponse,
+	BinanceAggregateTradeResponse,
+	BinanceCandlestickDataResponse,
+	BinanceDepthResponse,
+	BinanceHistoricalTradeResponse,
+	BinanceSymbolOrderBookTickerResponse,
+	BinanceSymbolPriceTickerResponse,
+	BinanceTradeResponse,
+	BinanceTradingDayTickerResponse,
+} from "../../types/binance.api";
+import { BINANCE_ENDPOINTS } from "./endpoints";
+import { BINANCE_WEIGHTS } from "./weights";
 
-const binance = httpClients.binance;
+const BINANCE = httpClients.binance;
 
 function assertNonEmptySymbol(symbol: string, context: string): void {
-  if (!symbol || symbol.trim().length === 0) {
-    throw new Error(`${context}: symbol must be a non-empty string`);
-  }
+	if (!symbol || symbol.trim().length === 0) {
+		throw new Error(`${context}: symbol must be a non-empty string`);
+	}
 }
 
 /**
@@ -32,11 +32,14 @@ function assertNonEmptySymbol(symbol: string, context: string): void {
  * @param limit {number} - maximum 500 - 1000
  * @returns {Promise<BinanceDepthResponse>}
  */
-export async function getOrderBook(symbol: string, limit = 100): Promise<BinanceDepthResponse> {
-  assertNonEmptySymbol(symbol, 'getOrderBook');
-  const weight = BINANCE_WEIGHTS.depth(limit);
-  const url = BINANCE_ENDPOINTS.depth(limit, symbol);
-  return (await binance.get(url, { weight })).data;
+export async function getOrderBook(
+	symbol: string,
+	limit = 100
+): Promise<BinanceDepthResponse> {
+	assertNonEmptySymbol(symbol, "getOrderBook");
+	const weight = BINANCE_WEIGHTS.depth(limit);
+	const url = BINANCE_ENDPOINTS.depth(limit, symbol);
+	return (await BINANCE.get(url, { weight })).data;
 }
 
 /**
@@ -46,11 +49,14 @@ export async function getOrderBook(symbol: string, limit = 100): Promise<Binance
  * @param limit {number} - maximum 500 - 1000
  * @returns {Promise<BinanceTradeResponse>}
  */
-export async function getRecentTrades(symbol: string, limit = 500): Promise<BinanceTradeResponse> {
-  assertNonEmptySymbol(symbol, 'getRecentTrades');
-  const weight = BINANCE_WEIGHTS.trades();
-  const url = BINANCE_ENDPOINTS.trades(limit, symbol);
-  return (await binance.get(url, { weight })).data;
+export async function getRecentTrades(
+	symbol: string,
+	limit = 500
+): Promise<BinanceTradeResponse> {
+	assertNonEmptySymbol(symbol, "getRecentTrades");
+	const weight = BINANCE_WEIGHTS.trades();
+	const url = BINANCE_ENDPOINTS.trades(limit, symbol);
+	return (await BINANCE.get(url, { weight })).data;
 }
 
 /**
@@ -62,14 +68,14 @@ export async function getRecentTrades(symbol: string, limit = 500): Promise<Bina
  * @returns {Promise<BinanceHistoricalTradeResponse>}
  */
 export async function getHistoricalTrades(
-  symbol: string,
-  limit = 500,
-  fromId: number | string
+	symbol: string,
+	limit: number,
+	fromId: number | string
 ): Promise<BinanceHistoricalTradeResponse> {
-  assertNonEmptySymbol(symbol, 'getHistoricalTrades');
-  const url = BINANCE_ENDPOINTS.historicalTrades(limit, symbol, fromId);
-  const weight = BINANCE_WEIGHTS.historicalTrades();
-  return (await binance.get(url, { weight })).data;
+	assertNonEmptySymbol(symbol, "getHistoricalTrades");
+	const url = BINANCE_ENDPOINTS.historicalTrades(limit, symbol, fromId);
+	const weight = BINANCE_WEIGHTS.historicalTrades();
+	return (await BINANCE.get(url, { weight })).data;
 }
 
 /**
@@ -82,31 +88,36 @@ export async function getHistoricalTrades(
  * @returns {Promise<BinanceCandlestickDataResponse>}
  */
 export async function getCandlestickData(
-  symbol: string,
-  limit = 500,
-  interval:
-    | '1s'
-    | '1m'
-    | '3m'
-    | '5m'
-    | '15m'
-    | '30m'
-    | '1h'
-    | '2h'
-    | '4h'
-    | '6h'
-    | '8h'
-    | '12h'
-    | '1d'
-    | '3d'
-    | '1w'
-    | '1M',
-  startTime?: number
+	symbol: string,
+	limit: number,
+	interval:
+		| "1s"
+		| "1m"
+		| "3m"
+		| "5m"
+		| "15m"
+		| "30m"
+		| "1h"
+		| "2h"
+		| "4h"
+		| "6h"
+		| "8h"
+		| "12h"
+		| "1d"
+		| "3d"
+		| "1w"
+		| "1M",
+	startTime?: number
 ): Promise<BinanceCandlestickDataResponse> {
-  assertNonEmptySymbol(symbol, 'getCandlestickData');
-  const url = BINANCE_ENDPOINTS.candlesticks(symbol, interval, startTime, limit);
-  const weight = BINANCE_WEIGHTS.candlesticks();
-  return (await binance.get(url, { weight })).data;
+	assertNonEmptySymbol(symbol, "getCandlestickData");
+	const url = BINANCE_ENDPOINTS.candlesticks(
+		symbol,
+		interval,
+		startTime,
+		limit
+	);
+	const weight = BINANCE_WEIGHTS.candlesticks();
+	return (await BINANCE.get(url, { weight })).data;
 }
 
 /**
@@ -119,14 +130,18 @@ export async function getCandlestickData(
  * @returns {Promise<BinanceAggregateTradeResponse>}
  */
 export async function getCompressedAggregateTrades(
-  symbol: string,
-  fromId: string | number,
-  limit = 500
+	symbol: string,
+	fromId: string | number,
+	limit = 500
 ): Promise<BinanceAggregateTradeResponse> {
-  assertNonEmptySymbol(symbol, 'getCompressedAggregateTrades');
-  const url = BINANCE_ENDPOINTS.compressedAggregateTrades(symbol, fromId, limit);
-  const weight = BINANCE_WEIGHTS.compressedAggregateTrades();
-  return (await binance.get(url, { weight })).data;
+	assertNonEmptySymbol(symbol, "getCompressedAggregateTrades");
+	const url = BINANCE_ENDPOINTS.compressedAggregateTrades(
+		symbol,
+		fromId,
+		limit
+	);
+	const weight = BINANCE_WEIGHTS.compressedAggregateTrades();
+	return (await BINANCE.get(url, { weight })).data;
 }
 
 /**
@@ -139,12 +154,16 @@ export async function getCompressedAggregateTrades(
  * @returns
  */
 export async function get24hrTickerStats(
-  symbol?: string[]
+	symbol?: string[]
 ): Promise<Binance24hrTickerStatsResponse> {
-  if (symbol) symbol.forEach(s => assertNonEmptySymbol(s, 'get24hrTickerStats'));
-  const weight = BINANCE_WEIGHTS.change24hrStats((symbol ?? []).length);
-  const url = BINANCE_ENDPOINTS.change24hrStats(symbol);
-  return (await binance.get(url, { weight })).data;
+	if (symbol) {
+		symbol.forEach((sym) => {
+			assertNonEmptySymbol(sym, "get24hrTickerStats");
+		});
+	}
+	const weight = BINANCE_WEIGHTS.change24hrStats((symbol ?? []).length);
+	const url = BINANCE_ENDPOINTS.change24hrStats(symbol);
+	return (await BINANCE.get(url, { weight })).data;
 }
 
 /**
@@ -156,12 +175,14 @@ export async function get24hrTickerStats(
  * @returns
  */
 export async function getTradingDayTicker(
-  symbol: string[]
+	symbol: string[]
 ): Promise<BinanceTradingDayTickerResponse> {
-  symbol.forEach(s => assertNonEmptySymbol(s, 'getTradingDayTicker'));
-  const weight = BINANCE_WEIGHTS.tradingDayTicker(symbol.length);
-  const url = BINANCE_ENDPOINTS.TradingDayTicker(symbol);
-  return (await binance.get(url, { weight })).data;
+	symbol.forEach((sym) => {
+		assertNonEmptySymbol(sym, "getTradingDayTicker");
+	});
+	const weight = BINANCE_WEIGHTS.tradingDayTicker(symbol.length);
+	const url = BINANCE_ENDPOINTS.tradingDayTicker(symbol);
+	return (await BINANCE.get(url, { weight })).data;
 }
 
 /**
@@ -171,12 +192,16 @@ export async function getTradingDayTicker(
  * @returns {Promise<BinanceSymbolPriceTickerResponse>}
  */
 export async function getSymbolPriceTicker(
-  symbol?: string[]
+	symbol?: string[]
 ): Promise<BinanceSymbolPriceTickerResponse> {
-  if (symbol) symbol.forEach(s => assertNonEmptySymbol(s, 'getSymbolPriceTicker'));
-  const weight = BINANCE_WEIGHTS.symbolPriceTicker((symbol ?? []).length);
-  const url = BINANCE_ENDPOINTS.symbolPriceTicker(symbol);
-  return (await binance.get(url, { weight })).data;
+	if (symbol) {
+		symbol.forEach((sym) => {
+			assertNonEmptySymbol(sym, "getSymbolPriceTicker");
+		});
+	}
+	const weight = BINANCE_WEIGHTS.symbolPriceTicker((symbol ?? []).length);
+	const url = BINANCE_ENDPOINTS.symbolPriceTicker(symbol);
+	return (await BINANCE.get(url, { weight })).data;
 }
 
 /**
@@ -186,10 +211,14 @@ export async function getSymbolPriceTicker(
  * @returns {Promise<BinanceSymbolPriceTickerResponse>}
  */
 export async function getOrderBookTicker(
-  symbol?: string[]
+	symbol?: string[]
 ): Promise<BinanceSymbolOrderBookTickerResponse> {
-  if (symbol) symbol.forEach(s => assertNonEmptySymbol(s, 'getOrderBookTicker'));
-  const weight = BINANCE_WEIGHTS.orderBookTicker((symbol ?? []).length);
-  const url = BINANCE_ENDPOINTS.orderBookTicker(symbol);
-  return (await binance.get(url, { weight })).data;
+	if (symbol) {
+		symbol.forEach((sym) => {
+			assertNonEmptySymbol(sym, "getOrderBookTicker");
+		});
+	}
+	const weight = BINANCE_WEIGHTS.orderBookTicker((symbol ?? []).length);
+	const url = BINANCE_ENDPOINTS.orderBookTicker(symbol);
+	return (await BINANCE.get(url, { weight })).data;
 } // 205

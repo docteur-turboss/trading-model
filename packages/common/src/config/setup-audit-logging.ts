@@ -1,14 +1,14 @@
-import { logger } from './logger';
-import { ServiceInstanceName } from './services.types';
+import type { logger } from "./logger";
+import { ServiceInstanceName } from "./services.types";
 
 interface TlsClientPaths {
-  key: string;
-  cert: string;
-  ca: string;
+	key: string;
+	cert: string;
+	ca: string;
 }
 
 interface ServiceResolver {
-  findService(name: string): Promise<{ ip: string; port: number } | null>;
+	findService(name: string): Promise<{ ip: string; port: number } | null>;
 }
 
 /**
@@ -21,30 +21,36 @@ interface ServiceResolver {
  *     key: env.TLS_KEY_PATH, cert: env.TLS_CERT_PATH, ca: env.TLS_CA_PATH,
  *   });
  */
-export async function setupAuditLogging(
-  loggerInstance: typeof logger,
-  addressManager: ServiceResolver,
-  tlsPaths: TlsClientPaths
-): Promise<void> {
-  let connected = false;
+export function setupAuditLogging(
+	loggerInstance: typeof logger,
+	addressManager: ServiceResolver,
+	tlsPaths: TlsClientPaths
+): void {
+	let connected = false;
 
-  loggerInstance.setAuditResolver(async () => {
-    try {
-      const target = await addressManager.findService(ServiceInstanceName.AuditLoggerService);
-      if (!target) return null;
+	loggerInstance.setAuditResolver(async () => {
+		try {
+			const target = await addressManager.findService(
+				ServiceInstanceName.AuditLoggerService
+			);
+			if (!target) {
+				return null;
+			}
 
-      if (!connected) {
-        connected = true;
-        loggerInstance.info('audit-logger: connected', { url: `${target.ip}:${target.port}` });
-      }
-      return {
-        url: `https://${target.ip}:${target.port}`,
-        tls: tlsPaths,
-      };
-    } catch {
-      return null;
-    }
-  });
+			if (!connected) {
+				connected = true;
+				loggerInstance.info("audit-logger: connected", {
+					url: `${target.ip}:${target.port}`,
+				});
+			}
+			return {
+				url: `https://${target.ip}:${target.port}`,
+				tls: tlsPaths,
+			};
+		} catch {
+			return null;
+		}
+	});
 }
 
-export type { TlsClientPaths, ServiceResolver };
+export type { ServiceResolver, TlsClientPaths };

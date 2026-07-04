@@ -1,72 +1,75 @@
-import { logger } from '@trading-model/common/config/logger';
-
-import { CertificateAuthority } from './ca';
-import { CertificateStore } from '../persistence/certificate-store';
+import { logger } from "@trading-model/common/config/logger";
+import type { CertificateStore } from "../persistence/certificate-store";
+import type { CertificateAuthority } from "./ca";
 
 export interface RotatorOptions {
-  ca: CertificateAuthority;
-  certificateStore: CertificateStore;
-  intervalMs: number;
-  marginMs: number;
-  defaultTtlMs: number;
+	ca: CertificateAuthority;
+	certificateStore: CertificateStore;
+	intervalMs: number;
+	marginMs: number;
+	defaultTtlMs: number;
 }
 
 export class Rotator {
-  private readonly options: RotatorOptions;
-  private timer: ReturnType<typeof setInterval> | null = null;
+	private readonly _options: RotatorOptions;
+	private _timer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(options: RotatorOptions) {
-    this.options = options;
-  }
+	constructor(options: RotatorOptions) {
+		this._options = options;
+	}
 
-  start(): void {
-    if (this.timer) {
-      return;
-    }
+	start(): void {
+		if (this._timer) {
+			return;
+		}
 
-    logger.info('Starting certificate rotator', {
-      intervalMs: this.options.intervalMs,
-      marginMs: this.options.marginMs,
-    });
+		logger.info("Starting certificate rotator", {
+			intervalMs: this._options.intervalMs,
+			marginMs: this._options.marginMs,
+		});
 
-    this.timer = setInterval(() => {
-      this.rotate().catch(err => {
-        logger.error('Certificate rotation failed', { err });
-      });
-    }, this.options.intervalMs);
-  }
+		this._timer = setInterval(() => {
+			this._rotate().catch((err) => {
+				logger.error("Certificate rotation failed", { err });
+			});
+		}, this._options.intervalMs);
+	}
 
-  stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-      logger.info('Certificate rotator stopped');
-    }
-  }
+	stop(): void {
+		if (this._timer) {
+			clearInterval(this._timer);
+			this._timer = null;
+			logger.info("Certificate rotator stopped");
+		}
+	}
 
-  private async rotate(): Promise<void> {
-    const expiringCerts = await this.options.certificateStore.getExpiring(this.options.marginMs);
+	private async _rotate(): Promise<void> {
+		const expiringCerts = await this._options.certificateStore.getExpiring(
+			this._options.marginMs
+		);
 
-    if (expiringCerts.length === 0) {
-      return;
-    }
+		if (expiringCerts.length === 0) {
+			return;
+		}
 
-    logger.info('Rotating expiring certificates', { count: expiringCerts.length });
+		logger.info("Rotating expiring certificates", {
+			count: expiringCerts.length,
+		});
 
-    for (const cert of expiringCerts) {
-      try {
-        logger.info('Rotating certificate', {
-          serviceId: cert.serviceId,
-          serialNumber: cert.serialNumber,
-          expiresAt: cert.expiresAt,
-        });
-      } catch (err) {
-        logger.error('Failed to rotate certificate', {
-          serviceId: cert.serviceId,
-          serialNumber: cert.serialNumber,
-          err,
-        });
-      }
-    }
-  }
+		for (const cert of expiringCerts) {
+			try {
+				logger.info("Rotating certificate", {
+					serviceId: cert.serviceId,
+					serialNumber: cert.serialNumber,
+					expiresAt: cert.expiresAt,
+				});
+			} catch (err) {
+				logger.error("Failed to rotate certificate", {
+					serviceId: cert.serviceId,
+					serialNumber: cert.serialNumber,
+					err,
+				});
+			}
+		}
+	}
 }

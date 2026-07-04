@@ -9,7 +9,7 @@ import mysql from 'mysql2/promise';
 const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'migrations');
 const MIGRATIONS_TABLE = '_migrations';
 
-const [,, command] = process.argv;
+const [, , command] = process.argv;
 
 if (!command || !['up', 'down', 'status', 'create'].includes(command)) {
   console.error('Usage: node scripts/migrate.mjs <up|down|status|create> [name]');
@@ -89,11 +89,17 @@ async function run() {
       console.log('='.repeat(80));
       for (const m of allMigrations) {
         const checksum = applied.get(m.id);
-        const status = checksum ? (checksum === getChecksum(m.up) ? '  UP  ' : 'MODIFIED') : ' PEND ';
+        const status = checksum
+          ? checksum === getChecksum(m.up)
+            ? '  UP  '
+            : 'MODIFIED'
+          : ' PEND ';
         console.log(` [${status}] ${m.id}`);
       }
       console.log('='.repeat(80));
-      console.log(`Total: ${allMigrations.length}, Applied: ${applied.size}, Pending: ${allMigrations.length - applied.size}`);
+      console.log(
+        `Total: ${allMigrations.length}, Applied: ${applied.size}, Pending: ${allMigrations.length - applied.size}`
+      );
       process.exit(0);
     }
 
@@ -142,10 +148,9 @@ async function run() {
       console.log(`Rolling back: ${lastApplied.id}...`);
       try {
         await connection.query(sql);
-        await connection.execute(
-          `DELETE FROM \`${MIGRATIONS_TABLE}\` WHERE id = ?`,
-          [lastApplied.id]
-        );
+        await connection.execute(`DELETE FROM \`${MIGRATIONS_TABLE}\` WHERE id = ?`, [
+          lastApplied.id,
+        ]);
         console.log('  OK');
       } catch (err) {
         console.error(`  FAILED: ${err.message}`);

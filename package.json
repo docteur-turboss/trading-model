@@ -26,8 +26,7 @@
     "release:bump": "node scripts/release.mjs --bump",
     "release:version": "node scripts/release.mjs --version",
     "release:publish": "node scripts/release.mjs --publish",
-    "lint": "npx eslint . --ext .ts,.js,.mjs,.cjs",
-    "eslint": "npx eslint src/**/*.{ts,js}",
+    "lint": "npx @biomejs/biome check .",
     "test": "npm test --workspaces",
     "test:coverage": "npm test --workspaces -- --coverage",
     "docs:generate": "node scripts/generate-docs.mjs",
@@ -35,12 +34,12 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.2",
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.1",
     "conventional-commits-filter": "^5.0.0",
     "conventional-commits-parser": "^6.4.0",
-    "eslint-import-resolver-typescript": "^4.4.5",
-    "eslint-plugin-import-x": "^4.16.2",
+
     "husky": "^9.1.7",
     "typedoc": "^0.28.19"
   }

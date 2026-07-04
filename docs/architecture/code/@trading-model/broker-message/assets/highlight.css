@@ -15,11 +15,11 @@
   }
 }
 
-:root[data-theme='light'] {
+:root[data-theme="light"] {
   --code-background: var(--light-code-background);
 }
 
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   --code-background: var(--dark-code-background);
 }
 

@@ -4,7 +4,11 @@
  *
  * @param scale - Standard deviation of the distribution.
  */
-export const gaussianNoise = (scale: number): number => {
-  const u = Math.max(1e-10, Math.random());
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random()) * scale;
+export const GAUSSIAN_NOISE = (scale: number): number => {
+	const value = Math.max(1e-10, Math.random());
+	return (
+		Math.sqrt(-2 * Math.log(value)) *
+		Math.cos(2 * Math.PI * Math.random()) *
+		scale
+	);
 };
