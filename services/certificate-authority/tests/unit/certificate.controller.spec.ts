@@ -8,7 +8,7 @@ const MOCK_SIGN_SERVICE_CERTIFICATE = jest.fn();
 const MOCK_GET_BY_SERVICE_ID = jest.fn();
 const MOCK_REVOKE_CERTIFICATE = jest.fn();
 
-jest.mock("../../src/app/CONTAINER", () => ({
+jest.mock("../../src/app/container", () => ({
 	CONTAINER: {
 		ca: {
 			signServiceCertificate: MOCK_SIGN_SERVICE_CERTIFICATE,
