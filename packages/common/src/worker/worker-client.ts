@@ -87,39 +87,44 @@ export class WorkerClient extends EventEmitter {
 		return new Promise((resolve, reject) => {
 			this._ws = new WebSocket(this._cfg.serverUrl);
 
-			this._ws.on("open", () => {
-				this._reconnectAttempt = 0;
-				this._sendRegister();
-				this._startHeartbeat();
-				this.emit("connected");
-				resolve();
-			});
-
-			this._ws.on("message", (data: WebSocket.Data) => {
-				try {
-					const message: Record<string, unknown> = JSON.parse(data.toString());
-					this._handleMessage(message);
-				} catch (err) {
-					this.emit("error", new Error(`Invalid message from server: ${err}`));
-				}
-			});
-
-			this._ws.on("close", () => {
-				this._stopHeartbeat();
-				this._ws = null;
-				this.emit("disconnected");
-				if (!this._intentionalClose) {
-					this._scheduleReconnect();
-				}
-			});
-
-			this._ws.on("error", (err) => {
-				this.emit("error", err);
-				if (this._reconnectAttempt === 0) {
-					reject(err);
-				}
-			});
+			this._ws.on("open", () => this._onOpen(resolve));
+			this._ws.on("message", (data: WebSocket.Data) => this._onMessage(data));
+			this._ws.on("close", () => this._onClose());
+			this._ws.on("error", (err) => this._onError(err, reject));
 		});
+	}
+
+	private _onOpen(resolve: () => void): void {
+		this._reconnectAttempt = 0;
+		this._sendRegister();
+		this._startHeartbeat();
+		this.emit("connected");
+		resolve();
+	}
+
+	private _onMessage(data: WebSocket.Data): void {
+		try {
+			const message: Record<string, unknown> = JSON.parse(data.toString());
+			this._handleMessage(message);
+		} catch (err) {
+			this.emit("error", new Error(`Invalid message from server: ${err}`));
+		}
+	}
+
+	private _onClose(): void {
+		this._stopHeartbeat();
+		this._ws = null;
+		this.emit("disconnected");
+		if (!this._intentionalClose) {
+			this._scheduleReconnect();
+		}
+	}
+
+	private _onError(err: Error, reject: (reason: unknown) => void): void {
+		this.emit("error", err);
+		if (this._reconnectAttempt === 0) {
+			reject(err);
+		}
 	}
 
 	private _sendRegister(): void {

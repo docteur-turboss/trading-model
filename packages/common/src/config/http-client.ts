@@ -8,6 +8,19 @@ import type { z } from "zod";
 
 import { normalizeError } from "../utils/errors";
 import { sleep } from "../utils/sleep";
+import {
+	checkHostnameCircuit,
+	checkServiceCircuit,
+	isServiceCircuitOpen,
+	recordHostnameFailure,
+	recordHostnameSuccess,
+	recordServiceFailure,
+	recordServiceSuccess,
+} from "./http-circuit-breaker";
+import {
+	HttpClientError,
+	HttpClientTimeoutError,
+} from "./http-client-errors";
 
 /**
  * Reads a TLS file (key, cert, or CA) from disk.
@@ -68,12 +81,17 @@ function parseResponseBody<TResponse>(
 	return schema ? schema.parse(parsed) : (parsed as TResponse);
 }
 
+interface ResponseCollectionContext<TResponse> {
+	res: IncomingMessage;
+	method: string;
+	urlStr: string;
+	schema?: z.ZodType<TResponse>;
+}
+
 function collectResponseBody<TResponse>(
-	res: IncomingMessage,
-	method: string,
-	urlStr: string,
-	schema?: z.ZodType<TResponse>
+	context: ResponseCollectionContext<TResponse>
 ): Promise<TResponse | undefined> {
+	const { res, method, urlStr, schema } = context;
 	return new Promise<TResponse | undefined>((resolve, reject) => {
 		let data = "";
 		const stream = decompressResponse(res);
@@ -128,180 +146,6 @@ function buildRequestOptions(
 	};
 }
 
-// ─── Circuit breaker (hostname-level) ────────────────────────────────────────
-
-type CircuitState = "closed" | "open" | "half-open";
-
-interface CircuitBreakerEntry {
-	failures: number;
-	state: CircuitState;
-	lastFailureTime: number;
-}
-
-/** Consecutive failures before the circuit breaker opens. */
-const CIRCUIT_BREAKER_THRESHOLD = 5;
-
-/** Cooldown (ms) before transitioning from open to half-open. */
-const CIRCUIT_COOLDOWN_MS = 30_000;
-
-/** Per-hostname circuit breaker state. */
-const HOSTNAME_CIRCUIT_BREAKERS = new Map<string, CircuitBreakerEntry>();
-
-/**
- * Returns (or creates) the circuit breaker entry for a hostname.
- */
-function getHostnameEntry(hostname: string): CircuitBreakerEntry {
-	let entry = HOSTNAME_CIRCUIT_BREAKERS.get(hostname);
-	if (!entry) {
-		entry = { failures: 0, state: "closed", lastFailureTime: 0 };
-		HOSTNAME_CIRCUIT_BREAKERS.set(hostname, entry);
-	}
-	return entry;
-}
-
-/**
- * Checks the circuit breaker for a hostname before sending a request.
- * Throws HttpClientError (503) if the circuit is open and cooldown has not elapsed.
- */
-function checkHostnameCircuit(hostname: string): void {
-	const entry = getHostnameEntry(hostname);
-	if (entry.state === "open") {
-		if (Date.now() - entry.lastFailureTime >= CIRCUIT_COOLDOWN_MS) {
-			entry.state = "half-open";
-			return;
-		}
-		throw new HttpClientError(`Circuit breaker open for ${hostname}`, 503);
-	}
-}
-
-/**
- * Resets the hostname circuit breaker on a successful request.
- */
-function recordHostnameSuccess(hostname: string): void {
-	const entry = getHostnameEntry(hostname);
-	entry.failures = 0;
-	entry.state = "closed";
-}
-
-/**
- * Records a failure for the hostname and opens the circuit if threshold is reached.
- */
-function recordHostnameFailure(hostname: string): void {
-	const entry = getHostnameEntry(hostname);
-	entry.failures++;
-	entry.lastFailureTime = Date.now();
-	if (entry.failures >= CIRCUIT_BREAKER_THRESHOLD) {
-		entry.state = "open";
-	}
-}
-
-// ─── Circuit breaker (service-level) ────────────────────────────────────────
-
-interface ServiceCircuitBreakerEntry {
-	failures: number;
-	state: CircuitState;
-	lastFailureTime: number;
-}
-
-/** Default threshold when instance count is unknown. */
-const DEFAULT_SERVICE_CB_THRESHOLD = 5;
-
-/** Cooldown (ms) for service-level circuit breaker. */
-const SERVICE_CIRCUIT_COOLDOWN_MS = 30_000;
-
-/** Per-service circuit breaker state, keyed by service name. */
-const SERVICE_CIRCUIT_BREAKERS = new Map<string, ServiceCircuitBreakerEntry>();
-
-/**
- * Returns (or creates) the circuit breaker entry for a service name.
- */
-function getServiceEntry(serviceName: string): ServiceCircuitBreakerEntry {
-	let entry = SERVICE_CIRCUIT_BREAKERS.get(serviceName);
-	if (!entry) {
-		entry = { failures: 0, state: "closed", lastFailureTime: 0 };
-		SERVICE_CIRCUIT_BREAKERS.set(serviceName, entry);
-	}
-	return entry;
-}
-
-/**
- * Returns the effective failure threshold for a service based on instance count.
- * Threshold = max(2, instanceCount × 2) when instanceCount is known,
- * otherwise the default static threshold.
- */
-function getServiceThreshold(instanceCount?: number): number {
-	if (instanceCount !== undefined) {
-		return Math.max(2, instanceCount * 2);
-	}
-	return DEFAULT_SERVICE_CB_THRESHOLD;
-}
-
-/**
- * Checks the circuit breaker for a service before sending a request.
- * Throws HttpClientError (503) if the circuit is open and cooldown has not elapsed.
- */
-function checkServiceCircuit(serviceName: string): void {
-	const entry = getServiceEntry(serviceName);
-	if (entry.state === "open") {
-		if (Date.now() - entry.lastFailureTime >= SERVICE_CIRCUIT_COOLDOWN_MS) {
-			entry.state = "half-open";
-			return;
-		}
-		throw new HttpClientError(
-			`Circuit breaker open for service ${serviceName}`,
-			503
-		);
-	}
-}
-
-/**
- * Resets the service circuit breaker on a successful request.
- */
-function recordServiceSuccess(serviceName: string): void {
-	const entry = getServiceEntry(serviceName);
-	entry.failures = 0;
-	entry.state = "closed";
-}
-
-/**
- * Records a failure for the service and opens the circuit if the dynamic threshold is reached.
- * The threshold is computed from the instance count: max(2, instanceCount × 2).
- */
-function recordServiceFailure(
-	serviceName: string,
-	instanceCount?: number
-): void {
-	const entry = getServiceEntry(serviceName);
-	entry.failures++;
-	entry.lastFailureTime = Date.now();
-	const threshold = getServiceThreshold(instanceCount);
-	if (entry.failures >= threshold) {
-		entry.state = "open";
-	}
-}
-
-/**
- * Returns true if the service's circuit breaker is open (or half-open).
- * Side-effect: transitions 'open' → 'half-open' when the cooldown period
- * has elapsed, allowing a probe request through to test recovery.
- * Used by ServiceDiscovery to reject lookups early.
- */
-export function isServiceCircuitOpen(serviceName: string): boolean {
-	const entry = SERVICE_CIRCUIT_BREAKERS.get(serviceName);
-	if (!entry || entry.state === "closed") {
-		return false;
-	}
-	if (entry.state === "open") {
-		if (Date.now() - entry.lastFailureTime >= SERVICE_CIRCUIT_COOLDOWN_MS) {
-			entry.state = "half-open";
-			return false;
-		}
-		return true;
-	}
-	// half-open — treat as open until a request succeeds
-	return true;
-}
-
 /** Shared keep-alive agent reused across all HttpClient instances. */
 let sharedAgent: https.Agent | null = null;
 
@@ -320,6 +164,22 @@ function getKeepAliveAgent(): https.Agent {
 		});
 	}
 	return sharedAgent;
+}
+
+interface RequestContext<TResponse> {
+	method: HttpMethod;
+	urlStr: string;
+	body?: unknown;
+	options?: HttpRequestOptions;
+	schema?: z.ZodType<TResponse>;
+}
+
+interface ExecuteRequestContext<TResponse> {
+	method: HttpMethod;
+	urlStr: string;
+	body: unknown;
+	schema: z.ZodType<TResponse> | undefined;
+	options?: HttpRequestOptions;
 }
 
 /**
@@ -382,13 +242,13 @@ export class HttpClient {
 		options?: HttpRequestOptions,
 		schema?: z.ZodType<TResponse>
 	): Promise<TResponse | undefined> {
-		return await this._request<TResponse>(
-			"GET",
-			url,
-			undefined,
+		return await this._request<TResponse>({
+			method: "GET",
+			urlStr: url,
+			body: undefined,
 			options,
-			schema
-		);
+			schema,
+		});
 	}
 
 	/**
@@ -401,7 +261,7 @@ export class HttpClient {
 		options?: HttpRequestOptions,
 		schema?: z.ZodType<TResponse>
 	): Promise<TResponse | undefined> {
-		return await this._request<TResponse>("POST", url, body, options, schema);
+		return await this._request<TResponse>({ method: "POST", urlStr: url, body, options, schema });
 	}
 
 	/**
@@ -414,7 +274,7 @@ export class HttpClient {
 		options?: HttpRequestOptions,
 		schema?: z.ZodType<TResponse>
 	): Promise<TResponse | undefined> {
-		return await this._request<TResponse>("DELETE", url, body, options, schema);
+		return await this._request<TResponse>({ method: "DELETE", urlStr: url, body, options, schema });
 	}
 
 	/**
@@ -450,18 +310,14 @@ export class HttpClient {
 	}
 
 	private async _request<TResponse>(
-		method: HttpMethod,
-		urlStr: string,
-		body?: unknown,
-		options?: HttpRequestOptions,
-		schema?: z.ZodType<TResponse>
+		context: RequestContext<TResponse>
 	): Promise<TResponse | undefined> {
+		const { method, urlStr, body, options, schema } = context;
 		if (this._tlsPaths && !this._tlsLoaded) {
 			await this._ensureTlsLoaded();
 		}
 
 		const retryCount = options?.retryCount ?? DEFAULT_RETRY_COUNT;
-		const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
 		const { hostname, serviceName } = this._checkPreconditions(urlStr, options);
 
@@ -469,14 +325,13 @@ export class HttpClient {
 
 		for (let attempt = 0; attempt <= retryCount; attempt++) {
 			try {
-				const result = await this._executeRequest<TResponse>(
+				const result = await this._executeRequest<TResponse>({
 					method,
 					urlStr,
 					body,
 					schema,
-					timeoutMs,
-					options
-				);
+					options,
+				});
 				this._recordSuccess(hostname, serviceName);
 				return result;
 			} catch (error) {
@@ -547,13 +402,10 @@ export class HttpClient {
 	 * and Zod schema validation when a schema is provided.
 	 */
 	private _executeRequest<TResponse>(
-		method: HttpMethod,
-		urlStr: string,
-		body: unknown,
-		schema: z.ZodType<TResponse> | undefined,
-		timeoutMs: number,
-		options?: HttpRequestOptions
+		context: ExecuteRequestContext<TResponse>
 	): Promise<TResponse | undefined> {
+		const { method, urlStr, body, schema, options } = context;
+		const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 		const url = new URL(urlStr);
 		const requestOptions = buildRequestOptions(method, url, {
 			...options,
@@ -564,7 +416,7 @@ export class HttpClient {
 
 		return new Promise<TResponse | undefined>((resolve, reject) => {
 			const req = https.request(requestOptions, (res) => {
-				collectResponseBody(res, method, urlStr, schema).then(resolve, reject);
+				collectResponseBody({ res, method, urlStr, schema }).then(resolve, reject);
 			});
 
 			req.on("error", (err) => reject(err));
@@ -639,21 +491,6 @@ export interface HttpRequestOptions {
 	serviceInstanceCount?: number;
 }
 
-/** Thrown when an HTTP response carries a non-2xx status code. */
-export class HttpClientError extends Error {
-	public readonly statusCode?: number;
-	/**
-	 * @param message - Human-readable error description.
-	 * @param statusCode - The HTTP status code that caused the error.
-	 */
-	constructor(message: string, statusCode?: number) {
-		super(message);
-		this.name = "HttpClientError";
-		this.statusCode = statusCode;
-		Object.setPrototypeOf(this, new.target.prototype);
-	}
-}
-
 /**
  * Standard TLS certificate paths used by all services.
  */
@@ -663,17 +500,4 @@ export interface TlsClientPaths {
 	keyCertificatePath: string;
 }
 
-/** Thrown when an HTTP request exceeds the configured timeout. */
-export class HttpClientTimeoutError extends Error {
-	public readonly timeoutMs: number;
-	/**
-	 * @param message - Human-readable error description.
-	 * @param timeoutMs - The timeout duration in milliseconds.
-	 */
-	constructor(message: string, timeoutMs: number) {
-		super(message);
-		this.name = "HttpClientTimeoutError";
-		this.timeoutMs = timeoutMs;
-		Object.setPrototypeOf(this, new.target.prototype);
-	}
-}
+export { HttpClientError, HttpClientTimeoutError, isServiceCircuitOpen };

@@ -62,13 +62,18 @@ export function generateInstanceToken(
 	return `${encodedId}.${nonce}.${hmac}`;
 }
 
+export interface TokenValidationInput {
+	token: string;
+	instanceId: string;
+	signingSecret: string;
+	storedToken: string | undefined | null;
+	options?: TokenValidationOptions;
+}
+
 export function validInstanceToken(
-	token: string,
-	instanceId: string,
-	signingSecret: string,
-	storedToken: string | undefined | null,
-	options?: TokenValidationOptions
+	input: TokenValidationInput
 ): boolean {
+	const { token, instanceId, signingSecret, storedToken, options } = input;
 	const format = checkTokenFormat(token);
 	if (!format) {
 		return false;
@@ -84,12 +89,12 @@ export function validInstanceToken(
 	}
 
 	if (
-		!verifyHmac(
-			format.encodedId,
-			format.payloadParts,
-			format.signature,
-			signingSecret
-		)
+		!verifyHmac({
+			encodedId: format.encodedId,
+			payloadParts: format.payloadParts,
+			signature: format.signature,
+			signingSecret,
+		})
 	) {
 		return false;
 	}
@@ -102,12 +107,12 @@ export function validInstanceToken(
 		const storedFormat = checkTokenFormat(storedToken);
 		if (
 			storedFormat &&
-			verifyHmac(
-				storedFormat.encodedId,
-				storedFormat.payloadParts,
-				storedFormat.signature,
-				signingSecret
-			)
+			verifyHmac({
+				encodedId: storedFormat.encodedId,
+				payloadParts: storedFormat.payloadParts,
+				signature: storedFormat.signature,
+				signingSecret,
+			})
 		) {
 			return true;
 		}
@@ -116,12 +121,17 @@ export function validInstanceToken(
 	return false;
 }
 
+interface HmacVerificationInput {
+	encodedId: string;
+	payloadParts: string[];
+	signature: string;
+	signingSecret: string;
+}
+
 function verifyHmac(
-	encodedId: string,
-	payloadParts: string[],
-	signature: string,
-	signingSecret: string
+	input: HmacVerificationInput
 ): boolean {
+	const { encodedId, payloadParts, signature, signingSecret } = input;
 	const payload = payloadParts.join(".");
 	const expectedHmac = createHmac("sha256", signingSecret)
 		.update(`${encodedId}.${payload}`)
