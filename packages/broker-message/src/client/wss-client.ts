@@ -4,6 +4,10 @@ import { context, propagation } from "@opentelemetry/api";
 import { logger } from "@trading-model/common/config/logger";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import {
+	scheduleWsReconnect,
+	type WsReconnectState,
+} from "@trading-model/common/utils/ws-reconnect";
 import WebSocket from "ws";
 
 const WSS_RECONNECT_BASE_MS = 1000;
@@ -38,8 +42,12 @@ type FallbackPublishFn = (
 
 export class WssClient {
 	private _ws: WebSocket | null = null;
-	private _reconnectAttempts = 0;
 	private _shouldReconnect = true;
+	private _wsReconnectState: WsReconnectState = {
+		attempt: 0,
+		timer: null,
+		destroyed: false,
+	};
 	private _permanentlyFellBack = false;
 	private _reconnectPollTimer: ReturnType<typeof setInterval> | null = null;
 	private _messageHandler: WssMessageHandler | null = null;
@@ -102,7 +110,7 @@ export class WssClient {
 		const wsUrl = this._buildWsUrl();
 		logger.info("WSS connecting", {
 			url: wsUrl,
-			attempt: this._reconnectAttempts + 1,
+			attempt: this._wsReconnectState.attempt + 1,
 		});
 
 		try {
@@ -120,7 +128,7 @@ export class WssClient {
 
 			this._ws.on("open", () => {
 				this._connected = true;
-				this._reconnectAttempts = 0;
+				this._wsReconnectState.attempt = 0;
 				logger.info("WSS connected");
 
 				if (this._subscribedTopics.length > 0) {
@@ -189,7 +197,7 @@ export class WssClient {
 		if (!this._shouldReconnect) {
 			return;
 		}
-		if (this._reconnectAttempts >= WSS_MAX_RECONNECT_ATTEMPTS) {
+		if (this._wsReconnectState.attempt >= WSS_MAX_RECONNECT_ATTEMPTS) {
 			if (!this._permanentlyFellBack) {
 				this._permanentlyFellBack = true;
 				logger.warn(
@@ -200,20 +208,16 @@ export class WssClient {
 			}
 			return;
 		}
-		this._reconnectAttempts++;
-		const delay =
-			Math.min(
-				WSS_RECONNECT_BASE_MS * 2 ** this._reconnectAttempts,
-				WSS_RECONNECT_MAX_MS
-			) +
-			Math.random() * 1000;
-
-		const timer = setTimeout(() => {
-			if (this._shouldReconnect) {
-				this._connectWs();
-			}
-		}, delay);
-		timer.unref();
+		scheduleWsReconnect(
+			this._wsReconnectState,
+			{
+				baseDelayMs: WSS_RECONNECT_BASE_MS,
+				maxDelayMs: WSS_RECONNECT_MAX_MS,
+				jitterMs: 1000,
+			},
+			() => this._connectWs(),
+			logger
+		);
 	}
 
 	private _startReconnectPolling(): void {
@@ -228,7 +232,7 @@ export class WssClient {
 			logger.info(
 				"WSS reconnect poll — attempting to re-establish WebSocket connection"
 			);
-			this._reconnectAttempts = 0;
+			this._wsReconnectState.attempt = 0;
 			this._permanentlyFellBack = false;
 			this._connectWs();
 		}, WSS_RECONNECT_POLL_INTERVAL_MS);
@@ -435,6 +439,11 @@ export class WssClient {
 
 	disconnect(): void {
 		this._shouldReconnect = false;
+		this._wsReconnectState.destroyed = true;
+		if (this._wsReconnectState.timer) {
+			clearTimeout(this._wsReconnectState.timer);
+			this._wsReconnectState.timer = null;
+		}
 		this._stopReconnectPolling();
 		if (this._flusherTimer) {
 			clearInterval(this._flusherTimer);
