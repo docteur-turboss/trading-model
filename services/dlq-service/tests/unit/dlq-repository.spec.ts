@@ -589,7 +589,7 @@ describe("DlqRetryManager", () => {
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
 			return rm
-				.markRetried("aaaaaaaaaaaaaaaaaaaaaaaa", "instance-1", "batch-1", true)
+				.markRetried({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", instanceId: "instance-1", batchId: "batch-1", success: true })
 				.then(() => {
 					expect(mockFindOne).toHaveBeenCalledWith(
 						{ _id: expect.any(Object) },
@@ -614,12 +614,7 @@ describe("DlqRetryManager", () => {
 			mockFindOneAndUpdate.mockResolvedValue({ _id: "id1" });
 
 			return rm
-				.markRetried(
-					"aaaaaaaaaaaaaaaaaaaaaaaa",
-					"instance-1",
-					"batch-1",
-					false
-				)
+				.markRetried({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", instanceId: "instance-1", batchId: "batch-1", success: false })
 				.then(() => {
 					expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
 						{ _id: expect.any(Object), retryCount: { $lt: 3 } },
@@ -642,7 +637,7 @@ describe("DlqRetryManager", () => {
 			mockFindOne.mockResolvedValue({ _id: "id1", status: "abandoned" });
 
 			return rm
-				.markRetried("aaaaaaaaaaaaaaaaaaaaaaaa", "instance-1", "batch-1", true)
+				.markRetried({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", instanceId: "instance-1", batchId: "batch-1", success: true })
 				.then(() => {
 					expect(mockFindOne).toHaveBeenCalled();
 					expect(mockUpdateOne).not.toHaveBeenCalled();
@@ -655,12 +650,7 @@ describe("DlqRetryManager", () => {
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
 			return rm
-				.markRetried(
-					"aaaaaaaaaaaaaaaaaaaaaaaa",
-					"instance-1",
-					"batch-1",
-					false
-				)
+				.markRetried({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", instanceId: "instance-1", batchId: "batch-1", success: false })
 				.then(() => {
 					expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(1);
 					expect(mockUpdateOne).toHaveBeenCalledWith(

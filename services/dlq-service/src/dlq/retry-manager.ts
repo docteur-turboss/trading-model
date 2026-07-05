@@ -5,14 +5,19 @@ import { env } from "../config/env";
 
 const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 
+export interface MarkRetriedParams {
+	id: string;
+	instanceId: string;
+	batchId?: string;
+	success?: boolean;
+	errorMsg?: string;
+}
+
 export class DlqRetryManager {
 	async markRetried(
-		id: string,
-		instanceId: string,
-		batchId?: string,
-		success = true,
-		errorMsg?: string
+		params: MarkRetriedParams
 	): Promise<void> {
+		const { id, instanceId, batchId, success = true, errorMsg } = params;
 		if (success) {
 			await this._markAsCompleted(id, instanceId, batchId);
 			return;

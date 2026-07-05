@@ -224,13 +224,13 @@ async function _handleDeliveryMarkFailed(
 ): Promise<void> {
 	const { entryId, instanceId, batchId, httpError } = options;
 	try {
-		await dlqRetryManager.markRetried(
-			entryId,
+		await dlqRetryManager.markRetried({
+			id: entryId,
 			instanceId,
 			batchId,
-			false,
-			httpError
-		);
+			success: false,
+			errorMsg: httpError,
+		});
 	} catch (markErr) {
 		logger.error(
 			"Failed to mark entry as failed — releasing claim without count",
@@ -258,7 +258,7 @@ async function replaySingleEntry(
 	activeReplays.increment();
 	try {
 		await _deliverMessage(entry, ctx.messageManagerUrl, ctx.client);
-		await dlqRetryManager.markRetried(entry.id, ctx.instanceId, ctx.batchId, true);
+		await dlqRetryManager.markRetried({ id: entry.id, instanceId: ctx.instanceId, batchId: ctx.batchId, success: true });
 	} catch (err) {
 		if (ctx.isTimedOut()) {
 			throw err;

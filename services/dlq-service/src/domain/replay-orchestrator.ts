@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { CircuitState } from "@trading-model/common/reliability/circuit-breaker";
 
 /**
  * Pure application orchestration for DLQ replay.
@@ -17,7 +18,7 @@ export class ReplayOrchestrator {
 	private readonly _circuitCooldownMs: number;
 	private readonly _halfOpenMaxAttempts: number;
 	private readonly _maxConcurrentBatches: number;
-	private _circuitState: "closed" | "open" | "half-open" = "closed";
+	private _circuitState: CircuitState = "closed";
 	private _circuitFailures = 0;
 	private _circuitOpenUntil = 0;
 	private _halfOpenAttempts = 0;
@@ -101,7 +102,7 @@ export class ReplayOrchestrator {
 		}
 	}
 
-	getCircuitState(): string {
+	getCircuitState(): CircuitState {
 		return this._circuitState;
 	}
 }
