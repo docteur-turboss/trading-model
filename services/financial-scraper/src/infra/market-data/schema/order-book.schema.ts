@@ -16,6 +16,15 @@ const TABLE_DEF = zod.object({
 	timestamp: zod.date(),
 });
 
+interface MarketOrderBooksSnapshot {
+	storage: Map<number, OrderBookData>;
+	marketStorage: Map<string, number[]>;
+	sourceStorage: Map<string, number[]>;
+	symbolStorage: Map<string, number[]>;
+	timestampStorage: Map<number, number[]>;
+	id: number;
+}
+
 const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 	private _storage: Map<number, OrderBookData> = new Map();
 	private _marketStorage: Map<string, number[]> = new Map();
@@ -28,7 +37,22 @@ const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 		if (!data.length) {
 			return;
 		}
-		const saveBeforeUpdate = {
+
+		const snapshot = this._snapshotState();
+
+		try {
+			for (const entry of data) {
+				this._indexEntry(entry);
+			}
+		} catch (err) {
+			this._restoreState(snapshot);
+			throw normalizeError(err);
+		}
+		return this;
+	}
+
+	private _snapshotState(): MarketOrderBooksSnapshot {
+		return {
 			storage: this._storage,
 			marketStorage: this._marketStorage,
 			sourceStorage: this._sourceStorage,
@@ -36,51 +60,43 @@ const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 			timestampStorage: this._timestampStorage,
 			id: this._id,
 		};
+	}
 
-		const stringIndexStores: {
-			storage: Map<string, number[]>;
-			key: (entry: OrderBookData) => string;
-		}[] = [
-			{ storage: this._marketStorage, key: (entry) => entry.market },
-			{ storage: this._sourceStorage, key: (entry) => entry.source },
-			{ storage: this._symbolStorage, key: (entry) => entry.symbol },
-		];
+	private _restoreState(snapshot: MarketOrderBooksSnapshot): void {
+		this._id = snapshot.id;
+		this._storage = snapshot.storage;
+		this._marketStorage = snapshot.marketStorage;
+		this._sourceStorage = snapshot.sourceStorage;
+		this._symbolStorage = snapshot.symbolStorage;
+		this._timestampStorage = snapshot.timestampStorage;
+	}
 
-		try {
-			for (const entry of data) {
-				TABLE_DEF.parse(entry);
+	private _indexEntry(entry: OrderBookData): void {
+		TABLE_DEF.parse(entry);
 
-				this._storage.set(this._id, entry);
-				for (const store of stringIndexStores) {
-					const entryKey = store.key(entry);
-					if (store.storage.has(entryKey)) {
-						const entries = store.storage.get(entryKey)!;
-						entries.push(this._id);
-					} else {
-						store.storage.set(entryKey, [this._id]);
-					}
-				}
+		this._storage.set(this._id, entry);
+		this._addToIndex(this._marketStorage, entry.market);
+		this._addToIndex(this._sourceStorage, entry.source);
+		this._addToIndex(this._symbolStorage, entry.symbol);
 
-				if (this._timestampStorage.has(entry.timestamp)) {
-					const timestampEntries = this._timestampStorage.get(entry.timestamp)!;
-					timestampEntries.push(this._id);
-				} else {
-					this._timestampStorage.set(entry.timestamp, [this._id]);
-				}
-
-				this._id++;
-			}
-		} catch (err) {
-			this._id = saveBeforeUpdate.id;
-			this._storage = saveBeforeUpdate.storage;
-			this._marketStorage = saveBeforeUpdate.marketStorage;
-			this._sourceStorage = saveBeforeUpdate.sourceStorage;
-			this._symbolStorage = saveBeforeUpdate.symbolStorage;
-			this._timestampStorage = saveBeforeUpdate.timestampStorage;
-
-			throw normalizeError(err);
+		if (this._timestampStorage.has(entry.timestamp)) {
+			this._timestampStorage.get(entry.timestamp)!.push(this._id);
+		} else {
+			this._timestampStorage.set(entry.timestamp, [this._id]);
 		}
-		return this;
+
+		this._id++;
+	}
+
+	private _addToIndex(
+		storage: Map<string, number[]>,
+		key: string
+	): void {
+		if (storage.has(key)) {
+			storage.get(key)!.push(this._id);
+		} else {
+			storage.set(key, [this._id]);
+		}
 	}
 
 	getById(id: number) {
