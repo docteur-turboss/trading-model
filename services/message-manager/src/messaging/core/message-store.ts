@@ -10,7 +10,7 @@ import { ClaimManager } from "./claim-manager";
 import { DeduplicationService } from "./deduplication-service";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { PendingAckStore } from "./pending-ack-store";
-import { StreamGroupManager } from "./stream-group-manager";
+import { StreamGroupManager, type ReadFromGroupParams } from "./stream-group-manager";
 import { WalFlusherService } from "./wal-flusher-service";
 
 const MAX_WAL_RETRY = 10;
@@ -197,19 +197,9 @@ export class MessageStore {
 	}
 
 	async readFromGroup(
-		topic: string,
-		groupName: string,
-		consumerId: string,
-		count = 10,
-		blockMs = 1000
+		params: ReadFromGroupParams
 	): Promise<Array<{ id: string; data: string }>> {
-		return this._streamGroupManager.readFromGroup(
-			topic,
-			groupName,
-			consumerId,
-			count,
-			blockMs
-		);
+		return this._streamGroupManager.readFromGroup(params);
 	}
 
 	async ackMessage(

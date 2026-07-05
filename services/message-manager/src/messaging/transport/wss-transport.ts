@@ -149,8 +149,8 @@ export class WssTransport {
 		});
 	}
 
-	private _buildHandlerMap(): Map<string, MessageHandler> {
-		return new Map<string, MessageHandler>([
+	private _buildHandlerMap(): Map<WssMessageType, MessageHandler> {
+		return new Map<WssMessageType, MessageHandler>([
 			[
 				"subscribe",
 				(_msg, _ws, _ctx) =>

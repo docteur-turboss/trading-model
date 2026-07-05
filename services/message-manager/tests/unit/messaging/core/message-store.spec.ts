@@ -190,13 +190,13 @@ describe("MessageStore", () => {
 			],
 		]);
 
-		const messages = await messageStore.readFromGroup(
-			"test.topic",
-			"test-group",
-			"consumer-1",
-			10,
-			1000
-		);
+		const messages = await messageStore.readFromGroup({
+			topic: "test.topic",
+			groupName: "test-group",
+			consumerId: "consumer-1",
+			count: 10,
+			blockMs: 1000,
+		});
 
 		expect(messages).toHaveLength(1);
 		expect(messages[0].id).toBe("1689000000000-0");
@@ -205,11 +205,11 @@ describe("MessageStore", () => {
 	it("should return empty when no messages in group", async () => {
 		mockXreadgroup.mockResolvedValue(null);
 
-		const messages = await messageStore.readFromGroup(
-			"test.topic",
-			"test-group",
-			"consumer-1"
-		);
+		const messages = await messageStore.readFromGroup({
+			topic: "test.topic",
+			groupName: "test-group",
+			consumerId: "consumer-1",
+		});
 
 		expect(messages).toEqual([]);
 	});

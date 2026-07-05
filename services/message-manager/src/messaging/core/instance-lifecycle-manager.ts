@@ -1,17 +1,18 @@
-import { normalizeError } from "@trading-model/common/utils/errors";
 import type Redis from "ioredis";
 
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getSubscriptionClient } from "../../config/redis";
-import { LEASE_HEARTBEAT_FIELD } from "./subscription-store";
 
+const SUBSCRIPTION_TTL_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = ENV.STALE_HEARTBEAT_INTERVAL_MS;
 const MISSED_HEARTBEAT_THRESHOLD = ENV.STALE_MISSED_HEARTBEAT_THRESHOLD;
 const GRACE_PERIOD_MS = ENV.STALE_GRACE_PERIOD_MS;
 
-export class StaleInstanceCleaner {
-	constructor(private readonly _prefix: string) {}
+export const LEASE_HEARTBEAT_FIELD = "heartbeat";
+
+export class InstanceLifecycleManager {
+	constructor(private _prefix: string) {}
 
 	private _subKey(topic: string, instanceId: string): string {
 		return `${this._prefix}sub:${topic}:${instanceId}`;
@@ -33,6 +34,13 @@ export class StaleInstanceCleaner {
 		return `${this._prefix}active-instances`;
 	}
 
+	async heartbeat(instanceId: string): Promise<void> {
+		const redis = await getSubscriptionClient();
+		const leaseKey = `${this._prefix}lease:${instanceId}`;
+		await redis.hset(leaseKey, LEASE_HEARTBEAT_FIELD, Date.now().toString());
+		await redis.expire(leaseKey, Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
+	}
+
 	async isStaleByHeartbeat(instanceId: string): Promise<boolean> {
 		const redis = await getSubscriptionClient();
 		const leaseKey = `${this._prefix}lease:${instanceId}`;
@@ -49,6 +57,65 @@ export class StaleInstanceCleaner {
 			return false;
 		}
 		return true;
+	}
+
+	async renewLease(instanceId: string, topics: string[]): Promise<void> {
+		const redis = await getSubscriptionClient();
+		if (topics.length === 0) {
+			return;
+		}
+
+		const multi = redis.multi();
+		const now = Date.now().toString();
+		for (const topic of topics) {
+			multi.hset(`${this._prefix}lease:${instanceId}`, topic, now);
+			multi.hset(
+				`${this._prefix}lease:${instanceId}`,
+				LEASE_HEARTBEAT_FIELD,
+				now
+			);
+			multi.expire(
+				`${this._prefix}lease:${instanceId}`,
+				Math.ceil(SUBSCRIPTION_TTL_MS / 1000)
+			);
+			const subKey = this._subKey(topic, instanceId);
+			multi.expire(subKey, Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
+		}
+		await multi.exec();
+	}
+
+	async removeStaleInstances(): Promise<number> {
+		const redis = await getSubscriptionClient();
+		let removed = 0;
+		let scanCursor = "0";
+
+		do {
+			const [nextCursor, instanceIds] = await redis.sscan(
+				this._activeInstancesKey(),
+				scanCursor,
+				"COUNT",
+				100
+			);
+			scanCursor = nextCursor;
+
+			for (const instanceId of instanceIds) {
+				if (!(await this._isInstanceStale(redis, instanceId))) {
+					continue;
+				}
+				const topics = await this._removeInstanceSubscriptions(
+					redis,
+					instanceId
+				);
+				await this._cleanupOrphanedTopics(redis, topics);
+				removed += topics.length;
+				logger.info("Removed stale subscription by heartbeat", {
+					instanceId,
+					topics: topics.join(","),
+				});
+			}
+		} while (scanCursor !== "0");
+
+		return removed;
 	}
 
 	private async _isInstanceStale(
@@ -101,39 +168,5 @@ export class StaleInstanceCleaner {
 				/* best-effort */
 			}
 		}
-	}
-
-	async removeStaleInstances(): Promise<number> {
-		const redis = await getSubscriptionClient();
-		let removed = 0;
-		let scanCursor = "0";
-
-		do {
-			const [nextCursor, instanceIds] = await redis.sscan(
-				this._activeInstancesKey(),
-				scanCursor,
-				"COUNT",
-				100
-			);
-			scanCursor = nextCursor;
-
-			for (const instanceId of instanceIds) {
-				if (!(await this._isInstanceStale(redis, instanceId))) {
-					continue;
-				}
-				const topics = await this._removeInstanceSubscriptions(
-					redis,
-					instanceId
-				);
-				await this._cleanupOrphanedTopics(redis, topics);
-				removed += topics.length;
-				logger.info("Removed stale subscription by heartbeat", {
-					instanceId,
-					topics: topics.join(","),
-				});
-			}
-		} while (scanCursor !== "0");
-
-		return removed;
 	}
 }

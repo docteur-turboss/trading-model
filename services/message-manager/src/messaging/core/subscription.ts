@@ -26,17 +26,14 @@ import type {
 	Message,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
-import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
 import { FIND_A_SERVICE } from "../../config/address-manager";
-import { logger } from "../../config/logger";
 import type {
 	MessageDeliveryContext,
 	MessageDeliveryPort,
 } from "./message-delivery-port";
-
-/** Maximum number of delivery retries before routing to DLQ. */
-const MAX_RETRIES = 10;
+import { DeliveryCircuitBreaker } from "./delivery-circuit-breaker";
+import { DeliveryErrorHandler } from "./delivery-error-handler";
 
 /** Base delay (ms) for exponential backoff between retries. */
 const BaseDelayMs = 1000;
@@ -46,9 +43,6 @@ const MaxDelayMs = 60_000;
 
 /** Random jitter factor applied to backoff delay (±20%). */
 const JitterFactor = 0.2;
-
-/** Consecutive dispatch failures before the circuit breaker opens. */
-const CIRCUIT_BREAKER_THRESHOLD = 5;
 
 /**
  * Runtime context provided to subscribers during message delivery.
@@ -98,9 +92,8 @@ export class Subscription {
 	readonly callbackURL: string;
 	readonly serviceIdentity: ServiceIdentity;
 	private _deliveryPort: MessageDeliveryPort;
-
-	/** Consecutive dispatch failures across messages (circuit breaker state). */
-	private _failureCount = 0;
+	private _circuitBreaker: DeliveryCircuitBreaker;
+	private _errorHandler: DeliveryErrorHandler;
 
 	/**
 	 * Computes exponential backoff delay with jitter for retry.
@@ -124,6 +117,16 @@ export class Subscription {
 		this.callbackURL = callbackURL;
 		this.serviceIdentity = serviceIdentity;
 		this._deliveryPort = deliveryPort;
+		this._circuitBreaker = new DeliveryCircuitBreaker(
+			topic,
+			serviceIdentity.serviceName
+		);
+		this._errorHandler = new DeliveryErrorHandler(
+			deliveryPort,
+			() => this._circuitBreaker.recordFailure(),
+			topic,
+			serviceIdentity.serviceName
+		);
 	}
 
 	/**
@@ -150,7 +153,9 @@ export class Subscription {
 
 		const emittedAt = new Date(message.metadata.emittedAt ?? 0).getTime();
 
-		if (await this._checkCircuitBreaker(message)) {
+		if (
+			await this._circuitBreaker.check(message, this._deliveryPort)
+		) {
 			return;
 		}
 
@@ -182,7 +187,7 @@ export class Subscription {
 			} catch (err) {
 				context.deliveryAttempt++;
 
-				const handled = await this._handleDeliveryError(
+				const handled = await this._errorHandler.handleDeliveryError(
 					err,
 					message,
 					context,
@@ -205,78 +210,7 @@ export class Subscription {
 			}
 		}
 
-		this._failureCount = 0;
-	}
-
-	private async _checkCircuitBreaker<TData>(
-		message: Message<TData>
-	): Promise<boolean> {
-		if (this._failureCount < CIRCUIT_BREAKER_THRESHOLD) {
-			return false;
-		}
-		logger.warn("Circuit breaker open — rejecting dispatch", {
-			topic: this.topic,
-			service: this.serviceIdentity.serviceName,
-			failureCount: this._failureCount,
-		});
-		await this._deliveryPort.markDeadLetter(
-			message,
-			"CIRCUIT_OPEN",
-			this._failureCount
-		);
-		return true;
-	}
-
-	private async _handleDeliveryError<TData>(
-		err: unknown,
-		message: Message<TData>,
-		context: SubscribersContext,
-		ttl: number,
-		emittedAt: number,
-		deliveryMode: DeliveryModeEnum
-	): Promise<boolean> {
-		if (
-			err instanceof AppError &&
-			err.code === ErrorCodes.DEAD_LETTER_ERROR
-		) {
-			const reason: string = err.reason ?? "NO_REASON";
-			await this._deliveryPort.markDeadLetter(
-				message,
-				reason,
-				context.deliveryAttempt
-			);
-			return true;
-		}
-
-		if (this._isExpired(ttl, emittedAt)) {
-			await this._deliveryPort.markDeadLetter(
-				message,
-				"TTL_EXPIRED",
-				context.deliveryAttempt
-			);
-			return true;
-		}
-
-		if (deliveryMode === DeliveryMode.AT_MOST_ONCE) {
-			return true;
-		}
-
-		if (context.deliveryAttempt >= MAX_RETRIES) {
-			this._failureCount++;
-			logger.error("Max retries exceeded — routing to DLQ", {
-				topic: this.topic,
-				service: this.serviceIdentity.serviceName,
-				deliveryAttempt: context.deliveryAttempt,
-			});
-			await this._deliveryPort.markDeadLetter(
-				message,
-				"MAX_RETRIES_EXCEEDED",
-				context.deliveryAttempt
-			);
-			return true;
-		}
-
-		return false;
+		this._circuitBreaker.reset();
 	}
 
 	/**
@@ -288,19 +222,5 @@ export class Subscription {
 		const address = await FIND_A_SERVICE(this.serviceIdentity.serviceName);
 
 		return `https://${address.ip}:${address.port}/${this.callbackURL}`;
-	}
-
-	/**
-	 * Determines if a message has exceeded its TTL.
-	 *
-	 * @param {number} ttl TTL in milliseconds
-	 * @param {number} emittedAt Timestamp when message was emitted
-	 * @returns {boolean} True if expired, false otherwise
-	 */
-	private _isExpired(ttl: number, emittedAt: number): boolean {
-		if (ttl <= 0 || emittedAt <= 0) {
-			return false;
-		}
-		return emittedAt + ttl < Date.now();
 	}
 }

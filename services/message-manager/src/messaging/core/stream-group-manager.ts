@@ -3,6 +3,14 @@ import type { Message } from "@trading-model/common/contracts/message.types";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 
+export interface ReadFromGroupParams {
+	topic: string;
+	groupName: string;
+	consumerId: string;
+	count?: number;
+	blockMs?: number;
+}
+
 export class StreamGroupManager {
 	constructor(private readonly _prefix: string) {}
 
@@ -32,12 +40,9 @@ export class StreamGroupManager {
 	}
 
 	async readFromGroup(
-		topic: string,
-		groupName: string,
-		consumerId: string,
-		count = 10,
-		blockMs = 1000
+		params: ReadFromGroupParams
 	): Promise<Array<{ id: string; data: string }>> {
+		const { topic, groupName, consumerId, count = 10, blockMs = 1000 } = params;
 		const redis = await getStreamClient();
 		const rawResult = await redis.xreadgroup(
 			"GROUP",
