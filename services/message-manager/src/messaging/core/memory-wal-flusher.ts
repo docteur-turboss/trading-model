@@ -40,6 +40,53 @@ export class MemoryWalFlusher {
 		return `${this._prefix}stream:${topic}`;
 	}
 
+	private async _buildAndSendBatch(batch: MemoryWalEntry[]): Promise<boolean> {
+		const redis = await getStreamClient();
+		const multi = redis.multi();
+		for (const { topic, serialized } of batch) {
+			const key = this._streamKey(topic);
+			multi.xadd(
+				key,
+				"MAXLEN",
+				"~",
+				this._streamMaxlen,
+				"*",
+				"data",
+				serialized
+			);
+			multi.expire(key, this._messageTtlS);
+		}
+		const results = await multi.exec();
+		if (results) {
+			return !results.some((result) => result[0] !== null);
+		}
+		return true;
+	}
+
+	private _increaseBackoff(): void {
+		this._backoff = Math.min(this._backoff * 2, WAL_FLUSH_RETRY_MAX_MS);
+	}
+
+	private async _handleFlushFailure(
+		batch: MemoryWalEntry[],
+		err?: Error
+	): Promise<void> {
+		this._redisDownSince = Date.now();
+		this._increaseBackoff();
+		logger.warn(
+			err
+				? "Memory WAL flush failed — re-queuing batch"
+				: "Memory WAL flush partial failure — re-queuing batch",
+			{
+				batchSize: batch.length,
+				backoff: this._backoff,
+				...(err ? { error: err.message } : {}),
+			}
+		);
+		this._buffer.unshift(...batch);
+		await this._sleepWithJitter(this._backoff);
+	}
+
 	async flush(): Promise<void> {
 		if (this._flushing) {
 			return;
@@ -58,49 +105,16 @@ export class MemoryWalFlusher {
 		this._flushing = true;
 		try {
 			const batch = this._buffer.splice(0, WAL_BATCH_SIZE);
-			const redis = await getStreamClient();
-			const multi = redis.multi();
-			for (const { topic, serialized } of batch) {
-				const key = this._streamKey(topic);
-				multi.xadd(
-					key,
-					"MAXLEN",
-					"~",
-					this._streamMaxlen,
-					"*",
-					"data",
-					serialized
-				);
-				multi.expire(key, this._messageTtlS);
-			}
 			try {
-				const results = await multi.exec();
-				if (results) {
-					const anyFailed = results.some((result) => result[0] !== null);
-					if (anyFailed) {
-						this._redisDownSince = Date.now();
-						this._backoff = Math.min(this._backoff * 2, WAL_FLUSH_RETRY_MAX_MS);
-						logger.warn("Memory WAL flush partial failure — re-queuing batch", {
-							batchSize: batch.length,
-							backoff: this._backoff,
-						});
-						this._buffer.unshift(...batch);
-						await this._sleepWithJitter(this._backoff);
-						return;
-					}
+				const ok = await this._buildAndSendBatch(batch);
+				if (ok) {
+					this._redisDownSince = 0;
+					this._backoff = WAL_FLUSH_RETRY_BASE_MS;
+					return;
 				}
-				this._redisDownSince = 0;
-				this._backoff = WAL_FLUSH_RETRY_BASE_MS;
+				await this._handleFlushFailure(batch);
 			} catch (err) {
-				this._redisDownSince = Date.now();
-				this._backoff = Math.min(this._backoff * 2, WAL_FLUSH_RETRY_MAX_MS);
-				logger.warn("Memory WAL flush failed — re-queuing batch", {
-					batchSize: batch.length,
-					backoff: this._backoff,
-					error: (err as Error).message,
-				});
-				this._buffer.unshift(...batch);
-				await this._sleepWithJitter(this._backoff);
+				await this._handleFlushFailure(batch, err as Error);
 			}
 		} finally {
 			this._flushing = false;

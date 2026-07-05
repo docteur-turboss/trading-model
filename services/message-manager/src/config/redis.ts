@@ -200,51 +200,8 @@ async function createAndConnectClient(slot: ManagedRedis): Promise<Redis> {
 	const client = buildRedisInstance();
 	ALL_CLIENTS.add(client);
 
-	const onError = (err: Error) => {
-		if (redisClosed) {
-			return;
-		}
-		logger.error(`${slot.name} client error`, {
-			error: (err as Error).message,
-		});
-	};
-	const onConnect = () => {
-		if (redisClosed) {
-			return;
-		}
-		logger.info(`${slot.name}: connected`);
-	};
-	const onReady = () => {
-		if (redisClosed) {
-			return;
-		}
-		logger.info(`${slot.name}: ready`);
-		for (const cb of ON_RECONNECTED_CALLBACKS) {
-			try {
-				cb();
-			} catch {
-				/* best-effort */
-			}
-		}
-	};
-	const onClose = () => {
-		if (redisClosed) {
-			return;
-		}
-		logger.warn(`${slot.name}: connection closed`);
-	};
-	const onReconnecting = (delay: number) => {
-		if (redisClosed) {
-			return;
-		}
-		logger.warn(`${slot.name}: reconnecting in ${delay}ms`);
-	};
-
-	client.on("error", onError);
-	client.on("connect", onConnect);
-	client.on("ready", onReady);
-	client.on("close", onClose);
-	client.on("reconnecting", onReconnecting);
+	const handlers = createEventHandlers(slot);
+	attachEventHandlers(client, handlers);
 
 	try {
 		await client.connect();
@@ -263,14 +220,78 @@ async function createAndConnectClient(slot: ManagedRedis): Promise<Redis> {
 				error: (err as Error).message,
 			});
 		}
-		client.off("error", onError);
-		client.off("connect", onConnect);
-		client.off("ready", onReady);
-		client.off("close", onClose);
-		client.off("reconnecting", onReconnecting);
+		detachEventHandlers(client, handlers);
 		ALL_CLIENTS.delete(client);
 		throw err;
 	}
+}
+
+interface EventHandlers {
+	onError: (err: Error) => void;
+	onConnect: () => void;
+	onReady: () => void;
+	onClose: () => void;
+	onReconnecting: (delay: number) => void;
+}
+
+function createEventHandlers(slot: ManagedRedis): EventHandlers {
+	return {
+		onError: (err: Error) => {
+			if (redisClosed) {
+				return;
+			}
+			logger.error(`${slot.name} client error`, {
+				error: (err as Error).message,
+			});
+		},
+		onConnect: () => {
+			if (redisClosed) {
+				return;
+			}
+			logger.info(`${slot.name}: connected`);
+		},
+		onReady: () => {
+			if (redisClosed) {
+				return;
+			}
+			logger.info(`${slot.name}: ready`);
+			for (const cb of ON_RECONNECTED_CALLBACKS) {
+				try {
+					cb();
+				} catch {
+					/* best-effort */
+				}
+			}
+		},
+		onClose: () => {
+			if (redisClosed) {
+				return;
+			}
+			logger.warn(`${slot.name}: connection closed`);
+		},
+		onReconnecting: (delay: number) => {
+			if (redisClosed) {
+				return;
+			}
+			logger.warn(`${slot.name}: reconnecting in ${delay}ms`);
+		},
+	};
+}
+
+function attachEventHandlers(client: Redis, handlers: EventHandlers): void {
+	client.on("error", handlers.onError);
+	client.on("connect", handlers.onConnect);
+	client.on("ready", handlers.onReady);
+	client.on("close", handlers.onClose);
+	client.on("reconnecting", handlers.onReconnecting);
+}
+
+function detachEventHandlers(client: Redis, handlers: EventHandlers): void {
+	client.off("error", handlers.onError);
+	client.off("connect", handlers.onConnect);
+	client.off("ready", handlers.onReady);
+	client.off("close", handlers.onClose);
+	client.off("reconnecting", handlers.onReconnecting);
 }
 
 async function getOrCreateClient(slot: ManagedRedis): Promise<Redis> {

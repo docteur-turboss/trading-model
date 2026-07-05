@@ -1,0 +1,139 @@
+import { context, propagation } from "@opentelemetry/api";
+import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import { LruCache } from "@trading-model/common/utils/lru-cache";
+import type WebSocket from "ws";
+import { ENV } from "../../config/env";
+import { logger } from "../../config/logger";
+import { getStreamClient } from "../../config/redis";
+import { authorizeTopic } from "../core/acl";
+import type { Dispatcher } from "../core/dispatcher";
+import type { INcomingWssMessage } from "./wss-message.types";
+import type { WssRateLimiter } from "./wss-rate-limiter";
+
+export class WssPublisher {
+	private _dispatcher: Dispatcher;
+	private _rateLimiter: WssRateLimiter;
+	private _processedWssDeduplicationIds = new LruCache<true>(50000, 300_000);
+
+	constructor(dispatcher: Dispatcher, rateLimiter: WssRateLimiter) {
+		this._dispatcher = dispatcher;
+		this._rateLimiter = rateLimiter;
+	}
+
+	async handlePublish(
+		msg: INcomingWssMessage,
+		ws: WebSocket,
+		ctx: { serviceName: string }
+	): Promise<void> {
+		if (!this._rateLimiter.checkAndReject(ctx.serviceName, ws)) {
+			return;
+		}
+		const topic = (msg.metadata as Record<string, unknown>)?.topic as
+			| string
+			| undefined;
+		if (!(await this._checkPublishTopicAuth(topic, ctx, ws))) {
+			return;
+		}
+		if (!(await this._checkPublishDedup(msg))) {
+			return;
+		}
+		if (!this._checkPublishBackpressure(ws)) {
+			return;
+		}
+		await this._executePublish(msg, ws);
+	}
+
+	private async _checkPublishTopicAuth(
+		topic: string | undefined,
+		ctx: { serviceName: string },
+		ws: WebSocket
+	): Promise<boolean> {
+		if (!topic) {
+			return true;
+		}
+		const result = await authorizeTopic(
+			{ headers: { "x-service-name": ctx.serviceName } } as never,
+			topic
+		);
+		if (result.allowed) {
+			return true;
+		}
+		ws.send(JSON.stringify({ type: "error", message: result.reason }));
+		return false;
+	}
+
+	private async _checkPublishDedup(msg: INcomingWssMessage): Promise<boolean> {
+		const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
+		const dedupId = (
+			wssMetadata?.delivery as Record<string, unknown> | undefined
+		)?.deduplicationId as string | undefined;
+		if (!dedupId) {
+			return true;
+		}
+		if (this._processedWssDeduplicationIds.has(dedupId)) {
+			return false;
+		}
+		this._processedWssDeduplicationIds.set(dedupId, true);
+		try {
+			const redis = await getStreamClient();
+			const key = `${ENV.REDIS_PREFIX}wss-dedup:${dedupId}`;
+			const acquired = await redis.set(key, "1", "EX", 300, "NX");
+			if (!acquired) {
+				return false;
+			}
+		} catch {
+			/* Redis unavailable — local cache suffices */
+		}
+		return true;
+	}
+
+	private _checkPublishBackpressure(ws: WebSocket): boolean {
+		const bpRatio = this._dispatcher.getBackpressureRatio();
+		if (bpRatio <= 0.9) {
+			return true;
+		}
+		ws.send(
+			JSON.stringify({
+				type: "error",
+				message: "Server backpressure too high — try again later",
+			})
+		);
+		return false;
+	}
+
+	private async _executePublish(
+		msg: INcomingWssMessage,
+		ws: WebSocket
+	): Promise<void> {
+		try {
+			const traceparent = msg.traceparent as string | undefined;
+			const metadata = msg.metadata as Omit<
+				MessageMetadata,
+				"messageId" | "emittedAt"
+			>;
+			let publishPromise: Promise<string>;
+			if (traceparent) {
+				const carrier = { traceparent };
+				const extractedCtx = propagation.extract(context.active(), carrier);
+				publishPromise = context.with(extractedCtx, () =>
+					this._dispatcher.publish(msg.payload, metadata)
+				);
+			} else {
+				publishPromise = this._dispatcher.publish(msg.payload, metadata);
+			}
+			const messageId = await publishPromise;
+			ws.send(JSON.stringify({ type: "published", messageId }));
+		} catch (err) {
+			logger.warn("WSS publish error", { error: (err as Error).message });
+			ws.send(JSON.stringify({ type: "error", message: "Publish failed" }));
+		}
+	}
+
+	clearDedupCache(): void {
+		this._processedWssDeduplicationIds.clear();
+	}
+
+	shutdown(): void {
+		this._processedWssDeduplicationIds.clear();
+	}
+}

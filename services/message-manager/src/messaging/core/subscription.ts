@@ -21,7 +21,7 @@
  * Infrastructure / messaging layer component.
  * Acts as a delivery orchestrator for the Broker service.
  */
-import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import { DeliveryMode, type DeliveryModeEnum } from "@trading-model/common/config/delivery-mode.types";
 import type {
 	Message,
 	ServiceIdentity,
@@ -139,17 +139,7 @@ export class Subscription {
 
 		const emittedAt = new Date(message.metadata.emittedAt ?? 0).getTime();
 
-		if (this._failureCount >= CIRCUIT_BREAKER_THRESHOLD) {
-			logger.warn("Circuit breaker open — rejecting dispatch", {
-				topic: this.topic,
-				service: this.serviceIdentity.serviceName,
-				failureCount: this._failureCount,
-			});
-			await this._deliveryPort.markDeadLetter(
-				message,
-				"CIRCUIT_OPEN",
-				this._failureCount
-			);
+		if (await this._checkCircuitBreaker(message)) {
 			return;
 		}
 
@@ -181,44 +171,15 @@ export class Subscription {
 			} catch (err) {
 				context.deliveryAttempt++;
 
-				if (
-					err instanceof AppError &&
-					err.code === ErrorCodes.DEAD_LETTER_ERROR
-				) {
-					const reason: string = err.reason ?? "NO_REASON";
-					await this._deliveryPort.markDeadLetter(
-						message,
-						reason,
-						context.deliveryAttempt
-					);
-					return;
-				}
-
-				if (this._isExpired(ttl, emittedAt)) {
-					await this._deliveryPort.markDeadLetter(
-						message,
-						"TTL_EXPIRED",
-						context.deliveryAttempt
-					);
-					return;
-				}
-
-				if (deliveryMode === DeliveryMode.AT_MOST_ONCE) {
-					return;
-				}
-
-				if (context.deliveryAttempt >= MAX_RETRIES) {
-					this._failureCount++;
-					logger.error("Max retries exceeded — routing to DLQ", {
-						topic: this.topic,
-						service: this.serviceIdentity.serviceName,
-						deliveryAttempt: context.deliveryAttempt,
-					});
-					await this._deliveryPort.markDeadLetter(
-						message,
-						"MAX_RETRIES_EXCEEDED",
-						context.deliveryAttempt
-					);
+				const handled = await this._handleDeliveryError(
+					err,
+					message,
+					context,
+					ttl,
+					emittedAt,
+					deliveryMode
+				);
+				if (handled) {
 					return;
 				}
 
@@ -234,6 +195,77 @@ export class Subscription {
 		}
 
 		this._failureCount = 0;
+	}
+
+	private async _checkCircuitBreaker<TData>(
+		message: Message<TData>
+	): Promise<boolean> {
+		if (this._failureCount < CIRCUIT_BREAKER_THRESHOLD) {
+			return false;
+		}
+		logger.warn("Circuit breaker open — rejecting dispatch", {
+			topic: this.topic,
+			service: this.serviceIdentity.serviceName,
+			failureCount: this._failureCount,
+		});
+		await this._deliveryPort.markDeadLetter(
+			message,
+			"CIRCUIT_OPEN",
+			this._failureCount
+		);
+		return true;
+	}
+
+	private async _handleDeliveryError<TData>(
+		err: unknown,
+		message: Message<TData>,
+		context: SubscribersContext,
+		ttl: number,
+		emittedAt: number,
+		deliveryMode: DeliveryModeEnum
+	): Promise<boolean> {
+		if (
+			err instanceof AppError &&
+			err.code === ErrorCodes.DEAD_LETTER_ERROR
+		) {
+			const reason: string = err.reason ?? "NO_REASON";
+			await this._deliveryPort.markDeadLetter(
+				message,
+				reason,
+				context.deliveryAttempt
+			);
+			return true;
+		}
+
+		if (this._isExpired(ttl, emittedAt)) {
+			await this._deliveryPort.markDeadLetter(
+				message,
+				"TTL_EXPIRED",
+				context.deliveryAttempt
+			);
+			return true;
+		}
+
+		if (deliveryMode === DeliveryMode.AT_MOST_ONCE) {
+			return true;
+		}
+
+		if (context.deliveryAttempt >= MAX_RETRIES) {
+			this._failureCount++;
+			logger.error("Max retries exceeded — routing to DLQ", {
+				topic: this.topic,
+				service: this.serviceIdentity.serviceName,
+				deliveryAttempt: context.deliveryAttempt,
+			});
+			await this._deliveryPort.markDeadLetter(
+				message,
+				"MAX_RETRIES_EXCEEDED",
+				context.deliveryAttempt
+			);
+			return true;
+		}
+
+		return false;
 	}
 
 	/**

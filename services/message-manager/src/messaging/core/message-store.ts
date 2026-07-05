@@ -1,27 +1,27 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
-import { LruCache } from "@trading-model/common/utils/lru-cache";
-import { retryFileAppend } from "@trading-model/common/utils/retry-file-append";
 import { safeStringify } from "@trading-model/common/utils/safe-stringify";
 import type Redis from "ioredis";
 
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
-import { BUFFER_DROPPED_TOTAL, MESSAGES_DLQ_TOTAL } from "../../config/metrics";
+import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
 import { getStreamClient } from "../../config/redis";
+import { ClaimManager } from "./claim-manager";
+import { DeduplicationService } from "./deduplication-service";
+import { MemoryWalBuffer } from "./memory-wal-buffer";
+import { PendingAckStore } from "./pending-ack-store";
 
 const WAL_BATCH_SIZE = 50;
 const MAX_WAL_RETRY = 10;
 const WAL_LIST_MAX_LEN = 1_000_000;
-const WAL_FLUSH_RETRY_BASE_MS = 100;
-const WAL_FLUSH_RETRY_MAX_MS = 10_000;
 const STORE_OPERATION_TIMEOUT_MS = 15_000;
-const MEMORY_WAL_REDIS_RETRY_AFTER_MS = 5_000;
-
-interface MemoryWalEntry {
-	topic: string;
-	serialized: string;
-	message: Message;
-}
+const ATOMIC_WAL_READ_LUA = `
+  local entries = redis.call('LRANGE', KEYS[1], 0, ARGV[1] - 1)
+  if #entries > 0 then
+    redis.call('LTRIM', KEYS[1], #entries, -1)
+  end
+  return entries
+`;
 
 export class MessageStore {
 	private _prefix: string;
@@ -30,18 +30,19 @@ export class MessageStore {
 	private _walDrainRequested = false;
 	private _walDrainResolve: (() => void) | null = null;
 	private _walDrainGen = 0;
-	private _memoryWalBuffer: MemoryWalEntry[] = [];
-	private _memoryWalFlusherTimer: ReturnType<typeof setInterval> | null = null;
-	private _memoryWalBackoff = WAL_FLUSH_RETRY_BASE_MS;
-	private _flushingMemoryWal = false;
-	private _memoryWalRedisDownSince = 0;
-	private _localDedupCache = new LruCache<boolean>(10000, 300_000);
-	private _degradedDedupCache = new LruCache<boolean>(50000, 3600_000);
+	private _memoryWalBuffer: MemoryWalBuffer;
+	private _pendingAckStore: PendingAckStore;
+	private readonly _claimManager: ClaimManager;
+	private readonly _dedupService: DeduplicationService;
 
 	constructor() {
 		this._prefix = ENV.REDIS_PREFIX;
+		this._memoryWalBuffer = new MemoryWalBuffer(this._prefix);
+		this._pendingAckStore = new PendingAckStore(this._prefix);
+		this._claimManager = new ClaimManager(this._prefix);
+		this._dedupService = new DeduplicationService(this._prefix);
 		this._startWalFlusher();
-		this._startMemoryWalFlusher();
+		this._memoryWalBuffer.startFlusher();
 	}
 
 	private _streamKey(topic: string): string {
@@ -52,99 +53,11 @@ export class MessageStore {
 		return `${this._prefix}wal_buffer`;
 	}
 
-	private _pendingKey(instanceId: string): string {
-		return `${this._prefix}pending:${instanceId}`;
-	}
-
 	private _startWalFlusher(): void {
 		this._walFlusherTimer = setInterval(() => {
 			this._flushWal().catch(() => {});
 		}, 1000);
 		this._walFlusherTimer.unref();
-	}
-
-	private _startMemoryWalFlusher(): void {
-		this._memoryWalFlusherTimer = setInterval(() => {
-			this._flushMemoryWal().catch(() => {});
-		}, 500);
-		this._memoryWalFlusherTimer.unref();
-	}
-
-	private async _flushMemoryWal(): Promise<void> {
-		if (this._flushingMemoryWal) {
-			return;
-		}
-		if (
-			this._memoryWalRedisDownSince > 0 &&
-			Date.now() - this._memoryWalRedisDownSince <
-				MEMORY_WAL_REDIS_RETRY_AFTER_MS
-		) {
-			return;
-		}
-		if (this._memoryWalBuffer.length === 0) {
-			this._memoryWalBackoff = WAL_FLUSH_RETRY_BASE_MS;
-			return;
-		}
-
-		this._flushingMemoryWal = true;
-
-		try {
-			const batch = this._memoryWalBuffer.splice(0, WAL_BATCH_SIZE);
-			const redis = await getStreamClient();
-			const multi = redis.multi();
-			for (const { topic, serialized } of batch) {
-				const key = this._streamKey(topic);
-				multi.xadd(
-					key,
-					"MAXLEN",
-					"~",
-					ENV.REDIS_STREAM_MAXLEN,
-					"*",
-					"data",
-					serialized
-				);
-				multi.expire(key, ENV.REDIS_MESSAGE_TTL_S);
-			}
-			try {
-				const results = await multi.exec();
-				if (results) {
-					const anyFailed = results.some(
-						(resultItem) => resultItem[0] !== null
-					);
-					if (anyFailed) {
-						this._memoryWalRedisDownSince = Date.now();
-						this._memoryWalBackoff = Math.min(
-							this._memoryWalBackoff * 2,
-							WAL_FLUSH_RETRY_MAX_MS
-						);
-						logger.warn("Memory WAL flush partial failure — re-queuing batch", {
-							batchSize: batch.length,
-							backoff: this._memoryWalBackoff,
-						});
-						this._memoryWalBuffer.unshift(...batch);
-						await this._sleepWithJitter(this._memoryWalBackoff);
-						return;
-					}
-				}
-				this._memoryWalRedisDownSince = 0;
-				this._memoryWalBackoff = WAL_FLUSH_RETRY_BASE_MS;
-			} catch (err) {
-				this._memoryWalRedisDownSince = Date.now();
-				this._memoryWalBackoff = Math.min(
-					this._memoryWalBackoff * 2,
-					WAL_FLUSH_RETRY_MAX_MS
-				);
-				logger.warn("Memory WAL flush failed — re-queuing batch", {
-					batchSize: batch.length,
-					backoff: this._memoryWalBackoff,
-					error: (err as Error).message,
-				});
-				this._memoryWalBuffer.unshift(...batch);
-				await this._sleepWithJitter(this._memoryWalBackoff);
-			}
-		} finally {
-			this._flushingMemoryWal = false;
-		}
 	}
 
 	private _sleepWithJitter(ms: number): Promise<void> {
@@ -174,7 +87,7 @@ export class MessageStore {
 				break;
 			}
 			try {
-				await this._flushMemoryWal();
+				await this._memoryWalBuffer.drainAll();
 			} catch {
 				break;
 			}
@@ -187,70 +100,14 @@ export class MessageStore {
 			clearInterval(this._walFlusherTimer);
 			this._walFlusherTimer = null;
 		}
-		if (this._memoryWalFlusherTimer) {
-			clearInterval(this._memoryWalFlusherTimer);
-			this._memoryWalFlusherTimer = null;
-		}
+		this._memoryWalBuffer.stopFlusher();
 	}
 
 	async recoverPendingAcks(
 		ownInstanceId: string,
 		maxAgeMs = 120_000
 	): Promise<number> {
-		try {
-			const redis = await getStreamClient();
-			const pendingKey = this._pendingKey(ownInstanceId);
-
-			const toDelete: string[] = [];
-			const now = Date.now();
-			let cursor = "0";
-
-			do {
-				const [nextCursor, batch] = await redis.hscan(
-					pendingKey,
-					cursor,
-					"COUNT",
-					200
-				);
-				cursor = nextCursor;
-
-				for (let i = 0; i < batch.length; i += 2) {
-					const msgId = batch[i];
-					const data = batch[i + 1];
-					try {
-						const entry = JSON.parse(data) as {
-							topic: string;
-							subscriberUrl: string;
-							message: Message;
-							pendingAt?: number;
-						};
-						const age =
-							entry.pendingAt === undefined
-								? now -
-									new Date(entry.message.metadata.emittedAt ?? 0).getTime()
-								: now - entry.pendingAt;
-						if (age > maxAgeMs) {
-							toDelete.push(msgId);
-						}
-					} catch {
-						toDelete.push(msgId);
-					}
-				}
-			} while (cursor !== "0");
-
-			if (toDelete.length > 0) {
-				await redis.hdel(pendingKey, ...toDelete);
-				logger.info(
-					`Recovered ${toDelete.length} stale pending acks for instance ${ownInstanceId}`
-				);
-			}
-			return toDelete.length;
-		} catch (err) {
-			logger.warn("Failed to recover pending acks", {
-				error: (err as Error).message,
-			});
-			return 0;
-		}
+		return this._pendingAckStore.recoverStale(ownInstanceId, maxAgeMs);
 	}
 
 	async claimPendingMessages(
@@ -259,154 +116,17 @@ export class MessageStore {
 		minIdleMs = 60_000,
 		count = 100
 	): Promise<number> {
-		const LockKey = `${this._prefix}claim-lock`;
-		const LockTtlS = 30;
-		let redis: Redis | null = null;
-		try {
-			redis = await getStreamClient();
-			const acquired = await redis.set(
-				LockKey,
-				consumerId,
-				"EX",
-				LockTtlS,
-				"NX"
-			);
-			if (!acquired) {
-				logger.info(
-					"claimPendingMessages: lock held by another instance — skipping"
-				);
-				return 0;
-			}
-			const topics: string[] = [];
-			let cursor = "0";
-			do {
-				const [nextCursor, batch] = await redis.sscan(
-					`${this._prefix}topics`,
-					cursor,
-					"COUNT",
-					100
-				);
-				cursor = nextCursor;
-				topics.push(...batch);
-			} while (cursor !== "0");
-			let total = 0;
-
-			for (const topic of topics) {
-				const streamKey = this._streamKey(topic);
-				try {
-					const pending = await redis.xpending(
-						streamKey,
-						groupName,
-						"-",
-						"+",
-						count,
-						consumerId
-					);
-					const pendingEntries = pending as [string, string, number, number][];
-					const claimable = pendingEntries
-						.filter(([, , , idleMs]) => idleMs >= minIdleMs)
-						.map(([id]) => id);
-
-					if (claimable.length > 0) {
-						const claimed = await redis.xclaim(
-							streamKey,
-							groupName,
-							consumerId,
-							minIdleMs,
-							...claimable
-						);
-						total += (claimed as unknown[]).length;
-					}
-				} catch {
-					// stream or group may not exist yet
-				}
-			}
-
-			if (total > 0) {
-				logger.info(
-					`Claimed ${total} pending messages for ${consumerId} across ${topics.length} topics`
-				);
-			}
-			return total;
-		} catch (err) {
-			logger.warn("Failed to claim pending messages", {
-				error: (err as Error).message,
-			});
-			return 0;
-		} finally {
-			if (redis) {
-				// Only delete lock if we still own it (prevents stealing from another instance if our TTL expired)
-				try {
-					await redis.eval(
-						"if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
-						1,
-						LockKey,
-						consumerId
-					);
-				} catch {
-					/* best-effort */
-				}
-			}
-		}
-	}
-
-	private async _recoverWalFromFallbackFile(): Promise<number> {
-		try {
-			const fs = await import("node:fs/promises");
-			let content: string;
-			try {
-				content = await fs.readFile(ENV.DLQ_LOCAL_FALLBACK_PATH, "utf-8");
-			} catch {
-				return 0;
-			}
-			if (!content) {
-				return 0;
-			}
-			const lines = content.split("\n").filter(Boolean);
-			const walEntries: MemoryWalEntry[] = [];
-			const remaining: string[] = [];
-			for (const line of lines) {
-				try {
-					const parsed = JSON.parse(line);
-					if (
-						parsed?.topic &&
-						parsed.message &&
-						parsed.deliveryAttempt === undefined
-					) {
-						walEntries.push(parsed as MemoryWalEntry);
-					} else {
-						remaining.push(line);
-					}
-				} catch {
-					remaining.push(line);
-				}
-			}
-			if (walEntries.length > 0) {
-				this._memoryWalBuffer.push(...walEntries);
-			}
-			if (remaining.length > 0) {
-				await fs.writeFile(
-					ENV.DLQ_LOCAL_FALLBACK_PATH,
-					`${remaining.join("\n")}\n`,
-					"utf-8"
-				);
-			} else {
-				await fs.writeFile(ENV.DLQ_LOCAL_FALLBACK_PATH, "", "utf-8");
-			}
-			if (walEntries.length > 0) {
-				logger.info(
-					`Recovered ${walEntries.length} WAL entries from fallback file`
-				);
-			}
-			return walEntries.length;
-		} catch {
-			return 0;
-		}
+		return this._claimManager.claimPendingMessages(
+			groupName,
+			consumerId,
+			minIdleMs,
+			count
+		);
 	}
 
 	async drainWalOnStartup(): Promise<void> {
 		try {
-			await this._recoverWalFromFallbackFile();
+			await this._memoryWalBuffer.recoverFromFallbackFile();
 		} catch {
 			// best-effort
 		}
@@ -424,6 +144,40 @@ export class MessageStore {
 		}
 	}
 
+	private async _tryStoreOnce(
+		topic: string,
+		serialized: string,
+		redis: Redis
+	): Promise<string> {
+		const entryId = await redis.xadd(
+			this._streamKey(topic),
+			"MAXLEN",
+			"~",
+			ENV.REDIS_STREAM_MAXLEN,
+			"*",
+			"data",
+			serialized
+		);
+		await redis.expire(this._streamKey(topic), ENV.REDIS_MESSAGE_TTL_S);
+		return entryId ?? "";
+	}
+
+	private _isStoreTimedOut(
+		storeStart: number,
+		attempt: number,
+		topic: string
+	): boolean {
+		if (Date.now() - storeStart <= STORE_OPERATION_TIMEOUT_MS) {
+			return false;
+		}
+		logger.error("Stream store timed out — falling through to WAL", {
+			topic,
+			attempt,
+			elapsed: Date.now() - storeStart,
+		});
+		return true;
+	}
+
 	private async _storeInRedisStream(
 		topic: string,
 		serialized: string
@@ -434,26 +188,11 @@ export class MessageStore {
 		let lastError: Error | null = null;
 
 		while (attempt < MAX_WAL_RETRY) {
-			if (Date.now() - storeStart > STORE_OPERATION_TIMEOUT_MS) {
-				logger.error("Stream store timed out — falling through to WAL", {
-					topic,
-					attempt,
-					elapsed: Date.now() - storeStart,
-				});
+			if (this._isStoreTimedOut(storeStart, attempt, topic)) {
 				break;
 			}
 			try {
-				const entryId = await redis.xadd(
-					this._streamKey(topic),
-					"MAXLEN",
-					"~",
-					ENV.REDIS_STREAM_MAXLEN,
-					"*",
-					"data",
-					serialized
-				);
-				await redis.expire(this._streamKey(topic), ENV.REDIS_MESSAGE_TTL_S);
-				return entryId ?? "";
+				return await this._tryStoreOnce(topic, serialized, redis);
 			} catch (err) {
 				attempt++;
 				lastError = err as Error;
@@ -493,70 +232,6 @@ export class MessageStore {
 		await redis.expire(this._walKey(), 7200);
 	}
 
-	private async _bufferInMemory(
-		topic: string,
-		serialized: string,
-		message: Message
-	): Promise<void> {
-		const warnThreshold = Math.floor(
-			ENV.MEMORY_WAL_BUFFER_SIZE * ENV.MEMORY_WAL_BUFFER_WARN_PCT
-		);
-		if (this._memoryWalBuffer.length >= warnThreshold) {
-			logger.warn("In-memory WAL buffer approaching capacity", {
-				bufferSize: this._memoryWalBuffer.length,
-				maxSize: ENV.MEMORY_WAL_BUFFER_SIZE,
-				threshold: ENV.MEMORY_WAL_BUFFER_WARN_PCT,
-			});
-		}
-		if (this._memoryWalBuffer.length >= ENV.MEMORY_WAL_BUFFER_SIZE) {
-			const excess =
-				this._memoryWalBuffer.length - ENV.MEMORY_WAL_BUFFER_SIZE + 1;
-			const removed = this._memoryWalBuffer.splice(0, excess);
-			BUFFER_DROPPED_TOTAL.inc(
-				{ buffer: "memory-wal", reason: "buffer-full" },
-				excess
-			);
-
-			let saved: boolean;
-			try {
-				const redis = await getStreamClient();
-				const multi = redis.multi();
-				for (const entry of removed) {
-					multi.rpush(
-						this._walKey(),
-						JSON.stringify({
-							topic: entry.topic,
-							serialized: entry.serialized,
-						})
-					);
-				}
-				await multi.exec();
-				saved = true;
-			} catch {
-				saved = false;
-			}
-
-			if (!saved) {
-				const lines = removed.map((entry) => JSON.stringify(entry)).join("\n");
-				const fileWritten = await retryFileAppend(
-					ENV.DLQ_LOCAL_FALLBACK_PATH,
-					lines
-				);
-				if (!fileWritten) {
-					logger.error(
-						"Memory WAL buffer eviction: all persistence layers exhausted — messages lost",
-						{
-							evictedCount: removed.length,
-							buffer: "memory-wal",
-						}
-					);
-				}
-			}
-		}
-
-		this._memoryWalBuffer.push({ topic, serialized, message });
-	}
-
 	async store(topic: string, message: Message): Promise<string> {
 		const serialized = safeStringify(message);
 
@@ -582,7 +257,7 @@ export class MessageStore {
 				topic,
 				error: (err as Error).message,
 			});
-			await this._bufferInMemory(topic, serialized, message);
+			this._memoryWalBuffer.push(topic, serialized, message);
 			return "memory-buffered";
 		}
 
@@ -648,6 +323,22 @@ export class MessageStore {
 		}
 	}
 
+	private _bufferWalEntries(raw: string[]): void {
+		for (const entry of raw) {
+			try {
+				const parsed = JSON.parse(entry) as {
+					topic: string;
+					serialized?: string;
+					message?: Message;
+				};
+				const topic = parsed.topic;
+				const serialized = parsed.serialized ?? safeStringify(parsed.message!);
+				const message = parsed.message ?? JSON.parse(parsed.serialized!);
+				this._memoryWalBuffer.push(topic, serialized, message);
+			} catch {}
+		}
+	}
+
 	private async _handleWalFlushError(
 		raw: string[],
 		consecutiveErrors: number
@@ -656,20 +347,7 @@ export class MessageStore {
 			logger.error(
 				"WAL flush: too many consecutive errors — switching to memory buffer"
 			);
-			for (const entry of raw) {
-				try {
-					const parsed = JSON.parse(entry) as {
-						topic: string;
-						serialized?: string;
-						message?: Message;
-					};
-					this._memoryWalBuffer.push({
-						topic: parsed.topic,
-						serialized: parsed.serialized ?? safeStringify(parsed.message!),
-						message: parsed.message ?? JSON.parse(parsed.serialized!),
-					});
-				} catch {}
-			}
+			this._bufferWalEntries(raw);
 			return "memory-buffer";
 		}
 
@@ -682,24 +360,28 @@ export class MessageStore {
 				}
 				await restore.exec();
 			} catch {
-				for (const entry of raw) {
-					try {
-						const parsed = JSON.parse(entry) as {
-							topic: string;
-							serialized?: string;
-							message?: Message;
-						};
-						this._memoryWalBuffer.push({
-							topic: parsed.topic,
-							serialized: parsed.serialized ?? safeStringify(parsed.message!),
-							message: parsed.message ?? JSON.parse(parsed.serialized!),
-						});
-					} catch {}
-				}
+				this._bufferWalEntries(raw);
 			}
 		}
 
 		return "retry";
+	}
+
+	private _completeWalFlush(): void {
+		this._walFlushing = false;
+		if (this._walDrainResolve) {
+			const resolve = this._walDrainResolve;
+			this._walDrainResolve = null;
+			resolve();
+		}
+		const waiters = this._walFlushWaiters.splice(0);
+		for (const waiter of waiters) {
+			try {
+				waiter();
+			} catch {
+				/* best-effort */
+			}
+		}
 	}
 
 	private async _flushWal(): Promise<void> {
@@ -710,20 +392,12 @@ export class MessageStore {
 		}
 		this._walFlushing = true;
 
-		const AtomicWalReadLua = `
-      local entries = redis.call('LRANGE', KEYS[1], 0, ARGV[1] - 1)
-      if #entries > 0 then
-        redis.call('LTRIM', KEYS[1], #entries, -1)
-      end
-      return entries
-    `;
-
 		try {
 			const redis = await getStreamClient();
 			let consecutiveErrors = 0;
 			while (true) {
 				const raw = (await redis.eval(
-					AtomicWalReadLua,
+					ATOMIC_WAL_READ_LUA,
 					1,
 					this._walKey(),
 					WAL_BATCH_SIZE.toString()
@@ -757,20 +431,7 @@ export class MessageStore {
 		} catch (err) {
 			logger.error("WAL flush error", { error: (err as Error).message });
 		} finally {
-			this._walFlushing = false;
-			if (this._walDrainResolve) {
-				const resolve = this._walDrainResolve;
-				this._walDrainResolve = null;
-				resolve();
-			}
-			const waiters = this._walFlushWaiters.splice(0);
-			for (const waiter of waiters) {
-				try {
-					waiter();
-				} catch {
-					/* best-effort */
-				}
-			}
+			this._completeWalFlush();
 		}
 	}
 
@@ -782,7 +443,7 @@ export class MessageStore {
 		const gen = ++this._walDrainGen;
 
 		try {
-			await this._flushMemoryWal();
+			await this._memoryWalBuffer.drainAll();
 			const redis = await getStreamClient();
 			const remaining = await redis.llen(this._walKey());
 			if (remaining === 0 && this._memoryWalBuffer.length === 0) {
@@ -944,18 +605,11 @@ export class MessageStore {
 		messageId: string,
 		data: { topic: string; subscriberUrl: string; message: Message }
 	): Promise<void> {
-		const redis = await getStreamClient();
-		await redis.hset(
-			this._pendingKey(instanceId),
-			messageId,
-			JSON.stringify({ ...data, pendingAt: Date.now() })
-		);
-		await redis.expire(this._pendingKey(instanceId), ENV.REDIS_MESSAGE_TTL_S);
+		await this._pendingAckStore.add(instanceId, messageId, data);
 	}
 
 	async removePendingAck(instanceId: string, messageId: string): Promise<void> {
-		const redis = await getStreamClient();
-		await redis.hdel(this._pendingKey(instanceId), messageId);
+		await this._pendingAckStore.remove(instanceId, messageId);
 	}
 
 	async getPendingAcks(
@@ -963,27 +617,7 @@ export class MessageStore {
 	): Promise<
 		Record<string, { topic: string; subscriberUrl: string; message: Message }>
 	> {
-		const redis = await getStreamClient();
-		const result: Record<
-			string,
-			{ topic: string; subscriberUrl: string; message: Message }
-		> = {};
-		let cursor = "0";
-		do {
-			const [nextCursor, batch] = await redis.hscan(
-				this._pendingKey(instanceId),
-				cursor,
-				"COUNT",
-				200
-			);
-			cursor = nextCursor;
-			for (let i = 0; i < batch.length; i += 2) {
-				try {
-					result[batch[i]] = JSON.parse(batch[i + 1]);
-				} catch {}
-			}
-		} while (cursor !== "0");
-		return result;
+		return this._pendingAckStore.getAll(instanceId);
 	}
 
 	async getStreamLag(topic: string, groupName: string): Promise<number> {
@@ -1013,38 +647,7 @@ export class MessageStore {
 		deduplicationId: string,
 		ttlS: number
 	): Promise<boolean> {
-		// Fast path: local LRU cache
-		if (this._localDedupCache.has(deduplicationId)) {
-			return false;
-		}
-
-		try {
-			const redis = await getStreamClient();
-			const key = `${this._prefix}dedup:${deduplicationId}`;
-			const result = await redis.set(
-				key,
-				Date.now().toString(),
-				"EX",
-				ttlS,
-				"NX"
-			);
-			if (result !== null) {
-				this._localDedupCache.set(deduplicationId, true);
-				return true;
-			}
-			return false;
-		} catch (err) {
-			// Degraded mode: use extended local cache as fallback dedup
-			if (this._degradedDedupCache.has(deduplicationId)) {
-				return false;
-			}
-			this._degradedDedupCache.set(deduplicationId, true);
-			logger.warn("Dedup Redis unavailable — using degraded local cache", {
-				deduplicationId,
-				error: (err as Error).message,
-			});
-			return true;
-		}
+		return this._dedupService.tryDeduplicate(deduplicationId, ttlS);
 	}
 }
 
