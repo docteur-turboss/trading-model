@@ -1,13 +1,7 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { logger } from "@trading-model/common/config/logger";
-import {
-	AppError,
-	ErrorCodes,
-	normalizeError,
-} from "@trading-model/common/utils/errors";
-import { sleep } from "@trading-model/common/utils/sleep";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import type { Application } from "express";
-import promClient from "prom-client";
 
 import { AddressManagerClient } from "./client/address-manager-client";
 import { TokenManager } from "./client/token-manager";
@@ -17,6 +11,7 @@ import type { AddressManagerConfig } from "./config/address-manager-config";
 import { CacheHealthRefresher } from "./discovery/cache-health-refresher";
 import { CircuitBreaker } from "./discovery/circuit-breaker";
 import { MapResolver } from "./discovery/dns-resolver";
+import { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
 import { RedisServiceCache } from "./discovery/redis-service-cache";
 import { ServiceCache } from "./discovery/service-cache";
 import type { IServiceCache } from "./discovery/service-cache.interface";
@@ -24,22 +19,8 @@ import { ServiceDiscovery } from "./discovery/service-discovery";
 import { ServiceHealthChecker } from "./discovery/service-health-checker";
 import { MappingServiceLocator } from "./discovery/service-locator";
 import { HeartbeatManager } from "./heartbeat-manager";
-import { METRICS_ROUTES } from "./http/routes/metrics.routes";
-import { PING_ROUTES } from "./http/routes/ping.routes";
-import {
-	CACHE_ENTRY_COUNT,
-	CIRCUIT_BREAKER_INSTANCES_TOTAL,
-	CIRCUIT_BREAKER_STATE,
-	DISCOVERY_DURATION_MS,
-	HEARTBEAT_TOTAL,
-	REGISTRATION_TOTAL,
-	recordDiscoveryMetrics,
-} from "./metrics";
-import { ServiceCallTracker } from "./monitoring/service-call-tracker";
-import {
-	SystemMetrics,
-	type SystemMetricsPayload,
-} from "./monitoring/system-metrics";
+import { HEARTBEAT_TOTAL, REGISTRATION_TOTAL } from "./metrics";
+import { MetricsCollector } from "./monitoring/metrics-collector";
 import { RegistrationManager } from "./registration-manager";
 import { RefreshJob } from "./scheduler/refresh-job";
 import { Scheduler } from "./scheduler/scheduler";
@@ -150,9 +131,11 @@ function createWsClient(ctx: WsClientContext): WebSocketClient {
 
 export default class AddressManager {
 	private readonly _addressManagerClient: AddressManagerClient;
-	private readonly _healthChecker: ServiceHealthChecker;
-	private readonly _serviceDiscovery: ServiceDiscovery;
 	private readonly _tokenManager: TokenManager;
+	private readonly _discoveryOrchestrator: DiscoveryOrchestrator;
+	private readonly _metricsCollector: MetricsCollector;
+	private readonly _discovery: ServiceDiscovery;
+	private readonly _healthChecker: ServiceHealthChecker;
 	private readonly _serviceCache: IServiceCache;
 	private readonly _httpClient: HttpClient;
 	private readonly _tokenRefreshIntervalMs: number;
@@ -161,9 +144,6 @@ export default class AddressManager {
 	private readonly _serviceName: string;
 	private readonly _instanceId: string;
 	private readonly _wsClient?: WebSocketClient;
-	private readonly _systemMetrics: SystemMetrics;
-	private readonly _serviceCallTracker: ServiceCallTracker;
-	readonly circuitBreaker: CircuitBreaker;
 
 	private _registrationManager: RegistrationManager;
 	private _heartbeatManager: HeartbeatManager;
@@ -181,14 +161,25 @@ export default class AddressManager {
 			config
 		);
 		this._serviceCache = createServiceCache(config);
-		this.circuitBreaker = createCircuitBreaker(config, this._serviceCache);
+		const circuitBreaker = createCircuitBreaker(config, this._serviceCache);
 		this._healthChecker = createHealthChecker(this._httpClient, config);
-		this._serviceDiscovery = new ServiceDiscovery({
+		this._discovery = new ServiceDiscovery({
 			httpClient: this._httpClient,
 			serviceCache: this._serviceCache,
 			config,
 			healthChecker: this._healthChecker,
 		});
+		this._discoveryOrchestrator = new DiscoveryOrchestrator(
+			this._discovery,
+			this._serviceCache,
+			circuitBreaker,
+			this._healthChecker
+		);
+		this._metricsCollector = new MetricsCollector(
+			circuitBreaker,
+			this._serviceCache,
+			config.maxCallRecords
+		);
 		this._wsClient = config.wsUrl
 			? createWsClient({
 					config,
@@ -199,10 +190,6 @@ export default class AddressManager {
 			: undefined;
 		this._serviceName = config.serviceName;
 		this._instanceId = config.instanceId;
-		this._systemMetrics = new SystemMetrics();
-		this._serviceCallTracker = new ServiceCallTracker(
-			config.maxCallRecords ?? 1000
-		);
 		this._tokenRefreshIntervalMs = config.tokenRefreshIntervalMs;
 		this._ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
 		this._cacheTtlMs = config.cacheTtlMs;
@@ -229,195 +216,44 @@ export default class AddressManager {
 			this._wsClient,
 			this._addressManagerClient,
 			this._serviceCache,
-			this.circuitBreaker
+			circuitBreaker
 		);
+	}
+
+	get circuitBreaker(): CircuitBreaker {
+		return this._discoveryOrchestrator.circuitBreaker;
 	}
 
 	getToken(): string {
 		return this._tokenManager.getToken();
 	}
 
-	private static readonly _CIRCUIT_BREAKER_MAX_RETRIES = 2;
-	private static readonly _CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS = 100;
-
-	private async _attemptDiscovery(
-		serviceName: string,
-		startTime: number
-	): Promise<ServiceInstance> {
-		let lastError: Error | null = null;
-
-		for (
-			let attempt = 0;
-			attempt <= AddressManager._CIRCUIT_BREAKER_MAX_RETRIES;
-			attempt++
-		) {
-			try {
-				const instance = await this._serviceDiscovery.findService(serviceName);
-				const result = await this._checkServiceCircuitBreaker(
-					instance,
-					serviceName,
-					startTime,
-					attempt
-				);
-				if (result) {
-					return result;
-				}
-			} catch (err) {
-				lastError = err instanceof Error ? err : new Error(String(err));
-				if (attempt < AddressManager._CIRCUIT_BREAKER_MAX_RETRIES) {
-					const delay =
-						AddressManager._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt;
-					await sleep(delay);
-				}
-			}
-		}
-
-		throw lastError ?? new Error("Discovery failed");
-	}
-
 	async findService(serviceName: string): Promise<ServiceInstance> {
-		const startTime = Date.now();
-
-		try {
-			return await this._attemptDiscovery(serviceName, startTime);
-		} catch (lastError) {
-			const staleInstance = await this._fallbackToStaleCache(
-				serviceName,
-				startTime
-			);
-			if (staleInstance) {
-				return staleInstance;
-			}
-
-			recordDiscoveryMetrics(serviceName, startTime, "failure");
-
-			throw (
-				lastError ??
-				new AppError(
-					`Service "${serviceName}" unreachable after ${AddressManager._CIRCUIT_BREAKER_MAX_RETRIES + 1} attempts`,
-					ErrorCodes.SERVICE_UNREACHABLE
-				)
-			);
-		}
-	}
-
-	private async _checkServiceCircuitBreaker(
-		instance: ServiceInstance,
-		serviceName: string,
-		startTime: number,
-		attempt: number
-	): Promise<ServiceInstance | null> {
-		this.circuitBreaker.loadFromStore(instance.instanceId).catch(() => {});
-
-		if (!this.circuitBreaker.isOpen(instance.instanceId)) {
-			this._serviceDiscovery.acquireConnection(instance.instanceId);
-			recordDiscoveryMetrics(serviceName, startTime, "success");
-			return instance;
-		}
-
-		await this._serviceCache.invalidate(serviceName);
-
-		if (attempt < AddressManager._CIRCUIT_BREAKER_MAX_RETRIES) {
-			const delay =
-				AddressManager._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt;
-			await sleep(delay);
-		}
-
-		return null;
-	}
-
-	private async _fallbackToStaleCache(
-		serviceName: string,
-		startTime: number
-	): Promise<ServiceInstance | null> {
-		try {
-			const staleInstance = await this._serviceCache.get(serviceName);
-			if (staleInstance) {
-				logger.warn(
-					"Circuit breaker exhausted — returning stale cached instance as fallback",
-					{
-						serviceName,
-						instanceId: staleInstance.instanceId,
-					}
-				);
-				recordDiscoveryMetrics(serviceName, startTime, "degraded");
-				return staleInstance;
-			}
-		} catch {
-			// ignore cache errors in fallback path
-		}
-		return null;
+		return this._discoveryOrchestrator.findService(serviceName);
 	}
 
 	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {
-		return await this._serviceDiscovery.findAllServices(serviceName);
+		return this._discoveryOrchestrator.findAllServices(serviceName);
 	}
 
 	recordCallSuccess(instanceId: string, durationMs?: number): void {
-		this._serviceDiscovery.releaseConnection(instanceId);
-		this.circuitBreaker.recordSuccess(instanceId);
-		CIRCUIT_BREAKER_STATE.set(
-			{
-				instanceId: instanceId,
-			},
-			0
-		);
-		if (durationMs !== undefined) {
-			this.circuitBreaker.recordLatency(instanceId, durationMs);
-			this._healthChecker.recordLatency(instanceId, durationMs, true);
-		}
+		this._discoveryOrchestrator.recordCallSuccess(instanceId, durationMs);
 	}
 
 	recordCallFailure(instanceId: string, durationMs?: number): void {
-		this._serviceDiscovery.releaseConnection(instanceId);
-		this.circuitBreaker.recordFailure(instanceId);
-		CIRCUIT_BREAKER_STATE.set(
-			{
-				instanceId: instanceId,
-			},
-			this.circuitBreaker.isOpen(instanceId) ? 1 : 0
-		);
-		if (durationMs !== undefined) {
-			this.circuitBreaker.recordLatency(instanceId, durationMs);
-			this._healthChecker.recordLatency(instanceId, durationMs, false);
-		}
+		this._discoveryOrchestrator.recordCallFailure(instanceId, durationMs);
 	}
 
 	listenExpress(app: Application): void {
-		app.locals.metricsSnapshot = () => ({
-			...this._systemMetrics.collect(),
-			callTracker: this._serviceCallTracker.snapshot(),
-		});
-
-		// Expose Prometheus metrics at /metrics
-		app.get("/prometheus", async (_req, res) => {
-			res.set("Content-Type", promClient.register.contentType);
-			res.end(await promClient.register.metrics());
-		});
-
-		app.use(PING_ROUTES);
-		app.use(METRICS_ROUTES);
+		this._metricsCollector.listenExpress(app);
 	}
 
-	getMetrics(): SystemMetricsPayload {
-		return this._systemMetrics.collect();
+	getMetrics(): import("./monitoring/system-metrics").SystemMetricsPayload {
+		return this._metricsCollector.getMetrics();
 	}
 
-	getServiceCallTracker(): ServiceCallTracker {
-		return this._serviceCallTracker;
-	}
-
-	private async _collectSaturationMetrics(): Promise<void> {
-		const summary = this.circuitBreaker.getStateSummary();
-		CIRCUIT_BREAKER_INSTANCES_TOTAL.set({ state: "closed" }, summary.closed);
-		CIRCUIT_BREAKER_INSTANCES_TOTAL.set({ state: "open" }, summary.open);
-		CIRCUIT_BREAKER_INSTANCES_TOTAL.set(
-			{ state: "half-open" },
-			summary["half-open"]
-		);
-
-		const entries = await this._serviceCache.entries();
-		CACHE_ENTRY_COUNT.set(entries.length);
+	getServiceCallTracker(): import("./monitoring/service-call-tracker").ServiceCallTracker {
+		return this._metricsCollector.getServiceCallTracker();
 	}
 
 	private async _register(): Promise<void> {
@@ -494,7 +330,7 @@ export default class AddressManager {
 		}
 
 		this._metricsTimer = setInterval(() => {
-			this._collectSaturationMetrics().catch((err) => {
+			this._metricsCollector.collectSaturationMetrics().catch((err) => {
 				logger.warn("Failed to collect saturation metrics", {
 					error: normalizeError(err),
 				});

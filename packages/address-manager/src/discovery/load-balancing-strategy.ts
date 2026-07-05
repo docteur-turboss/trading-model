@@ -101,16 +101,12 @@ export class LeastConnectionsStrategy implements ConnectionCountingStrategy {
 
 export type LoadBalancingStrategyType = "random" | "round-robin" | "least-connections";
 
+const LOAD_BALANCER_REGISTRY: Record<LoadBalancingStrategyType, LoadBalancingStrategy> = {
+	random: new RandomStrategy(),
+	"round-robin": new RoundRobinStrategy(),
+	"least-connections": new LeastConnectionsStrategy(),
+};
+
 export function createLoadBalancer(strategy: LoadBalancingStrategyType): LoadBalancingStrategy {
-	switch (strategy) {
-		case "random":
-			return new RandomStrategy();
-		case "round-robin":
-			return new RoundRobinStrategy();
-		case "least-connections":
-			return new LeastConnectionsStrategy();
-		default:
-			// Round-robin is the recommended default for high-throughput scenarios
-			return new RoundRobinStrategy();
-	}
+	return LOAD_BALANCER_REGISTRY[strategy] ?? new RoundRobinStrategy();
 }
