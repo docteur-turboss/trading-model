@@ -14,17 +14,30 @@ const REGISTRATION_BASE_DELAY_MS = 1000;
 const REGISTRATION_MAX_DELAY_MS = 30_000;
 const REGISTRATION_BACKGROUND_RETRY_INTERVAL_MS = 30_000;
 
+export interface RegistrationManagerDeps {
+	addressManagerClient: AddressManagerClient;
+	tokenManager: TokenManager;
+	wsClient?: WebSocketClient;
+	onSuccess?: () => void;
+	onFailure?: () => void;
+}
+
 export class RegistrationManager {
+	private _addressManagerClient: AddressManagerClient;
+	private _tokenManager: TokenManager;
+	private _wsClient?: WebSocketClient;
+	private _onSuccess?: () => void;
+	private _onFailure?: () => void;
 	private _shouldRetryRegistration = true;
 	private _resolveStopRegistration: (() => void) | null = null;
 
-	constructor(
-		private _addressManagerClient: AddressManagerClient,
-		private _tokenManager: TokenManager,
-		private _wsClient: WebSocketClient | undefined,
-		private _onSuccess?: () => void,
-		private _onFailure?: () => void
-	) {}
+	constructor(deps: RegistrationManagerDeps) {
+		this._addressManagerClient = deps.addressManagerClient;
+		this._tokenManager = deps.tokenManager;
+		this._wsClient = deps.wsClient;
+		this._onSuccess = deps.onSuccess;
+		this._onFailure = deps.onFailure;
+	}
 
 	get shouldRetryRegistration(): boolean {
 		return this._shouldRetryRegistration;

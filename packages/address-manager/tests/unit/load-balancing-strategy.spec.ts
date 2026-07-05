@@ -129,6 +129,8 @@ describe("createLoadBalancer", () => {
 	});
 
 	it("should default to RoundRobinStrategy for unknown strategy", () => {
-		expect(createLoadBalancer("unknown")).toBeInstanceOf(RoundRobinStrategy);
+		expect(
+			createLoadBalancer("unknown" as Parameters<typeof createLoadBalancer>[0])
+		).toBeInstanceOf(RoundRobinStrategy);
 	});
 });

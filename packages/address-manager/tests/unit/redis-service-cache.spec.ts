@@ -29,11 +29,11 @@ describe("RedisServiceCache", () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		cache = new RedisServiceCache(
-			"redis://localhost:6379",
-			"discovery:cache:",
-			5000
-		);
+		cache = new RedisServiceCache({
+			redisUrl: "redis://localhost:6379",
+			prefix: "discovery:cache:",
+			ttlMs: 5000,
+		});
 	});
 
 	describe("set / get", () => {
@@ -176,16 +176,16 @@ describe("RedisServiceCache", () => {
 
 	describe("constructor", () => {
 		it("should compute ttlSec as Math.max(1, ceil(ttlMs/1000))", () => {
-			const c = new RedisServiceCache("redis://localhost:6379", "p:", 1);
+			const c = new RedisServiceCache({ redisUrl: "redis://localhost:6379", prefix: "p:", ttlMs: 1 });
 			expect((c as any)._ttlSec).toBe(1);
 
-			const c2 = new RedisServiceCache("redis://localhost:6379", "p:", 999);
+			const c2 = new RedisServiceCache({ redisUrl: "redis://localhost:6379", prefix: "p:", ttlMs: 999 });
 			expect((c2 as any)._ttlSec).toBe(1);
 
-			const c3 = new RedisServiceCache("redis://localhost:6379", "p:", 1000);
+			const c3 = new RedisServiceCache({ redisUrl: "redis://localhost:6379", prefix: "p:", ttlMs: 1000 });
 			expect((c3 as any)._ttlSec).toBe(1);
 
-			const c4 = new RedisServiceCache("redis://localhost:6379", "p:", 1500);
+			const c4 = new RedisServiceCache({ redisUrl: "redis://localhost:6379", prefix: "p:", ttlMs: 1500 });
 			expect((c4 as any)._ttlSec).toBe(2);
 		});
 	});

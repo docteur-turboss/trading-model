@@ -6,16 +6,29 @@ import type { WebSocketClient } from "./client/websocket-client";
 
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = 3;
 
+export interface HeartbeatManagerDeps {
+	addressManagerClient: AddressManagerClient;
+	tokenManager: TokenManager;
+	wsClient?: WebSocketClient;
+	onSuccess?: () => void;
+	onFailure?: () => void;
+}
+
 export class HeartbeatManager {
+	private _addressManagerClient: AddressManagerClient;
+	private _tokenManager: TokenManager;
+	private _wsClient?: WebSocketClient;
+	private _onSuccess?: () => void;
+	private _onFailure?: () => void;
 	private _consecutiveHeartbeatFailures = 0;
 
-	constructor(
-		private _addressManagerClient: AddressManagerClient,
-		private _tokenManager: TokenManager,
-		private _wsClient: WebSocketClient | undefined,
-		private _onSuccess?: () => void,
-		private _onFailure?: () => void
-	) {}
+	constructor(deps: HeartbeatManagerDeps) {
+		this._addressManagerClient = deps.addressManagerClient;
+		this._tokenManager = deps.tokenManager;
+		this._wsClient = deps.wsClient;
+		this._onSuccess = deps.onSuccess;
+		this._onFailure = deps.onFailure;
+	}
 
 	async performHeartbeat(
 		serviceName: string,

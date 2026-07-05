@@ -43,10 +43,6 @@ interface AddressManagerConfig {
 	circuitBreakerCacheTtlMs?: number;
 	circuitBreakerLatencyWindowSize?: number;
 	circuitBreakerLatencyThresholdMs?: number;
-
-	// WebSocket config
-	wsMaxQueueSize?: number;
-	wsMaxBufferedAmount?: number;
 }
 
 export type { AddressManagerConfig };

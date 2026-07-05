@@ -72,12 +72,12 @@ export default class AddressManager {
 				: undefined
 		);
 
-		this._serviceDiscovery = new ServiceDiscovery(
-			this._httpClient,
-			this._serviceCache,
+		this._serviceDiscovery = new ServiceDiscovery({
+			httpClient: this._httpClient,
+			serviceCache: this._serviceCache,
 			config,
-			this._healthChecker
-		);
+			healthChecker: this._healthChecker,
+		});
 
 		this._tokenRefreshIntervalMs = config.tokenRefreshIntervalMs;
 		this._ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;

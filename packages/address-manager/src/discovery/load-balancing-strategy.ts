@@ -99,7 +99,9 @@ export class LeastConnectionsStrategy implements ConnectionCountingStrategy {
 	}
 }
 
-export function createLoadBalancer(strategy: string): LoadBalancingStrategy {
+export type LoadBalancingStrategyType = "random" | "round-robin" | "least-connections";
+
+export function createLoadBalancer(strategy: LoadBalancingStrategyType): LoadBalancingStrategy {
 	switch (strategy) {
 		case "random":
 			return new RandomStrategy();

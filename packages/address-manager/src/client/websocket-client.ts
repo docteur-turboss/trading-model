@@ -19,6 +19,14 @@ export interface WsMessage {
 
 export type WsEventHandler = (message: WsMessage) => void;
 
+export interface WebSocketClientOptions {
+	url: string;
+	reconnectIntervalMs?: number;
+	subscribedServices?: string[];
+	token?: string;
+	maxReconnectAttempts?: number;
+}
+
 export class WebSocketClient {
 	private _ws: WebSocket | null = null;
 	private readonly _baseUrl: string;
@@ -35,21 +43,12 @@ export class WebSocketClient {
 	private _authFailureHandler: (() => void) | null = null;
 	private _token?: string;
 
-	constructor(
-		url: string,
-		reconnectIntervalMs = 5000,
-		subscribedServices: string[] = ["*"],
-		token?: string,
-		maxReconnectAttempts?: number,
-		_unused?: unknown,
-		_maxQueueSize?: number,
-		_maxBufferedAmount?: number
-	) {
-		this._baseUrl = url;
-		this._token = token;
-		this._reconnectIntervalMs = reconnectIntervalMs;
-		this._maxReconnectAttempts = maxReconnectAttempts ?? 10;
-		this._subscribedServices = subscribedServices;
+	constructor(options: WebSocketClientOptions) {
+		this._baseUrl = options.url;
+		this._token = options.token;
+		this._reconnectIntervalMs = options.reconnectIntervalMs ?? 5000;
+		this._maxReconnectAttempts = options.maxReconnectAttempts ?? 10;
+		this._subscribedServices = options.subscribedServices ?? ["*"];
 	}
 
 	private get _url(): string {
@@ -72,39 +71,10 @@ export class WebSocketClient {
 
 		try {
 			this._ws = new WebSocket(this._url);
-
-			this._ws.on("open", () => {
-				this._wsReconnectState.attempt = 0;
-				logger.info("WebSocket connected to discovery server", {
-					url: this._url,
-				});
-				this.send("subscribe", { services: this._subscribedServices });
-			});
-
-			this._ws.on("message", (data: WebSocket.Data) => {
-				try {
-					const message = JSON.parse(data.toString()) as WsMessage;
-					this._eventHandler?.(message);
-				} catch (err) {
-					logger.warn("Failed to parse WebSocket message", {
-						data: data.toString(),
-						err: normalizeError(err),
-					});
-				}
-			});
-
-			this._ws.on("close", (code: number) => {
-				this._ws = null;
-				if (code === 4001) {
-					this._authFailureHandler?.();
-					return;
-				}
-				this._scheduleReconnect();
-			});
-
-			this._ws.on("error", (error: Error) => {
-				logger.error("WebSocket error", { error: normalizeError(error) });
-			});
+			this._ws.on("open", () => this._onOpen());
+			this._ws.on("message", (data: WebSocket.Data) => this._onMessage(data));
+			this._ws.on("close", (code: number) => this._onClose(code));
+			this._ws.on("error", (error: Error) => this._onError(error));
 		} catch (error) {
 			logger.error("WebSocket connection failed", {
 				error: normalizeError(error),
@@ -112,6 +82,39 @@ export class WebSocketClient {
 			this._ws = null;
 			this._scheduleReconnect();
 		}
+	}
+
+	private _onOpen(): void {
+		this._wsReconnectState.attempt = 0;
+		logger.info("WebSocket connected to discovery server", {
+			url: this._url,
+		});
+		this.send("subscribe", { services: this._subscribedServices });
+	}
+
+	private _onMessage(data: WebSocket.Data): void {
+		try {
+			const message = JSON.parse(data.toString()) as WsMessage;
+			this._eventHandler?.(message);
+		} catch (err) {
+			logger.warn("Failed to parse WebSocket message", {
+				data: data.toString(),
+				err: normalizeError(err),
+			});
+		}
+	}
+
+	private _onClose(code: number): void {
+		this._ws = null;
+		if (code === 4001) {
+			this._authFailureHandler?.();
+			return;
+		}
+		this._scheduleReconnect();
+	}
+
+	private _onError(error: Error): void {
+		logger.error("WebSocket error", { error: normalizeError(error) });
 	}
 
 	send(type: WsMessageType, payload: Record<string, unknown>): boolean {

@@ -11,17 +11,20 @@ export interface RedisServiceCacheOptions {
 	enableTLSForSentinelMode?: boolean;
 }
 
+export interface RedisCacheConfig {
+	redisUrl: string;
+	prefix?: string;
+	ttlMs?: number;
+	cacheOptions?: RedisServiceCacheOptions;
+}
+
 export class RedisServiceCache implements IServiceCache {
 	private readonly _redis: Redis;
 	private readonly _prefix: string;
 	private readonly _ttlSec: number;
 
-	constructor(
-		redisUrl: string,
-		prefix = "discovery:cache:",
-		ttlMs = 5000,
-		cacheOptions?: RedisServiceCacheOptions
-	) {
+	constructor(config: RedisCacheConfig) {
+		const { redisUrl, prefix = "discovery:cache:", ttlMs = 5000, cacheOptions } = config;
 		const baseOptions: RedisOptions = {
 			lazyConnect: true,
 			retryStrategy: (times: number) => {

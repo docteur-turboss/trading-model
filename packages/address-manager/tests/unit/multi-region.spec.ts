@@ -98,15 +98,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 			httpClient.get.mockResolvedValueOnce([usInstance]);
 			healthChecker.isHealthy.mockResolvedValue(true);
 
-			discovery = new ServiceDiscovery(
+			discovery = new ServiceDiscovery({
 				httpClient,
-				cache,
-				{
+				serviceCache: cache,
+				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
 				} as AddressManagerConfig,
-				healthChecker
-			);
+				healthChecker,
+			});
 
 			const result = await discovery.findServiceInRegion(
 				"user-service",
@@ -126,15 +126,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 			httpClient.get.mockResolvedValueOnce([euInstance]);
 			healthChecker.isHealthy.mockResolvedValueOnce(true);
 
-			discovery = new ServiceDiscovery(
+			discovery = new ServiceDiscovery({
 				httpClient,
-				cache,
-				{
+				serviceCache: cache,
+				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
 				} as AddressManagerConfig,
-				healthChecker
-			);
+				healthChecker,
+			});
 
 			const result = await discovery.findServiceInRegion(
 				"user-service",
@@ -149,16 +149,16 @@ describe("Multi-Region ServiceDiscovery", () => {
 			httpClient.get.mockResolvedValueOnce([usInstance]);
 			healthChecker.isHealthy.mockResolvedValue(true);
 
-			discovery = new ServiceDiscovery(
+			discovery = new ServiceDiscovery({
 				httpClient,
-				cache,
-				{
+				serviceCache: cache,
+				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
 					region: "us-east-1",
 				} as AddressManagerConfig,
-				healthChecker
-			);
+				healthChecker,
+			});
 
 			const result = await discovery.findService("user-service");
 			expect(result).toBeDefined();
@@ -172,15 +172,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 				async (inst) => inst.region === "us-east-1"
 			);
 
-			discovery = new ServiceDiscovery(
+			discovery = new ServiceDiscovery({
 				httpClient,
-				cache,
-				{
+				serviceCache: cache,
+				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
 				} as AddressManagerConfig,
-				healthChecker
-			);
+				healthChecker,
+			});
 
 			const result = await discovery.findServiceInRegion(
 				"user-service",
@@ -195,15 +195,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 			httpClient.get.mockResolvedValueOnce([noRegionInstance]);
 			healthChecker.isHealthy.mockResolvedValue(true);
 
-			discovery = new ServiceDiscovery(
+			discovery = new ServiceDiscovery({
 				httpClient,
-				cache,
-				{
+				serviceCache: cache,
+				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
 				} as AddressManagerConfig,
-				healthChecker
-			);
+				healthChecker,
+			});
 
 			const result = await discovery.findService("user-service");
 			expect(result.ip).toBe("10.0.2.1");

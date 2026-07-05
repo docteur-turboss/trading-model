@@ -45,6 +45,13 @@ import { RefreshJob } from "./scheduler/refresh-job";
 import { Scheduler } from "./scheduler/scheduler";
 import { ShutdownHandler } from "./shutdown-handler";
 
+export interface WsClientContext {
+	config: AddressManagerConfig;
+	addressManagerClient: AddressManagerClient;
+	tokenManager: TokenManager;
+	serviceCache: IServiceCache;
+}
+
 function createHttpClient(config: AddressManagerConfig): HttpClient {
 	return config.pems
 		? HttpClient.createWithTls({
@@ -61,12 +68,12 @@ function createHttpClient(config: AddressManagerConfig): HttpClient {
 
 function createServiceCache(config: AddressManagerConfig): IServiceCache {
 	return config.redisCacheUrl
-		? new RedisServiceCache(
-				config.redisCacheUrl,
-				"discovery:cache:",
-				config.cacheTtlMs,
-				config.redisCacheOptions
-			)
+		? new RedisServiceCache({
+				redisUrl: config.redisCacheUrl,
+				prefix: "discovery:cache:",
+				ttlMs: config.cacheTtlMs,
+				cacheOptions: config.redisCacheOptions,
+			})
 		: new ServiceCache(config.cacheTtlMs);
 }
 
@@ -97,22 +104,13 @@ function createHealthChecker(
 	);
 }
 
-function createWsClient(
-	config: AddressManagerConfig,
-	addressManagerClient: AddressManagerClient,
-	tokenManager: TokenManager,
-	serviceCache: IServiceCache
-): WebSocketClient {
-	const wsClient = new WebSocketClient(
-		config.wsUrl!,
-		5000,
-		config.wsSubscribedServices ?? ["*"],
-		tokenManager.getTokenOrNull() ?? undefined,
-		undefined,
-		undefined,
-		config.wsMaxQueueSize ?? 5000,
-		config.wsMaxBufferedAmount ?? 262144
-	);
+function createWsClient(ctx: WsClientContext): WebSocketClient {
+	const { config, addressManagerClient, tokenManager, serviceCache } = ctx;
+	const wsClient = new WebSocketClient({
+		url: config.wsUrl!,
+		subscribedServices: config.wsSubscribedServices ?? ["*"],
+		token: tokenManager.getTokenOrNull() ?? undefined,
+	});
 
 	wsClient.onMessage((message: WsMessage) => {
 		if (message.type === "cache.invalidate") {
@@ -185,19 +183,19 @@ export default class AddressManager {
 		this._serviceCache = createServiceCache(config);
 		this.circuitBreaker = createCircuitBreaker(config, this._serviceCache);
 		this._healthChecker = createHealthChecker(this._httpClient, config);
-		this._serviceDiscovery = new ServiceDiscovery(
-			this._httpClient,
-			this._serviceCache,
+		this._serviceDiscovery = new ServiceDiscovery({
+			httpClient: this._httpClient,
+			serviceCache: this._serviceCache,
 			config,
-			this._healthChecker
-		);
+			healthChecker: this._healthChecker,
+		});
 		this._wsClient = config.wsUrl
-			? createWsClient(
+			? createWsClient({
 					config,
-					this._addressManagerClient,
-					this._tokenManager,
-					this._serviceCache
-				)
+					addressManagerClient: this._addressManagerClient,
+					tokenManager: this._tokenManager,
+					serviceCache: this._serviceCache,
+				})
 			: undefined;
 		this._serviceName = config.serviceName;
 		this._instanceId = config.instanceId;
@@ -210,21 +208,21 @@ export default class AddressManager {
 		this._cacheTtlMs = config.cacheTtlMs;
 		this._metricsIntervalMs = config.metricsIntervalMs ?? 15_000;
 
-		this._registrationManager = new RegistrationManager(
-			this._addressManagerClient,
-			this._tokenManager,
-			this._wsClient,
-			() => REGISTRATION_TOTAL.inc({ result: "success" }),
-			() => REGISTRATION_TOTAL.inc({ result: "failure" })
-		);
+		this._registrationManager = new RegistrationManager({
+			addressManagerClient: this._addressManagerClient,
+			tokenManager: this._tokenManager,
+			wsClient: this._wsClient,
+			onSuccess: () => REGISTRATION_TOTAL.inc({ result: "success" }),
+			onFailure: () => REGISTRATION_TOTAL.inc({ result: "failure" }),
+		});
 
-		this._heartbeatManager = new HeartbeatManager(
-			this._addressManagerClient,
-			this._tokenManager,
-			this._wsClient,
-			() => HEARTBEAT_TOTAL.inc({ result: "success" }),
-			() => HEARTBEAT_TOTAL.inc({ result: "failure" })
-		);
+		this._heartbeatManager = new HeartbeatManager({
+			addressManagerClient: this._addressManagerClient,
+			tokenManager: this._tokenManager,
+			wsClient: this._wsClient,
+			onSuccess: () => HEARTBEAT_TOTAL.inc({ result: "success" }),
+			onFailure: () => HEARTBEAT_TOTAL.inc({ result: "failure" }),
+		});
 
 		this._shutdownHandler = new ShutdownHandler(
 			this._registrationManager,

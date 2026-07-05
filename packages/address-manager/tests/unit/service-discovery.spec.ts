@@ -65,15 +65,15 @@ describe("ServiceDiscovery", () => {
 		httpClient = createMockHttpClient();
 		healthChecker = createMockHealthChecker();
 
-		discovery = new ServiceDiscovery(
+		discovery = new ServiceDiscovery({
 			httpClient,
-			cache,
-			{
+			serviceCache: cache,
+			config: {
 				addressManagerUrl: "ee",
 				discoveryTimeoutMs: 5000,
 			} as AddressManagerConfig,
-			healthChecker
-		);
+			healthChecker,
+		});
 	});
 
 	test("returns cached instance if healthy", async () => {

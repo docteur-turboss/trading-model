@@ -43,7 +43,7 @@ describe("WebSocketClient", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		MOCK_WEB_SOCKET_INSTANCE.readyState = MOCK_WEB_SOCKET.OPEN;
-		client = new WebSocketClient("ws://localhost:3000");
+		client = new WebSocketClient({ url: "ws://localhost:3000" });
 	});
 
 	afterEach(() => {
@@ -75,7 +75,7 @@ describe("WebSocketClient", () => {
 			MOCK_WEB_SOCKET.mockImplementationOnce(() => {
 				throw new Error("Connection refused");
 			});
-			client = new WebSocketClient("ws://bad-host:3000");
+			client = new WebSocketClient({ url: "ws://bad-host:3000" });
 			expect(() => client.connect()).not.toThrow();
 		});
 
@@ -222,13 +222,10 @@ describe("WebSocketClient", () => {
 		});
 
 		test("should log warning when max reconnect attempts reached", () => {
-			client = new WebSocketClient(
-				"ws://localhost:3000",
-				5000,
-				["*"],
-				undefined,
-				3
-			);
+			client = new WebSocketClient({
+				url: "ws://localhost:3000",
+				maxReconnectAttempts: 3,
+			});
 
 			client.connect();
 			const onMock = MOCK_WEB_SOCKET_INSTANCE.on as jest.Mock;
@@ -251,13 +248,11 @@ describe("WebSocketClient", () => {
 
 		test("should call connect again when reconnect timer fires", () => {
 			jest.useFakeTimers();
-			client = new WebSocketClient(
-				"ws://localhost:3000",
-				50,
-				["*"],
-				undefined,
-				5
-			);
+			client = new WebSocketClient({
+				url: "ws://localhost:3000",
+				reconnectIntervalMs: 50,
+				maxReconnectAttempts: 5,
+			});
 
 			client.connect();
 			expect(MOCK_WEB_SOCKET).toHaveBeenCalledTimes(1);
@@ -277,13 +272,10 @@ describe("WebSocketClient", () => {
 		});
 
 		test("should not reconnect when disconnect was called before close", () => {
-			client = new WebSocketClient(
-				"ws://localhost:3000",
-				5000,
-				["*"],
-				undefined,
-				10
-			);
+			client = new WebSocketClient({
+				url: "ws://localhost:3000",
+				maxReconnectAttempts: 10,
+			});
 			client.connect();
 
 			client.disconnect();

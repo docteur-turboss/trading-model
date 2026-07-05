@@ -24,7 +24,18 @@ import type { ServiceHealthChecker } from "./service-health-checker";
  * This class abstracts service resolution and ensures that
  * returned instances are healthy and valid.
  */
+export interface ServiceDiscoveryDeps {
+	httpClient: HttpClient;
+	serviceCache: IServiceCache;
+	config: AddressManagerConfig;
+	healthChecker: ServiceHealthChecker;
+}
+
 export class ServiceDiscovery {
+	private readonly _httpClient: HttpClient;
+	private readonly _serviceCache: IServiceCache;
+	private readonly _config: AddressManagerConfig;
+	private readonly _healthChecker: ServiceHealthChecker;
 	private readonly _discoveryTimeoutMs: number;
 
 	/**
@@ -32,16 +43,15 @@ export class ServiceDiscovery {
 	 *
 	 * @example
 	 * ```ts
-	 * const discovery = new ServiceDiscovery(client, cache, healthChecker, config);
+	 * const discovery = new ServiceDiscovery({ httpClient, serviceCache, config, healthChecker });
 	 * ```
 	 */
-	constructor(
-		private readonly _httpClient: HttpClient,
-		private readonly _serviceCache: IServiceCache,
-		private readonly _config: AddressManagerConfig,
-		private readonly _healthChecker: ServiceHealthChecker
-	) {
-		this._discoveryTimeoutMs = _config.discoveryTimeoutMs;
+	constructor(deps: ServiceDiscoveryDeps) {
+		this._httpClient = deps.httpClient;
+		this._serviceCache = deps.serviceCache;
+		this._config = deps.config;
+		this._healthChecker = deps.healthChecker;
+		this._discoveryTimeoutMs = deps.config.discoveryTimeoutMs;
 	}
 
 	/**
