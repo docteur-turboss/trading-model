@@ -100,10 +100,36 @@ export type BackendFactory = (genome: DeepReadonly<LamarckGenome>) => RLBackend;
 export function makeTradingAgentBackend(
 	genome: DeepReadonly<LamarckGenome>
 ): RLBackend {
+	const cfg = _buildAgentConfig(genome);
+	const agent = new TradingAgent(cfg);
+	_tryLamarckianInjection(agent, genome);
+
+	return {
+		// pure forward pass — no pool interaction
+		forwardPass: (features) => agent.forwardPass(features).output,
+		step: (features, price) => agent.step(features, price),
+		train: (experience, gamma) => {
+			try {
+				agent.learnQLearning(experience, gamma);
+			} catch {
+				/* Q-learning error skipped — continue training */
+			}
+		},
+		getWeights: () => agent.getWeights(),
+		setWeights: (weights) => agent.setWeights(weights),
+		getPnL: () => agent.wallet.getPnL(),
+		resetEpisode: () => agent.resetEpisode(),
+		getExperiencePool: () => agent.getExperiencePool(),
+	};
+}
+
+function _buildAgentConfig(
+	genome: DeepReadonly<LamarckGenome>
+): TradingAgentConfig {
 	const dp = genome.rl.discretePolicy;
 	const rb = genome.rl.replayBuffer;
 
-	const cfg: TradingAgentConfig = {
+	return {
 		nnConfig: {
 			neuronsByLayer: [
 				genome.network.inputDim,
@@ -131,10 +157,12 @@ export function makeTradingAgentBackend(
 			gamma: genome.rl.gamma,
 		},
 	};
+}
 
-	const agent = new TradingAgent(cfg);
-
-	// Lamarckian weight injection
+function _tryLamarckianInjection(
+	agent: TradingAgent,
+	genome: DeepReadonly<LamarckGenome>
+): void {
 	if (genome.trainedWeights) {
 		try {
 			agent.setWeights(new Float32Array(genome.trainedWeights));
@@ -142,24 +170,6 @@ export function makeTradingAgentBackend(
 			/* architecture mismatch after structural mutation — start fresh */
 		}
 	}
-
-	return {
-		// pure forward pass — no pool interaction
-		forwardPass: (features) => agent.forwardPass(features).output,
-		step: (features, price) => agent.step(features, price),
-		train: (experience, gamma) => {
-			try {
-				agent.learnQLearning(experience, gamma);
-			} catch {
-				/* Q-learning error skipped — continue training */
-			}
-		},
-		getWeights: () => agent.getWeights(),
-		setWeights: (weights) => agent.setWeights(weights),
-		getPnL: () => agent.wallet.getPnL(),
-		resetEpisode: () => agent.resetEpisode(),
-		getExperiencePool: () => agent.getExperiencePool(),
-	};
 }
 
 // ----------------------------------------------------------------

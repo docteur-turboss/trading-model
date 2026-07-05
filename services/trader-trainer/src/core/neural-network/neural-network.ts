@@ -24,6 +24,130 @@ import type {
 	PooledExperience,
 } from "./type";
 
+function mergeConfig(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig> {
+	return {
+		useBias: cfg.useBias ?? true,
+		deltaHuber: cfg.deltaHuber ?? 1,
+		enablePool: cfg.enablePool ?? true,
+		neuronsByLayer: cfg.neuronsByLayer,
+		poolMaxSize: cfg.poolMaxSize ?? 10_000,
+		learningRate: cfg.learningRate ?? 0.001,
+		optimizerType: cfg.optimizerType ?? "sgd",
+		gradientClipNorm: cfg.gradientClipNorm ?? 5.0,
+		biasMutationScale: cfg.biasMutationScale ?? 0.05,
+		normalisationType: cfg.normalisationType ?? "none",
+		weightMutationScale: cfg.weightMutationScale ?? 0.1,
+		optimizerHyperparams: cfg.optimizerHyperparams ?? {},
+		initialisationType: cfg.initialisationType ?? "random",
+		connectionType: cfg.connectionType ?? "fully-connected",
+		lossFunctionType: cfg.lossFunctionType ?? "mean-squared-error",
+		normalizedInputRange: cfg.normalizedInputRange ?? [
+			0,
+			cfg.neuronsByLayer[0] - 1,
+		],
+		biasInitialisationType:
+			cfg.biasInitialisationType ?? cfg.initialisationType ?? "random",
+		activationType:
+			cfg.activationType ??
+			new Array(cfg.neuronsByLayer.length - 1).fill("relu"),
+	};
+}
+
+function initLayerParams(
+	fanIn: number,
+	fanOut: number,
+	config: Required<NeuralNetworkConfig>
+): { weights: Float32Array; bias: Float32Array } {
+	const bias = new Float32Array(fanOut);
+	const weights = new Float32Array(fanIn * fanOut);
+
+	for (let i = 0; i < weights.length; i++) {
+		weights[i] = INITIALIZERS[config.initialisationType].initialize(
+			fanIn,
+			fanOut
+		);
+	}
+	for (let i = 0; i < bias.length; i++) {
+		bias[i] = INITIALIZERS[config.biasInitialisationType].initialize(
+			fanIn,
+			fanOut
+		);
+	}
+
+	return { bias, weights };
+}
+
+function createLayerMemories(
+	config: Required<NeuralNetworkConfig>,
+	_optimizerHp: OptimizerHyperparams
+): LayerMemory[] {
+	const sizes = config.neuronsByLayer;
+	const layers: LayerMemory[] = [];
+
+	for (let i = 0; i < sizes.length - 1; i++) {
+		if (sizes[i] <= 0 || sizes[i + 1] <= 0) {
+			throw new AppError(
+				"Layer sizes must be positive integers",
+				ErrorCodes.AGENT_ERROR
+			);
+		}
+
+		const fanIn = sizes[i];
+		const fanOut = sizes[i + 1];
+		const { bias, weights } = initLayerParams(fanIn, fanOut, config);
+		const opt = OPTIMIZERS[config.optimizerType];
+
+		layers.push({
+			fanIn,
+			fanOut,
+			weights,
+			bias,
+			output: new Float32Array(fanOut),
+			preActivation: new Float32Array(fanOut),
+			delta: new Float32Array(fanOut),
+			gradW: new Float32Array(fanIn * fanOut),
+			gradB: new Float32Array(fanOut),
+			accumGradW: new Float32Array(fanIn * fanOut),
+			accumGradB: new Float32Array(fanOut),
+			wState: opt.initState(fanIn * fanOut),
+			bState: opt.initState(fanOut),
+		});
+	}
+
+	return layers;
+}
+
+function validateActivationLoss(
+	config: Required<NeuralNetworkConfig>,
+	layerCount: number
+): void {
+	const lastActivation =
+		config.activationType[config.activationType.length - 1];
+
+	if (
+		lastActivation === "sigmoid" &&
+		config.lossFunctionType !== "binary-cross-entropy"
+	) {
+		logger.warn("Sigmoid output is usually paired with binary-cross-entropy");
+	}
+	if (
+		lastActivation === "softmax" &&
+		config.lossFunctionType !== "cross-entropy" &&
+		config.lossFunctionType !== "binary-cross-entropy"
+	) {
+		throw new AppError(
+			`Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`,
+			ErrorCodes.AGENT_ERROR
+		);
+	}
+	if (config.activationType.length !== layerCount) {
+		throw new AppError(
+			`ActivationType must be the same length of the layers. Expected : ${layerCount}, got ${config.activationType.length}`,
+			ErrorCodes.AGENT_ERROR
+		);
+	}
+}
+
 /**
  * Configurable fully-connected feedforward neural network with support for
  * multiple activation functions, loss functions, normalisations, connection
@@ -40,32 +164,7 @@ export class NeuralNetwork {
 	private readonly _pool: PooledExperience[] = [];
 
 	constructor(cfg: NeuralNetworkConfig) {
-		this._config = {
-			useBias: cfg.useBias ?? true,
-			deltaHuber: cfg.deltaHuber ?? 1,
-			enablePool: cfg.enablePool ?? true,
-			neuronsByLayer: cfg.neuronsByLayer,
-			poolMaxSize: cfg.poolMaxSize ?? 10_000,
-			learningRate: cfg.learningRate ?? 0.001,
-			optimizerType: cfg.optimizerType ?? "sgd",
-			gradientClipNorm: cfg.gradientClipNorm ?? 5.0,
-			biasMutationScale: cfg.biasMutationScale ?? 0.05,
-			normalisationType: cfg.normalisationType ?? "none",
-			weightMutationScale: cfg.weightMutationScale ?? 0.1,
-			optimizerHyperparams: cfg.optimizerHyperparams ?? {},
-			initialisationType: cfg.initialisationType ?? "random",
-			connectionType: cfg.connectionType ?? "fully-connected",
-			lossFunctionType: cfg.lossFunctionType ?? "mean-squared-error",
-			normalizedInputRange: cfg.normalizedInputRange ?? [
-				0,
-				cfg.neuronsByLayer[0] - 1,
-			],
-			biasInitialisationType:
-				cfg.biasInitialisationType ?? cfg.initialisationType ?? "random",
-			activationType:
-				cfg.activationType ??
-				new Array(cfg.neuronsByLayer.length - 1).fill("relu"),
-		};
+		this._config = mergeConfig(cfg);
 
 		this._optimizerHp = {
 			...DEFAULT_HYPERPARAMS,
@@ -81,104 +180,8 @@ export class NeuralNetwork {
 			);
 		}
 
-		for (let i = 0; i < sizes.length - 1; i++) {
-			if (sizes[i] <= 0 || sizes[i + 1] <= 0) {
-				throw new AppError(
-					"Layer sizes must be positive integers",
-					ErrorCodes.AGENT_ERROR
-				);
-			}
-
-			const fanIn = sizes[i];
-			const fanOut = sizes[i + 1];
-
-			const { bias, weights } = this._initParams(fanIn, fanOut);
-			const opt = OPTIMIZERS[this._config.optimizerType];
-
-			const layerConfigs = {
-				fanIn,
-				fanOut,
-				weights,
-				bias,
-				output: new Float32Array(fanOut),
-				preActivation: new Float32Array(fanOut),
-				delta: new Float32Array(fanOut),
-				gradW: new Float32Array(fanIn * fanOut),
-				gradB: new Float32Array(fanOut),
-				accumGradW: new Float32Array(fanIn * fanOut),
-				accumGradB: new Float32Array(fanOut),
-				wState: opt.initState(fanIn * fanOut),
-				bState: opt.initState(fanOut),
-			};
-
-			this._layers.push(layerConfigs);
-		}
-
-		const lastActivation =
-			this._config.activationType[this._config.activationType.length - 1];
-
-		if (
-			lastActivation === "sigmoid" &&
-			this._config.lossFunctionType !== "binary-cross-entropy"
-		) {
-			logger.warn("Sigmoid output is usually paired with binary-cross-entropy");
-		}
-		if (
-			lastActivation === "softmax" &&
-			this._config.lossFunctionType !== "cross-entropy" &&
-			this._config.lossFunctionType !== "binary-cross-entropy"
-		) {
-			throw new AppError(
-				`Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`,
-				ErrorCodes.AGENT_ERROR
-			);
-		}
-		if (this._config.activationType.length !== this._layers.length) {
-			throw new AppError(
-				`ActivationType must be the same length of the layers. Expected : ${this._layers.length}, got ${this._config.activationType.length}`,
-				ErrorCodes.AGENT_ERROR
-			);
-		}
-	}
-
-	/**
-	 * Builds parameters (weights & biases) using configured initialisation strategy.
-	 *
-	 * **FIXED**: Now respects `biasInitialisationType` separately from weights.
-	 *
-	 * @param fanIn - Input dimension
-	 * @param fanOut - Output dimension
-	 */
-	private _initParams(
-		fanIn: number,
-		fanOut: number
-	): {
-		weights: Float32Array;
-		bias: Float32Array;
-	} {
-		const bias = new Float32Array(fanOut);
-		const weights = new Float32Array(fanIn * fanOut);
-
-		// Use weight initialiser for weights
-		for (let i = 0; i < weights.length; i++) {
-			weights[i] = INITIALIZERS[this._config.initialisationType].initialize(
-				fanIn,
-				fanOut
-			);
-		}
-
-		// Use bias initialiser for biases (can be different!)
-		for (let i = 0; i < bias.length; i++) {
-			bias[i] = INITIALIZERS[this._config.biasInitialisationType].initialize(
-				fanIn,
-				fanOut
-			);
-		}
-
-		return {
-			bias,
-			weights,
-		};
+		this._layers.push(...createLayerMemories(this._config, this._optimizerHp));
+		validateActivationLoss(this._config, this._layers.length);
 	}
 
 	/**
@@ -297,6 +300,93 @@ export class NeuralNetwork {
 		);
 	}
 
+	private _computePreActivations(
+		layer: LayerMemory,
+		input: Float32Array
+	): Float32Array {
+		const fanIn = layer.fanIn;
+		const fanOut = layer.fanOut;
+		const weights = layer.weights;
+		const bias = layer.bias;
+
+		const preActivations = new Float32Array(fanOut);
+		for (let j = 0; j < fanOut; j++) {
+			let sum = this._config.useBias ? bias[j] : 0;
+			const rowOffset = j * fanIn;
+			for (let idx = 0; idx < fanIn; idx++) {
+				sum += weights[rowOffset + idx] * input[idx];
+			}
+			preActivations[j] = sum;
+		}
+		return preActivations;
+	}
+
+	private _applySoftmax(preActivations: Float32Array): Float32Array {
+		const fanOut = preActivations.length;
+		const Out = new Float32Array(fanOut);
+
+		let max = preActivations[0];
+		for (let i = 1; i < fanOut; i++) {
+			/* istanbul ignore if */ if (preActivations[i] > max) {
+				max = preActivations[i];
+			}
+		}
+
+		let expSum = 0;
+		for (let i = 0; i < fanOut; i++) {
+			const expVal = Math.exp(preActivations[i] - max);
+			Out[i] = expVal;
+			expSum += expVal;
+		}
+
+		const inv = 1 / expSum;
+		for (let i = 0; i < fanOut; i++) {
+			Out[i] *= inv;
+		}
+
+		return Out;
+	}
+
+	private _applyElementWiseActivation(
+		preActivations: Float32Array,
+		activation: ActivationType
+	): Float32Array {
+		const fanOut = preActivations.length;
+		const Out = new Float32Array(fanOut);
+		for (let i = 0; i < fanOut; i++) {
+			Out[i] = this._activate(preActivations[i], activation);
+		}
+		return Out;
+	}
+
+	private _computeLayerOutput(
+		layer: LayerMemory,
+		current: Float32Array,
+		layerIndex: number,
+		originalInput: Float32Array
+	): { preActivations: Float32Array; output: Float32Array } {
+		const preActivations = this._computePreActivations(layer, current);
+		const activation = this._config.activationType[layerIndex];
+
+		let output: Float32Array;
+		if (activation === "softmax") {
+			output = this._applySoftmax(preActivations);
+		} else {
+			output = this._applyElementWiseActivation(preActivations, activation);
+		}
+
+		if (
+			this._config.connectionType === "dense-skip" &&
+			originalInput.length === output.length
+		) {
+			for (let i = 0; i < output.length; i++) {
+				output[i] += originalInput[i];
+			}
+		}
+
+		return { preActivations, output };
+	}
+
 	/**
 	 * Runs a forward pass through the network.
 	 *
@@ -332,73 +422,17 @@ export class NeuralNetwork {
 
 		for (let layerIndex = 0; layerIndex < this._layers.length; layerIndex++) {
 			const layer = this._layers[layerIndex];
+			const { preActivations, output } = this._computeLayerOutput(
+				layer,
+				current,
+				layerIndex,
+				originalInput
+			);
 
-			const weights = layer.weights;
-			const bias = layer.bias;
-
-			const fanIn = layer.fanIn;
-			const fanOut = layer.fanOut;
-
-			// Compute pre-activations (z) for this layer
-			const preActivations = new Float32Array(fanOut);
-			for (let j = 0; j < fanOut; j++) {
-				let sum = this._config.useBias ? bias[j] : 0;
-
-				const rowOffset = j * fanIn;
-				for (let idx = 0; idx < fanIn; idx++) {
-					sum += weights[rowOffset + idx] * current[idx];
-				}
-
-				preActivations[j] = sum;
-			}
-
-			// Compute post-activations (output) for this layer
-			const Out = new Float32Array(fanOut);
-			const activation = this._config.activationType[layerIndex];
-
-			if (activation === "softmax") {
-				let max = preActivations[0];
-
-				for (let i = 1; i < fanOut; i++) {
-					/* istanbul ignore if */ if (preActivations[i] > max) {
-						max = preActivations[i];
-					}
-				}
-
-				let expSum = 0;
-
-				for (let i = 0; i < fanOut; i++) {
-					const expVal = Math.exp(preActivations[i] - max);
-					Out[i] = expVal;
-					expSum += expVal;
-				}
-
-				const inv = 1 / expSum;
-
-				for (let i = 0; i < fanOut; i++) {
-					Out[i] *= inv;
-				}
-			} else {
-				for (let i = 0; i < fanOut; i++) {
-					Out[i] = this._activate(preActivations[i], activation);
-				}
-			}
-
-			// Apply connection strategy (skip connections, residual, etc.)
-			if (
-				this._config.connectionType === "dense-skip" &&
-				originalInput.length === Out.length
-			) {
-				for (let i = 0; i < Out.length; i++) {
-					Out[i] += originalInput[i];
-				}
-			}
-
-			// Store activations for this layer
 			layerZValues.push(preActivations);
-			layerOutputs.push(Out);
+			layerOutputs.push(output);
 
-			current = Out;
+			current = output;
 		}
 
 		return {
@@ -519,54 +553,11 @@ export class NeuralNetwork {
 		applyImmediately: boolean
 	): void {
 		const layer = this._layers[layerIndex];
-		const { fanIn, fanOut, gradW, gradB, accumGradW, accumGradB } = layer;
-
-		for (let j = 0; j < fanOut; j++) {
-			const rowOffset = j * fanIn;
-			const deltaJ = delta[j];
-
-			if (applyImmediately) {
-				gradB[j] = deltaJ;
-				this._computeWeightGradient(
-					gradW,
-					rowOffset,
-					deltaJ,
-					layerInput,
-					fanIn
-				);
-			} else {
-				accumGradB[j] += deltaJ;
-				this._computeWeightGradient(
-					accumGradW,
-					rowOffset,
-					deltaJ,
-					layerInput,
-					fanIn
-				);
-			}
-		}
 
 		if (applyImmediately) {
-			const opt = OPTIMIZERS[this._config.optimizerType];
-			const { weights, bias, wState, bState } = layer;
-
-			opt.step(
-				weights,
-				gradW,
-				wState,
-				this._config.learningRate,
-				this._optimizerHp
-			);
-
-			if (this._config.useBias) {
-				opt.step(
-					bias,
-					gradB,
-					bState,
-					this._config.learningRate,
-					this._optimizerHp
-				);
-			}
+			this._applyGradientsToLayer(layer, delta, layerInput);
+		} else {
+			this._accumulateGradients(layer, delta, layerInput);
 		}
 	}
 
@@ -579,6 +570,63 @@ export class NeuralNetwork {
 	): void {
 		for (let idxK = 0; idxK < fanIn; idxK++) {
 			weightBuf[rowOffset + idxK] += deltaJ * input[idxK];
+		}
+	}
+
+	private _applyGradientsToLayer(
+		layer: LayerMemory,
+		delta: Float32Array,
+		layerInput: Float32Array
+	): void {
+		const { fanIn, fanOut, gradW, gradB } = layer;
+
+		for (let j = 0; j < fanOut; j++) {
+			const rowOffset = j * fanIn;
+			const deltaJ = delta[j];
+			gradB[j] = deltaJ;
+			this._computeWeightGradient(gradW, rowOffset, deltaJ, layerInput, fanIn);
+		}
+
+		const opt = OPTIMIZERS[this._config.optimizerType];
+		const { weights, bias, wState, bState } = layer;
+
+		opt.step(
+			weights,
+			gradW,
+			wState,
+			this._config.learningRate,
+			this._optimizerHp
+		);
+
+		if (this._config.useBias) {
+			opt.step(
+				bias,
+				gradB,
+				bState,
+				this._config.learningRate,
+				this._optimizerHp
+			);
+		}
+	}
+
+	private _accumulateGradients(
+		layer: LayerMemory,
+		delta: Float32Array,
+		layerInput: Float32Array
+	): void {
+		const { fanIn, fanOut, accumGradW, accumGradB } = layer;
+
+		for (let j = 0; j < fanOut; j++) {
+			const rowOffset = j * fanIn;
+			const deltaJ = delta[j];
+			accumGradB[j] += deltaJ;
+			this._computeWeightGradient(
+				accumGradW,
+				rowOffset,
+				deltaJ,
+				layerInput,
+				fanIn
+			);
 		}
 	}
 
@@ -749,6 +797,18 @@ export class NeuralNetwork {
 			);
 		}
 
+		this._validateDimensions(input, target);
+
+		const context = this.forward(input);
+		const loss = this._lossFunction(context.output, target);
+
+		this._pool.push(this._createPooledExperience(input, context, target, loss));
+		this._enforcePoolSize();
+
+		return loss;
+	}
+
+	private _validateDimensions(input: Float32Array, target: Float32Array): void {
 		const expectedInput = this._config.neuronsByLayer[0];
 		const expectedOutput =
 			this._config.neuronsByLayer[this._config.neuronsByLayer.length - 1];
@@ -766,13 +826,15 @@ export class NeuralNetwork {
 				ErrorCodes.AGENT_ERROR
 			);
 		}
+	}
 
-		// Perform forward pass (stateless, returns context)
-		const context = this.forward(input);
-		const loss = this._lossFunction(context.output, target);
-
-		// Store experience with context (not just activations)
-		const experience: PooledExperience = {
+	private _createPooledExperience(
+		input: Float32Array,
+		context: ForwardContext,
+		target: Float32Array,
+		loss: number
+	): PooledExperience {
+		return {
 			kind: "supervised",
 			input: new Float32Array(input),
 			output: new Float32Array(context.output),
@@ -784,15 +846,12 @@ export class NeuralNetwork {
 			})),
 			loss,
 		};
+	}
 
-		this._pool.push(experience);
-
-		// Enforce max pool size (FIFO eviction)
+	private _enforcePoolSize(): void {
 		if (this._pool.length > this._config.poolMaxSize) {
 			this._pool.shift();
 		}
-
-		return loss;
 	}
 
 	/**
@@ -810,51 +869,54 @@ export class NeuralNetwork {
 		}
 
 		for (let layerIdx = 0; layerIdx < this._layers.length; layerIdx++) {
-			const layer = this._layers[layerIdx];
-			const {
-				weights,
-				bias,
-				accumGradW,
-				accumGradB,
-				gradW,
-				gradB,
-				wState,
-				bState,
-			} = layer;
-			const opt = OPTIMIZERS[this._config.optimizerType];
+			this._averageAndApplyGradients(this._layers[layerIdx], numSamples);
+		}
+	}
 
-			// Average gradients by dividing by batch size
-			const scale = 1 / numSamples;
-			for (let i = 0; i < accumGradW.length; i++) {
-				gradW[i] = accumGradW[i] * scale;
-			}
-			for (let i = 0; i < accumGradB.length; i++) {
-				gradB[i] = accumGradB[i] * scale;
-			}
+	private _averageAndApplyGradients(
+		layer: LayerMemory,
+		numSamples: number
+	): void {
+		const {
+			weights,
+			bias,
+			accumGradW,
+			accumGradB,
+			gradW,
+			gradB,
+			wState,
+			bState,
+		} = layer;
+		const opt = OPTIMIZERS[this._config.optimizerType];
 
-			// Apply via optimizer
+		const scale = 1 / numSamples;
+		for (let i = 0; i < accumGradW.length; i++) {
+			gradW[i] = accumGradW[i] * scale;
+		}
+		for (let i = 0; i < accumGradB.length; i++) {
+			gradB[i] = accumGradB[i] * scale;
+		}
+
+		opt.step(
+			weights,
+			gradW,
+			wState,
+			this._config.learningRate,
+			this._optimizerHp
+		);
+
+		if (this._config.useBias) {
 			opt.step(
-				weights,
-				gradW,
-				wState,
+				bias,
+				gradB,
+				bState,
 				this._config.learningRate,
 				this._optimizerHp
 			);
-
-			if (this._config.useBias) {
-				opt.step(
-					bias,
-					gradB,
-					bState,
-					this._config.learningRate,
-					this._optimizerHp
-				);
-			}
-
-			// Reset accumulators for next batch
-			accumGradW.fill(0);
-			accumGradB.fill(0);
 		}
+
+		accumGradW.fill(0);
+		accumGradB.fill(0);
 	}
 
 	/**
@@ -886,11 +948,7 @@ export class NeuralNetwork {
 
 		const poolSize = this._pool.length;
 
-		// Reset accumulators
-		for (let layerIdx = 0; layerIdx < this._layers.length; layerIdx++) {
-			this._layers[layerIdx].accumGradW.fill(0);
-			this._layers[layerIdx].accumGradB.fill(0);
-		}
+		this._resetAccumulators();
 
 		let totalLoss = 0;
 
@@ -908,6 +966,13 @@ export class NeuralNetwork {
 		this._pool.length = 0;
 
 		return totalLoss / poolSize;
+	}
+
+	private _resetAccumulators(): void {
+		for (let layerIdx = 0; layerIdx < this._layers.length; layerIdx++) {
+			this._layers[layerIdx].accumGradW.fill(0);
+			this._layers[layerIdx].accumGradB.fill(0);
+		}
 	}
 
 	/**

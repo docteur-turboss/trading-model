@@ -80,12 +80,17 @@ export const ENCODED_DIM = SCALAR_DIM + MAX_DEPTH * LAYER_DIM;
  */
 export function encodeGenome(genome: Genome): Float32Array {
 	const vec = new Float32Array(ENCODED_DIM);
+	_encodeScalars(vec, genome);
+	_encodeLayers(vec, genome.network);
+	return vec;
+}
+
+function _encodeScalars(vec: Float32Array, genome: Genome): void {
 	const rl = genome.rl;
 	const net = genome.network;
 
-	// ---- Scalars ----
 	vec[0] = rl.gamma;
-	vec[1] = Math.log10(Math.max(1e-6, rl.learningRate)) / 6 + 1; // map [1e-6,1] → [0,1]
+	vec[1] = Math.log10(Math.max(1e-6, rl.learningRate)) / 6 + 1;
 	vec[2] = rl.rewardShaping.clipMin;
 	vec[3] = rl.rewardShaping.clipMax;
 	vec[4] = Math.log10(Math.max(0.001, rl.rewardShaping.scaleFactor)) / 3 + 1;
@@ -107,36 +112,31 @@ export function encodeGenome(genome: Genome): Float32Array {
 	vec[20] = net.inputDim / 256;
 	vec[21] = net.outputDim / 64;
 	vec[22] = net.hiddenLayers.length / MAX_DEPTH;
+}
 
-	// ---- Per-layer section ----
+function _encodeLayers(vec: Float32Array, net: Genome["network"]): void {
 	const layerOffset = SCALAR_DIM;
 	const layers = net.hiddenLayers.slice(0, MAX_DEPTH);
 
 	for (let i = 0; i < MAX_DEPTH; i++) {
 		const base = layerOffset + i * LAYER_DIM;
 		if (i >= layers.length) {
-			// zero-padded slot — leave as 0
 			continue;
 		}
 		const layer = layers[i];
 
-		// Neuron count (normalised)
 		vec[base] = layer.neurons / 512;
 
-		// One-hot activation
 		const actIdx = ACTIVATIONS.indexOf(layer.activation);
 		if (actIdx >= 0) {
 			vec[base + 1 + actIdx] = 1;
 		}
 
-		// One-hot connection type
 		const ctIdx = CONNECTION_TYPES.indexOf(layer.connectionType);
 		if (ctIdx >= 0) {
 			vec[base + 1 + N_ACT + ctIdx] = 1;
 		}
 	}
-
-	return vec;
 }
 
 // ----------------------------------------------------------------

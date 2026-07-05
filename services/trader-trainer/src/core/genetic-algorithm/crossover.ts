@@ -3,11 +3,16 @@
 // ================================================================
 
 import type {
+	ContinuousPolicyGenome,
 	CrossoverGenome,
+	DiscretePolicyGenome,
+	HorizonGenome,
 	LamarckGenome,
 	LayerGenome,
 	MutationGenome,
 	NetworkGenome,
+	ReplayBufferGenome,
+	RewardShapingGenome,
 	RLGenome,
 } from "./genome-types";
 
@@ -99,6 +104,82 @@ function crossoverNetwork(
 	};
 }
 
+function crossoverRewardShaping(
+	left: RewardShapingGenome,
+	right: RewardShapingGenome,
+	crossoverFn: (valueA: number, valueB: number) => number,
+	rng: () => number
+): RewardShapingGenome {
+	return {
+		clip: rng() < 0.5 ? left.clip : right.clip,
+		clipMin: crossoverFn(left.clipMin, right.clipMin),
+		clipMax: crossoverFn(left.clipMax, right.clipMax),
+		scale: rng() < 0.5 ? left.scale : right.scale,
+		scaleFactor: crossoverFn(left.scaleFactor, right.scaleFactor),
+		normalize: rng() < 0.5 ? left.normalize : right.normalize,
+		sparse: rng() < 0.5 ? left.sparse : right.sparse,
+	};
+}
+
+function crossoverHorizon(
+	left: HorizonGenome,
+	right: HorizonGenome,
+	crossoverFn: (valueA: number, valueB: number) => number
+): HorizonGenome {
+	return {
+		maxEpisodeLength: Math.round(
+			crossoverFn(left.maxEpisodeLength, right.maxEpisodeLength)
+		),
+		nStepReturn: Math.round(crossoverFn(left.nStepReturn, right.nStepReturn)),
+		frameSkip: Math.round(crossoverFn(left.frameSkip, right.frameSkip)),
+	};
+}
+
+function crossoverDiscretePolicy(
+	left: DiscretePolicyGenome,
+	right: DiscretePolicyGenome,
+	crossoverFn: (valueA: number, valueB: number) => number,
+	rng: () => number
+): DiscretePolicyGenome {
+	return {
+		type: rng() < 0.5 ? left.type : right.type,
+		epsilonStart: crossoverFn(left.epsilonStart, right.epsilonStart),
+		epsilonMin: crossoverFn(left.epsilonMin, right.epsilonMin),
+		epsilonDecay: crossoverFn(left.epsilonDecay, right.epsilonDecay),
+		temperature: crossoverFn(left.temperature, right.temperature),
+	};
+}
+
+function crossoverContinuousPolicy(
+	left: ContinuousPolicyGenome,
+	right: ContinuousPolicyGenome,
+	crossoverFn: (valueA: number, valueB: number) => number,
+	rng: () => number
+): ContinuousPolicyGenome {
+	return {
+		type: rng() < 0.5 ? left.type : right.type,
+		clipMin: crossoverFn(left.clipMin, right.clipMin),
+		clipMax: crossoverFn(left.clipMax, right.clipMax),
+		noiseStd: crossoverFn(left.noiseStd, right.noiseStd),
+		noiseDecay: crossoverFn(left.noiseDecay, right.noiseDecay),
+	};
+}
+
+function crossoverReplayBuffer(
+	left: ReplayBufferGenome,
+	right: ReplayBufferGenome,
+	crossoverFn: (valueA: number, valueB: number) => number,
+	rng: () => number
+): ReplayBufferGenome {
+	return {
+		bufferSize: Math.round(crossoverFn(left.bufferSize, right.bufferSize)),
+		prioritized: rng() < 0.5 ? left.prioritized : right.prioritized,
+		alphaPER: crossoverFn(left.alphaPER, right.alphaPER),
+		betaPER: crossoverFn(left.betaPER, right.betaPER),
+		betaAnneal: rng() < 0.5 ? left.betaAnneal : right.betaAnneal,
+	};
+}
+
 function crossoverRL(
 	left: RLGenome,
 	right: RLGenome,
@@ -111,107 +192,31 @@ function crossoverRL(
 	return {
 		gamma: crossoverFn(left.gamma, right.gamma),
 		learningRate: crossoverFn(left.learningRate, right.learningRate),
-
-		rewardShaping: {
-			clip: rng() < 0.5 ? left.rewardShaping.clip : right.rewardShaping.clip,
-			clipMin: crossoverFn(
-				left.rewardShaping.clipMin,
-				right.rewardShaping.clipMin
-			),
-			clipMax: crossoverFn(
-				left.rewardShaping.clipMax,
-				right.rewardShaping.clipMax
-			),
-			scale: rng() < 0.5 ? left.rewardShaping.scale : right.rewardShaping.scale,
-			scaleFactor: crossoverFn(
-				left.rewardShaping.scaleFactor,
-				right.rewardShaping.scaleFactor
-			),
-			normalize:
-				rng() < 0.5
-					? left.rewardShaping.normalize
-					: right.rewardShaping.normalize,
-			sparse:
-				rng() < 0.5 ? left.rewardShaping.sparse : right.rewardShaping.sparse,
-		},
-
-		horizon: {
-			maxEpisodeLength: Math.round(
-				crossoverFn(
-					left.horizon.maxEpisodeLength,
-					right.horizon.maxEpisodeLength
-				)
-			),
-			nStepReturn: Math.round(
-				crossoverFn(left.horizon.nStepReturn, right.horizon.nStepReturn)
-			),
-			frameSkip: Math.round(
-				crossoverFn(left.horizon.frameSkip, right.horizon.frameSkip)
-			),
-		},
-
-		discretePolicy: {
-			type: rng() < 0.5 ? left.discretePolicy.type : right.discretePolicy.type,
-			epsilonStart: crossoverFn(
-				left.discretePolicy.epsilonStart,
-				right.discretePolicy.epsilonStart
-			),
-			epsilonMin: crossoverFn(
-				left.discretePolicy.epsilonMin,
-				right.discretePolicy.epsilonMin
-			),
-			epsilonDecay: crossoverFn(
-				left.discretePolicy.epsilonDecay,
-				right.discretePolicy.epsilonDecay
-			),
-			temperature: crossoverFn(
-				left.discretePolicy.temperature,
-				right.discretePolicy.temperature
-			),
-		},
-
-		continuousPolicy: {
-			type:
-				rng() < 0.5 ? left.continuousPolicy.type : right.continuousPolicy.type,
-			clipMin: crossoverFn(
-				left.continuousPolicy.clipMin,
-				right.continuousPolicy.clipMin
-			),
-			clipMax: crossoverFn(
-				left.continuousPolicy.clipMax,
-				right.continuousPolicy.clipMax
-			),
-			noiseStd: crossoverFn(
-				left.continuousPolicy.noiseStd,
-				right.continuousPolicy.noiseStd
-			),
-			noiseDecay: crossoverFn(
-				left.continuousPolicy.noiseDecay,
-				right.continuousPolicy.noiseDecay
-			),
-		},
-
-		replayBuffer: {
-			bufferSize: Math.round(
-				crossoverFn(left.replayBuffer.bufferSize, right.replayBuffer.bufferSize)
-			),
-			prioritized:
-				rng() < 0.5
-					? left.replayBuffer.prioritized
-					: right.replayBuffer.prioritized,
-			alphaPER: crossoverFn(
-				left.replayBuffer.alphaPER,
-				right.replayBuffer.alphaPER
-			),
-			betaPER: crossoverFn(
-				left.replayBuffer.betaPER,
-				right.replayBuffer.betaPER
-			),
-			betaAnneal:
-				rng() < 0.5
-					? left.replayBuffer.betaAnneal
-					: right.replayBuffer.betaAnneal,
-		},
+		rewardShaping: crossoverRewardShaping(
+			left.rewardShaping,
+			right.rewardShaping,
+			crossoverFn,
+			rng
+		),
+		horizon: crossoverHorizon(left.horizon, right.horizon, crossoverFn),
+		discretePolicy: crossoverDiscretePolicy(
+			left.discretePolicy,
+			right.discretePolicy,
+			crossoverFn,
+			rng
+		),
+		continuousPolicy: crossoverContinuousPolicy(
+			left.continuousPolicy,
+			right.continuousPolicy,
+			crossoverFn,
+			rng
+		),
+		replayBuffer: crossoverReplayBuffer(
+			left.replayBuffer,
+			right.replayBuffer,
+			crossoverFn,
+			rng
+		),
 	};
 }
 

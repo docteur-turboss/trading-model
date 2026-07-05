@@ -1,4 +1,5 @@
 import {
+	type CandleData,
 	getAskTotalQty,
 	getAvgAsk,
 	getAvgBid,
@@ -20,7 +21,26 @@ export function buildFeatures(
 	const cur = state.candles[idx];
 	const prev = state.candles[idx - 1];
 
-	// ---- Candle-derived (0-8) ----
+	_buildCandleFeatures(features, state, idx, prev);
+	_buildOrderBookFeatures(features, state);
+	_buildBookTickerFeatures(features, state);
+	_buildTradeFeatures(features, state, cur);
+	_buildTickerFeatures(features, state);
+	_buildPriceSnapshotFeature(features, state, idx, priceSnapshot);
+	_buildSlidingWindowFeatures(features, state, idx);
+
+	features[31] = 1.0;
+
+	return features;
+}
+
+function _buildCandleFeatures(
+	features: Float32Array,
+	state: SymbolState,
+	idx: number,
+	prev: CandleData | undefined
+): void {
+	const cur = state.candles[idx];
 	features[0] = state.closeNorm.normalize(cur.close);
 	features[1] = state.volumeNorm.normalize(cur.volume);
 	features[2] =
@@ -34,8 +54,12 @@ export function buildFeatures(
 
 	const volStd = state.volumeNorm.getStd();
 	features[8] = volStd > 1e-10 ? cur.volume / volStd : 0;
+}
 
-	// ---- Order book (9-12) ----
+function _buildOrderBookFeatures(
+	features: Float32Array,
+	state: SymbolState
+): void {
 	const obAvg = orderBookAverages(state);
 	if (obAvg) {
 		features[9] = state.bidNorm.normalize(obAvg.avgBid);
@@ -47,8 +71,12 @@ export function buildFeatures(
 		const totalQty = obAvg.bidQty + obAvg.askQty;
 		features[12] = totalQty > 0 ? (obAvg.bidQty - obAvg.askQty) / totalQty : 0;
 	}
+}
 
-	// ---- Book ticker (13-15) ----
+function _buildBookTickerFeatures(
+	features: Float32Array,
+	state: SymbolState
+): void {
 	if (state.bookTicker) {
 		const bt = state.bookTicker;
 		features[13] = state.bidNorm.normalize(bt.bid);
@@ -56,8 +84,13 @@ export function buildFeatures(
 		const spread = bt.ask - bt.bid;
 		features[15] = bt.ask > 0 ? spread / bt.ask : 0;
 	}
+}
 
-	// ---- Recent trades (16-18) ----
+function _buildTradeFeatures(
+	features: Float32Array,
+	state: SymbolState,
+	cur: CandleData
+): void {
 	const recentTrades = state.trades.filter(
 		(trade) => trade.timestamp >= cur.timestamp - 60000
 	);
@@ -76,21 +109,37 @@ export function buildFeatures(
 		features[17] = state.tradeQtyNorm.normalize(totalQty);
 		features[18] = totalQty > 0 ? buyQty / totalQty : 0.5;
 	}
+}
 
-	// ---- 24h ticker (19-21) ----
+function _buildTickerFeatures(
+	features: Float32Array,
+	state: SymbolState
+): void {
 	if (state.ticker24h) {
 		const tk = state.ticker24h;
 		features[19] = tk.open > 0 ? (tk.last - tk.open) / tk.open : 0;
 		features[20] = state.tickerVolumeNorm.normalize(tk.volume);
 		features[21] = tk.open > 0 ? (tk.high - tk.low) / tk.open : 0;
 	}
+}
 
-	// ---- Price ticker snapshot (22) ----
+function _buildPriceSnapshotFeature(
+	features: Float32Array,
+	state: SymbolState,
+	idx: number,
+	priceSnapshot: Record<string, number>
+): void {
+	const cur = state.candles[idx];
 	const snapPrice =
 		priceSnapshot[state.candles[idx].symbol as TradingSymbol] ?? cur.close;
 	features[22] = state.closeNorm.normalize(snapPrice);
+}
 
-	// ---- Sliding window: last 8 closes (23-30) ----
+function _buildSlidingWindowFeatures(
+	features: Float32Array,
+	state: SymbolState,
+	idx: number
+): void {
 	const lookbackStart = Math.max(0, idx - 8);
 	let fi = 23;
 	for (let j = lookbackStart; j < idx && fi < 31; j++) {
@@ -99,11 +148,6 @@ export function buildFeatures(
 	while (fi < 31) {
 		features[fi++] = 0;
 	}
-
-	// ---- Bias (31) ----
-	features[31] = 1.0;
-
-	return features;
 }
 
 function orderBookAverages(state: SymbolState): {

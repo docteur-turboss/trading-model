@@ -123,6 +123,21 @@ function mutateRL(
 	_sigma: number,
 	rng: () => number
 ): RLGenome {
+	return {
+		..._mutateGammaAndLR(rl, mutation, rng),
+		..._mutateRewardShaping(rl, mutation, rng),
+		..._mutateHorizon(rl, mutation, rng),
+		..._mutateDiscretePolicy(rl, mutation, rng),
+		..._mutateContinuousPolicy(rl, mutation, rng),
+		..._mutateReplayBuffer(rl, mutation, rng),
+	};
+}
+
+function _mutateGammaAndLR(
+	rl: RLGenome,
+	mutation: MutationGenome,
+	rng: () => number
+): Pick<RLGenome, "gamma" | "learningRate"> {
 	const perturb = (value: number, scale: number) =>
 		value + sampleNoise(mutation.distribution, scale, rng);
 
@@ -133,14 +148,33 @@ function mutateRL(
 			1e-6,
 			1e-1
 		),
+	};
+}
 
+function _mutateRewardShaping(
+	rl: RLGenome,
+	mutation: MutationGenome,
+	rng: () => number
+): Pick<RLGenome, "rewardShaping"> {
+	const perturb = (value: number, scale: number) =>
+		value + sampleNoise(mutation.distribution, scale, rng);
+
+	return {
 		rewardShaping: {
 			...rl.rewardShaping,
 			clipMin: perturb(rl.rewardShaping.clipMin, 0.1),
 			clipMax: perturb(rl.rewardShaping.clipMax, 0.1),
 			scaleFactor: Math.max(0.01, perturb(rl.rewardShaping.scaleFactor, 0.1)),
 		},
+	};
+}
 
+function _mutateHorizon(
+	rl: RLGenome,
+	mutation: MutationGenome,
+	rng: () => number
+): Pick<RLGenome, "horizon"> {
+	return {
 		horizon: {
 			maxEpisodeLength: Math.max(
 				10,
@@ -162,7 +196,18 @@ function mutateRL(
 				)
 			),
 		},
+	};
+}
 
+function _mutateDiscretePolicy(
+	rl: RLGenome,
+	mutation: MutationGenome,
+	rng: () => number
+): Pick<RLGenome, "discretePolicy"> {
+	const perturb = (value: number, scale: number) =>
+		value + sampleNoise(mutation.distribution, scale, rng);
+
+	return {
 		discretePolicy: {
 			...rl.discretePolicy,
 			epsilonStart: clamp(
@@ -182,7 +227,18 @@ function mutateRL(
 			),
 			temperature: Math.max(0.01, perturb(rl.discretePolicy.temperature, 0.1)),
 		},
+	};
+}
 
+function _mutateContinuousPolicy(
+	rl: RLGenome,
+	mutation: MutationGenome,
+	rng: () => number
+): Pick<RLGenome, "continuousPolicy"> {
+	const perturb = (value: number, scale: number) =>
+		value + sampleNoise(mutation.distribution, scale, rng);
+
+	return {
 		continuousPolicy: {
 			...rl.continuousPolicy,
 			noiseStd: Math.max(0.001, perturb(rl.continuousPolicy.noiseStd, 0.02)),
@@ -192,7 +248,18 @@ function mutateRL(
 				0.9999
 			),
 		},
+	};
+}
 
+function _mutateReplayBuffer(
+	rl: RLGenome,
+	mutation: MutationGenome,
+	rng: () => number
+): Pick<RLGenome, "replayBuffer"> {
+	const perturb = (value: number, scale: number) =>
+		value + sampleNoise(mutation.distribution, scale, rng);
+
+	return {
 		replayBuffer: {
 			...rl.replayBuffer,
 			bufferSize: Math.max(
@@ -217,7 +284,23 @@ export function mutateGenome(
 	const mutationConfig = genome.mutation;
 	const sigma = adaptSigma(mutationConfig, rng);
 
-	// ---- Network structure ----
+	const network = _mutateNetworkStructure(genome, mutationConfig, sigma, rng);
+
+	const rl: RLGenome = mutationConfig.mutateHyperparams
+		? mutateRL(genome.rl, mutationConfig, sigma, rng)
+		: { ...genome.rl };
+
+	const mutation = _mutateSelfAdaptiveParams(mutationConfig, sigma, rng);
+
+	return { ...genome, network, rl, mutation };
+}
+
+function _mutateNetworkStructure(
+	genome: LamarckGenome,
+	mutationConfig: MutationGenome,
+	_sigma: number,
+	rng: () => number
+): NetworkGenome {
 	const perLayerMode = mutationConfig.scope === "per_layer";
 	const layers: LayerGenome[] = genome.network.hiddenLayers.map((layer) =>
 		perLayerMode || rng() < mutationConfig.rate
@@ -225,7 +308,6 @@ export function mutateGenome(
 			: { ...layer }
 	);
 
-	// Neuron-level structural ops
 	if (layers.length > 0 && rng() < mutationConfig.addNeuronRate) {
 		const li = Math.floor(rng() * layers.length);
 		layers[li] = { ...layers[li], neurons: layers[li].neurons + 1 };
@@ -238,7 +320,6 @@ export function mutateGenome(
 		};
 	}
 
-	// Layer-level structural ops
 	if (rng() < mutationConfig.addLayerRate) {
 		const newLayer: LayerGenome = {
 			neurons: 16 + Math.floor(rng() * 32),
@@ -252,7 +333,7 @@ export function mutateGenome(
 		layers.splice(Math.floor(rng() * layers.length), 1);
 	}
 
-	const network: NetworkGenome = {
+	return {
 		...genome.network,
 		hiddenLayers: layers,
 		normalization:
@@ -260,14 +341,14 @@ export function mutateGenome(
 				? pick(NORM_TYPES, rng)
 				: genome.network.normalization,
 	};
+}
 
-	// ---- RL hyperparameters ----
-	const rl: RLGenome = mutationConfig.mutateHyperparams
-		? mutateRL(genome.rl, mutationConfig, sigma, rng)
-		: { ...genome.rl };
-
-	// ---- Self-adaptive mutation parameters ----
-	const mutation: MutationGenome = {
+function _mutateSelfAdaptiveParams(
+	mutationConfig: MutationGenome,
+	sigma: number,
+	rng: () => number
+): MutationGenome {
+	return {
 		...mutationConfig,
 		sigma: Math.max(
 			1e-5,
@@ -280,6 +361,4 @@ export function mutateGenome(
 		),
 		rate: clamp(mutationConfig.rate + sampleGaussian(rng, 0.01), 0.001, 0.5),
 	};
-
-	return { ...genome, network, rl, mutation };
 }
