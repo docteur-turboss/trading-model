@@ -1,3 +1,4 @@
+import type http from "node:http";
 import https from "node:https";
 import { logger } from "@trading-model/common/config/logger";
 import type { Request } from "express";
@@ -10,6 +11,52 @@ export interface ProxyResult {
 	headers: Record<string, string | string[]>;
 }
 
+function buildSafeHeaders(req: Request): Record<string, string> {
+	const headers: Record<string, string> = {};
+
+	for (const [key, value] of Object.entries(req.headers)) {
+		const lower = key.toLowerCase();
+		if (
+			lower === "x-api-key" ||
+			lower === "authorization" ||
+			lower === "host" ||
+			lower === "connection" ||
+			lower === "keep-alive"
+		) {
+			continue;
+		}
+		if (typeof value === "string") {
+			headers[key] = value;
+		} else if (Array.isArray(value)) {
+			headers[key] = value.join(", ");
+		}
+	}
+
+	headers["x-forwarded-for"] = req.ip ?? req.socket.remoteAddress ?? "unknown";
+	headers["x-forwarded-proto"] = "https";
+	headers["x-request-id"] =
+		(req.headers["x-request-id"] as string) ?? crypto.randomUUID();
+
+	return headers;
+}
+
+function handleProxyResponse(
+	proxyRes: http.IncomingMessage
+): Promise<ProxyResult> {
+	return new Promise((resolve) => {
+		const chunks: Buffer[] = [];
+		proxyRes.on("data", (chunk: Buffer) => chunks.push(chunk));
+		proxyRes.on("end", () => {
+			const body = Buffer.concat(chunks).toString("utf8");
+			resolve({
+				status: proxyRes.statusCode ?? 503,
+				body,
+				headers: proxyRes.headers as Record<string, string | string[]>,
+			});
+		});
+	});
+}
+
 export function forwardRequest(
 	req: Request,
 	target: ResolvedTarget,
@@ -17,32 +64,7 @@ export function forwardRequest(
 	timeoutMs: number = ENV.PROXY_TIMEOUT_MS
 ): Promise<ProxyResult> {
 	return new Promise((resolve, reject) => {
-		const safeHeaders: Record<string, string> = {};
-
-		for (const [key, value] of Object.entries(req.headers)) {
-			const lower = key.toLowerCase();
-			if (
-				lower === "x-api-key" ||
-				lower === "authorization" ||
-				lower === "host" ||
-				lower === "connection" ||
-				lower === "keep-alive"
-			) {
-				continue;
-			}
-			if (typeof value === "string") {
-				safeHeaders[key] = value;
-			} else if (Array.isArray(value)) {
-				safeHeaders[key] = value.join(", ");
-			}
-		}
-
-		safeHeaders["x-forwarded-for"] =
-			req.ip ?? req.socket.remoteAddress ?? "unknown";
-		safeHeaders["x-forwarded-proto"] = "https";
-		safeHeaders["x-request-id"] =
-			(req.headers["x-request-id"] as string) ?? crypto.randomUUID();
-
+		const safeHeaders = buildSafeHeaders(req);
 		const url = new URL(path, `https://${target.host}:${target.port}`);
 
 		const options: https.RequestOptions = {
@@ -56,17 +78,7 @@ export function forwardRequest(
 		};
 
 		const proxyReq = https.request(options, (proxyRes) => {
-			const chunks: Buffer[] = [];
-
-			proxyRes.on("data", (chunk: Buffer) => chunks.push(chunk));
-			proxyRes.on("end", () => {
-				const body = Buffer.concat(chunks).toString("utf8");
-				resolve({
-					status: proxyRes.statusCode ?? 503,
-					body,
-					headers: proxyRes.headers as Record<string, string | string[]>,
-				});
-			});
+			void handleProxyResponse(proxyRes).then(resolve);
 		});
 
 		proxyReq.on("error", (err) => {
@@ -88,8 +100,7 @@ export function forwardRequest(
 			typeof req.body === "object" &&
 			Object.keys(req.body).length > 0
 		) {
-			const bodyStr = JSON.stringify(req.body);
-			proxyReq.write(bodyStr);
+			proxyReq.write(JSON.stringify(req.body));
 		}
 
 		proxyReq.end();
