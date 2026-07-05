@@ -77,8 +77,42 @@ export async function getDb(): Promise<Db> {
 	return dbPromise;
 }
 
+async function _createIndex(
+	col: Collection,
+	spec: {
+		key: Record<string, 1 | -1>;
+		options?: Record<string, unknown>;
+	},
+	criticalKeys: Set<string>
+): Promise<string | null> {
+	const keyStr = JSON.stringify(spec.key);
+	try {
+		await col.createIndex(spec.key, spec.options);
+		return null;
+	} catch (err) {
+		if (criticalKeys.has(keyStr)) {
+			logger.error(
+				"Critical index creation failed — queries may perform collection scans",
+				{
+					index: spec.key,
+					error: normalizeError(err).message,
+				}
+			);
+			return keyStr;
+		}
+		logger.warn("Index creation skipped", {
+			index: spec.key,
+			error: normalizeError(err).message,
+		});
+		return null;
+	}
+}
+
 async function createCollectionIndexes(col: Collection): Promise<void> {
-	const indexSpecs = [
+	const indexSpecs: {
+		key: Record<string, 1 | -1>;
+		options?: Record<string, unknown>;
+	}[] = [
 		{ key: { topic: 1, createdAt: -1 } },
 		{ key: { createdAt: -1 } },
 		{ key: { createdAt: 1 }, options: { expireAfterSeconds: 30 * 86400 } },
@@ -102,39 +136,13 @@ async function createCollectionIndexes(col: Collection): Promise<void> {
 		{ key: { contentHash: 1, status: 1 }, options: { sparse: true } },
 	];
 
-	const criticalIndexSpecs = CRITICAL_INDEX_KEYS.map((key) => ({ key }));
-	const currentMissing: string[] = [];
-
-	for (const spec of indexSpecs) {
-		try {
-			await col.createIndex(
-				spec.key as unknown as Record<string, 1 | -1>,
-				spec.options
-			);
-		} catch (err) {
-			const keyStr = JSON.stringify(spec.key);
-			const isCritical = criticalIndexSpecs.some(
-				(critSpec) => JSON.stringify(critSpec.key) === keyStr
-			);
-			if (isCritical) {
-				currentMissing.push(keyStr);
-				logger.error(
-					"Critical index creation failed — queries may perform collection scans",
-					{
-						index: spec.key,
-						error: normalizeError(err).message,
-					}
-				);
-			} else {
-				logger.warn("Index creation skipped", {
-					index: spec.key,
-					error: normalizeError(err).message,
-				});
-			}
-		}
-	}
-
-	missingCriticalIndexes = currentMissing;
+	const criticalKeys = new Set(
+		CRITICAL_INDEX_KEYS.map((key) => JSON.stringify({ key }))
+	);
+	const missing = await Promise.all(
+		indexSpecs.map((spec) => _createIndex(col, spec, criticalKeys))
+	);
+	missingCriticalIndexes = missing.filter(Boolean) as string[];
 }
 
 export async function getCollection(): Promise<Collection> {

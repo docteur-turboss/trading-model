@@ -1,11 +1,6 @@
 import { createHash } from "node:crypto";
 
-import {
-	type AnyBulkWriteOperation,
-	type Document,
-	ObjectId,
-	type WithId,
-} from "mongodb";
+import { type Document, ObjectId, type WithId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
@@ -35,7 +30,7 @@ export const DLQ_STATUS: Record<DlqStatus, DlqStatus> = {
 	abandoned: "abandoned",
 };
 
-const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
+export const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 
 export interface StoredDlqEntry {
 	id: string;
@@ -48,15 +43,43 @@ export interface StoredDlqEntry {
 
 const DLQ_MAX_PASS_COUNT = 3;
 
+export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
+	return {
+		id: doc._id.toHexString(),
+		topic: (doc.topic as string | null) ?? null,
+		message: doc.message,
+		reason: (doc.reason as string | null) ?? null,
+		deliveryAttempt: doc.deliveryAttempt as number,
+		createdAt:
+			(doc.createdAt as Date | undefined)?.toISOString() ??
+			new Date().toISOString(),
+	};
+}
+
 export class DlqRepository {
 	async add(entry: DlqEntry): Promise<string> {
 		const col = await getCollection();
 
-		const currentCount = await col.estimatedDocumentCount();
-		if (currentCount >= env.MAX_ENTRIES) {
+		if (await this._isCapacityReached(col)) {
 			throw new DlqCapacityError("DLQ capacity limit reached");
 		}
 
+		const { messageId, contentHash, serialized } = this._computeEntryHash(entry);
+		const doc = await this._checkPingPong(col, contentHash, entry, messageId, serialized);
+
+		return this._insertWithDedup(col, doc, messageId);
+	}
+
+	private async _isCapacityReached(col: import("mongodb").Collection): Promise<boolean> {
+		const currentCount = await col.estimatedDocumentCount();
+		return currentCount >= env.MAX_ENTRIES;
+	}
+
+	private _computeEntryHash(entry: DlqEntry): {
+		messageId: string;
+		contentHash: string;
+		serialized: string;
+	} {
 		const serialized = JSON.stringify({
 			topic: entry.topic,
 			message: entry.message,
@@ -68,6 +91,16 @@ export class DlqRepository {
 
 		const contentHash = createHash("sha256").update(serialized).digest("hex");
 
+		return { messageId, contentHash, serialized };
+	}
+
+	private async _checkPingPong(
+		col: import("mongodb").Collection,
+		contentHash: string,
+		entry: DlqEntry,
+		messageId: string,
+		serialized: string
+	): Promise<Record<string, unknown>> {
 		const prevCompleted = await col.findOne(
 			{
 				contentHash,
@@ -95,6 +128,14 @@ export class DlqRepository {
 			doc.lastError = `Ping-pong detected: message entered DLQ ${dlqPassCount} times`;
 		}
 
+		return doc;
+	}
+
+	private async _insertWithDedup(
+		col: import("mongodb").Collection,
+		doc: Record<string, unknown>,
+		messageId: string
+	): Promise<string> {
 		const existing = await col.findOne(
 			{ messageId },
 			{ projection: { _id: 1 } }
@@ -145,7 +186,7 @@ export class DlqRepository {
 			})
 			.toArray();
 
-		return docs.map((doc) => this._toStoredDlqEntry(doc));
+		return docs.map(toStoredDlqEntry);
 	}
 
 	async delete(ids: string[]): Promise<number> {
@@ -192,225 +233,6 @@ export class DlqRepository {
 		return result.deletedCount;
 	}
 
-	async claimEntriesForRetry(
-		limit: number,
-		batchId: string,
-		instanceId: string,
-		topic?: string
-	): Promise<StoredDlqEntry[]> {
-		const col = await getCollection();
-		const filter = this._buildClaimFilter(topic);
-
-		const candidates = await col
-			.find(filter, {
-				sort: { createdAt: -1 },
-				limit,
-				projection: {
-					_id: 1,
-					topic: 1,
-					message: 1,
-					reason: 1,
-					deliveryAttempt: 1,
-					createdAt: 1,
-				},
-			})
-			.toArray();
-
-		if (candidates.length === 0) {
-			return [];
-		}
-
-		const now = new Date();
-		const operations = this._buildBulkUpdateOps(
-			candidates,
-			now,
-			instanceId,
-			batchId
-		);
-
-		const bulkResult = await col.bulkWrite(operations, { ordered: false });
-		if (bulkResult.modifiedCount === 0) {
-			return [];
-		}
-
-		const candidateIds = candidates.map((doc) => doc._id);
-		const claimedDocs = await col
-			.find(
-				{ _id: { $in: candidateIds }, lastBatchId: batchId },
-				{
-					projection: {
-						_id: 1,
-						topic: 1,
-						message: 1,
-						reason: 1,
-						deliveryAttempt: 1,
-						createdAt: 1,
-					},
-				}
-			)
-			.toArray();
-
-		return claimedDocs.map((doc) => this._toStoredDlqEntry(doc));
-	}
-
-	async releaseStaleClaims(staleThresholdMs = 60_000): Promise<number> {
-		const col = await getCollection();
-		const staleThreshold = new Date(Date.now() - staleThresholdMs);
-		const result = await col.updateMany(
-			{ processingAt: { $lt: staleThreshold } },
-			{ $unset: { processingAt: "", processingInstance: "" } }
-		);
-		return result.modifiedCount;
-	}
-
-	async releaseAllActiveClaims(): Promise<number> {
-		const col = await getCollection();
-		const result = await col.updateMany(
-			{ processingAt: { $exists: true } },
-			{ $unset: { processingAt: "", processingInstance: "" } }
-		);
-		return result.modifiedCount;
-	}
-
-	async releaseClaimsByInstance(instanceId: string): Promise<number> {
-		const col = await getCollection();
-		const result = await col.updateMany(
-			{ processingInstance: instanceId },
-			{ $unset: { processingAt: "", processingInstance: "" } }
-		);
-		return result.modifiedCount;
-	}
-
-	async claimEntriesByIds(
-		ids: string[],
-		batchId: string,
-		instanceId: string
-	): Promise<StoredDlqEntry[]> {
-		if (ids.length === 0) {
-			return [];
-		}
-		const col = await getCollection();
-		const objectIds = ids
-			.filter((id) => ObjectId.isValid(id))
-			.map((id) => new ObjectId(id));
-		if (objectIds.length === 0) {
-			return [];
-		}
-
-		const now = new Date();
-		const atomicCond = this._buildAtomicCondition();
-
-		const operations = objectIds.map((id) => ({
-			updateOne: {
-				filter: { _id: id, ...atomicCond },
-				update: {
-					$set: {
-						processingAt: now,
-						processingInstance: instanceId,
-						lastBatchId: batchId,
-					},
-				},
-			},
-		}));
-
-		await col.bulkWrite(operations, { ordered: false });
-
-		const claimed = await col
-			.find(
-				{ _id: { $in: objectIds }, lastBatchId: batchId },
-				{
-					projection: {
-						_id: 1,
-						topic: 1,
-						message: 1,
-						reason: 1,
-						deliveryAttempt: 1,
-						createdAt: 1,
-					},
-				}
-			)
-			.toArray();
-
-		return claimed.map((doc) => this._toStoredDlqEntry(doc));
-	}
-
-	async claimEntry(
-		id: string,
-		batchId: string,
-		instanceId: string
-	): Promise<StoredDlqEntry | null> {
-		const col = await getCollection();
-		const result = await col.findOneAndUpdate(
-			{
-				_id: new ObjectId(id),
-				retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
-				processingAt: { $exists: false },
-				status: { $nin: [DLQ_STATUS.completed, DLQ_STATUS.abandoned] },
-				consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
-			},
-			{
-				$set: {
-					processingAt: new Date(),
-					processingInstance: instanceId,
-					lastBatchId: batchId,
-				},
-			},
-			{
-				returnDocument: "after",
-				projection: {
-					_id: 1,
-					topic: 1,
-					message: 1,
-					reason: 1,
-					deliveryAttempt: 1,
-					createdAt: 1,
-				},
-			}
-		);
-		if (!result) {
-			return null;
-		}
-		return this._toStoredDlqEntry(result);
-	}
-
-	async releaseClaimWithoutCount(id: string): Promise<void> {
-		const col = await getCollection();
-		const filter: Record<string, unknown> = { _id: new ObjectId(id) };
-		await col.updateOne(filter, {
-			$unset: { processingAt: "", processingInstance: "" },
-		});
-	}
-
-	async abandonExhaustedEntries(): Promise<number> {
-		const col = await getCollection();
-		const result = await col.updateMany(
-			{
-				status: { $ne: DLQ_STATUS.abandoned },
-				processingAt: { $exists: false },
-				$or: [
-					{ retryCount: { $gte: env.DLQ_RETRY_MAX_ATTEMPTS } },
-					{ consecutiveErrors: { $gte: DLQ_MAX_CONSECUTIVE_ERRORS } },
-				],
-			},
-			{ $set: { status: DLQ_STATUS.abandoned, abandonedAt: new Date() } }
-		);
-		return result.modifiedCount;
-	}
-
-	async markRetried(
-		id: string,
-		instanceId: string,
-		batchId?: string,
-		success = true,
-		errorMsg?: string
-	): Promise<void> {
-		if (success) {
-			await this._markAsCompleted(id, instanceId, batchId);
-			return;
-		}
-		await this._markAsFailed(id, errorMsg);
-	}
-
 	async listQueuable(): Promise<string[]> {
 		const col = await getCollection();
 		const docs = await col
@@ -443,176 +265,6 @@ export class DlqRepository {
 			)
 			.toArray();
 		return docs.map((doc) => doc._id.toHexString());
-	}
-
-	async incrementRetryCount(id: string): Promise<boolean> {
-		const col = await getCollection();
-		const result = await col.updateOne(
-			{ _id: new ObjectId(id) },
-			{ $inc: { retryCount: 1 } }
-		);
-		return result.modifiedCount > 0;
-	}
-
-	private _toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
-		return {
-			id: doc._id.toHexString(),
-			topic: (doc.topic as string | null) ?? null,
-			message: doc.message,
-			reason: (doc.reason as string | null) ?? null,
-			deliveryAttempt: doc.deliveryAttempt as number,
-			createdAt:
-				(doc.createdAt as Date | undefined)?.toISOString() ??
-				new Date().toISOString(),
-		};
-	}
-
-	private _buildClaimFilter(topic?: string): Record<string, unknown> {
-		const statusFilter: Record<string, unknown> = {
-			$nin: [DLQ_STATUS.completed, DLQ_STATUS.abandoned],
-		};
-		const filter: Record<string, unknown> = {
-			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
-			processingAt: { $exists: false },
-			status: statusFilter,
-			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
-		};
-		if (topic) {
-			filter.topic = topic;
-		}
-		return filter;
-	}
-
-	private _buildAtomicCondition(): Record<string, unknown> {
-		return {
-			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
-			processingAt: { $exists: false },
-			status: { $nin: [DLQ_STATUS.completed, DLQ_STATUS.abandoned] },
-			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
-		};
-	}
-
-	private _buildBulkUpdateOps(
-		candidates: Pick<WithId<Document>, "_id">[],
-		now: Date,
-		instanceId: string,
-		batchId: string
-	): AnyBulkWriteOperation[] {
-		const atomicCond = this._buildAtomicCondition();
-		return candidates.map((doc) => ({
-			updateOne: {
-				filter: { _id: doc._id, ...atomicCond },
-				update: {
-					$set: {
-						processingAt: now,
-						processingInstance: instanceId,
-						lastBatchId: batchId,
-					},
-				},
-			},
-		}));
-	}
-
-	private async _markAsCompleted(
-		id: string,
-		instanceId: string,
-		batchId?: string
-	): Promise<void> {
-		const col = await getCollection();
-		const entry = await col.findOne(
-			{ _id: new ObjectId(id) },
-			{ projection: { status: 1, processingInstance: 1 } }
-		);
-		if (entry?.status === DLQ_STATUS.abandoned) {
-			return;
-		}
-		await col.updateOne(
-			{ _id: new ObjectId(id), processingInstance: instanceId },
-			{
-				$set: {
-					status: DLQ_STATUS.completed,
-					completedAt: new Date(),
-					lastBatchId: batchId,
-				},
-				$unset: { processingAt: "", processingInstance: "" },
-			}
-		);
-	}
-
-	private _buildFailPipeline(errorMsg?: string): Record<string, unknown>[] {
-		return [
-			{
-				$set: {
-					consecutiveErrors: {
-						$cond: [
-							{ $eq: ["$lastError", errorMsg ?? "Replay failed"] },
-							{ $add: [{ $ifNull: ["$consecutiveErrors", 0] }, 1] },
-							1,
-						],
-					},
-				},
-			},
-			{
-				$set: {
-					retryCount: { $add: ["$retryCount", 1] },
-					lastRetryAt: new Date(),
-					lastError: errorMsg ?? "Replay failed",
-				},
-			},
-			{
-				$set: {
-					status: {
-						$cond: [
-							{
-								$or: [
-									{ $gte: ["$retryCount", env.DLQ_RETRY_MAX_ATTEMPTS] },
-									{
-										$gte: ["$consecutiveErrors", DLQ_MAX_CONSECUTIVE_ERRORS],
-									},
-								],
-							},
-							DLQ_STATUS.abandoned,
-							"$$REMOVE",
-						],
-					},
-					abandonedAt: {
-						$cond: [
-							{
-								$or: [
-									{ $gte: ["$retryCount", env.DLQ_RETRY_MAX_ATTEMPTS] },
-									{
-										$gte: ["$consecutiveErrors", DLQ_MAX_CONSECUTIVE_ERRORS],
-									},
-								],
-							},
-							new Date(),
-							"$$REMOVE",
-						],
-					},
-				},
-			},
-			{ $unset: ["processingAt", "processingInstance"] },
-		];
-	}
-
-	private async _markAsFailed(id: string, errorMsg?: string): Promise<void> {
-		const col = await getCollection();
-		const failFilter: Record<string, unknown> = {
-			_id: new ObjectId(id),
-			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
-		};
-		const updated = await col.findOneAndUpdate(
-			failFilter,
-			this._buildFailPipeline(errorMsg),
-			{ returnDocument: "after", projection: { _id: 1 } }
-		);
-
-		if (!updated) {
-			await col.updateOne(
-				{ _id: new ObjectId(id) },
-				{ $unset: { processingAt: "", processingInstance: "" } }
-			);
-		}
 	}
 }
 

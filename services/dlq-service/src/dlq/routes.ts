@@ -37,14 +37,8 @@ function verifySignature(req: Request, serviceName: string): boolean {
 	const provided = (req.headers["x-signature"] as string) || "";
 	const timestampStr = (req.headers["x-timestamp"] as string) || "";
 
-	if (!(timestampStr && provided)) {
-		return false;
-	}
-	const timestamp = Number.parseInt(timestampStr, 10);
-	if (Number.isNaN(timestamp)) {
-		return false;
-	}
-	if (Math.abs(Date.now() - timestamp) > 300_000) {
+	const timestamp = _validateTimestamp(timestampStr, provided);
+	if (timestamp === null) {
 		return false;
 	}
 
@@ -60,41 +54,45 @@ function verifySignature(req: Request, serviceName: string): boolean {
 
 	const bodyHash = createHash("sha256").update(bodyString).digest("hex");
 
-	const newParts = [
-		serviceName,
-		timestampStr,
-		bodyHash,
-		req.method,
-		req.path,
-	].join(":");
-	const expectedNew = createHmac("sha256", secret)
-		.update(newParts)
-		.digest("hex");
-	if (
-		provided.length === expectedNew.length &&
-		timingSafeEqual(Buffer.from(provided), Buffer.from(expectedNew))
-	) {
+	const parts = [serviceName, timestampStr, bodyHash, req.method, req.path];
+	if (_matchSignature(provided, secret, parts)) {
 		return true;
 	}
 
-	const oldParts = [
-		serviceName,
-		timestampStr,
-		bodyString,
-		req.method,
-		req.path,
-	].join(":");
-	const expectedOld = createHmac("sha256", secret)
-		.update(oldParts)
-		.digest("hex");
-	if (
-		provided.length === expectedOld.length &&
-		timingSafeEqual(Buffer.from(provided), Buffer.from(expectedOld))
-	) {
-		return true;
-	}
+	const oldParts = [serviceName, timestampStr, bodyString, req.method, req.path];
 
-	return false;
+	return _matchSignature(provided, secret, oldParts);
+}
+
+function _validateTimestamp(
+	timestampStr: string,
+	provided: string
+): number | null {
+	if (!(timestampStr && provided)) {
+		return null;
+	}
+	const timestamp = Number.parseInt(timestampStr, 10);
+	if (Number.isNaN(timestamp)) {
+		return null;
+	}
+	if (Math.abs(Date.now() - timestamp) > 300_000) {
+		return null;
+	}
+	return timestamp;
+}
+
+function _matchSignature(
+	provided: string,
+	secret: string,
+	parts: string[]
+): boolean {
+	const expected = createHmac("sha256", secret)
+		.update(parts.join(":"))
+		.digest("hex");
+	return (
+		provided.length === expected.length &&
+		timingSafeEqual(Buffer.from(provided), Buffer.from(expected))
+	);
 }
 
 function serviceAuth(req: Request, res: Response, next: NextFunction): void {

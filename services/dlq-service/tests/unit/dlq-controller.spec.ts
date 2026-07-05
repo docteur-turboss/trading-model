@@ -5,10 +5,6 @@ const mockList = jest.fn();
 const mockDelete = jest.fn();
 const mockCount = jest.fn();
 const mockPrune = jest.fn();
-const mockClaimEntriesForRetry = jest.fn();
-const mockReleaseStaleClaims = jest.fn();
-const mockClaimEntry = jest.fn();
-const mockIncrementRetryCount = jest.fn();
 const mockListQueuable = jest.fn();
 
 jest.mock("../../src/dlq/repository", () => ({
@@ -19,11 +15,31 @@ jest.mock("../../src/dlq/repository", () => ({
 		delete: mockDelete,
 		count: mockCount,
 		prune: mockPrune,
+		listQueuable: mockListQueuable,
+	},
+}));
+
+const mockClaimEntriesForRetry = jest.fn();
+const mockReleaseStaleClaims = jest.fn();
+const mockClaimEntry = jest.fn();
+const mockIncrementRetryCount = jest.fn();
+
+jest.mock("../../src/dlq/claim-manager", () => ({
+	dlqClaimManager: {
 		claimEntriesForRetry: mockClaimEntriesForRetry,
 		releaseStaleClaims: mockReleaseStaleClaims,
 		claimEntry: mockClaimEntry,
 		incrementRetryCount: mockIncrementRetryCount,
-		listQueuable: mockListQueuable,
+		releaseClaimWithoutCount: jest.fn(),
+		releaseAllActiveClaims: jest.fn(),
+		releaseClaimsByInstance: jest.fn(),
+	},
+}));
+
+jest.mock("../../src/dlq/retry-manager", () => ({
+	dlqRetryManager: {
+		markRetried: jest.fn(),
+		abandonExhaustedEntries: jest.fn(),
 	},
 }));
 

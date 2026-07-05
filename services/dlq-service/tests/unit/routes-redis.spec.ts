@@ -49,11 +49,25 @@ jest.mock("../../src/dlq/repository", () => ({
 		delete: jest.fn(),
 		count: jest.fn(),
 		prune: jest.fn(),
-		markRetried: jest.fn(),
-		abandonExhaustedEntries: jest.fn(),
+		listQueuable: jest.fn(),
+	},
+}));
+
+jest.mock("../../src/dlq/claim-manager", () => ({
+	dlqClaimManager: {
+		claimEntriesForRetry: jest.fn(),
+		releaseStaleClaims: jest.fn(),
 		releaseClaimWithoutCount: jest.fn(),
 		incrementRetryCount: jest.fn(),
-		listQueuable: jest.fn(),
+		releaseAllActiveClaims: jest.fn(),
+		releaseClaimsByInstance: jest.fn(),
+	},
+}));
+
+jest.mock("../../src/dlq/retry-manager", () => ({
+	dlqRetryManager: {
+		markRetried: jest.fn(),
+		abandonExhaustedEntries: jest.fn(),
 	},
 }));
 

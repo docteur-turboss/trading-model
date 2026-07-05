@@ -65,16 +65,6 @@ describe("DlqRepository", () => {
 			delete: (...args: never[]) => Promise<number>;
 			count: (...args: never[]) => Promise<number>;
 			prune: (...args: never[]) => Promise<number>;
-			claimEntriesForRetry: (
-				...args: never[]
-			) => Promise<Record<string, unknown>[]>;
-			claimEntry: (...args: never[]) => Promise<Record<string, unknown> | null>;
-			markRetried: (...args: never[]) => Promise<void>;
-			releaseStaleClaims: (...args: never[]) => Promise<number>;
-			releaseAllActiveClaims: (...args: never[]) => Promise<number>;
-			releaseClaimsByInstance: (...args: never[]) => Promise<number>;
-			abandonExhaustedEntries: (...args: never[]) => Promise<number>;
-			incrementRetryCount: (...args: never[]) => Promise<boolean>;
 			listQueuable: (...args: never[]) => Promise<string[]>;
 		};
 	};
@@ -329,6 +319,28 @@ describe("DlqRepository", () => {
 			});
 		});
 	});
+});
+
+describe("DlqClaimManager", () => {
+	let DlqClaimManagerClass: {
+		new (): {
+			claimEntriesForRetry: (
+				...args: never[]
+			) => Promise<Record<string, unknown>[]>;
+			claimEntry: (
+				...args: never[]
+			) => Promise<Record<string, unknown> | null>;
+			releaseStaleClaims: (...args: never[]) => Promise<number>;
+			releaseAllActiveClaims: (...args: never[]) => Promise<number>;
+			releaseClaimsByInstance: (...args: never[]) => Promise<number>;
+			incrementRetryCount: (...args: never[]) => Promise<boolean>;
+		};
+	};
+
+	beforeAll(() => {
+		const mod = jest.requireActual("../../src/dlq/claim-manager");
+		DlqClaimManagerClass = mod.DlqClaimManager;
+	});
 
 	describe("claimEntriesForRetry", () => {
 		beforeEach(() => {
@@ -339,7 +351,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should claim entries via bulkWrite (2 round-trips instead of N)", () => {
-			const repo = new DlqRepositoryClass();
+			const cm = new DlqClaimManagerClass();
 			const fakeDoc1 = {
 				_id: { toHexString: () => "id1" },
 				topic: "t1",
@@ -363,7 +375,7 @@ describe("DlqRepository", () => {
 				.mockReturnValueOnce(createCursor(fakeDocs));
 			mockBulkWrite.mockResolvedValueOnce({ modifiedCount: 2 });
 
-			return repo
+			return cm
 				.claimEntriesForRetry(10, "batch-1", "instance-1")
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(2);
@@ -383,9 +395,9 @@ describe("DlqRepository", () => {
 		});
 
 		it("should return empty if no candidates found", () => {
-			const repo = new DlqRepositoryClass();
+			const cm = new DlqClaimManagerClass();
 
-			return repo
+			return cm
 				.claimEntriesForRetry(10, "batch-1", "instance-1")
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(0);
@@ -394,7 +406,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should skip documents already claimed (bulkWrite modifiedCount < candidates)", () => {
-			const repo = new DlqRepositoryClass();
+			const cm = new DlqClaimManagerClass();
 			const fakeDoc1 = {
 				_id: { toHexString: () => "id1" },
 				topic: "t1",
@@ -418,7 +430,7 @@ describe("DlqRepository", () => {
 				.mockReturnValueOnce(createCursor([fakeDoc2]));
 			mockBulkWrite.mockResolvedValueOnce({ modifiedCount: 1 });
 
-			return repo
+			return cm
 				.claimEntriesForRetry(10, "batch-1", "instance-1")
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(1);
@@ -429,7 +441,7 @@ describe("DlqRepository", () => {
 
 	describe("claimEntry", () => {
 		it("should claim a single entry by ID via findOneAndUpdate", () => {
-			const repo = new DlqRepositoryClass();
+			const cm = new DlqClaimManagerClass();
 			const fakeDoc = {
 				_id: { toHexString: () => "id1" },
 				topic: "t1",
@@ -440,7 +452,7 @@ describe("DlqRepository", () => {
 			};
 			mockFindOneAndUpdate.mockResolvedValueOnce(fakeDoc);
 
-			return repo
+			return cm
 				.claimEntry("aaaaaaaaaaaaaaaaaaaaaaaa", "batch-1", "instance-1")
 				.then((result) => {
 					expect(result).not.toBeNull();
@@ -465,10 +477,10 @@ describe("DlqRepository", () => {
 		});
 
 		it("should return null if entry is already claimed or completed", () => {
-			const repo = new DlqRepositoryClass();
+			const cm = new DlqClaimManagerClass();
 			mockFindOneAndUpdate.mockResolvedValueOnce(null);
 
-			return repo
+			return cm
 				.claimEntry("aaaaaaaaaaaaaaaaaaaaaaaa", "batch-1", "instance-1")
 				.then((result) => {
 					expect(result).toBeNull();
@@ -478,10 +490,10 @@ describe("DlqRepository", () => {
 
 	describe("releaseStaleClaims", () => {
 		it("should unset processingAt for stale entries", () => {
-			const repo = new DlqRepositoryClass();
+			const cm = new DlqClaimManagerClass();
 			mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 5 });
 
-			return repo.releaseStaleClaims(30_000).then((result: number) => {
+			return cm.releaseStaleClaims(30_000).then((result: number) => {
 				expect(result).toBe(5);
 				expect(mockUpdateMany).toHaveBeenCalledWith(
 					{ processingAt: { $lt: expect.any(Date) } },
@@ -493,10 +505,10 @@ describe("DlqRepository", () => {
 
 	describe("releaseAllActiveClaims", () => {
 		it("should unset processingAt for all entries with active claims", () => {
-			const repo = new DlqRepositoryClass();
+			const cm = new DlqClaimManagerClass();
 			mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 3 });
 
-			return repo.releaseAllActiveClaims().then((result: number) => {
+			return cm.releaseAllActiveClaims().then((result: number) => {
 				expect(result).toBe(3);
 				expect(mockUpdateMany).toHaveBeenCalledWith(
 					{ processingAt: { $exists: true } },
@@ -508,10 +520,10 @@ describe("DlqRepository", () => {
 
 	describe("releaseClaimsByInstance", () => {
 		it("should unset processingAt for claims of the specified instance", () => {
-			const repo = new DlqRepositoryClass();
+			const cm = new DlqClaimManagerClass();
 			mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 2 });
 
-			return repo
+			return cm
 				.releaseClaimsByInstance("instance-1")
 				.then((result: number) => {
 					expect(result).toBe(2);
@@ -522,13 +534,27 @@ describe("DlqRepository", () => {
 				});
 		});
 	});
+});
+
+describe("DlqRetryManager", () => {
+	let DlqRetryManagerClass: {
+		new (): {
+			markRetried: (...args: never[]) => Promise<void>;
+			abandonExhaustedEntries: (...args: never[]) => Promise<number>;
+		};
+	};
+
+	beforeAll(() => {
+		const mod = jest.requireActual("../../src/dlq/retry-manager");
+		DlqRetryManagerClass = mod.DlqRetryManager;
+	});
 
 	describe("abandonExhaustedEntries", () => {
 		it("should mark entries as abandoned", () => {
-			const repo = new DlqRepositoryClass();
+			const rm = new DlqRetryManagerClass();
 			mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 3 });
 
-			return repo.abandonExhaustedEntries().then((result: number) => {
+			return rm.abandonExhaustedEntries().then((result: number) => {
 				expect(result).toBe(3);
 				expect(mockUpdateMany).toHaveBeenCalledWith(
 					{
@@ -558,11 +584,11 @@ describe("DlqRepository", () => {
 		});
 
 		it("should set completed status on success without incrementing retryCount", () => {
-			const repo = new DlqRepositoryClass();
+			const rm = new DlqRetryManagerClass();
 			mockFindOne.mockResolvedValue(null);
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
-			return repo
+			return rm
 				.markRetried("aaaaaaaaaaaaaaaaaaaaaaaa", "instance-1", "batch-1", true)
 				.then(() => {
 					expect(mockFindOne).toHaveBeenCalledWith(
@@ -584,11 +610,16 @@ describe("DlqRepository", () => {
 		});
 
 		it("should increment retryCount and set lastError on failure via aggregation pipeline", () => {
-			const repo = new DlqRepositoryClass();
+			const rm = new DlqRetryManagerClass();
 			mockFindOneAndUpdate.mockResolvedValue({ _id: "id1" });
 
-			return repo
-				.markRetried("aaaaaaaaaaaaaaaaaaaaaaaa", "instance-1", "batch-1", false)
+			return rm
+				.markRetried(
+					"aaaaaaaaaaaaaaaaaaaaaaaa",
+					"instance-1",
+					"batch-1",
+					false
+				)
 				.then(() => {
 					expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
 						{ _id: expect.any(Object), retryCount: { $lt: 3 } },
@@ -607,10 +638,10 @@ describe("DlqRepository", () => {
 		});
 
 		it("should skip update on abandoned entry for success path", () => {
-			const repo = new DlqRepositoryClass();
+			const rm = new DlqRetryManagerClass();
 			mockFindOne.mockResolvedValue({ _id: "id1", status: "abandoned" });
 
-			return repo
+			return rm
 				.markRetried("aaaaaaaaaaaaaaaaaaaaaaaa", "instance-1", "batch-1", true)
 				.then(() => {
 					expect(mockFindOne).toHaveBeenCalled();
@@ -619,12 +650,17 @@ describe("DlqRepository", () => {
 		});
 
 		it("should release claim on failure when retryCount already at max", () => {
-			const repo = new DlqRepositoryClass();
+			const rm = new DlqRetryManagerClass();
 			mockFindOneAndUpdate.mockResolvedValue(null);
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
-			return repo
-				.markRetried("aaaaaaaaaaaaaaaaaaaaaaaa", "instance-1", "batch-1", false)
+			return rm
+				.markRetried(
+					"aaaaaaaaaaaaaaaaaaaaaaaa",
+					"instance-1",
+					"batch-1",
+					false
+				)
 				.then(() => {
 					expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(1);
 					expect(mockUpdateOne).toHaveBeenCalledWith(

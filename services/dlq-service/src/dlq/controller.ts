@@ -4,7 +4,10 @@ import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { sendResponse } from "@trading-model/common/middleware/response-exception";
+import {
+	type ResponseObject,
+	sendResponse,
+} from "@trading-model/common/middleware/response-exception";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
@@ -15,7 +18,9 @@ import { env } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
+import { dlqClaimManager } from "./claim-manager";
 import { DlqCapacityError, dlqRepository } from "./repository";
+import { dlqRetryManager } from "./retry-manager";
 
 const tracer = trace.getTracer("dlq-service");
 
@@ -177,6 +182,55 @@ function recordMMResult(success: boolean): void {
 	}
 }
 
+async function _deliverMessage(
+	entry: { id: string; message: unknown },
+	messageManagerUrl: string,
+	client: HttpClient
+): Promise<void> {
+	if (shuttingDown) {
+		throw new Error("Server shutting down");
+	}
+	await client.post(`${messageManagerUrl}/message`, entry.message, {
+		timeoutMs: 10_000,
+		serviceName: ServiceInstanceName.MessageDeliveryService,
+		retryCount: 3,
+	});
+}
+
+async function _handleDeliveryMarkFailed(
+	entryId: string,
+	instanceId: string,
+	batchId: string,
+	httpError: string
+): Promise<void> {
+	try {
+		await dlqRetryManager.markRetried(
+			entryId,
+			instanceId,
+			batchId,
+			false,
+			httpError
+		);
+	} catch (markErr) {
+		logger.error(
+			"Failed to mark entry as failed — releasing claim without count",
+			{ entryId, error: (markErr as Error).message }
+		);
+		await dlqClaimManager.incrementRetryCount(entryId).catch((err) => {
+			logger.error(
+				"CRITICAL: Failed to increment retryCount after markRetried failure",
+				{ entryId, error: (err as Error).message }
+			);
+		});
+		await dlqClaimManager.releaseClaimWithoutCount(entryId).catch((err) => {
+			logger.error("CRITICAL: Failed to release claim after error", {
+				entryId,
+				error: (err as Error).message,
+			});
+		});
+	}
+}
+
 async function replaySingleEntry(
 	entry: { id: string; message: unknown },
 	messageManagerUrl: string,
@@ -186,63 +240,16 @@ async function replaySingleEntry(
 	batchTimedOut: () => boolean,
 	activeReplays: ActiveReplayCounter
 ): Promise<void> {
-	let delivered = false;
+	activeReplays.increment();
 	try {
-		activeReplays.increment();
-		if (shuttingDown) {
-			throw new Error("Server shutting down");
-		}
-		await client.post(`${messageManagerUrl}/message`, entry.message, {
-			timeoutMs: 10_000,
-			serviceName: ServiceInstanceName.MessageDeliveryService,
-			retryCount: 3,
-		});
-		delivered = true;
-		await dlqRepository.markRetried(entry.id, instanceId, batchId, true);
+		await _deliverMessage(entry, messageManagerUrl, client);
+		await dlqRetryManager.markRetried(entry.id, instanceId, batchId, true);
 	} catch (err) {
 		if (batchTimedOut()) {
 			throw err;
 		}
-		if (delivered) {
-			logger.warn(
-				"Message delivered but failed to mark as completed — releasing claim",
-				{ entryId: entry.id, error: (err as Error).message }
-			);
-			await dlqRepository.releaseClaimWithoutCount(entry.id).catch((err) => {
-				logger.error(
-					"CRITICAL: Failed to release claim after successful delivery",
-					{ entryId: entry.id, error: (err as Error).message }
-				);
-			});
-			return;
-		}
 		const httpError = (err as Error).message;
-		try {
-			await dlqRepository.markRetried(
-				entry.id,
-				instanceId,
-				batchId,
-				false,
-				httpError
-			);
-		} catch (markErr) {
-			logger.error(
-				"Failed to mark entry as failed — releasing claim without count",
-				{ entryId: entry.id, error: (markErr as Error).message }
-			);
-			await dlqRepository.incrementRetryCount(entry.id).catch((err) => {
-				logger.error(
-					"CRITICAL: Failed to increment retryCount after markRetried failure",
-					{ entryId: entry.id, error: (err as Error).message }
-				);
-			});
-			await dlqRepository.releaseClaimWithoutCount(entry.id).catch((err) => {
-				logger.error("CRITICAL: Failed to release claim after error", {
-					entryId: entry.id,
-					error: (err as Error).message,
-				});
-			});
-		}
+		await _handleDeliveryMarkFailed(entry.id, instanceId, batchId, httpError);
 		throw err;
 	} finally {
 		activeReplays.decrement();
@@ -322,6 +329,62 @@ function waitForBatchTimeout(
 	});
 }
 
+function _rejectAll(
+	entries: Array<{ id: string; message: unknown }>,
+	error: string
+): { success: number; errors: Array<{ id: string; error: string }> } {
+	return {
+		success: 0,
+		errors: entries.map((entry) => ({ id: entry.id, error })),
+	};
+}
+
+async function _runBatchWithTimeout(
+	entries: Array<{ id: string; message: unknown }>,
+	client: HttpClient,
+	messageManagerUrl: string,
+	batchId: string,
+	instanceId: string
+): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
+	const ReplayConcurrency = 10;
+	const ReplayBatchTimeoutMs = 120_000;
+	let batchTimedOut = false;
+	const successCount = { value: 0 };
+	const errors: Array<{ id: string; error: string }> = [];
+
+	const batchLoop = runBatchLoop(
+		entries,
+		client,
+		messageManagerUrl,
+		batchId,
+		instanceId,
+		ReplayConcurrency,
+		() => batchTimedOut,
+		successCount,
+		errors
+	);
+
+	const timeoutPromise = waitForBatchTimeout(
+		batchId,
+		ReplayBatchTimeoutMs,
+		() => {
+			batchTimedOut = true;
+		}
+	);
+
+	await Promise.race([batchLoop, timeoutPromise]);
+
+	if (batchTimedOut) {
+		try {
+			await batchLoop;
+		} catch {
+			/* errors handled internally */
+		}
+	}
+
+	return { success: successCount.value, errors };
+}
+
 async function doReplayBatch(
 	entries: Array<{ id: string; message: unknown }>,
 	messageManagerUrl: string,
@@ -334,13 +397,7 @@ async function doReplayBatch(
 			entryCount: entries.length,
 			activeBatches,
 		});
-		return {
-			success: 0,
-			errors: entries.map((entry) => ({
-				id: entry.id,
-				error: "Too many concurrent replay batches",
-			})),
-		};
+		return _rejectAll(entries, "Too many concurrent replay batches");
 	}
 
 	if (isMMCircuitOpen() && entries.length > 0) {
@@ -351,56 +408,22 @@ async function doReplayBatch(
 				entryCount: entries.length,
 			}
 		);
-		return {
-			success: 0,
-			errors: entries.map((entry) => ({
-				id: entry.id,
-				error: "Message-manager circuit breaker open",
-			})),
-		};
+		return _rejectAll(entries, "Message-manager circuit breaker open");
 	}
 
 	activeBatches++;
 	try {
 		const client = await getHttpClient();
-		const ReplayConcurrency = 10;
-		const ReplayBatchTimeoutMs = 120_000;
-		let batchTimedOut = false;
-		const successCount = { value: 0 };
-		const errors: Array<{ id: string; error: string }> = [];
-
-		const batchLoop = runBatchLoop(
+		const { success, errors } = await _runBatchWithTimeout(
 			entries,
 			client,
 			messageManagerUrl,
 			batchId,
-			instanceId,
-			ReplayConcurrency,
-			() => batchTimedOut,
-			successCount,
-			errors
+			instanceId
 		);
 
-		const timeoutPromise = waitForBatchTimeout(
-			batchId,
-			ReplayBatchTimeoutMs,
-			() => {
-				batchTimedOut = true;
-			}
-		);
-
-		await Promise.race([batchLoop, timeoutPromise]);
-
-		if (batchTimedOut) {
-			try {
-				await batchLoop;
-			} catch {
-				/* errors handled internally */
-			}
-		}
-
-		recordMMResult(successCount.value > 0);
-		return { success: successCount.value, errors };
+		recordMMResult(success > 0);
+		return { success, errors };
 	} finally {
 		activeBatches--;
 	}
@@ -455,7 +478,7 @@ function notifyAbandonAudit(count: number): void {
 }
 
 async function handleAbandonedEntries(source: string): Promise<void> {
-	const abandoned = await dlqRepository.abandonExhaustedEntries();
+	const abandoned = await dlqRetryManager.abandonExhaustedEntries();
 	if (abandoned > 0) {
 		logger.warn(`${source}: ${abandoned} entries abandoned after max retries`);
 		notifyAbandonAudit(abandoned);
@@ -476,103 +499,127 @@ function notifyDeleteAudit(ids: string[], deleted: number): void {
 	});
 }
 
+function _validationFail(
+	span: import("@opentelemetry/api").Span,
+	message: string,
+	httpCode: number,
+	extra?: Record<string, string>
+): { valid: false; response: ResponseObject } {
+	span.setStatus({ code: SpanStatusCode.ERROR, message });
+	span.end();
+	return {
+		valid: false,
+		response: sendResponse({ error: message, ...extra }, httpCode),
+	};
+}
+
+function validateAddEntryBody(
+	body: unknown,
+	span: import("@opentelemetry/api").Span
+):
+	| { valid: false; response: ResponseObject }
+	| { valid: true; data: z.infer<typeof DlqEntrySchema> } {
+	const parsed = DlqEntrySchema.safeParse(body);
+	if (!parsed.success) {
+		return _validationFail(span, parsed.error.message, 400);
+	}
+
+	span.setAttribute("topic", parsed.data.topic ?? "");
+	span.setAttribute("reason", parsed.data.reason ?? "");
+
+	const messageStr = JSON.stringify(parsed.data.message);
+	const msgSize = Buffer.byteLength(messageStr, "utf8");
+	if (msgSize > MAX_MESSAGE_BYTES) {
+		return _validationFail(
+			span,
+			"Message payload exceeds maximum size of 5MB",
+			400
+		);
+	}
+
+	if (!isDbConnected()) {
+		return _validationFail(
+			span,
+			"Storage unavailable — message not persisted. Retry later.",
+			503,
+			{ code: "STORAGE_UNAVAILABLE" }
+		);
+	}
+
+	return { valid: true, data: parsed.data };
+}
+
+async function pushToRedisQueue(id: string): Promise<void> {
+	try {
+		await Promise.race([
+			dlqRedisQueue.push(id),
+			new Promise<void>((_, reject) => {
+				const timer = setTimeout(
+					() => reject(new Error("Redis push timeout")),
+					2000
+				);
+				timer.unref();
+			}),
+		]);
+	} catch (err) {
+		logger.warn("Failed to push entry to Redis queue", {
+			entryId: id,
+			error: (err as Error)?.message,
+		});
+	}
+}
+
+function handleAddEntryError(
+	err: unknown,
+	span: import("@opentelemetry/api").Span
+): ResponseObject {
+	if (err instanceof DlqCapacityError) {
+		span.setStatus({
+			code: SpanStatusCode.ERROR,
+			message: "DLQ capacity limit reached",
+		});
+		span.end();
+		return sendResponse(
+			{ error: "DLQ capacity limit reached, entry rejected" },
+			429
+		);
+	}
+	logger.error("Failed to persist DLQ entry — storage error", {
+		error: normalizeError(err).message,
+	});
+	span.recordException(err as Error);
+	span.setStatus({
+		code: SpanStatusCode.ERROR,
+		message: (err as Error).message,
+	});
+	span.end();
+	return sendResponse(
+		{
+			error: "Storage unavailable — message not persisted. Retry later.",
+			code: "STORAGE_UNAVAILABLE",
+		},
+		503
+	);
+}
+
 export const AddEntry = catchSync((req) => {
 	return tracer.startActiveSpan("dlq-add-entry", async (span) => {
 		try {
-			const parsed = DlqEntrySchema.safeParse(req.body);
-			if (!parsed.success) {
-				span.setStatus({
-					code: SpanStatusCode.ERROR,
-					message: parsed.error.message,
-				});
-				span.end();
-				return sendResponse({ error: parsed.error.message }, 400);
+			const validation = validateAddEntryBody(req.body, span);
+			if (!validation.valid) {
+				return validation.response;
 			}
 
-			span.setAttribute("topic", parsed.data.topic ?? "");
-			span.setAttribute("reason", parsed.data.reason ?? "");
-
-			const messageStr = JSON.stringify(parsed.data.message);
-			const msgSize = Buffer.byteLength(messageStr, "utf8");
-			if (msgSize > MAX_MESSAGE_BYTES) {
-				span.setStatus({
-					code: SpanStatusCode.ERROR,
-					message: "Message exceeds 5MB",
-				});
-				span.end();
-				return sendResponse(
-					{ error: "Message payload exceeds maximum size of 5MB" },
-					400
-				);
-			}
-
-			if (!isDbConnected()) {
-				span.setStatus({
-					code: SpanStatusCode.ERROR,
-					message: "Storage unavailable",
-				});
-				span.end();
-				return sendResponse(
-					{
-						error: "Storage unavailable — message not persisted. Retry later.",
-						code: "STORAGE_UNAVAILABLE",
-					},
-					503
-				);
-			}
-
-			const id = await dlqRepository.add(parsed.data);
+			const id = await dlqRepository.add(validation.data);
 			span.setAttribute("entryId", id);
 			metrics.entriesAdded.inc(1);
-			try {
-				await Promise.race([
-					dlqRedisQueue.push(id),
-					new Promise<void>((_, reject) => {
-						const timer = setTimeout(
-							() => reject(new Error("Redis push timeout")),
-							2000
-						);
-						timer.unref();
-					}),
-				]);
-			} catch (err) {
-				logger.warn("Failed to push entry to Redis queue", {
-					entryId: id,
-					error: (err as Error)?.message,
-				});
-			}
-			notifyAddAudit(id, parsed.data.topic, parsed.data.reason);
+			await pushToRedisQueue(id);
+			notifyAddAudit(id, validation.data.topic, validation.data.reason);
 			span.setStatus({ code: SpanStatusCode.OK });
 			span.end();
 			return sendResponse({ id }, 201);
 		} catch (err) {
-			if (err instanceof DlqCapacityError) {
-				span.setStatus({
-					code: SpanStatusCode.ERROR,
-					message: "DLQ capacity limit reached",
-				});
-				span.end();
-				return sendResponse(
-					{ error: "DLQ capacity limit reached, entry rejected" },
-					429
-				);
-			}
-			logger.error("Failed to persist DLQ entry — storage error", {
-				error: normalizeError(err).message,
-			});
-			span.recordException(err as Error);
-			span.setStatus({
-				code: SpanStatusCode.ERROR,
-				message: (err as Error).message,
-			});
-			span.end();
-			return sendResponse(
-				{
-					error: "Storage unavailable — message not persisted. Retry later.",
-					code: "STORAGE_UNAVAILABLE",
-				},
-				503
-			);
+			return handleAddEntryError(err, span);
 		}
 	});
 });
@@ -648,110 +695,186 @@ export const ReadyCheck = catchSync(async (_req) => {
 	);
 });
 
+function validateReplayQuery(
+	query: unknown,
+	span: import("@opentelemetry/api").Span
+):
+	| { valid: false; response: ResponseObject }
+	| { valid: true; data: z.infer<typeof ReplaySchema> } {
+	const parsed = ReplaySchema.safeParse(query);
+	if (!parsed.success) {
+		span.setStatus({
+			code: SpanStatusCode.ERROR,
+			message: parsed.error.message,
+		});
+		span.end();
+		return {
+			valid: false,
+			response: sendResponse({ error: parsed.error.message }, 400),
+		};
+	}
+	span.setAttribute("topic", parsed.data.topic ?? "all");
+	span.setAttribute("limit", parsed.data.limit);
+	return { valid: true, data: parsed.data };
+}
+
+async function resolveMMUrlOrFail(
+	span: import("@opentelemetry/api").Span
+): Promise<string | null> {
+	const messageManagerUrl = await resolveMessageManagerUrl();
+	if (!messageManagerUrl) {
+		span.setStatus({
+			code: SpanStatusCode.ERROR,
+			message: "Cannot resolve message-manager URL",
+		});
+		span.end();
+		return null;
+	}
+	return messageManagerUrl;
+}
+
+async function abandonExhaustedIfNeeded(
+	errors: Array<{ id: string; error: string }>
+): Promise<void> {
+	if (errors.length === 0) {
+		return;
+	}
+	const abandoned = await dlqRetryManager.abandonExhaustedEntries();
+	if (abandoned > 0) {
+		logger.warn(
+			`DLQ manual replay: ${abandoned} entries abandoned after max retries`
+		);
+		void notifyAbandonAudit(abandoned);
+	}
+}
+
+function buildReplayResponse(
+	batchId: string,
+	successCount: number,
+	errors: Array<{ id: string; error: string }>
+): Record<string, unknown> {
+	const details: Record<string, unknown> = {
+		batchId,
+		replayed: successCount,
+		failed: errors.length,
+	};
+	if (errors.length > 0) {
+		details.errors = errors;
+	}
+	if (successCount > 0) {
+		metrics.entriesReplayed.inc(successCount);
+	}
+	if (errors.length > 0) {
+		metrics.entriesReplayFailed.inc(errors.length);
+	}
+	return details;
+}
+
+async function _claimAndReplayBatch(
+	messageManagerUrl: string,
+	limit: number,
+	batchId: string,
+	topic: string | undefined,
+	span: import("@opentelemetry/api").Span
+): Promise<{
+	response: ResponseObject | null;
+	successCount: number;
+	errors: Array<{ id: string; error: string }>;
+}> {
+	await dlqClaimManager.releaseStaleClaims();
+	const entries = await dlqClaimManager.claimEntriesForRetry(
+		limit,
+		batchId,
+		env.INSTANCE_ID,
+		topic
+	);
+
+	if (entries.length === 0) {
+		return {
+			response: sendResponse(
+				{ replayed: 0, message: "No entries available for retry" },
+				200
+			),
+			successCount: 0,
+			errors: [],
+		};
+	}
+
+	span.setAttribute("entriesClaimed", entries.length);
+
+	const { success: successCount, errors } = await doReplayBatch(
+		entries.map((entry) => ({ id: entry.id, message: entry.message })),
+		messageManagerUrl,
+		batchId,
+		env.INSTANCE_ID
+	);
+
+	await abandonExhaustedIfNeeded(errors);
+
+	span.setAttribute("replayed", successCount);
+	span.setAttribute("failed", errors.length);
+
+	return { response: null, successCount, errors };
+}
+
+async function _executeReplayPipeline(
+	query: unknown,
+	span: import("@opentelemetry/api").Span
+): Promise<ResponseObject> {
+	const validation = validateReplayQuery(query, span);
+	if (!validation.valid) {
+		return validation.response;
+	}
+
+	const messageManagerUrl = await resolveMMUrlOrFail(span);
+	if (!messageManagerUrl) {
+		return sendResponse(
+			{
+				error:
+					"Cannot resolve message-manager URL (no env var, no address-manager)",
+			},
+			500
+		);
+	}
+
+	const batchId = validation.data.batchId || randomUUID();
+	span.setAttribute("batchId", batchId);
+
+	const { response: earlyResponse, successCount, errors } = await _claimAndReplayBatch(
+		messageManagerUrl,
+		validation.data.limit,
+		batchId,
+		validation.data.topic,
+		span
+	);
+	if (earlyResponse) {
+		return earlyResponse;
+	}
+
+	const details = buildReplayResponse(batchId, successCount, errors);
+	void notifyReplayAudit(
+		batchId,
+		validation.data.topic,
+		successCount,
+		errors.length
+	);
+
+	return sendResponse(details, 200);
+}
+
 export const ReplayEntries = catchSync((req) => {
 	return tracer.startActiveSpan("dlq-replay-entries", async (span) => {
 		try {
-			const parsed = ReplaySchema.safeParse(req.query);
-			if (!parsed.success) {
-				span.setStatus({
-					code: SpanStatusCode.ERROR,
-					message: parsed.error.message,
-				});
-				span.end();
-				return sendResponse({ error: parsed.error.message }, 400);
-			}
-
-			span.setAttribute("topic", parsed.data.topic ?? "all");
-			span.setAttribute("limit", parsed.data.limit);
-
-			const messageManagerUrl = await resolveMessageManagerUrl();
-			if (!messageManagerUrl) {
-				span.setStatus({
-					code: SpanStatusCode.ERROR,
-					message: "Cannot resolve message-manager URL",
-				});
-				span.end();
-				return sendResponse(
-					{
-						error:
-							"Cannot resolve message-manager URL (no env var, no address-manager)",
-					},
-					500
-				);
-			}
-
-			const batchId = parsed.data.batchId || randomUUID();
-			span.setAttribute("batchId", batchId);
-			await dlqRepository.releaseStaleClaims();
-			const entries = await dlqRepository.claimEntriesForRetry(
-				parsed.data.limit,
-				batchId,
-				env.INSTANCE_ID,
-				parsed.data.topic
-			);
-			if (entries.length === 0) {
-				span.setStatus({ code: SpanStatusCode.OK });
-				span.end();
-				return sendResponse(
-					{ replayed: 0, message: "No entries available for retry" },
-					200
-				);
-			}
-
-			span.setAttribute("entriesClaimed", entries.length);
-
-			const { success: successCount, errors } = await doReplayBatch(
-				entries.map((entry) => ({ id: entry.id, message: entry.message })),
-				messageManagerUrl,
-				batchId,
-				env.INSTANCE_ID
-			);
-
-			if (errors.length > 0) {
-				const abandoned = await dlqRepository.abandonExhaustedEntries();
-				if (abandoned > 0) {
-					logger.warn(
-						`DLQ manual replay: ${abandoned} entries abandoned after max retries`
-					);
-					void notifyAbandonAudit(abandoned);
-				}
-			}
-
-			span.setAttribute("replayed", successCount);
-			span.setAttribute("failed", errors.length);
-
-			const details: Record<string, unknown> = {
-				batchId,
-				replayed: successCount,
-				failed: errors.length,
-			};
-			if (errors.length > 0) {
-				details.errors = errors;
-			}
-			if (successCount > 0) {
-				metrics.entriesReplayed.inc(successCount);
-			}
-			if (errors.length > 0) {
-				metrics.entriesReplayFailed.inc(errors.length);
-			}
-			void notifyReplayAudit(
-				batchId,
-				parsed.data.topic,
-				successCount,
-				errors.length
-			);
-
-			span.setStatus({ code: SpanStatusCode.OK });
-			span.end();
-			return sendResponse(details, 200);
+			return await _executeReplayPipeline(req.query, span);
 		} catch (err) {
 			span.recordException(err as Error);
 			span.setStatus({
 				code: SpanStatusCode.ERROR,
 				message: (err as Error).message,
 			});
-			span.end();
 			throw err;
+		} finally {
+			span.end();
 		}
 	});
 });
@@ -797,29 +920,45 @@ export function stopPeriodicPrune(): void {
 	}
 }
 
-export async function autoRetryTick(): Promise<void> {
-	if (!env.DLQ_AUTO_RETRY_ENABLED) {
-		return;
-	}
-	if (shuttingDown) {
-		return;
-	}
+async function resolveMMUrlOrSkip(): Promise<string | null> {
 	const messageManagerUrl = await resolveMessageManagerUrl();
 	if (!messageManagerUrl) {
 		logger.warn(
 			"DLQ auto-retry: cannot resolve message-manager URL, skipping cycle"
 		);
-		return;
+		return null;
 	}
-	if (shuttingDown) {
-		return;
-	}
+	return messageManagerUrl;
+}
 
-	await dlqRepository.releaseStaleClaims();
+async function executeAutoRetryReplay(
+	entries: Array<{ id: string; message: unknown }>,
+	messageManagerUrl: string,
+	batchId: string
+): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
+	logger.info(`DLQ auto-retry: replaying ${entries.length} entries`);
+	const result = await doReplayBatch(
+		entries,
+		messageManagerUrl,
+		batchId,
+		env.INSTANCE_ID
+	);
+	if (result.success > 0) {
+		metrics.entriesReplayed.inc(result.success);
+	}
+	if (result.errors.length > 0) {
+		metrics.entriesReplayFailed.inc(result.errors.length);
+	}
+	return result;
+}
+
+async function _executeAutoRetryCycle(
+	messageManagerUrl: string
+): Promise<void> {
+	await dlqClaimManager.releaseStaleClaims();
 
 	const batchId = `auto-retry-${Date.now()}-${randomUUID().slice(0, 8)}`;
-	const topic = undefined;
-	const entries = await dlqRepository.claimEntriesForRetry(
+	const entries = await dlqClaimManager.claimEntriesForRetry(
 		env.DLQ_AUTO_RETRY_LIMIT,
 		batchId,
 		env.INSTANCE_ID
@@ -829,27 +968,32 @@ export async function autoRetryTick(): Promise<void> {
 		return;
 	}
 
-	logger.info(`DLQ auto-retry: replaying ${entries.length} entries`);
-	const { success, errors } = await doReplayBatch(
+	const { success, errors } = await executeAutoRetryReplay(
 		entries.map((entry) => ({ id: entry.id, message: entry.message })),
 		messageManagerUrl,
-		batchId,
-		env.INSTANCE_ID
+		batchId
 	);
 
-	if (success > 0) {
-		metrics.entriesReplayed.inc(success);
-	}
-	if (errors.length > 0) {
-		metrics.entriesReplayFailed.inc(errors.length);
-	}
-	void notifyReplayAudit(batchId, topic, success, errors.length);
+	void notifyReplayAudit(batchId, undefined, success, errors.length);
 
 	if (errors.length > 0) {
 		await handleAbandonedEntries("DLQ auto-retry");
 	}
 
 	logger.info(`DLQ auto-retry: ${success} replayed, ${errors.length} failed`);
+}
+
+export async function autoRetryTick(): Promise<void> {
+	if (!env.DLQ_AUTO_RETRY_ENABLED || shuttingDown) {
+		return;
+	}
+
+	const messageManagerUrl = await resolveMMUrlOrSkip();
+	if (!messageManagerUrl || shuttingDown) {
+		return;
+	}
+
+	await _executeAutoRetryCycle(messageManagerUrl);
 }
 
 async function runAutoRetryTick(): Promise<void> {
@@ -877,42 +1021,39 @@ async function _popRedisQueueEntries(): Promise<string[]> {
 	return entryIds;
 }
 
-async function _claimAndReplayEntries(
+async function claimBatchEntries(
 	entryIds: string[],
-	messageManagerUrl: string
-): Promise<void> {
-	const batchId = `redis-${Date.now()}-${randomUUID().slice(0, 8)}`;
+	batchId: string
+): Promise<Array<{ id: string; message: unknown }> | null> {
 	const validIds = entryIds.filter((id) => ObjectId.isValid(id));
-
 	if (validIds.length === 0) {
-		return;
+		return null;
 	}
 
-	const claimed = await dlqRepository.claimEntriesByIds(
+	const claimed = await dlqClaimManager.claimEntriesByIds(
 		validIds,
 		batchId,
 		env.INSTANCE_ID
 	);
 	if (claimed.length === 0) {
-		return;
+		return null;
 	}
 
 	if (shuttingDown) {
 		for (const remaining of entryIds) {
 			void dlqRedisQueue.push(remaining);
 		}
-		return;
+		return null;
 	}
 
-	const entries = claimed.map((entry) => ({
-		id: entry.id,
-		message: entry.message,
-	}));
+	return claimed.map((entry) => ({ id: entry.id, message: entry.message }));
+}
 
-	if (entries.length === 0) {
-		return;
-	}
-
+async function executeClaimReplay(
+	entries: Array<{ id: string; message: unknown }>,
+	messageManagerUrl: string,
+	batchId: string
+): Promise<void> {
 	logger.info(`DLQ Redis queue: replaying ${entries.length} entries`);
 	const { success, errors } = await doReplayBatch(
 		entries,
@@ -935,6 +1076,18 @@ async function _claimAndReplayEntries(
 	logger.info(`DLQ Redis queue: ${success} replayed, ${errors.length} failed`);
 }
 
+async function _claimAndReplayEntries(
+	entryIds: string[],
+	messageManagerUrl: string
+): Promise<void> {
+	const batchId = `redis-${Date.now()}-${randomUUID().slice(0, 8)}`;
+	const entries = await claimBatchEntries(entryIds, batchId);
+	if (!entries || entries.length === 0) {
+		return;
+	}
+	await executeClaimReplay(entries, messageManagerUrl, batchId);
+}
+
 async function processRedisQueue(): Promise<void> {
 	if (shuttingDown) {
 		return;
@@ -948,7 +1101,7 @@ async function processRedisQueue(): Promise<void> {
 		return;
 	}
 
-	await dlqRepository.releaseStaleClaims();
+	await dlqClaimManager.releaseStaleClaims();
 
 	const entryIds = await _popRedisQueueEntries();
 
@@ -1041,49 +1194,50 @@ export function stopAutoRetry(): void {
 export async function releaseStaleClaims(
 	staleThresholdMs?: number
 ): Promise<void> {
-	const released = await dlqRepository.releaseStaleClaims(staleThresholdMs);
+	const released = await dlqClaimManager.releaseStaleClaims(staleThresholdMs);
 	if (released > 0) {
 		logger.info(`Released ${released} stale claims from previous instance`);
 	}
 }
 
-export async function shutdownSchedulers(): Promise<void> {
-	shuttingDown = true;
-	stopPeriodicPrune();
-	stopAutoRetry();
-
-	if (activeReplays.count > 0) {
-		logger.info(
-			`Waiting for ${activeReplays.count} in-flight replays to complete`
-		);
-		const drainTimeout = 10_000;
-		const deadline = Date.now() + drainTimeout;
-		while (activeReplays.count > 0 && Date.now() < deadline) {
-			await new Promise<void>((resolve) => {
-				const timer = setTimeout(resolve, 100);
-				timer.unref();
-			});
-		}
-		if (activeReplays.count > 0) {
-			logger.warn(
-				`${activeReplays.count} replays did not complete within drain timeout — releasing their claims`
-			);
-			await dlqRepository.releaseAllActiveClaims();
-			await new Promise<void>((resolve) => {
-				const timer = setTimeout(resolve, 500);
-				timer.unref();
-			});
-			await dlqRepository.releaseAllActiveClaims();
-		}
+async function drainActiveReplays(): Promise<void> {
+	if (activeReplays.count === 0) {
+		return;
 	}
 
-	const releasedCount = await dlqRepository.releaseClaimsByInstance(
+	logger.info(
+		`Waiting for ${activeReplays.count} in-flight replays to complete`
+	);
+	const drainTimeout = 10_000;
+	const deadline = Date.now() + drainTimeout;
+	while (activeReplays.count > 0 && Date.now() < deadline) {
+		await new Promise<void>((resolve) => {
+			const timer = setTimeout(resolve, 100);
+			timer.unref();
+		});
+	}
+
+	if (activeReplays.count === 0) {
+		return;
+	}
+
+	logger.warn(
+		`${activeReplays.count} replays did not complete within drain timeout — releasing their claims`
+	);
+	await dlqClaimManager.releaseAllActiveClaims();
+	await new Promise<void>((resolve) => {
+		const timer = setTimeout(resolve, 500);
+		timer.unref();
+	});
+	await dlqClaimManager.releaseAllActiveClaims();
+}
+
+async function releaseAndRequeueClaims(): Promise<void> {
+	const releasedCount = await dlqClaimManager.releaseClaimsByInstance(
 		env.INSTANCE_ID
 	);
 	if (releasedCount > 0 && dlqRedisQueue.isAvailable()) {
 		const allQueuable = await dlqRepository.listQueuable();
-		// De-duplicate via Set before pushing, then push only the number of released entries
-		// to avoid flooding the queue with entries already present
 		const uniqueIds = [...new Set(allQueuable)];
 		const toPush = uniqueIds.slice(
 			0,
@@ -1094,6 +1248,14 @@ export async function shutdownSchedulers(): Promise<void> {
 		}
 		logger.info(`Re-queued up to ${toPush.length} entries after shutdown`);
 	}
+}
+
+export async function shutdownSchedulers(): Promise<void> {
+	shuttingDown = true;
+	stopPeriodicPrune();
+	stopAutoRetry();
+	await drainActiveReplays();
+	await releaseAndRequeueClaims();
 	await dlqRedisQueue.close();
 	await closeHttpClient();
 }
