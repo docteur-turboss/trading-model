@@ -1,3 +1,4 @@
+import type { CandleInterval } from "@trading-model/common/config/event.types";
 import { httpClients } from "../../config/http";
 import type {
 	Binance24hrTickerStatsResponse,
@@ -87,28 +88,19 @@ export async function getHistoricalTrades(
  * @param startTime {number} - timestamp in ms to start from (inclusive)
  * @returns {Promise<BinanceCandlestickDataResponse>}
  */
-export async function getCandlestickData(
-	symbol: string,
-	limit: number,
-	interval:
-		| "1s"
-		| "1m"
-		| "3m"
-		| "5m"
-		| "15m"
-		| "30m"
-		| "1h"
-		| "2h"
-		| "4h"
-		| "6h"
-		| "8h"
-		| "12h"
-		| "1d"
-		| "3d"
-		| "1w"
-		| "1M",
-	startTime?: number
-): Promise<BinanceCandlestickDataResponse> {
+export interface CandlestickRequest {
+	symbol: string;
+	limit: number;
+	interval: CandleInterval;
+	startTime?: number;
+}
+
+export async function getCandlestickData({
+	symbol,
+	limit,
+	interval,
+	startTime,
+}: CandlestickRequest): Promise<BinanceCandlestickDataResponse> {
 	assertNonEmptySymbol(symbol, "getCandlestickData");
 	const url = BINANCE_ENDPOINTS.candlesticks(
 		symbol,

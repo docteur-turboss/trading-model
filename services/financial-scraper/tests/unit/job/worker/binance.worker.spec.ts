@@ -136,7 +136,7 @@ describe("BinanceWorker", () => {
 
 			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith("BTCUSDT", 10);
 			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith("BTCUSDT", 50);
-			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith("BTCUSDT", 50, "1m");
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({ symbol: "BTCUSDT", limit: 50, interval: "1m" });
 			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith(["BTCUSDT"]);
 			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledWith(["BTCUSDT"]);
 			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledWith(["BTCUSDT"]);
@@ -176,7 +176,7 @@ describe("BinanceWorker", () => {
 			await defaultWorker.run();
 
 			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith("ETHUSDT", 100);
-			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith("ETHUSDT", 100, "1m");
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({ symbol: "ETHUSDT", limit: 100, interval: "1m" });
 		});
 
 		it("should create a fresh MetadataBuilder per invocation (not shared singleton)", async () => {

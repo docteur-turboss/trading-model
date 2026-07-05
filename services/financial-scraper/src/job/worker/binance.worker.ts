@@ -16,6 +16,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { HELPER } from "@trading-model/broker-message";
 import type { MessageMetadata } from "@trading-model/broker-message/shared/helper/messages/message";
+import type { CandleInterval } from "@trading-model/common/config/event.types";
 import {
 	DeliveryMode,
 	type DeliveryModeEnum,
@@ -39,7 +40,7 @@ import { MessageManager } from "../../config/message-manager";
 /** Configuration options for a single BinanceWorker execution against one symbol. */
 export interface BinanceWorkerOptions {
 	symbol: string;
-	interval?: "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
+	interval?: CandleInterval;
 	candleLimit?: number;
 	tradeLimit?: number;
 	orderBookLimit?: number;
@@ -55,6 +56,13 @@ export interface BinanceWorkerResult {
 	priceTicker?: ReturnType<typeof BinanceNormalizer.priceTicker>;
 	bookTicker?: ReturnType<typeof BinanceNormalizer.bookTicker>;
 	fetchedAt: number;
+}
+
+export interface MarketDataContext {
+	data: unknown;
+	topic: string;
+	eventType: string;
+	builder: MessageMetadata;
 }
 
 export class BinanceWorker {
@@ -86,7 +94,7 @@ export class BinanceWorker {
 		] = await Promise.all([
 			getOrderBook(symbol, orderBookLimit),
 			getRecentTrades(symbol, tradeLimit),
-			getCandlestickData(symbol, candleLimit, interval),
+			getCandlestickData({ symbol, limit: candleLimit, interval }),
 			get24hrTickerStats([symbol]),
 			getSymbolPriceTicker([symbol]),
 			getOrderBookTicker([symbol]),
@@ -107,12 +115,12 @@ export class BinanceWorker {
 		const marketDataEntries = this._buildMarketDataEntries(response);
 
 		for (const entry of marketDataEntries) {
-			this._sendMarketData(
-				entry.data,
-				entry.topic,
-				entry.eventType,
-				builderMetadata
-			);
+			this._sendMarketData({
+				data: entry.data,
+				topic: entry.topic,
+				eventType: entry.eventType,
+				builder: builderMetadata,
+			});
 		}
 
 		return response;
@@ -189,12 +197,12 @@ export class BinanceWorker {
 		];
 	}
 
-	private _sendMarketData(
-		data: unknown,
-		topic: string,
-		eventType: string,
-		builder: MessageMetadata
-	): void {
+	private _sendMarketData({
+		data,
+		topic,
+		eventType,
+		builder,
+	}: MarketDataContext): void {
 		builder.setTopic(topic).setEventType(eventType);
 		MessageManager.post.indirect(data, builder.toJSON());
 	}

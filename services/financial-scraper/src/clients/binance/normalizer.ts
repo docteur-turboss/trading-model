@@ -1,3 +1,4 @@
+import type { CandleInterval } from "@trading-model/common/config/event.types";
 import {
 	type CandleData,
 	MarketType,
@@ -91,7 +92,7 @@ export const BinanceNormalizer = {
 	 */
 	candles(
 		symbol: string,
-		interval: string,
+		interval: CandleInterval,
 		payload: BinanceCandlestickDataResponse
 	): CandleData[] {
 		return payload.map((candle) => ({
