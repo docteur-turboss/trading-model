@@ -1,8 +1,7 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { generateRandomStr } from "@trading-model/common/crypto/random";
+import { createHmac, randomBytes } from "node:crypto";
 
 import type { ServiceInstance } from "./types";
+import { TokenService } from "./token-service";
 
 /**
  * ServiceRegistry
@@ -40,12 +39,14 @@ export class ServiceRegistry {
 	 * Tokens are stored separately to allow rotation and validation
 	 * without mutating the instance metadata.
 	 */
-	private readonly _signingSecret: string;
+	private readonly _tokenService: TokenService;
 	private _services: Map<string, Map<string, ServiceInstance>> = new Map();
 	private _token: Map<string, string> = new Map();
 
 	constructor(signingSecret?: string) {
-		this._signingSecret = signingSecret ?? randomBytes(32).toString("hex");
+		this._tokenService = new TokenService(
+			signingSecret ?? randomBytes(32).toString("hex")
+		);
 	}
 
 	/**
@@ -64,55 +65,43 @@ export class ServiceRegistry {
 	 * Returns:
 	 * - The effective ServiceInstance plus its issued token
 	 */
-	registerInstance(instance: ServiceInstance) {
-		const { serviceName, instanceId } = instance;
-
-		/**
-		 * Ensure the service bucket exists.
-		 */
+	private _ensureBucket(serviceName: string): Map<string, ServiceInstance> {
 		if (!this._services.has(serviceName)) {
 			this._services.set(serviceName, new Map());
 		}
+		return this._services.get(serviceName)!;
+	}
 
-		const instances = this._services.get(serviceName)!;
-
-		/**
-		 * Generate a new instance-scoped token.
-		 * Token generation is intentionally server-controlled.
-		 */
-		const token = this.generateInstanceToken(instanceId);
-
-		/**
-		 * If the instance already exists, merge metadata
-		 * and refresh the heartbeat.
-		 */
+	private _mergeOrCreateInstance(
+		instances: Map<string, ServiceInstance>,
+		instance: ServiceInstance
+	): ServiceInstance {
+		const { instanceId } = instance;
 		if (instances.has(instanceId)) {
 			const existing = instances.get(instanceId)!;
-
 			instances.set(instanceId, {
 				...existing,
 				...instance,
 				lastHeartbeat: Date.now(),
 			});
 		} else {
-			/**
-			 * New instance registration.
-			 */
 			instances.set(instanceId, {
 				...instance,
 				registeredAt: Date.now(),
 				lastHeartbeat: Date.now(),
 			});
 		}
+		return instances.get(instanceId)!;
+	}
 
-		/**
-		 * Persist or rotate the instance token.
-		 */
+	registerInstance(instance: ServiceInstance) {
+		const { serviceName, instanceId } = instance;
+		const instances = this._ensureBucket(serviceName);
+		const token = this._tokenService.generateInstanceToken(instanceId);
+
+		this._mergeOrCreateInstance(instances, instance);
 		this._token.set(instanceId, token);
 
-		/**
-		 * Return the registered instance together with its token.
-		 */
 		return { ...instances.get(instanceId), token };
 	}
 
@@ -157,7 +146,7 @@ export class ServiceRegistry {
 	 * The previously issued token is immediately invalidated.
 	 */
 	updateToken(instanceId: string): string {
-		const newToken = this.generateInstanceToken(instanceId);
+		const newToken = this._tokenService.generateInstanceToken(instanceId);
 		this._token.set(instanceId, newToken);
 		return newToken;
 	}
@@ -279,85 +268,25 @@ export class ServiceRegistry {
 	 * - token rotation
 	 */
 	generateInstanceToken(instanceId: string): string {
-		const encodedId = Buffer.from(instanceId, "utf8").toString("base64url");
-		const timestamp = Buffer.from(`${Date.now()}`, "utf8").toString(
-			"base64url"
-		);
-		const nonce = generateRandomStr();
-
-		const hmac = createHmac("sha256", this._signingSecret)
-			.update(`${encodedId}.${timestamp}.${nonce}`)
-			.digest("base64url");
-
-		return `${encodedId}.${timestamp}.${nonce}.${hmac}`;
+		return this._tokenService.generateInstanceToken(instanceId);
 	}
 
-	/**
-	 * Generates a unique instanceId.
-	 *
-	 * Used when a client does not provide an explicit instanceId.
-	 * Ensures uniqueness across restarts and rescheduling.
-	 */
 	generateInstanceId(
 		serviceName: string,
 		address: string,
 		port: number
 	): string {
-		return createHmac("sha256", generateRandomStr())
+		return createHmac("sha256", randomBytes(32).toString("hex"))
 			.update(`${serviceName}-${address}:${port}-${Date.now()}`)
 			.digest("base64");
 	}
 
-	/**
-	 * Validates an instance token by verifying its HMAC signature and
-	 * comparing against the stored token for revocation detection.
-	 *
-	 * Two-layer validation:
-	 * 1. HMAC verification — ensures the token was signed by this server
-	 *    (prevents forged tokens even if the token map is compromised)
-	 * 2. Stored token comparison — detects revoked tokens after rotation
-	 *    (an old token is cryptographically valid but no longer authorized)
-	 *
-	 * Used by protected endpoints (heartbeat, token rotation).
-	 */
 	validInstanceToken(token: string, instanceId: string): boolean {
-		const parts = token.split(".");
-		if (parts.length !== 4) {
-			return false;
-		}
-
-		const [encodedId, timestamp, nonce, signature] = parts;
-
-		const decodedId = Buffer.from(encodedId, "base64url").toString("utf8");
-		if (decodedId !== instanceId) {
-			return false;
-		}
-
-		const expectedHmac = createHmac("sha256", this._signingSecret)
-			.update(`${encodedId}.${timestamp}.${nonce}`)
-			.digest("base64url");
-
-		try {
-			if (!timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(signature))) {
-				return false;
-			}
-		} catch {
-			return false;
-		}
-
 		const storedToken = this._token.get(instanceId);
-		return storedToken === token;
+		return this._tokenService.validInstanceToken(token, instanceId, storedToken);
 	}
 
-	/**
-	 * Validates that the service name is part of the
-	 * allowed service catalog.
-	 *
-	 * Prevents arbitrary or rogue service registrations.
-	 */
 	verifyInstanceName(serviceName: string): boolean {
-		return (Object.values(ServiceInstanceName) as readonly string[]).includes(
-			serviceName
-		);
+		return this._tokenService.verifyInstanceName(serviceName);
 	}
 }

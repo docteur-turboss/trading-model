@@ -4,66 +4,48 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import { normalizeError } from "@trading-model/common/utils/errors";
-import { LruCache } from "@trading-model/common/utils/lru-cache";
-import Redis from "ioredis";
-
-interface CacheEntry {
-	data: ServiceInstance[];
-}
+import { CacheManager } from "./cache-manager";
+import { PubSubInvalidator } from "./pub-sub-invalidator";
 
 export class CachedRegistryBackend implements RegistryBackend {
-	private readonly _cache: LruCache<CacheEntry>;
-	private _pubSub?: Redis;
-	private readonly _redisUrlForPubSub?: string;
+	private _backend: RegistryBackend;
+	private _cache: CacheManager;
+	private _pubSub: PubSubInvalidator;
 	private _redisHealthy = true;
 	private _consecutiveFailures = 0;
-	private readonly _redisFailureThreshold: number;
-	private readonly _redisHealthCheckIntervalMs: number;
+	private readonly _failureThreshold: number;
+	private readonly _healthCheckIntervalMs: number;
 	private _healthCheckHandle?: NodeJS.Timeout;
 	private _restoreHandle?: NodeJS.Timeout;
-	private readonly _staleData: LruCache<ServiceInstance[]>;
+	private readonly _redisUrlForPubSub?: string;
 	private _healthCheckRunning = false;
 	private _fallbackActive = false;
 	private _originalBackend?: RegistryBackend;
+	private readonly _heartbeatInvalidationThrottleMs = 5000;
+	private _lastHeartbeatInvalidation = new Map<string, number>();
+
 	constructor(
-		private _backend: RegistryBackend,
+		backend: RegistryBackend,
 		cacheTtlMs: number,
 		redisUrlForPubSub?: string,
 		maxEntries = 5000,
 		redisFailureThreshold = 3,
 		redisHealthCheckIntervalMs = 15_000
 	) {
+		this._backend = backend;
 		this._redisUrlForPubSub = redisUrlForPubSub;
-		this._redisFailureThreshold = redisFailureThreshold;
-		this._redisHealthCheckIntervalMs = redisHealthCheckIntervalMs;
-		this._cache = new LruCache<CacheEntry>(maxEntries, cacheTtlMs);
-		this._staleData = new LruCache<ServiceInstance[]>(maxEntries);
-	}
-
-	private async _publishInvalidation(serviceName: string): Promise<void> {
-		if (this._pubSub?.status !== "ready") {
-			return;
-		}
-		try {
-			await this._pubSub.publish("cache:invalidate", serviceName);
-		} catch (err) {
-			logger.warn("Failed to publish cache invalidation", {
-				serviceName,
-				error: normalizeError(err),
-			});
-		}
+		this._failureThreshold = redisFailureThreshold;
+		this._healthCheckIntervalMs = redisHealthCheckIntervalMs;
+		this._cache = new CacheManager(maxEntries, cacheTtlMs);
+		this._pubSub = new PubSubInvalidator(redisUrlForPubSub);
 	}
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {
 		const token = await this._backend.registerInstance(instance);
 		await this._refreshCache(instance.serviceName);
-		await this._publishInvalidation(instance.serviceName);
+		await this._pubSub.publish(instance.serviceName);
 		return token;
 	}
-
-	private readonly _heartbeatInvalidationThrottleMs = 5000;
-	private _lastHeartbeatInvalidation = new Map<string, number>();
 
 	async updateHeartbeat(
 		serviceName: string,
@@ -72,12 +54,11 @@ export class CachedRegistryBackend implements RegistryBackend {
 		const result = await this._backend.updateHeartbeat(serviceName, instanceId);
 		if (result !== false) {
 			await this._refreshCache(serviceName);
-			// Throttled cross-node cache invalidation for heartbeats
 			const now = Date.now();
 			const last = this._lastHeartbeatInvalidation.get(serviceName) ?? 0;
 			if (now - last >= this._heartbeatInvalidationThrottleMs) {
 				this._lastHeartbeatInvalidation.set(serviceName, now);
-				await this._publishInvalidation(serviceName);
+				await this._pubSub.publish(serviceName);
 			}
 		}
 		return result;
@@ -97,26 +78,23 @@ export class CachedRegistryBackend implements RegistryBackend {
 		offset?: number,
 		limit?: number
 	): Promise<ServiceInstance[]> {
-		// When pagination is requested, bypass cache to get exact slice
 		if (offset !== undefined || limit !== undefined) {
 			const all = await this._backend.getInstances(serviceName);
 			const start = offset ?? 0;
 			return all.slice(start, limit === undefined ? undefined : start + limit);
 		}
 
-		// Fallback active → backend is InMemory, healthy, and authoritative
 		if (this._fallbackActive) {
 			return this._backend.getInstances(serviceName);
 		}
 
 		const cached = this._cache.get(serviceName);
 		if (cached) {
-			return cached.data;
+			return cached;
 		}
 
-		// When the backend is unhealthy, serve stale data if available
 		if (!this._redisHealthy) {
-			const stale = this._staleData.get(serviceName);
+			const stale = this._cache.getStale(serviceName);
 			if (stale) {
 				logger.warn(
 					"Backend unhealthy — serving stale cached instance list for",
@@ -126,16 +104,13 @@ export class CachedRegistryBackend implements RegistryBackend {
 			}
 			logger.warn(
 				"Backend unhealthy — no stale data available, returning empty list for",
-				{
-					serviceName,
-				}
+				{ serviceName }
 			);
 			return [];
 		}
 
 		const instances = await this._backend.getInstances(serviceName);
-		this._cache.set(serviceName, { data: instances });
-		this._staleData.set(serviceName, instances);
+		this._cache.set(serviceName, instances);
 		return instances;
 	}
 
@@ -143,19 +118,18 @@ export class CachedRegistryBackend implements RegistryBackend {
 		serviceName: string,
 		instanceId: string
 	): Promise<ServiceInstance | undefined> {
-		// Fallback active → backend is authoritative
 		if (this._fallbackActive) {
 			return await this._backend.getInstance(serviceName, instanceId);
 		}
 
 		const cached = this._cache.get(serviceName);
 		if (cached) {
-			return cached.data.find(
+			return cached.find(
 				(inst: ServiceInstance) => inst.instanceId === instanceId
 			);
 		}
 		if (!this._redisHealthy) {
-			const stale = this._staleData.get(serviceName);
+			const stale = this._cache.getStale(serviceName);
 			if (stale) {
 				return stale.find(
 					(inst: ServiceInstance) => inst.instanceId === instanceId
@@ -171,7 +145,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 	): Promise<boolean> {
 		const result = await this._backend.removeInstance(serviceName, instanceId);
 		await this._refreshCache(serviceName);
-		await this._publishInvalidation(serviceName);
+		await this._pubSub.publish(serviceName);
 		return result;
 	}
 
@@ -216,23 +190,17 @@ export class CachedRegistryBackend implements RegistryBackend {
 			.digest("base64");
 	}
 
-	/** Stale-while-revalidate: keep serving stale data while refreshing in background.
-	 *  Never delete before refresh to avoid a window where getInstances() bypasses cache.
-	 *  When Redis is unhealthy, skip backend call entirely — stale data is better than failure. */
 	private async _refreshCache(serviceName: string): Promise<void> {
 		if (!(this._redisHealthy || this._fallbackActive)) {
 			logger.warn(
 				"Backend unhealthy — skipping cache refresh, serving stale data",
-				{
-					serviceName,
-				}
+				{ serviceName }
 			);
 			return;
 		}
 		try {
 			const instances = await this._backend.getInstances(serviceName);
-			this._cache.set(serviceName, { data: instances });
-			this._staleData.set(serviceName, instances);
+			this._cache.set(serviceName, instances);
 		} catch {
 			logger.warn("Cache refresh failed, serving stale data", { serviceName });
 		}
@@ -243,10 +211,9 @@ export class CachedRegistryBackend implements RegistryBackend {
 
 		this._clearTimers();
 
-		await this._setupPubSub();
+		await this._pubSub.start(this._cache);
 
 		this._startHealthCheck();
-
 		this._startRestoreLoop();
 	}
 
@@ -254,39 +221,13 @@ export class CachedRegistryBackend implements RegistryBackend {
 		return typeof (this._backend as { ping?: unknown }).ping === "function";
 	}
 
-	private async _setupPubSub(): Promise<void> {
-		if (this._redisUrlForPubSub && !this._pubSub) {
-			try {
-				this._pubSub = new Redis(this._redisUrlForPubSub, {
-					lazyConnect: true,
-					maxRetriesPerRequest: 3,
-				});
-				await this._pubSub.connect();
-
-				this._pubSub.on("message", (channel: string, message: string) => {
-					if (channel === "cache:invalidate") {
-						this._cache.delete(message);
-						this._staleData.delete(message);
-						logger.debug("Cache invalidated via Pub/Sub", {
-							serviceName: message,
-						});
-					}
-				});
-
-				await this._pubSub.subscribe("cache:invalidate");
-				logger.info("Redis Pub/Sub connected for cache invalidation");
-			} catch (err) {
-				logger.error("Failed to connect Redis Pub/Sub for cache invalidation", {
-					error: normalizeError(err),
-				});
-			}
-		}
-	}
-
 	private _startHealthCheck(): void {
+		if (!(this._redisUrlForPubSub || this._isRedisBackend())) {
+			return;
+		}
 		this._healthCheckHandle = setInterval(
 			() => this._performHealthCheck(),
-			this._redisHealthCheckIntervalMs
+			this._healthCheckIntervalMs
 		);
 	}
 
@@ -296,29 +237,27 @@ export class CachedRegistryBackend implements RegistryBackend {
 		}
 		this._healthCheckRunning = true;
 		try {
-			if (this._redisUrlForPubSub || this._isRedisBackend()) {
-				const healthy = await this.ping();
-				if (healthy) {
-					if (!this._redisHealthy) {
-						this._redisHealthy = true;
-						logger.info(
-							"Redis backend is healthy again — resumed normal operation"
-						);
-					}
-					this._consecutiveFailures = 0;
-				} else {
-					this._consecutiveFailures++;
-					if (this._consecutiveFailures >= this._redisFailureThreshold) {
-						this._redisHealthy = false;
-						logger.error("Redis backend unhealthy — serving stale cache", {
-							consecutiveFailures: this._consecutiveFailures,
-						});
-					}
+			const healthy = await this.ping();
+			if (healthy) {
+				if (!this._redisHealthy) {
+					this._redisHealthy = true;
+					logger.info(
+						"Redis backend is healthy again — resumed normal operation"
+					);
+				}
+				this._consecutiveFailures = 0;
+			} else {
+				this._consecutiveFailures++;
+				if (this._consecutiveFailures >= this._failureThreshold) {
+					this._redisHealthy = false;
+					logger.error("Redis backend unhealthy — serving stale cache", {
+						consecutiveFailures: this._consecutiveFailures,
+					});
 				}
 			}
 		} catch {
 			this._consecutiveFailures++;
-			if (this._consecutiveFailures >= this._redisFailureThreshold) {
+			if (this._consecutiveFailures >= this._failureThreshold) {
 				this._redisHealthy = false;
 				logger.error("Redis backend unhealthy — serving stale cache", {
 					consecutiveFailures: this._consecutiveFailures,
@@ -330,12 +269,13 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	private _startRestoreLoop(): void {
-		if (this._redisUrlForPubSub || this._isRedisBackend()) {
-			this._restoreHandle = setInterval(
-				() => this._performRestoreCheck(),
-				this._redisHealthCheckIntervalMs * 6
-			);
+		if (!(this._redisUrlForPubSub || this._isRedisBackend())) {
+			return;
 		}
+		this._restoreHandle = setInterval(
+			() => this._performRestoreCheck(),
+			this._healthCheckIntervalMs * 6
+		);
 	}
 
 	private async _performRestoreCheck(): Promise<void> {
@@ -345,7 +285,6 @@ export class CachedRegistryBackend implements RegistryBackend {
 		try {
 			const healthy = await this.ping();
 			if (healthy) {
-				// If we were in fallback mode with a saved original backend, restore it
 				if (this._fallbackActive && this._originalBackend) {
 					this._backend = this._originalBackend;
 					this._originalBackend = undefined;
@@ -365,22 +304,19 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	async ping(): Promise<boolean> {
-		// When in fallback mode (Redis was replaced by InMemory), report degraded
 		if (this._fallbackActive) {
 			return false;
 		}
 
-		// PubSub health is independent of backend health.
-		// A PubSub failure only degrades cross-node cache invalidation;
-		// the backend may still serve fresh data.
-		if (this._pubSub?.status === "ready") {
+		const pubSubClient = this._pubSub.client;
+		if (pubSubClient?.status === "ready") {
 			try {
-				await this._pubSub.ping();
+				await pubSubClient.ping();
 			} catch {
 				logger.warn("PubSub ping failed — cache invalidation degraded");
 			}
 		}
-		// Duck-typing: if the backend exposes a lightweight ping() (e.g. Redis PING), prefer it
+
 		const backendWithPing = this._backend as { ping?: () => Promise<boolean> };
 		if (typeof backendWithPing.ping === "function") {
 			try {
@@ -389,7 +325,6 @@ export class CachedRegistryBackend implements RegistryBackend {
 				return false;
 			}
 		}
-		// No ping method: if Redis was configured but is gone, report degraded
 		if (this._redisUrlForPubSub) {
 			return false;
 		}
@@ -403,7 +338,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 
 	markUnhealthy(): void {
 		this._redisHealthy = false;
-		this._consecutiveFailures = this._redisFailureThreshold;
+		this._consecutiveFailures = this._failureThreshold;
 	}
 
 	setFallbackBackend(fallback: RegistryBackend): void {
@@ -416,7 +351,6 @@ export class CachedRegistryBackend implements RegistryBackend {
 		this._fallbackActive = true;
 		this._backend = fallback;
 		this._cache.clear();
-		this._staleData.clear();
 	}
 
 	private _clearTimers(): void {
@@ -430,20 +364,11 @@ export class CachedRegistryBackend implements RegistryBackend {
 		}
 	}
 
-	private _disconnectPubSub(): void {
-		if (this._pubSub) {
-			try {
-				this._pubSub.unsubscribe("cache:invalidate");
-			} catch {
-				/* ignore */
-			}
-			try {
-				this._pubSub.disconnect();
-			} catch {
-				/* ignore */
-			}
-			this._pubSub = undefined;
-		}
+	stop(): void {
+		this._clearTimers();
+		this._cache.clear();
+		this._pubSub.stop();
+		this._stopBackend();
 	}
 
 	private _stopBackend(): void {
@@ -456,13 +381,5 @@ export class CachedRegistryBackend implements RegistryBackend {
 			this._originalBackend = undefined;
 		}
 		this._backend.stop();
-	}
-
-	stop(): void {
-		this._clearTimers();
-		this._cache.clear();
-		this._staleData.clear();
-		this._disconnectPubSub();
-		this._stopBackend();
 	}
 }

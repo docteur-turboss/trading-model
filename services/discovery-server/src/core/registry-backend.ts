@@ -1,12 +1,9 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { logger } from "@trading-model/common/config/logger";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { createHmac, randomBytes } from "node:crypto";
 import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import { generateRandomStr } from "@trading-model/common/crypto/random";
-import { normalizeError } from "@trading-model/common/utils/errors";
+import { TokenService } from "./token-service";
 
 /**
  * InMemoryRegistryBackend
@@ -19,12 +16,14 @@ import { normalizeError } from "@trading-model/common/utils/errors";
  * production deployments.
  */
 export class InMemoryRegistryBackend implements RegistryBackend {
-	private readonly _signingSecret: string;
+	private readonly _tokenService: TokenService;
 	private _services: Map<string, Map<string, ServiceInstance>> = new Map();
 	private _token: Map<string, string> = new Map();
 
 	constructor(signingSecret?: string) {
-		this._signingSecret = signingSecret ?? randomBytes(32).toString("hex");
+		this._tokenService = new TokenService(
+			signingSecret ?? randomBytes(32).toString("hex")
+		);
 	}
 
 	registerInstance(instance: ServiceInstance): Promise<string> {
@@ -35,7 +34,7 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 			instances = new Map();
 			this._services.set(serviceName, instances);
 		}
-		const token = this.generateInstanceToken(instanceId);
+		const token = this._tokenService.generateInstanceToken(instanceId);
 
 		const existing = instances.get(instanceId);
 		if (existing) {
@@ -76,7 +75,7 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 	}
 
 	updateToken(instanceId: string): Promise<string> {
-		const newToken = this.generateInstanceToken(instanceId);
+		const newToken = this._tokenService.generateInstanceToken(instanceId);
 		this._token.set(instanceId, newToken);
 		return Promise.resolve(newToken);
 	}
@@ -125,17 +124,7 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 	}
 
 	generateInstanceToken(instanceId: string): string {
-		const encodedId = Buffer.from(instanceId, "utf8").toString("base64url");
-		const timestamp = Buffer.from(`${Date.now()}`, "utf8").toString(
-			"base64url"
-		);
-		const nonce = generateRandomStr();
-
-		const hmac = createHmac("sha256", this._signingSecret)
-			.update(`${encodedId}.${timestamp}.${nonce}`)
-			.digest("base64url");
-
-		return `${encodedId}.${timestamp}.${nonce}.${hmac}`;
+		return this._tokenService.generateInstanceToken(instanceId);
 	}
 
 	generateInstanceId(
@@ -143,48 +132,20 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 		address: string,
 		port: number
 	): string {
-		return createHmac("sha256", generateRandomStr())
+		return createHmac("sha256", randomBytes(32).toString("hex"))
 			.update(`${serviceName}-${address}:${port}-${Date.now()}`)
 			.digest("base64");
 	}
 
 	validInstanceToken(token: string, instanceId: string): Promise<boolean> {
-		const parts = token.split(".");
-		if (parts.length !== 4) {
-			return Promise.resolve(false);
-		}
-
-		const [encodedId, timestamp, nonce, signature] = parts;
-
-		const decodedId = Buffer.from(encodedId, "base64url").toString("utf8");
-		if (decodedId !== instanceId) {
-			return Promise.resolve(false);
-		}
-
-		const expectedHmac = createHmac("sha256", this._signingSecret)
-			.update(`${encodedId}.${timestamp}.${nonce}`)
-			.digest("base64url");
-
-		try {
-			if (!timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(signature))) {
-				return Promise.resolve(false);
-			}
-		} catch (err) {
-			logger.warn("Token validation failed", {
-				instanceId,
-				err: normalizeError(err),
-			});
-			return Promise.resolve(false);
-		}
-
 		const storedToken = this._token.get(instanceId);
-		return Promise.resolve(storedToken === token);
+		return Promise.resolve(
+			this._tokenService.validInstanceToken(token, instanceId, storedToken)
+		);
 	}
 
 	verifyInstanceName(serviceName: string): boolean {
-		return (Object.values(ServiceInstanceName) as readonly string[]).includes(
-			serviceName
-		);
+		return this._tokenService.verifyInstanceName(serviceName);
 	}
 
 	start(): void {

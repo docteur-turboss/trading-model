@@ -1,36 +1,19 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import { generateRandomStr } from "@trading-model/common/crypto/random";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import Redis, { Cluster, type RedisOptions } from "ioredis";
+import Redis from "ioredis";
+import {
+	computePrefix,
+	createRedisClient,
+	type RedisConnectionConfig,
+} from "./redis-client-factory";
+import { TokenService } from "./token-service";
 
-// ─── Connection Configuration Types ─────────────────────────────────────────
-
-export interface RedisSentinelConfig {
-	/** Sentinel nodes to discover the current master. */
-	sentinels: Array<{ host: string; port: number }>;
-	/** Logical name of the master set (default: mymaster). */
-	name: string;
-	/** Optional password for Redis (when requirepass is set). */
-	password?: string;
-}
-
-export interface RedisClusterNodesConfig {
-	/** Cluster seed nodes. The Cluster client discovers the full topology. */
-	nodes: Array<{ host: string; port: number }>;
-	/** Optional password for Cluster nodes. */
-	password?: string;
-}
-
-export type RedisConnectionConfig =
-	| { mode: "single"; url: string }
-	| { mode: "sentinel"; config: RedisSentinelConfig }
-	| { mode: "cluster"; config: RedisClusterNodesConfig };
+export type { RedisSentinelConfig, RedisClusterNodesConfig, RedisConnectionConfig } from "./redis-client-factory";
 
 // ─── Backend ────────────────────────────────────────────────────────────────
 
@@ -61,9 +44,9 @@ export type RedisConnectionConfig =
  * only storage is distributed.
  */
 export class RedisRegistryBackend implements RegistryBackend {
-	private readonly _redis: Redis | Cluster;
+	private readonly _redis: Redis;
 	private readonly _prefix: string;
-	private readonly _signingSecret: string;
+	private readonly _tokenService: TokenService;
 	private readonly _cleanupIntervalMs: number;
 	private _cleanupHandle?: NodeJS.Timeout;
 
@@ -73,107 +56,36 @@ export class RedisRegistryBackend implements RegistryBackend {
 		signingSecret?: string,
 		cleanupIntervalMs = 10_000
 	) {
-		this._signingSecret = signingSecret ?? randomBytes(32).toString("hex");
+		this._prefix = computePrefix(prefix, configOrUrl);
+		this._redis = createRedisClient(configOrUrl) as Redis;
+		this._tokenService = new TokenService(
+			signingSecret ?? randomBytes(32).toString("hex")
+		);
 		this._cleanupIntervalMs = cleanupIntervalMs;
-
-		// In Cluster mode, wrap the prefix with hash-tag braces so all multi()-related
-		// keys hash to the same slot and avoid CROSSSLOT errors.
-		const isCluster =
-			typeof configOrUrl !== "string" && configOrUrl.mode === "cluster";
-		this._prefix = isCluster
-			? `{${prefix.replace(/[{}]/g, "").replace(/:$/, "")}}:`
-			: prefix;
-
-		const baseOptions: RedisOptions = {
-			retryStrategy: (times: number) => {
-				const delay = Math.min(times * 200, 5000);
-				return delay;
-			},
-			maxRetriesPerRequest: 5,
-			lazyConnect: true,
-		};
-
-		if (typeof configOrUrl === "string") {
-			// Legacy: single Redis URL
-			this._redis = new Redis(configOrUrl, baseOptions);
-		} else {
-			switch (configOrUrl.mode) {
-				case "single":
-					this._redis = new Redis(configOrUrl.url, baseOptions);
-					break;
-
-				case "sentinel": {
-					const { sentinels, name, password } = configOrUrl.config;
-					this._redis = new Redis({
-						...baseOptions,
-						sentinels,
-						name,
-						password,
-						// SentinelConnector requires an explicit role; 'master' by default
-					});
-					break;
-				}
-
-				case "cluster": {
-					const { nodes, password } = configOrUrl.config;
-					// Cluster doesn't support multi-key operations across slots.
-					// Register/remove operations use multi() on keys that may span
-					// different slots — use hash tags ({prefix}) in key names when
-					// running in Cluster mode to keep them on the same slot.
-					this._redis = new Cluster(nodes, {
-						redisOptions: {
-							...baseOptions,
-							password,
-						},
-						clusterRetryStrategy: (times: number) => {
-							const delay = Math.min(times * 200, 5000);
-							return delay;
-						},
-					});
-					break;
-				}
-
-				default:
-					throw new Error(
-						`Unknown Redis connection mode: ${(configOrUrl as RedisConnectionConfig).mode}`
-					);
-			}
-		}
-
-		this._redis.on("error", (err: Error) => {
-			logger.error("Redis connection error", { error: normalizeError(err) });
-		});
 	}
 
 	// ─── Registration ──────────────────────────────────────────────────────────
 
-	async registerInstance(instance: ServiceInstance): Promise<string> {
-		const { serviceName, instanceId } = instance;
-		const now = Date.now();
-
-		// F23: Use SET NX for the token to prevent race conditions when two
-		// servers generate a token for the same instanceId — first writer wins.
+	private async _resolveToken(instanceId: string): Promise<string> {
 		const tokenKey = `${this._prefix}instance:${instanceId}:token`;
-		const token = this.generateInstanceToken(instanceId);
+		const token = this._tokenService.generateInstanceToken(instanceId);
 		const tokenSet = await this._redis.set(tokenKey, token, "NX");
-		const finalToken =
-			tokenSet === "OK" ? token : await this._redis.get(tokenKey);
+		return tokenSet === "OK"
+			? token
+			: ((await this._redis.get(tokenKey)) ?? token);
+	}
 
-		const multi = this._redis.multi();
-
-		// Add instance to service set
-		multi.sadd(`${this._prefix}service:${serviceName}:instances`, instanceId);
-
-		// Store instance metadata (always set registeredAt and lastHeartbeat server-side)
+	private async _buildStoredInstance(
+		instance: ServiceInstance,
+		now: number
+	): Promise<ServiceInstance> {
 		const storedInstance: ServiceInstance = {
 			...instance,
 			registeredAt: instance.registeredAt ?? now,
 			lastHeartbeat: now,
 		};
-
-		// Check if instance already exists to preserve original registration time
 		const existingJson = await this._redis.get(
-			`${this._prefix}instance:${instanceId}:metadata`
+			`${this._prefix}instance:${instance.instanceId}:metadata`
 		);
 		if (existingJson) {
 			try {
@@ -185,20 +97,29 @@ export class RedisRegistryBackend implements RegistryBackend {
 				);
 			} catch (err) {
 				logger.warn("Failed to parse existing instance metadata", {
-					instanceId,
+					instanceId: instance.instanceId,
 					err: normalizeError(err),
 				});
 			}
 		}
+		return storedInstance;
+	}
 
+	async registerInstance(instance: ServiceInstance): Promise<string> {
+		const { serviceName, instanceId } = instance;
+		const now = Date.now();
+		const finalToken = await this._resolveToken(instanceId);
+
+		const multi = this._redis.multi();
+		multi.sadd(`${this._prefix}service:${serviceName}:instances`, instanceId);
+		const storedInstance = await this._buildStoredInstance(instance, now);
 		multi.set(
 			`${this._prefix}instance:${instanceId}:metadata`,
 			JSON.stringify(storedInstance)
 		);
-
 		await multi.exec();
 
-		return finalToken ?? token;
+		return finalToken;
 	}
 
 	// ─── Heartbeat ──────────────────────────────────────────────────────────────
@@ -255,7 +176,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 	// ─── Token ──────────────────────────────────────────────────────────────────
 
 	async updateToken(instanceId: string): Promise<string> {
-		const newToken = this.generateInstanceToken(instanceId);
+		const newToken = this._tokenService.generateInstanceToken(instanceId);
 		await this._redis.set(
 			`${this._prefix}instance:${instanceId}:token`,
 			newToken
@@ -366,61 +287,21 @@ export class RedisRegistryBackend implements RegistryBackend {
 	// ─── Token / ID validation ─────────────────────────────────────────────────
 
 	generateInstanceToken(instanceId: string): string {
-		const encodedId = Buffer.from(instanceId, "utf8").toString("base64url");
-		const timestamp = Buffer.from(`${Date.now()}`, "utf8").toString(
-			"base64url"
-		);
-		const nonce = generateRandomStr();
-
-		const hmac = createHmac("sha256", this._signingSecret)
-			.update(`${encodedId}.${timestamp}.${nonce}`)
-			.digest("base64url");
-
-		return `${encodedId}.${timestamp}.${nonce}.${hmac}`;
+		return this._tokenService.generateInstanceToken(instanceId);
 	}
 
 	async validInstanceToken(
 		token: string,
 		instanceId: string
 	): Promise<boolean> {
-		const parts = token.split(".");
-		if (parts.length !== 4) {
-			return false;
-		}
-
-		const [encodedId, timestamp, nonce, signature] = parts;
-
-		const decodedId = Buffer.from(encodedId, "base64url").toString("utf8");
-		if (decodedId !== instanceId) {
-			return false;
-		}
-
-		const expectedHmac = createHmac("sha256", this._signingSecret)
-			.update(`${encodedId}.${timestamp}.${nonce}`)
-			.digest("base64url");
-
-		try {
-			if (!timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(signature))) {
-				return false;
-			}
-		} catch (err) {
-			logger.warn("Token validation failed", {
-				instanceId,
-				err: normalizeError(err),
-			});
-			return false;
-		}
-
 		const storedToken = await this._redis.get(
 			`${this._prefix}instance:${instanceId}:token`
 		);
-		return storedToken === token;
+		return this._tokenService.validInstanceToken(token, instanceId, storedToken ?? undefined);
 	}
 
 	verifyInstanceName(serviceName: string): boolean {
-		return (Object.values(ServiceInstanceName) as readonly string[]).includes(
-			serviceName
-		);
+		return this._tokenService.verifyInstanceName(serviceName);
 	}
 
 	// ─── Lifecycle ─────────────────────────────────────────────────────────────
