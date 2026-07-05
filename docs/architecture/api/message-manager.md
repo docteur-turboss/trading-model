@@ -25,7 +25,7 @@ Pub/sub message brokering service with delivery guarantees and MongoDB persisten
 
 ### Publish a Message
 
-**`POST /api/messages/send`** or **`POST /message`**
+**`POST /message`**
 
 Publishes a message to a topic.
 
@@ -33,13 +33,11 @@ Body (validated by `PublishSchema`):
 
 ```json
 {
-  "targetService": "trader-training-service",
   "payload": {
     "symbol": "BTCUSDT",
     "price": 50000.0,
     "volume": 12.5
   },
-  "deliveryMode": "at-least-once",
   "metadata": {
     "topic": "market.trade.recent.fetch",
     "eventType": "market.trade.recent.fetch",
@@ -58,60 +56,6 @@ Body (validated by `PublishSchema`):
 ```
 
 **Response:** `204 No Content`
-
-### Get Message
-
-**`GET /api/messages/:id`**
-
-Retrieves a single message by its ID.
-
-**Response:** `200 OK`
-
-```json
-{
-  "id": "msg-uuid-123",
-  "metadata": {
-    "topic": "market.trade.recent.fetch",
-    "eventType": "market.trade.recent.fetch",
-    "schemaVersion": "1.0.0",
-    "publisher": {
-      "serviceName": "financial-scraper-service",
-      "instanceId": "uuid-123"
-    }
-  },
-  "payload": {
-    "symbol": "BTCUSDT",
-    "price": 50000.0,
-    "volume": 12.5
-  },
-  "status": "delivered",
-  "createdAt": "2025-01-15T10:30:00Z"
-}
-```
-
-### List Messages
-
-**`GET /api/messages`**
-
-Lists messages with optional filters.
-
-**Query Parameters:**
-
-- `status` — Filter by delivery status (`pending`, `delivered`, `failed`, `expired`)
-- `limit` — Max results (default: 50)
-
-**Response:** `200 OK`
-
-```json
-[
-  {
-    "id": "msg-uuid-123",
-    "topic": "market.trade.recent.fetch",
-    "status": "delivered",
-    "createdAt": "2025-01-15T10:30:00Z"
-  }
-]
-```
 
 ### Subscribe to a Topic
 

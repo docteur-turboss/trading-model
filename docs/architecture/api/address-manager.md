@@ -37,14 +37,32 @@ interface AddressManagerConfig {
   serviceName: string;
   servicePort: number;
   addressManagerUrl: string;
+  discoveryUrls: string[];
+  localDiscoveryUrl?: string;
+  region?: string;
+  publicIp?: string;
   tokenRefreshIntervalMs: number;
   ttlRefreshIntervalMs: number;
   servicePingTimeoutMs: number;
-  RootCACertPath: string;
-  CertificatPath: string;
-  KeyCertificatPath: string;
+  discoveryTimeoutMs: number;
+  rootCACertPath: string;
+  certificatePath: string;
+  keyCertificatePath: string;
   cacheTtlMs: number;
   dnsNameMap?: Record<string, string>;
+  metricsIntervalMs?: number;
+  wsUrl?: string;
+  wsSubscribedServices?: string[];
+  maxCallRecords?: number;
+  preferredNetworkInterface?: string;
+  pems?: { ca: string; cert: string; key: string };
+  redisCacheUrl?: string;
+  redisCacheOptions?: Record<string, unknown>;
+  circuitBreakerFailureThreshold?: number;
+  circuitBreakerHalfOpenTimeoutMs?: number;
+  circuitBreakerCacheTtlMs?: number;
+  circuitBreakerLatencyWindowSize?: number;
+  circuitBreakerLatencyThresholdMs?: number;
 }
 ```
 
@@ -57,11 +75,15 @@ interface AddressManagerConfig {
 | `tokenRefreshIntervalMs` | `number`                 | `60000` | Token rotation interval                                                          |
 | `ttlRefreshIntervalMs`   | `number`                 | `15000` | TTL refresh interval                                                             |
 | `servicePingTimeoutMs`   | `number`                 | `2000`  | Health check timeout                                                             |
-| `RootCACertPath`         | `string`                 | —       | Path to root CA certificate for mTLS                                             |
-| `CertificatPath`         | `string`                 | —       | Path to client certificate for mTLS                                              |
-| `KeyCertificatPath`      | `string`                 | —       | Path to client private key for mTLS                                              |
+| `rootCACertPath`         | `string`                 | —       | Path to root CA certificate for mTLS                                             |
+| `certificatePath`        | `string`                 | —       | Path to client certificate for mTLS                                              |
+| `keyCertificatePath`     | `string`                 | —       | Path to client private key for mTLS                                              |
 | `cacheTtlMs`             | `number`                 | `30000` | TTL for cached service instances                                                 |
 | `dnsNameMap`             | `Record<string, string>` | —       | Optional mapping from logical service names to deployment-specific DNS hostnames |
+| `discoveryUrls`          | `string[]`               | —       | Ordered list of discovery URLs for multi-region failover                         |
+| `region`                 | `string`                 | —       | Deployment region / datacenter identifier                                        |
+| `publicIp`               | `string`                 | —       | Override for auto-detected public IP                                             |
+| `discoveryTimeoutMs`     | `number`                 | `5000`  | Discovery HTTP call timeout                                                      |
 
 ### Public Methods
 
@@ -80,12 +102,14 @@ interface ServiceInstance {
   ip: string;
   port: number;
   protocol: string;
-  lastHeartbeat: string;
-  registeredAt: string;
+  lastHeartbeat: number;
+  registeredAt: number;
   serviceName: string;
   instanceId: string;
   env?: string;
   ttl: number;
+  version: string;
+  region?: string;
 }
 ```
 
@@ -180,6 +204,8 @@ In addition to the default export, the package exposes internal modules via deep
 | `TTL_REFRESH_INTERVAL_MS`         | `15000`     | TTL refresh interval        |
 | `ADDRESS_MANAGER_URL`             | —           | Discovery-server URL        |
 | `DNS_NAME_MAP`                    | `'{}'`      | Custom DNS mapping (JSON)   |
+| `ADDRESS_MANAGER_URLS`            | —           | Optional JSON array of discovery URLs for multi-region failover |
+| `REGION`                          | —           | Deployment region identifier |
 | `ERROR_URL_WEBHOOK`               | `''`        | Error webhook               |
 | `MESSAGE_BUS_INIT_TIMEOUT_MS`     | `2000`      | Bus init timeout            |
 | `MESSAGE_BUS_SHUTDOWN_TIMEOUT_MS` | `2000`      | Bus shutdown timeout        |

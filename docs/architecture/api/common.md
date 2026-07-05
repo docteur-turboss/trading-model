@@ -4,7 +4,7 @@ Central utility package consumed by all other packages and services in the monor
 
 ## Overview
 
-**@trading-model/common** is the foundational shared library. It provides cross-cutting infrastructure used by all other packages and services: HTTP client, logger, middleware, type definitions, server factories (`createSecureServer`, `createBootstrap`), environment validation (`BaseEnvSchema`, `AddressManagerEnvSchema`), crypto utilities, shared DTOs, and a consolidated error hierarchy.
+**@trading-model/common** is the foundational shared library. It provides cross-cutting infrastructure used by all other packages and services: HTTP client, logger, middleware, type definitions, server factories (`createSecureServer`, `createBootstrap`), environment validation (`BaseEnvSchema`, `AddressManagerEnvSchema`), crypto utilities, shared DTOs, and a central `AppError` class with `ErrorCodes`.
 
 This package has **zero internal dependencies** — it only depends on external npm packages (`express`, `zod`, `helmet`, `express-rate-limit`, `chained-error`).
 
@@ -20,12 +20,12 @@ Structured logging system with severity levels, memory buffer, file output, and 
 import { logger, LogLevel } from '@trading-model/common/config/logger';
 ```
 
-| Method                            | Description                                        |
-| --------------------------------- | -------------------------------------------------- |
-| `logger.debug(message, context?)` | Log at DEBUG level                                 |
-| `logger.info(message, context?)`  | Log at INFO level                                  |
-| `logger.warn(message, context?)`  | Log at WARN level                                  |
-| `logger.error(message, context?)` | Log at ERROR level + sends webhook in prod/staging |
+| Method                                                       | Description                                        |
+| ------------------------------------------------------------ | -------------------------------------------------- |
+| `logger.debug(message, context?, url?, serviceInCharge?)`    | Log at DEBUG level                                 |
+| `logger.info(message, context?, url?, serviceInCharge?)`     | Log at INFO level                                  |
+| `logger.warn(message, context?, url?, serviceInCharge?)`     | Log at WARN level                                  |
+| `logger.error(message, context?, url?, serviceInCharge?)`    | Log at ERROR level + sends webhook in prod/staging |
 
 **LogLevel**: `DEBUG = 0`, `INFO = 1`, `WARN = 2`, `ERROR = 3`
 
@@ -136,7 +136,7 @@ import {
 
 | Schema                    | Description                                                                            |
 | ------------------------- | -------------------------------------------------------------------------------------- |
-| `BaseEnvSchema`           | `NODE_ENV`, `PORT`, `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `LOG_LEVEL`        |
+| `BaseEnvSchema`           | `NODE_ENV`, `PORT`, `TLS_KEY_PATH`, `TLS_CERT_PATH`, `TLS_CA_PATH`, `LOG_LEVEL`, `CERT_CLIENT_CA_URL?`, `CERT_CLIENT_SERVICE_ID?`, `CERT_CLIENT_COMMON_NAME?`, `CERT_CLIENT_SANS?`, `CERT_CLIENT_BOOTSTRAP_TOKEN?` |
 | `AddressManagerEnvSchema` | `APP_NAME`, `SERVICE_NAME`, `INSTANCE_ID`, `CACHE_TTL_MS`, `ADDRESS_MANAGER_URL`, etc. |
 | `validateEnv(schema)`     | Parses `process.env` and throws `ConfigurationError` on failure                        |
 
@@ -201,7 +201,7 @@ Global Express error normalisation middleware.
 - **Import**: `@trading-model/common/middleware/response-protocol`
 - Logs 5xx errors with stack trace, URL, method, IP
 
-### MTLSAuth
+### MTLSAuthMiddleware
 
 mTLS authentication middleware.
 
@@ -246,7 +246,7 @@ Response normalisation utilities.
 | `EventEnumMap`                                                                       | Union of all event name strings                                                   |
 | `MarketType`                                                                         | `CRYPTO`, `EQUITY`, `BOND`, `ETF`, `FX`, `FUTURE`                                 |
 | `SourceType`                                                                         | `BLOOMBERG`, `BINANCE`, `NYSE`                                                    |
-| `CandleEntity`, `TradeEntity`, `OrderBookEntity`, `BookTickerEntity`, `TickerEntity` | Market data entities                                                              |
+| `CandleData`, `TradeData`, `OrderBookData`, `BookTickerData`, `TickerData` | Market data entities                                                              |
 
 ## Service Types
 
@@ -280,7 +280,7 @@ DeliveryMode.EXACTLY_ONCE; // 'exactly-once'
 | `ServiceRegisterPayload`    | interface | `{ name, address, port, protocol, env? }`   |
 | `HeartbeatPayload`          | interface | `{ serviceName, instanceId, authToken }`    |
 | `ServicesQueryPayload`      | interface | `{ serviceName, services, onlyAlive }`      |
-| `ServiceInstance`           | interface | Full registered service descriptor          |
+| `ServiceInstance`           | interface | `{ ip, port, protocol, lastHeartbeat: number, registeredAt: number, serviceName, instanceId, env?, ttl, version, region? }` |
 
 ## Crypto
 
@@ -289,24 +289,21 @@ DeliveryMode.EXACTLY_ONCE; // 'exactly-once'
 | `makePRNG`          | Seeded PRNG (mulberry32) → `(seed: number) => () => number` |
 | `generateRandomStr` | Cryptographically random base64url string                   |
 
-## Error Hierarchy
+## Error Handling
 
+The project uses a single error class with a discriminant code property.
+
+- **Import**: `@trading-model/common/utils/errors`
+
+```ts
+import { AppError, ErrorCodes } from '@trading-model/common/utils/errors';
 ```
-TradingModelError (abstract)
-├── AddressManagerBaseError (abstract)
-│   ├── ServiceNotFoundError
-│   ├── ServiceUnreachableError
-│   ├── AuthenticationError
-│   └── AddressManagerError
-├── MessageManagerBaseError (abstract)
-│   ├── MessageManagerError
-│   ├── MetadataBuilderError
-│   ├── TimeoutError
-│   ├── NackError
-│   └── DeadLetterError
-└── AgentBaseError (abstract)
-    └── AgentError
-```
+
+| Export       | Description                                              |
+| ------------ | -------------------------------------------------------- |
+| `AppError`   | Single application error class with `code` and `cause`   |
+| `ErrorCodes` | Enum of error codes (`SERVICE_NOT_FOUND`, `MESSAGE_MANAGER_ERROR`, `AGENT_ERROR`, etc.) |
+| `normalizeError(err)` | Normalizes any unknown error into a proper `Error`  |
 
 ## Utils
 

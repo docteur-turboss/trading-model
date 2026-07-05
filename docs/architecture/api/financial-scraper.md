@@ -198,35 +198,35 @@ All tables live in the `financial_scraper` database (configurable via `DB_NAME` 
 - All tables have an `INVISIBLE` index on `timestamp` — tracked by the optimizer but not used unless explicitly hinted.
 - All tables have a `VISIBLE` index on `symbol` — the primary query path for market data lookups.
 
-### TS Entity Interfaces (`@trading-model/common`)
+### TS Data Interfaces (`@trading-model/common/config/event.types`)
 
 ```ts
-interface BaseMarketEntity {
+interface BaseMarketData {
   symbol: string;
   source: SourceType; // 'binance' | 'nyse' | 'bloomberg'
   timestamp: number;
   market: MarketType; // 'crypto' | 'equity' | 'bond' | 'etf' | 'fx' | 'future'
 }
 
-interface CandleEntity extends BaseMarketEntity {
+interface CandleData extends BaseMarketData {
   open: number;
   high: number;
   low: number;
   close: number;
   volume: number;
   trades?: number;
-  interval: string;
+  interval: CandleInterval;
   closeTimestamp: number;
 }
 
-interface TradeEntity extends BaseMarketEntity {
+interface TradeData extends BaseMarketData {
   price: number;
   tradeId: bigint;
   quantity: number;
-  side: 'buy' | 'sell';
+  side: TradeSide;
 }
 
-interface TickerEntity extends BaseMarketEntity {
+interface TickerData extends BaseMarketData {
   low: number;
   open: number;
   high: number;
@@ -236,7 +236,7 @@ interface TickerEntity extends BaseMarketEntity {
 }
 ```
 
-Interfaces that exist but have **no corresponding table** yet: `OrderBookEntity` (order book depth), `BookTickerEntity` (best bid/ask).
+Interfaces that exist but have **no corresponding table** yet: `OrderBookData` (order book depth), `BookTickerData` (best bid/ask).
 
 ## Background Jobs (Scheduled Tasks)
 

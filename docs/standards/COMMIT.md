@@ -78,6 +78,13 @@ For the full list including variants (🏷️ feat-types, 🎉 feat-init, 🚑 f
 | `github-actions`    | GitHub Actions workflows               |
 | `husky`             | Husky configuration                    |
 | `biome`             | Biome configuration                    |
+| `audit-logger`      | Audit-logger service                   |
+| `dlq-service`       | DLQ service                            |
+| `api-gateway`       | API gateway service                    |
+| `certificate-authority` | Certificate authority service      |
+| `admin-interface`   | Admin interface SPA                    |
+| `certificate-utils` | @trading-model/certificate-utils package |
+| `certificate-client` | @trading-model/certificate-client package |
 
 ## Body and Footer (Optional)
 

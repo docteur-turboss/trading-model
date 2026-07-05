@@ -29,18 +29,18 @@ import BrokerMessage from '@trading-model/broker-message';
 ```ts
 constructor({
   addressManagerClient,
-  KeyCertificatPath,
-  RootCACertPath,
-  CertificatPath,
-  callbackPath?,
+  keyCertificatePath,
+  rootCACertPath,
+  certificatePath,
+  callbackPath: userCallbackPath,
   instanceId,
   serviceName,
 }: {
   instanceId: string;
   callbackPath?: string;   // default: 'message'
-  RootCACertPath: string;
-  CertificatPath: string;
-  KeyCertificatPath: string;
+  rootCACertPath: string;
+  certificatePath: string;
+  keyCertificatePath: string;
   addressManagerClient: addressManagerClient;
   serviceName: ServiceInstanceName;
 })
@@ -83,8 +83,8 @@ Calls made to the Message Delivery Service:
 
 | Method | Path                              | Source                                      | Purpose                                |
 | ------ | --------------------------------- | ------------------------------------------- | -------------------------------------- |
-| POST   | `https://{host}:{port}/subscribe` | `MessageManagerClient.SubscribeToTopics`    | Subscribe to a topic                   |
-| DELETE | `https://{host}:{port}/subscribe` | `MessageManagerClient.UnSubscribeToTopic`   | Unsubscribe from a topic               |
+| POST   | `https://{host}:{port}/subscribe` | `MessageManagerClient.subscribeToTopics`    | Subscribe to a topic                   |
+| DELETE | `https://{host}:{port}/subscribe` | `MessageManagerClient.unSubscribeToTopic`   | Unsubscribe from a topic               |
 | POST   | `https://{host}:{port}/message`   | `MessageManagerClient.publishAsyncMessage`  | Publish an asynchronous message        |
 | POST   | `https://{host}:{port}/message`   | `MessageManagerClient.publishDirectMessage` | Publish directly to a specific service |
 
@@ -98,8 +98,8 @@ Internal HTTP client communicating with the message-manager.
 class MessageManagerClient {
   constructor(httpClient, config: MessageManagerConfig, addressManagerClient);
 
-  SubscribeToTopics(topics: EventEnumMap[]): Promise<void>;
-  UnSubscribeToTopic(topics: EventEnumMap[]): Promise<void>;
+  subscribeToTopics(topics: EventEnumMap[]): Promise<void>;
+  unSubscribeToTopic(topics: EventEnumMap[]): Promise<void>;
   publishAsyncMessage<T>(payload: T, metadata: MessageMetadata): Promise<void>;
   publishDirectMessage<T>(
     service: ServiceInstanceName,
@@ -124,12 +124,12 @@ type MessageManagerConfig = {
 Fluent builder for message metadata.
 
 - **Import**: `@trading-model/broker-message`
-- **Access**: `helper.MetadataBuilder`
+- **Access**: `HELPER.metadataBuilder`
 
 ```ts
-import BrokerMessage, { helper } from '@trading-model/broker-message';
+import BrokerMessage, { HELPER } from '@trading-model/broker-message';
 
-const metadata = new helper.MetadataBuilder()
+const metadata = new HELPER.metadataBuilder()
   .setTopic('market.trade.recent.fetch')
   .setEventType('market.trade.recent.fetch')
   .setPublisher({ serviceName: 'financial-scraper-service', instanceId: 'uuid' })
@@ -187,9 +187,10 @@ EventManager.on('market.trade.recent.fetch', data => {
 ## Key Interfaces
 
 ```ts
-interface IdentifyType {
+interface ServiceIdentity {
   serviceName: ServiceInstanceName;
   instanceId: string;
+  region?: string;
 }
 
 interface RoutingType {
@@ -209,12 +210,14 @@ interface SecurityType {
 }
 
 interface MessageMetadata {
+  messageId?: string;
   correlationId?: string;
   schemaVersion: string;
   causationId?: string;
   eventType: string;
+  emittedAt?: Date;
   topic: string;
-  publisher: IdentifyType;
+  publisher: ServiceIdentity;
   routing?: RoutingType;
   delivery?: DeliveryType;
   security?: SecurityType;
@@ -255,7 +258,7 @@ const cleanup = broker.on('market.trade.recent.fetch', data => {
   console.log('Received trades:', data.trades);
 });
 
-const metadata = new helper.MetadataBuilder()
+const metadata = new HELPER.metadataBuilder()
   .setTopic('market.trade.executed')
   .setEventType('trade.executed')
   .setPublisher({ serviceName: 'TraderTrainingService', instanceId: 'node-1' })

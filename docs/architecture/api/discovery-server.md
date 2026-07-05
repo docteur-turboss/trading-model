@@ -29,21 +29,30 @@ Registers or updates a service instance. Requires a valid TLS client certificate
 
 ```json
 {
-  "name": "financial-scraper-service",
-  "version": "1.0.0",
-  "host": "192.168.1.10",
+  "serviceName": "financial-scraper-service",
+  "instanceId": "uuid-instance-id",
+  "ip": "192.168.1.10",
   "port": 3000,
-  "healthEndpoint": "/ping"
+  "version": "1.0.0"
 }
 ```
 
 **Response:** `201 Created`
 
+Returns the full `ServiceInstance` object with the issued token:
+
 ```json
 {
-  "id": "svc-abc-123",
-  "token": "hmac-sha256-token-value",
-  "ttl": 15000
+  "instanceId": "uuid-instance-id",
+  "serviceName": "financial-scraper-service",
+  "ip": "192.168.1.10",
+  "port": 3000,
+  "version": "1.0.0",
+  "ttl": 30000,
+  "protocol": "mtls",
+  "registeredAt": 1749164000000,
+  "lastHeartbeat": 1749164000000,
+  "token": "hmac-sha256-token-value"
 }
 ```
 
@@ -96,18 +105,8 @@ Lists all registered service names.
 
 ```json
 [
-  {
-    "id": "svc-abc-123",
-    "name": "financial-scraper-service",
-    "host": "192.168.1.10",
-    "port": 3000
-  },
-  {
-    "id": "svc-def-456",
-    "name": "trader-training-service",
-    "host": "192.168.1.11",
-    "port": 3000
-  }
+  "financial-scraper-service",
+  "trader-training-service"
 ]
 ```
 

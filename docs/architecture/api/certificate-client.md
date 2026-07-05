@@ -17,13 +17,15 @@ Automatic mTLS certificate provisioning for services. On startup, the client boo
 
 ## Exports
 
-| Export               | Description                                                      |
-| -------------------- | ---------------------------------------------------------------- |
-| `createTlsBootstrap` | Main entry point — provisions certificate and returns TLS config |
-| `CertificateClient`  | Client class for manual lifecycle management                     |
-| `CrlSubscriber`      | Subscribes to certificate revocation events                      |
-| `CircuitBreaker`     | Failure isolation for CA communication                           |
-| `Transport`          | TLS transport utility                                            |
+| Export                    | Description                                                      |
+| ------------------------- | ---------------------------------------------------------------- |
+| `createTlsBootstrap`      | Main entry point — provisions certificate and returns TLS config |
+| `CertificateClient`       | Client class for manual lifecycle management                     |
+| `subscribeToCertificateEvents` | Subscribes to certificate revocation events                 |
+| `bootstrapCertificate`    | Provisions a certificate from the CA                             |
+| `bootstrapFromEnv`        | Bootstrap using environment variables                            |
+| `bootstrapConfigFromEnv`  | Reads bootstrap config from environment                          |
+| `createHttpsServer`       | Creates an HTTPS server with the provisioned certificate         |
 
 ## Environment Variables
 

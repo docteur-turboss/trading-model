@@ -51,6 +51,7 @@ graph TD
 - **Core entities:** Candle, Trade, Ticker, OrderBook
 - **External dependency:** Binance API
 - **Publishes:** `market.trade.recent.fetch`, `market.candlestick.series.fetch`, `market.order-book.snapshot.fetch`, `market.ticker.24hr-stats.fetch`, `market.price-ticker.snapshot.fetch`, `market.order-book-ticker.snapshot.fetch`
+- **Debug events:** `example.debug.create`, `example.show.create`
 
 ### 2. Training Context
 
@@ -72,7 +73,7 @@ graph TD
 - **Owner:** `certificate-authority`
 - **Client library:** `certificate-client`
 - **Core entities:** Certificate, CSR, CRL, KeyPair
-- **Publishes:** CRL updates to Audit Context
+- **Publishes:** CRL updates to Audit Context (`certificate.revoked`, `ca.key.rotated`)
 
 ### 5. Discovery Context
 
@@ -85,6 +86,7 @@ graph TD
 - **Owner:** `audit-logger` + `dlq-service`
 - **Core entities:** AuditEvent, DeadLetterEntry
 - **Consumes:** All published events for audit trail
+- **Internal events:** `audit.heartbeat`, `audit.gap.detected`
 - **Publishes:** Replay requests (DLQ → Message Manager)
 
 ### 7. Gateway Context

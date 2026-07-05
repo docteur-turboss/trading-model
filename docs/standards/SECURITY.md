@@ -34,13 +34,16 @@ Certificates include SAN (Subject Alternative Names) for all services:
 
 ```typescript
 import { createSecureServer } from '@trading-model/common/server/create-secure-server';
-import { loadTlsConfig } from '@trading-model/common/server/load-tls-config';
 import { env } from '../config/env';
 
 export function createServer() {
   return createSecureServer({
     port: env.PORT,
-    tls: loadTlsConfig(env),
+    tls: {
+      key: env.TLS_KEY_PATH,
+      cert: env.TLS_CERT_PATH,
+      ca: env.TLS_CA_PATH,
+    },
     routes: app => {
       /* ... */
     },

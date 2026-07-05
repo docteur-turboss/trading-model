@@ -94,7 +94,7 @@ The **admin-interface** is a React SPA (not a Node.js microservice). It imports 
 
 | Package                          | Purpose                                                                                                                                                                                                                                                                     | Dependencies            |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| `@trading-model/common`          | Logger, HTTP client, middleware (catchError, MTLSAuth, ResponseProtocol), server factories (createSecureServer, createBootstrap), env validation (BaseEnvSchema, validateEnv), event types, service types, delivery mode enum, error classes, crypto utilities, shared DTOs | None (only npm deps)    |
+| `@trading-model/common`          | Logger, HTTP client, middleware (catchSync, MTLSAuthMiddleware, ResponseProtocol), server factories (createSecureServer, createBootstrap), env validation (BaseEnvSchema, validateEnv), event types, service types, delivery mode enum, error classes (`AppError` + `ErrorCodes`), crypto utilities, shared DTOs | None (only npm deps)    |
 | `@trading-model/address-manager` | Service discovery client, token manager, service cache with health checking, scheduler/jobs                                                                                                                                                                                 | common                  |
 | `@trading-model/broker-message`  | Inter-service messaging SDK: message manager client, event emitter, message controller/routes, validation schemas                                                                                                                                                           | common, address-manager |
 | `@trading-model/certificate-utils` | X.509 certificate generation, signing, validation, CRL management, key pair generation, CSR creation                                                                                                                                                                      | common |
@@ -215,7 +215,11 @@ Each package declares its exports via the `exports` field in `package.json`. Ent
     "./server/*": { "types": "./dist/server/*.d.ts", "default": "./dist/server/*.js" },
     "./validation/*": { "types": "./dist/validation/*.d.ts", "default": "./dist/validation/*.js" },
     "./contracts/*": { "types": "./dist/contracts/*.d.ts", "default": "./dist/contracts/*.js" },
-    "./crypto/*": { "types": "./dist/crypto/*.d.ts", "default": "./dist/crypto/*.js" }
+    "./crypto/*": { "types": "./dist/crypto/*.d.ts", "default": "./dist/crypto/*.js" },
+    "./worker/*": { "types": "./dist/worker/*.d.ts", "default": "./dist/worker/*.js" },
+    "./recovery/*": { "types": "./dist/recovery/*.d.ts", "default": "./dist/recovery/*.js" },
+    "./reliability/*": { "types": "./dist/reliability/*.d.ts", "default": "./dist/reliability/*.js" },
+    "./ca/*": { "types": "./dist/ca/*.d.ts", "default": "./dist/ca/*.js" }
   }
 }
 ```
