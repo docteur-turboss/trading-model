@@ -186,6 +186,8 @@ export class MessageMetadata {
 	 * Transforms the embed to a plain object
 	 */
 	public toJSON(): MetadataType {
+		this._assertRequiredFields();
+
 		const {
 			eventType,
 			publisher,
@@ -198,25 +200,6 @@ export class MessageMetadata {
 			security,
 		} = this;
 
-		if (!topic) {
-			throw new AppError(
-				"You haven't defined a topic",
-				ErrorCodes.METADATA_BUILDER_ERROR
-			);
-		}
-		if (!eventType) {
-			throw new AppError(
-				"You haven't defined a eventType",
-				ErrorCodes.METADATA_BUILDER_ERROR
-			);
-		}
-		if (!publisher) {
-			throw new AppError(
-				"You haven't defined a publisher",
-				ErrorCodes.METADATA_BUILDER_ERROR
-			);
-		}
-
 		return {
 			eventType,
 			publisher,
@@ -228,5 +211,26 @@ export class MessageMetadata {
 			routing,
 			security,
 		};
+	}
+
+	private _assertRequiredFields(): void {
+		if (!this.topic) {
+			throw new AppError(
+				"You haven't defined a topic",
+				ErrorCodes.METADATA_BUILDER_ERROR
+			);
+		}
+		if (!this.eventType) {
+			throw new AppError(
+				"You haven't defined a eventType",
+				ErrorCodes.METADATA_BUILDER_ERROR
+			);
+		}
+		if (!this.publisher) {
+			throw new AppError(
+				"You haven't defined a publisher",
+				ErrorCodes.METADATA_BUILDER_ERROR
+			);
+		}
 	}
 }
