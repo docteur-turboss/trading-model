@@ -1,37 +1,8 @@
-export type JobStatus =
-	| "pending"
-	| "queued"
-	| "assigned"
-	| "running"
-	| "completed"
-	| "failed"
-	| "cancelled"
-	| "orphaned";
+import type { Job, JobEvent, JobStatus } from "@trading-model/common/contracts/recovery.types";
+import { JOB_STATUS_NON_TERMINAL } from "@trading-model/common/contracts/recovery.types";
 
-export interface JobEvent {
-	fromStatus: JobStatus;
-	toStatus: JobStatus;
-	timestamp: Date;
-	reason: string;
-}
-
-export interface Job<TData = unknown> {
-	id: string;
-	type: string;
-	payload: TData;
-	priority: 1 | 2 | 3 | 4 | 5;
-	status: JobStatus;
-	assignedWorkerId?: string;
-	ackDeadline: number;
-	maxRetries: number;
-	retryCount: number;
-	createdAt: Date;
-	startedAt?: Date;
-	completedAt?: Date;
-	result?: unknown;
-	error?: string;
-	history: JobEvent[];
-}
+export type { Job, JobEvent, JobStatus };
+export { JOB_STATUS_NON_TERMINAL };
 
 export interface QueuedJob<TData = unknown> {
 	job: Job<TData>;
@@ -40,11 +11,3 @@ export interface QueuedJob<TData = unknown> {
 	expiresAt: number;
 	assignedAt?: Date;
 }
-
-export const JOB_STATUS_NON_TERMINAL: JobStatus[] = [
-	"pending",
-	"queued",
-	"assigned",
-	"running",
-	"orphaned",
-];

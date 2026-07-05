@@ -8,16 +8,28 @@ import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
 import type { ReAllocator } from "../recovery/re-allocator";
 
+export interface JobDispatcherDeps {
+	queue: InternalQueue;
+	backPressure: BackPressure;
+	workers: WorkerRegistry;
+	repository: JobRepository;
+	reAllocator: ReAllocator;
+}
+
 export class JobDispatcher {
+	private readonly _queue: InternalQueue;
+	private readonly _backPressure: BackPressure;
+	private readonly _workers: WorkerRegistry;
+	private readonly _repository: JobRepository;
+	private readonly _reAllocator: ReAllocator;
 	private _workerProtocol: WorkerProtocol | null = null;
 
-	constructor(
-		private readonly _queue: InternalQueue,
-		private readonly _backPressure: BackPressure,
-		private readonly _workers: WorkerRegistry,
-		private readonly _repository: JobRepository,
-		private readonly _reAllocator: ReAllocator
-	) {
+	constructor(deps: JobDispatcherDeps) {
+		this._queue = deps.queue;
+		this._backPressure = deps.backPressure;
+		this._workers = deps.workers;
+		this._repository = deps.repository;
+		this._reAllocator = deps.reAllocator;
 		this._queue.setOnAckTimeout((jobId) => {
 			this._handleAckTimeout(jobId);
 		});

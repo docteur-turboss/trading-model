@@ -47,47 +47,57 @@ export function createMessageHandler(
 	auditRepo: AuditRepository
 ): RequestHandler {
 	const handler: RequestHandler = catchSync(async (req) => {
-		const body = req.body as INcomingEnvelope;
-
-		let topic: string | undefined;
-		let payload: unknown;
-		let metadata: MessageMetadata | undefined;
-
-		if (body.message?.metadata?.topic) {
-			topic = body.message.metadata.topic;
-			payload = body.message.payload;
-			metadata = body.message.metadata;
-		} else if (body.metadata?.topic) {
-			topic = body.metadata.topic;
-			payload = body.payload;
-			metadata = body.metadata;
-		}
-
-		if (!topic) {
+		const parsed = _parseEnvelope(req.body as INcomingEnvelope);
+		if (!parsed) {
 			return sendResponse({ error: "Invalid message format: no topic" }, 400);
 		}
 
-		const publisher = metadata?.publisher;
-
-		const document: AuditEventDocument = {
-			receivedAt: metadata?.emittedAt
-				? new Date(metadata.emittedAt)
-				: new Date(),
-			metadata: {
-				topic,
-				eventType: metadata?.eventType ?? topic,
-				publisher: publisher?.serviceName ?? "unknown",
-				instanceId: publisher?.instanceId ?? "unknown",
-				messageId: metadata?.messageId ?? "unknown",
-				correlationId: metadata?.correlationId,
-			},
-			payload,
-		};
-
+		const document = _buildAuditDocument(parsed);
 		await auditRepo.insert(document);
 
 		return sendResponse({ status: "recorded" }, 200);
 	});
 
 	return handler;
+}
+
+interface ParsedEnvelope {
+	topic: string;
+	payload: unknown;
+	metadata: MessageMetadata;
+}
+
+function _parseEnvelope(body: INcomingEnvelope): ParsedEnvelope | null {
+	if (body.message?.metadata?.topic) {
+		return {
+			topic: body.message.metadata.topic,
+			payload: body.message.payload,
+			metadata: body.message.metadata,
+		};
+	}
+	if (body.metadata?.topic) {
+		return {
+			topic: body.metadata.topic,
+			payload: body.payload,
+			metadata: body.metadata,
+		};
+	}
+	return null;
+}
+
+function _buildAuditDocument(parsed: ParsedEnvelope): AuditEventDocument {
+	const { topic, payload, metadata } = parsed;
+	const publisher = metadata?.publisher;
+	return {
+		receivedAt: metadata?.emittedAt ? new Date(metadata.emittedAt) : new Date(),
+		metadata: {
+			topic,
+			eventType: metadata?.eventType ?? topic,
+			publisher: publisher?.serviceName ?? "unknown",
+			instanceId: publisher?.instanceId ?? "unknown",
+			messageId: metadata?.messageId ?? "unknown",
+			correlationId: metadata?.correlationId,
+		},
+		payload,
+	};
 }

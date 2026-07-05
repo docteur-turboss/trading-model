@@ -29,12 +29,12 @@ export class JobScheduler {
 		this.workers = new WorkerRegistry(ENV.WORKER_HEARTBEAT_TTL_MS);
 		this.repository = repository;
 		this.reAllocator = new ReAllocator(repository, this.queue);
-		this.orphanDetector = new OrphanDetector(
-			this.workers,
+		this.orphanDetector = new OrphanDetector({
+			workers: this.workers,
 			repository,
-			this.reAllocator,
-			ENV.ORPHAN_SCAN_INTERVAL_MS
-		);
+			reAllocator: this.reAllocator,
+			intervalMs: ENV.ORPHAN_SCAN_INTERVAL_MS,
+		});
 
 		this.queue.setOnAckTimeout((jobId) => {
 			this._handleAckTimeout(jobId);

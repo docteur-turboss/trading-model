@@ -1,6 +1,6 @@
 import type { Collection, Db } from "mongodb";
 
-import type { Job, JobStatus } from "../types/job.types";
+import type { Job, JobStatus } from "@trading-model/common/contracts/recovery.types";
 
 const MSET = "$set";
 const MPUSH = "$push";
@@ -14,7 +14,7 @@ interface JobDocument {
 	type: string;
 	payload: unknown;
 	priority: number;
-	status: string;
+	status: JobStatus;
 	assignedWorkerId?: string;
 	ackDeadline: number;
 	maxRetries: number;
@@ -25,8 +25,8 @@ interface JobDocument {
 	result?: unknown;
 	error?: string;
 	history: Array<{
-		fromStatus: string;
-		toStatus: string;
+		fromStatus: JobStatus;
+		toStatus: JobStatus;
 		timestamp: Date;
 		reason: string;
 	}>;
@@ -63,7 +63,7 @@ function fromDocument(doc: JobDocument): Job {
 		type: doc.type,
 		payload: doc.payload as Job["payload"],
 		priority: doc.priority as 1 | 2 | 3 | 4 | 5,
-		status: doc.status as JobStatus,
+		status: doc.status,
 		assignedWorkerId: doc.assignedWorkerId,
 		ackDeadline: doc.ackDeadline,
 		maxRetries: doc.maxRetries,
@@ -74,8 +74,8 @@ function fromDocument(doc: JobDocument): Job {
 		result: doc.result,
 		error: doc.error,
 		history: doc.history.map((entry) => ({
-			fromStatus: entry.fromStatus as JobStatus,
-			toStatus: entry.toStatus as JobStatus,
+			fromStatus: entry.fromStatus,
+			toStatus: entry.toStatus,
 			timestamp: entry.timestamp,
 			reason: entry.reason,
 		})),
