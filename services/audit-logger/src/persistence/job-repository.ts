@@ -1,6 +1,6 @@
 import type { Collection, Db } from "mongodb";
 
-import type { Job, JobStatus } from "@trading-model/common/contracts/recovery.types";
+import { isTerminalStatus, type Job, type JobStatus } from "@trading-model/common/contracts/recovery.types";
 
 const MSET = "$set";
 const MPUSH = "$push";
@@ -123,9 +123,7 @@ export class JobRepository {
 		const updateSet: Record<string, unknown> = {
 			status,
 			...(status === "running" ? { startedAt: new Date() } : {}),
-			...(status === "completed" || status === "failed"
-				? { completedAt: new Date() }
-				: {}),
+			...(isTerminalStatus(status) ? { completedAt: new Date() } : {}),
 		};
 		if (extras?.result !== undefined) {
 			updateSet.result = extras.result;

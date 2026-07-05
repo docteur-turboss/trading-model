@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import { logger } from "@trading-model/common/config/logger";
-import { isTerminalStatus } from "@trading-model/common/contracts/recovery.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
@@ -11,6 +10,8 @@ import type { WorkerProtocol } from "../worker/worker-protocol";
 import { WorkerRegistry } from "../worker/worker-registry";
 import { BackPressure } from "./back-pressure";
 import { InternalQueue } from "./internal-queue";
+import { JobAssignmentManager } from "./job-assignment-manager";
+import { JobFailureHandler } from "./job-failure-handler";
 
 export class JobScheduler {
 	readonly queue: InternalQueue;
@@ -19,6 +20,8 @@ export class JobScheduler {
 	readonly repository: JobRepository;
 	readonly reAllocator: ReAllocator;
 	readonly orphanDetector: OrphanDetector;
+	private readonly _assignmentManager: JobAssignmentManager;
+	private readonly _failureHandler: JobFailureHandler;
 	private _workerProtocol: WorkerProtocol | null = null;
 
 	constructor(repository: JobRepository) {
@@ -30,6 +33,18 @@ export class JobScheduler {
 		this.workers = new WorkerRegistry(ENV.WORKER_HEARTBEAT_TTL_MS);
 		this.repository = repository;
 		this.reAllocator = new ReAllocator(repository, this.queue);
+		this._assignmentManager = new JobAssignmentManager(
+			this.queue,
+			this.backPressure,
+			this.workers,
+			repository
+		);
+		this._failureHandler = new JobFailureHandler(
+			this.queue,
+			repository,
+			this.reAllocator,
+			this._assignmentManager
+		);
 		this.orphanDetector = new OrphanDetector({
 			workers: this.workers,
 			repository,
@@ -38,12 +53,13 @@ export class JobScheduler {
 		});
 
 		this.queue.setOnAckTimeout((jobId) => {
-			this._handleAckTimeout(jobId);
+			this._failureHandler.handleAckTimeout(jobId);
 		});
 	}
 
 	setWorkerProtocol(protocol: WorkerProtocol): void {
 		this._workerProtocol = protocol;
+		this._assignmentManager.setWorkerProtocol(protocol);
 	}
 
 	async submit(
@@ -93,138 +109,7 @@ export class JobScheduler {
 				error: String(err),
 			});
 		});
-		this._distributeNext();
-	}
-
-	private _assignJob(
-		queued: { job: Job },
-		worker: { workerId: string; currentLoad: number; maxConcurrency: number }
-	): void {
-		const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
-		const assignedJob: Job = {
-			...queued.job,
-			status: "assigned",
-			assignedWorkerId: worker.workerId,
-			ackDeadline: deadline,
-		};
-
-		this.queue.markDelivered(assignedJob.id);
-		this._sendAssignment(worker.workerId, assignedJob, deadline);
-		this._incrementWorkerLoad(worker);
-		this._persistAssignment(assignedJob.id, worker.workerId, deadline);
-
-		logger.info("Job assigned to worker", {
-			jobId: assignedJob.id,
-			workerId: worker.workerId,
-		});
-	}
-
-	private _sendAssignment(workerId: string, job: Job, deadline: number): void {
-		if (!this._workerProtocol) {
-			return;
-		}
-		this._workerProtocol.sendToWorker(workerId, {
-			type: "job.assigned",
-			job: {
-				id: job.id,
-				type: job.type,
-				payload: job.payload,
-				ackDeadline: deadline,
-			},
-		});
-	}
-
-	private _incrementWorkerLoad(worker: {
-		workerId: string;
-		currentLoad: number;
-		maxConcurrency: number;
-	}): void {
-		worker.currentLoad += 1;
-		this.backPressure.updateWorkerLoad(
-			worker.workerId,
-			worker.currentLoad / worker.maxConcurrency
-		);
-	}
-
-	private _decrementWorkerLoad(workerId: string | undefined): void {
-		if (!workerId) {
-			return;
-		}
-		const worker = this.workers.get(workerId);
-		if (!worker) {
-			return;
-		}
-		worker.currentLoad = Math.max(0, worker.currentLoad - 1);
-		this.backPressure.updateWorkerLoad(
-			workerId,
-			worker.currentLoad / worker.maxConcurrency
-		);
-	}
-
-	private _persistAssignment(
-		jobId: string,
-		assignedWorkerId: string,
-		deadline: number
-	): void {
-		this.repository
-			.updateStatus(jobId, "assigned", {
-				assignedWorkerId,
-				ackDeadline: deadline,
-			})
-			.catch((err) => {
-				logger.error("Failed to persist assigned status", {
-					jobId,
-					error: String(err),
-				});
-			});
-	}
-
-	private _distributeNext(): void {
-		const queued = this.queue.dequeue();
-		if (!queued) {
-			return;
-		}
-
-		const worker = this.workers.findBestWorker(queued.job.type);
-		if (!worker) {
-			this.queue.enqueue(queued.job);
-			return;
-		}
-
-		this._assignJob(queued, worker);
-	}
-
-	private _handleAckTimeout(jobId: string): void {
-		logger.warn("ACK timeout for job", { jobId });
-
-		this.repository
-			.findById(jobId)
-			.then((job) => {
-				if (
-					!job ||
-					isTerminalStatus(job.status)
-				) {
-					return;
-				}
-
-				this._decrementWorkerLoad(job.assignedWorkerId);
-
-				this.repository
-					.updateStatus(jobId, "orphaned")
-					.then(() => this.reAllocator.reallocate(job))
-					.catch((err) =>
-						logger.error("Failed to persist orphaned status on ACK timeout", {
-							jobId,
-							error: String(err),
-						})
-					);
-			})
-			.catch((err) => {
-				logger.error("Failed to find job on ACK timeout", {
-					jobId,
-					error: String(err),
-				});
-			});
+		this._assignmentManager.distributeNext();
 	}
 
 	async ack(jobId: string): Promise<void> {
@@ -239,45 +124,10 @@ export class JobScheduler {
 		await this.repository.updateStatus(jobId, "completed", { result });
 
 		const job = await this.repository.findById(jobId);
-		this._decrementWorkerLoad(job?.assignedWorkerId);
+		this._assignmentManager.decrementWorkerLoad(job?.assignedWorkerId);
 
 		logger.info("Job completed", { jobId });
-		this._distributeNext();
-	}
-
-	private async _handlePermanentFailure(
-		jobId: string,
-		error: string
-	): Promise<void> {
-		await this.repository.updateStatus(jobId, "failed", { error });
-		logger.warn("Job failed permanently", { jobId, error });
-	}
-
-	private async _handleRetryableFailure(
-		jobId: string,
-		job: Job,
-		_error: string
-	): Promise<void> {
-		const newDeadline = Date.now() + ENV.ACK_TIMEOUT_MS;
-		const updatedJob: Job = {
-			...job,
-			status: "queued",
-			ackDeadline: newDeadline,
-			retryCount: job.retryCount + 1,
-			assignedWorkerId: undefined,
-		};
-
-		this.queue.enqueue(updatedJob);
-		await this.repository.incrementRetry(jobId);
-		await this.repository.updateStatus(jobId, "queued", {
-			ackDeadline: newDeadline,
-		});
-
-		logger.info("Job re-queued after failure", {
-			jobId,
-			retryCount: updatedJob.retryCount,
-		});
-		this._distributeNext();
+		this._assignmentManager.distributeNext();
 	}
 
 	async fail(jobId: string, error: string): Promise<void> {
@@ -288,12 +138,12 @@ export class JobScheduler {
 			return;
 		}
 
-		this._decrementWorkerLoad(job.assignedWorkerId);
+		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
 
 		if (job.retryCount >= job.maxRetries) {
-			await this._handlePermanentFailure(jobId, error);
+			await this._failureHandler.handlePermanentFailure(jobId, error);
 		} else {
-			await this._handleRetryableFailure(jobId, job, error);
+			await this._failureHandler.handleRetryableFailure(jobId, job, error);
 		}
 	}
 
@@ -309,7 +159,7 @@ export class JobScheduler {
 
 		this.queue.ack(jobId);
 		await this.repository.updateStatus(jobId, "cancelled");
-		this._decrementWorkerLoad(job.assignedWorkerId);
+		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
 
 		logger.info("Job cancelled", { jobId });
 	}
