@@ -24,11 +24,8 @@ interface RegisterController {
 	getInstance: RequestHandler;
 }
 
-export function createRegisterController(
-	registry: ServiceRegistry
-): RegisterController {
-	/** Register a new service instance or update an existing one in the registry. */
-	const register: RequestHandler = catchSync((req) => {
+function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
+	return catchSync((req) => {
 		const parsed = REGISTER_SCHEMA.safeParse(req.body);
 		if (!parsed.success) {
 			return sendResponse(
@@ -70,12 +67,18 @@ export function createRegisterController(
 
 		return sendResponse(registered, 201);
 	});
+}
 
-	const listServices: RequestHandler = catchSync(() => {
+function createListServicesHandler(registry: ServiceRegistry): RequestHandler {
+	return catchSync(() => {
 		return sendResponse(registry.listServiceNames(), 200);
 	});
+}
 
-	const getServiceInstances: RequestHandler = catchSync((req) => {
+function createGetServiceInstancesHandler(
+	registry: ServiceRegistry
+): RequestHandler {
+	return catchSync((req) => {
 		const { serviceName } = req.params;
 
 		if (!isNonEmptyString(serviceName)) {
@@ -88,8 +91,10 @@ export function createRegisterController(
 
 		return sendResponse(registry.getInstances(serviceName), 200);
 	});
+}
 
-	const getInstance: RequestHandler = catchSync((req) => {
+function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
+	return catchSync((req) => {
 		const { serviceName, instanceId } = req.params;
 
 		if (!(isNonEmptyString(serviceName) && isNonEmptyString(instanceId))) {
@@ -104,6 +109,15 @@ export function createRegisterController(
 
 		return sendResponse(instance, 200);
 	});
+}
 
-	return { register, listServices, getServiceInstances, getInstance };
+export function createRegisterController(
+	registry: ServiceRegistry
+): RegisterController {
+	return {
+		register: createRegisterHandler(registry),
+		listServices: createListServicesHandler(registry),
+		getServiceInstances: createGetServiceInstancesHandler(registry),
+		getInstance: createGetInstanceHandler(registry),
+	};
 }
