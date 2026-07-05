@@ -19,13 +19,14 @@ function _buildSerialNumber(): string {
 	return randomUUID().replace(/-/g, "").substring(0, 16).toUpperCase();
 }
 
-function _buildCertBody(
-	serialNumber: string,
-	csrData: ReturnType<typeof parseCsr>,
-	publicKey: ReturnType<typeof createPublicKey>,
-	now: Date,
-	expiresAt: Date
-): string {
+function _buildCertBody(options: {
+	serialNumber: string;
+	csrData: ReturnType<typeof parseCsr>;
+	publicKey: ReturnType<typeof createPublicKey>;
+	now: Date;
+	expiresAt: Date;
+}): string {
+	const { serialNumber, csrData, publicKey, now, expiresAt } = options;
 	return [
 		`Serial: ${serialNumber}`,
 		"Issuer: CN=TradingModelCA",
@@ -70,13 +71,7 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 	const now = new Date();
 	const expiresAt = new Date(now.getTime() + ttlMs);
 
-	const certBody = _buildCertBody(
-		serialNumber,
-		csrData,
-		publicKey,
-		now,
-		expiresAt
-	);
+	const certBody = _buildCertBody({ serialNumber, csrData, publicKey, now, expiresAt });
 	const signature = _signCertBody(certBody, caKeyPair.privateKey);
 	const certPem = _buildCertPem(certBody, signature, caCertPem);
 
