@@ -1,6 +1,7 @@
 {
   "name": "@trading-model/certificate-utils",
   "version": "1.0.0",
+  "description": "Certificate generation and management utilities",
   "license": "ISC",
   "type": "commonjs",
   "exports": {

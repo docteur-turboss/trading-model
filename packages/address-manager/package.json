@@ -1,6 +1,7 @@
 {
   "name": "@trading-model/address-manager",
   "version": "1.2.0",
+  "description": "Address management and service discovery client",
   "license": "ISC",
   "type": "commonjs",
   "exports": {

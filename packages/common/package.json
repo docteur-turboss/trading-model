@@ -1,6 +1,7 @@
 {
   "name": "@trading-model/common",
   "version": "1.2.1",
+  "description": "Shared infrastructure — logger, server, middleware, validation, types",
   "license": "ISC",
   "type": "commonjs",
   "exports": {

@@ -1,6 +1,7 @@
 {
   "name": "admin-interface",
   "version": "1.0.0",
+  "description": "Admin dashboard for monitoring and managing the trading platform",
   "private": true,
   "type": "module",
   "scripts": {
