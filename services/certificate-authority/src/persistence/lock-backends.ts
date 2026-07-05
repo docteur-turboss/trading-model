@@ -5,7 +5,7 @@ import { logger } from "@trading-model/common/config/logger";
 import Redis from "ioredis";
 import type { Collection } from "mongodb";
 
-interface LockDocument {
+export interface LockDocument {
 	name: string;
 	acquiredAt: Date;
 	expiresAt: Date;
@@ -264,6 +264,15 @@ export class FileSystemLockBackend implements LockBackend {
 		instanceId: string,
 		ttlMs: number
 	): Promise<number | null> {
+		if (
+			process.env.NODE_ENV !== "development" &&
+			process.env.NODE_ENV !== "test"
+		) {
+			logger.error(
+				"No lock backend available (MongoDB, Redis) and filesystem fallback is disabled in production"
+			);
+			return null;
+		}
 		try {
 			await fs.mkdir(this._fallbackDir, { recursive: true });
 			const lockFile = path.join(this._fallbackDir, `${lockName}.lock`);

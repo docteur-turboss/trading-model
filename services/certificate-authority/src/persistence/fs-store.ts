@@ -140,28 +140,40 @@ export class FsStore {
 		}
 		try {
 			const files = await fs.readdir(this._baseDir);
-			const ext = this._encryptionKey ? ".enc" : ".json";
-			const results: TData[] = [];
-			for (const file of files) {
-				if (!file.endsWith(ext)) {
-					continue;
-				}
-				try {
-					const raw = await fs.readFile(path.join(this._baseDir, file), "utf8");
-					const decrypted = this._encryptionKey
-						? decrypt(raw, this._encryptionKey)
-						: raw;
-					results.push(JSON.parse(decrypted) as TData);
-				} catch (err) {
-					logger.warn("Skipping corrupted fallback file", {
-						file,
-						err: normalizeError(err as Error),
-					});
-				}
-			}
-			return results;
+			return await this._readAllFiles<TData>(files);
 		} catch {
 			return [];
+		}
+	}
+
+	private async _readAllFiles<TData>(files: string[]): Promise<TData[]> {
+		const ext = this._encryptionKey ? ".enc" : ".json";
+		const results: TData[] = [];
+		for (const file of files) {
+			if (!file.endsWith(ext)) {
+				continue;
+			}
+			const data = await this._tryReadFile<TData>(file);
+			if (data !== undefined) {
+				results.push(data);
+			}
+		}
+		return results;
+	}
+
+	private async _tryReadFile<TData>(file: string): Promise<TData | undefined> {
+		try {
+			const raw = await fs.readFile(path.join(this._baseDir, file), "utf8");
+			const decrypted = this._encryptionKey
+				? decrypt(raw, this._encryptionKey)
+				: raw;
+			return JSON.parse(decrypted) as TData;
+		} catch (err) {
+			logger.warn("Skipping corrupted fallback file", {
+				file,
+				err: normalizeError(err as Error),
+			});
+			return undefined;
 		}
 	}
 

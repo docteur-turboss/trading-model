@@ -18,51 +18,66 @@ export function signCertWithCaKey(
 		const algorithm =
 			nodeKey.asymmetricKeyType === "rsa" ? "RSA-SHA256" : "sha256";
 
-		const sigOid = forge.pki.oids.sha256WithRSAEncryption;
-		cert.signature = "\x00";
-		cert.signatureOid = sigOid;
-		(cert as unknown as Record<string, unknown>).siginfo = {
-			algorithmOid: sigOid,
-		};
+		_prepareCertForSigning(cert);
 
-		const fullAsn1 = forge.pki.certificateToAsn1(cert);
-		const asn1Values = fullAsn1.value as forge.asn1.Asn1[];
-		if (asn1Values.length < 3) {
-			throw new Error(
-				"Unexpected ASN.1 structure: expected at least 3 elements"
-			);
-		}
-		if (asn1Values[0].type !== forge.asn1.Type.SEQUENCE) {
-			throw new Error(
-				"Unexpected ASN.1 structure: first element is not a SEQUENCE (TBS certificate)"
-			);
-		}
-		const tbs = asn1Values[0];
-		const tbsDer = forge.asn1.toDer(tbs).getBytes();
-		const tbsBuffer = Buffer.from(tbsDer, "binary");
+		const tbsBuffer = _extractTbsDer(cert);
 
 		const sigBuffer = createSign(algorithm).update(tbsBuffer).sign(nodeKey);
 		const sigBytes = sigBuffer.toString("binary");
 
-		const asn1Sig = forge.asn1.create(
-			forge.asn1.Class.UNIVERSAL,
-			forge.asn1.Type.BITSTRING,
-			false,
-			`\x00${sigBytes}`
-		);
-		asn1Values[2] = asn1Sig;
-
-		const fullDer = forge.asn1.toDer(fullAsn1).getBytes();
-		const signedCert = forge.pki.certificateFromAsn1(
-			forge.asn1.fromDer(forge.util.createBuffer(fullDer))
-		);
-
-		cert.signature = signedCert.signature;
-		cert.signatureOid = signedCert.signatureOid;
-		(cert as unknown as Record<string, unknown>).siginfo = (
-			signedCert as unknown as Record<string, unknown>
-		).siginfo;
+		_applyAsn1Signature(cert, sigBytes);
 	} finally {
 		pem.fill(0);
 	}
+}
+
+function _prepareCertForSigning(cert: forge.pki.Certificate): void {
+	const sigOid = forge.pki.oids.sha256WithRSAEncryption;
+	cert.signature = "\x00";
+	cert.signatureOid = sigOid;
+	(cert as unknown as Record<string, unknown>).siginfo = {
+		algorithmOid: sigOid,
+	};
+}
+
+function _extractTbsDer(cert: forge.pki.Certificate): Buffer {
+	const fullAsn1 = forge.pki.certificateToAsn1(cert);
+	const asn1Values = fullAsn1.value as forge.asn1.Asn1[];
+	if (asn1Values.length < 3) {
+		throw new Error("Unexpected ASN.1 structure: expected at least 3 elements");
+	}
+	if (asn1Values[0].type !== forge.asn1.Type.SEQUENCE) {
+		throw new Error(
+			"Unexpected ASN.1 structure: first element is not a SEQUENCE (TBS certificate)"
+		);
+	}
+	const tbsDer = forge.asn1.toDer(asn1Values[0]).getBytes();
+	return Buffer.from(tbsDer, "binary");
+}
+
+function _applyAsn1Signature(
+	cert: forge.pki.Certificate,
+	sigBytes: string
+): void {
+	const fullAsn1 = forge.pki.certificateToAsn1(cert);
+	const asn1Values = fullAsn1.value as forge.asn1.Asn1[];
+
+	const asn1Sig = forge.asn1.create(
+		forge.asn1.Class.UNIVERSAL,
+		forge.asn1.Type.BITSTRING,
+		false,
+		`\x00${sigBytes}`
+	);
+	asn1Values[2] = asn1Sig;
+
+	const fullDer = forge.asn1.toDer(fullAsn1).getBytes();
+	const signedCert = forge.pki.certificateFromAsn1(
+		forge.asn1.fromDer(forge.util.createBuffer(fullDer))
+	);
+
+	cert.signature = signedCert.signature;
+	cert.signatureOid = signedCert.signatureOid;
+	(cert as unknown as Record<string, unknown>).siginfo = (
+		signedCert as unknown as Record<string, unknown>
+	).siginfo;
 }

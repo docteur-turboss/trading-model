@@ -35,11 +35,11 @@ describe("CertRenewalService", () => {
 	it("should throw CertRenewalError when nonce is invalid", async () => {
 		mockNonceStore.consume.mockResolvedValue(false);
 
-		const service = new CertRenewalService(
-			mockCertStore as any,
-			mockNonceStore as any,
-			mockCa as any
-		);
+		const service = new CertRenewalService({
+			certStore: mockCertStore as any,
+			nonceStore: mockNonceStore as any,
+			ca: mockCa as any,
+		});
 
 		await expect(
 			service.renew("svc-1", "SN-001", "nonce", "sig", "csr")
@@ -54,11 +54,11 @@ describe("CertRenewalService", () => {
 		mockNonceStore.consume.mockResolvedValue(true);
 		mockCertStore.getBySerial.mockResolvedValue(null);
 
-		const service = new CertRenewalService(
-			mockCertStore as any,
-			mockNonceStore as any,
-			mockCa as any
-		);
+		const service = new CertRenewalService({
+			certStore: mockCertStore as any,
+			nonceStore: mockNonceStore as any,
+			ca: mockCa as any,
+		});
 
 		await expect(
 			service.renew("svc-1", "SN-001", "nonce", "sig", "csr")
@@ -73,12 +73,12 @@ describe("CertRenewalService", () => {
 		});
 		mockLock.acquire.mockResolvedValue(false);
 
-		const service = new CertRenewalService(
-			mockCertStore as any,
-			mockNonceStore as any,
-			mockCa as any,
-			mockLock as any
-		);
+		const service = new CertRenewalService({
+			certStore: mockCertStore as any,
+			nonceStore: mockNonceStore as any,
+			ca: mockCa as any,
+			lock: mockLock as any,
+		});
 
 		await expect(
 			service.renew("svc-1", "SN-002", "nonce", "sig", "csr")
@@ -101,12 +101,12 @@ describe("CertRenewalService", () => {
 		};
 		mockCa.signServiceCertificate.mockResolvedValue(signedCert);
 
-		const service = new CertRenewalService(
-			mockCertStore as any,
-			mockNonceStore as any,
-			mockCa as any,
-			mockLock as any
-		);
+		const service = new CertRenewalService({
+			certStore: mockCertStore as any,
+			nonceStore: mockNonceStore as any,
+			ca: mockCa as any,
+			lock: mockLock as any,
+		});
 
 		const result = await service.renew(
 			"svc-1",
@@ -136,11 +136,11 @@ describe("CertRenewalService", () => {
 		};
 		mockCa.signServiceCertificate.mockResolvedValue(signedCert);
 
-		const service = new CertRenewalService(
-			mockCertStore as any,
-			mockNonceStore as any,
-			mockCa as any
-		);
+		const service = new CertRenewalService({
+			certStore: mockCertStore as any,
+			nonceStore: mockNonceStore as any,
+			ca: mockCa as any,
+		});
 
 		const result = await service.renew(
 			"svc-1",

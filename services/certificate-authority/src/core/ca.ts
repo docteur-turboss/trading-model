@@ -33,6 +33,13 @@ export interface CaOptions {
 	caStore: CaStore;
 }
 
+interface CertBodyInput {
+	serialNumber: string;
+	now: Date;
+	expiresAt: Date;
+	publicKey: string;
+}
+
 export class CertificateAuthority {
 	private _caKeyPair: KeyPair | null = null;
 	private _caCertPem = "";
@@ -75,23 +82,23 @@ export class CertificateAuthority {
 		const now = new Date();
 		const expiresAt = new Date(now.getTime() + this._options.caCertTtlMs);
 
-		const certBody = this._buildCertBody(
+		const certBody = this._buildCertBody({
 			serialNumber,
 			now,
 			expiresAt,
-			this._caKeyPair.publicKey
-		);
+			publicKey: this._caKeyPair.publicKey,
+		});
 		this._caCertPem = this._signCertBody(certBody, this._caKeyPair.privateKey);
 		this._saveCaKey(this._caKeyPair.privateKey);
 		await this._saveCaCert(this._caCertPem, serialNumber, now, expiresAt);
 	}
 
-	private _buildCertBody(
-		serialNumber: string,
-		now: Date,
-		expiresAt: Date,
-		publicKey: string
-	): string {
+	private _buildCertBody({
+		serialNumber,
+		now,
+		expiresAt,
+		publicKey,
+	}: CertBodyInput): string {
 		return [
 			`Serial: ${serialNumber}`,
 			"Issuer: CN=TradingModelCA",

@@ -89,18 +89,25 @@ interface ConnectionState {
 	requestWindowStart: number;
 }
 
+interface AuthMessageContext {
+	ws: WebSocket;
+	authMsg: WsAuthMessage;
+	state: ConnectionState;
+	clientIdentity?: string;
+}
+
 interface WssSession {
 	state: ConnectionState;
 	clientIdentity: string | undefined;
 	limiterKey: string;
 }
 
-function handleAuthMessage(
-	ws: WebSocket,
-	authMsg: WsAuthMessage,
-	state: ConnectionState,
-	clientIdentity: string | undefined
-): boolean {
+function handleAuthMessage({
+	ws,
+	authMsg,
+	state,
+	clientIdentity,
+}: AuthMessageContext): boolean {
 	state.authAttempts++;
 	if (state.authAttempts > AUTH_ATTEMPT_MAX) {
 		logger.warn("WSS client exceeded max auth attempts, closing connection", {
@@ -260,12 +267,12 @@ async function handleWsMessage(
 	}
 
 	if (msg.type === "auth") {
-		handleAuthMessage(
+		handleAuthMessage({
 			ws,
-			msg as unknown as WsAuthMessage,
-			session.state,
-			session.clientIdentity
-		);
+			authMsg: msg as unknown as WsAuthMessage,
+			state: session.state,
+			clientIdentity: session.clientIdentity,
+		});
 		return;
 	}
 

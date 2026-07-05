@@ -55,11 +55,6 @@ export class RedisCache {
 		}
 	}
 
-	/**
-	 * Subscribes to a Redis channel and registers a handler for incoming messages.
-	 * Returns an unsubscribe function.
-	 * Automatically re-subscribes after reconnection.
-	 */
 	async subscribe(
 		channel: string,
 		handler: (message: string) => void
@@ -67,29 +62,15 @@ export class RedisCache {
 		if (!this._client) {
 			return () => {};
 		}
-		const subscriber = this._client.duplicate({
-			retryStrategy: (times) => {
-				if (times > 10) {
-					return null;
-				}
-				return Math.min(times * 1000, 30000);
-			},
-		});
+		const subscriber = this._duplicateSubscriber();
 		let unsubscribed = false;
 		const onMessage = (_ch: string, msg: string) => {
 			if (!unsubscribed) {
 				handler(msg);
 			}
 		};
-		const doSubscribe = async () => {
-			try {
-				await subscriber.subscribe(channel);
-			} catch {
-				// retry will handle
-			}
-		};
 		try {
-			await doSubscribe();
+			await _doSubscribe(subscriber, channel);
 			subscriber.on("message", onMessage);
 			subscriber.on("reconnecting", () => {
 				logger.info(
@@ -99,19 +80,32 @@ export class RedisCache {
 			});
 			subscriber.on("connect", () => {
 				if (!unsubscribed) {
-					doSubscribe().catch(() => {});
+					_doSubscribe(subscriber, channel).catch(() => {});
 				}
 			});
-			return () => {
-				unsubscribed = true;
-				subscriber.removeListener("message", onMessage);
-				subscriber.unsubscribe(channel).catch(() => {});
-				subscriber.quit().catch(() => {});
-			};
+			return _createUnsubscriber({
+				subscriber,
+				channel,
+				onMessage,
+				onClose: () => {
+					unsubscribed = true;
+				},
+			});
 		} catch {
 			subscriber.quit().catch(() => {});
 			return () => {};
 		}
+	}
+
+	private _duplicateSubscriber(): Redis {
+		return this._client!.duplicate({
+			retryStrategy: (times) => {
+				if (times > 10) {
+					return null;
+				}
+				return Math.min(times * 1000, 30000);
+			},
+		});
 	}
 
 	isAvailable(): boolean {
@@ -184,4 +178,33 @@ export class RedisCache {
 	makeKey(parts: string[]): string {
 		return `ca-cache:${parts.join(":")}`;
 	}
+}
+
+async function _doSubscribe(subscriber: Redis, channel: string): Promise<void> {
+	try {
+		await subscriber.subscribe(channel);
+	} catch {
+		// retry will handle
+	}
+}
+
+interface UnsubscriberContext {
+	subscriber: Redis;
+	channel: string;
+	onMessage: (_ch: string, msg: string) => void;
+	onClose?: () => void;
+}
+
+function _createUnsubscriber({
+	subscriber,
+	channel,
+	onMessage,
+	onClose,
+}: UnsubscriberContext): () => void {
+	return () => {
+		onClose?.();
+		subscriber.removeListener("message", onMessage);
+		subscriber.unsubscribe(channel).catch(() => {});
+		subscriber.quit().catch(() => {});
+	};
 }

@@ -36,19 +36,30 @@ export class CertRenewalError extends Error {
 	}
 }
 
+export interface CertRenewalDeps {
+	certStore: CertStore;
+	nonceStore: NonceStore;
+	ca: CertificateAuthority;
+	lock?: DistributedLock;
+}
+
 /**
  * Domain service orchestrating certificate renewal with proof-of-possession verification.
  * Pure domain logic — no HTTP, no Express, no MongoDB.
  */
 export class CertRenewalService {
 	private readonly _popVerifier = new PopVerifier();
+	private readonly _certStore: CertStore;
+	private readonly _nonceStore: NonceStore;
+	private readonly _ca: CertificateAuthority;
+	private readonly _lock?: DistributedLock;
 
-	constructor(
-		private readonly _certStore: CertStore,
-		private readonly _nonceStore: NonceStore,
-		private readonly _ca: CertificateAuthority,
-		private readonly _lock?: DistributedLock
-	) {}
+	constructor(deps: CertRenewalDeps) {
+		this._certStore = deps.certStore;
+		this._nonceStore = deps.nonceStore;
+		this._ca = deps.ca;
+		this._lock = deps.lock;
+	}
 
 	/**
 	 * Renews a certificate after verifying the client still holds the private key.

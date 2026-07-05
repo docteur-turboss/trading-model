@@ -1,19 +1,15 @@
-import { randomInt, randomUUID } from "node:crypto";
-import fs from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { logger } from "@trading-model/common/config/logger";
-import Redis from "ioredis";
 import { type Collection, MongoClient } from "mongodb";
 
 import { MONGO_MANAGER } from "./mongo-manager";
-
-interface LockDocument {
-	name: string;
-	acquiredAt: Date;
-	expiresAt: Date;
-	instanceId: string;
-	fencingToken: number;
-}
+import type { LockDocument } from "./lock-backends";
+import {
+	FileSystemLockBackend,
+	MongoLockBackend,
+	RedisLockBackend,
+} from "./lock-backends";
 
 export interface DistributedLockOptions {
 	uri: string;
@@ -29,22 +25,31 @@ export class DistributedLock {
 	private readonly _lockName: string;
 	private readonly _ttlMs: number;
 	private readonly _instanceId: string;
-	private _mongoConnected = false;
-	private _redisAvailable = false;
-	private _redisClient: Redis | null = null;
-	private readonly _redisUrl: string | null;
-	private readonly _fallbackDir: string;
 	private _currentFencingToken = -1;
+	private _mongoAvailable = false;
+
+	private readonly _mongoBackend: MongoLockBackend;
+	private readonly _redisBackend: RedisLockBackend;
+	private readonly _filesystemBackend: FileSystemLockBackend;
 
 	constructor(options: DistributedLockOptions) {
 		this._client = new MongoClient(options.uri);
 		this._lockName = options.lockName;
 		this._ttlMs = options.ttlMs;
 		this._instanceId = randomUUID().substring(0, 8);
-		this._redisUrl = options.redisUrl ?? null;
-		this._fallbackDir =
+
+		const fallbackDir =
 			options.fallbackDir ??
 			path.join(process.cwd(), "data", "ca-fallback", "locks");
+
+		this._mongoBackend = new MongoLockBackend(
+			() => this._collection,
+			() => {
+				this._mongoAvailable = false;
+			}
+		);
+		this._redisBackend = new RedisLockBackend(options.redisUrl ?? null);
+		this._filesystemBackend = new FileSystemLockBackend(fallbackDir);
 	}
 
 	async connect(): Promise<void> {
@@ -53,13 +58,13 @@ export class DistributedLock {
 				this._client = MONGO_MANAGER.getClient();
 				const db = MONGO_MANAGER.getDb();
 				this._collection = db.collection<LockDocument>("locks");
-				this._mongoConnected = true;
 			} else {
 				await this._client.connect();
 				const db = this._client.db();
 				this._collection = db.collection<LockDocument>("locks");
-				this._mongoConnected = true;
 			}
+			this._mongoAvailable = true;
+			this._mongoBackend.setConnected(true);
 			await this._collection!.createIndex({ name: 1 }, { unique: true });
 			await this._collection!.createIndex(
 				{ expiresAt: 1 },
@@ -67,22 +72,6 @@ export class DistributedLock {
 			);
 		} catch (err) {
 			logger.warn("MongoDB lock connection failed", { err });
-		}
-	}
-
-	private _connectRedis(redisUrl: string): void {
-		try {
-			this._redisClient = new Redis(redisUrl, {
-				enableReadyCheck: true,
-				maxRetriesPerRequest: 1,
-				retryStrategy: () => null,
-				lazyConnect: true,
-			});
-			this._redisClient.on("error", () => {
-				this._redisAvailable = false;
-			});
-		} catch {
-			this._redisClient = null;
 		}
 	}
 
@@ -94,249 +83,116 @@ export class DistributedLock {
 				/* closing */
 			}
 		}
-		this._redisClient?.disconnect();
+		this._redisBackend.disconnect();
 	}
 
-	/**
-	 * Returns the fencing token if the lock is still held by this instance,
-	 * or -1 if the lock was lost (stolen by another instance).
-	 */
 	async verifyOwnership(): Promise<number> {
 		if (this._currentFencingToken < 0) {
 			return -1;
 		}
 
-		if (this._mongoConnected && this._collection) {
-			try {
-				const doc = await this._collection.findOne({ name: this._lockName });
-				if (
-					!doc ||
-					doc.instanceId !== this._instanceId ||
-					doc.fencingToken !== this._currentFencingToken
-				) {
-					this._currentFencingToken = -1;
-					return -1;
-				}
-				return this._currentFencingToken;
-			} catch {
-				this._mongoConnected = false;
-			}
+		const mongoResult = await this._mongoBackend.verifyOwnership(
+			this._lockName,
+			this._instanceId,
+			this._currentFencingToken
+		);
+		if (mongoResult >= 0) {
+			return mongoResult;
 		}
 
-		if (this._redisClient && this._redisAvailable) {
-			try {
-				const lockKey = `lock:${this._lockName}`;
-				const val = await this._redisClient.get(lockKey);
-				if (val !== `${this._instanceId}:${this._currentFencingToken}`) {
-					this._currentFencingToken = -1;
-					return -1;
-				}
-				return this._currentFencingToken;
-			} catch {
-				// ignore
-			}
+		const redisResult = await this._redisBackend.verifyOwnership(
+			this._lockName,
+			this._instanceId,
+			this._currentFencingToken
+		);
+		if (redisResult >= 0) {
+			return redisResult;
 		}
 
 		this._currentFencingToken = -1;
 		return -1;
 	}
 
-	private async _acquireMongoDB(): Promise<boolean | null> {
-		if (this._mongoConnected && this._collection) {
-			try {
-				const now = new Date();
-				const expiresAt = new Date(now.getTime() + this._ttlMs);
-				const prev = await this._collection.findOne({ name: this._lockName });
-				const nextFencingToken = (prev?.fencingToken ?? 0) + 1;
-				const result = await this._collection.findOneAndUpdate(
-					{
-						name: this._lockName,
-						$or: [
-							{ expiresAt: { $lt: now } },
-							{ expiresAt: { $exists: false } },
-						],
-					},
-					{
-						$set: {
-							name: this._lockName,
-							acquiredAt: now,
-							expiresAt,
-							instanceId: this._instanceId,
-							fencingToken: nextFencingToken,
-						},
-					},
-					{ upsert: true, returnDocument: "before" }
-				);
-				const acquired =
-					result === null || (result.expiresAt && result.expiresAt < now);
-				if (acquired) {
-					this._currentFencingToken = nextFencingToken;
-				}
-				return acquired;
-			} catch (err) {
-				logger.warn("MongoDB lock acquire failed, falling back to Redis", {
-					err,
-				});
-				this._mongoConnected = false;
-			}
-		}
-		return null;
-	}
-
-	private async _acquireRedis(
-		effectiveRedisUrl: string
-	): Promise<boolean | null> {
-		if (effectiveRedisUrl && !this._redisClient) {
-			this._connectRedis(effectiveRedisUrl);
-		}
-		if (this._redisClient) {
-			try {
-				const lockKey = `lock:${this._lockName}`;
-				const nextFencingToken = randomInt(1, 2_147_483_647);
-				const value = `${this._instanceId}:${nextFencingToken}`;
-				const acquired = await this._redisClient.set(
-					lockKey,
-					value,
-					"PX",
-					this._ttlMs,
-					"NX"
-				);
-				if (acquired === "OK") {
-					this._redisAvailable = true;
-					this._currentFencingToken = nextFencingToken;
-					return true;
-				}
-				const existing = await this._redisClient.get(lockKey);
-				if (existing === null) {
-					return this.acquire(effectiveRedisUrl);
-				}
-				return false;
-			} catch (err) {
-				logger.warn("Redis lock acquire failed, using local fallback", { err });
-				this._redisClient = null;
-			}
-		}
-		return null;
-	}
-
-	private async _acquireFileSystem(): Promise<boolean> {
-		if (
-			process.env.NODE_ENV === "development" ||
-			process.env.NODE_ENV === "test"
-		) {
-			try {
-				await fs.mkdir(this._fallbackDir, { recursive: true });
-				const lockFile = path.join(this._fallbackDir, `${this._lockName}.lock`);
-				try {
-					const existing = await fs.readFile(lockFile, "utf8");
-					const data = JSON.parse(existing);
-					if (Date.now() - data.acquiredAt < this._ttlMs) {
-						return false;
-					}
-				} catch {
-					// file doesn't exist or is invalid — lock is free
-				}
-				const fencingToken = Date.now();
-				await fs.writeFile(
-					lockFile,
-					JSON.stringify({
-						instanceId: this._instanceId,
-						acquiredAt: Date.now(),
-						ttlMs: this._ttlMs,
-						fencingToken,
-					}),
-					{ mode: 0o600 }
-				);
-				this._currentFencingToken = fencingToken;
-				return true;
-			} catch {
-				logger.error("All lock backends failed — unable to acquire lock");
-				return false;
-			}
-		}
-		logger.error(
-			"No lock backend available (MongoDB, Redis) and filesystem fallback is disabled in production"
-		);
-		return false;
-	}
-
-	private async _releaseMongoDB(savedToken: number): Promise<boolean> {
-		if (this._mongoConnected && this._collection) {
-			try {
-				await this._collection.deleteOne({
-					name: this._lockName,
-					instanceId: this._instanceId,
-					fencingToken: savedToken,
-				});
-				return true;
-			} catch {
-				this._mongoConnected = false;
-			}
-		}
-		return false;
-	}
-
-	private async _releaseRedis(savedToken: number): Promise<boolean> {
-		if (this._redisClient && this._redisAvailable) {
-			try {
-				const lockKey = `lock:${this._lockName}`;
-				const script = `
-          if redis.call("get", KEYS[1]) == ARGV[1] then
-            return redis.call("del", KEYS[1])
-          else
-            return 0
-          end
-        `;
-				await this._redisClient.eval(
-					script,
-					1,
-					lockKey,
-					`${this._instanceId}:${savedToken}`
-				);
-				return true;
-			} catch {
-				// ignore
-			}
-		}
-		return false;
-	}
-
-	private async _releaseFileSystem(): Promise<void> {
-		try {
-			const lockFile = path.join(this._fallbackDir, `${this._lockName}.lock`);
-			await fs.unlink(lockFile);
-		} catch {
-			// ignore
-		}
-	}
-
 	async acquire(redisUrl?: string): Promise<boolean> {
-		const effectiveRedisUrl: string | undefined =
-			redisUrl ?? this._redisUrl ?? undefined;
+		const effectiveRedisUrl: string | null = redisUrl ?? null;
 
-		const mongoResult = await this._acquireMongoDB();
-		if (mongoResult !== null) {
-			return mongoResult;
+		if (this._mongoAvailable) {
+			const mongoResult = await this._mongoBackend.acquire(
+				this._lockName,
+				this._instanceId,
+				this._ttlMs
+			);
+			if (mongoResult !== null) {
+				this._currentFencingToken = mongoResult;
+				return true;
+			}
+			if (this._mongoAvailable) {
+				return false;
+			}
 		}
 
-		const redisResult = await this._acquireRedis(effectiveRedisUrl!);
+		if (effectiveRedisUrl) {
+			const redisBackend = new RedisLockBackend(effectiveRedisUrl);
+			const redisResult = await redisBackend.acquire(
+				this._lockName,
+				this._instanceId,
+				this._ttlMs
+			);
+			if (redisResult !== null) {
+				this._currentFencingToken = redisResult;
+				return true;
+			}
+			return false;
+		}
+
+		const redisResult = await this._redisBackend.acquire(
+			this._lockName,
+			this._instanceId,
+			this._ttlMs
+		);
 		if (redisResult !== null) {
-			return redisResult;
+			this._currentFencingToken = redisResult;
+			return true;
 		}
 
-		return this._acquireFileSystem();
+		const fsResult = await this._filesystemBackend.acquire(
+			this._lockName,
+			this._instanceId,
+			this._ttlMs
+		);
+		if (fsResult !== null && fsResult > 0) {
+			this._currentFencingToken = fsResult;
+			return true;
+		}
+		return false;
 	}
 
 	async release(): Promise<void> {
 		const savedToken = this._currentFencingToken;
 		this._currentFencingToken = -1;
 
-		if (await this._releaseMongoDB(savedToken)) {
+		if (
+			await this._mongoBackend.release(
+				this._lockName,
+				this._instanceId,
+				savedToken
+			)
+		) {
 			return;
 		}
-		if (await this._releaseRedis(savedToken)) {
+		if (
+			await this._redisBackend.release(
+				this._lockName,
+				this._instanceId,
+				savedToken
+			)
+		) {
 			return;
 		}
-		await this._releaseFileSystem();
+		await this._filesystemBackend.release(
+			this._lockName,
+			this._instanceId,
+			savedToken
+		);
 	}
 }
