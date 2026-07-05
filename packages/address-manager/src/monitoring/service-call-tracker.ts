@@ -20,6 +20,16 @@ export interface CallTrackerSnapshot {
 	totalBytesReceived: number;
 }
 
+const EMPTY_SNAPSHOT: CallTrackerSnapshot = {
+	totalCalls: 0,
+	callsByService: {},
+	callsByEndpoint: {},
+	errorsTotal: 0,
+	avgLatencyMs: 0,
+	totalBytesSent: 0,
+	totalBytesReceived: 0,
+};
+
 export class ServiceCallTracker {
 	private _records: CallRecord[] = [];
 	private readonly _maxRecords: number;
@@ -38,17 +48,22 @@ export class ServiceCallTracker {
 	snapshot(): CallTrackerSnapshot {
 		const total = this._records.length;
 		if (total === 0) {
-			return {
-				totalCalls: 0,
-				callsByService: {},
-				callsByEndpoint: {},
-				errorsTotal: 0,
-				avgLatencyMs: 0,
-				totalBytesSent: 0,
-				totalBytesReceived: 0,
-			};
+			return EMPTY_SNAPSHOT;
 		}
 
+		const agg = this._aggregateRecords();
+		return {
+			totalCalls: total,
+			callsByService: agg.callsByService,
+			callsByEndpoint: agg.callsByEndpoint,
+			errorsTotal: agg.errorsTotal,
+			avgLatencyMs: Math.round(agg.totalLatency / total),
+			totalBytesSent: agg.bytesSent,
+			totalBytesReceived: agg.bytesReceived,
+		};
+	}
+
+	private _aggregateRecords() {
 		const callsByService: Record<string, number> = {};
 		const callsByEndpoint: Record<string, number> = {};
 		let errorsTotal = 0;
@@ -70,13 +85,12 @@ export class ServiceCallTracker {
 		}
 
 		return {
-			totalCalls: total,
 			callsByService,
 			callsByEndpoint,
 			errorsTotal,
-			avgLatencyMs: Math.round(totalLatency / total),
-			totalBytesSent: bytesSent,
-			totalBytesReceived: bytesReceived,
+			totalLatency,
+			bytesSent,
+			bytesReceived,
 		};
 	}
 
