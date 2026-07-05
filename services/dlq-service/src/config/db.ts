@@ -31,50 +31,51 @@ export async function getDb(): Promise<Db> {
 		return existingDb;
 	}
 
-	dbPromise = (async () => {
-		let lastError: Error | null = null;
-		for (let attempt = 0; attempt < MONGO_CONNECT_MAX_RETRIES; attempt++) {
-			const newClient = new MongoClient(env.MONGO_URI, {
-				minPoolSize: 2,
-				maxPoolSize: 10,
-				retryWrites: true,
-				serverSelectionTimeoutMS: 5000,
-				connectTimeoutMS: 5000,
-			});
+	dbPromise = _connectToMongo();
+	return dbPromise;
+}
 
-			try {
-				await newClient.connect();
-				client = newClient;
-				db = newClient.db(env.MONGO_DB);
+async function _connectToMongo(): Promise<Db> {
+	let lastError: Error | null = null;
+	for (let attempt = 0; attempt < MONGO_CONNECT_MAX_RETRIES; attempt++) {
+		const newClient = new MongoClient(env.MONGO_URI, {
+			minPoolSize: 2,
+			maxPoolSize: 10,
+			retryWrites: true,
+			serverSelectionTimeoutMS: 5000,
+			connectTimeoutMS: 5000,
+		});
+
+		try {
+			await newClient.connect();
+			client = newClient;
+			db = newClient.db(env.MONGO_DB);
+			connected = true;
+			newClient.on("close", () => {
+				connected = false;
+			});
+			newClient.on("reconnect", () => {
 				connected = true;
-				newClient.on("close", () => {
-					connected = false;
-				});
-				newClient.on("reconnect", () => {
-					connected = true;
-				});
-				logger.info("MongoDB connected", { database: env.MONGO_DB });
-				return db;
-			} catch (err) {
-				lastError = err as Error;
-				await newClient.close().catch(() => {});
-				if (attempt < MONGO_CONNECT_MAX_RETRIES - 1) {
-					const backoff = MONGO_CONNECT_RETRY_BASE_MS * 2 ** attempt;
-					logger.warn(
-						`MongoDB connection attempt ${attempt + 1} failed, retrying in ${backoff}ms`,
-						{
-							error: (err as Error).message,
-						}
-					);
-					await new Promise((resolve) => setTimeout(resolve, backoff));
-				}
+			});
+			logger.info("MongoDB connected", { database: env.MONGO_DB });
+			return db;
+		} catch (err) {
+			lastError = err as Error;
+			await newClient.close().catch(() => {});
+			if (attempt < MONGO_CONNECT_MAX_RETRIES - 1) {
+				const backoff = MONGO_CONNECT_RETRY_BASE_MS * 2 ** attempt;
+				logger.warn(
+					`MongoDB connection attempt ${attempt + 1} failed, retrying in ${backoff}ms`,
+					{
+						error: (err as Error).message,
+					}
+				);
+				await new Promise((resolve) => setTimeout(resolve, backoff));
 			}
 		}
-		connected = false;
-		throw lastError ?? new Error("Failed to connect to MongoDB after retries");
-	})();
-
-	return dbPromise;
+	}
+	connected = false;
+	throw lastError ?? new Error("Failed to connect to MongoDB after retries");
 }
 
 async function _createIndex(
