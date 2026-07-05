@@ -8,6 +8,11 @@ import {
 	type WindowSet,
 } from "./genetic-algorithm/ga-runner";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
+import type {
+	ActivationType,
+	FitnessType,
+	SelectionType,
+} from "./genetic-algorithm/genome";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import {
 	type MarketDataBuffer,
@@ -29,13 +34,13 @@ export interface BestAgentSummary {
 		elitismFraction: number;
 		survivorFraction: number;
 		episodesPerIndividual: number;
-		selectionType: string;
-		fitnessType: string;
+		selectionType: SelectionType;
+		fitnessType: FitnessType;
 	};
 	network: {
 		inputDim: number;
 		outputDim: number;
-		hiddenLayers: { neurons: number; activation: string }[];
+		hiddenLayers: { neurons: number; activation: ActivationType }[];
 	};
 	rl: {
 		gamma: number;
@@ -206,7 +211,7 @@ export class Trainer {
 			inputDim: genome.network.inputDim,
 			outputDim: genome.network.outputDim,
 			hiddenLayers: genome.network.hiddenLayers.map(
-				(layer: { neurons: number; activation: string }) => ({
+				(layer: { neurons: number; activation: ActivationType }) => ({
 					neurons: layer.neurons,
 					activation: layer.activation,
 				})

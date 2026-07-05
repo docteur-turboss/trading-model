@@ -61,17 +61,19 @@ export class MarketDataBuffer {
 				orderBook: null,
 				bookTicker: null,
 				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
+				norm: {
+					candleClose: new NormalizationStats(),
+					candleVolume: new NormalizationStats(),
+					candleOpen: new NormalizationStats(),
+					candleHigh: new NormalizationStats(),
+					candleLow: new NormalizationStats(),
+					tradePrice: new NormalizationStats(),
+					tradeQty: new NormalizationStats(),
+					bid: new NormalizationStats(),
+					ask: new NormalizationStats(),
+					spread: new NormalizationStats(),
+					tickerVolume: new NormalizationStats(),
+				},
 			};
 			this._states.set(symbol, state);
 		}
@@ -120,11 +122,11 @@ export class MarketDataBuffer {
 		const state = this._getOrCreate(toSymbol(symbol));
 		for (const candle of candles) {
 			state.candles.push(candle);
-			state.closeNorm.update(candle.close);
-			state.volumeNorm.update(candle.volume);
-			state.openNorm.update(candle.open);
-			state.highNorm.update(candle.high);
-			state.lowNorm.update(candle.low);
+			state.norm.candleClose.update(candle.close);
+			state.norm.candleVolume.update(candle.volume);
+			state.norm.candleOpen.update(candle.open);
+			state.norm.candleHigh.update(candle.high);
+			state.norm.candleLow.update(candle.low);
 		}
 		if (state.candles.length > this._maxSize) {
 			state.candles = state.candles.slice(-this._maxSize);
@@ -137,8 +139,8 @@ export class MarketDataBuffer {
 		const state = this._getOrCreate(toSymbol(symbol));
 		for (const trade of trades) {
 			state.trades.push(trade);
-			state.tradePriceNorm.update(trade.price);
-			state.tradeQtyNorm.update(trade.quantity);
+			state.norm.tradePrice.update(trade.price);
+			state.norm.tradeQty.update(trade.quantity);
 		}
 		if (state.trades.length > this._maxSize) {
 			state.trades = state.trades.slice(-this._maxSize);
@@ -155,13 +157,13 @@ export class MarketDataBuffer {
 		const avgAsk = getAvgAsk(orderBook);
 
 		if (avgBid > 0) {
-			state.bidNorm.update(avgBid);
+			state.norm.bid.update(avgBid);
 		}
 		if (avgAsk > 0) {
-			state.askNorm.update(avgAsk);
+			state.norm.ask.update(avgAsk);
 		}
 		if (avgAsk > 0 && avgBid > 0) {
-			state.spreadNorm.update(avgAsk - avgBid);
+			state.norm.spread.update(avgAsk - avgBid);
 		}
 		this._enforceMemoryLimit();
 	}
@@ -171,13 +173,13 @@ export class MarketDataBuffer {
 		const state = this._getOrCreate(toSymbol(symbol));
 		state.bookTicker = bt;
 		if (bt.bid > 0) {
-			state.bidNorm.update(bt.bid);
+			state.norm.bid.update(bt.bid);
 		}
 		if (bt.ask > 0) {
-			state.askNorm.update(bt.ask);
+			state.norm.ask.update(bt.ask);
 		}
 		if (bt.ask > 0 && bt.bid > 0) {
-			state.spreadNorm.update(bt.ask - bt.bid);
+			state.norm.spread.update(bt.ask - bt.bid);
 		}
 		this._enforceMemoryLimit();
 	}
@@ -186,7 +188,7 @@ export class MarketDataBuffer {
 	setTicker24h(symbol: string, ticker: TickerData): void {
 		const state = this._getOrCreate(toSymbol(symbol));
 		state.ticker24h = ticker;
-		state.tickerVolumeNorm.update(ticker.volume);
+		state.norm.tickerVolume.update(ticker.volume);
 		this._enforceMemoryLimit();
 	}
 

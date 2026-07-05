@@ -99,9 +99,57 @@ function trainedNorm(values: number[]): NormalizationStats {
 	return n;
 }
 
+function defaultNorm() {
+	return {
+		candleClose: new NormalizationStats(),
+		candleVolume: new NormalizationStats(),
+		candleOpen: new NormalizationStats(),
+		candleHigh: new NormalizationStats(),
+		candleLow: new NormalizationStats(),
+		tradePrice: new NormalizationStats(),
+		tradeQty: new NormalizationStats(),
+		bid: new NormalizationStats(),
+		ask: new NormalizationStats(),
+		spread: new NormalizationStats(),
+		tickerVolume: new NormalizationStats(),
+	};
+}
+
+function makeState(overrides: {
+	candles: CandleData[];
+	trades?: TradeData[];
+	orderBook?: OrderBookData | null;
+	bookTicker?: BookTickerData | null;
+	ticker24h?: TickerData | null;
+	candleClose?: NormalizationStats;
+	tradePrice?: NormalizationStats;
+	tradeQty?: NormalizationStats;
+	bid?: NormalizationStats;
+	ask?: NormalizationStats;
+	spread?: NormalizationStats;
+	tickerVolume?: NormalizationStats;
+}) {
+	const norm = defaultNorm();
+	if (overrides.candleClose) norm.candleClose = overrides.candleClose;
+	if (overrides.tradePrice) norm.tradePrice = overrides.tradePrice;
+	if (overrides.tradeQty) norm.tradeQty = overrides.tradeQty;
+	if (overrides.bid) norm.bid = overrides.bid;
+	if (overrides.ask) norm.ask = overrides.ask;
+	if (overrides.spread) norm.spread = overrides.spread;
+	if (overrides.tickerVolume) norm.tickerVolume = overrides.tickerVolume;
+	return {
+		candles: overrides.candles,
+		trades: overrides.trades ?? [],
+		orderBook: overrides.orderBook ?? null,
+		bookTicker: overrides.bookTicker ?? null,
+		ticker24h: overrides.ticker24h ?? null,
+		norm,
+	};
+}
+
 describe("buildFeatures", () => {
 	test("returns Float32Array of correct dimension", () => {
-		const s = {
+		const s = makeState({
 			candles: [
 				baseCandle({ close: 100, open: 95, high: 105, low: 92, volume: 800 }),
 				baseCandle({
@@ -112,22 +160,7 @@ describe("buildFeatures", () => {
 					volume: 1000,
 				}),
 			],
-			trades: [],
-			orderBook: null,
-			bookTicker: null,
-			ticker24h: null,
-			closeNorm: new NormalizationStats(),
-			volumeNorm: new NormalizationStats(),
-			openNorm: new NormalizationStats(),
-			highNorm: new NormalizationStats(),
-			lowNorm: new NormalizationStats(),
-			tradePriceNorm: new NormalizationStats(),
-			tradeQtyNorm: new NormalizationStats(),
-			bidNorm: new NormalizationStats(),
-			askNorm: new NormalizationStats(),
-			spreadNorm: new NormalizationStats(),
-			tickerVolumeNorm: new NormalizationStats(),
-		};
+		});
 
 		const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 		expect(f).toBeInstanceOf(Float32Array);
@@ -137,7 +170,7 @@ describe("buildFeatures", () => {
 
 	describe("candle features (indices 0-8)", () => {
 		test("computes candle-derived features", () => {
-			const s = {
+			const s = makeState({
 				candles: [
 					baseCandle({ close: 100, open: 98, high: 102, low: 97, volume: 500 }),
 					baseCandle({
@@ -148,22 +181,7 @@ describe("buildFeatures", () => {
 						volume: 1000,
 					}),
 				],
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 
@@ -176,26 +194,11 @@ describe("buildFeatures", () => {
 		});
 
 		test("handles idx=0 (no prev candle)", () => {
-			const s = {
+			const s = makeState({
 				candles: [
 					baseCandle({ close: 100, open: 95, high: 105, low: 92, volume: 800 }),
 				],
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 0, { BTCUSDT: 100 });
 			expect(f[2]).toBe(0);
@@ -207,24 +210,12 @@ describe("buildFeatures", () => {
 			const cn = trainedNorm([100, 105]);
 			const an = trainedNorm([101, 106]);
 
-			const s = {
+			const s = makeState({
 				candles: [baseCandle(), baseCandle({ close: 105 })],
-				trades: [],
 				orderBook: makeOrderBook(100, 110),
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: cn,
-				askNorm: an,
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+				bid: cn,
+				ask: an,
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 			expect(f[9]).toBeCloseTo(cn.normalize(100), 5);
@@ -234,24 +225,9 @@ describe("buildFeatures", () => {
 		});
 
 		test("skips order book features when null", () => {
-			const s = {
+			const s = makeState({
 				candles: [baseCandle(), baseCandle({ close: 105 })],
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 			expect(f[9]).toBe(0);
@@ -265,24 +241,12 @@ describe("buildFeatures", () => {
 		test("computes features when book ticker exists", () => {
 			const cn = trainedNorm([100, 105]);
 
-			const s = {
+			const s = makeState({
 				candles: [baseCandle(), baseCandle({ close: 105 })],
-				trades: [],
-				orderBook: null,
 				bookTicker: makeBookTicker(102, 108, 15, 10),
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: cn,
-				askNorm: cn,
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+				bid: cn,
+				ask: cn,
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 			expect(f[13]).toBeCloseTo(cn.normalize(102), 5);
@@ -291,24 +255,9 @@ describe("buildFeatures", () => {
 		});
 
 		test("skips when book ticker is null", () => {
-			const s = {
+			const s = makeState({
 				candles: [baseCandle(), baseCandle({ close: 105 })],
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 			expect(f[13]).toBe(0);
@@ -319,7 +268,7 @@ describe("buildFeatures", () => {
 
 	describe("trade features (indices 16-18)", () => {
 		test("computes features from recent trades", () => {
-			const s = {
+			const s = makeState({
 				candles: [
 					baseCandle({ timestamp: 0, closeTimestamp: 1000 }),
 					baseCandle({ timestamp: 1000, closeTimestamp: 2000 }),
@@ -328,21 +277,7 @@ describe("buildFeatures", () => {
 					baseTrade({ timestamp: 1500, price: 104, quantity: 10, side: "buy" }),
 					baseTrade({ timestamp: 1600, price: 106, quantity: 5, side: "sell" }),
 				],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 			expect(f[16]).toBe(0);
@@ -351,27 +286,13 @@ describe("buildFeatures", () => {
 		});
 
 		test("skips trades outside 60s window", () => {
-			const s = {
+			const s = makeState({
 				candles: [
 					baseCandle({ timestamp: 0, closeTimestamp: 1000 }),
 					baseCandle({ timestamp: 100000, closeTimestamp: 101000 }),
 				],
 				trades: [baseTrade({ timestamp: 100, price: 100 })],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 			expect(f[16]).toBe(0);
@@ -382,24 +303,10 @@ describe("buildFeatures", () => {
 
 	describe("24h ticker features (indices 19-21)", () => {
 		test("computes features when ticker exists", () => {
-			const s = {
+			const s = makeState({
 				candles: [baseCandle(), baseCandle({ close: 105 })],
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
 				ticker24h: makeTicker24h(100, 120, 90, 110, 50000),
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 			expect(f[19]).toBeCloseTo((110 - 100) / 100, 5);
@@ -408,24 +315,9 @@ describe("buildFeatures", () => {
 		});
 
 		test("skips when ticker is null", () => {
-			const s = {
+			const s = makeState({
 				candles: [baseCandle(), baseCandle({ close: 105 })],
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 			expect(f[19]).toBe(0);
@@ -436,24 +328,9 @@ describe("buildFeatures", () => {
 
 	describe("price snapshot feature (index 22)", () => {
 		test("uses snapshot price when available", () => {
-			const s = {
+			const s = makeState({
 				candles: [baseCandle(), baseCandle({ close: 105 })],
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 107 });
 			expect(f[22]).toBe(0);
@@ -461,24 +338,10 @@ describe("buildFeatures", () => {
 
 		test("falls back to close price when snapshot missing", () => {
 			const cn = trainedNorm([100, 105]);
-			const s = {
+			const s = makeState({
 				candles: [baseCandle({ close: 100 }), baseCandle({ close: 105 })],
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: cn,
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+				candleClose: cn,
+			});
 
 			const f = buildFeatures(s, 1, {});
 			expect(f[22]).toBeCloseTo(cn.normalize(105), 5);
@@ -487,24 +350,9 @@ describe("buildFeatures", () => {
 
 	describe("lookback window (indices 23-30)", () => {
 		test("pads with zeros when fewer than 8 preceding candles", () => {
-			const s = {
+			const s = makeState({
 				candles: [baseCandle({ close: 100 }), baseCandle({ close: 105 })],
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 			expect(f[23]).toBe(0);
@@ -524,24 +372,10 @@ describe("buildFeatures", () => {
 			}
 			const cn = trainedNorm(candles.map((c) => c.close));
 
-			const s = {
+			const s = makeState({
 				candles,
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: cn,
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+				candleClose: cn,
+			});
 
 			const f = buildFeatures(s, 9, { BTCUSDT: 109 });
 			for (let j = 1; j <= 8; j++) {
@@ -552,24 +386,9 @@ describe("buildFeatures", () => {
 
 	describe("bias (index 31)", () => {
 		test("is always 1.0", () => {
-			const s = {
+			const s = makeState({
 				candles: [baseCandle(), baseCandle({ close: 105 })],
-				trades: [],
-				orderBook: null,
-				bookTicker: null,
-				ticker24h: null,
-				closeNorm: new NormalizationStats(),
-				volumeNorm: new NormalizationStats(),
-				openNorm: new NormalizationStats(),
-				highNorm: new NormalizationStats(),
-				lowNorm: new NormalizationStats(),
-				tradePriceNorm: new NormalizationStats(),
-				tradeQtyNorm: new NormalizationStats(),
-				bidNorm: new NormalizationStats(),
-				askNorm: new NormalizationStats(),
-				spreadNorm: new NormalizationStats(),
-				tickerVolumeNorm: new NormalizationStats(),
-			};
+			});
 
 			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
 			expect(f[31]).toBe(1.0);

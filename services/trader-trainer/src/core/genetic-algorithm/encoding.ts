@@ -43,6 +43,7 @@ import type {
 	NetworkGenome,
 	RLGenome,
 } from "./genome-types";
+import { clamp } from "./utils";
 
 // ---- Constants ----
 
@@ -149,10 +150,6 @@ function _encodeLayers(vec: Float32Array, net: Genome["network"]): void {
 // ----------------------------------------------------------------
 // decodeGenome
 // ----------------------------------------------------------------
-
-function clamp(value: number, lo: number, hi: number): number {
-	return Math.max(lo, Math.min(hi, value));
-}
 
 function argmax(arr: Float32Array, start: number, len: number): number {
 	let best = start;
