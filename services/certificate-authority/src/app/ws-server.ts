@@ -208,97 +208,132 @@ function checkSignRequestRateLimit(
 	return true;
 }
 
-export function attachWsServer(httpsServer: https.Server): WebSocketServer {
-	const wss = new WebSocketServer({ server: httpsServer });
-
-	wss.on("connection", (ws: WebSocket, req) => {
-		const tlsSocket = req.socket as TLSSocket;
-		const clientCert = tlsSocket.getPeerCertificate?.();
-		const clientIdentity = clientCert?.subject?.CN as string | undefined;
-
-		const state: ConnectionState = {
+function initConnectionState(req: import("node:http").IncomingMessage): {
+	clientIdentity: string | undefined;
+	state: ConnectionState;
+	limiterKey: string;
+} {
+	const tlsSocket = req.socket as TLSSocket;
+	const clientCert = tlsSocket.getPeerCertificate?.();
+	const clientIdentity = clientCert?.subject?.CN as string | undefined;
+	return {
+		clientIdentity,
+		state: {
 			tokenProvided: false,
 			bootstrapToken: undefined,
 			authAttempts: 0,
 			requestCount: 0,
 			requestWindowStart: Date.now(),
-		};
+		},
+		limiterKey: clientIdentity ?? "unknown",
+	};
+}
 
-		const limiterKey = clientIdentity ?? "unknown";
+function parseWsMessage(raw: RawData): Record<string, unknown> | null {
+	try {
+		return JSON.parse(raw.toString()) as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+}
 
+function sendJsonError(ws: WebSocket, message: string): void {
+	ws.send(JSON.stringify({ type: "error", error: { message } }));
+}
+
+function sendSignError(ws: WebSocket, id: string, message: string): void {
+	ws.send(
+		JSON.stringify({
+			type: "sign:response",
+			id,
+			success: false,
+			error: { message },
+		})
+	);
+}
+
+async function handleWsMessage(
+	ws: WebSocket,
+	raw: RawData,
+	state: ConnectionState,
+	clientIdentity: string | undefined,
+	limiterKey: string
+): Promise<void> {
+	const msg = parseWsMessage(raw);
+	if (!msg) {
+		sendJsonError(ws, "Invalid JSON");
+		return;
+	}
+
+	if (msg.type === "auth") {
+		handleAuthMessage(
+			ws,
+			msg as unknown as WsAuthMessage,
+			state,
+			clientIdentity
+		);
+		return;
+	}
+
+	const parsed = WS_SIGN_SCHEMA.safeParse(msg);
+	if (!parsed.success) {
+		logger.warn("WSS invalid sign request", {
+			issues: parsed.error.issues,
+		});
+		sendSignError(ws, (msg.id as string) ?? "unknown", "Invalid request");
+		return;
+	}
+
+	if (
+		!checkSignRequestRateLimit(
+			ws,
+			state,
+			clientIdentity,
+			limiterKey,
+			state.tokenProvided
+		)
+	) {
+		return;
+	}
+
+	await handleSignRequest(
+		ws,
+		parsed.data,
+		state.tokenProvided,
+		state.bootstrapToken,
+		clientIdentity
+	);
+}
+
+function handleWsClose(
+	limiterKey: string,
+	clientIdentity: string | undefined
+): void {
+	logger.debug("WSS client disconnected from CA", { clientIdentity });
+	UNAUTH_SIGN_ATTEMPTS.delete(limiterKey);
+}
+
+function handleWsError(err: Error, clientIdentity: string | undefined): void {
+	logger.error("WSS connection error", {
+		err: err.message,
+		clientIdentity,
+	});
+}
+
+export function attachWsServer(httpsServer: https.Server): WebSocketServer {
+	const wss = new WebSocketServer({ server: httpsServer });
+
+	wss.on("connection", (ws: WebSocket, req) => {
+		const { clientIdentity, state, limiterKey } = initConnectionState(req);
 		logger.info("WSS client connected to CA (awaiting auth)", {
 			clientIdentity,
 		});
 
-		ws.on("message", async (raw: RawData) => {
-			let msg: Record<string, unknown>;
-			try {
-				msg = JSON.parse(raw.toString()) as Record<string, unknown>;
-			} catch {
-				ws.send(
-					JSON.stringify({ type: "error", error: { message: "Invalid JSON" } })
-				);
-				return;
-			}
-
-			if (msg.type === "auth") {
-				handleAuthMessage(
-					ws,
-					msg as unknown as WsAuthMessage,
-					state,
-					clientIdentity
-				);
-				return;
-			}
-
-			const parsed = WS_SIGN_SCHEMA.safeParse(msg);
-			if (!parsed.success) {
-				logger.warn("WSS invalid sign request", {
-					issues: parsed.error.issues,
-				});
-				ws.send(
-					JSON.stringify({
-						type: "sign:response",
-						id: (msg.id as string) ?? "unknown",
-						success: false,
-						error: { message: "Invalid request" },
-					})
-				);
-				return;
-			}
-
-			if (
-				!checkSignRequestRateLimit(
-					ws,
-					state,
-					clientIdentity,
-					limiterKey,
-					state.tokenProvided
-				)
-			) {
-				return;
-			}
-
-			await handleSignRequest(
-				ws,
-				parsed.data,
-				state.tokenProvided,
-				state.bootstrapToken,
-				clientIdentity
-			);
-		});
-
-		ws.on("close", () => {
-			logger.debug("WSS client disconnected from CA", { clientIdentity });
-			UNAUTH_SIGN_ATTEMPTS.delete(limiterKey);
-		});
-
-		ws.on("error", (err) => {
-			logger.error("WSS connection error", {
-				err: err.message,
-				clientIdentity,
-			});
-		});
+		ws.on("message", (raw: RawData) =>
+			handleWsMessage(ws, raw, state, clientIdentity, limiterKey)
+		);
+		ws.on("close", () => handleWsClose(limiterKey, clientIdentity));
+		ws.on("error", (err) => handleWsError(err, clientIdentity));
 	});
 
 	logger.info("WebSocket server attached to HTTPS server");
