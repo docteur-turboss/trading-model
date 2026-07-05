@@ -102,32 +102,98 @@ export class TransportManager {
 		);
 	}
 
+	private _buildWsOptions(): WebSocket.ClientOptions {
+		const opts: WebSocket.ClientOptions = {};
+		if (this._config.tls) {
+			opts.ca = this._config.tls.ca;
+			opts.cert = this._config.tls.cert;
+			opts.key = this._config.tls.key;
+			opts.rejectUnauthorized = true;
+		}
+		opts.minVersion = "TLSv1.3";
+		opts.ciphers =
+			"TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256";
+		return opts;
+	}
+
+	private _onWsOpen(cancelTimeout: () => void): void {
+		cancelTimeout();
+		this._wsConnected = true;
+		this._wsAuthSent = false;
+		this._wsReconnectState.attempt = 0;
+		this._mode = "wss";
+		logger.info("WSS transport connected to CA");
+		this._sendWsAuth();
+	}
+
+	private _onWsMessage(data: WebSocket.Data): void {
+		try {
+			const msg = JSON.parse(data.toString());
+			if (msg.type === "auth:response") {
+				this._handleAuthResponse(msg);
+				return;
+			}
+			if (msg.type === "sign:response" || msg.type === "response") {
+				this._handleSignResponse(msg);
+			}
+		} catch {
+			logger.error("Invalid WSS message from CA");
+		}
+	}
+
+	private _handleAuthResponse(msg: Record<string, unknown>): void {
+		if (msg.success) {
+			this._wsAuthSent = true;
+			this._unauthRejects = 0;
+			logger.info("WSS auth token delivered to CA");
+		} else {
+			logger.error("WSS auth message rejected by CA", {
+				error: (msg.error as { message?: string })?.message,
+			});
+			this._mode = "https";
+		}
+	}
+
+	private _handleSignResponse(msg: Record<string, unknown>): void {
+		const pending = this._pending.get(msg.id as string);
+		if (pending) {
+			clearTimeout(pending.timer);
+			this._pending.delete(msg.id as string);
+			if (msg.success) {
+				pending.resolve(msg.data as SignCertificateResponse);
+			} else {
+				pending.reject(
+					new Error(
+						(msg.error as { message?: string })?.message ?? "WSS request failed"
+					)
+				);
+			}
+		}
+	}
+
+	private _onWsClose(cancelTimeout: () => void): void {
+		cancelTimeout();
+		this._wsConnected = false;
+		if (this._mode === "wss" && !this._destroyed) {
+			this._scheduleWsReconnect();
+		}
+	}
+
+	private _onWsError(err: Error, cancelTimeout: () => void): void {
+		cancelTimeout();
+		logger.error("WSS transport error", { err: err.message });
+		if (!this._wsConnected) {
+			this._scheduleWsReconnect();
+		}
+	}
+
 	private _connectWs(): void {
 		if (this._destroyed) {
 			return;
 		}
-
 		try {
 			const wsUrl = this._getWsUrl();
-			const wsOptions: WebSocket.ClientOptions = {};
-			if (this._config.tls) {
-				wsOptions.ca = this._config.tls.ca;
-				wsOptions.cert = this._config.tls.cert;
-				wsOptions.key = this._config.tls.key;
-				wsOptions.rejectUnauthorized = true;
-			}
-			// Enforce TLS 1.3 minimum and restrict to modern cipher suites.
-			// Note: secureOptions for blocking older protocol versions is redundant
-			// once minVersion is set, but kept as defense-in-depth.
-			wsOptions.minVersion = "TLSv1.3";
-			wsOptions.ciphers =
-				"TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256";
-
-			// NOTE: bootstrap token is intentionally NOT sent in the Upgrade header.
-			// It is sent as a dedicated auth message after connection (see sendWsAuth).
-			// This avoids leaking the token into load balancer / proxy logs.
-
-			this._ws = new WebSocket(wsUrl, wsOptions);
+			this._ws = new WebSocket(wsUrl, this._buildWsOptions());
 			this._ws.binaryType = "nodebuffer";
 
 			const cancelTimeout = createWsConnectTimeout(() => {
@@ -138,74 +204,10 @@ export class TransportManager {
 				}
 			}, 10_000);
 
-			this._ws.on("open", () => {
-				cancelTimeout();
-				this._wsConnected = true;
-				this._wsAuthSent = false;
-				this._wsReconnectState.attempt = 0;
-				this._mode = "wss";
-				logger.info("WSS transport connected to CA");
-				// Send auth token as a dedicated message, not in the Upgrade header
-				this._sendWsAuth();
-			});
-
-			this._ws.on("message", (data: WebSocket.Data) => {
-				try {
-					const msg = JSON.parse(data.toString());
-
-					// Handle auth acknowledgment
-					// NOTE: success:true means the token was received, not validated.
-					// Actual validation happens atomically during the sign request.
-					// We treat it as authenticated to allow the request through to the
-					// distributor which will validate the token.
-					if (msg.type === "auth:response") {
-						if (msg.success) {
-							this._wsAuthSent = true;
-							this._unauthRejects = 0;
-							logger.info("WSS auth token delivered to CA");
-						} else {
-							logger.error("WSS auth message rejected by CA", {
-								error: msg.error?.message,
-							});
-							this._mode = "https";
-						}
-						return;
-					}
-
-					if (msg.type === "sign:response" || msg.type === "response") {
-						const pending = this._pending.get(msg.id);
-						if (pending) {
-							clearTimeout(pending.timer);
-							this._pending.delete(msg.id);
-							if (msg.success) {
-								pending.resolve(msg.data as SignCertificateResponse);
-							} else {
-								pending.reject(
-									new Error(msg.error?.message ?? "WSS request failed")
-								);
-							}
-						}
-					}
-				} catch {
-					logger.error("Invalid WSS message from CA");
-				}
-			});
-
-			this._ws.on("close", () => {
-				cancelTimeout();
-				this._wsConnected = false;
-				if (this._mode === "wss" && !this._destroyed) {
-					this._scheduleWsReconnect();
-				}
-			});
-
-			this._ws.on("error", (err) => {
-				cancelTimeout();
-				logger.error("WSS transport error", { err: err.message });
-				if (!this._wsConnected) {
-					this._scheduleWsReconnect();
-				}
-			});
+			this._ws.on("open", () => this._onWsOpen(cancelTimeout));
+			this._ws.on("message", (data) => this._onWsMessage(data));
+			this._ws.on("close", () => this._onWsClose(cancelTimeout));
+			this._ws.on("error", (err) => this._onWsError(err, cancelTimeout));
 		} catch (err) {
 			logger.error("Failed to create WSS connection", { err });
 			this._scheduleWsReconnect();
