@@ -11,6 +11,7 @@ import type { WorkerRegistry } from "./worker-registry";
 export class WorkerProtocol {
 	private readonly _wss: WebSocketServer;
 	private readonly _connections: Map<string, WebSocket> = new Map();
+	private readonly _handlers: Record<string, (message: WorkerIncomingMessage, ws?: WebSocket) => void>;
 
 	constructor(
 		server: https.Server,
@@ -19,23 +20,19 @@ export class WorkerProtocol {
 	) {
 		this._wss = new WebSocketServer({ server });
 
+		this._handlers = {
+			register: (msg, ws) => this._handleRegister(msg as Parameters<typeof this._handleRegister>[0], ws!),
+			heartbeat: (msg) => this._handleHeartbeat(msg as Parameters<typeof this._handleHeartbeat>[0]),
+			disconnect: (msg) => this._handleDisconnect(msg as Parameters<typeof this._handleDisconnect>[0]),
+		};
+
 		this._wss.on("connection", (ws: WebSocket) => {
 			ws.on("message", (data: WebSocket.Data) => {
 				try {
 					const message: WorkerIncomingMessage = JSON.parse(data.toString());
-
-					switch (message.type) {
-						case "register":
-							this._handleRegister(message, ws);
-							break;
-						case "heartbeat":
-							this._handleHeartbeat(message);
-							break;
-						case "disconnect":
-							this._handleDisconnect(message);
-							break;
-						default:
-							break;
+					const handler = this._handlers[message.type];
+					if (handler) {
+						handler(message, ws);
 					}
 				} catch (err) {
 					logger.error("Invalid WebSocket message from worker", {
@@ -43,7 +40,6 @@ export class WorkerProtocol {
 					});
 				}
 			});
-
 			ws.on("close", () => {
 				for (const [workerId, conn] of this._connections) {
 					if (conn === ws) {

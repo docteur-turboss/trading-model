@@ -8,15 +8,17 @@ import {
 
 type ErrorInput = Error | ResponseObject;
 
-const SERVICE_UNAVAILABLE_CODES: ReadonlySet<ErrorCode> = new Set([
-	ErrorCodes.ADDRESS_MANAGER_ERROR,
-	ErrorCodes.MESSAGE_MANAGER_ERROR,
-	ErrorCodes.DEAD_LETTER_ERROR,
-	ErrorCodes.AGENT_ERROR,
-]);
+type ErrorMapper = (response: ClassResponseExceptions) => ResponseObject;
 
-const IS_SERVICE_UNAVAILABLE = (code: ErrorCode): boolean =>
-	SERVICE_UNAVAILABLE_CODES.has(code);
+const ERROR_RESPONSE_MAP: Partial<Record<ErrorCode, ErrorMapper>> = {
+	[ErrorCodes.SERVICE_NOT_FOUND]: (r) => r.notFound(),
+	[ErrorCodes.SERVICE_UNREACHABLE]: (r) => r.gone(),
+	[ErrorCodes.AUTHENTICATION_ERROR]: (r) => r.invalidToken(),
+	[ErrorCodes.ADDRESS_MANAGER_ERROR]: (r) => r.serviceUnavailable(),
+	[ErrorCodes.MESSAGE_MANAGER_ERROR]: (r) => r.serviceUnavailable(),
+	[ErrorCodes.DEAD_LETTER_ERROR]: (r) => r.serviceUnavailable(),
+	[ErrorCodes.AGENT_ERROR]: (r) => r.serviceUnavailable(),
+};
 
 /**
  * Maps domain / technical errors to standardized HTTP responses.
@@ -28,18 +30,9 @@ function mapErrorToResponse(err: Error): ResponseObject {
 	const response = new ClassResponseExceptions(err.message);
 
 	if (err instanceof AppError) {
-		switch (err.code) {
-			case ErrorCodes.SERVICE_NOT_FOUND:
-				return response.notFound();
-			case ErrorCodes.SERVICE_UNREACHABLE:
-				return response.gone();
-			case ErrorCodes.AUTHENTICATION_ERROR:
-				return response.invalidToken();
-			default:
-				if (IS_SERVICE_UNAVAILABLE(err.code)) {
-					return response.serviceUnavailable();
-				}
-				break;
+		const mapper = ERROR_RESPONSE_MAP[err.code];
+		if (mapper) {
+			return mapper(response);
 		}
 	}
 

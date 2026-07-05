@@ -74,6 +74,7 @@ export class WorkerClient extends EventEmitter {
 	constructor(config: WorkerClientConfig) {
 		super();
 		this._cfg = normalizeConfig(config);
+		this._messageHandlers = this._setupMessageHandlers();
 	}
 
 	async connect(): Promise<void> {
@@ -143,22 +144,26 @@ export class WorkerClient extends EventEmitter {
 		this.send(msg);
 	}
 
-	private _handleMessage(message: Record<string, unknown>): void {
-		switch (message.type) {
-			case "job.assigned":
+	private readonly _messageHandlers: Record<string, (message: Record<string, unknown>) => void>;
+
+	private _setupMessageHandlers(): Record<string, (message: Record<string, unknown>) => void> {
+		return {
+			"job.assigned": (msg) =>
 				this.emit(
 					"job.assigned",
-					(message as unknown as SchedulerWsJobAssignedMessage).job
-				);
-				break;
-			case "heartbeat.ack":
-				this.emit("heartbeat.ack");
-				break;
-			case "drain":
-				this.emit("drain");
-				break;
-			default:
-				this.emit("unknown", message);
+					(msg as unknown as SchedulerWsJobAssignedMessage).job
+				),
+			"heartbeat.ack": () => this.emit("heartbeat.ack"),
+			drain: () => this.emit("drain"),
+		};
+	}
+
+	private _handleMessage(message: Record<string, unknown>): void {
+		const handler = this._messageHandlers[message.type as string];
+		if (handler) {
+			handler(message);
+		} else {
+			this.emit("unknown", message);
 		}
 	}
 

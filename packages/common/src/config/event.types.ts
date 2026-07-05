@@ -76,8 +76,8 @@ export function getAvgBid(orderBook: OrderBookData): number {
 	let totalQty = 0;
 	let totalValue = 0;
 	for (const { price, quantity } of orderBook.bids) {
-		totalValue += price * quantity;
-		totalQty += quantity;
+		totalValue += +price * +quantity;
+		totalQty += +quantity;
 	}
 	return totalQty > 0 ? totalValue / totalQty : 0;
 }
@@ -87,8 +87,8 @@ export function getAvgAsk(orderBook: OrderBookData): number {
 	let totalQty = 0;
 	let totalValue = 0;
 	for (const { price, quantity } of orderBook.asks) {
-		totalValue += price * quantity;
-		totalQty += quantity;
+		totalValue += +price * +quantity;
+		totalQty += +quantity;
 	}
 	return totalQty > 0 ? totalValue / totalQty : 0;
 }
@@ -97,7 +97,7 @@ export function getAvgAsk(orderBook: OrderBookData): number {
 export function getBidTotalQty(orderBook: OrderBookData): number {
 	let total = 0;
 	for (const { quantity } of orderBook.bids) {
-		total += quantity;
+		total += +quantity;
 	}
 	return total;
 }
@@ -106,7 +106,7 @@ export function getBidTotalQty(orderBook: OrderBookData): number {
 export function getAskTotalQty(orderBook: OrderBookData): number {
 	let total = 0;
 	for (const { quantity } of orderBook.asks) {
-		total += quantity;
+		total += +quantity;
 	}
 	return total;
 }
