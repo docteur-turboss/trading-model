@@ -64,14 +64,10 @@ export function forwardRequest(
 	timeoutMs: number = ENV.PROXY_TIMEOUT_MS
 ): Promise<ProxyResult> {
 	return new Promise((resolve, reject) => {
-		const safeHeaders = buildSafeHeaders(req);
-		const url = new URL(path, `https://${target.host}:${target.port}`);
-
 		const options: https.RequestOptions = _buildProxyOptions(
 			target,
 			req,
-			url,
-			safeHeaders,
+			path,
 			timeoutMs
 		);
 
@@ -101,10 +97,11 @@ export function forwardRequest(
 function _buildProxyOptions(
 	target: ResolvedTarget,
 	req: Request,
-	url: URL,
-	headers: Record<string, string>,
+	path: string,
 	timeoutMs: number
 ): https.RequestOptions {
+	const url = new URL(path, `https://${target.host}:${target.port}`);
+	const headers = buildSafeHeaders(req);
 	return {
 		hostname: target.host,
 		port: target.port,
