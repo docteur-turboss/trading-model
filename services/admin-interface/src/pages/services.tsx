@@ -35,7 +35,10 @@ function ServiceStats({
 	flatServices,
 	translate,
 }: {
-	data?: { services: { serviceName: string; instances: unknown[] }[] };
+	data:
+		| { services: { serviceName: string; instances: unknown[] }[] }
+		| null
+		| undefined;
 	flatServices: { instances: number }[];
 	translate: (key: string) => string;
 }) {
@@ -109,38 +112,32 @@ function ServiceFilter({
 	);
 }
 
-export function Services() {
-	const { t } = useTranslation("services");
-	const { data, loading, refetch } = useServices();
-	const [filter, setFilter] = useState("");
+interface ServiceRow {
+	serviceName: string;
+	instances: number;
+	ipPort: string;
+	version: string;
+	heartbeat: string;
+	status: string;
+}
 
-	const columns: Column<{
-		serviceName: string;
-		instances: number;
-		ipPort: string;
-		version: string;
-		heartbeat: string;
-		status: string;
-	}>[] = [
-		{ id: "name", label: t("serviceName"), render: (row) => row.serviceName },
-		{
-			id: "instances",
-			label: t("instances"),
-			render: (row) => String(row.instances),
-		},
-		{ id: "ip", label: t("ipPort"), render: (row) => row.ipPort },
-		{ id: "version", label: t("version"), render: (row) => row.version },
-		{ id: "heartbeat", label: t("heartbeat"), render: (row) => row.heartbeat },
-		{
-			id: "status",
-			label: t("status"),
-			render: (row) => <StatusBadge status={row.status} />,
-		},
-	];
-
-	const flatServices =
+function flattenServices(
+	data:
+		| { services: { serviceName: string; instances: unknown[] }[] }
+		| null
+		| undefined
+): ServiceRow[] {
+	return (
 		data?.services.map((svc) => {
-			const primary = svc.instances[0];
+			const primary = svc.instances[0] as
+				| {
+						host: string;
+						port: number;
+						version?: string;
+						heartbeat?: string;
+						status?: string;
+				  }
+				| undefined;
 			return {
 				serviceName: svc.serviceName,
 				instances: svc.instances.length,
@@ -149,13 +146,57 @@ export function Services() {
 				heartbeat: primary?.heartbeat ?? "-",
 				status: primary?.status ?? "down",
 			};
-		}) ?? [];
+		}) ?? []
+	);
+}
 
-	const filtered = filter
-		? flatServices.filter((svc) =>
+function filterServices(services: ServiceRow[], filter: string): ServiceRow[] {
+	return filter
+		? services.filter((svc) =>
 				svc.serviceName.toLowerCase().includes(filter.toLowerCase())
 			)
-		: flatServices;
+		: services;
+}
+
+function createServiceColumns(
+	translate: (key: string) => string
+): Column<ServiceRow>[] {
+	return [
+		{
+			id: "name",
+			label: translate("serviceName"),
+			render: (row) => row.serviceName,
+		},
+		{
+			id: "instances",
+			label: translate("instances"),
+			render: (row) => String(row.instances),
+		},
+		{ id: "ip", label: translate("ipPort"), render: (row) => row.ipPort },
+		{
+			id: "version",
+			label: translate("version"),
+			render: (row) => row.version,
+		},
+		{
+			id: "heartbeat",
+			label: translate("heartbeat"),
+			render: (row) => row.heartbeat,
+		},
+		{
+			id: "status",
+			label: translate("status"),
+			render: (row) => <StatusBadge status={row.status} />,
+		},
+	];
+}
+
+export function Services() {
+	const { t } = useTranslation("services");
+	const { data, loading, refetch } = useServices();
+	const [filter, setFilter] = useState("");
+	const flatServices = flattenServices(data);
+	const filtered = filterServices(flatServices, filter);
 
 	if (loading) {
 		return <PageLoading />;
@@ -200,7 +241,7 @@ export function Services() {
 			<ServiceFilter filter={filter} onFilterChange={setFilter} translate={t} />
 
 			<DataTable
-				columns={columns}
+				columns={createServiceColumns(t)}
 				rows={filtered}
 				getId={(row) => row.serviceName}
 				total={filtered.length}

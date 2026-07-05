@@ -53,7 +53,7 @@ function TrainingStats() {
 	);
 }
 
-function GenomeViewer({ genome }: { genome: Record<string, unknown> | null }) {
+function GenomeViewer({ genome }: { genome: unknown }) {
 	if (!genome) {
 		return (
 			<Typography variant="body2" color="text.secondary">
@@ -80,15 +80,8 @@ function GenomeViewer({ genome }: { genome: Record<string, unknown> | null }) {
 	);
 }
 
-export function TrainingResults() {
-	const { data, loading, refetch } = useApi(() =>
-		API_CLIENT.getTrainingResults()
-	);
-	const [selectedId, setSelectedId] = useState<string | null>(null);
-	const selected =
-		data?.results.find((result) => result.id === selectedId) ?? null;
-
-	const columns: Column<TrainingResult>[] = [
+function createTrainingResultColumns(): Column<TrainingResult>[] {
+	return [
 		{ id: "id", label: "ID", render: (row) => row.id },
 		{ id: "symbol", label: "Symbol", render: (row) => row.symbol },
 		{ id: "gen", label: "Gen.", render: (row) => `#${row.generation}` },
@@ -116,6 +109,42 @@ export function TrainingResults() {
 			),
 		},
 	];
+}
+
+function TrainingResultDrawer({
+	selected,
+	onClose,
+}: {
+	selected: TrainingResult | null;
+	onClose: () => void;
+}) {
+	return (
+		<DrawerPanel
+			open={Boolean(selected)}
+			title={`Genome Inspection - ${selected?.id ?? ""}`}
+			subtitle={`Symbol: ${selected?.symbol ?? ""} | Generation: #${selected?.generation ?? ""}`}
+			onClose={onClose}
+			tabs={
+				selected
+					? [
+							{
+								label: "Genome (JSON)",
+								content: <GenomeViewer genome={selected.genome} />,
+							},
+						]
+					: []
+			}
+		/>
+	);
+}
+
+export function TrainingResults() {
+	const { data, loading, refetch } = useApi(() =>
+		API_CLIENT.getTrainingResults()
+	);
+	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const selected =
+		data?.results.find((result) => result.id === selectedId) ?? null;
 
 	if (loading) {
 		return <PageLoading />;
@@ -156,7 +185,7 @@ export function TrainingResults() {
 			<TrainingStats />
 
 			<DataTable
-				columns={columns}
+				columns={createTrainingResultColumns()}
 				rows={data?.results ?? []}
 				getId={(row) => row.id}
 				total={data?.total ?? 0}
@@ -165,21 +194,9 @@ export function TrainingResults() {
 				selectable
 			/>
 
-			<DrawerPanel
-				open={Boolean(selectedId)}
-				title={`Genome Inspection - ${selected?.id ?? ""}`}
-				subtitle={`Symbol: ${selected?.symbol ?? ""} | Generation: #${selected?.generation ?? ""}`}
+			<TrainingResultDrawer
+				selected={selected}
 				onClose={() => setSelectedId(null)}
-				tabs={
-					selected
-						? [
-								{
-									label: "Genome (JSON)",
-									content: <GenomeViewer genome={selected.genome} />,
-								},
-							]
-						: []
-				}
 			/>
 		</Box>
 	);

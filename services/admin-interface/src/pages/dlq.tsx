@@ -27,14 +27,17 @@ function PageLoading() {
 function DlqStats({
 	data,
 }: {
-	data?: {
-		stats: {
-			pending: number;
-			retryRate: number;
-			totalSize: number;
-			lastIncident: string;
-		};
-	};
+	data:
+		| {
+				stats: {
+					pending: number;
+					retryRate: number;
+					totalSize: number;
+					lastIncident: string;
+				};
+		  }
+		| null
+		| undefined;
 }) {
 	return (
 		<Grid container spacing={2} sx={{ mb: 3 }}>
@@ -94,29 +97,8 @@ function DlqInfoBoxes() {
 	);
 }
 
-export function Dlq() {
-	const { data, loading } = useApi(() => API_CLIENT.getDlqMessages());
-	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-	const handleSelectAll = (checked: boolean) => {
-		setSelectedIds(
-			checked
-				? new Set((data?.messages ?? []).map((msg) => msg.messageId))
-				: new Set()
-		);
-	};
-
-	const handleSelectOne = (id: string) => {
-		const next = new Set(selectedIds);
-		if (next.has(id)) {
-			next.delete(id);
-		} else {
-			next.add(id);
-		}
-		setSelectedIds(next);
-	};
-
-	const columns: Column<DlqMessage>[] = [
+function createDlqColumns(): Column<DlqMessage>[] {
+	return [
 		{ id: "timestamp", label: "Timestamp", render: (row) => row.timestamp },
 		{ id: "topic", label: "Topic", render: (row) => row.topic },
 		{ id: "msgId", label: "Message ID", render: (row) => row.messageId },
@@ -149,6 +131,38 @@ export function Dlq() {
 			),
 		},
 	];
+}
+
+function useDlqSelection(
+	data: { messages: { messageId: string }[] } | null | undefined
+) {
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+	const handleSelectAll = (checked: boolean) => {
+		setSelectedIds(
+			checked
+				? new Set((data?.messages ?? []).map((msg) => msg.messageId))
+				: new Set()
+		);
+	};
+
+	const handleSelectOne = (id: string) => {
+		const next = new Set(selectedIds);
+		if (next.has(id)) {
+			next.delete(id);
+		} else {
+			next.add(id);
+		}
+		setSelectedIds(next);
+	};
+
+	return { selectedIds, handleSelectAll, handleSelectOne };
+}
+
+export function Dlq() {
+	const { data, loading } = useApi(() => API_CLIENT.getDlqMessages());
+	const { selectedIds, handleSelectAll, handleSelectOne } =
+		useDlqSelection(data);
 
 	if (loading) {
 		return <PageLoading />;
@@ -182,7 +196,7 @@ export function Dlq() {
 			<DlqStats data={data} />
 
 			<DataTable
-				columns={columns}
+				columns={createDlqColumns()}
 				rows={data?.messages ?? []}
 				getId={(row) => row.messageId}
 				total={data?.messages.length ?? 0}

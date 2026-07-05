@@ -171,26 +171,24 @@ function PriceChart({
 	);
 }
 
-export function MarketData() {
-	const [symbol, setSymbol] = useState("BTCUSDT");
-	const [interval, setInterval] = useState("1h");
-	const [tab, setTab] = useState(0);
-	const { data: candles, loading } = useApi(
-		() => API_CLIENT.getCandles(symbol, interval),
-		[symbol, interval]
-	);
-
+function computePriceChange(candles: Candle[] | null | undefined): {
+	chartData?: { time: string; price: number }[];
+	lastPrice?: number;
+	change: number;
+} {
 	const chartData = candles?.map((candle) => ({
 		time: candle.timestamp,
 		price: candle.close,
 	}));
-
 	const lastPrice = candles?.[candles.length - 1]?.close;
 	const prevPrice = candles?.[0]?.close;
 	const change =
 		lastPrice && prevPrice ? ((lastPrice - prevPrice) / prevPrice) * 100 : 0;
+	return { chartData, lastPrice, change };
+}
 
-	const candleColumns: Column<Candle>[] = [
+function createCandleColumns(): Column<Candle>[] {
+	return [
 		{ id: "time", label: "Timestamp", render: (row) => row.timestamp },
 		{
 			id: "open",
@@ -214,6 +212,54 @@ export function MarketData() {
 		},
 		{ id: "volume", label: "Volume", render: (row) => row.volume.toFixed(3) },
 	];
+}
+
+function MarketDataHeader() {
+	return (
+		<Box>
+			<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+				<Typography variant="h4" fontWeight={700}>
+					Market Data
+				</Typography>
+				<Chip label="LIVE" size="small" color="success" />
+			</Box>
+			<Typography variant="body2" color="text.secondary">
+				Real-time financial data streams and multi-source aggregation.
+			</Typography>
+		</Box>
+	);
+}
+
+function MarketDataTabs({
+	tab,
+	onTabChange,
+}: {
+	tab: number;
+	onTabChange: (newTab: number) => void;
+}) {
+	return (
+		<Tabs
+			value={tab}
+			onChange={(_, newTab) => onTabChange(newTab)}
+			sx={{ mb: 2 }}
+		>
+			<Tab label="Candles" />
+			<Tab label="Transactions" />
+			<Tab label="Order Book" />
+			<Tab label="Tickers 24h" />
+		</Tabs>
+	);
+}
+
+export function MarketData() {
+	const [symbol, setSymbol] = useState("BTCUSDT");
+	const [interval, setInterval] = useState("1h");
+	const [tab, setTab] = useState(0);
+	const { data: candles, loading } = useApi(
+		() => API_CLIENT.getCandles(symbol, interval),
+		[symbol, interval]
+	);
+	const { chartData, lastPrice, change } = computePriceChange(candles);
 
 	if (loading) {
 		return <PageLoading />;
@@ -222,17 +268,7 @@ export function MarketData() {
 	return (
 		<Box>
 			<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-				<Box>
-					<Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-						<Typography variant="h4" fontWeight={700}>
-							Market Data
-						</Typography>
-						<Chip label="LIVE" size="small" color="success" />
-					</Box>
-					<Typography variant="body2" color="text.secondary">
-						Real-time financial data streams and multi-source aggregation.
-					</Typography>
-				</Box>
+				<MarketDataHeader />
 				<MarketDataControls
 					symbol={symbol}
 					onSymbolChange={setSymbol}
@@ -243,12 +279,7 @@ export function MarketData() {
 
 			<MarketDataStats lastPrice={lastPrice} change={change} />
 
-			<Tabs value={tab} onChange={(_, newTab) => setTab(newTab)} sx={{ mb: 2 }}>
-				<Tab label="Candles" />
-				<Tab label="Transactions" />
-				<Tab label="Order Book" />
-				<Tab label="Tickers 24h" />
-			</Tabs>
+			<MarketDataTabs tab={tab} onTabChange={setTab} />
 
 			<PriceChart chartData={chartData} />
 
@@ -256,7 +287,7 @@ export function MarketData() {
 				Historical Candle Data
 			</Typography>
 			<DataTable
-				columns={candleColumns}
+				columns={createCandleColumns()}
 				rows={candles ?? []}
 				getId={(row) => row.timestamp}
 				total={candles?.length ?? 0}

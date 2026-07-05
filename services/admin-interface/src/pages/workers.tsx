@@ -59,15 +59,18 @@ function PageLoading() {
 function WorkerStats({
 	data,
 }: {
-	data?: {
-		stats: {
-			activeWorkers: number;
-			totalWorkers: number;
-			avgCpu: number;
-			totalJobsPerMin: number;
-			clusterMemory: number;
-		};
-	};
+	data:
+		| {
+				stats: {
+					activeWorkers: number;
+					totalWorkers: number;
+					avgCpu: number;
+					totalJobsPerMin: number;
+					clusterMemory: number;
+				};
+		  }
+		| null
+		| undefined;
 }) {
 	return (
 		<Grid container spacing={2} sx={{ mb: 3 }}>

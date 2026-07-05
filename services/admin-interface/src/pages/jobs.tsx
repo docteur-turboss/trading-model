@@ -10,7 +10,7 @@ import { DrawerPanel } from "../components/drawer-panel";
 import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useJobDetail, useJobs } from "../hooks/use-jobs";
-import type { JobEntry } from "../types/dtos";
+import type { JobEntry, JobTimelineEntry } from "../types/dtos";
 
 function PageLoading() {
 	return (
@@ -53,14 +53,7 @@ function JobStats({
 	);
 }
 
-interface TimelineEntry {
-	event: string;
-	timestamp: string;
-	description: string;
-	active: boolean;
-}
-
-function JobTimeline({ entries }: { entries: TimelineEntry[] }) {
+function JobTimeline({ entries }: { entries: JobTimelineEntry[] }) {
 	return (
 		<Box>
 			{entries.map((entry, index) => (
@@ -112,12 +105,8 @@ function JobTimeline({ entries }: { entries: TimelineEntry[] }) {
 	);
 }
 
-export function Jobs() {
-	const { data, loading, refetch } = useJobs();
-	const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-	const { data: jobDetail } = useJobDetail(selectedJobId);
-
-	const columns: Column<JobEntry>[] = [
+function createJobColumns(): Column<JobEntry>[] {
+	return [
 		{ id: "id", label: "Job ID", render: (row) => row.id },
 		{ id: "type", label: "Type", render: (row) => row.type },
 		{
@@ -149,6 +138,84 @@ export function Jobs() {
 			render: (row) => row.worker ?? "Unassigned",
 		},
 	];
+}
+
+function JobDetailPayload({ payload }: { payload: unknown }) {
+	return (
+		<Typography
+			variant="body2"
+			component="pre"
+			sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}
+		>
+			{JSON.stringify(payload, null, 2)}
+		</Typography>
+	);
+}
+
+function JobDetailLogs({ logs }: { logs: string[] }) {
+	return logs.map((log) => (
+		<Typography
+			key={log}
+			variant="caption"
+			display="block"
+			sx={{ fontFamily: "monospace" }}
+		>
+			{log}
+		</Typography>
+	));
+}
+
+function JobDetailDrawer({
+	selectedJobId,
+	jobDetail,
+	onClose,
+}: {
+	selectedJobId: string | null;
+	jobDetail: NonNullable<ReturnType<typeof useJobDetail>["data"]> | null;
+	onClose: () => void;
+}) {
+	return (
+		<DrawerPanel
+			open={Boolean(selectedJobId)}
+			title={`Job Details - ${selectedJobId ?? ""}`}
+			subtitle={`ID: ${selectedJobId ?? ""}`}
+			onClose={onClose}
+			tabs={
+				jobDetail
+					? [
+							{
+								label: "Timeline",
+								content: <JobTimeline entries={jobDetail.timeline} />,
+							},
+							{
+								label: "Payload",
+								content: <JobDetailPayload payload={jobDetail.payload} />,
+							},
+							{
+								label: "Logs",
+								content: <JobDetailLogs logs={jobDetail.logs} />,
+							},
+						]
+					: []
+			}
+			actions={
+				<>
+					<Button variant="contained" color="primary">
+						Restart Job
+					</Button>
+					<Button variant="contained" color="error">
+						Cancel Job
+					</Button>
+				</>
+			}
+		/>
+	);
+}
+
+export function Jobs() {
+	const { data, loading, refetch } = useJobs();
+	const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+	const { data: jobDetail } = useJobDetail(selectedJobId);
 
 	if (loading) {
 		return <PageLoading />;
@@ -177,7 +244,7 @@ export function Jobs() {
 			<JobStats stats={data!.stats} />
 
 			<DataTable
-				columns={columns}
+				columns={createJobColumns()}
 				rows={data?.jobs ?? []}
 				getId={(row) => row.id}
 				onSelectOne={(id) => setSelectedJobId(id)}
@@ -185,56 +252,10 @@ export function Jobs() {
 				selectable
 			/>
 
-			<DrawerPanel
-				open={Boolean(selectedJobId)}
-				title={`Job Details - ${selectedJobId ?? ""}`}
-				subtitle={`ID: ${selectedJobId ?? ""}`}
+			<JobDetailDrawer
+				selectedJobId={selectedJobId}
+				jobDetail={jobDetail}
 				onClose={() => setSelectedJobId(null)}
-				tabs={
-					jobDetail
-						? [
-								{
-									label: "Timeline",
-									content: <JobTimeline entries={jobDetail.timeline} />,
-								},
-								{
-									label: "Payload",
-									content: (
-										<Typography
-											variant="body2"
-											component="pre"
-											sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}
-										>
-											{JSON.stringify(jobDetail.payload, null, 2)}
-										</Typography>
-									),
-								},
-								{
-									label: "Logs",
-									content: jobDetail.logs.map((log) => (
-										<Typography
-											key={log}
-											variant="caption"
-											display="block"
-											sx={{ fontFamily: "monospace" }}
-										>
-											{log}
-										</Typography>
-									)),
-								},
-							]
-						: []
-				}
-				actions={
-					<>
-						<Button variant="contained" color="primary">
-							Restart Job
-						</Button>
-						<Button variant="contained" color="error">
-							Cancel Job
-						</Button>
-					</>
-				}
 			/>
 		</Box>
 	);

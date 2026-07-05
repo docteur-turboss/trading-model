@@ -33,7 +33,7 @@ function PageLoading() {
 	);
 }
 
-function AuditStats({ data }: { data?: { total: number } }) {
+function AuditStats({ data }: { data: { total: number } | null | undefined }) {
 	return (
 		<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
 			<Box sx={{ flex: 1 }}>

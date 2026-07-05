@@ -27,7 +27,10 @@ function CacheStats({
 	data,
 	translate,
 }: {
-	data?: { stats: { hitRate: number; activeEntries: number } };
+	data:
+		| { stats: { hitRate: number; activeEntries: number } }
+		| null
+		| undefined;
 	translate: (key: string) => string;
 }) {
 	return (
