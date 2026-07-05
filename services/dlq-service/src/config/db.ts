@@ -77,10 +77,71 @@ export async function getDb(): Promise<Db> {
 	return dbPromise;
 }
 
+async function createCollectionIndexes(col: Collection): Promise<void> {
+	const indexSpecs = [
+		{ key: { topic: 1, createdAt: -1 } },
+		{ key: { createdAt: -1 } },
+		{ key: { createdAt: 1 }, options: { expireAfterSeconds: 30 * 86400 } },
+		{ key: { retryCount: 1, topic: 1, createdAt: -1 } },
+		{ key: { messageId: 1 }, options: { unique: true, sparse: true } },
+		{ key: { processingAt: 1 }, options: { sparse: true } },
+		{ key: { processingInstance: 1 } },
+		{ key: { status: 1, retryCount: 1 } },
+		{
+			key: { retryCount: 1, createdAt: -1 },
+			options: {
+				partialFilterExpression: { processingAt: { $exists: false } },
+			},
+		},
+		{
+			key: { retryCount: 1, status: 1, createdAt: -1 },
+			options: {
+				partialFilterExpression: { processingAt: { $exists: false } },
+			},
+		},
+		{ key: { contentHash: 1, status: 1 }, options: { sparse: true } },
+	];
+
+	const criticalIndexSpecs = CRITICAL_INDEX_KEYS.map((key) => ({ key }));
+	const currentMissing: string[] = [];
+
+	for (const spec of indexSpecs) {
+		try {
+			await col.createIndex(
+				spec.key as unknown as Record<string, 1 | -1>,
+				spec.options
+			);
+		} catch (err) {
+			const keyStr = JSON.stringify(spec.key);
+			const isCritical = criticalIndexSpecs.some(
+				(critSpec) => JSON.stringify(critSpec.key) === keyStr
+			);
+			if (isCritical) {
+				currentMissing.push(keyStr);
+				logger.error(
+					"Critical index creation failed — queries may perform collection scans",
+					{
+						index: spec.key,
+						error: normalizeError(err).message,
+					}
+				);
+			} else {
+				logger.warn("Index creation skipped", {
+					index: spec.key,
+					error: normalizeError(err).message,
+				});
+			}
+		}
+	}
+
+	missingCriticalIndexes = currentMissing;
+}
+
 export async function getCollection(): Promise<Collection> {
 	if (collection) {
 		return collection;
 	}
+
 	const existingCollection =
 		collectionPromise === null ? null : await collectionPromise;
 	if (existingCollection) {
@@ -91,67 +152,12 @@ export async function getCollection(): Promise<Collection> {
 		const database = await getDb();
 		const col = database.collection(env.MONGO_COLLECTION);
 
-		const indexSpecs = [
-			{ key: { topic: 1, createdAt: -1 } },
-			{ key: { createdAt: -1 } },
-			{ key: { createdAt: 1 }, options: { expireAfterSeconds: 30 * 86400 } },
-			{ key: { retryCount: 1, topic: 1, createdAt: -1 } },
-			{ key: { messageId: 1 }, options: { unique: true, sparse: true } },
-			{ key: { processingAt: 1 }, options: { sparse: true } },
-			{ key: { processingInstance: 1 } },
-			{ key: { status: 1, retryCount: 1 } },
-			{
-				key: { retryCount: 1, createdAt: -1 },
-				options: {
-					partialFilterExpression: { processingAt: { $exists: false } },
-				},
-			},
-			{
-				key: { retryCount: 1, status: 1, createdAt: -1 },
-				options: {
-					partialFilterExpression: { processingAt: { $exists: false } },
-				},
-			},
-			{ key: { contentHash: 1, status: 1 }, options: { sparse: true } },
-		];
-		const criticalIndexSpecs = CRITICAL_INDEX_KEYS.map((key) => ({ key }));
-		const currentMissing: string[] = [];
+		await createCollectionIndexes(col);
 
-		for (const spec of indexSpecs) {
-			try {
-				await col.createIndex(
-					spec.key as unknown as Record<string, 1 | -1>,
-					spec.options
-				);
-			} catch (err) {
-				const keyStr = JSON.stringify(spec.key);
-				const isCritical = criticalIndexSpecs.some(
-					(spec) => JSON.stringify(spec.key) === keyStr
-				);
-				if (isCritical) {
-					currentMissing.push(keyStr);
-					logger.error(
-						"Critical index creation failed — queries may perform collection scans",
-						{
-							index: spec.key,
-							error: normalizeError(err).message,
-						}
-					);
-				} else {
-					logger.warn("Index creation skipped", {
-						index: spec.key,
-						error: normalizeError(err).message,
-					});
-				}
-			}
-		}
-
-		missingCriticalIndexes = currentMissing;
 		collection = col;
 		logger.info("MongoDB collection ready", {
 			collection: env.MONGO_COLLECTION,
 		});
-
 		return collection;
 	})();
 
