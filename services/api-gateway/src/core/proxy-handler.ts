@@ -67,15 +67,13 @@ export function forwardRequest(
 		const safeHeaders = buildSafeHeaders(req);
 		const url = new URL(path, `https://${target.host}:${target.port}`);
 
-		const options: https.RequestOptions = {
-			hostname: target.host,
-			port: target.port,
-			path: url.pathname + url.search,
-			method: req.method,
-			headers: safeHeaders,
-			rejectUnauthorized: true,
-			timeout: timeoutMs,
-		};
+		const options: https.RequestOptions = _buildProxyOptions(
+			target,
+			req,
+			url,
+			safeHeaders,
+			timeoutMs
+		);
 
 		const proxyReq = https.request(options, (proxyRes) => {
 			void handleProxyResponse(proxyRes).then(resolve);
@@ -95,14 +93,35 @@ export function forwardRequest(
 			reject(new Error(`Proxy timeout after ${timeoutMs}ms`));
 		});
 
-		if (
-			req.body &&
-			typeof req.body === "object" &&
-			Object.keys(req.body).length > 0
-		) {
-			proxyReq.write(JSON.stringify(req.body));
-		}
-
+		_writeRequestBody(proxyReq, req.body);
 		proxyReq.end();
 	});
+}
+
+function _buildProxyOptions(
+	target: ResolvedTarget,
+	req: Request,
+	url: URL,
+	headers: Record<string, string>,
+	timeoutMs: number
+): https.RequestOptions {
+	return {
+		hostname: target.host,
+		port: target.port,
+		path: url.pathname + url.search,
+		method: req.method,
+		headers,
+		rejectUnauthorized: true,
+		timeout: timeoutMs,
+	};
+}
+
+function _writeRequestBody(proxyReq: http.ClientRequest, body: unknown): void {
+	if (
+		body &&
+		typeof body === "object" &&
+		Object.keys(body as object).length > 0
+	) {
+		proxyReq.write(JSON.stringify(body));
+	}
 }

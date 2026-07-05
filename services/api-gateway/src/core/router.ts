@@ -1,13 +1,16 @@
 import { logger } from "@trading-model/common/config/logger";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
-import { sendResponse } from "@trading-model/common/middleware/response-exception";
-import { Router } from "express";
+import {
+	type ResponseObject,
+	sendResponse,
+} from "@trading-model/common/middleware/response-exception";
+import { Router, type Request } from "express";
 import { ENV } from "../config/env";
 import { AUTH_MIDDLEWARE } from "./auth";
 import { ResponseCache } from "./cache";
 import { forwardRequest } from "./proxy-handler";
 import { DEFAULT_LIMITER } from "./rate-limiter";
-import { ServiceResolver } from "./service-resolver";
+import { ServiceResolver, type ResolvedTarget } from "./service-resolver";
 
 const RESOLVER = new ServiceResolver(
 	ENV.DISCOVERY_SERVICE_URL,
@@ -25,7 +28,6 @@ const catchAllRoute = catchSync(async (req) => {
 			400
 		);
 	}
-
 	if (!parsed.valid) {
 		return sendResponse({ error: "Invalid version number" }, 400);
 	}
@@ -46,18 +48,33 @@ const catchAllRoute = catchSync(async (req) => {
 	}
 
 	const cacheKey = `${req.method}:${req.path}`;
-	const cached = _checkCache(req.method, cacheKey);
+	const cached = _tryServeFromCache(req.method, cacheKey);
 	if (cached) {
-		return sendResponse(cached.data, cached.status);
+		return cached;
 	}
 
+	return _proxyAndCache(req, target, path, { serviceName, majorVersion, cacheKey });
+});
+
+interface ProxyContext {
+	serviceName: string;
+	majorVersion: number;
+	cacheKey: string;
+}
+
+async function _proxyAndCache(
+	req: Request,
+	target: ResolvedTarget,
+	path: string,
+	ctx: ProxyContext
+): Promise<ResponseObject> {
 	try {
 		const result = await forwardRequest(req, target, path);
 
 		if (req.method === "GET" && result.status === 200) {
 			const parsed = tryParseJson(result.body);
 			if (parsed) {
-				CACHE.set(cacheKey, parsed, result.status);
+				CACHE.set(ctx.cacheKey, parsed, result.status);
 			}
 		}
 
@@ -66,8 +83,8 @@ const catchAllRoute = catchSync(async (req) => {
 	} catch (err: unknown) {
 		const message = err instanceof Error ? err.message : "Unknown error";
 		logger.error("Proxy error", {
-			serviceName,
-			majorVersion,
+			serviceName: ctx.serviceName,
+			majorVersion: ctx.majorVersion,
 			target: `${target.host}:${target.port}`,
 			error: message,
 		});
@@ -76,7 +93,21 @@ const catchAllRoute = catchSync(async (req) => {
 			503
 		);
 	}
-});
+}
+
+function _tryServeFromCache(
+	method: string,
+	cacheKey: string
+): ResponseObject | null {
+	if (method !== "GET") {
+		return null;
+	}
+	const cached = CACHE.get(cacheKey);
+	if (!cached) {
+		return null;
+	}
+	return sendResponse(cached.data, cached.status);
+}
 
 type ParsedRequestPath =
 	| { valid: false }
@@ -100,20 +131,6 @@ function _parseRequestPath(req: {
 	}
 
 	return { valid: true, majorVersion, serviceName, path };
-}
-
-function _checkCache(
-	method: string,
-	cacheKey: string
-): { data: unknown; status: number } | null {
-	if (method !== "GET") {
-		return null;
-	}
-	const cached = CACHE.get(cacheKey);
-	if (!cached) {
-		return null;
-	}
-	return cached;
 }
 
 export function createRouter(): Router {
