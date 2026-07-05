@@ -424,20 +424,11 @@ export class MessageStore {
 		}
 	}
 
-	async store(topic: string, message: Message): Promise<string> {
+	private async _storeInRedisStream(
+		topic: string,
+		serialized: string
+	): Promise<string | null> {
 		const redis = await getStreamClient();
-		const serialized = safeStringify(message);
-
-		if (serialized.length > ENV.MAX_PAYLOAD_BYTES) {
-			logger.error("Message payload exceeds maximum size", {
-				topic,
-				size: serialized.length,
-				max: ENV.MAX_PAYLOAD_BYTES,
-			});
-			MESSAGES_DLQ_TOTAL.inc({ topic, reason: "PAYLOAD_TOO_LARGE" });
-			return "payload-too-large";
-		}
-
 		const storeStart = Date.now();
 		let attempt = 0;
 		let lastError: Error | null = null;
@@ -488,76 +479,110 @@ export class MessageStore {
 			);
 		}
 
+		return null;
+	}
+
+	private async _storeInRedisWal(
+		topic: string,
+		serialized: string
+	): Promise<void> {
+		const redis = await getStreamClient();
+		const walEntry = JSON.stringify({ topic, serialized });
+		await redis.rpush(this._walKey(), walEntry);
+		await redis.ltrim(this._walKey(), -WAL_LIST_MAX_LEN, -1);
+		await redis.expire(this._walKey(), 7200);
+	}
+
+	private async _bufferInMemory(
+		topic: string,
+		serialized: string,
+		message: Message
+	): Promise<void> {
+		const warnThreshold = Math.floor(
+			ENV.MEMORY_WAL_BUFFER_SIZE * ENV.MEMORY_WAL_BUFFER_WARN_PCT
+		);
+		if (this._memoryWalBuffer.length >= warnThreshold) {
+			logger.warn("In-memory WAL buffer approaching capacity", {
+				bufferSize: this._memoryWalBuffer.length,
+				maxSize: ENV.MEMORY_WAL_BUFFER_SIZE,
+				threshold: ENV.MEMORY_WAL_BUFFER_WARN_PCT,
+			});
+		}
+		if (this._memoryWalBuffer.length >= ENV.MEMORY_WAL_BUFFER_SIZE) {
+			const excess =
+				this._memoryWalBuffer.length - ENV.MEMORY_WAL_BUFFER_SIZE + 1;
+			const removed = this._memoryWalBuffer.splice(0, excess);
+			BUFFER_DROPPED_TOTAL.inc(
+				{ buffer: "memory-wal", reason: "buffer-full" },
+				excess
+			);
+
+			let saved: boolean;
+			try {
+				const redis = await getStreamClient();
+				const multi = redis.multi();
+				for (const entry of removed) {
+					multi.rpush(
+						this._walKey(),
+						JSON.stringify({
+							topic: entry.topic,
+							serialized: entry.serialized,
+						})
+					);
+				}
+				await multi.exec();
+				saved = true;
+			} catch {
+				saved = false;
+			}
+
+			if (!saved) {
+				const lines = removed.map((entry) => JSON.stringify(entry)).join("\n");
+				const fileWritten = await retryFileAppend(
+					ENV.DLQ_LOCAL_FALLBACK_PATH,
+					lines
+				);
+				if (!fileWritten) {
+					logger.error(
+						"Memory WAL buffer eviction: all persistence layers exhausted — messages lost",
+						{
+							evictedCount: removed.length,
+							buffer: "memory-wal",
+						}
+					);
+				}
+			}
+		}
+
+		this._memoryWalBuffer.push({ topic, serialized, message });
+	}
+
+	async store(topic: string, message: Message): Promise<string> {
+		const serialized = safeStringify(message);
+
+		if (serialized.length > ENV.MAX_PAYLOAD_BYTES) {
+			logger.error("Message payload exceeds maximum size", {
+				topic,
+				size: serialized.length,
+				max: ENV.MAX_PAYLOAD_BYTES,
+			});
+			MESSAGES_DLQ_TOTAL.inc({ topic, reason: "PAYLOAD_TOO_LARGE" });
+			return "payload-too-large";
+		}
+
+		const entryId = await this._storeInRedisStream(topic, serialized);
+		if (entryId !== null) {
+			return entryId;
+		}
+
 		try {
-			const walEntry = JSON.stringify({ topic, serialized });
-			await redis.rpush(this._walKey(), walEntry);
-			await redis.ltrim(this._walKey(), -WAL_LIST_MAX_LEN, -1);
-			await redis.expire(this._walKey(), 7200);
+			await this._storeInRedisWal(topic, serialized);
 		} catch (err) {
 			logger.warn("Redis WAL list write failed, writing to in-memory buffer", {
 				topic,
 				error: (err as Error).message,
 			});
-
-			const warnThreshold = Math.floor(
-				ENV.MEMORY_WAL_BUFFER_SIZE * ENV.MEMORY_WAL_BUFFER_WARN_PCT
-			);
-			if (this._memoryWalBuffer.length >= warnThreshold) {
-				logger.warn("In-memory WAL buffer approaching capacity", {
-					bufferSize: this._memoryWalBuffer.length,
-					maxSize: ENV.MEMORY_WAL_BUFFER_SIZE,
-					threshold: ENV.MEMORY_WAL_BUFFER_WARN_PCT,
-				});
-			}
-			if (this._memoryWalBuffer.length >= ENV.MEMORY_WAL_BUFFER_SIZE) {
-				const excess =
-					this._memoryWalBuffer.length - ENV.MEMORY_WAL_BUFFER_SIZE + 1;
-				const removed = this._memoryWalBuffer.splice(0, excess);
-				BUFFER_DROPPED_TOTAL.inc(
-					{ buffer: "memory-wal", reason: "buffer-full" },
-					excess
-				);
-
-				let saved: boolean;
-				try {
-					const redis = await getStreamClient();
-					const multi = redis.multi();
-					for (const entry of removed) {
-						multi.rpush(
-							this._walKey(),
-							JSON.stringify({
-								topic: entry.topic,
-								serialized: entry.serialized,
-							})
-						);
-					}
-					await multi.exec();
-					saved = true;
-				} catch {
-					saved = false;
-				}
-
-				if (!saved) {
-					const lines = removed
-						.map((entry) => JSON.stringify(entry))
-						.join("\n");
-					const fileWritten = await retryFileAppend(
-						ENV.DLQ_LOCAL_FALLBACK_PATH,
-						lines
-					);
-					if (!fileWritten) {
-						logger.error(
-							"Memory WAL buffer eviction: all persistence layers exhausted — messages lost",
-							{
-								evictedCount: removed.length,
-								buffer: "memory-wal",
-							}
-						);
-					}
-				}
-			}
-
-			this._memoryWalBuffer.push({ topic, serialized, message });
+			await this._bufferInMemory(topic, serialized, message);
 			return "memory-buffered";
 		}
 
@@ -566,6 +591,116 @@ export class MessageStore {
 	}
 
 	private _walFlushWaiters: Array<() => void> = [];
+
+	private _drainWalEntry(
+		entry: string
+	): { topic: string; data: string } | null {
+		try {
+			const parsed = JSON.parse(entry) as {
+				topic: string;
+				serialized?: string;
+				message?: Message;
+			};
+			return {
+				topic: parsed.topic,
+				data: parsed.serialized ?? safeStringify(parsed.message!),
+			};
+		} catch {
+			logger.warn("WAL flush: malformed entry dropped", {
+				entry: entry.substring(0, 200),
+			});
+			return null;
+		}
+	}
+
+	private async _flushWalBatch(raw: string[]): Promise<boolean> {
+		const redis = await getStreamClient();
+		const multi = redis.multi();
+		for (const entry of raw) {
+			const parsed = this._drainWalEntry(entry);
+			if (!parsed) {
+				continue;
+			}
+			const key = this._streamKey(parsed.topic);
+			multi.xadd(
+				key,
+				"MAXLEN",
+				"~",
+				ENV.REDIS_STREAM_MAXLEN,
+				"*",
+				"data",
+				parsed.data
+			);
+			multi.expire(key, ENV.REDIS_MESSAGE_TTL_S);
+		}
+
+		try {
+			const results = await multi.exec();
+			if (results) {
+				const anyFailed = results.some((resultItem) => resultItem[0] !== null);
+				if (anyFailed) {
+					return false;
+				}
+			}
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	private async _handleWalFlushError(
+		raw: string[],
+		consecutiveErrors: number
+	): Promise<"retry" | "memory-buffer" | "abort"> {
+		if (consecutiveErrors >= 5) {
+			logger.error(
+				"WAL flush: too many consecutive errors — switching to memory buffer"
+			);
+			for (const entry of raw) {
+				try {
+					const parsed = JSON.parse(entry) as {
+						topic: string;
+						serialized?: string;
+						message?: Message;
+					};
+					this._memoryWalBuffer.push({
+						topic: parsed.topic,
+						serialized: parsed.serialized ?? safeStringify(parsed.message!),
+						message: parsed.message ?? JSON.parse(parsed.serialized!),
+					});
+				} catch {}
+			}
+			return "memory-buffer";
+		}
+
+		if (raw.length > 0) {
+			try {
+				const redis = await getStreamClient();
+				const restore = redis.multi();
+				for (const entry of raw) {
+					restore.rpush(this._walKey(), entry);
+				}
+				await restore.exec();
+			} catch {
+				for (const entry of raw) {
+					try {
+						const parsed = JSON.parse(entry) as {
+							topic: string;
+							serialized?: string;
+							message?: Message;
+						};
+						this._memoryWalBuffer.push({
+							topic: parsed.topic,
+							serialized: parsed.serialized ?? safeStringify(parsed.message!),
+							message: parsed.message ?? JSON.parse(parsed.serialized!),
+						});
+					} catch {}
+				}
+			}
+		}
+
+		return "retry";
+	}
 
 	private async _flushWal(): Promise<void> {
 		if (this._walFlushing) {
@@ -597,162 +732,27 @@ export class MessageStore {
 					break;
 				}
 
-				const multi = redis.multi();
-				for (const entry of raw) {
-					try {
-						const parsed = JSON.parse(entry) as {
-							topic: string;
-							serialized?: string;
-							message?: Message;
-						};
-						const key = this._streamKey(parsed.topic);
-						const data = parsed.serialized ?? safeStringify(parsed.message!);
-						multi.xadd(
-							key,
-							"MAXLEN",
-							"~",
-							ENV.REDIS_STREAM_MAXLEN,
-							"*",
-							"data",
-							data
-						);
-						multi.expire(key, ENV.REDIS_MESSAGE_TTL_S);
-					} catch {
-						logger.warn("WAL flush: malformed entry dropped", {
-							entry: entry.substring(0, 200),
-						});
-					}
+				const ok = await this._flushWalBatch(raw);
+				if (ok) {
+					consecutiveErrors = 0;
+					continue;
 				}
 
-				try {
-					const results = await multi.exec();
-					if (results) {
-						const anyFailed = results.some(
-							(resultItem) => resultItem[0] !== null
-						);
-						if (anyFailed) {
-							consecutiveErrors++;
-							logger.warn(
-								"WAL flush pipeline: some commands failed — retrying batch",
-								{
-									consecutiveErrors,
-									batchSize: raw.length,
-								}
-							);
-							if (consecutiveErrors >= 5) {
-								logger.error(
-									"WAL flush: too many consecutive errors — switching to memory buffer"
-								);
-								for (const entry of raw) {
-									try {
-										const parsed = JSON.parse(entry) as {
-											topic: string;
-											serialized?: string;
-											message?: Message;
-										};
-										if (parsed.message) {
-											this._memoryWalBuffer.push({
-												topic: parsed.topic,
-												serialized:
-													parsed.serialized ?? safeStringify(parsed.message),
-												message: parsed.message,
-											});
-										} else if (parsed.serialized) {
-											this._memoryWalBuffer.push({
-												topic: parsed.topic,
-												serialized: parsed.serialized,
-												message: JSON.parse(parsed.serialized),
-											});
-										}
-									} catch {}
-								}
-							} else if (raw.length > 0) {
-								try {
-									const restore = redis.multi();
-									for (const entry of raw) {
-										restore.rpush(this._walKey(), entry);
-									}
-									await restore.exec();
-								} catch {
-									for (const entry of raw) {
-										try {
-											const parsed = JSON.parse(entry) as {
-												topic: string;
-												serialized?: string;
-												message?: Message;
-											};
-											this._memoryWalBuffer.push({
-												topic: parsed.topic,
-												serialized:
-													parsed.serialized ?? safeStringify(parsed.message!),
-												message:
-													parsed.message ?? JSON.parse(parsed.serialized!),
-											});
-										} catch {}
-									}
-								}
-							}
-							const backoff = Math.min(1000 * 2 ** consecutiveErrors, 30000);
-							await this._sleepWithJitter(backoff);
-							break;
-						}
-					}
-					consecutiveErrors = 0;
-				} catch (err) {
-					consecutiveErrors++;
-					const backoff = Math.min(1000 * 2 ** consecutiveErrors, 30000);
-					logger.error("WAL flush exec failed — retrying", {
-						error: (err as Error).message,
+				consecutiveErrors++;
+				logger.warn(
+					"WAL flush pipeline: some commands failed — retrying batch",
+					{
 						consecutiveErrors,
-						backoff,
-					});
-					if (consecutiveErrors >= 5) {
-						logger.error(
-							"WAL flush: too many consecutive errors — switching to memory buffer"
-						);
-						for (const entry of raw) {
-							try {
-								const parsed = JSON.parse(entry) as {
-									topic: string;
-									serialized?: string;
-									message?: Message;
-								};
-								this._memoryWalBuffer.push({
-									topic: parsed.topic,
-									serialized:
-										parsed.serialized ?? safeStringify(parsed.message!),
-									message: parsed.message ?? JSON.parse(parsed.serialized!),
-								});
-							} catch {}
-						}
-					} else if (raw.length > 0) {
-						try {
-							const restore = redis.multi();
-							for (const entry of raw) {
-								restore.rpush(this._walKey(), entry);
-							}
-							await restore.exec();
-						} catch {
-							for (const entry of raw) {
-								try {
-									const parsed = JSON.parse(entry) as {
-										topic: string;
-										serialized?: string;
-										message?: Message;
-									};
-									this._memoryWalBuffer.push({
-										topic: parsed.topic,
-										serialized:
-											parsed.serialized ?? safeStringify(parsed.message!),
-										message: parsed.message ?? JSON.parse(parsed.serialized!),
-									});
-								} catch {}
-							}
-						}
+						batchSize: raw.length,
 					}
-					await this._sleepWithJitter(backoff);
+				);
+				const action = await this._handleWalFlushError(raw, consecutiveErrors);
+				const backoff = Math.min(1000 * 2 ** consecutiveErrors, 30000);
+				await this._sleepWithJitter(backoff);
+				if (action === "abort") {
 					break;
 				}
+				break;
 			}
 		} catch (err) {
 			logger.error("WAL flush error", { error: (err as Error).message });
