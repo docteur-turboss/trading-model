@@ -6,6 +6,7 @@ import type {
 } from "@trading-model/common/contracts/service-registry.types";
 import { CacheManager } from "./cache-manager";
 import { PubSubInvalidator } from "./pub-sub-invalidator";
+import { RedisHealthMonitor } from "./redis-health-monitor";
 
 export interface CachedRegistryBackendOptions {
 	backend: RegistryBackend;
@@ -20,26 +21,41 @@ export class CachedRegistryBackend implements RegistryBackend {
 	private _backend: RegistryBackend;
 	private _cache: CacheManager;
 	private _pubSub: PubSubInvalidator;
-	private _redisHealthy = true;
-	private _consecutiveFailures = 0;
-	private readonly _failureThreshold: number;
-	private readonly _healthCheckIntervalMs: number;
-	private _healthCheckHandle?: NodeJS.Timeout;
-	private _restoreHandle?: NodeJS.Timeout;
-	private readonly _redisUrlForPubSub?: string;
-	private _healthCheckRunning = false;
-	private _fallbackActive = false;
-	private _originalBackend?: RegistryBackend;
 	private readonly _heartbeatInvalidationThrottleMs = 5000;
 	private _lastHeartbeatInvalidation = new Map<string, number>();
+	private readonly _healthMonitor: RedisHealthMonitor;
+	private readonly _redisUrlForPubSub?: string;
 
 	constructor(options: CachedRegistryBackendOptions) {
 		this._backend = options.backend;
 		this._redisUrlForPubSub = options.redisUrlForPubSub;
-		this._failureThreshold = options.redisFailureThreshold ?? 3;
-		this._healthCheckIntervalMs = options.redisHealthCheckIntervalMs ?? 15_000;
-		this._cache = new CacheManager(options.maxEntries ?? 5000, options.cacheTtlMs);
+		const failureThreshold = options.redisFailureThreshold ?? 3;
+		const healthCheckIntervalMs = options.redisHealthCheckIntervalMs ?? 15_000;
+		this._cache = new CacheManager(
+			options.maxEntries ?? 5000,
+			options.cacheTtlMs
+		);
 		this._pubSub = new PubSubInvalidator(options.redisUrlForPubSub);
+
+		this._healthMonitor = new RedisHealthMonitor(
+			failureThreshold,
+			healthCheckIntervalMs,
+			() => !!(options.redisUrlForPubSub || this._isRedisBackend()),
+			{
+				ping: () => this.ping(),
+				onHealthLost: () => {},
+				onHealthRestored: () => {
+					this._cache.clear();
+				},
+				onFallbackActivated: () => {
+					this._cache.clear();
+				},
+				onFallbackRestored: () => {
+					this._cache.clear();
+				},
+			},
+			this._backend
+		);
 	}
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {
@@ -86,7 +102,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 			return all.slice(start, limit === undefined ? undefined : start + limit);
 		}
 
-		if (this._fallbackActive) {
+		if (this._healthMonitor.fallbackActive) {
 			return this._backend.getInstances(serviceName);
 		}
 
@@ -95,7 +111,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 			return cached;
 		}
 
-		if (!this._redisHealthy) {
+		if (!this._healthMonitor.isHealthy) {
 			const stale = this._cache.getStale(serviceName);
 			if (stale) {
 				logger.warn(
@@ -120,7 +136,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 		serviceName: string,
 		instanceId: string
 	): Promise<ServiceInstance | undefined> {
-		if (this._fallbackActive) {
+		if (this._healthMonitor.fallbackActive) {
 			return await this._backend.getInstance(serviceName, instanceId);
 		}
 
@@ -130,7 +146,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 				(inst: ServiceInstance) => inst.instanceId === instanceId
 			);
 		}
-		if (!this._redisHealthy) {
+		if (!this._healthMonitor.isHealthy) {
 			const stale = this._cache.getStale(serviceName);
 			if (stale) {
 				return stale.find(
@@ -193,7 +209,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	private async _refreshCache(serviceName: string): Promise<void> {
-		if (!(this._redisHealthy || this._fallbackActive)) {
+		if (!(this._healthMonitor.isHealthy || this._healthMonitor.fallbackActive)) {
 			logger.warn(
 				"Backend unhealthy — skipping cache refresh, serving stale data",
 				{ serviceName }
@@ -211,102 +227,17 @@ export class CachedRegistryBackend implements RegistryBackend {
 	async start(): Promise<void> {
 		this._backend.start();
 
-		this._clearTimers();
-
 		await this._pubSub.start(this._cache);
 
-		this._startHealthCheck();
-		this._startRestoreLoop();
+		this._healthMonitor.start();
 	}
 
 	private _isRedisBackend(): boolean {
 		return typeof (this._backend as { ping?: unknown }).ping === "function";
 	}
 
-	private _startHealthCheck(): void {
-		if (!(this._redisUrlForPubSub || this._isRedisBackend())) {
-			return;
-		}
-		this._healthCheckHandle = setInterval(
-			() => this._performHealthCheck(),
-			this._healthCheckIntervalMs
-		);
-	}
-
-	private async _performHealthCheck(): Promise<void> {
-		if (this._healthCheckRunning) {
-			return;
-		}
-		this._healthCheckRunning = true;
-		try {
-			const healthy = await this.ping();
-			if (healthy) {
-				if (!this._redisHealthy) {
-					this._redisHealthy = true;
-					logger.info(
-						"Redis backend is healthy again — resumed normal operation"
-					);
-				}
-				this._consecutiveFailures = 0;
-			} else {
-				this._consecutiveFailures++;
-				if (this._consecutiveFailures >= this._failureThreshold) {
-					this._redisHealthy = false;
-					logger.error("Redis backend unhealthy — serving stale cache", {
-						consecutiveFailures: this._consecutiveFailures,
-					});
-				}
-			}
-		} catch {
-			this._consecutiveFailures++;
-			if (this._consecutiveFailures >= this._failureThreshold) {
-				this._redisHealthy = false;
-				logger.error("Redis backend unhealthy — serving stale cache", {
-					consecutiveFailures: this._consecutiveFailures,
-				});
-			}
-		} finally {
-			this._healthCheckRunning = false;
-		}
-	}
-
-	private _startRestoreLoop(): void {
-		if (!(this._redisUrlForPubSub || this._isRedisBackend())) {
-			return;
-		}
-		this._restoreHandle = setInterval(
-			() => this._performRestoreCheck(),
-			this._healthCheckIntervalMs * 6
-		);
-	}
-
-	private async _performRestoreCheck(): Promise<void> {
-		if (this._redisHealthy) {
-			return;
-		}
-		try {
-			const healthy = await this.ping();
-			if (healthy) {
-				if (this._fallbackActive && this._originalBackend) {
-					this._backend = this._originalBackend;
-					this._originalBackend = undefined;
-					this._fallbackActive = false;
-					logger.info("Restored original Redis backend");
-				}
-				this._redisHealthy = true;
-				this._consecutiveFailures = 0;
-				this._cache.clear();
-				logger.info(
-					"Redis backend is healthy again — resumed normal operation"
-				);
-			}
-		} catch {
-			logger.warn("Redis restore attempt failed — staying on stale cache");
-		}
-	}
-
 	async ping(): Promise<boolean> {
-		if (this._fallbackActive) {
+		if (this._healthMonitor.fallbackActive) {
 			return false;
 		}
 
@@ -339,49 +270,21 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	markUnhealthy(): void {
-		this._redisHealthy = false;
-		this._consecutiveFailures = this._failureThreshold;
+		this._healthMonitor.markUnhealthy();
 	}
 
 	setFallbackBackend(fallback: RegistryBackend): void {
 		logger.warn(
 			"CachedRegistryBackend.setFallbackBackend — swapping to fallback backend"
 		);
-		if (!this._fallbackActive) {
-			this._originalBackend = this._backend;
-		}
-		this._fallbackActive = true;
-		this._backend = fallback;
+		this._healthMonitor.setFallbackBackend(fallback);
 		this._cache.clear();
-	}
-
-	private _clearTimers(): void {
-		if (this._healthCheckHandle) {
-			clearInterval(this._healthCheckHandle);
-			this._healthCheckHandle = undefined;
-		}
-		if (this._restoreHandle) {
-			clearInterval(this._restoreHandle);
-			this._restoreHandle = undefined;
-		}
 	}
 
 	stop(): void {
-		this._clearTimers();
+		this._healthMonitor.stop();
 		this._cache.clear();
 		this._pubSub.stop();
-		this._stopBackend();
-	}
-
-	private _stopBackend(): void {
-		if (this._originalBackend) {
-			try {
-				this._originalBackend.stop();
-			} catch {
-				/* ignore */
-			}
-			this._originalBackend = undefined;
-		}
-		this._backend.stop();
+		this._healthMonitor.stopBackend();
 	}
 }

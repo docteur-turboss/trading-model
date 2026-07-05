@@ -5,6 +5,10 @@ import WebSocket, { WebSocketServer } from "ws";
 
 const CLIENT_TIMEOUT_MS = 60_000;
 
+type WsDiscoveryClientMessage =
+	| { type: "subscribe"; payload?: { services?: string[] } }
+	| { type: "heartbeat"; payload?: { serviceName?: string; instanceId?: string } };
+
 interface ConnectedClient {
 	ws: WebSocket;
 	subscribedServices: Set<string>;
@@ -50,84 +54,99 @@ export class WsDiscoveryServer {
 			const clientId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
 			logger.info("Discovery WS client connected", { clientId });
 
-			const client: ConnectedClient = {
-				ws,
-				subscribedServices: new Set(),
-			};
+			const client: ConnectedClient = { ws, subscribedServices: new Set() };
 			this._clients.set(clientId, client);
 			this._resetClientTimeout(clientId, ws);
 
-			ws.on("message", (data: WebSocket.Data) => {
-				try {
-					const message = JSON.parse(data.toString()) as {
-						type: string;
-						payload?: Record<string, unknown>;
-					};
-					this._handleMessage(clientId, client, message);
-				} catch (error) {
-					logger.warn("Failed to parse WS message", {
-						clientId,
-						err: normalizeError(error),
-					});
-				}
-			});
-
-			ws.on("close", () => {
-				this._clients.delete(clientId);
-				const timeout = this._clientTimeouts.get(clientId);
-				if (timeout) {
-					clearTimeout(timeout);
-				}
-				this._clientTimeouts.delete(clientId);
-				logger.info("Discovery WS client disconnected", { clientId });
-			});
-
-			ws.on("error", (error) => {
-				logger.warn("Discovery WS client error", {
-					clientId,
-					err: normalizeError(error),
-				});
-			});
+			ws.on("message", (data) => this._onWsMessage(clientId, client, data));
+			ws.on("close", () => this._onWsClose(clientId));
+			ws.on("error", (error) => this._onWsError(clientId, error));
 		});
+	}
+
+	private _onWsMessage(
+		clientId: string,
+		client: ConnectedClient,
+		data: WebSocket.Data
+	): void {
+		try {
+			const parsed = JSON.parse(data.toString()) as {
+				type: string;
+				payload?: Record<string, unknown>;
+			};
+			this._handleMessage(clientId, client, parsed as WsDiscoveryClientMessage);
+		} catch (error) {
+			logger.warn("Failed to parse WS message", {
+				clientId,
+				err: normalizeError(error),
+			});
+		}
+	}
+
+	private _onWsClose(clientId: string): void {
+		this._clients.delete(clientId);
+		const timeout = this._clientTimeouts.get(clientId);
+		if (timeout) {
+			clearTimeout(timeout);
+		}
+		this._clientTimeouts.delete(clientId);
+		logger.info("Discovery WS client disconnected", { clientId });
+	}
+
+	private _onWsError(clientId: string, error: unknown): void {
+		logger.warn("Discovery WS client error", {
+			clientId,
+			err: normalizeError(error),
+		});
+	}
+
+	private _handleSubscribe(
+		clientId: string,
+		client: ConnectedClient,
+		message: { type: "subscribe"; payload?: { services?: string[] } }
+	): void {
+		const services = message.payload?.services;
+		if (Array.isArray(services)) {
+			for (const svc of services) {
+				client.subscribedServices.add(String(svc));
+			}
+		} else {
+			client.subscribedServices.add("*");
+		}
+		logger.info("Discovery WS client subscribed", {
+			clientId,
+			services: [...client.subscribedServices],
+		});
+	}
+
+	private _handleHeartbeat(
+		client: ConnectedClient,
+		message: { type: "heartbeat"; payload?: { serviceName?: string; instanceId?: string } }
+	): void {
+		if (message.payload?.serviceName) {
+			client.serviceName = message.payload.serviceName;
+		}
+		if (message.payload?.instanceId) {
+			client.instanceId = message.payload.instanceId;
+		}
 	}
 
 	private _handleMessage(
 		clientId: string,
 		client: ConnectedClient,
-		message: { type: string; payload?: Record<string, unknown> }
+		message: WsDiscoveryClientMessage
 	): void {
 		switch (message.type) {
-			case "subscribe": {
-				const services = message.payload?.services;
-				if (Array.isArray(services)) {
-					for (const svc of services) {
-						client.subscribedServices.add(String(svc));
-					}
-				} else {
-					client.subscribedServices.add("*");
-				}
-				logger.info("Discovery WS client subscribed", {
-					clientId,
-					services: [...client.subscribedServices],
-				});
+			case "subscribe":
+				this._handleSubscribe(clientId, client, message);
 				break;
-			}
-			case "heartbeat": {
-				const payload = message.payload as
-					| { serviceName?: string; instanceId?: string }
-					| undefined;
-				if (payload?.serviceName) {
-					client.serviceName = payload.serviceName;
-				}
-				if (payload?.instanceId) {
-					client.instanceId = payload.instanceId;
-				}
+			case "heartbeat":
+				this._handleHeartbeat(client, message);
 				break;
-			}
 			default:
 				logger.debug("Unknown WS message type", {
 					clientId,
-					type: message.type,
+					type: (message as { type: string }).type,
 				});
 		}
 	}

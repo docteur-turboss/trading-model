@@ -78,12 +78,19 @@ const LEASE_CLEANUP_CYCLES_TOTAL = new client.Counter({
 	registers: [METRICS_REGISTRY],
 });
 
-export function trackRequest(
-	method: string,
-	path: string,
-	status: number,
-	durationMs: number
-): void {
+export interface RequestTrack {
+	method: string;
+	path: string;
+	status: number;
+	durationMs: number;
+}
+
+export function trackRequest({
+	method,
+	path,
+	status,
+	durationMs,
+}: RequestTrack): void {
 	HTTP_REQUESTS_TOTAL.inc({ method, path, status });
 	HTTP_REQUEST_DURATION_SECONDS.observe({ method, path }, durationMs / 1000);
 }

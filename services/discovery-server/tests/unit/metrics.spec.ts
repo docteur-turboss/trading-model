@@ -41,7 +41,7 @@ describe("metrics", () => {
 	describe("trackRequest", () => {
 		it("should track request metrics without throwing", () => {
 			expect(() => {
-				trackRequest("GET", "/test", 200, 10);
+				trackRequest({ method: "GET", path: "/test", status: 200, durationMs: 10 });
 			}).not.toThrow();
 			expect(MOCK_INC).toHaveBeenCalledWith({
 				method: "GET",
@@ -52,7 +52,7 @@ describe("metrics", () => {
 
 		it("should handle error status codes", () => {
 			expect(() => {
-				trackRequest("POST", "/register", 500, 50);
+				trackRequest({ method: "POST", path: "/register", status: 500, durationMs: 50 });
 			}).not.toThrow();
 		});
 	});
