@@ -17,12 +17,86 @@ import type {
 } from "./genome-types";
 
 // ----------------------------------------------------------------
-// Scalar crossover primitives
+// Crossover strategy interface & implementations
 // ----------------------------------------------------------------
+
+export interface CrossoverStrategy {
+	readonly type: CrossoverGenome["type"];
+	crossover(left: number, right: number, co: CrossoverGenome, rng: () => number): number;
+}
 
 function lerpNum(first: number, second: number, blend: number): number {
 	return first + (second - first) * blend;
 }
+
+class ArithmeticCrossover implements CrossoverStrategy {
+	readonly type = "arithmetic" as const;
+
+	crossover(left: number, right: number, co: CrossoverGenome, _rng: () => number): number {
+		return lerpNum(left, right, co.blendAlpha);
+	}
+}
+
+class BlendCrossover implements CrossoverStrategy {
+	readonly type = "blend" as const;
+
+	crossover(left: number, right: number, co: CrossoverGenome, rng: () => number): number {
+		const lo = Math.min(left, right);
+		const hi = Math.max(left, right);
+		const diff = hi - lo;
+		return lo - co.blendAlpha * diff + rng() * (diff + 2 * co.blendAlpha * diff);
+	}
+}
+
+class SBXCrossover implements CrossoverStrategy {
+	readonly type = "sbx" as const;
+
+	crossover(left: number, right: number, co: CrossoverGenome, rng: () => number): number {
+		const randomValue = rng();
+		const beta =
+			randomValue < 0.5
+				? (2 * randomValue) ** (1 / (co.sbxEta + 1))
+				: (1 / (2 * (1 - randomValue))) ** (1 / (co.sbxEta + 1));
+		return 0.5 * ((1 + beta) * left + (1 - beta) * right);
+	}
+}
+
+class UniformCrossover implements CrossoverStrategy {
+	readonly type = "uniform" as const;
+
+	crossover(left: number, right: number, _co: CrossoverGenome, rng: () => number): number {
+		return rng() < 0.5 ? left : right;
+	}
+}
+
+class OnePointCrossover implements CrossoverStrategy {
+	readonly type = "one_point" as const;
+
+	crossover(left: number, right: number, _co: CrossoverGenome, rng: () => number): number {
+		return rng() < 0.5 ? left : right;
+	}
+}
+
+class TwoPointCrossover implements CrossoverStrategy {
+	readonly type = "two_point" as const;
+
+	crossover(left: number, right: number, _co: CrossoverGenome, rng: () => number): number {
+		return rng() < 0.5 ? left : right;
+	}
+}
+
+const CROSSOVER_STRATEGIES: Record<string, CrossoverStrategy> = {
+	arithmetic: new ArithmeticCrossover(),
+	blend: new BlendCrossover(),
+	sbx: new SBXCrossover(),
+	uniform: new UniformCrossover(),
+	one_point: new OnePointCrossover(),
+	two_point: new TwoPointCrossover(),
+};
+
+// ----------------------------------------------------------------
+// Scalar crossover primitives
+// ----------------------------------------------------------------
 
 /** Crossover two scalar values using the given strategy and return the offspring. */
 export function crossoverScalar(
@@ -31,30 +105,10 @@ export function crossoverScalar(
 	co: CrossoverGenome,
 	rng: () => number
 ): number {
-	switch (co.type) {
-		case "arithmetic":
-			return lerpNum(left, right, co.blendAlpha);
-
-		case "blend": {
-			const lo = Math.min(left, right);
-			const hi = Math.max(left, right);
-			const diff = hi - lo;
-			return (
-				lo - co.blendAlpha * diff + rng() * (diff + 2 * co.blendAlpha * diff)
-			);
-		}
-
-		case "sbx": {
-			const randomValue = rng();
-			const beta =
-				randomValue < 0.5
-					? (2 * randomValue) ** (1 / (co.sbxEta + 1))
-					: (1 / (2 * (1 - randomValue))) ** (1 / (co.sbxEta + 1));
-			return 0.5 * ((1 + beta) * left + (1 - beta) * right);
-		}
-		default:
-			return rng() < 0.5 ? left : right;
-	}
+	const strategy = CROSSOVER_STRATEGIES[co.type];
+	return strategy
+		? strategy.crossover(left, right, co, rng)
+		: rng() < 0.5 ? left : right;
 }
 
 // ----------------------------------------------------------------
@@ -80,7 +134,6 @@ function crossoverNetwork(
 	const hiddenLayers: LayerGenome[] = [];
 	for (let i = 0; i < maxLen; i++) {
 		if (i >= minLen) {
-			// Extra layer from the longer parent — inherit with 50 % chance
 			if (rng() < 0.5) {
 				hiddenLayers.push({ ...longer[i] });
 			}
@@ -265,7 +318,7 @@ export function crossoverGenomes(
 ): LamarckGenome {
 	const co = parentA.crossover;
 	if (rng() > co.probability) {
-		return { ...parentA }; // skip crossover
+		return { ...parentA };
 	}
 
 	return {

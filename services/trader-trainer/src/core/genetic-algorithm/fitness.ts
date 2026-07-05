@@ -6,6 +6,90 @@ import type { FitnessType, RewardShapingGenome } from "./genome-types";
 import { clamp } from "./utils";
 
 // ----------------------------------------------------------------
+// Fitness strategy interface & implementations
+// ----------------------------------------------------------------
+
+export interface FitnessStrategy {
+	readonly type: FitnessType;
+	compute(scores: number[], mean: number): number;
+}
+
+class TotalPnlStrategy implements FitnessStrategy {
+	readonly type: FitnessType = "total_pnl";
+	compute(_scores: number[], mean: number): number {
+		return mean;
+	}
+}
+
+class SharpeStrategy implements FitnessStrategy {
+	readonly type: FitnessType = "sharpe";
+	compute(scores: number[], mean: number): number {
+		const variance =
+			scores
+				.map((value) => (value - mean) ** 2)
+				.reduce((sum, value) => sum + value, 0) / Math.max(1, scores.length - 1);
+		const std = Math.sqrt(variance);
+		return std < 1e-10 ? mean : mean / std;
+	}
+}
+
+class SortinoStrategy implements FitnessStrategy {
+	readonly type: FitnessType = "sortino";
+	compute(scores: number[], mean: number): number {
+		const negReturns = scores.filter((value) => value < 0);
+		const downDev =
+			negReturns.length === 0
+				? 1e-10
+				: Math.sqrt(
+						negReturns
+							.map((value) => value ** 2)
+							.reduce((sum, value) => sum + value, 0) / negReturns.length
+					);
+		return mean / downDev;
+	}
+}
+
+class CalmarStrategy implements FitnessStrategy {
+	readonly type: FitnessType = "calmar";
+	compute(scores: number[], mean: number): number {
+		let maxDD = 0;
+		let peak = Number.NEGATIVE_INFINITY;
+		let running = 0;
+		for (const result of scores) {
+			running += result;
+			if (running > peak) {
+				peak = running;
+			}
+			const dd = peak - running;
+			if (dd > maxDD) {
+				maxDD = dd;
+			}
+		}
+		return maxDD < 1e-10 ? mean : mean / maxDD;
+	}
+}
+
+class CompositeStrategy implements FitnessStrategy {
+	readonly type: FitnessType = "composite";
+	private readonly _sharpe = new SharpeStrategy();
+	private readonly _sortino = new SortinoStrategy();
+
+	compute(scores: number[], mean: number): number {
+		const sharpe = this._sharpe.compute(scores, mean);
+		const sortino = this._sortino.compute(scores, mean);
+		return 0.4 * mean + 0.3 * sharpe + 0.3 * sortino;
+	}
+}
+
+const FITNESS_STRATEGIES: Record<string, FitnessStrategy> = {
+	total_pnl: new TotalPnlStrategy(),
+	sharpe: new SharpeStrategy(),
+	sortino: new SortinoStrategy(),
+	calmar: new CalmarStrategy(),
+	composite: new CompositeStrategy(),
+};
+
+// ----------------------------------------------------------------
 // Fitness aggregation
 // ----------------------------------------------------------------
 
@@ -21,66 +105,8 @@ export function computeFitness(type: FitnessType, scores: number[]): number {
 	}
 
 	const mean = scores.reduce((sum, value) => sum + value, 0) / scores.length;
-
-	switch (type) {
-		case "total_pnl":
-			return mean;
-		case "sharpe":
-			return _computeSharpe(scores, mean);
-		case "sortino":
-			return _computeSortino(scores, mean);
-		case "calmar":
-			return _computeCalmar(scores, mean);
-		case "composite":
-			return _computeComposite(scores, mean);
-		default:
-			return mean;
-	}
-}
-
-function _computeSharpe(scores: number[], mean: number): number {
-	const variance =
-		scores
-			.map((value) => (value - mean) ** 2)
-			.reduce((sum, value) => sum + value, 0) / Math.max(1, scores.length - 1);
-	const std = Math.sqrt(variance);
-	return std < 1e-10 ? mean : mean / std;
-}
-
-function _computeSortino(scores: number[], mean: number): number {
-	const negReturns = scores.filter((value) => value < 0);
-	const downDev =
-		negReturns.length === 0
-			? 1e-10
-			: Math.sqrt(
-					negReturns
-						.map((value) => value ** 2)
-						.reduce((sum, value) => sum + value, 0) / negReturns.length
-				);
-	return mean / downDev;
-}
-
-function _computeCalmar(scores: number[], mean: number): number {
-	let maxDD = 0;
-	let peak = Number.NEGATIVE_INFINITY;
-	let running = 0;
-	for (const result of scores) {
-		running += result;
-		if (running > peak) {
-			peak = running;
-		}
-		const dd = peak - running;
-		if (dd > maxDD) {
-			maxDD = dd;
-		}
-	}
-	return maxDD < 1e-10 ? mean : mean / maxDD;
-}
-
-function _computeComposite(scores: number[], mean: number): number {
-	const sharpe = _computeSharpe(scores, mean);
-	const sortino = _computeSortino(scores, mean);
-	return 0.4 * mean + 0.3 * sharpe + 0.3 * sortino;
+	const strategy = FITNESS_STRATEGIES[type];
+	return strategy ? strategy.compute(scores, mean) : mean;
 }
 
 // ----------------------------------------------------------------

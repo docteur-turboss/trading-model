@@ -14,44 +14,45 @@ export function createServer(trainer: Trainer) {
 		port: env.PORT,
 		tls: loadTlsConfig(env.TLS_KEY_PATH, env.TLS_CERT_PATH, env.TLS_CA_PATH),
 		routes: (app) => {
-			app.get(
-				"/best-agent",
-				catchSync((_req, res) => {
-					const summary = trainer.getBestAgentSummary();
-					if (!summary) {
-						const response = ResponseException(
-							"No trained agent available at the moment."
-						).notFound();
-						res.status(response.status).json({ data: response.data });
-						return;
-					}
-
-					res.json({
-						data: {
-							agent: summary,
-							training: trainer.isTraining(),
-							symbol: trainer.getCurrentSymbol(),
-							generation: trainer.getGeneration(),
-						},
-					});
-				})
-			);
-
-			app.get(
-				"/training-status",
-				catchSync((_req, res) => {
-					res.json({
-						data: {
-							training: trainer.isTraining(),
-							symbol: trainer.getCurrentSymbol(),
-							generation: trainer.getGeneration(),
-						},
-					});
-				})
-			);
+			app.get("/best-agent", createBestAgentHandler(trainer));
+			app.get("/training-status", createTrainingStatusHandler(trainer));
 
 			ADDRESS_MANAGER_ROUTES(app);
 			MessageManagerListenExpress(app);
 		},
+	});
+}
+
+function createBestAgentHandler(trainer: Trainer) {
+	return catchSync((_req, res) => {
+		const summary = trainer.getBestAgentSummary();
+		if (!summary) {
+			const response = ResponseException(
+				"No trained agent available at the moment."
+			).notFound();
+			res.status(response.status).json({ data: response.data });
+			return;
+		}
+
+		res.json({
+			data: {
+				agent: summary,
+				training: trainer.isTraining(),
+				symbol: trainer.getCurrentSymbol(),
+				generation: trainer.getGeneration(),
+			},
+		});
+	});
+}
+
+function createTrainingStatusHandler(trainer: Trainer) {
+	return catchSync((_req, res) => {
+		res.json({
+			data: {
+				training: trainer.isTraining(),
+				symbol: trainer.getCurrentSymbol(),
+				generation: trainer.getGeneration(),
+			},
+		});
 	});
 }
