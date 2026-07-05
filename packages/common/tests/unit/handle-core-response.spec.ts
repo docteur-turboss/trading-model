@@ -113,18 +113,18 @@ describe("handleCoreResponse", () => {
 			expect(() => handleDBError("user")(chainedError)).toThrow("404");
 		});
 
-		it('should throw "Nom exist" for duplicate name entry', () => {
+		it('should throw "Name already exists" for duplicate name entry', () => {
 			const chainedError = new ChainedError(
 				"Duplicate entry abc for key name_UNIQUE"
 			);
-			expect(() => handleDBError("user")(chainedError)).toThrow("Nom exist");
+			expect(() => handleDBError("user")(chainedError)).toThrow("Name already exists");
 		});
 
-		it('should throw "Email exist" for duplicate email entry', () => {
+		it('should throw "Email already exists" for duplicate email entry', () => {
 			const chainedError = new ChainedError(
 				"Duplicate entry abc for key email_UNIQUE"
 			);
-			expect(() => handleDBError("user")(chainedError)).toThrow("Email exist");
+			expect(() => handleDBError("user")(chainedError)).toThrow("Email already exists");
 		});
 
 		it("should re-throw non-ChainedError (plain Error)", () => {
