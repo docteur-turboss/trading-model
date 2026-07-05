@@ -141,11 +141,7 @@ export class DistributedLock {
 		return -1;
 	}
 
-	async acquire(redisUrl?: string): Promise<boolean> {
-		const effectiveRedisUrl: string | undefined =
-			redisUrl ?? this._redisUrl ?? undefined;
-
-		// 1. Try MongoDB
+	private async _acquireMongoDB(): Promise<boolean | null> {
 		if (this._mongoConnected && this._collection) {
 			try {
 				const now = new Date();
@@ -184,8 +180,12 @@ export class DistributedLock {
 				this._mongoConnected = false;
 			}
 		}
+		return null;
+	}
 
-		// 2. Try Redis (distributed, shared across instances)
+	private async _acquireRedis(
+		effectiveRedisUrl: string
+	): Promise<boolean | null> {
 		if (effectiveRedisUrl && !this._redisClient) {
 			this._connectRedis(effectiveRedisUrl);
 		}
@@ -216,8 +216,10 @@ export class DistributedLock {
 				this._redisClient = null;
 			}
 		}
+		return null;
+	}
 
-		// 3. Local fallback: file-based lock with TTL (single instance only — dev only)
+	private async _acquireFileSystem(): Promise<boolean> {
 		if (
 			process.env.NODE_ENV === "development" ||
 			process.env.NODE_ENV === "test"
@@ -258,10 +260,7 @@ export class DistributedLock {
 		return false;
 	}
 
-	async release(): Promise<void> {
-		const savedToken = this._currentFencingToken;
-		this._currentFencingToken = -1;
-
+	private async _releaseMongoDB(savedToken: number): Promise<boolean> {
 		if (this._mongoConnected && this._collection) {
 			try {
 				await this._collection.deleteOne({
@@ -269,11 +268,15 @@ export class DistributedLock {
 					instanceId: this._instanceId,
 					fencingToken: savedToken,
 				});
-				return;
+				return true;
 			} catch {
 				this._mongoConnected = false;
 			}
 		}
+		return false;
+	}
+
+	private async _releaseRedis(savedToken: number): Promise<boolean> {
 		if (this._redisClient && this._redisAvailable) {
 			try {
 				const lockKey = `lock:${this._lockName}`;
@@ -290,16 +293,50 @@ export class DistributedLock {
 					lockKey,
 					`${this._instanceId}:${savedToken}`
 				);
-				return;
+				return true;
 			} catch {
 				// ignore
 			}
 		}
+		return false;
+	}
+
+	private async _releaseFileSystem(): Promise<void> {
 		try {
 			const lockFile = path.join(this._fallbackDir, `${this._lockName}.lock`);
 			await fs.unlink(lockFile);
 		} catch {
 			// ignore
 		}
+	}
+
+	async acquire(redisUrl?: string): Promise<boolean> {
+		const effectiveRedisUrl: string | undefined =
+			redisUrl ?? this._redisUrl ?? undefined;
+
+		const mongoResult = await this._acquireMongoDB();
+		if (mongoResult !== null) {
+			return mongoResult;
+		}
+
+		const redisResult = await this._acquireRedis(effectiveRedisUrl!);
+		if (redisResult !== null) {
+			return redisResult;
+		}
+
+		return this._acquireFileSystem();
+	}
+
+	async release(): Promise<void> {
+		const savedToken = this._currentFencingToken;
+		this._currentFencingToken = -1;
+
+		if (await this._releaseMongoDB(savedToken)) {
+			return;
+		}
+		if (await this._releaseRedis(savedToken)) {
+			return;
+		}
+		await this._releaseFileSystem();
 	}
 }

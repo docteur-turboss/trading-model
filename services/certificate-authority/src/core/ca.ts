@@ -75,21 +75,40 @@ export class CertificateAuthority {
 		const now = new Date();
 		const expiresAt = new Date(now.getTime() + this._options.caCertTtlMs);
 
-		const certBody = [
+		const certBody = this._buildCertBody(
+			serialNumber,
+			now,
+			expiresAt,
+			this._caKeyPair.publicKey
+		);
+		this._caCertPem = this._signCertBody(certBody, this._caKeyPair.privateKey);
+		this._saveCaKey(this._caKeyPair.privateKey);
+		await this._saveCaCert(this._caCertPem, serialNumber, now, expiresAt);
+	}
+
+	private _buildCertBody(
+		serialNumber: string,
+		now: Date,
+		expiresAt: Date,
+		publicKey: string
+	): string {
+		return [
 			`Serial: ${serialNumber}`,
 			"Issuer: CN=TradingModelCA",
 			"Subject: CN=TradingModelCA",
 			`Not Before: ${now.toISOString()}`,
 			`Not After: ${expiresAt.toISOString()}`,
 			"CA: TRUE",
-			`Public Key: ${this._caKeyPair.publicKey}`,
+			`Public Key: ${publicKey}`,
 		].join("\n");
+	}
 
+	private _signCertBody(certBody: string, privateKey: string): string {
 		const sign = createSign("sha256");
 		sign.update(certBody);
-		const signature = sign.sign(this._caKeyPair.privateKey, "base64");
+		const signature = sign.sign(privateKey, "base64");
 
-		this._caCertPem = [
+		return [
 			"-----BEGIN CERTIFICATE-----",
 			...chunks(
 				Buffer.from(JSON.stringify({ body: certBody, signature })).toString(
@@ -99,7 +118,9 @@ export class CertificateAuthority {
 			),
 			"-----END CERTIFICATE-----",
 		].join("\n");
+	}
 
+	private _saveCaKey(privateKey: string): void {
 		const dir = this._options.caKeyPath.substring(
 			0,
 			this._options.caKeyPath.lastIndexOf("/")
@@ -107,16 +128,23 @@ export class CertificateAuthority {
 		if (!existsSync(dir)) {
 			mkdirSync(dir, { recursive: true });
 		}
-		writeFileSync(this._options.caKeyPath, this._caKeyPair.privateKey, {
+		writeFileSync(this._options.caKeyPath, privateKey, {
 			mode: 0o600,
 		});
+	}
 
+	private async _saveCaCert(
+		caCertPem: string,
+		serialNumber: string,
+		now: Date,
+		expiresAt: Date
+	): Promise<void> {
 		await this._options.caStore.save({
 			id: serialNumber,
-			caCertPem: this._caCertPem,
+			caCertPem,
 			createdAt: now,
 			expiresAt,
-			fingerprint: createHash("sha256").update(this._caCertPem).digest("hex"),
+			fingerprint: createHash("sha256").update(caCertPem).digest("hex"),
 		});
 	}
 

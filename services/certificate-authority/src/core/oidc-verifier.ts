@@ -73,6 +73,28 @@ export class OidcVerifier {
 	}
 
 	async verifyAndExtract(token: string): Promise<OidcClaims> {
+		const { header, payload, message, signature } =
+			this._validateJwtFormat(token);
+
+		if (!this._allowedAlgorithms.has(header.alg)) {
+			throw new Error(
+				`JWT algorithm "${header.alg}" is not allowed. Must be one of: ${[...this._allowedAlgorithms].join(", ")}`
+			);
+		}
+
+		this._validateClaims(payload);
+
+		await this._verifySignature(message, signature, header, header.kid);
+
+		return payload;
+	}
+
+	private _validateJwtFormat(token: string): {
+		header: JwtHeader;
+		payload: OidcClaims;
+		message: string;
+		signature: Buffer;
+	} {
 		const parts = token.split(".");
 		if (parts.length !== 3) {
 			throw new Error("Invalid JWT format");
@@ -80,14 +102,13 @@ export class OidcVerifier {
 
 		const header = this._parseBase64Json<JwtHeader>(parts[0]);
 		const payload = this._parseBase64Json<OidcClaims>(parts[1]);
+		const message = `${parts[0]}.${parts[1]}`;
+		const signature = Buffer.from(parts[2], "base64url");
 
-		// 6a: Reject tokens with disallowed algorithms
-		if (!this._allowedAlgorithms.has(header.alg)) {
-			throw new Error(
-				`JWT algorithm "${header.alg}" is not allowed. Must be one of: ${[...this._allowedAlgorithms].join(", ")}`
-			);
-		}
+		return { header, payload, message, signature };
+	}
 
+	private _validateClaims(payload: OidcClaims): void {
 		if (payload.iss !== this._config.issuer) {
 			throw new Error(
 				`JWT issuer mismatch: expected ${this._config.issuer}, got ${payload.iss}`
@@ -109,12 +130,16 @@ export class OidcVerifier {
 		if (payload.nbf && payload.nbf * 1000 > Date.now()) {
 			throw new Error("JWT not yet valid (nbf)");
 		}
+	}
 
-		const signingKey = await this._resolveSigningKey(header.kid);
-		const message = `${parts[0]}.${parts[1]}`;
-		const signature = Buffer.from(parts[2], "base64url");
+	private async _verifySignature(
+		message: string,
+		signature: Buffer,
+		header: JwtHeader,
+		kid?: string
+	): Promise<void> {
+		const signingKey = await this._resolveSigningKey(kid);
 
-		// 6a: Use algorithm from whitelist — safe from alg:none and alg confusion
 		const algorithm = this._toNodeCryptoAlgorithm(header.alg);
 		const verified = createVerify(algorithm)
 			.update(message)
@@ -123,8 +148,6 @@ export class OidcVerifier {
 		if (!verified) {
 			throw new Error("JWT signature verification failed");
 		}
-
-		return payload;
 	}
 
 	private async _resolveSigningKey(kid?: string): Promise<KeyObject> {
@@ -157,48 +180,13 @@ export class OidcVerifier {
 		}
 
 		try {
-			const response = await fetch(jwksUri, {
-				signal: AbortSignal.timeout(10_000),
-			});
-			if (!response.ok) {
-				throw new Error(`JWKS fetch failed: ${response.status}`);
-			}
-			const jwks = (await response.json()) as JwksResponse;
+			const jwks = await this._fetchJwks(jwksUri);
 			this._cachedKeys = new Map<string, KeyObject>();
 
 			for (const entry of jwks.keys) {
-				const fieldN = "n";
-				const fieldE = "e";
-				const fieldX = "x";
-				const fieldY = "y";
-				const jwkAny = entry as Record<string, string | undefined>;
-				const modulus = jwkAny[fieldN];
-				const exponent = jwkAny[fieldE];
-				const xCoord = jwkAny[fieldX];
-				const yCoord = jwkAny[fieldY];
-				if (entry.kty === "RSA" && modulus && exponent) {
-					const rsaKey: Record<string, string> = { kty: entry.kty };
-					rsaKey[fieldN] = modulus;
-					rsaKey[fieldE] = exponent;
-					const key = createPublicKey({
-						key: rsaKey,
-						format: "jwk",
-					});
-					const kid = entry.kid ?? modulus.slice(0, 16);
-					this._cachedKeys.set(kid, key);
-				} else if (entry.kty === "EC" && xCoord && yCoord && entry.crv) {
-					const ecKey: Record<string, string> = {
-						kty: entry.kty,
-						crv: entry.crv,
-					};
-					ecKey[fieldX] = xCoord;
-					ecKey[fieldY] = yCoord;
-					const key = createPublicKey({
-						key: ecKey,
-						format: "jwk",
-					});
-					const kid = entry.kid ?? xCoord.slice(0, 16);
-					this._cachedKeys.set(kid, key);
+				const parsed = this._parseJwkKey(entry);
+				if (parsed) {
+					this._cachedKeys.set(parsed.kid, parsed.key);
 				}
 			}
 
@@ -211,6 +199,54 @@ export class OidcVerifier {
 			}
 			throw err;
 		}
+	}
+
+	private async _fetchJwks(uri: string): Promise<JwksResponse> {
+		const response = await fetch(uri, {
+			signal: AbortSignal.timeout(10_000),
+		});
+		if (!response.ok) {
+			throw new Error(`JWKS fetch failed: ${response.status}`);
+		}
+		return (await response.json()) as JwksResponse;
+	}
+
+	private _parseJwkKey(entry: Jwk): { kid: string; key: KeyObject } | null {
+		const fieldN = "n";
+		const fieldE = "e";
+		const fieldX = "x";
+		const fieldY = "y";
+		const jwkAny = entry as Record<string, string | undefined>;
+		const modulus = jwkAny[fieldN];
+		const exponent = jwkAny[fieldE];
+		const xCoord = jwkAny[fieldX];
+		const yCoord = jwkAny[fieldY];
+		if (entry.kty === "RSA" && modulus && exponent) {
+			const rsaKey: Record<string, string> = { kty: entry.kty };
+			rsaKey[fieldN] = modulus;
+			rsaKey[fieldE] = exponent;
+			const key = createPublicKey({
+				key: rsaKey,
+				format: "jwk",
+			});
+			const kid = entry.kid ?? modulus.slice(0, 16);
+			return { kid, key };
+		}
+		if (entry.kty === "EC" && xCoord && yCoord && entry.crv) {
+			const ecKey: Record<string, string> = {
+				kty: entry.kty,
+				crv: entry.crv,
+			};
+			ecKey[fieldX] = xCoord;
+			ecKey[fieldY] = yCoord;
+			const key = createPublicKey({
+				key: ecKey,
+				format: "jwk",
+			});
+			const kid = entry.kid ?? xCoord.slice(0, 16);
+			return { kid, key };
+		}
+		return null;
 	}
 
 	private _toNodeCryptoAlgorithm(alg: string): string {

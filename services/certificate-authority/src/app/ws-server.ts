@@ -81,6 +81,133 @@ function isValidTokenFormat(token: string): boolean {
 	);
 }
 
+interface ConnectionState {
+	tokenProvided: boolean;
+	bootstrapToken: string | undefined;
+	authAttempts: number;
+	requestCount: number;
+	requestWindowStart: number;
+}
+
+function handleAuthMessage(
+	ws: WebSocket,
+	authMsg: WsAuthMessage,
+	state: ConnectionState,
+	clientIdentity: string | undefined
+): boolean {
+	state.authAttempts++;
+	if (state.authAttempts > AUTH_ATTEMPT_MAX) {
+		logger.warn("WSS client exceeded max auth attempts, closing connection", {
+			clientIdentity,
+		});
+		ws.close(4001, "Too many authentication attempts");
+		return false;
+	}
+	if (typeof authMsg.token === "string" && isValidTokenFormat(authMsg.token)) {
+		state.bootstrapToken = authMsg.token;
+		state.tokenProvided = true;
+		logger.info(
+			"WSS client provided bootstrap token via post-connect auth message",
+			{ clientIdentity }
+		);
+		ws.send(JSON.stringify({ type: "auth:response", success: true }));
+	} else {
+		logger.warn("WSS client sent invalid auth token format", {
+			clientIdentity,
+			length: authMsg.token?.length ?? 0,
+		});
+		ws.send(
+			JSON.stringify({
+				type: "auth:response",
+				success: false,
+				error: { message: "Authentication failed" },
+			})
+		);
+	}
+	return true;
+}
+
+async function handleSignRequest(
+	ws: WebSocket,
+	signMsg: z.infer<typeof WS_SIGN_SCHEMA>,
+	tokenProvided: boolean,
+	bootstrapToken: string | undefined,
+	_clientIdentity: string | undefined
+): Promise<void> {
+	try {
+		const cert = await CONTAINER.distributor.requestCertificate(
+			signMsg.data.serviceId,
+			signMsg.data.csr,
+			tokenProvided ? bootstrapToken : undefined
+		);
+		ws.send(
+			JSON.stringify({
+				type: "sign:response",
+				id: signMsg.id,
+				success: true,
+				data: {
+					cert: cert.certPem,
+					caPem: cert.caPem,
+					serialNumber: cert.serialNumber,
+					expiresAt: cert.expiresAt.toISOString(),
+					fingerprint: cert.fingerprint,
+				},
+			})
+		);
+	} catch (err) {
+		const statusCode = (err as Record<string, unknown>).statusCode ?? 500;
+		logger.warn("WSS sign error", { err: normalizeError(err as Error) });
+		ws.send(
+			JSON.stringify({
+				type: "sign:response",
+				id: signMsg.id,
+				success: false,
+				error: { message: "Certificate signing failed", code: statusCode },
+			})
+		);
+	}
+}
+
+function checkSignRequestRateLimit(
+	ws: WebSocket,
+	state: ConnectionState,
+	clientIdentity: string | undefined,
+	limiterKey: string,
+	tokenProvided: boolean
+): boolean {
+	if (!(tokenProvided || checkUnauthRateLimit(limiterKey))) {
+		ws.send(
+			JSON.stringify({
+				type: "sign:response",
+				id: "unknown",
+				success: false,
+				error: {
+					message: "Rate limit exceeded for unauthenticated requests",
+					code: 429,
+				},
+			})
+		);
+		return false;
+	}
+
+	const elapsed = Date.now() - state.requestWindowStart;
+	if (elapsed > AUTH_RATE_LIMIT_MS) {
+		state.requestCount = 1;
+		state.requestWindowStart = Date.now();
+	} else {
+		state.requestCount++;
+		if (state.requestCount > AUTH_RATE_LIMIT_MAX) {
+			logger.warn("WSS per-connection rate limit exceeded, closing", {
+				clientIdentity,
+				requestCount: state.requestCount,
+			});
+			ws.close(4001, "Rate limit exceeded");
+			return false;
+		}
+	}
+	return true;
+}
+
 export function attachWsServer(httpsServer: https.Server): WebSocketServer {
 	const wss = new WebSocketServer({ server: httpsServer });
 
@@ -89,22 +216,13 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
 		const clientCert = tlsSocket.getPeerCertificate?.();
 		const clientIdentity = clientCert?.subject?.CN as string | undefined;
 
-		// 5a: Token is NOT extracted from Upgrade header.
-		// It is received as a dedicated 'auth' message post-connection.
-		// This prevents token leakage into load balancer / proxy logs.
-		//
-		// IMPORTANT: The `tokenProvided` flag means "a well-formed token was received",
-		// NOT that the token is valid. Actual token validation happens atomically inside
-		// distributor.requestCertificate() → validateBootstrapToken() → tokenStore.tryUseToken().
-		// This design:
-		//   1. Eliminates the TOCTOU window between isUsed() and tryUseToken()
-		//   2. Prevents leaking which tokens are valid before a sign request is made
-		//   3. The server never tells the client whether the stored token is valid
-		let tokenProvided = false;
-		let bootstrapToken: string | undefined;
-		let authAttempts = 0;
-		let requestCount = 0;
-		let requestWindowStart = Date.now();
+		const state: ConnectionState = {
+			tokenProvided: false,
+			bootstrapToken: undefined,
+			authAttempts: 0,
+			requestCount: 0,
+			requestWindowStart: Date.now(),
+		};
 
 		const limiterKey = clientIdentity ?? "unknown";
 
@@ -123,57 +241,16 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
 				return;
 			}
 
-			// Handle auth message — token sent post-connection
-			// Token is NOT consumed here. The atomic consumption is done inside
-			// distributor.requestCertificate() → validateBootstrapToken() → tokenStore.tryUseToken().
-			// This eliminates the TOCTOU window between the old isUsed() check and tryUseToken().
-			// NOTE: auth:response with success:true means the server received a well-formed token,
-			// NOT that the token is valid. Actual validation happens atomically during the sign
-			// request (tokenProvided + bootstrapToken are passed to requestCertificate() which
-			// validates). This design avoids leaking which tokens are valid.
 			if (msg.type === "auth") {
-				authAttempts++;
-				if (authAttempts > AUTH_ATTEMPT_MAX) {
-					logger.warn(
-						"WSS client exceeded max auth attempts, closing connection",
-						{
-							clientIdentity,
-						}
-					);
-					ws.close(4001, "Too many authentication attempts");
-					return;
-				}
-				const authMsg = msg as unknown as WsAuthMessage;
-				if (
-					typeof authMsg.token === "string" &&
-					isValidTokenFormat(authMsg.token)
-				) {
-					bootstrapToken = authMsg.token;
-					tokenProvided = true;
-					logger.info(
-						"WSS client provided bootstrap token via post-connect auth message",
-						{
-							clientIdentity,
-						}
-					);
-					ws.send(JSON.stringify({ type: "auth:response", success: true }));
-				} else {
-					logger.warn("WSS client sent invalid auth token format", {
-						clientIdentity,
-						length: authMsg.token?.length ?? 0,
-					});
-					ws.send(
-						JSON.stringify({
-							type: "auth:response",
-							success: false,
-							error: { message: "Authentication failed" },
-						})
-					);
-				}
+				handleAuthMessage(
+					ws,
+					msg as unknown as WsAuthMessage,
+					state,
+					clientIdentity
+				);
 				return;
 			}
 
-			// Validate sign messages with Zod
 			const parsed = WS_SIGN_SCHEMA.safeParse(msg);
 			if (!parsed.success) {
 				logger.warn("WSS invalid sign request", {
@@ -182,7 +259,7 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
 				ws.send(
 					JSON.stringify({
 						type: "sign:response",
-						id: ((msg as Record<string, unknown>).id as string) ?? "unknown",
+						id: (msg.id as string) ?? "unknown",
 						success: false,
 						error: { message: "Invalid request" },
 					})
@@ -190,79 +267,25 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
 				return;
 			}
 
-			const signMsg = parsed.data;
-
-			// 5c: Rate-limit sign requests that carry no bootstrap token
-			// (strict limit prevents brute-force guessing of tokens)
-			if (!(tokenProvided || checkUnauthRateLimit(limiterKey))) {
-				ws.send(
-					JSON.stringify({
-						type: "sign:response",
-						id: signMsg.id,
-						success: false,
-						error: {
-							message: "Rate limit exceeded for unauthenticated requests",
-							code: 429,
-						},
-					})
-				);
+			if (
+				!checkSignRequestRateLimit(
+					ws,
+					state,
+					clientIdentity,
+					limiterKey,
+					state.tokenProvided
+				)
+			) {
 				return;
 			}
 
-			// Per-connection rate limit for all sign requests (prevents single connection flood)
-			const elapsed = Date.now() - requestWindowStart;
-			if (elapsed > AUTH_RATE_LIMIT_MS) {
-				requestCount = 1;
-				requestWindowStart = Date.now();
-			} else {
-				requestCount++;
-				if (requestCount > AUTH_RATE_LIMIT_MAX) {
-					logger.warn("WSS per-connection rate limit exceeded, closing", {
-						clientIdentity,
-						requestCount,
-					});
-					ws.close(4001, "Rate limit exceeded");
-					return;
-				}
-			}
-
-			// 5b: Token is single-use — once used, it is marked as consumed.
-			// Token validation happens inside distributor.requestCertificate
-			// which calls TokenStore.tryUseToken() with atomic MongoDB upsert.
-			try {
-				const cert = await CONTAINER.distributor.requestCertificate(
-					signMsg.data.serviceId,
-					signMsg.data.csr,
-					tokenProvided ? bootstrapToken : undefined
-				);
-
-				ws.send(
-					JSON.stringify({
-						type: "sign:response",
-						id: signMsg.id,
-						success: true,
-						data: {
-							cert: cert.certPem,
-							caPem: cert.caPem,
-							serialNumber: cert.serialNumber,
-							expiresAt: cert.expiresAt.toISOString(),
-							fingerprint: cert.fingerprint,
-						},
-					})
-				);
-			} catch (err) {
-				const statusCode = (err as Record<string, unknown>).statusCode ?? 500;
-				logger.warn("WSS sign error", { err: normalizeError(err as Error) });
-
-				ws.send(
-					JSON.stringify({
-						type: "sign:response",
-						id: signMsg.id,
-						success: false,
-						error: { message: "Certificate signing failed", code: statusCode },
-					})
-				);
-			}
+			await handleSignRequest(
+				ws,
+				parsed.data,
+				state.tokenProvided,
+				state.bootstrapToken,
+				clientIdentity
+			);
 		});
 
 		ws.on("close", () => {
