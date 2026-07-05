@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { isTerminalStatus } from "@trading-model/common/contracts/recovery.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { Job } from "../types/job.types";
@@ -145,9 +146,7 @@ export class JobDispatcher {
 			.then((job) => {
 				if (
 					!job ||
-					job.status === "completed" ||
-					job.status === "failed" ||
-					job.status === "cancelled"
+					isTerminalStatus(job.status)
 				) {
 					return;
 				}

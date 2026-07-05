@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { logger } from "@trading-model/common/config/logger";
+import { isTerminalStatus } from "@trading-model/common/contracts/recovery.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
@@ -201,9 +202,7 @@ export class JobScheduler {
 			.then((job) => {
 				if (
 					!job ||
-					job.status === "completed" ||
-					job.status === "failed" ||
-					job.status === "cancelled"
+					isTerminalStatus(job.status)
 				) {
 					return;
 				}
