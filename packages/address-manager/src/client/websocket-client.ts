@@ -1,5 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import {
+	scheduleWsReconnect,
+	type WsReconnectState,
+} from "@trading-model/common/utils/ws-reconnect";
 import WebSocket from "ws";
 
 export type WsMessageType =
@@ -17,13 +21,16 @@ export type WsEventHandler = (message: WsMessage) => void;
 
 export class WebSocketClient {
 	private _ws: WebSocket | null = null;
-	private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly _baseUrl: string;
 	private readonly _reconnectIntervalMs: number;
 	private readonly _maxReconnectAttempts: number;
 	private readonly _subscribedServices: string[];
-	private _reconnectAttempts = 0;
 	private _shouldReconnect = true;
+	private _wsReconnectState: WsReconnectState = {
+		attempt: 0,
+		timer: null,
+		destroyed: false,
+	};
 	private _eventHandler: WsEventHandler | null = null;
 	private _authFailureHandler: (() => void) | null = null;
 	private _token?: string;
@@ -67,7 +74,7 @@ export class WebSocketClient {
 			this._ws = new WebSocket(this._url);
 
 			this._ws.on("open", () => {
-				this._reconnectAttempts = 0;
+				this._wsReconnectState.attempt = 0;
 				logger.info("WebSocket connected to discovery server", {
 					url: this._url,
 				});
@@ -119,9 +126,10 @@ export class WebSocketClient {
 
 	disconnect(): void {
 		this._shouldReconnect = false;
-		if (this._reconnectTimer) {
-			clearTimeout(this._reconnectTimer);
-			this._reconnectTimer = null;
+		this._wsReconnectState.destroyed = true;
+		if (this._wsReconnectState.timer) {
+			clearTimeout(this._wsReconnectState.timer);
+			this._wsReconnectState.timer = null;
 		}
 		if (this._ws) {
 			this._ws.close();
@@ -137,26 +145,27 @@ export class WebSocketClient {
 		if (!this._shouldReconnect) {
 			return;
 		}
-		if (this._reconnectAttempts >= this._maxReconnectAttempts) {
+		if (this._wsReconnectState.attempt >= this._maxReconnectAttempts) {
 			logger.warn("WebSocket max reconnect attempts reached", {
 				url: this._url,
-				attempts: this._reconnectAttempts,
+				attempts: this._wsReconnectState.attempt,
 			});
 			return;
 		}
-		this._reconnectAttempts++;
-		if (this._reconnectTimer) {
-			clearTimeout(this._reconnectTimer);
-		}
-		this._reconnectTimer = setTimeout(() => {
-			this._reconnectTimer = null;
-			this.connect();
-		}, this._reconnectIntervalMs);
-		this._reconnectTimer.unref();
+		scheduleWsReconnect(
+			this._wsReconnectState,
+			{
+				baseDelayMs: this._reconnectIntervalMs,
+				maxDelayMs: this._reconnectIntervalMs,
+				jitterMs: 0,
+			},
+			() => this.connect(),
+			logger
+		);
 	}
 
 	getReconnectAttempts(): number {
-		return this._reconnectAttempts;
+		return this._wsReconnectState.attempt;
 	}
 
 	onAuthFailure(handler: () => void): void {

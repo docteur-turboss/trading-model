@@ -82,6 +82,111 @@ const CACHE_ENTRY_COUNT = new promClient.Gauge({
 	labelNames: [] as const,
 });
 
+function createHttpClient(config: AddressManagerConfig): HttpClient {
+	return config.pems
+		? HttpClient.createWithTls({
+				rootCACertPath: config.pems.ca,
+				certificatePath: config.pems.cert,
+				keyCertificatePath: config.pems.key,
+			})
+		: HttpClient.createWithTls({
+				rootCACertPath: config.rootCACertPath,
+				certificatePath: config.certificatePath,
+				keyCertificatePath: config.keyCertificatePath,
+			});
+}
+
+function createServiceCache(config: AddressManagerConfig): IServiceCache {
+	return config.redisCacheUrl
+		? new RedisServiceCache(
+				config.redisCacheUrl,
+				"discovery:cache:",
+				config.cacheTtlMs,
+				config.redisCacheOptions
+			)
+		: new ServiceCache(config.cacheTtlMs);
+}
+
+function createCircuitBreaker(
+	config: AddressManagerConfig,
+	serviceCache: IServiceCache
+): CircuitBreaker {
+	return new CircuitBreaker(
+		config.circuitBreakerFailureThreshold ?? 3,
+		config.circuitBreakerHalfOpenTimeoutMs ?? 10_000,
+		serviceCache,
+		config.circuitBreakerCacheTtlMs ?? 2_000,
+		config.circuitBreakerLatencyWindowSize ?? 100,
+		config.circuitBreakerLatencyThresholdMs ?? 5000
+	);
+}
+
+function createHealthChecker(
+	httpClient: HttpClient,
+	config: AddressManagerConfig
+): ServiceHealthChecker {
+	return new ServiceHealthChecker(
+		httpClient,
+		config.servicePingTimeoutMs,
+		config.dnsNameMap
+			? new MappingServiceLocator(new MapResolver(config.dnsNameMap))
+			: undefined
+	);
+}
+
+function createWsClient(
+	config: AddressManagerConfig,
+	addressManagerClient: AddressManagerClient,
+	tokenManager: TokenManager,
+	serviceCache: IServiceCache
+): WebSocketClient {
+	const wsClient = new WebSocketClient(
+		config.wsUrl!,
+		5000,
+		config.wsSubscribedServices ?? ["*"],
+		tokenManager.getTokenOrNull() ?? undefined,
+		undefined,
+		undefined,
+		config.wsMaxQueueSize ?? 5000,
+		config.wsMaxBufferedAmount ?? 262144
+	);
+
+	wsClient.onMessage((message: WsMessage) => {
+		if (message.type === "cache.invalidate") {
+			const serviceName = message.payload?.serviceName as string | undefined;
+			if (serviceName) {
+				serviceCache.invalidate(serviceName).catch((err) => {
+					logger.warn("WebSocket cache invalidation failed", {
+						serviceName,
+						error: normalizeError(err),
+					});
+				});
+			}
+		}
+	});
+
+	wsClient.onAuthFailure(() => {
+		logger.warn("WebSocket auth failure — forcing re-registration");
+		addressManagerClient
+			.registerService()
+			.then((res) => {
+				if (res?.token) {
+					tokenManager.setToken(res.token);
+					wsClient.updateToken(res.token);
+					REGISTRATION_TOTAL.inc({ result: "success" });
+					logger.info("Re-registered after WS auth failure");
+				}
+			})
+			.catch((err) => {
+				logger.error("Re-registration after WS auth failure failed", {
+					error: normalizeError(err),
+				});
+			});
+	});
+
+	return wsClient;
+}
+
 export default class AddressManager {
 	private readonly _addressManagerClient: AddressManagerClient;
 	private readonly _healthChecker: ServiceHealthChecker;
@@ -109,110 +214,36 @@ export default class AddressManager {
 	private _metricsTimer?: NodeJS.Timeout;
 
 	constructor(config: AddressManagerConfig) {
-		this._httpClient = config.pems
-			? HttpClient.createWithTls({
-					rootCACertPath: config.pems.ca,
-					certificatePath: config.pems.cert,
-					keyCertificatePath: config.pems.key,
-				})
-			: HttpClient.createWithTls({
-					rootCACertPath: config.rootCACertPath,
-					certificatePath: config.certificatePath,
-					keyCertificatePath: config.keyCertificatePath,
-				});
-
+		this._httpClient = createHttpClient(config);
 		this._tokenManager = new TokenManager(this._httpClient, config);
 		this._addressManagerClient = new AddressManagerClient(
 			this._httpClient,
 			this._tokenManager,
 			config
 		);
-
-		this._serviceCache = config.redisCacheUrl
-			? new RedisServiceCache(
-					config.redisCacheUrl,
-					"discovery:cache:",
-					config.cacheTtlMs,
-					config.redisCacheOptions
-				)
-			: new ServiceCache(config.cacheTtlMs);
-
-		this.circuitBreaker = new CircuitBreaker(
-			config.circuitBreakerFailureThreshold ?? 3,
-			config.circuitBreakerHalfOpenTimeoutMs ?? 10_000,
-			this._serviceCache,
-			config.circuitBreakerCacheTtlMs ?? 2_000,
-			config.circuitBreakerLatencyWindowSize ?? 100,
-			config.circuitBreakerLatencyThresholdMs ?? 5000
-		);
-		this._healthChecker = new ServiceHealthChecker(
-			this._httpClient,
-			config.servicePingTimeoutMs,
-			config.dnsNameMap
-				? new MappingServiceLocator(new MapResolver(config.dnsNameMap))
-				: undefined
-		);
-
+		this._serviceCache = createServiceCache(config);
+		this.circuitBreaker = createCircuitBreaker(config, this._serviceCache);
+		this._healthChecker = createHealthChecker(this._httpClient, config);
 		this._serviceDiscovery = new ServiceDiscovery(
 			this._httpClient,
 			this._serviceCache,
 			config,
 			this._healthChecker
 		);
-
-		if (config.wsUrl) {
-			this._wsClient = new WebSocketClient(
-				config.wsUrl,
-				5000,
-				config.wsSubscribedServices ?? ["*"],
-				this._tokenManager.getTokenOrNull() ?? undefined,
-				undefined,
-				undefined,
-				config.wsMaxQueueSize ?? 5000,
-				config.wsMaxBufferedAmount ?? 262144
-			);
-
-			this._wsClient.onMessage((message: WsMessage) => {
-				if (message.type === "cache.invalidate") {
-					const serviceName = message.payload?.serviceName as
-						| string
-						| undefined;
-					if (serviceName) {
-						this._serviceCache.invalidate(serviceName).catch((err) => {
-							logger.warn("WebSocket cache invalidation failed", {
-								serviceName,
-								error: normalizeError(err),
-							});
-						});
-					}
-				}
-			});
-
-			this._wsClient.onAuthFailure(async () => {
-				logger.warn("WebSocket auth failure — forcing re-registration");
-				try {
-					const res = await this._addressManagerClient.registerService();
-					if (res?.token) {
-						this._tokenManager.setToken(res.token);
-						this._wsClient?.updateToken(res.token);
-						REGISTRATION_TOTAL.inc({ result: "success" });
-						logger.info("Re-registered after WS auth failure");
-					}
-				} catch (err) {
-					logger.error("Re-registration after WS auth failure failed", {
-						error: normalizeError(err),
-					});
-				}
-			});
-		}
-
+		this._wsClient = config.wsUrl
+			? createWsClient(
+					config,
+					this._addressManagerClient,
+					this._tokenManager,
+					this._serviceCache
+				)
+			: undefined;
 		this._serviceName = config.serviceName;
 		this._instanceId = config.instanceId;
 		this._systemMetrics = new SystemMetrics();
 		this._serviceCallTracker = new ServiceCallTracker(
 			config.maxCallRecords ?? 1000
 		);
-
 		this._tokenRefreshIntervalMs = config.tokenRefreshIntervalMs;
 		this._ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
 		this._cacheTtlMs = config.cacheTtlMs;
