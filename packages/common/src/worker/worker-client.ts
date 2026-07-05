@@ -149,9 +149,9 @@ export class WorkerClient extends EventEmitter {
 		this.send(msg);
 	}
 
-	private readonly _messageHandlers: Record<string, (message: Record<string, unknown>) => void>;
+	private readonly _messageHandlers: Partial<Record<SchedulerOutgoingMessage["type"], (message: Record<string, unknown>) => void>>;
 
-	private _setupMessageHandlers(): Record<string, (message: Record<string, unknown>) => void> {
+	private _setupMessageHandlers(): Partial<Record<SchedulerOutgoingMessage["type"], (message: Record<string, unknown>) => void>> {
 		return {
 			"job.assigned": (msg) =>
 				this.emit(
@@ -164,7 +164,7 @@ export class WorkerClient extends EventEmitter {
 	}
 
 	private _handleMessage(message: Record<string, unknown>): void {
-		const handler = this._messageHandlers[message.type as string];
+		const handler = this._messageHandlers[message.type as SchedulerOutgoingMessage["type"]];
 		if (handler) {
 			handler(message);
 		} else {

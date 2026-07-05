@@ -11,7 +11,7 @@ import type { WorkerRegistry } from "./worker-registry";
 export class WorkerProtocol {
 	private readonly _wss: WebSocketServer;
 	private readonly _connections: Map<string, WebSocket> = new Map();
-	private readonly _handlers: Record<string, (message: WorkerIncomingMessage, ws?: WebSocket) => void>;
+	private readonly _handlers: Partial<Record<WorkerIncomingMessage["type"], (message: WorkerIncomingMessage, ws?: WebSocket) => void>>;
 
 	constructor(
 		server: https.Server,

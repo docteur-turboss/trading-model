@@ -78,47 +78,53 @@ export async function createAndStartHttpsServer(
  * systems (notably Windows and macOS under heavy I/O). A 300 ms debounce
  * prevents multiple rapid reloads from batch writes.
  */
+async function reloadTlsContext(
+	server: https.Server,
+	tls: TlsConfig,
+	eventType: string,
+	filename: string | null
+): Promise<void> {
+	if (eventType !== "change") {
+		return;
+	}
+
+	try {
+		const [key, cert, ca] = await Promise.all([
+			fsPromises.readFile(path.resolve(tls.key), "utf8"),
+			fsPromises.readFile(path.resolve(tls.cert), "utf8"),
+			fsPromises.readFile(path.resolve(tls.ca), "utf8"),
+		]);
+
+		server.setSecureContext({ key, cert, ca });
+		logger.info("TLS context reloaded", { event: eventType, file: filename });
+	} catch (err) {
+		logger.error("Failed to reload TLS context", { err });
+	}
+}
+
+function createDebouncedReload(
+	server: https.Server,
+	tls: TlsConfig
+): (eventType: string, filename: string | null) => void {
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	return (eventType: string, filename: string | null): void => {
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
+		debounceTimer = setTimeout(() => {
+			void reloadTlsContext(server, tls, eventType, filename);
+		}, 300);
+	};
+}
+
 export async function setupTlsWatcher(
 	server: https.Server,
 	tls: TlsConfig
 ): Promise<void> {
 	const files = [tls.key, tls.cert, tls.ca];
 	const dirs = new Set(files.map((file) => path.dirname(path.resolve(file))));
-
-	const reloadTls = async (
-		eventType: string,
-		filename: string | null
-	): Promise<void> => {
-		if (eventType !== "change") {
-			return;
-		}
-
-		try {
-			const [key, cert, ca] = await Promise.all([
-				fsPromises.readFile(path.resolve(tls.key), "utf8"),
-				fsPromises.readFile(path.resolve(tls.cert), "utf8"),
-				fsPromises.readFile(path.resolve(tls.ca), "utf8"),
-			]);
-
-			server.setSecureContext({ key, cert, ca });
-			logger.info("TLS context reloaded", { event: eventType, file: filename });
-		} catch (err) {
-			logger.error("Failed to reload TLS context", { err });
-		}
-	};
-
-	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-	const debouncedReload = (
-		eventType: string,
-		filename: string | null
-	): void => {
-		if (debounceTimer) {
-			clearTimeout(debounceTimer);
-		}
-		debounceTimer = setTimeout(() => {
-			void reloadTls(eventType, filename);
-		}, 300);
-	};
+	const debouncedReload = createDebouncedReload(server, tls);
 
 	await Promise.all(
 		[...dirs].map(async (dir) => {
