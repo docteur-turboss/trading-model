@@ -17,6 +17,7 @@ import type {
 	ReplayBufferGenome,
 	RewardShapingGenome,
 	RLGenome,
+	ValidationContext,
 	ValidationError,
 	ValidationResult,
 } from "./genome";
@@ -55,66 +56,63 @@ const VALID_NORM_TYPES = new Set<NormalisationType>([
 ]);
 
 function err(
-	errors: ValidationError[],
-	path: string,
+	ctx: ValidationContext,
 	message: string,
 	actual: unknown
 ): void {
+	const { errors, path } = ctx;
 	errors.push({ path, message, actual });
 }
 
 function checkRange(
-	errors: ValidationError[],
-	path: string,
+	ctx: ValidationContext,
 	value: unknown,
 	lo: number,
 	hi: number
 ): void {
+	const { errors, path } = ctx;
 	if (
 		typeof value !== "number" ||
 		!Number.isFinite(value) ||
 		value < lo ||
 		value > hi
 	) {
-		err(errors, path, `must be a finite number in [${lo}, ${hi}]`, value);
+		err(ctx, `must be a finite number in [${lo}, ${hi}]`, value);
 	}
 }
 
 function checkPositiveInt(
-	errors: ValidationError[],
-	path: string,
+	ctx: ValidationContext,
 	value: unknown,
 	min = 1
 ): void {
+	const { errors, path } = ctx;
 	if (!Number.isInteger(value) || (value as number) < min) {
-		err(errors, path, `must be an integer ≥ ${min}`, value);
+		err(ctx, `must be an integer ≥ ${min}`, value);
 	}
 }
 
 function validateLayer(
-	errors: ValidationError[],
-	path: string,
+	ctx: ValidationContext,
 	layer: LayerGenome
 ): void {
-	checkPositiveInt(errors, `${path}.neurons`, layer.neurons);
+	checkPositiveInt({ ...ctx, path: `${ctx.path}.neurons` }, layer.neurons);
 	if (!VALID_ACTIVATIONS.has(layer.activation)) {
 		err(
-			errors,
-			`${path}.activation`,
+			{ ...ctx, path: `${ctx.path}.activation` },
 			"unknown activation type",
 			layer.activation
 		);
 	}
 	if (!VALID_CONNECTION_TYPES.has(layer.connectionType)) {
 		err(
-			errors,
-			`${path}.connectionType`,
+			{ ...ctx, path: `${ctx.path}.connectionType` },
 			"unknown connection type",
 			layer.connectionType
 		);
 	}
 	if (!VALID_BIAS_TYPES.has(layer.biasType)) {
-		err(errors, `${path}.biasType`, "unknown bias type", layer.biasType);
+		err({ ...ctx, path: `${ctx.path}.biasType` }, "unknown bias type", layer.biasType);
 	}
 }
 
@@ -131,14 +129,13 @@ function repairLayer(layer: LayerGenome): LayerGenome {
 	};
 }
 
-function validateIdentity(errors: ValidationError[], genome: Genome): void {
+function validateIdentity(ctx: ValidationContext, genome: Genome): void {
 	if (typeof genome.id !== "string" || genome.id.length === 0) {
-		err(errors, "id", "must be a non-empty string", genome.id);
+		err({ ...ctx, path: "id" }, "must be a non-empty string", genome.id);
 	}
 	if (!Number.isInteger(genome.generation) || genome.generation < 0) {
 		err(
-			errors,
-			"generation",
+			{ ...ctx, path: "generation" },
 			"must be a non-negative integer",
 			genome.generation
 		);
@@ -146,59 +143,56 @@ function validateIdentity(errors: ValidationError[], genome: Genome): void {
 }
 
 function validateNetwork(
-	errors: ValidationError[],
+	ctx: ValidationContext,
 	network: NetworkGenome
 ): void {
-	checkPositiveInt(errors, "network.inputDim", network.inputDim);
-	checkPositiveInt(errors, "network.outputDim", network.outputDim);
+	checkPositiveInt({ ...ctx, path: "network.inputDim" }, network.inputDim);
+	checkPositiveInt({ ...ctx, path: "network.outputDim" }, network.outputDim);
 	if (
 		!Array.isArray(network.hiddenLayers) ||
 		network.hiddenLayers.length === 0
 	) {
 		err(
-			errors,
-			"network.hiddenLayers",
+			{ ...ctx, path: "network.hiddenLayers" },
 			"must be a non-empty array",
 			network.hiddenLayers
 		);
 	} else {
 		network.hiddenLayers.forEach((layer, index) => {
-			validateLayer(errors, `network.hiddenLayers[${index}]`, layer);
+			validateLayer({ ...ctx, path: `network.hiddenLayers[${index}]` }, layer);
 		});
 	}
 	if (!VALID_NORM_TYPES.has(network.normalization)) {
 		err(
-			errors,
-			"network.normalization",
+			{ ...ctx, path: "network.normalization" },
 			"unknown normalization type",
 			network.normalization
 		);
 	}
 }
 
-function validateRL(errors: ValidationError[], rl: RLGenome): void {
-	checkRange(errors, "rl.gamma", rl.gamma, 0.8, 0.9999);
-	checkRange(errors, "rl.learningRate", rl.learningRate, 1e-6, 1e-1);
-	validateRewardShaping(errors, rl.rewardShaping);
-	validateHorizon(errors, rl.horizon);
-	validateDiscretePolicy(errors, rl.discretePolicy);
-	validateContinuousPolicy(errors, rl.continuousPolicy);
-	validateReplayBuffer(errors, rl.replayBuffer);
+function validateRL(ctx: ValidationContext, rl: RLGenome): void {
+	checkRange({ ...ctx, path: "rl.gamma" }, rl.gamma, 0.8, 0.9999);
+	checkRange({ ...ctx, path: "rl.learningRate" }, rl.learningRate, 1e-6, 1e-1);
+	validateRewardShaping(ctx, rl.rewardShaping);
+	validateHorizon(ctx, rl.horizon);
+	validateDiscretePolicy(ctx, rl.discretePolicy);
+	validateContinuousPolicy(ctx, rl.continuousPolicy);
+	validateReplayBuffer(ctx, rl.replayBuffer);
 }
 
 function validateRewardShaping(
-	errors: ValidationError[],
+	ctx: ValidationContext,
 	rs: RewardShapingGenome
 ): void {
 	if (rs.clipMin >= rs.clipMax) {
-		err(errors, "rl.rewardShapingenome.clip", "clipMin must be < clipMax", {
+		err({ ...ctx, path: "rl.rewardShapingenome.clip" }, "clipMin must be < clipMax", {
 			clipMin: rs.clipMin,
 			clipMax: rs.clipMax,
 		});
 	}
 	checkRange(
-		errors,
-		"rl.rewardShapingenome.scaleFactor",
+		{ ...ctx, path: "rl.rewardShapingenome.scaleFactor" },
 		rs.scaleFactor,
 		0.001,
 		1000
@@ -206,41 +200,37 @@ function validateRewardShaping(
 }
 
 function validateHorizon(
-	errors: ValidationError[],
+	ctx: ValidationContext,
 	horizon: HorizonGenome
 ): void {
 	checkPositiveInt(
-		errors,
-		"rl.horizon.maxEpisodeLength",
+		{ ...ctx, path: "rl.horizon.maxEpisodeLength" },
 		horizon.maxEpisodeLength,
 		10
 	);
-	checkPositiveInt(errors, "rl.horizon.nStepReturn", horizon.nStepReturn);
-	checkPositiveInt(errors, "rl.horizon.frameSkip", horizon.frameSkip);
+	checkPositiveInt({ ...ctx, path: "rl.horizon.nStepReturn" }, horizon.nStepReturn);
+	checkPositiveInt({ ...ctx, path: "rl.horizon.frameSkip" }, horizon.frameSkip);
 }
 
 function validateDiscretePolicy(
-	errors: ValidationError[],
+	ctx: ValidationContext,
 	dp: DiscretePolicyGenome
 ): void {
 	checkRange(
-		errors,
-		"rl.discretePolicy.epsilonStart",
+		{ ...ctx, path: "rl.discretePolicy.epsilonStart" },
 		dp.epsilonStart,
 		0.1,
 		1.0
 	);
-	checkRange(errors, "rl.discretePolicy.epsilonMin", dp.epsilonMin, 0.001, 0.2);
+	checkRange({ ...ctx, path: "rl.discretePolicy.epsilonMin" }, dp.epsilonMin, 0.001, 0.2);
 	checkRange(
-		errors,
-		"rl.discretePolicy.epsilonDecay",
+		{ ...ctx, path: "rl.discretePolicy.epsilonDecay" },
 		dp.epsilonDecay,
 		0.9,
 		0.9999
 	);
 	checkRange(
-		errors,
-		"rl.discretePolicy.temperature",
+		{ ...ctx, path: "rl.discretePolicy.temperature" },
 		dp.temperature,
 		0.01,
 		100
@@ -248,19 +238,18 @@ function validateDiscretePolicy(
 }
 
 function validateContinuousPolicy(
-	errors: ValidationError[],
+	ctx: ValidationContext,
 	cp: ContinuousPolicyGenome
 ): void {
 	if (cp.clipMin >= cp.clipMax) {
-		err(errors, "rl.continuousPolicy.clip", "clipMin must be < clipMax", {
+		err({ ...ctx, path: "rl.continuousPolicy.clip" }, "clipMin must be < clipMax", {
 			clipMin: cp.clipMin,
 			clipMax: cp.clipMax,
 		});
 	}
-	checkRange(errors, "rl.continuousPolicy.noiseStd", cp.noiseStd, 0.001, 5);
+	checkRange({ ...ctx, path: "rl.continuousPolicy.noiseStd" }, cp.noiseStd, 0.001, 5);
 	checkRange(
-		errors,
-		"rl.continuousPolicy.noiseDecay",
+		{ ...ctx, path: "rl.continuousPolicy.noiseDecay" },
 		cp.noiseDecay,
 		0.9,
 		0.9999
@@ -268,55 +257,55 @@ function validateContinuousPolicy(
 }
 
 function validateReplayBuffer(
-	errors: ValidationError[],
+	ctx: ValidationContext,
 	rb: ReplayBufferGenome
 ): void {
-	checkPositiveInt(errors, "rl.replayBuffer.bufferSize", rb.bufferSize, 100);
-	checkRange(errors, "rl.replayBuffer.alphaPER", rb.alphaPER, 0, 1);
-	checkRange(errors, "rl.replayBuffer.betaPER", rb.betaPER, 0, 1);
+	checkPositiveInt({ ...ctx, path: "rl.replayBuffer.bufferSize" }, rb.bufferSize, 100);
+	checkRange({ ...ctx, path: "rl.replayBuffer.alphaPER" }, rb.alphaPER, 0, 1);
+	checkRange({ ...ctx, path: "rl.replayBuffer.betaPER" }, rb.betaPER, 0, 1);
 }
 
 function validateMutation(
-	errors: ValidationError[],
+	ctx: ValidationContext,
 	mutation: MutationGenome
 ): void {
-	checkRange(errors, "mutation.rate", mutation.rate, 0.001, 0.5);
-	checkRange(errors, "mutation.sigma", mutation.sigma, 1e-5, 10);
-	checkRange(errors, "mutation.selfSigma", mutation.selfSigma, 1e-5, 10);
+	checkRange({ ...ctx, path: "mutation.rate" }, mutation.rate, 0.001, 0.5);
+	checkRange({ ...ctx, path: "mutation.sigma" }, mutation.sigma, 1e-5, 10);
+	checkRange({ ...ctx, path: "mutation.selfSigma" }, mutation.selfSigma, 1e-5, 10);
 }
 
 function validateCrossover(
-	errors: ValidationError[],
+	ctx: ValidationContext,
 	crossover: CrossoverGenome
 ): void {
-	checkRange(errors, "crossover.probability", crossover.probability, 0, 1);
-	checkRange(errors, "crossover.blendAlpha", crossover.blendAlpha, 0, 1);
-	checkRange(errors, "crossover.sbxEta", crossover.sbxEta, 1, 100);
+	checkRange({ ...ctx, path: "crossover.probability" }, crossover.probability, 0, 1);
+	checkRange({ ...ctx, path: "crossover.blendAlpha" }, crossover.blendAlpha, 0, 1);
+	checkRange({ ...ctx, path: "crossover.sbxEta" }, crossover.sbxEta, 1, 100);
 }
 
 function validateGAControl(
-	errors: ValidationError[],
+	ctx: ValidationContext,
 	ga: GAControlGenome
 ): void {
-	checkPositiveInt(errors, "gaControl.populationSize", ga.populationSize, 2);
-	checkRange(errors, "gaControl.elitismFraction", ga.elitismFraction, 0, 1);
-	checkRange(errors, "gaControl.survivorFraction", ga.survivorFraction, 0, 1);
-	checkPositiveInt(errors, "gaControl.maxGenerations", ga.maxGenerations);
+	checkPositiveInt({ ...ctx, path: "gaControl.populationSize" }, ga.populationSize, 2);
+	checkRange({ ...ctx, path: "gaControl.elitismFraction" }, ga.elitismFraction, 0, 1);
+	checkRange({ ...ctx, path: "gaControl.survivorFraction" }, ga.survivorFraction, 0, 1);
+	checkPositiveInt({ ...ctx, path: "gaControl.maxGenerations" }, ga.maxGenerations);
 	checkPositiveInt(
-		errors,
-		"gaControl.episodesPerIndividual",
+		{ ...ctx, path: "gaControl.episodesPerIndividual" },
 		ga.episodesPerIndividual
 	);
 }
 
 export function validateGenome(genome: Genome): ValidationResult {
 	const errors: ValidationError[] = [];
-	validateIdentity(errors, genome);
-	validateNetwork(errors, genome.network);
-	validateRL(errors, genome.rl);
-	validateMutation(errors, genome.mutation);
-	validateCrossover(errors, genome.crossover);
-	validateGAControl(errors, genome.gaControl);
+	const ctx: ValidationContext = { errors, path: "" };
+	validateIdentity(ctx, genome);
+	validateNetwork(ctx, genome.network);
+	validateRL(ctx, genome.rl);
+	validateMutation(ctx, genome.mutation);
+	validateCrossover(ctx, genome.crossover);
+	validateGAControl(ctx, genome.gaControl);
 	return { valid: errors.length === 0, errors };
 }
 

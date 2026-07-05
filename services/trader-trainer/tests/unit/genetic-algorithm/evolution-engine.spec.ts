@@ -68,13 +68,13 @@ describe("EvolutionEngine", () => {
 	describe("mutateWeights", () => {
 		it("should return an array of same length", () => {
 			const w = new Float32Array([0.1, 0.2, 0.3]);
-			const result = mutateWeights(w, 0.5, 0.1, rng);
+			const result = mutateWeights({ weights: w, rate: 0.5, std: 0.1, rng });
 			expect(result.length).toBe(3);
 		});
 
 		it("should not mutate when rate is 0", () => {
 			const w = new Float32Array([0.1, 0.2, 0.3]);
-			const result = mutateWeights(w, 0, 0.1, rng);
+			const result = mutateWeights({ weights: w, rate: 0, std: 0.1, rng });
 			expect(result[0]).toBeCloseTo(0.1);
 			expect(result[1]).toBeCloseTo(0.2);
 			expect(result[2]).toBeCloseTo(0.3);
@@ -82,13 +82,13 @@ describe("EvolutionEngine", () => {
 
 		it("should return a new array (not same reference)", () => {
 			const w = new Float32Array([0.1, 0.2, 0.3]);
-			const result = mutateWeights(w, 0, 0.1, rng);
+			const result = mutateWeights({ weights: w, rate: 0, std: 0.1, rng });
 			expect(result).not.toBe(w);
 		});
 
 		it("should mutate weights when rng < rate", () => {
 			const w = new Float32Array([1, 1, 1]);
-			const result = mutateWeights(w, 0.6, 0.05, () => 0.3);
+			const result = mutateWeights({ weights: w, rate: 0.6, std: 0.05, rng: () => 0.3 });
 			const allMutated = result[0] !== 1 || result[1] !== 1 || result[2] !== 1;
 			expect(allMutated).toBe(true);
 		});

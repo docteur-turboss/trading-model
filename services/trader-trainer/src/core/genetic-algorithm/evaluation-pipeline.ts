@@ -57,12 +57,17 @@ function shapeReward(
  * Precompute rewards for all market steps using a shadow backend.
  * WARNING: mutates the shadow backend (wallet, pool). Always pass a fresh one.
  */
+interface PrecomputeRewardsContext {
+	backend: RLBackend;
+	data: MarketStep[];
+	genome: DeepReadonly<LamarckGenome>;
+	runStats?: RunningStats;
+}
+
 function precomputeRewards(
-	backend: RLBackend,
-	data: MarketStep[],
-	genome: DeepReadonly<LamarckGenome>,
-	runStats?: RunningStats
+	ctx: PrecomputeRewardsContext
 ): Float32Array {
+	const { backend, data, genome, runStats } = ctx;
 	const rShape = genome.rl.rewardShaping;
 	const buf = new Float32Array(data.length);
 	for (let index = 0; index < data.length; index++) {
@@ -100,12 +105,17 @@ function nStepReturn(
  * Skips training when the experience pool has fewer than 2 entries to
  * prevent out-of-bounds access on pool[pool.length - 2].
  */
+interface TrainPhaseContext {
+	backend: RLBackend;
+	trainData: MarketStep[];
+	rewardBuf: Float32Array;
+	genome: DeepReadonly<LamarckGenome>;
+}
+
 function trainPhase(
-	backend: RLBackend,
-	trainData: MarketStep[],
-	rewardBuf: Float32Array,
-	genome: DeepReadonly<LamarckGenome>
+	ctx: TrainPhaseContext
 ): void {
+	const { backend, trainData, rewardBuf, genome } = ctx;
 	const horizon = genome.rl.horizon;
 	const maxT = Math.min(trainData.length, horizon.maxEpisodeLength);
 
@@ -297,15 +307,15 @@ export function evaluateSingleGenomeOnWindow(
 
 	const shadowBackend = backendFactory(genome);
 	const shadowStats = new NormalizationStats();
-	const rewardBuf = precomputeRewards(
-		shadowBackend,
-		windowSet.train,
+	const rewardBuf = precomputeRewards({
+		backend: shadowBackend,
+		data: windowSet.train,
 		genome,
-		shadowStats
-	);
+		runStats: shadowStats,
+	});
 
 	const trainBackend = backendFactory(genome);
-	trainPhase(trainBackend, windowSet.train, rewardBuf, genome);
+	trainPhase({ backend: trainBackend, trainData: windowSet.train, rewardBuf, genome });
 
 	const updatedGenome = deepFreeze(lamarckianUpdate(genome, trainBackend));
 
@@ -331,17 +341,22 @@ export function evaluateSingleGenomeOnWindow(
  * - Lamarckian weight persistence across windows
  * - Returns updated genome + fitness meta + objectives
  */
+interface ComputeAllResultsContext {
+	genome: DeepReadonly<LamarckGenome>;
+	currentGenome: DeepReadonly<LamarckGenome>;
+	allRaw: number[];
+	allPnL: number[];
+	t0: number;
+}
+
 function _computeAllResults(
-	genome: DeepReadonly<LamarckGenome>,
-	currentGenome: DeepReadonly<LamarckGenome>,
-	allRaw: number[],
-	allPnL: number[],
-	t0: number
+	ctx: ComputeAllResultsContext
 ): {
 	updatedGenome: DeepReadonly<LamarckGenome>;
 	meta: GenomeFitnessMeta;
 	objectives: { avgPnl: number; sharpe: number; negFlops: number };
 } {
+	const { genome, currentGenome, allRaw, allPnL, t0 } = ctx;
 	const complexity = estimateComplexity(currentGenome);
 	const Lambda = 0.15;
 	const fitness = computeFitness(genome.gaControl.fitnessType, allRaw);
@@ -394,7 +409,7 @@ export async function evaluateGenomeAllWindows(
 		allPnL.push(result.finalPnL);
 	}
 
-	return _computeAllResults(genome, currentGenome, allRaw, allPnL, t0);
+	return _computeAllResults({ genome, currentGenome, allRaw, allPnL, t0 });
 }
 
 /**

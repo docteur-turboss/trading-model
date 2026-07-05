@@ -9,6 +9,13 @@ import type {
 	NeuralNetworkConfig,
 } from "./type";
 
+export interface LayerOutputContext {
+	layer: LayerMemory;
+	current: Float32Array;
+	layerIndex: number;
+	originalInput: Float32Array;
+}
+
 export class FeedForwardEngine {
 	constructor(
 		private readonly _config: Required<NeuralNetworkConfig>,
@@ -35,12 +42,12 @@ export class FeedForwardEngine {
 
 		for (let layerIndex = 0; layerIndex < this._layers.length; layerIndex++) {
 			const layer = this._layers[layerIndex];
-			const { preActivations, output } = this._computeLayerOutput(
+			const { preActivations, output } = this._computeLayerOutput({
 				layer,
 				current,
 				layerIndex,
-				originalInput
-			);
+				originalInput,
+			});
 
 			layerZValues.push(preActivations);
 			layerOutputs.push(output);
@@ -142,11 +149,9 @@ export class FeedForwardEngine {
 	}
 
 	private _computeLayerOutput(
-		layer: LayerMemory,
-		current: Float32Array,
-		layerIndex: number,
-		originalInput: Float32Array
+		ctx: LayerOutputContext
 	): { preActivations: Float32Array; output: Float32Array } {
+		const { layer, current, layerIndex, originalInput } = ctx;
 		const preActivations = this._computePreActivations(layer, current);
 		const activation = this._config.activationType[layerIndex];
 

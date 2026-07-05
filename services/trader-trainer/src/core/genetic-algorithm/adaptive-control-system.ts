@@ -92,16 +92,21 @@ export type StopCondition =
 	| { shouldStop: true; reason: string }
 	| { shouldStop: false };
 
+export interface TerminationCheckContext {
+	generation: number;
+	bestFitness: number;
+	stagnation: number;
+	elapsedMs: number;
+	ctrl: DeepReadonly<GAControlGenome>;
+}
+
 /**
  * Check if any termination condition is met.
  */
 export function checkTerminationConditions(
-	generation: number,
-	bestFitness: number,
-	stagnation: number,
-	elapsedMs: number,
-	ctrl: DeepReadonly<GAControlGenome>
+	ctx: TerminationCheckContext
 ): StopCondition {
+	const { generation, bestFitness, stagnation, elapsedMs, ctrl } = ctx;
 	if (bestFitness >= ctrl.rewardThreshold) {
 		return { shouldStop: true, reason: "Reward threshold reached" };
 	}

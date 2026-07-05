@@ -163,6 +163,13 @@ export function checkTopologyConstraints(
 // Penalised fitness
 // ----------------------------------------------------------------
 
+export interface PenalisedFitnessOptions {
+	rawFitness: number;
+	genome: Genome;
+	lambda?: number;
+	constraints?: TopologyConstraints;
+}
+
 /**
  * Apply a complexity penalty to a raw fitness score.
  *
@@ -172,11 +179,9 @@ export function checkTopologyConstraints(
  * @param constraints Topology bounds used to normalise penalty.
  */
 export function penalisedFitness(
-	rawFitness: number,
-	genome: Genome,
-	lambda = 1e-4,
-	constraints: TopologyConstraints = DEFAULT_TOPOLOGY_CONSTRAINTS
+	options: PenalisedFitnessOptions
 ): number {
+	const { rawFitness, genome, lambda = 1e-4, constraints = DEFAULT_TOPOLOGY_CONSTRAINTS } = options;
 	const cs = complexityScore(genome, constraints);
 	return rawFitness - lambda * cs;
 }

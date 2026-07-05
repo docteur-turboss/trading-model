@@ -52,20 +52,25 @@ export class TradingAgent {
 			return { action: "hold", amount: 0 };
 		}
 
-		// discrete: choose argmax
+		private static readonly ACTION_SELL = 0;
+	private static readonly ACTION_HOLD = 1;
+	private static readonly ACTION_BUY = 2;
+
+	private static readonly DISCRETE_ACTIONS = [
+		{ action: "sell" as const, getAmount: (amount: number) => amount },
+		{ action: "hold" as const, getAmount: () => 0 },
+		{ action: "buy" as const, getAmount: (amount: number) => amount },
+	] as const;
+
+	// discrete: choose argmax
 		let idx = 0;
 		for (let i = 1; i < output.length; i++) {
 			if (output[i] > output[idx]) {
 				idx = i;
 			}
 		}
-		if (idx === 0) {
-			return { action: "sell", amount };
-		}
-		if (idx === 1) {
-			return { action: "hold", amount: 0 };
-		}
-		return { action: "buy", amount };
+		const selected = TradingAgent.DISCRETE_ACTIONS[idx] ?? TradingAgent.DISCRETE_ACTIONS[TradingAgent.ACTION_HOLD];
+		return { action: selected.action, amount: selected.getAmount(amount) };
 	}
 
 	/** Perform one environment step: update price, infer action, apply to wallet, and record reward */
@@ -78,7 +83,7 @@ export class TradingAgent {
 		}
 
 		const currentPnL = this.wallet.getPnL();
-		const output = this._agent.fastForward(input);
+		const output = this._agent.fastForward({ input });
 
 		const { action, amount } = this.mapOutputToAction(output);
 

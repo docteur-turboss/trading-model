@@ -12,21 +12,40 @@ import {
 	type TradingSymbol,
 } from "./market-data-types";
 
+export interface FeatureBuilderContext {
+	state: SymbolState;
+	idx: number;
+	priceSnapshot: Record<string, number>;
+}
+
+export interface CandleFeatureContext {
+	features: Float32Array;
+	state: SymbolState;
+	idx: number;
+	prev?: CandleData;
+}
+
+export interface PriceSnapshotContext {
+	features: Float32Array;
+	state: SymbolState;
+	idx: number;
+	priceSnapshot: Record<string, number>;
+}
+
 export function buildFeatures(
-	state: SymbolState,
-	idx: number,
-	priceSnapshot: Record<string, number>
+	ctx: FeatureBuilderContext
 ): Float32Array {
+	const { state, idx, priceSnapshot } = ctx;
 	const features = new Float32Array(FEATURE_DIM);
 	const cur = state.candles[idx];
 	const prev = state.candles[idx - 1];
 
-	_buildCandleFeatures(features, state, idx, prev);
+	_buildCandleFeatures({ features, state, idx, prev });
 	_buildOrderBookFeatures(features, state);
 	_buildBookTickerFeatures(features, state);
 	_buildTradeFeatures(features, state, cur);
 	_buildTickerFeatures(features, state);
-	_buildPriceSnapshotFeature(features, state, idx, priceSnapshot);
+	_buildPriceSnapshotFeature({ features, state, idx, priceSnapshot });
 	_buildSlidingWindowFeatures(features, state, idx);
 
 	features[31] = 1.0;
@@ -35,14 +54,13 @@ export function buildFeatures(
 }
 
 function _buildCandleFeatures(
-	features: Float32Array,
-	state: SymbolState,
-	idx: number,
-	prev: CandleData | undefined
+	ctx: CandleFeatureContext
 ): void {
+	const { features, state, idx } = ctx;
 	const cur = state.candles[idx];
 	features[0] = state.norm.candleClose.normalize(cur.close);
 	features[1] = state.norm.candleVolume.normalize(cur.volume);
+	const prev = ctx.prev;
 	features[2] =
 		prev && prev.close > 0 ? (cur.close - prev.close) / prev.close : 0;
 	features[3] =
@@ -124,11 +142,9 @@ function _buildTickerFeatures(
 }
 
 function _buildPriceSnapshotFeature(
-	features: Float32Array,
-	state: SymbolState,
-	idx: number,
-	priceSnapshot: Record<string, number>
+	ctx: PriceSnapshotContext
 ): void {
+	const { features, state, idx, priceSnapshot } = ctx;
 	const cur = state.candles[idx];
 	const snapPrice =
 		priceSnapshot[state.candles[idx].symbol as TradingSymbol] ?? cur.close;

@@ -22,6 +22,13 @@ import type {
  * | Experience replay pool | `Agent` |
  * |
  */
+export interface FastForwardInput {
+	input: Float32Array;
+	reward?: number;
+	nextState?: Float32Array;
+	done?: boolean;
+}
+
 export class Agent {
 	private readonly _nn: NeuralNetwork;
 
@@ -116,11 +123,9 @@ export class Agent {
 	 * @returns Network output vector.
 	 */
 	public fastForward(
-		input: Float32Array,
-		reward?: number,
-		nextState?: Float32Array,
-		done?: boolean
+		ff: FastForwardInput
 	): Float32Array {
+		const { input, reward, nextState, done } = ff;
 		const { output } = this._nn.forward(input);
 
 		if (this._enablePool) {

@@ -100,18 +100,26 @@ export class CheckpointManager {
 		fitness: number;
 		savedAt: number;
 	}[] {
+		if (!existsSync(this._checkpointDir)) {
+			return [];
+		}
+		const files = readdirSync(this._checkpointDir).filter((file) =>
+			file.startsWith("metadata_")
+		);
+		return this._readMetadataFiles(files)
+			.sort((_prev, _next) => _next.savedAt - _prev.savedAt)
+			.slice(0, this._maxCheckpoints);
+	}
+
+	private _readMetadataFiles(
+		files: string[]
+	): { symbol: string; generation: number; fitness: number; savedAt: number }[] {
 		const results: {
 			symbol: string;
 			generation: number;
 			fitness: number;
 			savedAt: number;
 		}[] = [];
-		if (!existsSync(this._checkpointDir)) {
-			return results;
-		}
-		const files = readdirSync(this._checkpointDir).filter((file) =>
-			file.startsWith("metadata_")
-		);
 		for (const file of files) {
 			try {
 				const raw = readFileSync(join(this._checkpointDir, file), "utf-8");
@@ -126,9 +134,7 @@ export class CheckpointManager {
 				/* skip unreadable */
 			}
 		}
-		return results
-			.sort((_prev, _next) => _next.savedAt - _prev.savedAt)
-			.slice(0, this._maxCheckpoints);
+		return results;
 	}
 
 	private _bufferStatePath(): string {
@@ -201,36 +207,8 @@ export class CheckpointManager {
 				return null;
 			}
 
-			const raw = readFileSync(path, "utf-8");
-			const data = JSON.parse(raw) as {
-				symbols: Record<string, SymbolStateSerializable>;
-				priceSnapshot: Record<string, number>;
-			};
-
-			const buffer = new MarketDataBuffer(config);
-			for (const [sym, sd] of Object.entries(data.symbols)) {
-				buffer.restoreSymbolState(sym, {
-					candles: sd.candles,
-					trades: sd.trades,
-					orderBook: sd.orderBook,
-					bookTicker: sd.bookTicker,
-					ticker24h: sd.ticker24h,
-					norm: {
-						candleClose: NormalizationStats.fromJSON(sd.closeNorm),
-						candleVolume: NormalizationStats.fromJSON(sd.volumeNorm),
-						candleOpen: NormalizationStats.fromJSON(sd.openNorm),
-						candleHigh: NormalizationStats.fromJSON(sd.highNorm),
-						candleLow: NormalizationStats.fromJSON(sd.lowNorm),
-						tradePrice: NormalizationStats.fromJSON(sd.tradePriceNorm),
-						tradeQty: NormalizationStats.fromJSON(sd.tradeQtyNorm),
-						bid: NormalizationStats.fromJSON(sd.bidNorm),
-						ask: NormalizationStats.fromJSON(sd.askNorm),
-						spread: NormalizationStats.fromJSON(sd.spreadNorm),
-						tickerVolume: NormalizationStats.fromJSON(sd.tickerVolumeNorm),
-					},
-				});
-			}
-			buffer.setPriceSnapshot(data.priceSnapshot);
+			const data = this._readBufferState(path);
+			const buffer = this._restoreBuffer(data, config);
 
 			logger.info("Market data buffer checkpoint loaded", {
 				symbols: Object.keys(data.symbols).length,
@@ -244,6 +222,57 @@ export class CheckpointManager {
 			return null;
 		}
 	}
+
+	private _readBufferState(path: string): {
+		symbols: Record<string, SymbolStateSerializable>;
+		priceSnapshot: Record<string, number>;
+	} {
+		const raw = readFileSync(path, "utf-8");
+		return JSON.parse(raw) as {
+			symbols: Record<string, SymbolStateSerializable>;
+			priceSnapshot: Record<string, number>;
+		};
+	}
+
+	private _restoreBuffer(
+		data: {
+			symbols: Record<string, SymbolStateSerializable>;
+			priceSnapshot: Record<string, number>;
+		},
+		config?: MarketDataBufferConfig
+	): MarketDataBuffer {
+		const buffer = new MarketDataBuffer(config);
+		for (const [sym, sd] of Object.entries(data.symbols)) {
+			buffer.restoreSymbolState(sym, _deserializeSymbolState(sd));
+		}
+		buffer.setPriceSnapshot(data.priceSnapshot);
+		return buffer;
+	}
+}
+
+function _deserializeSymbolState(
+	sd: SymbolStateSerializable
+): Parameters<MarketDataBuffer["restoreSymbolState"]>[1] {
+	return {
+		candles: sd.candles,
+		trades: sd.trades,
+		orderBook: sd.orderBook,
+		bookTicker: sd.bookTicker,
+		ticker24h: sd.ticker24h,
+		norm: {
+			candleClose: NormalizationStats.fromJSON(sd.closeNorm),
+			candleVolume: NormalizationStats.fromJSON(sd.volumeNorm),
+			candleOpen: NormalizationStats.fromJSON(sd.openNorm),
+			candleHigh: NormalizationStats.fromJSON(sd.highNorm),
+			candleLow: NormalizationStats.fromJSON(sd.lowNorm),
+			tradePrice: NormalizationStats.fromJSON(sd.tradePriceNorm),
+			tradeQty: NormalizationStats.fromJSON(sd.tradeQtyNorm),
+			bid: NormalizationStats.fromJSON(sd.bidNorm),
+			ask: NormalizationStats.fromJSON(sd.askNorm),
+			spread: NormalizationStats.fromJSON(sd.spreadNorm),
+			tickerVolume: NormalizationStats.fromJSON(sd.tickerVolumeNorm),
+		},
+	};
 }
 
 interface SymbolStateSerializable {

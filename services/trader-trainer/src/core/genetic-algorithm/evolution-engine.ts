@@ -21,13 +21,18 @@ export function crossoverWeights(
 	return out;
 }
 
+export interface MutateWeightsContext {
+	weights: Float32Array;
+	rate: number;
+	std: number;
+	rng: () => number;
+}
+
 /** Apply Gaussian weight mutation (Box-Muller) to each element with probability `rate`. */
 export function mutateWeights(
-	weights: Float32Array,
-	rate: number,
-	std: number,
-	rng: () => number
+	ctx: MutateWeightsContext
 ): Float32Array {
+	const { weights, rate, std, rng } = ctx;
 	const out = weights.slice();
 	for (let i = 0; i < out.length; i++) {
 		if (rng() < rate) {

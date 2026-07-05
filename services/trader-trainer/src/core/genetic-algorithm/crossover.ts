@@ -20,9 +20,16 @@ import type {
 // Crossover strategy interface & implementations
 // ----------------------------------------------------------------
 
+export interface CrossoverStrategyContext {
+	left: number;
+	right: number;
+	co: CrossoverGenome;
+	rng: () => number;
+}
+
 export interface CrossoverStrategy {
 	readonly type: CrossoverGenome["type"];
-	crossover(left: number, right: number, co: CrossoverGenome, rng: () => number): number;
+	crossover(ctx: CrossoverStrategyContext): number;
 }
 
 function lerpNum(first: number, second: number, blend: number): number {
@@ -32,7 +39,8 @@ function lerpNum(first: number, second: number, blend: number): number {
 class ArithmeticCrossover implements CrossoverStrategy {
 	readonly type = "arithmetic" as const;
 
-	crossover(left: number, right: number, co: CrossoverGenome, _rng: () => number): number {
+	crossover(ctx: CrossoverStrategyContext): number {
+		const { left, right, co } = ctx;
 		return lerpNum(left, right, co.blendAlpha);
 	}
 }
@@ -40,7 +48,8 @@ class ArithmeticCrossover implements CrossoverStrategy {
 class BlendCrossover implements CrossoverStrategy {
 	readonly type = "blend" as const;
 
-	crossover(left: number, right: number, co: CrossoverGenome, rng: () => number): number {
+	crossover(ctx: CrossoverStrategyContext): number {
+		const { left, right, co, rng } = ctx;
 		const lo = Math.min(left, right);
 		const hi = Math.max(left, right);
 		const diff = hi - lo;
@@ -51,7 +60,8 @@ class BlendCrossover implements CrossoverStrategy {
 class SBXCrossover implements CrossoverStrategy {
 	readonly type = "sbx" as const;
 
-	crossover(left: number, right: number, co: CrossoverGenome, rng: () => number): number {
+	crossover(ctx: CrossoverStrategyContext): number {
+		const { left, right, co, rng } = ctx;
 		const randomValue = rng();
 		const beta =
 			randomValue < 0.5
@@ -64,7 +74,8 @@ class SBXCrossover implements CrossoverStrategy {
 class UniformCrossover implements CrossoverStrategy {
 	readonly type = "uniform" as const;
 
-	crossover(left: number, right: number, _co: CrossoverGenome, rng: () => number): number {
+	crossover(ctx: CrossoverStrategyContext): number {
+		const { left, right, rng } = ctx;
 		return rng() < 0.5 ? left : right;
 	}
 }
@@ -72,7 +83,8 @@ class UniformCrossover implements CrossoverStrategy {
 class OnePointCrossover implements CrossoverStrategy {
 	readonly type = "one_point" as const;
 
-	crossover(left: number, right: number, _co: CrossoverGenome, rng: () => number): number {
+	crossover(ctx: CrossoverStrategyContext): number {
+		const { left, right, rng } = ctx;
 		return rng() < 0.5 ? left : right;
 	}
 }
@@ -80,12 +92,13 @@ class OnePointCrossover implements CrossoverStrategy {
 class TwoPointCrossover implements CrossoverStrategy {
 	readonly type = "two_point" as const;
 
-	crossover(left: number, right: number, _co: CrossoverGenome, rng: () => number): number {
+	crossover(ctx: CrossoverStrategyContext): number {
+		const { left, right, rng } = ctx;
 		return rng() < 0.5 ? left : right;
 	}
 }
 
-const CROSSOVER_STRATEGIES: Record<string, CrossoverStrategy> = {
+const CROSSOVER_STRATEGIES: Record<CrossoverGenome["type"], CrossoverStrategy> = {
 	arithmetic: new ArithmeticCrossover(),
 	blend: new BlendCrossover(),
 	sbx: new SBXCrossover(),
@@ -98,16 +111,34 @@ const CROSSOVER_STRATEGIES: Record<string, CrossoverStrategy> = {
 // Scalar crossover primitives
 // ----------------------------------------------------------------
 
+export interface CrossoverContext<TLeft = unknown, TRight = unknown> {
+	left: TLeft;
+	right: TRight;
+	co: CrossoverGenome;
+	rng: () => number;
+}
+
+export interface CrossoverFnContext<TLeft = unknown, TRight = unknown> {
+	left: TLeft;
+	right: TRight;
+	crossoverFn: (valueA: number, valueB: number) => number;
+	rng: () => number;
+}
+
+export interface HorizonCrossoverContext<TLeft = unknown, TRight = unknown> {
+	left: TLeft;
+	right: TRight;
+	crossoverFn: (valueA: number, valueB: number) => number;
+}
+
 /** Crossover two scalar values using the given strategy and return the offspring. */
 export function crossoverScalar(
-	left: number,
-	right: number,
-	co: CrossoverGenome,
-	rng: () => number
+	ctx: CrossoverContext<number, number>
 ): number {
+	const { left, right, co, rng } = ctx;
 	const strategy = CROSSOVER_STRATEGIES[co.type];
 	return strategy
-		? strategy.crossover(left, right, co, rng)
+		? strategy.crossover({ left, right, co, rng })
 		: rng() < 0.5 ? left : right;
 }
 
@@ -116,11 +147,9 @@ export function crossoverScalar(
 // ----------------------------------------------------------------
 
 function crossoverNetwork(
-	left: NetworkGenome,
-	right: NetworkGenome,
-	co: CrossoverGenome,
-	rng: () => number
+	ctx: CrossoverContext<NetworkGenome, NetworkGenome>
 ): NetworkGenome {
+	const { left, right, co, rng } = ctx;
 	const minLen = Math.min(left.hiddenLayers.length, right.hiddenLayers.length);
 	const maxLen = Math.max(left.hiddenLayers.length, right.hiddenLayers.length);
 	const longer =
@@ -129,7 +158,7 @@ function crossoverNetwork(
 			: right.hiddenLayers;
 
 	const crossoverFn = (valueA: number, valueB: number) =>
-		crossoverScalar(valueA, valueB, co, rng);
+		crossoverScalar({ left: valueA, right: valueB, co, rng });
 
 	const hiddenLayers: LayerGenome[] = [];
 	for (let i = 0; i < maxLen; i++) {
@@ -158,11 +187,9 @@ function crossoverNetwork(
 }
 
 function crossoverRewardShaping(
-	left: RewardShapingGenome,
-	right: RewardShapingGenome,
-	crossoverFn: (valueA: number, valueB: number) => number,
-	rng: () => number
+	ctx: CrossoverFnContext<RewardShapingGenome, RewardShapingGenome>
 ): RewardShapingGenome {
+	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		clip: rng() < 0.5 ? left.clip : right.clip,
 		clipMin: crossoverFn(left.clipMin, right.clipMin),
@@ -175,10 +202,9 @@ function crossoverRewardShaping(
 }
 
 function crossoverHorizon(
-	left: HorizonGenome,
-	right: HorizonGenome,
-	crossoverFn: (valueA: number, valueB: number) => number
+	ctx: HorizonCrossoverContext<HorizonGenome, HorizonGenome>
 ): HorizonGenome {
+	const { left, right, crossoverFn } = ctx;
 	return {
 		maxEpisodeLength: Math.round(
 			crossoverFn(left.maxEpisodeLength, right.maxEpisodeLength)
@@ -189,11 +215,9 @@ function crossoverHorizon(
 }
 
 function crossoverDiscretePolicy(
-	left: DiscretePolicyGenome,
-	right: DiscretePolicyGenome,
-	crossoverFn: (valueA: number, valueB: number) => number,
-	rng: () => number
+	ctx: CrossoverFnContext<DiscretePolicyGenome, DiscretePolicyGenome>
 ): DiscretePolicyGenome {
+	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		type: rng() < 0.5 ? left.type : right.type,
 		epsilonStart: crossoverFn(left.epsilonStart, right.epsilonStart),
@@ -204,11 +228,9 @@ function crossoverDiscretePolicy(
 }
 
 function crossoverContinuousPolicy(
-	left: ContinuousPolicyGenome,
-	right: ContinuousPolicyGenome,
-	crossoverFn: (valueA: number, valueB: number) => number,
-	rng: () => number
+	ctx: CrossoverFnContext<ContinuousPolicyGenome, ContinuousPolicyGenome>
 ): ContinuousPolicyGenome {
+	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		type: rng() < 0.5 ? left.type : right.type,
 		clipMin: crossoverFn(left.clipMin, right.clipMin),
@@ -219,11 +241,9 @@ function crossoverContinuousPolicy(
 }
 
 function crossoverReplayBuffer(
-	left: ReplayBufferGenome,
-	right: ReplayBufferGenome,
-	crossoverFn: (valueA: number, valueB: number) => number,
-	rng: () => number
+	ctx: CrossoverFnContext<ReplayBufferGenome, ReplayBufferGenome>
 ): ReplayBufferGenome {
+	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		bufferSize: Math.round(crossoverFn(left.bufferSize, right.bufferSize)),
 		prioritized: rng() < 0.5 ? left.prioritized : right.prioritized,
@@ -234,42 +254,44 @@ function crossoverReplayBuffer(
 }
 
 function crossoverRL(
-	left: RLGenome,
-	right: RLGenome,
-	co: CrossoverGenome,
-	rng: () => number
+	ctx: CrossoverContext<RLGenome, RLGenome>
 ): RLGenome {
+	const { left, right, co, rng } = ctx;
 	const crossoverFn = (valueA: number, valueB: number) =>
-		crossoverScalar(valueA, valueB, co, rng);
+		crossoverScalar({ left: valueA, right: valueB, co, rng });
 
 	return {
 		gamma: crossoverFn(left.gamma, right.gamma),
 		learningRate: crossoverFn(left.learningRate, right.learningRate),
-		rewardShaping: crossoverRewardShaping(
-			left.rewardShaping,
-			right.rewardShaping,
+		rewardShaping: crossoverRewardShaping({
+			left: left.rewardShaping,
+			right: right.rewardShaping,
 			crossoverFn,
-			rng
-		),
-		horizon: crossoverHorizon(left.horizon, right.horizon, crossoverFn),
-		discretePolicy: crossoverDiscretePolicy(
-			left.discretePolicy,
-			right.discretePolicy,
+			rng,
+		}),
+		horizon: crossoverHorizon({
+			left: left.horizon,
+			right: right.horizon,
 			crossoverFn,
-			rng
-		),
-		continuousPolicy: crossoverContinuousPolicy(
-			left.continuousPolicy,
-			right.continuousPolicy,
+		}),
+		discretePolicy: crossoverDiscretePolicy({
+			left: left.discretePolicy,
+			right: right.discretePolicy,
 			crossoverFn,
-			rng
-		),
-		replayBuffer: crossoverReplayBuffer(
-			left.replayBuffer,
-			right.replayBuffer,
+			rng,
+		}),
+		continuousPolicy: crossoverContinuousPolicy({
+			left: left.continuousPolicy,
+			right: right.continuousPolicy,
 			crossoverFn,
-			rng
-		),
+			rng,
+		}),
+		replayBuffer: crossoverReplayBuffer({
+			left: left.replayBuffer,
+			right: right.replayBuffer,
+			crossoverFn,
+			rng,
+		}),
 	};
 }
 
@@ -323,8 +345,8 @@ export function crossoverGenomes(
 
 	return {
 		...parentA,
-		network: crossoverNetwork(parentA.network, parentB.network, co, rng),
-		rl: crossoverRL(parentA.rl, parentB.rl, co, rng),
+		network: crossoverNetwork({ left: parentA.network, right: parentB.network, co, rng }),
+		rl: crossoverRL({ left: parentA.rl, right: parentB.rl, co, rng }),
 		mutation: crossoverMutation(parentA.mutation, parentB.mutation, rng),
 	};
 }

@@ -5,36 +5,101 @@
 import type { MutationDistribution } from "./genome-types";
 
 // ----------------------------------------------------------------
-// Low-level samplers
+// Noise sampler interface
+// ----------------------------------------------------------------
+
+export interface NoiseSampler {
+	readonly type: MutationDistribution;
+	sample(rng: () => number, sigma: number): number;
+}
+
+// ----------------------------------------------------------------
+// Sampler implementations
+// ----------------------------------------------------------------
+
+/** Sample from a Gaussian (normal) distribution with mean 0 and given sigma. */
+class GaussianNoiseSampler implements NoiseSampler {
+	readonly type: MutationDistribution = "gaussian";
+
+	sample(rng: () => number, sigma: number): number {
+		// Box-Muller
+		const u1 = Math.max(1e-10, rng());
+		const u2 = rng();
+		return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * sigma;
+	}
+}
+
+/** Sample from a Cauchy distribution with the given scale. */
+class CauchyNoiseSampler implements NoiseSampler {
+	readonly type: MutationDistribution = "cauchy";
+
+	sample(rng: () => number, sigma: number): number {
+		return sigma * Math.tan(Math.PI * (rng() - 0.5));
+	}
+}
+
+/** Sample uniform noise in the range (-sigma, +sigma). */
+class UniformNoiseSampler implements NoiseSampler {
+	readonly type: MutationDistribution = "uniform";
+
+	sample(rng: () => number, sigma: number): number {
+		return (rng() * 2 - 1) * sigma;
+	}
+}
+
+/** Sample Lévy-stable noise (alpha=0.5) with heavy tails for escaping local optima. */
+class LevyNoiseSampler implements NoiseSampler {
+	readonly type: MutationDistribution = "levy";
+
+	sample(rng: () => number, sigma: number): number {
+		// Lévy via Chambers–Mallows–Stuck with α=0.5
+		const uAngle = Math.PI * (rng() - 0.5);
+		const wValue = -Math.log(Math.max(1e-10, rng()));
+		return (
+			((sigma * Math.sin(0.5 * uAngle)) / Math.cos(uAngle) ** 2) *
+			(Math.cos(0.5 * uAngle) / wValue) ** 1
+		);
+	}
+}
+
+// ----------------------------------------------------------------
+// Singleton instances
+// ----------------------------------------------------------------
+
+export const GAUSSIAN_SAMPLER = new GaussianNoiseSampler();
+export const CAUCHY_SAMPLER = new CauchyNoiseSampler();
+export const UNIFORM_SAMPLER = new UniformNoiseSampler();
+export const LEVY_SAMPLER = new LevyNoiseSampler();
+
+const NOISE_SAMPLERS: Record<MutationDistribution, NoiseSampler> = {
+	gaussian: GAUSSIAN_SAMPLER,
+	cauchy: CAUCHY_SAMPLER,
+	uniform: UNIFORM_SAMPLER,
+	levy: LEVY_SAMPLER,
+};
+
+// ----------------------------------------------------------------
+// Convenience wrappers (backward-compatible API)
 // ----------------------------------------------------------------
 
 /** Sample from a Gaussian (normal) distribution with mean 0 and given sigma. */
 export function sampleGaussian(rng: () => number, sigma: number): number {
-	// Box-Muller
-	const u1 = Math.max(1e-10, rng());
-	const u2 = rng();
-	return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * sigma;
+	return GAUSSIAN_SAMPLER.sample(rng, sigma);
 }
 
 /** Sample from a Cauchy distribution with the given scale. */
 export function sampleCauchy(rng: () => number, sigma: number): number {
-	return sigma * Math.tan(Math.PI * (rng() - 0.5));
+	return CAUCHY_SAMPLER.sample(rng, sigma);
 }
 
 /** Sample uniform noise in the range (-sigma, +sigma). */
 export function sampleUniform(rng: () => number, sigma: number): number {
-	return (rng() * 2 - 1) * sigma;
+	return UNIFORM_SAMPLER.sample(rng, sigma);
 }
 
 /** Sample Lévy-stable noise (alpha=0.5) with heavy tails for escaping local optima. */
 export function sampleLevy(rng: () => number, sigma: number): number {
-	// Lévy via Chambers–Mallows–Stuck with α=0.5
-	const uAngle = Math.PI * (rng() - 0.5);
-	const wValue = -Math.log(Math.max(1e-10, rng()));
-	return (
-		((sigma * Math.sin(0.5 * uAngle)) / Math.cos(uAngle) ** 2) *
-		(Math.cos(0.5 * uAngle) / wValue) ** 1
-	);
+	return LEVY_SAMPLER.sample(rng, sigma);
 }
 
 // ----------------------------------------------------------------
@@ -47,16 +112,8 @@ export function sampleNoise(
 	sigma: number,
 	rng: () => number
 ): number {
-	switch (dist) {
-		case "gaussian":
-			return sampleGaussian(rng, sigma);
-		case "cauchy":
-			return sampleCauchy(rng, sigma);
-		case "uniform":
-			return sampleUniform(rng, sigma);
-		case "levy":
-			return sampleLevy(rng, sigma);
-		default:
-			return sampleGaussian(rng, sigma);
-	}
+	const sampler = NOISE_SAMPLERS[dist];
+	return sampler
+		? sampler.sample(rng, sigma)
+		: sampleGaussian(rng, sigma);
 }

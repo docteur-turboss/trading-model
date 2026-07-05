@@ -8,6 +8,28 @@ import type {
 	NeuralNetworkConfig,
 } from "./type";
 
+export interface OutputDeltasContext {
+	outputZ: Float32Array;
+	output: Float32Array;
+	target: Float32Array;
+	activation: ActivationType;
+}
+
+export interface LayerGradientContext {
+	layerIndex: number;
+	delta: Float32Array;
+	layerInput: Float32Array;
+	applyImmediately: boolean;
+}
+
+export interface WeightGradientContext {
+	weightBuf: Float32Array;
+	rowOffset: number;
+	deltaJ: number;
+	input: Float32Array;
+	fanIn: number;
+}
+
 export class BackpropEngine {
 	constructor(
 		private readonly _config: Required<NeuralNetworkConfig>,
@@ -21,12 +43,12 @@ export class BackpropEngine {
 		const outputZ = context.layerZValues[lastLayerIndex];
 		const output = context.layerOutputs[lastLayerIndex];
 
-		const outputDelta = this._computeOutputDeltas(
+		const outputDelta = this._computeOutputDeltas({
 			outputZ,
 			output,
 			target,
-			outputActivation
-		);
+			activation: outputActivation,
+		});
 
 		const hiddenDeltas = this._computeHiddenDeltas(
 			lastLayerIndex,
@@ -38,7 +60,12 @@ export class BackpropEngine {
 		for (let layerIdx = 0; layerIdx < this._layers.length; layerIdx++) {
 			const layerInput =
 				layerIdx === 0 ? context.input : context.layerOutputs[layerIdx - 1];
-			this._computeLayerGradients(layerIdx, allDeltas[layerIdx], layerInput, true);
+			this._computeLayerGradients({
+				layerIndex: layerIdx,
+				delta: allDeltas[layerIdx],
+				layerInput,
+				applyImmediately: true,
+			});
 		}
 	}
 
@@ -48,12 +75,12 @@ export class BackpropEngine {
 		const outputZ = context.layerZValues[lastLayerIndex];
 		const output = context.layerOutputs[lastLayerIndex];
 
-		const outputDelta = this._computeOutputDeltas(
+		const outputDelta = this._computeOutputDeltas({
 			outputZ,
 			output,
 			target,
-			outputActivation
-		);
+			activation: outputActivation,
+		});
 
 		const hiddenDeltas = this._computeHiddenDeltas(
 			lastLayerIndex,
@@ -65,12 +92,12 @@ export class BackpropEngine {
 		for (let layerIdx = 0; layerIdx < this._layers.length; layerIdx++) {
 			const layerInput =
 				layerIdx === 0 ? context.input : context.layerOutputs[layerIdx - 1];
-			this._computeLayerGradients(
-				layerIdx,
-				allDeltas[layerIdx],
+			this._computeLayerGradients({
+				layerIndex: layerIdx,
+				delta: allDeltas[layerIdx],
 				layerInput,
-				false
-			);
+				applyImmediately: false,
+			});
 		}
 	}
 
@@ -148,11 +175,9 @@ export class BackpropEngine {
 	}
 
 	private _computeOutputDeltas(
-		outputZ: Float32Array,
-		output: Float32Array,
-		target: Float32Array,
-		activation: ActivationType
+		ctx: OutputDeltasContext
 	): Float32Array {
+		const { outputZ, output, target, activation } = ctx;
 		const delta = new Float32Array(output.length);
 		const lossGrad = this._computeLossGradient(output, target);
 
@@ -212,11 +237,9 @@ export class BackpropEngine {
 	}
 
 	private _computeLayerGradients(
-		layerIndex: number,
-		delta: Float32Array,
-		layerInput: Float32Array,
-		applyImmediately: boolean
+		ctx: LayerGradientContext
 	): void {
+		const { layerIndex, delta, layerInput, applyImmediately } = ctx;
 		const layer = this._layers[layerIndex];
 
 		if (applyImmediately) {
@@ -227,12 +250,9 @@ export class BackpropEngine {
 	}
 
 	private _computeWeightGradient(
-		weightBuf: Float32Array,
-		rowOffset: number,
-		deltaJ: number,
-		input: Float32Array,
-		fanIn: number
+		ctx: WeightGradientContext
 	): void {
+		const { weightBuf, rowOffset, deltaJ, input, fanIn } = ctx;
 		for (let idxK = 0; idxK < fanIn; idxK++) {
 			weightBuf[rowOffset + idxK] += deltaJ * input[idxK];
 		}
@@ -249,28 +269,28 @@ export class BackpropEngine {
 			const rowOffset = j * fanIn;
 			const deltaJ = delta[j];
 			gradB[j] = deltaJ;
-			this._computeWeightGradient(gradW, rowOffset, deltaJ, layerInput, fanIn);
+			this._computeWeightGradient({ weightBuf: gradW, rowOffset, deltaJ, input: layerInput, fanIn });
 		}
 
 		const opt = OPTIMIZERS[this._config.optimizerType];
 		const { weights, bias, wState, bState } = layer;
 
-		opt.step(
-			weights,
-			gradW,
-			wState,
-			this._config.learningRate,
-			this._optimizerHp
-		);
+		opt.step({
+			params: weights,
+			grads: gradW,
+			state: wState,
+			lr: this._config.learningRate,
+			hp: this._optimizerHp,
+		});
 
 		if (this._config.useBias) {
-			opt.step(
-				bias,
-				gradB,
-				bState,
-				this._config.learningRate,
-				this._optimizerHp
-			);
+			opt.step({
+				params: bias,
+				grads: gradB,
+				state: bState,
+				lr: this._config.learningRate,
+				hp: this._optimizerHp,
+			});
 		}
 	}
 
@@ -285,13 +305,7 @@ export class BackpropEngine {
 			const rowOffset = j * fanIn;
 			const deltaJ = delta[j];
 			accumGradB[j] += deltaJ;
-			this._computeWeightGradient(
-				accumGradW,
-				rowOffset,
-				deltaJ,
-				layerInput,
-				fanIn
-			);
+			this._computeWeightGradient({ weightBuf: accumGradW, rowOffset, deltaJ, input: layerInput, fanIn });
 		}
 	}
 
@@ -319,22 +333,22 @@ export class BackpropEngine {
 			gradB[i] = accumGradB[i] * scale;
 		}
 
-		opt.step(
-			weights,
-			gradW,
-			wState,
-			this._config.learningRate,
-			this._optimizerHp
-		);
+		opt.step({
+			params: weights,
+			grads: gradW,
+			state: wState,
+			lr: this._config.learningRate,
+			hp: this._optimizerHp,
+		});
 
 		if (this._config.useBias) {
-			opt.step(
-				bias,
-				gradB,
-				bState,
-				this._config.learningRate,
-				this._optimizerHp
-			);
+			opt.step({
+				params: bias,
+				grads: gradB,
+				state: bState,
+				lr: this._config.learningRate,
+				hp: this._optimizerHp,
+			});
 		}
 
 		accumGradW.fill(0);

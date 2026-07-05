@@ -104,21 +104,21 @@ describe("Agent", () => {
 
 		it("should return output vector from the network", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			const output = agent.fastForward(input);
+			const output = agent.fastForward({ input });
 
 			expect(output.length).toBe(3);
 		});
 
 		it("should push experience into the pool when pool is enabled", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			agent.fastForward(input, 1, new Float32Array([0.1, 0.2, 0.3]));
+			agent.fastForward({ input, reward: 1, nextState: new Float32Array([0.1, 0.2, 0.3]) });
 
 			expect(agent.getPoolSize()).toBe(1);
 		});
 
 		it("should accept reward, nextState, and done parameters", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			agent.fastForward(input, 1.5, new Float32Array([0.1, 0.2, 0.3]), false);
+			agent.fastForward({ input, reward: 1.5, nextState: new Float32Array([0.1, 0.2, 0.3]), done: false });
 
 			const pool = agent.getPool();
 			const exp = pool[0];
@@ -135,7 +135,7 @@ describe("Agent", () => {
 			const noPool = new Agent(makeConfig({ enablePool: false }));
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 
-			noPool.fastForward(input, 1, new Float32Array([0.1, 0.2, 0.3]));
+			noPool.fastForward({ input, reward: 1, nextState: new Float32Array([0.1, 0.2, 0.3]) });
 
 			expect(noPool.getPoolSize()).toBe(0);
 		});
@@ -146,7 +146,7 @@ describe("Agent", () => {
 			const agent = new Agent(cfg);
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 
-			agent.fastForward(input, 1, new Float32Array([0.1, 0.2, 0.3]));
+			agent.fastForward({ input, reward: 1, nextState: new Float32Array([0.1, 0.2, 0.3]) });
 
 			expect(agent.getPoolSize()).toBe(1);
 		});
@@ -160,7 +160,7 @@ describe("Agent", () => {
 		});
 
 		it("getPool should return a copy of the pool", () => {
-			agent.fastForward(new Float32Array([0.5, -0.3, 0.1, 0.8]));
+			agent.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, 0.8]) });
 
 			const pool = agent.getPool();
 
@@ -169,7 +169,7 @@ describe("Agent", () => {
 		});
 
 		it("clearPool should empty the pool", () => {
-			agent.fastForward(new Float32Array([0.5, -0.3, 0.1, 0.8]));
+			agent.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, 0.8]) });
 			agent.clearPool();
 
 			expect(agent.getPoolSize()).toBe(0);
@@ -177,7 +177,7 @@ describe("Agent", () => {
 
 		it("samplePool should return requested batch size", () => {
 			for (let i = 0; i < 10; i++) {
-				agent.fastForward(new Float32Array([0.5, -0.3, 0.1, i * 0.1]));
+				agent.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, i * 0.1]) });
 			}
 
 			const batch = agent.samplePool(3);
@@ -192,7 +192,7 @@ describe("Agent", () => {
 		it("should enforce FIFO poolMaxSize eviction", () => {
 			const small = new Agent(makeConfig({ poolMaxSize: 3 }));
 			for (let i = 0; i < 10; i++) {
-				small.fastForward(new Float32Array([0.5, -0.3, 0.1, i * 0.1]));
+				small.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, i * 0.1]) });
 			}
 
 			expect(small.getPoolSize()).toBe(3);
@@ -205,7 +205,7 @@ describe("Agent", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 			const target = new Float32Array([1, 0, 0]);
 
-			agent.fastForward(input);
+			agent.fastForward({ input });
 			agent.learnSupervised(input, target);
 
 			expect(agent.getPoolSize()).toBe(0);
@@ -225,7 +225,7 @@ describe("Agent", () => {
 			const agent = new Agent(makeConfig());
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 
-			agent.fastForward(input);
+			agent.fastForward({ input });
 
 			// Manually attach target to pool entries
 			const pool = agent.getPool();
@@ -242,7 +242,7 @@ describe("Agent", () => {
 			const agent = new Agent(makeConfig());
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 
-			agent.fastForward(input);
+			agent.fastForward({ input });
 
 			// No target attached — skipes training but still clears pool
 			agent.learnFromPool();
@@ -279,12 +279,7 @@ describe("Agent", () => {
 		});
 
 		it("should process Q-learning update without error", () => {
-			agent.fastForward(
-				new Float32Array([0.5, -0.3, 0.1, 0.8]),
-				1.0,
-				new Float32Array([0.1, 0.2, 0.3, 0.9]),
-				false
-			);
+			agent.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, 0.8]), reward: 1.0, nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]), done: false });
 
 			const pool = agent.getPool();
 			const exp = pool[0];
@@ -293,12 +288,7 @@ describe("Agent", () => {
 		});
 
 		it("should process Q-learning update with done=true", () => {
-			agent.fastForward(
-				new Float32Array([0.5, -0.3, 0.1, 0.8]),
-				1.0,
-				new Float32Array([0.1, 0.2, 0.3, 0.9]),
-				true
-			);
+			agent.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, 0.8]), reward: 1.0, nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]), done: true });
 
 			const pool = agent.getPool();
 			const exp = pool[0];

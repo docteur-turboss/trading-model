@@ -1,7 +1,7 @@
 import type { GAControlGenome, LamarckGenome } from "./genome-types";
 import { mutateGenome } from "./mutation";
 import { crossoverGenomes } from "./crossover";
-import { crossoverWeights, mutateWeights } from "./evolution-engine";
+import { crossoverWeights, type MutateWeightsContext, mutateWeights } from "./evolution-engine";
 import { selectParent } from "./selection";
 import { makePRNG } from "./prng";
 import { generateId } from "./utils";
@@ -66,16 +66,17 @@ function produceOneOffspring(
 	if (pA.trainedWeights && pB.trainedWeights) {
 		const rate = newCtrl.mutationRate ?? 0.1;
 		const noiseStd = newCtrl.mutationStd ?? 0.05;
-		childWeights = mutateWeights(
-			crossoverWeights(
+		const childWeightsCtx: MutateWeightsContext = {
+			weights: crossoverWeights(
 				pA.trainedWeights as Float32Array,
 				pB.trainedWeights as Float32Array,
 				coRng
 			),
 			rate,
-			noiseStd,
-			mutRng
-		);
+			std: noiseStd,
+			rng: mutRng,
+		};
+		childWeights = mutateWeights(childWeightsCtx);
 	}
 
 	return deepFreeze({
@@ -89,13 +90,18 @@ function produceOneOffspring(
 	}) as DeepReadonly<LamarckGenome>;
 }
 
+export interface OffspringContext {
+	ranked: Genome[];
+	newCtrl: Readonly<GAControlGenome>;
+	ctrl: DeepReadonly<GAControlGenome>;
+	rng: () => number;
+	generation: number;
+}
+
 export function createOffspring(
-	ranked: Genome[],
-	newCtrl: Readonly<GAControlGenome>,
-	ctrl: DeepReadonly<GAControlGenome>,
-	rng: () => number,
-	generation: number
+	ctx: OffspringContext
 ): DeepReadonly<LamarckGenome>[] {
+	const { ranked, newCtrl, ctrl, rng, generation } = ctx;
 	const nElite = Math.max(
 		1,
 		Math.round(newCtrl.elitismFraction * newCtrl.populationSize)

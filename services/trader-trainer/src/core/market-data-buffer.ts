@@ -236,7 +236,7 @@ export class MarketDataBuffer {
 
 		const steps: MarketStep[] = [];
 		for (let i = 1; i < state.candles.length; i++) {
-			const features = buildFeaturesFn(state, i, this._priceSnapshot);
+			const features = buildFeaturesFn({ state, idx: i, priceSnapshot: this._priceSnapshot });
 			steps.push({
 				price: state.candles[i].close,
 				features,

@@ -133,18 +133,7 @@ export class Wallet implements WalletAPI {
 		}
 		this._position = newPosition;
 		this._cash = this._round(this._cash - totalCost);
-		this._totalFeesPaid = this._round(this._totalFeesPaid + fee);
-		this._tradeCount++;
-		this._updatePeak();
-		this._history.push({
-			step: this._step,
-			action: "buy",
-			amount,
-			price: this._price,
-			fee,
-			cashAfter: this._cash,
-			positionAfter: this._position,
-		});
+		this._recordTrade("buy", amount, fee);
 		return true;
 	}
 
@@ -157,19 +146,27 @@ export class Wallet implements WalletAPI {
 		const netProceeds = this._round(baseProceeds - fee);
 		this._position = this._round(this._position - amount);
 		this._cash = this._round(this._cash + netProceeds);
+		this._recordTrade("sell", amount, fee);
+		return true;
+	}
+
+	private _recordTrade(
+		action: "buy" | "sell",
+		amount: number,
+		fee: number
+	): void {
 		this._totalFeesPaid = this._round(this._totalFeesPaid + fee);
 		this._tradeCount++;
 		this._updatePeak();
 		this._history.push({
 			step: this._step,
-			action: "sell",
+			action,
 			amount,
 			price: this._price,
 			fee,
 			cashAfter: this._cash,
 			positionAfter: this._position,
 		});
-		return true;
 	}
 
 	setPrice(newPrice: number): void {

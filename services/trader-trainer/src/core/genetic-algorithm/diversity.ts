@@ -187,13 +187,18 @@ export function diversityMetrics(
  * @param k          Number of nearest neighbours (default 15).
  * @param distanceFn Custom distance function (defaults to genomicDistance).
  */
+export interface NoveltyScoreOptions {
+	neighbors?: number;
+	distanceFn?: (left: Genome, right: Genome) => number;
+}
+
 export function noveltyScore(
 	genome: Genome,
 	population: Genome[],
 	archive: Genome[],
-	neighbors = 15,
-	distanceFn: (left: Genome, right: Genome) => number = genomicDistance
+	options: NoveltyScoreOptions = {}
 ): number {
+	const { neighbors = 15, distanceFn = genomicDistance } = options;
 	const pool = [...population, ...archive].filter(
 		(other) => other.id !== genome.id
 	);
@@ -227,6 +232,13 @@ export interface NoveltyArchiveConfig {
 	population?: Genome[];
 }
 
+export interface NoveltyArchiveUpdateContext {
+	genome: Genome;
+	archive: Genome[];
+	score: number;
+	config?: NoveltyArchiveConfig;
+}
+
 /**
  * Optionally add a genome to the novelty archive.
  *
@@ -236,11 +248,10 @@ export interface NoveltyArchiveConfig {
  * @returns Updated archive (may be the same array mutated in-place).
  */
 export function updateNoveltyArchive(
-	genome: Genome,
-	archive: Genome[],
-	score: number,
-	config: NoveltyArchiveConfig = {}
+	ctx: NoveltyArchiveUpdateContext
 ): Genome[] {
+	const { genome, archive, score, config: configArg } = ctx;
+	const config = configArg ?? {};
 	const { threshold = 0.1, maxSize = 500, population = [] } = config;
 	if (score < threshold) {
 		return archive;

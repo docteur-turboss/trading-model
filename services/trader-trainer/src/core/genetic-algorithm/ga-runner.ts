@@ -164,6 +164,13 @@ export interface GenerationContext {
 	gaControl: DeepReadonly<GAControlGenome>;
 }
 
+export interface ParetoFrontContext {
+	updatedPop: DeepReadonly<LamarckGenome>[];
+	objectives: ObjectiveVector[];
+	metas: GenomeFitnessMeta[];
+	rng: () => number;
+}
+
 export class GeneticAlgorithmRunner {
 	private _population: DeepReadonly<LamarckGenome>[] = [];
 	private _generation = 0;
@@ -210,12 +217,12 @@ export class GeneticAlgorithmRunner {
 		const rng = makePRNG(ctrl.mutationSeed + this._generation);
 
 		const { updatedPop, objectives, metas } = await this._evaluateFitness();
-		const { popWithMeta, popMeta, avgFit, avgEff } = this._buildParetoFronts(
+		const { popWithMeta, popMeta, avgFit, avgEff } = this._buildParetoFronts({
 			updatedPop,
 			objectives,
 			metas,
-			rng
-		);
+			rng,
+		});
 
 		this._updateArchive(popWithMeta, objectives, popMeta);
 
@@ -226,14 +233,7 @@ export class GeneticAlgorithmRunner {
 		const ranked = this._sortPopulation(popWithMeta, popMeta);
 
 		const elites = selectElites(ranked, newCtrl);
-
-		const offspring = createOffspring(
-			ranked,
-			newCtrl,
-			ctrl,
-			rng,
-			this._generation
-		);
+		const offspring = this._produceOffspring(ranked, newCtrl, ctrl, rng);
 
 		this._population = [...elites, ...offspring].slice(
 			0,
@@ -241,6 +241,23 @@ export class GeneticAlgorithmRunner {
 		);
 		this._generation++;
 
+		return this._buildContext(newCtrl, avgFit, avgEff);
+	}
+
+	private _produceOffspring(
+		ranked: Genome[],
+		newCtrl: Readonly<GAControlGenome>,
+		ctrl: DeepReadonly<GAControlGenome>,
+		rng: () => number
+	): DeepReadonly<LamarckGenome>[] {
+		return createOffspring({ ranked, newCtrl, ctrl, rng, generation: this._generation });
+	}
+
+	private _buildContext(
+		newCtrl: Readonly<GAControlGenome>,
+		avgFit: number,
+		avgEff: number
+	): GenerationContext {
 		const ctx: GenerationContext = {
 			generation: this._generation,
 			population: this._population,
@@ -265,25 +282,23 @@ export class GeneticAlgorithmRunner {
 	}> {
 		const concurrency = this._cfg.evalConcurrency ?? 4;
 
-		return evaluateFitness(
-			this._population,
-			this._cfg.windowSets,
-			this._cfg.backendFactory,
-			concurrency
-		);
+		return evaluateFitness({
+			population: this._population,
+			windowSets: this._cfg.windowSets,
+			backendFactory: this._cfg.backendFactory,
+			concurrency,
+		});
 	}
 
 	private _buildParetoFronts(
-		updatedPop: DeepReadonly<LamarckGenome>[],
-		objectives: ObjectiveVector[],
-		metas: GenomeFitnessMeta[],
-		rng: () => number
+		ctx: ParetoFrontContext
 	): {
 		popWithMeta: DeepReadonly<LamarckGenome>[];
 		popMeta: PopulationMeta;
 		avgFit: number;
 		avgEff: number;
 	} {
+		const { updatedPop, objectives, metas, rng } = ctx;
 		const popMeta = buildPopulationMeta(objectives, rng);
 
 		const popWithMeta = updatedPop.map((genome, idx) =>

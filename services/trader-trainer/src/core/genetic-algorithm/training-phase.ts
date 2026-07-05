@@ -39,12 +39,17 @@ function withGenome<TGenome extends Genome>(
 	return deepFreeze({ ...base, ...patch } as TGenome) as DeepReadonly<TGenome>;
 }
 
+export interface PrecomputeRewardsContext {
+	backend: RLBackend;
+	data: MarketStep[];
+	genome: DeepReadonly<LamarckGenome>;
+	runStats?: RunningStats;
+}
+
 export function precomputeRewards(
-	backend: RLBackend,
-	data: MarketStep[],
-	genome: DeepReadonly<LamarckGenome>,
-	runStats?: RunningStats
+	ctx: PrecomputeRewardsContext
 ): Float32Array {
+	const { backend, data, genome, runStats } = ctx;
 	const rShape = genome.rl.rewardShaping;
 	const buf = new Float32Array(data.length);
 	for (let index = 0; index < data.length; index++) {
@@ -72,12 +77,17 @@ function nStepReturn(
 	return ret;
 }
 
+export interface TrainPhaseContext {
+	backend: RLBackend;
+	trainData: MarketStep[];
+	rewardBuf: Float32Array;
+	genome: DeepReadonly<LamarckGenome>;
+}
+
 export function trainPhase(
-	backend: RLBackend,
-	trainData: MarketStep[],
-	rewardBuf: Float32Array,
-	genome: DeepReadonly<LamarckGenome>
+	ctx: TrainPhaseContext
 ): void {
+	const { backend, trainData, rewardBuf, genome } = ctx;
 	const horizon = genome.rl.horizon;
 	const maxT = Math.min(trainData.length, horizon.maxEpisodeLength);
 
@@ -166,16 +176,21 @@ export function lamarckianUpdate(
 	} as Partial<LamarckGenome>);
 }
 
+export interface EvaluateFitnessContext {
+	population: DeepReadonly<LamarckGenome>[];
+	windowSets: WindowSet[];
+	backendFactory: BackendFactory;
+	concurrency: number;
+}
+
 export async function evaluateFitness(
-	population: DeepReadonly<LamarckGenome>[],
-	windowSets: WindowSet[],
-	backendFactory: BackendFactory,
-	concurrency: number
+	ctx: EvaluateFitnessContext
 ): Promise<{
 	updatedPop: DeepReadonly<LamarckGenome>[];
 	objectives: ObjectiveVector[];
 	metas: GenomeFitnessMeta[];
 }> {
+	const { population, windowSets, backendFactory, concurrency } = ctx;
 	const evalResults = await pooledEval(
 		population,
 		concurrency,

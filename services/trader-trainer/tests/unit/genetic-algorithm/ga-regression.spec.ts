@@ -19,7 +19,7 @@ describe("GA Regression — Crossover", () => {
 				sbxEta: 0,
 			};
 			const rng = jest.fn<() => number>();
-			const result = crossoverScalar(10, 20, co, rng);
+			const result = crossoverScalar({ left: 10, right: 20, co, rng });
 			expect(result).toBe(10 + (20 - 10) * 0.3);
 			expect(result).toBe(13);
 			expect(rng).not.toHaveBeenCalled();
@@ -34,9 +34,9 @@ describe("GA Regression — Crossover", () => {
 			};
 			const rng = jest.fn<() => number>();
 			rng.mockReturnValueOnce(0.2);
-			expect(crossoverScalar(5, 15, co, rng)).toBe(5);
+			expect(crossoverScalar({ left: 5, right: 15, co, rng })).toBe(5);
 			rng.mockReturnValueOnce(0.7);
-			expect(crossoverScalar(5, 15, co, rng)).toBe(15);
+			expect(crossoverScalar({ left: 5, right: 15, co, rng })).toBe(15);
 		});
 
 		it("blend crossover output is bounded within expected range", () => {
@@ -48,7 +48,7 @@ describe("GA Regression — Crossover", () => {
 			};
 			const rng = jest.fn<() => number>();
 			rng.mockReturnValue(0.5);
-			const result = crossoverScalar(10, 20, co, rng);
+			const result = crossoverScalar({ left: 10, right: 20, co, rng });
 			const d = 20 - 10;
 			const expectedLo = 10 - 0.5 * d;
 			const expectedHi = 20 + 2 * 0.5 * d;
@@ -65,7 +65,7 @@ describe("GA Regression — Crossover", () => {
 			};
 			const rng = jest.fn<() => number>();
 			rng.mockReturnValue(0.5);
-			const result = crossoverScalar(10, 10, co, rng);
+			const result = crossoverScalar({ left: 10, right: 10, co, rng });
 			expect(result).toBe(10);
 		});
 	});

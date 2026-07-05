@@ -5,35 +5,49 @@ export interface WeightInitializer {
 	initialize(fanIn: number, fanOut: number): number;
 }
 
+class ZerosInitializer implements WeightInitializer {
+	initialize(): number {
+		return 0;
+	}
+}
+
+class HeInitializer implements WeightInitializer {
+	initialize(fanIn: number): number {
+		const scale = Math.sqrt(2 / fanIn);
+		return GAUSSIAN_NOISE(scale);
+	}
+}
+
+class XavierInitializer implements WeightInitializer {
+	initialize(fanIn: number, fanOut: number): number {
+		const limit = Math.sqrt(6 / (fanIn + fanOut));
+		return (Math.random() * 2 - 1) * limit;
+	}
+}
+
+class LeCunInitializer implements WeightInitializer {
+	initialize(fanIn: number): number {
+		const scale = Math.sqrt(1 / fanIn);
+		return GAUSSIAN_NOISE(scale);
+	}
+}
+
+class RandomInitializer implements WeightInitializer {
+	initialize(): number {
+		return Math.random() * 2 - 1;
+	}
+}
+
+export const ZEROS = new ZerosInitializer();
+export const HE = new HeInitializer();
+export const XAVIER = new XavierInitializer();
+export const LE_CUN = new LeCunInitializer();
+export const RANDOM_INIT = new RandomInitializer();
+
 export const INITIALIZERS: Record<InitialisationType, WeightInitializer> = {
-	zeros: {
-		initialize: () => 0,
-	},
-
-	he: {
-		initialize: (fanIn: number) => {
-			const scale = Math.sqrt(2 / fanIn);
-			return GAUSSIAN_NOISE(scale);
-		},
-	},
-
-	xavier: {
-		initialize: (fanIn: number, fanOut: number) => {
-			const limit = Math.sqrt(6 / (fanIn + fanOut));
-			return (Math.random() * 2 - 1) * limit;
-		},
-	},
-
-	leCun: {
-		initialize: (fanIn: number) => {
-			const scale = Math.sqrt(1 / fanIn);
-			return GAUSSIAN_NOISE(scale);
-		},
-	},
-
-	random: {
-		initialize: () => {
-			return Math.random() * 2 - 1;
-		},
-	},
+	zeros: ZEROS,
+	he: HE,
+	xavier: XAVIER,
+	leCun: LE_CUN,
+	random: RANDOM_INIT,
 };

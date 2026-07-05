@@ -16,7 +16,7 @@ describe("Optimizers", () => {
 			const grads = new Float32Array([0.1, 0.2, 0.3]);
 			const state = OPTIMIZERS.sgd.initState(3);
 
-			OPTIMIZERS.sgd.step(params, grads, state, 0.1, DEFAULT_HYPERPARAMS);
+			OPTIMIZERS.sgd.step({ params, grads, state, lr: 0.1, hp: DEFAULT_HYPERPARAMS });
 
 			expect(state.stepCount).toBe(1);
 			expect(params[0]).toBeCloseTo(0.99, 5);
@@ -38,7 +38,7 @@ describe("Optimizers", () => {
 			const grads = new Float32Array([0.5, -0.5]);
 			const state = OPTIMIZERS.adam.initState(2);
 
-			OPTIMIZERS.adam.step(params, grads, state, 0.001, DEFAULT_HYPERPARAMS);
+			OPTIMIZERS.adam.step({ params, grads, state, lr: 0.001, hp: DEFAULT_HYPERPARAMS });
 
 			expect(state.stepCount).toBe(1);
 			expect(params[0]).not.toBe(1);
@@ -51,7 +51,7 @@ describe("Optimizers", () => {
 
 			for (let i = 0; i < 10; i++) {
 				const grads = new Float32Array([0.1, -0.2, 0.3]);
-				OPTIMIZERS.adam.step(params, grads, state, 0.01, DEFAULT_HYPERPARAMS);
+				OPTIMIZERS.adam.step({ params, grads, state, lr: 0.01, hp: DEFAULT_HYPERPARAMS });
 			}
 
 			for (const p of params) {
@@ -72,7 +72,7 @@ describe("Optimizers", () => {
 			const grads = new Float32Array([0.5, -0.5]);
 			const state = OPTIMIZERS.rmsprop.initState(2);
 
-			OPTIMIZERS.rmsprop.step(params, grads, state, 0.01, DEFAULT_HYPERPARAMS);
+			OPTIMIZERS.rmsprop.step({ params, grads, state, lr: 0.01, hp: DEFAULT_HYPERPARAMS });
 
 			expect(state.stepCount).toBe(1);
 			expect(params[0]).toBeLessThan(1);
@@ -85,13 +85,7 @@ describe("Optimizers", () => {
 
 			for (let i = 0; i < 10; i++) {
 				const grads = new Float32Array([0.1, -0.2]);
-				OPTIMIZERS.rmsprop.step(
-					params,
-					grads,
-					state,
-					0.01,
-					DEFAULT_HYPERPARAMS
-				);
+				OPTIMIZERS.rmsprop.step({ params, grads, state, lr: 0.01, hp: DEFAULT_HYPERPARAMS });
 			}
 
 			for (const p of params) {

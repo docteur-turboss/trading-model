@@ -162,7 +162,7 @@ describe("buildFeatures", () => {
 			],
 		});
 
-		const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+		const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 		expect(f).toBeInstanceOf(Float32Array);
 		expect(f.length).toBe(FEATURE_DIM);
 		expect(f[31]).toBe(1.0);
@@ -183,7 +183,7 @@ describe("buildFeatures", () => {
 				],
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 
 			expect(f[0]).toBe(0);
 			expect(f[1]).toBe(0);
@@ -200,7 +200,7 @@ describe("buildFeatures", () => {
 				],
 			});
 
-			const f = buildFeatures(s, 0, { BTCUSDT: 100 });
+			const f = buildFeatures({ state: s, idx: 0, priceSnapshot: { BTCUSDT: 100 } });
 			expect(f[2]).toBe(0);
 		});
 	});
@@ -217,7 +217,7 @@ describe("buildFeatures", () => {
 				ask: an,
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 			expect(f[9]).toBeCloseTo(cn.normalize(100), 5);
 			expect(f[10]).toBeCloseTo(an.normalize(110), 5);
 			expect(f[11]).toBeCloseTo((110 - 100) / 110, 5);
@@ -229,7 +229,7 @@ describe("buildFeatures", () => {
 				candles: [baseCandle(), baseCandle({ close: 105 })],
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 			expect(f[9]).toBe(0);
 			expect(f[10]).toBe(0);
 			expect(f[11]).toBe(0);
@@ -248,7 +248,7 @@ describe("buildFeatures", () => {
 				ask: cn,
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 			expect(f[13]).toBeCloseTo(cn.normalize(102), 5);
 			expect(f[14]).toBeCloseTo(cn.normalize(108), 5);
 			expect(f[15]).toBeCloseTo((108 - 102) / 108, 5);
@@ -259,7 +259,7 @@ describe("buildFeatures", () => {
 				candles: [baseCandle(), baseCandle({ close: 105 })],
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 			expect(f[13]).toBe(0);
 			expect(f[14]).toBe(0);
 			expect(f[15]).toBe(0);
@@ -279,7 +279,7 @@ describe("buildFeatures", () => {
 				],
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 			expect(f[16]).toBe(0);
 			expect(f[17]).toBe(0);
 			expect(f[18]).toBeCloseTo(10 / 15, 5);
@@ -294,7 +294,7 @@ describe("buildFeatures", () => {
 				trades: [baseTrade({ timestamp: 100, price: 100 })],
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 			expect(f[16]).toBe(0);
 			expect(f[17]).toBe(0);
 			expect(f[18]).toBe(0);
@@ -308,7 +308,7 @@ describe("buildFeatures", () => {
 				ticker24h: makeTicker24h(100, 120, 90, 110, 50000),
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 			expect(f[19]).toBeCloseTo((110 - 100) / 100, 5);
 			expect(f[20]).toBe(0);
 			expect(f[21]).toBeCloseTo((120 - 90) / 100, 5);
@@ -319,7 +319,7 @@ describe("buildFeatures", () => {
 				candles: [baseCandle(), baseCandle({ close: 105 })],
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 			expect(f[19]).toBe(0);
 			expect(f[20]).toBe(0);
 			expect(f[21]).toBe(0);
@@ -332,7 +332,7 @@ describe("buildFeatures", () => {
 				candles: [baseCandle(), baseCandle({ close: 105 })],
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 107 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 107 } });
 			expect(f[22]).toBe(0);
 		});
 
@@ -343,7 +343,7 @@ describe("buildFeatures", () => {
 				candleClose: cn,
 			});
 
-			const f = buildFeatures(s, 1, {});
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: {} });
 			expect(f[22]).toBeCloseTo(cn.normalize(105), 5);
 		});
 	});
@@ -354,7 +354,7 @@ describe("buildFeatures", () => {
 				candles: [baseCandle({ close: 100 }), baseCandle({ close: 105 })],
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 			expect(f[23]).toBe(0);
 			expect(f[24]).toBe(0);
 			expect(f[25]).toBe(0);
@@ -377,7 +377,7 @@ describe("buildFeatures", () => {
 				candleClose: cn,
 			});
 
-			const f = buildFeatures(s, 9, { BTCUSDT: 109 });
+			const f = buildFeatures({ state: s, idx: 9, priceSnapshot: { BTCUSDT: 109 } });
 			for (let j = 1; j <= 8; j++) {
 				expect(f[22 + j]).toBeCloseTo(cn.normalize(100 + j), 5);
 			}
@@ -390,7 +390,7 @@ describe("buildFeatures", () => {
 				candles: [baseCandle(), baseCandle({ close: 105 })],
 			});
 
-			const f = buildFeatures(s, 1, { BTCUSDT: 103 });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
 			expect(f[31]).toBe(1.0);
 		});
 	});

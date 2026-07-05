@@ -8,6 +8,7 @@ import type {
 	InitialisationType,
 	LamarckGenome,
 	LayerGenome,
+	MutationAdaptation,
 	MutationGenome,
 	NetworkGenome,
 	NormalisationType,
@@ -60,26 +61,59 @@ function pick<TValue>(arr: TValue[], rng: () => number): TValue {
 // Sigma adaptation strategies
 // ----------------------------------------------------------------
 
+// ----------------------------------------------------------------
+// Sigma adaptation strategy interface & implementations
+// ----------------------------------------------------------------
+
+interface SigmaAdapter {
+	readonly type: MutationAdaptation;
+	adapt(mutation: MutationGenome, rng: () => number): number;
+}
+
+class FixedSigmaAdapter implements SigmaAdapter {
+	readonly type: MutationAdaptation = "fixed";
+	adapt(mutation: MutationGenome): number {
+		return mutation.sigma;
+	}
+}
+
+class SigmaAdaptiveAdapter implements SigmaAdapter {
+	readonly type: MutationAdaptation = "sigma_adaptive";
+	adapt(mutation: MutationGenome, rng: () => number): number {
+		return mutation.sigma * (0.9 + 0.2 * rng());
+	}
+}
+
+class SelfAdaptiveAdapter implements SigmaAdapter {
+	readonly type: MutationAdaptation = "self_adaptive";
+	adapt(mutation: MutationGenome, rng: () => number): number {
+		// Log-normal perturbation of selfSigma (1/5-rule inspired)
+		const tau = 1 / Math.sqrt(2 * Math.max(1, mutation.sigma));
+		return mutation.selfSigma * Math.exp(tau * sampleGaussian(rng, 1));
+	}
+}
+
+class CmaSigmaAdapter implements SigmaAdapter {
+	readonly type: MutationAdaptation = "cma";
+	adapt(mutation: MutationGenome): number {
+		return mutation.sigma; // Step-size control is external (CMA-ES loop)
+	}
+}
+
+const SIGMA_ADAPTERS: Record<MutationAdaptation, SigmaAdapter> = {
+	fixed: new FixedSigmaAdapter(),
+	sigma_adaptive: new SigmaAdaptiveAdapter(),
+	self_adaptive: new SelfAdaptiveAdapter(),
+	cma: new CmaSigmaAdapter(),
+};
+
 /** Compute an adapted mutation sigma based on the configured adaptation strategy. */
 export function adaptSigma(
 	mutation: MutationGenome,
 	rng: () => number
 ): number {
-	switch (mutation.adaptation) {
-		case "fixed":
-			return mutation.sigma;
-		case "sigma_adaptive":
-			return mutation.sigma * (0.9 + 0.2 * rng());
-		case "self_adaptive": {
-			// Log-normal perturbation of selfSigma (1/5-rule inspired)
-			const tau = 1 / Math.sqrt(2 * Math.max(1, mutation.sigma));
-			return mutation.selfSigma * Math.exp(tau * sampleGaussian(rng, 1));
-		}
-		case "cma":
-			return mutation.sigma; // Step-size control is external (CMA-ES loop)
-		default:
-			return mutation.sigma;
-	}
+	const adapter = SIGMA_ADAPTERS[mutation.adaptation];
+	return adapter ? adapter.adapt(mutation, rng) : mutation.sigma;
 }
 
 // ----------------------------------------------------------------
@@ -117,12 +151,17 @@ export function mutateLayer(
 // RL hyperparameter mutation
 // ----------------------------------------------------------------
 
+export interface MutateRLContext {
+	rl: RLGenome;
+	mutation: MutationGenome;
+	_sigma: number;
+	rng: () => number;
+}
+
 function mutateRL(
-	rl: RLGenome,
-	mutation: MutationGenome,
-	_sigma: number,
-	rng: () => number
+	ctx: MutateRLContext
 ): RLGenome {
+	const { rl, mutation, rng } = ctx;
 	return {
 		..._mutateGammaAndLR(rl, mutation, rng),
 		..._mutateRewardShaping(rl, mutation, rng),
@@ -284,10 +323,10 @@ export function mutateGenome(
 	const mutationConfig = genome.mutation;
 	const sigma = adaptSigma(mutationConfig, rng);
 
-	const network = _mutateNetworkStructure(genome, mutationConfig, sigma, rng);
+	const network = _mutateNetworkStructure({ genome, mutationConfig, _sigma: sigma, rng });
 
 	const rl: RLGenome = mutationConfig.mutateHyperparams
-		? mutateRL(genome.rl, mutationConfig, sigma, rng)
+		? mutateRL({ rl: genome.rl, mutation: mutationConfig, _sigma: sigma, rng })
 		: { ...genome.rl };
 
 	const mutation = _mutateSelfAdaptiveParams(mutationConfig, sigma, rng);
@@ -295,12 +334,17 @@ export function mutateGenome(
 	return { ...genome, network, rl, mutation };
 }
 
+export interface MutateNetworkContext {
+	genome: LamarckGenome;
+	mutationConfig: MutationGenome;
+	_sigma: number;
+	rng: () => number;
+}
+
 function _mutateNetworkStructure(
-	genome: LamarckGenome,
-	mutationConfig: MutationGenome,
-	_sigma: number,
-	rng: () => number
+	ctx: MutateNetworkContext
 ): NetworkGenome {
+	const { genome, mutationConfig, rng } = ctx;
 	const perLayerMode = mutationConfig.scope === "per_layer";
 	const layers: LayerGenome[] = genome.network.hiddenLayers.map((layer) =>
 		perLayerMode || rng() < mutationConfig.rate
