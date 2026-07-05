@@ -30,11 +30,43 @@ export function computePrefix(
 	prefix: string,
 	configOrUrl: string | RedisConnectionConfig
 ): string {
-	const isCluster =
-		typeof configOrUrl !== "string" && configOrUrl.mode === "cluster";
-	return isCluster
+	if (typeof configOrUrl === "string") {
+		return prefix;
+	}
+	return configOrUrl.mode === "cluster"
 		? `{${prefix.replace(/[{}]/g, "").replace(/:$/, "")}}:`
 		: prefix;
+}
+
+interface RedisClientCreator {
+	create(config: RedisConnectionConfig & { mode: string }): Redis | Cluster;
+}
+
+const REDIS_CLIENT_CREATORS: Record<string, RedisClientCreator> = {
+	single: {
+		create: (config) => new Redis((config as RedisConnectionConfig & { mode: "single" }).url, BASE_OPTIONS),
+	},
+	sentinel: {
+		create: (config) => {
+			const { sentinels, name, password } = (config as RedisConnectionConfig & { mode: "sentinel" }).config;
+			return new Redis({ ...BASE_OPTIONS, sentinels, name, password });
+		},
+	},
+	cluster: {
+		create: (config) => {
+			const { nodes, password } = (config as RedisConnectionConfig & { mode: "cluster" }).config;
+			return new Cluster(nodes, {
+				redisOptions: { ...BASE_OPTIONS, password },
+				clusterRetryStrategy: (times: number) => Math.min(times * 200, 5000),
+			});
+		},
+	},
+};
+
+function attachErrorHandler(client: Redis | Cluster): void {
+	client.on("error", (err: Error) => {
+		logger.error("Redis connection error", { error: normalizeError(err) });
+	});
 }
 
 export function createRedisClient(
@@ -42,53 +74,18 @@ export function createRedisClient(
 ): Redis | Cluster {
 	if (typeof configOrUrl === "string") {
 		const client = new Redis(configOrUrl, BASE_OPTIONS);
-		client.on("error", (err: Error) => {
-			logger.error("Redis connection error", { error: normalizeError(err) });
-		});
+		attachErrorHandler(client);
 		return client;
 	}
 
-	let client: Redis | Cluster;
-
-	switch (configOrUrl.mode) {
-		case "single":
-			client = new Redis(configOrUrl.url, BASE_OPTIONS);
-			break;
-
-		case "sentinel": {
-			const { sentinels, name, password } = configOrUrl.config;
-			client = new Redis({
-				...BASE_OPTIONS,
-				sentinels,
-				name,
-				password,
-			});
-			break;
-		}
-
-		case "cluster": {
-			const { nodes, password } = configOrUrl.config;
-			client = new Cluster(nodes, {
-				redisOptions: {
-					...BASE_OPTIONS,
-					password,
-				},
-				clusterRetryStrategy: (times: number) => {
-					return Math.min(times * 200, 5000);
-				},
-			});
-			break;
-		}
-
-		default:
-			throw new Error(
-				`Unknown Redis connection mode: ${(configOrUrl as RedisConnectionConfig).mode}`
-			);
+	const creator = REDIS_CLIENT_CREATORS[configOrUrl.mode];
+	if (!creator) {
+		throw new Error(
+			`Unknown Redis connection mode: ${(configOrUrl as RedisConnectionConfig).mode}`
+		);
 	}
 
-	client.on("error", (err: Error) => {
-		logger.error("Redis connection error", { error: normalizeError(err) });
-	});
-
+	const client = creator.create(configOrUrl);
+	attachErrorHandler(client);
 	return client;
 }
