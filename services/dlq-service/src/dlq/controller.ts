@@ -70,6 +70,55 @@ let activeBatches = 0;
 const MAX_CONCURRENT_BATCHES = 2;
 let shuttingDown = false;
 
+interface BatchReplayContext {
+	client: HttpClient;
+	messageManagerUrl: string;
+	batchId: string;
+	instanceId: string;
+}
+
+interface BatchResults {
+	successCount: { value: number };
+	errors: Array<{ id: string; error: string }>;
+}
+
+interface BatchLoopOptions {
+	entries: Array<{ id: string; message: unknown }>;
+	ctx: BatchReplayContext;
+	concurrency: number;
+	isTimedOut: () => boolean;
+	batchResults: BatchResults;
+}
+
+interface ProcessBatchResultsOptions {
+	batch: Array<{ id: string; message: unknown }>;
+	batchResults: PromiseSettledResult<void>[];
+	ctx: Pick<BatchReplayContext, "batchId">;
+	results: BatchResults;
+}
+
+interface ReplayBatchOptions {
+	entries: Array<{ id: string; message: unknown }>;
+	messageManagerUrl: string;
+	batchId: string;
+	instanceId: string;
+}
+
+interface ReplayAuditInfo {
+	batchId: string;
+	topic: string | undefined;
+	success: number;
+	failed: number;
+}
+
+interface ClaimAndReplayOptions {
+	messageManagerUrl: string;
+	limit: number;
+	batchId: string;
+	topic: string | undefined;
+	span: import("@opentelemetry/api").Span;
+}
+
 async function getHttpClient(): Promise<HttpClient> {
 	if (httpClient) {
 		return httpClient;
@@ -184,13 +233,12 @@ function recordMMResult(success: boolean): void {
 
 async function _deliverMessage(
 	entry: { id: string; message: unknown },
-	messageManagerUrl: string,
-	client: HttpClient
+	ctx: Pick<BatchReplayContext, "messageManagerUrl" | "client">
 ): Promise<void> {
 	if (shuttingDown) {
 		throw new Error("Server shutting down");
 	}
-	await client.post(`${messageManagerUrl}/message`, entry.message, {
+	await ctx.client.post(`${ctx.messageManagerUrl}/message`, entry.message, {
 		timeoutMs: 10_000,
 		serviceName: ServiceInstanceName.MessageDeliveryService,
 		retryCount: 3,
@@ -199,15 +247,14 @@ async function _deliverMessage(
 
 async function _handleDeliveryMarkFailed(
 	entryId: string,
-	instanceId: string,
-	batchId: string,
+	ctx: Pick<BatchReplayContext, "instanceId" | "batchId">,
 	httpError: string
 ): Promise<void> {
 	try {
 		await dlqRetryManager.markRetried(
 			entryId,
-			instanceId,
-			batchId,
+			ctx.instanceId,
+			ctx.batchId,
 			false,
 			httpError
 		);
@@ -233,23 +280,20 @@ async function _handleDeliveryMarkFailed(
 
 async function replaySingleEntry(
 	entry: { id: string; message: unknown },
-	messageManagerUrl: string,
-	batchId: string,
-	instanceId: string,
-	client: HttpClient,
+	ctx: BatchReplayContext,
 	batchTimedOut: () => boolean,
 	activeReplays: ActiveReplayCounter
 ): Promise<void> {
 	activeReplays.increment();
 	try {
-		await _deliverMessage(entry, messageManagerUrl, client);
-		await dlqRetryManager.markRetried(entry.id, instanceId, batchId, true);
+		await _deliverMessage(entry, ctx);
+		await dlqRetryManager.markRetried(entry.id, ctx.instanceId, ctx.batchId, true);
 	} catch (err) {
 		if (batchTimedOut()) {
 			throw err;
 		}
 		const httpError = (err as Error).message;
-		await _handleDeliveryMarkFailed(entry.id, instanceId, batchId, httpError);
+		await _handleDeliveryMarkFailed(entry.id, ctx, httpError);
 		throw err;
 	} finally {
 		activeReplays.decrement();
@@ -257,56 +301,38 @@ async function replaySingleEntry(
 }
 
 async function runBatchLoop(
-	entries: Array<{ id: string; message: unknown }>,
-	client: HttpClient,
-	messageManagerUrl: string,
-	batchId: string,
-	instanceId: string,
-	concurrency: number,
-	isTimedOut: () => boolean,
-	successCount: { value: number },
-	errors: Array<{ id: string; error: string }>
+	options: BatchLoopOptions
 ): Promise<void> {
+	const { entries, ctx, concurrency, isTimedOut, batchResults } = options;
 	for (let i = 0; i < entries.length && !isTimedOut(); i += concurrency) {
 		const batch = entries.slice(i, i + concurrency);
-		const batchResults = await Promise.allSettled(
+		const results = await Promise.allSettled(
 			batch.map((entry) =>
-				replaySingleEntry(
-					entry,
-					messageManagerUrl,
-					batchId,
-					instanceId,
-					client,
-					isTimedOut,
-					activeReplays
-				)
+				replaySingleEntry(entry, ctx, isTimedOut, activeReplays)
 			)
 		);
-		processBatchResults(batch, batchResults, successCount, errors, batchId);
+		processBatchResults({ batch, batchResults: results, ctx, results: batchResults });
 	}
 }
 
 function processBatchResults(
-	batch: Array<{ id: string; message: unknown }>,
-	batchResults: PromiseSettledResult<void>[],
-	successCount: { value: number },
-	errors: Array<{ id: string; error: string }>,
-	batchId: string
+	options: ProcessBatchResultsOptions
 ): void {
+	const { batch, batchResults, ctx, results } = options;
 	for (let idx = 0; idx < batchResults.length; idx++) {
 		const result = batchResults[idx];
 		const entry = batch[idx];
 		if (result.status === "fulfilled") {
-			successCount.value++;
+			results.successCount.value++;
 		} else {
-			errors.push({
+			results.errors.push({
 				id: entry?.id ?? "unknown",
 				error: (result.reason as Error)?.message ?? "unknown error",
 			});
 			logger.error("DLQ replay entry failed", {
 				entryId: entry?.id,
 				error: (result.reason as Error)?.message,
-				batchId,
+				batchId: ctx.batchId,
 			});
 		}
 	}
@@ -341,31 +367,26 @@ function _rejectAll(
 
 async function _runBatchWithTimeout(
 	entries: Array<{ id: string; message: unknown }>,
-	client: HttpClient,
-	messageManagerUrl: string,
-	batchId: string,
-	instanceId: string
+	ctx: BatchReplayContext
 ): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
 	const ReplayConcurrency = 10;
 	const ReplayBatchTimeoutMs = 120_000;
 	let batchTimedOut = false;
-	const successCount = { value: 0 };
-	const errors: Array<{ id: string; error: string }> = [];
+	const batchResults: BatchResults = {
+		successCount: { value: 0 },
+		errors: [],
+	};
 
-	const batchLoop = runBatchLoop(
+	const batchLoop = runBatchLoop({
 		entries,
-		client,
-		messageManagerUrl,
-		batchId,
-		instanceId,
-		ReplayConcurrency,
-		() => batchTimedOut,
-		successCount,
-		errors
-	);
+		ctx,
+		concurrency: ReplayConcurrency,
+		isTimedOut: () => batchTimedOut,
+		batchResults,
+	});
 
 	const timeoutPromise = waitForBatchTimeout(
-		batchId,
+		ctx.batchId,
 		ReplayBatchTimeoutMs,
 		() => {
 			batchTimedOut = true;
@@ -382,15 +403,13 @@ async function _runBatchWithTimeout(
 		}
 	}
 
-	return { success: successCount.value, errors };
+	return { success: batchResults.successCount.value, errors: batchResults.errors };
 }
 
 async function doReplayBatch(
-	entries: Array<{ id: string; message: unknown }>,
-	messageManagerUrl: string,
-	batchId: string,
-	instanceId: string
+	options: ReplayBatchOptions
 ): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
+	const { entries, messageManagerUrl, batchId, instanceId } = options;
 	if (activeBatches >= MAX_CONCURRENT_BATCHES) {
 		logger.warn("Too many concurrent replay batches — rejecting", {
 			batchId,
@@ -414,12 +433,10 @@ async function doReplayBatch(
 	activeBatches++;
 	try {
 		const client = await getHttpClient();
+		const ctx: BatchReplayContext = { client, messageManagerUrl, batchId, instanceId };
 		const { success, errors } = await _runBatchWithTimeout(
 			entries,
-			client,
-			messageManagerUrl,
-			batchId,
-			instanceId
+			ctx
 		);
 
 		recordMMResult(success > 0);
@@ -445,11 +462,9 @@ function notifyAddAudit(
 }
 
 function notifyReplayAudit(
-	batchId: string,
-	topic: string | undefined,
-	success: number,
-	failed: number
+	options: ReplayAuditInfo
 ): void {
+	const { batchId, topic, success, failed } = options;
 	if (success === 0 && failed === 0) {
 		return;
 	}
@@ -771,23 +786,20 @@ function buildReplayResponse(
 }
 
 async function _claimAndReplayBatch(
-	messageManagerUrl: string,
-	limit: number,
-	batchId: string,
-	topic: string | undefined,
-	span: import("@opentelemetry/api").Span
+	options: ClaimAndReplayOptions
 ): Promise<{
 	response: ResponseObject | null;
 	successCount: number;
 	errors: Array<{ id: string; error: string }>;
 }> {
+	const { messageManagerUrl, limit, batchId, topic, span } = options;
 	await dlqClaimManager.releaseStaleClaims();
-	const entries = await dlqClaimManager.claimEntriesForRetry(
+	const entries = await dlqClaimManager.claimEntriesForRetry({
 		limit,
 		batchId,
-		env.INSTANCE_ID,
-		topic
-	);
+		instanceId: env.INSTANCE_ID,
+		topic,
+	});
 
 	if (entries.length === 0) {
 		return {
@@ -802,12 +814,12 @@ async function _claimAndReplayBatch(
 
 	span.setAttribute("entriesClaimed", entries.length);
 
-	const { success: successCount, errors } = await doReplayBatch(
-		entries.map((entry) => ({ id: entry.id, message: entry.message })),
+	const { success: successCount, errors } = await doReplayBatch({
+		entries: entries.map((entry) => ({ id: entry.id, message: entry.message })),
 		messageManagerUrl,
 		batchId,
-		env.INSTANCE_ID
-	);
+		instanceId: env.INSTANCE_ID,
+	});
 
 	await abandonExhaustedIfNeeded(errors);
 
@@ -840,24 +852,24 @@ async function _executeReplayPipeline(
 	const batchId = validation.data.batchId || randomUUID();
 	span.setAttribute("batchId", batchId);
 
-	const { response: earlyResponse, successCount, errors } = await _claimAndReplayBatch(
+	const { response: earlyResponse, successCount, errors } = await _claimAndReplayBatch({
 		messageManagerUrl,
-		validation.data.limit,
+		limit: validation.data.limit,
 		batchId,
-		validation.data.topic,
-		span
-	);
+		topic: validation.data.topic,
+		span,
+	});
 	if (earlyResponse) {
 		return earlyResponse;
 	}
 
 	const details = buildReplayResponse(batchId, successCount, errors);
-	void notifyReplayAudit(
+	void notifyReplayAudit({
 		batchId,
-		validation.data.topic,
-		successCount,
-		errors.length
-	);
+		topic: validation.data.topic,
+		success: successCount,
+		failed: errors.length,
+	});
 
 	return sendResponse(details, 200);
 }
@@ -937,12 +949,12 @@ async function executeAutoRetryReplay(
 	batchId: string
 ): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
 	logger.info(`DLQ auto-retry: replaying ${entries.length} entries`);
-	const result = await doReplayBatch(
+	const result = await doReplayBatch({
 		entries,
 		messageManagerUrl,
 		batchId,
-		env.INSTANCE_ID
-	);
+		instanceId: env.INSTANCE_ID,
+	});
 	if (result.success > 0) {
 		metrics.entriesReplayed.inc(result.success);
 	}
@@ -958,11 +970,11 @@ async function _executeAutoRetryCycle(
 	await dlqClaimManager.releaseStaleClaims();
 
 	const batchId = `auto-retry-${Date.now()}-${randomUUID().slice(0, 8)}`;
-	const entries = await dlqClaimManager.claimEntriesForRetry(
-		env.DLQ_AUTO_RETRY_LIMIT,
+	const entries = await dlqClaimManager.claimEntriesForRetry({
+		limit: env.DLQ_AUTO_RETRY_LIMIT,
 		batchId,
-		env.INSTANCE_ID
-	);
+		instanceId: env.INSTANCE_ID,
+	});
 	if (entries.length === 0) {
 		await handleAbandonedEntries("DLQ auto-retry");
 		return;
@@ -974,7 +986,7 @@ async function _executeAutoRetryCycle(
 		batchId
 	);
 
-	void notifyReplayAudit(batchId, undefined, success, errors.length);
+	void notifyReplayAudit({ batchId, topic: undefined, success, failed: errors.length });
 
 	if (errors.length > 0) {
 		await handleAbandonedEntries("DLQ auto-retry");
@@ -1055,12 +1067,12 @@ async function executeClaimReplay(
 	batchId: string
 ): Promise<void> {
 	logger.info(`DLQ Redis queue: replaying ${entries.length} entries`);
-	const { success, errors } = await doReplayBatch(
+	const { success, errors } = await doReplayBatch({
 		entries,
 		messageManagerUrl,
 		batchId,
-		env.INSTANCE_ID
-	);
+		instanceId: env.INSTANCE_ID,
+	});
 
 	if (success > 0) {
 		metrics.entriesReplayed.inc(success);

@@ -6,13 +6,25 @@ import type { StoredDlqEntry } from "./repository";
 
 const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 
+export interface ClaimEntriesOptions {
+	limit: number;
+	batchId: string;
+	instanceId: string;
+	topic?: string;
+}
+
+interface BulkUpdateOptions {
+	candidates: Pick<{ _id: ObjectId }, "_id">[];
+	now: Date;
+	instanceId: string;
+	batchId: string;
+}
+
 export class DlqClaimManager {
 	async claimEntriesForRetry(
-		limit: number,
-		batchId: string,
-		instanceId: string,
-		topic?: string
+		options: ClaimEntriesOptions
 	): Promise<StoredDlqEntry[]> {
+		const { limit, batchId, instanceId, topic } = options;
 		const col = await getCollection();
 		const filter = this._buildClaimFilter(topic);
 
@@ -36,7 +48,7 @@ export class DlqClaimManager {
 		}
 
 		const now = new Date();
-		const operations = this._buildBulkUpdateOps(candidates, now, instanceId, batchId);
+		const operations = this._buildBulkUpdateOps({ candidates, now, instanceId, batchId });
 
 		const bulkResult = await col.bulkWrite(operations, { ordered: false });
 		if (bulkResult.modifiedCount === 0) {
@@ -239,11 +251,9 @@ export class DlqClaimManager {
 	}
 
 	private _buildBulkUpdateOps(
-		candidates: Pick<{ _id: ObjectId }, "_id">[],
-		now: Date,
-		instanceId: string,
-		batchId: string
+		options: BulkUpdateOptions
 	): AnyBulkWriteOperation[] {
+		const { candidates, now, instanceId, batchId } = options;
 		const atomicCond = this._buildAtomicCondition();
 		return candidates.map((doc) => ({
 			updateOne: {

@@ -376,7 +376,7 @@ describe("DlqClaimManager", () => {
 			mockBulkWrite.mockResolvedValueOnce({ modifiedCount: 2 });
 
 			return cm
-				.claimEntriesForRetry(10, "batch-1", "instance-1")
+				.claimEntriesForRetry({ limit: 10, batchId: "batch-1", instanceId: "instance-1" })
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(2);
 					expect(result[0].id).toBe("id1");
@@ -398,7 +398,7 @@ describe("DlqClaimManager", () => {
 			const cm = new DlqClaimManagerClass();
 
 			return cm
-				.claimEntriesForRetry(10, "batch-1", "instance-1")
+				.claimEntriesForRetry({ limit: 10, batchId: "batch-1", instanceId: "instance-1" })
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(0);
 					expect(mockBulkWrite).not.toHaveBeenCalled();
@@ -431,7 +431,7 @@ describe("DlqClaimManager", () => {
 			mockBulkWrite.mockResolvedValueOnce({ modifiedCount: 1 });
 
 			return cm
-				.claimEntriesForRetry(10, "batch-1", "instance-1")
+				.claimEntriesForRetry({ limit: 10, batchId: "batch-1", instanceId: "instance-1" })
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(1);
 					expect(result[0].id).toBe("id2");

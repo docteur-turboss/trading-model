@@ -5,19 +5,36 @@ import { logger } from "@trading-model/common/config/logger";
  * Coordinates batch replay with circuit breaking, concurrency control, and timeout handling.
  * No HTTP, no MongoDB, no Redis — receives pre-resolved dependencies.
  */
+export interface ReplayOrchestratorConfig {
+	circuitThreshold?: number;
+	circuitCooldownMs?: number;
+	halfOpenMaxAttempts?: number;
+	maxConcurrentBatches?: number;
+}
+
 export class ReplayOrchestrator {
+	private readonly _circuitThreshold: number;
+	private readonly _circuitCooldownMs: number;
+	private readonly _halfOpenMaxAttempts: number;
+	private readonly _maxConcurrentBatches: number;
 	private _circuitState: "closed" | "open" | "half-open" = "closed";
 	private _circuitFailures = 0;
 	private _circuitOpenUntil = 0;
 	private _halfOpenAttempts = 0;
 	private _activeBatches = 0;
 
-	constructor(
-		private readonly _circuitThreshold = 5,
-		private readonly _circuitCooldownMs = 30_000,
-		private readonly _halfOpenMaxAttempts = 2,
-		private readonly _maxConcurrentBatches = 2
-	) {}
+	constructor(config: ReplayOrchestratorConfig = {}) {
+		const {
+			circuitThreshold = 5,
+			circuitCooldownMs = 30_000,
+			halfOpenMaxAttempts = 2,
+			maxConcurrentBatches = 2,
+		} = config;
+		this._circuitThreshold = circuitThreshold;
+		this._circuitCooldownMs = circuitCooldownMs;
+		this._halfOpenMaxAttempts = halfOpenMaxAttempts;
+		this._maxConcurrentBatches = maxConcurrentBatches;
+	}
 
 	/** Check if the circuit allows a request. Returns false if OPEN. */
 	canProceed(): boolean {

@@ -59,7 +59,13 @@ function verifySignature(req: Request, serviceName: string): boolean {
 		return true;
 	}
 
-	const oldParts = [serviceName, timestampStr, bodyString, req.method, req.path];
+	const oldParts = [
+		serviceName,
+		timestampStr,
+		bodyString,
+		req.method,
+		req.path,
+	];
 
 	return _matchSignature(provided, secret, oldParts);
 }
@@ -174,51 +180,43 @@ export function closeRateLimiters(): void {
 	activeRateLimiters.length = 0;
 }
 
+function createDlqRateLimiter(opts: {
+	windowMs: number;
+	max: number;
+	message: { error: string };
+}): ReturnType<typeof rateLimit> {
+	const limiter = rateLimit({
+		...opts,
+		standardHeaders: true,
+		legacyHeaders: false,
+		store: createStore(),
+	});
+	if (typeof limiter === "function" && "resetKey" in limiter) {
+		activeRateLimiters.push(
+			limiter as unknown as { resetKey: (key: string) => void }
+		);
+	}
+	return limiter;
+}
+
 export const DlqRoutes = (): Router => {
 	const router = Router();
 
-	const replayLimiter = rateLimit({
+	const replayLimiter = createDlqRateLimiter({
 		windowMs: 60_000,
 		max: 10,
-		standardHeaders: true,
-		legacyHeaders: false,
-		store: createStore(),
 		message: { error: "Too many replay requests, try again later" },
 	});
-
-	const writeLimiter = rateLimit({
+	const writeLimiter = createDlqRateLimiter({
 		windowMs: 1000,
 		max: 100,
-		standardHeaders: true,
-		legacyHeaders: false,
-		store: createStore(),
 		message: { error: "Too many DLQ write requests, try again later" },
 	});
-
-	const healthLimiter = rateLimit({
+	const healthLimiter = createDlqRateLimiter({
 		windowMs: 60_000,
 		max: 60,
-		standardHeaders: true,
-		legacyHeaders: false,
-		store: createStore(),
 		message: { error: "Too many health check requests" },
 	});
-
-	if (typeof replayLimiter === "function" && "resetKey" in replayLimiter) {
-		activeRateLimiters.push(
-			replayLimiter as unknown as { resetKey: (key: string) => void }
-		);
-	}
-	if (typeof writeLimiter === "function" && "resetKey" in writeLimiter) {
-		activeRateLimiters.push(
-			writeLimiter as unknown as { resetKey: (key: string) => void }
-		);
-	}
-	if (typeof healthLimiter === "function" && "resetKey" in healthLimiter) {
-		activeRateLimiters.push(
-			healthLimiter as unknown as { resetKey: (key: string) => void }
-		);
-	}
 
 	router.post("/dlq", serviceAuth, writeLimiter, AddEntry);
 	router.get("/dlq", serviceAuth, ListEntries);

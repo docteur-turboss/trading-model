@@ -26,6 +26,34 @@ interface ReplayContext {
 	errors: Array<{ id: string; error: string }>;
 }
 
+interface DeliveryFailureContext {
+	entryId: string;
+	instanceId: string;
+	batchId: string;
+	httpError: string;
+}
+
+interface ProcessBatchResultsOptions {
+	batch: Array<{ id: string; message: unknown }>;
+	batchResults: PromiseSettledResult<void>[];
+	ctx: Pick<ReplayContext, "batchId" | "successCount" | "errors">;
+}
+
+interface ReplayBatchOptions {
+	entries: Array<{ id: string; message: unknown }>;
+	messageManagerUrl: string;
+	batchId: string;
+	instanceId: string;
+}
+
+interface ClaimAndReplayOptions {
+	messageManagerUrl: string;
+	limit: number;
+	batchId: string;
+	topic: string | undefined;
+	span: import("@opentelemetry/api").Span;
+}
+
 const ReplaySchema = z.object({
 	topic: z.string().optional(),
 	limit: z.coerce.number().int().positive().max(100).default(50),
@@ -192,11 +220,9 @@ async function _deliverMessage(
 }
 
 async function _handleDeliveryMarkFailed(
-	entryId: string,
-	instanceId: string,
-	batchId: string,
-	httpError: string
+	options: DeliveryFailureContext
 ): Promise<void> {
+	const { entryId, instanceId, batchId, httpError } = options;
 	try {
 		await dlqRetryManager.markRetried(
 			entryId,
@@ -238,7 +264,7 @@ async function replaySingleEntry(
 			throw err;
 		}
 		const httpError = (err as Error).message;
-		await _handleDeliveryMarkFailed(entry.id, ctx.instanceId, ctx.batchId, httpError);
+		await _handleDeliveryMarkFailed({ entryId: entry.id, instanceId: ctx.instanceId, batchId: ctx.batchId, httpError });
 		throw err;
 	} finally {
 		activeReplays.decrement();
@@ -255,15 +281,14 @@ async function runBatchLoop(
 		const batchResults = await Promise.allSettled(
 			batch.map((entry) => replaySingleEntry(entry, ctx))
 		);
-		processBatchResults(batch, batchResults, ctx);
+		processBatchResults({ batch, batchResults, ctx });
 	}
 }
 
 function processBatchResults(
-	batch: Array<{ id: string; message: unknown }>,
-	batchResults: PromiseSettledResult<void>[],
-	ctx: Pick<ReplayContext, "batchId" | "successCount" | "errors">
+	options: ProcessBatchResultsOptions
 ): void {
+	const { batch, batchResults, ctx } = options;
 	for (let idx = 0; idx < batchResults.length; idx++) {
 		const result = batchResults[idx];
 		const entry = batch[idx];
@@ -355,11 +380,9 @@ async function _runBatchWithTimeout(
 }
 
 export async function doReplayBatch(
-	entries: Array<{ id: string; message: unknown }>,
-	messageManagerUrl: string,
-	batchId: string,
-	instanceId: string
+	options: ReplayBatchOptions
 ): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
+	const { entries, messageManagerUrl, batchId, instanceId } = options;
 	if (activeBatches >= MAX_CONCURRENT_BATCHES) {
 		logger.warn("Too many concurrent replay batches — rejecting", {
 			batchId,
@@ -472,23 +495,20 @@ function buildReplayResponse(
 }
 
 async function _claimAndReplayBatch(
-	messageManagerUrl: string,
-	limit: number,
-	batchId: string,
-	topic: string | undefined,
-	span: import("@opentelemetry/api").Span
+	options: ClaimAndReplayOptions
 ): Promise<{
 	response: ResponseObject | null;
 	successCount: number;
 	errors: Array<{ id: string; error: string }>;
 }> {
+	const { messageManagerUrl, limit, batchId, topic, span } = options;
 	await dlqClaimManager.releaseStaleClaims();
-	const entries = await dlqClaimManager.claimEntriesForRetry(
+	const entries = await dlqClaimManager.claimEntriesForRetry({
 		limit,
 		batchId,
-		env.INSTANCE_ID,
-		topic
-	);
+		instanceId: env.INSTANCE_ID,
+		topic,
+	});
 
 	if (entries.length === 0) {
 		return {
@@ -503,12 +523,12 @@ async function _claimAndReplayBatch(
 
 	span.setAttribute("entriesClaimed", entries.length);
 
-	const { success: successCount, errors } = await doReplayBatch(
-		entries.map((entry) => ({ id: entry.id, message: entry.message })),
+	const { success: successCount, errors } = await doReplayBatch({
+		entries: entries.map((entry) => ({ id: entry.id, message: entry.message })),
 		messageManagerUrl,
 		batchId,
-		env.INSTANCE_ID
-	);
+		instanceId: env.INSTANCE_ID,
+	});
 
 	await abandonExhaustedIfNeeded(errors);
 
@@ -545,13 +565,13 @@ export async function executeReplayPipeline(
 		response: earlyResponse,
 		successCount,
 		errors,
-	} = await _claimAndReplayBatch(
+	} = await _claimAndReplayBatch({
 		messageManagerUrl,
-		validation.data.limit,
+		limit: validation.data.limit,
 		batchId,
-		validation.data.topic,
-		span
-	);
+		topic: validation.data.topic,
+		span,
+	});
 	if (earlyResponse) {
 		return earlyResponse;
 	}

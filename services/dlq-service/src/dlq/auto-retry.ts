@@ -55,12 +55,12 @@ async function executeAutoRetryReplay(
 	batchId: string
 ): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
 	logger.info(`DLQ auto-retry: replaying ${entries.length} entries`);
-	const result = await doReplayBatch(
+	const result = await doReplayBatch({
 		entries,
 		messageManagerUrl,
 		batchId,
-		env.INSTANCE_ID
-	);
+		instanceId: env.INSTANCE_ID,
+	});
 	if (result.success > 0) {
 		metrics.entriesReplayed.inc(result.success);
 	}
@@ -76,11 +76,11 @@ async function _executeAutoRetryCycle(
 	await dlqClaimManager.releaseStaleClaims();
 
 	const batchId = `auto-retry-${Date.now()}-${randomUUID().slice(0, 8)}`;
-	const entries = await dlqClaimManager.claimEntriesForRetry(
-		env.DLQ_AUTO_RETRY_LIMIT,
+	const entries = await dlqClaimManager.claimEntriesForRetry({
+		limit: env.DLQ_AUTO_RETRY_LIMIT,
 		batchId,
-		env.INSTANCE_ID
-	);
+		instanceId: env.INSTANCE_ID,
+	});
 	if (entries.length === 0) {
 		await handleAbandonedEntries("DLQ auto-retry");
 		return;
@@ -180,12 +180,12 @@ async function executeClaimReplay(
 	batchId: string
 ): Promise<void> {
 	logger.info(`DLQ Redis queue: replaying ${entries.length} entries`);
-	const { success, errors } = await doReplayBatch(
+	const { success, errors } = await doReplayBatch({
 		entries,
 		messageManagerUrl,
 		batchId,
-		env.INSTANCE_ID
-	);
+		instanceId: env.INSTANCE_ID,
+	});
 
 	if (success > 0) {
 		metrics.entriesReplayed.inc(success);

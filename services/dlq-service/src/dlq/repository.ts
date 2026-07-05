@@ -43,6 +43,14 @@ export interface StoredDlqEntry {
 
 const DLQ_MAX_PASS_COUNT = 3;
 
+interface PingPongCheck {
+	col: import("mongodb").Collection;
+	contentHash: string;
+	entry: DlqEntry;
+	messageId: string;
+	serialized: string;
+}
+
 export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 	return {
 		id: doc._id.toHexString(),
@@ -65,7 +73,7 @@ export class DlqRepository {
 		}
 
 		const { messageId, contentHash, serialized } = this._computeEntryHash(entry);
-		const doc = await this._checkPingPong(col, contentHash, entry, messageId, serialized);
+		const doc = await this._checkPingPong({ col, contentHash, entry, messageId, serialized });
 
 		return this._insertWithDedup(col, doc, messageId);
 	}
@@ -95,12 +103,9 @@ export class DlqRepository {
 	}
 
 	private async _checkPingPong(
-		col: import("mongodb").Collection,
-		contentHash: string,
-		entry: DlqEntry,
-		messageId: string,
-		serialized: string
+		options: PingPongCheck
 	): Promise<Record<string, unknown>> {
+		const { col, contentHash, entry, messageId, serialized } = options;
 		const prevCompleted = await col.findOne(
 			{
 				contentHash,
