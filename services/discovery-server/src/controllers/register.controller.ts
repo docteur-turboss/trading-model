@@ -37,36 +37,36 @@ function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 			);
 		}
 
-		const { serviceName, instanceId, ip, port, version } = parsed.data;
-
-		if (!registry.verifyInstanceName(serviceName)) {
+		if (!registry.verifyInstanceName(parsed.data.serviceName)) {
 			return sendResponse({ error: "Invalid service name" }, 400);
 		}
 
-		let safeInstanceId: string;
-
-		if (instanceId === undefined) {
-			safeInstanceId = registry.generateInstanceId(serviceName, ip, port);
-		} else {
-			safeInstanceId = instanceId;
-		}
-
-		const instance: ServiceInstance = {
-			instanceId: safeInstanceId,
-			serviceName,
-			ip,
-			port,
-			version: version ?? "1.0.0",
-			ttl: 30_000,
-			protocol: "mtls",
-			registeredAt: Date.now(),
-			lastHeartbeat: Date.now(),
-		};
-
+		const instance = _buildServiceInstance(parsed.data, registry);
 		const registered = registry.registerInstance(instance);
 
 		return sendResponse(registered, 201);
 	});
+}
+
+function _buildServiceInstance(
+	data: z.infer<typeof REGISTER_SCHEMA>,
+	registry: ServiceRegistry
+): ServiceInstance {
+	const { serviceName, instanceId, ip, port, version } = data;
+	const safeInstanceId =
+		instanceId ?? registry.generateInstanceId(serviceName, ip, port);
+
+	return {
+		instanceId: safeInstanceId,
+		serviceName,
+		ip,
+		port,
+		version: version ?? "1.0.0",
+		ttl: 30_000,
+		protocol: "mtls",
+		registeredAt: Date.now(),
+		lastHeartbeat: Date.now(),
+	};
 }
 
 function createListServicesHandler(registry: ServiceRegistry): RequestHandler {

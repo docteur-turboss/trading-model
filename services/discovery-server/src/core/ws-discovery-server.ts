@@ -31,7 +31,11 @@ export class WsDiscoveryServer {
 
 	attach(rawServer: https.Server): void {
 		this._wss = new WebSocketServer({ noServer: true });
+		this._setupUpgradeHandler(rawServer);
+		this._setupConnectionHandler();
+	}
 
+	private _setupUpgradeHandler(rawServer: https.Server): void {
 		rawServer.on("upgrade", (request, socket, head) => {
 			if (request.url?.startsWith(this._path)) {
 				this._wss!.handleUpgrade(request, socket, head, (ws, req) => {
@@ -39,8 +43,10 @@ export class WsDiscoveryServer {
 				});
 			}
 		});
+	}
 
-		this._wss.on("connection", (ws: WebSocket, req) => {
+	private _setupConnectionHandler(): void {
+		this._wss!.on("connection", (ws: WebSocket, req) => {
 			const clientId = `${req.socket.remoteAddress}:${req.socket.remotePort}`;
 			logger.info("Discovery WS client connected", { clientId });
 
