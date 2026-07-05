@@ -32,15 +32,19 @@ declare global {
  *   - Used on internal / service-to-service endpoints
  */
 export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
-	/**
-	 * Step 0 — Validate socket is TLS
-	 *
-	 * `req.socket as TLSSocket` silently succeeds on non-TLS connections
-	 * (HTTP, plain TCP). Verify TLS-specific properties before proceeding
-	 * to ensure we fail closed when mTLS is not the transport.
-	 */
 	const socket = req.socket as TLSSocket;
 
+	_assertTlsSocket(socket);
+	_assertAuthorized(socket);
+	const cert = _assertClientCert(socket);
+	const identity = _resolveIdentity(cert);
+
+	req.clientIdentity = identity;
+
+	next();
+});
+
+function _assertTlsSocket(socket: TLSSocket): void {
 	if (typeof socket.getPeerCertificate !== "function") {
 		throw ResponseException(
 			JSON.stringify({
@@ -49,14 +53,9 @@ export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
 			})
 		).forbidden();
 	}
+}
 
-	/**
-	 * Step 1 — Verify TLS authorization
-	 *
-	 * `socket.authorized` is set by Node.js during the TLS handshake.
-	 * A value of `false` indicates that the client certificate failed
-	 * validation (unknown CA, expired cert, invalid chain, etc.).
-	 */
+function _assertAuthorized(socket: TLSSocket): void {
 	if (!socket.authorized) {
 		throw ResponseException(
 			JSON.stringify({
@@ -65,13 +64,9 @@ export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
 			})
 		).forbidden();
 	}
+}
 
-	/**
-	 * Step 2 — Ensure a client certificate is present
-	 *
-	 * Even if the TLS handshake succeeded, the peer certificate may be empty
-	 * if the client did not provide one.
-	 */
+function _assertClientCert(socket: TLSSocket): import("node:tls").PeerCertificate {
 	const cert = socket.getPeerCertificate();
 
 	if (!cert || Object.keys(cert).length === 0) {
@@ -82,21 +77,12 @@ export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
 		).unauthorized();
 	}
 
-	/**
-	 * Step 3 — Extract client identity from certificate
-	 *
-	 * Identity resolution convention:
-	 *  - Prefer Subject Alternative Name (SAN), if present (URI / DNS)
-	 *  - Fallback to Common Name (CN)
-	 *  - Fail closed with Unauthorized if neither is available
-	 *
-	 * This identity is considered a *logical client identifier* and
-	 * should map to a service, workload, or machine identity.
-	 *
-	 * A default identity (e.g., "unknown") is intentionally NOT provided
-	 * to avoid propagating an unresolvable identity to downstream
-	 * authorization gates (fail closed, not open).
-	 */
+	return cert;
+}
+
+function _resolveIdentity(
+	cert: import("node:tls").PeerCertificate
+): string {
 	const raw = cert.subjectaltname ?? cert.subject?.CN;
 
 	if (!raw) {
@@ -107,16 +93,6 @@ export const MTLSAuthMiddleware = catchSync((req, _res, next) => {
 			})
 		).unauthorized();
 	}
-	const identity = Array.isArray(raw) ? raw.join(", ") : raw;
 
-	/**
-	 * Step 4 — Attach identity to request context
-	 *
-	 * The identity is injected into the request object to be consumed
-	 * by downstream middlewares, controllers, or authorization layers.
-	 */
-	req.clientIdentity = identity;
-
-	// Continue request processing
-	next();
-});
+	return Array.isArray(raw) ? raw.join(", ") : raw;
+}

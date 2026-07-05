@@ -1,9 +1,10 @@
 import { appendFile } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { request as httpsRequest } from "node:https";
 import path from "node:path";
 
 import { normalizeError } from "../utils/errors";
+import { AuditServiceClient } from "./audit-service-client";
+import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 /**
  * LogLevel enumeration defines the severity levels for logging.
@@ -41,10 +42,8 @@ export class Logger {
 	private _sessionId: string | null; // Session identifier
 	private _userId: string | null = null; // Optional user identifier
 	private _handleErrorServiceUrl: string | null = null;
-	private _auditResolver?: () => Promise<{
-		url: string;
-		tls: { key: string; cert: string; ca: string };
-	} | null>;
+	private readonly _sanitizer: SensitiveDataSanitizer;
+	private readonly _auditClient: AuditServiceClient;
 	private readonly _env: string | undefined;
 
 	/** @param logLevel - Minimum severity level to log (default: LogLevel.Info) */
@@ -52,6 +51,8 @@ export class Logger {
 		this._logLevel = logLevel;
 		this._env = process.env.NODE_ENV;
 		this._sessionId = this._generateSessionId();
+		this._sanitizer = new SensitiveDataSanitizer();
+		this._auditClient = new AuditServiceClient(this._sanitizer);
 	}
 
 	private _generateSessionId(): string {
@@ -64,38 +65,39 @@ export class Logger {
 	}
 
 	private _safeStringify(value: unknown): string {
-		const seen = new WeakSet<object>();
-		const sensitiveKeyPatterns = [
-			/^password$/i,
-			/^token$/i,
-			/^secret$/i,
-			/^authorization$/i,
-			/^cookie$/i,
-			/^api[-_]?key$/i,
-			/^api[-_]?secret$/i,
-			/^mysql_root_password$/i,
-			/^db_password$/i,
-			/^jwt[-_]?secret$/i,
-			/^private[-_]?key$/i,
-			/^tls[-_]?(key|cert|ca)$/i,
-			/^certificatepath$/i,
-			/^keycertificatepath$/i,
-			/^rootcacertpath$/i,
-			/\.secret$/i,
-			/\.token$/i,
-		];
-		return JSON.stringify(value, (key, val) => {
-			if (key && sensitiveKeyPatterns.some((pattern) => pattern.test(key))) {
-				return "[REDACTED]";
-			}
-			if (typeof val === "object" && val !== null) {
-				if (seen.has(val)) {
-					return "[Circular]";
+		return this._sanitizer.safeStringify(value);
+	}
+
+	private _writeLogToFile(
+		data: LogEntry,
+		level: LogLevel,
+		year: number,
+		month: number,
+		day: number
+	): void {
+		const logDir = process.env.LOG_DIR;
+		if (!logDir) {
+			return;
+		}
+		const logFilePath = path.resolve(logDir);
+		const logFileName = `${year}.${month}.${day}-${level}.log`;
+
+		mkdir(logFilePath, { recursive: true }).catch(() => {});
+		appendFile(
+			path.resolve(logFilePath, logFileName),
+			`${this._safeStringify(data)}\n`,
+			(err) => {
+				if (err) {
+					console.error("[Logger] Failed to write log file:", err);
 				}
-				seen.add(val);
 			}
-			return val;
-		});
+		);
+	}
+
+	private _maybeSendToAudit(data: LogEntry, level: LogLevel): void {
+		if (level >= LogLevel.Info) {
+			void this._auditClient.send(data as unknown as Record<string, unknown>);
+		}
 	}
 
 	private _createLogEntry(
@@ -120,26 +122,8 @@ export class Logger {
 			serviceInCharge,
 		};
 
-		const logDir = process.env.LOG_DIR;
-		if (logDir) {
-			const logFilePath = path.resolve(logDir);
-			const logFileName = `${year}.${month}.${day}-${level}.log`;
-
-			mkdir(logFilePath, { recursive: true }).catch(() => {});
-			appendFile(
-				path.resolve(logFilePath, logFileName),
-				`${this._safeStringify(data)}\n`,
-				(err) => {
-					if (err) {
-						console.error("[Logger] Failed to write log file:", err);
-					}
-				}
-			);
-		}
-
-		if (this._auditResolver && level >= LogLevel.Info) {
-			void this._sendToAuditService(data);
-		}
+		this._writeLogToFile(data, level, year, month, day);
+		this._maybeSendToAudit(data, level);
 
 		return data;
 	}
@@ -378,62 +362,13 @@ export class Logger {
 		}
 	}
 
-	/** Sends a log entry to the audit-logger service via HTTPS using TLS mutual auth. */
-	private async _sendToAuditService(entry: LogEntry): Promise<void> {
-		if (!this._auditResolver) {
-			return;
-		}
-		let auditTarget: {
-			url: string;
-			tls: { key: string; cert: string; ca: string };
-		} | null;
-		try {
-			auditTarget = await this._auditResolver();
-		} catch {
-			return;
-		}
-		if (!auditTarget) {
-			return;
-		}
-		try {
-			const body = this._safeStringify(entry);
-			const urlObj = new URL(auditTarget.url);
-			const opts = {
-				hostname: urlObj.hostname,
-				port: urlObj.port ? Number(urlObj.port) : 443,
-				path: "/api/logs",
-				method: "POST" as const,
-				headers: {
-					"Content-Type": "application/json",
-					"Content-Length": Buffer.byteLength(body).toString(),
-				},
-				key: auditTarget.tls.key,
-				cert: auditTarget.tls.cert,
-				ca: auditTarget.tls.ca,
-				rejectUnauthorized: true,
-			};
-			await new Promise<void>((resolve, reject) => {
-				const req = httpsRequest(opts, (res) => {
-					res.on("data", () => {});
-					res.on("end", () => resolve());
-				});
-				req.on("error", reject);
-				req.write(body);
-				req.end();
-			});
-		} catch (err) {
-			const normalized = normalizeError(err);
-			console.error("Failed to send log to audit service:", normalized.message);
-		}
-	}
-
 	setAuditResolver(
 		resolver: () => Promise<{
 			url: string;
 			tls: { key: string; cert: string; ca: string };
 		} | null>
 	): void {
-		this._auditResolver = resolver;
+		this._auditClient.setAuditResolver(resolver);
 	}
 }
 

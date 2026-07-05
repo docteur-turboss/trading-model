@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import type { IncomingMessage } from "node:http";
 import https from "node:https";
 import { URL } from "node:url";
 import { createGunzip, createInflate } from "node:zlib";
@@ -37,6 +38,97 @@ const RETRY_MAX_DELAY_MS = 5_000;
  */
 function isRetryableStatus(code: number): boolean {
 	return code >= 500 || code === 429;
+}
+
+function computeRetryDelay(attempt: number): number {
+	return Math.min(RETRY_BASE_DELAY_MS * 2 ** attempt, RETRY_MAX_DELAY_MS);
+}
+
+function decompressResponse(res: IncomingMessage): NodeJS.ReadableStream {
+	const contentEncoding = (res.headers["content-encoding"] as string) || "";
+	if (contentEncoding.includes("gzip")) {
+		return res.pipe(createGunzip());
+	}
+	if (contentEncoding.includes("deflate")) {
+		return res.pipe(createInflate());
+	}
+	return res;
+}
+
+function parseResponseBody<TResponse>(
+	data: string,
+	contentType: string,
+	schema?: z.ZodType<TResponse>
+): TResponse {
+	if (contentType.startsWith("application/json")) {
+		const parsed: unknown = JSON.parse(data);
+		return schema ? schema.parse(parsed) : (parsed as TResponse);
+	}
+	const parsed: unknown = data;
+	return schema ? schema.parse(parsed) : (parsed as TResponse);
+}
+
+function collectResponseBody<TResponse>(
+	res: IncomingMessage,
+	method: string,
+	urlStr: string,
+	schema?: z.ZodType<TResponse>
+): Promise<TResponse | undefined> {
+	return new Promise<TResponse | undefined>((resolve, reject) => {
+		let data = "";
+		const stream = decompressResponse(res);
+
+		stream.on("data", (chunk: string) => {
+			data += chunk;
+		});
+		stream.on("end", () => {
+			if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+				return reject(
+					new HttpClientError(
+						`HTTP ${res.statusCode} on ${method} ${urlStr}`,
+						res.statusCode
+					)
+				);
+			}
+
+			if (res.statusCode === 204) {
+				return resolve(undefined);
+			}
+
+			try {
+				const contentType = res.headers["content-type"] || "";
+				resolve(parseResponseBody(data, contentType, schema));
+			} catch (err) {
+				reject(err instanceof Error ? err : new Error(String(err)));
+			}
+		});
+	});
+}
+
+function buildRequestOptions(
+	method: HttpMethod,
+	url: URL,
+	options: HttpRequestOptions | undefined,
+	cert?: string,
+	key?: string,
+	ca?: string
+): https.RequestOptions {
+	return {
+		method,
+		hostname: url.hostname,
+		port: url.port || 443,
+		path: url.pathname + url.search,
+		headers: {
+			"Content-Type": "application/json",
+			"Accept-Encoding": "gzip, deflate",
+			...(options?.headers ?? {}),
+		},
+		cert,
+		key,
+		ca,
+		rejectUnauthorized: true,
+		agent: options?.agent ?? getKeepAliveAgent(),
+	};
 }
 
 // ─── Circuit breaker (hostname-level) ────────────────────────────────────────
@@ -347,6 +439,19 @@ export class HttpClient {
 	 * exponential backoff, and records success/failure to update breaker state.
 	 * Lazy-loads TLS certificates on first invocation if paths are configured.
 	 */
+	private _checkPreconditions(
+		urlStr: string,
+		options?: HttpRequestOptions
+	): { hostname: string; serviceName: string | undefined } {
+		const hostname = new URL(urlStr).hostname;
+		const serviceName = options?.serviceName;
+		checkHostnameCircuit(hostname);
+		if (serviceName) {
+			checkServiceCircuit(serviceName);
+		}
+		return { hostname, serviceName };
+	}
+
 	private async _request<TResponse>(
 		method: HttpMethod,
 		urlStr: string,
@@ -361,12 +466,7 @@ export class HttpClient {
 		const retryCount = options?.retryCount ?? DEFAULT_RETRY_COUNT;
 		const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-		const hostname = new URL(urlStr).hostname;
-		const serviceName = options?.serviceName;
-		checkHostnameCircuit(hostname);
-		if (serviceName) {
-			checkServiceCircuit(serviceName);
-		}
+		const { hostname, serviceName } = this._checkPreconditions(urlStr, options);
 
 		let lastError: Error | null = null;
 
@@ -389,11 +489,7 @@ export class HttpClient {
 				lastError = error instanceof Error ? error : new Error(String(error));
 
 				if (attempt < retryCount && this._shouldRetry(lastError)) {
-					const delay = Math.min(
-						RETRY_BASE_DELAY_MS * 2 ** attempt,
-						RETRY_MAX_DELAY_MS
-					);
-					await sleep(delay);
+					await sleep(computeRetryDelay(attempt));
 					continue;
 				}
 
@@ -447,76 +543,18 @@ export class HttpClient {
 		options?: HttpRequestOptions
 	): Promise<TResponse | undefined> {
 		const url = new URL(urlStr);
-
-		const requestOptions: https.RequestOptions = {
+		const requestOptions = buildRequestOptions(
 			method,
-			hostname: url.hostname,
-			port: url.port || 443,
-			path: url.pathname + url.search,
-			headers: {
-				"Content-Type": "application/json",
-				...(options?.headers ?? {}),
-			},
-			cert: this._cert,
-			key: this._key,
-			ca: this._ca,
-			rejectUnauthorized: true,
-			agent: options?.agent ?? getKeepAliveAgent(),
-		};
-
-		// Advertise compression support for cross-region bandwidth savings
-		requestOptions.headers = {
-			...requestOptions.headers,
-			"Accept-Encoding": "gzip, deflate",
-		};
+			url,
+			options,
+			this._cert,
+			this._key,
+			this._ca
+		);
 
 		return new Promise<TResponse | undefined>((resolve, reject) => {
 			const req = https.request(requestOptions, (res) => {
-				let data = "";
-
-				const contentEncoding =
-					(res.headers["content-encoding"] as string) || "";
-
-				const stream = contentEncoding.includes("gzip")
-					? res.pipe(createGunzip())
-					: contentEncoding.includes("deflate")
-						? res.pipe(createInflate())
-						: res;
-
-				stream.on("data", (chunk) => {
-					data += chunk;
-				});
-				stream.on("end", () => {
-					if (
-						res.statusCode &&
-						(res.statusCode < 200 || res.statusCode >= 300)
-					) {
-						return reject(
-							new HttpClientError(
-								`HTTP ${res.statusCode} on ${method} ${urlStr}`,
-								res.statusCode
-							)
-						);
-					}
-
-					if (res.statusCode === 204) {
-						return resolve(undefined);
-					}
-
-					const contentType = res.headers["content-type"] || "";
-
-					try {
-						if (contentType.startsWith("application/json")) {
-							const parsed: unknown = JSON.parse(data);
-							resolve(schema ? schema.parse(parsed) : (parsed as TResponse));
-						} else {
-							const parsed: unknown = data;
-							resolve(schema ? schema.parse(parsed) : (parsed as TResponse));
-						}
-					} catch (err) {
-						reject(err instanceof Error ? err : new Error(String(err)));
-					}
-				});
+				collectResponseBody(res, method, urlStr, schema).then(resolve, reject);
 			});
 
 			req.on("error", (err) => reject(err));
