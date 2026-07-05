@@ -81,13 +81,14 @@ export function setWorkerPoolPending(pending: number): void {
 	WORKER_POOL_PENDING.set(pending);
 }
 
-export function sendAlertWebhook(
-	webhookUrl: string | undefined,
-	title: string,
-	message: string,
-	severity: "info" | "warning" | "error" = "error",
-	labels?: Record<string, string>
-): void {
+export function sendAlertWebhook(options: {
+	webhookUrl: string | undefined;
+	title: string;
+	message: string;
+	severity?: "info" | "warning" | "error";
+	labels?: Record<string, string>;
+}): void {
+	const { webhookUrl, title, message, severity = "error", labels } = options;
 	if (!webhookUrl) {
 		return;
 	}

@@ -85,25 +85,25 @@ describe("metrics", () => {
 		});
 
 		it("should do nothing when webhookUrl is undefined", () => {
-			sendAlertWebhook(undefined, "title", "msg");
+			sendAlertWebhook({ webhookUrl: undefined, title: "title", message: "msg" });
 			expect(mockFetch).not.toHaveBeenCalled();
 		});
 
 		it("should do nothing when webhookUrl is empty", () => {
-			sendAlertWebhook("", "title", "msg");
+			sendAlertWebhook({ webhookUrl: "", title: "title", message: "msg" });
 			expect(mockFetch).not.toHaveBeenCalled();
 		});
 
 		it("should POST alert to webhook URL", () => {
 			mockFetch.mockResolvedValue({ ok: true });
 
-			sendAlertWebhook(
-				"https://hooks.example.com/alert",
-				"Alert",
-				"Something happened",
-				"warning",
-				{ env: "prod" }
-			);
+			sendAlertWebhook({
+				webhookUrl: "https://hooks.example.com/alert",
+				title: "Alert",
+				message: "Something happened",
+				severity: "warning",
+				labels: { env: "prod" },
+			});
 
 			expect(mockFetch).toHaveBeenCalledWith(
 				"https://hooks.example.com/alert",
@@ -117,7 +117,11 @@ describe("metrics", () => {
 		it("should log warning on non-OK response", async () => {
 			mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
-			sendAlertWebhook("https://hooks.example.com/alert", "Alert", "msg");
+			sendAlertWebhook({
+				webhookUrl: "https://hooks.example.com/alert",
+				title: "Alert",
+				message: "msg",
+			});
 
 			await new Promise(process.nextTick);
 		});
@@ -125,7 +129,11 @@ describe("metrics", () => {
 		it("should log warning on fetch error", async () => {
 			mockFetch.mockRejectedValue(new Error("Network failure"));
 
-			sendAlertWebhook("https://hooks.example.com/alert", "Alert", "msg");
+			sendAlertWebhook({
+				webhookUrl: "https://hooks.example.com/alert",
+				title: "Alert",
+				message: "msg",
+			});
 
 			await new Promise(process.nextTick);
 		});

@@ -89,6 +89,12 @@ interface ConnectionState {
 	requestWindowStart: number;
 }
 
+interface WssSession {
+	state: ConnectionState;
+	clientIdentity: string | undefined;
+	limiterKey: string;
+}
+
 function handleAuthMessage(
 	ws: WebSocket,
 	authMsg: WsAuthMessage,
@@ -130,15 +136,13 @@ function handleAuthMessage(
 async function handleSignRequest(
 	ws: WebSocket,
 	signMsg: z.infer<typeof WS_SIGN_SCHEMA>,
-	tokenProvided: boolean,
-	bootstrapToken: string | undefined,
-	_clientIdentity: string | undefined
+	session: WssSession
 ): Promise<void> {
 	try {
 		const cert = await CONTAINER.distributor.requestCertificate(
 			signMsg.data.serviceId,
 			signMsg.data.csr,
-			tokenProvided ? bootstrapToken : undefined
+			session.state.tokenProvided ? session.state.bootstrapToken : undefined
 		);
 		ws.send(
 			JSON.stringify({
@@ -170,12 +174,9 @@ async function handleSignRequest(
 
 function checkSignRequestRateLimit(
 	ws: WebSocket,
-	state: ConnectionState,
-	clientIdentity: string | undefined,
-	limiterKey: string,
-	tokenProvided: boolean
+	session: WssSession
 ): boolean {
-	if (!(tokenProvided || checkUnauthRateLimit(limiterKey))) {
+	if (!(session.state.tokenProvided || checkUnauthRateLimit(session.limiterKey))) {
 		ws.send(
 			JSON.stringify({
 				type: "sign:response",
@@ -190,16 +191,16 @@ function checkSignRequestRateLimit(
 		return false;
 	}
 
-	const elapsed = Date.now() - state.requestWindowStart;
+	const elapsed = Date.now() - session.state.requestWindowStart;
 	if (elapsed > AUTH_RATE_LIMIT_MS) {
-		state.requestCount = 1;
-		state.requestWindowStart = Date.now();
+		session.state.requestCount = 1;
+		session.state.requestWindowStart = Date.now();
 	} else {
-		state.requestCount++;
-		if (state.requestCount > AUTH_RATE_LIMIT_MAX) {
+		session.state.requestCount++;
+		if (session.state.requestCount > AUTH_RATE_LIMIT_MAX) {
 			logger.warn("WSS per-connection rate limit exceeded, closing", {
-				clientIdentity,
-				requestCount: state.requestCount,
+				clientIdentity: session.clientIdentity,
+				requestCount: session.state.requestCount,
 			});
 			ws.close(4001, "Rate limit exceeded");
 			return false;
@@ -208,11 +209,7 @@ function checkSignRequestRateLimit(
 	return true;
 }
 
-function initConnectionState(req: import("node:http").IncomingMessage): {
-	clientIdentity: string | undefined;
-	state: ConnectionState;
-	limiterKey: string;
-} {
+function initConnectionState(req: import("node:http").IncomingMessage): WssSession {
 	const tlsSocket = req.socket as TLSSocket;
 	const clientCert = tlsSocket.getPeerCertificate?.();
 	const clientIdentity = clientCert?.subject?.CN as string | undefined;
@@ -226,7 +223,7 @@ function initConnectionState(req: import("node:http").IncomingMessage): {
 			requestWindowStart: Date.now(),
 		},
 		limiterKey: clientIdentity ?? "unknown",
-	};
+	} satisfies WssSession;
 }
 
 function parseWsMessage(raw: RawData): Record<string, unknown> | null {
@@ -251,13 +248,10 @@ function sendSignError(ws: WebSocket, id: string, message: string): void {
 		})
 	);
 }
-
 async function handleWsMessage(
 	ws: WebSocket,
 	raw: RawData,
-	state: ConnectionState,
-	clientIdentity: string | undefined,
-	limiterKey: string
+	session: WssSession
 ): Promise<void> {
 	const msg = parseWsMessage(raw);
 	if (!msg) {
@@ -269,14 +263,15 @@ async function handleWsMessage(
 		handleAuthMessage(
 			ws,
 			msg as unknown as WsAuthMessage,
-			state,
-			clientIdentity
+			session.state,
+			session.clientIdentity
 		);
 		return;
 	}
 
 	const parsed = WS_SIGN_SCHEMA.safeParse(msg);
 	if (!parsed.success) {
+
 		logger.warn("WSS invalid sign request", {
 			issues: parsed.error.issues,
 		});
@@ -284,25 +279,11 @@ async function handleWsMessage(
 		return;
 	}
 
-	if (
-		!checkSignRequestRateLimit(
-			ws,
-			state,
-			clientIdentity,
-			limiterKey,
-			state.tokenProvided
-		)
-	) {
+	if (!checkSignRequestRateLimit(ws, session)) {
 		return;
 	}
 
-	await handleSignRequest(
-		ws,
-		parsed.data,
-		state.tokenProvided,
-		state.bootstrapToken,
-		clientIdentity
-	);
+	await handleSignRequest(ws, parsed.data, session);
 }
 
 function handleWsClose(
@@ -324,16 +305,14 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
 	const wss = new WebSocketServer({ server: httpsServer });
 
 	wss.on("connection", (ws: WebSocket, req) => {
-		const { clientIdentity, state, limiterKey } = initConnectionState(req);
+		const session: WssSession = initConnectionState(req);
 		logger.info("WSS client connected to CA (awaiting auth)", {
-			clientIdentity,
+			clientIdentity: session.clientIdentity,
 		});
 
-		ws.on("message", (raw: RawData) =>
-			handleWsMessage(ws, raw, state, clientIdentity, limiterKey)
-		);
-		ws.on("close", () => handleWsClose(limiterKey, clientIdentity));
-		ws.on("error", (err) => handleWsError(err, clientIdentity));
+		ws.on("message", (raw: RawData) => handleWsMessage(ws, raw, session));
+		ws.on("close", () => handleWsClose(session.limiterKey, session.clientIdentity));
+		ws.on("error", (err) => handleWsError(err, session.clientIdentity));
 	});
 
 	logger.info("WebSocket server attached to HTTPS server");
