@@ -33,7 +33,7 @@ export type CoreResponse<TData = string> = Promise<[TData, string]>;
  */
 export function ensureAtLeastOneField(fields: Record<string, unknown>) {
 	if (!Object.values(fields).some(Boolean)) {
-		throw ResponseException("Aucun paramètres fournis").badRequest();
+		throw ResponseException("No parameters provided").badRequest();
 	}
 }
 
@@ -72,10 +72,10 @@ export const handleDBError = (file: string) => (err: unknown) => {
 		}
 		if (msg.includes("Duplicate entry")) {
 			if (msg.includes("name_UNIQUE")) {
-				throw new Error("Nom exist");
+				throw new Error("Name already exists");
 			}
 			if (msg.includes("email_UNIQUE")) {
-				throw new Error("Email exist");
+				throw new Error("Email already exists");
 			}
 		}
 	}

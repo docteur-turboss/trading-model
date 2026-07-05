@@ -1,7 +1,7 @@
 {
   "name": "discovery-server",
   "version": "1.1.1",
-  "description": "Service Discovery de l'architecture micro-service",
+  "description": "Service discovery for the microservice architecture",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {
     "url": "https://github.com/docteur-turboss/trading-model/issues"

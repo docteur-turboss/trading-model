@@ -21,7 +21,7 @@ import type {
 /** Normalize raw Binance API responses into internal market-data entities. */
 export const BinanceNormalizer = {
 	/**
-	 * Convertit le carnet d'ordres Binance en structure normalisée.
+	 * Normalize a Binance order book into the internal structure.
 	 */
 	orderBook(symbol: string, payload: BinanceDepthResponse): OrderBookData {
 		const bids = new Set(
@@ -49,7 +49,7 @@ export const BinanceNormalizer = {
 	},
 
 	/**
-	 * Normalise les trades (recent + historical).
+	 * Normalize trades (recent + historical).
 	 */
 	trades(
 		symbol: string,
@@ -68,7 +68,7 @@ export const BinanceNormalizer = {
 	},
 
 	/**
-	 * Normalise les aggregate trades.
+	 * Normalize aggregate trades.
 	 */
 	aggregateTrades(
 		symbol: string,
@@ -87,7 +87,7 @@ export const BinanceNormalizer = {
 	},
 
 	/**
-	 * Normalise les chandeliers.
+	 * Normalize candlesticks.
 	 */
 	candles(
 		symbol: string,
@@ -111,7 +111,7 @@ export const BinanceNormalizer = {
 	},
 
 	/**
-	 * Normalise ticker 24h.
+	 * Normalize 24h ticker.
 	 */
 	ticker24h(payload: Binance24hrTickerStatsResponse): TickerData[] {
 		return payload.map((item) => ({

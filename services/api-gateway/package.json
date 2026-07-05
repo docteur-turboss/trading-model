@@ -1,7 +1,7 @@
 {
   "name": "api-gateway",
   "version": "1.0.0",
-  "description": "Point d'entrée unique externe — routage versionné, auth, rate limiting",
+  "description": "External single entry point — versioned routing, auth, rate limiting",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {
     "url": "https://github.com/docteur-turboss/trading-model/issues"

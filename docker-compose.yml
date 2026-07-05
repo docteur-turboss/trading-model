@@ -268,7 +268,7 @@ services:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
-  #  API Gateway — Point d'entrée unique externe
+  #  API Gateway — External single entry point
   # ---------------------------------------------------------------------------
   api-gateway:
     build:

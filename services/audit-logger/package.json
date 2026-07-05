@@ -1,7 +1,7 @@
 {
   "name": "audit-logger",
   "version": "1.0.0",
-  "description": "Service de traçabilité complète et immuable de toutes les décisions, transactions et erreurs",
+  "description": "Complete and immutable tracing of all decisions, transactions, and errors",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {
     "url": "https://github.com/docteur-turboss/trading-model/issues"

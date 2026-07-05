@@ -65,10 +65,10 @@ The root script references the directory path: `npm run -w services/trader-train
 
 ## Linting (Biome)
 
-- ESLint fully removed v2.0.4 — Biome gère lint, format, et organiseImports
-- `organizeImports` remplace `eslint-plugin-import-x` pour le tri des imports
-- Les règles TypeScript avancées (PascalCase interfaces, naming convention) sont configurées dans `biome.json`
-- Test files get relaxed rules via `overrides` dans biome.json
+- ESLint fully removed v2.0.4 — Biome handles lint, format, and organizeImports
+- `organizeImports` replaces `eslint-plugin-import-x` for import sorting
+- Advanced TypeScript rules (PascalCase interfaces, naming convention) are configured in `biome.json`
+- Test files get relaxed rules via `overrides` in biome.json
 
 ## TypeScript
 

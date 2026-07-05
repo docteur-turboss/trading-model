@@ -39,7 +39,7 @@ export class WorkerPool {
 			options.workerScript ?? join(__dirname, "worker-script.js");
 	}
 
-	/** Crée les workers s'ils ne le sont pas encore — idempotent. */
+	/** Start workers if not already started — idempotent. */
 	start(): void {
 		this._ensureStarted();
 	}

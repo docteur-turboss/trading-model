@@ -86,7 +86,7 @@ function createRoutes(app: express.Application, trainer: Trainer): void {
 			const summary = trainer.getBestAgentSummary();
 			if (!summary) {
 				const response = ResponseException(
-					"Aucun agent entrainé disponible pour le moment."
+					"No trained agent available at the moment."
 				).notFound();
 				res.status(response.status).json({ data: response.data });
 				return;

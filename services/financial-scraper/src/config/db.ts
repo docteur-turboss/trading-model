@@ -14,9 +14,9 @@ const POOL: Pool = createPool({
 	connectionLimit: 10,
 });
 
-// --- Classe de connexion spécifique à notre projet ---
-// DBConnection hérite de MySqlConnection fournie par ts-sql-query.
-// On associe le pool au query runner MySql2 pour exécuter les requêtes.
+// --- Project-specific connection class ---
+// DBConnection extends MySqlConnection provided by ts-sql-query.
+// The pool is associated with the MySql2 query runner to execute queries.
 /** MySQL database connection backed by a pooled ts-sql-query runner. */
 export class DBConnection extends MySqlConnection<"DBConnection"> {
 	constructor() {

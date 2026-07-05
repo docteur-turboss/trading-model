@@ -1,13 +1,13 @@
 /**
  * MarketDataController
  * --------------------
- * Couche application recevant le payload du worker.
+ * Application layer receiving the worker payload.
  *
- * - Valide
- * - Transforme en entités persistables
- * - Route vers le repository
+ * - Validates
+ * - Transforms into persistable entities
+ * - Routes to the repository
  *
- * Agnostique du provider (Binance aujourd’hui, Bloomberg demain).
+ * Agnostic of the provider (Binance today, Bloomberg tomorrow).
  */
 
 import type { BinanceWorkerResult } from "../../job/worker/binance.worker";

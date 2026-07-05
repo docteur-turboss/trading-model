@@ -77,7 +77,7 @@ export function AuditEvents() {
 					<StatsCard
 						icon={<MonitorHeartIcon />}
 						value={(data?.total ?? 0).toLocaleString()}
-						label="TOTAL ÉVÉNEMENTS (24H)"
+						label="TOTAL EVENTS (24H)"
 						delta="+12.4% vs yesterday"
 						deltaColor="success.main"
 					/>
@@ -86,8 +86,8 @@ export function AuditEvents() {
 					<StatsCard
 						icon={<WarningAmberIcon />}
 						value="0.04%"
-						label="TAUX D'ERREURS"
-						delta="Stabilité : Optimale"
+						label="ERROR RATE"
+						delta="Stability: Optimal"
 						deltaColor="success.main"
 					/>
 				</Box>

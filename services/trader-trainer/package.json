@@ -1,7 +1,7 @@
 {
   "name": "trader-service",
   "version": "1.4.0",
-  "description": "Agents autonomes qui s'entrainent à trader sur une paire",
+  "description": "Autonomous agents that train to trade on a currency pair",
   "homepage": "https://github.com/docteur-turboss/trading-model#readme",
   "bugs": {
     "url": "https://github.com/docteur-turboss/trading-model/issues"
