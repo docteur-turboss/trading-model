@@ -50,7 +50,12 @@ describe("CachedRegistryBackend", () => {
 	beforeEach(() => {
 		jest.useFakeTimers();
 		mockBackend = createMockBackend();
-		cachedBackend = new CachedRegistryBackend(mockBackend, 5000, undefined, 3);
+		cachedBackend = new CachedRegistryBackend({
+			backend: mockBackend,
+			cacheTtlMs: 5000,
+			redisUrlForPubSub: undefined,
+			maxEntries: 3,
+		});
 	});
 
 	afterEach(() => {

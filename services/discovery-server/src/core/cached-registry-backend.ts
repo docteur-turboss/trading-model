@@ -7,6 +7,15 @@ import type {
 import { CacheManager } from "./cache-manager";
 import { PubSubInvalidator } from "./pub-sub-invalidator";
 
+export interface CachedRegistryBackendOptions {
+	backend: RegistryBackend;
+	cacheTtlMs: number;
+	redisUrlForPubSub?: string;
+	maxEntries?: number;
+	redisFailureThreshold?: number;
+	redisHealthCheckIntervalMs?: number;
+}
+
 export class CachedRegistryBackend implements RegistryBackend {
 	private _backend: RegistryBackend;
 	private _cache: CacheManager;
@@ -24,20 +33,13 @@ export class CachedRegistryBackend implements RegistryBackend {
 	private readonly _heartbeatInvalidationThrottleMs = 5000;
 	private _lastHeartbeatInvalidation = new Map<string, number>();
 
-	constructor(
-		backend: RegistryBackend,
-		cacheTtlMs: number,
-		redisUrlForPubSub?: string,
-		maxEntries = 5000,
-		redisFailureThreshold = 3,
-		redisHealthCheckIntervalMs = 15_000
-	) {
-		this._backend = backend;
-		this._redisUrlForPubSub = redisUrlForPubSub;
-		this._failureThreshold = redisFailureThreshold;
-		this._healthCheckIntervalMs = redisHealthCheckIntervalMs;
-		this._cache = new CacheManager(maxEntries, cacheTtlMs);
-		this._pubSub = new PubSubInvalidator(redisUrlForPubSub);
+	constructor(options: CachedRegistryBackendOptions) {
+		this._backend = options.backend;
+		this._redisUrlForPubSub = options.redisUrlForPubSub;
+		this._failureThreshold = options.redisFailureThreshold ?? 3;
+		this._healthCheckIntervalMs = options.redisHealthCheckIntervalMs ?? 15_000;
+		this._cache = new CacheManager(options.maxEntries ?? 5000, options.cacheTtlMs);
+		this._pubSub = new PubSubInvalidator(options.redisUrlForPubSub);
 	}
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {
