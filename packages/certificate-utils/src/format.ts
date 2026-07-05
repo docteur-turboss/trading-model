@@ -68,6 +68,11 @@ export function privateKeyFromPem(pem: string): forge.pki.PrivateKey {
 	return forge.pki.privateKeyFromPem(pkcs1);
 }
 
+interface CsrExtension {
+	name: string;
+	altNames?: Array<{ type: number; value: string }>;
+}
+
 export function parseCsrInfo(csrPem: string): {
 	commonName: string;
 	san: string[];
@@ -75,38 +80,30 @@ export function parseCsrInfo(csrPem: string): {
 } {
 	const csr = forge.pki.certificationRequestFromPem(csrPem);
 	const cn = csr.subject.getField("CN")?.value ?? "";
-	const sanAttr = csr.getAttribute({ name: "extensionRequest" });
-	const san: string[] = [];
-	if (
-		sanAttr &&
-		(
-			sanAttr as unknown as {
-				extensions: Array<{
-					name: string;
-					altNames: Array<{ type: number; value: string }>;
-				}>;
-			}
-		).extensions
-	) {
-		for (const ext of (
-			sanAttr as unknown as {
-				extensions: Array<{
-					name: string;
-					altNames: Array<{ type: number; value: string }>;
-				}>;
-			}
-		).extensions) {
-			if (ext.name === "subjectAltName" && ext.altNames) {
-				for (const alt of ext.altNames) {
-					if (alt.type === 2) {
-						san.push(alt.value);
-					}
-				}
-			}
-		}
-	}
+	const san = _extractSanFromCsr(csr);
 	const publicKeyPem = csr.publicKey
 		? forge.pki.publicKeyToPem(csr.publicKey)
 		: "";
 	return { commonName: cn, san, publicKeyPem };
+}
+
+function _extractSanFromCsr(
+	csr: ReturnType<typeof forge.pki.certificationRequestFromPem>
+): string[] {
+	const sanAttr = csr.getAttribute({ name: "extensionRequest" });
+	if (!sanAttr) {
+		return [];
+	}
+	const extensions = (sanAttr as unknown as { extensions: CsrExtension[] })
+		.extensions;
+	if (!extensions) {
+		return [];
+	}
+	const sanExt = extensions.find((ext) => ext.name === "subjectAltName");
+	if (!sanExt?.altNames) {
+		return [];
+	}
+	return sanExt.altNames
+		.filter((alt) => alt.type === 2)
+		.map((alt) => alt.value);
 }
