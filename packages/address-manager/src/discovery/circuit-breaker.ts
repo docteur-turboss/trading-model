@@ -23,6 +23,15 @@ const DEFAULT_LATENCY_WINDOW_SIZE = 100;
 const DEFAULT_LATENCY_P99_THRESHOLD_MS = 5000;
 const DEFAULT_LOAD_CACHE_TTL_MS = 2_000;
 
+export interface CircuitBreakerOptions {
+	failureThreshold?: number;
+	halfOpenTimeoutMs?: number;
+	stateStore?: IServiceCache;
+	loadFromStoreCacheTtlMs?: number;
+	latencyWindowSize?: number;
+	latencyP99ThresholdMs?: number;
+}
+
 export class CircuitBreaker {
 	private readonly _instances = new Map<string, INstanceState>();
 	private readonly _failureThreshold: number;
@@ -35,20 +44,13 @@ export class CircuitBreaker {
 	private _sweepHandle?: NodeJS.Timeout;
 	private readonly _halfOpenTimeoutMs: number;
 
-	constructor(
-		failureThreshold = 3,
-		halfOpenTimeoutMs = 10_000,
-		stateStore?: IServiceCache,
-		loadFromStoreCacheTtlMs = DEFAULT_LOAD_CACHE_TTL_MS,
-		latencyWindowSize = DEFAULT_LATENCY_WINDOW_SIZE,
-		latencyP99ThresholdMs = DEFAULT_LATENCY_P99_THRESHOLD_MS
-	) {
-		this._failureThreshold = failureThreshold;
-		this._halfOpenTimeoutMs = halfOpenTimeoutMs;
-		this._stateStore = stateStore;
-		this._loadFromStoreCacheTtlMs = loadFromStoreCacheTtlMs;
-		this._latencyWindowSize = latencyWindowSize;
-		this._latencyP99ThresholdMs = latencyP99ThresholdMs;
+	constructor(options: CircuitBreakerOptions = {}) {
+		this._failureThreshold = options.failureThreshold ?? 3;
+		this._halfOpenTimeoutMs = options.halfOpenTimeoutMs ?? 10_000;
+		this._stateStore = options.stateStore;
+		this._loadFromStoreCacheTtlMs = options.loadFromStoreCacheTtlMs ?? DEFAULT_LOAD_CACHE_TTL_MS;
+		this._latencyWindowSize = options.latencyWindowSize ?? DEFAULT_LATENCY_WINDOW_SIZE;
+		this._latencyP99ThresholdMs = options.latencyP99ThresholdMs ?? DEFAULT_LATENCY_P99_THRESHOLD_MS;
 		this._sweepHandle = setInterval(
 			() => this._sweepStaleEntries(),
 			SWEEP_INTERVAL_MS

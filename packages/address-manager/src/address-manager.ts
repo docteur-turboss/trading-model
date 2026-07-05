@@ -74,14 +74,14 @@ function createCircuitBreaker(
 	config: AddressManagerConfig,
 	serviceCache: IServiceCache
 ): CircuitBreaker {
-	return new CircuitBreaker(
-		config.circuitBreakerFailureThreshold ?? 3,
-		config.circuitBreakerHalfOpenTimeoutMs ?? 10_000,
-		serviceCache,
-		config.circuitBreakerCacheTtlMs ?? 2_000,
-		config.circuitBreakerLatencyWindowSize ?? 100,
-		config.circuitBreakerLatencyThresholdMs ?? 5000
-	);
+	return new CircuitBreaker({
+		failureThreshold: config.circuitBreakerFailureThreshold ?? 3,
+		halfOpenTimeoutMs: config.circuitBreakerHalfOpenTimeoutMs ?? 10_000,
+		stateStore: serviceCache,
+		loadFromStoreCacheTtlMs: config.circuitBreakerCacheTtlMs ?? 2_000,
+		latencyWindowSize: config.circuitBreakerLatencyWindowSize ?? 100,
+		latencyP99ThresholdMs: config.circuitBreakerLatencyThresholdMs ?? 5000,
+	});
 }
 
 function createHealthChecker(

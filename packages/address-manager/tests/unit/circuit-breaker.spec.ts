@@ -47,7 +47,10 @@ describe("CircuitBreaker", () => {
 
 	describe("default constructor (no stateStore)", () => {
 		beforeEach(() => {
-			circuitBreaker = new CircuitBreaker(3, 10_000);
+			circuitBreaker = new CircuitBreaker({
+				failureThreshold: 3,
+				halfOpenTimeoutMs: 10_000,
+			});
 		});
 
 		it("should allow requests when no failures recorded", () => {
@@ -140,14 +143,14 @@ describe("CircuitBreaker", () => {
 
 		beforeEach(() => {
 			mockCache = createMockCache();
-			circuitBreaker = new CircuitBreaker(
-				3,
-				10_000,
-				mockCache,
-				2_000,
-				100,
-				5000
-			);
+			circuitBreaker = new CircuitBreaker({
+				failureThreshold: 3,
+				halfOpenTimeoutMs: 10_000,
+				stateStore: mockCache,
+				loadFromStoreCacheTtlMs: 2_000,
+				latencyWindowSize: 100,
+				latencyP99ThresholdMs: 5000,
+			});
 		});
 
 		it("should persist state on every failure", () => {
@@ -207,7 +210,10 @@ describe("CircuitBreaker", () => {
 
 	describe("sweepStaleEntries", () => {
 		beforeEach(() => {
-			circuitBreaker = new CircuitBreaker(3, 10_000);
+			circuitBreaker = new CircuitBreaker({
+				failureThreshold: 3,
+				halfOpenTimeoutMs: 10_000,
+			});
 		});
 
 		it("should sweep entries older than MAX_ENTRY_AGE_MS in CLOSED state", () => {
@@ -223,7 +229,10 @@ describe("CircuitBreaker", () => {
 
 	describe("additional methods", () => {
 		beforeEach(() => {
-			circuitBreaker = new CircuitBreaker(3, 10_000);
+			circuitBreaker = new CircuitBreaker({
+				failureThreshold: 3,
+				halfOpenTimeoutMs: 10_000,
+			});
 		});
 
 		it("getState should return 'closed' for unknown instance", () => {
@@ -323,7 +332,11 @@ describe("CircuitBreaker", () => {
 
 		beforeEach(() => {
 			mockCache = createMockCache();
-			circuitBreaker = new CircuitBreaker(3, 10_000, mockCache);
+			circuitBreaker = new CircuitBreaker({
+				failureThreshold: 3,
+				halfOpenTimeoutMs: 10_000,
+				stateStore: mockCache,
+			});
 		});
 
 		it("should handle persist failure gracefully", () => {
