@@ -52,15 +52,7 @@ export class MongoArchiveStore {
 		this._started = true;
 
 		try {
-			const { MongoClient } = await import("mongodb");
-			this._client = new MongoClient(
-				ENV.MONGO_ARCHIVE_URI
-			) as unknown as MongoClient;
-			await (
-				this._client as unknown as { connect: () => Promise<void> }
-			).connect();
-			logger.info("MongoDB archival store connected");
-
+			await this._connectClient();
 			await this._ensureIndexes();
 			this._startArchiveTimer();
 			this._startTopicsCacheRefresh();
@@ -73,6 +65,17 @@ export class MongoArchiveStore {
 			);
 			this._client = null;
 		}
+	}
+
+	private async _connectClient(): Promise<void> {
+		const { MongoClient } = await import("mongodb");
+		this._client = new MongoClient(
+			ENV.MONGO_ARCHIVE_URI!
+		) as unknown as MongoClient;
+		await (
+			this._client as unknown as { connect: () => Promise<void> }
+		).connect();
+		logger.info("MongoDB archival store connected");
 	}
 
 	private async _ensureIndexes(): Promise<void> {
@@ -136,48 +139,32 @@ export class MongoArchiveStore {
 		}
 
 		for (const topic of topics) {
-			try {
-				const messages = await messageStore.getMessagesAfter(
-					topic,
-					Date.now() - 3600_000,
-					ENV.MONGO_ARCHIVE_BATCH_SIZE
-				);
-				if (messages.length === 0) {
-					continue;
-				}
+			await this._archiveTopic(topic);
+		}
+	}
 
-				const entries: ArchiveEntry[] = messages.map((msg: Message) => ({
-					messageId: msg.metadata.messageId ?? "",
-					topic: msg.metadata.topic,
-					eventType: msg.metadata.eventType,
-					producer: msg.metadata.publisher?.serviceName ?? "unknown",
-					payload: msg.payload,
-					metadata: msg.metadata as unknown as Record<string, unknown>,
-					archivedAt: new Date(),
-					ttl: new Date(
-						Date.now() + ENV.MONGO_ARCHIVE_RETENTION_DAYS * 86400_000
-					),
-				}));
+	private async _archiveTopic(topic: string): Promise<void> {
+		try {
+			const messages = await messageStore.getMessagesAfter(
+				topic,
+				Date.now() - 3600_000,
+				ENV.MONGO_ARCHIVE_BATCH_SIZE
+			);
+			if (messages.length === 0) {
+				return;
+			}
 
-				const col = this._client
+			const entries = messages.map(_messageToArchiveEntry);
+			const bulkOps = _buildBulkUpserts(entries);
+
+			if (bulkOps.length > 0) {
+				const col = this._client!
 					.db(ENV.MONGO_ARCHIVE_DB)
 					.collection(ENV.MONGO_ARCHIVE_COLLECTION);
-				const bulkOps = entries
-					.filter((entry) => entry.messageId)
-					.map((entry) => ({
-						updateOne: {
-							filter: { messageId: entry.messageId },
-							update: { [SET_ON_INSERT]: entry },
-							upsert: true,
-						},
-					}));
-
-				if (bulkOps.length > 0) {
-					await col.bulkWrite(bulkOps);
-				}
-			} catch {
-				// continue to next topic
+				await col.bulkWrite(bulkOps);
 			}
+		} catch {
+			// continue to next topic
 		}
 	}
 
@@ -203,3 +190,34 @@ export class MongoArchiveStore {
 }
 
 export const mongoArchiveStore = new MongoArchiveStore();
+
+function _messageToArchiveEntry(msg: Message): ArchiveEntry {
+	return {
+		messageId: msg.metadata.messageId ?? "",
+		topic: msg.metadata.topic,
+		eventType: msg.metadata.eventType,
+		producer: msg.metadata.publisher?.serviceName ?? "unknown",
+		payload: msg.payload,
+		metadata: msg.metadata as unknown as Record<string, unknown>,
+		archivedAt: new Date(),
+		ttl: new Date(Date.now() + ENV.MONGO_ARCHIVE_RETENTION_DAYS * 86400_000),
+	};
+}
+
+function _buildBulkUpserts(entries: ArchiveEntry[]): Array<{
+	updateOne: {
+		filter: { messageId: string };
+		update: { [SET_ON_INSERT]: ArchiveEntry };
+		upsert: true;
+	};
+}> {
+	return entries
+		.filter((entry) => entry.messageId)
+		.map((entry) => ({
+			updateOne: {
+				filter: { messageId: entry.messageId },
+				update: { [SET_ON_INSERT]: entry },
+				upsert: true,
+			},
+		}));
+}

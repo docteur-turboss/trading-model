@@ -7,7 +7,7 @@ import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { authorizeTopic } from "../core/acl";
 import type { Dispatcher } from "../core/dispatcher";
-import type { INcomingWssMessage } from "./wss-message.types";
+import type { IncomingWssMessage } from "./wss-message.types";
 import type { WssRateLimiter } from "./wss-rate-limiter";
 
 export class WssPublisher {
@@ -21,7 +21,7 @@ export class WssPublisher {
 	}
 
 	async handlePublish(
-		msg: INcomingWssMessage,
+		msg: IncomingWssMessage,
 		ws: WebSocket,
 		ctx: { serviceName: string }
 	): Promise<void> {
@@ -62,7 +62,7 @@ export class WssPublisher {
 		return false;
 	}
 
-	private async _checkPublishDedup(msg: INcomingWssMessage): Promise<boolean> {
+	private async _checkPublishDedup(msg: IncomingWssMessage): Promise<boolean> {
 		const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
 		const dedupId = (
 			wssMetadata?.delivery as Record<string, unknown> | undefined
@@ -102,7 +102,7 @@ export class WssPublisher {
 	}
 
 	private async _executePublish(
-		msg: INcomingWssMessage,
+		msg: IncomingWssMessage,
 		ws: WebSocket
 	): Promise<void> {
 		try {

@@ -4,15 +4,22 @@ import WebSocket, { WebSocketServer } from "ws";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import type { Dispatcher } from "../core/dispatcher";
-import type { INcomingWssMessage } from "./wss-message.types";
+import type { IncomingWssMessage, WssMessageType } from "./wss-message.types";
 import { WssPublisher } from "./wss-publisher";
 import { WssRateLimiter } from "./wss-rate-limiter";
 import { WssSubscriptionManager } from "./wss-subscription-manager";
 
 const WSS_SHUTDOWN_TIMEOUT_MS = 5_000;
 
+interface CloseHandlerContext {
+	ws: WebSocket;
+	subKey: string;
+	serviceName: string;
+	instanceId: string;
+}
+
 type MessageHandler = (
-	msg: INcomingWssMessage,
+	msg: IncomingWssMessage,
 	ws: WebSocket,
 	ctx: {
 		instanceId: string;
@@ -96,7 +103,7 @@ export class WssTransport {
 			topics,
 			subKey,
 		});
-		this._registerCloseHandler(ws, subKey, serviceName, instanceId);
+		this._registerCloseHandler({ ws, subKey, serviceName, instanceId });
 		this._registerErrorHandler(ws, serviceName, instanceId);
 
 		ws.send(
@@ -177,7 +184,7 @@ export class WssTransport {
 	private _parseWsMessage(
 		raw: WebSocket.RawData,
 		ws: WebSocket
-	): INcomingWssMessage | null {
+	): IncomingWssMessage | null {
 		let msg: Record<string, unknown>;
 		try {
 			msg = JSON.parse(raw.toString());
@@ -193,7 +200,7 @@ export class WssTransport {
 		}
 
 		return {
-			type: msg.type,
+			type: msg.type as WssMessageType,
 			instanceId: msg.instanceId as string | undefined,
 			topics: msg.topics as string[] | undefined,
 			payload: msg.payload,
@@ -203,12 +210,12 @@ export class WssTransport {
 		};
 	}
 
-	private _registerCloseHandler(
-		ws: WebSocket,
-		subKey: string,
-		serviceName: string,
-		instanceId: string
-	): void {
+	private _registerCloseHandler({
+		ws,
+		subKey,
+		serviceName,
+		instanceId,
+	}: CloseHandlerContext): void {
 		ws.on("close", () => {
 			this._subscriptionManager.remove(subKey);
 			ws.removeAllListeners();
@@ -232,7 +239,7 @@ export class WssTransport {
 	}
 
 	private _handleAck(
-		msg: INcomingWssMessage,
+		msg: IncomingWssMessage,
 		ws: WebSocket,
 		ctx: { instanceId: string }
 	): void {
@@ -246,7 +253,7 @@ export class WssTransport {
 	}
 
 	private _handleNack(
-		msg: INcomingWssMessage,
+		msg: IncomingWssMessage,
 		ws: WebSocket,
 		ctx: { instanceId: string }
 	): void {

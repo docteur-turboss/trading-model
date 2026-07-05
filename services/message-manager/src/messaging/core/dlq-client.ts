@@ -27,13 +27,21 @@ function normalizeBody(body: unknown): unknown {
 	return body ?? {};
 }
 
-function signRequest(
-	serviceName: string,
-	method: string,
-	path: string,
-	body: unknown,
-	secretBuf?: Buffer
-): { timestamp: string; signature: string } {
+interface SignRequestInput {
+	serviceName: string;
+	method: string;
+	path: string;
+	body: unknown;
+	secretBuf?: Buffer;
+}
+
+function signRequest({
+	serviceName,
+	method,
+	path,
+	body,
+	secretBuf,
+}: SignRequestInput): { timestamp: string; signature: string } {
 	const timestamp = String(Date.now());
 	const parts = [
 		serviceName,
@@ -57,12 +65,19 @@ function signRequest(
 	}
 }
 
-function signedOptions(
-	method: string,
-	path: string,
-	body: unknown,
-	extra?: Partial<HttpRequestOptions>
-): HttpRequestOptions {
+interface SignedOptionsInput {
+	method: string;
+	path: string;
+	body: unknown;
+	extra?: Partial<HttpRequestOptions>;
+}
+
+function signedOptions({
+	method,
+	path,
+	body,
+	extra,
+}: SignedOptionsInput): HttpRequestOptions {
 	const opts: HttpRequestOptions & { headers: Record<string, string> } = {
 		timeoutMs: 5000,
 		...extra,
@@ -70,13 +85,13 @@ function signedOptions(
 	};
 	const secretBuf = getHmacSecretBuffer();
 	if (secretBuf.length >= 16) {
-		const { timestamp, signature } = signRequest(
-			"message-manager",
+		const { timestamp, signature } = signRequest({
+			serviceName: "message-manager",
 			method,
 			path,
 			body,
-			secretBuf
-		);
+			secretBuf,
+		});
 		opts.headers["x-timestamp"] = timestamp;
 		opts.headers["x-signature"] = signature;
 	}
@@ -109,7 +124,7 @@ export class DlqServiceClient {
 			await this._httpClient.post(
 				`${this._serviceUrl}/dlq`,
 				entry,
-				signedOptions("POST", "/dlq", entry, { timeoutMs: 5000 })
+				signedOptions({ method: "POST", path: "/dlq", body: entry, extra: { timeoutMs: 5000 } })
 			);
 			logger.info("DLQ entry sent to DLQ service", { reason: entry.reason });
 		} catch (err) {
@@ -153,7 +168,7 @@ export class DlqServiceClient {
 			params.set("limit", limit.toString());
 			const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
 				`${this._serviceUrl}/dlq?${params.toString()}`,
-				signedOptions("GET", "/dlq", undefined, { timeoutMs: 5000 })
+				signedOptions({ method: "GET", path: "/dlq", body: undefined, extra: { timeoutMs: 5000 } })
 			);
 			return result?.entries ?? [];
 		} catch (err) {
@@ -175,7 +190,7 @@ export class DlqServiceClient {
 			await this._httpClient.post(
 				`${this._serviceUrl}/dlq/delete`,
 				body,
-				signedOptions("POST", "/dlq/delete", body, { timeoutMs: 5000 })
+				signedOptions({ method: "POST", path: "/dlq/delete", body, extra: { timeoutMs: 5000 } })
 			);
 		} catch (err) {
 			logger.error("Failed to delete DLQ entries", {

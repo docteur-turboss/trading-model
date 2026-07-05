@@ -72,12 +72,12 @@ export class Dispatcher {
 			return;
 		}
 
-		const subscription = new Subscription(
+		const subscription = new Subscription({
 			topic,
-			callbackPath,
-			consumerIdentity,
-			this._deliveryPort
-		);
+			callbackURL: callbackPath,
+			serviceIdentity: consumerIdentity,
+			deliveryPort: this._deliveryPort,
+		});
 
 		this._subscriptionsByTopic.set(topic, [...current, subscription]);
 	}

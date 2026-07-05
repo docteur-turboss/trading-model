@@ -1,5 +1,5 @@
-import type WebSocket from "ws";
-import type { INcomingWssMessage } from "./wss-message.types";
+import WebSocket from "ws";
+import type { IncomingWssMessage } from "./wss-message.types";
 
 interface WsSubscription {
 	instanceId: string;
@@ -49,7 +49,7 @@ export class WssSubscriptionManager {
 	}
 
 	handleSubscribe(
-		msg: INcomingWssMessage,
+		msg: IncomingWssMessage,
 		ws: WebSocket,
 		topics: Set<string>,
 		instanceId: string
@@ -83,7 +83,7 @@ export class WssSubscriptionManager {
 	}
 
 	handleUnsubscribe(
-		msg: INcomingWssMessage,
+		msg: IncomingWssMessage,
 		ws: WebSocket,
 		topics: Set<string>,
 		instanceId: string

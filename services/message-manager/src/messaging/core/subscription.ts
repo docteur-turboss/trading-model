@@ -77,6 +77,13 @@ interface SubscribersContext {
 	ack(): Promise<void>;
 }
 
+export interface SubscriptionConfig {
+	topic: string;
+	callbackURL: string;
+	serviceIdentity: ServiceIdentity;
+	deliveryPort: MessageDeliveryPort;
+}
+
 /**
  * Represents a subscription binding between a topic and a service endpoint.
  *
@@ -87,6 +94,11 @@ interface SubscribersContext {
  * @class Subscription
  */
 export class Subscription {
+	readonly topic: string;
+	readonly callbackURL: string;
+	readonly serviceIdentity: ServiceIdentity;
+	private _deliveryPort: MessageDeliveryPort;
+
 	/** Consecutive dispatch failures across messages (circuit breaker state). */
 	private _failureCount = 0;
 
@@ -102,18 +114,17 @@ export class Subscription {
 		return Math.max(0, Math.round(delay + jitter));
 	}
 
-	/**
-	 * @param topic - Topic name subscribed to.
-	 * @param callbackURL - Relative HTTP endpoint for message delivery.
-	 * @param serviceIdentity - Identity of the consuming service.
-	 * @param deliveryPort - Abstract delivery port for sending and dead-lettering.
-	 */
-	constructor(
-		public readonly topic: string,
-		public readonly callbackURL: string,
-		public readonly serviceIdentity: ServiceIdentity,
-		private readonly _deliveryPort: MessageDeliveryPort
-	) {}
+	constructor({
+		topic,
+		callbackURL,
+		serviceIdentity,
+		deliveryPort,
+	}: SubscriptionConfig) {
+		this.topic = topic;
+		this.callbackURL = callbackURL;
+		this.serviceIdentity = serviceIdentity;
+		this._deliveryPort = deliveryPort;
+	}
 
 	/**
 	 * Dispatches a message to the subscribed service.

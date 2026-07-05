@@ -27,12 +27,12 @@ describe("Subscription", () => {
 			send: jest.fn<MessageDeliveryPort["send"]>(),
 			markDeadLetter: jest.fn<MessageDeliveryPort["markDeadLetter"]>(),
 		};
-		subscription = new Subscription(
-			"test.topic",
-			"message/callback",
-			mockServiceIdentity,
-			mockDeliveryPort
-		);
+		subscription = new Subscription({
+			topic: "test.topic",
+			callbackURL: "message/callback",
+			serviceIdentity: mockServiceIdentity,
+			deliveryPort: mockDeliveryPort,
+		});
 	});
 
 	describe("dispatch", () => {

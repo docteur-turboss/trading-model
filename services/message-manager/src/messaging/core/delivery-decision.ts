@@ -13,12 +13,19 @@ interface DeliveryDecision {
  * Pure function: classifies a delivery failure into retry or dead-letter.
  * No side effects — only decision logic.
  */
-export function classifyDeliveryFailure(
-	error: Error & { code?: string; statusCode?: number; reason?: string },
-	deliveryMode: DeliveryModeEnum,
-	deliveryAttempt: number,
-	maxRetries: number
-): DeliveryDecision {
+export interface DeliveryFailureInput {
+	error: Error & { code?: string; statusCode?: number; reason?: string };
+	deliveryMode: DeliveryModeEnum;
+	deliveryAttempt: number;
+	maxRetries: number;
+}
+
+export function classifyDeliveryFailure({
+	error,
+	deliveryMode,
+	deliveryAttempt,
+	maxRetries,
+}: DeliveryFailureInput): DeliveryDecision {
 	// DEAD_LETTER from subscriber
 	if (error.code === ErrorCodes.DEAD_LETTER_ERROR) {
 		return { retry: false, deadLetterReason: error.reason ?? "DEAD_LETTER" };
