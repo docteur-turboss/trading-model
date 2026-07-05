@@ -140,50 +140,58 @@ function trainPhase(
  * Eval phase: evaluate genome on held-out validation data.
  * Does NOT update weights; only accumulates PnL.
  */
+function _runEvalEpisode(
+	genome: DeepReadonly<LamarckGenome>,
+	validationData: MarketStep[],
+	backendFactory: BackendFactory
+): number {
+	const backend = backendFactory(genome);
+	const rShape = genome.rl.rewardShaping;
+	const horizon = genome.rl.horizon;
+	const runStats = new NormalizationStats();
+	let epReward = 0;
+
+	const maxT = Math.min(validationData.length, horizon.maxEpisodeLength);
+
+	for (let index = 0; index < maxT; index++) {
+		if (index % horizon.frameSkip !== 0) {
+			continue;
+		}
+
+		const { reward } = backend.step(
+			validationData[index].features,
+			validationData[index].price
+		);
+
+		let shaped = shapeReward(reward, rShape);
+		if (rShape.normalize) {
+			runStats?.update(shaped);
+			/* istanbul ignore next */
+			shaped = runStats?.normalize(shaped) ?? shaped;
+		}
+		if (!rShape.sparse) {
+			epReward += shaped;
+		}
+	}
+
+	if (rShape.sparse) {
+		epReward = backend.getPnL();
+	}
+	backend.resetEpisode();
+
+	return epReward;
+}
+
 function evalPhase(
 	genome: DeepReadonly<LamarckGenome>,
 	validationData: MarketStep[],
 	backendFactory: BackendFactory
 ): { rawScores: number[]; finalPnL: number } {
-	const ctrl = genome.gaControl;
-	const rShape = genome.rl.rewardShaping;
-	const horizon = genome.rl.horizon;
+	const numEpisodes = genome.gaControl.episodesPerIndividual;
 	const rawScores: number[] = [];
 
-	for (let ep = 0; ep < ctrl.episodesPerIndividual; ep++) {
-		const backend = backendFactory(genome); // fresh backend with Lamarckian weights
-		const runStats = new NormalizationStats();
-		let epReward = 0;
-
-		const maxT = Math.min(validationData.length, horizon.maxEpisodeLength);
-
-		for (let index = 0; index < maxT; index++) {
-			if (index % horizon.frameSkip !== 0) {
-				continue;
-			}
-
-			// step() handles everything — no forwardPass() call before it
-			const { reward } = backend.step(
-				validationData[index].features,
-				validationData[index].price
-			);
-
-			let shaped = shapeReward(reward, rShape);
-			if (rShape.normalize) {
-				runStats?.update(shaped);
-				/* istanbul ignore next */
-				shaped = runStats?.normalize(shaped) ?? shaped;
-			}
-			if (!rShape.sparse) {
-				epReward += shaped;
-			}
-		}
-
-		if (rShape.sparse) {
-			epReward = backend.getPnL();
-		}
-		rawScores.push(epReward);
-		backend.resetEpisode();
+	for (let ep = 0; ep < numEpisodes; ep++) {
+		rawScores.push(_runEvalEpisode(genome, validationData, backendFactory));
 	}
 
 	return {
@@ -249,11 +257,10 @@ function invariant(condition: boolean, message: string): asserts condition {
  * Evaluate a single genome on a single window set.
  * Pure function (no side effects): returns new genome + scores.
  */
-export function evaluateSingleGenomeOnWindow(
+function _validateGenomeInputs(
 	genome: DeepReadonly<LamarckGenome>,
-	windowSet: { id: string; train: MarketStep[]; validation: MarketStep[] },
-	backendFactory: BackendFactory
-): EvaluationResult {
+	windowSet: { id: string; train: MarketStep[]; validation: MarketStep[] }
+): void {
 	invariant(genome.network.inputDim > 0, "inputDim must be positive");
 	invariant(genome.network.outputDim > 0, "outputDim must be positive");
 	invariant(
@@ -269,6 +276,24 @@ export function evaluateSingleGenomeOnWindow(
 		windowSet.validation.length > 0,
 		"windowSet.validation must not be empty"
 	);
+}
+
+function _validateEvalResult(result: { rawScores: number[]; finalPnL: number }): void {
+	invariant(
+		Number.isFinite(result.finalPnL),
+		`finalPnL must be finite, got ${result.finalPnL}`
+	);
+	for (const score of result.rawScores) {
+		invariant(Number.isFinite(score), `rawScore must be finite, got ${score}`);
+	}
+}
+
+export function evaluateSingleGenomeOnWindow(
+	genome: DeepReadonly<LamarckGenome>,
+	windowSet: { id: string; train: MarketStep[]; validation: MarketStep[] },
+	backendFactory: BackendFactory
+): EvaluationResult {
+	_validateGenomeInputs(genome, windowSet);
 
 	const shadowBackend = backendFactory(genome);
 	const shadowStats = new NormalizationStats();
@@ -290,13 +315,7 @@ export function evaluateSingleGenomeOnWindow(
 		backendFactory
 	);
 
-	invariant(
-		Number.isFinite(evalResult.finalPnL),
-		`finalPnL must be finite, got ${evalResult.finalPnL}`
-	);
-	for (const score of evalResult.rawScores) {
-		invariant(Number.isFinite(score), `rawScore must be finite, got ${score}`);
-	}
+	_validateEvalResult(evalResult);
 
 	return {
 		updatedGenome,
@@ -312,6 +331,39 @@ export function evaluateSingleGenomeOnWindow(
  * - Lamarckian weight persistence across windows
  * - Returns updated genome + fitness meta + objectives
  */
+function _computeAllResults(
+	genome: DeepReadonly<LamarckGenome>,
+	currentGenome: DeepReadonly<LamarckGenome>,
+	allRaw: number[],
+	allPnL: number[],
+	t0: number
+): {
+	updatedGenome: DeepReadonly<LamarckGenome>;
+	meta: GenomeFitnessMeta;
+	objectives: { avgPnl: number; sharpe: number; negFlops: number };
+} {
+	const complexity = estimateComplexity(currentGenome);
+	const Lambda = 0.15;
+	const fitness = computeFitness(genome.gaControl.fitnessType, allRaw);
+	const adjFitness = computeAdjustedFitness(fitness, complexity, Lambda);
+
+	const avgPnL = allPnL.reduce((sum, value) => sum + value, 0) / allPnL.length;
+	const sharpe = computeSharpe(allRaw);
+	const negFlops = -complexity.inferenceFLOPs;
+
+	return {
+		updatedGenome: currentGenome,
+		meta: {
+			episodesRun: allRaw.length,
+			computeMs: Date.now() - t0,
+			efficiencyScore: adjFitness,
+			variance: computeVariance(allRaw),
+			rawScores: allRaw,
+		},
+		objectives: { avgPnl: avgPnL, sharpe, negFlops },
+	};
+}
+
 export async function evaluateGenomeAllWindows(
 	genome: DeepReadonly<LamarckGenome>,
 	windowSets: Array<{
@@ -342,28 +394,7 @@ export async function evaluateGenomeAllWindows(
 		allPnL.push(result.finalPnL);
 	}
 
-	const complexity = estimateComplexity(currentGenome);
-	const Lambda = 0.15;
-	const fitness = computeFitness(genome.gaControl.fitnessType, allRaw);
-	const adjFitness = computeAdjustedFitness(fitness, complexity, Lambda);
-
-	const avgPnL = allPnL.reduce((sum, value) => sum + value, 0) / allPnL.length;
-	const sharpe = computeSharpe(allRaw);
-	const negFlops = -complexity.inferenceFLOPs;
-
-	await Promise.resolve();
-
-	return {
-		updatedGenome: currentGenome,
-		meta: {
-			episodesRun: allRaw.length,
-			computeMs: Date.now() - t0,
-			efficiencyScore: adjFitness,
-			variance: computeVariance(allRaw),
-			rawScores: allRaw,
-		},
-		objectives: { avgPnl: avgPnL, sharpe, negFlops },
-	};
+	return _computeAllResults(genome, currentGenome, allRaw, allPnL, t0);
 }
 
 /**

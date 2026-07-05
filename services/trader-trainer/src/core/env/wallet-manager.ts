@@ -1,11 +1,8 @@
 export interface WalletConfig {
 	initialCash: number;
 	initialPrice: number;
-	/** Fee rate applied on each transaction (e.g. 0.001 = 0.1%). Default: 0 */
 	feeRate?: number;
-	/** Max units holdable (position cap). Default: Infinity */
 	maxPosition?: number;
-	/** Decimal precision for rounding operations. Default: 8 */
 	decimals?: number;
 }
 
@@ -28,49 +25,22 @@ export interface WalletMetrics {
 	tradeCount: number;
 }
 
-interface WalletAPI {
-	// --- Core trading actions ---
+export interface WalletAPI {
 	buy: (amount: number) => boolean;
 	sell: (amount: number) => boolean;
 	setPrice: (newPrice: number) => void;
-
-	// --- State accessors ---
 	getPosition: () => number;
 	getCash: () => number;
 	getValuation: () => number;
 	getPrice: () => number;
-
-	// --- RL-specific ---
 	getPnL: () => number;
 	getMetrics: () => WalletMetrics;
 	getHistory: () => Readonly<TradeRecord[]>;
-
-	/** Reset wallet to initial state (call between episodes) */
 	reset: () => void;
 }
 
-/**
- * Create a simulated financial portfolio for RL/genetic algorithm trading.
- *
- * @example
- * const wallet = createWallet({ initialCash: 1000, initialPrice: 50, feeRate: 0.001 });
- *
- * wallet.buy(5);        // true  — costs 5 * 50 * (1 + 0.001) = 250.25
- * wallet.sell(2);       // true
- * wallet.setPrice(60);
- *
- * console.log(wallet.getPnL());       // valuation - initialCash
- * console.log(wallet.getMetrics());   // { pnl, returnRate, drawdown, ... }
- *
- * wallet.reset();       // back to initial state, ready for next episode
- */
-function validateConfig({
-	initialCash,
-	initialPrice,
-	feeRate,
-	maxPosition,
-	decimals,
-}: Required<WalletConfig>): void {
+function validateConfig(config: Required<WalletConfig>): void {
+	const { initialCash, initialPrice, feeRate, maxPosition, decimals } = config;
 	if (!Number.isFinite(initialCash) || initialCash < 0) {
 		throw new Error(`Invalid initialCash: ${initialCash}`);
 	}
@@ -90,181 +60,179 @@ function validateConfig({
 	}
 }
 
-export const createWallet = ({
-	initialCash,
-	initialPrice,
-	feeRate = 0,
-	maxPosition = Number.POSITIVE_INFINITY,
-	decimals = 8,
-}: WalletConfig): WalletAPI => {
-	validateConfig({ initialCash, initialPrice, feeRate, maxPosition, decimals });
+export class Wallet implements WalletAPI {
+	private readonly _initialCash: number;
+	private readonly _initialPrice: number;
+	private readonly _feeRate: number;
+	private readonly _maxPosition: number;
+	private readonly _decimals: number;
 
-	const roundToDecimals = (value: number) => {
-		const factor = 10 ** decimals;
+	private _price: number;
+	private _cash: number;
+	private _position = 0;
+	private _peakValuation: number;
+	private _totalFeesPaid = 0;
+	private _tradeCount = 0;
+	private _step = 0;
+	private readonly _history: TradeRecord[] = [];
+
+	constructor(config: WalletConfig) {
+		const {
+			initialCash,
+			initialPrice,
+			feeRate = 0,
+			maxPosition = Number.POSITIVE_INFINITY,
+			decimals = 8,
+		} = config;
+		validateConfig({
+			initialCash,
+			initialPrice,
+			feeRate,
+			maxPosition,
+			decimals,
+		});
+		this._initialCash = initialCash;
+		this._initialPrice = initialPrice;
+		this._feeRate = feeRate;
+		this._maxPosition = maxPosition;
+		this._decimals = decimals;
+		this._price = initialPrice;
+		this._cash = initialCash;
+		this._peakValuation = initialCash;
+	}
+
+	private _round(value: number): number {
+		const factor = 10 ** this._decimals;
 		return Math.round(value * factor) / factor;
-	};
+	}
 
-	// --- Mutable state ---
-	let price = initialPrice;
-	let cash = initialCash;
-	let position = 0;
+	private _valuation(): number {
+		return this._round(this._cash + this._position * this._price);
+	}
 
-	// --- Metrics tracking ---
-	let peakValuation = initialCash;
-	let totalFeesPaid = 0;
-	let tradeCount = 0;
-	let step = 0;
-	const history: TradeRecord[] = [];
-
-	// --- Helpers ---
-	const currentValuation = () => roundToDecimals(cash + position * price);
-
-	const updatePeak = () => {
-		const val = currentValuation();
-		if (val > peakValuation) {
-			peakValuation = val;
+	private _updatePeak(): void {
+		const val = this._valuation();
+		if (val > this._peakValuation) {
+			this._peakValuation = val;
 		}
-	};
+	}
 
-	// --- Core actions ---
-
-	/**
-	 * Buy a certain number of units at the current price (fees included).
-	 * Returns false if: invalid amount, insufficient cash, or position cap reached.
-	 */
-	const buy = (amount: number): boolean => {
+	buy(amount: number): boolean {
 		if (!Number.isFinite(amount) || amount <= 0) {
 			return false;
 		}
-
-		const newPosition = roundToDecimals(position + amount);
-		if (newPosition > maxPosition) {
+		const newPosition = this._round(this._position + amount);
+		if (newPosition > this._maxPosition) {
 			return false;
 		}
-
-		const baseCost = roundToDecimals(amount * price);
-		const fee = roundToDecimals(baseCost * feeRate);
-		const totalCost = roundToDecimals(baseCost + fee);
-
-		if (totalCost > cash) {
+		const baseCost = this._round(amount * this._price);
+		const fee = this._round(baseCost * this._feeRate);
+		const totalCost = this._round(baseCost + fee);
+		if (totalCost > this._cash) {
 			return false;
 		}
-
-		position = newPosition;
-		cash = roundToDecimals(cash - totalCost);
-		totalFeesPaid = roundToDecimals(totalFeesPaid + fee);
-		tradeCount++;
-		updatePeak();
-
-		history.push({
-			step,
+		this._position = newPosition;
+		this._cash = this._round(this._cash - totalCost);
+		this._totalFeesPaid = this._round(this._totalFeesPaid + fee);
+		this._tradeCount++;
+		this._updatePeak();
+		this._history.push({
+			step: this._step,
 			action: "buy",
 			amount,
-			price,
+			price: this._price,
 			fee,
-			cashAfter: cash,
-			positionAfter: position,
+			cashAfter: this._cash,
+			positionAfter: this._position,
 		});
 		return true;
-	};
+	}
 
-	/**
-	 * Sell a certain number of units at the current price (fees deducted from proceeds).
-	 * Returns false if: invalid amount or insufficient position.
-	 */
-	const sell = (amount: number): boolean => {
-		if (!Number.isFinite(amount) || amount <= 0 || amount > position) {
+	sell(amount: number): boolean {
+		if (!Number.isFinite(amount) || amount <= 0 || amount > this._position) {
 			return false;
 		}
-
-		const baseProceeds = roundToDecimals(amount * price);
-		const fee = roundToDecimals(baseProceeds * feeRate);
-		const netProceeds = roundToDecimals(baseProceeds - fee);
-
-		position = roundToDecimals(position - amount);
-		cash = roundToDecimals(cash + netProceeds);
-		totalFeesPaid = roundToDecimals(totalFeesPaid + fee);
-		tradeCount++;
-		updatePeak();
-
-		history.push({
-			step,
+		const baseProceeds = this._round(amount * this._price);
+		const fee = this._round(baseProceeds * this._feeRate);
+		const netProceeds = this._round(baseProceeds - fee);
+		this._position = this._round(this._position - amount);
+		this._cash = this._round(this._cash + netProceeds);
+		this._totalFeesPaid = this._round(this._totalFeesPaid + fee);
+		this._tradeCount++;
+		this._updatePeak();
+		this._history.push({
+			step: this._step,
 			action: "sell",
 			amount,
-			price,
+			price: this._price,
 			fee,
-			cashAfter: cash,
-			positionAfter: position,
+			cashAfter: this._cash,
+			positionAfter: this._position,
 		});
 		return true;
-	};
+	}
 
-	/**
-	 * Update the asset price. Call this at each env step with the new market data.
-	 * Throws on invalid price to surface data pipeline issues early.
-	 */
-	const setPrice = (newPrice: number): void => {
+	setPrice(newPrice: number): void {
 		if (!Number.isFinite(newPrice) || newPrice <= 0) {
 			throw new Error(`setPrice received invalid value: ${newPrice}`);
 		}
-		price = newPrice;
-		step++;
-		updatePeak();
-	};
+		this._price = newPrice;
+		this._step++;
+		this._updatePeak();
+	}
 
-	// --- Accessors ---
-	const getPosition = (): number => position;
-	const getCash = (): number => cash;
-	const getValuation = (): number => currentValuation();
-	const getPrice = (): number => price;
+	getPosition(): number {
+		return this._position;
+	}
 
-	/** Net profit/loss vs initial cash */
-	const getPnL = (): number =>
-		roundToDecimals(currentValuation() - initialCash);
+	getCash(): number {
+		return this._cash;
+	}
 
-	/** Consolidated metrics — useful as RL observation features or episode summary */
-	const getMetrics = (): WalletMetrics => {
-		const valuation = currentValuation();
+	getValuation(): number {
+		return this._valuation();
+	}
+
+	getPrice(): number {
+		return this._price;
+	}
+
+	getPnL(): number {
+		return this._round(this._valuation() - this._initialCash);
+	}
+
+	getMetrics(): WalletMetrics {
+		const valuation = this._valuation();
 		return {
-			pnl: roundToDecimals(valuation - initialCash),
-			returnRate: roundToDecimals((valuation - initialCash) / initialCash),
-			peakValuation,
-			/** Max % drop from peak — key risk metric */
+			pnl: this._round(valuation - this._initialCash),
+			returnRate: this._round(
+				(valuation - this._initialCash) / this._initialCash
+			),
+			peakValuation: this._peakValuation,
 			drawdown:
-				peakValuation > 0
-					? roundToDecimals((peakValuation - valuation) / peakValuation)
+				this._peakValuation > 0
+					? this._round((this._peakValuation - valuation) / this._peakValuation)
 					: 0,
-			totalFeesPaid,
-			tradeCount,
+			totalFeesPaid: this._totalFeesPaid,
+			tradeCount: this._tradeCount,
 		};
-	};
+	}
 
-	/** Full trade log for replay/debugging */
-	const getHistory = (): Readonly<TradeRecord[]> => history;
+	getHistory(): Readonly<TradeRecord[]> {
+		return this._history;
+	}
 
-	/** Reset to initial state — call between RL episodes */
-	const reset = (): void => {
-		price = initialPrice;
-		cash = initialCash;
-		position = 0;
-		peakValuation = initialCash;
-		totalFeesPaid = 0;
-		tradeCount = 0;
-		step = 0;
-		history.length = 0;
-	};
+	reset(): void {
+		this._price = this._initialPrice;
+		this._cash = this._initialCash;
+		this._position = 0;
+		this._peakValuation = this._initialCash;
+		this._totalFeesPaid = 0;
+		this._tradeCount = 0;
+		this._step = 0;
+		this._history.length = 0;
+	}
+}
 
-	return {
-		buy,
-		sell,
-		setPrice,
-		getPosition,
-		getCash,
-		getValuation,
-		getPrice,
-		getPnL,
-		getMetrics,
-		getHistory,
-		reset,
-	};
-};
+export const createWallet = (config: WalletConfig): WalletAPI =>
+	new Wallet(config);

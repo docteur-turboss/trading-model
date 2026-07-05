@@ -135,36 +135,43 @@ export class CheckpointManager {
 		return join(this._checkpointDir, "market_data_buffer.json");
 	}
 
+	private _serializeSymbols(
+		buffer: MarketDataBuffer,
+		symbols: string[]
+	): Record<string, SymbolStateSerializable> {
+		const symbolsData: Record<string, SymbolStateSerializable> = {};
+		for (const sym of symbols) {
+			const state = buffer.getSymbolState(sym);
+			if (!state) {
+				continue;
+			}
+			symbolsData[sym] = {
+				candles: state.candles,
+				trades: state.trades,
+				orderBook: state.orderBook,
+				bookTicker: state.bookTicker,
+				ticker24h: state.ticker24h,
+				closeNorm: state.closeNorm.toJSON(),
+				volumeNorm: state.volumeNorm.toJSON(),
+				openNorm: state.openNorm.toJSON(),
+				highNorm: state.highNorm.toJSON(),
+				lowNorm: state.lowNorm.toJSON(),
+				tradePriceNorm: state.tradePriceNorm.toJSON(),
+				tradeQtyNorm: state.tradeQtyNorm.toJSON(),
+				bidNorm: state.bidNorm.toJSON(),
+				askNorm: state.askNorm.toJSON(),
+				spreadNorm: state.spreadNorm.toJSON(),
+				tickerVolumeNorm: state.tickerVolumeNorm.toJSON(),
+			};
+		}
+		return symbolsData;
+	}
+
 	saveBuffer(buffer: MarketDataBuffer): void {
 		try {
 			const symbols = buffer.getSymbols();
 			const priceSnapshot = buffer.getPriceSnapshot();
-
-			const symbolsData: Record<string, SymbolStateSerializable> = {};
-			for (const sym of symbols) {
-				const state = buffer.getSymbolState(sym);
-				if (!state) {
-					continue;
-				}
-				symbolsData[sym] = {
-					candles: state.candles,
-					trades: state.trades,
-					orderBook: state.orderBook,
-					bookTicker: state.bookTicker,
-					ticker24h: state.ticker24h,
-					closeNorm: state.closeNorm.toJSON(),
-					volumeNorm: state.volumeNorm.toJSON(),
-					openNorm: state.openNorm.toJSON(),
-					highNorm: state.highNorm.toJSON(),
-					lowNorm: state.lowNorm.toJSON(),
-					tradePriceNorm: state.tradePriceNorm.toJSON(),
-					tradeQtyNorm: state.tradeQtyNorm.toJSON(),
-					bidNorm: state.bidNorm.toJSON(),
-					askNorm: state.askNorm.toJSON(),
-					spreadNorm: state.spreadNorm.toJSON(),
-					tickerVolumeNorm: state.tickerVolumeNorm.toJSON(),
-				};
-			}
+			const symbolsData = this._serializeSymbols(buffer, symbols);
 
 			writeFileSync(
 				this._bufferStatePath(),

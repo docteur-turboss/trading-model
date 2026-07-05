@@ -186,6 +186,55 @@ export class Trainer {
 	}
 
 	/** Build a serialisable summary of the best genome for API consumption. Returns null if no genome exists. */
+	private _buildGASummary(
+		genome: DeepReadonly<LamarckGenome>
+	): BestAgentSummary["gaControl"] {
+		return {
+			populationSize: genome.gaControl.populationSize,
+			elitismFraction: genome.gaControl.elitismFraction,
+			survivorFraction: genome.gaControl.survivorFraction,
+			episodesPerIndividual: genome.gaControl.episodesPerIndividual,
+			selectionType: genome.gaControl.selectionType,
+			fitnessType: genome.gaControl.fitnessType,
+		};
+	}
+
+	private _buildNetworkSummary(
+		genome: DeepReadonly<LamarckGenome>
+	): BestAgentSummary["network"] {
+		return {
+			inputDim: genome.network.inputDim,
+			outputDim: genome.network.outputDim,
+			hiddenLayers: genome.network.hiddenLayers.map(
+				(layer: { neurons: number; activation: string }) => ({
+					neurons: layer.neurons,
+					activation: layer.activation,
+				})
+			),
+		};
+	}
+
+	private _buildRLSummary(
+		genome: DeepReadonly<LamarckGenome>
+	): BestAgentSummary["rl"] {
+		return {
+			gamma: genome.rl.gamma,
+			learningRate: genome.rl.learningRate,
+			epsilonStart: genome.rl.discretePolicy.epsilonStart,
+			epsilonMin: genome.rl.discretePolicy.epsilonMin,
+			epsilonDecay: genome.rl.discretePolicy.epsilonDecay,
+		};
+	}
+
+	private _computeAvgPnl(rawScores: readonly number[]): number {
+		return (
+			([...rawScores] as number[]).reduce(
+				(sum: number, val: number) => sum + val,
+				0
+			) / rawScores.length
+		);
+	}
+
 	getBestAgentSummary(): BestAgentSummary | null {
 		if (!this._bestGenome) {
 			return null;
@@ -199,39 +248,12 @@ export class Trainer {
 			generation: genome.generation,
 			fitness: genome.fitness ?? 0,
 			sharpe: meta?.rawScores ? this._computeSharpe(meta.rawScores) : 0,
-			avgPnl: meta?.rawScores
-				? ([...meta.rawScores] as number[]).reduce(
-						(sum: number, val: number) => sum + val,
-						0
-					) / meta.rawScores.length
-				: 0,
+			avgPnl: meta?.rawScores ? this._computeAvgPnl(meta.rawScores) : 0,
 			negFlops: 0,
 			complexityPenalty: 0,
-			gaControl: {
-				populationSize: genome.gaControl.populationSize,
-				elitismFraction: genome.gaControl.elitismFraction,
-				survivorFraction: genome.gaControl.survivorFraction,
-				episodesPerIndividual: genome.gaControl.episodesPerIndividual,
-				selectionType: genome.gaControl.selectionType,
-				fitnessType: genome.gaControl.fitnessType,
-			},
-			network: {
-				inputDim: genome.network.inputDim,
-				outputDim: genome.network.outputDim,
-				hiddenLayers: genome.network.hiddenLayers.map(
-					(layer: { neurons: number; activation: string }) => ({
-						neurons: layer.neurons,
-						activation: layer.activation,
-					})
-				),
-			},
-			rl: {
-				gamma: genome.rl.gamma,
-				learningRate: genome.rl.learningRate,
-				epsilonStart: genome.rl.discretePolicy.epsilonStart,
-				epsilonMin: genome.rl.discretePolicy.epsilonMin,
-				epsilonDecay: genome.rl.discretePolicy.epsilonDecay,
-			},
+			gaControl: this._buildGASummary(genome),
+			network: this._buildNetworkSummary(genome),
+			rl: this._buildRLSummary(genome),
 		};
 	}
 

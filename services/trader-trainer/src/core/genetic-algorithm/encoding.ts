@@ -35,7 +35,14 @@
 //
 // ================================================================
 
-import type { ActivationType, ConnectionType, Genome } from "./genome-types";
+import type {
+	ActivationType,
+	ConnectionType,
+	Genome,
+	MutationGenome,
+	NetworkGenome,
+	RLGenome,
+} from "./genome-types";
 
 // ---- Constants ----
 
@@ -215,6 +222,69 @@ function decodeLayers(vec: Float32Array, depth: number, template: Genome) {
  * Categorical fields are resolved by argmax of the one-hot block;
  * ties are broken by index order.
  */
+function decodeNetwork(
+	scalars: Record<string, number>,
+	hiddenLayers: NetworkGenome["hiddenLayers"],
+	template: Genome
+): NetworkGenome {
+	return {
+		inputDim: scalars.inputDim,
+		outputDim: scalars.outputDim,
+		hiddenLayers,
+		normalization: template.network.normalization,
+	};
+}
+
+function decodeRL(scalars: Record<string, number>, template: Genome): RLGenome {
+	return {
+		gamma: scalars.gamma,
+		learningRate: scalars.learningRate,
+		rewardShaping: {
+			...template.rl.rewardShaping,
+			clipMin: Math.min(scalars.clipMin, scalars.clipMax - 1e-6),
+			clipMax: Math.max(scalars.clipMax, scalars.clipMin + 1e-6),
+			scaleFactor: scalars.scaleFactor,
+		},
+		horizon: {
+			maxEpisodeLength: scalars.maxEpisodeLength,
+			nStepReturn: scalars.nStepReturn,
+			frameSkip: scalars.frameSkip,
+		},
+		discretePolicy: {
+			...template.rl.discretePolicy,
+			epsilonStart: scalars.epsilonStart,
+			epsilonMin: scalars.epsilonMin,
+			epsilonDecay: scalars.epsilonDecay,
+			temperature: scalars.temperature,
+		},
+		continuousPolicy: {
+			...template.rl.continuousPolicy,
+			noiseStd: scalars.noiseStd,
+			noiseDecay: scalars.noiseDecay,
+			clipMin: template.rl.continuousPolicy.clipMin,
+			clipMax: template.rl.continuousPolicy.clipMax,
+		},
+		replayBuffer: {
+			...template.rl.replayBuffer,
+			bufferSize: scalars.bufferSize,
+			alphaPER: scalars.alphaPER,
+			betaPER: scalars.betaPER,
+		},
+	};
+}
+
+function decodeMutation(
+	scalars: Record<string, number>,
+	template: Genome
+): MutationGenome {
+	return {
+		...template.mutation,
+		rate: scalars.mutationRate,
+		sigma: scalars.sigma,
+		selfSigma: scalars.selfSigma,
+	};
+}
+
 export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 	if (vec.length !== ENCODED_DIM) {
 		throw new Error(
@@ -229,57 +299,9 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 		id: template.id,
 		generation: template.generation,
 		fitness: template.fitness,
-
-		network: {
-			inputDim: scalars.inputDim,
-			outputDim: scalars.outputDim,
-			hiddenLayers,
-			normalization: template.network.normalization,
-		},
-
-		rl: {
-			gamma: scalars.gamma,
-			learningRate: scalars.learningRate,
-			rewardShaping: {
-				...template.rl.rewardShaping,
-				clipMin: Math.min(scalars.clipMin, scalars.clipMax - 1e-6),
-				clipMax: Math.max(scalars.clipMax, scalars.clipMin + 1e-6),
-				scaleFactor: scalars.scaleFactor,
-			},
-			horizon: {
-				maxEpisodeLength: scalars.maxEpisodeLength,
-				nStepReturn: scalars.nStepReturn,
-				frameSkip: scalars.frameSkip,
-			},
-			discretePolicy: {
-				...template.rl.discretePolicy,
-				epsilonStart: scalars.epsilonStart,
-				epsilonMin: scalars.epsilonMin,
-				epsilonDecay: scalars.epsilonDecay,
-				temperature: scalars.temperature,
-			},
-			continuousPolicy: {
-				...template.rl.continuousPolicy,
-				noiseStd: scalars.noiseStd,
-				noiseDecay: scalars.noiseDecay,
-				clipMin: template.rl.continuousPolicy.clipMin,
-				clipMax: template.rl.continuousPolicy.clipMax,
-			},
-			replayBuffer: {
-				...template.rl.replayBuffer,
-				bufferSize: scalars.bufferSize,
-				alphaPER: scalars.alphaPER,
-				betaPER: scalars.betaPER,
-			},
-		},
-
-		mutation: {
-			...template.mutation,
-			rate: scalars.mutationRate,
-			sigma: scalars.sigma,
-			selfSigma: scalars.selfSigma,
-		},
-
+		network: decodeNetwork(scalars, hiddenLayers, template),
+		rl: decodeRL(scalars, template),
+		mutation: decodeMutation(scalars, template),
 		crossover: { ...template.crossover },
 		gaControl: { ...template.gaControl },
 	};

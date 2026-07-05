@@ -1,17 +1,10 @@
-// ----------------------------------------------------------------
-//            Self-adaptive Genetic Algorithm runner
-//   Couples with TradingAgent / AutoEnv / Deep Q-Learning agent
-// ----------------------------------------------------------------
-
 import type { Experience } from "../../core/neural-network/type";
 import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
-import { NormalizationStats } from "../normalization-stats";
 import { adaptGAControl } from "./adaptive-control-system";
 import { crossoverGenomes } from "./crossover";
-import { evaluateGenomeAllWindows, pooledEval } from "./evaluation-pipeline";
+import { evaluateGenomeAllWindows } from "./evaluation-pipeline";
 import { crossoverWeights, mutateWeights } from "./evolution-engine";
 import { createDefaultGenome } from "./factory";
-import { shapeReward } from "./fitness";
 import type {
 	GAControlGenome,
 	Genome,
@@ -22,27 +15,36 @@ import type {
 import { mutateGenome } from "./mutation";
 import type { ObjectiveVector } from "./nsga2";
 import { buildPopulationMeta, type PopulationMeta } from "./nsga2";
+import { createOffspring, selectElites } from "./offspring-factory";
+import { evaluateFitness } from "./training-phase";
 import { ParetoArchive } from "./pareto-engine";
 import { makePRNG } from "./prng";
 import { selectParent } from "./selection";
 import type { DeepReadonly } from "./shared-types";
-import { generateId, type RunningStats } from "./utils";
+import { generateId } from "./utils";
 
-// ----------------------------------------------------------------
-// Immutability helpers
-// ----------------------------------------------------------------
+export interface RLBackend {
+	forwardPass(features: Float32Array): Float32Array;
+	step(features: Float32Array, price: number): { reward: number };
+	train(experience: Experience, gamma: number): void;
+	getWeights(): Float32Array;
+	setWeights(weights: Float32Array): void;
+	getPnL(): number;
+	resetEpisode(): void;
+	getExperiencePool(): Experience[];
+}
+
+export type BackendFactory = (genome: DeepReadonly<LamarckGenome>) => RLBackend;
+
 function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
-	/* istanbul ignore if */
 	if (obj === null || typeof obj !== "object") {
 		return obj as DeepReadonly<TValue>;
 	}
 
-	// Typed arrays (Float32Array etc) cannot be frozen; skip them
 	if (ArrayBuffer.isView(obj)) {
 		return obj as DeepReadonly<TValue>;
 	}
 
-	// Freeze nested objects first (depth-first)
 	for (const key of Object.keys(obj)) {
 		const val = (obj as Record<string, unknown>)[key];
 		if (val !== null && typeof val === "object" && !Object.isFrozen(val)) {
@@ -53,50 +55,13 @@ function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
 	return Object.freeze(obj) as DeepReadonly<TValue>;
 }
 
-/** Produce a new deep-frozen genome with patch applied; original untouched. */
 function withGenome<TGenome extends Genome>(
 	base: DeepReadonly<TGenome>,
 	patch: Partial<TGenome>
 ): DeepReadonly<TGenome> {
-	// Shallow merge at the top level, then deep-freeze the result.
-	// For nested objects in patch, caller is responsible for providing
-	// complete replacements — no partial sub-object merging.
 	return deepFreeze({ ...base, ...patch } as TGenome) as DeepReadonly<TGenome>;
 }
 
-// ----------------------------------------------------------------
-// RL backend interface (decouples runner from DQN internals)
-// ----------------------------------------------------------------
-export interface RLBackend {
-	/**
-	 * Pure read of network output — does NOT push to experience pool.
-	 * Use for observation / policy sampling without side-effects.
-	 */
-	forwardPass(features: Float32Array): Float32Array;
-	/**
-	 * Full environment step: sets price, runs inference, executes
-	 * trade in wallet, returns reward.  Pushes to experience pool.
-	 */
-	step(features: Float32Array, price: number): { reward: number };
-	/** Q-learning update on one experience tuple. */
-	train(experience: Experience, gamma: number): void;
-	/** Flat weight snapshot for Lamarckian storage. */
-	getWeights(): Float32Array;
-	/** Restores weights from a Lamarckian snapshot. */
-	setWeights(weights: Float32Array): void;
-	getPnL(): number;
-	/** Resets the episode state — wallet, pool, and internal counters. */
-	resetEpisode(): void;
-	getExperiencePool(): Experience[];
-}
-
-/** Factory: the runner only knows how to ask for backends, not how to build them. */
-export type BackendFactory = (genome: DeepReadonly<LamarckGenome>) => RLBackend;
-
-// ----------------------------------------------------------------
-// TradingAgent → RLBackend adaptor
-// ----------------------------------------------------------------
-/** Build an RLBackend adaptor from a genome by creating a TradingAgent with the genome's architecture and hyperparameters. */
 export function makeTradingAgentBackend(
 	genome: DeepReadonly<LamarckGenome>
 ): RLBackend {
@@ -105,14 +70,13 @@ export function makeTradingAgentBackend(
 	_tryLamarckianInjection(agent, genome);
 
 	return {
-		// pure forward pass — no pool interaction
 		forwardPass: (features) => agent.forwardPass(features).output,
 		step: (features, price) => agent.step(features, price),
 		train: (experience, gamma) => {
 			try {
 				agent.learnQLearning(experience, gamma);
 			} catch {
-				/* Q-learning error skipped — continue training */
+				/* Q-learning error skipped */
 			}
 		},
 		getWeights: () => agent.getWeights(),
@@ -167,44 +131,26 @@ function _tryLamarckianInjection(
 		try {
 			agent.setWeights(new Float32Array(genome.trainedWeights));
 		} catch {
-			/* architecture mismatch after structural mutation — start fresh */
+			/* architecture mismatch after structural mutation */
 		}
 	}
 }
 
-// ----------------------------------------------------------------
-// Walk-forward window types (train ≠ eval)
-// ----------------------------------------------------------------
-/**
- * A named train/validation split.
- * Genomes are ALWAYS evaluated on `validation`, never on `train`.
- * This enforces out-of-sample fitness.
- */
 export interface WindowSet {
 	id: string;
 	train: MarketStep[];
 	validation: MarketStep[];
 }
 
-// ----------------------------------------------------------------
-// Configuration type
-// ----------------------------------------------------------------
-
-/** Configuration for the GeneticAlgorithmRunner. */
 export interface GARunnerConfig {
 	windowSets: WindowSet[];
 	backendFactory: BackendFactory;
-	/** Worker concurrency cap for parallel evaluation. */
 	evalConcurrency?: number;
-	/** Hook called after each generation. */
 	onGeneration?: (ctx: GenerationContext) => void;
-	/** Hook called when the Pareto archive is updated. */
 	onArchiveUpdate?: (archive: DeepReadonly<LamarckGenome>[]) => void;
-	/** Override initial GA control parameters. */
 	initialControl?: Partial<GAControlGenome>;
 }
 
-/** Context passed to the onGeneration hook after each GA generation. */
 export interface GenerationContext {
 	generation: number;
 	population: DeepReadonly<LamarckGenome>[];
@@ -218,174 +164,6 @@ export interface GenerationContext {
 	gaControl: DeepReadonly<GAControlGenome>;
 }
 
-/** Attach objectives and Pareto rank to a genome (immutably). */
-
-// ----------------------------------------------------------------
-// PrecomputeRewards operates on RLBackend (not TradingAgent)
-//
-// IMPORTANT: this function calls backend.step() — it MUTATES the backend
-// (wallet, pool).  Always pass a SHADOW backend; discard it afterwards.
-// ----------------------------------------------------------------
-/**
- * One-pass over marketData: applies reward shaping without calling agent.step().
- * Used exclusively by n-step look-ahead; the agent's state is untouched.
- */
-function _precomputeRewards(
-	backend: RLBackend,
-	data: MarketStep[],
-	genome: DeepReadonly<LamarckGenome>,
-	runStats?: RunningStats
-): Float32Array {
-	const rShape = genome.rl.rewardShaping;
-	const buf = new Float32Array(data.length);
-	for (let index = 0; index < data.length; index++) {
-		const { reward } = backend.step(data[index].features, data[index].price);
-		let shaped = shapeReward(reward, rShape);
-		/* istanbul ignore next */
-		if (rShape.normalize) {
-			runStats?.update(shaped);
-			shaped = runStats?.normalize(shaped) ?? shaped;
-		}
-		buf[index] = shaped;
-	}
-	return buf;
-}
-
-function nStepReturn(
-	buf: Float32Array,
-	index: number,
-	genome: DeepReadonly<LamarckGenome>
-): number {
-	let ret = 0;
-	const count = genome.rl.horizon.nStepReturn;
-	for (let i = 0; i < count && index + i < buf.length; i++) {
-		ret += genome.rl.gamma ** i * buf[index + i];
-	}
-	return ret;
-}
-
-// ----------------------------------------------------------------
-// trainPhase: accepts pre-computed rewardBuf, no forwardPass call
-// ----------------------------------------------------------------
-
-/**
- * Trains the backend on one episode of trainData.
- * rewardBuf MUST have been computed by a shadow backend beforehand.
- * TradingAgent.step() handles inference + epsilon-greedy internally.
- */
-function _trainPhase(
-	backend: RLBackend,
-	trainData: MarketStep[],
-	rewardBuf: Float32Array,
-	genome: DeepReadonly<LamarckGenome>
-): void {
-	const horizon = genome.rl.horizon;
-	const maxT = Math.min(trainData.length, horizon.maxEpisodeLength);
-
-	for (let index = 0; index < maxT; index++) {
-		if (index % horizon.frameSkip !== 0) {
-			continue;
-		}
-
-		// F3: step() already does inference + action + wallet update internally
-		backend.step(trainData[index].features, trainData[index].price);
-
-		const pool = backend.getExperiencePool();
-		if (pool.length >= 2) {
-			const prev = pool[pool.length - 2];
-			backend.train(
-				{
-					...prev,
-					kind: "qlearning" as const,
-					reward: nStepReturn(rewardBuf, index, genome),
-					nextState: trainData[index].features,
-					done: index === maxT - 1,
-				},
-				genome.rl.gamma
-			);
-		}
-	}
-}
-
-// ----------------------------------------------------------------
-// evalPhase: no forwardPass, step() handles action internally
-// ----------------------------------------------------------------
-function _evalPhase(
-	genome: DeepReadonly<LamarckGenome>,
-	validationData: MarketStep[],
-	backendFactory: BackendFactory
-): { rawScores: number[]; finalPnl: number } {
-	const ctrl = genome.gaControl;
-	const rShape = genome.rl.rewardShaping;
-	const horizon = genome.rl.horizon;
-	const rawScores: number[] = [];
-
-	for (let ep = 0; ep < ctrl.episodesPerIndividual; ep++) {
-		const backend = backendFactory(genome); // fresh backend with Lamarckian weights
-		const runStats = new NormalizationStats();
-		let epReward = 0;
-
-		const maxT = Math.min(validationData.length, horizon.maxEpisodeLength);
-
-		for (let index = 0; index < maxT; index++) {
-			if (index % horizon.frameSkip !== 0) {
-				continue;
-			}
-
-			// step() handles everything — no forwardPass() call before it
-			const { reward } = backend.step(
-				validationData[index].features,
-				validationData[index].price
-			);
-
-			let shaped = shapeReward(reward, rShape);
-			/* istanbul ignore next */
-			if (rShape.normalize) {
-				runStats.update(shaped);
-				shaped = runStats.normalize(shaped);
-			}
-			if (!rShape.sparse) {
-				epReward += shaped;
-			}
-		}
-
-		if (rShape.sparse) {
-			epReward = backend.getPnL();
-		}
-		rawScores.push(epReward);
-		backend.resetEpisode();
-	}
-
-	return {
-		rawScores,
-		finalPnl:
-			rawScores.reduce((sum, value) => sum + value, 0) / rawScores.length,
-	};
-}
-
-// ----------------------------------------------------------------
-// Lamarckian weight extraction → new frozen genome
-// ----------------------------------------------------------------
-/**
- * After training, extract weights from the backend and attach them
- * to the genome as `trainedWeights`. Returns a new deep-frozen genome.
- * The original genome is never mutated.
- */
-function _lamarckianUpdate(
-	genome: DeepReadonly<LamarckGenome>,
-	backend: RLBackend
-): DeepReadonly<LamarckGenome> {
-	// Snapshot: slice() copies — no aliasing with backend internal buffers
-	const snapshot = backend.getWeights().slice();
-	return withGenome(genome, {
-		trainedWeights: snapshot,
-	} as Partial<LamarckGenome>);
-}
-
-// ----------------------------------------------------------------
-// Main GA runner
-// ----------------------------------------------------------------
-/** Self-adaptive multi-objective genetic algorithm runner with NSGA-II, Lamarckian inheritance, and Pareto archiving. */
 export class GeneticAlgorithmRunner {
 	private _population: DeepReadonly<LamarckGenome>[] = [];
 	private _generation = 0;
@@ -398,7 +176,6 @@ export class GeneticAlgorithmRunner {
 
 	constructor(private readonly _cfg: GARunnerConfig) {}
 
-	/** Initialise the population from scratch (call once before `run()` or before the first `runGeneration()`). */
 	public initialise(baseControl?: Partial<GAControlGenome>): void {
 		const ctrl = deepFreeze({
 			...createDefaultGenome("base").gaControl,
@@ -428,23 +205,35 @@ export class GeneticAlgorithmRunner {
 		this._archive = new ParetoArchive();
 	}
 
-	/** Run one full generation: evaluate, rank, select, crossover, mutate, and produce offspring. */
 	public async runGeneration(): Promise<GenerationContext> {
 		const ctrl = this._population[0].gaControl;
 		const rng = makePRNG(ctrl.mutationSeed + this._generation);
 
-		const { popWithMeta, objectives, metas, popMeta, avgFit, avgEff, newCtrl } =
-			await this._evaluatePopulation(rng, ctrl);
+		const { updatedPop, objectives, metas } = await this._evaluateFitness();
+		const { popWithMeta, popMeta, avgFit, avgEff } = this._buildParetoFronts(
+			updatedPop,
+			objectives,
+			metas,
+			rng
+		);
 
 		this._updateArchive(popWithMeta, objectives, popMeta);
+
+		const newCtrl = this._updateAdaptiveParams(ctrl);
 
 		this._trackStagnation(popWithMeta, metas, avgEff);
 
 		const ranked = this._sortPopulation(popWithMeta, popMeta);
 
-		const elites = this._selectElites(ranked, newCtrl);
+		const elites = selectElites(ranked, newCtrl);
 
-		const offspring = this._createOffspring(ranked, newCtrl, ctrl, rng);
+		const offspring = createOffspring(
+			ranked,
+			newCtrl,
+			ctrl,
+			rng,
+			this._generation
+		);
 
 		this._population = [...elites, ...offspring].slice(
 			0,
@@ -457,7 +246,6 @@ export class GeneticAlgorithmRunner {
 			population: this._population,
 			archive: this._archive.members,
 			bestFitness: this._bestFitness,
-			/* istanbul ignore next */
 			bestGenome: this._bestGenome as DeepReadonly<LamarckGenome>,
 			avgFitness: avgFit,
 			efficiencyScore: avgEff,
@@ -470,34 +258,32 @@ export class GeneticAlgorithmRunner {
 		return ctx;
 	}
 
-	private async _evaluatePopulation(
-		rng: () => number,
-		ctrl: DeepReadonly<GAControlGenome>
-	): Promise<{
-		popWithMeta: DeepReadonly<LamarckGenome>[];
+	private async _evaluateFitness(): Promise<{
+		updatedPop: DeepReadonly<LamarckGenome>[];
 		objectives: ObjectiveVector[];
 		metas: GenomeFitnessMeta[];
-		popMeta: PopulationMeta;
-		avgFit: number;
-		avgEff: number;
-		newCtrl: Readonly<GAControlGenome>;
 	}> {
 		const concurrency = this._cfg.evalConcurrency ?? 4;
 
-		const evalResults = await pooledEval(
+		return evaluateFitness(
 			this._population,
-			concurrency,
-			async (genome: DeepReadonly<LamarckGenome>) =>
-				evaluateGenomeAllWindows(
-					genome,
-					this._cfg.windowSets,
-					this._cfg.backendFactory
-				)
+			this._cfg.windowSets,
+			this._cfg.backendFactory,
+			concurrency
 		);
+	}
 
-		const updatedPop = evalResults.map((result) => result.updatedGenome);
-		const objectives = evalResults.map((result) => result.objectives);
-		const metas = evalResults.map((result) => result.meta);
+	private _buildParetoFronts(
+		updatedPop: DeepReadonly<LamarckGenome>[],
+		objectives: ObjectiveVector[],
+		metas: GenomeFitnessMeta[],
+		rng: () => number
+	): {
+		popWithMeta: DeepReadonly<LamarckGenome>[];
+		popMeta: PopulationMeta;
+		avgFit: number;
+		avgEff: number;
+	} {
 		const popMeta = buildPopulationMeta(objectives, rng);
 
 		const popWithMeta = updatedPop.map((genome, idx) =>
@@ -507,20 +293,19 @@ export class GeneticAlgorithmRunner {
 			} as Partial<LamarckGenome>)
 		);
 
-		/* istanbul ignore next */
 		const avgFit =
 			popWithMeta.reduce((sum, genome) => sum + (genome.fitness ?? 0), 0) /
 			popWithMeta.length;
 		const avgEff =
 			metas.reduce((sum, meta) => sum + meta.efficiencyScore, 0) / metas.length;
 
-		const newCtrl = adaptGAControl(
-			ctrl,
-			this._efficiencyHistory,
-			this._stagnation
-		);
+		return { popWithMeta, popMeta, avgFit, avgEff };
+	}
 
-		return { popWithMeta, objectives, metas, popMeta, avgFit, avgEff, newCtrl };
+	private _updateAdaptiveParams(
+		ctrl: DeepReadonly<GAControlGenome>
+	): Readonly<GAControlGenome> {
+		return adaptGAControl(ctrl, this._efficiencyHistory, this._stagnation);
 	}
 
 	private _updateArchive(
@@ -534,7 +319,6 @@ export class GeneticAlgorithmRunner {
 			}
 			return acc;
 		}, [] as number[]);
-		/* istanbul ignore if */
 		if (
 			this._archive.update(
 				frontIdx.map((idx) => popWithMeta[idx]),
@@ -550,13 +334,11 @@ export class GeneticAlgorithmRunner {
 		_metas: GenomeFitnessMeta[],
 		avgEff: number
 	): void {
-		/* istanbul ignore next */
 		const bestScalar = Math.max(
 			...popWithMeta.map((genome) => genome.fitness ?? Number.NEGATIVE_INFINITY)
 		);
 		if (bestScalar > this._bestFitness + 1e-6) {
 			this._bestFitness = bestScalar;
-			/* istanbul ignore next */
 			this._bestGenome = popWithMeta.reduce((best, genome) =>
 				(genome.fitness ?? Number.NEGATIVE_INFINITY) >
 				(best.fitness ?? Number.NEGATIVE_INFINITY)
@@ -587,80 +369,6 @@ export class GeneticAlgorithmRunner {
 		return sortedIdx.map((idx) => popWithMeta[idx] as Genome);
 	}
 
-	private _selectElites(
-		ranked: Genome[],
-		newCtrl: Readonly<GAControlGenome>
-	): DeepReadonly<LamarckGenome>[] {
-		const nElite = Math.max(
-			1,
-			Math.round(newCtrl.elitismFraction * newCtrl.populationSize)
-		);
-		return ranked
-			.slice(0, nElite)
-			.map((genome) =>
-				withGenome(genome, { gaControl: newCtrl } as Partial<LamarckGenome>)
-			);
-	}
-
-	private _createOffspring(
-		ranked: Genome[],
-		newCtrl: Readonly<GAControlGenome>,
-		ctrl: DeepReadonly<GAControlGenome>,
-		rng: () => number
-	): DeepReadonly<LamarckGenome>[] {
-		const nElite = Math.max(
-			1,
-			Math.round(newCtrl.elitismFraction * newCtrl.populationSize)
-		);
-		const nOffspring = newCtrl.populationSize - nElite;
-
-		const mutRng = makePRNG(ctrl.mutationSeed + this._generation + 1000);
-		const coRng = makePRNG(ctrl.mutationSeed + this._generation + 2000);
-
-		return Array.from({ length: nOffspring }, () => {
-			const pA = selectParent(
-				ranked as LamarckGenome[],
-				newCtrl.selectionType,
-				rng
-			);
-			const pB = selectParent(
-				ranked as LamarckGenome[],
-				newCtrl.selectionType,
-				rng
-			);
-
-			const childStruct = mutateGenome(crossoverGenomes(pA, pB, coRng), mutRng);
-
-			let childWeights: Float32Array | undefined;
-			/* istanbul ignore if */
-			if (pA.trainedWeights && pB.trainedWeights) {
-				const rate = newCtrl.mutationRate ?? 0.1;
-				const noiseStd = newCtrl.mutationStd ?? 0.05;
-				childWeights = mutateWeights(
-					crossoverWeights(
-						pA.trainedWeights as Float32Array,
-						pB.trainedWeights as Float32Array,
-						coRng
-					),
-					rate,
-					noiseStd,
-					mutRng
-				);
-			}
-
-			return deepFreeze({
-				...childStruct,
-				id: generateId(),
-				generation: this._generation + 1,
-				gaControl: newCtrl,
-				trainedWeights: childWeights,
-				fitness: undefined,
-				fitnessMeta: undefined,
-			}) as DeepReadonly<LamarckGenome>;
-		});
-	}
-
-	/** Run the entire GA loop until a termination condition is met. Returns the best genome found. */
 	public async run(): Promise<DeepReadonly<LamarckGenome>> {
 		this.initialise(this._cfg.initialControl);
 
@@ -681,8 +389,6 @@ export class GeneticAlgorithmRunner {
 			}
 		}
 
-		// prefer archive member over transient population best
-		/* istanbul ignore next */
 		return this._archive.members[0] ?? this._bestGenome ?? this._population[0];
 	}
 
