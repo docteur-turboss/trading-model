@@ -97,6 +97,25 @@ function getBackoffDelay(attempt: number): number {
  * AXIOS INSTANCE FACTORY
  * ----------------------------------------------------- */
 
+function createRetryInterceptor(
+	instance: AxiosInstance
+): Parameters<AxiosInstance["interceptors"]["response"]["use"]>[1] {
+	return async (error: AxiosError) => {
+		const config = error.config as AxiosRequestConfig & { retryCount?: number };
+		if (!config) {
+			throw error;
+		}
+		config.retryCount = config.retryCount ?? 0;
+		if (config.retryCount >= RETRY_CONFIG.retries || !shouldRetry(error)) {
+			throw error;
+		}
+		config.retryCount++;
+		const delay = getBackoffDelay(config.retryCount);
+		await new Promise((res) => setTimeout(res, delay));
+		return instance(config);
+	};
+}
+
 /** Create a configured Axios instance with rate-limiting and retry logic for the given API base URL. */
 export function createHttpClient(baseURL: string): AxiosInstance {
 	const instance = axios.create({
@@ -104,43 +123,14 @@ export function createHttpClient(baseURL: string): AxiosInstance {
 		timeout: DEFAULT_TIMEOUT,
 	});
 
-	/* -----------------------------------------
-	 * REQUEST INTERCEPTOR
-	 * --------------------------------------- */
 	instance.interceptors.request.use(async (config) => {
-		const weight = config.weight ?? 1;
-		await acquireToken(baseURL, weight);
-
+		await acquireToken(baseURL, config.weight ?? 1);
 		return config;
 	});
 
-	/* -----------------------------------------
-	 * RESPONSE / ERROR INTERCEPTOR (RETRY)
-	 * --------------------------------------- */
 	instance.interceptors.response.use(
 		(response) => response,
-		async (error: AxiosError) => {
-			const config = error.config as AxiosRequestConfig & {
-				retryCount?: number;
-			};
-
-			if (!config) {
-				throw error;
-			}
-
-			config.retryCount = config.retryCount ?? 0;
-
-			if (config.retryCount >= RETRY_CONFIG.retries || !shouldRetry(error)) {
-				throw error;
-			}
-
-			config.retryCount++;
-
-			const delay = getBackoffDelay(config.retryCount);
-			await new Promise((res) => setTimeout(res, delay));
-
-			return instance(config);
-		}
+		createRetryInterceptor(instance)
 	);
 
 	return instance;

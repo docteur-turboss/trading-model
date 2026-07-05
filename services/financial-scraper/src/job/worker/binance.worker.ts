@@ -15,6 +15,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { HELPER } from "@trading-model/broker-message";
+import type { MessageMetadata } from "@trading-model/broker-message/shared/helper/messages/message";
 import {
 	DeliveryMode,
 	type DeliveryModeEnum,
@@ -101,6 +102,23 @@ export class BinanceWorker {
 			fetchedAt: Date.now(),
 		};
 
+		this._configureMetadata(builderMetadata);
+
+		const marketDataEntries = this._buildMarketDataEntries(response);
+
+		for (const entry of marketDataEntries) {
+			this._sendMarketData(
+				entry.data,
+				entry.topic,
+				entry.eventType,
+				builderMetadata
+			);
+		}
+
+		return response;
+	}
+
+	private _configureMetadata(builder: typeof HELPER.metadataBuilder.prototype): void {
 		const authContext = {
 			roles: ["Data", "Financial", "Scraper"],
 			subject: env.SERVICE_NAME,
@@ -111,7 +129,7 @@ export class BinanceWorker {
 			.update(deterministicStringify(authContext))
 			.digest("base64url");
 
-		builderMetadata
+		builder
 			.setDelivery({
 				mode: this._options.deliveryMode ?? DeliveryMode.AT_LEAST_ONCE,
 				deduplicationId: randomUUID(),
@@ -130,52 +148,52 @@ export class BinanceWorker {
 				instanceId: env.INSTANCE_ID,
 				serviceName: env.SERVICE_NAME as ServiceInstanceName,
 			});
+	}
 
-		this._sendMarketData(
-			response.candles,
-			EnumEventMessage.fetchCandlestickSeries,
-			"FetchCandlestick",
-			builderMetadata
-		);
-		this._sendMarketData(
-			response.orderBook,
-			EnumEventMessage.fetchOrderBookSnapshot,
-			"FetchOrderbook",
-			builderMetadata
-		);
-		this._sendMarketData(
-			response.ticker24h,
-			EnumEventMessage.fetch24hrTickerStats,
-			"FetchTicker24hr",
-			builderMetadata
-		);
-		this._sendMarketData(
-			response.bookTicker,
-			EnumEventMessage.fetchOrderBookTickerSnapshot,
-			"FetchBookTicker",
-			builderMetadata
-		);
-		this._sendMarketData(
-			response.priceTicker,
-			EnumEventMessage.fetchPriceTickerSnapshot,
-			"FetchPriceTicker",
-			builderMetadata
-		);
-		this._sendMarketData(
-			response.recentTrades,
-			EnumEventMessage.fetchRecentTrades,
-			"FetchRecentTrades",
-			builderMetadata
-		);
-
-		return response;
+	private _buildMarketDataEntries(response: BinanceWorkerResult): {
+		data: unknown;
+		topic: string;
+		eventType: string;
+	}[] {
+		return [
+			{
+				data: response.candles,
+				topic: EnumEventMessage.fetchCandlestickSeries,
+				eventType: "FetchCandlestick",
+			},
+			{
+				data: response.orderBook,
+				topic: EnumEventMessage.fetchOrderBookSnapshot,
+				eventType: "FetchOrderbook",
+			},
+			{
+				data: response.ticker24h,
+				topic: EnumEventMessage.fetch24hrTickerStats,
+				eventType: "FetchTicker24hr",
+			},
+			{
+				data: response.bookTicker,
+				topic: EnumEventMessage.fetchOrderBookTickerSnapshot,
+				eventType: "FetchBookTicker",
+			},
+			{
+				data: response.priceTicker,
+				topic: EnumEventMessage.fetchPriceTickerSnapshot,
+				eventType: "FetchPriceTicker",
+			},
+			{
+				data: response.recentTrades,
+				topic: EnumEventMessage.fetchRecentTrades,
+				eventType: "FetchRecentTrades",
+			},
+		];
 	}
 
 	private _sendMarketData(
 		data: unknown,
 		topic: string,
 		eventType: string,
-		builder: HELPER.metadataBuilder
+		builder: MessageMetadata
 	): void {
 		builder.setTopic(topic).setEventType(eventType);
 		MessageManager.post.indirect(data, builder.toJSON());

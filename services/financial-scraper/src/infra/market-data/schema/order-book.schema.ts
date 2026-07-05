@@ -37,43 +37,33 @@ const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 			id: this._id,
 		};
 
+		const stringIndexStores: {
+			storage: Map<string, number[]>;
+			key: (entry: OrderBookData) => string;
+		}[] = [
+			{ storage: this._marketStorage, key: (entry) => entry.market },
+			{ storage: this._sourceStorage, key: (entry) => entry.source },
+			{ storage: this._symbolStorage, key: (entry) => entry.symbol },
+		];
+
 		try {
 			for (const entry of data) {
 				TABLE_DEF.parse(entry);
 
 				this._storage.set(this._id, entry);
-				if (this._marketStorage.has(entry.market)) {
-					const marketEntries = this._marketStorage.get(entry.market)!;
-					marketEntries.push(this._id);
-
-					this._marketStorage.set(entry.market, marketEntries);
-				} else {
-					this._marketStorage.set(entry.market, [this._id]);
-				}
-
-				if (this._sourceStorage.has(entry.source)) {
-					const sourceEntries = this._sourceStorage.get(entry.source)!;
-					sourceEntries.push(this._id);
-
-					this._sourceStorage.set(entry.source, sourceEntries);
-				} else {
-					this._sourceStorage.set(entry.source, [this._id]);
-				}
-
-				if (this._symbolStorage.has(entry.symbol)) {
-					const symbolEntries = this._symbolStorage.get(entry.symbol)!;
-					symbolEntries.push(this._id);
-
-					this._symbolStorage.set(entry.symbol, symbolEntries);
-				} else {
-					this._symbolStorage.set(entry.symbol, [this._id]);
+				for (const store of stringIndexStores) {
+					const entryKey = store.key(entry);
+					if (store.storage.has(entryKey)) {
+						const entries = store.storage.get(entryKey)!;
+						entries.push(this._id);
+					} else {
+						store.storage.set(entryKey, [this._id]);
+					}
 				}
 
 				if (this._timestampStorage.has(entry.timestamp)) {
 					const timestampEntries = this._timestampStorage.get(entry.timestamp)!;
 					timestampEntries.push(this._id);
-
-					this._timestampStorage.set(entry.timestamp, timestampEntries);
 				} else {
 					this._timestampStorage.set(entry.timestamp, [this._id]);
 				}
