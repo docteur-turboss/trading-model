@@ -131,44 +131,53 @@ export class BinanceWorker {
 				serviceName: env.SERVICE_NAME as ServiceInstanceName,
 			});
 
-		MessageManager.post.indirect(response.candles, builderMetadata.toJSON());
-
-		builderMetadata
-			.setTopic(EnumEventMessage.fetchOrderBookSnapshot)
-			.setEventType("FetchOrderbook");
-
-		MessageManager.post.indirect(response.orderBook, builderMetadata.toJSON());
-
-		builderMetadata
-			.setTopic(EnumEventMessage.fetch24hrTickerStats)
-			.setEventType("FetchTicker24hr");
-
-		MessageManager.post.indirect(response.ticker24h, builderMetadata.toJSON());
-
-		builderMetadata
-			.setTopic(EnumEventMessage.fetchOrderBookTickerSnapshot)
-			.setEventType("FetchBookTicker");
-
-		MessageManager.post.indirect(response.bookTicker, builderMetadata.toJSON());
-
-		builderMetadata
-			.setTopic(EnumEventMessage.fetchPriceTickerSnapshot)
-			.setEventType("FetchPriceTicker");
-
-		MessageManager.post.indirect(
-			response.priceTicker,
-			builderMetadata.toJSON()
+		this._sendMarketData(
+			response.candles,
+			EnumEventMessage.fetchCandlestickSeries,
+			"FetchCandlestick",
+			builderMetadata
 		);
-
-		builderMetadata
-			.setTopic(EnumEventMessage.fetchRecentTrades)
-			.setEventType("FetchRecentTrades");
-
-		MessageManager.post.indirect(
+		this._sendMarketData(
+			response.orderBook,
+			EnumEventMessage.fetchOrderBookSnapshot,
+			"FetchOrderbook",
+			builderMetadata
+		);
+		this._sendMarketData(
+			response.ticker24h,
+			EnumEventMessage.fetch24hrTickerStats,
+			"FetchTicker24hr",
+			builderMetadata
+		);
+		this._sendMarketData(
+			response.bookTicker,
+			EnumEventMessage.fetchOrderBookTickerSnapshot,
+			"FetchBookTicker",
+			builderMetadata
+		);
+		this._sendMarketData(
+			response.priceTicker,
+			EnumEventMessage.fetchPriceTickerSnapshot,
+			"FetchPriceTicker",
+			builderMetadata
+		);
+		this._sendMarketData(
 			response.recentTrades,
-			builderMetadata.toJSON()
+			EnumEventMessage.fetchRecentTrades,
+			"FetchRecentTrades",
+			builderMetadata
 		);
 
 		return response;
+	}
+
+	private _sendMarketData(
+		data: unknown,
+		topic: string,
+		eventType: string,
+		builder: HELPER.metadataBuilder
+	): void {
+		builder.setTopic(topic).setEventType(eventType);
+		MessageManager.post.indirect(data, builder.toJSON());
 	}
 }
