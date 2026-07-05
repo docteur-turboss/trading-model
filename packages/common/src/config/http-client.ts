@@ -108,10 +108,7 @@ function collectResponseBody<TResponse>(
 function buildRequestOptions(
 	method: HttpMethod,
 	url: URL,
-	options: HttpRequestOptions | undefined,
-	cert?: string,
-	key?: string,
-	ca?: string
+	options: HttpRequestOptions & { cert?: string; key?: string; ca?: string }
 ): https.RequestOptions {
 	return {
 		method,
@@ -123,9 +120,9 @@ function buildRequestOptions(
 			"Accept-Encoding": "gzip, deflate",
 			...(options?.headers ?? {}),
 		},
-		cert,
-		key,
-		ca,
+		cert: options.cert,
+		key: options.key,
+		ca: options.ca,
 		rejectUnauthorized: true,
 		agent: options?.agent ?? getKeepAliveAgent(),
 	};
@@ -480,10 +477,7 @@ export class HttpClient {
 					timeoutMs,
 					options
 				);
-				recordHostnameSuccess(hostname);
-				if (serviceName) {
-					recordServiceSuccess(serviceName);
-				}
+				this._recordSuccess(hostname, serviceName);
 				return result;
 			} catch (error) {
 				lastError = error instanceof Error ? error : new Error(String(error));
@@ -493,15 +487,33 @@ export class HttpClient {
 					continue;
 				}
 
-				recordHostnameFailure(hostname);
-				if (serviceName) {
-					recordServiceFailure(serviceName, options?.serviceInstanceCount);
-				}
+				this._recordFailure(hostname, serviceName, options?.serviceInstanceCount);
 				throw lastError;
 			}
 		}
 
 		throw lastError ?? new Error("Request failed");
+	}
+
+	private _recordSuccess(
+		hostname: string,
+		serviceName: string | undefined
+	): void {
+		recordHostnameSuccess(hostname);
+		if (serviceName) {
+			recordServiceSuccess(serviceName);
+		}
+	}
+
+	private _recordFailure(
+		hostname: string,
+		serviceName: string | undefined,
+		serviceInstanceCount?: number
+	): void {
+		recordHostnameFailure(hostname);
+		if (serviceName) {
+			recordServiceFailure(serviceName, serviceInstanceCount);
+		}
 	}
 
 	/**
@@ -543,14 +555,12 @@ export class HttpClient {
 		options?: HttpRequestOptions
 	): Promise<TResponse | undefined> {
 		const url = new URL(urlStr);
-		const requestOptions = buildRequestOptions(
-			method,
-			url,
-			options,
-			this._cert,
-			this._key,
-			this._ca
-		);
+		const requestOptions = buildRequestOptions(method, url, {
+			...options,
+			cert: this._cert,
+			key: this._key,
+			ca: this._ca,
+		});
 
 		return new Promise<TResponse | undefined>((resolve, reject) => {
 			const req = https.request(requestOptions, (res) => {

@@ -68,17 +68,15 @@ export class Logger {
 		return this._sanitizer.safeStringify(value);
 	}
 
-	private _writeLogToFile(
-		data: LogEntry,
-		level: LogLevel,
-		year: number,
-		month: number,
-		day: number
-	): void {
+	private _writeLogToFile(data: LogEntry, level: LogLevel): void {
 		const logDir = process.env.LOG_DIR;
 		if (!logDir) {
 			return;
 		}
+		const ts = data.timestamp instanceof Date ? data.timestamp : new Date(data.timestamp);
+		const year = ts.getFullYear();
+		const month = ts.getMonth() + 1;
+		const day = ts.getDate();
 		const logFilePath = path.resolve(logDir);
 		const logFileName = `${year}.${month}.${day}-${level}.log`;
 
@@ -122,7 +120,7 @@ export class Logger {
 			serviceInCharge,
 		};
 
-		this._writeLogToFile(data, level, year, month, day);
+		this._writeLogToFile(data, level);
 		this._maybeSendToAudit(data, level);
 
 		return data;
