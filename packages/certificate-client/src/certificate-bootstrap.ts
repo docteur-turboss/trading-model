@@ -182,6 +182,47 @@ export function createTlsBootstrap(
 	};
 }
 
+async function loadServerDependencies(): Promise<{
+	configureApp: (opts: {
+		rateLimit?: { windowMs: number; max: number };
+		trustProxy?: boolean;
+	}) => import("express").Application;
+	mtlsAuthMiddleware: import("express").RequestHandler;
+	responseProtocol: import("express").RequestHandler;
+	createAndStartHttpsServer: (
+		app: import("express").Application,
+		opts: { port: number; tls: TlsConfig; watchTls: boolean }
+	) => Promise<HttpServer>;
+}> {
+	const [configureAppMod, mtlsAuthMod, responseProtocolMod, serverFactoryMod] =
+		await Promise.all([
+			import("@trading-model/common/server/configure-app"),
+			import("@trading-model/common/middleware/mtls-auth"),
+			import("@trading-model/common/middleware/response-protocol"),
+			import("@trading-model/common/server/server-factory"),
+		]);
+	return {
+		configureApp: configureAppMod.configureApp,
+		mtlsAuthMiddleware: mtlsAuthMod.MTLSAuthMiddleware,
+		responseProtocol: responseProtocolMod.ResponseProtocol,
+		createAndStartHttpsServer: serverFactoryMod.createAndStartHttpsServer,
+	};
+}
+
+function setupAutoRenew(server: HttpServer, config: BootstrapConfig): void {
+	const client = new CertificateClient({
+		...config,
+		onRenew: (cert) => {
+			server.raw.setSecureContext({
+				key: cert.keyPem,
+				cert: cert.certPem,
+				ca: cert.caPem,
+			});
+		},
+	});
+	setTimeout(() => client.startAutoRenew(), 1000);
+}
+
 export async function createHttpsServer(
 	options: CreateHttpsServerOptions
 ): Promise<HttpServer> {
@@ -189,27 +230,21 @@ export async function createHttpsServer(
 	const bootstrapTls = await bootstrapFromEnv(env);
 	const tls = bootstrapTls ?? options.tls;
 
-	const { configureApp } = await import(
-		"@trading-model/common/server/configure-app"
-	);
-	const { MTLSAuthMiddleware } = await import(
-		"@trading-model/common/middleware/mtls-auth"
-	);
-	const { ResponseProtocol } = await import(
-		"@trading-model/common/middleware/response-protocol"
-	);
-	const { createAndStartHttpsServer } = await import(
-		"@trading-model/common/server/server-factory"
-	);
+	const {
+		configureApp,
+		mtlsAuthMiddleware,
+		responseProtocol,
+		createAndStartHttpsServer,
+	} = await loadServerDependencies();
 
 	const app = configureApp({
 		rateLimit: options.rateLimit,
 		trustProxy: options.trustProxy,
 	});
 
-	app.use(MTLSAuthMiddleware);
+	app.use(mtlsAuthMiddleware);
 	options.routes(app);
-	app.use(ResponseProtocol);
+	app.use(responseProtocol);
 
 	const server = await createAndStartHttpsServer(app, {
 		port: options.port,
@@ -221,17 +256,7 @@ export async function createHttpsServer(
 
 	const config = bootstrapConfigFromEnv(env);
 	if (config) {
-		const client = new CertificateClient({
-			...config,
-			onRenew: (cert) => {
-				server.raw.setSecureContext({
-					key: cert.keyPem,
-					cert: cert.certPem,
-					ca: cert.caPem,
-				});
-			},
-		});
-		setTimeout(() => client.startAutoRenew(), 1000);
+		setupAutoRenew(server, config);
 	}
 
 	return server;
