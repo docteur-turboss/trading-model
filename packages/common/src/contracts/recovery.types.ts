@@ -33,10 +33,22 @@ export interface Job<TData = unknown> {
 	history: JobEvent[];
 }
 
-export const JOB_STATUS_NON_TERMINAL: JobStatus[] = [
+export const JOB_STATUS_NON_TERMINAL: readonly JobStatus[] = [
 	"pending",
 	"queued",
 	"assigned",
 	"running",
 	"orphaned",
 ];
+
+export const JOB_STATUS_TERMINAL: readonly JobStatus[] = [
+	"completed",
+	"failed",
+	"cancelled",
+];
+
+const TERMINAL_SET = new Set(JOB_STATUS_TERMINAL);
+
+export function isTerminalStatus(status: JobStatus): boolean {
+	return TERMINAL_SET.has(status);
+}
