@@ -81,7 +81,7 @@ class CompositeStrategy implements FitnessStrategy {
 	}
 }
 
-const FITNESS_STRATEGIES: Record<string, FitnessStrategy> = {
+const FITNESS_STRATEGIES: Record<FitnessType, FitnessStrategy> = {
 	total_pnl: new TotalPnlStrategy(),
 	sharpe: new SharpeStrategy(),
 	sortino: new SortinoStrategy(),

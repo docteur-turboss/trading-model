@@ -1,3 +1,7 @@
+import { computeWalletMetrics, type WalletMetrics } from "./wallet-metrics";
+
+export type { WalletMetrics };
+
 export interface WalletConfig {
 	initialCash: number;
 	initialPrice: number;
@@ -14,15 +18,6 @@ export interface TradeRecord {
 	fee: number;
 	cashAfter: number;
 	positionAfter: number;
-}
-
-export interface WalletMetrics {
-	pnl: number;
-	returnRate: number;
-	peakValuation: number;
-	drawdown: number;
-	totalFeesPaid: number;
-	tradeCount: number;
 }
 
 export interface WalletAPI {
@@ -199,20 +194,16 @@ export class Wallet implements WalletAPI {
 	}
 
 	getMetrics(): WalletMetrics {
-		const valuation = this._valuation();
-		return {
-			pnl: this._round(valuation - this._initialCash),
-			returnRate: this._round(
-				(valuation - this._initialCash) / this._initialCash
-			),
+		return computeWalletMetrics({
+			cash: this._cash,
+			position: this._position,
+			price: this._price,
 			peakValuation: this._peakValuation,
-			drawdown:
-				this._peakValuation > 0
-					? this._round((this._peakValuation - valuation) / this._peakValuation)
-					: 0,
+			initialCash: this._initialCash,
 			totalFeesPaid: this._totalFeesPaid,
 			tradeCount: this._tradeCount,
-		};
+			decimals: this._decimals,
+		});
 	}
 
 	getHistory(): Readonly<TradeRecord[]> {

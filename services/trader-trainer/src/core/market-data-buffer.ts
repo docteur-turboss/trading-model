@@ -8,7 +8,6 @@ import {
 	type TradeData,
 } from "@trading-model/common/config/event.types";
 
-import { buildFeatures as buildFeaturesFn } from "./feature-builder";
 import type { MarketStep } from "./genetic-algorithm/genome-types";
 import {
 	fromSymbol,
@@ -17,12 +16,14 @@ import {
 	type TradingSymbol,
 	toSymbol,
 } from "./market-data-types";
+import { MemoryManager } from "./market-data/memory-manager";
+import {
+	WindowSplitter,
+	MIN_TRAINING_STEPS,
+	DEFAULT_VALIDATION_SPLIT,
+} from "./market-data/window-splitter";
 
-/** Minimum number of market steps required before training can start. */
-export const MIN_TRAINING_STEPS = 10;
-
-/** Default fraction of data held out for validation during training. */
-export const DEFAULT_VALIDATION_SPLIT = 0.2;
+export { MIN_TRAINING_STEPS, DEFAULT_VALIDATION_SPLIT };
 
 export interface MarketDataBufferConfig {
 	maxSize?: number;
@@ -33,23 +34,34 @@ export interface MarketDataBufferConfig {
 /** In-memory ring buffer of market data per symbol with online feature extraction. */
 export class MarketDataBuffer {
 	private _states: Map<TradingSymbol, SymbolState> = new Map();
-	private _maxSize: number;
-	private _maxMemoryBytes: number;
-	private _evictionPolicy: "LRU" | "none";
 	private _accessOrder: TradingSymbol[] = [];
 	private _priceSnapshot: Record<TradingSymbol, number> = {} as Record<
 		TradingSymbol,
 		number
 	>;
+	private _memoryManager: MemoryManager;
+	private _windowSplitter: WindowSplitter;
 
 	constructor(config: MarketDataBufferConfig = {}) {
-		this._maxSize = config.maxSize ?? 10000;
-		this._maxMemoryBytes = (config.maxMemoryMb ?? 512) * 1024 * 1024;
-		this._evictionPolicy = config.evictionPolicy ?? "none";
+		const maxSize = config.maxSize ?? 10000;
+		const maxMemoryBytes = (config.maxMemoryMb ?? 512) * 1024 * 1024;
+		const evictionPolicy = config.evictionPolicy ?? "none";
+
+		this._memoryManager = new MemoryManager(
+			this._states,
+			this._accessOrder,
+			maxSize,
+			maxMemoryBytes,
+			evictionPolicy,
+		);
+		this._windowSplitter = new WindowSplitter(
+			this._states,
+			this._priceSnapshot,
+		);
 	}
 
 	getMaxSize(): number {
-		return this._maxSize;
+		return this._memoryManager.getMaxSize();
 	}
 
 	private _getOrCreate(symbol: TradingSymbol): SymbolState {
@@ -77,44 +89,8 @@ export class MarketDataBuffer {
 			};
 			this._states.set(symbol, state);
 		}
-		if (this._evictionPolicy === "LRU") {
-			const idx = this._accessOrder.indexOf(symbol);
-			if (idx !== -1) {
-				this._accessOrder.splice(idx, 1);
-			}
-			this._accessOrder.push(symbol);
-		}
+		this._memoryManager.recordAccess(symbol);
 		return state;
-	}
-
-	private _estimateMemoryBytes(state: SymbolState): number {
-		const candleBytes = state.candles.length * 200;
-		const tradeBytes = state.trades.length * 100;
-		const orderBookBytes = state.orderBook ? 5000 : 0;
-		return candleBytes + tradeBytes + orderBookBytes;
-	}
-
-	private _enforceMemoryLimit(): void {
-		if (this._evictionPolicy !== "LRU") {
-			return;
-		}
-
-		let total = 0;
-		for (const state of this._states.values()) {
-			total += this._estimateMemoryBytes(state);
-		}
-
-		while (total > this._maxMemoryBytes && this._accessOrder.length > 1) {
-			const victim = this._accessOrder.shift();
-			if (!victim) {
-				break;
-			}
-			const state = this._states.get(victim);
-			if (state) {
-				total -= this._estimateMemoryBytes(state);
-			}
-			this._states.delete(victim);
-		}
 	}
 
 	/** Append candlesticks and update running normalisers for price/volume features. */
@@ -128,10 +104,10 @@ export class MarketDataBuffer {
 			state.norm.candleHigh.update(candle.high);
 			state.norm.candleLow.update(candle.low);
 		}
-		if (state.candles.length > this._maxSize) {
-			state.candles = state.candles.slice(-this._maxSize);
+		if (state.candles.length > this._memoryManager.getMaxSize()) {
+			state.candles = state.candles.slice(-this._memoryManager.getMaxSize());
 		}
-		this._enforceMemoryLimit();
+		this._memoryManager.enforceMemoryLimit();
 	}
 
 	/** Append recent trades and update price/quantity normalisers. */
@@ -142,10 +118,10 @@ export class MarketDataBuffer {
 			state.norm.tradePrice.update(trade.price);
 			state.norm.tradeQty.update(trade.quantity);
 		}
-		if (state.trades.length > this._maxSize) {
-			state.trades = state.trades.slice(-this._maxSize);
+		if (state.trades.length > this._memoryManager.getMaxSize()) {
+			state.trades = state.trades.slice(-this._memoryManager.getMaxSize());
 		}
-		this._enforceMemoryLimit();
+		this._memoryManager.enforceMemoryLimit();
 	}
 
 	/** Store an order-book snapshot and update bid/ask/spread normalisers. */
@@ -165,7 +141,7 @@ export class MarketDataBuffer {
 		if (avgAsk > 0 && avgBid > 0) {
 			state.norm.spread.update(avgAsk - avgBid);
 		}
-		this._enforceMemoryLimit();
+		this._memoryManager.enforceMemoryLimit();
 	}
 
 	/** Store a book-ticker snapshot and update bid/ask/spread normalisers. */
@@ -181,7 +157,7 @@ export class MarketDataBuffer {
 		if (bt.ask > 0 && bt.bid > 0) {
 			state.norm.spread.update(bt.ask - bt.bid);
 		}
-		this._enforceMemoryLimit();
+		this._memoryManager.enforceMemoryLimit();
 	}
 
 	/** Store a 24-hour ticker and update volume normaliser. */
@@ -189,7 +165,7 @@ export class MarketDataBuffer {
 		const state = this._getOrCreate(toSymbol(symbol));
 		state.ticker24h = ticker;
 		state.norm.tickerVolume.update(ticker.volume);
-		this._enforceMemoryLimit();
+		this._memoryManager.enforceMemoryLimit();
 	}
 
 	/** Merge a snapshot of latest prices into the internal price map. */
@@ -229,45 +205,22 @@ export class MarketDataBuffer {
 
 	/** Builds a feature vector for each candle step (N candles → N-1 steps). */
 	buildMarketSteps(symbol: string): MarketStep[] {
-		const state = this._states.get(toSymbol(symbol));
-		if (!state || state.candles.length < 2) {
-			return [];
-		}
-
-		const steps: MarketStep[] = [];
-		for (let i = 1; i < state.candles.length; i++) {
-			const features = buildFeaturesFn({ state, idx: i, priceSnapshot: this._priceSnapshot });
-			steps.push({
-				price: state.candles[i].close,
-				features,
-				timestamp: state.candles[i].timestamp,
-			});
-		}
-		return steps;
+		return this._windowSplitter.buildMarketSteps(symbol);
 	}
 
 	/** Splits market steps into train/validation sets by a given ratio. */
 	splitTrainValidation(
 		steps: MarketStep[],
-		validationSplit: number
+		validationSplit: number,
 	): { train: MarketStep[]; validation: MarketStep[]; id: string } {
-		const splitIdx = Math.floor(steps.length * (1 - validationSplit));
-		return {
-			id: `window_${Date.now()}`,
-			train: steps.slice(0, splitIdx),
-			validation: steps.slice(splitIdx),
-		};
+		return this._windowSplitter.splitTrainValidation(steps, validationSplit);
 	}
 
 	/** Build a train/validation split from all available market steps, or null if insufficient data. */
 	getAllWindows(
 		symbol: string,
-		validationSplit: number = DEFAULT_VALIDATION_SPLIT
+		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
 	): { id: string; train: MarketStep[]; validation: MarketStep[] } | null {
-		const steps = this.buildMarketSteps(symbol);
-		if (steps.length < MIN_TRAINING_STEPS) {
-			return null;
-		}
-		return this.splitTrainValidation(steps, validationSplit);
+		return this._windowSplitter.getAllWindows(symbol, validationSplit);
 	}
 }

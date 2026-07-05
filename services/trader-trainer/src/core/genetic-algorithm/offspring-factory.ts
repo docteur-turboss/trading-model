@@ -49,14 +49,19 @@ export function selectElites(
 		);
 }
 
+interface ProduceOneOffspringParams {
+	ranked: LamarckGenome[];
+	newCtrl: Readonly<GAControlGenome>;
+	coRng: () => number;
+	mutRng: () => number;
+	rng: () => number;
+	generation: number;
+}
+
 function produceOneOffspring(
-	ranked: LamarckGenome[],
-	newCtrl: Readonly<GAControlGenome>,
-	coRng: () => number,
-	mutRng: () => number,
-	rng: () => number,
-	generation: number
+	params: ProduceOneOffspringParams
 ): DeepReadonly<LamarckGenome> {
+	const { ranked, newCtrl, coRng, mutRng, rng, generation } = params;
 	const pA = selectParent(ranked, newCtrl.selectionType, rng);
 	const pB = selectParent(ranked, newCtrl.selectionType, rng);
 
@@ -112,13 +117,13 @@ export function createOffspring(
 	const coRng = makePRNG(ctrl.mutationSeed + generation + 2000);
 
 	return Array.from({ length: nOffspring }, () =>
-		produceOneOffspring(
-			ranked as LamarckGenome[],
+		produceOneOffspring({
+			ranked: ranked as LamarckGenome[],
 			newCtrl,
 			coRng,
 			mutRng,
 			rng,
-			generation
-		)
+			generation,
+		})
 	);
 }

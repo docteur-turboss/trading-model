@@ -27,6 +27,55 @@ function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
 	return Object.freeze(obj) as DeepReadonly<TValue>;
 }
 
+function adjustPopulationSize(
+	popSize: number,
+	stagnation: number,
+	isImproving: boolean
+): number {
+	if (stagnation > 5 && popSize < 80) {
+		return Math.min(80, popSize + 2);
+	}
+	if (isImproving && popSize > 8) {
+		return Math.max(8, popSize - 1);
+	}
+	return popSize;
+}
+
+function adjustElitism(
+	elitism: number,
+	stagnation: number,
+	isImproving: boolean
+): number {
+	if (stagnation > 8) {
+		return Math.min(0.3, elitism + 0.02);
+	}
+	if (isImproving) {
+		return Math.max(0.05, elitism - 0.01);
+	}
+	return elitism;
+}
+
+function adjustSurvivors(survivors: number, stagnation: number): number {
+	if (stagnation > 10) {
+		return Math.min(0.9, survivors + 0.05);
+	}
+	return survivors;
+}
+
+function adjustEpisodes(
+	eps: number,
+	stagnation: number,
+	isImproving: boolean
+): number {
+	if (stagnation > 6 && eps < 10) {
+		return eps + 1;
+	}
+	if (isImproving && eps > 2) {
+		return eps - 1;
+	}
+	return eps;
+}
+
 /**
  * Adapt GA control parameters based on efficiency history and stagnation.
  * Increases exploration (pop size) when stagnating, decreases when improving.
@@ -44,47 +93,24 @@ export function adaptGAControl(
 	const recent = effHistory.slice(-5);
 	const isImproving = recent[recent.length - 1] > recent[0];
 
-	let popSize = ctrl.populationSize;
-	let elitism = ctrl.elitismFraction;
-	let survivors = ctrl.survivorFraction;
-	let eps = ctrl.episodesPerIndividual;
-
-	// Exploration pressure: increase pop when stagnating, decrease when improving
-	if (stagnation > 5 && popSize < 80) {
-		popSize = Math.min(80, popSize + 2);
-	}
-	if (isImproving && popSize > 8) {
-		popSize = Math.max(8, popSize - 1);
-	}
-
-	// Exploitation pressure: increase elitism when stagnating
-	if (stagnation > 8) {
-		elitism = Math.min(0.3, elitism + 0.02);
-	}
-	if (isImproving) {
-		elitism = Math.max(0.05, elitism - 0.01);
-	}
-
-	// Survivor selection pressure
-	if (stagnation > 10) {
-		survivors = Math.min(0.9, survivors + 0.05);
-	}
-
-	// Episode budget: more episodes when stagnating (thorough eval),
-	// fewer when improving (fast eval)
-	if (stagnation > 6 && eps < 10) {
-		eps++;
-	}
-	if (isImproving && eps > 2) {
-		eps--;
-	}
-
 	return deepFreeze({
 		...ctrl,
-		populationSize: popSize,
-		elitismFraction: elitism,
-		survivorFraction: survivors,
-		episodesPerIndividual: eps,
+		populationSize: adjustPopulationSize(
+			ctrl.populationSize,
+			stagnation,
+			isImproving
+		),
+		elitismFraction: adjustElitism(
+			ctrl.elitismFraction,
+			stagnation,
+			isImproving
+		),
+		survivorFraction: adjustSurvivors(ctrl.survivorFraction, stagnation),
+		episodesPerIndividual: adjustEpisodes(
+			ctrl.episodesPerIndividual,
+			stagnation,
+			isImproving
+		),
 	} as GAControlGenome);
 }
 

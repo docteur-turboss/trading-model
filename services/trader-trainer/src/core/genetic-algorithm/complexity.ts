@@ -103,6 +103,43 @@ export interface TopologyViolation {
  * Returns a list of constraint violations.
  * Empty list means the network is within bounds.
  */
+function checkLayerViolations(
+	layer: NetworkGenome["hiddenLayers"][number],
+	index: number,
+	constraints: TopologyConstraints
+): TopologyViolation[] {
+	const violations: TopologyViolation[] = [];
+
+	if (layer.neurons > constraints.maxNeuronsPerLayer) {
+		violations.push({
+			rule: `layer[${index}].maxNeuronsPerLayer`,
+			actual: layer.neurons,
+			limit: constraints.maxNeuronsPerLayer,
+		});
+	}
+	if (layer.neurons < constraints.minNeuronsPerLayer) {
+		violations.push({
+			rule: `layer[${index}].minNeuronsPerLayer`,
+			actual: layer.neurons,
+			limit: constraints.minNeuronsPerLayer,
+		});
+	}
+	if (
+		constraints.skipConnectionsFromLayer1Only &&
+		index === 0 &&
+		(layer.connectionType === "dense-skip" ||
+			layer.connectionType === "residual-connection")
+	) {
+		violations.push({
+			rule: `layer[${index}].skipConnectionsFromLayer1Only`,
+			actual: layer.connectionType,
+			limit: "fully-connected at layer 0",
+		});
+	}
+
+	return violations;
+}
+
 export function checkTopologyConstraints(
 	net: NetworkGenome,
 	constraints: TopologyConstraints = DEFAULT_TOPOLOGY_CONSTRAINTS
@@ -119,32 +156,7 @@ export function checkTopologyConstraints(
 	}
 
 	layers.forEach((layer, index) => {
-		if (layer.neurons > constraints.maxNeuronsPerLayer) {
-			violations.push({
-				rule: `layer[${index}].maxNeuronsPerLayer`,
-				actual: layer.neurons,
-				limit: constraints.maxNeuronsPerLayer,
-			});
-		}
-		if (layer.neurons < constraints.minNeuronsPerLayer) {
-			violations.push({
-				rule: `layer[${index}].minNeuronsPerLayer`,
-				actual: layer.neurons,
-				limit: constraints.minNeuronsPerLayer,
-			});
-		}
-		if (
-			constraints.skipConnectionsFromLayer1Only &&
-			index === 0 &&
-			(layer.connectionType === "dense-skip" ||
-				layer.connectionType === "residual-connection")
-		) {
-			violations.push({
-				rule: `layer[${index}].skipConnectionsFromLayer1Only`,
-				actual: layer.connectionType,
-				limit: "fully-connected at layer 0",
-			});
-		}
+		violations.push(...checkLayerViolations(layer, index, constraints));
 	});
 
 	const totalParams = countParams(net);
@@ -178,10 +190,13 @@ export interface PenalisedFitnessOptions {
  * @param lambda      Penalty coefficient (higher = stronger penalisation).
  * @param constraints Topology bounds used to normalise penalty.
  */
-export function penalisedFitness(
-	options: PenalisedFitnessOptions
-): number {
-	const { rawFitness, genome, lambda = 1e-4, constraints = DEFAULT_TOPOLOGY_CONSTRAINTS } = options;
+export function penalisedFitness(options: PenalisedFitnessOptions): number {
+	const {
+		rawFitness,
+		genome,
+		lambda = 1e-4,
+		constraints = DEFAULT_TOPOLOGY_CONSTRAINTS,
+	} = options;
 	const cs = complexityScore(genome, constraints);
 	return rawFitness - lambda * cs;
 }

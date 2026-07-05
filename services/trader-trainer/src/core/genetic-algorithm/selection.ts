@@ -104,7 +104,7 @@ class SUSSelection implements SelectionStrategy {
 	}
 }
 
-const SELECTION_STRATEGIES: Record<string, SelectionStrategy> = {
+const SELECTION_STRATEGIES: Record<SelectionType, SelectionStrategy> = {
 	tournament: new TournamentSelection(),
 	roulette: new RouletteSelection(),
 	rank: new RankSelection(),

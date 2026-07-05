@@ -1,9 +1,6 @@
 import type { Experience } from "../../core/neural-network/type";
 import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
 import { adaptGAControl } from "./adaptive-control-system";
-import { crossoverGenomes } from "./crossover";
-import { evaluateGenomeAllWindows } from "./evaluation-pipeline";
-import { crossoverWeights, mutateWeights } from "./evolution-engine";
 import { createDefaultGenome } from "./factory";
 import type {
 	GAControlGenome,
@@ -12,16 +9,14 @@ import type {
 	LamarckGenome,
 	MarketStep,
 } from "./genome-types";
-import { mutateGenome } from "./mutation";
 import type { ObjectiveVector } from "./nsga2";
-import { buildPopulationMeta, type PopulationMeta } from "./nsga2";
+import { buildPopulationMeta } from "./nsga2";
 import { createOffspring, selectElites } from "./offspring-factory";
 import { evaluateFitness } from "./training-phase";
 import { ParetoArchive } from "./pareto-engine";
 import { makePRNG } from "./prng";
-import { selectParent } from "./selection";
+import { StagnationTracker } from "./stagnation-tracker";
 import type { DeepReadonly } from "./shared-types";
-import { generateId } from "./utils";
 
 export interface RLBackend {
 	forwardPass(features: Float32Array): Float32Array;
@@ -174,12 +169,9 @@ export interface ParetoFrontContext {
 export class GeneticAlgorithmRunner {
 	private _population: DeepReadonly<LamarckGenome>[] = [];
 	private _generation = 0;
-	private _bestGenome: DeepReadonly<LamarckGenome> | null = null;
-	private _bestFitness = Number.NEGATIVE_INFINITY;
-	private _stagnation = 0;
 	private _startTime = 0;
-	private _efficiencyHistory: number[] = [];
 	private _archive = new ParetoArchive();
+	private _stagnationTracker = new StagnationTracker();
 
 	constructor(private readonly _cfg: GARunnerConfig) {}
 
@@ -205,11 +197,9 @@ export class GeneticAlgorithmRunner {
 		);
 
 		this._generation = 0;
-		this._bestFitness = Number.NEGATIVE_INFINITY;
-		this._stagnation = 0;
 		this._startTime = Date.now();
-		this._efficiencyHistory = [];
 		this._archive = new ParetoArchive();
+		this._stagnationTracker = new StagnationTracker();
 	}
 
 	public async runGeneration(): Promise<GenerationContext> {
@@ -226,14 +216,24 @@ export class GeneticAlgorithmRunner {
 
 		this._updateArchive(popWithMeta, objectives, popMeta);
 
-		const newCtrl = this._updateAdaptiveParams(ctrl);
+		const newCtrl = adaptGAControl(
+			ctrl,
+			this._stagnationTracker.efficiencyHistory,
+			this._stagnationTracker.stagnation
+		);
 
-		this._trackStagnation(popWithMeta, metas, avgEff);
+		this._stagnationTracker.track(popWithMeta, metas, avgEff);
 
 		const ranked = this._sortPopulation(popWithMeta, popMeta);
 
 		const elites = selectElites(ranked, newCtrl);
-		const offspring = this._produceOffspring(ranked, newCtrl, ctrl, rng);
+		const offspring = createOffspring({
+			ranked,
+			newCtrl,
+			ctrl,
+			rng,
+			generation: this._generation,
+		});
 
 		this._population = [...elites, ...offspring].slice(
 			0,
@@ -242,15 +242,6 @@ export class GeneticAlgorithmRunner {
 		this._generation++;
 
 		return this._buildContext(newCtrl, avgFit, avgEff);
-	}
-
-	private _produceOffspring(
-		ranked: Genome[],
-		newCtrl: Readonly<GAControlGenome>,
-		ctrl: DeepReadonly<GAControlGenome>,
-		rng: () => number
-	): DeepReadonly<LamarckGenome>[] {
-		return createOffspring({ ranked, newCtrl, ctrl, rng, generation: this._generation });
 	}
 
 	private _buildContext(
@@ -262,12 +253,12 @@ export class GeneticAlgorithmRunner {
 			generation: this._generation,
 			population: this._population,
 			archive: this._archive.members,
-			bestFitness: this._bestFitness,
-			bestGenome: this._bestGenome as DeepReadonly<LamarckGenome>,
+			bestFitness: this._stagnationTracker.bestFitness,
+			bestGenome: this._stagnationTracker.bestGenome as DeepReadonly<LamarckGenome>,
 			avgFitness: avgFit,
 			efficiencyScore: avgEff,
 			elapsedMs: Date.now() - this._startTime,
-			stagnation: this._stagnation,
+			stagnation: this._stagnationTracker.stagnation,
 			gaControl: newCtrl,
 		};
 
@@ -294,7 +285,7 @@ export class GeneticAlgorithmRunner {
 		ctx: ParetoFrontContext
 	): {
 		popWithMeta: DeepReadonly<LamarckGenome>[];
-		popMeta: PopulationMeta;
+		popMeta: import("./nsga2").PopulationMeta;
 		avgFit: number;
 		avgEff: number;
 	} {
@@ -317,16 +308,26 @@ export class GeneticAlgorithmRunner {
 		return { popWithMeta, popMeta, avgFit, avgEff };
 	}
 
-	private _updateAdaptiveParams(
-		ctrl: DeepReadonly<GAControlGenome>
-	): Readonly<GAControlGenome> {
-		return adaptGAControl(ctrl, this._efficiencyHistory, this._stagnation);
+	private _sortPopulation(
+		popWithMeta: DeepReadonly<LamarckGenome>[],
+		popMeta: import("./nsga2").PopulationMeta
+	): Genome[] {
+		const sortedIdx = Array.from(
+			{ length: popWithMeta.length },
+			(_unused, idx) => idx
+		).sort((idxA, idxB) =>
+			popMeta.paretoRank[idxA] === popMeta.paretoRank[idxB]
+				? popMeta.crowdingDist[idxB] - popMeta.crowdingDist[idxA]
+				: popMeta.paretoRank[idxA] - popMeta.paretoRank[idxB]
+		);
+
+		return sortedIdx.map((idx) => popWithMeta[idx] as Genome);
 	}
 
 	private _updateArchive(
 		popWithMeta: DeepReadonly<LamarckGenome>[],
 		objectives: ObjectiveVector[],
-		popMeta: PopulationMeta
+		popMeta: import("./nsga2").PopulationMeta
 	): void {
 		const frontIdx = popMeta.paretoRank.reduce((acc, rank, idx) => {
 			if (rank === 0) {
@@ -342,46 +343,6 @@ export class GeneticAlgorithmRunner {
 		) {
 			this._cfg.onArchiveUpdate?.(this._archive.members);
 		}
-	}
-
-	private _trackStagnation(
-		popWithMeta: DeepReadonly<LamarckGenome>[],
-		_metas: GenomeFitnessMeta[],
-		avgEff: number
-	): void {
-		const bestScalar = Math.max(
-			...popWithMeta.map((genome) => genome.fitness ?? Number.NEGATIVE_INFINITY)
-		);
-		if (bestScalar > this._bestFitness + 1e-6) {
-			this._bestFitness = bestScalar;
-			this._bestGenome = popWithMeta.reduce((best, genome) =>
-				(genome.fitness ?? Number.NEGATIVE_INFINITY) >
-				(best.fitness ?? Number.NEGATIVE_INFINITY)
-					? genome
-					: best
-			);
-			this._stagnation = 0;
-		} else {
-			this._stagnation++;
-		}
-
-		this._efficiencyHistory.push(avgEff);
-	}
-
-	private _sortPopulation(
-		popWithMeta: DeepReadonly<LamarckGenome>[],
-		popMeta: PopulationMeta
-	): Genome[] {
-		const sortedIdx = Array.from(
-			{ length: popWithMeta.length },
-			(_unused, idx) => idx
-		).sort((idxA, idxB) =>
-			popMeta.paretoRank[idxA] === popMeta.paretoRank[idxB]
-				? popMeta.crowdingDist[idxB] - popMeta.crowdingDist[idxA]
-				: popMeta.paretoRank[idxA] - popMeta.paretoRank[idxB]
-		);
-
-		return sortedIdx.map((idx) => popWithMeta[idx] as Genome);
 	}
 
 	public async run(): Promise<DeepReadonly<LamarckGenome>> {
@@ -404,14 +365,14 @@ export class GeneticAlgorithmRunner {
 			}
 		}
 
-		return this._archive.members[0] ?? this._bestGenome ?? this._population[0];
+		return this._archive.members[0] ?? this._stagnationTracker.bestGenome ?? this._population[0];
 	}
 
 	public getPopulation(): DeepReadonly<LamarckGenome>[] {
 		return this._population;
 	}
 	public getBestGenome(): DeepReadonly<LamarckGenome> | null {
-		return this._bestGenome;
+		return this._stagnationTracker.bestGenome;
 	}
 	public getArchive(): DeepReadonly<LamarckGenome>[] {
 		return this._archive.members;

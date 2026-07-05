@@ -14,11 +14,10 @@ import type {
 	SelectionType,
 } from "./genetic-algorithm/genome";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
-import {
-	type MarketDataBuffer,
-	MIN_TRAINING_STEPS,
-} from "./market-data-buffer";
+import { type MarketDataBuffer } from "./market-data-buffer";
 import { fromSymbol, type TradingSymbol, toSymbol } from "./market-data-types";
+import { TrainingPrerequisiteValidator } from "./training-prerequisite-validator";
+import { GenomeSummaryBuilder } from "./genome-summary-builder";
 
 /** Summary of the best trained agent for API responses. */
 export interface BestAgentSummary {
@@ -76,7 +75,16 @@ export class Trainer {
 	private _generationContext: GenerationContext | null = null;
 	private _currentSymbol: TradingSymbol = toSymbol("");
 
-	constructor(private readonly _dataBuffer: MarketDataBuffer) {}
+	private readonly _validator: TrainingPrerequisiteValidator;
+	private readonly _summaryBuilder: GenomeSummaryBuilder;
+
+	constructor(private readonly _dataBuffer: MarketDataBuffer) {
+		this._validator = new TrainingPrerequisiteValidator(
+			this._dataBuffer,
+			() => this._training
+		);
+		this._summaryBuilder = new GenomeSummaryBuilder();
+	}
 
 	isTraining(): boolean {
 		return this._training;
@@ -98,7 +106,7 @@ export class Trainer {
 	 * @returns TrainingResult indicating success or failure.
 	 */
 	async train(symbol: string): Promise<TrainingResult> {
-		const validation = this._validateTrainingPrerequisites(symbol);
+		const validation = this._validator.validate(symbol);
 		if (!validation.ok) {
 			return validation.error;
 		}
@@ -122,38 +130,6 @@ export class Trainer {
 		} finally {
 			this._training = false;
 		}
-	}
-
-	private _validateTrainingPrerequisites(
-		symbol: string
-	):
-		| { ok: true; windowSet: WindowSet }
-		| { ok: false; error: TrainingFailure } {
-		if (this._training) {
-			return {
-				ok: false,
-				error: { success: false, symbol, error: new Error("Already training") },
-			};
-		}
-
-		const windowSet = this._dataBuffer.getAllWindows(
-			symbol,
-			env.TRAINER_VALIDATION_SPLIT
-		);
-		if (!windowSet || windowSet.train.length < MIN_TRAINING_STEPS) {
-			return {
-				ok: false,
-				error: {
-					success: false,
-					symbol,
-					error: new Error(
-						`Not enough data for ${symbol}, need at least ${MIN_TRAINING_STEPS} steps`
-					),
-				},
-			};
-		}
-
-		return { ok: true, windowSet };
 	}
 
 	private _createRunner(windowSet: WindowSet): GeneticAlgorithmRunner {
@@ -190,76 +166,12 @@ export class Trainer {
 		});
 	}
 
-	/** Build a serialisable summary of the best genome for API consumption. Returns null if no genome exists. */
-	private _buildGASummary(
-		genome: DeepReadonly<LamarckGenome>
-	): BestAgentSummary["gaControl"] {
-		return {
-			populationSize: genome.gaControl.populationSize,
-			elitismFraction: genome.gaControl.elitismFraction,
-			survivorFraction: genome.gaControl.survivorFraction,
-			episodesPerIndividual: genome.gaControl.episodesPerIndividual,
-			selectionType: genome.gaControl.selectionType,
-			fitnessType: genome.gaControl.fitnessType,
-		};
-	}
-
-	private _buildNetworkSummary(
-		genome: DeepReadonly<LamarckGenome>
-	): BestAgentSummary["network"] {
-		return {
-			inputDim: genome.network.inputDim,
-			outputDim: genome.network.outputDim,
-			hiddenLayers: genome.network.hiddenLayers.map(
-				(layer: { neurons: number; activation: ActivationType }) => ({
-					neurons: layer.neurons,
-					activation: layer.activation,
-				})
-			),
-		};
-	}
-
-	private _buildRLSummary(
-		genome: DeepReadonly<LamarckGenome>
-	): BestAgentSummary["rl"] {
-		return {
-			gamma: genome.rl.gamma,
-			learningRate: genome.rl.learningRate,
-			epsilonStart: genome.rl.discretePolicy.epsilonStart,
-			epsilonMin: genome.rl.discretePolicy.epsilonMin,
-			epsilonDecay: genome.rl.discretePolicy.epsilonDecay,
-		};
-	}
-
-	private _computeAvgPnl(rawScores: readonly number[]): number {
-		return (
-			([...rawScores] as number[]).reduce(
-				(sum: number, val: number) => sum + val,
-				0
-			) / rawScores.length
-		);
-	}
-
 	getBestAgentSummary(): BestAgentSummary | null {
 		if (!this._bestGenome) {
 			return null;
 		}
 
-		const genome = this._bestGenome;
-		const meta = genome.fitnessMeta;
-
-		return {
-			id: genome.id,
-			generation: genome.generation,
-			fitness: genome.fitness ?? 0,
-			sharpe: meta?.rawScores ? this._computeSharpe(meta.rawScores) : 0,
-			avgPnl: meta?.rawScores ? this._computeAvgPnl(meta.rawScores) : 0,
-			negFlops: 0,
-			complexityPenalty: 0,
-			gaControl: this._buildGASummary(genome),
-			network: this._buildNetworkSummary(genome),
-			rl: this._buildRLSummary(genome),
-		};
+		return this._summaryBuilder.buildBestAgentSummary(this._bestGenome);
 	}
 
 	getGenerationContext(): GenerationContext | null {
@@ -267,16 +179,6 @@ export class Trainer {
 	}
 
 	private _computeSharpe(scores: readonly number[]): number {
-		if (scores.length < 2) {
-			return 0;
-		}
-		const mean = scores.reduce((sum, val) => sum + val, 0) / scores.length;
-		const variance =
-			scores
-				.map((val) => (val - mean) ** 2)
-				.reduce((sum, val) => sum + val, 0) /
-			(scores.length - 1);
-		const std = Math.sqrt(variance);
-		return std < 1e-10 ? mean : mean / std;
+		return GenomeSummaryBuilder.computeSharpe(scores);
 	}
 }
