@@ -42,11 +42,11 @@ describe("CertRenewalService", () => {
 		});
 
 		await expect(
-			service.renew("svc-1", "SN-001", "nonce", "sig", "csr")
+			service.renew({ serviceId: "svc-1", oldSerialNumber: "SN-001", nonce: "nonce", signature: "sig", csr: "csr" })
 		).rejects.toThrow(CertRenewalError);
 
 		await expect(
-			service.renew("svc-1", "SN-001", "nonce", "sig", "csr")
+			service.renew({ serviceId: "svc-1", oldSerialNumber: "SN-001", nonce: "nonce", signature: "sig", csr: "csr" })
 		).rejects.toHaveProperty("statusCode", 401);
 	});
 
@@ -61,7 +61,7 @@ describe("CertRenewalService", () => {
 		});
 
 		await expect(
-			service.renew("svc-1", "SN-001", "nonce", "sig", "csr")
+			service.renew({ serviceId: "svc-1", oldSerialNumber: "SN-001", nonce: "nonce", signature: "sig", csr: "csr" })
 		).rejects.toThrow("Original certificate not found");
 	});
 
@@ -81,7 +81,7 @@ describe("CertRenewalService", () => {
 		});
 
 		await expect(
-			service.renew("svc-1", "SN-002", "nonce", "sig", "csr")
+			service.renew({ serviceId: "svc-1", oldSerialNumber: "SN-002", nonce: "nonce", signature: "sig", csr: "csr" })
 		).rejects.toThrow("Could not acquire distributed lock");
 	});
 
@@ -108,13 +108,13 @@ describe("CertRenewalService", () => {
 			lock: mockLock as any,
 		});
 
-		const result = await service.renew(
-			"svc-1",
-			"SN-002",
-			"nonce",
-			"sig",
-			"csr"
-		);
+		const result = await service.renew({
+			serviceId: "svc-1",
+			oldSerialNumber: "SN-002",
+			nonce: "nonce",
+			signature: "sig",
+			csr: "csr",
+		});
 
 		expect(result).toEqual(signedCert);
 		expect(mockLock.acquire).toHaveBeenCalled();
@@ -142,13 +142,13 @@ describe("CertRenewalService", () => {
 			ca: mockCa as any,
 		});
 
-		const result = await service.renew(
-			"svc-1",
-			"SN-002",
-			"nonce",
-			"sig",
-			"csr"
-		);
+		const result = await service.renew({
+			serviceId: "svc-1",
+			oldSerialNumber: "SN-002",
+			nonce: "nonce",
+			signature: "sig",
+			csr: "csr",
+		});
 
 		expect(result).toEqual(signedCert);
 	});

@@ -36,6 +36,14 @@ export class CertRenewalError extends Error {
 	}
 }
 
+export interface RenewCertRequest {
+	serviceId: string;
+	oldSerialNumber: string;
+	nonce: string;
+	signature: string;
+	csr: string;
+}
+
 export interface CertRenewalDeps {
 	certStore: CertStore;
 	nonceStore: NonceStore;
@@ -68,12 +76,9 @@ export class CertRenewalService {
 	 * @throws CertRenewalError on validation failure
 	 */
 	async renew(
-		serviceId: string,
-		oldSerialNumber: string,
-		nonce: string,
-		signature: string,
-		csr: string
+		request: RenewCertRequest
 	): Promise<SignedCertificate> {
+		const { serviceId, oldSerialNumber, nonce, signature, csr } = request;
 		// 1. Verify the nonce was issued for this service (prevents replay attacks)
 		if (!(await this._nonceStore.consume(nonce, serviceId))) {
 			throw new CertRenewalError("Invalid or expired nonce", 401);
