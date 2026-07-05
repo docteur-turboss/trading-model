@@ -4,6 +4,11 @@ import {
 	type SignCertificateResponse,
 } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
+import {
+	createWsConnectTimeout,
+	scheduleWsReconnect,
+	type WsReconnectState,
+} from "@trading-model/common/utils/ws-reconnect";
 import WebSocket from "ws";
 
 export type TransportMode = "wss" | "https";
@@ -37,8 +42,11 @@ export class TransportManager {
 	private readonly _config: TransportConfig;
 	private readonly _baseUrl: string;
 	private readonly _pending = new Map<string, PendingRequest>();
-	private _wssReconnectTimer: ReturnType<typeof setTimeout> | null = null;
-	private _wsReconnectAttempts = 0;
+	private _wsReconnectState: WsReconnectState = {
+		attempt: 0,
+		timer: null,
+		destroyed: false,
+	};
 	private _destroyed = false;
 	/** Number of unauthenticated requests rejected — used for rate-limit backpressure. */
 	private _unauthRejects = 0;
@@ -122,7 +130,7 @@ export class TransportManager {
 			this._ws = new WebSocket(wsUrl, wsOptions);
 			this._ws.binaryType = "nodebuffer";
 
-			const connectTimeout = setTimeout(() => {
+			const cancelTimeout = createWsConnectTimeout(() => {
 				if (!this._wsConnected) {
 					logger.warn("WSS connection timeout");
 					this._ws?.close();
@@ -131,10 +139,10 @@ export class TransportManager {
 			}, 10_000);
 
 			this._ws.on("open", () => {
-				clearTimeout(connectTimeout);
+				cancelTimeout();
 				this._wsConnected = true;
 				this._wsAuthSent = false;
-				this._wsReconnectAttempts = 0;
+				this._wsReconnectState.attempt = 0;
 				this._mode = "wss";
 				logger.info("WSS transport connected to CA");
 				// Send auth token as a dedicated message, not in the Upgrade header
@@ -184,7 +192,7 @@ export class TransportManager {
 			});
 
 			this._ws.on("close", () => {
-				clearTimeout(connectTimeout);
+				cancelTimeout();
 				this._wsConnected = false;
 				if (this._mode === "wss" && !this._destroyed) {
 					this._scheduleWsReconnect();
@@ -192,7 +200,7 @@ export class TransportManager {
 			});
 
 			this._ws.on("error", (err) => {
-				clearTimeout(connectTimeout);
+				cancelTimeout();
 				logger.error("WSS transport error", { err: err.message });
 				if (!this._wsConnected) {
 					this._scheduleWsReconnect();
@@ -205,26 +213,19 @@ export class TransportManager {
 	}
 
 	private _scheduleWsReconnect(): void {
-		if (this._destroyed || this._wssReconnectTimer) {
+		if (this._destroyed) {
 			return;
 		}
-		const maxBackoff = 60_000;
-		const baseBackoff = Math.min(
-			1_000 * 2 ** this._wsReconnectAttempts,
-			maxBackoff
-		);
-		const jitter = 500 + Math.random() * Math.max(baseBackoff - 500, 0);
-		const delay = Math.min(jitter, maxBackoff);
-		this._wsReconnectAttempts++;
 		this._mode = "https";
-		logger.info(
-			`WSS reconnecting in ${Math.round(delay)}ms (attempt ${this._wsReconnectAttempts})`
+		scheduleWsReconnect(
+			this._wsReconnectState,
+			{ baseDelayMs: 1000, maxDelayMs: 60000, jitterMs: 500 },
+			() => {
+				this._cleanupWs();
+				this._connectWs();
+			},
+			logger
 		);
-		this._wssReconnectTimer = setTimeout(() => {
-			this._wssReconnectTimer = null;
-			this._cleanupWs();
-			this._connectWs();
-		}, delay);
 	}
 
 	private _sendWsRequest(
@@ -337,10 +338,11 @@ export class TransportManager {
 
 	destroy(): void {
 		this._destroyed = true;
+		this._wsReconnectState.destroyed = true;
 		this._cleanupWs();
-		if (this._wssReconnectTimer) {
-			clearTimeout(this._wssReconnectTimer);
-			this._wssReconnectTimer = null;
+		if (this._wsReconnectState.timer) {
+			clearTimeout(this._wsReconnectState.timer);
+			this._wsReconnectState.timer = null;
 		}
 		for (const [id, pending] of this._pending) {
 			clearTimeout(pending.timer);
