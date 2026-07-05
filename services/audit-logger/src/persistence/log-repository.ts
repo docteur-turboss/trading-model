@@ -110,6 +110,39 @@ export class LogRepository {
 		limit: number;
 	}> {
 		const col = await this._getCollection();
+		const filter = this._buildLogFilter(params);
+
+		const page = Math.max(1, params.page ?? 1);
+		const limit = Math.min(1000, params.limit ?? 50);
+		const skip = (page - 1) * limit;
+		const total = await col.countDocuments(filter);
+		const docs = await col
+			.find(filter)
+			.sort({ receivedAt: -1 })
+			.skip(skip)
+			.limit(limit)
+			.toArray();
+
+		return { docs, total, page, limit };
+	}
+
+	async getStats(): Promise<LogStats> {
+		const col = await this._getCollection();
+		const pipeline = this._buildStatsPipeline();
+		const [aggResult] = await col.aggregate(pipeline).toArray();
+		return this._parseStatsResult(aggResult);
+	}
+
+	async getById(id: string): Promise<ServiceLogDocument | null> {
+		const col = await this._getCollection();
+		const { ObjectId } = await import("mongodb");
+		if (!ObjectId.isValid(id)) {
+			return null;
+		}
+		return col.findOne({ [MID]: new ObjectId(id) } as never);
+	}
+
+	private _buildLogFilter(params: LogQuery): Record<string, unknown> {
 		const filter: Record<string, unknown> = {};
 
 		if (params.serviceName) {
@@ -138,46 +171,33 @@ export class LogRepository {
 			filter.message = { [MREGEX]: params.search, [MOPTIONS]: "i" };
 		}
 
-		const page = Math.max(1, params.page ?? 1);
-		const limit = Math.min(1000, params.limit ?? 50);
-		const skip = (page - 1) * limit;
-		const total = await col.countDocuments(filter);
-		const docs = await col
-			.find(filter)
-			.sort({ receivedAt: -1 })
-			.skip(skip)
-			.limit(limit)
-			.toArray();
-
-		return { docs, total, page, limit };
+		return filter;
 	}
 
-	async getStats(): Promise<LogStats> {
-		const col = await this._getCollection();
-
-		const [aggResult] = await col
-			.aggregate([
-				{
-					[MFACET]: {
-						byService: [
-							{ [MGROUP]: { [MID]: "$service.name", count: { [MSUM]: 1 } } },
-						],
-						byLevel: [{ [MGROUP]: { [MID]: "$level", count: { [MSUM]: 1 } } }],
-						dateRange: [
-							{
-								[MGROUP]: {
-									[MID]: null,
-									earliest: { [MMIN]: "$receivedAt" },
-									latest: { [MMAX]: "$receivedAt" },
-								},
+	private _buildStatsPipeline(): Record<string, unknown>[] {
+		return [
+			{
+				[MFACET]: {
+					byService: [
+						{ [MGROUP]: { [MID]: "$service.name", count: { [MSUM]: 1 } } },
+					],
+					byLevel: [{ [MGROUP]: { [MID]: "$level", count: { [MSUM]: 1 } } }],
+					dateRange: [
+						{
+							[MGROUP]: {
+								[MID]: null,
+								earliest: { [MMIN]: "$receivedAt" },
+								latest: { [MMAX]: "$receivedAt" },
 							},
-						],
-						total: [{ [MCOUNT]: "count" }],
-					},
+						},
+					],
+					total: [{ [MCOUNT]: "count" }],
 				},
-			])
-			.toArray();
+			},
+		];
+	}
 
+	private _parseStatsResult(aggResult: Record<string, unknown>): LogStats {
 		const byService: Record<string, number> = {};
 		for (const svc of (aggResult?.byService as Array<{
 			[MID]: string;
@@ -205,15 +225,6 @@ export class LogRepository {
 				latest: dr?.latest?.toISOString(),
 			},
 		};
-	}
-
-	async getById(id: string): Promise<ServiceLogDocument | null> {
-		const col = await this._getCollection();
-		const { ObjectId } = await import("mongodb");
-		if (!ObjectId.isValid(id)) {
-			return null;
-		}
-		return col.findOne({ [MID]: new ObjectId(id) } as never);
 	}
 
 	private async _indexExists(name: string): Promise<boolean> {

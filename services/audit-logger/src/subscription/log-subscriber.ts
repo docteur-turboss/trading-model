@@ -45,6 +45,74 @@ const LOGS_BATCH_SCHEMA = z.object({
 	logs: z.array(LOG_ENTRY_SCHEMA).min(1).max(1000),
 });
 
+function extractError(
+	entry: z.infer<typeof LOG_ENTRY_SCHEMA>
+):
+	| { name: string; message: string; stack?: string; code?: string }
+	| undefined {
+	const context = entry.context ?? {};
+
+	if (entry.error) {
+		return {
+			name: entry.error.name ?? "Error",
+			message: entry.error.message ?? "Unknown error",
+			stack: entry.error.stack,
+			code: entry.error.code,
+		};
+	}
+
+	const ctxErr = context.err as Error | undefined;
+	const ctxError = context.error as Error | undefined;
+	if (ctxErr || ctxError) {
+		return {
+			name: ctxErr?.name ?? ctxError?.name ?? "Error",
+			message: ctxErr?.message ?? ctxError?.message ?? "Unknown error",
+			stack: ctxErr?.stack ?? ctxError?.stack,
+		};
+	}
+}
+
+function buildLogDocument(
+	entry: z.infer<typeof LOG_ENTRY_SCHEMA>,
+	receivedAt: Date,
+	ttlDays: number
+): ServiceLogDocument {
+	const context = entry.context ?? {};
+	const errorObj = extractError(entry);
+	const cleanContext =
+		Object.keys(context).length > 0 && !context.err && !context.error
+			? context
+			: undefined;
+
+	const doc: ServiceLogDocument = {
+		receivedAt,
+		ttl: new Date(Date.now() + ttlDays * 86400_000),
+		level: entry.level,
+		message: entry.message,
+		service: {
+			name: entry.serviceName ?? "unknown",
+			instanceId: entry.instanceId ?? "unknown",
+		},
+		module: entry.module,
+		correlationId: entry.correlationId,
+		context: cleanContext,
+		error: errorObj,
+		environment: entry.environment,
+	};
+
+	if (entry.request) {
+		doc.request = entry.request;
+	}
+	if (entry.userId || entry.sessionId) {
+		doc.user = {
+			id: entry.userId ?? undefined,
+			sessionId: entry.sessionId ?? undefined,
+		};
+	}
+
+	return doc;
+}
+
 export function createLogHandler(logRepo: LogRepository) {
 	return catchSync(async (req) => {
 		const parsed = LOGS_BATCH_SCHEMA.safeParse(req.body);
@@ -52,70 +120,15 @@ export function createLogHandler(logRepo: LogRepository) {
 			return sendResponse({ error: parsed.error.message }, 400);
 		}
 
-		const docs: ServiceLogDocument[] = [];
 		const receivedAt = new Date();
 		const ttlDays = ENV.LOG_RETENTION_DAYS ?? 1827;
+		const docs: ServiceLogDocument[] = [];
 
 		for (const entry of parsed.data.logs) {
-			const context = entry.context ?? {};
-			const errorObj:
-				| { name: string; message: string; stack?: string; code?: string }
-				| undefined = entry.error
-				? {
-						name: entry.error.name ?? "Error",
-						message: entry.error.message ?? "Unknown error",
-						stack: entry.error.stack,
-						code: entry.error.code,
-					}
-				: context.err || context.error
-					? {
-							name:
-								(context.err as Error)?.name ??
-								(context.error as Error)?.name ??
-								"Error",
-							message:
-								(context.err as Error)?.message ??
-								(context.error as Error)?.message ??
-								"Unknown error",
-							stack:
-								(context.err as Error)?.stack ??
-								(context.error as Error)?.stack,
-						}
-					: undefined;
-
-			const doc: ServiceLogDocument = {
-				receivedAt,
-				ttl: new Date(Date.now() + ttlDays * 86400_000),
-				level: entry.level,
-				message: entry.message,
-				service: {
-					name: entry.serviceName ?? "unknown",
-					instanceId: entry.instanceId ?? "unknown",
-				},
-				module: entry.module,
-				correlationId: entry.correlationId,
-				context:
-					Object.keys(context).length > 0 && !context.err && !context.error
-						? context
-						: undefined,
-				error: errorObj,
-				environment: entry.environment,
-			};
-
-			if (entry.request) {
-				doc.request = entry.request;
-			}
-			if (entry.userId || entry.sessionId) {
-				doc.user = {
-					id: entry.userId ?? undefined,
-					sessionId: entry.sessionId ?? undefined,
-				};
-			}
-
-			const svcLabel = "service_name";
+			const doc = buildLogDocument(entry, receivedAt, ttlDays);
 			LOGS_INGESTED_TOTAL.inc({
 				level: entry.level,
-				[svcLabel]: entry.serviceName ?? "unknown",
+				service_name: entry.serviceName ?? "unknown",
 			});
 			docs.push(doc);
 		}
