@@ -1,5 +1,6 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import {
+	CandleInterval,
 	EnumEventMessage,
 	type EventMap,
 	MarketType,
@@ -200,7 +201,13 @@ const EVENT_VALIDATORS: ZodEventMap<EventMap> = {
 				close: z.number("Close is required and must be a number"),
 				symbol: z.string("Symbol is required and must be a string"),
 				volume: z.number("Volume is required and must be a number"),
-				interval: z.string("Interval is required and must be a string"),
+				interval: z.enum(
+					Object.values(CandleInterval) as unknown as [
+						CandleInterval,
+						...CandleInterval[],
+					],
+					"Interval is required and must be a valid candlestick interval"
+				),
 				timestamp: z.number("Timestamp is required and must be a number"),
 				closeTimestamp: z.number(
 					"CloseTimestamp is required and must be a number"
