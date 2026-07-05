@@ -44,11 +44,14 @@ export class ClaimManager {
 	private async _claimForTopic(
 		redis: Redis,
 		topic: string,
-		groupName: string,
-		consumerId: string,
-		minIdleMs: number,
-		count: number
+		claimOpts: {
+			groupName: string;
+			consumerId: string;
+			minIdleMs: number;
+			count: number;
+		}
 	): Promise<number> {
+		const { groupName, consumerId, minIdleMs, count } = claimOpts;
 		const streamKey = this._streamKey(topic);
 		try {
 			const pending = await redis.xpending(
@@ -98,14 +101,12 @@ export class ClaimManager {
 			let total = 0;
 
 			for (const topic of topics) {
-				total += await this._claimForTopic(
-					redis,
-					topic,
+				total += await this._claimForTopic(redis, topic, {
 					groupName,
 					consumerId,
 					minIdleMs,
-					count
-				);
+					count,
+				});
 			}
 
 			if (total > 0) {
