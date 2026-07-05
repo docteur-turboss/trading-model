@@ -73,27 +73,40 @@ export class AddressManagerClient {
 		);
 	}
 
-	async refreshTTL(): Promise<void> {
-		const token = this._tokenManager.getToken();
+	private _buildHeartbeatPayload(): {
+		serviceName: string;
+		instanceId: string;
+	} {
+		return {
+			serviceName: this._config.serviceName,
+			instanceId: this._config.instanceId,
+		};
+	}
 
-		const urls = this._config.discoveryUrls?.length
+	private async _sendHeartbeat(url: string): Promise<void> {
+		await this._httpClient.post(
+			`${url}/heartbeat`,
+			this._buildHeartbeatPayload(),
+			{
+				headers: {
+					"x-instance-token": this._tokenManager.getToken(),
+				},
+			}
+		);
+	}
+
+	private _getDiscoveryUrls(): string[] {
+		return this._config.discoveryUrls?.length
 			? this._config.discoveryUrls
 			: [this._config.addressManagerUrl];
+	}
+
+	async refreshTTL(): Promise<void> {
+		const urls = this._getDiscoveryUrls();
 
 		if (urls.length === 1) {
 			try {
-				await this._httpClient.post(
-					`${urls[0]}/heartbeat`,
-					{
-						serviceName: this._config.serviceName,
-						instanceId: this._config.instanceId,
-					},
-					{
-						headers: {
-							"x-instance-token": token,
-						},
-					}
-				);
+				await this._sendHeartbeat(urls[0]);
 			} catch (error) {
 				throw new AppError(
 					"Failed to refresh service TTL",
@@ -107,22 +120,8 @@ export class AddressManagerClient {
 		}
 
 		const results = await Promise.allSettled(
-			urls.map((url) =>
-				this._httpClient.post(
-					`${url}/heartbeat`,
-					{
-						serviceName: this._config.serviceName,
-						instanceId: this._config.instanceId,
-					},
-					{
-						headers: {
-							"x-instance-token": token,
-						},
-					}
-				)
-			)
+			urls.map((url) => this._sendHeartbeat(url))
 		);
-
 		const failures = results.filter((result) => result.status === "rejected");
 		if (failures.length === results.length) {
 			throw new AppError(

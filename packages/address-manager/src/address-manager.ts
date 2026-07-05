@@ -23,64 +23,27 @@ import type { IServiceCache } from "./discovery/service-cache.interface";
 import { ServiceDiscovery } from "./discovery/service-discovery";
 import { ServiceHealthChecker } from "./discovery/service-health-checker";
 import { MappingServiceLocator } from "./discovery/service-locator";
+import { HeartbeatManager } from "./heartbeat-manager";
 import { METRICS_ROUTES } from "./http/routes/metrics.routes";
 import { PING_ROUTES } from "./http/routes/ping.routes";
+import {
+	CACHE_ENTRY_COUNT,
+	CIRCUIT_BREAKER_INSTANCES_TOTAL,
+	CIRCUIT_BREAKER_STATE,
+	DISCOVERY_DURATION_MS,
+	HEARTBEAT_TOTAL,
+	REGISTRATION_TOTAL,
+	recordDiscoveryMetrics,
+} from "./metrics";
 import { ServiceCallTracker } from "./monitoring/service-call-tracker";
 import {
 	SystemMetrics,
 	type SystemMetricsPayload,
 } from "./monitoring/system-metrics";
+import { RegistrationManager } from "./registration-manager";
 import { RefreshJob } from "./scheduler/refresh-job";
 import { Scheduler } from "./scheduler/scheduler";
-
-const MAX_REGISTRATION_RETRIES = 10;
-const REGISTRATION_BASE_DELAY_MS = 1000;
-const REGISTRATION_MAX_DELAY_MS = 30_000;
-const REGISTRATION_BACKGROUND_RETRY_INTERVAL_MS = 30_000;
-
-// Prometheus metrics
-const DISCOVERY_CALLS_TOTAL = new promClient.Counter({
-	name: "address_manager_discovery_calls_total",
-	help: "Total number of service discovery calls",
-	labelNames: ["serviceName", "result"] as const,
-});
-
-const DISCOVERY_DURATION_MS = new promClient.Histogram({
-	name: "address_manager_discovery_duration_ms",
-	help: "Duration of service discovery calls in ms",
-	labelNames: ["serviceName"] as const,
-	buckets: [5, 10, 25, 50, 100, 250, 500, 1000, 5000],
-});
-
-const REGISTRATION_TOTAL = new promClient.Counter({
-	name: "address_manager_registration_total",
-	help: "Total number of service registration attempts",
-	labelNames: ["result"] as const,
-});
-
-const HEARTBEAT_TOTAL = new promClient.Counter({
-	name: "address_manager_heartbeat_total",
-	help: "Total number of heartbeat attempts",
-	labelNames: ["result"] as const,
-});
-
-const CIRCUIT_BREAKER_STATE = new promClient.Gauge({
-	name: "address_manager_circuit_breaker_state",
-	help: "Circuit breaker state per instance (0=closed, 1=open, 2=half-open)",
-	labelNames: ["instanceId"] as const,
-});
-
-const CIRCUIT_BREAKER_INSTANCES_TOTAL = new promClient.Gauge({
-	name: "address_manager_circuit_breaker_instances_total",
-	help: "Circuit breaker instance count by state",
-	labelNames: ["state"] as const,
-});
-
-const CACHE_ENTRY_COUNT = new promClient.Gauge({
-	name: "address_manager_cache_entries_total",
-	help: "Current number of cache entries by service",
-	labelNames: [] as const,
-});
+import { ShutdownHandler } from "./shutdown-handler";
 
 function createHttpClient(config: AddressManagerConfig): HttpClient {
 	return config.pems
@@ -204,12 +167,10 @@ export default class AddressManager {
 	private readonly _serviceCallTracker: ServiceCallTracker;
 	readonly circuitBreaker: CircuitBreaker;
 
-	private _shouldRetryRegistration = true;
-	private _resolveStopRegistration: (() => void) | null = null;
-	private _cleanupSignalHandlers?: () => void;
+	private _registrationManager: RegistrationManager;
+	private _heartbeatManager: HeartbeatManager;
+	private _shutdownHandler: ShutdownHandler;
 	private _started = false;
-	private _consecutiveHeartbeatFailures = 0;
-	private static readonly _MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = 3;
 	private readonly _metricsIntervalMs: number;
 	private _metricsTimer?: NodeJS.Timeout;
 
@@ -248,6 +209,30 @@ export default class AddressManager {
 		this._ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
 		this._cacheTtlMs = config.cacheTtlMs;
 		this._metricsIntervalMs = config.metricsIntervalMs ?? 15_000;
+
+		this._registrationManager = new RegistrationManager(
+			this._addressManagerClient,
+			this._tokenManager,
+			this._wsClient,
+			() => REGISTRATION_TOTAL.inc({ result: "success" }),
+			() => REGISTRATION_TOTAL.inc({ result: "failure" })
+		);
+
+		this._heartbeatManager = new HeartbeatManager(
+			this._addressManagerClient,
+			this._tokenManager,
+			this._wsClient,
+			() => HEARTBEAT_TOTAL.inc({ result: "success" }),
+			() => HEARTBEAT_TOTAL.inc({ result: "failure" })
+		);
+
+		this._shutdownHandler = new ShutdownHandler(
+			this._registrationManager,
+			this._wsClient,
+			this._addressManagerClient,
+			this._serviceCache,
+			this.circuitBreaker
+		);
 	}
 
 	getToken(): string {
@@ -257,9 +242,11 @@ export default class AddressManager {
 	private static readonly _CIRCUIT_BREAKER_MAX_RETRIES = 2;
 	private static readonly _CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS = 100;
 
-	async findService(serviceName: string): Promise<ServiceInstance> {
+	private async _attemptDiscovery(
+		serviceName: string,
+		startTime: number
+	): Promise<ServiceInstance> {
 		let lastError: Error | null = null;
-		const startTime = Date.now();
 
 		for (
 			let attempt = 0;
@@ -268,32 +255,14 @@ export default class AddressManager {
 		) {
 			try {
 				const instance = await this._serviceDiscovery.findService(serviceName);
-				// Non-blocking: load circuit breaker state in background.
-				// If no local state yet, isOpen() returns false (assume closed).
-				// This removes a synchronous Redis read from every discovery call.
-				this.circuitBreaker.loadFromStore(instance.instanceId).catch(() => {});
-
-				if (!this.circuitBreaker.isOpen(instance.instanceId)) {
-					this._serviceDiscovery.acquireConnection(instance.instanceId);
-					DISCOVERY_CALLS_TOTAL.inc({
-						serviceName: serviceName,
-						result: "success",
-					});
-					DISCOVERY_DURATION_MS.observe(
-						{
-							serviceName: serviceName,
-						},
-						Date.now() - startTime
-					);
-					return instance;
-				}
-
-				await this._serviceCache.invalidate(serviceName);
-
-				if (attempt < AddressManager._CIRCUIT_BREAKER_MAX_RETRIES) {
-					const delay =
-						AddressManager._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt;
-					await sleep(delay);
+				const result = await this._checkServiceCircuitBreaker(
+					instance,
+					serviceName,
+					startTime,
+					attempt
+				);
+				if (result) {
+					return result;
 				}
 			} catch (err) {
 				lastError = err instanceof Error ? err : new Error(String(err));
@@ -305,8 +274,64 @@ export default class AddressManager {
 			}
 		}
 
-		// Last-known-good fallback: before giving up, try the service cache one more time
-		// ignoring TTL — a stale instance is better than throwing SERVICE_UNREACHABLE
+		throw lastError ?? new Error("Discovery failed");
+	}
+
+	async findService(serviceName: string): Promise<ServiceInstance> {
+		const startTime = Date.now();
+
+		try {
+			return await this._attemptDiscovery(serviceName, startTime);
+		} catch (lastError) {
+			const staleInstance = await this._fallbackToStaleCache(
+				serviceName,
+				startTime
+			);
+			if (staleInstance) {
+				return staleInstance;
+			}
+
+			recordDiscoveryMetrics(serviceName, startTime, "failure");
+
+			throw (
+				lastError ??
+				new AppError(
+					`Service "${serviceName}" unreachable after ${AddressManager._CIRCUIT_BREAKER_MAX_RETRIES + 1} attempts`,
+					ErrorCodes.SERVICE_UNREACHABLE
+				)
+			);
+		}
+	}
+
+	private async _checkServiceCircuitBreaker(
+		instance: ServiceInstance,
+		serviceName: string,
+		startTime: number,
+		attempt: number
+	): Promise<ServiceInstance | null> {
+		this.circuitBreaker.loadFromStore(instance.instanceId).catch(() => {});
+
+		if (!this.circuitBreaker.isOpen(instance.instanceId)) {
+			this._serviceDiscovery.acquireConnection(instance.instanceId);
+			recordDiscoveryMetrics(serviceName, startTime, "success");
+			return instance;
+		}
+
+		await this._serviceCache.invalidate(serviceName);
+
+		if (attempt < AddressManager._CIRCUIT_BREAKER_MAX_RETRIES) {
+			const delay =
+				AddressManager._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt;
+			await sleep(delay);
+		}
+
+		return null;
+	}
+
+	private async _fallbackToStaleCache(
+		serviceName: string,
+		startTime: number
+	): Promise<ServiceInstance | null> {
 		try {
 			const staleInstance = await this._serviceCache.get(serviceName);
 			if (staleInstance) {
@@ -317,36 +342,13 @@ export default class AddressManager {
 						instanceId: staleInstance.instanceId,
 					}
 				);
-				DISCOVERY_CALLS_TOTAL.inc({
-					serviceName: serviceName,
-					result: "degraded",
-				});
-				DISCOVERY_DURATION_MS.observe(
-					{ serviceName: serviceName },
-					Date.now() - startTime
-				);
+				recordDiscoveryMetrics(serviceName, startTime, "degraded");
 				return staleInstance;
 			}
 		} catch {
 			// ignore cache errors in fallback path
 		}
-
-		DISCOVERY_CALLS_TOTAL.inc({
-			serviceName: serviceName,
-			result: "failure",
-		});
-		DISCOVERY_DURATION_MS.observe(
-			{ serviceName: serviceName },
-			Date.now() - startTime
-		);
-
-		throw (
-			lastError ??
-			new AppError(
-				`Service "${serviceName}" unreachable after ${AddressManager._CIRCUIT_BREAKER_MAX_RETRIES + 1} attempts`,
-				ErrorCodes.SERVICE_UNREACHABLE
-			)
-		);
+		return null;
 	}
 
 	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {
@@ -420,109 +422,8 @@ export default class AddressManager {
 		CACHE_ENTRY_COUNT.set(entries.length);
 	}
 
-	private async _tryStickyRegistration(
-		stopPromise: Promise<void>
-	): Promise<void> {
-		const existingToken = this._tokenManager.getTokenOrNull();
-		if (existingToken) {
-			logger.info(
-				"Sticky registration: found existing token, attempting heartbeat to validate"
-			);
-			try {
-				await this._addressManagerClient.refreshTTL();
-				logger.info(
-					"Sticky registration: heartbeat succeeded with existing token, registration valid"
-				);
-				return;
-			} catch {
-				logger.warn(
-					"Sticky registration: heartbeat with existing token failed, re-registering"
-				);
-			}
-		}
-		return this._retryRegistration(stopPromise);
-	}
-
-	private async _retryRegistration(stopPromise: Promise<void>): Promise<void> {
-		for (let attempt = 1; attempt <= MAX_REGISTRATION_RETRIES; attempt++) {
-			if (!this._shouldRetryRegistration) {
-				return;
-			}
-
-			try {
-				const res = await this._addressManagerClient.registerService();
-				if (!res?.token) {
-					throw new Error("Registration response missing token");
-				}
-				REGISTRATION_TOTAL.inc({ result: "success" });
-				this._tokenManager.setToken(res.token);
-				this._wsClient?.updateToken(res.token);
-				return;
-			} catch (error) {
-				REGISTRATION_TOTAL.inc({ result: "failure" });
-				logger.error("Service registration failed", {
-					attempt,
-					maxRetries: MAX_REGISTRATION_RETRIES,
-					error: normalizeError(error),
-				});
-
-				if (attempt < MAX_REGISTRATION_RETRIES) {
-					const baseDelay = Math.min(
-						REGISTRATION_BASE_DELAY_MS * 2 ** attempt,
-						REGISTRATION_MAX_DELAY_MS
-					);
-					const jitter = Math.random() * 1000;
-					await Promise.race([sleep(baseDelay + jitter), stopPromise]);
-					if (!this._shouldRetryRegistration) {
-						return;
-					}
-				}
-			}
-		}
-
-		logger.warn(
-			"Max registration retries exhausted — entering background retry mode"
-		);
-		return this._backgroundRetryRegistration(stopPromise);
-	}
-
-	private async _backgroundRetryRegistration(
-		stopPromise: Promise<void>
-	): Promise<void> {
-		let backgroundAttempts = 0;
-
-		while (this._shouldRetryRegistration) {
-			backgroundAttempts++;
-
-			try {
-				const res = await this._addressManagerClient.registerService();
-				if (!res?.token) {
-					throw new Error("Registration response missing token");
-				}
-				this._tokenManager.setToken(res.token);
-				this._wsClient?.updateToken(res.token);
-				logger.info(
-					"Service re-registered successfully during background retry"
-				);
-				return;
-			} catch (error) {
-				logger.error("Background registration retry failed", {
-					error: normalizeError(error),
-					attempt: backgroundAttempts,
-				});
-			}
-
-			const jitteredInterval =
-				REGISTRATION_BACKGROUND_RETRY_INTERVAL_MS + Math.random() * 5000;
-			await Promise.race([sleep(jitteredInterval), stopPromise]);
-
-			await new Promise<void>((resolve) => setImmediate(resolve));
-		}
-
-		throw new AppError(
-			"Service registration failed — service stopped during background retry",
-			ErrorCodes.ADDRESS_MANAGER_ERROR
-		);
+	private async _register(): Promise<void> {
+		await this._registrationManager.tryStickyRegistration();
 	}
 
 	start(): { stop: () => void; ready: Promise<void> } {
@@ -531,20 +432,41 @@ export default class AddressManager {
 			return {
 				ready: Promise.resolve(),
 				stop: () => {
-					this._shouldRetryRegistration = false;
-					this._resolveStopRegistration?.();
+					this._shutdownHandler.shutdown();
 				},
 			};
 		}
-		this._cleanupSignalHandlers?.();
+		this._shutdownHandler.removeSignalHandlers();
 		this._started = true;
-
-		const stopPromise = new Promise<void>((resolve) => {
-			this._resolveStopRegistration = resolve;
-		});
 
 		const scheduler = new Scheduler();
 
+		this._setupSchedulers(scheduler);
+
+		const registrationPromise = this._register().then(
+			() => {
+				if (!this._started) {
+					return;
+				}
+				this._wsClient?.connect();
+				scheduler.start();
+			}
+		);
+
+		this._shutdownHandler.setupSignalHandlers(scheduler);
+
+		return {
+			ready: registrationPromise,
+			stop: async () => {
+				this._started = false;
+				this._shutdownHandler.removeSignalHandlers();
+				scheduler.stop();
+				await this._shutdownHandler.fullStop();
+			},
+		};
+	}
+
+	private _setupSchedulers(scheduler: Scheduler): void {
 		scheduler.register(
 			new RefreshJob(
 				this._tokenManager,
@@ -580,70 +502,7 @@ export default class AddressManager {
 				});
 			});
 		}, this._metricsIntervalMs);
-
-		const registrationPromise = this._tryStickyRegistration(stopPromise).then(
-			() => {
-				if (!this._started) {
-					return;
-				}
-				this._wsClient?.connect();
-				scheduler.start();
-			}
-		);
-
-		const onSigTerm = async () => {
-			logger.warn("SIGTERM received — shutting down AddressManager");
-			this._started = false;
-			this._shouldRetryRegistration = false;
-			this._resolveStopRegistration?.();
-			scheduler.stop();
-			this._wsClient?.disconnect();
-			try {
-				await this._addressManagerClient.unregisterService();
-			} catch (err) {
-				logger.warn("Deregistration on SIGTERM failed", {
-					error: normalizeError(err),
-				});
-			}
-			this._serviceCache.stop();
-			this.circuitBreaker.clear();
-			if (this._metricsTimer) {
-				clearInterval(this._metricsTimer);
-				this._metricsTimer = undefined;
-			}
-		};
-
-		const onSigInt = async () => {
-			logger.warn("SIGINT received — shutting down AddressManager");
-			await onSigTerm();
-		};
-
-		process.on("SIGTERM", onSigTerm);
-		process.on("SIGINT", onSigInt);
-
-		this._cleanupSignalHandlers = () => {
-			process.removeListener("SIGTERM", onSigTerm);
-			process.removeListener("SIGINT", onSigInt);
-		};
-
-		return {
-			ready: registrationPromise,
-			stop: async () => {
-				this._started = false;
-				this._cleanupSignalHandlers?.();
-				this._shouldRetryRegistration = false;
-				this._resolveStopRegistration?.();
-				scheduler.stop();
-				this._wsClient?.disconnect();
-				await this._unregister();
-				this._serviceCache.stop();
-				this.circuitBreaker.clear();
-				if (this._metricsTimer) {
-					clearInterval(this._metricsTimer);
-					this._metricsTimer = undefined;
-				}
-			},
-		};
+		this._shutdownHandler.setMetricsTimer(this._metricsTimer);
 	}
 
 	private async _unregister(): Promise<void> {
@@ -657,67 +516,9 @@ export default class AddressManager {
 	}
 
 	private async _performHeartbeat(): Promise<void> {
-		if (this._wsClient?.isConnected()) {
-			const sent = this._wsClient.sendHeartbeat(
-				this._serviceName,
-				this._instanceId
-			);
-			if (sent) {
-				HEARTBEAT_TOTAL.inc({ result: "success" });
-				this._consecutiveHeartbeatFailures = 0;
-				return;
-			}
-		}
-
-		try {
-			await this._addressManagerClient.refreshTTL();
-			HEARTBEAT_TOTAL.inc({ result: "success" });
-			this._consecutiveHeartbeatFailures = 0;
-		} catch (err) {
-			HEARTBEAT_TOTAL.inc({ result: "failure" });
-			this._consecutiveHeartbeatFailures++;
-			logger.error("Heartbeat failed", {
-				consecutiveFailures: this._consecutiveHeartbeatFailures,
-				error: normalizeError(err),
-			});
-
-			if (
-				this._consecutiveHeartbeatFailures >=
-				AddressManager._MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
-			) {
-				logger.warn("Too many heartbeat failures — forcing re-registration");
-				this._consecutiveHeartbeatFailures = 0;
-				try {
-					const res = await this._addressManagerClient.registerService();
-					if (res?.token) {
-						this._tokenManager.setToken(res.token);
-						this._wsClient?.updateToken(res.token);
-						HEARTBEAT_TOTAL.inc({ result: "success" });
-						return;
-					}
-				} catch (registerErr) {
-					logger.error("Re-registration after heartbeat failures failed", {
-						error: normalizeError(registerErr),
-					});
-				}
-			}
-		}
-
-		if (this._addressManagerClient.hasIpChanged()) {
-			logger.warn("Local IP changed, re-registering service");
-			try {
-				const res = await this._addressManagerClient.registerService();
-				if (res) {
-					REGISTRATION_TOTAL.inc({ result: "success" });
-					this._tokenManager.setToken(res.token);
-					this._wsClient?.updateToken(res.token);
-				}
-			} catch (err) {
-				REGISTRATION_TOTAL.inc({ result: "failure" });
-				logger.error("Re-registration after IP change failed", {
-					error: normalizeError(err),
-				});
-			}
-		}
+		await this._heartbeatManager.performHeartbeat(
+			this._serviceName,
+			this._instanceId
+		);
 	}
 }

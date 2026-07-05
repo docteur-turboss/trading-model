@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { ServiceInstance } from "../client/type";
 import type { ScheduledJob } from "../scheduler/scheduler";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceHealthChecker } from "./service-health-checker";
@@ -33,49 +34,62 @@ export class CacheHealthRefresher implements ScheduledJob {
 		}
 	}
 
-	private async _doExecute(): Promise<void> {
-		const entries = await this._serviceCache.entries();
-		if (entries.length === 0) {
-			return;
-		}
-
+	private _selectBatch(
+		entries: { serviceName: string; instance: ServiceInstance }[]
+	): { serviceName: string; instance: ServiceInstance }[] {
 		if (entries.length !== this._previousEntriesLength) {
 			this._offset = 0;
 			this._previousEntriesLength = entries.length;
 		}
-
 		const fraction = Math.max(1, Math.floor(entries.length / 3));
 		if (this._offset >= entries.length) {
 			this._offset = 0;
 		}
-
-		const toCheck = entries.slice(this._offset, this._offset + fraction);
+		const batch = entries.slice(this._offset, this._offset + fraction);
 		this._offset = (this._offset + fraction) % entries.length;
+		return batch;
+	}
 
-		const ConcurrencyLimit = 10;
+	private async _checkEntry(entry: {
+		serviceName: string;
+		instance: ServiceInstance;
+	}): Promise<void> {
+		const healthy = await this._healthChecker.isHealthy(entry.instance);
+		if (!healthy) {
+			await this._serviceCache.invalidate(entry.serviceName);
+			logger.warn("Cache health refresher invalidated unhealthy service", {
+				serviceName: entry.serviceName,
+			});
+		}
+	}
+
+	private async _executeBatch(
+		batch: { serviceName: string; instance: ServiceInstance }[],
+		concurrencyLimit: number
+	): Promise<PromiseRejectedResult[]> {
 		const errors: PromiseRejectedResult[] = [];
-
-		for (let i = 0; i < toCheck.length; i += ConcurrencyLimit) {
-			const chunk = toCheck.slice(i, i + ConcurrencyLimit);
+		for (let i = 0; i < batch.length; i += concurrencyLimit) {
+			const chunk = batch.slice(i, i + concurrencyLimit);
 			const results = await Promise.allSettled(
-				chunk.map(async ({ serviceName, instance }) => {
-					const healthy = await this._healthChecker.isHealthy(instance);
-					if (!healthy) {
-						await this._serviceCache.invalidate(serviceName);
-						logger.warn(
-							"Cache health refresher invalidated unhealthy service",
-							{ serviceName }
-						);
-					}
-				})
+				chunk.map((entry) => this._checkEntry(entry))
 			);
-
 			for (const result of results) {
 				if (result.status === "rejected") {
 					errors.push(result);
 				}
 			}
 		}
+		return errors;
+	}
+
+	private async _doExecute(): Promise<void> {
+		const entries = await this._serviceCache.entries();
+		if (entries.length === 0) {
+			return;
+		}
+
+		const batch = this._selectBatch(entries);
+		const errors = await this._executeBatch(batch, 10);
 
 		for (const error of errors) {
 			logger.error("Cache health refresher check failed", {
