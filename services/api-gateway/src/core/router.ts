@@ -18,23 +18,19 @@ const CACHE = new ResponseCache(ENV.CACHE_TTL_MS);
 const VERSION_PATH_REGEX = /^\/v(\d+)\/([^/]+)(\/.*)?$/;
 
 const catchAllRoute = catchSync(async (req) => {
-	const match = req.path.match(VERSION_PATH_REGEX);
-	if (!match) {
+	const parsed = _parseRequestPath(req);
+	if (!parsed) {
 		return sendResponse(
-			{
-				error: "Invalid route format. Expected /v{version}/{serviceName}/**",
-			},
+			{ error: "Invalid route format. Expected /v{version}/{serviceName}/**" },
 			400
 		);
 	}
 
-	const majorVersion = Number.parseInt(match[1], 10);
-	const serviceName = match[2];
-	const path = match[3] ?? "/";
-
-	if (Number.isNaN(majorVersion) || majorVersion < 1) {
+	if (!parsed.valid) {
 		return sendResponse({ error: "Invalid version number" }, 400);
 	}
+
+	const { majorVersion, serviceName, path } = parsed;
 
 	const target = await RESOLVER.resolve(serviceName, majorVersion);
 	if (!target) {
@@ -50,11 +46,9 @@ const catchAllRoute = catchSync(async (req) => {
 	}
 
 	const cacheKey = `${req.method}:${req.path}`;
-	if (req.method === "GET") {
-		const cached = CACHE.get(cacheKey);
-		if (cached) {
-			return sendResponse(cached.data, cached.status);
-		}
+	const cached = _checkCache(req.method, cacheKey);
+	if (cached) {
+		return sendResponse(cached.data, cached.status);
 	}
 
 	try {
@@ -83,6 +77,44 @@ const catchAllRoute = catchSync(async (req) => {
 		);
 	}
 });
+
+type ParsedRequestPath =
+	| { valid: false }
+	| { valid: true; majorVersion: number; serviceName: string; path: string };
+
+function _parseRequestPath(req: {
+	path: string;
+	method: string;
+}): ParsedRequestPath | null {
+	const match = req.path.match(VERSION_PATH_REGEX);
+	if (!match) {
+		return null;
+	}
+
+	const majorVersion = Number.parseInt(match[1], 10);
+	const serviceName = match[2];
+	const path = match[3] ?? "/";
+
+	if (Number.isNaN(majorVersion) || majorVersion < 1) {
+		return { valid: false };
+	}
+
+	return { valid: true, majorVersion, serviceName, path };
+}
+
+function _checkCache(
+	method: string,
+	cacheKey: string
+): { data: unknown; status: number } | null {
+	if (method !== "GET") {
+		return null;
+	}
+	const cached = CACHE.get(cacheKey);
+	if (!cached) {
+		return null;
+	}
+	return cached;
+}
 
 export function createRouter(): Router {
 	const router = Router();
