@@ -25,6 +25,109 @@ import { StatsCard } from "../components/stats-card";
 import { useAuditEvents } from "../hooks/use-audit-events";
 import type { AuditEvent, AuditFilter } from "../types/dtos";
 
+function PageLoading() {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+			<CircularProgress />
+		</Box>
+	);
+}
+
+function AuditStats({ data }: { data?: { total: number } }) {
+	return (
+		<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+			<Box sx={{ flex: 1 }}>
+				<StatsCard
+					icon={<MonitorHeartIcon />}
+					value={(data?.total ?? 0).toLocaleString()}
+					label="TOTAL EVENTS (24H)"
+					delta="+12.4% vs yesterday"
+					deltaColor="success.main"
+				/>
+			</Box>
+			<Box sx={{ flex: 1 }}>
+				<StatsCard
+					icon={<WarningAmberIcon />}
+					value="0.04%"
+					label="ERROR RATE"
+					delta="Stability: Optimal"
+					deltaColor="success.main"
+				/>
+			</Box>
+		</Box>
+	);
+}
+
+function VolumeByTopicChart({
+	data,
+}: {
+	data: { topic: string; count: number }[];
+}) {
+	return (
+		<>
+			<Typography variant="subtitle2" sx={{ mb: 1 }}>
+				Volume by Topic
+			</Typography>
+			<Box sx={{ height: 200, mb: 3 }}>
+				<ResponsiveContainer width="100%" height="100%">
+					<BarChart data={data}>
+						<XAxis dataKey="topic" />
+						<YAxis />
+						<Tooltip />
+						<Bar dataKey="count" fill="#1976d2" />
+					</BarChart>
+				</ResponsiveContainer>
+			</Box>
+		</>
+	);
+}
+
+function AuditFilterBar({
+	filter,
+	onFilterChange,
+	onApply,
+}: {
+	filter: AuditFilter;
+	onFilterChange: (filter: AuditFilter) => void;
+	onApply: () => void;
+}) {
+	return (
+		<Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
+			<TextField
+				size="small"
+				placeholder="Search by Correlation ID, Payload or Message..."
+				value={filter.correlationId ?? ""}
+				onChange={(evt) =>
+					onFilterChange({ ...filter, correlationId: evt.target.value })
+				}
+				sx={{ minWidth: 300 }}
+			/>
+			<TextField
+				size="small"
+				select
+				value={filter.topic ?? ""}
+				onChange={(evt) =>
+					onFilterChange({
+						...filter,
+						topic: evt.target.value || undefined,
+					})
+				}
+				sx={{ minWidth: 140 }}
+			>
+				<MenuItem value="">All Topics</MenuItem>
+				<MenuItem value="AUTH">AUTH</MenuItem>
+				<MenuItem value="ORDER">ORDER</MenuItem>
+				<MenuItem value="PAYMENT">PAYMENT</MenuItem>
+				<MenuItem value="INVENTORY">INVENTORY</MenuItem>
+				<MenuItem value="NOTIF">NOTIF</MenuItem>
+			</TextField>
+			<Button variant="contained" size="small" onClick={onApply}>
+				Apply
+			</Button>
+		</Box>
+	);
+}
+
 export function AuditEvents() {
 	const [filter, setFilter] = useState<AuditFilter>({});
 	const { data, loading, refetch } = useAuditEvents(filter);
@@ -45,11 +148,7 @@ export function AuditEvents() {
 	const chartData = data?.volumeByTopic ?? [];
 
 	if (loading) {
-		return (
-			<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-				<CircularProgress />
-			</Box>
-		);
+		return <PageLoading />;
 	}
 
 	return (
@@ -72,74 +171,15 @@ export function AuditEvents() {
 				</Button>
 			</Box>
 
-			<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-				<Box sx={{ flex: 1 }}>
-					<StatsCard
-						icon={<MonitorHeartIcon />}
-						value={(data?.total ?? 0).toLocaleString()}
-						label="TOTAL EVENTS (24H)"
-						delta="+12.4% vs yesterday"
-						deltaColor="success.main"
-					/>
-				</Box>
-				<Box sx={{ flex: 1 }}>
-					<StatsCard
-						icon={<WarningAmberIcon />}
-						value="0.04%"
-						label="ERROR RATE"
-						delta="Stability: Optimal"
-						deltaColor="success.main"
-					/>
-				</Box>
-			</Box>
+			<AuditStats data={data} />
 
-			<Typography variant="subtitle2" sx={{ mb: 1 }}>
-				Volume by Topic
-			</Typography>
-			<Box sx={{ height: 200, mb: 3 }}>
-				<ResponsiveContainer width="100%" height="100%">
-					<BarChart data={chartData}>
-						<XAxis dataKey="topic" />
-						<YAxis />
-						<Tooltip />
-						<Bar dataKey="count" fill="#1976d2" />
-					</BarChart>
-				</ResponsiveContainer>
-			</Box>
+			<VolumeByTopicChart data={chartData} />
 
-			<Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
-				<TextField
-					size="small"
-					placeholder="Search by Correlation ID, Payload or Message..."
-					value={filter.correlationId ?? ""}
-					onChange={(evt) =>
-						setFilter((prev) => ({ ...prev, correlationId: evt.target.value }))
-					}
-					sx={{ minWidth: 300 }}
-				/>
-				<TextField
-					size="small"
-					select
-					value={filter.topic ?? ""}
-					onChange={(evt) =>
-						setFilter((prev) => ({
-							...prev,
-							topic: evt.target.value || undefined,
-						}))
-					}
-					sx={{ minWidth: 140 }}
-				>
-					<MenuItem value="">All Topics</MenuItem>
-					<MenuItem value="AUTH">AUTH</MenuItem>
-					<MenuItem value="ORDER">ORDER</MenuItem>
-					<MenuItem value="PAYMENT">PAYMENT</MenuItem>
-					<MenuItem value="INVENTORY">INVENTORY</MenuItem>
-					<MenuItem value="NOTIF">NOTIF</MenuItem>
-				</TextField>
-				<Button variant="contained" size="small" onClick={() => refetch()}>
-					Apply
-				</Button>
-			</Box>
+			<AuditFilterBar
+				filter={filter}
+				onFilterChange={setFilter}
+				onApply={() => refetch()}
+			/>
 
 			<DataTable
 				columns={columns}

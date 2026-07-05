@@ -21,6 +21,65 @@ import { StatsCard } from "../components/stats-card";
 import { useApi } from "../hooks/use-api";
 import type { TrainingResult } from "../types/dtos";
 
+function PageLoading() {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+			<CircularProgress />
+		</Box>
+	);
+}
+
+function TrainingStats() {
+	return (
+		<Grid container spacing={2} sx={{ mb: 3 }}>
+			<Grid size={{ xs: 3 }}>
+				<StatsCard
+					icon={<TrackChangesIcon />}
+					value="0.824"
+					label="FITNESS MOYEN"
+					delta="+4.2% vs yesterday"
+					deltaColor="success.main"
+				/>
+			</Grid>
+			<Grid size={{ xs: 3 }}>
+				<StatsCard
+					icon={<TrendingUpIcon />}
+					value="2.14"
+					label="SHARPE MAX"
+					delta="Generation #142"
+				/>
+			</Grid>
+		</Grid>
+	);
+}
+
+function GenomeViewer({ genome }: { genome: Record<string, unknown> | null }) {
+	if (!genome) {
+		return (
+			<Typography variant="body2" color="text.secondary">
+				No genome data available.
+			</Typography>
+		);
+	}
+	return (
+		<Typography
+			variant="body2"
+			component="pre"
+			sx={{
+				fontFamily: "monospace",
+				fontSize: "0.7rem",
+				bgcolor: "#1e1e1e",
+				color: "#d4d4d4",
+				padding: 2,
+				borderRadius: 1,
+				overflow: "auto",
+			}}
+		>
+			{JSON.stringify(genome, null, 2)}
+		</Typography>
+	);
+}
+
 export function TrainingResults() {
 	const { data, loading, refetch } = useApi(() =>
 		API_CLIENT.getTrainingResults()
@@ -59,11 +118,7 @@ export function TrainingResults() {
 	];
 
 	if (loading) {
-		return (
-			<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-				<CircularProgress />
-			</Box>
-		);
+		return <PageLoading />;
 	}
 
 	return (
@@ -98,25 +153,7 @@ export function TrainingResults() {
 				</Box>
 			</Box>
 
-			<Grid container spacing={2} sx={{ mb: 3 }}>
-				<Grid size={{ xs: 3 }}>
-					<StatsCard
-						icon={<TrackChangesIcon />}
-						value="0.824"
-						label="FITNESS MOYEN"
-						delta="+4.2% vs yesterday"
-						deltaColor="success.main"
-					/>
-				</Grid>
-				<Grid size={{ xs: 3 }}>
-					<StatsCard
-						icon={<TrendingUpIcon />}
-						value="2.14"
-						label="SHARPE MAX"
-						delta="Generation #142"
-					/>
-				</Grid>
-			</Grid>
+			<TrainingStats />
 
 			<DataTable
 				columns={columns}
@@ -138,27 +175,7 @@ export function TrainingResults() {
 						? [
 								{
 									label: "Genome (JSON)",
-									content: selected.genome ? (
-										<Typography
-											variant="body2"
-											component="pre"
-											sx={{
-												fontFamily: "monospace",
-												fontSize: "0.7rem",
-												bgcolor: "#1e1e1e",
-												color: "#d4d4d4",
-												padding: 2,
-												borderRadius: 1,
-												overflow: "auto",
-											}}
-										>
-											{JSON.stringify(selected.genome, null, 2)}
-										</Typography>
-									) : (
-										<Typography variant="body2" color="text.secondary">
-											No genome data available.
-										</Typography>
-									),
+									content: <GenomeViewer genome={selected.genome} />,
 								},
 							]
 						: []

@@ -15,6 +15,44 @@ import { StatusBadge } from "../components/status-badge";
 import { useApi } from "../hooks/use-api";
 import type { CacheEntry } from "../types/dtos";
 
+function PageLoading() {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+			<CircularProgress />
+		</Box>
+	);
+}
+
+function CacheStats({
+	data,
+	translate,
+}: {
+	data?: { stats: { hitRate: number; activeEntries: number } };
+	translate: (key: string) => string;
+}) {
+	return (
+		<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+			<Box sx={{ flex: 1 }}>
+				<StatsCard
+					icon={<RefreshIcon />}
+					value={`${data?.stats.hitRate ?? 0}%`}
+					label={translate("hitRate")}
+					delta="Based on last 5 minutes"
+				/>
+			</Box>
+			<Box sx={{ flex: 1 }}>
+				<StatsCard
+					icon={<StorageIcon />}
+					value={(data?.stats.activeEntries ?? 0).toLocaleString()}
+					label={translate("activeEntries")}
+					delta="5% increase today"
+					deltaColor="warning.main"
+				/>
+			</Box>
+		</Box>
+	);
+}
+
 export function Cache() {
 	const { t } = useTranslation("cache");
 	const { data, loading, refetch } = useApi(() => API_CLIENT.getCacheEntries());
@@ -43,11 +81,7 @@ export function Cache() {
 	];
 
 	if (loading) {
-		return (
-			<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-				<CircularProgress />
-			</Box>
-		);
+		return <PageLoading />;
 	}
 
 	return (
@@ -76,25 +110,7 @@ export function Cache() {
 				</Box>
 			</Box>
 
-			<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-				<Box sx={{ flex: 1 }}>
-					<StatsCard
-						icon={<RefreshIcon />}
-						value={`${data?.stats.hitRate ?? 0}%`}
-						label={t("hitRate")}
-						delta="Based on last 5 minutes"
-					/>
-				</Box>
-				<Box sx={{ flex: 1 }}>
-					<StatsCard
-						icon={<StorageIcon />}
-						value={(data?.stats.activeEntries ?? 0).toLocaleString()}
-						label={t("activeEntries")}
-						delta="5% increase today"
-						deltaColor="warning.main"
-					/>
-				</Box>
-			</Box>
+			<CacheStats data={data} translate={t} />
 
 			<DataTable
 				columns={columns}

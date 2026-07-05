@@ -30,6 +30,38 @@ function getSourceColor(
 	return "default";
 }
 
+function PageLoading() {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+			<CircularProgress />
+		</Box>
+	);
+}
+
+function ConfigInfoBoxes() {
+	return (
+		<Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+			<InfoBox
+				icon={<LockIcon />}
+				title="Secret Security"
+				description="Vault-sourced secrets are injected at startup and never stored in plaintext on the pod filesystem."
+				color="info.main"
+			/>
+			<InfoBox
+				icon={<CheckCircleIcon color="success" />}
+				title="ConfigMap Propagation"
+				description="ConfigMap changes may take up to 60 seconds to propagate to all active instances."
+				color="success.main"
+			/>
+			<InfoBox
+				icon={<SyncIcon />}
+				title="Audit Log"
+				description="All secret reveal actions are logged in the audit registry with user ID and timestamp."
+			/>
+		</Box>
+	);
+}
+
 export function Config() {
 	const { data, loading, refetch } = useApi(() => API_CLIENT.getConfig());
 
@@ -75,11 +107,7 @@ export function Config() {
 	];
 
 	if (loading) {
-		return (
-			<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-				<CircularProgress />
-			</Box>
-		);
+		return <PageLoading />;
 	}
 
 	return (
@@ -114,25 +142,7 @@ export function Config() {
 				total={data?.length ?? 0}
 			/>
 
-			<Box sx={{ display: "flex", gap: 2, mt: 3 }}>
-				<InfoBox
-					icon={<LockIcon />}
-					title="Secret Security"
-					description="Vault-sourced secrets are injected at startup and never stored in plaintext on the pod filesystem."
-					color="info.main"
-				/>
-				<InfoBox
-					icon={<CheckCircleIcon color="success" />}
-					title="ConfigMap Propagation"
-					description="ConfigMap changes may take up to 60 seconds to propagate to all active instances."
-					color="success.main"
-				/>
-				<InfoBox
-					icon={<SyncIcon />}
-					title="Audit Log"
-					description="All secret reveal actions are logged in the audit registry with user ID and timestamp."
-				/>
-			</Box>
+			<ConfigInfoBoxes />
 		</Box>
 	);
 }

@@ -22,6 +22,93 @@ import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useServices } from "../hooks/use-services";
 
+function PageLoading() {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+			<CircularProgress />
+		</Box>
+	);
+}
+
+function ServiceStats({
+	data,
+	flatServices,
+	translate,
+}: {
+	data?: { services: { serviceName: string; instances: unknown[] }[] };
+	flatServices: { instances: number }[];
+	translate: (key: string) => string;
+}) {
+	return (
+		<Grid container spacing={2} sx={{ mb: 3 }}>
+			<Grid size={{ xs: 3 }}>
+				<StatsCard
+					icon={<DnsIcon />}
+					value={`${data?.services.length ?? 0} / ${data?.services.length ?? 0}`}
+					label={translate("activeServices")}
+					delta="+2.5% vs last hour"
+					deltaColor="success.main"
+				/>
+			</Grid>
+			<Grid size={{ xs: 3 }}>
+				<StatsCard
+					icon={<ActivityIcon />}
+					value={`${flatServices.reduce((acc, svc) => acc + svc.instances, 0)}`}
+					label={translate("totalInstances")}
+					delta="+12 vs last hour"
+					deltaColor="success.main"
+				/>
+			</Grid>
+			<Grid size={{ xs: 3 }}>
+				<StatsCard
+					icon={<ShieldIcon />}
+					value="0.04%"
+					label={translate("errors5xx")}
+					delta="-0.01% vs last hour"
+					deltaColor="success.main"
+				/>
+			</Grid>
+			<Grid size={{ xs: 3 }}>
+				<StatsCard
+					icon={<BoltIcon />}
+					value="42ms"
+					label={translate("avgLatency")}
+					delta="-4ms vs last hour"
+					deltaColor="success.main"
+				/>
+			</Grid>
+		</Grid>
+	);
+}
+
+function ServiceFilter({
+	filter,
+	onFilterChange,
+	translate,
+}: {
+	filter: string;
+	onFilterChange: (value: string) => void;
+	translate: (key: string) => string;
+}) {
+	return (
+		<Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+			<TextField
+				size="small"
+				placeholder={translate("filterPlaceholder")}
+				value={filter}
+				onChange={(evt) => onFilterChange(evt.target.value)}
+				sx={{ minWidth: 240 }}
+			/>
+			<TextField size="small" select defaultValue="" sx={{ minWidth: 140 }}>
+				<MenuItem value="">{translate("allStatuses")}</MenuItem>
+				<MenuItem value="healthy">{translate("healthy")}</MenuItem>
+				<MenuItem value="degraded">{translate("degraded")}</MenuItem>
+				<MenuItem value="down">{translate("down")}</MenuItem>
+			</TextField>
+		</Box>
+	);
+}
+
 export function Services() {
 	const { t } = useTranslation("services");
 	const { data, loading, refetch } = useServices();
@@ -71,11 +158,7 @@ export function Services() {
 		: flatServices;
 
 	if (loading) {
-		return (
-			<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-				<CircularProgress />
-			</Box>
-		);
+		return <PageLoading />;
 	}
 
 	return (
@@ -103,44 +186,7 @@ export function Services() {
 				</Box>
 			</Box>
 
-			<Grid container spacing={2} sx={{ mb: 3 }}>
-				<Grid size={{ xs: 3 }}>
-					<StatsCard
-						icon={<DnsIcon />}
-						value={`${data?.services.length ?? 0} / ${data?.services.length ?? 0}`}
-						label={t("activeServices")}
-						delta="+2.5% vs last hour"
-						deltaColor="success.main"
-					/>
-				</Grid>
-				<Grid size={{ xs: 3 }}>
-					<StatsCard
-						icon={<ActivityIcon />}
-						value={`${flatServices.reduce((acc, svc) => acc + svc.instances, 0)}`}
-						label={t("totalInstances")}
-						delta="+12 vs last hour"
-						deltaColor="success.main"
-					/>
-				</Grid>
-				<Grid size={{ xs: 3 }}>
-					<StatsCard
-						icon={<ShieldIcon />}
-						value="0.04%"
-						label={t("errors5xx")}
-						delta="-0.01% vs last hour"
-						deltaColor="success.main"
-					/>
-				</Grid>
-				<Grid size={{ xs: 3 }}>
-					<StatsCard
-						icon={<BoltIcon />}
-						value="42ms"
-						label={t("avgLatency")}
-						delta="-4ms vs last hour"
-						deltaColor="success.main"
-					/>
-				</Grid>
-			</Grid>
+			<ServiceStats data={data} flatServices={flatServices} translate={t} />
 
 			<Typography variant="h6" sx={{ mb: 1 }}>
 				{t("networkTopology")}
@@ -151,21 +197,7 @@ export function Services() {
 				</Typography>
 			</Card>
 
-			<Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-				<TextField
-					size="small"
-					placeholder={t("filterPlaceholder")}
-					value={filter}
-					onChange={(evt) => setFilter(evt.target.value)}
-					sx={{ minWidth: 240 }}
-				/>
-				<TextField size="small" select defaultValue="" sx={{ minWidth: 140 }}>
-					<MenuItem value="">{t("allStatuses")}</MenuItem>
-					<MenuItem value="healthy">{t("healthy")}</MenuItem>
-					<MenuItem value="degraded">{t("degraded")}</MenuItem>
-					<MenuItem value="down">{t("down")}</MenuItem>
-				</TextField>
-			</Box>
+			<ServiceFilter filter={filter} onFilterChange={setFilter} translate={t} />
 
 			<DataTable
 				columns={columns}

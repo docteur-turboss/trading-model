@@ -48,6 +48,85 @@ function LoadBar({ value, color }: { value: number; color?: string }) {
 	);
 }
 
+function PageLoading() {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+			<CircularProgress />
+		</Box>
+	);
+}
+
+function WorkerStats({
+	data,
+}: {
+	data?: {
+		stats: {
+			activeWorkers: number;
+			totalWorkers: number;
+			avgCpu: number;
+			totalJobsPerMin: number;
+			clusterMemory: number;
+		};
+	};
+}) {
+	return (
+		<Grid container spacing={2} sx={{ mb: 3 }}>
+			<Grid size={{ xs: 3 }}>
+				<StatsCard
+					icon={<MemoryIcon />}
+					value={`${data?.stats.activeWorkers ?? 0} / ${data?.stats.totalWorkers ?? 0}`}
+					label="WORKERS ACTIFS"
+					delta="+2 instances provisioned"
+					deltaColor="success.main"
+				/>
+			</Grid>
+			<Grid size={{ xs: 3 }}>
+				<StatsCard
+					icon={<BoltIcon />}
+					value={`${data?.stats.avgCpu ?? 0}%`}
+					label="CHARGE MOYENNE CPU"
+					delta="12% stable over 4h"
+				/>
+			</Grid>
+			<Grid size={{ xs: 3 }}>
+				<StatsCard
+					icon={<DnsIcon />}
+					value={`${data?.stats.totalJobsPerMin ?? 0}`}
+					label="TOTAL JOBS/MIN"
+					delta="Capacity: 2,500/min"
+				/>
+			</Grid>
+			<Grid size={{ xs: 3 }}>
+				<StatsCard
+					icon={<StorageIcon />}
+					value={`${data?.stats.clusterMemory ?? 0} GB`}
+					label="MÉMOIRE CLUSTER"
+					delta="64% pool utilization"
+				/>
+			</Grid>
+		</Grid>
+	);
+}
+
+function WorkerInfoBoxes() {
+	return (
+		<Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+			<InfoBox
+				icon={<RefreshIcon />}
+				title="What is 'Drain' mode?"
+				description="Draining prepares a node for software update by letting running jobs finish gracefully."
+				color="info.main"
+			/>
+			<InfoBox
+				icon={<BoltIcon />}
+				title="Auto-scaling"
+				description="The system added 3 additional nodes 22 minutes ago due to a traffic spike on API Gateway."
+				color="info.main"
+			/>
+		</Box>
+	);
+}
+
 export function Workers() {
 	const { data, loading, refetch } = useApi(() => API_CLIENT.getWorkers());
 
@@ -85,11 +164,7 @@ export function Workers() {
 	];
 
 	if (loading) {
-		return (
-			<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-				<CircularProgress />
-			</Box>
-		);
+		return <PageLoading />;
 	}
 
 	return (
@@ -117,41 +192,7 @@ export function Workers() {
 				</Box>
 			</Box>
 
-			<Grid container spacing={2} sx={{ mb: 3 }}>
-				<Grid size={{ xs: 3 }}>
-					<StatsCard
-						icon={<MemoryIcon />}
-						value={`${data?.stats.activeWorkers ?? 0} / ${data?.stats.totalWorkers ?? 0}`}
-						label="WORKERS ACTIFS"
-						delta="+2 instances provisioned"
-						deltaColor="success.main"
-					/>
-				</Grid>
-				<Grid size={{ xs: 3 }}>
-					<StatsCard
-						icon={<BoltIcon />}
-						value={`${data?.stats.avgCpu ?? 0}%`}
-						label="CHARGE MOYENNE CPU"
-						delta="12% stable over 4h"
-					/>
-				</Grid>
-				<Grid size={{ xs: 3 }}>
-					<StatsCard
-						icon={<DnsIcon />}
-						value={`${data?.stats.totalJobsPerMin ?? 0}`}
-						label="TOTAL JOBS/MIN"
-						delta="Capacity: 2,500/min"
-					/>
-				</Grid>
-				<Grid size={{ xs: 3 }}>
-					<StatsCard
-						icon={<StorageIcon />}
-						value={`${data?.stats.clusterMemory ?? 0} GB`}
-						label="MÉMOIRE CLUSTER"
-						delta="64% pool utilization"
-					/>
-				</Grid>
-			</Grid>
+			<WorkerStats data={data} />
 
 			<DataTable
 				columns={columns}
@@ -160,20 +201,7 @@ export function Workers() {
 				total={data?.workers.length ?? 0}
 			/>
 
-			<Box sx={{ display: "flex", gap: 2, mt: 3 }}>
-				<InfoBox
-					icon={<RefreshIcon />}
-					title="What is 'Drain' mode?"
-					description="Draining prepares a node for software update by letting running jobs finish gracefully."
-					color="info.main"
-				/>
-				<InfoBox
-					icon={<BoltIcon />}
-					title="Auto-scaling"
-					description="The system added 3 additional nodes 22 minutes ago due to a traffic spike on API Gateway."
-					color="info.main"
-				/>
-			</Box>
+			<WorkerInfoBoxes />
 		</Box>
 	);
 }

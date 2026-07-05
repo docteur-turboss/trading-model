@@ -49,6 +49,117 @@ const NAV_ITEMS: NavItem[] = [
 	{ label: "Config", path: "/config", icon: <SettingsIcon /> },
 ];
 
+function SidebarHeader() {
+	return (
+		<Box sx={{ padding: 2, borderBottom: 1, borderColor: "divider" }}>
+			<Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+				<MonitorHeartIcon color="primary" />
+				<Typography variant="h6" fontWeight={700}>
+					Admin Dashboard
+				</Typography>
+			</Box>
+			<Chip
+				label="PRODUCTION"
+				size="small"
+				color="success"
+				variant="outlined"
+				sx={{ fontWeight: 600, fontSize: "0.65rem" }}
+			/>
+		</Box>
+	);
+}
+
+function SidebarUserInfo() {
+	return (
+		<Box sx={{ px: 2, pb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+			<Badge badgeContent={3} color="error">
+				<NotificationsNoneIcon color="action" />
+			</Badge>
+			<Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto" }}>
+				<Avatar
+					sx={{
+						width: 28,
+						height: 28,
+						bgcolor: "primary.main",
+						fontSize: "0.8rem",
+					}}
+				>
+					AU
+				</Avatar>
+				<Box>
+					<Typography variant="caption" fontWeight={600} display="block">
+						Admin User
+					</Typography>
+					<Typography variant="caption" color="text.secondary">
+						Super Admin
+					</Typography>
+				</Box>
+				<Box
+					sx={{
+						width: 8,
+						height: 8,
+						borderRadius: "50%",
+						bgcolor: "success.main",
+					}}
+				/>
+			</Box>
+		</Box>
+	);
+}
+
+function NavItemList({
+	items,
+	location,
+	navigate,
+}: {
+	items: {
+		label: string;
+		path: string;
+		icon: React.ReactNode;
+		badge?: number;
+	}[];
+	location: { pathname: string };
+	navigate: (path: string) => void;
+}) {
+	return (
+		<List sx={{ flexGrow: 1, px: 1 }} dense>
+			{items.map((item) => {
+				const active = location.pathname === item.path;
+				return (
+					<ListItemButton
+						key={item.path}
+						selected={active}
+						onClick={() => navigate(item.path)}
+						sx={{ borderRadius: 1, mb: 0.25 }}
+					>
+						<ListItemIcon
+							sx={{
+								minWidth: 36,
+								color: active ? "primary.main" : undefined,
+							}}
+						>
+							{item.badge ? (
+								<Badge badgeContent={item.badge} color="error">
+									{item.icon}
+								</Badge>
+							) : (
+								item.icon
+							)}
+						</ListItemIcon>
+						<ListItemText
+							primary={item.label}
+							primaryTypographyProps={{
+								variant: "body2",
+								fontWeight: active ? 600 : 400,
+							}}
+						/>
+					</ListItemButton>
+				);
+			})}
+		</List>
+	);
+}
+
 export function Sidebar() {
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -65,21 +176,7 @@ export function Sidebar() {
 				bgcolor: "background.paper",
 			}}
 		>
-			<Box sx={{ padding: 2, borderBottom: 1, borderColor: "divider" }}>
-				<Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-					<MonitorHeartIcon color="primary" />
-					<Typography variant="h6" fontWeight={700}>
-						Admin Dashboard
-					</Typography>
-				</Box>
-				<Chip
-					label="PRODUCTION"
-					size="small"
-					color="success"
-					variant="outlined"
-					sx={{ fontWeight: 600, fontSize: "0.65rem" }}
-				/>
-			</Box>
+			<SidebarHeader />
 
 			<Box sx={{ px: 2, py: 1 }}>
 				<TextField
@@ -90,75 +187,9 @@ export function Sidebar() {
 				/>
 			</Box>
 
-			<Box sx={{ px: 2, pb: 1, display: "flex", alignItems: "center", gap: 1 }}>
-				<Badge badgeContent={3} color="error">
-					<NotificationsNoneIcon color="action" />
-				</Badge>
-				<Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto" }}>
-					<Avatar
-						sx={{
-							width: 28,
-							height: 28,
-							bgcolor: "primary.main",
-							fontSize: "0.8rem",
-						}}
-					>
-						AU
-					</Avatar>
-					<Box>
-						<Typography variant="caption" fontWeight={600} display="block">
-							Admin User
-						</Typography>
-						<Typography variant="caption" color="text.secondary">
-							Super Admin
-						</Typography>
-					</Box>
-					<Box
-						sx={{
-							width: 8,
-							height: 8,
-							borderRadius: "50%",
-							bgcolor: "success.main",
-						}}
-					/>
-				</Box>
-			</Box>
+			<SidebarUserInfo />
 
-			<List sx={{ flexGrow: 1, px: 1 }} dense>
-				{NAV_ITEMS.map((item) => {
-					const active = location.pathname === item.path;
-					return (
-						<ListItemButton
-							key={item.path}
-							selected={active}
-							onClick={() => navigate(item.path)}
-							sx={{ borderRadius: 1, mb: 0.25 }}
-						>
-							<ListItemIcon
-								sx={{
-									minWidth: 36,
-									color: active ? "primary.main" : undefined,
-								}}
-							>
-								{item.badge ? (
-									<Badge badgeContent={item.badge} color="error">
-										{item.icon}
-									</Badge>
-								) : (
-									item.icon
-								)}
-							</ListItemIcon>
-							<ListItemText
-								primary={item.label}
-								primaryTypographyProps={{
-									variant: "body2",
-									fontWeight: active ? 600 : 400,
-								}}
-							/>
-						</ListItemButton>
-					);
-				})}
-			</List>
+			<NavItemList items={NAV_ITEMS} location={location} navigate={navigate} />
 
 			<Box sx={{ padding: 2, borderTop: 1, borderColor: "divider" }}>
 				<ListItemButton sx={{ borderRadius: 1, color: "error.main" }}>

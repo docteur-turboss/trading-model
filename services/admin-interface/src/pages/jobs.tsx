@@ -12,6 +12,106 @@ import { StatusBadge } from "../components/status-badge";
 import { useJobDetail, useJobs } from "../hooks/use-jobs";
 import type { JobEntry } from "../types/dtos";
 
+function PageLoading() {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+			<CircularProgress />
+		</Box>
+	);
+}
+
+function JobStats({
+	stats,
+}: {
+	stats: { pending: number; inProgress: number; failed: number };
+}) {
+	return (
+		<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+			<Box sx={{ flex: 1 }}>
+				<StatsCard
+					icon={<ScheduleIcon />}
+					value={String(stats.pending)}
+					label="PENDING"
+				/>
+			</Box>
+			<Box sx={{ flex: 1 }}>
+				<StatsCard
+					icon={<SyncIcon />}
+					value={String(stats.inProgress)}
+					label="IN PROGRESS"
+				/>
+			</Box>
+			<Box sx={{ flex: 1 }}>
+				<StatsCard
+					icon={<ErrorOutlineIcon />}
+					value={String(stats.failed)}
+					label="FAILED (1H)"
+					deltaColor="error.main"
+				/>
+			</Box>
+		</Box>
+	);
+}
+
+interface TimelineEntry {
+	event: string;
+	timestamp: string;
+	description: string;
+	active: boolean;
+}
+
+function JobTimeline({ entries }: { entries: TimelineEntry[] }) {
+	return (
+		<Box>
+			{entries.map((entry, index) => (
+				<Box
+					key={`${entry.event}-${entry.timestamp}`}
+					sx={{
+						display: "flex",
+						gap: 2,
+						pb: index < entries.length - 1 ? 2 : 0,
+					}}
+				>
+					<Box
+						sx={{
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+						}}
+					>
+						<Box
+							sx={{
+								width: 12,
+								height: 12,
+								borderRadius: "50%",
+								bgcolor: entry.active ? "primary.main" : "grey.400",
+								flexShrink: 0,
+							}}
+						/>
+						{index < entries.length - 1 && (
+							<Box
+								sx={{
+									width: 2,
+									flexGrow: 1,
+									bgcolor: "divider",
+									minHeight: 20,
+								}}
+							/>
+						)}
+					</Box>
+					<Box>
+						<Typography variant="subtitle2">{entry.event}</Typography>
+						<Typography variant="caption" color="text.secondary">
+							{entry.timestamp}
+						</Typography>
+						<Typography variant="body2">{entry.description}</Typography>
+					</Box>
+				</Box>
+			))}
+		</Box>
+	);
+}
+
 export function Jobs() {
 	const { data, loading, refetch } = useJobs();
 	const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -51,11 +151,7 @@ export function Jobs() {
 	];
 
 	if (loading) {
-		return (
-			<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-				<CircularProgress />
-			</Box>
-		);
+		return <PageLoading />;
 	}
 
 	return (
@@ -78,30 +174,7 @@ export function Jobs() {
 				</Button>
 			</Box>
 
-			<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-				<Box sx={{ flex: 1 }}>
-					<StatsCard
-						icon={<ScheduleIcon />}
-						value={String(data?.stats.pending ?? 0)}
-						label="PENDING"
-					/>
-				</Box>
-				<Box sx={{ flex: 1 }}>
-					<StatsCard
-						icon={<SyncIcon />}
-						value={String(data?.stats.inProgress ?? 0)}
-						label="IN PROGRESS"
-					/>
-				</Box>
-				<Box sx={{ flex: 1 }}>
-					<StatsCard
-						icon={<ErrorOutlineIcon />}
-						value={String(data?.stats.failed ?? 0)}
-						label="FAILED (1H)"
-						deltaColor="error.main"
-					/>
-				</Box>
-			</Box>
+			<JobStats stats={data!.stats} />
 
 			<DataTable
 				columns={columns}
@@ -122,64 +195,7 @@ export function Jobs() {
 						? [
 								{
 									label: "Timeline",
-									content: (
-										<Box>
-											{jobDetail.timeline.map((entry, index) => (
-												<Box
-													key={`${entry.event}-${entry.timestamp}`}
-													sx={{
-														display: "flex",
-														gap: 2,
-														pb: index < jobDetail.timeline.length - 1 ? 2 : 0,
-													}}
-												>
-													<Box
-														sx={{
-															display: "flex",
-															flexDirection: "column",
-															alignItems: "center",
-														}}
-													>
-														<Box
-															sx={{
-																width: 12,
-																height: 12,
-																borderRadius: "50%",
-																bgcolor: entry.active
-																	? "primary.main"
-																	: "grey.400",
-																flexShrink: 0,
-															}}
-														/>
-														{index < jobDetail.timeline.length - 1 && (
-															<Box
-																sx={{
-																	width: 2,
-																	flexGrow: 1,
-																	bgcolor: "divider",
-																	minHeight: 20,
-																}}
-															/>
-														)}
-													</Box>
-													<Box>
-														<Typography variant="subtitle2">
-															{entry.event}
-														</Typography>
-														<Typography
-															variant="caption"
-															color="text.secondary"
-														>
-															{entry.timestamp}
-														</Typography>
-														<Typography variant="body2">
-															{entry.description}
-														</Typography>
-													</Box>
-												</Box>
-											))}
-										</Box>
-									),
+									content: <JobTimeline entries={jobDetail.timeline} />,
 								},
 								{
 									label: "Payload",
