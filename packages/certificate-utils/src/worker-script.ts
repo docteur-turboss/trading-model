@@ -76,7 +76,7 @@ function _handleSign(data: Record<string, unknown>): unknown {
 	return sign.sign(privateKey, "base64");
 }
 
-const HANDLERS: Record<string, (data: Record<string, unknown>) => unknown> = {
+const HANDLERS: Partial<Record<WorkerTask["type"], (data: Record<string, unknown>) => unknown>> = {
 	generateKeyPair: _handleGenerateKeyPair,
 	generateKeyPairWithId: _handleGenerateKeyPairWithId,
 	signCertificate: _handleSignCertificate,
