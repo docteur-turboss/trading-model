@@ -8,6 +8,46 @@ export interface TokenValidationOptions {
 	clockSkewToleranceMs?: number;
 }
 
+interface TokenFormat {
+	encodedId: string;
+	payloadParts: string[];
+	signature: string;
+	isLegacy: boolean;
+}
+
+function checkTokenFormat(token: string): TokenFormat | null {
+	const parts = token.split(".");
+	if (parts.length !== 3 && parts.length !== 4) {
+		return null;
+	}
+	const [encodedId, ...payloadParts] = parts;
+	const signature = payloadParts.pop()!;
+	return { encodedId, payloadParts, signature, isLegacy: parts.length === 4 };
+}
+
+function validateTimestamp(
+	timestampB64: string,
+	options?: TokenValidationOptions
+): boolean {
+	const maxAge = options?.maxAgeMs ?? 300_000;
+	const clockSkewTolerance = options?.clockSkewToleranceMs ?? 5_000;
+	const ts = Number.parseInt(
+		Buffer.from(timestampB64, "base64url").toString("utf8"),
+		10
+	);
+	const now = Date.now();
+	if (Number.isNaN(ts)) {
+		return false;
+	}
+	if (now - ts > maxAge + clockSkewTolerance) {
+		return false;
+	}
+	if (ts - now > clockSkewTolerance) {
+		return false;
+	}
+	return true;
+}
+
 export function generateInstanceToken(
 	instanceId: string,
 	signingSecret: string
@@ -29,67 +69,47 @@ export function validInstanceToken(
 	storedToken: string | undefined | null,
 	options?: TokenValidationOptions
 ): boolean {
-	const parts = token.split(".");
-
-	// New format: encodedId.nonce.hmac (3 parts)
-	// Legacy format: encodedId.timestamp.nonce.hmac (4 parts)
-	if (parts.length !== 3 && parts.length !== 4) {
+	const format = checkTokenFormat(token);
+	if (!format) {
 		return false;
 	}
 
-	const [encodedId, ...payloadParts] = parts;
-	const signature = payloadParts.pop()!;
-
-	const decodedId = Buffer.from(encodedId, "base64url").toString("utf8");
+	const decodedId = Buffer.from(format.encodedId, "base64url").toString("utf8");
 	if (decodedId !== instanceId) {
 		return false;
 	}
 
-	// Legacy format: validate embedded timestamp
-	if (parts.length === 4) {
-		const [timestampB64] = payloadParts;
-		const maxAge = options?.maxAgeMs ?? 300_000;
-		const clockSkewTolerance = options?.clockSkewToleranceMs ?? 5_000;
-		const ts = Number.parseInt(
-			Buffer.from(timestampB64, "base64url").toString("utf8"),
-			10
-		);
-		const now = Date.now();
-		if (Number.isNaN(ts)) {
-			return false;
-		}
-		if (now - ts > maxAge + clockSkewTolerance) {
-			return false;
-		}
-		if (ts - now > clockSkewTolerance) {
-			return false;
-		}
-	}
-
-	if (!verifyHmac(encodedId, payloadParts, signature, signingSecret)) {
+	if (format.isLegacy && !validateTimestamp(format.payloadParts[0], options)) {
 		return false;
 	}
 
-	const storedValid = storedToken === token;
-	if (storedValid) {
+	if (
+		!verifyHmac(
+			format.encodedId,
+			format.payloadParts,
+			format.signature,
+			signingSecret
+		)
+	) {
+		return false;
+	}
+
+	if (storedToken === token) {
 		return true;
 	}
 
 	if (options?.allowSlidingExpiry && storedToken) {
-		const storedParts = storedToken.split(".");
-		if (storedParts.length === 3 || storedParts.length === 4) {
-			const [storedEncodedId, ...storedPayloadParts] = storedParts;
-			const storedSignature = storedPayloadParts.pop()!;
-			if (
-				verifyHmac(
-					storedEncodedId,
-					storedPayloadParts,
-					storedSignature,
-					signingSecret
-				)
-			) {
-				return true;
-			}
+		const storedFormat = checkTokenFormat(storedToken);
+		if (
+			storedFormat &&
+			verifyHmac(
+				storedFormat.encodedId,
+				storedFormat.payloadParts,
+				storedFormat.signature,
+				signingSecret
+			)
+		) {
+			return true;
 		}
 	}
 

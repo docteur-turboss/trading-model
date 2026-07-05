@@ -63,98 +63,55 @@ export function createBootstrap(options: BootstrapOptions): {
 		try {
 			logger.info("Bootstrapping service", { name: options.name });
 
-			const tlsResult = options.tlsBootstrap?.ensure();
-
-			const afterTls = (): void => {
-				const beforeServerResult = options.onBeforeServer?.();
-
-				const afterBeforeServer = (): void => {
-					const result = options.createServer();
-					if (result instanceof Promise) {
-						result
-							.then((httpServer) => {
-								server = httpServer;
-								setupAutoRenew(httpServer);
-								finishBootstrap();
-							})
-							.catch((err) => {
-								logger.error("Fatal error during service bootstrap", {
-									err: normalizeError(err),
-								});
-								hardShutdown(1);
-							});
-						return;
-					}
-
-					server = result;
-					setupAutoRenew(result);
-					finishBootstrap();
+			const errorContext =
+				(context: string) =>
+				(err: unknown): void => {
+					logger.error(context, { err: normalizeError(err) });
+					hardShutdown(1);
 				};
 
-				if (beforeServerResult instanceof Promise) {
-					beforeServerResult
-						.then(() => afterBeforeServer())
-						.catch((err) => {
-							logger.error("Fatal error in onBeforeServer hook", {
-								err: normalizeError(err),
-							});
-							hardShutdown(1);
-						});
+			const createServerAndFinish = (): void => {
+				const result = options.createServer();
+				if (result instanceof Promise) {
+					result
+						.then((httpServer) => {
+							server = httpServer;
+							setupAutoRenew(httpServer, options);
+							finishBootstrap(httpServer, options);
+						})
+						.catch(errorContext("Fatal error during service bootstrap"));
 					return;
 				}
-
-				afterBeforeServer();
+				server = result;
+				setupAutoRenew(result, options);
+				finishBootstrap(result, options);
 			};
 
+			const handleBeforeServer = (): void => {
+				const beforeServerResult = options.onBeforeServer?.();
+				if (beforeServerResult instanceof Promise) {
+					beforeServerResult
+						.then(() => createServerAndFinish())
+						.catch(errorContext("Fatal error in onBeforeServer hook"));
+					return;
+				}
+				createServerAndFinish();
+			};
+
+			const tlsResult = options.tlsBootstrap?.ensure();
 			if (tlsResult instanceof Promise) {
 				tlsResult
-					.then(() => afterTls())
-					.catch((err) => {
-						logger.error("Fatal error in TLS bootstrap", {
-							err: normalizeError(err),
-						});
-						hardShutdown(1);
-					});
+					.then(() => handleBeforeServer())
+					.catch(errorContext("Fatal error in TLS bootstrap"));
 				return;
 			}
 
-			afterTls();
+			handleBeforeServer();
 		} catch (error) {
 			logger.error("Fatal error during service bootstrap", {
 				err: normalizeError(error),
 			});
 			hardShutdown(1);
-		}
-
-		/**
-		 * Hooks the TLS auto-renew callback into the server lifecycle.
-		 * Called once after the server is created — the callback wires into
-		 * file watchers or ACME challenge handlers that rotate certificates
-		 * without restarting the process.
-		 */
-		function setupAutoRenew(httpServer: HttpServer): void {
-			if (options.tlsBootstrap?.setupAutoRenew) {
-				options.tlsBootstrap.setupAutoRenew(httpServer.raw);
-			}
-		}
-
-		/**
-		 * Fires the onStart callback and logs successful completion.
-		 * If onStart throws, the process is shut down with code 1.
-		 */
-		function finishBootstrap(): void {
-			if (options.onStart) {
-				try {
-					options.onStart();
-				} catch (error) {
-					logger.error("onStart callback failed — aborting bootstrap", {
-						err: normalizeError(error),
-					});
-					hardShutdown(1);
-					return;
-				}
-			}
-			logger.info("Service started successfully", { name: options.name });
 		}
 	}
 
@@ -204,4 +161,23 @@ export function createBootstrap(options: BootstrapOptions): {
 	bootstrap();
 
 	return { server, shutdown };
+}
+
+function setupAutoRenew(
+	httpServer: HttpServer,
+	options: BootstrapOptions
+): void {
+	if (options.tlsBootstrap?.setupAutoRenew) {
+		options.tlsBootstrap.setupAutoRenew(httpServer.raw);
+	}
+}
+
+function finishBootstrap(
+	_httpServer: HttpServer,
+	options: BootstrapOptions
+): void {
+	if (options.onStart) {
+		options.onStart();
+	}
+	logger.info("Service started successfully", { name: options.name });
 }
