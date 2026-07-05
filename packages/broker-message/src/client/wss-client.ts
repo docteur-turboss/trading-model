@@ -51,6 +51,7 @@ export class WssClient {
 		this._reconnector.onPermanentFallback(() => {
 			this._queue.drainToHttp();
 		});
+		this._dispatchHandlers = this._setupDispatchHandlers();
 	}
 
 	private _buildWsUrl(): string {
@@ -101,25 +102,40 @@ export class WssClient {
 		}
 	}
 
+	private readonly _dispatchHandlers: Record<string, (msg: Record<string, unknown>) => void>;
+
+	private _setupDispatchHandlers(): Record<string, (msg: Record<string, unknown>) => void> {
+		return {
+			message: (msg) => {
+				if (!msg.topic) return;
+				const message = msg.message as
+					| { payload?: unknown; metadata?: MessageMetadata }
+					| undefined;
+				this._messageHandler?.(
+					msg.topic as string,
+					message?.payload,
+					message?.metadata as MessageMetadata
+				);
+			},
+			connected: (msg) => {
+				logger.info("WSS handshake complete", {
+					brokerInstance: msg.instanceId,
+				});
+			},
+			subscribed: (msg) => {
+				logger.info("WSS topics subscribed", { topics: msg.topics });
+			},
+			error: (msg) => {
+				logger.warn("WSS server error", { message: msg.message });
+			},
+		};
+	}
+
 	private _dispatchWsMessage(raw: unknown): void {
 		const msg = raw as Record<string, unknown>;
-		if (msg.type === "message" && msg.topic) {
-			const message = msg.message as
-				| { payload?: unknown; metadata?: MessageMetadata }
-				| undefined;
-			this._messageHandler?.(
-				msg.topic as string,
-				message?.payload,
-				message?.metadata as MessageMetadata
-			);
-		} else if (msg.type === "connected") {
-			logger.info("WSS handshake complete", {
-				brokerInstance: msg.instanceId,
-			});
-		} else if (msg.type === "subscribed") {
-			logger.info("WSS topics subscribed", { topics: msg.topics });
-		} else if (msg.type === "error") {
-			logger.warn("WSS server error", { message: msg.message });
+		const handler = this._dispatchHandlers[msg.type as string];
+		if (handler) {
+			handler(msg);
 		}
 	}
 
