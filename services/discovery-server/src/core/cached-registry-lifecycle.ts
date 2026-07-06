@@ -13,12 +13,10 @@ export class CachedRegistryLifecycle {
 		private readonly _backend: RegistryBackend,
 	) {}
 
-	async start(pubSubReady: boolean): Promise<void> {
+	async start(): Promise<void> {
 		this._backend.start();
 
-		if (pubSubReady) {
-			await this._pubSub.start(this._cache);
-		}
+		await this._pubSub.start(this._cache);
 
 		this._healthMonitor.start();
 	}
