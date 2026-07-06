@@ -311,13 +311,17 @@ function crossoverRL(
 	};
 }
 
+function _makeCoin<TValue>(rng: () => number): (valueA: TValue, valueB: TValue) => TValue {
+	return (valueA: TValue, valueB: TValue): TValue =>
+		rng() < 0.5 ? valueA : valueB;
+}
+
 function crossoverMutation(
 	left: MutationGenome,
 	right: MutationGenome,
 	rng: () => number
 ): MutationGenome {
-	const coin = <TValue>(valueA: TValue, valueB: TValue): TValue =>
-		rng() < 0.5 ? valueA : valueB;
+	const coin = _makeCoin(rng);
 	return {
 		rate: coin(left.rate, right.rate),
 		sigma: coin(left.sigma, right.sigma),
@@ -327,20 +331,14 @@ function crossoverMutation(
 		scope: coin(left.scope, right.scope),
 		selfSigma: coin(left.selfSigma, right.selfSigma),
 		mutateActivations: coin(left.mutateActivations, right.mutateActivations),
-		activationMutationRate: coin(
-			left.activationMutationRate,
-			right.activationMutationRate
-		),
+		activationMutationRate: coin(left.activationMutationRate, right.activationMutationRate),
 		mutateHyperparams: coin(left.mutateHyperparams, right.mutateHyperparams),
 		addNeuronRate: coin(left.addNeuronRate, right.addNeuronRate),
 		removeNeuronRate: coin(left.removeNeuronRate, right.removeNeuronRate),
 		addLayerRate: coin(left.addLayerRate, right.addLayerRate),
 		removeLayerRate: coin(left.removeLayerRate, right.removeLayerRate),
 		addConnectionRate: coin(left.addConnectionRate, right.addConnectionRate),
-		removeConnectionRate: coin(
-			left.removeConnectionRate,
-			right.removeConnectionRate
-		),
+		removeConnectionRate: coin(left.removeConnectionRate, right.removeConnectionRate),
 	};
 }
 

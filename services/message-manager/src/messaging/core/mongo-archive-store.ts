@@ -249,11 +249,21 @@ function _buildBulkUpserts(entries: ArchiveEntry[]): Array<{
 }> {
 	return entries
 		.filter((entry) => entry.messageId)
-		.map((entry) => ({
-			updateOne: {
-				filter: { messageId: entry.messageId },
-				update: { [SET_ON_INSERT]: entry },
-				upsert: true,
-			},
-		}));
+		.map((entry) => _upsertOperation(entry));
+}
+
+function _upsertOperation(entry: ArchiveEntry): {
+	updateOne: {
+		filter: { messageId: string };
+		update: { [SET_ON_INSERT]: ArchiveEntry };
+		upsert: true;
+	};
+} {
+	return {
+		updateOne: {
+			filter: { messageId: entry.messageId },
+			update: { [SET_ON_INSERT]: entry },
+			upsert: true,
+		},
+	};
 }

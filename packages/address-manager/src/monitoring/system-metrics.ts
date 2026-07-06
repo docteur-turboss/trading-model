@@ -40,52 +40,55 @@ export function computeCpuPercent(
 export class SystemMetrics {
 	private _previousCpuTimes: { idle: number; total: number } | null = null;
 
-	collect(): SystemMetricsPayload {
+	private _collectMemory(): SystemMetricsPayload["memory"] {
 		const mem = process.memoryUsage();
 		const totalMem = os.totalmem();
-		const freeMem = os.freemem();
-		const usedMem = totalMem - freeMem;
-		const cpus = os.cpus();
-		const cpuPercent = this._calculateCpuPercent(cpus);
-		const loads = os.loadavg();
-
+		const usedMem = totalMem - os.freemem();
 		return {
-			memory: {
-				totalBytes: totalMem,
-				usedBytes: usedMem,
-				usedPercent: totalMem > 0 ? (usedMem / totalMem) * 100 : 0,
-				heapUsedBytes: mem.heapUsed,
-				heapTotalBytes: mem.heapTotal,
-			},
-			cpu: {
-				percent: cpuPercent,
-				loadAvg1m: loads[0],
-				loadAvg5m: loads[1],
-				loadAvg15m: loads[2],
-			},
+			totalBytes: totalMem,
+			usedBytes: usedMem,
+			usedPercent: totalMem > 0 ? (usedMem / totalMem) * 100 : 0,
+			heapUsedBytes: mem.heapUsed,
+			heapTotalBytes: mem.heapTotal,
+		};
+	}
+
+	private _collectCpu(): SystemMetricsPayload["cpu"] {
+		const cpuPercent = this._calculateCpuPercent(os.cpus());
+		const loads = os.loadavg();
+		return {
+			percent: cpuPercent,
+			loadAvg1m: loads[0],
+			loadAvg5m: loads[1],
+			loadAvg15m: loads[2],
+		};
+	}
+
+	collect(): SystemMetricsPayload {
+		return {
+			memory: this._collectMemory(),
+			cpu: this._collectCpu(),
 			uptime: os.uptime(),
 			collectedAt: Date.now(),
 		};
 	}
 
-	private _calculateCpuPercent(cpus: os.CpuInfo[]): number {
+	private _sumCpuTimes(cpus: os.CpuInfo[]): { totalIdle: number; totalTick: number } {
 		let totalIdle = 0;
 		let totalTick = 0;
-
 		for (const cpu of cpus) {
 			totalIdle += cpu.times.idle;
-			totalTick +=
-				cpu.times.user +
-				cpu.times.nice +
-				cpu.times.sys +
-				cpu.times.idle +
-				cpu.times.irq;
+			totalTick += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
 		}
+		return { totalIdle, totalTick };
+	}
 
+	private _calculateCpuPercent(cpus: os.CpuInfo[]): number {
+		const { totalIdle, totalTick } = this._sumCpuTimes(cpus);
 		const { percent, previousCpuTimes } = computeCpuPercent(
 			totalIdle,
 			totalTick,
-			this._previousCpuTimes
+			this._previousCpuTimes,
 		);
 		this._previousCpuTimes = previousCpuTimes;
 		return percent;

@@ -29,6 +29,21 @@ let initialized = false;
  * Initializes the shared MongoDB connection pool.
  * Call once at service startup (from CA bootstrap).
  */
+function _resolvePoolSize(poolSizeParam?: number): number {
+	return poolSizeParam ?? Number.parseInt(process.env.MONGO_POOL_SIZE ?? "50", 10);
+}
+
+function _createPoolOptions(poolSize: number): import("mongodb").MongoClientOptions {
+	return {
+		maxPoolSize: poolSize,
+		minPoolSize: Math.max(2, Math.floor(poolSize / 5)),
+		serverSelectionTimeoutMS: 5000,
+		connectTimeoutMS: 5000,
+		retryWrites: true,
+		retryReads: true,
+	};
+}
+
 async function initialize(
 	uriParam: string,
 	poolSizeParam?: number
@@ -37,28 +52,12 @@ async function initialize(
 		return;
 	}
 	uri = uriParam;
-	poolSize =
-		poolSizeParam ?? Number.parseInt(process.env.MONGO_POOL_SIZE ?? "50", 10);
-
-	client = new MongoClient(uri, {
-		maxPoolSize: poolSize,
-		minPoolSize: Math.max(2, Math.floor(poolSize / 5)),
-		serverSelectionTimeoutMS: 5000,
-		connectTimeoutMS: 5000,
-		retryWrites: true,
-		retryReads: true,
-	});
-
+	poolSize = _resolvePoolSize(poolSizeParam);
+	client = new MongoClient(uri, _createPoolOptions(poolSize));
 	await client.connect();
 	db = client.db();
 	initialized = true;
-
-	logger.info("MONGO_MANAGER initialized", {
-		context: {
-			poolSize,
-			database: db.databaseName,
-		},
-	});
+	logger.info("MONGO_MANAGER initialized", { context: { poolSize, database: db.databaseName } });
 }
 
 /** Returns the shared MongoClient instance. */
@@ -95,17 +94,16 @@ function isInitialized(): boolean {
  * Attempts to reconnect if the MongoDB connection was lost.
  * Called by persistence stores when an operation fails.
  */
+async function _closeAndReset(): Promise<void> {
+	if (!client) return;
+	try { await client.close(); } catch { /* ignore */ }
+	client = null;
+	db = null;
+	initialized = false;
+}
+
 async function tryReconnect(): Promise<boolean> {
-	if (client) {
-		try {
-			await client.close();
-		} catch {
-			// ignore close errors
-		}
-		client = null;
-		db = null;
-		initialized = false;
-	}
+	await _closeAndReset();
 	try {
 		await initialize(uri, poolSize);
 		return true;
