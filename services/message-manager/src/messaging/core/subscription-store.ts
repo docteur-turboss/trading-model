@@ -86,6 +86,21 @@ export class SubscriptionStore {
 	async remove(topic: string, instanceId: string): Promise<void> {
 		const redis = await getSubscriptionClient();
 		const subKey = this._subKey(topic, instanceId);
+		const multi = this._buildRemovePipeline(redis, topic, instanceId, subKey);
+		const results = await multi.exec();
+		if (!results) {
+			return;
+		}
+		this._cleanupInstanceIfEmpty(redis, results, instanceId);
+		this._cleanupTopicIfEmpty(redis, results, topic);
+	}
+
+	private _buildRemovePipeline(
+		redis: import("ioredis").Redis,
+		topic: string,
+		instanceId: string,
+		subKey: string
+	): ReturnType<import("ioredis").Redis["multi"]> {
 		const multi = redis.multi();
 		multi.del(subKey);
 		multi.srem(this._topicKey(topic), instanceId);
@@ -93,36 +108,43 @@ export class SubscriptionStore {
 		multi.hdel(`${this._prefix}lease:${instanceId}`, topic);
 		multi.scard(this._instanceKey(instanceId));
 		multi.scard(this._topicKey(topic));
-		const results = await multi.exec();
-		if (!results) {
-			return;
-		}
-		// If instance has no more topics, remove from active set
+		return multi;
+	}
+
+	private async _cleanupInstanceIfEmpty(
+		redis: import("ioredis").Redis,
+		results: [Error | null, unknown][],
+		instanceId: string
+	): Promise<void> {
 		const instanceScard = results[results.length - 2];
-		if (
-			instanceScard[0] === null &&
-			typeof instanceScard[1] === "number" &&
-			(instanceScard[1] as number) === 0
-		) {
+		if (this._isZeroScardResult(instanceScard)) {
 			try {
 				await redis.srem(this._activeInstancesKey(), instanceId);
 			} catch {
 				/* best-effort */
 			}
 		}
-		// Read scard result from pipeline (last result) to avoid extra round-trip
+	}
+
+	private async _cleanupTopicIfEmpty(
+		redis: import("ioredis").Redis,
+		results: [Error | null, unknown][],
+		topic: string
+	): Promise<void> {
 		const scardResult = results[results.length - 1];
-		if (
-			scardResult[0] === null &&
-			typeof scardResult[1] === "number" &&
-			(scardResult[1] as number) === 0
-		) {
+		if (this._isZeroScardResult(scardResult)) {
 			try {
 				await redis.srem(this._topicsSetKey(), topic);
 			} catch {
 				// best-effort
 			}
 		}
+	}
+
+	private _isZeroScardResult(
+		result: [Error | null, unknown]
+	): boolean {
+		return result[0] === null && typeof result[1] === "number" && (result[1] as number) === 0;
 	}
 
 	async getByTopic(topic: string): Promise<SubscriptionEntry[]> {
@@ -132,16 +154,30 @@ export class SubscriptionStore {
 			return [];
 		}
 
-		const entries: SubscriptionEntry[] = [];
-		const pipeline = redis.pipeline();
-		for (const id of instanceIds) {
-			pipeline.hget(this._subKey(topic, id), "data");
-		}
-		const results = await pipeline.exec();
+		const results = await this._fetchSubsBatch(redis, topic, instanceIds);
 		if (!results) {
 			return [];
 		}
 
+		return this._parseSubsResults(results);
+	}
+
+	private async _fetchSubsBatch(
+		redis: import("ioredis").Redis,
+		topic: string,
+		instanceIds: string[]
+	): Promise<[Error | null, unknown][] | null> {
+		const pipeline = redis.pipeline();
+		for (const id of instanceIds) {
+			pipeline.hget(this._subKey(topic, id), "data");
+		}
+		return await pipeline.exec();
+	}
+
+	private _parseSubsResults(
+		results: [Error | null, unknown][]
+	): SubscriptionEntry[] {
+		const entries: SubscriptionEntry[] = [];
 		for (const [err, data] of results) {
 			if (err || !data) {
 				continue;

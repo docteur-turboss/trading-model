@@ -1,0 +1,108 @@
+import * as fs from "node:fs";
+import * as https from "node:https";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import WebSocket from "ws";
+
+export interface WssConnectionEvents {
+	onOpen: () => void;
+	onMessage: (raw: string) => void;
+	onClose: (code: number, reason: Buffer) => void;
+	onError: (err: Error) => void;
+}
+
+export class WssConnection {
+	private _ws: WebSocket | null = null;
+	private readonly _tlsCa?: string;
+	private readonly _tlsCert?: string;
+	private readonly _tlsKey?: string;
+
+	constructor(tlsConfig?: Partial<TlsPaths>) {
+		this._tlsCa = tlsConfig?.caPath
+			? fs.readFileSync(tlsConfig.caPath, "utf8")
+			: undefined;
+		this._tlsCert = tlsConfig?.certPath
+			? fs.readFileSync(tlsConfig.certPath, "utf8")
+			: undefined;
+		this._tlsKey = tlsConfig?.keyPath
+			? fs.readFileSync(tlsConfig.keyPath, "utf8")
+			: undefined;
+	}
+
+	connect(wsUrl: string, events: WssConnectionEvents): void {
+		if (this._ws) {
+			try {
+				this._ws.close();
+			} catch {
+				/* ignore */
+			}
+			this._ws = null;
+		}
+
+		const agent = this._setupWsTls();
+		this._ws = new WebSocket(wsUrl, { agent });
+
+		this._ws.on("open", () => {
+			events.onOpen();
+		});
+		this._ws.on("message", (raw: WebSocket.RawData) => {
+			events.onMessage(raw.toString());
+		});
+		this._ws.on("close", (code: number, reason: Buffer) => {
+			this._ws = null;
+			events.onClose(code, reason);
+		});
+		this._ws.on("error", (err: Error) => {
+			if (this._ws) {
+				try {
+					this._ws.close();
+				} catch {
+					/* ignore */
+				}
+				this._ws = null;
+			}
+			events.onError(err);
+		});
+	}
+
+	disconnect(closeCode?: number, reason?: string): void {
+		if (this._ws) {
+			try {
+				this._ws.close(closeCode, reason);
+			} catch {
+				/* ignore */
+			}
+			this._ws = null;
+		}
+	}
+
+	send(data: unknown): boolean {
+		if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
+			return false;
+		}
+		try {
+			this._ws.send(JSON.stringify(data));
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	get isConnected(): boolean {
+		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
+	}
+
+	get ws(): WebSocket | null {
+		return this._ws;
+	}
+
+	private _setupWsTls(): https.Agent | undefined {
+		if (!this._tlsCa) {
+			return;
+		}
+		return new https.Agent({
+			ca: this._tlsCa,
+			cert: this._tlsCert,
+			key: this._tlsKey,
+		});
+	}
+}

@@ -262,35 +262,56 @@ function decodeNetwork(
 	};
 }
 
+function _decodeRewardShaping(
+	scalars: Record<string, number>,
+	template: Genome
+): RLGenome["rewardShaping"] {
+	return {
+		...template.rl.rewardShaping,
+		clipMin: Math.min(scalars.clipMin, scalars.clipMax - 1e-6),
+		clipMax: Math.max(scalars.clipMax, scalars.clipMin + 1e-6),
+		scaleFactor: scalars.scaleFactor,
+	};
+}
+
+function _decodeDiscretePolicy(
+	scalars: Record<string, number>,
+	template: Genome
+): RLGenome["discretePolicy"] {
+	return {
+		...template.rl.discretePolicy,
+		epsilonStart: scalars.epsilonStart,
+		epsilonMin: scalars.epsilonMin,
+		epsilonDecay: scalars.epsilonDecay,
+		temperature: scalars.temperature,
+	};
+}
+
+function _decodeContinuousPolicy(
+	scalars: Record<string, number>,
+	template: Genome
+): RLGenome["continuousPolicy"] {
+	return {
+		...template.rl.continuousPolicy,
+		noiseStd: scalars.noiseStd,
+		noiseDecay: scalars.noiseDecay,
+		clipMin: template.rl.continuousPolicy.clipMin,
+		clipMax: template.rl.continuousPolicy.clipMax,
+	};
+}
+
 function decodeRL(scalars: Record<string, number>, template: Genome): RLGenome {
 	return {
 		gamma: scalars.gamma,
 		learningRate: scalars.learningRate,
-		rewardShaping: {
-			...template.rl.rewardShaping,
-			clipMin: Math.min(scalars.clipMin, scalars.clipMax - 1e-6),
-			clipMax: Math.max(scalars.clipMax, scalars.clipMin + 1e-6),
-			scaleFactor: scalars.scaleFactor,
-		},
+		rewardShaping: _decodeRewardShaping(scalars, template),
 		horizon: {
 			maxEpisodeLength: scalars.maxEpisodeLength,
 			nStepReturn: scalars.nStepReturn,
 			frameSkip: scalars.frameSkip,
 		},
-		discretePolicy: {
-			...template.rl.discretePolicy,
-			epsilonStart: scalars.epsilonStart,
-			epsilonMin: scalars.epsilonMin,
-			epsilonDecay: scalars.epsilonDecay,
-			temperature: scalars.temperature,
-		},
-		continuousPolicy: {
-			...template.rl.continuousPolicy,
-			noiseStd: scalars.noiseStd,
-			noiseDecay: scalars.noiseDecay,
-			clipMin: template.rl.continuousPolicy.clipMin,
-			clipMax: template.rl.continuousPolicy.clipMax,
-		},
+		discretePolicy: _decodeDiscretePolicy(scalars, template),
+		continuousPolicy: _decodeContinuousPolicy(scalars, template),
 		replayBuffer: {
 			...template.rl.replayBuffer,
 			bufferSize: scalars.bufferSize,
@@ -312,16 +333,19 @@ function decodeMutation(
 	};
 }
 
-export function decodeGenome(vec: Float32Array, template: Genome): Genome {
+function _validateVectorLength(vec: Float32Array): void {
 	if (vec.length !== ENCODED_DIM) {
 		throw new Error(
 			`decodeGenome: expected vector of length ${ENCODED_DIM}, got ${vec.length}`
 		);
 	}
+}
 
-	const scalars = decodeScalars(vec);
-	const hiddenLayers = decodeLayers(vec, scalars.depth, template);
-
+function _buildDecodedGenome(
+	scalars: Record<string, number>,
+	hiddenLayers: NetworkGenome["hiddenLayers"],
+	template: Genome
+): Genome {
 	return {
 		id: template.id,
 		generation: template.generation,
@@ -332,6 +356,12 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 		crossover: { ...template.crossover },
 		gaControl: { ...template.gaControl },
 	};
+}
+
+export function decodeGenome(vec: Float32Array, template: Genome): Genome {
+	_validateVectorLength(vec);
+	const scalars = decodeScalars(vec);
+	return _buildDecodedGenome(scalars, decodeLayers(vec, scalars.depth, template), template);
 }
 
 // ----------------------------------------------------------------

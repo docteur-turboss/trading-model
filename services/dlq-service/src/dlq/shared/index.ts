@@ -26,35 +26,53 @@ export function isMMCircuitOpen(): boolean {
 
 export function recordMMResult(success: boolean): void {
 	if (success) {
-		if (mmCircuitFailures > 0) {
-			mmCircuitFailures = 0;
-		}
-		mmCircuitOpenUntil = 0;
-		mmHalfOpenAttempts = 0;
+		_resetMMCircuit();
 	} else {
-		mmCircuitFailures++;
-		if (mmCircuitOpenUntil > 0) {
-			mmHalfOpenAttempts++;
-			if (mmHalfOpenAttempts >= MM_CIRCUIT_HALF_OPEN_MAX_ATTEMPTS) {
-				mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
-				logger.warn(
-					"Message-manager circuit breaker re-opened during half-open",
-					{
-						failures: mmCircuitFailures,
-						halfOpenAttempts: mmHalfOpenAttempts,
-						resetMs: MM_CIRCUIT_RESET_MS,
-					}
-				);
-			}
-		}
-		if (mmCircuitFailures >= MM_CIRCUIT_THRESHOLD) {
-			mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
-			logger.warn("Message-manager circuit breaker opened", {
-				failures: mmCircuitFailures,
-				resetMs: MM_CIRCUIT_RESET_MS,
-			});
-		}
+		_recordMMFailure();
 	}
+}
+
+function _resetMMCircuit(): void {
+	if (mmCircuitFailures > 0) {
+		mmCircuitFailures = 0;
+	}
+	mmCircuitOpenUntil = 0;
+	mmHalfOpenAttempts = 0;
+}
+
+function _recordMMFailure(): void {
+	mmCircuitFailures++;
+	_checkHalfOpenReopen();
+	_checkThresholdOpen();
+}
+
+function _checkHalfOpenReopen(): void {
+	if (mmCircuitOpenUntil <= 0) {
+		return;
+	}
+	mmHalfOpenAttempts++;
+	if (mmHalfOpenAttempts >= MM_CIRCUIT_HALF_OPEN_MAX_ATTEMPTS) {
+		mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
+		logger.warn(
+			"Message-manager circuit breaker re-opened during half-open",
+			{
+				failures: mmCircuitFailures,
+				halfOpenAttempts: mmHalfOpenAttempts,
+				resetMs: MM_CIRCUIT_RESET_MS,
+			}
+		);
+	}
+}
+
+function _checkThresholdOpen(): void {
+	if (mmCircuitFailures < MM_CIRCUIT_THRESHOLD) {
+		return;
+	}
+	mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
+	logger.warn("Message-manager circuit breaker opened", {
+		failures: mmCircuitFailures,
+		resetMs: MM_CIRCUIT_RESET_MS,
+	});
 }
 
 /**
@@ -73,23 +91,27 @@ async function getHttpClient(): Promise<HttpClient> {
 	if (httpClient) {
 		return httpClient;
 	}
-	const existingClient =
-		httpClientPromise === null ? null : await httpClientPromise;
+	const existingClient = await _resolveExistingClient();
 	if (existingClient) {
 		return existingClient;
 	}
 
-	httpClientPromise = (() => {
-		const client = new HttpClient({
-			ca: env.TLS_CA_PATH,
-			cert: env.TLS_CERT_PATH,
-			key: env.TLS_KEY_PATH,
-		});
-		httpClient = client;
-		return Promise.resolve(client);
-	})();
-
+	httpClientPromise = _buildHttpClient();
 	return httpClientPromise;
+}
+
+async function _resolveExistingClient(): Promise<HttpClient | null> {
+	return httpClientPromise === null ? null : await httpClientPromise;
+}
+
+function _buildHttpClient(): Promise<HttpClient> {
+	const client = new HttpClient({
+		ca: env.TLS_CA_PATH,
+		cert: env.TLS_CERT_PATH,
+		key: env.TLS_KEY_PATH,
+	});
+	httpClient = client;
+	return Promise.resolve(client);
 }
 
 export { getHttpClient };
@@ -117,18 +139,23 @@ export function closeHttpClient(): Promise<void> {
 export async function resolveMessageManagerUrl(): Promise<string | null> {
 	let url: string | null = env.MESSAGE_MANAGER_URL ?? null;
 	if (!url) {
-		try {
-			const target = await findAService(
-				ServiceInstanceName.MessageDeliveryService
-			);
-			if (target) {
-				url = `https://${target.ip}:${target.port}`;
-			}
-		} catch {
-			logger.warn("DLQ address-manager resolution failed");
-		}
+		url = await _resolveViaAddressManager();
 	}
 	return url;
+}
+
+async function _resolveViaAddressManager(): Promise<string | null> {
+	try {
+		const target = await findAService(
+			ServiceInstanceName.MessageDeliveryService
+		);
+		if (target) {
+			return `https://${target.ip}:${target.port}`;
+		}
+	} catch {
+		logger.warn("DLQ address-manager resolution failed");
+	}
+	return null;
 }
 
 /**

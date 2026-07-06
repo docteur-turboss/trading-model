@@ -55,21 +55,27 @@ export default class BrokerMessage {
 		if (userCallbackPath) {
 			this._callbackPath = userCallbackPath;
 		}
+		this._httpClient = this._createHttpClient({ caPath, certPath, keyPath });
+		this._messageManagerClient = this._createMessageManagerClient(
+			addressManagerClient,
+			instanceId,
+			serviceName,
+		);
+	}
 
-		this._httpClient = HttpClient.createWithTls({
-			caPath,
-			certPath,
-			keyPath,
-		});
+	private _createHttpClient(tls: { caPath: string; certPath: string; keyPath: string }): HttpClient {
+		return HttpClient.createWithTls(tls);
+	}
 
-		this._messageManagerClient = new MessageManagerClient(
+	private _createMessageManagerClient(
+		addressManagerClient: addressManagerClient,
+		instanceId: string,
+		serviceName: ServiceInstanceName,
+	): MessageManagerClient {
+		return new MessageManagerClient(
 			this._httpClient,
-			{
-				callbackPath: this._callbackPath,
-				instanceId,
-				serviceName,
-			},
-			addressManagerClient
+			{ callbackPath: this._callbackPath, instanceId, serviceName },
+			addressManagerClient,
 		);
 	}
 

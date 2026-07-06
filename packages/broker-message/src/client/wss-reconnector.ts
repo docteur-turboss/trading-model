@@ -51,14 +51,7 @@ export class WssReconnector {
 			return;
 		}
 		if (this._wsReconnectState.attempt >= WSS_MAX_RECONNECT_ATTEMPTS) {
-			if (!this._permanentlyFellBack) {
-				this._permanentlyFellBack = true;
-				logger.warn(
-					"WSS max reconnect attempts reached, falling back to HTTP — will periodically retry WSS"
-				);
-				this._onPermanentFallback?.();
-				this._startReconnectPolling(connectFn);
-			}
+			this._handleMaxAttemptsReached(connectFn);
 			return;
 		}
 		scheduleWsReconnect({
@@ -73,23 +66,35 @@ export class WssReconnector {
 		});
 	}
 
+	private _handleMaxAttemptsReached(connectFn: ConnectFn): void {
+		if (this._permanentlyFellBack) {
+			return;
+		}
+		this._permanentlyFellBack = true;
+		logger.warn(
+			"WSS max reconnect attempts reached, falling back to HTTP — will periodically retry WSS",
+		);
+		this._onPermanentFallback?.();
+		this._startReconnectPolling(connectFn);
+	}
+
 	private _startReconnectPolling(connectFn: ConnectFn): void {
 		if (this._reconnectPollTimer) {
 			return;
 		}
-		this._reconnectPollTimer = setInterval(() => {
-			if (!this._shouldReconnect) {
-				this._stopReconnectPolling();
-				return;
-			}
-			logger.info(
-				"WSS reconnect poll — attempting to re-establish WebSocket connection"
-			);
-			this._wsReconnectState.attempt = 0;
-			this._permanentlyFellBack = false;
-			connectFn();
-		}, WSS_RECONNECT_POLL_INTERVAL_MS);
+		this._reconnectPollTimer = setInterval(() => this._pollReconnect(connectFn), WSS_RECONNECT_POLL_INTERVAL_MS);
 		this._reconnectPollTimer.unref();
+	}
+
+	private _pollReconnect(connectFn: ConnectFn): void {
+		if (!this._shouldReconnect) {
+			this._stopReconnectPolling();
+			return;
+		}
+		logger.info("WSS reconnect poll — attempting to re-establish WebSocket connection");
+		this._wsReconnectState.attempt = 0;
+		this._permanentlyFellBack = false;
+		connectFn();
 	}
 
 	private _stopReconnectPolling(): void {

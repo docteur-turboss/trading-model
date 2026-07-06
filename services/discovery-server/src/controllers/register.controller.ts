@@ -24,27 +24,22 @@ interface RegisterController {
 	getInstance: RequestHandler;
 }
 
+function _parseRegisterBody(req: import("express").Request): z.infer<typeof REGISTER_SCHEMA> | null {
+	const parsed = REGISTER_SCHEMA.safeParse(req.body);
+	return parsed.success ? parsed.data : null;
+}
+
 function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 	return catchSync((req) => {
-		const parsed = REGISTER_SCHEMA.safeParse(req.body);
-		if (!parsed.success) {
-			return sendResponse(
-				{
-					error: "Invalid request body",
-					details: parsed.error.flatten().fieldErrors,
-				},
-				400
-			);
+		const data = _parseRegisterBody(req);
+		if (!data) {
+			return sendResponse({ error: "Invalid request body", details: REGISTER_SCHEMA.safeParse(req.body).error!.flatten().fieldErrors }, 400);
 		}
-
-		if (!registry.verifyInstanceName(parsed.data.serviceName)) {
+		if (!registry.verifyInstanceName(data.serviceName)) {
 			return sendResponse({ error: "Invalid service name" }, 400);
 		}
-
-		const instance = _buildServiceInstance(parsed.data, registry);
-		const registered = registry.registerInstance(instance);
-
-		return sendResponse(registered, 201);
+		const instance = _buildServiceInstance(data, registry);
+		return sendResponse(registry.registerInstance(instance), 201);
 	});
 }
 
