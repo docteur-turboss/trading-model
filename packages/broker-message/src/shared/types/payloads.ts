@@ -1,14 +1,11 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { Topic } from "@trading-model/common/domain/primitives";
 
 /** Payload sent when subscribing to a topic. */
 export interface SubscribesTopicsPayload {
 	topic: Topic;
 	callbackPath: string;
-	consumerIdentity: {
-		serviceName: ServiceInstanceName;
-		instanceId: string;
-	};
+	consumerIdentity: ServiceIdentity;
 }
 
 /** Payload sent when unsubscribing from a topic. */

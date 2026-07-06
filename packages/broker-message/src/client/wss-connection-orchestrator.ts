@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import { WssReconnector } from "./wss-reconnector";
@@ -15,7 +16,7 @@ export class WssConnectionOrchestrator {
 	constructor(
 		config: {
 			wssUrl: string;
-			tlsConfig?: Partial<import("@trading-model/common/domain/tls-paths").TlsPaths>;
+			tlsConfig?: Partial<TlsPaths>;
 			serviceName: string;
 			instanceId: string;
 		},

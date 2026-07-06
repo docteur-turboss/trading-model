@@ -1,5 +1,8 @@
 import type {
+	DeliveryType,
 	MessageMetadata as MetadataType,
+	RoutingType,
+	SecurityType,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
 import {
@@ -49,12 +52,14 @@ export class MessageMetadata {
 		this._ids.assignFromData({ causationId, correlationId });
 	}
 
-	public setSecurity(context: import("@trading-model/common/contracts/message.types").SecurityType | null): this {
-		return this._context.setSecurity(context);
+	public setSecurity(context: SecurityType | null): this {
+		this._context.setSecurity(context);
+		return this;
 	}
 
-	public setDelivery(context: import("@trading-model/common/contracts/message.types").DeliveryType | null): this {
-		return this._context.setDelivery(context);
+	public setDelivery(context: DeliveryType | null): this {
+		this._context.setDelivery(context);
+		return this;
 	}
 
 	public setPublisher(context: ServiceIdentity): this {
@@ -64,8 +69,9 @@ export class MessageMetadata {
 		return this;
 	}
 
-	public setRouting(context: import("@trading-model/common/contracts/message.types").RoutingType | null): this {
-		return this._context.setRouting(context);
+	public setRouting(context: RoutingType | null): this {
+		this._context.setRouting(context);
+		return this;
 	}
 
 	public setSchemaVersion(version: string | null): this {
@@ -100,7 +106,8 @@ export class MessageMetadata {
 			correlationId?: string;
 		} | null
 	): this {
-		return this._ids.setIds(context);
+		this._ids.setIds(context);
+		return this;
 	}
 
 	private _assertRequiredFields(): void {

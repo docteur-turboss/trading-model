@@ -4,14 +4,11 @@ import type { WssConnectionOrchestrator } from "./wss-connection-orchestrator";
 import { PendingPublishQueue } from "./pending-publish-queue";
 
 export class WssPublisher {
-	private readonly _hasHttpFallback: boolean;
 
 	constructor(
 		private readonly _orchestrator: WssConnectionOrchestrator,
 		private readonly _queue: PendingPublishQueue,
-	) {
-		this._hasHttpFallback = _queue.httpFallback !== null;
-	}
+	) {}
 
 	get httpFallback():
 		| ((payload: unknown, metadata: MessageMetadata) => Promise<void>)
@@ -33,7 +30,7 @@ export class WssPublisher {
 		) {
 			return Promise.resolve();
 		}
-		if (this._hasHttpFallback) {
+		if (this._queue.hasHttpFallback) {
 			return this._queue.enqueueOrFallback(payload, metadata);
 		}
 		return Promise.reject(new Error("WSS not connected and no HTTP fallback"));

@@ -1,5 +1,6 @@
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import {
 	authenticationError,
 } from "@trading-model/common/utils/errors";
@@ -20,7 +21,7 @@ export class TokenRefreshClient {
 		return headers;
 	}
 
-	private _buildTokenPayload(): { instanceId: string; serviceName: string } {
+	private _buildTokenPayload(): ServiceIdentity {
 		return {
 			instanceId: this._config.identity.instanceId,
 			serviceName: this._config.identity.serviceName,
