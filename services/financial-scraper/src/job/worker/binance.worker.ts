@@ -18,8 +18,8 @@ import { HELPER } from "@trading-model/broker-message";
 import type { MessageMetadata } from "@trading-model/broker-message/shared/helper/messages/message";
 import {
 	DeliveryMode,
-	type DeliveryMode,
 } from "@trading-model/common/config/delivery-mode.types";
+import type { DeliveryMode as DeliveryModeType } from "@trading-model/common/config/delivery-mode.types";
 import type { CandleInterval } from "@trading-model/common/config/event.types";
 import { EnumEventMessage } from "@trading-model/common/config/event.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";

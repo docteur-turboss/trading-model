@@ -1,5 +1,3 @@
-import { Buffer } from "node:buffer";
-
 export interface JwtHeader {
 	alg: string;
 	kid?: string;
