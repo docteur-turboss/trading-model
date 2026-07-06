@@ -5,7 +5,7 @@ import type { LockBackend, LockContext } from "./lock-backends";
 import { NullLockBackend } from "./lock-backends";
 
 export class RedisLockBackend implements LockBackend {
-	private _client!: Redis;
+	private _client: Redis | null = null;
 	private _available = true;
 
 	constructor(redisUrl: string) {
@@ -27,6 +27,9 @@ export class RedisLockBackend implements LockBackend {
 		context: LockContext,
 		ttlMs: number
 	): Promise<number | null> {
+		if (!this._client) {
+			return null;
+		}
 		const { lockName, instanceId } = context;
 		try {
 			const lockKey = `lock:${lockName}`;
@@ -59,7 +62,7 @@ export class RedisLockBackend implements LockBackend {
 		context: LockContext,
 		fencingToken: number
 	): Promise<boolean> {
-		if (!this._available) {
+		if (!this._available || !this._client) {
 			return false;
 		}
 		const { lockName, instanceId } = context;
@@ -88,7 +91,7 @@ export class RedisLockBackend implements LockBackend {
 		context: LockContext,
 		fencingToken: number
 	): Promise<number> {
-		if (!this._available) {
+		if (!this._available || !this._client) {
 			return -1;
 		}
 		const { lockName, instanceId } = context;
@@ -105,7 +108,7 @@ export class RedisLockBackend implements LockBackend {
 	}
 
 	disconnect(): void {
-		this._client.disconnect();
+		this._client?.disconnect();
 	}
 }
 
