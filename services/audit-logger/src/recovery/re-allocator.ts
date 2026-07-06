@@ -17,10 +17,10 @@ export class ReAllocator {
 				error: `Exceeded max retries (${job.maxRetries})`,
 			});
 
-			logger.warn("Job failed after max retries", {
+			logger.warn("Job failed after max retries", { context: {
 				jobId: job.id,
 				retryCount: job.retryCount,
-			});
+			} });
 			return;
 		}
 
@@ -47,9 +47,9 @@ export class ReAllocator {
 			ackDeadline: newDeadline,
 		});
 
-		logger.info("Job re-allocated to queue", {
+		logger.info("Job re-allocated to queue", { context: {
 			jobId: job.id,
 			retryCount: updatedJob.retryCount,
-		});
+		} });
 	}
 }

@@ -58,18 +58,18 @@ createBootstrap({
 		);
 		const AllTopics = Object.values(EnumEventMessage);
 		await brokerMessage.intents(AllTopics);
-		logger.info("Subscribed to all event topics", {
+		logger.info("Subscribed to all event topics", { context: {
 			topicCount: AllTopics.length,
-		});
+		} });
 
 		return server;
 	},
 	onStart: () => {
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
-		logger.info("Audit Logger fully operational", {
+		logger.info("Audit Logger fully operational", { context: {
 			port: ENV.PORT,
 			mongoUri: ENV.MONGODB_URI,
-		});
+		} });
 	},
 	onStop: async () => {
 		if (brokerMessage) {
