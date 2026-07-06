@@ -241,32 +241,27 @@ export class NeuralNetwork {
 
 	public trainPooled(): number {
 		if (!this._config.enablePool) {
-			throw new AgentError(
-				"Learning pool is disabled. Set enablePool: true in config.",
-			);
+			throw new AgentError("Learning pool is disabled. Set enablePool: true in config.");
 		}
-
 		const pool = this._poolManager.getAll();
 		if (pool.length === 0) {
 			return 0;
 		}
+		return this._trainPooledBatch(pool);
+	}
 
+	private _trainPooledBatch(pool: import("./type").PoolExperience[]): number {
 		const poolSize = pool.length;
-
 		this._backprop.resetAccumulators();
 
 		let totalLoss = 0;
-
-		for (const experience of pool) {
-			totalLoss += experience.loss;
-			const context = this._poolManager.experienceToContext(experience);
-			this._backprop.backpropAccumulate(context, experience.target!);
+		for (const exp of pool) {
+			totalLoss += exp.loss;
+			this._backprop.backpropAccumulate(this._poolManager.experienceToContext(exp), exp.target!);
 		}
 
 		this._backprop.applyAccumulatedGradients(poolSize);
-
 		this._poolManager.clear();
-
 		return totalLoss / poolSize;
 	}
 

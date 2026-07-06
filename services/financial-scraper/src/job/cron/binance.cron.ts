@@ -94,26 +94,35 @@ export class BinanceCronOrchestrator {
 	 * Batch execution with concurrency limiting.
 	 */
 	private async _executeBatch(): Promise<void> {
-		const { default: pLimit } = (await import("p-limit")) as unknown as {
-			default: (concurrency: number) => LimitFunction;
-		};
-		const limiter = pLimit(this._maxConcurrency);
-
+		const limiter = await _createLimiter(this._maxConcurrency);
 		const tasks = this._config.symbols.map((symbol) =>
-			limiter(async () => {
-				const worker = new BinanceWorker({
-					symbol,
-					interval: this._config.candleInterval ?? "1m",
-				});
-
-				const result = await worker.run();
-
-				await this.persist(result);
-			})
+			limiter(() => this._processSymbol(symbol))
 		);
 
 		await Promise.all(tasks);
 	}
+
+	private async _processSymbol(symbol: string): Promise<void> {
+		const worker = new BinanceWorker({
+			symbol,
+			interval: this._config.candleInterval ?? "1m",
+		});
+
+		const result = await worker.run();
+		await this.persist(result);
+	}
+}
+
+async function _createLimiter(
+	maxConcurrency: number
+): Promise<LimitFunction> {
+	const { default: pLimit } = (await import("p-limit")) as unknown as {
+		default: (concurrency: number) => LimitFunction;
+	};
+	return pLimit(maxConcurrency);
+}
+
+export class BinanceCronOrchestrator {
 
 	/**
 	 * Extension point for persistence.

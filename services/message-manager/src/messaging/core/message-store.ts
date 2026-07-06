@@ -5,7 +5,11 @@ import { DeduplicationService } from "./deduplication-service";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { MessageStreamWriter } from "./message-stream-writer";
 import { PendingAckStore } from "./pending-ack-store";
-import { StreamGroupManager, type GetMessagesBetweenParams, type ReadFromGroupParams } from "./stream-group-manager";
+import {
+	type GetMessagesBetweenParams,
+	type ReadFromGroupParams,
+	StreamGroupManager,
+} from "./stream-group-manager";
 import { WalFlusherService } from "./wal-flusher-service";
 
 export class MessageStore {
@@ -25,8 +29,14 @@ export class MessageStore {
 		this._claimManager = new ClaimManager(this._prefix);
 		this._dedupService = new DeduplicationService(this._prefix);
 		this._streamGroupManager = new StreamGroupManager(this._prefix);
-		this._walFlusher = new WalFlusherService(this._prefix, this._memoryWalBuffer);
-		this._streamWriter = new MessageStreamWriter(this._prefix, this._walFlusher);
+		this._walFlusher = new WalFlusherService(
+			this._prefix,
+			this._memoryWalBuffer
+		);
+		this._streamWriter = new MessageStreamWriter(
+			this._prefix,
+			this._walFlusher
+		);
 		this._walFlusher.start();
 		this._memoryWalBuffer.startFlusher();
 	}
@@ -96,7 +106,11 @@ export class MessageStore {
 		afterTimestamp: number,
 		limit = 100
 	): Promise<Message[]> {
-		return this._streamGroupManager.getMessagesAfter(topic, afterTimestamp, limit);
+		return this._streamGroupManager.getMessagesAfter(
+			topic,
+			afterTimestamp,
+			limit
+		);
 	}
 
 	async getMessagesBetween(

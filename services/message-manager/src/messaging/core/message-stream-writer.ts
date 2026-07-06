@@ -1,13 +1,13 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
-import { safeStringify } from "@trading-model/common/utils/safe-stringify";
 import { retryWithBackoff } from "@trading-model/common/utils/retry";
+import { safeStringify } from "@trading-model/common/utils/safe-stringify";
 import type Redis from "ioredis";
 
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
 import { getStreamClient } from "../../config/redis";
-import { WalFlusherService } from "./wal-flusher-service";
+import type { WalFlusherService } from "./wal-flusher-service";
 
 const MAX_WAL_RETRY = 10;
 const STORE_OPERATION_TIMEOUT_MS = 15_000;
@@ -91,11 +91,13 @@ export class MessageStreamWriter {
 		if (serialized.length <= ENV.MAX_PAYLOAD_BYTES) {
 			return false;
 		}
-		logger.error("Message payload exceeds maximum size", { context: {
-			topic,
-			size: serialized.length,
-			max: ENV.MAX_PAYLOAD_BYTES,
-		} });
+		logger.error("Message payload exceeds maximum size", {
+			context: {
+				topic,
+				size: serialized.length,
+				max: ENV.MAX_PAYLOAD_BYTES,
+			},
+		});
 		MESSAGES_DLQ_TOTAL.inc({ topic, reason: "PAYLOAD_TOO_LARGE" });
 		return true;
 	}
@@ -108,10 +110,12 @@ export class MessageStreamWriter {
 		try {
 			await this._walFlusher.storeInWal(topic, serialized);
 		} catch (err) {
-			logger.warn("Redis WAL list write failed, writing to in-memory buffer", { context: {
-				topic,
-				error: (err as Error).message,
-			} });
+			logger.warn("Redis WAL list write failed, writing to in-memory buffer", {
+				context: {
+					topic,
+					error: (err as Error).message,
+				},
+			});
 			this._walFlusher.bufferInMemory(topic, serialized, message);
 			return "memory-buffered";
 		}

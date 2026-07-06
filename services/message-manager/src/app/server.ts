@@ -22,7 +22,7 @@ function tlsConfig() {
 	};
 }
 
-function mountRoutes(app: ReturnType<typeof import("express")>) {
+function mountRoutes(app: Parameters<typeof createSecureServer>[0]["routes"] extends (app: infer A) => void ? A : never>) {
 	ADDRESS_MANAGER_ROUTES(app);
 	MESSAGE_MANAGER_ROUTES(app);
 }
