@@ -1,4 +1,5 @@
 import { logger } from "../config/logger";
+import { computeExponentialBackoff } from "../utils/backoff-config";
 import { normalizeError } from "../utils/errors";
 
 export interface WorkerReconnectorConfig {
@@ -7,10 +8,11 @@ export interface WorkerReconnectorConfig {
 }
 
 export class WorkerReconnector {
-	private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-	private _reconnectAttempt = 0;
+	private _attempt = 0;
+	private _timer: ReturnType<typeof setTimeout> | null = null;
 	private _intentionalClose = false;
-	private readonly _cfg: WorkerReconnectorConfig;
+	private readonly _baseDelayMs: number;
+	private readonly _maxDelayMs: number;
 	private readonly _onReconnect: () => Promise<void>;
 	private readonly _emitReconnecting: (info: {
 		attempt: number;
@@ -22,7 +24,8 @@ export class WorkerReconnector {
 		onReconnect: () => Promise<void>,
 		emitReconnecting: (info: { attempt: number; delay: number }) => void,
 	) {
-		this._cfg = config;
+		this._baseDelayMs = config.reconnectBaseDelayMs;
+		this._maxDelayMs = config.reconnectMaxDelayMs;
 		this._onReconnect = onReconnect;
 		this._emitReconnecting = emitReconnecting;
 	}
@@ -32,18 +35,18 @@ export class WorkerReconnector {
 	}
 
 	get reconnectAttempt(): number {
-		return this._reconnectAttempt;
+		return this._attempt;
 	}
 
 	reset(): void {
 		this._intentionalClose = false;
-		this._reconnectAttempt = 0;
+		this._attempt = 0;
 	}
 
 	cancel(): void {
-		if (this._reconnectTimer) {
-			clearTimeout(this._reconnectTimer);
-			this._reconnectTimer = null;
+		if (this._timer) {
+			clearTimeout(this._timer);
+			this._timer = null;
 		}
 	}
 
@@ -52,24 +55,21 @@ export class WorkerReconnector {
 	}
 
 	scheduleReconnect(): void {
-		const delay = this._computeReconnectDelay();
-		this._reconnectAttempt++;
-		this._emitReconnecting({ attempt: this._reconnectAttempt, delay });
-		this._reconnectTimer = setTimeout(() => this._doReconnect(), delay);
-	}
-
-	private _computeReconnectDelay(): number {
-		return Math.min(
-			this._cfg.reconnectBaseDelayMs * 2 ** this._reconnectAttempt,
-			this._cfg.reconnectMaxDelayMs,
+		const delay = computeExponentialBackoff(
+			this._baseDelayMs,
+			this._attempt,
+			this._maxDelayMs,
 		);
+		this._attempt++;
+		this._emitReconnecting({ attempt: this._attempt, delay });
+		this._timer = setTimeout(() => this._doReconnect(), delay);
 	}
 
 	private _doReconnect(): void {
 		this._onReconnect().catch((err) =>
 			logger.warn("Failed to reconnect worker client", {
 				context: {
-					attempt: this._reconnectAttempt,
+					attempt: this._state.attempt,
 					err: normalizeError(err),
 				},
 			}),
