@@ -126,7 +126,7 @@ async function _signWithCa(
 	csr: string,
 ): Promise<import("@trading-model/common/ca/ca-client").SignCertificateResponse> {
 	const caClient = new CaClient({ baseUrl: config.caUrl, tls: config.tls });
-	return await caClient.signCertificate(config.serviceId, csr, {
+	return await caClient.signCertificate(config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId, csr, {
 		bootstrapToken: config.bootstrapToken,
 	});
 }
@@ -160,8 +160,10 @@ function _logCertWritten(
 	});
 }
 
+import type { Port } from "@trading-model/common/domain/primitives";
+
 export interface CreateHttpsServerOptions {
-	port: number;
+	port: Port;
 	tls: TlsPaths;
 	routes: (app: Application) => void;
 	rateLimit?: import("@trading-model/common/server/configure-app").RateLimitConfig;
@@ -204,7 +206,7 @@ export function createTlsBootstrap(
 	return {
 		ensure: () => bootstrapCertificate(config),
 		setupAutoRenew: (server: https.Server) => {
-			const client = new CertificateClient({ ...config, onRenew: (cert) => _setupAutoRenewCallback(server, { key: cert.keyPem, cert: cert.certPem, ca: cert.caPem }) });
+			const client = new CertificateClient({ ...config, serviceId: config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId, onRenew: (cert) => _setupAutoRenewCallback(server, { key: cert.keyPem, cert: cert.certPem, ca: cert.caPem }) });
 			setTimeout(() => client.startAutoRenew(), 1000);
 		},
 	};
@@ -233,6 +235,7 @@ async function loadServerDependencies(): Promise<{
 function setupAutoRenew(server: HttpServer, config: BootstrapConfig): void {
 	const client = new CertificateClient({
 		...config,
+		serviceId: config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
 		onRenew: (cert) => server.raw.setSecureContext({ key: cert.keyPem, cert: cert.certPem, ca: cert.caPem }),
 	});
 	setTimeout(() => client.startAutoRenew(), 1000);
