@@ -36,7 +36,7 @@ export class HeartbeatManager {
 	private _heartbeatViaWs(
 		identity: ServiceIdentity,
 	): boolean {
-		if (this._wsClient?.isConnected()) {
+		if (this._wsClient?.isConnected) {
 			const sent = this._wsClient.sendHeartbeat(identity);
 			if (sent) {
 				this._onSuccess?.();

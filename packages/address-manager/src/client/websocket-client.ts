@@ -118,13 +118,19 @@ export class WebSocketClient {
 		logger.error("WebSocket error", { error: normalizeError(error) });
 	}
 
-	send(type: WsMessageType, payload: Record<string, unknown>): boolean {
+	send(type: WsMessageType, payload: Record<string, unknown>): boolean;
+	send(data: unknown): boolean;
+	send(typeOrData: WsMessageType | unknown, payload?: Record<string, unknown>): boolean {
 		if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
 			return false;
 		}
 
-		const message: WsMessage = { type, payload };
-		this._ws.send(JSON.stringify(message));
+		if (arguments.length >= 2) {
+			const message: WsMessage = { type: typeOrData as WsMessageType, payload: payload! };
+			this._ws.send(JSON.stringify(message));
+		} else {
+			this._ws.send(JSON.stringify(typeOrData));
+		}
 		return true;
 	}
 
@@ -136,7 +142,7 @@ export class WebSocketClient {
 		}
 	}
 
-	isConnected(): boolean {
+	get isConnected(): boolean {
 		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
 	}
 

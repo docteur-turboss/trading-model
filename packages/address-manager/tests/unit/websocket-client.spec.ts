@@ -114,18 +114,18 @@ describe("WebSocketClient", () => {
 
 	describe("isConnected", () => {
 		test("should return false when not connected", () => {
-			expect(client.isConnected()).toBe(false);
+			expect(client.isConnected).toBe(false);
 		});
 
 		test("should return true when connected and readyState is OPEN", () => {
 			client.connect();
-			expect(client.isConnected()).toBe(true);
+			expect(client.isConnected).toBe(true);
 		});
 
 		test("should return false when readyState is not OPEN", () => {
 			MOCK_WEB_SOCKET_INSTANCE.readyState = MOCK_WEB_SOCKET.CONNECTING;
 			client.connect();
-			expect(client.isConnected()).toBe(false);
+			expect(client.isConnected).toBe(false);
 		});
 	});
 
