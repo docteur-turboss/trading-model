@@ -1,16 +1,17 @@
-import type { OrderBookLevel } from "@trading-model/common/config/event.types";
+import type { MarketType, OrderBookLevel, SourceType } from "@trading-model/common/config/event.types";
+import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
 import { DBConnection } from "../../../config/db";
 import type { OrderBookData } from "../market-data.types";
 
 interface OrderBookSnapshotRow {
-	symbol: string;
-	market: string;
-	source: string;
+	symbol: TradingSymbol;
+	market: MarketType;
+	source: SourceType;
 	bids: string;
 	asks: string;
-	timestamp: Date;
+	timestamp: UnixTimestamp;
 }
 
 const T_ORDER_BOOK = new (class TOrderBook extends Table<
@@ -54,7 +55,7 @@ export const insertOrderBookSnapshot = async (
 		return;
 	}
 
-	const rows: OrderBookSnapshotRow[] = data.map((item) => ({
+	const rows = data.map((item) => ({
 		symbol: item.symbol,
 		market: item.market,
 		source: item.source,
@@ -70,7 +71,7 @@ export const insertOrderBookSnapshot = async (
 };
 
 export const selectOrderBookSnapshotsBy = {
-	symbol: async (symbol: string) => {
+	symbol: async (symbol: TradingSymbol) => {
 		return await new DBConnection()
 			.selectFrom(T_ORDER_BOOK)
 			.where(T_ORDER_BOOK.symbol.equals(symbol))
@@ -78,22 +79,22 @@ export const selectOrderBookSnapshotsBy = {
 			.executeSelectMany();
 	},
 	timestamp: {
-		after: async (timestamp: Date) => {
+		after: async (timestamp: UnixTimestamp) => {
 			return await new DBConnection()
 				.selectFrom(T_ORDER_BOOK)
-				.where(T_ORDER_BOOK.timestamp.greaterOrEquals(timestamp))
+				.where(T_ORDER_BOOK.timestamp.greaterOrEquals(new Date(timestamp)))
 				.select(SELECT)
 				.executeSelectMany();
 		},
-		before: async (timestamp: Date) => {
+		before: async (timestamp: UnixTimestamp) => {
 			return await new DBConnection()
 				.selectFrom(T_ORDER_BOOK)
-				.where(T_ORDER_BOOK.timestamp.lessOrEquals(timestamp))
+				.where(T_ORDER_BOOK.timestamp.lessOrEquals(new Date(timestamp)))
 				.select(SELECT)
 				.executeSelectMany();
 		},
 	},
-	source: async (source: string) => {
+	source: async (source: SourceType) => {
 		return await new DBConnection()
 			.selectFrom(T_ORDER_BOOK)
 			.where(T_ORDER_BOOK.source.equals(source))

@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { SerialNumber } from "@trading-model/common/domain/primitives";
 
 import { AuditBuffer } from "./audit-buffer";
 import { MongoAuditConnection } from "./mongo-audit-connection";
@@ -6,7 +7,7 @@ import { MongoAuditConnection } from "./mongo-audit-connection";
 export interface AuditEntry {
 	action: "sign" | "revoke" | "renew" | "rotate" | "ca_key_rotation";
 	serviceId: string;
-	serialNumber: string;
+	serialNumber: SerialNumber;
 	clientIdentity?: string;
 	requestId?: string;
 	success: boolean;

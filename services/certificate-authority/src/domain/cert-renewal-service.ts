@@ -1,12 +1,13 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
 import { logger } from "@trading-model/common/config/logger";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
+import type { SerialNumber } from "@trading-model/common/domain/primitives";
 
 import { PopVerifier } from "./pop-verifier";
 
 interface CertStore {
 	getBySerial(
-		serialNumber: string
+		serialNumber: SerialNumber
 	): Promise<{ certPem: string; serviceId: string } | null>;
 }
 
@@ -38,7 +39,7 @@ interface RenewalPopInput {
 	nonce: string;
 	signature: string;
 	serviceId: string;
-	oldSerialNumber: string;
+	oldSerialNumber: SerialNumber;
 }
 
 export class CertRenewalError extends Error {
@@ -52,7 +53,7 @@ export class CertRenewalError extends Error {
 
 export interface RenewCertRequest {
 	serviceId: string;
-	oldSerialNumber: string;
+	oldSerialNumber: SerialNumber;
 	nonce: string;
 	signature: string;
 	csr: string;
@@ -104,7 +105,7 @@ export class CertRenewalService {
 	}
 
 	private async _getOldCertificate(
-		oldSerialNumber: string
+		oldSerialNumber: SerialNumber
 	): Promise<{ certPem: string; serviceId: string }> {
 		const oldCert = await this._certStore.getBySerial(oldSerialNumber);
 		if (!oldCert) {

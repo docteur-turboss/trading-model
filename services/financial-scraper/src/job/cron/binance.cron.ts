@@ -27,6 +27,7 @@ type LimitFunction = <TArgs extends unknown[], TResult>(
 	...args: TArgs
 ) => Promise<TResult>;
 
+import { toSymbol } from "@trading-model/common/domain/primitives";
 import type { CandleInterval } from "@trading-model/common/config/event.types";
 
 /** Configuration for scheduling a BinanceCronOrchestrator instance. */
@@ -103,7 +104,7 @@ export class BinanceCronOrchestrator {
 
 	private async _processSymbol(symbol: string): Promise<void> {
 		const worker = new BinanceWorker({
-			symbol,
+			symbol: toSymbol(symbol),
 			interval: this._config.candleInterval ?? "1m",
 		});
 

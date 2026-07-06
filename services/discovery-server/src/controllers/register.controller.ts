@@ -1,8 +1,8 @@
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import { isNonEmptyString } from "@trading-model/common/validation/primitives";
-import type { IPAddress } from "@trading-model/common/domain/primitives";
-import { Port, toServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId, IPAddress } from "@trading-model/common/domain/primitives";
+import { Port, toInstanceId, toServiceId } from "@trading-model/common/domain/primitives";
 import type { RequestHandler } from "express";
 import { z } from "zod";
 
@@ -48,9 +48,9 @@ function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 function _resolveInstanceId(
 	data: z.infer<typeof REGISTER_SCHEMA>,
 	registry: ServiceRegistry
-): string {
+): InstanceId {
 	const { serviceName, instanceId, ip, port } = data;
-	return instanceId ?? registry.generateInstanceId({ serviceName: toServiceId(serviceName), address: ip as IPAddress, port: Port.of(port) });
+	return toInstanceId(instanceId ?? registry.generateInstanceId({ serviceName: toServiceId(serviceName), address: ip as IPAddress, port: Port.of(port) }));
 }
 
 function _buildServiceInstance(

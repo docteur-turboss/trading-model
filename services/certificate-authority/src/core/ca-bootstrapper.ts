@@ -7,6 +7,7 @@ import {
 } from "@trading-model/certificate-utils/generate-key-pair";
 import type { KeyPair } from "@trading-model/certificate-utils/types";
 import type { CaStore } from "../persistence/ca-store";
+import { toFingerprint, toSerialNumber, type SerialNumber } from "@trading-model/common/domain/primitives";
 import { CertBodyBuilder } from "./cert-body-builder";
 
 export interface BootstrapResult {
@@ -58,7 +59,7 @@ export class CaBootstrapper {
 		const now = new Date();
 		const expiresAt = new Date(now.getTime() + this._caCertTtlMs);
 		const certBody = this._certBodyBuilder.buildCertBody({
-			serialNumber,
+			serialNumber: toSerialNumber(serialNumber),
 			now,
 			expiresAt,
 			publicKey: caKeyPair.publicKey,
@@ -68,7 +69,7 @@ export class CaBootstrapper {
 			caKeyPair.privateKey
 		);
 		this._saveCaKey(caKeyPair.privateKey);
-		await this._saveCaCert(caCertPem, serialNumber, now, expiresAt, caStore);
+		await this._saveCaCert(caCertPem, toSerialNumber(serialNumber), now, expiresAt, caStore);
 		return { caKeyPair, caCertPem };
 	}
 
@@ -84,7 +85,7 @@ export class CaBootstrapper {
 
 	private async _saveCaCert(
 		caCertPem: string,
-		serialNumber: string,
+		serialNumber: SerialNumber,
 		now: Date,
 		expiresAt: Date,
 		caStore: CaStore
@@ -94,7 +95,7 @@ export class CaBootstrapper {
 			caCertPem,
 			createdAt: now,
 			expiresAt,
-			fingerprint: createHash("sha256").update(caCertPem).digest("hex"),
+			fingerprint: toFingerprint(createHash("sha256").update(caCertPem).digest("hex")),
 		});
 	}
 }

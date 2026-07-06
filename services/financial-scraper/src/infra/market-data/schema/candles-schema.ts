@@ -1,3 +1,5 @@
+import type { SourceType } from "@trading-model/common/config/event.types";
+import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
 import { DBConnection } from "../../../config/db";
@@ -75,7 +77,7 @@ export const insertCandles = async (data: CandleData[]): Promise<void> => {
 
 /** Query helpers for the market_candles table, indexed by symbol, timestamp, and source. */
 export const selectCandlesBy = {
-	symbol: async (symbol: string) => {
+	symbol: async (symbol: TradingSymbol) => {
 		return await new DBConnection()
 			.selectFrom(T_MARKET_CANDLES)
 			.where(T_MARKET_CANDLES.symbol.equals(symbol))
@@ -83,22 +85,22 @@ export const selectCandlesBy = {
 			.executeSelectMany();
 	},
 	timestamp: {
-		after: async (timestamp: Date) => {
+		after: async (timestamp: UnixTimestamp) => {
 			return await new DBConnection()
 				.selectFrom(T_MARKET_CANDLES)
-				.where(T_MARKET_CANDLES.timestamp.greaterThan(timestamp))
+				.where(T_MARKET_CANDLES.timestamp.greaterThan(new Date(timestamp)))
 				.select(SELECT)
 				.executeSelectMany();
 		},
-		before: async (timestamp: Date) => {
+		before: async (timestamp: UnixTimestamp) => {
 			return await new DBConnection()
 				.selectFrom(T_MARKET_CANDLES)
-				.where(T_MARKET_CANDLES.timestamp.lessThan(timestamp))
+				.where(T_MARKET_CANDLES.timestamp.lessThan(new Date(timestamp)))
 				.select(SELECT)
 				.executeSelectMany();
 		},
 	},
-	source: async (source: string) => {
+	source: async (source: SourceType) => {
 		return await new DBConnection()
 			.selectFrom(T_MARKET_CANDLES)
 			.where(T_MARKET_CANDLES.source.equals(source))
@@ -121,7 +123,7 @@ export const selectCandlesBy = {
 //   `trades`           INT NULL,
 //   `timestamp`        DATETIME(3) NOT NULL,
 //   `close_timestamp`  DATETIME(3) NOT NULL,
-
+//
 //   PRIMARY KEY (`id`, `symbol`, `market`, `interval_value`, `timestamp`, `source`),
 //   INDEX `idx_candles_timestamp` (`timestamp` ASC) INVISIBLE,
 //   INDEX `idx_candles_symbol` (`symbol` ASC) VISIBLE)

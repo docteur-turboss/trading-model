@@ -6,6 +6,7 @@ import {
 	initializeTelemetry,
 	shutdownTelemetry,
 } from "@trading-model/common/server/telemetry";
+import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { AddressManager } from "../config/address-manager";
 import { closeDb, getDb, resetDbState } from "../config/db";
@@ -100,7 +101,7 @@ createBootstrap({
 		initializeTelemetry({
 			serviceName: "dlq-service",
 			serviceVersion: "2.0.0",
-			instanceId: process.env.INSTANCE_ID ?? "dlq-1",
+			instanceId: toInstanceId(process.env.INSTANCE_ID ?? "dlq-1"),
 			otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
 		});
 		AddressManager.start();

@@ -1,3 +1,5 @@
+import type { SourceType } from "@trading-model/common/config/event.types";
+import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
 import { DBConnection } from "../../../config/db";
@@ -58,7 +60,7 @@ export const insertBookTicker = async (
 };
 
 export const selectBookTickerBy = {
-	symbol: async (symbol: string) => {
+	symbol: async (symbol: TradingSymbol) => {
 		return await new DBConnection()
 			.selectFrom(T_BOOK_TICKER)
 			.where(T_BOOK_TICKER.symbol.equals(symbol))
@@ -66,22 +68,22 @@ export const selectBookTickerBy = {
 			.executeSelectMany();
 	},
 	timestamp: {
-		after: async (timestamp: Date) => {
+		after: async (timestamp: UnixTimestamp) => {
 			return await new DBConnection()
 				.selectFrom(T_BOOK_TICKER)
-				.where(T_BOOK_TICKER.timestamp.greaterOrEquals(timestamp))
+				.where(T_BOOK_TICKER.timestamp.greaterOrEquals(new Date(timestamp)))
 				.select(SELECT)
 				.executeSelectMany();
 		},
-		before: async (timestamp: Date) => {
+		before: async (timestamp: UnixTimestamp) => {
 			return await new DBConnection()
 				.selectFrom(T_BOOK_TICKER)
-				.where(T_BOOK_TICKER.timestamp.lessOrEquals(timestamp))
+				.where(T_BOOK_TICKER.timestamp.lessOrEquals(new Date(timestamp)))
 				.select(SELECT)
 				.executeSelectMany();
 		},
 	},
-	source: async (source: string) => {
+	source: async (source: SourceType) => {
 		return await new DBConnection()
 			.selectFrom(T_BOOK_TICKER)
 			.where(T_BOOK_TICKER.source.equals(source))

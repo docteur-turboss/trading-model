@@ -5,9 +5,8 @@ import type { MessageMetadata } from "@trading-model/broker-message/shared/helpe
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { CandleInterval } from "@trading-model/common/config/event.types";
 import { EnumEventMessage } from "@trading-model/common/config/event.types";
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { MessageId, TradingSymbol } from "@trading-model/common/domain/primitives";
-import { toMessageId, toInstanceId } from "@trading-model/common/domain/primitives";
+import { toInstanceId, toMessageId, toServiceId } from "@trading-model/common/domain/primitives";
+import type { InstanceId, MessageId, ServiceId, TradingSymbol } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 
 import {
@@ -251,11 +250,11 @@ function _buildIds(): { causationId: string; correlationId: string } {
 }
 
 function _buildPublisher(): {
-	instanceId: string;
-	serviceName: ServiceInstanceName;
+	instanceId: InstanceId;
+	serviceName: ServiceId;
 } {
 	return {
 		instanceId: toInstanceId(env.INSTANCE_ID),
-		serviceName: env.SERVICE_NAME as ServiceInstanceName,
+		serviceName: toServiceId(env.SERVICE_NAME),
 	};
 }

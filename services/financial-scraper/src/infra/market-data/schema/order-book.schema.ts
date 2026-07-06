@@ -1,3 +1,5 @@
+import type { MarketType, SourceType } from "@trading-model/common/config/event.types";
+import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import type { OrderBookData } from "../market-data.types";
@@ -58,23 +60,23 @@ const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 		return this._storage.get(id);
 	}
 
-	getBySymbol(symbol: string) {
+	getBySymbol(symbol: TradingSymbol) {
 		return this._indexManager.getBySymbol(symbol, this._storage);
 	}
 
-	getByMarket(market: string) {
+	getByMarket(market: MarketType) {
 		return this._indexManager.getByMarket(market, this._storage);
 	}
 
-	getBySource(source: string) {
+	getBySource(source: SourceType) {
 		return this._indexManager.getBySource(source, this._storage);
 	}
 
-	getAfterTimestamp(timestamp: number) {
+	getAfterTimestamp(timestamp: UnixTimestamp) {
 		return this._indexManager.getAfterTimestamp(timestamp, this._storage);
 	}
 
-	getBeforeTimestamp(timestamp: number) {
+	getBeforeTimestamp(timestamp: UnixTimestamp) {
 		return this._indexManager.getBeforeTimestamp(timestamp, this._storage);
 	}
 })();
@@ -91,24 +93,24 @@ export const insertOrderBook = (data: OrderBookData[]): Promise<void> => {
 
 /** Query helpers for in-memory order-book storage, indexed by symbol, source, market, id, and timestamp range. */
 export const selectOrderBookBy = {
-	symbol: (symbol: string) => {
+	symbol: (symbol: TradingSymbol) => {
 		return Promise.resolve(MARKER_ORDER_BOOKS.getBySymbol(symbol));
 	},
 	timestamp: {
-		after: (timestamp: number) => {
+		after: (timestamp: UnixTimestamp) => {
 			return Promise.resolve(MARKER_ORDER_BOOKS.getAfterTimestamp(timestamp));
 		},
-		before: (timestamp: number) => {
+		before: (timestamp: UnixTimestamp) => {
 			return Promise.resolve(MARKER_ORDER_BOOKS.getBeforeTimestamp(timestamp));
 		},
 	},
-	source: (source: string) => {
+	source: (source: SourceType) => {
 		return Promise.resolve(MARKER_ORDER_BOOKS.getBySource(source));
 	},
 	id: (id: number) => {
 		return Promise.resolve(MARKER_ORDER_BOOKS.getById(id));
 	},
-	market: (market: string) => {
+	market: (market: MarketType) => {
 		return Promise.resolve(MARKER_ORDER_BOOKS.getByMarket(market));
 	},
 };

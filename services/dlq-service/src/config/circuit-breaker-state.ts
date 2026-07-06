@@ -7,7 +7,7 @@ export interface CircuitStateConfig {
 	name: string;
 }
 
-export class CircuitBreakerState {
+export class DlqCircuitBreakerState {
 	private _failures = 0;
 	private _openUntil = 0;
 	private _halfOpenAttempts = 0;

@@ -9,9 +9,11 @@ import type {
 	WorkerEntry,
 	WorkerStats,
 } from "@trading-model/common/contracts/admin";
+import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 
 export type {
 	AuditEvent,
+	AuditFilter,
 	AuditVolumeByTopic,
 	CacheEntry,
 	CacheStats,
@@ -48,13 +50,11 @@ export interface StatsSummary {
 	avgLatency: number;
 }
 
-export interface AdminAuditFilter {
+export interface AdminAuditFilter extends PaginationQuery {
 	topic?: string;
 	publisher?: string;
 	correlationId?: string;
 	search?: string;
-	page?: number;
-	limit?: number;
 }
 
 export interface PaginatedEvents {

@@ -1,3 +1,5 @@
+import type { SourceType } from "@trading-model/common/config/event.types";
+import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
 import { DBConnection } from "../../../config/db";
@@ -63,21 +65,21 @@ export const insertTrades = async (data: TradeData[]): Promise<void> => {
 
 /** Query helpers for the market_trades table, indexed by symbol, timestamp, and source. */
 export const selectTradesBy = {
-	symbol: async (symbol: string) => {
+	symbol: async (symbol: TradingSymbol) => {
 		return await new DBConnection()
 			.selectFrom(T_MARKET_TRADES)
 			.where(T_MARKET_TRADES.symbol.equals(symbol))
 			.select(SELECT)
 			.executeSelectMany();
 	},
-	timestamp: async (timestamp: Date) => {
+	timestamp: async (timestamp: UnixTimestamp) => {
 		return await new DBConnection()
 			.selectFrom(T_MARKET_TRADES)
-			.where(T_MARKET_TRADES.timestamp.equals(timestamp))
+			.where(T_MARKET_TRADES.timestamp.equals(new Date(timestamp)))
 			.select(SELECT)
 			.executeSelectMany();
 	},
-	source: async (source: string) => {
+	source: async (source: SourceType) => {
 		return await new DBConnection()
 			.selectFrom(T_MARKET_TRADES)
 			.where(T_MARKET_TRADES.source.equals(source))
@@ -96,7 +98,7 @@ export const selectTradesBy = {
 //     `quantity`    DECIMAL(30,10) NOT NULL,
 //     `side`        ENUM('buy', 'sell') NOT NULL,
 //     `timestamp`   DATETIME(3) NOT NULL,
-
+//
 //     PRIMARY KEY (`symbol`, `market`, `source`, `trade_id`, `timestamp`),
 //     INDEX `idx_trades_timestamp` (`timestamp` ASC) INVISIBLE,
 //     INDEX `idx_trades_symbol` (`symbol` ASC) VISIBLE)

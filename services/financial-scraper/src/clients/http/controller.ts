@@ -1,3 +1,5 @@
+import type { SourceType } from "@trading-model/common/config/event.types";
+import { toSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import zod from "zod";
@@ -53,19 +55,19 @@ function createController<TBody>(
 /** Controller that returns trades matching the given symbol. */
 export const GET_TRADE_BY_SYMBOL_CONTROLLER = createController(
 	SYMBOL_SCHEMA,
-	(params) => selectTradesBy.symbol(params.symbol)
+	(params) => selectTradesBy.symbol(toSymbol(params.symbol))
 );
 
 /** Controller that returns trades at the given timestamp. */
 export const GET_TRADE_BY_TIMESTAMP_CONTROLLER = createController(
 	TIMESTAMP_SCHEMA,
-	(params) => selectTradesBy.timestamp(params.timestamp)
+	(params) => selectTradesBy.timestamp(UnixTimestamp.of(params.timestamp.getTime()))
 );
 
 /** Controller that returns trades from the given source. */
 export const GET_TRADE_BY_SOURCE_CONTROLLER = createController(
 	SOURCE_SCHEMA,
-	(params) => selectTradesBy.source(params.source)
+	(params) => selectTradesBy.source(params.source as SourceType)
 );
 
 /* -------------------------------------------------------------------------- */
@@ -75,19 +77,19 @@ export const GET_TRADE_BY_SOURCE_CONTROLLER = createController(
 /** Controller that returns tickers matching the given symbol. */
 export const GET_TICKER_BY_SYMBOL_CONTROLLER = createController(
 	SYMBOL_SCHEMA,
-	(params) => selectTickerBy.symbol(params.symbol)
+	(params) => selectTickerBy.symbol(toSymbol(params.symbol))
 );
 
 /** Controller that returns tickers at the given timestamp. */
 export const GET_TICKER_BY_TIMESTAMP_CONTROLLER = createController(
 	TIMESTAMP_SCHEMA,
-	(params) => selectTickerBy.timestamp(params.timestamp)
+	(params) => selectTickerBy.timestamp(UnixTimestamp.of(params.timestamp.getTime()))
 );
 
 /** Controller that returns tickers from the given source. */
 export const GET_TICKER_BY_SOURCE_CONTROLLER = createController(
 	SOURCE_SCHEMA,
-	(params) => selectTickerBy.source(params.source)
+	(params) => selectTickerBy.source(params.source as SourceType)
 );
 
 /* -------------------------------------------------------------------------- */
@@ -97,25 +99,25 @@ export const GET_TICKER_BY_SOURCE_CONTROLLER = createController(
 /** Controller that returns order-book snapshots matching the given symbol. */
 export const GET_ORDER_BOOK_BY_SYMBOL_CONTROLLER = createController(
 	SYMBOL_SCHEMA,
-	(params) => selectOrderBookBy.symbol(params.symbol)
+	(params) => selectOrderBookBy.symbol(toSymbol(params.symbol))
 );
 
 /** Controller that returns order-book snapshots after the given timestamp. */
 export const GET_ORDER_BOOK_BY_TIMESTAMP_AFTER_CONTROLLER = createController(
 	ORDER_BOOK_TIMESTAMP_SCHEMA,
-	(params) => selectOrderBookBy.timestamp.after(params.timestamp)
+	(params) => selectOrderBookBy.timestamp.after(UnixTimestamp.of(params.timestamp))
 );
 
 /** Controller that returns order-book snapshots before the given timestamp. */
 export const GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER = createController(
 	ORDER_BOOK_TIMESTAMP_SCHEMA,
-	(params) => selectOrderBookBy.timestamp.before(params.timestamp)
+	(params) => selectOrderBookBy.timestamp.before(UnixTimestamp.of(params.timestamp))
 );
 
 /** Controller that returns order-book snapshots from the given source. */
 export const GET_ORDER_BOOK_BY_SOURCE_CONTROLLER = createController(
 	SOURCE_SCHEMA,
-	(params) => selectOrderBookBy.source(params.source)
+	(params) => selectOrderBookBy.source(params.source as SourceType)
 );
 
 /* -------------------------------------------------------------------------- */
@@ -125,17 +127,17 @@ export const GET_ORDER_BOOK_BY_SOURCE_CONTROLLER = createController(
 /** Controller that returns candles matching the given symbol. */
 export const GET_CANDLES_BY_SYMBOL_CONTROLLER = createController(
 	SYMBOL_SCHEMA,
-	(params) => selectCandlesBy.symbol(params.symbol)
+	(params) => selectCandlesBy.symbol(toSymbol(params.symbol))
 );
 
 /** Controller that returns candles after the given timestamp. */
 export const GET_CANDLES_BY_TIMESTAMP_CONTROLLER = createController(
 	TIMESTAMP_SCHEMA,
-	(params) => selectCandlesBy.timestamp.after(params.timestamp)
+	(params) => selectCandlesBy.timestamp.after(UnixTimestamp.of(params.timestamp.getTime()))
 );
 
 /** Controller that returns candles from the given source. */
 export const GET_CANDLES_BY_SOURCE_CONTROLLER = createController(
 	SOURCE_SCHEMA,
-	(params) => selectCandlesBy.source(params.source)
+	(params) => selectCandlesBy.source(params.source as SourceType)
 );

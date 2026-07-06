@@ -1,3 +1,5 @@
+import type { SourceType } from "@trading-model/common/config/event.types";
+import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
 import { DBConnection } from "../../../config/db";
@@ -69,21 +71,21 @@ export const insertTicker = async (data: TickerData[]): Promise<void> => {
 
 /** Query helpers for the market_tickers table, indexed by symbol, timestamp, and source. */
 export const selectTickerBy = {
-	symbol: async (symbol: string) => {
+	symbol: async (symbol: TradingSymbol) => {
 		return await new DBConnection()
 			.selectFrom(T_MARKET_TICKER)
 			.where(T_MARKET_TICKER.symbol.equals(symbol))
 			.select(SELECT)
 			.executeSelectMany();
 	},
-	timestamp: async (timestamp: Date) => {
+	timestamp: async (timestamp: UnixTimestamp) => {
 		return await new DBConnection()
 			.selectFrom(T_MARKET_TICKER)
-			.where(T_MARKET_TICKER.timestamp.equals(timestamp))
+			.where(T_MARKET_TICKER.timestamp.equals(new Date(timestamp)))
 			.select(SELECT)
 			.executeSelectMany();
 	},
-	source: async (source: string) => {
+	source: async (source: SourceType) => {
 		return await new DBConnection()
 			.selectFrom(T_MARKET_TICKER)
 			.where(T_MARKET_TICKER.source.equals(source))
@@ -104,7 +106,7 @@ export const selectTickerBy = {
 //   `volume`           DECIMAL(30,10) NOT NULL,
 //   `timestamp`        DATETIME(3) NOT NULL,
 //   `close_time`        DATETIME(3) NOT NULL,
-
+//
 //   PRIMARY KEY (`id`, `symbol`, `market`, `timestamp`, `source`),
 //   INDEX `idx_tickers_timestamp` (`timestamp` ASC) INVISIBLE,
 //   INDEX `idx_tickers_symbol` (`symbol` ASC) VISIBLE)

@@ -1,5 +1,6 @@
 import type { RevokedCertificate } from "@trading-model/certificate-utils/types";
 import { type Collection, MongoClient } from "mongodb";
+import type { SerialNumber } from "@trading-model/common/domain/primitives";
 
 export class CrlStore {
 	private readonly _client: MongoClient;
@@ -36,7 +37,7 @@ export class CrlStore {
 		return docs as unknown as RevokedCertificate[];
 	}
 
-	async isRevoked(serialNumber: string): Promise<boolean> {
+	async isRevoked(serialNumber: SerialNumber): Promise<boolean> {
 		const entry = await this._collection.findOne({ serialNumber });
 		return entry !== null;
 	}

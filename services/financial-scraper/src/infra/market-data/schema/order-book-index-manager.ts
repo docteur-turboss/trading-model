@@ -1,3 +1,5 @@
+import type { MarketType, SourceType } from "@trading-model/common/config/event.types";
+import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import type { OrderBookData } from "../market-data.types";
 import {
 	OrderBookIndexQuerier,
@@ -21,23 +23,23 @@ export class OrderBookIndexManager {
 		this._querier.indexEntry(id, entry);
 	}
 
-	getBySymbol(symbol: string, storage: Map<number, OrderBookData>) {
+	getBySymbol(symbol: TradingSymbol, storage: Map<number, OrderBookData>) {
 		return this._querier.getBySymbol(symbol, storage);
 	}
 
-	getByMarket(market: string, storage: Map<number, OrderBookData>) {
+	getByMarket(market: MarketType, storage: Map<number, OrderBookData>) {
 		return this._querier.getByMarket(market, storage);
 	}
 
-	getBySource(source: string, storage: Map<number, OrderBookData>) {
+	getBySource(source: SourceType, storage: Map<number, OrderBookData>) {
 		return this._querier.getBySource(source, storage);
 	}
 
-	getAfterTimestamp(timestamp: number, storage: Map<number, OrderBookData>) {
+	getAfterTimestamp(timestamp: UnixTimestamp, storage: Map<number, OrderBookData>) {
 		return this._querier.getAfterTimestamp(timestamp, storage);
 	}
 
-	getBeforeTimestamp(timestamp: number, storage: Map<number, OrderBookData>) {
+	getBeforeTimestamp(timestamp: UnixTimestamp, storage: Map<number, OrderBookData>) {
 		return this._querier.getBeforeTimestamp(timestamp, storage);
 	}
 }

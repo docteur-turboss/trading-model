@@ -1,3 +1,5 @@
+import type { MarketType, SourceType } from "@trading-model/common/config/event.types";
+import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import zod from "zod";
 
 import type { OrderBookData } from "../market-data.types";
@@ -64,22 +66,22 @@ export class OrderBookIndexQuerier {
 		}
 	}
 
-	getBySymbol(symbol: string, storage: Map<number, OrderBookData>): (OrderBookData | undefined)[] | null {
+	getBySymbol(symbol: TradingSymbol, storage: Map<number, OrderBookData>): (OrderBookData | undefined)[] | null {
 		if (!this._symbolStorage.has(symbol)) return null;
 		return this._symbolStorage.get(symbol)!.map((entryId) => storage.get(entryId));
 	}
 
-	getByMarket(market: string, storage: Map<number, OrderBookData>): (OrderBookData | undefined)[] | null {
+	getByMarket(market: MarketType, storage: Map<number, OrderBookData>): (OrderBookData | undefined)[] | null {
 		if (!this._marketStorage.has(market)) return null;
 		return this._marketStorage.get(market)!.map((entryId) => storage.get(entryId));
 	}
 
-	getBySource(source: string, storage: Map<number, OrderBookData>): (OrderBookData | undefined)[] | null {
+	getBySource(source: SourceType, storage: Map<number, OrderBookData>): (OrderBookData | undefined)[] | null {
 		if (!this._sourceStorage.has(source)) return null;
 		return this._sourceStorage.get(source)!.map((entryId) => storage.get(entryId));
 	}
 
-	getAfterTimestamp(timestamp: number, storage: Map<number, OrderBookData>): OrderBookData[] {
+	getAfterTimestamp(timestamp: UnixTimestamp, storage: Map<number, OrderBookData>): OrderBookData[] {
 		const result: OrderBookData[] = [];
 		for (const [storedTs, entryIds] of this._timestampStorage.entries()) {
 			if (storedTs > timestamp) {
@@ -89,7 +91,7 @@ export class OrderBookIndexQuerier {
 		return result.sort((left, right) => left.timestamp - right.timestamp);
 	}
 
-	getBeforeTimestamp(timestamp: number, storage: Map<number, OrderBookData>): OrderBookData[] {
+	getBeforeTimestamp(timestamp: UnixTimestamp, storage: Map<number, OrderBookData>): OrderBookData[] {
 		const result: OrderBookData[] = [];
 		for (const [storedTs, entryIds] of this._timestampStorage.entries()) {
 			if (storedTs < timestamp) {

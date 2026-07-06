@@ -22,7 +22,7 @@
 
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { toCorrelationId, toMessageId, toTopic } from "@trading-model/common/domain/primitives";
+import { toCorrelationId, toInstanceId, toMessageId, toServiceId, toTopic } from "@trading-model/common/domain/primitives";
 import { z } from "zod";
 
 /**
@@ -43,8 +43,8 @@ const IDENTIFY_SCHEMA = z.object({
 			ServiceInstanceName,
 			...ServiceInstanceName[],
 		]
-	),
-	instanceId: INSTANCE_ID_SCHEMA,
+	).transform(toServiceId),
+	instanceId: INSTANCE_ID_SCHEMA.transform(toInstanceId),
 });
 
 /**

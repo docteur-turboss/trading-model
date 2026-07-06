@@ -1,5 +1,6 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
 import { type Collection, MongoClient } from "mongodb";
+import type { SerialNumber } from "@trading-model/common/domain/primitives";
 
 export class CertificateStore {
 	private readonly _client: MongoClient;
@@ -33,7 +34,7 @@ export class CertificateStore {
 		await this.save(cert);
 	}
 
-	async getBySerial(serialNumber: string): Promise<SignedCertificate | null> {
+	async getBySerial(serialNumber: SerialNumber): Promise<SignedCertificate | null> {
 		const doc = await this._collection.findOne({ serialNumber });
 		return doc as unknown as SignedCertificate | null;
 	}
