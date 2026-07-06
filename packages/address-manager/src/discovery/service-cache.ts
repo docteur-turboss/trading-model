@@ -1,5 +1,5 @@
 import type { ServiceInstance } from "../client/type";
-import type { CircuitState, IServiceCache } from "./service-cache.interface";
+import type { CacheSetEntry, CircuitState, IServiceCache } from "./service-cache.interface";
 import type { CacheEntry } from "./type";
 
 class SimpleMutex {
@@ -77,18 +77,15 @@ export class ServiceCache implements IServiceCache {
 	 * - Sets the TTL for the cache entry.
 	 * - Replaces any existing entry for the same service.
 	 *
-	 * @param serviceName - Name of the service.
-	 * @param instance - Service instance to store.
-	 *
 	 * @example
 	 * ```ts
-	 * cache.set("user-service", instance);
+	 * cache.set({ serviceName: "user-service", instance });
 	 * ```
 	 */
-	async set(serviceName: string, instance: ServiceInstance, _region?: string, _version?: number): Promise<void> {
+	async set(entry: CacheSetEntry): Promise<void> {
 		return this._withLock(() => {
-			this._cache.set(serviceName, {
-				instance,
+			this._cache.set(entry.serviceName, {
+				instance: entry.instance,
 				expiresAt: Date.now() + this._ttlMs,
 			});
 		});

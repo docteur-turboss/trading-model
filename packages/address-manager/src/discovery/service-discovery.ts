@@ -164,7 +164,7 @@ export class ServiceDiscovery {
 			);
 		}
 
-		await this._serviceCache.set(serviceName, instance);
+		await this._serviceCache.set({ serviceName, instance });
 		return instance;
 	}
 
@@ -210,7 +210,7 @@ export class ServiceDiscovery {
 			if (instance) {
 				const isHealthy = await this._healthChecker.isHealthy(instance);
 				if (isHealthy) {
-					await this._serviceCache.set(serviceName, instance);
+					await this._serviceCache.set({ serviceName, instance });
 					return instance;
 				}
 			}

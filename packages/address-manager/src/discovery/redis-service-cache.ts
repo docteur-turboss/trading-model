@@ -3,7 +3,7 @@ import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis, { type RedisOptions } from "ioredis";
 import type { ServiceInstance } from "../client/type";
-import type { CircuitState, IServiceCache } from "./service-cache.interface";
+import type { CacheSetEntry, CircuitState, IServiceCache } from "./service-cache.interface";
 import { RedisCacheOperations } from "./redis-cache-operations";
 import { RedisCircuitStateStore } from "./redis-circuit-state-store";
 
@@ -78,13 +78,8 @@ export class RedisServiceCache implements IServiceCache {
 		return this._cacheOps.getVersion(serviceName, region);
 	}
 
-	async set(
-		serviceName: string,
-		instance: ServiceInstance,
-		region?: string,
-		version?: number,
-	): Promise<void> {
-		return this._cacheOps.set(serviceName, instance, region, version);
+	async set(entry: CacheSetEntry): Promise<void> {
+		return this._cacheOps.set(entry);
 	}
 
 	async invalidate(serviceName: string, region?: string): Promise<void> {

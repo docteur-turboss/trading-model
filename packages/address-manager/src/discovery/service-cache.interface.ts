@@ -6,14 +6,16 @@ export interface CircuitState {
 	state: "closed" | "open" | "half-open";
 }
 
+export interface CacheSetEntry {
+	serviceName: string;
+	instance: ServiceInstance;
+	region?: string;
+	version?: number;
+}
+
 export interface IServiceCache {
 	get(serviceName: string, region?: string): Promise<ServiceInstance | null>;
-	set(
-		serviceName: string,
-		instance: ServiceInstance,
-		region?: string,
-		version?: number
-	): Promise<void>;
+	set(entry: CacheSetEntry): Promise<void>;
 	invalidate(serviceName: string, region?: string): Promise<void>;
 	clear(): Promise<void>;
 	entries(): Promise<
@@ -35,7 +37,7 @@ export class NullServiceCache implements IServiceCache {
 	async get(_serviceName: string, _region?: string): Promise<ServiceInstance | null> {
 		return null;
 	}
-	async set(_serviceName: string, _instance: ServiceInstance, _region?: string, _version?: number): Promise<void> {}
+	async set(_entry: CacheSetEntry): Promise<void> {}
 	async invalidate(_serviceName: string, _region?: string): Promise<void> {}
 	async clear(): Promise<void> {}
 	async entries(): Promise<Array<{ serviceName: string; instance: ServiceInstance; region?: string }>> {
