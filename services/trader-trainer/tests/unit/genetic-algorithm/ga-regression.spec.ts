@@ -8,12 +8,13 @@ import type {
 	CrossoverGenome,
 	LamarckGenome,
 } from "../../../src/core/genetic-algorithm/genome-types";
+import { CrossoverType } from "../../../src/core/genetic-algorithm/genome";
 
 describe("GA Regression — Crossover", () => {
 	describe("crossoverScalar", () => {
 		it("arithmetic crossover with known alpha produces deterministic blend", () => {
 			const co: CrossoverGenome = {
-				type: "arithmetic",
+				type: CrossoverType.Arithmetic,
 				probability: 0.5,
 				blendAlpha: 0.3,
 				sbxEta: 0,
@@ -27,7 +28,7 @@ describe("GA Regression — Crossover", () => {
 
 		it("uniform crossover picks parent based on rng threshold", () => {
 			const co: CrossoverGenome = {
-				type: "uniform",
+				type: CrossoverType.Uniform,
 				probability: 0.5,
 				blendAlpha: 0,
 				sbxEta: 0,
@@ -41,7 +42,7 @@ describe("GA Regression — Crossover", () => {
 
 		it("blend crossover output is bounded within expected range", () => {
 			const co: CrossoverGenome = {
-				type: "blend",
+				type: CrossoverType.Blend,
 				probability: 0.5,
 				blendAlpha: 0.5,
 				sbxEta: 0,
@@ -58,7 +59,7 @@ describe("GA Regression — Crossover", () => {
 
 		it("sbx crossover produces symmetric offspring for symmetric parents", () => {
 			const co: CrossoverGenome = {
-				type: "sbx",
+				type: CrossoverType.Sbx,
 				probability: 0.5,
 				blendAlpha: 0,
 				sbxEta: 2,

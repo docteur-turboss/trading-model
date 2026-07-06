@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import StateManager from "../../../src/core/agent/state-manager";
 import { Agent } from "../../../src/core/neural-network/agent";
+import {
+	ActivationType,
+	ConnectionType,
+	NormalisationType,
+} from "../../../src/core/neural-network/type";
 
 function makeAgent(): Agent {
 	return new Agent({
 		neuronsByLayer: [4, 6, 3],
-		activationType: ["relu", "sigmoid"],
-		normalisationType: "none",
-		connectionType: "fully-connected",
+		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
+		normalisationType: NormalisationType.None,
+		connectionType: ConnectionType.FullyConnected,
 		enablePool: false,
 	});
 }

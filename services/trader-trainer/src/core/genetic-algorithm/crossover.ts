@@ -2,6 +2,7 @@
 //                        crossover operators
 // ================================================================
 
+import { CrossoverType } from "./genome-types";
 import type {
 	ContinuousPolicyGenome,
 	CrossoverGenome,

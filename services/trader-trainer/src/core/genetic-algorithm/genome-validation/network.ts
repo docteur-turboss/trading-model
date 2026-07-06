@@ -1,3 +1,9 @@
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	NormalisationType,
+} from "../../neural-network/type";
 import type { LayerGenome, NetworkGenome, ValidationContext } from "../genome";
 import { VALID_ACTIVATIONS, VALID_BIAS_TYPES, VALID_CONNECTION_TYPES, VALID_NORM_TYPES, checkPositiveInt, err } from "./utils";
 
@@ -38,9 +44,9 @@ export function validateNetwork(
 function repairLayer(layer: LayerGenome): LayerGenome {
 	return {
 		neurons: Math.max(1, Math.round(layer.neurons ?? 32)),
-		activation: VALID_ACTIVATIONS.has(layer.activation) ? layer.activation : "relu",
-		connectionType: VALID_CONNECTION_TYPES.has(layer.connectionType) ? layer.connectionType : "dense-skip",
-		biasType: VALID_BIAS_TYPES.has(layer.biasType) ? layer.biasType : "zeros",
+		activation: VALID_ACTIVATIONS.has(layer.activation) ? layer.activation : ActivationType.Relu,
+		connectionType: VALID_CONNECTION_TYPES.has(layer.connectionType) ? layer.connectionType : ConnectionType.DenseSkip,
+		biasType: VALID_BIAS_TYPES.has(layer.biasType) ? layer.biasType : InitialisationType.Zeros,
 	};
 }
 
@@ -50,13 +56,13 @@ export function repairNetwork(network: NetworkGenome): NetworkGenome {
 	).map((layer) => repairLayer(layer));
 
 	if (hiddenLayers.length === 0) {
-		hiddenLayers = [{ neurons: 32, activation: "relu", connectionType: "dense-skip", biasType: "zeros" }];
+		hiddenLayers = [{ neurons: 32, activation: ActivationType.Relu, connectionType: ConnectionType.DenseSkip, biasType: InitialisationType.Zeros }];
 	}
 
 	return {
 		inputDim: Math.max(1, Math.round(network.inputDim ?? 1)),
 		outputDim: Math.max(1, Math.round(network.outputDim ?? 1)),
 		hiddenLayers,
-		normalization: VALID_NORM_TYPES.has(network.normalization) ? network.normalization : "none",
+		normalization: VALID_NORM_TYPES.has(network.normalization) ? network.normalization : NormalisationType.None,
 	};
 }

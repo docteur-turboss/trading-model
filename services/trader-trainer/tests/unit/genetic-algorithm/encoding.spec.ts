@@ -7,12 +7,12 @@ import {
 	encodePopulation,
 } from "../../../src/core/genetic-algorithm/encoding";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
-import type {
+import {
 	ActivationType,
 	ConnectionType,
-	Genome,
-	LayerGenome,
+	InitialisationType,
 } from "../../../src/core/genetic-algorithm/genome";
+import type { Genome, LayerGenome } from "../../../src/core/genetic-algorithm/genome";
 
 describe("encoding", () => {
 	describe("encodeGenome", () => {
@@ -54,14 +54,14 @@ describe("encoding", () => {
 			const vec = encodeGenome(g);
 			const base = 23;
 			const activations: ActivationType[] = [
-				"relu",
-				"sigmoid",
-				"tanh",
-				"leakyReLu",
-				"elu",
-				"mish",
-				"gelu",
-				"softmax",
+				ActivationType.Relu,
+				ActivationType.Sigmoid,
+				ActivationType.Tanh,
+				ActivationType.LeakyReLu,
+				ActivationType.Elu,
+				ActivationType.Mish,
+				ActivationType.Gelu,
+				ActivationType.Softmax,
 			];
 			const idx = activations.indexOf(g.network.hiddenLayers[0].activation);
 			expect(vec[base + 1 + idx]).toBe(1);
@@ -78,9 +78,9 @@ describe("encoding", () => {
 			const vec = encodeGenome(g);
 			const base = 23;
 			const connTypes: ConnectionType[] = [
-				"dense-skip",
-				"fully-connected",
-				"residual-connection",
+				ConnectionType.DenseSkip,
+				ConnectionType.FullyConnected,
+				ConnectionType.ResidualConnection,
 			];
 			const idx = connTypes.indexOf(g.network.hiddenLayers[0].connectionType);
 			expect(vec[base + 1 + 8 + idx]).toBe(1);
@@ -201,7 +201,7 @@ describe("encoding", () => {
 			vec[23 + 1 + 7] = 1;
 			vec[23 + 1 + 0] = 0.5; // ReLu gets 0.5 but softmax gets 1 — argmax wins
 			const decoded = decodeGenome(vec, original);
-			expect(decoded.network.hiddenLayers[0].activation).toBe("softmax");
+			expect(decoded.network.hiddenLayers[0].activation).toBe(ActivationType.Softmax);
 		});
 
 		test("should decode argmax for one-hot connection types", () => {
@@ -215,7 +215,7 @@ describe("encoding", () => {
 			vec[base + 1 + 8 + 2] = 1;
 			const decoded = decodeGenome(vec, original);
 			expect(decoded.network.hiddenLayers[0].connectionType).toBe(
-				"residual-connection"
+				ConnectionType.ResidualConnection
 			);
 		});
 
@@ -234,9 +234,9 @@ describe("encoding", () => {
 			for (let i = 0; i < 20; i++) {
 				manyLayers.push({
 					neurons: 64 + i,
-					activation: "relu",
-					connectionType: "dense-skip",
-					biasType: "zeros" as const,
+					activation: ActivationType.Relu,
+					connectionType: ConnectionType.DenseSkip,
+					biasType: InitialisationType.Zeros,
 				});
 			}
 			original.network.hiddenLayers = manyLayers;

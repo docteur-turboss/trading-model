@@ -1,17 +1,24 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import { NeuralNetwork } from "../../../src/core/neural-network/neural-network";
 import type { NeuralNetworkConfig } from "../../../src/core/neural-network/type";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	LossFunctionType,
+	NormalisationType,
+} from "../../../src/core/neural-network/type";
 
 function makeConfig(
 	overrides?: Partial<NeuralNetworkConfig>
 ): NeuralNetworkConfig {
 	return {
 		neuronsByLayer: [4, 6, 3],
-		activationType: ["relu", "sigmoid"],
-		initialisationType: "zeros",
-		lossFunctionType: "mean-squared-error",
-		normalisationType: "none",
-		connectionType: "fully-connected",
+		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
+		initialisationType: InitialisationType.Zeros,
+		lossFunctionType: LossFunctionType.MeanSquaredError,
+		normalisationType: NormalisationType.None,
+		connectionType: ConnectionType.FullyConnected,
 		enablePool: false,
 		...overrides,
 	};
@@ -47,7 +54,7 @@ describe("NeuralNetwork", () => {
 			expect(
 				() =>
 					new NeuralNetwork(
-						makeConfig({ activationType: ["relu", "tanh", "sigmoid"] })
+						makeConfig({ activationType: [ActivationType.Relu, ActivationType.Tanh, ActivationType.Sigmoid] })
 					)
 			).toThrow();
 		});
@@ -57,8 +64,8 @@ describe("NeuralNetwork", () => {
 				() =>
 					new NeuralNetwork(
 						makeConfig({
-							activationType: ["relu", "softmax"],
-							lossFunctionType: "mean-squared-error",
+							activationType: [ActivationType.Relu, ActivationType.Softmax],
+							lossFunctionType: LossFunctionType.MeanSquaredError,
 						})
 					)
 			).toThrow();
@@ -68,8 +75,8 @@ describe("NeuralNetwork", () => {
 			const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
 			new NeuralNetwork(
 				makeConfig({
-					activationType: ["relu", "sigmoid"],
-					lossFunctionType: "mean-squared-error",
+					activationType: [ActivationType.Relu, ActivationType.Sigmoid],
+					lossFunctionType: LossFunctionType.MeanSquaredError,
 				})
 			);
 
@@ -174,11 +181,11 @@ describe("NeuralNetwork", () => {
 		it("should clip gradients when norm exceeds gradientClipNorm", () => {
 			const nn = new NeuralNetwork({
 				neuronsByLayer: [1, 1],
-				activationType: ["relu"],
-				initialisationType: "zeros",
-				lossFunctionType: "mean-squared-error",
-				normalisationType: "none",
-				connectionType: "fully-connected",
+				activationType: [ActivationType.Relu],
+				initialisationType: InitialisationType.Zeros,
+				lossFunctionType: LossFunctionType.MeanSquaredError,
+				normalisationType: NormalisationType.None,
+				connectionType: ConnectionType.FullyConnected,
 				useBias: false,
 				gradientClipNorm: 1,
 			});
@@ -266,7 +273,7 @@ describe("NeuralNetwork", () => {
 		it("should throw when reference network has different parameter count", () => {
 			const nn = new NeuralNetwork(makeConfig());
 			const reference = new NeuralNetwork(
-				makeConfig({ neuronsByLayer: [4, 3], activationType: ["relu"] })
+				makeConfig({ neuronsByLayer: [4, 3], activationType: [ActivationType.Relu] })
 			);
 
 			expect(() => nn.distributeAroundWeights(reference, 0.01)).toThrow();
@@ -344,11 +351,11 @@ describe("NeuralNetwork", () => {
 		it("should handle input-to-output direct connection", () => {
 			const nn = new NeuralNetwork({
 				neuronsByLayer: [4, 2],
-				activationType: ["sigmoid"],
-				initialisationType: "zeros",
-				lossFunctionType: "binary-cross-entropy",
-				normalisationType: "none",
-				connectionType: "fully-connected",
+				activationType: [ActivationType.Sigmoid],
+				initialisationType: InitialisationType.Zeros,
+				lossFunctionType: LossFunctionType.BinaryCrossEntropy,
+				normalisationType: NormalisationType.None,
+				connectionType: ConnectionType.FullyConnected,
 				enablePool: false,
 			});
 
@@ -363,11 +370,11 @@ describe("NeuralNetwork", () => {
 		it("should produce non-equal Z values with random init covering max-finding branch", () => {
 			const nn = new NeuralNetwork({
 				neuronsByLayer: [4, 3],
-				activationType: ["softmax"],
-				initialisationType: "random",
-				lossFunctionType: "cross-entropy",
-				normalisationType: "none",
-				connectionType: "fully-connected",
+				activationType: [ActivationType.Softmax],
+				initialisationType: InitialisationType.Random,
+				lossFunctionType: LossFunctionType.CrossEntropy,
+				normalisationType: NormalisationType.None,
+				connectionType: ConnectionType.FullyConnected,
 				enablePool: false,
 			});
 
@@ -407,11 +414,11 @@ describe("NeuralNetwork", () => {
 		it("should add skip connection when input matches output size", () => {
 			const nn = new NeuralNetwork({
 				neuronsByLayer: [4, 4],
-				activationType: ["relu"],
-				initialisationType: "zeros",
-				lossFunctionType: "mean-squared-error",
-				normalisationType: "none",
-				connectionType: "dense-skip",
+				activationType: [ActivationType.Relu],
+				initialisationType: InitialisationType.Zeros,
+				lossFunctionType: LossFunctionType.MeanSquaredError,
+				normalisationType: NormalisationType.None,
+				connectionType: ConnectionType.DenseSkip,
 				enablePool: false,
 			});
 

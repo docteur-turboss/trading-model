@@ -1,4 +1,4 @@
-import type { OptimizerType } from "./type";
+import { OptimizerType } from "./type";
 
 export interface OptimizerHyperparams {
 	/** Adam / RMSProp first-moment decay.  @default 0.9   */
@@ -112,7 +112,7 @@ export const ADAM = new AdamOptimizer();
 export const RMSPROP = new RmspropOptimizer();
 
 export const OPTIMIZERS: Record<OptimizerType, Optimizer> = {
-	sgd: SGD,
-	adam: ADAM,
-	rmsprop: RMSPROP,
+	[OptimizerType.Sgd]: SGD,
+	[OptimizerType.Adam]: ADAM,
+	[OptimizerType.Rmsprop]: RMSPROP,
 };

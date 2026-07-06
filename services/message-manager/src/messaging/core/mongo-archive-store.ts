@@ -1,41 +1,12 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { messageStore } from "./message-store";
-
-const SET_ON_INSERT = "$setOnInsert";
-
-interface ArchiveEntry {
-	messageId: string;
-	topic: string;
-	eventType: string;
-	producer: string;
-	payload: unknown;
-	metadata: Record<string, unknown>;
-	archivedAt: Date;
-	ttl: Date;
-}
-
-interface MongoClient {
-	db: (name: string) => {
-		collection: (name: string) => {
-			insertMany: (docs: unknown[]) => Promise<unknown>;
-			createIndex: (
-				keys: Record<string, number>,
-				opts?: Record<string, unknown>
-			) => Promise<string>;
-			countDocuments: (filter: Record<string, unknown>) => Promise<number>;
-			deleteMany: (
-				filter: Record<string, unknown>
-			) => Promise<{ deletedCount: number }>;
-			bulkWrite: (ops: unknown[]) => Promise<unknown>;
-		};
-	};
-	close: () => Promise<void>;
-}
+import { MongoArchiveBatchWriter } from "./mongo-archive-batch";
+import type { MongoClient } from "./mongo-archive-batch";
 
 export class MongoArchiveStore {
 	private _client: MongoClient | null = null;
+	private _batchWriter: MongoArchiveBatchWriter | null = null;
 	private _archiveTimer: ReturnType<typeof setInterval> | null = null;
 	private _started = false;
 	private _topicsCache: string[] = [];
@@ -77,13 +48,18 @@ export class MongoArchiveStore {
 	}
 
 	private async _connectClient(): Promise<void> {
-		const { MongoClient } = await import("mongodb");
-		this._client = new MongoClient(
+		const { MongoClient: MongoDriver } = await import("mongodb");
+		this._client = new MongoDriver(
 			ENV.MONGO_ARCHIVE_URI!
 		) as unknown as MongoClient;
 		await (
 			this._client as unknown as { connect: () => Promise<void> }
 		).connect();
+		this._batchWriter = new MongoArchiveBatchWriter(
+			this._client,
+			ENV.MONGO_ARCHIVE_DB,
+			ENV.MONGO_ARCHIVE_COLLECTION
+		);
 		logger.info("MongoDB archival store connected");
 	}
 
@@ -92,36 +68,13 @@ export class MongoArchiveStore {
 			return;
 		}
 		try {
-			const col = this._getCollection();
-			await this._createIndexes(col);
+			await this._batchWriter!.createIndexes();
 			logger.info("MongoDB archive indexes ensured");
 		} catch (err) {
 			logger.warn("Failed to create archive indexes", { context: {
 				error: (err as Error).message,
 			} });
 		}
-	}
-
-	private _getCollection(): ReturnType<ReturnType<MongoClient["db"]>["collection"]> {
-		return this._client!
-			.db(ENV.MONGO_ARCHIVE_DB)
-			.collection(ENV.MONGO_ARCHIVE_COLLECTION) as ReturnType<
-				ReturnType<MongoClient["db"]>["collection"]
-			>;
-	}
-
-	private async _createIndexes(
-		col: ReturnType<ReturnType<MongoClient["db"]>["collection"]>
-	): Promise<void> {
-		await col.createIndex(
-			{ messageId: 1 },
-			{ unique: true, background: true }
-		);
-		await col.createIndex({ topic: 1, archivedAt: -1 }, { background: true });
-		await col.createIndex(
-			{ ttl: 1 },
-			{ expireAfterSeconds: 0, background: true }
-		);
 	}
 
 	private _startTopicsCacheRefresh(): void {
@@ -175,19 +128,9 @@ export class MongoArchiveStore {
 				return;
 			}
 
-			await this._writeArchiveBatch(messages);
+			await this._batchWriter!.writeArchiveBatch(messages);
 		} catch {
 			// continue to next topic
-		}
-	}
-
-	private async _writeArchiveBatch(messages: import("@trading-model/common/contracts/message.types").Message[]): Promise<void> {
-		const entries = messages.map(_messageToArchiveEntry);
-		const bulkOps = _buildBulkUpserts(entries);
-
-		if (bulkOps.length > 0) {
-			const col = this._getCollection();
-			await col.bulkWrite(bulkOps);
 		}
 	}
 
@@ -226,44 +169,3 @@ export class MongoArchiveStore {
 }
 
 export const mongoArchiveStore = new MongoArchiveStore();
-
-function _messageToArchiveEntry(msg: Message): ArchiveEntry {
-	return {
-		messageId: msg.metadata.messageId ?? "",
-		topic: msg.metadata.topic,
-		eventType: msg.metadata.eventType,
-		producer: msg.metadata.publisher?.serviceName ?? "unknown",
-		payload: msg.payload,
-		metadata: msg.metadata as unknown as Record<string, unknown>,
-		archivedAt: new Date(),
-		ttl: new Date(Date.now() + ENV.MONGO_ARCHIVE_RETENTION_DAYS * 86400_000),
-	};
-}
-
-function _buildBulkUpserts(entries: ArchiveEntry[]): Array<{
-	updateOne: {
-		filter: { messageId: string };
-		update: { [SET_ON_INSERT]: ArchiveEntry };
-		upsert: true;
-	};
-}> {
-	return entries
-		.filter((entry) => entry.messageId)
-		.map((entry) => _upsertOperation(entry));
-}
-
-function _upsertOperation(entry: ArchiveEntry): {
-	updateOne: {
-		filter: { messageId: string };
-		update: { [SET_ON_INSERT]: ArchiveEntry };
-		upsert: true;
-	};
-} {
-	return {
-		updateOne: {
-			filter: { messageId: entry.messageId },
-			update: { [SET_ON_INSERT]: entry },
-			upsert: true,
-		},
-	};
-}

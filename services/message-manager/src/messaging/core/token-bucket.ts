@@ -1,3 +1,9 @@
+export interface TokenBucketConfig {
+	capacity: number;
+	refillRate: number;
+	refillIntervalMs: number;
+}
+
 export class TokenBucket {
 	private _capacity: number;
 	private _refillRate: number;
@@ -6,11 +12,11 @@ export class TokenBucket {
 	private _lastRefill: number;
 	private _metricCallback: ((usage: number) => void) | null = null;
 
-	constructor(capacity: number, refillRate: number, refillIntervalMs: number) {
-		this._capacity = capacity;
-		this._refillRate = refillRate;
-		this._refillIntervalMs = refillIntervalMs;
-		this._tokens = capacity;
+	constructor(config: TokenBucketConfig) {
+		this._capacity = config.capacity;
+		this._refillRate = config.refillRate;
+		this._refillIntervalMs = config.refillIntervalMs;
+		this._tokens = config.capacity;
 		this._lastRefill = Date.now();
 	}
 

@@ -22,6 +22,14 @@ import type {
 	LayerMemory,
 	NeuralNetworkConfig,
 } from "./type";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	LossFunctionType,
+	NormalisationType,
+	OptimizerType,
+} from "./type";
 
 function _resolveActivationType(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig>["activationType"] {
 	return cfg.activationType ?? new Array(cfg.neuronsByLayer.length - 1).fill(ActivationType.Relu);

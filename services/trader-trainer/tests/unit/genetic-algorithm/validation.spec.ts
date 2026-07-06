@@ -4,6 +4,11 @@ import {
 	repairGenome,
 	validateGenome,
 } from "../../../src/core/genetic-algorithm/validation";
+import {
+	ContinuousPolicyType,
+	DiscretePolicyType,
+	NormalisationType,
+} from "../../../src/core/genetic-algorithm/genome";
 
 describe("Validation - validateGenome", () => {
 	test("should validate a default genome as valid", () => {
@@ -115,7 +120,7 @@ describe("Validation - repairGenome", () => {
 		const genome = createDefaultGenome("repair");
 		genome.network.normalization = "invalid" as any;
 		const repaired = repairGenome(genome);
-		expect(repaired.network.normalization).toBe("none");
+		expect(repaired.network.normalization).toBe(NormalisationType.None);
 	});
 
 	test("should repair inverted clipMin/clipMax", () => {
@@ -258,8 +263,8 @@ describe("Validation - repairGenome", () => {
 		expect(repaired.rl.continuousPolicy.clipMin).toBe(-1);
 		expect(repaired.rl.continuousPolicy.clipMax).toBe(1);
 		expect(repaired.rl.rewardShaping.scaleFactor).toBe(1);
-		expect(repaired.rl.discretePolicy.type).toBe("epsilon_greedy");
-		expect(repaired.rl.continuousPolicy.type).toBe("tanh_squashing");
+		expect(repaired.rl.discretePolicy.type).toBe(DiscretePolicyType.EpsilonGreedy);
+		expect(repaired.rl.continuousPolicy.type).toBe(ContinuousPolicyType.TanhSquashing);
 		expect(repaired.gaControl.populationSize).toBe(20);
 	});
 

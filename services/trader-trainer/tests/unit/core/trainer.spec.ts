@@ -7,6 +7,20 @@ import {
 	makeMinimalBestGenome,
 } from "../../fixtures/genome.fixture";
 import { feedCandles } from "../../fixtures/market-data.fixture";
+import {
+	ActivationType,
+	ConnectionType,
+	ContinuousPolicyType,
+	CrossoverType,
+	DiscretePolicyType,
+	FitnessType,
+	InitialisationType,
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
+	NormalisationType,
+	SelectionType,
+} from "../../../src/core/genetic-algorithm/genome";
 
 jest.mock<{ env: any }>("../../../src/config/env", () => ({
 	env: {
@@ -54,8 +68,8 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 					elitismFraction: 0.1,
 					survivorFraction: 0.5,
 					episodesPerIndividual: 3,
-					selectionType: "tournament",
-					fitnessType: "total_pnl",
+					selectionType: SelectionType.Tournament,
+					fitnessType: FitnessType.TotalPnl,
 				},
 				network: {
 					inputDim: 32,
@@ -63,12 +77,12 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 					hiddenLayers: [
 						{
 							neurons: 64,
-							activation: "relu",
-							connectionType: "dense-skip",
-							biasType: "zeros",
+							activation: ActivationType.Relu,
+							connectionType: ConnectionType.DenseSkip,
+							biasType: InitialisationType.Zeros,
 						},
 					],
-					normalization: "none",
+					normalization: NormalisationType.None,
 				},
 				rl: {
 					gamma: 0.99,
@@ -84,14 +98,14 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 					},
 					horizon: { maxEpisodeLength: 500, nStepReturn: 1, frameSkip: 1 },
 					discretePolicy: {
-						type: "epsilon_greedy",
+						type: DiscretePolicyType.EpsilonGreedy,
 						epsilonStart: 1.0,
 						epsilonMin: 0.05,
 						epsilonDecay: 0.995,
 						temperature: 1.0,
 					},
 					continuousPolicy: {
-						type: "tanh_squashing",
+						type: ContinuousPolicyType.TanhSquashing,
 						clipMin: -1,
 						clipMax: 1,
 						noiseStd: 0.1,
@@ -109,9 +123,9 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 					rate: 0.1,
 					sigma: 0.05,
 					noiseStd: 0.02,
-					distribution: "gaussian",
-					adaptation: "fixed",
-					scope: "global",
+					distribution: MutationDistribution.Gaussian,
+					adaptation: MutationAdaptation.Fixed,
+					scope: MutationScope.Global,
 					selfSigma: 0.05,
 					mutateActivations: false,
 					activationMutationRate: 0.05,
@@ -124,7 +138,7 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 					removeConnectionRate: 0.01,
 				},
 				crossover: {
-					type: "uniform",
+					type: CrossoverType.Uniform,
 					probability: 0.7,
 					blendAlpha: 0.5,
 					sbxEta: 2,

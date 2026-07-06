@@ -2,7 +2,8 @@
 //                   parent selection operators
 // ================================================================
 
-import type { LamarckGenome, SelectionType } from "./genome-types";
+import { SelectionType } from "./genome-types";
+import type { LamarckGenome } from "./genome-types";
 
 // ----------------------------------------------------------------
 // Selection strategy interface & implementations

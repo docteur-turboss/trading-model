@@ -4,15 +4,20 @@ import type {
 	Experience,
 	NetworkArchitecture,
 } from "../../../src/core/neural-network/type";
+import {
+	ActivationType,
+	ConnectionType,
+	NormalisationType,
+} from "../../../src/core/neural-network/type";
 
 function makeConfig(
 	overrides?: Partial<NetworkArchitecture>
 ): NetworkArchitecture {
 	return {
 		neuronsByLayer: [4, 6, 3],
-		activationType: ["relu", "sigmoid"],
-		normalisationType: "none",
-		connectionType: "fully-connected",
+		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
+		normalisationType: NormalisationType.None,
+		connectionType: ConnectionType.FullyConnected,
 		enablePool: true,
 		poolMaxSize: 100,
 		...overrides,

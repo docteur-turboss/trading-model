@@ -2,16 +2,22 @@
 //                  genome mutation operators
 // ================================================================
 
-import type {
+import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
+	NormalisationType,
+} from "../neural-network/type";
+import {
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
+} from "./genome-types";
+import type {
 	LamarckGenome,
 	LayerGenome,
-	MutationAdaptation,
 	MutationGenome,
 	NetworkGenome,
-	NormalisationType,
 	RLGenome,
 } from "./genome-types";
 import { sampleGaussian, sampleNoise } from "./noise";
@@ -22,35 +28,35 @@ import { clamp } from "./utils";
 // ----------------------------------------------------------------
 
 const NORM_TYPES: NormalisationType[] = [
-	"none",
-	"logarithmic-normalization",
-	"decimal-scaling",
-	"border",
-	"min-max",
-	"robust-scaling",
-	"z-score",
+	NormalisationType.None,
+	NormalisationType.LogarithmicNormalization,
+	NormalisationType.DecimalScaling,
+	NormalisationType.Border,
+	NormalisationType.MinMax,
+	NormalisationType.RobustScaling,
+	NormalisationType.ZScore,
 ];
 const ACTIVATIONS: ActivationType[] = [
-	"relu",
-	"sigmoid",
-	"tanh",
-	"leakyReLu",
-	"elu",
-	"mish",
-	"gelu",
-	"softmax",
+	ActivationType.Relu,
+	ActivationType.Sigmoid,
+	ActivationType.Tanh,
+	ActivationType.LeakyReLu,
+	ActivationType.Elu,
+	ActivationType.Mish,
+	ActivationType.Gelu,
+	ActivationType.Softmax,
 ];
 const CONNECTION_TYPES: ConnectionType[] = [
-	"dense-skip",
-	"fully-connected",
-	"residual-connection",
+	ConnectionType.DenseSkip,
+	ConnectionType.FullyConnected,
+	ConnectionType.ResidualConnection,
 ];
 const BIAS_TYPES: InitialisationType[] = [
-	"zeros",
-	"random",
-	"xavier",
-	"he",
-	"leCun",
+	InitialisationType.Zeros,
+	InitialisationType.Random,
+	InitialisationType.Xavier,
+	InitialisationType.He,
+	InitialisationType.LeCun,
 ];
 
 function pick<TValue>(arr: TValue[], rng: () => number): TValue {
@@ -390,8 +396,8 @@ function _createRandomLayer(rng: () => number): LayerGenome {
 	return {
 		neurons: 16 + Math.floor(rng() * 32),
 		activation: pick(ACTIVATIONS, rng),
-		connectionType: "dense-skip",
-		biasType: "zeros",
+		connectionType: ConnectionType.DenseSkip,
+		biasType: InitialisationType.Zeros,
 	};
 }
 

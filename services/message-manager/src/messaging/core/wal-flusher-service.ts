@@ -151,6 +151,28 @@ export class WalFlusherService {
 		}
 	}
 
+	private _waitForDrainCompletion(
+		gen: number,
+		timeoutMs: number
+	): Promise<void> {
+		return new Promise<void>((resolve) => {
+			const timer = setTimeout(() => {
+				if (this._walDrainGen === gen) {
+					this._walDrainResolve = null;
+					logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
+					resolve();
+				}
+			}, timeoutMs);
+			this._walDrainResolve = () => {
+				if (this._walDrainGen === gen) {
+					clearTimeout(timer);
+					this._walDrainResolve = null;
+					resolve();
+				}
+			};
+		});
+	}
+
 	private async _tryDrainAll(): Promise<boolean> {
 		await this._memoryWalBuffer.drainAll();
 		const redis = await getStreamClient();

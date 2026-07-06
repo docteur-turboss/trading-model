@@ -5,7 +5,7 @@ import path from "node:path";
 
 import type { Application } from "express";
 import { logger } from "../config/logger";
-import type { TlsPaths } from "../domain/tls-paths";
+import type { TlsPemBundle, TlsPaths } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
 
 export interface HttpsServerOptions {
@@ -39,7 +39,7 @@ export async function createAndStartHttpsServer(
 
 async function _loadTlsFiles(
 	tls: TlsPaths
-): Promise<{ key: string; cert: string; ca: string }> {
+): Promise<TlsPemBundle> {
 	const [key, cert, ca] = await Promise.all([
 		fsPromises.readFile(path.resolve(tls.keyPath), "utf8"),
 		fsPromises.readFile(path.resolve(tls.certPath), "utf8"),
@@ -50,7 +50,7 @@ async function _loadTlsFiles(
 
 function _createHttpsServer(
 	app: Application,
-	tlsContext: { key: string; cert: string; ca: string }
+	tlsContext: TlsPemBundle
 ): https.Server {
 	return https.createServer(
 		{

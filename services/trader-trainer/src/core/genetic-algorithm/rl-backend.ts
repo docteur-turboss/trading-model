@@ -1,10 +1,12 @@
+import { Price } from "@trading-model/common/domain/primitives";
+import { ConnectionType, InitialisationType } from "../neural-network/type";
 import type { Experience } from "../../core/neural-network/type";
 import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 export interface RLBackend {
 	forwardPass(features: Float32Array): Float32Array;
-	step(features: Float32Array, price: number): { reward: number };
+	step(features: Float32Array, price: Price): { reward: number };
 	train(experience: Experience, gamma: number): void;
 	getWeights(): Float32Array;
 	setWeights(weights: Float32Array): void;
@@ -51,7 +53,7 @@ function _buildAgentConfig(
 ): TradingAgentConfig {
 	return {
 		nnConfig: _buildNNConfig(genome, genome.rl.replayBuffer),
-		wallet: { initialCash: 1000, initialPrice: 1 },
+		wallet: { initialCash: 1000, initialPrice: Price.of(1) },
 		actionSpace: "discrete",
 		tradeAmount: 1,
 		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy, genome.rl.gamma),

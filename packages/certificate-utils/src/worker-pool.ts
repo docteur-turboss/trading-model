@@ -1,20 +1,12 @@
-import { randomUUID } from "node:crypto";
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import { Worker } from "node:worker_threads";
+import { WorkerTaskQueue, type TaskEntry } from "./worker-task-queue";
 
 export interface WorkerPoolOptions {
 	size?: number;
 	workerScript?: string;
 	maxQueueSize?: number;
-}
-
-interface TaskEntry {
-	id: string;
-	type: string;
-	data: Record<string, unknown>;
-	resolve: (value: unknown) => void;
-	reject: (reason: unknown) => void;
 }
 
 interface WorkerEntry {
@@ -24,17 +16,15 @@ interface WorkerEntry {
 
 export class WorkerPool {
 	private readonly _workers: WorkerEntry[] = [];
-	private readonly _pendingTasks = new Map<string, TaskEntry>();
-	private readonly _queue: TaskEntry[] = [];
+	private readonly _taskQueue: WorkerTaskQueue;
 	private readonly _workerScript: string;
 	private readonly _poolSize: number;
-	private readonly _maxQueueSize: number;
 	private _started = false;
 	private _terminated = false;
 
 	constructor(options: WorkerPoolOptions = {}) {
 		this._poolSize = options.size ?? availableParallelism();
-		this._maxQueueSize = options.maxQueueSize ?? Number.POSITIVE_INFINITY;
+		this._taskQueue = new WorkerTaskQueue(options.maxQueueSize);
 		this._workerScript =
 			options.workerScript ?? join(__dirname, "worker-script.js");
 	}
@@ -46,64 +36,35 @@ export class WorkerPool {
 
 	execute<TValue>(
 		type: string,
-		data: Record<string, unknown>
+		data: Record<string, unknown>,
 	): Promise<TValue> {
-		return new Promise((resolve, reject) => {
-			if (this._terminated) {
-				reject(new Error("WorkerPool is terminated"));
-				return;
-			}
+		if (this._terminated) {
+			return Promise.reject(new Error("WorkerPool is terminated"));
+		}
 
-			this._ensureStarted();
+		this._ensureStarted();
 
-			if (this._queue.length >= this._maxQueueSize) {
-				reject(new Error("WorkerPool queue is full"));
-				return;
-			}
-
-			const entry: TaskEntry = {
-				id: randomUUID(),
-				type,
-				data,
-				resolve: resolve as (value: unknown) => void,
-				reject,
-			};
-
-			this._pendingTasks.set(entry.id, entry);
-
-			const idleWorker = this._workers.find((workerEntry) => !workerEntry.busy);
-			if (idleWorker) {
-				this._dispatch(idleWorker, entry);
-			} else {
-				this._queue.push(entry);
-			}
-		});
+		return this._taskQueue.enqueue(type, data, (task) =>
+			this._tryDispatch(task),
+		) as Promise<TValue>;
 	}
 
 	get pending(): number {
-		return this._queue.length;
+		return this._taskQueue.pending;
 	}
 
 	get active(): number {
-		return this._workers.filter((workerEntry) => workerEntry.busy).length;
+		return this._taskQueue.active;
 	}
 
 	get size(): number {
 		return this._workers.length;
 	}
 
-	private _rejectAll(entries: Iterable<TaskEntry>, message: string): void {
-		for (const entry of entries) {
-			entry.reject(new Error(message));
-		}
-	}
-
 	async terminate(): Promise<void> {
 		this._terminated = true;
-		this._rejectAll(this._queue, "WorkerPool terminated");
-		this._queue.length = 0;
-		this._rejectAll(this._pendingTasks.values(), "WorkerPool terminated");
-		this._pendingTasks.clear();
+		this._taskQueue.rejectAll("WorkerPool terminated");
+		this._taskQueue.clear();
 		await this._terminateAllWorkers();
 		this._workers.length = 0;
 	}
@@ -135,31 +96,23 @@ export class WorkerPool {
 			success: boolean;
 			data?: unknown;
 			error?: string;
-		}
+		},
 	): void {
 		entry.busy = false;
-
-		const task = this._pendingTasks.get(msg.id);
-		if (task) {
-			this._pendingTasks.delete(msg.id);
-			if (msg.success) {
-				task.resolve(msg.data);
-			} else {
-				task.reject(new Error(msg.error ?? "Unknown worker error"));
-			}
-		}
-
-		this._processQueue();
+		this._taskQueue.resolveTask(msg.id, msg.success, msg.data, msg.error);
+		this._taskQueue.processQueue((task) => this._tryDispatch(task));
 	}
 
 	private _onWorkerError(entry: WorkerEntry): void {
 		entry.busy = false;
+		this._taskQueue.decrementActive();
 		this._replaceWorker(entry);
 	}
 
 	private _onWorkerExit(entry: WorkerEntry, code: number): void {
 		entry.busy = false;
 		if (code !== 0 && !this._terminated) {
+			this._taskQueue.decrementActive();
 			this._replaceWorker(entry);
 		}
 	}
@@ -186,6 +139,17 @@ export class WorkerPool {
 		}
 	}
 
+	private _tryDispatch(task: TaskEntry): boolean {
+		const idleWorker = this._workers.find(
+			(workerEntry) => !workerEntry.busy,
+		);
+		if (!idleWorker) {
+			return false;
+		}
+		this._dispatch(idleWorker, task);
+		return true;
+	}
+
 	private _dispatch(entry: WorkerEntry, task: TaskEntry): void {
 		entry.busy = true;
 		entry.worker.postMessage({
@@ -193,17 +157,5 @@ export class WorkerPool {
 			type: task.type,
 			data: task.data,
 		});
-	}
-
-	private _processQueue(): void {
-		while (this._queue.length > 0) {
-			const idleWorker = this._workers.find((workerEntry) => !workerEntry.busy);
-			if (!idleWorker) {
-				break;
-			}
-
-			const next = this._queue.shift()!;
-			this._dispatch(idleWorker, next);
-		}
 	}
 }

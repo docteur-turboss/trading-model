@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import type { TradingAgentConfig } from "../../../src/core/agent/trading-agent";
 import { TradingAgent } from "../../../src/core/agent/trading-agent";
+import { Price } from "@trading-model/common/domain/primitives";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	LossFunctionType,
+	NormalisationType,
+} from "../../../src/core/neural-network/type";
 
 function makeConfig(
 	overrides?: Partial<TradingAgentConfig>
@@ -8,16 +16,16 @@ function makeConfig(
 	return {
 		nnConfig: {
 			neuronsByLayer: [4, 6, 3],
-			activationType: ["relu", "sigmoid"],
-			initialisationType: "zeros",
-			lossFunctionType: "mean-squared-error",
-			normalisationType: "none",
-			connectionType: "fully-connected",
+			activationType: [ActivationType.Relu, ActivationType.Sigmoid],
+			initialisationType: InitialisationType.Zeros,
+			lossFunctionType: LossFunctionType.MeanSquaredError,
+			normalisationType: NormalisationType.None,
+			connectionType: ConnectionType.FullyConnected,
 			learningRate: 0.01,
 			enablePool: true,
 			poolMaxSize: 100,
 		},
-		wallet: { initialCash: 1000, initialPrice: 100 },
+		wallet: { initialCash: 1000, initialPrice: Price.of(100) },
 		actionSpace: "discrete",
 		tradeAmount: 1,
 		stateManagerCfg: {
@@ -174,13 +182,13 @@ describe("TradingAgent", () => {
 
 	describe("step", () => {
 		it("should update wallet price when price is provided", () => {
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 105);
+			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
 
 			expect(agent.wallet.getPrice()).toBe(105);
 		});
 
 		it("should return an action, reward, and metrics", () => {
-			const result = agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 105);
+			const result = agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
 
 			expect(result).toHaveProperty("action");
 			expect(result).toHaveProperty("reward");
@@ -189,14 +197,14 @@ describe("TradingAgent", () => {
 
 		it("should decay epsilon after step", () => {
 			const epsilonBefore = agent.state.getEpsilon();
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 105);
+			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
 			const epsilonAfter = agent.state.getEpsilon();
 
 			expect(epsilonAfter).toBeLessThan(epsilonBefore);
 		});
 
 		it("should execute a trade and record it in wallet history", () => {
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 105);
+			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
 
 			const history = agent.wallet.getHistory();
 			expect(history.length).toBeGreaterThanOrEqual(0);
@@ -222,7 +230,7 @@ describe("TradingAgent", () => {
 			buf[50] = 5; // output biases: idx 0/1 low, idx 2 high
 			agent.setWeights(buf);
 
-			const result = agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 105);
+			const result = agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
 
 			expect(result.action).toBe("buy");
 		});
@@ -230,7 +238,7 @@ describe("TradingAgent", () => {
 
 	describe("resetEpisode", () => {
 		it("should reset wallet to initial state", () => {
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 200);
+			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(200));
 
 			agent.resetEpisode();
 
@@ -239,8 +247,8 @@ describe("TradingAgent", () => {
 		});
 
 		it("should reset epsilon to starting value", () => {
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 105);
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 110);
+			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
+			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(110));
 
 			agent.resetEpisode();
 
@@ -248,7 +256,7 @@ describe("TradingAgent", () => {
 		});
 
 		it("should clear the neural network pool", () => {
-			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), 105);
+			agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
 
 			agent.resetEpisode();
 

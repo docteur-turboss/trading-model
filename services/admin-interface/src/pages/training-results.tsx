@@ -100,12 +100,18 @@ function GenomeViewer({ genome }: { genome: unknown }) {
 	return <GenomeJson genome={genome} />;
 }
 
+function sharpeColor(sharpe: number): "success" | "warning" | "error" {
+	if (sharpe >= 1.5) return "success";
+	if (sharpe >= 1) return "warning";
+	return "error";
+}
+
 function SharpeChip({ sharpe }: { sharpe: number }) {
 	return (
 		<Chip
 			size="small"
 			label={sharpe.toFixed(2)}
-			color={sharpe >= 1.5 ? "success" : sharpe >= 1 ? "warning" : "error"}
+			color={sharpeColor(sharpe)}
 			variant="outlined"
 		/>
 	);

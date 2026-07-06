@@ -3,6 +3,7 @@ import { URL } from "node:url";
 
 import type { z } from "zod";
 
+import type { TlsCredentials } from "../domain/tls-paths";
 import { sleep } from "../utils/sleep";
 import {
 	checkHostnameCircuit,
@@ -13,39 +14,50 @@ import {
 	recordServiceSuccess,
 } from "./http-circuit-breaker";
 import { HttpClientError, HttpClientTimeoutError } from "./http-client-errors";
-import { DEFAULT_RETRY_COUNT, computeRetryDelay, isRetryableStatus } from "./http-retry";
 import { collectResponseBody } from "./http-response";
+import {
+	computeRetryDelay,
+	DEFAULT_RETRY_COUNT,
+	isRetryableStatus,
+} from "./http-retry";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
 import { buildRequestOptions } from "./http-utils";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
+export interface RequestContext<TResponse> {
+	method: HttpMethod;
+	urlStr: string;
+	body?: unknown;
+	options?: HttpRequestOptions;
+	schema?: z.ZodType<TResponse>;
+}
+
+export interface ServiceRoute {
+	hostname: string;
+	serviceName?: string;
+}
+
 export class HttpRequestExecutor {
 	async execute<TResponse>(
-		method: HttpMethod,
-		urlStr: string,
-		body: unknown,
-		schema: z.ZodType<TResponse> | undefined,
-		options: HttpRequestOptions | undefined,
-		ca?: string,
-		cert?: string,
-		key?: string
+		context: RequestContext<TResponse>,
+		tls?: TlsCredentials
 	): Promise<TResponse | undefined> {
-		const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-		const url = new URL(urlStr);
-		const requestOptions = buildRequestOptions(method, url, {
-			...options,
-			cert,
-			key,
-			ca,
+		const timeoutMs = context.options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+		const url = new URL(context.urlStr);
+		const requestOptions = buildRequestOptions(context.method, url, {
+			...context.options,
+			...tls,
 		});
 
 		return new Promise<TResponse | undefined>((resolve, reject) => {
 			const req = https.request(requestOptions, (res) => {
-				collectResponseBody({ res, method, urlStr, schema }).then(
-					resolve,
-					reject
-				);
+				collectResponseBody({
+					res,
+					method: context.method,
+					urlStr: context.urlStr,
+					schema: context.schema,
+				}).then(resolve, reject);
 			});
 
 			req.on("error", (err) => reject(err));
@@ -67,8 +79,8 @@ export class HttpRequestExecutor {
 				req.removeListener("timeout", onTimeout);
 			});
 
-			if (body) {
-				req.write(JSON.stringify(body));
+			if (context.body) {
+				req.write(JSON.stringify(context.body));
 			}
 
 			req.end();
@@ -76,33 +88,17 @@ export class HttpRequestExecutor {
 	}
 
 	async executeWithRetry<TResponse>(
-		method: HttpMethod,
-		urlStr: string,
-		body: unknown,
-		schema: z.ZodType<TResponse> | undefined,
-		options: HttpRequestOptions | undefined,
-		hostname: string,
-		serviceName: string | undefined,
-		ca?: string,
-		cert?: string,
-		key?: string
+		context: RequestContext<TResponse>,
+		route: ServiceRoute,
+		tls?: TlsCredentials
 	): Promise<TResponse | undefined> {
-		const retryCount = options?.retryCount ?? DEFAULT_RETRY_COUNT;
+		const retryCount = context.options?.retryCount ?? DEFAULT_RETRY_COUNT;
 		let lastError: Error | null = null;
 
 		for (let attempt = 0; attempt <= retryCount; attempt++) {
 			try {
-				const result = await this.execute(
-					method,
-					urlStr,
-					body,
-					schema,
-					options,
-					ca,
-					cert,
-					key
-				);
-				this.recordSuccess(hostname, serviceName);
+				const result = await this.execute(context, tls);
+				this.recordSuccess(route.hostname, route.serviceName);
 				return result;
 			} catch (error) {
 				lastError = error instanceof Error ? error : new Error(String(error));
@@ -113,9 +109,9 @@ export class HttpRequestExecutor {
 				}
 
 				this.recordFailure(
-					hostname,
-					serviceName,
-					options?.serviceInstanceCount
+					route.hostname,
+					route.serviceName,
+					context.options?.serviceInstanceCount
 				);
 				throw lastError;
 			}
@@ -127,7 +123,7 @@ export class HttpRequestExecutor {
 	checkPreconditions(
 		urlStr: string,
 		options?: HttpRequestOptions
-	): { hostname: string; serviceName: string | undefined } {
+	): ServiceRoute {
 		const hostname = new URL(urlStr).hostname;
 		const serviceName = options?.serviceName;
 		checkHostnameCircuit(hostname);

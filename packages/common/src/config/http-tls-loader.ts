@@ -1,5 +1,6 @@
 import fs from "node:fs";
 
+import type { TlsCredentials } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
 
 async function readTlsFile(filePath: string, label: string): Promise<string> {
@@ -18,24 +19,24 @@ export class HttpTlsLoader {
 	private _cert?: string;
 	private _key?: string;
 	private _tlsLoaded = false;
-	private readonly _tlsPaths?: { ca?: string; cert?: string; key?: string };
+	private readonly _tlsConfig?: TlsCredentials;
 	private _tlsLoadPromise: Promise<void> | null = null;
 
-	constructor(tlsConfig?: { ca?: string; cert?: string; key?: string }) {
-		this._tlsPaths = tlsConfig;
+	constructor(tlsConfig?: TlsCredentials) {
+		this._tlsConfig = tlsConfig;
 	}
 
 	async ensureLoaded(): Promise<void> {
-		if (this._tlsLoaded || !this._tlsPaths) {
+		if (this._tlsLoaded || !this._tlsConfig) {
 			return;
 		}
 
 		this._tlsLoadPromise ??= (async () => {
-			if (!this._tlsPaths) {
+			if (!this._tlsConfig) {
 				this._tlsLoaded = true;
 				return;
 			}
-			const { ca, cert, key } = this._tlsPaths;
+			const { ca, cert, key } = this._tlsConfig;
 			if (ca) {
 				this._ca = await readTlsFile(ca, "CA certificate");
 			}
@@ -64,6 +65,6 @@ export class HttpTlsLoader {
 	}
 
 	get hasTlsConfig(): boolean {
-		return !!this._tlsPaths;
+		return !!this._tlsConfig;
 	}
 }

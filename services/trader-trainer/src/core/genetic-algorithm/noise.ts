@@ -2,7 +2,7 @@
 //                noise samplers for mutation
 // ================================================================
 
-import type { MutationDistribution } from "./genome-types";
+import { MutationDistribution } from "./genome-types";
 
 // ----------------------------------------------------------------
 // Noise sampler interface

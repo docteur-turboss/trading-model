@@ -178,13 +178,16 @@ function _recordFailedEntry(
 	result: PromiseSettledResult<void>,
 	ctx: ProcessBatchResultsOptions["ctx"]
 ): void {
+	const errorMsg = result.status === "rejected"
+		? (result.reason as Error)?.message ?? "unknown error"
+		: "unknown error";
 	ctx.errors.push({
 		id: entry?.id ?? "unknown",
-		error: (result.reason as Error)?.message ?? "unknown error",
+		error: errorMsg,
 	});
 	logger.error("DLQ replay entry failed", {
 		entryId: entry?.id,
-		error: (result.reason as Error)?.message,
+		error: errorMsg,
 		batchId: ctx.batchId,
 	});
 }

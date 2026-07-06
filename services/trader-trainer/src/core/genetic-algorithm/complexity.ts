@@ -2,6 +2,7 @@
 //        network complexity scoring & topology constraints
 // ================================================================
 
+import { ConnectionType } from "../neural-network/type";
 import type { Genome, NetworkGenome } from "./genome-types";
 
 // ----------------------------------------------------------------
@@ -54,7 +55,7 @@ function _countHiddenToHidden(layers: NetworkGenome["hiddenLayers"]): number {
 	let total = 0;
 	for (let i = 1; i < layers.length; i++) {
 		total += layers[i - 1].neurons * layers[i].neurons + layers[i].neurons;
-		if (layers[i].connectionType !== "fully-connected" && layers[i - 1].neurons !== layers[i].neurons) {
+		if (layers[i].connectionType !== ConnectionType.FullyConnected && layers[i - 1].neurons !== layers[i].neurons) {
 			total += layers[i - 1].neurons * layers[i].neurons;
 		}
 	}

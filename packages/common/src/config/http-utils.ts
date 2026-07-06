@@ -1,5 +1,6 @@
 import https from "node:https";
-import { URL } from "node:url";
+import type { URL } from "node:url";
+import type { TlsCredentials } from "../domain/tls-paths";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
 
 let sharedAgent: https.Agent | null = null;
@@ -20,7 +21,7 @@ function getKeepAliveAgent(): https.Agent {
 function buildRequestOptions(
 	method: HttpMethod,
 	url: URL,
-	options: HttpRequestOptions & { cert?: string; key?: string; ca?: string }
+	options: HttpRequestOptions & TlsCredentials
 ): https.RequestOptions {
 	return {
 		method,

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { HttpClient } from "../config/http-client";
 import type { SchedulerWsJobAssignedMessage } from "../contracts/worker-protocol.types";
+import type { TlsPemBundle } from "../domain/tls-paths";
 import { WorkerClient, type WorkerClientConfig } from "./worker-client";
 
 export interface BaseWorkerConfig {
@@ -10,7 +11,7 @@ export interface BaseWorkerConfig {
 	capabilities: string[];
 	maxConcurrency: number;
 	heartbeatIntervalMs?: number;
-	tlsConfig?: { ca?: string; cert?: string; key?: string };
+	tlsConfig?: TlsPemBundle;
 }
 
 export type JobHandler<TData = unknown> = (job: {

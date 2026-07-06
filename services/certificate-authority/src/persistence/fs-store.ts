@@ -61,22 +61,27 @@ export class FsStore {
 	}) {
 		this._baseDir = options?.baseDir ?? path.join(process.cwd(), "data", "ca-fallback");
 		this.disabled = options?.disableFallback ?? false;
+		this._encryptionKey = this._initEncryptionKey(options?.encryptionKey);
+	}
+
+	private _initEncryptionKey(encryptionKey?: string): Buffer | null {
 		if (this.disabled) {
-			this._encryptionKey = null;
 			logger.warn("FsStore is DISABLED — no fallback storage available", { context: { baseDir: this._baseDir } });
-		} else if (options?.encryptionKey) {
-			this._encryptionKey = deriveKey(options.encryptionKey);
-		} else if (process.env.NODE_ENV === "production") {
+			return null;
+		}
+		if (encryptionKey) {
+			return deriveKey(encryptionKey);
+		}
+		if (process.env.NODE_ENV === "production") {
 			throw new Error(
 				"FsStore: FS_ENCRYPTION_KEY is required in production for encrypted fallback storage. " +
 				'Generate with: node -e "console.log(crypto.randomBytes(32).toString(\'base64\'))". ' +
 				"To disable the filesystem fallback entirely (relying solely on MongoDB), set CA_DISABLE_FS_FALLBACK=true. " +
 				"Note: disabling FsStore means the CA will crash if MongoDB becomes unavailable."
 			);
-		} else {
-			this._encryptionKey = null;
-			logger.warn("FsStore: FS_ENCRYPTION_KEY not set — fallback data stored unencrypted. Acceptable for dev only.");
 		}
+		logger.warn("FsStore: FS_ENCRYPTION_KEY not set — fallback data stored unencrypted. Acceptable for dev only.");
+		return null;
 	}
 
 	async init(): Promise<void> {

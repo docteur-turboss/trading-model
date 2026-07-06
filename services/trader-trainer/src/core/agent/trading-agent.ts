@@ -1,3 +1,4 @@
+import { Price, Volume } from "@trading-model/common/domain/primitives";
 import {
 	createWallet,
 	type WalletConfig,
@@ -24,7 +25,7 @@ export class TradingAgent {
 	constructor(cfg: TradingAgentConfig) {
 		this._agent = new Agent(cfg.nnConfig);
 		this.wallet = createWallet(
-			cfg.wallet ?? { initialCash: 1000, initialPrice: 1 }
+			cfg.wallet ?? { initialCash: 1000, initialPrice: Price.of(1) }
 		);
 		this.state = new StateManager(cfg.stateManagerCfg ?? {});
 	}
@@ -82,7 +83,7 @@ export class TradingAgent {
 	/** Perform one environment step: update price, infer action, apply to wallet, and record reward */
 	public step(
 		input: Float32Array,
-		price?: number
+		price?: Price
 	): { action: string; reward: number; metrics: WalletMetrics } {
 		this._updatePrice(price);
 		const currentPnL = this.wallet.getPnL();
@@ -100,7 +101,7 @@ export class TradingAgent {
 		};
 	}
 
-	private _updatePrice(price?: number): void {
+	private _updatePrice(price?: Price): void {
 		if (price !== undefined) {
 			this.wallet.setPrice(price);
 		}
@@ -113,10 +114,10 @@ export class TradingAgent {
 
 	private _executeAction(action: string, amount: number): boolean {
 		if (action === "buy") {
-			return this.wallet.buy(amount);
+			return this.wallet.buy(Volume.of(amount));
 		}
 		if (action === "sell") {
-			return this.wallet.sell(amount);
+			return this.wallet.sell(Volume.of(amount));
 		}
 		return false;
 	}

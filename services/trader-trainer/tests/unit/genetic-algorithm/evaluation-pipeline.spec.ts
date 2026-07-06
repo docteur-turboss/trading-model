@@ -5,6 +5,18 @@ import {
 	pooledEval,
 } from "../../../src/core/genetic-algorithm/evaluation-pipeline";
 import type { Experience } from "../../../src/core/genetic-algorithm/shared-types";
+import {
+	ActivationType,
+	ContinuousPolicyType,
+	CrossoverType,
+	DiscretePolicyType,
+	FitnessType,
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
+	NormalisationType,
+	SelectionType,
+} from "../../../src/core/genetic-algorithm/genome";
 
 const MINIMAL_GENOME = {
 	id: "test",
@@ -13,20 +25,20 @@ const MINIMAL_GENOME = {
 		inputDim: 3,
 		outputDim: 3,
 		hiddenLayers: [],
-		normalization: "none" as const,
+		normalization: NormalisationType.None,
 	},
 	rl: {
 		gamma: 0.99,
 		learningRate: 0.001,
 		discretePolicy: {
-			type: "epsilon_greedy" as const,
+			type: DiscretePolicyType.EpsilonGreedy,
 			epsilonStart: 1.0,
 			epsilonMin: 0.01,
 			epsilonDecay: 0.995,
 			temperature: 1.0,
 		},
 		continuousPolicy: {
-			type: "action_clipping" as const,
+			type: ContinuousPolicyType.ActionClipping,
 			clipMin: -1,
 			clipMax: 1,
 			noiseStd: 0.1,
@@ -54,9 +66,9 @@ const MINIMAL_GENOME = {
 		rate: 0.1,
 		sigma: 0.5,
 		noiseStd: 0.1,
-		distribution: "gaussian" as const,
-		adaptation: "fixed" as const,
-		scope: "global" as const,
+		distribution: MutationDistribution.Gaussian,
+		adaptation: MutationAdaptation.Fixed,
+		scope: MutationScope.Global,
 		selfSigma: 0.5,
 		mutateActivations: false,
 		activationMutationRate: 0.1,
@@ -69,7 +81,7 @@ const MINIMAL_GENOME = {
 		removeConnectionRate: 0.1,
 	},
 	crossover: {
-		type: "uniform" as const,
+		type: CrossoverType.Uniform,
 		probability: 0.5,
 		blendAlpha: 0.5,
 		sbxEta: 15,
@@ -78,8 +90,8 @@ const MINIMAL_GENOME = {
 		populationSize: 20,
 		elitismFraction: 0.1,
 		survivorFraction: 0.5,
-		selectionType: "tournament" as const,
-		fitnessType: "total_pnl" as const,
+		selectionType: SelectionType.Tournament,
+		fitnessType: FitnessType.TotalPnl,
 		episodesPerIndividual: 2,
 		seedsPerEval: 1,
 		rewardThreshold: Number.POSITIVE_INFINITY,
@@ -228,8 +240,8 @@ describe("evaluateGenomeAllWindows", () => {
 			network: {
 				...MINIMAL_GENOME.network,
 				hiddenLayers: [
-					{ neurons: 10, activation: "relu" },
-					{ neurons: 5, activation: "sigmoid" },
+					{ neurons: 10, activation: ActivationType.Relu },
+					{ neurons: 5, activation: ActivationType.Sigmoid },
 				],
 			},
 		};

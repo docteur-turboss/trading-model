@@ -2,6 +2,7 @@ import { describe, expect, test } from "@jest/globals";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import type { LamarckGenome } from "../../../src/core/genetic-algorithm/genome-types";
 import { selectParent } from "../../../src/core/genetic-algorithm/selection";
+import { SelectionType } from "../../../src/core/genetic-algorithm/genome";
 
 function makePopulation(): LamarckGenome[] {
 	const pop: LamarckGenome[] = [];
@@ -24,14 +25,14 @@ describe("Selection - selectParent", () => {
 
 	test("tournament selection should return a parent", () => {
 		const pop = makePopulation();
-		const parent = selectParent(pop, "tournament", rng);
+		const parent = selectParent(pop, SelectionType.Tournament, rng);
 		expect(parent).toBeDefined();
 		expect(pop).toContain(parent);
 	});
 
 	test("tournament selection with k=1 should return random parent", () => {
 		const pop = makePopulation();
-		const parent = selectParent(pop, "tournament", () => 0.0, 1);
+		const parent = selectParent(pop, SelectionType.Tournament, () => 0.0, 1);
 		expect(parent).toBeDefined();
 	});
 
@@ -39,7 +40,7 @@ describe("Selection - selectParent", () => {
 		const pop = makePopulation();
 		const parent = selectParent(
 			pop,
-			"tournament",
+			SelectionType.Tournament,
 			makeAlternating(0.01, 0.4, 0.8),
 			3
 		);
@@ -48,39 +49,39 @@ describe("Selection - selectParent", () => {
 
 	test("roulette selection should return a parent", () => {
 		const pop = makePopulation();
-		const parent = selectParent(pop, "roulette", rng);
+		const parent = selectParent(pop, SelectionType.Roulette, rng);
 		expect(parent).toBeDefined();
 		expect(pop).toContain(parent);
 	});
 
 	test("roulette selection with rng=0 returns first element", () => {
 		const pop = makePopulation();
-		const parent = selectParent(pop, "roulette", () => 0.0);
+		const parent = selectParent(pop, SelectionType.Roulette, () => 0.0);
 		expect(parent).toBe(pop[0]);
 	});
 
 	test("roulette selection with rng near total returns last element", () => {
 		const pop = makePopulation();
-		const parent = selectParent(pop, "roulette", () => 0.999);
+		const parent = selectParent(pop, SelectionType.Roulette, () => 0.999);
 		expect(parent).toBeDefined();
 	});
 
 	test("rank selection should return a parent", () => {
 		const pop = makePopulation();
-		const parent = selectParent(pop, "rank", rng);
+		const parent = selectParent(pop, SelectionType.Rank, rng);
 		expect(parent).toBeDefined();
 		expect(pop).toContain(parent);
 	});
 
 	test("rank selection with rng=0 returns first element", () => {
 		const pop = makePopulation();
-		const parent = selectParent(pop, "rank", () => 0.0);
+		const parent = selectParent(pop, SelectionType.Rank, () => 0.0);
 		expect(parent).toBeDefined();
 	});
 
 	test("rank selection with high rng returns highest-fitness element", () => {
 		const pop = makePopulation();
-		const parent = selectParent(pop, "rank", () => 1.0);
+		const parent = selectParent(pop, SelectionType.Rank, () => 1.0);
 		expect(parent.fitness).toBe(0.8);
 	});
 
@@ -88,20 +89,20 @@ describe("Selection - selectParent", () => {
 		const pop = makePopulation();
 		const total = (pop.length * (pop.length + 1)) / 2;
 		const rng = () => (total + Number.EPSILON) / total;
-		const parent = selectParent(pop, "rank", rng);
+		const parent = selectParent(pop, SelectionType.Rank, rng);
 		expect(parent.fitness).toBe(0.8);
 	});
 
 	test("truncation selection should return a parent", () => {
 		const pop = makePopulation();
-		const parent = selectParent(pop, "truncation", rng);
+		const parent = selectParent(pop, SelectionType.Truncation, rng);
 		expect(parent).toBeDefined();
 		expect(pop).toContain(parent);
 	});
 
 	test("sus selection should return a parent", () => {
 		const pop = makePopulation();
-		const parent = selectParent(pop, "sus", rng);
+		const parent = selectParent(pop, SelectionType.Sus, rng);
 		expect(parent).toBeDefined();
 		expect(pop).toContain(parent);
 	});
@@ -113,7 +114,7 @@ describe("Selection - selectParent", () => {
 			g.fitness = undefined;
 			pop.push(g);
 		}
-		const parent = selectParent(pop, "tournament", rng);
+		const parent = selectParent(pop, SelectionType.Tournament, rng);
 		expect(parent).toBeDefined();
 	});
 
@@ -124,7 +125,7 @@ describe("Selection - selectParent", () => {
 			g.fitness = undefined;
 			pop.push(g);
 		}
-		const parent = selectParent(pop, "rank", rng);
+		const parent = selectParent(pop, SelectionType.Rank, rng);
 		expect(parent).toBeDefined();
 	});
 
@@ -135,7 +136,7 @@ describe("Selection - selectParent", () => {
 			g.fitness = 0;
 			pop.push(g);
 		}
-		const parent = selectParent(pop, "roulette", rng);
+		const parent = selectParent(pop, SelectionType.Roulette, rng);
 		expect(parent).toBeDefined();
 	});
 
@@ -146,7 +147,7 @@ describe("Selection - selectParent", () => {
 			g.fitness = undefined;
 			pop.push(g);
 		}
-		const parent = selectParent(pop, "roulette", rng);
+		const parent = selectParent(pop, SelectionType.Roulette, rng);
 		expect(parent).toBeDefined();
 	});
 });

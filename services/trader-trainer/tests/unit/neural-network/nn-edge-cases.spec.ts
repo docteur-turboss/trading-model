@@ -1,17 +1,24 @@
 import { describe, expect, it } from "@jest/globals";
 import { NeuralNetwork } from "../../../src/core/neural-network/neural-network";
 import type { NeuralNetworkConfig } from "../../../src/core/neural-network/type";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	LossFunctionType,
+	NormalisationType,
+} from "../../../src/core/neural-network/type";
 
 function makeConfig(
 	overrides?: Partial<NeuralNetworkConfig>
 ): NeuralNetworkConfig {
 	return {
 		neuronsByLayer: [4, 6, 3],
-		activationType: ["relu", "sigmoid"],
-		initialisationType: "zeros",
-		lossFunctionType: "mean-squared-error",
-		normalisationType: "none",
-		connectionType: "fully-connected",
+		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
+		initialisationType: InitialisationType.Zeros,
+		lossFunctionType: LossFunctionType.MeanSquaredError,
+		normalisationType: NormalisationType.None,
+		connectionType: ConnectionType.FullyConnected,
 		enablePool: false,
 		...overrides,
 	};
@@ -22,11 +29,11 @@ describe("NeuralNetwork - Edge Cases", () => {
 		it("should forward softmax output that sums to ~1", () => {
 			const nn = new NeuralNetwork({
 				neuronsByLayer: [4, 3],
-				activationType: ["softmax"],
-				initialisationType: "zeros",
-				lossFunctionType: "cross-entropy",
-				normalisationType: "none",
-				connectionType: "fully-connected",
+				activationType: [ActivationType.Softmax],
+				initialisationType: InitialisationType.Zeros,
+				lossFunctionType: LossFunctionType.CrossEntropy,
+				normalisationType: NormalisationType.None,
+				connectionType: ConnectionType.FullyConnected,
 				enablePool: false,
 			});
 
@@ -40,11 +47,11 @@ describe("NeuralNetwork - Edge Cases", () => {
 			expect(() => {
 				new NeuralNetwork({
 					neuronsByLayer: [4, 3],
-					activationType: ["softmax"],
-					initialisationType: "zeros",
-					lossFunctionType: "mean-squared-error",
-					normalisationType: "none",
-					connectionType: "fully-connected",
+					activationType: [ActivationType.Softmax],
+					initialisationType: InitialisationType.Zeros,
+					lossFunctionType: LossFunctionType.MeanSquaredError,
+					normalisationType: NormalisationType.None,
+					connectionType: ConnectionType.FullyConnected,
 					enablePool: false,
 				});
 			}).toThrow();
@@ -53,11 +60,11 @@ describe("NeuralNetwork - Edge Cases", () => {
 		it("should train with softmax and cross-entropy without error", () => {
 			const nn = new NeuralNetwork({
 				neuronsByLayer: [4, 3],
-				activationType: ["softmax"],
-				initialisationType: "zeros",
-				lossFunctionType: "cross-entropy",
-				normalisationType: "none",
-				connectionType: "fully-connected",
+				activationType: [ActivationType.Softmax],
+				initialisationType: InitialisationType.Zeros,
+				lossFunctionType: LossFunctionType.CrossEntropy,
+				normalisationType: NormalisationType.None,
+				connectionType: ConnectionType.FullyConnected,
 				enablePool: false,
 				learningRate: 0.01,
 			});
@@ -142,11 +149,11 @@ describe("NeuralNetwork - Edge Cases", () => {
 		it("should add skip connection output", () => {
 			const nn = new NeuralNetwork({
 				neuronsByLayer: [4, 4],
-				activationType: ["relu"],
-				initialisationType: "zeros",
-				lossFunctionType: "mean-squared-error",
-				normalisationType: "none",
-				connectionType: "dense-skip",
+				activationType: [ActivationType.Relu],
+				initialisationType: InitialisationType.Zeros,
+				lossFunctionType: LossFunctionType.MeanSquaredError,
+				normalisationType: NormalisationType.None,
+				connectionType: ConnectionType.DenseSkip,
 				enablePool: false,
 			});
 

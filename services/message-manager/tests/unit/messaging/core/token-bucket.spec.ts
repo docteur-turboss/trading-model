@@ -6,7 +6,19 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { TokenBucket } from "../../../../src/messaging/core/token-bucket";
+import {
+	TokenBucket,
+	type TokenBucketConfig,
+} from "../../../../src/messaging/core/token-bucket";
+
+function createBucket(overrides: Partial<TokenBucketConfig> = {}): TokenBucket {
+	return new TokenBucket({
+		capacity: 100,
+		refillRate: 10,
+		refillIntervalMs: 1000,
+		...overrides,
+	});
+}
 
 describe("TokenBucket", () => {
 	beforeEach(() => {
@@ -18,24 +30,24 @@ describe("TokenBucket", () => {
 	});
 
 	it("should initialize with full capacity", () => {
-		const bucket = new TokenBucket(100, 10, 1000);
+		const bucket = createBucket();
 		expect(bucket.getAvailable()).toBe(100);
 		expect(bucket.getCapacity()).toBe(100);
 	});
 
 	it("should allow consuming tokens when available", () => {
-		const bucket = new TokenBucket(10, 5, 1000);
+		const bucket = createBucket({ capacity: 10, refillRate: 5 });
 		expect(bucket.tryConsume(3)).toBe(true);
 		expect(bucket.getAvailable()).toBe(7);
 	});
 
 	it("should reject consuming when insufficient tokens", () => {
-		const bucket = new TokenBucket(5, 5, 1000);
+		const bucket = createBucket({ capacity: 5, refillRate: 5 });
 		expect(bucket.tryConsume(10)).toBe(false);
 	});
 
 	it("should refill tokens after interval", () => {
-		const bucket = new TokenBucket(10, 5, 1000);
+		const bucket = createBucket({ capacity: 10, refillRate: 5 });
 		bucket.tryConsume(10);
 		expect(bucket.getAvailable()).toBe(0);
 
@@ -44,13 +56,13 @@ describe("TokenBucket", () => {
 	});
 
 	it("should not exceed capacity on refill", () => {
-		const bucket = new TokenBucket(10, 5, 1000);
+		const bucket = createBucket({ capacity: 10, refillRate: 5 });
 		jest.advanceTimersByTime(5000);
 		expect(bucket.getAvailable()).toBe(10);
 	});
 
 	it("should track usage ratio via callback", () => {
-		const bucket = new TokenBucket(100, 10, 1000);
+		const bucket = createBucket();
 		const cb = jest.fn();
 		bucket.onMetric(cb);
 
@@ -62,7 +74,7 @@ describe("TokenBucket", () => {
 	});
 
 	it("should report getUsage correctly", () => {
-		const bucket = new TokenBucket(100, 10, 1000);
+		const bucket = createBucket();
 		expect(bucket.getUsage()).toBe(0);
 
 		bucket.tryConsume(30);
@@ -73,7 +85,7 @@ describe("TokenBucket", () => {
 	});
 
 	it("should handle multiple refill intervals", () => {
-		const bucket = new TokenBucket(100, 10, 1000);
+		const bucket = createBucket();
 		bucket.tryConsume(100);
 		expect(bucket.getAvailable()).toBe(0);
 
@@ -82,7 +94,7 @@ describe("TokenBucket", () => {
 	});
 
 	it("should consume default count of 1 when not specified", () => {
-		const bucket = new TokenBucket(5, 5, 1000);
+		const bucket = createBucket({ capacity: 5, refillRate: 5 });
 		expect(bucket.tryConsume()).toBe(true);
 		expect(bucket.getAvailable()).toBe(4);
 	});

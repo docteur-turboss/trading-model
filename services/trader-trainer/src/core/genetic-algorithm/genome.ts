@@ -6,6 +6,7 @@ import {
 	InitialisationType,
 	NormalisationType,
 } from "../neural-network/type";
+export { ActivationType, ConnectionType, InitialisationType, NormalisationType } from "../neural-network/type";
 
 /** Configuration for a single neural network hidden layer. */
 export interface LayerGenome {

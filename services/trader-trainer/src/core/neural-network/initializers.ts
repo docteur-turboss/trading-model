@@ -1,4 +1,4 @@
-import type { InitialisationType } from "./type";
+import { InitialisationType } from "./type";
 import { GAUSSIAN_NOISE } from "./utils";
 
 export interface WeightInitializer {
@@ -45,9 +45,9 @@ export const LE_CUN = new LeCunInitializer();
 export const RANDOM_INIT = new RandomInitializer();
 
 export const INITIALIZERS: Record<InitialisationType, WeightInitializer> = {
-	zeros: ZEROS,
-	he: HE,
-	xavier: XAVIER,
-	leCun: LE_CUN,
-	random: RANDOM_INIT,
+	[InitialisationType.Zeros]: ZEROS,
+	[InitialisationType.He]: HE,
+	[InitialisationType.Xavier]: XAVIER,
+	[InitialisationType.LeCun]: LE_CUN,
+	[InitialisationType.Random]: RANDOM_INIT,
 };

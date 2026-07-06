@@ -122,11 +122,9 @@ function runSyncOrAsync<TValue>(
 		const result = fn();
 		if (result instanceof Promise) {
 			result.then(onSuccess).catch(onError);
-		} else if (result === undefined) {
-			(onSuccess as (value: unknown) => void)(undefined);
-		} else {
-			onSuccess(result);
+			return;
 		}
+		(onSuccess as (value: unknown) => void)(result);
 	} catch (err) {
 		onError(err);
 	}

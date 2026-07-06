@@ -4,57 +4,58 @@ import {
 	shapeReward,
 } from "../../../src/core/genetic-algorithm/fitness";
 import type { RewardShapingGenome } from "../../../src/core/genetic-algorithm/genome-types";
+import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
 
 describe("Fitness - computeFitness", () => {
 	const scores = [100, 120, 110, 130, 140];
 
 	test("total_pnl should return mean of scores", () => {
-		const result = computeFitness("total_pnl", scores);
+		const result = computeFitness(FitnessType.TotalPnl, scores);
 		expect(result).toBe(120);
 	});
 
 	test("sharpe should return positive value for positive scores", () => {
-		const result = computeFitness("sharpe", scores);
+		const result = computeFitness(FitnessType.Sharpe, scores);
 		expect(result).toBeGreaterThan(0);
 	});
 
 	test("sharpe should return 0 for constant scores", () => {
-		const result = computeFitness("sharpe", [5, 5, 5]);
+		const result = computeFitness(FitnessType.Sharpe, [5, 5, 5]);
 		expect(result).toBe(5);
 	});
 
 	test("sortino should return positive value for positive scores", () => {
-		const result = computeFitness("sortino", scores);
+		const result = computeFitness(FitnessType.Sortino, scores);
 		expect(result).toBeGreaterThan(0);
 	});
 
 	test("sortino should handle no negative returns", () => {
-		const result = computeFitness("sortino", [10, 20, 30]);
+		const result = computeFitness(FitnessType.Sortino, [10, 20, 30]);
 		expect(result).toBeGreaterThan(0);
 	});
 
 	test("sortino should handle negative returns", () => {
-		const result = computeFitness("sortino", [10, -5, 20, -3]);
+		const result = computeFitness(FitnessType.Sortino, [10, -5, 20, -3]);
 		expect(Number.isFinite(result)).toBe(true);
 	});
 
 	test("calmar should return positive value", () => {
-		const result = computeFitness("calmar", scores);
+		const result = computeFitness(FitnessType.Calmar, scores);
 		expect(result).toBeGreaterThan(0);
 	});
 
 	test("calmar should handle drawdown correctly", () => {
-		const result = computeFitness("calmar", [100, -50, 200, -100]);
+		const result = computeFitness(FitnessType.Calmar, [100, -50, 200, -100]);
 		expect(Number.isFinite(result)).toBe(true);
 	});
 
 	test("composite should combine sharpe and sortino with mean", () => {
-		const result = computeFitness("composite", scores);
+		const result = computeFitness(FitnessType.Composite, scores);
 		expect(result).toBeGreaterThan(0);
 	});
 
 	test("should return -Infinity for empty scores", () => {
-		const result = computeFitness("sharpe", []);
+		const result = computeFitness(FitnessType.Sharpe, []);
 		expect(result).toBe(Number.NEGATIVE_INFINITY);
 	});
 

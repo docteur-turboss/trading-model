@@ -3,6 +3,7 @@
  * Handles both structural genome mutations and weight-level operations.
  */
 
+import { SelectionType } from "./genome-types";
 import type { Genome } from "./genome-types";
 
 /** Per-weight uniform crossover using separate RNG to produce a child weight vector. */

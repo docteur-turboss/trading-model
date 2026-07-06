@@ -1,3 +1,4 @@
+import { Price } from "@trading-model/common/domain/primitives";
 import type { WalletMetrics } from "../env/wallet-manager";
 import type TradingAgent from "./trading-agent";
 
@@ -23,7 +24,7 @@ export class AutoEnv {
 	) {}
 
 	/** Incoming market message. `features` is the observation vector; `price` updates wallet price. */
-	public onMessage(features: Float32Array, price: number): void {
+	public onMessage(features: Float32Array, price: Price): void {
 		const res = this._agent.step(features, price);
 		if (this._cfg.onStep) {
 			this._cfg.onStep(res);

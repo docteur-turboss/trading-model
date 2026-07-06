@@ -1,4 +1,4 @@
-import type { NormalisationType } from "./type";
+import { NormalisationType } from "./type";
 
 export interface Normalizer {
 	normalize(
@@ -172,11 +172,11 @@ export const NONE_NORMALIZER = new NoneNormalizer();
 export const BORDER = new BorderNormalizer();
 
 export const NORMALIZERS: Record<NormalisationType, Normalizer> = {
-	"decimal-scaling": DECIMAL_SCALING,
-	"logarithmic-normalization": LOGARITHMIC,
-	"min-max": MIN_MAX,
-	"robust-scaling": ROBUST_SCALING,
-	"z-score": Z_SCORE,
-	none: NONE_NORMALIZER,
-	border: BORDER,
+	[NormalisationType.DecimalScaling]: DECIMAL_SCALING,
+	[NormalisationType.LogarithmicNormalization]: LOGARITHMIC,
+	[NormalisationType.MinMax]: MIN_MAX,
+	[NormalisationType.RobustScaling]: ROBUST_SCALING,
+	[NormalisationType.ZScore]: Z_SCORE,
+	[NormalisationType.None]: NONE_NORMALIZER,
+	[NormalisationType.Border]: BORDER,
 };

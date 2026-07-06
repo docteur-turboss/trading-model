@@ -2,8 +2,11 @@ import { AppError, AgentError } from "@trading-model/common/utils/errors";
 
 import { ACTIVATIONS } from "./activation";
 import { NORMALIZERS } from "./normalize";
-import type {
+import {
 	ActivationType,
+	ConnectionType,
+} from "./type";
+import type {
 	ForwardContext,
 	LayerMemory,
 	NeuralNetworkConfig,

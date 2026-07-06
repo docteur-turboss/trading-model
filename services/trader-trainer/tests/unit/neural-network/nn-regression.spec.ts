@@ -2,6 +2,13 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { ACTIVATIONS } from "../../../src/core/neural-network/activation";
 import { LOSSES } from "../../../src/core/neural-network/losses";
 import { NeuralNetwork } from "../../../src/core/neural-network/neural-network";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	LossFunctionType,
+	NormalisationType,
+} from "../../../src/core/neural-network/type";
 
 jest.mock("../../../src/config/env", () => ({
 	env: {},
@@ -11,13 +18,13 @@ describe("NN Regression — Forward Pass", () => {
 	it("forward pass with known weights produces deterministic output", () => {
 		const nn = new NeuralNetwork({
 			neuronsByLayer: [2, 1],
-			activationType: ["relu"],
-			initialisationType: "zeros",
-			biasInitialisationType: "zeros",
+			activationType: [ActivationType.Relu],
+			initialisationType: InitialisationType.Zeros,
+			biasInitialisationType: InitialisationType.Zeros,
 			useBias: true,
-			normalisationType: "none",
-			connectionType: "fully-connected",
-			lossFunctionType: "mean-squared-error",
+			normalisationType: NormalisationType.None,
+			connectionType: ConnectionType.FullyConnected,
+			lossFunctionType: LossFunctionType.MeanSquaredError,
 		});
 
 		const weights = new Float32Array([0.5, 0.3]);
@@ -37,11 +44,11 @@ describe("NN Regression — Forward Pass", () => {
 	it("forward pass with different weights produces different output", () => {
 		const nn = new NeuralNetwork({
 			neuronsByLayer: [2, 1],
-			activationType: ["relu"],
-			initialisationType: "zeros",
-			biasInitialisationType: "zeros",
+			activationType: [ActivationType.Relu],
+			initialisationType: InitialisationType.Zeros,
+			biasInitialisationType: InitialisationType.Zeros,
 			useBias: true,
-			normalisationType: "none",
+			normalisationType: NormalisationType.None,
 		});
 
 		const params = new Float32Array([0.8, 0.2, 0]);
@@ -55,11 +62,11 @@ describe("NN Regression — Forward Pass", () => {
 	it("forward pass with negative weights produces negative ReLu output (clamps to zero)", () => {
 		const nn = new NeuralNetwork({
 			neuronsByLayer: [1, 1],
-			activationType: ["relu"],
-			initialisationType: "zeros",
-			biasInitialisationType: "zeros",
+			activationType: [ActivationType.Relu],
+			initialisationType: InitialisationType.Zeros,
+			biasInitialisationType: InitialisationType.Zeros,
 			useBias: true,
-			normalisationType: "none",
+			normalisationType: NormalisationType.None,
 		});
 
 		const params = new Float32Array([-2.0, 0]);
@@ -72,13 +79,13 @@ describe("NN Regression — Forward Pass", () => {
 
 describe("NN Regression — Loss Functions", () => {
 	const config = {
-		lossFunctionType: "mean-squared-error" as const,
+		lossFunctionType: LossFunctionType.MeanSquaredError,
 		deltaHuber: 1,
 		neuronsByLayer: [2, 1],
 		useBias: true,
-		normalisationType: "none" as const,
-		connectionType: "fully-connected" as const,
-		initialisationType: "zeros" as const,
+		normalisationType: NormalisationType.None,
+		connectionType: ConnectionType.FullyConnected,
+		initialisationType: InitialisationType.Zeros,
 	};
 
 	it("MSE of identical vectors is zero", () => {

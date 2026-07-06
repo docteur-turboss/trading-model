@@ -1,6 +1,7 @@
 import { ACTIVATIONS } from "./activation";
 import { LOSSES } from "./losses";
-import type { ActivationType, NeuralNetworkConfig } from "./type";
+import { ActivationType } from "./type";
+import type { NeuralNetworkConfig } from "./type";
 import type { OutputDeltasContext } from "./backprop-engine";
 
 export class OutputDeltaComputer {

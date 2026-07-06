@@ -17,6 +17,7 @@ import {
 	repairGenome,
 	validateGenome,
 } from "../../../src/core/genetic-algorithm/validation";
+import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
 
 describe("Genetic Algorithm - Core Operators", () => {
 	let baseGenome: any;
@@ -132,14 +133,14 @@ describe("Genetic Algorithm - Core Operators", () => {
 		});
 
 		test("should calculate fitness from score array", () => {
-			const fitness = computeFitness("sharpe", scores);
+			const fitness = computeFitness(FitnessType.Sharpe, scores);
 
 			expect(typeof fitness).toBe("number");
 		});
 
 		test("should support different fitness metrics", () => {
-			const fitnessPnL = computeFitness("total_pnl", scores);
-			const fitnessSharpe = computeFitness("sharpe", scores);
+			const fitnessPnL = computeFitness(FitnessType.TotalPnl, scores);
+			const fitnessSharpe = computeFitness(FitnessType.Sharpe, scores);
 
 			expect(typeof fitnessPnL).toBe("number");
 			expect(typeof fitnessSharpe).toBe("number");
@@ -148,16 +149,16 @@ describe("Genetic Algorithm - Core Operators", () => {
 		test("should penalize losses", () => {
 			const negativeScores = [-100, -50, -30];
 
-			const fitness = computeFitness("total_pnl", negativeScores);
-			expect(fitness).toBeLessThan(computeFitness("total_pnl", scores));
+			const fitness = computeFitness(FitnessType.TotalPnl, negativeScores);
+			expect(fitness).toBeLessThan(computeFitness(FitnessType.TotalPnl, scores));
 		});
 
 		test("should reward higher Sharpe ratio", () => {
 			const lowSharpe = [10, -10, 10, -10];
 			const highSharpe = [10, 11, 10, 11];
 
-			const fitness1 = computeFitness("sharpe", lowSharpe);
-			const fitness2 = computeFitness("sharpe", highSharpe);
+			const fitness1 = computeFitness(FitnessType.Sharpe, lowSharpe);
+			const fitness2 = computeFitness(FitnessType.Sharpe, highSharpe);
 
 			expect(fitness2).toBeGreaterThan(fitness1);
 		});

@@ -1,25 +1,20 @@
 import type { z } from "zod";
 
-import type { TlsPaths } from "../domain/tls-paths";
+import type { TlsCredentials, TlsPaths } from "../domain/tls-paths";
 import { isServiceCircuitOpen } from "./http-circuit-breaker";
 import { HttpClientError, HttpClientTimeoutError } from "./http-client-errors";
+import {
+	HttpRequestExecutor,
+	type RequestContext,
+} from "./http-request-executor";
 import { HttpTlsLoader } from "./http-tls-loader";
-import { HttpRequestExecutor } from "./http-request-executor";
-import type { HttpMethod, HttpRequestOptions } from "./http-types";
-
-interface RequestContext<TResponse> {
-	method: HttpMethod;
-	urlStr: string;
-	body?: unknown;
-	options?: HttpRequestOptions;
-	schema?: z.ZodType<TResponse>;
-}
+import type { HttpRequestOptions } from "./http-types";
 
 export class HttpClient {
 	private readonly _tlsLoader: HttpTlsLoader;
 	private readonly _executor: HttpRequestExecutor;
 
-	constructor(tlsConfig?: { ca?: string; cert?: string; key?: string }) {
+	constructor(tlsConfig?: TlsCredentials) {
 		this._tlsLoader = new HttpTlsLoader(tlsConfig);
 		this._executor = new HttpRequestExecutor();
 	}
@@ -83,23 +78,16 @@ export class HttpClient {
 			await this._tlsLoader.ensureLoaded();
 		}
 
-		const { hostname, serviceName } = this._executor.checkPreconditions(
+		const route = this._executor.checkPreconditions(
 			context.urlStr,
 			context.options
 		);
 
-		return this._executor.executeWithRetry(
-			context.method,
-			context.urlStr,
-			context.body,
-			context.schema,
-			context.options,
-			hostname,
-			serviceName,
-			this._tlsLoader.ca,
-			this._tlsLoader.cert,
-			this._tlsLoader.key
-		);
+		return this._executor.executeWithRetry(context, route, {
+			ca: this._tlsLoader.ca,
+			cert: this._tlsLoader.cert,
+			key: this._tlsLoader.key,
+		});
 	}
 }
 

@@ -75,6 +75,13 @@ import {
 	GeneticAlgorithmRunner,
 	makeTradingAgentBackend,
 } from "../../../src/core/genetic-algorithm/ga-runner";
+import {
+	ActivationType,
+	ConnectionType,
+	FitnessType,
+	NormalisationType,
+	SelectionType,
+} from "../../../src/core/genetic-algorithm/genome";
 
 describe("makeTradingAgentBackend", () => {
 	it("should create an RLBackend from a genome", () => {
@@ -87,12 +94,12 @@ describe("makeTradingAgentBackend", () => {
 				hiddenLayers: [
 					{
 						neurons: 64,
-						activation: "relu",
-						connectionType: "fully-connected",
+						activation: ActivationType.Relu,
+						connectionType: ConnectionType.FullyConnected,
 						biasType: "standard",
 					},
 				],
-				normalization: "z-score",
+				normalization: NormalisationType.ZScore,
 			},
 			rl: {
 				gamma: 0.99,
@@ -112,8 +119,8 @@ describe("makeTradingAgentBackend", () => {
 				elitismFraction: 0.1,
 				survivorFraction: 0.5,
 				episodesPerIndividual: 2,
-				selectionType: "tournament",
-				fitnessType: "sharpe",
+				selectionType: SelectionType.Tournament,
+				fitnessType: FitnessType.Sharpe,
 				networkSeed: 42,
 				mutationSeed: 42,
 				mutationRate: 0.1,
@@ -138,12 +145,12 @@ describe("makeTradingAgentBackend", () => {
 				hiddenLayers: [
 					{
 						neurons: 64,
-						activation: "relu",
-						connectionType: "fully-connected",
+						activation: ActivationType.Relu,
+						connectionType: ConnectionType.FullyConnected,
 						biasType: "standard",
 					},
 				],
-				normalization: "z-score",
+				normalization: NormalisationType.ZScore,
 			},
 			rl: {
 				gamma: 0.99,
@@ -163,8 +170,8 @@ describe("makeTradingAgentBackend", () => {
 				elitismFraction: 0.1,
 				survivorFraction: 0.5,
 				episodesPerIndividual: 2,
-				selectionType: "tournament",
-				fitnessType: "sharpe",
+				selectionType: SelectionType.Tournament,
+				fitnessType: FitnessType.Sharpe,
 				networkSeed: 42,
 				mutationSeed: 42,
 				mutationRate: 0.1,
@@ -187,7 +194,7 @@ describe("makeTradingAgentBackend", () => {
 				inputDim: 4,
 				outputDim: 2,
 				hiddenLayers: [],
-				normalization: "none",
+				normalization: NormalisationType.None,
 			},
 			rl: {
 				gamma: 0.99,
@@ -207,8 +214,8 @@ describe("makeTradingAgentBackend", () => {
 				elitismFraction: 0.1,
 				survivorFraction: 0.5,
 				episodesPerIndividual: 2,
-				selectionType: "tournament",
-				fitnessType: "total_pnl",
+				selectionType: SelectionType.Tournament,
+				fitnessType: FitnessType.TotalPnl,
 				networkSeed: 1,
 				mutationSeed: 1,
 				mutationRate: 0.1,
@@ -280,7 +287,7 @@ function getMinimalGenome() {
 			inputDim: 3,
 			outputDim: 3,
 			hiddenLayers: [],
-			normalization: "none",
+			normalization: NormalisationType.None,
 		},
 		rl: {
 			gamma: 0.99,
@@ -300,8 +307,8 @@ function getMinimalGenome() {
 			elitismFraction: 0.1,
 			survivorFraction: 0.5,
 			episodesPerIndividual: 2,
-			selectionType: "tournament",
-			fitnessType: "total_pnl",
+			selectionType: SelectionType.Tournament,
+			fitnessType: FitnessType.TotalPnl,
 			networkSeed: 1,
 			mutationSeed: 1,
 			mutationRate: 0.1,

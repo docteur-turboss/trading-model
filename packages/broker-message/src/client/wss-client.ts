@@ -4,22 +4,21 @@ import type { MessageMetadata } from "@trading-model/common/contracts/message.ty
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { PendingPublishQueue } from "./pending-publish-queue";
-import { WssConnection } from "./wss-connection";
+import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
+import {
+	WssMessageDispatcher,
+	type WssMessageHandler,
+} from "./wss-message-dispatcher";
 import { WssReconnector } from "./wss-reconnector";
-import { WssMessageDispatcher, type WssMessageHandler } from "./wss-message-dispatcher";
 
 export type { WssMessageHandler } from "./wss-message-dispatcher";
 
 export class WssClient {
-	private readonly _connection: WssConnection;
-	private readonly _wsUrl: string;
-	private readonly _serviceName: string;
-	private readonly _instanceId: string;
-	private _subscribedTopics: string[] = [];
-	private _connected = false;
-	private readonly _queue: PendingPublishQueue;
+	private readonly _lifecycle: WssConnectionLifecycle;
 	private readonly _reconnector: WssReconnector;
 	private readonly _dispatcher: WssMessageDispatcher;
+	private readonly _queue: PendingPublishQueue;
+	private _subscribedTopics: string[] = [];
 
 	constructor(config: {
 		wssUrl: string;
@@ -27,21 +26,16 @@ export class WssClient {
 		serviceName: string;
 		instanceId: string;
 	}) {
-		this._wsUrl = config.wssUrl;
-		this._serviceName = config.serviceName;
-		this._instanceId = config.instanceId;
-		this._connection = new WssConnection(config.tlsConfig);
 		this._queue = new PendingPublishQueue();
 		this._reconnector = new WssReconnector();
 		this._reconnector.onPermanentFallback(() => this._queue.drainToHttp());
 		this._dispatcher = new WssMessageDispatcher();
-	}
-
-	private _buildWsUrl(): string {
-		const url = new URL(this._wsUrl);
-		url.searchParams.set("service", this._serviceName);
-		url.searchParams.set("instance", this._instanceId);
-		return url.toString();
+		this._lifecycle = new WssConnectionLifecycle(config, {
+			onOpen: () => this._onWsOpen(),
+			onMessage: (raw) => this._dispatcher.dispatch(raw),
+			onClose: (code, reason) => this._onWsClose(code, reason),
+			onError: (err) => this._onWsError(err),
+		});
 	}
 
 	connect(topics: string[] = []): void {
@@ -50,50 +44,14 @@ export class WssClient {
 		this._connectWs();
 	}
 
-	private _onWsOpen(): void {
-		this._connected = true;
-		this._reconnector.reset();
-		logger.info("WSS connected");
-
-		if (this._subscribedTopics.length > 0) {
-			this._connection.send({ type: "subscribe", topics: this._subscribedTopics });
-		}
-
-		this._flushPending();
-	}
-
-	private _onWsMessage(raw: string): void {
-		this._dispatcher.dispatch(raw);
-	}
-
-	private _onWsClose(code: number, reason: Buffer): void {
-		this._connected = false;
-		const reasonStr = reason?.toString() || "unknown";
-		logger.warn("WSS disconnected", { code, reason: reasonStr });
-		this._reconnector.schedule(() => this._connectWs());
-	}
-
-	private _onWsError(err: Error): void {
-		this._connected = false;
-		logger.warn("WSS error", { error: err.message });
-		this._reconnector.schedule(() => this._connectWs());
-	}
-
 	private _connectWs(): void {
-		const wsUrl = this._buildWsUrl();
 		logger.info("WSS connecting", {
-			url: wsUrl,
+			url: this._lifecycle.builtUrl,
 			attempt: this._reconnector.attempt + 1,
 		});
 		try {
-			this._connection.connect(wsUrl, {
-				onOpen: () => this._onWsOpen(),
-				onMessage: (raw: string) => this._onWsMessage(raw),
-				onClose: (code: number, reason: Buffer) => this._onWsClose(code, reason),
-				onError: (err: Error) => this._onWsError(err),
-			});
+			this._lifecycle.connect();
 		} catch (err) {
-			this._connected = false;
 			logger.warn("WSS connection failed", {
 				error: normalizeError(err as Error),
 			});
@@ -101,11 +59,40 @@ export class WssClient {
 		}
 	}
 
-	get httpFallback(): ((payload: unknown, metadata: MessageMetadata) => Promise<void>) | null {
+	private _onWsOpen(): void {
+		this._reconnector.reset();
+		logger.info("WSS connected");
+
+		if (this._subscribedTopics.length > 0) {
+			this._lifecycle.send({
+				type: "subscribe",
+				topics: this._subscribedTopics,
+			});
+		}
+
+		this._flushPending();
+	}
+
+	private _onWsClose(code: number, reason: Buffer): void {
+		const reasonStr = reason?.toString() || "unknown";
+		logger.warn("WSS disconnected", { code, reason: reasonStr });
+		this._reconnector.schedule(() => this._connectWs());
+	}
+
+	private _onWsError(err: Error): void {
+		logger.warn("WSS error", { error: err.message });
+		this._reconnector.schedule(() => this._connectWs());
+	}
+
+	get httpFallback():
+		| ((payload: unknown, metadata: MessageMetadata) => Promise<void>)
+		| null {
 		return this._queue.httpFallback;
 	}
 
-	setHttpFallback(fn: (payload: unknown, metadata: MessageMetadata) => Promise<void>): void {
+	setHttpFallback(
+		fn: (payload: unknown, metadata: MessageMetadata) => Promise<void>
+	): void {
 		this._queue.setHttpFallback(fn);
 	}
 
@@ -123,8 +110,8 @@ export class WssClient {
 		const traceparent = carrier.traceparent;
 
 		if (
-			this._connected &&
-			this._connection.send({ type: "publish", payload, metadata, traceparent })
+			this._lifecycle.isConnected() &&
+			this._lifecycle.send({ type: "publish", payload, metadata, traceparent })
 		) {
 			return Promise.resolve();
 		}
@@ -137,15 +124,15 @@ export class WssClient {
 	}
 
 	private _flushPending(): void {
-		this._queue.flush((data) => this._connection.send(data));
+		this._queue.flush((data) => this._lifecycle.send(data));
 	}
 
 	subscribe(topics: string[]): Promise<void> {
 		this._subscribedTopics = [
 			...new Set([...this._subscribedTopics, ...topics]),
 		];
-		if (this._connected) {
-			this._connection.send({ type: "subscribe", topics });
+		if (this._lifecycle.isConnected()) {
+			this._lifecycle.send({ type: "subscribe", topics });
 		}
 		return Promise.resolve();
 	}
@@ -154,18 +141,18 @@ export class WssClient {
 		this._subscribedTopics = this._subscribedTopics.filter(
 			(topic) => !topics.includes(topic)
 		);
-		if (this._connected) {
-			this._connection.send({ type: "unsubscribe", topics });
+		if (this._lifecycle.isConnected()) {
+			this._lifecycle.send({ type: "unsubscribe", topics });
 		}
 		return Promise.resolve();
 	}
 
 	ack(messageId: string): boolean {
-		return this._connection.send({ type: "ack", messageId });
+		return this._lifecycle.send({ type: "ack", messageId });
 	}
 
 	nack(messageId: string): boolean {
-		return this._connection.send({ type: "nack", messageId });
+		return this._lifecycle.send({ type: "nack", messageId });
 	}
 
 	get shouldReconnect(): boolean {
@@ -173,14 +160,13 @@ export class WssClient {
 	}
 
 	isConnected(): boolean {
-		return this._connected;
+		return this._lifecycle.isConnected();
 	}
 
 	disconnect(): void {
 		this._reconnector.stop();
 		this._queue.drainToHttp();
 		this._queue.stop();
-		this._connection.disconnect(1000, "Client shutdown");
-		this._connected = false;
+		this._lifecycle.disconnect(1000, "Client shutdown");
 	}
 }

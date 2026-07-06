@@ -6,6 +6,7 @@ import {
 	sampleNoise,
 	sampleUniform,
 } from "../../../src/core/genetic-algorithm/noise";
+import { MutationDistribution } from "../../../src/core/genetic-algorithm/genome";
 
 describe("Noise Samplers", () => {
 	const rng = () => 0.5;
@@ -43,23 +44,23 @@ describe("Noise Samplers", () => {
 
 	describe("sampleNoise dispatcher", () => {
 		test("should dispatch gaussian", () => {
-			const result = sampleNoise("gaussian", 1, rng);
+			const result = sampleNoise(MutationDistribution.Gaussian, 1, rng);
 			expect(Number.isFinite(result)).toBe(true);
 		});
 
 		test("should dispatch cauchy", () => {
-			const result = sampleNoise("cauchy", 1, rng);
+			const result = sampleNoise(MutationDistribution.Cauchy, 1, rng);
 			expect(Number.isFinite(result)).toBe(true);
 		});
 
 		test("should dispatch uniform", () => {
-			const result = sampleNoise("uniform", 1, rng);
+			const result = sampleNoise(MutationDistribution.Uniform, 1, rng);
 			expect(result).toBeGreaterThanOrEqual(-1);
 			expect(result).toBeLessThanOrEqual(1);
 		});
 
 		test("should dispatch levy", () => {
-			const result = sampleNoise("levy", 1, rng);
+			const result = sampleNoise(MutationDistribution.Levy, 1, rng);
 			expect(Number.isFinite(result)).toBe(true);
 		});
 	});

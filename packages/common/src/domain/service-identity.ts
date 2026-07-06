@@ -8,6 +8,12 @@ export interface ServiceIdentity {
 	region?: string;
 }
 
+/** Host and port pair for network endpoints. */
+export interface HostPort {
+	host: string;
+	port: number;
+}
+
 /** Identifies a service by name, network address, and port. */
 export interface ServiceEndpoint {
 	serviceName: string;

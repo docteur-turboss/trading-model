@@ -2,7 +2,8 @@
 //            fitness computation & reward shaping
 // ================================================================
 
-import type { FitnessType, RewardShapingGenome } from "./genome-types";
+import { FitnessType } from "./genome-types";
+import type { RewardShapingGenome } from "./genome-types";
 import { clamp } from "./utils";
 
 // ----------------------------------------------------------------

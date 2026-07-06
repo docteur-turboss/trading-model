@@ -1,4 +1,4 @@
-import type { LossFunctionType } from "../type";
+import { LossFunctionType } from "../type";
 import { BinaryCrossEntropyLoss } from "./binary-cross-entropy";
 import { CrossEntropyLoss } from "./cross-entropy";
 import { HingeLoss } from "./hinge";
@@ -24,14 +24,14 @@ export const HINGE_LOSS = new HingeLoss();
 export const KL_DIVERGENCE = new KLDivergenceLoss();
 
 export const LOSSES: Record<LossFunctionType, import("./loss-definition").LossDefinition> = {
-	"mean-squared-error": MEAN_SQUARED_ERROR,
-	"mean-absolute-error": MEAN_ABSOLUTE_ERROR,
-	"root-mean-squared-error": ROOT_MEAN_SQUARED_ERROR,
-	"mean-biais-error": MEAN_BIAS_ERROR,
-	"huber-loss": HUBER_LOSS,
-	"log-cosh-loss": LOG_COSH_LOSS,
-	"cross-entropy": CROSS_ENTROPY,
-	"binary-cross-entropy": BINARY_CROSS_ENTROPY,
-	"hinge-loss": HINGE_LOSS,
-	"Kullback-Leibler-divergence": KL_DIVERGENCE,
+	[LossFunctionType.MeanSquaredError]: MEAN_SQUARED_ERROR,
+	[LossFunctionType.MeanAbsoluteError]: MEAN_ABSOLUTE_ERROR,
+	[LossFunctionType.RootMeanSquaredError]: ROOT_MEAN_SQUARED_ERROR,
+	[LossFunctionType.MeanBiaisError]: MEAN_BIAS_ERROR,
+	[LossFunctionType.HuberLoss]: HUBER_LOSS,
+	[LossFunctionType.LogCoshLoss]: LOG_COSH_LOSS,
+	[LossFunctionType.CrossEntropy]: CROSS_ENTROPY,
+	[LossFunctionType.BinaryCrossEntropy]: BINARY_CROSS_ENTROPY,
+	[LossFunctionType.HingeLoss]: HINGE_LOSS,
+	[LossFunctionType.KullbackLeiblerDivergence]: KL_DIVERGENCE,
 };

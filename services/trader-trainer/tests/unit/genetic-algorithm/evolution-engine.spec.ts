@@ -7,6 +7,7 @@ import {
 	selectParent,
 } from "../../../src/core/genetic-algorithm/evolution-engine";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
+import { SelectionType } from "../../../src/core/genetic-algorithm/genome";
 
 describe("EvolutionEngine", () => {
 	let rng: () => number;
@@ -125,13 +126,13 @@ describe("EvolutionEngine", () => {
 			population[1].fitness = 20;
 			population[2].fitness = 30;
 
-			const parent = selectParent(population, "tournament", rng);
+			const parent = selectParent(population, SelectionType.Tournament, rng);
 			expect(parent).toBeDefined();
 		});
 
 		it("should return a member of the population", () => {
 			const population = [createDefaultGenome("p1")];
-			const parent = selectParent(population, "tournament", rng);
+			const parent = selectParent(population, SelectionType.Tournament, rng);
 			expect(parent).toBe(population[0]);
 		});
 
@@ -161,7 +162,7 @@ describe("EvolutionEngine", () => {
 				}
 				return 0;
 			};
-			const parent = selectParent(population, "tournament", controlledRng);
+			const parent = selectParent(population, SelectionType.Tournament, controlledRng);
 			expect(parent.id).toBe("high");
 		});
 
@@ -187,7 +188,7 @@ describe("EvolutionEngine", () => {
 				}
 				return 0;
 			};
-			const parent = selectParent(population, "tournament", controlledRng);
+			const parent = selectParent(population, SelectionType.Tournament, controlledRng);
 			expect(parent.id).toBe("a");
 		});
 	});

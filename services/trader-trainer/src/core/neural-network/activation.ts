@@ -1,4 +1,4 @@
-import type { ActivationType } from "./type";
+import { ActivationType } from "./type";
 
 export interface ActivationDefinition {
 	fn(input: number): number;
@@ -105,12 +105,12 @@ export const MISH = new MishActivation();
 export const SOFTMAX = new SoftmaxActivation();
 
 export const ACTIVATIONS: Record<ActivationType, ActivationDefinition> = {
-	sigmoid: SIGMOID,
-	tanh: TANH,
-	relu: RELU,
-	leakyReLu: LEAKY_RELU,
-	elu: ELU,
-	gelu: GELU,
-	mish: MISH,
-	softmax: SOFTMAX,
+	[ActivationType.Sigmoid]: SIGMOID,
+	[ActivationType.Tanh]: TANH,
+	[ActivationType.Relu]: RELU,
+	[ActivationType.LeakyReLu]: LEAKY_RELU,
+	[ActivationType.Elu]: ELU,
+	[ActivationType.Gelu]: GELU,
+	[ActivationType.Mish]: MISH,
+	[ActivationType.Softmax]: SOFTMAX,
 };

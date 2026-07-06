@@ -2,6 +2,22 @@
 //                default genome construction
 // ================================================================
 
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	NormalisationType,
+} from "../neural-network/type";
+import {
+	ContinuousPolicyType,
+	CrossoverType,
+	DiscretePolicyType,
+	FitnessType,
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
+	SelectionType,
+} from "./genome-types";
 import type {
 	ContinuousPolicyGenome,
 	CrossoverGenome,
@@ -18,8 +34,8 @@ import type {
 
 function _createDefaultHiddenLayers(): NetworkGenome["hiddenLayers"] {
 	return [
-		{ neurons: 64, activation: "relu", connectionType: "dense-skip", biasType: "zeros" },
-		{ neurons: 32, activation: "relu", connectionType: "dense-skip", biasType: "zeros" },
+		{ neurons: 64, activation: ActivationType.Relu, connectionType: ConnectionType.DenseSkip, biasType: InitialisationType.Zeros },
+		{ neurons: 32, activation: ActivationType.Relu, connectionType: ConnectionType.DenseSkip, biasType: InitialisationType.Zeros },
 	];
 }
 
@@ -28,7 +44,7 @@ export function createNetworkGenome(): NetworkGenome {
 		inputDim: 32,
 		outputDim: 3,
 		hiddenLayers: _createDefaultHiddenLayers(),
-		normalization: "none",
+		normalization: NormalisationType.None,
 	};
 }
 
@@ -54,7 +70,7 @@ export function createHorizonGenome(): HorizonGenome {
 
 export function createDiscretePolicyGenome(): DiscretePolicyGenome {
 	return {
-		type: "epsilon_greedy",
+		type: DiscretePolicyType.EpsilonGreedy,
 		epsilonStart: 1.0,
 		epsilonMin: 0.05,
 		epsilonDecay: 0.995,
@@ -64,7 +80,7 @@ export function createDiscretePolicyGenome(): DiscretePolicyGenome {
 
 export function createContinuousPolicyGenome(): ContinuousPolicyGenome {
 	return {
-		type: "tanh_squashing",
+		type: ContinuousPolicyType.TanhSquashing,
 		clipMin: -1,
 		clipMax: 1,
 		noiseStd: 0.1,
@@ -107,9 +123,9 @@ export function createMutationGenome(): MutationGenome {
 	return {
 		..._createMutationRateParams(),
 		..._createMutationStructureParams(),
-		distribution: "gaussian",
-		adaptation: "fixed",
-		scope: "global",
+		distribution: MutationDistribution.Gaussian,
+		adaptation: MutationAdaptation.Fixed,
+		scope: MutationScope.Global,
 		mutateActivations: false,
 		mutateHyperparams: true,
 	} as MutationGenome;
@@ -117,7 +133,7 @@ export function createMutationGenome(): MutationGenome {
 
 export function createCrossoverGenome(): CrossoverGenome {
 	return {
-		type: "uniform",
+		type: CrossoverType.Uniform,
 		probability: 0.7,
 		blendAlpha: 0.5,
 		sbxEta: 2,
@@ -158,8 +174,8 @@ export function createGAControlGenome(): GAControlGenome {
 		..._createGACoreParams(),
 		..._createGATerminationParams(),
 		..._createGASeedParams(),
-		selectionType: "tournament",
-		fitnessType: "total_pnl",
+		selectionType: SelectionType.Tournament,
+		fitnessType: FitnessType.TotalPnl,
 	} as GAControlGenome;
 }
 

@@ -1,28 +1,36 @@
 import { describe, expect, test } from "@jest/globals";
 import { LOSSES } from "../../../src/core/neural-network/losses";
 import type { NeuralNetworkConfig } from "../../../src/core/neural-network/type";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	LossFunctionType,
+	NormalisationType,
+	OptimizerType,
+} from "../../../src/core/neural-network/type";
 
 function makeConfig(
 	_overrides?: Partial<NeuralNetworkConfig>
 ): Required<NeuralNetworkConfig> {
 	return {
 		neuronsByLayer: [4, 6, 3],
-		activationType: ["relu", "sigmoid"],
-		initialisationType: "zeros",
-		lossFunctionType: "mean-squared-error",
-		normalisationType: "none",
-		connectionType: "fully-connected",
+		activationType: [ActivationType.Relu, ActivationType.Sigmoid],
+		initialisationType: InitialisationType.Zeros,
+		lossFunctionType: LossFunctionType.MeanSquaredError,
+		normalisationType: NormalisationType.None,
+		connectionType: ConnectionType.FullyConnected,
 		enablePool: false,
 		learningRate: 0.01,
 		useBias: true,
 		deltaHuber: 1,
 		poolMaxSize: 10000,
-		optimizerType: "sgd",
+		optimizerType: OptimizerType.Sgd,
 		gradientClipNorm: 5.0,
 		biasMutationScale: 0.05,
 		weightMutationScale: 0.1,
 		optimizerHyperparams: {},
-		biasInitialisationType: "zeros",
+		biasInitialisationType: InitialisationType.Zeros,
 		normalizedInputRange: [0, 3],
 	};
 }

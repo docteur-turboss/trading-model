@@ -9,6 +9,14 @@ import {
 	mutateGenome,
 	mutateLayer,
 } from "../../../src/core/genetic-algorithm/mutation";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
+} from "../../../src/core/genetic-algorithm/genome";
 
 describe("Mutation - adaptSigma", () => {
 	const rng = () => 0.5;
@@ -23,12 +31,12 @@ describe("Mutation - adaptSigma", () => {
 	}
 
 	test("fixed adaptation returns sigma directly", () => {
-		const m = makeMutationGenome({ adaptation: "fixed", sigma: 0.5 });
+		const m = makeMutationGenome({ adaptation: MutationAdaptation.Fixed, sigma: 0.5 });
 		expect(adaptSigma(m, rng)).toBe(0.5);
 	});
 
 	test("sigma_adaptive returns perturbed sigma", () => {
-		const m = makeMutationGenome({ adaptation: "sigma_adaptive", sigma: 0.5 });
+		const m = makeMutationGenome({ adaptation: MutationAdaptation.SigmaAdaptive, sigma: 0.5 });
 		const result = adaptSigma(m, rng);
 		expect(result).toBeGreaterThanOrEqual(0.45);
 		expect(result).toBeLessThanOrEqual(0.55);
@@ -36,7 +44,7 @@ describe("Mutation - adaptSigma", () => {
 
 	test("self_adaptive returns positive value", () => {
 		const m = makeMutationGenome({
-			adaptation: "self_adaptive",
+			adaptation: MutationAdaptation.SelfAdaptive,
 			sigma: 0.5,
 			selfSigma: 0.3,
 		});
@@ -45,7 +53,7 @@ describe("Mutation - adaptSigma", () => {
 	});
 
 	test("cma returns sigma directly", () => {
-		const m = makeMutationGenome({ adaptation: "cma", sigma: 0.5 });
+		const m = makeMutationGenome({ adaptation: MutationAdaptation.Cma, sigma: 0.5 });
 		expect(adaptSigma(m, rng)).toBe(0.5);
 	});
 
@@ -65,25 +73,25 @@ describe("Mutation - mutateLayer", () => {
 	test("should return a clone of the layer", () => {
 		const layer: LayerGenome = {
 			neurons: 32,
-			activation: "relu",
-			connectionType: "dense-skip",
-			biasType: "zeros",
+			activation: ActivationType.Relu,
+			connectionType: ConnectionType.DenseSkip,
+			biasType: InitialisationType.Zeros,
 		};
 		const mutated = mutateLayer(layer, m, rng);
 		expect(mutated.neurons).toBe(32);
-		expect(mutated.activation).toBe("relu");
+		expect(mutated.activation).toBe(ActivationType.Relu);
 	});
 
 	test("should increase neurons with high rng when rate is high", () => {
 		const layer: LayerGenome = {
 			neurons: 16,
-			activation: "relu",
-			connectionType: "dense-skip",
-			biasType: "zeros",
+			activation: ActivationType.Relu,
+			connectionType: ConnectionType.DenseSkip,
+			biasType: InitialisationType.Zeros,
 		};
 		const highRateM = { ...m, rate: 0.9, mutateActivations: false };
 		const mutated = mutateLayer(layer, highRateM, () => 0.1);
-		expect(mutated.activation).toBe("relu");
+		expect(mutated.activation).toBe(ActivationType.Relu);
 	});
 });
 
@@ -129,7 +137,7 @@ describe("Mutation - mutateGenome", () => {
 
 	test("per_layer scope should apply layer-level mutation", () => {
 		const genome = createDefaultGenome("test");
-		genome.mutation.scope = "per_layer";
+		genome.mutation.scope = MutationScope.PerLayer;
 		const mutated = mutateGenome(genome, rng);
 		expect(mutated.network.hiddenLayers.length).toBeGreaterThan(0);
 	});
@@ -197,7 +205,7 @@ describe("Mutation - mutateGenome", () => {
 	test("should trigger horizon nStepReturn +1 and frameSkip -1 branches", () => {
 		const genome = createDefaultGenome("test");
 		genome.mutation.mutateHyperparams = true;
-		genome.mutation.distribution = "uniform";
+		genome.mutation.distribution = MutationDistribution.Uniform;
 		genome.mutation.rate = 0;
 		genome.mutation.addNeuronRate = 0;
 		genome.mutation.removeNeuronRate = 0;

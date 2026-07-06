@@ -1,8 +1,6 @@
-import type Redis from "ioredis";
-
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
-import { getStreamClient } from "../../config/redis";
+import { WalBatchFlusher } from "./wal-batch-flusher";
 
 const WAL_BATCH_SIZE = 50;
 const WAL_FLUSH_RETRY_BASE_MS = 100;
@@ -20,8 +18,15 @@ export class MemoryWalFlusher {
 	private _flusherTimer: ReturnType<typeof setInterval> | null = null;
 	private _backoff = WAL_FLUSH_RETRY_BASE_MS;
 	private _redisDownSince = 0;
+	private readonly _walBatchFlusher: WalBatchFlusher;
 
-	constructor(private readonly _prefix: string) {}
+	constructor(private readonly _prefix: string) {
+		this._walBatchFlusher = new WalBatchFlusher(
+			_prefix,
+			ENV.REDIS_STREAM_MAXLEN,
+			ENV.REDIS_MESSAGE_TTL_S
+		);
+	}
 
 	startFlusher(buffer: MemoryWalEntry[]): void {
 		this._flusherTimer = setInterval(() => {
@@ -79,18 +84,17 @@ export class MemoryWalFlusher {
 
 		this._flushing = true;
 		try {
-			const { batch, multi } = await this._flushBuffer(buffer);
-			try {
-				const ok = await this._executeFlushBatch(multi);
-				if (ok) {
-					this._redisDownSince = 0;
-					this._backoff = WAL_FLUSH_RETRY_BASE_MS;
-					return;
-				}
-				await this._handleFlushFailure(batch, undefined, buffer);
-			} catch (err) {
-				await this._handleFlushFailure(batch, err as Error, buffer);
+			const batch = buffer.splice(0, WAL_BATCH_SIZE);
+			const serialized = batch.map((e) =>
+				JSON.stringify({ topic: e.topic, serialized: e.serialized, message: e.message })
+			);
+			const ok = await this._walBatchFlusher.flushBatch(serialized);
+			if (ok) {
+				this._redisDownSince = 0;
+				this._backoff = WAL_FLUSH_RETRY_BASE_MS;
+				return;
 			}
+			await this._handleFlushFailure(batch, undefined, buffer);
 		} finally {
 			this._flushing = false;
 		}
@@ -112,30 +116,6 @@ export class MemoryWalFlusher {
 			return true;
 		}
 		return false;
-	}
-
-	private async _flushBuffer(
-		buffer: MemoryWalEntry[]
-	): Promise<{ batch: MemoryWalEntry[]; multi: ReturnType<Redis["multi"]> }> {
-		const batch = buffer.splice(0, WAL_BATCH_SIZE);
-		const redis = await getStreamClient();
-		const multi = redis.multi();
-		for (const { topic, serialized } of batch) {
-			const key = `${this._prefix}stream:${topic}`;
-			multi.xadd(key, "MAXLEN", "~", ENV.REDIS_STREAM_MAXLEN, "*", "data", serialized);
-			multi.expire(key, ENV.REDIS_MESSAGE_TTL_S);
-		}
-		return { batch, multi };
-	}
-
-	private async _executeFlushBatch(
-		multi: ReturnType<Redis["multi"]>
-	): Promise<boolean> {
-		const results = await multi.exec();
-		if (results) {
-			return !results.some((resultItem) => resultItem[0] !== null);
-		}
-		return true;
 	}
 
 	private async _handleFlushFailure(
