@@ -120,7 +120,7 @@ describe("ServiceDiscovery", () => {
 
 		expect(result).toEqual(instance);
 		expect(healthChecker.isHealthy).toHaveBeenCalledWith(instance);
-		expect(cache.set).toHaveBeenCalledWith(serviceName, instance);
+		expect(cache.set).toHaveBeenCalledWith({ serviceName, instance });
 	});
 
 	test("invalidates cache and refetches if cached instance is unhealthy", async () => {
@@ -133,7 +133,7 @@ describe("ServiceDiscovery", () => {
 
 		expect(cache.invalidate).toHaveBeenCalledWith(serviceName);
 		expect(result).toEqual(instance);
-		expect(cache.set).toHaveBeenCalledWith(serviceName, instance);
+		expect(cache.set).toHaveBeenCalledWith({ serviceName, instance });
 	});
 
 	test("throws ServiceNotFoundError if service not registered", async () => {
@@ -166,7 +166,7 @@ describe("ServiceDiscovery", () => {
 		const result = await discovery.findService(serviceName);
 
 		expect(result).toEqual(instance);
-		expect(cache.set).toHaveBeenCalledWith(serviceName, instance);
+		expect(cache.set).toHaveBeenCalledWith({ serviceName, instance });
 	});
 
 	test("throws ServiceNotFoundError when AddressManager returns empty instances", async () => {
@@ -199,7 +199,7 @@ describe("ServiceDiscovery", () => {
 
 		await discovery.findService(serviceName);
 
-		expect(cache.set).toHaveBeenCalledWith(serviceName, instance);
+		expect(cache.set).toHaveBeenCalledWith({ serviceName, instance });
 	});
 
 	test("findServiceInRegion invalidates cache when cached instance is unhealthy", async () => {
