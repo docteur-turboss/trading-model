@@ -142,11 +142,11 @@ describe("Controller - Auto Retry", () => {
 
 			await (controller.autoRetryTick as () => Promise<void>)();
 			expect(MOCK_RELEASE_STALE_CLAIMS).toHaveBeenCalled();
-			expect(MOCK_CLAIM_ENTRIES_FOR_RETRY).toHaveBeenCalledWith(
-				50,
-				expect.stringContaining("auto-retry-"),
-				"test-dlq-1"
-			);
+			expect(MOCK_CLAIM_ENTRIES_FOR_RETRY).toHaveBeenCalledWith({
+				limit: 50,
+				batchId: expect.stringContaining("auto-retry-"),
+				instanceId: "test-dlq-1",
+			});
 		});
 	});
 

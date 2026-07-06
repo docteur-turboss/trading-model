@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { SpanStatusCode } from "@opentelemetry/api";
-import type { HttpClient } from "@trading-model/common/config/http-client";
+import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	type ResponseObject,
@@ -359,7 +359,7 @@ async function _runBatchWithTimeout(
 	const batchLoop = runBatchLoop(entries, ctx, ReplayConcurrency);
 
 	const timeoutPromise = waitForBatchTimeout(
-		batchId,
+		ctxBase.batchId,
 		ReplayBatchTimeoutMs,
 		() => {
 			batchTimedOut = true;

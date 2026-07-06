@@ -1,4 +1,4 @@
-import { type AnyBulkWriteOperation, ObjectId } from "mongodb";
+import { type AnyBulkWriteOperation, type Document, ObjectId, type WithId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
@@ -212,7 +212,7 @@ export class DlqClaimManager {
 		return result.modifiedCount > 0;
 	}
 
-	private _toStoredDlqEntry(doc: { _id: ObjectId; topic?: unknown; message: unknown; reason?: unknown; deliveryAttempt: unknown; createdAt?: Date }): StoredDlqEntry {
+	private _toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 		return {
 			id: doc._id.toHexString(),
 			topic: (doc.topic as string | null) ?? null,
