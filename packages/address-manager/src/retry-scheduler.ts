@@ -1,3 +1,4 @@
+import type { RetryOptions, RetryResult } from "@trading-model/common/utils/retry";
 import { logger } from "@trading-model/common/config/logger";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import { normalizeError } from "@trading-model/common/utils/errors";
@@ -91,5 +92,34 @@ export class RetryScheduler {
 			await this.waitForBackgroundRetry();
 		}
 		return onStopped();
+	}
+
+	async retryWithBackoff<T>(
+		fn: () => Promise<T>,
+		options?: Partial<RetryOptions>,
+	): Promise<RetryResult<T>> {
+		const maxRetries = options?.maxRetries ?? this._config.maxRetries;
+		const baseDelayMs = options?.baseDelayMs ?? this._config.baseDelayMs;
+		const maxDelayMs = options?.maxDelayMs ?? this._config.maxDelayMs;
+		const start = Date.now();
+		let lastError: Error | null = null;
+		let attempt = 0;
+
+		for (attempt = 1; attempt <= maxRetries; attempt++) {
+			if (!this._shouldRetry) {
+				return { result: null, lastError, attempts: attempt - 1, timedOut: false };
+			}
+			try {
+				const result = await fn();
+				return { result, lastError: null, attempts: attempt, timedOut: false };
+			} catch (err) {
+				lastError = err as Error;
+				if (attempt < maxRetries) {
+					await sleep(this.computeJitteredDelay(attempt));
+				}
+			}
+		}
+		logger.warn("Max retries exhausted", { maxRetries });
+		return { result: null, lastError, attempts: attempt - 1, timedOut: false };
 	}
 }

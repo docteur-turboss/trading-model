@@ -13,7 +13,7 @@ export class WsReconnectHandler {
 	};
 
 	constructor(
-			private readonly _maxAttempts: number,
+		private readonly _maxAttempts: number,
 		private readonly _intervalMs: number,
 		private readonly _url: string,
 		private readonly _onReconnect: () => void,
@@ -21,6 +21,10 @@ export class WsReconnectHandler {
 
 	get shouldReconnect(): boolean {
 		return this._shouldReconnect;
+	}
+
+	set shouldReconnect(value: boolean) {
+		this._shouldReconnect = value;
 	}
 
 	get attempt(): number {
@@ -36,10 +40,19 @@ export class WsReconnectHandler {
 	}
 
 	stop(): void {
-		this.cancel();
+		this._shouldReconnect = false;
+		this._wsReconnectState.destroyed = true;
+		if (this._wsReconnectState.timer) {
+			clearTimeout(this._wsReconnectState.timer);
+			this._wsReconnectState.timer = null;
+		}
 	}
 
-	scheduleReconnect(): void {
+	cancel(): void {
+		this.stop();
+	}
+
+	scheduleReconnect(connectFn?: () => void): void {
 		if (!this._shouldReconnect) {
 			return;
 		}
@@ -57,22 +70,13 @@ export class WsReconnectHandler {
 				maxDelayMs: this._intervalMs,
 				jitterMs: 0,
 			},
-			onReconnect: () => this._onReconnect(),
+			onReconnect: connectFn ?? (() => this._onReconnect()),
 			logger,
 		});
 	}
 
 	/** @deprecated Use {@link scheduleReconnect} instead */
-	schedule(): void {
-		return this.scheduleReconnect();
-	}
-
-	cancel(): void {
-		this._shouldReconnect = false;
-		this._wsReconnectState.destroyed = true;
-		if (this._wsReconnectState.timer) {
-			clearTimeout(this._wsReconnectState.timer);
-			this._wsReconnectState.timer = null;
-		}
+	schedule(connectFn?: () => void): void {
+		return this.scheduleReconnect(connectFn);
 	}
 }
