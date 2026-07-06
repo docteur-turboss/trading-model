@@ -54,11 +54,11 @@ export class MemoryWalBuffer {
 			ENV.MEMORY_WAL_BUFFER_SIZE * ENV.MEMORY_WAL_BUFFER_WARN_PCT
 		);
 		if (this._buffer.length >= warnThreshold) {
-			logger.warn("In-memory WAL buffer approaching capacity", {
+			logger.warn("In-memory WAL buffer approaching capacity", { context: {
 				bufferSize: this._buffer.length,
 				maxSize: ENV.MEMORY_WAL_BUFFER_SIZE,
 				threshold: ENV.MEMORY_WAL_BUFFER_WARN_PCT,
-			});
+			} });
 		}
 		if (this._buffer.length >= ENV.MEMORY_WAL_BUFFER_SIZE) {
 			this._evictExcess();

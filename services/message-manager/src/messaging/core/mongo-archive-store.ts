@@ -97,9 +97,9 @@ export class MongoArchiveStore {
 			);
 			logger.info("MongoDB archive indexes ensured");
 		} catch (err) {
-			logger.warn("Failed to create archive indexes", {
+			logger.warn("Failed to create archive indexes", { context: {
 				error: (err as Error).message,
-			});
+			} });
 		}
 	}
 
@@ -120,9 +120,9 @@ export class MongoArchiveStore {
 	private _startArchiveTimer(): void {
 		this._archiveTimer = setInterval(() => {
 			this._archiveBatch().catch((err) => {
-				logger.warn("MongoDB archive batch failed", {
+				logger.warn("MongoDB archive batch failed", { context: {
 					error: (err as Error).message,
-				});
+				} });
 			});
 		}, ENV.MONGO_ARCHIVE_INTERVAL_MS);
 		this._archiveTimer.unref();

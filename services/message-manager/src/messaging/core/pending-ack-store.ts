@@ -114,9 +114,9 @@ export class PendingAckStore {
 			}
 			return toDelete.length;
 		} catch (err) {
-			logger.warn("Failed to recover pending acks", {
+			logger.warn("Failed to recover pending acks", { context: {
 				error: (err as Error).message,
-			});
+			} });
 			return 0;
 		}
 	}

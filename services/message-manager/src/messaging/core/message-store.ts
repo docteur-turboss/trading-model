@@ -94,12 +94,12 @@ export class MessageStore {
 				attempt++;
 				lastError = err as Error;
 				const backoff = Math.min(100 * 2 ** attempt, 5000);
-				logger.warn("Redis xadd failed, retrying", {
+				logger.warn("Redis xadd failed, retrying", { context: {
 					topic,
 					attempt,
 					backoff,
 					error: (err as Error).message,
-				});
+				} });
 				await this._sleepWithJitter(backoff);
 			}
 		}
@@ -129,11 +129,11 @@ export class MessageStore {
 		const serialized = safeStringify(message);
 
 		if (serialized.length > ENV.MAX_PAYLOAD_BYTES) {
-			logger.error("Message payload exceeds maximum size", {
+			logger.error("Message payload exceeds maximum size", { context: {
 				topic,
 				size: serialized.length,
 				max: ENV.MAX_PAYLOAD_BYTES,
-			});
+			} });
 			MESSAGES_DLQ_TOTAL.inc({ topic, reason: "PAYLOAD_TOO_LARGE" });
 			return "payload-too-large";
 		}
@@ -146,10 +146,10 @@ export class MessageStore {
 		try {
 			await this._walFlusher.storeInWal(topic, serialized);
 		} catch (err) {
-			logger.warn("Redis WAL list write failed, writing to in-memory buffer", {
+			logger.warn("Redis WAL list write failed, writing to in-memory buffer", { context: {
 				topic,
 				error: (err as Error).message,
-			});
+			} });
 			this._walFlusher.bufferInMemory(topic, serialized, message);
 			return "memory-buffered";
 		}
