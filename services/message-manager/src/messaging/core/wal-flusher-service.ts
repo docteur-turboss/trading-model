@@ -103,6 +103,12 @@ export class WalFlusherService {
 
 	async drainAndStop(timeoutMs = 10_000): Promise<void> {
 		const deadline = Date.now() + timeoutMs;
+		await this._drainWalWithDeadline(deadline);
+		await this._drainMemoryWithDeadline(deadline);
+		this.stop();
+	}
+
+	private async _drainWalWithDeadline(deadline: number): Promise<void> {
 		try {
 			const remaining = deadline - Date.now();
 			if (remaining > 0) {
@@ -113,6 +119,9 @@ export class WalFlusherService {
 				error: (err as Error).message,
 			} });
 		}
+	}
+
+	private async _drainMemoryWithDeadline(deadline: number): Promise<void> {
 		while (this._memoryWalBuffer.length > 0) {
 			if (Date.now() >= deadline) {
 				logger.warn("Memory WAL drain timed out", { context: {
@@ -126,7 +135,6 @@ export class WalFlusherService {
 				break;
 			}
 		}
-		this.stop();
 	}
 
 	private _waitForDrainCompletion(
@@ -159,18 +167,22 @@ export class WalFlusherService {
 		const gen = ++this._walDrainGen;
 
 		try {
-			await this._memoryWalBuffer.drainAll();
-			const redis = await getStreamClient();
-			const remaining = await redis.llen(this._walKey());
-			if (remaining === 0 && this._memoryWalBuffer.length === 0) {
+			const done = await this._tryDrainAll();
+			if (done) {
 				return;
 			}
-
 			await this._flushWal();
 			return this._waitForDrainCompletion(gen, timeoutMs);
 		} finally {
 			this._walDrainRequested = false;
 		}
+	}
+
+	private async _tryDrainAll(): Promise<boolean> {
+		await this._memoryWalBuffer.drainAll();
+		const redis = await getStreamClient();
+		const remaining = await redis.llen(this._walKey());
+		return remaining === 0 && this._memoryWalBuffer.length === 0;
 	}
 
 	async flush(): Promise<void> {

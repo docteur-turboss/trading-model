@@ -120,31 +120,21 @@ export class LeaseManager {
 	 * - For each service, iterate over its instances via getInstances()
 	 * - Remove instances whose lease has expired
 	 */
+	private _removeExpiredInstance(serviceName: string, instance: import("./types").ServiceInstance): void {
+		logger.warn("Expired instance removed", { serviceName, instanceId: instance.instanceId });
+		try {
+			this._registry.removeInstance({ serviceName, instanceId: instance.instanceId });
+		} catch (err) {
+			logger.error("Failed to remove expired instance", { serviceName, instanceId: instance.instanceId, error: normalizeError(err) });
+		}
+	}
+
 	private _cleanupExpiredInstances(): void {
 		const now = Date.now();
-
 		for (const serviceName of this._registry.listServiceNames()) {
 			for (const instance of this._registry.getInstances(serviceName)) {
-				const expired = now - instance.lastHeartbeat > instance.ttl;
-
-				if (expired) {
-					logger.warn("Expired instance removed", {
-						serviceName,
-						instanceId: instance.instanceId,
-					});
-
-					try {
-						this._registry.removeInstance({
-							serviceName,
-							instanceId: instance.instanceId,
-						});
-					} catch (err) {
-						logger.error("Failed to remove expired instance", {
-							serviceName,
-							instanceId: instance.instanceId,
-							error: normalizeError(err),
-						});
-					}
+				if (now - instance.lastHeartbeat > instance.ttl) {
+					this._removeExpiredInstance(serviceName, instance);
 				}
 			}
 		}

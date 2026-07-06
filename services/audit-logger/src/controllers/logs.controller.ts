@@ -3,23 +3,29 @@ import { sendResponse } from "@trading-model/common/middleware/response-exceptio
 
 import type { LogRepository } from "../persistence/log-repository";
 
+function _buildLogQueryParams(
+	req: import("express").Request
+): Parameters<LogRepository["query"]>[0] {
+	return {
+		serviceName: req.query.serviceName as string | undefined,
+		level: req.query.level as string | undefined,
+		correlationId: req.query.correlationId as string | undefined,
+		startDate: req.query.startDate as string | undefined,
+		endDate: req.query.endDate as string | undefined,
+		search: req.query.search as string | undefined,
+		page: req.query.page
+			? Number.parseInt(req.query.page as string, 10)
+			: undefined,
+		limit: req.query.limit
+			? Number.parseInt(req.query.limit as string, 10)
+			: undefined,
+	};
+}
+
 export function getLogsController(logRepo: LogRepository) {
 	return {
 		listLogs: catchSync(async (req) => {
-			const result = await logRepo.query({
-				serviceName: req.query.serviceName as string | undefined,
-				level: req.query.level as string | undefined,
-				correlationId: req.query.correlationId as string | undefined,
-				startDate: req.query.startDate as string | undefined,
-				endDate: req.query.endDate as string | undefined,
-				search: req.query.search as string | undefined,
-				page: req.query.page
-					? Number.parseInt(req.query.page as string, 10)
-					: undefined,
-				limit: req.query.limit
-					? Number.parseInt(req.query.limit as string, 10)
-					: undefined,
-			});
+			const result = await logRepo.query(_buildLogQueryParams(req));
 			return sendResponse(result, 200);
 		}),
 

@@ -1,7 +1,14 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/common/config/logger", () => ({
+jest.mock("../../../../src/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
+
+jest.mock("../../../../src/config/env", () => ({
+	ENV: {
+		REDIS_STREAM_MAXLEN: 1000,
+		REDIS_MESSAGE_TTL_S: 3600,
+	},
 }));
 
 jest.mock("../../../../src/config/redis", () => ({
@@ -10,6 +17,12 @@ jest.mock("../../../../src/config/redis", () => ({
 
 import { getStreamClient } from "../../../../src/config/redis";
 import { MemoryWalFlusher } from "../../../../src/messaging/core/memory-wal-flusher";
+
+interface MemoryWalEntry {
+	topic: string;
+	serialized: string;
+	message: import("@trading-model/common/contracts/message.types").Message;
+}
 
 function createMockRedis() {
 	const mockMulti = {
@@ -28,31 +41,33 @@ function createMockRedis() {
 	};
 }
 
+function makeEntry(overrides?: Partial<MemoryWalEntry>): MemoryWalEntry {
+	return {
+		topic: "test.topic",
+		serialized: '{"hello":"world"}',
+		message: { type: "test" } as unknown as import("@trading-model/common/contracts/message.types").Message,
+		...overrides,
+	};
+}
+
 describe("MemoryWalFlusher", () => {
 	let flusher: MemoryWalFlusher;
+	let buffer: MemoryWalEntry[];
 	let mockRedis: ReturnType<typeof createMockRedis>;
 
 	beforeEach(() => {
 		mockRedis = createMockRedis();
 		(getStreamClient as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
-			mockRedis
+			mockRedis,
 		);
-		flusher = new MemoryWalFlusher("test:", 1000, 3600);
-	});
-
-	it("should have zero buffer on init", () => {
-		expect(flusher.bufferSize).toBe(0);
-	});
-
-	it("should increase buffer on push", () => {
-		flusher.push([{ topic: "test.topic", serialized: '{"hello":"world"}' }]);
-		expect(flusher.bufferSize).toBe(1);
+		flusher = new MemoryWalFlusher("test:");
+		buffer = [];
 	});
 
 	it("should flush entries to Redis", async () => {
-		flusher.push([{ topic: "test.topic", serialized: '{"hello":"world"}' }]);
+		buffer.push(makeEntry());
 
-		await flusher.flush();
+		await flusher.flush(buffer);
 
 		expect(mockRedis.multi).toHaveBeenCalled();
 		expect(mockRedis.mockMulti.xadd).toHaveBeenCalledWith(
@@ -62,52 +77,52 @@ describe("MemoryWalFlusher", () => {
 			1000,
 			"*",
 			"data",
-			'{"hello":"world"}'
+			'{"hello":"world"}',
 		);
 		expect(mockRedis.mockMulti.expire).toHaveBeenCalledWith(
 			"test:stream:test.topic",
-			3600
+			3600,
 		);
 		expect(mockRedis.mockMulti.exec).toHaveBeenCalled();
 	});
 
-	it("should not flush when already flushing", async () => {
-		flusher.push([{ topic: "test.topic", serialized: "{}" }]);
+	it("should clear buffer after successful flush", async () => {
+		buffer.push(makeEntry());
 
-		await Promise.all([flusher.flush(), flusher.flush()]);
-
-		expect(mockRedis.multi).toHaveBeenCalledTimes(1);
+		await flusher.flush(buffer);
+		expect(buffer.length).toBe(0);
 	});
 
-	it("should clear buffer after successful flush", async () => {
-		flusher.push([{ topic: "test.topic", serialized: "{}" }]);
+	it("should not flush when already flushing", async () => {
+		buffer.push(makeEntry());
 
-		await flusher.flush();
-		expect(flusher.bufferSize).toBe(0);
+		await Promise.all([flusher.flush(buffer), flusher.flush(buffer)]);
+
+		expect(mockRedis.multi).toHaveBeenCalledTimes(1);
 	});
 
 	it("should re-queue batch on exec error", async () => {
 		mockRedis.mockMulti.exec.mockRejectedValue(new Error("redis down"));
 
-		flusher.push([{ topic: "test.topic", serialized: "{}" }]);
+		buffer.push(makeEntry());
 
-		await flusher.flush();
+		await flusher.flush(buffer);
 
-		expect(flusher.bufferSize).toBe(1);
+		expect(buffer.length).toBe(1);
 	});
 
 	it("should re-queue batch on partial failure", async () => {
 		mockRedis.mockMulti.exec.mockResolvedValue([[new Error("fail"), null]]);
 
-		flusher.push([{ topic: "test.topic", serialized: "{}" }]);
+		buffer.push(makeEntry());
 
-		await flusher.flush();
+		await flusher.flush(buffer);
 
-		expect(flusher.bufferSize).toBe(1);
+		expect(buffer.length).toBe(1);
 	});
 
 	it("should handle empty buffer", async () => {
-		await flusher.flush();
+		await flusher.flush(buffer);
 
 		expect(mockRedis.multi).not.toHaveBeenCalled();
 	});
@@ -115,13 +130,13 @@ describe("MemoryWalFlusher", () => {
 	it("should skip flush when redis was recently down", async () => {
 		mockRedis.mockMulti.exec.mockRejectedValue(new Error("redis down"));
 
-		flusher.push([{ topic: "test.topic", serialized: "{}" }]);
+		buffer.push(makeEntry());
 
-		await flusher.flush();
+		await flusher.flush(buffer);
 
-		expect(flusher.bufferSize).toBe(1);
+		expect(buffer.length).toBe(1);
 
-		await flusher.flush();
+		await flusher.flush(buffer);
 
 		expect(mockRedis.multi).toHaveBeenCalledTimes(1);
 	});

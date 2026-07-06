@@ -87,7 +87,7 @@ export async function bootstrapCertificate(
 }
 
 async function _tryLoadExistingCert(
-	config: BootstrapConfig
+	config: BootstrapConfig,
 ): Promise<TlsPaths | null> {
 	try {
 		await fs.access(config.certPath);
@@ -112,7 +112,6 @@ async function _generateKeyAndCsr(config: BootstrapConfig): Promise<{
 		serviceId: config.serviceId,
 		caUrl: config.caUrl,
 	});
-
 	const keyPair = await generateKeyPairAsync(KeyAlgorithm.ecP384);
 	const csr = await createCsrAsync({
 		commonName: config.commonName,
@@ -124,14 +123,9 @@ async function _generateKeyAndCsr(config: BootstrapConfig): Promise<{
 
 async function _signWithCa(
 	config: BootstrapConfig,
-	csr: string
-): Promise<
-	import("@trading-model/common/ca/ca-client").SignCertificateResponse
-> {
-	const caClient = new CaClient({
-		baseUrl: config.caUrl,
-		tls: config.tls,
-	});
+	csr: string,
+): Promise<import("@trading-model/common/ca/ca-client").SignCertificateResponse> {
+	const caClient = new CaClient({ baseUrl: config.caUrl, tls: config.tls });
 	return await caClient.signCertificate(config.serviceId, csr, {
 		bootstrapToken: config.bootstrapToken,
 	});
@@ -140,15 +134,24 @@ async function _signWithCa(
 async function _writeCertFiles(
 	config: BootstrapConfig,
 	privateKey: string,
-	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse
+	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse,
 ): Promise<void> {
 	const certDir = path.dirname(config.certPath);
 	await fs.mkdir(certDir, { recursive: true });
+	await _writeCertFile(config.keyPath, privateKey, 0o600);
+	await _writeCertFile(config.certPath, response.cert, 0o644);
+	await _writeCertFile(config.caPath, response.caPem, 0o644);
+	_logCertWritten(config, response);
+}
 
-	await fs.writeFile(config.keyPath, privateKey, { mode: 0o600 });
-	await fs.writeFile(config.certPath, response.cert, { mode: 0o644 });
-	await fs.writeFile(config.caPath, response.caPem, { mode: 0o644 });
+async function _writeCertFile(filePath: string, content: string, mode: number): Promise<void> {
+	await fs.writeFile(filePath, content, { mode });
+}
 
+function _logCertWritten(
+	config: BootstrapConfig,
+	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse,
+): void {
 	logger.info("TLS certificate obtained and written to disk", {
 		serviceId: config.serviceId,
 		certPath: config.certPath,

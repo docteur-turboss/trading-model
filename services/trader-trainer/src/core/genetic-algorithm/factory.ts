@@ -16,24 +16,18 @@ import type {
 	RLGenome,
 } from "./genome-types";
 
+function _createDefaultHiddenLayers(): NetworkGenome["hiddenLayers"] {
+	return [
+		{ neurons: 64, activation: "relu", connectionType: "dense-skip", biasType: "zeros" },
+		{ neurons: 32, activation: "relu", connectionType: "dense-skip", biasType: "zeros" },
+	];
+}
+
 export function createNetworkGenome(): NetworkGenome {
 	return {
 		inputDim: 32,
 		outputDim: 3,
-		hiddenLayers: [
-			{
-				neurons: 64,
-				activation: "relu",
-				connectionType: "dense-skip",
-				biasType: "zeros",
-			},
-			{
-				neurons: 32,
-				activation: "relu",
-				connectionType: "dense-skip",
-				biasType: "zeros",
-			},
-		],
+		hiddenLayers: _createDefaultHiddenLayers(),
 		normalization: "none",
 	};
 }
@@ -88,18 +82,18 @@ export function createReplayBufferGenome(): ReplayBufferGenome {
 	};
 }
 
-export function createMutationGenome(): MutationGenome {
+function _createMutationRateParams(): Partial<MutationGenome> {
 	return {
 		rate: 0.1,
 		sigma: 0.05,
 		noiseStd: 0.02,
-		distribution: "gaussian",
-		adaptation: "fixed",
-		scope: "global",
 		selfSigma: 0.05,
-		mutateActivations: false,
 		activationMutationRate: 0.05,
-		mutateHyperparams: true,
+	};
+}
+
+function _createMutationStructureParams(): Partial<MutationGenome> {
+	return {
 		addNeuronRate: 0.01,
 		removeNeuronRate: 0.01,
 		addLayerRate: 0.005,
@@ -107,6 +101,18 @@ export function createMutationGenome(): MutationGenome {
 		addConnectionRate: 0.01,
 		removeConnectionRate: 0.01,
 	};
+}
+
+export function createMutationGenome(): MutationGenome {
+	return {
+		..._createMutationRateParams(),
+		..._createMutationStructureParams(),
+		distribution: "gaussian",
+		adaptation: "fixed",
+		scope: "global",
+		mutateActivations: false,
+		mutateHyperparams: true,
+	} as MutationGenome;
 }
 
 export function createCrossoverGenome(): CrossoverGenome {
