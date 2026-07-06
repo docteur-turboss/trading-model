@@ -28,7 +28,7 @@ export class JobFailureHandler {
 		this._assignmentManager = deps.assignmentManager;
 	}
 
-	async handleAckTimeout(jobId: string): Promise<void> {
+	handleAckTimeout(jobId: string): void {
 		logger.warn("ACK timeout for job", { context: { jobId } });
 
 		this._repository
@@ -38,38 +38,6 @@ export class JobFailureHandler {
 				_logFindJobError(jobId, err);
 			});
 	}
-}
-
-function _logFindJobError(jobId: string, err: unknown): void {
-	logger.error("Failed to find job on ACK timeout", { context: {
-		jobId,
-		error: String(err),
-	} });
-}
-
-function _onAckTimeoutJobFound(
-	job: import("../types/job.types").Job | null,
-	jobId: string,
-	self: JobFailureHandler
-): void {
-	if (!job || isTerminalStatus(job.status)) {
-		return;
-	}
-
-	self._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-
-	self._repository
-		.updateStatus(jobId, "orphaned")
-		.then(() => self._reAllocator.reallocate(job))
-		.catch((err) =>
-			logger.error("Failed to persist orphaned status on ACK timeout", {
-				jobId,
-				error: String(err),
-			})
-		);
-}
-
-export class JobFailureHandler {
 
 	async handlePermanentFailure(jobId: string, error: string): Promise<void> {
 		await this._repository.updateStatus(jobId, "failed", { error });
@@ -102,4 +70,33 @@ export class JobFailureHandler {
 		} });
 		this._assignmentManager.distributeNext();
 	}
+}
+
+function _logFindJobError(jobId: string, err: unknown): void {
+	logger.error("Failed to find job on ACK timeout", { context: {
+		jobId,
+		error: String(err),
+	} });
+}
+
+function _onAckTimeoutJobFound(
+	job: import("../types/job.types").Job | null,
+	jobId: string,
+	self: JobFailureHandler
+): void {
+	if (!job || isTerminalStatus(job.status)) {
+		return;
+	}
+
+	self._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
+
+	self._repository
+		.updateStatus(jobId, "orphaned")
+		.then(() => self._reAllocator.reallocate(job))
+		.catch((err) =>
+			logger.error("Failed to persist orphaned status on ACK timeout", {
+				jobId,
+				error: String(err),
+			})
+		);
 }

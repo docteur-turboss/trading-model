@@ -91,22 +91,15 @@ export class Wallet implements WalletAPI {
 	private readonly _history: TradeRecord[] = [];
 
 	constructor(config: WalletConfig) {
-		const resolved = this._resolveConfig(config);
+		const {
+			initialCash,
+			initialPrice,
+			feeRate = 0,
+			maxPosition = Number.POSITIVE_INFINITY,
+			decimals = 8,
+		} = config;
+		const resolved = { initialCash, initialPrice, feeRate, maxPosition, decimals };
 		validateConfig(resolved);
-		this._assignFields(resolved);
-	}
-
-	private _resolveConfig(config: WalletConfig): Required<WalletConfig> {
-		return {
-			initialCash: config.initialCash,
-			initialPrice: config.initialPrice,
-			feeRate: config.feeRate ?? 0,
-			maxPosition: config.maxPosition ?? Number.POSITIVE_INFINITY,
-			decimals: config.decimals ?? 8,
-		};
-	}
-
-	private _assignFields(resolved: Required<WalletConfig>): void {
 		this._initialCash = resolved.initialCash;
 		this._initialPrice = resolved.initialPrice;
 		this._feeRate = resolved.feeRate;
