@@ -4,17 +4,10 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import WebSocket from "ws";
 import { WsReconnectHandler } from "./ws-reconnect-handler";
 
-export type WsMessageType =
-	| "heartbeat"
-	| "register"
-	| "subscribe"
-	| "cache.invalidate";
+import type { DiscoveryWsMessage, DiscoveryWsMessageType } from "@trading-model/common/contracts/discovery-ws-message.types";
 
-export interface WsMessage {
-	type: WsMessageType;
-	payload: Record<string, unknown>;
-}
-
+export type { DiscoveryWsMessageType as WsMessageType };
+export type WsMessage = DiscoveryWsMessage;
 export type WsEventHandler = (message: WsMessage) => void;
 
 export interface WebSocketClientOptions {

@@ -1,13 +1,10 @@
 import type https from "node:https";
 import { logger } from "@trading-model/common/config/logger";
+import type { DiscoveryWsClientMessage, DiscoveryWsHeartbeatMessage, DiscoveryWsSubscribeMessage } from "@trading-model/common/contracts/discovery-ws-message.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import WebSocket, { WebSocketServer } from "ws";
 import { ClientConnectionManager } from "./client-connection-manager";
 import type { ConnectedClient } from "./client-connection-manager";
-
-type WsDiscoveryClientMessage =
-	| { type: "subscribe"; payload?: { services?: string[] } }
-	| { type: "heartbeat"; payload?: { serviceName?: string; instanceId?: string } };
 
 interface WsDiscoveryServerOptions {
 	path?: string;
@@ -62,7 +59,7 @@ export class WsDiscoveryServer {
 				type: string;
 				payload?: Record<string, unknown>;
 			};
-			this._handleMessage(clientId, client, parsed as WsDiscoveryClientMessage);
+			this._handleMessage(clientId, client, parsed as DiscoveryWsClientMessage);
 		} catch (error) {
 			logger.warn("Failed to parse WS message", {
 				clientId,
@@ -116,7 +113,7 @@ export class WsDiscoveryServer {
 
 	private readonly _messageHandlers: Record<
 		string,
-		(clientId: string, client: ConnectedClient, message: WsDiscoveryClientMessage) => void
+		(clientId: string, client: ConnectedClient, message: DiscoveryWsClientMessage) => void
 	> = {
 		subscribe: (clientId, client, message) =>
 			this._handleSubscribe(clientId, client, message as never),
@@ -127,7 +124,7 @@ export class WsDiscoveryServer {
 	private _handleMessage(
 		clientId: string,
 		client: ConnectedClient,
-		message: WsDiscoveryClientMessage
+		message: DiscoveryWsClientMessage
 	): void {
 		const handler = this._messageHandlers[message.type];
 		if (handler) {
