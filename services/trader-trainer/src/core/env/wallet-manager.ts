@@ -78,27 +78,24 @@ function validateConfig(config: Required<WalletConfig>): void {
 	_validateDecimals(config.decimals);
 }
 
-function computeBuyCosts(
-	amount: Volume,
-	price: Price,
-	feeRate: Percentage,
-	decimals: number
-): { totalCost: Cash; fee: Cash } {
-	const baseCost = _roundValue(+amount * +price, decimals);
-	const fee = Cash.of(_roundValue(baseCost * +feeRate, decimals));
-	const totalCost = Cash.of(_roundValue(baseCost + +fee, decimals));
+interface TradeCostParams {
+	amount: Volume;
+	price: Price;
+	feeRate: Percentage;
+	decimals: number;
+}
+
+function computeBuyCosts(params: TradeCostParams): { totalCost: Cash; fee: Cash } {
+	const baseCost = _roundValue(+params.amount * +params.price, params.decimals);
+	const fee = Cash.of(_roundValue(baseCost * +params.feeRate, params.decimals));
+	const totalCost = Cash.of(_roundValue(baseCost + +fee, params.decimals));
 	return { totalCost, fee };
 }
 
-function computeSellProceeds(
-	amount: Volume,
-	price: Price,
-	feeRate: Percentage,
-	decimals: number
-): { netProceeds: Cash; fee: Cash } {
-	const baseProceeds = _roundValue(+amount * +price, decimals);
-	const fee = Cash.of(_roundValue(baseProceeds * +feeRate, decimals));
-	const netProceeds = Cash.of(_roundValue(baseProceeds - +fee, decimals));
+function computeSellProceeds(params: TradeCostParams): { netProceeds: Cash; fee: Cash } {
+	const baseProceeds = _roundValue(+params.amount * +params.price, params.decimals);
+	const fee = Cash.of(_roundValue(baseProceeds * +params.feeRate, params.decimals));
+	const netProceeds = Cash.of(_roundValue(baseProceeds - +fee, params.decimals));
 	return { netProceeds, fee };
 }
 
@@ -160,12 +157,12 @@ export class Wallet implements WalletAPI {
 		if (+newPosition > +this._maxPosition) {
 			return false;
 		}
-		const { totalCost, fee } = computeBuyCosts(
+		const { totalCost, fee } = computeBuyCosts({
 			amount,
-			this._price,
-			this._feeRate,
-			this._decimals
-		);
+			price: this._price,
+			feeRate: this._feeRate,
+			decimals: this._decimals,
+		});
 		if (+totalCost > +this._cash) {
 			return false;
 		}
@@ -180,12 +177,12 @@ export class Wallet implements WalletAPI {
 		if (!Number.isFinite(amt) || amt <= 0 || amt > +this._position) {
 			return false;
 		}
-		const { netProceeds, fee } = computeSellProceeds(
+		const { netProceeds, fee } = computeSellProceeds({
 			amount,
-			this._price,
-			this._feeRate,
-			this._decimals
-		);
+			price: this._price,
+			feeRate: this._feeRate,
+			decimals: this._decimals,
+		});
 		this._position = Volume.of(
 			_roundValue(+this._position - amt, this._decimals)
 		);

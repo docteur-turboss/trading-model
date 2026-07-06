@@ -69,7 +69,7 @@ export class WorkerReconnector {
 		this._onReconnect().catch((err) =>
 			logger.warn("Failed to reconnect worker client", {
 				context: {
-					attempt: this._state.attempt,
+					attempt: this._attempt,
 					err: normalizeError(err),
 				},
 			}),
