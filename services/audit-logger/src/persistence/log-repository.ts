@@ -145,31 +145,11 @@ export class LogRepository {
 	private _buildLogFilter(params: LogQuery): Record<string, unknown> {
 		const filter: Record<string, unknown> = {};
 
-		if (params.serviceName) {
-			filter["service.name"] = params.serviceName;
-		}
-		if (params.level) {
-			filter.level = params.level;
-		}
-		if (params.correlationId) {
-			filter.correlationId = params.correlationId;
-		}
-		if (params.startDate || params.endDate) {
-			filter.receivedAt = {} as Record<string, Date>;
-			if (params.startDate) {
-				(filter.receivedAt as Record<string, Date>)[MGTE] = new Date(
-					params.startDate
-				);
-			}
-			if (params.endDate) {
-				(filter.receivedAt as Record<string, Date>)[MLTE] = new Date(
-					params.endDate
-				);
-			}
-		}
-		if (params.search) {
-			filter.message = { [MREGEX]: params.search, [MOPTIONS]: "i" };
-		}
+		_addIfPresent(filter, "service.name", params.serviceName);
+		_addIfPresent(filter, "level", params.level);
+		_addIfPresent(filter, "correlationId", params.correlationId);
+		_addDateRangeFilter(filter, params);
+		_addSearchFilter(filter, params);
 
 		return filter;
 	}
@@ -198,34 +178,88 @@ export class LogRepository {
 	}
 
 	private _parseStatsResult(aggResult: Record<string, unknown>): LogStats {
-		const byService: Record<string, number> = {};
-		for (const svc of (aggResult?.byService as Array<{
-			[MID]: string;
-			count: number;
-		}>) ?? []) {
-			byService[svc[MID]] = svc.count;
-		}
-		const byLevel: Record<string, number> = {};
-		for (const level of (aggResult?.byLevel as Array<{
-			[MID]: string;
-			count: number;
-		}>) ?? []) {
-			byLevel[level[MID]] = level.count;
-		}
-		const dr = (
-			aggResult?.dateRange as Array<{ earliest?: Date; latest?: Date }>
-		)?.[0];
-
 		return {
-			total: (aggResult?.total as Array<{ count: number }>)?.[0]?.count ?? 0,
-			byService,
-			byLevel,
-			dateRange: {
-				earliest: dr?.earliest?.toISOString(),
-				latest: dr?.latest?.toISOString(),
-			},
+			total: _extractTotal(aggResult),
+			byService: _extractMap(aggResult, "byService"),
+			byLevel: _extractMap(aggResult, "byLevel"),
+			dateRange: _extractDateRange(aggResult),
 		};
 	}
+}
+
+function _addIfPresent(
+	filter: Record<string, unknown>,
+	key: string,
+	value: string | undefined
+): void {
+	if (value) {
+		filter[key] = value;
+	}
+}
+
+function _addDateRangeFilter(
+	filter: Record<string, unknown>,
+	params: LogQuery
+): void {
+	if (!params.startDate && !params.endDate) {
+		return;
+	}
+	filter.receivedAt = {} as Record<string, Date>;
+	if (params.startDate) {
+		(filter.receivedAt as Record<string, Date>)[MGTE] = new Date(
+			params.startDate
+		);
+	}
+	if (params.endDate) {
+		(filter.receivedAt as Record<string, Date>)[MLTE] = new Date(
+			params.endDate
+		);
+	}
+}
+
+function _addSearchFilter(
+	filter: Record<string, unknown>,
+	params: LogQuery
+): void {
+	if (!params.search) {
+		return;
+	}
+	filter.message = { [MREGEX]: params.search, [MOPTIONS]: "i" };
+}
+
+function _extractTotal(
+	aggResult: Record<string, unknown>
+): number {
+	return (aggResult?.total as Array<{ count: number }>)?.[0]?.count ?? 0;
+}
+
+function _extractMap(
+	aggResult: Record<string, unknown>,
+	key: string
+): Record<string, number> {
+	const result: Record<string, number> = {};
+	for (const item of (aggResult?.[key] as Array<{
+		[MID]: string;
+		count: number;
+	}>) ?? []) {
+		result[item[MID]] = item.count;
+	}
+	return result;
+}
+
+function _extractDateRange(
+	aggResult: Record<string, unknown>
+): { earliest?: string; latest?: string } {
+	const dr = (
+		aggResult?.dateRange as Array<{ earliest?: Date; latest?: Date }>
+	)?.[0];
+	return {
+		earliest: dr?.earliest?.toISOString(),
+		latest: dr?.latest?.toISOString(),
+	};
+}
+
+export class LogRepository {
 
 	private async _indexExists(name: string): Promise<boolean> {
 		try {

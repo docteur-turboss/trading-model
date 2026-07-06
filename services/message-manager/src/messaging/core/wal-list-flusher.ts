@@ -110,6 +110,12 @@ export class WalListFlusher {
 
 	async drainAndStop(timeoutMs = 10_000): Promise<void> {
 		const deadline = Date.now() + timeoutMs;
+		await this._drainWalWithDeadline(deadline);
+		await this._drainMemoryBuffer(deadline);
+		this.stopFlusher();
+	}
+
+	private async _drainWalWithDeadline(deadline: number): Promise<void> {
 		try {
 			const remaining = deadline - Date.now();
 			if (remaining > 0) {
@@ -120,6 +126,9 @@ export class WalListFlusher {
 				error: (err as Error).message,
 			} });
 		}
+	}
+
+	private async _drainMemoryBuffer(deadline: number): Promise<void> {
 		while (this._memoryWalBuffer.length > 0) {
 			if (Date.now() >= deadline) {
 				logger.warn("Memory WAL drain timed out", { context: {
@@ -133,7 +142,6 @@ export class WalListFlusher {
 				break;
 			}
 		}
-		this.stopFlusher();
 	}
 
 	private _sleepWithJitter(ms: number): Promise<void> {

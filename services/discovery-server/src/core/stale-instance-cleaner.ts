@@ -49,28 +49,25 @@ export class StaleInstanceCleaner {
 		await this._cleanup();
 	}
 
+	private _isExpired(instance: ServiceInstance, now: number): boolean {
+		return now - instance.lastHeartbeat > instance.ttl + CLOCK_SKEW_TOLERANCE_MS;
+	}
+
+	private async _removeExpiredInstance(serviceName: string, instance: ServiceInstance, now: number): Promise<void> {
+		logger.warn("Expired instance removed", {
+			serviceName, instanceId: instance.instanceId, heartbeatAge: now - instance.lastHeartbeat, ttl: instance.ttl,
+		});
+		await this._deps.removeInstance({ serviceName, instanceId: instance.instanceId });
+	}
+
 	private async _cleanup(): Promise<void> {
 		const now = Date.now();
 		const serviceNames = await this._deps.listServiceNames();
-
 		for (const serviceName of serviceNames) {
 			const instances = await this._deps.getInstances(serviceName);
-
 			for (const instance of instances) {
-				if (
-					now - instance.lastHeartbeat >
-					instance.ttl + CLOCK_SKEW_TOLERANCE_MS
-				) {
-					logger.warn("Expired instance removed", {
-						serviceName,
-						instanceId: instance.instanceId,
-						heartbeatAge: now - instance.lastHeartbeat,
-						ttl: instance.ttl,
-					});
-					await this._deps.removeInstance({
-						serviceName,
-						instanceId: instance.instanceId,
-					});
+				if (this._isExpired(instance, now)) {
+					await this._removeExpiredInstance(serviceName, instance, now);
 				}
 			}
 		}

@@ -208,6 +208,18 @@ function _mutateRewardShaping(
 	};
 }
 
+function _mutateMaxEpisodeLength(
+	horizon: RLGenome["horizon"],
+	mutation: MutationGenome,
+	rng: () => number
+): number {
+	return Math.max(10, Math.round(horizon.maxEpisodeLength + sampleNoise(mutation.distribution, 20, rng)));
+}
+
+function _mutateDiscreteStepParam(value: number, rng: () => number): number {
+	return Math.max(1, Math.round(value + (rng() < 0.1 ? (rng() < 0.5 ? 1 : -1) : 0)));
+}
+
 function _mutateHorizon(
 	rl: RLGenome,
 	mutation: MutationGenome,
@@ -215,25 +227,9 @@ function _mutateHorizon(
 ): Pick<RLGenome, "horizon"> {
 	return {
 		horizon: {
-			maxEpisodeLength: Math.max(
-				10,
-				Math.round(
-					rl.horizon.maxEpisodeLength +
-						sampleNoise(mutation.distribution, 20, rng)
-				)
-			),
-			nStepReturn: Math.max(
-				1,
-				Math.round(
-					rl.horizon.nStepReturn + (rng() < 0.1 ? (rng() < 0.5 ? 1 : -1) : 0)
-				)
-			),
-			frameSkip: Math.max(
-				1,
-				Math.round(
-					rl.horizon.frameSkip + (rng() < 0.1 ? (rng() < 0.5 ? 1 : -1) : 0)
-				)
-			),
+			maxEpisodeLength: _mutateMaxEpisodeLength(rl.horizon, mutation, rng),
+			nStepReturn: _mutateDiscreteStepParam(rl.horizon.nStepReturn, rng),
+			frameSkip: _mutateDiscreteStepParam(rl.horizon.frameSkip, rng),
 		},
 	};
 }

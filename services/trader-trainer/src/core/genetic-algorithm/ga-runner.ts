@@ -234,27 +234,31 @@ export class GeneticAlgorithmRunner {
 		}
 	}
 
+	private _shouldStop(ctx: GenerationContext): boolean {
+		const ctrl = ctx.gaControl;
+		return (
+			ctx.bestFitness >= ctrl.rewardThreshold ||
+			ctx.stagnation >= ctrl.stagnationPatience ||
+			ctx.generation >= ctrl.maxGenerations ||
+			ctx.elapsedMs >= ctrl.timeBudgetMs
+		);
+	}
+
+	private _getBestResult(): DeepReadonly<LamarckGenome> {
+		return this._archive.members[0] ?? this._stagnationTracker.bestGenome ?? this._population[0];
+	}
+
 	public async run(): Promise<DeepReadonly<LamarckGenome>> {
 		this.initialise(this._cfg.initialControl);
 
 		while (true) {
 			const ctx = await this.runGeneration();
-			const ctrl = ctx.gaControl;
-			if (ctx.bestFitness >= ctrl.rewardThreshold) {
-				break;
-			}
-			if (ctx.stagnation >= ctrl.stagnationPatience) {
-				break;
-			}
-			if (ctx.generation >= ctrl.maxGenerations) {
-				break;
-			}
-			if (ctx.elapsedMs >= ctrl.timeBudgetMs) {
+			if (this._shouldStop(ctx)) {
 				break;
 			}
 		}
 
-		return this._archive.members[0] ?? this._stagnationTracker.bestGenome ?? this._population[0];
+		return this._getBestResult();
 	}
 
 	public getPopulation(): DeepReadonly<LamarckGenome>[] {

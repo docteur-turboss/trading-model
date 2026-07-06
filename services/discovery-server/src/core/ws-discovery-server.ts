@@ -159,31 +159,24 @@ export class WsDiscoveryServer {
 		this._broadcastInvalidation(serviceName);
 	}
 
-	private _broadcastInvalidation(serviceName: string): void {
-		const message = JSON.stringify({
-			type: "cache.invalidate",
-			payload: { serviceName },
-		});
+	private _isSubscribed(client: ConnectedClient, serviceName: string): boolean {
+		return client.subscribedServices.has("*") || client.subscribedServices.has(serviceName);
+	}
 
+	private _sendToClient(clientId: string, client: ConnectedClient, message: string): void {
+		if (client.ws.readyState !== WebSocket.OPEN) return;
+		try {
+			client.ws.send(message);
+		} catch (error) {
+			logger.warn("Failed to send cache.invalidate to client", { clientId, err: normalizeError(error) });
+		}
+	}
+
+	private _broadcastInvalidation(serviceName: string): void {
+		const message = JSON.stringify({ type: "cache.invalidate", payload: { serviceName } });
 		for (const [clientId, client] of this._clients) {
-			if (client.ws.readyState !== WebSocket.OPEN) {
-				continue;
-			}
-			if (
-				!(
-					client.subscribedServices.has("*") ||
-					client.subscribedServices.has(serviceName)
-				)
-			) {
-				continue;
-			}
-			try {
-				client.ws.send(message);
-			} catch (error) {
-				logger.warn("Failed to send cache.invalidate to client", {
-					clientId,
-					err: normalizeError(error),
-				});
+			if (this._isSubscribed(client, serviceName)) {
+				this._sendToClient(clientId, client, message);
 			}
 		}
 	}

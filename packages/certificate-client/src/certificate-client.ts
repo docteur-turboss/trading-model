@@ -153,11 +153,11 @@ export class CertificateClient {
 		}, delay);
 	}
 
-	private _logRenewScheduled(marginMs: number): void {
+	private _logRenewScheduled(delay: number): void {
 		if (this._obtainedCert) {
 			logger.info("Certificate renewal scheduled", {
 				serviceId: this._config.serviceId,
-				delay: 0,
+				delay,
 				expiresAt: this._obtainedCert.expiresAt,
 			});
 		}
@@ -175,7 +175,7 @@ export class CertificateClient {
 
 		const delay = remaining - marginMs;
 		this._setupRenewTimer(delay, marginMs);
-		this._logRenewScheduled(marginMs);
+		this._logRenewScheduled(delay);
 	}
 
 	getCurrentCert(): ObtainedCertificate | null {
