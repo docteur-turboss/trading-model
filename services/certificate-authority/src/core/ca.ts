@@ -97,7 +97,7 @@ export class CertificateAuthority {
 		const now = new Date();
 		const expiresAt = new Date(now.getTime() + this._options.caCertTtlMs);
 		const certBody = this._certBodyBuilder.buildCertBody({ serialNumber, now, expiresAt, publicKey: this._caKeyPair!.publicKey });
-		this._caCertPem = this._certBodyBuilder.signCertBody(certBody, this._caKeyPair!.privateKey);
+		this._caCertPem = this._certBodyBuilder.signAndBuildPem(certBody, this._caKeyPair!.privateKey);
 		this._saveCaKey(this._caKeyPair!.privateKey);
 		await this._saveCaCert(this._caCertPem, serialNumber, now, expiresAt);
 	}

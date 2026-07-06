@@ -17,9 +17,4 @@ export class CertBodyBuilder extends CommonCertBodyBuilder {
 			isCa: true,
 		});
 	}
-
-	signCertBody(certBody: string, privateKey: string): string {
-		const signature = super.signCertBody(certBody, privateKey);
-		return this.buildCertPem(certBody, signature);
-	}
 }
