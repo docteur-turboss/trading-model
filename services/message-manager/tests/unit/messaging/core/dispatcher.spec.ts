@@ -11,7 +11,7 @@ import {
 	jest,
 } from "@jest/globals";
 import { Dispatcher } from "../../../../src/messaging/core/dispatcher";
-import { DlqRepository } from "../../../../src/messaging/core/dlq-repository";
+import { FileDlqRepository } from "../../../../src/messaging/core/dlq-repository";
 import { Subscription } from "../../../../src/messaging/core/subscription";
 import {
 	createMockMessage,
@@ -33,12 +33,12 @@ jest.mock("config/address-manager", () => ({
 describe("Dispatcher", () => {
 	let mockHttpClient: ReturnType<typeof createMockHttpClient>;
 	let dispatcher: Dispatcher;
-	let dqlRepository: DlqRepository;
+	let dqlRepository: FileDlqRepository;
 	const dlqFilePath = join(tmpdir(), `dlq-test-disp-${Date.now()}.jsonl`);
 
 	beforeEach(() => {
 		mockHttpClient = createMockHttpClient();
-		dqlRepository = new DlqRepository(dlqFilePath);
+		dqlRepository = new FileDlqRepository(dlqFilePath);
 		dispatcher = new Dispatcher(mockHttpClient as never, dqlRepository);
 	});
 

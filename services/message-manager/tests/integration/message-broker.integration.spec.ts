@@ -11,7 +11,7 @@ import {
 	jest,
 } from "@jest/globals";
 import { Dispatcher } from "../../src/messaging/core/dispatcher";
-import { DlqRepository } from "../../src/messaging/core/dlq-repository";
+import { FileDlqRepository } from "../../src/messaging/core/dlq-repository";
 import {
 	mockServiceIdentity,
 	mockSubscriberIdentity,
