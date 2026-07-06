@@ -280,22 +280,23 @@ export class NeuralNetwork {
 		return (this._feedForward as any)._normalize(input, params);
 	}
 
-	private _validateDimensions(input: Float32Array, target: Float32Array): void {
+	private _validateInputDim(input: Float32Array): void {
 		const expectedInput = this._config.neuronsByLayer[0];
-		const expectedOutput =
-			this._config.neuronsByLayer[this._config.neuronsByLayer.length - 1];
-
 		if (input.length !== expectedInput) {
-			throw new AgentError(
-				`Expected input size ${expectedInput}, got ${input.length}`,
-			);
+			throw new AgentError(`Expected input size ${expectedInput}, got ${input.length}`);
 		}
+	}
 
+	private _validateOutputDim(target: Float32Array): void {
+		const expectedOutput = this._config.neuronsByLayer[this._config.neuronsByLayer.length - 1];
 		if (target.length !== expectedOutput) {
-			throw new AgentError(
-				`Expected target size ${expectedOutput}, got ${target.length}`,
-			);
+			throw new AgentError(`Expected target size ${expectedOutput}, got ${target.length}`);
 		}
+	}
+
+	private _validateDimensions(input: Float32Array, target: Float32Array): void {
+		this._validateInputDim(input);
+		this._validateOutputDim(target);
 	}
 
 	public getWeights(): Float32Array {

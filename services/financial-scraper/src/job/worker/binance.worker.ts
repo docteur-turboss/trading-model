@@ -75,56 +75,86 @@ export class BinanceWorker {
 	 */
 	public async run(): Promise<BinanceWorkerResult> {
 		const builderMetadata = new HELPER.metadataBuilder();
+		const opts = this._options;
 
-		const {
-			symbol,
-			interval = "1m",
-			candleLimit = 100,
-			tradeLimit = 100,
-			orderBookLimit = 100,
-		} = this._options;
-
-		const [
-			orderBookRaw,
-			tradesRaw,
-			candlesRaw,
-			ticker24hRaw,
-			priceTickerRaw,
-			bookTickerRaw,
-		] = await Promise.all([
-			getOrderBook(symbol, orderBookLimit),
-			getRecentTrades(symbol, tradeLimit),
-			getCandlestickData({ symbol, limit: candleLimit, interval }),
-			get24hrTickerStats([symbol]),
-			getSymbolPriceTicker([symbol]),
-			getOrderBookTicker([symbol]),
-		]);
-
-		const response = {
-			orderBook: BinanceNormalizer.orderBook(symbol, orderBookRaw),
-			recentTrades: BinanceNormalizer.trades(symbol, tradesRaw),
-			candles: BinanceNormalizer.candles(symbol, interval, candlesRaw),
-			ticker24h: BinanceNormalizer.ticker24h(ticker24hRaw),
-			priceTicker: BinanceNormalizer.priceTicker(priceTickerRaw),
-			bookTicker: BinanceNormalizer.bookTicker(bookTickerRaw),
-			fetchedAt: Date.now(),
-		};
+		const rawData = await _fetchAllRawData(opts);
+		const response = _buildResponse(opts.symbol, opts.interval, rawData);
 
 		this._configureMetadata(builderMetadata);
+		_sendAllMarketData(
+			this._buildMarketDataEntries(response),
+			builderMetadata
+		);
 
-		const marketDataEntries = this._buildMarketDataEntries(response);
+		return response;
+	}
 
-		for (const entry of marketDataEntries) {
+	private _sendAllMarketData(
+		entries: ReturnType<BinanceWorker["_buildMarketDataEntries"]>,
+		builder: typeof HELPER.metadataBuilder.prototype
+	): void {
+		for (const entry of entries) {
 			this._sendMarketData({
 				data: entry.data,
 				topic: entry.topic,
 				eventType: entry.eventType,
-				builder: builderMetadata,
+				builder,
 			});
 		}
-
-		return response;
 	}
+}
+
+interface RawBinanceData {
+	orderBookRaw: Awaited<ReturnType<typeof getOrderBook>>;
+	tradesRaw: Awaited<ReturnType<typeof getRecentTrades>>;
+	candlesRaw: Awaited<ReturnType<typeof getCandlestickData>>;
+	ticker24hRaw: Awaited<ReturnType<typeof get24hrTickerStats>>;
+	priceTickerRaw: Awaited<ReturnType<typeof getSymbolPriceTicker>>;
+	bookTickerRaw: Awaited<ReturnType<typeof getOrderBookTicker>>;
+}
+
+async function _fetchAllRawData(
+	opts: BinanceWorkerOptions
+): Promise<RawBinanceData> {
+	const { symbol, candleLimit = 100, tradeLimit = 100, orderBookLimit = 100 } = opts;
+	const interval = opts.interval ?? "1m";
+
+	const [
+		orderBookRaw,
+		tradesRaw,
+		candlesRaw,
+		ticker24hRaw,
+		priceTickerRaw,
+		bookTickerRaw,
+	] = await Promise.all([
+		getOrderBook(symbol, orderBookLimit),
+		getRecentTrades(symbol, tradeLimit),
+		getCandlestickData({ symbol, limit: candleLimit, interval }),
+		get24hrTickerStats([symbol]),
+		getSymbolPriceTicker([symbol]),
+		getOrderBookTicker([symbol]),
+	]);
+
+	return { orderBookRaw, tradesRaw, candlesRaw, ticker24hRaw, priceTickerRaw, bookTickerRaw };
+}
+
+function _buildResponse(
+	symbol: string,
+	interval: string | undefined,
+	raw: RawBinanceData
+): BinanceWorkerResult {
+	return {
+		orderBook: BinanceNormalizer.orderBook(symbol, raw.orderBookRaw),
+		recentTrades: BinanceNormalizer.trades(symbol, raw.tradesRaw),
+		candles: BinanceNormalizer.candles(symbol, interval ?? "1m", raw.candlesRaw),
+		ticker24h: BinanceNormalizer.ticker24h(raw.ticker24hRaw),
+		priceTicker: BinanceNormalizer.priceTicker(raw.priceTickerRaw),
+		bookTicker: BinanceNormalizer.bookTicker(raw.bookTickerRaw),
+		fetchedAt: Date.now(),
+	};
+}
+
+export class BinanceWorker {
 
 	private _configureMetadata(builder: typeof HELPER.metadataBuilder.prototype): void {
 		const authContext = {

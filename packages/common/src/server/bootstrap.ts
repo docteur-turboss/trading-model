@@ -30,95 +30,86 @@ export function createBootstrap(options: BootstrapOptions): {
 	shutdown: (signal: string) => Promise<void>;
 } {
 	let server: HttpServer | null = null;
-
 	const doHardShutdown = (code: number) => hardShutdown(code, server, options);
-	const doShutdown = (signal: string) =>
-		gracefulShutdown(signal, server, options);
-
+	const doShutdown = (signal: string) => gracefulShutdown(signal, server, options);
 	setupProcessHandlers(doShutdown, doHardShutdown);
-
-	runBootstrap(
-		options,
-		(svr) => {
-			server = svr;
-		},
-		doHardShutdown
-	);
-
+	runBootstrap(options, (svr) => { server = svr; }, doHardShutdown);
 	return { server, shutdown: doShutdown };
 }
 
-function hardShutdown(
-	code: number,
-	server: HttpServer | null,
-	options: BootstrapOptions
-): void {
-	if (server) {
-		server.close().catch((err) =>
-			logger.warn("Server close during forced shutdown failed", {
-				context: {
-					err: normalizeError(err),
-				},
-			})
-		);
-	}
+function _closeServerOnShutdown(server: HttpServer | null): void {
+	if (!server) return;
+	server.close().catch((err) =>
+		logger.warn("Server close during forced shutdown failed", {
+			context: { err: normalizeError(err) },
+		}),
+	);
+}
 
-	if (options.onStop) {
-		try {
-			options.onStop();
-		} catch (err) {
-			logger.warn("onStop callback failed during forced shutdown", {
-				context: {
-					err: normalizeError(err),
-				},
-			});
-		}
+function _runOnStop(options: BootstrapOptions): void {
+	if (!options.onStop) return;
+	try {
+		options.onStop();
+	} catch (err) {
+		logger.warn("onStop callback failed during forced shutdown", {
+			context: { err: normalizeError(err) },
+		});
 	}
+}
 
+function hardShutdown(code: number, server: HttpServer | null, options: BootstrapOptions): void {
+	_closeServerOnShutdown(server);
+	_runOnStop(options);
 	logger.warn("Forced shutdown", { context: { exitCode: code } });
 	process.exitCode = code;
+}
+
+function _onBootstrapError(onFatal: (code: number) => void, err: unknown): void {
+	logger.error("Fatal error during service bootstrap", {
+		context: { err: normalizeError(err) },
+	});
+	onFatal(1);
 }
 
 function runBootstrap(
 	options: BootstrapOptions,
 	setServer: (server: HttpServer) => void,
-	onFatal: (code: number) => void
+	onFatal: (code: number) => void,
 ): void {
-	const onError = (err: unknown) => {
-		logger.error("Fatal error during service bootstrap", {
-			context: {
-				err: normalizeError(err),
-			},
-		});
-		onFatal(1);
-	};
-
+	const onError = (err: unknown) => _onBootstrapError(onFatal, err);
 	logger.info("Bootstrapping service", { context: { name: options.name } });
-
-	const finishCreateServer = () => {
-		runSyncOrAsync(
-			() => options.createServer(),
-			(httpServer) => {
-				setServer(httpServer);
-				setupAutoRenew(httpServer, options);
-				finishBootstrap(httpServer, options);
-			},
-			onError
-		);
-	};
-
-	const handleBeforeServer = () => {
-		runSyncOrAsync(
-			() => options.onBeforeServer?.(),
-			finishCreateServer,
-			onError
-		);
-	};
-
 	runSyncOrAsync(
 		() => options.tlsBootstrap?.ensure(),
-		handleBeforeServer,
-		onError
+		() => _handleBeforeServer(options, setServer, onError),
+		onError,
+	);
+}
+
+function _handleBeforeServer(
+	options: BootstrapOptions,
+	setServer: (server: HttpServer) => void,
+	onError: (err: unknown) => void,
+): void {
+	runSyncOrAsync(
+		() => options.onBeforeServer?.(),
+		() => _finishCreateServer(options, setServer, onError),
+		onError,
+	);
+}
+
+function _finishCreateServer(
+	options: BootstrapOptions,
+	setServer: (server: HttpServer) => void,
+	onError: (err: unknown) => void,
+): void {
+	runSyncOrAsync(
+		() => options.createServer(),
+		(httpServer) => {
+			setServer(httpServer);
+			setupAutoRenew(httpServer, options);
+			finishBootstrap(httpServer, options);
+		},
+		onError,
 	);
 }
 
@@ -141,50 +132,39 @@ function runSyncOrAsync<TValue>(
 	}
 }
 
+async function _closeServerWithTimeout(server: HttpServer): Promise<void> {
+	const closeTimeout = 10000;
+	let rejectTimeout: ((reason: Error) => void) | undefined;
+	const timeoutPromise = new Promise<void>((_, reject) => {
+		rejectTimeout = reject;
+	});
+	const timeoutHandle = setTimeout(
+		() => rejectTimeout?.(new Error("Server close timed out")),
+		closeTimeout,
+	);
+	try {
+		await Promise.race([server.close(), timeoutPromise]);
+	} finally {
+		clearTimeout(timeoutHandle);
+	}
+}
+
 async function gracefulShutdown(
 	signal: string,
 	server: HttpServer | null,
-	options: BootstrapOptions
+	options: BootstrapOptions,
 ): Promise<void> {
 	logger.warn("Shutdown signal received", { context: { signal } });
-
 	try {
 		if (server) {
-			const closeTimeout = 10000;
-			let rejectTimeout: ((reason: Error) => void) | undefined;
-			const timeoutPromise = new Promise<void>((_, reject) => {
-				rejectTimeout = reject;
-			});
-			const timeoutHandle = setTimeout(
-				() => rejectTimeout?.(new Error("Server close timed out")),
-				closeTimeout
-			);
-			try {
-				await Promise.race([server.close(), timeoutPromise]);
-			} finally {
-				clearTimeout(timeoutHandle);
-			}
+			await _closeServerWithTimeout(server);
 			logger.info("HTTP server closed");
 		}
-
-		if (options.onStop) {
-			try {
-				options.onStop();
-			} catch (error) {
-				logger.warn("onStop callback failed during shutdown", {
-					context: {
-						err: normalizeError(error),
-					},
-				});
-			}
-		}
-
+		_runOnStop(options);
 		logger.info("Shutdown completed gracefully");
 	} catch (error) {
 		logger.error("Error during graceful shutdown", {
-			context: {
-				err: normalizeError(error),
-			},
+			context: { err: normalizeError(error) },
 		});
 		hardShutdown(1, server, options);
 	}

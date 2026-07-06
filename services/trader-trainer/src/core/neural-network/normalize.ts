@@ -8,24 +8,23 @@ export interface Normalizer {
 	): Float32Array;
 }
 
+function _findMaxAbs(data: Float32Array): number {
+	let maxAbs = 0;
+	for (const value of data) {
+		const abs = Math.abs(value);
+		if (abs > maxAbs) {
+			maxAbs = abs;
+		}
+	}
+	return maxAbs;
+}
+
 class DecimalScalingNormalizer implements Normalizer {
 	normalize(data: Float32Array, len: number): Float32Array {
-		let maxAbs = 0;
-
-		for (const value of data) {
-			const abs = Math.abs(value);
-			if (abs > maxAbs) {
-				maxAbs = abs;
-			}
-		}
-
-		const j = Math.ceil(Math.log10(maxAbs + 1));
-		const denom = 10 ** j;
-
+		const denom = 10 ** Math.ceil(Math.log10(_findMaxAbs(data) + 1));
 		for (let i = 0; i < len; i++) {
 			data[i] /= denom;
 		}
-
 		return data;
 	}
 }
