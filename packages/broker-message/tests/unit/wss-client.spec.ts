@@ -69,8 +69,8 @@ describe("WssClient", () => {
 
 	it("should set HTTP fallback function", () => {
 		const fallback = jest.fn();
-		client.setHttpFallback(fallback);
-		expect(client.httpFallback).toBe(fallback);
+		const clientWithFallback = new WssClient({ ...mockConfig, httpFallback: fallback });
+		expect(clientWithFallback.httpFallback).toBe(fallback);
 	});
 
 	it("should register message handler", () => {
@@ -204,9 +204,9 @@ describe("WssClient", () => {
 
 	it("should queue publish when not connected with HTTP fallback", async () => {
 		const fallback = jest.fn<any>().mockResolvedValue(undefined);
-		client.setHttpFallback(fallback);
-		const result = client.publish({ data: "test" }, { id: "msg-1" } as any);
-		client.connect();
+		const clientWithFallback = new WssClient({ ...mockConfig, httpFallback: fallback });
+		const result = clientWithFallback.publish({ data: "test" }, { id: "msg-1" } as any);
+		clientWithFallback.connect();
 		const openHandler = MOCK_WS_INSTANCE.on.mock.calls.find(
 			(c: string[]) => c[0] === "open"
 		)?.[1];

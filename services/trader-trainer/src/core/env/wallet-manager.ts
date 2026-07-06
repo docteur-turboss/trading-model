@@ -1,7 +1,9 @@
 import { Price, Volume, Percentage } from "@trading-model/common/domain/primitives";
 import { computeWalletMetrics, type WalletMetrics } from "./wallet-metrics";
+import { TradeHistory, type TradeRecord } from "./trade-history";
 
 export type { WalletMetrics };
+export type { TradeRecord };
 
 export interface WalletConfig {
 	initialCash: number;
@@ -9,16 +11,6 @@ export interface WalletConfig {
 	feeRate?: Percentage;
 	maxPosition?: Volume;
 	decimals?: number;
-}
-
-export interface TradeRecord {
-	step: number;
-	action: "buy" | "sell";
-	amount: Volume;
-	price: Price;
-	fee: number;
-	cashAfter: number;
-	positionAfter: Volume;
 }
 
 export interface WalletAPI {
@@ -86,10 +78,7 @@ export class Wallet implements WalletAPI {
 	private _cash: number;
 	private _position: Volume = Volume.zero();
 	private _peakValuation: number;
-	private _totalFeesPaid = 0;
-	private _tradeCount = 0;
-	private _step = 0;
-	private readonly _history: TradeRecord[] = [];
+	private readonly _tradeHistory = new TradeHistory();
 
 	constructor(config: WalletConfig) {
 		const {
@@ -172,18 +161,15 @@ export class Wallet implements WalletAPI {
 		amount: Volume,
 		fee: number
 	): void {
-		this._totalFeesPaid = this._round(this._totalFeesPaid + fee);
-		this._tradeCount++;
-		this._updatePeak();
-		this._history.push({
-			step: this._step,
+		this._tradeHistory.record(
 			action,
 			amount,
-			price: this._price,
-			fee,
-			cashAfter: this._cash,
-			positionAfter: this._position,
-		});
+			this._round(fee),
+			this._price,
+			this._cash,
+			this._position,
+		);
+		this._updatePeak();
 	}
 
 	setPrice(newPrice: Price): void {
@@ -191,7 +177,7 @@ export class Wallet implements WalletAPI {
 			throw new Error(`setPrice received invalid value: ${newPrice}`);
 		}
 		this._price = newPrice;
-		this._step++;
+		this._tradeHistory.incrementStep();
 		this._updatePeak();
 	}
 

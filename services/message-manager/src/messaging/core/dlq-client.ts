@@ -5,7 +5,7 @@ import type { HttpRequestOptions } from "@trading-model/common/config/http-types
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import {
 	AppError,
-	MessageManagerError,
+	messageManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import { ENV } from "../../config/env";
@@ -177,7 +177,7 @@ export class DlqServiceClient {
 			error: normalizeError(err),
 			reason: entry.reason,
 		} });
-		throw new MessageManagerError("Failed to send DLQ entry", { cause: err });
+		throw messageManagerError("Failed to send DLQ entry", { cause: err });
 	}
 
 	private async _retrySend(

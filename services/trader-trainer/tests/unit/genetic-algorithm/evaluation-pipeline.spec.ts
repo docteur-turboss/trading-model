@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import type { RLBackend } from "../../../src/core/genetic-algorithm/evaluation-pipeline";
+import type { RLBackend } from "../../../src/core/genetic-algorithm/rl-backend";
 import {
 	evaluateGenomeAllWindows,
 	pooledEval,

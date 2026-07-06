@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { logger } from "../config/logger";
-import { AppError, ConfigurationError, normalizeError } from "../utils/errors";
+import { AppError, configurationError, normalizeError } from "../utils/errors";
 
 /** Zod schema for base environment variables shared across all services. */
 export const BaseEnvSchema = z.object({
@@ -127,7 +127,7 @@ export function validateEnv<TSchema extends z.ZodType>(
 			}
 		}
 		console.error("Invalid environment configuration", { errors });
-		throw new ConfigurationError("Environment validation failed", {
+		throw configurationError("Environment validation failed", {
 			cause: parsed.error,
 		});
 	}
