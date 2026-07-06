@@ -1,4 +1,3 @@
-import { logger } from "@trading-model/common/config/logger";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -6,6 +5,7 @@ import type {
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+import { BackendPingManager } from "./backend-ping-manager";
 import { CacheManager } from "./cache-manager";
 import { CacheOrchestrator } from "./cache-orchestrator";
 import { PubSubInvalidator } from "./pub-sub-invalidator";
@@ -26,28 +26,28 @@ export class CachedRegistryBackend implements RegistryBackend {
 	private _pubSub: PubSubInvalidator;
 	private readonly _orchestrator: CacheOrchestrator;
 	private readonly _healthMonitor: RedisHealthMonitor;
-	private readonly _redisUrlForPubSub?: string;
-
-	private _createHealthMonitorCallbacks(): import("./redis-health-monitor").HealthCheckCallbacks {
-		return {
-			ping: () => this.ping(),
-			onHealthLost: () => {},
-			onHealthRestored: () => { this._cache.clear(); },
-			onFallbackActivated: () => { this._cache.clear(); },
-			onFallbackRestored: () => { this._cache.clear(); },
-		};
-	}
+	private readonly _pingManager: BackendPingManager;
 
 	constructor(options: CachedRegistryBackendOptions) {
 		this._backend = options.backend;
-		this._redisUrlForPubSub = options.redisUrlForPubSub;
 		this._cache = new CacheManager({ maxSize: options.maxEntries ?? 5000, ttlMs: options.cacheTtlMs });
 		this._pubSub = new PubSubInvalidator(options.redisUrlForPubSub);
+		this._pingManager = new BackendPingManager(
+			this._backend,
+			this._pubSub,
+			options.redisUrlForPubSub,
+		);
 		this._healthMonitor = new RedisHealthMonitor({
 			failureThreshold: options.redisFailureThreshold ?? 3,
 			healthCheckIntervalMs: options.redisHealthCheckIntervalMs ?? 15_000,
-			shouldRun: () => !!(options.redisUrlForPubSub || this._isRedisBackend()),
-			callbacks: this._createHealthMonitorCallbacks(),
+			shouldRun: () => !!(options.redisUrlForPubSub || this._pingManager.isRedisBackend()),
+			callbacks: {
+				ping: () => this.ping(),
+				onHealthLost: () => {},
+				onHealthRestored: () => { this._cache.clear(); },
+				onFallbackActivated: () => { this._cache.clear(); },
+				onFallbackRestored: () => { this._cache.clear(); },
+			},
 			backend: this._backend,
 		});
 		this._orchestrator = new CacheOrchestrator(this._backend, this._cache, this._healthMonitor);
@@ -150,32 +150,10 @@ export class CachedRegistryBackend implements RegistryBackend {
 		this._healthMonitor.start();
 	}
 
-	private _isRedisBackend(): boolean {
-		return typeof (this._backend as { ping?: unknown }).ping === "function";
-	}
-
-	private async _pingPubSub(): Promise<void> {
-		const pubSubClient = this._pubSub.client;
-		if (pubSubClient?.status === "ready") {
-			try { await pubSubClient.ping(); } catch {
-				logger.warn("PubSub ping failed — cache invalidation degraded");
-			}
-		}
-	}
-
-	private async _pingBackend(): Promise<boolean> {
-		const b = this._backend as { ping?: () => Promise<boolean> };
-		if (typeof b.ping === "function") {
-			try { return await b.ping(); } catch { return false; }
-		}
-		if (this._redisUrlForPubSub) return false;
-		try { await this._backend.listServiceNames(); return true; } catch { return false; }
-	}
-
 	async ping(): Promise<boolean> {
 		if (this._healthMonitor.fallbackActive) return false;
-		await this._pingPubSub();
-		return this._pingBackend();
+		await this._pingManager.pingPubSub();
+		return this._pingManager.pingBackend();
 	}
 
 	markUnhealthy(): void {
@@ -183,9 +161,6 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	setFallbackBackend(fallback: RegistryBackend): void {
-		logger.warn(
-			"CachedRegistryBackend.setFallbackBackend — swapping to fallback backend"
-		);
 		this._healthMonitor.setFallbackBackend(fallback);
 		this._cache.clear();
 	}
