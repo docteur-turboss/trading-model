@@ -2,8 +2,6 @@ import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 
-const SET_ON_INSERT = "$setOnInsert";
-
 const _MAX_BATCH_SIZE = 1000;
 const _MAX_RETRIES = 3;
 const _RETRY_DELAY_MS = 1000;
@@ -162,7 +160,7 @@ function _messageToArchiveEntry(msg: Message): ArchiveEntry {
 function _buildBulkUpserts(entries: ArchiveEntry[]): Array<{
 	updateOne: {
 		filter: { messageId: string };
-		update: { [SET_ON_INSERT]: ArchiveEntry };
+		update: { $setOnInsert: ArchiveEntry };
 		upsert: true;
 	};
 }> {
@@ -174,14 +172,14 @@ function _buildBulkUpserts(entries: ArchiveEntry[]): Array<{
 function _upsertOperation(entry: ArchiveEntry): {
 	updateOne: {
 		filter: { messageId: string };
-		update: { [SET_ON_INSERT]: ArchiveEntry };
+		update: { $setOnInsert: ArchiveEntry };
 		upsert: true;
 	};
 } {
 	return {
 		updateOne: {
 			filter: { messageId: entry.messageId },
-			update: { [SET_ON_INSERT]: entry },
+			update: { $setOnInsert: entry },
 			upsert: true,
 		},
 	};

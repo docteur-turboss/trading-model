@@ -1,3 +1,4 @@
+import type { OrderBookLevel } from "@trading-model/common/config/event.types";
 import { Table } from "ts-sql-query/Table";
 
 import { DBConnection } from "../../../config/db";
@@ -39,7 +40,7 @@ const SELECT = {
 };
 
 function serializeSet(
-	entries: Set<{ price: number; quantity: number }>
+	entries: Set<OrderBookLevel>
 ): string {
 	return JSON.stringify(
 		Array.from(entries).map((entry) => [entry.price, entry.quantity])

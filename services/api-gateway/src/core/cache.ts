@@ -40,6 +40,10 @@ export class ResponseCache {
 		});
 	}
 
+	delete(key: string): void {
+		this._store.delete(key);
+	}
+
 	invalidate(pattern: string): void {
 		const regex = new RegExp(
 			pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\*/g, ".*")

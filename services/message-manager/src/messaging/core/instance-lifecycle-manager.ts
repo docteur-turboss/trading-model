@@ -10,7 +10,7 @@ const HEARTBEAT_INTERVAL_MS = ENV.STALE_HEARTBEAT_INTERVAL_MS;
 const MISSED_HEARTBEAT_THRESHOLD = ENV.STALE_MISSED_HEARTBEAT_THRESHOLD;
 const GRACE_PERIOD_MS = ENV.STALE_GRACE_PERIOD_MS;
 
-export const LEASE_HEARTBEAT_FIELD = "heartbeat";
+export const LEASE_HEARTBEAT_FIELD = "heartbeat" as const;
 
 function isHeartbeatExpired(lastBeat: number): boolean {
 	const elapsed = Date.now() - lastBeat;
