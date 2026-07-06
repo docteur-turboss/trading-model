@@ -6,6 +6,7 @@ import {
 	generateKeyPairAsync,
 } from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
+import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
 import { CaClient } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
@@ -23,12 +24,8 @@ export interface CertificateClientConfig {
 	onRenew?: (cert: ObtainedCertificate) => void;
 }
 
-export interface ObtainedCertificate {
-	certPem: string;
+export interface ObtainedCertificate extends CertificateBase {
 	keyPem: string;
-	caPem: string;
-	serialNumber: string;
-	expiresAt: Date;
 }
 
 export class CertificateClient {
@@ -37,12 +34,19 @@ export class CertificateClient {
 	private _obtainedCert: ObtainedCertificate | null = null;
 	private _renewTimer: ReturnType<typeof setTimeout> | null = null;
 
-	constructor(config: CertificateClientConfig) {
+	constructor(config: CertificateClientConfig, initialCert?: ObtainedCertificate) {
 		this._config = config;
+		this._obtainedCert = initialCert ?? null;
 		this._caClient = new CaClient({
 			baseUrl: config.caUrl,
 			tls: config.tls,
 		});
+	}
+
+	static async createObtained(config: CertificateClientConfig): Promise<CertificateClient> {
+		const client = new CertificateClient(config);
+		await client.obtainCertificate();
+		return client;
 	}
 
 	private async _generateKeyAndCsr(): Promise<{
@@ -86,8 +90,10 @@ export class CertificateClient {
 	}
 
 	private _notifyOnRenew(): void {
-		if (this._obtainedCert && this._config.onRenew) {
-			setImmediate(() => this._config.onRenew!(this._obtainedCert!));
+		const cert = this._obtainedCert;
+		const onRenew = this._config.onRenew;
+		if (cert && onRenew) {
+			setImmediate(() => onRenew(cert));
 		}
 	}
 
@@ -102,7 +108,7 @@ export class CertificateClient {
 			expiresAt: response.expiresAt,
 		});
 		this._notifyOnRenew();
-		return this._obtainedCert;
+		return this._obtainedCert!;
 	}
 
 	startAutoRenew(): void {
@@ -154,13 +160,11 @@ export class CertificateClient {
 	}
 
 	private _logRenewScheduled(delay: number): void {
-		if (this._obtainedCert) {
-			logger.info("Certificate renewal scheduled", {
-				serviceId: this._config.serviceId,
-				delay,
-				expiresAt: this._obtainedCert.expiresAt,
-			});
-		}
+		logger.info("Certificate renewal scheduled", {
+			serviceId: this._config.serviceId,
+			delay,
+			expiresAt: this._obtainedCert!.expiresAt,
+		});
 	}
 
 	private async _scheduleRenew(marginMs: number): Promise<void> {

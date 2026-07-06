@@ -1,3 +1,5 @@
+import type { CacheConfig } from "@trading-model/common/utils/cache-config";
+
 interface CacheEntry<TValue> {
 	value: TValue;
 	expiresAt: number;
@@ -8,9 +10,9 @@ export class LruCache<TValue> {
 	private readonly _ttlMs: number;
 	private readonly _map = new Map<string, CacheEntry<TValue>>();
 
-	constructor(maxSize = 1000, ttlMs = 60000) {
-		this._maxSize = maxSize;
-		this._ttlMs = ttlMs;
+	constructor(config: CacheConfig = { maxSize: 1000, ttlMs: 60000 }) {
+		this._maxSize = config.maxSize;
+		this._ttlMs = config.ttlMs ?? 60000;
 	}
 
 	get(key: string): TValue | undefined {

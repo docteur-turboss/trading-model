@@ -10,8 +10,8 @@ export interface ServiceIdentity {
 
 /** Host and port pair for network endpoints. */
 export interface HostPort {
-	host: string;
-	port: number;
+	host: IPAddress;
+	port: Port;
 }
 
 /** Identifies a service by name, network address, and port. */

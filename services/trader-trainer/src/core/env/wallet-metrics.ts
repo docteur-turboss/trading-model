@@ -1,4 +1,4 @@
-import { Cash, Percentage, Price } from "@trading-model/common/domain/primitives";
+import { Cash, Percentage, Price, Volume } from "@trading-model/common/domain/primitives";
 
 export interface WalletMetrics {
 	pnl: number;
@@ -16,7 +16,7 @@ function round(value: number, decimals: number): number {
 
 export interface ComputeWalletMetricsParams {
 	cash: Cash;
-	position: number;
+	position: Volume;
 	price: Price;
 	peakValuation: Cash;
 	initialCash: Cash;

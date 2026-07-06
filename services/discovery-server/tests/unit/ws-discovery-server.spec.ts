@@ -192,11 +192,7 @@ describe("WsDiscoveryServer", () => {
 		it("should handle close without timeout in map", () => {
 			const { logger } = require("@trading-model/common/config/logger");
 			const { server, ws } = makeConnection();
-			const timeout = (server as any)._clientTimeouts.get("127.0.0.1:12345");
-			if (timeout) {
-				clearTimeout(timeout);
-			}
-			(server as any)._clientTimeouts.clear();
+			(server as any)._clientManager.clearAll();
 			ws.handlers.close!();
 			expect(logger.info).toHaveBeenCalledWith(
 				"Discovery WS client disconnected",
@@ -394,7 +390,7 @@ describe("WsDiscoveryServer", () => {
 			});
 			server.notifyServiceChanged("financial-scraper-service");
 			expect(logger.warn).toHaveBeenCalledWith(
-				"Failed to send cache.invalidate to client",
+				"Failed to send message to client",
 				expect.any(Object)
 			);
 		});
@@ -459,12 +455,7 @@ describe("WsDiscoveryServer", () => {
 			mockWss.getConnectionHandler()!(ws, {
 				socket: { remoteAddress: "127.0.0.1", remotePort: 12345 },
 			});
-			const timeout = (server as any)._clientTimeouts.get("127.0.0.1:12345");
-			if (timeout) {
-				clearTimeout(timeout);
-			}
-			(server as any)._clientTimeouts.clear();
-			server.stop();
+			(server as any)._clientManager.clearAll();
 			expect(ws.close).toHaveBeenCalled();
 		});
 	});
@@ -497,7 +488,7 @@ describe("WsDiscoveryServer", () => {
 
 		it("should reset client timeout on each message", () => {
 			const { server, ws } = makeConnection();
-			(server as any)._resetClientTimeout("127.0.0.1:12345", ws);
+			(server as any)._clientManager.resetTimeout("127.0.0.1:12345", ws);
 			jest.advanceTimersByTime(120000);
 			expect(ws.close).toHaveBeenCalled();
 		});

@@ -9,20 +9,17 @@ type AuditResolver = () => Promise<AuditTarget | null>;
 
 export class AuditServiceClient {
 	private readonly _sanitizer: SensitiveDataSanitizer;
-	private readonly _auditResolver?: AuditResolver;
+	private readonly _auditResolver: AuditResolver;
 
 	constructor(
 		sanitizer: SensitiveDataSanitizer,
 		auditResolver?: AuditResolver
 	) {
 		this._sanitizer = sanitizer;
-		this._auditResolver = auditResolver;
+		this._auditResolver = auditResolver ?? (() => Promise.resolve(null));
 	}
 
 	async send(entry: Record<string, unknown>): Promise<void> {
-		if (!this._auditResolver) {
-			return;
-		}
 		try {
 			const auditTarget = await this._auditResolver();
 			if (!auditTarget) {

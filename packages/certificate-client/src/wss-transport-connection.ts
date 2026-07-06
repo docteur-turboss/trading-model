@@ -9,6 +9,7 @@ import {
 	scheduleWsReconnect,
 	type WsReconnectState,
 } from "@trading-model/common/utils/ws-reconnect";
+import { TlsConfigBuilder } from "./tls-config-builder";
 
 export type ConnectionState =
 	| "disconnected"
@@ -26,6 +27,7 @@ export class WssTransportConnection {
 		timer: null,
 		destroyed: false,
 	};
+	private _tlsBuilder: TlsConfigBuilder;
 
 	on(event: string, listener: (...args: unknown[]) => void): this {
 		this._emitter.on(event, listener);
@@ -34,9 +36,10 @@ export class WssTransportConnection {
 
 	constructor(
 		private readonly _url: string,
-		private readonly _tlsConfig?: TlsPaths,
+		tlsConfig?: TlsPaths,
 		private readonly _bootstrapToken?: string
 	) {
+		this._tlsBuilder = new TlsConfigBuilder(tlsConfig);
 		this._connectWs();
 	}
 
@@ -46,20 +49,6 @@ export class WssTransportConnection {
 
 	get ws(): WebSocket | null {
 		return this._ws;
-	}
-
-	private _buildWsOptions(): WebSocket.ClientOptions {
-		const opts: WebSocket.ClientOptions = {};
-		if (this._tlsConfig) {
-			opts.ca = this._tlsConfig.caPath;
-			opts.cert = this._tlsConfig.certPath;
-			opts.key = this._tlsConfig.keyPath;
-			opts.rejectUnauthorized = true;
-		}
-		opts.minVersion = "TLSv1.3";
-		opts.ciphers =
-			"TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256";
-		return opts;
 	}
 
 	// ── Connection lifecycle ───────────────────────────────────────────────────
@@ -117,7 +106,7 @@ export class WssTransportConnection {
 		}
 		this._state = "connecting";
 		try {
-			this._ws = new WebSocket(this._url, this._buildWsOptions());
+			this._ws = new WebSocket(this._url, this._tlsBuilder.build());
 			this._ws.binaryType = "nodebuffer";
 
 			const cancelTimeout = this._setupConnectTimeout();

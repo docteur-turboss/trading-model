@@ -1,3 +1,4 @@
+import type { CacheConfig } from "@trading-model/common/utils/cache-config";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
 import { logger } from "@trading-model/common/config/logger";
@@ -10,9 +11,9 @@ export class CacheManager {
 	private _cache: LruCache<CacheEntry>;
 	private _staleData: LruCache<ServiceInstance[]>;
 
-	constructor(maxEntries: number, cacheTtlMs: number) {
-		this._cache = new LruCache<CacheEntry>(maxEntries, cacheTtlMs);
-		this._staleData = new LruCache<ServiceInstance[]>(maxEntries);
+	constructor(config: CacheConfig) {
+		this._cache = new LruCache<CacheEntry>(config);
+		this._staleData = new LruCache<ServiceInstance[]>({ maxSize: config.maxSize });
 	}
 
 	get(serviceName: string): ServiceInstance[] | undefined {

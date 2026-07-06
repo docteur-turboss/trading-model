@@ -1,4 +1,4 @@
-import type { IPAddress, Port, ServiceId } from "../../domain/primitives";
+import type { InstanceId, IPAddress, Port, ServiceId } from "../../domain/primitives";
 
 export enum ServiceStatus {
 	Healthy = "healthy",
@@ -13,7 +13,7 @@ export interface ServiceRegistryEntry {
 }
 
 export interface ServiceInstance {
-	instanceId: string;
+	instanceId: InstanceId;
 	host: IPAddress;
 	port: Port;
 	version: string;

@@ -137,7 +137,7 @@ const SET_OBJECT = z.object({
 	quantity: z.number(),
 });
 
-const EVENT_VALIDATORS: ZodEventMap<EventMap> = {
+const EVENT_VALIDATORS = {
 	[EnumEventMessage.exampleEvent]: z.void(),
 	[EnumEventMessage.testEvent]: z.object({
 		debug: z.boolean("Debug must be a boolean and is required"),
@@ -273,7 +273,7 @@ const EVENT_VALIDATORS: ZodEventMap<EventMap> = {
 	}),
 
 	[EnumEventMessage.auditHeartbeat]: z.object({
-		serviceName: z.string(),
+		serviceName: z.nativeEnum(ServiceInstanceName),
 		instanceId: z.string(),
 	}),
 	[EnumEventMessage.auditGapDetected]: z.object({
@@ -293,7 +293,7 @@ const EVENT_VALIDATORS: ZodEventMap<EventMap> = {
 		keyVersion: z.number(),
 		instanceId: z.string(),
 	}),
-};
+} as unknown as ZodEventMap<EventMap>;
 
 /** Validates the message payload as a discriminated union by event type. */
 export const MESSAGE_PAYLOAD_SCHEMA = z.discriminatedUnion(

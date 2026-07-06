@@ -1,4 +1,5 @@
-import type { IPAddress, Port } from "../domain/primitives";
+import type { InstanceId, IPAddress, Port } from "../domain/primitives";
+import type { ServiceInstanceName } from "../config/services.types";
 import type {
 	ServiceEndpoint,
 	ServiceIdentity,
@@ -24,7 +25,7 @@ export interface HeartbeatPayload extends ServiceIdentity {
 
 /** Payload for querying registered service instances. */
 export interface ServicesQueryPayload {
-	serviceName: string;
+	serviceName: ServiceInstanceName;
 	services: string[];
 	onlyAlive: boolean;
 }
@@ -65,10 +66,10 @@ export interface RegistryBackend {
 	updateHeartbeat(id: ServiceIdentity): Promise<number | false>;
 
 	/** Rotate the token for an instance. Returns the new token. */
-	updateToken(instanceId: string): Promise<string>;
+	updateToken(instanceId: InstanceId): Promise<string>;
 
 	/** Return all instances of a service (alive or not). */
-	getInstances(serviceName: string): Promise<ServiceInstance[]>;
+	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]>;
 
 	/** Return a single instance by name + id. */
 	getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined>;
@@ -86,13 +87,13 @@ export interface RegistryBackend {
 	validInstanceToken(validation: TokenValidation): Promise<boolean>;
 
 	/** Generate a new instance token. */
-	generateInstanceToken(instanceId: string): string;
+	generateInstanceToken(instanceId: InstanceId): string;
 
 	/** Generate a deterministic instance ID from service endpoint data. */
 	generateInstanceId(endpoint: ServiceEndpoint): string;
 
 	/** Verify a service name is in the allowed catalog. */
-	verifyInstanceName(serviceName: string): boolean;
+	verifyInstanceName(serviceName: ServiceInstanceName): boolean;
 
 	/** Start any background maintenance (cleanup, expiry). */
 	start(): void;

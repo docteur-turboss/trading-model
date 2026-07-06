@@ -1,4 +1,5 @@
-import type { Price, UnixTimestamp, Volume } from "../domain/primitives";
+import type { InstanceId, Price, UnixTimestamp, Volume } from "../domain/primitives";
+import type { ServiceInstanceName } from "./services.types";
 import type { RevocationReason } from "../domain/revocation-request";
 
 /** Supported financial market categories. */
@@ -183,8 +184,8 @@ export interface EventMap {
 
 	/** Audit system events */
 	[EnumEventMessage.auditHeartbeat]: {
-		serviceName: string;
-		instanceId: string;
+		serviceName: ServiceInstanceName;
+		instanceId: InstanceId;
 	};
 	[EnumEventMessage.auditGapDetected]: {
 		from: Date;
@@ -198,12 +199,12 @@ export interface EventMap {
 		serviceId: string;
 		reason: RevocationReason;
 		revokedAt: string;
-		instanceId: string;
+		instanceId: InstanceId;
 	};
 	[EnumEventMessage.caKeyRotated]: {
 		keyId: string;
 		keyVersion: number;
-		instanceId: string;
+		instanceId: InstanceId;
 	};
 }
 

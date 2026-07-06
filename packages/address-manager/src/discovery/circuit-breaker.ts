@@ -1,6 +1,6 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 
-import type { IServiceCache } from "./service-cache.interface";
+import { type IServiceCache, NullServiceCache } from "./service-cache.interface";
 import { CircuitBreakerState } from "./circuit-breaker-state";
 import { CircuitBreakerLatency } from "./circuit-breaker-latency";
 import { CircuitBreakerPersistence } from "./circuit-breaker-persistence";
@@ -41,7 +41,7 @@ export class CircuitBreaker {
 			},
 		);
 		this._latency = new CircuitBreakerLatency(latencyWindowSize, latencyP99ThresholdMs);
-		this._persistence = new CircuitBreakerPersistence(stateStore, loadFromStoreCacheTtlMs);
+		this._persistence = new CircuitBreakerPersistence(stateStore ?? new NullServiceCache(), loadFromStoreCacheTtlMs);
 	}
 
 	async loadFromStore(instanceId: string): Promise<void> {

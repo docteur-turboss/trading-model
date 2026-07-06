@@ -35,7 +35,7 @@ export class TradingAgent {
 	public mapOutputToAction(
 		output: Float32Array,
 		cfg?: TradingAgentConfig
-	): { action: "buy" | "sell" | "hold"; amount: number } {
+	): { action: "buy" | "sell" | "hold"; amount: Volume } {
 		if (cfg) {
 			const mapper = new ActionMapper(cfg);
 			return mapper.map(output);

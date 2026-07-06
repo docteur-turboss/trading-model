@@ -1,9 +1,8 @@
 import { sleep } from "./sleep";
+import type { BackoffConfig } from "./backoff-config";
 
-export interface RetryOptions {
+export interface RetryOptions extends BackoffConfig {
 	maxRetries: number;
-	baseDelayMs?: number;
-	maxDelayMs?: number;
 	timeoutMs?: number;
 }
 

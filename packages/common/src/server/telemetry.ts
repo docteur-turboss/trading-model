@@ -6,6 +6,7 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 
+import type { InstanceId } from "../domain/primitives";
 import { logger } from "../config/logger";
 
 let sdk: NodeSDK | null = null;
@@ -13,7 +14,7 @@ let sdk: NodeSDK | null = null;
 export interface TelemetryConfig {
 	serviceName: string;
 	serviceVersion: string;
-	instanceId: string;
+	instanceId: InstanceId;
 	otlpEndpoint?: string;
 }
 

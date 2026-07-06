@@ -1,4 +1,5 @@
 import type { EventEnumMap } from "../config/event.types";
+import type { InstanceId } from "../domain/primitives";
 import type { MessageMetadata, ServiceIdentity } from "./message.types";
 
 export type WsClientMessageType =
@@ -17,7 +18,7 @@ export interface WsClientSubscribePayload {
 
 export interface WsClientUnsubscribePayload {
 	topics: EventEnumMap[];
-	instanceId: string;
+	instanceId: InstanceId;
 }
 
 export interface WsClientPublishPayload {

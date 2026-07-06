@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import { logger } from "../config/logger";
+import type { InstanceId } from "../domain/primitives";
 import { normalizeError } from "../utils/errors";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 5000;
@@ -16,14 +17,14 @@ interface ErrorReport {
 	timestamp: string;
 	serviceName: string;
 	serviceVersion: string;
-	instanceId: string;
+	instanceId: InstanceId;
 }
 
 interface ErrorTrackingConfig {
 	endpoint?: string;
 	serviceName?: string;
 	serviceVersion?: string;
-	instanceId?: string;
+	instanceId?: InstanceId;
 	flushIntervalMs?: number;
 	batchSize?: number;
 }
@@ -32,7 +33,7 @@ let config: Required<ErrorTrackingConfig> = {
 	endpoint: "",
 	serviceName: "unknown",
 	serviceVersion: "0.0.0",
-	instanceId: "unknown",
+	instanceId: "unknown" as InstanceId,
 	flushIntervalMs: DEFAULT_FLUSH_INTERVAL_MS,
 	batchSize: DEFAULT_BATCH_SIZE,
 };
@@ -55,7 +56,7 @@ function _buildConfig(opts: ErrorTrackingConfig): Required<ErrorTrackingConfig> 
 		endpoint: opts.endpoint ?? process.env.ERROR_URL_WEBHOOK ?? "",
 		serviceName: opts.serviceName ?? process.env.APP_NAME ?? "unknown",
 		serviceVersion: opts.serviceVersion ?? process.env.APP_VERSION ?? "0.0.0",
-		instanceId: opts.instanceId ?? process.env.INSTANCE_ID ?? "unknown",
+		instanceId: opts.instanceId ?? (process.env.INSTANCE_ID ?? "unknown") as InstanceId,
 		flushIntervalMs: opts.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS,
 		batchSize: opts.batchSize ?? DEFAULT_BATCH_SIZE,
 	};

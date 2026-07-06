@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { ServiceInstanceName } from "../config/services.types";
+import type { InstanceId } from "../domain/primitives";
 import type { ServiceEndpoint } from "../domain/service-identity";
 import { generateRandomStr } from "./random";
 
@@ -54,7 +55,7 @@ function validateTimestamp(
 }
 
 export function generateInstanceToken(
-	instanceId: string,
+	instanceId: InstanceId,
 	signingSecret: string
 ): string {
 	const encodedId = Buffer.from(instanceId, "utf8").toString("base64url");
@@ -69,7 +70,7 @@ export function generateInstanceToken(
 
 export interface TokenValidationInput {
 	token: string;
-	instanceId: string;
+	instanceId: InstanceId;
 	signingSecret: string;
 	storedToken: string | undefined | null;
 	options?: TokenValidationOptions;
@@ -161,7 +162,7 @@ export function generateInstanceId({
 		.digest("base64");
 }
 
-export function verifyInstanceName(serviceName: string): boolean {
+export function verifyInstanceName(serviceName: ServiceInstanceName): boolean {
 	return (Object.values(ServiceInstanceName) as readonly string[]).includes(
 		serviceName
 	);

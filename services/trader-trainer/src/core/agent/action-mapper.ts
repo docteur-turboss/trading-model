@@ -1,6 +1,8 @@
+import { Volume } from "@trading-model/common/domain/primitives";
+
 export interface ActionMap {
 	action: "buy" | "sell" | "hold";
-	amount: number;
+	amount: Volume;
 }
 
 export interface ActionMapperConfig {
@@ -28,15 +30,15 @@ export class ActionMapper {
 	private _mapContinuous(output: Float32Array, amount: number): ActionMap {
 		const val = output[0] ?? 0;
 		if (val > 0.25) {
-			return { action: "buy", amount: Math.max(1, Math.round(val * amount)) };
+			return { action: "buy", amount: Volume.of(Math.max(1, Math.round(val * amount))) };
 		}
 		if (val < -0.25) {
 			return {
 				action: "sell",
-				amount: Math.max(1, Math.round(-val * amount)),
+				amount: Volume.of(Math.max(1, Math.round(-val * amount))),
 			};
 		}
-		return { action: "hold", amount: 0 };
+		return { action: "hold", amount: Volume.zero() };
 	}
 
 	private _mapDiscrete(output: Float32Array, amount: number): ActionMap {
@@ -47,11 +49,11 @@ export class ActionMapper {
 			}
 		}
 		if (idx === 0) {
-			return { action: "sell", amount };
+			return { action: "sell", amount: Volume.of(amount) };
 		}
 		if (idx === 1) {
-			return { action: "hold", amount: 0 };
+			return { action: "hold", amount: Volume.zero() };
 		}
-		return { action: "buy", amount };
+		return { action: "buy", amount: Volume.of(amount) };
 	}
 }

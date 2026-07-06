@@ -4,13 +4,11 @@ export interface CertificateRequest {
 	ttlMs: number;
 }
 
-export interface SignedCertificate {
-	serialNumber: string;
-	certPem: string;
-	caPem: string;
+import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
+
+export interface SignedCertificate extends CertificateBase {
 	serviceId: string;
 	issuedAt: Date;
-	expiresAt: Date;
 	fingerprint: string;
 }
 

@@ -41,7 +41,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 	constructor(options: CachedRegistryBackendOptions) {
 		this._backend = options.backend;
 		this._redisUrlForPubSub = options.redisUrlForPubSub;
-		this._cache = new CacheManager(options.maxEntries ?? 5000, options.cacheTtlMs);
+		this._cache = new CacheManager({ maxSize: options.maxEntries ?? 5000, ttlMs: options.cacheTtlMs });
 		this._pubSub = new PubSubInvalidator(options.redisUrlForPubSub);
 		this._healthMonitor = new RedisHealthMonitor({
 			failureThreshold: options.redisFailureThreshold ?? 3,

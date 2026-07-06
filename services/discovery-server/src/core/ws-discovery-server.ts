@@ -2,19 +2,12 @@ import type https from "node:https";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import WebSocket, { WebSocketServer } from "ws";
-
-const CLIENT_TIMEOUT_MS = 60_000;
+import { ClientConnectionManager } from "./client-connection-manager";
+import type { ConnectedClient } from "./client-connection-manager";
 
 type WsDiscoveryClientMessage =
 	| { type: "subscribe"; payload?: { services?: string[] } }
 	| { type: "heartbeat"; payload?: { serviceName?: string; instanceId?: string } };
-
-interface ConnectedClient {
-	ws: WebSocket;
-	subscribedServices: Set<string>;
-	instanceId?: string;
-	serviceName?: string;
-}
 
 interface WsDiscoveryServerOptions {
 	path?: string;
@@ -23,11 +16,7 @@ interface WsDiscoveryServerOptions {
 export class WsDiscoveryServer {
 	private _wss: WebSocketServer | null = null;
 	private readonly _path: string;
-	private readonly _clients = new Map<string, ConnectedClient>();
-	private readonly _clientTimeouts = new Map<
-		string,
-		ReturnType<typeof setTimeout>
-	>();
+	private readonly _clientManager = new ClientConnectionManager();
 
 	constructor(options?: WsDiscoveryServerOptions) {
 		this._path = options?.path ?? "/ws";
@@ -55,8 +44,7 @@ export class WsDiscoveryServer {
 			logger.info("Discovery WS client connected", { clientId });
 
 			const client: ConnectedClient = { ws, subscribedServices: new Set() };
-			this._clients.set(clientId, client);
-			this._resetClientTimeout(clientId, ws);
+			this._clientManager.add(clientId, client);
 
 			ws.on("message", (data) => this._onWsMessage(clientId, client, data));
 			ws.on("close", () => this._onWsClose(clientId));
@@ -84,12 +72,7 @@ export class WsDiscoveryServer {
 	}
 
 	private _onWsClose(clientId: string): void {
-		this._clients.delete(clientId);
-		const timeout = this._clientTimeouts.get(clientId);
-		if (timeout) {
-			clearTimeout(timeout);
-		}
-		this._clientTimeouts.delete(clientId);
+		this._clientManager.remove(clientId);
 		logger.info("Discovery WS client disconnected", { clientId });
 	}
 
@@ -165,51 +148,16 @@ export class WsDiscoveryServer {
 		this._broadcastInvalidation(serviceName);
 	}
 
-	private _isSubscribed(client: ConnectedClient, serviceName: string): boolean {
-		return client.subscribedServices.has("*") || client.subscribedServices.has(serviceName);
-	}
-
-	private _sendToClient(clientId: string, client: ConnectedClient, message: string): void {
-		if (client.ws.readyState !== WebSocket.OPEN) return;
-		try {
-			client.ws.send(message);
-		} catch (error) {
-			logger.warn("Failed to send cache.invalidate to client", { clientId, err: normalizeError(error) });
-		}
-	}
-
 	private _broadcastInvalidation(serviceName: string): void {
-		const message = JSON.stringify({ type: "cache.invalidate", payload: { serviceName } });
-		for (const [clientId, client] of this._clients) {
-			if (this._isSubscribed(client, serviceName)) {
-				this._sendToClient(clientId, client, message);
-			}
-		}
-	}
-
-	private _onClientTimeout(clientId: string, ws: WebSocket): void {
-		logger.warn("Discovery WS client timed out", { clientId });
-		ws.close();
-		this._clients.delete(clientId);
-		this._clientTimeouts.delete(clientId);
-	}
-
-	private _resetClientTimeout(clientId: string, ws: WebSocket): void {
-		const existing = this._clientTimeouts.get(clientId);
-		if (existing) clearTimeout(existing);
-		this._clientTimeouts.set(clientId, setTimeout(() => this._onClientTimeout(clientId, ws), CLIENT_TIMEOUT_MS));
+		const message = JSON.stringify({
+			type: "cache.invalidate",
+			payload: { serviceName },
+		});
+		this._clientManager.broadcast(serviceName, message);
 	}
 
 	stop(): void {
-		for (const [clientId, client] of this._clients) {
-			client.ws.close();
-			const timeout = this._clientTimeouts.get(clientId);
-			if (timeout) {
-				clearTimeout(timeout);
-			}
-		}
-		this._clients.clear();
-		this._clientTimeouts.clear();
+		this._clientManager.clearAll();
 		this._wss?.close();
 		this._wss = null;
 	}

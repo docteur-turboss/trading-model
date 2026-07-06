@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
+import { FallbackManager } from "./fallback-manager";
 
 export interface HealthCheckCallbacks {
 	ping: () => Promise<boolean>;
@@ -22,22 +23,22 @@ export class RedisHealthMonitor {
 	private _consecutiveFailures = 0;
 	private _healthCheckRunning = false;
 	private _healthCheckHandle?: NodeJS.Timeout;
-	private _restoreHandle?: NodeJS.Timeout;
-	private _fallbackActive = false;
-	private _currentBackend: RegistryBackend;
-	private readonly _primaryBackend: RegistryBackend;
 	private readonly _failureThreshold: number;
 	private readonly _healthCheckIntervalMs: number;
 	private readonly _shouldRun: () => boolean;
 	private readonly _callbacks: HealthCheckCallbacks;
+	private readonly _fallbackManager: FallbackManager;
 
 	constructor(config: RedisHealthMonitorConfig) {
 		this._failureThreshold = config.failureThreshold;
 		this._healthCheckIntervalMs = config.healthCheckIntervalMs;
 		this._shouldRun = config.shouldRun;
 		this._callbacks = config.callbacks;
-		this._primaryBackend = config.backend;
-		this._currentBackend = config.backend;
+		this._fallbackManager = new FallbackManager(
+			config.backend,
+			config.healthCheckIntervalMs * 6,
+			config.callbacks,
+		);
 	}
 
 	get isHealthy(): boolean {
@@ -49,7 +50,7 @@ export class RedisHealthMonitor {
 	}
 
 	get fallbackActive(): boolean {
-		return this._fallbackActive;
+		return this._fallbackManager.fallbackActive;
 	}
 
 	start(): void {
@@ -58,7 +59,7 @@ export class RedisHealthMonitor {
 		}
 		this._clearTimers();
 		this._startHealthCheck();
-		this._startRestoreLoop();
+		this._fallbackManager.startRestoreLoop(() => this._performRestoreCheck());
 	}
 
 	stop(): void {
@@ -71,17 +72,11 @@ export class RedisHealthMonitor {
 	}
 
 	setFallbackBackend(fallback: RegistryBackend): void {
-		logger.warn(
-			"RedisHealthMonitor.setFallbackBackend — swapping to fallback backend"
-		);
-		this._fallbackActive = true;
-		this._currentBackend = fallback;
-		this._callbacks.onFallbackActivated(fallback);
+		this._fallbackManager.setFallbackBackend(fallback);
 	}
 
 	stopBackend(): void {
-		this._primaryBackend.stop();
-		this._currentBackend.stop();
+		this._fallbackManager.stopBackend();
 	}
 
 	private _clearTimers(): void {
@@ -89,23 +84,13 @@ export class RedisHealthMonitor {
 			clearInterval(this._healthCheckHandle);
 			this._healthCheckHandle = undefined;
 		}
-		if (this._restoreHandle) {
-			clearInterval(this._restoreHandle);
-			this._restoreHandle = undefined;
-		}
+		this._fallbackManager.clearRestoreTimer();
 	}
 
 	private _startHealthCheck(): void {
 		this._healthCheckHandle = setInterval(
 			() => this._performHealthCheck(),
-			this._healthCheckIntervalMs
-		);
-	}
-
-	private _startRestoreLoop(): void {
-		this._restoreHandle = setInterval(
-			() => this._performRestoreCheck(),
-			this._healthCheckIntervalMs * 6
+			this._healthCheckIntervalMs,
 		);
 	}
 
@@ -146,22 +131,6 @@ export class RedisHealthMonitor {
 		}
 	}
 
-	private _restoreOriginalBackend(): void {
-		if (!this._fallbackActive) return;
-		this._currentBackend = this._primaryBackend;
-		this._fallbackActive = false;
-		this._callbacks.onFallbackRestored(this._currentBackend);
-		logger.info("Restored original Redis backend");
-	}
-
-	private _handleRestoreSuccess(): void {
-		this._restoreOriginalBackend();
-		this._healthy = true;
-		this._consecutiveFailures = 0;
-		this._callbacks.onHealthRestored();
-		logger.info("Redis backend is healthy again — resumed normal operation");
-	}
-
 	private async _performRestoreCheck(): Promise<void> {
 		if (this._healthy) return;
 		try {
@@ -171,5 +140,13 @@ export class RedisHealthMonitor {
 		} catch {
 			logger.warn("Redis restore attempt failed — staying on stale cache");
 		}
+	}
+
+	private _handleRestoreSuccess(): void {
+		this._fallbackManager.restoreOriginalBackend();
+		this._healthy = true;
+		this._consecutiveFailures = 0;
+		this._callbacks.onHealthRestored();
+		logger.info("Redis backend is healthy again — resumed normal operation");
 	}
 }

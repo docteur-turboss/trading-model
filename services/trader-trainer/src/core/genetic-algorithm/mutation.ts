@@ -101,7 +101,19 @@ class SelfAdaptiveAdapter implements SigmaAdapter {
 class CmaSigmaAdapter implements SigmaAdapter {
 	readonly type: MutationAdaptation = MutationAdaptation.Cma;
 	adapt(mutation: MutationGenome): number {
-		return mutation.sigma;
+		// Simplified CMA-ES cumulative step-size adaptation.
+		// selfSigma approximates the evolution path magnitude ||p_σ||.
+		// When the path is long (selfSigma > 1), steps are correlated →
+		// increase sigma to explore further.
+		// When short (selfSigma < 1), steps oscillate → decrease sigma
+		// to focus exploitation.
+		const damping = 1.0;
+		const chiN = 1.0;
+		const learningRate = 0.3;
+		const pathRatio = mutation.selfSigma / chiN;
+		const exponent = (learningRate / damping) * (pathRatio - 1);
+		const adapt = Math.exp(Math.max(-3, Math.min(3, exponent)));
+		return mutation.sigma * adapt;
 	}
 }
 

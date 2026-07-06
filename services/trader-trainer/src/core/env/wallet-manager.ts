@@ -5,6 +5,7 @@ import {
 	Volume,
 } from "@trading-model/common/domain/primitives";
 import { TradeHistory, type TradeRecord } from "./trade-history";
+import { ValuationTracker } from "./valuation-tracker";
 import { computeWalletMetrics, type WalletMetrics } from "./wallet-metrics";
 
 export type { TradeRecord, WalletMetrics };
@@ -89,14 +90,14 @@ function computeBuyCosts(
 }
 
 function computeSellProceeds(
-	amount: number,
+	amount: Volume,
 	price: Price,
 	feeRate: Percentage,
 	decimals: number
-): { netProceeds: number; fee: Cash } {
-	const baseProceeds = _roundValue(amount * +price, decimals);
+): { netProceeds: Cash; fee: Cash } {
+	const baseProceeds = _roundValue(+amount * +price, decimals);
 	const fee = Cash.of(_roundValue(baseProceeds * +feeRate, decimals));
-	const netProceeds = _roundValue(baseProceeds - +fee, decimals);
+	const netProceeds = Cash.of(_roundValue(baseProceeds - +fee, decimals));
 	return { netProceeds, fee };
 }
 
@@ -110,7 +111,7 @@ export class Wallet implements WalletAPI {
 	private _price: Price;
 	private _cash: Cash;
 	private _position: Volume = Volume.zero();
-	private readonly _valuationHistory: number[] = [];
+	private readonly _valuationTracker: ValuationTracker;
 	private readonly _tradeHistory = new TradeHistory();
 
 	constructor(config: WalletConfig) {
@@ -136,17 +137,11 @@ export class Wallet implements WalletAPI {
 		this._decimals = resolved.decimals;
 		this._price = resolved.initialPrice;
 		this._cash = resolved.initialCash;
-		this._valuationHistory.push(+resolved.initialCash);
-	}
-
-	private _valuation(): Cash {
-		return Cash.of(
-			_roundValue(+this._cash + +this._position * +this._price, this._decimals)
-		);
+		this._valuationTracker = new ValuationTracker(resolved.initialCash, resolved.decimals);
 	}
 
 	private _recordValuation(): void {
-		this._valuationHistory.push(+this._valuation());
+		this._valuationTracker.record(this._cash, +this._position, +this._price);
 	}
 
 	buy(amount: Volume): boolean {
@@ -181,7 +176,7 @@ export class Wallet implements WalletAPI {
 			return false;
 		}
 		const { netProceeds, fee } = computeSellProceeds(
-			amt,
+			amount,
 			this._price,
 			this._feeRate,
 			this._decimals
@@ -230,7 +225,7 @@ export class Wallet implements WalletAPI {
 	}
 
 	getValuation(): Cash {
-		return this._valuation();
+		return this._valuationTracker.computeValuation(this._cash, +this._position, +this._price);
 	}
 
 	getPrice(): Price {
@@ -238,19 +233,15 @@ export class Wallet implements WalletAPI {
 	}
 
 	getPnL(): number {
-		return _roundValue(+this._valuation() - +this._initialCash, this._decimals);
+		return this._valuationTracker.computePnL(this._cash, +this._position, +this._price);
 	}
 
 	getMetrics(): WalletMetrics {
-		const peakValuation =
-			this._valuationHistory.length > 0
-				? Cash.of(Math.max(...this._valuationHistory))
-				: this._initialCash;
 		return computeWalletMetrics({
 			cash: this._cash,
-			position: +this._position,
+			position: this._position,
 			price: this._price,
-			peakValuation,
+			peakValuation: this._valuationTracker.getPeakValuation(),
 			initialCash: this._initialCash,
 			totalFeesPaid: this._tradeHistory.getTotalFeesPaid(),
 			tradeCount: this._tradeHistory.getTradeCount(),
@@ -266,8 +257,7 @@ export class Wallet implements WalletAPI {
 		this._price = this._initialPrice;
 		this._cash = this._initialCash;
 		this._position = Volume.zero();
-		this._valuationHistory.length = 0;
-		this._valuationHistory.push(+this._initialCash);
+		this._valuationTracker.reset();
 		this._tradeHistory.reset();
 	}
 }

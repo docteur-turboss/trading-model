@@ -14,7 +14,7 @@ import type { WssRateLimiter } from "./wss-rate-limiter";
 export class WssPublisher {
 	private _dispatcher: Dispatcher;
 	private _rateLimiter: WssRateLimiter;
-	private _processedWssDeduplicationIds = new LruCache<true>(50000, 300_000);
+	private _processedWssDeduplicationIds = new LruCache<true>({ maxSize: 50000, ttlMs: 300_000 });
 
 	constructor(dispatcher: Dispatcher, rateLimiter: WssRateLimiter) {
 		this._dispatcher = dispatcher;

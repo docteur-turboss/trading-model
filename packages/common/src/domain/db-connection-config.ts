@@ -1,5 +1,7 @@
+import type { IPAddress } from "./primitives";
+
 export interface DbConnectionConfig {
-	host: string;
+	host: IPAddress;
 	port: number;
 	user: string;
 	password: string;
@@ -10,7 +12,7 @@ export function createDbConfigFromEnv(
 	overrides?: Partial<DbConnectionConfig>
 ): DbConnectionConfig {
 	return {
-		host: process.env.DB_HOST ?? "localhost",
+		host: (process.env.DB_HOST ?? "localhost") as IPAddress,
 		port: Number(process.env.DB_PORT) || 3306,
 		user: process.env.DB_USER ?? "root",
 		password: process.env.DB_PASSWORD ?? "",

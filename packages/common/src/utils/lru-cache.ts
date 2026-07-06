@@ -1,3 +1,5 @@
+import type { CacheConfig } from "./cache-config";
+
 export class LruCache<TValue> {
 	private readonly _maxSize: number;
 	private readonly _ttlMs: number;
@@ -6,9 +8,9 @@ export class LruCache<TValue> {
 		{ value: TValue; expiresAt: number }
 	>();
 
-	constructor(maxSize: number, ttlMs = 0) {
-		this._maxSize = maxSize;
-		this._ttlMs = ttlMs;
+	constructor(config: CacheConfig) {
+		this._maxSize = config.maxSize;
+		this._ttlMs = config.ttlMs ?? 0;
 	}
 
 	has(key: string): boolean {

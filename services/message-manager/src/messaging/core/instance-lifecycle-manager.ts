@@ -3,6 +3,7 @@ import type Redis from "ioredis";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getSubscriptionClient } from "../../config/redis";
+import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 
 const SUBSCRIPTION_TTL_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = ENV.STALE_HEARTBEAT_INTERVAL_MS;
@@ -23,31 +24,15 @@ function isHeartbeatExpired(lastBeat: number): boolean {
 }
 
 export class InstanceLifecycleManager {
-	constructor(private _prefix: string) {}
+	private _keys: RedisSubscriptionKeys;
 
-	private _subKey(topic: string, instanceId: string): string {
-		return `${this._prefix}sub:${topic}:${instanceId}`;
-	}
-
-	private _topicKey(topic: string): string {
-		return `${this._prefix}sub:${topic}`;
-	}
-
-	private _instanceKey(instanceId: string): string {
-		return `${this._prefix}instance:${instanceId}`;
-	}
-
-	private _topicsSetKey(): string {
-		return `${this._prefix}topics`;
-	}
-
-	private _activeInstancesKey(): string {
-		return `${this._prefix}active-instances`;
+	constructor(prefix: string) {
+		this._keys = new RedisSubscriptionKeys(prefix);
 	}
 
 	async heartbeat(instanceId: string): Promise<void> {
 		const redis = await getSubscriptionClient();
-		const leaseKey = `${this._prefix}lease:${instanceId}`;
+		const leaseKey = this._keys.leaseKey(instanceId);
 		await redis.hset(leaseKey, LEASE_HEARTBEAT_FIELD, Date.now().toString());
 		await redis.expire(leaseKey, Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
 	}
@@ -55,17 +40,13 @@ export class InstanceLifecycleManager {
 	async isStaleByHeartbeat(instanceId: string): Promise<boolean> {
 		const redis = await getSubscriptionClient();
 		const heartbeat = await redis.hget(
-			`${this._prefix}lease:${instanceId}`,
+			this._keys.leaseKey(instanceId),
 			LEASE_HEARTBEAT_FIELD
 		);
 		if (!heartbeat) {
 			return true;
 		}
 		return isHeartbeatExpired(Number.parseInt(heartbeat, 10));
-	}
-
-	private _leaseKey(instanceId: string): string {
-		return `${this._prefix}lease:${instanceId}`;
 	}
 
 	async renewLease(instanceId: string, topics: string[]): Promise<void> {
@@ -87,10 +68,10 @@ export class InstanceLifecycleManager {
 		topic: string,
 		now: string
 	): void {
-		multi.hset(this._leaseKey(instanceId), topic, now);
-		multi.hset(this._leaseKey(instanceId), LEASE_HEARTBEAT_FIELD, now);
-		multi.expire(this._leaseKey(instanceId), Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
-		multi.expire(this._subKey(topic, instanceId), Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
+		multi.hset(this._keys.leaseKey(instanceId), topic, now);
+		multi.hset(this._keys.leaseKey(instanceId), LEASE_HEARTBEAT_FIELD, now);
+		multi.expire(this._keys.leaseKey(instanceId), Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
+		multi.expire(this._keys.subKey(topic, instanceId), Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
 	}
 
 	async removeStaleInstances(): Promise<number> {
@@ -112,7 +93,7 @@ export class InstanceLifecycleManager {
 		cursor: string
 	): Promise<{ cursor: string; removed: number }> {
 		const [nextCursor, instanceIds] = await redis.sscan(
-			this._activeInstancesKey(),
+			this._keys.activeInstancesKey(),
 			cursor,
 			"COUNT",
 			100
@@ -134,7 +115,7 @@ export class InstanceLifecycleManager {
 		redis: Redis,
 		instanceId: string
 	): Promise<boolean> {
-		const leaseKey = `${this._prefix}lease:${instanceId}`;
+		const leaseKey = this._keys.leaseKey(instanceId);
 		const ttl = await redis.ttl(leaseKey);
 		if (ttl > 0) {
 			return false;
@@ -146,19 +127,19 @@ export class InstanceLifecycleManager {
 		redis: Redis,
 		instanceId: string
 	): Promise<string[]> {
-		const leaseKey = `${this._prefix}lease:${instanceId}`;
+		const leaseKey = this._keys.leaseKey(instanceId);
 		const topics = await redis.hkeys(leaseKey);
 		const multi = redis.multi();
 		for (const topic of topics) {
 			if (topic === LEASE_HEARTBEAT_FIELD) {
 				continue;
 			}
-			multi.del(this._subKey(topic, instanceId));
-			multi.srem(this._topicKey(topic), instanceId);
+			multi.del(this._keys.subKey(topic, instanceId));
+			multi.srem(this._keys.topicKey(topic), instanceId);
 		}
 		multi.del(leaseKey);
-		multi.del(this._instanceKey(instanceId));
-		multi.srem(this._activeInstancesKey(), instanceId);
+		multi.del(this._keys.instanceKey(instanceId));
+		multi.srem(this._keys.activeInstancesKey(), instanceId);
 		await multi.exec();
 		return topics;
 	}
@@ -172,9 +153,9 @@ export class InstanceLifecycleManager {
 				continue;
 			}
 			try {
-				const remaining = await redis.scard(this._topicKey(topic));
+				const remaining = await redis.scard(this._keys.topicKey(topic));
 				if (remaining === 0) {
-					await redis.srem(this._topicsSetKey(), topic);
+					await redis.srem(this._keys.topicsSetKey(), topic);
 				}
 			} catch {
 				/* best-effort */

@@ -1,8 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
-import type { IServiceCache } from "./service-cache.interface";
 import type { INstanceState } from "./circuit-breaker-state";
+import type { IServiceCache } from "./service-cache.interface";
 
 const DEFAULT_LOAD_CACHE_TTL_MS = 2_000;
 
@@ -10,14 +10,11 @@ export class CircuitBreakerPersistence {
 	private readonly _lastLoadTimes = new Map<string, number>();
 
 	constructor(
-		private readonly _stateStore?: IServiceCache,
+		private readonly _stateStore: IServiceCache,
 		private readonly _loadFromStoreCacheTtlMs: number = DEFAULT_LOAD_CACHE_TTL_MS,
 	) {}
 
 	async loadFromStore(instanceId: string, instances: Map<string, INstanceState>): Promise<void> {
-		if (!this._stateStore) {
-			return;
-		}
 		if (this._isCacheValid(instanceId)) {
 			return;
 		}
@@ -52,9 +49,6 @@ export class CircuitBreakerPersistence {
 	}
 
 	persistState(instanceId: string, state: INstanceState): void {
-		if (!this._stateStore) {
-			return;
-		}
 		this._stateStore.setCircuitState(instanceId, {
 			failures: state.failures,
 			lastFailureTime: state.lastFailureTime,
@@ -68,9 +62,6 @@ export class CircuitBreakerPersistence {
 	}
 
 	deletePersistedState(instanceId: string): void {
-		if (!this._stateStore) {
-			return;
-		}
 		this._stateStore.deleteCircuitState(instanceId).catch((err) => {
 			logger.warn("Failed to delete persisted circuit breaker state", {
 				instanceId,

@@ -7,15 +7,19 @@ const ADDRESS_MANAGER = new AddressManagerClass({
 	discoveryUrls: [env.ADDRESS_MANAGER_URL],
 	cacheTtlMs: env.CACHE_TTL_MS,
 	discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
-	instanceId: env.INSTANCE_ID,
-	serviceName: env.SERVICE_NAME,
+	identity: {
+		serviceName: env.SERVICE_NAME,
+		instanceId: env.INSTANCE_ID,
+	},
 	servicePingTimeoutMs: env.SERVICE_PING_TIMEOUT_MS,
 	servicePort: env.PORT,
 	tokenRefreshIntervalMs: env.TOKEN_REFRESH_INTERVAL_MS,
 	ttlRefreshIntervalMs: env.TTL_REFRESH_INTERVAL_MS,
-	certPath: env.TLS_CERT_PATH,
-	keyPath: env.TLS_KEY_PATH,
-	caPath: env.TLS_CA_PATH,
+	tls: {
+		certPath: env.TLS_CERT_PATH,
+		keyPath: env.TLS_KEY_PATH,
+		caPath: env.TLS_CA_PATH,
+	},
 });
 
 const BOOTSTRAP_ADDRESS_MANAGER = ADDRESS_MANAGER.start;

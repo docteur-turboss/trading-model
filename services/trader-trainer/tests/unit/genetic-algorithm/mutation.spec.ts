@@ -52,9 +52,18 @@ describe("Mutation - adaptSigma", () => {
 		expect(result).toBeGreaterThan(0);
 	});
 
-	test("cma returns sigma directly", () => {
-		const m = makeMutationGenome({ adaptation: MutationAdaptation.Cma, sigma: 0.5 });
-		expect(adaptSigma(m, rng)).toBe(0.5);
+	test("cma adapts sigma via selfSigma path length", () => {
+		// selfSigma ≈ 1.0 → path at expected length → sigma stays ~unchanged
+		const m1 = makeMutationGenome({ adaptation: MutationAdaptation.Cma, sigma: 0.5, selfSigma: 1.0 });
+		expect(adaptSigma(m1, rng)).toBeCloseTo(0.5, 5);
+
+		// selfSigma < 1.0 → short path → sigma decreases (exploitation)
+		const m2 = makeMutationGenome({ adaptation: MutationAdaptation.Cma, sigma: 0.5, selfSigma: 0.1 });
+		expect(adaptSigma(m2, rng)).toBeLessThan(0.5);
+
+		// selfSigma > 1.0 → long path → sigma increases (exploration)
+		const m3 = makeMutationGenome({ adaptation: MutationAdaptation.Cma, sigma: 0.5, selfSigma: 2.0 });
+		expect(adaptSigma(m3, rng)).toBeGreaterThan(0.5);
 	});
 
 	test("unknown adaptation returns sigma", () => {

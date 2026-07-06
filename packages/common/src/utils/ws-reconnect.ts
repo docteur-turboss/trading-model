@@ -1,7 +1,7 @@
-export interface WsReconnectConfig {
+import type { BackoffConfig } from "./backoff-config";
+
+export interface WsReconnectConfig extends BackoffConfig {
 	maxAttempts?: number;
-	baseDelayMs?: number;
-	maxDelayMs?: number;
 	jitterMs?: number;
 }
 

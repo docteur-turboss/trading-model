@@ -5,6 +5,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 
 import { logger } from "../../config/logger";
 import { getSubscriptionClient } from "../../config/redis";
+import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 
 export interface SubscriptionEntry {
 	id: string;
@@ -17,30 +18,10 @@ export interface SubscriptionEntry {
 const SUBSCRIPTION_TTL_MS = 30_000;
 
 export class SubscriptionRedisStore {
-	private _prefix: string;
+	private _keys: RedisSubscriptionKeys;
 
 	constructor(prefix: string) {
-		this._prefix = prefix;
-	}
-
-	private _topicKey(topic: string): string {
-		return `${this._prefix}sub:${topic}`;
-	}
-
-	private _instanceKey(instanceId: string): string {
-		return `${this._prefix}instance:${instanceId}`;
-	}
-
-	private _subKey(topic: string, instanceId: string): string {
-		return `${this._topicKey(topic)}:${instanceId}`;
-	}
-
-	private _topicsSetKey(): string {
-		return `${this._prefix}topics`;
-	}
-
-	private _activeInstancesKey(): string {
-		return `${this._prefix}active-instances`;
+		this._keys = new RedisSubscriptionKeys(prefix);
 	}
 
 	async add(
@@ -49,7 +30,7 @@ export class SubscriptionRedisStore {
 		serviceIdentity: ServiceIdentity
 	): Promise<void> {
 		const redis = await getSubscriptionClient();
-		const subKey = this._subKey(topic, serviceIdentity.instanceId);
+		const subKey = this._keys.subKey(topic, serviceIdentity.instanceId);
 		const exists = await redis.exists(subKey);
 		if (exists) {
 			return;
@@ -66,17 +47,17 @@ export class SubscriptionRedisStore {
 		const multi = redis.multi();
 		multi.hset(subKey, "data", JSON.stringify(entry));
 		multi.expire(subKey, Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
-		multi.sadd(this._topicKey(topic), serviceIdentity.instanceId);
-		multi.sadd(this._instanceKey(serviceIdentity.instanceId), topic);
-		multi.sadd(this._topicsSetKey(), topic);
-		multi.sadd(this._activeInstancesKey(), serviceIdentity.instanceId);
+		multi.sadd(this._keys.topicKey(topic), serviceIdentity.instanceId);
+		multi.sadd(this._keys.instanceKey(serviceIdentity.instanceId), topic);
+		multi.sadd(this._keys.topicsSetKey(), topic);
+		multi.sadd(this._keys.activeInstancesKey(), serviceIdentity.instanceId);
 		multi.hset(
-			`${this._prefix}lease:${serviceIdentity.instanceId}`,
+			this._keys.leaseKey(serviceIdentity.instanceId),
 			topic,
 			Date.now().toString()
 		);
 		multi.expire(
-			`${this._prefix}lease:${serviceIdentity.instanceId}`,
+			this._keys.leaseKey(serviceIdentity.instanceId),
 			Math.ceil(SUBSCRIPTION_TTL_MS / 1000)
 		);
 		await multi.exec();
@@ -84,7 +65,7 @@ export class SubscriptionRedisStore {
 
 	async remove(topic: string, instanceId: string): Promise<void> {
 		const redis = await getSubscriptionClient();
-		const subKey = this._subKey(topic, instanceId);
+		const subKey = this._keys.subKey(topic, instanceId);
 		const multi = this._buildRemovePipeline(redis, topic, instanceId, subKey);
 		const results = await multi.exec();
 		if (!results) {
@@ -102,11 +83,11 @@ export class SubscriptionRedisStore {
 	): ReturnType<import("ioredis").Redis["multi"]> {
 		const multi = redis.multi();
 		multi.del(subKey);
-		multi.srem(this._topicKey(topic), instanceId);
-		multi.srem(this._instanceKey(instanceId), topic);
-		multi.hdel(`${this._prefix}lease:${instanceId}`, topic);
-		multi.scard(this._instanceKey(instanceId));
-		multi.scard(this._topicKey(topic));
+		multi.srem(this._keys.topicKey(topic), instanceId);
+		multi.srem(this._keys.instanceKey(instanceId), topic);
+		multi.hdel(this._keys.leaseKey(instanceId), topic);
+		multi.scard(this._keys.instanceKey(instanceId));
+		multi.scard(this._keys.topicKey(topic));
 		return multi;
 	}
 
@@ -118,7 +99,7 @@ export class SubscriptionRedisStore {
 		const instanceScard = results[results.length - 2];
 		if (this._isZeroScardResult(instanceScard)) {
 			try {
-				await redis.srem(this._activeInstancesKey(), instanceId);
+				await redis.srem(this._keys.activeInstancesKey(), instanceId);
 			} catch {
 				/* best-effort */
 			}
@@ -133,7 +114,7 @@ export class SubscriptionRedisStore {
 		const scardResult = results[results.length - 1];
 		if (this._isZeroScardResult(scardResult)) {
 			try {
-				await redis.srem(this._topicsSetKey(), topic);
+				await redis.srem(this._keys.topicsSetKey(), topic);
 			} catch {
 				// best-effort
 			}
@@ -148,7 +129,7 @@ export class SubscriptionRedisStore {
 
 	async getByTopic(topic: string): Promise<SubscriptionEntry[]> {
 		const redis = await getSubscriptionClient();
-		const instanceIds = await redis.smembers(this._topicKey(topic));
+		const instanceIds = await redis.smembers(this._keys.topicKey(topic));
 		if (instanceIds.length === 0) {
 			return [];
 		}
@@ -168,7 +149,7 @@ export class SubscriptionRedisStore {
 	): Promise<[Error | null, unknown][] | null> {
 		const pipeline = redis.pipeline();
 		for (const id of instanceIds) {
-			pipeline.hget(this._subKey(topic, id), "data");
+			pipeline.hget(this._keys.subKey(topic, id), "data");
 		}
 		return await pipeline.exec();
 	}
@@ -195,7 +176,7 @@ export class SubscriptionRedisStore {
 
 	async getTopicsByInstance(instanceId: string): Promise<string[]> {
 		const redis = await getSubscriptionClient();
-		return redis.smembers(this._instanceKey(instanceId));
+		return redis.smembers(this._keys.instanceKey(instanceId));
 	}
 
 	async getAllTopics(): Promise<string[]> {
@@ -214,7 +195,7 @@ export class SubscriptionRedisStore {
 		topics: string[]
 	): Promise<string> {
 		const [nextCursor, batch] = await redis.sscan(
-			this._topicsSetKey(),
+			this._keys.topicsSetKey(),
 			cursor,
 			"COUNT",
 			100
