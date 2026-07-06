@@ -1,10 +1,9 @@
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 
-import type { Message } from "@trading-model/common/contracts/message.types";
-
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
-import { WalEntryParser } from "./wal-entry-parser";
+import { WalBatchFlusher } from "./wal-batch-flusher";
+import { WalErrorHandler } from "./wal-error-handler";
 
 const WAL_BATCH_SIZE = 50;
 const ATOMIC_WAL_READ_LUA = `
@@ -23,12 +22,18 @@ export class WalListFlusher {
 	private _walDrainGen = 0;
 	private _walFlushWaiters: Array<() => void> = [];
 
+	private readonly _batchFlusher: WalBatchFlusher;
+	private readonly _errorHandler: WalErrorHandler;
+
 	constructor(
 		private readonly _prefix: string,
 		private readonly _memoryWalBuffer: MemoryWalBuffer,
 		private readonly _streamMaxlen: number,
 		private readonly _messageTtlS: number
-	) {}
+	) {
+		this._batchFlusher = new WalBatchFlusher(this._prefix, this._streamMaxlen, this._messageTtlS);
+		this._errorHandler = new WalErrorHandler(() => this._walKey(), this._memoryWalBuffer);
+	}
 
 	private _walKey(): string {
 		return `${this._prefix}wal_buffer`;
@@ -144,88 +149,6 @@ export class WalListFlusher {
 		}
 	}
 
-	private _sleepWithJitter(ms: number): Promise<void> {
-		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
-		return new Promise((resolve) =>
-			setTimeout(resolve, Math.max(1, Math.round(ms + jitter)))
-		);
-	}
-
-	private async _flushWalBatch(raw: string[]): Promise<boolean> {
-		const redis = await getStreamClient();
-		const multi = redis.multi();
-		this._addParsedBatchCommands(multi, raw);
-
-		try {
-			return await this._executeBatch(multi);
-		} catch {
-			return false;
-		}
-	}
-
-	private _addParsedBatchCommands(
-		multi: ReturnType<import("ioredis").Redis["multi"]>,
-		raw: string[]
-	): void {
-		for (const entry of raw) {
-			const parsed = WalEntryParser.parse(entry);
-			if (!parsed) {
-				continue;
-			}
-			const key = `${this._prefix}stream:${parsed.topic}`;
-			multi.xadd(key, "MAXLEN", "~", this._streamMaxlen, "*", "data", parsed.data);
-			multi.expire(key, this._messageTtlS);
-		}
-	}
-
-	private async _executeBatch(
-		multi: ReturnType<import("ioredis").Redis["multi"]>
-	): Promise<boolean> {
-		const results = await multi.exec();
-		if (!results) {
-			return true;
-		}
-		return !results.some((resultItem) => resultItem[0] !== null);
-	}
-
-	private async _handleWalFlushError(
-		raw: string[],
-		consecutiveErrors: number
-	): Promise<"retry" | "memory-buffer" | "abort"> {
-		if (consecutiveErrors >= 5) {
-			logger.error(
-				"WAL flush: too many consecutive errors — switching to memory buffer"
-			);
-			for (const entry of raw) {
-				const parsed = WalEntryParser.parseWithMessage(entry);
-				if (parsed) {
-					this._memoryWalBuffer.push(parsed.topic, parsed.serialized, parsed.message as Message);
-				}
-			}
-			return "memory-buffer";
-		}
-
-		if (raw.length > 0) {
-			try {
-				const redis = await getStreamClient();
-				const restore = redis.multi();
-				for (const entry of raw) {
-					restore.rpush(this._walKey(), entry);
-				}
-				await restore.exec();
-			} catch {
-				for (const entry of raw) {
-					const parsed = WalEntryParser.parseWithMessage(entry);
-					if (parsed) {
-						this._memoryWalBuffer.push(parsed.topic, parsed.serialized, parsed.message as Message);
-					}
-				}
-			}
-		}
-
-		return "retry";
-	}
-
 	private _completeWalFlush(): void {
 		this._walFlushing = false;
 		if (this._walDrainResolve) {
@@ -282,7 +205,7 @@ export class WalListFlusher {
 				break;
 			}
 
-			if (await this._flushWalBatch(raw)) {
+			if (await this._batchFlusher.flushBatch(raw)) {
 				consecutiveErrors = 0;
 				continue;
 			}
@@ -304,9 +227,16 @@ export class WalListFlusher {
 			consecutiveErrors: nextErrors,
 			batchSize: raw.length,
 		});
-		const action = await this._handleWalFlushError(raw, nextErrors);
+		const action = await this._errorHandler.handleFlushError(raw, nextErrors);
 		const backoff = Math.min(1000 * 2 ** nextErrors, 30000);
 		await this._sleepWithJitter(backoff);
 		return action !== "abort";
+	}
+
+	private _sleepWithJitter(ms: number): Promise<void> {
+		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
+		return new Promise((resolve) =>
+			setTimeout(resolve, Math.max(1, Math.round(ms + jitter)))
+		);
 	}
 }

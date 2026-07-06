@@ -24,11 +24,11 @@ import type {
 } from "./type";
 
 function _resolveActivationType(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig>["activationType"] {
-	return cfg.activationType ?? new Array(cfg.neuronsByLayer.length - 1).fill("relu");
+	return cfg.activationType ?? new Array(cfg.neuronsByLayer.length - 1).fill(ActivationType.Relu);
 }
 
 function _resolveBiasInit(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig>["biasInitialisationType"] {
-	return cfg.biasInitialisationType ?? cfg.initialisationType ?? "random";
+	return cfg.biasInitialisationType ?? cfg.initialisationType ?? InitialisationType.Random;
 }
 
 function mergeConfig(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig> {
@@ -39,15 +39,15 @@ function mergeConfig(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig> {
 		neuronsByLayer: cfg.neuronsByLayer,
 		poolMaxSize: cfg.poolMaxSize ?? 10_000,
 		learningRate: cfg.learningRate ?? 0.001,
-		optimizerType: cfg.optimizerType ?? "sgd",
+		optimizerType: cfg.optimizerType ?? OptimizerType.Sgd,
 		gradientClipNorm: cfg.gradientClipNorm ?? 5.0,
 		biasMutationScale: cfg.biasMutationScale ?? 0.05,
-		normalisationType: cfg.normalisationType ?? "none",
+		normalisationType: cfg.normalisationType ?? NormalisationType.None,
 		weightMutationScale: cfg.weightMutationScale ?? 0.1,
 		optimizerHyperparams: cfg.optimizerHyperparams ?? {},
-		initialisationType: cfg.initialisationType ?? "random",
-		connectionType: cfg.connectionType ?? "fully-connected",
-		lossFunctionType: cfg.lossFunctionType ?? "mean-squared-error",
+		initialisationType: cfg.initialisationType ?? InitialisationType.Random,
+		connectionType: cfg.connectionType ?? ConnectionType.FullyConnected,
+		lossFunctionType: cfg.lossFunctionType ?? LossFunctionType.MeanSquaredError,
 		normalizedInputRange: cfg.normalizedInputRange ?? [0, cfg.neuronsByLayer[0] - 1],
 		biasInitialisationType: _resolveBiasInit(cfg),
 		activationType: _resolveActivationType(cfg),
@@ -136,8 +136,8 @@ function createLayerMemories(
 
 function _warnSigmoidLoss(config: Required<NeuralNetworkConfig>): void {
 	if (
-		config.activationType[config.activationType.length - 1] === "sigmoid" &&
-		config.lossFunctionType !== "binary-cross-entropy"
+		config.activationType[config.activationType.length - 1] === ActivationType.Sigmoid &&
+		config.lossFunctionType !== LossFunctionType.BinaryCrossEntropy
 	) {
 		logger.warn("Sigmoid output is usually paired with binary-cross-entropy");
 	}
@@ -145,9 +145,9 @@ function _warnSigmoidLoss(config: Required<NeuralNetworkConfig>): void {
 
 function _validateSoftmaxLoss(config: Required<NeuralNetworkConfig>): void {
 	if (
-		config.activationType[config.activationType.length - 1] === "softmax" &&
-		config.lossFunctionType !== "cross-entropy" &&
-		config.lossFunctionType !== "binary-cross-entropy"
+		config.activationType[config.activationType.length - 1] === ActivationType.Softmax &&
+		config.lossFunctionType !== LossFunctionType.CrossEntropy &&
+		config.lossFunctionType !== LossFunctionType.BinaryCrossEntropy
 	) {
 		throw new AgentError(
 			`Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`,
