@@ -6,6 +6,7 @@ import { KeyAlgorithm } from "./generate-key-pair";
 import type { SignOptions } from "./sign-certificate";
 import type { KeyPair, KeyPairWithId, SignInput, SignedCertificate } from "./types";
 import type { ValidationResult } from "./validate-certificate";
+import { KeyPairClient } from "./key-pair-client";
 
 export interface RemoteSigningConfig {
 	baseUrl: string;
@@ -17,6 +18,7 @@ export class RemoteSigningClient {
 	private readonly _httpClient: HttpClient;
 	private readonly _baseUrl: string;
 	private readonly _timeoutMs: number;
+	private readonly _keyPairClient: KeyPairClient;
 
 	constructor(config: RemoteSigningConfig) {
 		this._baseUrl = config.baseUrl.replace(/\/+$/, "");
@@ -24,34 +26,19 @@ export class RemoteSigningClient {
 		this._httpClient = config.tls
 			? HttpClient.createWithTls(config.tls)
 			: new HttpClient();
+		this._keyPairClient = new KeyPairClient(this._httpClient, this._baseUrl, this._timeoutMs);
 	}
 
 	async generateKeyPair(
 		algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
 	): Promise<KeyPair> {
-		const result = await this._httpClient.post<KeyPair>(
-			`${this._baseUrl}/api/v1/crypto/generate-key-pair`,
-			{ algorithm },
-			{ timeoutMs: this._timeoutMs }
-		);
-		if (!result) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
+		return this._keyPairClient.generateKeyPair(algorithm);
 	}
 
 	async generateKeyPairWithId(
 		algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
 	): Promise<KeyPairWithId> {
-		const result = await this._httpClient.post<KeyPairWithId>(
-			`${this._baseUrl}/api/v1/crypto/generate-key-pair-with-id`,
-			{ algorithm },
-			{ timeoutMs: this._timeoutMs }
-		);
-		if (!result) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
+		return this._keyPairClient.generateKeyPairWithId(algorithm);
 	}
 
 	async signCertificate(options: SignOptions): Promise<SignedCertificate> {
