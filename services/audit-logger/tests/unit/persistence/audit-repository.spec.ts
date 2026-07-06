@@ -20,6 +20,7 @@ jest.mock("mongodb", () => ({
 	Collection: jest.fn(),
 }));
 
+import { DateRange } from "@trading-model/common/domain/date-range";
 import {
 	type AuditEventDocument,
 	AuditRepository,

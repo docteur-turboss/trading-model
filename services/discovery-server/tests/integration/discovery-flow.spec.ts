@@ -83,9 +83,9 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		expect(
-			registry.validInstanceToken(registered.token as string, "node-1")
+			registry.validInstanceToken({ token: registered.token as string, instanceId: "node-1" })
 		).toBe(true);
-		expect(registry.validInstanceToken("wrong-token", "node-1")).toBe(false);
+		expect(registry.validInstanceToken({ token: "wrong-token", instanceId: "node-1" })).toBe(false);
 	});
 
 	it("should handle full heartbeat flow", () => {
@@ -102,15 +102,15 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		const token = registered.token as string;
-		expect(registry.validInstanceToken(token, "node-1")).toBe(true);
+		expect(registry.validInstanceToken({ token, instanceId: "node-1" })).toBe(true);
 
 		const ttl = registry.updateHeartbeat({ serviceName: "financial-scraper-service", instanceId: "node-1" });
 		expect(ttl).toBe(30_000);
 
 		const newToken = registry.updateToken("node-1");
 		expect(newToken).not.toBe(token);
-		expect(registry.validInstanceToken(newToken, "node-1")).toBe(true);
-		expect(registry.validInstanceToken(token, "node-1")).toBe(false);
+		expect(registry.validInstanceToken({ token: newToken, instanceId: "node-1" })).toBe(true);
+		expect(registry.validInstanceToken({ token, instanceId: "node-1" })).toBe(false);
 	});
 
 	it("should remove instance and update token on removeInstance", () => {
@@ -143,7 +143,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 		);
 		expect(removed).toBe(true);
 		expect(registry.getInstances("financial-scraper-service")).toHaveLength(0);
-		expect(registry.validInstanceToken("any-token", "node-1")).toBe(false);
+		expect(registry.validInstanceToken({ token: "any-token", instanceId: "node-1" })).toBe(false);
 		expect(registry.listServiceNames()).toEqual(["message-delivery-service"]);
 	});
 

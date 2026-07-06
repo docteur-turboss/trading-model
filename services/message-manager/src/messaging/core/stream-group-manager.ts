@@ -15,9 +15,8 @@ export interface ReadFromGroupParams {
 
 export interface GetMessagesBetweenParams {
 	topic: string;
-	fromMs: number;
-	toMs: number;
-	limit?: PaginationQuery["limit"];
+	timeRange: TimeRange;
+	limit?: number;
 }
 
 export class StreamGroupManager {
@@ -129,10 +128,10 @@ export class StreamGroupManager {
 	async getMessagesBetween(
 		params: GetMessagesBetweenParams
 	): Promise<Message[]> {
-		const { topic, fromMs, toMs, limit = 100 } = params;
+		const { topic, timeRange, limit = 100 } = params;
 		const redis = await getStreamClient();
-		const minId = `${fromMs}-0`;
-		const maxId = `${toMs}-0`;
+		const minId = `${timeRange.fromMs}-0`;
+		const maxId = `${timeRange.toMs}-0`;
 		const results = await redis.xrange(
 			this._streamKey(topic),
 			minId,

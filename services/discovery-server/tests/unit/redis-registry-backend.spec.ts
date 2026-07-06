@@ -555,25 +555,25 @@ describe("RedisRegistryBackend", () => {
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
 			const token = backend.generateInstanceToken("test-instance-1");
 			MOCK_REDIS.get.mockResolvedValue(token);
-			const result = await backend.validInstanceToken(token, "test-instance-1");
+			const result = await backend.validInstanceToken({ token, instanceId: "test-instance-1" });
 			expect(result).toBe(true);
 		});
 
 		it("should return false for token with wrong part count", async () => {
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
-			const result = await backend.validInstanceToken(
-				"invalid",
-				"test-instance-1"
-			);
+			const result = await backend.validInstanceToken({
+				token: "invalid",
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 		});
 
 		it("should return false when decodedId does not match instanceId", async () => {
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
-			const result = await backend.validInstanceToken(
-				"dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.dGVzdA",
-				"wrong-id"
-			);
+			const result = await backend.validInstanceToken({
+				token: "dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.dGVzdA",
+				instanceId: "wrong-id",
+			});
 			expect(result).toBe(false);
 		});
 
@@ -583,10 +583,10 @@ describe("RedisRegistryBackend", () => {
 			const parts = token.split(".");
 			const tampered = `${parts[0]}.${parts[1]}.${parts[2]}.${"a".repeat(43)}`;
 			MOCK_REDIS.get.mockResolvedValue(tampered);
-			const result = await backend.validInstanceToken(
-				tampered,
-				"test-instance-1"
-			);
+			const result = await backend.validInstanceToken({
+				token: tampered,
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 		});
 
@@ -594,7 +594,7 @@ describe("RedisRegistryBackend", () => {
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
 			const token = backend.generateInstanceToken("test-instance-1");
 			MOCK_REDIS.get.mockResolvedValue("different-stored-token");
-			const result = await backend.validInstanceToken(token, "test-instance-1");
+			const result = await backend.validInstanceToken({ token, instanceId: "test-instance-1" });
 			expect(result).toBe(false);
 		});
 
@@ -606,10 +606,10 @@ describe("RedisRegistryBackend", () => {
 			const badSignature = "a".repeat(100);
 			const badToken = `${parts[0]}.${parts[1]}.${parts[2]}.${badSignature}`;
 			MOCK_REDIS.get.mockResolvedValue(badToken);
-			const result = await backend.validInstanceToken(
-				badToken,
-				"test-instance-1"
-			);
+			const result = await backend.validInstanceToken({
+				token: badToken,
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 			expect(logger.warn).toHaveBeenCalledWith(
 				"Token validation failed",

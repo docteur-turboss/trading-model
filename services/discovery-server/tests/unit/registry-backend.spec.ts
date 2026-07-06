@@ -267,34 +267,34 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			const token = await backend.updateToken("test-instance-1");
-			const result = await backend.validInstanceToken(token, "test-instance-1");
+			const result = await backend.validInstanceToken({ token, instanceId: "test-instance-1" });
 			expect(result).toBe(true);
 		});
 
 		it("should return false for token with wrong part count", async () => {
 			const backend = new InMemoryRegistryBackend();
-			const result = await backend.validInstanceToken(
-				"invalid-token",
-				"test-instance-1"
-			);
+			const result = await backend.validInstanceToken({
+				token: "invalid-token",
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 		});
 
 		it("should return false when decodedId does not match instanceId", async () => {
 			const backend = new InMemoryRegistryBackend();
-			const result = await backend.validInstanceToken(
-				"dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.dGVzdA",
-				"wrong-id"
-			);
+			const result = await backend.validInstanceToken({
+				token: "dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.dGVzdA",
+				instanceId: "wrong-id",
+			});
 			expect(result).toBe(false);
 		});
 
 		it("should return false for invalid HMAC signature", async () => {
 			const backend = new InMemoryRegistryBackend();
-			const result = await backend.validInstanceToken(
-				`dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.${"a".repeat(43)}`,
-				"test-instance-1"
-			);
+			const result = await backend.validInstanceToken({
+				token: `dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.${"a".repeat(43)}`,
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 		});
 
@@ -302,16 +302,16 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			const token = backend.generateInstanceToken("test-instance-1");
-			const result = await backend.validInstanceToken(token, "test-instance-1");
+			const result = await backend.validInstanceToken({ token, instanceId: "test-instance-1" });
 			expect(result).toBe(false);
 		});
 
 		it("should return false when signature length differs from expected HMAC", async () => {
 			const backend = new InMemoryRegistryBackend();
-			const result = await backend.validInstanceToken(
-				`dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.${"a".repeat(100)}`,
-				"test-instance-1"
-			);
+			const result = await backend.validInstanceToken({
+				token: `dGVzdC1pbnN0YW5jZS0x.dGVzdA.dGVzdA.${"a".repeat(100)}`,
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 		});
 	});

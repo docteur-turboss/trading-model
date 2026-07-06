@@ -232,7 +232,7 @@ describe("CachedRegistryBackend", () => {
 
 		it("should delegate validInstanceToken", async () => {
 			mockBackend.validInstanceToken.mockResolvedValue(true);
-			const result = await cachedBackend.validInstanceToken("tok", "i-1");
+			const result = await cachedBackend.validInstanceToken({ token: "tok", instanceId: "i-1" });
 			expect(result).toBe(true);
 		});
 
