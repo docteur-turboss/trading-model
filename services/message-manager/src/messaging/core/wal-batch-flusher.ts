@@ -12,35 +12,37 @@ export class WalBatchFlusher {
 	async flushBatch(raw: string[]): Promise<boolean> {
 		const redis = await getStreamClient();
 		const multi = redis.multi();
+		this._addParsedEntries(multi, raw);
+
+		try {
+			return await this._executeBatch(multi);
+		} catch {
+			return false;
+		}
+	}
+
+	private _addParsedEntries(
+		multi: ReturnType<import("ioredis").Redis["multi"]>,
+		raw: string[]
+	): void {
 		for (const entry of raw) {
 			const parsed = WalEntryParser.parse(entry);
 			if (!parsed) {
 				continue;
 			}
 			const key = `${this._prefix}stream:${parsed.topic}`;
-			multi.xadd(
-				key,
-				"MAXLEN",
-				"~",
-				this._streamMaxlen,
-				"*",
-				"data",
-				parsed.data
-			);
+			multi.xadd(key, "MAXLEN", "~", this._streamMaxlen, "*", "data", parsed.data);
 			multi.expire(key, this._messageTtlS);
 		}
+	}
 
-		try {
-			const results = await multi.exec();
-			if (results) {
-				const anyFailed = results.some((resultItem) => resultItem[0] !== null);
-				if (anyFailed) {
-					return false;
-				}
-			}
+	private async _executeBatch(
+		multi: ReturnType<import("ioredis").Redis["multi"]>
+	): Promise<boolean> {
+		const results = await multi.exec();
+		if (!results) {
 			return true;
-		} catch {
-			return false;
 		}
+		return !results.some((resultItem) => resultItem[0] !== null);
 	}
 }

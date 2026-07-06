@@ -34,28 +34,50 @@ export interface DlqEntryDecision {
  */
 export class DlqDecisionService {
 	evaluate(input: DlqDecisionInput): DlqEntryDecision {
-		const pingPongAbandon = input.dlqPassCount >= DLQ_MAX_PASS_COUNT;
-
-		const isRetryable =
-			input.retryCount < input.maxRetryAttempts &&
-			input.consecutiveErrors < DLQ_MAX_CONSECUTIVE_ERRORS;
-
-		const shouldAbandon =
-			input.retryCount >= input.maxRetryAttempts ||
-			input.consecutiveErrors >= DLQ_MAX_CONSECUTIVE_ERRORS;
-
+		const pingPongAbandon = _isPingPongAbandon(input.dlqPassCount);
+		const isRetryable = _isRetryable(input);
+		const shouldAbandon = _shouldAbandon(input);
 		const isAtCapacity = input.totalEntries >= input.maxEntries;
 
 		return {
 			pingPongAbandon,
-			pingPongReason: pingPongAbandon
-				? `Ping-pong detected: message entered DLQ ${input.dlqPassCount} times`
-				: undefined,
+			pingPongReason: _pingPongReason(pingPongAbandon, input.dlqPassCount),
 			isRetryable,
 			shouldAbandon,
 			isAtCapacity,
 		};
 	}
+}
+
+function _isPingPongAbandon(dlqPassCount: number): boolean {
+	return dlqPassCount >= DLQ_MAX_PASS_COUNT;
+}
+
+function _isRetryable(input: DlqDecisionInput): boolean {
+	return (
+		input.retryCount < input.maxRetryAttempts &&
+		input.consecutiveErrors < DLQ_MAX_CONSECUTIVE_ERRORS
+	);
+}
+
+function _shouldAbandon(input: DlqDecisionInput): boolean {
+	return (
+		input.retryCount >= input.maxRetryAttempts ||
+		input.consecutiveErrors >= DLQ_MAX_CONSECUTIVE_ERRORS
+	);
+}
+
+function _pingPongReason(
+	pingPongAbandon: boolean,
+	dlqPassCount: number
+): string | undefined {
+	if (!pingPongAbandon) {
+		return undefined;
+	}
+	return `Ping-pong detected: message entered DLQ ${dlqPassCount} times`;
+}
+
+export class DlqDecisionService {
 
 	/** Determines the filter for claiming retryable entries. */
 	buildClaimFilter(): {

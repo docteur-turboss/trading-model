@@ -186,29 +186,20 @@ export class MessageMetadata {
 	 */
 	public toJSON(): MetadataType {
 		this._assertRequiredFields();
+		return this._buildMetadata();
+	}
 
-		const {
-			eventType,
-			publisher,
-			schemaVersion,
-			topic,
-			_causationId: causationId,
-			_correlationId: correlationId,
-			delivery,
-			routing,
-			security,
-		} = this;
-
+	private _buildMetadata(): MetadataType {
 		return {
-			eventType,
-			publisher,
-			schemaVersion,
-			topic,
-			causationId,
-			correlationId,
-			delivery,
-			routing,
-			security,
+			eventType: this.eventType,
+			publisher: this.publisher,
+			schemaVersion: this.schemaVersion,
+			topic: this.topic,
+			causationId: this._causationId,
+			correlationId: this._correlationId,
+			delivery: this.delivery,
+			routing: this.routing,
+			security: this.security,
 		};
 	}
 

@@ -19,20 +19,23 @@ export class TokenBucket {
 	}
 
 	private _refill(): void {
-		const now = Date.now();
-		const elapsed = now - this._lastRefill;
-		if (elapsed < this._refillIntervalMs) {
+		const intervals = this._computeRefillIntervals();
+		if (intervals === 0) {
 			return;
 		}
+		this._tokens = Math.min(
+			this._capacity,
+			this._tokens + this._refillRate * intervals
+		);
+		this._lastRefill += intervals * this._refillIntervalMs;
+	}
 
-		const intervals = Math.floor(elapsed / this._refillIntervalMs);
-		if (intervals > 0) {
-			this._tokens = Math.min(
-				this._capacity,
-				this._tokens + this._refillRate * intervals
-			);
-			this._lastRefill += intervals * this._refillIntervalMs;
+	private _computeRefillIntervals(): number {
+		const elapsed = Date.now() - this._lastRefill;
+		if (elapsed < this._refillIntervalMs) {
+			return 0;
 		}
+		return Math.floor(elapsed / this._refillIntervalMs);
 	}
 
 	tryConsume(count = 1): boolean {

@@ -29,7 +29,6 @@ export function createMessageManager(options: MessageManagerOptions) {
 		serviceName: options.serviceName,
 		callbackPath: options.callbackPath,
 	});
-
 	return {
 		messageManager: ma,
 		messageManagerListenExpress: ma.listenExpress.bind(ma),
