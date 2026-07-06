@@ -5,17 +5,14 @@ import {
 import { logger } from "@trading-model/common/config/logger";
 
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { WssTransport } from "./wss-transport";
 
 export type TransportMode = "wss" | "https";
 
 export interface TransportConfig {
 	caUrl: string;
-	tls?: {
-		ca: string;
-		cert: string;
-		key: string;
-	};
+	tls?: TlsPaths;
 	retestWssIntervalMs?: number;
 	forceHttps?: boolean;
 	bootstrapToken?: string;

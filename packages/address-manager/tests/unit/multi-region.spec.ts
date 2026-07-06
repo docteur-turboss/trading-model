@@ -5,13 +5,14 @@ import type { AddressManagerConfig } from "../../src/config/address-manager-conf
 import type { ServiceCache } from "../../src/discovery/service-cache";
 import { ServiceDiscovery } from "../../src/discovery/service-discovery";
 import type { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 const FIXED_TIMESTAMP = 1_700_000_000_000;
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
-		ip: "127.0.0.1",
-		port: 8080,
+		ip: "127.0.0.1" as unknown as IPAddress,
+		port: 8080 as unknown as Port,
 		instanceId: "instance-1",
 		lastHeartbeat: FIXED_TIMESTAMP,
 		protocol: "http",
@@ -72,19 +73,19 @@ describe("Multi-Region ServiceDiscovery", () => {
 
 	const usInstance = makeInstance({
 		instanceId: "node-us",
-		ip: "10.0.0.1",
+		ip: "10.0.0.1" as unknown as IPAddress,
 		region: "us-east-1",
 	});
 
 	const euInstance = makeInstance({
 		instanceId: "node-eu",
-		ip: "10.0.1.1",
+		ip: "10.0.1.1" as unknown as IPAddress,
 		region: "eu-west-1",
 	});
 
 	const noRegionInstance = makeInstance({
 		instanceId: "node-legacy",
-		ip: "10.0.2.1",
+		ip: "10.0.2.1" as unknown as IPAddress,
 	});
 
 	beforeEach(() => {
@@ -104,6 +105,14 @@ describe("Multi-Region ServiceDiscovery", () => {
 				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
+					servicePort: 0,
+					tokenRefreshIntervalMs: 0,
+					ttlRefreshIntervalMs: 0,
+					servicePingTimeoutMs: 0,
+					cacheTtlMs: 0,
+					identity: { serviceName: "test-service", instanceId: "test-instance" },
+					tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+					discoveryUrls: ["http://localhost:8443"],
 				} as AddressManagerConfig,
 				healthChecker,
 			});
@@ -132,6 +141,14 @@ describe("Multi-Region ServiceDiscovery", () => {
 				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
+					servicePort: 0,
+					tokenRefreshIntervalMs: 0,
+					ttlRefreshIntervalMs: 0,
+					servicePingTimeoutMs: 0,
+					cacheTtlMs: 0,
+					identity: { serviceName: "test-service", instanceId: "test-instance" },
+					tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+					discoveryUrls: ["http://localhost:8443"],
 				} as AddressManagerConfig,
 				healthChecker,
 			});
@@ -155,7 +172,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
+					servicePort: 0,
+					tokenRefreshIntervalMs: 0,
+					ttlRefreshIntervalMs: 0,
+					servicePingTimeoutMs: 0,
+					cacheTtlMs: 0,
 					region: "us-east-1",
+					identity: { serviceName: "test-service", instanceId: "test-instance" },
+					tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+					discoveryUrls: ["http://localhost:8443"],
 				} as AddressManagerConfig,
 				healthChecker,
 			});
@@ -178,6 +203,14 @@ describe("Multi-Region ServiceDiscovery", () => {
 				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
+					servicePort: 0,
+					tokenRefreshIntervalMs: 0,
+					ttlRefreshIntervalMs: 0,
+					servicePingTimeoutMs: 0,
+					cacheTtlMs: 0,
+					identity: { serviceName: "test-service", instanceId: "test-instance" },
+					tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+					discoveryUrls: ["http://localhost:8443"],
 				} as AddressManagerConfig,
 				healthChecker,
 			});
@@ -201,6 +234,14 @@ describe("Multi-Region ServiceDiscovery", () => {
 				config: {
 					addressManagerUrl: "https://ds:3000",
 					discoveryTimeoutMs: 5000,
+					servicePort: 0,
+					tokenRefreshIntervalMs: 0,
+					ttlRefreshIntervalMs: 0,
+					servicePingTimeoutMs: 0,
+					cacheTtlMs: 0,
+					identity: { serviceName: "test-service", instanceId: "test-instance" },
+					tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+					discoveryUrls: ["http://localhost:8443"],
 				} as AddressManagerConfig,
 				healthChecker,
 			});

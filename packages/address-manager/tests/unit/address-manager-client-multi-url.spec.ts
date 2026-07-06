@@ -13,8 +13,6 @@ describe("AddressManagerClient Multi-URL", () => {
 		overrides?: Partial<AddressManagerConfig>
 	): AddressManagerConfig {
 		return {
-			instanceId: "test-instance",
-			serviceName: "test-service",
 			servicePort: 8080,
 			addressManagerUrl: "https://ds-primary:3000",
 			discoveryUrls: ["https://ds-primary:3000", "https://ds-secondary:3000"],
@@ -23,9 +21,8 @@ describe("AddressManagerClient Multi-URL", () => {
 			servicePingTimeoutMs: 2000,
 			tokenRefreshIntervalMs: 60000,
 			ttlRefreshIntervalMs: 15000,
-			caPath: "/certs/ca.crt",
-			certPath: "/certs/server.crt",
-			keyPath: "/certs/server.key",
+			identity: { serviceName: "test-service", instanceId: "test-instance" },
+			tls: { caPath: "/certs/ca.crt", certPath: "/certs/server.crt", keyPath: "/certs/server.key" },
 			...overrides,
 		};
 	}

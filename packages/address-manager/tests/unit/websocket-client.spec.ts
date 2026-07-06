@@ -339,7 +339,7 @@ describe("WebSocketClient", () => {
 	describe("sendHeartbeat", () => {
 		test("should send heartbeat message when connected", () => {
 			client.connect();
-			const result = client.sendHeartbeat("test-service", "instance-1");
+			const result = client.sendHeartbeat({ serviceName: "test-service", instanceId: "instance-1" });
 			expect(result).toBe(true);
 			const sendMock = MOCK_WEB_SOCKET_INSTANCE.send as jest.Mock;
 			expect(sendMock).toHaveBeenCalledWith(
@@ -351,7 +351,7 @@ describe("WebSocketClient", () => {
 		});
 
 		test("should return false when not connected", () => {
-			const result = client.sendHeartbeat("test-service", "instance-1");
+			const result = client.sendHeartbeat({ serviceName: "test-service", instanceId: "instance-1" });
 			expect(result).toBe(false);
 		});
 	});

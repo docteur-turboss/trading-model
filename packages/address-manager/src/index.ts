@@ -54,7 +54,7 @@ export default class AddressManager {
 	private _shouldRetryRegistration = true;
 
 	constructor(config: AddressManagerConfig) {
-		this._httpClient = HttpClient.createWithTls(config);
+		this._httpClient = HttpClient.createWithTls(config.tls);
 
 		this._tokenManager = new TokenManager(this._httpClient, config);
 		this._addressManagerClient = new AddressManagerClient(

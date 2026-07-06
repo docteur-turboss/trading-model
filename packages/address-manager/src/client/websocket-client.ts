@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	scheduleWsReconnect,
@@ -179,10 +180,10 @@ export class WebSocketClient {
 		this._token = token;
 	}
 
-	sendHeartbeat(_serviceName: string, _instanceId: string): boolean {
+	sendHeartbeat(identity: ServiceIdentity): boolean {
 		return this.send("heartbeat", {
-			serviceName: _serviceName,
-			instanceId: _instanceId,
+			serviceName: identity.serviceName,
+			instanceId: identity.instanceId,
 		});
 	}
 }

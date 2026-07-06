@@ -14,13 +14,15 @@ describe("TokenManager", () => {
 
 		config = {
 			addressManagerUrl: "http://localhost:8443",
-			instanceId: "instance-1",
-			serviceName: "test-service",
 			servicePort: 8080,
 			tokenRefreshIntervalMs: 300_000,
 			ttlRefreshIntervalMs: 300_000,
 			servicePingTimeoutMs: 2000,
 			cacheTtlMs: 60_000,
+			identity: { serviceName: "test-service", instanceId: "instance-1" },
+			tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+			discoveryUrls: ["http://localhost:8443"],
+			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
 
 		manager = new TokenManager(httpClient, config);
@@ -72,8 +74,8 @@ describe("TokenManager", () => {
 			expect(httpClient.post).toHaveBeenCalledWith(
 				`${config.addressManagerUrl}/token/rotate`,
 				{
-					instanceId: config.instanceId,
-					serviceName: config.serviceName,
+					instanceId: config.identity.instanceId,
+					serviceName: config.identity.serviceName,
 				},
 				{
 					headers: { "x-instance-token": "initial-token" },
@@ -92,8 +94,8 @@ describe("TokenManager", () => {
 			expect(httpClient.post).toHaveBeenCalledWith(
 				`${config.addressManagerUrl}/token/rotate`,
 				{
-					instanceId: config.instanceId,
-					serviceName: config.serviceName,
+					instanceId: config.identity.instanceId,
+					serviceName: config.identity.serviceName,
 				},
 				{ headers: {} }
 			);

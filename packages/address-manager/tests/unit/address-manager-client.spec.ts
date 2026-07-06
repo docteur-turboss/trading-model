@@ -13,6 +13,7 @@ import { AddressManagerClient } from "../../src/client/address-manager-client";
 import type { TokenManager } from "../../src/client/token-manager";
 import type { ServiceRegistrationResponse } from "../../src/client/type";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 jest.mock("os");
 
@@ -45,13 +46,15 @@ describe("AddressManagerClient", () => {
 
 		config = {
 			addressManagerUrl: "http://localhost:8443",
-			serviceName: "test-service",
 			servicePort: 8080,
-			instanceId: "test-instance",
 			tokenRefreshIntervalMs: 300_000,
 			ttlRefreshIntervalMs: 300_000,
 			servicePingTimeoutMs: 2000,
 			cacheTtlMs: 60_000,
+			identity: { serviceName: "test-service", instanceId: "test-instance" },
+			tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+			discoveryUrls: ["http://localhost:8443"],
+			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
 
 		client = new AddressManagerClient(httpClient, tokenManager, config);
@@ -64,8 +67,8 @@ describe("AddressManagerClient", () => {
 			expect(httpClient.post).toHaveBeenCalledWith(
 				`${config.addressManagerUrl}/unregister`,
 				{
-					serviceName: config.serviceName,
-					instanceId: config.instanceId,
+					serviceName: config.identity.serviceName,
+					instanceId: config.identity.instanceId,
 				},
 				{ headers: { "x-instance-token": "mock-token" } }
 			);
@@ -145,8 +148,8 @@ describe("AddressManagerClient", () => {
 			});
 
 			const response: ServiceRegistrationResponse = {
-				ip: "127.0.0.1",
-				port: 8080,
+				ip: "127.0.0.1" as unknown as IPAddress,
+				port: 8080 as unknown as Port,
 				instanceId: "instance-1",
 				lastHeartbeat: Date.now(),
 				protocol: "http",
@@ -161,7 +164,7 @@ describe("AddressManagerClient", () => {
 			const result = await client.registerService();
 
 			expect(httpClient.post).toHaveBeenCalledWith(expect.any(String), {
-				serviceName: config.serviceName,
+				serviceName: config.identity.serviceName,
 				port: config.servicePort,
 				ip: expect.any(String),
 			});
@@ -170,8 +173,8 @@ describe("AddressManagerClient", () => {
 
 		test("should call HttpClient.post with correct URL, payload, and headers", async () => {
 			const response: ServiceRegistrationResponse = {
-				ip: "192.168.1.100",
-				port: 8080,
+				ip: "192.168.1.100" as unknown as IPAddress,
+				port: 8080 as unknown as Port,
 				instanceId: "instance-1",
 				lastHeartbeat: Date.now(),
 				protocol: "http",
@@ -189,9 +192,9 @@ describe("AddressManagerClient", () => {
 			expect(httpClient.post).toHaveBeenCalledWith(
 				`${config.addressManagerUrl}/register`,
 				{
-					serviceName: config.serviceName,
-					port: config.servicePort,
-					ip: "192.168.1.100",
+				serviceName: config.identity.serviceName,
+				port: config.servicePort,
+				ip: "192.168.1.100",
 				}
 			);
 		});
@@ -214,7 +217,7 @@ describe("AddressManagerClient", () => {
 
 			expect(httpClient.post).toHaveBeenCalledWith(
 				`${config.addressManagerUrl}/heartbeat`,
-				{ serviceName: config.serviceName, instanceId: config.instanceId },
+				{ serviceName: config.identity.serviceName, instanceId: config.identity.instanceId },
 				{ headers: { "x-instance-token": "mock-token" } }
 			);
 		});

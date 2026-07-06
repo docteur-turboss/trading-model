@@ -6,6 +6,7 @@ import {
 	MapResolver,
 } from "../../src/discovery/dns-resolver";
 import { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import {
 	IpAddressLocator,
 	MappingServiceLocator,
@@ -16,8 +17,8 @@ describe("ServiceHealthChecker", () => {
 	let checker: ServiceHealthChecker;
 
 	const instance: ServiceInstance = {
-		ip: "127.0.0.1",
-		port: 8080,
+		ip: "127.0.0.1" as unknown as IPAddress,
+		port: 8080 as unknown as Port,
 		instanceId: "instance-1",
 		lastHeartbeat: Date.now(),
 		protocol: "http",

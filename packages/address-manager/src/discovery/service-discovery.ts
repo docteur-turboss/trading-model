@@ -75,8 +75,8 @@ export class ServiceDiscovery {
 	 * ```
 	 */
 	async findService(serviceName: string): Promise<ServiceInstance> {
-		if (this._config.region) {
-			return this.findServiceInRegion(serviceName, this._config.region);
+		if (this._config.identity.region) {
+			return this.findServiceInRegion(serviceName, this._config.identity.region);
 		}
 
 		const cachedInstance = await this._serviceCache.get(serviceName);

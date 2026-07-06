@@ -87,18 +87,15 @@ describe("AddressManager", () => {
 
 	const defaultConfig = {
 		addressManagerUrl: "http://localhost:8443",
-		instanceId: "instance-1",
-		serviceName: "test-service",
 		servicePort: 8080,
 		tokenRefreshIntervalMs: 300000,
 		ttlRefreshIntervalMs: 300000,
 		servicePingTimeoutMs: 2000,
 		discoveryTimeoutMs: 5000,
 		cacheTtlMs: 60000,
-		caPath: "/path/to/ca.pem",
-		certPath: "/path/to/cert.pem",
-		keyPath: "/path/to/key.pem",
 		discoveryUrls: ["http://localhost:8443"],
+		identity: { serviceName: "test-service", instanceId: "instance-1" },
+		tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
 	};
 
 	beforeEach(() => {

@@ -1,7 +1,5 @@
-import {
-	HttpClient,
-	type TlsPaths,
-} from "@trading-model/common/config/http-client";
+import { HttpClient } from "@trading-model/common/config/http-client";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 

@@ -146,12 +146,7 @@ function makeConfig(
 	overrides?: Partial<AddressManagerConfig>
 ): AddressManagerConfig {
 	return {
-		serviceName: "test-service",
-		instanceId: "instance-1",
 		servicePort: 8080,
-		caPath: "/path/to/ca.pem",
-		certPath: "/path/to/cert.pem",
-		keyPath: "/path/to/key.pem",
 		addressManagerUrl: "https://discovery:3000",
 		discoveryUrls: ["https://discovery:3000"],
 		cacheTtlMs: 30000,
@@ -159,6 +154,8 @@ function makeConfig(
 		discoveryTimeoutMs: 5000,
 		tokenRefreshIntervalMs: 60000,
 		ttlRefreshIntervalMs: 15000,
+		identity: { serviceName: "test-service", instanceId: "instance-1" },
+		tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
 		...overrides,
 	};
 }

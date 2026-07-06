@@ -97,8 +97,8 @@ export class TokenManager {
 			const response = await this._httpClient.post<{ token: string }>(
 				`${this._config.addressManagerUrl}/token/rotate`,
 				{
-					instanceId: this._config.instanceId,
-					serviceName: this._config.serviceName,
+					instanceId: this._config.identity.instanceId,
+					serviceName: this._config.identity.serviceName,
 				},
 				{ headers }
 			);

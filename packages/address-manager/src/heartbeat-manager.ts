@@ -24,25 +24,20 @@ export class HeartbeatManager {
 		this._onFailure = deps.onFailure;
 	}
 
-	async performHeartbeat({
-		serviceName,
-		instanceId,
-	}: ServiceIdentity): Promise<void> {
-		if (this._heartbeatViaWs({ serviceName, instanceId })) {
+	async performHeartbeat(
+		identity: ServiceIdentity,
+	): Promise<void> {
+		if (this._heartbeatViaWs(identity)) {
 			return;
 		}
 		await this._heartbeatViaHttp();
 	}
 
-	private _heartbeatViaWs({
-		serviceName,
-		instanceId,
-	}: ServiceIdentity): boolean {
+	private _heartbeatViaWs(
+		identity: ServiceIdentity,
+	): boolean {
 		if (this._wsClient?.isConnected()) {
-			const sent = this._wsClient.sendHeartbeat(
-				serviceName,
-				instanceId
-			);
+			const sent = this._wsClient.sendHeartbeat(identity);
 			if (sent) {
 				this._onSuccess?.();
 				this._consecutiveHeartbeatFailures = 0;

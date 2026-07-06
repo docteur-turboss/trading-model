@@ -9,7 +9,7 @@ import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair
 import { CaClient } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
-import type { TlsConfig } from "@trading-model/common/server/load-tls-config";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type { HttpServer } from "@trading-model/common/server/server-factory";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { Application } from "express";
@@ -25,11 +25,8 @@ export interface BootstrapConfig {
 	keyPath: string;
 	caPath: string;
 	bootstrapToken?: string;
-	tls?: {
-		ca: string;
-		cert: string;
-		key: string;
-	};
+	tls?: TlsPaths;
+	onRenew?: (cert: ObtainedCertificate) => void;
 }
 
 export function bootstrapConfigFromEnv(
@@ -55,9 +52,9 @@ export function bootstrapConfigFromEnv(
 		bootstrapToken: env.CERT_CLIENT_BOOTSTRAP_TOKEN,
 		tls: env.CA_CLIENT_TLS_KEY
 			? {
-					key: env.CA_CLIENT_TLS_KEY,
-					cert: env.CA_CLIENT_TLS_CERT ?? "",
-					ca: env.CA_CLIENT_TLS_CA ?? "",
+					keyPath: env.CA_CLIENT_TLS_KEY,
+					certPath: env.CA_CLIENT_TLS_CERT ?? "",
+					caPath: env.CA_CLIENT_TLS_CA ?? "",
 				}
 			: undefined,
 	};
@@ -85,7 +82,7 @@ export async function bootstrapCertificate(
 	const response = await _signWithCa(config, csr);
 	await _writeCertFiles(config, keyPair.privateKey, response);
 
-	return { key: config.keyPath, cert: config.certPath, ca: config.caPath };
+	return { keyPath: config.keyPath, certPath: config.certPath, caPath: config.caPath };
 }
 
 async function _tryLoadExistingCert(
@@ -97,7 +94,7 @@ async function _tryLoadExistingCert(
 		logger.info("TLS certificate already exists — skipping bootstrap", {
 			certPath: config.certPath,
 		});
-		return { key: config.keyPath, cert: config.certPath, ca: config.caPath };
+		return { keyPath: config.keyPath, certPath: config.certPath, caPath: config.caPath };
 	} catch (err) {
 		logger.warn("TLS certificate files not found — proceeding with bootstrap", {
 			err: normalizeError(err),
@@ -216,7 +213,7 @@ export function createTlsBootstrap(
 
 async function loadServerDependencies(): Promise<{
 	configureApp: (opts: {
-		rateLimit?: { windowMs: number; max: number };
+		rateLimit?: { windowMs: number; limit: number };
 		trustProxy?: boolean;
 	}) => import("express").Application;
 	mtlsAuthMiddleware: import("express").RequestHandler;

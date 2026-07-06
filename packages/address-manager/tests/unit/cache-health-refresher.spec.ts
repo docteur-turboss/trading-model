@@ -3,13 +3,14 @@ import type { ServiceInstance } from "../../src/client/type";
 import { CacheHealthRefresher } from "../../src/discovery/cache-health-refresher";
 import type { IServiceCache } from "../../src/discovery/service-cache.interface";
 import type { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
 		serviceName: "svc",
 		instanceId: "i-1",
-		ip: "127.0.0.1",
-		port: 8080,
+		ip: "127.0.0.1" as unknown as IPAddress,
+		port: 8080 as unknown as Port,
 		version: "1.0.0",
 		ttl: 30000,
 		protocol: "http",

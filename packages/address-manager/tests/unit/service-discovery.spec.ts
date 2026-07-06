@@ -6,6 +6,7 @@ import type { AddressManagerConfig } from "../../src/config/address-manager-conf
 import type { ServiceCache } from "../../src/discovery/service-cache";
 import { ServiceDiscovery } from "../../src/discovery/service-discovery";
 import type { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 describe("ServiceDiscovery", () => {
 	let discovery: ServiceDiscovery;
@@ -16,8 +17,8 @@ describe("ServiceDiscovery", () => {
 	const FixedTimestamp = 1_700_000_000_000;
 	const serviceName = "user-service";
 	const instance: ServiceInstance = {
-		ip: "127.0.0.1",
-		port: 8080,
+		ip: "127.0.0.1" as unknown as IPAddress,
+		port: 8080 as unknown as Port,
 		instanceId: "instance-1",
 		lastHeartbeat: FixedTimestamp,
 		protocol: "http",
@@ -71,6 +72,14 @@ describe("ServiceDiscovery", () => {
 			config: {
 				addressManagerUrl: "ee",
 				discoveryTimeoutMs: 5000,
+				servicePort: 0,
+				tokenRefreshIntervalMs: 0,
+				ttlRefreshIntervalMs: 0,
+				servicePingTimeoutMs: 0,
+				cacheTtlMs: 0,
+				discoveryUrls: ["http://localhost:8443"],
+				identity: { serviceName: "test-service", instanceId: "test-instance" },
+				tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
 			} as AddressManagerConfig,
 			healthChecker,
 		});

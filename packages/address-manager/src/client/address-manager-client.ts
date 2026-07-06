@@ -44,7 +44,7 @@ export class AddressManagerClient {
 
 	async registerService(): Promise<ServiceRegistrationResponse | undefined> {
 		const payload: RegisterServicePayload = {
-			serviceName: this._config.serviceName,
+			serviceName: this._config.identity.serviceName,
 			port: this._config.servicePort,
 			ip: AddressManagerClient._getLocalIP(),
 		};
@@ -74,8 +74,8 @@ export class AddressManagerClient {
 		instanceId: string;
 	} {
 		return {
-			serviceName: this._config.serviceName,
-			instanceId: this._config.instanceId,
+			serviceName: this._config.identity.serviceName,
+			instanceId: this._config.identity.instanceId,
 		};
 	}
 
@@ -134,8 +134,8 @@ export class AddressManagerClient {
 				await this._httpClient.post(
 					`${url}/unregister`,
 					{
-						serviceName: this._config.serviceName,
-						instanceId: this._config.instanceId,
+			serviceName: this._config.identity.serviceName,
+			instanceId: this._config.identity.instanceId,
 					},
 					{ headers: { "x-instance-token": token } }
 				);

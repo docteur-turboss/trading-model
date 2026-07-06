@@ -1,7 +1,5 @@
-import {
-	HttpClient,
-	type TlsPaths as TlsClientPaths,
-} from "@trading-model/common/config/http-client";
+import { HttpClient } from "@trading-model/common/config/http-client";
+import type { TlsPaths as TlsClientPaths } from "@trading-model/common/domain/tls-paths";
 
 import type { CsrOptions } from "./create-csr";
 import { KeyAlgorithm } from "./generate-key-pair";

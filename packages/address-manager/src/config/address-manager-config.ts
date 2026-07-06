@@ -1,7 +1,9 @@
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+
 /** Configuration options for the Address Manager client. */
 interface AddressManagerConfig {
-	instanceId: string;
-	serviceName: string;
+	identity: ServiceIdentity;
 	servicePort: number;
 	/** Single discovery URL (backwards compatible). */
 	addressManagerUrl: string;
@@ -9,17 +11,13 @@ interface AddressManagerConfig {
 	discoveryUrls: string[];
 
 	localDiscoveryUrl?: string;
-	region?: string;
 	publicIp?: string;
 
+	tls: TlsPaths;
 	tokenRefreshIntervalMs: number;
 	ttlRefreshIntervalMs: number;
 	servicePingTimeoutMs: number;
 	discoveryTimeoutMs: number;
-
-	caPath: string;
-	certPath: string;
-	keyPath: string;
 
 	cacheTtlMs: number;
 	dnsNameMap?: Record<string, string>;
@@ -31,7 +29,7 @@ interface AddressManagerConfig {
 	preferredNetworkInterface?: string;
 
 	// TLS cert PEM overrides (inline, not file paths)
-	pems?: { caPath: string; certPath: string; keyPath: string };
+	pems?: TlsPaths;
 
 	// Redis cache config
 	redisCacheUrl?: string;

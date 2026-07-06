@@ -24,6 +24,9 @@ import { MetricsCollector } from "./monitoring/metrics-collector";
 import { RegistrationManager } from "./registration-manager";
 import { ShutdownHandler } from "./shutdown-handler";
 
+// ---------------------------------------------------------------------------
+// Exported context type for WS client creation
+// ---------------------------------------------------------------------------
 export interface WsClientContext {
 	config: AddressManagerConfig;
 	addressManagerClient: AddressManagerClient;
@@ -31,18 +34,12 @@ export interface WsClientContext {
 	serviceCache: IServiceCache;
 }
 
+// ---------------------------------------------------------------------------
+// Module-level factory functions
+// ---------------------------------------------------------------------------
+
 function createHttpClient(config: AddressManagerConfig): HttpClient {
-	return config.pems
-		? HttpClient.createWithTls({
-				caPath: config.pems.caPath,
-				certPath: config.pems.certPath,
-				keyPath: config.pems.keyPath,
-			})
-		: HttpClient.createWithTls({
-				caPath: config.caPath,
-				certPath: config.certPath,
-				keyPath: config.keyPath,
-			});
+	return HttpClient.createWithTls(config.pems ?? config.tls)
 }
 
 function createServiceCache(config: AddressManagerConfig): IServiceCache {
@@ -58,7 +55,7 @@ function createServiceCache(config: AddressManagerConfig): IServiceCache {
 
 function createCircuitBreaker(
 	config: AddressManagerConfig,
-	serviceCache: IServiceCache
+	serviceCache: IServiceCache,
 ): CircuitBreaker {
 	return new CircuitBreaker({
 		failureThreshold: config.circuitBreakerFailureThreshold ?? 3,
@@ -72,20 +69,63 @@ function createCircuitBreaker(
 
 function createHealthChecker(
 	httpClient: HttpClient,
-	config: AddressManagerConfig
+	config: AddressManagerConfig,
 ): ServiceHealthChecker {
 	return new ServiceHealthChecker(
 		httpClient,
 		config.servicePingTimeoutMs,
 		config.dnsNameMap
 			? new MappingServiceLocator(new MapResolver(config.dnsNameMap))
-			: undefined
+			: undefined,
 	);
+}
+
+function createDiscoveryInfra(
+	httpClient: HttpClient,
+	serviceCache: IServiceCache,
+	healthChecker: ServiceHealthChecker,
+	config: AddressManagerConfig,
+	circuitBreaker: CircuitBreaker,
+): DiscoveryOrchestrator {
+	const discovery = new ServiceDiscovery({
+		httpClient,
+		serviceCache,
+		config,
+		healthChecker,
+	});
+	return new DiscoveryOrchestrator({
+		serviceDiscovery: discovery,
+		serviceCache,
+		circuitBreaker,
+		healthChecker,
+	});
+}
+
+function createRegistrationAndHeartbeat(
+	addressManagerClient: AddressManagerClient,
+	tokenManager: TokenManager,
+	wsClient: WebSocketClient | undefined,
+): { registrationManager: RegistrationManager; heartbeatManager: HeartbeatManager } {
+	const registrationManager = new RegistrationManager({
+		addressManagerClient,
+		tokenManager,
+		wsClient,
+		onSuccess: () => REGISTRATION_TOTAL.inc({ result: "success" }),
+		onFailure: () => REGISTRATION_TOTAL.inc({ result: "failure" }),
+	});
+	const heartbeatManager = new HeartbeatManager({
+		addressManagerClient,
+		tokenManager,
+		wsClient,
+		onSuccess: () => HEARTBEAT_TOTAL.inc({ result: "success" }),
+		onFailure: () => HEARTBEAT_TOTAL.inc({ result: "failure" }),
+	});
+	return { registrationManager, heartbeatManager };
 }
 
 function onCacheInvalidateMessage(
 	message: WsMessage,
-	serviceCache: IServiceCache
+	serviceCache: IServiceCache,
 ): void {
 	if (message.type !== "cache.invalidate") {
 		return;
@@ -105,9 +145,9 @@ function onCacheInvalidateMessage(
 function onWsAuthFailure(
 	addressManagerClient: AddressManagerClient,
 	tokenManager: TokenManager,
-	wsClient: WebSocketClient
+	wsClient: WebSocketClient,
 ): void {
-	logger.warn("WebSocket auth failure — forcing re-registration");
+	logger.warn("WebSocket auth failure \u2014 forcing re-registration");
 	addressManagerClient
 		.registerService()
 		.then((res) => {
@@ -144,56 +184,67 @@ function createWsClient(ctx: WsClientContext): WebSocketClient {
 	return wsClient;
 }
 
+function maybeCreateWsClient(
+	config: AddressManagerConfig,
+	addressManagerClient: AddressManagerClient,
+	tokenManager: TokenManager,
+	serviceCache: IServiceCache,
+): WebSocketClient | undefined {
+	if (!config.wsUrl) {
+		return undefined;
+	}
+	return createWsClient({ config, addressManagerClient, tokenManager, serviceCache });
+}
+
+function createLifecycleManager(
+	config: AddressManagerConfig,
+	circuitBreaker: CircuitBreaker,
+	registrationManager: RegistrationManager,
+	heartbeatManager: HeartbeatManager,
+	wsClient: WebSocketClient | undefined,
+	serviceCache: IServiceCache,
+	tokenManager: TokenManager,
+	addressManagerClient: AddressManagerClient,
+	healthChecker: ServiceHealthChecker,
+): LifecycleManager {
+	const shutdownHandler = new ShutdownHandler(
+		registrationManager,
+		wsClient,
+		addressManagerClient,
+		serviceCache,
+		circuitBreaker,
+	);
+
+	return new LifecycleManager({
+		registrationManager,
+		heartbeatManager,
+		shutdownHandler,
+		wsClient,
+		serviceCache,
+		serviceName: config.identity.serviceName,
+		instanceId: config.identity.instanceId,
+		tokenRefreshIntervalMs: config.tokenRefreshIntervalMs,
+		ttlRefreshIntervalMs: config.ttlRefreshIntervalMs,
+		cacheTtlMs: config.cacheTtlMs,
+		tokenManager,
+		addressManagerClient,
+		healthChecker,
+	});
+}
+
+// ---------------------------------------------------------------------------
+// AddressManager \u2014 thin orchestrator
+// ---------------------------------------------------------------------------
 export default class AddressManager {
-	private readonly _addressManagerClient: AddressManagerClient;
+	private readonly _httpClient: HttpClient;
 	private readonly _tokenManager: TokenManager;
+	private readonly _addressManagerClient: AddressManagerClient;
+	private readonly _serviceCache: IServiceCache;
+	private readonly _healthChecker: ServiceHealthChecker;
 	private readonly _discoveryOrchestrator: DiscoveryOrchestrator;
 	private readonly _metricsCollector: MetricsCollector;
-	private readonly _healthChecker: ServiceHealthChecker;
-	private readonly _serviceCache: IServiceCache;
-	private readonly _httpClient: HttpClient;
 	private readonly _wsClient?: WebSocketClient;
-
 	private readonly _lifecycleManager: LifecycleManager;
-
-	private _createDiscoveryInfra(
-		config: AddressManagerConfig,
-		circuitBreaker: CircuitBreaker
-	): DiscoveryOrchestrator {
-		const discovery = new ServiceDiscovery({
-			httpClient: this._httpClient,
-			serviceCache: this._serviceCache,
-			config,
-			healthChecker: this._healthChecker,
-		});
-		return new DiscoveryOrchestrator({
-			serviceDiscovery: discovery,
-			serviceCache: this._serviceCache,
-			circuitBreaker,
-			healthChecker: this._healthChecker,
-		});
-	}
-
-	private _createRegistrationAndHeartbeat(): {
-		registrationManager: RegistrationManager;
-		heartbeatManager: HeartbeatManager;
-	} {
-		const registrationManager = new RegistrationManager({
-			addressManagerClient: this._addressManagerClient,
-			tokenManager: this._tokenManager,
-			wsClient: this._wsClient,
-			onSuccess: () => REGISTRATION_TOTAL.inc({ result: "success" }),
-			onFailure: () => REGISTRATION_TOTAL.inc({ result: "failure" }),
-		});
-		const heartbeatManager = new HeartbeatManager({
-			addressManagerClient: this._addressManagerClient,
-			tokenManager: this._tokenManager,
-			wsClient: this._wsClient,
-			onSuccess: () => HEARTBEAT_TOTAL.inc({ result: "success" }),
-			onFailure: () => HEARTBEAT_TOTAL.inc({ result: "failure" }),
-		});
-		return { registrationManager, heartbeatManager };
-	}
 
 	constructor(config: AddressManagerConfig) {
 		this._httpClient = createHttpClient(config);
@@ -201,76 +252,48 @@ export default class AddressManager {
 		this._addressManagerClient = new AddressManagerClient(
 			this._httpClient,
 			this._tokenManager,
-			config
+			config,
 		);
 		this._serviceCache = createServiceCache(config);
+
 		const circuitBreaker = createCircuitBreaker(config, this._serviceCache);
 		this._healthChecker = createHealthChecker(this._httpClient, config);
-		this._discoveryOrchestrator = this._createDiscoveryInfra(
+		this._discoveryOrchestrator = createDiscoveryInfra(
+			this._httpClient,
+			this._serviceCache,
+			this._healthChecker,
 			config,
-			circuitBreaker
+			circuitBreaker,
 		);
 		this._metricsCollector = new MetricsCollector(
 			circuitBreaker,
 			this._serviceCache,
-			config.maxCallRecords
+			config.maxCallRecords,
 		);
-		this._wsClient = this._createWsClient(config);
+		this._wsClient = maybeCreateWsClient(
+			config,
+			this._addressManagerClient,
+			this._tokenManager,
+			this._serviceCache,
+		);
 
-		const { registrationManager, heartbeatManager } =
-			this._createRegistrationAndHeartbeat();
+		const { registrationManager, heartbeatManager } = createRegistrationAndHeartbeat(
+			this._addressManagerClient,
+			this._tokenManager,
+			this._wsClient,
+		);
 
-		this._lifecycleManager = this._createLifecycleManager(
+		this._lifecycleManager = createLifecycleManager(
 			config,
 			circuitBreaker,
 			registrationManager,
-			heartbeatManager
-		);
-	}
-
-	private _createWsClient(
-		config: AddressManagerConfig
-	): WebSocketClient | undefined {
-		if (!config.wsUrl) {
-			return;
-		}
-		return createWsClient({
-			config,
-			addressManagerClient: this._addressManagerClient,
-			tokenManager: this._tokenManager,
-			serviceCache: this._serviceCache,
-		});
-	}
-
-	private _createLifecycleManager(
-		config: AddressManagerConfig,
-		circuitBreaker: CircuitBreaker,
-		registrationManager: RegistrationManager,
-		heartbeatManager: HeartbeatManager
-	): LifecycleManager {
-		const shutdownHandler = new ShutdownHandler(
-			registrationManager,
-			this._wsClient,
-			this._addressManagerClient,
-			this._serviceCache,
-			circuitBreaker
-		);
-
-		return new LifecycleManager({
-			registrationManager,
 			heartbeatManager,
-			shutdownHandler,
-			wsClient: this._wsClient,
-			serviceCache: this._serviceCache,
-			serviceName: config.serviceName,
-			instanceId: config.instanceId,
-			tokenRefreshIntervalMs: config.tokenRefreshIntervalMs,
-			ttlRefreshIntervalMs: config.ttlRefreshIntervalMs,
-			cacheTtlMs: config.cacheTtlMs,
-			tokenManager: this._tokenManager,
-			addressManagerClient: this._addressManagerClient,
-			healthChecker: this._healthChecker,
-		});
+			this._wsClient,
+			this._serviceCache,
+			this._tokenManager,
+			this._addressManagerClient,
+			this._healthChecker,
+		);
 	}
 
 	get circuitBreaker(): CircuitBreaker {

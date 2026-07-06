@@ -3,55 +3,54 @@ import * as https from "node:https";
 import { context, propagation } from "@opentelemetry/api";
 import { logger } from "@trading-model/common/config/logger";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import { isWsConnected } from "@trading-model/common/domain/ws-connection";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import WebSocket from "ws";
 import { PendingPublishQueue } from "./pending-publish-queue";
 import { WssReconnector } from "./wss-reconnector";
+import { WssMessageDispatcher, type WssMessageHandler } from "./wss-message-dispatcher";
 
-export type WssMessageHandler = (
-	topic: string,
-	payload: unknown,
-	metadata: MessageMetadata
-) => void;
+export type { WssMessageHandler } from "./wss-message-dispatcher";
 
 export class WssClient {
 	private _ws: WebSocket | null = null;
-	private _messageHandler: WssMessageHandler | null = null;
-	private _wsUrl: string;
-	private _tlsCa?: string;
-	private _tlsCert?: string;
-	private _tlsKey?: string;
-	private _serviceName: string;
-	private _instanceId: string;
+	private readonly _wsUrl: string;
+	private readonly _tlsCa?: string;
+	private readonly _tlsCert?: string;
+	private readonly _tlsKey?: string;
+	private readonly _serviceName: string;
+	private readonly _instanceId: string;
 	private _subscribedTopics: string[] = [];
 	private _connected = false;
-	private _queue: PendingPublishQueue;
-	private _reconnector: WssReconnector;
+	private readonly _queue: PendingPublishQueue;
+	private readonly _reconnector: WssReconnector;
+	private readonly _dispatcher: WssMessageDispatcher;
 
 	constructor(config: {
 		wssUrl: string;
-		tlsConfig: { ca?: string; cert?: string; key?: string };
+		tlsConfig?: Partial<TlsPaths>;
 		serviceName: string;
 		instanceId: string;
 	}) {
 		this._wsUrl = config.wssUrl;
 		this._serviceName = config.serviceName;
 		this._instanceId = config.instanceId;
-		this._tlsCa = config.tlsConfig.ca
-			? fs.readFileSync(config.tlsConfig.ca, "utf8")
+		this._tlsCa = config.tlsConfig?.caPath
+			? fs.readFileSync(config.tlsConfig.caPath, "utf8")
 			: undefined;
-		this._tlsCert = config.tlsConfig.cert
-			? fs.readFileSync(config.tlsConfig.cert, "utf8")
+		this._tlsCert = config.tlsConfig?.certPath
+			? fs.readFileSync(config.tlsConfig.certPath, "utf8")
 			: undefined;
-		this._tlsKey = config.tlsConfig.key
-			? fs.readFileSync(config.tlsConfig.key, "utf8")
+		this._tlsKey = config.tlsConfig?.keyPath
+			? fs.readFileSync(config.tlsConfig.keyPath, "utf8")
 			: undefined;
 		this._queue = new PendingPublishQueue();
 		this._reconnector = new WssReconnector();
 		this._reconnector.onPermanentFallback(() => {
 			this._queue.drainToHttp();
 		});
-		this._dispatchHandlers = this._setupDispatchHandlers();
+		this._dispatcher = new WssMessageDispatcher();
 	}
 
 	private _buildWsUrl(): string {
@@ -92,51 +91,7 @@ export class WssClient {
 	}
 
 	private _onWsMessage(raw: WebSocket.RawData): void {
-		try {
-			const msg = JSON.parse(raw.toString());
-			this._dispatchWsMessage(msg);
-		} catch (err) {
-			logger.warn("WSS message parse error", {
-				error: normalizeError(err as Error),
-			});
-		}
-	}
-
-	private readonly _dispatchHandlers: Record<string, (msg: Record<string, unknown>) => void>;
-
-	private _setupDispatchHandlers(): Record<string, (msg: Record<string, unknown>) => void> {
-		return {
-			message: (msg) => {
-				if (!msg.topic) return;
-				const message = msg.message as
-					| { payload?: unknown; metadata?: MessageMetadata }
-					| undefined;
-				this._messageHandler?.(
-					msg.topic as string,
-					message?.payload,
-					message?.metadata as MessageMetadata
-				);
-			},
-			connected: (msg) => {
-				logger.info("WSS handshake complete", {
-					brokerInstance: msg.instanceId,
-				});
-			},
-			subscribed: (msg) => {
-				logger.info("WSS topics subscribed", { topics: msg.topics });
-			},
-			error: (msg) => {
-				logger.warn("WSS server error", { message: msg.message });
-			},
-		};
-	}
-
-	private _dispatchWsMessage(raw: unknown): void {
-		const msg = raw as Record<string, unknown>;
-		const handler = this._dispatchHandlers[msg.type as string];
-		if (handler) {
-			handler(msg);
-		}
+		this._dispatcher.dispatch(raw.toString());
 	}
 
 	private _onWsClose(code: number, reason: Buffer): void {
@@ -200,7 +155,7 @@ export class WssClient {
 	}
 
 	private _sendJson(data: unknown): boolean {
-		if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
+		if (!isWsConnected(this._ws)) {
 			return false;
 		}
 		try {
@@ -220,11 +175,11 @@ export class WssClient {
 	}
 
 	get messageHandler(): WssMessageHandler | null {
-		return this._messageHandler;
+		return this._dispatcher["_messageHandler"] as WssMessageHandler | null;
 	}
 
 	onMessage(handler: WssMessageHandler): void {
-		this._messageHandler = handler;
+		this._dispatcher.setMessageHandler(handler);
 	}
 
 	publish(payload: unknown, metadata: MessageMetadata): Promise<void> {

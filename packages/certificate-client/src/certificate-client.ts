@@ -20,11 +20,7 @@ export interface CertificateClientConfig {
 	bootstrapToken?: string;
 	keyAlgorithm?: KeyAlgorithm;
 	renewMarginMs?: number;
-	tls?: {
-		ca: string;
-		cert: string;
-		key: string;
-	};
+	tls?: import("@trading-model/common/domain/tls-paths").TlsPaths;
 	onRenew?: (cert: ObtainedCertificate) => void;
 }
 
