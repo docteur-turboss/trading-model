@@ -1,5 +1,11 @@
 import { createPublicKey, createVerify, X509Certificate } from "node:crypto";
 
+export interface PopVerificationInput {
+	certPem: string;
+	nonce: string;
+	signature: string;
+}
+
 /**
  * Proof-of-possession (POP) verification.
  * Verifies a client holds the private key corresponding to a certificate's public key,
@@ -8,12 +14,9 @@ import { createPublicKey, createVerify, X509Certificate } from "node:crypto";
 export class PopVerifier {
 	/**
 	 * Verify a signature was produced by the holder of the certificate's private key.
-	 * @param certPem — PEM-encoded X.509 certificate containing the public key
-	 * @param nonce — The challenge nonce that was signed
-	 * @param signature — Base64-encoded signature over the nonce
-	 * @returns true if the signature is valid, false otherwise
 	 */
-	verify(certPem: string, nonce: string, signature: string): boolean {
+	verify(input: PopVerificationInput): boolean {
+		const { certPem, nonce, signature } = input;
 		try {
 			const cert = new X509Certificate(certPem);
 			const publicKey = createPublicKey(cert.publicKey);
