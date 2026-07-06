@@ -79,22 +79,6 @@ export class MarketDataBuffer {
 		};
 	}
 
-	private _createNormStats(): SymbolState["norm"] {
-		return {
-			candleClose: new NormalizationStats(),
-			candleVolume: new NormalizationStats(),
-			candleOpen: new NormalizationStats(),
-			candleHigh: new NormalizationStats(),
-			candleLow: new NormalizationStats(),
-			tradePrice: new NormalizationStats(),
-			tradeQty: new NormalizationStats(),
-			bid: new NormalizationStats(),
-			ask: new NormalizationStats(),
-			spread: new NormalizationStats(),
-			tickerVolume: new NormalizationStats(),
-		};
-	}
-
 	/** Append candlesticks and update running normalisers for price/volume features. */
 	addCandles(symbol: string, candles: CandleData[]): void {
 		const state = this._getOrCreate(toSymbol(symbol));
@@ -106,11 +90,7 @@ export class MarketDataBuffer {
 	private _applyCandles(state: SymbolState, candles: CandleData[]): void {
 		for (const candle of candles) {
 			state.candles.push(candle);
-			state.norm.candleClose.update(candle.close);
-			state.norm.candleVolume.update(candle.volume);
-			state.norm.candleOpen.update(candle.open);
-			state.norm.candleHigh.update(candle.high);
-			state.norm.candleLow.update(candle.low);
+			this._normManager.updateCandleNorms(state, candle);
 		}
 	}
 
@@ -129,8 +109,7 @@ export class MarketDataBuffer {
 	private _applyTrades(state: SymbolState, trades: TradeData[]): void {
 		for (const trade of trades) {
 			state.trades.push(trade);
-			state.norm.tradePrice.update(trade.price);
-			state.norm.tradeQty.update(trade.quantity);
+			this._normManager.updateTradeNorms(state, trade);
 		}
 	}
 

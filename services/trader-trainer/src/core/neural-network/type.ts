@@ -1,42 +1,58 @@
 import type { OptimizerHyperparams, OptimizerState } from "./optimizer";
 
-export type LossFunctionType =
-	| "mean-squared-error"
-	| "cross-entropy"
-	| "mean-biais-error"
-	| "mean-absolute-error"
-	| "root-mean-squared-error"
-	| "huber-loss"
-	| "log-cosh-loss"
-	| "binary-cross-entropy"
-	| "hinge-loss"
-	| "Kullback-Leibler-divergence";
+export enum LossFunctionType {
+	MeanSquaredError = "mean-squared-error",
+	CrossEntropy = "cross-entropy",
+	MeanBiaisError = "mean-biais-error",
+	MeanAbsoluteError = "mean-absolute-error",
+	RootMeanSquaredError = "root-mean-squared-error",
+	HuberLoss = "huber-loss",
+	LogCoshLoss = "log-cosh-loss",
+	BinaryCrossEntropy = "binary-cross-entropy",
+	HingeLoss = "hinge-loss",
+	KullbackLeiblerDivergence = "Kullback-Leibler-divergence",
+}
 
-export type NormalisationType =
-	| "min-max"
-	| "z-score"
-	| "decimal-scaling"
-	| "border"
-	| "robust-scaling"
-	| "logarithmic-normalization"
-	| "none";
+export enum NormalisationType {
+	MinMax = "min-max",
+	ZScore = "z-score",
+	DecimalScaling = "decimal-scaling",
+	Border = "border",
+	RobustScaling = "robust-scaling",
+	LogarithmicNormalization = "logarithmic-normalization",
+	None = "none",
+}
 
-export type ActivationType =
-	| "sigmoid"
-	| "tanh"
-	| "relu"
-	| "leakyReLu"
-	| "gelu"
-	| "softmax"
-	| "elu"
-	| "mish";
+export enum ActivationType {
+	Sigmoid = "sigmoid",
+	Tanh = "tanh",
+	Relu = "relu",
+	LeakyReLu = "leakyReLu",
+	Gelu = "gelu",
+	Softmax = "softmax",
+	Elu = "elu",
+	Mish = "mish",
+}
 
-export type ConnectionType =
-	| "fully-connected"
-	| "dense-skip"
-	| "residual-connection";
-export type InitialisationType = "zeros" | "leCun" | "he" | "xavier" | "random";
-export type OptimizerType = "sgd" | "adam" | "rmsprop";
+export enum ConnectionType {
+	FullyConnected = "fully-connected",
+	DenseSkip = "dense-skip",
+	ResidualConnection = "residual-connection",
+}
+
+export enum InitialisationType {
+	Zeros = "zeros",
+	LeCun = "leCun",
+	He = "he",
+	Xavier = "xavier",
+	Random = "random",
+}
+
+export enum OptimizerType {
+	Sgd = "sgd",
+	Adam = "adam",
+	Rmsprop = "rmsprop",
+}
 
 /** Network topology and layer configuration. */
 export interface NetworkArchitecture {
