@@ -32,32 +32,31 @@ interface ProduceOneOffspringParams {
 	generation: number;
 }
 
-function produceOneOffspring(
-	params: ProduceOneOffspringParams
-): DeepReadonly<LamarckGenome> {
-	const { ranked, newCtrl, coRng, mutRng, rng, generation } = params;
-	const pA = selectParent(ranked, newCtrl.selectionType, rng);
-	const pB = selectParent(ranked, newCtrl.selectionType, rng);
-
-	const childStruct = mutateGenome(crossoverGenomes(pA, pB, coRng), mutRng);
-
-	let childWeights: Float32Array | undefined;
-	if (pA.trainedWeights && pB.trainedWeights) {
-		const rate = newCtrl.mutationRate ?? 0.1;
-		const noiseStd = newCtrl.mutationStd ?? 0.05;
-		const childWeightsCtx: MutateWeightsContext = {
-			weights: crossoverWeights(
-				pA.trainedWeights as Float32Array,
-				pB.trainedWeights as Float32Array,
-				coRng
-			),
-			rate,
-			std: noiseStd,
-			rng: mutRng,
-		};
-		childWeights = mutateWeights(childWeightsCtx);
+function _crossoverAndMutateWeights(
+	pA: LamarckGenome,
+	pB: LamarckGenome,
+	newCtrl: Readonly<GAControlGenome>,
+	coRng: () => number,
+	mutRng: () => number
+): Float32Array | undefined {
+	if (!pA.trainedWeights || !pB.trainedWeights) {
+		return;
 	}
+	const childWeightsCtx: MutateWeightsContext = {
+		weights: crossoverWeights(pA.trainedWeights as Float32Array, pB.trainedWeights as Float32Array, coRng),
+		rate: newCtrl.mutationRate ?? 0.1,
+		std: newCtrl.mutationStd ?? 0.05,
+		rng: mutRng,
+	};
+	return mutateWeights(childWeightsCtx);
+}
 
+function _buildOffspringGenome(
+	childStruct: LamarckGenome,
+	newCtrl: Readonly<GAControlGenome>,
+	generation: number,
+	childWeights: Float32Array | undefined
+): DeepReadonly<LamarckGenome> {
 	return deepFreeze({
 		...childStruct,
 		id: generateId(),
@@ -69,6 +68,19 @@ function produceOneOffspring(
 	}) as DeepReadonly<LamarckGenome>;
 }
 
+function produceOneOffspring(
+	params: ProduceOneOffspringParams
+): DeepReadonly<LamarckGenome> {
+	const { ranked, newCtrl, coRng, mutRng, rng, generation } = params;
+	const pA = selectParent(ranked, newCtrl.selectionType, rng);
+	const pB = selectParent(ranked, newCtrl.selectionType, rng);
+
+	const childStruct = mutateGenome(crossoverGenomes(pA, pB, coRng), mutRng);
+	const childWeights = _crossoverAndMutateWeights(pA, pB, newCtrl, coRng, mutRng);
+
+	return _buildOffspringGenome(childStruct, newCtrl, generation, childWeights);
+}
+
 export interface OffspringContext {
 	ranked: Genome[];
 	newCtrl: Readonly<GAControlGenome>;
@@ -77,18 +89,27 @@ export interface OffspringContext {
 	generation: number;
 }
 
+function _computeOffspringCount(newCtrl: Readonly<GAControlGenome>): number {
+	const nElite = Math.max(1, Math.round(newCtrl.elitismFraction * newCtrl.populationSize));
+	return newCtrl.populationSize - nElite;
+}
+
+function _makeOffspringRngs(
+	ctrl: DeepReadonly<GAControlGenome>,
+	generation: number
+): { mutRng: () => number; coRng: () => number } {
+	return {
+		mutRng: makePRNG(ctrl.mutationSeed + generation + 1000),
+		coRng: makePRNG(ctrl.mutationSeed + generation + 2000),
+	};
+}
+
 export function createOffspring(
 	ctx: OffspringContext
 ): DeepReadonly<LamarckGenome>[] {
 	const { ranked, newCtrl, ctrl, rng, generation } = ctx;
-	const nElite = Math.max(
-		1,
-		Math.round(newCtrl.elitismFraction * newCtrl.populationSize)
-	);
-	const nOffspring = newCtrl.populationSize - nElite;
-
-	const mutRng = makePRNG(ctrl.mutationSeed + generation + 1000);
-	const coRng = makePRNG(ctrl.mutationSeed + generation + 2000);
+	const nOffspring = _computeOffspringCount(newCtrl);
+	const { mutRng, coRng } = _makeOffspringRngs(ctrl, generation);
 
 	return Array.from({ length: nOffspring }, () =>
 		produceOneOffspring({

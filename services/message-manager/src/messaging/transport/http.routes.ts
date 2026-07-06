@@ -55,7 +55,13 @@ const WITH_TIMEOUT =
 
 export const BROKER_ROUTES = (dispatcher: Dispatcher): Router => {
 	const router = Router();
+	registerPublishRoute(router, dispatcher);
+	registerSubscribeRoute(router, dispatcher);
+	registerUnsubscribeRoute(router, dispatcher);
+	return router;
+};
 
+function registerPublishRoute(router: Router, dispatcher: Dispatcher): void {
 	router.post(
 		"/message",
 		WITH_TIMEOUT(PUBLISH_TIMEOUT_MS),
@@ -63,6 +69,9 @@ export const BROKER_ROUTES = (dispatcher: Dispatcher): Router => {
 		VALIDATE_SCHEMA(PUBLISH_SCHEMA),
 		PUBLISH_A_MESSAGE(dispatcher)
 	);
+}
+
+function registerSubscribeRoute(router: Router, dispatcher: Dispatcher): void {
 	router.post(
 		"/subscription",
 		WITH_TIMEOUT(SUBSCRIPTION_TIMEOUT_MS),
@@ -70,6 +79,9 @@ export const BROKER_ROUTES = (dispatcher: Dispatcher): Router => {
 		VALIDATE_SCHEMA(SUBSCRIBE_SCHEMA),
 		SUBSCRIPTION_TO_A_TOPIC(dispatcher)
 	);
+}
+
+function registerUnsubscribeRoute(router: Router, dispatcher: Dispatcher): void {
 	router.delete(
 		"/subscription",
 		WITH_TIMEOUT(SUBSCRIPTION_TIMEOUT_MS),
@@ -77,6 +89,4 @@ export const BROKER_ROUTES = (dispatcher: Dispatcher): Router => {
 		VALIDATE_SCHEMA(UNSUBSCRIBE_SCHEMA),
 		DELETE_A_SUBSCRIPTION(dispatcher)
 	);
-
-	return router;
-};
+}

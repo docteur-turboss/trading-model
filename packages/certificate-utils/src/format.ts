@@ -32,6 +32,13 @@ export function resolvePublicKey(
 	return createPublicKey(issuerCert);
 }
 
+function _extractSanFromX509(x509: X509Certificate): string[] {
+	return (x509.subjectAltName ?? "")
+		.split(", ")
+		.filter((entry) => entry.startsWith("DNS:"))
+		.map((name) => name.slice(4));
+}
+
 export function parseCertInfo(pem: string): {
 	subject: string;
 	issuer: string;
@@ -50,10 +57,7 @@ export function parseCertInfo(pem: string): {
 		notBefore: new Date(x509.validFrom),
 		notAfter: new Date(x509.validTo),
 		fingerprint: x509.fingerprint256.replace(/:/g, "").toLowerCase(),
-		san: (x509.subjectAltName ?? "")
-			.split(", ")
-			.filter((entry) => entry.startsWith("DNS:"))
-			.map((name) => name.slice(4)),
+		san: _extractSanFromX509(x509),
 	};
 }
 

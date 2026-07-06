@@ -63,6 +63,19 @@ interface ProxyContext {
 	path: string;
 }
 
+function _tryCacheResponse(req: Request, ctx: ProxyContext, result: { body: string; status: number }): void {
+	if (req.method === "GET" && result.status === 200) {
+		const parsed = tryParseJson(result.body);
+		if (parsed) CACHE.set(ctx.cacheKey, parsed, result.status);
+	}
+}
+
+function _buildProxyErrorResponse(err: unknown, ctx: ProxyContext, target: ResolvedTarget): ResponseObject {
+	const message = err instanceof Error ? err.message : "Unknown error";
+	logger.error("Proxy error", { context: { serviceName: ctx.serviceName, majorVersion: ctx.majorVersion, target: `${target.host}:${target.port}`, error: message } });
+	return sendResponse({ error: "Service unavailable", details: message }, 503);
+}
+
 async function _proxyAndCache(
 	req: Request,
 	target: ResolvedTarget,
@@ -70,28 +83,11 @@ async function _proxyAndCache(
 ): Promise<ResponseObject> {
 	try {
 		const result = await forwardRequest({ req, target, path: ctx.path });
-
-		if (req.method === "GET" && result.status === 200) {
-			const parsed = tryParseJson(result.body);
-			if (parsed) {
-				CACHE.set(ctx.cacheKey, parsed, result.status);
-			}
-		}
-
+		_tryCacheResponse(req, ctx, result);
 		const parsedBody = tryParseJson(result.body);
 		return sendResponse(parsedBody ?? result.body, result.status);
 	} catch (err: unknown) {
-		const message = err instanceof Error ? err.message : "Unknown error";
-		logger.error("Proxy error", { context: {
-			serviceName: ctx.serviceName,
-			majorVersion: ctx.majorVersion,
-			target: `${target.host}:${target.port}`,
-			error: message,
-		} });
-		return sendResponse(
-			{ error: "Service unavailable", details: message },
-			503
-		);
+		return _buildProxyErrorResponse(err, ctx, target);
 	}
 }
 
@@ -113,23 +109,22 @@ type ParsedRequestPath =
 	| { valid: false }
 	| { valid: true; majorVersion: number; serviceName: string; path: string };
 
+function _extractPathComponents(match: RegExpMatchArray): { majorVersion: number; serviceName: string; path: string } {
+	return {
+		majorVersion: Number.parseInt(match[1], 10),
+		serviceName: match[2],
+		path: match[3] ?? "/",
+	};
+}
+
 function _parseRequestPath(req: {
 	path: string;
 	method: string;
 }): ParsedRequestPath | null {
 	const match = req.path.match(VERSION_PATH_REGEX);
-	if (!match) {
-		return null;
-	}
-
-	const majorVersion = Number.parseInt(match[1], 10);
-	const serviceName = match[2];
-	const path = match[3] ?? "/";
-
-	if (Number.isNaN(majorVersion) || majorVersion < 1) {
-		return { valid: false };
-	}
-
+	if (!match) return null;
+	const { majorVersion, serviceName, path } = _extractPathComponents(match);
+	if (Number.isNaN(majorVersion) || majorVersion < 1) return { valid: false };
 	return { valid: true, majorVersion, serviceName, path };
 }
 

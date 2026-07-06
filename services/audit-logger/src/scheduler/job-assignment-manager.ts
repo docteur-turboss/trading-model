@@ -79,16 +79,28 @@ export class JobAssignmentManager {
 		if (!this._workerProtocol) {
 			return;
 		}
-		this._workerProtocol.sendToWorker(workerId, {
-			type: "job.assigned",
-			job: {
-				id: job.id,
-				type: job.type,
-				payload: job.payload,
-				ackDeadline: deadline,
-			},
-		});
+		_sendAssignmentMessage(this._workerProtocol, workerId, job, deadline);
 	}
+}
+
+function _sendAssignmentMessage(
+	protocol: NonNullable<JobAssignmentManager["_workerProtocol"]>,
+	workerId: string,
+	job: Job,
+	deadline: number
+): void {
+	protocol.sendToWorker(workerId, {
+		type: "job.assigned",
+		job: {
+			id: job.id,
+			type: job.type,
+			payload: job.payload,
+			ackDeadline: deadline,
+		},
+	});
+}
+
+export class JobAssignmentManager {
 
 	private _assignJob(
 		queued: { job: Job },

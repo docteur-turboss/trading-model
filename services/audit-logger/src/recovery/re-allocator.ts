@@ -71,6 +71,3 @@ function _logReallocation(jobId: string, retryCount: number): void {
 		retryCount,
 	} });
 }
-
-export class ReAllocator {
-}

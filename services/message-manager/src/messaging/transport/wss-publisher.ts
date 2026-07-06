@@ -63,10 +63,7 @@ export class WssPublisher {
 	}
 
 	private async _checkPublishDedup(msg: IncomingWssMessage): Promise<boolean> {
-		const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
-		const dedupId = (
-			wssMetadata?.delivery as Record<string, unknown> | undefined
-		)?.deduplicationId as string | undefined;
+		const dedupId = extractDedupId(msg);
 		if (!dedupId) {
 			return true;
 		}
@@ -74,18 +71,26 @@ export class WssPublisher {
 			return false;
 		}
 		this._processedWssDeduplicationIds.set(dedupId, true);
+		return this._checkRedisDedup(dedupId);
+	}
+
+	private async _checkRedisDedup(dedupId: string): Promise<boolean> {
 		try {
 			const redis = await getStreamClient();
 			const key = `${ENV.REDIS_PREFIX}wss-dedup:${dedupId}`;
-			const acquired = await redis.set(key, "1", "EX", 300, "NX");
-			if (!acquired) {
-				return false;
-			}
+			return !!(await redis.set(key, "1", "EX", 300, "NX"));
 		} catch {
-			/* Redis unavailable — local cache suffices */
+			return true;
 		}
-		return true;
 	}
+}
+
+function extractDedupId(msg: IncomingWssMessage): string | undefined {
+	const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
+	return (
+		wssMetadata?.delivery as Record<string, unknown> | undefined
+	)?.deduplicationId as string | undefined;
+}
 
 	private _checkPublishBackpressure(ws: WebSocket): boolean {
 		const bpRatio = this._dispatcher.getBackpressureRatio();
