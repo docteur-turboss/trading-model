@@ -13,6 +13,17 @@ export interface MarkRetriedParams {
 	errorMsg?: string;
 }
 
+function _buildAbandonFilter(): Record<string, unknown> {
+	return {
+		status: { $ne: "abandoned" },
+		processingAt: { $exists: false },
+		$or: [
+			{ retryCount: { $gte: env.DLQ_RETRY_MAX_ATTEMPTS } },
+			{ consecutiveErrors: { $gte: DLQ_MAX_CONSECUTIVE_ERRORS } },
+		],
+	};
+}
+
 export class DlqRetryManager {
 	async markRetried(params: MarkRetriedParams): Promise<void> {
 		const { id, instanceId, batchId, success = true, errorMsg } = params;
@@ -31,20 +42,6 @@ export class DlqRetryManager {
 		);
 		return result.modifiedCount;
 	}
-}
-
-function _buildAbandonFilter(): Record<string, unknown> {
-	return {
-		status: { $ne: "abandoned" },
-		processingAt: { $exists: false },
-		$or: [
-			{ retryCount: { $gte: env.DLQ_RETRY_MAX_ATTEMPTS } },
-			{ consecutiveErrors: { $gte: DLQ_MAX_CONSECUTIVE_ERRORS } },
-		],
-	};
-}
-
-export class DlqRetryManager {
 
 	private async _markAsCompleted(
 		id: string,
@@ -83,34 +80,9 @@ export class DlqRetryManager {
 
 	private _buildFailPipeline(errorMsg?: string): Record<string, unknown>[] {
 		return [
-			{
-				$set: {
-					consecutiveErrors: {
-						$cond: [
-							{ $eq: ["$lastError", errorMsg ?? "Replay failed"] },
-							{ $add: [{ $ifNull: ["$consecutiveErrors", 0] }, 1] },
-							1,
-						],
-					},
-				},
-			},
-			{
-				$set: {
-					retryCount: { $add: ["$retryCount", 1] },
-					lastRetryAt: new Date(),
-					lastError: errorMsg ?? "Replay failed",
-				},
-			},
-			{
-				$set: {
-					status: {
-						$cond: [this._abandonCondition(), "abandoned", "$$REMOVE"],
-					},
-					abandonedAt: {
-						$cond: [this._abandonCondition(), new Date(), "$$REMOVE"],
-					},
-				},
-			},
+			_buildErrorStage(errorMsg),
+			_buildRetryStage(errorMsg),
+			_buildStatusStage(this),
 			{ $unset: ["processingAt", "processingInstance"] },
 		];
 	}
@@ -134,6 +106,45 @@ export class DlqRetryManager {
 			);
 		}
 	}
+}
+
+function _buildErrorStage(errorMsg?: string): Record<string, unknown> {
+	return {
+		$set: {
+			consecutiveErrors: {
+				$cond: [
+					{ $eq: ["$lastError", errorMsg ?? "Replay failed"] },
+					{ $add: [{ $ifNull: ["$consecutiveErrors", 0] }, 1] },
+					1,
+				],
+			},
+		},
+	};
+}
+
+function _buildRetryStage(errorMsg?: string): Record<string, unknown> {
+	return {
+		$set: {
+			retryCount: { $add: ["$retryCount", 1] },
+			lastRetryAt: new Date(),
+			lastError: errorMsg ?? "Replay failed",
+		},
+	};
+}
+
+function _buildStatusStage(
+	self: DlqRetryManager
+): Record<string, unknown> {
+	return {
+		$set: {
+			status: {
+				$cond: [self._abandonCondition(), "abandoned", "$$REMOVE"],
+			},
+			abandonedAt: {
+				$cond: [self._abandonCondition(), new Date(), "$$REMOVE"],
+			},
+		},
+	};
 }
 
 export const dlqRetryManager = new DlqRetryManager();

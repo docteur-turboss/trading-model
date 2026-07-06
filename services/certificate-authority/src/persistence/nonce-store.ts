@@ -175,24 +175,24 @@ export class NonceStore {
 		}
 	}
 
-	private _startCleanup(): void {
-		this._cleanupTimer = setInterval(
-			() => {
-				const now = Date.now();
-				for (const [nonce, entry] of this._l1) {
-					if (now - entry.createdAt > this._ttlMs) {
-						this._l1.delete(nonce);
-					}
-				}
-			},
-			Math.min(this._ttlMs / 2, 60_000)
-		);
-		if (
-			this._cleanupTimer &&
-			typeof this._cleanupTimer === "object" &&
-			"unref" in this._cleanupTimer
-		) {
+	private _cleanupExpiredL1Entries(): void {
+		const now = Date.now();
+		for (const [nonce, entry] of this._l1) {
+			if (now - entry.createdAt > this._ttlMs) {
+				this._l1.delete(nonce);
+			}
+		}
+	}
+
+	private _unrefTimer(): void {
+		if (this._cleanupTimer && typeof this._cleanupTimer === "object" && "unref" in this._cleanupTimer) {
 			this._cleanupTimer.unref();
 		}
+	}
+
+	private _startCleanup(): void {
+		const interval = Math.min(this._ttlMs / 2, 60_000);
+		this._cleanupTimer = setInterval(() => this._cleanupExpiredL1Entries(), interval);
+		this._unrefTimer();
 	}
 }

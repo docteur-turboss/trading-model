@@ -167,11 +167,10 @@ function _sampleMeanPairwiseDistance(
 	return pairs > 0 ? totalDist / pairs : 0;
 }
 
-function _computeSpeciesMetrics(
+function _computeEntropyAndDominance(
 	species: Species[],
 	count: number
-): { speciesCount: number; speciesEntropy: number; dominanceFraction: number } {
-	const speciesCount = species.length;
+): { entropy: number; maxSize: number } {
 	let entropy = 0;
 	let maxSize = 0;
 	for (const speciesEntry of species) {
@@ -183,9 +182,20 @@ function _computeSpeciesMetrics(
 			maxSize = speciesEntry.memberIndices.length;
 		}
 	}
-	const speciesEntropy = speciesCount > 1 ? entropy / Math.log(speciesCount) : 0;
-	const dominanceFraction = maxSize / count;
-	return { speciesCount, speciesEntropy, dominanceFraction };
+	return { entropy, maxSize };
+}
+
+function _computeSpeciesMetrics(
+	species: Species[],
+	count: number
+): { speciesCount: number; speciesEntropy: number; dominanceFraction: number } {
+	const speciesCount = species.length;
+	const { entropy, maxSize } = _computeEntropyAndDominance(species, count);
+	return {
+		speciesCount,
+		speciesEntropy: speciesCount > 1 ? entropy / Math.log(speciesCount) : 0,
+		dominanceFraction: maxSize / count,
+	};
 }
 
 // ================================================================
@@ -266,28 +276,39 @@ export interface NoveltyArchiveUpdateContext {
  *
  * @returns Updated archive (may be the same array mutated in-place).
  */
+function _resolveArchiveConfig(configArg?: NoveltyArchiveConfig): Required<NoveltyArchiveConfig> {
+	return {
+		threshold: configArg?.threshold ?? 0.1,
+		maxSize: configArg?.maxSize ?? 500,
+		population: configArg?.population ?? [],
+	};
+}
+
+function _evictLeastNovel(
+	archive: Genome[],
+	score: number,
+	population: Genome[]
+): void {
+	const scores = archive.map((member, index) =>
+		index === archive.length - 1
+			? score
+			: noveltyScore(member, population, archive)
+	);
+	const minIdx = scores.indexOf(Math.min(...scores));
+	archive.splice(minIdx, 1);
+}
+
 export function updateNoveltyArchive(
 	ctx: NoveltyArchiveUpdateContext
 ): Genome[] {
-	const { genome, archive, score, config: configArg } = ctx;
-	const config = configArg ?? {};
-	const { threshold = 0.1, maxSize = 500, population = [] } = config;
-	if (score < threshold) {
+	const { genome, archive, score } = ctx;
+	const config = _resolveArchiveConfig(ctx.config);
+	if (score < config.threshold) {
 		return archive;
 	}
-
 	archive.push(genome);
-
-	if (archive.length > maxSize) {
-		// Evict the least novel member
-		const scores = archive.map((member, index) =>
-			index === archive.length - 1
-				? score // newly added
-				: noveltyScore(member, population, archive)
-		);
-		const minIdx = scores.indexOf(Math.min(...scores));
-		archive.splice(minIdx, 1);
+	if (archive.length > config.maxSize) {
+		_evictLeastNovel(archive, score, config.population);
 	}
-
 	return archive;
 }

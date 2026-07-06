@@ -75,15 +75,19 @@ export class PendingPublishQueue {
 			return;
 		}
 		const batch = this._pendingQueue.splice(0, this._pendingQueue.length);
+		const httpBatch = this._processBatch(batch, sendFn);
+		for (const entry of httpBatch) {
+			void this._retryHttpFallback(entry, 0);
+		}
+	}
+
+	private _processBatch(
+		batch: PendingPublish[],
+		sendFn: SendJsonFn,
+	): PendingPublish[] {
 		const httpBatch: PendingPublish[] = [];
 		for (const entry of batch) {
-			if (
-				sendFn({
-					type: "publish",
-					payload: entry.payload,
-					metadata: entry.metadata,
-				})
-			) {
+			if (sendFn({ type: "publish", payload: entry.payload, metadata: entry.metadata })) {
 				entry.resolve();
 			} else if (this._httpFallback) {
 				httpBatch.push(entry);
@@ -91,9 +95,7 @@ export class PendingPublishQueue {
 				entry.reject(new Error("WSS not connected"));
 			}
 		}
-		for (const entry of httpBatch) {
-			void this._retryHttpFallback(entry, 0);
-		}
+		return httpBatch;
 	}
 
 	drainToHttp(): void {

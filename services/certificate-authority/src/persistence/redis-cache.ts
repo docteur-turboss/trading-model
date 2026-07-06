@@ -9,27 +9,19 @@ export interface CacheOptions {
 export class RedisCache {
 	private readonly _client: Redis | null;
 
-	constructor(redisUrl?: string) {
-		if (!redisUrl) {
-			this._client = null;
-			return;
-		}
-		this._client = new Redis(redisUrl, {
+	private _createClient(redisUrl: string): Redis {
+		const client = new Redis(redisUrl, {
 			enableReadyCheck: true,
 			maxRetriesPerRequest: 3,
-			retryStrategy: (times) => {
-				if (times > 10) {
-					return null;
-				}
-				return Math.min(times * 1000, 30000);
-			},
+			retryStrategy: (times) => (times > 10 ? null : Math.min(times * 1000, 30000)),
 			lazyConnect: true,
 		});
-		this._client.on("error", (err) =>
-			logger.warn("Redis cache error (falling through to DB)", {
-				context: { err },
-			})
-		);
+		client.on("error", (err) => logger.warn("Redis cache error (falling through to DB)", { context: { err } }));
+		return client;
+	}
+
+	constructor(redisUrl?: string) {
+		this._client = redisUrl ? this._createClient(redisUrl) : null;
 	}
 
 	async disconnect(): Promise<void> {

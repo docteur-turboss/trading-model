@@ -35,15 +35,33 @@ export class PersistenceRetryQueue {
 	}
 
 	async flush(): Promise<void> {
-		if (this._ops.length === 0) {
-			if (this._timer) {
-				clearInterval(this._timer);
-				this._timer = null;
-			}
+		if (this._shouldStopEmpty()) {
 			return;
 		}
+		const batch = this._swapOps();
+		const failed = await this._executeBatch(batch);
+		this._reEnqueueFailed(failed);
+		this._stopIfEmpty();
+	}
+
+	private _shouldStopEmpty(): boolean {
+		if (this._ops.length > 0) {
+			return false;
+		}
+		if (this._timer) {
+			clearInterval(this._timer);
+			this._timer = null;
+		}
+		return true;
+	}
+
+	private _swapOps(): PersistenceOp[] {
 		const batch = this._ops;
 		this._ops = [];
+		return batch;
+	}
+
+	private async _executeBatch(batch: PersistenceOp[]): Promise<PersistenceOp[]> {
 		const failed: PersistenceOp[] = [];
 		for (const op of batch) {
 			try {
@@ -52,18 +70,20 @@ export class PersistenceRetryQueue {
 				if (op.retries < this._maxRetries) {
 					failed.push({ ...op, retries: op.retries + 1 });
 				} else {
-					logger.error(
-						"Persistence operation failed after max retries — giving up",
-						{
-							label: op.label,
-						}
-					);
+					logger.error("Persistence operation failed after max retries — giving up", { label: op.label });
 				}
 			}
 		}
+		return failed;
+	}
+
+	private _reEnqueueFailed(failed: PersistenceOp[]): void {
 		if (failed.length > 0) {
 			this._ops.push(...failed);
 		}
+	}
+
+	private _stopIfEmpty(): void {
 		if (this._ops.length === 0 && this._timer) {
 			clearInterval(this._timer);
 			this._timer = null;
