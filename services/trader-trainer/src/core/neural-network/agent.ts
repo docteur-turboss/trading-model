@@ -70,23 +70,22 @@ export class Agent {
 		this._scoreTracker.resetScores();
 	}
 
+	private _buildExperience(
+		input: Float32Array,
+		output: Float32Array,
+		reward?: number,
+		nextState?: Float32Array,
+		done?: boolean
+	): Experience {
+		return reward !== undefined && nextState !== undefined
+			? { kind: "qlearning", input, output: output.slice(), reward, nextState, done: done ?? false }
+			: { kind: "bare", input, output: output.slice() };
+	}
+
 	public fastForward(ff: FastForwardInput): Float32Array {
 		const { input, reward, nextState, done } = ff;
 		const { output } = this._nn.forward(input);
-
-		const experience: Experience =
-			reward !== undefined && nextState !== undefined
-				? {
-						kind: "qlearning",
-						input,
-						output: output.slice(),
-						reward,
-						nextState,
-						done: done ?? false,
-					}
-				: { kind: "bare", input, output: output.slice() };
-		this._pool.add(experience);
-
+		this._pool.add(this._buildExperience(input, output, reward, nextState, done));
 		return output;
 	}
 

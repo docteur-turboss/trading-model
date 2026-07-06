@@ -98,7 +98,7 @@ export class WalRedisFlusher {
 	private _bufferEntries(raw: string[]): void {
 		for (const entry of raw) {
 			try {
-				const parsed = parseEntryToBuffer(entry);
+				const parsed = _parseEntryToBuffer(entry);
 				if (parsed) {
 					this._memoryWalBuffer.push(parsed.topic, parsed.serialized, parsed.message);
 				}
@@ -107,23 +107,6 @@ export class WalRedisFlusher {
 			}
 		}
 	}
-}
-
-function parseEntryToBuffer(entry: string): { topic: string; serialized: string; message: Message } | null {
-	try {
-		const parsed = JSON.parse(entry) as {
-			topic: string;
-			serialized?: string;
-			message?: Message;
-		};
-		const topic = parsed.topic;
-		const serialized = parsed.serialized ?? safeStringify(parsed.message!);
-		const message = parsed.message ?? JSON.parse(parsed.serialized!);
-		return { topic, serialized, message: message as Message };
-	} catch {
-		return null;
-	}
-}
 
 	private async _handleError(
 		raw: string[],
