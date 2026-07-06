@@ -12,6 +12,11 @@ type FileHandle =
 	| "transaction"
 	| "kiff-score";
 
+export interface CoreErrorContext {
+	file: FileHandle;
+	context: string;
+}
+
 export type CoreResponse<TData = string> = Promise<[TData, string]>;
 
 /**
@@ -115,12 +120,11 @@ export const handleDBError = (file: string) => (err: unknown) => {
  * try {
  *   await UserCore.updateUser(id, payload);
  * } catch (err) {
- *   return handleCoreError("user", "updateUser", err, errorMapping);
+ *   return handleCoreError({ file: "user", context: "updateUser" }, err, errorMapping);
  * }
  */
 export const handleCoreError = (
-	file: FileHandle,
-	context: string,
+	ctx: CoreErrorContext,
 	err: unknown,
 	mapping: Record<string, [string, string]>
 ): [string, string] | never => {
@@ -129,8 +133,8 @@ export const handleCoreError = (
 	}
 
 	logger.error("Core operation failed", {
-		file,
-		context,
+		file: ctx.file,
+		context: ctx.context,
 		err: normalizeError(err),
 	});
 	throw err;
@@ -153,8 +157,7 @@ export const handleCoreError = (
  * @param fn - A core function that returns a Promise resolving to the desired data.
  * @param errorMap - Optional mapping of known error messages to standardized
  *                   `[responseCode, responseMessage]` tuples.
- * @param file - Identifier of the core module calling this wrapper, used for logging.
- * @param context - Additional contextual information about the operation, also logged on error.
+ * @param ctx - Core error context with file identifier and operation description.
  *
  * @returns A `CoreResponse` tuple containing either:
  *   - `[data, HTTP_CODE.success]` on success, or
@@ -164,20 +167,18 @@ export const handleCoreError = (
  * const result = await handleOnlyDataCore(
  *   () => UserCore.getUser(id),
  *   { "USER_NOT_FOUND": ["404", "User not found"] },
- *   "user",
- *   "getUser"
+ *   { file: "user", context: "getUser" }
  * );
  */
 export const handleOnlyDataCore = async <TData>(
 	fn: () => Promise<TData>,
 	errorMap: Record<string, [string, string]>,
-	file: FileHandle,
-	context: string
+	ctx: CoreErrorContext
 ): Promise<CoreResponse<TData | string>> => {
 	try {
 		const result = await fn();
 		return [result, HTTP_CODE.success];
 	} catch (err) {
-		return handleCoreError(file, context, err, errorMap);
+		return handleCoreError(ctx, err, errorMap);
 	}
 };

@@ -45,6 +45,10 @@
       "types": "./dist/reliability/*.d.ts",
       "default": "./dist/reliability/*.js"
     },
+    "./domain/*": {
+      "types": "./dist/domain/*.d.ts",
+      "default": "./dist/domain/*.js"
+    },
     "./ca/*": {
       "types": "./dist/ca/*.d.ts",
       "default": "./dist/ca/*.js"

@@ -166,8 +166,7 @@ describe("handleCoreResponse", () => {
 				USER_NOT_FOUND: ["404", "User not found"] as [string, string],
 			};
 			const result = handleCoreError(
-				"user" as any,
-				"getUser",
+				{ file: "user" as any, context: "getUser" },
 				new Error("USER_NOT_FOUND"),
 				mapping
 			);
@@ -179,14 +178,14 @@ describe("handleCoreResponse", () => {
 				USER_NOT_FOUND: ["404", "User not found"] as [string, string],
 			};
 			expect(() =>
-				handleCoreError("user" as any, "getUser", new Error("UNKNOWN"), mapping)
+				handleCoreError({ file: "user" as any, context: "getUser" }, new Error("UNKNOWN"), mapping)
 			).toThrow("UNKNOWN");
 		});
 
 		it("should handle non-Error thrown values by re-throwing", () => {
 			const mapping = {};
 			expect(() =>
-				handleCoreError("user" as any, "test", "string error", mapping)
+				handleCoreError({ file: "user" as any, context: "test" }, "string error", mapping)
 			).toThrow("string error");
 		});
 	});
@@ -197,8 +196,7 @@ describe("handleCoreResponse", () => {
 			const result = await handleOnlyDataCore(
 				fn,
 				{} as any,
-				"user" as any,
-				"test"
+				{ file: "user" as any, context: "test" }
 			);
 			expect(result).toEqual([{ id: 1 }, "success"]);
 		});
@@ -208,8 +206,7 @@ describe("handleCoreResponse", () => {
 			const result = await handleOnlyDataCore(
 				fn,
 				{ NOT_FOUND: ["404", "Not found"] } as any,
-				"user" as any,
-				"test"
+				{ file: "user" as any, context: "test" }
 			);
 			expect(result).toEqual(["404", "Not found"]);
 		});
@@ -219,8 +216,7 @@ describe("handleCoreResponse", () => {
 			const result = await (handleOnlyDataCore as any)(
 				fn,
 				undefined,
-				"user" as any,
-				"test"
+				{ file: "user" as any, context: "test" }
 			);
 			expect(result).toEqual(["data", "success"]);
 		});
