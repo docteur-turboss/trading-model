@@ -48,6 +48,13 @@ export class StaleInstanceCleaner {
 		await this._cleanup();
 	}
 
+	async removeStaleInstances(): Promise<number> {
+		const before = await this._deps.listServiceNames();
+		await this._cleanup();
+		const after = await this._deps.listServiceNames();
+		return before.length - after.length;
+	}
+
 	private _isExpired(instance: ServiceInstance, now: number): boolean {
 		return now - instance.lastHeartbeat > instance.ttl + CLOCK_SKEW_TOLERANCE_MS;
 	}

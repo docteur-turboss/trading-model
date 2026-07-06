@@ -1,6 +1,8 @@
+import crypto from "node:crypto";
 import type http from "node:http";
 import https from "node:https";
 import { logger } from "@trading-model/common/config/logger";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { Request } from "express";
 import { ENV } from "../config/env";
 import type { ResolvedTarget } from "./service-resolver";
@@ -22,9 +24,9 @@ function _serializeHeaderValue(value: string | string[]): string {
 }
 
 function _addProxyHeaders(headers: Record<string, string>, req: Request): void {
-	headers["x-forwarded-for"] = req.ip ?? req.socket.remoteAddress ?? "unknown";
-	headers["x-forwarded-proto"] = "https";
-	headers["x-request-id"] = (req.headers["x-request-id"] as string) ?? crypto.randomUUID();
+	headers[HTTP_HEADERS.X_FORWARDED_FOR] = req.ip ?? req.socket.remoteAddress ?? "unknown";
+	headers[HTTP_HEADERS.X_FORWARDED_PROTO] = "https";
+	headers[HTTP_HEADERS.X_REQUEST_ID] = (req.headers[HTTP_HEADERS.X_REQUEST_ID] as string) ?? crypto.randomUUID();
 }
 
 function buildSafeHeaders(req: Request): Record<string, string> {

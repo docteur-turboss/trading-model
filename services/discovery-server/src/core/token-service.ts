@@ -3,7 +3,10 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { generateRandomStr } from "@trading-model/common/crypto/random";
-import { validInstanceToken as commonValidateToken } from "@trading-model/common/crypto/token-service";
+import {
+	validInstanceToken as commonValidateToken,
+	type TokenValidationInput,
+} from "@trading-model/common/crypto/token-service";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
 
 export class TokenService {
@@ -27,13 +30,23 @@ export class TokenService {
 		return `${encodedId}.${timestamp}.${nonce}.${hmac}`;
 	}
 
+	validInstanceToken(input: TokenValidationInput): boolean;
+	validInstanceToken(token: string, instanceId: string, storedToken?: string): boolean;
 	validInstanceToken(
-		token: string,
-		instanceId: string,
-		storedToken?: string
+		tokenOrInput: string | TokenValidationInput,
+		instanceId?: string,
+		storedToken?: string,
 	): boolean {
+		if (typeof tokenOrInput === "object") {
+			const input = { ...tokenOrInput, signingSecret: tokenOrInput.signingSecret ?? this._signingSecret };
+			const result = commonValidateToken(input);
+			if (!result) {
+				logger.warn("Token validation failed", { instanceId: input.instanceId });
+			}
+			return result;
+		}
 		const result = commonValidateToken({
-			token,
+			token: tokenOrInput,
 			instanceId: instanceId as InstanceId,
 			signingSecret: this._signingSecret,
 			storedToken,

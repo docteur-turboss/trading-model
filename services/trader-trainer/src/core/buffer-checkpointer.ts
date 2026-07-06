@@ -42,6 +42,10 @@ export class BufferCheckpointer {
 		return join(this._checkpointDir, "market_data_buffer.json");
 	}
 
+	saveBuffer(buffer: MarketDataBuffer): void {
+		this.save(buffer);
+	}
+
 	save(buffer: MarketDataBuffer): void {
 		try {
 			this._doSaveBuffer(buffer);
@@ -112,6 +116,10 @@ export class BufferCheckpointer {
 				error: err instanceof Error ? err.message : String(err),
 			},
 		});
+	}
+
+	loadBuffer(config?: MarketDataBufferConfig): MarketDataBuffer | null {
+		return this.load(config);
 	}
 
 	load(config?: MarketDataBufferConfig): MarketDataBuffer | null {

@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { SignedRequest } from "@trading-model/common/contracts/signed-request";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import {
 	type NextFunction,
@@ -20,8 +21,8 @@ function normalizeBody(body: unknown): unknown {
 function verifySignature(req: Request, serviceName: string): boolean {
 	const secret = resolveAuthHmacSecret();
 
-	const provided = (req.headers["x-signature"] as string) || "";
-	const timestampStr = (req.headers["x-timestamp"] as string) || "";
+	const provided = (req.headers[HTTP_HEADERS.X_SIGNATURE] as string) || "";
+	const timestampStr = (req.headers[HTTP_HEADERS.X_TIMESTAMP] as string) || "";
 
 	if (!_validateTimestamp(timestampStr, provided)) {
 		return false;
@@ -100,7 +101,7 @@ function _matchSignature(
 }
 
 function serviceAuth(req: Request, res: Response, next: NextFunction): void {
-	const serviceName = req.headers["x-service-name"] as string | undefined;
+	const serviceName = req.headers[HTTP_HEADERS.X_SERVICE_NAME] as string | undefined;
 	if (!(serviceName && ALLOWED_SERVICES.includes(serviceName))) {
 		res.status(403).json({ error: "Unauthorized service" });
 		return;

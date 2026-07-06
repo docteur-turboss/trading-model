@@ -37,7 +37,7 @@ export class WalRedisFlusher {
 		return `${this._prefix}wal_buffer`;
 	}
 
-	async store(topic: string, serialized: string): Promise<void> {
+	async storeInWal(topic: string, serialized: string): Promise<void> {
 		const redis = await getStreamClient();
 		const walEntry = JSON.stringify({ topic, serialized });
 		await redis.rpush(this._walKey(), walEntry);
@@ -45,7 +45,7 @@ export class WalRedisFlusher {
 		await redis.expire(this._walKey(), 7200);
 	}
 
-	async flushAll(): Promise<void> {
+	async drainAll(): Promise<void> {
 		const redis = await getStreamClient();
 		let consecutiveErrors = 0;
 		while (true) {

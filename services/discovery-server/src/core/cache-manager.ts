@@ -1,28 +1,24 @@
 import type { CacheConfig } from "@trading-model/common/utils/cache-config";
+import type { ICache } from "@trading-model/common/utils/cache";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
 import { logger } from "@trading-model/common/config/logger";
 
-interface CacheEntry {
-	data: ServiceInstance[];
-}
-
-export class CacheManager {
-	private _cache: LruCache<CacheEntry>;
+export class CacheManager implements ICache<ServiceInstance[]> {
+	private _cache: LruCache<ServiceInstance[]>;
 	private _staleData: LruCache<ServiceInstance[]>;
 
 	constructor(config: CacheConfig) {
-		this._cache = new LruCache<CacheEntry>(config);
+		this._cache = new LruCache<ServiceInstance[]>(config);
 		this._staleData = new LruCache<ServiceInstance[]>({ maxSize: config.maxSize });
 	}
 
 	get(serviceName: string): ServiceInstance[] | undefined {
-		const cached = this._cache.get(serviceName);
-		return cached?.data;
+		return this._cache.get(serviceName);
 	}
 
-	set(serviceName: string, instances: ServiceInstance[]): void {
-		this._cache.set(serviceName, { data: instances });
+	set(serviceName: string, instances: ServiceInstance[], ttlMs?: number): void {
+		this._cache.set(serviceName, instances, ttlMs);
 		this._staleData.set(serviceName, instances);
 	}
 
@@ -37,6 +33,10 @@ export class CacheManager {
 
 	invalidate(serviceName: string): void {
 		this.delete(serviceName);
+	}
+
+	has(key: string): boolean {
+		return this._cache.has(key);
 	}
 
 	get size(): number {

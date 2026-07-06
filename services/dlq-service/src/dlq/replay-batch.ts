@@ -7,6 +7,11 @@ import {
 	isShuttingDown,
 	recordMMResult,
 } from "./shared/index";
+import type {
+	DlqEntryRef,
+	DlqError,
+	ReplayBatchOptions,
+} from "./types";
 
 export interface ReplayContext {
 	client: import("@trading-model/common/config/http-client").HttpClient;
@@ -15,7 +20,7 @@ export interface ReplayContext {
 	instanceId: string;
 	isTimedOut: () => boolean;
 	successCount: { value: number };
-	errors: Array<{ id: string; error: string }>;
+	errors: Array<DlqError>;
 }
 
 export interface DeliveryFailureContext {
@@ -26,26 +31,9 @@ export interface DeliveryFailureContext {
 }
 
 export interface ProcessBatchResultsOptions {
-	batch: Array<{ id: string; message: unknown }>;
+	batch: Array<DlqEntryRef>;
 	batchResults: PromiseSettledResult<void>[];
 	ctx: Pick<ReplayContext, "batchId" | "successCount" | "errors">;
-}
-
-export interface ReplayBatchOptions {
-	entries: Array<{ id: string; message: unknown }>;
-	messageManagerUrl: string;
-	batchId: string;
-	instanceId: string;
-}
-
-export interface DlqEntryRef {
-	id: string;
-	message: unknown;
-}
-
-export interface DlqError {
-	id: string;
-	error: string;
 }
 
 let activeBatches = 0;
@@ -262,6 +250,8 @@ async function _runBatchWithTimeout(
 
 	return { success: successCount.value, errors };
 }
+
+export type { DlqEntryRef, DlqError, ReplayBatchOptions } from "./types";
 
 export async function doReplayBatch(
 	options: ReplayBatchOptions

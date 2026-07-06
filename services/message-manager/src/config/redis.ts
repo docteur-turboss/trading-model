@@ -2,7 +2,7 @@ import Redis from "ioredis";
 
 import { ENV } from "./env";
 import { logger } from "./logger";
-import { buildRedisInstance } from "./redis-client-factory";
+import { createRedisClient } from "./redis-client-factory";
 import {
 	attachEventHandlers,
 	createEventHandlers,
@@ -81,7 +81,7 @@ async function waitForClientReady(slot: ManagedRedis): Promise<Redis> {
 }
 
 async function createAndConnectClient(slot: ManagedRedis): Promise<Redis> {
-	const client = buildRedisInstance();
+	const client = createRedisClient();
 	ALL_CLIENTS.add(client);
 
 	const handlers = createEventHandlers(slot.name, () => redisClosed, ON_RECONNECTED_CALLBACKS);

@@ -11,7 +11,25 @@ const MISSED_HEARTBEAT_THRESHOLD = ENV.STALE_MISSED_HEARTBEAT_THRESHOLD;
 const GRACE_PERIOD_MS = ENV.STALE_GRACE_PERIOD_MS;
 
 export class StaleInstanceCleaner {
+	private _running = false;
+
 	constructor(private readonly _prefix: string) {}
+
+	get isRunning(): boolean {
+		return this._running;
+	}
+
+	start(): void {
+		this._running = true;
+	}
+
+	stop(): void {
+		this._running = false;
+	}
+
+	async cleanupNow(): Promise<number> {
+		return this.removeStaleInstances();
+	}
 
 	private _subKey(topic: string, instanceId: string): string {
 		return `${this._prefix}sub:${topic}:${instanceId}`;

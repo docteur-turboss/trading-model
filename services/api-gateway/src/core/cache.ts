@@ -1,10 +1,12 @@
+import type { ICache } from "@trading-model/common/utils/cache";
+
 export interface CacheEntry<TData = unknown> {
 	data: TData;
 	status: number;
 	expiresAt: number;
 }
 
-export class ResponseCache {
+export class ResponseCache implements ICache<CacheEntry> {
 	private readonly _store = new Map<string, CacheEntry>();
 
 	private readonly _defaultTtlMs: number;
@@ -58,6 +60,10 @@ export class ResponseCache {
 
 	clear(): void {
 		this._store.clear();
+	}
+
+	has(key: string): boolean {
+		return this._store.has(key) && Date.now() <= this._store.get(key)!.expiresAt;
 	}
 
 	get size(): number {

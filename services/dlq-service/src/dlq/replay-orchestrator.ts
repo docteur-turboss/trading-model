@@ -17,15 +17,8 @@ import {
 	type DlqError,
 	doReplayBatch,
 } from "./replay-batch";
+import type { ClaimAndReplayOptions } from "./types";
 import { resolveMessageManagerUrl } from "./shared/index";
-
-interface ClaimAndReplayOptions {
-	messageManagerUrl: string;
-	limit: number;
-	batchId: string;
-	topic: string | undefined;
-	span: import("@opentelemetry/api").Span;
-}
 
 const ReplaySchema = z.object({
 	topic: z.string().optional(),

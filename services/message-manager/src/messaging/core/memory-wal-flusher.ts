@@ -26,11 +26,19 @@ export class MemoryWalFlusher {
 		);
 	}
 
+	start(buffer?: MemoryWalEntry[]): void {
+		this.startFlusher(buffer ?? []);
+	}
+
 	startFlusher(buffer: MemoryWalEntry[]): void {
 		this._flusherTimer.startInterval(() => {
 			this.flush(buffer).catch(() => {});
 		}, 500);
 		this._flusherTimer.unref();
+	}
+
+	stop(): void {
+		this.stopFlusher();
 	}
 
 	stopFlusher(): void {

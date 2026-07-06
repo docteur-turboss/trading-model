@@ -25,7 +25,7 @@ export class MessageManagerCircuitBreaker {
 		};
 	}
 
-	isOpen(): boolean {
+	isOpen(_key?: string): boolean {
 		if (this._openUntil > Date.now()) {
 			return true;
 		}
@@ -35,12 +35,11 @@ export class MessageManagerCircuitBreaker {
 		return false;
 	}
 
-	/** Alias for !isOpen() — used by ReplayCircuitBreaker. */
-	canProceed(): boolean {
+	isAllowed(_key?: string): boolean {
 		return !this.isOpen();
 	}
 
-	check(): CircuitState {
+	check(_key?: string): CircuitState {
 		if (this._openUntil > Date.now()) {
 			return "open";
 		}
@@ -51,11 +50,11 @@ export class MessageManagerCircuitBreaker {
 		return "closed";
 	}
 
-	recordSuccess(): void {
+	recordSuccess(_key?: string): void {
 		this.recordResult(true);
 	}
 
-	recordFailure(): void {
+	recordFailure(_key?: string, _count?: number): void {
 		this.recordResult(false);
 	}
 
@@ -67,7 +66,7 @@ export class MessageManagerCircuitBreaker {
 		}
 	}
 
-	getCircuitState(): CircuitState {
+	getState(_key?: string): CircuitState {
 		if (this._openUntil > Date.now()) {
 			return "open";
 		}
@@ -77,8 +76,27 @@ export class MessageManagerCircuitBreaker {
 		return "closed";
 	}
 
-	reset(): void {
+	getFailureCount(_key?: string): number {
+		return this._failures;
+	}
+
+	clear(): void {
 		this._resetInternal();
+	}
+
+	/** @deprecated Use {@link clear} instead */
+	reset(): void {
+		this.clear();
+	}
+
+	/** @deprecated Use {@link isAllowed} instead */
+	canProceed(): boolean {
+		return this.isAllowed();
+	}
+
+	/** @deprecated Use {@link getState} instead */
+	getCircuitState(): CircuitState {
+		return this.getState();
 	}
 
 	private _resetInternal(): void {

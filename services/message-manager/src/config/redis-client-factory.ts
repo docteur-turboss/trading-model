@@ -156,6 +156,10 @@ function buildStandaloneClient(): Redis {
 	return new Redis(options as RedisOptions);
 }
 
+export function createRedisClient(): Redis {
+	return buildRedisInstance();
+}
+
 export function buildRedisInstance(): Redis {
 	if (ENV.REDIS_SENTINEL_MASTER_NAME) {
 		return buildSentinelClient();

@@ -97,6 +97,29 @@ export class ClaimManager {
 		minIdleMs = 60_000,
 		count = 100
 	): Promise<number> {
+		return this._doClaimPendingMessages(groupName, consumerId, minIdleMs, count);
+	}
+
+	async claimEntriesForRetry(options: {
+		groupName: string;
+		consumerId: string;
+		minIdleMs?: number;
+		count?: number;
+	}): Promise<number> {
+		return this._doClaimPendingMessages(
+			options.groupName,
+			options.consumerId,
+			options.minIdleMs ?? 60_000,
+			options.count ?? 100,
+		);
+	}
+
+	private async _doClaimPendingMessages(
+		groupName: string,
+		consumerId: string,
+		minIdleMs: number,
+		count: number
+	): Promise<number> {
 		const lockKey = `${this._prefix}claim-lock`;
 		let redis: Redis | null = null;
 		try {
