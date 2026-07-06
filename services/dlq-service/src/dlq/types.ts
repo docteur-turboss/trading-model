@@ -26,7 +26,7 @@ export interface ReplayBatchOptions extends BatchContext {
 	messageManagerUrl: string;
 }
 
-export interface ClaimAndReplayOptions extends Partial<BatchContext> {
+export interface ClaimAndReplayOptions extends Pick<BatchContext, "batchId"> {
 	messageManagerUrl: string;
 	limit: number;
 	topic: string | undefined;

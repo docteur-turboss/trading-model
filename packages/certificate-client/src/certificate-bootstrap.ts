@@ -211,7 +211,7 @@ export function createTlsBootstrap(
 }
 
 async function loadServerDependencies(): Promise<{
-	configureApp: (opts: { rateLimit?: { windowMs: number; limit: number }; trustProxy?: boolean }) => import("express").Application;
+	configureApp: (opts: { rateLimit?: import("@trading-model/common/server/configure-app").RateLimitConfig; trustProxy?: boolean }) => import("express").Application;
 	mtlsAuthMiddleware: import("express").RequestHandler;
 	responseProtocol: import("express").RequestHandler;
 	createAndStartHttpsServer: (app: import("express").Application, opts: { port: number; tls: TlsPaths; watchTls: boolean }) => Promise<HttpServer>;

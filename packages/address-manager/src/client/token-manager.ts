@@ -56,7 +56,7 @@ export class TokenManager {
 	 */
 	getToken(): string {
 		if (!this._token) {
-			throw new AuthenticationError("Token is not available. Did you call refreshToken()?");
+			throw authenticationError("Token is not available. Did you call refreshToken()?");
 		}
 
 		return this._token;
@@ -110,10 +110,10 @@ export class TokenManager {
 		try {
 			await this._doRefreshToken();
 		} catch (err) {
-			if (err instanceof AuthenticationError) {
+			if (isAuthenticationError(err)) {
 				throw err;
 			}
-			throw new AuthenticationError(
+			throw authenticationError(
 				"Failed to refresh authentication token",
 				{ cause: err },
 			);
