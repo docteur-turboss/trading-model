@@ -48,12 +48,15 @@ describe("RedisServiceCache", () => {
 				})
 			);
 
-			await cache.set("svc", {
+			await cache.set({
 				serviceName: "svc",
-				instanceId: "i-1",
-				ip: "127.0.0.1",
-				port: 8080,
-			} as any);
+				instance: {
+					serviceName: "svc",
+					instanceId: "i-1",
+					ip: "127.0.0.1",
+					port: 8080,
+				} as any,
+			});
 			const result = await cache.get("svc");
 
 			expect(MOCK_REDIS_INSTANCE.setex).toHaveBeenCalledWith(
@@ -72,7 +75,7 @@ describe("RedisServiceCache", () => {
 
 		it("should use region-prefixed keys when region provided", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockResolvedValue("OK");
-			await cache.set("svc", { serviceName: "svc" } as any, "us-east");
+			await cache.set({ serviceName: "svc", instance: { serviceName: "svc" } as any, region: "us-east" });
 			expect(MOCK_REDIS_INSTANCE.setex).toHaveBeenCalledWith(
 				"discovery:cache:svc::us-east",
 				expect.any(Number),
@@ -237,7 +240,7 @@ describe("RedisServiceCache", () => {
 		it("should handle set failure gracefully", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockRejectedValue(new Error("write error"));
 			await expect(
-				cache.set("svc", { serviceName: "svc" } as any)
+				cache.set({ serviceName: "svc", instance: { serviceName: "svc" } as any })
 			).resolves.toBeUndefined();
 		});
 	});

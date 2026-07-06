@@ -27,7 +27,7 @@ describe("ServiceCache", () => {
 
 	it("should store and return instance", async () => {
 		const inst = makeInstance();
-		await cache.set("svc", inst);
+		await cache.set({ serviceName: "svc", instance: inst });
 		const result = await cache.get("svc");
 		expect(result).toEqual(inst);
 	});
@@ -40,7 +40,7 @@ describe("ServiceCache", () => {
 	it("should return null for expired entry", async () => {
 		jest.useFakeTimers();
 		const inst = makeInstance();
-		await cache.set("svc", inst);
+		await cache.set({ serviceName: "svc", instance: inst });
 		jest.advanceTimersByTime(6000);
 		const result = await cache.get("svc");
 		expect(result).toBeNull();
@@ -49,25 +49,22 @@ describe("ServiceCache", () => {
 
 	it("should invalidate entry", async () => {
 		const inst = makeInstance();
-		await cache.set("svc", inst);
+		await cache.set({ serviceName: "svc", instance: inst });
 		await cache.invalidate("svc");
 		const result = await cache.get("svc");
 		expect(result).toBeNull();
 	});
 
 	it("should clear all entries", async () => {
-		await cache.set("svc", makeInstance());
-		await cache.set(
-			"svc2",
-			makeInstance({ serviceName: "svc2", instanceId: "i-2" })
-		);
+		await cache.set({ serviceName: "svc", instance: makeInstance() });
+		await cache.set({ serviceName: "svc2", instance: makeInstance({ serviceName: "svc2", instanceId: "i-2" }) });
 		await cache.clear();
 		expect(await cache.get("svc")).toBeNull();
 		expect(await cache.get("svc2")).toBeNull();
 	});
 
 	it("should return entries", async () => {
-		await cache.set("svc", makeInstance());
+		await cache.set({ serviceName: "svc", instance: makeInstance() });
 		const entries = await cache.entries();
 		expect(entries).toHaveLength(1);
 		expect(entries[0].serviceName).toBe("svc");
@@ -75,7 +72,7 @@ describe("ServiceCache", () => {
 
 	it("entries should skip expired entries", async () => {
 		jest.useFakeTimers();
-		await cache.set("svc", makeInstance());
+		await cache.set({ serviceName: "svc", instance: makeInstance() });
 		jest.advanceTimersByTime(6000);
 		const entries = await cache.entries();
 		expect(entries).toHaveLength(0);
@@ -88,7 +85,7 @@ describe("ServiceCache", () => {
 	});
 
 	it("stop should clear cache", async () => {
-		await cache.set("svc", makeInstance());
+		await cache.set({ serviceName: "svc", instance: makeInstance() });
 		cache.stop();
 		const result = await cache.get("svc");
 		expect(result).toBeNull();
