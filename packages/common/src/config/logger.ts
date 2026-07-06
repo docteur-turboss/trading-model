@@ -137,10 +137,6 @@ export class Logger {
 		this._userId = userId;
 	}
 
-	setErrorHandlerService(url: string) {
-		this._errorServiceSender.setErrorHandlerService(url);
-	}
-
 	getLogs() {
 		return this._logs;
 	}

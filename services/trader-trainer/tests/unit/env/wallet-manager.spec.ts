@@ -43,13 +43,6 @@ describe("Wallet module", () => {
 					initialPrice: Price.of(50),
 					feeRate: Percentage.of(Number.NaN),
 				})
-			).toThrow("Invalid feeRate");
-			expect(() =>
-				createWallet({
-					initialCash: 1000,
-					initialPrice: Price.of(50),
-					feeRate: Percentage.of(Number.NaN),
-				})
 			).toThrow("Percentage must be a finite number");
 		});
 
@@ -117,7 +110,7 @@ describe("Wallet module", () => {
 		test("should fail to buy with invalid amount (zero or negative)", () => {
 			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
 			expect(wallet.buy(Volume.of(0))).toBe(false);
-			expect(wallet.buy(Volume.of(-2))).toBe(false);
+			expect(() => wallet.buy(Volume.of(-2))).toThrow();
 		});
 
 		test("should fail to buy when exceeding maxPosition", () => {
@@ -154,7 +147,7 @@ describe("Wallet module", () => {
 			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(3));
 			expect(wallet.sell(Volume.of(0))).toBe(false);
-			expect(wallet.sell(Volume.of(-1))).toBe(false);
+			expect(() => wallet.sell(Volume.of(-1))).toThrow();
 		});
 	});
 

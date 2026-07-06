@@ -4,17 +4,12 @@ import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 export class ErrorServiceSender {
 	private readonly _env: string | undefined;
-	private _handleErrorServiceUrl: string | null = null;
 
 	constructor(
 		private readonly _sanitizer: SensitiveDataSanitizer,
 		env: string | undefined
 	) {
 		this._env = env;
-	}
-
-	setErrorHandlerService(url: string): void {
-		this._handleErrorServiceUrl = url;
 	}
 
 	private _shouldSend(): boolean {
@@ -37,7 +32,7 @@ export class ErrorServiceSender {
 
 	private async _postEntry(entry: LogEntry): Promise<void> {
 		await fetch(
-			process.env.ERROR_URL_WEBHOOK ?? this._handleErrorServiceUrl ?? "/",
+			process.env.ERROR_URL_WEBHOOK ?? "/",
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },

@@ -9,7 +9,7 @@ import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair
 import { CaClient } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import type { TlsPaths, TlsPemBundle } from "@trading-model/common/domain/tls-paths";
 import type { HttpServer } from "@trading-model/common/server/server-factory";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { Application } from "express";
@@ -184,10 +184,10 @@ export interface CreateHttpsServerOptions {
  */
 function _setupAutoRenewCallback(
 	server: https.Server,
-	cert: { keyPem: string; certPem: string; caPem: string },
+	cert: TlsPemBundle,
 ): void {
 	try {
-		server.setSecureContext({ key: cert.keyPem, cert: cert.certPem, ca: cert.caPem });
+		server.setSecureContext(cert);
 		logger.info("TLS context hot-reloaded after certificate renewal");
 	} catch (err) {
 		logger.error("Failed to hot-reload TLS context", { err });
@@ -204,7 +204,7 @@ export function createTlsBootstrap(
 	return {
 		ensure: () => bootstrapCertificate(config),
 		setupAutoRenew: (server: https.Server) => {
-			const client = new CertificateClient({ ...config, onRenew: (cert) => _setupAutoRenewCallback(server, cert) });
+			const client = new CertificateClient({ ...config, onRenew: (cert) => _setupAutoRenewCallback(server, { key: cert.keyPem, cert: cert.certPem, ca: cert.caPem }) });
 			setTimeout(() => client.startAutoRenew(), 1000);
 		},
 	};
