@@ -99,12 +99,15 @@ const FITNESS_STRATEGIES: Record<FitnessType, FitnessStrategy> = {
  * @param type    Fitness metric.
  * @param scores  Per-episode returns.
  */
+function _computeMean(scores: number[]): number {
+	return scores.reduce((sum, value) => sum + value, 0) / scores.length;
+}
+
 export function computeFitness(type: FitnessType, scores: number[]): number {
 	if (scores.length === 0) {
 		return Number.NEGATIVE_INFINITY;
 	}
-
-	const mean = scores.reduce((sum, value) => sum + value, 0) / scores.length;
+	const mean = _computeMean(scores);
 	const strategy = FITNESS_STRATEGIES[type];
 	return strategy ? strategy.compute(scores, mean) : mean;
 }

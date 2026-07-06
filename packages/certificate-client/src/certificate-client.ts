@@ -46,55 +46,62 @@ export class CertificateClient {
 		});
 	}
 
-	async obtainCertificate(): Promise<ObtainedCertificate> {
+	private async _generateKeyAndCsr(): Promise<{
+		keyPair: import("@trading-model/certificate-utils/generate-key-pair").KeyPair;
+		csr: string;
+	}> {
 		const keyPair = await generateKeyPairAsync(
-			this._config.keyAlgorithm ?? KeyAlgorithm.ecP384
+			this._config.keyAlgorithm ?? KeyAlgorithm.ecP384,
 		);
 		const csr = await createCsrAsync({
 			commonName: this._config.commonName,
 			san: this._config.san,
 			keyPem: keyPair.privateKey,
 		});
+		return { keyPair, csr };
+	}
 
-		const response = await this._caClient.signCertificate(
-			this._config.serviceId,
-			csr,
-			{
-				bootstrapToken: this._config.bootstrapToken,
-			}
-		);
+	private async _signWithCa(csr: string) {
+		return await this._caClient.signCertificate(this._config.serviceId, csr, {
+			bootstrapToken: this._config.bootstrapToken,
+		});
+	}
 
+	private async _writeCertificates(keyPair: { privateKey: string }, response: { cert: string; caPem: string }): Promise<void> {
 		const certDir = path.dirname(this._config.certPath);
 		await fs.mkdir(certDir, { recursive: true });
-
-		await fs.writeFile(this._config.keyPath, keyPair.privateKey, {
-			mode: 0o600,
-		});
+		await fs.writeFile(this._config.keyPath, keyPair.privateKey, { mode: 0o600 });
 		await fs.writeFile(this._config.certPath, response.cert, { mode: 0o644 });
 		await fs.writeFile(this._config.caPath, response.caPem, { mode: 0o644 });
+	}
 
-		this._obtainedCert = {
+	private _buildObtainedCert(keyPair: { privateKey: string }, response: { cert: string; caPem: string; serialNumber: string; expiresAt: string }): ObtainedCertificate {
+		return {
 			certPem: response.cert,
 			keyPem: keyPair.privateKey,
 			caPem: response.caPem,
 			serialNumber: response.serialNumber,
 			expiresAt: new Date(response.expiresAt),
 		};
+	}
 
+	private _notifyOnRenew(): void {
+		if (this._obtainedCert && this._config.onRenew) {
+			setImmediate(() => this._config.onRenew!(this._obtainedCert!));
+		}
+	}
+
+	async obtainCertificate(): Promise<ObtainedCertificate> {
+		const { keyPair, csr } = await this._generateKeyAndCsr();
+		const response = await this._signWithCa(csr);
+		await this._writeCertificates(keyPair, response);
+		this._obtainedCert = this._buildObtainedCert(keyPair, response);
 		logger.info("Certificate obtained", {
 			serviceId: this._config.serviceId,
 			serialNumber: response.serialNumber,
 			expiresAt: response.expiresAt,
 		});
-
-		if (this._config.onRenew) {
-			const cert = this._obtainedCert;
-			const onRenew = this._config.onRenew;
-			if (cert && onRenew) {
-				setImmediate(() => onRenew(cert));
-			}
-		}
-
+		this._notifyOnRenew();
 		return this._obtainedCert;
 	}
 

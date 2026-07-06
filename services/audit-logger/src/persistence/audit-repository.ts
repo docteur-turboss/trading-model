@@ -203,5 +203,4 @@ function _toMap(
 	return Object.fromEntries(items.map((item) => [item[MID], item.count]));
 }
 
-export class AuditRepository {
-}
+

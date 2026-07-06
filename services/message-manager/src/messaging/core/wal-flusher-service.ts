@@ -249,9 +249,7 @@ export class WalFlusherService {
 
 	private async _flushWal(): Promise<void> {
 		if (this._walFlushing) {
-			return new Promise<void>((resolve) => {
-				this._walFlushWaiters.push(resolve);
-			});
+			return this._enqueueFlushWaiter();
 		}
 		this._walFlushing = true;
 
@@ -264,41 +262,50 @@ export class WalFlusherService {
 		}
 	}
 
+	private _enqueueFlushWaiter(): Promise<void> {
+		return new Promise<void>((resolve) => {
+			this._walFlushWaiters.push(resolve);
+		});
+	}
+
 	private async _drainWalLoop(): Promise<void> {
 		const redis = await getStreamClient();
 		let consecutiveErrors = 0;
 		while (true) {
-			const raw = (await redis.eval(
-				ATOMIC_WAL_READ_LUA,
-				1,
-				this._walKey(),
-				WAL_BATCH_SIZE.toString()
-			)) as string[];
+			const raw = await this._readWalEntries(redis);
 			if (raw.length === 0) {
 				break;
 			}
 
-			const ok = await this._flushWalBatch(raw);
-			if (ok) {
+			if (await this._flushWalBatch(raw)) {
 				consecutiveErrors = 0;
 				continue;
 			}
 
-			consecutiveErrors++;
-			logger.warn(
-				"WAL flush pipeline: some commands failed — retrying batch",
-				{
-					consecutiveErrors,
-					batchSize: raw.length,
-				}
-			);
-			const action = await this._errorHandler.handle(raw, consecutiveErrors, this._walKey(), this._prefix, this._memoryWalBuffer);
-			const backoff = Math.min(1000 * 2 ** consecutiveErrors, 30000);
-			await this._sleepWithJitter(backoff);
-			if (action === "abort") {
+			if (!(await this._handleBatchError(raw, consecutiveErrors))) {
 				break;
 			}
+			consecutiveErrors++;
 			break;
 		}
+	}
+
+	private async _readWalEntries(redis: import("ioredis").Redis): Promise<string[]> {
+		return (await redis.eval(ATOMIC_WAL_READ_LUA, 1, this._walKey(), WAL_BATCH_SIZE.toString())) as string[];
+	}
+
+	private async _handleBatchError(
+		raw: string[],
+		consecutiveErrors: number
+	): Promise<boolean> {
+		const nextErrors = consecutiveErrors + 1;
+		logger.warn("WAL flush pipeline: some commands failed — retrying batch", {
+			consecutiveErrors: nextErrors,
+			batchSize: raw.length,
+		});
+		const action = await this._errorHandler.handle(raw, nextErrors, this._walKey(), this._prefix, this._memoryWalBuffer);
+		const backoff = Math.min(1000 * 2 ** nextErrors, 30000);
+		await this._sleepWithJitter(backoff);
+		return action !== "abort";
 	}
 }

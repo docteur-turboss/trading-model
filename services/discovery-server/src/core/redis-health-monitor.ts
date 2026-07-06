@@ -155,26 +155,28 @@ export class RedisHealthMonitor {
 		}
 	}
 
+	private _restoreOriginalBackend(): void {
+		if (!this._fallbackActive || !this._originalBackend) return;
+		this._backend = this._originalBackend;
+		this._originalBackend = undefined;
+		this._fallbackActive = false;
+		this._callbacks.onFallbackRestored(this._backend);
+		logger.info("Restored original Redis backend");
+	}
+
+	private _handleRestoreSuccess(): void {
+		this._restoreOriginalBackend();
+		this._healthy = true;
+		this._consecutiveFailures = 0;
+		this._callbacks.onHealthRestored();
+		logger.info("Redis backend is healthy again — resumed normal operation");
+	}
+
 	private async _performRestoreCheck(): Promise<void> {
-		if (this._healthy) {
-			return;
-		}
+		if (this._healthy) return;
 		try {
-			const healthy = await this._callbacks.ping();
-			if (healthy) {
-				if (this._fallbackActive && this._originalBackend) {
-					this._backend = this._originalBackend;
-					this._originalBackend = undefined;
-					this._fallbackActive = false;
-					this._callbacks.onFallbackRestored(this._backend);
-					logger.info("Restored original Redis backend");
-				}
-				this._healthy = true;
-				this._consecutiveFailures = 0;
-				this._callbacks.onHealthRestored();
-				logger.info(
-					"Redis backend is healthy again — resumed normal operation"
-				);
+			if (await this._callbacks.ping()) {
+				this._handleRestoreSuccess();
 			}
 		} catch {
 			logger.warn("Redis restore attempt failed — staying on stale cache");
