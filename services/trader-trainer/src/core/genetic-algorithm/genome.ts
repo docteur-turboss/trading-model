@@ -1,11 +1,4 @@
-import type {
-	ActivationType,
-	ConnectionType,
-	InitialisationType,
-	NormalisationType,
-} from "../neural-network/type";
-
-export {
+import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
