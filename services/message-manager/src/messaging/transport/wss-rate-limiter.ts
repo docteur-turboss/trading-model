@@ -16,26 +16,33 @@ export class WssRateLimiter {
 	private _cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
 	check(serviceName: string): boolean {
+		const entry = this._getOrCreateEntry(serviceName);
+		this._pruneOldTimestamps(entry);
+
+		if (entry.timestamps.length >= RATE_LIMIT_MAX_PER_WINDOW) {
+			return false;
+		}
+
+		entry.timestamps.push(Date.now());
+		return true;
+	}
+
+	private _getOrCreateEntry(serviceName: string): RateLimitEntry {
 		const now = Date.now();
 		let entry = this._windows.get(serviceName);
 		if (!entry) {
 			entry = { timestamps: new Deque<number>(), lastSeen: now };
 			this._windows.set(serviceName, entry);
 		}
-
 		entry.lastSeen = now;
-		const { timestamps } = entry;
-		const cutoff = now - RATE_LIMIT_WINDOW_MS;
-		while (timestamps.length > 0 && timestamps.peekFront()! < cutoff) {
-			timestamps.shift();
-		}
+		return entry;
+	}
 
-		if (timestamps.length >= RATE_LIMIT_MAX_PER_WINDOW) {
-			return false;
+	private _pruneOldTimestamps(entry: RateLimitEntry): void {
+		const cutoff = Date.now() - RATE_LIMIT_WINDOW_MS;
+		while (entry.timestamps.length > 0 && entry.timestamps.peekFront()! < cutoff) {
+			entry.timestamps.shift();
 		}
-
-		timestamps.push(now);
-		return true;
 	}
 
 	checkAndReject(serviceName: string, ws: WebSocket): boolean {
@@ -50,21 +57,26 @@ export class WssRateLimiter {
 		if (this._cleanupTimer) {
 			return;
 		}
-		this._cleanupTimer = setInterval(() => {
-			const now = Date.now();
-			const cutoff = now - RATE_LIMIT_WINDOW_MS;
-			const staleCutoff = now - STALE_MS;
-			for (const [key, entry] of this._windows) {
-				const { timestamps } = entry;
-				while (timestamps.length > 0 && timestamps.peekFront()! < cutoff) {
-					timestamps.shift();
-				}
-				if (timestamps.length === 0 && entry.lastSeen < staleCutoff) {
-					this._windows.delete(key);
-				}
-			}
-		}, RATE_LIMIT_CLEANUP_INTERVAL_MS);
+		this._cleanupTimer = setInterval(() => this._cleanupWindows(), RATE_LIMIT_CLEANUP_INTERVAL_MS);
 		this._cleanupTimer.unref();
+	}
+
+	private _cleanupWindows(): void {
+		const now = Date.now();
+		const cutoff = now - RATE_LIMIT_WINDOW_MS;
+		const staleCutoff = now - STALE_MS;
+		for (const [key, entry] of this._windows) {
+			this._pruneEntryTimestamps(entry, cutoff);
+			if (entry.timestamps.length === 0 && entry.lastSeen < staleCutoff) {
+				this._windows.delete(key);
+			}
+		}
+	}
+
+	private _pruneEntryTimestamps(entry: RateLimitEntry, cutoff: number): void {
+		while (entry.timestamps.length > 0 && entry.timestamps.peekFront()! < cutoff) {
+			entry.timestamps.shift();
+		}
 	}
 
 	shutdown(): void {

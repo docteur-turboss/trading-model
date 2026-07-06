@@ -131,10 +131,7 @@ export class JobDispatcher {
 				ackDeadline: deadline,
 			})
 			.catch((err) => {
-				logger.error("Failed to persist assigned status", { context: {
-				jobId,
-				error: String(err),
-			} });
+				_logPersistError(jobId, err);
 			});
 	}
 
@@ -143,34 +140,48 @@ export class JobDispatcher {
 
 		this._repository
 			.findById(jobId)
-			.then((job) => {
-				if (
-					!job ||
-					isTerminalStatus(job.status)
-				) {
-					return;
-				}
-
-				this.decrementWorkerLoad(job.assignedWorkerId);
-
-				this._repository
-					.updateStatus(jobId, "orphaned")
-					.then(() => this._reAllocator.reallocate(job))
-					.catch((err) =>
-						logger.error(
-							"Failed to persist orphaned status on ACK timeout",
-							{
-								jobId,
-								error: String(err),
-							}
-						)
-					);
-			})
+			.then((job) => _onAckTimeoutJobFound(job, jobId, this))
 			.catch((err) => {
-				logger.error("Failed to find job on ACK timeout", { context: {
-				jobId,
-				error: String(err),
-			} });
+				_logFindJobError(jobId, err);
 			});
 	}
+}
+
+function _logFindJobError(jobId: string, err: unknown): void {
+	logger.error("Failed to find job on ACK timeout", { context: {
+		jobId,
+		error: String(err),
+	} });
+}
+
+function _logPersistError(jobId: string, err: unknown): void {
+	logger.error("Failed to persist assigned status", { context: {
+		jobId,
+		error: String(err),
+	} });
+}
+
+function _onAckTimeoutJobFound(
+	job: import("../types/job.types").Job | null,
+	jobId: string,
+	self: JobDispatcher
+): void {
+	if (!job || isTerminalStatus(job.status)) {
+		return;
+	}
+
+	self.decrementWorkerLoad(job.assignedWorkerId);
+
+	self._repository
+		.updateStatus(jobId, "orphaned")
+		.then(() => self._reAllocator.reallocate(job))
+		.catch((err) => {
+			logger.error("Failed to persist orphaned status on ACK timeout", {
+				jobId,
+				error: String(err),
+			});
+		});
+}
+
+export class JobDispatcher {
 }

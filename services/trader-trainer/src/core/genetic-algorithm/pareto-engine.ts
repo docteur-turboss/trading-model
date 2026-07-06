@@ -45,6 +45,20 @@ export function dominates(
 	);
 }
 
+function _comparePair(
+	i: number,
+	j: number,
+	objectives: ObjectiveVector[],
+	dominated: Int32Array,
+	dominates: number[][]
+): void {
+	if (dominates(objectives[i], objectives[j])) {
+		dominates[i].push(j);
+	} else if (dominates(objectives[j], objectives[i])) {
+		dominated[i]++;
+	}
+}
+
 function buildDominationMatrix(
 	objectives: ObjectiveVector[]
 ): { dominated: Int32Array; dominates: number[][] } {
@@ -54,11 +68,8 @@ function buildDominationMatrix(
 
 	for (let i = 0; i < length; i++) {
 		for (let j = 0; j < length; j++) {
-			if (i === j) continue;
-			if (dominates(objectives[i], objectives[j])) {
-				dominates[i].push(j);
-			} else if (dominates(objectives[j], objectives[i])) {
-				dominated[i]++;
+			if (i !== j) {
+				_comparePair(i, j, objectives, dominated, dominates);
 			}
 		}
 	}

@@ -83,23 +83,21 @@ export function parseCsrInfo(csrPem: string): {
 	publicKeyPem: string;
 } {
 	const csr = forge.pki.certificationRequestFromPem(csrPem);
-	const cn = csr.subject.getField("CN")?.value ?? "";
-	const san = _extractSanFromCsr(csr);
-	const publicKeyPem = csr.publicKey
-		? forge.pki.publicKeyToPem(csr.publicKey)
-		: "";
-	return { commonName: cn, san, publicKeyPem };
+	return {
+		commonName: csr.subject.getField("CN")?.value ?? "",
+		san: _extractSanFromCsr(csr),
+		publicKeyPem: csr.publicKey ? forge.pki.publicKeyToPem(csr.publicKey) : "",
+	};
 }
 
 function _extractSanFromCsr(
-	csr: ReturnType<typeof forge.pki.certificationRequestFromPem>
+	csr: ReturnType<typeof forge.pki.certificationRequestFromPem>,
 ): string[] {
 	const sanAttr = csr.getAttribute({ name: "extensionRequest" });
 	if (!sanAttr) {
 		return [];
 	}
-	const extensions = (sanAttr as unknown as { extensions: CsrExtension[] })
-		.extensions;
+	const extensions = (sanAttr as unknown as { extensions: CsrExtension[] }).extensions;
 	if (!extensions) {
 		return [];
 	}
