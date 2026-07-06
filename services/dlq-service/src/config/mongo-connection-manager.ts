@@ -55,7 +55,7 @@ export class MongoConnectionManager {
 		return dbInstance.database;
 	}
 
-	private _throwConnectError(lastError: Error | undefined): never {
+	private _throwConnectError(lastError: Error | null): never {
 		this._connected = false;
 		throw lastError ?? new Error("Failed to connect to MongoDB after retries");
 	}

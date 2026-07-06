@@ -1,43 +1,30 @@
 import type {
-	DeliveryType,
 	MessageMetadata as MetadataType,
-	RoutingType,
-	SecurityType,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
 import {
-	type CorrelationId,
 	type Topic,
-	toCorrelationId,
 	toTopic,
 } from "@trading-model/common/domain/primitives";
-import { AppError, metadataBuilderError } from "@trading-model/common/utils/errors";
+import { metadataBuilderError } from "@trading-model/common/utils/errors";
 
 import {
-	DELIVERY_METADATA_MODE_PREDICATE,
 	EVENT_TYPE_METADATA_PREDICATE,
-	IDS_METADATA_PREDICATE,
 	MESSAGE_METADATA_SCHEMA,
 	PUBLISHER_METADATA_CONTEXT_PREDICATE,
-	ROUTING_METADATA_CONTEXT_PREDICATE,
 	SCHEMA_METADATA_VERSION_PREDICATE,
-	SECURITY_METADATA_CONTEXT_PREDICATE,
 	TOPIC_METADATA_PREDICATE,
 } from "./message.schema";
+import { MessageContextMetadata } from "./message-context-metadata";
+import { MessageIdsMetadata } from "./message-ids-metadata";
 
-/**
- * Represents an metadata in a message
- */
 export class MessageMetadata {
 	public topic?: Topic;
-	public routing?: RoutingType;
-	public delivery?: DeliveryType;
-	public security?: SecurityType;
 	public eventType?: string;
 	public publisher?: ServiceIdentity;
 	public schemaVersion = "1.0.0";
-	private _causationId?: CorrelationId;
-	private _correlationId?: CorrelationId;
+	private readonly _context = new MessageContextMetadata();
+	private readonly _ids = new MessageIdsMetadata();
 
 	public constructor(data: Partial<MetadataType> = {}) {
 		MESSAGE_METADATA_SCHEMA.partial().parse(data);
@@ -58,46 +45,18 @@ export class MessageMetadata {
 		this.topic = topic!;
 		this.eventType = eventType!;
 		this.publisher = publisher!;
-		this.routing = routing;
-		this.delivery = delivery;
-		this.security = security;
-		this._causationId = causationId;
-		this._correlationId = correlationId;
+		this._context.assignFromData({ routing, delivery, security });
+		this._ids.assignFromData({ causationId, correlationId });
 	}
 
-	/**
-	 * @param context The context to set.
-	 */
-	public setSecurity(context: SecurityType | null): this {
-		if (context === null) {
-			this.security = undefined;
-			return this;
-		}
-
-		SECURITY_METADATA_CONTEXT_PREDICATE.parse(context);
-
-		this.security = context;
-		return this;
+	public setSecurity(context: import("@trading-model/common/contracts/message.types").SecurityType | null): this {
+		return this._context.setSecurity(context);
 	}
 
-	/**
-	 * @param context The context for the delivery mode
-	 */
-	public setDelivery(context: DeliveryType | null): this {
-		if (context === null) {
-			this.delivery = undefined;
-			return this;
-		}
-
-		DELIVERY_METADATA_MODE_PREDICATE.parse(context);
-
-		this.delivery = context;
-		return this;
+	public setDelivery(context: import("@trading-model/common/contracts/message.types").DeliveryType | null): this {
+		return this._context.setDelivery(context);
 	}
 
-	/**
-	 * @param context The context of the Author.
-	 */
 	public setPublisher(context: ServiceIdentity): this {
 		PUBLISHER_METADATA_CONTEXT_PREDICATE.parse(context);
 
@@ -105,25 +64,10 @@ export class MessageMetadata {
 		return this;
 	}
 
-	/**
-	 * @param context The routing context  of the message
-	 */
-	public setRouting(context: RoutingType | null): this {
-		if (context === null) {
-			this.routing = undefined;
-			return this;
-		}
-
-		// Data assertions
-		ROUTING_METADATA_CONTEXT_PREDICATE.parse(context);
-
-		this.routing = context;
-		return this;
+	public setRouting(context: import("@trading-model/common/contracts/message.types").RoutingType | null): this {
+		return this._context.setRouting(context);
 	}
 
-	/**
-	 * @param version The version
-	 */
 	public setSchemaVersion(version: string | null): this {
 		if (version === null) {
 			this.schemaVersion = "1.0.0";
@@ -136,55 +80,27 @@ export class MessageMetadata {
 		return this;
 	}
 
-	/**
-	 * @param event The event of this message
-	 */
 	public setEventType(event: string): this {
-		// Data assertions
 		EVENT_TYPE_METADATA_PREDICATE.parse(event);
 
 		this.eventType = event;
 		return this;
 	}
 
-	/**
-	 * @param topic The topic of the message
-	 */
 	public setTopic(topic: string): this {
-		// Data assertions
 		TOPIC_METADATA_PREDICATE.parse(topic);
 
 		this.topic = toTopic(topic);
 		return this;
 	}
 
-	/**
-	 * @param context - Object with optional causationId and/or correlationId, or null to clear both
-	 */
 	public setIds(
 		context: {
 			causationId?: string;
 			correlationId?: string;
 		} | null
 	): this {
-		if (context === null) {
-			this._causationId = undefined;
-			this._correlationId = undefined;
-			return this;
-		}
-
-		// Data assertions
-		if (context.causationId) {
-			IDS_METADATA_PREDICATE.parse(context?.causationId);
-			this._causationId = toCorrelationId(context.causationId);
-		}
-
-		if (context.correlationId) {
-			IDS_METADATA_PREDICATE.parse(context?.correlationId);
-			this._correlationId = toCorrelationId(context.correlationId);
-		}
-
-		return this;
+		return this._ids.setIds(context);
 	}
 
 	private _assertRequiredFields(): void {
@@ -199,9 +115,6 @@ export class MessageMetadata {
 		}
 	}
 
-	/**
-	 * Transforms the embed to a plain object
-	 */
 	public toJSON(): MetadataType {
 		this._assertRequiredFields();
 		return this._buildMetadata();
@@ -213,11 +126,11 @@ export class MessageMetadata {
 			publisher: this.publisher!,
 			schemaVersion: this.schemaVersion,
 			topic: this.topic!,
-			causationId: this._causationId,
-			correlationId: this._correlationId,
-			delivery: this.delivery,
-			routing: this.routing,
-			security: this.security,
+			causationId: this._ids.causationId,
+			correlationId: this._ids.correlationId,
+			delivery: this._context.delivery,
+			routing: this._context.routing,
+			security: this._context.security,
 		};
 	}
 }
