@@ -75,15 +75,15 @@ function IntervalSelect({
 			size="small"
 			select
 			value={value}
-			onChange={(evt) => onChange(evt.target.value)}
+			onChange={(evt) => onChange(evt.target.value as CandleInterval)}
 			sx={{ minWidth: 100 }}
 		>
-			<MenuItem value="1m">1 Minute</MenuItem>
-			<MenuItem value="5m">5 Minutes</MenuItem>
-			<MenuItem value="15m">15 Minutes</MenuItem>
-			<MenuItem value="1h">1 Hour</MenuItem>
-			<MenuItem value="4h">4 Hours</MenuItem>
-			<MenuItem value="1d">1 Day</MenuItem>
+			<MenuItem value={CandleInterval.MIN1}>1 Minute</MenuItem>
+			<MenuItem value={CandleInterval.MIN5}>5 Minutes</MenuItem>
+			<MenuItem value={CandleInterval.MIN15}>15 Minutes</MenuItem>
+			<MenuItem value={CandleInterval.H1}>1 Hour</MenuItem>
+			<MenuItem value={CandleInterval.H4}>4 Hours</MenuItem>
+			<MenuItem value={CandleInterval.D1}>1 Day</MenuItem>
 		</TextField>
 	);
 }
@@ -382,8 +382,8 @@ export function MarketData() {
 	const [candleInterval, setCandleInterval] = useState<CandleInterval>(CandleInterval.H1);
 	const [tab, setTab] = useState(0);
 	const { data: candles, loading } = useApi(
-		() => API_CLIENT.getCandles(symbol, interval),
-		[symbol, interval]
+		() => API_CLIENT.getCandles(symbol, candleInterval),
+		[symbol, candleInterval]
 	);
 	const { chartData, lastPrice, change } = computePriceChange(candles);
 
@@ -396,8 +396,8 @@ export function MarketData() {
 			<MarketDataToolbar
 				symbol={symbol}
 				onSymbolChange={setSymbol}
-				interval={interval}
-				onIntervalChange={setInterval}
+				interval={candleInterval}
+				onIntervalChange={setCandleInterval}
 			/>
 
 			<MarketDataStats lastPrice={lastPrice} change={change} />
