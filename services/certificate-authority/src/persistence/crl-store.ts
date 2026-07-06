@@ -27,6 +27,10 @@ export class CrlStore {
 		await this._collection.insertOne(entry);
 	}
 
+	async save(entry: RevokedCertificate): Promise<void> {
+		await this.add(entry);
+	}
+
 	async getAll(): Promise<RevokedCertificate[]> {
 		const docs = await this._collection.find().toArray();
 		return docs as unknown as RevokedCertificate[];

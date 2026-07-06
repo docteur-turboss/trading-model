@@ -38,7 +38,7 @@ function _finalizeEpisodeReward(
 	epReward: number
 ): number {
 	if (rShape.sparse) {
-		epReward = backend.getPnL();
+		epReward = +backend.getPnL();
 	}
 	backend.resetEpisode();
 	return epReward;

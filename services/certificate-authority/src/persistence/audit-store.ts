@@ -85,6 +85,14 @@ export class AuditStore {
 		}
 	}
 
+	async add(entry: AuditEntry): Promise<void> {
+		await this.log(entry);
+	}
+
+	async save(entry: AuditEntry): Promise<void> {
+		await this.log(entry);
+	}
+
 	async log(entry: AuditEntry): Promise<void> {
 		if (!((await this._ensureMongo()) && this._collection)) {
 			this._buffer.buffer(entry);

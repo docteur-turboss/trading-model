@@ -29,6 +29,10 @@ export class CertificateStore {
 		await this._collection.insertOne(cert);
 	}
 
+	async add(cert: SignedCertificate): Promise<void> {
+		await this.save(cert);
+	}
+
 	async getBySerial(serialNumber: string): Promise<SignedCertificate | null> {
 		const doc = await this._collection.findOne({ serialNumber });
 		return doc as unknown as SignedCertificate | null;

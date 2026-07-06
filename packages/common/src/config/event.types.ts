@@ -1,4 +1,5 @@
-import type { InstanceId, Price, ServiceId, TradingSymbol, UnixTimestamp, Volume } from "../domain/primitives";
+import { Price, Volume } from "../domain/primitives";
+import type { InstanceId, ServiceId, TradingSymbol, UnixTimestamp } from "../domain/primitives";
 import type { ServiceInstanceName } from "./services.types";
 import type { RevocationReason } from "../domain/revocation-request";
 
@@ -108,43 +109,43 @@ export interface TickerData extends BaseMarketData {
 }
 
 /** Compute a price-weighted average bid from an order book. */
-export function getAvgBid(orderBook: OrderBookData): number {
+export function getAvgBid(orderBook: OrderBookData): Price {
 	let totalQty = 0;
 	let totalValue = 0;
 	for (const { price, quantity } of orderBook.bids) {
 		totalValue += +price * +quantity;
 		totalQty += +quantity;
 	}
-	return totalQty > 0 ? totalValue / totalQty : 0;
+	return Price.of(totalQty > 0 ? totalValue / totalQty : 0);
 }
 
 /** Compute a price-weighted average ask from an order book. */
-export function getAvgAsk(orderBook: OrderBookData): number {
+export function getAvgAsk(orderBook: OrderBookData): Price {
 	let totalQty = 0;
 	let totalValue = 0;
 	for (const { price, quantity } of orderBook.asks) {
 		totalValue += +price * +quantity;
 		totalQty += +quantity;
 	}
-	return totalQty > 0 ? totalValue / totalQty : 0;
+	return Price.of(totalQty > 0 ? totalValue / totalQty : 0);
 }
 
 /** Total quantity available on the bid side of an order book. */
-export function getBidTotalQty(orderBook: OrderBookData): number {
+export function getBidTotalQty(orderBook: OrderBookData): Volume {
 	let total = 0;
 	for (const { quantity } of orderBook.bids) {
 		total += +quantity;
 	}
-	return total;
+	return Volume.of(total);
 }
 
 /** Total quantity available on the ask side of an order book. */
-export function getAskTotalQty(orderBook: OrderBookData): number {
+export function getAskTotalQty(orderBook: OrderBookData): Volume {
 	let total = 0;
 	for (const { quantity } of orderBook.asks) {
 		total += +quantity;
 	}
-	return total;
+	return Volume.of(total);
 }
 
 /** Named references for all known event message keys. */

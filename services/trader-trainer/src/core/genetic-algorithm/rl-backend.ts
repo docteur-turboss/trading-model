@@ -11,7 +11,7 @@ export interface RLBackend {
 	train(experience: Experience, gamma: number): void;
 	getWeights(): Float32Array;
 	setWeights(weights: Float32Array): void;
-	getPnL(): number;
+	getPnL(): Cash;
 	resetEpisode(): void;
 	getExperiencePool(): Experience[];
 }

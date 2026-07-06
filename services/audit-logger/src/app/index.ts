@@ -83,10 +83,10 @@ createBootstrap({
 		});
 	},
 	onStop: async () => {
-		await _brokerMessage.stopMessageManager();
-		_scheduler.stop();
-		_workerProtocol.close();
-		_addressManager.stop();
-		await _mongoClient.close();
+		await _brokerMessage?.stopMessageManager();
+		_scheduler?.stop();
+		_workerProtocol?.close();
+		_addressManager?.stop();
+		await _mongoClient?.close();
 	},
 });

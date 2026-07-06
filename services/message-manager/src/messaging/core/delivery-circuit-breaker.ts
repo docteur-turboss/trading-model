@@ -1,3 +1,4 @@
+import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { Message } from "@trading-model/common/contracts/message.types";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 import { logger } from "../../config/logger";
@@ -33,7 +34,7 @@ export class DeliveryCircuitBreaker {
 		return !this.isOpen();
 	}
 
-	getState(): string {
+	getState(): CircuitState {
 		return this.isOpen() ? "open" : "closed";
 	}
 
