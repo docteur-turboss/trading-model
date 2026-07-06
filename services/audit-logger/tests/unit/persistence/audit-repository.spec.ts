@@ -183,8 +183,10 @@ describe("AuditRepository", () => {
 
 			expect(MOCK_COLLECTION.countDocuments).toHaveBeenCalled();
 			expect(result).toMatchObject({
-				data: [expect.any(Object)],
-				pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+				docs: [expect.any(Object)],
+				page: 1,
+				limit: 10,
+				total: 1,
 			});
 		});
 
@@ -253,8 +255,10 @@ describe("AuditRepository", () => {
 			const result = await repository.query({});
 
 			expect(result).toMatchObject({
-				data: [],
-				pagination: { page: 1, limit: 100, total: 0, totalPages: 0 },
+				docs: [],
+				page: 1,
+				limit: 100,
+				total: 0,
 			});
 		});
 	});

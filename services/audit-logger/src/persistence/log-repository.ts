@@ -105,12 +105,7 @@ export class LogRepository {
 		await col.insertMany(docs as never[], { ordered: false });
 	}
 
-	async query(params: LogQuery): Promise<{
-		docs: ServiceLogDocument[];
-		total: number;
-		page: number;
-		limit: number;
-	}> {
+	async query(params: LogQuery): Promise<PaginationResult<ServiceLogDocument>> {
 		const col = await this._getCollection();
 		const filter = this._buildLogFilter(params);
 
