@@ -1,5 +1,5 @@
 import type { ServiceInstance } from "../client/type";
-import type { CircuitState } from "./service-cache.interface";
+import type { CircuitState, IServiceCache } from "./service-cache.interface";
 import type { CacheEntry } from "./type";
 
 class SimpleMutex {
@@ -17,7 +17,7 @@ class SimpleMutex {
 	}
 }
 
-export class ServiceCache {
+export class ServiceCache implements IServiceCache {
 	private readonly _ttlMs: number;
 	private readonly _cache: Map<string, CacheEntry>;
 	private readonly _mutex = new SimpleMutex();
@@ -55,7 +55,7 @@ export class ServiceCache {
 		}
 	}
 
-	async get(serviceName: string): Promise<ServiceInstance | null> {
+	async get(serviceName: string, _region?: string): Promise<ServiceInstance | null> {
 		return this._withLock(() => this._getEntry(serviceName));
 	}
 
@@ -85,7 +85,7 @@ export class ServiceCache {
 	 * cache.set("user-service", instance);
 	 * ```
 	 */
-	async set(serviceName: string, instance: ServiceInstance): Promise<void> {
+	async set(serviceName: string, instance: ServiceInstance, _region?: string, _version?: number): Promise<void> {
 		return this._withLock(() => {
 			this._cache.set(serviceName, {
 				instance,
@@ -94,7 +94,7 @@ export class ServiceCache {
 		});
 	}
 
-	async invalidate(serviceName: string): Promise<void> {
+	async invalidate(serviceName: string, _region?: string): Promise<void> {
 		return this._withLock(() => {
 			this._cache.delete(serviceName);
 		});
