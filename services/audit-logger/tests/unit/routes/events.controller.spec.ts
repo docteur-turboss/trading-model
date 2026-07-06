@@ -34,8 +34,10 @@ describe("EventsController", () => {
 	describe("listEvents", () => {
 		it("should return paginated events with query params", async () => {
 			const mockResult = {
-				data: [],
-				pagination: { page: 1, limit: 100, total: 0, totalPages: 0 },
+				docs: [],
+				total: 0,
+				page: 1,
+				limit: 100,
 			};
 			mockRepo.query.mockResolvedValue(mockResult);
 
@@ -59,8 +61,10 @@ describe("EventsController", () => {
 
 		it("should parse date params", async () => {
 			mockRepo.query.mockResolvedValue({
-				data: [],
-				pagination: { page: 1, limit: 100, total: 0, totalPages: 0 },
+				docs: [],
+				total: 0,
+				page: 1,
+				limit: 100,
 			});
 
 			await controller.listEvents(
@@ -78,8 +82,10 @@ describe("EventsController", () => {
 
 		it("should handle missing query params gracefully", async () => {
 			mockRepo.query.mockResolvedValue({
-				data: [],
-				pagination: { page: 1, limit: 100, total: 0, totalPages: 0 },
+				docs: [],
+				total: 0,
+				page: 1,
+				limit: 100,
 			});
 
 			const result = await controller.listEvents(

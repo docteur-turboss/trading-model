@@ -3,6 +3,7 @@ import type {
 	ServiceEndpoint,
 	ServiceIdentity,
 } from "../domain/service-identity";
+import type { TokenValidation } from "../domain/token-validation";
 
 export type Protocol = "http" | "https" | "mtls";
 
