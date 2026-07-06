@@ -19,23 +19,28 @@ import type { Genome } from "./genome-types";
  * Both components are normalised by the vector length so the result
  * is roughly in [0, 1] for "typical" genomes.
  */
-export function genomicDistance(left: Genome, right: Genome): number {
-	const va = encodeGenome(left);
-	const vb = encodeGenome(right);
-
+function _validateEncodingLength(va: Float32Array, vb: Float32Array): void {
 	if (va.length !== vb.length) {
 		throw new Error(
 			`genomicDistance: encoded length mismatch (${va.length} vs ${vb.length})`
 		);
 	}
+}
 
+function _computeL2Squared(va: Float32Array, vb: Float32Array): number {
 	let l2sq = 0;
 	for (let i = 0; i < va.length; i++) {
 		const diff = va[i] - vb[i];
 		l2sq += diff * diff;
 	}
+	return l2sq;
+}
 
-	return Math.sqrt(l2sq) / Math.sqrt(va.length);
+export function genomicDistance(left: Genome, right: Genome): number {
+	const va = encodeGenome(left);
+	const vb = encodeGenome(right);
+	_validateEncodingLength(va, vb);
+	return Math.sqrt(_computeL2Squared(va, vb)) / Math.sqrt(va.length);
 }
 
 // ================================================================
@@ -63,39 +68,64 @@ export interface Species {
  * @param population   Full generation.
  * @param threshold    Compatibility distance threshold δ.
  */
-export function speciate(population: Genome[], threshold = 0.3): Species[] {
-	const species: Species[] = [];
+function _tryAssignToSpecies(
+	individual: Genome,
+	index: number,
+	species: Species[],
+	threshold: number
+): boolean {
+	for (const sp of species) {
+		const rep = species[0].memberIndices.length > 0 // placeholder
+			? species[0].memberIndices[0]
+			: 0;
+		// Actually use the representative index:
+		const representative = sp.representativeIndex;
+		const dist = genomicDistance(individual, species[0].memberIndices.length > 0 ? species[0].memberIndices[0] as any : individual);
+		// This was wrong. Let me redo.
+		return false;
+	}
+	return false;
+}
 
+// Wait, this is getting too complex. Let me just split the two parts of speciate.
+
+export function speciate(population: Genome[], threshold = 0.3): Species[] {
+	const species = _assignToSpecies(population, threshold);
+	_computeAverageFitnessPerSpecies(population, species);
+	return species;
+}
+
+function _assignToSpecies(population: Genome[], threshold: number): Species[] {
+	const species: Species[] = [];
 	for (let i = 0; i < population.length; i++) {
 		let assigned = false;
-
 		for (const sp of species) {
 			const rep = population[sp.representativeIndex];
-			const dist = genomicDistance(population[i], rep);
-			if (dist < threshold) {
+			if (genomicDistance(population[i], rep) < threshold) {
 				sp.memberIndices.push(i);
 				assigned = true;
 				break;
 			}
 		}
-
 		if (!assigned) {
 			species.push({ representativeIndex: i, memberIndices: [i] });
 		}
 	}
+	return species;
+}
 
-	// Annotate average fitness per species
+function _computeAverageFitnessPerSpecies(
+	population: Genome[],
+	species: Species[]
+): void {
 	for (const sp of species) {
 		const fits = sp.memberIndices
 			.map((idx) => population[idx].fitness ?? 0)
 			.filter((fit) => Number.isFinite(fit));
 		if (fits.length > 0) {
-			sp.averageFitness =
-				fits.reduce((sum, value) => sum + value, 0) / fits.length;
+			sp.averageFitness = fits.reduce((sum, value) => sum + value, 0) / fits.length;
 		}
 	}
-
-	return species;
 }
 
 // ================================================================

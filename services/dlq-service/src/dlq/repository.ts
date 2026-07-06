@@ -59,6 +59,18 @@ export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 	};
 }
 
+function _serializeEntry(entry: DlqEntry): string {
+	return JSON.stringify({
+		topic: entry.topic,
+		message: entry.message,
+		reason: entry.reason,
+	});
+}
+
+function _sha256Hex(input: string): string {
+	return createHash("sha256").update(input).digest("hex");
+}
+
 export class DlqRepository {
 	async add(entry: DlqEntry): Promise<string> {
 		const col = await getCollection();
@@ -97,21 +109,6 @@ export class DlqRepository {
 		const contentHash = _sha256Hex(serialized);
 		return { messageId, contentHash, serialized };
 	}
-}
-
-function _serializeEntry(entry: DlqEntry): string {
-	return JSON.stringify({
-		topic: entry.topic,
-		message: entry.message,
-		reason: entry.reason,
-	});
-}
-
-function _sha256Hex(input: string): string {
-	return createHash("sha256").update(input).digest("hex");
-}
-
-export class DlqRepository {
 
 	private async _checkPingPong(
 		options: PingPongCheck
@@ -207,9 +204,7 @@ export class DlqRepository {
 
 	async delete(ids: string[]): Promise<number> {
 		const col = await getCollection();
-		const objectIds = ids
-			.filter((id) => ObjectId.isValid(id))
-			.map((id) => new ObjectId(id));
+		const objectIds = _toValidObjectIds(ids);
 		if (objectIds.length === 0) {
 			return 0;
 		}
@@ -227,26 +222,11 @@ export class DlqRepository {
 
 	async prune(maxEntries: number): Promise<number> {
 		const col = await getCollection();
-		const docs = await col
-			.find(
-				{},
-				{
-					sort: { createdAt: -1 },
-					skip: maxEntries,
-					limit: 1,
-					projection: { createdAt: 1 },
-				}
-			)
-			.toArray();
+		const docs = await _findEldestDocs(col, maxEntries);
 		if (docs.length === 0) {
 			return 0;
 		}
-		const eldestToKeep = docs[0].createdAt;
-		const result = await col.deleteMany({
-			createdAt: { $lt: eldestToKeep },
-			processingAt: { $exists: false },
-		});
-		return result.deletedCount;
+		return _deleteOlderThan(col, docs[0].createdAt);
 	}
 
 	async listQueuable(): Promise<string[]> {
@@ -282,6 +262,40 @@ export class DlqRepository {
 			.toArray();
 		return docs.map((doc) => doc._id.toHexString());
 	}
+}
+
+function _toValidObjectIds(ids: string[]): ObjectId[] {
+	return ids
+		.filter((id) => ObjectId.isValid(id))
+		.map((id) => new ObjectId(id));
+}
+
+async function _findEldestDocs(
+	col: import("mongodb").Collection,
+	maxEntries: number
+): Promise<Array<{ createdAt: unknown }>> {
+	return col
+		.find(
+			{},
+			{
+				sort: { createdAt: -1 },
+				skip: maxEntries,
+				limit: 1,
+				projection: { createdAt: 1 },
+			}
+		)
+		.toArray() as Promise<Array<{ createdAt: unknown }>>;
+}
+
+async function _deleteOlderThan(
+	col: import("mongodb").Collection,
+	eldestToKeep: unknown
+): Promise<number> {
+	const result = await col.deleteMany({
+		createdAt: { $lt: eldestToKeep },
+		processingAt: { $exists: false },
+	});
+	return result.deletedCount;
 }
 
 export const dlqRepository = new DlqRepository();

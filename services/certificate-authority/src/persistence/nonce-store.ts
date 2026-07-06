@@ -43,36 +43,35 @@ export class NonceStore {
 		this._startCleanup();
 	}
 
+	private async _resolveNonceDb(): Promise<Db> {
+		if (MONGO_MANAGER.isInitialized()) {
+			return MONGO_MANAGER.getDb();
+		}
+		const client = new MongoClient(this._mongoUri!);
+		await client.connect();
+		return client.db();
+	}
+
+	private async _createNonceIndexes(): Promise<void> {
+		await this._collection!.createIndex({ nonce: 1 }, { unique: true });
+		await this._collection!.createIndex(
+			{ createdAt: 1 },
+			{ expireAfterSeconds: Math.ceil(this._ttlMs / 1000) }
+		);
+	}
+
 	async connect(): Promise<void> {
 		if (!this._mongoUri) {
 			return;
 		}
 		try {
-			let db: Db;
-			if (MONGO_MANAGER.isInitialized()) {
-				db = MONGO_MANAGER.getDb();
-			} else {
-				const client = new MongoClient(this._mongoUri);
-				await client.connect();
-				db = client.db();
-			}
+			const db = await this._resolveNonceDb();
 			this._collection = db.collection<NonceDocument>("nonces");
-			await this._collection.createIndex({ nonce: 1 }, { unique: true });
-			await this._collection.createIndex(
-				{ createdAt: 1 },
-				{ expireAfterSeconds: Math.ceil(this._ttlMs / 1000) }
-			);
+			await this._createNonceIndexes();
 			await this._loadFromMongo();
-			logger.info("NonceStore connected to MongoDB", {
-				context: {
-					existingNonces: this._l1.size,
-				},
-			});
+			logger.info("NonceStore connected to MongoDB", { context: { existingNonces: this._l1.size } });
 		} catch (err) {
-			logger.warn(
-				"NonceStore MongoDB connection failed, operating in memory-only mode",
-				{ context: { err } }
-			);
+			logger.warn("NonceStore MongoDB connection failed, operating in memory-only mode", { context: { err } });
 			this._collection = null;
 		}
 	}
@@ -86,22 +85,22 @@ export class NonceStore {
 	 * Generates a cryptographically random nonce for a given service.
 	 * @returns The nonce string that the client must sign.
 	 */
+	private async _persistNonce(nonce: string, serviceId: string, createdAt: number): Promise<void> {
+		try {
+			await this._collection!.insertOne({ nonce, serviceId, createdAt: new Date(createdAt) });
+		} catch (err) {
+			logger.warn("Failed to persist nonce to MongoDB", { context: { err } });
+			const error = new Error("Failed to persist nonce");
+			(error as { cause?: unknown }).cause = err;
+			throw error;
+		}
+	}
+
 	async generate(serviceId: string): Promise<string> {
 		const nonce = randomBytes(32).toString("hex");
 		const entry: NonceEntry = { nonce, serviceId, createdAt: Date.now() };
 		if (this._collection) {
-			try {
-				await this._collection.insertOne({
-					nonce,
-					serviceId,
-					createdAt: new Date(entry.createdAt),
-				});
-			} catch (err) {
-				logger.warn("Failed to persist nonce to MongoDB", { context: { err } });
-				const error = new Error("Failed to persist nonce");
-				(error as { cause?: unknown }).cause = err;
-				throw error;
-			}
+			await this._persistNonce(nonce, serviceId, entry.createdAt);
 		}
 		this._l1.set(nonce, entry);
 		return nonce;

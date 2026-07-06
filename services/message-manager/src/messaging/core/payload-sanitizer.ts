@@ -28,19 +28,30 @@ export function sanitizePayload(value: unknown, depth = 0): unknown {
 	}
 
 	if (Array.isArray(value)) {
-		return value.map((item) => sanitizePayload(item, depth + 1));
+		return sanitizeArray(value, depth);
 	}
 
 	if (typeof value === "object" && value !== null) {
-		const sanitized: Record<string, unknown> = {};
-		for (const [key, val] of Object.entries(value)) {
-			if (key.startsWith("$") && MONGODB_OPERATORS.has(key)) {
-				throw new Error(`Blocked operator in payload key: ${key}`);
-			}
-			sanitized[key] = sanitizePayload(val, depth + 1);
-		}
-		return sanitized;
+		return sanitizeObject(value as Record<string, unknown>, depth);
 	}
 
 	return value;
+}
+
+function sanitizeArray(value: unknown[], depth: number): unknown[] {
+	return value.map((item) => sanitizePayload(item, depth + 1));
+}
+
+function sanitizeObject(
+	value: Record<string, unknown>,
+	depth: number
+): Record<string, unknown> {
+	const sanitized: Record<string, unknown> = {};
+	for (const [key, val] of Object.entries(value)) {
+		if (key.startsWith("$") && MONGODB_OPERATORS.has(key)) {
+			throw new Error(`Blocked operator in payload key: ${key}`);
+		}
+		sanitized[key] = sanitizePayload(val, depth + 1);
+	}
+	return sanitized;
 }

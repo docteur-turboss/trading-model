@@ -52,23 +52,37 @@ export class RegistrationManager {
 
 	async tryStickyRegistration(): Promise<void> {
 		const existingToken = this._tokenManager.getTokenOrNull();
-		if (existingToken) {
-			logger.info(
-				"Sticky registration: found existing token, attempting heartbeat to validate"
-			);
-			try {
-				await this._addressManagerClient.refreshTTL();
-				logger.info(
-					"Sticky registration: heartbeat succeeded with existing token, registration valid"
-				);
-				return;
-			} catch {
-				logger.warn(
-					"Sticky registration: heartbeat with existing token failed, re-registering"
-				);
-			}
+		if (!existingToken) {
+			return this._retryRegistration();
 		}
-		return this._retryRegistration();
+		logger.info(
+			"Sticky registration: found existing token, attempting heartbeat to validate",
+		);
+		try {
+			await this._addressManagerClient.refreshTTL();
+			logger.info(
+				"Sticky registration: heartbeat succeeded with existing token, registration valid",
+			);
+		} catch {
+			logger.warn(
+				"Sticky registration: heartbeat with existing token failed, re-registering",
+			);
+			return this._retryRegistration();
+		}
+	}
+
+	private _computeJitteredDelay(attempt: number): number {
+		const baseDelay = Math.min(
+			REGISTRATION_BASE_DELAY_MS * 2 ** attempt,
+			REGISTRATION_MAX_DELAY_MS,
+		);
+		return baseDelay + Math.random() * 1000;
+	}
+
+	private async _handleRegistrationSuccess(res: { token: string }): Promise<void> {
+		this._onSuccess?.();
+		this._tokenManager.setToken(res.token);
+		this._wsClient?.updateToken(res.token);
 	}
 
 	private async _retryRegistration(): Promise<void> {
@@ -76,45 +90,37 @@ export class RegistrationManager {
 			if (!this._shouldRetryRegistration) {
 				return;
 			}
-
-			try {
-				const res = await this._addressManagerClient.registerService();
-				if (!res?.token) {
-					throw new Error("Registration response missing token");
-				}
-				this._onSuccess?.();
-				this._tokenManager.setToken(res.token);
-				this._wsClient?.updateToken(res.token);
+			if (await this._tryRegister(attempt)) {
 				return;
-			} catch (error) {
-				this._onFailure?.();
-				logger.error("Service registration failed", {
-					attempt,
-					maxRetries: MAX_REGISTRATION_RETRIES,
-					error: normalizeError(error),
-				});
-
-				if (attempt < MAX_REGISTRATION_RETRIES) {
-					const baseDelay = Math.min(
-						REGISTRATION_BASE_DELAY_MS * 2 ** attempt,
-						REGISTRATION_MAX_DELAY_MS
-					);
-					const jitter = Math.random() * 1000;
-					await Promise.race([
-						sleep(baseDelay + jitter),
-						this._createStopWait(),
-					]);
-					if (!this._shouldRetryRegistration) {
-						return;
-					}
-				}
 			}
 		}
-
-		logger.warn(
-			"Max registration retries exhausted — entering background retry mode"
-		);
+		logger.warn("Max registration retries exhausted — entering background retry mode");
 		return this._backgroundRetryRegistration();
+	}
+
+	private async _tryRegister(attempt: number): Promise<boolean> {
+		try {
+			const res = await this._addressManagerClient.registerService();
+			if (!res?.token) {
+				throw new Error("Registration response missing token");
+			}
+			await this._handleRegistrationSuccess(res);
+			return true;
+		} catch (error) {
+			this._onFailure?.();
+			logger.error("Service registration failed", {
+				attempt,
+				maxRetries: MAX_REGISTRATION_RETRIES,
+				error: normalizeError(error),
+			});
+			if (attempt < MAX_REGISTRATION_RETRIES) {
+				await Promise.race([
+					sleep(this._computeJitteredDelay(attempt)),
+					this._createStopWait(),
+				]);
+			}
+			return false;
+		}
 	}
 
 	private _createStopWait(): Promise<void> {
@@ -132,39 +138,40 @@ export class RegistrationManager {
 
 	private async _backgroundRetryRegistration(): Promise<void> {
 		let backgroundAttempts = 0;
-
 		while (this._shouldRetryRegistration) {
 			backgroundAttempts++;
-
-			try {
-				const res = await this._addressManagerClient.registerService();
-				if (!res?.token) {
-					throw new Error("Registration response missing token");
-				}
-				this._onSuccess?.();
-				this._tokenManager.setToken(res.token);
-				this._wsClient?.updateToken(res.token);
-				logger.info(
-					"Service re-registered successfully during background retry"
-				);
+			if (await this._tryBackgroundRegister(backgroundAttempts)) {
 				return;
-			} catch (error) {
-				this._onFailure?.();
-				logger.error("Background registration retry failed", {
-					error: normalizeError(error),
-					attempt: backgroundAttempts,
-				});
 			}
-
-			const jitteredInterval =
-				REGISTRATION_BACKGROUND_RETRY_INTERVAL_MS + Math.random() * 5000;
-			await Promise.race([sleep(jitteredInterval), this._createStopWait()]);
-
-			await new Promise<void>((resolve) => setImmediate(resolve));
+			await this._waitForBackgroundRetry();
 		}
-
 		throw new AddressManagerError(
-			"Service registration failed � service stopped during background retry"
+			"Service registration failed — service stopped during background retry",
 		);
+	}
+
+	private async _tryBackgroundRegister(attempt: number): Promise<boolean> {
+		try {
+			const res = await this._addressManagerClient.registerService();
+			if (!res?.token) {
+				throw new Error("Registration response missing token");
+			}
+			await this._handleRegistrationSuccess(res);
+			logger.info("Service re-registered successfully during background retry");
+			return true;
+		} catch (error) {
+			this._onFailure?.();
+			logger.error("Background registration retry failed", {
+				error: normalizeError(error),
+				attempt,
+			});
+			return false;
+		}
+	}
+
+	private async _waitForBackgroundRetry(): Promise<void> {
+		const jitteredInterval = REGISTRATION_BACKGROUND_RETRY_INTERVAL_MS + Math.random() * 5000;
+		await Promise.race([sleep(jitteredInterval), this._createStopWait()]);
+		await new Promise<void>((resolve) => setImmediate(resolve));
 	}
 }
