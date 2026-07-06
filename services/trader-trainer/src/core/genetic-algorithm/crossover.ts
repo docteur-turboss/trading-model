@@ -311,17 +311,12 @@ function crossoverRL(
 	};
 }
 
-function _makeCoin<TValue>(rng: () => number): (valueA: TValue, valueB: TValue) => TValue {
-	return (valueA: TValue, valueB: TValue): TValue =>
-		rng() < 0.5 ? valueA : valueB;
-}
-
 function crossoverMutation(
 	left: MutationGenome,
 	right: MutationGenome,
 	rng: () => number
 ): MutationGenome {
-	const coin = _makeCoin(rng);
+	const coin = <TValue>(valueA: TValue, valueB: TValue): TValue => rng() < 0.5 ? valueA : valueB;
 	return {
 		rate: coin(left.rate, right.rate),
 		sigma: coin(left.sigma, right.sigma),

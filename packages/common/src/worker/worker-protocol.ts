@@ -21,53 +21,54 @@ export class WorkerProtocol {
 	constructor(
 		server: https.Server,
 		private readonly _workerRegistry: WorkerRegistry,
-		private readonly _onWorkerDisconnect: (workerId: string) => void
+		private readonly _onWorkerDisconnect: (workerId: string) => void,
 	) {
 		this._wss = new WebSocketServer({ server });
+		this._handlers = this._buildHandlerMap();
+		this._wss.on("connection", (ws: WebSocket) => this._onConnection(ws));
+	}
 
-		this._handlers = {
+	private _buildHandlerMap(): Partial<
+		Record<WorkerIncomingMessage["type"], (message: WorkerIncomingMessage, ws?: WebSocket) => void>
+	> {
+		return {
 			register: (msg, ws) =>
-				this._handleRegister(
-					msg as Parameters<typeof this._handleRegister>[0],
-					ws!
-				),
+				this._handleRegister(msg as Parameters<typeof this._handleRegister>[0], ws!),
 			heartbeat: (msg) =>
-				this._handleHeartbeat(
-					msg as Parameters<typeof this._handleHeartbeat>[0]
-				),
+				this._handleHeartbeat(msg as Parameters<typeof this._handleHeartbeat>[0]),
 			disconnect: (msg) =>
-				this._handleDisconnect(
-					msg as Parameters<typeof this._handleDisconnect>[0]
-				),
+				this._handleDisconnect(msg as Parameters<typeof this._handleDisconnect>[0]),
 		};
+	}
 
-		this._wss.on("connection", (ws: WebSocket) => {
-			ws.on("message", (data: WebSocket.Data) => {
-				try {
-					const message: WorkerIncomingMessage = JSON.parse(data.toString());
-					const handler = this._handlers[message.type];
-					if (handler) {
-						handler(message, ws);
-					}
-				} catch (err) {
-					logger.error("Invalid WebSocket message from worker", {
-						context: {
-							error: err instanceof Error ? err.message : String(err),
-						},
-					});
-				}
+	private _onConnection(ws: WebSocket): void {
+		ws.on("message", (data: WebSocket.Data) => this._onWsMessage(ws, data));
+		ws.on("close", () => this._onWsClose(ws));
+	}
+
+	private _onWsMessage(ws: WebSocket, data: WebSocket.Data): void {
+		try {
+			const message: WorkerIncomingMessage = JSON.parse(data.toString());
+			const handler = this._handlers[message.type];
+			if (handler) {
+				handler(message, ws);
+			}
+		} catch (err) {
+			logger.error("Invalid WebSocket message from worker", {
+				context: { error: err instanceof Error ? err.message : String(err) },
 			});
-			ws.on("close", () => {
-				for (const [workerId, conn] of this._connections) {
-					if (conn === ws) {
-						this._connections.delete(workerId);
-						this._workerRegistry.setStatus(workerId, "draining");
-						this._onWorkerDisconnect(workerId);
-						break;
-					}
-				}
-			});
-		});
+		}
+	}
+
+	private _onWsClose(ws: WebSocket): void {
+		for (const [workerId, conn] of this._connections) {
+			if (conn === ws) {
+				this._connections.delete(workerId);
+				this._workerRegistry.setStatus(workerId, "draining");
+				this._onWorkerDisconnect(workerId);
+				break;
+			}
+		}
 	}
 
 	private _handleRegister(

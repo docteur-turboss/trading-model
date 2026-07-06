@@ -51,18 +51,19 @@ export class WorkerRegistry {
 		}
 	}
 
+	private _isWorkerSuitable(worker: WorkerRegistration, jobType: string): boolean {
+		return (
+			worker.status === "active" &&
+			worker.capabilities.includes(jobType) &&
+			worker.currentLoad < worker.maxConcurrency
+		);
+	}
+
 	findBestWorker(jobType: string): WorkerRegistration | null {
 		let best: WorkerRegistration | null = null;
 		let bestLoad = Number.POSITIVE_INFINITY;
-
 		for (const worker of this._workers.values()) {
-			if (worker.status !== "active") {
-				continue;
-			}
-			if (!worker.capabilities.includes(jobType)) {
-				continue;
-			}
-			if (worker.currentLoad >= worker.maxConcurrency) {
+			if (!this._isWorkerSuitable(worker, jobType)) {
 				continue;
 			}
 			if (worker.currentLoad < bestLoad) {
