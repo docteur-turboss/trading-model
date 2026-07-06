@@ -100,29 +100,22 @@ function createRetryInterceptor(
 	instance: AxiosInstance
 ): Parameters<AxiosInstance["interceptors"]["response"]["use"]>[1] {
 	return async (error: AxiosError) => {
-		const config = _getRetryConfig(error);
+		const config = error.config as AxiosRequestConfig & { retryCount?: number };
 		if (!config) {
 			throw error;
 		}
-		if (_shouldSkipRetry(config)) {
+		config.retryCount = config.retryCount ?? 0;
+		if (_retryLimitReached(config) || !shouldRetry(error)) {
 			throw error;
 		}
 		return _executeRetry(instance, config);
 	};
 }
 
-function _getRetryConfig(
-	error: AxiosError
-): (AxiosRequestConfig & { retryCount?: number }) | null {
-	const config = error.config as AxiosRequestConfig & { retryCount?: number } | undefined;
-	return config ?? null;
-}
-
-function _shouldSkipRetry(
+function _retryLimitReached(
 	config: AxiosRequestConfig & { retryCount?: number }
 ): boolean {
-	config.retryCount = config.retryCount ?? 0;
-	return config.retryCount >= RETRY_CONFIG.retries || !shouldRetry(config.retryCount, config);
+	return config.retryCount! >= RETRY_CONFIG.retries;
 }
 
 function _executeRetry(

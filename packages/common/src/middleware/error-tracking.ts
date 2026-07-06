@@ -80,7 +80,6 @@ async function flush(): Promise<void> {
 	if (BUFFER.length === 0) {
 		return;
 	}
-
 	const batch = BUFFER.splice(0, config.batchSize);
 	try {
 		await fetch(config.endpoint, {
@@ -95,62 +94,48 @@ async function flush(): Promise<void> {
 	} catch (err) {
 		console.error(
 			"[ErrorTracking] Failed to flush error reports:",
-			normalizeError(err).message
+			normalizeError(err).message,
 		);
 	}
 }
 
-function enqueueReport(report: ErrorReport): void {
+function _buildErrorReport(err: unknown, req: Request, statusCode: number): ErrorReport {
+	const normalized = normalizeError(err);
+	return {
+		message: normalized.message,
+		stack: normalized.stack,
+		url: req.originalUrl ?? req.url,
+		method: req.method,
+		statusCode,
+		correlationId: (req as unknown as { correlationId?: string }).correlationId ?? "",
+		timestamp: new Date().toISOString(),
+		serviceName: config.serviceName,
+		serviceVersion: config.serviceVersion,
+		instanceId: config.instanceId,
+	};
+}
+
+export function reportError(err: unknown, req: Request, statusCode: number): void {
+	const report = _buildErrorReport(err, req, statusCode);
 	BUFFER.push(report);
 	if (BUFFER.length >= config.batchSize) {
 		void flush();
 	}
 }
 
-export function reportError(
-	err: unknown,
-	req: Request,
-	statusCode: number
-): void {
-	const normalized = normalizeError(err);
-	const report: ErrorReport = {
-		message: normalized.message,
-		stack: normalized.stack,
-		url: req.originalUrl ?? req.url,
-		method: req.method,
-		statusCode,
-		correlationId:
-			(req as unknown as { correlationId?: string }).correlationId ?? "",
-		timestamp: new Date().toISOString(),
-		serviceName: config.serviceName,
-		serviceVersion: config.serviceVersion,
-		instanceId: config.instanceId,
-	};
-
-	enqueueReport(report);
-}
-
 export function errorTrackingMiddleware(
-	endpoint?: string
+	endpoint?: string,
 ): (err: Error, req: Request, res: Response, next: NextFunction) => void {
 	if (endpoint) {
 		configureErrorTracking({
 			endpoint: endpoint || process.env.ERROR_URL_WEBHOOK,
 		});
 	}
-
-	return (
-		err: Error,
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): void => {
+	return (err: Error, req: Request, res: Response, next: NextFunction): void => {
 		const statusCode = res.statusCode >= 400 ? res.statusCode : 500;
-
 		if (statusCode >= 500) {
 			reportError(err, req, statusCode);
 		}
-
 		next(err);
 	};
 }

@@ -70,26 +70,35 @@ export function setWeights(layers: LayerMemory[], buffer: Float32Array): void {
  * @param reference - Either a Float32Array of weights or a scalar number.
  * @param sigma - Standard deviation of the perturbation noise.
  */
+function _resolveReference(
+	reference: Float32Array | number,
+	count: number
+): Float32Array {
+	if (typeof reference === "number") {
+		return new Float32Array(count).fill(reference);
+	}
+	if (reference.length !== count) {
+		throw new AgentError(
+			`Reference parameter count (${reference.length}) does not match this network's parameter count (${count}).`
+		);
+	}
+	return reference;
+}
+
+function _perturbWeights(mean: Float32Array, sigma: number): Float32Array {
+	const childBuffer = new Float32Array(mean.length);
+	for (let i = 0; i < mean.length; i++) {
+		childBuffer[i] = mean[i] + gaussianNoise(sigma);
+	}
+	return childBuffer;
+}
+
 export function distributeAroundWeights(
 	layers: LayerMemory[],
 	reference: Float32Array | number,
 	sigma: number
 ): void {
 	const count = parameterCount(layers);
-	let mean: Float32Array;
-	if (typeof reference === "number") {
-		mean = new Float32Array(count).fill(reference);
-	} else {
-		mean = reference;
-		if (mean.length !== count) {
-			throw new AgentError(
-				`Reference parameter count (${mean.length}) does not match this network's parameter count (${count}).`
-			);
-		}
-	}
-	const childBuffer = new Float32Array(count);
-	for (let i = 0; i < count; i++) {
-		childBuffer[i] = mean[i] + gaussianNoise(sigma);
-	}
-	setWeights(layers, childBuffer);
+	const mean = _resolveReference(reference, count);
+	setWeights(layers, _perturbWeights(mean, sigma));
 }
