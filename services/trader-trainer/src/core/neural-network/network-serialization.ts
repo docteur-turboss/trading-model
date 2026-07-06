@@ -41,13 +41,17 @@ export function getWeights(layers: LayerMemory[]): Float32Array {
  *
  * @throws {AgentError} When the buffer length does not match the total parameter count.
  */
-export function setWeights(layers: LayerMemory[], buffer: Float32Array): void {
+function _validateBufferLength(layers: LayerMemory[], buffer: Float32Array): void {
 	const expected = parameterCount(layers);
 	if (buffer.length !== expected) {
 		throw new AgentError(
 			`Buffer length mismatch: expected ${expected}, got ${buffer.length}`
 		);
 	}
+}
+
+export function setWeights(layers: LayerMemory[], buffer: Float32Array): void {
+	_validateBufferLength(layers, buffer);
 	let cursor = 0;
 	for (const layer of layers) {
 		for (let i = 0; i < layer.weights.length; i++) {

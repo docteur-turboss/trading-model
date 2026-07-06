@@ -37,22 +37,27 @@ export class GradientComputer {
 		private readonly _optimizerHp: OptimizerHyperparams
 	) {}
 
+	private _computeOutputDeltaElement(
+		output: Float32Array,
+		outputZ: Float32Array,
+		target: Float32Array,
+		activation: ActivationType,
+		j: number,
+		lossGrad: Float32Array
+	): number {
+		if (activation === "softmax") {
+			return output[j] - target[j];
+		}
+		return lossGrad[j] * this._activationDerivative(output[j], outputZ[j], activation);
+	}
+
 	computeOutputDeltas(ctx: OutputDeltasContext): Float32Array {
 		const { outputZ, output, target, activation } = ctx;
 		const delta = new Float32Array(output.length);
 		const lossGrad = this._computeLossGradient(output, target);
 
 		for (let j = 0; j < output.length; j++) {
-			if (activation === "softmax") {
-				delta[j] = output[j] - target[j];
-			} else {
-				const actGrad = this._activationDerivative(
-					output[j],
-					outputZ[j],
-					activation
-				);
-				delta[j] = lossGrad[j] * actGrad;
-			}
+			delta[j] = this._computeOutputDeltaElement(output, outputZ, target, activation, j, lossGrad);
 		}
 
 		return this._clipGradients(delta);

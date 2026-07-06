@@ -48,24 +48,23 @@ async function acquireToken(baseURL: string, weight: number): Promise<void> {
 	const bucket = getRateLimitBucket(baseURL);
 
 	while (true) {
-		const now = Date.now();
-		const elapsed = (now - bucket.lastRefill) / 1000;
-
-		// refill
-		bucket.tokens = Math.min(
-			bucket.capacity,
-			bucket.tokens + elapsed * bucket.refillRate
-		);
-		bucket.lastRefill = now;
-
+		_refillBucket(bucket);
 		if (bucket.tokens >= weight) {
 			bucket.tokens -= weight;
 			return;
 		}
-
-		const waitMs = 50;
-		await new Promise((res) => setTimeout(res, waitMs));
+		await _sleep(50);
 	}
+}
+
+function _refillBucket(bucket: RateLimitBucket): void {
+	const now = Date.now();
+	const elapsed = (now - bucket.lastRefill) / 1000;
+	bucket.tokens = Math.min(
+		bucket.capacity,
+		bucket.tokens + elapsed * bucket.refillRate
+	);
+	bucket.lastRefill = now;
 }
 
 /* -------------------------------------------------------
@@ -101,19 +100,38 @@ function createRetryInterceptor(
 	instance: AxiosInstance
 ): Parameters<AxiosInstance["interceptors"]["response"]["use"]>[1] {
 	return async (error: AxiosError) => {
-		const config = error.config as AxiosRequestConfig & { retryCount?: number };
+		const config = _getRetryConfig(error);
 		if (!config) {
 			throw error;
 		}
-		config.retryCount = config.retryCount ?? 0;
-		if (config.retryCount >= RETRY_CONFIG.retries || !shouldRetry(error)) {
+		if (_shouldSkipRetry(config)) {
 			throw error;
 		}
-		config.retryCount++;
-		const delay = getBackoffDelay(config.retryCount);
-		await new Promise((res) => setTimeout(res, delay));
-		return instance(config);
+		return _executeRetry(instance, config);
 	};
+}
+
+function _getRetryConfig(
+	error: AxiosError
+): (AxiosRequestConfig & { retryCount?: number }) | null {
+	const config = error.config as AxiosRequestConfig & { retryCount?: number } | undefined;
+	return config ?? null;
+}
+
+function _shouldSkipRetry(
+	config: AxiosRequestConfig & { retryCount?: number }
+): boolean {
+	config.retryCount = config.retryCount ?? 0;
+	return config.retryCount >= RETRY_CONFIG.retries || !shouldRetry(config.retryCount, config);
+}
+
+function _executeRetry(
+	instance: AxiosInstance,
+	config: AxiosRequestConfig & { retryCount?: number }
+): Promise<unknown> {
+	config.retryCount!++;
+	const delay = getBackoffDelay(config.retryCount!);
+	return new Promise((res) => setTimeout(res, delay)).then(() => instance(config));
 }
 
 /** Create a configured Axios instance with rate-limiting and retry logic for the given API base URL. */

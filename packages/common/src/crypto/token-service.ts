@@ -26,20 +26,24 @@ function checkTokenFormat(token: string): TokenFormat | null {
 	return { encodedId, payloadParts, signature, isLegacy: parts.length === 4 };
 }
 
+function _decodeTimestamp(timestampB64: string): number {
+	return Number.parseInt(
+		Buffer.from(timestampB64, "base64url").toString("utf8"),
+		10,
+	);
+}
+
 function validateTimestamp(
 	timestampB64: string,
-	options?: TokenValidationOptions
+	options?: TokenValidationOptions,
 ): boolean {
-	const maxAge = options?.maxAgeMs ?? 300_000;
-	const clockSkewTolerance = options?.clockSkewToleranceMs ?? 5_000;
-	const ts = Number.parseInt(
-		Buffer.from(timestampB64, "base64url").toString("utf8"),
-		10
-	);
-	const now = Date.now();
+	const ts = _decodeTimestamp(timestampB64);
 	if (Number.isNaN(ts)) {
 		return false;
 	}
+	const maxAge = options?.maxAgeMs ?? 300_000;
+	const clockSkewTolerance = options?.clockSkewToleranceMs ?? 5_000;
+	const now = Date.now();
 	if (now - ts > maxAge + clockSkewTolerance) {
 		return false;
 	}

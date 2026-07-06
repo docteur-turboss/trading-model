@@ -41,7 +41,17 @@ const BUFFER: ErrorReport[] = [];
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 
 export function configureErrorTracking(opts: ErrorTrackingConfig): void {
-	config = {
+	config = _buildConfig(opts);
+	if (config.endpoint) {
+		startFlushTimer();
+		logger.info("Error tracking configured", {
+			context: { endpoint: config.endpoint, service: config.serviceName },
+		});
+	}
+}
+
+function _buildConfig(opts: ErrorTrackingConfig): Required<ErrorTrackingConfig> {
+	return {
 		endpoint: opts.endpoint ?? process.env.ERROR_URL_WEBHOOK ?? "",
 		serviceName: opts.serviceName ?? process.env.APP_NAME ?? "unknown",
 		serviceVersion: opts.serviceVersion ?? process.env.APP_VERSION ?? "0.0.0",
@@ -49,16 +59,6 @@ export function configureErrorTracking(opts: ErrorTrackingConfig): void {
 		flushIntervalMs: opts.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS,
 		batchSize: opts.batchSize ?? DEFAULT_BATCH_SIZE,
 	};
-
-	if (config.endpoint) {
-		startFlushTimer();
-		logger.info("Error tracking configured", {
-			context: {
-				endpoint: config.endpoint,
-				service: config.serviceName,
-			},
-		});
-	}
 }
 
 function startFlushTimer(): void {
