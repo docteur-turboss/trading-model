@@ -3,7 +3,9 @@ import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { createServer } from "./server";
 import "../config/env";
 
-let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | null = null;
+const NULL_ADDRESS_MANAGER = { stop() {} };
+
+let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> = NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
 
 createBootstrap({
 	name: "Message Manager",
@@ -12,8 +14,6 @@ createBootstrap({
 		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 	},
 	onStop: () => {
-		if (addressManager) {
-			addressManager.stop();
-		}
+		addressManager.stop();
 	},
 });

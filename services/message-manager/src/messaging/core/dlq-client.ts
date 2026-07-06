@@ -2,7 +2,8 @@ import { createHmac } from "node:crypto";
 
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
-import type { HttpRoute, SignedRequest, SignedRequestAuth } from "@trading-model/common/contracts/signed-request";
+import type { HttpRoute, Signature, SignedRequest, SignedRequestAuth, Timestamp } from "@trading-model/common/contracts/signed-request";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import {
@@ -34,7 +35,7 @@ interface SignRequestInput extends SignedRequest {
 function signRequest(
 	input: SignRequestInput
 ): SignedRequestAuth {
-	const timestamp = String(Date.now());
+	const timestamp = String(Date.now()) as Timestamp;
 	const buf = input.secretBuf ?? getHmacSecretBuffer();
 	try {
 		if (buf.length < 16) {
@@ -42,7 +43,7 @@ function signRequest(
 		}
 		return {
 			timestamp,
-			signature: computeSignature({ ...input, timestamp }, buf),
+			signature: computeSignature({ ...input, timestamp }, buf) as Signature,
 		};
 	} finally {
 		buf.fill(0);
@@ -50,16 +51,16 @@ function signRequest(
 }
 
 function computeSignature(
-	input: SignedRequest & { timestamp: string },
+	input: SignedRequest & { timestamp: Timestamp },
 	buf: Buffer
 ): string {
 	const parts = [input.serviceName, input.timestamp, deterministicStringify(normalizeBody(input.body)), input.method, input.path].join(":");
 	return createHmac("sha256", buf).update(parts).digest("hex");
 }
 
-function warnAndSkip(timestamp: string): SignedRequestAuth {
+function warnAndSkip(timestamp: Timestamp): SignedRequestAuth {
 	logger.warn("DLQ HMAC secret is too short or empty — requests will not be signed");
-	return { timestamp, signature: "" };
+	return { timestamp, signature: "" as Signature };
 }
 
 interface SignedOptionsInput extends HttpRoute {
@@ -84,7 +85,7 @@ function buildBaseOptions(
 	return {
 		timeoutMs: 5000,
 		...extra,
-		headers: { "x-service-name": "message-manager", ...(extra?.headers ?? {}) },
+		headers: { [HTTP_HEADERS.X_SERVICE_NAME]: "message-manager", ...(extra?.headers ?? {}) },
 	};
 }
 
@@ -98,8 +99,8 @@ function addSignature(
 		...route,
 		secretBuf,
 	});
-	opts.headers["x-timestamp"] = timestamp;
-	opts.headers["x-signature"] = signature;
+	opts.headers[HTTP_HEADERS.X_TIMESTAMP] = timestamp;
+	opts.headers[HTTP_HEADERS.X_SIGNATURE] = signature;
 }
 
 export interface DlqSendOptions {

@@ -1,5 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import WebSocket, { WebSocketServer } from "ws";
@@ -44,8 +45,8 @@ export class WssConnectionHandler {
 		info: { req: IncomingMessage },
 		cb: (result: boolean, code?: number, message?: string) => void
 	): void {
-		const serviceName = info.req.headers["x-service-name"] as string;
-		const instanceId = info.req.headers["x-instance-id"] as string;
+		const serviceName = info.req.headers[HTTP_HEADERS.X_SERVICE_NAME] as string;
+		const instanceId = info.req.headers[HTTP_HEADERS.X_INSTANCE_ID] as string;
 		if (!(serviceName && instanceId)) {
 			cb(false, 400, "Missing x-service-name or x-instance-id headers");
 			return;
@@ -57,9 +58,9 @@ export class WssConnectionHandler {
 		identity: ServiceIdentity;
 		topics: Set<string>;
 	} {
-		const serviceName = req.headers["x-service-name"] as string;
-		const instanceId = req.headers["x-instance-id"] as string;
-		const topics = _parseTopicsHeader(req.headers["x-subscribed-topics"] as string);
+		const serviceName = req.headers[HTTP_HEADERS.X_SERVICE_NAME] as string;
+		const instanceId = req.headers[HTTP_HEADERS.X_INSTANCE_ID] as string;
+		const topics = _parseTopicsHeader(req.headers[HTTP_HEADERS.X_SUBSCRIBED_TOPICS] as string);
 		return { identity: { serviceName: toServiceId(serviceName), instanceId }, topics };
 	}
 

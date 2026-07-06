@@ -1,3 +1,4 @@
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
@@ -44,7 +45,7 @@ function _createHeartbeatHandler(registry: ServiceRegistry): RequestHandler {
 		if (!data) {
 			return sendResponse({ error: "Invalid request body", details: HEARTBEAT_SCHEMA.safeParse(req.body).error!.flatten().fieldErrors }, 400);
 		}
-		validateInstanceToken(registry, req.headers["x-instance-token"], data.instanceId);
+		validateInstanceToken(registry, req.headers[HTTP_HEADERS.X_INSTANCE_TOKEN], data.instanceId);
 		const ttl = registry.updateHeartbeat({ serviceName: data.serviceName, instanceId: data.instanceId });
 		if (!ttl) {
 			return sendResponse({ error: "Instance not found" }, 404);
@@ -67,7 +68,7 @@ function _createRotateTokenHandler(registry: ServiceRegistry): RequestHandler {
 		if (!instanceId) {
 			return sendResponse({ error: "Invalid request body", details: ROTATE_TOKEN_SCHEMA.safeParse(req.body).error!.flatten().fieldErrors }, 400);
 		}
-		validateInstanceToken(registry, req.headers["x-instance-token"], instanceId);
+		validateInstanceToken(registry, req.headers[HTTP_HEADERS.X_INSTANCE_TOKEN], instanceId);
 		const newToken = registry.updateToken(instanceId);
 		return sendResponse({ token: newToken }, 200);
 	});

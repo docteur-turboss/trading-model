@@ -11,17 +11,73 @@ import { JobScheduler } from "../scheduler/job-scheduler";
 import { WorkerProtocol } from "../worker/worker-protocol";
 import { createServer } from "./server";
 
-let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | null = null;
-let mongoClient: MongoClient | null = null;
-let scheduler: JobScheduler | null = null;
-let workerProtocol: WorkerProtocol | null = null;
-let brokerMessage: BrokerMessage | null = null;
+class ServiceContext {
+	private _addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | null = null;
+	private _mongoClient: MongoClient | null = null;
+	private _scheduler: JobScheduler | null = null;
+	private _workerProtocol: WorkerProtocol | null = null;
+	private _brokerMessage: BrokerMessage | null = null;
+
+	set addressManager(value: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>) {
+		this._addressManager = value;
+	}
+
+	set mongoClient(value: MongoClient) {
+		this._mongoClient = value;
+	}
+
+	set scheduler(value: JobScheduler) {
+		this._scheduler = value;
+	}
+
+	set workerProtocol(value: WorkerProtocol) {
+		this._workerProtocol = value;
+	}
+
+	set brokerMessage(value: BrokerMessage) {
+		this._brokerMessage = value;
+	}
+
+	get scheduler(): JobScheduler {
+		if (!this._scheduler) throw new Error("Scheduler not initialized");
+		return this._scheduler;
+	}
+
+	get workerProtocol(): WorkerProtocol | null {
+		return this._workerProtocol;
+	}
+
+	get mongoClient(): MongoClient | null {
+		return this._mongoClient;
+	}
+
+	async stop(): Promise<void> {
+		if (this._brokerMessage) {
+			await this._brokerMessage.stopMessageManager();
+		}
+		if (this._scheduler) {
+			this._scheduler.stop();
+		}
+		if (this._workerProtocol) {
+			this._workerProtocol.close();
+		}
+		if (this._addressManager) {
+			this._addressManager.stop();
+		}
+		if (this._mongoClient) {
+			await this._mongoClient.close();
+		}
+	}
+}
+
+const ctx = new ServiceContext();
 
 createBootstrap({
 	name: "Audit Logger",
 	createServer: async () => {
-		mongoClient = new MongoClient(ENV.MONGODB_URI);
+		const mongoClient = new MongoClient(ENV.MONGODB_URI);
 		await mongoClient.connect();
+		ctx.mongoClient = mongoClient;
 		const db = mongoClient.db();
 
 		const jobRepo = new JobRepository(db);
@@ -30,21 +86,23 @@ createBootstrap({
 		const auditRepo = new AuditRepository(db);
 		await auditRepo.ensureIndexes();
 
-		scheduler = new JobScheduler(jobRepo);
+		const scheduler = new JobScheduler(jobRepo);
+		ctx.scheduler = scheduler;
 
 		const server = await createServer(scheduler, auditRepo);
 
-		workerProtocol = new WorkerProtocol(
+		const workerProtocol = new WorkerProtocol(
 			server.raw,
 			scheduler.workers,
-			(workerId: string) => scheduler!.onWorkerDisconnect(workerId)
+			(workerId: string) => ctx.scheduler.onWorkerDisconnect(workerId)
 		);
+		ctx.workerProtocol = workerProtocol;
 		scheduler.setWorkerProtocol(workerProtocol);
 
 		await scheduler.start();
 
 		const { AddressManager } = await import("../config/address-manager.js");
-		brokerMessage = new BrokerMessage({
+		const brokerMessage = new BrokerMessage({
 			addressManagerClient: AddressManager,
 			tlsPaths: {
 				keyPath: ENV.TLS_KEY_PATH,
@@ -54,6 +112,7 @@ createBootstrap({
 			instanceId: ENV.INSTANCE_ID,
 			serviceName: ServiceInstanceName.AuditLoggerService,
 		});
+		ctx.brokerMessage = brokerMessage;
 
 		const { EnumEventMessage } = await import(
 			"@trading-model/common/config/event.types"
@@ -69,7 +128,7 @@ createBootstrap({
 		return server;
 	},
 	onStart: () => {
-		addressManager = BOOTSTRAP_ADDRESS_MANAGER();
+		ctx.addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 		logger.info("Audit Logger fully operational", {
 			context: {
 				port: ENV.PORT,
@@ -78,20 +137,6 @@ createBootstrap({
 		});
 	},
 	onStop: async () => {
-		if (brokerMessage) {
-			await brokerMessage.stopMessageManager();
-		}
-		if (scheduler) {
-			scheduler.stop();
-		}
-		if (workerProtocol) {
-			workerProtocol.close();
-		}
-		if (addressManager) {
-			addressManager.stop();
-		}
-		if (mongoClient) {
-			await mongoClient.close();
-		}
+		await ctx.stop();
 	},
 });

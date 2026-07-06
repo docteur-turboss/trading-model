@@ -10,6 +10,7 @@ import { CaClient, type SignCertificateRequest } from "@trading-model/common/ca/
 import { logger } from "@trading-model/common/config/logger";
 import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
 import type { TlsPaths, TlsPemBundle } from "@trading-model/common/domain/tls-paths";
+import type { SecureServerOptions } from "@trading-model/common/server/create-secure-server";
 import type { HttpServer, HttpsServerOptions } from "@trading-model/common/server/server-factory";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { Application } from "express";
@@ -163,15 +164,7 @@ function _logCertWritten(
 	});
 }
 
-import type { Port } from "@trading-model/common/domain/primitives";
-
-export interface CreateHttpsServerOptions {
-	port: Port;
-	tls: TlsPaths;
-	routes: (app: Application) => void;
-	rateLimit?: import("@trading-model/common/server/configure-app").RateLimitConfig;
-	trustProxy?: boolean;
-	watchTls?: boolean;
+export interface CreateHttpsServerOptions extends SecureServerOptions {
 	env?: Record<string, string | undefined>;
 	onServerReady?: (raw: import("node:https").Server) => void;
 }
