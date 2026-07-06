@@ -250,7 +250,7 @@ export class NeuralNetwork {
 		return this._trainPooledBatch(pool);
 	}
 
-	private _trainPooledBatch(pool: import("./type").PoolExperience[]): number {
+	private _trainPooledBatch(pool: import("./type").PooledExperience[]): number {
 		const poolSize = pool.length;
 		this._backprop.resetAccumulators();
 

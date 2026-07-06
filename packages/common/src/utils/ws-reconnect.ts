@@ -49,6 +49,7 @@ function _scheduleWithDelay(
 	state: WsReconnectState,
 	config: WsReconnectConfig,
 	onReconnect: () => void,
+	logger: WsReconnectOptions["logger"],
 ): void {
 	state.attempt++;
 	const delay = calculateDelay(config, state.attempt);
@@ -71,7 +72,7 @@ export function scheduleWsReconnect(options: WsReconnectOptions): void {
 		clearTimeout(state.timer);
 		state.timer = null;
 	}
-	_scheduleWithDelay(state, config, onReconnect);
+	_scheduleWithDelay(state, config, onReconnect, logger);
 }
 
 export function createWsConnectTimeout(

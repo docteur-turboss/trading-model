@@ -41,7 +41,7 @@ export class PoolTrainingOrchestrator {
 		return loss;
 	}
 
-	private _accumulatePoolGradients(pool: import("./type").PoolExperience[]): number {
+	private _accumulatePoolGradients(pool: import("./type").PooledExperience[]): number {
 		this._backprop.resetAccumulators();
 		let totalLoss = 0;
 		for (const exp of pool) {
