@@ -1,11 +1,6 @@
-export interface Candle {
-	timestamp: string;
-	open: number;
-	high: number;
-	low: number;
-	close: number;
-	volume: number;
-}
+import type { CandleData } from "../../config/event.types";
+
+export type Candle = CandleData;
 
 export interface Ticker {
 	symbol: string;

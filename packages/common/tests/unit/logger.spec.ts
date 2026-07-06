@@ -321,9 +321,7 @@ describe("Logger", () => {
 			logger.setUserId("user-001");
 			logger.info(
 				"test with meta",
-				{ key: "val" },
-				"https://example.com",
-				"my-service"
+				{ context: { key: "val" }, url: "https://example.com", serviceInCharge: "my-service" }
 			);
 			const logs = logger.getLogs();
 			expect(logs[0].context).toEqual({ key: "val" });

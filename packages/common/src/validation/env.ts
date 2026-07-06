@@ -89,7 +89,9 @@ export const AddressManagerEnvSchema = z.object({
 				logger.warn(
 					"Failed to parse DNS_NAME_MAP env var, falling back to {}",
 					{
-						err: normalizeError(err),
+						context: {
+							err: normalizeError(err),
+						},
 					}
 				);
 				return {};
@@ -118,7 +120,9 @@ export function validateEnv<TSchema extends z.ZodType>(
 				errors = z.treeifyError(parsed.error);
 			} catch (err) {
 				logger.warn("Failed to treeify Zod error, using raw format", {
-					err: normalizeError(err),
+					context: {
+						err: normalizeError(err),
+					},
 				});
 			}
 		}
