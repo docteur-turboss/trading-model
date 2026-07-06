@@ -229,12 +229,7 @@ export class NeuralNetwork {
 		const context = this._feedForward.forward(input);
 		const loss = this._backprop.computeLoss(context.output, target);
 
-		const experience = this._poolManager.createExperience(
-			input,
-			context,
-			target,
-			loss
-		);
+		const experience = this._poolManager.createExperience({ input, context, target, loss });
 		this._poolManager.push(experience, this._config.poolMaxSize);
 
 		return loss;

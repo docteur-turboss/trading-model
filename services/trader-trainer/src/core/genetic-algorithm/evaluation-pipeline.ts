@@ -168,20 +168,8 @@ function _runEvalEpisode(
 			continue;
 		}
 
-		const { reward } = backend.step(
-			validationData[index].features,
-			validationData[index].price
-		);
-
-		let shaped = shapeReward(reward, rShape);
-		if (rShape.normalize) {
-			runStats?.update(shaped);
-			/* istanbul ignore next */
-			shaped = runStats?.normalize(shaped) ?? shaped;
-		}
-		if (!rShape.sparse) {
-			epReward += shaped;
-		}
+		const stepReward = _stepAndShapeReward(backend, validationData[index], rShape, runStats);
+		epReward += stepReward;
 	}
 
 	if (rShape.sparse) {
@@ -190,6 +178,23 @@ function _runEvalEpisode(
 	backend.resetEpisode();
 
 	return epReward;
+}
+
+function _stepAndShapeReward(
+	backend: RLBackend,
+	step: MarketStep,
+	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>,
+	runStats: NormalizationStats
+): number {
+	const { reward } = backend.step(step.features, step.price);
+	const shaped = shapeReward(reward, rShape);
+
+	if (rShape.normalize) {
+		runStats.update(shaped);
+		return runStats.normalize(shaped);
+	}
+
+	return rShape.sparse ? 0 : shaped;
 }
 
 function evalPhase(

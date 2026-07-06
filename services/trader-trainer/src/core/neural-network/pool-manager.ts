@@ -22,12 +22,13 @@ export class LearningPool {
 		return this._pool;
 	}
 
-	createExperience(
-		input: Float32Array,
-		context: ForwardContext,
-		target: Float32Array,
-		loss: number
-	): PooledExperience {
+	createExperience(params: {
+		input: Float32Array;
+		context: ForwardContext;
+		target: Float32Array;
+		loss: number;
+	}): PooledExperience {
+		const { input, context, target, loss } = params;
 		return {
 			kind: "supervised",
 			input: new Float32Array(input),
