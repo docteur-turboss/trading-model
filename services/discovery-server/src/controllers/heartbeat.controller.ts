@@ -43,7 +43,7 @@ export function createHeartbeatController(
 			instanceId
 		);
 
-		const ttl = registry.updateHeartbeat(serviceName, instanceId);
+		const ttl = registry.updateHeartbeat({ serviceName, instanceId });
 
 		if (!ttl) {
 			return sendResponse({ error: "Instance not found" }, 404);

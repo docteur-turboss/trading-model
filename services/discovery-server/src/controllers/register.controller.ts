@@ -101,7 +101,7 @@ function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
 			return sendResponse({ error: "Invalid route parameters" }, 400);
 		}
 
-		const instance = registry.getInstance(serviceName, instanceId);
+		const instance = registry.getInstance({ serviceName, instanceId });
 
 		if (!instance) {
 			return sendResponse({ error: "Instance not found" }, 404);
