@@ -13,22 +13,17 @@ createBootstrap({
 	name: "CertificateAuthority",
 	createServer,
 	onStart: async () => {
-		CONTAINER.certificateStore = new CertificateStore(ENV.MONGODB_URI);
-		CONTAINER.crlStore = new CrlStore(ENV.MONGODB_URI);
-		CONTAINER.caStore = new CaStore(ENV.MONGODB_URI);
+		CONTAINER.certificateStore = await CertificateStore.connect(ENV.MONGODB_URI);
+		CONTAINER.crlStore = await CrlStore.connect(ENV.MONGODB_URI);
+		CONTAINER.caStore = await CaStore.connect(ENV.MONGODB_URI);
 
-		await CONTAINER.certificateStore.connect();
-		await CONTAINER.crlStore.connect();
-		await CONTAINER.caStore.connect();
-
-		CONTAINER.ca = new CertificateAuthority({
+		CONTAINER.ca = await CertificateAuthority.create({
 			caKeyPath: ENV.CA_KEY_PATH,
 			caCertTtlMs: ENV.CA_CERT_TTL_MS,
 			certificateStore: CONTAINER.certificateStore,
 			crlStore: CONTAINER.crlStore,
 			caStore: CONTAINER.caStore,
 		});
-		await CONTAINER.ca.initialize();
 
 		CONTAINER.distributor = new Distributor({
 			ca: CONTAINER.ca,

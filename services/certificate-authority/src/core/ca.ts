@@ -1,7 +1,6 @@
 import {
 	createHash,
 	createPublicKey,
-	createSign,
 	randomUUID,
 } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -24,6 +23,7 @@ import type { RevocationRequest } from "@trading-model/common/domain/revocation-
 import { ENV } from "../config/env";
 import type { CaStore } from "../persistence/ca-store";
 import type { CertificateStore } from "../persistence/certificate-store";
+import { CertBodyBuilder } from "./cert-body-builder";
 import type { CrlStore } from "../persistence/crl-store";
 
 export interface CaOptions {
@@ -34,7 +34,7 @@ export interface CaOptions {
 	caStore: CaStore;
 }
 
-interface CertBodyInput {
+export interface CertBodyInput {
 	serialNumber: string;
 	now: Date;
 	expiresAt: Date;
@@ -42,16 +42,29 @@ interface CertBodyInput {
 }
 
 export class CertificateAuthority {
-	private _caKeyPair: KeyPair | null = null;
+	private _caKeyPair!: KeyPair;
 	private _caCertPem = "";
 	private readonly _options: CaOptions;
+	private readonly _certBodyBuilder = new CertBodyBuilder();
 
 	constructor(options: CaOptions) {
 		this._options = options;
 	}
 
+	static async create(options: CaOptions): Promise<CertificateAuthority> {
+		const ca = new CertificateAuthority(options);
+		await ca.initialize();
+		return ca;
+	}
+
 	async initialize(): Promise<void> {
 		await this._loadOrBootstrapCa();
+	}
+
+	private _ensureInitialized(): void {
+		if (!this._caKeyPair) {
+			throw new Error("CA not initialized. Call initialize() or use CertificateAuthority.create().");
+		}
 	}
 
 	private _loadKeyFromDisk(): boolean {
@@ -87,42 +100,10 @@ export class CertificateAuthority {
 		const serialNumber = this._generateSerialNumber();
 		const now = new Date();
 		const expiresAt = new Date(now.getTime() + this._options.caCertTtlMs);
-		const certBody = this._buildCertBody({ serialNumber, now, expiresAt, publicKey: this._caKeyPair.publicKey });
-		this._caCertPem = this._signCertBody(certBody, this._caKeyPair.privateKey);
+		const certBody = this._certBodyBuilder.buildCertBody({ serialNumber, now, expiresAt, publicKey: this._caKeyPair.publicKey });
+		this._caCertPem = this._certBodyBuilder.signCertBody(certBody, this._caKeyPair.privateKey);
 		this._saveCaKey(this._caKeyPair.privateKey);
 		await this._saveCaCert(this._caCertPem, serialNumber, now, expiresAt);
-	}
-
-	private _buildCertBody({
-		serialNumber,
-		now,
-		expiresAt,
-		publicKey,
-	}: CertBodyInput): string {
-		return [
-			`Serial: ${serialNumber}`,
-			"Issuer: CN=TradingModelCA",
-			"Subject: CN=TradingModelCA",
-			`Not Before: ${now.toISOString()}`,
-			`Not After: ${expiresAt.toISOString()}`,
-			"CA: TRUE",
-			`Public Key: ${publicKey}`,
-		].join("\n");
-	}
-
-	private _createCertBody(certBody: string, signature: string): string {
-		return [
-			"-----BEGIN CERTIFICATE-----",
-			...chunks(Buffer.from(JSON.stringify({ body: certBody, signature })).toString("base64"), 64),
-			"-----END CERTIFICATE-----",
-		].join("\n");
-	}
-
-	private _signCertBody(certBody: string, privateKey: string): string {
-		const sign = createSign("sha256");
-		sign.update(certBody);
-		const signature = sign.sign(privateKey, "base64");
-		return this._createCertBody(certBody, signature);
 	}
 
 	private _saveCaKey(privateKey: string): void {
@@ -158,10 +139,7 @@ export class CertificateAuthority {
 		csr: string,
 		ttlMs?: number
 	): Promise<SignedCertificate> {
-		if (!this._caKeyPair) {
-			throw new Error("CA not initialized");
-		}
-
+		this._ensureInitialized();
 		const options: SignOptions = {
 			csr,
 			serviceId,
@@ -204,14 +182,6 @@ export class CertificateAuthority {
 	}
 
 	isInitialized(): boolean {
-		return this._caKeyPair !== null && this._caCertPem.length > 0;
+		return !!this._caKeyPair && this._caCertPem.length > 0;
 	}
-}
-
-function chunks(str: string, size: number): string[] {
-	const result: string[] = [];
-	for (let i = 0; i < str.length; i += size) {
-		result.push(str.slice(i, i + size));
-	}
-	return result;
 }
