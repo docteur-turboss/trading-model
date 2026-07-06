@@ -1,4 +1,5 @@
 import { Cash } from "@trading-model/common/domain/primitives";
+import { type PortfolioState } from "./portfolio-state";
 
 function roundValue(value: number, decimals: number): number {
 	const factor = 10 ** decimals;
@@ -19,18 +20,18 @@ export class ValuationTracker {
 		return this._history;
 	}
 
-	record(cash: Cash, position: number, price: number): void {
-		this._history.push(+this.computeValuation(cash, position, price));
+	record(state: PortfolioState): void {
+		this._history.push(+this.computeValuation(state));
 	}
 
-	computeValuation(cash: Cash, position: number, price: number): Cash {
+	computeValuation(state: PortfolioState): Cash {
 		return Cash.of(
-			roundValue(+cash + position * price, this._decimals),
+			roundValue(+state.cash + state.position * state.price, this._decimals),
 		);
 	}
 
-	computePnL(cash: Cash, position: number, price: number): number {
-		const valuation = this.computeValuation(cash, position, price);
+	computePnL(state: PortfolioState): number {
+		const valuation = this.computeValuation(state);
 		return roundValue(+valuation - +this._initialCash, this._decimals);
 	}
 

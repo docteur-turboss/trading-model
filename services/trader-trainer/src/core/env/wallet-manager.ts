@@ -4,6 +4,7 @@ import {
 	Price,
 	Volume,
 } from "@trading-model/common/domain/primitives";
+import { type PortfolioState } from "./portfolio-state";
 import { TradeHistory, type TradeRecord } from "./trade-history";
 import { ValuationTracker } from "./valuation-tracker";
 import { computeWalletMetrics, type WalletMetrics } from "./wallet-metrics";
@@ -140,8 +141,12 @@ export class Wallet implements WalletAPI {
 		this._valuationTracker = new ValuationTracker(resolved.initialCash, resolved.decimals);
 	}
 
+	private _getState(): PortfolioState {
+		return { cash: this._cash, position: this._position, price: this._price };
+	}
+
 	private _recordValuation(): void {
-		this._valuationTracker.record(this._cash, +this._position, +this._price);
+		this._valuationTracker.record(this._getState());
 	}
 
 	buy(amount: Volume): boolean {
@@ -225,7 +230,7 @@ export class Wallet implements WalletAPI {
 	}
 
 	getValuation(): Cash {
-		return this._valuationTracker.computeValuation(this._cash, +this._position, +this._price);
+		return this._valuationTracker.computeValuation(this._getState());
 	}
 
 	getPrice(): Price {
@@ -233,7 +238,7 @@ export class Wallet implements WalletAPI {
 	}
 
 	getPnL(): number {
-		return this._valuationTracker.computePnL(this._cash, +this._position, +this._price);
+		return this._valuationTracker.computePnL(this._getState());
 	}
 
 	getMetrics(): WalletMetrics {
