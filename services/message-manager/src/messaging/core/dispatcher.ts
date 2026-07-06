@@ -16,7 +16,7 @@ import type {
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
 
-import type { DqlRepository } from "./dlq-repository";
+import type { DlqRepository } from "./dlq-repository";
 import { HttpMessageDelivery } from "./http-message-delivery";
 import { sanitizePayload } from "./payload-sanitizer";
 import { Subscription } from "./subscription";
@@ -31,7 +31,7 @@ export class Dispatcher {
 
 	constructor(
 		httpClient: HttpClient,
-		readonly dlqRepository: DqlRepository
+		readonly dlqRepository: DlqRepository
 	) {
 		this._deliveryPort = new HttpMessageDelivery(httpClient, dlqRepository);
 	}

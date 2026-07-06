@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
+import type { HttpRoute, SignedRequest, SignedRequestAuth } from "@trading-model/common/contracts/signed-request";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import {
 	AppError,
@@ -11,7 +12,7 @@ import {
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { MESSAGES_DLQ_ERROR_TOTAL } from "../../config/metrics";
-import type { DqlEntry as DlqEntry } from "./dlq-repository";
+import type { DlqEntry } from "./dlq-repository";
 
 function getHmacSecretBuffer(): Buffer {
 	const raw = ENV.DLQ_AUTH_HMAC_SECRET ?? "";
@@ -25,30 +26,22 @@ function normalizeBody(body: unknown): unknown {
 	return body ?? {};
 }
 
-interface SignRequestInput {
-	serviceName: string;
-	method: string;
-	path: string;
-	body: unknown;
+interface SignRequestInput extends SignedRequest {
 	secretBuf?: Buffer;
 }
 
-function signRequest({
-	serviceName,
-	method,
-	path,
-	body,
-	secretBuf,
-}: SignRequestInput): { timestamp: string; signature: string } {
+function signRequest(
+	input: SignRequestInput
+): SignedRequestAuth {
 	const timestamp = String(Date.now());
-	const buf = secretBuf ?? getHmacSecretBuffer();
+	const buf = input.secretBuf ?? getHmacSecretBuffer();
 	try {
 		if (buf.length < 16) {
 			return warnAndSkip(timestamp);
 		}
 		return {
 			timestamp,
-			signature: computeSignature(serviceName, timestamp, method, path, body, buf),
+			signature: computeSignature({ ...input, timestamp }, buf),
 		};
 	} finally {
 		buf.fill(0);
@@ -56,39 +49,30 @@ function signRequest({
 }
 
 function computeSignature(
-	serviceName: string,
-	timestamp: string,
-	method: string,
-	path: string,
-	body: unknown,
+	input: SignedRequest & { timestamp: string },
 	buf: Buffer
 ): string {
-	const parts = [serviceName, timestamp, deterministicStringify(normalizeBody(body)), method, path].join(":");
+	const parts = [input.serviceName, input.timestamp, deterministicStringify(normalizeBody(input.body)), input.method, input.path].join(":");
 	return createHmac("sha256", buf).update(parts).digest("hex");
 }
 
-function warnAndSkip(timestamp: string): { timestamp: string; signature: string } {
+function warnAndSkip(timestamp: string): SignedRequestAuth {
 	logger.warn("DLQ HMAC secret is too short or empty — requests will not be signed");
 	return { timestamp, signature: "" };
 }
 
-interface SignedOptionsInput {
-	method: string;
-	path: string;
+interface SignedOptionsInput extends HttpRoute {
 	body: unknown;
 	extra?: Partial<HttpRequestOptions>;
 }
 
-function signedOptions({
-	method,
-	path,
-	body,
-	extra,
-}: SignedOptionsInput): HttpRequestOptions {
-	const opts = buildBaseOptions(extra);
+function signedOptions(
+	input: SignedOptionsInput
+): HttpRequestOptions {
+	const opts = buildBaseOptions(input.extra);
 	const secretBuf = getHmacSecretBuffer();
 	if (secretBuf.length >= 16) {
-		addSignature(opts, method, path, body, secretBuf);
+		addSignature(opts, input, secretBuf);
 	}
 	return opts;
 }
@@ -105,16 +89,12 @@ function buildBaseOptions(
 
 function addSignature(
 	opts: HttpRequestOptions & { headers: Record<string, string> },
-	method: string,
-	path: string,
-	body: unknown,
+	route: HttpRoute & { body: unknown },
 	secretBuf: Buffer
 ): void {
 	const { timestamp, signature } = signRequest({
 		serviceName: "message-manager",
-		method,
-		path,
-		body,
+		...route,
 		secretBuf,
 	});
 	opts.headers["x-timestamp"] = timestamp;
