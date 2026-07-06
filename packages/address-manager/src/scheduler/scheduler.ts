@@ -54,7 +54,7 @@ export class Scheduler {
 	/**
 	 * Starts all registered jobs.
 	 */
-	private _createTask(job: ScheduledJob): cron.ScheduledTask {
+	private _createTask(job: ScheduledJob): ScheduledTask {
 		return cron.schedule(job.schedule, async () => {
 			try {
 				await job.execute();

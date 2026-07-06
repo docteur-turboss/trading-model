@@ -91,6 +91,22 @@ class AdamOptimizer implements Optimizer {
 	}
 }
 
+class RmspropOptimizer implements Optimizer {
+	initState(size: number): OptimizerState {
+		return { stepCount: 0, moment2: new Float32Array(size) };
+	}
+
+	step(options: RMSPropOptions): void {
+		const { params, grads, state, lr, hp } = options;
+		state.stepCount++;
+		for (let i = 0; i < params.length; i++) {
+			const grad = grads[i];
+			state.moment2![i] = hp.beta2 * state.moment2![i] + (1 - hp.beta2) * grad * grad;
+			params[i] -= (lr / (Math.sqrt(state.moment2![i]) + hp.epsilon)) * grad;
+		}
+	}
+}
+
 export const SGD = new SgdOptimizer();
 export const ADAM = new AdamOptimizer();
 export const RMSPROP = new RmspropOptimizer();

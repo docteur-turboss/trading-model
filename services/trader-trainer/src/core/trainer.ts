@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import { env } from "../config/env";
+import type { GAControlGenome } from "./genetic-algorithm/genome-types";
 import { createDefaultGenome } from "./genetic-algorithm/factory";
 import {
 	type GenerationContext,
