@@ -27,6 +27,10 @@ export class WssClient {
 	private readonly _reconnector: WssReconnector;
 	private readonly _dispatcher: WssMessageDispatcher;
 
+	private _readTlsFile(filePath?: string): string | undefined {
+		return filePath ? fs.readFileSync(filePath, "utf8") : undefined;
+	}
+
 	constructor(config: {
 		wssUrl: string;
 		tlsConfig?: Partial<TlsPaths>;
@@ -36,20 +40,12 @@ export class WssClient {
 		this._wsUrl = config.wssUrl;
 		this._serviceName = config.serviceName;
 		this._instanceId = config.instanceId;
-		this._tlsCa = config.tlsConfig?.caPath
-			? fs.readFileSync(config.tlsConfig.caPath, "utf8")
-			: undefined;
-		this._tlsCert = config.tlsConfig?.certPath
-			? fs.readFileSync(config.tlsConfig.certPath, "utf8")
-			: undefined;
-		this._tlsKey = config.tlsConfig?.keyPath
-			? fs.readFileSync(config.tlsConfig.keyPath, "utf8")
-			: undefined;
+		this._tlsCa = this._readTlsFile(config.tlsConfig?.caPath);
+		this._tlsCert = this._readTlsFile(config.tlsConfig?.certPath);
+		this._tlsKey = this._readTlsFile(config.tlsConfig?.keyPath);
 		this._queue = new PendingPublishQueue();
 		this._reconnector = new WssReconnector();
-		this._reconnector.onPermanentFallback(() => {
-			this._queue.drainToHttp();
-		});
+		this._reconnector.onPermanentFallback(() => this._queue.drainToHttp());
 		this._dispatcher = new WssMessageDispatcher();
 	}
 

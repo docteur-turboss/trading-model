@@ -93,10 +93,7 @@ export function encodeGenome(genome: Genome): Float32Array {
 	return vec;
 }
 
-function _encodeScalars(vec: Float32Array, genome: Genome): void {
-	const rl = genome.rl;
-	const net = genome.network;
-
+function _encodeRLScalars(vec: Float32Array, rl: Genome["rl"]): void {
 	vec[0] = rl.gamma;
 	vec[1] = Math.log10(Math.max(1e-6, rl.learningRate)) / 6 + 1;
 	vec[2] = rl.rewardShaping.clipMin;
@@ -114,36 +111,48 @@ function _encodeScalars(vec: Float32Array, genome: Genome): void {
 	vec[14] = Math.log10(Math.max(100, rl.replayBuffer.bufferSize)) / 6;
 	vec[15] = rl.replayBuffer.alphaPER;
 	vec[16] = rl.replayBuffer.betaPER;
-	vec[17] = genome.mutation.rate / 0.5;
-	vec[18] = Math.log10(Math.max(1e-5, genome.mutation.sigma)) / 4 + 1.25;
-	vec[19] = Math.log10(Math.max(1e-5, genome.mutation.selfSigma)) / 4 + 1.25;
+}
+
+function _encodeMutationScalars(vec: Float32Array, mutation: Genome["mutation"]): void {
+	vec[17] = mutation.rate / 0.5;
+	vec[18] = Math.log10(Math.max(1e-5, mutation.sigma)) / 4 + 1.25;
+	vec[19] = Math.log10(Math.max(1e-5, mutation.selfSigma)) / 4 + 1.25;
+}
+
+function _encodeNetworkScalars(vec: Float32Array, net: Genome["network"]): void {
 	vec[20] = net.inputDim / 256;
 	vec[21] = net.outputDim / 64;
 	vec[22] = net.hiddenLayers.length / MAX_DEPTH;
 }
 
+function _encodeScalars(vec: Float32Array, genome: Genome): void {
+	_encodeRLScalars(vec, genome.rl);
+	_encodeMutationScalars(vec, genome.mutation);
+	_encodeNetworkScalars(vec, genome.network);
+}
+
+function _encodeSingleLayer(vec: Float32Array, base: number, layer: Genome["network"]["hiddenLayers"][number]): void {
+	vec[base] = layer.neurons / 512;
+
+	const actIdx = ACTIVATIONS.indexOf(layer.activation);
+	if (actIdx >= 0) {
+		vec[base + 1 + actIdx] = 1;
+	}
+
+	const ctIdx = CONNECTION_TYPES.indexOf(layer.connectionType);
+	if (ctIdx >= 0) {
+		vec[base + 1 + N_ACT + ctIdx] = 1;
+	}
+}
+
 function _encodeLayers(vec: Float32Array, net: Genome["network"]): void {
-	const layerOffset = SCALAR_DIM;
 	const layers = net.hiddenLayers.slice(0, MAX_DEPTH);
 
 	for (let i = 0; i < MAX_DEPTH; i++) {
-		const base = layerOffset + i * LAYER_DIM;
 		if (i >= layers.length) {
 			continue;
 		}
-		const layer = layers[i];
-
-		vec[base] = layer.neurons / 512;
-
-		const actIdx = ACTIVATIONS.indexOf(layer.activation);
-		if (actIdx >= 0) {
-			vec[base + 1 + actIdx] = 1;
-		}
-
-		const ctIdx = CONNECTION_TYPES.indexOf(layer.connectionType);
-		if (ctIdx >= 0) {
-			vec[base + 1 + N_ACT + ctIdx] = 1;
-		}
+		_encodeSingleLayer(vec, SCALAR_DIM + i * LAYER_DIM, layers[i]);
 	}
 }
 

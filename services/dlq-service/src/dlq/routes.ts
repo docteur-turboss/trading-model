@@ -37,24 +37,14 @@ function verifySignature(req: Request, serviceName: string): boolean {
 	const provided = (req.headers["x-signature"] as string) || "";
 	const timestampStr = (req.headers["x-timestamp"] as string) || "";
 
-	const timestamp = _validateTimestamp(timestampStr, provided);
-	if (timestamp === null) {
+	if (!_validateTimestamp(timestampStr, provided)) {
 		return false;
 	}
 
-	let bodyString: string;
-	try {
-		bodyString = deterministicStringify(normalizeBody(req.body));
-	} catch {
-		logger.warn("Failed to stringify request body for signature verification", {
-			context: {
-				serviceName,
-			},
-		});
+	const bodyHash = _computeBodyHash(req, serviceName);
+	if (!bodyHash) {
 		return false;
 	}
-
-	const bodyHash = createHash("sha256").update(bodyString).digest("hex");
 
 	const parts = [serviceName, timestampStr, bodyHash, req.method, req.path];
 	if (_matchSignature(provided, secret, parts)) {
@@ -64,12 +54,34 @@ function verifySignature(req: Request, serviceName: string): boolean {
 	const oldParts = [
 		serviceName,
 		timestampStr,
-		bodyString,
+		_computeBodyString(req, serviceName) ?? "",
 		req.method,
 		req.path,
 	];
 
 	return _matchSignature(provided, secret, oldParts);
+}
+
+function _computeBodyString(
+	req: Request,
+	serviceName: string
+): string | null {
+	try {
+		return deterministicStringify(normalizeBody(req.body));
+	} catch {
+		logger.warn("Failed to stringify request body for signature verification", {
+			context: { serviceName },
+		});
+		return null;
+	}
+}
+
+function _computeBodyHash(req: Request, serviceName: string): string | null {
+	const bodyString = _computeBodyString(req, serviceName);
+	if (!bodyString) {
+		return null;
+	}
+	return createHash("sha256").update(bodyString).digest("hex");
 }
 
 function _validateTimestamp(
@@ -131,14 +143,12 @@ function getOrCreateRedis(): Redis | null {
 	if (!env.REDIS_URL) {
 		return null;
 	}
+	return _createRedisClient();
+}
+
+function _createRedisClient(): Redis | null {
 	try {
-		sharedRedisClient = new Redis(env.REDIS_URL, {
-			lazyConnect: true,
-			retryStrategy: (times) => {
-				const delay = Math.min(times * 200, 5_000);
-				return delay;
-			},
-		});
+		sharedRedisClient = _newRedisClient();
 		sharedRedisClient.connect().catch(() => {
 			sharedRedisClient = null;
 			sharedRedisInit = false;
@@ -147,6 +157,13 @@ function getOrCreateRedis(): Redis | null {
 	} catch {
 		return null;
 	}
+}
+
+function _newRedisClient(): Redis {
+	return new Redis(env.REDIS_URL!, {
+		lazyConnect: true,
+		retryStrategy: (times) => Math.min(times * 200, 5_000),
+	});
 }
 
 function createStore(): undefined | RedisStore {

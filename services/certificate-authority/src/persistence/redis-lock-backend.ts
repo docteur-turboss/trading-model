@@ -16,14 +16,9 @@ export class RedisLockBackend implements LockBackend {
 	private _connect(redisUrl: string): void {
 		try {
 			this._client = new Redis(redisUrl, {
-				enableReadyCheck: true,
-				maxRetriesPerRequest: 1,
-				retryStrategy: () => null,
-				lazyConnect: true,
+				enableReadyCheck: true, maxRetriesPerRequest: 1, retryStrategy: () => null, lazyConnect: true,
 			});
-			this._client.on("error", () => {
-				this._available = false;
-			});
+			this._client.on("error", () => { this._available = false; });
 		} catch {
 			this._client = null;
 		}

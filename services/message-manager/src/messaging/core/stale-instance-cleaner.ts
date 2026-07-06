@@ -35,20 +35,14 @@ export class StaleInstanceCleaner {
 
 	async isStaleByHeartbeat(instanceId: string): Promise<boolean> {
 		const redis = await getSubscriptionClient();
-		const leaseKey = `${this._prefix}lease:${instanceId}`;
-		const heartbeat = await redis.hget(leaseKey, LEASE_HEARTBEAT_FIELD);
+		const heartbeat = await redis.hget(
+			`${this._prefix}lease:${instanceId}`,
+			LEASE_HEARTBEAT_FIELD
+		);
 		if (!heartbeat) {
 			return true;
 		}
-		const lastBeat = Number.parseInt(heartbeat, 10);
-		const elapsed = Date.now() - lastBeat;
-		if (elapsed <= HEARTBEAT_INTERVAL_MS * MISSED_HEARTBEAT_THRESHOLD) {
-			return false;
-		}
-		if (elapsed < GRACE_PERIOD_MS) {
-			return false;
-		}
-		return true;
+		return _isHeartbeatExpired(Number.parseInt(heartbeat, 10));
 	}
 
 	private async _isInstanceStale(
@@ -105,35 +99,49 @@ export class StaleInstanceCleaner {
 
 	async removeStaleInstances(): Promise<number> {
 		const redis = await getSubscriptionClient();
-		let removed = 0;
-		let scanCursor = "0";
+		let totalRemoved = 0;
+		let cursor = "0";
 
 		do {
-			const [nextCursor, instanceIds] = await redis.sscan(
-				this._activeInstancesKey(),
-				scanCursor,
-				"COUNT",
-				100
-			);
-			scanCursor = nextCursor;
+			const result = await this._scanAndRemove(redis, cursor);
+			cursor = result.cursor;
+			totalRemoved += result.removed;
+		} while (cursor !== "0");
 
-			for (const instanceId of instanceIds) {
-				if (!(await this._isInstanceStale(redis, instanceId))) {
-					continue;
-				}
-				const topics = await this._removeInstanceSubscriptions(
-					redis,
-					instanceId
-				);
-				await this._cleanupOrphanedTopics(redis, topics);
-				removed += topics.length;
-				logger.info("Removed stale subscription by heartbeat", {
-					instanceId,
-					topics: topics.join(","),
-				});
-			}
-		} while (scanCursor !== "0");
-
-		return removed;
+		return totalRemoved;
 	}
+
+	private async _scanAndRemove(
+		redis: import("ioredis").Redis,
+		cursor: string
+	): Promise<{ cursor: string; removed: number }> {
+		const [nextCursor, instanceIds] = await redis.sscan(
+			this._activeInstancesKey(),
+			cursor,
+			"COUNT",
+			100
+		);
+		let removed = 0;
+		for (const instanceId of instanceIds) {
+			if (!(await this._isInstanceStale(redis, instanceId))) {
+				continue;
+			}
+			const topics = await this._removeInstanceSubscriptions(redis, instanceId);
+			await this._cleanupOrphanedTopics(redis, topics);
+			removed += topics.length;
+			logger.info("Removed stale subscription by heartbeat", { instanceId, topics: topics.join(",") });
+		}
+		return { cursor: nextCursor, removed };
+	}
+}
+
+function _isHeartbeatExpired(lastBeat: number): boolean {
+	const elapsed = Date.now() - lastBeat;
+	if (elapsed <= HEARTBEAT_INTERVAL_MS * MISSED_HEARTBEAT_THRESHOLD) {
+		return false;
+	}
+	if (elapsed < GRACE_PERIOD_MS) {
+		return false;
+	}
+	return true;
 }
