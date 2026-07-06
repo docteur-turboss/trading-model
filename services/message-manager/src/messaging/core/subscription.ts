@@ -21,10 +21,7 @@
  * Infrastructure / messaging layer component.
  * Acts as a delivery orchestrator for the Broker service.
  */
-import {
-	DeliveryMode,
-	type DeliveryMode,
-} from "@trading-model/common/config/delivery-mode.types";
+import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type {
 	Message,
 	ServiceIdentity,

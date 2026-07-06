@@ -45,17 +45,16 @@ export function initializeTelemetry(config: TelemetryConfig): void {
 }
 
 export async function shutdownTelemetry(): Promise<void> {
-	if (sdk) {
-		try {
-			await sdk.shutdown();
-			logger.info("OpenTelemetry shut down");
-		} catch (err) {
-			logger.warn("OpenTelemetry shutdown error", {
-				context: {
-					error: (err as Error).message,
-				},
-			});
-		}
-		sdk = null;
+	if (!sdk) {
+		return;
 	}
+	try {
+		await sdk.shutdown();
+		logger.info("OpenTelemetry shut down");
+	} catch (err) {
+		logger.warn("OpenTelemetry shutdown error", {
+			context: { error: (err as Error).message },
+		});
+	}
+	sdk = null;
 }

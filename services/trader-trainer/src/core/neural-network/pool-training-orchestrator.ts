@@ -41,28 +41,24 @@ export class PoolTrainingOrchestrator {
 		return loss;
 	}
 
+	private _accumulatePoolGradients(pool: import("./type").PoolExperience[]): number {
+		this._backprop.resetAccumulators();
+		let totalLoss = 0;
+		for (const exp of pool) {
+			totalLoss += exp.loss;
+			this._backprop.backpropAccumulate(this._poolManager.experienceToContext(exp), exp.target);
+		}
+		return totalLoss;
+	}
+
 	trainPooled(): number {
 		const pool = this._poolManager.getAll();
 		if (pool.length === 0) {
 			return 0;
 		}
-
-		const poolSize = pool.length;
-
-		this._backprop.resetAccumulators();
-
-		let totalLoss = 0;
-
-		for (const experience of pool) {
-			totalLoss += experience.loss;
-			const context = this._poolManager.experienceToContext(experience);
-			this._backprop.backpropAccumulate(context, experience.target);
-		}
-
-		this._backprop.applyAccumulatedGradients(poolSize);
-
+		const totalLoss = this._accumulatePoolGradients(pool);
+		this._backprop.applyAccumulatedGradients(pool.length);
 		this._poolManager.clear();
-
-		return totalLoss / poolSize;
+		return totalLoss / pool.length;
 	}
 }

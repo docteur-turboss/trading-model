@@ -72,7 +72,9 @@ export interface BinanceCandlestickData {
 export type BinanceCandlestickDataResponse = BinanceCandlestickTuple[];
 
 /** Convert a raw API tuple to a named-field object. */
-export function parseCandlestick(raw: BinanceCandlestickTuple): BinanceCandlestickData {
+export function parseCandlestick(
+	raw: BinanceCandlestickTuple
+): BinanceCandlestickData {
 	return {
 		openTime: raw[0],
 		open: raw[1],

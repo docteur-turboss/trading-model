@@ -79,46 +79,17 @@ class AdamOptimizer implements Optimizer {
 	step(options: AdamOptions): void {
 		const { params, grads, state, lr, hp } = options;
 		state.stepCount++;
-		const lrT = _adamLR(lr, hp.beta1, hp.beta2, state.stepCount as number);
-		_adamUpdate(params, grads, state.moment1!, state.moment2!, lrT, hp.epsilon);
+		const stepT = state.stepCount as number;
+		const lrT = (lr * Math.sqrt(1 - hp.beta2 ** stepT)) / (1 - hp.beta1 ** stepT);
+
+		for (let i = 0; i < params.length; i++) {
+			const grad = grads[i];
+			state.moment1![i] = hp.beta1 * state.moment1![i] + (1 - hp.beta1) * grad;
+			state.moment2![i] = hp.beta2 * state.moment2![i] + (1 - hp.beta2) * grad * grad;
+			params[i] -= (lrT * state.moment1![i]) / (Math.sqrt(state.moment2![i]) + hp.epsilon);
+		}
 	}
 }
-
-function _adamLR(lr: number, beta1: number, beta2: number, step: number): number {
-	return (lr * Math.sqrt(1 - beta2 ** step)) / (1 - beta1 ** step);
-}
-
-function _adamUpdate(
-	params: Float32Array,
-	grads: Float32Array,
-	moment1: Float32Array,
-	moment2: Float32Array,
-	lrT: number,
-	epsilon: number
-): void {
-	for (let i = 0; i < params.length; i++) {
-		const grad = grads[i];
-		moment1[i] = 0.9 * moment1[i] + 0.1 * grad;
-		// Oops, those should use beta1 and beta2, not hardcoded. Let me fix.
-		moment1[i] = moment1[i] * 0.9 + 0.1 * grad;
-		moment2[i] = moment2[i] * 0.999 + 0.001 * grad * grad;
-		params[i] -= (lrT * moment1[i]) / (Math.sqrt(moment2[i]) + epsilon);
-	}
-}
-
-// Actually wait, I hardcoded beta1/beta2 values. Let me fix that.
-// Actually let me redo - pass beta1, beta2 as parameters.
-
-function _adamUpdate(
-	params: Float32Array,
-	grads: Float32Array,
-	moment1: Float32Array,
-	moment2: Float32Array,
-	lrT: number,
-	epsilon: number,
-	beta1: number,
-	beta2: number
-): void {
 
 export const SGD = new SgdOptimizer();
 export const ADAM = new AdamOptimizer();

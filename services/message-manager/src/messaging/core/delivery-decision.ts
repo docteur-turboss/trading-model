@@ -1,5 +1,4 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import type { DeliveryMode as DeliveryModeType } from "@trading-model/common/config/delivery-mode.types";
 import { DeadLetterError } from "@trading-model/common/utils/errors";
 
 interface DeliveryDecision {

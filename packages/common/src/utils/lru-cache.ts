@@ -37,7 +37,7 @@ export class LruCache<TValue> {
 		return entry.value;
 	}
 
-	set(key: string, value: TValue): void {
+	private _evictOldestIfNeeded(): void {
 		if (this._store.has(key)) {
 			this._store.delete(key);
 		} else if (this._store.size >= this._maxSize) {
@@ -46,6 +46,10 @@ export class LruCache<TValue> {
 				this._store.delete(oldest.value);
 			}
 		}
+	}
+
+	set(key: string, value: TValue): void {
+		this._evictIfNeeded(key);
 		this._store.set(key, {
 			value,
 			expiresAt:
