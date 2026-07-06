@@ -19,9 +19,23 @@ let handlersRegistered = false;
  * @param shutdown  - Graceful shutdown handler (SIGTERM, SIGINT).
  * @param hardShutdown - Forced shutdown handler (uncaughtException, unhandledRejection).
  */
+function _buildCleanupFn(
+	onSigTerm: () => Promise<void>,
+	onSigInt: () => Promise<void>,
+	onUncaughtException: (error: Error) => void,
+	onUnhandledRejection: (reason: unknown) => void,
+): () => void {
+	return () => {
+		process.removeListener("SIGTERM", onSigTerm);
+		process.removeListener("SIGINT", onSigInt);
+		process.removeListener("uncaughtException", onUncaughtException);
+		process.removeListener("unhandledRejection", onUnhandledRejection);
+	};
+}
+
 export function setupProcessHandlers(
 	shutdown: ShutdownHandler,
-	hardShutdown: HardShutdownHandler
+	hardShutdown: HardShutdownHandler,
 ): void {
 	if (handlersRegistered) {
 		return;
@@ -38,12 +52,9 @@ export function setupProcessHandlers(
 	process.on("uncaughtException", onUncaughtException);
 	process.on("unhandledRejection", onUnhandledRejection);
 
-	CLEANUP_FNS.push(() => {
-		process.removeListener("SIGTERM", onSigTerm);
-		process.removeListener("SIGINT", onSigInt);
-		process.removeListener("uncaughtException", onUncaughtException);
-		process.removeListener("unhandledRejection", onUnhandledRejection);
-	});
+	CLEANUP_FNS.push(
+		_buildCleanupFn(onSigTerm, onSigInt, onUncaughtException, onUnhandledRejection),
+	);
 }
 
 function _createSigTermHandler(shutdown: ShutdownHandler): () => Promise<void> {

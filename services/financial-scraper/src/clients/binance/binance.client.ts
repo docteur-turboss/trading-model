@@ -102,13 +102,11 @@ export async function getCandlestickData({
 	startTime,
 }: CandlestickRequest): Promise<BinanceCandlestickDataResponse> {
 	assertNonEmptySymbol(symbol, "getCandlestickData");
-	const url = BINANCE_ENDPOINTS.candlesticks(
-		symbol,
-		interval,
-		startTime,
-		limit
-	);
-	const weight = BINANCE_WEIGHTS.candlesticks();
+	const url = BINANCE_ENDPOINTS.candlesticks(symbol, interval, startTime, limit);
+	return _getWithWeight(url, BINANCE_WEIGHTS.candlesticks());
+}
+
+async function _getWithWeight(url: string, weight: number): Promise<unknown> {
 	return (await BINANCE.get(url, { weight })).data;
 }
 

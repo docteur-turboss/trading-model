@@ -17,36 +17,30 @@ export interface TelemetryConfig {
 	otlpEndpoint?: string;
 }
 
+function _buildSdkResources(config: TelemetryConfig): ReturnType<typeof resourceFromAttributes> {
+	return resourceFromAttributes({
+		[SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,
+		[SemanticResourceAttributes.SERVICE_VERSION]: config.serviceVersion,
+		[SemanticResourceAttributes.SERVICE_INSTANCE_ID]: config.instanceId,
+	});
+}
+
 export function initializeTelemetry(config: TelemetryConfig): void {
 	if (!config.otlpEndpoint) {
 		logger.info("OpenTelemetry disabled (no endpoint configured)", {
-			context: {
-				service: config.serviceName,
-			},
+			context: { service: config.serviceName },
 		});
 		return;
 	}
-
 	diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
-
 	sdk = new NodeSDK({
-		resource: resourceFromAttributes({
-			[SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,
-			[SemanticResourceAttributes.SERVICE_VERSION]: config.serviceVersion,
-			[SemanticResourceAttributes.SERVICE_INSTANCE_ID]: config.instanceId,
-		}),
-		traceExporter: new OTLPTraceExporter({
-			url: `${config.otlpEndpoint}/v1/traces`,
-		}),
+		resource: _buildSdkResources(config),
+		traceExporter: new OTLPTraceExporter({ url: `${config.otlpEndpoint}/v1/traces` }),
 		instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()],
 	});
-
 	sdk.start();
 	logger.info("OpenTelemetry initialized", {
-		context: {
-			endpoint: config.otlpEndpoint,
-			service: config.serviceName,
-		},
+		context: { endpoint: config.otlpEndpoint, service: config.serviceName },
 	});
 }
 
