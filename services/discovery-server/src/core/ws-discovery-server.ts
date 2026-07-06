@@ -42,7 +42,6 @@ export class WsDiscoveryServer {
 
 	stop(): void {
 		this._clientManager.clearAll();
-		this._wss?.close();
-		this._wss = null;
+		this._wss.close();
 	}
 }

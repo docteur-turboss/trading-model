@@ -2,7 +2,7 @@ import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import { toServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
 import WebSocket, { WebSocketServer } from "ws";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -61,7 +61,7 @@ export class WssConnectionHandler {
 		const serviceName = req.headers[HTTP_HEADERS.X_SERVICE_NAME] as string;
 		const instanceId = req.headers[HTTP_HEADERS.X_INSTANCE_ID] as string;
 		const topics = _parseTopicsHeader(req.headers[HTTP_HEADERS.X_SUBSCRIBED_TOPICS] as string);
-		return { identity: { serviceName: toServiceId(serviceName), instanceId }, topics };
+		return { identity: { serviceName: toServiceId(serviceName), instanceId: toInstanceId(instanceId) }, topics };
 	}
 
 	registerCloseHandler(ws: WebSocket, subKey: string, identity: ServiceIdentity): void {

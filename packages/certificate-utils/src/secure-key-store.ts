@@ -58,22 +58,19 @@ export class SecureKeyStore {
 	}
 
 	read(): string {
-		if (this._disposed || !this._buffer) {
+		if (this._disposed) {
 			throw new Error("SecureKeyStore has been destroyed");
 		}
 		return this._buffer.toString("utf8");
 	}
 
-	get raw(): Buffer | null {
+	get raw(): Buffer {
 		return this._buffer;
 	}
 
 	destroy(): void {
 		this._disposed = true;
-		if (this._buffer) {
-			this._buffer.fill(0);
-			this._buffer = null;
-		}
+		this._buffer.fill(0);
 		STORES.delete(this);
 	}
 

@@ -63,7 +63,7 @@ export class StaleInstanceCleaner {
 		logger.warn("Expired instance removed", {
 			serviceName, instanceId: instance.instanceId, heartbeatAge: now - instance.lastHeartbeat, ttl: instance.ttl,
 		});
-		await this._deps.removeInstance({ serviceName: toServiceId(serviceName), instanceId: instance.instanceId });
+		await this._deps.removeInstance({ serviceName: toServiceId(serviceName), instanceId: toInstanceId(instance.instanceId) });
 	}
 
 	private async _cleanup(): Promise<void> {
