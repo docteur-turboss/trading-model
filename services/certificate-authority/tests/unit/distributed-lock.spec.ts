@@ -153,7 +153,7 @@ describe("DistributedLock", () => {
 			fencingToken: 1,
 		});
 		const lock = new DistributedLock(LOCK_OPTS);
-		(lock as any)._instanceId = "test-instance";
+		(lock as any)._context.instanceId = "test-instance";
 		(lock as any)._currentFencingToken = 1;
 		await lock.connect();
 		const token = await lock.verifyOwnership();
