@@ -2,7 +2,7 @@ import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import { isNonEmptyString } from "@trading-model/common/validation/primitives";
 import type { IPAddress } from "@trading-model/common/domain/primitives";
-import { Port, toServiceId } from "@trading-model/common/domain/primitives";
+import { Port, toServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
 import type { RequestHandler } from "express";
 import { z } from "zod";
 
@@ -99,7 +99,7 @@ function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
 			return sendResponse({ error: "Invalid route parameters" }, 400);
 		}
 
-		const instance = registry.getInstance({ serviceName: toServiceId(serviceName), instanceId });
+		const instance = registry.getInstance({ serviceName: toServiceId(serviceName), instanceId: toInstanceId(instanceId) });
 
 		if (!instance) {
 			return sendResponse({ error: "Instance not found" }, 404);

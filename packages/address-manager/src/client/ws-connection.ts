@@ -26,24 +26,20 @@ export class WsConnection {
 			this._ws = new WebSocket(this._url);
 			return this._ws;
 		} catch {
-			this._ws = null;
 			return null;
 		}
 	}
 
 	disconnect(): void {
-		if (this._ws) {
-			this._ws.close();
-			this._ws = null;
-		}
+		this._ws.close();
 	}
 
 	get isConnected(): boolean {
-		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
+		return this._ws.readyState === WebSocket.OPEN;
 	}
 
 	send(data: string): boolean {
-		if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
+		if (this._ws.readyState !== WebSocket.OPEN) {
 			return false;
 		}
 		this._ws.send(data);
@@ -55,6 +51,5 @@ export class WsConnection {
 	}
 
 	onClose(): void {
-		this._ws = null;
 	}
 }

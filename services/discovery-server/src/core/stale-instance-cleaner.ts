@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import { toServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
 import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";

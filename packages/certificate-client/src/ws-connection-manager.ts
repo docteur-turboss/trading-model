@@ -40,9 +40,7 @@ export class WsConnectionManager {
 	private _setupConnectTimeout(onTimeout: () => void): () => void {
 		return createWsConnectTimeout(() => {
 			logger.warn("WSS connection timeout");
-			if (this._ws) {
-				this._ws.close();
-			}
+			this._ws.close();
 			onTimeout();
 		}, 10_000);
 	}
@@ -54,7 +52,6 @@ export class WsConnectionManager {
 		onError: (err: Error) => void,
 		cancelTimeout: () => void,
 	): void {
-		if (!this._ws) return;
 
 		this._ws.on("open", () => {
 			cancelTimeout();
@@ -78,18 +75,15 @@ export class WsConnectionManager {
 	}
 
 	cleanup(): void {
-		if (this._ws) {
-			try {
-				this._ws.removeAllListeners();
-				this._ws.close();
-			} catch {
-				/* closing gracefully */
-			}
-			this._ws = null;
+		try {
+			this._ws.removeAllListeners();
+			this._ws.close();
+		} catch {
+			/* closing gracefully */
 		}
 	}
 
-	get ws(): WebSocket | null {
+	get ws(): WebSocket {
 		return this._ws;
 	}
 }

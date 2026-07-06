@@ -36,7 +36,6 @@ export class WorkerWsConnection {
 				this.onMessage?.(data);
 			});
 			this._ws.on("close", () => {
-				this._ws = null;
 				this.onClose?.();
 			});
 			this._ws.on("error", (err) => {
@@ -49,20 +48,17 @@ export class WorkerWsConnection {
 	}
 
 	send(data: SchedulerOutgoingMessage | WorkerIncomingMessage): void {
-		if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+		if (this._ws.readyState === WebSocket.OPEN) {
 			this._ws.send(JSON.stringify(data));
 		}
 	}
 
 	disconnect(): void {
-		if (this._ws) {
-			this._ws.close();
-			this._ws = null;
-		}
+		this._ws.close();
 	}
 
 	get isConnected(): boolean {
-		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
+		return this._ws.readyState === WebSocket.OPEN;
 	}
 
 	private _sendRegister(): void {

@@ -36,7 +36,7 @@ function _parseHeartbeatBody(req: import("express").Request): ServiceIdentity | 
 	if (!parsed.success) {
 		return null;
 	}
-	return { ...parsed.data, serviceName: toServiceId(parsed.data.serviceName) };
+	return { ...parsed.data, serviceName: toServiceId(parsed.data.serviceName), instanceId: toInstanceId(parsed.data.instanceId) };
 }
 
 function _createHeartbeatHandler(registry: ServiceRegistry): RequestHandler {
