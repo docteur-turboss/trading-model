@@ -6,17 +6,7 @@ import {
 } from "@trading-model/common/domain/pagination";
 import type { Collection, Db } from "mongodb";
 
-const MREGEX = "$regex";
-const MOPTIONS = "$options";
-const MGTE = "$gte";
-const MLTE = "$lte";
-const MFACET = "$facet";
-const MGROUP = "$group";
-const MSUM = "$sum";
-const MMIN = "$min";
-const MMAX = "$max";
-const MCOUNT = "$count";
-const MID = "_id";
+type MongoDoc = Record<string, unknown>;
 
 export interface ServiceLogDocument {
 	receivedAt: Date;
@@ -135,11 +125,11 @@ export class LogRepository {
 		if (!ObjectId.isValid(id)) {
 			return null;
 		}
-		return col.findOne({ [MID]: new ObjectId(id) } as never);
+		return col.findOne({ _id: new ObjectId(id) } as never);
 	}
 
-	private _buildLogFilter(params: LogQuery): Record<string, unknown> {
-		const filter: Record<string, unknown> = {};
+	private _buildLogFilter(params: LogQuery): MongoDoc {
+		const filter: MongoDoc = {};
 
 		_addIfPresent(filter, "service.name", params.serviceName);
 		_addIfPresent(filter, "level", params.level);
@@ -150,24 +140,24 @@ export class LogRepository {
 		return filter;
 	}
 
-	private _buildStatsPipeline(): Record<string, unknown>[] {
+	private _buildStatsPipeline(): MongoDoc[] {
 		return [
 			{
-				[MFACET]: {
+				$facet: {
 					byService: [
-						{ [MGROUP]: { [MID]: "$service.name", count: { [MSUM]: 1 } } },
+						{ $group: { _id: "$service.name", count: { $sum: 1 } } },
 					],
-					byLevel: [{ [MGROUP]: { [MID]: "$level", count: { [MSUM]: 1 } } }],
+					byLevel: [{ $group: { _id: "$level", count: { $sum: 1 } } }],
 					dateRange: [
 						{
-							[MGROUP]: {
-								[MID]: null,
-								earliest: { [MMIN]: "$receivedAt" },
-								latest: { [MMAX]: "$receivedAt" },
+							$group: {
+								_id: null,
+								earliest: { $min: "$receivedAt" },
+								latest: { $max: "$receivedAt" },
 							},
 						},
 					],
-					total: [{ [MCOUNT]: "count" }],
+					total: [{ $count: "count" }],
 				},
 			},
 		];
@@ -184,7 +174,7 @@ export class LogRepository {
 }
 
 function _addIfPresent(
-	filter: Record<string, unknown>,
+	filter: MongoDoc,
 	key: string,
 	value: string | undefined
 ): void {
@@ -194,30 +184,31 @@ function _addIfPresent(
 }
 
 function _addDateRangeFilter(
-	filter: Record<string, unknown>,
+	filter: MongoDoc,
 	params: LogQuery
 ): void {
 	const dr = params.dateRange;
 	if (!dr) {
 		return;
 	}
-	filter.receivedAt = {} as Record<string, Date>;
+	const rangeFilter: { $gte?: Date; $lte?: Date } = {};
 	if (dr.start) {
-		(filter.receivedAt as Record<string, Date>)[MGTE] = dr.start;
+		rangeFilter.$gte = dr.start;
 	}
 	if (dr.end) {
-		(filter.receivedAt as Record<string, Date>)[MLTE] = dr.end;
+		rangeFilter.$lte = dr.end;
 	}
+	filter.receivedAt = rangeFilter;
 }
 
 function _addSearchFilter(
-	filter: Record<string, unknown>,
+	filter: MongoDoc,
 	params: LogQuery
 ): void {
 	if (!params.search) {
 		return;
 	}
-	filter.message = { [MREGEX]: params.search, [MOPTIONS]: "i" };
+	filter.message = { $regex: params.search, $options: "i" };
 }
 
 function _extractTotal(aggResult: Record<string, unknown>): number {
@@ -230,10 +221,10 @@ function _extractMap(
 ): Record<string, number> {
 	const result: Record<string, number> = {};
 	for (const item of (aggResult?.[key] as Array<{
-		[MID]: string;
+		_id: string;
 		count: number;
 	}>) ?? []) {
-		result[item[MID]] = item.count;
+		result[item._id] = item.count;
 	}
 	return result;
 }

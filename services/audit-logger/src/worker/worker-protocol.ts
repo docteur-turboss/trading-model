@@ -10,9 +10,11 @@ import type { WorkerRegistry } from "./worker-registry";
 export class WorkerProtocol {
 	private readonly _wss: WebSocketServer;
 	private readonly _connections: Map<string, WebSocket> = new Map();
-	private readonly _handlers: Record<
-		string,
-		(message: WorkerIncomingMessage, ws?: WebSocket) => void
+	private readonly _handlers: Partial<
+		Record<
+			WorkerIncomingMessage["type"],
+			(message: WorkerIncomingMessage, ws?: WebSocket) => void
+		>
 	>;
 
 	constructor(
@@ -21,86 +23,55 @@ export class WorkerProtocol {
 		private readonly _onWorkerDisconnect: (workerId: string) => void
 	) {
 		this._wss = new WebSocketServer({ server });
-		this._handlers = _buildHandlers(this);
-		this._wss.on("connection", (ws: WebSocket) => {
-			this._setupWsHandlers(ws);
-		});
+		this._handlers = this._buildHandlerMap();
+		this._wss.on("connection", (ws: WebSocket) => this._onConnection(ws));
 	}
 
-	private _setupWsHandlers(ws: WebSocket): void {
-		ws.on("message", (data: WebSocket.Data) => {
-			_handleWsMessage(data, this._handlers, ws);
-		});
-
-		ws.on("close", () => {
-			_handleWsClose(
-				ws,
-				this._connections,
-				this._workerRegistry,
-				this._onWorkerDisconnect
-			);
-		});
+	private _buildHandlerMap(): Partial<
+		Record<WorkerIncomingMessage["type"], (message: WorkerIncomingMessage, ws?: WebSocket) => void>
+	> {
+		return {
+			register: (msg, ws) =>
+				this._handleRegister(msg as Parameters<typeof this._handleRegister>[0], ws!),
+			heartbeat: (msg) =>
+				this._handleHeartbeat(msg as Parameters<typeof this._handleHeartbeat>[0]),
+			disconnect: (msg) =>
+				this._handleDisconnect(msg as Parameters<typeof this._handleDisconnect>[0]),
+		};
 	}
-}
 
-function _buildHandlers(
-	self: WorkerProtocol
-): Record<string, (message: WorkerIncomingMessage, ws?: WebSocket) => void> {
-	return {
-		register: (msg, ws) =>
-			self._handleRegister(
-				msg as Parameters<typeof self._handleRegister>[0],
-				ws!
-			),
-		heartbeat: (msg) =>
-			self._handleHeartbeat(msg as Parameters<typeof self._handleHeartbeat>[0]),
-		disconnect: (msg) =>
-			self._handleDisconnect(
-				msg as Parameters<typeof self._handleDisconnect>[0]
-			),
-	};
-}
-
-function _handleWsMessage(
-	data: WebSocket.Data,
-	handlers: Record<
-		string,
-		(message: WorkerIncomingMessage, ws?: WebSocket) => void
-	>,
-	ws: WebSocket
-): void {
-	try {
-		const message: WorkerIncomingMessage = JSON.parse(data.toString());
-		const handler = handlers[message.type];
-		if (handler) {
-			handler(message, ws);
-		}
-	} catch (err) {
-		logger.error("Invalid WebSocket message from worker", {
-			context: {
-				error: err instanceof Error ? err.message : String(err),
-			},
-		});
+	private _onConnection(ws: WebSocket): void {
+		ws.on("message", (data: WebSocket.Data) => this._onWsMessage(ws, data));
+		ws.on("close", () => this._onWsClose(ws));
 	}
-}
 
-function _handleWsClose(
-	ws: WebSocket,
-	connections: Map<string, WebSocket>,
-	workerRegistry: WorkerRegistry,
-	onWorkerDisconnect: (workerId: string) => void
-): void {
-	for (const [workerId, conn] of connections) {
-		if (conn === ws) {
-			connections.delete(workerId);
-			workerRegistry.setStatus(workerId, "draining");
-			onWorkerDisconnect(workerId);
-			break;
+	private _onWsMessage(ws: WebSocket, data: WebSocket.Data): void {
+		try {
+			const message: WorkerIncomingMessage = JSON.parse(data.toString());
+			const handler = this._handlers[message.type];
+			if (handler) {
+				handler(message, ws);
+			}
+		} catch (err) {
+			logger.error("Invalid WebSocket message from worker", {
+				context: {
+					error: err instanceof Error ? err.message : String(err),
+				},
+			});
 		}
 	}
-}
 
-export class WorkerProtocol {
+	private _onWsClose(ws: WebSocket): void {
+		for (const [workerId, conn] of this._connections) {
+			if (conn === ws) {
+				this._connections.delete(workerId);
+				this._workerRegistry.setStatus(workerId, "draining");
+				this._onWorkerDisconnect(workerId);
+				break;
+			}
+		}
+	}
+
 	private _handleRegister(
 		message: WorkerIncomingMessage & { type: "register" },
 		ws: WebSocket
