@@ -17,10 +17,6 @@ jest.mock("@trading-model/common/server/create-secure-server", () => ({
 		),
 }));
 
-jest.mock("@trading-model/common/server/load-tls-config", () => ({
-	loadTlsConfig: jest.fn(() => MOCK_TLS_CONFIG),
-}));
-
 jest.mock("../../src/config/env", () => ({
 	ENV: {
 		PORT: 3000,
@@ -42,7 +38,6 @@ jest.mock("../../src/core/router", () => ({
 }));
 
 import { createSecureServer } from "@trading-model/common/server/create-secure-server";
-import { loadTlsConfig } from "@trading-model/common/server/load-tls-config";
 import { createServer } from "../../src/app/server";
 
 describe("server", () => {
@@ -56,17 +51,8 @@ describe("server", () => {
 		expect(createSecureServer).toHaveBeenCalledWith(
 			expect.objectContaining({
 				port: 3000,
-				tls: expect.objectContaining(MOCK_TLS_CONFIG),
+				tls: MOCK_TLS_CONFIG,
 			})
-		);
-	});
-
-	it("should call loadTlsConfig with TLS paths", () => {
-		void createServer();
-		expect(loadTlsConfig).toHaveBeenCalledWith(
-			"/certs/key.pem",
-			"/certs/cert.pem",
-			"/certs/ca.pem"
 		);
 	});
 });

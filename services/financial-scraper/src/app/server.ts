@@ -1,5 +1,4 @@
 import { createSecureServer } from "@trading-model/common/server/create-secure-server";
-import { loadTlsConfig } from "@trading-model/common/server/load-tls-config";
 
 import { FINANCIAL_ROUTES } from "../clients/http/routes";
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
@@ -10,7 +9,11 @@ import { MessageManagerListenExpress } from "../config/message-manager";
 export function createServer() {
 	return createSecureServer({
 		port: env.PORT,
-		tls: loadTlsConfig(env.TLS_KEY_PATH, env.TLS_CERT_PATH, env.TLS_CA_PATH),
+		tls: {
+			key: env.TLS_KEY_PATH,
+			cert: env.TLS_CERT_PATH,
+			ca: env.TLS_CA_PATH,
+		},
 		routes: (app) => {
 			app.use("/", FINANCIAL_ROUTES());
 			ADDRESS_MANAGER_ROUTES(app);

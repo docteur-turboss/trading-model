@@ -4,12 +4,6 @@ jest.mock("@trading-model/common/server/create-secure-server", () => ({
 	createSecureServer: jest.fn(),
 }));
 
-jest.mock("@trading-model/common/server/load-tls-config", () => ({
-	loadTlsConfig: jest
-		.fn()
-		.mockReturnValue({ key: "key.pem", cert: "cert.pem" }),
-}));
-
 jest.mock("../../src/config/env", () => ({
 	ENV: {
 		PORT: 8443,
@@ -32,7 +26,6 @@ jest.mock("../../src/routes/health.routes", () => ({
 }));
 
 import { createSecureServer } from "@trading-model/common/server/create-secure-server";
-import { loadTlsConfig } from "@trading-model/common/server/load-tls-config";
 import { createServer } from "../../src/app/server";
 import { certificateRoutes } from "../../src/routes/certificate.routes";
 import { crlRoutes } from "../../src/routes/crl.routes";
@@ -60,10 +53,13 @@ describe("createServer", () => {
 
 		const result = createServer();
 
-		expect(loadTlsConfig).toHaveBeenCalled();
 		expect(createSecureServer).toHaveBeenCalledWith({
 			port: 8443,
-			tls: { key: "key.pem", cert: "cert.pem" },
+			tls: {
+				key: "/key.pem",
+				cert: "/cert.pem",
+				ca: "/ca.pem",
+			},
 			routes: expect.any(Function),
 		});
 		expect(result).toBe(mockServer);
