@@ -23,6 +23,14 @@ import type {
 	NeuralNetworkConfig,
 } from "./type";
 
+function _resolveActivationType(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig>["activationType"] {
+	return cfg.activationType ?? new Array(cfg.neuronsByLayer.length - 1).fill("relu");
+}
+
+function _resolveBiasInit(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig>["biasInitialisationType"] {
+	return cfg.biasInitialisationType ?? cfg.initialisationType ?? "random";
+}
+
 function mergeConfig(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig> {
 	return {
 		useBias: cfg.useBias ?? true,
@@ -40,15 +48,9 @@ function mergeConfig(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig> {
 		initialisationType: cfg.initialisationType ?? "random",
 		connectionType: cfg.connectionType ?? "fully-connected",
 		lossFunctionType: cfg.lossFunctionType ?? "mean-squared-error",
-		normalizedInputRange: cfg.normalizedInputRange ?? [
-			0,
-			cfg.neuronsByLayer[0] - 1,
-		],
-		biasInitialisationType:
-			cfg.biasInitialisationType ?? cfg.initialisationType ?? "random",
-		activationType:
-			cfg.activationType ??
-			new Array(cfg.neuronsByLayer.length - 1).fill("relu"),
+		normalizedInputRange: cfg.normalizedInputRange ?? [0, cfg.neuronsByLayer[0] - 1],
+		biasInitialisationType: _resolveBiasInit(cfg),
+		activationType: _resolveActivationType(cfg),
 	};
 }
 

@@ -134,17 +134,24 @@ export function createHttpClient(baseURL: string): AxiosInstance {
 		timeout: DEFAULT_TIMEOUT,
 	});
 
+	_attachRateLimiter(instance, baseURL);
+	_attachRetryInterceptor(instance);
+
+	return instance;
+}
+
+function _attachRateLimiter(instance: AxiosInstance, baseURL: string): void {
 	instance.interceptors.request.use(async (config) => {
 		await acquireToken(baseURL, config.weight ?? 1);
 		return config;
 	});
+}
 
+function _attachRetryInterceptor(instance: AxiosInstance): void {
 	instance.interceptors.response.use(
 		(response) => response,
 		createRetryInterceptor(instance)
 	);
-
-	return instance;
 }
 
 /* -------------------------------------------------------

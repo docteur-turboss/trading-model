@@ -59,46 +59,46 @@ export function MTLSAuthorizationMiddleware(
 	});
 }
 
+function _throwUnauthorized(message: string): never {
+	throw ResponseException(JSON.stringify({ error: message })).unauthorized();
+}
+
+function _throwForbidden(reason: string): never {
+	throw ResponseException(JSON.stringify({ error: "Forbidden", reason })).forbidden();
+}
+
 function _resolveCallerName(req: Request): string {
 	const callerIdentity = req.clientIdentity;
 	if (!callerIdentity) {
-		throw ResponseException(
-			JSON.stringify({ error: "Unauthenticated" })
-		).unauthorized();
+		_throwUnauthorized("Unauthenticated");
 	}
-
 	const callerName = extractServiceName(callerIdentity);
 	if (!callerName) {
-		throw ResponseException(
-			JSON.stringify({ error: "Could not resolve caller identity" })
-		).forbidden();
+		_throwForbidden("Could not resolve caller identity");
 	}
-
 	return callerName;
+}
+
+function _getAllowedCallers(
+	targetService: string,
+	allowedCallers?: string[],
+): string[] {
+	const allowed = allowedCallers ?? DEFAULT_ACL[targetService];
+	if (!allowed) {
+		_throwForbidden(`No authorization policy for "${targetService}"`);
+	}
+	return allowed;
 }
 
 function _authorizeCaller(
 	callerName: string,
 	targetService: string,
-	allowedCallers?: string[]
+	allowedCallers?: string[],
 ): void {
-	const allowed = allowedCallers ?? DEFAULT_ACL[targetService];
-
-	if (!allowed) {
-		throw ResponseException(
-			JSON.stringify({
-				error: "Forbidden",
-				reason: `No authorization policy for "${targetService}"`,
-			})
-		).forbidden();
-	}
-
+	const allowed = _getAllowedCallers(targetService, allowedCallers);
 	if (!(allowed.includes("*") || allowed.includes(callerName))) {
-		throw ResponseException(
-			JSON.stringify({
-				error: "Forbidden",
-				reason: `"${callerName}" is not authorized to access "${targetService}"`,
-			})
-		).forbidden();
+		_throwForbidden(
+			`"${callerName}" is not authorized to access "${targetService}"`,
+		);
 	}
 }

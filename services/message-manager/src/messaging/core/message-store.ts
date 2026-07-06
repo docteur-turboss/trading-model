@@ -1,21 +1,12 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
-import { safeStringify } from "@trading-model/common/utils/safe-stringify";
-import { retryWithBackoff } from "@trading-model/common/utils/retry";
-import type Redis from "ioredis";
-
 import { ENV } from "../../config/env";
-import { logger } from "../../config/logger";
-import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
-import { getStreamClient } from "../../config/redis";
 import { ClaimManager } from "./claim-manager";
 import { DeduplicationService } from "./deduplication-service";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
+import { MessageStreamWriter } from "./message-stream-writer";
 import { PendingAckStore } from "./pending-ack-store";
 import { StreamGroupManager, type GetMessagesBetweenParams, type ReadFromGroupParams } from "./stream-group-manager";
 import { WalFlusherService } from "./wal-flusher-service";
-
-const MAX_WAL_RETRY = 10;
-const STORE_OPERATION_TIMEOUT_MS = 15_000;
 
 export class MessageStore {
 	private readonly _prefix: string;
@@ -25,6 +16,7 @@ export class MessageStore {
 	private readonly _dedupService: DeduplicationService;
 	private readonly _streamGroupManager: StreamGroupManager;
 	private readonly _walFlusher: WalFlusherService;
+	private readonly _streamWriter: MessageStreamWriter;
 
 	constructor() {
 		this._prefix = ENV.REDIS_PREFIX;

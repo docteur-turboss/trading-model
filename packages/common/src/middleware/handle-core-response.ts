@@ -59,22 +59,23 @@ export async function handleCoreResponse(
  * // Set-Cookie: token=jwt-token-value; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
  * // res.status(200).json({ status: 200, data: "jwt-token-value" });
  */
+function _getCookieOptions(): Record<string, unknown> {
+	return {
+		httpOnly: true,
+		secure: process.env.NODE_ENV === "production",
+		sameSite: "strict" as const,
+		maxAge: 7 * 24 * 60 * 60 * 1000,
+		path: "/",
+	};
+}
+
 export async function handleCoreAuthResponse(
 	coreFn: () => Promise<[unknown, string]>,
-	res: Response
+	res: Response,
 ) {
 	const [response, code] = await coreFn();
-
 	const clientResponse = ResponseException(response)[code as ResponseCodeKey]();
-
-	res
-		.status(clientResponse.status)
-		.cookie("token", clientResponse.data, {
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "strict",
-			maxAge: 7 * 24 * 60 * 60 * 1000,
-			path: "/",
-		})
+	res.status(clientResponse.status)
+		.cookie("token", clientResponse.data, _getCookieOptions())
 		.json(clientResponse);
 }
