@@ -1,23 +1,60 @@
-import { AppError, agentError } from "@trading-model/common/utils/errors";
+import { agentError } from "@trading-model/common/utils/errors";
 
 import type { Experience } from "./type";
 
-export class ExperiencePool {
+export interface IExperiencePool {
+	add(experience: Experience): void;
+	getPool(): Experience[];
+	getPoolSize(): number;
+	samplePool(batchSize: number): Experience[];
+	clearPool(): void;
+	remove(input: Float32Array): void;
+	values(): MapIterator<Experience>;
+}
+
+class DisabledExperiencePool implements IExperiencePool {
+	add(_experience: Experience): void {
+		// no-op
+	}
+
+	getPool(): Experience[] {
+		return [];
+	}
+
+	getPoolSize(): number {
+		return 0;
+	}
+
+	samplePool(batchSize: number): Experience[] {
+		throw agentError(
+			`Requested batch size ${batchSize} exceeds pool size 0.`
+		);
+	}
+
+	clearPool(): void {
+		// no-op
+	}
+
+	remove(_input: Float32Array): void {
+		// no-op
+	}
+
+	values(): MapIterator<Experience> {
+		return new Map().values();
+	}
+}
+
+export class ExperiencePool implements IExperiencePool {
 	private _poolMap = new Map<number, Experience>();
 	private _poolInputToId = new WeakMap<Float32Array, number>();
 	private _nextPoolId = 0;
 	private readonly _poolMaxSize: number;
-	private readonly _enablePool: boolean;
 
-	constructor(enablePool: boolean, poolMaxSize: number) {
-		this._enablePool = enablePool;
+	constructor(poolMaxSize: number) {
 		this._poolMaxSize = poolMaxSize;
 	}
 
 	public add(experience: Experience): void {
-		if (!this._enablePool) {
-			return;
-		}
 		const id = this._nextPoolId++;
 		this._poolMap.set(id, experience);
 		this._poolInputToId.set(experience.input, id);
@@ -68,4 +105,11 @@ export class ExperiencePool {
 	public values(): MapIterator<Experience> {
 		return this._poolMap.values();
 	}
+}
+
+export function createExperiencePool(enablePool: boolean, poolMaxSize: number): IExperiencePool {
+	if (!enablePool) {
+		return new DisabledExperiencePool();
+	}
+	return new ExperiencePool(poolMaxSize);
 }

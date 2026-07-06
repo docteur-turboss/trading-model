@@ -42,7 +42,10 @@ jest.mock("../../src/config/db", () => ({
 }));
 
 jest.mock("../../src/dlq/repository", () => ({
-	DlqCapacityError: class DlqCapacityError extends Error {},
+	DlqCapacityError: class DlqCapacityError {
+			constructor(public readonly message: string) {}
+			public name = "DlqCapacityError";
+		},
 	dlqRepository: {
 		add: jest.fn(),
 		list: jest.fn(),

@@ -1,7 +1,8 @@
 import type { DateRange } from "@trading-model/common/domain/date-range";
-import type {
-	PaginationQuery,
-	PaginationResult,
+import {
+	computePagination,
+	type PaginationQuery,
+	type PaginationResult,
 } from "@trading-model/common/domain/pagination";
 import { agentError, AppError } from "@trading-model/common/utils/errors";
 import type { Collection, Db, Filter } from "mongodb";
@@ -93,9 +94,7 @@ export class AuditRepository {
 	async query(
 		query: AuditEventQuery
 	): Promise<PaginationResult<AuditEventDocument>> {
-		const page = query.page ?? 1;
-		const limit = Math.min(query.limit ?? 100, 1000);
-		const skip = (page - 1) * limit;
+		const { page, limit, skip } = computePagination(query, 100);
 
 		const filter: Filter<AuditEventDocument> = {};
 

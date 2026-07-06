@@ -28,7 +28,7 @@ export function _computeShapedReward(
 	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>,
 	runStats?: RunningStats
 ): number {
-	const { reward } = backend.step(step.features, step.price);
+	const { reward } = backend.step(step.features.buffer, step.price);
 	let shaped = shapeReward(reward, rShape);
 	if (rShape.normalize) {
 		runStats?.update(shaped);
@@ -72,7 +72,7 @@ export function _stepAndShapeReward(
 	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>,
 	runStats: NormalizationStats
 ): number {
-	const { reward } = backend.step(step.features, step.price);
+	const { reward } = backend.step(step.features.buffer, step.price);
 	const shaped = shapeReward(reward, rShape);
 
 	if (rShape.normalize) {

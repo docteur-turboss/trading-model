@@ -1,5 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import WebSocket, { WebSocketServer } from "ws";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -11,8 +12,7 @@ const WSS_SHUTDOWN_TIMEOUT_MS = 5_000;
 interface CloseHandlerContext {
 	ws: WebSocket;
 	subKey: string;
-	serviceName: string;
-	instanceId: string;
+	identity: ServiceIdentity;
 }
 
 export class WssConnectionHandler {
@@ -53,30 +53,29 @@ export class WssConnectionHandler {
 	}
 
 	parseConnectionHeaders(req: IncomingMessage): {
-		serviceName: string;
-		instanceId: string;
+		identity: ServiceIdentity;
 		topics: Set<string>;
 	} {
 		const serviceName = req.headers["x-service-name"] as string;
 		const instanceId = req.headers["x-instance-id"] as string;
 		const topics = _parseTopicsHeader(req.headers["x-subscribed-topics"] as string);
-		return { serviceName, instanceId, topics };
+		return { identity: { serviceName, instanceId }, topics };
 	}
 
-	registerCloseHandler(ws: WebSocket, subKey: string, serviceName: string, instanceId: string): void {
+	registerCloseHandler(ws: WebSocket, subKey: string, identity: ServiceIdentity): void {
 		ws.on("close", () => {
 			this._subscriptionManager.remove(subKey);
 			ws.removeAllListeners();
-			logger.info("WSS client disconnected", { context: { serviceName, instanceId } });
+			logger.info("WSS client disconnected", { context: { serviceName: identity.serviceName, instanceId: identity.instanceId } });
 		});
 	}
 
-	registerErrorHandler(ws: WebSocket, serviceName: string, instanceId: string): void {
+	registerErrorHandler(ws: WebSocket, identity: ServiceIdentity): void {
 		ws.on("error", (err) => {
 			logger.warn("WSS connection error", { context: {
 				error: err.message,
-				serviceName,
-				instanceId,
+				serviceName: identity.serviceName,
+				instanceId: identity.instanceId,
 			} });
 			ws.close(1011, "Internal server error");
 		});

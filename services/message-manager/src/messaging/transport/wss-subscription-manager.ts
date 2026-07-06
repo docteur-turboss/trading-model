@@ -1,17 +1,16 @@
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
 import type { IncomingWssMessage } from "./wss-message.types";
 
 export interface WsSubscription {
-	instanceId: string;
-	serviceName: string;
+	identity: ServiceIdentity;
 	topics: Set<string>;
 	ws: WebSocket;
 }
 
 export interface SubscriptionContext {
 	ws: WebSocket;
-	serviceName: string;
-	instanceId: string;
+	identity: ServiceIdentity;
 	topics: Set<string>;
 }
 
@@ -24,12 +23,12 @@ export class WssSubscriptionManager {
 		return this._subscriptions.size;
 	}
 
-	get(serviceName: string, instanceId: string): WebSocket | undefined {
-		return this._subscriptions.get(`${serviceName}:${instanceId}`)?.ws;
+	get(identity: ServiceIdentity): WebSocket | undefined {
+		return this._subscriptions.get(`${identity.serviceName}:${identity.instanceId}`)?.ws;
 	}
 
-	has(serviceName: string, instanceId: string): boolean {
-		return this._subscriptions.has(`${serviceName}:${instanceId}`);
+	has(identity: ServiceIdentity): boolean {
+		return this._subscriptions.has(`${identity.serviceName}:${identity.instanceId}`);
 	}
 
 	enforceCapacity(ws: WebSocket): boolean {
@@ -41,9 +40,9 @@ export class WssSubscriptionManager {
 	}
 
 	add(ctx: SubscriptionContext): string {
-		const { ws, serviceName, instanceId, topics } = ctx;
-		const subKey = `${serviceName}:${instanceId}`;
-		this._subscriptions.set(subKey, { instanceId, serviceName, topics, ws });
+		const { ws, identity, topics } = ctx;
+		const subKey = `${identity.serviceName}:${identity.instanceId}`;
+		this._subscriptions.set(subKey, { identity, topics, ws });
 		return subKey;
 	}
 
@@ -55,9 +54,9 @@ export class WssSubscriptionManager {
 		msg: IncomingWssMessage,
 		ctx: SubscriptionContext
 	): void {
-		const { ws, topics, instanceId } = ctx;
+		const { ws, topics, identity } = ctx;
 		const msgInstanceId = msg.instanceId;
-		if (msgInstanceId && msgInstanceId !== instanceId) {
+		if (msgInstanceId && msgInstanceId !== identity.instanceId) {
 			ws.send(
 				JSON.stringify({ type: "error", message: "instanceId mismatch" })
 			);
@@ -88,9 +87,9 @@ export class WssSubscriptionManager {
 		msg: IncomingWssMessage,
 		ctx: SubscriptionContext
 	): void {
-		const { ws, topics, instanceId } = ctx;
+		const { ws, topics, identity } = ctx;
 		const msgInstanceId = msg.instanceId;
-		if (msgInstanceId && msgInstanceId !== instanceId) {
+		if (msgInstanceId && msgInstanceId !== identity.instanceId) {
 			ws.send(
 				JSON.stringify({ type: "error", message: "instanceId mismatch" })
 			);

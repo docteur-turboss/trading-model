@@ -202,7 +202,7 @@ describe("MarketDataBuffer", () => {
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
 			for (const step of steps) {
-				expect(step.features[31]).toBe(1.0);
+				expect(step.features.data[31]).toBe(1.0);
 			}
 		});
 
@@ -216,7 +216,7 @@ describe("MarketDataBuffer", () => {
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(steps[0].features[2]).toBeCloseTo(0.1, 5);
+			expect(steps[0].features.data[2]).toBeCloseTo(0.1, 5);
 		});
 
 		it("should populate all 32 indices with finite numbers", () => {
@@ -225,8 +225,8 @@ describe("MarketDataBuffer", () => {
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
 			for (let i = 0; i < 32; i++) {
-				expect(typeof steps[0].features[i]).toBe("number");
-				expect(Number.isFinite(steps[0].features[i])).toBe(true);
+				expect(typeof steps[0].features.data[i]).toBe("number");
+				expect(Number.isFinite(steps[0].features.data[i])).toBe(true);
 			}
 		});
 
@@ -262,12 +262,12 @@ describe("MarketDataBuffer", () => {
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 			expect(steps.length).toBe(1);
 
-			expect(steps[0].features[2]).toBe(0);
-			expect(steps[0].features[3]).toBe(0);
-			expect(steps[0].features[4]).toBe(0);
-			expect(steps[0].features[18]).toBe(0.5);
-			expect(steps[0].features[19]).toBe(0);
-			expect(steps[0].features[21]).toBe(0);
+			expect(steps[0].features.data[2]).toBe(0);
+			expect(steps[0].features.data[3]).toBe(0);
+			expect(steps[0].features.data[4]).toBe(0);
+			expect(steps[0].features.data[18]).toBe(0.5);
+			expect(steps[0].features.data[19]).toBe(0);
+			expect(steps[0].features.data[21]).toBe(0);
 		});
 	});
 
@@ -279,7 +279,7 @@ describe("MarketDataBuffer", () => {
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
 			for (const idx of [9, 10, 11, 12]) {
-				expect(typeof steps[0].features[idx]).toBe("number");
+				expect(typeof steps[0].features.data[idx]).toBe("number");
 			}
 		});
 
@@ -304,8 +304,8 @@ describe("MarketDataBuffer", () => {
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(steps[0].features[9]).toBe(0);
-			expect(steps[0].features[10]).toBe(0);
+			expect(steps[0].features.data[9]).toBe(0);
+			expect(steps[0].features.data[10]).toBe(0);
 		});
 	});
 
@@ -317,7 +317,7 @@ describe("MarketDataBuffer", () => {
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
 			for (const idx of [13, 14, 15]) {
-				expect(typeof steps[0].features[idx]).toBe("number");
+				expect(typeof steps[0].features.data[idx]).toBe("number");
 			}
 		});
 
@@ -327,9 +327,9 @@ describe("MarketDataBuffer", () => {
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(steps[0].features[13]).toBe(0);
-			expect(steps[0].features[14]).toBe(0);
-			expect(steps[0].features[15]).toBe(0);
+			expect(steps[0].features.data[13]).toBe(0);
+			expect(steps[0].features.data[14]).toBe(0);
+			expect(steps[0].features.data[15]).toBe(0);
 		});
 	});
 
@@ -340,8 +340,8 @@ describe("MarketDataBuffer", () => {
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(steps[0].features[19]).toBeCloseTo(0.05, 5);
-			expect(typeof steps[0].features[20]).toBe("number");
+			expect(steps[0].features.data[19]).toBeCloseTo(0.05, 5);
+			expect(typeof steps[0].features.data[20]).toBe("number");
 		});
 	});
 
@@ -352,7 +352,7 @@ describe("MarketDataBuffer", () => {
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(typeof steps[0].features[22]).toBe("number");
+			expect(typeof steps[0].features.data[22]).toBe("number");
 		});
 
 		it("should merge multiple snapshot calls", () => {
@@ -362,7 +362,7 @@ describe("MarketDataBuffer", () => {
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(typeof steps[0].features[22]).toBe("number");
+			expect(typeof steps[0].features.data[22]).toBe("number");
 		});
 	});
 
@@ -377,7 +377,7 @@ describe("MarketDataBuffer", () => {
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
 			for (const idx of [16, 17, 18]) {
-				expect(typeof steps[0].features[idx]).toBe("number");
+				expect(typeof steps[0].features.data[idx]).toBe("number");
 			}
 		});
 

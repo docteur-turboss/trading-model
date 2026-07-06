@@ -45,9 +45,9 @@ describe("app/server", () => {
 			expect.objectContaining({
 				port: 3000,
 				tls: expect.objectContaining({
-					key: "/etc/tls/key.pem",
-					cert: "/etc/tls/cert.pem",
-					ca: "/etc/tls/ca.pem",
+					keyPath: "/etc/tls/key.pem",
+					certPath: "/etc/tls/cert.pem",
+					caPath: "/etc/tls/ca.pem",
 				}),
 			})
 		);

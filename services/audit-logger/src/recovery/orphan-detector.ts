@@ -3,7 +3,7 @@ import type { JobRepository } from "../persistence/job-repository";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { ReAllocator } from "./re-allocator";
 
-export interface OrphanDetectorDeps {
+export interface AuditLoggerOrphanDetectorDeps {
 	workers: WorkerRegistry;
 	repository: JobRepository;
 	reAllocator: ReAllocator;
@@ -17,7 +17,7 @@ export class OrphanDetector {
 	private readonly _intervalMs: number;
 	private _intervalHandle: ReturnType<typeof setInterval> | null = null;
 
-	constructor(deps: OrphanDetectorDeps) {
+	constructor(deps: AuditLoggerOrphanDetectorDeps) {
 		this._workers = deps.workers;
 		this._repository = deps.repository;
 		this._reAllocator = deps.reAllocator;

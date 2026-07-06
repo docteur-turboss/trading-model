@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { Price } from "@trading-model/common/domain/primitives";
+import { FeatureVector } from "../../../src/core/feature-vector";
 
 jest.mock("../../../src/core/agent/trading-agent", () => {
 	const makeMockAgent = () => ({
@@ -182,7 +183,7 @@ describe("makeTradingAgentBackend", () => {
 		} as any;
 
 		const backend = makeTradingAgentBackend(genome as any);
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const output = backend.forwardPass(features);
 		expect(output).toBeDefined();
 	});
@@ -235,7 +236,7 @@ describe("makeTradingAgentBackend", () => {
 	it("should call step and return reward", () => {
 		const genome = getMinimalGenome();
 		const backend = makeTradingAgentBackend(genome as any);
-		const result = backend.step(new Float32Array([0.5, 0.5, 0.5]), 100);
+		const result = backend.step(new FeatureVector(new Float32Array([0.5, 0.5, 0.5])), Price.of(100));
 		expect(result.reward).toBe(1);
 	});
 
@@ -338,8 +339,8 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array(3), price: Price.of(100) }],
-					validation: [{ features: new Float32Array(3), price: Price.of(100) }],
+					train: [{ features: new FeatureVector(3), price: Price.of(100) }],
+					validation: [{ features: new FeatureVector(3), price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
@@ -382,7 +383,7 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should select elites based on elitismFraction", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
@@ -407,7 +408,7 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should produce offspring with some new IDs after runGeneration (elites carry over)", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
@@ -429,7 +430,7 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should update Pareto archive after runGeneration", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const onArchiveUpdate = jest.fn();
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
@@ -453,7 +454,7 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should track stagnation when fitness does not improve", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
@@ -472,7 +473,7 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should sort population by Pareto rank and crowding distance", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
@@ -491,7 +492,7 @@ describe("GeneticAlgorithmRunner", () => {
 	});
 
 	it("should run a single generation and produce a context", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const windowSets = [
 			{
 				id: "w1",
@@ -543,14 +544,14 @@ describe("full GA loop", () => {
 			),
 		});
 
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
 					train: [
-						{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) },
-						{ features: new Float32Array([0.4, 0.5, 0.6]), price: Price.of(101) },
+						{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) },
+						{ features: new FeatureVector(new Float32Array([0.4, 0.5, 0.6]), price: Price.of(101) },
 					],
 					validation: [
 						{ features, price: Price.of(100) },
@@ -593,15 +594,15 @@ describe("full GA loop", () => {
 		};
 
 		const onArchiveUpdate = jest.fn();
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
 					train: [
-						{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) },
-						{ features: new Float32Array([0.4, 0.5, 0.6]), price: Price.of(101) },
+						{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) },
+						{ features: new FeatureVector(new Float32Array([0.4, 0.5, 0.6]), price: Price.of(101) },
 					],
 					validation: [
 						{ features, price: Price.of(100) },
@@ -632,12 +633,12 @@ describe("full GA loop", () => {
 	});
 
 	it("should exit run via rewardThreshold", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) }],
+					train: [{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) }],
 					validation: [{ features, price: Price.of(100) }],
 				},
 			],
@@ -666,12 +667,12 @@ describe("full GA loop", () => {
 	});
 
 	it("should exit run via stagnationPatience", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) }],
+					train: [{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) }],
 					validation: [{ features, price: Price.of(100) }],
 				},
 			],
@@ -700,12 +701,12 @@ describe("full GA loop", () => {
 	});
 
 	it("should exit run via timeBudgetMs", async () => {
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) }],
+					train: [{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) }],
 					validation: [{ features, price: Price.of(100) }],
 				},
 			],
@@ -761,14 +762,14 @@ describe("full GA loop", () => {
 			),
 		});
 
-		const features = new Float32Array([0.5, 0.5, 0.5]);
+		const features = new FeatureVector(new Float32Array([0.5, 0.5, 0.5]));
 		const runner = new GeneticAlgorithmRunner({
 			windowSets: [
 				{
 					id: "w1",
 					train: [
-						{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) },
-						{ features: new Float32Array([0.4, 0.5, 0.6]), price: Price.of(101) },
+						{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) },
+						{ features: new FeatureVector(new Float32Array([0.4, 0.5, 0.6]), price: Price.of(101) },
 					],
 					validation: [
 						{ features, price: Price.of(100) },

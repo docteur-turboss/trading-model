@@ -31,7 +31,7 @@ function _buildTrainExperience(
 		...prev,
 		kind: "qlearning" as const,
 		reward: nStepReturn(rewardBuf, index, genome),
-		nextState: trainData[index].features,
+		nextState: trainData[index].features.buffer,
 		done: index === maxT - 1,
 	};
 }
@@ -45,7 +45,7 @@ export function trainPhase(ctx: TrainPhaseContext): void {
 		if (_shouldSkipFrame(index, horizon.frameSkip)) {
 			continue;
 		}
-		backend.step(trainData[index].features, trainData[index].price);
+		backend.step(trainData[index].features.buffer, trainData[index].price);
 
 		const pool = backend.getExperiencePool();
 		if (!_canTrain(pool)) {

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import type { TradingAgentConfig } from "../../../src/core/agent/trading-agent";
 import { TradingAgent } from "../../../src/core/agent/trading-agent";
-import { Price } from "@trading-model/common/domain/primitives";
+import { Cash, Price } from "@trading-model/common/domain/primitives";
 import {
 	ActivationType,
 	ConnectionType,
@@ -25,7 +25,7 @@ function makeConfig(
 			enablePool: true,
 			poolMaxSize: 100,
 		},
-		wallet: { initialCash: 1000, initialPrice: Price.of(100) },
+		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(100) },
 		actionSpace: "discrete",
 		tradeAmount: 1,
 		stateManagerCfg: {

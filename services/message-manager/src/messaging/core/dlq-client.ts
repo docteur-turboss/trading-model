@@ -121,9 +121,39 @@ function addSignature(
 	opts.headers["x-signature"] = signature;
 }
 
-export class DlqServiceClient {
+export interface IDlqServiceClient {
+	readonly isEnabled: boolean;
+	send(entry: DlqEntry, attempt?: number, MaxRetries?: number): Promise<void>;
+	replay(topic?: string, limit?: number): Promise<DlqEntry[]>;
+	delete(entryIds: string[]): Promise<void>;
+}
+
+class NullDlqServiceClient implements IDlqServiceClient {
+	readonly isEnabled = false;
+
+	async send(entry: DlqEntry, _attempt?: number, _MaxRetries?: number): Promise<void> {
+		this._logNotConfigured(entry);
+	}
+
+	private _logNotConfigured(entry: DlqEntry): void {
+		logger.warn("DLQ Service not configured, dropping dead letter entry", { context: {
+			reason: entry.reason,
+		} });
+		MESSAGES_DLQ_ERROR_TOTAL.inc({ target: "not-configured" });
+	}
+
+	async replay(_topic?: string, _limit?: number): Promise<DlqEntry[]> {
+		return [];
+	}
+
+	async delete(_entryIds: string[]): Promise<void> {
+		// no-op
+	}
+}
+
+export class DlqServiceClient implements IDlqServiceClient {
 	private _httpClient: HttpClient;
-	private _serviceUrl: string;
+	private readonly _serviceUrl: string;
 
 	constructor(httpClient: HttpClient) {
 		this._httpClient = httpClient;
@@ -136,22 +166,13 @@ export class DlqServiceClient {
 
 	async send(entry: DlqEntry, attempt = 1, MaxRetries = 3): Promise<void> {
 		if (!this.isEnabled) {
-			this._logNotConfigured(entry);
 			return;
 		}
-
 		try {
 			await this._doSend(entry);
 		} catch (err) {
 			return this._handleSendError(entry, err as Error, attempt, MaxRetries);
 		}
-	}
-
-	private _logNotConfigured(entry: DlqEntry): void {
-		logger.warn("DLQ Service not configured, dropping dead letter entry", { context: {
-			reason: entry.reason,
-		} });
-		MESSAGES_DLQ_ERROR_TOTAL.inc({ target: "not-configured" });
 	}
 
 	private async _doSend(entry: DlqEntry): Promise<void> {
@@ -203,7 +224,6 @@ export class DlqServiceClient {
 		if (!this.isEnabled) {
 			return [];
 		}
-
 		try {
 			const url = this._buildReplayUrl(topic, limit);
 			const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
@@ -232,7 +252,6 @@ export class DlqServiceClient {
 		if (!this.isEnabled) {
 			return;
 		}
-
 		const body = { ids: entryIds };
 
 		try {
@@ -247,4 +266,12 @@ export class DlqServiceClient {
 			} });
 		}
 	}
+}
+
+export function createDlqServiceClient(httpClient: HttpClient): IDlqServiceClient {
+	const url = ENV.DLQ_SERVICE_URL || "";
+	if (!url) {
+		return new NullDlqServiceClient();
+	}
+	return new DlqServiceClient(httpClient);
 }

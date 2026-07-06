@@ -1,4 +1,4 @@
-import type { CandleInterval } from "@trading-model/common/config/event.types";
+import type { CandlestickQuery } from "@trading-model/common/domain/candlestick-query";
 import { httpClients } from "../../config/http";
 import type {
 	Binance24hrTickerStatsResponse,
@@ -79,28 +79,12 @@ export async function getHistoricalTrades(
 	return (await BINANCE.get(url, { weight })).data;
 }
 
-/**
- * Fetch candlestick data
- * Weight: 2.
- * @param symbol {string} - the symbol to fetch (e.g., BTCUSDT)
- * @param limit {number} - maximum 500 - 1000
- * @param interval {"1s"|"1m"|"3m"|"5m"|"15m"|"30m"|"1h"|"2h"|"4h"|"6h"|"8h"|"12h"|"1d"|"3d"|"1w"|"1M"} - candlestick interval
- * @param startTime {number} - timestamp in ms to start from (inclusive)
- * @returns {Promise<BinanceCandlestickDataResponse>}
- */
-export interface CandlestickRequest {
-	symbol: string;
-	limit: number;
-	interval: CandleInterval;
-	startTime?: number;
-}
-
 export async function getCandlestickData({
 	symbol,
-	limit,
 	interval,
 	startTime,
-}: CandlestickRequest): Promise<BinanceCandlestickDataResponse> {
+	limit = 500,
+}: CandlestickQuery): Promise<BinanceCandlestickDataResponse> {
 	assertNonEmptySymbol(symbol, "getCandlestickData");
 	const url = BINANCE_ENDPOINTS.candlesticks(
 		symbol,
@@ -108,7 +92,7 @@ export async function getCandlestickData({
 		startTime,
 		limit
 	);
-	return _getWithWeight(url, BINANCE_WEIGHTS.candlesticks());
+	return _getWithWeight(url, BINANCE_WEIGHTS.candlesticks()) as Promise<BinanceCandlestickDataResponse>;
 }
 
 async function _getWithWeight(url: string, weight: number): Promise<unknown> {

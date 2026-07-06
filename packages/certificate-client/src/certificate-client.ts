@@ -8,19 +8,18 @@ import {
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
 import { CaClient } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 
 export interface CertificateClientConfig {
 	caUrl: string;
 	serviceId: string;
 	commonName: string;
 	san: string[];
-	certPath: string;
-	keyPath: string;
-	caPath: string;
+	tlsPaths: TlsPaths;
 	bootstrapToken?: string;
 	keyAlgorithm?: KeyAlgorithm;
 	renewMarginMs?: number;
-	tls?: import("@trading-model/common/domain/tls-paths").TlsPaths;
+	tls?: TlsPaths;
 	onRenew?: (cert: ObtainedCertificate) => void;
 }
 
@@ -68,11 +67,12 @@ export class CertificateClient {
 	}
 
 	private async _writeCertificates(keyPair: { privateKey: string }, response: { cert: string; caPem: string }): Promise<void> {
-		const certDir = path.dirname(this._config.certPath);
+		const { tlsPaths } = this._config;
+		const certDir = path.dirname(tlsPaths.certPath);
 		await fs.mkdir(certDir, { recursive: true });
-		await fs.writeFile(this._config.keyPath, keyPair.privateKey, { mode: 0o600 });
-		await fs.writeFile(this._config.certPath, response.cert, { mode: 0o644 });
-		await fs.writeFile(this._config.caPath, response.caPem, { mode: 0o644 });
+		await fs.writeFile(tlsPaths.keyPath, keyPair.privateKey, { mode: 0o600 });
+		await fs.writeFile(tlsPaths.certPath, response.cert, { mode: 0o644 });
+		await fs.writeFile(tlsPaths.caPath, response.caPem, { mode: 0o644 });
 	}
 
 	private _buildObtainedCert(keyPair: { privateKey: string }, response: { cert: string; caPem: string; serialNumber: string; expiresAt: string }): ObtainedCertificate {

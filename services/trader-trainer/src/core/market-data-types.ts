@@ -16,9 +16,8 @@ export {
 	fromSymbol,
 } from "@trading-model/common/domain/primitives";
 
-import { FeatureIndex } from "./feature-indices";
-
-export const FEATURE_DIM = FeatureIndex.Bias + 1;
+import { FEATURE_DIM } from "./feature-vector";
+export { FEATURE_DIM };
 
 /** Running normalisation statistics grouped by market-data context. */
 export interface SymbolNormalizers {

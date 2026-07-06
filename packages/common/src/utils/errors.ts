@@ -34,7 +34,6 @@ export class AppError extends Error {
 		this.code = options?.code ?? "AppError";
 		this.cause = options?.cause;
 		this.reason = options?.reason;
-		Object.setPrototypeOf(this, new.target.prototype);
 	}
 }
 

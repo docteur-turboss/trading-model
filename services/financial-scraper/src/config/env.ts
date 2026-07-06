@@ -1,3 +1,4 @@
+import type { DbConnectionConfig } from "@trading-model/common/domain/db-connection-config";
 import {
 	AddressManagerEnvSchema,
 	BaseEnvSchema,
@@ -32,3 +33,11 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 export const env = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);
 
 export type Env = z.infer<typeof FINANCIAL_SCRAPER_ENV_SCHEMA>;
+
+export const dbConfig: DbConnectionConfig = {
+	host: env.DB_HOST,
+	port: env.DB_PORT,
+	user: env.DB_USER,
+	password: env.DB_PASSWORD,
+	database: env.DB_NAME,
+};

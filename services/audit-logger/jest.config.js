@@ -13,6 +13,7 @@ module.exports = {
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@trading-model/common/(.*)$': '<rootDir>/../../packages/common/src/$1',
     '^@trading-model/address-manager/(.*)$': '<rootDir>/../../packages/address-manager/src/$1',
+    '^@trading-model/broker-message$': '<rootDir>/../../packages/broker-message/src/index.ts',
     '^@trading-model/broker-message/(.*)$': '<rootDir>/../../packages/broker-message/src/$1',
   },
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],

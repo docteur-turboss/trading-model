@@ -6,6 +6,7 @@ import type {
 } from "@trading-model/common/config/event.types";
 import { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type { Application } from "express";
 
 import { EVENT_MANAGER, type Listener } from "./client/event-manager-client";
@@ -37,25 +38,21 @@ export default class BrokerMessage {
 
 	constructor({
 		addressManagerClient,
-		keyPath,
-		caPath,
-		certPath,
+		tlsPaths,
 		callbackPath: userCallbackPath,
 		instanceId,
 		serviceName,
 	}: {
 		instanceId: string;
 		callbackPath?: string;
-		caPath: string;
-		certPath: string;
-		keyPath: string;
+		tlsPaths: TlsPaths;
 		addressManagerClient: addressManagerClient;
 		serviceName: ServiceInstanceName;
 	}) {
 		if (userCallbackPath) {
 			this._callbackPath = userCallbackPath;
 		}
-		this._httpClient = this._createHttpClient({ caPath, certPath, keyPath });
+		this._httpClient = this._createHttpClient(tlsPaths);
 		this._messageManagerClient = this._createMessageManagerClient(
 			addressManagerClient,
 			instanceId,
@@ -63,7 +60,7 @@ export default class BrokerMessage {
 		);
 	}
 
-	private _createHttpClient(tls: { caPath: string; certPath: string; keyPath: string }): HttpClient {
+	private _createHttpClient(tls: TlsPaths): HttpClient {
 		return HttpClient.createWithTls(tls);
 	}
 

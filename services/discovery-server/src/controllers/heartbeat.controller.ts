@@ -1,3 +1,4 @@
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { RequestHandler } from "express";
@@ -28,7 +29,7 @@ export function createHeartbeatController(
 	};
 }
 
-function _parseHeartbeatBody(req: import("express").Request): { serviceName: string; instanceId: string } | null {
+function _parseHeartbeatBody(req: import("express").Request): ServiceIdentity | null {
 	const parsed = HEARTBEAT_SCHEMA.safeParse(req.body);
 	if (!parsed.success) {
 		return null;

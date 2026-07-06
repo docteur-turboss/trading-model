@@ -315,10 +315,20 @@ export class FileSystemLockBackend implements LockBackend {
 	}
 
 	async verifyOwnership(
-		_lockName: string,
-		_instanceId: string,
-		_fencingToken: number
+		lockName: string,
+		instanceId: string,
+		fencingToken: number
 	): Promise<number> {
-		return -1;
+		try {
+			const lockFile = path.join(this._fallbackDir, `${lockName}.lock`);
+			const content = await fs.readFile(lockFile, "utf8");
+			const data = JSON.parse(content);
+			if (data.instanceId === instanceId && data.fencingToken === fencingToken) {
+				return fencingToken;
+			}
+			return -1;
+		} catch {
+			return -1;
+		}
 	}
 }

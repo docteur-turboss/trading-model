@@ -1,3 +1,4 @@
+import { CandleInterval } from "@trading-model/common/config/event.types";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("os", () => ({
@@ -205,7 +206,7 @@ describe("BinanceCronOrchestrator", () => {
 			await cronHandler();
 
 			expect(BinanceWorker).toHaveBeenCalledWith(
-				expect.objectContaining({ interval: "1m" })
+				expect.objectContaining({ interval: CandleInterval.MIN1 })
 			);
 		});
 

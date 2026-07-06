@@ -33,10 +33,12 @@ describe("BrokerMessage", () => {
 	let broker: any;
 
 	const defaultParams: any = {
+		tlsPaths: {
+			caPath: "/path/to/ca.pem",
+			certPath: "/path/to/cert.pem",
+			keyPath: "/path/to/key.pem",
+		},
 		instanceId: "550e8400-e29b-41d4-a716-446655440000",
-		caPath: "/path/to/ca.pem",
-		certPath: "/path/to/cert.pem",
-		keyPath: "/path/to/key.pem",
 		addressManagerClient: { findService: jest.fn() },
 		serviceName: "MessageDeliveryService",
 	};

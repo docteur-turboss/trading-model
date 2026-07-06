@@ -12,6 +12,7 @@ import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "../core/market-data-buffer";
+import { Price } from "@trading-model/common/domain/primitives";
 import { Trainer } from "../core/trainer";
 
 /** Minimum fraction of buffer capacity before training fires for a symbol. */
@@ -84,7 +85,7 @@ export class ApplicationContainer {
 		}
 	}
 
-	onPriceTickerSnapshot(data: { price: Record<string, number> }): void {
+	onPriceTickerSnapshot(data: { price: Record<string, Price> }): void {
 		if (!data?.price) {
 			return;
 		}

@@ -138,9 +138,9 @@ describe("bootstrapConfigFromEnv", () => {
 		const result = bootstrapConfigFromEnv({
 			CERT_CLIENT_CA_URL: "https://ca:8447",
 		});
-		expect(result!.certPath).toBe("/etc/tls/cert.pem");
-		expect(result!.keyPath).toBe("/etc/tls/key.pem");
-		expect(result!.caPath).toBe("/etc/tls/ca.pem");
+		expect(result!.tlsPaths.certPath).toBe("/etc/tls/cert.pem");
+		expect(result!.tlsPaths.keyPath).toBe("/etc/tls/key.pem");
+		expect(result!.tlsPaths.caPath).toBe("/etc/tls/ca.pem");
 	});
 
 	it("should use TLS paths from env", () => {
@@ -150,9 +150,9 @@ describe("bootstrapConfigFromEnv", () => {
 			TLS_KEY_PATH: "/custom/key.pem",
 			TLS_CA_PATH: "/custom/ca.pem",
 		});
-		expect(result!.certPath).toBe("/custom/cert.pem");
-		expect(result!.keyPath).toBe("/custom/key.pem");
-		expect(result!.caPath).toBe("/custom/ca.pem");
+		expect(result!.tlsPaths.certPath).toBe("/custom/cert.pem");
+		expect(result!.tlsPaths.keyPath).toBe("/custom/key.pem");
+		expect(result!.tlsPaths.caPath).toBe("/custom/ca.pem");
 	});
 
 	it("should configure mTLS when CA_CLIENT_TLS_KEY is provided", () => {
@@ -163,9 +163,9 @@ describe("bootstrapConfigFromEnv", () => {
 			CA_CLIENT_TLS_CA: "ca-content",
 		});
 		expect(result!.tls).toEqual({
-			key: "key-content",
-			cert: "cert-content",
-			ca: "ca-content",
+			keyPath: "key-content",
+			certPath: "cert-content",
+			caPath: "ca-content",
 		});
 	});
 
@@ -182,9 +182,9 @@ describe("bootstrapConfigFromEnv", () => {
 			CA_CLIENT_TLS_KEY: "key-content",
 		});
 		expect(result!.tls).toEqual({
-			key: "key-content",
-			cert: "",
-			ca: "",
+			keyPath: "key-content",
+			certPath: "",
+			caPath: "",
 		});
 	});
 
@@ -243,9 +243,11 @@ describe("bootstrapCertificate", () => {
 			serviceId: "svc",
 			commonName: "svc",
 			san: ["svc"],
-			certPath: "/etc/tls/cert.pem",
-			keyPath: "/etc/tls/key.pem",
-			caPath: "/etc/tls/ca.pem",
+			tlsPaths: {
+				certPath: "/etc/tls/cert.pem",
+				keyPath: "/etc/tls/key.pem",
+				caPath: "/etc/tls/ca.pem",
+			},
 		});
 
 		expect(generateKeyPairAsync).not.toHaveBeenCalled();
@@ -268,9 +270,11 @@ describe("bootstrapCertificate", () => {
 			serviceId: "svc",
 			commonName: "svc",
 			san: ["svc"],
-			certPath: "/etc/tls/cert.pem",
-			keyPath: "/etc/tls/key.pem",
-			caPath: "/etc/tls/ca.pem",
+			tlsPaths: {
+				certPath: "/etc/tls/cert.pem",
+				keyPath: "/etc/tls/key.pem",
+				caPath: "/etc/tls/ca.pem",
+			},
 		});
 
 		expect(generateKeyPairAsync).toHaveBeenCalled();
@@ -303,9 +307,11 @@ describe("bootstrapCertificate", () => {
 			serviceId: "svc",
 			commonName: "svc",
 			san: ["svc"],
-			certPath: "/etc/tls/cert.pem",
-			keyPath: "/etc/tls/key.pem",
-			caPath: "/etc/tls/ca.pem",
+			tlsPaths: {
+				certPath: "/etc/tls/cert.pem",
+				keyPath: "/etc/tls/key.pem",
+				caPath: "/etc/tls/ca.pem",
+			},
 			bootstrapToken: "btoken",
 		});
 

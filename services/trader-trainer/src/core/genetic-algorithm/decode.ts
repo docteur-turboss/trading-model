@@ -8,7 +8,7 @@ import type {
 	RLGenome,
 } from "./genome-types";
 import { clamp } from "./utils";
-import { EncodingIndex, SCALAR_DIM } from "./encoding-indices";
+import { SCALAR_DIM, EncodingVector } from "./encoding-vector";
 import {
 	ACTIVATIONS,
 	CONNECTION_TYPES,
@@ -29,45 +29,45 @@ function argmax(arr: Float32Array, start: number, len: number): number {
 	return best - start;
 }
 
-function _decodeRLScalars(vec: Float32Array) {
+function _decodeRLScalars(vec: EncodingVector) {
 	return {
-		gamma: clamp(vec[EncodingIndex.Gamma], 0.8, 0.9999),
-		learningRate: clamp(10 ** ((vec[EncodingIndex.LearningRate] - 1) * 6), 1e-6, 1e-1),
-		clipMin: vec[EncodingIndex.ClipMin],
-		clipMax: vec[EncodingIndex.ClipMax],
-		scaleFactor: clamp(10 ** ((vec[EncodingIndex.ScaleFactor] - 1) * 3), 0.001, 1000),
-		maxEpisodeLength: clamp(Math.round(vec[EncodingIndex.MaxEpisodeLength] * 2_000), 10, 20_000),
-		nStepReturn: clamp(Math.round(vec[EncodingIndex.NStepReturn] * 20), 1, 20),
-		frameSkip: clamp(Math.round(vec[EncodingIndex.FrameSkip] * 10), 1, 10),
-		epsilonStart: clamp(vec[EncodingIndex.EpsilonStart], 0.1, 1.0),
-		epsilonMin: clamp(vec[EncodingIndex.EpsilonMin] * 0.2, 0.001, 0.2),
-		epsilonDecay: clamp(vec[EncodingIndex.EpsilonDecay], 0.9, 0.9999),
-		temperature: clamp(10 ** ((vec[EncodingIndex.Temperature] - 0.5) * 2), 0.01, 100),
-		noiseStd: clamp(vec[EncodingIndex.NoiseStd] * 5, 0.001, 5),
-		noiseDecay: clamp(vec[EncodingIndex.NoiseDecay], 0.9, 0.9999),
-		bufferSize: clamp(Math.round(10 ** (vec[EncodingIndex.BufferSize] * 6)), 100, 1_000_000),
-		alphaPER: clamp(vec[EncodingIndex.AlphaPER], 0, 1),
-		betaPER: clamp(vec[EncodingIndex.BetaPER], 0, 1),
+		gamma: clamp(vec.gamma, 0.8, 0.9999),
+		learningRate: clamp(10 ** ((vec.learningRate - 1) * 6), 1e-6, 1e-1),
+		clipMin: vec.clipMin,
+		clipMax: vec.clipMax,
+		scaleFactor: clamp(10 ** ((vec.scaleFactor - 1) * 3), 0.001, 1000),
+		maxEpisodeLength: clamp(Math.round(vec.maxEpisodeLength * 2_000), 10, 20_000),
+		nStepReturn: clamp(Math.round(vec.nStepReturn * 20), 1, 20),
+		frameSkip: clamp(Math.round(vec.frameSkip * 10), 1, 10),
+		epsilonStart: clamp(vec.epsilonStart, 0.1, 1.0),
+		epsilonMin: clamp(vec.epsilonMin * 0.2, 0.001, 0.2),
+		epsilonDecay: clamp(vec.epsilonDecay, 0.9, 0.9999),
+		temperature: clamp(10 ** ((vec.temperature - 0.5) * 2), 0.01, 100),
+		noiseStd: clamp(vec.noiseStd * 5, 0.001, 5),
+		noiseDecay: clamp(vec.noiseDecay, 0.9, 0.9999),
+		bufferSize: clamp(Math.round(10 ** (vec.bufferSize * 6)), 100, 1_000_000),
+		alphaPER: clamp(vec.alphaPER, 0, 1),
+		betaPER: clamp(vec.betaPER, 0, 1),
 	};
 }
 
-function _decodeMutationScalars(vec: Float32Array) {
+function _decodeMutationScalars(vec: EncodingVector) {
 	return {
-		mutationRate: clamp(vec[EncodingIndex.MutationRate] * 0.5, 0.001, 0.5),
-		sigma: clamp(10 ** ((vec[EncodingIndex.MutationSigma] - 1.25) * 4), 1e-5, 10),
-		selfSigma: clamp(10 ** ((vec[EncodingIndex.MutationSelfSigma] - 1.25) * 4), 1e-5, 10),
+		mutationRate: clamp(vec.mutationRate * 0.5, 0.001, 0.5),
+		sigma: clamp(10 ** ((vec.mutationSigma - 1.25) * 4), 1e-5, 10),
+		selfSigma: clamp(10 ** ((vec.mutationSelfSigma - 1.25) * 4), 1e-5, 10),
 	};
 }
 
-function _decodeNetworkScalars(vec: Float32Array) {
+function _decodeNetworkScalars(vec: EncodingVector) {
 	return {
-		inputDim: clamp(Math.round(vec[EncodingIndex.NetworkInputDim] * 256), 1, 256),
-		outputDim: clamp(Math.round(vec[EncodingIndex.NetworkOutputDim] * 64), 1, 64),
-		depth: clamp(Math.round(vec[EncodingIndex.NetworkDepth] * MAX_DEPTH), 1, MAX_DEPTH),
+		inputDim: clamp(Math.round(vec.networkInputDim * 256), 1, 256),
+		outputDim: clamp(Math.round(vec.networkOutputDim * 64), 1, 64),
+		depth: clamp(Math.round(vec.networkDepth * MAX_DEPTH), 1, MAX_DEPTH),
 	};
 }
 
-function decodeScalars(vec: Float32Array) {
+function decodeScalars(vec: EncodingVector) {
 	return {
 		..._decodeRLScalars(vec),
 		..._decodeMutationScalars(vec),
@@ -76,19 +76,19 @@ function decodeScalars(vec: Float32Array) {
 }
 
 function _decodeSingleLayer(
-	vec: Float32Array,
+	vec: EncodingVector,
 	base: number,
 	biasType: Genome["network"]["hiddenLayers"][number]["biasType"]
 ): Genome["network"]["hiddenLayers"][number] {
 	return {
-		neurons: clamp(Math.round(vec[base] * 512), 1, 512),
-		activation: ACTIVATIONS[argmax(vec, base + 1, N_ACT)],
-		connectionType: CONNECTION_TYPES[argmax(vec, base + 1 + N_ACT, N_CT)],
+		neurons: clamp(Math.round(vec.data[base] * 512), 1, 512),
+		activation: ACTIVATIONS[argmax(vec.data, base + 1, N_ACT)],
+		connectionType: CONNECTION_TYPES[argmax(vec.data, base + 1 + N_ACT, N_CT)],
 		biasType,
 	};
 }
 
-function decodeLayers(vec: Float32Array, depth: number, template: Genome) {
+function decodeLayers(vec: EncodingVector, depth: number, template: Genome) {
 	const hiddenLayers: Genome["network"]["hiddenLayers"] = [];
 
 	for (let i = 0; i < depth; i++) {
@@ -209,8 +209,10 @@ function _buildDecodedGenome(
 
 export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 	_validateVectorLength(vec);
-	const scalars = decodeScalars(vec);
-	return _buildDecodedGenome(scalars, decodeLayers(vec, scalars.depth, template), template);
+	const ev = new EncodingVector(vec.length);
+	ev.data.set(vec);
+	const scalars = decodeScalars(ev);
+	return _buildDecodedGenome(scalars, decodeLayers(ev, scalars.depth, template), template);
 }
 
 export function decodePopulation(
@@ -223,7 +225,7 @@ export function decodePopulation(
 		const row = mat.subarray(
 			i * ENCODED_DIM,
 			(i + 1) * ENCODED_DIM
-		) as Float32Array;
+		);
 		out.push(decodeGenome(row, templates[i]));
 	}
 	return out;

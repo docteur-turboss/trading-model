@@ -1,6 +1,5 @@
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
-import type { MemoryWalBuffer } from "./memory-wal-buffer";
 import { WalEntryParser } from "./wal-entry-parser";
 
 export class WalFlushErrorHandler {
@@ -10,8 +9,6 @@ export class WalFlushErrorHandler {
 		raw: string[],
 		consecutiveErrors: number,
 		walKey: string,
-		_prefix: string,
-		memoryWalBuffer: MemoryWalBuffer
 	): Promise<"retry" | "memory-buffer" | "abort"> {
 		if (consecutiveErrors >= 5) {
 			logger.error(

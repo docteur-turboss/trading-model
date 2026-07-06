@@ -100,7 +100,18 @@ class SUSSelection implements SelectionStrategy {
 		population: LamarckGenome[],
 		rng: () => number
 	): LamarckGenome {
-		return population[Math.floor(rng() * population.length)];
+		const fits = population.map((genome) => Math.max(0, genome.fitness ?? 0));
+		const total = fits.reduce((sum, value) => sum + value, 0) || 1;
+		const spacing = total / population.length;
+		const start = rng() * spacing;
+		let pointer = start;
+		for (let i = 0; i < population.length; i++) {
+			pointer -= fits[i];
+			if (pointer <= 0) {
+				return population[i];
+			}
+		}
+		return population[population.length - 1];
 	}
 }
 

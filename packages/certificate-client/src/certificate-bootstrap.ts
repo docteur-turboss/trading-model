@@ -10,7 +10,7 @@ import { CaClient } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
 import type { TlsPaths, TlsPemBundle } from "@trading-model/common/domain/tls-paths";
-import type { HttpServer } from "@trading-model/common/server/server-factory";
+import type { HttpServer, HttpsServerOptions } from "@trading-model/common/server/server-factory";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { Application } from "express";
 
@@ -21,9 +21,7 @@ export interface BootstrapConfig {
 	serviceId: string;
 	commonName: string;
 	san: string[];
-	certPath: string;
-	keyPath: string;
-	caPath: string;
+	tlsPaths: TlsPaths;
 	bootstrapToken?: string;
 	tls?: TlsPaths;
 }
@@ -40,9 +38,11 @@ export function bootstrapConfigFromEnv(
 		serviceId: env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown",
 		commonName: env.CERT_CLIENT_COMMON_NAME ?? env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown",
 		san: env.CERT_CLIENT_SANS?.split(",").map((entry) => entry.trim()) ?? [env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown"],
-		certPath: env.TLS_CERT_PATH ?? "/etc/tls/cert.pem",
-		keyPath: env.TLS_KEY_PATH ?? "/etc/tls/key.pem",
-		caPath: env.TLS_CA_PATH ?? "/etc/tls/ca.pem",
+		tlsPaths: {
+			certPath: env.TLS_CERT_PATH ?? "/etc/tls/cert.pem",
+			keyPath: env.TLS_KEY_PATH ?? "/etc/tls/key.pem",
+			caPath: env.TLS_CA_PATH ?? "/etc/tls/ca.pem",
+		},
 		bootstrapToken: env.CERT_CLIENT_BOOTSTRAP_TOKEN,
 		tls: _buildClientTls(env),
 	};
@@ -83,19 +83,19 @@ export async function bootstrapCertificate(
 	const response = await _signWithCa(config, csr);
 	await _writeCertFiles(config, keyPair.privateKey, response);
 
-	return { keyPath: config.keyPath, certPath: config.certPath, caPath: config.caPath };
+	return { ...config.tlsPaths };
 }
 
 async function _tryLoadExistingCert(
 	config: BootstrapConfig,
 ): Promise<TlsPaths | null> {
 	try {
-		await fs.access(config.certPath);
-		await fs.access(config.keyPath);
+		await fs.access(config.tlsPaths.certPath);
+		await fs.access(config.tlsPaths.keyPath);
 		logger.info("TLS certificate already exists — skipping bootstrap", {
-			certPath: config.certPath,
+			certPath: config.tlsPaths.certPath,
 		});
-		return { keyPath: config.keyPath, certPath: config.certPath, caPath: config.caPath };
+		return { ...config.tlsPaths };
 	} catch (err) {
 		logger.warn("TLS certificate files not found — proceeding with bootstrap", {
 			err: normalizeError(err),
@@ -136,11 +136,11 @@ async function _writeCertFiles(
 	privateKey: string,
 	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse,
 ): Promise<void> {
-	const certDir = path.dirname(config.certPath);
+	const certDir = path.dirname(config.tlsPaths.certPath);
 	await fs.mkdir(certDir, { recursive: true });
-	await _writeCertFile(config.keyPath, privateKey, 0o600);
-	await _writeCertFile(config.certPath, response.cert, 0o644);
-	await _writeCertFile(config.caPath, response.caPem, 0o644);
+	await _writeCertFile(config.tlsPaths.keyPath, privateKey, 0o600);
+	await _writeCertFile(config.tlsPaths.certPath, response.cert, 0o644);
+	await _writeCertFile(config.tlsPaths.caPath, response.caPem, 0o644);
 	_logCertWritten(config, response);
 }
 
@@ -154,7 +154,7 @@ function _logCertWritten(
 ): void {
 	logger.info("TLS certificate obtained and written to disk", {
 		serviceId: config.serviceId,
-		certPath: config.certPath,
+		certPath: config.tlsPaths.certPath,
 		serialNumber: response.serialNumber,
 		expiresAt: response.expiresAt,
 	});
@@ -214,7 +214,7 @@ async function loadServerDependencies(): Promise<{
 	configureApp: (opts: { rateLimit?: import("@trading-model/common/server/configure-app").RateLimitConfig; trustProxy?: boolean }) => import("express").Application;
 	mtlsAuthMiddleware: import("express").RequestHandler;
 	responseProtocol: import("express").RequestHandler;
-	createAndStartHttpsServer: (app: import("express").Application, opts: { port: number; tls: TlsPaths; watchTls: boolean }) => Promise<HttpServer>;
+	createAndStartHttpsServer: (app: import("express").Application, opts: HttpsServerOptions) => Promise<HttpServer>;
 }> {
 	const [configureAppMod, mtlsAuthMod, responseProtocolMod, serverFactoryMod] = await Promise.all([
 		import("@trading-model/common/server/configure-app"),

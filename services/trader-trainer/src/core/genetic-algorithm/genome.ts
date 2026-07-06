@@ -1,4 +1,5 @@
 import type { Price } from "@trading-model/common/domain/primitives";
+import type { FeatureVector } from "../feature-vector.js";
 
 import {
 	ActivationType,
@@ -214,7 +215,7 @@ export type LamarckGenome = Genome & {
 /** A single market observation. */
 export interface MarketStep {
 	price: Price;
-	features: Float32Array;
+	features: FeatureVector;
 	timestamp?: number;
 }
 

@@ -2,21 +2,18 @@ import { createPool, type Pool } from "mysql2";
 import { MySqlConnection } from "ts-sql-query/connections/MySqlConnection";
 import { MySql2PoolQueryRunner } from "ts-sql-query/queryRunners/MySql2PoolQueryRunner";
 
-import { env } from "./env";
+import { env, dbConfig } from "./env";
 
 // Centralises MySQL connection parameters from validated environment variables.
 const POOL: Pool = createPool({
-	user: env.DB_USER,
-	password: env.DB_PASSWORD,
-	database: env.DB_NAME,
-	host: env.DB_HOST,
-	port: env.DB_PORT,
+	...dbConfig,
 	connectionLimit: 10,
 });
 
 // --- Project-specific connection class ---
-// DBConnection extends MySqlConnection provided by ts-sql-query.
-// The pool is associated with the MySql2 query runner to execute queries.
+// DBConnection extends MySqlConnection to bind the pool and type parameter
+// for ts-sql-query's Table generic. The class body is intentionally empty
+// — this is the expected pattern for ts-sql-query connection binding.
 /** MySQL database connection backed by a pooled ts-sql-query runner. */
 export class DBConnection extends MySqlConnection<"DBConnection"> {
 	constructor() {

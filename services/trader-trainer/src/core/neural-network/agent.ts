@@ -6,7 +6,7 @@ import type {
 	NetworkArchitecture,
 	NeuralNetworkConfig,
 } from "./type";
-import { ExperiencePool } from "./experience-pool";
+import { createExperiencePool, type IExperiencePool } from "./experience-pool";
 import { ScoreTracker } from "./score-tracker";
 
 /**
@@ -34,7 +34,7 @@ export interface FastForwardInput {
 export class Agent {
 	private readonly _nn: NeuralNetwork;
 	private readonly _scoreTracker: ScoreTracker;
-	private readonly _pool: ExperiencePool;
+	private readonly _pool: IExperiencePool;
 
 	/**
 	 * @param cfg - Architecture settings consumed by the agent layer;
@@ -49,7 +49,7 @@ export class Agent {
 
 		const enablePool = cfg.enablePool ?? true;
 		const poolMaxSize = cfg.poolMaxSize ?? 10_000;
-		this._pool = new ExperiencePool(enablePool, poolMaxSize);
+		this._pool = createExperiencePool(enablePool, poolMaxSize);
 		this._scoreTracker = new ScoreTracker();
 		this._nn = new NeuralNetwork(cfg as NeuralNetworkConfig);
 	}

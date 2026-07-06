@@ -1,12 +1,13 @@
-import { Price } from "@trading-model/common/domain/primitives";
+import { Cash, Price } from "@trading-model/common/domain/primitives";
 import { ConnectionType, InitialisationType } from "../neural-network/type";
 import type { Experience } from "../../core/neural-network/type";
+import type { FeatureVector } from "../feature-vector";
 import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 export interface RLBackend {
-	forwardPass(features: Float32Array): Float32Array;
-	step(features: Float32Array, price: Price): { reward: number };
+	forwardPass(features: FeatureVector): Float32Array;
+	step(features: FeatureVector, price: Price): { reward: number };
 	train(experience: Experience, gamma: number): void;
 	getWeights(): Float32Array;
 	setWeights(weights: Float32Array): void;
@@ -53,7 +54,7 @@ function _buildAgentConfig(
 ): TradingAgentConfig {
 	return {
 		nnConfig: _buildNNConfig(genome, genome.rl.replayBuffer),
-		wallet: { initialCash: 1000, initialPrice: Price.of(1) },
+		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(1) },
 		actionSpace: "discrete",
 		tradeAmount: 1,
 		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy, genome.rl.gamma),
@@ -91,8 +92,8 @@ export function makeTradingAgentBackend(
 	_tryLamarckianInjection(agent, genome);
 
 	return {
-		forwardPass: (features) => agent.forwardPass(features).output,
-		step: (features, price) => agent.step(features, price),
+		forwardPass: (features) => agent.forwardPass(features.buffer).output,
+		step: (features, price) => agent.step(features.buffer, price),
 		train: _makeTrainFn(agent),
 		getWeights: () => agent.getWeights(),
 		setWeights: (weights) => agent.setWeights(weights),

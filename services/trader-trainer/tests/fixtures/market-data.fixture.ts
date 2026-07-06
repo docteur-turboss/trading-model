@@ -1,3 +1,10 @@
+import { Price, UnixTimestamp, Volume } from "@trading-model/common/domain/primitives";
+import {
+	CandleInterval,
+	MarketType,
+	SourceType,
+	TradeSide,
+} from "@trading-model/common/config/event.types";
 import type {
 	BookTickerData,
 	CandleData,
@@ -17,32 +24,32 @@ export function makeCandle(
 ): CandleData {
 	const t = Date.now() + seq++ * 60000;
 	return {
-		source: "binance",
-		timestamp: t,
-		market: "crypto",
-		open: 100,
-		high: 105,
-		low: 95,
-		close: 102,
-		volume: 1000,
-		interval: "1m",
-		closeTimestamp: t + 60000,
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(t),
+		market: MarketType.CRYPTO,
+		open: Price.of(100),
+		high: Price.of(105),
+		low: Price.of(95),
+		close: Price.of(102),
+		volume: Volume.of(1000),
+		interval: CandleInterval.MIN1,
+		closeTimestamp: UnixTimestamp.of(t + 60000),
 		...overrides,
 	};
 }
 
 export function makeTrade(
 	symbol: string,
-	side: "buy" | "sell" = "buy"
+	side: TradeSide = TradeSide.BUY
 ): TradeData {
 	return {
 		symbol,
-		source: "binance",
-		timestamp: Date.now() + seq++ * 1000,
-		market: "crypto",
-		price: 101,
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(Date.now() + seq++ * 1000),
+		market: MarketType.CRYPTO,
+		price: Price.of(101),
 		tradeId: BigInt(seq),
-		quantity: 10,
+		quantity: Volume.of(10),
 		side,
 	};
 }
@@ -50,16 +57,16 @@ export function makeTrade(
 export function makeOrderBook(symbol: string): OrderBookData {
 	return {
 		symbol,
-		source: "binance",
-		timestamp: Date.now(),
-		market: "crypto",
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(Date.now()),
+		market: MarketType.CRYPTO,
 		bids: new Set([
-			{ price: 100, quantity: 10 },
-			{ price: 99, quantity: 20 },
+			{ price: Price.of(100), quantity: Volume.of(10) },
+			{ price: Price.of(99), quantity: Volume.of(20) },
 		]),
 		asks: new Set([
-			{ price: 102, quantity: 15 },
-			{ price: 103, quantity: 5 },
+			{ price: Price.of(102), quantity: Volume.of(15) },
+			{ price: Price.of(103), quantity: Volume.of(5) },
 		]),
 	};
 }
@@ -67,9 +74,9 @@ export function makeOrderBook(symbol: string): OrderBookData {
 export function makeOrderBookEmpty(symbol: string): OrderBookData {
 	return {
 		symbol,
-		source: "binance",
-		timestamp: Date.now(),
-		market: "crypto",
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(Date.now()),
+		market: MarketType.CRYPTO,
 		bids: new Set(),
 		asks: new Set(),
 	};
@@ -78,41 +85,41 @@ export function makeOrderBookEmpty(symbol: string): OrderBookData {
 export function makeBookTicker(symbol: string): BookTickerData {
 	return {
 		symbol,
-		source: "binance",
-		timestamp: Date.now(),
-		market: "crypto",
-		bidQty: 10,
-		askQty: 15,
-		bid: 100,
-		ask: 102,
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(Date.now()),
+		market: MarketType.CRYPTO,
+		bidQty: Volume.of(10),
+		askQty: Volume.of(15),
+		bid: Price.of(100),
+		ask: Price.of(102),
 	};
 }
 
 export function makeBookTickerZeroBidAsk(symbol: string): BookTickerData {
 	return {
 		symbol,
-		source: "binance",
-		timestamp: Date.now(),
-		market: "crypto",
-		bidQty: 0,
-		askQty: 0,
-		bid: 0,
-		ask: 0,
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(Date.now()),
+		market: MarketType.CRYPTO,
+		bidQty: Volume.of(0),
+		askQty: Volume.of(0),
+		bid: Price.of(0),
+		ask: Price.of(0),
 	};
 }
 
 export function makeTicker24h(symbol: string): TickerData {
 	return {
 		symbol,
-		source: "binance",
-		timestamp: Date.now(),
-		market: "crypto",
-		low: 90,
-		open: 100,
-		high: 110,
-		last: 105,
-		volume: 50000,
-		closeTimestamp: Date.now(),
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(Date.now()),
+		market: MarketType.CRYPTO,
+		low: Price.of(90),
+		open: Price.of(100),
+		high: Price.of(110),
+		last: Price.of(105),
+		volume: Volume.of(50000),
+		closeTimestamp: UnixTimestamp.of(Date.now()),
 	};
 }
 
@@ -125,13 +132,13 @@ export function feedCandles(
 		buffer.addCandles(symbol, [
 			makeCandle({
 				symbol,
-				open: 100 + i,
-				high: 105 + i,
-				low: 95 + i,
-				close: 102 + i,
-				volume: 1000 + i * 10,
-				timestamp: Date.now() + i * 60000,
-				closeTimestamp: Date.now() + (i + 1) * 60000,
+				open: Price.of(100 + i),
+				high: Price.of(105 + i),
+				low: Price.of(95 + i),
+				close: Price.of(102 + i),
+				volume: Volume.of(1000 + i * 10),
+				timestamp: UnixTimestamp.of(Date.now() + i * 60000),
+				closeTimestamp: UnixTimestamp.of(Date.now() + (i + 1) * 60000),
 			}),
 		]);
 	}

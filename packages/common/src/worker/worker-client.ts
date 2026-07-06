@@ -1,5 +1,4 @@
-﻿/* eslint-disable @typescript-eslint/no-unsafe-declaration-merging */
-import { EventEmitter } from "node:events";
+﻿import { EventEmitter } from "node:events";
 
 import WebSocket from "ws";
 
@@ -49,19 +48,30 @@ function normalizeConfig(
 	};
 }
 
-export class WorkerClient extends EventEmitter {
+export class WorkerClient {
+	private _emitter = new EventEmitter();
+
 	on<Event extends keyof WorkerClientEvents>(
 		event: Event,
 		listener: (...args: WorkerClientEvents[Event]) => void,
 	): this {
-		return super.on(event, listener as (...args: unknown[]) => void);
+		this._emitter.on(event, listener as (...args: unknown[]) => void);
+		return this;
+	}
+
+	off<Event extends keyof WorkerClientEvents>(
+		event: Event,
+		listener: (...args: WorkerClientEvents[Event]) => void,
+	): this {
+		this._emitter.off(event, listener as (...args: unknown[]) => void);
+		return this;
 	}
 
 	emit<Event extends keyof WorkerClientEvents>(
 		event: Event,
 		...args: WorkerClientEvents[Event]
 	): boolean {
-		return super.emit(event, ...args);
+		return this._emitter.emit(event, ...args);
 	}
 
 	private _ws: WebSocket | null = null;
@@ -70,7 +80,6 @@ export class WorkerClient extends EventEmitter {
 	private readonly _heartbeat: WorkerHeartbeat;
 
 	constructor(config: WorkerClientConfig) {
-		super();
 		this._cfg = normalizeConfig(config);
 		this._reconnector = new WorkerReconnector(
 			{

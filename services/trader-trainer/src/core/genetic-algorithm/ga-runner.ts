@@ -3,7 +3,6 @@ import { evaluateFitness } from "./evaluation-pipeline";
 import { createDefaultGenome } from "./factory";
 import type {
 	GAControlGenome,
-	Genome,
 	GenomeFitnessMeta,
 	LamarckGenome,
 	MarketStep,
@@ -59,46 +58,28 @@ export interface ParetoFrontContext {
 export class GeneticAlgorithmRunner {
 	private _population: DeepReadonly<LamarckGenome>[] = [];
 	private _generation = 0;
-	private _startTime = 0;
 	private _archive = new ParetoArchive();
 	private _stagnationTracker = new StagnationTracker();
 
 	constructor(private readonly _cfg: GARunnerConfig) {}
 
 	public initialise(baseControl?: Partial<GAControlGenome>): void {
-		const ctrl = this._freezeControl(baseControl);
-		this._population = this._createInitialPopulation(ctrl);
-		this._resetState();
-	}
-
-	private _freezeControl(
-		baseControl?: Partial<GAControlGenome>
-	): DeepReadonly<GAControlGenome> {
-		return deepFreeze({
+		const ctrl = deepFreeze({
 			...createDefaultGenome("base").gaControl,
 			...baseControl,
 		} as GAControlGenome);
-	}
-
-	private _createInitialPopulation(
-		ctrl: DeepReadonly<GAControlGenome>
-	): DeepReadonly<LamarckGenome>[] {
-		return createInitialPopulation(ctrl);
-	}
-
-	private _resetState(): void {
+		this._population = createInitialPopulation(ctrl);
 		this._generation = 0;
-		this._startTime = Date.now();
 		this._archive = new ParetoArchive();
 		this._stagnationTracker = new StagnationTracker();
 	}
 
-	public async runGeneration(): Promise<GenerationContext> {
+	public async runGeneration(startTime?: number): Promise<GenerationContext> {
 		const ctrl = this._population[0].gaControl;
 		const rng = makePRNG(ctrl.mutationSeed + this._generation);
 
 		const { updatedPop, objectives, metas } = await this._evaluateFitness();
-		const { popWithMeta, popMeta, avgFit, avgEff } = this._buildParetoFronts(
+		const { popWithMeta, popMeta, avgFit, avgEff } = buildParetoFronts(
 			updatedPop,
 			objectives,
 			metas,
@@ -106,41 +87,17 @@ export class GeneticAlgorithmRunner {
 		);
 
 		this._updateArchive(popWithMeta, objectives, popMeta);
-		const newCtrl = this._adaptControl(ctrl);
-
-		this._stagnationTracker.track(popWithMeta, metas, avgEff);
-
-		const ranked = this._sortPopulation(popWithMeta, popMeta);
-		const elites = selectElites(ranked, newCtrl);
-		this._population = this._buildNextPopulation(
-			elites,
-			ranked,
-			newCtrl,
-			ctrl,
-			rng
-		);
-
-		return this._buildContext(newCtrl, avgFit, avgEff);
-	}
-
-	private _adaptControl(
-		ctrl: DeepReadonly<GAControlGenome>
-	): Readonly<GAControlGenome> {
-		return adaptGAControl(
+		const newCtrl = adaptGAControl(
 			ctrl,
 			this._stagnationTracker.efficiencyHistory,
 			this._stagnationTracker.stagnation
 		);
-	}
 
-	private _buildNextPopulation(
-		elites: DeepReadonly<LamarckGenome>[],
-		ranked: Genome[],
-		newCtrl: Readonly<GAControlGenome>,
-		ctrl: DeepReadonly<GAControlGenome>,
-		rng: () => number
-	): DeepReadonly<LamarckGenome>[] {
-		return buildNextPopulation(
+		this._stagnationTracker.track(popWithMeta, metas, avgEff);
+
+		const ranked = sortPopulation(popWithMeta, popMeta);
+		const elites = selectElites(ranked, newCtrl);
+		this._population = buildNextPopulation(
 			elites,
 			ranked,
 			newCtrl,
@@ -148,13 +105,7 @@ export class GeneticAlgorithmRunner {
 			rng,
 			this._generation
 		);
-	}
 
-	private _buildContext(
-		newCtrl: Readonly<GAControlGenome>,
-		avgFit: number,
-		avgEff: number
-	): GenerationContext {
 		const ctx: GenerationContext = {
 			generation: this._generation,
 			population: this._population,
@@ -164,7 +115,7 @@ export class GeneticAlgorithmRunner {
 				.bestGenome as DeepReadonly<LamarckGenome>,
 			avgFitness: avgFit,
 			efficiencyScore: avgEff,
-			elapsedMs: Date.now() - this._startTime,
+			elapsedMs: Date.now() - (startTime ?? Date.now()),
 			stagnation: this._stagnationTracker.stagnation,
 			gaControl: newCtrl,
 		};
@@ -178,35 +129,12 @@ export class GeneticAlgorithmRunner {
 		objectives: ObjectiveVector[];
 		metas: GenomeFitnessMeta[];
 	}> {
-		const concurrency = this._cfg.evalConcurrency ?? 4;
-
 		return evaluateFitness({
 			population: this._population,
 			windowSets: this._cfg.windowSets,
 			backendFactory: this._cfg.backendFactory,
-			concurrency,
+			concurrency: this._cfg.evalConcurrency ?? 4,
 		});
-	}
-
-	private _buildParetoFronts(
-		updatedPop: DeepReadonly<LamarckGenome>[],
-		objectives: ObjectiveVector[],
-		metas: GenomeFitnessMeta[],
-		rng: () => number
-	): {
-		popWithMeta: DeepReadonly<LamarckGenome>[];
-		popMeta: import("./nsga2").PopulationMeta;
-		avgFit: number;
-		avgEff: number;
-	} {
-		return buildParetoFronts(updatedPop, objectives, metas, rng);
-	}
-
-	private _sortPopulation(
-		popWithMeta: DeepReadonly<LamarckGenome>[],
-		popMeta: import("./nsga2").PopulationMeta
-	): Genome[] {
-		return sortPopulation(popWithMeta, popMeta);
 	}
 
 	private _updateArchive(
@@ -230,35 +158,27 @@ export class GeneticAlgorithmRunner {
 		}
 	}
 
-	private _shouldStop(ctx: GenerationContext): boolean {
-		const ctrl = ctx.gaControl;
-		return (
-			ctx.bestFitness >= ctrl.rewardThreshold ||
-			ctx.stagnation >= ctrl.stagnationPatience ||
-			ctx.generation >= ctrl.maxGenerations ||
-			ctx.elapsedMs >= ctrl.timeBudgetMs
-		);
-	}
+	public async run(): Promise<DeepReadonly<LamarckGenome>> {
+		this.initialise(this._cfg.initialControl);
+		const startTime = Date.now();
 
-	private _getBestResult(): DeepReadonly<LamarckGenome> {
+		while (true) {
+			const ctx = await this.runGeneration(startTime);
+			if (
+				ctx.bestFitness >= ctx.gaControl.rewardThreshold ||
+				ctx.stagnation >= ctx.gaControl.stagnationPatience ||
+				ctx.generation >= ctx.gaControl.maxGenerations ||
+				ctx.elapsedMs >= ctx.gaControl.timeBudgetMs
+			) {
+				break;
+			}
+		}
+
 		return (
 			this._archive.members[0] ??
 			this._stagnationTracker.bestGenome ??
 			this._population[0]
 		);
-	}
-
-	public async run(): Promise<DeepReadonly<LamarckGenome>> {
-		this.initialise(this._cfg.initialControl);
-
-		while (true) {
-			const ctx = await this.runGeneration();
-			if (this._shouldStop(ctx)) {
-				break;
-			}
-		}
-
-		return this._getBestResult();
 	}
 
 	public getPopulation(): DeepReadonly<LamarckGenome>[] {

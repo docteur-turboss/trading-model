@@ -1,4 +1,16 @@
 import { describe, expect, test } from "@jest/globals";
+import {
+	Price,
+	toSymbol,
+	UnixTimestamp,
+	Volume,
+} from "@trading-model/common/domain/primitives";
+import {
+	CandleInterval,
+	MarketType,
+	SourceType,
+	TradeSide,
+} from "@trading-model/common/config/event.types";
 import type {
 	BookTickerData,
 	CandleData,
@@ -13,16 +25,16 @@ import { NormalizationStats } from "../../../src/core/normalization-stats";
 function baseCandle(overrides?: Partial<CandleData>): CandleData {
 	return {
 		symbol: "BTCUSDT",
-		source: "binance" as never,
-		timestamp: 2000,
-		market: "crypto" as never,
-		open: 100,
-		high: 110,
-		low: 90,
-		close: 105,
-		volume: 1000,
-		interval: "1m",
-		closeTimestamp: 3000,
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(2000),
+		market: MarketType.CRYPTO,
+		open: Price.of(100),
+		high: Price.of(110),
+		low: Price.of(90),
+		close: Price.of(105),
+		volume: Volume.of(1000),
+		interval: CandleInterval.MIN1,
+		closeTimestamp: UnixTimestamp.of(3000),
 		...overrides,
 	};
 }
@@ -30,13 +42,13 @@ function baseCandle(overrides?: Partial<CandleData>): CandleData {
 function baseTrade(overrides?: Partial<TradeData>): TradeData {
 	return {
 		symbol: "BTCUSDT",
-		source: "binance" as never,
-		timestamp: 1500,
-		market: "crypto" as never,
-		price: 104,
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(1500),
+		market: MarketType.CRYPTO,
+		price: Price.of(104),
 		tradeId: 1n,
-		quantity: 10,
-		side: "buy",
+		quantity: Volume.of(10),
+		side: TradeSide.BUY,
 		...overrides,
 	};
 }
@@ -44,11 +56,11 @@ function baseTrade(overrides?: Partial<TradeData>): TradeData {
 function makeOrderBook(bidPrice: number, askPrice: number): OrderBookData {
 	return {
 		symbol: "BTCUSDT",
-		source: "binance" as never,
-		timestamp: 2000,
-		market: "crypto" as never,
-		bids: new Set([{ price: bidPrice, quantity: 5 }]),
-		asks: new Set([{ price: askPrice, quantity: 3 }]),
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(2000),
+		market: MarketType.CRYPTO,
+		bids: new Set([{ price: Price.of(bidPrice), quantity: Volume.of(5) }]),
+		asks: new Set([{ price: Price.of(askPrice), quantity: Volume.of(3) }]),
 	};
 }
 
@@ -60,13 +72,13 @@ function makeBookTicker(
 ): BookTickerData {
 	return {
 		symbol: "BTCUSDT",
-		source: "binance" as never,
-		timestamp: 2000,
-		market: "crypto" as never,
-		bid,
-		ask,
-		bidQty,
-		askQty,
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(2000),
+		market: MarketType.CRYPTO,
+		bid: Price.of(bid),
+		ask: Price.of(ask),
+		bidQty: Volume.of(bidQty),
+		askQty: Volume.of(askQty),
 	};
 }
 
@@ -79,15 +91,15 @@ function makeTicker24h(
 ): TickerData {
 	return {
 		symbol: "BTCUSDT",
-		source: "binance" as never,
-		timestamp: 2000,
-		market: "crypto" as never,
-		open,
-		high,
-		low,
-		last,
-		volume,
-		closeTimestamp: 3000,
+		source: SourceType.BINANCE,
+		timestamp: UnixTimestamp.of(2000),
+		market: MarketType.CRYPTO,
+		open: Price.of(open),
+		high: Price.of(high),
+		low: Price.of(low),
+		last: Price.of(last),
+		volume: Volume.of(volume),
+		closeTimestamp: UnixTimestamp.of(3000),
 	};
 }
 
@@ -151,57 +163,57 @@ describe("buildFeatures", () => {
 	test("returns Float32Array of correct dimension", () => {
 		const s = makeState({
 			candles: [
-				baseCandle({ close: 100, open: 95, high: 105, low: 92, volume: 800 }),
+				baseCandle({ close: Price.of(100), open: Price.of(95), high: Price.of(105), low: Price.of(92), volume: Volume.of(800) }),
 				baseCandle({
-					close: 105,
-					open: 102,
-					high: 110,
-					low: 100,
-					volume: 1000,
+					close: Price.of(105),
+					open: Price.of(102),
+					high: Price.of(110),
+					low: Price.of(100),
+					volume: Volume.of(1000),
 				}),
 			],
 		});
 
-		const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-		expect(f).toBeInstanceOf(Float32Array);
-		expect(f.length).toBe(FEATURE_DIM);
-		expect(f[31]).toBe(1.0);
+		const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+		expect(f.buffer).toBeInstanceOf(Float32Array);
+		expect(f.buffer.length).toBe(FEATURE_DIM);
+		expect(f.buffer[31]).toBe(1.0);
 	});
 
 	describe("candle features (indices 0-8)", () => {
 		test("computes candle-derived features", () => {
 			const s = makeState({
 				candles: [
-					baseCandle({ close: 100, open: 98, high: 102, low: 97, volume: 500 }),
+					baseCandle({ close: Price.of(100), open: Price.of(98), high: Price.of(102), low: Price.of(97), volume: Volume.of(500) }),
 					baseCandle({
-						close: 105,
-						open: 102,
-						high: 110,
-						low: 100,
-						volume: 1000,
+						close: Price.of(105),
+						open: Price.of(102),
+						high: Price.of(110),
+						low: Price.of(100),
+						volume: Volume.of(1000),
 					}),
 				],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
 
-			expect(f[0]).toBe(0);
-			expect(f[1]).toBe(0);
-			expect(f[2]).toBeCloseTo((105 - 100) / 100, 5);
-			expect(f[3]).toBeCloseTo((105 - 102) / (110 - 100), 5);
-			expect(f[4]).toBeCloseTo((110 - 100) / 105, 5);
-			expect(f[8]).toBe(0);
+			expect(f.buffer[0]).toBe(0);
+			expect(f.buffer[1]).toBe(0);
+			expect(f.buffer[2]).toBeCloseTo((105 - 100) / 100, 5);
+			expect(f.buffer[3]).toBeCloseTo((105 - 102) / (110 - 100), 5);
+			expect(f.buffer[4]).toBeCloseTo((110 - 100) / 105, 5);
+			expect(f.buffer[8]).toBe(0);
 		});
 
 		test("handles idx=0 (no prev candle)", () => {
 			const s = makeState({
 				candles: [
-					baseCandle({ close: 100, open: 95, high: 105, low: 92, volume: 800 }),
+					baseCandle({ close: Price.of(100), open: Price.of(95), high: Price.of(105), low: Price.of(92), volume: Volume.of(800) }),
 				],
 			});
 
-			const f = buildFeatures({ state: s, idx: 0, priceSnapshot: { BTCUSDT: 100 } });
-			expect(f[2]).toBe(0);
+			const f = buildFeatures({ state: s, idx: 0, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(100) } });
+			expect(f.buffer[2]).toBe(0);
 		});
 	});
 
@@ -211,29 +223,29 @@ describe("buildFeatures", () => {
 			const an = trainedNorm([101, 106]);
 
 			const s = makeState({
-				candles: [baseCandle(), baseCandle({ close: 105 })],
+				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 				orderBook: makeOrderBook(100, 110),
 				bid: cn,
 				ask: an,
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-			expect(f[9]).toBeCloseTo(cn.normalize(100), 5);
-			expect(f[10]).toBeCloseTo(an.normalize(110), 5);
-			expect(f[11]).toBeCloseTo((110 - 100) / 110, 5);
-			expect(f[12]).toBeCloseTo((5 - 3) / (5 + 3), 5);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			expect(f.buffer[9]).toBeCloseTo(cn.normalize(100), 5);
+			expect(f.buffer[10]).toBeCloseTo(an.normalize(110), 5);
+			expect(f.buffer[11]).toBeCloseTo((110 - 100) / 110, 5);
+			expect(f.buffer[12]).toBeCloseTo((5 - 3) / (5 + 3), 5);
 		});
 
 		test("skips order book features when null", () => {
 			const s = makeState({
-				candles: [baseCandle(), baseCandle({ close: 105 })],
+				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-			expect(f[9]).toBe(0);
-			expect(f[10]).toBe(0);
-			expect(f[11]).toBe(0);
-			expect(f[12]).toBe(0);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			expect(f.buffer[9]).toBe(0);
+			expect(f.buffer[10]).toBe(0);
+			expect(f.buffer[11]).toBe(0);
+			expect(f.buffer[12]).toBe(0);
 		});
 	});
 
@@ -242,27 +254,27 @@ describe("buildFeatures", () => {
 			const cn = trainedNorm([100, 105]);
 
 			const s = makeState({
-				candles: [baseCandle(), baseCandle({ close: 105 })],
+				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 				bookTicker: makeBookTicker(102, 108, 15, 10),
 				bid: cn,
 				ask: cn,
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-			expect(f[13]).toBeCloseTo(cn.normalize(102), 5);
-			expect(f[14]).toBeCloseTo(cn.normalize(108), 5);
-			expect(f[15]).toBeCloseTo((108 - 102) / 108, 5);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			expect(f.buffer[13]).toBeCloseTo(cn.normalize(102), 5);
+			expect(f.buffer[14]).toBeCloseTo(cn.normalize(108), 5);
+			expect(f.buffer[15]).toBeCloseTo((108 - 102) / 108, 5);
 		});
 
 		test("skips when book ticker is null", () => {
 			const s = makeState({
-				candles: [baseCandle(), baseCandle({ close: 105 })],
+				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-			expect(f[13]).toBe(0);
-			expect(f[14]).toBe(0);
-			expect(f[15]).toBe(0);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			expect(f.buffer[13]).toBe(0);
+			expect(f.buffer[14]).toBe(0);
+			expect(f.buffer[15]).toBe(0);
 		});
 	});
 
@@ -270,105 +282,105 @@ describe("buildFeatures", () => {
 		test("computes features from recent trades", () => {
 			const s = makeState({
 				candles: [
-					baseCandle({ timestamp: 0, closeTimestamp: 1000 }),
-					baseCandle({ timestamp: 1000, closeTimestamp: 2000 }),
+					baseCandle({ timestamp: UnixTimestamp.of(0), closeTimestamp: UnixTimestamp.of(1000) }),
+					baseCandle({ timestamp: UnixTimestamp.of(1000), closeTimestamp: UnixTimestamp.of(2000) }),
 				],
 				trades: [
-					baseTrade({ timestamp: 1500, price: 104, quantity: 10, side: "buy" }),
-					baseTrade({ timestamp: 1600, price: 106, quantity: 5, side: "sell" }),
+					baseTrade({ timestamp: UnixTimestamp.of(1500), price: Price.of(104), quantity: Volume.of(10), side: TradeSide.BUY }),
+					baseTrade({ timestamp: UnixTimestamp.of(1600), price: Price.of(106), quantity: Volume.of(5), side: TradeSide.SELL }),
 				],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-			expect(f[16]).toBe(0);
-			expect(f[17]).toBe(0);
-			expect(f[18]).toBeCloseTo(10 / 15, 5);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			expect(f.buffer[16]).toBe(0);
+			expect(f.buffer[17]).toBe(0);
+			expect(f.buffer[18]).toBeCloseTo(10 / 15, 5);
 		});
 
 		test("skips trades outside 60s window", () => {
 			const s = makeState({
 				candles: [
-					baseCandle({ timestamp: 0, closeTimestamp: 1000 }),
-					baseCandle({ timestamp: 100000, closeTimestamp: 101000 }),
+					baseCandle({ timestamp: UnixTimestamp.of(0), closeTimestamp: UnixTimestamp.of(1000) }),
+					baseCandle({ timestamp: UnixTimestamp.of(100000), closeTimestamp: UnixTimestamp.of(101000) }),
 				],
-				trades: [baseTrade({ timestamp: 100, price: 100 })],
+				trades: [baseTrade({ timestamp: UnixTimestamp.of(100), price: Price.of(100) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-			expect(f[16]).toBe(0);
-			expect(f[17]).toBe(0);
-			expect(f[18]).toBe(0);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			expect(f.buffer[16]).toBe(0);
+			expect(f.buffer[17]).toBe(0);
+			expect(f.buffer[18]).toBe(0);
 		});
 	});
 
 	describe("24h ticker features (indices 19-21)", () => {
 		test("computes features when ticker exists", () => {
 			const s = makeState({
-				candles: [baseCandle(), baseCandle({ close: 105 })],
+				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 				ticker24h: makeTicker24h(100, 120, 90, 110, 50000),
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-			expect(f[19]).toBeCloseTo((110 - 100) / 100, 5);
-			expect(f[20]).toBe(0);
-			expect(f[21]).toBeCloseTo((120 - 90) / 100, 5);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			expect(f.buffer[19]).toBeCloseTo((110 - 100) / 100, 5);
+			expect(f.buffer[20]).toBe(0);
+			expect(f.buffer[21]).toBeCloseTo((120 - 90) / 100, 5);
 		});
 
 		test("skips when ticker is null", () => {
 			const s = makeState({
-				candles: [baseCandle(), baseCandle({ close: 105 })],
+				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-			expect(f[19]).toBe(0);
-			expect(f[20]).toBe(0);
-			expect(f[21]).toBe(0);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			expect(f.buffer[19]).toBe(0);
+			expect(f.buffer[20]).toBe(0);
+			expect(f.buffer[21]).toBe(0);
 		});
 	});
 
 	describe("price snapshot feature (index 22)", () => {
 		test("uses snapshot price when available", () => {
 			const s = makeState({
-				candles: [baseCandle(), baseCandle({ close: 105 })],
+				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 107 } });
-			expect(f[22]).toBe(0);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(107) } });
+			expect(f.buffer[22]).toBe(0);
 		});
 
 		test("falls back to close price when snapshot missing", () => {
 			const cn = trainedNorm([100, 105]);
 			const s = makeState({
-				candles: [baseCandle({ close: 100 }), baseCandle({ close: 105 })],
+				candles: [baseCandle({ close: Price.of(100) }), baseCandle({ close: Price.of(105) })],
 				candleClose: cn,
 			});
 
 			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: {} });
-			expect(f[22]).toBeCloseTo(cn.normalize(105), 5);
+			expect(f.buffer[22]).toBeCloseTo(cn.normalize(105), 5);
 		});
 	});
 
 	describe("lookback window (indices 23-30)", () => {
 		test("pads with zeros when fewer than 8 preceding candles", () => {
 			const s = makeState({
-				candles: [baseCandle({ close: 100 }), baseCandle({ close: 105 })],
+				candles: [baseCandle({ close: Price.of(100) }), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-			expect(f[23]).toBe(0);
-			expect(f[24]).toBe(0);
-			expect(f[25]).toBe(0);
-			expect(f[26]).toBe(0);
-			expect(f[27]).toBe(0);
-			expect(f[28]).toBe(0);
-			expect(f[29]).toBe(0);
-			expect(f[30]).toBe(0);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			expect(f.buffer[23]).toBe(0);
+			expect(f.buffer[24]).toBe(0);
+			expect(f.buffer[25]).toBe(0);
+			expect(f.buffer[26]).toBe(0);
+			expect(f.buffer[27]).toBe(0);
+			expect(f.buffer[28]).toBe(0);
+			expect(f.buffer[29]).toBe(0);
+			expect(f.buffer[30]).toBe(0);
 		});
 
 		test("fills lookback with up to 8 preceding closes", () => {
 			const candles: CandleData[] = [];
 			for (let i = 0; i <= 9; i++) {
-				candles.push(baseCandle({ close: 100 + i }));
+				candles.push(baseCandle({ close: Price.of(100 + i) }));
 			}
 			const cn = trainedNorm(candles.map((c) => c.close));
 
@@ -377,9 +389,9 @@ describe("buildFeatures", () => {
 				candleClose: cn,
 			});
 
-			const f = buildFeatures({ state: s, idx: 9, priceSnapshot: { BTCUSDT: 109 } });
+			const f = buildFeatures({ state: s, idx: 9, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(109) } });
 			for (let j = 1; j <= 8; j++) {
-				expect(f[22 + j]).toBeCloseTo(cn.normalize(100 + j), 5);
+				expect(f.buffer[22 + j]).toBeCloseTo(cn.normalize(100 + j), 5);
 			}
 		});
 	});
@@ -387,11 +399,11 @@ describe("buildFeatures", () => {
 	describe("bias (index 31)", () => {
 		test("is always 1.0", () => {
 			const s = makeState({
-				candles: [baseCandle(), baseCandle({ close: 105 })],
+				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { BTCUSDT: 103 } });
-			expect(f[31]).toBe(1.0);
+			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			expect(f.buffer[31]).toBe(1.0);
 		});
 	});
 });

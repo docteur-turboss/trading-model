@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { CandleInterval } from "@trading-model/common/config/event.types";
 
 jest.mock("../../../../src/config/http", () => ({
 	httpClients: {
@@ -100,14 +101,14 @@ describe("BinanceClient", () => {
 	});
 
 	it("getCandlestickData should call candlesticks endpoint with weight", async () => {
-		await getCandlestickData({ symbol: "BTCUSDT", limit: 100, interval: "1m", startTime: 1620000000000 });
+		await getCandlestickData({ symbol: "BTCUSDT", limit: 100, interval: CandleInterval.MIN1, startTime: 1620000000000 });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/klines", {
 			weight: 2,
 		} as never);
 	});
 
 	it("getCandlestickData should use default limit", async () => {
-		await getCandlestickData({ symbol: "BTCUSDT", limit: 500, interval: "1m", startTime: 1620000000000 });
+		await getCandlestickData({ symbol: "BTCUSDT", limit: 500, interval: CandleInterval.MIN1, startTime: 1620000000000 });
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/klines", {
 			weight: 2,
 		} as never);
@@ -202,7 +203,7 @@ describe("BinanceClient", () => {
 		});
 
 		it("getCandlestickData throws on empty symbol", async () => {
-			await expect(getCandlestickData({ symbol: "", limit: 100, interval: "1m" })).rejects.toThrow(
+			await expect(getCandlestickData({ symbol: "", limit: 100, interval: CandleInterval.MIN1 })).rejects.toThrow(
 				"getCandlestickData: symbol must be a non-empty string"
 			);
 		});

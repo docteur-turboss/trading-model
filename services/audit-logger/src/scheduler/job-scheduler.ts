@@ -5,51 +5,13 @@ import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
 import { ReAllocator } from "../recovery/re-allocator";
-import type { Job, JobPriority } from "../types/job.types";
+import type { Job, JobPriority, JobStatus } from "../types/job.types";
 import type { WorkerProtocol } from "../worker/worker-protocol";
 import { WorkerRegistry } from "../worker/worker-registry";
 import { BackPressure } from "./back-pressure";
 import { InternalQueue } from "./internal-queue";
 import { JobAssignmentManager } from "./job-assignment-manager";
 import { JobFailureHandler } from "./job-failure-handler";
-
-export class JobScheduler {
-	readonly queue: InternalQueue;
-	readonly backPressure: BackPressure;
-	readonly workers: WorkerRegistry;
-	readonly repository: JobRepository;
-	readonly reAllocator: ReAllocator;
-	readonly orphanDetector: OrphanDetector;
-	private readonly _assignmentManager: JobAssignmentManager;
-	private readonly _failureHandler: JobFailureHandler;
-	private _workerProtocol: WorkerProtocol | null = null;
-
-	constructor(repository: JobRepository) {
-		this.queue = _createInternalQueue();
-		this.backPressure = _createBackPressure();
-		this.workers = _createWorkerRegistry();
-		this.repository = repository;
-		this.reAllocator = _createReAllocator(repository, this.queue);
-		this._assignmentManager = _createAssignmentManager(
-			this.queue,
-			this.backPressure,
-			this.workers,
-			repository
-		);
-		this._failureHandler = _createFailureHandler(
-			this.queue,
-			repository,
-			this.reAllocator,
-			this._assignmentManager
-		);
-		this.orphanDetector = _createOrphanDetector(
-			this.workers,
-			repository,
-			this.reAllocator
-		);
-
-	}
-}
 
 function _createInternalQueue(): InternalQueue {
 	return new InternalQueue(ENV.ACK_TIMEOUT_MS);
@@ -111,7 +73,81 @@ function _createOrphanDetector(
 	});
 }
 
+async function _recoverJobs(
+	nonTerminal: Job[],
+	queue: InternalQueue,
+	repository: JobRepository,
+	reAllocator: ReAllocator
+): Promise<void> {
+	const STATUS_HANDLERS: Partial<
+		Record<JobStatus, (job: Job) => Promise<void>>
+	> = {
+		pending: async (job) => {
+			queue.enqueue({ ...job, status: "queued" });
+		},
+		queued: async (job) => {
+			queue.enqueue({ ...job, status: "queued" });
+		},
+		assigned: async (job) => {
+			await repository.updateStatus(job.id, "orphaned");
+			await reAllocator.reallocate(job);
+		},
+		running: async (job) => {
+			await repository.updateStatus(job.id, "orphaned");
+			await reAllocator.reallocate(job);
+		},
+		orphaned: async (job) => {
+			await reAllocator.reallocate(job);
+		},
+	};
+
+	for (const job of nonTerminal) {
+		await STATUS_HANDLERS[job.status]?.(job);
+	}
+}
+
+function _logSchedulerStart(recovered: number): void {
+	logger.info("Job scheduler started — recovered jobs from persistence", {
+		recovered,
+	});
+}
+
 export class JobScheduler {
+	readonly queue: InternalQueue;
+	readonly backPressure: BackPressure;
+	readonly workers: WorkerRegistry;
+	readonly repository: JobRepository;
+	readonly reAllocator: ReAllocator;
+	readonly orphanDetector: OrphanDetector;
+	private readonly _assignmentManager: JobAssignmentManager;
+	private readonly _failureHandler: JobFailureHandler;
+	private _workerProtocol: WorkerProtocol | null = null;
+
+	constructor(repository: JobRepository) {
+		this.queue = _createInternalQueue();
+		this.backPressure = _createBackPressure();
+		this.workers = _createWorkerRegistry();
+		this.repository = repository;
+		this.reAllocator = _createReAllocator(repository, this.queue);
+		this._assignmentManager = _createAssignmentManager(
+			this.queue,
+			this.backPressure,
+			this.workers,
+			repository
+		);
+		this._failureHandler = _createFailureHandler(
+			this.queue,
+			repository,
+			this.reAllocator,
+			this._assignmentManager
+		);
+		this.orphanDetector = _createOrphanDetector(
+			this.workers,
+			repository,
+			this.reAllocator
+		);
+	}
+
 	setWorkerProtocol(protocol: WorkerProtocol): void {
 		this._workerProtocol = protocol;
 		this._assignmentManager.setWorkerProtocol(protocol);
@@ -120,7 +156,7 @@ export class JobScheduler {
 	async submit(
 		type: string,
 		payload: unknown,
-		priority: JobPriority = 3,
+		priority: JobPriority = JobPriority.MEDIUM,
 		maxRetries: number = ENV.MAX_RETRIES_PER_JOB
 	): Promise<string> {
 		if (!this.backPressure.canAccept()) {
@@ -228,54 +264,13 @@ export class JobScheduler {
 	async start(): Promise<void> {
 		const nonTerminal = await this.repository.findNonTerminal();
 
-		await this._recoverJobs(nonTerminal);
+		await _recoverJobs(nonTerminal, this.queue, this.repository, this.reAllocator);
 		this.backPressure.updateQueueDepth(this.queue.depth());
 
 		_logSchedulerStart(nonTerminal.length);
 		this.orphanDetector.start();
 	}
 
-	private async _recoverJobs(
-		nonTerminal: import("../types/job.types").Job[]
-	): Promise<void> {
-		const STATUS_HANDLERS: Partial<
-			Record<
-				import("../types/job.types").JobStatus,
-				(job: import("../types/job.types").Job) => Promise<void>
-			>
-		> = {
-			pending: async (job) => {
-				this.queue.enqueue({ ...job, status: "queued" });
-			},
-			queued: async (job) => {
-				this.queue.enqueue({ ...job, status: "queued" });
-			},
-			assigned: async (job) => {
-				await this.repository.updateStatus(job.id, "orphaned");
-				await this.reAllocator.reallocate(job);
-			},
-			running: async (job) => {
-				await this.repository.updateStatus(job.id, "orphaned");
-				await this.reAllocator.reallocate(job);
-			},
-			orphaned: async (job) => {
-				await this.reAllocator.reallocate(job);
-			},
-		};
-
-		for (const job of nonTerminal) {
-			await STATUS_HANDLERS[job.status]?.(job);
-		}
-	}
-}
-
-function _logSchedulerStart(recovered: number): void {
-	logger.info("Job scheduler started — recovered jobs from persistence", {
-		recovered,
-	});
-}
-
-export class JobScheduler {
 	stop(): void {
 		this.orphanDetector.stop();
 		this.queue.stop();

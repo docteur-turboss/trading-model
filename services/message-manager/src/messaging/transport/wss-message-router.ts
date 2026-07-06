@@ -1,3 +1,4 @@
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
 import type { Dispatcher } from "../core/dispatcher";
 import type { IncomingWssMessage, WssMessageType } from "./wss-message.types";
@@ -8,8 +9,7 @@ type MessageHandler = (
 	msg: IncomingWssMessage,
 	ws: WebSocket,
 	ctx: {
-		instanceId: string;
-		serviceName: string;
+		identity: ServiceIdentity;
 		topics: Set<string>;
 		subKey: string;
 	}
@@ -25,8 +25,7 @@ export class WssMessageRouter {
 	registerMessageHandler(
 		ws: WebSocket,
 		ctx: {
-			instanceId: string;
-			serviceName: string;
+			identity: ServiceIdentity;
 			topics: Set<string>;
 			subKey: string;
 		}
@@ -108,7 +107,7 @@ export class WssMessageRouter {
 	handleAck(
 		msg: IncomingWssMessage,
 		ws: WebSocket,
-		ctx: { instanceId: string }
+		ctx: { identity: ServiceIdentity }
 	): void {
 		if (typeof msg.messageId !== "string") {
 			ws.send(
@@ -116,13 +115,13 @@ export class WssMessageRouter {
 			);
 			return;
 		}
-		this._dispatcher.handleAck(msg.messageId, ctx.instanceId).catch(() => {});
+		this._dispatcher.handleAck(msg.messageId, ctx.identity.instanceId).catch(() => {});
 	}
 
 	handleNack(
 		msg: IncomingWssMessage,
 		ws: WebSocket,
-		ctx: { instanceId: string }
+		ctx: { identity: ServiceIdentity }
 	): void {
 		if (typeof msg.messageId !== "string") {
 			ws.send(
@@ -130,6 +129,6 @@ export class WssMessageRouter {
 			);
 			return;
 		}
-		this._dispatcher.handleNack(msg.messageId, ctx.instanceId).catch(() => {});
+		this._dispatcher.handleNack(msg.messageId, ctx.identity.instanceId).catch(() => {});
 	}
 }

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
+import { Price } from "@trading-model/common/domain/primitives";
 
 import {
 	MarketDataBuffer,
@@ -151,19 +152,19 @@ export class BufferCheckpointer {
 
 	private _readBufferState(path: string): {
 		symbols: Record<string, SymbolStateSerializable>;
-		priceSnapshot: Record<string, number>;
+		priceSnapshot: Record<string, Price>;
 	} {
 		const raw = readFileSync(path, "utf-8");
 		return JSON.parse(raw) as {
 			symbols: Record<string, SymbolStateSerializable>;
-			priceSnapshot: Record<string, number>;
+			priceSnapshot: Record<string, Price>;
 		};
 	}
 
 	private _restoreBuffer(
 		data: {
 			symbols: Record<string, SymbolStateSerializable>;
-			priceSnapshot: Record<string, number>;
+			priceSnapshot: Record<string, Price>;
 		},
 		config?: MarketDataBufferConfig
 	): MarketDataBuffer {

@@ -24,8 +24,8 @@ export class RedisHealthMonitor {
 	private _healthCheckHandle?: NodeJS.Timeout;
 	private _restoreHandle?: NodeJS.Timeout;
 	private _fallbackActive = false;
-	private _originalBackend?: RegistryBackend;
-	private _backend: RegistryBackend;
+	private _currentBackend: RegistryBackend;
+	private readonly _primaryBackend: RegistryBackend;
 	private readonly _failureThreshold: number;
 	private readonly _healthCheckIntervalMs: number;
 	private readonly _shouldRun: () => boolean;
@@ -36,7 +36,8 @@ export class RedisHealthMonitor {
 		this._healthCheckIntervalMs = config.healthCheckIntervalMs;
 		this._shouldRun = config.shouldRun;
 		this._callbacks = config.callbacks;
-		this._backend = config.backend;
+		this._primaryBackend = config.backend;
+		this._currentBackend = config.backend;
 	}
 
 	get isHealthy(): boolean {
@@ -73,24 +74,14 @@ export class RedisHealthMonitor {
 		logger.warn(
 			"RedisHealthMonitor.setFallbackBackend — swapping to fallback backend"
 		);
-		if (!this._fallbackActive) {
-			this._originalBackend = this._backend;
-		}
 		this._fallbackActive = true;
-		this._backend = fallback;
+		this._currentBackend = fallback;
 		this._callbacks.onFallbackActivated(fallback);
 	}
 
 	stopBackend(): void {
-		if (this._originalBackend) {
-			try {
-				this._originalBackend.stop();
-			} catch {
-				/* ignore */
-			}
-			this._originalBackend = undefined;
-		}
-		this._backend.stop();
+		this._primaryBackend.stop();
+		this._currentBackend.stop();
 	}
 
 	private _clearTimers(): void {
@@ -156,11 +147,10 @@ export class RedisHealthMonitor {
 	}
 
 	private _restoreOriginalBackend(): void {
-		if (!this._fallbackActive || !this._originalBackend) return;
-		this._backend = this._originalBackend;
-		this._originalBackend = undefined;
+		if (!this._fallbackActive) return;
+		this._currentBackend = this._primaryBackend;
 		this._fallbackActive = false;
-		this._callbacks.onFallbackRestored(this._backend);
+		this._callbacks.onFallbackRestored(this._currentBackend);
 		logger.info("Restored original Redis backend");
 	}
 

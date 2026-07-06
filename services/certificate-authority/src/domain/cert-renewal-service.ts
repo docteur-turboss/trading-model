@@ -40,7 +40,6 @@ export class CertRenewalError extends Error {
 		super(message);
 		this.name = "CertRenewalError";
 		this.statusCode = statusCode;
-		Object.setPrototypeOf(this, new.target.prototype);
 	}
 }
 

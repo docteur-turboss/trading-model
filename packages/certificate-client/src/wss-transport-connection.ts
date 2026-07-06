@@ -16,7 +16,8 @@ export type ConnectionState =
 	| "connected"
 	| "reconnecting";
 
-export class WssTransportConnection extends EventEmitter {
+export class WssTransportConnection {
+	private _emitter = new EventEmitter();
 	private _ws: WebSocket | null = null;
 	private _state: ConnectionState = "disconnected";
 	private _destroyed = false;
@@ -26,12 +27,16 @@ export class WssTransportConnection extends EventEmitter {
 		destroyed: false,
 	};
 
+	on(event: string, listener: (...args: unknown[]) => void): this {
+		this._emitter.on(event, listener);
+		return this;
+	}
+
 	constructor(
 		private readonly _url: string,
 		private readonly _tlsConfig?: TlsPaths,
 		private readonly _bootstrapToken?: string
 	) {
-		super();
 		this._connectWs();
 	}
 
@@ -80,11 +85,11 @@ export class WssTransportConnection extends EventEmitter {
 			this._wsReconnectState.attempt = 0;
 			logger.info("WSS transport connected to CA");
 			this._sendWsAuth();
-			this.emit("open");
+			this._emitter.emit("open");
 		});
 
 		this._ws.on("message", (data: WebSocket.Data) => {
-			this.emit("message", data);
+			this._emitter.emit("message", data);
 		});
 
 		this._ws.on("close", () => {
@@ -93,7 +98,7 @@ export class WssTransportConnection extends EventEmitter {
 			if (!this._destroyed) {
 				this._scheduleReconnect();
 			}
-			this.emit("close");
+			this._emitter.emit("close");
 		});
 
 		this._ws.on("error", (err: Error) => {
@@ -102,7 +107,7 @@ export class WssTransportConnection extends EventEmitter {
 			if (!isWsConnected(this._ws)) {
 				this._scheduleReconnect();
 			}
-			this.emit("error", err);
+			this._emitter.emit("error", err);
 		});
 	}
 

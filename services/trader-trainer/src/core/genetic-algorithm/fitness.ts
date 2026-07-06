@@ -17,8 +17,8 @@ export interface FitnessStrategy {
 
 class TotalPnlStrategy implements FitnessStrategy {
 	readonly type: FitnessType = FitnessType.TotalPnl;
-	compute(_scores: number[], mean: number): number {
-		return mean;
+	compute(scores: number[], _mean: number): number {
+		return scores.reduce((sum, value) => sum + value, 0);
 	}
 }
 

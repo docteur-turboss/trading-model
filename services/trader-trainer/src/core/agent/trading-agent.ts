@@ -1,4 +1,4 @@
-import { Price, Volume } from "@trading-model/common/domain/primitives";
+import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
 import {
 	createWallet,
 	type WalletConfig,
@@ -25,7 +25,7 @@ export class TradingAgent {
 	constructor(cfg: TradingAgentConfig) {
 		this._agent = new Agent(cfg.nnConfig);
 		this.wallet = createWallet(
-			cfg.wallet ?? { initialCash: 1000, initialPrice: Price.of(1) }
+			cfg.wallet ?? { initialCash: Cash.of(1000), initialPrice: Price.of(1) }
 		);
 		this.state = new StateManager(cfg.stateManagerCfg ?? {});
 	}

@@ -1,5 +1,6 @@
 import { context, propagation } from "@opentelemetry/api";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
 import type WebSocket from "ws";
 import { ENV } from "../../config/env";
@@ -23,9 +24,9 @@ export class WssPublisher {
 	async handlePublish(
 		msg: IncomingWssMessage,
 		ws: WebSocket,
-		ctx: { serviceName: string }
+		ctx: { identity: ServiceIdentity }
 	): Promise<void> {
-		if (!this._rateLimiter.checkAndReject(ctx.serviceName, ws)) {
+		if (!this._rateLimiter.checkAndReject(ctx.identity.serviceName, ws)) {
 			return;
 		}
 		const topic = (msg.metadata as Record<string, unknown>)?.topic as
@@ -45,14 +46,14 @@ export class WssPublisher {
 
 	private async _checkPublishTopicAuth(
 		topic: string | undefined,
-		ctx: { serviceName: string },
+		ctx: { identity: ServiceIdentity },
 		ws: WebSocket
 	): Promise<boolean> {
 		if (!topic) {
 			return true;
 		}
 		const result = await authorizeTopic(
-			{ headers: { "x-service-name": ctx.serviceName } } as never,
+			{ headers: { "x-service-name": ctx.identity.serviceName } } as never,
 			topic
 		);
 		if (result.allowed) {

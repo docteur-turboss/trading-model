@@ -7,6 +7,7 @@ import {
 } from "@trading-model/common/config/event.types";
 
 import type { MarketStep } from "./genetic-algorithm/genome-types";
+import { Price } from "@trading-model/common/domain/primitives";
 import {
 	fromSymbol,
 	type SymbolState,
@@ -33,7 +34,7 @@ export interface MarketDataBufferConfig {
 export class MarketDataBuffer {
 	private _states: Map<TradingSymbol, SymbolState> = new Map();
 	private _accessOrder: TradingSymbol[] = [];
-	private _priceSnapshot: Record<TradingSymbol, number> = {} as Record<TradingSymbol, number>;
+	private _priceSnapshot: Record<TradingSymbol, Price> = {} as Record<TradingSymbol, Price>;
 	private _memoryManager: MemoryManager;
 	private _windowSplitter: WindowSplitter;
 	private _normManager: NormalizationManager;
@@ -141,12 +142,12 @@ export class MarketDataBuffer {
 	}
 
 	/** Merge a snapshot of latest prices into the internal price map. */
-	setPriceSnapshot(prices: Record<TradingSymbol, number>): void {
+	setPriceSnapshot(prices: Record<TradingSymbol, Price>): void {
 		this._priceSnapshot = { ...this._priceSnapshot, ...prices };
 	}
 
 	/** Return a copy of the current price snapshot. */
-	getPriceSnapshot(): Record<TradingSymbol, number> {
+	getPriceSnapshot(): Record<TradingSymbol, Price> {
 		return { ...this._priceSnapshot };
 	}
 

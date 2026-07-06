@@ -1,24 +1,19 @@
 import { logger } from "@trading-model/common/config/logger";
-import { env } from "../config/env";
-import type { GAControlGenome } from "./genetic-algorithm/genome-types";
-import { createDefaultGenome } from "./genetic-algorithm/factory";
-import {
-	type GenerationContext,
-	GeneticAlgorithmRunner,
-	type WindowSet,
-} from "./genetic-algorithm/ga-runner";
-import { makeTradingAgentBackend } from "./genetic-algorithm/rl-backend";
-import type { LamarckGenome } from "./genetic-algorithm/genome-types";
+import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import type {
 	ActivationType,
 	FitnessType,
 	SelectionType,
 } from "./genetic-algorithm/genome";
+import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
-import { type MarketDataBuffer } from "./market-data-buffer";
-import { fromSymbol, type TradingSymbol, toSymbol } from "./market-data-types";
-import { TrainingPrerequisiteValidator } from "./training-prerequisite-validator";
 import { GenomeSummaryBuilder } from "./genome-summary-builder";
+import type { MarketDataBuffer } from "./market-data-buffer";
+import { TrainingPrerequisiteValidator } from "./training-prerequisite-validator";
+import {
+	TrainingSession,
+	type TrainingSessionResult,
+} from "./training-session";
 
 /** Summary of the best trained agent for API responses. */
 export interface BestAgentSummary {
@@ -68,13 +63,17 @@ export interface TrainingFailure {
 /** Discriminated result of a training cycle. */
 export type TrainingResult = TrainingSuccess | TrainingFailure;
 
+interface LastTrainingInfo {
+	symbol: string;
+	bestGenome: DeepReadonly<LamarckGenome>;
+	generation: number;
+	generationContext: GenerationContext | null;
+}
+
 /** Orchestrates GA training cycles: feeds market data, runs generations, tracks best genome. */
 export class Trainer {
-	private _runner: GeneticAlgorithmRunner | null = null;
-	private _bestGenome: DeepReadonly<LamarckGenome> | null = null;
 	private _training = false;
-	private _generationContext: GenerationContext | null = null;
-	private _currentSymbol: TradingSymbol = toSymbol("");
+	private _lastInfo: LastTrainingInfo | null = null;
 
 	private readonly _validator: TrainingPrerequisiteValidator;
 	private readonly _summaryBuilder: GenomeSummaryBuilder;
@@ -92,105 +91,60 @@ export class Trainer {
 	}
 
 	getCurrentSymbol(): string {
-		return fromSymbol(this._currentSymbol);
+		return this._lastInfo?.symbol ?? "";
 	}
 
 	getGeneration(): number {
-		return this._runner?.getGeneration() ?? 0;
+		return this._lastInfo?.generation ?? 0;
 	}
 
-	/**
-	 * Run a full GA training cycle for the given symbol.
-	 * Skips if already training or insufficient data.
-	 *
-	 * @param symbol - Market symbol to train on.
-	 * @returns TrainingResult indicating success or failure.
-	 */
 	async train(symbol: string): Promise<TrainingResult> {
 		const validation = this._validator.validate(symbol);
 		if (!validation.ok) {
 			return validation.error;
 		}
 
-		this._currentSymbol = toSymbol(symbol);
 		this._training = true;
-		this._runner = this._createRunner(validation.windowSet);
+		const session = new TrainingSession(validation.windowSet);
 
 		try {
-			return await this._runTraining(symbol);
+			const result: TrainingSessionResult = await session.run();
+			this._lastInfo = {
+				symbol,
+				bestGenome: result.bestGenome,
+				generation: result.generation,
+				generationContext: result.generationContext,
+			};
+			logger.info("Training complete", {
+				context: { symbol, bestFitness: result.bestGenome.fitness ?? 0 },
+			});
+			return { success: true, symbol, bestGenome: result.bestGenome };
 		} catch (err) {
-			return this._handleTrainingError(symbol, err);
+			const error = err instanceof Error ? err : new Error(String(err));
+			logger.error("Training failed", {
+				context: { symbol, err: error.message },
+			});
+			return { success: false, symbol, error };
 		} finally {
 			this._training = false;
 		}
 	}
 
-	private async _runTraining(symbol: string): Promise<TrainingSuccess> {
-		const result = await this._runner!.run();
-		this._bestGenome = result;
-		logger.info("Training complete", { context: { symbol, bestFitness: result.fitness ?? 0 } });
-		return { success: true, symbol, bestGenome: result };
-	}
-
-	private _handleTrainingError(symbol: string, err: unknown): TrainingFailure {
-		const error = err instanceof Error ? err : new Error(String(err));
-		logger.error("Training failed", { context: { symbol, err: error.message } });
-		return { success: false, symbol, error };
-	}
-
-	private _buildInitialControl(): Partial<GAControlGenome> {
-		const defaultControl = createDefaultGenome("ctrl").gaControl;
-		return {
-			...defaultControl,
-			populationSize: env.TRAINER_POPULATION_SIZE,
-			maxGenerations: env.TRAINER_GENERATIONS,
-			timeBudgetMs: env.TRAINER_TIME_BUDGET_MS,
-			episodesPerIndividual: env.TRAINER_EPISODES_PER_INDIVIDUAL,
-		};
-	}
-
-	private _onGeneration(ctx: GenerationContext): void {
-		this._generationContext = ctx;
-		this._bestGenome = ctx.bestGenome;
-		logger.info("Generation completed", { context: {
-			generation: ctx.generation,
-			bestFitness: ctx.bestFitness,
-			avgFitness: ctx.avgFitness,
-			archiveSize: ctx.archive.length,
-			stagnation: ctx.stagnation,
-			elapsedSec: ctx.elapsedMs / 1000,
-		} });
-	}
-
-	private _onArchiveUpdate(archive: DeepReadonly<LamarckGenome>[]): void {
-		if (archive.length > 0) {
-			this._bestGenome = archive[0];
-		}
-	}
-
-	private _createRunner(windowSet: WindowSet): GeneticAlgorithmRunner {
-		return new GeneticAlgorithmRunner({
-			windowSets: [windowSet],
-			backendFactory: makeTradingAgentBackend,
-			evalConcurrency: 4,
-			initialControl: this._buildInitialControl(),
-			onGeneration: (ctx) => this._onGeneration(ctx),
-			onArchiveUpdate: (archive) => this._onArchiveUpdate(archive),
-		});
-	}
-
 	getBestAgentSummary(): BestAgentSummary | null {
-		if (!this._bestGenome) {
+		if (!this._lastInfo) {
 			return null;
 		}
 
-		return this._summaryBuilder.buildBestAgentSummary(this._bestGenome);
+		return this._summaryBuilder.buildBestAgentSummary(
+			this._lastInfo.bestGenome
+		);
 	}
 
 	getGenerationContext(): GenerationContext | null {
-		return this._generationContext;
+		return this._lastInfo?.generationContext ?? null;
 	}
 
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: Accessed via prototype in tests
 	private _computeSharpe(scores: readonly number[]): number {
 		return GenomeSummaryBuilder.computeSharpe(scores);
 	}

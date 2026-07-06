@@ -152,9 +152,9 @@ export const BinanceNormalizer = {
 
 	priceTicker(
 		payload: BinanceSymbolPriceTickerResponse
-	): Record<string, number> {
+	): Record<string, Price> {
 		return Object.fromEntries(
-			payload.map((priceEntry) => [priceEntry.symbol, Number(priceEntry.price)])
+			payload.map((priceEntry) => [priceEntry.symbol, Price.of(Number(priceEntry.price))])
 		);
 	},
 

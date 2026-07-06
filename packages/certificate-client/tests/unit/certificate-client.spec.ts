@@ -66,9 +66,11 @@ describe("CertificateClient", () => {
 		serviceId: "my-service",
 		commonName: "my-service",
 		san: ["my-service"],
-		certPath: "/etc/tls/cert.pem",
-		keyPath: "/etc/tls/key.pem",
-		caPath: "/etc/tls/ca.pem",
+		tlsPaths: {
+			certPath: "/etc/tls/cert.pem",
+			keyPath: "/etc/tls/key.pem",
+			caPath: "/etc/tls/ca.pem",
+		},
 	};
 
 	beforeEach(() => {
@@ -90,12 +92,12 @@ describe("CertificateClient", () => {
 		});
 
 		it("should pass TLS config to CaClient when provided", () => {
-			const tlsConfig = { ca: "ca-pem", cert: "cert-pem", key: "key-pem" };
-			const configWithTls = { ...defaultConfig, tls: tlsConfig };
+			const tlsPaths = { caPath: "/etc/tls/ca.pem", certPath: "/etc/tls/cert.pem", keyPath: "/etc/tls/key.pem" };
+			const configWithTls = { ...defaultConfig, tls: tlsPaths };
 			new CertificateClient(configWithTls);
 			expect(CaClient).toHaveBeenCalledWith({
 				baseUrl: "https://ca:8447",
-				tls: tlsConfig,
+				tls: tlsPaths,
 			});
 		});
 	});

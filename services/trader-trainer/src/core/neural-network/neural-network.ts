@@ -1,11 +1,10 @@
 import { logger } from "@trading-model/common/config/logger";
-import { AppError, agentError } from "@trading-model/common/utils/errors";
+import { agentError } from "@trading-model/common/utils/errors";
 
 import { BackpropEngine } from "./backprop-engine";
 import { FeedForwardEngine } from "./feed-forward-engine";
 import { INITIALIZERS } from "./initializers";
 import { LearningPool } from "./pool-manager";
-import { LOSSES } from "./losses";
 import {
 	distributeAroundWeights as distributeAroundWeightsFn,
 	getWeights as getWeightsFn,
@@ -180,6 +179,37 @@ function validateActivationLoss(
 	_validateActivationCount(config, layerCount);
 }
 
+function _resolveOptimizerHyperparams(config: Required<NeuralNetworkConfig>): OptimizerHyperparams {
+	return { ...DEFAULT_HYPERPARAMS, ...config.optimizerHyperparams };
+}
+
+function _validateMinLayers(config: Required<NeuralNetworkConfig>): void {
+	if (config.neuronsByLayer.length < 2) {
+		throw agentError(
+			"Neural network must have at least 2 layers (input + output)",
+		);
+	}
+}
+
+function _validateInputDim(input: Float32Array, config: Required<NeuralNetworkConfig>): void {
+	const expectedInput = config.neuronsByLayer[0];
+	if (input.length !== expectedInput) {
+		throw agentError(`Expected input size ${expectedInput}, got ${input.length}`);
+	}
+}
+
+function _validateOutputDim(target: Float32Array, config: Required<NeuralNetworkConfig>): void {
+	const expectedOutput = config.neuronsByLayer[config.neuronsByLayer.length - 1];
+	if (target.length !== expectedOutput) {
+		throw agentError(`Expected target size ${expectedOutput}, got ${target.length}`);
+	}
+}
+
+function _validateDimensions(input: Float32Array, target: Float32Array, config: Required<NeuralNetworkConfig>): void {
+	_validateInputDim(input, config);
+	_validateOutputDim(target, config);
+}
+
 export class NeuralNetwork {
 	private readonly _config: Required<NeuralNetworkConfig>;
 	private readonly _optimizerHp: OptimizerHyperparams;
@@ -190,28 +220,12 @@ export class NeuralNetwork {
 
 	constructor(cfg: NeuralNetworkConfig) {
 		this._config = mergeConfig(cfg);
-		this._optimizerHp = this._resolveOptimizerHp();
-		this._validateMinLayers();
-		this._initialiseLayers();
-		this._feedForward = new FeedForwardEngine(this._config, this._layers);
-		this._backprop = new BackpropEngine(this._config, this._layers, this._optimizerHp);
-	}
-
-	private _resolveOptimizerHp(): OptimizerHyperparams {
-		return { ...DEFAULT_HYPERPARAMS, ...this._config.optimizerHyperparams };
-	}
-
-	private _validateMinLayers(): void {
-		if (this._config.neuronsByLayer.length < 2) {
-			throw agentError(
-				"Neural network must have at least 2 layers (input + output)",
-			);
-		}
-	}
-
-	private _initialiseLayers(): void {
+		this._optimizerHp = _resolveOptimizerHyperparams(this._config);
+		_validateMinLayers(this._config);
 		this._layers.push(...createLayerMemories(this._config, this._optimizerHp));
 		validateActivationLoss(this._config, this._layers.length);
+		this._feedForward = new FeedForwardEngine(this._config, this._layers);
+		this._backprop = new BackpropEngine(this._config, this._layers, this._optimizerHp);
 	}
 
 	public forward(input: Float32Array): ForwardContext {
@@ -223,7 +237,7 @@ export class NeuralNetwork {
 	}
 
 	public train(inputs: Float32Array, targets: Float32Array): number {
-		this._validateDimensions(inputs, targets);
+		_validateDimensions(inputs, targets, this._config);
 		const context = this._feedForward.forward(inputs);
 		this._backprop.backprop(context, targets);
 		return this._backprop.computeLoss(context.output, targets);
@@ -236,7 +250,7 @@ export class NeuralNetwork {
 			);
 		}
 
-		this._validateDimensions(input, target);
+		_validateDimensions(input, target, this._config);
 
 		const context = this._feedForward.forward(input);
 		const loss = this._backprop.computeLoss(context.output, target);
@@ -286,25 +300,6 @@ export class NeuralNetwork {
 		params?: { min: number; max: number }
 	): Float32Array {
 		return (this._feedForward as any)._normalize(input, params);
-	}
-
-	private _validateInputDim(input: Float32Array): void {
-		const expectedInput = this._config.neuronsByLayer[0];
-		if (input.length !== expectedInput) {
-			throw agentError(`Expected input size ${expectedInput}, got ${input.length}`);
-		}
-	}
-
-	private _validateOutputDim(target: Float32Array): void {
-		const expectedOutput = this._config.neuronsByLayer[this._config.neuronsByLayer.length - 1];
-		if (target.length !== expectedOutput) {
-			throw agentError(`Expected target size ${expectedOutput}, got ${target.length}`);
-		}
-	}
-
-	private _validateDimensions(input: Float32Array, target: Float32Array): void {
-		this._validateInputDim(input);
-		this._validateOutputDim(target);
 	}
 
 	public getWeights(): Float32Array {

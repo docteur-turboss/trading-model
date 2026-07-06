@@ -6,11 +6,16 @@ import { getCollection } from "../config/db";
 import { env } from "../config/env";
 import type { DlqEntry } from "./repository";
 
-export class DlqCapacityError extends Error {
+export class DlqCapacityError {
+	public readonly name: string;
+	public readonly message: string;
+	public readonly stack?: string;
+
 	constructor(message: string) {
-		super(message);
+		const error = new Error(message);
 		this.name = "DlqCapacityError";
-		Object.setPrototypeOf(this, new.target.prototype);
+		this.message = error.message;
+		this.stack = error.stack;
 	}
 }
 

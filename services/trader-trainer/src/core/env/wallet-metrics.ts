@@ -1,9 +1,11 @@
+import { Cash, Percentage, Price } from "@trading-model/common/domain/primitives";
+
 export interface WalletMetrics {
 	pnl: number;
 	returnRate: number;
-	peakValuation: number;
-	drawdown: number;
-	totalFeesPaid: number;
+	peakValuation: Cash;
+	drawdown: Percentage;
+	totalFeesPaid: Cash;
 	tradeCount: number;
 }
 
@@ -13,35 +15,35 @@ function round(value: number, decimals: number): number {
 }
 
 export interface ComputeWalletMetricsParams {
-	cash: number;
+	cash: Cash;
 	position: number;
-	price: number;
-	peakValuation: number;
-	initialCash: number;
-	totalFeesPaid: number;
+	price: Price;
+	peakValuation: Cash;
+	initialCash: Cash;
+	totalFeesPaid: Cash;
 	tradeCount: number;
 	decimals: number;
 }
 
 function _computeValuation(params: ComputeWalletMetricsParams): number {
-	return round(params.cash + params.position * params.price, params.decimals);
+	return round(+params.cash + params.position * +params.price, params.decimals);
 }
 
 function _computePnL(valuation: number, params: ComputeWalletMetricsParams): number {
-	return round(valuation - params.initialCash, params.decimals);
+	return round(valuation - +params.initialCash, params.decimals);
 }
 
 function _computeReturnRate(valuation: number, params: ComputeWalletMetricsParams): number {
 	return round(
-		(valuation - params.initialCash) / params.initialCash,
+		(valuation - +params.initialCash) / +params.initialCash,
 		params.decimals
 	);
 }
 
 function _computeDrawdown(valuation: number, params: ComputeWalletMetricsParams): number {
-	return params.peakValuation > 0
+	return +params.peakValuation > 0
 		? round(
-				(params.peakValuation - valuation) / params.peakValuation,
+				(+params.peakValuation - valuation) / +params.peakValuation,
 				params.decimals
 			)
 		: 0;
@@ -55,7 +57,7 @@ export function computeWalletMetrics(
 		pnl: _computePnL(valuation, params),
 		returnRate: _computeReturnRate(valuation, params),
 		peakValuation: params.peakValuation,
-		drawdown: _computeDrawdown(valuation, params),
+		drawdown: Percentage.of(_computeDrawdown(valuation, params)),
 		totalFeesPaid: params.totalFeesPaid,
 		tradeCount: params.tradeCount,
 	};

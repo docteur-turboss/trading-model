@@ -1,15 +1,14 @@
 import type addressManagerClient from "@trading-model/address-manager";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 
 import MessageManagerClass from "../../index";
 
 /** Configuration options for creating a MessageManager instance. */
 export interface MessageManagerOptions {
 	addressManagerClient: addressManagerClient;
-	certPath: string;
+	tlsPaths: TlsPaths;
 	instanceId: string;
-	keyPath: string;
-	caPath: string;
 	serviceName: ServiceInstanceName;
 	callbackPath: string;
 }
@@ -22,10 +21,8 @@ export interface MessageManagerOptions {
 export function createMessageManager(options: MessageManagerOptions) {
 	const ma = new MessageManagerClass({
 		addressManagerClient: options.addressManagerClient,
-		certPath: options.certPath,
+		tlsPaths: options.tlsPaths,
 		instanceId: options.instanceId,
-		keyPath: options.keyPath,
-		caPath: options.caPath,
 		serviceName: options.serviceName,
 		callbackPath: options.callbackPath,
 	});

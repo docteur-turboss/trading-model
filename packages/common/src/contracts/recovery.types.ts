@@ -2,15 +2,13 @@
  * Job priority levels.
  * Higher numeric value = higher priority.
  */
-export type JobPriority = 1 | 2 | 3 | 4 | 5;
-
-export const JobPriority = {
-	LOWEST: 1 as JobPriority,
-	LOW: 2 as JobPriority,
-	MEDIUM: 3 as JobPriority,
-	HIGH: 4 as JobPriority,
-	HIGHEST: 5 as JobPriority,
-};
+export enum JobPriority {
+	LOWEST = 1,
+	LOW = 2,
+	MEDIUM = 3,
+	HIGH = 4,
+	HIGHEST = 5,
+}
 
 export type JobStatus =
 	| "pending"

@@ -1,18 +1,18 @@
-import { Price, Volume } from "@trading-model/common/domain/primitives";
+import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
 
 export interface TradeRecord {
 	step: number;
 	action: "buy" | "sell";
 	amount: Volume;
 	price: Price;
-	fee: number;
-	cashAfter: number;
+	fee: Cash;
+	cashAfter: Cash;
 	positionAfter: Volume;
 }
 
 export class TradeHistory {
 	private readonly _history: TradeRecord[] = [];
-	private _totalFeesPaid = 0;
+	private _totalFeesPaid: Cash = Cash.zero();
 	private _tradeCount = 0;
 	private _step = 0;
 
@@ -24,7 +24,7 @@ export class TradeHistory {
 		this._step++;
 	}
 
-	getTotalFeesPaid(): number {
+	getTotalFeesPaid(): Cash {
 		return this._totalFeesPaid;
 	}
 
@@ -36,30 +36,18 @@ export class TradeHistory {
 		return this._history;
 	}
 
-	record(
-		action: "buy" | "sell",
-		amount: Volume,
-		fee: number,
-		price: Price,
-		cashAfter: number,
-		positionAfter: Volume,
-	): void {
-		this._totalFeesPaid += fee;
+	record(trade: Omit<TradeRecord, "step">): void {
+		this._totalFeesPaid = Cash.of(+this._totalFeesPaid + +trade.fee);
 		this._tradeCount++;
 		this._history.push({
 			step: this._step,
-			action,
-			amount,
-			price,
-			fee,
-			cashAfter,
-			positionAfter,
+			...trade,
 		});
 	}
 
 	reset(): void {
 		this._history.length = 0;
-		this._totalFeesPaid = 0;
+		this._totalFeesPaid = Cash.zero();
 		this._tradeCount = 0;
 		this._step = 0;
 	}

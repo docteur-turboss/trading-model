@@ -9,9 +9,9 @@ import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
 describe("Fitness - computeFitness", () => {
 	const scores = [100, 120, 110, 130, 140];
 
-	test("total_pnl should return mean of scores", () => {
+	test("total_pnl should return sum of scores", () => {
 		const result = computeFitness(FitnessType.TotalPnl, scores);
-		expect(result).toBe(120);
+		expect(result).toBe(600);
 	});
 
 	test("sharpe should return positive value for positive scores", () => {

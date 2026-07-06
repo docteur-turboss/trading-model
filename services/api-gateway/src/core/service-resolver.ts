@@ -10,6 +10,7 @@ export interface ResolvedTarget {
 interface CachedService {
 	instances: ResolvedTarget[];
 	expiresAt: number;
+	nextIndex: number;
 }
 
 export class ServiceResolver {
@@ -20,8 +21,6 @@ export class ServiceResolver {
 	private readonly _discoveryUrl: string;
 
 	private readonly _cacheTtlMs: number;
-
-	private _roundRobinIndex = 0;
 
 	constructor(
 		discoveryUrl: string,
@@ -44,7 +43,7 @@ export class ServiceResolver {
 			if (cached.instances.length === 0) {
 				return null;
 			}
-			return this._selectInstance(cached.instances);
+			return this._selectInstance(cached);
 		}
 
 		try {
@@ -71,15 +70,17 @@ export class ServiceResolver {
 					version: inst.version,
 				}));
 
-			this._cache.set(cacheKey, {
+			const cachedService: CachedService = {
 				instances: matching,
 				expiresAt: Date.now() + this._cacheTtlMs,
-			});
+				nextIndex: 0,
+			};
+			this._cache.set(cacheKey, cachedService);
 
 			if (matching.length === 0) {
 				return null;
 			}
-			return this._selectInstance(matching);
+			return this._selectInstance(cachedService);
 		} catch {
 			return this._handleFallback(cacheKey);
 		}
@@ -88,15 +89,15 @@ export class ServiceResolver {
 	private _handleFallback(cacheKey: string): ResolvedTarget | null {
 		const stale = this._cache.get(cacheKey);
 		if (stale && stale.instances.length > 0) {
-			return this._selectInstance(stale.instances);
+			return this._selectInstance(stale);
 		}
 		return null;
 	}
 
-	private _selectInstance(instances: ResolvedTarget[]): ResolvedTarget {
-		const index = this._roundRobinIndex % instances.length;
-		this._roundRobinIndex = (this._roundRobinIndex + 1) % instances.length;
-		return instances[index];
+	private _selectInstance(cached: CachedService): ResolvedTarget {
+		const index = cached.nextIndex % cached.instances.length;
+		cached.nextIndex = (cached.nextIndex + 1) % cached.instances.length;
+		return cached.instances[index];
 	}
 
 	invalidateCache(serviceName?: string): void {

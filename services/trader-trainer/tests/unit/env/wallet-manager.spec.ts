@@ -1,11 +1,11 @@
 import { describe, expect, test } from "@jest/globals";
 import { createWallet } from "../../../src/core/env/wallet-manager";
-import { Price, Volume, Percentage } from "@trading-model/common/domain/primitives";
+import { Cash, Price, Volume, Percentage } from "@trading-model/common/domain/primitives";
 
 describe("Wallet module", () => {
 	describe("Initialization", () => {
 		test("should create wallet with valid initial values", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			expect(wallet.getCash()).toBe(1000);
 			expect(wallet.getPrice()).toBe(50);
 			expect(wallet.getPosition()).toBe(0);
@@ -13,33 +13,29 @@ describe("Wallet module", () => {
 		});
 
 		test("should throw error for invalid initial cash", () => {
-			expect(() =>
-				createWallet({ initialCash: -10, initialPrice: Price.of(50) })
-			).toThrow("Invalid initialCash: -10");
-			expect(() =>
-				createWallet({ initialCash: Number.NaN, initialPrice: Price.of(50) })
-			).toThrow("Invalid initialCash: NaN");
+			expect(() => Cash.of(-10)).toThrow("Cash must be a non-negative finite number");
+			expect(() => Cash.of(Number.NaN)).toThrow("Cash must be a non-negative finite number");
 		});
 
 		test("should throw error for invalid initial price", () => {
 			expect(() =>
-				createWallet({ initialCash: 1000, initialPrice: Price.of(0) })
+				createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(0) })
 ).toThrow("Invalid initialPrice: 0");
 		expect(() =>
-			createWallet({ initialCash: 1000, initialPrice: Price.of(-5) })
+			createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(-5) })
 		).toThrow("Price must be a non-negative finite number, got -5");
 		});
 
 		test("should throw error for invalid feeRate (>=1)", () => {
 			expect(() =>
-				createWallet({ initialCash: 1000, initialPrice: Price.of(50), feeRate: Percentage.of(1) })
+				createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50), feeRate: Percentage.of(1) })
 			).toThrow("Invalid feeRate");
 			expect(() =>
-				createWallet({ initialCash: 1000, initialPrice: Price.of(50), feeRate: Percentage.of(-0.1) })
+				createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50), feeRate: Percentage.of(-0.1) })
 			).toThrow("Invalid feeRate");
 			expect(() =>
 				createWallet({
-					initialCash: 1000,
+					initialCash: Cash.of(1000),
 					initialPrice: Price.of(50),
 					feeRate: Percentage.of(Number.NaN),
 				})
@@ -48,28 +44,28 @@ describe("Wallet module", () => {
 
 		test("should throw error for invalid maxPosition", () => {
 			expect(() =>
-				createWallet({ initialCash: 1000, initialPrice: Price.of(50), maxPosition: Volume.of(0) })
+				createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50), maxPosition: Volume.of(0) })
 			).toThrow("Invalid maxPosition");
 			expect(() =>
-				createWallet({ initialCash: 1000, initialPrice: Price.of(50), maxPosition: Volume.of(-1) })
+				createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50), maxPosition: Volume.of(-1) })
 			).toThrow("Volume must be a non-negative finite number");
 		});
 
 		test("should throw error for invalid decimals", () => {
 			expect(() =>
-				createWallet({ initialCash: 1000, initialPrice: Price.of(50), decimals: 0 })
+				createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50), decimals: 0 })
 			).toThrow("Invalid decimals");
 			expect(() =>
-				createWallet({ initialCash: 1000, initialPrice: Price.of(50), decimals: 16 })
+				createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50), decimals: 16 })
 			).toThrow("Invalid decimals");
 			expect(() =>
-				createWallet({ initialCash: 1000, initialPrice: Price.of(50), decimals: 2.5 })
+				createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50), decimals: 2.5 })
 			).toThrow("Invalid decimals");
 		});
 
 		test("should create wallet with valid decimals", () => {
 			const wallet = createWallet({
-				initialCash: 1000,
+				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
 				decimals: 4,
 			});
@@ -79,7 +75,7 @@ describe("Wallet module", () => {
 
 		test("should create wallet with valid feeRate and maxPosition", () => {
 			const wallet = createWallet({
-				initialCash: 1000,
+				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
 				feeRate: Percentage.of(0.001),
 				maxPosition: Volume.of(100),
@@ -91,7 +87,7 @@ describe("Wallet module", () => {
 
 	describe("Buying behavior", () => {
 		test("should buy successfully if enough cash", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			const result = wallet.buy(Volume.of(5));
 			expect(result).toBe(true);
 			expect(wallet.getPosition()).toBe(5);
@@ -100,7 +96,7 @@ describe("Wallet module", () => {
 		});
 
 		test("should fail to buy if insufficient cash", () => {
-			const wallet = createWallet({ initialCash: 100, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(100), initialPrice: Price.of(50) });
 			const result = wallet.buy(Volume.of(3));
 			expect(result).toBe(false);
 			expect(wallet.getPosition()).toBe(0);
@@ -108,14 +104,14 @@ describe("Wallet module", () => {
 		});
 
 		test("should fail to buy with invalid amount (zero or negative)", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			expect(wallet.buy(Volume.of(0))).toBe(false);
 			expect(() => wallet.buy(Volume.of(-2))).toThrow();
 		});
 
 		test("should fail to buy when exceeding maxPosition", () => {
 			const wallet = createWallet({
-				initialCash: 1000,
+				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
 				maxPosition: Volume.of(10),
 			});
@@ -126,7 +122,7 @@ describe("Wallet module", () => {
 
 	describe("Selling behavior", () => {
 		test("should sell successfully when enough position", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(5));
 			const result = wallet.sell(Volume.of(2));
 			expect(result).toBe(true);
@@ -136,7 +132,7 @@ describe("Wallet module", () => {
 		});
 
 		test("should fail to sell more than current position", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(2));
 			const result = wallet.sell(Volume.of(5));
 			expect(result).toBe(false);
@@ -144,7 +140,7 @@ describe("Wallet module", () => {
 		});
 
 		test("should fail to sell invalid amount (zero or negative)", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(3));
 			expect(wallet.sell(Volume.of(0))).toBe(false);
 			expect(() => wallet.sell(Volume.of(-1))).toThrow();
@@ -153,13 +149,13 @@ describe("Wallet module", () => {
 
 	describe("Price management", () => {
 		test("should update price correctly", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.setPrice(Price.of(75));
 			expect(wallet.getPrice()).toBe(75);
 		});
 
 		test("should throw for invalid price updates (negative or non-numeric)", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			expect(() => wallet.setPrice(Price.of(-10))).toThrow();
 			expect(wallet.getPrice()).toBe(50);
 			expect(() => wallet.setPrice(Price.of(Number.NaN))).toThrow();
@@ -169,7 +165,7 @@ describe("Wallet module", () => {
 
 	describe("Valuation and state tracking", () => {
 		test("should calculate valuation correctly after buy/sell/price changes", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(5));
 			wallet.sell(Volume.of(2));
 			wallet.setPrice(Price.of(60));
@@ -177,7 +173,7 @@ describe("Wallet module", () => {
 		});
 
 		test("should remain consistent across multiple operations", () => {
-			const wallet = createWallet({ initialCash: 500, initialPrice: Price.of(20) });
+			const wallet = createWallet({ initialCash: Cash.of(500), initialPrice: Price.of(20) });
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(25));
 			wallet.sell(Volume.of(4));
@@ -190,7 +186,7 @@ describe("Wallet module", () => {
 	describe("Fee behavior", () => {
 		test("should apply feeRate on buy", () => {
 			const wallet = createWallet({
-				initialCash: 1000,
+				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
 				feeRate: Percentage.of(0.01),
 			});
@@ -202,7 +198,7 @@ describe("Wallet module", () => {
 
 		test("should apply feeRate on sell", () => {
 			const wallet = createWallet({
-				initialCash: 1000,
+				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
 				feeRate: Percentage.of(0.01),
 			});
@@ -219,7 +215,7 @@ describe("Wallet module", () => {
 
 		test("should track totalFeesPaid in metrics", () => {
 			const wallet = createWallet({
-				initialCash: 1000,
+				initialCash: Cash.of(1000),
 				initialPrice: Price.of(50),
 				feeRate: Percentage.of(0.01),
 			});
@@ -232,19 +228,19 @@ describe("Wallet module", () => {
 
 	describe("PnL and Metrics", () => {
 		test("should return 0 PnL when no trades", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			expect(wallet.getPnL()).toBe(0);
 		});
 
 		test("should return positive PnL after profitable price increase", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(60));
 			expect(wallet.getPnL()).toBeGreaterThan(0);
 		});
 
 		test("should track drawdown in metrics", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(70));
 			wallet.setPrice(Price.of(30));
@@ -253,7 +249,7 @@ describe("Wallet module", () => {
 		});
 
 		test("should track tradeCount in metrics", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(5));
 			wallet.sell(Volume.of(2));
 			const metrics = wallet.getMetrics();
@@ -261,7 +257,7 @@ describe("Wallet module", () => {
 		});
 
 		test("should compute returnRate in metrics", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(10));
 			wallet.setPrice(Price.of(60));
 			const metrics = wallet.getMetrics();
@@ -270,7 +266,7 @@ describe("Wallet module", () => {
 		});
 
 		test("should handle zero cash in metrics drawdown", () => {
-			const wallet = createWallet({ initialCash: 0, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(0), initialPrice: Price.of(50) });
 			const metrics = wallet.getMetrics();
 			expect(metrics.drawdown).toBe(0);
 			expect(metrics.pnl).toBe(0);
@@ -280,7 +276,7 @@ describe("Wallet module", () => {
 
 	describe("Reset", () => {
 		test("should reset wallet to initial state", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(5));
 			wallet.setPrice(Price.of(60));
 			wallet.sell(Volume.of(2));
@@ -298,7 +294,7 @@ describe("Wallet module", () => {
 
 	describe("getHistory", () => {
 		test("should record trade history", () => {
-			const wallet = createWallet({ initialCash: 1000, initialPrice: Price.of(50) });
+			const wallet = createWallet({ initialCash: Cash.of(1000), initialPrice: Price.of(50) });
 			wallet.buy(Volume.of(5));
 			wallet.sell(Volume.of(2));
 			const history = wallet.getHistory();

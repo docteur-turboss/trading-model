@@ -9,9 +9,4 @@ export interface UnSubscribesTopicsPayload {
 	topics: string[];
 }
 
-/** Configuration required for a service to connect to the message broker. */
-export interface BrokerConfig {
-	serviceName: string;
-	callbackPath: string;
-	instanceId: string;
-}
+

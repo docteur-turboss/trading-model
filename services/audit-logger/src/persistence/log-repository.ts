@@ -1,7 +1,8 @@
 import type { DateRange } from "@trading-model/common/domain/date-range";
-import type {
-	PaginationQuery,
-	PaginationResult,
+import {
+	computePagination,
+	type PaginationQuery,
+	type PaginationResult,
 } from "@trading-model/common/domain/pagination";
 import type { Collection, Db } from "mongodb";
 
@@ -109,9 +110,7 @@ export class LogRepository {
 		const col = await this._getCollection();
 		const filter = this._buildLogFilter(params);
 
-		const page = Math.max(1, params.page ?? 1);
-		const limit = Math.min(1000, params.limit ?? 50);
-		const skip = (page - 1) * limit;
+		const { page, limit, skip } = computePagination(params);
 		const total = await col.countDocuments(filter);
 		const docs = await col
 			.find(filter)

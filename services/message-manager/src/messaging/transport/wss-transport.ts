@@ -1,5 +1,6 @@
 import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -37,12 +38,12 @@ export class WssTransport {
 			return;
 		}
 
-		const { subKey, serviceName, instanceId } = ctx;
-		logger.info("WSS client connecting", { context: { serviceName, instanceId, topics: [...ctx.topics] } });
+		const { subKey, identity } = ctx;
+		logger.info("WSS client connecting", { context: { serviceName: identity.serviceName, instanceId: identity.instanceId, topics: [...ctx.topics] } });
 
 		this._messageRouter.registerMessageHandler(ws, ctx);
-		this._connectionHandler.registerCloseHandler(ws, subKey, serviceName, instanceId);
-		this._connectionHandler.registerErrorHandler(ws, serviceName, instanceId);
+		this._connectionHandler.registerCloseHandler(ws, subKey, identity);
+		this._connectionHandler.registerErrorHandler(ws, identity);
 
 		ws.send(JSON.stringify({ type: "connected", instanceId: ENV.BROKER_INSTANCE_ID }));
 	}
@@ -50,22 +51,19 @@ export class WssTransport {
 	private _buildConnectionContext(
 		ws: WebSocket,
 		req: IncomingMessage
-	): { subKey: string; serviceName: string; instanceId: string; topics: Set<string> } | null {
-		const { serviceName, instanceId, topics } =
+	): { subKey: string; identity: ServiceIdentity; topics: Set<string> } | null {
+		const { identity, topics } =
 			this._connectionHandler.parseConnectionHeaders(req);
-		const subKey = this._subscriptionManager.add({ ws, serviceName, instanceId, topics });
-		return { subKey, serviceName, instanceId, topics };
+		const subKey = this._subscriptionManager.add({ ws, identity, topics });
+		return { subKey, identity, topics };
 	}
 
-	getSubscriber(
-		serviceName: string,
-		instanceId: string
-	): WebSocket | undefined {
-		return this._subscriptionManager.get(serviceName, instanceId);
+	getSubscriber(identity: ServiceIdentity): WebSocket | undefined {
+		return this._subscriptionManager.get(identity);
 	}
 
-	hasSubscriber(serviceName: string, instanceId: string): boolean {
-		return this._subscriptionManager.has(serviceName, instanceId);
+	hasSubscriber(identity: ServiceIdentity): boolean {
+		return this._subscriptionManager.has(identity);
 	}
 
 	getConnectedCount(): number {

@@ -2,24 +2,22 @@ import type { IPAddress, Port } from "../domain/primitives";
 
 export type WorkerStatus = "active" | "draining" | "offline";
 
-export interface WorkerRegistration {
+export interface WorkerRegistrationBase {
 	workerId: string;
 	address: IPAddress;
 	port: Port;
 	capabilities: string[];
 	maxConcurrency: number;
+}
+
+export interface WorkerRegistration extends WorkerRegistrationBase {
 	currentLoad: number;
 	lastHeartbeat: Date;
 	status: WorkerStatus;
 }
 
-export interface WorkerWsRegisterMessage {
+export interface WorkerWsRegisterMessage extends WorkerRegistrationBase {
 	type: "register";
-	workerId: string;
-	address: IPAddress;
-	port: Port;
-	capabilities: string[];
-	maxConcurrency: number;
 }
 
 export interface WorkerWsHeartbeatMessage {

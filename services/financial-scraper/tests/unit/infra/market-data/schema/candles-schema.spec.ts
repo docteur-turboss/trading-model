@@ -1,3 +1,4 @@
+import { CandleInterval } from "@trading-model/common/config/event.types";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const MOCK_EXECUTE_INSERT = jest
@@ -36,7 +37,7 @@ const MAKE_CANDLE = (overrides: Record<string, unknown> = {}) => ({
 	symbol: "BTCUSDT",
 	market: "crypto",
 	source: "binance",
-	interval: "1m",
+	interval: CandleInterval.MIN1,
 	low: 50000,
 	open: 50100,
 	high: 50200,

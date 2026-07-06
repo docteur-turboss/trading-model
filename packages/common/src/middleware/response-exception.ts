@@ -86,13 +86,9 @@ export type ResponseCodeValue = (typeof ResponseCodes)[ResponseCodeKey];
 export class ClassResponseExceptions extends Error {
 	readonly reason: string;
 
-	/**
-	 * Creates a new instance of ClassResponseExceptions.
-	 * @param reason - The error or response message, can be any type.
-	 *                 Non-string values are automatically stringified.
-	 */
 	constructor(reason: unknown) {
 		super();
+		this.name = "ClassResponseExceptions";
 		this.reason = typeof reason === "string" ? reason : JSON.stringify(reason);
 	}
 

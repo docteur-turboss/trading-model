@@ -1,3 +1,4 @@
+import { CandleInterval } from "@trading-model/common/config/event.types";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("../../../../src/infra/market-data/market-data.model", () => ({
@@ -21,7 +22,7 @@ describe("MarketDataController", () => {
 
 	it("should persist candles when payload has candles", async () => {
 		const payload: any = {
-			candles: [{ symbol: "BTCUSDT", interval: "1m" }],
+			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.MIN1 }],
 			recentTrades: [],
 			orderBook: undefined,
 			ticker24h: [],
@@ -89,7 +90,7 @@ describe("MarketDataController", () => {
 
 	it("should persist all data types when payload has everything", async () => {
 		const payload: any = {
-			candles: [{ symbol: "BTCUSDT", interval: "1m" }],
+			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.MIN1 }],
 			recentTrades: [{ tradeId: 1n }],
 			orderBook: { symbol: "BTCUSDT" },
 			ticker24h: [{ symbol: "BTCUSDT" }],
@@ -128,7 +129,7 @@ describe("MarketDataController", () => {
 		MOCK_MODEL.insertTicker.mockResolvedValue(undefined);
 
 		const payload: any = {
-			candles: [{ symbol: "BTCUSDT", interval: "1m" }],
+			candles: [{ symbol: "BTCUSDT", interval: CandleInterval.MIN1 }],
 			recentTrades: [{ tradeId: 1n }],
 			orderBook: { symbol: "BTCUSDT" },
 			ticker24h: [{ symbol: "BTCUSDT" }],
