@@ -17,22 +17,32 @@ export class ErrorServiceSender {
 		this._handleErrorServiceUrl = url;
 	}
 
+	private _shouldSend(): boolean {
+		return this._env === "production" || this._env === "staging";
+	}
+
 	async send(entry: LogEntry): Promise<void> {
-		if (this._env !== "production" && this._env !== "staging") {
+		if (!this._shouldSend()) {
 			return;
 		}
 		try {
-			await fetch(
-				process.env.ERROR_URL_WEBHOOK ?? this._handleErrorServiceUrl ?? "/",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: this._sanitizer.safeStringify(entry),
-				}
-			);
+			await this._postEntry(entry);
 		} catch (err) {
-			const normalized = normalizeError(err);
-			console.error("Failed to send log to service:", normalized.message);
+			console.error(
+				"Failed to send log to service:",
+				normalizeError(err).message,
+			);
 		}
+	}
+
+	private async _postEntry(entry: LogEntry): Promise<void> {
+		await fetch(
+			process.env.ERROR_URL_WEBHOOK ?? this._handleErrorServiceUrl ?? "/",
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: this._sanitizer.safeStringify(entry),
+			},
+		);
 	}
 }

@@ -111,55 +111,56 @@ export function trainPhase(
 	}
 }
 
+function _computeEpisodeReward(
+	backend: RLBackend,
+	validationData: MarketStep[],
+	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>,
+	horizon: DeepReadonly<LamarckGenome["rl"]["horizon"]>
+): number {
+	const runStats = new NormalizationStats();
+	let epReward = 0;
+	const maxT = Math.min(validationData.length, horizon.maxEpisodeLength);
+
+	for (let index = 0; index < maxT; index++) {
+		if (index % horizon.frameSkip !== 0) {
+			continue;
+		}
+		const { reward } = backend.step(validationData[index].features, validationData[index].price);
+		let shaped = shapeReward(reward, rShape);
+		if (rShape.normalize) {
+			runStats.update(shaped);
+			shaped = runStats.normalize(shaped);
+		}
+		if (!rShape.sparse) {
+			epReward += shaped;
+		}
+	}
+
+	if (rShape.sparse) {
+		epReward = backend.getPnL();
+	}
+	backend.resetEpisode();
+	return epReward;
+}
+
+function _computeFinalPnl(rawScores: number[]): number {
+	return rawScores.reduce((sum, value) => sum + value, 0) / rawScores.length;
+}
+
 export function evalPhase(
 	genome: DeepReadonly<LamarckGenome>,
 	validationData: MarketStep[],
 	backendFactory: BackendFactory
 ): { rawScores: number[]; finalPnl: number } {
 	const ctrl = genome.gaControl;
-	const rShape = genome.rl.rewardShaping;
-	const horizon = genome.rl.horizon;
 	const rawScores: number[] = [];
 
 	for (let ep = 0; ep < ctrl.episodesPerIndividual; ep++) {
 		const backend = backendFactory(genome);
-		const runStats = new NormalizationStats();
-		let epReward = 0;
-
-		const maxT = Math.min(validationData.length, horizon.maxEpisodeLength);
-
-		for (let index = 0; index < maxT; index++) {
-			if (index % horizon.frameSkip !== 0) {
-				continue;
-			}
-
-			const { reward } = backend.step(
-				validationData[index].features,
-				validationData[index].price
-			);
-
-			let shaped = shapeReward(reward, rShape);
-			if (rShape.normalize) {
-				runStats.update(shaped);
-				shaped = runStats.normalize(shaped);
-			}
-			if (!rShape.sparse) {
-				epReward += shaped;
-			}
-		}
-
-		if (rShape.sparse) {
-			epReward = backend.getPnL();
-		}
-		rawScores.push(epReward);
-		backend.resetEpisode();
+		rawScores.push(_computeEpisodeReward(backend, validationData, genome.rl.rewardShaping, genome.rl.horizon));
 	}
 
-	return {
-		rawScores,
-		finalPnl:
-			rawScores.reduce((sum, value) => sum + value, 0) / rawScores.length,
-	};
+	return { rawScores, finalPnl: _computeFinalPnl(rawScores) };
 }
 
 export function lamarckianUpdate(

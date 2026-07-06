@@ -20,23 +20,28 @@ export class AuditServiceClient {
 	}
 
 	async send(entry: Record<string, unknown>): Promise<void> {
-		if (!this._auditResolver) {
-			return;
-		}
-		let auditTarget: AuditTarget | null;
-		try {
-			auditTarget = await this._auditResolver();
-		} catch {
-			return;
-		}
+		const auditTarget = await this._resolveAuditTarget();
 		if (!auditTarget) {
 			return;
 		}
 		try {
 			await this._postToAuditEndpoint(auditTarget, entry);
 		} catch (err) {
-			const normalized = normalizeError(err);
-			console.error("Failed to send log to audit service:", normalized.message);
+			console.error(
+				"Failed to send log to audit service:",
+				normalizeError(err).message,
+			);
+		}
+	}
+
+	private async _resolveAuditTarget(): Promise<AuditTarget | null> {
+		if (!this._auditResolver) {
+			return null;
+		}
+		try {
+			return await this._auditResolver();
+		} catch {
+			return null;
 		}
 	}
 

@@ -53,22 +53,33 @@ export class WorkerRegistry {
 		let bestLoad = Number.POSITIVE_INFINITY;
 
 		for (const worker of this._workers.values()) {
-			if (worker.status !== "active") {
-				continue;
-			}
-			if (!worker.capabilities.includes(jobType)) {
-				continue;
-			}
-			if (worker.currentLoad >= worker.maxConcurrency) {
-				continue;
-			}
-			if (worker.currentLoad < bestLoad) {
+			if (_isBetterWorker(worker, jobType, bestLoad)) {
 				best = worker;
 				bestLoad = worker.currentLoad;
 			}
 		}
 		return best;
 	}
+}
+
+function _isBetterWorker(
+	worker: WorkerRegistration,
+	jobType: string,
+	bestLoad: number
+): boolean {
+	if (worker.status !== "active") {
+		return false;
+	}
+	if (!worker.capabilities.includes(jobType)) {
+		return false;
+	}
+	if (worker.currentLoad >= worker.maxConcurrency) {
+		return false;
+	}
+	return worker.currentLoad < bestLoad;
+}
+
+export class WorkerRegistry {
 
 	purgeStaleWorkers(): string[] {
 		const now = Date.now();

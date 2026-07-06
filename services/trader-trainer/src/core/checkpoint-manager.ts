@@ -1,11 +1,7 @@
 import {
 	existsSync,
 	mkdirSync,
-	readdirSync,
-	readFileSync,
-	writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
@@ -14,8 +10,8 @@ import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "./market-data-buffer";
-import type { SymbolState } from "./market-data-types";
-import { NormalizationStats } from "./normalization-stats";
+import { BufferCheckpointer } from "./buffer-checkpointer";
+import { GenomeCheckpointer } from "./genome-checkpointer";
 
 export interface CheckpointManagerConfig {
 	checkpointDir: string;
@@ -25,6 +21,8 @@ export interface CheckpointManagerConfig {
 export class CheckpointManager {
 	private readonly _checkpointDir: string;
 	private readonly _maxCheckpoints: number;
+	private readonly _genomeCheckpointer: GenomeCheckpointer;
+	private readonly _bufferCheckpointer: BufferCheckpointer;
 
 	constructor(config: CheckpointManagerConfig) {
 		this._checkpointDir = config.checkpointDir;
@@ -34,77 +32,20 @@ export class CheckpointManager {
 			mkdirSync(this._checkpointDir, { recursive: true });
 			logger.info("Created checkpoint directory", { context: { dir: this._checkpointDir } });
 		}
-	}
 
-	private _checkpointPath(symbol: string): string {
-		return join(this._checkpointDir, `best_genome_${symbol}.json`);
-	}
-
-	private _metadataPath(symbol: string): string {
-		return join(this._checkpointDir, `metadata_${symbol}.json`);
+		this._genomeCheckpointer = new GenomeCheckpointer(
+			this._checkpointDir,
+			this._maxCheckpoints,
+		);
+		this._bufferCheckpointer = new BufferCheckpointer(this._checkpointDir);
 	}
 
 	save(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
-		try {
-			this._doSave(symbol, genome);
-		} catch (err) {
-			this._logSaveError(symbol, err);
-		}
-	}
-
-	private _doSave(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
-		const path = this._checkpointPath(symbol);
-		writeFileSync(path, JSON.stringify(genome, null, 2), "utf-8");
-		this._writeMetadata(symbol, genome);
-		logger.info("Checkpoint saved", { context: { symbol, generation: genome.generation, path } });
-	}
-
-	private _writeMetadata(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
-		writeFileSync(
-			this._metadataPath(symbol),
-			JSON.stringify({
-				savedAt: Date.now(),
-				symbol,
-				generation: genome.generation,
-				fitness: genome.fitness,
-			}),
-			"utf-8"
-		);
-	}
-
-	private _logSaveError(symbol: string, err: unknown): void {
-		logger.error("Failed to save checkpoint", { context: {
-			symbol,
-			error: err instanceof Error ? err.message : String(err),
-		} });
+		this._genomeCheckpointer.save(symbol, genome);
 	}
 
 	load(symbol: string): DeepReadonly<LamarckGenome> | null {
-		try {
-			return this._doLoad(symbol);
-		} catch (err) {
-			this._logLoadError(symbol, err);
-			return null;
-		}
-	}
-
-	private _doLoad(symbol: string): DeepReadonly<LamarckGenome> | null {
-		const path = this._checkpointPath(symbol);
-		if (!existsSync(path)) {
-			logger.info("No checkpoint found for symbol", { context: { symbol } });
-			return null;
-		}
-		const raw = readFileSync(path, "utf-8");
-		const genome = JSON.parse(raw) as DeepReadonly<LamarckGenome>;
-		logger.info("Checkpoint loaded", { context: { symbol, generation: genome.generation, fitness: genome.fitness } });
-		return genome;
-	}
-
-	private _logLoadError(symbol: string, err: unknown): void {
-		logger.error("Failed to load checkpoint", { context: {
-			symbol,
-			error: err instanceof Error ? err.message : String(err),
-		} });
+		return this._genomeCheckpointer.load(symbol);
 	}
 
 	list(): {
@@ -113,233 +54,14 @@ export class CheckpointManager {
 		fitness: number;
 		savedAt: number;
 	}[] {
-		if (!existsSync(this._checkpointDir)) {
-			return [];
-		}
-		const files = this._listMetadataFiles();
-		return this._readMetadataFiles(files)
-			.sort((a, b) => b.savedAt - a.savedAt)
-			.slice(0, this._maxCheckpoints);
-	}
-
-	private _listMetadataFiles(): string[] {
-		return readdirSync(this._checkpointDir).filter((file) =>
-			file.startsWith("metadata_")
-		);
-	}
-
-	private _readSingleMetadataFile(file: string): {
-		symbol: string; generation: number; fitness: number; savedAt: number;
-	} | null {
-		try {
-			const raw = readFileSync(join(this._checkpointDir, file), "utf-8");
-			const meta = JSON.parse(raw);
-			return {
-				symbol: meta.symbol,
-				generation: meta.generation,
-				fitness: meta.fitness,
-				savedAt: meta.savedAt,
-			};
-		} catch {
-			return null;
-		}
-	}
-
-	private _readMetadataFiles(
-		files: string[]
-	): { symbol: string; generation: number; fitness: number; savedAt: number }[] {
-		const results: {
-			symbol: string;
-			generation: number;
-			fitness: number;
-			savedAt: number;
-		}[] = [];
-		for (const file of files) {
-			const meta = this._readSingleMetadataFile(file);
-			if (meta) {
-				results.push(meta);
-			}
-		}
-		return results;
-	}
-
-	private _bufferStatePath(): string {
-		return join(this._checkpointDir, "market_data_buffer.json");
-	}
-
-	private _serializeSymbols(
-		buffer: MarketDataBuffer,
-		symbols: string[]
-	): Record<string, SymbolStateSerializable> {
-		const symbolsData: Record<string, SymbolStateSerializable> = {};
-		for (const sym of symbols) {
-			const state = buffer.getSymbolState(sym);
-			if (!state) {
-				continue;
-			}
-			symbolsData[sym] = {
-				candles: state.candles,
-				trades: state.trades,
-				orderBook: state.orderBook,
-				bookTicker: state.bookTicker,
-				ticker24h: state.ticker24h,
-				closeNorm: state.norm.candleClose.toJSON(),
-				volumeNorm: state.norm.candleVolume.toJSON(),
-				openNorm: state.norm.candleOpen.toJSON(),
-				highNorm: state.norm.candleHigh.toJSON(),
-				lowNorm: state.norm.candleLow.toJSON(),
-				tradePriceNorm: state.norm.tradePrice.toJSON(),
-				tradeQtyNorm: state.norm.tradeQty.toJSON(),
-				bidNorm: state.norm.bid.toJSON(),
-				askNorm: state.norm.ask.toJSON(),
-				spreadNorm: state.norm.spread.toJSON(),
-				tickerVolumeNorm: state.norm.tickerVolume.toJSON(),
-			};
-		}
-		return symbolsData;
+		return this._genomeCheckpointer.list();
 	}
 
 	saveBuffer(buffer: MarketDataBuffer): void {
-		try {
-			this._doSaveBuffer(buffer);
-		} catch (err) {
-			this._logBufferSaveError(err);
-		}
-	}
-
-	private _doSaveBuffer(buffer: MarketDataBuffer): void {
-		const symbols = buffer.getSymbols();
-		const symbolsData = this._serializeSymbols(buffer, symbols);
-		writeFileSync(
-			this._bufferStatePath(),
-			JSON.stringify(
-				{ symbols: symbolsData, priceSnapshot: buffer.getPriceSnapshot(), savedAt: Date.now() },
-				null,
-				2
-			),
-			"utf-8"
-		);
-		logger.info("Market data buffer checkpoint saved", { context: {
-			symbols: symbols.length,
-			path: this._bufferStatePath(),
-		} });
-	}
-
-	private _logBufferSaveError(err: unknown): void {
-		logger.error("Failed to save market data buffer checkpoint", { context: {
-			error: err instanceof Error ? err.message : String(err),
-		} });
+		this._bufferCheckpointer.save(buffer);
 	}
 
 	loadBuffer(config?: MarketDataBufferConfig): MarketDataBuffer | null {
-		try {
-			return this._doLoadBuffer(config);
-		} catch (err) {
-			this._logBufferLoadError(err);
-			return null;
-		}
+		return this._bufferCheckpointer.load(config);
 	}
-
-	private _doLoadBuffer(config?: MarketDataBufferConfig): MarketDataBuffer | null {
-		const path = this._bufferStatePath();
-		if (!existsSync(path)) {
-			logger.info("No market data buffer checkpoint found");
-			return null;
-		}
-		const data = this._readBufferState(path);
-		const buffer = this._restoreBuffer(data, config);
-		logger.info("Market data buffer checkpoint loaded", { context: {
-			symbols: Object.keys(data.symbols).length,
-			path,
-		} });
-		return buffer;
-	}
-
-	private _logBufferLoadError(err: unknown): void {
-		logger.error("Failed to load market data buffer checkpoint", { context: {
-			error: err instanceof Error ? err.message : String(err),
-		} });
-	}
-
-	private _readBufferState(path: string): {
-		symbols: Record<string, SymbolStateSerializable>;
-		priceSnapshot: Record<string, number>;
-	} {
-		const raw = readFileSync(path, "utf-8");
-		return JSON.parse(raw) as {
-			symbols: Record<string, SymbolStateSerializable>;
-			priceSnapshot: Record<string, number>;
-		};
-	}
-
-	private _restoreBuffer(
-		data: {
-			symbols: Record<string, SymbolStateSerializable>;
-			priceSnapshot: Record<string, number>;
-		},
-		config?: MarketDataBufferConfig
-	): MarketDataBuffer {
-		const buffer = new MarketDataBuffer(config);
-		for (const [sym, sd] of Object.entries(data.symbols)) {
-			buffer.restoreSymbolState(sym, _deserializeSymbolState(sd));
-		}
-		buffer.setPriceSnapshot(data.priceSnapshot);
-		return buffer;
-	}
-}
-
-function _deserializeNormState(
-	sd: SymbolStateSerializable
-): SymbolState["norm"] {
-	return {
-		candleClose: NormalizationStats.fromJSON(sd.closeNorm),
-		candleVolume: NormalizationStats.fromJSON(sd.volumeNorm),
-		candleOpen: NormalizationStats.fromJSON(sd.openNorm),
-		candleHigh: NormalizationStats.fromJSON(sd.highNorm),
-		candleLow: NormalizationStats.fromJSON(sd.lowNorm),
-		tradePrice: NormalizationStats.fromJSON(sd.tradePriceNorm),
-		tradeQty: NormalizationStats.fromJSON(sd.tradeQtyNorm),
-		bid: NormalizationStats.fromJSON(sd.bidNorm),
-		ask: NormalizationStats.fromJSON(sd.askNorm),
-		spread: NormalizationStats.fromJSON(sd.spreadNorm),
-		tickerVolume: NormalizationStats.fromJSON(sd.tickerVolumeNorm),
-	};
-}
-
-function _deserializeSymbolState(
-	sd: SymbolStateSerializable
-): Parameters<MarketDataBuffer["restoreSymbolState"]>[1] {
-	return {
-		candles: sd.candles,
-		trades: sd.trades,
-		orderBook: sd.orderBook,
-		bookTicker: sd.bookTicker,
-		ticker24h: sd.ticker24h,
-		norm: _deserializeNormState(sd),
-	};
-}
-
-interface SymbolStateSerializable {
-	candles: import("@trading-model/common/config/event.types").CandleData[];
-	trades: import("@trading-model/common/config/event.types").TradeData[];
-	orderBook:
-		| import("@trading-model/common/config/event.types").OrderBookData
-		| null;
-	bookTicker:
-		| import("@trading-model/common/config/event.types").BookTickerData
-		| null;
-	ticker24h:
-		| import("@trading-model/common/config/event.types").TickerData
-		| null;
-	closeNorm: ReturnType<NormalizationStats["toJSON"]>;
-	volumeNorm: ReturnType<NormalizationStats["toJSON"]>;
-	openNorm: ReturnType<NormalizationStats["toJSON"]>;
-	highNorm: ReturnType<NormalizationStats["toJSON"]>;
-	lowNorm: ReturnType<NormalizationStats["toJSON"]>;
-	tradePriceNorm: ReturnType<NormalizationStats["toJSON"]>;
-	tradeQtyNorm: ReturnType<NormalizationStats["toJSON"]>;
-	bidNorm: ReturnType<NormalizationStats["toJSON"]>;
-	askNorm: ReturnType<NormalizationStats["toJSON"]>;
-	spreadNorm: ReturnType<NormalizationStats["toJSON"]>;
-	tickerVolumeNorm: ReturnType<NormalizationStats["toJSON"]>;
 }

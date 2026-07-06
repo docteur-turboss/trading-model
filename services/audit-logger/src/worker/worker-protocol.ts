@@ -18,40 +18,68 @@ export class WorkerProtocol {
 		private readonly _onWorkerDisconnect: (workerId: string) => void
 	) {
 		this._wss = new WebSocketServer({ server });
-
-		this._handlers = {
-			register: (msg, ws) => this._handleRegister(msg as Parameters<typeof this._handleRegister>[0], ws!),
-			heartbeat: (msg) => this._handleHeartbeat(msg as Parameters<typeof this._handleHeartbeat>[0]),
-			disconnect: (msg) => this._handleDisconnect(msg as Parameters<typeof this._handleDisconnect>[0]),
-		};
-
+		this._handlers = _buildHandlers(this);
 		this._wss.on("connection", (ws: WebSocket) => {
-			ws.on("message", (data: WebSocket.Data) => {
-				try {
-					const message: WorkerIncomingMessage = JSON.parse(data.toString());
-					const handler = this._handlers[message.type];
-					if (handler) {
-						handler(message, ws);
-					}
-				} catch (err) {
-					logger.error("Invalid WebSocket message from worker", { context: {
-					error: err instanceof Error ? err.message : String(err),
-				} });
-				}
-			});
-
-			ws.on("close", () => {
-				for (const [workerId, conn] of this._connections) {
-					if (conn === ws) {
-						this._connections.delete(workerId);
-						this._workerRegistry.setStatus(workerId, "draining");
-						this._onWorkerDisconnect(workerId);
-						break;
-					}
-				}
-			});
+			this._setupWsHandlers(ws);
 		});
 	}
+
+	private _setupWsHandlers(ws: WebSocket): void {
+		ws.on("message", (data: WebSocket.Data) => {
+			_handleWsMessage(data, this._handlers, ws);
+		});
+
+		ws.on("close", () => {
+			_handleWsClose(ws, this._connections, this._workerRegistry, this._onWorkerDisconnect);
+		});
+	}
+}
+
+function _buildHandlers(
+	self: WorkerProtocol
+): Record<string, (message: WorkerIncomingMessage, ws?: WebSocket) => void> {
+	return {
+		register: (msg, ws) => self._handleRegister(msg as Parameters<typeof self._handleRegister>[0], ws!),
+		heartbeat: (msg) => self._handleHeartbeat(msg as Parameters<typeof self._handleHeartbeat>[0]),
+		disconnect: (msg) => self._handleDisconnect(msg as Parameters<typeof self._handleDisconnect>[0]),
+	};
+}
+
+function _handleWsMessage(
+	data: WebSocket.Data,
+	handlers: Record<string, (message: WorkerIncomingMessage, ws?: WebSocket) => void>,
+	ws: WebSocket
+): void {
+	try {
+		const message: WorkerIncomingMessage = JSON.parse(data.toString());
+		const handler = handlers[message.type];
+		if (handler) {
+			handler(message, ws);
+		}
+	} catch (err) {
+		logger.error("Invalid WebSocket message from worker", { context: {
+			error: err instanceof Error ? err.message : String(err),
+		} });
+	}
+}
+
+function _handleWsClose(
+	ws: WebSocket,
+	connections: Map<string, WebSocket>,
+	workerRegistry: WorkerRegistry,
+	onWorkerDisconnect: (workerId: string) => void
+): void {
+	for (const [workerId, conn] of connections) {
+		if (conn === ws) {
+			connections.delete(workerId);
+			workerRegistry.setStatus(workerId, "draining");
+			onWorkerDisconnect(workerId);
+			break;
+		}
+	}
+}
+
+export class WorkerProtocol {
 
 	private _handleRegister(
 		message: WorkerIncomingMessage & { type: "register" },
