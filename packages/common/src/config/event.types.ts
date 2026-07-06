@@ -1,3 +1,5 @@
+import type { Price, UnixTimestamp, Volume } from "../domain/primitives";
+
 /** Supported financial market categories. */
 export enum MarketType {
 	CRYPTO = "crypto",
@@ -14,8 +16,6 @@ export enum SourceType {
 	BINANCE = "binance",
 	NYSE = "nyse",
 }
-
-import type { Price, UnixTimestamp, Volume } from "../domain/primitives";
 
 /** Common fields shared by all market data entities. */
 export interface BaseMarketData {

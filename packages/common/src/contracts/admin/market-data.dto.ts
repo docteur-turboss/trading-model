@@ -1,12 +1,13 @@
 import type { CandleData } from "../../config/event.types";
+import type { Price, Volume } from "../../domain/primitives";
 
 export type Candle = CandleData;
 
 export interface Ticker {
 	symbol: string;
-	price: number;
+	price: Price;
 	change24h: number;
-	high24h: number;
-	low24h: number;
-	volume24h: number;
+	high24h: Price;
+	low24h: Price;
+	volume24h: Volume;
 }
