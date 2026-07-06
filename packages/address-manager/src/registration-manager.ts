@@ -5,22 +5,12 @@ import {
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
-import type { AddressManagerClient } from "./client/address-manager-client";
-import type { TokenManager } from "./client/token-manager";
-import type { WebSocketClient } from "./client/websocket-client";
+import type { AddressManagerDeps } from "./types";
 
 const MAX_REGISTRATION_RETRIES = 10;
 const REGISTRATION_BASE_DELAY_MS = 1000;
 const REGISTRATION_MAX_DELAY_MS = 30_000;
 const REGISTRATION_BACKGROUND_RETRY_INTERVAL_MS = 30_000;
-
-export interface RegistrationManagerDeps {
-	addressManagerClient: AddressManagerClient;
-	tokenManager: TokenManager;
-	wsClient?: WebSocketClient;
-	onSuccess?: () => void;
-	onFailure?: () => void;
-}
 
 export class RegistrationManager {
 	private _addressManagerClient: AddressManagerClient;
@@ -31,7 +21,7 @@ export class RegistrationManager {
 	private _shouldRetryRegistration = true;
 	private _resolveStopRegistration: (() => void) | null = null;
 
-	constructor(deps: RegistrationManagerDeps) {
+	constructor(deps: AddressManagerDeps) {
 		this._addressManagerClient = deps.addressManagerClient;
 		this._tokenManager = deps.tokenManager;
 		this._wsClient = deps.wsClient;

@@ -1,18 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type { AddressManagerClient } from "./client/address-manager-client";
-import type { TokenManager } from "./client/token-manager";
-import type { WebSocketClient } from "./client/websocket-client";
+import type { AddressManagerDeps } from "./types";
 
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = 3;
-
-export interface HeartbeatManagerDeps {
-	addressManagerClient: AddressManagerClient;
-	tokenManager: TokenManager;
-	wsClient?: WebSocketClient;
-	onSuccess?: () => void;
-	onFailure?: () => void;
-}
 
 export class HeartbeatManager {
 	private _addressManagerClient: AddressManagerClient;
@@ -22,7 +13,7 @@ export class HeartbeatManager {
 	private _onFailure?: () => void;
 	private _consecutiveHeartbeatFailures = 0;
 
-	constructor(deps: HeartbeatManagerDeps) {
+	constructor(deps: AddressManagerDeps) {
 		this._addressManagerClient = deps.addressManagerClient;
 		this._tokenManager = deps.tokenManager;
 		this._wsClient = deps.wsClient;
@@ -30,20 +21,20 @@ export class HeartbeatManager {
 		this._onFailure = deps.onFailure;
 	}
 
-	async performHeartbeat(
-		serviceName: string,
-		instanceId: string
-	): Promise<void> {
-		if (this._heartbeatViaWs(serviceName, instanceId)) {
+	async performHeartbeat({
+		serviceName,
+		instanceId,
+	}: ServiceIdentity): Promise<void> {
+		if (this._heartbeatViaWs({ serviceName, instanceId })) {
 			return;
 		}
 		await this._heartbeatViaHttp();
 	}
 
-	private _heartbeatViaWs(
-		serviceName: string,
-		instanceId: string
-	): boolean {
+	private _heartbeatViaWs({
+		serviceName,
+		instanceId,
+	}: ServiceIdentity): boolean {
 		if (this._wsClient?.isConnected()) {
 			const sent = this._wsClient.sendHeartbeat(
 				serviceName,

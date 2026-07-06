@@ -8,7 +8,6 @@ import { TokenManager } from "./client/token-manager";
 import type { ServiceInstance } from "./client/type";
 import { WebSocketClient, type WsMessage } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
-import { CacheHealthRefresher } from "./discovery/cache-health-refresher";
 import { CircuitBreaker } from "./discovery/circuit-breaker";
 import { MapResolver } from "./discovery/dns-resolver";
 import { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
@@ -20,10 +19,9 @@ import { ServiceHealthChecker } from "./discovery/service-health-checker";
 import { MappingServiceLocator } from "./discovery/service-locator";
 import { HeartbeatManager } from "./heartbeat-manager";
 import { HEARTBEAT_TOTAL, REGISTRATION_TOTAL } from "./metrics";
+import { type LifecycleManagerOptions, LifecycleManager } from "./lifecycle-manager";
 import { MetricsCollector } from "./monitoring/metrics-collector";
 import { RegistrationManager } from "./registration-manager";
-import { RefreshJob } from "./scheduler/refresh-job";
-import { Scheduler } from "./scheduler/scheduler";
 import { ShutdownHandler } from "./shutdown-handler";
 
 export interface WsClientContext {
@@ -134,23 +132,12 @@ export default class AddressManager {
 	private readonly _tokenManager: TokenManager;
 	private readonly _discoveryOrchestrator: DiscoveryOrchestrator;
 	private readonly _metricsCollector: MetricsCollector;
-	private readonly _discovery: ServiceDiscovery;
 	private readonly _healthChecker: ServiceHealthChecker;
 	private readonly _serviceCache: IServiceCache;
 	private readonly _httpClient: HttpClient;
-	private readonly _tokenRefreshIntervalMs: number;
-	private readonly _ttlRefreshIntervalMs: number;
-	private readonly _cacheTtlMs: number;
-	private readonly _serviceName: string;
-	private readonly _instanceId: string;
 	private readonly _wsClient?: WebSocketClient;
 
-	private _registrationManager: RegistrationManager;
-	private _heartbeatManager: HeartbeatManager;
-	private _shutdownHandler: ShutdownHandler;
-	private _started = false;
-	private readonly _metricsIntervalMs: number;
-	private _metricsTimer?: NodeJS.Timeout;
+	private readonly _lifecycleManager: LifecycleManager;
 
 	constructor(config: AddressManagerConfig) {
 		this._httpClient = createHttpClient(config);
@@ -163,14 +150,14 @@ export default class AddressManager {
 		this._serviceCache = createServiceCache(config);
 		const circuitBreaker = createCircuitBreaker(config, this._serviceCache);
 		this._healthChecker = createHealthChecker(this._httpClient, config);
-		this._discovery = new ServiceDiscovery({
+		const discovery = new ServiceDiscovery({
 			httpClient: this._httpClient,
 			serviceCache: this._serviceCache,
 			config,
 			healthChecker: this._healthChecker,
 		});
 		this._discoveryOrchestrator = new DiscoveryOrchestrator(
-			this._discovery,
+			discovery,
 			this._serviceCache,
 			circuitBreaker,
 			this._healthChecker
@@ -188,14 +175,8 @@ export default class AddressManager {
 					serviceCache: this._serviceCache,
 				})
 			: undefined;
-		this._serviceName = config.serviceName;
-		this._instanceId = config.instanceId;
-		this._tokenRefreshIntervalMs = config.tokenRefreshIntervalMs;
-		this._ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
-		this._cacheTtlMs = config.cacheTtlMs;
-		this._metricsIntervalMs = config.metricsIntervalMs ?? 15_000;
 
-		this._registrationManager = new RegistrationManager({
+		const registrationManager = new RegistrationManager({
 			addressManagerClient: this._addressManagerClient,
 			tokenManager: this._tokenManager,
 			wsClient: this._wsClient,
@@ -203,7 +184,7 @@ export default class AddressManager {
 			onFailure: () => REGISTRATION_TOTAL.inc({ result: "failure" }),
 		});
 
-		this._heartbeatManager = new HeartbeatManager({
+		const heartbeatManager = new HeartbeatManager({
 			addressManagerClient: this._addressManagerClient,
 			tokenManager: this._tokenManager,
 			wsClient: this._wsClient,
@@ -211,13 +192,30 @@ export default class AddressManager {
 			onFailure: () => HEARTBEAT_TOTAL.inc({ result: "failure" }),
 		});
 
-		this._shutdownHandler = new ShutdownHandler(
-			this._registrationManager,
+		const shutdownHandler = new ShutdownHandler(
+			registrationManager,
 			this._wsClient,
 			this._addressManagerClient,
 			this._serviceCache,
 			circuitBreaker
 		);
+
+		const lifecycleOptions: LifecycleManagerOptions = {
+			registrationManager,
+			heartbeatManager,
+			shutdownHandler,
+			wsClient: this._wsClient,
+			serviceCache: this._serviceCache,
+			serviceName: config.serviceName,
+			instanceId: config.instanceId,
+			tokenRefreshIntervalMs: config.tokenRefreshIntervalMs,
+			ttlRefreshIntervalMs: config.ttlRefreshIntervalMs,
+			cacheTtlMs: config.cacheTtlMs,
+			tokenManager: this._tokenManager,
+			addressManagerClient: this._addressManagerClient,
+			healthChecker: this._healthChecker,
+		};
+		this._lifecycleManager = new LifecycleManager(lifecycleOptions);
 	}
 
 	get circuitBreaker(): CircuitBreaker {
@@ -256,103 +254,7 @@ export default class AddressManager {
 		return this._metricsCollector.getServiceCallTracker();
 	}
 
-	private async _register(): Promise<void> {
-		await this._registrationManager.tryStickyRegistration();
-	}
-
 	start(): { stop: () => void; ready: Promise<void> } {
-		if (this._started) {
-			logger.warn("AddressManager already started — returning existing handle");
-			return {
-				ready: Promise.resolve(),
-				stop: () => {
-					this._shutdownHandler.shutdown();
-				},
-			};
-		}
-		this._shutdownHandler.removeSignalHandlers();
-		this._started = true;
-
-		const scheduler = new Scheduler();
-
-		this._setupSchedulers(scheduler);
-
-		const registrationPromise = this._register().then(
-			() => {
-				if (!this._started) {
-					return;
-				}
-				this._wsClient?.connect();
-				scheduler.start();
-			}
-		);
-
-		this._shutdownHandler.setupSignalHandlers(scheduler);
-
-		return {
-			ready: registrationPromise,
-			stop: async () => {
-				this._started = false;
-				this._shutdownHandler.removeSignalHandlers();
-				scheduler.stop();
-				await this._shutdownHandler.fullStop();
-			},
-		};
-	}
-
-	private _setupSchedulers(scheduler: Scheduler): void {
-		scheduler.register(
-			new RefreshJob(
-				this._tokenManager,
-				(tm) => tm.refreshToken(),
-				this._tokenRefreshIntervalMs
-			)
-		);
-
-		scheduler.register(
-			new RefreshJob(
-				this._addressManagerClient,
-				async (_c) => {
-					await this._performHeartbeat();
-				},
-				this._ttlRefreshIntervalMs
-			)
-		);
-
-		if (!(this._serviceCache instanceof RedisServiceCache)) {
-			scheduler.register(
-				new CacheHealthRefresher(
-					this._serviceCache,
-					this._healthChecker,
-					this._cacheTtlMs / 2
-				)
-			);
-		}
-
-		this._metricsTimer = setInterval(() => {
-			this._metricsCollector.collectSaturationMetrics().catch((err) => {
-				logger.warn("Failed to collect saturation metrics", {
-					error: normalizeError(err),
-				});
-			});
-		}, this._metricsIntervalMs);
-		this._shutdownHandler.setMetricsTimer(this._metricsTimer);
-	}
-
-	private async _unregister(): Promise<void> {
-		try {
-			await this._addressManagerClient.unregisterService();
-		} catch (error) {
-			logger.warn("Failed to unregister service on stop", {
-				error: normalizeError(error),
-			});
-		}
-	}
-
-	private async _performHeartbeat(): Promise<void> {
-		await this._heartbeatManager.performHeartbeat(
-			this._serviceName,
-			this._instanceId
-		);
+		return this._lifecycleManager.start();
 	}
 }
