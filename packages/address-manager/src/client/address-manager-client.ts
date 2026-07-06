@@ -44,9 +44,9 @@ export class AddressManagerClient {
 
 	private _buildRegistrationPayload(): RegisterServicePayload {
 		return {
-			serviceName: this._config.identity.serviceName,
+			serviceName: this._config.identity.serviceName as import("@trading-model/common/config/services.types").ServiceInstanceName,
 			port: this._config.servicePort,
-			ip: AddressManagerClient._getLocalIP(),
+			ip: AddressManagerClient._getLocalIP() as import("@trading-model/common/domain/primitives").IPAddress,
 		};
 	}
 

@@ -1,8 +1,10 @@
+import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+
 export interface CallRecord {
 	targetService: string;
 	endpoint: string;
 	method: string;
-	timestamp: number;
+	timestamp: UnixTimestamp;
 	durationMs: number;
 	status: "success" | "error";
 	bytesSent?: number;

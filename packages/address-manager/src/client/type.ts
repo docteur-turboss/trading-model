@@ -1,4 +1,6 @@
 import { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type { InstanceId, IPAddress, Port } from "@trading-model/common/domain/primitives";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 
 export { ServiceInstance };
 
@@ -7,16 +9,16 @@ export { ServiceInstance };
  */
 export interface RegisterServicePayload {
 	/** Logical service name (e.g. "TradingTrainer", "SocialScraper") */
-	serviceName: string;
+	serviceName: ServiceInstanceName;
 
 	/** Port on which the service is listening */
-	port: number;
+	port: Port;
 
 	/** IP address of the service instance */
-	ip: string;
+	ip: IPAddress;
 
 	/** Optional unique instance identifier */
-	instanceId?: string;
+	instanceId?: InstanceId;
 }
 
 /** Response returned after a service registration. */

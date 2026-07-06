@@ -1,3 +1,4 @@
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
@@ -87,8 +88,8 @@ function _buildAddressManagerConfig(
 		discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
 		identity: _buildIdentity(env),
 		servicePingTimeoutMs: env.SERVICE_PING_TIMEOUT_MS,
-		servicePort: env.PORT,
-		publicIp: env.PUBLIC_IP,
+		servicePort: env.PORT as Port,
+		publicIp: env.PUBLIC_IP as IPAddress | undefined,
 		tokenRefreshIntervalMs: env.TOKEN_REFRESH_INTERVAL_MS,
 		ttlRefreshIntervalMs: env.TTL_REFRESH_INTERVAL_MS,
 		tls: _buildTls(env),
