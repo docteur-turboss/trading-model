@@ -9,11 +9,13 @@ import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair
 import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
 import { CaClient } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import { CertRenewScheduler } from "./cert-renew-scheduler";
 
 export interface CertificateClientConfig {
 	caUrl: string;
-	serviceId: string;
+	serviceId: ServiceId;
 	commonName: string;
 	san: string[];
 	tlsPaths: TlsPaths;
@@ -32,7 +34,7 @@ export class CertificateClient {
 	private readonly _config: CertificateClientConfig;
 	private readonly _caClient: CaClient;
 	private _obtainedCert: ObtainedCertificate | null = null;
-	private _renewTimer: ReturnType<typeof setTimeout> | null = null;
+	private _renewScheduler: CertRenewScheduler;
 
 	constructor(config: CertificateClientConfig, initialCert?: ObtainedCertificate) {
 		this._config = config;
@@ -41,6 +43,11 @@ export class CertificateClient {
 			baseUrl: config.caUrl,
 			tls: config.tls,
 		});
+		this._renewScheduler = new CertRenewScheduler(
+			config.serviceId,
+			config.renewMarginMs ?? 86400000,
+			() => this.obtainCertificate().then(() => {}),
+		);
 	}
 
 	static async createObtained(config: CertificateClientConfig): Promise<CertificateClient> {
@@ -112,74 +119,14 @@ export class CertificateClient {
 	}
 
 	startAutoRenew(): void {
-		if (this._renewTimer) {
-			return;
+		if (this._obtainedCert) {
+			this._renewScheduler.scheduleRenew(this._obtainedCert);
 		}
-
-		const marginMs = this._config.renewMarginMs ?? 86400000;
-		void this._scheduleRenew(marginMs);
+		this._renewScheduler.start();
 	}
 
 	stopAutoRenew(): void {
-		if (this._renewTimer) {
-			clearTimeout(this._renewTimer);
-			this._renewTimer = null;
-		}
-	}
-
-	private async _ensureObtained(): Promise<void> {
-		if (!this._obtainedCert) {
-			await this.obtainCertificate();
-		}
-		if (!this._obtainedCert) {
-			throw new Error("Failed to obtain certificate");
-		}
-	}
-
-	private async _handleExpired(marginMs: number): Promise<void> {
-		try {
-			await this.obtainCertificate();
-		} catch (err) {
-			logger.error("Certificate renewal failed", { err });
-		}
-		await this._scheduleRenew(marginMs);
-	}
-
-	private _setupRenewTimer(delay: number, marginMs: number): void {
-		this._renewTimer = setTimeout(() => {
-			this.obtainCertificate()
-				.then(() => this._scheduleRenew(marginMs))
-				.catch((err) => {
-					logger.error("Certificate renewal failed, retrying", { err });
-					this._renewTimer = setTimeout(
-						() => this._scheduleRenew(marginMs),
-						60000,
-					);
-				});
-		}, delay);
-	}
-
-	private _logRenewScheduled(delay: number): void {
-		logger.info("Certificate renewal scheduled", {
-			serviceId: this._config.serviceId,
-			delay,
-			expiresAt: this._obtainedCert!.expiresAt,
-		});
-	}
-
-	private async _scheduleRenew(marginMs: number): Promise<void> {
-		await this._ensureObtained();
-		const expiresAt = this._obtainedCert!.expiresAt.getTime();
-		const remaining = expiresAt - Date.now();
-
-		if (remaining <= marginMs) {
-			await this._handleExpired(marginMs);
-			return;
-		}
-
-		const delay = remaining - marginMs;
-		this._setupRenewTimer(delay, marginMs);
-		this._logRenewScheduled(delay);
+		this._renewScheduler.stop();
 	}
 
 	getCurrentCert(): ObtainedCertificate | null {
