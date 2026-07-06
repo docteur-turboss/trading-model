@@ -24,6 +24,10 @@ export interface NoncePersistence {
 
 export class MongoNoncePersister implements NoncePersistence {
 	private _collection: Collection<NonceDocument> | null = null;
+	private get _requiredCollection(): Collection<NonceDocument> {
+		if (!this._collection) throw new Error("Nonce persister not connected");
+		return this._collection;
+	}
 	private readonly _mongoUri: string;
 	private readonly _ttlMs: number;
 
@@ -63,12 +67,9 @@ export class MongoNoncePersister implements NoncePersistence {
 	}
 
 	async persist(context: NonceContext, createdAt: number): Promise<void> {
-		if (!this._collection) {
-			throw new Error("Nonce persister not connected");
-		}
 		const { nonce, serviceId } = context;
 		try {
-			await this._collection.insertOne({ nonce, serviceId, createdAt: new Date(createdAt) });
+			await this._requiredCollection.insertOne({ nonce, serviceId, createdAt: new Date(createdAt) });
 		} catch (err) {
 			logger.warn("Failed to persist nonce to MongoDB", { context: { err } });
 			const error = new Error("Failed to persist nonce");

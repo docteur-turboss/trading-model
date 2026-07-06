@@ -7,7 +7,7 @@ import {
 } from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
 import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
-import { CaClient } from "@trading-model/common/ca/ca-client";
+import { CaClient, type SignCertificateRequest } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
@@ -35,6 +35,11 @@ export class CertificateClient {
 	private readonly _caClient: CaClient;
 	private _obtainedCert: ObtainedCertificate | null = null;
 	private _renewScheduler: CertRenewScheduler;
+
+	private get _requiredCert(): ObtainedCertificate {
+		if (!this._obtainedCert) throw new Error("Certificate not yet obtained");
+		return this._obtainedCert;
+	}
 
 	constructor(config: CertificateClientConfig, initialCert?: ObtainedCertificate) {
 		this._config = config;
@@ -72,9 +77,12 @@ export class CertificateClient {
 	}
 
 	private async _signWithCa(csr: string) {
-		return await this._caClient.signCertificate(this._config.serviceId, csr, {
+		const request: SignCertificateRequest = {
+			serviceId: this._config.serviceId,
+			csr,
 			bootstrapToken: this._config.bootstrapToken,
-		});
+		};
+		return await this._caClient.signCertificate(request);
 	}
 
 	private async _writeCertificates(keyPair: { privateKey: string }, response: { cert: string; caPem: string }): Promise<void> {
@@ -97,10 +105,9 @@ export class CertificateClient {
 	}
 
 	private _notifyOnRenew(): void {
-		const cert = this._obtainedCert;
 		const onRenew = this._config.onRenew;
-		if (cert && onRenew) {
-			setImmediate(() => onRenew(cert));
+		if (onRenew) {
+			setImmediate(() => onRenew(this._requiredCert));
 		}
 	}
 
@@ -115,7 +122,7 @@ export class CertificateClient {
 			expiresAt: response.expiresAt,
 		});
 		this._notifyOnRenew();
-		return this._obtainedCert!;
+		return this._requiredCert;
 	}
 
 	startAutoRenew(): void {

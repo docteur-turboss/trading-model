@@ -6,6 +6,10 @@ import { MONGO_MANAGER } from "./mongo-manager";
 export class AuditConnectionManager {
 	private _client: MongoClient;
 	private _collection: Collection<AuditEntry> | null = null;
+	private get _requiredCollection(): Collection<AuditEntry> {
+		if (!this._collection) throw new Error("AuditConnectionManager not connected");
+		return this._collection;
+	}
 	private _mongoConnected = false;
 
 	constructor(uri: string) {
@@ -33,9 +37,9 @@ export class AuditConnectionManager {
 	}
 
 	private async _createAuditIndexes(): Promise<void> {
-		await this._collection!.createIndex({ timestamp: -1 }, { expireAfterSeconds: 90 * 86400 });
-		await this._collection!.createIndex({ serviceId: 1, timestamp: -1 });
-		await this._collection!.createIndex({ serialNumber: 1 });
+		await this._requiredCollection.createIndex({ timestamp: -1 }, { expireAfterSeconds: 90 * 86400 });
+		await this._requiredCollection.createIndex({ serviceId: 1, timestamp: -1 });
+		await this._requiredCollection.createIndex({ serialNumber: 1 });
 	}
 
 	async tryConnect(): Promise<boolean> {

@@ -7,6 +7,10 @@ import type { MongoClient } from "./mongo-archive-batch";
 
 export class MongoArchiveStore {
 	private _client: MongoClient | null = null;
+	private get _requiredClient(): MongoClient {
+		if (!this._client) throw new Error("MongoArchiveStore not started");
+		return this._client;
+	}
 	private _started = false;
 	private readonly _timerScheduler = new ArchiveTimerScheduler();
 	private readonly _topicsCache = new ArchiveTopicsCache();
@@ -107,7 +111,7 @@ export class MongoArchiveStore {
 
 			const { MongoArchiveBatchWriter } = await import("./mongo-archive-batch");
 			const writer = new MongoArchiveBatchWriter(
-				this._client!,
+				this._requiredClient,
 				ENV.MONGO_ARCHIVE_DB,
 				ENV.MONGO_ARCHIVE_COLLECTION
 			);

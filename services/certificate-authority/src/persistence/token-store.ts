@@ -4,6 +4,12 @@ import { type Collection, type Db, MongoClient } from "mongodb";
 
 import { MONGO_MANAGER } from "./mongo-manager";
 
+export interface TokenUseRequest {
+	token: string;
+	serviceId: string;
+	ttlMs?: number;
+}
+
 export interface UsedToken {
 	tokenHash: string;
 	serviceId: string;
@@ -14,6 +20,10 @@ export interface UsedToken {
 export class TokenStore {
 	private _client: MongoClient | null = null;
 	private _collection: Collection<UsedToken> | null = null;
+	private get _requiredCollection(): Collection<UsedToken> {
+		if (!this._collection) throw new Error("TokenStore not connected");
+		return this._collection;
+	}
 	private readonly _uri: string;
 	private readonly _dbName: string;
 	private readonly _defaultTtlMs: number;
@@ -59,19 +69,14 @@ export class TokenStore {
 	}
 
 	async tryUseToken(
-		token: string,
-		serviceId: string,
-		ttlMs?: number
+		request: TokenUseRequest
 	): Promise<boolean> {
-		if (!this._collection) {
-			throw new Error("TokenStore not connected");
-		}
-
+		const { token, serviceId, ttlMs } = request;
 		const ttl = ttlMs ?? this._defaultTtlMs;
 		const hash = await this._hashToken(token);
 
 		try {
-			await this._collection.insertOne({
+			await this._requiredCollection.insertOne({
 				tokenHash: hash,
 				serviceId,
 				usedAt: new Date(),
@@ -87,23 +92,17 @@ export class TokenStore {
 	}
 
 	async markAsUsed(
-		token: string,
-		serviceId: string,
-		ttlMs?: number
+		request: TokenUseRequest
 	): Promise<void> {
-		const ok = await this.tryUseToken(token, serviceId, ttlMs);
+		const ok = await this.tryUseToken(request);
 		if (!ok) {
 			throw new Error("Bootstrap token has already been used");
 		}
 	}
 
 	async isUsed(token: string): Promise<boolean> {
-		if (!this._collection) {
-			throw new Error("TokenStore not connected");
-		}
-
 		const hash = await this._hashToken(token);
-		const found = await this._collection.findOne({ tokenHash: hash });
+		const found = await this._requiredCollection.findOne({ tokenHash: hash });
 		return found !== null;
 	}
 

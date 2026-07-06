@@ -8,6 +8,10 @@ import { MONGO_MANAGER } from "./mongo-manager";
 export class LockConnectionManager {
 	private _client: MongoClient;
 	private _collection: Collection<LockDocument> | null = null;
+	private get _requiredCollection(): Collection<LockDocument> {
+		if (!this._collection) throw new Error("LockConnectionManager not connected");
+		return this._collection;
+	}
 	private _mongoAvailable = false;
 	readonly mongoBackend: MongoLockBackend;
 
@@ -47,8 +51,8 @@ export class LockConnectionManager {
 	}
 
 	private async _createLockIndexes(): Promise<void> {
-		await this._collection!.createIndex({ name: 1 }, { unique: true });
-		await this._collection!.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+		await this._requiredCollection.createIndex({ name: 1 }, { unique: true });
+		await this._requiredCollection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 	}
 
 	async connect(): Promise<void> {

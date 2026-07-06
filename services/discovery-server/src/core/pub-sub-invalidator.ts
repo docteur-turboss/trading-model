@@ -7,6 +7,11 @@ export class PubSubInvalidator {
 	private _pubSub?: Redis;
 	private readonly _redisUrlForPubSub?: string;
 
+	private get _requiredPubSub(): Redis {
+		if (!this._pubSub) throw new Error("PubSub not connected");
+		return this._pubSub;
+	}
+
 	constructor(redisUrlForPubSub?: string) {
 		this._redisUrlForPubSub = redisUrlForPubSub;
 	}
