@@ -22,100 +22,63 @@ export function normalizeError(err: unknown): Error {
 	return new Error(`Unknown error: ${String(err)}`);
 }
 
-/** Base application error with optional cause/reason metadata. */
+/** Base application error with optional cause/reason metadata and error code. */
 export class AppError extends Error {
 	public readonly cause?: unknown;
 	public readonly reason?: string;
+	public readonly code: string;
 
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
+	constructor(message: string, options?: { cause?: unknown; reason?: string; code?: string }) {
 		super(message);
 		this.name = "AppError";
+		this.code = options?.code ?? "AppError";
 		this.cause = options?.cause;
 		this.reason = options?.reason;
 		Object.setPrototypeOf(this, new.target.prototype);
 	}
 }
 
-export class ServiceNotFoundError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "ServiceNotFoundError";
-	}
+function makeErrorCode(code: string) {
+	return (message: string, options?: { cause?: unknown; reason?: string }): AppError =>
+		new AppError(message, { ...options, code });
 }
 
-export class ServiceUnreachableError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "ServiceUnreachableError";
-	}
+function makeGuard(code: string) {
+	return (err: unknown): err is AppError => err instanceof AppError && err.code === code;
 }
 
-export class AuthenticationError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "AuthenticationError";
-	}
-}
+export const serviceNotFoundError = makeErrorCode("ServiceNotFoundError");
+export const isServiceNotFoundError = makeGuard("ServiceNotFoundError");
 
-export class AddressManagerError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "AddressManagerError";
-	}
-}
+export const serviceUnreachableError = makeErrorCode("ServiceUnreachableError");
+export const isServiceUnreachableError = makeGuard("ServiceUnreachableError");
 
-export class MessageManagerError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "MessageManagerError";
-	}
-}
+export const authenticationError = makeErrorCode("AuthenticationError");
+export const isAuthenticationError = makeGuard("AuthenticationError");
 
-export class MetadataBuilderError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "MetadataBuilderError";
-	}
-}
+export const addressManagerError = makeErrorCode("AddressManagerError");
+export const isAddressManagerError = makeGuard("AddressManagerError");
 
-export class TimeoutError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "TimeoutError";
-	}
-}
+export const messageManagerError = makeErrorCode("MessageManagerError");
+export const isMessageManagerError = makeGuard("MessageManagerError");
 
-export class NackError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "NackError";
-	}
-}
+export const metadataBuilderError = makeErrorCode("MetadataBuilderError");
+export const isMetadataBuilderError = makeGuard("MetadataBuilderError");
 
-export class DeadLetterError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "DeadLetterError";
-	}
-}
+export const timeoutError = makeErrorCode("TimeoutError");
+export const isTimeoutError = makeGuard("TimeoutError");
 
-export class AgentError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "AgentError";
-	}
-}
+export const nackError = makeErrorCode("NackError");
+export const isNackError = makeGuard("NackError");
 
-export class BackpressureError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "BackpressureError";
-	}
-}
+export const deadLetterError = makeErrorCode("DeadLetterError");
+export const isDeadLetterError = makeGuard("DeadLetterError");
 
-export class ConfigurationError extends AppError {
-	constructor(message: string, options?: { cause?: unknown; reason?: string }) {
-		super(message, options);
-		this.name = "ConfigurationError";
-	}
-}
+export const agentError = makeErrorCode("AgentError");
+export const isAgentError = makeGuard("AgentError");
+
+export const backpressureError = makeErrorCode("BackpressureError");
+export const isBackpressureError = makeGuard("BackpressureError");
+
+export const configurationError = makeErrorCode("ConfigurationError");
+export const isConfigurationError = makeGuard("ConfigurationError");

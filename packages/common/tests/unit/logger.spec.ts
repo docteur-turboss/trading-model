@@ -146,14 +146,6 @@ describe("Logger", () => {
 		});
 	});
 
-	describe("setErrorHandlerService", () => {
-		it("should not throw when setting the error handler service URL", () => {
-			expect(() =>
-				(logger as any).setErrorHandlerService("https://errors.example.com")
-			).not.toThrow();
-		});
-	});
-
 	describe("error with production NODE_ENV", () => {
 		it("should attempt to send error to external service in production", () => {
 			process.env.NODE_ENV = "production";

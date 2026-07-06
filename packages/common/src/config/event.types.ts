@@ -46,13 +46,17 @@ export enum CandleInterval {
 	MONTH1 = "1M",
 }
 
-/** Represents a single OHLCV candlestick data point. */
-export interface CandleData extends BaseMarketData {
+/** OHLCV price/volume fields shared by candle and ticker data. */
+export interface OhlcvData {
 	open: Price;
 	high: Price;
 	low: Price;
 	close: Price;
 	volume: Volume;
+}
+
+/** Represents a single OHLCV candlestick data point. */
+export interface CandleData extends BaseMarketData, OhlcvData {
 	trades?: number;
 	interval: CandleInterval;
 	closeTimestamp: UnixTimestamp;
