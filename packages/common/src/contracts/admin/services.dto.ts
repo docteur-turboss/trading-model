@@ -1,4 +1,5 @@
 import type { InstanceId, IPAddress, Port, ServiceId } from "../../domain/primitives";
+import type { ServiceInstanceName } from "../../config/services.types";
 
 export enum ServiceStatus {
 	Healthy = "healthy",
@@ -7,7 +8,7 @@ export enum ServiceStatus {
 }
 
 export interface ServiceRegistryEntry {
-	serviceName: string;
+	serviceName: ServiceInstanceName;
 	instances: ServiceInstance[];
 	topology?: TopologyLink[];
 }

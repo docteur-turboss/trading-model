@@ -1,8 +1,10 @@
+import type { MessageId, Topic } from "../../domain/primitives";
+
 export interface DlqMessage {
-	id: string;
+	id: MessageId;
 	timestamp: string;
-	topic: string;
-	messageId: string;
+	topic: Topic;
+	messageId: MessageId;
 	failureReason: string;
 	attempts: number;
 	payloadPreview: string;

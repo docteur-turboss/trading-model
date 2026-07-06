@@ -1,4 +1,4 @@
-import type { CorrelationId, Topic, UnixTimestamp } from "../../domain/primitives";
+import type { CorrelationId, ServiceId, Topic, UnixTimestamp } from "../../domain/primitives";
 
 export enum Severity {
 	Info = "INFO",
@@ -8,21 +8,21 @@ export enum Severity {
 }
 
 export interface AuditFilter {
-	topic?: string;
-	publisher?: string;
-	correlationId?: string;
+	topic?: Topic;
+	publisher?: ServiceId;
+	correlationId?: CorrelationId;
 }
 
 export interface AuditEvent {
 	timestamp: UnixTimestamp;
 	topic: Topic;
-	publisher: string;
+	publisher: ServiceId;
 	correlationId: CorrelationId;
 	summary: string;
 	severity: Severity;
 }
 
 export interface AuditVolumeByTopic {
-	topic: string;
+	topic: Topic;
 	count: number;
 }

@@ -1,4 +1,4 @@
-import type { InstanceId, IPAddress, Port } from "../domain/primitives";
+import type { InstanceId, IPAddress, Port, Region, ServiceId } from "../domain/primitives";
 import type { ServiceInstanceName } from "../config/services.types";
 import type {
 	ServiceEndpoint,
@@ -10,7 +10,7 @@ export type Protocol = "http" | "https" | "mtls";
 
 /** Payload for registering a new service instance in the registry. */
 export interface ServiceRegisterPayload {
-	name: string;
+	name: ServiceInstanceName;
 	address: IPAddress;
 	port: Port;
 	protocol: Protocol;
@@ -26,7 +26,7 @@ export interface HeartbeatPayload extends ServiceIdentity {
 /** Payload for querying registered service instances. */
 export interface ServicesQueryPayload {
 	serviceName: ServiceInstanceName;
-	services: string[];
+	services: ServiceInstanceName[];
 	onlyAlive: boolean;
 }
 
@@ -41,7 +41,7 @@ export interface ServiceInstance extends ServiceIdentity {
 	ip: IPAddress;
 	version: string;
 	/** Deployment region / datacenter for multi-region failover. */
-	region?: string;
+	region?: Region;
 }
 
 /**
@@ -81,7 +81,7 @@ export interface RegistryBackend {
 	listServiceNames(): Promise<string[]>;
 
 	/** Full registry snapshot. */
-	dump(): Promise<Record<string, ServiceInstance[]>>;
+	dump(): Promise<Record<ServiceInstanceName, ServiceInstance[]>>;
 
 	/** Validate a token for a given instance. */
 	validInstanceToken(validation: TokenValidation): Promise<boolean>;
@@ -90,7 +90,7 @@ export interface RegistryBackend {
 	generateInstanceToken(instanceId: InstanceId): string;
 
 	/** Generate a deterministic instance ID from service endpoint data. */
-	generateInstanceId(endpoint: ServiceEndpoint): string;
+	generateInstanceId(endpoint: ServiceEndpoint): ServiceId;
 
 	/** Verify a service name is in the allowed catalog. */
 	verifyInstanceName(serviceName: ServiceInstanceName): boolean;

@@ -24,6 +24,7 @@
 import type { DeliveryMode } from "../config/delivery-mode.types";
 import type { ServiceInstanceName } from "../config/services.types";
 import type { ServiceIdentity as DomainServiceIdentity } from "../domain/service-identity";
+import type { CorrelationId, MessageId, Topic } from "../domain/primitives";
 
 /**
  * Identity of a service instance within the broker system.
@@ -38,7 +39,7 @@ export type ServiceIdentity = DomainServiceIdentity & {
  */
 export interface RoutingType {
 	/** Ensures ordering for a given business key. */
-	partitionKey?: string;
+	partitionKey?: CorrelationId;
 
 	/** Monotonically increasing sequence number per partition key. */
 	sequenceNumber?: number;
@@ -58,7 +59,7 @@ export interface DeliveryType {
 	ttl?: number;
 
 	/** Identifier used to prevent duplicate processing. */
-	deduplicationId?: string;
+	deduplicationId?: MessageId;
 }
 
 /**
@@ -103,16 +104,16 @@ export interface Message<TData = unknown> {
  */
 export interface MessageMetadata {
 	/** Identifier used to correlate messages belonging to the same logical flow. */
-	correlationId?: string;
+	correlationId?: CorrelationId;
 
 	/** Version of the payload schema. */
 	schemaVersion: string;
 
 	/** Identifier of the message that caused this one. */
-	causationId?: string;
+	causationId?: CorrelationId;
 
 	/** Unique message identifier. */
-	messageId?: string;
+	messageId?: MessageId;
 
 	/** Business event name (e.g. UserCreated). */
 	eventType: string;
@@ -121,7 +122,7 @@ export interface MessageMetadata {
 	emittedAt?: Date;
 
 	/** Logical routing channel. */
-	topic: string;
+	topic: Topic;
 
 	/** Identity of the message publisher. */
 	publisher: ServiceIdentity;

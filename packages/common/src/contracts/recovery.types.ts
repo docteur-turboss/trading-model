@@ -1,3 +1,5 @@
+import type { InstanceId, JobId } from "../domain/primitives";
+
 /**
  * Job priority levels.
  * Higher numeric value = higher priority.
@@ -28,12 +30,12 @@ export interface JobEvent {
 }
 
 export interface Job<TData = unknown> {
-	id: string;
+	id: JobId;
 	type: string;
 	payload: TData;
 	priority: JobPriority;
 	status: JobStatus;
-	assignedWorkerId?: string;
+	assignedWorkerId?: InstanceId;
 	ackDeadline: number;
 	maxRetries: number;
 	retryCount: number;

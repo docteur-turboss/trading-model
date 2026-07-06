@@ -1,9 +1,9 @@
-import type { IPAddress, Port } from "../domain/primitives";
+import type { InstanceId, IPAddress, JobId, Port } from "../domain/primitives";
 
 export type WorkerStatus = "active" | "draining" | "offline";
 
 export interface WorkerRegistrationBase {
-	workerId: string;
+	workerId: InstanceId;
 	address: IPAddress;
 	port: Port;
 	capabilities: string[];
@@ -22,13 +22,13 @@ export interface WorkerWsRegisterMessage extends WorkerRegistrationBase {
 
 export interface WorkerWsHeartbeatMessage {
 	type: "heartbeat";
-	workerId: string;
+	workerId: InstanceId;
 	currentLoad: number;
 }
 
 export interface WorkerWsDisconnectMessage {
 	type: "disconnect";
-	workerId: string;
+	workerId: InstanceId;
 	reason?: string;
 }
 
@@ -40,7 +40,7 @@ export type WorkerIncomingMessage =
 export interface SchedulerWsJobAssignedMessage {
 	type: "job.assigned";
 	job: {
-		id: string;
+		id: JobId;
 		type: string;
 		payload: unknown;
 		ackDeadline: number;

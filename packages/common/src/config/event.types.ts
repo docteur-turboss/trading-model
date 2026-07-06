@@ -1,4 +1,4 @@
-import type { InstanceId, Price, ServiceId, UnixTimestamp, Volume } from "../domain/primitives";
+import type { InstanceId, Price, ServiceId, TradingSymbol, UnixTimestamp, Volume } from "../domain/primitives";
 import type { ServiceInstanceName } from "./services.types";
 import type { RevocationReason } from "../domain/revocation-request";
 
@@ -21,7 +21,7 @@ export enum SourceType {
 
 /** Common fields shared by all market data entities. */
 export interface BaseMarketData {
-	symbol: string;
+	symbol: TradingSymbol;
 	source: SourceType;
 	timestamp: UnixTimestamp;
 	market: MarketType;
@@ -176,7 +176,7 @@ export interface EventMap {
 	[EnumEventMessage.fetchCandlestickSeries]: { candle: CandleData[] };
 	[EnumEventMessage.fetchOrderBookSnapshot]: { orderBook: OrderBookData[] };
 	[EnumEventMessage.fetchPriceTickerSnapshot]: {
-		price: Record<string, Price>;
+		price: Record<TradingSymbol, Price>;
 	};
 	[EnumEventMessage.fetchOrderBookTickerSnapshot]: {
 		bookTicker: BookTickerData[];
