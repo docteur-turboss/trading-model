@@ -68,27 +68,6 @@ export interface Species {
  * @param population   Full generation.
  * @param threshold    Compatibility distance threshold δ.
  */
-function _tryAssignToSpecies(
-	individual: Genome,
-	index: number,
-	species: Species[],
-	threshold: number
-): boolean {
-	for (const sp of species) {
-		const rep = species[0].memberIndices.length > 0 // placeholder
-			? species[0].memberIndices[0]
-			: 0;
-		// Actually use the representative index:
-		const representative = sp.representativeIndex;
-		const dist = genomicDistance(individual, species[0].memberIndices.length > 0 ? species[0].memberIndices[0] as any : individual);
-		// This was wrong. Let me redo.
-		return false;
-	}
-	return false;
-}
-
-// Wait, this is getting too complex. Let me just split the two parts of speciate.
-
 export function speciate(population: Genome[], threshold = 0.3): Species[] {
 	const species = _assignToSpecies(population, threshold);
 	_computeAverageFitnessPerSpecies(population, species);

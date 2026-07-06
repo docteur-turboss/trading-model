@@ -110,43 +110,41 @@ export class NonceStore {
 	 * Verifies a nonce is valid and was issued for the given service.
 	 * Consumes the nonce (single-use) to prevent replay attacks.
 	 */
-	async consume(nonce: string, serviceId: string): Promise<boolean> {
-		// Fast path: reject expired nonces from L1 cache without MongoDB round-trip
-		const entry = this._l1.get(nonce);
-		if (entry && Date.now() - entry.createdAt > this._ttlMs) {
-			this._l1.delete(nonce);
-			return false;
-		}
+	private _isExpired(createdAt: number): boolean {
+		return Date.now() - createdAt > this._ttlMs;
+	}
 
-		// Authoritative check: atomic MongoDB findOneAndDelete (cross-instance safe)
-		if (this._collection) {
-			try {
-				const doc = await this._collection.findOneAndDelete({ nonce });
-				if (!doc) {
-					return false;
-				}
-				if (doc.serviceId !== serviceId) {
-					return false;
-				}
-				if (Date.now() - doc.createdAt.getTime() > this._ttlMs) {
-					return false;
-				}
-				this._l1.delete(nonce);
-				return true;
-			} catch {
-				return false;
-			}
-		}
-
-		// Memory-only mode (dev/test): use L1 cache as source of truth
-		if (entry) {
-			if (entry.serviceId !== serviceId) {
+	private async _consumeFromMongo(nonce: string, serviceId: string): Promise<boolean> {
+		try {
+			const doc = await this._collection!.findOneAndDelete({ nonce });
+			if (!doc || doc.serviceId !== serviceId || this._isExpired(doc.createdAt.getTime())) {
 				return false;
 			}
 			this._l1.delete(nonce);
 			return true;
+		} catch {
+			return false;
 		}
-		return false;
+	}
+
+	private _consumeFromL1(entry: NonceEntry | undefined, nonce: string, serviceId: string): boolean {
+		if (!entry || entry.serviceId !== serviceId) {
+			return false;
+		}
+		this._l1.delete(nonce);
+		return true;
+	}
+
+	async consume(nonce: string, serviceId: string): Promise<boolean> {
+		const entry = this._l1.get(nonce);
+		if (entry && this._isExpired(entry.createdAt)) {
+			this._l1.delete(nonce);
+			return false;
+		}
+		if (this._collection) {
+			return this._consumeFromMongo(nonce, serviceId);
+		}
+		return this._consumeFromL1(entry, nonce, serviceId);
 	}
 
 	get size(): number {
@@ -168,15 +166,9 @@ export class NonceStore {
 		}
 		try {
 			const threshold = new Date(Date.now() - this._ttlMs);
-			const docs = await this._collection
-				.find({ createdAt: { $gt: threshold } })
-				.toArray();
+			const docs = await this._collection.find({ createdAt: { $gt: threshold } }).toArray();
 			for (const doc of docs) {
-				this._l1.set(doc.nonce, {
-					nonce: doc.nonce,
-					serviceId: doc.serviceId,
-					createdAt: doc.createdAt.getTime(),
-				});
+				this._l1.set(doc.nonce, { nonce: doc.nonce, serviceId: doc.serviceId, createdAt: doc.createdAt.getTime() });
 			}
 		} catch (err) {
 			logger.warn("Failed to load nonces from MongoDB", { context: { err } });

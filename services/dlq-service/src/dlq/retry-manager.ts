@@ -26,18 +26,25 @@ export class DlqRetryManager {
 	async abandonExhaustedEntries(): Promise<number> {
 		const col = await getCollection();
 		const result = await col.updateMany(
-			{
-				status: { $ne: "abandoned" },
-				processingAt: { $exists: false },
-				$or: [
-					{ retryCount: { $gte: env.DLQ_RETRY_MAX_ATTEMPTS } },
-					{ consecutiveErrors: { $gte: DLQ_MAX_CONSECUTIVE_ERRORS } },
-				],
-			},
+			_buildAbandonFilter(),
 			{ $set: { status: "abandoned", abandonedAt: new Date() } }
 		);
 		return result.modifiedCount;
 	}
+}
+
+function _buildAbandonFilter(): Record<string, unknown> {
+	return {
+		status: { $ne: "abandoned" },
+		processingAt: { $exists: false },
+		$or: [
+			{ retryCount: { $gte: env.DLQ_RETRY_MAX_ATTEMPTS } },
+			{ consecutiveErrors: { $gte: DLQ_MAX_CONSECUTIVE_ERRORS } },
+		],
+	};
+}
+
+export class DlqRetryManager {
 
 	private async _markAsCompleted(
 		id: string,

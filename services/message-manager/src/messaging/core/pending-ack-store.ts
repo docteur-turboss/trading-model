@@ -124,19 +124,23 @@ export class PendingAckStore {
 
 	private _isStaleEntry(data: string, now: number, maxAgeMs: number): boolean {
 		try {
-			const entry = JSON.parse(data) as {
-				topic: string;
-				subscriberUrl: string;
-				message: Message;
-				pendingAt?: number;
-			};
-			const age =
-				entry.pendingAt === undefined
-					? now - new Date(entry.message.metadata.emittedAt ?? 0).getTime()
-					: now - entry.pendingAt;
-			return age > maxAgeMs;
+			const entry = JSON.parse(data) as StaleEntryData;
+			return computeEntryAge(entry, now) > maxAgeMs;
 		} catch {
 			return true;
 		}
 	}
+}
+
+interface StaleEntryData {
+	topic: string;
+	subscriberUrl: string;
+	message: Message;
+	pendingAt?: number;
+}
+
+function computeEntryAge(entry: StaleEntryData, now: number): number {
+	return entry.pendingAt === undefined
+		? now - new Date(entry.message.metadata.emittedAt ?? 0).getTime()
+		: now - entry.pendingAt;
 }

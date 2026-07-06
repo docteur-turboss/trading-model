@@ -33,20 +33,26 @@ export class ShutdownHandler {
 
 	async fullStop(): Promise<void> {
 		this.shutdown();
+		this._disconnectWs();
+		await this._unregisterService();
+		this._serviceCache.stop();
+		this._circuitBreaker.clear();
+		this._clearMetricsTimer();
+	}
 
-		if (this._wsClient) {
-			this._wsClient.disconnect();
-		}
+	private _disconnectWs(): void {
+		this._wsClient?.disconnect();
+	}
 
+	private async _unregisterService(): Promise<void> {
 		try {
 			await this._addressManagerClient.unregisterService();
 		} catch {
 			/* best-effort */
 		}
+	}
 
-		this._serviceCache.stop();
-		this._circuitBreaker.clear();
-
+	private _clearMetricsTimer(): void {
 		if (this._metricsTimer) {
 			clearInterval(this._metricsTimer);
 			this._metricsTimer = undefined;

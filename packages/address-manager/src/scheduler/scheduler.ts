@@ -54,26 +54,26 @@ export class Scheduler {
 	/**
 	 * Starts all registered jobs.
 	 */
+	private _createTask(job: ScheduledJob): cron.ScheduledTask {
+		return cron.schedule(job.schedule, async () => {
+			try {
+				await job.execute();
+			} catch (err) {
+				logger.error("Job execution failed", {
+					schedule: job.schedule,
+					error: err instanceof Error ? err.message : String(err),
+				});
+			}
+		});
+	}
+
 	start(): void {
 		if (this._started) {
 			return;
 		}
-
 		for (const job of this._jobs) {
-			const task = cron.schedule(job.schedule, async () => {
-				try {
-					await job.execute();
-				} catch (err) {
-					logger.error("Job execution failed", {
-						schedule: job.schedule,
-						error: err instanceof Error ? err.message : String(err),
-					});
-				}
-			});
-
-			this._tasks.push(task);
+			this._tasks.push(this._createTask(job));
 		}
-
 		this._started = true;
 	}
 
