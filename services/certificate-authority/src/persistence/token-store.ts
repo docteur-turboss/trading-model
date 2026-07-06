@@ -18,12 +18,8 @@ export interface UsedToken {
 }
 
 export class TokenStore {
-	private _client: MongoClient | null = null;
-	private _collection: Collection<UsedToken> | null = null;
-	private get _requiredCollection(): Collection<UsedToken> {
-		if (!this._collection) throw new Error("TokenStore not connected");
-		return this._collection;
-	}
+	private _client!: MongoClient;
+	private _collection!: Collection<UsedToken>;
 	private readonly _uri: string;
 	private readonly _dbName: string;
 	private readonly _defaultTtlMs: number;
@@ -53,14 +49,9 @@ export class TokenStore {
 		if (!MONGO_MANAGER.isInitialized()) {
 			await this._client?.close();
 		}
-		this._client = null;
-		this._collection = null;
 	}
 
 	private async _createIndexes(): Promise<void> {
-		if (!this._collection) {
-			return;
-		}
 		await this._collection.createIndex(
 			{ expiresAt: 1 },
 			{ expireAfterSeconds: 0 }
@@ -76,7 +67,7 @@ export class TokenStore {
 		const hash = await this._hashToken(token);
 
 		try {
-			await this._requiredCollection.insertOne({
+			await this._collection.insertOne({
 				tokenHash: hash,
 				serviceId,
 				usedAt: new Date(),
@@ -102,7 +93,7 @@ export class TokenStore {
 
 	async isUsed(token: string): Promise<boolean> {
 		const hash = await this._hashToken(token);
-		const found = await this._requiredCollection.findOne({ tokenHash: hash });
+		const found = await this._collection.findOne({ tokenHash: hash });
 		return found !== null;
 	}
 

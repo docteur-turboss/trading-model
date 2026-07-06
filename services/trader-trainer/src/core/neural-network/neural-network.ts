@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import { agentError } from "@trading-model/common/utils/errors";
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 
 import { FeedForwardEngine } from "./feed-forward-engine";
 import { BackpropEngine } from "./backprop-engine";
@@ -56,7 +57,7 @@ function mergeConfig(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig> {
 		initialisationType: cfg.initialisationType ?? InitialisationType.Random,
 		connectionType: cfg.connectionType ?? ConnectionType.FullyConnected,
 		lossFunctionType: cfg.lossFunctionType ?? LossFunctionType.MeanSquaredError,
-		normalizedInputRange: cfg.normalizedInputRange ?? [0, cfg.neuronsByLayer[0] - 1],
+		normalizedInputRange: cfg.normalizedInputRange ?? new NumericRange(0, cfg.neuronsByLayer[0] - 1),
 		biasInitialisationType: _resolveBiasInit(cfg),
 		activationType: _resolveActivationType(cfg),
 	};

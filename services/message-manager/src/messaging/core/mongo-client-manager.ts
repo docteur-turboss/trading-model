@@ -3,15 +3,10 @@ import { logger } from "../../config/logger";
 import type { MongoClient } from "./mongo-archive-batch";
 
 export class MongoClientManager {
-	private _client: MongoClient | null = null;
+	private _client!: MongoClient;
 	private _started = false;
 
-	get requiredClient(): MongoClient {
-		if (!this._client) throw new Error("MongoArchiveStore not started");
-		return this._client;
-	}
-
-	get client(): MongoClient | null {
+	get client(): MongoClient {
 		return this._client;
 	}
 
@@ -35,7 +30,6 @@ export class MongoClientManager {
 			"MongoDB archival store failed to start — continuing without archival",
 			{ error: err.message }
 		);
-		this._client = null;
 	}
 
 	async connectClient(): Promise<void> {
@@ -50,9 +44,6 @@ export class MongoClientManager {
 	}
 
 	async ensureIndexes(): Promise<void> {
-		if (!this._client) {
-			return;
-		}
 		try {
 			const { MongoArchiveBatchWriter } = await import("./mongo-archive-batch.js");
 			const writer = new MongoArchiveBatchWriter(
@@ -70,14 +61,10 @@ export class MongoClientManager {
 	}
 
 	async closeClient(): Promise<void> {
-		if (!this._client) {
-			return;
-		}
 		try {
 			await this._client.close();
 		} catch {
 			// best-effort
 		}
-		this._client = null;
 	}
 }

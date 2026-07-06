@@ -23,11 +23,7 @@ export interface NoncePersistence {
 }
 
 export class MongoNoncePersister implements NoncePersistence {
-	private _collection: Collection<NonceDocument> | null = null;
-	private get _requiredCollection(): Collection<NonceDocument> {
-		if (!this._collection) throw new Error("Nonce persister not connected");
-		return this._collection;
-	}
+	private _collection!: Collection<NonceDocument>;
 	private readonly _mongoUri: string;
 	private readonly _ttlMs: number;
 
@@ -46,9 +42,6 @@ export class MongoNoncePersister implements NoncePersistence {
 	}
 
 	private async _createIndexes(): Promise<void> {
-		if (!this._collection) {
-			return;
-		}
 		await this._collection.createIndex({ nonce: 1 }, { unique: true });
 		await this._collection.createIndex(
 			{ createdAt: 1 },
@@ -63,13 +56,12 @@ export class MongoNoncePersister implements NoncePersistence {
 	}
 
 	async disconnect(): Promise<void> {
-		this._collection = null;
 	}
 
 	async persist(context: NonceContext, createdAt: number): Promise<void> {
 		const { nonce, serviceId } = context;
 		try {
-			await this._requiredCollection.insertOne({ nonce, serviceId, createdAt: new Date(createdAt) });
+			await this._collection.insertOne({ nonce, serviceId, createdAt: new Date(createdAt) });
 		} catch (err) {
 			logger.warn("Failed to persist nonce to MongoDB", { context: { err } });
 			const error = new Error("Failed to persist nonce");
@@ -79,9 +71,6 @@ export class MongoNoncePersister implements NoncePersistence {
 	}
 
 	async consume(context: NonceContext): Promise<NonceDocument | null> {
-		if (!this._collection) {
-			return null;
-		}
 		const { nonce } = context;
 		try {
 			return await this._collection.findOneAndDelete({ nonce });
@@ -91,9 +80,6 @@ export class MongoNoncePersister implements NoncePersistence {
 	}
 
 	async loadAll(threshold: Date): Promise<NonceDocument[]> {
-		if (!this._collection) {
-			return [];
-		}
 		try {
 			return await this._collection.find({ createdAt: { $gt: threshold } }).toArray();
 		} catch (err) {

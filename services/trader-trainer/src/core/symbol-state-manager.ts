@@ -1,9 +1,9 @@
-import {
-	type BookTickerData,
-	type CandleData,
-	type OrderBookData,
-	type TickerData,
-	type TradeData,
+import type {
+	BookTickerData,
+	CandleData,
+	OrderBookData,
+	TickerData,
+	TradeData,
 } from "@trading-model/common/config/event.types";
 
 import type {
@@ -12,12 +12,16 @@ import type {
 } from "./market-data-types";
 import { MemoryManager } from "./market-data/memory-manager";
 import { NormalizationManager } from "./normalization-manager";
+import { SymbolDataMutator } from "./symbol-data-mutator";
+import { SymbolStateAccessor } from "./symbol-state-accessor";
 
 export class SymbolStateManager {
 	readonly states: Map<TradingSymbol, SymbolState> = new Map();
 	readonly accessOrder: TradingSymbol[] = [];
 	private readonly _memoryManager: MemoryManager;
 	private readonly _normManager: NormalizationManager;
+	private readonly _dataMutator: SymbolDataMutator;
+	private readonly _stateAccessor: SymbolStateAccessor;
 
 	constructor(
 		maxSize: number,
@@ -32,6 +36,8 @@ export class SymbolStateManager {
 			evictionPolicy,
 		});
 		this._normManager = new NormalizationManager();
+		this._dataMutator = new SymbolDataMutator(this._memoryManager, this._normManager);
+		this._stateAccessor = new SymbolStateAccessor(this._normManager, this._memoryManager);
 	}
 
 	getMemoryManager(): MemoryManager {
@@ -43,73 +49,36 @@ export class SymbolStateManager {
 	}
 
 	_getOrCreate(symbol: TradingSymbol): SymbolState {
-		let state = this.states.get(symbol);
-		if (!state) {
-			state = this._createSymbolState();
-			this.states.set(symbol, state);
-		}
-		this._memoryManager.recordAccess(symbol);
-		return state;
-	}
-
-	private _createSymbolState(): SymbolState {
-		return {
-			candles: [],
-			trades: [],
-			orderBook: null,
-			bookTicker: null,
-			ticker24h: null,
-			norm: this._normManager.createNormStats(),
-		};
+		return this._stateAccessor.getOrCreate(symbol, this.states);
 	}
 
 	_getState(symbol: TradingSymbol): SymbolState {
-		return this._getOrCreate(symbol);
-	}
-
-	private _trimExcess<T>(arr: T[], maxSize: number): T[] {
-		return arr.length > maxSize ? arr.slice(-maxSize) : arr;
+		return this._stateAccessor.getState(symbol, this.states);
 	}
 
 	addCandles(symbol: TradingSymbol, candles: CandleData[]): void {
 		const state = this._getState(symbol);
-		for (const candle of candles) {
-			state.candles.push(candle);
-			this._normManager.updateCandleNorms(state, candle);
-		}
-		state.candles = this._trimExcess(state.candles, this._memoryManager.getMaxSize());
-		this._memoryManager.enforceMemoryLimit();
+		this._dataMutator.addCandles(symbol, candles, this.states, this._memoryManager.getMaxSize());
 	}
 
 	addTrades(symbol: TradingSymbol, trades: TradeData[]): void {
 		const state = this._getState(symbol);
-		for (const trade of trades) {
-			state.trades.push(trade);
-			this._normManager.updateTradeNorms(state, trade);
-		}
-		state.trades = this._trimExcess(state.trades, this._memoryManager.getMaxSize());
-		this._memoryManager.enforceMemoryLimit();
+		this._dataMutator.addTrades(symbol, trades, this.states, this._memoryManager.getMaxSize());
 	}
 
 	setOrderBook(symbol: TradingSymbol, orderBook: OrderBookData): void {
 		const state = this._getState(symbol);
-		state.orderBook = orderBook;
-		this._normManager.updateOrderBookNorms(state, orderBook);
-		this._memoryManager.enforceMemoryLimit();
+		this._dataMutator.setOrderBook(symbol, orderBook, this.states);
 	}
 
 	setBookTicker(symbol: TradingSymbol, bt: BookTickerData): void {
 		const state = this._getState(symbol);
-		state.bookTicker = bt;
-		this._normManager.updateBookTickerNorms(state, bt);
-		this._memoryManager.enforceMemoryLimit();
+		this._dataMutator.setBookTicker(symbol, bt, this.states);
 	}
 
 	setTicker24h(symbol: TradingSymbol, ticker: TickerData): void {
 		const state = this._getState(symbol);
-		state.ticker24h = ticker;
-		this._normManager.updateTicker24hNorms(state, ticker);
-		this._memoryManager.enforceMemoryLimit();
+		this._dataMutator.setTicker24h(symbol, ticker, this.states);
 	}
 
 	getSymbols(): TradingSymbol[] {

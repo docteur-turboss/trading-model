@@ -3,33 +3,23 @@ import { type Db, MongoClient } from "mongodb";
 
 import { env } from "./env";
 import { logger } from "./logger";
+import { MongoConnectionState } from "./mongo-connection-state";
 
 export class MongoConnectionManager {
-	private _client: MongoClient | null = null;
-	private _db: Db | null = null;
-	private _dbPromise: Promise<Db> | null = null;
-	private _connected = false;
+	private readonly _state = new MongoConnectionState();
 
 	async getDb(): Promise<Db> {
-		if (this._db) {
-			return this._db;
+		if (this._state.db) {
+			return this._state.db;
 		}
-		const existingDb = this._dbPromise === null ? null : await this._dbPromise;
+		const existingDb =
+			this._state.dbPromise === null ? null : await this._state.dbPromise;
 		if (existingDb) {
 			return existingDb;
 		}
 
-		this._dbPromise = this._connectToMongo();
-		return this._dbPromise;
-	}
-
-	private _registerMongoEvents(newClient: MongoClient): void {
-		newClient.on("close", () => {
-			this._connected = false;
-		});
-		newClient.on("reconnect", () => {
-			this._connected = true;
-		});
+		this._state.dbPromise = this._connectToMongo();
+		return this._state.dbPromise;
 	}
 
 	private async _connectToMongo(): Promise<Db> {
@@ -41,23 +31,18 @@ export class MongoConnectionManager {
 				maxRetries: 10,
 				baseDelayMs: 1000,
 				maxDelayMs: 30000,
-			}
+			},
 		);
 
 		if (!dbInstance) {
-			return this._throwConnectError(lastError);
+			return this._state.throwConnectError(lastError);
 		}
 
-		this._client = dbInstance.newClient;
-		this._db = dbInstance.database;
-		this._connected = true;
+		this._state.client = dbInstance.newClient;
+		this._state.db = dbInstance.database;
+		this._state.connected = true;
 		logger.info("MongoDB connected", { database: env.MONGO_DB });
 		return dbInstance.database;
-	}
-
-	private _throwConnectError(lastError: Error | null): never {
-		this._connected = false;
-		throw lastError ?? new Error("Failed to connect to MongoDB after retries");
 	}
 
 	private async _tryConnect(): Promise<{
@@ -73,42 +58,35 @@ export class MongoConnectionManager {
 		});
 		await newClient.connect();
 		const database = newClient.db(env.MONGO_DB);
-		this._registerMongoEvents(newClient);
+		this._state.registerMongoEvents(newClient);
 		return { newClient, database };
 	}
 
 	isConnected(): boolean {
-		return this._connected && this._client !== null;
+		return this._state.isConnected();
 	}
 
 	async resetState(): Promise<void> {
-		if (this._client) {
+		if (this._state.client) {
 			try {
-				await this._client.close();
+				await this._state.client.close();
 			} catch {
 			}
 		}
-		this._clearState();
+		this._state.clearState();
 	}
 
 	async close(): Promise<void> {
-		if (this._client) {
+		if (this._state.client) {
 			try {
-				await this._client.close();
+				await this._state.client.close();
 			} catch (err) {
 				logger.warn("Error closing MongoDB connection", {
 					error: (err as Error).message,
 				});
 			}
-			this._clearState();
+			this._state.clearState();
 			logger.info("MongoDB connection closed");
 		}
-	}
-
-	private _clearState(): void {
-		this._client = null;
-		this._db = null;
-		this._dbPromise = null;
-		this._connected = false;
 	}
 }

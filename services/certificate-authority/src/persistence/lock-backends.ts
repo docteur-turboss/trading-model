@@ -5,6 +5,9 @@ import { logger } from "@trading-model/common/config/logger";
 import Redis from "ioredis";
 import type { Collection } from "mongodb";
 
+import { MongoLockExecutor } from "./mongo-lock-executor";
+import { RedisLockConnector } from "./redis-lock-connector";
+
 export interface LockContext {
 	lockName: string;
 	instanceId: string;
@@ -61,11 +64,14 @@ export class NullLockBackend implements LockBackend {
 
 export class MongoLockBackend implements LockBackend {
 	private _connected = false;
+	private readonly _executor: MongoLockExecutor;
 
 	constructor(
 		private readonly _collection: () => Collection<LockDocument> | null,
 		private readonly _onDisconnect: () => void
-	) {}
+	) {
+		this._executor = new MongoLockExecutor(this._collection, this._onDisconnect);
+	}
 
 	setConnected(value: boolean): void {
 		this._connected = value;
@@ -78,41 +84,7 @@ export class MongoLockBackend implements LockBackend {
 		if (!this._connected) {
 			return null;
 		}
-		const { lockName, instanceId } = context;
-		const collection = this._collection();
-		if (!collection) {
-			return null;
-		}
-		try {
-			const now = new Date();
-			const expiresAt = new Date(now.getTime() + ttlMs);
-			const prev = await collection.findOne({ name: lockName });
-			const nextFencingToken = (prev?.fencingToken ?? 0) + 1;
-			const result = await collection.findOneAndUpdate(
-				{
-					name: lockName,
-					$or: [{ expiresAt: { $lt: now } }, { expiresAt: { $exists: false } }],
-				},
-				{
-					$set: {
-						name: lockName,
-						acquiredAt: now,
-						expiresAt,
-						instanceId,
-						fencingToken: nextFencingToken,
-					},
-				},
-				{ upsert: true, returnDocument: "before" }
-			);
-			const acquired =
-				result === null || (result.expiresAt && result.expiresAt < now);
-			return acquired ? nextFencingToken : null;
-		} catch (err) {
-			logger.warn("MongoDB lock acquire failed", { context: { err } });
-			this._connected = false;
-			this._onDisconnect();
-			return null;
-		}
+		return this._executor.acquire(context, ttlMs);
 	}
 
 	async release(
@@ -122,23 +94,7 @@ export class MongoLockBackend implements LockBackend {
 		if (!this._connected) {
 			return false;
 		}
-		const { lockName, instanceId } = context;
-		const collection = this._collection();
-		if (!collection) {
-			return false;
-		}
-		try {
-			await collection.deleteOne({
-				name: lockName,
-				instanceId,
-				fencingToken,
-			});
-			return true;
-		} catch {
-			this._connected = false;
-			this._onDisconnect();
-			return false;
-		}
+		return this._executor.release(context, fencingToken);
 	}
 
 	async verifyOwnership(
@@ -148,53 +104,22 @@ export class MongoLockBackend implements LockBackend {
 		if (!this._connected) {
 			return -1;
 		}
-		const { lockName, instanceId } = context;
-		const collection = this._collection();
-		if (!collection) {
-			return -1;
-		}
-		try {
-			const doc = await collection.findOne({ name: lockName });
-			if (
-				!doc ||
-				doc.instanceId !== instanceId ||
-				doc.fencingToken !== fencingToken
-			) {
-				return -1;
-			}
-			return fencingToken;
-		} catch {
-			this._connected = false;
-			this._onDisconnect();
-			return -1;
-		}
+		return this._executor.verifyOwnership(context, fencingToken);
 	}
 }
 
 export class RedisLockBackend implements LockBackend {
-	private _client: Redis | null = null;
-	private _available = true;
+	private readonly _connector: RedisLockConnector;
 
 	constructor(redisUrl: string) {
-		this._connect(redisUrl);
-	}
-
-	private _connect(redisUrl: string): void {
-		try {
-			this._client = new Redis(redisUrl, {
-				enableReadyCheck: true, maxRetriesPerRequest: 1, retryStrategy: () => null, lazyConnect: true,
-			});
-			this._client.on("error", () => { this._available = false; });
-		} catch {
-			this._available = false;
-		}
+		this._connector = new RedisLockConnector(redisUrl);
 	}
 
 	async acquire(
 		context: LockContext,
 		ttlMs: number
 	): Promise<number | null> {
-		if (!this._client) {
+		if (!this._connector.client) {
 			return null;
 		}
 		const { lockName, instanceId } = context;
@@ -202,7 +127,7 @@ export class RedisLockBackend implements LockBackend {
 			const lockKey = `lock:${lockName}`;
 			const nextFencingToken = randomInt(1, 2_147_483_647);
 			const value = `${instanceId}:${nextFencingToken}`;
-			const acquired = await this._client.set(
+			const acquired = await this._connector.client.set(
 				lockKey,
 				value,
 				"PX",
@@ -210,17 +135,17 @@ export class RedisLockBackend implements LockBackend {
 				"NX"
 			);
 			if (acquired === "OK") {
-				this._available = true;
+				this._connector.available = true;
 				return nextFencingToken;
 			}
-			const existing = await this._client.get(lockKey);
+			const existing = await this._connector.client.get(lockKey);
 			if (existing === null) {
 				return this.acquire(context, ttlMs);
 			}
 			return null;
 		} catch (err) {
 			logger.warn("Redis lock acquire failed", { context: { err } });
-			this._available = false;
+			this._connector.available = false;
 			return null;
 		}
 	}
@@ -229,7 +154,7 @@ export class RedisLockBackend implements LockBackend {
 		context: LockContext,
 		fencingToken: number
 	): Promise<boolean> {
-		if (!this._available || !this._client) {
+		if (!this._connector.available || !this._connector.client) {
 			return false;
 		}
 		const { lockName, instanceId } = context;
@@ -242,7 +167,7 @@ export class RedisLockBackend implements LockBackend {
             return 0
           end
         `;
-			await this._client.eval(
+			await this._connector.client.eval(
 				script,
 				1,
 				lockKey,
@@ -258,13 +183,13 @@ export class RedisLockBackend implements LockBackend {
 		context: LockContext,
 		fencingToken: number
 	): Promise<number> {
-		if (!this._available || !this._client) {
+		if (!this._connector.available || !this._connector.client) {
 			return -1;
 		}
 		const { lockName, instanceId } = context;
 		try {
 			const lockKey = `lock:${lockName}`;
-			const val = await this._client.get(lockKey);
+			const val = await this._connector.client.get(lockKey);
 			if (val !== `${instanceId}:${fencingToken}`) {
 				return -1;
 			}
@@ -275,7 +200,7 @@ export class RedisLockBackend implements LockBackend {
 	}
 
 	disconnect(): void {
-		this._client?.disconnect();
+		this._connector.disconnect();
 	}
 }
 

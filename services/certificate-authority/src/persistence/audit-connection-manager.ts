@@ -5,12 +5,7 @@ import { MONGO_MANAGER } from "./mongo-manager";
 
 export class AuditConnectionManager {
 	private _client: MongoClient;
-	private _collection: Collection<AuditEntry> | null = null;
-	private get _requiredCollection(): Collection<AuditEntry> {
-		if (!this._collection) throw new Error("AuditConnectionManager not connected");
-		return this._collection;
-	}
-	private _mongoConnected = false;
+	private _collection!: Collection<AuditEntry>;
 
 	constructor(uri: string) {
 		this._client = MONGO_MANAGER.isInitialized()
@@ -18,12 +13,8 @@ export class AuditConnectionManager {
 			: new MongoClient(uri);
 	}
 
-	get collection(): Collection<AuditEntry> | null {
+	get collection(): Collection<AuditEntry> {
 		return this._collection;
-	}
-
-	get isConnected(): boolean {
-		return this._mongoConnected;
 	}
 
 	private _resolveDb(): import("mongodb").Db {
@@ -37,9 +28,9 @@ export class AuditConnectionManager {
 	}
 
 	private async _createAuditIndexes(): Promise<void> {
-		await this._requiredCollection.createIndex({ timestamp: -1 }, { expireAfterSeconds: 90 * 86400 });
-		await this._requiredCollection.createIndex({ serviceId: 1, timestamp: -1 });
-		await this._requiredCollection.createIndex({ serialNumber: 1 });
+		await this._collection.createIndex({ timestamp: -1 }, { expireAfterSeconds: 90 * 86400 });
+		await this._collection.createIndex({ serviceId: 1, timestamp: -1 });
+		await this._collection.createIndex({ serialNumber: 1 });
 	}
 
 	async tryConnect(): Promise<boolean> {
@@ -47,20 +38,21 @@ export class AuditConnectionManager {
 			await this._ensureClientConnected();
 			this._collection = this._resolveDb().collection<AuditEntry>("audit_log");
 			await this._createAuditIndexes();
-			this._mongoConnected = true;
 			return true;
 		} catch (err) {
 			logger.error("AuditStore: MongoDB connection failed — using local buffer", { context: { err } });
-			this._mongoConnected = false;
 			return false;
 		}
 	}
 
 	async ensureMongo(): Promise<boolean> {
-		if (this._mongoConnected) {
+		try {
+			this._collection = this._resolveDb().collection<AuditEntry>("audit_log");
+			await this._createAuditIndexes();
 			return true;
+		} catch {
+			return await this.tryConnect();
 		}
-		return await this.tryConnect();
 	}
 
 	async disconnect(): Promise<void> {

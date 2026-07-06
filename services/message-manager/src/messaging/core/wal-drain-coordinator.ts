@@ -3,9 +3,14 @@ import { getStreamClient } from "../../config/redis";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
+interface DrainDeferred {
+	promise: Promise<void>;
+	resolve: () => void;
+}
+
 export class WalDrainCoordinator {
 	private _walDrainRequested = false;
-	private _pendingDrainResolve: (() => void) | null = null;
+	private _pendingDrain: DrainDeferred | null = null;
 	private readonly _drainTimer = new TimerHandle();
 	private _walFlushWaiters: Array<() => void> = [];
 
@@ -31,14 +36,14 @@ export class WalDrainCoordinator {
 				return;
 			}
 			await this._performFlush();
-			return new Promise<void>((resolve) => {
-				this._pendingDrainResolve = resolve;
-				this._drainTimer.startTimeout(() => {
-					this._pendingDrainResolve = null;
-					logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
-					resolve();
-				}, timeoutMs);
-			});
+			const deferred = Promise.withResolvers<void>();
+			this._pendingDrain = deferred;
+			this._drainTimer.startTimeout(() => {
+				this._pendingDrain = null;
+				logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
+				deferred.resolve();
+			}, timeoutMs);
+			return deferred.promise;
 		} finally {
 			this._walDrainRequested = false;
 		}
@@ -51,9 +56,9 @@ export class WalDrainCoordinator {
 
 	resolveDrain(): void {
 		this._drainTimer.stop();
-		const resolve = this._pendingDrainResolve;
-		this._pendingDrainResolve = null;
-		resolve?.();
+		const deferred = this._pendingDrain;
+		this._pendingDrain = null;
+		deferred?.resolve();
 	}
 
 	notifyWaiters(): void {
