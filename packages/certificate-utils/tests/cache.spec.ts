@@ -1,5 +1,5 @@
-import { describe, expect, it } from "@jest/globals";
-import { LruCache } from "../src/cache";
+import { describe, expect, it, jest } from "@jest/globals";
+import { LruCache } from "@trading-model/common/utils/lru-cache";
 
 describe("LruCache", () => {
 	it("should return undefined for missing key", () => {
@@ -8,9 +8,12 @@ describe("LruCache", () => {
 	});
 
 	it("should return undefined for expired entry", () => {
-		const cache = new LruCache<string>({ maxSize: 10, ttlMs: -1 });
+		jest.useFakeTimers();
+		const cache = new LruCache<string>({ maxSize: 10, ttlMs: 100 });
 		cache.set("key", "value");
+		jest.advanceTimersByTime(200);
 		expect(cache.get("key")).toBeUndefined();
+		jest.useRealTimers();
 	});
 
 	it("should return value for existing entry", () => {

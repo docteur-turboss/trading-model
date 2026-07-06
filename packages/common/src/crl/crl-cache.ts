@@ -31,10 +31,6 @@ export class CrlCache {
 	clear(): void {
 		this._revoked.clear();
 	}
-
-	destroy(): void {
-		this._revoked.clear();
-	}
 }
 
 /**

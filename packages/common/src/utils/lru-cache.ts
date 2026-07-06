@@ -8,9 +8,9 @@ export class LruCache<TValue> {
 		{ value: TValue; expiresAt: number }
 	>();
 
-	constructor(config: CacheConfig) {
+	constructor(config: CacheConfig = { maxSize: 1000, ttlMs: 60000 }) {
 		this._maxSize = config.maxSize;
-		this._ttlMs = config.ttlMs ?? 0;
+		this._ttlMs = config.ttlMs ?? 60000;
 	}
 
 	has(key: string): boolean {
