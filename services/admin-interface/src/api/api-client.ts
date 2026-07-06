@@ -2,7 +2,7 @@ import type { CandleInterval } from "@trading-model/common/config/event.types";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 
 import type {
-	AuditFilter,
+	AdminAuditFilter,
 	CacheEntryList,
 	Candle,
 	CertificateEntry,
@@ -69,7 +69,7 @@ export const API_CLIENT = {
 	banInstance: (name: string, id: string) =>
 		request<void>("DELETE", `/discovery/services/${name}/instances/${id}`),
 
-	getAuditEvents: (params?: AuditFilter) =>
+	getAuditEvents: (params?: AdminAuditFilter) =>
 		request<PaginatedEvents>(
 			"GET",
 			`/audit/events${toQuery(params as Record<string, unknown>)}`

@@ -1,13 +1,13 @@
 import type { ICache } from "@trading-model/common/utils/cache";
 
-export interface CacheEntry<TData = unknown> {
+export interface ResponseCacheEntry<TData = unknown> {
 	data: TData;
 	status: number;
 	expiresAt: number;
 }
 
-export class ResponseCache implements ICache<CacheEntry> {
-	private readonly _store = new Map<string, CacheEntry>();
+export class ResponseCache implements ICache<ResponseCacheEntry> {
+	private readonly _store = new Map<string, ResponseCacheEntry>();
 
 	private readonly _defaultTtlMs: number;
 
@@ -15,7 +15,7 @@ export class ResponseCache implements ICache<CacheEntry> {
 		this._defaultTtlMs = defaultTtlMs;
 	}
 
-	get<TData = unknown>(key: string): CacheEntry<TData> | undefined {
+	get<TData = unknown>(key: string): ResponseCacheEntry<TData> | undefined {
 		const entry = this._store.get(key);
 		if (!entry) {
 			return;
@@ -26,7 +26,7 @@ export class ResponseCache implements ICache<CacheEntry> {
 			return;
 		}
 
-		return entry as CacheEntry<TData>;
+		return entry as ResponseCacheEntry<TData>;
 	}
 
 	set<TData = unknown>(

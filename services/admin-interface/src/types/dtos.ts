@@ -48,7 +48,7 @@ export interface StatsSummary {
 	avgLatency: number;
 }
 
-export interface AuditFilter {
+export interface AdminAuditFilter {
 	topic?: string;
 	publisher?: string;
 	correlationId?: string;

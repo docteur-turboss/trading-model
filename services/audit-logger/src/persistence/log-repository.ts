@@ -7,6 +7,8 @@ import {
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { Collection, Db } from "mongodb";
 
+import { LogStatsBuilder } from "./log-stats-builder";
+
 type MongoDoc = Record<string, unknown>;
 
 export interface ServiceLogDocument {
@@ -58,6 +60,7 @@ export interface LogStats {
 
 export class LogRepository {
 	private _collection?: Collection<ServiceLogDocument>;
+	private readonly _statsBuilder = new LogStatsBuilder();
 
 	constructor(private readonly _db: Db) {}
 
@@ -115,9 +118,9 @@ export class LogRepository {
 
 	async getStats(): Promise<LogStats> {
 		const col = await this._getCollection();
-		const pipeline = this._buildStatsPipeline();
+		const pipeline = this._statsBuilder.buildPipeline();
 		const [aggResult] = await col.aggregate(pipeline).toArray();
-		return this._parseStatsResult(aggResult);
+		return this._statsBuilder.parseResult(aggResult);
 	}
 
 	async getById(id: string): Promise<ServiceLogDocument | null> {
@@ -139,38 +142,6 @@ export class LogRepository {
 		_addSearchFilter(filter, params);
 
 		return filter;
-	}
-
-	private _buildStatsPipeline(): MongoDoc[] {
-		return [
-			{
-				$facet: {
-					byService: [
-						{ $group: { _id: "$service.name", count: { $sum: 1 } } },
-					],
-					byLevel: [{ $group: { _id: "$level", count: { $sum: 1 } } }],
-					dateRange: [
-						{
-							$group: {
-								_id: null,
-								earliest: { $min: "$receivedAt" },
-								latest: { $max: "$receivedAt" },
-							},
-						},
-					],
-					total: [{ $count: "count" }],
-				},
-			},
-		];
-	}
-
-	private _parseStatsResult(aggResult: Record<string, unknown>): LogStats {
-		return {
-			total: _extractTotal(aggResult),
-			byService: _extractMap(aggResult, "byService") as Record<ServiceId, number>,
-			byLevel: _extractMap(aggResult, "byLevel"),
-			dateRange: _extractDateRange(aggResult),
-		};
 	}
 }
 
@@ -210,35 +181,4 @@ function _addSearchFilter(
 		return;
 	}
 	filter.message = { $regex: params.search, $options: "i" };
-}
-
-function _extractTotal(aggResult: Record<string, unknown>): number {
-	return (aggResult?.total as Array<{ count: number }>)?.[0]?.count ?? 0;
-}
-
-function _extractMap(
-	aggResult: Record<string, unknown>,
-	key: string
-): Record<string, number> {
-	const result: Record<string, number> = {};
-	for (const item of (aggResult?.[key] as Array<{
-		_id: string;
-		count: number;
-	}>) ?? []) {
-		result[item._id] = item.count;
-	}
-	return result;
-}
-
-function _extractDateRange(aggResult: Record<string, unknown>): {
-	earliest?: string;
-	latest?: string;
-} {
-	const dr = (
-		aggResult?.dateRange as Array<{ earliest?: Date; latest?: Date }>
-	)?.[0];
-	return {
-		earliest: dr?.earliest?.toISOString(),
-		latest: dr?.latest?.toISOString(),
-	};
 }

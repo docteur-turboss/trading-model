@@ -1,6 +1,4 @@
 import { logger } from "@trading-model/common/config/logger";
-import { isTerminalStatus } from "@trading-model/common/contracts/recovery.types";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { ReAllocator } from "../recovery/re-allocator";
@@ -10,6 +8,7 @@ import { NullWorkerProtocol, type IWorkerProtocol } from "../worker/worker-proto
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
+import { AckTimeoutHandler } from "./ack-timeout-handler";
 
 export interface JobDispatcherDeps {
 	queue: InternalQueue;
@@ -23,8 +22,7 @@ export class JobDispatcher {
 	private readonly _queue: InternalQueue;
 	private readonly _backPressure: BackPressure;
 	private readonly _workers: WorkerRegistry;
-	private readonly _repository: JobRepository;
-	private readonly _reAllocator: ReAllocator;
+	private readonly _ackTimeoutHandler: AckTimeoutHandler;
 	private readonly _onAckTimeout: (jobId: string) => void;
 	private _workerProtocol: IWorkerProtocol = new NullWorkerProtocol();
 
@@ -32,9 +30,13 @@ export class JobDispatcher {
 		this._queue = deps.queue;
 		this._backPressure = deps.backPressure;
 		this._workers = deps.workers;
-		this._repository = deps.repository;
-		this._reAllocator = deps.reAllocator;
-		this._onAckTimeout = (jobId) => this._handleAckTimeout(jobId);
+		this._ackTimeoutHandler = new AckTimeoutHandler(
+			deps.repository,
+			deps.workers,
+			deps.backPressure,
+			deps.reAllocator,
+		);
+		this._onAckTimeout = (jobId) => this._ackTimeoutHandler.onTimeout(jobId);
 	}
 
 	setWorkerProtocol(protocol: IWorkerProtocol): void {
@@ -56,7 +58,7 @@ export class JobDispatcher {
 		this._queue.markDelivered(assignedJob.id, this._onAckTimeout);
 		this._sendAssignment(worker.workerId, assignedJob, deadline);
 		this._incrementWorkerLoad(worker);
-		this._persistAssignment(assignedJob.id, worker.workerId, deadline);
+		this._ackTimeoutHandler.persistAssignment(assignedJob.id, worker.workerId, deadline);
 
 		logger.info("Job assigned to worker", {
 			context: {
@@ -119,70 +121,4 @@ export class JobDispatcher {
 			worker.currentLoad / worker.maxConcurrency
 		);
 	}
-
-	private _persistAssignment(
-		jobId: string,
-		assignedWorkerId: string,
-		deadline: number
-	): void {
-		this._repository
-			.updateStatus(jobId, "assigned", {
-				assignedWorkerId: toInstanceId(assignedWorkerId),
-				ackDeadline: deadline,
-			})
-			.catch((err) => {
-				_logPersistError(jobId, err);
-			});
-	}
-
-	private _handleAckTimeout(jobId: string): void {
-		logger.warn("ACK timeout for job", { context: { jobId } });
-
-		this._repository
-			.findById(jobId)
-			.then((job) => _onAckTimeoutJobFound(job, jobId, this))
-			.catch((err) => {
-				_logFindJobError(jobId, err);
-			});
-	}
-}
-
-function _logFindJobError(jobId: string, err: unknown): void {
-	logger.error("Failed to find job on ACK timeout", {
-		context: {
-			jobId,
-			error: String(err),
-		},
-	});
-}
-
-function _logPersistError(jobId: string, err: unknown): void {
-	logger.error("Failed to persist assigned status", {
-		context: {
-			jobId,
-			error: String(err),
-		},
-	});
-}
-
-function _onAckTimeoutJobFound(
-	job: import("../types/job.types").Job | null,
-	jobId: string,
-	self: JobDispatcher
-): void {
-	if (!job || isTerminalStatus(job.status)) {
-		return;
-	}
-
-	self.decrementWorkerLoad(job.assignedWorkerId);
-
-	self._repository
-		.updateStatus(jobId, "orphaned")
-		.then(() => self._reAllocator.reallocate(job))
-		.catch((err) => {
-			logger.error("Failed to persist orphaned status on ACK timeout", {
-				jobId,
-				error: String(err),
-			});
-		});
 }

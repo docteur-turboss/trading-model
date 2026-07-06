@@ -1,18 +1,16 @@
-import { randomUUID } from "node:crypto";
-
 import { logger } from "@trading-model/common/config/logger";
-import type { JobId } from "@trading-model/common/domain/primitives";
-import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
 import { ReAllocator } from "../recovery/re-allocator";
-import { JOB_STATUS, type Job, JobPriority, type JobStatus } from "../types/job.types";
+import { JobPriority, type Job, type JobStatus } from "../types/job.types";
 import { NullWorkerProtocol, type IWorkerProtocol } from "../worker/worker-protocol";
 import { WorkerRegistry } from "../worker/worker-registry";
 import { BackPressure } from "./back-pressure";
 import { InternalQueue } from "./internal-queue";
 import { JobAssignmentManager } from "./job-assignment-manager";
 import { JobFailureHandler } from "./job-failure-handler";
+import { JobLifecycle } from "./job-lifecycle";
+import { ENV } from "../config/env";
 
 function _createInternalQueue(): InternalQueue {
 	return new InternalQueue(ENV.ACK_TIMEOUT_MS);
@@ -120,6 +118,7 @@ export class JobScheduler {
 	readonly repository: JobRepository;
 	readonly reAllocator: ReAllocator;
 	readonly orphanDetector: OrphanDetector;
+	private readonly _lifecycle: JobLifecycle;
 	private readonly _assignmentManager: JobAssignmentManager;
 	private readonly _failureHandler: JobFailureHandler;
 	private _workerProtocol: IWorkerProtocol = new NullWorkerProtocol();
@@ -142,6 +141,13 @@ export class JobScheduler {
 			this.reAllocator,
 			this._assignmentManager
 		);
+		this._lifecycle = new JobLifecycle(
+			this.queue,
+			this.backPressure,
+			repository,
+			this._assignmentManager,
+			this._failureHandler,
+		);
 		this.orphanDetector = _createOrphanDetector(
 			this.workers,
 			repository,
@@ -160,102 +166,23 @@ export class JobScheduler {
 		priority: JobPriority = JobPriority.MEDIUM,
 		maxRetries: number = ENV.MAX_RETRIES_PER_JOB
 	): Promise<string> {
-		if (!this.backPressure.canAccept()) {
-			logger.warn("Back pressure active — rejecting job submission");
-			throw Object.assign(new Error("Job scheduler at capacity"), {
-				code: "BACK_PRESSURE",
-				retryAfter: this.backPressure.retryAfterSeconds(),
-			});
-		}
-
-		const jobId = randomUUID();
-		const now = new Date();
-
-		const job: Job = {
-			id: jobId as JobId,
-			type,
-			payload,
-			priority,
-			status: "pending",
-			ackDeadline: 0,
-			maxRetries,
-			retryCount: 0,
-			createdAt: now,
-			history: [],
-		};
-
-		await this.repository.insert(job);
-		this._enqueueJob(job);
-
-		logger.info("Job submitted", { context: { jobId, type, priority } });
-		return jobId;
-	}
-
-	private _enqueueJob(job: Job): void {
-		const updated: Job = { ...job, status: "queued" };
-		this.queue.enqueue(updated);
-		this.backPressure.updateQueueDepth(this.queue.depth());
-		this.repository.updateStatus(job.id, "queued").catch((err) => {
-			logger.error("Failed to persist queued status", {
-				context: {
-					jobId: job.id,
-					error: String(err),
-				},
-			});
-		});
-		this._assignmentManager.distributeNext();
+		return this._lifecycle.submit(type, payload, priority, maxRetries);
 	}
 
 	async ack(jobId: string): Promise<void> {
-		this.queue.ack(jobId);
-		await this.repository.updateStatus(jobId, "running");
-
-		logger.info("Job acknowledged by worker", { context: { jobId } });
+		return this._lifecycle.ack(jobId);
 	}
 
 	async complete(jobId: string, result: unknown): Promise<void> {
-		this.queue.ack(jobId);
-		await this.repository.updateStatus(jobId, "completed", { result });
-
-		const job = await this.repository.findById(jobId);
-		this._assignmentManager.decrementWorkerLoad(job?.assignedWorkerId);
-
-		logger.info("Job completed", { context: { jobId } });
-		this._assignmentManager.distributeNext();
+		return this._lifecycle.complete(jobId, result);
 	}
 
 	async fail(jobId: string, error: string): Promise<void> {
-		this.queue.ack(jobId);
-
-		const job = await this.repository.findById(jobId);
-		if (!job) {
-			return;
-		}
-
-		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-
-		if (job.retryCount >= job.maxRetries) {
-			await this._failureHandler.handlePermanentFailure(jobId, error);
-		} else {
-			await this._failureHandler.handleRetryableFailure(jobId, job, error);
-		}
+		return this._lifecycle.fail(jobId, error);
 	}
 
 	async cancel(jobId: string): Promise<void> {
-		const job = await this.repository.findById(jobId);
-		if (!job) {
-			return;
-		}
-
-		if (job.status === JOB_STATUS.RUNNING || job.status === JOB_STATUS.COMPLETED) {
-			throw new Error("Cannot cancel a running or completed job");
-		}
-
-		this.queue.ack(jobId);
-		await this.repository.updateStatus(jobId, JOB_STATUS.CANCELLED);
-		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-
-		logger.info("Job cancelled", { context: { jobId } });
+		return this._lifecycle.cancel(jobId);
 	}
 
 	onWorkerDisconnect(workerId: string): void {
