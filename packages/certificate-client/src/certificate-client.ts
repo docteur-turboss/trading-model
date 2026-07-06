@@ -125,6 +125,14 @@ export class CertificateClient {
 		return this._requiredCert;
 	}
 
+	async signCertificate(request: SignCertificateRequest): Promise<import("@trading-model/common/ca/ca-client").SignCertificateResponse> {
+		return this._caClient.signCertificate(request);
+	}
+
+	async getCertificate(serviceId: ServiceId): Promise<import("@trading-model/common/ca/ca-client").GetCertificateResponse | null> {
+		return this._caClient.getCertificate(serviceId);
+	}
+
 	startAutoRenew(): void {
 		if (this._obtainedCert) {
 			this._renewScheduler.scheduleRenew(this._obtainedCert);
