@@ -57,6 +57,14 @@
       "types": "./dist/crl/*.d.ts",
       "default": "./dist/crl/*.js"
     },
+    "./http-headers": {
+      "types": "./dist/http-headers.d.ts",
+      "default": "./dist/http-headers.js"
+    },
+    "./http-status": {
+      "types": "./dist/http-status.d.ts",
+      "default": "./dist/http-status.js"
+    },
     "./crypto/*": {
       "types": "./dist/crypto/*.d.ts",
       "default": "./dist/crypto/*.js"
