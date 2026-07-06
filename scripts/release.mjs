@@ -145,12 +145,16 @@ function formatChangelogLine(c) {
 
 function parseArgs() {
   const args = { dryRun: false, bump: null, version: null, publish: false };
-  for (let i = 2; i < process.argv.length; i++) {
-    const arg = process.argv[i];
-    if (arg === '--dry-run') args.dryRun = true;
-    else if (arg === '--bump') args.bump = process.argv[++i] || null;
-    else if (arg === '--version') args.version = process.argv[++i] || null;
-    else if (arg === '--publish') args.publish = true;
+  const argv = process.argv.slice(2);
+  const BOOLEAN_FLAGS = { '--dry-run': 'dryRun', '--publish': 'publish' };
+  const VALUE_FLAGS = { '--bump': 'bump', '--version': 'version' };
+  for (let i = 0; i < argv.length; i++) {
+    const flag = argv[i];
+    if (flag in VALUE_FLAGS) {
+      args[VALUE_FLAGS[flag]] = argv[++i] || null;
+    } else if (flag in BOOLEAN_FLAGS) {
+      args[BOOLEAN_FLAGS[flag]] = true;
+    }
   }
   if (args.bump && !['major', 'minor', 'patch'].includes(args.bump)) {
     console.error(`  Invalid bump type: "${args.bump}". Use major, minor, or patch.`);

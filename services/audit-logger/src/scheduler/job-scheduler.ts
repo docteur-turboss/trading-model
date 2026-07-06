@@ -245,15 +245,33 @@ export class JobScheduler {
 	private async _recoverJobs(
 		nonTerminal: import("../types/job.types").Job[]
 	): Promise<void> {
-		for (const job of nonTerminal) {
-			if (job.status === "queued" || job.status === "pending") {
+		const STATUS_HANDLERS: Partial<
+			Record<
+				import("../types/job.types").JobStatus,
+				(job: import("../types/job.types").Job) => Promise<void>
+			>
+		> = {
+			pending: async (job) => {
 				this.queue.enqueue({ ...job, status: "queued" });
-			} else if (job.status === "assigned" || job.status === "running") {
+			},
+			queued: async (job) => {
+				this.queue.enqueue({ ...job, status: "queued" });
+			},
+			assigned: async (job) => {
 				await this.repository.updateStatus(job.id, "orphaned");
 				await this.reAllocator.reallocate(job);
-			} else if (job.status === "orphaned") {
+			},
+			running: async (job) => {
+				await this.repository.updateStatus(job.id, "orphaned");
 				await this.reAllocator.reallocate(job);
-			}
+			},
+			orphaned: async (job) => {
+				await this.reAllocator.reallocate(job);
+			},
+		};
+
+		for (const job of nonTerminal) {
+			await STATUS_HANDLERS[job.status]?.(job);
 		}
 	}
 }

@@ -34,36 +34,26 @@ const EMPTY_DATA_MAP: Record<string, unknown> = {
 	},
 };
 
+const URL_MOCK_ROUTES: [string, unknown][] = [
+	["/discovery/registry", EMPTY_DATA_MAP.services],
+	["/discovery/config", EMPTY_DATA_MAP.config],
+	["/discovery/stats", EMPTY_DATA_MAP.stats],
+	["/jobs/workers", EMPTY_DATA_MAP.workers],
+	["/jobs", EMPTY_DATA_MAP.jobs],
+	["/gateway/cache", EMPTY_DATA_MAP.cache],
+	["/messages/dlq", EMPTY_DATA_MAP.dlq],
+	["/scraper/candles", EMPTY_DATA_MAP.candles],
+	["/trainer/results", EMPTY_DATA_MAP.training],
+	["/ca/certificates", EMPTY_DATA_MAP.certificates],
+	["/audit/events", EMPTY_DATA_MAP.audit],
+];
+
 beforeAll(() => {
 	globalThis.fetch = vi.fn().mockImplementation((url: string) => {
-		let data: unknown = {};
-		if (url.includes("/discovery/registry")) {
-			data = EMPTY_DATA_MAP.services;
-		} else if (url.includes("/discovery/config")) {
-			data = EMPTY_DATA_MAP.config;
-		} else if (url.includes("/discovery/stats")) {
-			data = EMPTY_DATA_MAP.stats;
-		} else if (url.includes("/jobs/workers")) {
-			data = EMPTY_DATA_MAP.workers;
-		} else if (url.includes("/jobs")) {
-			data = EMPTY_DATA_MAP.jobs;
-		} else if (url.includes("/gateway/cache")) {
-			data = EMPTY_DATA_MAP.cache;
-		} else if (url.includes("/messages/dlq")) {
-			data = EMPTY_DATA_MAP.dlq;
-		} else if (url.includes("/scraper/candles")) {
-			data = EMPTY_DATA_MAP.candles;
-		} else if (url.includes("/trainer/results")) {
-			data = EMPTY_DATA_MAP.training;
-		} else if (url.includes("/ca/certificates")) {
-			data = EMPTY_DATA_MAP.certificates;
-		} else if (url.includes("/audit/events")) {
-			data = EMPTY_DATA_MAP.audit;
-		}
-
+		const route = URL_MOCK_ROUTES.find(([key]) => url.includes(key));
 		return Promise.resolve({
 			ok: true,
-			json: () => Promise.resolve(data),
+			json: () => Promise.resolve(route?.[1] ?? {}),
 		});
 	});
 });
