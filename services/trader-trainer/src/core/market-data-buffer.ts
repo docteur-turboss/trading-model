@@ -1,24 +1,15 @@
-import {
-	type BookTickerData,
-	type CandleData,
-	type OrderBookData,
-	type TickerData,
-	type TradeData,
-} from "@trading-model/common/config/event.types";
-
 import type { MarketStep } from "./genetic-algorithm/genome-types";
 import { Price } from "@trading-model/common/domain/primitives";
-import {
-	type SymbolState,
-	type TradingSymbol,
+import type {
+	SymbolState,
+	TradingSymbol,
 } from "./market-data-types";
-import { MemoryManager } from "./market-data/memory-manager";
-import { NormalizationManager } from "./normalization-manager";
 import {
 	WindowSplitter,
 	MIN_TRAINING_STEPS,
 	DEFAULT_VALIDATION_SPLIT,
 } from "./market-data/window-splitter";
+import { SymbolStateManager } from "./symbol-state-manager";
 
 export { MIN_TRAINING_STEPS, DEFAULT_VALIDATION_SPLIT };
 
@@ -28,151 +19,75 @@ export interface MarketDataBufferConfig {
 	evictionPolicy?: "LRU" | "none";
 }
 
-/** In-memory ring buffer of market data per symbol with online feature extraction. */
 export class MarketDataBuffer {
-	private _states: Map<TradingSymbol, SymbolState> = new Map();
-	private _accessOrder: TradingSymbol[] = [];
+	private readonly _stateManager: SymbolStateManager;
 	private _priceSnapshot: Record<TradingSymbol, Price> = {} as Record<TradingSymbol, Price>;
-	private _memoryManager: MemoryManager;
-	private _windowSplitter: WindowSplitter;
-	private _normManager: NormalizationManager;
+	private readonly _windowSplitter: WindowSplitter;
 
 	constructor(config: MarketDataBufferConfig = {}) {
-		this._memoryManager = this._createMemoryManager(config);
+		this._stateManager = new SymbolStateManager(
+			config.maxSize ?? 10000,
+			(config.maxMemoryMb ?? 512) * 1024 * 1024,
+			config.evictionPolicy ?? "none",
+		);
 		this._windowSplitter = new WindowSplitter(
-			this._states,
+			this._stateManager.states,
 			this._priceSnapshot,
 		);
-		this._normManager = new NormalizationManager();
-	}
-
-	private _createMemoryManager(config: MarketDataBufferConfig): MemoryManager {
-		return new MemoryManager({
-			states: this._states,
-			accessOrder: this._accessOrder,
-			maxSize: config.maxSize ?? 10000,
-			maxMemoryBytes: (config.maxMemoryMb ?? 512) * 1024 * 1024,
-			evictionPolicy: config.evictionPolicy ?? "none",
-		});
 	}
 
 	getMaxSize(): number {
-		return this._memoryManager.getMaxSize();
+		return this._stateManager.getMaxSize();
 	}
 
-	private _getOrCreate(symbol: TradingSymbol): SymbolState {
-		let state = this._states.get(symbol);
-		if (!state) {
-			state = this._createSymbolState();
-			this._states.set(symbol, state);
-		}
-		this._memoryManager.recordAccess(symbol);
-		return state;
+	addCandles(symbol: TradingSymbol, candles: import("@trading-model/common/config/event.types").CandleData[]): void {
+		this._stateManager.addCandles(symbol, candles);
 	}
 
-	private _createSymbolState(): SymbolState {
-		return {
-			candles: [],
-			trades: [],
-			orderBook: null,
-			bookTicker: null,
-			ticker24h: null,
-			norm: this._normManager.createNormStats(),
-		};
+	addTrades(symbol: TradingSymbol, trades: import("@trading-model/common/config/event.types").TradeData[]): void {
+		this._stateManager.addTrades(symbol, trades);
 	}
 
-	private _getState(symbol: TradingSymbol): SymbolState {
-		return this._getOrCreate(symbol);
+	setOrderBook(symbol: TradingSymbol, orderBook: import("@trading-model/common/config/event.types").OrderBookData): void {
+		this._stateManager.setOrderBook(symbol, orderBook);
 	}
 
-	/** Append candlesticks and update running normalisers for price/volume features. */
-	addCandles(symbol: TradingSymbol, candles: CandleData[]): void {
-		const state = this._getState(symbol);
-		for (const candle of candles) {
-			state.candles.push(candle);
-			this._normManager.updateCandleNorms(state, candle);
-		}
-		state.candles = this._trimExcess(state.candles, this._memoryManager.getMaxSize());
-		this._memoryManager.enforceMemoryLimit();
+	setBookTicker(symbol: TradingSymbol, bt: import("@trading-model/common/config/event.types").BookTickerData): void {
+		this._stateManager.setBookTicker(symbol, bt);
 	}
 
-	/** Append recent trades and update price/quantity normalisers. */
-	addTrades(symbol: TradingSymbol, trades: TradeData[]): void {
-		const state = this._getState(symbol);
-		for (const trade of trades) {
-			state.trades.push(trade);
-			this._normManager.updateTradeNorms(state, trade);
-		}
-		state.trades = this._trimExcess(state.trades, this._memoryManager.getMaxSize());
-		this._memoryManager.enforceMemoryLimit();
+	setTicker24h(symbol: TradingSymbol, ticker: import("@trading-model/common/config/event.types").TickerData): void {
+		this._stateManager.setTicker24h(symbol, ticker);
 	}
 
-	/** Store an order-book snapshot and update bid/ask/spread normalisers. */
-	setOrderBook(symbol: TradingSymbol, orderBook: OrderBookData): void {
-		const state = this._getState(symbol);
-		state.orderBook = orderBook;
-		this._normManager.updateOrderBookNorms(state, orderBook);
-		this._memoryManager.enforceMemoryLimit();
-	}
-
-	/** Store a book-ticker snapshot and update bid/ask/spread normalisers. */
-	setBookTicker(symbol: TradingSymbol, bt: BookTickerData): void {
-		const state = this._getState(symbol);
-		state.bookTicker = bt;
-		this._normManager.updateBookTickerNorms(state, bt);
-		this._memoryManager.enforceMemoryLimit();
-	}
-
-	/** Store a 24-hour ticker and update volume normaliser. */
-	setTicker24h(symbol: TradingSymbol, ticker: TickerData): void {
-		const state = this._getState(symbol);
-		state.ticker24h = ticker;
-		this._normManager.updateTicker24hNorms(state, ticker);
-		this._memoryManager.enforceMemoryLimit();
-	}
-
-	private _trimExcess<T>(arr: T[], maxSize: number): T[] {
-		return arr.length > maxSize ? arr.slice(-maxSize) : arr;
-	}
-
-	/** Merge a snapshot of latest prices into the internal price map. */
 	setPriceSnapshot(prices: Record<TradingSymbol, Price>): void {
 		this._priceSnapshot = { ...this._priceSnapshot, ...prices };
 	}
 
-	/** Return a copy of the current price snapshot. */
 	getPriceSnapshot(): Record<TradingSymbol, Price> {
 		return { ...this._priceSnapshot };
 	}
 
 	getSymbols(): TradingSymbol[] {
-		return Array.from(this._states.keys());
+		return this._stateManager.getSymbols();
 	}
 
-	/** Return a shallow copy of the state for a symbol, or undefined. */
 	getSymbolState(symbol: TradingSymbol): SymbolState | undefined {
-		const state = this._states.get(symbol);
-		if (!state) {
-			return;
-		}
-		return { ...state };
+		return this._stateManager.getSymbolState(symbol);
 	}
 
-	/** Restore a full symbol state from a previously saved snapshot. */
 	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
-		this._states.set(symbol, state);
+		this._stateManager.restoreSymbolState(symbol, state);
 	}
 
 	getCandleCount(symbol: TradingSymbol): number {
-		return this._states.get(symbol)?.candles.length ?? 0;
+		return this._stateManager.getCandleCount(symbol);
 	}
 
-	/** Builds a feature vector for each candle step (N candles → N-1 steps). */
 	buildMarketSteps(symbol: TradingSymbol): MarketStep[] {
 		return this._windowSplitter.buildMarketSteps(symbol);
 	}
 
-	/** Splits market steps into train/validation sets by a given ratio. */
 	splitTrainValidation(
 		steps: MarketStep[],
 		validationSplit: number,
@@ -180,7 +95,6 @@ export class MarketDataBuffer {
 		return this._windowSplitter.splitTrainValidation(steps, validationSplit);
 	}
 
-	/** Build a train/validation split from all available market steps, or null if insufficient data. */
 	getAllWindows(
 		symbol: TradingSymbol,
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT,

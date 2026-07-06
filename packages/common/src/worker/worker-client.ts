@@ -4,6 +4,7 @@ import WebSocket from "ws";
 
 import type {
 	SchedulerOutgoingMessage,
+	SchedulerWsJobAssignedMessage,
 	WorkerIncomingMessage,
 	WorkerWsHeartbeatMessage,
 	WorkerWsRegisterMessage,

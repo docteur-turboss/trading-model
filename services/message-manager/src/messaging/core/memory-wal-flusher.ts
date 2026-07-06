@@ -1,17 +1,19 @@
 import { ENV } from "../../config/env";
-import { logger } from "../../config/logger";
 import { WalBatchFlusher } from "./wal-batch-flusher";
 import { RedisBackoff } from "./redis-backoff";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { FlushGuard } from "./flush-guard";
+import { FlushFailureHandler } from "./flush-failure-handler";
 import type { MemoryWalEntry } from "./memory-wal-entry";
 
 const WAL_BATCH_SIZE = 50;
 
 export class MemoryWalFlusher {
-	private _flushing = false;
 	private readonly _flusherTimer = new TimerHandle();
 	private readonly _redisBackoff = new RedisBackoff();
 	private readonly _walBatchFlusher: WalBatchFlusher;
+	private readonly _flushGuard: FlushGuard;
+	private readonly _flushFailureHandler: FlushFailureHandler;
 
 	constructor(private readonly _prefix: string) {
 		this._walBatchFlusher = new WalBatchFlusher(
@@ -19,6 +21,8 @@ export class MemoryWalFlusher {
 			ENV.REDIS_STREAM_MAXLEN,
 			ENV.REDIS_MESSAGE_TTL_S
 		);
+		this._flushGuard = new FlushGuard();
+		this._flushFailureHandler = new FlushFailureHandler();
 	}
 
 	start(buffer?: MemoryWalEntry[]): void {
@@ -41,15 +45,15 @@ export class MemoryWalFlusher {
 	}
 
 	get isFlushing(): boolean {
-		return this._flushing;
+		return this._flushGuard.isFlushing;
 	}
 
 	async flush(buffer: MemoryWalEntry[]): Promise<void> {
-		if (this._shouldSkipFlush(buffer)) {
+		if (this._flushGuard.shouldSkip(buffer, this._redisBackoff)) {
 			return;
 		}
 
-		this._flushing = true;
+		this._flushGuard.setFlushing(true);
 		try {
 			const batch = buffer.splice(0, WAL_BATCH_SIZE);
 			const serialized = batch.map((e) =>
@@ -61,59 +65,13 @@ export class MemoryWalFlusher {
 				this._redisBackoff.resetBackoff();
 				return;
 			}
-			await this._handleFlushFailure(batch, undefined, buffer);
+			await this._flushFailureHandler.handle(batch, this._redisBackoff, buffer);
 		} finally {
-			this._flushing = false;
+			this._flushGuard.setFlushing(false);
 		}
 	}
 
 	drainAll(buffer: MemoryWalEntry[]): Promise<void> {
 		return this.flush(buffer);
-	}
-
-	private _shouldSkipFlush(buffer: MemoryWalEntry[]): boolean {
-		if (this._flushing) {
-			return true;
-		}
-		if (this._redisBackoff.isInRetryWindow()) {
-			return true;
-		}
-		if (buffer.length === 0) {
-			this._redisBackoff.resetBackoff();
-			return true;
-		}
-		return false;
-	}
-
-	private async _handleFlushFailure(
-		batch: MemoryWalEntry[],
-		err?: Error,
-		buffer?: MemoryWalEntry[]
-	): Promise<void> {
-		this._redisBackoff.markDown();
-		this._redisBackoff.increaseBackoff();
-		if (err) {
-			logger.warn("Memory WAL flush failed — re-queuing batch", {
-				batchSize: batch.length,
-				backoff: this._redisBackoff.current,
-				error: err.message,
-			});
-		} else {
-			logger.warn("Memory WAL flush partial failure — re-queuing batch", {
-				batchSize: batch.length,
-				backoff: this._redisBackoff.current,
-			});
-		}
-		if (buffer) {
-			buffer.unshift(...batch);
-		}
-		await this._sleepWithJitter(this._redisBackoff.current);
-	}
-
-	private _sleepWithJitter(ms: number): Promise<void> {
-		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
-		return new Promise((resolve) =>
-			setTimeout(resolve, Math.max(1, Math.round(ms + jitter)))
-		);
 	}
 }
