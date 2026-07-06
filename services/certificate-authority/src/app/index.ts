@@ -41,9 +41,7 @@ createBootstrap({
 		rotator.start();
 	},
 	onStop: async () => {
-		await CONTAINER.certificateStore?.disconnect();
-		await CONTAINER.crlStore?.disconnect();
-		await CONTAINER.caStore?.disconnect();
+		await CONTAINER.disconnectAll();
 	},
 });
 
