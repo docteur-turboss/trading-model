@@ -436,7 +436,7 @@ describe("WorkerClient defaults and reconnection", () => {
 		const callbacks = getCallbacks(ws);
 
 		jest.clearAllMocks();
-		(client as any)._intentionalClose = true;
+		(client as any)._reconnector.markIntentionalClose();
 
 		callbacks.close();
 
@@ -464,7 +464,7 @@ describe("WorkerClient defaults and reconnection", () => {
 		jest.clearAllMocks();
 
 		callbacks.close();
-		(client as any).reconnectAttempt = 0;
+		(client as any)._reconnector._reconnectAttempt = 0;
 		jest.advanceTimersByTime(100);
 
 		const newWs = getWs();

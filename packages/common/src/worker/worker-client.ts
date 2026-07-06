@@ -3,8 +3,6 @@ import { EventEmitter } from "node:events";
 
 import WebSocket from "ws";
 
-import { logger } from "../config/logger";
-import type { IPAddress, Port } from "../domain/primitives";
 import type {
 	SchedulerOutgoingMessage,
 	SchedulerWsJobAssignedMessage,
@@ -12,7 +10,9 @@ import type {
 	WorkerWsHeartbeatMessage,
 	WorkerWsRegisterMessage,
 } from "../contracts/worker-protocol.types";
-import { normalizeError } from "../utils/errors";
+import type { IPAddress, Port } from "../domain/primitives";
+import { WorkerHeartbeat } from "./worker-heartbeat";
+import { WorkerReconnector } from "./worker-reconnector";
 
 export interface WorkerClientConfig {
 	workerId: string;
@@ -36,7 +36,7 @@ export interface WorkerClientEvents {
 }
 
 function normalizeConfig(
-	config: WorkerClientConfig
+	config: WorkerClientConfig,
 ): Required<WorkerClientConfig> {
 	return {
 		workerId: config.workerId,
@@ -52,7 +52,7 @@ function normalizeConfig(
 export class WorkerClient extends EventEmitter {
 	on<Event extends keyof WorkerClientEvents>(
 		event: Event,
-		listener: (...args: WorkerClientEvents[Event]) => void
+		listener: (...args: WorkerClientEvents[Event]) => void,
 	): this {
 		return super.on(event, listener as (...args: unknown[]) => void);
 	}
@@ -65,22 +65,31 @@ export class WorkerClient extends EventEmitter {
 	}
 
 	private _ws: WebSocket | null = null;
-	private _heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-	private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-	private _reconnectAttempt = 0;
-	private _currentLoad = 0;
-	private _intentionalClose = false;
 	private readonly _cfg: Required<WorkerClientConfig>;
+	private readonly _reconnector: WorkerReconnector;
+	private readonly _heartbeat: WorkerHeartbeat;
 
 	constructor(config: WorkerClientConfig) {
 		super();
 		this._cfg = normalizeConfig(config);
+		this._reconnector = new WorkerReconnector(
+			{
+				reconnectBaseDelayMs: this._cfg.reconnectBaseDelayMs,
+				reconnectMaxDelayMs: this._cfg.reconnectMaxDelayMs,
+			},
+			() => this._doConnect(),
+			(info) => this.emit("reconnecting", info),
+		);
+		this._heartbeat = new WorkerHeartbeat(
+			this._cfg.workerId,
+			(msg: WorkerWsHeartbeatMessage) => this.send(msg),
+			this._cfg.heartbeatIntervalMs,
+		);
 		this._messageHandlers = this._setupMessageHandlers();
 	}
 
 	async connect(): Promise<void> {
-		this._intentionalClose = false;
-		this._reconnectAttempt = 0;
+		this._reconnector.reset();
 		return await this._doConnect();
 	}
 
@@ -96,9 +105,8 @@ export class WorkerClient extends EventEmitter {
 	}
 
 	private _onOpen(resolve: () => void): void {
-		this._reconnectAttempt = 0;
 		this._sendRegister();
-		this._startHeartbeat();
+		this._heartbeat.start();
 		this.emit("connected");
 		resolve();
 	}
@@ -113,17 +121,17 @@ export class WorkerClient extends EventEmitter {
 	}
 
 	private _onClose(): void {
-		this._stopHeartbeat();
+		this._heartbeat.stop();
 		this._ws = null;
 		this.emit("disconnected");
-		if (!this._intentionalClose) {
-			this._scheduleReconnect();
+		if (!this._reconnector.intentionalClose) {
+			this._reconnector.scheduleReconnect();
 		}
 	}
 
 	private _onError(err: Error, reject: (reason: unknown) => void): void {
 		this.emit("error", err);
-		if (this._reconnectAttempt === 0) {
+		if (this._reconnector.reconnectAttempt === 0) {
 			reject(err);
 		}
 	}
@@ -141,13 +149,7 @@ export class WorkerClient extends EventEmitter {
 	}
 
 	sendHeartbeat(currentLoad: number): void {
-		this._currentLoad = currentLoad;
-		const msg: WorkerWsHeartbeatMessage = {
-			type: "heartbeat",
-			workerId: this._cfg.workerId,
-			currentLoad,
-		};
-		this.send(msg);
+		this._heartbeat.sendHeartbeat(currentLoad);
 	}
 
 	private readonly _messageHandlers: Partial<
@@ -167,7 +169,7 @@ export class WorkerClient extends EventEmitter {
 			"job.assigned": (msg) =>
 				this.emit(
 					"job.assigned",
-					(msg as unknown as SchedulerWsJobAssignedMessage).job
+					(msg as unknown as SchedulerWsJobAssignedMessage).job,
 				),
 			"heartbeat.ack": () => this.emit("heartbeat.ack"),
 			drain: () => this.emit("drain"),
@@ -184,44 +186,6 @@ export class WorkerClient extends EventEmitter {
 		}
 	}
 
-	private _startHeartbeat(): void {
-		this._heartbeatTimer = setInterval(() => {
-			this.sendHeartbeat(this._currentLoad);
-		}, this._cfg.heartbeatIntervalMs);
-	}
-
-	private _stopHeartbeat(): void {
-		if (this._heartbeatTimer) {
-			clearInterval(this._heartbeatTimer);
-			this._heartbeatTimer = null;
-		}
-	}
-
-	private _computeReconnectDelay(): number {
-		return Math.min(
-			this._cfg.reconnectBaseDelayMs * 2 ** this._reconnectAttempt,
-			this._cfg.reconnectMaxDelayMs,
-		);
-	}
-
-	private _scheduleReconnect(): void {
-		const delay = this._computeReconnectDelay();
-		this._reconnectAttempt++;
-		this.emit("reconnecting", { attempt: this._reconnectAttempt, delay });
-		this._reconnectTimer = setTimeout(
-			() => this._doReconnect(),
-			delay,
-		);
-	}
-
-	private _doReconnect(): void {
-		this._doConnect().catch((err) =>
-			logger.warn("Failed to reconnect worker client", {
-				context: { attempt: this._reconnectAttempt, err: normalizeError(err) },
-			}),
-		);
-	}
-
 	send(data: SchedulerOutgoingMessage | WorkerIncomingMessage): void {
 		if (this._ws && this._ws.readyState === WebSocket.OPEN) {
 			this._ws.send(JSON.stringify(data));
@@ -229,12 +193,9 @@ export class WorkerClient extends EventEmitter {
 	}
 
 	disconnect(): void {
-		this._intentionalClose = true;
-		if (this._reconnectTimer) {
-			clearTimeout(this._reconnectTimer);
-			this._reconnectTimer = null;
-		}
-		this._stopHeartbeat();
+		this._reconnector.markIntentionalClose();
+		this._reconnector.cancel();
+		this._heartbeat.stop();
 		if (this._ws) {
 			this._ws.close();
 			this._ws = null;

@@ -320,37 +320,26 @@ const RICH_DATA = {
 };
 
 function mockFetch(extraJobs?: boolean) {
-	return vi.fn().mockImplementation((url: string) => {
-		let data: unknown = {};
-		if (url.includes("/discovery/registry")) {
-			data = RICH_DATA.services;
-		} else if (url.includes("/discovery/config")) {
-			data = RICH_DATA.config;
-		} else if (url.includes("/discovery/stats")) {
-			data = RICH_DATA.stats;
-		} else if (url.includes("/jobs/workers")) {
-			data = RICH_DATA.workers;
-		} else if (url.includes("/jobs/") && extraJobs) {
-			data = RICH_DATA.jobDetail;
-		} else if (url.includes("/jobs")) {
-			data = RICH_DATA.jobs;
-		} else if (url.includes("/gateway/cache")) {
-			data = RICH_DATA.cache;
-		} else if (url.includes("/messages/dlq")) {
-			data = RICH_DATA.dlq;
-		} else if (url.includes("/scraper/candles")) {
-			data = RICH_DATA.candles;
-		} else if (url.includes("/trainer/results")) {
-			data = RICH_DATA.training;
-		} else if (url.includes("/ca/certificates")) {
-			data = RICH_DATA.certificates;
-		} else if (url.includes("/audit/events")) {
-			data = RICH_DATA.audit;
-		}
+	const routes: [string, unknown][] = [
+		...(extraJobs ? [["/jobs/", RICH_DATA.jobDetail] as [string, unknown]] : []),
+		["/discovery/registry", RICH_DATA.services],
+		["/discovery/config", RICH_DATA.config],
+		["/discovery/stats", RICH_DATA.stats],
+		["/jobs/workers", RICH_DATA.workers],
+		["/jobs", RICH_DATA.jobs],
+		["/gateway/cache", RICH_DATA.cache],
+		["/messages/dlq", RICH_DATA.dlq],
+		["/scraper/candles", RICH_DATA.candles],
+		["/trainer/results", RICH_DATA.training],
+		["/ca/certificates", RICH_DATA.certificates],
+		["/audit/events", RICH_DATA.audit],
+	];
 
+	return vi.fn().mockImplementation((url: string) => {
+		const route = routes.find(([key]) => url.includes(key));
 		return Promise.resolve({
 			ok: true,
-			json: () => Promise.resolve(data),
+			json: () => Promise.resolve(route?.[1] ?? {}),
 		});
 	});
 }

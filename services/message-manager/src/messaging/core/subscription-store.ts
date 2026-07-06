@@ -4,6 +4,7 @@ import {
 	InstanceLifecycleManager,
 	LEASE_HEARTBEAT_FIELD,
 } from "./instance-lifecycle-manager";
+import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 import {
 	SubscriptionEntry,
 	SubscriptionRedisStore,
@@ -25,7 +26,7 @@ export class SubscriptionStore {
 	add(
 		topic: string,
 		callbackPath: string,
-		serviceIdentity: import("@trading-model/common/contracts/message.types").ServiceIdentity
+		serviceIdentity: ServiceIdentity
 	): Promise<void> {
 		return this._redisStore.add(topic, callbackPath, serviceIdentity);
 	}
