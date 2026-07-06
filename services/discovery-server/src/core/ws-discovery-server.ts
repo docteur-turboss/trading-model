@@ -83,7 +83,7 @@ export class WsDiscoveryServer {
 	private _handleSubscribe(
 		clientId: string,
 		client: ConnectedClient,
-		message: { type: "subscribe"; payload?: { services?: string[] } }
+		message: DiscoveryWsSubscribeMessage
 	): void {
 		const services = message.payload?.services;
 		if (Array.isArray(services)) {
@@ -101,7 +101,7 @@ export class WsDiscoveryServer {
 
 	private _handleHeartbeat(
 		client: ConnectedClient,
-		message: { type: "heartbeat"; payload?: { serviceName?: string; instanceId?: string } }
+		message: DiscoveryWsHeartbeatMessage
 	): void {
 		if (message.payload?.serviceName) {
 			client.serviceName = message.payload.serviceName;
