@@ -175,16 +175,21 @@ function _runEvalEpisode(
 		if (index % horizon.frameSkip !== 0) {
 			continue;
 		}
-
-		const stepReward = _stepAndShapeReward(backend, validationData[index], rShape, runStats);
-		epReward += stepReward;
+		epReward += _stepAndShapeReward(backend, validationData[index], rShape, runStats);
 	}
 
+	return _finalizeEpisodeReward(backend, rShape, epReward);
+}
+
+function _finalizeEpisodeReward(
+	backend: RLBackend,
+	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>,
+	epReward: number
+): number {
 	if (rShape.sparse) {
 		epReward = backend.getPnL();
 	}
 	backend.resetEpisode();
-
 	return epReward;
 }
 
@@ -362,6 +367,38 @@ interface ComputeAllResultsContext {
 	t0: number;
 }
 
+function _computeAdjustedFitnessForGenome(
+	genome: DeepReadonly<LamarckGenome>,
+	currentGenome: DeepReadonly<LamarckGenome>,
+	allRaw: number[]
+): number {
+	const complexity = estimateComplexity(currentGenome);
+	const fitness = computeFitness(genome.gaControl.fitnessType, allRaw);
+	return computeAdjustedFitness(fitness, complexity, 0.15);
+}
+
+function _buildFitnessMeta(
+	allRaw: number[],
+	adjFitness: number,
+	t0: number
+): GenomeFitnessMeta {
+	return {
+		episodesRun: allRaw.length,
+		computeMs: Date.now() - t0,
+		efficiencyScore: adjFitness,
+		variance: computeVariance(allRaw),
+		rawScores: allRaw,
+	};
+}
+
+function _buildObjectives(allPnL: number[], allRaw: number[], complexity: import("./complexity-estimator").ComplexityProfile): { avgPnl: number; sharpe: number; negFlops: number } {
+	return {
+		avgPnl: allPnL.reduce((sum, value) => sum + value, 0) / allPnL.length,
+		sharpe: computeSharpe(allRaw),
+		negFlops: -complexity.inferenceFLOPs,
+	};
+}
+
 function _computeAllResults(
 	ctx: ComputeAllResultsContext
 ): {
@@ -371,24 +408,12 @@ function _computeAllResults(
 } {
 	const { genome, currentGenome, allRaw, allPnL, t0 } = ctx;
 	const complexity = estimateComplexity(currentGenome);
-	const Lambda = 0.15;
-	const fitness = computeFitness(genome.gaControl.fitnessType, allRaw);
-	const adjFitness = computeAdjustedFitness(fitness, complexity, Lambda);
-
-	const avgPnL = allPnL.reduce((sum, value) => sum + value, 0) / allPnL.length;
-	const sharpe = computeSharpe(allRaw);
-	const negFlops = -complexity.inferenceFLOPs;
+	const adjFitness = _computeAdjustedFitnessForGenome(genome, currentGenome, allRaw);
 
 	return {
 		updatedGenome: currentGenome,
-		meta: {
-			episodesRun: allRaw.length,
-			computeMs: Date.now() - t0,
-			efficiencyScore: adjFitness,
-			variance: computeVariance(allRaw),
-			rawScores: allRaw,
-		},
-		objectives: { avgPnl: avgPnL, sharpe, negFlops },
+		meta: _buildFitnessMeta(allRaw, adjFitness, t0),
+		objectives: _buildObjectives(allPnL, allRaw, complexity),
 	};
 }
 

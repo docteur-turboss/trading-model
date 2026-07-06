@@ -53,35 +53,53 @@ export class ReplayOrchestrator {
 	/** Record the result of a batch replay. */
 	recordResult(success: boolean): void {
 		if (success) {
-			if (this._circuitFailures > 0) {
-				this._circuitFailures = 0;
-			}
-			this._circuitOpenUntil = 0;
-			this._halfOpenAttempts = 0;
+			this._resetOnSuccess();
 		} else {
-			this._circuitFailures++;
-			if (this._circuitOpenUntil > 0) {
-				this._halfOpenAttempts++;
-				if (this._halfOpenAttempts >= this._halfOpenMaxAttempts) {
-					this._circuitOpenUntil = Date.now() + this._circuitCooldownMs;
-					logger.warn("Replay circuit breaker re-opened during half-open", {
-						context: {
-							failures: this._circuitFailures,
-							halfOpenAttempts: this._halfOpenAttempts,
-						},
-					});
-				}
-			}
-			if (this._circuitFailures >= this._circuitThreshold) {
-				this._circuitOpenUntil = Date.now() + this._circuitCooldownMs;
-				logger.warn("Replay circuit breaker opened", {
-					context: {
-						failures: this._circuitFailures,
-						cooldownMs: this._circuitCooldownMs,
-					},
-				});
-			}
+			this._handleFailure();
 		}
+	}
+
+	private _resetOnSuccess(): void {
+		if (this._circuitFailures > 0) {
+			this._circuitFailures = 0;
+		}
+		this._circuitOpenUntil = 0;
+		this._halfOpenAttempts = 0;
+	}
+
+	private _handleFailure(): void {
+		this._circuitFailures++;
+		this._checkHalfOpenReopen();
+		this._checkThresholdOpen();
+	}
+
+	private _checkHalfOpenReopen(): void {
+		if (this._circuitOpenUntil <= 0) {
+			return;
+		}
+		this._halfOpenAttempts++;
+		if (this._halfOpenAttempts >= this._halfOpenMaxAttempts) {
+			this._circuitOpenUntil = Date.now() + this._circuitCooldownMs;
+			logger.warn("Replay circuit breaker re-opened during half-open", {
+				context: {
+					failures: this._circuitFailures,
+					halfOpenAttempts: this._halfOpenAttempts,
+				},
+			});
+		}
+	}
+
+	private _checkThresholdOpen(): void {
+		if (this._circuitFailures < this._circuitThreshold) {
+			return;
+		}
+		this._circuitOpenUntil = Date.now() + this._circuitCooldownMs;
+		logger.warn("Replay circuit breaker opened", {
+			context: {
+				failures: this._circuitFailures,
+				cooldownMs: this._circuitCooldownMs,
+			},
+		});
 	}
 
 	/** Check if batch concurrency limit has been reached. */

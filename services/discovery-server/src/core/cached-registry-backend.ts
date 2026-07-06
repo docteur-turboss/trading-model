@@ -154,37 +154,28 @@ export class CachedRegistryBackend implements RegistryBackend {
 		return typeof (this._backend as { ping?: unknown }).ping === "function";
 	}
 
-	async ping(): Promise<boolean> {
-		if (this._healthMonitor.fallbackActive) {
-			return false;
-		}
-
+	private async _pingPubSub(): Promise<void> {
 		const pubSubClient = this._pubSub.client;
 		if (pubSubClient?.status === "ready") {
-			try {
-				await pubSubClient.ping();
-			} catch {
+			try { await pubSubClient.ping(); } catch {
 				logger.warn("PubSub ping failed — cache invalidation degraded");
 			}
 		}
+	}
 
-		const backendWithPing = this._backend as { ping?: () => Promise<boolean> };
-		if (typeof backendWithPing.ping === "function") {
-			try {
-				return await backendWithPing.ping();
-			} catch {
-				return false;
-			}
+	private async _pingBackend(): Promise<boolean> {
+		const b = this._backend as { ping?: () => Promise<boolean> };
+		if (typeof b.ping === "function") {
+			try { return await b.ping(); } catch { return false; }
 		}
-		if (this._redisUrlForPubSub) {
-			return false;
-		}
-		try {
-			await this._backend.listServiceNames();
-			return true;
-		} catch {
-			return false;
-		}
+		if (this._redisUrlForPubSub) return false;
+		try { await this._backend.listServiceNames(); return true; } catch { return false; }
+	}
+
+	async ping(): Promise<boolean> {
+		if (this._healthMonitor.fallbackActive) return false;
+		await this._pingPubSub();
+		return this._pingBackend();
 	}
 
 	markUnhealthy(): void {

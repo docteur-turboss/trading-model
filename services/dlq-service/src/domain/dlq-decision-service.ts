@@ -29,26 +29,6 @@ export interface DlqEntryDecision {
 	isAtCapacity: boolean;
 }
 
-/**
- * Encapsulates all DLQ business rules independently of storage.
- */
-export class DlqDecisionService {
-	evaluate(input: DlqDecisionInput): DlqEntryDecision {
-		const pingPongAbandon = _isPingPongAbandon(input.dlqPassCount);
-		const isRetryable = _isRetryable(input);
-		const shouldAbandon = _shouldAbandon(input);
-		const isAtCapacity = input.totalEntries >= input.maxEntries;
-
-		return {
-			pingPongAbandon,
-			pingPongReason: _pingPongReason(pingPongAbandon, input.dlqPassCount),
-			isRetryable,
-			shouldAbandon,
-			isAtCapacity,
-		};
-	}
-}
-
 function _isPingPongAbandon(dlqPassCount: number): boolean {
 	return dlqPassCount >= DLQ_MAX_PASS_COUNT;
 }
@@ -77,7 +57,24 @@ function _pingPongReason(
 	return `Ping-pong detected: message entered DLQ ${dlqPassCount} times`;
 }
 
+/**
+ * Encapsulates all DLQ business rules independently of storage.
+ */
 export class DlqDecisionService {
+	evaluate(input: DlqDecisionInput): DlqEntryDecision {
+		const pingPongAbandon = _isPingPongAbandon(input.dlqPassCount);
+		const isRetryable = _isRetryable(input);
+		const shouldAbandon = _shouldAbandon(input);
+		const isAtCapacity = input.totalEntries >= input.maxEntries;
+
+		return {
+			pingPongAbandon,
+			pingPongReason: _pingPongReason(pingPongAbandon, input.dlqPassCount),
+			isRetryable,
+			shouldAbandon,
+			isAtCapacity,
+		};
+	}
 
 	/** Determines the filter for claiming retryable entries. */
 	buildClaimFilter(): {
