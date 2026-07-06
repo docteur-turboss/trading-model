@@ -1,14 +1,14 @@
-import { logger } from "@trading-model/common/config/logger";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";
 import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
-import { NullWorkerProtocol, type IWorkerProtocol } from "../worker/worker-protocol";
+import { type IWorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
 import { AckTimeoutHandler } from "./ack-timeout-handler";
+import { WorkerLoadUpdater } from "./worker-load-updater";
 
 export interface JobDispatcherDeps {
 	queue: InternalQueue;
@@ -24,6 +24,7 @@ export class JobDispatcher {
 	private readonly _workers: WorkerRegistry;
 	private readonly _ackTimeoutHandler: AckTimeoutHandler;
 	private readonly _onAckTimeout: (jobId: string) => void;
+	private readonly _loadUpdater: WorkerLoadUpdater;
 	private _workerProtocol: IWorkerProtocol = new NullWorkerProtocol();
 
 	constructor(deps: JobDispatcherDeps) {
@@ -37,6 +38,7 @@ export class JobDispatcher {
 			deps.reAllocator,
 		);
 		this._onAckTimeout = (jobId) => this._ackTimeoutHandler.onTimeout(jobId);
+		this._loadUpdater = new WorkerLoadUpdater(deps.backPressure, deps.workers);
 	}
 
 	setWorkerProtocol(protocol: IWorkerProtocol): void {
@@ -59,13 +61,6 @@ export class JobDispatcher {
 		this._sendAssignment(worker.workerId, assignedJob, deadline);
 		this._incrementWorkerLoad(worker);
 		this._ackTimeoutHandler.persistAssignment(assignedJob.id, worker.workerId, deadline);
-
-		logger.info("Job assigned to worker", {
-			context: {
-				jobId: assignedJob.id,
-				workerId: worker.workerId,
-			},
-		});
 	}
 
 	distributeNext(): void {
@@ -84,18 +79,7 @@ export class JobDispatcher {
 	}
 
 	decrementWorkerLoad(workerId: string | undefined): void {
-		if (!workerId) {
-			return;
-		}
-		const worker = this._workers.get(workerId);
-		if (!worker) {
-			return;
-		}
-		worker.currentLoad = Math.max(0, worker.currentLoad - 1);
-		this._backPressure.updateWorkerLoad(
-			workerId,
-			worker.currentLoad / worker.maxConcurrency
-		);
+		this._loadUpdater.decrement(workerId);
 	}
 
 	private _sendAssignment(workerId: string, job: Job, deadline: number): void {

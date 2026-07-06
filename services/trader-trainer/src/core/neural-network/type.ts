@@ -1,3 +1,4 @@
+import type { NumericRange } from "@trading-model/common/domain/numeric-range";
 import type { OptimizerHyperparams, OptimizerState } from "./optimizer";
 
 export enum LossFunctionType {
@@ -73,7 +74,7 @@ export interface NetworkArchitecture {
 	 * If omitted the entire input is normalised (or not, per `normalisationType`).
 	 * `[start, end]` – indices are inclusive on both ends.
 	 */
-	normalizedInputRange?: [number, number];
+	normalizedInputRange?: NumericRange;
 
 	/**
 	 * Enable the experience replay pool.

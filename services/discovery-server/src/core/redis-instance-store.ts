@@ -1,183 +1,62 @@
-import { logger } from "@trading-model/common/config/logger";
-import type {
-	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
-import { normalizeError } from "@trading-model/common/utils/errors";
+import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import Redis from "ioredis";
 import { RedisKeyBuilder } from "./redis-key-builder";
 import { TokenService } from "./token-service";
+import { InstanceMetadataReader } from "./instance-metadata-reader";
+import { InstanceRegistrar } from "./instance-registrar";
+import { InstanceHeartbeatHandler } from "./instance-heartbeat-handler";
+import { InstanceCleanupHandler } from "./instance-cleanup-handler";
 
 export class RedisInstanceStore {
+	private readonly _reader: InstanceMetadataReader;
+	private readonly _registrar: InstanceRegistrar;
+	private readonly _heartbeatHandler: InstanceHeartbeatHandler;
+	private readonly _cleanupHandler: InstanceCleanupHandler;
+
 	constructor(
 		private readonly _redis: Redis,
 		private readonly _keyBuilder: RedisKeyBuilder,
 		private readonly _tokenService: TokenService,
-	) {}
+	) {
+		this._reader = new InstanceMetadataReader(_redis, _keyBuilder);
+		this._registrar = new InstanceRegistrar(_redis, _keyBuilder, _tokenService);
+		this._heartbeatHandler = new InstanceHeartbeatHandler(_redis, _keyBuilder, this._reader);
+		this._cleanupHandler = new InstanceCleanupHandler(_redis, _keyBuilder);
+	}
 
 	async resolveToken(instanceId: string): Promise<string> {
-		const tokenKey = this._keyBuilder.instanceToken(instanceId);
-		const token = this._tokenService.generateInstanceToken(instanceId);
-		const tokenSet = await this._redis.set(tokenKey, token, "NX");
-		return tokenSet === "OK"
-			? token
-			: ((await this._redis.get(tokenKey)) ?? token);
+		return this._registrar.resolveToken(instanceId);
 	}
 
-	async buildStoredInstance(
-		instance: ServiceInstance,
-		now: number,
-	): Promise<ServiceInstance> {
-		const storedInstance: ServiceInstance = {
-			...instance,
-			registeredAt: instance.registeredAt ?? now,
-			lastHeartbeat: now,
-		};
-		const existingJson = await this._redis.get(
-			this._keyBuilder.instanceMetadata(instance.instanceId),
-		);
-		if (existingJson) {
-			try {
-				const existing: ServiceInstance = JSON.parse(existingJson);
-				storedInstance.registeredAt = existing.registeredAt;
-				storedInstance.lastHeartbeat = Math.max(
-					storedInstance.lastHeartbeat,
-					existing.lastHeartbeat,
-				);
-			} catch (err) {
-				logger.warn("Failed to parse existing instance metadata", {
-					instanceId: instance.instanceId,
-					err: normalizeError(err),
-				});
-			}
-		}
-		return storedInstance;
+	async buildStoredInstance(instance: ServiceInstance, now: number): Promise<ServiceInstance> {
+		return this._registrar.buildStoredInstance(instance, now);
 	}
 
-	async getMetadata(
-		instanceId: string,
-	): Promise<ServiceInstance | undefined> {
-		const json = await this._redis.get(
-			this._keyBuilder.instanceMetadata(instanceId),
-		);
-		if (!json) {
-			return;
-		}
-		try {
-			return JSON.parse(json);
-		} catch (err) {
-			logger.warn("Failed to parse instance metadata from Redis", {
-				instanceId,
-				err: normalizeError(err),
-			});
-		}
+	async getMetadata(instanceId: string): Promise<ServiceInstance | undefined> {
+		return this._reader.getMetadata(instanceId);
 	}
 
 	async getServiceInstanceIds(serviceName: string): Promise<string[]> {
-		return this._redis.smembers(
-			this._keyBuilder.serviceInstancesSet(serviceName),
-		);
+		return this._reader.getServiceInstanceIds(serviceName);
 	}
 
 	async getMetadatas(keys: string[]): Promise<ServiceInstance[]> {
-		const results = await this._redis.mget(keys);
-		const instances: ServiceInstance[] = [];
-		for (const json of results) {
-			if (json) {
-				try {
-					instances.push(JSON.parse(json));
-				} catch (err) {
-					logger.warn("Skipping corrupt instance entry in Redis", {
-						err: normalizeError(err),
-					});
-				}
-			}
-		}
-		return instances;
+		return this._reader.getMetadatas(keys);
 	}
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {
-		const { serviceName, instanceId } = instance;
-		const now = Date.now();
-		const finalToken = await this.resolveToken(instanceId);
-
-		const multi = this._redis.multi();
-		multi.sadd(this._keyBuilder.serviceInstancesSet(serviceName), instanceId);
-		const storedInstance = await this.buildStoredInstance(instance, now);
-		multi.set(
-			this._keyBuilder.instanceMetadata(instanceId),
-			JSON.stringify(storedInstance),
-		);
-		await multi.exec();
-
-		return finalToken;
+		return this._registrar.registerInstance(instance);
 	}
 
-	async updateHeartbeat(
-		serviceName: string,
-		instanceId: string,
-	): Promise<number | false> {
-		const exists = await this._redis.sismember(
-			this._keyBuilder.serviceInstancesSet(serviceName),
-			instanceId,
-		);
-
-		if (!exists) {
-			return false;
-		}
-
-		const instance = await this.getMetadata(instanceId);
-		if (!instance) {
-			return false;
-		}
-
-		try {
-			instance.lastHeartbeat = Math.max(instance.lastHeartbeat, Date.now());
-
-			const multi = this._redis.multi();
-			multi.set(
-				this._keyBuilder.instanceMetadata(instanceId),
-				JSON.stringify(instance),
-			);
-			multi.set(
-				this._keyBuilder.instanceUpdatedBy(instanceId),
-				`${serviceName}:${instanceId}`,
-			);
-			await multi.exec();
-
-			return instance.ttl;
-		} catch (err) {
-			logger.warn("Failed to update heartbeat in Redis", {
-				serviceName,
-				instanceId,
-				err: normalizeError(err),
-			});
-			return false;
-		}
+	async updateHeartbeat(serviceName: string, instanceId: string): Promise<number | false> {
+		return this._heartbeatHandler.updateHeartbeat(serviceName, instanceId);
 	}
 
-	async removeInstanceSetAndMetadata(
-		serviceName: string,
-		instanceId: string,
-	): Promise<boolean> {
-		const multi = this._redis.multi();
-		multi.srem(this._keyBuilder.serviceInstancesSet(serviceName), instanceId);
-		multi.del(this._keyBuilder.instanceMetadata(instanceId));
-		multi.del(this._keyBuilder.instanceToken(instanceId));
-		multi.del(this._keyBuilder.instanceUpdatedBy(instanceId));
-
-		const results = await multi.exec();
-		if (!results) {
-			return false;
-		}
-
-		const sremResult = results[0];
-		return sremResult?.[1] === 1;
+	async removeInstanceSetAndMetadata(serviceName: string, instanceId: string): Promise<boolean> {
+		return this._cleanupHandler.removeInstanceSetAndMetadata(serviceName, instanceId);
 	}
 
 	async listServiceNames(): Promise<string[]> {
-		const keys = await this._redis.keys(this._keyBuilder.servicePattern());
-		return keys
-			.map((key) => this._keyBuilder.parseServiceName(key))
-			.filter((name): name is string => name !== null);
+		return this._reader.listServiceNames();
 	}
 }
