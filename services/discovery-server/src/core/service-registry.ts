@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { ServiceInstance } from "./types";
 import { TokenService } from "./token-service";
 

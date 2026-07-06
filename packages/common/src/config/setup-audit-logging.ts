@@ -1,11 +1,6 @@
+import type { AuditTlsPaths } from "./audit-service-client";
 import type { logger } from "./logger";
 import { ServiceInstanceName } from "./services.types";
-
-interface TlsClientPaths {
-	key: string;
-	cert: string;
-	ca: string;
-}
 
 interface ServiceResolver {
 	findService(name: string): Promise<{ ip: string; port: number } | null>;
@@ -24,7 +19,7 @@ interface ServiceResolver {
 export function setupAuditLogging(
 	loggerInstance: typeof logger,
 	addressManager: ServiceResolver,
-	tlsPaths: TlsClientPaths
+	tlsPaths: AuditTlsPaths
 ): void {
 	let connected = false;
 
@@ -53,4 +48,4 @@ export function setupAuditLogging(
 	});
 }
 
-export type { ServiceResolver, TlsClientPaths };
+export type { ServiceResolver };

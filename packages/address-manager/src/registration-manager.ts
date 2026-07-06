@@ -5,6 +5,9 @@ import {
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
+import type { AddressManagerClient } from "./client/address-manager-client";
+import type { TokenManager } from "./client/token-manager";
+import type { WebSocketClient } from "./client/websocket-client";
 import type { AddressManagerDeps } from "./types";
 
 const MAX_REGISTRATION_RETRIES = 10;

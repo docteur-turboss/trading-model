@@ -3,11 +3,16 @@ import { request as httpsRequest } from "node:https";
 import { normalizeError } from "../utils/errors";
 import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
+export interface AuditTlsPaths {
+	key: string;
+	cert: string;
+	ca: string;
+}
+
+type AuditTarget = { url: string; tls: AuditTlsPaths };
+
 export class AuditServiceClient {
-	private _auditResolver?: () => Promise<{
-		url: string;
-		tls: { key: string; cert: string; ca: string };
-	} | null>;
+	private _auditResolver?: () => Promise<AuditTarget | null>;
 
 	private readonly _sanitizer: SensitiveDataSanitizer;
 
@@ -16,10 +21,7 @@ export class AuditServiceClient {
 	}
 
 	setAuditResolver(
-		resolver: () => Promise<{
-			url: string;
-			tls: { key: string; cert: string; ca: string };
-		} | null>
+		resolver: () => Promise<AuditTarget | null>
 	): void {
 		this._auditResolver = resolver;
 	}
@@ -28,10 +30,7 @@ export class AuditServiceClient {
 		if (!this._auditResolver) {
 			return;
 		}
-		let auditTarget: {
-			url: string;
-			tls: { key: string; cert: string; ca: string };
-		} | null;
+		let auditTarget: AuditTarget | null;
 		try {
 			auditTarget = await this._auditResolver();
 		} catch {
@@ -54,7 +53,7 @@ export class AuditServiceClient {
 	private _buildHttpsOptions(
 		url: string,
 		body: string,
-		tls: { key: string; cert: string; ca: string }
+		tls: AuditTlsPaths
 	): Record<string, unknown> {
 		const urlObj = new URL(url);
 		return {
@@ -87,10 +86,7 @@ export class AuditServiceClient {
 	}
 
 	private async _postToAuditEndpoint(
-		auditTarget: {
-			url: string;
-			tls: { key: string; cert: string; ca: string };
-		},
+		auditTarget: AuditTarget,
 		entry: Record<string, unknown>
 	): Promise<void> {
 		const body = this._sanitizer.safeStringify(entry);

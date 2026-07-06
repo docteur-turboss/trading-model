@@ -1,6 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { AddressManagerClient } from "./client/address-manager-client";
+import type { TokenManager } from "./client/token-manager";
+import type { WebSocketClient } from "./client/websocket-client";
 import type { AddressManagerDeps } from "./types";
 
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = 3;
