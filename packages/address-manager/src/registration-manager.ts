@@ -4,16 +4,18 @@ import {
 	addressManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
-import { sleep } from "@trading-model/common/utils/sleep";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
 import type { WebSocketClient } from "./client/websocket-client";
 import type { AddressManagerDeps } from "./types";
+import { RetryScheduler } from "./retry-scheduler";
 
-const MAX_REGISTRATION_RETRIES = 10;
-const REGISTRATION_BASE_DELAY_MS = 1000;
-const REGISTRATION_MAX_DELAY_MS = 30_000;
-const REGISTRATION_BACKGROUND_RETRY_INTERVAL_MS = 30_000;
+const RETRY_CONFIG = {
+	maxRetries: 10,
+	baseDelayMs: 1000,
+	maxDelayMs: 30_000,
+	backgroundIntervalMs: 30_000,
+};
 
 export class RegistrationManager {
 	private _addressManagerClient: AddressManagerClient;
@@ -21,8 +23,7 @@ export class RegistrationManager {
 	private _wsClient?: WebSocketClient;
 	private _onSuccess?: () => void;
 	private _onFailure?: () => void;
-	private _shouldRetryRegistration = true;
-	private _resolveStopRegistration: (() => void) | null = null;
+	private _retryScheduler: RetryScheduler;
 
 	constructor(deps: AddressManagerDeps) {
 		this._addressManagerClient = deps.addressManagerClient;
@@ -30,30 +31,32 @@ export class RegistrationManager {
 		this._wsClient = deps.wsClient;
 		this._onSuccess = deps.onSuccess;
 		this._onFailure = deps.onFailure;
+		this._retryScheduler = new RetryScheduler(RETRY_CONFIG);
 	}
 
 	get shouldRetryRegistration(): boolean {
-		return this._shouldRetryRegistration;
+		return this._retryScheduler.shouldRetry;
 	}
 
 	set shouldRetryRegistration(value: boolean) {
-		this._shouldRetryRegistration = value;
+		this._retryScheduler.shouldRetry = value;
 	}
 
 	resolveStopRegistration(): void {
-		this._resolveStopRegistration?.();
+		this._retryScheduler.resolveStop();
 	}
 
 	createStopPromise(): Promise<void> {
-		return new Promise<void>((resolve) => {
-			this._resolveStopRegistration = resolve;
-		});
+		return this._retryScheduler.createStopPromise();
 	}
 
 	async tryStickyRegistration(): Promise<void> {
 		const existingToken = this._tokenManager.getTokenOrNull();
 		if (!existingToken) {
-			return this._retryRegistration();
+			return this._retryScheduler.retryLoop(
+				(attempt) => this._tryRegister(attempt),
+				() => this._backgroundRetryRegistration(),
+			);
 		}
 		logger.info(
 			"Sticky registration: found existing token, attempting heartbeat to validate",
@@ -67,35 +70,17 @@ export class RegistrationManager {
 			logger.warn(
 				"Sticky registration: heartbeat with existing token failed, re-registering",
 			);
-			return this._retryRegistration();
+			return this._retryScheduler.retryLoop(
+				(attempt) => this._tryRegister(attempt),
+				() => this._backgroundRetryRegistration(),
+			);
 		}
-	}
-
-	private _computeJitteredDelay(attempt: number): number {
-		const baseDelay = Math.min(
-			REGISTRATION_BASE_DELAY_MS * 2 ** attempt,
-			REGISTRATION_MAX_DELAY_MS,
-		);
-		return baseDelay + Math.random() * 1000;
 	}
 
 	private async _handleRegistrationSuccess(res: { token: string }): Promise<void> {
 		this._onSuccess?.();
 		this._tokenManager.setToken(res.token);
 		this._wsClient?.updateToken(res.token);
-	}
-
-	private async _retryRegistration(): Promise<void> {
-		for (let attempt = 1; attempt <= MAX_REGISTRATION_RETRIES; attempt++) {
-			if (!this._shouldRetryRegistration) {
-				return;
-			}
-			if (await this._tryRegister(attempt)) {
-				return;
-			}
-		}
-		logger.warn("Max registration retries exhausted — entering background retry mode");
-		return this._backgroundRetryRegistration();
 	}
 
 	private async _tryRegister(attempt: number): Promise<boolean> {
@@ -110,43 +95,29 @@ export class RegistrationManager {
 			this._onFailure?.();
 			logger.error("Service registration failed", {
 				attempt,
-				maxRetries: MAX_REGISTRATION_RETRIES,
+				maxRetries: RETRY_CONFIG.maxRetries,
 				error: normalizeError(error),
 			});
-			if (attempt < MAX_REGISTRATION_RETRIES) {
+			if (attempt < RETRY_CONFIG.maxRetries) {
 				await Promise.race([
-					sleep(this._computeJitteredDelay(attempt)),
-					this._createStopWait(),
+					new Promise<void>((resolve) =>
+						setTimeout(resolve, this._retryScheduler.computeJitteredDelay(attempt)),
+					),
+					this._retryScheduler.createStopWait(),
 				]);
 			}
 			return false;
 		}
 	}
 
-	private _createStopWait(): Promise<void> {
-		return new Promise<void>((resolve) => {
-			const check = () => {
-				if (!this._shouldRetryRegistration) {
-					resolve();
-				} else {
-					setImmediate(check);
-				}
-			};
-			setImmediate(check);
-		});
-	}
-
-	private async _backgroundRetryRegistration(): Promise<void> {
-		let backgroundAttempts = 0;
-		while (this._shouldRetryRegistration) {
-			backgroundAttempts++;
-			if (await this._tryBackgroundRegister(backgroundAttempts)) {
-				return;
-			}
-			await this._waitForBackgroundRetry();
-		}
-		throw addressManagerError(
-			"Service registration failed — service stopped during background retry",
+	private _backgroundRetryRegistration(): Promise<void> {
+		return this._retryScheduler.backgroundRetryLoop(
+			(attempt) => this._tryBackgroundRegister(attempt),
+			() => {
+				throw addressManagerError(
+					"Service registration failed — service stopped during background retry",
+				);
+			},
 		);
 	}
 
@@ -167,11 +138,5 @@ export class RegistrationManager {
 			});
 			return false;
 		}
-	}
-
-	private async _waitForBackgroundRetry(): Promise<void> {
-		const jitteredInterval = REGISTRATION_BACKGROUND_RETRY_INTERVAL_MS + Math.random() * 5000;
-		await Promise.race([sleep(jitteredInterval), this._createStopWait()]);
-		await new Promise<void>((resolve) => setImmediate(resolve));
 	}
 }
