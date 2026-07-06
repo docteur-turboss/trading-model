@@ -1,14 +1,12 @@
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { messageStore } from "./message-store";
-import { MongoArchiveBatchWriter } from "./mongo-archive-batch";
 import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
 import { ArchiveTopicsCache } from "./archive-topics-cache";
 import type { MongoClient } from "./mongo-archive-batch";
 
 export class MongoArchiveStore {
 	private _client: MongoClient | null = null;
-	private _batchWriter: MongoArchiveBatchWriter | null = null;
 	private _started = false;
 	private readonly _timerScheduler = new ArchiveTimerScheduler();
 	private readonly _topicsCache = new ArchiveTopicsCache();
@@ -58,11 +56,6 @@ export class MongoArchiveStore {
 		await (
 			this._client as unknown as { connect: () => Promise<void> }
 		).connect();
-		this._batchWriter = new MongoArchiveBatchWriter(
-			this._client,
-			ENV.MONGO_ARCHIVE_DB,
-			ENV.MONGO_ARCHIVE_COLLECTION
-		);
 		logger.info("MongoDB archival store connected");
 	}
 
@@ -71,7 +64,13 @@ export class MongoArchiveStore {
 			return;
 		}
 		try {
-			await this._batchWriter!.createIndexes();
+			const { MongoArchiveBatchWriter } = await import("./mongo-archive-batch");
+			const writer = new MongoArchiveBatchWriter(
+				this._client,
+				ENV.MONGO_ARCHIVE_DB,
+				ENV.MONGO_ARCHIVE_COLLECTION
+			);
+			await writer.createIndexes();
 			logger.info("MongoDB archive indexes ensured");
 		} catch (err) {
 			logger.warn("Failed to create archive indexes", { context: {
@@ -106,7 +105,13 @@ export class MongoArchiveStore {
 				return;
 			}
 
-			await this._batchWriter!.writeArchiveBatch(messages);
+			const { MongoArchiveBatchWriter } = await import("./mongo-archive-batch");
+			const writer = new MongoArchiveBatchWriter(
+				this._client!,
+				ENV.MONGO_ARCHIVE_DB,
+				ENV.MONGO_ARCHIVE_COLLECTION
+			);
+			await writer.writeArchiveBatch(messages);
 		} catch {
 			// continue to next topic
 		}
