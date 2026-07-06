@@ -147,3 +147,35 @@ export function toSymbol(_symbol: string): TradingSymbol {
 export function fromSymbol(_symbol: TradingSymbol): string {
 	return _symbol;
 }
+
+export type ServiceId = string & { readonly __brand: "ServiceId" };
+export function toServiceId(value: string): ServiceId { return value as ServiceId; }
+export function fromServiceId(value: ServiceId): string { return value; }
+
+export type InstanceId = string & { readonly __brand: "InstanceId" };
+export function toInstanceId(value: string): InstanceId { return value as InstanceId; }
+export function fromInstanceId(value: InstanceId): string { return value; }
+
+export type Region = string & { readonly __brand: "Region" };
+export function toRegion(value: string): Region { return value as Region; }
+export function fromRegion(value: Region): string { return value; }
+
+export type ModelId = string & { readonly __brand: "ModelId" };
+export function toModelId(value: string): ModelId { return value as ModelId; }
+export function fromModelId(value: ModelId): string { return value; }
+
+export type Topic = string & { readonly __brand: "Topic" };
+export function toTopic(value: string): Topic { return value as Topic; }
+export function fromTopic(value: Topic): string { return value; }
+
+export type CorrelationId = string & { readonly __brand: "CorrelationId" };
+export function toCorrelationId(value: string): CorrelationId { return value as CorrelationId; }
+export function fromCorrelationId(value: CorrelationId): string { return value; }
+
+export type MessageId = string & { readonly __brand: "MessageId" };
+export function toMessageId(value: string): MessageId { return value as MessageId; }
+export function fromMessageId(value: MessageId): string { return value; }
+
+export type JobId = string & { readonly __brand: "JobId" };
+export function toJobId(value: string): JobId { return value as JobId; }
+export function fromJobId(value: JobId): string { return value; }

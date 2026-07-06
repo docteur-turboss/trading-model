@@ -1,22 +1,17 @@
 import {
-	type BookTickerData,
 	type CandleData,
-	getAvgAsk,
-	getAvgBid,
-	type OrderBookData,
-	type TickerData,
 	type TradeData,
 } from "@trading-model/common/config/event.types";
 
 import type { MarketStep } from "./genetic-algorithm/genome-types";
 import {
 	fromSymbol,
-	NormalizationStats,
 	type SymbolState,
 	type TradingSymbol,
 	toSymbol,
 } from "./market-data-types";
 import { MemoryManager } from "./market-data/memory-manager";
+import { NormalizationManager } from "./normalization-manager";
 import {
 	WindowSplitter,
 	MIN_TRAINING_STEPS,
@@ -38,6 +33,7 @@ export class MarketDataBuffer {
 	private _priceSnapshot: Record<TradingSymbol, number> = {} as Record<TradingSymbol, number>;
 	private _memoryManager: MemoryManager;
 	private _windowSplitter: WindowSplitter;
+	private _normManager: NormalizationManager;
 
 	constructor(config: MarketDataBufferConfig = {}) {
 		this._memoryManager = this._createMemoryManager(config);
@@ -45,6 +41,7 @@ export class MarketDataBuffer {
 			this._states,
 			this._priceSnapshot,
 		);
+		this._normManager = new NormalizationManager();
 	}
 
 	private _createMemoryManager(config: MarketDataBufferConfig): MemoryManager {
@@ -78,7 +75,7 @@ export class MarketDataBuffer {
 			orderBook: null,
 			bookTicker: null,
 			ticker24h: null,
-			norm: this._createNormStats(),
+			norm: this._normManager.createNormStats(),
 		};
 	}
 
