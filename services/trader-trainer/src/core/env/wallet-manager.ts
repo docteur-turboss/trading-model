@@ -208,14 +208,14 @@ export class Wallet implements WalletAPI {
 			price: +this._price,
 			peakValuation: this._peakValuation,
 			initialCash: this._initialCash,
-			totalFeesPaid: this._totalFeesPaid,
-			tradeCount: this._tradeCount,
+			totalFeesPaid: this._tradeHistory.getTotalFeesPaid(),
+			tradeCount: this._tradeHistory.getTradeCount(),
 			decimals: this._decimals,
 		});
 	}
 
 	getHistory(): Readonly<TradeRecord[]> {
-		return this._history;
+		return this._tradeHistory.getHistory();
 	}
 
 	reset(): void {
@@ -223,10 +223,7 @@ export class Wallet implements WalletAPI {
 		this._cash = this._initialCash;
 		this._position = Volume.zero();
 		this._peakValuation = this._initialCash;
-		this._totalFeesPaid = 0;
-		this._tradeCount = 0;
-		this._step = 0;
-		this._history.length = 0;
+		this._tradeHistory.reset();
 	}
 }
 

@@ -1,5 +1,5 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import { DeadLetterError } from "@trading-model/common/utils/errors";
+import { isDeadLetterError } from "@trading-model/common/utils/errors";
 
 interface DeliveryDecision {
 	retry: boolean;

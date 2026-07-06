@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { Price } from "@trading-model/common/domain/primitives";
 import type { RLBackend } from "../../../src/core/genetic-algorithm/rl-backend";
 import {
 	evaluateGenomeAllWindows,

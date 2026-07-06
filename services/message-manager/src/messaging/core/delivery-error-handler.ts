@@ -1,6 +1,6 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
-import { AppError, DeadLetterError } from "@trading-model/common/utils/errors";
+import { AppError, isDeadLetterError } from "@trading-model/common/utils/errors";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 import { logger } from "../../config/logger";
 
@@ -48,7 +48,7 @@ export class DeliveryErrorHandler {
 		emittedAt: number,
 		deliveryMode: DeliveryMode
 	): Promise<boolean> {
-		if (err instanceof DeadLetterError) {
+		if (isDeadLetterError(err)) {
 			const reason: string = err.reason ?? "NO_REASON";
 			await this._deliveryPort.markDeadLetter(
 				message,

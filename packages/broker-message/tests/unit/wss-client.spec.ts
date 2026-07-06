@@ -222,14 +222,15 @@ describe("WssClient", () => {
 
 	it("should use HTTP fallback when queue is full", async () => {
 		const fallback = jest.fn<any>().mockResolvedValue(undefined);
-		client.setHttpFallback(fallback);
+		const clientWithFallback = new WssClient({ ...mockConfig, httpFallback: fallback });
 		for (let i = 0; i < 1000; i++) {
-			client.publish({ n: i }, { id: `msg-${i}` } as any).catch(() => {});
+			clientWithFallback.publish({ n: i }, { id: `msg-${i}` } as any).catch(() => {});
 		}
 		await expect(
-			client.publish({ data: "last" }, { id: "msg-last" } as any)
+			clientWithFallback.publish({ data: "last" }, { id: "msg-last" } as any)
 		).resolves.toBeUndefined();
 		expect(fallback).toHaveBeenCalled();
+		clientWithFallback.disconnect();
 	});
 
 	it("should subscribe when connected", () => {
