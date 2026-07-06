@@ -1,3 +1,4 @@
+import { DateRange } from "@trading-model/common/domain/date-range";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { RequestHandler } from "express";
@@ -14,12 +15,19 @@ function _buildAuditEventQuery(
 	const { topic, publisher, correlationId, startDate, endDate, page, limit } =
 		queryParams;
 
+	const dateRange =
+		startDate || endDate
+			? new DateRange(
+					startDate ? new Date(startDate) : undefined,
+					endDate ? new Date(endDate) : undefined,
+				)
+			: undefined;
+
 	return {
 		topic,
 		publisher,
 		correlationId,
-		startDate: startDate ? new Date(startDate) : undefined,
-		endDate: endDate ? new Date(endDate) : undefined,
+		dateRange,
 		page: page ? Number.parseInt(page, 10) : undefined,
 		limit: limit ? Number.parseInt(limit, 10) : undefined,
 	};

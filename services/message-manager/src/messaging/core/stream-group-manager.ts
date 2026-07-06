@@ -1,5 +1,6 @@
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { Message } from "@trading-model/common/contracts/message.types";
+import { TimeRange } from "@trading-model/common/domain/time-range";
 
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";

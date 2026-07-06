@@ -744,33 +744,33 @@ describe("HttpClient", () => {
 
 		it("should return early when TLS already loaded", async () => {
 			const tlsClient = new HttpClient({ ca: "/etc/ca.pem" }) as any;
-			(tlsClient as any)._tlsLoaded = true;
-			(tlsClient as any)._tlsPaths = { ca: "/etc/ca.pem" };
-			await (tlsClient as any)._ensureTlsLoaded();
+			(tlsClient as any)._tlsLoader._tlsLoaded = true;
+			(tlsClient as any)._tlsLoader._tlsPaths = { ca: "/etc/ca.pem" };
+			await (tlsClient as any)._tlsLoader.ensureLoaded();
 			expect((fs as any).promises.readFile).not.toHaveBeenCalled();
 		});
 
 		it("should return existing tlsLoadPromise when one is in flight", async () => {
 			const tlsClient = new HttpClient({ ca: "/etc/ca.pem" }) as any;
 			const fakePromise = Promise.resolve();
-			(tlsClient as any)._tlsLoadPromise = fakePromise;
-			const result = await (tlsClient as any)._ensureTlsLoaded();
+			(tlsClient as any)._tlsLoader._tlsLoadPromise = fakePromise;
+			const result = await (tlsClient as any)._tlsLoader.ensureLoaded();
 			expect(result).toBeUndefined();
 		});
 
 		it("should handle tlsPaths becoming falsy inside TLS load promise", async () => {
 			const tlsClient = new HttpClient({ ca: "/etc/ca.pem" }) as any;
 			let callCount = 0;
-			const origPaths = (tlsClient as any)._tlsPaths;
-			Object.defineProperty(tlsClient, "_tlsPaths", {
+			const origPaths = (tlsClient as any)._tlsLoader._tlsPaths;
+			Object.defineProperty((tlsClient as any)._tlsLoader, "_tlsPaths", {
 				get: () => {
 					callCount++;
 					return callCount <= 1 ? origPaths : undefined;
 				},
 				configurable: true,
 			});
-			await (tlsClient as any)._ensureTlsLoaded();
-			expect((tlsClient as any)._tlsLoaded).toBe(true);
+			await (tlsClient as any)._tlsLoader.ensureLoaded();
+			expect((tlsClient as any)._tlsLoader._tlsLoaded).toBe(true);
 		});
 
 		it("should skip reading CA when ca path is not provided", async () => {
@@ -778,7 +778,7 @@ describe("HttpClient", () => {
 				cert: "/etc/cert.pem",
 				key: "/etc/key.pem",
 			}) as any;
-			await (tlsClient as any)._ensureTlsLoaded();
+			await (tlsClient as any)._tlsLoader.ensureLoaded();
 			expect((fs as any).promises.readFile).toHaveBeenCalledTimes(2);
 		});
 	});
