@@ -4,6 +4,7 @@ import { EventEmitter } from "node:events";
 import WebSocket from "ws";
 
 import { logger } from "../config/logger";
+import type { IPAddress, Port } from "../domain/primitives";
 import type {
 	SchedulerOutgoingMessage,
 	SchedulerWsJobAssignedMessage,
@@ -131,8 +132,8 @@ export class WorkerClient extends EventEmitter {
 		const msg: WorkerWsRegisterMessage = {
 			type: "register",
 			workerId: this._cfg.workerId,
-			address: "",
-			port: 0,
+			address: "" as IPAddress,
+			port: 0 as Port,
 			capabilities: this._cfg.capabilities,
 			maxConcurrency: this._cfg.maxConcurrency,
 		};
@@ -149,9 +150,19 @@ export class WorkerClient extends EventEmitter {
 		this.send(msg);
 	}
 
-	private readonly _messageHandlers: Partial<Record<SchedulerOutgoingMessage["type"], (message: Record<string, unknown>) => void>>;
+	private readonly _messageHandlers: Partial<
+		Record<
+			SchedulerOutgoingMessage["type"],
+			(message: Record<string, unknown>) => void
+		>
+	>;
 
-	private _setupMessageHandlers(): Partial<Record<SchedulerOutgoingMessage["type"], (message: Record<string, unknown>) => void>> {
+	private _setupMessageHandlers(): Partial<
+		Record<
+			SchedulerOutgoingMessage["type"],
+			(message: Record<string, unknown>) => void
+		>
+	> {
 		return {
 			"job.assigned": (msg) =>
 				this.emit(
@@ -164,7 +175,8 @@ export class WorkerClient extends EventEmitter {
 	}
 
 	private _handleMessage(message: Record<string, unknown>): void {
-		const handler = this._messageHandlers[message.type as SchedulerOutgoingMessage["type"]];
+		const handler =
+			this._messageHandlers[message.type as SchedulerOutgoingMessage["type"]];
 		if (handler) {
 			handler(message);
 		} else {

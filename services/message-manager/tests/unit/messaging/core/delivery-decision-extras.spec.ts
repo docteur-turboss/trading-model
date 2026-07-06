@@ -1,17 +1,14 @@
 import { describe, expect, it } from "@jest/globals";
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import { ErrorCodes } from "@trading-model/common/utils/errors";
+import { DeadLetterError } from "@trading-model/common/utils/errors";
 import { classifyDeliveryFailure } from "../../../../src/messaging/core/delivery-decision";
 
 describe("delivery-decision extras", () => {
 	it("should dead-letter on DEAD_LETTER_ERROR", () => {
 		const decision = classifyDeliveryFailure({
-			error: {
-				code: ErrorCodes.DEAD_LETTER_ERROR,
-				statusCode: 400,
-				message: "nack",
+			error: new DeadLetterError("nack", {
 				reason: "Subscriber rejected",
-			} as never,
+			}),
 			deliveryMode: DeliveryMode.AT_LEAST_ONCE,
 			deliveryAttempt: 1,
 			maxRetries: 3,
@@ -22,11 +19,7 @@ describe("delivery-decision extras", () => {
 
 	it("should use default reason when DEAD_LETTER_ERROR has no reason", () => {
 		const decision = classifyDeliveryFailure({
-			error: {
-				code: ErrorCodes.DEAD_LETTER_ERROR,
-				statusCode: 400,
-				message: "nack",
-			} as never,
+			error: new DeadLetterError("nack"),
 			deliveryMode: DeliveryMode.AT_LEAST_ONCE,
 			deliveryAttempt: 1,
 			maxRetries: 3,

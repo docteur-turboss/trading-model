@@ -1,4 +1,4 @@
-import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
+import { AppError, AgentError } from "@trading-model/common/utils/errors";
 import type { PaginatedResponse } from "@trading-model/common/contracts/pagination.types";
 import type { Collection, Db, Filter } from "mongodb";
 
@@ -66,9 +66,8 @@ export class AuditRepository {
 		try {
 			await this._collection.insertOne(event);
 		} catch (err) {
-			throw new AppError(
+			throw new AgentError(
 				"Failed to persist audit event",
-				ErrorCodes.AGENT_ERROR,
 				{
 					cause: err,
 				}
@@ -83,9 +82,8 @@ export class AuditRepository {
 		try {
 			await this._collection.insertMany(events, { ordered: false });
 		} catch (err) {
-			throw new AppError(
+			throw new AgentError(
 				"Failed to persist audit event batch",
-				ErrorCodes.AGENT_ERROR,
 				{
 					cause: err,
 				}

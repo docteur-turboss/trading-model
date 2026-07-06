@@ -1,12 +1,10 @@
 import { HttpClient } from "../config/http-client";
+import type { RevocationRequest } from "../domain/revocation-request";
+import type { TlsPaths } from "../domain/tls-paths";
 
 export interface CaClientConfig {
 	baseUrl: string;
-	tls?: {
-		ca: string;
-		cert: string;
-		key: string;
-	};
+	tls?: TlsPaths;
 }
 
 export interface SignCertificateRequest {
@@ -43,11 +41,7 @@ export class CaClient {
 	constructor(config: CaClientConfig) {
 		this._baseUrl = config.baseUrl.replace(/\/+$/, "");
 		this._httpClient = config.tls
-			? HttpClient.createWithTls({
-					rootCACertPath: config.tls.ca,
-					certificatePath: config.tls.cert,
-					keyCertificatePath: config.tls.key,
-				})
+			? HttpClient.createWithTls(config.tls)
 			: new HttpClient();
 	}
 
@@ -100,14 +94,13 @@ export class CaClient {
 	/**
 	 * Revokes a previously issued certificate by serial number.
 	 *
-	 * @param serialNumber - Serial number of the certificate to revoke.
-	 * @param reason - Human-readable reason for revocation.
+	 * @param request - The serial number and reason for revocation.
 	 */
-	async revokeCertificate(serialNumber: string, reason: string): Promise<void> {
-		await this._httpClient.post(`${this._baseUrl}/api/v1/certificate/revoke`, {
-			serialNumber,
-			reason,
-		});
+	async revokeCertificate(request: RevocationRequest): Promise<void> {
+		await this._httpClient.post(
+			`${this._baseUrl}/api/v1/certificate/revoke`,
+			request
+		);
 	}
 
 	/**

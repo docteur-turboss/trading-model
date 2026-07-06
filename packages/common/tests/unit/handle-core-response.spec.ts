@@ -178,14 +178,22 @@ describe("handleCoreResponse", () => {
 				USER_NOT_FOUND: ["404", "User not found"] as [string, string],
 			};
 			expect(() =>
-				handleCoreError({ file: "user" as any, context: "getUser" }, new Error("UNKNOWN"), mapping)
+				handleCoreError(
+					{ file: "user" as any, context: "getUser" },
+					new Error("UNKNOWN"),
+					mapping
+				)
 			).toThrow("UNKNOWN");
 		});
 
 		it("should handle non-Error thrown values by re-throwing", () => {
 			const mapping = {};
 			expect(() =>
-				handleCoreError({ file: "user" as any, context: "test" }, "string error", mapping)
+				handleCoreError(
+					{ file: "user" as any, context: "test" },
+					"string error",
+					mapping
+				)
 			).toThrow("string error");
 		});
 	});
@@ -193,11 +201,10 @@ describe("handleCoreResponse", () => {
 	describe("handleOnlyDataCore", () => {
 		it("should return tuple with data and Success code", async () => {
 			const fn = jest.fn<any>().mockResolvedValue({ id: 1 });
-			const result = await handleOnlyDataCore(
-				fn,
-				{} as any,
-				{ file: "user" as any, context: "test" }
-			);
+			const result = await handleOnlyDataCore(fn, {} as any, {
+				file: "user" as any,
+				context: "test",
+			});
 			expect(result).toEqual([{ id: 1 }, "success"]);
 		});
 
@@ -213,11 +220,10 @@ describe("handleCoreResponse", () => {
 
 		it("should use default empty errorMap", async () => {
 			const fn = jest.fn<any>().mockResolvedValue("data");
-			const result = await (handleOnlyDataCore as any)(
-				fn,
-				undefined,
-				{ file: "user" as any, context: "test" }
-			);
+			const result = await (handleOnlyDataCore as any)(fn, undefined, {
+				file: "user" as any,
+				context: "test",
+			});
 			expect(result).toEqual(["data", "success"]);
 		});
 	});

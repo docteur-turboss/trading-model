@@ -26,7 +26,9 @@ export class RedisCache {
 			lazyConnect: true,
 		});
 		this._client.on("error", (err) =>
-			logger.warn("Redis cache error (falling through to DB)", { context: { err } })
+			logger.warn("Redis cache error (falling through to DB)", {
+				context: { err },
+			})
 		);
 	}
 

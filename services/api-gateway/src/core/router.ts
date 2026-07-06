@@ -53,23 +53,23 @@ const catchAllRoute = catchSync(async (req) => {
 		return cached;
 	}
 
-	return _proxyAndCache(req, target, path, { serviceName, majorVersion, cacheKey });
+	return _proxyAndCache(req, target, { serviceName, majorVersion, cacheKey, path });
 });
 
 interface ProxyContext {
 	serviceName: string;
 	majorVersion: number;
 	cacheKey: string;
+	path: string;
 }
 
 async function _proxyAndCache(
 	req: Request,
 	target: ResolvedTarget,
-	path: string,
 	ctx: ProxyContext
 ): Promise<ResponseObject> {
 	try {
-		const result = await forwardRequest(req, target, path);
+		const result = await forwardRequest({ req, target, path: ctx.path });
 
 		if (req.method === "GET" && result.status === 200) {
 			const parsed = tryParseJson(result.body);

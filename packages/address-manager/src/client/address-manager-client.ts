@@ -2,7 +2,7 @@ import { networkInterfaces } from "node:os";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	AppError,
-	ErrorCodes,
+	AddressManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import type { AddressManagerConfig } from "../config/address-manager-config";
@@ -66,11 +66,7 @@ export class AddressManagerClient {
 			}
 		}
 
-		throw new AppError(
-			"Failed to register service to Address Manager",
-			ErrorCodes.ADDRESS_MANAGER_ERROR,
-			{ cause: normalizeError(lastError) }
-		);
+		throw new AddressManagerError("Failed to register service to Address Manager",{cause: normalizeError(lastError)})
 	}
 
 	private _buildHeartbeatPayload(): {
@@ -108,13 +104,7 @@ export class AddressManagerClient {
 			try {
 				await this._sendHeartbeat(urls[0]);
 			} catch (error) {
-				throw new AppError(
-					"Failed to refresh service TTL",
-					ErrorCodes.ADDRESS_MANAGER_ERROR,
-					{
-						cause: normalizeError(error),
-					}
-				);
+				throw new AddressManagerError("Failed to refresh service TTL",{cause: normalizeError(error)})
 			}
 			return;
 		}
@@ -124,9 +114,8 @@ export class AddressManagerClient {
 		);
 		const failures = results.filter((result) => result.status === "rejected");
 		if (failures.length === results.length) {
-			throw new AppError(
+			throw new AddressManagerError(
 				"Failed to refresh service TTL",
-				ErrorCodes.ADDRESS_MANAGER_ERROR,
 				{
 					cause: normalizeError((failures[0] as PromiseRejectedResult).reason),
 				}

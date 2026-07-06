@@ -9,16 +9,28 @@ import type { IServiceCache } from "./service-cache.interface";
 import { ServiceDiscovery } from "./service-discovery";
 import { ServiceHealthChecker } from "./service-health-checker";
 
+export interface DiscoveryOrchestratorDeps {
+	serviceDiscovery: ServiceDiscovery;
+	serviceCache: IServiceCache;
+	circuitBreaker: CircuitBreaker;
+	healthChecker: ServiceHealthChecker;
+}
+
 export class DiscoveryOrchestrator {
 	private static readonly _CIRCUIT_BREAKER_MAX_RETRIES = 2;
 	private static readonly _CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS = 100;
 
-	constructor(
-		private readonly _serviceDiscovery: ServiceDiscovery,
-		private readonly _serviceCache: IServiceCache,
-		readonly circuitBreaker: CircuitBreaker,
-		private readonly _healthChecker: ServiceHealthChecker
-	) {}
+	readonly circuitBreaker: CircuitBreaker;
+	private readonly _serviceDiscovery: ServiceDiscovery;
+	private readonly _serviceCache: IServiceCache;
+	private readonly _healthChecker: ServiceHealthChecker;
+
+	constructor(deps: DiscoveryOrchestratorDeps) {
+		this._serviceDiscovery = deps.serviceDiscovery;
+		this._serviceCache = deps.serviceCache;
+		this.circuitBreaker = deps.circuitBreaker;
+		this._healthChecker = deps.healthChecker;
+	}
 
 	async findService(serviceName: string): Promise<ServiceInstance> {
 		const startTime = Date.now();
@@ -71,12 +83,12 @@ export class DiscoveryOrchestrator {
 		) {
 			try {
 				const instance = await this._serviceDiscovery.findService(serviceName);
-				const result = await this._checkServiceCircuitBreaker(
+				const result = await this._checkServiceCircuitBreaker({
 					instance,
 					serviceName,
 					startTime,
-					attempt
-				);
+					attempt,
+				});
 				if (result) {
 					return result;
 				}
@@ -93,12 +105,13 @@ export class DiscoveryOrchestrator {
 		throw lastError ?? new Error("Discovery failed");
 	}
 
-	private async _checkServiceCircuitBreaker(
-		instance: ServiceInstance,
-		serviceName: string,
-		startTime: number,
-		attempt: number
-	): Promise<ServiceInstance | null> {
+	private async _checkServiceCircuitBreaker(params: {
+		instance: ServiceInstance;
+		serviceName: string;
+		startTime: number;
+		attempt: number;
+	}): Promise<ServiceInstance | null> {
+		const { instance, serviceName, startTime, attempt } = params;
 		this.circuitBreaker.loadFromStore(instance.instanceId).catch(() => {});
 
 		if (!this.circuitBreaker.isOpen(instance.instanceId)) {

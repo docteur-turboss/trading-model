@@ -5,12 +5,12 @@ import path from "node:path";
 
 import type { Application } from "express";
 import { logger } from "../config/logger";
+import type { TlsPaths } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
-import type { TlsConfig } from "./load-tls-config";
 
 export interface HttpsServerOptions {
 	port: number;
-	tls: TlsConfig;
+	tls: TlsPaths;
 	watchTls?: boolean;
 }
 
@@ -23,53 +23,77 @@ export async function createAndStartHttpsServer(
 	app: Application,
 	options: HttpsServerOptions
 ): Promise<HttpServer> {
-	const [key, cert, ca] = await Promise.all([
-		fsPromises.readFile(path.resolve(options.tls.key), "utf8"),
-		fsPromises.readFile(path.resolve(options.tls.cert), "utf8"),
-		fsPromises.readFile(path.resolve(options.tls.ca), "utf8"),
-	]);
+	const tlsContext = await _loadTlsFiles(options.tls);
+	const httpsServer = _createHttpsServer(app, tlsContext);
+	_startListening(httpsServer, options.port);
 
-	const httpsServer = https.createServer(
+	if (options.watchTls) {
+		_startTlsWatcher(httpsServer, options.tls);
+	}
+
+	return {
+		raw: httpsServer,
+		close: _createCloseHandler(httpsServer),
+	};
+}
+
+async function _loadTlsFiles(
+	tls: TlsPaths
+): Promise<{ key: string; cert: string; ca: string }> {
+	const [key, cert, ca] = await Promise.all([
+		fsPromises.readFile(path.resolve(tls.keyPath), "utf8"),
+		fsPromises.readFile(path.resolve(tls.certPath), "utf8"),
+		fsPromises.readFile(path.resolve(tls.caPath), "utf8"),
+	]);
+	return { key, cert, ca };
+}
+
+function _createHttpsServer(
+	app: Application,
+	tlsContext: { key: string; cert: string; ca: string }
+): https.Server {
+	return https.createServer(
 		{
-			key,
-			cert,
-			ca,
+			key: tlsContext.key,
+			cert: tlsContext.cert,
+			ca: tlsContext.ca,
 			requestCert: true,
 			rejectUnauthorized: true,
 			minVersion: "TLSv1.3",
 		},
 		app
 	);
+}
 
-	httpsServer.listen(options.port, () => {
+function _startListening(server: https.Server, port: number): void {
+	server.listen(port, () => {
 		logger.info("HTTPS server listening", {
 			context: {
-				port: options.port,
+				port,
 				mtls: true,
 			},
 		});
 	});
+}
 
-	if (options.watchTls) {
-		/* istanbul ignore next -- dead code: setupTlsWatcher never rejects; all errors handled internally */
-		setupTlsWatcher(httpsServer, options.tls).catch((err) => {
-			logger.error("Failed to start TLS watcher", { context: { err } });
+function _startTlsWatcher(server: https.Server, tls: TlsPaths): void {
+	/* istanbul ignore next -- dead code: setupTlsWatcher never rejects; all errors handled internally */
+	setupTlsWatcher(server, tls).catch((err) => {
+		logger.error("Failed to start TLS watcher", { context: { err } });
+	});
+}
+
+function _createCloseHandler(server: https.Server): () => Promise<void> {
+	return () =>
+		new Promise<void>((resolve, reject) => {
+			server.close((err) => {
+				if (err) {
+					reject(err);
+				} else {
+					resolve();
+				}
+			});
 		});
-	}
-
-	return {
-		raw: httpsServer,
-		close: () =>
-			new Promise<void>((resolve, reject) => {
-				httpsServer.close((err) => {
-					if (err) {
-						reject(err);
-					} else {
-						resolve();
-					}
-				});
-			}),
-	};
 }
 
 /**
@@ -82,7 +106,7 @@ export async function createAndStartHttpsServer(
  */
 async function reloadTlsContext(
 	server: https.Server,
-	tls: TlsConfig,
+	tls: TlsPaths,
 	eventType: string,
 	filename: string | null
 ): Promise<void> {
@@ -91,14 +115,12 @@ async function reloadTlsContext(
 	}
 
 	try {
-		const [key, cert, ca] = await Promise.all([
-			fsPromises.readFile(path.resolve(tls.key), "utf8"),
-			fsPromises.readFile(path.resolve(tls.cert), "utf8"),
-			fsPromises.readFile(path.resolve(tls.ca), "utf8"),
-		]);
+		const { key, cert, ca } = await _loadTlsFiles(tls);
 
 		server.setSecureContext({ key, cert, ca });
-		logger.info("TLS context reloaded", { context: { event: eventType, file: filename } });
+		logger.info("TLS context reloaded", {
+			context: { event: eventType, file: filename },
+		});
 	} catch (err) {
 		logger.error("Failed to reload TLS context", { context: { err } });
 	}
@@ -106,7 +128,7 @@ async function reloadTlsContext(
 
 function createDebouncedReload(
 	server: https.Server,
-	tls: TlsConfig
+	tls: TlsPaths
 ): (eventType: string, filename: string | null) => void {
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -122,9 +144,9 @@ function createDebouncedReload(
 
 export async function setupTlsWatcher(
 	server: https.Server,
-	tls: TlsConfig
+	tls: TlsPaths
 ): Promise<void> {
-	const files = [tls.key, tls.cert, tls.ca];
+	const files = [tls.keyPath, tls.certPath, tls.caPath];
 	const dirs = new Set(files.map((file) => path.dirname(path.resolve(file))));
 	const debouncedReload = createDebouncedReload(server, tls);
 

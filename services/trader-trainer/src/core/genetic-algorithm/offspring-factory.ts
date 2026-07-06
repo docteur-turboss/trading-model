@@ -5,34 +5,8 @@ import { crossoverWeights, type MutateWeightsContext, mutateWeights } from "./ev
 import { selectParent } from "./selection";
 import { makePRNG } from "./prng";
 import { generateId } from "./utils";
-import type { DeepReadonly } from "./shared-types";
+import { deepFreeze, type DeepReadonly, withGenome } from "./shared-types";
 import type { Genome } from "./genome-types";
-
-function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
-	if (obj === null || typeof obj !== "object") {
-		return obj as DeepReadonly<TValue>;
-	}
-
-	if (ArrayBuffer.isView(obj)) {
-		return obj as DeepReadonly<TValue>;
-	}
-
-	for (const key of Object.keys(obj)) {
-		const val = (obj as Record<string, unknown>)[key];
-		if (val !== null && typeof val === "object" && !Object.isFrozen(val)) {
-			deepFreeze(val);
-		}
-	}
-
-	return Object.freeze(obj) as DeepReadonly<TValue>;
-}
-
-function withGenome<TGenome extends Genome>(
-	base: DeepReadonly<TGenome>,
-	patch: Partial<TGenome>
-): DeepReadonly<TGenome> {
-	return deepFreeze({ ...base, ...patch } as TGenome) as DeepReadonly<TGenome>;
-}
 
 export function selectElites(
 	ranked: Genome[],

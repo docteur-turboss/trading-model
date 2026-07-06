@@ -28,29 +28,10 @@ export function setupProcessHandlers(
 	}
 	handlersRegistered = true;
 
-	const onSigTerm = async () => {
-		logger.warn("SIGTERM received");
-		await shutdown("SIGTERM");
-	};
-
-	const onSigInt = async () => {
-		logger.warn("SIGINT received");
-		await shutdown("SIGINT");
-	};
-
-	const onUncaughtException = (error: Error) => {
-		logger.error("Uncaught exception - exiting", { context: { err: error } });
-		hardShutdown(1);
-	};
-
-	const onUnhandledRejection = (reason: unknown) => {
-		logger.error("Unhandled promise rejection - exiting", { context: { reason } });
-		hardShutdown(1);
-		// Node.js 15+ does not terminate on unhandledRejection when a handler exists.
-		// If active handles (WebSocket, timers) keep the loop busy, setImmediate may
-		// never fire — call exit directly so the process doesn't remain zombie.
-		process.exit(1);
-	};
+	const onSigTerm = _createSigTermHandler(shutdown);
+	const onSigInt = _createSigIntHandler(shutdown);
+	const onUncaughtException = _createUncaughtExceptionHandler(hardShutdown);
+	const onUnhandledRejection = _createUnhandledRejectionHandler(hardShutdown);
 
 	process.on("SIGTERM", onSigTerm);
 	process.on("SIGINT", onSigInt);
@@ -63,6 +44,41 @@ export function setupProcessHandlers(
 		process.removeListener("uncaughtException", onUncaughtException);
 		process.removeListener("unhandledRejection", onUnhandledRejection);
 	});
+}
+
+function _createSigTermHandler(shutdown: ShutdownHandler): () => Promise<void> {
+	return async () => {
+		logger.warn("SIGTERM received");
+		await shutdown("SIGTERM");
+	};
+}
+
+function _createSigIntHandler(shutdown: ShutdownHandler): () => Promise<void> {
+	return async () => {
+		logger.warn("SIGINT received");
+		await shutdown("SIGINT");
+	};
+}
+
+function _createUncaughtExceptionHandler(
+	hardShutdown: HardShutdownHandler
+): (error: Error) => void {
+	return (error: Error) => {
+		logger.error("Uncaught exception - exiting", { context: { err: error } });
+		hardShutdown(1);
+	};
+}
+
+function _createUnhandledRejectionHandler(
+	hardShutdown: HardShutdownHandler
+): (reason: unknown) => void {
+	return (reason: unknown) => {
+		logger.error("Unhandled promise rejection - exiting", {
+			context: { reason },
+		});
+		hardShutdown(1);
+		process.exit(1);
+	};
 }
 
 /**

@@ -64,18 +64,22 @@ export class ReplayOrchestrator {
 				this._halfOpenAttempts++;
 				if (this._halfOpenAttempts >= this._halfOpenMaxAttempts) {
 					this._circuitOpenUntil = Date.now() + this._circuitCooldownMs;
-					logger.warn("Replay circuit breaker re-opened during half-open", { context: {
-						failures: this._circuitFailures,
-						halfOpenAttempts: this._halfOpenAttempts,
-					} });
+					logger.warn("Replay circuit breaker re-opened during half-open", {
+						context: {
+							failures: this._circuitFailures,
+							halfOpenAttempts: this._halfOpenAttempts,
+						},
+					});
 				}
 			}
 			if (this._circuitFailures >= this._circuitThreshold) {
 				this._circuitOpenUntil = Date.now() + this._circuitCooldownMs;
-				logger.warn("Replay circuit breaker opened", { context: {
-					failures: this._circuitFailures,
-					cooldownMs: this._circuitCooldownMs,
-				} });
+				logger.warn("Replay circuit breaker opened", {
+					context: {
+						failures: this._circuitFailures,
+						cooldownMs: this._circuitCooldownMs,
+					},
+				});
 			}
 		}
 	}
@@ -83,10 +87,12 @@ export class ReplayOrchestrator {
 	/** Check if batch concurrency limit has been reached. */
 	canStartBatch(): boolean {
 		if (this._activeBatches >= this._maxConcurrentBatches) {
-			logger.warn("Too many concurrent replay batches", { context: {
-				activeBatches: this._activeBatches,
-				max: this._maxConcurrentBatches,
-			} });
+			logger.warn("Too many concurrent replay batches", {
+				context: {
+					activeBatches: this._activeBatches,
+					max: this._maxConcurrentBatches,
+				},
+			});
 			return false;
 		}
 		return true;

@@ -47,13 +47,13 @@ export class MarketDataBuffer {
 		const maxMemoryBytes = (config.maxMemoryMb ?? 512) * 1024 * 1024;
 		const evictionPolicy = config.evictionPolicy ?? "none";
 
-		this._memoryManager = new MemoryManager(
-			this._states,
-			this._accessOrder,
+		this._memoryManager = new MemoryManager({
+			states: this._states,
+			accessOrder: this._accessOrder,
 			maxSize,
 			maxMemoryBytes,
 			evictionPolicy,
-		);
+		});
 		this._windowSplitter = new WindowSplitter(
 			this._states,
 			this._priceSnapshot,

@@ -23,21 +23,15 @@
 
 import type { DeliveryModeEnum } from "../config/delivery-mode.types";
 import type { ServiceInstanceName } from "../config/services.types";
+import type { ServiceIdentity as DomainServiceIdentity } from "../domain/service-identity";
 
 /**
  * Identity of a service instance within the broker system.
  * Used to identify publishers and subscribers for routing and load-balancing.
  */
-export interface ServiceIdentity {
-	/** Logical name of the emitting service. */
+export type ServiceIdentity = DomainServiceIdentity & {
 	serviceName: ServiceInstanceName;
-
-	/** Unique instance identifier (pod / container). */
-	instanceId: string;
-
-	/** Deployment region for geo-affinity routing. */
-	region?: string;
-}
+};
 
 /**
  * Routing hints for message delivery scheduling.
@@ -86,16 +80,8 @@ export interface SecurityType {
  * Configuration object for TLS-secured broker connections.
  * Contains file paths to certificates required for mutual TLS authentication.
  */
-export interface BrokerConfig {
-	/** Path to the Root CA certificate. */
-	rootCACertPath: string;
-
-	/** Path to the client certificate. */
-	certificatePath: string;
-
-	/** Path to the client key. */
-	keyCertificatePath: string;
-}
+/** @deprecated Use TlsPaths from @trading-model/common/domain/tls-paths instead. */
+export type BrokerConfig = import("../domain/tls-paths").TlsPaths;
 
 /**
  * Message envelope combining business payload with technical metadata

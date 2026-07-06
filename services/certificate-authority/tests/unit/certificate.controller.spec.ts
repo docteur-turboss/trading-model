@@ -195,10 +195,10 @@ describe("certificate.controller", () => {
 
 			await revokeCertificate(req, res);
 
-			expect(MOCK_REVOKE_CERTIFICATE).toHaveBeenCalledWith(
-				"SN-001",
-				"key_compromise"
-			);
+			expect(MOCK_REVOKE_CERTIFICATE).toHaveBeenCalledWith({
+				serialNumber: "SN-001",
+				reason: "key_compromise",
+			});
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(res.status().json).toHaveBeenCalledWith({
 				message: "Certificate revoked",

@@ -1,6 +1,7 @@
 import type { Experience } from "../../core/neural-network/type";
 import { NormalizationStats } from "../normalization-stats";
-import type { BackendFactory, RLBackend, WindowSet } from "./ga-runner";
+import type { BackendFactory, RLBackend } from "./rl-backend";
+import type { WindowSet } from "./ga-runner";
 import { evaluateGenomeAllWindows, pooledEval } from "./evaluation-pipeline";
 import { shapeReward } from "./fitness";
 import type {
@@ -10,34 +11,8 @@ import type {
 	MarketStep,
 } from "./genome-types";
 import type { ObjectiveVector } from "./nsga2";
-import type { DeepReadonly } from "./shared-types";
+import { deepFreeze, type DeepReadonly, withGenome } from "./shared-types";
 import type { RunningStats } from "./utils";
-
-function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
-	if (obj === null || typeof obj !== "object") {
-		return obj as DeepReadonly<TValue>;
-	}
-
-	if (ArrayBuffer.isView(obj)) {
-		return obj as DeepReadonly<TValue>;
-	}
-
-	for (const key of Object.keys(obj)) {
-		const val = (obj as Record<string, unknown>)[key];
-		if (val !== null && typeof val === "object" && !Object.isFrozen(val)) {
-			deepFreeze(val);
-		}
-	}
-
-	return Object.freeze(obj) as DeepReadonly<TValue>;
-}
-
-function withGenome<TGenome extends Genome>(
-	base: DeepReadonly<TGenome>,
-	patch: Partial<TGenome>
-): DeepReadonly<TGenome> {
-	return deepFreeze({ ...base, ...patch } as TGenome) as DeepReadonly<TGenome>;
-}
 
 export interface PrecomputeRewardsContext {
 	backend: RLBackend;

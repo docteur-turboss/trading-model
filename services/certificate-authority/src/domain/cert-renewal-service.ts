@@ -26,6 +26,14 @@ interface DistributedLock {
 	release(): Promise<void>;
 }
 
+interface PopVerificationInput {
+	certPem: string;
+	nonce: string;
+	signature: string;
+	serviceId: string;
+	oldSerialNumber: string;
+}
+
 export class CertRenewalError extends Error {
 	public readonly statusCode: number;
 	constructor(message: string, statusCode = 400) {
@@ -75,31 +83,57 @@ export class CertRenewalService {
 	 * @returns The newly issued signed certificate
 	 * @throws CertRenewalError on validation failure
 	 */
-	async renew(
-		request: RenewCertRequest
-	): Promise<SignedCertificate> {
+	async renew(request: RenewCertRequest): Promise<SignedCertificate> {
 		const { serviceId, oldSerialNumber, nonce, signature, csr } = request;
-		// 1. Verify the nonce was issued for this service (prevents replay attacks)
+
+		await this._consumeNonce(nonce, serviceId);
+		const oldCert = await this._getOldCertificate(oldSerialNumber);
+		this._verifyPop({
+			certPem: oldCert.certPem,
+			nonce,
+			signature,
+			serviceId,
+			oldSerialNumber,
+		});
+
+		return this._issueCertificate(serviceId, csr);
+	}
+
+	private async _consumeNonce(nonce: string, serviceId: string): Promise<void> {
 		if (!(await this._nonceStore.consume(nonce, serviceId))) {
 			throw new CertRenewalError("Invalid or expired nonce", 401);
 		}
+	}
 
-		// 2. Retrieve the old certificate to get its public key
+	private async _getOldCertificate(
+		oldSerialNumber: string
+	): Promise<{ certPem: string; serviceId: string }> {
 		const oldCert = await this._certStore.getBySerial(oldSerialNumber);
 		if (!oldCert) {
 			throw new CertRenewalError("Original certificate not found", 404);
 		}
+		return oldCert;
+	}
 
-		// 3. Verify proof-of-possession (client still holds the private _key)
-		if (!this._popVerifier.verify(oldCert.certPem, nonce, signature)) {
-			logger.warn("Proof-of-possession failed", { context: { serviceId, oldSerialNumber } });
+	private _verifyPop(
+		input: PopVerificationInput
+	): void {
+		const { certPem, nonce, signature, serviceId, oldSerialNumber } = input;
+		if (!this._popVerifier.verify(certPem, nonce, signature)) {
+			logger.warn("Proof-of-possession failed", {
+				context: { serviceId, oldSerialNumber },
+			});
 			throw new CertRenewalError(
 				"Proof-of-possession failed — signature does not match certificate public key",
 				403
 			);
 		}
+	}
 
-		// 4. Issue the new certificate (with distributed lock to prevent double-issuance)
+	private async _issueCertificate(
+		serviceId: string,
+		csr: string
+	): Promise<SignedCertificate> {
 		if (this._lock) {
 			const acquired = await this._lock.acquire();
 			if (!acquired) {

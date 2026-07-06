@@ -1,4 +1,9 @@
-import { type AnyBulkWriteOperation, type Document, ObjectId, type WithId } from "mongodb";
+import {
+	type AnyBulkWriteOperation,
+	type Document,
+	ObjectId,
+	type WithId,
+} from "mongodb";
 
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
@@ -48,7 +53,12 @@ export class DlqClaimManager {
 		}
 
 		const now = new Date();
-		const operations = this._buildBulkUpdateOps({ candidates, now, instanceId, batchId });
+		const operations = this._buildBulkUpdateOps({
+			candidates,
+			now,
+			instanceId,
+			batchId,
+		});
 
 		const bulkResult = await col.bulkWrite(operations, { ordered: false });
 		if (bulkResult.modifiedCount === 0) {
@@ -77,8 +87,7 @@ export class DlqClaimManager {
 
 	async claimEntriesByIds(
 		ids: string[],
-		batchId: string,
-		instanceId: string
+		ctx: import("./types").BatchContext
 	): Promise<StoredDlqEntry[]> {
 		if (ids.length === 0) {
 			return [];
@@ -100,8 +109,8 @@ export class DlqClaimManager {
 				update: {
 					$set: {
 						processingAt: now,
-						processingInstance: instanceId,
-						lastBatchId: batchId,
+						processingInstance: ctx.instanceId,
+						lastBatchId: ctx.batchId,
 					},
 				},
 			},
@@ -111,7 +120,7 @@ export class DlqClaimManager {
 
 		const claimed = await col
 			.find(
-				{ _id: { $in: objectIds }, lastBatchId: batchId },
+				{ _id: { $in: objectIds }, lastBatchId: ctx.batchId },
 				{
 					projection: {
 						_id: 1,
@@ -130,8 +139,7 @@ export class DlqClaimManager {
 
 	async claimEntry(
 		id: string,
-		batchId: string,
-		instanceId: string
+		ctx: import("./types").BatchContext
 	): Promise<StoredDlqEntry | null> {
 		const col = await getCollection();
 		const result = await col.findOneAndUpdate(
@@ -145,8 +153,8 @@ export class DlqClaimManager {
 			{
 				$set: {
 					processingAt: new Date(),
-					processingInstance: instanceId,
-					lastBatchId: batchId,
+					processingInstance: ctx.instanceId,
+					lastBatchId: ctx.batchId,
 				},
 			},
 			{

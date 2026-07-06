@@ -67,9 +67,11 @@ export class FsStore {
 
 		if (this.disabled) {
 			this._encryptionKey = null;
-			logger.warn("FsStore is DISABLED — no fallback storage available", { context: {
-				baseDir: this._baseDir,
-			} });
+			logger.warn("FsStore is DISABLED — no fallback storage available", {
+				context: {
+					baseDir: this._baseDir,
+				},
+			});
 		} else if (options?.encryptionKey) {
 			this._encryptionKey = deriveKey(options.encryptionKey);
 		} else if (process.env.NODE_ENV === "production") {
@@ -92,10 +94,12 @@ export class FsStore {
 			return;
 		}
 		await fs.mkdir(this._baseDir, { recursive: true });
-		logger.info("FsStore initialized", { context: {
-			baseDir: this._baseDir,
-			encrypted: this._encryptionKey !== null,
-		} });
+		logger.info("FsStore initialized", {
+			context: {
+				baseDir: this._baseDir,
+				encrypted: this._encryptionKey !== null,
+			},
+		});
 	}
 
 	private _filePath(key: string): string {
@@ -169,11 +173,12 @@ export class FsStore {
 				: raw;
 			return JSON.parse(decrypted) as TData;
 		} catch (err) {
-			logger.warn("Skipping corrupted fallback file", { context: {
-				file,
-				err: normalizeError(err as Error),
-			} });
-			return undefined;
+			logger.warn("Skipping corrupted fallback file", {
+				context: {
+					file,
+					err: normalizeError(err as Error),
+				},
+			});
 		}
 	}
 

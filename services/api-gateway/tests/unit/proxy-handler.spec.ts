@@ -104,7 +104,7 @@ describe("proxy-handler", () => {
 			method: "GET",
 			headers: { "x-request-id": "req-123" },
 		});
-		const result = await forward(req, MOCK_TARGET, "/v1/api/data");
+		const result = await forward({ req, target: MOCK_TARGET, path: "/v1/api/data" });
 
 		expect(result.status).toBe(200);
 		expect(JSON.parse(result.body)).toEqual({ data: "ok" });
@@ -140,7 +140,7 @@ describe("proxy-handler", () => {
 			method: "GET",
 			headers: { "x-api-key": "secret", "x-request-id": "req-123" },
 		});
-		await forward(req, MOCK_TARGET, "/test");
+		await forward({ req, target: MOCK_TARGET, path: "/test" });
 
 		expect(mockReq.end).toHaveBeenCalled();
 	});
@@ -166,7 +166,7 @@ describe("proxy-handler", () => {
 			require("../../src/core/proxy-handler")
 		);
 		const req = createReq({ method: "GET" });
-		await expect(forward(req, MOCK_TARGET, "/test")).rejects.toThrow(
+		await expect(forward({ req, target: MOCK_TARGET, path: "/test" })).rejects.toThrow(
 			"ECONNREFUSED"
 		);
 	});
@@ -198,7 +198,7 @@ describe("proxy-handler", () => {
 			require("../../src/core/proxy-handler")
 		);
 		const req = createReq({ method: "GET" });
-		await expect(forward(req, MOCK_TARGET, "/test")).rejects.toThrow("timeout");
+		await expect(forward({ req, target: MOCK_TARGET, path: "/test" })).rejects.toThrow("timeout");
 	});
 
 	it("should handle array headers by joining with comma", async () => {
@@ -232,7 +232,7 @@ describe("proxy-handler", () => {
 				accept: ["text/html", "application/json"],
 			},
 		});
-		const result = await forward(req, MOCK_TARGET, "/test");
+		const result = await forward({ req, target: MOCK_TARGET, path: "/test" });
 		expect(result.status).toBe(200);
 	});
 
@@ -264,7 +264,7 @@ describe("proxy-handler", () => {
 			method: "GET",
 			headers: { "x-request-id": "req-123", "content-length": 42 },
 		});
-		const result = await forward(req, MOCK_TARGET, "/test");
+		const result = await forward({ req, target: MOCK_TARGET, path: "/test" });
 		expect(result.status).toBe(200);
 	});
 
@@ -297,7 +297,7 @@ describe("proxy-handler", () => {
 			ip: undefined,
 			socket: { remoteAddress: "10.0.0.1" },
 		});
-		const result = await forward(req, MOCK_TARGET, "/test");
+		const result = await forward({ req, target: MOCK_TARGET, path: "/test" });
 		expect(result.status).toBe(200);
 	});
 
@@ -330,7 +330,7 @@ describe("proxy-handler", () => {
 			ip: undefined,
 			socket: { remoteAddress: undefined },
 		});
-		const result = await forward(req, MOCK_TARGET, "/test");
+		const result = await forward({ req, target: MOCK_TARGET, path: "/test" });
 		expect(result.status).toBe(200);
 	});
 
@@ -363,7 +363,7 @@ describe("proxy-handler", () => {
 			require("../../src/core/proxy-handler")
 		);
 		const req = createReq({ method: "GET" });
-		const result = await forward(req, MOCK_TARGET, "/test");
+		const result = await forward({ req, target: MOCK_TARGET, path: "/test" });
 		expect(result.status).toBe(503);
 	});
 
@@ -401,7 +401,7 @@ describe("proxy-handler", () => {
 			body: { name: "test" },
 			headers: { "content-type": "application/json" },
 		});
-		const result = await forward(req, MOCK_TARGET, "/v1/api/create");
+		const result = await forward({ req, target: MOCK_TARGET, path: "/v1/api/create" });
 
 		expect(result.status).toBe(200);
 		expect(mockReq.write).toHaveBeenCalledWith(

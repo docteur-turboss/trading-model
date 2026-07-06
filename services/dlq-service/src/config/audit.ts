@@ -4,6 +4,7 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import { findAService } from "./address-manager";
 import { env } from "./env";
 import { logger } from "./logger";
+import { MessageManagerCircuitBreaker } from "./mm-circuit-breaker";
 
 export interface AuditEvent {
 	timestamp: string;
@@ -68,13 +69,15 @@ async function resolveAuditLoggerUrl(): Promise<string | null> {
 	return auditUrlPromise;
 }
 
-let auditCircuitFailures = 0;
-let auditCircuitOpenUntil = 0;
-const AUDIT_CIRCUIT_THRESHOLD = 10;
-const AUDIT_CIRCUIT_RESET_MS = 60_000;
+const auditCircuitBreaker = new MessageManagerCircuitBreaker({
+	failureThreshold: 10,
+	resetMs: 60_000,
+	halfOpenMaxAttempts: 1,
+	name: "audit-logger",
+});
 
 export async function notifyAudit(event: AuditEvent): Promise<void> {
-	if (auditCircuitOpenUntil > Date.now()) {
+	if (auditCircuitBreaker.isOpen()) {
 		return;
 	}
 
@@ -90,26 +93,12 @@ export async function notifyAudit(event: AuditEvent): Promise<void> {
 			serviceName: ServiceInstanceName.AuditLoggerService,
 			retryCount: 2,
 		});
-		if (auditCircuitFailures > 0) {
-			auditCircuitFailures = 0;
-		}
-		auditCircuitOpenUntil = 0;
+		auditCircuitBreaker.recordResult(true);
 	} catch (err) {
-		auditCircuitFailures++;
-		if (auditCircuitFailures >= AUDIT_CIRCUIT_THRESHOLD) {
-			auditCircuitOpenUntil = Date.now() + AUDIT_CIRCUIT_RESET_MS;
-			logger.warn(
-				"Audit-logger circuit breaker opened — suppressing notifications",
-				{
-					failures: auditCircuitFailures,
-					resetMs: AUDIT_CIRCUIT_RESET_MS,
-				}
-			);
-		} else {
-			logger.warn("Audit notification failed (non-fatal)", {
-				error: (err as Error)?.message,
-				topic: event.topic,
-			});
-		}
+		auditCircuitBreaker.recordResult(false);
+		logger.warn("Audit notification failed (non-fatal)", {
+			error: (err as Error)?.message,
+			topic: event.topic,
+		});
 	}
 }

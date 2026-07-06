@@ -61,16 +61,16 @@ export class WssReconnector {
 			}
 			return;
 		}
-		scheduleWsReconnect(
-			this._wsReconnectState,
-			{
+		scheduleWsReconnect({
+			state: this._wsReconnectState,
+			config: {
 				baseDelayMs: WSS_RECONNECT_BASE_MS,
 				maxDelayMs: WSS_RECONNECT_MAX_MS,
 				jitterMs: 1000,
 			},
-			connectFn,
-			logger
-		);
+			onReconnect: connectFn,
+			logger,
+		});
 	}
 
 	private _startReconnectPolling(connectFn: ConnectFn): void {

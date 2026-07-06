@@ -83,23 +83,30 @@ export class LifecycleManager {
 			cacheTtlMs,
 		} = this._options;
 
-		scheduler.register(
-			new RefreshJob(
-				tokenManager,
-				(tm) => tm.refreshToken(),
-				tokenRefreshIntervalMs
-			)
-		);
-
-		scheduler.register(
-			new RefreshJob(
-				addressManagerClient,
-				async () => {
+		const jobs = [
+			{
+				instance: tokenManager,
+				action: (tm: typeof tokenManager) => tm.refreshToken(),
+				intervalMs: tokenRefreshIntervalMs,
+			},
+			{
+				instance: addressManagerClient,
+				action: async () => {
 					await this._performHeartbeat();
 				},
-				ttlRefreshIntervalMs
-			)
-		);
+				intervalMs: ttlRefreshIntervalMs,
+			},
+		];
+
+		for (const job of jobs) {
+			scheduler.register(
+				new RefreshJob(
+					job.instance,
+					job.action as () => Promise<void>,
+					job.intervalMs
+				)
+			);
+		}
 
 		if (!(serviceCache instanceof RedisServiceCache)) {
 			scheduler.register(

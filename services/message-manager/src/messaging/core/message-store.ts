@@ -1,5 +1,6 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
 import { safeStringify } from "@trading-model/common/utils/safe-stringify";
+import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import type Redis from "ioredis";
 
 import { ENV } from "../../config/env";
@@ -10,7 +11,7 @@ import { ClaimManager } from "./claim-manager";
 import { DeduplicationService } from "./deduplication-service";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { PendingAckStore } from "./pending-ack-store";
-import { StreamGroupManager, type ReadFromGroupParams } from "./stream-group-manager";
+import { StreamGroupManager, type GetMessagesBetweenParams, type ReadFromGroupParams } from "./stream-group-manager";
 import { WalFlusherService } from "./wal-flusher-service";
 
 const MAX_WAL_RETRY = 10;
@@ -59,49 +60,23 @@ export class MessageStore {
 		return entryId ?? "";
 	}
 
-	private _isStoreTimedOut(
-		storeStart: number,
-		attempt: number,
-		topic: string
-	): boolean {
-		if (Date.now() - storeStart <= STORE_OPERATION_TIMEOUT_MS) {
-			return false;
-		}
-		logger.error("Stream store timed out — falling through to WAL", {
-			topic,
-			attempt,
-			elapsed: Date.now() - storeStart,
-		});
-		return true;
-	}
-
 	private async _storeInRedisStream(
 		topic: string,
 		serialized: string
 	): Promise<string | null> {
 		const redis = await getStreamClient();
-		const storeStart = Date.now();
-		let attempt = 0;
-		let lastError: Error | null = null;
+		const { result: entryId, lastError } = await retryWithBackoff(
+			() => this._tryStoreOnce(topic, serialized, redis),
+			{
+				maxRetries: MAX_WAL_RETRY,
+				baseDelayMs: 100,
+				maxDelayMs: 5000,
+				timeoutMs: STORE_OPERATION_TIMEOUT_MS,
+			}
+		);
 
-		while (attempt < MAX_WAL_RETRY) {
-			if (this._isStoreTimedOut(storeStart, attempt, topic)) {
-				break;
-			}
-			try {
-				return await this._tryStoreOnce(topic, serialized, redis);
-			} catch (err) {
-				attempt++;
-				lastError = err as Error;
-				const backoff = Math.min(100 * 2 ** attempt, 5000);
-				logger.warn("Redis xadd failed, retrying", { context: {
-					topic,
-					attempt,
-					backoff,
-					error: (err as Error).message,
-				} });
-				await this._sleepWithJitter(backoff);
-			}
+		if (entryId) {
+			return entryId;
 		}
 
 		if (lastError) {
@@ -109,20 +84,12 @@ export class MessageStore {
 				"Stream store failed after retries — falling through to WAL",
 				{
 					topic,
-					attempt,
 					error: lastError.message,
 				}
 			);
 		}
 
 		return null;
-	}
-
-	private _sleepWithJitter(ms: number): Promise<void> {
-		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
-		return new Promise((resolve) =>
-			setTimeout(resolve, Math.max(1, Math.round(ms + jitter)))
-		);
 	}
 
 	async store(topic: string, message: Message): Promise<string> {
@@ -223,17 +190,9 @@ export class MessageStore {
 	}
 
 	async getMessagesBetween(
-		topic: string,
-		fromMs: number,
-		toMs: number,
-		limit = 100
+		params: GetMessagesBetweenParams
 	): Promise<Message[]> {
-		return this._streamGroupManager.getMessagesBetween(
-			topic,
-			fromMs,
-			toMs,
-			limit
-		);
+		return this._streamGroupManager.getMessagesBetween(params);
 	}
 
 	async addPendingAck(

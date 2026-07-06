@@ -33,18 +33,18 @@ export class JobScheduler {
 		this.workers = new WorkerRegistry(ENV.WORKER_HEARTBEAT_TTL_MS);
 		this.repository = repository;
 		this.reAllocator = new ReAllocator(repository, this.queue);
-		this._assignmentManager = new JobAssignmentManager(
-			this.queue,
-			this.backPressure,
-			this.workers,
-			repository
-		);
-		this._failureHandler = new JobFailureHandler(
-			this.queue,
+		this._assignmentManager = new JobAssignmentManager({
+			queue: this.queue,
+			backPressure: this.backPressure,
+			workers: this.workers,
 			repository,
-			this.reAllocator,
-			this._assignmentManager
-		);
+		});
+		this._failureHandler = new JobFailureHandler({
+			queue: this.queue,
+			repository,
+			reAllocator: this.reAllocator,
+			assignmentManager: this._assignmentManager,
+		});
 		this.orphanDetector = new OrphanDetector({
 			workers: this.workers,
 			repository,

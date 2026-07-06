@@ -50,6 +50,62 @@ interface WssSession {
 	limiterKey: string;
 }
 
+function sendAuthResponse(
+	ws: WebSocket,
+	success: boolean,
+	errorMessage?: string
+): void {
+	ws.send(
+		JSON.stringify({
+			type: "auth:response",
+			success,
+			...(errorMessage ? { error: { message: errorMessage } } : {}),
+		})
+	);
+}
+
+function isAuthExceeded(
+	state: ConnectionState,
+	clientIdentity: string | undefined
+): boolean {
+	if (state.authAttempts <= AUTH_ATTEMPT_MAX) {
+		return false;
+	}
+	logger.warn("WSS client exceeded max auth attempts, closing connection", {
+		context: { clientIdentity },
+	});
+	return true;
+}
+
+function handleValidToken(
+	state: ConnectionState,
+	token: string,
+	clientIdentity: string | undefined,
+	ws: WebSocket
+): void {
+	state.bootstrapToken = token;
+	state.tokenProvided = true;
+	logger.info(
+		"WSS client provided bootstrap token via post-connect auth message",
+		{ context: { clientIdentity } }
+	);
+	sendAuthResponse(ws, true);
+}
+
+function handleInvalidToken(
+	authMsg: WsAuthMessage,
+	clientIdentity: string | undefined,
+	ws: WebSocket
+): void {
+	logger.warn("WSS client sent invalid auth token format", {
+		context: {
+			clientIdentity,
+			length: authMsg.token?.length ?? 0,
+		},
+	});
+	sendAuthResponse(ws, false, "Authentication failed");
+}
+
 function handleAuthMessage({
 	ws,
 	authMsg,
@@ -57,33 +113,15 @@ function handleAuthMessage({
 	clientIdentity,
 }: AuthMessageContext): boolean {
 	state.authAttempts++;
-	if (state.authAttempts > AUTH_ATTEMPT_MAX) {
-		logger.warn("WSS client exceeded max auth attempts, closing connection", { context: {
-			clientIdentity,
-		} });
+	if (isAuthExceeded(state, clientIdentity)) {
 		ws.close(4001, "Too many authentication attempts");
 		return false;
 	}
+
 	if (typeof authMsg.token === "string" && isValidTokenFormat(authMsg.token)) {
-		state.bootstrapToken = authMsg.token;
-		state.tokenProvided = true;
-		logger.info(
-			"WSS client provided bootstrap token via post-connect auth message",
-			{ context: { clientIdentity } }
-		);
-		ws.send(JSON.stringify({ type: "auth:response", success: true }));
+		handleValidToken(state, authMsg.token, clientIdentity, ws);
 	} else {
-		logger.warn("WSS client sent invalid auth token format", { context: {
-			clientIdentity,
-			length: authMsg.token?.length ?? 0,
-		} });
-		ws.send(
-			JSON.stringify({
-				type: "auth:response",
-				success: false,
-				error: { message: "Authentication failed" },
-			})
-		);
+		handleInvalidToken(authMsg, clientIdentity, ws);
 	}
 	return true;
 }
@@ -115,7 +153,9 @@ async function handleSignRequest(
 		);
 	} catch (err) {
 		const statusCode = (err as Record<string, unknown>).statusCode ?? 500;
-		logger.warn("WSS sign error", { context: { err: normalizeError(err as Error) } });
+		logger.warn("WSS sign error", {
+			context: { err: normalizeError(err as Error) },
+		});
 		ws.send(
 			JSON.stringify({
 				type: "sign:response",
@@ -193,9 +233,11 @@ async function handleWsMessage(
 
 	const parsed = WS_SIGN_SCHEMA.safeParse(msg);
 	if (!parsed.success) {
-		logger.warn("WSS invalid sign request", { context: {
-			issues: parsed.error.issues,
-		} });
+		logger.warn("WSS invalid sign request", {
+			context: {
+				issues: parsed.error.issues,
+			},
+		});
 		sendSignError(ws, (msg.id as string) ?? "unknown", "Invalid request");
 		return;
 	}
@@ -228,15 +270,19 @@ function handleWsClose(
 	limiterKey: string,
 	clientIdentity: string | undefined
 ): void {
-	logger.debug("WSS client disconnected from CA", { context: { clientIdentity } });
+	logger.debug("WSS client disconnected from CA", {
+		context: { clientIdentity },
+	});
 	clearRateLimiterKey(limiterKey);
 }
 
 function handleWsError(err: Error, clientIdentity: string | undefined): void {
-	logger.error("WSS connection error", { context: {
-		err: err.message,
-		clientIdentity,
-	} });
+	logger.error("WSS connection error", {
+		context: {
+			err: err.message,
+			clientIdentity,
+		},
+	});
 }
 
 export function attachWsServer(httpsServer: https.Server): WebSocketServer {
@@ -244,9 +290,11 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
 
 	wss.on("connection", (ws: WebSocket, req) => {
 		const session: WssSession = initConnectionState(req);
-		logger.info("WSS client connected to CA (awaiting auth)", { context: {
-			clientIdentity: session.clientIdentity,
-		} });
+		logger.info("WSS client connected to CA (awaiting auth)", {
+			context: {
+				clientIdentity: session.clientIdentity,
+			},
+		});
 
 		ws.on("message", (raw: RawData) => handleWsMessage(ws, raw, session));
 		ws.on("close", () =>

@@ -7,7 +7,7 @@ import type {
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import {
 	AppError,
-	ErrorCodes,
+	MessageManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import { ENV } from "../../config/env";
@@ -145,9 +145,8 @@ export class DlqServiceClient {
 				error: normalizeError(err as Error),
 				reason: entry.reason,
 			} });
-			throw new AppError(
+			throw new MessageManagerError(
 				"Failed to send DLQ entry",
-				ErrorCodes.MESSAGE_MANAGER_ERROR,
 				{
 					cause: err,
 				}

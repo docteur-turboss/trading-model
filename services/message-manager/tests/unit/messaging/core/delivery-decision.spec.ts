@@ -8,10 +8,7 @@ jest.mock("@trading-model/common/config/delivery-mode.types", () => ({
 	},
 }));
 
-jest.mock("@trading-model/common/utils/errors", () => ({
-	ErrorCodes: { DEAD_LETTER_ERROR: "DEAD_LETTER" },
-}));
-
+import { DeadLetterError } from "@trading-model/common/utils/errors";
 import { classifyDeliveryFailure } from "../../../../src/messaging/core/delivery-decision";
 
 describe("delivery-decision", () => {
@@ -21,7 +18,7 @@ describe("delivery-decision", () => {
 
 	it("should return dead letter for DEAD_LETTER_ERROR code", () => {
 		const result = classifyDeliveryFailure({
-			error: { name: "Error", message: "", code: "DEAD_LETTER", reason: "bad data" },
+			error: new DeadLetterError("bad data"),
 			deliveryMode: atLeastOnce,
 			deliveryAttempt: 1,
 			maxRetries: 3,
@@ -36,7 +33,7 @@ describe("delivery-decision", () => {
 			deliveryMode: atLeastOnce,
 			deliveryAttempt: 1,
 			maxRetries: 3,
-		});
+		} as never);
 		expect(result.retry).toBe(false);
 		expect(result.deadLetterReason).toBe("FATAL_400");
 	});
@@ -47,7 +44,7 @@ describe("delivery-decision", () => {
 			deliveryMode: atLeastOnce,
 			deliveryAttempt: 1,
 			maxRetries: 3,
-		});
+		} as never);
 		expect(result.retry).toBe(true);
 	});
 
@@ -57,7 +54,7 @@ describe("delivery-decision", () => {
 			deliveryMode: atMostOnce,
 			deliveryAttempt: 1,
 			maxRetries: 3,
-		});
+		} as never);
 		expect(result.retry).toBe(false);
 		expect(result.deadLetterReason).toBe("AT_MOST_ONCE");
 	});
@@ -68,7 +65,7 @@ describe("delivery-decision", () => {
 			deliveryMode: exactlyOnce,
 			deliveryAttempt: 1,
 			maxRetries: 3,
-		});
+		} as never);
 		expect(result.retry).toBe(false);
 		expect(result.deadLetterReason).toBe("AT_MOST_ONCE");
 	});
@@ -79,7 +76,7 @@ describe("delivery-decision", () => {
 			deliveryMode: atLeastOnce,
 			deliveryAttempt: 3,
 			maxRetries: 3,
-		});
+		} as never);
 		expect(result.retry).toBe(false);
 		expect(result.deadLetterReason).toBe("MAX_RETRIES");
 	});
@@ -90,7 +87,7 @@ describe("delivery-decision", () => {
 			deliveryMode: atLeastOnce,
 			deliveryAttempt: 1,
 			maxRetries: 3,
-		});
+		} as never);
 		expect(result.retry).toBe(true);
 	});
 });

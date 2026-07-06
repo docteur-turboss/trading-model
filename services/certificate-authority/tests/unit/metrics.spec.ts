@@ -85,7 +85,11 @@ describe("metrics", () => {
 		});
 
 		it("should do nothing when webhookUrl is undefined", () => {
-			sendAlertWebhook({ webhookUrl: undefined, title: "title", message: "msg" });
+			sendAlertWebhook({
+				webhookUrl: undefined,
+				title: "title",
+				message: "msg",
+			});
 			expect(mockFetch).not.toHaveBeenCalled();
 		});
 

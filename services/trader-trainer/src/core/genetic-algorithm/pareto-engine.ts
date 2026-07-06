@@ -45,48 +45,70 @@ export function dominates(
 	);
 }
 
-/**
- * Exact O(n²) non-dominated sorting (for small populations).
- */
-function nondominatedSortExact(objectives: ObjectiveVector[]): number[] {
+function buildDominationMatrix(
+	objectives: ObjectiveVector[]
+): { dominated: Int32Array; dominates: number[][] } {
 	const length = objectives.length;
 	const dominated = new Int32Array(length);
-	const dominates_ = Array.from({ length: length }, () => [] as number[]);
+	const dominates = Array.from({ length }, () => [] as number[]);
 
 	for (let i = 0; i < length; i++) {
 		for (let j = 0; j < length; j++) {
-			if (i === j) {
-				continue;
-			}
+			if (i === j) continue;
 			if (dominates(objectives[i], objectives[j])) {
-				dominates_[i].push(j);
+				dominates[i].push(j);
 			} else if (dominates(objectives[j], objectives[i])) {
 				dominated[i]++;
 			}
 		}
 	}
 
-	const ranks = new Array<number>(length).fill(0);
-	let front = Array.from({ length: length }, (_unused, index) => index).filter(
+	return { dominated, dominates };
+}
+
+function computeParetoFronts(
+	dominated: Int32Array,
+	dominates: number[][],
+	length: number
+): number[][] {
+	const fronts: number[][] = [];
+	let current = Array.from({ length }, (_unused, index) => index).filter(
 		(idx) => dominated[idx] === 0
 	);
-	let rank = 0;
 
-	while (front.length > 0) {
+	while (current.length > 0) {
+		fronts.push(current);
 		const next: number[] = [];
-		for (const i of front) {
-			ranks[i] = rank;
-			for (const j of dominates_[i]) {
+		for (const i of current) {
+			for (const j of dominates[i]) {
 				if (--dominated[j] === 0) {
 					next.push(j);
 				}
 			}
 		}
-		front = next;
-		rank++;
+		current = next;
 	}
 
+	return fronts;
+}
+
+function assignRanks(fronts: number[][], length: number): number[] {
+	const ranks = new Array<number>(length).fill(0);
+	for (let rank = 0; rank < fronts.length; rank++) {
+		for (const idx of fronts[rank]) {
+			ranks[idx] = rank;
+		}
+	}
 	return ranks;
+}
+
+/**
+ * Exact O(n²) non-dominated sorting (for small populations).
+ */
+function nondominatedSortExact(objectives: ObjectiveVector[]): number[] {
+	const { dominated, dominates } = buildDominationMatrix(objectives);
+	const fronts = computeParetoFronts(dominated, dominates, objectives.length);
+	return assignRanks(fronts, objectives.length);
 }
 
 /**

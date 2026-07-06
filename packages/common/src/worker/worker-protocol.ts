@@ -11,7 +11,12 @@ import type { WorkerRegistry } from "./worker-registry";
 export class WorkerProtocol {
 	private readonly _wss: WebSocketServer;
 	private readonly _connections: Map<string, WebSocket> = new Map();
-	private readonly _handlers: Partial<Record<WorkerIncomingMessage["type"], (message: WorkerIncomingMessage, ws?: WebSocket) => void>>;
+	private readonly _handlers: Partial<
+		Record<
+			WorkerIncomingMessage["type"],
+			(message: WorkerIncomingMessage, ws?: WebSocket) => void
+		>
+	>;
 
 	constructor(
 		server: https.Server,
@@ -21,9 +26,19 @@ export class WorkerProtocol {
 		this._wss = new WebSocketServer({ server });
 
 		this._handlers = {
-			register: (msg, ws) => this._handleRegister(msg as Parameters<typeof this._handleRegister>[0], ws!),
-			heartbeat: (msg) => this._handleHeartbeat(msg as Parameters<typeof this._handleHeartbeat>[0]),
-			disconnect: (msg) => this._handleDisconnect(msg as Parameters<typeof this._handleDisconnect>[0]),
+			register: (msg, ws) =>
+				this._handleRegister(
+					msg as Parameters<typeof this._handleRegister>[0],
+					ws!
+				),
+			heartbeat: (msg) =>
+				this._handleHeartbeat(
+					msg as Parameters<typeof this._handleHeartbeat>[0]
+				),
+			disconnect: (msg) =>
+				this._handleDisconnect(
+					msg as Parameters<typeof this._handleDisconnect>[0]
+				),
 		};
 
 		this._wss.on("connection", (ws: WebSocket) => {

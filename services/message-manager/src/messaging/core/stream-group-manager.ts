@@ -11,6 +11,13 @@ export interface ReadFromGroupParams {
 	blockMs?: number;
 }
 
+export interface GetMessagesBetweenParams {
+	topic: string;
+	fromMs: number;
+	toMs: number;
+	limit?: number;
+}
+
 export class StreamGroupManager {
 	constructor(private readonly _prefix: string) {}
 
@@ -116,11 +123,9 @@ export class StreamGroupManager {
 	}
 
 	async getMessagesBetween(
-		topic: string,
-		fromMs: number,
-		toMs: number,
-		limit = 100
+		params: GetMessagesBetweenParams
 	): Promise<Message[]> {
+		const { topic, fromMs, toMs, limit = 100 } = params;
 		const redis = await getStreamClient();
 		const minId = `${fromMs}-0`;
 		const maxId = `${toMs}-0`;

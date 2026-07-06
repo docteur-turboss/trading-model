@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import type { LogEntry, LogLevel } from "./log-types";
-import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
+import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 export class LogFileWriter {
 	constructor(private readonly _sanitizer: SensitiveDataSanitizer) {}
@@ -35,4 +35,3 @@ export class LogFileWriter {
 		);
 	}
 }
-

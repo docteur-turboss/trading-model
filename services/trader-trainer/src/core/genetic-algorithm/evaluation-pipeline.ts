@@ -13,21 +13,7 @@ import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { DeepReadonly } from "./shared-types";
 import { computeSharpe, computeVariance, type RunningStats } from "./utils";
 
-// RLBackend is defined in ga_runner.ts and exported from there
-// We avoid circular dependency by using a type-only reference
-export interface RLBackend {
-	forwardPass(features: Float32Array): Float32Array;
-	step(features: Float32Array, price: number): { reward: number };
-	train(experience: Experience, gamma: number): void;
-	getWeights(): Float32Array;
-	setWeights(weights: Float32Array): void;
-	getPnL(): number;
-	resetEpisode(): void;
-	getExperiencePool(): Experience[];
-}
-
-/** Creates a fresh RL backend for a given genome (used as a factory per evaluation). */
-export type BackendFactory = (genome: DeepReadonly<LamarckGenome>) => RLBackend;
+import type { BackendFactory, RLBackend } from "./rl-backend";
 
 interface GenomeFitnessMeta {
 	episodesRun: number;

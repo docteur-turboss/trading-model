@@ -83,6 +83,48 @@ function createHealthChecker(
 	);
 }
 
+function onCacheInvalidateMessage(
+	message: WsMessage,
+	serviceCache: IServiceCache
+): void {
+	if (message.type !== "cache.invalidate") {
+		return;
+	}
+	const serviceName = message.payload?.serviceName as string | undefined;
+	if (!serviceName) {
+		return;
+	}
+	serviceCache.invalidate(serviceName).catch((err) => {
+		logger.warn("WebSocket cache invalidation failed", {
+			serviceName,
+			error: normalizeError(err),
+		});
+	});
+}
+
+function onWsAuthFailure(
+	addressManagerClient: AddressManagerClient,
+	tokenManager: TokenManager,
+	wsClient: WebSocketClient
+): void {
+	logger.warn("WebSocket auth failure — forcing re-registration");
+	addressManagerClient
+		.registerService()
+		.then((res) => {
+			if (res?.token) {
+				tokenManager.setToken(res.token);
+				wsClient.updateToken(res.token);
+				REGISTRATION_TOTAL.inc({ result: "success" });
+				logger.info("Re-registered after WS auth failure");
+			}
+		})
+		.catch((err) => {
+			logger.error("Re-registration after WS auth failure failed", {
+				error: normalizeError(err),
+			});
+		});
+}
+
 function createWsClient(ctx: WsClientContext): WebSocketClient {
 	const { config, addressManagerClient, tokenManager, serviceCache } = ctx;
 	const wsClient = new WebSocketClient({
@@ -92,36 +134,11 @@ function createWsClient(ctx: WsClientContext): WebSocketClient {
 	});
 
 	wsClient.onMessage((message: WsMessage) => {
-		if (message.type === "cache.invalidate") {
-			const serviceName = message.payload?.serviceName as string | undefined;
-			if (serviceName) {
-				serviceCache.invalidate(serviceName).catch((err) => {
-					logger.warn("WebSocket cache invalidation failed", {
-						serviceName,
-						error: normalizeError(err),
-					});
-				});
-			}
-		}
+		onCacheInvalidateMessage(message, serviceCache);
 	});
 
 	wsClient.onAuthFailure(() => {
-		logger.warn("WebSocket auth failure — forcing re-registration");
-		addressManagerClient
-			.registerService()
-			.then((res) => {
-				if (res?.token) {
-					tokenManager.setToken(res.token);
-					wsClient.updateToken(res.token);
-					REGISTRATION_TOTAL.inc({ result: "success" });
-					logger.info("Re-registered after WS auth failure");
-				}
-			})
-			.catch((err) => {
-				logger.error("Re-registration after WS auth failure failed", {
-					error: normalizeError(err),
-				});
-			});
+		onWsAuthFailure(addressManagerClient, tokenManager, wsClient);
 	});
 
 	return wsClient;
@@ -139,6 +156,45 @@ export default class AddressManager {
 
 	private readonly _lifecycleManager: LifecycleManager;
 
+	private _createDiscoveryInfra(
+		config: AddressManagerConfig,
+		circuitBreaker: CircuitBreaker
+	): DiscoveryOrchestrator {
+		const discovery = new ServiceDiscovery({
+			httpClient: this._httpClient,
+			serviceCache: this._serviceCache,
+			config,
+			healthChecker: this._healthChecker,
+		});
+		return new DiscoveryOrchestrator({
+			serviceDiscovery: discovery,
+			serviceCache: this._serviceCache,
+			circuitBreaker,
+			healthChecker: this._healthChecker,
+		});
+	}
+
+	private _createRegistrationAndHeartbeat(): {
+		registrationManager: RegistrationManager;
+		heartbeatManager: HeartbeatManager;
+	} {
+		const registrationManager = new RegistrationManager({
+			addressManagerClient: this._addressManagerClient,
+			tokenManager: this._tokenManager,
+			wsClient: this._wsClient,
+			onSuccess: () => REGISTRATION_TOTAL.inc({ result: "success" }),
+			onFailure: () => REGISTRATION_TOTAL.inc({ result: "failure" }),
+		});
+		const heartbeatManager = new HeartbeatManager({
+			addressManagerClient: this._addressManagerClient,
+			tokenManager: this._tokenManager,
+			wsClient: this._wsClient,
+			onSuccess: () => HEARTBEAT_TOTAL.inc({ result: "success" }),
+			onFailure: () => HEARTBEAT_TOTAL.inc({ result: "failure" }),
+		});
+		return { registrationManager, heartbeatManager };
+	}
+
 	constructor(config: AddressManagerConfig) {
 		this._httpClient = createHttpClient(config);
 		this._tokenManager = new TokenManager(this._httpClient, config);
@@ -150,18 +206,7 @@ export default class AddressManager {
 		this._serviceCache = createServiceCache(config);
 		const circuitBreaker = createCircuitBreaker(config, this._serviceCache);
 		this._healthChecker = createHealthChecker(this._httpClient, config);
-		const discovery = new ServiceDiscovery({
-			httpClient: this._httpClient,
-			serviceCache: this._serviceCache,
-			config,
-			healthChecker: this._healthChecker,
-		});
-		this._discoveryOrchestrator = new DiscoveryOrchestrator(
-			discovery,
-			this._serviceCache,
-			circuitBreaker,
-			this._healthChecker
-		);
+		this._discoveryOrchestrator = this._createDiscoveryInfra(config, circuitBreaker);
 		this._metricsCollector = new MetricsCollector(
 			circuitBreaker,
 			this._serviceCache,
@@ -176,21 +221,8 @@ export default class AddressManager {
 				})
 			: undefined;
 
-		const registrationManager = new RegistrationManager({
-			addressManagerClient: this._addressManagerClient,
-			tokenManager: this._tokenManager,
-			wsClient: this._wsClient,
-			onSuccess: () => REGISTRATION_TOTAL.inc({ result: "success" }),
-			onFailure: () => REGISTRATION_TOTAL.inc({ result: "failure" }),
-		});
-
-		const heartbeatManager = new HeartbeatManager({
-			addressManagerClient: this._addressManagerClient,
-			tokenManager: this._tokenManager,
-			wsClient: this._wsClient,
-			onSuccess: () => HEARTBEAT_TOTAL.inc({ result: "success" }),
-			onFailure: () => HEARTBEAT_TOTAL.inc({ result: "failure" }),
-		});
+		const { registrationManager, heartbeatManager } =
+			this._createRegistrationAndHeartbeat();
 
 		const shutdownHandler = new ShutdownHandler(
 			registrationManager,

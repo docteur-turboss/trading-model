@@ -53,41 +53,52 @@ export function MTLSAuthorizationMiddleware(
 	allowedCallers?: string[]
 ) {
 	return catchSync((req: Request, _res, next) => {
-		const callerIdentity = req.clientIdentity;
-		if (!callerIdentity) {
-			throw ResponseException(
-				JSON.stringify({ error: "Unauthenticated" })
-			).unauthorized();
-		}
-
-		const callerName = extractServiceName(callerIdentity);
-		if (!callerName) {
-			throw ResponseException(
-				JSON.stringify({ error: "Could not resolve caller identity" })
-			).forbidden();
-		}
-
-		const allowed = allowedCallers ?? DEFAULT_ACL[targetService];
-
-		if (!allowed) {
-			// No ACL defined for this service — deny closed
-			throw ResponseException(
-				JSON.stringify({
-					error: "Forbidden",
-					reason: `No authorization policy for "${targetService}"`,
-				})
-			).forbidden();
-		}
-
-		if (!(allowed.includes("*") || allowed.includes(callerName))) {
-			throw ResponseException(
-				JSON.stringify({
-					error: "Forbidden",
-					reason: `"${callerName}" is not authorized to access "${targetService}"`,
-				})
-			).forbidden();
-		}
-
+		const callerName = _resolveCallerName(req);
+		_authorizeCaller(callerName, targetService, allowedCallers);
 		next();
 	});
+}
+
+function _resolveCallerName(req: Request): string {
+	const callerIdentity = req.clientIdentity;
+	if (!callerIdentity) {
+		throw ResponseException(
+			JSON.stringify({ error: "Unauthenticated" })
+		).unauthorized();
+	}
+
+	const callerName = extractServiceName(callerIdentity);
+	if (!callerName) {
+		throw ResponseException(
+			JSON.stringify({ error: "Could not resolve caller identity" })
+		).forbidden();
+	}
+
+	return callerName;
+}
+
+function _authorizeCaller(
+	callerName: string,
+	targetService: string,
+	allowedCallers?: string[]
+): void {
+	const allowed = allowedCallers ?? DEFAULT_ACL[targetService];
+
+	if (!allowed) {
+		throw ResponseException(
+			JSON.stringify({
+				error: "Forbidden",
+				reason: `No authorization policy for "${targetService}"`,
+			})
+		).forbidden();
+	}
+
+	if (!(allowed.includes("*") || allowed.includes(callerName))) {
+		throw ResponseException(
+			JSON.stringify({
+				error: "Forbidden",
+				reason: `"${callerName}" is not authorized to access "${targetService}"`,
+			})
+		).forbidden();
+	}
 }

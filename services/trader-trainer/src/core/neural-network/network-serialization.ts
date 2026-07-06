@@ -1,4 +1,4 @@
-import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
+import { AppError, AgentError } from "@trading-model/common/utils/errors";
 
 import type { LayerMemory } from "./type";
 import { GAUSSIAN_NOISE as gaussianNoise } from "./utils";
@@ -44,9 +44,8 @@ export function getWeights(layers: LayerMemory[]): Float32Array {
 export function setWeights(layers: LayerMemory[], buffer: Float32Array): void {
 	const expected = parameterCount(layers);
 	if (buffer.length !== expected) {
-		throw new AppError(
-			`Buffer length mismatch: expected ${expected}, got ${buffer.length}`,
-			ErrorCodes.AGENT_ERROR
+		throw new AgentError(
+			`Buffer length mismatch: expected ${expected}, got ${buffer.length}`
 		);
 	}
 	let cursor = 0;
@@ -79,9 +78,8 @@ export function distributeAroundWeights(
 	} else {
 		mean = reference;
 		if (mean.length !== count) {
-			throw new AppError(
-				`Reference parameter count (${mean.length}) does not match this network's parameter count (${count}).`,
-				ErrorCodes.AGENT_ERROR
+			throw new AgentError(
+				`Reference parameter count (${mean.length}) does not match this network's parameter count (${count}).`
 			);
 		}
 	}

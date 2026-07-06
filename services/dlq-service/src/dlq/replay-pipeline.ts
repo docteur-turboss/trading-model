@@ -1,23 +1,27 @@
 import { randomUUID } from "node:crypto";
 
 import { SpanStatusCode } from "@opentelemetry/api";
-import { HttpClient } from "@trading-model/common/config/http-client";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
 import { z } from "zod";
-import { findAService } from "../config/address-manager";
 import { notifyAudit } from "../config/audit";
 import { env } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqClaimManager } from "./claim-manager";
 import { dlqRetryManager } from "./retry-manager";
+import {
+	getHttpClient,
+	isMMCircuitOpen,
+	isShuttingDown,
+	recordMMResult,
+	resolveMessageManagerUrl,
+} from "./shared/index";
 
 interface ReplayContext {
-	client: HttpClient;
+	client: import("@trading-model/common/config/http-client").HttpClient;
 	messageManagerUrl: string;
 	batchId: string;
 	instanceId: string;
@@ -54,167 +58,36 @@ interface ClaimAndReplayOptions {
 	span: import("@opentelemetry/api").Span;
 }
 
+interface DlqEntryRef {
+	id: string;
+	message: unknown;
+}
+
+interface DlqError {
+	id: string;
+	error: string;
+}
+
 const ReplaySchema = z.object({
 	topic: z.string().optional(),
 	limit: z.coerce.number().int().positive().max(100).default(50),
 	batchId: z.string().optional(),
 });
 
-let mmCircuitFailures = 0;
-let mmCircuitOpenUntil = 0;
-let mmHalfOpenAttempts = 0;
-const MM_CIRCUIT_THRESHOLD = 5;
-const MM_CIRCUIT_RESET_MS = 30_000;
-const MM_CIRCUIT_HALF_OPEN_MAX_ATTEMPTS = 2;
-
-function isMMCircuitOpen(): boolean {
-	if (mmCircuitOpenUntil > Date.now()) {
-		return true;
-	}
-	if (mmCircuitOpenUntil > 0) {
-		mmCircuitFailures = 0;
-		mmCircuitOpenUntil = 0;
-		mmHalfOpenAttempts = 0;
-	}
-	return false;
-}
-
-function recordMMResult(success: boolean): void {
-	if (success) {
-		if (mmCircuitFailures > 0) {
-			mmCircuitFailures = 0;
-		}
-		mmCircuitOpenUntil = 0;
-		mmHalfOpenAttempts = 0;
-	} else {
-		mmCircuitFailures++;
-		if (mmCircuitOpenUntil > 0) {
-			mmHalfOpenAttempts++;
-			if (mmHalfOpenAttempts >= MM_CIRCUIT_HALF_OPEN_MAX_ATTEMPTS) {
-				mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
-				logger.warn(
-					"Message-manager circuit breaker re-opened during half-open",
-					{ context: {
-						failures: mmCircuitFailures,
-						halfOpenAttempts: mmHalfOpenAttempts,
-						resetMs: MM_CIRCUIT_RESET_MS,
-					} }
-				);
-			}
-		}
-		if (mmCircuitFailures >= MM_CIRCUIT_THRESHOLD) {
-			mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
-			logger.warn("Message-manager circuit breaker opened", { context: {
-				failures: mmCircuitFailures,
-				resetMs: MM_CIRCUIT_RESET_MS,
-			} });
-		}
-	}
-}
-
-let shuttingDown = false;
-
-export function setShuttingDown(value: boolean): void {
-	shuttingDown = value;
-}
-
-export function isShuttingDown(): boolean {
-	return shuttingDown;
-}
-
-let httpClient: HttpClient | null = null;
-let httpClientPromise: Promise<HttpClient> | null = null;
-
-async function getHttpClient(): Promise<HttpClient> {
-	if (httpClient) {
-		return httpClient;
-	}
-	const existingClient =
-		httpClientPromise === null ? null : await httpClientPromise;
-	if (existingClient) {
-		return existingClient;
-	}
-
-	httpClientPromise = (() => {
-		const client = new HttpClient({
-			ca: env.TLS_CA_PATH,
-			cert: env.TLS_CERT_PATH,
-			key: env.TLS_KEY_PATH,
-		});
-		httpClient = client;
-		return Promise.resolve(client);
-	})();
-
-	return httpClientPromise;
-}
-
-export async function reloadHttpClientTls(): Promise<void> {
-	const client = httpClient as { reloadTlsPaths?: () => Promise<void> } | null;
-	if (client && typeof client.reloadTlsPaths === "function") {
-		try {
-			await client.reloadTlsPaths();
-			logger.info("HTTP client TLS certificates reloaded");
-		} catch (err) {
-			logger.error("Failed to reload HTTP client TLS certificates", { context: {
-				error: (err as Error).message,
-			} });
-		}
-	}
-}
-
-export function closeHttpClient(): Promise<void> {
-	httpClient = null;
-	httpClientPromise = null;
-	return Promise.resolve();
-}
-
-export class ActiveReplayCounter {
-	private _count = 0;
-	get count(): number {
-		return this._count;
-	}
-	increment(): void {
-		this._count++;
-	}
-	decrement(): void {
-		if (this._count > 0) {
-			this._count--;
-		}
-	}
-}
-
-export const activeReplays = new ActiveReplayCounter();
 let activeBatches = 0;
 const MAX_CONCURRENT_BATCHES = 2;
 
-async function resolveMessageManagerUrl(): Promise<string | null> {
-	let url: string | null = env.MESSAGE_MANAGER_URL ?? null;
-	if (!url) {
-		try {
-			const target = await findAService(
-				ServiceInstanceName.MessageDeliveryService
-			);
-			if (target) {
-				url = `https://${target.ip}:${target.port}`;
-			}
-		} catch {
-			logger.warn("DLQ address-manager resolution failed");
-		}
-	}
-	return url;
-}
-
 async function _deliverMessage(
-	entry: { id: string; message: unknown },
+	entry: DlqEntryRef,
 	messageManagerUrl: string,
-	client: HttpClient
+	client: import("@trading-model/common/config/http-client").HttpClient
 ): Promise<void> {
-	if (shuttingDown) {
+	if (isShuttingDown()) {
 		throw new Error("Server shutting down");
 	}
 	await client.post(`${messageManagerUrl}/message`, entry.message, {
 		timeoutMs: 10_000,
-		serviceName: ServiceInstanceName.MessageDeliveryService,
+		serviceName: "message-manager" as never,
 		retryCount: 3,
 	});
 }
@@ -238,41 +111,49 @@ async function _handleDeliveryMarkFailed(
 		);
 		await dlqClaimManager.incrementRetryCount(entryId).catch((err) => {
 			logger.error(
-			"CRITICAL: Failed to increment retryCount after markRetried failure",
-			{ context: { entryId, error: (err as Error).message } }
-		);
+				"CRITICAL: Failed to increment retryCount after markRetried failure",
+				{ entryId, error: (err as Error).message }
+			);
 		});
 		await dlqClaimManager.releaseClaimWithoutCount(entryId).catch((err) => {
-			logger.error("CRITICAL: Failed to release claim after error", { context: {
+			logger.error("CRITICAL: Failed to release claim after error", {
 				entryId,
 				error: (err as Error).message,
-			} });
+			});
 		});
 	}
 }
 
 async function replaySingleEntry(
-	entry: { id: string; message: unknown },
+	entry: DlqEntryRef,
 	ctx: ReplayContext
 ): Promise<void> {
-	activeReplays.increment();
+	ctx.successCount.value++;
 	try {
 		await _deliverMessage(entry, ctx.messageManagerUrl, ctx.client);
-		await dlqRetryManager.markRetried({ id: entry.id, instanceId: ctx.instanceId, batchId: ctx.batchId, success: true });
+		await dlqRetryManager.markRetried({
+			id: entry.id,
+			instanceId: ctx.instanceId,
+			batchId: ctx.batchId,
+			success: true,
+		});
 	} catch (err) {
 		if (ctx.isTimedOut()) {
 			throw err;
 		}
 		const httpError = (err as Error).message;
-		await _handleDeliveryMarkFailed({ entryId: entry.id, instanceId: ctx.instanceId, batchId: ctx.batchId, httpError });
+		await _handleDeliveryMarkFailed({
+			entryId: entry.id,
+			instanceId: ctx.instanceId,
+			batchId: ctx.batchId,
+			httpError,
+		});
 		throw err;
-	} finally {
-		activeReplays.decrement();
 	}
 }
 
 async function runBatchLoop(
-	entries: Array<{ id: string; message: unknown }>,
+	entries: DlqEntryRef[],
 	ctx: ReplayContext,
 	concurrency: number
 ): Promise<void> {
@@ -285,25 +166,23 @@ async function runBatchLoop(
 	}
 }
 
-function processBatchResults(
-	options: ProcessBatchResultsOptions
-): void {
+function processBatchResults(options: ProcessBatchResultsOptions): void {
 	const { batch, batchResults, ctx } = options;
 	for (let idx = 0; idx < batchResults.length; idx++) {
 		const result = batchResults[idx];
 		const entry = batch[idx];
 		if (result.status === "fulfilled") {
-			ctx.successCount.value++;
+			// success already counted in replaySingleEntry
 		} else {
 			ctx.errors.push({
 				id: entry?.id ?? "unknown",
 				error: (result.reason as Error)?.message ?? "unknown error",
 			});
-			logger.error("DLQ replay entry failed", { context: {
+			logger.error("DLQ replay entry failed", {
 				entryId: entry?.id,
 				error: (result.reason as Error)?.message,
 				batchId: ctx.batchId,
-			} });
+			});
 		}
 	}
 }
@@ -326,9 +205,9 @@ function waitForBatchTimeout(
 }
 
 function _rejectAll(
-	entries: Array<{ id: string; message: unknown }>,
+	entries: DlqEntryRef[],
 	error: string
-): { success: number; errors: Array<{ id: string; error: string }> } {
+): { success: number; errors: DlqError[] } {
 	return {
 		success: 0,
 		errors: entries.map((entry) => ({ id: entry.id, error })),
@@ -336,19 +215,14 @@ function _rejectAll(
 }
 
 async function _runBatchWithTimeout(
-	entries: Array<{ id: string; message: unknown }>,
-	ctxBase: {
-		client: HttpClient;
-		messageManagerUrl: string;
-		batchId: string;
-		instanceId: string;
-	}
-): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
+	entries: DlqEntryRef[],
+	ctxBase: { client: import("@trading-model/common/config/http-client").HttpClient; messageManagerUrl: string; batchId: string; instanceId: string }
+): Promise<{ success: number; errors: DlqError[] }> {
 	const ReplayConcurrency = 10;
 	const ReplayBatchTimeoutMs = 120_000;
 	let batchTimedOut = false;
 	const successCount = { value: 0 };
-	const errors: Array<{ id: string; error: string }> = [];
+	const errors: DlqError[] = [];
 	const ctx: ReplayContext = {
 		...ctxBase,
 		isTimedOut: () => batchTimedOut,
@@ -381,7 +255,7 @@ async function _runBatchWithTimeout(
 
 export async function doReplayBatch(
 	options: ReplayBatchOptions
-): Promise<{ success: number; errors: Array<{ id: string; error: string }> }> {
+): Promise<{ success: number; errors: DlqError[] }> {
 	const { entries, messageManagerUrl, batchId, instanceId } = options;
 	if (activeBatches >= MAX_CONCURRENT_BATCHES) {
 		logger.warn("Too many concurrent replay batches — rejecting", {
@@ -395,10 +269,7 @@ export async function doReplayBatch(
 	if (isMMCircuitOpen() && entries.length > 0) {
 		logger.warn(
 			"Message-manager circuit breaker open — rejecting replay batch",
-			{
-				batchId,
-				entryCount: entries.length,
-			}
+			{ batchId, entryCount: entries.length }
 		);
 		return _rejectAll(entries, "Message-manager circuit breaker open");
 	}
@@ -459,7 +330,7 @@ async function resolveMMUrlOrFail(
 }
 
 export async function abandonExhaustedIfNeeded(
-	errors: Array<{ id: string; error: string }>
+	errors: DlqError[]
 ): Promise<void> {
 	if (errors.length === 0) {
 		return;
@@ -475,7 +346,7 @@ export async function abandonExhaustedIfNeeded(
 function buildReplayResponse(
 	batchId: string,
 	successCount: number,
-	errors: Array<{ id: string; error: string }>
+	errors: DlqError[]
 ): Record<string, unknown> {
 	const details: Record<string, unknown> = {
 		batchId,
@@ -499,7 +370,7 @@ async function _claimAndReplayBatch(
 ): Promise<{
 	response: ResponseObject | null;
 	successCount: number;
-	errors: Array<{ id: string; error: string }>;
+	errors: DlqError[];
 }> {
 	const { messageManagerUrl, limit, batchId, topic, span } = options;
 	await dlqClaimManager.releaseStaleClaims();
@@ -524,7 +395,10 @@ async function _claimAndReplayBatch(
 	span.setAttribute("entriesClaimed", entries.length);
 
 	const { success: successCount, errors } = await doReplayBatch({
-		entries: entries.map((entry) => ({ id: entry.id, message: entry.message })),
+		entries: entries.map((entry) => ({
+			id: entry.id,
+			message: entry.message,
+		})),
 		messageManagerUrl,
 		batchId,
 		instanceId: env.INSTANCE_ID,

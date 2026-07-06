@@ -3,15 +3,26 @@ import type { WorkerRegistry } from "../worker/worker-registry";
 import type { IJobRepository } from "./job-repository.interface";
 import type { ReAllocator } from "./re-allocator";
 
+export interface OrphanDetectorDeps {
+	workers: WorkerRegistry;
+	repository: IJobRepository;
+	reAllocator: ReAllocator;
+	intervalMs: number;
+}
+
 export class OrphanDetector {
+	private readonly _workers: WorkerRegistry;
+	private readonly _repository: IJobRepository;
+	private readonly _reAllocator: ReAllocator;
+	private readonly _intervalMs: number;
 	private _intervalHandle: ReturnType<typeof setInterval> | null = null;
 
-	constructor(
-		private readonly _workers: WorkerRegistry,
-		private readonly _repository: IJobRepository,
-		private readonly _reAllocator: ReAllocator,
-		private readonly _intervalMs: number
-	) {}
+	constructor(deps: OrphanDetectorDeps) {
+		this._workers = deps.workers;
+		this._repository = deps.repository;
+		this._reAllocator = deps.reAllocator;
+		this._intervalMs = deps.intervalMs;
+	}
 
 	start(): void {
 		if (this._intervalHandle) {
@@ -30,7 +41,9 @@ export class OrphanDetector {
 			}
 		}, this._intervalMs);
 
-		logger.info("Orphan detector started", { context: { intervalMs: this._intervalMs } });
+		logger.info("Orphan detector started", {
+			context: { intervalMs: this._intervalMs },
+		});
 	}
 
 	stop(): void {

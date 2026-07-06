@@ -1,19 +1,17 @@
-/** TLS file paths required to configure an HTTPS server. */
-export interface TlsConfig {
-	key: string;
-	cert: string;
-	ca: string;
-}
+import type { TlsPaths } from "../domain/tls-paths";
 
-/** Reads TLS configuration from individual file paths and returns structured paths. */
+/**
+ * Reads TLS configuration from individual file paths and returns structured paths.
+ * @deprecated Use TlsPaths directly instead of this translation function.
+ */
 export function loadTlsConfig(
 	keyPath: string,
 	certPath: string,
 	caPath: string
-): TlsConfig {
+): TlsPaths {
 	return {
-		key: keyPath,
-		cert: certPath,
-		ca: caPath,
+		keyPath,
+		certPath,
+		caPath,
 	};
 }

@@ -46,7 +46,6 @@ export {
 	encodeGenome,
 	encodePopulation,
 } from "./encoding";
-export type { BackendFactory } from "./evaluation-pipeline";
 // Evaluation pipeline
 export { evaluateGenomeAllWindows, pooledEval } from "./evaluation-pipeline";
 // Evolution engine (genetic operators)
@@ -60,14 +59,16 @@ export {
 // Genome lifecycle
 export { createDefaultGenome } from "./factory";
 export { computeFitness, shapeReward } from "./fitness";
+export type { RLBackend } from "./rl-backend";
+export type { BackendFactory } from "./rl-backend";
+export { makeTradingAgentBackend } from "./rl-backend";
 export type {
 	GARunnerConfig,
 	GenerationContext,
-	RLBackend,
 	WindowSet,
 } from "./ga-runner";
 // Main orchestrator
-export { GeneticAlgorithmRunner, makeTradingAgentBackend } from "./ga-runner";
+export { GeneticAlgorithmRunner } from "./ga-runner";
 export { adaptSigma, mutateGenome, mutateLayer } from "./mutation";
 export {
 	sampleCauchy,

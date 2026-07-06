@@ -63,10 +63,7 @@ export class MongoLockBackend implements LockBackend {
 			const result = await collection.findOneAndUpdate(
 				{
 					name: lockName,
-					$or: [
-						{ expiresAt: { $lt: now } },
-						{ expiresAt: { $exists: false } },
-					],
+					$or: [{ expiresAt: { $lt: now } }, { expiresAt: { $exists: false } }],
 				},
 				{
 					$set: {
@@ -212,7 +209,7 @@ export class RedisLockBackend implements LockBackend {
 		instanceId: string,
 		fencingToken: number
 	): Promise<boolean> {
-		if (!this._client || !this._available) {
+		if (!(this._client && this._available)) {
 			return false;
 		}
 		try {
@@ -224,7 +221,12 @@ export class RedisLockBackend implements LockBackend {
             return 0
           end
         `;
-			await this._client.eval(script, 1, lockKey, `${instanceId}:${fencingToken}`);
+			await this._client.eval(
+				script,
+				1,
+				lockKey,
+				`${instanceId}:${fencingToken}`
+			);
 			return true;
 		} catch {
 			return false;
@@ -236,7 +238,7 @@ export class RedisLockBackend implements LockBackend {
 		instanceId: string,
 		fencingToken: number
 	): Promise<number> {
-		if (!this._client || !this._available) {
+		if (!(this._client && this._available)) {
 			return -1;
 		}
 		try {

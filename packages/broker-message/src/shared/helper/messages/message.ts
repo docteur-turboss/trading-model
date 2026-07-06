@@ -5,7 +5,7 @@ import type {
 	SecurityType,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
-import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
+import { AppError, MetadataBuilderError } from "@trading-model/common/utils/errors";
 
 import {
 	DELIVERY_METADATA_MODE_PREDICATE,
@@ -215,22 +215,13 @@ export class MessageMetadata {
 
 	private _assertRequiredFields(): void {
 		if (!this.topic) {
-			throw new AppError(
-				"You haven't defined a topic",
-				ErrorCodes.METADATA_BUILDER_ERROR
-			);
+			throw new MetadataBuilderError("You haven't defined a topic");
 		}
 		if (!this.eventType) {
-			throw new AppError(
-				"You haven't defined a eventType",
-				ErrorCodes.METADATA_BUILDER_ERROR
-			);
+			throw new MetadataBuilderError("You haven't defined a eventType");
 		}
 		if (!this.publisher) {
-			throw new AppError(
-				"You haven't defined a publisher",
-				ErrorCodes.METADATA_BUILDER_ERROR
-			);
+			throw new MetadataBuilderError("You haven't defined a publisher");
 		}
 	}
 }

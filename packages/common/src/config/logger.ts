@@ -1,9 +1,12 @@
+import type { TlsPaths } from "../domain/tls-paths";
 import { AuditServiceClient } from "./audit-service-client";
 import { ErrorServiceSender } from "./error-service-sender";
 import { LogFileWriter } from "./log-file-writer";
-import { LogLevel, type LogEntry, type LogOptions } from "./log-types";
+import { type LogEntry, LogLevel, type LogOptions } from "./log-types";
+
 export type { LogEntry, LogOptions };
 export { LogLevel };
+
 import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 /** Structured logger with multiple severity levels. */
@@ -45,7 +48,11 @@ export class Logger {
 		}
 	}
 
-	private _createLogEntry(level: LogLevel, message: string, opts?: LogOptions): LogEntry {
+	private _createLogEntry(
+		level: LogLevel,
+		message: string,
+		opts?: LogOptions
+	): LogEntry {
 		const { context, url = "", serviceInCharge = "" } = opts ?? {};
 		const now = new Date();
 		const data = {
@@ -82,7 +89,11 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Debug, message, { context, url, serviceInCharge });
+		const logEntry = this._createLogEntry(LogLevel.Debug, message, {
+			context,
+			url,
+			serviceInCharge,
+		});
 		this._addToBuffer(logEntry);
 		console.debug(
 			`[DEBUG] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -100,7 +111,11 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Info, message, { context, url, serviceInCharge });
+		const logEntry = this._createLogEntry(LogLevel.Info, message, {
+			context,
+			url,
+			serviceInCharge,
+		});
 		this._addToBuffer(logEntry);
 		console.info(
 			`[INFO] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -118,7 +133,11 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Warn, message, { context, url, serviceInCharge });
+		const logEntry = this._createLogEntry(LogLevel.Warn, message, {
+			context,
+			url,
+			serviceInCharge,
+		});
 		this._addToBuffer(logEntry);
 		console.warn(
 			`[WARN] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -136,7 +155,11 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Error, message, { context, url, serviceInCharge });
+		const logEntry = this._createLogEntry(LogLevel.Error, message, {
+			context,
+			url,
+			serviceInCharge,
+		});
 		this._addToBuffer(logEntry);
 		console.error(
 			`[ERROR] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -161,7 +184,7 @@ export class Logger {
 	setAuditResolver(
 		resolver: () => Promise<{
 			url: string;
-			tls: { key: string; cert: string; ca: string };
+			tls: TlsPaths;
 		} | null>
 	): void {
 		this._auditClient.setAuditResolver(resolver);

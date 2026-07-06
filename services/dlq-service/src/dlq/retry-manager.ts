@@ -14,9 +14,7 @@ export interface MarkRetriedParams {
 }
 
 export class DlqRetryManager {
-	async markRetried(
-		params: MarkRetriedParams
-	): Promise<void> {
+	async markRetried(params: MarkRetriedParams): Promise<void> {
 		const { id, instanceId, batchId, success = true, errorMsg } = params;
 		if (success) {
 			await this._markAsCompleted(id, instanceId, batchId);

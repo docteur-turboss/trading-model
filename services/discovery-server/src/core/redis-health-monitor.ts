@@ -9,6 +9,14 @@ export interface HealthCheckCallbacks {
 	onFallbackRestored: (original: RegistryBackend) => void;
 }
 
+export interface RedisHealthMonitorConfig {
+	failureThreshold: number;
+	healthCheckIntervalMs: number;
+	shouldRun: () => boolean;
+	callbacks: HealthCheckCallbacks;
+	backend: RegistryBackend;
+}
+
 export class RedisHealthMonitor {
 	private _healthy = true;
 	private _consecutiveFailures = 0;
@@ -18,15 +26,17 @@ export class RedisHealthMonitor {
 	private _fallbackActive = false;
 	private _originalBackend?: RegistryBackend;
 	private _backend: RegistryBackend;
+	private readonly _failureThreshold: number;
+	private readonly _healthCheckIntervalMs: number;
+	private readonly _shouldRun: () => boolean;
+	private readonly _callbacks: HealthCheckCallbacks;
 
-	constructor(
-		private readonly _failureThreshold: number,
-		private readonly _healthCheckIntervalMs: number,
-		private readonly _shouldRun: () => boolean,
-		private readonly _callbacks: HealthCheckCallbacks,
-		backend: RegistryBackend
-	) {
-		this._backend = backend;
+	constructor(config: RedisHealthMonitorConfig) {
+		this._failureThreshold = config.failureThreshold;
+		this._healthCheckIntervalMs = config.healthCheckIntervalMs;
+		this._shouldRun = config.shouldRun;
+		this._callbacks = config.callbacks;
+		this._backend = config.backend;
 	}
 
 	get isHealthy(): boolean {

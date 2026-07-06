@@ -127,8 +127,24 @@ export function diversityMetrics(
 	samplePairs = 200
 ): DiversityMetrics {
 	const count = population.length;
+	const meanPairwiseDistance = _sampleMeanPairwiseDistance(population, samplePairs, count);
 
-	// ---- Mean pairwise distance (sampled for efficiency) ----
+	const sp = species ?? speciate(population);
+	const { speciesCount, speciesEntropy, dominanceFraction } = _computeSpeciesMetrics(sp, count);
+
+	return {
+		meanPairwiseDistance,
+		speciesEntropy,
+		speciesCount,
+		dominanceFraction,
+	};
+}
+
+function _sampleMeanPairwiseDistance(
+	population: Genome[],
+	samplePairs: number,
+	count: number
+): number {
 	let totalDist = 0;
 	const pairs = Math.min(samplePairs, (count * (count - 1)) / 2);
 	for (let pair = 0; pair < pairs; pair++) {
@@ -139,16 +155,17 @@ export function diversityMetrics(
 		}
 		totalDist += genomicDistance(population[i], population[j]);
 	}
-	const meanPairwiseDistance = pairs > 0 ? totalDist / pairs : 0;
+	return pairs > 0 ? totalDist / pairs : 0;
+}
 
-	// ---- Species metrics ----
-	const sp = species ?? speciate(population);
-	const speciesCount = sp.length;
-
-	// Normalised Shannon entropy H = -∑ p log p / log(N)
+function _computeSpeciesMetrics(
+	species: Species[],
+	count: number
+): { speciesCount: number; speciesEntropy: number; dominanceFraction: number } {
+	const speciesCount = species.length;
 	let entropy = 0;
 	let maxSize = 0;
-	for (const speciesEntry of sp) {
+	for (const speciesEntry of species) {
 		const proportion = speciesEntry.memberIndices.length / count;
 		if (proportion > 0) {
 			entropy -= proportion * Math.log(proportion);
@@ -157,16 +174,9 @@ export function diversityMetrics(
 			maxSize = speciesEntry.memberIndices.length;
 		}
 	}
-	const speciesEntropy =
-		speciesCount > 1 ? entropy / Math.log(speciesCount) : 0;
+	const speciesEntropy = speciesCount > 1 ? entropy / Math.log(speciesCount) : 0;
 	const dominanceFraction = maxSize / count;
-
-	return {
-		meanPairwiseDistance,
-		speciesEntropy,
-		speciesCount,
-		dominanceFraction,
-	};
+	return { speciesCount, speciesEntropy, dominanceFraction };
 }
 
 // ================================================================

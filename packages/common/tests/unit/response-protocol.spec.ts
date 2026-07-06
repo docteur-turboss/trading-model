@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ResponseProtocol } from "../../src/middleware/response-protocol";
-import { AppError, ErrorCodes } from "../../src/utils/errors";
+import {
+	AddressManagerError,
+	AuthenticationError,
+	ConfigurationError,
+	ServiceNotFoundError,
+	ServiceUnreachableError,
+} from "../../src/utils/errors";
 
 describe("ResponseProtocol", () => {
 	let req: any;
@@ -19,25 +25,25 @@ describe("ResponseProtocol", () => {
 	});
 
 	it("should map SERVICE_NOT_FOUND to 404", () => {
-		const err = new AppError("Service not found", ErrorCodes.SERVICE_NOT_FOUND);
+		const err = new ServiceNotFoundError("Service not found");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(404);
 	});
 
 	it("should map SERVICE_UNREACHABLE to 410", () => {
-		const err = new AppError("Service down", ErrorCodes.SERVICE_UNREACHABLE);
+		const err = new ServiceUnreachableError("Service down");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(410);
 	});
 
 	it("should map AUTHENTICATION_ERROR to 498", () => {
-		const err = new AppError("Invalid token", ErrorCodes.AUTHENTICATION_ERROR);
+		const err = new AuthenticationError("Invalid token");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(498);
 	});
 
 	it("should map ADDRESS_MANAGER_ERROR to 503", () => {
-		const err = new AppError("Generic error", ErrorCodes.ADDRESS_MANAGER_ERROR);
+		const err = new AddressManagerError("Generic error");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(503);
 	});
@@ -48,8 +54,8 @@ describe("ResponseProtocol", () => {
 		expect(res.status).toHaveBeenCalledWith(500);
 	});
 
-	it("should map AppError with unknown code to 500", () => {
-		const err = new AppError("Config error", ErrorCodes.CONFIGURATION_ERROR);
+	it("should map ConfigurationError to 500", () => {
+		const err = new ConfigurationError("Config error");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(500);
 	});

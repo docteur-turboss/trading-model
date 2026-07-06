@@ -1,4 +1,8 @@
-import type { ServiceEndpoint, ServiceIdentity } from "../domain/service-identity";
+import type { IPAddress, Port } from "../domain/primitives";
+import type {
+	ServiceEndpoint,
+	ServiceIdentity,
+} from "../domain/service-identity";
 
 export type Protocol = "http" | "https" | "mtls";
 
@@ -29,10 +33,10 @@ export interface ServiceInstance extends ServiceIdentity {
 	lastHeartbeat: number;
 	registeredAt: number;
 	protocol: Protocol;
-	port: number;
+	port: Port;
 	env?: string;
 	ttl: number;
-	ip: string;
+	ip: IPAddress;
 	version: string;
 	/** Deployment region / datacenter for multi-region failover. */
 	region?: string;

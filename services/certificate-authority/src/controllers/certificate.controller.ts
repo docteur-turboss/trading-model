@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { Request, Response } from "express";
 
 import { CONTAINER } from "../app/container";
@@ -21,10 +22,12 @@ export async function signCertificate(
 			ttlMs
 		);
 
-		logger.info("Certificate signed", { context: {
-			serviceId,
-			serialNumber: signed.serialNumber,
-		} });
+		logger.info("Certificate signed", {
+			context: {
+				serviceId,
+				serialNumber: signed.serialNumber,
+			},
+		});
 
 		res.status(200).json({
 			cert: signed.certPem,
@@ -77,16 +80,21 @@ export async function revokeCertificate(
 	res: Response
 ): Promise<void> {
 	try {
-		const { serialNumber, reason } = req.body;
+		const revocationRequest = req.body as RevocationRequest;
 
-		if (!(serialNumber && reason)) {
+		if (!(revocationRequest.serialNumber && revocationRequest.reason)) {
 			res.status(400).json({ error: "serialNumber and reason are required" });
 			return;
 		}
 
-		await CONTAINER.ca.revokeCertificate(serialNumber, reason);
+		await CONTAINER.ca.revokeCertificate(revocationRequest);
 
-		logger.info("Certificate revoked", { context: { serialNumber, reason } });
+		logger.info("Certificate revoked", {
+			context: {
+				serialNumber: revocationRequest.serialNumber,
+				reason: revocationRequest.reason,
+			},
+		});
 
 		res.status(200).json({ message: "Certificate revoked" });
 	} catch (err) {

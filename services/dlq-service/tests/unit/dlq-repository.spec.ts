@@ -327,9 +327,7 @@ describe("DlqClaimManager", () => {
 			claimEntriesForRetry: (
 				...args: never[]
 			) => Promise<Record<string, unknown>[]>;
-			claimEntry: (
-				...args: never[]
-			) => Promise<Record<string, unknown> | null>;
+			claimEntry: (...args: never[]) => Promise<Record<string, unknown> | null>;
 			releaseStaleClaims: (...args: never[]) => Promise<number>;
 			releaseAllActiveClaims: (...args: never[]) => Promise<number>;
 			releaseClaimsByInstance: (...args: never[]) => Promise<number>;
@@ -376,7 +374,11 @@ describe("DlqClaimManager", () => {
 			mockBulkWrite.mockResolvedValueOnce({ modifiedCount: 2 });
 
 			return cm
-				.claimEntriesForRetry({ limit: 10, batchId: "batch-1", instanceId: "instance-1" })
+				.claimEntriesForRetry({
+					limit: 10,
+					batchId: "batch-1",
+					instanceId: "instance-1",
+				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(2);
 					expect(result[0].id).toBe("id1");
@@ -398,7 +400,11 @@ describe("DlqClaimManager", () => {
 			const cm = new DlqClaimManagerClass();
 
 			return cm
-				.claimEntriesForRetry({ limit: 10, batchId: "batch-1", instanceId: "instance-1" })
+				.claimEntriesForRetry({
+					limit: 10,
+					batchId: "batch-1",
+					instanceId: "instance-1",
+				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(0);
 					expect(mockBulkWrite).not.toHaveBeenCalled();
@@ -431,7 +437,11 @@ describe("DlqClaimManager", () => {
 			mockBulkWrite.mockResolvedValueOnce({ modifiedCount: 1 });
 
 			return cm
-				.claimEntriesForRetry({ limit: 10, batchId: "batch-1", instanceId: "instance-1" })
+				.claimEntriesForRetry({
+					limit: 10,
+					batchId: "batch-1",
+					instanceId: "instance-1",
+				})
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(1);
 					expect(result[0].id).toBe("id2");
@@ -453,7 +463,10 @@ describe("DlqClaimManager", () => {
 			mockFindOneAndUpdate.mockResolvedValueOnce(fakeDoc);
 
 			return cm
-				.claimEntry("aaaaaaaaaaaaaaaaaaaaaaaa", "batch-1", "instance-1")
+				.claimEntry("aaaaaaaaaaaaaaaaaaaaaaaa", {
+					batchId: "batch-1",
+					instanceId: "instance-1",
+				})
 				.then((result) => {
 					expect(result).not.toBeNull();
 					expect(result!.id).toBe("id1");
@@ -481,7 +494,10 @@ describe("DlqClaimManager", () => {
 			mockFindOneAndUpdate.mockResolvedValueOnce(null);
 
 			return cm
-				.claimEntry("aaaaaaaaaaaaaaaaaaaaaaaa", "batch-1", "instance-1")
+				.claimEntry("aaaaaaaaaaaaaaaaaaaaaaaa", {
+					batchId: "batch-1",
+					instanceId: "instance-1",
+				})
 				.then((result) => {
 					expect(result).toBeNull();
 				});
@@ -523,15 +539,13 @@ describe("DlqClaimManager", () => {
 			const cm = new DlqClaimManagerClass();
 			mockUpdateMany.mockResolvedValueOnce({ modifiedCount: 2 });
 
-			return cm
-				.releaseClaimsByInstance("instance-1")
-				.then((result: number) => {
-					expect(result).toBe(2);
-					expect(mockUpdateMany).toHaveBeenCalledWith(
-						{ processingInstance: "instance-1" },
-						{ $unset: { processingAt: "", processingInstance: "" } }
-					);
-				});
+			return cm.releaseClaimsByInstance("instance-1").then((result: number) => {
+				expect(result).toBe(2);
+				expect(mockUpdateMany).toHaveBeenCalledWith(
+					{ processingInstance: "instance-1" },
+					{ $unset: { processingAt: "", processingInstance: "" } }
+				);
+			});
 		});
 	});
 });
@@ -589,7 +603,12 @@ describe("DlqRetryManager", () => {
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
 			return rm
-				.markRetried({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", instanceId: "instance-1", batchId: "batch-1", success: true })
+				.markRetried({
+					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
+					instanceId: "instance-1",
+					batchId: "batch-1",
+					success: true,
+				})
 				.then(() => {
 					expect(mockFindOne).toHaveBeenCalledWith(
 						{ _id: expect.any(Object) },
@@ -614,7 +633,12 @@ describe("DlqRetryManager", () => {
 			mockFindOneAndUpdate.mockResolvedValue({ _id: "id1" });
 
 			return rm
-				.markRetried({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", instanceId: "instance-1", batchId: "batch-1", success: false })
+				.markRetried({
+					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
+					instanceId: "instance-1",
+					batchId: "batch-1",
+					success: false,
+				})
 				.then(() => {
 					expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
 						{ _id: expect.any(Object), retryCount: { $lt: 3 } },
@@ -637,7 +661,12 @@ describe("DlqRetryManager", () => {
 			mockFindOne.mockResolvedValue({ _id: "id1", status: "abandoned" });
 
 			return rm
-				.markRetried({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", instanceId: "instance-1", batchId: "batch-1", success: true })
+				.markRetried({
+					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
+					instanceId: "instance-1",
+					batchId: "batch-1",
+					success: true,
+				})
 				.then(() => {
 					expect(mockFindOne).toHaveBeenCalled();
 					expect(mockUpdateOne).not.toHaveBeenCalled();
@@ -650,7 +679,12 @@ describe("DlqRetryManager", () => {
 			mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
 			return rm
-				.markRetried({ id: "aaaaaaaaaaaaaaaaaaaaaaaa", instanceId: "instance-1", batchId: "batch-1", success: false })
+				.markRetried({
+					id: "aaaaaaaaaaaaaaaaaaaaaaaa",
+					instanceId: "instance-1",
+					batchId: "batch-1",
+					success: false,
+				})
 				.then(() => {
 					expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(1);
 					expect(mockUpdateOne).toHaveBeenCalledWith(

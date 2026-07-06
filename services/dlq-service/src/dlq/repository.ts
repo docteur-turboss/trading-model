@@ -72,13 +72,22 @@ export class DlqRepository {
 			throw new DlqCapacityError("DLQ capacity limit reached");
 		}
 
-		const { messageId, contentHash, serialized } = this._computeEntryHash(entry);
-		const doc = await this._checkPingPong({ col, contentHash, entry, messageId, serialized });
+		const { messageId, contentHash, serialized } =
+			this._computeEntryHash(entry);
+		const doc = await this._checkPingPong({
+			col,
+			contentHash,
+			entry,
+			messageId,
+			serialized,
+		});
 
 		return this._insertWithDedup(col, doc, messageId);
 	}
 
-	private async _isCapacityReached(col: import("mongodb").Collection): Promise<boolean> {
+	private async _isCapacityReached(
+		col: import("mongodb").Collection
+	): Promise<boolean> {
 		const currentCount = await col.estimatedDocumentCount();
 		return currentCount >= env.MAX_ENTRIES;
 	}

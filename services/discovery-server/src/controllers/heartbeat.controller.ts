@@ -22,8 +22,14 @@ interface HeartbeatController {
 export function createHeartbeatController(
 	registry: ServiceRegistry
 ): HeartbeatController {
-	/** Extend a service instance's lease by recording a heartbeat. */
-	const heartbeat: RequestHandler = catchSync((req) => {
+	return {
+		heartbeat: _createHeartbeatHandler(registry),
+		rotateToken: _createRotateTokenHandler(registry),
+	};
+}
+
+function _createHeartbeatHandler(registry: ServiceRegistry): RequestHandler {
+	return catchSync((req) => {
 		const parsed = HEARTBEAT_SCHEMA.safeParse(req.body);
 		if (!parsed.success) {
 			return sendResponse(
@@ -51,9 +57,10 @@ export function createHeartbeatController(
 
 		return sendResponse({ ttl }, 200);
 	});
+}
 
-	/** Issue a new authentication token for a service instance, invalidating the previous one. */
-	const rotateToken: RequestHandler = catchSync((req) => {
+function _createRotateTokenHandler(registry: ServiceRegistry): RequestHandler {
+	return catchSync((req) => {
 		const parsed = ROTATE_TOKEN_SCHEMA.safeParse(req.body);
 		if (!parsed.success) {
 			return sendResponse(
@@ -77,6 +84,4 @@ export function createHeartbeatController(
 
 		return sendResponse({ token: newToken }, 200);
 	});
-
-	return { heartbeat, rotateToken };
 }

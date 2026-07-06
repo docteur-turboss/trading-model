@@ -1,7 +1,4 @@
-/**
- * Shared type definitions for GA module.
- * Centralized to avoid circular dependencies between modules.
- */
+import type { Genome } from "./genome-types";
 
 export type { Experience } from "../neural-network/type";
 export type {
@@ -16,3 +13,26 @@ export type DeepReadonly<TValue> = TValue extends (infer UValue)[]
 	: TValue extends object
 		? { readonly [KValue in keyof TValue]: DeepReadonly<TValue[KValue]> }
 		: TValue;
+
+export function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
+	if (obj === null || typeof obj !== "object") {
+		return obj as DeepReadonly<TValue>;
+	}
+	if (ArrayBuffer.isView(obj)) {
+		return obj as DeepReadonly<TValue>;
+	}
+	for (const key of Object.keys(obj)) {
+		const val = (obj as Record<string, unknown>)[key];
+		if (val !== null && typeof val === "object" && !Object.isFrozen(val)) {
+			deepFreeze(val);
+		}
+	}
+	return Object.freeze(obj) as DeepReadonly<TValue>;
+}
+
+export function withGenome<TGenome extends Genome>(
+	base: DeepReadonly<TGenome>,
+	patch: Partial<TGenome>
+): DeepReadonly<TGenome> {
+	return deepFreeze({ ...base, ...patch } as TGenome) as DeepReadonly<TGenome>;
+}

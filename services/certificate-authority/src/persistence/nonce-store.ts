@@ -63,9 +63,11 @@ export class NonceStore {
 				{ expireAfterSeconds: Math.ceil(this._ttlMs / 1000) }
 			);
 			await this._loadFromMongo();
-			logger.info("NonceStore connected to MongoDB", { context: {
-				existingNonces: this._l1.size,
-			} });
+			logger.info("NonceStore connected to MongoDB", {
+				context: {
+					existingNonces: this._l1.size,
+				},
+			});
 		} catch (err) {
 			logger.warn(
 				"NonceStore MongoDB connection failed, operating in memory-only mode",

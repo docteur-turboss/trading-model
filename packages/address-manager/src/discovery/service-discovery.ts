@@ -1,7 +1,8 @@
-import type { HttpClient } from "@trading-model/common/config/http-client";
+﻿import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	AppError,
-	ErrorCodes,
+	ServiceNotFoundError,
+	ServiceUnreachableError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "../client/type";
@@ -134,9 +135,8 @@ export class ServiceDiscovery {
 				{ timeoutMs: this._discoveryTimeoutMs }
 			);
 		} catch (error) {
-			throw new AppError(
+			throw new ServiceNotFoundError(
 				`Service "${serviceName}" not found`,
-				ErrorCodes.SERVICE_NOT_FOUND,
 				{
 					cause: normalizeError(error),
 				}
@@ -148,9 +148,8 @@ export class ServiceDiscovery {
 			: (instances as ServiceInstance);
 
 		if (!instance) {
-			throw new AppError(
-				`Service "${serviceName}" has no registered instances`,
-				ErrorCodes.SERVICE_NOT_FOUND
+			throw new ServiceNotFoundError(
+				`Service "${serviceName}" has no registered instances`
 			);
 		}
 
@@ -159,9 +158,8 @@ export class ServiceDiscovery {
 		if (!isHealthy) {
 			await this._serviceCache.invalidate(serviceName);
 
-			throw new AppError(
-				`Service "${serviceName}" is unreachable`,
-				ErrorCodes.SERVICE_UNREACHABLE
+			throw new ServiceUnreachableError(
+				`Service "${serviceName}" is unreachable`
 			);
 		}
 

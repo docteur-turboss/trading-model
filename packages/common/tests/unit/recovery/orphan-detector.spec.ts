@@ -58,12 +58,12 @@ describe("OrphanDetector (shared)", () => {
 
 	describe("start / stop", () => {
 		it("should start and stop the detection interval", () => {
-			orphanDetector = new OrphanDetector(
-				registry,
-				mockRepository,
+			orphanDetector = new OrphanDetector({
+				workers: registry,
+				repository: mockRepository,
 				reAllocator,
-				10000
-			);
+				intervalMs: 10000,
+			});
 
 			orphanDetector.start();
 			expect(jest.getTimerCount()).toBeGreaterThan(0);
@@ -74,12 +74,12 @@ describe("OrphanDetector (shared)", () => {
 		});
 
 		it("should not start multiple intervals", () => {
-			orphanDetector = new OrphanDetector(
-				registry,
-				mockRepository,
+			orphanDetector = new OrphanDetector({
+				workers: registry,
+				repository: mockRepository,
 				reAllocator,
-				10000
-			);
+				intervalMs: 10000,
+			});
 
 			orphanDetector.start();
 			orphanDetector.start();
@@ -89,12 +89,12 @@ describe("OrphanDetector (shared)", () => {
 		});
 
 		it("should not throw when stopping without having started", () => {
-			orphanDetector = new OrphanDetector(
-				registry,
-				mockRepository,
+			orphanDetector = new OrphanDetector({
+				workers: registry,
+				repository: mockRepository,
 				reAllocator,
-				10000
-			);
+				intervalMs: 10000,
+			});
 
 			expect(() => orphanDetector.stop()).not.toThrow();
 		});
@@ -117,12 +117,12 @@ describe("OrphanDetector (shared)", () => {
 				createJob({ id: "orphan-1" }),
 			]);
 
-			orphanDetector = new OrphanDetector(
-				registry,
-				mockRepository,
+			orphanDetector = new OrphanDetector({
+				workers: registry,
+				repository: mockRepository,
 				reAllocator,
-				5000
-			);
+				intervalMs: 5000,
+			});
 			orphanDetector.start();
 
 			jest.advanceTimersByTime(5000);
@@ -149,12 +149,12 @@ describe("OrphanDetector (shared)", () => {
 				createJob({ id: "orphan-1" }),
 			]);
 
-			orphanDetector = new OrphanDetector(
-				registry,
-				mockRepository,
+			orphanDetector = new OrphanDetector({
+				workers: registry,
+				repository: mockRepository,
 				reAllocator,
-				5000
-			);
+				intervalMs: 5000,
+			});
 			orphanDetector.start();
 
 			jest.advanceTimersByTime(5000);
@@ -181,12 +181,12 @@ describe("OrphanDetector (shared)", () => {
 
 			jest.advanceTimersByTime(10000);
 
-			orphanDetector = new OrphanDetector(
-				registry,
-				mockRepository,
+			orphanDetector = new OrphanDetector({
+				workers: registry,
+				repository: mockRepository,
 				reAllocator,
-				5000
-			);
+				intervalMs: 5000,
+			});
 			orphanDetector.start();
 
 			expect(() => {
@@ -195,12 +195,12 @@ describe("OrphanDetector (shared)", () => {
 		});
 
 		it("should return early when no stale workers exist", async () => {
-			orphanDetector = new OrphanDetector(
-				registry,
-				mockRepository,
+			orphanDetector = new OrphanDetector({
+				workers: registry,
+				repository: mockRepository,
 				reAllocator,
-				5000
-			);
+				intervalMs: 5000,
+			});
 			orphanDetector.start();
 
 			jest.advanceTimersByTime(5000);
@@ -224,12 +224,12 @@ describe("OrphanDetector (shared)", () => {
 
 			jest.advanceTimersByTime(10000);
 
-			orphanDetector = new OrphanDetector(
-				registry,
-				mockRepository,
+			orphanDetector = new OrphanDetector({
+				workers: registry,
+				repository: mockRepository,
 				reAllocator,
-				5000
-			);
+				intervalMs: 5000,
+			});
 			orphanDetector.start();
 
 			expect(() => {

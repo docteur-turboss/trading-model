@@ -57,19 +57,24 @@ function handleProxyResponse(
 	});
 }
 
+export interface ProxyRequestOptions {
+	req: Request;
+	target: ResolvedTarget;
+	path: string;
+	timeoutMs?: number;
+}
+
 export function forwardRequest(
-	req: Request,
-	target: ResolvedTarget,
-	path: string,
-	timeoutMs: number = ENV.PROXY_TIMEOUT_MS
+	opts: ProxyRequestOptions
 ): Promise<ProxyResult> {
+	const { req, target, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
 	return new Promise((resolve, reject) => {
-		const options: https.RequestOptions = _buildProxyOptions(
+		const options: https.RequestOptions = _buildProxyOptions({
 			target,
 			req,
 			path,
-			timeoutMs
-		);
+			timeoutMs,
+		});
 
 		const proxyReq = https.request(options, (proxyRes) => {
 			void handleProxyResponse(proxyRes).then(resolve);
@@ -95,11 +100,9 @@ export function forwardRequest(
 }
 
 function _buildProxyOptions(
-	target: ResolvedTarget,
-	req: Request,
-	path: string,
-	timeoutMs: number
+	opts: ProxyRequestOptions
 ): https.RequestOptions {
+	const { target, req, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
 	const url = new URL(path, `https://${target.host}:${target.port}`);
 	const headers = buildSafeHeaders(req);
 	return {

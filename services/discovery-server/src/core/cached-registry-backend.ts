@@ -37,11 +37,11 @@ export class CachedRegistryBackend implements RegistryBackend {
 		);
 		this._pubSub = new PubSubInvalidator(options.redisUrlForPubSub);
 
-		this._healthMonitor = new RedisHealthMonitor(
+		this._healthMonitor = new RedisHealthMonitor({
 			failureThreshold,
 			healthCheckIntervalMs,
-			() => !!(options.redisUrlForPubSub || this._isRedisBackend()),
-			{
+			shouldRun: () => !!(options.redisUrlForPubSub || this._isRedisBackend()),
+			callbacks: {
 				ping: () => this.ping(),
 				onHealthLost: () => {},
 				onHealthRestored: () => {
@@ -54,8 +54,8 @@ export class CachedRegistryBackend implements RegistryBackend {
 					this._cache.clear();
 				},
 			},
-			this._backend
-		);
+			backend: this._backend,
+		});
 	}
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {

@@ -1,15 +1,10 @@
 import { request as httpsRequest } from "node:https";
 
+import type { TlsPaths } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
-import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
+import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
-export interface AuditTlsPaths {
-	key: string;
-	cert: string;
-	ca: string;
-}
-
-type AuditTarget = { url: string; tls: AuditTlsPaths };
+type AuditTarget = { url: string; tls: TlsPaths };
 
 export class AuditServiceClient {
 	private _auditResolver?: () => Promise<AuditTarget | null>;
@@ -20,9 +15,7 @@ export class AuditServiceClient {
 		this._sanitizer = sanitizer;
 	}
 
-	setAuditResolver(
-		resolver: () => Promise<AuditTarget | null>
-	): void {
+	setAuditResolver(resolver: () => Promise<AuditTarget | null>): void {
 		this._auditResolver = resolver;
 	}
 
@@ -43,17 +36,14 @@ export class AuditServiceClient {
 			await this._postToAuditEndpoint(auditTarget, entry);
 		} catch (err) {
 			const normalized = normalizeError(err);
-			console.error(
-				"Failed to send log to audit service:",
-				normalized.message
-			);
+			console.error("Failed to send log to audit service:", normalized.message);
 		}
 	}
 
 	private _buildHttpsOptions(
 		url: string,
 		body: string,
-		tls: AuditTlsPaths
+		tls: TlsPaths
 	): Record<string, unknown> {
 		const urlObj = new URL(url);
 		return {
@@ -65,7 +55,9 @@ export class AuditServiceClient {
 				"Content-Type": "application/json",
 				"Content-Length": Buffer.byteLength(body).toString(),
 			},
-			...tls,
+			key: tls.keyPath,
+			cert: tls.certPath,
+			ca: tls.caPath,
 			rejectUnauthorized: true,
 		};
 	}

@@ -1,4 +1,4 @@
-import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
+import { AppError, BackpressureError } from "@trading-model/common/utils/errors";
 
 export class Semaphore {
 	private _current = 0;
@@ -15,9 +15,8 @@ export class Semaphore {
 			return Promise.resolve();
 		}
 		if (this._queue.length >= this._maxQueue) {
-			throw new AppError(
-				"Semaphore queue full — too many pending operations",
-				ErrorCodes.BACKPRESSURE
+			throw new BackpressureError(
+				"Semaphore queue full — too many pending operations"
 			);
 		}
 		return new Promise<void>((resolve) => {

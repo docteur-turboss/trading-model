@@ -8,13 +8,25 @@ import type { Job } from "../types/job.types";
 import type { JobAssignmentManager } from "./job-assignment-manager";
 import { InternalQueue } from "./internal-queue";
 
+export interface JobFailureHandlerDeps {
+	queue: InternalQueue;
+	repository: JobRepository;
+	reAllocator: ReAllocator;
+	assignmentManager: JobAssignmentManager;
+}
+
 export class JobFailureHandler {
-	constructor(
-		private readonly _queue: InternalQueue,
-		private readonly _repository: JobRepository,
-		private readonly _reAllocator: ReAllocator,
-		private readonly _assignmentManager: JobAssignmentManager
-	) {}
+	private readonly _queue: InternalQueue;
+	private readonly _repository: JobRepository;
+	private readonly _reAllocator: ReAllocator;
+	private readonly _assignmentManager: JobAssignmentManager;
+
+	constructor(deps: JobFailureHandlerDeps) {
+		this._queue = deps.queue;
+		this._repository = deps.repository;
+		this._reAllocator = deps.reAllocator;
+		this._assignmentManager = deps.assignmentManager;
+	}
 
 	async handleAckTimeout(jobId: string): Promise<void> {
 		logger.warn("ACK timeout for job", { context: { jobId } });

@@ -81,19 +81,13 @@ export function setWorkerPoolPending(pending: number): void {
 	WORKER_POOL_PENDING.set(pending);
 }
 
-export function sendAlertWebhook(options: {
-	webhookUrl: string | undefined;
-	title: string;
-	message: string;
-	severity?: "info" | "warning" | "error";
-	labels?: Record<string, string>;
-}): void {
-	const { webhookUrl, title, message, severity = "error", labels } = options;
-	if (!webhookUrl) {
-		return;
-	}
-
-	const body = JSON.stringify({
+function buildWebhookPayload(
+	title: string,
+	message: string,
+	severity: string,
+	labels?: Record<string, string>
+): string {
+	return JSON.stringify({
 		title,
 		message,
 		severity,
@@ -101,27 +95,52 @@ export function sendAlertWebhook(options: {
 		timestamp: new Date().toISOString(),
 		source: "certificate-authority",
 	});
+}
 
-	fetch(webhookUrl, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body,
-		signal: AbortSignal.timeout(10_000),
-	})
-		.then((res) => {
-			if (!res.ok) {
-				logger.warn("Alert webhook returned non-OK status", { context: {
-					status: res.status,
-					webhookUrl,
-				} });
-			}
-		})
-		.catch((err) => {
-			logger.warn("Alert webhook delivery failed", { context: {
-				err: (err as Error).message,
+function logWebhookResult(res: Response, webhookUrl: string): void {
+	if (!res.ok) {
+		logger.warn("Alert webhook returned non-OK status", {
+			context: {
+				status: res.status,
 				webhookUrl,
-			} });
+			},
 		});
+	}
+}
+
+function logWebhookError(err: unknown, webhookUrl: string): void {
+	logger.warn("Alert webhook delivery failed", {
+		context: {
+			err: (err as Error).message,
+			webhookUrl,
+		},
+	});
+}
+
+export async function sendAlertWebhook(options: {
+	webhookUrl: string | undefined;
+	title: string;
+	message: string;
+	severity?: "info" | "warning" | "error";
+	labels?: Record<string, string>;
+}): Promise<void> {
+	const { webhookUrl, title, message, severity = "error", labels } = options;
+	if (!webhookUrl) {
+		return;
+	}
+
+	try {
+		const body = buildWebhookPayload(title, message, severity, labels);
+		const res = await fetch(webhookUrl, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body,
+			signal: AbortSignal.timeout(10_000),
+		});
+		logWebhookResult(res, webhookUrl);
+	} catch (err) {
+		logWebhookError(err, webhookUrl);
+	}
 }
 
 export const METRICS_HANDLER: RequestHandler = async (_req, res) => {

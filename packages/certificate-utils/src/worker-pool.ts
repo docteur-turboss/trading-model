@@ -125,46 +125,49 @@ export class WorkerPool {
 		}
 	}
 
+	private _onWorkerMessage(
+		entry: WorkerEntry,
+		msg: {
+			id: string;
+			success: boolean;
+			data?: unknown;
+			error?: string;
+		}
+	): void {
+		entry.busy = false;
+
+		const task = this._pendingTasks.get(msg.id);
+		if (task) {
+			this._pendingTasks.delete(msg.id);
+			if (msg.success) {
+				task.resolve(msg.data);
+			} else {
+				task.reject(new Error(msg.error ?? "Unknown worker error"));
+			}
+		}
+
+		this._processQueue();
+	}
+
+	private _onWorkerError(entry: WorkerEntry): void {
+		entry.busy = false;
+		this._replaceWorker(entry);
+	}
+
+	private _onWorkerExit(entry: WorkerEntry, code: number): void {
+		entry.busy = false;
+		if (code !== 0 && !this._terminated) {
+			this._replaceWorker(entry);
+		}
+	}
+
 	private _spawnWorker(): void {
 		const worker = new Worker(this._workerScript);
-
 		const entry: WorkerEntry = { worker, busy: false };
 
-		worker.on(
-			"message",
-			(msg: {
-				id: string;
-				success: boolean;
-				data?: unknown;
-				error?: string;
-			}) => {
-				entry.busy = false;
-
-				const task = this._pendingTasks.get(msg.id);
-				if (task) {
-					this._pendingTasks.delete(msg.id);
-					if (msg.success) {
-						task.resolve(msg.data);
-					} else {
-						task.reject(new Error(msg.error ?? "Unknown worker error"));
-					}
-				}
-
-				this._processQueue();
-			}
-		);
-
-		worker.on("error", () => {
-			entry.busy = false;
-			this._replaceWorker(entry);
-		});
-
-		worker.on("exit", (code: number) => {
-			entry.busy = false;
-			if (code !== 0 && !this._terminated) {
-				this._replaceWorker(entry);
-			}
-		});
+		worker.on("message", (msg) => this._onWorkerMessage(entry, msg));
+		worker.on("error", () => this._onWorkerError(entry));
+		worker.on("exit", (code) => this._onWorkerExit(entry, code));
 
 		this._workers.push(entry);
 	}

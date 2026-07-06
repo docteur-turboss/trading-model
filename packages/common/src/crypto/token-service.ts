@@ -71,9 +71,7 @@ export interface TokenValidationInput {
 	options?: TokenValidationOptions;
 }
 
-export function validInstanceToken(
-	input: TokenValidationInput
-): boolean {
+export function validInstanceToken(input: TokenValidationInput): boolean {
 	const { token, instanceId, signingSecret, storedToken, options } = input;
 	const format = checkTokenFormat(token);
 	if (!format) {
@@ -129,9 +127,7 @@ interface HmacVerificationInput {
 	signingSecret: string;
 }
 
-function verifyHmac(
-	input: HmacVerificationInput
-): boolean {
+function verifyHmac(input: HmacVerificationInput): boolean {
 	const { encodedId, payloadParts, signature, signingSecret } = input;
 	const payload = payloadParts.join(".");
 	const expectedHmac = createHmac("sha256", signingSecret)

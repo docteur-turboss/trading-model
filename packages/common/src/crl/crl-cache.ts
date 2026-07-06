@@ -102,16 +102,27 @@ export class CrlCache {
 		if (this._revoked.has(sn)) {
 			return true;
 		}
-		if (this._redis) {
-			try {
-				const inRedis = await this._redis.sismember(CRL_REDIS_SET_KEY, sn);
-				if (inRedis) {
-					this._revoked.add(sn);
-					return true;
-				}
-			} catch {
-				// Redis failure is non-fatal
+		if (await this._checkRedis(sn)) {
+			return true;
+		}
+		return false;
+	}
+
+	private async _checkRedis(serialNumber: string): Promise<boolean> {
+		if (!this._redis) {
+			return false;
+		}
+		try {
+			const inRedis = await this._redis.sismember(
+				CRL_REDIS_SET_KEY,
+				serialNumber
+			);
+			if (inRedis) {
+				this._revoked.add(serialNumber);
+				return true;
 			}
+		} catch {
+			// Redis failure is non-fatal
 		}
 		return false;
 	}
@@ -164,7 +175,9 @@ export class CrlCache {
 		for (const member of members) {
 			this._revoked.add(member.toUpperCase());
 		}
-		logger.info("CrlCache initialized from Redis", { context: { count: members.length } });
+		logger.info("CrlCache initialized from Redis", {
+			context: { count: members.length },
+		});
 	}
 
 	private async _subscribeToRedis(): Promise<void> {

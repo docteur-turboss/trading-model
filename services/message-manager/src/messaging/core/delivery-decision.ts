@@ -2,7 +2,7 @@ import {
 	DeliveryMode,
 	type DeliveryModeEnum,
 } from "@trading-model/common/config/delivery-mode.types";
-import { ErrorCodes } from "@trading-model/common/utils/errors";
+import { DeadLetterError } from "@trading-model/common/utils/errors";
 
 interface DeliveryDecision {
 	retry: boolean;
@@ -14,7 +14,7 @@ interface DeliveryDecision {
  * No side effects — only decision logic.
  */
 export interface DeliveryFailureInput {
-	error: Error & { code?: string; statusCode?: number; reason?: string };
+	error: Error & { statusCode?: number; reason?: string };
 	deliveryMode: DeliveryModeEnum;
 	deliveryAttempt: number;
 	maxRetries: number;
@@ -27,7 +27,7 @@ export function classifyDeliveryFailure({
 	maxRetries,
 }: DeliveryFailureInput): DeliveryDecision {
 	// DEAD_LETTER from subscriber
-	if (error.code === ErrorCodes.DEAD_LETTER_ERROR) {
+	if (error instanceof DeadLetterError) {
 		return { retry: false, deadLetterReason: error.reason ?? "DEAD_LETTER" };
 	}
 

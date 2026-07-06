@@ -89,7 +89,7 @@ export class WssTransport {
 
 		const { serviceName, instanceId, topics } =
 			this._parseConnectionHeaders(req);
-		const subKey = this._subscriptionManager.add(ws, serviceName, instanceId, topics);
+		const subKey = this._subscriptionManager.add({ ws, serviceName, instanceId, topics });
 
 		logger.info("WSS client connecting", { context: {
 			serviceName,
@@ -156,9 +156,7 @@ export class WssTransport {
 				(_msg, _ws, _ctx) =>
 					this._subscriptionManager.handleSubscribe(
 						_msg,
-						_ws,
-						_ctx.topics,
-						_ctx.instanceId
+						{ ws: _ws, serviceName: _ctx.serviceName, instanceId: _ctx.instanceId, topics: _ctx.topics }
 					),
 			],
 			[
@@ -166,9 +164,7 @@ export class WssTransport {
 				(_msg, _ws, _ctx) =>
 					this._subscriptionManager.handleUnsubscribe(
 						_msg,
-						_ws,
-						_ctx.topics,
-						_ctx.instanceId
+						{ ws: _ws, serviceName: _ctx.serviceName, instanceId: _ctx.instanceId, topics: _ctx.topics }
 					),
 			],
 			[

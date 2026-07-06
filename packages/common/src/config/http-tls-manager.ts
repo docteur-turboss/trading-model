@@ -1,5 +1,6 @@
 import fs from "node:fs";
 
+import type { TlsPaths } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
 
 /**
@@ -17,12 +18,6 @@ async function readTlsFile(filePath: string, label: string): Promise<string> {
 	}
 }
 
-export interface TlsCertPaths {
-	ca?: string;
-	cert?: string;
-	key?: string;
-}
-
 export class TlsManager {
 	private _ca?: string;
 	private _cert?: string;
@@ -30,7 +25,7 @@ export class TlsManager {
 	private _loaded = false;
 	private _loadPromise: Promise<void> | null = null;
 
-	constructor(private readonly _paths?: TlsCertPaths) {}
+	constructor(private readonly _paths?: Partial<TlsPaths>) {}
 
 	async ensureLoaded(): Promise<void> {
 		if (this._loaded || !this._paths) {
@@ -42,15 +37,15 @@ export class TlsManager {
 				this._loaded = true;
 				return;
 			}
-			const { ca, cert, key } = this._paths;
-			if (ca) {
-				this._ca = await readTlsFile(ca, "CA certificate");
+			const { caPath, certPath, keyPath } = this._paths;
+			if (caPath) {
+				this._ca = await readTlsFile(caPath, "CA certificate");
 			}
-			if (cert) {
-				this._cert = await readTlsFile(cert, "client certificate");
+			if (certPath) {
+				this._cert = await readTlsFile(certPath, "client certificate");
 			}
-			if (key) {
-				this._key = await readTlsFile(key, "client key");
+			if (keyPath) {
+				this._key = await readTlsFile(keyPath, "client key");
 			}
 			this._loaded = true;
 		})();

@@ -8,15 +8,26 @@ import type { WorkerRegistry } from "../worker/worker-registry";
 import { BackPressure } from "./back-pressure";
 import { InternalQueue } from "./internal-queue";
 
+export interface JobAssignmentManagerDeps {
+	queue: InternalQueue;
+	backPressure: BackPressure;
+	workers: WorkerRegistry;
+	repository: JobRepository;
+}
+
 export class JobAssignmentManager {
+	private readonly _queue: InternalQueue;
+	private readonly _backPressure: BackPressure;
+	private readonly _workers: WorkerRegistry;
+	private readonly _repository: JobRepository;
 	private _workerProtocol: WorkerProtocol | null = null;
 
-	constructor(
-		private readonly _queue: InternalQueue,
-		private readonly _backPressure: BackPressure,
-		private readonly _workers: WorkerRegistry,
-		private readonly _repository: JobRepository
-	) {}
+	constructor(deps: JobAssignmentManagerDeps) {
+		this._queue = deps.queue;
+		this._backPressure = deps.backPressure;
+		this._workers = deps.workers;
+		this._repository = deps.repository;
+	}
 
 	setWorkerProtocol(protocol: WorkerProtocol): void {
 		this._workerProtocol = protocol;

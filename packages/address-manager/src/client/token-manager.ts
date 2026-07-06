@@ -1,5 +1,5 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
+import { AppError, AuthenticationError } from "@trading-model/common/utils/errors";
 
 import type { AddressManagerConfig } from "../config/address-manager-config";
 
@@ -52,10 +52,7 @@ export class TokenManager {
 	 */
 	getToken(): string {
 		if (!this._token) {
-			throw new AppError(
-				"Token is not available. Did you call refreshToken()?",
-				ErrorCodes.AUTHENTICATION_ERROR
-			);
+			throw new AuthenticationError("Token is not available. Did you call refreshToken()?");
 		}
 
 		return this._token;
@@ -107,25 +104,17 @@ export class TokenManager {
 			);
 
 			if (!response?.token) {
-				throw new AppError(
-					"Invalid token response from Address Manager",
-					ErrorCodes.AUTHENTICATION_ERROR
-				);
+				throw new AuthenticationError("Invalid token response from Address Manager");
 			}
 
 			this._token = response.token;
 		} catch (err) {
 			if (
-				err instanceof AppError &&
-				err.code === ErrorCodes.AUTHENTICATION_ERROR
+				err instanceof AuthenticationError
 			) {
 				throw err;
 			}
-			throw new AppError(
-				"Failed to refresh authentication token",
-				ErrorCodes.AUTHENTICATION_ERROR,
-				{ cause: err }
-			);
+			throw new AuthenticationError("Failed to refresh authentication token",{cause: err})
 		}
 	}
 }

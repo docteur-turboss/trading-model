@@ -78,10 +78,9 @@ function buildSentinelClient(): Redis {
 	return new Redis(sentinelOpts as RedisOptions) as unknown as Redis;
 }
 
-function buildClusterClient(): Redis {
-	let clusterNodes: Array<{ host: string; port: number }>;
+function parseClusterNodes(): Array<{ host: string; port: number }> {
 	try {
-		clusterNodes = JSON.parse(ENV.REDIS_CLUSTER_NODES!) as Array<{
+		return JSON.parse(ENV.REDIS_CLUSTER_NODES!) as Array<{
 			host: string;
 			port: number;
 		}>;
@@ -92,25 +91,31 @@ function buildClusterClient(): Redis {
 		(err as { cause?: unknown }).cause = cause;
 		throw err;
 	}
+}
+
+function clusterRetryStrategy(retries: number): number | null {
+	const maxAttempts = ENV.REDIS_MAX_RECONNECT_ATTEMPTS;
+	if (maxAttempts === 0 || (maxAttempts > 0 && retries >= maxAttempts)) {
+		if (retries > 0 || maxAttempts === 0) {
+			logger.error(
+				`Redis Cluster: max reconnection attempts (${maxAttempts}) reached`
+			);
+		}
+		return null;
+	}
+	return redisRetryDelay(retries);
+}
+
+function buildClusterClient(): Redis {
+	const clusterNodes = parseClusterNodes();
 	return new Cluster(clusterNodes, {
 		redisOptions: {
-		password: ENV.REDIS_PASSWORD ?? undefined,
+			password: ENV.REDIS_PASSWORD ?? undefined,
 			lazyConnect: true,
 			maxRetriesPerRequest: null,
 			enableReadyCheck: true,
 		},
-		clusterRetryStrategy: (retries: number) => {
-			const maxAttempts = ENV.REDIS_MAX_RECONNECT_ATTEMPTS;
-			if (maxAttempts === 0 || (maxAttempts > 0 && retries >= maxAttempts)) {
-				if (retries > 0 || maxAttempts === 0) {
-					logger.error(
-						`Redis Cluster: max reconnection attempts (${maxAttempts}) reached`
-					);
-				}
-				return null;
-			}
-			return redisRetryDelay(retries);
-		},
+		clusterRetryStrategy,
 		scaleReads: "slave",
 		enableAutoPipelining: true,
 	}) as unknown as Redis;

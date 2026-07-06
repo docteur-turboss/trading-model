@@ -3,6 +3,14 @@ import {
 	type TradingSymbol,
 } from "../market-data-types";
 
+export interface MemoryManagerConfig {
+	states: Map<TradingSymbol, SymbolState>;
+	accessOrder: TradingSymbol[];
+	maxSize: number;
+	maxMemoryBytes: number;
+	evictionPolicy: "LRU" | "none";
+}
+
 /** Manages in-memory state limits with configurable eviction. */
 export class MemoryManager {
 	private readonly _maxSize: number;
@@ -11,18 +19,12 @@ export class MemoryManager {
 	private readonly _accessOrder: TradingSymbol[];
 	private readonly _states: Map<TradingSymbol, SymbolState>;
 
-	constructor(
-		states: Map<TradingSymbol, SymbolState>,
-		accessOrder: TradingSymbol[],
-		maxSize: number,
-		maxMemoryBytes: number,
-		evictionPolicy: "LRU" | "none",
-	) {
-		this._states = states;
-		this._accessOrder = accessOrder;
-		this._maxSize = maxSize;
-		this._maxMemoryBytes = maxMemoryBytes;
-		this._evictionPolicy = evictionPolicy;
+	constructor(config: MemoryManagerConfig) {
+		this._states = config.states;
+		this._accessOrder = config.accessOrder;
+		this._maxSize = config.maxSize;
+		this._maxMemoryBytes = config.maxMemoryBytes;
+		this._evictionPolicy = config.evictionPolicy;
 	}
 
 	getMaxSize(): number {

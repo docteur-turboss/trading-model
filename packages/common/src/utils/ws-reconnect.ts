@@ -20,15 +20,18 @@ function calculateDelay(config: WsReconnectConfig, attempt: number): number {
 	return delay + jitter;
 }
 
-export function scheduleWsReconnect(
-	state: WsReconnectState,
-	config: WsReconnectConfig,
-	onReconnect: () => void,
+export interface WsReconnectOptions {
+	state: WsReconnectState;
+	config: WsReconnectConfig;
+	onReconnect: () => void;
 	logger: {
 		info: (msg: string, context?: Record<string, unknown>) => void;
 		warn: (msg: string, context?: Record<string, unknown>) => void;
-	}
-): void {
+	};
+}
+
+export function scheduleWsReconnect(options: WsReconnectOptions): void {
+	const { state, config, onReconnect, logger } = options;
 	if (state.destroyed) {
 		return;
 	}

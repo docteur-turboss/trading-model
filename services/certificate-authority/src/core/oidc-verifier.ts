@@ -84,7 +84,7 @@ export class OidcVerifier {
 
 		this._validateClaims(payload);
 
-		await this._verifySignature(message, signature, header, header.kid);
+		await this._verifySignature(message, signature, header);
 
 		return payload;
 	}
@@ -136,9 +136,8 @@ export class OidcVerifier {
 		message: string,
 		signature: Buffer,
 		header: JwtHeader,
-		kid?: string
 	): Promise<void> {
-		const signingKey = await this._resolveSigningKey(kid);
+		const signingKey = await this._resolveSigningKey(header.kid);
 
 		const algorithm = this._toNodeCryptoAlgorithm(header.alg);
 		const verified = createVerify(algorithm)
@@ -191,10 +190,14 @@ export class OidcVerifier {
 			}
 
 			this._lastFetch = Date.now();
-			logger.info("JWKS keys refreshed", { context: { count: this._cachedKeys.size } });
+			logger.info("JWKS keys refreshed", {
+				context: { count: this._cachedKeys.size },
+			});
 		} catch (err) {
 			if (this._cachedKeys && this._cachedKeys.size > 0) {
-				logger.warn("JWKS refresh failed, using cached keys", { context: { err } });
+				logger.warn("JWKS refresh failed, using cached keys", {
+					context: { err },
+				});
 				return;
 			}
 			throw err;

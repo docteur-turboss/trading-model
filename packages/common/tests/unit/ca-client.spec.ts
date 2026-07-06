@@ -153,7 +153,10 @@ describe("CaClient", () => {
 		it("should POST to the revoke endpoint", async () => {
 			MOCK_POST.mockResolvedValueOnce(undefined);
 
-			await client.revokeCertificate("serial-123", "compromised");
+			await client.revokeCertificate({
+				serialNumber: "serial-123",
+				reason: "compromised",
+			});
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://ca.example.com:8443/api/v1/certificate/revoke",
@@ -165,7 +168,10 @@ describe("CaClient", () => {
 			MOCK_POST.mockRejectedValueOnce(new Error("Timeout"));
 
 			await expect(
-				client.revokeCertificate("serial-123", "key-compromise")
+				client.revokeCertificate({
+					serialNumber: "serial-123",
+					reason: "key-compromise",
+				})
 			).rejects.toThrow("Timeout");
 		});
 	});

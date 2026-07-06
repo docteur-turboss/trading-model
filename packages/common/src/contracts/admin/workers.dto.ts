@@ -1,6 +1,8 @@
+import type { IPAddress, Port } from "../../domain/primitives";
+
 export interface WorkerEntry {
 	id: string;
-	ip: string;
+	ip: IPAddress;
 	region: string;
 	cpu: number;
 	ram: number;

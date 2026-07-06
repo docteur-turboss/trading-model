@@ -155,16 +155,16 @@ export class WebSocketClient {
 			});
 			return;
 		}
-		scheduleWsReconnect(
-			this._wsReconnectState,
-			{
+		scheduleWsReconnect({
+			state: this._wsReconnectState,
+			config: {
 				baseDelayMs: this._reconnectIntervalMs,
 				maxDelayMs: this._reconnectIntervalMs,
 				jitterMs: 0,
 			},
-			() => this.connect(),
-			logger
-		);
+			onReconnect: () => this.connect(),
+			logger,
+		});
 	}
 
 	getReconnectAttempts(): number {

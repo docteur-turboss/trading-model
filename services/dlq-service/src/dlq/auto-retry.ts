@@ -8,7 +8,8 @@ import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
 import { dlqClaimManager } from "./claim-manager";
-import { doReplayBatch, isShuttingDown } from "./replay-pipeline";
+import { isShuttingDown } from "./shared/index";
+import { doReplayBatch } from "./replay-pipeline";
 import { dlqRepository } from "./repository";
 import { dlqRetryManager } from "./retry-manager";
 
@@ -155,11 +156,10 @@ async function claimBatchEntries(
 		return null;
 	}
 
-	const claimed = await dlqClaimManager.claimEntriesByIds(
-		validIds,
+	const claimed = await dlqClaimManager.claimEntriesByIds(validIds, {
 		batchId,
-		env.INSTANCE_ID
-	);
+		instanceId: env.INSTANCE_ID,
+	});
 	if (claimed.length === 0) {
 		return null;
 	}

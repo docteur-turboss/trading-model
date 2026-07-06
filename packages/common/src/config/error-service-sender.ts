@@ -1,6 +1,6 @@
 import { normalizeError } from "../utils/errors";
 import type { LogEntry } from "./log-types";
-import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
+import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 export class ErrorServiceSender {
 	private readonly _env: string | undefined;

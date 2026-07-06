@@ -266,12 +266,12 @@ describe("MessageStore", () => {
 			],
 		]);
 
-		const messages = await messageStore.getMessagesBetween(
-			"test.topic",
-			Date.now() - 7200000,
-			Date.now(),
-			10
-		);
+		const messages = await messageStore.getMessagesBetween({
+			topic: "test.topic",
+			fromMs: Date.now() - 7200000,
+			toMs: Date.now(),
+			limit: 10,
+		});
 
 		expect(messages).toHaveLength(1);
 	});

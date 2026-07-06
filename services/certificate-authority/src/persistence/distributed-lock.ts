@@ -2,14 +2,13 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 import { type Collection, MongoClient } from "mongodb";
-
-import { MONGO_MANAGER } from "./mongo-manager";
 import type { LockDocument } from "./lock-backends";
 import {
 	FileSystemLockBackend,
 	MongoLockBackend,
 	RedisLockBackend,
 } from "./lock-backends";
+import { MONGO_MANAGER } from "./mongo-manager";
 
 export interface DistributedLockOptions {
 	uri: string;

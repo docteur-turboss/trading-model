@@ -61,9 +61,7 @@ export const Percentage = {
 	/** Create from a decimal ratio (e.g. 0.05 for 5%). */
 	of(value: number): Percentage {
 		if (!Number.isFinite(value)) {
-			throw new RangeError(
-				`Percentage must be a finite number, got ${value}`
-			);
+			throw new RangeError(`Percentage must be a finite number, got ${value}`);
 		}
 		return value as Percentage;
 	},
@@ -96,5 +94,42 @@ export const UnixTimestamp = {
 
 	now(): UnixTimestamp {
 		return Date.now() as UnixTimestamp;
+	},
+};
+
+// ----------------------------------------------------------------
+// Port (TCP/UDP port number 0-65535)
+// ----------------------------------------------------------------
+
+export type Port = number & { readonly __brand: "Port" };
+
+export const Port = {
+	of(value: number): Port {
+		if (!Number.isInteger(value) || value < 0 || value > 65535) {
+			throw new RangeError(
+				`Port must be an integer between 0 and 65535, got ${value}`
+			);
+		}
+		return value as Port;
+	},
+};
+
+// ----------------------------------------------------------------
+// IPAddress (IPv4 or IPv6)
+// ----------------------------------------------------------------
+
+export type IPAddress = string & { readonly __brand: "IPAddress" };
+
+const IPV4_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
+const IPV6_RE = /^[0-9a-fA-F:]+$/;
+
+export const IPAddress = {
+	of(value: string): IPAddress {
+		if (!IPV4_RE.test(value) && !IPV6_RE.test(value)) {
+			throw new RangeError(
+				`IPAddress must be a valid IPv4 or IPv6 address, got ${value}`
+			);
+		}
+		return value as IPAddress;
 	},
 };

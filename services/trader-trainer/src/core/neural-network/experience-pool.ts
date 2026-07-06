@@ -1,4 +1,4 @@
-import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
+import { AppError, AgentError } from "@trading-model/common/utils/errors";
 
 import type { Experience } from "./type";
 
@@ -40,9 +40,8 @@ export class ExperiencePool {
 	public samplePool(batchSize: number): Experience[] {
 		const entries = [...this._poolMap.values()];
 		if (batchSize > entries.length) {
-			throw new AppError(
-				`Requested batch size ${batchSize} exceeds pool size ${entries.length}.`,
-				ErrorCodes.AGENT_ERROR,
+			throw new AgentError(
+				`Requested batch size ${batchSize} exceeds pool size ${entries.length}.`
 			);
 		}
 

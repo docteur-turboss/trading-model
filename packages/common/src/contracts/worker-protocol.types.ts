@@ -1,9 +1,11 @@
+import type { IPAddress, Port } from "../domain/primitives";
+
 export type WorkerStatus = "active" | "draining" | "offline";
 
 export interface WorkerRegistration {
 	workerId: string;
-	address: string;
-	port: number;
+	address: IPAddress;
+	port: Port;
 	capabilities: string[];
 	maxConcurrency: number;
 	currentLoad: number;
@@ -14,8 +16,8 @@ export interface WorkerRegistration {
 export interface WorkerWsRegisterMessage {
 	type: "register";
 	workerId: string;
-	address: string;
-	port: number;
+	address: IPAddress;
+	port: Port;
 	capabilities: string[];
 	maxConcurrency: number;
 }

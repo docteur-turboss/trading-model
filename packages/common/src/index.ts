@@ -8,6 +8,7 @@ export { logger } from "./config/logger";
 export type { ServiceInstance } from "./contracts/service-registry.types";
 // === crypto/ — Secure random & tokens ===
 export { generateRandomStr as secureRandom } from "./crypto/random";
+export type { RevocationRequest } from "./domain/revocation-request";
 export { handleCoreError } from "./middleware/handle-core-error";
 
 // === middleware/ — Express middleware ===

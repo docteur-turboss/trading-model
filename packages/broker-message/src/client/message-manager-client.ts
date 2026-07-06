@@ -5,7 +5,8 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import {
 	AppError,
-	ErrorCodes,
+	ServiceUnreachableError,
+	MessageManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 
@@ -42,9 +43,8 @@ export class MessageManagerClient {
 		try {
 			return await this._httpClient.post(targetUrl, payload);
 		} catch (error) {
-			throw new AppError(
+			throw new MessageManagerError(
 				"Failed to subscribe topic to Message Manager",
-				ErrorCodes.MESSAGE_MANAGER_ERROR,
 				{ cause: normalizeError(error) }
 			);
 		}
@@ -63,9 +63,8 @@ export class MessageManagerClient {
 		try {
 			return await this._httpClient.delete(targetUrl, payload);
 		} catch (error) {
-			throw new AppError(
+			throw new MessageManagerError(
 				"Failed to unsubscribe topic to Message Manager",
-				ErrorCodes.MESSAGE_MANAGER_ERROR,
 				{ cause: normalizeError(error) }
 			);
 		}
@@ -82,9 +81,8 @@ export class MessageManagerClient {
 				ServiceInstanceName.MessageDeliveryService
 			);
 			if (!target) {
-				throw new AppError(
-					"Unable to contact the message manager",
-					ErrorCodes.SERVICE_UNREACHABLE
+				throw new ServiceUnreachableError(
+					"Unable to contact the message manager"
 				);
 			}
 
@@ -95,22 +93,15 @@ export class MessageManagerClient {
 				);
 			}
 		} catch (err) {
-			if (
-				err instanceof AppError &&
-				err.code === ErrorCodes.SERVICE_UNREACHABLE
-			) {
+			if (err instanceof ServiceUnreachableError) {
 				throw err;
 			}
-			if (
-				err instanceof AppError &&
-				err.code === ErrorCodes.MESSAGE_MANAGER_ERROR
-			) {
+			if (err instanceof MessageManagerError) {
 				return;
 			}
 
-			throw new AppError(
+			throw new MessageManagerError(
 				"Failed to subscribe topic to Message Manager",
-				ErrorCodes.MESSAGE_MANAGER_ERROR,
 				{ cause: normalizeError(err) }
 			);
 		}
@@ -127,9 +118,8 @@ export class MessageManagerClient {
 				ServiceInstanceName.MessageDeliveryService
 			);
 			if (!target) {
-				throw new AppError(
-					"Unable to contact the message manager",
-					ErrorCodes.SERVICE_UNREACHABLE
+				throw new ServiceUnreachableError(
+					"Unable to contact the message manager"
 				);
 			}
 
@@ -140,22 +130,15 @@ export class MessageManagerClient {
 				);
 			}
 		} catch (err) {
-			if (
-				err instanceof AppError &&
-				err.code === ErrorCodes.SERVICE_UNREACHABLE
-			) {
+			if (err instanceof ServiceUnreachableError) {
 				throw err;
 			}
-			if (
-				err instanceof AppError &&
-				err.code === ErrorCodes.MESSAGE_MANAGER_ERROR
-			) {
+			if (err instanceof MessageManagerError) {
 				return;
 			}
 
-			throw new AppError(
+			throw new MessageManagerError(
 				"Failed to unsubscribe topic to Message Manager",
-				ErrorCodes.MESSAGE_MANAGER_ERROR,
 				{ cause: normalizeError(err) }
 			);
 		}
@@ -176,9 +159,8 @@ export class MessageManagerClient {
 				ServiceInstanceName.MessageDeliveryService
 			);
 			if (!target) {
-				throw new AppError(
-					"Unable to contact the message manager",
-					ErrorCodes.SERVICE_UNREACHABLE
+				throw new ServiceUnreachableError(
+					"Unable to contact the message manager"
 				);
 			}
 
@@ -192,16 +174,12 @@ export class MessageManagerClient {
 				Messagepayload
 			);
 		} catch (error) {
-			if (
-				error instanceof AppError &&
-				error.code === ErrorCodes.SERVICE_UNREACHABLE
-			) {
+			if (error instanceof ServiceUnreachableError) {
 				throw error;
 			}
 
-			throw new AppError(
+			throw new MessageManagerError(
 				"Failed to publish message to Message Manager",
-				ErrorCodes.MESSAGE_MANAGER_ERROR,
 				{ cause: normalizeError(error) }
 			);
 		}
@@ -222,9 +200,8 @@ export class MessageManagerClient {
 		try {
 			const target = await this._addressManagerClient.findService(service);
 			if (!target) {
-				throw new AppError(
-					`Unable to contact the service: ${service}`,
-					ErrorCodes.SERVICE_UNREACHABLE
+				throw new ServiceUnreachableError(
+					`Unable to contact the service: ${service}`
 				);
 			}
 
@@ -238,16 +215,12 @@ export class MessageManagerClient {
 				Messagepayload
 			);
 		} catch (error) {
-			if (
-				error instanceof AppError &&
-				error.code === ErrorCodes.SERVICE_UNREACHABLE
-			) {
+			if (error instanceof ServiceUnreachableError) {
 				throw error;
 			}
 
-			throw new AppError(
+			throw new MessageManagerError(
 				`Failed to publish message to ${service}`,
-				ErrorCodes.MESSAGE_MANAGER_ERROR,
 				{ cause: normalizeError(error) }
 			);
 		}

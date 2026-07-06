@@ -1,23 +1,35 @@
 import { DeliveryMode, type DeliveryModeEnum } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
-import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
+import { AppError, DeadLetterError } from "@trading-model/common/utils/errors";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 import { logger } from "../../config/logger";
 
 /** Maximum number of delivery retries before routing to DLQ. */
 const MAX_RETRIES = 10;
 
+export interface DeliveryErrorHandlerDeps {
+	deliveryPort: MessageDeliveryPort;
+	recordFailure: () => void;
+	topic: string;
+	serviceName: string;
+}
+
 /**
  * Classifies delivery errors and decides whether to DLQ, retry, or
  * silently swallow the message based on delivery mode and TTL.
  */
 export class DeliveryErrorHandler {
-	constructor(
-		private readonly _deliveryPort: MessageDeliveryPort,
-		private readonly _recordFailure: () => void,
-		private readonly _topic: string,
-		private readonly _serviceName: string
-	) {}
+	private readonly _deliveryPort: MessageDeliveryPort;
+	private readonly _recordFailure: () => void;
+	private readonly _topic: string;
+	private readonly _serviceName: string;
+
+	constructor(deps: DeliveryErrorHandlerDeps) {
+		this._deliveryPort = deps.deliveryPort;
+		this._recordFailure = deps.recordFailure;
+		this._topic = deps.topic;
+		this._serviceName = deps.serviceName;
+	}
 
 	/**
 	 * Examines a delivery error and takes the appropriate action:
@@ -36,10 +48,7 @@ export class DeliveryErrorHandler {
 		emittedAt: number,
 		deliveryMode: DeliveryModeEnum
 	): Promise<boolean> {
-		if (
-			err instanceof AppError &&
-			err.code === ErrorCodes.DEAD_LETTER_ERROR
-		) {
+		if (err instanceof DeadLetterError) {
 			const reason: string = err.reason ?? "NO_REASON";
 			await this._deliveryPort.markDeadLetter(
 				message,

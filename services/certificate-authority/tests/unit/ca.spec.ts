@@ -232,7 +232,10 @@ describe("CertificateAuthority", () => {
 			await ca.initialize();
 
 			await expect(
-				ca.revokeCertificate("SN-MISSING", "key_compromise")
+				ca.revokeCertificate({
+					serialNumber: "SN-MISSING",
+					reason: "key_compromise",
+				})
 			).rejects.toThrow("Certificate SN-MISSING not found");
 			expect(MOCK_CRL_STORE.add).not.toHaveBeenCalled();
 		});
@@ -259,7 +262,10 @@ describe("CertificateAuthority", () => {
 			await ca.initialize();
 			jest.clearAllMocks();
 
-			await ca.revokeCertificate("SN-REVOKE", "cessation_of_operation");
+			await ca.revokeCertificate({
+				serialNumber: "SN-REVOKE",
+				reason: "cessation_of_operation",
+			});
 
 			expect(MOCK_CRL_STORE.add).toHaveBeenCalledWith(
 				expect.objectContaining({

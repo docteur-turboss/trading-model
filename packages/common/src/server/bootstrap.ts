@@ -206,5 +206,7 @@ function finishBootstrap(
 	if (options.onStart) {
 		options.onStart();
 	}
-	logger.info("Service started successfully", { context: { name: options.name } });
+	logger.info("Service started successfully", {
+		context: { name: options.name },
+	});
 }

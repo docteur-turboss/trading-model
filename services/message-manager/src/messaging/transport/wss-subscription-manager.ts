@@ -8,6 +8,13 @@ interface WsSubscription {
 	ws: WebSocket;
 }
 
+export interface SubscriptionContext {
+	ws: WebSocket;
+	serviceName: string;
+	instanceId: string;
+	topics: Set<string>;
+}
+
 const MAX_CONNECTIONS = 10000;
 
 export class WssSubscriptionManager {
@@ -33,12 +40,8 @@ export class WssSubscriptionManager {
 		return true;
 	}
 
-	add(
-		ws: WebSocket,
-		serviceName: string,
-		instanceId: string,
-		topics: Set<string>
-	): string {
+	add(ctx: SubscriptionContext): string {
+		const { ws, serviceName, instanceId, topics } = ctx;
 		const subKey = `${serviceName}:${instanceId}`;
 		this._subscriptions.set(subKey, { instanceId, serviceName, topics, ws });
 		return subKey;
@@ -50,10 +53,9 @@ export class WssSubscriptionManager {
 
 	handleSubscribe(
 		msg: IncomingWssMessage,
-		ws: WebSocket,
-		topics: Set<string>,
-		instanceId: string
+		ctx: SubscriptionContext
 	): void {
+		const { ws, topics, instanceId } = ctx;
 		const msgInstanceId = msg.instanceId;
 		if (msgInstanceId && msgInstanceId !== instanceId) {
 			ws.send(
@@ -84,10 +86,9 @@ export class WssSubscriptionManager {
 
 	handleUnsubscribe(
 		msg: IncomingWssMessage,
-		ws: WebSocket,
-		topics: Set<string>,
-		instanceId: string
+		ctx: SubscriptionContext
 	): void {
+		const { ws, topics, instanceId } = ctx;
 		const msgInstanceId = msg.instanceId;
 		if (msgInstanceId && msgInstanceId !== instanceId) {
 			ws.send(

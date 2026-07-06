@@ -319,10 +319,11 @@ describe("Logger", () => {
 		it("should include context, url, and serviceInCharge in log entry", () => {
 			(logger as any)._sessionId = "sess-001";
 			logger.setUserId("user-001");
-			logger.info(
-				"test with meta",
-				{ context: { key: "val" }, url: "https://example.com", serviceInCharge: "my-service" }
-			);
+			logger.info("test with meta", {
+				context: { key: "val" },
+				url: "https://example.com",
+				serviceInCharge: "my-service",
+			});
 			const logs = logger.getLogs();
 			expect(logs[0].context).toEqual({ key: "val" });
 			expect(logs[0].url).toBe("https://example.com");

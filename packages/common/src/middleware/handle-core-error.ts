@@ -85,7 +85,9 @@ export const handleDBError = (file: string) => (err: unknown) => {
 		}
 	}
 
-	logger.error("Model operation failed", { context: { file, err: normalizeError(err) } });
+	logger.error("Model operation failed", {
+		context: { file, err: normalizeError(err) },
+	});
 	throw err;
 };
 

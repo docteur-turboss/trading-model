@@ -4,9 +4,9 @@ import { createDefaultGenome } from "./genetic-algorithm/factory";
 import {
 	type GenerationContext,
 	GeneticAlgorithmRunner,
-	makeTradingAgentBackend,
 	type WindowSet,
 } from "./genetic-algorithm/ga-runner";
+import { makeTradingAgentBackend } from "./genetic-algorithm/rl-backend";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type {
 	ActivationType,

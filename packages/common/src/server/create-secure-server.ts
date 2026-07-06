@@ -1,16 +1,17 @@
 import type { Application } from "express";
+import type { TlsPaths } from "../domain/tls-paths";
 import { MTLSAuthMiddleware } from "../middleware/mtls-auth";
 import { ResponseProtocol } from "../middleware/response-protocol";
 import { configureApp, RateLimitConfig } from "./configure-app";
-import { TlsConfig } from "./load-tls-config";
 import { createAndStartHttpsServer, HttpServer } from "./server-factory";
 
-export { HttpServer, RateLimitConfig, TlsConfig as TlsPaths };
+export type { TlsPaths };
+export { HttpServer, RateLimitConfig };
 
 /** Options for creating an mTLS-secured HTTPS server. */
 export interface SecureServerOptions {
 	port: number;
-	tls: TlsConfig;
+	tls: TlsPaths;
 	routes: (app: Application) => void;
 	rateLimit?: RateLimitConfig;
 	trustProxy?: boolean;

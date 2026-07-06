@@ -1,3 +1,5 @@
+import type { IPAddress, Port } from "../../domain/primitives";
+
 export interface ServiceRegistryEntry {
 	serviceName: string;
 	instances: ServiceInstance[];
@@ -6,8 +8,8 @@ export interface ServiceRegistryEntry {
 
 export interface ServiceInstance {
 	instanceId: string;
-	host: string;
-	port: number;
+	host: IPAddress;
+	port: Port;
 	version: string;
 	heartbeat: string;
 	status: "healthy" | "degraded" | "down";

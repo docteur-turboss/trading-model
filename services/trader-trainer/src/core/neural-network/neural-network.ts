@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
+import { AppError, AgentError } from "@trading-model/common/utils/errors";
 
 import { BackpropEngine } from "./backprop-engine";
 import { FeedForwardEngine } from "./feed-forward-engine";
@@ -85,9 +85,8 @@ function createLayerMemories(
 
 	for (let i = 0; i < sizes.length - 1; i++) {
 		if (sizes[i] <= 0 || sizes[i + 1] <= 0) {
-			throw new AppError(
+			throw new AgentError(
 				"Layer sizes must be positive integers",
-				ErrorCodes.AGENT_ERROR
 			);
 		}
 
@@ -134,15 +133,13 @@ function validateActivationLoss(
 		config.lossFunctionType !== "cross-entropy" &&
 		config.lossFunctionType !== "binary-cross-entropy"
 	) {
-		throw new AppError(
+		throw new AgentError(
 			`Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`,
-			ErrorCodes.AGENT_ERROR
 		);
 	}
 	if (config.activationType.length !== layerCount) {
-		throw new AppError(
+		throw new AgentError(
 			`ActivationType must be the same length of the layers. Expected : ${layerCount}, got ${config.activationType.length}`,
-			ErrorCodes.AGENT_ERROR
 		);
 	}
 }
@@ -166,9 +163,8 @@ export class NeuralNetwork {
 		const sizes = this._config.neuronsByLayer;
 
 		if (sizes.length < 2) {
-			throw new AppError(
+			throw new AgentError(
 				"Neural network must have at least 2 layers (input + output)",
-				ErrorCodes.AGENT_ERROR
 			);
 		}
 
@@ -197,16 +193,14 @@ export class NeuralNetwork {
 			this._config.neuronsByLayer[this._config.neuronsByLayer.length - 1];
 
 		if (inputs.length !== expectedInput) {
-			throw new AppError(
+			throw new AgentError(
 				`Expected input size ${expectedInput}, got ${inputs.length}`,
-				ErrorCodes.AGENT_ERROR
 			);
 		}
 
 		if (targets.length !== expectedOutput) {
-			throw new AppError(
+			throw new AgentError(
 				`Expected target size ${expectedOutput}, got ${targets.length}`,
-				ErrorCodes.AGENT_ERROR
 			);
 		}
 
@@ -218,9 +212,8 @@ export class NeuralNetwork {
 
 	public forwardAndPool(input: Float32Array, target: Float32Array): number {
 		if (!this._config.enablePool) {
-			throw new AppError(
+			throw new AgentError(
 				"Learning pool is disabled. Set enablePool: true in config.",
-				ErrorCodes.AGENT_ERROR
 			);
 		}
 
@@ -237,9 +230,8 @@ export class NeuralNetwork {
 
 	public trainPooled(): number {
 		if (!this._config.enablePool) {
-			throw new AppError(
+			throw new AgentError(
 				"Learning pool is disabled. Set enablePool: true in config.",
-				ErrorCodes.AGENT_ERROR
 			);
 		}
 
@@ -288,16 +280,14 @@ export class NeuralNetwork {
 			this._config.neuronsByLayer[this._config.neuronsByLayer.length - 1];
 
 		if (input.length !== expectedInput) {
-			throw new AppError(
+			throw new AgentError(
 				`Expected input size ${expectedInput}, got ${input.length}`,
-				ErrorCodes.AGENT_ERROR
 			);
 		}
 
 		if (target.length !== expectedOutput) {
-			throw new AppError(
+			throw new AgentError(
 				`Expected target size ${expectedOutput}, got ${target.length}`,
-				ErrorCodes.AGENT_ERROR
 			);
 		}
 	}

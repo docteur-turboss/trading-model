@@ -20,6 +20,7 @@ import type {
 	SignedCertificate,
 } from "@trading-model/certificate-utils/types";
 
+import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import { ENV } from "../config/env";
 import type { CaStore } from "../persistence/ca-store";
 import type { CertificateStore } from "../persistence/certificate-store";
@@ -179,17 +180,19 @@ export class CertificateAuthority {
 		return signed;
 	}
 
-	async revokeCertificate(serialNumber: string, reason: string): Promise<void> {
-		const cert = await this._options.certificateStore.getBySerial(serialNumber);
+	async revokeCertificate(request: RevocationRequest): Promise<void> {
+		const cert = await this._options.certificateStore.getBySerial(
+			request.serialNumber
+		);
 		if (!cert) {
-			throw new Error(`Certificate ${serialNumber} not found`);
+			throw new Error(`Certificate ${request.serialNumber} not found`);
 		}
 
 		const revoked: RevokedCertificate = {
-			serialNumber,
+			serialNumber: request.serialNumber,
 			serviceId: cert.serviceId,
 			revokedAt: new Date(),
-			reason,
+			reason: request.reason,
 		};
 
 		await this._options.crlStore.add(revoked);

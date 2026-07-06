@@ -117,6 +117,28 @@ export class WalFlusherService {
 		this.stop();
 	}
 
+	private _waitForDrainCompletion(
+		gen: number,
+		timeoutMs: number
+	): Promise<void> {
+		return new Promise<void>((resolve) => {
+			const timer = setTimeout(() => {
+				if (this._walDrainGen === gen) {
+					this._walDrainResolve = null;
+					logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
+					resolve();
+				}
+			}, timeoutMs);
+			this._walDrainResolve = () => {
+				if (this._walDrainGen === gen) {
+					clearTimeout(timer);
+					this._walDrainResolve = null;
+					resolve();
+				}
+			};
+		});
+	}
+
 	async drain(timeoutMs = 10_000): Promise<void> {
 		if (this._walDrainRequested) {
 			return;
@@ -133,23 +155,7 @@ export class WalFlusherService {
 			}
 
 			await this._flushWal();
-
-			return new Promise<void>((resolve) => {
-				const timer = setTimeout(() => {
-					if (this._walDrainGen === gen) {
-						this._walDrainResolve = null;
-						logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
-						resolve();
-					}
-				}, timeoutMs);
-				this._walDrainResolve = () => {
-					if (this._walDrainGen === gen) {
-						clearTimeout(timer);
-						this._walDrainResolve = null;
-						resolve();
-					}
-				};
-			});
+			return this._waitForDrainCompletion(gen, timeoutMs);
 		} finally {
 			this._walDrainRequested = false;
 		}

@@ -121,12 +121,12 @@ export class Subscription {
 			topic,
 			serviceIdentity.serviceName
 		);
-		this._errorHandler = new DeliveryErrorHandler(
+		this._errorHandler = new DeliveryErrorHandler({
 			deliveryPort,
-			() => this._circuitBreaker.recordFailure(),
+			recordFailure: () => this._circuitBreaker.recordFailure(),
 			topic,
-			serviceIdentity.serviceName
-		);
+			serviceName: serviceIdentity.serviceName,
+		});
 	}
 
 	/**

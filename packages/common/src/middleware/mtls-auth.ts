@@ -66,7 +66,9 @@ function _assertAuthorized(socket: TLSSocket): void {
 	}
 }
 
-function _assertClientCert(socket: TLSSocket): import("node:tls").PeerCertificate {
+function _assertClientCert(
+	socket: TLSSocket
+): import("node:tls").PeerCertificate {
 	const cert = socket.getPeerCertificate();
 
 	if (!cert || Object.keys(cert).length === 0) {
@@ -80,9 +82,7 @@ function _assertClientCert(socket: TLSSocket): import("node:tls").PeerCertificat
 	return cert;
 }
 
-function _resolveIdentity(
-	cert: import("node:tls").PeerCertificate
-): string {
+function _resolveIdentity(cert: import("node:tls").PeerCertificate): string {
 	const raw = cert.subjectaltname ?? cert.subject?.CN;
 
 	if (!raw) {

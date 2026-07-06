@@ -4,6 +4,7 @@ import {
 } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 
+import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import { WssTransport } from "./wss-transport";
 
 export type TransportMode = "wss" | "https";
@@ -37,8 +38,15 @@ export class TransportManager {
 			this._mode = "https";
 		} else {
 			this._mode = "wss";
-			const wsUrl = config.caUrl.replace(/\/+$/, "").replace(/^https:/, "wss:").replace(/^http:/, "ws:");
-			this._wssTransport = new WssTransport(wsUrl, config.tls, config.bootstrapToken);
+			const wsUrl = config.caUrl
+				.replace(/\/+$/, "")
+				.replace(/^https:/, "wss:")
+				.replace(/^http:/, "ws:");
+			this._wssTransport = new WssTransport(
+				wsUrl,
+				config.tls,
+				config.bootstrapToken
+			);
 		}
 	}
 
@@ -51,10 +59,7 @@ export class TransportManager {
 		csr: string,
 		options?: { ttlMs?: number }
 	): Promise<SignCertificateResponse> {
-		if (
-			this._mode === "wss" &&
-			this._wssTransport?.isConnected
-		) {
+		if (this._mode === "wss" && this._wssTransport?.isConnected) {
 			if (!this._wssTransport.isAuthSent) {
 				this._unauthRejects++;
 				if (this._unauthRejects > 3) {
@@ -66,7 +71,11 @@ export class TransportManager {
 				}
 			}
 			try {
-				return await this._wssTransport.signCertificate(serviceId, csr, options);
+				return await this._wssTransport.signCertificate(
+					serviceId,
+					csr,
+					options
+				);
 			} catch (err) {
 				logger.error("WSS sign failed, falling back to HTTPS", { err });
 			}
@@ -82,8 +91,8 @@ export class TransportManager {
 		return await this._httpsClient.getCertificate(serviceId);
 	}
 
-	async revokeCertificate(serialNumber: string, reason: string): Promise<void> {
-		return await this._httpsClient.revokeCertificate(serialNumber, reason);
+	async revokeCertificate(request: RevocationRequest): Promise<void> {
+		return await this._httpsClient.revokeCertificate(request);
 	}
 
 	async getCrl(since?: string): Promise<

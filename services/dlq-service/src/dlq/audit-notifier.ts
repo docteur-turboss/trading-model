@@ -15,12 +15,15 @@ export function notifyAddAudit(
 	});
 }
 
-export function notifyReplayAudit(
-	batchId: string,
-	topic: string | undefined,
-	success: number,
-	failed: number
-): void {
+export interface ReplayAuditResult {
+	batchId: string;
+	topic?: string;
+	success: number;
+	failed: number;
+}
+
+export function notifyReplayAudit(result: ReplayAuditResult): void {
+	const { batchId, topic, success, failed } = result;
 	if (success === 0 && failed === 0) {
 		return;
 	}

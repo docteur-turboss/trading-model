@@ -1,8 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import {
-	type SignCertificateResponse,
-} from "@trading-model/common/ca/ca-client";
+import type { SignCertificateResponse } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import {
 	createWsConnectTimeout,
@@ -161,15 +159,15 @@ export class WssTransport {
 		if (this._destroyed) {
 			return;
 		}
-		scheduleWsReconnect(
-			this._wsReconnectState,
-			{ baseDelayMs: 1000, maxDelayMs: 60000, jitterMs: 500 },
-			() => {
+		scheduleWsReconnect({
+			state: this._wsReconnectState,
+			config: { baseDelayMs: 1000, maxDelayMs: 60000, jitterMs: 500 },
+			onReconnect: () => {
 				this._cleanupWs();
 				this._connectWs();
 			},
-			logger
-		);
+			logger,
+		});
 	}
 
 	private _connectWs(): void {

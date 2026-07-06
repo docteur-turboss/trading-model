@@ -42,11 +42,23 @@ describe("CertRenewalService", () => {
 		});
 
 		await expect(
-			service.renew({ serviceId: "svc-1", oldSerialNumber: "SN-001", nonce: "nonce", signature: "sig", csr: "csr" })
+			service.renew({
+				serviceId: "svc-1",
+				oldSerialNumber: "SN-001",
+				nonce: "nonce",
+				signature: "sig",
+				csr: "csr",
+			})
 		).rejects.toThrow(CertRenewalError);
 
 		await expect(
-			service.renew({ serviceId: "svc-1", oldSerialNumber: "SN-001", nonce: "nonce", signature: "sig", csr: "csr" })
+			service.renew({
+				serviceId: "svc-1",
+				oldSerialNumber: "SN-001",
+				nonce: "nonce",
+				signature: "sig",
+				csr: "csr",
+			})
 		).rejects.toHaveProperty("statusCode", 401);
 	});
 
@@ -61,7 +73,13 @@ describe("CertRenewalService", () => {
 		});
 
 		await expect(
-			service.renew({ serviceId: "svc-1", oldSerialNumber: "SN-001", nonce: "nonce", signature: "sig", csr: "csr" })
+			service.renew({
+				serviceId: "svc-1",
+				oldSerialNumber: "SN-001",
+				nonce: "nonce",
+				signature: "sig",
+				csr: "csr",
+			})
 		).rejects.toThrow("Original certificate not found");
 	});
 
@@ -81,7 +99,13 @@ describe("CertRenewalService", () => {
 		});
 
 		await expect(
-			service.renew({ serviceId: "svc-1", oldSerialNumber: "SN-002", nonce: "nonce", signature: "sig", csr: "csr" })
+			service.renew({
+				serviceId: "svc-1",
+				oldSerialNumber: "SN-002",
+				nonce: "nonce",
+				signature: "sig",
+				csr: "csr",
+			})
 		).rejects.toThrow("Could not acquire distributed lock");
 	});
 
