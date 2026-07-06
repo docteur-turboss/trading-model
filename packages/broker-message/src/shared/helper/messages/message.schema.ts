@@ -7,6 +7,7 @@ import {
 	SourceType,
 } from "@trading-model/common/config/event.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { PriceSchema, VolumeSchema } from "@trading-model/common/domain/primitives.schema";
 import { z } from "zod";
 
 /** Validates the security metadata context (auth and signature). */
@@ -133,8 +134,8 @@ type ZodEventMap<TObject extends object> = {
 };
 
 const SET_OBJECT = z.object({
-	price: z.number(),
-	quantity: z.number(),
+	price: PriceSchema,
+	quantity: VolumeSchema,
 });
 
 const EVENT_VALIDATORS = {
@@ -145,10 +146,10 @@ const EVENT_VALIDATORS = {
 	[EnumEventMessage.fetchRecentTrades]: z.object({
 		trades: z.array(
 			z.object({
-				price: z.number("Price is required and must be a number"),
+				price: PriceSchema,
 				symbol: z.string("Symbol is required and must be a string"),
 				tradeId: z.bigint("TradeId is required and must be a bigint"),
-				quantity: z.number("Quantity is required and must be a number"),
+				quantity: VolumeSchema,
 				timestamp: z.number("Timestamp is required and must be a number"),
 				side: z.enum(
 					["buy", "sell"],
@@ -169,11 +170,11 @@ const EVENT_VALIDATORS = {
 	[EnumEventMessage.fetch24hrTickerStats]: z.object({
 		ticker: z.array(
 			z.object({
-				low: z.number("Low is required and must be a number"),
-				open: z.number("Open is required and must be a number"),
-				high: z.number("High is required and must be a number"),
-				last: z.number("Last is required and must be a number"),
-				volume: z.number("Volume is required and must be a number"),
+				low: PriceSchema,
+				open: PriceSchema,
+				high: PriceSchema,
+				last: PriceSchema,
+				volume: VolumeSchema,
 				symbol: z.string("Symbol is required and must be a string"),
 				timestamp: z.number("Timestamp is required and must be a number"),
 				closeTimestamp: z.number(
@@ -194,13 +195,13 @@ const EVENT_VALIDATORS = {
 	[EnumEventMessage.fetchCandlestickSeries]: z.object({
 		candle: z.array(
 			z.object({
-				low: z.number("Low is required and must be a number"),
+				low: PriceSchema,
 				trades: z.number("Trades must be a number").optional(),
-				open: z.number("Open is required and must be a number"),
-				high: z.number("High is required and must be a number"),
-				close: z.number("Close is required and must be a number"),
+				open: PriceSchema,
+				high: PriceSchema,
+				close: PriceSchema,
 				symbol: z.string("Symbol is required and must be a string"),
-				volume: z.number("Volume is required and must be a number"),
+				volume: VolumeSchema,
 				interval: z.enum(
 					Object.values(CandleInterval) as unknown as [
 						CandleInterval,
@@ -246,17 +247,17 @@ const EVENT_VALIDATORS = {
 	[EnumEventMessage.fetchPriceTickerSnapshot]: z.object({
 		price: z.record(
 			z.string("Symbol value must be string"),
-			z.number("Price value must be a number"),
+			PriceSchema,
 			"Price param is required and must be a record<string, number>"
 		),
 	}),
 	[EnumEventMessage.fetchOrderBookTickerSnapshot]: z.object({
 		bookTicker: z.array(
 			z.object({
-				ask: z.number("Ask is required and must be a number"),
-				bid: z.number("Bid is required and must be a number"),
-				askQty: z.number("AskQty is required and must be a number"),
-				bidQty: z.number("BidQty is required and must be a number"),
+				ask: PriceSchema,
+				bid: PriceSchema,
+				askQty: VolumeSchema,
+				bidQty: VolumeSchema,
 				symbol: z.string("Symbol is required and must be a string"),
 				timestamp: z.number("Timestamp is required and must be a number"),
 				source: z.enum(

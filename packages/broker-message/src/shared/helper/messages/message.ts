@@ -23,12 +23,12 @@ import {
  * Represents an metadata in a message
  */
 export class MessageMetadata {
-	public topic!: string;
+	public topic?: string;
 	public routing?: RoutingType;
 	public delivery?: DeliveryType;
 	public security?: SecurityType;
-	public eventType!: string;
-	public publisher!: ServiceIdentity;
+	public eventType?: string;
+	public publisher?: ServiceIdentity;
 	public schemaVersion = "1.0.0";
 	private _causationId?: string;
 	private _correlationId?: string;
@@ -54,9 +54,9 @@ export class MessageMetadata {
 		this.security = security;
 		this._causationId = causationId;
 		this._correlationId = correlationId;
-		this.topic = topic!;
-		this.eventType = eventType!;
-		this.publisher = publisher!;
+		this.topic = topic;
+		this.eventType = eventType;
+		this.publisher = publisher;
 	}
 
 	/**
@@ -191,10 +191,10 @@ export class MessageMetadata {
 
 	private _buildMetadata(): MetadataType {
 		return {
-			eventType: this.eventType,
-			publisher: this.publisher,
+			eventType: this.eventType!,
+			publisher: this.publisher!,
 			schemaVersion: this.schemaVersion,
-			topic: this.topic,
+			topic: this.topic!,
 			causationId: this._causationId,
 			correlationId: this._correlationId,
 			delivery: this.delivery,
