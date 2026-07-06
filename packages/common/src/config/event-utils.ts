@@ -1,5 +1,6 @@
 import { Price, Volume } from "../domain/primitives";
-import type { CandleData, OrderBookData, TradeData, TradeSide } from "./event.types";
+import type { CandleData, OrderBookData, TradeData } from "./event.types";
+import { TradeSide } from "./event.types";
 
 export function getAvgBid(ob: OrderBookData): Price {
 	let sum = 0;

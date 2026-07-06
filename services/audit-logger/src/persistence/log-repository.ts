@@ -124,6 +124,10 @@ export class LogRepository {
 	}
 
 	async getById(id: string): Promise<ServiceLogDocument | null> {
+		return this.findById(id);
+	}
+
+	async findById(id: string): Promise<ServiceLogDocument | null> {
 		const col = await this._getCollection();
 		const { ObjectId } = await import("mongodb");
 		if (!ObjectId.isValid(id)) {
