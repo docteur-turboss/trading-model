@@ -1,4 +1,4 @@
-import type { ServiceIdentity } from "../domain/service-identity";
+import type { ServiceEndpoint, ServiceIdentity } from "../domain/service-identity";
 
 export type Protocol = "http" | "https" | "mtls";
 
@@ -82,6 +82,9 @@ export interface RegistryBackend {
 
 	/** Generate a new instance token. */
 	generateInstanceToken(instanceId: string): string;
+
+	/** Generate a deterministic instance ID from service endpoint data. */
+	generateInstanceId(endpoint: ServiceEndpoint): string;
 
 	/** Verify a service name is in the allowed catalog. */
 	verifyInstanceName(serviceName: string): boolean;

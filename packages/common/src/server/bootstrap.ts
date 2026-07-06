@@ -1,4 +1,4 @@
-import type https from "node:https";
+﻿import type https from "node:https";
 import { logger } from "../config/logger";
 import { normalizeError } from "../utils/errors";
 import type { HttpServer } from "./create-secure-server";
@@ -172,7 +172,9 @@ async function gracefulShutdown(
 				options.onStop();
 			} catch (error) {
 				logger.warn("onStop callback failed during shutdown", {
-					err: normalizeError(error),
+					context: {
+						err: normalizeError(error),
+					},
 				});
 			}
 		}
