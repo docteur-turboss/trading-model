@@ -1,4 +1,4 @@
-import { createSecureServer } from "@trading-model/common/server/create-secure-server";
+import { createSecureServer, buildTlsFromEnv } from "@trading-model/common/server/create-secure-server";
 import { Port } from "@trading-model/common/domain/primitives";
 
 import { ENV } from "../config/env";
@@ -15,11 +15,7 @@ function _mountDiscoveryRoutes(app: import("express").Application, registry: Ser
 export function createServer(registry: ServiceRegistry) {
 	return createSecureServer({
 		port: Port.of(ENV.PORT),
-		tls: {
-			keyPath: ENV.TLS_KEY_PATH,
-			certPath: ENV.TLS_CERT_PATH,
-			caPath: ENV.TLS_CA_PATH,
-		},
+		tls: buildTlsFromEnv(ENV),
 		routes: (app) => _mountDiscoveryRoutes(app, registry),
 	});
 }

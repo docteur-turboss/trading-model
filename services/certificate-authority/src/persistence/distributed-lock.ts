@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
-import type { LockBackend, LockContext } from "./lock-backends";
+import type { LockContext } from "./lock-backends";
 import {
 	FileSystemLockBackend,
 	NullLockBackend,
 	RedisLockBackend,
 } from "./lock-backends";
+import { LockAcquisitionChain } from "./lock-acquisition-chain";
 import { LockConnectionManager } from "./lock-connection-manager";
 
 export interface DistributedLockOptions {
@@ -23,8 +24,9 @@ export class DistributedLock implements IDistributedLock {
 	private _currentFencingToken = -1;
 
 	private readonly _connectionManager: LockConnectionManager;
-	private readonly _redisBackend: LockBackend;
+	private readonly _redisBackend: RedisLockBackend | NullLockBackend;
 	private readonly _filesystemBackend: FileSystemLockBackend;
+	private readonly _acquisitionChain: LockAcquisitionChain;
 
 	constructor(options: DistributedLockOptions) {
 		this._context = { lockName: options.lockName, instanceId: randomUUID().substring(0, 8) };
@@ -33,6 +35,11 @@ export class DistributedLock implements IDistributedLock {
 		this._redisBackend = options.redisUrl ? new RedisLockBackend(options.redisUrl) : new NullLockBackend();
 		this._filesystemBackend = new FileSystemLockBackend(
 			options.fallbackDir ?? path.join(process.cwd(), "data", "ca-fallback", "locks")
+		);
+		this._acquisitionChain = new LockAcquisitionChain(
+			this._connectionManager,
+			this._redisBackend,
+			this._filesystemBackend,
 		);
 	}
 
@@ -61,61 +68,18 @@ export class DistributedLock implements IDistributedLock {
 		return -1;
 	}
 
-	private async _tryMongoAcquire(): Promise<number | null> {
-		if (!this._connectionManager.isAvailable) {
-			return null;
-		}
-		const result = await this._connectionManager.mongoBackend.acquire(
-			this._context, this._ttlMs
-		);
-		if (result !== null) return result;
-		return this._connectionManager.isAvailable ? -1 : null;
-	}
-
-	private async _tryRedisAcquire(redisUrl?: string): Promise<number | null> {
-		const backend = redisUrl ? new RedisLockBackend(redisUrl) : this._redisBackend;
-		return backend.acquire(this._context, this._ttlMs);
-	}
-
-	private async _tryFsAcquire(): Promise<number | null> {
-		return this._filesystemBackend.acquire(this._context, this._ttlMs);
-	}
-
 	async acquire(redisUrl?: string): Promise<boolean> {
-		const mongoResult = await this._tryMongoAcquire();
-		if (mongoResult !== null) {
-			if (mongoResult >= 0) {
-				this._currentFencingToken = mongoResult;
-				return true;
-			}
-			return false;
-		}
-
-		const redisResult = await this._tryRedisAcquire(redisUrl);
-		if (redisResult !== null) {
-			this._currentFencingToken = redisResult;
+		const token = await this._acquisitionChain.acquire(this._context, this._ttlMs, redisUrl);
+		if (token !== null) {
+			this._currentFencingToken = token;
 			return true;
 		}
-
-		if (!redisUrl) {
-			const fsResult = await this._tryFsAcquire();
-			if (fsResult !== null && fsResult > 0) {
-				this._currentFencingToken = fsResult;
-				return true;
-			}
-		}
 		return false;
-	}
-
-	private async _releaseOnBackend(backend: LockBackend, token: number): Promise<boolean> {
-		return backend.release(this._context, token);
 	}
 
 	async release(): Promise<void> {
 		const savedToken = this._currentFencingToken;
 		this._currentFencingToken = -1;
-		if (await this._releaseOnBackend(this._connectionManager.mongoBackend, savedToken)) return;
-		if (await this._releaseOnBackend(this._redisBackend, savedToken)) return;
-		await this._filesystemBackend.release(this._context, savedToken);
+		await this._acquisitionChain.release(this._context, savedToken);
 	}
 }

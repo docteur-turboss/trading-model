@@ -1,9 +1,11 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { Collection } from "mongodb";
 import type { LockBackend, LockContext, LockDocument } from "./lock-backends";
+import { MongoLockRepository } from "./mongo-lock-repository";
 
 export class MongoLockBackend implements LockBackend {
 	private _connected = false;
+	private readonly _repository = new MongoLockRepository();
 
 	constructor(
 		private readonly _collection: () => Collection<LockDocument> | null,
@@ -21,35 +23,12 @@ export class MongoLockBackend implements LockBackend {
 		if (!this._connected) {
 			return null;
 		}
-		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
 			return null;
 		}
 		try {
-			const now = new Date();
-			const expiresAt = new Date(now.getTime() + ttlMs);
-			const prev = await collection.findOne({ name: lockName });
-			const nextFencingToken = (prev?.fencingToken ?? 0) + 1;
-			const result = await collection.findOneAndUpdate(
-				{
-					name: lockName,
-					$or: [{ expiresAt: { $lt: now } }, { expiresAt: { $exists: false } }],
-				},
-				{
-					$set: {
-						name: lockName,
-						acquiredAt: now,
-						expiresAt,
-						instanceId,
-						fencingToken: nextFencingToken,
-					},
-				},
-				{ upsert: true, returnDocument: "before" }
-			);
-			const acquired =
-				result === null || (result.expiresAt && result.expiresAt < now);
-			return acquired ? nextFencingToken : null;
+			return await this._repository.acquire(collection, context, ttlMs);
 		} catch (err) {
 			logger.warn("MongoDB lock acquire failed", { context: { err } });
 			this._connected = false;
@@ -65,17 +44,12 @@ export class MongoLockBackend implements LockBackend {
 		if (!this._connected) {
 			return false;
 		}
-		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
 			return false;
 		}
 		try {
-			await collection.deleteOne({
-				name: lockName,
-				instanceId,
-				fencingToken,
-			});
+			await this._repository.release(collection, context, fencingToken);
 			return true;
 		} catch {
 			this._connected = false;
@@ -91,21 +65,12 @@ export class MongoLockBackend implements LockBackend {
 		if (!this._connected) {
 			return -1;
 		}
-		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
 			return -1;
 		}
 		try {
-			const doc = await collection.findOne({ name: lockName });
-			if (
-				!doc ||
-				doc.instanceId !== instanceId ||
-				doc.fencingToken !== fencingToken
-			) {
-				return -1;
-			}
-			return fencingToken;
+			return await this._repository.verifyOwnership(collection, context, fencingToken);
 		} catch {
 			this._connected = false;
 			this._onDisconnect();

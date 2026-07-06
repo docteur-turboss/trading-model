@@ -1,32 +1,15 @@
-import {
-	createHash,
-	createPublicKey,
-	randomUUID,
-} from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-
-import {
-	generateKeyPair,
-	KeyAlgorithm,
-} from "@trading-model/certificate-utils/generate-key-pair";
-import {
-	type SignOptions,
-	signCertificate,
-} from "@trading-model/certificate-utils/sign-certificate";
 import type {
-	KeyPair,
 	RevokedCertificate,
 	SignedCertificate,
 } from "@trading-model/certificate-utils/types";
-
-import type { SignServiceCertRequest } from "../domain/cert-renewal-service";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
-import { toServiceId } from "@trading-model/common/domain/primitives";
-import { ENV } from "../config/env";
+import type { SignServiceCertRequest } from "../domain/cert-renewal-service";
 import type { CaStore } from "../persistence/ca-store";
 import type { CertificateStore } from "../persistence/certificate-store";
-import { CertBodyBuilder } from "./cert-body-builder";
 import type { CrlStore } from "../persistence/crl-store";
+
+import { type BootstrapResult, CaBootstrapper } from "./ca-bootstrapper";
+import { CertificateOperator } from "./certificate-operator";
 
 export interface CaOptions {
 	caKeyPath: string;
@@ -44,14 +27,21 @@ export interface CertBodyInput {
 }
 
 export class CertificateAuthority {
-	private _caKeyPair!: KeyPair;
-	private _caCertPem = "";
-	private readonly _options: CaOptions;
-	private readonly _certBodyBuilder = new CertBodyBuilder();
-	private _initialized = false;
+	private _state: BootstrapResult | null = null;
+	private readonly _bootstrapper: CaBootstrapper;
+	private readonly _operator: CertificateOperator;
+	private readonly _caStore: CaStore;
 
 	private constructor(options: CaOptions) {
-		this._options = options;
+		this._caStore = options.caStore;
+		this._bootstrapper = new CaBootstrapper(
+			options.caKeyPath,
+			options.caCertTtlMs
+		);
+		this._operator = new CertificateOperator(
+			options.certificateStore,
+			options.crlStore
+		);
 	}
 
 	static async create(options: CaOptions): Promise<CertificateAuthority> {
@@ -66,126 +56,37 @@ export class CertificateAuthority {
 	}
 
 	async initialize(): Promise<void> {
-		await this._loadOrBootstrapCa();
-		this._initialized = true;
-	}
-
-	private _loadKeyFromDisk(): boolean {
-		if (!existsSync(this._options.caKeyPath)) {
-			return false;
-		}
-		const privateKey = readFileSync(this._options.caKeyPath, "utf8");
-		const publicKey = createPublicKey(privateKey).export({
-			type: "spki",
-			format: "pem",
-		});
-		this._caKeyPair = { publicKey, privateKey };
-		return true;
-	}
-
-	private async _loadOrBootstrapCa(): Promise<void> {
-		if (this._loadKeyFromDisk()) {
-			const storedCa = await this._options.caStore.getLatest();
-			if (storedCa) {
-				this._caCertPem = storedCa.caCertPem;
-				return;
-			}
-		}
-		await this._bootstrapCa();
-	}
-
-	private _generateSerialNumber(): string {
-		return randomUUID().replace(/-/g, "").substring(0, 16).toUpperCase();
-	}
-
-	private async _bootstrapCa(): Promise<void> {
-		this._caKeyPair = generateKeyPair(KeyAlgorithm.rsa4096);
-		const serialNumber = this._generateSerialNumber();
-		const now = new Date();
-		const expiresAt = new Date(now.getTime() + this._options.caCertTtlMs);
-		const certBody = this._certBodyBuilder.buildCertBody({ serialNumber, now, expiresAt, publicKey: this._caKeyPair!.publicKey });
-		this._caCertPem = this._certBodyBuilder.signAndBuildPem(certBody, this._caKeyPair!.privateKey);
-		this._saveCaKey(this._caKeyPair!.privateKey);
-		await this._saveCaCert(this._caCertPem, serialNumber, now, expiresAt);
-	}
-
-	private _saveCaKey(privateKey: string): void {
-		const dir = this._options.caKeyPath.substring(
-			0,
-			this._options.caKeyPath.lastIndexOf("/")
-		);
-		if (!existsSync(dir)) {
-			mkdirSync(dir, { recursive: true });
-		}
-		writeFileSync(this._options.caKeyPath, privateKey, {
-			mode: 0o600,
-		});
-	}
-
-	private async _saveCaCert(
-		caCertPem: string,
-		serialNumber: string,
-		now: Date,
-		expiresAt: Date
-	): Promise<void> {
-		await this._options.caStore.save({
-			id: serialNumber,
-			caCertPem,
-			createdAt: now,
-			expiresAt,
-			fingerprint: createHash("sha256").update(caCertPem).digest("hex"),
-		});
+		this._state = await this._bootstrapper.loadOrBootstrap(this._caStore);
 	}
 
 	async signServiceCertificate(
 		request: SignServiceCertRequest
 	): Promise<SignedCertificate> {
-		const { serviceId, csr, ttlMs } = request;
-		if (!this._initialized) {
-			throw new Error("CA not initialized. Call initialize() or use CertificateAuthority.create().");
+		if (!this._state) {
+			throw new Error(
+				"CA not initialized. Call initialize() or use CertificateAuthority.create()."
+			);
 		}
-		const options: SignOptions = {
-			csr,
-			serviceId: toServiceId(serviceId),
-			caKeyPair: this._caKeyPair,
-			caCertPem: this._caCertPem,
-			ttlMs: ttlMs ?? ENV.CERT_DEFAULT_TTL_MS,
-		};
-
-		const signed = signCertificate(options);
-
-		await this._options.certificateStore.save(signed);
-
-		return signed;
-	}
-
-	private _buildRevokedCertificate(request: RevocationRequest, serviceId: string): RevokedCertificate {
-		return {
-			serialNumber: request.serialNumber,
-			serviceId: toServiceId(serviceId),
-			revokedAt: new Date(),
-			reason: request.reason,
-		};
+		return this._operator.signServiceCertificate(
+			request,
+			this._state.caKeyPair,
+			this._state.caCertPem
+		);
 	}
 
 	async revokeCertificate(request: RevocationRequest): Promise<void> {
-		const cert = await this._options.certificateStore.getBySerial(request.serialNumber);
-		if (!cert) {
-			throw new Error(`Certificate ${request.serialNumber} not found`);
-		}
-		const revoked = this._buildRevokedCertificate(request, cert.serviceId);
-		await this._options.crlStore.add(revoked);
+		await this._operator.revokeCertificate(request);
 	}
 
 	async getCrl(): Promise<RevokedCertificate[]> {
-		return await this._options.crlStore.getAll();
+		return this._operator.getCrl();
 	}
 
 	getCaCertPem(): string {
-		return this._caCertPem;
+		return this._state?.caCertPem ?? "";
 	}
 
 	isInitialized(): boolean {
-		return !!this._caKeyPair && this._caCertPem.length > 0;
+		return this._state !== null;
 	}
 }

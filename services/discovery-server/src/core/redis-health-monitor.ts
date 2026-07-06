@@ -2,6 +2,7 @@ import { logger } from "@trading-model/common/config/logger";
 import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
 import { FallbackManager } from "./fallback-manager";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { HealthStateManager } from "./health-state-manager";
 
 export interface HealthCheckCallbacks {
 	ping: () => Promise<boolean>;
@@ -20,18 +21,16 @@ export interface RedisHealthMonitorConfig {
 }
 
 export class RedisHealthMonitor {
-	private _healthy = true;
-	private _consecutiveFailures = 0;
 	private _healthCheckRunning = false;
 	private readonly _healthCheckHandle = new TimerHandle();
-	private readonly _failureThreshold: number;
+	private readonly _healthState: HealthStateManager;
 	private readonly _healthCheckIntervalMs: number;
 	private readonly _shouldRun: () => boolean;
 	private readonly _callbacks: HealthCheckCallbacks;
 	private readonly _fallbackManager: FallbackManager;
 
 	constructor(config: RedisHealthMonitorConfig) {
-		this._failureThreshold = config.failureThreshold;
+		this._healthState = new HealthStateManager(config.failureThreshold);
 		this._healthCheckIntervalMs = config.healthCheckIntervalMs;
 		this._shouldRun = config.shouldRun;
 		this._callbacks = config.callbacks;
@@ -43,11 +42,11 @@ export class RedisHealthMonitor {
 	}
 
 	get isHealthy(): boolean {
-		return this._healthy;
+		return this._healthState.isHealthy;
 	}
 
 	get consecutiveFailures(): number {
-		return this._consecutiveFailures;
+		return this._healthState.consecutiveFailures;
 	}
 
 	get fallbackActive(): boolean {
@@ -68,8 +67,7 @@ export class RedisHealthMonitor {
 	}
 
 	markUnhealthy(): void {
-		this._healthy = false;
-		this._consecutiveFailures = this._failureThreshold;
+		this._healthState.markUnhealthy();
 	}
 
 	setFallbackBackend(fallback: RegistryBackend): void {
@@ -92,45 +90,25 @@ export class RedisHealthMonitor {
 		);
 	}
 
-	private _handleHealthSuccess(): void {
-		if (!this._healthy) {
-			this._healthy = true;
-			this._callbacks.onHealthRestored();
-			logger.info("Redis backend is healthy again — resumed normal operation");
-		}
-		this._consecutiveFailures = 0;
-	}
-
-	private _handleHealthFailure(): void {
-		this._consecutiveFailures++;
-		if (this._consecutiveFailures >= this._failureThreshold) {
-			this._healthy = false;
-			this._callbacks.onHealthLost();
-			logger.error("Redis backend unhealthy — serving stale cache", {
-				consecutiveFailures: this._consecutiveFailures,
-			});
-		}
-	}
-
 	private async _performHealthCheck(): Promise<void> {
 		if (this._healthCheckRunning) return;
 		this._healthCheckRunning = true;
 		try {
 			const healthy = await this._callbacks.ping();
 			if (healthy) {
-				this._handleHealthSuccess();
+				this._healthState.handleHealthSuccess(() => this._callbacks.onHealthRestored());
 			} else {
-				this._handleHealthFailure();
+				this._healthState.handleHealthFailure(() => this._callbacks.onHealthLost());
 			}
 		} catch {
-			this._handleHealthFailure();
+			this._healthState.handleHealthFailure(() => this._callbacks.onHealthLost());
 		} finally {
 			this._healthCheckRunning = false;
 		}
 	}
 
 	private async _performRestoreCheck(): Promise<void> {
-		if (this._healthy) return;
+		if (this._healthState.isHealthy) return;
 		try {
 			if (await this._callbacks.ping()) {
 				this._handleRestoreSuccess();
@@ -142,9 +120,6 @@ export class RedisHealthMonitor {
 
 	private _handleRestoreSuccess(): void {
 		this._fallbackManager.restoreOriginalBackend();
-		this._healthy = true;
-		this._consecutiveFailures = 0;
-		this._callbacks.onHealthRestored();
-		logger.info("Redis backend is healthy again — resumed normal operation");
+		this._healthState.handleHealthSuccess(() => this._callbacks.onHealthRestored());
 	}
 }

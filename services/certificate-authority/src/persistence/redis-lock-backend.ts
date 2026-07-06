@@ -1,12 +1,13 @@
-import { randomInt } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
 import Redis from "ioredis";
 import type { LockBackend, LockContext } from "./lock-backends";
 import { NullLockBackend } from "./lock-backends";
+import { RedisLockRepository } from "./redis-lock-repository";
 
 export class RedisLockBackend implements LockBackend {
 	private _client: Redis | null = null;
 	private _available = true;
+	private readonly _repository = new RedisLockRepository();
 
 	constructor(redisUrl: string) {
 		this._connect(redisUrl);
@@ -30,27 +31,12 @@ export class RedisLockBackend implements LockBackend {
 		if (!this._client) {
 			return null;
 		}
-		const { lockName, instanceId } = context;
 		try {
-			const lockKey = `lock:${lockName}`;
-			const nextFencingToken = randomInt(1, 2_147_483_647);
-			const value = `${instanceId}:${nextFencingToken}`;
-			const acquired = await this._client.set(
-				lockKey,
-				value,
-				"PX",
-				ttlMs,
-				"NX"
-			);
-			if (acquired === "OK") {
+			const result = await this._repository.acquire(this._client, context, ttlMs);
+			if (result !== null) {
 				this._available = true;
-				return nextFencingToken;
 			}
-			const existing = await this._client.get(lockKey);
-			if (existing === null) {
-				return this.acquire(context, ttlMs);
-			}
-			return null;
+			return result;
 		} catch (err) {
 			logger.warn("Redis lock acquire failed", { context: { err } });
 			this._available = false;
@@ -65,22 +51,8 @@ export class RedisLockBackend implements LockBackend {
 		if (!this._available || !this._client) {
 			return false;
 		}
-		const { lockName, instanceId } = context;
 		try {
-			const lockKey = `lock:${lockName}`;
-			const script = `
-          if redis.call("get", KEYS[1]) == ARGV[1] then
-            return redis.call("del", KEYS[1])
-          else
-            return 0
-          end
-        `;
-			await this._client.eval(
-				script,
-				1,
-				lockKey,
-				`${instanceId}:${fencingToken}`
-			);
+			await this._repository.release(this._client, context, fencingToken);
 			return true;
 		} catch {
 			return false;
@@ -94,14 +66,8 @@ export class RedisLockBackend implements LockBackend {
 		if (!this._available || !this._client) {
 			return -1;
 		}
-		const { lockName, instanceId } = context;
 		try {
-			const lockKey = `lock:${lockName}`;
-			const val = await this._client.get(lockKey);
-			if (val !== `${instanceId}:${fencingToken}`) {
-				return -1;
-			}
-			return fencingToken;
+			return await this._repository.verifyOwnership(this._client, context, fencingToken);
 		} catch {
 			return -1;
 		}

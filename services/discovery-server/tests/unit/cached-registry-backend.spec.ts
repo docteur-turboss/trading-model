@@ -187,7 +187,7 @@ describe("CachedRegistryBackend", () => {
 			await cachedBackend.getInstances("svc-d");
 
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(4);
-			expect((cachedBackend as any)._cache.size).toBe(3);
+			expect((cachedBackend as any)._ops._cache.size).toBe(3);
 
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
 			await cachedBackend.getInstances("svc-a");

@@ -354,7 +354,7 @@ describe("RedisRegistryBackend", () => {
 			);
 			expect(result).toBe(false);
 			expect(logger.warn).toHaveBeenCalledWith(
-				"Failed to update heartbeat in Redis",
+				"Failed to parse instance metadata from Redis",
 				expect.any(Object)
 			);
 		});

@@ -4,10 +4,11 @@ import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/dom
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import type { ServiceInstance } from "./types";
 import { TokenService } from "./token-service";
+import { InstanceStore } from "./instance-store";
 
 export class ServiceRegistry {
 	private readonly _tokenService: TokenService;
-	private _services: Map<string, Map<string, ServiceInstance>> = new Map();
+	private readonly _instanceStore = new InstanceStore();
 	private _token: Map<string, string> = new Map();
 
 	constructor(signingSecret?: string) {
@@ -16,58 +17,20 @@ export class ServiceRegistry {
 		);
 	}
 
-	private _ensureBucket(serviceName: string): Map<string, ServiceInstance> {
-		let instances = this._services.get(serviceName);
-		if (!instances) {
-			instances = new Map();
-			this._services.set(serviceName, instances);
-		}
-		return instances;
-	}
-
-	private _mergeOrCreateInstance(
-		instances: Map<string, ServiceInstance>,
-		instance: ServiceInstance
-	): ServiceInstance {
-		const { instanceId } = instance;
-		if (instances.has(instanceId)) {
-			const existing = instances.get(instanceId)!;
-			instances.set(instanceId, {
-				...existing,
-				...instance,
-				lastHeartbeat: Date.now(),
-			});
-		} else {
-			instances.set(instanceId, {
-				...instance,
-				registeredAt: Date.now(),
-				lastHeartbeat: Date.now(),
-			});
-		}
-		return instances.get(instanceId)!;
-	}
-
 	registerInstance(instance: ServiceInstance) {
-		const { serviceName, instanceId } = instance;
-		const instances = this._ensureBucket(serviceName);
+		const { instanceId } = instance;
 		const token = this._tokenService.generateInstanceToken(instanceId);
-		this._mergeOrCreateInstance(instances, instance);
+		this._instanceStore.registerInstance(instance);
 		this._token.set(instanceId, token);
-		return { ...instances.get(instanceId)!, token };
+		const stored = this._instanceStore.getInstance({
+			serviceName: instance.serviceName,
+			instanceId,
+		});
+		return { ...stored!, token };
 	}
 
 	updateHeartbeat(identity: ServiceIdentity): number | false {
-		const service = this._services.get(identity.serviceName);
-		if (!service) {
-			return false;
-		}
-		const instance = service.get(identity.instanceId);
-		if (!instance) {
-			return false;
-		}
-		instance.lastHeartbeat = Date.now();
-		service.set(identity.instanceId, instance);
-		return instance.ttl;
+		return this._instanceStore.updateHeartbeat(identity);
 	}
 
 	updateToken(instanceId: string): string {
@@ -77,40 +40,25 @@ export class ServiceRegistry {
 	}
 
 	getInstances(serviceName: string): ServiceInstance[] {
-		const service = this._services.get(serviceName);
-		if (!service) {
-			return [];
-		}
-		return [...service.values()];
+		return this._instanceStore.getInstances(serviceName);
 	}
 
 	getInstance(identity: ServiceIdentity): ServiceInstance | undefined {
-		return this._services.get(identity.serviceName)?.get(identity.instanceId);
+		return this._instanceStore.getInstance(identity);
 	}
 
 	removeInstance(identity: ServiceIdentity): boolean {
-		const service = this._services.get(identity.serviceName);
-		if (!service) {
-			return false;
-		}
-		const deleted = service.delete(identity.instanceId);
-		if (service.size === 0) {
-			this._services.delete(identity.serviceName);
-		}
+		const result = this._instanceStore.removeInstance(identity);
 		this._token.delete(identity.instanceId);
-		return deleted;
+		return result;
 	}
 
 	listServiceNames(): string[] {
-		return [...this._services.keys()];
+		return this._instanceStore.listServiceNames();
 	}
 
 	dump(): Record<string, ServiceInstance[]> {
-		const snapshot: Record<string, ServiceInstance[]> = {};
-		for (const [serviceName, instances] of this._services.entries()) {
-			snapshot[serviceName] = [...instances.values()];
-		}
-		return snapshot;
+		return this._instanceStore.dump();
 	}
 
 	generateInstanceToken(instanceId: string): string {

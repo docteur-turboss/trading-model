@@ -1,53 +1,12 @@
-import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
 import { logger } from "@trading-model/common/config/logger";
-import { normalizeError } from "@trading-model/common/utils/errors";
+import { FallbackFileReader } from "./fallback-file-reader";
+import { deriveKey, encrypt, decrypt } from "./fallback-crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
-
-function deriveKey(base64Key: string): Buffer {
-	const key = Buffer.from(base64Key, "base64");
-	if (key.length !== 32) {
-		throw new Error(
-			`FS_ENCRYPTION_KEY must be 32 bytes (got ${key.length}). Generate with: node -e "console.log(crypto.randomBytes(32).toString('base64'))"`
-		);
-	}
-	return key;
-}
-
-function encrypt(plaintext: string, key: Buffer): string {
-	const iv = crypto.randomBytes(IV_LENGTH);
-	const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-	const encrypted = Buffer.concat([
-		cipher.update(plaintext, "utf8"),
-		cipher.final(),
-	]);
-	const tag = cipher.getAuthTag();
-	return `${iv.toString("base64")}:${tag.toString("base64")}:${encrypted.toString("base64")}`;
-}
-
-function _validateIv(iv: Buffer): void {
-	if (iv.length !== 12 && iv.length !== 16) {
-		throw new Error(`Invalid IV length: ${iv.length} bytes (expected 12 or 16)`);
-	}
-}
-
-function decrypt(ciphertext: string, key: Buffer): string {
-	const parts = ciphertext.split(":");
-	if (parts.length !== 3) {
-		throw new Error("Invalid encrypted payload format");
-	}
-	const iv = Buffer.from(parts[0], "base64");
-	_validateIv(iv);
-	const tag = Buffer.from(parts[1], "base64");
-	const encrypted = Buffer.from(parts[2], "base64");
-	const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-	decipher.setAuthTag(tag);
-	return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
-}
 
 export interface FsStore {
 	readonly disabled: boolean;
@@ -82,10 +41,12 @@ class RealFsStore implements FsStore {
 	readonly disabled = false;
 	private readonly _baseDir: string;
 	private _encryptionKey: Buffer | null;
+	private readonly _fileReader: FallbackFileReader;
 
 	constructor(options: { baseDir?: string; encryptionKey?: string }) {
 		this._baseDir = options.baseDir ?? path.join(process.cwd(), "data", "ca-fallback");
 		this._encryptionKey = this._initEncryptionKey(options.encryptionKey);
+		this._fileReader = new FallbackFileReader(this._baseDir, this._encryptionKey);
 	}
 
 	private _initEncryptionKey(encryptionKey?: string): Buffer | null {
@@ -145,44 +106,7 @@ class RealFsStore implements FsStore {
 	}
 
 	async getAll<TData>(): Promise<TData[]> {
-		try {
-			const files = await fs.readdir(this._baseDir);
-			return await this._readAllFiles<TData>(files);
-		} catch {
-			return [];
-		}
-	}
-
-	private async _readAllFiles<TData>(files: string[]): Promise<TData[]> {
-		const ext = this._encryptionKey ? ".enc" : ".json";
-		const results: TData[] = [];
-		for (const file of files) {
-			if (!file.endsWith(ext)) {
-				continue;
-			}
-			const data = await this._tryReadFile<TData>(file);
-			if (data !== undefined) {
-				results.push(data);
-			}
-		}
-		return results;
-	}
-
-	private async _tryReadFile<TData>(file: string): Promise<TData | undefined> {
-		try {
-			const raw = await fs.readFile(path.join(this._baseDir, file), "utf8");
-			const decrypted = this._encryptionKey
-				? decrypt(raw, this._encryptionKey)
-				: raw;
-			return JSON.parse(decrypted) as TData;
-		} catch (err) {
-			logger.warn("Skipping corrupted fallback file", {
-				context: {
-					file,
-					err: normalizeError(err as Error),
-				},
-			});
-		}
+		return this._fileReader.readAll<TData>();
 	}
 
 	async delete(key: string): Promise<void> {

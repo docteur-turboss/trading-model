@@ -1,8 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
 import { type Collection, MongoClient } from "mongodb";
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 import { MONGO_MANAGER } from "./mongo-manager";
+import { AuditBuffer } from "./audit-buffer";
 
 export interface AuditEntry {
 	action: "sign" | "revoke" | "renew" | "rotate" | "ca_key_rotation";
@@ -23,17 +23,13 @@ export class AuditStore {
 		return this._collection;
 	}
 	private _mongoConnected = false;
-	private readonly _pendingEntries: AuditEntry[] = [];
-	private readonly _flushTimer = new TimerHandle();
-	private readonly _maxBuffer = 5000;
-	private readonly _flushIntervalMs = 5000;
-	private readonly _batchSize = 200;
+	private readonly _buffer = new AuditBuffer();
 
 	constructor(uri: string) {
 		this._client = MONGO_MANAGER.isInitialized()
 			? MONGO_MANAGER.getClient()
 			: new MongoClient(uri);
-		this._startFlushTimer();
+		this._buffer.start(() => this._flush());
 	}
 
 	async connect(): Promise<void> {
@@ -79,7 +75,7 @@ export class AuditStore {
 
 	async disconnect(): Promise<void> {
 		await this._flush();
-		this._flushTimer.stop();
+		this._buffer.stop();
 		if (!MONGO_MANAGER.isInitialized()) {
 			try {
 				await this._client.close();
@@ -91,7 +87,7 @@ export class AuditStore {
 
 	async log(entry: AuditEntry): Promise<void> {
 		if (!((await this._ensureMongo()) && this._collection)) {
-			this._buffer(entry);
+			this._buffer.buffer(entry);
 			return;
 		}
 		try {
@@ -99,50 +95,22 @@ export class AuditStore {
 		} catch (err) {
 			logger.error("AuditStore: MongoDB write failed — buffering entry", { context: { err } });
 			this._mongoConnected = false;
-			this._buffer(entry);
-		}
-	}
-
-	private _buffer(entry: AuditEntry): void {
-		if (this._pendingEntries.length >= this._maxBuffer) {
-			const dropped = this._pendingEntries.shift()!;
-			logger.warn("AuditStore: buffer full, dropping oldest entry", {
-				context: {
-					action: dropped.action,
-					serialNumber: dropped.serialNumber,
-				},
-			});
-		}
-		this._pendingEntries.push(entry);
-	}
-
-	private _startFlushTimer(): void {
-		this._flushTimer.startInterval(() => this._flush(), this._flushIntervalMs);
-		this._flushTimer.unref();
-	}
-
-	private _rebufferEntries(batch: AuditEntry[], err: unknown): void {
-		this._pendingEntries.unshift(...batch);
-		if (this._pendingEntries.length > this._maxBuffer) {
-			const dropped = this._pendingEntries.splice(this._maxBuffer);
-			logger.warn("AuditStore: flush failed, dropped entries", { context: { count: dropped.length, err } });
-		} else {
-			logger.error("AuditStore: flush failed, entries re-buffered", { context: { count: batch.length, err } });
+			this._buffer.buffer(entry);
 		}
 	}
 
 	private async _flush(): Promise<void> {
-		if (this._pendingEntries.length === 0) {
+		if (this._buffer.pendingCount === 0) {
 			return;
 		}
 		if (!((await this._ensureMongo()) && this._collection)) {
 			return;
 		}
-		const batch = this._pendingEntries.splice(0, this._batchSize);
+		const batch = this._buffer.drain();
 		try {
 			await this._collection.insertMany(batch, { ordered: false });
 		} catch (err) {
-			this._rebufferEntries(batch, err);
+			this._buffer.rebuffer(batch, err);
 		}
 	}
 }

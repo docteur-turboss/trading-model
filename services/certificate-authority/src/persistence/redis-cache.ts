@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import Redis from "ioredis";
+import { RedisSubscriberManager } from "./redis-subscriber-manager";
 
 export interface CacheOptions {
 	ttlMs: number;
@@ -55,6 +56,7 @@ export class NullCache implements RedisCache {
 class RealRedisCache implements RedisCache {
 	private readonly _client: Redis;
 	private readonly _options: CacheOptions;
+	private readonly _subscriberManager: RedisSubscriberManager;
 
 	private _createClient(redisUrl: string): Redis {
 		const client = new Redis(redisUrl, {
@@ -70,6 +72,7 @@ class RealRedisCache implements RedisCache {
 	constructor(redisUrl: string, options?: Partial<CacheOptions>) {
 		this._client = this._createClient(redisUrl);
 		this._options = { ttlMs: options?.ttlMs ?? 300_000, prefix: options?.prefix ?? "ca-cache" };
+		this._subscriberManager = new RedisSubscriberManager(this._client);
 	}
 
 	async disconnect(): Promise<void> {
@@ -89,47 +92,7 @@ class RealRedisCache implements RedisCache {
 	}
 
 	async subscribe(channel: string, handler: (message: string) => void): Promise<() => void> {
-		const subscriber = this._duplicateSubscriber();
-		let unsubscribed = false;
-		const onMessage = (_ch: string, msg: string) => {
-			if (!unsubscribed) {
-				handler(msg);
-			}
-		};
-		try {
-			await _doSubscribe(subscriber, channel);
-			subscriber.on("message", onMessage);
-			subscriber.on("reconnecting", () => {
-				logger.info("Redis subscriber reconnecting, will re-subscribe to channel", { context: { channel } });
-			});
-			subscriber.on("connect", () => {
-				if (!unsubscribed) {
-					_doSubscribe(subscriber, channel).catch(() => {});
-				}
-			});
-			return _createUnsubscriber({
-				subscriber,
-				channel,
-				onMessage,
-				onClose: () => {
-					unsubscribed = true;
-				},
-			});
-		} catch {
-			subscriber.quit().catch(() => {});
-			return () => {};
-		}
-	}
-
-	private _duplicateSubscriber(): Redis {
-		return this._client.duplicate({
-			retryStrategy: (times) => {
-				if (times > 10) {
-					return null;
-				}
-				return Math.min(times * 1000, 30000);
-			},
-		});
+		return this._subscriberManager.subscribe(channel, handler);
 	}
 
 	isAvailable(): boolean {
@@ -189,28 +152,4 @@ class RealRedisCache implements RedisCache {
 
 export function createCache(redisUrl?: string): RedisCache {
 	return redisUrl ? new RealRedisCache(redisUrl) : new NullCache();
-}
-
-async function _doSubscribe(subscriber: Redis, channel: string): Promise<void> {
-	try {
-		await subscriber.subscribe(channel);
-	} catch {
-		// retry will handle
-	}
-}
-
-interface UnsubscriberContext {
-	subscriber: Redis;
-	channel: string;
-	onMessage: (_ch: string, msg: string) => void;
-	onClose?: () => void;
-}
-
-function _createUnsubscriber({ subscriber, channel, onMessage, onClose }: UnsubscriberContext): () => void {
-	return () => {
-		onClose?.();
-		subscriber.removeListener("message", onMessage);
-		subscriber.unsubscribe(channel).catch(() => {});
-		subscriber.quit().catch(() => {});
-	};
 }
