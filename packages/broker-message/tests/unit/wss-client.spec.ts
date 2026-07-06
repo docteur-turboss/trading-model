@@ -308,14 +308,15 @@ describe("WssClient", () => {
 
 	it("should flush pending on open", async () => {
 		const fallback = jest.fn<any>().mockResolvedValue(undefined);
-		client.setHttpFallback(fallback);
-		const promise = client.publish({ data: "test" }, { id: "msg-1" } as any);
-		client.connect();
+		const clientWithFallback = new WssClient({ ...mockConfig, httpFallback: fallback });
+		const promise = clientWithFallback.publish({ data: "test" }, { id: "msg-1" } as any);
+		clientWithFallback.connect();
 		const openHandler = MOCK_WS_INSTANCE.on.mock.calls.find(
 			(c: string[]) => c[0] === "open"
 		)?.[1];
 		openHandler();
 		await promise;
+		clientWithFallback.disconnect();
 	});
 
 	it("should reject pending on disconnect when no fallback", () => {

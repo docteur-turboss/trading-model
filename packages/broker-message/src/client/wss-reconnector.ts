@@ -20,7 +20,6 @@ export class WssReconnector {
 	};
 	private _permanentlyFellBack = false;
 	private _reconnectPollTimer: ReturnType<typeof setInterval> | null = null;
-	private _onPermanentFallback: (() => void) | null = null;
 
 	get shouldReconnect(): boolean {
 		return this._shouldReconnect;

@@ -32,7 +32,7 @@ export function classifyDeliveryFailure({
 }
 
 function checkDeadLetter(error: Error & { statusCode?: number; reason?: string }): DeliveryDecision | null {
-	if (error instanceof DeadLetterError) {
+	if (isDeadLetterError(error)) {
 		return { retry: false, deadLetterReason: error.reason ?? "DEAD_LETTER" };
 	}
 	return null;

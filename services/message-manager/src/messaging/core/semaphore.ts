@@ -1,4 +1,4 @@
-import { AppError, BackpressureError } from "@trading-model/common/utils/errors";
+import { AppError, backpressureError } from "@trading-model/common/utils/errors";
 
 export class Semaphore {
 	private _current = 0;

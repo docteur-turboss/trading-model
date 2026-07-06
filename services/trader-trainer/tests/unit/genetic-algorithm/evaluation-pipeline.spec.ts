@@ -109,7 +109,7 @@ const MINIMAL_GENOME = {
 };
 
 function makeStep(features: number[]) {
-	return { features: new Float32Array(features), price: 100 };
+	return { features: new Float32Array(features), price: Price.of(100) };
 }
 
 function makeMockBackend(poolSize: number): RLBackend {
