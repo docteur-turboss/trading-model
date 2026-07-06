@@ -39,21 +39,23 @@ function buildSafeHeaders(req: Request): Record<string, string> {
 	return headers;
 }
 
-function handleProxyResponse(
-	proxyRes: http.IncomingMessage
-): Promise<ProxyResult> {
+function _collectResponseChunks(proxyRes: http.IncomingMessage): Promise<Buffer[]> {
 	return new Promise((resolve) => {
 		const chunks: Buffer[] = [];
 		proxyRes.on("data", (chunk: Buffer) => chunks.push(chunk));
-		proxyRes.on("end", () => {
-			const body = Buffer.concat(chunks).toString("utf8");
-			resolve({
-				status: proxyRes.statusCode ?? 503,
-				body,
-				headers: proxyRes.headers as Record<string, string | string[]>,
-			});
-		});
+		proxyRes.on("end", () => resolve(chunks));
 	});
+}
+
+async function handleProxyResponse(
+	proxyRes: http.IncomingMessage
+): Promise<ProxyResult> {
+	const chunks = await _collectResponseChunks(proxyRes);
+	return {
+		status: proxyRes.statusCode ?? 503,
+		body: Buffer.concat(chunks).toString("utf8"),
+		headers: proxyRes.headers as Record<string, string | string[]>,
+	};
 }
 
 export interface ProxyRequestOptions {
@@ -103,15 +105,10 @@ function _buildProxyOptions(
 ): https.RequestOptions {
 	const { target, req, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
 	const url = new URL(path, `https://${target.host}:${target.port}`);
-	const headers = buildSafeHeaders(req);
 	return {
-		hostname: target.host,
-		port: target.port,
-		path: url.pathname + url.search,
-		method: req.method,
-		headers,
-		rejectUnauthorized: true,
-		timeout: timeoutMs,
+		hostname: target.host, port: target.port, path: url.pathname + url.search,
+		method: req.method, headers: buildSafeHeaders(req),
+		rejectUnauthorized: true, timeout: timeoutMs,
 	};
 }
 

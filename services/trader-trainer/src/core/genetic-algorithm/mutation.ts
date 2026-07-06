@@ -120,6 +120,46 @@ export function adaptSigma(
 // Layer mutation
 // ----------------------------------------------------------------
 
+function _mutateNeuronCount(
+	layer: LayerGenome,
+	sigma: number,
+	mutation: MutationGenome,
+	rng: () => number
+): number {
+	if (rng() < mutation.rate) {
+		const delta = Math.round(sampleNoise(mutation.distribution, sigma * 10, rng));
+		return Math.max(1, layer.neurons + delta);
+	}
+	return layer.neurons;
+}
+
+function _mutateActivation(
+	layer: LayerGenome,
+	mutation: MutationGenome,
+	rng: () => number
+): ActivationType {
+	if (mutation.mutateActivations && rng() < mutation.activationMutationRate) {
+		return pick(ACTIVATIONS, rng);
+	}
+	return layer.activation;
+}
+
+function _mutateConnectionType(
+	layer: LayerGenome,
+	mutation: MutationGenome,
+	rng: () => number
+): ConnectionType {
+	return rng() < mutation.rate * 0.3 ? pick(CONNECTION_TYPES, rng) : layer.connectionType;
+}
+
+function _mutateBiasType(
+	layer: LayerGenome,
+	mutation: MutationGenome,
+	rng: () => number
+): InitialisationType {
+	return rng() < mutation.rate * 0.2 ? pick(BIAS_TYPES, rng) : layer.biasType;
+}
+
 /** Mutate a single hidden layer's neuron count, activation, connection type, and bias initialisation. */
 export function mutateLayer(
 	layer: LayerGenome,
@@ -127,24 +167,13 @@ export function mutateLayer(
 	rng: () => number
 ): LayerGenome {
 	const sigma = adaptSigma(mutation, rng);
-	const clone = { ...layer };
-
-	if (rng() < mutation.rate) {
-		const delta = Math.round(
-			sampleNoise(mutation.distribution, sigma * 10, rng)
-		);
-		clone.neurons = Math.max(1, clone.neurons + delta);
-	}
-	if (mutation.mutateActivations && rng() < mutation.activationMutationRate) {
-		clone.activation = pick(ACTIVATIONS, rng);
-	}
-	if (rng() < mutation.rate * 0.3) {
-		clone.connectionType = pick(CONNECTION_TYPES, rng);
-	}
-	if (rng() < mutation.rate * 0.2) {
-		clone.biasType = pick(BIAS_TYPES, rng);
-	}
-	return clone;
+	return {
+		...layer,
+		neurons: _mutateNeuronCount(layer, sigma, mutation, rng),
+		activation: _mutateActivation(layer, mutation, rng),
+		connectionType: _mutateConnectionType(layer, mutation, rng),
+		biasType: _mutateBiasType(layer, mutation, rng),
+	};
 }
 
 // ----------------------------------------------------------------
@@ -369,6 +398,22 @@ function _mutateNetworkStructure(
 	};
 }
 
+function _mutateSigma(
+	mutationConfig: MutationGenome,
+	sigma: number,
+	rng: () => number
+): number {
+	return Math.max(1e-5, mutationConfig.sigma + sampleNoise(mutationConfig.distribution, sigma * 0.1, rng));
+}
+
+function _mutateSelfSigma(
+	mutationConfig: MutationGenome,
+	sigma: number,
+	rng: () => number
+): number {
+	return Math.max(1e-5, mutationConfig.selfSigma + sampleNoise("gaussian", sigma * 0.05, rng));
+}
+
 function _mutateSelfAdaptiveParams(
 	mutationConfig: MutationGenome,
 	sigma: number,
@@ -376,15 +421,8 @@ function _mutateSelfAdaptiveParams(
 ): MutationGenome {
 	return {
 		...mutationConfig,
-		sigma: Math.max(
-			1e-5,
-			mutationConfig.sigma +
-				sampleNoise(mutationConfig.distribution, sigma * 0.1, rng)
-		),
-		selfSigma: Math.max(
-			1e-5,
-			mutationConfig.selfSigma + sampleNoise("gaussian", sigma * 0.05, rng)
-		),
+		sigma: _mutateSigma(mutationConfig, sigma, rng),
+		selfSigma: _mutateSelfSigma(mutationConfig, sigma, rng),
 		rate: clamp(mutationConfig.rate + sampleGaussian(rng, 0.01), 0.001, 0.5),
 	};
 }

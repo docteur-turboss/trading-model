@@ -85,6 +85,3 @@ function _logOrphanWarning(staleWorkerIds: string[]): void {
 		workers: staleWorkerIds,
 	});
 }
-
-export class OrphanDetector {
-}

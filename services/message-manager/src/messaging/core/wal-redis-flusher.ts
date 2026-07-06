@@ -98,21 +98,32 @@ export class WalRedisFlusher {
 	private _bufferEntries(raw: string[]): void {
 		for (const entry of raw) {
 			try {
-				const parsed = JSON.parse(entry) as {
-					topic: string;
-					serialized?: string;
-					message?: Message;
-				};
-				const topic = parsed.topic;
-				const serialized =
-					parsed.serialized ?? safeStringify(parsed.message!);
-				const message = parsed.message ?? JSON.parse(parsed.serialized!);
-				this._memoryWalBuffer.push(topic, serialized, message);
+				const parsed = parseEntryToBuffer(entry);
+				if (parsed) {
+					this._memoryWalBuffer.push(parsed.topic, parsed.serialized, parsed.message);
+				}
 			} catch {
 				/* best-effort */
 			}
 		}
 	}
+}
+
+function parseEntryToBuffer(entry: string): { topic: string; serialized: string; message: Message } | null {
+	try {
+		const parsed = JSON.parse(entry) as {
+			topic: string;
+			serialized?: string;
+			message?: Message;
+		};
+		const topic = parsed.topic;
+		const serialized = parsed.serialized ?? safeStringify(parsed.message!);
+		const message = parsed.message ?? JSON.parse(parsed.serialized!);
+		return { topic, serialized, message: message as Message };
+	} catch {
+		return null;
+	}
+}
 
 	private async _handleError(
 		raw: string[],
@@ -153,37 +164,45 @@ export class WalRedisFlusher {
 		const redis = await getStreamClient();
 		let consecutiveErrors = 0;
 		while (true) {
-			const raw = (await redis.eval(
-				ATOMIC_WAL_READ_LUA,
-				1,
-				this._walKey(),
-				WAL_BATCH_SIZE.toString(),
-			)) as string[];
+			const raw = await this._readWalBatch(redis);
 			if (raw.length === 0) {
 				break;
 			}
 
-			const ok = await this._flushBatch(raw);
-			if (ok) {
+			if (await this._flushBatch(raw)) {
 				consecutiveErrors = 0;
 				continue;
 			}
 
-			consecutiveErrors++;
-			logger.warn(
-				"WAL flush pipeline: some commands failed — retrying batch",
-				{
-					consecutiveErrors,
-					batchSize: raw.length,
-				},
-			);
-			const action = await this._handleError(raw, consecutiveErrors);
-			const backoff = Math.min(1000 * 2 ** consecutiveErrors, 30000);
-			await this._sleepWithJitter(backoff);
-			if (action === "abort") {
+			if (!(await this._handleFlushError(raw, consecutiveErrors))) {
 				break;
 			}
+			consecutiveErrors++;
 			break;
 		}
+	}
+
+	private async _readWalBatch(redis: import("ioredis").Redis): Promise<string[]> {
+		return (await redis.eval(
+			ATOMIC_WAL_READ_LUA,
+			1,
+			this._walKey(),
+			WAL_BATCH_SIZE.toString(),
+		)) as string[];
+	}
+
+	private async _handleFlushError(
+		raw: string[],
+		consecutiveErrors: number
+	): Promise<boolean> {
+		const nextErrors = consecutiveErrors + 1;
+		logger.warn("WAL flush pipeline: some commands failed — retrying batch", {
+			consecutiveErrors: nextErrors,
+			batchSize: raw.length,
+		});
+		const action = await this._handleError(raw, nextErrors);
+		const backoff = Math.min(1000 * 2 ** nextErrors, 30000);
+		await this._sleepWithJitter(backoff);
+		return action !== "abort";
 	}
 }
