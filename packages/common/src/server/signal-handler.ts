@@ -39,12 +39,12 @@ export function setupProcessHandlers(
 	};
 
 	const onUncaughtException = (error: Error) => {
-		logger.error("Uncaught exception - exiting", { err: error });
+		logger.error("Uncaught exception - exiting", { context: { err: error } });
 		hardShutdown(1);
 	};
 
 	const onUnhandledRejection = (reason: unknown) => {
-		logger.error("Unhandled promise rejection - exiting", { reason });
+		logger.error("Unhandled promise rejection - exiting", { context: { reason } });
 		hardShutdown(1);
 		// Node.js 15+ does not terminate on unhandledRejection when a handler exists.
 		// If active handles (WebSocket, timers) keep the loop busy, setImmediate may

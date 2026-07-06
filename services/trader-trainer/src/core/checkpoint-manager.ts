@@ -31,7 +31,7 @@ export class CheckpointManager {
 
 		if (!existsSync(this._checkpointDir)) {
 			mkdirSync(this._checkpointDir, { recursive: true });
-			logger.info("Created checkpoint directory", { dir: this._checkpointDir });
+			logger.info("Created checkpoint directory", { context: { dir: this._checkpointDir } });
 		}
 	}
 
@@ -57,16 +57,16 @@ export class CheckpointManager {
 				}),
 				"utf-8"
 			);
-			logger.info("Checkpoint saved", {
+			logger.info("Checkpoint saved", { context: {
 				symbol,
 				generation: genome.generation,
 				path,
-			});
+			} });
 		} catch (err) {
-			logger.error("Failed to save checkpoint", {
+			logger.error("Failed to save checkpoint", { context: {
 				symbol,
 				error: err instanceof Error ? err.message : String(err),
-			});
+			} });
 		}
 	}
 
@@ -74,22 +74,22 @@ export class CheckpointManager {
 		try {
 			const path = this._checkpointPath(symbol);
 			if (!existsSync(path)) {
-				logger.info("No checkpoint found for symbol", { symbol });
+				logger.info("No checkpoint found for symbol", { context: { symbol } });
 				return null;
 			}
 			const raw = readFileSync(path, "utf-8");
 			const genome = JSON.parse(raw) as DeepReadonly<LamarckGenome>;
-			logger.info("Checkpoint loaded", {
+			logger.info("Checkpoint loaded", { context: {
 				symbol,
 				generation: genome.generation,
 				fitness: genome.fitness,
-			});
+			} });
 			return genome;
 		} catch (err) {
-			logger.error("Failed to load checkpoint", {
+			logger.error("Failed to load checkpoint", { context: {
 				symbol,
 				error: err instanceof Error ? err.message : String(err),
-			});
+			} });
 			return null;
 		}
 	}
@@ -188,14 +188,14 @@ export class CheckpointManager {
 				),
 				"utf-8"
 			);
-			logger.info("Market data buffer checkpoint saved", {
+			logger.info("Market data buffer checkpoint saved", { context: {
 				symbols: symbols.length,
 				path: this._bufferStatePath(),
-			});
+			} });
 		} catch (err) {
-			logger.error("Failed to save market data buffer checkpoint", {
+			logger.error("Failed to save market data buffer checkpoint", { context: {
 				error: err instanceof Error ? err.message : String(err),
-			});
+			} });
 		}
 	}
 
@@ -210,15 +210,15 @@ export class CheckpointManager {
 			const data = this._readBufferState(path);
 			const buffer = this._restoreBuffer(data, config);
 
-			logger.info("Market data buffer checkpoint loaded", {
+			logger.info("Market data buffer checkpoint loaded", { context: {
 				symbols: Object.keys(data.symbols).length,
 				path,
-			});
+			} });
 			return buffer;
 		} catch (err) {
-			logger.error("Failed to load market data buffer checkpoint", {
+			logger.error("Failed to load market data buffer checkpoint", { context: {
 				error: err instanceof Error ? err.message : String(err),
-			});
+			} });
 			return null;
 		}
 	}

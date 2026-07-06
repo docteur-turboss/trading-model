@@ -52,11 +52,13 @@ function logServerError(
 	if (response.status >= 500) {
 		const originalError = err instanceof Error ? err : undefined;
 		logger.error("Server error", {
-			message: originalError?.message,
-			stack: originalError?.stack,
-			url: req.originalUrl,
-			method: req.method,
-			ip: req.ip,
+			context: {
+				message: originalError?.message,
+				stack: originalError?.stack,
+				url: req.originalUrl,
+				method: req.method,
+				ip: req.ip,
+			},
 		});
 	}
 }

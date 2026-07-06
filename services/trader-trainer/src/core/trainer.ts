@@ -118,14 +118,14 @@ export class Trainer {
 		try {
 			const result = await this._runner.run();
 			this._bestGenome = result;
-			logger.info("Training complete", {
+			logger.info("Training complete", { context: {
 				symbol,
 				bestFitness: result.fitness ?? 0,
-			});
+			} });
 			return { success: true, symbol, bestGenome: result };
 		} catch (err) {
 			const error = err instanceof Error ? err : new Error(String(err));
-			logger.error("Training failed", { symbol, err: error.message });
+			logger.error("Training failed", { context: { symbol, err: error.message } });
 			return { success: false, symbol, error };
 		} finally {
 			this._training = false;
@@ -149,14 +149,14 @@ export class Trainer {
 			onGeneration: (ctx: GenerationContext) => {
 				this._generationContext = ctx;
 				this._bestGenome = ctx.bestGenome;
-				logger.info("Generation completed", {
+				logger.info("Generation completed", { context: {
 					generation: ctx.generation,
 					bestFitness: ctx.bestFitness,
 					avgFitness: ctx.avgFitness,
 					archiveSize: ctx.archive.length,
 					stagnation: ctx.stagnation,
 					elapsedSec: ctx.elapsedMs / 1000,
-				});
+				} });
 			},
 			onArchiveUpdate: (archive: DeepReadonly<LamarckGenome>[]) => {
 				if (archive.length > 0) {

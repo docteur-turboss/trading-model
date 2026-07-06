@@ -43,15 +43,17 @@ export async function createAndStartHttpsServer(
 
 	httpsServer.listen(options.port, () => {
 		logger.info("HTTPS server listening", {
-			port: options.port,
-			mtls: true,
+			context: {
+				port: options.port,
+				mtls: true,
+			},
 		});
 	});
 
 	if (options.watchTls) {
 		/* istanbul ignore next -- dead code: setupTlsWatcher never rejects; all errors handled internally */
 		setupTlsWatcher(httpsServer, options.tls).catch((err) => {
-			logger.error("Failed to start TLS watcher", { err });
+			logger.error("Failed to start TLS watcher", { context: { err } });
 		});
 	}
 
@@ -96,9 +98,9 @@ async function reloadTlsContext(
 		]);
 
 		server.setSecureContext({ key, cert, ca });
-		logger.info("TLS context reloaded", { event: eventType, file: filename });
+		logger.info("TLS context reloaded", { context: { event: eventType, file: filename } });
 	} catch (err) {
-		logger.error("Failed to reload TLS context", { err });
+		logger.error("Failed to reload TLS context", { context: { err } });
 	}
 }
 
@@ -134,8 +136,10 @@ export async function setupTlsWatcher(
 				watcher.unref();
 			} catch (err) {
 				logger.warn("Cannot watch TLS directory", {
-					dir,
-					err: normalizeError(err),
+					context: {
+						dir,
+						err: normalizeError(err),
+					},
 				});
 			}
 		})

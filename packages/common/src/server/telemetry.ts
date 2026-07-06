@@ -20,7 +20,9 @@ export interface TelemetryConfig {
 export function initializeTelemetry(config: TelemetryConfig): void {
 	if (!config.otlpEndpoint) {
 		logger.info("OpenTelemetry disabled (no endpoint configured)", {
-			service: config.serviceName,
+			context: {
+				service: config.serviceName,
+			},
 		});
 		return;
 	}
@@ -41,8 +43,10 @@ export function initializeTelemetry(config: TelemetryConfig): void {
 
 	sdk.start();
 	logger.info("OpenTelemetry initialized", {
-		endpoint: config.otlpEndpoint,
-		service: config.serviceName,
+		context: {
+			endpoint: config.otlpEndpoint,
+			service: config.serviceName,
+		},
 	});
 }
 
@@ -53,7 +57,9 @@ export async function shutdownTelemetry(): Promise<void> {
 			logger.info("OpenTelemetry shut down");
 		} catch (err) {
 			logger.warn("OpenTelemetry shutdown error", {
-				error: (err as Error).message,
+				context: {
+					error: (err as Error).message,
+				},
 			});
 		}
 		sdk = null;

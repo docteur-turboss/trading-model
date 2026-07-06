@@ -56,7 +56,9 @@ function hardShutdown(
 	if (server) {
 		server.close().catch((err) =>
 			logger.warn("Server close during forced shutdown failed", {
-				err: normalizeError(err),
+				context: {
+					err: normalizeError(err),
+				},
 			})
 		);
 	}
@@ -66,12 +68,14 @@ function hardShutdown(
 			options.onStop();
 		} catch (err) {
 			logger.warn("onStop callback failed during forced shutdown", {
-				err: normalizeError(err),
+				context: {
+					err: normalizeError(err),
+				},
 			});
 		}
 	}
 
-	logger.warn("Forced shutdown", { exitCode: code });
+	logger.warn("Forced shutdown", { context: { exitCode: code } });
 	process.exitCode = code;
 }
 
@@ -82,12 +86,14 @@ function runBootstrap(
 ): void {
 	const onError = (err: unknown) => {
 		logger.error("Fatal error during service bootstrap", {
-			err: normalizeError(err),
+			context: {
+				err: normalizeError(err),
+			},
 		});
 		onFatal(1);
 	};
 
-	logger.info("Bootstrapping service", { name: options.name });
+	logger.info("Bootstrapping service", { context: { name: options.name } });
 
 	const finishCreateServer = () => {
 		runSyncOrAsync(
@@ -140,7 +146,7 @@ async function gracefulShutdown(
 	server: HttpServer | null,
 	options: BootstrapOptions
 ): Promise<void> {
-	logger.warn("Shutdown signal received", { signal });
+	logger.warn("Shutdown signal received", { context: { signal } });
 
 	try {
 		if (server) {
@@ -174,7 +180,9 @@ async function gracefulShutdown(
 		logger.info("Shutdown completed gracefully");
 	} catch (error) {
 		logger.error("Error during graceful shutdown", {
-			err: normalizeError(error),
+			context: {
+				err: normalizeError(error),
+			},
 		});
 		hardShutdown(1, server, options);
 	}
@@ -196,5 +204,5 @@ function finishBootstrap(
 	if (options.onStart) {
 		options.onStart();
 	}
-	logger.info("Service started successfully", { name: options.name });
+	logger.info("Service started successfully", { context: { name: options.name } });
 }
