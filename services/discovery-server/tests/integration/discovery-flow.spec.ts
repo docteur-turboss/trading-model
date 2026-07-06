@@ -104,7 +104,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 		const token = registered.token as string;
 		expect(registry.validInstanceToken(token, "node-1")).toBe(true);
 
-		const ttl = registry.updateHeartbeat("financial-scraper-service", "node-1");
+		const ttl = registry.updateHeartbeat({ serviceName: "financial-scraper-service", instanceId: "node-1" });
 		expect(ttl).toBe(30_000);
 
 		const newToken = registry.updateToken("node-1");
@@ -173,3 +173,4 @@ describe("Discovery Service — Full Flow Integration", () => {
 		expect(registry.verifyInstanceName("completely-fake-service")).toBe(false);
 	});
 });
+

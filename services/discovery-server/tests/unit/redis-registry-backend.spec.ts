@@ -767,3 +767,4 @@ describe("RedisRegistryBackend", () => {
 		});
 	});
 });
+

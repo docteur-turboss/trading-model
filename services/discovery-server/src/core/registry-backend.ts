@@ -3,6 +3,7 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { TokenService } from "./token-service";
 
 /**
@@ -56,8 +57,7 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 	}
 
 	updateHeartbeat(
-		serviceName: string,
-		instanceId: string
+		{ serviceName, instanceId }: ServiceIdentity
 	): Promise<number | false> {
 		const service = this._services.get(serviceName);
 		if (!service) {
@@ -88,14 +88,11 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 		return Promise.resolve([...service.values()]);
 	}
 
-	getInstance(
-		serviceName: string,
-		instanceId: string
-	): Promise<ServiceInstance | undefined> {
+	getInstance({ serviceName, instanceId }: ServiceIdentity): Promise<ServiceInstance | undefined> {
 		return Promise.resolve(this._services.get(serviceName)?.get(instanceId));
 	}
 
-	removeInstance(serviceName: string, instanceId: string): Promise<boolean> {
+	removeInstance({ serviceName, instanceId }: ServiceIdentity): Promise<boolean> {
 		const service = this._services.get(serviceName);
 		if (!service) {
 			return Promise.resolve(false);

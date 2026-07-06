@@ -122,3 +122,4 @@ describe("Multi-Region Support", () => {
 		expect(instance?.region).toBe("eu-west-1");
 	});
 });
+

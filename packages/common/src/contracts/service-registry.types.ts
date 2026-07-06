@@ -1,3 +1,5 @@
+import type { ServiceIdentity } from "../domain/service-identity";
+
 export type Protocol = "http" | "https" | "mtls";
 
 /** Payload for registering a new service instance in the registry. */
@@ -11,9 +13,7 @@ export interface ServiceRegisterPayload {
 }
 
 /** Payload sent periodically to signal that a service instance is alive. */
-export interface HeartbeatPayload {
-	serviceName: string;
-	instanceId: string;
+export interface HeartbeatPayload extends ServiceIdentity {
 	authToken: string;
 }
 
@@ -25,11 +25,9 @@ export interface ServicesQueryPayload {
 }
 
 /** A registered service instance with its connection metadata and health state. */
-export interface ServiceInstance {
+export interface ServiceInstance extends ServiceIdentity {
 	lastHeartbeat: number;
 	registeredAt: number;
-	serviceName: string;
-	instanceId: string;
 	protocol: Protocol;
 	port: number;
 	env?: string;
@@ -59,10 +57,7 @@ export interface RegistryBackend {
 	registerInstance(instance: ServiceInstance): Promise<string>;
 
 	/** Update the heartbeat timestamp. Returns TTL or false. */
-	updateHeartbeat(
-		serviceName: string,
-		instanceId: string
-	): Promise<number | false>;
+	updateHeartbeat(id: ServiceIdentity): Promise<number | false>;
 
 	/** Rotate the token for an instance. Returns the new token. */
 	updateToken(instanceId: string): Promise<string>;
@@ -71,13 +66,10 @@ export interface RegistryBackend {
 	getInstances(serviceName: string): Promise<ServiceInstance[]>;
 
 	/** Return a single instance by name + id. */
-	getInstance(
-		serviceName: string,
-		instanceId: string
-	): Promise<ServiceInstance | undefined>;
+	getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined>;
 
 	/** Remove an instance. Returns true if deleted. */
-	removeInstance(serviceName: string, instanceId: string): Promise<boolean>;
+	removeInstance(id: ServiceIdentity): Promise<boolean>;
 
 	/** List all registered service names. */
 	listServiceNames(): Promise<string[]>;

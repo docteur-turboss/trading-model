@@ -312,26 +312,27 @@ export class HttpClient {
 	private async _request<TResponse>(
 		context: RequestContext<TResponse>
 	): Promise<TResponse | undefined> {
-		const { method, urlStr, body, options, schema } = context;
 		if (this._tlsPaths && !this._tlsLoaded) {
 			await this._ensureTlsLoaded();
 		}
 
-		const retryCount = options?.retryCount ?? DEFAULT_RETRY_COUNT;
+		const { hostname, serviceName } = this._checkPreconditions(context.urlStr, context.options);
 
-		const { hostname, serviceName } = this._checkPreconditions(urlStr, options);
+		return this._executeWithRetry(context, hostname, serviceName);
+	}
 
+	private async _executeWithRetry<TResponse>(
+		context: RequestContext<TResponse>,
+		hostname: string,
+		serviceName: string | undefined
+	): Promise<TResponse | undefined> {
+		const retryCount = context.options?.retryCount ?? DEFAULT_RETRY_COUNT;
+		const { method, urlStr, body, schema, options } = context;
 		let lastError: Error | null = null;
 
 		for (let attempt = 0; attempt <= retryCount; attempt++) {
 			try {
-				const result = await this._executeRequest<TResponse>({
-					method,
-					urlStr,
-					body,
-					schema,
-					options,
-				});
+				const result = await this._executeRequest<TResponse>({ method, urlStr, body, schema, options });
 				this._recordSuccess(hostname, serviceName);
 				return result;
 			} catch (error) {
