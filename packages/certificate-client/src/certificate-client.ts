@@ -1,10 +1,3 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-
-import {
-	createCsrAsync,
-	generateKeyPairAsync,
-} from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
 import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
 import { CaClient, type SignCertificateRequest } from "@trading-model/common/ca/ca-client";
@@ -12,6 +5,7 @@ import { logger } from "@trading-model/common/config/logger";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { CertRenewScheduler } from "./cert-renew-scheduler";
+import { CertificateLifecycle } from "./certificate-lifecycle";
 
 export interface CertificateClientConfig {
 	caUrl: string;
@@ -31,36 +25,30 @@ export interface ObtainedCertificate extends CertificateBase {
 }
 
 export class CertificateClient {
-	private static _NULL_CERT: ObtainedCertificate = {
-		certPem: "",
-		keyPem: "",
-		caPem: "",
-		serialNumber: "",
-		expiresAt: new Date(0),
-	};
-
 	private readonly _config: CertificateClientConfig;
 	private readonly _caClient: CaClient;
-	private _obtainedCert: ObtainedCertificate;
+	private readonly _lifecycle: CertificateLifecycle;
+	private _obtainedCert: ObtainedCertificate | null;
 	private _renewScheduler: CertRenewScheduler;
-
-	private get _requiredCert(): ObtainedCertificate {
-		if (this._obtainedCert === CertificateClient._NULL_CERT) throw new Error("Certificate not yet obtained");
-		return this._obtainedCert;
-	}
 
 	constructor(config: CertificateClientConfig, initialCert?: ObtainedCertificate) {
 		this._config = config;
-		this._obtainedCert = initialCert ?? CertificateClient._NULL_CERT;
+		this._obtainedCert = initialCert ?? null;
 		this._caClient = new CaClient({
 			baseUrl: config.caUrl,
 			tls: config.tls,
 		});
+		this._lifecycle = new CertificateLifecycle(config, this._caClient);
 		this._renewScheduler = new CertRenewScheduler(
 			config.serviceId,
 			config.renewMarginMs ?? 86400000,
 			() => this.obtainCertificate().then(() => {}),
 		);
+	}
+
+	private get _requiredCert(): ObtainedCertificate {
+		if (!this._obtainedCert) throw new Error("Certificate not yet obtained");
+		return this._obtainedCert;
 	}
 
 	static async createObtained(config: CertificateClientConfig): Promise<CertificateClient> {
@@ -69,67 +57,17 @@ export class CertificateClient {
 		return client;
 	}
 
-	private async _generateKeyAndCsr(): Promise<{
-		keyPair: import("@trading-model/certificate-utils/generate-key-pair").KeyPair;
-		csr: string;
-	}> {
-		const keyPair = await generateKeyPairAsync(
-			this._config.keyAlgorithm ?? KeyAlgorithm.ecP384,
-		);
-		const csr = await createCsrAsync({
-			commonName: this._config.commonName,
-			san: this._config.san,
-			keyPem: keyPair.privateKey,
-		});
-		return { keyPair, csr };
-	}
-
-	private async _signWithCa(csr: string) {
-		const request: SignCertificateRequest = {
-			serviceId: this._config.serviceId,
-			csr,
-			bootstrapToken: this._config.bootstrapToken,
-		};
-		return await this._caClient.signCertificate(request);
-	}
-
-	private async _writeCertificates(keyPair: { privateKey: string }, response: { cert: string; caPem: string }): Promise<void> {
-		const { tlsPaths } = this._config;
-		const certDir = path.dirname(tlsPaths.certPath);
-		await fs.mkdir(certDir, { recursive: true });
-		await fs.writeFile(tlsPaths.keyPath, keyPair.privateKey, { mode: 0o600 });
-		await fs.writeFile(tlsPaths.certPath, response.cert, { mode: 0o644 });
-		await fs.writeFile(tlsPaths.caPath, response.caPem, { mode: 0o644 });
-	}
-
-	private _buildObtainedCert(keyPair: { privateKey: string }, response: { cert: string; caPem: string; serialNumber: string; expiresAt: string }): ObtainedCertificate {
-		return {
-			certPem: response.cert,
-			keyPem: keyPair.privateKey,
-			caPem: response.caPem,
-			serialNumber: response.serialNumber,
-			expiresAt: new Date(response.expiresAt),
-		};
-	}
-
-	private _notifyOnRenew(): void {
-		const onRenew = this._config.onRenew;
-		if (onRenew) {
-			setImmediate(() => onRenew(this._requiredCert));
-		}
-	}
-
 	async obtainCertificate(): Promise<ObtainedCertificate> {
-		const { keyPair, csr } = await this._generateKeyAndCsr();
-		const response = await this._signWithCa(csr);
-		await this._writeCertificates(keyPair, response);
-		this._obtainedCert = this._buildObtainedCert(keyPair, response);
+		const { keyPair, csr } = await this._lifecycle.generateKeyAndCsr();
+		const response = await this._lifecycle.signWithCa(csr);
+		await this._lifecycle.writeCertificates(keyPair, response);
+		this._obtainedCert = this._lifecycle.buildObtainedCert(keyPair, response);
 		logger.info("Certificate obtained", {
 			serviceId: this._config.serviceId,
 			serialNumber: response.serialNumber,
 			expiresAt: response.expiresAt,
 		});
-		this._notifyOnRenew();
+		this._lifecycle.notifyOnRenew(this._config.onRenew, this._requiredCert);
 		return this._requiredCert;
 	}
 
@@ -142,7 +80,7 @@ export class CertificateClient {
 	}
 
 	startAutoRenew(): void {
-		if (this._obtainedCert !== CertificateClient._NULL_CERT) {
+		if (this._obtainedCert) {
 			this._renewScheduler.scheduleRenew(this._obtainedCert);
 		}
 		this._renewScheduler.start();
@@ -153,6 +91,6 @@ export class CertificateClient {
 	}
 
 	getCurrentCert(): ObtainedCertificate | null {
-		return this._obtainedCert === CertificateClient._NULL_CERT ? null : this._obtainedCert;
+		return this._obtainedCert;
 	}
 }

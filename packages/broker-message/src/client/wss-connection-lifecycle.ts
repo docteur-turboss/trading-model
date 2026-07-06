@@ -13,7 +13,6 @@ export class WssConnectionLifecycle {
 	private readonly _wsUrl: string;
 	private readonly _serviceName: string;
 	private readonly _instanceId: string;
-	private _connected = false;
 	private readonly _callbacks: WsConnectionLifecycleCallbacks;
 
 	constructor(
@@ -39,25 +38,15 @@ export class WssConnectionLifecycle {
 	connect(): void {
 		const url = this._buildUrl();
 		this._connection.connect(url, {
-			onOpen: () => {
-				this._connected = true;
-				this._callbacks.onOpen();
-			},
+			onOpen: () => this._callbacks.onOpen(),
 			onMessage: (raw) => this._callbacks.onMessage(raw),
-			onClose: (code, reason) => {
-				this._connected = false;
-				this._callbacks.onClose(code, reason);
-			},
-			onError: (err) => {
-				this._connected = false;
-				this._callbacks.onError(err);
-			},
+			onClose: (code, reason) => this._callbacks.onClose(code, reason),
+			onError: (err) => this._callbacks.onError(err),
 		});
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {
 		this._connection.disconnect(closeCode, reason);
-		this._connected = false;
 	}
 
 	send(data: unknown): boolean {
@@ -65,7 +54,7 @@ export class WssConnectionLifecycle {
 	}
 
 	isConnected(): boolean {
-		return this._connected;
+		return this._connection.isConnected;
 	}
 
 	private _buildUrl(): string {

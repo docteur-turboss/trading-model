@@ -18,16 +18,13 @@ export function createCrl(
 	};
 }
 
+/**
+ * Check if a certificate serial number is in the CRL.
+ * Delegates to CrlCache via createCrlChecker under the hood.
+ * @deprecated Use createCrlChecker(crl).isRevoked(serialNumber) instead for consistency with ICrlChecker.
+ */
 export function isRevoked(serialNumber: string, crl: Crl): boolean {
-	return crl.entries.some(
-		(entry) =>
-			entry.serialNumber === serialNumber && !isExpiredRevocation(entry)
-	);
-}
-
-function isExpiredRevocation(entry: RevokedCertificate): boolean {
-	const maxAge = 365 * 24 * 60 * 60 * 1000;
-	return Date.now() - entry.revokedAt.getTime() > maxAge;
+	return createCrlChecker(crl).isRevoked(serialNumber);
 }
 
 /**

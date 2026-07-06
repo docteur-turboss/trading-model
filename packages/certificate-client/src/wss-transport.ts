@@ -1,17 +1,14 @@
 ﻿import { randomUUID } from "node:crypto";
 
-import type { SignCertificateRequest, SignCertificateResponse } from "@trading-model/common/ca/ca-client";
+import type {
+	SignCertificateRequest,
+	SignCertificateResponse,
+} from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import { isWsConnected } from "@trading-model/common/domain/ws-connection";
-import WebSocket from "ws";
-
+import { AuthHandler } from "./auth-handler";
+import { PendingRequestManager } from "./pending-request-manager";
 import { WssTransportConnection } from "./wss-transport-connection";
-
-interface PendingRequest {
-	resolve: (value: SignCertificateResponse) => void;
-	reject: (reason: Error) => void;
-	timer: ReturnType<typeof setTimeout>;
-}
 
 export class NullCaWssTransport {
 	get isConnected(): boolean {
@@ -30,11 +27,10 @@ export class NullCaWssTransport {
 }
 
 export class CaWssTransport {
-	private _wsAuthSent = false;
-	private readonly _pending = new Map<string, PendingRequest>();
 	private _destroyed = false;
-	private _unauthRejects = 0;
 	private readonly _connection: WssTransportConnection;
+	private readonly _pendingManager = new PendingRequestManager();
+	private readonly _authHandler = new AuthHandler();
 
 	constructor(
 		wsUrl: string,
@@ -47,10 +43,10 @@ export class CaWssTransport {
 			bootstrapToken
 		);
 		this._connection.on("open", () => {
-			this._wsAuthSent = false;
+			this._authHandler.reset();
 		});
-		this._connection.on("message", (data: WebSocket.Data) =>
-			this._onWsMessage(data)
+		this._connection.on("message", (data) =>
+			this._onWsMessage(data as import("ws").Data)
 		);
 		this._connection.connect();
 	}
@@ -60,61 +56,27 @@ export class CaWssTransport {
 	}
 
 	get isAuthSent(): boolean {
-		return this._wsAuthSent;
+		return this._authHandler.isAuthSent;
 	}
 
 	get mode(): "wss" {
 		return "wss";
 	}
 
-	// ── Message handling ───────────────────────────────────────────────────────
-
-	private _onWsMessage(data: WebSocket.Data): void {
+	private _onWsMessage(data: import("ws").Data): void {
 		try {
 			const msg = JSON.parse(data.toString());
 			if (msg.type === "auth:response") {
-				this._handleAuthResponse(msg);
+				this._authHandler.handleResponse(msg, () => this._close());
 				return;
 			}
 			if (msg.type === "sign:response" || msg.type === "response") {
-				this._handleSignResponse(msg);
+				this._pendingManager.handleResponse(msg);
 			}
 		} catch {
 			logger.error("Invalid WSS message from CA");
 		}
 	}
-
-	private _handleAuthResponse(msg: Record<string, unknown>): void {
-		if (msg.success) {
-			this._wsAuthSent = true;
-			this._unauthRejects = 0;
-			logger.info("WSS auth token delivered to CA");
-		} else {
-			logger.error("WSS auth message rejected by CA", {
-				error: (msg.error as { message?: string })?.message,
-			});
-			this._close();
-		}
-	}
-
-	private _handleSignResponse(msg: Record<string, unknown>): void {
-		const pending = this._pending.get(msg.id as string);
-		if (pending) {
-			clearTimeout(pending.timer);
-			this._pending.delete(msg.id as string);
-			if (msg.success) {
-				pending.resolve(msg.data as SignCertificateResponse);
-			} else {
-				pending.reject(
-					new Error(
-						(msg.error as { message?: string })?.message ?? "WSS request failed"
-					)
-				);
-			}
-		}
-	}
-
-	// ── Public API ─────────────────────────────────────────────────────────────
 
 	disconnect(): void {
 		this.destroy();
@@ -125,50 +87,35 @@ export class CaWssTransport {
 	): Promise<SignCertificateResponse> {
 		const { serviceId, csr, ttlMs } = request;
 		const id = randomUUID();
-		return new Promise<SignCertificateResponse>((resolve, reject) => {
-			const timer = setTimeout(() => {
-				this._pending.delete(id);
-				reject(new Error("WSS request timed out"));
-			}, 30_000);
+		const promise = this._pendingManager.create(id);
 
-			this._pending.set(id, { resolve, reject, timer });
+		const ws = this._connection.ws;
+		if (!isWsConnected(ws)) {
+			this._pendingManager.cancel(id);
+			throw new Error("WebSocket not connected");
+		}
 
-			const ws = this._connection.ws;
-			if (!isWsConnected(ws)) {
-				clearTimeout(timer);
-				this._pending.delete(id);
-				reject(new Error("WebSocket not connected"));
-				return;
-			}
-
-			ws.send(
-				JSON.stringify({
-					type: "sign",
-					id,
-					data: { serviceId, csr, ttlMs },
-				}),
-				(err) => {
-					if (err) {
-						clearTimeout(timer);
-						this._pending.delete(id);
-						reject(err);
-					}
+		ws.send(
+			JSON.stringify({
+				type: "sign",
+				id,
+				data: { serviceId, csr, ttlMs },
+			}),
+			(err) => {
+				if (err) {
+					this._pendingManager.cancel(id, err);
 				}
-			);
-		});
+			}
+		);
+
+		return promise;
 	}
 
 	destroy(): void {
 		this._destroyed = true;
 		this._connection.destroy();
-		for (const [id, pending] of this._pending) {
-			clearTimeout(pending.timer);
-			pending.reject(new Error("Transport destroyed"));
-			this._pending.delete(id);
-		}
+		this._pendingManager.rejectAll(new Error("Transport destroyed"));
 	}
-
-	// ── Cleanup ────────────────────────────────────────────────────────────────
 
 	private _close(): void {
 		this._connection.disconnect();

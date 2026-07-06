@@ -1,15 +1,12 @@
-import WebSocket from "ws";
 import { EventEmitter } from "events";
 
 import { logger } from "@trading-model/common/config/logger";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import { isWsConnected } from "@trading-model/common/domain/ws-connection";
 import {
-	createWsConnectTimeout,
 	scheduleWsReconnect,
 	type WsReconnectState,
 } from "@trading-model/common/utils/ws-reconnect";
-import { TlsConfigBuilder } from "./tls-config-builder";
+import { WsConnectionManager } from "./ws-connection-manager";
 
 export type ConnectionState =
 	| "disconnected"
@@ -19,7 +16,6 @@ export type ConnectionState =
 
 export class WssTransportConnection {
 	private _emitter = new EventEmitter();
-	private _ws: WebSocket | null = null;
 	private _state: ConnectionState = "disconnected";
 	private _destroyed = false;
 	private _wsReconnectState: WsReconnectState = {
@@ -27,7 +23,7 @@ export class WssTransportConnection {
 		timer: null,
 		destroyed: false,
 	};
-	private _tlsBuilder: TlsConfigBuilder;
+	private readonly _connectionManager: WsConnectionManager;
 
 	on(event: string, listener: (...args: unknown[]) => void): this {
 		this._emitter.on(event, listener);
@@ -39,7 +35,7 @@ export class WssTransportConnection {
 		tlsConfig?: TlsPaths,
 		private readonly _bootstrapToken?: string
 	) {
-		this._tlsBuilder = new TlsConfigBuilder(tlsConfig);
+		this._connectionManager = new WsConnectionManager(this._url, tlsConfig, this._bootstrapToken);
 	}
 
 	connect(): void {
@@ -53,57 +49,8 @@ export class WssTransportConnection {
 		return this._state;
 	}
 
-	get ws(): WebSocket | null {
-		return this._ws;
-	}
-
-	// ── Connection lifecycle ───────────────────────────────────────────────────
-
-	private _setupConnectTimeout(): () => void {
-		return createWsConnectTimeout(() => {
-			if (this._state !== "connected") {
-				logger.warn("WSS connection timeout");
-				if (this._ws) {
-					this._ws.close();
-				}
-				this._scheduleReconnect();
-			}
-		}, 10_000);
-	}
-
-	private _registerWsEventHandlers(cancelTimeout: () => void): void {
-		if (!this._ws) return;
-
-		this._ws.on("open", () => {
-			cancelTimeout();
-			this._state = "connected";
-			this._wsReconnectState.attempt = 0;
-			logger.info("WSS transport connected to CA");
-			this._sendWsAuth();
-			this._emitter.emit("open");
-		});
-
-		this._ws.on("message", (data: WebSocket.Data) => {
-			this._emitter.emit("message", data);
-		});
-
-		this._ws.on("close", () => {
-			cancelTimeout();
-			this._state = "disconnected";
-			if (!this._destroyed) {
-				this._scheduleReconnect();
-			}
-			this._emitter.emit("close");
-		});
-
-		this._ws.on("error", (err: Error) => {
-			cancelTimeout();
-			logger.error("WSS transport error", { err: err.message });
-			if (!isWsConnected(this._ws)) {
-				this._scheduleReconnect();
-			}
-			this._emitter.emit("error", err);
-		});
+	get ws() {
+		return this._connectionManager.ws;
 	}
 
 	private _connectWs(): void {
@@ -111,37 +58,32 @@ export class WssTransportConnection {
 			return;
 		}
 		this._state = "connecting";
-		try {
-			this._ws = new WebSocket(this._url, this._tlsBuilder.build());
-			this._ws.binaryType = "nodebuffer";
-
-			const cancelTimeout = this._setupConnectTimeout();
-			this._registerWsEventHandlers(cancelTimeout);
-		} catch (err) {
-			logger.error("Failed to create WSS connection", { err });
-			this._scheduleReconnect();
-		}
-	}
-
-	private _sendWsAuth(): void {
-		const token = this._bootstrapToken;
-		if (
-			!token ||
-			token.length === 0 ||
-			!isWsConnected(this._ws)
-		) {
-			return;
-		}
-		this._ws.send(
-			JSON.stringify({
-				type: "auth",
-				token,
-			}),
-			(err) => {
-				if (err) {
-					logger.error("Failed to send WSS auth message", { err: err.message });
+		this._connectionManager.connect(
+			() => {
+				this._state = "connected";
+				this._wsReconnectState.attempt = 0;
+				this._connectionManager.sendWsAuth();
+				this._emitter.emit("open");
+			},
+			(data) => {
+				this._emitter.emit("message", data);
+			},
+			() => {
+				this._state = "disconnected";
+				if (!this._destroyed) {
+					this._scheduleReconnect();
 				}
-			}
+				this._emitter.emit("close");
+			},
+			(err) => {
+				if (!this._connectionManager.ws || this._connectionManager.ws.readyState !== this._connectionManager.ws.OPEN) {
+					this._scheduleReconnect();
+				}
+				this._emitter.emit("error", err);
+			},
+			() => {
+				this._scheduleReconnect();
+			},
 		);
 	}
 
@@ -154,29 +96,15 @@ export class WssTransportConnection {
 			state: this._wsReconnectState,
 			config: { baseDelayMs: 1000, maxDelayMs: 60000, jitterMs: 500 },
 			onReconnect: () => {
-				this._cleanupWs();
+				this._connectionManager.cleanup();
 				this._connectWs();
 			},
 			logger,
 		});
 	}
 
-	// ── Cleanup ────────────────────────────────────────────────────────────────
-
-	private _cleanupWs(): void {
-		if (this._ws) {
-			try {
-				this._ws.removeAllListeners();
-				this._ws.close();
-			} catch {
-				/* closing gracefully */
-			}
-			this._ws = null;
-		}
-	}
-
 	disconnect(): void {
-		this._cleanupWs();
+		this._connectionManager.cleanup();
 		if (this._wsReconnectState.timer) {
 			clearTimeout(this._wsReconnectState.timer);
 			this._wsReconnectState.timer = null;
