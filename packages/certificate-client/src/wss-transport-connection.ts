@@ -3,7 +3,7 @@ import { EventEmitter } from "events";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { WsAuthSender } from "./ws-auth-sender";
 import { WsConnectionManager } from "./ws-connection-manager";
-import { WsReconnectHandler } from "./ws-reconnect-handler";
+import { CertWsReconnectHandler } from "./ws-reconnect-handler";
 
 export type ConnectionState =
 	| "disconnected"
@@ -15,7 +15,7 @@ export class WssTransportConnection {
 	private _emitter = new EventEmitter();
 	private _state: ConnectionState = "disconnected";
 	private readonly _connectionManager: WsConnectionManager;
-	private readonly _reconnectHandler = new WsReconnectHandler();
+	private readonly _reconnectHandler = new CertWsReconnectHandler();
 	private readonly _authSender: WsAuthSender;
 
 	on(event: string, listener: (...args: unknown[]) => void): this {

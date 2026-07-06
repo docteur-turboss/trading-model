@@ -1,4 +1,4 @@
-export type { AuditEvent, AuditVolumeByTopic } from "./audit.dto";
+export type { AuditEvent, AuditFilter, AuditVolumeByTopic } from "./audit.dto";
 export type { CacheEntry, CacheStats } from "./cache.dto";
 export type { CertificateEntry } from "./certificates.dto";
 export type { ConfigEntry } from "./config.dto";

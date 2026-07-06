@@ -22,7 +22,6 @@
  */
 
 import type { DeliveryMode } from "../config/delivery-mode.types";
-import type { ServiceInstanceName } from "../config/services.types";
 import type { ServiceIdentity as DomainServiceIdentity } from "../domain/service-identity";
 import type { CorrelationId, MessageId, Topic } from "../domain/primitives";
 
@@ -30,9 +29,7 @@ import type { CorrelationId, MessageId, Topic } from "../domain/primitives";
  * Identity of a service instance within the broker system.
  * Used to identify publishers and subscribers for routing and load-balancing.
  */
-export type ServiceIdentity = DomainServiceIdentity & {
-	serviceName: ServiceInstanceName;
-};
+export type ServiceIdentity = DomainServiceIdentity;
 
 /**
  * Routing hints for message delivery scheduling.

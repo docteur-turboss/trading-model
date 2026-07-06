@@ -1,5 +1,6 @@
 import { CrlCache, type ICrlChecker } from "@trading-model/common/crl/crl-cache";
 import type { RevokedCertificate } from "./types";
+import type { SerialNumber } from "@trading-model/common/domain/primitives";
 
 export interface Crl {
 	entries: RevokedCertificate[];
@@ -23,7 +24,7 @@ export function createCrl(
  * Delegates to CrlCache via createCrlChecker under the hood.
  * @deprecated Use createCrlChecker(crl).isRevoked(serialNumber) instead for consistency with ICrlChecker.
  */
-export function isRevoked(serialNumber: string, crl: Crl): boolean {
+export function isRevoked(serialNumber: SerialNumber, crl: Crl): boolean {
 	return createCrlChecker(crl).isRevoked(serialNumber);
 }
 

@@ -10,7 +10,9 @@ export enum RevocationReason {
 	AA_COMPROMISE = "aACompromise",
 }
 
+import type { SerialNumber } from "./primitives";
+
 export interface RevocationRequest {
-	serialNumber: string;
+	serialNumber: SerialNumber;
 	reason: RevocationReason;
 }

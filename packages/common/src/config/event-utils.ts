@@ -1,22 +1,6 @@
-import { Price, Volume } from "../domain/primitives";
+import { Price } from "../domain/primitives";
 import type { CandleData, OrderBookData, TradeData } from "./event.types";
-import { TradeSide } from "./event.types";
-
-export function getAvgBid(ob: OrderBookData): Price {
-	let sum = 0;
-	for (const bid of ob.bids) {
-		sum += bid.price;
-	}
-	return Price.of(ob.bids.size > 0 ? sum / ob.bids.size : 0);
-}
-
-export function getAvgAsk(ob: OrderBookData): Price {
-	let sum = 0;
-	for (const ask of ob.asks) {
-		sum += ask.price;
-	}
-	return Price.of(ob.asks.size > 0 ? sum / ob.asks.size : 0);
-}
+import { TradeSide, getAvgBid, getAvgAsk, getBidTotalQty, getAskTotalQty } from "./event.types";
 
 export function getSpread(ob: OrderBookData): Price {
 	return Price.of(+getAvgAsk(ob) - +getAvgBid(ob));
@@ -24,22 +8,6 @@ export function getSpread(ob: OrderBookData): Price {
 
 export function getMidPrice(ob: OrderBookData): Price {
 	return Price.of((+getAvgBid(ob) + +getAvgAsk(ob)) / 2);
-}
-
-export function getBidTotalQty(ob: OrderBookData): Volume {
-	let qty = 0;
-	for (const bid of ob.bids) {
-		qty += bid.quantity;
-	}
-	return Volume.of(qty);
-}
-
-export function getAskTotalQty(ob: OrderBookData): Volume {
-	let qty = 0;
-	for (const ask of ob.asks) {
-		qty += ask.quantity;
-	}
-	return Volume.of(qty);
 }
 
 export function isBullish(candle: CandleData): boolean {

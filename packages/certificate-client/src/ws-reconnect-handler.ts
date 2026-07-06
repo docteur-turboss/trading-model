@@ -4,7 +4,7 @@ import {
 	type WsReconnectState,
 } from "@trading-model/common/utils/ws-reconnect";
 
-export class WsReconnectHandler {
+export class CertWsReconnectHandler {
 	private _destroyed = false;
 	readonly reconnectState: WsReconnectState = {
 		attempt: 0,
@@ -16,7 +16,7 @@ export class WsReconnectHandler {
 		return this._destroyed;
 	}
 
-	schedule(onReconnect: () => void): void {
+	scheduleReconnect(onReconnect: () => void): void {
 		if (this._destroyed) {
 			return;
 		}
@@ -28,20 +28,40 @@ export class WsReconnectHandler {
 		});
 	}
 
-	cancelTimer(): void {
+	cancel(): void {
 		if (this.reconnectState.timer) {
 			clearTimeout(this.reconnectState.timer);
 			this.reconnectState.timer = null;
 		}
 	}
 
-	destroy(): void {
+	stop(): void {
 		this._destroyed = true;
 		this.reconnectState.destroyed = true;
-		this.cancelTimer();
+		this.cancel();
 	}
 
-	resetAttempt(): void {
+	reset(): void {
 		this.reconnectState.attempt = 0;
+	}
+
+	/** @deprecated Use {@link scheduleReconnect} instead */
+	schedule(onReconnect: () => void): void {
+		this.scheduleReconnect(onReconnect);
+	}
+
+	/** @deprecated Use {@link cancel} instead */
+	cancelTimer(): void {
+		this.cancel();
+	}
+
+	/** @deprecated Use {@link stop} instead */
+	destroy(): void {
+		this.stop();
+	}
+
+	/** @deprecated Use {@link reset} instead */
+	resetAttempt(): void {
+		this.reset();
 	}
 }

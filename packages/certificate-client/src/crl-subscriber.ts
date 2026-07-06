@@ -1,4 +1,4 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { SerialNumber, ServiceId } from "@trading-model/common/domain/primitives";
 import type BrokerMessage from "@trading-model/broker-message";
 import { EVENT_MANAGER } from "@trading-model/broker-message";
 import { clearValidationCache } from "@trading-model/certificate-utils/validate-certificate";
@@ -6,7 +6,7 @@ import { EnumEventMessage } from "@trading-model/common/config/event.types";
 
 export interface CrlSubscriberCallbacks {
 	onCertificateRevoked?: (payload: {
-		serialNumber: string;
+		serialNumber: SerialNumber;
 		serviceId: ServiceId;
 	}) => void;
 	onCaKeyRotated?: (payload: { keyId: string }) => void;
@@ -18,7 +18,7 @@ function _onCertificateRevoked(
 ): void {
 	clearValidationCache();
 	callbacks?.onCertificateRevoked?.(
-		payload as { serialNumber: string; serviceId: ServiceId },
+		payload as { serialNumber: SerialNumber; serviceId: ServiceId },
 	);
 }
 

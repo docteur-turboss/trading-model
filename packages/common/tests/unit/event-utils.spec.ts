@@ -8,13 +8,13 @@ import {
 	SourceType,
 	type TradeData,
 	TradeSide,
-} from "../../src/config/event.types";
-import { Price, UnixTimestamp, Volume } from "../../src/domain/primitives";
-import {
 	getAskTotalQty,
 	getAvgAsk,
 	getAvgBid,
 	getBidTotalQty,
+} from "../../src/config/event.types";
+import { Price, UnixTimestamp, Volume } from "../../src/domain/primitives";
+import {
 	getCandleBodySize,
 	getMidPrice,
 	getSpread,

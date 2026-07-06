@@ -1,4 +1,4 @@
-import type { SerialNumber } from "./primitives";
+import type { Fingerprint, SerialNumber } from "./primitives";
 
 export interface CertificateBase {
 	certPem: string;
@@ -8,6 +8,6 @@ export interface CertificateBase {
 }
 
 export interface CertificateResponse extends CertificateBase {
-	fingerprint: string;
+	fingerprint: Fingerprint;
 	issuedAt?: Date;
 }

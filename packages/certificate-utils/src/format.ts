@@ -39,13 +39,16 @@ function _extractSanFromX509(x509: X509Certificate): string[] {
 		.map((name) => name.slice(4));
 }
 
+import { toFingerprint, toSerialNumber } from "@trading-model/common/domain/primitives";
+import type { Fingerprint, SerialNumber } from "@trading-model/common/domain/primitives";
+
 export function parseCertInfo(pem: string): {
 	subject: string;
 	issuer: string;
-	serialNumber: string;
+	serialNumber: SerialNumber;
 	notBefore: Date;
 	notAfter: Date;
-	fingerprint: string;
+	fingerprint: Fingerprint;
 	san: string[];
 } {
 	const x509 = new X509Certificate(pem);
@@ -53,10 +56,10 @@ export function parseCertInfo(pem: string): {
 	return {
 		subject: x509.subject,
 		issuer: x509.issuer,
-		serialNumber: forgeCert.serialNumber,
+		serialNumber: toSerialNumber(forgeCert.serialNumber),
 		notBefore: new Date(x509.validFrom),
 		notAfter: new Date(x509.validTo),
-		fingerprint: x509.fingerprint256.replace(/:/g, "").toLowerCase(),
+		fingerprint: toFingerprint(x509.fingerprint256.replace(/:/g, "").toLowerCase()),
 		san: _extractSanFromX509(x509),
 	};
 }

@@ -1,4 +1,4 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { Fingerprint, SerialNumber, ServiceId } from "@trading-model/common/domain/primitives";
 
 export interface CertificateRequest {
 	serviceId: ServiceId;
@@ -11,11 +11,11 @@ import type { CertificateBase } from "@trading-model/common/domain/certificate-b
 export interface SignedCertificate extends CertificateBase {
 	serviceId: ServiceId;
 	issuedAt: Date;
-	fingerprint: string;
+	fingerprint: Fingerprint;
 }
 
 export interface RevokedCertificate {
-	serialNumber: string;
+	serialNumber: SerialNumber;
 	serviceId: ServiceId;
 	revokedAt: Date;
 	reason: string;
@@ -26,7 +26,7 @@ export interface CaMetadata {
 	caCertPem: string;
 	createdAt: Date;
 	expiresAt: Date;
-	fingerprint: string;
+	fingerprint: Fingerprint;
 }
 
 export interface SignInput {
@@ -43,11 +43,11 @@ export interface KeyPair {
 export type KeyPairWithId = KeyPair & { id: string };
 
 export interface CertificateInfo {
-	serialNumber: string;
+	serialNumber: SerialNumber;
 	subject: string;
 	issuer: string;
 	notBefore: Date;
 	notAfter: Date;
-	fingerprint: string;
+	fingerprint: Fingerprint;
 	san: string[];
 }

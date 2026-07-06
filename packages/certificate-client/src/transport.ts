@@ -5,7 +5,7 @@ import {
 } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type { SerialNumber, ServiceId } from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { CaWssTransport, NullCaWssTransport } from "./wss-transport";
@@ -91,7 +91,7 @@ export class TransportManager {
 
 	async getCrl(since?: string): Promise<
 		Array<{
-			serialNumber: string;
+			serialNumber: SerialNumber;
 			serviceId: ServiceId;
 			revokedAt: string;
 			reason: string;

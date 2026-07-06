@@ -1,4 +1,4 @@
-import type { ServiceId } from "../domain/primitives";
+import type { Fingerprint, SerialNumber, ServiceId } from "../domain/primitives";
 import { HttpClient } from "../config/http-client";
 import type { RevocationRequest } from "../domain/revocation-request";
 import type { TlsPaths } from "../domain/tls-paths";
@@ -19,9 +19,9 @@ export interface SignCertificateRequest {
 export interface CertificateResponse {
 	cert: string;
 	caPem: string;
-	serialNumber: string;
+	serialNumber: SerialNumber;
 	expiresAt: string;
-	fingerprint: string;
+	fingerprint: Fingerprint;
 }
 
 export interface SignCertificateResponse extends CertificateResponse {}
@@ -32,7 +32,7 @@ export interface GetCertificateResponse extends CertificateResponse {
 
 /** A single entry in the Certificate Revocation List. */
 export interface CrlEntry {
-	serialNumber: string;
+	serialNumber: SerialNumber;
 	serviceId: ServiceId;
 	revokedAt: string;
 	reason: string;

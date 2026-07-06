@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { toFingerprint, toSerialNumber } from "@trading-model/common/domain/primitives";
 import type { CertificateInfo } from "./types";
 
 function _decodeCertBody(certPem: string): string {
@@ -25,12 +26,12 @@ function _extractSan(body: string): string[] {
 export function certificateInfo(certPem: string): CertificateInfo {
 	const body = _decodeCertBody(certPem);
 	return {
-		serialNumber: _extractField(body, /Serial: (.+)/),
+		serialNumber: toSerialNumber(_extractField(body, /Serial: (.+)/)),
 		subject: _extractField(body, /Subject: (.+)/),
 		issuer: _extractField(body, /Issuer: (.+)/),
 		notBefore: new Date(_extractField(body, /Not Before: (.+)/)),
 		notAfter: new Date(_extractField(body, /Not After: (.+)/)),
-		fingerprint: createHash("sha256").update(certPem).digest("hex"),
+		fingerprint: toFingerprint(createHash("sha256").update(certPem).digest("hex")),
 		san: _extractSan(body),
 	};
 }

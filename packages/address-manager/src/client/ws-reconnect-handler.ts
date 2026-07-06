@@ -81,4 +81,19 @@ export class WsReconnectHandler {
 	schedule(connectFn?: () => void): void {
 		return this.scheduleReconnect(connectFn);
 	}
+
+	/** @deprecated Use {@link cancel} instead */
+	cancelTimer(): void {
+		this.cancel();
+	}
+
+	/** @deprecated Use {@link stop} instead */
+	destroy(): void {
+		this.stop();
+	}
+
+	/** @deprecated Use {@link reset} instead */
+	resetAttempt(): void {
+		this.reset();
+	}
 }

@@ -1,8 +1,10 @@
+import type { SerialNumber } from "../domain/primitives";
+
 /**
  * Shared interface for checking certificate revocation status.
  */
 export interface ICrlChecker {
-	isRevoked(serialNumber: string): boolean;
+	isRevoked(serialNumber: SerialNumber): boolean;
 }
 
 /**
@@ -14,14 +16,14 @@ export class CrlCache implements ICrlChecker {
 	/**
 	 * Mark a certificate as revoked in the local cache.
 	 */
-	addRevoked(serialNumber: string): void {
+	addRevoked(serialNumber: SerialNumber): void {
 		this._revoked.add(serialNumber.toUpperCase());
 	}
 
 	/**
 	 * Returns true if the given serial number has been revoked.
 	 */
-	isRevoked(serialNumber: string): boolean {
+	isRevoked(serialNumber: SerialNumber): boolean {
 		return this._revoked.has(serialNumber.toUpperCase());
 	}
 
@@ -35,7 +37,7 @@ export class CrlCache implements ICrlChecker {
 	/**
 	 * Bulk-load revoked entries from a CRL or any list of objects with a serialNumber field.
 	 */
-	addRevokedFromEntries(entries: ReadonlyArray<{ serialNumber: string }>): void {
+	addRevokedFromEntries(entries: ReadonlyArray<{ serialNumber: SerialNumber }>): void {
 		for (const entry of entries) {
 			this.addRevoked(entry.serialNumber);
 		}
@@ -51,7 +53,7 @@ export class CrlCache implements ICrlChecker {
 	/**
 	 * Create a CrlCache pre-populated from a list of revoked entries.
 	 */
-	static fromCrlEntries(entries: ReadonlyArray<{ serialNumber: string }>): CrlCache {
+	static fromCrlEntries(entries: ReadonlyArray<{ serialNumber: SerialNumber }>): CrlCache {
 		const cache = new CrlCache();
 		cache.addRevokedFromEntries(entries);
 		return cache;

@@ -4,7 +4,7 @@ import {
 	randomUUID,
 } from "node:crypto";
 
-import { toSerialNumber, type ServiceId } from "@trading-model/common/domain/primitives";
+import { toFingerprint, toSerialNumber, type ServiceId } from "@trading-model/common/domain/primitives";
 import type { KeyPair, SignedCertificate } from "./types";
 import { CertBodyBuilder } from "./cert-body-builder";
 
@@ -51,7 +51,7 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 
 	const builder = new CertBodyBuilder();
 	const certBody = builder.buildCertBody({
-		serialNumber,
+		serialNumber: toSerialNumber(serialNumber),
 		now,
 		expiresAt,
 		publicKey: publicKeyPem,
@@ -62,7 +62,7 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 	const certPem = builder.buildCertPem(certBody, signature, caCertPem);
 	const fingerprint = createHash("sha256").update(certPem).digest("hex");
 
-	return { serialNumber: toSerialNumber(serialNumber), certPem, caPem: caCertPem, serviceId, issuedAt: now, expiresAt, fingerprint };
+	return { serialNumber: toSerialNumber(serialNumber), certPem, caPem: caCertPem, serviceId, issuedAt: now, expiresAt, fingerprint: toFingerprint(fingerprint) };
 }
 
 

@@ -1,5 +1,5 @@
 import { Price, Volume } from "../domain/primitives";
-import type { InstanceId, ServiceId, TradingSymbol, UnixTimestamp } from "../domain/primitives";
+import type { InstanceId, SerialNumber, ServiceId, TradingSymbol, UnixTimestamp } from "../domain/primitives";
 import type { ServiceInstanceName } from "./services.types";
 import type { RevocationReason } from "../domain/revocation-request";
 
@@ -196,7 +196,7 @@ export interface EventMap {
 
 	/** CA / Certificate Infrastructure events */
 	[EnumEventMessage.certificateRevoked]: {
-		serialNumber: string;
+		serialNumber: SerialNumber;
 		serviceId: ServiceId;
 		reason: RevocationReason;
 		revokedAt: string;

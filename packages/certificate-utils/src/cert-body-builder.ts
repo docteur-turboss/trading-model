@@ -1,7 +1,9 @@
 import { createSign } from "node:crypto";
 
+import type { SerialNumber } from "@trading-model/common/domain/primitives";
+
 export interface CertBodyBuilderOptions {
-	serialNumber: string;
+	serialNumber: SerialNumber;
 	now: Date;
 	expiresAt: Date;
 	publicKey: string;
