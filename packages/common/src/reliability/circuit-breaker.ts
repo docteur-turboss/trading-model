@@ -71,4 +71,27 @@ export class CircuitBreaker {
 			entry.state = "open";
 		}
 	}
+
+	isOpen(key: string): boolean {
+		const entry = this._entries.get(key);
+		return entry?.state === "open";
+	}
+
+	getState(key: string): CircuitState {
+		const entry = this._entries.get(key);
+		return entry?.state ?? "closed";
+	}
+
+	getFailureCount(key: string): number {
+		const entry = this._entries.get(key);
+		return entry?.failures ?? 0;
+	}
+
+	clear(): void {
+		this._entries.clear();
+	}
+
+	isAllowed(key: string): boolean {
+		return this.check(key) !== "open";
+	}
 }

@@ -48,6 +48,10 @@ export class CircuitBreaker {
 		await this._persistence.loadFromStore(instanceId, this._state.instances);
 	}
 
+	check(instanceId: string): CircuitState {
+		return this.getState(instanceId);
+	}
+
 	isAllowed(instanceId: string): boolean {
 		const state = this._state.getInstanceState(instanceId);
 		if (!state || state.state === "closed") {

@@ -40,6 +40,25 @@ export class MessageManagerCircuitBreaker {
 		return !this.isOpen();
 	}
 
+	check(): CircuitState {
+		if (this._openUntil > Date.now()) {
+			return "open";
+		}
+		if (this._openUntil > 0) {
+			this._resetInternal();
+			return "half-open";
+		}
+		return "closed";
+	}
+
+	recordSuccess(): void {
+		this.recordResult(true);
+	}
+
+	recordFailure(): void {
+		this.recordResult(false);
+	}
+
 	recordResult(success: boolean): void {
 		if (success) {
 			this._resetOnSuccess();
