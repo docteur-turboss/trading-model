@@ -14,3 +14,9 @@ export interface ServiceEndpoint {
 	address: IPAddress;
 	port: Port;
 }
+
+/** A network host and port pair. */
+export interface HostPort {
+	host: string;
+	port: number;
+}

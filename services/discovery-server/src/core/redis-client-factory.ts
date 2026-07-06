@@ -1,15 +1,16 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 
 export interface RedisSentinelConfig {
-	sentinels: Array<{ host: string; port: number }>;
+	sentinels: Array<HostPort>;
 	name: string;
 	password?: string;
 }
 
 export interface RedisClusterNodesConfig {
-	nodes: Array<{ host: string; port: number }>;
+	nodes: Array<HostPort>;
 	password?: string;
 }
 

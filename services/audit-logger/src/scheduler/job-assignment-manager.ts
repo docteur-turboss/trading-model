@@ -100,49 +100,55 @@ function _sendAssignmentMessage(
 	});
 }
 
-export class JobAssignmentManager {
-	private _assignJob(
+private
+_assignJob(
 		queued: { job: Job },
-		worker: { workerId: string; currentLoad: number; maxConcurrency: number }
-	): void {
-		const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
-		const assignedJob: Job = {
-			...queued.job,
-			status: "assigned",
-			assignedWorkerId: worker.workerId,
-			ackDeadline: deadline,
-		};
+		worker: { workerId: string;
+currentLoad: number;
+maxConcurrency: number;
+}
+	): void
+{
+	const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
+	const assignedJob: Job = {
+		...queued.job,
+		status: "assigned",
+		assignedWorkerId: worker.workerId,
+		ackDeadline: deadline,
+	};
 
-		this._queue.markDelivered(assignedJob.id);
-		this.sendAssignment(worker.workerId, assignedJob, deadline);
-		this.incrementWorkerLoad(worker);
-		this._persistAssignment(assignedJob.id, worker.workerId, deadline);
+	this._queue.markDelivered(assignedJob.id);
+	this.sendAssignment(worker.workerId, assignedJob, deadline);
+	this.incrementWorkerLoad(worker);
+	this._persistAssignment(assignedJob.id, worker.workerId, deadline);
 
-		logger.info("Job assigned to worker", {
-			context: {
-				jobId: assignedJob.id,
-				workerId: worker.workerId,
-			},
-		});
-	}
+	logger.info("Job assigned to worker", {
+		context: {
+			jobId: assignedJob.id,
+			workerId: worker.workerId,
+		},
+	});
+}
 
-	private _persistAssignment(
+private
+_persistAssignment(
 		jobId: string,
 		assignedWorkerId: string,
 		deadline: number
-	): void {
-		this._repository
-			.updateStatus(jobId, "assigned", {
-				assignedWorkerId,
-				ackDeadline: deadline,
-			})
-			.catch((err) => {
-				logger.error("Failed to persist assigned status", {
-					context: {
-						jobId,
-						error: String(err),
-					},
-				});
+	)
+: void
+{
+	this._repository
+		.updateStatus(jobId, "assigned", {
+			assignedWorkerId,
+			ackDeadline: deadline,
+		})
+		.catch((err) => {
+			logger.error("Failed to persist assigned status", {
+				context: {
+					jobId,
+					error: String(err),
+				},
 			});
-	}
+		});
 }

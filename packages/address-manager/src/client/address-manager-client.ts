@@ -56,7 +56,7 @@ export class AddressManagerClient {
 			: [this._config.addressManagerUrl];
 	}
 
-	async registerService(): Promise<ServiceRegistrationResponse | undefined> {
+	registerService(): Promise<ServiceRegistrationResponse | undefined> {
 		const payload = this._buildRegistrationPayload();
 		const urls = this._getUrls();
 		return this._tryRegisterUrls(payload, urls);

@@ -264,14 +264,17 @@ function _logSchedulerStart(recovered: number): void {
 	});
 }
 
-export class JobScheduler {
-	stop(): void {
-		this.orphanDetector.stop();
-		this.queue.stop();
-		if (this._workerProtocol) {
-			this._workerProtocol.close();
-		}
-
-		logger.info("Audit job scheduler stopped");
+stop();
+: void
+{
+	this.orphanDetector.stop();
+	this.queue.stop();
+	if (this._workerProtocol) {
+		this._workerProtocol.close();
 	}
+
+	logger.info("Audit job scheduler stopped");
 }
+}
+
+function _logSchedulerStart(recovered: number): void {

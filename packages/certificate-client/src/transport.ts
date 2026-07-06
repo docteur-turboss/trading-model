@@ -1,3 +1,4 @@
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import {
 	CaClient,
 	type SignCertificateResponse,

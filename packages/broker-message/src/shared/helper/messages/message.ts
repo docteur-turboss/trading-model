@@ -5,19 +5,10 @@ import type {
 	SecurityType,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
-import { AppError, MetadataBuilderError } from "@trading-model/common/utils/errors";
 
-import {
-	DELIVERY_METADATA_MODE_PREDICATE,
-	EVENT_TYPE_METADATA_PREDICATE,
-	IDS_METADATA_PREDICATE,
-	MESSAGE_METADATA_SCHEMA,
-	PUBLISHER_METADATA_CONTEXT_PREDICATE,
-	ROUTING_METADATA_CONTEXT_PREDICATE,
-	SCHEMA_METADATA_VERSION_PREDICATE,
-	SECURITY_METADATA_CONTEXT_PREDICATE,
-	TOPIC_METADATA_PREDICATE,
-} from "./message.schema";
+import { MESSAGE_METADATA_SCHEMA } from "./message.schema";
+import { MetadataValidator } from "./metadata-validator";
+import { MetadataSerializer, type MetadataState } from "./metadata-serializer";
 
 /**
  * Represents an metadata in a message
@@ -32,6 +23,8 @@ export class MessageMetadata {
 	public schemaVersion = "1.0.0";
 	private _causationId?: string;
 	private _correlationId?: string;
+	private _validator = new MetadataValidator();
+	private _serializer = new MetadataSerializer();
 
 	public constructor(data: Partial<MetadataType> = {}) {
 		MESSAGE_METADATA_SCHEMA.partial().parse(data);
@@ -68,7 +61,7 @@ export class MessageMetadata {
 			return this;
 		}
 
-		SECURITY_METADATA_CONTEXT_PREDICATE.parse(context);
+		this._validator.validateSecurity(context);
 
 		this.security = context;
 		return this;
@@ -83,7 +76,7 @@ export class MessageMetadata {
 			return this;
 		}
 
-		DELIVERY_METADATA_MODE_PREDICATE.parse(context);
+		this._validator.validateDelivery(context);
 
 		this.delivery = context;
 		return this;
@@ -93,7 +86,7 @@ export class MessageMetadata {
 	 * @param context The context of the Author.
 	 */
 	public setPublisher(context: ServiceIdentity): this {
-		PUBLISHER_METADATA_CONTEXT_PREDICATE.parse(context);
+		this._validator.validatePublisher(context);
 
 		this.publisher = context;
 		return this;
@@ -108,8 +101,7 @@ export class MessageMetadata {
 			return this;
 		}
 
-		// Data assertions
-		ROUTING_METADATA_CONTEXT_PREDICATE.parse(context);
+		this._validator.validateRouting(context);
 
 		this.routing = context;
 		return this;
@@ -124,7 +116,7 @@ export class MessageMetadata {
 			return this;
 		}
 
-		SCHEMA_METADATA_VERSION_PREDICATE.parse(version);
+		this._validator.validateSchemaVersion(version);
 
 		this.schemaVersion = version;
 		return this;
@@ -134,8 +126,7 @@ export class MessageMetadata {
 	 * @param event The event of this message
 	 */
 	public setEventType(event: string): this {
-		// Data assertions
-		EVENT_TYPE_METADATA_PREDICATE.parse(event);
+		this._validator.validateEventType(event);
 
 		this.eventType = event;
 		return this;
@@ -145,8 +136,7 @@ export class MessageMetadata {
 	 * @param topic The topic of the message
 	 */
 	public setTopic(topic: string): this {
-		// Data assertions
-		TOPIC_METADATA_PREDICATE.parse(topic);
+		this._validator.validateTopic(topic);
 
 		this.topic = topic;
 		return this;
@@ -167,14 +157,13 @@ export class MessageMetadata {
 			return this;
 		}
 
-		// Data assertions
+		this._validator.validateIds(context);
+
 		if (context.causationId) {
-			IDS_METADATA_PREDICATE.parse(context?.causationId);
 			this._causationId = context.causationId;
 		}
 
 		if (context.correlationId) {
-			IDS_METADATA_PREDICATE.parse(context?.correlationId);
 			this._correlationId = context.correlationId;
 		}
 
@@ -185,33 +174,21 @@ export class MessageMetadata {
 	 * Transforms the embed to a plain object
 	 */
 	public toJSON(): MetadataType {
-		this._assertRequiredFields();
-		return this._buildMetadata();
+		this._validator.assertRequiredFields(this.topic, this.eventType, this.publisher);
+		return this._serializer.toJSON(this._getState());
 	}
 
-	private _buildMetadata(): MetadataType {
+	private _getState(): MetadataState {
 		return {
+			topic: this.topic,
+			routing: this.routing,
+			delivery: this.delivery,
+			security: this.security,
 			eventType: this.eventType,
 			publisher: this.publisher,
 			schemaVersion: this.schemaVersion,
-			topic: this.topic,
 			causationId: this._causationId,
 			correlationId: this._correlationId,
-			delivery: this.delivery,
-			routing: this.routing,
-			security: this.security,
 		};
-	}
-
-	private _assertRequiredFields(): void {
-		if (!this.topic) {
-			throw new MetadataBuilderError("You haven't defined a topic");
-		}
-		if (!this.eventType) {
-			throw new MetadataBuilderError("You haven't defined a eventType");
-		}
-		if (!this.publisher) {
-			throw new MetadataBuilderError("You haven't defined a publisher");
-		}
 	}
 }

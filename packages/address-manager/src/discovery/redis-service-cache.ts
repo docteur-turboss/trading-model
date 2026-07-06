@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import Redis, { type RedisOptions } from "ioredis";
 import type { ServiceInstance } from "../client/type";
 import type { CircuitState, IServiceCache } from "./service-cache.interface";

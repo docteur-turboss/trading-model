@@ -71,10 +71,8 @@ jest.mock("../../../src/core/neural-network/neural-network", () => ({
 	NeuralNetwork: jest.fn(),
 }));
 
-import {
-	GeneticAlgorithmRunner,
-	makeTradingAgentBackend,
-} from "../../../src/core/genetic-algorithm/ga-runner";
+import { GeneticAlgorithmRunner } from "../../../src/core/genetic-algorithm/ga-runner";
+import { makeTradingAgentBackend } from "../../../src/core/genetic-algorithm/rl-backend";
 
 describe("makeTradingAgentBackend", () => {
 	it("should create an RLBackend from a genome", () => {

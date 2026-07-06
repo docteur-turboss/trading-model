@@ -79,42 +79,51 @@ function _isBetterWorker(
 	return worker.currentLoad < bestLoad;
 }
 
-export class WorkerRegistry {
-	purgeStaleWorkers(): string[] {
-		const now = Date.now();
-		const stale: string[] = [];
-		for (const [id, worker] of this._workers) {
-			if (now - worker.lastHeartbeat.getTime() > this._heartbeatTtlMs) {
-				worker.status = "offline";
-				stale.push(id);
-			}
+purgeStaleWorkers();
+: string[]
+{
+	const now = Date.now();
+	const stale: string[] = [];
+	for (const [id, worker] of this._workers) {
+		if (now - worker.lastHeartbeat.getTime() > this._heartbeatTtlMs) {
+			worker.status = "offline";
+			stale.push(id);
 		}
-		for (const id of stale) {
-			this._workers.delete(id);
-		}
-		return stale;
 	}
-
-	count(): number {
-		return this._workers.size;
+	for (const id of stale) {
+		this._workers.delete(id);
 	}
+	return stale;
+}
 
-	averageLoad(): number {
-		if (this._workers.size === 0) {
-			return 0;
-		}
-		let total = 0;
-		for (const worker of this._workers.values()) {
-			if (worker.maxConcurrency > 0) {
-				total += worker.currentLoad / worker.maxConcurrency;
-			}
-		}
-		return total / this._workers.size;
+count();
+: number
+{
+	return this._workers.size;
+}
+
+averageLoad();
+: number
+{
+	if (this._workers.size === 0) {
+		return 0;
 	}
+	let total = 0;
+	for (const worker of this._workers.values()) {
+		if (worker.maxConcurrency > 0) {
+			total += worker.currentLoad / worker.maxConcurrency;
+		}
+	}
+	return total / this._workers.size;
+}
 
-	getAllActive(): WorkerRegistration[] {
-		return Array.from(this._workers.values()).filter(
+getAllActive();
+: WorkerRegistration[]
+{
+	return Array.from(this._workers.values()).filter(
 			(registration) => registration.status === "active"
 		);
-	}
 }
+}
+
+function _isBetterWorker(

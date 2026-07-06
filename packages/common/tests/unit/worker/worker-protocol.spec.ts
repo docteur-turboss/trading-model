@@ -153,7 +153,9 @@ describe("WorkerProtocol", () => {
 				expect(logger.info).toHaveBeenCalledWith(
 					"Worker registered via WebSocket",
 					{
-						workerId: "w1",
+						context: {
+							workerId: "w1",
+						},
 					}
 				);
 			});
@@ -249,8 +251,10 @@ describe("WorkerProtocol", () => {
 				expect(mockRegistry.unregister).toHaveBeenCalledWith("w1");
 				expect(onWorkerDisconnect).toHaveBeenCalledWith("w1");
 				expect(logger.info).toHaveBeenCalledWith("Worker disconnected", {
-					workerId: "w1",
-					reason: "shutting down",
+					context: {
+						workerId: "w1",
+						reason: "shutting down",
+					},
 				});
 			});
 
@@ -264,7 +268,9 @@ describe("WorkerProtocol", () => {
 				expect(logger.error).toHaveBeenCalledWith(
 					"Invalid WebSocket message from worker",
 					{
-						error: expect.any(String),
+						context: {
+							error: expect.any(String),
+						},
 					}
 				);
 			});
@@ -283,7 +289,9 @@ describe("WorkerProtocol", () => {
 				expect(logger.error).toHaveBeenCalledWith(
 					"Invalid WebSocket message from worker",
 					{
-						error: "primitive-error",
+						context: {
+							error: "primitive-error",
+						},
 					}
 				);
 			});

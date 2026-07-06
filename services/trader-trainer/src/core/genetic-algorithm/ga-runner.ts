@@ -1,21 +1,14 @@
-import { adaptGAControl } from "./adaptive-control-system";
-import { createDefaultGenome } from "./factory";
 import type {
 	GAControlGenome,
-	Genome,
 	GenomeFitnessMeta,
 	LamarckGenome,
 	MarketStep,
 } from "./genome-types";
 import type { ObjectiveVector } from "./nsga2";
-import { buildPopulationMeta } from "./nsga2";
-import { createOffspring, selectElites } from "./offspring-factory";
-import { evaluateFitness } from "./training-phase";
-import { ParetoArchive } from "./pareto-engine";
-import { makePRNG } from "./prng";
-import { StagnationTracker } from "./stagnation-tracker";
-import type { BackendFactory, RLBackend } from "./rl-backend";
-import { deepFreeze, type DeepReadonly, withGenome } from "./shared-types";
+import type { BackendFactory } from "./rl-backend";
+import { type DeepReadonly } from "./shared-types";
+import { GaPopulationBuilder } from "./ga-population-builder";
+import { GaGenerationRunner } from "./ga-generation-runner";
 
 export interface WindowSet {
 	id: string;
@@ -54,198 +47,29 @@ export interface ParetoFrontContext {
 
 export class GeneticAlgorithmRunner {
 	private _population: DeepReadonly<LamarckGenome>[] = [];
-	private _generation = 0;
-	private _startTime = 0;
-	private _archive = new ParetoArchive();
-	private _stagnationTracker = new StagnationTracker();
+	private _populationBuilder = new GaPopulationBuilder();
+	private _generationRunner: GaGenerationRunner;
 
-	constructor(private readonly _cfg: GARunnerConfig) {}
-
-	public initialise(baseControl?: Partial<GAControlGenome>): void {
-		const ctrl = this._freezeControl(baseControl);
-		this._population = this._createInitialPopulation(ctrl);
-		this._resetState();
-	}
-
-	private _freezeControl(baseControl?: Partial<GAControlGenome>): DeepReadonly<GAControlGenome> {
-		return deepFreeze({
-			...createDefaultGenome("base").gaControl,
-			...baseControl,
-		} as GAControlGenome);
-	}
-
-	private _createInitialPopulation(ctrl: DeepReadonly<GAControlGenome>): DeepReadonly<LamarckGenome>[] {
-		return Array.from(
-			{ length: ctrl.populationSize },
-			(_unused, index) => {
-				const baseGenome = createDefaultGenome(`g0_${index}`, 0) as LamarckGenome;
-				return deepFreeze({
-					...baseGenome,
-					gaControl: ctrl,
-					trainedWeights: undefined,
-				}) as DeepReadonly<LamarckGenome>;
-			}
-		);
-	}
-
-	private _resetState(): void {
-		this._generation = 0;
-		this._startTime = Date.now();
-		this._archive = new ParetoArchive();
-		this._stagnationTracker = new StagnationTracker();
-	}
-
-	public async runGeneration(): Promise<GenerationContext> {
-		const ctrl = this._population[0].gaControl;
-		const rng = makePRNG(ctrl.mutationSeed + this._generation);
-
-		const { updatedPop, objectives, metas } = await this._evaluateFitness();
-		const { popWithMeta, popMeta, avgFit, avgEff } = this._buildParetoFronts({ updatedPop, objectives, metas, rng });
-
-		this._updateArchive(popWithMeta, objectives, popMeta);
-		const newCtrl = this._adaptControl(ctrl);
-
-		this._stagnationTracker.track(popWithMeta, metas, avgEff);
-
-		const ranked = this._sortPopulation(popWithMeta, popMeta);
-		const elites = selectElites(ranked, newCtrl);
-		this._population = this._buildNextPopulation(elites, ranked, newCtrl, ctrl, rng);
-
-		return this._buildContext(newCtrl, avgFit, avgEff);
-	}
-
-	private _adaptControl(ctrl: DeepReadonly<GAControlGenome>): Readonly<GAControlGenome> {
-		return adaptGAControl(
-			ctrl,
-			this._stagnationTracker.efficiencyHistory,
-			this._stagnationTracker.stagnation
-		);
-	}
-
-	private _buildNextPopulation(
-		elites: DeepReadonly<LamarckGenome>[],
-		ranked: Genome[],
-		newCtrl: Readonly<GAControlGenome>,
-		ctrl: DeepReadonly<GAControlGenome>,
-		rng: () => number
-	): DeepReadonly<LamarckGenome>[] {
-		const offspring = createOffspring({ ranked, newCtrl, ctrl, rng, generation: this._generation });
-		return [...elites, ...offspring].slice(0, newCtrl.populationSize);
-	}
-
-	private _buildContext(
-		newCtrl: Readonly<GAControlGenome>,
-		avgFit: number,
-		avgEff: number
-	): GenerationContext {
-		const ctx: GenerationContext = {
-			generation: this._generation,
-			population: this._population,
-			archive: this._archive.members,
-			bestFitness: this._stagnationTracker.bestFitness,
-			bestGenome: this._stagnationTracker.bestGenome as DeepReadonly<LamarckGenome>,
-			avgFitness: avgFit,
-			efficiencyScore: avgEff,
-			elapsedMs: Date.now() - this._startTime,
-			stagnation: this._stagnationTracker.stagnation,
-			gaControl: newCtrl,
-		};
-
-		this._cfg.onGeneration?.(ctx);
-		return ctx;
-	}
-
-	private async _evaluateFitness(): Promise<{
-		updatedPop: DeepReadonly<LamarckGenome>[];
-		objectives: ObjectiveVector[];
-		metas: GenomeFitnessMeta[];
-	}> {
-		const concurrency = this._cfg.evalConcurrency ?? 4;
-
-		return evaluateFitness({
-			population: this._population,
-			windowSets: this._cfg.windowSets,
-			backendFactory: this._cfg.backendFactory,
-			concurrency,
+	constructor(private readonly _cfg: GARunnerConfig) {
+		this._generationRunner = new GaGenerationRunner({
+			windowSets: _cfg.windowSets,
+			backendFactory: _cfg.backendFactory,
+			evalConcurrency: _cfg.evalConcurrency,
+			onGeneration: _cfg.onGeneration,
+			onArchiveUpdate: _cfg.onArchiveUpdate,
 		});
 	}
 
-	private _buildParetoFronts(
-		ctx: ParetoFrontContext
-	): {
-		popWithMeta: DeepReadonly<LamarckGenome>[];
-		popMeta: import("./nsga2").PopulationMeta;
-		avgFit: number;
-		avgEff: number;
-	} {
-		const { updatedPop, objectives, metas, rng } = ctx;
-		const popMeta = buildPopulationMeta(objectives, rng);
-
-		const popWithMeta = updatedPop.map((genome, idx) =>
-			withGenome(genome, {
-				fitness: metas[idx].efficiencyScore,
-				fitnessMeta: metas[idx],
-			} as Partial<LamarckGenome>)
-		);
-
-		const avgFit =
-			popWithMeta.reduce((sum, genome) => sum + (genome.fitness ?? 0), 0) /
-			popWithMeta.length;
-		const avgEff =
-			metas.reduce((sum, meta) => sum + meta.efficiencyScore, 0) / metas.length;
-
-		return { popWithMeta, popMeta, avgFit, avgEff };
+	public initialise(baseControl?: Partial<GAControlGenome>): void {
+		const ctrl = this._populationBuilder.freezeControl(baseControl);
+		this._population = this._populationBuilder.createInitialPopulation(ctrl);
+		this._generationRunner.reset();
 	}
 
-	private _sortPopulation(
-		popWithMeta: DeepReadonly<LamarckGenome>[],
-		popMeta: import("./nsga2").PopulationMeta
-	): Genome[] {
-		const sortedIdx = Array.from(
-			{ length: popWithMeta.length },
-			(_unused, idx) => idx
-		).sort((idxA, idxB) =>
-			popMeta.paretoRank[idxA] === popMeta.paretoRank[idxB]
-				? popMeta.crowdingDist[idxB] - popMeta.crowdingDist[idxA]
-				: popMeta.paretoRank[idxA] - popMeta.paretoRank[idxB]
-		);
-
-		return sortedIdx.map((idx) => popWithMeta[idx] as Genome);
-	}
-
-	private _updateArchive(
-		popWithMeta: DeepReadonly<LamarckGenome>[],
-		objectives: ObjectiveVector[],
-		popMeta: import("./nsga2").PopulationMeta
-	): void {
-		const frontIdx = popMeta.paretoRank.reduce((acc, rank, idx) => {
-			if (rank === 0) {
-				acc.push(idx);
-			}
-			return acc;
-		}, [] as number[]);
-		if (
-			this._archive.update(
-				frontIdx.map((idx) => popWithMeta[idx]),
-				frontIdx.map((idx) => objectives[idx])
-			)
-		) {
-			this._cfg.onArchiveUpdate?.(this._archive.members);
-		}
-	}
-
-	private _shouldStop(ctx: GenerationContext): boolean {
-		const ctrl = ctx.gaControl;
-		return (
-			ctx.bestFitness >= ctrl.rewardThreshold ||
-			ctx.stagnation >= ctrl.stagnationPatience ||
-			ctx.generation >= ctrl.maxGenerations ||
-			ctx.elapsedMs >= ctrl.timeBudgetMs
-		);
-	}
-
-	private _getBestResult(): DeepReadonly<LamarckGenome> {
-		return this._archive.members[0] ?? this._stagnationTracker.bestGenome ?? this._population[0];
+	public async runGeneration(): Promise<GenerationContext> {
+		const ctx = await this._generationRunner.runGeneration(this._population);
+		this._population = ctx.population;
+		return ctx;
 	}
 
 	public async run(): Promise<DeepReadonly<LamarckGenome>> {
@@ -253,24 +77,24 @@ export class GeneticAlgorithmRunner {
 
 		while (true) {
 			const ctx = await this.runGeneration();
-			if (this._shouldStop(ctx)) {
+			if (this._generationRunner.shouldStop(ctx)) {
 				break;
 			}
 		}
 
-		return this._getBestResult();
+		return this._generationRunner.getBestResult(this._population);
 	}
 
 	public getPopulation(): DeepReadonly<LamarckGenome>[] {
 		return this._population;
 	}
 	public getBestGenome(): DeepReadonly<LamarckGenome> | null {
-		return this._stagnationTracker.bestGenome;
+		return this._generationRunner.stagnationTracker.bestGenome;
 	}
 	public getArchive(): DeepReadonly<LamarckGenome>[] {
-		return this._archive.members;
+		return this._generationRunner.archive.members;
 	}
 	public getGeneration(): number {
-		return this._generation;
+		return this._generationRunner.generation;
 	}
 }
