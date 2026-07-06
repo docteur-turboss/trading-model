@@ -15,6 +15,7 @@ import type {
 	MessageMetadata,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
+import { toMessageId } from "@trading-model/common/domain/primitives";
 
 import type { DlqRepository } from "./dlq-repository";
 import { HttpMessageDelivery } from "./http-message-delivery";
@@ -45,7 +46,7 @@ export class Dispatcher {
 			metadata: {
 				...metadata,
 				emittedAt: new Date(),
-				messageId: randomUUID(),
+				messageId: toMessageId(randomUUID()),
 			},
 			payload: sanitizePayload(payload),
 		};

@@ -1,3 +1,4 @@
+import { toInstanceId } from "../domain/primitives";
 import type { WorkerWsHeartbeatMessage } from "../contracts/worker-protocol.types";
 
 export class WorkerHeartbeat {
@@ -40,7 +41,7 @@ export class WorkerHeartbeat {
 		}
 		this._send({
 			type: "heartbeat",
-			workerId: this._workerId,
+			workerId: toInstanceId(this._workerId),
 			currentLoad: this._currentLoad,
 		});
 	}

@@ -9,7 +9,7 @@ import type {
 	WorkerWsHeartbeatMessage,
 	WorkerWsRegisterMessage,
 } from "../contracts/worker-protocol.types";
-import type { IPAddress, Port } from "../domain/primitives";
+import { toInstanceId, type IPAddress, type Port } from "../domain/primitives";
 import { WorkerHeartbeat } from "./worker-heartbeat";
 import { WorkerReconnector } from "./worker-reconnector";
 
@@ -148,7 +148,7 @@ export class WorkerClient {
 	private _sendRegister(): void {
 		const msg: WorkerWsRegisterMessage = {
 			type: "register",
-			workerId: this._cfg.workerId,
+			workerId: toInstanceId(this._cfg.workerId),
 			address: "" as IPAddress,
 			port: 0 as Port,
 			capabilities: this._cfg.capabilities,

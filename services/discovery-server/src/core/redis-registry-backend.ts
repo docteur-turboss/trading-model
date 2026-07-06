@@ -1,4 +1,5 @@
 import { createHmac, randomBytes } from "node:crypto";
+import { toServiceId, type ServiceId } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/common/config/logger";
 import type {
 	RegistryBackend,
@@ -139,10 +140,12 @@ export class RedisRegistryBackend implements RegistryBackend {
 		serviceName,
 		address,
 		port,
-	}: ServiceEndpoint): string {
-		return createHmac("sha256", randomBytes(32).toString("hex"))
-			.update(`${serviceName}-${address}:${port}-${Date.now()}`)
-			.digest("base64");
+	}: ServiceEndpoint): ServiceId {
+		return toServiceId(
+			createHmac("sha256", randomBytes(32).toString("hex"))
+				.update(`${serviceName}-${address}:${port}-${Date.now()}`)
+				.digest("base64")
+		);
 	}
 
 	verifyInstanceName(serviceName: string): boolean {

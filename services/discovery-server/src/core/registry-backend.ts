@@ -1,4 +1,5 @@
 import { createHmac, randomBytes } from "node:crypto";
+import { toServiceId, type ServiceId } from "@trading-model/common/domain/primitives";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -127,10 +128,12 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 		serviceName,
 		address,
 		port,
-	}: ServiceEndpoint): string {
-		return createHmac("sha256", randomBytes(32).toString("hex"))
-			.update(`${serviceName}-${address}:${port}-${Date.now()}`)
-			.digest("base64");
+	}: ServiceEndpoint): ServiceId {
+		return toServiceId(
+			createHmac("sha256", randomBytes(32).toString("hex"))
+				.update(`${serviceName}-${address}:${port}-${Date.now()}`)
+				.digest("base64")
+		);
 	}
 
 	validInstanceToken({ token, instanceId }: TokenValidation): Promise<boolean> {

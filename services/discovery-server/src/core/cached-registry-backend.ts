@@ -1,3 +1,4 @@
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -5,6 +6,7 @@ import type {
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+import { toInstanceId, type ServiceId } from "@trading-model/common/domain/primitives";
 import { BackendPingManager } from "./backend-ping-manager";
 import { CacheManager } from "./cache-manager";
 import { CacheOrchestrator } from "./cache-orchestrator";
@@ -75,11 +77,11 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	async updateToken(instanceId: string): Promise<string> {
-		return await this._backend.updateToken(instanceId);
+		return await this._backend.updateToken(toInstanceId(instanceId));
 	}
 
 	async getInstanceCount(serviceName: string): Promise<number> {
-		const instances = await this._backend.getInstances(serviceName);
+		const instances = await this._backend.getInstances(serviceName as ServiceInstanceName);
 		return instances.length;
 	}
 
@@ -107,7 +109,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	async getServiceVersion(serviceName: string): Promise<number> {
-		const instances = await this._backend.getInstances(serviceName);
+		const instances = await this._backend.getInstances(serviceName as ServiceInstanceName);
 		return instances.reduce((max, inst) => {
 			const major = Number.parseInt((inst.version ?? "").split(".")[0], 10);
 			return Number.isNaN(major) ? max : Math.max(max, major);
@@ -129,18 +131,20 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	generateInstanceToken(instanceId: string): string {
-		return this._backend.generateInstanceToken(instanceId);
+		return this._backend.generateInstanceToken(toInstanceId(instanceId));
 	}
 
 	verifyInstanceName(serviceName: string): boolean {
-		return this._backend.verifyInstanceName(serviceName);
+		return this._backend.verifyInstanceName(serviceName as ServiceInstanceName);
 	}
 
 	generateInstanceId(
 		endpoint: ServiceEndpoint
-	): string {
+	): ServiceId {
 		return this._backend.generateInstanceId(endpoint);
 	}
+
+
 
 	async start(): Promise<void> {
 		this._backend.start();

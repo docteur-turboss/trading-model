@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
 import type { HttpRoute, SignedRequest, SignedRequestAuth } from "@trading-model/common/contracts/signed-request";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import {
 	AppError,
@@ -93,7 +94,7 @@ function addSignature(
 	secretBuf: Buffer
 ): void {
 	const { timestamp, signature } = signRequest({
-		serviceName: "message-manager",
+		serviceName: toServiceId("message-manager"),
 		...route,
 		secretBuf,
 	});

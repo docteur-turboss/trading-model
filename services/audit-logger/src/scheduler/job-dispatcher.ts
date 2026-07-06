@@ -1,11 +1,12 @@
 import { logger } from "@trading-model/common/config/logger";
 import { isTerminalStatus } from "@trading-model/common/contracts/recovery.types";
+import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";
 import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
-import type { WorkerProtocol } from "../worker/worker-protocol";
+import { NullWorkerProtocol, type IWorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
@@ -25,7 +26,7 @@ export class JobDispatcher {
 	private readonly _repository: JobRepository;
 	private readonly _reAllocator: ReAllocator;
 	private readonly _onAckTimeout: (jobId: string) => void;
-	private _workerProtocol: WorkerProtocol | null = null;
+	private _workerProtocol: IWorkerProtocol = new NullWorkerProtocol();
 
 	constructor(deps: JobDispatcherDeps) {
 		this._queue = deps.queue;
@@ -36,7 +37,7 @@ export class JobDispatcher {
 		this._onAckTimeout = (jobId) => this._handleAckTimeout(jobId);
 	}
 
-	setWorkerProtocol(protocol: WorkerProtocol): void {
+	setWorkerProtocol(protocol: IWorkerProtocol): void {
 		this._workerProtocol = protocol;
 	}
 
@@ -96,9 +97,6 @@ export class JobDispatcher {
 	}
 
 	private _sendAssignment(workerId: string, job: Job, deadline: number): void {
-		if (!this._workerProtocol) {
-			return;
-		}
 		this._workerProtocol.sendToWorker(workerId, {
 			type: "job.assigned",
 			job: {
@@ -129,7 +127,7 @@ export class JobDispatcher {
 	): void {
 		this._repository
 			.updateStatus(jobId, "assigned", {
-				assignedWorkerId,
+				assignedWorkerId: toInstanceId(assignedWorkerId),
 				ackDeadline: deadline,
 			})
 			.catch((err) => {

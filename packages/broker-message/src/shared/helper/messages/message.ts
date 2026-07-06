@@ -1,3 +1,4 @@
+import { toCorrelationId, toTopic, type CorrelationId, type Topic } from "@trading-model/common/domain/primitives";
 import type {
 	DeliveryType,
 	MessageMetadata as MetadataType,
@@ -23,15 +24,15 @@ import {
  * Represents an metadata in a message
  */
 export class MessageMetadata {
-	public topic?: string;
+	public topic?: Topic;
 	public routing?: RoutingType;
 	public delivery?: DeliveryType;
 	public security?: SecurityType;
 	public eventType?: string;
 	public publisher?: ServiceIdentity;
 	public schemaVersion = "1.0.0";
-	private _causationId?: string;
-	private _correlationId?: string;
+	private _causationId?: CorrelationId;
+	private _correlationId?: CorrelationId;
 
 	public constructor(data: Partial<MetadataType> = {}) {
 		MESSAGE_METADATA_SCHEMA.partial().parse(data);
@@ -148,7 +149,7 @@ export class MessageMetadata {
 		// Data assertions
 		TOPIC_METADATA_PREDICATE.parse(topic);
 
-		this.topic = topic;
+		this.topic = toTopic(topic);
 		return this;
 	}
 
@@ -170,12 +171,12 @@ export class MessageMetadata {
 		// Data assertions
 		if (context.causationId) {
 			IDS_METADATA_PREDICATE.parse(context?.causationId);
-			this._causationId = context.causationId;
+			this._causationId = toCorrelationId(context.causationId);
 		}
 
 		if (context.correlationId) {
 			IDS_METADATA_PREDICATE.parse(context?.correlationId);
-			this._correlationId = context.correlationId;
+			this._correlationId = toCorrelationId(context.correlationId);
 		}
 
 		return this;

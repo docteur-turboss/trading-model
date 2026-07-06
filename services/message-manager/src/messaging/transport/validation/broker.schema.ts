@@ -22,6 +22,7 @@
 
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { toCorrelationId, toMessageId, toTopic } from "@trading-model/common/domain/primitives";
 import { z } from "zod";
 
 /**
@@ -70,17 +71,17 @@ export const UNSUBSCRIBE_SCHEMA = z.object({
  * Schema for the metadata portion of published messages
  */
 export const PUBLISH_METADATA_SCHEMA = z.object({
-	correlationId: z.string().optional(),
+	correlationId: z.string().optional().transform((v) => (v ? toCorrelationId(v) : undefined)),
 	schemaVersion: z.string().min(1),
-	causationId: z.string().optional(),
+	causationId: z.string().optional().transform((v) => (v ? toCorrelationId(v) : undefined)),
 	eventType: z.string().min(1),
-	topic: TOPIC_SCHEMA,
+	topic: TOPIC_SCHEMA.transform(toTopic),
 
 	publisher: IDENTIFY_SCHEMA,
 
 	routing: z
 		.object({
-			partitionKey: z.string().optional(),
+			partitionKey: z.string().optional().transform((v) => (v ? toCorrelationId(v) : undefined)),
 			priority: z.number().int().optional(),
 		})
 		.optional(),
@@ -91,7 +92,7 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 				Object.values(DeliveryMode) as [DeliveryMode, ...DeliveryMode[]]
 			),
 			ttl: z.number().int().positive().optional(),
-			deduplicationId: z.string().optional(),
+			deduplicationId: z.string().optional().transform((v) => (v ? toMessageId(v) : undefined)),
 		})
 		.optional(),
 

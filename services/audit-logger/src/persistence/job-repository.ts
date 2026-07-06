@@ -1,3 +1,4 @@
+import type { InstanceId, JobId } from "@trading-model/common/domain/primitives";
 import {
 	isTerminalStatus,
 	type Job,
@@ -54,12 +55,12 @@ function toDocument(job: Job): JobDocument {
 
 function _buildJobBase(doc: JobDocument): Job {
 	return {
-		id: doc.jobId,
+		id: doc.jobId as JobId,
 		type: doc.type,
 		payload: doc.payload as Job["payload"],
 		priority: doc.priority as JobPriority,
 		status: doc.status,
-		assignedWorkerId: doc.assignedWorkerId,
+		assignedWorkerId: doc.assignedWorkerId as InstanceId | undefined,
 		ackDeadline: doc.ackDeadline,
 		maxRetries: doc.maxRetries,
 		retryCount: doc.retryCount,

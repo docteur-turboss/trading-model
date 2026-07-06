@@ -1,3 +1,8 @@
+import {
+	toCorrelationId,
+	toServiceId,
+	toTopic,
+} from "@trading-model/common/domain/primitives";
 import { DateRange } from "@trading-model/common/domain/date-range";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
@@ -18,9 +23,9 @@ function _buildAuditEventQuery(
 	const dateRange = DateRange.fromQueryParams(startDate, endDate);
 
 	return {
-		topic,
-		publisher,
-		correlationId,
+		topic: topic ? toTopic(topic) : undefined,
+		publisher: publisher ? toServiceId(publisher) : undefined,
+		correlationId: correlationId ? toCorrelationId(correlationId) : undefined,
 		dateRange,
 		page: page ? Number.parseInt(page, 10) : undefined,
 		limit: limit ? Number.parseInt(limit, 10) : undefined,

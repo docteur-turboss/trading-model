@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 
 import { logger } from "@trading-model/common/config/logger";
+import type { JobId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
 import { ReAllocator } from "../recovery/re-allocator";
 import type { Job, JobPriority, JobStatus } from "../types/job.types";
-import type { WorkerProtocol } from "../worker/worker-protocol";
+import { NullWorkerProtocol, type IWorkerProtocol } from "../worker/worker-protocol";
 import { WorkerRegistry } from "../worker/worker-registry";
 import { BackPressure } from "./back-pressure";
 import { InternalQueue } from "./internal-queue";
@@ -121,7 +122,7 @@ export class JobScheduler {
 	readonly orphanDetector: OrphanDetector;
 	private readonly _assignmentManager: JobAssignmentManager;
 	private readonly _failureHandler: JobFailureHandler;
-	private _workerProtocol: WorkerProtocol | null = null;
+	private _workerProtocol: IWorkerProtocol = new NullWorkerProtocol();
 
 	constructor(repository: JobRepository) {
 		this.queue = _createInternalQueue();
@@ -148,7 +149,7 @@ export class JobScheduler {
 		);
 	}
 
-	setWorkerProtocol(protocol: WorkerProtocol): void {
+	setWorkerProtocol(protocol: IWorkerProtocol): void {
 		this._workerProtocol = protocol;
 		this._assignmentManager.setWorkerProtocol(protocol);
 	}
@@ -171,7 +172,7 @@ export class JobScheduler {
 		const now = new Date();
 
 		const job: Job = {
-			id: jobId,
+			id: jobId as JobId,
 			type,
 			payload,
 			priority,
@@ -274,9 +275,7 @@ export class JobScheduler {
 	stop(): void {
 		this.orphanDetector.stop();
 		this.queue.stop();
-		if (this._workerProtocol) {
-			this._workerProtocol.close();
-		}
+		this._workerProtocol.close();
 
 		logger.info("Audit job scheduler stopped");
 	}

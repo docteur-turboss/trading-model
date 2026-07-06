@@ -1,10 +1,11 @@
+import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/common/config/logger";
 
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { Job } from "../types/job.types";
 import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
-import type { WorkerProtocol } from "../worker/worker-protocol";
+import { NullWorkerProtocol, type IWorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
@@ -21,7 +22,7 @@ export class JobAssignmentManager {
 	private readonly _backPressure: BackPressure;
 	private readonly _workers: WorkerRegistry;
 	private readonly _repository: JobRepository;
-	private _workerProtocol: WorkerProtocol | null = null;
+	private _workerProtocol: IWorkerProtocol = new NullWorkerProtocol();
 
 	constructor(deps: JobAssignmentManagerDeps) {
 		this._queue = deps.queue;
@@ -30,7 +31,7 @@ export class JobAssignmentManager {
 		this._repository = deps.repository;
 	}
 
-	setWorkerProtocol(protocol: WorkerProtocol): void {
+	setWorkerProtocol(protocol: IWorkerProtocol): void {
 		this._workerProtocol = protocol;
 	}
 
@@ -73,31 +74,17 @@ export class JobAssignmentManager {
 	}
 
 	sendAssignment(workerId: string, job: Job, deadline: number): void {
-		if (!this._workerProtocol) {
-			return;
-		}
-		_sendAssignmentMessage(this._workerProtocol, workerId, job, deadline);
+		this._workerProtocol.sendToWorker(workerId, {
+			type: "job.assigned",
+			job: {
+				id: job.id,
+				type: job.type,
+				payload: job.payload,
+				ackDeadline: deadline,
+			},
+		});
 	}
-}
 
-function _sendAssignmentMessage(
-	protocol: NonNullable<JobAssignmentManager["_workerProtocol"]>,
-	workerId: string,
-	job: Job,
-	deadline: number
-): void {
-	protocol.sendToWorker(workerId, {
-		type: "job.assigned",
-		job: {
-			id: job.id,
-			type: job.type,
-			payload: job.payload,
-			ackDeadline: deadline,
-		},
-	});
-}
-
-export class JobAssignmentManager {
 	private _assignJob(
 		queued: { job: Job },
 		worker: Pick<WorkerRegistration, "workerId" | "currentLoad" | "maxConcurrency">
@@ -130,7 +117,7 @@ export class JobAssignmentManager {
 	): void {
 		this._repository
 			.updateStatus(jobId, "assigned", {
-				assignedWorkerId,
+				assignedWorkerId: toInstanceId(assignedWorkerId),
 				ackDeadline: deadline,
 			})
 			.catch((err) => {
