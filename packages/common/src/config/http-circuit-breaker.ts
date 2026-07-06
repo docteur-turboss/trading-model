@@ -1,27 +1,20 @@
+import { CircuitBreaker } from "../reliability/circuit-breaker";
 import type { CircuitState } from "../domain/circuit-state";
 import { HttpClientError } from "./http-client-errors";
+
+const HOSTNAME_CIRCUIT = new CircuitBreaker({
+	failureThreshold: 5,
+	cooldownMs: 30_000,
+});
+
+const DEFAULT_SERVICE_CB_THRESHOLD = 5;
+
+const SERVICE_CIRCUIT_BREAKERS = new Map<string, CircuitBreakerEntry>();
 
 interface CircuitBreakerEntry {
 	failures: number;
 	state: CircuitState;
 	lastFailureTime: number;
-}
-
-const CIRCUIT_BREAKER_THRESHOLD = 5;
-const CIRCUIT_COOLDOWN_MS = 30_000;
-
-const HOSTNAME_CIRCUIT_BREAKERS = new Map<string, CircuitBreakerEntry>();
-const DEFAULT_SERVICE_CB_THRESHOLD = 5;
-const SERVICE_CIRCUIT_COOLDOWN_MS = 30_000;
-const SERVICE_CIRCUIT_BREAKERS = new Map<string, CircuitBreakerEntry>();
-
-function getHostnameEntry(hostname: string): CircuitBreakerEntry {
-	let entry = HOSTNAME_CIRCUIT_BREAKERS.get(hostname);
-	if (!entry) {
-		entry = { failures: 0, state: "closed", lastFailureTime: 0 };
-		HOSTNAME_CIRCUIT_BREAKERS.set(hostname, entry);
-	}
-	return entry;
 }
 
 function getServiceEntry(serviceName: string): CircuitBreakerEntry {
@@ -41,35 +34,24 @@ function getServiceThreshold(instanceCount?: number): number {
 }
 
 export function checkHostnameCircuit(hostname: string): void {
-	const entry = getHostnameEntry(hostname);
-	if (entry.state === "open") {
-		if (Date.now() - entry.lastFailureTime >= CIRCUIT_COOLDOWN_MS) {
-			entry.state = "half-open";
-			return;
-		}
+	const state = HOSTNAME_CIRCUIT.check(hostname);
+	if (state === "open") {
 		throw new HttpClientError(`Circuit breaker open for ${hostname}`, 503);
 	}
 }
 
 export function recordHostnameSuccess(hostname: string): void {
-	const entry = getHostnameEntry(hostname);
-	entry.failures = 0;
-	entry.state = "closed";
+	HOSTNAME_CIRCUIT.recordSuccess(hostname);
 }
 
 export function recordHostnameFailure(hostname: string): void {
-	const entry = getHostnameEntry(hostname);
-	entry.failures++;
-	entry.lastFailureTime = Date.now();
-	if (entry.failures >= CIRCUIT_BREAKER_THRESHOLD) {
-		entry.state = "open";
-	}
+	HOSTNAME_CIRCUIT.recordFailure(hostname);
 }
 
 export function checkServiceCircuit(serviceName: string): void {
 	const entry = getServiceEntry(serviceName);
 	if (entry.state === "open") {
-		if (Date.now() - entry.lastFailureTime >= SERVICE_CIRCUIT_COOLDOWN_MS) {
+		if (Date.now() - entry.lastFailureTime >= 30_000) {
 			entry.state = "half-open";
 			return;
 		}
@@ -105,7 +87,7 @@ export function isServiceCircuitOpen(serviceName: string): boolean {
 		return false;
 	}
 	if (entry.state === "open") {
-		if (Date.now() - entry.lastFailureTime >= SERVICE_CIRCUIT_COOLDOWN_MS) {
+		if (Date.now() - entry.lastFailureTime >= 30_000) {
 			entry.state = "half-open";
 			return false;
 		}
