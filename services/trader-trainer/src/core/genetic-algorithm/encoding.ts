@@ -216,22 +216,25 @@ function decodeScalars(vec: Float32Array) {
 	};
 }
 
+function _decodeSingleLayer(
+	vec: Float32Array,
+	base: number,
+	biasType: Genome["network"]["hiddenLayers"][number]["biasType"]
+): Genome["network"]["hiddenLayers"][number] {
+	return {
+		neurons: clamp(Math.round(vec[base] * 512), 1, 512),
+		activation: ACTIVATIONS[argmax(vec, base + 1, N_ACT)],
+		connectionType: CONNECTION_TYPES[argmax(vec, base + 1 + N_ACT, N_CT)],
+		biasType,
+	};
+}
+
 function decodeLayers(vec: Float32Array, depth: number, template: Genome) {
 	const hiddenLayers: Genome["network"]["hiddenLayers"] = [];
-	const layerOffset = SCALAR_DIM;
 
 	for (let i = 0; i < depth; i++) {
-		const base = layerOffset + i * LAYER_DIM;
-		const neurons = clamp(Math.round(vec[base] * 512), 1, 512);
-		const actIdx = argmax(vec, base + 1, N_ACT);
-		const ctIdx = argmax(vec, base + 1 + N_ACT, N_CT);
-
-		hiddenLayers.push({
-			neurons,
-			activation: ACTIVATIONS[actIdx],
-			connectionType: CONNECTION_TYPES[ctIdx],
-			biasType: template.network.hiddenLayers[i]?.biasType ?? "zeros",
-		});
+		const biasType = template.network.hiddenLayers[i]?.biasType ?? "zeros";
+		hiddenLayers.push(_decodeSingleLayer(vec, SCALAR_DIM + i * LAYER_DIM, biasType));
 	}
 	return hiddenLayers;
 }

@@ -152,23 +152,22 @@ export class StreamGroupManager {
 	async getStreamLag(topic: string, groupName: string): Promise<number> {
 		try {
 			const redis = await getStreamClient();
-			const info = (await redis.call(
-				"XINFO",
-				"GROUPS",
-				this._streamKey(topic)
-			)) as unknown[];
-			for (const raw of info) {
-				const group = raw as unknown[];
-				if (String(group[1]) === groupName) {
-					const lastDelivered = String(group[5] ?? "0-0");
-					const lastTimestamp =
-						Number.parseInt(lastDelivered.split("-")[0], 10) || 0;
-					return Date.now() - lastTimestamp;
-				}
-			}
-			return 0;
+			const info = (await redis.call("XINFO", "GROUPS", this._streamKey(topic))) as unknown[];
+			return computeLag(info as Array<unknown[]>, groupName);
 		} catch {
 			return 0;
 		}
 	}
+}
+
+function computeLag(groups: unknown[][], groupName: string): number {
+	for (const group of groups) {
+		if (String(group[1]) === groupName) {
+			const lastDelivered = String(group[5] ?? "0-0");
+			const lastTimestamp = Number.parseInt(lastDelivered.split("-")[0], 10) || 0;
+			return Date.now() - lastTimestamp;
+		}
+	}
+	return 0;
+}
 }

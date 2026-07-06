@@ -51,29 +51,22 @@ function _createHeartbeatHandler(registry: ServiceRegistry): RequestHandler {
 	});
 }
 
+function _parseRotateBody(req: import("express").Request): string | null {
+	const parsed = ROTATE_TOKEN_SCHEMA.safeParse(req.body);
+	if (!parsed.success) {
+		return null;
+	}
+	return parsed.data.instanceId;
+}
+
 function _createRotateTokenHandler(registry: ServiceRegistry): RequestHandler {
 	return catchSync((req) => {
-		const parsed = ROTATE_TOKEN_SCHEMA.safeParse(req.body);
-		if (!parsed.success) {
-			return sendResponse(
-				{
-					error: "Invalid request body",
-					details: parsed.error.flatten().fieldErrors,
-				},
-				400
-			);
+		const instanceId = _parseRotateBody(req);
+		if (!instanceId) {
+			return sendResponse({ error: "Invalid request body", details: ROTATE_TOKEN_SCHEMA.safeParse(req.body).error!.flatten().fieldErrors }, 400);
 		}
-
-		const { instanceId } = parsed.data;
-
-		validateInstanceToken(
-			registry,
-			req.headers["x-instance-token"],
-			instanceId
-		);
-
+		validateInstanceToken(registry, req.headers["x-instance-token"], instanceId);
 		const newToken = registry.updateToken(instanceId);
-
 		return sendResponse({ token: newToken }, 200);
 	});
 }

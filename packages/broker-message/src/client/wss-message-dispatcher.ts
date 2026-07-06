@@ -20,30 +20,38 @@ export class WssMessageDispatcher {
 		this._messageHandler = handler;
 	}
 
+	private _onMessage(msg: Record<string, unknown>): void {
+		if (!msg.topic) {
+			return;
+		}
+		const message = msg.message as
+			| { payload?: unknown; metadata?: MessageMetadata }
+			| undefined;
+		this._messageHandler?.(
+			msg.topic as string,
+			message?.payload,
+			message?.metadata as MessageMetadata,
+		);
+	}
+
+	private _onConnected(msg: Record<string, unknown>): void {
+		logger.info("WSS handshake complete", { brokerInstance: msg.instanceId });
+	}
+
+	private _onSubscribed(msg: Record<string, unknown>): void {
+		logger.info("WSS topics subscribed", { topics: msg.topics });
+	}
+
+	private _onError(msg: Record<string, unknown>): void {
+		logger.warn("WSS server error", { message: msg.message });
+	}
+
 	private _buildHandlers(): Record<string, (msg: Record<string, unknown>) => void> {
 		return {
-			message: (msg) => {
-				if (!msg.topic) return;
-				const message = msg.message as
-					| { payload?: unknown; metadata?: MessageMetadata }
-					| undefined;
-				this._messageHandler?.(
-					msg.topic as string,
-					message?.payload,
-					message?.metadata as MessageMetadata
-				);
-			},
-			connected: (msg) => {
-				logger.info("WSS handshake complete", {
-					brokerInstance: msg.instanceId,
-				});
-			},
-			subscribed: (msg) => {
-				logger.info("WSS topics subscribed", { topics: msg.topics });
-			},
-			error: (msg) => {
-				logger.warn("WSS server error", { message: msg.message });
-			},
+			message: (msg) => this._onMessage(msg),
+			connected: (msg) => this._onConnected(msg),
+			subscribed: (msg) => this._onSubscribed(msg),
+			error: (msg) => this._onError(msg),
 		};
 	}
 

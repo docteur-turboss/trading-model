@@ -1,6 +1,8 @@
 import type { z } from "zod";
 
 import type { TlsPaths } from "../domain/tls-paths";
+import { isServiceCircuitOpen } from "./http-circuit-breaker";
+import { HttpClientError, HttpClientTimeoutError } from "./http-client-errors";
 import { HttpTlsLoader } from "./http-tls-loader";
 import { HttpRequestExecutor } from "./http-request-executor";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";

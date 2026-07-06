@@ -232,25 +232,36 @@ function _trackLimiter(
 	}
 }
 
-export const DlqRoutes = (): Router => {
-	const router = Router();
-
-	const replayLimiter = createDlqRateLimiter({
+function _createReplayLimiter(): ReturnType<typeof rateLimit> {
+	return createDlqRateLimiter({
 		windowMs: 60_000,
 		max: 10,
 		message: { error: "Too many replay requests, try again later" },
 	});
-	const writeLimiter = createDlqRateLimiter({
+}
+
+function _createWriteLimiter(): ReturnType<typeof rateLimit> {
+	return createDlqRateLimiter({
 		windowMs: 1000,
 		max: 100,
 		message: { error: "Too many DLQ write requests, try again later" },
 	});
-	const healthLimiter = createDlqRateLimiter({
+}
+
+function _createHealthLimiter(): ReturnType<typeof rateLimit> {
+	return createDlqRateLimiter({
 		windowMs: 60_000,
 		max: 60,
 		message: { error: "Too many health check requests" },
 	});
+}
 
+function _registerDlqRoutes(
+	router: Router,
+	replayLimiter: ReturnType<typeof rateLimit>,
+	writeLimiter: ReturnType<typeof rateLimit>,
+	healthLimiter: ReturnType<typeof rateLimit>
+): void {
 	router.post("/dlq", serviceAuth, writeLimiter, AddEntry);
 	router.get("/dlq", serviceAuth, ListEntries);
 	router.delete("/dlq", serviceAuth, writeLimiter, DeleteEntries);
@@ -258,6 +269,17 @@ export const DlqRoutes = (): Router => {
 	router.get("/health", healthLimiter, HealthCheck);
 	router.get("/health/ready", healthLimiter, ReadyCheck);
 	router.get("/metrics", metricsHandler);
+}
+
+export const DlqRoutes = (): Router => {
+	const router = Router();
+
+	_registerDlqRoutes(
+		router,
+		_createReplayLimiter(),
+		_createWriteLimiter(),
+		_createHealthLimiter()
+	);
 
 	return router;
 };
