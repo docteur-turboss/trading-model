@@ -197,24 +197,29 @@ export class WorkerClient extends EventEmitter {
 		}
 	}
 
-	private _scheduleReconnect(): void {
-		const delay = Math.min(
+	private _computeReconnectDelay(): number {
+		return Math.min(
 			this._cfg.reconnectBaseDelayMs * 2 ** this._reconnectAttempt,
-			this._cfg.reconnectMaxDelayMs
+			this._cfg.reconnectMaxDelayMs,
 		);
+	}
+
+	private _scheduleReconnect(): void {
+		const delay = this._computeReconnectDelay();
 		this._reconnectAttempt++;
 		this.emit("reconnecting", { attempt: this._reconnectAttempt, delay });
+		this._reconnectTimer = setTimeout(
+			() => this._doReconnect(),
+			delay,
+		);
+	}
 
-		this._reconnectTimer = setTimeout(() => {
-			this._doConnect().catch((err) =>
-				logger.warn("Failed to reconnect worker client", {
-					context: {
-						attempt: this._reconnectAttempt,
-						err: normalizeError(err),
-					},
-				})
-			);
-		}, delay);
+	private _doReconnect(): void {
+		this._doConnect().catch((err) =>
+			logger.warn("Failed to reconnect worker client", {
+				context: { attempt: this._reconnectAttempt, err: normalizeError(err) },
+			}),
+		);
 	}
 
 	send(data: SchedulerOutgoingMessage | WorkerIncomingMessage): void {

@@ -38,24 +38,23 @@ export class BaseWorker {
 	private readonly _boundOnDrain: () => void;
 
 	constructor(protected readonly config: BaseWorkerConfig) {
-		const workerId =
-			config.workerId ?? `${this.constructor.name}-${randomUUID().slice(0, 8)}`;
-
-		const clientConfig: WorkerClientConfig = {
-			workerId,
-			serverUrl: config.serverUrl,
-			capabilities: config.capabilities,
-			maxConcurrency: config.maxConcurrency,
-			heartbeatIntervalMs: config.heartbeatIntervalMs,
-		};
-
-		this.client = new WorkerClient(clientConfig);
+		const workerId = config.workerId ?? `${this.constructor.name}-${randomUUID().slice(0, 8)}`;
+		this.client = new WorkerClient(this._buildClientConfig(workerId));
 		this.httpClient = new HttpClient(config.tlsConfig);
-
 		this._boundOnJobAssigned = this._onJobAssigned.bind(this);
 		this._boundOnDrain = this._onDrain.bind(this);
 		this.client.on("job.assigned", this._boundOnJobAssigned);
 		this.client.on("drain", this._boundOnDrain);
+	}
+
+	private _buildClientConfig(workerId: string): WorkerClientConfig {
+		return {
+			workerId,
+			serverUrl: this.config.serverUrl,
+			capabilities: this.config.capabilities,
+			maxConcurrency: this.config.maxConcurrency,
+			heartbeatIntervalMs: this.config.heartbeatIntervalMs,
+		};
 	}
 
 	registerHandler<TPayload = unknown>(

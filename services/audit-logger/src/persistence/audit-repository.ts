@@ -165,7 +165,7 @@ export class AuditRepository {
 	}
 }
 
-async function _aggregateByField(
+function _aggregateByField(
 	col: import("mongodb").Collection<AuditEventDocument>,
 	field: string
 ): Promise<Array<{ [key: string]: string } & { count: number }>> {
@@ -181,7 +181,7 @@ async function _aggregateByField(
 		.toArray();
 }
 
-async function _aggregateDateRange(
+function _aggregateDateRange(
 	col: import("mongodb").Collection<AuditEventDocument>
 ): Promise<Array<{ earliest: Date | null; latest: Date | null }>> {
 	return col
