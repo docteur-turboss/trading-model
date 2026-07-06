@@ -1,16 +1,13 @@
 import {
 	isTerminalStatus,
 	type Job,
+	type JobEvent,
 	type JobPriority,
 	type JobStatus,
+	type JobUpdateExtras,
 } from "@trading-model/common/contracts/recovery.types";
 import type { Collection, Db } from "mongodb";
 
-const MSET = "$set";
-const MPUSH = "$push";
-const MINC = "$inc";
-const MNIN = "$nin";
-const MIN = "$in";
 const COLLECTION = "audit_jobs";
 
 interface JobDocument {
@@ -28,12 +25,7 @@ interface JobDocument {
 	completedAt?: Date;
 	result?: unknown;
 	error?: string;
-	history: Array<{
-		fromStatus: JobStatus;
-		toStatus: JobStatus;
-		timestamp: Date;
-		reason: string;
-	}>;
+	history: JobEvent[];
 }
 
 function _buildJobDocumentBase(job: Job): JobDocument {
@@ -84,12 +76,7 @@ function fromDocument(doc: JobDocument): Job {
 	return _buildJobBase(doc);
 }
 
-function _mapHistoryEntry(entry: {
-	fromStatus: string;
-	toStatus: string;
-	timestamp: Date;
-	reason: string;
-}): { fromStatus: string; toStatus: string; timestamp: Date; reason: string } {
+function _mapHistoryEntry(entry: JobEvent): JobEvent {
 	return {
 		fromStatus: entry.fromStatus,
 		toStatus: entry.toStatus,
@@ -127,9 +114,7 @@ export class JobRepository {
 	async updateStatus(
 		jobId: string,
 		status: JobStatus,
-		extras?: Partial<
-			Pick<Job, "result" | "error" | "assignedWorkerId" | "ackDeadline">
-		>
+		extras?: JobUpdateExtras
 	): Promise<void> {
 		const current = await this._collection.findOne({ jobId });
 		if (!current) {
@@ -157,8 +142,8 @@ export class JobRepository {
 		await this._collection.updateOne(
 			{ jobId },
 			{
-				[MSET]: updateSet,
-				[MPUSH]: {
+				$set: updateSet,
+				$push: {
 					history: {
 						fromStatus: current.status,
 						toStatus: status,
@@ -171,19 +156,19 @@ export class JobRepository {
 	}
 
 	async incrementRetry(jobId: string): Promise<void> {
-		await this._collection.updateOne({ jobId }, { [MINC]: { retryCount: 1 } });
+		await this._collection.updateOne({ jobId }, { $inc: { retryCount: 1 } });
 	}
 
 	async findNonTerminal(): Promise<Job[]> {
 		const docs = await this._collection
-			.find({ status: { [MNIN]: ["completed", "failed", "cancelled"] } })
+			.find({ status: { $nin: ["completed", "failed", "cancelled"] } })
 			.toArray();
 		return docs.map(fromDocument);
 	}
 
 	async findByWorker(workerId: string, statuses: JobStatus[]): Promise<Job[]> {
 		const docs = await this._collection
-			.find({ assignedWorkerId: workerId, status: { [MIN]: statuses } })
+			.find({ assignedWorkerId: workerId, status: { $in: statuses } })
 			.toArray();
 		return docs.map(fromDocument);
 	}

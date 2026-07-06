@@ -1,3 +1,4 @@
+import type { AuditFilter } from "@trading-model/common/contracts/admin/audit.dto";
 import type { DateRange } from "@trading-model/common/domain/date-range";
 import {
 	computePagination,
@@ -20,10 +21,7 @@ export interface AuditEventDocument {
 	payload: unknown;
 }
 
-export interface AuditEventQuery extends PaginationQuery {
-	topic?: string;
-	publisher?: string;
-	correlationId?: string;
+export interface AuditEventQuery extends PaginationQuery, AuditFilter {
 	dateRange?: DateRange;
 }
 
@@ -36,14 +34,6 @@ export interface AuditStats {
 		latest: Date | null;
 	};
 }
-
-const MGROUP = "$group";
-const MSUM = "$sum";
-const MMIN = "$min";
-const MMAX = "$max";
-const MID = "_id";
-const MGTE = "$gte";
-const MLTE = "$lte";
 
 const COLLECTION = "audit_events";
 
@@ -108,13 +98,14 @@ export class AuditRepository {
 			filter["metadata.correlationId"] = query.correlationId;
 		}
 		if (query.dateRange) {
-			filter.receivedAt = {};
+			const rangeFilter: { $gte?: Date; $lte?: Date } = {};
 			if (query.dateRange.start) {
-				filter.receivedAt[MGTE] = query.dateRange.start;
+				rangeFilter.$gte = query.dateRange.start;
 			}
 			if (query.dateRange.end) {
-				filter.receivedAt[MLTE] = query.dateRange.end;
+				rangeFilter.$lte = query.dateRange.end;
 			}
+			filter.receivedAt = rangeFilter;
 		}
 
 		const [data, total] = await Promise.all([
@@ -158,13 +149,13 @@ export class AuditRepository {
 function _aggregateByField(
 	col: import("mongodb").Collection<AuditEventDocument>,
 	field: string
-): Promise<Array<{ [key: string]: string } & { count: number }>> {
+): Promise<Array<{ _id: string } & { count: number }>> {
 	return col
-		.aggregate<Record<typeof MID, string> & { count: number }>([
+		.aggregate<{ _id: string; count: number }>([
 			{
-				[MGROUP]: {
-					[MID]: `$metadata.${field}`,
-					count: { [MSUM]: 1 },
+				$group: {
+					_id: `$metadata.${field}`,
+					count: { $sum: 1 },
 				},
 			},
 		])
@@ -177,10 +168,10 @@ function _aggregateDateRange(
 	return col
 		.aggregate<{ earliest: Date | null; latest: Date | null }>([
 			{
-				[MGROUP]: {
-					[MID]: null,
-					earliest: { [MMIN]: "$receivedAt" },
-					latest: { [MMAX]: "$receivedAt" },
+				$group: {
+					_id: null,
+					earliest: { $min: "$receivedAt" },
+					latest: { $max: "$receivedAt" },
 				},
 			},
 		])
@@ -188,7 +179,7 @@ function _aggregateDateRange(
 }
 
 function _toMap(
-	items: Array<{ [key: string]: string } & { count: number }>
+	items: Array<{ _id: string } & { count: number }>
 ): Record<string, number> {
-	return Object.fromEntries(items.map((item) => [item[MID], item.count]));
+	return Object.fromEntries(items.map((item) => [item._id, item.count]));
 }

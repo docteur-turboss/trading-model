@@ -3,6 +3,7 @@ import { logger } from "@trading-model/common/config/logger";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { Job } from "../types/job.types";
+import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
 import type { WorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
@@ -48,11 +49,7 @@ export class JobAssignmentManager {
 		this._assignJob(queued, worker);
 	}
 
-	incrementWorkerLoad(worker: {
-		workerId: string;
-		currentLoad: number;
-		maxConcurrency: number;
-	}): void {
+	incrementWorkerLoad(worker: Pick<WorkerRegistration, "workerId" | "currentLoad" | "maxConcurrency">): void {
 		worker.currentLoad += 1;
 		this._backPressure.updateWorkerLoad(
 			worker.workerId,
@@ -103,7 +100,7 @@ function _sendAssignmentMessage(
 export class JobAssignmentManager {
 	private _assignJob(
 		queued: { job: Job },
-		worker: { workerId: string; currentLoad: number; maxConcurrency: number }
+		worker: Pick<WorkerRegistration, "workerId" | "currentLoad" | "maxConcurrency">
 	): void {
 		const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
 		const assignedJob: Job = {

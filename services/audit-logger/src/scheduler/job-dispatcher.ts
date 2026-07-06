@@ -4,6 +4,7 @@ import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";
+import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
 import type { WorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
@@ -41,7 +42,7 @@ export class JobDispatcher {
 
 	assignJob(
 		queued: { job: Job },
-		worker: { workerId: string; currentLoad: number; maxConcurrency: number }
+		worker: Pick<WorkerRegistration, "workerId" | "currentLoad" | "maxConcurrency">
 	): void {
 		const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
 		const assignedJob: Job = {
