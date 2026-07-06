@@ -1,4 +1,5 @@
 import type { CircuitState } from "../domain/circuit-state";
+import type { ICircuitBreaker } from "./circuit-breaker.interface";
 
 export type { CircuitState };
 
@@ -22,7 +23,7 @@ const DEFAULT_CONFIG: CircuitBreakerConfig = {
  * Generic circuit breaker tracking success/failure for a keyed resource.
  * Each resource (e.g., hostname, service name) has its own entry.
  */
-export class CircuitBreaker {
+export class CircuitBreaker implements ICircuitBreaker {
 	private readonly _entries = new Map<string, CircuitBreakerEntry>();
 	private readonly _config: CircuitBreakerConfig;
 

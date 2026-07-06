@@ -1,4 +1,5 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
+import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 
 import { type IServiceCache, NullServiceCache } from "./service-cache.interface";
 import { CircuitBreakerState } from "./circuit-breaker-state";
@@ -18,7 +19,7 @@ export interface CircuitBreakerOptions {
 	latencyP99ThresholdMs?: number;
 }
 
-export class CircuitBreaker {
+export class CircuitBreaker implements ICircuitBreaker {
 	private readonly _state: CircuitBreakerState;
 	private readonly _latency: CircuitBreakerLatency;
 	private readonly _persistence: CircuitBreakerPersistence;
