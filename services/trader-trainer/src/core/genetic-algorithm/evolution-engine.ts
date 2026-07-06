@@ -45,6 +45,28 @@ export function mutateWeights(
 	return out;
 }
 
+function _tournamentSelect(
+	population: Genome[],
+	rng: () => number,
+	tournamentSize: number
+): Genome {
+	let best = population[Math.floor(rng() * population.length)];
+	for (let i = 1; i < tournamentSize; i++) {
+		const cand = population[Math.floor(rng() * population.length)];
+		if ((cand.fitness ?? Number.NEGATIVE_INFINITY) > (best.fitness ?? Number.NEGATIVE_INFINITY)) {
+			best = cand;
+		}
+	}
+	return best;
+}
+
+function _randomSelect(
+	population: Genome[],
+	rng: () => number
+): Genome {
+	return population[Math.floor(rng() * population.length)];
+}
+
 /** Select a parent from the population using the given selection strategy. */
 export function selectParent(
 	population: Genome[],
@@ -52,22 +74,9 @@ export function selectParent(
 	rng: () => number
 ): Genome {
 	if (selectionType === "tournament") {
-		const tournamentSize = 3;
-		let best = population[Math.floor(rng() * population.length)];
-		for (let i = 1; i < tournamentSize; i++) {
-			const cand = population[Math.floor(rng() * population.length)];
-			if (
-				(cand.fitness ?? Number.NEGATIVE_INFINITY) >
-				(best.fitness ?? Number.NEGATIVE_INFINITY)
-			) {
-				best = cand;
-			}
-		}
-		return best;
+		return _tournamentSelect(population, rng, 3);
 	}
-
-	// Default: random selection
-	return population[Math.floor(rng() * population.length)];
+	return _randomSelect(population, rng);
 }
 
 /**

@@ -76,22 +76,28 @@ export class WalFlusherService {
 	}
 
 	async drainOnStartup(): Promise<void> {
+		await this._recoverFallback();
+		await this._drainExistingWal();
+	}
+
+	private async _recoverFallback(): Promise<void> {
 		try {
 			await this._memoryWalBuffer.recoverFromFallbackFile();
 		} catch {
 			// best-effort
 		}
+	}
+
+	private async _drainExistingWal(): Promise<void> {
 		try {
 			const redis = await getStreamClient();
 			const len = await redis.llen(this._walKey());
 			if (len > 0) {
-				logger.info(
-					`WAL buffer has ${len} pending entries from previous run — draining`
-				);
+				logger.info(`WAL buffer has ${len} pending entries from previous run — draining`);
 				await this._flushWal();
 			}
 		} catch {
-			// Redis not available — WAL will be drained when Redis is back
+			// Redis not available
 		}
 	}
 

@@ -22,13 +22,22 @@ export function createServer(
 			caPath: ENV.TLS_CA_PATH,
 		},
 		routes: (app) => {
-			app.use(
-				"/",
-				healthRoutes(scheduler.queue, scheduler.backPressure, scheduler.workers)
-			);
-			app.use("/", eventsRoutes(auditRepo));
-			app.post("/message", messageHandler);
-			ADDRESS_MANAGER_ROUTES(app);
+			_registerRoutes(app, scheduler, auditRepo, messageHandler);
 		},
 	});
+}
+
+function _registerRoutes(
+	app: import("express").Application,
+	scheduler: JobScheduler,
+	auditRepo: AuditRepository,
+	messageHandler: import("express").RequestHandler
+): void {
+	app.use(
+		"/",
+		healthRoutes(scheduler.queue, scheduler.backPressure, scheduler.workers)
+	);
+	app.use("/", eventsRoutes(auditRepo));
+	app.post("/message", messageHandler);
+	ADDRESS_MANAGER_ROUTES(app);
 }

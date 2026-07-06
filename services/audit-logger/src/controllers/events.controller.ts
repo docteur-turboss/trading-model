@@ -7,22 +7,27 @@ import type {
 	AuditRepository,
 } from "../persistence/audit-repository";
 
+function _buildAuditEventQuery(
+	req: import("express").Request
+): AuditEventQuery {
+	const queryParams = req.query as Record<string, string | undefined>;
+	const { topic, publisher, correlationId, startDate, endDate, page, limit } =
+		queryParams;
+
+	return {
+		topic,
+		publisher,
+		correlationId,
+		startDate: startDate ? new Date(startDate) : undefined,
+		endDate: endDate ? new Date(endDate) : undefined,
+		page: page ? Number.parseInt(page, 10) : undefined,
+		limit: limit ? Number.parseInt(limit, 10) : undefined,
+	};
+}
+
 export function createEventsController(auditRepo: AuditRepository) {
 	const listEvents: RequestHandler = catchSync(async (req) => {
-		const queryParams = req.query as Record<string, string | undefined>;
-		const { topic, publisher, correlationId, startDate, endDate, page, limit } =
-			queryParams;
-
-		const query: AuditEventQuery = {
-			topic,
-			publisher,
-			correlationId,
-			startDate: startDate ? new Date(startDate) : undefined,
-			endDate: endDate ? new Date(endDate) : undefined,
-			page: page ? Number.parseInt(page, 10) : undefined,
-			limit: limit ? Number.parseInt(limit, 10) : undefined,
-		};
-
+		const query = _buildAuditEventQuery(req);
 		const result = await auditRepo.query(query);
 		return sendResponse(result, 200);
 	});

@@ -79,7 +79,9 @@ export class HttpClient {
 	private async _request<TResponse>(
 		context: RequestContext<TResponse>
 	): Promise<TResponse | undefined> {
-		await this._tlsLoader.ensureLoaded();
+		if (this._tlsLoader.hasTlsConfig) {
+			await this._tlsLoader.ensureLoaded();
+		}
 
 		const { hostname, serviceName } = this._executor.checkPreconditions(
 			context.urlStr,

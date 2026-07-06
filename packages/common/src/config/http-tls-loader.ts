@@ -62,4 +62,8 @@ export class HttpTlsLoader {
 	get key(): string | undefined {
 		return this._key;
 	}
+
+	get hasTlsConfig(): boolean {
+		return !!this._tlsPaths;
+	}
 }

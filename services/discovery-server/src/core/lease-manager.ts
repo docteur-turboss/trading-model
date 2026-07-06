@@ -65,25 +65,13 @@ export class LeaseManager {
 	 * calling it multiple times will not start multiple intervals.
 	 */
 	start(): void {
-		if (this._intervalHandle) {
-			return;
-		}
-
+		if (this._intervalHandle) return;
 		this._intervalHandle = setInterval(() => {
-			try {
-				this._cleanupExpiredInstances();
-			} catch (err) {
-				/**
-				 * Errors must be caught to avoid crashing the scheduler.
-				 * Any unexpected failure is logged for observability.
-				 */
+			try { this._cleanupExpiredInstances(); } catch (err) {
 				logger.error("Cleanup error", { error: normalizeError(err) });
 			}
 		}, this._cleanupIntervalMs);
-
-		logger.info("Cleanup loop started", {
-			cleanupIntervalMs: this._cleanupIntervalMs,
-		});
+		logger.info("Cleanup loop started", { cleanupIntervalMs: this._cleanupIntervalMs });
 	}
 
 	/**
