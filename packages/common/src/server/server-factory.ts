@@ -5,11 +5,12 @@ import path from "node:path";
 
 import type { Application } from "express";
 import { logger } from "../config/logger";
+import type { Port } from "../domain/primitives";
 import type { TlsPemBundle, TlsPaths } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
 
 export interface HttpsServerOptions {
-	port: number;
+	port: Port;
 	tls: TlsPaths;
 	watchTls?: boolean;
 }
@@ -65,7 +66,7 @@ function _createHttpsServer(
 	);
 }
 
-function _startListening(server: https.Server, port: number): void {
+function _startListening(server: https.Server, port: Port): void {
 	server.listen(port, () => {
 		logger.info("HTTPS server listening", {
 			context: {

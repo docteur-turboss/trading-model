@@ -1,10 +1,10 @@
 import { UnixTimestamp } from "./primitives";
 
 export class TimeRange {
-	readonly fromMs: number;
-	readonly toMs: number;
+	readonly fromMs: UnixTimestamp;
+	readonly toMs: UnixTimestamp;
 
-	constructor(fromMs: number, toMs: number) {
+	constructor(fromMs: UnixTimestamp, toMs: UnixTimestamp) {
 		if (fromMs > toMs) {
 			throw new RangeError(
 				`TimeRange: fromMs (${fromMs}) must be <= toMs (${toMs})`
@@ -25,7 +25,7 @@ export class TimeRange {
 		return this.toMs - this.fromMs;
 	}
 
-	contains(timestamp: number): boolean {
+	contains(timestamp: UnixTimestamp): boolean {
 		return timestamp >= this.fromMs && timestamp <= this.toMs;
 	}
 

@@ -1,9 +1,10 @@
+import type { IPAddress, Port } from "../domain/primitives";
 import type { TlsPaths } from "../domain/tls-paths";
 import type { logger } from "./logger";
 import { ServiceInstanceName } from "./services.types";
 
 interface ServiceResolver {
-	findService(name: string): Promise<{ ip: string; port: number } | null>;
+	findService(name: string): Promise<{ ip: IPAddress; port: Port } | null>;
 }
 
 /**
@@ -41,7 +42,7 @@ export function setupAuditLogging(
 
 function _logFirstConnection(
 	loggerInstance: typeof logger,
-	target: { ip: string; port: number },
+	target: { ip: IPAddress; port: Port },
 	alreadyConnected: boolean,
 ): void {
 	if (!alreadyConnected) {

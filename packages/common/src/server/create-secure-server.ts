@@ -1,4 +1,5 @@
 import type { Application } from "express";
+import type { Port } from "../domain/primitives";
 import type { TlsPaths } from "../domain/tls-paths";
 import { MTLSAuthMiddleware } from "../middleware/mtls-auth";
 import { ResponseProtocol } from "../middleware/response-protocol";
@@ -10,7 +11,7 @@ export { HttpServer, RateLimitConfig };
 
 /** Options for creating an mTLS-secured HTTPS server. */
 export interface SecureServerOptions {
-	port: number;
+	port: Port;
 	tls: TlsPaths;
 	routes: (app: Application) => void;
 	rateLimit?: RateLimitConfig;

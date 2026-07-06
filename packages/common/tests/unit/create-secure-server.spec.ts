@@ -67,11 +67,12 @@ import express from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 import { logger } from "../../src/config/logger";
+import type { Port } from "../../src/domain/primitives";
 import { createSecureServer } from "../../src/server/create-secure-server";
 
 describe("createSecureServer", () => {
 	const defaultOptions = {
-		port: 8443,
+		port: 8443 as Port,
 		tls: {
 			keyPath: "/path/to/key.pem",
 			certPath: "/path/to/cert.pem",
