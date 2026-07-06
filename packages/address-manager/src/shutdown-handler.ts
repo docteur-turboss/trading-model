@@ -1,3 +1,4 @@
+import { setupProcessHandlers, removeProcessHandlers } from "@trading-model/common/server/signal-handler";
 import type { IServiceCache } from "./discovery/service-cache.interface";
 import type { CircuitBreaker } from "./discovery/circuit-breaker";
 import type { WebSocketClient } from "./client/websocket-client";
@@ -5,13 +6,12 @@ import type { AddressManagerClient } from "./client/address-manager-client";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export class ShutdownHandler {
-	private _cleanupHandlers: () => void = () => {};
 	private readonly _metricsTimer = new TimerHandle();
+	private _signalHandlersRegistered = false;
 
 	constructor(
 		private readonly _registrationManager: {
 			shouldRetryRegistration: boolean;
-			resolveStopRegistration: () => void;
 		},
 		private readonly _wsClient: WebSocketClient | undefined,
 		private readonly _addressManagerClient: AddressManagerClient,
@@ -19,13 +19,8 @@ export class ShutdownHandler {
 		private readonly _circuitBreaker: CircuitBreaker
 	) {}
 
-	setCleanupHandlers(fn: () => void): void {
-		this._cleanupHandlers = fn;
-	}
-
 	shutdown(): void {
 		this._registrationManager.shouldRetryRegistration = false;
-		this._registrationManager.resolveStopRegistration();
 	}
 
 	async fullStop(): Promise<void> {
@@ -50,26 +45,25 @@ export class ShutdownHandler {
 	}
 
 	setupSignalHandlers(scheduler: { stop: () => void }): void {
-		const onSigTerm = async () => {
-			scheduler.stop();
-			await this.fullStop();
-		};
-
-		const onSigInt = async () => {
-			await onSigTerm();
-		};
-
-		process.on("SIGTERM", onSigTerm);
-		process.on("SIGINT", onSigInt);
-
-		this._cleanupHandlers = () => {
-			process.removeListener("SIGTERM", onSigTerm);
-			process.removeListener("SIGINT", onSigInt);
-			this._cleanupHandlers = () => {};
-		};
+		if (this._signalHandlersRegistered) {
+			return;
+		}
+		this._signalHandlersRegistered = true;
+		setupProcessHandlers(
+			async () => {
+				scheduler.stop();
+				await this.fullStop();
+			},
+			() => {
+				process.exitCode = 1;
+			},
+		);
 	}
 
 	removeSignalHandlers(): void {
-		this._cleanupHandlers();
+		if (this._signalHandlersRegistered) {
+			removeProcessHandlers();
+			this._signalHandlersRegistered = false;
+		}
 	}
 }

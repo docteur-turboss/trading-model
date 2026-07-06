@@ -1,14 +1,9 @@
-import { logger } from "@trading-model/common/config/logger";
-import { toServiceId } from "@trading-model/common/domain/primitives";
-import { normalizeError } from "@trading-model/common/utils/errors";
-import { sleep } from "@trading-model/common/utils/sleep";
-
-import type { ServiceInstance } from "../client/type";
 import { recordDiscoveryMetrics } from "../metrics";
 import { CircuitBreaker } from "./circuit-breaker";
 import type { IServiceCache } from "./service-cache.interface";
 import { ServiceDiscovery } from "./service-discovery";
 import { ServiceHealthChecker } from "./service-health-checker";
+import { DiscoveryRetryHandler } from "./discovery-retry-handler";
 
 export interface DiscoveryOrchestratorDeps {
 	serviceDiscovery: ServiceDiscovery;
@@ -18,28 +13,29 @@ export interface DiscoveryOrchestratorDeps {
 }
 
 export class DiscoveryOrchestrator {
-	private static readonly _CIRCUIT_BREAKER_MAX_RETRIES = 2;
-	private static readonly _CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS = 100;
-
 	readonly circuitBreaker: CircuitBreaker;
 	private readonly _serviceDiscovery: ServiceDiscovery;
-	private readonly _serviceCache: IServiceCache;
 	private readonly _healthChecker: ServiceHealthChecker;
+	private readonly _retryHandler: DiscoveryRetryHandler;
 
 	constructor(deps: DiscoveryOrchestratorDeps) {
 		this._serviceDiscovery = deps.serviceDiscovery;
-		this._serviceCache = deps.serviceCache;
 		this.circuitBreaker = deps.circuitBreaker;
 		this._healthChecker = deps.healthChecker;
+		this._retryHandler = new DiscoveryRetryHandler(
+			deps.serviceDiscovery,
+			deps.serviceCache,
+			deps.circuitBreaker,
+		);
 	}
 
-	async findService(serviceName: string): Promise<ServiceInstance> {
+	async findService(serviceName: string): Promise<import("../client/type").ServiceInstance> {
 		const startTime = Date.now();
 
 		try {
-			return await this._attemptDiscovery(serviceName, startTime);
+			return await this._retryHandler.attemptDiscovery(serviceName, startTime);
 		} catch (lastError) {
-			const staleInstance = await this._fallbackToStaleCache(serviceName, startTime);
+			const staleInstance = await this._retryHandler.fallbackToStaleCache(serviceName, startTime);
 			if (staleInstance) {
 				return staleInstance;
 			}
@@ -49,7 +45,7 @@ export class DiscoveryOrchestrator {
 		}
 	}
 
-	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {
+	async findAllServices(serviceName: string): Promise<import("../client/type").ServiceInstance[]> {
 		return this._serviceDiscovery.findAllServices(serviceName);
 	}
 
@@ -69,89 +65,5 @@ export class DiscoveryOrchestrator {
 			this.circuitBreaker.recordLatency(instanceId, durationMs);
 			this._healthChecker.recordLatency(instanceId, durationMs, false);
 		}
-	}
-
-	private async _attemptDiscovery(
-		serviceName: string,
-		startTime: number
-	): Promise<ServiceInstance> {
-		let lastError: Error | null = null;
-
-		for (
-			let attempt = 0;
-			attempt <= DiscoveryOrchestrator._CIRCUIT_BREAKER_MAX_RETRIES;
-			attempt++
-		) {
-			try {
-				const instance = await this._serviceDiscovery.findService(serviceName);
-				const result = await this._checkServiceCircuitBreaker({
-					instance,
-					serviceName,
-					startTime,
-					attempt,
-				});
-				if (result) {
-					return result;
-				}
-			} catch (err) {
-				lastError = err instanceof Error ? err : new Error(String(err));
-				if (attempt < DiscoveryOrchestrator._CIRCUIT_BREAKER_MAX_RETRIES) {
-					const delay =
-						DiscoveryOrchestrator._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt;
-					await sleep(delay);
-				}
-			}
-		}
-
-		throw lastError ?? new Error("Discovery failed");
-	}
-
-	private async _checkServiceCircuitBreaker(params: {
-		instance: ServiceInstance;
-		serviceName: string;
-		startTime: number;
-		attempt: number;
-	}): Promise<ServiceInstance | null> {
-		const { instance, serviceName, startTime, attempt } = params;
-		this.circuitBreaker.loadFromStore(instance.instanceId).catch(() => {});
-
-		if (!this.circuitBreaker.isOpen(instance.instanceId)) {
-			this._serviceDiscovery.acquireConnection(instance.instanceId);
-			recordDiscoveryMetrics(serviceName, startTime, "success");
-			return instance;
-		}
-
-		await this._serviceCache.invalidate(toServiceId(serviceName));
-
-		if (attempt < DiscoveryOrchestrator._CIRCUIT_BREAKER_MAX_RETRIES) {
-			const delay =
-				DiscoveryOrchestrator._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt;
-			await sleep(delay);
-		}
-
-		return null;
-	}
-
-	private async _fallbackToStaleCache(
-		serviceName: string,
-		startTime: number
-	): Promise<ServiceInstance | null> {
-		try {
-			const staleInstance = await this._serviceCache.get(toServiceId(serviceName));
-			if (staleInstance) {
-				logger.warn(
-					"Circuit breaker exhausted — returning stale cached instance as fallback",
-					{
-						serviceName,
-						instanceId: staleInstance.instanceId,
-					}
-				);
-				recordDiscoveryMetrics(serviceName, startTime, "degraded");
-				return staleInstance;
-			}
-		} catch {
-			// ignore cache errors in fallback path
-		}
-		return null;
 	}
 }

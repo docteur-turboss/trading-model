@@ -31,25 +31,27 @@ export class WsReconnectHandler {
 		return this._wsReconnectState.attempt;
 	}
 
-	resetAttempts(): void {
+	reset(): void {
 		this._wsReconnectState.attempt = 0;
 	}
 
-	reset(): void {
-		this.resetAttempts();
-	}
-
-	stop(): void {
-		this._shouldReconnect = false;
-		this._wsReconnectState.destroyed = true;
+	/**
+	 * Lightweight cancel — clears the pending reconnect timer without altering shouldReconnect.
+	 */
+	cancel(): void {
 		if (this._wsReconnectState.timer) {
 			clearTimeout(this._wsReconnectState.timer);
 			this._wsReconnectState.timer = null;
 		}
 	}
 
-	cancel(): void {
-		this.stop();
+	/**
+	 * Full stop — marks the handler as destroyed and prevents any future reconnects.
+	 */
+	stop(): void {
+		this._shouldReconnect = false;
+		this._wsReconnectState.destroyed = true;
+		this.cancel();
 	}
 
 	scheduleReconnect(connectFn?: () => void): void {

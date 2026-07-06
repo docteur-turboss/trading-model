@@ -194,24 +194,20 @@ function onWsAuthFailure(
 		.catch((err) => _handleRegistrationError(err));
 }
 
-function _buildWsClient(config: AddressManagerConfig, tokenManager: TokenManager): WebSocketClient {
-	return new WebSocketClient({
+function createWsClient(ctx: WsClientContext): WebSocketClient {
+	const { config, addressManagerClient, tokenManager, serviceCache } = ctx;
+	let wsClient: WebSocketClient;
+
+	wsClient = new WebSocketClient({
 		url: config.wsUrl!,
 		subscribedServices: config.wsSubscribedServices ?? ["*"],
 		token: tokenManager.getTokenOrNull() ?? undefined,
-	});
-}
-
-function createWsClient(ctx: WsClientContext): WebSocketClient {
-	const { config, addressManagerClient, tokenManager, serviceCache } = ctx;
-	const wsClient = _buildWsClient(config, tokenManager);
-
-	wsClient.onMessage((message: WsMessage) => {
-		onCacheInvalidateMessage(message, serviceCache);
-	});
-
-	wsClient.onAuthFailure(() => {
-		onWsAuthFailure(addressManagerClient, tokenManager, wsClient);
+		onMessage: (message) => {
+			onCacheInvalidateMessage(message, serviceCache);
+		},
+		onAuthFailure: () => {
+			onWsAuthFailure(addressManagerClient, tokenManager, wsClient);
+		},
 	});
 
 	return wsClient;

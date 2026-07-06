@@ -1,4 +1,4 @@
-import type { RetryOptions, RetryResult } from "@trading-model/common/utils/retry";
+import { retryWithBackoff as commonRetryWithBackoff, type RetryOptions, type RetryResult } from "@trading-model/common/utils/retry";
 import { logger } from "@trading-model/common/config/logger";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import { normalizeError } from "@trading-model/common/utils/errors";
@@ -13,7 +13,6 @@ export interface RetryConfig {
 
 export class RetryScheduler {
 	private _shouldRetry = true;
-	private _resolveStop: () => void = () => {};
 
 	constructor(private readonly _config: RetryConfig) {}
 
@@ -23,18 +22,6 @@ export class RetryScheduler {
 
 	set shouldRetry(value: boolean) {
 		this._shouldRetry = value;
-	}
-
-	resolveStop(): void {
-		const resolve = this._resolveStop;
-		this._resolveStop = () => {};
-		resolve();
-	}
-
-	createStopPromise(): Promise<void> {
-		return new Promise<void>((resolve) => {
-			this._resolveStop = resolve;
-		});
 	}
 
 	computeJitteredDelay(attempt: number): number {
@@ -98,28 +85,12 @@ export class RetryScheduler {
 		fn: () => Promise<T>,
 		options?: Partial<RetryOptions>,
 	): Promise<RetryResult<T>> {
-		const maxRetries = options?.maxRetries ?? this._config.maxRetries;
-		const baseDelayMs = options?.baseDelayMs ?? this._config.baseDelayMs;
-		const maxDelayMs = options?.maxDelayMs ?? this._config.maxDelayMs;
-		const start = Date.now();
-		let lastError: Error | null = null;
-		let attempt = 0;
-
-		for (attempt = 1; attempt <= maxRetries; attempt++) {
-			if (!this._shouldRetry) {
-				return { result: null, lastError, attempts: attempt - 1, timedOut: false };
-			}
-			try {
-				const result = await fn();
-				return { result, lastError: null, attempts: attempt, timedOut: false };
-			} catch (err) {
-				lastError = err as Error;
-				if (attempt < maxRetries) {
-					await sleep(this.computeJitteredDelay(attempt));
-				}
-			}
-		}
-		logger.warn("Max retries exhausted", { maxRetries });
-		return { result: null, lastError, attempts: attempt - 1, timedOut: false };
+		return commonRetryWithBackoff(fn, {
+			maxRetries: options?.maxRetries ?? this._config.maxRetries,
+			baseDelayMs: options?.baseDelayMs ?? this._config.baseDelayMs,
+			maxDelayMs: options?.maxDelayMs ?? this._config.maxDelayMs,
+			jitterMs: 1000,
+			shouldRetry: () => this._shouldRetry,
+		});
 	}
 }

@@ -10,6 +10,7 @@ import type { ServiceInstance } from "../client/type";
 import type { AddressManagerConfig } from "../config/address-manager-config";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceHealthChecker } from "./service-health-checker";
+import { ServiceResolver } from "./service-resolver";
 
 /**
  * ServiceDiscovery
@@ -39,6 +40,7 @@ export class ServiceDiscovery {
 	private readonly _config: AddressManagerConfig;
 	private readonly _healthChecker: ServiceHealthChecker;
 	private readonly _discoveryTimeoutMs: number;
+	private readonly _resolver: ServiceResolver;
 
 	/**
 	 * Creates a new ServiceDiscovery instance.
@@ -54,6 +56,13 @@ export class ServiceDiscovery {
 		this._config = deps.config;
 		this._healthChecker = deps.healthChecker;
 		this._discoveryTimeoutMs = deps.config.discoveryTimeoutMs;
+		this._resolver = new ServiceResolver(
+			deps.httpClient,
+			deps.config,
+			deps.serviceCache,
+			deps.healthChecker,
+			this._discoveryTimeoutMs,
+		);
 	}
 
 	/**
@@ -98,7 +107,7 @@ export class ServiceDiscovery {
 			return cached;
 		}
 
-		return this._resolveAndValidateService(serviceName);
+		return this._resolver.resolveAndValidateService(serviceName);
 	}
 
 	async findServiceInRegion(
@@ -110,63 +119,7 @@ export class ServiceDiscovery {
 			return cached;
 		}
 
-		return this._resolveAndValidateServiceInRegion(serviceName, region);
-	}
-
-	/**
-	 * Resolves a service instance from the Address Manager
-	 * and verifies its availability.
-	 *
-	 * Performs a single fetch + validation attempt.
-	 *
-	 * @param serviceName - Name of the service to resolve.
-	 * @returns A healthy ServiceInstance.
-	 * @throws ServiceNotFoundError - If the service is not registered.
-	 * @throws ServiceUnreachableError - If the service is unreachable or unhealthy.
-	 *
-	 * @private
-	 */
-	private async _resolveAndValidateService(
-		serviceName: string
-	): Promise<ServiceInstance> {
-		let instances: unknown;
-
-		try {
-			instances = await this._httpClient.get<unknown>(
-				`${this._config.addressManagerUrl}/services/${serviceName}`,
-				{ timeoutMs: this._discoveryTimeoutMs }
-			);
-		} catch (error) {
-			throw serviceNotFoundError(
-				`Service "${serviceName}" not found`,
-				{
-					cause: normalizeError(error),
-				}
-			);
-		}
-
-		const instance = Array.isArray(instances)
-			? (instances as ServiceInstance[])[0]
-			: (instances as ServiceInstance);
-
-		if (!instance) {
-			throw serviceNotFoundError(
-				`Service "${serviceName}" has no registered instances`
-			);
-		}
-
-		const isHealthy = await this._healthChecker.isHealthy(instance);
-
-		if (!isHealthy) {
-			await this._serviceCache.invalidate(toServiceId(serviceName));
-
-			throw serviceUnreachableError(
-				`Service "${serviceName}" is unreachable`
-			);
-		}
-
-		await this._serviceCache.set({ serviceName: toServiceId(serviceName), instance });
-		return instance;
+		return this._resolver.resolveAndValidateServiceInRegion(serviceName, region);
 	}
 
 	acquireConnection(_instanceId: string): void {
@@ -178,45 +131,7 @@ export class ServiceDiscovery {
 	}
 
 	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {
-		try {
-			const instances = await this._httpClient.get<ServiceInstance[]>(
-				`${this._config.addressManagerUrl}/services/${serviceName}`,
-				{ timeoutMs: this._discoveryTimeoutMs }
-			);
-			return instances ?? [];
-		} catch {
-			return [];
-		}
+		return this._resolver.findAllServices(serviceName);
 	}
 
-	private async _resolveAndValidateServiceInRegion(
-		serviceName: string,
-		region: string
-	): Promise<ServiceInstance> {
-		let instances: unknown;
-		try {
-			instances = await this._httpClient.get<unknown>(
-				`${this._config.addressManagerUrl}/services/${serviceName}/region/${region}`,
-				{ timeoutMs: this._discoveryTimeoutMs }
-			);
-		} catch {
-			return this._resolveAndValidateService(serviceName);
-		}
-
-		const instanceList = Array.isArray(instances)
-			? (instances as ServiceInstance[])
-			: [instances as ServiceInstance];
-
-		for (const instance of instanceList) {
-			if (instance) {
-				const isHealthy = await this._healthChecker.isHealthy(instance);
-				if (isHealthy) {
-					await this._serviceCache.set({ serviceName: toServiceId(serviceName), instance });
-					return instance;
-				}
-			}
-		}
-
-		return this._resolveAndValidateService(serviceName);
-	}
 }

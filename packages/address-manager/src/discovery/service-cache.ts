@@ -1,7 +1,8 @@
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import type { CacheSetEntry, CircuitState, IServiceCache } from "./service-cache.interface";
-import type { CacheEntry } from "./type";
+import { CacheStore } from "./cache-store";
+import { CircuitStateStore } from "./circuit-state-store";
 
 class SimpleMutex {
 	private _promise: Promise<void> = Promise.resolve();
@@ -19,13 +20,12 @@ class SimpleMutex {
 }
 
 export class ServiceCache implements IServiceCache {
-	private readonly _ttlMs: number;
-	private readonly _cache: Map<ServiceId, CacheEntry>;
+	private readonly _cacheStore: CacheStore;
 	private readonly _mutex = new SimpleMutex();
+	private readonly _circuitStore = new CircuitStateStore();
 
 	constructor(ttlMs: number) {
-		this._ttlMs = ttlMs;
-		this._cache = new Map();
+		this._cacheStore = new CacheStore(ttlMs);
 	}
 
 	/**
@@ -57,19 +57,7 @@ export class ServiceCache implements IServiceCache {
 	}
 
 	async get(serviceName: ServiceId, _region?: string): Promise<ServiceInstance | null> {
-		return this._withLock(() => this._getEntry(serviceName));
-	}
-
-	private _getEntry(serviceName: ServiceId): ServiceInstance | null {
-		const entry = this._cache.get(serviceName);
-		if (!entry) {
-			return null;
-		}
-		if (this._isExpired(entry)) {
-			this._cache.delete(serviceName);
-			return null;
-		}
-		return entry.instance;
+		return this._withLock(() => this._cacheStore.get(serviceName));
 	}
 
 	/**
@@ -85,16 +73,13 @@ export class ServiceCache implements IServiceCache {
 	 */
 	async set(entry: CacheSetEntry): Promise<void> {
 		return this._withLock(() => {
-			this._cache.set(entry.serviceName, {
-				instance: entry.instance,
-				expiresAt: Date.now() + this._ttlMs,
-			});
+			this._cacheStore.set(entry);
 		});
 	}
 
 	async invalidate(serviceName: ServiceId, _region?: string): Promise<void> {
 		return this._withLock(() => {
-			this._cache.delete(serviceName);
+			this._cacheStore.invalidate(serviceName);
 		});
 	}
 
@@ -104,28 +89,14 @@ export class ServiceCache implements IServiceCache {
 
 	async clear(): Promise<void> {
 		return this._withLock(() => {
-			this._cache.clear();
+			this._cacheStore.clear();
 		});
-	}
-
-	private _isExpired(entry: CacheEntry): boolean {
-		return Date.now() >= entry.expiresAt;
 	}
 
 	async entries(): Promise<
 		Array<{ serviceName: ServiceId; instance: ServiceInstance; region?: string }>
 	> {
-		return this._withLock(() => this._getEntries());
-	}
-
-	private _getEntries(): Array<{ serviceName: ServiceId; instance: ServiceInstance }> {
-		const result: Array<{ serviceName: ServiceId; instance: ServiceInstance }> = [];
-		for (const [serviceName, entry] of this._cache) {
-			if (!this._isExpired(entry)) {
-				result.push({ serviceName, instance: entry.instance });
-			}
-		}
-		return result;
+		return this._withLock(() => this._cacheStore.entries());
 	}
 
 	getVersion(_serviceName: ServiceId, _region?: string): Promise<number> {
@@ -133,22 +104,18 @@ export class ServiceCache implements IServiceCache {
 	}
 
 	stop(): void {
-		this._cache.clear();
+		this._cacheStore.stop();
 	}
 
-	private readonly _circuitStates = new Map<string, CircuitState>();
-
 	setCircuitState(instanceId: string, state: CircuitState): Promise<void> {
-		this._circuitStates.set(instanceId, state);
-		return Promise.resolve();
+		return this._circuitStore.setCircuitState(instanceId, state);
 	}
 
 	getCircuitState(instanceId: string): Promise<CircuitState | null> {
-		return Promise.resolve(this._circuitStates.get(instanceId) ?? null);
+		return this._circuitStore.getCircuitState(instanceId);
 	}
 
 	deleteCircuitState(instanceId: string): Promise<void> {
-		this._circuitStates.delete(instanceId);
-		return Promise.resolve();
+		return this._circuitStore.deleteCircuitState(instanceId);
 	}
 }

@@ -8,17 +8,27 @@ import {
 import type { AddressManagerConfig } from "../config/address-manager-config";
 import type { TokenManager } from "./token-manager";
 import { LocalIPDetector } from "./local-ip-detector";
+import { HeartbeatRefresher } from "./heartbeat-refresher";
 import type {
 	RegisterServicePayload,
 	ServiceRegistrationResponse,
 } from "./type";
 
 export class AddressManagerClient {
+	private readonly _heartbeatRefresher: HeartbeatRefresher;
+
 	constructor(
 		private readonly _httpClient: HttpClient,
 		private readonly _tokenManager: TokenManager,
 		private readonly _config: AddressManagerConfig
-	) {}
+	) {
+		this._heartbeatRefresher = new HeartbeatRefresher(
+			this._httpClient,
+			this._tokenManager,
+			this._config.identity.serviceName,
+			this._config.identity.instanceId,
+		);
+	}
 
 	static resetLocalIP(): void {
 		LocalIPDetector.reset();
@@ -65,61 +75,9 @@ export class AddressManagerClient {
 		);
 	}
 
-	private _buildHeartbeatPayload(): {
-		serviceName: string;
-		instanceId: string;
-	} {
-		return {
-			serviceName: this._config.identity.serviceName,
-			instanceId: this._config.identity.instanceId,
-		};
-	}
-
-	private async _sendHeartbeat(url: string): Promise<void> {
-		await this._httpClient.post(
-			`${url}/heartbeat`,
-			this._buildHeartbeatPayload(),
-			{
-			headers: {
-				[HTTP_HEADERS.X_INSTANCE_TOKEN]: this._tokenManager.getToken(),
-			},
-			}
-		);
-	}
-
 	async refreshTTL(): Promise<void> {
 		const urls = this._getUrls();
-		if (urls.length === 1) {
-			return await this._refreshSingleUrl(urls[0]);
-		}
-		return await this._refreshMultipleUrls(urls);
-	}
-
-	private async _refreshSingleUrl(url: string): Promise<void> {
-		try {
-			await this._sendHeartbeat(url);
-		} catch (error) {
-			throw addressManagerError(
-				"Failed to refresh service TTL",
-				{ cause: normalizeError(error) },
-			);
-		}
-	}
-
-	private async _refreshMultipleUrls(urls: string[]): Promise<void> {
-		const results = await Promise.allSettled(
-			urls.map((url) => this._sendHeartbeat(url)),
-		);
-		const failures = results.filter(
-			(result) => result.status === "rejected",
-		);
-		if (failures.length === results.length) {
-			throw addressManagerError("Failed to refresh service TTL", {
-				cause: normalizeError(
-					(failures[0] as PromiseRejectedResult).reason,
-				),
-			});
-		}
+		await this._heartbeatRefresher.refresh(urls);
 	}
 
 	async unregisterService(): Promise<void> {

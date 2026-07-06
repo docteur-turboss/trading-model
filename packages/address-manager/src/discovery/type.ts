@@ -15,7 +15,7 @@ import type { ServiceInstance } from "../client/type";
  *
  * @internal
  */
-export interface CacheEntry {
+export interface ServiceCacheEntry {
 	/**
 	 * The cached service instance.
 	 */
