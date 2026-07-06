@@ -117,9 +117,10 @@ export class LifecycleManager {
 	}
 
 	private async _performHeartbeat(): Promise<void> {
-		await this._options.heartbeatManager.performHeartbeat(
-			this._options.serviceName,
-			this._options.instanceId
-		);
+		const identity: ServiceIdentity = {
+			serviceName: this._options.serviceName,
+			instanceId: this._options.instanceId,
+		};
+		await this._options.heartbeatManager.performHeartbeat(identity);
 	}
 }

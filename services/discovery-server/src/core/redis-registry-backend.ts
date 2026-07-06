@@ -4,6 +4,7 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis from "ioredis";
 import {
@@ -124,10 +125,10 @@ export class RedisRegistryBackend implements RegistryBackend {
 
 	// ─── Heartbeat ──────────────────────────────────────────────────────────────
 
-	async updateHeartbeat(
-		serviceName: string,
-		instanceId: string
-	): Promise<number | false> {
+	async updateHeartbeat({
+		serviceName,
+		instanceId,
+	}: ServiceIdentity): Promise<number | false> {
 		const exists = await this._redis.sismember(
 			`${this._prefix}service:${serviceName}:instances`,
 			instanceId
@@ -216,10 +217,9 @@ export class RedisRegistryBackend implements RegistryBackend {
 		return instances;
 	}
 
-	async getInstance(
-		_serviceName: string,
-		instanceId: string
-	): Promise<ServiceInstance | undefined> {
+	async getInstance({
+		instanceId,
+	}: ServiceIdentity): Promise<ServiceInstance | undefined> {
 		const json = await this._redis.get(
 			`${this._prefix}instance:${instanceId}:metadata`
 		);
@@ -239,10 +239,10 @@ export class RedisRegistryBackend implements RegistryBackend {
 
 	// ─── Removal ────────────────────────────────────────────────────────────────
 
-	async removeInstance(
-		serviceName: string,
-		instanceId: string
-	): Promise<boolean> {
+	async removeInstance({
+		serviceName,
+		instanceId,
+	}: ServiceIdentity): Promise<boolean> {
 		const multi = this._redis.multi();
 		multi.srem(`${this._prefix}service:${serviceName}:instances`, instanceId);
 		multi.del(`${this._prefix}instance:${instanceId}:metadata`);
@@ -360,7 +360,10 @@ export class RedisRegistryBackend implements RegistryBackend {
 						heartbeatAge: now - instance.lastHeartbeat,
 						ttl: instance.ttl,
 					});
-					await this.removeInstance(serviceName, instance.instanceId);
+					await this.removeInstance({
+						serviceName,
+						instanceId: instance.instanceId,
+					});
 				}
 			}
 		}

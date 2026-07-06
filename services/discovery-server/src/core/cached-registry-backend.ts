@@ -4,6 +4,7 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { CacheManager } from "./cache-manager";
 import { PubSubInvalidator } from "./pub-sub-invalidator";
 import { RedisHealthMonitor } from "./redis-health-monitor";
@@ -66,10 +67,10 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	async updateHeartbeat(
-		serviceName: string,
-		instanceId: string
+		id: ServiceIdentity
 	): Promise<number | false> {
-		const result = await this._backend.updateHeartbeat(serviceName, instanceId);
+		const { serviceName } = id;
+		const result = await this._backend.updateHeartbeat(id);
 		if (result !== false) {
 			await this._refreshCache(serviceName);
 			const now = Date.now();
@@ -133,11 +134,11 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	async getInstance(
-		serviceName: string,
-		instanceId: string
+		id: ServiceIdentity
 	): Promise<ServiceInstance | undefined> {
+		const { serviceName, instanceId } = id;
 		if (this._healthMonitor.fallbackActive) {
-			return await this._backend.getInstance(serviceName, instanceId);
+			return await this._backend.getInstance(id);
 		}
 
 		const cached = this._cache.get(serviceName);
@@ -154,14 +155,14 @@ export class CachedRegistryBackend implements RegistryBackend {
 				);
 			}
 		}
-		return await this._backend.getInstance(serviceName, instanceId);
+		return await this._backend.getInstance(id);
 	}
 
 	async removeInstance(
-		serviceName: string,
-		instanceId: string
+		id: ServiceIdentity
 	): Promise<boolean> {
-		const result = await this._backend.removeInstance(serviceName, instanceId);
+		const { serviceName } = id;
+		const result = await this._backend.removeInstance(id);
 		await this._refreshCache(serviceName);
 		await this._pubSub.publish(serviceName);
 		return result;

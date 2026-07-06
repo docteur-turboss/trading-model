@@ -283,7 +283,7 @@ export class HttpClient {
 	 * Centralises the three-file mapping that was previously duplicated
 	 * across address-manager, broker-message, and message-manager.
 	 */
-	static createWithTls(certPaths: TlsClientPaths): HttpClient {
+	static createWithTls(certPaths: TlsPaths): HttpClient {
 		return new HttpClient({
 			ca: certPaths.rootCACertPath,
 			cert: certPaths.certificatePath,
@@ -495,7 +495,7 @@ export interface HttpRequestOptions {
 /**
  * Standard TLS certificate paths used by all services.
  */
-export interface TlsClientPaths {
+export interface TlsPaths {
 	rootCACertPath: string;
 	certificatePath: string;
 	keyCertificatePath: string;

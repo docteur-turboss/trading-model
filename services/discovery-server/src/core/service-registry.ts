@@ -118,7 +118,7 @@ export class ServiceRegistry {
 	 * - The instance TTL if successful
 	 * - false if the service or instance does not exist
 	 */
-	updateHeartbeat(serviceName: string, instanceId: string): number | false {
+	updateHeartbeat({ serviceName, instanceId }: ServiceIdentity): number | false {
 		const service = this._services.get(serviceName);
 		if (!service) {
 			return false;
@@ -172,10 +172,10 @@ export class ServiceRegistry {
 	/**
 	 * Returns a single service instance by service name and instanceId.
 	 */
-	getInstance(
-		serviceName: string,
-		instanceId: string
-	): ServiceInstance | undefined {
+	getInstance({
+		serviceName,
+		instanceId,
+	}: ServiceIdentity): ServiceInstance | undefined {
 		return this._services.get(serviceName)?.get(instanceId);
 	}
 
@@ -189,7 +189,7 @@ export class ServiceRegistry {
 	 * Typically invoked by the LeaseManager when a lease expires.
 	 * Automatically cleans up empty service entries.
 	 */
-	removeInstance(serviceName: string, instanceId: string): boolean {
+	removeInstance({ serviceName, instanceId }: ServiceIdentity): boolean {
 		const service = this._services.get(serviceName);
 		if (!service) {
 			return false;
