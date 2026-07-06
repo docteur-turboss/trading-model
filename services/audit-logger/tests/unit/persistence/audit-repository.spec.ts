@@ -195,7 +195,9 @@ describe("AuditRepository", () => {
 			const startDate = new Date("2024-01-01");
 			const endDate = new Date("2024-12-31");
 
-			await repository.query({ startDate, endDate });
+			await repository.query({
+				dateRange: new DateRange(startDate, endDate),
+			});
 
 			const findFilter = (MOCK_COLLECTION.find as jest.Mock).mock
 				.calls[0][0] as any;
@@ -208,7 +210,9 @@ describe("AuditRepository", () => {
 		it("should apply startDate only", async () => {
 			const startDate = new Date("2024-06-01");
 
-			await repository.query({ startDate });
+			await repository.query({
+				dateRange: new DateRange(startDate, undefined),
+			});
 
 			const findFilter = (MOCK_COLLECTION.find as jest.Mock).mock
 				.calls[0][0] as any;
@@ -219,7 +223,9 @@ describe("AuditRepository", () => {
 		it("should apply endDate only", async () => {
 			const endDate = new Date("2024-12-31");
 
-			await repository.query({ endDate });
+			await repository.query({
+				dateRange: new DateRange(undefined, endDate),
+			});
 
 			const findFilter = (MOCK_COLLECTION.find as jest.Mock).mock
 				.calls[0][0] as any;

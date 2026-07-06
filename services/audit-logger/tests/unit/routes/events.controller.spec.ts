@@ -1,3 +1,4 @@
+import { DateRange } from "@trading-model/common/domain/date-range";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 import { createNext, createReq, createRes } from "../../helpers/express";
@@ -51,8 +52,7 @@ describe("EventsController", () => {
 				topic: "test",
 				publisher: undefined,
 				correlationId: undefined,
-				startDate: undefined,
-				endDate: undefined,
+				dateRange: undefined,
 				page: 1,
 				limit: 50,
 			});
@@ -76,8 +76,9 @@ describe("EventsController", () => {
 			);
 
 			const callArgs = mockRepo.query.mock.calls[0][0];
-			expect(callArgs.startDate).toEqual(new Date("2024-01-01"));
-			expect(callArgs.endDate).toEqual(new Date("2024-12-31"));
+			expect(callArgs.dateRange).toBeInstanceOf(DateRange);
+			expect(callArgs.dateRange.start).toEqual(new Date("2024-01-01"));
+			expect(callArgs.dateRange.end).toEqual(new Date("2024-12-31"));
 		});
 
 		it("should handle missing query params gracefully", async () => {
