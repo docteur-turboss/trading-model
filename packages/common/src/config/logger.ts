@@ -17,7 +17,7 @@ export class Logger {
 	private _sessionId: string | null;
 	private _userId: string | null = null;
 	private readonly _sanitizer: SensitiveDataSanitizer;
-	private readonly _auditClient: AuditServiceClient;
+	private _auditClient: AuditServiceClient;
 	private readonly _logFileWriter: LogFileWriter;
 	private readonly _errorServiceSender: ErrorServiceSender;
 

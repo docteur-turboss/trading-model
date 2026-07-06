@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import { AppError, AgentError } from "@trading-model/common/utils/errors";
+import { AppError, agentError } from "@trading-model/common/utils/errors";
 
 import { BackpropEngine } from "./backprop-engine";
 import { FeedForwardEngine } from "./feed-forward-engine";
@@ -122,7 +122,7 @@ function _buildLayerMemory(
 
 function _validateLayerSize(sizes: number[], i: number): void {
 	if (sizes[i] <= 0 || sizes[i + 1] <= 0) {
-		throw new AgentError("Layer sizes must be positive integers");
+		throw agentError("Layer sizes must be positive integers");
 	}
 }
 
@@ -157,7 +157,7 @@ function _validateSoftmaxLoss(config: Required<NeuralNetworkConfig>): void {
 		config.lossFunctionType !== LossFunctionType.CrossEntropy &&
 		config.lossFunctionType !== LossFunctionType.BinaryCrossEntropy
 	) {
-		throw new AgentError(
+		throw agentError(
 			`Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`,
 		);
 	}
@@ -165,7 +165,7 @@ function _validateSoftmaxLoss(config: Required<NeuralNetworkConfig>): void {
 
 function _validateActivationCount(config: Required<NeuralNetworkConfig>, layerCount: number): void {
 	if (config.activationType.length !== layerCount) {
-		throw new AgentError(
+		throw agentError(
 			`ActivationType must be the same length of the layers. Expected : ${layerCount}, got ${config.activationType.length}`,
 		);
 	}
@@ -203,7 +203,7 @@ export class NeuralNetwork {
 
 	private _validateMinLayers(): void {
 		if (this._config.neuronsByLayer.length < 2) {
-			throw new AgentError(
+			throw agentError(
 				"Neural network must have at least 2 layers (input + output)",
 			);
 		}
@@ -231,7 +231,7 @@ export class NeuralNetwork {
 
 	public forwardAndPool(input: Float32Array, target: Float32Array): number {
 		if (!this._config.enablePool) {
-			throw new AgentError(
+			throw agentError(
 				"Learning pool is disabled. Set enablePool: true in config.",
 			);
 		}
@@ -249,7 +249,7 @@ export class NeuralNetwork {
 
 	public trainPooled(): number {
 		if (!this._config.enablePool) {
-			throw new AgentError("Learning pool is disabled. Set enablePool: true in config.");
+			throw agentError("Learning pool is disabled. Set enablePool: true in config.");
 		}
 		const pool = this._poolManager.getAll();
 		if (pool.length === 0) {
@@ -291,14 +291,14 @@ export class NeuralNetwork {
 	private _validateInputDim(input: Float32Array): void {
 		const expectedInput = this._config.neuronsByLayer[0];
 		if (input.length !== expectedInput) {
-			throw new AgentError(`Expected input size ${expectedInput}, got ${input.length}`);
+			throw agentError(`Expected input size ${expectedInput}, got ${input.length}`);
 		}
 	}
 
 	private _validateOutputDim(target: Float32Array): void {
 		const expectedOutput = this._config.neuronsByLayer[this._config.neuronsByLayer.length - 1];
 		if (target.length !== expectedOutput) {
-			throw new AgentError(`Expected target size ${expectedOutput}, got ${target.length}`);
+			throw agentError(`Expected target size ${expectedOutput}, got ${target.length}`);
 		}
 	}
 

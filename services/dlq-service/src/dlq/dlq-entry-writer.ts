@@ -14,6 +14,10 @@ export class DlqCapacityError extends Error {
 	}
 }
 
+export function dlqCapacityError(message: string): DlqCapacityError {
+	return new DlqCapacityError(message);
+}
+
 const DLQ_MAX_PASS_COUNT = 3;
 
 interface PingPongCheck {
@@ -41,7 +45,7 @@ export class DlqEntryWriter {
 		const col = await getCollection();
 
 		if (await this._isCapacityReached(col)) {
-			throw new DlqCapacityError("DLQ capacity limit reached");
+			throw dlqCapacityError("DLQ capacity limit reached");
 		}
 
 		const { messageId, contentHash, serialized } =

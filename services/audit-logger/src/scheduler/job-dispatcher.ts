@@ -23,6 +23,7 @@ export class JobDispatcher {
 	private readonly _workers: WorkerRegistry;
 	private readonly _repository: JobRepository;
 	private readonly _reAllocator: ReAllocator;
+	private readonly _onAckTimeout: (jobId: string) => void;
 	private _workerProtocol: WorkerProtocol | null = null;
 
 	constructor(deps: JobDispatcherDeps) {
@@ -31,9 +32,7 @@ export class JobDispatcher {
 		this._workers = deps.workers;
 		this._repository = deps.repository;
 		this._reAllocator = deps.reAllocator;
-		this._queue.setOnAckTimeout((jobId) => {
-			this._handleAckTimeout(jobId);
-		});
+		this._onAckTimeout = (jobId) => this._handleAckTimeout(jobId);
 	}
 
 	setWorkerProtocol(protocol: WorkerProtocol): void {
@@ -52,7 +51,7 @@ export class JobDispatcher {
 			ackDeadline: deadline,
 		};
 
-		this._queue.markDelivered(assignedJob.id);
+		this._queue.markDelivered(assignedJob.id, this._onAckTimeout);
 		this._sendAssignment(worker.workerId, assignedJob, deadline);
 		this._incrementWorkerLoad(worker);
 		this._persistAssignment(assignedJob.id, worker.workerId, deadline);

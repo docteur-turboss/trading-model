@@ -8,9 +8,10 @@ export class RedisConnection {
 	private _connecting = false;
 	private _connected = false;
 	private _wasEverConnected = false;
-	private _onReconnectCb: (() => void) | null = null;
+	private _onReconnect: (() => void) | null = null;
 
-	async connect(): Promise<boolean> {
+	async connect(onReconnect?: () => void): Promise<boolean> {
+		this._onReconnect = onReconnect ?? null;
 		if (this._isConnected()) {
 			return true;
 		}
@@ -41,10 +42,6 @@ export class RedisConnection {
 
 	isAvailable(): boolean {
 		return this._connected;
-	}
-
-	setOnReconnect(cb: () => void): void {
-		this._onReconnectCb = cb;
 	}
 
 	getClient(): Redis | null {
@@ -105,7 +102,7 @@ export class RedisConnection {
 		this._connected = true;
 		if (this._wasEverConnected) {
 			logger.info("Redis queue reconnected — triggering queue rebuild");
-			this._onReconnectCb?.();
+			this._onReconnect?.();
 		}
 		this._wasEverConnected = true;
 	}

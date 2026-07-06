@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import { DeadLetterError } from "@trading-model/common/utils/errors";
+import { deadLetterError } from "@trading-model/common/utils/errors";
 import type { MessageDeliveryPort } from "../../../../src/messaging/core/message-delivery-port";
 import { Subscription } from "../../../../src/messaging/core/subscription";
 import {
@@ -74,7 +74,7 @@ describe("Subscription", () => {
 
 		it("should stop retrying and send to DLQ on DeadLetterError", async () => {
 			mockDeliveryPort.send.mockRejectedValue(
-				new DeadLetterError("Unrecoverable", {
+				deadLetterError("Unrecoverable", {
 					reason: "Unrecoverable",
 				})
 			);
@@ -127,7 +127,7 @@ describe("Subscription", () => {
 
 		it("should send to DLQ on DeadLetterError even in AT_MOST_ONCE mode", async () => {
 			mockDeliveryPort.send.mockRejectedValue(
-				new DeadLetterError("Unrecoverable", {
+				deadLetterError("Unrecoverable", {
 					reason: "Unrecoverable",
 				})
 			);
@@ -273,7 +273,7 @@ describe("Subscription", () => {
 
 		it("should use NO_REASON fallback when DeadLetterError has no reason", async () => {
 			mockDeliveryPort.send.mockRejectedValue(
-				new DeadLetterError("Unrecoverable")
+				deadLetterError("Unrecoverable")
 			);
 
 			const message = createMockMessage("payload", {

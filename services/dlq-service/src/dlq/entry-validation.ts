@@ -8,7 +8,7 @@ import { z } from "zod";
 import { isDbConnected } from "../config/db";
 import { logger } from "../config/logger";
 import { dlqRedisQueue } from "../config/redis-queue";
-import { DlqCapacityError } from "./repository";
+import { isDlqCapacityError } from "./repository";
 
 const MAX_MESSAGE_BYTES = 5 * 1024 * 1024;
 
@@ -79,7 +79,7 @@ function handleAddEntryError(
 	err: unknown,
 	span: import("@opentelemetry/api").Span
 ): ResponseObject {
-	if (err instanceof DlqCapacityError) {
+	if (isDlqCapacityError(err)) {
 		return _handleCapacityError(span);
 	}
 	return _handleStorageError(err, span);

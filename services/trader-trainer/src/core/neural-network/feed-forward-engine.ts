@@ -1,4 +1,4 @@
-import { AppError, AgentError } from "@trading-model/common/utils/errors";
+import { AppError, agentError } from "@trading-model/common/utils/errors";
 
 import { ACTIVATIONS } from "./activation";
 import { NORMALIZERS } from "./normalize";
@@ -29,7 +29,7 @@ export class FeedForwardEngine {
 		const expected = this._config.neuronsByLayer[0];
 
 		if (input.length !== expected) {
-			throw new AgentError(
+			throw agentError(
 				`Expected input size ${expected}, got ${input.length}`
 			);
 		}

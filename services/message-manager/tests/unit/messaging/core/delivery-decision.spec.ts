@@ -8,7 +8,7 @@ jest.mock("@trading-model/common/config/delivery-mode.types", () => ({
 	},
 }));
 
-import { DeadLetterError } from "@trading-model/common/utils/errors";
+import { deadLetterError } from "@trading-model/common/utils/errors";
 import { classifyDeliveryFailure } from "../../../../src/messaging/core/delivery-decision";
 
 describe("delivery-decision", () => {
@@ -18,7 +18,7 @@ describe("delivery-decision", () => {
 
 	it("should return dead letter for DEAD_LETTER_ERROR code", () => {
 		const result = classifyDeliveryFailure({
-			error: new DeadLetterError("bad data"),
+			error: deadLetterError("bad data"),
 			deliveryMode: atLeastOnce,
 			deliveryAttempt: 1,
 			maxRetries: 3,

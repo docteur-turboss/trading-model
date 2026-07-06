@@ -21,8 +21,8 @@ export class DlqRedisQueue {
 		this._connection = new RedisConnection();
 	}
 
-	async connect(): Promise<boolean> {
-		return this._connection.connect();
+	async connect(onReconnect?: () => void): Promise<boolean> {
+		return this._connection.connect(onReconnect);
 	}
 
 	async push(entryId: string, maxQueueSize = 50_000): Promise<boolean> {
@@ -53,10 +53,6 @@ export class DlqRedisQueue {
 		} catch {
 			return null;
 		}
-	}
-
-	setOnReconnect(cb: () => void): void {
-		this._connection.setOnReconnect(cb);
 	}
 
 	isAvailable(): boolean {

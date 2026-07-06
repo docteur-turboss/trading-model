@@ -14,12 +14,11 @@ describe("DlqRedisQueue", () => {
 	let DlqRedisQueueClass: new (
 		queueKey?: string
 	) => {
-		connect: () => Promise<boolean>;
+		connect: (onReconnect?: () => void) => Promise<boolean>;
 		push: (entryId: string, maxQueueSize?: number) => Promise<boolean>;
 		pop: () => Promise<string | null>;
 		isAvailable: () => boolean;
 		close: () => Promise<void>;
-		setOnReconnect: (cb: () => void) => void;
 	};
 
 	beforeAll(() => {

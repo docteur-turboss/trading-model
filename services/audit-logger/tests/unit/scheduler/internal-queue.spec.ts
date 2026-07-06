@@ -72,10 +72,9 @@ describe("InternalQueue", () => {
 	describe("markDelivered / ack", () => {
 		it("should call onAckTimeout when ack is not called within timeout", () => {
 			const onTimeout = jest.fn();
-			queue.setOnAckTimeout(onTimeout);
 
 			queue.enqueue(createJob({ id: "job-1" }));
-			queue.markDelivered("job-1");
+			queue.markDelivered("job-1", onTimeout);
 
 			jest.advanceTimersByTime(30000);
 
@@ -84,9 +83,8 @@ describe("InternalQueue", () => {
 
 		it("should not call onAckTimeout when ack is called in time", () => {
 			const onTimeout = jest.fn();
-			queue.setOnAckTimeout(onTimeout);
 
-			queue.markDelivered("job-1");
+			queue.markDelivered("job-1", onTimeout);
 			queue.ack("job-1");
 
 			jest.advanceTimersByTime(30000);
@@ -125,10 +123,9 @@ describe("InternalQueue", () => {
 	describe("stop", () => {
 		it("should clear all pending ack timers", () => {
 			const onTimeout = jest.fn();
-			queue.setOnAckTimeout(onTimeout);
 
-			queue.markDelivered("job-1");
-			queue.markDelivered("job-2");
+			queue.markDelivered("job-1", onTimeout);
+			queue.markDelivered("job-2", onTimeout);
 			queue.stop();
 
 			jest.advanceTimersByTime(30000);

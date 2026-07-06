@@ -56,7 +56,7 @@ export class WssClient {
 			logger.warn("WSS connection failed", {
 				error: normalizeError(err as Error),
 			});
-			this._reconnector.schedule(() => this._connectWs());
+			this._scheduleReconnect();
 		}
 	}
 
@@ -77,12 +77,16 @@ export class WssClient {
 	private _onWsClose(code: number, reason: Buffer): void {
 		const reasonStr = reason?.toString() || "unknown";
 		logger.warn("WSS disconnected", { code, reason: reasonStr });
-		this._reconnector.schedule(() => this._connectWs());
+		this._scheduleReconnect();
 	}
 
 	private _onWsError(err: Error): void {
 		logger.warn("WSS error", { error: err.message });
-		this._reconnector.schedule(() => this._connectWs());
+		this._scheduleReconnect();
+	}
+
+	private _scheduleReconnect(): void {
+		this._reconnector.schedule(() => this._connectWs(), () => this._queue.drainToHttp());
 	}
 
 	get httpFallback():

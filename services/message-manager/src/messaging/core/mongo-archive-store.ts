@@ -2,15 +2,16 @@ import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { messageStore } from "./message-store";
 import { MongoArchiveBatchWriter } from "./mongo-archive-batch";
+import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
+import { ArchiveTopicsCache } from "./archive-topics-cache";
 import type { MongoClient } from "./mongo-archive-batch";
 
 export class MongoArchiveStore {
 	private _client: MongoClient | null = null;
 	private _batchWriter: MongoArchiveBatchWriter | null = null;
-	private _archiveTimer: ReturnType<typeof setInterval> | null = null;
 	private _started = false;
-	private _topicsCache: string[] = [];
-	private _topicsCacheTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _timerScheduler = new ArchiveTimerScheduler();
+	private readonly _topicsCache = new ArchiveTopicsCache();
 
 	async start(): Promise<void> {
 		if (!this._canStart()) {
@@ -21,8 +22,10 @@ export class MongoArchiveStore {
 		try {
 			await this._connectClient();
 			await this._ensureIndexes();
-			this._startArchiveTimer();
-			this._startTopicsCacheRefresh();
+			this._timerScheduler.start(ENV.MONGO_ARCHIVE_INTERVAL_MS, () =>
+				this._archiveBatch()
+			);
+			this._topicsCache.startRefresh();
 		} catch (err) {
 			this._handleStartError(err as Error);
 		}
@@ -77,37 +80,12 @@ export class MongoArchiveStore {
 		}
 	}
 
-	private _startTopicsCacheRefresh(): void {
-		this._topicsCacheTimer = setInterval(async () => {
-			try {
-				const { getSubscriptionClient } = await import("../../config/redis.js");
-				const redis = await getSubscriptionClient();
-				const topics = await redis.smembers(`${ENV.REDIS_PREFIX}topics`);
-				this._topicsCache = topics;
-			} catch {
-				// best-effort
-			}
-		}, 30_000);
-		this._topicsCacheTimer.unref();
-	}
-
-	private _startArchiveTimer(): void {
-		this._archiveTimer = setInterval(() => {
-			this._archiveBatch().catch((err) => {
-				logger.warn("MongoDB archive batch failed", { context: {
-					error: (err as Error).message,
-				} });
-			});
-		}, ENV.MONGO_ARCHIVE_INTERVAL_MS);
-		this._archiveTimer.unref();
-	}
-
 	private async _archiveBatch(): Promise<void> {
 		if (!this._client) {
 			return;
 		}
 
-		const topics = this._topicsCache;
+		const topics = this._topicsCache.getTopics();
 		if (topics.length === 0) {
 			return;
 		}
@@ -135,24 +113,10 @@ export class MongoArchiveStore {
 	}
 
 	async stop(): Promise<void> {
-		this._clearArchiveTimer();
-		this._clearTopicsCacheTimer();
+		this._timerScheduler.stop();
+		this._topicsCache.stopRefresh();
 		await this._closeClient();
 		this._started = false;
-	}
-
-	private _clearArchiveTimer(): void {
-		if (this._archiveTimer) {
-			clearInterval(this._archiveTimer);
-			this._archiveTimer = null;
-		}
-	}
-
-	private _clearTopicsCacheTimer(): void {
-		if (this._topicsCacheTimer) {
-			clearInterval(this._topicsCacheTimer);
-			this._topicsCacheTimer = null;
-		}
 	}
 
 	private async _closeClient(): Promise<void> {

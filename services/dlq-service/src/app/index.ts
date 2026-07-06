@@ -24,9 +24,7 @@ import { createServer } from "./server";
 
 async function ensureRedisQueue(): Promise<void> {
 	try {
-		await dlqRedisQueue.connect();
-		await rebuildQueueFromMongo();
-		dlqRedisQueue.setOnReconnect(() => {
+		await dlqRedisQueue.connect(() => {
 			void rebuildQueueFromMongo();
 		});
 	} catch (err) {

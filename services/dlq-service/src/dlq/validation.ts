@@ -7,7 +7,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { z } from "zod";
 import { isDbConnected } from "../config/db";
 import { logger } from "../config/logger";
-import { DlqCapacityError } from "./repository";
+import { isDlqCapacityError } from "./repository";
 
 export const DlqEntrySchema = z.object({
 	topic: z.string().optional(),
@@ -78,7 +78,7 @@ export function handleAddEntryError(
 	err: unknown,
 	span: import("@opentelemetry/api").Span
 ): ResponseObject {
-	if (err instanceof DlqCapacityError) {
+	if (isDlqCapacityError(err)) {
 		return _capacityErrorResponse(span);
 	}
 	return _storageErrorResponse(err, span);

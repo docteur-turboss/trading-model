@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ResponseProtocol } from "../../src/middleware/response-protocol";
 import {
-	AddressManagerError,
-	AuthenticationError,
-	ConfigurationError,
-	ServiceNotFoundError,
-	ServiceUnreachableError,
+	addressManagerError,
+	authenticationError,
+	configurationError,
+	serviceNotFoundError,
+	serviceUnreachableError,
 } from "../../src/utils/errors";
 
 describe("ResponseProtocol", () => {
@@ -25,25 +25,25 @@ describe("ResponseProtocol", () => {
 	});
 
 	it("should map SERVICE_NOT_FOUND to 404", () => {
-		const err = new ServiceNotFoundError("Service not found");
+		const err = serviceNotFoundError("Service not found");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(404);
 	});
 
 	it("should map SERVICE_UNREACHABLE to 410", () => {
-		const err = new ServiceUnreachableError("Service down");
+		const err = serviceUnreachableError("Service down");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(410);
 	});
 
 	it("should map AUTHENTICATION_ERROR to 498", () => {
-		const err = new AuthenticationError("Invalid token");
+		const err = authenticationError("Invalid token");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(498);
 	});
 
 	it("should map ADDRESS_MANAGER_ERROR to 503", () => {
-		const err = new AddressManagerError("Generic error");
+		const err = addressManagerError("Generic error");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(503);
 	});
@@ -55,7 +55,7 @@ describe("ResponseProtocol", () => {
 	});
 
 	it("should map ConfigurationError to 500", () => {
-		const err = new ConfigurationError("Config error");
+		const err = configurationError("Config error");
 		ResponseProtocol(err, req, res, next);
 		expect(res.status).toHaveBeenCalledWith(500);
 	});

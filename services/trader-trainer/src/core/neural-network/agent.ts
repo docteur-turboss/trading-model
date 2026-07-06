@@ -1,4 +1,4 @@
-import { AppError, AgentError } from "@trading-model/common/utils/errors";
+import { AppError, agentError } from "@trading-model/common/utils/errors";
 
 import { NeuralNetwork } from "./neural-network";
 import type {
@@ -42,7 +42,7 @@ export class Agent {
 	 */
 	constructor(readonly cfg: NetworkArchitecture) {
 		if (cfg.neuronsByLayer.length < 2) {
-			throw new AgentError(
+			throw agentError(
 				"neuronsByLayer must contain at least 2 entries (input + output).",
 			);
 		}
@@ -141,7 +141,7 @@ export class Agent {
 
 	public learnQLearning(exp: Experience, gamma = 0.99): void {
 		if (exp.kind !== "qlearning") {
-			throw new AgentError(
+			throw agentError(
 				"Q-learning requires `reward` and `nextState` in the experience.",
 			);
 		}

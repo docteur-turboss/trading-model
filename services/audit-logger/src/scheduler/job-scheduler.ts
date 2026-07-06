@@ -48,13 +48,6 @@ export class JobScheduler {
 			this.reAllocator
 		);
 
-		this._setupAckTimeout();
-	}
-
-	private _setupAckTimeout(): void {
-		this.queue.setOnAckTimeout((jobId) => {
-			this._failureHandler.handleAckTimeout(jobId);
-		});
 	}
 }
 

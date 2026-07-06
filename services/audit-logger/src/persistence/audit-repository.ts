@@ -67,7 +67,7 @@ export class AuditRepository {
 		try {
 			await this._collection.insertOne(event);
 		} catch (err) {
-			throw new AgentError("Failed to persist audit event", {
+			throw agentError("Failed to persist audit event", {
 				cause: err,
 			});
 		}
@@ -80,7 +80,7 @@ export class AuditRepository {
 		try {
 			await this._collection.insertMany(events, { ordered: false });
 		} catch (err) {
-			throw new AgentError("Failed to persist audit event batch", {
+			throw agentError("Failed to persist audit event batch", {
 				cause: err,
 			});
 		}

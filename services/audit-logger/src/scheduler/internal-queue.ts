@@ -4,14 +4,9 @@ export class InternalQueue {
 	private readonly _queues: Map<number, QueuedJob[]> = new Map();
 	private readonly _ackTimers: Map<string, NodeJS.Timeout> = new Map();
 	private readonly _ackTimeoutMs: number;
-	private _onAckTimeoutCallback: ((jobId: string) => void) | null = null;
 
 	constructor(ackTimeoutMs: number) {
 		this._ackTimeoutMs = ackTimeoutMs;
-	}
-
-	setOnAckTimeout(callback: (jobId: string) => void): void {
-		this._onAckTimeoutCallback = callback;
 	}
 
 	enqueue(job: Job): void {
@@ -37,12 +32,10 @@ export class InternalQueue {
 		return null;
 	}
 
-	markDelivered(jobId: string): void {
+	markDelivered(jobId: string, onAckTimeout?: (jobId: string) => void): void {
 		const timer = setTimeout(() => {
 			this._ackTimers.delete(jobId);
-			if (this._onAckTimeoutCallback) {
-				this._onAckTimeoutCallback(jobId);
-			}
+			onAckTimeout?.(jobId);
 		}, this._ackTimeoutMs);
 		this._ackTimers.set(jobId, timer);
 	}

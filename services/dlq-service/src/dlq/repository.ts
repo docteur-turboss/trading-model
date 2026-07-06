@@ -3,9 +3,13 @@ import { ObjectId, type WithId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
-import { DlqCapacityError, DlqEntryWriter } from "./dlq-entry-writer";
+import { DlqCapacityError, dlqCapacityError, DlqEntryWriter } from "./dlq-entry-writer";
 
-export { DlqCapacityError };
+export { DlqCapacityError, dlqCapacityError };
+
+export function isDlqCapacityError(err: unknown): err is DlqCapacityError {
+	return err instanceof DlqCapacityError;
+}
 
 export interface DlqEntry {
 	id?: string;
