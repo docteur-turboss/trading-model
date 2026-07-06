@@ -20,6 +20,7 @@ import type {
 	PriceSnapshotFeatureContext,
 } from "./feature-context";
 
+import type { Price, Volume } from "@trading-model/common/domain/primitives";
 import type { OrderBookAverages } from "./order-book-averages";
 import { FeatureVector } from "./feature-vector";
 
@@ -189,10 +190,10 @@ function _buildSlidingWindowFeatures(
 
 function _computeOrderBookAverages(ob: OrderBookData): OrderBookAverages {
 	return {
-		avgBid: getAvgBid(ob),
-		avgAsk: getAvgAsk(ob),
-		bidQty: getBidTotalQty(ob),
-		askQty: getAskTotalQty(ob),
+		avgBid: getAvgBid(ob) as Price,
+		avgAsk: getAvgAsk(ob) as Price,
+		bidQty: getBidTotalQty(ob) as Volume,
+		askQty: getAskTotalQty(ob) as Volume,
 	};
 }
 

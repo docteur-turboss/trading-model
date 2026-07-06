@@ -1,6 +1,8 @@
+import type { Price, Volume } from "@trading-model/common/domain/primitives";
+
 export interface OrderBookAverages {
-	avgBid: number;
-	avgAsk: number;
-	bidQty: number;
-	askQty: number;
+	avgBid: Price;
+	avgAsk: Price;
+	bidQty: Volume;
+	askQty: Volume;
 }

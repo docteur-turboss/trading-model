@@ -1,3 +1,4 @@
+import type { Price } from "@trading-model/common/domain/primitives";
 import { buildFeatures as buildFeaturesFn } from "../feature-builder";
 import type { MarketStep } from "../genetic-algorithm/genome-types";
 import {
@@ -16,7 +17,7 @@ export const DEFAULT_VALIDATION_SPLIT = 0.2;
 export class WindowSplitter {
 	constructor(
 		private readonly _states: Map<TradingSymbol, SymbolState>,
-		private readonly _priceSnapshot: Record<TradingSymbol, number>,
+		private readonly _priceSnapshot: Record<TradingSymbol, Price>,
 	) {}
 
 	buildMarketSteps(symbol: string): MarketStep[] {
