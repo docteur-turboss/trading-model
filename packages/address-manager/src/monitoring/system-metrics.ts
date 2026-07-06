@@ -21,24 +21,24 @@ export interface SystemMetricsPayload {
 export function computeCpuPercent(
 	totalIdle: number,
 	totalTick: number,
-	previous: { idle: number; total: number } | null
+	previous: { idle: number; total: number }
 ): { percent: number; previousCpuTimes: { idle: number; total: number } } {
-	if (previous) {
-		const idleDiff = totalIdle - previous.idle;
-		const totalDiff = totalTick - previous.total;
+	if (previous.idle === 0 && previous.total === 0) {
 		return {
-			percent: totalDiff > 0 ? Math.round((1 - idleDiff / totalDiff) * 100) : 0,
+			percent: 0,
 			previousCpuTimes: { idle: totalIdle, total: totalTick },
 		};
 	}
+	const idleDiff = totalIdle - previous.idle;
+	const totalDiff = totalTick - previous.total;
 	return {
-		percent: 0,
+		percent: totalDiff > 0 ? Math.round((1 - idleDiff / totalDiff) * 100) : 0,
 		previousCpuTimes: { idle: totalIdle, total: totalTick },
 	};
 }
 
 export class SystemMetrics {
-	private _previousCpuTimes: { idle: number; total: number } | null = null;
+	private _previousCpuTimes: { idle: number; total: number } = { idle: 0, total: 0 };
 
 	private _collectMemory(): SystemMetricsPayload["memory"] {
 		const mem = process.memoryUsage();
@@ -63,7 +63,7 @@ export class SystemMetrics {
 	}
 
 	private _collectCpu(
-		previousCpuTimes: { idle: number; total: number } | null
+		previousCpuTimes: { idle: number; total: number }
 	): SystemMetricsPayload["cpu"] {
 		const cpuPercent = this._calculateCpuPercent(os.cpus(), previousCpuTimes);
 		const loads = os.loadavg();
@@ -87,7 +87,7 @@ export class SystemMetrics {
 
 	private _calculateCpuPercent(
 		cpus: os.CpuInfo[],
-		previousCpuTimes: { idle: number; total: number } | null
+		previousCpuTimes: { idle: number; total: number }
 	): number {
 		const { totalIdle, totalTick } = this._sumCpuTimes(cpus);
 		const { percent, previousCpuTimes: newCpuTimes } = computeCpuPercent(
@@ -100,6 +100,6 @@ export class SystemMetrics {
 	}
 
 	reset(): void {
-		this._previousCpuTimes = null;
+		this._previousCpuTimes = { idle: 0, total: 0 };
 	}
 }

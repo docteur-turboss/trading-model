@@ -2,6 +2,7 @@ import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { WalBatchFlusher } from "./wal-batch-flusher";
+import { WalEntryParser } from "./wal-entry-parser";
 import { WalErrorHandler } from "./wal-error-handler";
 import { WAL_BATCH_SIZE } from "../../config/wal-config";
 const WAL_LIST_MAX_LEN = 1_000_000;
@@ -28,7 +29,7 @@ export class WalRedisFlusher {
 		);
 		this._errorHandler = new WalErrorHandler(
 			() => this._walKey(),
-			this._memoryWalBuffer,
+			new WalEntryParser(this._memoryWalBuffer),
 		);
 	}
 

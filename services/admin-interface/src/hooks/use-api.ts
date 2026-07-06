@@ -31,7 +31,7 @@ export function useApi<TData>(
 		} catch (err) {
 			if (mountedRef.current) {
 				if (err instanceof ApiError) {
-					setError(`Error ${err.status}: ${err.message}`);
+					setError(`Error ${err.statusCode}: ${err.message}`);
 				} else {
 					setError((err as Error).message);
 				}

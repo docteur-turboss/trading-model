@@ -1,4 +1,3 @@
-import { toCorrelationId, toTopic, type CorrelationId, type Topic } from "@trading-model/common/domain/primitives";
 import type {
 	DeliveryType,
 	MessageMetadata as MetadataType,
@@ -6,6 +5,12 @@ import type {
 	SecurityType,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
+import {
+	type CorrelationId,
+	type Topic,
+	toCorrelationId,
+	toTopic,
+} from "@trading-model/common/domain/primitives";
 import { AppError, metadataBuilderError } from "@trading-model/common/utils/errors";
 
 import {
@@ -24,12 +29,12 @@ import {
  * Represents an metadata in a message
  */
 export class MessageMetadata {
-	public topic?: Topic;
+	public topic!: Topic;
 	public routing?: RoutingType;
 	public delivery?: DeliveryType;
 	public security?: SecurityType;
-	public eventType?: string;
-	public publisher?: ServiceIdentity;
+	public eventType!: string;
+	public publisher!: ServiceIdentity;
 	public schemaVersion = "1.0.0";
 	private _causationId?: CorrelationId;
 	private _correlationId?: CorrelationId;
@@ -50,14 +55,14 @@ export class MessageMetadata {
 			causationId,
 			correlationId,
 		} = data;
+		this.topic = topic!;
+		this.eventType = eventType!;
+		this.publisher = publisher!;
 		this.routing = routing;
 		this.delivery = delivery;
 		this.security = security;
 		this._causationId = causationId;
 		this._correlationId = correlationId;
-		this.topic = topic;
-		this.eventType = eventType;
-		this.publisher = publisher;
 	}
 
 	/**
@@ -182,6 +187,18 @@ export class MessageMetadata {
 		return this;
 	}
 
+	private _assertRequiredFields(): void {
+		if (!this.topic) {
+			throw metadataBuilderError("Topic is required");
+		}
+		if (!this.eventType) {
+			throw metadataBuilderError("Event type is required");
+		}
+		if (!this.publisher) {
+			throw metadataBuilderError("Publisher is required");
+		}
+	}
+
 	/**
 	 * Transforms the embed to a plain object
 	 */
@@ -192,27 +209,15 @@ export class MessageMetadata {
 
 	private _buildMetadata(): MetadataType {
 		return {
-			eventType: this.eventType!,
-			publisher: this.publisher!,
+			eventType: this.eventType,
+			publisher: this.publisher,
 			schemaVersion: this.schemaVersion,
-			topic: this.topic!,
+			topic: this.topic,
 			causationId: this._causationId,
 			correlationId: this._correlationId,
 			delivery: this.delivery,
 			routing: this.routing,
 			security: this.security,
 		};
-	}
-
-	private _assertRequiredFields(): void {
-		if (!this.topic) {
-			throw metadataBuilderError("You haven't defined a topic");
-		}
-		if (!this.eventType) {
-			throw metadataBuilderError("You haven't defined a eventType");
-		}
-		if (!this.publisher) {
-			throw metadataBuilderError("You haven't defined a publisher");
-		}
 	}
 }

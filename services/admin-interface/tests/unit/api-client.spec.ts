@@ -319,7 +319,7 @@ describe("api-client", () => {
 				await API_CLIENT.getServices();
 			} catch (err) {
 				expect(err).toBeInstanceOf(ApiError);
-				expect((err as ApiError).status).toBe(403);
+				expect((err as ApiError).statusCode).toBe(403);
 			}
 		});
 

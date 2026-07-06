@@ -1,6 +1,7 @@
 import type { CacheConfig } from "./cache-config";
+import type { ICache } from "./cache";
 
-export class LruCache<TValue> {
+export class LruCache<TValue> implements ICache<TValue> {
 	private readonly _maxSize: number;
 	private readonly _ttlMs: number;
 	private readonly _store = new Map<
@@ -50,12 +51,13 @@ export class LruCache<TValue> {
 		}
 	}
 
-	set(key: string, value: TValue): void {
+	set(key: string, value: TValue, ttlMs?: number): void {
 		this._evictIfNeeded(key);
+		const effectiveTtl = ttlMs ?? this._ttlMs;
 		this._store.set(key, {
 			value,
 			expiresAt:
-				this._ttlMs > 0 ? Date.now() + this._ttlMs : Number.POSITIVE_INFINITY,
+				effectiveTtl > 0 ? Date.now() + effectiveTtl : Number.POSITIVE_INFINITY,
 		});
 	}
 

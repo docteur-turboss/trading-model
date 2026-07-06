@@ -19,6 +19,40 @@ import {
 	N_CT,
 } from "./encoding-constants";
 
+interface DecodedRLScalars {
+	gamma: number;
+	learningRate: number;
+	clipMin: number;
+	clipMax: number;
+	scaleFactor: number;
+	maxEpisodeLength: number;
+	nStepReturn: number;
+	frameSkip: number;
+	epsilonStart: number;
+	epsilonMin: number;
+	epsilonDecay: number;
+	temperature: number;
+	noiseStd: number;
+	noiseDecay: number;
+	bufferSize: number;
+	alphaPER: number;
+	betaPER: number;
+}
+
+interface DecodedMutationScalars {
+	mutationRate: number;
+	sigma: number;
+	selfSigma: number;
+}
+
+interface DecodedNetworkScalars {
+	inputDim: number;
+	outputDim: number;
+	depth: number;
+}
+
+type DecodedScalars = DecodedRLScalars & DecodedMutationScalars & DecodedNetworkScalars;
+
 function argmax(arr: Float32Array, start: number, len: number): number {
 	let best = start;
 	for (let i = start + 1; i < start + len; i++) {
@@ -67,7 +101,7 @@ function _decodeNetworkScalars(vec: EncodingVector) {
 	};
 }
 
-function decodeScalars(vec: EncodingVector) {
+function decodeScalars(vec: EncodingVector): DecodedScalars {
 	return {
 		..._decodeRLScalars(vec),
 		..._decodeMutationScalars(vec),
@@ -99,7 +133,7 @@ function decodeLayers(vec: EncodingVector, depth: number, template: Genome) {
 }
 
 function decodeNetwork(
-	scalars: Record<string, number>,
+	scalars: DecodedScalars,
 	hiddenLayers: NetworkGenome["hiddenLayers"],
 	template: Genome
 ): NetworkGenome {
@@ -112,7 +146,7 @@ function decodeNetwork(
 }
 
 function _decodeRewardShaping(
-	scalars: Record<string, number>,
+	scalars: DecodedScalars,
 	template: Genome
 ): RLGenome["rewardShaping"] {
 	return {
@@ -124,7 +158,7 @@ function _decodeRewardShaping(
 }
 
 function _decodeDiscretePolicy(
-	scalars: Record<string, number>,
+	scalars: DecodedScalars,
 	template: Genome
 ): RLGenome["discretePolicy"] {
 	return {
@@ -137,7 +171,7 @@ function _decodeDiscretePolicy(
 }
 
 function _decodeContinuousPolicy(
-	scalars: Record<string, number>,
+	scalars: DecodedScalars,
 	template: Genome
 ): RLGenome["continuousPolicy"] {
 	return {
@@ -149,7 +183,7 @@ function _decodeContinuousPolicy(
 	};
 }
 
-function decodeRL(scalars: Record<string, number>, template: Genome): RLGenome {
+function decodeRL(scalars: DecodedScalars, template: Genome): RLGenome {
 	return {
 		gamma: scalars.gamma,
 		learningRate: scalars.learningRate,
@@ -171,7 +205,7 @@ function decodeRL(scalars: Record<string, number>, template: Genome): RLGenome {
 }
 
 function decodeMutation(
-	scalars: Record<string, number>,
+	scalars: DecodedScalars,
 	template: Genome
 ): MutationGenome {
 	return {
@@ -191,7 +225,7 @@ function _validateVectorLength(vec: Float32Array): void {
 }
 
 function _buildDecodedGenome(
-	scalars: Record<string, number>,
+	scalars: DecodedScalars,
 	hiddenLayers: NetworkGenome["hiddenLayers"],
 	template: Genome
 ): Genome {

@@ -10,13 +10,9 @@ export interface RetryConfig {
 	backgroundIntervalMs: number;
 }
 
-interface PendingStop {
-	resolve: () => void;
-}
-
 export class RetryScheduler {
 	private _shouldRetry = true;
-	private _pendingStop: PendingStop | null = null;
+	private _resolveStop: () => void = () => {};
 
 	constructor(private readonly _config: RetryConfig) {}
 
@@ -29,16 +25,14 @@ export class RetryScheduler {
 	}
 
 	resolveStop(): void {
-		if (this._pendingStop) {
-			const resolve = this._pendingStop.resolve;
-			this._pendingStop = null;
-			resolve();
-		}
+		const resolve = this._resolveStop;
+		this._resolveStop = () => {};
+		resolve();
 	}
 
 	createStopPromise(): Promise<void> {
 		return new Promise<void>((resolve) => {
-			this._pendingStop = { resolve };
+			this._resolveStop = resolve;
 		});
 	}
 

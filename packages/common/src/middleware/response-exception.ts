@@ -27,7 +27,7 @@ export const ResponseCodes = Object.fromEntries(
 ) as { [TKey in (typeof HTTP_RESPONSE_DEFINITIONS)[number]["key"]]: number };
 
 export type ResponseCodeKey = keyof typeof ResponseCodes;
-export type ResponseCodeValue = (typeof ResponseCodes)[ResponseCodeKey];
+export type ResponseCodeValue = (typeof HTTP_RESPONSE_DEFINITIONS)[number]["code"];
 
 export interface ResponseObject {
 	status: number;

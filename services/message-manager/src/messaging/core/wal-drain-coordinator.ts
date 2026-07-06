@@ -1,15 +1,12 @@
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
-
-interface PendingDrain {
-	resolve: () => void;
-	timer: ReturnType<typeof setTimeout>;
-}
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export class WalDrainCoordinator {
 	private _walDrainRequested = false;
-	private _pendingDrain: PendingDrain | null = null;
+	private _drainResolve: () => void = () => {};
+	private readonly _drainTimer = new TimerHandle();
 	private _walFlushWaiters: Array<() => void> = [];
 
 	constructor(
@@ -46,12 +43,10 @@ export class WalDrainCoordinator {
 	}
 
 	resolveDrain(): void {
-		if (this._pendingDrain) {
-			const { resolve, timer } = this._pendingDrain;
-			this._pendingDrain = null;
-			clearTimeout(timer);
-			resolve();
-		}
+		this._drainTimer.stop();
+		const resolve = this._drainResolve;
+		this._drainResolve = () => {};
+		resolve();
 	}
 
 	notifyWaiters(): void {
@@ -101,14 +96,12 @@ export class WalDrainCoordinator {
 
 	private _waitForDrainCompletion(timeoutMs: number): Promise<void> {
 		return new Promise<void>((resolve) => {
-			const timer = setTimeout(() => {
-				if (this._pendingDrain) {
-					this._pendingDrain = null;
-					logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
-					resolve();
-				}
+			this._drainTimer.startTimeout(() => {
+				this._drainResolve = () => {};
+				logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
+				resolve();
 			}, timeoutMs);
-			this._pendingDrain = { resolve, timer };
+			this._drainResolve = resolve;
 		});
 	}
 }

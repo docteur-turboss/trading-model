@@ -102,7 +102,7 @@ export interface WorkerList {
 
 export class ApiError extends Error {
 	constructor(
-		public status: number,
+		public statusCode: number,
 		message: string
 	) {
 		super(message);

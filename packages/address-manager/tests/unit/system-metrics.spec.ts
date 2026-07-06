@@ -6,7 +6,7 @@ import {
 
 describe("computeCpuPercent", () => {
 	test("should return 0 and set previous on first call", () => {
-		const result = computeCpuPercent(100, 500, null);
+		const result = computeCpuPercent(100, 500, { idle: 0, total: 0 });
 		expect(result.percent).toBe(0);
 		expect(result.previousCpuTimes).toEqual({ idle: 100, total: 500 });
 	});
