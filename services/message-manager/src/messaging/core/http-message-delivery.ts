@@ -1,7 +1,7 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { Message } from "@trading-model/common/contracts/message.types";
 
-import type { DlqRepository } from "./dlq-repository";
+import type { FileDlqRepository } from "./dlq-repository";
 import type {
 	DeadLetterInput,
 	DeliverySendInput,
@@ -11,7 +11,7 @@ import type {
 export class HttpMessageDelivery implements MessageDeliveryPort {
 	constructor(
 		private readonly _httpClient: HttpClient,
-		private readonly _dqlRepository: DlqRepository
+		private readonly _dqlRepository: FileDlqRepository
 	) {}
 
 	async send(input: DeliverySendInput): Promise<void> {

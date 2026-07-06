@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "@jest/globals";
 import {
 	type DlqEntry,
-	DlqRepository,
+	FileDlqRepository,
 } from "../../../../src/messaging/core/dlq-repository";
 
-describe("DlqRepository", () => {
+describe("FileDlqRepository", () => {
 	const testFilePath = join(tmpdir(), `dlq-test-${Date.now()}.jsonl`);
 
 	afterAll(async () => {
@@ -19,7 +19,7 @@ describe("DlqRepository", () => {
 
 	describe("add", () => {
 		it("should append a JSON line to the file", async () => {
-			const repo = new DlqRepository(testFilePath);
+			const repo = new FileDlqRepository(testFilePath);
 
 			const entry: DlqEntry = {
 				message: { payload: "test", metadata: { topic: "test.topic" } },
@@ -41,7 +41,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should append multiple entries as separate lines", async () => {
-			const repo = new DlqRepository(testFilePath);
+			const repo = new FileDlqRepository(testFilePath);
 
 			await repo.add({
 				message: { id: 1 },
@@ -73,7 +73,7 @@ describe("DlqRepository", () => {
 		});
 
 		it("should handle entry without reason", async () => {
-			const repo = new DlqRepository(testFilePath);
+			const repo = new FileDlqRepository(testFilePath);
 
 			await repo.add({
 				message: "plain string payload",

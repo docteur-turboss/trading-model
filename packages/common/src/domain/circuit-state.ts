@@ -5,11 +5,11 @@
  * - `open` — failures threshold exceeded, rejecting requests
  * - `half-open` — probing whether the resource has recovered
  */
-export enum CircuitState {
-	CLOSED = "closed",
-	OPEN = "open",
-	HALF_OPEN = "half-open",
-}
+export type CircuitState = "closed" | "open" | "half-open";
 
-/** String union type for ergonomic type narrowing with `CircuitState` enum values. */
-export type CircuitStateUnion = `${CircuitState}`;
+/** Runtime enum-like constants for CircuitState values. */
+export const CircuitState = {
+	CLOSED: "closed" as const,
+	OPEN: "open" as const,
+	HALF_OPEN: "half-open" as const,
+} as const satisfies Record<string, CircuitState>;
