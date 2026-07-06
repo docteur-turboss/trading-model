@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
 import Redis from "ioredis";
-import type { LockBackend } from "./lock-backends";
+import type { LockBackend, LockContext } from "./lock-backends";
 import { NullLockBackend } from "./lock-backends";
 
 export class RedisLockBackend implements LockBackend {
@@ -24,10 +24,10 @@ export class RedisLockBackend implements LockBackend {
 	}
 
 	async acquire(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		ttlMs: number
 	): Promise<number | null> {
+		const { lockName, instanceId } = context;
 		try {
 			const lockKey = `lock:${lockName}`;
 			const nextFencingToken = randomInt(1, 2_147_483_647);
@@ -45,7 +45,7 @@ export class RedisLockBackend implements LockBackend {
 			}
 			const existing = await this._client.get(lockKey);
 			if (existing === null) {
-				return this.acquire(lockName, instanceId, ttlMs);
+				return this.acquire(context, ttlMs);
 			}
 			return null;
 		} catch (err) {
@@ -56,13 +56,13 @@ export class RedisLockBackend implements LockBackend {
 	}
 
 	async release(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<boolean> {
 		if (!this._available) {
 			return false;
 		}
+		const { lockName, instanceId } = context;
 		try {
 			const lockKey = `lock:${lockName}`;
 			const script = `
@@ -85,13 +85,13 @@ export class RedisLockBackend implements LockBackend {
 	}
 
 	async verifyOwnership(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<number> {
 		if (!this._available) {
 			return -1;
 		}
+		const { lockName, instanceId } = context;
 		try {
 			const lockKey = `lock:${lockName}`;
 			const val = await this._client.get(lockKey);

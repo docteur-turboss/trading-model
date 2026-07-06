@@ -6,13 +6,19 @@ export interface CacheOptions {
 	prefix: string;
 }
 
+export interface CacheSetEntry {
+	key: string;
+	value: unknown;
+	ttlMs: number;
+}
+
 export interface RedisCache {
 	disconnect(): Promise<void>;
 	publish(channel: string, message: string): Promise<void>;
 	subscribe(channel: string, handler: (message: string) => void): Promise<() => void>;
 	isAvailable(): boolean;
 	get<TData>(key: string): Promise<TData | null>;
-	set(key: string, value: unknown, ttlMs: number): Promise<void>;
+	set(entry: CacheSetEntry): Promise<void>;
 	del(key: string): Promise<void>;
 	clear(): Promise<void>;
 	makeKey(parts: string[]): string;
@@ -35,7 +41,7 @@ export class NullCache implements RedisCache {
 		return null;
 	}
 
-	async set(_key: string, _value: unknown, _ttlMs: number): Promise<void> {}
+	async set(_entry: CacheSetEntry): Promise<void> {}
 
 	async del(_key: string): Promise<void> {}
 
@@ -139,7 +145,8 @@ class RealRedisCache implements RedisCache {
 		}
 	}
 
-	async set(key: string, value: unknown, ttlMs: number): Promise<void> {
+	async set(entry: CacheSetEntry): Promise<void> {
+		const { key, value, ttlMs } = entry;
 		try {
 			await this._client.setex(key, Math.ceil(ttlMs / 1000), JSON.stringify(value));
 		} catch (err) {

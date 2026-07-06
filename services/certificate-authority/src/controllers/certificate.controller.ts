@@ -31,7 +31,7 @@ export async function signCertificate(
 		if (!_validateSignRequest(serviceId, csr, res)) {
 			return;
 		}
-		const signed = await CONTAINER.ca.signServiceCertificate(serviceId, csr, ttlMs);
+		const signed = await CONTAINER.ca.signServiceCertificate({ serviceId, csr, ttlMs });
 		_sendSignResponse(res, signed, serviceId);
 	} catch (err) {
 		logger.error("Failed to sign certificate", { context: { err } });

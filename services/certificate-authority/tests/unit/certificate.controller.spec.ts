@@ -77,11 +77,11 @@ describe("certificate.controller", () => {
 
 			await signCertificate(req, res);
 
-			expect(MOCK_SIGN_SERVICE_CERTIFICATE).toHaveBeenCalledWith(
-				"svc-1",
-				"csr-data",
-				3600000
-			);
+			expect(MOCK_SIGN_SERVICE_CERTIFICATE).toHaveBeenCalledWith({
+				serviceId: "svc-1",
+				csr: "csr-data",
+				ttlMs: 3600000,
+			});
 			expect(res.status).toHaveBeenCalledWith(200);
 			expect(res.status().json).toHaveBeenCalledWith({
 				cert: "cert-pem",

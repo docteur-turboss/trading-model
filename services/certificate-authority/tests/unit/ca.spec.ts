@@ -179,7 +179,7 @@ describe("CertificateAuthority", () => {
 			const ca = createCa();
 
 			await expect(
-				ca.signServiceCertificate("svc-1", "csr-data")
+				ca.signServiceCertificate({ serviceId: "svc-1", csr: "csr-data" })
 			).rejects.toThrow("CA not initialized");
 		});
 
@@ -208,7 +208,7 @@ describe("CertificateAuthority", () => {
 			const ca = createCa();
 			await ca.initialize();
 
-			const result = await ca.signServiceCertificate("svc-1", "csr-data");
+			const result = await ca.signServiceCertificate({ serviceId: "svc-1", csr: "csr-data" });
 
 			expect(signCertificate).toHaveBeenCalled();
 			expect(MOCK_CERT_STORE.save).toHaveBeenCalled();
