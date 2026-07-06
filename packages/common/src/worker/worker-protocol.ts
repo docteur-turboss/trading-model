@@ -36,7 +36,9 @@ export class WorkerProtocol {
 					}
 				} catch (err) {
 					logger.error("Invalid WebSocket message from worker", {
-						error: err instanceof Error ? err.message : String(err),
+						context: {
+							error: err instanceof Error ? err.message : String(err),
+						},
 					});
 				}
 			});
@@ -68,7 +70,9 @@ export class WorkerProtocol {
 		this._connections.set(message.workerId, ws);
 
 		logger.info("Worker registered via WebSocket", {
-			workerId: message.workerId,
+			context: {
+				workerId: message.workerId,
+			},
 		});
 	}
 
@@ -92,8 +96,10 @@ export class WorkerProtocol {
 		this._onWorkerDisconnect(message.workerId);
 
 		logger.info("Worker disconnected", {
-			workerId: message.workerId,
-			reason: message.reason,
+			context: {
+				workerId: message.workerId,
+				reason: message.reason,
+			},
 		});
 	}
 
