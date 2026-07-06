@@ -125,15 +125,7 @@ export class MarketDataBuffer {
 	setBookTicker(symbol: string, bt: BookTickerData): void {
 		const state = this._getOrCreate(toSymbol(symbol));
 		state.bookTicker = bt;
-		if (bt.bid > 0) {
-			state.norm.bid.update(bt.bid);
-		}
-		if (bt.ask > 0) {
-			state.norm.ask.update(bt.ask);
-		}
-		if (bt.ask > 0 && bt.bid > 0) {
-			state.norm.spread.update(bt.ask - bt.bid);
-		}
+		this._normManager.updateBookTickerNorms(state, bt);
 		this._memoryManager.enforceMemoryLimit();
 	}
 
@@ -141,7 +133,7 @@ export class MarketDataBuffer {
 	setTicker24h(symbol: string, ticker: TickerData): void {
 		const state = this._getOrCreate(toSymbol(symbol));
 		state.ticker24h = ticker;
-		state.norm.tickerVolume.update(ticker.volume);
+		this._normManager.updateTicker24hNorms(state, ticker);
 		this._memoryManager.enforceMemoryLimit();
 	}
 

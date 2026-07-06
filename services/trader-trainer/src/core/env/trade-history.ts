@@ -1,12 +1,4 @@
-export interface TradeRecord {
-	step: number;
-	action: "buy" | "sell";
-	amount: number;
-	price: number;
-	fee: number;
-	cashAfter: number;
-	positionAfter: number;
-}
+import type { TradeRecord } from "./wallet-manager";
 
 export class TradeHistory {
 	private readonly _history: TradeRecord[] = [];

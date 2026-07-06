@@ -1,3 +1,5 @@
+import type { Price } from "@trading-model/common/domain/primitives";
+
 import {
 	ActivationType,
 	ConnectionType,
@@ -210,7 +212,7 @@ export type LamarckGenome = Genome & {
 
 /** A single market observation. */
 export interface MarketStep {
-	price: number;
+	price: Price;
 	features: Float32Array;
 	timestamp?: number;
 }
