@@ -3,6 +3,8 @@
  * No MongoDB, no HTTP, no Redis — just decisions based on state.
  */
 
+import { DLQ_STATUS } from "../dlq/dlq-status";
+
 const DLQ_MAX_PASS_COUNT = 3;
 const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 
@@ -85,7 +87,7 @@ export class DlqDecisionService {
 		return {
 			retryCountMax: this._maxRetryAttempts(),
 			consecutiveErrorsMax: DLQ_MAX_CONSECUTIVE_ERRORS,
-			excludedStatuses: ["completed", "abandoned"],
+			excludedStatuses: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED],
 		};
 	}
 

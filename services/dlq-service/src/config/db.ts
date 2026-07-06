@@ -1,230 +1,178 @@
-import { normalizeError } from "@trading-model/common/utils/errors";
 import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import { type Collection, type Db, MongoClient } from "mongodb";
 
 import { env } from "./env";
+import { IndexManager } from "./index-manager";
 import { logger } from "./logger";
 
-let client: MongoClient | null = null;
-let db: Db | null = null;
-let collection: Collection | null = null;
-let dbPromise: Promise<Db> | null = null;
-let collectionPromise: Promise<Collection> | null = null;
-let connected = false;
-let missingCriticalIndexes: string[] = [];
+class MongoManager {
+	private _client: MongoClient | null = null;
+	private _db: Db | null = null;
+	private _collection: Collection | null = null;
+	private _dbPromise: Promise<Db> | null = null;
+	private _collectionPromise: Promise<Collection> | null = null;
+	private _connected = false;
+	private readonly _indexManager = new IndexManager();
 
-const CRITICAL_INDEX_KEYS = [
-	{ retryCount: 1, createdAt: -1 },
-	{ createdAt: -1 },
-	{ messageId: 1 },
-	{ status: 1, retryCount: 1 },
-];
+	async getDb(): Promise<Db> {
+		if (this._db) {
+			return this._db;
+		}
+		const existingDb = this._dbPromise === null ? null : await this._dbPromise;
+		if (existingDb) {
+			return existingDb;
+		}
+
+		this._dbPromise = this._connectToMongo();
+		return this._dbPromise;
+	}
+
+	private _registerMongoEvents(newClient: MongoClient): void {
+		newClient.on("close", () => {
+			this._connected = false;
+		});
+		newClient.on("reconnect", () => {
+			this._connected = true;
+		});
+	}
+
+	private async _connectToMongo(): Promise<Db> {
+		const { result: dbInstance, lastError } = await retryWithBackoff(
+			async () => {
+				return this._tryConnect();
+			},
+			{
+				maxRetries: 10,
+				baseDelayMs: 1000,
+				maxDelayMs: 30000,
+			}
+		);
+
+		if (!dbInstance) {
+			return this._throwConnectError(lastError);
+		}
+
+		this._client = dbInstance.newClient;
+		this._db = dbInstance.database;
+		this._connected = true;
+		logger.info("MongoDB connected", { database: env.MONGO_DB });
+		return dbInstance.database;
+	}
+
+	private _throwConnectError(lastError: Error | undefined): never {
+		this._connected = false;
+		throw lastError ?? new Error("Failed to connect to MongoDB after retries");
+	}
+
+	private async _tryConnect(): Promise<{
+		newClient: MongoClient;
+		database: Db;
+	}> {
+		const newClient = new MongoClient(env.MONGO_URI, {
+			minPoolSize: 2,
+			maxPoolSize: 10,
+			retryWrites: true,
+			serverSelectionTimeoutMS: 5000,
+			connectTimeoutMS: 5000,
+		});
+		await newClient.connect();
+		const database = newClient.db(env.MONGO_DB);
+		this._registerMongoEvents(newClient);
+		return { newClient, database };
+	}
+
+	async getCollection(): Promise<Collection> {
+		if (this._collection) {
+			return this._collection;
+		}
+
+		const existingCollection =
+			this._collectionPromise === null ? null : await this._collectionPromise;
+		if (existingCollection) {
+			return existingCollection;
+		}
+
+		this._collectionPromise = this._initCollection();
+		return this._collectionPromise;
+	}
+
+	private async _initCollection(): Promise<Collection> {
+		const database = await this.getDb();
+		const col = database.collection(env.MONGO_COLLECTION);
+
+		await this._indexManager.createCollectionIndexes(col);
+
+		this._collection = col;
+		logger.info("MongoDB collection ready", {
+			collection: env.MONGO_COLLECTION,
+		});
+		return this._collection;
+	}
+
+	isConnected(): boolean {
+		return this._connected && this._client !== null;
+	}
+
+	getMissingCriticalIndexes(): string[] {
+		return this._indexManager.getMissingCriticalIndexes();
+	}
+
+	async resetState(): Promise<void> {
+		if (this._client) {
+			try {
+				await this._client.close();
+			} catch {
+			}
+		}
+		this._clearState();
+	}
+
+	async close(): Promise<void> {
+		if (this._client) {
+			try {
+				await this._client.close();
+			} catch (err) {
+				logger.warn("Error closing MongoDB connection", {
+					error: (err as Error).message,
+				});
+			}
+			this._clearState();
+			logger.info("MongoDB connection closed");
+		}
+	}
+
+	private _clearState(): void {
+		this._client = null;
+		this._db = null;
+		this._collection = null;
+		this._dbPromise = null;
+		this._collectionPromise = null;
+		this._connected = false;
+	}
+}
+
+const mongoManager = new MongoManager();
 
 export async function getDb(): Promise<Db> {
-	if (db) {
-		return db;
-	}
-	const existingDb = dbPromise === null ? null : await dbPromise;
-	if (existingDb) {
-		return existingDb;
-	}
-
-	dbPromise = _connectToMongo();
-	return dbPromise;
-}
-
-function _registerMongoEvents(newClient: MongoClient): void {
-	newClient.on("close", () => {
-		connected = false;
-	});
-	newClient.on("reconnect", () => {
-		connected = true;
-	});
-}
-
-async function _connectToMongo(): Promise<Db> {
-	const { result: dbInstance, lastError } = await retryWithBackoff(
-		async () => {
-			return _tryConnect();
-		},
-		{
-			maxRetries: 10,
-			baseDelayMs: 1000,
-			maxDelayMs: 30000,
-		}
-	);
-
-	if (!dbInstance) {
-		return _throwConnectError(lastError);
-	}
-
-	client = dbInstance.newClient;
-	db = dbInstance.database;
-	connected = true;
-	logger.info("MongoDB connected", { database: env.MONGO_DB });
-	return dbInstance.database;
-}
-
-function _throwConnectError(lastError: Error | undefined): never {
-	connected = false;
-	throw lastError ?? new Error("Failed to connect to MongoDB after retries");
-}
-
-async function _tryConnect(): Promise<{
-	newClient: MongoClient;
-	database: Db;
-}> {
-	const newClient = new MongoClient(env.MONGO_URI, {
-		minPoolSize: 2,
-		maxPoolSize: 10,
-		retryWrites: true,
-		serverSelectionTimeoutMS: 5000,
-		connectTimeoutMS: 5000,
-	});
-	await newClient.connect();
-	const database = newClient.db(env.MONGO_DB);
-	_registerMongoEvents(newClient);
-	return { newClient, database };
-}
-
-async function _createIndex(
-	col: Collection,
-	spec: {
-		key: Record<string, 1 | -1>;
-		options?: Record<string, unknown>;
-	},
-	criticalKeys: Set<string>
-): Promise<string | null> {
-	const keyStr = JSON.stringify(spec.key);
-	try {
-		await col.createIndex(spec.key, spec.options);
-		return null;
-	} catch (err) {
-		if (criticalKeys.has(keyStr)) {
-			logger.error(
-				"Critical index creation failed — queries may perform collection scans",
-				{
-					index: spec.key,
-					error: normalizeError(err).message,
-				}
-			);
-			return keyStr;
-		}
-		logger.warn("Index creation skipped", {
-			index: spec.key,
-			error: normalizeError(err).message,
-		});
-		return null;
-	}
-}
-
-function _buildIndexSpecs(): {
-	key: Record<string, 1 | -1>;
-	options?: Record<string, unknown>;
-}[] {
-	return [
-		{ key: { topic: 1, createdAt: -1 } },
-		{ key: { createdAt: -1 } },
-		{ key: { createdAt: 1 }, options: { expireAfterSeconds: 30 * 86400 } },
-		{ key: { retryCount: 1, topic: 1, createdAt: -1 } },
-		{ key: { messageId: 1 }, options: { unique: true, sparse: true } },
-		{ key: { processingAt: 1 }, options: { sparse: true } },
-		{ key: { processingInstance: 1 } },
-		{ key: { status: 1, retryCount: 1 } },
-		{
-			key: { retryCount: 1, createdAt: -1 },
-			options: {
-				partialFilterExpression: { processingAt: { $exists: false } },
-			},
-		},
-		{
-			key: { retryCount: 1, status: 1, createdAt: -1 },
-			options: {
-				partialFilterExpression: { processingAt: { $exists: false } },
-			},
-		},
-		{ key: { contentHash: 1, status: 1 }, options: { sparse: true } },
-	];
-}
-
-async function createCollectionIndexes(col: Collection): Promise<void> {
-	const indexSpecs = _buildIndexSpecs();
-	const criticalKeys = new Set(
-		CRITICAL_INDEX_KEYS.map((key) => JSON.stringify({ key }))
-	);
-	const missing = await Promise.all(
-		indexSpecs.map((spec) => _createIndex(col, spec, criticalKeys))
-	);
-	missingCriticalIndexes = missing.filter(Boolean) as string[];
+	return mongoManager.getDb();
 }
 
 export async function getCollection(): Promise<Collection> {
-	if (collection) {
-		return collection;
-	}
-
-	const existingCollection =
-		collectionPromise === null ? null : await collectionPromise;
-	if (existingCollection) {
-		return existingCollection;
-	}
-
-	collectionPromise = _initCollection();
-	return collectionPromise;
-}
-
-async function _initCollection(): Promise<Collection> {
-	const database = await getDb();
-	const col = database.collection(env.MONGO_COLLECTION);
-
-	await createCollectionIndexes(col);
-
-	collection = col;
-	logger.info("MongoDB collection ready", {
-		collection: env.MONGO_COLLECTION,
-	});
-	return collection;
+	return mongoManager.getCollection();
 }
 
 export function isDbConnected(): boolean {
-	return connected && client !== null;
+	return mongoManager.isConnected();
 }
 
 export function getMissingCriticalIndexes(): string[] {
-	return missingCriticalIndexes;
+	return mongoManager.getMissingCriticalIndexes();
 }
 
 export async function resetDbState(): Promise<void> {
-	if (client) {
-		try {
-			await client.close();
-		} catch {
-			// ignore close error during reset
-		}
-	}
-	_clearDbState();
+	return mongoManager.resetState();
 }
 
 export async function closeDb(): Promise<void> {
-	if (client) {
-		try {
-			await client.close();
-		} catch (err) {
-			logger.warn("Error closing MongoDB connection", {
-				error: (err as Error).message,
-			});
-		}
-		_clearDbState();
-		logger.info("MongoDB connection closed");
-	}
-}
-
-function _clearDbState(): void {
-	client = null;
-	db = null;
-	collection = null;
-	dbPromise = null;
-	collectionPromise = null;
-	connected = false;
-	missingCriticalIndexes = [];
+	return mongoManager.close();
 }

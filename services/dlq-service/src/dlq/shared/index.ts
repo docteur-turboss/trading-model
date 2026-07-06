@@ -80,57 +80,71 @@ import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { findAService } from "../../config/address-manager";
 import { env } from "../../config/env";
+import { logger } from "../../config/logger";
 
-let httpClient: HttpClient | null = null;
-let httpClientPromise: Promise<HttpClient> | null = null;
+class SharedHttpClientManager {
+	private _httpClient: HttpClient | null = null;
+	private _httpClientPromise: Promise<HttpClient> | null = null;
 
-async function getHttpClient(): Promise<HttpClient> {
-	if (httpClient) {
-		return httpClient;
+	async get(): Promise<HttpClient> {
+		if (this._httpClient) {
+			return this._httpClient;
+		}
+		const existingClient = await this._resolveExisting();
+		if (existingClient) {
+			return existingClient;
+		}
+
+		this._httpClientPromise = this._build();
+		return this._httpClientPromise;
 	}
-	const existingClient = await _resolveExistingClient();
-	if (existingClient) {
-		return existingClient;
+
+	private async _resolveExisting(): Promise<HttpClient | null> {
+		return this._httpClientPromise === null ? null : await this._httpClientPromise;
 	}
 
-	httpClientPromise = _buildHttpClient();
-	return httpClientPromise;
-}
+	private _build(): Promise<HttpClient> {
+		const client = new HttpClient({
+			ca: env.TLS_CA_PATH,
+			cert: env.TLS_CERT_PATH,
+			key: env.TLS_KEY_PATH,
+		});
+		this._httpClient = client;
+		return Promise.resolve(client);
+	}
 
-async function _resolveExistingClient(): Promise<HttpClient | null> {
-	return httpClientPromise === null ? null : await httpClientPromise;
-}
-
-function _buildHttpClient(): Promise<HttpClient> {
-	const client = new HttpClient({
-		ca: env.TLS_CA_PATH,
-		cert: env.TLS_CERT_PATH,
-		key: env.TLS_KEY_PATH,
-	});
-	httpClient = client;
-	return Promise.resolve(client);
-}
-
-export { getHttpClient };
-
-export async function reloadHttpClientTls(): Promise<void> {
-	const client = httpClient as { reloadTlsPaths?: () => Promise<void> } | null;
-	if (client && typeof client.reloadTlsPaths === "function") {
-		try {
-			await client.reloadTlsPaths();
-			logger.info("HTTP client TLS certificates reloaded");
-		} catch (err) {
-			logger.error("Failed to reload HTTP client TLS certificates", {
-				error: (err as Error).message,
-			});
+	async reloadTls(): Promise<void> {
+		const client = this._httpClient as { reloadTlsPaths?: () => Promise<void> } | null;
+		if (client && typeof client.reloadTlsPaths === "function") {
+			try {
+				await client.reloadTlsPaths();
+				logger.info("HTTP client TLS certificates reloaded");
+			} catch (err) {
+				logger.error("Failed to reload HTTP client TLS certificates", {
+					error: (err as Error).message,
+				});
+			}
 		}
 	}
+
+	close(): void {
+		this._httpClient = null;
+		this._httpClientPromise = null;
+	}
 }
 
-export function closeHttpClient(): Promise<void> {
-	httpClient = null;
-	httpClientPromise = null;
-	return Promise.resolve();
+const sharedHttpClient = new SharedHttpClientManager();
+
+export async function getHttpClient(): Promise<HttpClient> {
+	return sharedHttpClient.get();
+}
+
+export async function reloadHttpClientTls(): Promise<void> {
+	return sharedHttpClient.reloadTls();
+}
+
+export async function closeHttpClient(): Promise<void> {
+	sharedHttpClient.close();
 }
 
 export async function resolveMessageManagerUrl(): Promise<string | null> {

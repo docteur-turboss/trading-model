@@ -6,6 +6,7 @@ import {
 } from "mongodb";
 
 import { env } from "../config/env";
+import { DLQ_STATUS } from "./dlq-status";
 import type { StoredDlqEntry } from "./repository";
 
 const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
@@ -13,7 +14,7 @@ const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 export class ClaimFilterBuilder {
 	buildClaimFilter(topic?: string): Record<string, unknown> {
 		const statusFilter: Record<string, unknown> = {
-			$nin: ["completed", "abandoned"],
+			$nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED],
 		};
 		const filter: Record<string, unknown> = {
 			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
@@ -31,7 +32,7 @@ export class ClaimFilterBuilder {
 		return {
 			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
 			processingAt: { $exists: false },
-			status: { $nin: ["completed", "abandoned"] },
+			status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
 			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
 		};
 	}

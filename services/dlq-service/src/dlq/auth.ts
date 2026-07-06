@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { SignedRequest } from "@trading-model/common/contracts/signed-request";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import {
 	type NextFunction,
@@ -33,7 +34,7 @@ function verifySignature(req: Request, serviceName: string): boolean {
 		return false;
 	}
 
-	const route: SignedRequest = { serviceName, method: req.method as SignedRequest["method"], path: req.path, body: req.body };
+	const route: SignedRequest = { serviceName: toServiceId(serviceName), method: req.method as SignedRequest["method"], path: req.path, body: req.body };
 	const parts = [serviceName, timestampStr, bodyHash, route.method, route.path];
 	if (_matchSignature(provided, secret, parts)) {
 		return true;

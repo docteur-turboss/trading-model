@@ -4,6 +4,7 @@ import { getCollection } from "../config/db";
 import { env } from "../config/env";
 import { ClaimFilterBuilder } from "./claim-filter-builder";
 import { ClaimQueryExecutor } from "./claim-query-executor";
+import { DLQ_STATUS } from "./dlq-status";
 import type { StoredDlqEntry } from "./repository";
 
 export interface ClaimEntriesOptions {
@@ -84,7 +85,7 @@ export class DlqClaimManager {
 				_id: new ObjectId(id),
 				retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
 				processingAt: { $exists: false },
-				status: { $nin: ["completed", "abandoned"] },
+				status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
 				consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
 			},
 			{

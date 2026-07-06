@@ -25,7 +25,7 @@ export class ReplayOrchestrator {
 
 	/** Check if the circuit allows a request. Returns false if OPEN. */
 	canProceed(): boolean {
-		return this._circuitBreaker.canProceed();
+		return this._circuitBreaker.isAllowed();
 	}
 
 	/** Record the result of a batch replay. */
@@ -58,6 +58,6 @@ export class ReplayOrchestrator {
 	}
 
 	getCircuitState(): import("@trading-model/common/domain/circuit-state").CircuitState {
-		return this._circuitBreaker.getCircuitState();
+		return this._circuitBreaker.getState();
 	}
 }

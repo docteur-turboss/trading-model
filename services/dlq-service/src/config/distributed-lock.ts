@@ -1,11 +1,13 @@
 import type { Redis } from "ioredis";
+import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 const LOCK_PREFIX = "dlq:lock:";
 const LOCK_TTL = 30; // Seconds — auto-release if process crashes
 
-export class DistributedLock {
+export class DistributedLock implements IDistributedLock {
 	private readonly _renewalInterval = new TimerHandle();
+	private _currentLockId: string | undefined;
 
 	constructor(
 		private readonly _redis: Redis,
@@ -16,42 +18,46 @@ export class DistributedLock {
 		return `${LOCK_PREFIX}${this._lockName}`;
 	}
 
-	async acquire(instanceId: string): Promise<boolean> {
+	async acquire(lockId?: string): Promise<boolean> {
+		const id = lockId ?? "";
 		const acquired = await this._redis.set(
 			this._key,
-			instanceId,
+			id,
 			"EX",
 			LOCK_TTL,
 			"NX"
 		);
 		if (acquired === "OK") {
-			this._startRenewal(instanceId);
+			this._currentLockId = id;
+			this._startRenewal(id);
 			return true;
 		}
 		return false;
 	}
 
-	private _startRenewal(instanceId: string): void {
+	private _startRenewal(lockId: string): void {
 		this._renewalInterval.startInterval(
-			() => this._renewLock(instanceId),
+			() => this._renewLock(lockId),
 			(LOCK_TTL / 2) * 1000
 		);
 	}
 
-	private async _renewLock(instanceId: string): Promise<void> {
+	private async _renewLock(lockId: string): Promise<void> {
 		try {
-			await this._redis.set(this._key, instanceId, "EX", LOCK_TTL, "XX");
+			await this._redis.set(this._key, lockId, "EX", LOCK_TTL, "XX");
 		} catch {
 			// Logged by caller
 		}
 	}
 
-	async release(instanceId: string): Promise<void> {
+	async release(lockId?: string): Promise<void> {
 		this._renewalInterval.stop();
-		await this._execReleaseScript(instanceId);
+		const id = lockId ?? this._currentLockId;
+		if (id === undefined) return;
+		await this._execReleaseScript(id);
 	}
 
-	private async _execReleaseScript(instanceId: string): Promise<void> {
+	private async _execReleaseScript(lockId: string): Promise<void> {
 		const script = `
       if redis.call("get", KEYS[1]) == ARGV[1] then
         return redis.call("del", KEYS[1])
@@ -59,6 +65,6 @@ export class DistributedLock {
         return 0
       end
     `;
-		await this._redis.eval(script, 1, this._key, instanceId);
+		await this._redis.eval(script, 1, this._key, lockId);
 	}
 }

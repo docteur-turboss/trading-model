@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
+import { DLQ_STATUS } from "./dlq-status";
 
 const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 
@@ -15,7 +16,7 @@ export interface MarkRetriedParams {
 
 function _buildAbandonFilter(): Record<string, unknown> {
 	return {
-		status: { $ne: "abandoned" },
+		status: { $ne: DLQ_STATUS.ABANDONED },
 		processingAt: { $exists: false },
 		$or: [
 			{ retryCount: { $gte: env.DLQ_RETRY_MAX_ATTEMPTS } },
@@ -37,7 +38,7 @@ export class DlqRetryManager {
 	async abandonExhaustedEntries(): Promise<number> {
 		const col = await getCollection();
 		const result = await col.updateMany(_buildAbandonFilter(), {
-			$set: { status: "abandoned", abandonedAt: new Date() },
+			$set: { status: DLQ_STATUS.ABANDONED, abandonedAt: new Date() },
 		});
 		return result.modifiedCount;
 	}
@@ -52,14 +53,14 @@ export class DlqRetryManager {
 			{ _id: new ObjectId(id) },
 			{ projection: { status: 1, processingInstance: 1 } }
 		);
-		if (entry?.status === "abandoned") {
+		if (entry?.status === DLQ_STATUS.ABANDONED) {
 			return;
 		}
 		await col.updateOne(
 			{ _id: new ObjectId(id), processingInstance: instanceId },
 			{
 				$set: {
-					status: "completed",
+					status: DLQ_STATUS.COMPLETED,
 					completedAt: new Date(),
 					lastBatchId: batchId,
 				},
@@ -135,7 +136,7 @@ function _buildStatusStage(self: DlqRetryManager): Record<string, unknown> {
 	return {
 		$set: {
 			status: {
-				$cond: [self._abandonCondition(), "abandoned", "$$REMOVE"],
+				$cond: [self._abandonCondition(), DLQ_STATUS.ABANDONED, "$$REMOVE"],
 			},
 			abandonedAt: {
 				$cond: [self._abandonCondition(), new Date(), "$$REMOVE"],

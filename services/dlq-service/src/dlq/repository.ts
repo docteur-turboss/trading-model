@@ -3,6 +3,7 @@ import { ObjectId, type WithId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
+import { DLQ_STATUS } from "./dlq-status";
 import { DlqCapacityError, dlqCapacityError, DlqEntryWriter } from "./dlq-entry-writer";
 
 export { DlqCapacityError, dlqCapacityError };
@@ -21,7 +22,8 @@ export interface DlqEntry {
 	messageId?: string;
 }
 
-export type DlqStatus = "completed" | "abandoned";
+export type { DlqStatus } from "./dlq-status";
+export { DLQ_STATUS } from "./dlq-status";
 
 export const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 
@@ -117,7 +119,7 @@ export class DlqRepository {
 				{
 					retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
 					processingAt: { $exists: false },
-					status: { $nin: ["completed", "abandoned"] },
+					status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
 					consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
 				},
 				{
@@ -136,7 +138,7 @@ export class DlqRepository {
 			.find(
 				{
 					processingAt: { $exists: true },
-					status: { $nin: ["completed", "abandoned"] },
+					status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
 				},
 				{ projection: { _id: 1 } }
 			)

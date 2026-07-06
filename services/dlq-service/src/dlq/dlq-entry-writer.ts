@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
+import { DLQ_STATUS } from "./dlq-status";
 import type { DlqEntry } from "./repository";
 
 export class DlqCapacityError {
@@ -91,7 +92,7 @@ export class DlqEntryWriter {
 		const prevCompleted = await col.findOne(
 			{
 				contentHash,
-				status: { $in: ["completed", "abandoned"] },
+				status: { $in: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
 			},
 			{ sort: { createdAt: -1 }, projection: { dlqPassCount: 1, _id: 1 } }
 		);
@@ -110,7 +111,7 @@ export class DlqEntryWriter {
 		};
 
 		if (dlqPassCount >= DLQ_MAX_PASS_COUNT) {
-			doc.status = "abandoned";
+			doc.status = DLQ_STATUS.ABANDONED;
 			doc.abandonedAt = new Date();
 			doc.lastError = `Ping-pong detected: message entered DLQ ${dlqPassCount} times`;
 		}

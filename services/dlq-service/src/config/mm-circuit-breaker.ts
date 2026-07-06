@@ -50,14 +50,6 @@ export class MessageManagerCircuitBreaker {
 		return "closed";
 	}
 
-	recordSuccess(_key?: string): void {
-		this.recordResult(true);
-	}
-
-	recordFailure(_key?: string, _count?: number): void {
-		this.recordResult(false);
-	}
-
 	recordResult(success: boolean): void {
 		if (success) {
 			this._resetOnSuccess();
@@ -82,21 +74,6 @@ export class MessageManagerCircuitBreaker {
 
 	clear(): void {
 		this._resetInternal();
-	}
-
-	/** @deprecated Use {@link clear} instead */
-	reset(): void {
-		this.clear();
-	}
-
-	/** @deprecated Use {@link isAllowed} instead */
-	canProceed(): boolean {
-		return this.isAllowed();
-	}
-
-	/** @deprecated Use {@link getState} instead */
-	getCircuitState(): CircuitState {
-		return this.getState();
 	}
 
 	private _resetInternal(): void {

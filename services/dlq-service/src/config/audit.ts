@@ -15,66 +15,69 @@ export interface AuditEvent {
 	severity: "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 }
 
-let httpClient: HttpClient | null = null;
-let httpClientPromise: Promise<HttpClient> | null = null;
+class AuditClientManager {
+	private _httpClient: HttpClient | null = null;
+	private _httpClientPromise: Promise<HttpClient> | null = null;
+	private _auditLoggerUrl: string | null | undefined;
+	private _auditUrlPromise: Promise<string | null> | null = null;
 
-async function getAuditHttpClient(): Promise<HttpClient> {
-	if (httpClient) {
-		return httpClient;
-	}
-	const existingClient = await _resolveExistingPromise(httpClientPromise);
-	if (existingClient) {
-		return existingClient;
-	}
-
-	httpClientPromise = _createHttpClientPromise();
-	return httpClientPromise;
-}
-
-function _createHttpClientPromise(): Promise<HttpClient> {
-	const client = new HttpClient({
-		ca: env.TLS_CA_PATH,
-		cert: env.TLS_CERT_PATH,
-		key: env.TLS_KEY_PATH,
-	});
-	httpClient = client;
-	return Promise.resolve(client);
-}
-
-let auditLoggerUrl: string | null | undefined;
-let auditUrlPromise: Promise<string | null> | null = null;
-
-async function resolveAuditLoggerUrl(): Promise<string | null> {
-	if (auditLoggerUrl !== undefined) {
-		return auditLoggerUrl;
-	}
-	if (await auditUrlPromise) {
-		return auditUrlPromise;
-	}
-
-	auditUrlPromise = _resolveUrlOrNull();
-	return auditUrlPromise;
-}
-
-async function _resolveUrlOrNull(): Promise<string | null> {
-	try {
-		const target = await findAService(ServiceInstanceName.AuditLoggerService);
-		if (target) {
-			auditLoggerUrl = `https://${target.ip}:${target.port}`;
-			return auditLoggerUrl;
+	async getHttpClient(): Promise<HttpClient> {
+		if (this._httpClient) {
+			return this._httpClient;
 		}
-	} catch {
-		logger.warn("Cannot resolve audit-logger URL via address-manager");
+		const existingClient = await this._resolveExistingPromise(this._httpClientPromise);
+		if (existingClient) {
+			return existingClient;
+		}
+
+		this._httpClientPromise = this._createHttpClientPromise();
+		return this._httpClientPromise;
 	}
-	auditLoggerUrl = null;
-	return null;
+
+	private _createHttpClientPromise(): Promise<HttpClient> {
+		const client = new HttpClient({
+			ca: env.TLS_CA_PATH,
+			cert: env.TLS_CERT_PATH,
+			key: env.TLS_KEY_PATH,
+		});
+		this._httpClient = client;
+		return Promise.resolve(client);
+	}
+
+	async resolveAuditLoggerUrl(): Promise<string | null> {
+		if (this._auditLoggerUrl !== undefined) {
+			return this._auditLoggerUrl;
+		}
+		if (await this._auditUrlPromise) {
+			return this._auditUrlPromise;
+		}
+
+		this._auditUrlPromise = this._resolveUrlOrNull();
+		return this._auditUrlPromise;
+	}
+
+	private async _resolveUrlOrNull(): Promise<string | null> {
+		try {
+			const target = await findAService(ServiceInstanceName.AuditLoggerService);
+			if (target) {
+				this._auditLoggerUrl = `https://${target.ip}:${target.port}`;
+				return this._auditLoggerUrl;
+			}
+		} catch {
+			logger.warn("Cannot resolve audit-logger URL via address-manager");
+		}
+		this._auditLoggerUrl = null;
+		return null;
+	}
+
+	private async _resolveExistingPromise<T>(
+		promise: Promise<T> | null
+	): Promise<T | null> {
+		return promise === null ? null : await promise;
+	}
 }
 
-async function _resolveExistingPromise<T>(
-	promise: Promise<T> | null
-): Promise<T | null> {
-	return promise === null ? null : await promise;
-}
+const auditClientManager = new AuditClientManager();
 
 const auditCircuitBreaker = new MessageManagerCircuitBreaker({
 	failureThreshold: 10,
@@ -98,11 +101,11 @@ export async function notifyAudit(event: AuditEvent): Promise<void> {
 }
 
 async function _sendAuditEvent(event: AuditEvent): Promise<void> {
-	const url = await resolveAuditLoggerUrl();
+	const url = await auditClientManager.resolveAuditLoggerUrl();
 	if (!url) {
 		return;
 	}
-	const client = await getAuditHttpClient();
+	const client = await auditClientManager.getHttpClient();
 	await client.post(`${url}/audit`, event, {
 		timeoutMs: 5000,
 		serviceName: ServiceInstanceName.AuditLoggerService,
