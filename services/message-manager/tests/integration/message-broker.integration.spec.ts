@@ -11,7 +11,7 @@ import {
 	jest,
 } from "@jest/globals";
 import { Dispatcher } from "../../src/messaging/core/dispatcher";
-import { DqlRepository } from "../../src/messaging/core/dlq-repository";
+import { DlqRepository } from "../../src/messaging/core/dlq-repository";
 import {
 	mockServiceIdentity,
 	mockSubscriberIdentity,
@@ -31,7 +31,7 @@ describe("Message Broker Integration", () => {
 
 	beforeEach(() => {
 		httpClient = createMockHttpClient();
-		const dqlRepository = new DqlRepository(dlqFilePath);
+		const dqlRepository = new DlqRepository(dlqFilePath);
 		dispatcher = new Dispatcher(httpClient as never, dqlRepository);
 	});
 

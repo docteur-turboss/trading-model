@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "@jest/globals";
 import {
-	type DqlEntry,
-	DqlRepository,
+	type DlqEntry,
+	DlqRepository,
 } from "../../../../src/messaging/core/dlq-repository";
 
-describe("DqlRepository", () => {
+describe("DlqRepository", () => {
 	const testFilePath = join(tmpdir(), `dlq-test-${Date.now()}.jsonl`);
 
 	afterAll(async () => {
@@ -19,9 +19,9 @@ describe("DqlRepository", () => {
 
 	describe("add", () => {
 		it("should append a JSON line to the file", async () => {
-			const repo = new DqlRepository(testFilePath);
+			const repo = new DlqRepository(testFilePath);
 
-			const entry: DqlEntry = {
+			const entry: DlqEntry = {
 				message: { payload: "test", metadata: { topic: "test.topic" } },
 				reason: "DeadLetterError",
 				deliveryAttempt: 3,
@@ -41,7 +41,7 @@ describe("DqlRepository", () => {
 		});
 
 		it("should append multiple entries as separate lines", async () => {
-			const repo = new DqlRepository(testFilePath);
+			const repo = new DlqRepository(testFilePath);
 
 			await repo.add({
 				message: { id: 1 },
@@ -68,12 +68,12 @@ describe("DqlRepository", () => {
 		});
 
 		it("should work with default file path when no path provided", () => {
-			const repo = new DqlRepository();
-			expect(repo).toBeInstanceOf(DqlRepository);
+			const repo = new DlqRepository();
+			expect(repo).toBeInstanceOf(DlqRepository);
 		});
 
 		it("should handle entry without reason", async () => {
-			const repo = new DqlRepository(testFilePath);
+			const repo = new DlqRepository(testFilePath);
 
 			await repo.add({
 				message: "plain string payload",
