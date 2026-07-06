@@ -122,6 +122,10 @@ export class WssClient {
 		return Promise.reject(new Error("WSS not connected and no HTTP fallback"));
 	}
 
+	send(data: unknown): Promise<void> {
+		return this.publish(data, {} as MessageMetadata);
+	}
+
 	private _flushPending(): void {
 		this._queue.flush((data) => this._lifecycle.send(data));
 	}
