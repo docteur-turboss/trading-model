@@ -9,7 +9,8 @@ import {
 	SubscriptionRedisStore,
 } from "./subscription-redis-store";
 
-export { LEASE_HEARTBEAT_FIELD, SubscriptionEntry };
+export { LEASE_HEARTBEAT_FIELD };
+export type { SubscriptionEntry };
 
 export class SubscriptionStore {
 	private _redisStore: SubscriptionRedisStore;

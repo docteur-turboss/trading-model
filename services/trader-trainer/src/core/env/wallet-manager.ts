@@ -1,33 +1,34 @@
+import { Price, Volume, Percentage } from "@trading-model/common/domain/primitives";
 import { computeWalletMetrics, type WalletMetrics } from "./wallet-metrics";
 
 export type { WalletMetrics };
 
 export interface WalletConfig {
 	initialCash: number;
-	initialPrice: number;
-	feeRate?: number;
-	maxPosition?: number;
+	initialPrice: Price;
+	feeRate?: Percentage;
+	maxPosition?: Volume;
 	decimals?: number;
 }
 
 export interface TradeRecord {
 	step: number;
 	action: "buy" | "sell";
-	amount: number;
-	price: number;
+	amount: Volume;
+	price: Price;
 	fee: number;
 	cashAfter: number;
-	positionAfter: number;
+	positionAfter: Volume;
 }
 
 export interface WalletAPI {
-	buy: (amount: number) => boolean;
-	sell: (amount: number) => boolean;
-	setPrice: (newPrice: number) => void;
-	getPosition: () => number;
+	buy: (amount: Volume) => boolean;
+	sell: (amount: Volume) => boolean;
+	setPrice: (newPrice: Price) => void;
+	getPosition: () => Volume;
 	getCash: () => number;
 	getValuation: () => number;
-	getPrice: () => number;
+	getPrice: () => Price;
 	getPnL: () => number;
 	getMetrics: () => WalletMetrics;
 	getHistory: () => Readonly<TradeRecord[]>;
@@ -40,20 +41,20 @@ function _validateInitialCash(initialCash: number): void {
 	}
 }
 
-function _validateInitialPrice(initialPrice: number): void {
-	if (!Number.isFinite(initialPrice) || initialPrice <= 0) {
+function _validateInitialPrice(initialPrice: Price): void {
+	if (!Number.isFinite(+initialPrice) || +initialPrice <= 0) {
 		throw new Error(`Invalid initialPrice: ${initialPrice}`);
 	}
 }
 
-function _validateFeeRate(feeRate: number): void {
-	if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate >= 1) {
+function _validateFeeRate(feeRate: Percentage): void {
+	if (!Number.isFinite(+feeRate) || +feeRate < 0 || +feeRate >= 1) {
 		throw new Error(`Invalid feeRate: ${feeRate}. Must be in [0, 1[`);
 	}
 }
 
-function _validateMaxPosition(maxPosition: number): void {
-	if (maxPosition <= 0) {
+function _validateMaxPosition(maxPosition: Volume): void {
+	if (+maxPosition <= 0) {
 		throw new Error(`Invalid maxPosition: ${maxPosition}`);
 	}
 }
@@ -76,14 +77,14 @@ function validateConfig(config: Required<WalletConfig>): void {
 
 export class Wallet implements WalletAPI {
 	private readonly _initialCash: number;
-	private readonly _initialPrice: number;
-	private readonly _feeRate: number;
-	private readonly _maxPosition: number;
+	private readonly _initialPrice: Price;
+	private readonly _feeRate: Percentage;
+	private readonly _maxPosition: Volume;
 	private readonly _decimals: number;
 
-	private _price: number;
+	private _price: Price;
 	private _cash: number;
-	private _position = 0;
+	private _position: Volume = Volume.zero();
 	private _peakValuation: number;
 	private _totalFeesPaid = 0;
 	private _tradeCount = 0;
@@ -94,11 +95,11 @@ export class Wallet implements WalletAPI {
 		const {
 			initialCash,
 			initialPrice,
-			feeRate = 0,
-			maxPosition = Number.POSITIVE_INFINITY,
+			feeRate = Percentage.zero(),
+			maxPosition = Volume.of(Number.MAX_VALUE),
 			decimals = 8,
 		} = config;
-		const resolved = { initialCash, initialPrice, feeRate, maxPosition, decimals };
+		const resolved: Required<WalletConfig> = { initialCash, initialPrice: Price.of(+initialPrice), feeRate: Percentage.of(+feeRate), maxPosition: Volume.of(+maxPosition), decimals };
 		validateConfig(resolved);
 		this._initialCash = resolved.initialCash;
 		this._initialPrice = resolved.initialPrice;
@@ -116,7 +117,7 @@ export class Wallet implements WalletAPI {
 	}
 
 	private _valuation(): number {
-		return this._round(this._cash + this._position * this._price);
+		return this._round(this._cash + +this._position * +this._price);
 	}
 
 	private _updatePeak(): void {
@@ -126,12 +127,13 @@ export class Wallet implements WalletAPI {
 		}
 	}
 
-	buy(amount: number): boolean {
-		if (!Number.isFinite(amount) || amount <= 0) {
+	buy(amount: Volume): boolean {
+		const amt = +amount;
+		if (!Number.isFinite(amt) || amt <= 0) {
 			return false;
 		}
-		const newPosition = this._round(this._position + amount);
-		if (newPosition > this._maxPosition) {
+		const newPosition = Volume.of(this._round(+this._position + amt));
+		if (+newPosition > +this._maxPosition) {
 			return false;
 		}
 		const { totalCost, fee } = this._computeBuyCosts(amount);
@@ -144,21 +146,22 @@ export class Wallet implements WalletAPI {
 		return true;
 	}
 
-	private _computeBuyCosts(amount: number): { totalCost: number; fee: number } {
-		const baseCost = this._round(amount * this._price);
-		const fee = this._round(baseCost * this._feeRate);
+	private _computeBuyCosts(amount: Volume): { totalCost: number; fee: number } {
+		const baseCost = this._round(+amount * +this._price);
+		const fee = this._round(baseCost * +this._feeRate);
 		const totalCost = this._round(baseCost + fee);
 		return { totalCost, fee };
 	}
 
-	sell(amount: number): boolean {
-		if (!Number.isFinite(amount) || amount <= 0 || amount > this._position) {
+	sell(amount: Volume): boolean {
+		const amt = +amount;
+		if (!Number.isFinite(amt) || amt <= 0 || amt > +this._position) {
 			return false;
 		}
-		const baseProceeds = this._round(amount * this._price);
-		const fee = this._round(baseProceeds * this._feeRate);
+		const baseProceeds = this._round(amt * +this._price);
+		const fee = this._round(baseProceeds * +this._feeRate);
 		const netProceeds = this._round(baseProceeds - fee);
-		this._position = this._round(this._position - amount);
+		this._position = Volume.of(this._round(+this._position - amt));
 		this._cash = this._round(this._cash + netProceeds);
 		this._recordTrade("sell", amount, fee);
 		return true;
@@ -166,7 +169,7 @@ export class Wallet implements WalletAPI {
 
 	private _recordTrade(
 		action: "buy" | "sell",
-		amount: number,
+		amount: Volume,
 		fee: number
 	): void {
 		this._totalFeesPaid = this._round(this._totalFeesPaid + fee);
@@ -183,8 +186,8 @@ export class Wallet implements WalletAPI {
 		});
 	}
 
-	setPrice(newPrice: number): void {
-		if (!Number.isFinite(newPrice) || newPrice <= 0) {
+	setPrice(newPrice: Price): void {
+		if (!Number.isFinite(+newPrice) || +newPrice <= 0) {
 			throw new Error(`setPrice received invalid value: ${newPrice}`);
 		}
 		this._price = newPrice;
@@ -192,7 +195,7 @@ export class Wallet implements WalletAPI {
 		this._updatePeak();
 	}
 
-	getPosition(): number {
+	getPosition(): Volume {
 		return this._position;
 	}
 
@@ -204,7 +207,7 @@ export class Wallet implements WalletAPI {
 		return this._valuation();
 	}
 
-	getPrice(): number {
+	getPrice(): Price {
 		return this._price;
 	}
 
@@ -215,8 +218,8 @@ export class Wallet implements WalletAPI {
 	getMetrics(): WalletMetrics {
 		return computeWalletMetrics({
 			cash: this._cash,
-			position: this._position,
-			price: this._price,
+			position: +this._position,
+			price: +this._price,
 			peakValuation: this._peakValuation,
 			initialCash: this._initialCash,
 			totalFeesPaid: this._totalFeesPaid,
@@ -232,7 +235,7 @@ export class Wallet implements WalletAPI {
 	reset(): void {
 		this._price = this._initialPrice;
 		this._cash = this._initialCash;
-		this._position = 0;
+		this._position = Volume.zero();
 		this._peakValuation = this._initialCash;
 		this._totalFeesPaid = 0;
 		this._tradeCount = 0;

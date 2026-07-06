@@ -117,22 +117,8 @@ export class MarketDataBuffer {
 	setOrderBook(symbol: string, orderBook: OrderBookData): void {
 		const state = this._getOrCreate(toSymbol(symbol));
 		state.orderBook = orderBook;
-		this._updateOrderBookNorms(state, orderBook);
+		this._normManager.updateOrderBookNorms(state, orderBook);
 		this._memoryManager.enforceMemoryLimit();
-	}
-
-	private _updateOrderBookNorms(state: SymbolState, orderBook: OrderBookData): void {
-		const avgBid = getAvgBid(orderBook);
-		const avgAsk = getAvgAsk(orderBook);
-		if (avgBid > 0) {
-			state.norm.bid.update(avgBid);
-		}
-		if (avgAsk > 0) {
-			state.norm.ask.update(avgAsk);
-		}
-		if (avgAsk > 0 && avgBid > 0) {
-			state.norm.spread.update(avgAsk - avgBid);
-		}
 	}
 
 	/** Store a book-ticker snapshot and update bid/ask/spread normalisers. */
