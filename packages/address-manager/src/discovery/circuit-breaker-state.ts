@@ -1,5 +1,6 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 import { logger } from "@trading-model/common/config/logger";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export interface INstanceState {
 	failures: number;
@@ -12,7 +13,7 @@ const SWEEP_INTERVAL_MS = 60_000;
 
 export class CircuitBreakerState {
 	private readonly _instances = new Map<string, INstanceState>();
-	private _sweepHandle?: NodeJS.Timeout;
+	private readonly _sweepHandle = new TimerHandle();
 
 	constructor(
 		private readonly _failureThreshold: number,
@@ -74,7 +75,7 @@ export class CircuitBreakerState {
 	}
 
 	private _startSweeper(): void {
-		this._sweepHandle = setInterval(() => this._sweepStaleEntries(), SWEEP_INTERVAL_MS);
+		this._sweepHandle.startInterval(() => this._sweepStaleEntries(), SWEEP_INTERVAL_MS);
 		this._sweepHandle.unref();
 	}
 
@@ -89,9 +90,6 @@ export class CircuitBreakerState {
 	}
 
 	private _stopSweeper(): void {
-		if (this._sweepHandle) {
-			clearInterval(this._sweepHandle);
-			this._sweepHandle = undefined;
-		}
+		this._sweepHandle.stop();
 	}
 }

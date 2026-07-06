@@ -2,6 +2,7 @@ import { logger } from "@trading-model/common/config/logger";
 import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 interface PendingPublish {
 	payload: unknown;
@@ -24,7 +25,7 @@ const WSS_PENDING_QUEUE_MAX = 1000;
 
 export class PendingPublishQueue {
 	private _pendingQueue: PendingPublish[] = [];
-	private _flusherTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _flusherTimer = new TimerHandle();
 	private readonly _httpFallback: FallbackPublishFn | null;
 
 	constructor(httpFallback?: FallbackPublishFn) {
@@ -120,7 +121,7 @@ export class PendingPublishQueue {
 	}
 
 	private _startFlusher(): void {
-		this._flusherTimer = setInterval(() => {
+		this._flusherTimer.startInterval(() => {
 			// Flusher is driven externally via flush() calls
 		}, 50);
 		this._flusherTimer.unref();
@@ -167,9 +168,6 @@ export class PendingPublishQueue {
 	}
 
 	stop(): void {
-		if (this._flusherTimer) {
-			clearInterval(this._flusherTimer);
-			this._flusherTimer = null;
-		}
+		this._flusherTimer.stop();
 	}
 }

@@ -3,6 +3,7 @@ import {
 	type WsReconnectState,
 } from "@trading-model/common/utils/ws-reconnect";
 import { logger } from "@trading-model/common/config/logger";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 const WSS_RECONNECT_BASE_MS = 1000;
 const WSS_RECONNECT_MAX_MS = 30000;
@@ -19,7 +20,7 @@ export class WssReconnector {
 		destroyed: false,
 	};
 	private _permanentlyFellBack = false;
-	private _reconnectPollTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _reconnectPollTimer = new TimerHandle();
 
 	get shouldReconnect(): boolean {
 		return this._shouldReconnect;
@@ -41,7 +42,7 @@ export class WssReconnector {
 		return this._wsReconnectState;
 	}
 
-	schedule(connectFn: ConnectFn, onPermanentFallback?: () => void): void {
+	scheduleReconnect(connectFn: ConnectFn, onPermanentFallback?: () => void): void {
 		if (!this._shouldReconnect) {
 			return;
 		}
@@ -61,6 +62,15 @@ export class WssReconnector {
 		});
 	}
 
+	/** @deprecated Use {@link scheduleReconnect} instead */
+	schedule(connectFn: ConnectFn, onPermanentFallback?: () => void): void {
+		return this.scheduleReconnect(connectFn, onPermanentFallback);
+	}
+
+	cancel(): void {
+		this.stop();
+	}
+
 	private _handleMaxAttemptsReached(connectFn: ConnectFn, onPermanentFallback?: () => void): void {
 		if (this._permanentlyFellBack) {
 			return;
@@ -74,10 +84,10 @@ export class WssReconnector {
 	}
 
 	private _startReconnectPolling(connectFn: ConnectFn): void {
-		if (this._reconnectPollTimer) {
+		if (this._reconnectPollTimer.isRunning) {
 			return;
 		}
-		this._reconnectPollTimer = setInterval(() => this._pollReconnect(connectFn), WSS_RECONNECT_POLL_INTERVAL_MS);
+		this._reconnectPollTimer.startInterval(() => this._pollReconnect(connectFn), WSS_RECONNECT_POLL_INTERVAL_MS);
 		this._reconnectPollTimer.unref();
 	}
 
@@ -93,10 +103,7 @@ export class WssReconnector {
 	}
 
 	private _stopReconnectPolling(): void {
-		if (this._reconnectPollTimer) {
-			clearInterval(this._reconnectPollTimer);
-			this._reconnectPollTimer = null;
-		}
+		this._reconnectPollTimer.stop();
 	}
 
 	reset(): void {

@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import { type Collection, MongoClient } from "mongodb";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 import { MONGO_MANAGER } from "./mongo-manager";
 
@@ -17,9 +18,13 @@ export interface AuditEntry {
 export class AuditStore {
 	private _client: MongoClient;
 	private _collection: Collection<AuditEntry> | null = null;
+	private get _requiredCollection(): Collection<AuditEntry> {
+		if (!this._collection) throw new Error("AuditStore not connected");
+		return this._collection;
+	}
 	private _mongoConnected = false;
 	private readonly _pendingEntries: AuditEntry[] = [];
-	private _flushTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _flushTimer = new TimerHandle();
 	private readonly _maxBuffer = 5000;
 	private readonly _flushIntervalMs = 5000;
 	private readonly _batchSize = 200;
@@ -46,9 +51,9 @@ export class AuditStore {
 	}
 
 	private async _createAuditIndexes(): Promise<void> {
-		await this._collection!.createIndex({ timestamp: -1 }, { expireAfterSeconds: 90 * 86400 });
-		await this._collection!.createIndex({ serviceId: 1, timestamp: -1 });
-		await this._collection!.createIndex({ serialNumber: 1 });
+		await this._requiredCollection.createIndex({ timestamp: -1 }, { expireAfterSeconds: 90 * 86400 });
+		await this._requiredCollection.createIndex({ serviceId: 1, timestamp: -1 });
+		await this._requiredCollection.createIndex({ serialNumber: 1 });
 	}
 
 	private async _tryConnect(): Promise<boolean> {
@@ -74,10 +79,7 @@ export class AuditStore {
 
 	async disconnect(): Promise<void> {
 		await this._flush();
-		if (this._flushTimer) {
-			clearInterval(this._flushTimer);
-			this._flushTimer = null;
-		}
+		this._flushTimer.stop();
 		if (!MONGO_MANAGER.isInitialized()) {
 			try {
 				await this._client.close();
@@ -115,14 +117,8 @@ export class AuditStore {
 	}
 
 	private _startFlushTimer(): void {
-		this._flushTimer = setInterval(() => this._flush(), this._flushIntervalMs);
-		if (
-			this._flushTimer &&
-			typeof this._flushTimer === "object" &&
-			"unref" in this._flushTimer
-		) {
-			this._flushTimer.unref();
-		}
+		this._flushTimer.startInterval(() => this._flush(), this._flushIntervalMs);
+		this._flushTimer.unref();
 	}
 
 	private _rebufferEntries(batch: AuditEntry[], err: unknown): void {

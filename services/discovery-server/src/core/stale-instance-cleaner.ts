@@ -1,9 +1,11 @@
 import { logger } from "@trading-model/common/config/logger";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 const CLOCK_SKEW_TOLERANCE_MS = 2000;
 
@@ -14,10 +16,10 @@ export interface CleanupDeps {
 }
 
 export class StaleInstanceCleaner {
-	private _handle: NodeJS.Timeout | undefined;
+	private readonly _handle = new TimerHandle();
 
 	get isRunning(): boolean {
-		return this._handle !== undefined;
+		return this._handle.isRunning;
 	}
 
 	constructor(
@@ -28,7 +30,7 @@ export class StaleInstanceCleaner {
 	start(): void {
 		const initialDelay = Math.floor(Math.random() * this._intervalMs);
 		setTimeout(() => {
-			this._handle = setInterval(() => {
+			this._handle.startInterval(() => {
 				this._cleanup().catch((err) => {
 					logger.error("Redis cleanup error", {
 						error: normalizeError(err),
@@ -39,10 +41,7 @@ export class StaleInstanceCleaner {
 	}
 
 	stop(): void {
-		if (this._handle) {
-			clearInterval(this._handle);
-			this._handle = undefined;
-		}
+		this._handle.stop();
 	}
 
 	async cleanupNow(): Promise<void> {
@@ -57,7 +56,7 @@ export class StaleInstanceCleaner {
 		logger.warn("Expired instance removed", {
 			serviceName, instanceId: instance.instanceId, heartbeatAge: now - instance.lastHeartbeat, ttl: instance.ttl,
 		});
-		await this._deps.removeInstance({ serviceName, instanceId: instance.instanceId });
+		await this._deps.removeInstance({ serviceName: toServiceId(serviceName), instanceId: instance.instanceId });
 	}
 
 	private async _cleanup(): Promise<void> {

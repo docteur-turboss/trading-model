@@ -1,10 +1,11 @@
 import type { Redis } from "ioredis";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 const LOCK_PREFIX = "dlq:lock:";
 const LOCK_TTL = 30; // Seconds — auto-release if process crashes
 
 export class DistributedLock {
-	private _renewalInterval: ReturnType<typeof setInterval> | null = null;
+	private readonly _renewalInterval = new TimerHandle();
 
 	constructor(
 		private readonly _redis: Redis,
@@ -31,17 +32,10 @@ export class DistributedLock {
 	}
 
 	private _startRenewal(instanceId: string): void {
-		this._clearExistingRenewal();
-		this._renewalInterval = setInterval(
+		this._renewalInterval.startInterval(
 			() => this._renewLock(instanceId),
 			(LOCK_TTL / 2) * 1000
 		);
-	}
-
-	private _clearExistingRenewal(): void {
-		if (this._renewalInterval) {
-			clearInterval(this._renewalInterval);
-		}
 	}
 
 	private async _renewLock(instanceId: string): Promise<void> {
@@ -53,7 +47,7 @@ export class DistributedLock {
 	}
 
 	async release(instanceId: string): Promise<void> {
-		this._clearExistingRenewal();
+		this._renewalInterval.stop();
 		await this._execReleaseScript(instanceId);
 	}
 

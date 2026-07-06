@@ -1,17 +1,16 @@
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+
 export class ArchiveTimerScheduler {
-	private _archiveTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _archiveTimer = new TimerHandle();
 
 	start(intervalMs: number, callback: () => Promise<void>): void {
-		this._archiveTimer = setInterval(() => {
+		this._archiveTimer.startInterval(() => {
 			callback().catch(() => {});
 		}, intervalMs);
 		this._archiveTimer.unref();
 	}
 
 	stop(): void {
-		if (this._archiveTimer) {
-			clearInterval(this._archiveTimer);
-			this._archiveTimer = null;
-		}
+		this._archiveTimer.stop();
 	}
 }

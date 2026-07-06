@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 interface PersistenceOp {
 	fn: () => Promise<void>;
@@ -12,7 +13,7 @@ interface PersistenceOp {
  */
 export class PersistenceRetryQueue {
 	private _ops: PersistenceOp[] = [];
-	private _timer: ReturnType<typeof setInterval> | null = null;
+	private readonly _timer = new TimerHandle();
 
 	constructor(
 		private readonly _maxRetries: number,
@@ -25,10 +26,10 @@ export class PersistenceRetryQueue {
 	}
 
 	private _ensureStarted(): void {
-		if (this._timer) {
+		if (this._timer.isRunning) {
 			return;
 		}
-		this._timer = setInterval(() => {
+		this._timer.startInterval(() => {
 			this.flush().catch(() => {});
 		}, this._retryIntervalMs);
 		this._timer.unref();
@@ -48,10 +49,7 @@ export class PersistenceRetryQueue {
 		if (this._ops.length > 0) {
 			return false;
 		}
-		if (this._timer) {
-			clearInterval(this._timer);
-			this._timer = null;
-		}
+		this._timer.stop();
 		return true;
 	}
 
@@ -84,17 +82,13 @@ export class PersistenceRetryQueue {
 	}
 
 	private _stopIfEmpty(): void {
-		if (this._ops.length === 0 && this._timer) {
-			clearInterval(this._timer);
-			this._timer = null;
+		if (this._ops.length === 0) {
+			this._timer.stop();
 		}
 	}
 
 	async stop(): Promise<void> {
-		if (this._timer) {
-			clearInterval(this._timer);
-			this._timer = null;
-		}
+		this._timer.stop();
 		await this.flush();
 	}
 }

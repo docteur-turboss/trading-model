@@ -1,5 +1,6 @@
 import type WebSocket from "ws";
 import { Deque } from "./deque";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 interface RateLimitEntry {
 	timestamps: Deque<number>;
@@ -13,7 +14,7 @@ const STALE_MS = 120_000;
 
 export class WssRateLimiter {
 	private _windows = new Map<string, RateLimitEntry>();
-	private _cleanupTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _cleanupTimer = new TimerHandle();
 
 	check(serviceName: string): boolean {
 		const entry = this._getOrCreateEntry(serviceName);
@@ -54,10 +55,10 @@ export class WssRateLimiter {
 	}
 
 	ensureCleanupTimer(): void {
-		if (this._cleanupTimer) {
+		if (this._cleanupTimer.isRunning) {
 			return;
 		}
-		this._cleanupTimer = setInterval(() => this._cleanupWindows(), RATE_LIMIT_CLEANUP_INTERVAL_MS);
+		this._cleanupTimer.startInterval(() => this._cleanupWindows(), RATE_LIMIT_CLEANUP_INTERVAL_MS);
 		this._cleanupTimer.unref();
 	}
 
@@ -80,10 +81,7 @@ export class WssRateLimiter {
 	}
 
 	shutdown(): void {
-		if (this._cleanupTimer) {
-			clearInterval(this._cleanupTimer);
-			this._cleanupTimer = null;
-		}
+		this._cleanupTimer.stop();
 		this._windows.clear();
 	}
 }

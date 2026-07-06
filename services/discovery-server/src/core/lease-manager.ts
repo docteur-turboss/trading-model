@@ -1,5 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 import type { ServiceRegistry } from "./service-registry";
 import type { ServiceInstance } from "./types";
@@ -37,7 +39,7 @@ export class LeaseManager {
 	 * Reference to the scheduled interval handler.
 	 * Used to prevent duplicate schedulers and to allow clean shutdown.
 	 */
-	private _intervalHandle?: NodeJS.Timeout;
+	private readonly _intervalHandle = new TimerHandle();
 
 	constructor(
 		private readonly _registry: ServiceRegistry,
@@ -65,8 +67,8 @@ export class LeaseManager {
 	 * calling it multiple times will not start multiple intervals.
 	 */
 	start(): void {
-		if (this._intervalHandle) return;
-		this._intervalHandle = setInterval(() => {
+		if (this._intervalHandle.isRunning) return;
+		this._intervalHandle.startInterval(() => {
 			try { this._cleanupExpiredInstances(); } catch (err) {
 				logger.error("Cleanup error", { error: normalizeError(err) });
 			}
@@ -81,11 +83,8 @@ export class LeaseManager {
 	 * or application lifecycle termination.
 	 */
 	stop(): void {
-		if (this._intervalHandle) {
-			clearInterval(this._intervalHandle);
-			this._intervalHandle = undefined;
-			logger.info("Cleanup loop stopped");
-		}
+		this._intervalHandle.stop();
+		logger.info("Cleanup loop stopped");
 	}
 
 	/**
@@ -123,7 +122,7 @@ export class LeaseManager {
 	private _removeExpiredInstance(serviceName: string, instance: import("./types").ServiceInstance): void {
 		logger.warn("Expired instance removed", { serviceName, instanceId: instance.instanceId });
 		try {
-			this._registry.removeInstance({ serviceName, instanceId: instance.instanceId });
+			this._registry.removeInstance({ serviceName: toServiceId(serviceName), instanceId: instance.instanceId });
 		} catch (err) {
 			logger.error("Failed to remove expired instance", { serviceName, instanceId: instance.instanceId, error: normalizeError(err) });
 		}

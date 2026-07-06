@@ -1,13 +1,14 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
 import type { HealthCheckCallbacks } from "./redis-health-monitor";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export class FallbackManager {
 	private _fallbackActive = false;
 	private _currentBackend: RegistryBackend;
 	private readonly _primaryBackend: RegistryBackend;
 	private readonly _callbacks: HealthCheckCallbacks;
-	private _restoreHandle?: NodeJS.Timeout;
+	private readonly _restoreHandle = new TimerHandle();
 
 	constructor(
 		backend: RegistryBackend,
@@ -42,17 +43,14 @@ export class FallbackManager {
 	}
 
 	startRestoreLoop(restoreFn: () => Promise<void>): void {
-		this._restoreHandle = setInterval(
+		this._restoreHandle.startInterval(
 			() => restoreFn(),
 			this._restoreIntervalMs,
 		);
 	}
 
 	clearRestoreTimer(): void {
-		if (this._restoreHandle) {
-			clearInterval(this._restoreHandle);
-			this._restoreHandle = undefined;
-		}
+		this._restoreHandle.stop();
 	}
 
 	restoreOriginalBackend(): void {

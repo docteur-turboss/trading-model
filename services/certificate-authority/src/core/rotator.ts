@@ -1,6 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { CertificateStore } from "../persistence/certificate-store";
 import type { CertificateAuthority } from "./ca";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export interface RotatorOptions {
 	ca: CertificateAuthority;
@@ -12,7 +13,7 @@ export interface RotatorOptions {
 
 export class Rotator {
 	private readonly _options: RotatorOptions;
-	private _timer: ReturnType<typeof setInterval> | null = null;
+	private readonly _timer = new TimerHandle();
 
 	constructor(options: RotatorOptions) {
 		this._options = options;
@@ -25,7 +26,7 @@ export class Rotator {
 	}
 
 	private _scheduleRotation(): void {
-		this._timer = setInterval(() => {
+		this._timer.startInterval(() => {
 			this._rotate().catch((err) => {
 				logger.error("Certificate rotation failed", { context: { err } });
 			});
@@ -33,7 +34,7 @@ export class Rotator {
 	}
 
 	start(): void {
-		if (this._timer) {
+		if (this._timer.isRunning) {
 			return;
 		}
 		this._logRotatorStart();
@@ -41,11 +42,8 @@ export class Rotator {
 	}
 
 	stop(): void {
-		if (this._timer) {
-			clearInterval(this._timer);
-			this._timer = null;
-			logger.info("Certificate rotator stopped");
-		}
+		this._timer.stop();
+		logger.info("Certificate rotator stopped");
 	}
 
 	private _rotateSingleCert(cert: { serviceId: string; serialNumber: string; expiresAt: Date }): void {

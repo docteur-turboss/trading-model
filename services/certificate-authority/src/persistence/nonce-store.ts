@@ -15,6 +15,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 import type { NonceContext, NonceDocument, NoncePersistence } from "./nonce-persister";
 import { MongoNoncePersister, NullNoncePersister } from "./nonce-persister";
@@ -29,7 +30,7 @@ export class NonceStore {
 	private readonly _l1 = new Map<string, NonceEntry>();
 	private readonly _ttlMs: number;
 	private readonly _persister: NoncePersistence;
-	private _cleanupTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _cleanupTimer = new TimerHandle();
 
 	constructor(ttlMs = 300_000, mongoUri?: string) {
 		this._ttlMs = ttlMs;
@@ -98,10 +99,7 @@ export class NonceStore {
 	}
 
 	destroy(): void {
-		if (this._cleanupTimer) {
-			clearInterval(this._cleanupTimer);
-			this._cleanupTimer = null;
-		}
+		this._cleanupTimer.stop();
 		this._l1.clear();
 	}
 
@@ -122,15 +120,9 @@ export class NonceStore {
 		}
 	}
 
-	private _unrefTimer(): void {
-		if (this._cleanupTimer && typeof this._cleanupTimer === "object" && "unref" in this._cleanupTimer) {
-			this._cleanupTimer.unref();
-		}
-	}
-
 	private _startCleanup(): void {
 		const interval = Math.min(this._ttlMs / 2, 60_000);
-		this._cleanupTimer = setInterval(() => this._cleanupExpiredL1Entries(), interval);
-		this._unrefTimer();
+		this._cleanupTimer.startInterval(() => this._cleanupExpiredL1Entries(), interval);
+		this._cleanupTimer.unref();
 	}
 }

@@ -8,12 +8,13 @@ import { WalDrainCoordinator } from "./wal-drain-coordinator";
 import { WalEntryParser } from "./wal-entry-parser";
 import { WalFlushErrorHandler } from "./wal-flush-error-handler";
 import { WalFlushLoop } from "./wal-flush-loop";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 const WAL_LIST_MAX_LEN = 1_000_000;
 
 export class WalFlusherService {
 	private _walFlushing = false;
-	private _walFlusherTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _walFlusherTimer = new TimerHandle();
 
 	private readonly _flushLoop: WalFlushLoop;
 	private readonly _drainCoordinator: WalDrainCoordinator;
@@ -46,17 +47,14 @@ export class WalFlusherService {
 	}
 
 	start(): void {
-		this._walFlusherTimer = setInterval(() => {
+		this._walFlusherTimer.startInterval(() => {
 			this._flushWal().catch(() => {});
 		}, 1000);
 		this._walFlusherTimer.unref();
 	}
 
 	stop(): void {
-		if (this._walFlusherTimer) {
-			clearInterval(this._walFlusherTimer);
-			this._walFlusherTimer = null;
-		}
+		this._walFlusherTimer.stop();
 	}
 
 	async storeInWal(

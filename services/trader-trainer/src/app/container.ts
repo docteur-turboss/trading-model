@@ -12,15 +12,17 @@ import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "../core/market-data-buffer";
+import type { TradingSymbol } from "../core/market-data-types";
 import { Price } from "@trading-model/common/domain/primitives";
 import { Trainer } from "../core/trainer";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 /** Minimum fraction of buffer capacity before training fires for a symbol. */
 const MIN_CANDLE_RATIO = 0.1;
 
 export interface AppContainerConfig {
 	bufferSize: number;
-	symbols: string[];
+	symbols: TradingSymbol[];
 	validationSplit: number;
 	generations: number;
 	populationSize: number;
@@ -32,7 +34,7 @@ export interface AppContainerConfig {
 export class ApplicationContainer {
 	public readonly dataBuffer: MarketDataBuffer;
 	public readonly trainer: Trainer;
-	private _trainingInterval: ReturnType<typeof setInterval> | null = null;
+	private readonly _trainingInterval = new TimerHandle();
 
 	constructor(config: AppContainerConfig) {
 		const bufferConfig: MarketDataBufferConfig = {
@@ -85,7 +87,7 @@ export class ApplicationContainer {
 		}
 	}
 
-	onPriceTickerSnapshot(data: { price: Record<string, Price> }): void {
+	onPriceTickerSnapshot(data: { price: Record<TradingSymbol, Price> }): void {
 		if (!data?.price) {
 			return;
 		}
@@ -103,25 +105,25 @@ export class ApplicationContainer {
 		];
 	}
 
-	startTrainingLoop(symbols: string[], intervalMs: number): void {
+	startTrainingLoop(symbols: TradingSymbol[], intervalMs: number): void {
 		const runTraining = () => this._runTrainingForSymbols(symbols);
 
 		void runTraining();
-		this._trainingInterval = setInterval(runTraining, intervalMs);
+		this._trainingInterval.startInterval(runTraining, intervalMs);
 	}
 
-	private _hasEnoughData(symbol: string): boolean {
+	private _hasEnoughData(symbol: TradingSymbol): boolean {
 		return (
 			this.dataBuffer.getCandleCount(symbol) >=
 			this.dataBuffer.getMaxSize() * MIN_CANDLE_RATIO
 		);
 	}
 
-	private async _trainSymbol(symbol: string): Promise<void> {
+	private async _trainSymbol(symbol: TradingSymbol): Promise<void> {
 		await this.trainer.train(symbol);
 	}
 
-	private async _runTrainingForSymbols(symbols: string[]): Promise<void> {
+	private async _runTrainingForSymbols(symbols: TradingSymbol[]): Promise<void> {
 		if (this.trainer.isTraining()) {
 			return;
 		}
@@ -134,9 +136,6 @@ export class ApplicationContainer {
 	}
 
 	stopTrainingLoop(): void {
-		if (this._trainingInterval) {
-			clearInterval(this._trainingInterval);
-			this._trainingInterval = null;
-		}
+		this._trainingInterval.stop();
 	}
 }

@@ -2,6 +2,7 @@ import { logger } from "../config/logger";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { IJobRepository } from "./job-repository.interface";
 import type { ReAllocator } from "./re-allocator";
+import { TimerHandle } from "../utils/timer-handle";
 
 export interface OrphanDetectorDeps {
 	workers: WorkerRegistry;
@@ -15,7 +16,7 @@ export class OrphanDetector {
 	private readonly _repository: IJobRepository;
 	private readonly _reAllocator: ReAllocator;
 	private readonly _intervalMs: number;
-	private _intervalHandle: ReturnType<typeof setInterval> | null = null;
+	private readonly _intervalHandle = new TimerHandle();
 
 	constructor(deps: OrphanDetectorDeps) {
 		this._workers = deps.workers;
@@ -25,10 +26,10 @@ export class OrphanDetector {
 	}
 
 	start(): void {
-		if (this._intervalHandle) {
+		if (this._intervalHandle.isRunning) {
 			return;
 		}
-		this._intervalHandle = setInterval(
+		this._intervalHandle.startInterval(
 			() => this._runDetection(),
 			this._intervalMs,
 		);
@@ -50,10 +51,7 @@ export class OrphanDetector {
 	}
 
 	stop(): void {
-		if (this._intervalHandle) {
-			clearInterval(this._intervalHandle);
-			this._intervalHandle = null;
-		}
+		this._intervalHandle.stop();
 	}
 
 	private async _processOrphanedWorker(workerId: string): Promise<void> {

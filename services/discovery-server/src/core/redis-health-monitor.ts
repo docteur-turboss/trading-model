@@ -1,6 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
 import { FallbackManager } from "./fallback-manager";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export interface HealthCheckCallbacks {
 	ping: () => Promise<boolean>;
@@ -22,7 +23,7 @@ export class RedisHealthMonitor {
 	private _healthy = true;
 	private _consecutiveFailures = 0;
 	private _healthCheckRunning = false;
-	private _healthCheckHandle?: NodeJS.Timeout;
+	private readonly _healthCheckHandle = new TimerHandle();
 	private readonly _failureThreshold: number;
 	private readonly _healthCheckIntervalMs: number;
 	private readonly _shouldRun: () => boolean;
@@ -80,15 +81,12 @@ export class RedisHealthMonitor {
 	}
 
 	private _clearTimers(): void {
-		if (this._healthCheckHandle) {
-			clearInterval(this._healthCheckHandle);
-			this._healthCheckHandle = undefined;
-		}
+		this._healthCheckHandle.stop();
 		this._fallbackManager.clearRestoreTimer();
 	}
 
 	private _startHealthCheck(): void {
-		this._healthCheckHandle = setInterval(
+		this._healthCheckHandle.startInterval(
 			() => this._performHealthCheck(),
 			this._healthCheckIntervalMs,
 		);

@@ -1,11 +1,12 @@
 import { ENV } from "../../config/env";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export class ArchiveTopicsCache {
 	private _topicsCache: string[] = [];
-	private _topicsCacheTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _topicsCacheTimer = new TimerHandle();
 
 	startRefresh(): void {
-		this._topicsCacheTimer = setInterval(async () => {
+		this._topicsCacheTimer.startInterval(async () => {
 			try {
 				const { getSubscriptionClient } = await import("../../config/redis.js");
 				const redis = await getSubscriptionClient();
@@ -19,10 +20,7 @@ export class ArchiveTopicsCache {
 	}
 
 	stopRefresh(): void {
-		if (this._topicsCacheTimer) {
-			clearInterval(this._topicsCacheTimer);
-			this._topicsCacheTimer = null;
-		}
+		this._topicsCacheTimer.stop();
 	}
 
 	getTopics(): string[] {

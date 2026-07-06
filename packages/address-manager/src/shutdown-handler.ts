@@ -2,10 +2,11 @@ import type { IServiceCache } from "./discovery/service-cache.interface";
 import type { CircuitBreaker } from "./discovery/circuit-breaker";
 import type { WebSocketClient } from "./client/websocket-client";
 import type { AddressManagerClient } from "./client/address-manager-client";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export class ShutdownHandler {
 	private _cleanupHandlers: () => void = () => {};
-	private _metricsTimer?: NodeJS.Timeout;
+	private readonly _metricsTimer = new TimerHandle();
 
 	constructor(
 		private readonly _registrationManager: {
@@ -17,10 +18,6 @@ export class ShutdownHandler {
 		private readonly _serviceCache: IServiceCache,
 		private readonly _circuitBreaker: CircuitBreaker
 	) {}
-
-	setMetricsTimer(timer: NodeJS.Timeout | undefined): void {
-		this._metricsTimer = timer;
-	}
 
 	setCleanupHandlers(fn: () => void): void {
 		this._cleanupHandlers = fn;
@@ -37,7 +34,7 @@ export class ShutdownHandler {
 		await this._unregisterService();
 		this._serviceCache.stop();
 		this._circuitBreaker.clear();
-		this._clearMetricsTimer();
+		this._metricsTimer.stop();
 	}
 
 	private _disconnectWs(): void {
@@ -49,13 +46,6 @@ export class ShutdownHandler {
 			await this._addressManagerClient.unregisterService();
 		} catch {
 			/* best-effort */
-		}
-	}
-
-	private _clearMetricsTimer(): void {
-		if (this._metricsTimer) {
-			clearInterval(this._metricsTimer);
-			this._metricsTimer = undefined;
 		}
 	}
 

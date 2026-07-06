@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export interface CaKeyRotator {
 	getCurrentKeyId(): string;
@@ -15,7 +16,7 @@ export interface KeyRotatorOptions {
 
 export class KeyRotator {
 	private readonly _options: KeyRotatorOptions;
-	private _timer: ReturnType<typeof setInterval> | null = null;
+	private readonly _timer = new TimerHandle();
 
 	constructor(options: KeyRotatorOptions) {
 		this._options = options;
@@ -28,7 +29,7 @@ export class KeyRotator {
 	}
 
 	private _scheduleRotation(): void {
-		this._timer = setInterval(() => {
+		this._timer.startInterval(() => {
 			this._rotate().catch((err) => {
 				logger.error("CA key rotation failed", { context: { err } });
 			});
@@ -36,7 +37,7 @@ export class KeyRotator {
 	}
 
 	start(): void {
-		if (this._timer) {
+		if (this._timer.isRunning) {
 			return;
 		}
 		this._logRotationStart();
@@ -44,11 +45,8 @@ export class KeyRotator {
 	}
 
 	stop(): void {
-		if (this._timer) {
-			clearInterval(this._timer);
-			this._timer = null;
-			logger.info("CA key rotator stopped");
-		}
+		this._timer.stop();
+		logger.info("CA key rotator stopped");
 	}
 
 	private async _rotate(): Promise<void> {

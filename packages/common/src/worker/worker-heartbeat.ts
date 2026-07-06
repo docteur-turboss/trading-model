@@ -1,8 +1,9 @@
 import { toInstanceId } from "../domain/primitives";
 import type { WorkerWsHeartbeatMessage } from "../contracts/worker-protocol.types";
+import { TimerHandle } from "../utils/timer-handle";
 
 export class WorkerHeartbeat {
-	private _heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _heartbeatTimer = new TimerHandle();
 	private _currentLoad = 0;
 	private readonly _workerId: string;
 	private readonly _send: (msg: WorkerWsHeartbeatMessage) => void;
@@ -19,16 +20,13 @@ export class WorkerHeartbeat {
 	}
 
 	start(): void {
-		this._heartbeatTimer = setInterval(() => {
+		this._heartbeatTimer.startInterval(() => {
 			this._sendHeartbeat();
 		}, this._intervalMs);
 	}
 
 	stop(): void {
-		if (this._heartbeatTimer) {
-			clearInterval(this._heartbeatTimer);
-			this._heartbeatTimer = null;
-		}
+		this._heartbeatTimer.stop();
 	}
 
 	updateLoad(load: number): void {

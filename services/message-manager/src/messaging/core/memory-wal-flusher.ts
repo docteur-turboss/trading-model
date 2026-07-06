@@ -2,6 +2,7 @@ import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { WalBatchFlusher } from "./wal-batch-flusher";
 import { RedisBackoff } from "./redis-backoff";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 const WAL_BATCH_SIZE = 50;
 
@@ -13,7 +14,7 @@ interface MemoryWalEntry {
 
 export class MemoryWalFlusher {
 	private _flushing = false;
-	private _flusherTimer: ReturnType<typeof setInterval> | null = null;
+	private readonly _flusherTimer = new TimerHandle();
 	private readonly _redisBackoff = new RedisBackoff();
 	private readonly _walBatchFlusher: WalBatchFlusher;
 
@@ -26,17 +27,14 @@ export class MemoryWalFlusher {
 	}
 
 	startFlusher(buffer: MemoryWalEntry[]): void {
-		this._flusherTimer = setInterval(() => {
+		this._flusherTimer.startInterval(() => {
 			this.flush(buffer).catch(() => {});
 		}, 500);
 		this._flusherTimer.unref();
 	}
 
 	stopFlusher(): void {
-		if (this._flusherTimer) {
-			clearInterval(this._flusherTimer);
-			this._flusherTimer = null;
-		}
+		this._flusherTimer.stop();
 	}
 
 	get isFlushing(): boolean {

@@ -1,4 +1,5 @@
 import type { ServiceInstance } from "../client/type";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export interface LoadBalancingStrategy {
 	select(instances: ServiceInstance[]): ServiceInstance;
@@ -45,18 +46,15 @@ export class RoundRobinStrategy implements LoadBalancingStrategy {
  */
 export class LeastConnectionsStrategy implements ConnectionCountingStrategy {
 	private readonly _connections = new Map<string, number>();
-	private _sweepHandle?: NodeJS.Timeout;
+	private readonly _sweepHandle = new TimerHandle();
 
 	constructor() {
-		this._sweepHandle = setInterval(() => this._sweepStaleEntries(), 60_000);
+		this._sweepHandle.startInterval(() => this._sweepStaleEntries(), 60_000);
 		this._sweepHandle.unref();
 	}
 
 	dispose(): void {
-		if (this._sweepHandle) {
-			clearInterval(this._sweepHandle);
-			this._sweepHandle = undefined;
-		}
+		this._sweepHandle.stop();
 	}
 
 	private _sweepStaleEntries(): void {

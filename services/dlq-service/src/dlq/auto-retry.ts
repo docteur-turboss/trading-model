@@ -15,9 +15,10 @@ import {
 	startRedisWorkerLoop,
 	stopRedisWorkerTimer,
 } from "./redis-queue-processor";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
-let autoRetryTimer: ReturnType<typeof setTimeout> | null = null;
-let autoRetryStartTimer: ReturnType<typeof setTimeout> | null = null;
+const autoRetryTimer = new TimerHandle();
+const autoRetryStartTimer = new TimerHandle();
 
 export async function resolveMessageManagerUrl(): Promise<string | null> {
 	let url: string | null = env.MESSAGE_MANAGER_URL ?? null;
@@ -160,7 +161,7 @@ function scheduleAutoRetryTick(): void {
 	const jitter =
 		Math.floor(Math.random() * baseInterval * 0.2) -
 		Math.floor(baseInterval * 0.1);
-	autoRetryTimer = setTimeout(() => {
+	autoRetryTimer.startTimeout(() => {
 		void runAutoRetryTick();
 	}, baseInterval + jitter);
 	autoRetryTimer.unref();
@@ -194,7 +195,7 @@ export function startAutoRetry(): void {
 	if (!env.DLQ_AUTO_RETRY_ENABLED) {
 		return;
 	}
-	if (autoRetryTimer) {
+	if (autoRetryTimer.isRunning) {
 		return;
 	}
 	_logAutoRetryStart();
@@ -210,22 +211,15 @@ function _logAutoRetryStart(): void {
 
 function _scheduleInitialTick(): void {
 	const jitterMs = Math.floor(Math.random() * env.DLQ_AUTO_RETRY_INTERVAL_MS);
-	autoRetryStartTimer = setTimeout(() => {
-		autoRetryStartTimer = null;
+	autoRetryStartTimer.startTimeout(() => {
 		scheduleAutoRetryTick();
 	}, jitterMs);
 	autoRetryStartTimer.unref();
 }
 
 export function stopAutoRetry(): void {
-	if (autoRetryStartTimer) {
-		clearTimeout(autoRetryStartTimer);
-		autoRetryStartTimer = null;
-	}
-	if (autoRetryTimer) {
-		clearTimeout(autoRetryTimer);
-		autoRetryTimer = null;
-	}
+	autoRetryStartTimer.stop();
+	autoRetryTimer.stop();
 	stopRedisWorkerTimer();
 }
 
