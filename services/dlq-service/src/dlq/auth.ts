@@ -33,7 +33,7 @@ function verifySignature(req: Request, serviceName: string): boolean {
 		return false;
 	}
 
-	const route: SignedRequest = { serviceName, method: req.method, path: req.path, body: req.body };
+	const route: SignedRequest = { serviceName, method: req.method as SignedRequest["method"], path: req.path, body: req.body };
 	const parts = [serviceName, timestampStr, bodyHash, route.method, route.path];
 	if (_matchSignature(provided, secret, parts)) {
 		return true;
