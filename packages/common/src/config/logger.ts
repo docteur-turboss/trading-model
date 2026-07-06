@@ -14,7 +14,7 @@ export class Logger {
 	private _logLevel: LogLevel;
 	private _logs: LogEntry[] = [];
 	private _maxLogs = 1000;
-	private _sessionId: string | null;
+	private readonly _sessionId: string;
 	private _userId = '';
 	private readonly _sanitizer: SensitiveDataSanitizer;
 	private _auditClient: AuditServiceClient;

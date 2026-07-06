@@ -86,7 +86,7 @@ export class WssClient {
 	}
 
 	private _scheduleReconnect(): void {
-		this._reconnector.schedule(() => this._connectWs(), () => this._queue.drainToHttp());
+		this._reconnector.scheduleReconnect(() => this._connectWs(), () => this._queue.drainToHttp());
 	}
 
 	get httpFallback():

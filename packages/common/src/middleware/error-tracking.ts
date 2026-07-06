@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { logger } from "../config/logger";
 import type { InstanceId } from "../domain/primitives";
 import { normalizeError } from "../utils/errors";
+import { TimerHandle } from "../utils/timer-handle";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 5000;
 const DEFAULT_BATCH_SIZE = 50;
@@ -39,7 +40,7 @@ let config: Required<ErrorTrackingConfig> = {
 };
 
 const BUFFER: ErrorReport[] = [];
-let flushTimer: ReturnType<typeof setInterval> | null = null;
+const flushTimer = new TimerHandle();
 
 export function configureErrorTracking(opts: ErrorTrackingConfig): void {
 	config = _buildConfig(opts);
@@ -63,18 +64,15 @@ function _buildConfig(opts: ErrorTrackingConfig): Required<ErrorTrackingConfig> 
 }
 
 function startFlushTimer(): void {
-	if (flushTimer) {
+	if (flushTimer.isRunning) {
 		return;
 	}
-	flushTimer = setInterval(() => flush(), config.flushIntervalMs);
+	flushTimer.startInterval(() => flush(), config.flushIntervalMs);
 	flushTimer.unref();
 }
 
 function stopFlushTimer(): void {
-	if (flushTimer) {
-		clearInterval(flushTimer);
-		flushTimer = null;
-	}
+	flushTimer.stop();
 }
 
 async function flush(): Promise<void> {

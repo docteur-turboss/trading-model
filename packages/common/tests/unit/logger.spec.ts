@@ -196,11 +196,10 @@ describe("Logger", () => {
 	});
 
 	describe("createLogEntry", () => {
-		it("should handle null sessionId", () => {
-			(logger as any)._sessionId = null;
+		it("should include sessionId in log entry", () => {
 			logger.info("test session");
 			const logs = logger.getLogs();
-			expect(logs[0].sessionId).toBeUndefined();
+			expect(logs[0].sessionId).toBeDefined();
 		});
 
 		it("should log appendFile error to console.error", () => {
