@@ -29,7 +29,7 @@ function _createReAllocator(
 	repository: JobRepository,
 	queue: InternalQueue
 ): ReAllocator {
-	return new ReAllocator(repository, queue);
+	return new ReAllocator(repository, queue, ENV.ACK_TIMEOUT_MS);
 }
 
 function _createAssignmentManager(

@@ -48,7 +48,7 @@ describe("OrphanDetector", () => {
 
 		mockQueue = new InternalQueue(30000);
 		registry = new WorkerRegistry(5000);
-		reAllocator = new ReAllocator(mockRepository, mockQueue);
+		reAllocator = new ReAllocator(mockRepository, mockQueue, 30000);
 	});
 
 	afterEach(() => {

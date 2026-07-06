@@ -34,7 +34,7 @@ describe("ReAllocator", () => {
 		} as unknown as jest.Mocked<JobRepository>;
 
 		mockQueue = new InternalQueue(30000);
-		reAllocator = new ReAllocator(mockRepository, mockQueue);
+		reAllocator = new ReAllocator(mockRepository, mockQueue, 30000);
 	});
 
 	describe("reallocate", () => {
