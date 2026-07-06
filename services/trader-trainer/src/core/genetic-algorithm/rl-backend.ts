@@ -1,4 +1,4 @@
-import { Cash, Price } from "@trading-model/common/domain/primitives";
+import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
 import { ConnectionType, InitialisationType } from "../neural-network/type";
 import type { Experience } from "../../core/neural-network/type";
 import type { FeatureVector } from "../feature-vector";
@@ -56,7 +56,7 @@ function _buildAgentConfig(
 		nnConfig: _buildNNConfig(genome, genome.rl.replayBuffer),
 		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(1) },
 		actionSpace: "discrete",
-		tradeAmount: 1,
+		tradeAmount: Volume.of(1),
 		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy, genome.rl.gamma),
 	};
 }

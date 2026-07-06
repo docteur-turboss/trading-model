@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -23,7 +24,7 @@ export class CacheOrchestrator {
 		pagination?: PaginationQuery
 	): Promise<ServiceInstance[]> {
 		if (pagination?.page !== undefined || pagination?.limit !== undefined) {
-			const all = await this._backend.getInstances(serviceName);
+			const all = await this._backend.getInstances(serviceName as ServiceInstanceName);
 			const page = pagination.page ?? 1;
 			const limit = pagination.limit ?? all.length;
 			const start = (page - 1) * limit;
@@ -31,7 +32,7 @@ export class CacheOrchestrator {
 		}
 
 		if (this._healthMonitor.fallbackActive) {
-			return this._backend.getInstances(serviceName);
+			return this._backend.getInstances(serviceName as ServiceInstanceName);
 		}
 
 		const cached = this._cache.get(serviceName);
@@ -55,7 +56,7 @@ export class CacheOrchestrator {
 			return [];
 		}
 
-		const instances = await this._backend.getInstances(serviceName);
+		const instances = await this._backend.getInstances(serviceName as ServiceInstanceName);
 		this._cache.set(serviceName, instances);
 		return instances;
 	}
@@ -97,7 +98,7 @@ export class CacheOrchestrator {
 			return;
 		}
 		try {
-			const instances = await this._backend.getInstances(serviceName);
+			const instances = await this._backend.getInstances(serviceName as ServiceInstanceName);
 			this._cache.set(serviceName, instances);
 		} catch {
 			logger.warn("Cache refresh failed, serving stale data", { serviceName });

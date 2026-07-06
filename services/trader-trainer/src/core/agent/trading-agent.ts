@@ -13,7 +13,7 @@ export interface TradingAgentConfig {
 	nnConfig: NeuralNetworkConfig;
 	wallet?: WalletConfig;
 	actionSpace?: "discrete" | "continuous";
-	tradeAmount?: number;
+	tradeAmount?: Volume;
 	stateManagerCfg?: StateManagerConfig;
 }
 
