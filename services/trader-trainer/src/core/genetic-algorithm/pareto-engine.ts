@@ -223,27 +223,34 @@ function assignCrowding(
 /**
  * Build population metadata: Pareto ranks and crowding distances.
  */
+function _computeParetoRank(
+	objectives: ObjectiveVector[],
+	rng: () => number
+): number[] {
+	return objectives.length > EXACT_NSGA2_THRESHOLD
+		? nondominatedSortApprox(objectives, rng)
+		: nondominatedSortExact(objectives);
+}
+
+function _collectFront(paretoRank: number[], rankIdx: number): number[] {
+	return paretoRank.reduce((acc, rank, index) => {
+		if (rank === rankIdx) {
+			acc.push(index);
+		}
+		return acc;
+	}, [] as number[]);
+}
+
 export function buildPopulationMeta(
 	objectives: ObjectiveVector[],
 	rng: () => number
 ): PopulationMeta {
 	const count = objectives.length;
-	const paretoRank =
-		count > EXACT_NSGA2_THRESHOLD
-			? nondominatedSortApprox(objectives, rng)
-			: nondominatedSortExact(objectives);
-
+	const paretoRank = _computeParetoRank(objectives, rng);
 	const crowdingDist = new Array<number>(count).fill(0);
-	const maxRank = Math.max(...paretoRank);
 
-	for (let rankIdx = 0; rankIdx <= maxRank; rankIdx++) {
-		const front = paretoRank.reduce((acc, rank, index) => {
-			if (rank === rankIdx) {
-				acc.push(index);
-			}
-			return acc;
-		}, [] as number[]);
-		assignCrowding(front, objectives, crowdingDist);
+	for (let rankIdx = 0; rankIdx <= Math.max(...paretoRank); rankIdx++) {
+		assignCrowding(_collectFront(paretoRank, rankIdx), objectives, crowdingDist);
 	}
 
 	return { objectives, paretoRank, crowdingDist };

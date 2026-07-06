@@ -52,7 +52,7 @@ function decrypt(ciphertext: string, key: Buffer): string {
 export class FsStore {
 	readonly disabled: boolean;
 	private readonly _baseDir: string;
-	private readonly _encryptionKey: Buffer | null;
+	private _encryptionKey: Buffer | null;
 
 	private _handleDisabled(): void {
 		this._encryptionKey = null;

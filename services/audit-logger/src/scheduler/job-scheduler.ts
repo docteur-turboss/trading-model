@@ -25,37 +25,100 @@ export class JobScheduler {
 	private _workerProtocol: WorkerProtocol | null = null;
 
 	constructor(repository: JobRepository) {
-		this.queue = new InternalQueue(ENV.ACK_TIMEOUT_MS);
-		this.backPressure = new BackPressure(
-			ENV.MAX_QUEUE_DEPTH,
-			ENV.MAX_WORKER_LOAD_RATIO
-		);
-		this.workers = new WorkerRegistry(ENV.WORKER_HEARTBEAT_TTL_MS);
+		this.queue = _createInternalQueue();
+		this.backPressure = _createBackPressure();
+		this.workers = _createWorkerRegistry();
 		this.repository = repository;
-		this.reAllocator = new ReAllocator(repository, this.queue);
-		this._assignmentManager = new JobAssignmentManager({
-			queue: this.queue,
-			backPressure: this.backPressure,
-			workers: this.workers,
+		this.reAllocator = _createReAllocator(repository, this.queue);
+		this._assignmentManager = _createAssignmentManager(
+			this.queue,
+			this.backPressure,
+			this.workers,
+			repository
+		);
+		this._failureHandler = _createFailureHandler(
+			this.queue,
 			repository,
-		});
-		this._failureHandler = new JobFailureHandler({
-			queue: this.queue,
+			this.reAllocator,
+			this._assignmentManager
+		);
+		this.orphanDetector = _createOrphanDetector(
+			this.workers,
 			repository,
-			reAllocator: this.reAllocator,
-			assignmentManager: this._assignmentManager,
-		});
-		this.orphanDetector = new OrphanDetector({
-			workers: this.workers,
-			repository,
-			reAllocator: this.reAllocator,
-			intervalMs: ENV.ORPHAN_SCAN_INTERVAL_MS,
-		});
+			this.reAllocator
+		);
 
+		this._setupAckTimeout();
+	}
+
+	private _setupAckTimeout(): void {
 		this.queue.setOnAckTimeout((jobId) => {
 			this._failureHandler.handleAckTimeout(jobId);
 		});
 	}
+}
+
+function _createInternalQueue(): InternalQueue {
+	return new InternalQueue(ENV.ACK_TIMEOUT_MS);
+}
+
+function _createBackPressure(): BackPressure {
+	return new BackPressure(ENV.MAX_QUEUE_DEPTH, ENV.MAX_WORKER_LOAD_RATIO);
+}
+
+function _createWorkerRegistry(): WorkerRegistry {
+	return new WorkerRegistry(ENV.WORKER_HEARTBEAT_TTL_MS);
+}
+
+function _createReAllocator(
+	repository: JobRepository,
+	queue: InternalQueue
+): ReAllocator {
+	return new ReAllocator(repository, queue);
+}
+
+function _createAssignmentManager(
+	queue: InternalQueue,
+	backPressure: BackPressure,
+	workers: WorkerRegistry,
+	repository: JobRepository
+): JobAssignmentManager {
+	return new JobAssignmentManager({
+		queue,
+		backPressure,
+		workers,
+		repository,
+	});
+}
+
+function _createFailureHandler(
+	queue: InternalQueue,
+	repository: JobRepository,
+	reAllocator: ReAllocator,
+	assignmentManager: JobAssignmentManager
+): JobFailureHandler {
+	return new JobFailureHandler({
+		queue,
+		repository,
+		reAllocator,
+		assignmentManager,
+	});
+}
+
+function _createOrphanDetector(
+	workers: WorkerRegistry,
+	repository: JobRepository,
+	reAllocator: ReAllocator
+): OrphanDetector {
+	return new OrphanDetector({
+		workers,
+		repository,
+		reAllocator,
+		intervalMs: ENV.ORPHAN_SCAN_INTERVAL_MS,
+	});
+}
+
+export class JobScheduler {
 
 	setWorkerProtocol(protocol: WorkerProtocol): void {
 		this._workerProtocol = protocol;
@@ -171,6 +234,16 @@ export class JobScheduler {
 	async start(): Promise<void> {
 		const nonTerminal = await this.repository.findNonTerminal();
 
+		await this._recoverJobs(nonTerminal);
+		this.backPressure.updateQueueDepth(this.queue.depth());
+
+		_logSchedulerStart(nonTerminal.length);
+		this.orphanDetector.start();
+	}
+
+	private async _recoverJobs(
+		nonTerminal: import("../types/job.types").Job[]
+	): Promise<void> {
 		for (const job of nonTerminal) {
 			if (job.status === "queued" || job.status === "pending") {
 				this.queue.enqueue({ ...job, status: "queued" });
@@ -181,15 +254,16 @@ export class JobScheduler {
 				await this.reAllocator.reallocate(job);
 			}
 		}
-
-		this.backPressure.updateQueueDepth(this.queue.depth());
-
-		logger.info("Job scheduler started — recovered jobs from persistence", {
-			recovered: nonTerminal.length,
-		});
-
-		this.orphanDetector.start();
 	}
+}
+
+function _logSchedulerStart(recovered: number): void {
+	logger.info("Job scheduler started — recovered jobs from persistence", {
+		recovered,
+	});
+}
+
+export class JobScheduler {
 
 	stop(): void {
 		this.orphanDetector.stop();

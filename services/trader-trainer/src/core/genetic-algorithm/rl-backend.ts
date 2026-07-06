@@ -15,39 +15,46 @@ export interface RLBackend {
 
 export type BackendFactory = (genome: DeepReadonly<LamarckGenome>) => RLBackend;
 
+function _buildNNConfig(
+	genome: DeepReadonly<LamarckGenome>,
+	rb: DeepReadonly<LamarckGenome["rl"]["replayBuffer"]>
+): TradingAgentConfig["nnConfig"] {
+	return {
+		neuronsByLayer: [
+			genome.network.inputDim,
+			...genome.network.hiddenLayers.map((layer) => layer.neurons),
+			genome.network.outputDim,
+		],
+		activationType: genome.network.hiddenLayers.map((layer) => layer.activation),
+		connectionType: genome.network.hiddenLayers[0]?.connectionType ?? "fully-connected",
+		biasInitialisationType: genome.network.hiddenLayers[0]?.biasType ?? "random",
+		normalisationType: genome.network.normalization,
+		enablePool: true,
+		poolMaxSize: rb.bufferSize,
+	};
+}
+
+function _buildStateManagerCfg(
+	dp: DeepReadonly<LamarckGenome["rl"]["discretePolicy"]>,
+	gamma: number
+): TradingAgentConfig["stateManagerCfg"] {
+	return {
+		epsilonStart: dp.epsilonStart,
+		epsilonMin: dp.epsilonMin,
+		epsilonDecay: dp.epsilonDecay,
+		gamma,
+	};
+}
+
 function _buildAgentConfig(
 	genome: DeepReadonly<LamarckGenome>
 ): TradingAgentConfig {
-	const dp = genome.rl.discretePolicy;
-	const rb = genome.rl.replayBuffer;
-
 	return {
-		nnConfig: {
-			neuronsByLayer: [
-				genome.network.inputDim,
-				...genome.network.hiddenLayers.map((layer) => layer.neurons),
-				genome.network.outputDim,
-			],
-			activationType: genome.network.hiddenLayers.map(
-				(layer) => layer.activation
-			),
-			connectionType:
-				genome.network.hiddenLayers[0]?.connectionType ?? "fully-connected",
-			biasInitialisationType:
-				genome.network.hiddenLayers[0]?.biasType ?? "random",
-			normalisationType: genome.network.normalization,
-			enablePool: true,
-			poolMaxSize: rb.bufferSize,
-		},
+		nnConfig: _buildNNConfig(genome, genome.rl.replayBuffer),
 		wallet: { initialCash: 1000, initialPrice: 1 },
 		actionSpace: "discrete",
 		tradeAmount: 1,
-		stateManagerCfg: {
-			epsilonStart: dp.epsilonStart,
-			epsilonMin: dp.epsilonMin,
-			epsilonDecay: dp.epsilonDecay,
-			gamma: genome.rl.gamma,
-		},
+		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy, genome.rl.gamma),
 	};
 }
 

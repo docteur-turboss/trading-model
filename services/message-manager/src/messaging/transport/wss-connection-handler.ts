@@ -59,17 +59,22 @@ export class WssConnectionHandler {
 	} {
 		const serviceName = req.headers["x-service-name"] as string;
 		const instanceId = req.headers["x-instance-id"] as string;
-		const topicsHeader = req.headers["x-subscribed-topics"] as string;
-		const topics = new Set(
-			topicsHeader
-				? topicsHeader
-						.split(",")
-						.map((part) => part.trim())
-						.filter(Boolean)
-				: []
-		);
+		const topics = parseTopicsHeader(req.headers["x-subscribed-topics"] as string);
 		return { serviceName, instanceId, topics };
 	}
+}
+
+function parseTopicsHeader(header: string | undefined): Set<string> {
+	if (!header) {
+		return new Set();
+	}
+	return new Set(
+		header
+			.split(",")
+			.map((part) => part.trim())
+			.filter(Boolean)
+	);
+}
 
 	registerCloseHandler(ws: WebSocket, subKey: string, serviceName: string, instanceId: string): void {
 		ws.on("close", () => {
@@ -91,23 +96,32 @@ export class WssConnectionHandler {
 	}
 
 	async shutdown(): Promise<void> {
-		if (this._wss) {
-			for (const [, sub] of this._subscriptionManager.entries()) {
-				sub.ws.close(1001, "Server shutdown");
-			}
-			this._subscriptionManager.clear();
-			await new Promise<void>((resolve) => {
-				const timer = setTimeout(() => {
-					this._wss = null;
-					resolve();
-				}, WSS_SHUTDOWN_TIMEOUT_MS);
-				this._wss!.close(() => {
-					clearTimeout(timer);
-					this._wss = null;
-					resolve();
-				});
-			});
+		if (!this._wss) {
+			return;
 		}
+		this._closeAllConnections();
+		await this._closeServer();
+	}
+
+	private _closeAllConnections(): void {
+		for (const [, sub] of this._subscriptionManager.entries()) {
+			sub.ws.close(1001, "Server shutdown");
+		}
+		this._subscriptionManager.clear();
+	}
+
+	private async _closeServer(): Promise<void> {
+		await new Promise<void>((resolve) => {
+			const timer = setTimeout(() => {
+				this._wss = null;
+				resolve();
+			}, WSS_SHUTDOWN_TIMEOUT_MS);
+			this._wss!.close(() => {
+				clearTimeout(timer);
+				this._wss = null;
+				resolve();
+			});
+		});
 	}
 
 	get wss(): WebSocketServer | null {
