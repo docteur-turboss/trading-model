@@ -1,4 +1,3 @@
-import { Price, Volume, Percentage } from "@trading-model/common/domain/primitives";
 import { FeatureIndex } from "./feature-indices";
 
 export const FEATURE_DIM = 32;
