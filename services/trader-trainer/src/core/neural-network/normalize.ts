@@ -1,9 +1,7 @@
+import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import { NormalisationType } from "./type";
 
-export interface NormalizeParams {
-	min: number;
-	max: number;
-}
+export type NormalizeParams = NumericRange;
 
 export interface Normalizer {
 	normalize(
@@ -53,12 +51,12 @@ function _findMinMax(data: Float32Array): NormalizeParams {
 		if (value < min) min = value;
 		if (value > max) max = value;
 	}
-	return { min, max };
+	return new NumericRange(min, max);
 }
 
 class MinMaxNormalizer implements Normalizer {
 	normalize(data: Float32Array, len: number): Float32Array {
-		const { min, max } = _findMinMax(data);
+		const { lo: min, hi: max } = _findMinMax(data);
 		const range = 1 / (max - min) || 1;
 		for (let i = 0; i < len; i++) {
 			data[i] = (data[i] - min) * range;
@@ -134,8 +132,8 @@ class BorderNormalizer implements Normalizer {
 		len: number,
 		params?: NormalizeParams
 	): Float32Array {
-		let lo = params?.min;
-		let hi = params?.max;
+		let lo = params?.lo;
+		let hi = params?.hi;
 
 		if (lo === undefined || hi === undefined) {
 			let min = data[0];

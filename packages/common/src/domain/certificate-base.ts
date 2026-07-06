@@ -1,6 +1,8 @@
+import type { SerialNumber } from "./primitives";
+
 export interface CertificateBase {
 	certPem: string;
 	caPem: string;
-	serialNumber: string;
+	serialNumber: SerialNumber;
 	expiresAt: Date;
 }

@@ -4,20 +4,30 @@ import { logger } from "@trading-model/common/config/logger";
 import type { JobId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
-import { JOB_STATUS, type Job, JobPriority } from "../types/job.types";
+import { type Job, JobPriority } from "../types/job.types";
 import type { JobAssignmentManager } from "./job-assignment-manager";
 import type { JobFailureHandler } from "./job-failure-handler";
 import { BackPressure } from "./back-pressure";
 import { InternalQueue } from "./internal-queue";
+import { JobStatusManager } from "./job-status-manager";
 
 export class JobLifecycle {
+	private readonly _statusManager: JobStatusManager;
+
 	constructor(
 		private readonly _queue: InternalQueue,
 		private readonly _backPressure: BackPressure,
 		private readonly _repository: JobRepository,
 		private readonly _assignmentManager: JobAssignmentManager,
 		private readonly _failureHandler: JobFailureHandler,
-	) {}
+	) {
+		this._statusManager = new JobStatusManager(
+			this._queue,
+			this._repository,
+			this._assignmentManager,
+			this._failureHandler,
+		);
+	}
 
 	async submit(
 		type: string,
@@ -72,54 +82,18 @@ export class JobLifecycle {
 	}
 
 	async ack(jobId: string): Promise<void> {
-		this._queue.ack(jobId);
-		await this._repository.updateStatus(jobId, "running");
-
-		logger.info("Job acknowledged by worker", { context: { jobId } });
+		await this._statusManager.ack(jobId);
 	}
 
 	async complete(jobId: string, result: unknown): Promise<void> {
-		this._queue.ack(jobId);
-		await this._repository.updateStatus(jobId, "completed", { result });
-
-		const job = await this._repository.findById(jobId);
-		this._assignmentManager.decrementWorkerLoad(job?.assignedWorkerId);
-
-		logger.info("Job completed", { context: { jobId } });
-		this._assignmentManager.distributeNext();
+		await this._statusManager.complete(jobId, result);
 	}
 
 	async fail(jobId: string, error: string): Promise<void> {
-		this._queue.ack(jobId);
-
-		const job = await this._repository.findById(jobId);
-		if (!job) {
-			return;
-		}
-
-		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-
-		if (job.retryCount >= job.maxRetries) {
-			await this._failureHandler.handlePermanentFailure(jobId, error);
-		} else {
-			await this._failureHandler.handleRetryableFailure(jobId, job, error);
-		}
+		await this._statusManager.fail(jobId, error);
 	}
 
 	async cancel(jobId: string): Promise<void> {
-		const job = await this._repository.findById(jobId);
-		if (!job) {
-			return;
-		}
-
-		if (job.status === JOB_STATUS.RUNNING || job.status === JOB_STATUS.COMPLETED) {
-			throw new Error("Cannot cancel a running or completed job");
-		}
-
-		this._queue.ack(jobId);
-		await this._repository.updateStatus(jobId, JOB_STATUS.CANCELLED);
-		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-
-		logger.info("Job cancelled", { context: { jobId } });
+		await this._statusManager.cancel(jobId);
 	}
 }

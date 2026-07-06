@@ -7,21 +7,21 @@ function roundValue(value: number, decimals: number): number {
 }
 
 export class ValuationTracker {
-	private readonly _history: number[] = [];
+	private readonly _history: Cash[] = [];
 
 	constructor(
 		private readonly _initialCash: Cash,
 		private readonly _decimals: number,
 	) {
-		this._history.push(+_initialCash);
+		this._history.push(_initialCash);
 	}
 
-	get history(): readonly number[] {
+	get history(): readonly Cash[] {
 		return this._history;
 	}
 
 	record(state: PortfolioState): void {
-		this._history.push(+this.computeValuation(state));
+		this._history.push(this.computeValuation(state));
 	}
 
 	computeValuation(state: PortfolioState): Cash {
@@ -30,19 +30,19 @@ export class ValuationTracker {
 		);
 	}
 
-	computePnL(state: PortfolioState): number {
+	computePnL(state: PortfolioState): Cash {
 		const valuation = this.computeValuation(state);
-		return roundValue(+valuation - +this._initialCash, this._decimals);
+		return Cash.of(roundValue(+valuation - +this._initialCash, this._decimals));
 	}
 
 	getPeakValuation(): Cash {
 		return this._history.length > 0
-			? Cash.of(Math.max(...this._history))
+			? Cash.of(Math.max(...this._history.map((v) => +v)))
 			: this._initialCash;
 	}
 
 	reset(): void {
 		this._history.length = 0;
-		this._history.push(+this._initialCash);
+		this._history.push(this._initialCash);
 	}
 }

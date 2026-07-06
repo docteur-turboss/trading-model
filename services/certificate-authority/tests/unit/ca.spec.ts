@@ -141,8 +141,7 @@ describe("CertificateAuthority", () => {
 				fingerprint: "abc123",
 			});
 
-			const ca = createCa();
-			await ca.initialize();
+			const ca = await createCa();
 
 			expect(mockReadFileSync).toHaveBeenCalledWith(
 				"/etc/ca-keys/ca-key.pem",
@@ -165,8 +164,7 @@ describe("CertificateAuthority", () => {
 				privateKey: "sk",
 			});
 
-			const ca = createCa();
-			await ca.initialize();
+			const ca = await createCa();
 
 			expect(generateKeyPair).toHaveBeenCalled();
 			expect(MOCK_CA_STORE.save).toHaveBeenCalled();
@@ -174,14 +172,6 @@ describe("CertificateAuthority", () => {
 	});
 
 	describe("signServiceCertificate", () => {
-		it("should throw if CA not initialized", async () => {
-			const ca = createCa();
-
-			await expect(
-				ca.signServiceCertificate({ serviceId: "svc-1", csr: "csr-data" })
-			).rejects.toThrow("CA not initialized");
-		});
-
 		it("should sign a certificate and save to store", async () => {
 			setupBootstrapMocks();
 			mockExistsSync.mockReturnValue(false);
@@ -204,8 +194,7 @@ describe("CertificateAuthority", () => {
 				fingerprint: "fp123",
 			});
 
-			const ca = createCa();
-			await ca.initialize();
+			const ca = await createCa();
 
 			const result = await ca.signServiceCertificate({ serviceId: "svc-1", csr: "csr-data" });
 
@@ -227,8 +216,7 @@ describe("CertificateAuthority", () => {
 			MOCK_CA_STORE.getLatest.mockResolvedValue(null);
 			MOCK_CERT_STORE.getBySerial.mockResolvedValue(null);
 
-			const ca = createCa();
-			await ca.initialize();
+			const ca = await createCa();
 
 			await expect(
 				ca.revokeCertificate({
@@ -257,8 +245,7 @@ describe("CertificateAuthority", () => {
 				fingerprint: "fp",
 			});
 
-			const ca = createCa();
-			await ca.initialize();
+			const ca = await createCa();
 			jest.clearAllMocks();
 
 			await ca.revokeCertificate({
@@ -294,8 +281,7 @@ describe("CertificateAuthority", () => {
 				},
 			]);
 
-			const ca = createCa();
-			await ca.initialize();
+			const ca = await createCa();
 
 			const crl = await ca.getCrl();
 
@@ -305,11 +291,6 @@ describe("CertificateAuthority", () => {
 	});
 
 	describe("isInitialized", () => {
-		it("should return false before initialization", () => {
-			const ca = createCa();
-			expect(ca.isInitialized()).toBe(false);
-		});
-
 		it("should return true after bootstrapping", async () => {
 			setupBootstrapMocks();
 			mockExistsSync.mockReturnValue(false);
@@ -319,17 +300,9 @@ describe("CertificateAuthority", () => {
 			});
 			MOCK_CA_STORE.getLatest.mockResolvedValue(null);
 
-			const ca = createCa();
-			await ca.initialize();
+			const ca = await createCa();
 
 			expect(ca.isInitialized()).toBe(true);
-		});
-	});
-
-	describe("getCaCertPem", () => {
-		it("should return empty string before initialization", () => {
-			const ca = createCa();
-			expect(ca.getCaCertPem()).toBe("");
 		});
 	});
 });
