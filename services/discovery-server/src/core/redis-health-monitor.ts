@@ -118,41 +118,38 @@ export class RedisHealthMonitor {
 		);
 	}
 
-	private async _performHealthCheck(): Promise<void> {
-		if (this._healthCheckRunning) {
-			return;
+	private _handleHealthSuccess(): void {
+		if (!this._healthy) {
+			this._healthy = true;
+			this._callbacks.onHealthRestored();
+			logger.info("Redis backend is healthy again — resumed normal operation");
 		}
+		this._consecutiveFailures = 0;
+	}
+
+	private _handleHealthFailure(): void {
+		this._consecutiveFailures++;
+		if (this._consecutiveFailures >= this._failureThreshold) {
+			this._healthy = false;
+			this._callbacks.onHealthLost();
+			logger.error("Redis backend unhealthy — serving stale cache", {
+				consecutiveFailures: this._consecutiveFailures,
+			});
+		}
+	}
+
+	private async _performHealthCheck(): Promise<void> {
+		if (this._healthCheckRunning) return;
 		this._healthCheckRunning = true;
 		try {
 			const healthy = await this._callbacks.ping();
 			if (healthy) {
-				if (!this._healthy) {
-					this._healthy = true;
-					this._callbacks.onHealthRestored();
-					logger.info(
-						"Redis backend is healthy again — resumed normal operation"
-					);
-				}
-				this._consecutiveFailures = 0;
+				this._handleHealthSuccess();
 			} else {
-				this._consecutiveFailures++;
-				if (this._consecutiveFailures >= this._failureThreshold) {
-					this._healthy = false;
-					this._callbacks.onHealthLost();
-					logger.error("Redis backend unhealthy — serving stale cache", {
-						consecutiveFailures: this._consecutiveFailures,
-					});
-				}
+				this._handleHealthFailure();
 			}
 		} catch {
-			this._consecutiveFailures++;
-			if (this._consecutiveFailures >= this._failureThreshold) {
-				this._healthy = false;
-				this._callbacks.onHealthLost();
-				logger.error("Redis backend unhealthy — serving stale cache", {
-					consecutiveFailures: this._consecutiveFailures,
-				});
-			}
+			this._handleHealthFailure();
 		} finally {
 			this._healthCheckRunning = false;
 		}

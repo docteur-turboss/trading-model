@@ -145,43 +145,63 @@ export class AuditRepository {
 	}
 
 	async getStats(): Promise<AuditStats> {
-		const [totalEvents, topicAgg, publisherAgg, dateRange] = await Promise.all([
-			this._collection.estimatedDocumentCount(),
-			this._collection
-				.aggregate<Record<typeof MID, string> & { count: number }>([
-					{ [MGROUP]: { [MID]: "$metadata.topic", count: { [MSUM]: 1 } } },
-				])
-				.toArray(),
-			this._collection
-				.aggregate<Record<typeof MID, string> & { count: number }>([
-					{ [MGROUP]: { [MID]: "$metadata.publisher", count: { [MSUM]: 1 } } },
-				])
-				.toArray(),
-			this._collection
-				.aggregate<{ earliest: Date | null; latest: Date | null }>([
-					{
-						[MGROUP]: {
-							[MID]: null,
-							earliest: { [MMIN]: "$receivedAt" },
-							latest: { [MMAX]: "$receivedAt" },
-						},
-					},
-				])
-				.toArray(),
-		]);
+		const [totalEvents, topicAgg, publisherAgg, dateRange] =
+			await Promise.all([
+				this._collection.estimatedDocumentCount(),
+				_aggregateByField(this._collection, "topic"),
+				_aggregateByField(this._collection, "publisher"),
+				_aggregateDateRange(this._collection),
+			]);
 
 		return {
 			totalEvents,
-			eventsByTopic: Object.fromEntries(
-				topicAgg.map((topic) => [topic[MID], topic.count])
-			),
-			eventsByPublisher: Object.fromEntries(
-				publisherAgg.map((publisher) => [publisher[MID], publisher.count])
-			),
+			eventsByTopic: _toMap(topicAgg),
+			eventsByPublisher: _toMap(publisherAgg),
 			dateRange: {
 				earliest: dateRange[0]?.earliest ?? null,
 				latest: dateRange[0]?.latest ?? null,
 			},
 		};
 	}
+}
+
+async function _aggregateByField(
+	col: import("mongodb").Collection<AuditEventDocument>,
+	field: string
+): Promise<Array<{ [key: string]: string } & { count: number }>> {
+	return col
+		.aggregate<Record<typeof MID, string> & { count: number }>([
+			{
+				[MGROUP]: {
+					[MID]: `$metadata.${field}`,
+					count: { [MSUM]: 1 },
+				},
+			},
+		])
+		.toArray();
+}
+
+async function _aggregateDateRange(
+	col: import("mongodb").Collection<AuditEventDocument>
+): Promise<Array<{ earliest: Date | null; latest: Date | null }>> {
+	return col
+		.aggregate<{ earliest: Date | null; latest: Date | null }>([
+			{
+				[MGROUP]: {
+					[MID]: null,
+					earliest: { [MMIN]: "$receivedAt" },
+					latest: { [MMAX]: "$receivedAt" },
+				},
+			},
+		])
+		.toArray();
+}
+
+function _toMap(
+	items: Array<{ [key: string]: string } & { count: number }>
+): Record<string, number> {
+	return Object.fromEntries(items.map((item) => [item[MID], item.count]));
+}
+
+export class AuditRepository {
 }

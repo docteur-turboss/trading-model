@@ -124,19 +124,27 @@ export function createCrossoverGenome(): CrossoverGenome {
 	};
 }
 
-export function createGAControlGenome(): GAControlGenome {
+function _createGACoreParams(): Partial<GAControlGenome> {
 	return {
 		populationSize: 20,
 		elitismFraction: 0.1,
 		survivorFraction: 0.5,
-		selectionType: "tournament",
-		fitnessType: "total_pnl",
 		episodesPerIndividual: 3,
 		seedsPerEval: 2,
+	};
+}
+
+function _createGATerminationParams(): Partial<GAControlGenome> {
+	return {
 		rewardThreshold: Number.POSITIVE_INFINITY,
 		stagnationPatience: 15,
 		maxGenerations: 100,
 		timeBudgetMs: 5 * 60 * 1_000,
+	};
+}
+
+function _createGASeedParams(): Partial<GAControlGenome> {
+	return {
 		envSeed: 42,
 		mutationSeed: 1337,
 		networkSeed: 7,
@@ -145,29 +153,35 @@ export function createGAControlGenome(): GAControlGenome {
 	};
 }
 
-/** Create a genome with sensible default values for network, RL hyperparameters, mutation, crossover, and GA control. */
-export function createDefaultGenome(id: string, generation = 0): Genome {
-	const rewardShaping = createRewardShapingGenome();
-	const horizon = createHorizonGenome();
-	const discretePolicy = createDiscretePolicyGenome();
-	const continuousPolicy = createContinuousPolicyGenome();
-	const replayBuffer = createReplayBufferGenome();
+export function createGAControlGenome(): GAControlGenome {
+	return {
+		..._createGACoreParams(),
+		..._createGATerminationParams(),
+		..._createGASeedParams(),
+		selectionType: "tournament",
+		fitnessType: "total_pnl",
+	} as GAControlGenome;
+}
 
-	const rl: RLGenome = {
+function _createDefaultRLGenome(): RLGenome {
+	return {
 		gamma: 0.99,
 		learningRate: 1e-3,
-		rewardShaping,
-		horizon,
-		discretePolicy,
-		continuousPolicy,
-		replayBuffer,
+		rewardShaping: createRewardShapingGenome(),
+		horizon: createHorizonGenome(),
+		discretePolicy: createDiscretePolicyGenome(),
+		continuousPolicy: createContinuousPolicyGenome(),
+		replayBuffer: createReplayBufferGenome(),
 	};
+}
 
+/** Create a genome with sensible default values for network, RL hyperparameters, mutation, crossover, and GA control. */
+export function createDefaultGenome(id: string, generation = 0): Genome {
 	return {
 		id,
 		generation,
 		network: createNetworkGenome(),
-		rl,
+		rl: _createDefaultRLGenome(),
 		mutation: createMutationGenome(),
 		crossover: createCrossoverGenome(),
 		gaControl: createGAControlGenome(),

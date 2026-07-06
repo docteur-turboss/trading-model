@@ -69,23 +69,26 @@ function attachErrorHandler(client: Redis | Cluster): void {
 	});
 }
 
+function _createFromUrl(configOrUrl: string): Redis | Cluster {
+	const client = new Redis(configOrUrl, BASE_OPTIONS);
+	attachErrorHandler(client);
+	return client;
+}
+
+function _createFromConfig(config: RedisConnectionConfig): Redis | Cluster {
+	const creator = REDIS_CLIENT_CREATORS[config.mode];
+	if (!creator) {
+		throw new Error(`Unknown Redis connection mode: ${(config as RedisConnectionConfig).mode}`);
+	}
+	const client = creator.create(config);
+	attachErrorHandler(client);
+	return client;
+}
+
 export function createRedisClient(
 	configOrUrl: string | RedisConnectionConfig
 ): Redis | Cluster {
-	if (typeof configOrUrl === "string") {
-		const client = new Redis(configOrUrl, BASE_OPTIONS);
-		attachErrorHandler(client);
-		return client;
-	}
-
-	const creator = REDIS_CLIENT_CREATORS[configOrUrl.mode];
-	if (!creator) {
-		throw new Error(
-			`Unknown Redis connection mode: ${(configOrUrl as RedisConnectionConfig).mode}`
-		);
-	}
-
-	const client = creator.create(configOrUrl);
-	attachErrorHandler(client);
-	return client;
+	return typeof configOrUrl === "string"
+		? _createFromUrl(configOrUrl)
+		: _createFromConfig(configOrUrl);
 }
