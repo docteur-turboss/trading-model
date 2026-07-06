@@ -207,7 +207,7 @@ describe("DlqRepository", () => {
 			mockFind.mockReturnValueOnce(createCursor([fakeDoc]));
 
 			return repo
-				.list(undefined, 10, 0)
+				.list({ limit: 10, offset: 0 })
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(1);
 					expect(result[0].id).toBe("id1");
@@ -245,7 +245,7 @@ describe("DlqRepository", () => {
 			mockFind.mockReturnValueOnce(createCursor(fakeDocs));
 
 			return repo
-				.list(undefined, 10, 0, "aaaaaaaaaaaaaaaaaaaaaaaa")
+				.list({ limit: 10, offset: 0, before: "aaaaaaaaaaaaaaaaaaaaaaaa" })
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(2);
 					expect(result[0].id).toBe("id2");

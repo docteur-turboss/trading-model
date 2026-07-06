@@ -6,8 +6,49 @@ export interface CacheOptions {
 	prefix: string;
 }
 
-export class RedisCache {
-	private readonly _client: Redis | null;
+export interface RedisCache {
+	disconnect(): Promise<void>;
+	publish(channel: string, message: string): Promise<void>;
+	subscribe(channel: string, handler: (message: string) => void): Promise<() => void>;
+	isAvailable(): boolean;
+	get<TData>(key: string): Promise<TData | null>;
+	set(key: string, value: unknown, ttlMs: number): Promise<void>;
+	del(key: string): Promise<void>;
+	clear(): Promise<void>;
+	makeKey(parts: string[]): string;
+}
+
+export class NullCache implements RedisCache {
+	async disconnect(): Promise<void> {}
+
+	async publish(_channel: string, _message: string): Promise<void> {}
+
+	async subscribe(_channel: string, _handler: (message: string) => void): Promise<() => void> {
+		return () => {};
+	}
+
+	isAvailable(): boolean {
+		return false;
+	}
+
+	async get<TData>(_key: string): Promise<TData | null> {
+		return null;
+	}
+
+	async set(_key: string, _value: unknown, _ttlMs: number): Promise<void> {}
+
+	async del(_key: string): Promise<void> {}
+
+	async clear(): Promise<void> {}
+
+	makeKey(parts: string[]): string {
+		return `ca-cache:${parts.join(":")}`;
+	}
+}
+
+class RealRedisCache implements RedisCache {
+	private readonly _client: Redis;
+	private readonly _options: CacheOptions;
 
 	private _createClient(redisUrl: string): Redis {
 		const client = new Redis(redisUrl, {
@@ -20,28 +61,20 @@ export class RedisCache {
 		return client;
 	}
 
-	constructor(redisUrl?: string) {
-		this._client = redisUrl ? this._createClient(redisUrl) : null;
+	constructor(redisUrl: string, options?: Partial<CacheOptions>) {
+		this._client = this._createClient(redisUrl);
+		this._options = { ttlMs: options?.ttlMs ?? 300_000, prefix: options?.prefix ?? "ca-cache" };
 	}
 
 	async disconnect(): Promise<void> {
-		if (this._client) {
-			try {
-				await this._client.quit();
-			} catch {
-				/* closing */
-			}
+		try {
+			await this._client.quit();
+		} catch {
+			/* closing */
 		}
 	}
 
-	/**
-	 * Publishes a message to a Redis channel.
-	 * Used for cross-instance event propagation (e.g., revocation notifications).
-	 */
 	async publish(channel: string, message: string): Promise<void> {
-		if (!this._client) {
-			return;
-		}
 		try {
 			await this._client.publish(channel, message);
 		} catch {
@@ -49,13 +82,7 @@ export class RedisCache {
 		}
 	}
 
-	async subscribe(
-		channel: string,
-		handler: (message: string) => void
-	): Promise<() => void> {
-		if (!this._client) {
-			return () => {};
-		}
+	async subscribe(channel: string, handler: (message: string) => void): Promise<() => void> {
 		const subscriber = this._duplicateSubscriber();
 		let unsubscribed = false;
 		const onMessage = (_ch: string, msg: string) => {
@@ -67,10 +94,7 @@ export class RedisCache {
 			await _doSubscribe(subscriber, channel);
 			subscriber.on("message", onMessage);
 			subscriber.on("reconnecting", () => {
-				logger.info(
-					"Redis subscriber reconnecting, will re-subscribe to channel",
-					{ context: { channel } }
-				);
+				logger.info("Redis subscriber reconnecting, will re-subscribe to channel", { context: { channel } });
 			});
 			subscriber.on("connect", () => {
 				if (!unsubscribed) {
@@ -92,7 +116,7 @@ export class RedisCache {
 	}
 
 	private _duplicateSubscriber(): Redis {
-		return this._client!.duplicate({
+		return this._client.duplicate({
 			retryStrategy: (times) => {
 				if (times > 10) {
 					return null;
@@ -103,13 +127,10 @@ export class RedisCache {
 	}
 
 	isAvailable(): boolean {
-		return this._client !== null;
+		return true;
 	}
 
 	async get<TData>(key: string): Promise<TData | null> {
-		if (!this._client) {
-			return null;
-		}
 		try {
 			const raw = await this._client.get(key);
 			return raw ? (JSON.parse(raw) as TData) : null;
@@ -119,24 +140,14 @@ export class RedisCache {
 	}
 
 	async set(key: string, value: unknown, ttlMs: number): Promise<void> {
-		if (!this._client) {
-			return;
-		}
 		try {
-			await this._client.setex(
-				key,
-				Math.ceil(ttlMs / 1000),
-				JSON.stringify(value)
-			);
+			await this._client.setex(key, Math.ceil(ttlMs / 1000), JSON.stringify(value));
 		} catch (err) {
 			logger.warn("Redis cache set failed", { context: { err } });
 		}
 	}
 
 	async del(key: string): Promise<void> {
-		if (!this._client) {
-			return;
-		}
 		try {
 			await this._client.del(key);
 		} catch {
@@ -147,19 +158,16 @@ export class RedisCache {
 	private async _scanAndDelete(): Promise<void> {
 		let cursor = "0";
 		do {
-			const result = await this._client!.scan(cursor, "MATCH", "ca-cache:*", "COUNT", "100");
+			const result = await this._client.scan(cursor, "MATCH", "ca-cache:*", "COUNT", "100");
 			cursor = result[0];
 			const keys = result[1];
 			if (keys.length > 0) {
-				await this._client!.del(...keys);
+				await this._client.del(...keys);
 			}
 		} while (cursor !== "0");
 	}
 
 	async clear(): Promise<void> {
-		if (!this._client) {
-			return;
-		}
 		try {
 			await this._scanAndDelete();
 		} catch {
@@ -170,6 +178,10 @@ export class RedisCache {
 	makeKey(parts: string[]): string {
 		return `ca-cache:${parts.join(":")}`;
 	}
+}
+
+export function createCache(redisUrl?: string): RedisCache {
+	return redisUrl ? new RealRedisCache(redisUrl) : new NullCache();
 }
 
 async function _doSubscribe(subscriber: Redis, channel: string): Promise<void> {
@@ -187,12 +199,7 @@ interface UnsubscriberContext {
 	onClose?: () => void;
 }
 
-function _createUnsubscriber({
-	subscriber,
-	channel,
-	onMessage,
-	onClose,
-}: UnsubscriberContext): () => void {
+function _createUnsubscriber({ subscriber, channel, onMessage, onClose }: UnsubscriberContext): () => void {
 	return () => {
 		onClose?.();
 		subscriber.removeListener("message", onMessage);

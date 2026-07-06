@@ -29,6 +29,35 @@ export interface LockBackend {
 		instanceId: string,
 		fencingToken: number
 	): Promise<number>;
+	disconnect?(): void;
+}
+
+export class NullLockBackend implements LockBackend {
+	async acquire(
+		_lockName: string,
+		_instanceId: string,
+		_ttlMs: number
+	): Promise<number | null> {
+		return null;
+	}
+
+	async release(
+		_lockName: string,
+		_instanceId: string,
+		_fencingToken: number
+	): Promise<boolean> {
+		return false;
+	}
+
+	async verifyOwnership(
+		_lockName: string,
+		_instanceId: string,
+		_fencingToken: number
+	): Promise<number> {
+		return -1;
+	}
+
+	disconnect(): void {}
 }
 
 export class MongoLockBackend implements LockBackend {
@@ -144,13 +173,11 @@ export class MongoLockBackend implements LockBackend {
 }
 
 export class RedisLockBackend implements LockBackend {
-	private _client: Redis | null = null;
-	private _available = false;
+	private _client!: Redis;
+	private _available = true;
 
-	constructor(redisUrl: string | null) {
-		if (redisUrl) {
-			this._connect(redisUrl);
-		}
+	constructor(redisUrl: string) {
+		this._connect(redisUrl);
 	}
 
 	private _connect(redisUrl: string): void {
@@ -160,7 +187,7 @@ export class RedisLockBackend implements LockBackend {
 			});
 			this._client.on("error", () => { this._available = false; });
 		} catch {
-			this._client = null;
+			this._available = false;
 		}
 	}
 
@@ -169,9 +196,6 @@ export class RedisLockBackend implements LockBackend {
 		instanceId: string,
 		ttlMs: number
 	): Promise<number | null> {
-		if (!this._client) {
-			return null;
-		}
 		try {
 			const lockKey = `lock:${lockName}`;
 			const nextFencingToken = randomInt(1, 2_147_483_647);
@@ -194,7 +218,7 @@ export class RedisLockBackend implements LockBackend {
 			return null;
 		} catch (err) {
 			logger.warn("Redis lock acquire failed", { context: { err } });
-			this._client = null;
+			this._available = false;
 			return null;
 		}
 	}
@@ -204,7 +228,7 @@ export class RedisLockBackend implements LockBackend {
 		instanceId: string,
 		fencingToken: number
 	): Promise<boolean> {
-		if (!(this._client && this._available)) {
+		if (!this._available) {
 			return false;
 		}
 		try {
@@ -233,7 +257,7 @@ export class RedisLockBackend implements LockBackend {
 		instanceId: string,
 		fencingToken: number
 	): Promise<number> {
-		if (!(this._client && this._available)) {
+		if (!this._available) {
 			return -1;
 		}
 		try {
@@ -249,7 +273,7 @@ export class RedisLockBackend implements LockBackend {
 	}
 
 	disconnect(): void {
-		this._client?.disconnect();
+		this._client.disconnect();
 	}
 }
 

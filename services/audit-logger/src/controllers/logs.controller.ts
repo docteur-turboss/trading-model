@@ -7,20 +7,14 @@ import type { LogRepository } from "../persistence/log-repository";
 function _buildLogQueryParams(
 	req: import("express").Request
 ): Parameters<LogRepository["query"]>[0] {
-	const startDate = req.query.startDate as string | undefined;
-	const endDate = req.query.endDate as string | undefined;
-
 	return {
 		serviceName: req.query.serviceName as string | undefined,
 		level: req.query.level as string | undefined,
 		correlationId: req.query.correlationId as string | undefined,
-		dateRange:
-			startDate || endDate
-				? new DateRange(
-						startDate ? new Date(startDate) : undefined,
-						endDate ? new Date(endDate) : undefined,
-					)
-				: undefined,
+		dateRange: DateRange.fromQueryParams(
+			req.query.startDate as string | undefined,
+			req.query.endDate as string | undefined,
+		),
 		search: req.query.search as string | undefined,
 		page: req.query.page
 			? Number.parseInt(req.query.page as string, 10)

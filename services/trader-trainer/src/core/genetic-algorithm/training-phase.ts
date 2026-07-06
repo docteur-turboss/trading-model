@@ -45,7 +45,7 @@ export function trainPhase(ctx: TrainPhaseContext): void {
 		if (_shouldSkipFrame(index, horizon.frameSkip)) {
 			continue;
 		}
-		backend.step(trainData[index].features.buffer, trainData[index].price);
+		backend.step(trainData[index].features, trainData[index].price);
 
 		const pool = backend.getExperiencePool();
 		if (!_canTrain(pool)) {

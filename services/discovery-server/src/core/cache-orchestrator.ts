@@ -3,6 +3,7 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
+import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { CacheManager } from "./cache-manager";
 import { RedisHealthMonitor } from "./redis-health-monitor";
@@ -19,13 +20,14 @@ export class CacheOrchestrator {
 
 	async getInstances(
 		serviceName: string,
-		offset?: number,
-		limit?: number
+		pagination?: PaginationQuery
 	): Promise<ServiceInstance[]> {
-		if (offset !== undefined || limit !== undefined) {
+		if (pagination?.page !== undefined || pagination?.limit !== undefined) {
 			const all = await this._backend.getInstances(serviceName);
-			const start = offset ?? 0;
-			return all.slice(start, limit === undefined ? undefined : start + limit);
+			const page = pagination.page ?? 1;
+			const limit = pagination.limit ?? all.length;
+			const start = (page - 1) * limit;
+			return all.slice(start, start + limit);
 		}
 
 		if (this._healthMonitor.fallbackActive) {

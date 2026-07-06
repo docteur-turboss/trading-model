@@ -3,6 +3,7 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
+import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { CacheManager } from "./cache-manager";
@@ -84,10 +85,9 @@ export class CachedRegistryBackend implements RegistryBackend {
 
 	async getInstances(
 		serviceName: string,
-		offset?: number,
-		limit?: number
+		pagination?: PaginationQuery
 	): Promise<ServiceInstance[]> {
-		return this._orchestrator.getInstances(serviceName, offset, limit);
+		return this._orchestrator.getInstances(serviceName, pagination);
 	}
 
 	async getInstance(

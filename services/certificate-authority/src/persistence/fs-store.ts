@@ -49,26 +49,46 @@ function decrypt(ciphertext: string, key: Buffer): string {
 	return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
 }
 
-export class FsStore {
+export interface FsStore {
 	readonly disabled: boolean;
+	init(): Promise<void>;
+	save(key: string, data: Record<string, unknown>): Promise<void>;
+	get<TData>(key: string): Promise<TData | null>;
+	getAll<TData>(): Promise<TData[]>;
+	delete(key: string): Promise<void>;
+}
+
+export class NullFsStore implements FsStore {
+	readonly disabled = true;
+
+	async init(): Promise<void> {
+		logger.warn("FsStore is DISABLED — no fallback storage available");
+	}
+
+	async save(_key: string, _data: Record<string, unknown>): Promise<void> {}
+
+	async get<TData>(_key: string): Promise<TData | null> {
+		return null;
+	}
+
+	async getAll<TData>(): Promise<TData[]> {
+		return [];
+	}
+
+	async delete(_key: string): Promise<void> {}
+}
+
+class RealFsStore implements FsStore {
+	readonly disabled = false;
 	private readonly _baseDir: string;
 	private _encryptionKey: Buffer | null;
 
-	constructor(options?: {
-		baseDir?: string;
-		encryptionKey?: string;
-		disableFallback?: boolean;
-	}) {
-		this._baseDir = options?.baseDir ?? path.join(process.cwd(), "data", "ca-fallback");
-		this.disabled = options?.disableFallback ?? false;
-		this._encryptionKey = this._initEncryptionKey(options?.encryptionKey);
+	constructor(options: { baseDir?: string; encryptionKey?: string }) {
+		this._baseDir = options.baseDir ?? path.join(process.cwd(), "data", "ca-fallback");
+		this._encryptionKey = this._initEncryptionKey(options.encryptionKey);
 	}
 
 	private _initEncryptionKey(encryptionKey?: string): Buffer | null {
-		if (this.disabled) {
-			logger.warn("FsStore is DISABLED — no fallback storage available", { context: { baseDir: this._baseDir } });
-			return null;
-		}
 		if (encryptionKey) {
 			return deriveKey(encryptionKey);
 		}
@@ -85,9 +105,6 @@ export class FsStore {
 	}
 
 	async init(): Promise<void> {
-		if (this.disabled) {
-			return;
-		}
 		await fs.mkdir(this._baseDir, { recursive: true });
 		logger.info("FsStore initialized", {
 			context: {
@@ -104,9 +121,6 @@ export class FsStore {
 	}
 
 	async save(key: string, data: Record<string, unknown>): Promise<void> {
-		if (this.disabled) {
-			throw new Error("FsStore is disabled — cannot write fallback data");
-		}
 		const fp = this._filePath(key);
 		const tmp = `${fp}.tmp`;
 		const serialized = JSON.stringify(data, null, 0);
@@ -118,9 +132,6 @@ export class FsStore {
 	}
 
 	async get<TData>(key: string): Promise<TData | null> {
-		if (this.disabled) {
-			return null;
-		}
 		try {
 			const fp = this._filePath(key);
 			const raw = await fs.readFile(fp, "utf8");
@@ -134,9 +145,6 @@ export class FsStore {
 	}
 
 	async getAll<TData>(): Promise<TData[]> {
-		if (this.disabled) {
-			return [];
-		}
 		try {
 			const files = await fs.readdir(this._baseDir);
 			return await this._readAllFiles<TData>(files);
@@ -178,13 +186,24 @@ export class FsStore {
 	}
 
 	async delete(key: string): Promise<void> {
-		if (this.disabled) {
-			return;
-		}
 		try {
 			await fs.unlink(this._filePath(key));
 		} catch {
 			// ignore if already gone
 		}
 	}
+}
+
+export function createFsStore(options?: {
+	baseDir?: string;
+	encryptionKey?: string;
+	disableFallback?: boolean;
+}): FsStore {
+	if (options?.disableFallback) {
+		return new NullFsStore();
+	}
+	return new RealFsStore({
+		baseDir: options?.baseDir,
+		encryptionKey: options?.encryptionKey,
+	});
 }

@@ -9,14 +9,15 @@
  * Nonces expire after ttlMs to prevent replay attacks.
  *
  * Persistence: Nonces are stored in both an in-memory Map (L1 cache) and
- * MongoDB (L2 persistence). On startup, all non-expired nonces are loaded
- * from MongoDB into memory. This ensures nonces survive CA restarts.
+ * optionally MongoDB (L2 persistence) via a NoncePersistence backend.
+ * On startup, all non-expired nonces are loaded from the backend into memory.
+ * This ensures nonces survive CA restarts.
  */
 import { randomBytes } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
-import { type Collection, type Db, MongoClient } from "mongodb";
 
-import { MONGO_MANAGER } from "./mongo-manager";
+import type { NonceDocument, NoncePersistence } from "./nonce-persister";
+import { MongoNoncePersister, NullNoncePersister } from "./nonce-persister";
 
 interface NonceEntry {
 	nonce: string;
@@ -24,115 +25,49 @@ interface NonceEntry {
 	createdAt: number;
 }
 
-interface NonceDocument {
-	nonce: string;
-	serviceId: string;
-	createdAt: Date;
-}
-
 export class NonceStore {
 	private readonly _l1 = new Map<string, NonceEntry>();
 	private readonly _ttlMs: number;
-	private readonly _mongoUri: string | null;
-	private _collection: Collection<NonceDocument> | null = null;
+	private readonly _persister: NoncePersistence;
 	private _cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
 	constructor(ttlMs = 300_000, mongoUri?: string) {
 		this._ttlMs = ttlMs;
-		this._mongoUri = mongoUri ?? null;
+		this._persister = mongoUri
+			? new MongoNoncePersister(mongoUri, ttlMs)
+			: new NullNoncePersister();
 		this._startCleanup();
 	}
 
-	private async _resolveNonceDb(): Promise<Db> {
-		if (MONGO_MANAGER.isInitialized()) {
-			return MONGO_MANAGER.getDb();
-		}
-		const client = new MongoClient(this._mongoUri!);
-		await client.connect();
-		return client.db();
-	}
-
-	private async _createNonceIndexes(): Promise<void> {
-		await this._collection!.createIndex({ nonce: 1 }, { unique: true });
-		await this._collection!.createIndex(
-			{ createdAt: 1 },
-			{ expireAfterSeconds: Math.ceil(this._ttlMs / 1000) }
-		);
-	}
-
 	async connect(): Promise<void> {
-		if (!this._mongoUri) {
-			return;
-		}
 		try {
-			const db = await this._resolveNonceDb();
-			this._collection = db.collection<NonceDocument>("nonces");
-			await this._createNonceIndexes();
-			await this._loadFromMongo();
+			await this._persister.connect();
+			await this._loadFromPersister();
 			logger.info("NonceStore connected to MongoDB", { context: { existingNonces: this._l1.size } });
 		} catch (err) {
 			logger.warn("NonceStore MongoDB connection failed, operating in memory-only mode", { context: { err } });
-			this._collection = null;
 		}
 	}
 
 	disconnect(): void {
 		this.destroy();
-		this._collection = null;
-	}
-
-	/**
-	 * Generates a cryptographically random nonce for a given service.
-	 * @returns The nonce string that the client must sign.
-	 */
-	private async _persistNonce(nonce: string, serviceId: string, createdAt: number): Promise<void> {
-		try {
-			await this._collection!.insertOne({ nonce, serviceId, createdAt: new Date(createdAt) });
-		} catch (err) {
-			logger.warn("Failed to persist nonce to MongoDB", { context: { err } });
-			const error = new Error("Failed to persist nonce");
-			(error as { cause?: unknown }).cause = err;
-			throw error;
-		}
+		this._persister.disconnect().catch(() => {});
 	}
 
 	async generate(serviceId: string): Promise<string> {
 		const nonce = randomBytes(32).toString("hex");
 		const entry: NonceEntry = { nonce, serviceId, createdAt: Date.now() };
-		if (this._collection) {
-			await this._persistNonce(nonce, serviceId, entry.createdAt);
+		try {
+			await this._persister.persist(nonce, serviceId, entry.createdAt);
+		} catch {
+			// fallback to memory-only for this nonce
 		}
 		this._l1.set(nonce, entry);
 		return nonce;
 	}
 
-	/**
-	 * Verifies a nonce is valid and was issued for the given service.
-	 * Consumes the nonce (single-use) to prevent replay attacks.
-	 */
 	private _isExpired(createdAt: number): boolean {
 		return Date.now() - createdAt > this._ttlMs;
-	}
-
-	private async _consumeFromMongo(nonce: string, serviceId: string): Promise<boolean> {
-		try {
-			const doc = await this._collection!.findOneAndDelete({ nonce });
-			if (!doc || doc.serviceId !== serviceId || this._isExpired(doc.createdAt.getTime())) {
-				return false;
-			}
-			this._l1.delete(nonce);
-			return true;
-		} catch {
-			return false;
-		}
-	}
-
-	private _consumeFromL1(entry: NonceEntry | undefined, nonce: string, serviceId: string): boolean {
-		if (!entry || entry.serviceId !== serviceId) {
-			return false;
-		}
-		this._l1.delete(nonce);
-		return true;
 	}
 
 	async consume(nonce: string, serviceId: string): Promise<boolean> {
@@ -141,10 +76,19 @@ export class NonceStore {
 			this._l1.delete(nonce);
 			return false;
 		}
-		if (this._collection) {
-			return this._consumeFromMongo(nonce, serviceId);
+		const doc = await this._persister.consume(nonce, serviceId);
+		if (doc) {
+			if (doc.serviceId !== serviceId || this._isExpired(doc.createdAt.getTime())) {
+				return false;
+			}
+			this._l1.delete(nonce);
+			return true;
 		}
-		return this._consumeFromL1(entry, nonce, serviceId);
+		if (!entry || entry.serviceId !== serviceId) {
+			return false;
+		}
+		this._l1.delete(nonce);
+		return true;
 	}
 
 	get size(): number {
@@ -157,21 +101,13 @@ export class NonceStore {
 			this._cleanupTimer = null;
 		}
 		this._l1.clear();
-		this._collection = null;
 	}
 
-	private async _loadFromMongo(): Promise<void> {
-		if (!this._collection) {
-			return;
-		}
-		try {
-			const threshold = new Date(Date.now() - this._ttlMs);
-			const docs = await this._collection.find({ createdAt: { $gt: threshold } }).toArray();
-			for (const doc of docs) {
-				this._l1.set(doc.nonce, { nonce: doc.nonce, serviceId: doc.serviceId, createdAt: doc.createdAt.getTime() });
-			}
-		} catch (err) {
-			logger.warn("Failed to load nonces from MongoDB", { context: { err } });
+	private async _loadFromPersister(): Promise<void> {
+		const threshold = new Date(Date.now() - this._ttlMs);
+		const docs = await this._persister.loadAll(threshold);
+		for (const doc of docs) {
+			this._l1.set(doc.nonce, { nonce: doc.nonce, serviceId: doc.serviceId, createdAt: doc.createdAt.getTime() });
 		}
 	}
 

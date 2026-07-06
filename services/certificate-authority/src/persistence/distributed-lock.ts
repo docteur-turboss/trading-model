@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 import { type Collection, MongoClient } from "mongodb";
-import type { LockDocument } from "./lock-backends";
+import type { LockBackend, LockDocument } from "./lock-backends";
 import {
 	FileSystemLockBackend,
 	MongoLockBackend,
+	NullLockBackend,
 	RedisLockBackend,
 } from "./lock-backends";
 import { MONGO_MANAGER } from "./mongo-manager";
@@ -28,7 +29,7 @@ export class DistributedLock {
 	private _mongoAvailable = false;
 
 	private readonly _mongoBackend: MongoLockBackend;
-	private readonly _redisBackend: RedisLockBackend;
+	private readonly _redisBackend: LockBackend;
 	private readonly _filesystemBackend: FileSystemLockBackend;
 
 	private _resolveFallbackDir(fallbackDir: string | undefined): string {
@@ -48,7 +49,7 @@ export class DistributedLock {
 		this._ttlMs = options.ttlMs;
 		this._instanceId = randomUUID().substring(0, 8);
 		this._mongoBackend = this._createMongoBackend();
-		this._redisBackend = new RedisLockBackend(options.redisUrl ?? null);
+		this._redisBackend = options.redisUrl ? new RedisLockBackend(options.redisUrl) : new NullLockBackend();
 		this._filesystemBackend = new FileSystemLockBackend(this._resolveFallbackDir(options.fallbackDir));
 	}
 
@@ -92,7 +93,7 @@ export class DistributedLock {
 				/* closing */
 			}
 		}
-		this._redisBackend.disconnect();
+		this._redisBackend.disconnect?.();
 	}
 
 	private async _checkMongoOwnership(): Promise<number> {

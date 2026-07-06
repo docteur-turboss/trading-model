@@ -12,6 +12,17 @@ export class DateRange {
 		this.end = end;
 	}
 
+	static fromQueryParams(
+		startDate?: string,
+		endDate?: string
+	): DateRange | undefined {
+		if (!startDate && !endDate) return undefined;
+		return new DateRange(
+			startDate ? new Date(startDate) : undefined,
+			endDate ? new Date(endDate) : undefined,
+		);
+	}
+
 	contains(date: Date): boolean {
 		if (this.start && date < this.start) return false;
 		if (this.end && date > this.end) return false;

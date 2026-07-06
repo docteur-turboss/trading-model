@@ -15,13 +15,7 @@ function _buildAuditEventQuery(
 	const { topic, publisher, correlationId, startDate, endDate, page, limit } =
 		queryParams;
 
-	const dateRange =
-		startDate || endDate
-			? new DateRange(
-					startDate ? new Date(startDate) : undefined,
-					endDate ? new Date(endDate) : undefined,
-				)
-			: undefined;
+	const dateRange = DateRange.fromQueryParams(startDate, endDate);
 
 	return {
 		topic,

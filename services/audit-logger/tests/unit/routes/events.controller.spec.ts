@@ -76,9 +76,10 @@ describe("EventsController", () => {
 			);
 
 			const callArgs = mockRepo.query.mock.calls[0][0];
-			expect(callArgs.dateRange).toBeInstanceOf(DateRange);
-			expect(callArgs.dateRange.start).toEqual(new Date("2024-01-01"));
-			expect(callArgs.dateRange.end).toEqual(new Date("2024-12-31"));
+			const dateRange = callArgs.dateRange!;
+			expect(dateRange).toBeInstanceOf(DateRange);
+			expect(dateRange.start).toEqual(new Date("2024-01-01"));
+			expect(dateRange.end).toEqual(new Date("2024-12-31"));
 		});
 
 		it("should handle missing query params gracefully", async () => {

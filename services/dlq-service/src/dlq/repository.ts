@@ -34,6 +34,13 @@ export interface StoredDlqEntry {
 	createdAt: string;
 }
 
+export interface DlqListOptions {
+	topic?: string;
+	limit?: number;
+	offset?: number;
+	before?: string;
+}
+
 export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 	return {
 		id: doc._id.toHexString(),
@@ -54,12 +61,8 @@ export class DlqRepository {
 		return this._entryWriter.add(entry);
 	}
 
-	async list(
-		topic?: string,
-		limit = 100,
-		offset = 0,
-		before?: string
-	): Promise<StoredDlqEntry[]> {
+	async list(options?: DlqListOptions): Promise<StoredDlqEntry[]> {
+		const { topic, limit = 100, offset = 0, before } = options ?? {};
 		const col = await getCollection();
 		const query: Record<string, unknown> = {};
 		if (topic) {

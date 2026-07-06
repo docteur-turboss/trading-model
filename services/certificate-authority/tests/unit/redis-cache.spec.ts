@@ -29,7 +29,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { RedisCache } from "../../src/persistence/redis-cache";
+import { createCache, NullCache } from "../../src/persistence/redis-cache";
 
 describe("RedisCache", () => {
 	beforeEach(() => {
@@ -38,50 +38,50 @@ describe("RedisCache", () => {
 	});
 
 	it("should create disabled cache when no URL given", () => {
-		const cache = new RedisCache();
+		const cache = createCache();
 		expect(cache.isAvailable()).toBe(false);
 	});
 
 	it("should create connected cache with URL", () => {
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		expect(cache.isAvailable()).toBe(true);
 	});
 
 	it("should configure retry strategy", () => {
-		new RedisCache("redis://localhost:6379");
+		createCache("redis://localhost:6379");
 		expect(currentRetryStrategy).not.toBeNull();
 		expect(currentRetryStrategy!(11)).toBeNull();
 		expect(currentRetryStrategy!(1)).toBe(1000);
 	});
 
 	it("should disconnect", async () => {
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		await cache.disconnect();
 		expect(mockRedisInstance.quit).toHaveBeenCalled();
 	});
 
 	it("should return null on get when disabled", async () => {
-		const cache = new RedisCache();
+		const cache = new NullCache();
 		const result = await cache.get("key");
 		expect(result).toBeNull();
 	});
 
 	it("should return null when key not found", async () => {
 		mockRedisInstance.get.mockResolvedValue(null);
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		const result = await cache.get("key");
 		expect(result).toBeNull();
 	});
 
 	it("should get and parse JSON value", async () => {
 		mockRedisInstance.get.mockResolvedValue(JSON.stringify({ data: 42 }));
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		const result = await cache.get<{ data: number }>("key");
 		expect(result).toEqual({ data: 42 });
 	});
 
 	it("should set value with TTL", async () => {
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		await cache.set("key", { foo: "bar" }, 5000);
 		expect(mockRedisInstance.setex).toHaveBeenCalledWith(
 			"key",
@@ -91,30 +91,30 @@ describe("RedisCache", () => {
 	});
 
 	it("should delete key", async () => {
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		await cache.del("key");
 		expect(mockRedisInstance.del).toHaveBeenCalledWith("key");
 	});
 
 	it("should do nothing when disabled for set", async () => {
-		const cache = new RedisCache();
+		const cache = new NullCache();
 		await cache.set("key", "val", 1000);
 		expect(mockRedisInstance.setex).not.toHaveBeenCalled();
 	});
 
 	it("should publish message", async () => {
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		await cache.publish("chan", "msg");
 		expect(mockRedisInstance.publish).toHaveBeenCalledWith("chan", "msg");
 	});
 
 	it("should make prefixed key", () => {
-		const cache = new RedisCache();
+		const cache = new NullCache();
 		expect(cache.makeKey(["a", "b"])).toBe("ca-cache:a:b");
 	});
 
 	it("should subscribe and return unsubscribe function", async () => {
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		const handler = jest.fn();
 		const unsub = await cache.subscribe("chan", handler);
 		expect(mockRedisInstance.duplicate).toHaveBeenCalled();
@@ -124,7 +124,7 @@ describe("RedisCache", () => {
 	});
 
 	it("should return noop unsubscribe when disabled", async () => {
-		const cache = new RedisCache();
+		const cache = new NullCache();
 		const unsub = await cache.subscribe("chan", jest.fn());
 		expect(unsub).toBeDefined();
 	});
@@ -133,7 +133,7 @@ describe("RedisCache", () => {
 		mockRedisInstance.scan
 			.mockResolvedValueOnce(["5", ["ca-cache:k1", "ca-cache:k2"]])
 			.mockResolvedValueOnce(["0", []]);
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		await cache.clear();
 		expect(mockRedisInstance.scan).toHaveBeenCalled();
 		expect(mockRedisInstance.del).toHaveBeenCalledWith(
@@ -143,21 +143,21 @@ describe("RedisCache", () => {
 	});
 
 	it("should handle clear when disabled", async () => {
-		const cache = new RedisCache();
+		const cache = new NullCache();
 		await cache.clear();
 		expect(mockRedisInstance.scan).not.toHaveBeenCalled();
 	});
 
 	it("should handle get errors gracefully", async () => {
 		mockRedisInstance.get.mockRejectedValue(new Error("Redis error"));
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		const result = await cache.get("key");
 		expect(result).toBeNull();
 	});
 
 	it("should handle set errors gracefully", async () => {
 		mockRedisInstance.setex.mockRejectedValue(new Error("Redis error"));
-		const cache = new RedisCache("redis://localhost:6379");
+		const cache = createCache("redis://localhost:6379");
 		await cache.set("key", "val", 1000);
 	});
 });

@@ -4,7 +4,6 @@ import {
 	fromSymbol,
 	NormalizationStats,
 	type TradingSymbol,
-	toSymbol,
 } from "../../../src/core/market-data-types";
 import {
 	feedCandles,
@@ -17,6 +16,9 @@ import {
 	makeTrade,
 	resetFixtureSeq,
 } from "../../fixtures/market-data.fixture";
+import { Price, UnixTimestamp, Volume, toSymbol } from "@trading-model/common/domain/primitives";
+import { FeatureVector } from "../../../src/core/feature-vector";
+import { CandleInterval, MarketType, SourceType, TradeSide } from "@trading-model/common/config/event.types";
 
 describe("TradingSymbol", () => {
 	it("should create branded symbol via toSymbol", () => {
@@ -70,10 +72,10 @@ describe("MarketDataBuffer", () => {
 			evictionPolicy: "LRU",
 		});
 		buf.addCandles("BTCUSDT", [
-			makeCandle({ symbol: "BTCUSDT", close: 50000, timestamp: 1 }),
+			makeCandle({ symbol: "BTCUSDT", close: Price.of(50000), timestamp: UnixTimestamp.of(1) }),
 		]);
 		buf.addCandles("ETHUSDT", [
-			makeCandle({ symbol: "ETHUSDT", close: 3000, timestamp: 1 }),
+			makeCandle({ symbol: "ETHUSDT", close: Price.of(3000), timestamp: UnixTimestamp.of(1) }),
 		]);
 		expect(buf.getCandleCount("BTCUSDT")).toBe(1);
 	});
@@ -132,7 +134,7 @@ describe("MarketDataBuffer", () => {
 			feedCandles(buf, "ETHUSDT", 3);
 			(buf as any)._accessOrder[0] = undefined as any;
 			buf.addCandles("SOLUSDT", [
-				makeCandle({ symbol: "SOLUSDT", close: 100, timestamp: 1 }),
+				makeCandle({ symbol: "SOLUSDT", close: Price.of(100), timestamp: UnixTimestamp.of(1) }),
 			]);
 			expect(buf.getSymbols().length).toBeGreaterThan(0);
 		});
@@ -169,10 +171,10 @@ describe("MarketDataBuffer", () => {
 
 		it("should set step price from candle close", () => {
 			buffer.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: 100, timestamp: 1 }),
+				makeCandle({ symbol: "BTCUSDT", close: Price.of(100), timestamp: UnixTimestamp.of(1) }),
 			]);
 			buffer.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: 150, timestamp: 2 }),
+				makeCandle({ symbol: "BTCUSDT", close: Price.of(150), timestamp: UnixTimestamp.of(2) }),
 			]);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
@@ -193,7 +195,7 @@ describe("MarketDataBuffer", () => {
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(steps[0].features.length).toBe(32);
+			expect(steps[0].features.buffer.length).toBe(32);
 		});
 
 		it("should set bias feature at index 31 to 1.0", () => {
@@ -202,21 +204,21 @@ describe("MarketDataBuffer", () => {
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
 			for (const step of steps) {
-				expect(step.features.data[31]).toBe(1.0);
+				expect(step.features.buffer[31]).toBe(1.0);
 			}
 		});
 
 		it("should compute price change correctly", () => {
 			buffer.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: 100, timestamp: 1 }),
+				makeCandle({ symbol: "BTCUSDT", close: Price.of(100), timestamp: UnixTimestamp.of(1) }),
 			]);
 			buffer.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: 110, timestamp: 2 }),
+				makeCandle({ symbol: "BTCUSDT", close: Price.of(110), timestamp: UnixTimestamp.of(2) }),
 			]);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(steps[0].features.data[2]).toBeCloseTo(0.1, 5);
+			expect(steps[0].features.buffer[2]).toBeCloseTo(0.1, 5);
 		});
 
 		it("should populate all 32 indices with finite numbers", () => {
@@ -225,49 +227,49 @@ describe("MarketDataBuffer", () => {
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
 			for (let i = 0; i < 32; i++) {
-				expect(typeof steps[0].features.data[i]).toBe("number");
-				expect(Number.isFinite(steps[0].features.data[i])).toBe(true);
+				expect(typeof steps[0].features.buffer[i]).toBe("number");
+				expect(Number.isFinite(steps[0].features.buffer[i])).toBe(true);
 			}
 		});
 
 		it("should handle edge case feature values gracefully", () => {
 			buffer.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: 0, timestamp: 1 }),
+				makeCandle({ symbol: "BTCUSDT", close: Price.of(0), timestamp: UnixTimestamp.of(1) }),
 			]);
 			buffer.addCandles("BTCUSDT", [
 				makeCandle({
 					symbol: "BTCUSDT",
-					high: 60,
-					low: 60,
-					close: 0,
-					timestamp: 2,
+					high: Price.of(60),
+					low: Price.of(60),
+					close: Price.of(0),
+					timestamp: UnixTimestamp.of(2),
 				}),
 			]);
 
 			buffer.addTrades("BTCUSDT", [
 				{
 					symbol: "BTCUSDT",
-					source: "binance",
-					timestamp: 0,
-					market: "crypto",
-					price: 100,
+					source: SourceType.BINANCE,
+					timestamp: UnixTimestamp.of(0),
+					market: MarketType.CRYPTO,
+					price: Price.of(100),
 					tradeId: BigInt(999),
-					quantity: 0,
-					side: "buy" as const,
+					quantity: Volume.of(0),
+					side: TradeSide.BUY,
 				},
 			]);
 
-			buffer.setTicker24h("BTCUSDT", { ...makeTicker24h("BTCUSDT"), open: 0 });
+			buffer.setTicker24h("BTCUSDT", { ...makeTicker24h("BTCUSDT"), open: Price.of(0) });
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 			expect(steps.length).toBe(1);
 
-			expect(steps[0].features.data[2]).toBe(0);
-			expect(steps[0].features.data[3]).toBe(0);
-			expect(steps[0].features.data[4]).toBe(0);
-			expect(steps[0].features.data[18]).toBe(0.5);
-			expect(steps[0].features.data[19]).toBe(0);
-			expect(steps[0].features.data[21]).toBe(0);
+			expect(steps[0].features.buffer[2]).toBe(0);
+			expect(steps[0].features.buffer[3]).toBe(0);
+			expect(steps[0].features.buffer[4]).toBe(0);
+			expect(steps[0].features.buffer[18]).toBe(0.5);
+			expect(steps[0].features.buffer[19]).toBe(0);
+			expect(steps[0].features.buffer[21]).toBe(0);
 		});
 	});
 
@@ -279,7 +281,7 @@ describe("MarketDataBuffer", () => {
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
 			for (const idx of [9, 10, 11, 12]) {
-				expect(typeof steps[0].features.data[idx]).toBe("number");
+				expect(typeof steps[0].features.buffer[idx]).toBe("number");
 			}
 		});
 
@@ -289,11 +291,11 @@ describe("MarketDataBuffer", () => {
 				evictionPolicy: "LRU",
 			});
 			buf.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: 50000, timestamp: 1 }),
+				makeCandle({ symbol: "BTCUSDT", close: Price.of(50000), timestamp: UnixTimestamp.of(1) }),
 			]);
 			buf.setOrderBook("BTCUSDT", makeOrderBook("BTCUSDT"));
 			buf.addCandles("ETHUSDT", [
-				makeCandle({ symbol: "ETHUSDT", close: 3000, timestamp: 1 }),
+				makeCandle({ symbol: "ETHUSDT", close: Price.of(3000), timestamp: UnixTimestamp.of(1) }),
 			]);
 			expect(buf.getCandleCount("BTCUSDT")).toBe(0);
 		});
@@ -304,8 +306,8 @@ describe("MarketDataBuffer", () => {
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(steps[0].features.data[9]).toBe(0);
-			expect(steps[0].features.data[10]).toBe(0);
+			expect(steps[0].features.buffer[9]).toBe(0);
+			expect(steps[0].features.buffer[10]).toBe(0);
 		});
 	});
 
@@ -317,7 +319,7 @@ describe("MarketDataBuffer", () => {
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
 			for (const idx of [13, 14, 15]) {
-				expect(typeof steps[0].features.data[idx]).toBe("number");
+				expect(typeof steps[0].features.buffer[idx]).toBe("number");
 			}
 		});
 
@@ -327,9 +329,9 @@ describe("MarketDataBuffer", () => {
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(steps[0].features.data[13]).toBe(0);
-			expect(steps[0].features.data[14]).toBe(0);
-			expect(steps[0].features.data[15]).toBe(0);
+			expect(steps[0].features.buffer[13]).toBe(0);
+			expect(steps[0].features.buffer[14]).toBe(0);
+			expect(steps[0].features.buffer[15]).toBe(0);
 		});
 	});
 
@@ -340,29 +342,29 @@ describe("MarketDataBuffer", () => {
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(steps[0].features.data[19]).toBeCloseTo(0.05, 5);
-			expect(typeof steps[0].features.data[20]).toBe("number");
+			expect(steps[0].features.buffer[19]).toBeCloseTo(0.05, 5);
+			expect(typeof steps[0].features.buffer[20]).toBe("number");
 		});
 	});
 
 	describe("setPriceSnapshot", () => {
 		it("should use snapshot price when available", () => {
-			buffer.setPriceSnapshot({ BTCUSDT: 200 });
+			buffer.setPriceSnapshot({ [toSymbol("BTCUSDT")]: Price.of(200) });
 			feedCandles(buffer, "BTCUSDT", 30);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(typeof steps[0].features.data[22]).toBe("number");
+			expect(typeof steps[0].features.buffer[22]).toBe("number");
 		});
 
 		it("should merge multiple snapshot calls", () => {
-			buffer.setPriceSnapshot({ BTCUSDT: 150 });
-			buffer.setPriceSnapshot({ ETHUSDT: 200 });
+			buffer.setPriceSnapshot({ [toSymbol("BTCUSDT")]: Price.of(150) });
+			buffer.setPriceSnapshot({ [toSymbol("ETHUSDT")]: Price.of(200) });
 			feedCandles(buffer, "BTCUSDT", 30);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
-			expect(typeof steps[0].features.data[22]).toBe("number");
+			expect(typeof steps[0].features.buffer[22]).toBe("number");
 		});
 	});
 
@@ -371,13 +373,13 @@ describe("MarketDataBuffer", () => {
 			feedCandles(buffer, "BTCUSDT", 30);
 			buffer.addTrades("BTCUSDT", [
 				makeTrade("BTCUSDT"),
-				makeTrade("BTCUSDT", "sell"),
+				makeTrade("BTCUSDT", TradeSide.SELL),
 			]);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
 			for (const idx of [16, 17, 18]) {
-				expect(typeof steps[0].features.data[idx]).toBe("number");
+				expect(typeof steps[0].features.buffer[idx]).toBe("number");
 			}
 		});
 
@@ -385,7 +387,7 @@ describe("MarketDataBuffer", () => {
 			const buf = new MarketDataBuffer({ maxSize: 5 });
 			buf.addTrades(
 				"BTCUSDT",
-				Array.from({ length: 10 }, (_, _i) => makeTrade("BTCUSDT", "buy"))
+				Array.from({ length: 10 }, (_, _i) => makeTrade("BTCUSDT", TradeSide.BUY))
 			);
 
 			expect((buf as any)._states.get(toSymbol("BTCUSDT"))!.trades.length).toBe(

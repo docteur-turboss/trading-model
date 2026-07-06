@@ -36,6 +36,19 @@ function getChecksum(filePath) {
   return createHash('sha256').update(readFileSync(filePath, 'utf8')).digest('hex');
 }
 
+/**
+ * @returns {{ host: string, port: number, user: string, password: string, database: string }}
+ */
+function getDbConfig() {
+  return {
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  };
+}
+
 const required = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
 for (const env of required) {
   if (!process.env[env]) {
@@ -59,12 +72,9 @@ const allMigrations = readdirSync(MIGRATIONS_DIR)
   .sort((a, b) => a.id.localeCompare(b.id));
 
 async function run() {
+  const dbConfig = getDbConfig();
   const connection = await mysql.createConnection({
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT || '3306', 10),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    ...dbConfig,
     multipleStatements: true,
   });
 

@@ -21,7 +21,7 @@ jest.mock("@trading-model/common/utils/errors", () => ({
 	normalizeError: (err: Error) => err,
 }));
 
-import { FsStore } from "../../src/persistence/fs-store";
+import { createFsStore, NullFsStore } from "../../src/persistence/fs-store";
 
 function validEncryptionKey(): string {
 	return randomBytes(32).toString("base64");
@@ -36,41 +36,41 @@ describe("FsStore", () => {
 	});
 
 	it("should be disabled when disableFallback is true", () => {
-		const store = new FsStore({ disableFallback: true });
+		const store = createFsStore({ disableFallback: true });
 		expect(store.disabled).toBe(true);
 	});
 
 	it("should not create directory when disabled", async () => {
-		const store = new FsStore({ disableFallback: true });
+		const store = new NullFsStore();
 		await store.init();
 		expect(mockMkdir).not.toHaveBeenCalled();
 	});
 
 	it("should return null from get when disabled", async () => {
-		const store = new FsStore({ disableFallback: true });
+		const store = new NullFsStore();
 		const result = await store.get(TEST_KEY);
 		expect(result).toBeNull();
 	});
 
-	it("should throw from save when disabled", async () => {
-		const store = new FsStore({ disableFallback: true });
-		await expect(store.save(TEST_KEY, TEST_DATA)).rejects.toThrow("disabled");
+	it("should silently succeed on save when disabled", async () => {
+		const store = new NullFsStore();
+		await expect(store.save(TEST_KEY, TEST_DATA)).resolves.toBeUndefined();
 	});
 
 	it("should return empty array from getAll when disabled", async () => {
-		const store = new FsStore({ disableFallback: true });
+		const store = new NullFsStore();
 		const result = await store.getAll();
 		expect(result).toEqual([]);
 	});
 
 	it("should not call unlink when disabled on delete", async () => {
-		const store = new FsStore({ disableFallback: true });
+		const store = new NullFsStore();
 		await store.delete(TEST_KEY);
 		expect(mockUnlink).not.toHaveBeenCalled();
 	});
 
 	it("should init and create directory", async () => {
-		const store = new FsStore();
+		const store = createFsStore();
 		await store.init();
 		expect(mockMkdir).toHaveBeenCalled();
 	});
@@ -78,7 +78,7 @@ describe("FsStore", () => {
 	it("should save and retrieve data", async () => {
 		mockReadFile.mockResolvedValue(JSON.stringify(TEST_DATA));
 
-		const store = new FsStore();
+		const store = createFsStore();
 		await store.save(TEST_KEY, TEST_DATA);
 
 		const result = await store.get(TEST_KEY);
@@ -89,7 +89,7 @@ describe("FsStore", () => {
 	it("should return null from get when file not found", async () => {
 		mockReadFile.mockRejectedValue(new Error("ENOENT"));
 
-		const store = new FsStore();
+		const store = createFsStore();
 		const result = await store.get("missing-key");
 		expect(result).toBeNull();
 	});
@@ -100,7 +100,7 @@ describe("FsStore", () => {
 			.mockResolvedValueOnce(JSON.stringify({ a: 1 }))
 			.mockResolvedValueOnce(JSON.stringify({ b: 2 }));
 
-		const store = new FsStore();
+		const store = createFsStore();
 		const results = await store.getAll<Record<string, number>>();
 		expect(results).toHaveLength(2);
 	});
@@ -108,7 +108,7 @@ describe("FsStore", () => {
 	it("should delete a key", async () => {
 		mockUnlink.mockResolvedValue(undefined);
 
-		const store = new FsStore();
+		const store = createFsStore();
 		await store.delete(TEST_KEY);
 		expect(mockUnlink).toHaveBeenCalled();
 	});
@@ -116,7 +116,7 @@ describe("FsStore", () => {
 	it("should not throw on delete when file is missing", async () => {
 		mockUnlink.mockRejectedValue(new Error("ENOENT"));
 
-		const store = new FsStore();
+		const store = createFsStore();
 		await expect(store.delete(TEST_KEY)).resolves.toBeUndefined();
 	});
 
@@ -126,7 +126,7 @@ describe("FsStore", () => {
 			.mockResolvedValueOnce(JSON.stringify({ ok: true }))
 			.mockRejectedValueOnce(new Error("corrupt"));
 
-		const store = new FsStore();
+		const store = createFsStore();
 		const results = await store.getAll<Record<string, boolean>>();
 		expect(results).toHaveLength(1);
 	});
@@ -140,7 +140,7 @@ describe("FsStore", () => {
 			mockReadFile.mockResolvedValue(content);
 		});
 
-		const store = new FsStore({ encryptionKey: key });
+		const store = createFsStore({ encryptionKey: key });
 		await store.save(TEST_KEY, TEST_DATA);
 
 		const result = await store.get<typeof TEST_DATA>(TEST_KEY);
@@ -158,7 +158,7 @@ describe("FsStore", () => {
 			);
 
 		const key = validEncryptionKey();
-		const store = new FsStore({ encryptionKey: key });
+		const store = createFsStore({ encryptionKey: key });
 		await store.init();
 
 		const results = await store.getAll<Record<string, boolean>>();
@@ -168,14 +168,14 @@ describe("FsStore", () => {
 	it("should return empty array from getAll when readdir fails", async () => {
 		mockReaddir.mockRejectedValue(new Error("ENOENT"));
 
-		const store = new FsStore();
+		const store = createFsStore();
 		const results = await store.getAll();
 		expect(results).toEqual([]);
 	});
 
 	it("should handle init with encryption key", async () => {
 		const key = validEncryptionKey();
-		const store = new FsStore({ encryptionKey: key });
+		const store = createFsStore({ encryptionKey: key });
 		await store.init();
 		expect(mockMkdir).toHaveBeenCalled();
 	});
