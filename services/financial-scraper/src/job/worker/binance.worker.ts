@@ -167,23 +167,20 @@ function _buildResponse(
 	};
 }
 
-private
-_configureMetadata(
+	private _configureMetadata(
 		builder: typeof HELPER.metadataBuilder.prototype
-	)
-: void
-{
-	const authContext = _buildAuthContext();
-	const signature = _computeSignature(authContext);
+	): void {
+		const authContext = _buildAuthContext();
+		const signature = _computeSignature(authContext);
 
-	builder
-		.setDelivery(_buildDeliveryConfig(this._options.deliveryMode))
-		.setEventType("FetchCandlestick")
-		.setTopic(EnumEventMessage.fetchCandlestickSeries)
-		.setSecurity({ authContext, signature })
-		.setIds(_buildIds())
-		.setPublisher(_buildPublisher());
-}
+		builder
+			.setDelivery(_buildDeliveryConfig(this._options.deliveryMode))
+			.setEventType("FetchCandlestick")
+			.setTopic(EnumEventMessage.fetchCandlestickSeries)
+			.setSecurity({ authContext, signature })
+			.setIds(_buildIds())
+			.setPublisher(_buildPublisher());
+	}
 
 function _buildAuthContext(): {
 	roles: string[];
@@ -229,24 +226,45 @@ function _buildPublisher(): {
 	};
 }
 
-private
-_buildMarketDataEntries(response: BinanceWorkerResult)
-:
-{
-	data: unknown;
-	topic: string;
-	eventType: string;
-}
-[];
-{
-	return [
-			_makeEntry(response.candles, EnumEventMessage.fetchCandlestickSeries, "FetchCandlestick"),
-			_makeEntry(response.orderBook, EnumEventMessage.fetchOrderBookSnapshot, "FetchOrderbook"),
-			_makeEntry(response.ticker24h, EnumEventMessage.fetch24hrTickerStats, "FetchTicker24hr"),
-			_makeEntry(response.bookTicker, EnumEventMessage.fetchOrderBookTickerSnapshot, "FetchBookTicker"),
-			_makeEntry(response.priceTicker, EnumEventMessage.fetchPriceTickerSnapshot, "FetchPriceTicker"),
-			_makeEntry(response.recentTrades, EnumEventMessage.fetchRecentTrades, "FetchRecentTrades"),
+export class BinanceWorker {
+	private _buildMarketDataEntries(response: BinanceWorkerResult): {
+		data: unknown;
+		topic: string;
+		eventType: string;
+	}[] {
+		return [
+			_makeEntry(
+				response.candles,
+				EnumEventMessage.fetchCandlestickSeries,
+				"FetchCandlestick"
+			),
+			_makeEntry(
+				response.orderBook,
+				EnumEventMessage.fetchOrderBookSnapshot,
+				"FetchOrderbook"
+			),
+			_makeEntry(
+				response.ticker24h,
+				EnumEventMessage.fetch24hrTickerStats,
+				"FetchTicker24hr"
+			),
+			_makeEntry(
+				response.bookTicker,
+				EnumEventMessage.fetchOrderBookTickerSnapshot,
+				"FetchBookTicker"
+			),
+			_makeEntry(
+				response.priceTicker,
+				EnumEventMessage.fetchPriceTickerSnapshot,
+				"FetchPriceTicker"
+			),
+			_makeEntry(
+				response.recentTrades,
+				EnumEventMessage.fetchRecentTrades,
+				"FetchRecentTrades"
+			),
 		];
+	}
 }
 
 function _makeEntry(
@@ -257,16 +275,14 @@ function _makeEntry(
 	return { data, topic, eventType };
 }
 
-private
-_sendMarketData({
+export class BinanceWorker {
+	private _sendMarketData({
 		data,
 		topic,
 		eventType,
 		builder,
-	}: MarketDataContext)
-: void
-{
-	builder.setTopic(topic).setEventType(eventType);
-	MessageManager.post.indirect(data, builder.toJSON());
-}
+	}: MarketDataContext): void {
+		builder.setTopic(topic).setEventType(eventType);
+		MessageManager.post.indirect(data, builder.toJSON());
+	}
 }

@@ -1,6 +1,6 @@
-import type { TlsPaths } from "../domain/tls-paths";
 import { HttpClient } from "../config/http-client";
 import type { RevocationRequest } from "../domain/revocation-request";
+import type { TlsPaths } from "../domain/tls-paths";
 
 export interface CaClientConfig {
 	baseUrl: string;

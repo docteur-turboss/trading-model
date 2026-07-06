@@ -59,9 +59,9 @@ async function getAllowedServices(topic: string): Promise<string[] | "deny"> {
 		return cached;
 	}
 
-	const inFlight = checkInFlight(topic);
+	const inFlight = await waitForInFlight(topic);
 	if (inFlight) {
-		return await inFlight;
+		return inFlight;
 	}
 
 	return loadAndCache(topic);
@@ -76,12 +76,13 @@ function getFromCache(topic: string): string[] | null {
 	return null;
 }
 
-function checkInFlight(topic: string): Promise<string[] | "deny"> | null {
-	const existing = ACL_LOADING.get(topic);
-	if (!existing) {
+async function waitForInFlight(topic: string): Promise<string[] | null> {
+	const inFlight = ACL_LOADING.get(topic);
+	if (!inFlight) {
 		return null;
 	}
-	return existing.then(() => getFromCache(topic) ?? "deny");
+	await inFlight;
+	return getFromCache(topic);
 }
 
 async function loadAndCache(topic: string): Promise<string[] | "deny"> {
