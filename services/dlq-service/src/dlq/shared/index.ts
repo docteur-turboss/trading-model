@@ -86,19 +86,17 @@ class SharedHttpClientManager {
 	private _httpClient!: HttpClient;
 
 	async get(): Promise<HttpClient> {
-		if (!this._httpClient) {
-			this._httpClient = new HttpClient({
-				ca: env.TLS_CA_PATH,
-				cert: env.TLS_CERT_PATH,
-				key: env.TLS_KEY_PATH,
-			});
-		}
+		this._httpClient = new HttpClient({
+			ca: env.TLS_CA_PATH,
+			cert: env.TLS_CERT_PATH,
+			key: env.TLS_KEY_PATH,
+		});
 		return this._httpClient;
 	}
 
 	async reloadTls(): Promise<void> {
-		const client = this._httpClient as { reloadTlsPaths?: () => Promise<void> } | null;
-		if (client && typeof client.reloadTlsPaths === "function") {
+		const client = this._httpClient as { reloadTlsPaths?: () => Promise<void> };
+		if (typeof client.reloadTlsPaths === "function") {
 			try {
 				await client.reloadTlsPaths();
 				logger.info("HTTP client TLS certificates reloaded");
@@ -111,7 +109,6 @@ class SharedHttpClientManager {
 	}
 
 	close(): void {
-		this._httpClient = null;
 	}
 }
 

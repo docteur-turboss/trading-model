@@ -24,7 +24,7 @@ export class RedisLockConnector {
 		}
 	}
 
-	get client(): Redis | null {
+	get client(): Redis {
 		return this._client;
 	}
 
@@ -37,6 +37,6 @@ export class RedisLockConnector {
 	}
 
 	disconnect(): void {
-		this._client?.disconnect();
+		this._client.disconnect();
 	}
 }
