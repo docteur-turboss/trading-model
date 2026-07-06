@@ -27,26 +27,12 @@ export const BinanceNormalizer = {
 	 * Normalize a Binance order book into the internal structure.
 	 */
 	orderBook(symbol: string, payload: BinanceDepthResponse): OrderBookData {
-		const bids = new Set(
-			payload.bids.map(([price, qty]) => ({
-				price: Price.of(Number(price)),
-				quantity: Volume.of(Number(qty)),
-			}))
-		);
-
-		const asks = new Set(
-			payload.asks.map(([price, qty]) => ({
-				price: Price.of(Number(price)),
-				quantity: Volume.of(Number(qty)),
-			}))
-		);
-
 		return {
 			symbol,
 			source: SourceType.BINANCE,
 			market: MarketType.CRYPTO,
-			bids: bids,
-			asks: asks,
+			bids: _parseOrderBookSide(payload.bids),
+			asks: _parseOrderBookSide(payload.asks),
 			timestamp: UnixTimestamp.now(),
 		};
 	},

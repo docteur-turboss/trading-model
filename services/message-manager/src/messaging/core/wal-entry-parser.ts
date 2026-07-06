@@ -60,7 +60,7 @@ export class WalEntryParser {
 
 	static parse(entry: string): ParsedWalEntry | null {
 		try {
-			return parseEntry(entry);
+			return _parseEntry(entry);
 		} catch {
 			logger.warn("WAL flush: malformed entry dropped", { context: {
 				entry: entry.substring(0, 200),
@@ -68,19 +68,6 @@ export class WalEntryParser {
 			return null;
 		}
 	}
-}
-
-function parseEntry(entry: string): ParsedWalEntry {
-	const parsed = JSON.parse(entry) as {
-		topic: string;
-		serialized?: string;
-		message?: Record<string, unknown>;
-	};
-	return {
-		topic: parsed.topic,
-		data: parsed.serialized ?? JSON.stringify(parsed.message!),
-	};
-}
 
 	static parseWithMessage(
 		entry: string

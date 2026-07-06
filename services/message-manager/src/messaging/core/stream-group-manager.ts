@@ -170,4 +170,3 @@ function computeLag(groups: unknown[][], groupName: string): number {
 	}
 	return 0;
 }
-}
