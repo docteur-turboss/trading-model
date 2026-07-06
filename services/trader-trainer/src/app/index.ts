@@ -6,7 +6,9 @@ import { MessageManager } from "../config/message-manager";
 import { ApplicationContainer } from "./container";
 import { createServer } from "./server";
 
-let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | null = null;
+const NULL_ADDRESS_MANAGER = { stop() {} };
+
+let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> = NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
 
 const CONTAINER = new ApplicationContainer({
 	bufferSize: env.TRAINER_DATA_WINDOW,
@@ -54,9 +56,7 @@ createBootstrap({
 	},
 	onStop: async () => {
 		CONTAINER.stopTrainingLoop();
-		if (addressManager) {
-			addressManager.stop();
-		}
+		addressManager.stop();
 		await MessageManager.stopMessageManager();
 	},
 });

@@ -5,6 +5,7 @@ import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 import type { ServiceRegistry } from "./service-registry";
 import type { ServiceInstance } from "./types";
+import { isAliveInstance, isExpiredInstance } from "./expiration";
 
 /**
  * LeaseManager
@@ -103,8 +104,7 @@ export class LeaseManager {
 	 * - debugging tools
 	 */
 	isAlive(instance: ServiceInstance): boolean {
-		const now = Date.now();
-		return now - instance.lastHeartbeat <= instance.ttl;
+		return isAliveInstance(instance);
 	}
 
 	/**
@@ -132,7 +132,7 @@ export class LeaseManager {
 		const now = Date.now();
 		for (const serviceName of this._registry.listServiceNames()) {
 			for (const instance of this._registry.getInstances(serviceName)) {
-				if (now - instance.lastHeartbeat > instance.ttl) {
+				if (isExpiredInstance(instance, now)) {
 					this._removeExpiredInstance(serviceName, instance);
 				}
 			}

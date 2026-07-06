@@ -1,3 +1,4 @@
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { HttpClient } from "@trading-model/common/config/http-client";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { logger } from "@trading-model/common/config/logger";

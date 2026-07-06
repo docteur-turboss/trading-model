@@ -7,7 +7,7 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
-const CLOCK_SKEW_TOLERANCE_MS = 2000;
+import { isAliveInstance, isExpiredInstance } from "./expiration";
 
 export interface CleanupDeps {
 	listServiceNames(): Promise<string[]>;
@@ -55,8 +55,8 @@ export class StaleInstanceCleaner {
 		return before.length - after.length;
 	}
 
-	private _isExpired(instance: ServiceInstance, now: number): boolean {
-		return now - instance.lastHeartbeat > instance.ttl + CLOCK_SKEW_TOLERANCE_MS;
+	isAlive(instance: ServiceInstance): boolean {
+		return isAliveInstance(instance);
 	}
 
 	private async _removeExpiredInstance(serviceName: string, instance: ServiceInstance, now: number): Promise<void> {
@@ -72,7 +72,7 @@ export class StaleInstanceCleaner {
 		for (const serviceName of serviceNames) {
 			const instances = await this._deps.getInstances(serviceName);
 			for (const instance of instances) {
-				if (this._isExpired(instance, now)) {
+				if (isExpiredInstance(instance, now)) {
 					await this._removeExpiredInstance(serviceName, instance, now);
 				}
 			}
