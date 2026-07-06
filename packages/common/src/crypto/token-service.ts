@@ -71,22 +71,46 @@ export interface TokenValidationInput {
 	options?: TokenValidationOptions;
 }
 
+function _decodeInstanceId(format: TokenFormat): string {
+	return Buffer.from(format.encodedId, "base64url").toString("utf8");
+}
+
+function _checkLegacyTimestamp(format: TokenFormat, options?: TokenValidationOptions): boolean {
+	return !format.isLegacy || validateTimestamp(format.payloadParts[0], options);
+}
+
+function _verifyStoredToken(
+	storedToken: string | undefined | null,
+	signingSecret: string,
+	options?: TokenValidationOptions,
+): boolean {
+	if (!options?.allowSlidingExpiry || !storedToken) {
+		return false;
+	}
+	const storedFormat = checkTokenFormat(storedToken);
+	return !!(
+		storedFormat &&
+		verifyHmac({
+			encodedId: storedFormat.encodedId,
+			payloadParts: storedFormat.payloadParts,
+			signature: storedFormat.signature,
+			signingSecret,
+		})
+	);
+}
+
 export function validInstanceToken(input: TokenValidationInput): boolean {
 	const { token, instanceId, signingSecret, storedToken, options } = input;
 	const format = checkTokenFormat(token);
 	if (!format) {
 		return false;
 	}
-
-	const decodedId = Buffer.from(format.encodedId, "base64url").toString("utf8");
-	if (decodedId !== instanceId) {
+	if (_decodeInstanceId(format) !== instanceId) {
 		return false;
 	}
-
-	if (format.isLegacy && !validateTimestamp(format.payloadParts[0], options)) {
+	if (!_checkLegacyTimestamp(format, options)) {
 		return false;
 	}
-
 	if (
 		!verifyHmac({
 			encodedId: format.encodedId,
@@ -97,27 +121,10 @@ export function validInstanceToken(input: TokenValidationInput): boolean {
 	) {
 		return false;
 	}
-
 	if (storedToken === token) {
 		return true;
 	}
-
-	if (options?.allowSlidingExpiry && storedToken) {
-		const storedFormat = checkTokenFormat(storedToken);
-		if (
-			storedFormat &&
-			verifyHmac({
-				encodedId: storedFormat.encodedId,
-				payloadParts: storedFormat.payloadParts,
-				signature: storedFormat.signature,
-				signingSecret,
-			})
-		) {
-			return true;
-		}
-	}
-
-	return false;
+	return _verifyStoredToken(storedToken, signingSecret, options);
 }
 
 interface HmacVerificationInput {

@@ -48,68 +48,48 @@ export class BackpropEngine {
 		);
 	}
 
-	backprop(context: ForwardContext, target: Float32Array): void {
+	private _computeOutputDelta(
+		context: ForwardContext,
+		target: Float32Array
+	): Float32Array {
 		const lastLayerIndex = this._layers.length - 1;
-		const outputActivation = this._config.activationType[lastLayerIndex];
-		const outputZ = context.layerZValues[lastLayerIndex];
-		const output = context.layerOutputs[lastLayerIndex];
-
-		const outputDelta = this._outputDeltaComputer.compute({
-			outputZ,
-			output,
+		return this._outputDeltaComputer.compute({
+			outputZ: context.layerZValues[lastLayerIndex],
+			output: context.layerOutputs[lastLayerIndex],
 			target,
-			activation: outputActivation,
+			activation: this._config.activationType[lastLayerIndex],
 		});
+	}
 
-		const hiddenDeltas = this._hiddenDeltaComputer.compute(
-			lastLayerIndex,
-			outputDelta,
-			context
-		);
-		const allDeltas = [...hiddenDeltas, outputDelta];
-
+	private _applyGradients(
+		context: ForwardContext,
+		allDeltas: Float32Array[],
+		applyImmediately: boolean
+	): void {
 		for (let layerIdx = 0; layerIdx < this._layers.length; layerIdx++) {
-			const layerInput =
-				layerIdx === 0 ? context.input : context.layerOutputs[layerIdx - 1];
+			const layerInput = layerIdx === 0 ? context.input : context.layerOutputs[layerIdx - 1];
 			this._gradientApplier.computeGradients({
 				layerIndex: layerIdx,
 				delta: allDeltas[layerIdx],
 				layerInput,
-				applyImmediately: true,
+				applyImmediately,
 			});
 		}
 	}
 
-	backpropAccumulate(context: ForwardContext, target: Float32Array): void {
+	private _backpropImpl(context: ForwardContext, target: Float32Array, applyImmediately: boolean): void {
+		const outputDelta = this._computeOutputDelta(context, target);
 		const lastLayerIndex = this._layers.length - 1;
-		const outputActivation = this._config.activationType[lastLayerIndex];
-		const outputZ = context.layerZValues[lastLayerIndex];
-		const output = context.layerOutputs[lastLayerIndex];
+		const hiddenDeltas = this._hiddenDeltaComputer.compute(lastLayerIndex, outputDelta, context);
+		this._applyGradients(context, [...hiddenDeltas, outputDelta], applyImmediately);
+	}
 
-		const outputDelta = this._outputDeltaComputer.compute({
-			outputZ,
-			output,
-			target,
-			activation: outputActivation,
-		});
+	backprop(context: ForwardContext, target: Float32Array): void {
+		this._backpropImpl(context, target, true);
+	}
 
-		const hiddenDeltas = this._hiddenDeltaComputer.compute(
-			lastLayerIndex,
-			outputDelta,
-			context
-		);
-		const allDeltas = [...hiddenDeltas, outputDelta];
-
-		for (let layerIdx = 0; layerIdx < this._layers.length; layerIdx++) {
-			const layerInput =
-				layerIdx === 0 ? context.input : context.layerOutputs[layerIdx - 1];
-			this._gradientApplier.computeGradients({
-				layerIndex: layerIdx,
-				delta: allDeltas[layerIdx],
-				layerInput,
-				applyImmediately: false,
-			});
-		}
+	backpropAccumulate(context: ForwardContext, target: Float32Array): void {
+		this._backpropImpl(context, target, false);
 	}
 
 	applyAccumulatedGradients(numSamples: number): void {

@@ -189,3 +189,19 @@ export class WalRedisFlusher {
 		return action !== "abort";
 	}
 }
+
+function _parseEntryToBuffer(entry: string): { topic: string; serialized: string; message: Message } | null {
+	try {
+		const parsed = JSON.parse(entry) as {
+			topic: string;
+			serialized?: string;
+			message?: Message;
+		};
+		const topic = parsed.topic;
+		const serialized = parsed.serialized ?? safeStringify(parsed.message!);
+		const message = parsed.message ?? JSON.parse(parsed.serialized!);
+		return { topic, serialized, message: message as Message };
+	} catch {
+		return null;
+	}
+}

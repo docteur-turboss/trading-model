@@ -113,10 +113,7 @@ export class CrlCache {
 			return false;
 		}
 		try {
-			const inRedis = await this._redis.sismember(
-				CRL_REDIS_SET_KEY,
-				serialNumber
-			);
+			const inRedis = await this._redis.sismember(CRL_REDIS_SET_KEY, serialNumber);
 			if (inRedis) {
 				this._revoked.add(serialNumber);
 				return true;
