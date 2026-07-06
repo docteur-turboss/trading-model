@@ -92,19 +92,26 @@ export class DlqRepository {
 		contentHash: string;
 		serialized: string;
 	} {
-		const serialized = JSON.stringify({
-			topic: entry.topic,
-			message: entry.message,
-			reason: entry.reason,
-		});
-
-		const messageId =
-			entry.messageId ?? createHash("sha256").update(serialized).digest("hex");
-
-		const contentHash = createHash("sha256").update(serialized).digest("hex");
-
+		const serialized = _serializeEntry(entry);
+		const messageId = entry.messageId ?? _sha256Hex(serialized);
+		const contentHash = _sha256Hex(serialized);
 		return { messageId, contentHash, serialized };
 	}
+}
+
+function _serializeEntry(entry: DlqEntry): string {
+	return JSON.stringify({
+		topic: entry.topic,
+		message: entry.message,
+		reason: entry.reason,
+	});
+}
+
+function _sha256Hex(input: string): string {
+	return createHash("sha256").update(input).digest("hex");
+}
+
+export class DlqRepository {
 
 	private async _checkPingPong(
 		options: PingPongCheck

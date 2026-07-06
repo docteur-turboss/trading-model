@@ -50,7 +50,6 @@ export class ServiceCallTracker {
 		if (total === 0) {
 			return EMPTY_SNAPSHOT;
 		}
-
 		const agg = this._aggregateRecords();
 		return {
 			totalCalls: total,
@@ -63,35 +62,39 @@ export class ServiceCallTracker {
 		};
 	}
 
-	private _aggregateRecords() {
+	private _aggregateRecords(): {
+		callsByService: Record<string, number>;
+		callsByEndpoint: Record<string, number>;
+		errorsTotal: number;
+		totalLatency: number;
+		bytesSent: number;
+		bytesReceived: number;
+	} {
 		const callsByService: Record<string, number> = {};
 		const callsByEndpoint: Record<string, number> = {};
 		let errorsTotal = 0;
 		let totalLatency = 0;
 		let bytesSent = 0;
 		let bytesReceived = 0;
-
 		for (const record of this._records) {
-			callsByService[record.targetService] =
-				(callsByService[record.targetService] ?? 0) + 1;
-			const ep = `${record.method} ${record.endpoint}`;
-			callsByEndpoint[ep] = (callsByEndpoint[ep] ?? 0) + 1;
-			if (record.status === "error") {
-				errorsTotal++;
-			}
+			this._aggregateRecord(record, callsByService, callsByEndpoint);
+			errorsTotal += record.status === "error" ? 1 : 0;
 			totalLatency += record.durationMs;
 			bytesSent += record.bytesSent ?? 0;
 			bytesReceived += record.bytesReceived ?? 0;
 		}
+		return { callsByService, callsByEndpoint, errorsTotal, totalLatency, bytesSent, bytesReceived };
+	}
 
-		return {
-			callsByService,
-			callsByEndpoint,
-			errorsTotal,
-			totalLatency,
-			bytesSent,
-			bytesReceived,
-		};
+	private _aggregateRecord(
+		record: CallRecord,
+		callsByService: Record<string, number>,
+		callsByEndpoint: Record<string, number>,
+	): void {
+		callsByService[record.targetService] =
+			(callsByService[record.targetService] ?? 0) + 1;
+		const ep = `${record.method} ${record.endpoint}`;
+		callsByEndpoint[ep] = (callsByEndpoint[ep] ?? 0) + 1;
 	}
 
 	clear(): void {

@@ -72,51 +72,43 @@ export class LifecycleManager {
 		};
 	}
 
+	private _registerTokenRefresh(scheduler: Scheduler): void {
+		scheduler.register(
+			new RefreshJob(
+				this._options.tokenManager,
+				() => this._options.tokenManager.refreshToken(),
+				this._options.tokenRefreshIntervalMs,
+			),
+		);
+	}
+
+	private _registerHeartbeat(scheduler: Scheduler): void {
+		scheduler.register(
+			new RefreshJob(
+				this._options.addressManagerClient,
+				() => this._performHeartbeat(),
+				this._options.ttlRefreshIntervalMs,
+			),
+		);
+	}
+
+	private _registerCacheRefresh(scheduler: Scheduler): void {
+		if (this._options.serviceCache instanceof RedisServiceCache) {
+			return;
+		}
+		scheduler.register(
+			new CacheHealthRefresher(
+				this._options.serviceCache,
+				this._options.healthChecker,
+				this._options.cacheTtlMs / 2,
+			),
+		);
+	}
+
 	private _setupSchedulers(scheduler: Scheduler): void {
-		const {
-			tokenManager,
-			addressManagerClient,
-			tokenRefreshIntervalMs,
-			ttlRefreshIntervalMs,
-			serviceCache,
-			healthChecker,
-			cacheTtlMs,
-		} = this._options;
-
-		const jobs = [
-			{
-				instance: tokenManager,
-				action: (tm: typeof tokenManager) => tm.refreshToken(),
-				intervalMs: tokenRefreshIntervalMs,
-			},
-			{
-				instance: addressManagerClient,
-				action: async () => {
-					await this._performHeartbeat();
-				},
-				intervalMs: ttlRefreshIntervalMs,
-			},
-		];
-
-		for (const job of jobs) {
-			scheduler.register(
-				new RefreshJob(
-					job.instance,
-					job.action as () => Promise<void>,
-					job.intervalMs
-				)
-			);
-		}
-
-		if (!(serviceCache instanceof RedisServiceCache)) {
-			scheduler.register(
-				new CacheHealthRefresher(
-					serviceCache,
-					healthChecker,
-					cacheTtlMs / 2
-				)
-			);
-		}
+		this._registerTokenRefresh(scheduler);
+		this._registerHeartbeat(scheduler);
+		this._registerCacheRefresh(scheduler);
 	}
 
 	private async _register(): Promise<void> {

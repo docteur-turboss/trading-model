@@ -508,13 +508,7 @@ export async function executeReplayPipeline(
 
 	const messageManagerUrl = await resolveMMUrlOrFail(span);
 	if (!messageManagerUrl) {
-		return sendResponse(
-			{
-				error:
-					"Cannot resolve message-manager URL (no env var, no address-manager)",
-			},
-			500
-		);
+		return _mmResolveError();
 	}
 
 	const batchId = validation.data.batchId || randomUUID();
@@ -536,15 +530,31 @@ export async function executeReplayPipeline(
 	}
 
 	const details = buildReplayResponse(batchId, successCount, errors);
+	_notifyReplayAudit(batchId, validation.data.topic, successCount, errors.length);
+	return sendResponse(details, 200);
+}
 
+function _mmResolveError(): ResponseObject {
+	return sendResponse(
+		{
+			error: "Cannot resolve message-manager URL (no env var, no address-manager)",
+		},
+		500
+	);
+}
+
+function _notifyReplayAudit(
+	batchId: string,
+	topic: string | undefined,
+	successCount: number,
+	errorsCount: number
+): void {
 	void notifyAudit({
 		timestamp: new Date().toISOString(),
-		topic: validation.data.topic ?? "unknown",
+		topic: topic ?? "unknown",
 		publisher: "dlq-service",
 		correlationId: batchId,
-		summary: `DLQ replay: ${successCount} succeeded, ${errors.length} failed`,
-		severity: errors.length > 0 ? "ERROR" : "INFO",
+		summary: `DLQ replay: ${successCount} succeeded, ${errorsCount} failed`,
+		severity: errorsCount > 0 ? "ERROR" : "INFO",
 	});
-
-	return sendResponse(details, 200);
 }

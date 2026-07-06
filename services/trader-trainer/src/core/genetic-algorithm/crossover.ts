@@ -146,42 +146,65 @@ export function crossoverScalar(
 // Sub-genome crossover helpers
 // ----------------------------------------------------------------
 
+function _crossoverLayerPair(
+	layerLeft: LayerGenome,
+	layerRight: LayerGenome,
+	crossoverFn: (valueA: number, valueB: number) => number,
+	rng: () => number
+): LayerGenome {
+	return {
+		neurons: Math.round(crossoverFn(layerLeft.neurons, layerRight.neurons)),
+		activation: rng() < 0.5 ? layerLeft.activation : layerRight.activation,
+		connectionType: rng() < 0.5 ? layerLeft.connectionType : layerRight.connectionType,
+		biasType: rng() < 0.5 ? layerLeft.biasType : layerRight.biasType,
+	};
+}
+
+function _crossoverExcessLayer(
+	longer: LayerGenome[],
+	i: number,
+	rng: () => number
+): LayerGenome | null {
+	return rng() < 0.5 ? { ...longer[i] } : null;
+}
+
+function _crossoverHiddenLayers(
+	minLen: number,
+	maxLen: number,
+	longer: LayerGenome[],
+	left: NetworkGenome,
+	right: NetworkGenome,
+	crossoverFn: (valueA: number, valueB: number) => number,
+	rng: () => number
+): LayerGenome[] {
+	const hiddenLayers: LayerGenome[] = [];
+	for (let i = 0; i < maxLen; i++) {
+		if (i >= minLen) {
+			const layer = _crossoverExcessLayer(longer, i, rng);
+			if (layer) {
+				hiddenLayers.push(layer);
+			}
+		} else {
+			hiddenLayers.push(_crossoverLayerPair(left.hiddenLayers[i], right.hiddenLayers[i], crossoverFn, rng));
+		}
+	}
+	return hiddenLayers;
+}
+
 function crossoverNetwork(
 	ctx: CrossoverContext<NetworkGenome, NetworkGenome>
 ): NetworkGenome {
 	const { left, right, co, rng } = ctx;
 	const minLen = Math.min(left.hiddenLayers.length, right.hiddenLayers.length);
 	const maxLen = Math.max(left.hiddenLayers.length, right.hiddenLayers.length);
-	const longer =
-		left.hiddenLayers.length >= right.hiddenLayers.length
-			? left.hiddenLayers
-			: right.hiddenLayers;
+	const longer = left.hiddenLayers.length >= right.hiddenLayers.length ? left.hiddenLayers : right.hiddenLayers;
 
 	const crossoverFn = (valueA: number, valueB: number) =>
 		crossoverScalar({ left: valueA, right: valueB, co, rng });
 
-	const hiddenLayers: LayerGenome[] = [];
-	for (let i = 0; i < maxLen; i++) {
-		if (i >= minLen) {
-			if (rng() < 0.5) {
-				hiddenLayers.push({ ...longer[i] });
-			}
-		} else {
-			const layerLeft = left.hiddenLayers[i];
-			const layerRight = right.hiddenLayers[i];
-			hiddenLayers.push({
-				neurons: Math.round(crossoverFn(layerLeft.neurons, layerRight.neurons)),
-				activation: rng() < 0.5 ? layerLeft.activation : layerRight.activation,
-				connectionType:
-					rng() < 0.5 ? layerLeft.connectionType : layerRight.connectionType,
-				biasType: rng() < 0.5 ? layerLeft.biasType : layerRight.biasType,
-			});
-		}
-	}
-
 	return {
 		...left,
-		hiddenLayers,
+		hiddenLayers: _crossoverHiddenLayers(minLen, maxLen, longer, left, right, crossoverFn, rng),
 		normalization: rng() < 0.5 ? left.normalization : right.normalization,
 	};
 }
@@ -253,45 +276,38 @@ function crossoverReplayBuffer(
 	};
 }
 
+function _makeCrossoverFn(
+	co: CrossoverGenome,
+	rng: () => number
+): (valueA: number, valueB: number) => number {
+	return (valueA: number, valueB: number) =>
+		crossoverScalar({ left: valueA, right: valueB, co, rng });
+}
+
+function _crossoverGammaAndLR(
+	left: RLGenome,
+	right: RLGenome,
+	crossoverFn: (valueA: number, valueB: number) => number
+): Pick<RLGenome, "gamma" | "learningRate"> {
+	return {
+		gamma: crossoverFn(left.gamma, right.gamma),
+		learningRate: crossoverFn(left.learningRate, right.learningRate),
+	};
+}
+
 function crossoverRL(
 	ctx: CrossoverContext<RLGenome, RLGenome>
 ): RLGenome {
 	const { left, right, co, rng } = ctx;
-	const crossoverFn = (valueA: number, valueB: number) =>
-		crossoverScalar({ left: valueA, right: valueB, co, rng });
+	const crossoverFn = _makeCrossoverFn(co, rng);
 
 	return {
-		gamma: crossoverFn(left.gamma, right.gamma),
-		learningRate: crossoverFn(left.learningRate, right.learningRate),
-		rewardShaping: crossoverRewardShaping({
-			left: left.rewardShaping,
-			right: right.rewardShaping,
-			crossoverFn,
-			rng,
-		}),
-		horizon: crossoverHorizon({
-			left: left.horizon,
-			right: right.horizon,
-			crossoverFn,
-		}),
-		discretePolicy: crossoverDiscretePolicy({
-			left: left.discretePolicy,
-			right: right.discretePolicy,
-			crossoverFn,
-			rng,
-		}),
-		continuousPolicy: crossoverContinuousPolicy({
-			left: left.continuousPolicy,
-			right: right.continuousPolicy,
-			crossoverFn,
-			rng,
-		}),
-		replayBuffer: crossoverReplayBuffer({
-			left: left.replayBuffer,
-			right: right.replayBuffer,
-			crossoverFn,
-			rng,
-		}),
+		..._crossoverGammaAndLR(left, right, crossoverFn),
+		rewardShaping: crossoverRewardShaping({ left: left.rewardShaping, right: right.rewardShaping, crossoverFn, rng }),
+		horizon: crossoverHorizon({ left: left.horizon, right: right.horizon, crossoverFn }),
+		discretePolicy: crossoverDiscretePolicy({ left: left.discretePolicy, right: right.discretePolicy, crossoverFn, rng }),
+		continuousPolicy: crossoverContinuousPolicy({ left: left.continuousPolicy, right: right.continuousPolicy, crossoverFn, rng }),
+		replayBuffer: crossoverReplayBuffer({ left: left.replayBuffer, right: right.replayBuffer, crossoverFn, rng }),
 	};
 }
 

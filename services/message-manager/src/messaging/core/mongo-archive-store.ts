@@ -175,38 +175,53 @@ export class MongoArchiveStore {
 				return;
 			}
 
-			const entries = messages.map(_messageToArchiveEntry);
-			const bulkOps = _buildBulkUpserts(entries);
-
-			if (bulkOps.length > 0) {
-				const col = this._client!
-					.db(ENV.MONGO_ARCHIVE_DB)
-					.collection(ENV.MONGO_ARCHIVE_COLLECTION);
-				await col.bulkWrite(bulkOps);
-			}
+			await this._writeArchiveBatch(messages);
 		} catch {
 			// continue to next topic
 		}
 	}
 
+	private async _writeArchiveBatch(messages: import("@trading-model/common/contracts/message.types").Message[]): Promise<void> {
+		const entries = messages.map(_messageToArchiveEntry);
+		const bulkOps = _buildBulkUpserts(entries);
+
+		if (bulkOps.length > 0) {
+			const col = this._getCollection();
+			await col.bulkWrite(bulkOps);
+		}
+	}
+
 	async stop(): Promise<void> {
+		this._clearArchiveTimer();
+		this._clearTopicsCacheTimer();
+		await this._closeClient();
+		this._started = false;
+	}
+
+	private _clearArchiveTimer(): void {
 		if (this._archiveTimer) {
 			clearInterval(this._archiveTimer);
 			this._archiveTimer = null;
 		}
+	}
+
+	private _clearTopicsCacheTimer(): void {
 		if (this._topicsCacheTimer) {
 			clearInterval(this._topicsCacheTimer);
 			this._topicsCacheTimer = null;
 		}
-		if (this._client) {
-			try {
-				await this._client.close();
-			} catch {
-				// best-effort
-			}
-			this._client = null;
+	}
+
+	private async _closeClient(): Promise<void> {
+		if (!this._client) {
+			return;
 		}
-		this._started = false;
+		try {
+			await this._client.close();
+		} catch {
+			// best-effort
+		}
+		this._client = null;
 	}
 }
 
