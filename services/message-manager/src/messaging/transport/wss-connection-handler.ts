@@ -84,9 +84,6 @@ export class WssConnectionHandler {
 	}
 
 	async shutdown(): Promise<void> {
-		if (!this._wss) {
-			return;
-		}
 		this._closeAllConnections();
 		await this._closeServer();
 	}
@@ -101,18 +98,16 @@ export class WssConnectionHandler {
 	private async _closeServer(): Promise<void> {
 		await new Promise<void>((resolve) => {
 			const timer = setTimeout(() => {
-				this._wss = null;
 				resolve();
 			}, WSS_SHUTDOWN_TIMEOUT_MS);
-			this._wss!.close(() => {
+			this._wss.close(() => {
 				clearTimeout(timer);
-				this._wss = null;
 				resolve();
 			});
 		});
 	}
 
-	get wss(): WebSocketServer | null {
+	get wss(): WebSocketServer {
 		return this._wss;
 	}
 }

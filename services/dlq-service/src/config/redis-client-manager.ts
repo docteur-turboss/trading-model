@@ -15,15 +15,12 @@ export class RedisClientManager {
 		return client;
 	}
 
-	getClient(): Redis | null {
+	getClient(): Redis {
 		return this._client;
 	}
 
 	async closeClient(): Promise<void> {
 		const client = this._client;
-		if (!client) {
-			return;
-		}
 		try {
 			if (client.status === "ready") {
 				await client.quit();
@@ -33,10 +30,9 @@ export class RedisClientManager {
 		} catch {
 			client.disconnect();
 		}
-		this._client = null;
 	}
 
 	removeAllListeners(): void {
-		this._client?.removeAllListeners();
+		this._client.removeAllListeners();
 	}
 }

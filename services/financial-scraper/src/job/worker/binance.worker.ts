@@ -7,7 +7,7 @@ import { CandleInterval } from "@trading-model/common/config/event.types";
 import { EnumEventMessage } from "@trading-model/common/config/event.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { MessageId, TradingSymbol } from "@trading-model/common/domain/primitives";
-import { toMessageId } from "@trading-model/common/domain/primitives";
+import { toMessageId, toInstanceId } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 
 import {
@@ -255,7 +255,7 @@ function _buildPublisher(): {
 	serviceName: ServiceInstanceName;
 } {
 	return {
-		instanceId: env.INSTANCE_ID,
+		instanceId: toInstanceId(env.INSTANCE_ID),
 		serviceName: env.SERVICE_NAME as ServiceInstanceName,
 	};
 }
