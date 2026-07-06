@@ -26,7 +26,6 @@ export interface BootstrapConfig {
 	caPath: string;
 	bootstrapToken?: string;
 	tls?: TlsPaths;
-	onRenew?: (cert: ObtainedCertificate) => void;
 }
 
 export function bootstrapConfigFromEnv(
@@ -62,7 +61,7 @@ export function bootstrapConfigFromEnv(
 
 export async function bootstrapFromEnv(
 	env: Record<string, string | undefined>
-): Promise<TlsConfig | null> {
+): Promise<TlsPaths | null> {
 	const config = bootstrapConfigFromEnv(env);
 	if (!config) {
 		return null;
@@ -72,7 +71,7 @@ export async function bootstrapFromEnv(
 
 export async function bootstrapCertificate(
 	config: BootstrapConfig
-): Promise<TlsConfig> {
+): Promise<TlsPaths> {
 	const existing = await _tryLoadExistingCert(config);
 	if (existing) {
 		return existing;
@@ -87,7 +86,7 @@ export async function bootstrapCertificate(
 
 async function _tryLoadExistingCert(
 	config: BootstrapConfig
-): Promise<TlsConfig | null> {
+): Promise<TlsPaths | null> {
 	try {
 		await fs.access(config.certPath);
 		await fs.access(config.keyPath);
@@ -158,7 +157,7 @@ async function _writeCertFiles(
 
 export interface CreateHttpsServerOptions {
 	port: number;
-	tls: TlsConfig;
+	tls: TlsPaths;
 	routes: (app: Application) => void;
 	rateLimit?: import("@trading-model/common/server/configure-app").RateLimitConfig;
 	trustProxy?: boolean;
@@ -220,7 +219,7 @@ async function loadServerDependencies(): Promise<{
 	responseProtocol: import("express").RequestHandler;
 	createAndStartHttpsServer: (
 		app: import("express").Application,
-		opts: { port: number; tls: TlsConfig; watchTls: boolean }
+		opts: { port: number; tls: TlsPaths; watchTls: boolean }
 	) => Promise<HttpServer>;
 }> {
 	const [configureAppMod, mtlsAuthMod, responseProtocolMod, serverFactoryMod] =
