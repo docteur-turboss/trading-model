@@ -17,8 +17,10 @@ export class ReAllocator {
 			});
 
 			logger.warn("Job failed after max retries", {
-				jobId: job.id,
-				retryCount: job.retryCount,
+				context: {
+					jobId: job.id,
+					retryCount: job.retryCount,
+				},
 			});
 			return;
 		}
@@ -47,8 +49,10 @@ export class ReAllocator {
 		});
 
 		logger.info("Job re-allocated to queue", {
-			jobId: job.id,
-			retryCount: updatedJob.retryCount,
+			context: {
+				jobId: job.id,
+				retryCount: updatedJob.retryCount,
+			},
 		});
 	}
 }

@@ -23,12 +23,14 @@ export class OrphanDetector {
 				await this._detectOrphans();
 			} catch (err) {
 				logger.error("Orphan detection cycle failed", {
-					error: err instanceof Error ? err.message : String(err),
+					context: {
+						error: err instanceof Error ? err.message : String(err),
+					},
 				});
 			}
 		}, this._intervalMs);
 
-		logger.info("Orphan detector started", { intervalMs: this._intervalMs });
+		logger.info("Orphan detector started", { context: { intervalMs: this._intervalMs } });
 	}
 
 	stop(): void {

@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { ServiceInstanceName } from "../config/services.types";
+import type { ServiceEndpoint } from "../domain/service-identity";
 import { generateRandomStr } from "./random";
 
 export interface TokenValidationOptions {
@@ -143,11 +144,11 @@ function verifyHmac(
 	}
 }
 
-export function generateInstanceId(
-	serviceName: string,
-	address: string,
-	port: number
-): string {
+export function generateInstanceId({
+	serviceName,
+	address,
+	port,
+}: ServiceEndpoint): string {
 	return createHmac("sha256", generateRandomStr())
 		.update(`${serviceName}-${address}:${port}-${Date.now()}`)
 		.digest("base64");

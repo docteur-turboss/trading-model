@@ -53,8 +53,10 @@ export function configureErrorTracking(opts: ErrorTrackingConfig): void {
 	if (config.endpoint) {
 		startFlushTimer();
 		logger.info("Error tracking configured", {
-			endpoint: config.endpoint,
-			service: config.serviceName,
+			context: {
+				endpoint: config.endpoint,
+				service: config.serviceName,
+			},
 		});
 	}
 }

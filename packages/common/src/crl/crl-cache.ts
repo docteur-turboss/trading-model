@@ -164,7 +164,7 @@ export class CrlCache {
 		for (const member of members) {
 			this._revoked.add(member.toUpperCase());
 		}
-		logger.info("CrlCache initialized from Redis", { count: members.length });
+		logger.info("CrlCache initialized from Redis", { context: { count: members.length } });
 	}
 
 	private async _subscribeToRedis(): Promise<void> {
