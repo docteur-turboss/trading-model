@@ -21,6 +21,17 @@ import {
 	type BinanceTradingDayTickerResponse,
 } from "../../types/binance.api";
 
+function _parseOrderBookSide(
+	entries: [string, string][]
+): Set<{ price: Price; quantity: Volume }> {
+	return new Set(
+		entries.map(([price, qty]) => ({
+			price: Price.of(Number(price)),
+			quantity: Volume.of(Number(qty)),
+		}))
+	);
+}
+
 /** Normalize raw Binance API responses into internal market-data entities. */
 export const BinanceNormalizer = {
 	/**

@@ -145,15 +145,17 @@ export class Agent {
 				"Q-learning requires `reward` and `nextState` in the experience.",
 			);
 		}
+		const target = this._computeQTarget(exp, gamma);
+		this._nn.train(exp.input, target);
+		this._pool.remove(exp.input);
+	}
 
+	private _computeQTarget(exp: Experience, gamma: number): Float32Array {
 		const target = exp.output.slice();
 		const nextQ = this._nn.forward(exp.nextState).output;
 		const maxNextQ = exp.done ? 0 : Math.max(...nextQ);
 		const actionIdx = target.indexOf(Math.max(...target));
-
 		target[actionIdx] = exp.reward + gamma * maxNextQ;
-
-		this._nn.train(exp.input, target);
-		this._pool.remove(exp.input);
+		return target;
 	}
 }

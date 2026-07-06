@@ -19,15 +19,16 @@ export class SensitiveDataSanitizer {
 		/\.token$/i,
 	];
 
+	static _isSensitiveKey(key: string): boolean {
+		return SensitiveDataSanitizer.SENSITIVE_KEY_PATTERNS.some((pattern) =>
+			pattern.test(key),
+		);
+	}
+
 	safeStringify(value: unknown): string {
 		const seen = new WeakSet<object>();
 		return JSON.stringify(value, (key, val) => {
-			if (
-				key &&
-				SensitiveDataSanitizer.SENSITIVE_KEY_PATTERNS.some((pattern) =>
-					pattern.test(key)
-				)
-			) {
+			if (key && SensitiveDataSanitizer._isSensitiveKey(key)) {
 				return "[REDACTED]";
 			}
 			if (typeof val === "object" && val !== null) {

@@ -19,33 +19,36 @@ interface ServiceResolver {
 export function setupAuditLogging(
 	loggerInstance: typeof logger,
 	addressManager: ServiceResolver,
-	tlsPaths: TlsPaths
+	tlsPaths: TlsPaths,
 ): void {
 	let connected = false;
-
 	loggerInstance.setAuditResolver(async () => {
 		try {
 			const target = await addressManager.findService(
-				ServiceInstanceName.AuditLoggerService
+				ServiceInstanceName.AuditLoggerService,
 			);
 			if (!target) {
 				return null;
 			}
-
-			if (!connected) {
-				connected = true;
-				loggerInstance.info("audit-logger: connected", {
-					url: `${target.ip}:${target.port}`,
-				});
-			}
-			return {
-				url: `https://${target.ip}:${target.port}`,
-				tls: tlsPaths,
-			};
+			_logFirstConnection(loggerInstance, target, connected);
+			connected = true;
+			return { url: `https://${target.ip}:${target.port}`, tls: tlsPaths };
 		} catch {
 			return null;
 		}
 	});
+}
+
+function _logFirstConnection(
+	loggerInstance: typeof logger,
+	target: { ip: string; port: number },
+	alreadyConnected: boolean,
+): void {
+	if (!alreadyConnected) {
+		loggerInstance.info("audit-logger: connected", {
+			url: `${target.ip}:${target.port}`,
+		});
+	}
 }
 
 export type { ServiceResolver };
