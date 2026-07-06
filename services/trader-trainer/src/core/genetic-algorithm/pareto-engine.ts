@@ -179,39 +179,44 @@ function nondominatedSortApprox(
  * Assign crowding distance for individuals on a front.
  * Boundary points get Infinity; interior points get a distance metric.
  */
+function _setInfiniteCrowding(indices: number[], crowding: number[]): void {
+	for (const idx of indices) {
+		crowding[idx] = Number.POSITIVE_INFINITY;
+	}
+}
+
+function _computeCrowdingForObjective(
+	key: keyof ObjectiveVector,
+	objectives: ObjectiveVector[],
+	crowding: number[],
+	indices: number[]
+): void {
+	const sorted = [...indices].sort((left, right) => objectives[left][key] - objectives[right][key]);
+	crowding[sorted[0]] = Number.POSITIVE_INFINITY;
+	crowding[sorted[sorted.length - 1]] = Number.POSITIVE_INFINITY;
+	const range = objectives[sorted[sorted.length - 1]][key] - objectives[sorted[0]][key];
+	if (range === 0) {
+		return;
+	}
+	for (let mid = 1; mid < sorted.length - 1; mid++) {
+		crowding[sorted[mid]] += (objectives[sorted[mid + 1]][key] - objectives[sorted[mid - 1]][key]) / range;
+	}
+}
+
 function assignCrowding(
 	indices: number[],
 	objectives: ObjectiveVector[],
 	crowding: number[]
 ): void {
 	if (indices.length <= 2) {
-		for (const idx of indices) {
-			crowding[idx] = Number.POSITIVE_INFINITY;
-		}
+		_setInfiniteCrowding(indices, crowding);
 		return;
 	}
-
-	const keys: (keyof ObjectiveVector)[] = ["avgPnl", "sharpe", "negFlops"];
 	for (const idx of indices) {
 		crowding[idx] = 0;
 	}
-
-	for (const key of keys) {
-		const sorted = [...indices].sort(
-			(left, right) => objectives[left][key] - objectives[right][key]
-		);
-		crowding[sorted[0]] = Number.POSITIVE_INFINITY;
-		crowding[sorted[sorted.length - 1]] = Number.POSITIVE_INFINITY;
-		const range =
-			objectives[sorted[sorted.length - 1]][key] - objectives[sorted[0]][key];
-		if (range === 0) {
-			continue;
-		}
-		for (let mid = 1; mid < sorted.length - 1; mid++) {
-			crowding[sorted[mid]] +=
-				(objectives[sorted[mid + 1]][key] - objectives[sorted[mid - 1]][key]) /
-				range;
-		}
+	for (const key of ["avgPnl", "sharpe", "negFlops"] as (keyof ObjectiveVector)[]) {
+		_computeCrowdingForObjective(key, objectives, crowding, indices);
 	}
 }
 

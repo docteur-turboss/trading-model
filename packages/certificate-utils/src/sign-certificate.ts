@@ -65,31 +65,13 @@ function _buildCertPem(
 	].join("\n");
 }
 
-export function signCertificate(options: SignOptions): SignedCertificate {
-	const { csr, serviceId, caKeyPair, caCertPem, ttlMs } = options;
-
-	const csrData = parseCsr(csr);
-	const publicKey = createPublicKey(csrData.publicKey);
-
-	const serialNumber = _buildSerialNumber();
-	const now = new Date();
-	const expiresAt = new Date(now.getTime() + ttlMs);
-
-	const certBody = _buildCertBody({ serialNumber, csrData, publicKey, now, expiresAt });
-	const signature = _signCertBody(certBody, caKeyPair.privateKey);
-	const certPem = _buildCertPem(certBody, signature, caCertPem);
-
-	const fingerprint = createHash("sha256").update(certPem).digest("hex");
-
-	return {
-		serialNumber,
-		certPem,
-		caPem: caCertPem,
-		serviceId,
-		issuedAt: now,
-		expiresAt,
-		fingerprint,
-	};
+function _parseCsrBody(csr: string): string {
+	const lines = csr
+		.split("\n")
+		.filter(
+			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END")),
+		);
+	return Buffer.from(lines.join(""), "base64").toString("utf8");
 }
 
 function parseCsr(csr: string): {
@@ -97,13 +79,23 @@ function parseCsr(csr: string): {
 	san: string[];
 	publicKey: string;
 } {
-	const lines = csr
-		.split("\n")
-		.filter(
-			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
-		);
-	const body = Buffer.from(lines.join(""), "base64").toString("utf8");
-	return JSON.parse(body);
+	return JSON.parse(_parseCsrBody(csr));
+}
+
+export function signCertificate(options: SignOptions): SignedCertificate {
+	const { csr, serviceId, caKeyPair, caCertPem, ttlMs } = options;
+	const csrData = parseCsr(csr);
+	const publicKey = createPublicKey(csrData.publicKey);
+	const serialNumber = _buildSerialNumber();
+	const now = new Date();
+	const expiresAt = new Date(now.getTime() + ttlMs);
+
+	const certBody = _buildCertBody({ serialNumber, csrData, publicKey, now, expiresAt });
+	const signature = _signCertBody(certBody, caKeyPair.privateKey);
+	const certPem = _buildCertPem(certBody, signature, caCertPem);
+	const fingerprint = createHash("sha256").update(certPem).digest("hex");
+
+	return { serialNumber, certPem, caPem: caCertPem, serviceId, issuedAt: now, expiresAt, fingerprint };
 }
 
 function chunks(str: string, size: number): string[] {

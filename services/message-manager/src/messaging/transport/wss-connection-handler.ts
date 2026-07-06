@@ -25,24 +25,31 @@ export class WssConnectionHandler {
 
 	attach(server: HttpsServer, onConnection: (ws: WebSocket, req: IncomingMessage) => void): void {
 		this._rateLimiter.ensureCleanupTimer();
-		this._wss = new WebSocketServer({
+		this._wss = this._createWss(server);
+		this._wss.on("connection", (ws, req) => onConnection(ws, req));
+		logger.info("WSS transport attached at /ws");
+	}
+
+	private _createWss(server: HttpsServer): WebSocketServer {
+		return new WebSocketServer({
 			server,
 			path: "/ws",
 			maxPayload: ENV.MAX_PAYLOAD_BYTES,
-			verifyClient: (info, cb) => {
-				const serviceName = info.req.headers["x-service-name"] as string;
-				const instanceId = info.req.headers["x-instance-id"] as string;
-				if (!(serviceName && instanceId)) {
-					cb(false, 400, "Missing x-service-name or x-instance-id headers");
-					return;
-				}
-				cb(true);
-			},
+			verifyClient: this._verifyClient,
 		});
+	}
 
-		this._wss.on("connection", (ws, req) => onConnection(ws, req));
-
-		logger.info("WSS transport attached at /ws");
+	private _verifyClient(
+		info: { req: IncomingMessage },
+		cb: (result: boolean, code?: number, message?: string) => void
+	): void {
+		const serviceName = info.req.headers["x-service-name"] as string;
+		const instanceId = info.req.headers["x-instance-id"] as string;
+		if (!(serviceName && instanceId)) {
+			cb(false, 400, "Missing x-service-name or x-instance-id headers");
+			return;
+		}
+		cb(true);
 	}
 
 	parseConnectionHeaders(req: IncomingMessage): {

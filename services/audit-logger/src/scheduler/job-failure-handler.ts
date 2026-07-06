@@ -33,33 +33,43 @@ export class JobFailureHandler {
 
 		this._repository
 			.findById(jobId)
-			.then((job) => {
-				if (
-					!job ||
-					isTerminalStatus(job.status)
-				) {
-					return;
-				}
-
-				this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-
-				this._repository
-					.updateStatus(jobId, "orphaned")
-					.then(() => this._reAllocator.reallocate(job))
-					.catch((err) =>
-						logger.error("Failed to persist orphaned status on ACK timeout", {
-							jobId,
-							error: String(err),
-						})
-					);
-			})
+			.then((job) => _onAckTimeoutJobFound(job, jobId, this))
 			.catch((err) => {
-				logger.error("Failed to find job on ACK timeout", { context: {
-				jobId,
-				error: String(err),
-			} });
+				_logFindJobError(jobId, err);
 			});
 	}
+}
+
+function _logFindJobError(jobId: string, err: unknown): void {
+	logger.error("Failed to find job on ACK timeout", { context: {
+		jobId,
+		error: String(err),
+	} });
+}
+
+function _onAckTimeoutJobFound(
+	job: import("../types/job.types").Job | null,
+	jobId: string,
+	self: JobFailureHandler
+): void {
+	if (!job || isTerminalStatus(job.status)) {
+		return;
+	}
+
+	self._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
+
+	self._repository
+		.updateStatus(jobId, "orphaned")
+		.then(() => self._reAllocator.reallocate(job))
+		.catch((err) =>
+			logger.error("Failed to persist orphaned status on ACK timeout", {
+				jobId,
+				error: String(err),
+			})
+		);
+}
+
+export class JobFailureHandler {
 
 	async handlePermanentFailure(jobId: string, error: string): Promise<void> {
 		await this._repository.updateStatus(jobId, "failed", { error });

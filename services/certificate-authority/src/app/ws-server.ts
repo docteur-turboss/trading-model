@@ -162,7 +162,7 @@ async function handleSignRequest(
 		);
 		ws.send(_buildSignResponsePayload(signMsg.id, cert));
 	} catch (err) {
-		const statusCode = (err as Record<string, unknown>).statusCode ?? 500;
+		const statusCode = ((err as Record<string, unknown>).statusCode ?? 500) as number;
 		logger.warn("WSS sign error", {
 			context: { err: normalizeError(err as Error) },
 		});

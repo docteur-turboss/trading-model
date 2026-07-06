@@ -39,7 +39,7 @@ export async function signCertificate(
 	}
 }
 
-function _validateGetRequest(serviceId: string | undefined, res: Response): string | null {
+function _validateGetRequest(serviceId: string | string[] | undefined, res: Response): string | null {
 	if (!serviceId) {
 		res.status(400).json({ error: "serviceId is required" });
 		return null;
