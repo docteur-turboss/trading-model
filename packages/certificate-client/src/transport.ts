@@ -27,24 +27,24 @@ export class TransportManager {
 
 	constructor(config: TransportConfig) {
 		this._config = config;
-		this._httpsClient = new CaClient({
-			baseUrl: config.caUrl,
-			tls: config.tls,
-		});
+		this._httpsClient = new CaClient({ baseUrl: config.caUrl, tls: config.tls });
 		if (config.forceHttps) {
 			this._mode = "https";
 		} else {
 			this._mode = "wss";
-			const wsUrl = config.caUrl
-				.replace(/\/+$/, "")
-				.replace(/^https:/, "wss:")
-				.replace(/^http:/, "ws:");
 			this._wssTransport = new WssTransport(
-				wsUrl,
+				this._buildWsUrl(config.caUrl),
 				config.tls,
-				config.bootstrapToken
+				config.bootstrapToken,
 			);
 		}
+	}
+
+	private _buildWsUrl(caUrl: string): string {
+		return caUrl
+			.replace(/\/+$/, "")
+			.replace(/^https:/, "wss:")
+			.replace(/^http:/, "ws:");
 	}
 
 	get currentMode(): TransportMode {

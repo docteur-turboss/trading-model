@@ -234,32 +234,25 @@ function _mutateHorizon(
 	};
 }
 
+function _makePerturbFn(
+	mutation: MutationGenome,
+	rng: () => number
+): (value: number, scale: number) => number {
+	return (value: number, scale: number) => value + sampleNoise(mutation.distribution, scale, rng);
+}
+
 function _mutateDiscretePolicy(
 	rl: RLGenome,
 	mutation: MutationGenome,
 	rng: () => number
 ): Pick<RLGenome, "discretePolicy"> {
-	const perturb = (value: number, scale: number) =>
-		value + sampleNoise(mutation.distribution, scale, rng);
-
+	const perturb = _makePerturbFn(mutation, rng);
 	return {
 		discretePolicy: {
 			...rl.discretePolicy,
-			epsilonStart: clamp(
-				perturb(rl.discretePolicy.epsilonStart, 0.05),
-				0.1,
-				1.0
-			),
-			epsilonMin: clamp(
-				perturb(rl.discretePolicy.epsilonMin, 0.01),
-				0.001,
-				0.2
-			),
-			epsilonDecay: clamp(
-				perturb(rl.discretePolicy.epsilonDecay, 0.002),
-				0.9,
-				0.9999
-			),
+			epsilonStart: clamp(perturb(rl.discretePolicy.epsilonStart, 0.05), 0.1, 1.0),
+			epsilonMin: clamp(perturb(rl.discretePolicy.epsilonMin, 0.01), 0.001, 0.2),
+			epsilonDecay: clamp(perturb(rl.discretePolicy.epsilonDecay, 0.002), 0.9, 0.9999),
 			temperature: Math.max(0.01, perturb(rl.discretePolicy.temperature, 0.1)),
 		},
 	};
@@ -270,20 +263,18 @@ function _mutateContinuousPolicy(
 	mutation: MutationGenome,
 	rng: () => number
 ): Pick<RLGenome, "continuousPolicy"> {
-	const perturb = (value: number, scale: number) =>
-		value + sampleNoise(mutation.distribution, scale, rng);
-
+	const perturb = _makePerturbFn(mutation, rng);
 	return {
 		continuousPolicy: {
 			...rl.continuousPolicy,
 			noiseStd: Math.max(0.001, perturb(rl.continuousPolicy.noiseStd, 0.02)),
-			noiseDecay: clamp(
-				perturb(rl.continuousPolicy.noiseDecay, 0.001),
-				0.9,
-				0.9999
-			),
+			noiseDecay: clamp(perturb(rl.continuousPolicy.noiseDecay, 0.001), 0.9, 0.9999),
 		},
 	};
+}
+
+function _mutateReplayBufferSize(bufferSize: number, rng: () => number): number {
+	return Math.max(500, Math.round(bufferSize * (0.8 + rng() * 0.4)));
 }
 
 function _mutateReplayBuffer(
@@ -291,16 +282,11 @@ function _mutateReplayBuffer(
 	mutation: MutationGenome,
 	rng: () => number
 ): Pick<RLGenome, "replayBuffer"> {
-	const perturb = (value: number, scale: number) =>
-		value + sampleNoise(mutation.distribution, scale, rng);
-
+	const perturb = _makePerturbFn(mutation, rng);
 	return {
 		replayBuffer: {
 			...rl.replayBuffer,
-			bufferSize: Math.max(
-				500,
-				Math.round(rl.replayBuffer.bufferSize * (0.8 + rng() * 0.4))
-			),
+			bufferSize: _mutateReplayBufferSize(rl.replayBuffer.bufferSize, rng),
 			alphaPER: clamp(perturb(rl.replayBuffer.alphaPER, 0.05), 0, 1),
 			betaPER: clamp(perturb(rl.replayBuffer.betaPER, 0.05), 0, 1),
 		},

@@ -181,20 +181,17 @@ export class WsDiscoveryServer {
 		}
 	}
 
+	private _onClientTimeout(clientId: string, ws: WebSocket): void {
+		logger.warn("Discovery WS client timed out", { clientId });
+		ws.close();
+		this._clients.delete(clientId);
+		this._clientTimeouts.delete(clientId);
+	}
+
 	private _resetClientTimeout(clientId: string, ws: WebSocket): void {
 		const existing = this._clientTimeouts.get(clientId);
-		if (existing) {
-			clearTimeout(existing);
-		}
-		this._clientTimeouts.set(
-			clientId,
-			setTimeout(() => {
-				logger.warn("Discovery WS client timed out", { clientId });
-				ws.close();
-				this._clients.delete(clientId);
-				this._clientTimeouts.delete(clientId);
-			}, CLIENT_TIMEOUT_MS)
-		);
+		if (existing) clearTimeout(existing);
+		this._clientTimeouts.set(clientId, setTimeout(() => this._onClientTimeout(clientId, ws), CLIENT_TIMEOUT_MS));
 	}
 
 	stop(): void {

@@ -33,9 +33,7 @@ export class OrphanDetector {
 			try {
 				await this._detectOrphans();
 			} catch (err) {
-				logger.error("Orphan detection cycle failed", { context: {
-				error: err instanceof Error ? err.message : String(err),
-			} });
+				_logOrphanCycleError(err);
 			}
 		}, this._intervalMs);
 
@@ -56,11 +54,11 @@ export class OrphanDetector {
 			return;
 		}
 
-		logger.warn("Stale workers detected — scanning for orphaned jobs", {
-			workerCount: staleWorkerIds.length,
-			workers: staleWorkerIds,
-		});
+		_logOrphanWarning(staleWorkerIds);
+		await this._processOrphanedJobs(staleWorkerIds);
+	}
 
+	private async _processOrphanedJobs(staleWorkerIds: string[]): Promise<void> {
 		for (const workerId of staleWorkerIds) {
 			const orphanedJobs = await this._repository.findByWorker(workerId, [
 				"assigned",
@@ -73,4 +71,20 @@ export class OrphanDetector {
 			}
 		}
 	}
+}
+
+function _logOrphanCycleError(err: unknown): void {
+	logger.error("Orphan detection cycle failed", { context: {
+		error: err instanceof Error ? err.message : String(err),
+	} });
+}
+
+function _logOrphanWarning(staleWorkerIds: string[]): void {
+	logger.warn("Stale workers detected — scanning for orphaned jobs", {
+		workerCount: staleWorkerIds.length,
+		workers: staleWorkerIds,
+	});
+}
+
+export class OrphanDetector {
 }

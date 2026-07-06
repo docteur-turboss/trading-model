@@ -11,32 +11,31 @@ export interface ProxyResult {
 	headers: Record<string, string | string[]>;
 }
 
-function buildSafeHeaders(req: Request): Record<string, string> {
-	const headers: Record<string, string> = {};
+function _isBlockedHeader(key: string): boolean {
+	const lower = key.toLowerCase();
+	return lower === "x-api-key" || lower === "authorization" || lower === "host" ||
+		lower === "connection" || lower === "keep-alive";
+}
 
-	for (const [key, value] of Object.entries(req.headers)) {
-		const lower = key.toLowerCase();
-		if (
-			lower === "x-api-key" ||
-			lower === "authorization" ||
-			lower === "host" ||
-			lower === "connection" ||
-			lower === "keep-alive"
-		) {
-			continue;
-		}
-		if (typeof value === "string") {
-			headers[key] = value;
-		} else if (Array.isArray(value)) {
-			headers[key] = value.join(", ");
-		}
-	}
+function _serializeHeaderValue(value: string | string[]): string {
+	return typeof value === "string" ? value : value.join(", ");
+}
 
+function _addProxyHeaders(headers: Record<string, string>, req: Request): void {
 	headers["x-forwarded-for"] = req.ip ?? req.socket.remoteAddress ?? "unknown";
 	headers["x-forwarded-proto"] = "https";
-	headers["x-request-id"] =
-		(req.headers["x-request-id"] as string) ?? crypto.randomUUID();
+	headers["x-request-id"] = (req.headers["x-request-id"] as string) ?? crypto.randomUUID();
+}
 
+function buildSafeHeaders(req: Request): Record<string, string> {
+	const headers: Record<string, string> = {};
+	for (const [key, value] of Object.entries(req.headers)) {
+		if (_isBlockedHeader(key)) continue;
+		if (typeof value === "string" || Array.isArray(value)) {
+			headers[key] = _serializeHeaderValue(value);
+		}
+	}
+	_addProxyHeaders(headers, req);
 	return headers;
 }
 

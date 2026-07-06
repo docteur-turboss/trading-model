@@ -61,36 +61,38 @@ export class WalRedisFlusher {
 	private async _flushBatch(raw: string[]): Promise<boolean> {
 		const redis = await getStreamClient();
 		const multi = redis.multi();
+		this._addParsedCommands(multi, raw);
+
+		try {
+			return await this._execBatch(multi);
+		} catch {
+			return false;
+		}
+	}
+
+	private _addParsedCommands(
+		multi: ReturnType<import("ioredis").Redis["multi"]>,
+		raw: string[]
+	): void {
 		for (const entry of raw) {
 			const parsed = this._parseWalEntry(entry);
 			if (!parsed) {
 				continue;
 			}
 			const key = this._streamKey(parsed.topic);
-			multi.xadd(
-				key,
-				"MAXLEN",
-				"~",
-				ENV.REDIS_STREAM_MAXLEN,
-				"*",
-				"data",
-				parsed.data,
-			);
+			multi.xadd(key, "MAXLEN", "~", ENV.REDIS_STREAM_MAXLEN, "*", "data", parsed.data);
 			multi.expire(key, ENV.REDIS_MESSAGE_TTL_S);
 		}
+	}
 
-		try {
-			const results = await multi.exec();
-			if (results) {
-				const anyFailed = results.some((resultItem) => resultItem[0] !== null);
-				if (anyFailed) {
-					return false;
-				}
-			}
+	private async _execBatch(
+		multi: ReturnType<import("ioredis").Redis["multi"]>
+	): Promise<boolean> {
+		const results = await multi.exec();
+		if (!results) {
 			return true;
-		} catch {
-			return false;
 		}
+		return !results.some((resultItem) => resultItem[0] !== null);
 	}
 
 	private _bufferEntries(raw: string[]): void {

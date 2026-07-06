@@ -259,17 +259,4 @@ function _extractDateRange(
 	};
 }
 
-export class LogRepository {
 
-	private async _indexExists(name: string): Promise<boolean> {
-		try {
-			const db = this._collection ? this._db : undefined;
-			if (!db) {
-				return false;
-			}
-			return await db.collection("service_logs").indexExists(name);
-		} catch {
-			return false;
-		}
-	}
-}
