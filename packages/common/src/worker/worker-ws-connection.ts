@@ -15,7 +15,7 @@ export interface WorkerWsConnectionConfig {
 }
 
 export class WorkerWsConnection {
-	private _ws: WebSocket | null = null;
+	private _ws!: WebSocket;
 	rejectOnError = true;
 	onOpen?: () => void;
 	onMessage?: (data: WebSocket.Data) => void;

@@ -1,4 +1,4 @@
-import { toTopic } from "@trading-model/common/domain/primitives";
+import { toTopic, toInstanceId } from "@trading-model/common/domain/primitives";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
@@ -24,7 +24,7 @@ export class TopicRequestBuilder {
 		const payload: SubscribesTopicsPayload = {
 			callbackPath: this._config.callbackPath,
 			consumerIdentity: {
-				instanceId: this._config.instanceId,
+				instanceId: toInstanceId(this._config.instanceId),
 				serviceName: this._config.serviceName,
 			},
 			topic: toTopic(topic),

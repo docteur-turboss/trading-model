@@ -1,5 +1,5 @@
 export class TimerHandle {
-	private _handle: ReturnType<typeof setInterval> | null = null;
+	private _handle!: ReturnType<typeof setInterval>;
 
 	get isRunning(): boolean {
 		return this._handle !== null;

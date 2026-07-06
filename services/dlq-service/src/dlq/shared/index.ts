@@ -83,7 +83,7 @@ import { env } from "../../config/env";
 import { logger } from "../../config/logger";
 
 class SharedHttpClientManager {
-	private _httpClient: HttpClient | null = null;
+	private _httpClient!: HttpClient;
 
 	async get(): Promise<HttpClient> {
 		if (!this._httpClient) {

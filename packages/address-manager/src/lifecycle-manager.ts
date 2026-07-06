@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { toServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
@@ -117,8 +118,8 @@ export class LifecycleManager {
 
 	private async _performHeartbeat(): Promise<void> {
 		const identity: ServiceIdentity = {
-			serviceName: this._options.serviceName,
-			instanceId: this._options.instanceId,
+			serviceName: toServiceId(this._options.serviceName),
+			instanceId: toInstanceId(this._options.instanceId),
 		};
 		await this._options.heartbeatManager.performHeartbeat(identity);
 	}

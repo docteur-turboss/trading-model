@@ -1,5 +1,6 @@
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import { toServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import {
 	addressManagerError,
@@ -25,8 +26,8 @@ export class HeartbeatRefresher {
 
 	private _buildHeartbeatPayload(): ServiceIdentity {
 		return {
-			serviceName: this._serviceName,
-			instanceId: this._instanceId,
+			serviceName: toServiceId(this._serviceName),
+			instanceId: toInstanceId(this._instanceId),
 		};
 	}
 

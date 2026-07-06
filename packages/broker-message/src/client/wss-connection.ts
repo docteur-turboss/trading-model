@@ -11,7 +11,7 @@ export interface WssConnectionEvents {
 }
 
 export class WssConnection {
-	private _ws: WebSocket | null = null;
+	private _ws!: WebSocket;
 	private readonly _tlsCa?: string;
 	private readonly _tlsCert?: string;
 	private readonly _tlsKey?: string;
@@ -29,13 +29,10 @@ export class WssConnection {
 	}
 
 	connect(wsUrl: string, events: WssConnectionEvents): void {
-		if (this._ws) {
-			try {
-				this._ws.close();
-			} catch {
-				/* ignore */
-			}
-			this._ws = null;
+		try {
+			this._ws.close();
+		} catch {
+			/* ignore */
 		}
 
 		const agent = this._setupWsTls();
@@ -48,35 +45,28 @@ export class WssConnection {
 			events.onMessage(raw.toString());
 		});
 		this._ws.on("close", (code: number, reason: Buffer) => {
-			this._ws = null;
 			events.onClose(code, reason);
 		});
 		this._ws.on("error", (err: Error) => {
-			if (this._ws) {
-				try {
-					this._ws.close();
-				} catch {
-					/* ignore */
-				}
-				this._ws = null;
+			try {
+				this._ws.close();
+			} catch {
+				/* ignore */
 			}
 			events.onError(err);
 		});
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {
-		if (this._ws) {
-			try {
-				this._ws.close(closeCode, reason);
-			} catch {
-				/* ignore */
-			}
-			this._ws = null;
+		try {
+			this._ws.close(closeCode, reason);
+		} catch {
+			/* ignore */
 		}
 	}
 
 	send(data: unknown): boolean {
-		if (!this._ws || this._ws.readyState !== WebSocket.OPEN) {
+		if (this._ws.readyState !== WebSocket.OPEN) {
 			return false;
 		}
 		try {
@@ -88,10 +78,10 @@ export class WssConnection {
 	}
 
 	get isConnected(): boolean {
-		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
+		return this._ws.readyState === WebSocket.OPEN;
 	}
 
-	get ws(): WebSocket | null {
+	get ws(): WebSocket {
 		return this._ws;
 	}
 

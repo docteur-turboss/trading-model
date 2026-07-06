@@ -8,7 +8,7 @@ import {
 import { TlsConfigBuilder } from "./tls-config-builder";
 
 export class WsConnectionManager {
-	private _ws: WebSocket | null = null;
+	private _ws!: WebSocket;
 	private readonly _tlsBuilder: TlsConfigBuilder;
 
 	constructor(

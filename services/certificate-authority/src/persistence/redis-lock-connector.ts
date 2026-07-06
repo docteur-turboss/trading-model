@@ -1,7 +1,7 @@
 import Redis from "ioredis";
 
 export class RedisLockConnector {
-	private _client: Redis | null = null;
+	private _client!: Redis;
 	private _available = true;
 
 	constructor(redisUrl: string) {

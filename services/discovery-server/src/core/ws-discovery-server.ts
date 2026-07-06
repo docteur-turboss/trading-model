@@ -8,7 +8,7 @@ interface WsDiscoveryServerOptions {
 }
 
 export class WsDiscoveryServer {
-	private _wss: WebSocketServer | null = null;
+	private _wss!: WebSocketServer;
 	private readonly _path: string;
 	private readonly _clientManager = new ClientConnectionManager();
 	private readonly _protocolHandler: WsProtocolHandler;

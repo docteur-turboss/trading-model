@@ -47,7 +47,7 @@ process.on("SIGUSR2", () => {
 });
 
 export class SecureKeyStore {
-	private _buffer: Buffer | null;
+	private _buffer!: Buffer;
 	private _disposed = false;
 
 	constructor(pem: string) {

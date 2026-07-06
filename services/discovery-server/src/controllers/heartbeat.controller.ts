@@ -1,6 +1,6 @@
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import { toServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { RequestHandler } from "express";

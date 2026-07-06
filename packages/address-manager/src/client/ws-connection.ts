@@ -1,7 +1,7 @@
 import WebSocket from "ws";
 
 export class WsConnection {
-	private _ws: WebSocket | null = null;
+	private _ws!: WebSocket;
 
 	constructor(
 		private readonly _baseUrl: string,

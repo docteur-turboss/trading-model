@@ -3,7 +3,7 @@ import Redis from "ioredis";
 import { logger } from "./logger";
 
 export class RedisClientManager {
-	private _client: Redis | null = null;
+	private _client!: Redis;
 
 	async createClient(url: string): Promise<Redis> {
 		const client = new Redis(url, {

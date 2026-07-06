@@ -6,7 +6,7 @@ import { RedisConnection } from "./redis-connection";
 export class DlqRedisQueue {
 	private readonly _connection: RedisConnection;
 	private readonly _queueKey: string;
-	private _popScriptHashPromise: Promise<string> | null = null;
+	private _popScriptHashPromise!: Promise<string>;
 
 	private static readonly _POP_SCRIPT = `
     local entries = redis.call('LRANGE', KEYS[1], -1, -1)

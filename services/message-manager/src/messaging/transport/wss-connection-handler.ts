@@ -18,7 +18,7 @@ interface CloseHandlerContext {
 }
 
 export class WssConnectionHandler {
-	private _wss: WebSocketServer | null = null;
+	private _wss!: WebSocketServer;
 
 	constructor(
 		private readonly _subscriptionManager: WssSubscriptionManager,
