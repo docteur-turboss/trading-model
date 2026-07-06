@@ -34,6 +34,32 @@ export interface ComplexityProfile {
  * Estimate computational complexity (FLOPs, memory) and efficiency penalty
  * for a given genome architecture.
  */
+function _computeLayerFlopsAndParams(
+	dims: number[],
+	hiddenLayers: DeepReadonly<LamarckGenome["network"]["hiddenLayers"]>
+): { flops: number; params: number } {
+	let flops = 0;
+	let params = 0;
+	for (let i = 1; i < dims.length; i++) {
+		const weightCount = dims[i - 1] * dims[i];
+		const biasCount = dims[i];
+		const act = hiddenLayers[i - 1]?.activation ?? "linear";
+		flops += 2 * weightCount + biasCount * (ACT_COST[act] ?? 2);
+		params += weightCount + biasCount;
+	}
+	return { flops, params };
+}
+
+function _computeReplayBytes(genome: DeepReadonly<LamarckGenome>): number {
+	return genome.rl.replayBuffer.bufferSize * genome.network.inputDim * 4 * 2;
+}
+
+function _computePenalty(effectiveFlops: number, paramBytes: number, replayBytes: number): number {
+	const flopPenalty = Math.min(1, effectiveFlops / FLOP_SOFT_CAP);
+	const memPenalty = Math.min(1, (paramBytes + replayBytes) / MEM_SOFT_CAP);
+	return 0.6 * flopPenalty + 0.4 * memPenalty;
+}
+
 export function estimateComplexity(
 	genome: DeepReadonly<LamarckGenome>
 ): ComplexityProfile {
@@ -43,28 +69,13 @@ export function estimateComplexity(
 		genome.network.outputDim,
 	];
 
-	let flops = 0;
-	let params = 0;
-
-	for (let i = 1; i < dims.length; i++) {
-		const weightCount = dims[i - 1] * dims[i];
-		const biasCount = dims[i];
-		const act = genome.network.hiddenLayers[i - 1]?.activation ?? "linear";
-		flops += 2 * weightCount + biasCount * (ACT_COST[act] ?? 2);
-		params += weightCount + biasCount;
-	}
-
+	const { flops, params } = _computeLayerFlopsAndParams(dims, genome.network.hiddenLayers);
 	const effectiveFlops = flops / Math.max(1, genome.rl.horizon.frameSkip);
 	const paramBytes = params * 4;
-	const replayBytes =
-		genome.rl.replayBuffer.bufferSize * genome.network.inputDim * 4 * 2;
-
-	const flopPenalty = Math.min(1, effectiveFlops / FLOP_SOFT_CAP);
-	const memPenalty = Math.min(1, (paramBytes + replayBytes) / MEM_SOFT_CAP);
 
 	return {
 		inferenceFLOPs: flops,
-		penalty: 0.6 * flopPenalty + 0.4 * memPenalty,
+		penalty: _computePenalty(effectiveFlops, paramBytes, _computeReplayBytes(genome)),
 	};
 }
 

@@ -41,28 +41,28 @@ export function countParams(net: NetworkGenome): number {
 	if (layers.length === 0) {
 		return net.inputDim * net.outputDim + net.outputDim;
 	}
+	return _countInputToFirstHidden(net, layers) +
+		_countHiddenToHidden(layers) +
+		_countLastHiddenToOutput(layers, net.outputDim);
+}
 
+function _countInputToFirstHidden(net: NetworkGenome, layers: NetworkGenome["hiddenLayers"]): number {
+	return net.inputDim * layers[0].neurons + layers[0].neurons;
+}
+
+function _countHiddenToHidden(layers: NetworkGenome["hiddenLayers"]): number {
 	let total = 0;
-
-	// Input → first hidden
-	total += net.inputDim * layers[0].neurons + layers[0].neurons;
-
-	// Hidden → hidden
 	for (let i = 1; i < layers.length; i++) {
 		total += layers[i - 1].neurons * layers[i].neurons + layers[i].neurons;
-		// Skip/residual projection overhead (only when dimensions differ)
-		if (
-			layers[i].connectionType !== "fully-connected" &&
-			layers[i - 1].neurons !== layers[i].neurons
-		) {
+		if (layers[i].connectionType !== "fully-connected" && layers[i - 1].neurons !== layers[i].neurons) {
 			total += layers[i - 1].neurons * layers[i].neurons;
 		}
 	}
-
-	// Last hidden → output
-	total += layers[layers.length - 1].neurons * net.outputDim + net.outputDim;
-
 	return total;
+}
+
+function _countLastHiddenToOutput(layers: NetworkGenome["hiddenLayers"], outputDim: number): number {
+	return layers[layers.length - 1].neurons * outputDim + outputDim;
 }
 
 // ----------------------------------------------------------------

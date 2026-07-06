@@ -86,65 +86,26 @@ export class ServiceCache {
 	 * ```
 	 */
 	async set(serviceName: string, instance: ServiceInstance): Promise<void> {
-		const release = await this._mutex.acquire();
-		try {
+		return this._withLock(() => {
 			this._cache.set(serviceName, {
 				instance,
 				expiresAt: Date.now() + this._ttlMs,
 			});
-		} finally {
-			release();
-		}
+		});
 	}
 
-	/**
-	 * Explicitly removes a service instance from the cache.
-	 *
-	 * - Useful for invalidating outdated or unhealthy entries.
-	 *
-	 * @param serviceName - Name of the service to remove.
-	 *
-	 * @example
-	 * ```ts
-	 * cache.invalidate("user-service");
-	 * ```
-	 */
 	async invalidate(serviceName: string): Promise<void> {
-		const release = await this._mutex.acquire();
-		try {
+		return this._withLock(() => {
 			this._cache.delete(serviceName);
-		} finally {
-			release();
-		}
+		});
 	}
 
-	/**
-	 * Clears all entries from the cache.
-	 *
-	 * - Useful during global events, such as reconnection or full service reset.
-	 *
-	 * @example
-	 * ```ts
-	 * cache.clear();
-	 * ```
-	 */
 	async clear(): Promise<void> {
-		const release = await this._mutex.acquire();
-		try {
+		return this._withLock(() => {
 			this._cache.clear();
-		} finally {
-			release();
-		}
+		});
 	}
 
-	/**
-	 * Determines if a cache entry has expired.
-	 *
-	 * @param entry - Cache entry to check.
-	 * @returns `true` if expired, `false` otherwise.
-	 *
-	 * @private
-	 */
 	private _isExpired(entry: CacheEntry): boolean {
 		return Date.now() >= entry.expiresAt;
 	}
@@ -152,19 +113,17 @@ export class ServiceCache {
 	async entries(): Promise<
 		Array<{ serviceName: string; instance: ServiceInstance; region?: string }>
 	> {
-		const release = await this._mutex.acquire();
-		try {
-			const result: Array<{ serviceName: string; instance: ServiceInstance }> =
-				[];
-			for (const [serviceName, entry] of this._cache) {
-				if (!this._isExpired(entry)) {
-					result.push({ serviceName, instance: entry.instance });
-				}
+		return this._withLock(() => this._getEntries());
+	}
+
+	private _getEntries(): Array<{ serviceName: string; instance: ServiceInstance }> {
+		const result: Array<{ serviceName: string; instance: ServiceInstance }> = [];
+		for (const [serviceName, entry] of this._cache) {
+			if (!this._isExpired(entry)) {
+				result.push({ serviceName, instance: entry.instance });
 			}
-			return result;
-		} finally {
-			release();
 		}
+		return result;
 	}
 
 	getVersion(_serviceName: string, _region?: string): Promise<number> {

@@ -43,24 +43,23 @@ export class MemoryWalFlusher {
 	private async _buildAndSendBatch(batch: MemoryWalEntry[]): Promise<boolean> {
 		const redis = await getStreamClient();
 		const multi = redis.multi();
-		for (const { topic, serialized } of batch) {
-			const key = this._streamKey(topic);
-			multi.xadd(
-				key,
-				"MAXLEN",
-				"~",
-				this._streamMaxlen,
-				"*",
-				"data",
-				serialized
-			);
-			multi.expire(key, this._messageTtlS);
-		}
+		this._addBatchCommands(multi, batch);
 		const results = await multi.exec();
 		if (results) {
 			return !results.some((result) => result[0] !== null);
 		}
 		return true;
+	}
+
+	private _addBatchCommands(
+		multi: ReturnType<import("ioredis").Redis["multi"]>,
+		batch: MemoryWalEntry[]
+	): void {
+		for (const { topic, serialized } of batch) {
+			const key = this._streamKey(topic);
+			multi.xadd(key, "MAXLEN", "~", this._streamMaxlen, "*", "data", serialized);
+			multi.expire(key, this._messageTtlS);
+		}
 	}
 
 	private _increaseBackoff(): void {

@@ -83,24 +83,36 @@ export class MongoArchiveStore {
 			return;
 		}
 		try {
-			const col = this._client
-				.db(ENV.MONGO_ARCHIVE_DB)
-				.collection(ENV.MONGO_ARCHIVE_COLLECTION);
-			await col.createIndex(
-				{ messageId: 1 },
-				{ unique: true, background: true }
-			);
-			await col.createIndex({ topic: 1, archivedAt: -1 }, { background: true });
-			await col.createIndex(
-				{ ttl: 1 },
-				{ expireAfterSeconds: 0, background: true }
-			);
+			const col = this._getCollection();
+			await this._createIndexes(col);
 			logger.info("MongoDB archive indexes ensured");
 		} catch (err) {
 			logger.warn("Failed to create archive indexes", { context: {
 				error: (err as Error).message,
 			} });
 		}
+	}
+
+	private _getCollection(): ReturnType<ReturnType<MongoClient["db"]>["collection"]> {
+		return this._client!
+			.db(ENV.MONGO_ARCHIVE_DB)
+			.collection(ENV.MONGO_ARCHIVE_COLLECTION) as ReturnType<
+				ReturnType<MongoClient["db"]>["collection"]
+			>;
+	}
+
+	private async _createIndexes(
+		col: ReturnType<ReturnType<MongoClient["db"]>["collection"]>
+	): Promise<void> {
+		await col.createIndex(
+			{ messageId: 1 },
+			{ unique: true, background: true }
+		);
+		await col.createIndex({ topic: 1, archivedAt: -1 }, { background: true });
+		await col.createIndex(
+			{ ttl: 1 },
+			{ expireAfterSeconds: 0, background: true }
+		);
 	}
 
 	private _startTopicsCacheRefresh(): void {

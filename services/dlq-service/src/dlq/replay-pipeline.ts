@@ -105,23 +105,30 @@ async function _handleDeliveryMarkFailed(
 			errorMsg: httpError,
 		});
 	} catch (markErr) {
-		logger.error(
-			"Failed to mark entry as failed — releasing claim without count",
-			{ entryId, error: (markErr as Error).message }
-		);
-		await dlqClaimManager.incrementRetryCount(entryId).catch((err) => {
-			logger.error(
-				"CRITICAL: Failed to increment retryCount after markRetried failure",
-				{ entryId, error: (err as Error).message }
-			);
-		});
-		await dlqClaimManager.releaseClaimWithoutCount(entryId).catch((err) => {
-			logger.error("CRITICAL: Failed to release claim after error", {
-				entryId,
-				error: (err as Error).message,
-			});
-		});
+		await _forceReleaseClaim(entryId, markErr);
 	}
+}
+
+async function _forceReleaseClaim(
+	entryId: string,
+	markErr: unknown
+): Promise<void> {
+	logger.error(
+		"Failed to mark entry as failed — releasing claim without count",
+		{ entryId, error: (markErr as Error).message }
+	);
+	await dlqClaimManager.incrementRetryCount(entryId).catch((err) => {
+		logger.error(
+			"CRITICAL: Failed to increment retryCount after markRetried failure",
+			{ entryId, error: (err as Error).message }
+		);
+	});
+	await dlqClaimManager.releaseClaimWithoutCount(entryId).catch((err) => {
+		logger.error("CRITICAL: Failed to release claim after error", {
+			entryId,
+			error: (err as Error).message,
+		});
+	});
 }
 
 async function replaySingleEntry(
@@ -131,25 +138,40 @@ async function replaySingleEntry(
 	ctx.successCount.value++;
 	try {
 		await _deliverMessage(entry, ctx.messageManagerUrl, ctx.client);
-		await dlqRetryManager.markRetried({
-			id: entry.id,
-			instanceId: ctx.instanceId,
-			batchId: ctx.batchId,
-			success: true,
-		});
+		await _markEntrySuccess(entry, ctx);
 	} catch (err) {
 		if (ctx.isTimedOut()) {
 			throw err;
 		}
-		const httpError = (err as Error).message;
-		await _handleDeliveryMarkFailed({
-			entryId: entry.id,
-			instanceId: ctx.instanceId,
-			batchId: ctx.batchId,
-			httpError,
-		});
+		await _handleEntryFailure(entry, ctx, err);
 		throw err;
 	}
+}
+
+async function _markEntrySuccess(
+	entry: DlqEntryRef,
+	ctx: ReplayContext
+): Promise<void> {
+	await dlqRetryManager.markRetried({
+		id: entry.id,
+		instanceId: ctx.instanceId,
+		batchId: ctx.batchId,
+		success: true,
+	});
+}
+
+async function _handleEntryFailure(
+	entry: DlqEntryRef,
+	ctx: ReplayContext,
+	err: unknown
+): Promise<void> {
+	const httpError = (err as Error).message;
+	await _handleDeliveryMarkFailed({
+		entryId: entry.id,
+		instanceId: ctx.instanceId,
+		batchId: ctx.batchId,
+		httpError,
+	});
 }
 
 async function runBatchLoop(

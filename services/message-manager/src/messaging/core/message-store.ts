@@ -95,13 +95,7 @@ export class MessageStore {
 	async store(topic: string, message: Message): Promise<string> {
 		const serialized = safeStringify(message);
 
-		if (serialized.length > ENV.MAX_PAYLOAD_BYTES) {
-			logger.error("Message payload exceeds maximum size", { context: {
-				topic,
-				size: serialized.length,
-				max: ENV.MAX_PAYLOAD_BYTES,
-			} });
-			MESSAGES_DLQ_TOTAL.inc({ topic, reason: "PAYLOAD_TOO_LARGE" });
+		if (this._isPayloadTooLarge(topic, serialized)) {
 			return "payload-too-large";
 		}
 
@@ -110,6 +104,27 @@ export class MessageStore {
 			return entryId;
 		}
 
+		return this._storeInWal(topic, serialized, message);
+	}
+
+	private _isPayloadTooLarge(topic: string, serialized: string): boolean {
+		if (serialized.length <= ENV.MAX_PAYLOAD_BYTES) {
+			return false;
+		}
+		logger.error("Message payload exceeds maximum size", { context: {
+			topic,
+			size: serialized.length,
+			max: ENV.MAX_PAYLOAD_BYTES,
+		} });
+		MESSAGES_DLQ_TOTAL.inc({ topic, reason: "PAYLOAD_TOO_LARGE" });
+		return true;
+	}
+
+	private async _storeInWal(
+		topic: string,
+		serialized: string,
+		message: Message
+	): Promise<string> {
 		try {
 			await this._walFlusher.storeInWal(topic, serialized);
 		} catch (err) {
