@@ -20,7 +20,7 @@ export interface RedisCache {
 	isAvailable(): boolean;
 	get<TData>(key: string): Promise<TData | null>;
 	set(entry: CacheSetEntry): Promise<void>;
-	del(key: string): Promise<void>;
+	delete(key: string): Promise<void>;
 	clear(): Promise<void>;
 	makeKey(parts: string[]): string;
 }
@@ -44,7 +44,7 @@ export class NullCache implements RedisCache {
 
 	async set(_entry: CacheSetEntry): Promise<void> {}
 
-	async del(_key: string): Promise<void> {}
+	async delete(_key: string): Promise<void> {}
 
 	async clear(): Promise<void> {}
 
@@ -117,7 +117,7 @@ class RealRedisCache implements RedisCache {
 		}
 	}
 
-	async del(key: string): Promise<void> {
+	async delete(key: string): Promise<void> {
 		try {
 			await this._client.del(key);
 		} catch {

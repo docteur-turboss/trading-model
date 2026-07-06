@@ -11,7 +11,7 @@ import {
 	createInitialPopulation,
 } from "./population-builder";
 import { makePRNG } from "./prng";
-import { deepFreeze } from "./shared-types";
+import { type DeepReadonly, deepFreeze } from "./shared-types";
 import { FitnessEvaluator } from "./fitness-evaluator";
 import type { GARunnerConfig, GenerationContext } from "./generation-types";
 

@@ -3,21 +3,34 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis from "ioredis";
 import type { CacheManager } from "./cache-manager";
 
-export class PubSubInvalidator {
-	private _pubSub?: Redis;
-	private readonly _redisUrlForPubSub?: string;
+function createNullRedis(): Redis {
+	return {
+		status: "close",
+		connect: () => Promise.resolve(),
+		on: () => {},
+		subscribe: () => Promise.resolve(0),
+		publish: () => Promise.resolve(0),
+		unsubscribe: () => Promise.resolve(0),
+		disconnect: () => {},
+	} as unknown as Redis;
+}
 
-	private get _requiredPubSub(): Redis {
-		if (!this._pubSub) throw new Error("PubSub not connected");
-		return this._pubSub;
-	}
+export class PubSubInvalidator {
+	private readonly _pubSub: Redis;
+	private readonly _redisUrlForPubSub?: string;
 
 	constructor(redisUrlForPubSub?: string) {
 		this._redisUrlForPubSub = redisUrlForPubSub;
+		this._pubSub = redisUrlForPubSub
+			? new Redis(this._redisUrlForPubSub!, {
+					lazyConnect: true,
+					maxRetriesPerRequest: 3,
+				})
+			: createNullRedis();
 	}
 
 	get client(): Redis | undefined {
-		return this._pubSub;
+		return this._redisUrlForPubSub ? this._pubSub : undefined;
 	}
 
 	private _onPubSubMessage(cacheManager: CacheManager, channel: string, message: string): void {
@@ -28,9 +41,6 @@ export class PubSubInvalidator {
 	}
 
 	private async _setupPubSub(cacheManager: CacheManager): Promise<void> {
-		this._pubSub = new Redis(this._redisUrlForPubSub!, {
-			lazyConnect: true, maxRetriesPerRequest: 3,
-		});
 		await this._pubSub.connect();
 		this._pubSub.on("message", (ch: string, msg: string) => this._onPubSubMessage(cacheManager, ch, msg));
 		await this._pubSub.subscribe("cache:invalidate");
@@ -38,7 +48,7 @@ export class PubSubInvalidator {
 	}
 
 	async start(cacheManager: CacheManager): Promise<void> {
-		if (!this._redisUrlForPubSub || this._pubSub) return;
+		if (!this._redisUrlForPubSub) return;
 		try {
 			await this._setupPubSub(cacheManager);
 		} catch (err) {
@@ -47,7 +57,7 @@ export class PubSubInvalidator {
 	}
 
 	async publish(serviceName: string): Promise<void> {
-		if (this._pubSub?.status !== "ready") {
+		if (this._pubSub.status !== "ready") {
 			return;
 		}
 		try {
@@ -61,18 +71,16 @@ export class PubSubInvalidator {
 	}
 
 	stop(): void {
-		if (this._pubSub) {
-			try {
-				this._pubSub.unsubscribe("cache:invalidate");
-			} catch {
-				/* ignore */
-			}
-			try {
-				this._pubSub.disconnect();
-			} catch {
-				/* ignore */
-			}
-			this._pubSub = undefined;
+		if (!this._redisUrlForPubSub) return;
+		try {
+			this._pubSub.unsubscribe("cache:invalidate");
+		} catch {
+			/* ignore */
+		}
+		try {
+			this._pubSub.disconnect();
+		} catch {
+			/* ignore */
 		}
 	}
 }

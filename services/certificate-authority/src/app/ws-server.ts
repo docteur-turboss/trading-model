@@ -1,5 +1,6 @@
 import type https from "node:https";
 import type { TLSSocket } from "node:tls";
+import type { CertificateResponse } from "@trading-model/common/domain/certificate-base";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { type RawData, type WebSocket, WebSocketServer } from "ws";
@@ -132,7 +133,7 @@ function handleAuthMessage({
 	return true;
 }
 
-function _buildSignResponsePayload(id: string, cert: { certPem: string; caPem: string; serialNumber: string; expiresAt: Date; fingerprint: string }): string {
+function _buildSignResponsePayload(id: string, cert: CertificateResponse): string {
 	return JSON.stringify({
 		type: "sign:response", id, success: true,
 		data: {

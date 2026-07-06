@@ -1,8 +1,9 @@
+import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 import { logger } from "./logger";
 import { CircuitBreakerState } from "./circuit-breaker-state";
 import type { CircuitStateConfig } from "./circuit-breaker-state";
 
-export class MessageManagerCircuitBreaker {
+export class MessageManagerCircuitBreaker implements ICircuitBreaker {
 	private readonly _state: CircuitBreakerState;
 
 	constructor(config?: Partial<CircuitStateConfig>) {
@@ -32,11 +33,11 @@ export class MessageManagerCircuitBreaker {
 		return state;
 	}
 
-	recordSuccess(): void {
+	recordSuccess(_key?: string): void {
 		this._state.recordSuccess();
 	}
 
-	recordFailure(): void {
+	recordFailure(_key?: string): void {
 		this._state.recordFailure(Date.now(), this._logOpened);
 	}
 

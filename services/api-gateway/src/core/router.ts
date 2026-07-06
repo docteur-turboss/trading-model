@@ -66,7 +66,7 @@ interface ProxyContext {
 function _tryCacheResponse(req: Request, ctx: ProxyContext, result: { body: string; status: number }): void {
 	if (req.method === "GET" && result.status === 200) {
 		const parsed = tryParseJson(result.body);
-		if (parsed) CACHE.set(ctx.cacheKey, parsed, result.status);
+		if (parsed) CACHE.set(ctx.cacheKey, { data: parsed, status: result.status });
 	}
 }
 

@@ -1,3 +1,4 @@
+import type { CertificateResponse } from "@trading-model/common/domain/certificate-base";
 import { logger } from "@trading-model/common/config/logger";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { Request, Response } from "express";
@@ -12,7 +13,7 @@ function _validateSignRequest(serviceId: unknown, csr: unknown, res: Response): 
 	return false;
 }
 
-function _sendSignResponse(res: Response, signed: { certPem: string; caPem: string; serialNumber: string; expiresAt: Date; fingerprint: string }, serviceId: string): void {
+function _sendSignResponse(res: Response, signed: CertificateResponse, serviceId: string): void {
 	logger.info("Certificate signed", {
 		context: { serviceId, serialNumber: signed.serialNumber },
 	});
@@ -47,7 +48,7 @@ function _validateGetRequest(serviceId: string | string[] | undefined, res: Resp
 	return String(serviceId);
 }
 
-function _sendCertResponse(res: Response, cert: { certPem: string; caPem: string; serialNumber: string; issuedAt: Date; expiresAt: Date; fingerprint: string }): void {
+function _sendCertResponse(res: Response, cert: CertificateResponse): void {
 	res.status(200).json({
 		cert: cert.certPem, caPem: cert.caPem, serialNumber: cert.serialNumber,
 		issuedAt: cert.issuedAt, expiresAt: cert.expiresAt, fingerprint: cert.fingerprint,

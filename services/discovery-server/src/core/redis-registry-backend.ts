@@ -1,5 +1,4 @@
 import { randomBytes } from "node:crypto";
-import { logger } from "@trading-model/common/config/logger";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -7,7 +6,6 @@ import type {
 import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
-import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis from "ioredis";
 import {
 	computePrefix,
@@ -19,44 +17,14 @@ import { RedisKeyBuilder } from "./redis-key-builder";
 import { StaleInstanceCleaner } from "./stale-instance-cleaner";
 import { TokenHandler } from "./token-handler";
 import { TokenService } from "./token-service";
+import { RedisBackendLifecycle } from "./redis-backend-lifecycle";
 
 export type { RedisSentinelConfig, RedisClusterNodesConfig, RedisConnectionConfig } from "./redis-client-factory";
 
-// ─── Backend ────────────────────────────────────────────────────────────────
-
-/**
- * RedisRegistryBackend
- *
- * Distributed, persistent backend for service instance storage.
- *
- * Designed for multi-node / multi-region deployments where
- * multiple discovery-server instances must share the same
- * registry state.
- *
- * ## High-Availability modes
- *
- * | Mode       | Env vars                              | Behaviour                |
- * |------------|---------------------------------------|--------------------------|
- * | Single     | `REDIS_URL`                           | Legacy, single node      |
- * | Sentinel   | `REDIS_SENTINELS` + `REDIS_SENTINEL_MASTER_NAME` | Auto-failover |
- * | Cluster    | `REDIS_CLUSTER_NODES`                 | Sharding + replication   |
- *
- * Storage layout in Redis:
- *   {prefix}service:{serviceName}:instances  →  Set of instanceIds
- *   {prefix}instance:{instanceId}:metadata   →  JSON-serialised ServiceInstance
- *   {prefix}instance:{instanceId}:token      →  String (HMAC token)
- *
- * Token generation, validation, and instance name verification
- * are handled locally (same logic as InMemoryRegistryBackend) —
- * only storage is distributed.
- */
 export class RedisRegistryBackend implements RegistryBackend {
-	private readonly _redis: Redis;
-	private readonly _keyBuilder: RedisKeyBuilder;
-	private readonly _tokenService: TokenService;
-	private readonly _cleaner: StaleInstanceCleaner;
 	private readonly _instances: RedisInstanceRepository;
 	private readonly _tokenHandler: TokenHandler;
+	private readonly _lifecycle: RedisBackendLifecycle;
 
 	constructor(
 		configOrUrl: string | RedisConnectionConfig,
@@ -65,28 +33,16 @@ export class RedisRegistryBackend implements RegistryBackend {
 		cleanupIntervalMs = 10_000
 	) {
 		const resolvedPrefix = computePrefix(prefix, configOrUrl);
-		this._keyBuilder = new RedisKeyBuilder(resolvedPrefix);
-		this._redis = createRedisClient(configOrUrl) as Redis;
-		this._tokenService = new TokenService(
+		const keyBuilder = new RedisKeyBuilder(resolvedPrefix);
+		const redis = createRedisClient(configOrUrl) as Redis;
+		const tokenService = new TokenService(
 			signingSecret ?? randomBytes(32).toString("hex")
 		);
-		this._instances = new RedisInstanceRepository(
-			this._redis,
-			this._keyBuilder,
-			this._tokenService,
-		);
-		this._cleaner = new StaleInstanceCleaner(
-			this._instances,
-			cleanupIntervalMs,
-		);
-		this._tokenHandler = new TokenHandler(
-			this._redis,
-			this._keyBuilder,
-			this._tokenService,
-		);
+		this._instances = new RedisInstanceRepository(redis, keyBuilder, tokenService);
+		const cleaner = new StaleInstanceCleaner(this._instances, cleanupIntervalMs);
+		this._tokenHandler = new TokenHandler(redis, keyBuilder, tokenService);
+		this._lifecycle = new RedisBackendLifecycle(redis, cleaner);
 	}
-
-	// ─── Registration + Query + Removal (delegated) ────────────────────────────
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {
 		return this._instances.registerInstance(instance);
@@ -116,21 +72,15 @@ export class RedisRegistryBackend implements RegistryBackend {
 		return this._instances.dump();
 	}
 
-	// ─── Token ──────────────────────────────────────────────────────────────────
-
 	async updateToken(instanceId: string): Promise<string> {
 		return this._tokenHandler.updateToken(instanceId);
 	}
-
-	// ─── Token / ID validation ─────────────────────────────────────────────────
 
 	generateInstanceToken(instanceId: string): string {
 		return this._tokenHandler.generateInstanceToken(instanceId);
 	}
 
-	async validInstanceToken(
-		validation: TokenValidation
-	): Promise<boolean> {
+	async validInstanceToken(validation: TokenValidation): Promise<boolean> {
 		return this._tokenHandler.validInstanceToken(validation);
 	}
 
@@ -142,28 +92,15 @@ export class RedisRegistryBackend implements RegistryBackend {
 		return this._tokenHandler.verifyInstanceName(serviceName);
 	}
 
-	// ─── Lifecycle ─────────────────────────────────────────────────────────────
-
 	start(): void {
-		this._redis.connect().catch((err) => {
-			logger.error("Failed to connect to Redis", {
-				error: normalizeError(err),
-			});
-		});
-
-		this._cleaner.start();
-
-		logger.info("RedisRegistryBackend started");
+		this._lifecycle.start();
 	}
 
 	stop(): void {
-		this._cleaner.stop();
-		this._redis.disconnect();
-		logger.info("RedisRegistryBackend stopped");
+		this._lifecycle.stop();
 	}
 
-	/** Exposed for testing — triggers stale-instance cleanup immediately. */
 	async forceCleanup(): Promise<void> {
-		await this._cleaner.cleanupNow();
+		await this._lifecycle.forceCleanup();
 	}
 }

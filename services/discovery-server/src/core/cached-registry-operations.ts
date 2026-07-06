@@ -3,7 +3,9 @@ import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import { BackendPingManager } from "./backend-ping-manager";
 import { CacheManager } from "./cache-manager";
 import { CacheOrchestrator } from "./cache-orchestrator";
@@ -138,7 +140,7 @@ export class CachedRegistryOperations implements RegistryBackend {
 		return this._proxy.dump();
 	}
 
-	async validInstanceToken(validation: import("@trading-model/common/domain/token-validation").TokenValidation): Promise<boolean> {
+	async validInstanceToken(validation: TokenValidation): Promise<boolean> {
 		return this._proxy.validInstanceToken(validation);
 	}
 
@@ -150,7 +152,7 @@ export class CachedRegistryOperations implements RegistryBackend {
 		return this._proxy.verifyInstanceName(serviceName);
 	}
 
-	generateInstanceId(endpoint: import("@trading-model/common/domain/service-identity").ServiceEndpoint): import("@trading-model/common/domain/primitives").ServiceId {
+	generateInstanceId(endpoint: ServiceEndpoint): ServiceId {
 		return this._proxy.generateInstanceId(endpoint);
 	}
 

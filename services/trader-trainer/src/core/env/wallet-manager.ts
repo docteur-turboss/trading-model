@@ -15,7 +15,7 @@ export interface WalletAPI {
 	getCash: () => Cash;
 	getValuation: () => Cash;
 	getPrice: () => Price;
-	getPnL: () => Cash;
+	getPnL: () => number;
 	getMetrics: () => WalletMetrics;
 	getHistory: () => Readonly<TradeRecord[]>;
 	reset: () => void;
@@ -70,7 +70,7 @@ export class Wallet implements WalletAPI {
 		return this._executor.price;
 	}
 
-	getPnL(): Cash {
+	getPnL(): number {
 		return this._recorder.computePnL(this._executor.cash, this._executor.position, this._executor.price);
 	}
 

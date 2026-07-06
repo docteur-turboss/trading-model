@@ -45,7 +45,9 @@ createBootstrap({
 		rotator.start();
 	},
 	onStop: async () => {
-		await CONTAINER.disconnectAll();
+		if (CONTAINER) {
+			await CONTAINER.disconnectAll();
+		}
 	},
 });
 

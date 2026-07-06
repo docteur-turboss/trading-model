@@ -3,7 +3,7 @@ import type { JobRepository } from "../persistence/job-repository";
 import type { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";
 import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
-import { type IWorkerProtocol } from "../worker/worker-protocol";
+import { type IWorkerProtocol, NullWorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";

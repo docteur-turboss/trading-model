@@ -1,8 +1,8 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
 import { FallbackManager } from "./fallback-manager";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { HealthStateManager } from "./health-state-manager";
+import { FallbackRestoreHandler } from "./fallback-restore-handler";
 
 export interface HealthCheckCallbacks {
 	ping: () => Promise<boolean>;
@@ -28,6 +28,7 @@ export class RedisHealthMonitor {
 	private readonly _shouldRun: () => boolean;
 	private readonly _callbacks: HealthCheckCallbacks;
 	private readonly _fallbackManager: FallbackManager;
+	private readonly _restoreHandler: FallbackRestoreHandler;
 
 	constructor(config: RedisHealthMonitorConfig) {
 		this._healthState = new HealthStateManager(config.failureThreshold);
@@ -37,6 +38,11 @@ export class RedisHealthMonitor {
 		this._fallbackManager = new FallbackManager(
 			config.backend,
 			config.healthCheckIntervalMs * 6,
+			config.callbacks,
+		);
+		this._restoreHandler = new FallbackRestoreHandler(
+			this._healthState,
+			this._fallbackManager,
 			config.callbacks,
 		);
 	}
@@ -59,7 +65,7 @@ export class RedisHealthMonitor {
 		}
 		this._clearTimers();
 		this._startHealthCheck();
-		this._fallbackManager.startRestoreLoop(() => this._performRestoreCheck());
+		this._fallbackManager.startRestoreLoop(() => this._restoreHandler.performRestoreCheck());
 	}
 
 	stop(): void {
@@ -105,21 +111,5 @@ export class RedisHealthMonitor {
 		} finally {
 			this._healthCheckRunning = false;
 		}
-	}
-
-	private async _performRestoreCheck(): Promise<void> {
-		if (this._healthState.isHealthy) return;
-		try {
-			if (await this._callbacks.ping()) {
-				this._handleRestoreSuccess();
-			}
-		} catch {
-			logger.warn("Redis restore attempt failed — staying on stale cache");
-		}
-	}
-
-	private _handleRestoreSuccess(): void {
-		this._fallbackManager.restoreOriginalBackend();
-		this._healthState.handleHealthSuccess(() => this._callbacks.onHealthRestored());
 	}
 }

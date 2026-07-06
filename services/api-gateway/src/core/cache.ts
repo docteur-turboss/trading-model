@@ -31,13 +31,11 @@ export class ResponseCache implements ICache<ResponseCacheEntry> {
 
 	set<TData = unknown>(
 		key: string,
-		data: TData,
-		status: number,
+		value: Omit<ResponseCacheEntry<TData>, "expiresAt">,
 		ttlMs?: number
 	): void {
 		this._store.set(key, {
-			data,
-			status,
+			...value,
 			expiresAt: Date.now() + (ttlMs ?? this._defaultTtlMs),
 		});
 	}

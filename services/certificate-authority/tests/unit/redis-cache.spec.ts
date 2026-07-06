@@ -92,7 +92,7 @@ describe("RedisCache", () => {
 
 	it("should delete key", async () => {
 		const cache = createCache("redis://localhost:6379");
-		await cache.del("key");
+		await cache.delete("key");
 		expect(mockRedisInstance.del).toHaveBeenCalledWith("key");
 	});
 

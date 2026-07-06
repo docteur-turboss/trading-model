@@ -8,10 +8,10 @@ import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { CacheManager } from "./cache-manager";
 import { RedisHealthMonitor } from "./redis-health-monitor";
+import { HeartbeatThrottleManager } from "./heartbeat-throttle-manager";
 
 export class CacheOrchestrator {
-	private readonly _heartbeatInvalidationThrottleMs = 5000;
-	private _lastHeartbeatInvalidation = new Map<string, number>();
+	private readonly _throttleManager = new HeartbeatThrottleManager();
 
 	constructor(
 		private readonly _backend: RegistryBackend,
@@ -109,11 +109,6 @@ export class CacheOrchestrator {
 		serviceName: string,
 		publish: (name: string) => Promise<void>
 	): Promise<void> {
-		const now = Date.now();
-		const last = this._lastHeartbeatInvalidation.get(serviceName) ?? 0;
-		if (now - last >= this._heartbeatInvalidationThrottleMs) {
-			this._lastHeartbeatInvalidation.set(serviceName, now);
-			await publish(serviceName);
-		}
+		return this._throttleManager.onHeartbeatUpdate(serviceName, publish);
 	}
 }

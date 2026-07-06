@@ -11,74 +11,18 @@ import { JobScheduler } from "../scheduler/job-scheduler";
 import { WorkerProtocol } from "../worker/worker-protocol";
 import { createServer } from "./server";
 
-class ServiceContext {
-	private _addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | null = null;
-	private _mongoClient: MongoClient | null = null;
-	private _scheduler: JobScheduler | null = null;
-	private _workerProtocol: WorkerProtocol | null = null;
-	private _brokerMessage: BrokerMessage | null = null;
-
-	set addressManager(value: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>) {
-		this._addressManager = value;
-	}
-
-	set mongoClient(value: MongoClient) {
-		this._mongoClient = value;
-	}
-
-	set scheduler(value: JobScheduler) {
-		this._scheduler = value;
-	}
-
-	set workerProtocol(value: WorkerProtocol) {
-		this._workerProtocol = value;
-	}
-
-	set brokerMessage(value: BrokerMessage) {
-		this._brokerMessage = value;
-	}
-
-	get scheduler(): JobScheduler {
-		if (!this._scheduler) throw new Error("Scheduler not initialized");
-		return this._scheduler;
-	}
-
-	get workerProtocol(): WorkerProtocol | null {
-		return this._workerProtocol;
-	}
-
-	get mongoClient(): MongoClient | null {
-		return this._mongoClient;
-	}
-
-	async stop(): Promise<void> {
-		if (this._brokerMessage) {
-			await this._brokerMessage.stopMessageManager();
-		}
-		if (this._scheduler) {
-			this._scheduler.stop();
-		}
-		if (this._workerProtocol) {
-			this._workerProtocol.close();
-		}
-		if (this._addressManager) {
-			this._addressManager.stop();
-		}
-		if (this._mongoClient) {
-			await this._mongoClient.close();
-		}
-	}
-}
-
-const ctx = new ServiceContext();
+let _mongoClient!: MongoClient;
+let _scheduler!: JobScheduler;
+let _workerProtocol!: WorkerProtocol;
+let _brokerMessage!: BrokerMessage;
+let _addressManager!: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
 
 createBootstrap({
 	name: "Audit Logger",
 	createServer: async () => {
-		const mongoClient = new MongoClient(ENV.MONGODB_URI);
-		await mongoClient.connect();
-		ctx.mongoClient = mongoClient;
-		const db = mongoClient.db();
+		_mongoClient = new MongoClient(ENV.MONGODB_URI);
+		await _mongoClient.connect();
+		const db = _mongoClient.db();
 
 		const jobRepo = new JobRepository(db);
 		await jobRepo.ensureIndexes();
@@ -86,23 +30,26 @@ createBootstrap({
 		const auditRepo = new AuditRepository(db);
 		await auditRepo.ensureIndexes();
 
-		const scheduler = new JobScheduler(jobRepo);
-		ctx.scheduler = scheduler;
-
-		const server = await createServer(scheduler, auditRepo);
-
-		const workerProtocol = new WorkerProtocol(
-			server.raw,
-			scheduler.workers,
-			(workerId: string) => ctx.scheduler.onWorkerDisconnect(workerId)
+		_scheduler = new JobScheduler(jobRepo);
+		_workerProtocol = new WorkerProtocol(
+			null!,
+			_scheduler.workers,
+			(workerId: string) => _scheduler.onWorkerDisconnect(workerId)
 		);
-		ctx.workerProtocol = workerProtocol;
-		scheduler.setWorkerProtocol(workerProtocol);
 
-		await scheduler.start();
+		const server = await createServer(_scheduler, auditRepo);
+
+		_workerProtocol = new WorkerProtocol(
+			server.raw,
+			_scheduler.workers,
+			(workerId: string) => _scheduler.onWorkerDisconnect(workerId)
+		);
+		_scheduler.setWorkerProtocol(_workerProtocol);
+
+		await _scheduler.start();
 
 		const { AddressManager } = await import("../config/address-manager.js");
-		const brokerMessage = new BrokerMessage({
+		_brokerMessage = new BrokerMessage({
 			addressManagerClient: AddressManager,
 			tlsPaths: {
 				keyPath: ENV.TLS_KEY_PATH,
@@ -112,13 +59,12 @@ createBootstrap({
 			instanceId: ENV.INSTANCE_ID,
 			serviceName: ServiceInstanceName.AuditLoggerService,
 		});
-		ctx.brokerMessage = brokerMessage;
 
 		const { EnumEventMessage } = await import(
 			"@trading-model/common/config/event.types"
 		);
 		const AllTopics = Object.values(EnumEventMessage);
-		await brokerMessage.intents(AllTopics);
+		await _brokerMessage.intents(AllTopics);
 		logger.info("Subscribed to all event topics", {
 			context: {
 				topicCount: AllTopics.length,
@@ -128,7 +74,7 @@ createBootstrap({
 		return server;
 	},
 	onStart: () => {
-		ctx.addressManager = BOOTSTRAP_ADDRESS_MANAGER();
+		_addressManager = BOOTSTRAP_ADDRESS_MANAGER();
 		logger.info("Audit Logger fully operational", {
 			context: {
 				port: ENV.PORT,
@@ -137,6 +83,10 @@ createBootstrap({
 		});
 	},
 	onStop: async () => {
-		await ctx.stop();
+		await _brokerMessage.stopMessageManager();
+		_scheduler.stop();
+		_workerProtocol.close();
+		_addressManager.stop();
+		await _mongoClient.close();
 	},
 });

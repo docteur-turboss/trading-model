@@ -68,8 +68,8 @@ export class DistributedLock implements IDistributedLock {
 		return -1;
 	}
 
-	async acquire(redisUrl?: string): Promise<boolean> {
-		const token = await this._acquisitionChain.acquire(this._context, this._ttlMs, redisUrl);
+	async acquire(lockId?: string): Promise<boolean> {
+		const token = await this._acquisitionChain.acquire(this._context, this._ttlMs, lockId);
 		if (token !== null) {
 			this._currentFencingToken = token;
 			return true;

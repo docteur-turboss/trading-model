@@ -6,7 +6,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 
 const MOCK_GET_ALL = jest.fn();
 
-jest.mock("../../src/app/container", () => ({
+jest.mock("../../src/app", () => ({
 	CONTAINER: {
 		crlStore: {
 			getAll: MOCK_GET_ALL,

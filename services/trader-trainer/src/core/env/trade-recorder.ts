@@ -44,7 +44,7 @@ export class TradeRecorder {
 		return this.valuationTracker.computeValuation({ cash, position, price });
 	}
 
-	computePnL(cash: Cash, position: Volume, price: Price): number {
+	computePnL(cash: Cash, position: Volume, price: Price): Cash {
 		return this.valuationTracker.computePnL({ cash, position, price });
 	}
 

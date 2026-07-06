@@ -19,7 +19,7 @@ const MOCK_DISTRIBUTOR = {
 	requestCertificate: jest.fn(),
 };
 
-jest.mock("../../src/app/container", () => ({
+jest.mock("../../src/app", () => ({
 	CONTAINER: {
 		distributor: MOCK_DISTRIBUTOR,
 	},
