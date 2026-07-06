@@ -27,31 +27,29 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 		);
 	}
 
-	registerInstance(instance: ServiceInstance): Promise<string> {
-		const { serviceName, instanceId } = instance;
-
+	private _ensureServiceMap(serviceName: string): Map<string, ServiceInstance> {
 		let instances = this._services.get(serviceName);
 		if (!instances) {
 			instances = new Map();
 			this._services.set(serviceName, instances);
 		}
+		return instances;
+	}
+
+	private _mergeInstance(existing: ServiceInstance, instance: ServiceInstance): ServiceInstance {
+		return { ...existing, ...instance, lastHeartbeat: Date.now() };
+	}
+
+	private _createInstance(instance: ServiceInstance): ServiceInstance {
+		return { ...instance, registeredAt: Date.now(), lastHeartbeat: Date.now() };
+	}
+
+	registerInstance(instance: ServiceInstance): Promise<string> {
+		const { serviceName, instanceId } = instance;
+		const instances = this._ensureServiceMap(serviceName);
 		const token = this._tokenService.generateInstanceToken(instanceId);
-
 		const existing = instances.get(instanceId);
-		if (existing) {
-			instances.set(instanceId, {
-				...existing,
-				...instance,
-				lastHeartbeat: Date.now(),
-			});
-		} else {
-			instances.set(instanceId, {
-				...instance,
-				registeredAt: Date.now(),
-				lastHeartbeat: Date.now(),
-			});
-		}
-
+		instances.set(instanceId, existing ? this._mergeInstance(existing, instance) : this._createInstance(instance));
 		this._token.set(instanceId, token);
 		return Promise.resolve(token);
 	}

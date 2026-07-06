@@ -32,7 +32,7 @@ interface JobDocument {
 	}>;
 }
 
-function toDocument(job: Job): JobDocument {
+function _buildJobDocumentBase(job: Job): JobDocument {
 	return {
 		jobId: job.id,
 		type: job.type,
@@ -48,16 +48,15 @@ function toDocument(job: Job): JobDocument {
 		completedAt: job.completedAt,
 		result: job.result,
 		error: job.error,
-		history: job.history.map((entry) => ({
-			fromStatus: entry.fromStatus,
-			toStatus: entry.toStatus,
-			timestamp: entry.timestamp,
-			reason: entry.reason,
-		})),
+		history: job.history.map(_mapHistoryEntry),
 	};
 }
 
-function fromDocument(doc: JobDocument): Job {
+function toDocument(job: Job): JobDocument {
+	return _buildJobDocumentBase(job);
+}
+
+function _buildJobBase(doc: JobDocument): Job {
 	return {
 		id: doc.jobId,
 		type: doc.type,
@@ -73,12 +72,25 @@ function fromDocument(doc: JobDocument): Job {
 		completedAt: doc.completedAt,
 		result: doc.result,
 		error: doc.error,
-		history: doc.history.map((entry) => ({
-			fromStatus: entry.fromStatus,
-			toStatus: entry.toStatus,
-			timestamp: entry.timestamp,
-			reason: entry.reason,
-		})),
+		history: doc.history.map(_mapHistoryEntry),
+	};
+}
+
+function fromDocument(doc: JobDocument): Job {
+	return _buildJobBase(doc);
+}
+
+function _mapHistoryEntry(entry: {
+	fromStatus: string;
+	toStatus: string;
+	timestamp: Date;
+	reason: string;
+}): { fromStatus: string; toStatus: string; timestamp: Date; reason: string } {
+	return {
+		fromStatus: entry.fromStatus,
+		toStatus: entry.toStatus,
+		timestamp: entry.timestamp,
+		reason: entry.reason,
 	};
 }
 

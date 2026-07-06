@@ -121,30 +121,25 @@ export class CertificateClient {
 		}
 	}
 
-	private async _scheduleRenew(marginMs: number): Promise<void> {
+	private async _ensureObtained(): Promise<void> {
 		if (!this._obtainedCert) {
 			await this.obtainCertificate();
 		}
-
 		if (!this._obtainedCert) {
 			throw new Error("Failed to obtain certificate");
 		}
+	}
 
-		const expiresAt = this._obtainedCert.expiresAt.getTime();
-		const now = Date.now();
-		const remaining = expiresAt - now;
-
-		if (remaining <= marginMs) {
-			try {
-				await this.obtainCertificate();
-			} catch (err) {
-				logger.error("Certificate renewal failed", { err });
-			}
-			await this._scheduleRenew(marginMs);
-			return;
+	private async _handleExpired(marginMs: number): Promise<void> {
+		try {
+			await this.obtainCertificate();
+		} catch (err) {
+			logger.error("Certificate renewal failed", { err });
 		}
+		await this._scheduleRenew(marginMs);
+	}
 
-		const delay = remaining - marginMs;
+	private _setupRenewTimer(delay: number, marginMs: number): void {
 		this._renewTimer = setTimeout(() => {
 			this.obtainCertificate()
 				.then(() => this._scheduleRenew(marginMs))
@@ -152,18 +147,35 @@ export class CertificateClient {
 					logger.error("Certificate renewal failed, retrying", { err });
 					this._renewTimer = setTimeout(
 						() => this._scheduleRenew(marginMs),
-						60000
+						60000,
 					);
 				});
 		}, delay);
+	}
 
+	private _logRenewScheduled(marginMs: number): void {
 		if (this._obtainedCert) {
 			logger.info("Certificate renewal scheduled", {
 				serviceId: this._config.serviceId,
-				delay,
+				delay: 0,
 				expiresAt: this._obtainedCert.expiresAt,
 			});
 		}
+	}
+
+	private async _scheduleRenew(marginMs: number): Promise<void> {
+		await this._ensureObtained();
+		const expiresAt = this._obtainedCert!.expiresAt.getTime();
+		const remaining = expiresAt - Date.now();
+
+		if (remaining <= marginMs) {
+			await this._handleExpired(marginMs);
+			return;
+		}
+
+		const delay = remaining - marginMs;
+		this._setupRenewTimer(delay, marginMs);
+		this._logRenewScheduled(marginMs);
 	}
 
 	getCurrentCert(): ObtainedCertificate | null {

@@ -71,34 +71,41 @@ export class WalListFlusher {
 		const gen = ++this._walDrainGen;
 
 		try {
-			await this._memoryWalBuffer.drainAll();
-			const redis = await getStreamClient();
-			const remaining = await redis.llen(this._walKey());
-			if (remaining === 0 && this._memoryWalBuffer.length === 0) {
+			const done = await this._tryDrainAll();
+			if (done) {
 				return;
 			}
-
 			await this._flushWal();
-
-			return new Promise<void>((resolve) => {
-				const timer = setTimeout(() => {
-					if (this._walDrainGen === gen) {
-						this._walDrainResolve = null;
-						logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
-						resolve();
-					}
-				}, timeoutMs);
-				this._walDrainResolve = () => {
-					if (this._walDrainGen === gen) {
-						clearTimeout(timer);
-						this._walDrainResolve = null;
-						resolve();
-					}
-				};
-			});
+			return this._waitForDrain(gen, timeoutMs);
 		} finally {
 			this._walDrainRequested = false;
 		}
+	}
+
+	private async _tryDrainAll(): Promise<boolean> {
+		await this._memoryWalBuffer.drainAll();
+		const redis = await getStreamClient();
+		const remaining = await redis.llen(this._walKey());
+		return remaining === 0 && this._memoryWalBuffer.length === 0;
+	}
+
+	private _waitForDrain(gen: number, timeoutMs: number): Promise<void> {
+		return new Promise<void>((resolve) => {
+			const timer = setTimeout(() => {
+				if (this._walDrainGen === gen) {
+					this._walDrainResolve = null;
+					logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
+					resolve();
+				}
+			}, timeoutMs);
+			this._walDrainResolve = () => {
+				if (this._walDrainGen === gen) {
+					clearTimeout(timer);
+					this._walDrainResolve = null;
+					resolve();
+				}
+			};
+		});
 	}
 
 	async drainAndStop(timeoutMs = 10_000): Promise<void> {
@@ -139,36 +146,38 @@ export class WalListFlusher {
 	private async _flushWalBatch(raw: string[]): Promise<boolean> {
 		const redis = await getStreamClient();
 		const multi = redis.multi();
+		this._addParsedBatchCommands(multi, raw);
+
+		try {
+			return await this._executeBatch(multi);
+		} catch {
+			return false;
+		}
+	}
+
+	private _addParsedBatchCommands(
+		multi: ReturnType<import("ioredis").Redis["multi"]>,
+		raw: string[]
+	): void {
 		for (const entry of raw) {
 			const parsed = WalEntryParser.parse(entry);
 			if (!parsed) {
 				continue;
 			}
 			const key = `${this._prefix}stream:${parsed.topic}`;
-			multi.xadd(
-				key,
-				"MAXLEN",
-				"~",
-				this._streamMaxlen,
-				"*",
-				"data",
-				parsed.data
-			);
+			multi.xadd(key, "MAXLEN", "~", this._streamMaxlen, "*", "data", parsed.data);
 			multi.expire(key, this._messageTtlS);
 		}
+	}
 
-		try {
-			const results = await multi.exec();
-			if (results) {
-				const anyFailed = results.some((resultItem) => resultItem[0] !== null);
-				if (anyFailed) {
-					return false;
-				}
-			}
+	private async _executeBatch(
+		multi: ReturnType<import("ioredis").Redis["multi"]>
+	): Promise<boolean> {
+		const results = await multi.exec();
+		if (!results) {
 			return true;
-		} catch {
-			return false;
 		}
+		return !results.some((resultItem) => resultItem[0] !== null);
 	}
 
 	private async _handleWalFlushError(

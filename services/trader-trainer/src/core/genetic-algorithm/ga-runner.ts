@@ -62,18 +62,23 @@ export class GeneticAlgorithmRunner {
 	constructor(private readonly _cfg: GARunnerConfig) {}
 
 	public initialise(baseControl?: Partial<GAControlGenome>): void {
-		const ctrl = deepFreeze({
+		const ctrl = this._freezeControl(baseControl);
+		this._population = this._createInitialPopulation(ctrl);
+		this._resetState();
+	}
+
+	private _freezeControl(baseControl?: Partial<GAControlGenome>): DeepReadonly<GAControlGenome> {
+		return deepFreeze({
 			...createDefaultGenome("base").gaControl,
 			...baseControl,
 		} as GAControlGenome);
+	}
 
-		this._population = Array.from(
+	private _createInitialPopulation(ctrl: DeepReadonly<GAControlGenome>): DeepReadonly<LamarckGenome>[] {
+		return Array.from(
 			{ length: ctrl.populationSize },
 			(_unused, index) => {
-				const baseGenome = createDefaultGenome(
-					`g0_${index}`,
-					0
-				) as LamarckGenome;
+				const baseGenome = createDefaultGenome(`g0_${index}`, 0) as LamarckGenome;
 				return deepFreeze({
 					...baseGenome,
 					gaControl: ctrl,
@@ -81,7 +86,9 @@ export class GeneticAlgorithmRunner {
 				}) as DeepReadonly<LamarckGenome>;
 			}
 		);
+	}
 
+	private _resetState(): void {
 		this._generation = 0;
 		this._startTime = Date.now();
 		this._archive = new ParetoArchive();
@@ -93,41 +100,37 @@ export class GeneticAlgorithmRunner {
 		const rng = makePRNG(ctrl.mutationSeed + this._generation);
 
 		const { updatedPop, objectives, metas } = await this._evaluateFitness();
-		const { popWithMeta, popMeta, avgFit, avgEff } = this._buildParetoFronts({
-			updatedPop,
-			objectives,
-			metas,
-			rng,
-		});
+		const { popWithMeta, popMeta, avgFit, avgEff } = this._buildParetoFronts({ updatedPop, objectives, metas, rng });
 
 		this._updateArchive(popWithMeta, objectives, popMeta);
-
-		const newCtrl = adaptGAControl(
-			ctrl,
-			this._stagnationTracker.efficiencyHistory,
-			this._stagnationTracker.stagnation
-		);
+		const newCtrl = this._adaptControl(ctrl);
 
 		this._stagnationTracker.track(popWithMeta, metas, avgEff);
 
 		const ranked = this._sortPopulation(popWithMeta, popMeta);
-
 		const elites = selectElites(ranked, newCtrl);
-		const offspring = createOffspring({
-			ranked,
-			newCtrl,
-			ctrl,
-			rng,
-			generation: this._generation,
-		});
-
-		this._population = [...elites, ...offspring].slice(
-			0,
-			newCtrl.populationSize
-		);
-		this._generation++;
+		this._population = this._buildNextPopulation(elites, ranked, newCtrl, ctrl, rng);
 
 		return this._buildContext(newCtrl, avgFit, avgEff);
+	}
+
+	private _adaptControl(ctrl: DeepReadonly<GAControlGenome>): Readonly<GAControlGenome> {
+		return adaptGAControl(
+			ctrl,
+			this._stagnationTracker.efficiencyHistory,
+			this._stagnationTracker.stagnation
+		);
+	}
+
+	private _buildNextPopulation(
+		elites: DeepReadonly<LamarckGenome>[],
+		ranked: Genome[],
+		newCtrl: Readonly<GAControlGenome>,
+		ctrl: DeepReadonly<GAControlGenome>,
+		rng: () => number
+	): DeepReadonly<LamarckGenome>[] {
+		const offspring = createOffspring({ ranked, newCtrl, ctrl, rng, generation: this._generation });
+		return [...elites, ...offspring].slice(0, newCtrl.populationSize);
 	}
 
 	private _buildContext(
