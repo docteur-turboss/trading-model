@@ -8,7 +8,21 @@ import type {
 } from "../contracts/worker-protocol.types";
 import type { WorkerRegistry } from "./worker-registry";
 
-export class WorkerProtocol {
+export interface IWorkerProtocol {
+	sendToWorker(workerId: string, message: SchedulerOutgoingMessage): void;
+	sendDrain(workerId: string): void;
+	broadcastDrain(): void;
+	close(): void;
+}
+
+export class NullWorkerProtocol implements IWorkerProtocol {
+	sendToWorker(): void {}
+	sendDrain(): void {}
+	broadcastDrain(): void {}
+	close(): void {}
+}
+
+export class WorkerProtocol implements IWorkerProtocol {
 	private readonly _wss: WebSocketServer;
 	private readonly _connections: Map<string, WebSocket> = new Map();
 	private readonly _handlers: Partial<
