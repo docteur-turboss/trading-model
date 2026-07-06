@@ -131,7 +131,7 @@ export class VaultTransitClient {
 	private _getHeaders(): Record<string, string> {
 		const headers: Record<string, string> = { "X-Vault-Token": this._token };
 		if (this._namespace) {
-			headers["X-Vault-Namespace"] = this._namespace;
+			headers[HTTP_HEADERS.X_VAULT_NAMESPACE] = this._namespace;
 		}
 		return headers;
 	}

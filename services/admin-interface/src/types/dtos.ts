@@ -24,7 +24,7 @@ export type {
 	JobEntry,
 	JobStats,
 	JobTimelineEntry,
-	ServiceInstance,
+	AdminServiceInstance,
 	ServiceRegistryEntry,
 	Ticker,
 	TopologyLink,

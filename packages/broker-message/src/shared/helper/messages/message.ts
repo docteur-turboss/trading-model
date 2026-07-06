@@ -29,12 +29,12 @@ import {
  * Represents an metadata in a message
  */
 export class MessageMetadata {
-	public topic!: Topic;
+	public topic?: Topic;
 	public routing?: RoutingType;
 	public delivery?: DeliveryType;
 	public security?: SecurityType;
-	public eventType!: string;
-	public publisher!: ServiceIdentity;
+	public eventType?: string;
+	public publisher?: ServiceIdentity;
 	public schemaVersion = "1.0.0";
 	private _causationId?: CorrelationId;
 	private _correlationId?: CorrelationId;
@@ -209,10 +209,10 @@ export class MessageMetadata {
 
 	private _buildMetadata(): MetadataType {
 		return {
-			eventType: this.eventType,
-			publisher: this.publisher,
+			eventType: this.eventType!,
+			publisher: this.publisher!,
 			schemaVersion: this.schemaVersion,
-			topic: this.topic,
+			topic: this.topic!,
 			causationId: this._causationId,
 			correlationId: this._correlationId,
 			delivery: this.delivery,

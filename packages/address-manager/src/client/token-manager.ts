@@ -94,7 +94,7 @@ export class TokenManager {
 	private _buildAuthHeaders(): Record<string, string> {
 		const headers: Record<string, string> = {};
 		if (this._token) {
-			headers["x-instance-token"] = this._token;
+			headers[HTTP_HEADERS.X_INSTANCE_TOKEN] = this._token;
 		}
 		return headers;
 	}
