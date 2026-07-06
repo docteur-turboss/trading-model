@@ -28,22 +28,25 @@ export class OrphanDetector {
 		if (this._intervalHandle) {
 			return;
 		}
-
-		this._intervalHandle = setInterval(async () => {
-			try {
-				await this._detectOrphans();
-			} catch (err) {
-				logger.error("Orphan detection cycle failed", {
-					context: {
-						error: err instanceof Error ? err.message : String(err),
-					},
-				});
-			}
-		}, this._intervalMs);
-
+		this._intervalHandle = setInterval(
+			() => this._runDetection(),
+			this._intervalMs,
+		);
 		logger.info("Orphan detector started", {
 			context: { intervalMs: this._intervalMs },
 		});
+	}
+
+	private async _runDetection(): Promise<void> {
+		try {
+			await this._detectOrphans();
+		} catch (err) {
+			logger.error("Orphan detection cycle failed", {
+				context: {
+					error: err instanceof Error ? err.message : String(err),
+				},
+			});
+		}
 	}
 
 	stop(): void {

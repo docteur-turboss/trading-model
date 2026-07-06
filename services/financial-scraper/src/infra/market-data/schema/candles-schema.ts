@@ -44,6 +44,23 @@ const SELECT = {
 	closeTimestamp: T_MARKET_CANDLES.closeTimestamp,
 };
 
+function _toCandleRow(item: CandleData): Record<string, unknown> {
+	return {
+		low: item.low,
+		open: item.open,
+		high: item.high,
+		close: item.close,
+		symbol: item.symbol,
+		market: item.market,
+		source: item.source,
+		volume: item.volume,
+		interval: item.interval,
+		trades: item.trades ?? null,
+		timestamp: new Date(item.timestamp),
+		closeTimestamp: new Date(item.closeTimestamp),
+	};
+}
+
 /** Insert candle records into the market_candles table. */
 export const insertCandles = async (data: CandleData[]): Promise<void> => {
 	if (!data.length) {
@@ -52,22 +69,7 @@ export const insertCandles = async (data: CandleData[]): Promise<void> => {
 
 	await new DBConnection()
 		.insertInto(T_MARKET_CANDLES)
-		.values(
-			data.map((item) => ({
-				low: item.low,
-				open: item.open,
-				high: item.high,
-				close: item.close,
-				symbol: item.symbol,
-				market: item.market,
-				source: item.source,
-				volume: item.volume,
-				interval: item.interval,
-				trades: item.trades ?? null,
-				timestamp: new Date(item.timestamp),
-				closeTimestamp: new Date(item.closeTimestamp),
-			}))
-		)
+		.values(data.map(_toCandleRow))
 		.executeInsert();
 };
 

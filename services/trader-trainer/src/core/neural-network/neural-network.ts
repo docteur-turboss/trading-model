@@ -54,28 +54,68 @@ function mergeConfig(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig> {
 	};
 }
 
+function _initializeWeights(
+	fanIn: number,
+	fanOut: number,
+	config: Required<NeuralNetworkConfig>
+): Float32Array {
+	const weights = new Float32Array(fanIn * fanOut);
+	for (let i = 0; i < weights.length; i++) {
+		weights[i] = INITIALIZERS[config.initialisationType].initialize(fanIn, fanOut);
+	}
+	return weights;
+}
+
+function _initializeBiases(
+	fanIn: number,
+	fanOut: number,
+	config: Required<NeuralNetworkConfig>
+): Float32Array {
+	const bias = new Float32Array(fanOut);
+	for (let i = 0; i < bias.length; i++) {
+		bias[i] = INITIALIZERS[config.biasInitialisationType].initialize(fanIn, fanOut);
+	}
+	return bias;
+}
+
 function initLayerParams(
 	fanIn: number,
 	fanOut: number,
 	config: Required<NeuralNetworkConfig>
 ): { weights: Float32Array; bias: Float32Array } {
-	const bias = new Float32Array(fanOut);
-	const weights = new Float32Array(fanIn * fanOut);
+	return {
+		weights: _initializeWeights(fanIn, fanOut, config),
+		bias: _initializeBiases(fanIn, fanOut, config),
+	};
+}
 
-	for (let i = 0; i < weights.length; i++) {
-		weights[i] = INITIALIZERS[config.initialisationType].initialize(
-			fanIn,
-			fanOut
-		);
-	}
-	for (let i = 0; i < bias.length; i++) {
-		bias[i] = INITIALIZERS[config.biasInitialisationType].initialize(
-			fanIn,
-			fanOut
-		);
-	}
+function _buildLayerMemory(
+	fanIn: number,
+	fanOut: number,
+	config: Required<NeuralNetworkConfig>,
+	opt: import("./optimizer").Optimizer
+): LayerMemory {
+	return {
+		fanIn,
+		fanOut,
+		weights: _initializeWeights(fanIn, fanOut, config),
+		bias: _initializeBiases(fanIn, fanOut, config),
+		output: new Float32Array(fanOut),
+		preActivation: new Float32Array(fanOut),
+		delta: new Float32Array(fanOut),
+		gradW: new Float32Array(fanIn * fanOut),
+		gradB: new Float32Array(fanOut),
+		accumGradW: new Float32Array(fanIn * fanOut),
+		accumGradB: new Float32Array(fanOut),
+		wState: opt.initState(fanIn * fanOut),
+		bState: opt.initState(fanOut),
+	};
+}
 
-	return { bias, weights };
+function _validateLayerSize(sizes: number[], i: number): void {
+	if (sizes[i] <= 0 || sizes[i + 1] <= 0) {
+		throw new AgentError("Layer sizes must be positive integers");
+	}
 }
 
 function createLayerMemories(
@@ -84,54 +124,28 @@ function createLayerMemories(
 ): LayerMemory[] {
 	const sizes = config.neuronsByLayer;
 	const layers: LayerMemory[] = [];
+	const opt = OPTIMIZERS[config.optimizerType];
 
 	for (let i = 0; i < sizes.length - 1; i++) {
-		if (sizes[i] <= 0 || sizes[i + 1] <= 0) {
-			throw new AgentError(
-				"Layer sizes must be positive integers",
-			);
-		}
-
-		const fanIn = sizes[i];
-		const fanOut = sizes[i + 1];
-		const { bias, weights } = initLayerParams(fanIn, fanOut, config);
-		const opt = OPTIMIZERS[config.optimizerType];
-
-		layers.push({
-			fanIn,
-			fanOut,
-			weights,
-			bias,
-			output: new Float32Array(fanOut),
-			preActivation: new Float32Array(fanOut),
-			delta: new Float32Array(fanOut),
-			gradW: new Float32Array(fanIn * fanOut),
-			gradB: new Float32Array(fanOut),
-			accumGradW: new Float32Array(fanIn * fanOut),
-			accumGradB: new Float32Array(fanOut),
-			wState: opt.initState(fanIn * fanOut),
-			bState: opt.initState(fanOut),
-		});
+		_validateLayerSize(sizes, i);
+		layers.push(_buildLayerMemory(sizes[i], sizes[i + 1], config, opt));
 	}
 
 	return layers;
 }
 
-function validateActivationLoss(
-	config: Required<NeuralNetworkConfig>,
-	layerCount: number
-): void {
-	const lastActivation =
-		config.activationType[config.activationType.length - 1];
-
+function _warnSigmoidLoss(config: Required<NeuralNetworkConfig>): void {
 	if (
-		lastActivation === "sigmoid" &&
+		config.activationType[config.activationType.length - 1] === "sigmoid" &&
 		config.lossFunctionType !== "binary-cross-entropy"
 	) {
 		logger.warn("Sigmoid output is usually paired with binary-cross-entropy");
 	}
+}
+
+function _validateSoftmaxLoss(config: Required<NeuralNetworkConfig>): void {
 	if (
-		lastActivation === "softmax" &&
+		config.activationType[config.activationType.length - 1] === "softmax" &&
 		config.lossFunctionType !== "cross-entropy" &&
 		config.lossFunctionType !== "binary-cross-entropy"
 	) {
@@ -139,11 +153,23 @@ function validateActivationLoss(
 			`Softmax activation requires "cross-entropy" or "binary-cross-entropy" loss`,
 		);
 	}
+}
+
+function _validateActivationCount(config: Required<NeuralNetworkConfig>, layerCount: number): void {
 	if (config.activationType.length !== layerCount) {
 		throw new AgentError(
 			`ActivationType must be the same length of the layers. Expected : ${layerCount}, got ${config.activationType.length}`,
 		);
 	}
+}
+
+function validateActivationLoss(
+	config: Required<NeuralNetworkConfig>,
+	layerCount: number
+): void {
+	_warnSigmoidLoss(config);
+	_validateSoftmaxLoss(config);
+	_validateActivationCount(config, layerCount);
 }
 
 export class NeuralNetwork {

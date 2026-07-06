@@ -40,6 +40,21 @@ const SELECT = {
 	closeTimestamp: T_MARKET_TICKER.closeTimestamp,
 };
 
+function _toTickerRow(item: TickerData): Record<string, unknown> {
+	return {
+		low: item.low,
+		high: item.high,
+		last: item.last,
+		open: item.open,
+		market: item.market,
+		source: item.source,
+		symbol: item.symbol,
+		volume: item.volume,
+		timestamp: new Date(item.timestamp),
+		closeTimestamp: new Date(item.closeTimestamp),
+	};
+}
+
 /** Insert 24-hour ticker records into the market_tickers table. */
 export const insertTicker = async (data: TickerData[]): Promise<void> => {
 	if (!data.length) {
@@ -48,20 +63,7 @@ export const insertTicker = async (data: TickerData[]): Promise<void> => {
 
 	await new DBConnection()
 		.insertInto(T_MARKET_TICKER)
-		.values(
-			data.map((item) => ({
-				low: item.low,
-				high: item.high,
-				last: item.last,
-				open: item.open,
-				market: item.market,
-				source: item.source,
-				symbol: item.symbol,
-				volume: item.volume,
-				timestamp: new Date(item.timestamp),
-				closeTimestamp: new Date(item.closeTimestamp),
-			}))
-		)
+		.values(data.map(_toTickerRow))
 		.executeInsert();
 };
 

@@ -17,47 +17,38 @@ import {
 
 type ErrorInput = Error | ResponseObject;
 
-function mapErrorToResponse(err: Error): ResponseObject {
-	const response = new ClassResponseExceptions(err.message);
-
-	if (err instanceof ServiceNotFoundError) {
-		return response.notFound();
-	}
-	if (err instanceof ServiceUnreachableError) {
-		return response.gone();
-	}
-	if (err instanceof AuthenticationError) {
-		return response.invalidToken();
-	}
-	if (
+function _isServiceError(err: Error): boolean {
+	return (
 		err instanceof AddressManagerError ||
 		err instanceof MessageManagerError ||
 		err instanceof DeadLetterError ||
 		err instanceof AgentError
-	) {
-		return response.serviceUnavailable();
-	}
+	);
+}
 
+function mapErrorToResponse(err: Error): ResponseObject {
+	const response = new ClassResponseExceptions(err.message);
+	if (err instanceof ServiceNotFoundError) return response.notFound();
+	if (err instanceof ServiceUnreachableError) return response.gone();
+	if (err instanceof AuthenticationError) return response.invalidToken();
+	if (_isServiceError(err)) return response.serviceUnavailable();
 	return response.unknownError();
 }
 
-function logServerError(
-	err: ErrorInput,
-	req: Request,
-	response: ResponseObject
-): void {
-	if (response.status >= 500) {
-		const originalError = err instanceof Error ? err : undefined;
-		logger.error("Server error", {
-			context: {
-				message: originalError?.message,
-				stack: originalError?.stack,
-				url: req.originalUrl,
-				method: req.method,
-				ip: req.ip,
-			},
-		});
+function logServerError(err: ErrorInput, req: Request, response: ResponseObject): void {
+	if (response.status < 500) {
+		return;
 	}
+	const originalError = err instanceof Error ? err : undefined;
+	logger.error("Server error", {
+		context: {
+			message: originalError?.message,
+			stack: originalError?.stack,
+			url: req.originalUrl,
+			method: req.method,
+			ip: req.ip,
+		},
+	});
 }
 
 export const ResponseProtocol = (

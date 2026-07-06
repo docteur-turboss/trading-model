@@ -83,14 +83,6 @@ export class WssPublisher {
 			return true;
 		}
 	}
-}
-
-function extractDedupId(msg: IncomingWssMessage): string | undefined {
-	const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
-	return (
-		wssMetadata?.delivery as Record<string, unknown> | undefined
-	)?.deduplicationId as string | undefined;
-}
 
 	private _checkPublishBackpressure(ws: WebSocket): boolean {
 		const bpRatio = this._dispatcher.getBackpressureRatio();
@@ -111,27 +103,26 @@ function extractDedupId(msg: IncomingWssMessage): string | undefined {
 		ws: WebSocket
 	): Promise<void> {
 		try {
-			const traceparent = msg.traceparent as string | undefined;
-			const metadata = msg.metadata as Omit<
-				MessageMetadata,
-				"messageId" | "emittedAt"
-			>;
-			let publishPromise: Promise<string>;
-			if (traceparent) {
-				const carrier = { traceparent };
-				const extractedCtx = propagation.extract(context.active(), carrier);
-				publishPromise = context.with(extractedCtx, () =>
-					this._dispatcher.publish(msg.payload, metadata)
-				);
-			} else {
-				publishPromise = this._dispatcher.publish(msg.payload, metadata);
-			}
+			const publishPromise = this._buildPublishPromise(msg);
 			const messageId = await publishPromise;
 			ws.send(JSON.stringify({ type: "published", messageId }));
 		} catch (err) {
 			logger.warn("WSS publish error", { context: { error: (err as Error).message } });
 			ws.send(JSON.stringify({ type: "error", message: "Publish failed" }));
 		}
+	}
+
+	private _buildPublishPromise(msg: IncomingWssMessage): Promise<string> {
+		const traceparent = msg.traceparent as string | undefined;
+		const metadata = msg.metadata as Omit<MessageMetadata, "messageId" | "emittedAt">;
+		if (traceparent) {
+			const carrier = { traceparent };
+			const extractedCtx = propagation.extract(context.active(), carrier);
+			return context.with(extractedCtx, () =>
+				this._dispatcher.publish(msg.payload, metadata)
+			);
+		}
+		return this._dispatcher.publish(msg.payload, metadata);
 	}
 
 	clearDedupCache(): void {
@@ -141,4 +132,11 @@ function extractDedupId(msg: IncomingWssMessage): string | undefined {
 	shutdown(): void {
 		this._processedWssDeduplicationIds.clear();
 	}
+}
+
+function extractDedupId(msg: IncomingWssMessage): string | undefined {
+	const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
+	return (
+		wssMetadata?.delivery as Record<string, unknown> | undefined
+	)?.deduplicationId as string | undefined;
 }
