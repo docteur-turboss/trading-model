@@ -4,6 +4,7 @@ import {
 	CandleInterval,
 	MarketType,
 	type OrderBookData,
+	type OrderBookLevel,
 	SourceType,
 	type TradeData,
 	TradeSide,
@@ -23,8 +24,8 @@ import {
 } from "../../src/config/event-utils";
 
 function makeOb(
-	bids: Array<{ price: number; quantity: number }>,
-	asks: Array<{ price: number; quantity: number }>
+	bids: Array<OrderBookLevel>,
+	asks: Array<OrderBookLevel>
 ): OrderBookData {
 	return {
 		bids: new Set(bids.map((b) => ({ price: Price.of(b.price), quantity: Volume.of(b.quantity) }))),
@@ -70,8 +71,8 @@ describe("event-utils", () => {
 		it("should compute average bid price", () => {
 			const ob = makeOb(
 				[
-					{ price: 100, quantity: 1 },
-					{ price: 200, quantity: 1 },
+					{ price: Price.of(100), quantity: Volume.of(1) },
+					{ price: Price.of(200), quantity: Volume.of(1) },
 				],
 				[]
 			);
@@ -89,8 +90,8 @@ describe("event-utils", () => {
 			const ob = makeOb(
 				[],
 				[
-					{ price: 101, quantity: 1 },
-					{ price: 201, quantity: 1 },
+					{ price: Price.of(101), quantity: Volume.of(1) },
+					{ price: Price.of(201), quantity: Volume.of(1) },
 				]
 			);
 			expect(getAvgAsk(ob)).toBe(151);

@@ -703,7 +703,7 @@ describe("HttpClient", () => {
 			jest.useRealTimers();
 		});
 
-		it("should transition to half-open after cooldown and return false from isServiceCircuitOpen", async () => {
+		it("should transition to half-open after cooldown and return true from isServiceCircuitOpen", async () => {
 			for (let i = 0; i < 5; i++) {
 				const promise = client.get("https://cb-halfopen.example.com/api", {
 					retryCount: 0,
@@ -715,7 +715,7 @@ describe("HttpClient", () => {
 
 			jest.advanceTimersByTime(30_001);
 
-			expect(isServiceCircuitOpen("halfopen-service")).toBe(false);
+			expect(isServiceCircuitOpen("halfopen-service")).toBe(true);
 		});
 
 		it("should return true for half-open state when no request resets it", async () => {

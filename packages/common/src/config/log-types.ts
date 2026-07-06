@@ -7,12 +7,19 @@ export const LogLevel = {
 	Error: "error" as LogLevel,
 };
 
-export const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+const LOG_PRIORITY_MAP: Record<LogLevel, number> = {
 	debug: 0,
 	info: 1,
 	warn: 2,
 	error: 3,
 };
+
+export function isLogLevelAtLeast(
+	level: LogLevel,
+	threshold: LogLevel
+): boolean {
+	return LOG_PRIORITY_MAP[level] >= LOG_PRIORITY_MAP[threshold];
+}
 
 export interface LogOptions {
 	context?: Record<string, unknown>;
