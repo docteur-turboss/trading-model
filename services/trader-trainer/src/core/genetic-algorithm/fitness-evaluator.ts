@@ -10,7 +10,7 @@ import { ParetoArchive } from "./pareto-engine";
 import type { DeepReadonly } from "./shared-types";
 import { StagnationTracker } from "./stagnation-tracker";
 import type { BackendFactory } from "./rl-backend";
-import type { WindowSet } from "./generation-processor";
+import type { WindowSet } from "./generation-types";
 
 export class FitnessEvaluator {
 	_archive = new ParetoArchive();

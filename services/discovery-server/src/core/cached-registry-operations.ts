@@ -1,23 +1,16 @@
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
-import type {
-	ServiceEndpoint,
-	ServiceIdentity,
-} from "@trading-model/common/domain/service-identity";
-import type { TokenValidation } from "@trading-model/common/domain/token-validation";
-import {
-	toInstanceId,
-	type ServiceId,
-} from "@trading-model/common/domain/primitives";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { BackendPingManager } from "./backend-ping-manager";
 import { CacheManager } from "./cache-manager";
 import { CacheOrchestrator } from "./cache-orchestrator";
 import { PubSubInvalidator } from "./pub-sub-invalidator";
 import { RedisHealthMonitor } from "./redis-health-monitor";
+import { CachedRegistryBackendProxy } from "./cached-registry-backend-proxy";
+import { CachedRegistryLifecycle } from "./cached-registry-lifecycle";
 
 export interface CachedRegistryBackendOptions {
 	backend: RegistryBackend;
@@ -29,12 +22,14 @@ export interface CachedRegistryBackendOptions {
 }
 
 export class CachedRegistryOperations implements RegistryBackend {
-	private _backend: RegistryBackend;
-	private _cache: CacheManager;
-	private _pubSub: PubSubInvalidator;
+	private readonly _backend: RegistryBackend;
+	private readonly _cache: CacheManager;
+	private readonly _pubSub: PubSubInvalidator;
 	private readonly _orchestrator: CacheOrchestrator;
 	private readonly _healthMonitor: RedisHealthMonitor;
 	private readonly _pingManager: BackendPingManager;
+	private readonly _proxy: CachedRegistryBackendProxy;
+	private readonly _lifecycle: CachedRegistryLifecycle;
 
 	constructor(options: CachedRegistryBackendOptions) {
 		this._backend = options.backend;
@@ -54,7 +49,7 @@ export class CachedRegistryOperations implements RegistryBackend {
 			shouldRun: () =>
 				!!(options.redisUrlForPubSub || this._pingManager.isRedisBackend()),
 			callbacks: {
-				ping: () => this.ping(),
+				ping: () => this._lifecycle.ping(),
 				onHealthLost: () => {},
 				onHealthRestored: () => {
 					this._cache.clear();
@@ -72,6 +67,14 @@ export class CachedRegistryOperations implements RegistryBackend {
 			this._backend,
 			this._cache,
 			this._healthMonitor,
+		);
+		this._proxy = new CachedRegistryBackendProxy(this._backend);
+		this._lifecycle = new CachedRegistryLifecycle(
+			this._healthMonitor,
+			this._pingManager,
+			this._pubSub,
+			this._cache,
+			this._backend,
 		);
 	}
 
@@ -92,17 +95,6 @@ export class CachedRegistryOperations implements RegistryBackend {
 			);
 		}
 		return result;
-	}
-
-	async updateToken(instanceId: string): Promise<string> {
-		return await this._backend.updateToken(toInstanceId(instanceId));
-	}
-
-	async getInstanceCount(serviceName: string): Promise<number> {
-		const instances = await this._backend.getInstances(
-			serviceName as ServiceInstanceName,
-		);
-		return instances.length;
 	}
 
 	async getInstances(
@@ -126,71 +118,59 @@ export class CachedRegistryOperations implements RegistryBackend {
 		return result;
 	}
 
+	async updateToken(instanceId: string): Promise<string> {
+		return this._proxy.updateToken(instanceId);
+	}
+
+	async getInstanceCount(serviceName: string): Promise<number> {
+		return this._proxy.getInstanceCount(serviceName);
+	}
+
 	async getServiceVersion(serviceName: string): Promise<number> {
-		const instances = await this._backend.getInstances(
-			serviceName as ServiceInstanceName,
-		);
-		return instances.reduce((max, inst) => {
-			const major = Number.parseInt((inst.version ?? "").split(".")[0], 10);
-			return Number.isNaN(major) ? max : Math.max(max, major);
-		}, 0);
+		return this._proxy.getServiceVersion(serviceName);
 	}
 
 	async listServiceNames(): Promise<string[]> {
-		return await this._backend.listServiceNames();
+		return this._proxy.listServiceNames();
 	}
 
 	async dump(): Promise<Record<string, ServiceInstance[]>> {
-		return await this._backend.dump();
+		return this._proxy.dump();
 	}
 
-	async validInstanceToken(
-		validation: TokenValidation,
-	): Promise<boolean> {
-		return await this._backend.validInstanceToken(validation);
+	async validInstanceToken(validation: import("@trading-model/common/domain/token-validation").TokenValidation): Promise<boolean> {
+		return this._proxy.validInstanceToken(validation);
 	}
 
 	generateInstanceToken(instanceId: string): string {
-		return this._backend.generateInstanceToken(toInstanceId(instanceId));
+		return this._proxy.generateInstanceToken(instanceId);
 	}
 
 	verifyInstanceName(serviceName: string): boolean {
-		return this._backend.verifyInstanceName(
-			serviceName as ServiceInstanceName,
-		);
+		return this._proxy.verifyInstanceName(serviceName);
 	}
 
-	generateInstanceId(endpoint: ServiceEndpoint): ServiceId {
-		return this._backend.generateInstanceId(endpoint);
+	generateInstanceId(endpoint: import("@trading-model/common/domain/service-identity").ServiceEndpoint): import("@trading-model/common/domain/primitives").ServiceId {
+		return this._proxy.generateInstanceId(endpoint);
 	}
 
 	async start(): Promise<void> {
-		this._backend.start();
-
-		await this._pubSub.start(this._cache);
-
-		this._healthMonitor.start();
+		await this._lifecycle.start();
 	}
 
 	async ping(): Promise<boolean> {
-		if (this._healthMonitor.fallbackActive) return false;
-		await this._pingManager.pingPubSub();
-		return this._pingManager.pingBackend();
+		return this._lifecycle.ping();
 	}
 
 	markUnhealthy(): void {
-		this._healthMonitor.markUnhealthy();
+		this._lifecycle.markUnhealthy();
 	}
 
 	setFallbackBackend(fallback: RegistryBackend): void {
-		this._healthMonitor.setFallbackBackend(fallback);
-		this._cache.clear();
+		this._lifecycle.setFallbackBackend(fallback);
 	}
 
 	stop(): void {
-		this._healthMonitor.stop();
-		this._cache.clear();
-		this._pubSub.stop();
-		this._healthMonitor.stopBackend();
+		this._lifecycle.stop();
 	}
 }

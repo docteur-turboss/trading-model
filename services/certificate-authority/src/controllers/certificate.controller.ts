@@ -2,7 +2,7 @@ import { logger } from "@trading-model/common/config/logger";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { Request, Response } from "express";
 
-import { CONTAINER } from "../app/container";
+import { CONTAINER } from "../app";
 
 function _validateSignRequest(serviceId: unknown, csr: unknown, res: Response): boolean {
 	if (serviceId && csr) {

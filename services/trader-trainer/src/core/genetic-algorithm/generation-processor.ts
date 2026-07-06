@@ -2,11 +2,8 @@ import { adaptGAControl } from "./adaptive-control-system";
 import { createDefaultGenome } from "./factory";
 import type {
 	GAControlGenome,
-	GenomeFitnessMeta,
 	LamarckGenome,
-	MarketStep,
 } from "./genome-types";
-import type { ObjectiveVector } from "./nsga2";
 import { selectElites } from "./offspring-factory";
 import { buildParetoFronts, sortPopulation } from "./pareto-processor";
 import {
@@ -14,37 +11,11 @@ import {
 	createInitialPopulation,
 } from "./population-builder";
 import { makePRNG } from "./prng";
-import type { BackendFactory } from "./rl-backend";
-import { type DeepReadonly, deepFreeze } from "./shared-types";
+import { deepFreeze } from "./shared-types";
 import { FitnessEvaluator } from "./fitness-evaluator";
+import type { GARunnerConfig, GenerationContext } from "./generation-types";
 
-export interface WindowSet {
-	id: string;
-	train: MarketStep[];
-	validation: MarketStep[];
-}
-
-export interface GARunnerConfig {
-	windowSets: WindowSet[];
-	backendFactory: BackendFactory;
-	evalConcurrency?: number;
-	onGeneration?: (ctx: GenerationContext) => void;
-	onArchiveUpdate?: (archive: DeepReadonly<LamarckGenome>[]) => void;
-	initialControl?: Partial<GAControlGenome>;
-}
-
-export interface GenerationContext {
-	generation: number;
-	population: DeepReadonly<LamarckGenome>[];
-	archive: DeepReadonly<LamarckGenome>[];
-	bestFitness: number;
-	bestGenome: DeepReadonly<LamarckGenome>;
-	avgFitness: number;
-	efficiencyScore: number;
-	elapsedMs: number;
-	stagnation: number;
-	gaControl: DeepReadonly<GAControlGenome>;
-}
+export type { GARunnerConfig, GenerationContext, WindowSet } from "./generation-types";
 
 export class GenerationProcessor {
 	private _population: DeepReadonly<LamarckGenome>[] = [];

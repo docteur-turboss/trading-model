@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Request, Response } from "express";
 
-import { CONTAINER } from "../app/container";
+import { CONTAINER } from "../app";
 
 export function ping(_req: Request, res: Response): void {
 	res.status(200).json({ status: "ok" });
