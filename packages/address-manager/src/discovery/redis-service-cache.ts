@@ -10,7 +10,7 @@ import { RedisCircuitStateStore } from "./redis-circuit-state-store";
 export interface RedisServiceCacheOptions {
 	password?: string;
 	tls?: Record<string, unknown>;
-	sentinels?: Array<{ host: string; port: number }>;
+	sentinels?: Array<HostPort>;
 	enableTLSForSentinelMode?: boolean;
 }
 

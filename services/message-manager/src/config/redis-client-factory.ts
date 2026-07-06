@@ -1,3 +1,4 @@
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 
 import { ENV } from "./env";

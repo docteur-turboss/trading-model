@@ -9,29 +9,16 @@ import {
 import {
 	FEATURE_DIM,
 	type SymbolState,
-	type TradingSymbol,
 	toSymbol,
 } from "./market-data-types";
 
-export interface FeatureBuilderContext {
-	state: SymbolState;
-	idx: number;
-	priceSnapshot: Record<TradingSymbol, number>;
-}
+import type {
+	CandleFeatureContext,
+	FeatureBuilderContext,
+	PriceSnapshotFeatureContext,
+} from "./feature-context";
 
-export interface CandleFeatureContext {
-	features: Float32Array;
-	state: SymbolState;
-	idx: number;
-	prev?: CandleData;
-}
-
-export interface PriceSnapshotContext {
-	features: Float32Array;
-	state: SymbolState;
-	idx: number;
-	priceSnapshot: Record<TradingSymbol, number>;
-}
+import type { OrderBookAverages } from "./order-book-averages";
 
 function _initFeatures(state: SymbolState, idx: number): {
 	features: Float32Array;
@@ -172,7 +159,7 @@ function _buildTickerFeatures(
 }
 
 function _buildPriceSnapshotFeature(
-	ctx: PriceSnapshotContext
+	ctx: PriceSnapshotFeatureContext
 ): void {
 	const { features, state, idx, priceSnapshot } = ctx;
 	const cur = state.candles[idx];
@@ -196,12 +183,7 @@ function _buildSlidingWindowFeatures(
 	}
 }
 
-function _computeOrderBookAverages(ob: import("@trading-model/common/config/event.types").OrderBookData): {
-	avgBid: number;
-	avgAsk: number;
-	bidQty: number;
-	askQty: number;
-} {
+function _computeOrderBookAverages(ob: import("@trading-model/common/config/event.types").OrderBookData): OrderBookAverages {
 	return {
 		avgBid: getAvgBid(ob),
 		avgAsk: getAvgAsk(ob),
