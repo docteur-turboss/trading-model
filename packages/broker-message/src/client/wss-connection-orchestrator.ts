@@ -1,17 +1,19 @@
-import { logger } from "@trading-model/common/config/logger";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import { WssReconnector } from "./wss-reconnector";
 import { PendingPublishQueue } from "./pending-publish-queue";
 import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
 import { TopicSubscriptionManager } from "./topic-subscription-manager";
+import { WsConnectionEventHandler } from "./ws-connection-event-handler";
 
 export class WssConnectionOrchestrator {
 	private readonly _lifecycle: WssConnectionLifecycle;
 	private readonly _reconnector = new WssReconnector();
 	private readonly _topicManager = new TopicSubscriptionManager();
-	private readonly _queue: PendingPublishQueue;
+	private readonly _eventHandler: WsConnectionEventHandler;
+	private readonly _onConnect: () => void;
 
 	constructor(
 		config: {
@@ -21,22 +23,26 @@ export class WssConnectionOrchestrator {
 			instanceId: string;
 		},
 		onMessage: (raw: string) => void,
-		queue: PendingPublishQueue
+		private readonly _queue: PendingPublishQueue
 	) {
-		this._queue = queue;
 		this._lifecycle = new WssConnectionLifecycle(config, {
-			onOpen: () => this._onWsOpen(),
+			onOpen: () => this._eventHandler.onWsOpen(
+				(data) => this._lifecycle.send(data),
+				this._topicManager.topics,
+			),
 			onMessage: (raw: string) => onMessage(raw),
-			onClose: (code: number, reason: Buffer) => this._onWsClose(code, reason),
-			onError: (err: Error) => this._onWsError(err),
+			onClose: () => this._eventHandler.onWsClose(),
+			onError: (err: Error) => this._eventHandler.onWsError(err),
 		});
-
+		this._eventHandler = new WsConnectionEventHandler(
+			this._lifecycle,
+			this._reconnector,
+			this._queue,
+		);
 		this._onConnect = () => {
 			this._lifecycle.connect();
 		};
 	}
-
-	private readonly _onConnect: () => void;
 
 	get builtUrl(): string {
 		return this._lifecycle.builtUrl;
@@ -59,40 +65,8 @@ export class WssConnectionOrchestrator {
 			logger.warn("WSS connection failed", {
 				error: normalizeError(err as Error),
 			});
-			this._scheduleReconnect();
+			this._eventHandler.scheduleReconnect(() => this._onConnect());
 		}
-	}
-
-	private _onWsOpen(): void {
-		this._reconnector.reset();
-		logger.info("WSS connected");
-
-		if (this._topicManager.topics.length > 0) {
-			this.send({
-				type: "subscribe",
-				topics: this._topicManager.topics,
-			});
-		}
-
-		this._flushPending();
-	}
-
-	private _onWsClose(code: number, reason: Buffer): void {
-		const reasonStr = reason?.toString() || "unknown";
-		logger.warn("WSS disconnected", { code, reason: reasonStr });
-		this._scheduleReconnect();
-	}
-
-	private _onWsError(err: Error): void {
-		logger.warn("WSS error", { error: err.message });
-		this._scheduleReconnect();
-	}
-
-	private _scheduleReconnect(): void {
-		this._reconnector.scheduleReconnect(
-			() => this._onConnect(),
-			() => this._queue.drainToHttp()
-		);
 	}
 
 	isConnected(): boolean {
@@ -105,10 +79,6 @@ export class WssConnectionOrchestrator {
 
 	disconnect(closeCode?: number, reason?: string): void {
 		this._lifecycle.disconnect(closeCode, reason);
-	}
-
-	private _flushPending(): void {
-		this._queue.flush((data) => this.send(data));
 	}
 
 	addTopics(topics: string[]): void {

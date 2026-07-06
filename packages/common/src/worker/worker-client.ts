@@ -1,18 +1,16 @@
-﻿import { EventEmitter } from "node:events";
-
-import WebSocket from "ws";
-
-import type {
+﻿import type {
 	SchedulerOutgoingMessage,
 	SchedulerWsJobAssignedMessage,
 	WorkerIncomingMessage,
 	WorkerWsHeartbeatMessage,
-	WorkerWsRegisterMessage,
 } from "../contracts/worker-protocol.types";
-import { toInstanceId, type IPAddress, type Port } from "../domain/primitives";
+import { TypedEventEmitter } from "./typed-event-emitter";
 import { WorkerHeartbeat } from "./worker-heartbeat";
 import { WorkerMessageRouter } from "./worker-message-router";
 import { WorkerReconnector } from "./worker-reconnector";
+import {
+	WorkerWsConnection,
+} from "./worker-ws-connection";
 
 export interface WorkerClientConfig {
 	workerId: string;
@@ -50,13 +48,13 @@ function normalizeConfig(
 }
 
 export class WorkerClient {
-	private _emitter = new EventEmitter();
+	private readonly _events = new TypedEventEmitter<WorkerClientEvents>();
 
 	on<Event extends keyof WorkerClientEvents>(
 		event: Event,
 		listener: (...args: WorkerClientEvents[Event]) => void,
 	): this {
-		this._emitter.on(event as string, listener as (...args: unknown[]) => void);
+		this._events.on(event, listener);
 		return this;
 	}
 
@@ -64,7 +62,7 @@ export class WorkerClient {
 		event: Event,
 		listener: (...args: WorkerClientEvents[Event]) => void,
 	): this {
-		this._emitter.off(event as string, listener as (...args: unknown[]) => void);
+		this._events.off(event, listener);
 		return this;
 	}
 
@@ -72,31 +70,36 @@ export class WorkerClient {
 		event: Event,
 		...args: WorkerClientEvents[Event]
 	): boolean {
-		return this._emitter.emit(event as string, ...args);
+		return this._events.emit(event, ...args);
 	}
 
-	private _ws: WebSocket | null = null;
 	private readonly _cfg: Required<WorkerClientConfig>;
+	private readonly _connection: WorkerWsConnection;
 	private readonly _reconnector: WorkerReconnector;
 	private readonly _heartbeat: WorkerHeartbeat;
 	private readonly _messageRouter: WorkerMessageRouter;
 
 	constructor(config: WorkerClientConfig) {
 		this._cfg = normalizeConfig(config);
+		this._connection = new WorkerWsConnection({
+			workerId: this._cfg.workerId,
+			serverUrl: this._cfg.serverUrl,
+			capabilities: this._cfg.capabilities,
+			maxConcurrency: this._cfg.maxConcurrency,
+		});
 		this._reconnector = new WorkerReconnector(
-			{
-				reconnectBaseDelayMs: this._cfg.reconnectBaseDelayMs,
-				reconnectMaxDelayMs: this._cfg.reconnectMaxDelayMs,
-			},
+			{ reconnectBaseDelayMs: this._cfg.reconnectBaseDelayMs, reconnectMaxDelayMs: this._cfg.reconnectMaxDelayMs },
 			() => this._doConnect(),
 			(info) => this.emit("reconnecting", info),
 		);
-		this._heartbeat = new WorkerHeartbeat(
-			this._cfg.workerId,
-			(msg: WorkerWsHeartbeatMessage) => this.send(msg),
-			this._cfg.heartbeatIntervalMs,
-		);
-		this._messageRouter = new WorkerMessageRouter(this._emitter);
+		this._heartbeat = new WorkerHeartbeat(this._cfg.workerId, (msg: WorkerWsHeartbeatMessage) => this.send(msg), this._cfg.heartbeatIntervalMs);
+		this._messageRouter = new WorkerMessageRouter(this._events.raw);
+		this._connection.onOpen = () => { this._heartbeat.start(); this.emit("connected"); };
+		this._connection.onClose = () => { this._heartbeat.stop(); this.emit("disconnected"); if (!this._reconnector.intentionalClose) { this._reconnector.scheduleReconnect(); } };
+		this._connection.onMessage = (data) => {
+			try { const message: Record<string, unknown> = JSON.parse(data.toString()); this._messageRouter.handle(message, (msg) => this.emit("unknown", msg)); } catch (err) { this.emit("error", new Error(`Invalid message from server: ${err}`)); }
+		};
+		this._connection.onError = (err) => { this.emit("error", err); };
 	}
 
 	async connect(): Promise<void> {
@@ -104,59 +107,9 @@ export class WorkerClient {
 		return await this._doConnect();
 	}
 
-	private _doConnect(): Promise<void> {
-		return new Promise((resolve, reject) => {
-			this._ws = new WebSocket(this._cfg.serverUrl);
-
-			this._ws.on("open", () => this._onOpen(resolve));
-			this._ws.on("message", (data: WebSocket.Data) => this._onMessage(data));
-			this._ws.on("close", () => this._onClose());
-			this._ws.on("error", (err) => this._onError(err, reject));
-		});
-	}
-
-	private _onOpen(resolve: () => void): void {
-		this._sendRegister();
-		this._heartbeat.start();
-		this.emit("connected");
-		resolve();
-	}
-
-	private _onMessage(data: WebSocket.Data): void {
-		try {
-			const message: Record<string, unknown> = JSON.parse(data.toString());
-			this._messageRouter.handle(message, (msg) => this.emit("unknown", msg));
-		} catch (err) {
-			this.emit("error", new Error(`Invalid message from server: ${err}`));
-		}
-	}
-
-	private _onClose(): void {
-		this._heartbeat.stop();
-		this._ws = null;
-		this.emit("disconnected");
-		if (!this._reconnector.intentionalClose) {
-			this._reconnector.scheduleReconnect();
-		}
-	}
-
-	private _onError(err: Error, reject: (reason: unknown) => void): void {
-		this.emit("error", err);
-		if (this._reconnector.reconnectAttempt === 0) {
-			reject(err);
-		}
-	}
-
-	private _sendRegister(): void {
-		const msg: WorkerWsRegisterMessage = {
-			type: "register",
-			workerId: toInstanceId(this._cfg.workerId),
-			address: "" as IPAddress,
-			port: 0 as Port,
-			capabilities: this._cfg.capabilities,
-			maxConcurrency: this._cfg.maxConcurrency,
-		};
-		this.send(msg);
+	private async _doConnect(): Promise<void> {
+		this._connection.rejectOnError = this._reconnector.reconnectAttempt === 0;
+		await this._connection.connect();
 	}
 
 	sendHeartbeat(currentLoad: number): void {
@@ -164,23 +117,18 @@ export class WorkerClient {
 	}
 
 	send(data: SchedulerOutgoingMessage | WorkerIncomingMessage): void {
-		if (this._ws && this._ws.readyState === WebSocket.OPEN) {
-			this._ws.send(JSON.stringify(data));
-		}
+		this._connection.send(data);
 	}
 
 	disconnect(): void {
 		this._reconnector.markIntentionalClose();
 		this._reconnector.cancel();
 		this._heartbeat.stop();
-		if (this._ws) {
-			this._ws.close();
-			this._ws = null;
-		}
+		this._connection.disconnect();
 	}
 
 	get isConnected(): boolean {
-		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
+		return this._connection.isConnected;
 	}
 
 	get workerId(): string {

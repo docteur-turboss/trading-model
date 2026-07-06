@@ -6,6 +6,7 @@ import {
 	generateKeyPairAsync,
 } from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
+import { toSerialNumber } from "@trading-model/common/domain/primitives";
 import type { CaClient, SignCertificateRequest } from "@trading-model/common/ca/ca-client";
 import type { ObtainedCertificate, CertificateClientConfig } from "./certificate-client";
 
@@ -53,7 +54,7 @@ export class CertificateLifecycle {
 			certPem: response.cert,
 			keyPem: keyPair.privateKey,
 			caPem: response.caPem,
-			serialNumber: response.serialNumber,
+			serialNumber: toSerialNumber(response.serialNumber),
 			expiresAt: new Date(response.expiresAt),
 		};
 	}

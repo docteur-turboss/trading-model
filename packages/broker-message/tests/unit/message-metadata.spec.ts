@@ -1,41 +1,45 @@
 import { describe, expect, it } from "@jest/globals";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { AppError } from "@trading-model/common/utils/errors";
 import { MessageMetadata } from "../../src/shared/helper/messages/message";
 
+const TEST_TOPIC = "test.event.created";
+const TEST_EVENT = "TestEvent";
+const TEST_PUBLISHER = {
+	serviceName: ServiceInstanceName.DiscoveryService,
+	instanceId: "550e8400-e29b-41d4-a716-446655440000",
+};
+
 function buildMinimalMetadata(): MessageMetadata {
-	return new MessageMetadata()
-		.setTopic("test.event.created")
-		.setEventType("TestEvent")
-		.setPublisher({
-			serviceName: ServiceInstanceName.DiscoveryService,
-			instanceId: "550e8400-e29b-41d4-a716-446655440000",
-		});
+	return new MessageMetadata(TEST_TOPIC, TEST_EVENT, TEST_PUBLISHER);
 }
 
 describe("MessageMetadata", () => {
 	describe("constructor", () => {
-		it("should create with defaults", () => {
-			const m = new MessageMetadata();
+		it("should create with required fields", () => {
+			const m = new MessageMetadata(TEST_TOPIC, TEST_EVENT, TEST_PUBLISHER);
 			expect(m).toBeInstanceOf(MessageMetadata);
+			expect(m.topic).toBe(TEST_TOPIC);
+			expect(m.eventType).toBe(TEST_EVENT);
+			expect(m.publisher.serviceName).toBe(ServiceInstanceName.DiscoveryService);
 		});
 
-		it("should throw on invalid data", () => {
-			expect(() => new MessageMetadata({ topic: "" } as any)).toThrow();
+		it("should throw on invalid topic format", () => {
+			expect(
+				() => new MessageMetadata("no-dots", TEST_EVENT, TEST_PUBLISHER)
+			).toThrow();
 		});
 
-		it("should accept partial data", () => {
-			const withData = new MessageMetadata({
-				topic: "test.event.created",
-				eventType: "TestEvent",
-				publisher: {
-					serviceName: ServiceInstanceName.DiscoveryService,
-					instanceId: "550e8400-e29b-41d4-a716-446655440000",
-				},
-			});
+		it("should accept optional context data", () => {
+			const withData = new MessageMetadata(
+				TEST_TOPIC,
+				TEST_EVENT,
+				TEST_PUBLISHER,
+				{ delivery: { mode: "at-least-once" } },
+			);
 			const result = withData.toJSON();
-			expect(result.topic).toBe("test.event.created");
-			expect(result.eventType).toBe("TestEvent");
+			expect(result.topic).toBe(TEST_TOPIC);
+			expect(result.eventType).toBe(TEST_EVENT);
+			expect(result.delivery?.mode).toBe("at-least-once");
 		});
 	});
 
@@ -47,7 +51,7 @@ describe("MessageMetadata", () => {
 		});
 
 		it("should throw on invalid topic format", () => {
-			const m = new MessageMetadata();
+			const m = buildMinimalMetadata();
 			expect(() => m.setTopic("")).toThrow();
 			expect(() => m.setTopic("no-dots")).toThrow();
 		});
@@ -74,41 +78,16 @@ describe("MessageMetadata", () => {
 		});
 
 		it("should throw on invalid publisher", () => {
-			const m = new MessageMetadata();
+			const m = buildMinimalMetadata();
 			expect(() => m.setPublisher({} as any)).toThrow();
 		});
 	});
 
 	describe("toJSON", () => {
-		it("should throw if topic not set", () => {
-			const m = new MessageMetadata().setEventType("Test").setPublisher({
-				serviceName: ServiceInstanceName.DiscoveryService,
-				instanceId: "550e8400-e29b-41d4-a716-446655440000",
-			});
-			expect(() => m.toJSON()).toThrow(AppError);
-		});
-
-		it("should throw if eventType not set", () => {
-			const m = new MessageMetadata()
-				.setTopic("test.event.created")
-				.setPublisher({
-					serviceName: ServiceInstanceName.DiscoveryService,
-					instanceId: "550e8400-e29b-41d4-a716-446655440000",
-				});
-			expect(() => m.toJSON()).toThrow(AppError);
-		});
-
-		it("should throw if publisher not set", () => {
-			const m = new MessageMetadata()
-				.setTopic("test.event.created")
-				.setEventType("Test");
-			expect(() => m.toJSON()).toThrow(AppError);
-		});
-
 		it("should return complete metadata", () => {
 			const result = buildMinimalMetadata().toJSON();
-			expect(result.topic).toBe("test.event.created");
-			expect(result.eventType).toBe("TestEvent");
+			expect(result.topic).toBe(TEST_TOPIC);
+			expect(result.eventType).toBe(TEST_EVENT);
 			expect(result.schemaVersion).toBe("1.0.0");
 			expect(result.publisher.serviceName).toBe(
 				ServiceInstanceName.DiscoveryService

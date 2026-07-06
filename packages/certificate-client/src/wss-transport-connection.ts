@@ -1,12 +1,9 @@
 import { EventEmitter } from "events";
 
-import { logger } from "@trading-model/common/config/logger";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import {
-	scheduleWsReconnect,
-	type WsReconnectState,
-} from "@trading-model/common/utils/ws-reconnect";
+import { WsAuthSender } from "./ws-auth-sender";
 import { WsConnectionManager } from "./ws-connection-manager";
+import { WsReconnectHandler } from "./ws-reconnect-handler";
 
 export type ConnectionState =
 	| "disconnected"
@@ -17,13 +14,9 @@ export type ConnectionState =
 export class WssTransportConnection {
 	private _emitter = new EventEmitter();
 	private _state: ConnectionState = "disconnected";
-	private _destroyed = false;
-	private _wsReconnectState: WsReconnectState = {
-		attempt: 0,
-		timer: null,
-		destroyed: false,
-	};
 	private readonly _connectionManager: WsConnectionManager;
+	private readonly _reconnectHandler = new WsReconnectHandler();
+	private readonly _authSender: WsAuthSender;
 
 	on(event: string, listener: (...args: unknown[]) => void): this {
 		this._emitter.on(event, listener);
@@ -35,11 +28,12 @@ export class WssTransportConnection {
 		tlsConfig?: TlsPaths,
 		private readonly _bootstrapToken?: string
 	) {
-		this._connectionManager = new WsConnectionManager(this._url, tlsConfig, this._bootstrapToken);
+		this._connectionManager = new WsConnectionManager(this._url, tlsConfig);
+		this._authSender = new WsAuthSender(this._bootstrapToken);
 	}
 
 	connect(): void {
-		if (this._destroyed || this._state === "connected" || this._state === "connecting") {
+		if (this._reconnectHandler.isDestroyed || this._state === "connected" || this._state === "connecting") {
 			return;
 		}
 		this._connectWs();
@@ -54,15 +48,15 @@ export class WssTransportConnection {
 	}
 
 	private _connectWs(): void {
-		if (this._destroyed) {
+		if (this._reconnectHandler.isDestroyed) {
 			return;
 		}
 		this._state = "connecting";
 		this._connectionManager.connect(
 			() => {
 				this._state = "connected";
-				this._wsReconnectState.attempt = 0;
-				this._connectionManager.sendWsAuth();
+				this._reconnectHandler.resetAttempt();
+				this._authSender.send(this._connectionManager.ws);
 				this._emitter.emit("open");
 			},
 			(data) => {
@@ -70,7 +64,7 @@ export class WssTransportConnection {
 			},
 			() => {
 				this._state = "disconnected";
-				if (!this._destroyed) {
+				if (!this._reconnectHandler.isDestroyed) {
 					this._scheduleReconnect();
 				}
 				this._emitter.emit("close");
@@ -88,33 +82,21 @@ export class WssTransportConnection {
 	}
 
 	private _scheduleReconnect(): void {
-		if (this._destroyed) {
-			return;
-		}
 		this._state = "reconnecting";
-		scheduleWsReconnect({
-			state: this._wsReconnectState,
-			config: { baseDelayMs: 1000, maxDelayMs: 60000, jitterMs: 500 },
-			onReconnect: () => {
-				this._connectionManager.cleanup();
-				this._connectWs();
-			},
-			logger,
+		this._reconnectHandler.schedule(() => {
+			this._connectionManager.cleanup();
+			this._connectWs();
 		});
 	}
 
 	disconnect(): void {
 		this._connectionManager.cleanup();
-		if (this._wsReconnectState.timer) {
-			clearTimeout(this._wsReconnectState.timer);
-			this._wsReconnectState.timer = null;
-		}
+		this._reconnectHandler.cancelTimer();
 		this._state = "disconnected";
 	}
 
 	destroy(): void {
-		this._destroyed = true;
-		this._wsReconnectState.destroyed = true;
+		this._reconnectHandler.destroy();
 		this.disconnect();
 	}
 }

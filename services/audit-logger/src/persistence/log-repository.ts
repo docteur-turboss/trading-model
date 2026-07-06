@@ -59,54 +59,44 @@ export interface LogStats {
 }
 
 export class LogRepository {
-	private _collection?: Collection<ServiceLogDocument>;
+	private readonly _collection: Collection<ServiceLogDocument>;
 	private readonly _statsBuilder = new LogStatsBuilder();
+	private _indexesEnsured = false;
 
-	constructor(private readonly _db: Db) {}
-
-	private async _getCollection(): Promise<Collection<ServiceLogDocument>> {
-		if (!this._collection) {
-			this._collection =
-				this._db.collection<ServiceLogDocument>("service_logs");
-			await this.ensureIndexes();
-		}
-		return this._collection;
+	constructor(private readonly _db: Db) {
+		this._collection = this._db.collection<ServiceLogDocument>("service_logs");
 	}
 
 	async ensureIndexes(): Promise<void> {
-		const col = await this._getCollection();
-
-		if (await this._indexExists("ttl_1")) {
+		if (this._indexesEnsured) {
 			return;
 		}
+		this._indexesEnsured = true;
 
-		await col.createIndex({ ttl: 1 }, { expireAfterSeconds: 0 });
-		await col.createIndex({ "service.name": 1, receivedAt: -1 });
-		await col.createIndex({ level: 1, receivedAt: -1 });
-		await col.createIndex({ correlationId: 1 });
-		await col.createIndex({ receivedAt: -1 });
+		await this._collection.createIndex({ ttl: 1 }, { expireAfterSeconds: 0 });
+		await this._collection.createIndex({ "service.name": 1, receivedAt: -1 });
+		await this._collection.createIndex({ level: 1, receivedAt: -1 });
+		await this._collection.createIndex({ correlationId: 1 });
+		await this._collection.createIndex({ receivedAt: -1 });
 	}
 
 	async insert(doc: ServiceLogDocument): Promise<void> {
-		const col = await this._getCollection();
-		await col.insertOne(doc as never);
+		await this._collection.insertOne(doc as never);
 	}
 
 	async insertBatch(docs: ServiceLogDocument[]): Promise<void> {
 		if (docs.length === 0) {
 			return;
 		}
-		const col = await this._getCollection();
-		await col.insertMany(docs as never[], { ordered: false });
+		await this._collection.insertMany(docs as never[], { ordered: false });
 	}
 
 	async query(params: LogQuery): Promise<PaginationResult<ServiceLogDocument>> {
-		const col = await this._getCollection();
 		const filter = this._buildLogFilter(params);
 
 		const { page, limit, skip } = computePagination(params);
-		const total = await col.countDocuments(filter);
-		const docs = await col
+		const total = await this._collection.countDocuments(filter);
+		const docs = await this._collection
 			.find(filter)
 			.sort({ receivedAt: -1 })
 			.skip(skip)
@@ -117,9 +107,8 @@ export class LogRepository {
 	}
 
 	async getStats(): Promise<LogStats> {
-		const col = await this._getCollection();
 		const pipeline = this._statsBuilder.buildPipeline();
-		const [aggResult] = await col.aggregate(pipeline).toArray();
+		const [aggResult] = await this._collection.aggregate(pipeline).toArray();
 		return this._statsBuilder.parseResult(aggResult);
 	}
 
@@ -128,12 +117,11 @@ export class LogRepository {
 	}
 
 	async findById(id: string): Promise<ServiceLogDocument | null> {
-		const col = await this._getCollection();
 		const { ObjectId } = await import("mongodb");
 		if (!ObjectId.isValid(id)) {
 			return null;
 		}
-		return col.findOne({ _id: new ObjectId(id) } as never);
+		return this._collection.findOne({ _id: new ObjectId(id) } as never);
 	}
 
 	private _buildLogFilter(params: LogQuery): MongoDoc {

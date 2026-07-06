@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { HttpClient } from "../config/http-client";
-import type { SchedulerWsJobAssignedMessage } from "../contracts/worker-protocol.types";
 import type { TlsPemBundle } from "../domain/tls-paths";
 import { WorkerClient, type WorkerClientConfig } from "./worker-client";
-import { ActiveJobManager } from "./active-job-manager";
-import { JobHandlerRegistry } from "./job-handler-registry";
+import { JobAssignmentHandler } from "./job-assignment-handler";
 
 export interface BaseWorkerConfig {
 	workerId?: string;
@@ -25,27 +23,19 @@ export type JobHandler<TData = unknown> = (job: {
 export class BaseWorker {
 	protected readonly client: WorkerClient;
 	protected readonly httpClient: HttpClient;
-	private readonly _handlerRegistry = new JobHandlerRegistry();
-	private readonly _jobManager: ActiveJobManager;
-	private _drainRequested = false;
-	private readonly _boundOnJobAssigned: (
-		job: SchedulerWsJobAssignedMessage["job"]
-	) => void;
-	private readonly _boundOnDrain: () => void;
+	private readonly _jobHandler: JobAssignmentHandler;
 
 	constructor(protected readonly config: BaseWorkerConfig) {
 		const workerId =
 			config.workerId ?? `${this.constructor.name}-${randomUUID().slice(0, 8)}`;
 		this.client = new WorkerClient(this._buildClientConfig(workerId));
 		this.httpClient = new HttpClient(config.tlsConfig);
-		this._jobManager = new ActiveJobManager(
+		this._jobHandler = new JobAssignmentHandler(
 			this.httpClient,
-			this.config.schedulerHttpUrl
+			this.config.schedulerHttpUrl,
 		);
-		this._boundOnJobAssigned = this._onJobAssigned.bind(this);
-		this._boundOnDrain = this._onDrain.bind(this);
-		this.client.on("job.assigned", this._boundOnJobAssigned);
-		this.client.on("drain", this._boundOnDrain);
+		this.client.on("job.assigned", (job) => this._onJobAssigned(job));
+		this.client.on("drain", () => this._jobHandler.onDrain());
 	}
 
 	private _buildClientConfig(workerId: string): WorkerClientConfig {
@@ -60,9 +50,9 @@ export class BaseWorker {
 
 	registerHandler<TPayload = unknown>(
 		jobType: string,
-		handler: JobHandler<TPayload>
+		handler: JobHandler<TPayload>,
 	): void {
-		this._handlerRegistry.register(jobType, handler);
+		this._jobHandler.registerHandler(jobType, handler as (job: { id: string; type: string; payload: unknown }) => Promise<unknown>);
 	}
 
 	async start(): Promise<void> {
@@ -70,58 +60,22 @@ export class BaseWorker {
 	}
 
 	stop(): void {
-		this._jobManager.stopAll();
-		this.client.off("job.assigned", this._boundOnJobAssigned);
-		this.client.off("drain", this._boundOnDrain);
+		this._jobHandler.stopAll();
 		this.client.disconnect();
 	}
 
 	private async _onJobAssigned(
-		job: SchedulerWsJobAssignedMessage["job"]
+		job: import("../contracts/worker-protocol.types").SchedulerWsJobAssignedMessage["job"],
 	): Promise<void> {
-		if (this._drainRequested) {
-			await this._jobManager.failJob(job.id, "Worker is draining");
-			return;
-		}
-
-		this._jobManager.startJob(job);
-
-		try {
-			await this._jobManager.ackJob(job.id);
-
-			const handler = this._handlerRegistry.get(job.type);
-			if (!handler) {
-				await this._jobManager.failJob(
-					job.id,
-					`No handler registered for job type: ${job.type}`
-				);
-				return;
-			}
-
-			const result = await handler({
-				id: job.id,
-				type: job.type,
-				payload: job.payload,
-			});
-			await this._jobManager.completeJob(job.id, result);
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : String(err);
-			await this._jobManager.failJob(job.id, errorMessage);
-		} finally {
-			this._jobManager.endJob(job.id);
-			this.client.sendHeartbeat(this._jobManager.activeCount);
-		}
-	}
-
-	private _onDrain(): void {
-		this._drainRequested = true;
+		await this._jobHandler.onJobAssigned(job);
+		this.client.sendHeartbeat(this._jobHandler.activeCount);
 	}
 
 	get activeJobCount(): number {
-		return this._jobManager.activeCount;
+		return this._jobHandler.activeCount;
 	}
 
 	get isDraining(): boolean {
-		return this._drainRequested;
+		return this._jobHandler.isDraining;
 	}
 }

@@ -14,7 +14,7 @@ describe("ResponseCache", () => {
 	});
 
 	it("should store and retrieve a cached entry", () => {
-		cache.set("/v1/test", { foo: "bar" }, 200);
+		cache.set("/v1/test", { data: { foo: "bar" }, status: 200 });
 		const entry = cache.get("/v1/test");
 		expect(entry).toBeDefined();
 		expect(entry!.data).toEqual({ foo: "bar" });
@@ -27,21 +27,21 @@ describe("ResponseCache", () => {
 	});
 
 	it("should expire entries after TTL", () => {
-		cache.set("/v1/test", { foo: "bar" }, 200, 500);
+		cache.set("/v1/test", { data: { foo: "bar" }, status: 200 }, 500);
 		jest.advanceTimersByTime(600);
 		const entry = cache.get("/v1/test");
 		expect(entry).toBeUndefined();
 	});
 
 	it("should use default TTL when not specified", () => {
-		cache.set("/v1/test", { foo: "bar" }, 200);
+		cache.set("/v1/test", { data: { foo: "bar" }, status: 200 });
 		jest.advanceTimersByTime(1500);
 		const entry = cache.get("/v1/test");
 		expect(entry).toBeUndefined();
 	});
 
 	it("should not expire before TTL", () => {
-		cache.set("/v1/test", { foo: "bar" }, 200);
+		cache.set("/v1/test", { data: { foo: "bar" }, status: 200 });
 		jest.advanceTimersByTime(999);
 		const entry = cache.get("/v1/test");
 		expect(entry).toBeDefined();
@@ -49,9 +49,9 @@ describe("ResponseCache", () => {
 	});
 
 	it("should invalidate entries by exact pattern", () => {
-		cache.set("/v1/foo", { a: 1 }, 200);
-		cache.set("/v1/bar", { b: 2 }, 200);
-		cache.set("/v2/foo", { c: 3 }, 200);
+		cache.set("/v1/foo", { data: { a: 1 }, status: 200 });
+		cache.set("/v1/bar", { data: { b: 2 }, status: 200 });
+		cache.set("/v2/foo", { data: { c: 3 }, status: 200 });
 
 		cache.invalidate("/v1/*");
 		expect(cache.get("/v1/foo")).toBeUndefined();
@@ -60,8 +60,8 @@ describe("ResponseCache", () => {
 	});
 
 	it("should clear all entries", () => {
-		cache.set("/v1/foo", { a: 1 }, 200);
-		cache.set("/v1/bar", { b: 2 }, 200);
+		cache.set("/v1/foo", { data: { a: 1 }, status: 200 });
+		cache.set("/v1/bar", { data: { b: 2 }, status: 200 });
 		expect(cache.size).toBe(2);
 
 		cache.clear();
@@ -71,16 +71,16 @@ describe("ResponseCache", () => {
 	});
 
 	it("should not cache POST requests (not a cache concern — caller decides)", () => {
-		cache.set("/v1/data", { saved: true }, 201);
+		cache.set("/v1/data", { data: { saved: true }, status: 201 });
 		const entry = cache.get("/v1/data");
 		expect(entry!.status).toBe(201);
 	});
 
 	it("should return size correctly", () => {
 		expect(cache.size).toBe(0);
-		cache.set("/a", 1, 200);
+		cache.set("/a", { data: 1, status: 200 });
 		expect(cache.size).toBe(1);
-		cache.set("/b", 2, 200);
+		cache.set("/b", { data: 2, status: 200 });
 		expect(cache.size).toBe(2);
 	});
 });

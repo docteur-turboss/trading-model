@@ -1,11 +1,11 @@
-import type { IPAddress, Port } from "./primitives";
+import type { IPAddress, InstanceId, Port, Region, ServiceId } from "./primitives";
 
 /** Uniquely identifies a service instance in the distributed system. */
 export interface ServiceIdentity {
-	serviceName: string;
-	instanceId: string;
+	serviceName: ServiceId;
+	instanceId: InstanceId;
 	/** Deployment region for geo-affinity routing. */
-	region?: string;
+	region?: Region;
 }
 
 /** Host and port pair for network endpoints. */
@@ -16,7 +16,7 @@ export interface HostPort {
 
 /** Identifies a service by name, network address, and port. */
 export interface ServiceEndpoint {
-	serviceName: string;
+	serviceName: ServiceId;
 	address: IPAddress;
 	port: Port;
 }
