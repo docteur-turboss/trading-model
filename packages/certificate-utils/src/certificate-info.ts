@@ -2,23 +2,35 @@ import { createHash } from "node:crypto";
 
 import type { CertificateInfo } from "./types";
 
-export function certificateInfo(certPem: string): CertificateInfo {
+function _decodeCertBody(certPem: string): string {
 	const lines = certPem
 		.split("\n")
 		.filter(
-			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
+			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END")),
 		);
 	const decoded = Buffer.from(lines.join(""), "base64").toString("utf8");
-	const parsed = JSON.parse(decoded);
-	const body = parsed.body as string;
+	return (JSON.parse(decoded) as { body: string }).body;
+}
 
+function _extractField(body: string, pattern: RegExp): string {
+	return body.match(pattern)?.[1] ?? "";
+}
+
+function _extractSan(body: string): string[] {
+	return _extractField(body, /SAN: (.+)/)
+		.split(", ")
+		.filter(Boolean);
+}
+
+export function certificateInfo(certPem: string): CertificateInfo {
+	const body = _decodeCertBody(certPem);
 	return {
-		serialNumber: body.match(/Serial: (.+)/)?.[1] ?? "",
-		subject: body.match(/Subject: (.+)/)?.[1] ?? "",
-		issuer: body.match(/Issuer: (.+)/)?.[1] ?? "",
-		notBefore: new Date(body.match(/Not Before: (.+)/)?.[1] ?? ""),
-		notAfter: new Date(body.match(/Not After: (.+)/)?.[1] ?? ""),
+		serialNumber: _extractField(body, /Serial: (.+)/),
+		subject: _extractField(body, /Subject: (.+)/),
+		issuer: _extractField(body, /Issuer: (.+)/),
+		notBefore: new Date(_extractField(body, /Not Before: (.+)/)),
+		notAfter: new Date(_extractField(body, /Not After: (.+)/)),
 		fingerprint: createHash("sha256").update(certPem).digest("hex"),
-		san: (body.match(/SAN: (.+)/)?.[1] ?? "").split(", ").filter(Boolean),
+		san: _extractSan(body),
 	};
 }

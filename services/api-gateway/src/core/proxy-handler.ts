@@ -65,38 +65,35 @@ export interface ProxyRequestOptions {
 	timeoutMs?: number;
 }
 
+function _onProxyError(target: ResolvedTarget, path: string, reject: (err: Error) => void): (err: Error) => void {
+	return (err: Error) => {
+		logger.error("Proxy request failed", { context: { target: `${target.host}:${target.port}`, path, error: err.message } });
+		reject(err);
+	};
+}
+
+function _onProxyTimeout(timeoutMs: number, proxyReq: http.ClientRequest, reject: (err: Error) => void): void {
+	proxyReq.destroy();
+	reject(new Error(`Proxy timeout after ${timeoutMs}ms`));
+}
+
+function _executeProxyRequest(options: https.RequestOptions, req: Request, resolve: (result: ProxyResult) => void, reject: (err: Error) => void, target: ResolvedTarget, path: string, timeoutMs: number): void {
+	const proxyReq = https.request(options, (proxyRes) => {
+		void handleProxyResponse(proxyRes).then(resolve);
+	});
+	proxyReq.on("error", _onProxyError(target, path, reject));
+	proxyReq.on("timeout", () => _onProxyTimeout(timeoutMs, proxyReq, reject));
+	_writeRequestBody(proxyReq, req.body);
+	proxyReq.end();
+}
+
 export function forwardRequest(
 	opts: ProxyRequestOptions
 ): Promise<ProxyResult> {
 	const { req, target, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
 	return new Promise((resolve, reject) => {
-		const options: https.RequestOptions = _buildProxyOptions({
-			target,
-			req,
-			path,
-			timeoutMs,
-		});
-
-		const proxyReq = https.request(options, (proxyRes) => {
-			void handleProxyResponse(proxyRes).then(resolve);
-		});
-
-		proxyReq.on("error", (err) => {
-			logger.error("Proxy request failed", { context: {
-				target: `${target.host}:${target.port}`,
-				path,
-				error: err.message,
-			} });
-			reject(err);
-		});
-
-		proxyReq.on("timeout", () => {
-			proxyReq.destroy();
-			reject(new Error(`Proxy timeout after ${timeoutMs}ms`));
-		});
-
-		_writeRequestBody(proxyReq, req.body);
-		proxyReq.end();
+		const options = _buildProxyOptions({ target, req, path, timeoutMs });
+		_executeProxyRequest(options, req, resolve, reject, target, path, timeoutMs);
 	});
 }
 

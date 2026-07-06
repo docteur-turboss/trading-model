@@ -6,33 +6,44 @@ export interface CsrOptions {
 	keyPem: string;
 }
 
-export function createCsr(options: CsrOptions): string {
-	const { commonName, san, keyPem } = options;
-
-	const publicKey = createPublicKey(keyPem);
-
+function _buildCsrData(commonName: string, san: string[]): string {
 	const sanExtension = san.map((dns) => `DNS:${dns}`).join(",");
-
-	const csrData = [
+	return [
 		"-----BEGIN CERTIFICATE REQUEST-----",
 		`CN=${commonName}`,
 		`SAN=${sanExtension}`,
 		"-----END CERTIFICATE REQUEST-----",
 	].join("\n");
+}
 
-	const sign = createSign("sha256");
-	sign.update(csrData);
-	const signature = sign.sign(keyPem, "base64");
-
-	const csrBody = Buffer.from(
+function _buildCsrBody(
+	commonName: string,
+	san: string[],
+	keyPem: string,
+	signature: string,
+): string {
+	const publicKey = createPublicKey(keyPem);
+	return Buffer.from(
 		JSON.stringify({
 			commonName,
 			san,
 			publicKey: publicKey.export({ type: "spki", format: "pem" }),
 			signature,
-		})
+		}),
 	).toString("base64");
+}
 
+function _signData(data: string, keyPem: string): string {
+	const sign = createSign("sha256");
+	sign.update(data);
+	return sign.sign(keyPem, "base64");
+}
+
+export function createCsr(options: CsrOptions): string {
+	const { commonName, san, keyPem } = options;
+	const csrData = _buildCsrData(commonName, san);
+	const signature = _signData(csrData, keyPem);
+	const csrBody = _buildCsrBody(commonName, san, keyPem, signature);
 	return [
 		"-----BEGIN CERTIFICATE REQUEST-----",
 		...chunks(csrBody, 64),

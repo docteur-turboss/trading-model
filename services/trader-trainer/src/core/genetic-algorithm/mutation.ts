@@ -352,49 +352,95 @@ export interface MutateNetworkContext {
 	rng: () => number;
 }
 
-function _mutateNetworkStructure(
-	ctx: MutateNetworkContext
-): NetworkGenome {
-	const { genome, mutationConfig, rng } = ctx;
+function _mutateLayers(
+	layers: LayerGenome[],
+	mutationConfig: MutationGenome,
+	rng: () => number
+): LayerGenome[] {
 	const perLayerMode = mutationConfig.scope === "per_layer";
-	const layers: LayerGenome[] = genome.network.hiddenLayers.map((layer) =>
+	return layers.map((layer) =>
 		perLayerMode || rng() < mutationConfig.rate
 			? mutateLayer(layer, mutationConfig, rng)
 			: { ...layer }
 	);
+}
 
+function _maybeAddNeuron(
+	layers: LayerGenome[],
+	mutationConfig: MutationGenome,
+	rng: () => number
+): void {
 	if (layers.length > 0 && rng() < mutationConfig.addNeuronRate) {
 		const li = Math.floor(rng() * layers.length);
 		layers[li] = { ...layers[li], neurons: layers[li].neurons + 1 };
 	}
+}
+
+function _maybeRemoveNeuron(
+	layers: LayerGenome[],
+	mutationConfig: MutationGenome,
+	rng: () => number
+): void {
 	if (layers.length > 0 && rng() < mutationConfig.removeNeuronRate) {
 		const li = Math.floor(rng() * layers.length);
-		layers[li] = {
-			...layers[li],
-			neurons: Math.max(1, layers[li].neurons - 1),
-		};
+		layers[li] = { ...layers[li], neurons: Math.max(1, layers[li].neurons - 1) };
 	}
+}
 
+function _createRandomLayer(rng: () => number): LayerGenome {
+	return {
+		neurons: 16 + Math.floor(rng() * 32),
+		activation: pick(ACTIVATIONS, rng),
+		connectionType: "dense-skip",
+		biasType: "zeros",
+	};
+}
+
+function _maybeAddLayer(
+	layers: LayerGenome[],
+	mutationConfig: MutationGenome,
+	rng: () => number
+): void {
 	if (rng() < mutationConfig.addLayerRate) {
-		const newLayer: LayerGenome = {
-			neurons: 16 + Math.floor(rng() * 32),
-			activation: pick(ACTIVATIONS, rng),
-			connectionType: "dense-skip",
-			biasType: "zeros",
-		};
-		layers.splice(Math.floor(rng() * (layers.length + 1)), 0, newLayer);
+		layers.splice(Math.floor(rng() * (layers.length + 1)), 0, _createRandomLayer(rng));
 	}
+}
+
+function _maybeRemoveLayer(
+	layers: LayerGenome[],
+	mutationConfig: MutationGenome,
+	rng: () => number
+): void {
 	if (layers.length > 1 && rng() < mutationConfig.removeLayerRate) {
 		layers.splice(Math.floor(rng() * layers.length), 1);
 	}
+}
+
+function _maybeMutateNormalization(
+	genome: LamarckGenome,
+	mutationConfig: MutationGenome,
+	rng: () => number
+): NormalisationType {
+	return rng() < mutationConfig.rate * 0.2
+		? pick(NORM_TYPES, rng)
+		: genome.network.normalization;
+}
+
+function _mutateNetworkStructure(
+	ctx: MutateNetworkContext
+): NetworkGenome {
+	const { genome, mutationConfig, rng } = ctx;
+	const layers = _mutateLayers(genome.network.hiddenLayers, mutationConfig, rng);
+
+	_maybeAddNeuron(layers, mutationConfig, rng);
+	_maybeRemoveNeuron(layers, mutationConfig, rng);
+	_maybeAddLayer(layers, mutationConfig, rng);
+	_maybeRemoveLayer(layers, mutationConfig, rng);
 
 	return {
 		...genome.network,
 		hiddenLayers: layers,
-		normalization:
-			rng() < mutationConfig.rate * 0.2
-				? pick(NORM_TYPES, rng)
-				: genome.network.normalization,
+		normalization: _maybeMutateNormalization(genome, mutationConfig, rng),
 	};
 }
 
