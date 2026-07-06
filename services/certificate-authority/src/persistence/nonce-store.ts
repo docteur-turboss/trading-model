@@ -16,7 +16,7 @@
 import { randomBytes } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
 
-import type { NonceDocument, NoncePersistence } from "./nonce-persister";
+import type { NonceContext, NonceDocument, NoncePersistence } from "./nonce-persister";
 import { MongoNoncePersister, NullNoncePersister } from "./nonce-persister";
 
 interface NonceEntry {
@@ -57,8 +57,9 @@ export class NonceStore {
 	async generate(serviceId: string): Promise<string> {
 		const nonce = randomBytes(32).toString("hex");
 		const entry: NonceEntry = { nonce, serviceId, createdAt: Date.now() };
+		const context: NonceContext = { nonce, serviceId };
 		try {
-			await this._persister.persist(nonce, serviceId, entry.createdAt);
+			await this._persister.persist(context, entry.createdAt);
 		} catch {
 			// fallback to memory-only for this nonce
 		}
@@ -76,7 +77,8 @@ export class NonceStore {
 			this._l1.delete(nonce);
 			return false;
 		}
-		const doc = await this._persister.consume(nonce, serviceId);
+		const context: NonceContext = { nonce, serviceId };
+		const doc = await this._persister.consume(context);
 		if (doc) {
 			if (doc.serviceId !== serviceId || this._isExpired(doc.createdAt.getTime())) {
 				return false;

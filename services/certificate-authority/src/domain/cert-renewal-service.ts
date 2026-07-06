@@ -9,16 +9,20 @@ interface CertStore {
 	): Promise<{ certPem: string; serviceId: string } | null>;
 }
 
+import type { NonceContext } from "../persistence/nonce-persister";
+
 interface NonceStore {
-	consume(nonce: string, serviceId: string): Promise<boolean>;
+	consume(context: NonceContext): Promise<boolean>;
+}
+
+export interface SignServiceCertRequest {
+	serviceId: string;
+	csr: string;
+	ttlMs?: number;
 }
 
 interface CertificateAuthority {
-	signServiceCertificate(
-		serviceId: string,
-		csr: string,
-		ttlMs?: number
-	): Promise<SignedCertificate>;
+	signServiceCertificate(request: SignServiceCertRequest): Promise<SignedCertificate>;
 }
 
 interface DistributedLock {
@@ -33,7 +37,7 @@ class NullDistributedLock implements DistributedLock {
 	async release(): Promise<void> {}
 }
 
-interface PopVerificationInput {
+interface RenewalPopInput {
 	certPem: string;
 	nonce: string;
 	signature: string;
@@ -98,7 +102,7 @@ export class CertRenewalService {
 	}
 
 	private async _consumeNonce(nonce: string, serviceId: string): Promise<void> {
-		if (!(await this._nonceStore.consume(nonce, serviceId))) {
+		if (!(await this._nonceStore.consume({ nonce, serviceId }))) {
 			throw new CertRenewalError("Invalid or expired nonce", 401);
 		}
 	}
@@ -114,10 +118,10 @@ export class CertRenewalService {
 	}
 
 	private _verifyPop(
-		input: PopVerificationInput
+		input: RenewalPopInput
 	): void {
 		const { certPem, nonce, signature, serviceId, oldSerialNumber } = input;
-		if (!this._popVerifier.verify(certPem, nonce, signature)) {
+		if (!this._popVerifier.verify({ certPem, nonce, signature })) {
 			logger.warn("Proof-of-possession failed", {
 				context: { serviceId, oldSerialNumber },
 			});
@@ -140,7 +144,7 @@ export class CertRenewalService {
 			);
 		}
 		try {
-			return await this._ca.signServiceCertificate(serviceId, csr);
+			return await this._ca.signServiceCertificate({ serviceId, csr });
 		} finally {
 			await this._lock.release();
 		}

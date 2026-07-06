@@ -3,6 +3,11 @@ import { type Collection, type Db, MongoClient } from "mongodb";
 
 import { MONGO_MANAGER } from "./mongo-manager";
 
+export interface NonceContext {
+	nonce: string;
+	serviceId: string;
+}
+
 export interface NonceDocument {
 	nonce: string;
 	serviceId: string;
@@ -12,8 +17,8 @@ export interface NonceDocument {
 export interface NoncePersistence {
 	connect(): Promise<void>;
 	disconnect(): Promise<void>;
-	persist(nonce: string, serviceId: string, createdAt: number): Promise<void>;
-	consume(nonce: string, serviceId: string): Promise<NonceDocument | null>;
+	persist(context: NonceContext, createdAt: number): Promise<void>;
+	consume(context: NonceContext): Promise<NonceDocument | null>;
 	loadAll(threshold: Date): Promise<NonceDocument[]>;
 }
 
@@ -57,10 +62,11 @@ export class MongoNoncePersister implements NoncePersistence {
 		this._collection = null;
 	}
 
-	async persist(nonce: string, serviceId: string, createdAt: number): Promise<void> {
+	async persist(context: NonceContext, createdAt: number): Promise<void> {
 		if (!this._collection) {
 			throw new Error("Nonce persister not connected");
 		}
+		const { nonce, serviceId } = context;
 		try {
 			await this._collection.insertOne({ nonce, serviceId, createdAt: new Date(createdAt) });
 		} catch (err) {
@@ -71,10 +77,11 @@ export class MongoNoncePersister implements NoncePersistence {
 		}
 	}
 
-	async consume(nonce: string, serviceId: string): Promise<NonceDocument | null> {
+	async consume(context: NonceContext): Promise<NonceDocument | null> {
 		if (!this._collection) {
 			return null;
 		}
+		const { nonce } = context;
 		try {
 			return await this._collection.findOneAndDelete({ nonce });
 		} catch {
@@ -98,8 +105,8 @@ export class MongoNoncePersister implements NoncePersistence {
 export class NullNoncePersister implements NoncePersistence {
 	async connect(): Promise<void> {}
 	async disconnect(): Promise<void> {}
-	async persist(_nonce: string, _serviceId: string, _createdAt: number): Promise<void> {}
-	async consume(_nonce: string, _serviceId: string): Promise<NonceDocument | null> {
+	async persist(_context: NonceContext, _createdAt: number): Promise<void> {}
+	async consume(_context: NonceContext): Promise<NonceDocument | null> {
 		return null;
 	}
 	async loadAll(_threshold: Date): Promise<NonceDocument[]> {
