@@ -5,6 +5,11 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import { type RawData, type WebSocket, WebSocketServer } from "ws";
 import { z } from "zod";
 import { CONTAINER } from "./container";
+import {
+	type ConnectionState,
+	checkSignRequestRateLimit,
+	clearRateLimiterKey,
+} from "./rate-limiter";
 
 const WS_SIGN_SCHEMA = z.object({
 	type: z.literal("sign"),
@@ -21,57 +26,8 @@ interface WsAuthMessage {
 	token: string;
 }
 
-/**
- * Rate limiter for unauthenticated WSS sign requests.
- * Prevents brute-force attacks on the bootstrap token.
- */
-const UNAUTH_SIGN_ATTEMPTS = new Map<
-	string,
-	{ count: number; resetAt: number }
->();
-const UNAUTH_RATE_LIMIT = 3; // max unauthenticated sign requests
-const UNAUTH_WINDOW_MS = 60_000; // per 60s window
-const UNAUTH_BAN_MS = 300_000; // 5 min ban after exceeding limit
-const UNAUTH_CLEANUP_MS = 60_000; // purge expired entries every 60s
-setInterval(() => {
-	const now = Date.now();
-	for (const [key, entry] of UNAUTH_SIGN_ATTEMPTS) {
-		if (now > entry.resetAt + UNAUTH_BAN_MS) {
-			UNAUTH_SIGN_ATTEMPTS.delete(key);
-		}
-	}
-}, UNAUTH_CLEANUP_MS).unref();
+const AUTH_ATTEMPT_MAX = 5;
 
-function checkUnauthRateLimit(clientIdentity: string): boolean {
-	const now = Date.now();
-	const entry = UNAUTH_SIGN_ATTEMPTS.get(clientIdentity);
-	if (!entry || now > entry.resetAt) {
-		UNAUTH_SIGN_ATTEMPTS.set(clientIdentity, {
-			count: 1,
-			resetAt: now + UNAUTH_WINDOW_MS,
-		});
-		return true;
-	}
-	if (entry.count >= UNAUTH_RATE_LIMIT) {
-		if (now > entry.resetAt + UNAUTH_BAN_MS) {
-			UNAUTH_SIGN_ATTEMPTS.set(clientIdentity, {
-				count: 1,
-				resetAt: now + UNAUTH_WINDOW_MS,
-			});
-			return true;
-		}
-		return false;
-	}
-	entry.count++;
-	return true;
-}
-
-/** Per-connection rate limiter for all WSS sign requests (authenticated or not). */
-const AUTH_RATE_LIMIT_MAX = 100; // max sign requests per connection
-const AUTH_RATE_LIMIT_MS = 60_000; // per 60s window
-const AUTH_ATTEMPT_MAX = 5; // max auth attempts before connection close
-
-/** Validates that a token has plausible format (not just any non-empty string). */
 function isValidTokenFormat(token: string): boolean {
 	return (
 		typeof token === "string" &&
@@ -79,14 +35,6 @@ function isValidTokenFormat(token: string): boolean {
 		token.length <= 1024 &&
 		/^[\x20-\x7E]+$/.test(token)
 	);
-}
-
-interface ConnectionState {
-	tokenProvided: boolean;
-	bootstrapToken: string | undefined;
-	authAttempts: number;
-	requestCount: number;
-	requestWindowStart: number;
 }
 
 interface AuthMessageContext {
@@ -179,58 +127,24 @@ async function handleSignRequest(
 	}
 }
 
-function checkSignRequestRateLimit(
-	ws: WebSocket,
-	session: WssSession
-): boolean {
-	if (!(session.state.tokenProvided || checkUnauthRateLimit(session.limiterKey))) {
-		ws.send(
-			JSON.stringify({
-				type: "sign:response",
-				id: "unknown",
-				success: false,
-				error: {
-					message: "Rate limit exceeded for unauthenticated requests",
-					code: 429,
-				},
-			})
-		);
-		return false;
-	}
-
-	const elapsed = Date.now() - session.state.requestWindowStart;
-	if (elapsed > AUTH_RATE_LIMIT_MS) {
-		session.state.requestCount = 1;
-		session.state.requestWindowStart = Date.now();
-	} else {
-		session.state.requestCount++;
-		if (session.state.requestCount > AUTH_RATE_LIMIT_MAX) {
-			logger.warn("WSS per-connection rate limit exceeded, closing", {
-				clientIdentity: session.clientIdentity,
-				requestCount: session.state.requestCount,
-			});
-			ws.close(4001, "Rate limit exceeded");
-			return false;
-		}
-	}
-	return true;
-}
-
-function initConnectionState(req: import("node:http").IncomingMessage): WssSession {
+function initConnectionState(
+	req: import("node:http").IncomingMessage
+): WssSession {
 	const tlsSocket = req.socket as TLSSocket;
 	const clientCert = tlsSocket.getPeerCertificate?.();
 	const clientIdentity = clientCert?.subject?.CN as string | undefined;
+	const state: ConnectionState = {
+		tokenProvided: false,
+		bootstrapToken: undefined,
+		authAttempts: 0,
+		requestCount: 0,
+		requestWindowStart: Date.now(),
+	};
 	return {
 		clientIdentity,
-		state: {
-			tokenProvided: false,
-			bootstrapToken: undefined,
-			authAttempts: 0,
-			requestCount: 0,
-			requestWindowStart: Date.now(),
-		},
+		state,
 		limiterKey: clientIdentity ?? "unknown",
-	} satisfies WssSession;
+	};
 }
 
 function parseWsMessage(raw: RawData): Record<string, unknown> | null {
@@ -255,6 +169,7 @@ function sendSignError(ws: WebSocket, id: string, message: string): void {
 		})
 	);
 }
+
 async function handleWsMessage(
 	ws: WebSocket,
 	raw: RawData,
@@ -278,7 +193,6 @@ async function handleWsMessage(
 
 	const parsed = WS_SIGN_SCHEMA.safeParse(msg);
 	if (!parsed.success) {
-
 		logger.warn("WSS invalid sign request", {
 			issues: parsed.error.issues,
 		});
@@ -286,7 +200,24 @@ async function handleWsMessage(
 		return;
 	}
 
-	if (!checkSignRequestRateLimit(ws, session)) {
+	if (
+		!checkSignRequestRateLimit(
+			session.state,
+			session.clientIdentity,
+			session.limiterKey
+		)
+	) {
+		ws.send(
+			JSON.stringify({
+				type: "sign:response",
+				id: "unknown",
+				success: false,
+				error: {
+					message: "Rate limit exceeded for unauthenticated requests",
+					code: 429,
+				},
+			})
+		);
 		return;
 	}
 
@@ -298,7 +229,7 @@ function handleWsClose(
 	clientIdentity: string | undefined
 ): void {
 	logger.debug("WSS client disconnected from CA", { clientIdentity });
-	UNAUTH_SIGN_ATTEMPTS.delete(limiterKey);
+	clearRateLimiterKey(limiterKey);
 }
 
 function handleWsError(err: Error, clientIdentity: string | undefined): void {
@@ -318,7 +249,9 @@ export function attachWsServer(httpsServer: https.Server): WebSocketServer {
 		});
 
 		ws.on("message", (raw: RawData) => handleWsMessage(ws, raw, session));
-		ws.on("close", () => handleWsClose(session.limiterKey, session.clientIdentity));
+		ws.on("close", () =>
+			handleWsClose(session.limiterKey, session.clientIdentity)
+		);
 		ws.on("error", (err) => handleWsError(err, session.clientIdentity));
 	});
 
