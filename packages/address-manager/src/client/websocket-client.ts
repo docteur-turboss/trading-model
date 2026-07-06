@@ -1,11 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import {
-	scheduleWsReconnect,
-	type WsReconnectState,
-} from "@trading-model/common/utils/ws-reconnect";
 import WebSocket from "ws";
+import { WsReconnectHandler } from "./ws-reconnect-handler";
 
 export type WsMessageType =
 	| "heartbeat"
@@ -31,25 +28,22 @@ export interface WebSocketClientOptions {
 export class WebSocketClient {
 	private _ws: WebSocket | null = null;
 	private readonly _baseUrl: string;
-	private readonly _reconnectIntervalMs: number;
-	private readonly _maxReconnectAttempts: number;
 	private readonly _subscribedServices: string[];
-	private _shouldReconnect = true;
-	private _wsReconnectState: WsReconnectState = {
-		attempt: 0,
-		timer: null,
-		destroyed: false,
-	};
 	private _eventHandler: WsEventHandler | null = null;
 	private _authFailureHandler: (() => void) | null = null;
 	private _token?: string;
+	private _reconnectHandler: WsReconnectHandler;
 
 	constructor(options: WebSocketClientOptions) {
 		this._baseUrl = options.url;
 		this._token = options.token;
-		this._reconnectIntervalMs = options.reconnectIntervalMs ?? 5000;
-		this._maxReconnectAttempts = options.maxReconnectAttempts ?? 10;
 		this._subscribedServices = options.subscribedServices ?? ["*"];
+		this._reconnectHandler = new WsReconnectHandler(
+			options.maxReconnectAttempts ?? 10,
+			options.reconnectIntervalMs ?? 5000,
+			options.url,
+			() => this.connect(),
+		);
 	}
 
 	private get _url(): string {
@@ -87,12 +81,12 @@ export class WebSocketClient {
 				error: normalizeError(error),
 			});
 			this._ws = null;
-			this._scheduleReconnect();
+			this._reconnectHandler.schedule();
 		}
 	}
 
 	private _onOpen(): void {
-		this._wsReconnectState.attempt = 0;
+		this._reconnectHandler.resetAttempts();
 		logger.info("WebSocket connected to discovery server", {
 			url: this._url,
 		});
@@ -117,7 +111,7 @@ export class WebSocketClient {
 			this._authFailureHandler?.();
 			return;
 		}
-		this._scheduleReconnect();
+		this._reconnectHandler.schedule();
 	}
 
 	private _onError(error: Error): void {
@@ -135,12 +129,7 @@ export class WebSocketClient {
 	}
 
 	disconnect(): void {
-		this._shouldReconnect = false;
-		this._wsReconnectState.destroyed = true;
-		if (this._wsReconnectState.timer) {
-			clearTimeout(this._wsReconnectState.timer);
-			this._wsReconnectState.timer = null;
-		}
+		this._reconnectHandler.cancel();
 		if (this._ws) {
 			this._ws.close();
 			this._ws = null;
@@ -151,35 +140,8 @@ export class WebSocketClient {
 		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
 	}
 
-	private _logMaxReconnectAttempts(): void {
-		logger.warn("WebSocket max reconnect attempts reached", {
-			url: this._url,
-			attempts: this._wsReconnectState.attempt,
-		});
-	}
-
-	private _scheduleReconnect(): void {
-		if (!this._shouldReconnect) {
-			return;
-		}
-		if (this._wsReconnectState.attempt >= this._maxReconnectAttempts) {
-			this._logMaxReconnectAttempts();
-			return;
-		}
-		scheduleWsReconnect({
-			state: this._wsReconnectState,
-			config: {
-				baseDelayMs: this._reconnectIntervalMs,
-				maxDelayMs: this._reconnectIntervalMs,
-				jitterMs: 0,
-			},
-			onReconnect: () => this.connect(),
-			logger,
-		});
-	}
-
 	getReconnectAttempts(): number {
-		return this._wsReconnectState.attempt;
+		return this._reconnectHandler.attempt;
 	}
 
 	onAuthFailure(handler: () => void): void {
