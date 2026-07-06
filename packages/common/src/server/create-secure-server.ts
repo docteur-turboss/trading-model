@@ -7,6 +7,7 @@ import { configureApp, RateLimitConfig } from "./configure-app";
 import { createAndStartHttpsServer, HttpServer } from "./server-factory";
 
 export type { TlsPaths };
+export { buildTlsFromEnv } from "../domain/tls-paths";
 export { HttpServer, RateLimitConfig };
 
 /** Options for creating an mTLS-secured HTTPS server. */

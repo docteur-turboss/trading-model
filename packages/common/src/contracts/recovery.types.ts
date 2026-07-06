@@ -21,7 +21,7 @@ export const JOB_STATUS = {
 	FAILED: "failed",
 	CANCELLED: "cancelled",
 	ORPHANED: "orphaned",
-} as const satisfies Record<string, string>;
+} as const;
 
 export type JobStatus = (typeof JOB_STATUS)[keyof typeof JOB_STATUS];
 

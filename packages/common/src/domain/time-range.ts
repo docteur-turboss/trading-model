@@ -26,7 +26,7 @@ export class TimeRange {
 		return new TimeRange(from, to);
 	}
 
-	durationMs(): number {
+	get durationMs(): number {
 		return this.toMs - this.fromMs;
 	}
 

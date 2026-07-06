@@ -7,6 +7,10 @@ import {
 export interface RetryOptions extends BackoffConfig {
 	maxRetries: number;
 	timeoutMs?: number;
+	/** Optional jitter in ms to add to each backoff delay. */
+	jitterMs?: number;
+	/** Optional callback to check whether retries should continue. If returns false, the loop aborts. */
+	shouldRetry?: () => boolean;
 }
 
 export interface RetryResult<T> {
@@ -14,6 +18,10 @@ export interface RetryResult<T> {
 	lastError: Error | null;
 	attempts: number;
 	timedOut: boolean;
+}
+
+function _addJitter(delayMs: number, jitterMs: number): number {
+	return jitterMs > 0 ? delayMs + Math.random() * jitterMs : delayMs;
 }
 
 export async function retryWithBackoff<T>(
@@ -25,12 +33,17 @@ export async function retryWithBackoff<T>(
 		baseDelayMs = 100,
 		maxDelayMs = 5000,
 		timeoutMs = 0,
+		jitterMs = 0,
+		shouldRetry,
 	} = options;
 	const start = Date.now();
 	let lastError: Error | null = null;
 	let attempt = 0;
 
 	while (attempt < maxRetries) {
+		if (shouldRetry && !shouldRetry()) {
+			return { result: null, lastError, attempts: attempt, timedOut: false };
+		}
 		if (timeoutMs > 0 && Date.now() - start > timeoutMs) {
 			return { result: null, lastError, attempts: attempt, timedOut: true };
 		}
@@ -41,7 +54,8 @@ export async function retryWithBackoff<T>(
 			attempt++;
 			lastError = err as Error;
 			if (attempt < maxRetries) {
-				await sleep(computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs }));
+				const delay = computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs });
+				await sleep(_addJitter(delay, jitterMs));
 			}
 		}
 	}

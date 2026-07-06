@@ -1,54 +1,40 @@
 import type {
 	WorkerRegistration,
-	WorkerStatus,
 } from "../contracts/worker-protocol.types";
+import { WorkerStore } from "./worker-store";
 
 export class WorkerRegistry {
-	private readonly _workers: Map<string, WorkerRegistration> = new Map();
-	private readonly _heartbeatTtlMs: number;
+	private readonly _store: WorkerStore;
 
 	constructor(heartbeatTtlMs: number) {
-		this._heartbeatTtlMs = heartbeatTtlMs;
+		this._store = new WorkerStore(heartbeatTtlMs);
 	}
 
 	register(
 		workerId: string,
 		registration: Omit<WorkerRegistration, "lastHeartbeat" | "status">
 	): void {
-		this._workers.set(workerId, {
-			...registration,
-			lastHeartbeat: new Date(),
-			status: "active",
-		});
+		this._store.register(workerId, registration);
 	}
 
 	unregister(workerId: string): void {
-		this._workers.delete(workerId);
+		this._store.unregister(workerId);
 	}
 
 	get(workerId: string): WorkerRegistration | undefined {
-		return this._workers.get(workerId);
+		return this._store.get(workerId);
 	}
 
 	heartbeat(workerId: string): void {
-		const worker = this._workers.get(workerId);
-		if (worker) {
-			worker.lastHeartbeat = new Date();
-		}
+		this._store.heartbeat(workerId);
 	}
 
 	updateLoad(workerId: string, currentLoad: number): void {
-		const worker = this._workers.get(workerId);
-		if (worker) {
-			worker.currentLoad = currentLoad;
-		}
+		this._store.updateLoad(workerId, currentLoad);
 	}
 
-	setStatus(workerId: string, status: WorkerStatus): void {
-		const worker = this._workers.get(workerId);
-		if (worker) {
-			worker.status = status;
-		}
+	setStatus(workerId: string, status: import("../contracts/worker-protocol.types").WorkerStatus): void {
+		this._store.setStatus(workerId, status);
 	}
 
 	private _isWorkerSuitable(worker: WorkerRegistration, jobType: string): boolean {
@@ -62,7 +48,7 @@ export class WorkerRegistry {
 	findBestWorker(jobType: string): WorkerRegistration | null {
 		let best: WorkerRegistration | null = null;
 		let bestLoad = Number.POSITIVE_INFINITY;
-		for (const worker of this._workers.values()) {
+		for (const worker of this._store.all().values()) {
 			if (!this._isWorkerSuitable(worker, jobType)) {
 				continue;
 			}
@@ -75,39 +61,28 @@ export class WorkerRegistry {
 	}
 
 	purgeStaleWorkers(): string[] {
-		const now = Date.now();
-		const stale: string[] = [];
-		for (const [id, worker] of this._workers) {
-			if (now - worker.lastHeartbeat.getTime() > this._heartbeatTtlMs) {
-				worker.status = "offline";
-				stale.push(id);
-			}
-		}
-		for (const id of stale) {
-			this._workers.delete(id);
-		}
-		return stale;
+		return this._store.purgeStaleWorkers();
 	}
 
 	count(): number {
-		return this._workers.size;
+		return this._store.size();
 	}
 
 	averageLoad(): number {
-		if (this._workers.size === 0) {
+		if (this._store.size() === 0) {
 			return 0;
 		}
 		let total = 0;
-		for (const worker of this._workers.values()) {
+		for (const worker of this._store.all().values()) {
 			if (worker.maxConcurrency > 0) {
 				total += worker.currentLoad / worker.maxConcurrency;
 			}
 		}
-		return total / this._workers.size;
+		return total / this._store.size();
 	}
 
 	getAllActive(): WorkerRegistration[] {
-		return Array.from(this._workers.values()).filter(
+		return Array.from(this._store.all().values()).filter(
 			(registration) => registration.status === "active"
 		);
 	}

@@ -4,13 +4,13 @@ import WebSocket from "ws";
 
 import type {
 	SchedulerOutgoingMessage,
-	SchedulerWsJobAssignedMessage,
 	WorkerIncomingMessage,
 	WorkerWsHeartbeatMessage,
 	WorkerWsRegisterMessage,
 } from "../contracts/worker-protocol.types";
 import { toInstanceId, type IPAddress, type Port } from "../domain/primitives";
 import { WorkerHeartbeat } from "./worker-heartbeat";
+import { WorkerMessageRouter } from "./worker-message-router";
 import { WorkerReconnector } from "./worker-reconnector";
 
 export interface WorkerClientConfig {
@@ -78,6 +78,7 @@ export class WorkerClient {
 	private readonly _cfg: Required<WorkerClientConfig>;
 	private readonly _reconnector: WorkerReconnector;
 	private readonly _heartbeat: WorkerHeartbeat;
+	private readonly _messageRouter: WorkerMessageRouter;
 
 	constructor(config: WorkerClientConfig) {
 		this._cfg = normalizeConfig(config);
@@ -94,7 +95,7 @@ export class WorkerClient {
 			(msg: WorkerWsHeartbeatMessage) => this.send(msg),
 			this._cfg.heartbeatIntervalMs,
 		);
-		this._messageHandlers = this._setupMessageHandlers();
+		this._messageRouter = new WorkerMessageRouter(this._emitter);
 	}
 
 	async connect(): Promise<void> {
@@ -123,7 +124,7 @@ export class WorkerClient {
 	private _onMessage(data: WebSocket.Data): void {
 		try {
 			const message: Record<string, unknown> = JSON.parse(data.toString());
-			this._handleMessage(message);
+			this._messageRouter.handle(message, (msg) => this.emit("unknown", msg));
 		} catch (err) {
 			this.emit("error", new Error(`Invalid message from server: ${err}`));
 		}
@@ -159,40 +160,6 @@ export class WorkerClient {
 
 	sendHeartbeat(currentLoad: number): void {
 		this._heartbeat.sendHeartbeat(currentLoad);
-	}
-
-	private readonly _messageHandlers: Partial<
-		Record<
-			SchedulerOutgoingMessage["type"],
-			(message: Record<string, unknown>) => void
-		>
-	>;
-
-	private _setupMessageHandlers(): Partial<
-		Record<
-			SchedulerOutgoingMessage["type"],
-			(message: Record<string, unknown>) => void
-		>
-	> {
-		return {
-			"job.assigned": (msg) =>
-				this.emit(
-					"job.assigned",
-					(msg as unknown as SchedulerWsJobAssignedMessage).job,
-				),
-			"heartbeat.ack": () => this.emit("heartbeat.ack"),
-			drain: () => this.emit("drain"),
-		};
-	}
-
-	private _handleMessage(message: Record<string, unknown>): void {
-		const handler =
-			this._messageHandlers[message.type as SchedulerOutgoingMessage["type"]];
-		if (handler) {
-			handler(message);
-		} else {
-			this.emit("unknown", message);
-		}
 	}
 
 	send(data: SchedulerOutgoingMessage | WorkerIncomingMessage): void {

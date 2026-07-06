@@ -1,36 +1,25 @@
 import type { TlsPaths } from "../domain/tls-paths";
-import { AuditServiceClient } from "./audit-service-client";
-import { ErrorServiceSender } from "./error-service-sender";
-import { LogFileWriter } from "./log-file-writer";
 import { type LogEntry, LogLevel, type LogOptions, isLogLevelAtLeast } from "./log-types";
 
 export type { LogEntry, LogOptions };
 export { LogLevel };
 
+import { LogBuffer } from "./log-buffer";
+import { LogDispatcher } from "./log-dispatcher";
 import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
-/** Structured logger with multiple severity levels. */
 export class Logger {
 	private _logLevel: LogLevel;
-	private _logs: LogEntry[] = [];
-	private _maxLogs = 1000;
-	private readonly _sessionId: string;
 	private _userId = '';
-	private readonly _sanitizer: SensitiveDataSanitizer;
-	private _auditClient: AuditServiceClient;
-	private readonly _logFileWriter: LogFileWriter;
-	private readonly _errorServiceSender: ErrorServiceSender;
+	private readonly _sessionId: string;
+	private readonly _buffer: LogBuffer;
+	private readonly _dispatcher: LogDispatcher;
 
 	constructor(logLevel: LogLevel = "info") {
 		this._logLevel = logLevel;
 		this._sessionId = this._generateSessionId();
-		this._sanitizer = new SensitiveDataSanitizer();
-		this._auditClient = new AuditServiceClient(this._sanitizer);
-		this._logFileWriter = new LogFileWriter(this._sanitizer);
-		this._errorServiceSender = new ErrorServiceSender(
-			this._sanitizer,
-			process.env.NODE_ENV
-		);
+		this._buffer = new LogBuffer();
+		this._dispatcher = new LogDispatcher(new SensitiveDataSanitizer(), this._sessionId);
 	}
 
 	private _generateSessionId(): string {
@@ -42,50 +31,13 @@ export class Logger {
 		return isLogLevelAtLeast(level, this._logLevel);
 	}
 
-	private _maybeSendToAudit(data: LogEntry, level: LogLevel): void {
-		if (isLogLevelAtLeast(level, "info")) {
-			void this._auditClient.send(data as unknown as Record<string, unknown>);
-		}
-	}
-
-	private _createLogEntry(
-		level: LogLevel,
-		message: string,
-		opts?: LogOptions
-	): LogEntry {
-		const { context, url = "", serviceInCharge = "" } = opts ?? {};
-		const now = new Date();
-		const data = {
-			timestamp: now,
-			level,
-			message,
-			context,
-			sessionId: this._sessionId || undefined,
-			userId: this._userId || undefined,
-			url,
-			serviceInCharge,
-		};
-
-		this._logFileWriter.write(data, level);
-		this._maybeSendToAudit(data, level);
-
-		return data;
-	}
-
-	private _addToBuffer(logEntry: LogEntry) {
-		this._logs.push(logEntry);
-		if (this._logs.length > this._maxLogs) {
-			this._logs.shift();
-		}
-	}
-
 	debug(message: string, context?: Record<string, unknown>) {
 		if (!this._shouldLog(LogLevel.Debug)) {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Debug, message, { context });
-		this._addToBuffer(logEntry);
+		const logEntry = this._dispatcher.createLogEntry(LogLevel.Debug, message, this._userId, { context });
+		this._buffer.add(logEntry);
 		console.debug(
 			`[DEBUG] [${logEntry.timestamp.toISOString()}] ${message}`,
 			context || ""
@@ -97,8 +49,8 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Info, message, { context });
-		this._addToBuffer(logEntry);
+		const logEntry = this._dispatcher.createLogEntry(LogLevel.Info, message, this._userId, { context });
+		this._buffer.add(logEntry);
 		console.info(
 			`[INFO] [${logEntry.timestamp.toISOString()}] ${message}`,
 			context || ""
@@ -110,8 +62,8 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Warn, message, { context });
-		this._addToBuffer(logEntry);
+		const logEntry = this._dispatcher.createLogEntry(LogLevel.Warn, message, this._userId, { context });
+		this._buffer.add(logEntry);
 		console.warn(
 			`[WARN] [${logEntry.timestamp.toISOString()}] ${message}`,
 			context || ""
@@ -123,14 +75,14 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Error, message, { context });
-		this._addToBuffer(logEntry);
+		const logEntry = this._dispatcher.createLogEntry(LogLevel.Error, message, this._userId, { context });
+		this._buffer.add(logEntry);
 		console.error(
 			`[ERROR] [${logEntry.timestamp.toISOString()}] ${message}`,
 			context || ""
 		);
 
-		void this._errorServiceSender.send(logEntry);
+		this._dispatcher.sendError(logEntry);
 	}
 
 	setUserId(userId: string) {
@@ -138,7 +90,7 @@ export class Logger {
 	}
 
 	getLogs() {
-		return this._logs;
+		return this._buffer.getAll();
 	}
 
 	setAuditResolver(
@@ -147,7 +99,7 @@ export class Logger {
 			tls: TlsPaths;
 		} | null>
 	): void {
-		this._auditClient = new AuditServiceClient(this._sanitizer, resolver);
+		this._dispatcher.setAuditResolver(resolver);
 	}
 }
 

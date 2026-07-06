@@ -200,3 +200,11 @@ export function fromMessageId(value: MessageId): string { return value; }
 export type JobId = string & { readonly __brand: "JobId" };
 export function toJobId(value: string): JobId { return value as JobId; }
 export function fromJobId(value: JobId): string { return value; }
+
+export type SerialNumber = string & { readonly __brand: "SerialNumber" };
+export function toSerialNumber(value: string): SerialNumber { return value as SerialNumber; }
+export function fromSerialNumber(value: SerialNumber): string { return value; }
+
+export type Fingerprint = string & { readonly __brand: "Fingerprint" };
+export function toFingerprint(value: string): Fingerprint { return value as Fingerprint; }
+export function fromFingerprint(value: Fingerprint): string { return value; }

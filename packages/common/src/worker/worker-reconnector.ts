@@ -17,6 +17,7 @@ export class WorkerReconnector {
 		timer: null,
 		destroyed: false,
 	};
+	private _shouldReconnect = true;
 	private _intentionalClose = false;
 	private readonly _config: WsReconnectConfig;
 	private readonly _onReconnect: () => Promise<void>;
@@ -39,6 +40,14 @@ export class WorkerReconnector {
 		this._emitReconnecting = emitReconnecting;
 	}
 
+	get shouldReconnect(): boolean {
+		return this._shouldReconnect;
+	}
+
+	set shouldReconnect(value: boolean) {
+		this._shouldReconnect = value;
+	}
+
 	get intentionalClose(): boolean {
 		return this._intentionalClose;
 	}
@@ -47,16 +56,32 @@ export class WorkerReconnector {
 		return this._state.attempt;
 	}
 
+	get attempt(): number {
+		return this._state.attempt;
+	}
+
 	reset(): void {
 		this._intentionalClose = false;
 		this._state.attempt = 0;
 	}
 
+	/**
+	 * Lightweight cancel — clears the pending reconnect timer without altering shouldReconnect.
+	 */
 	cancel(): void {
 		if (this._state.timer) {
 			clearTimeout(this._state.timer);
 			this._state.timer = null;
 		}
+	}
+
+	/**
+	 * Full stop — marks as destroyed and prevents any future reconnects.
+	 */
+	stop(): void {
+		this._shouldReconnect = false;
+		this._state.destroyed = true;
+		this.cancel();
 	}
 
 	markIntentionalClose(): void {

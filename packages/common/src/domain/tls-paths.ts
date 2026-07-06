@@ -18,3 +18,17 @@ export interface TlsCredentials {
 	cert?: string;
 	key?: string;
 }
+
+/**
+ * Build a TlsPaths object from an env dictionary that contains
+ * TLS_CERT_PATH, TLS_KEY_PATH, and TLS_CA_PATH keys.
+ */
+export function buildTlsFromEnv(
+	env: { TLS_CERT_PATH: string; TLS_KEY_PATH: string; TLS_CA_PATH: string },
+): TlsPaths {
+	return {
+		certPath: env.TLS_CERT_PATH,
+		keyPath: env.TLS_KEY_PATH,
+		caPath: env.TLS_CA_PATH,
+	};
+}
