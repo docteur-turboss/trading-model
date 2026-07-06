@@ -4,6 +4,7 @@ import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
+import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { z } from "zod";
 import { getMissingCriticalIndexes, isDbConnected } from "../config/db";
@@ -201,7 +202,7 @@ export const AddEntry = catchSync((req) => {
 export const ListEntries = catchSync(async (req) => {
 	const topic = req.query.topic as string | undefined;
 	const cursor = req.query.cursor as string | undefined;
-	const limit = Math.min(
+	const limit: PaginationQuery["limit"] = Math.min(
 		Number.parseInt(req.query.limit as string, 10) || 100,
 		1000
 	);

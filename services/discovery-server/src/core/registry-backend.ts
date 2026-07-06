@@ -4,6 +4,7 @@ import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { TokenService } from "./token-service";
 
 /**
@@ -132,7 +133,7 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 			.digest("base64");
 	}
 
-	validInstanceToken(token: string, instanceId: string): Promise<boolean> {
+	validInstanceToken({ token, instanceId }: TokenValidation): Promise<boolean> {
 		const storedToken = this._token.get(instanceId);
 		return Promise.resolve(
 			this._tokenService.validInstanceToken(token, instanceId, storedToken)

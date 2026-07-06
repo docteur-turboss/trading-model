@@ -83,7 +83,7 @@ export interface RegistryBackend {
 	dump(): Promise<Record<string, ServiceInstance[]>>;
 
 	/** Validate a token for a given instance. */
-	validInstanceToken(token: string, instanceId: string): Promise<boolean>;
+	validInstanceToken(validation: TokenValidation): Promise<boolean>;
 
 	/** Generate a new instance token. */
 	generateInstanceToken(instanceId: string): string;

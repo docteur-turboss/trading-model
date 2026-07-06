@@ -5,6 +5,7 @@ import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis from "ioredis";
 import {
@@ -124,10 +125,10 @@ export class RedisRegistryBackend implements RegistryBackend {
 		return this._tokenService.generateInstanceToken(instanceId);
 	}
 
-	async validInstanceToken(
-		token: string,
-		instanceId: string
-	): Promise<boolean> {
+	async validInstanceToken({
+		token,
+		instanceId,
+	}: TokenValidation): Promise<boolean> {
 		const storedToken = await this._redis.get(
 			this._keyBuilder.instanceToken(instanceId)
 		);

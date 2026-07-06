@@ -4,6 +4,7 @@ import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { CacheManager } from "./cache-manager";
 import { CacheOrchestrator } from "./cache-orchestrator";
 import { PubSubInvalidator } from "./pub-sub-invalidator";
@@ -122,10 +123,9 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	async validInstanceToken(
-		token: string,
-		instanceId: string
+		validation: TokenValidation
 	): Promise<boolean> {
-		return await this._backend.validInstanceToken(token, instanceId);
+		return await this._backend.validInstanceToken(validation);
 	}
 
 	generateInstanceToken(instanceId: string): string {
