@@ -32,28 +32,29 @@ export class WssTransport {
 			return;
 		}
 
-		const { serviceName, instanceId, topics } =
-			this._connectionHandler.parseConnectionHeaders(req);
-		const subKey = this._subscriptionManager.add({ ws, serviceName, instanceId, topics });
+		const ctx = this._buildConnectionContext(ws, req);
+		if (!ctx) {
+			return;
+		}
 
-		logger.info("WSS client connecting", { context: {
-			serviceName,
-			instanceId,
-			topics: [...topics],
-		} });
+		const { subKey, serviceName, instanceId } = ctx;
+		logger.info("WSS client connecting", { context: { serviceName, instanceId, topics: [...ctx.topics] } });
 
-		this._messageRouter.registerMessageHandler(ws, {
-			instanceId,
-			serviceName,
-			topics,
-			subKey,
-		});
+		this._messageRouter.registerMessageHandler(ws, ctx);
 		this._connectionHandler.registerCloseHandler(ws, subKey, serviceName, instanceId);
 		this._connectionHandler.registerErrorHandler(ws, serviceName, instanceId);
 
-		ws.send(
-			JSON.stringify({ type: "connected", instanceId: ENV.BROKER_INSTANCE_ID })
-		);
+		ws.send(JSON.stringify({ type: "connected", instanceId: ENV.BROKER_INSTANCE_ID }));
+	}
+
+	private _buildConnectionContext(
+		ws: WebSocket,
+		req: IncomingMessage
+	): { subKey: string; serviceName: string; instanceId: string; topics: Set<string> } | null {
+		const { serviceName, instanceId, topics } =
+			this._connectionHandler.parseConnectionHeaders(req);
+		const subKey = this._subscriptionManager.add({ ws, serviceName, instanceId, topics });
+		return { subKey, serviceName, instanceId, topics };
 	}
 
 	getSubscriber(

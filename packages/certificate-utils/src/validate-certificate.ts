@@ -45,7 +45,7 @@ export function validateCertificate(
 		if (timingResult) {
 			return timingResult;
 		}
-		const isValid = _verifySignature(certData.body, certData.issuerCert);
+		const isValid = _verifySignature(certData.body, certData.signature, certData.issuerCert);
 		return isValid
 			? { valid: true }
 			: { valid: false, reason: "Signature verification failed" };

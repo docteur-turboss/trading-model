@@ -71,6 +71,16 @@ function _tryLamarckianInjection(
 	}
 }
 
+function _makeTrainFn(agent: TradingAgent): RLBackend["train"] {
+	return (experience, gamma) => {
+		try {
+			agent.learnQLearning(experience, gamma);
+		} catch {
+			/* Q-learning error skipped */
+		}
+	};
+}
+
 export function makeTradingAgentBackend(
 	genome: DeepReadonly<LamarckGenome>
 ): RLBackend {
@@ -81,13 +91,7 @@ export function makeTradingAgentBackend(
 	return {
 		forwardPass: (features) => agent.forwardPass(features).output,
 		step: (features, price) => agent.step(features, price),
-		train: (experience, gamma) => {
-			try {
-				agent.learnQLearning(experience, gamma);
-			} catch {
-				/* Q-learning error skipped */
-			}
-		},
+		train: _makeTrainFn(agent),
 		getWeights: () => agent.getWeights(),
 		setWeights: (weights) => agent.setWeights(weights),
 		getPnL: () => agent.wallet.getPnL(),

@@ -61,31 +61,19 @@ export class WssMessageRouter {
 	}
 
 	buildHandlerMap(): Map<WssMessageType, MessageHandler> {
-		return new Map<WssMessageType, MessageHandler>([
-			[
-				"subscribe",
-				(_msg, _ws, _ctx) =>
-					this._subscriptionManager.handleSubscribe(
-						_msg,
-						{ ws: _ws, serviceName: _ctx.serviceName, instanceId: _ctx.instanceId, topics: _ctx.topics }
-					),
-			],
-			[
-				"unsubscribe",
-				(_msg, _ws, _ctx) =>
-					this._subscriptionManager.handleUnsubscribe(
-						_msg,
-						{ ws: _ws, serviceName: _ctx.serviceName, instanceId: _ctx.instanceId, topics: _ctx.topics }
-					),
-			],
-			[
-				"publish",
-				(_msg, _ws, _ctx) =>
-					this._publisher.handlePublish(_msg, _ws, _ctx),
-			],
-			["ack", (_msg, _ws, _ctx) => this.handleAck(_msg, _ws, _ctx)],
-			["nack", (_msg, _ws, _ctx) => this.handleNack(_msg, _ws, _ctx)],
-		]);
+		const map = new Map<WssMessageType, MessageHandler>();
+		map.set("subscribe", (msg, ws, ctx) =>
+			this._subscriptionManager.handleSubscribe(msg, { ws, ...ctx })
+		);
+		map.set("unsubscribe", (msg, ws, ctx) =>
+			this._subscriptionManager.handleUnsubscribe(msg, { ws, ...ctx })
+		);
+		map.set("publish", (msg, ws, ctx) =>
+			this._publisher.handlePublish(msg, ws, ctx)
+		);
+		map.set("ack", (msg, ws, ctx) => this.handleAck(msg, ws, ctx));
+		map.set("nack", (msg, ws, ctx) => this.handleNack(msg, ws, ctx));
+		return map;
 	}
 
 	parseWsMessage(
