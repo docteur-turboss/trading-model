@@ -92,26 +92,29 @@ export class WorkerPool {
 		return this._workers.length;
 	}
 
+	private _rejectAll(entries: Iterable<TaskEntry>, message: string): void {
+		for (const entry of entries) {
+			entry.reject(new Error(message));
+		}
+	}
+
 	async terminate(): Promise<void> {
 		this._terminated = true;
-
-		for (const entry of this._queue) {
-			entry.reject(new Error("WorkerPool terminated"));
-		}
+		this._rejectAll(this._queue, "WorkerPool terminated");
 		this._queue.length = 0;
-
-		for (const entry of this._pendingTasks.values()) {
-			entry.reject(new Error("WorkerPool terminated"));
-		}
+		this._rejectAll(this._pendingTasks.values(), "WorkerPool terminated");
 		this._pendingTasks.clear();
+		await this._terminateAllWorkers();
+		this._workers.length = 0;
+	}
 
+	private async _terminateAllWorkers(): Promise<void> {
 		for (const workerEntry of this._workers) {
 			workerEntry.worker.removeAllListeners();
 		}
 		await Promise.all(
-			this._workers.map((workerEntry) => workerEntry.worker.terminate())
+			this._workers.map((workerEntry) => workerEntry.worker.terminate()),
 		);
-		this._workers.length = 0;
 	}
 
 	private _ensureStarted(): void {

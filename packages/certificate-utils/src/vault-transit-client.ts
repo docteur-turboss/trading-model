@@ -44,43 +44,42 @@ export class VaultTransitClient {
 		);
 	}
 
-	async sign(name: string, algorithm: string, input: string): Promise<string> {
-		const hashAlgo = this._toVaultHashAlgorithm(algorithm);
-		const inputBase64 = Buffer.from(input, "utf8").toString("base64");
-		const signPayload: Record<string, unknown> = {};
-		signPayload.input = inputBase64;
-		signPayload.hash_algorithm = hashAlgo;
-		const result = await this._httpClient.post<{ data: { signature: string } }>(
-			`${this._baseUrl}/v1/transit/sign/${encodeURIComponent(name)}`,
-			signPayload,
-			{ headers: this._getHeaders(), timeoutMs: this._timeoutMs }
-		);
-		if (!result) {
-			throw new Error("Empty response from Vault Transit sign");
-		}
+	private _extractSignature(result: { data: { signature: string } }): string {
 		const raw = result.data.signature;
 		const colonIdx = raw.lastIndexOf(":");
 		return colonIdx >= 0 ? raw.slice(colonIdx + 1) : raw;
 	}
 
+	async sign(name: string, algorithm: string, input: string): Promise<string> {
+		const result = await this._postSign(name, {
+			input: Buffer.from(input, "utf8").toString("base64"),
+			hash_algorithm: this._toVaultHashAlgorithm(algorithm),
+		});
+		return this._extractSignature(result);
+	}
+
 	async signBytes(name: string, derBytes: string): Promise<string> {
-		const inputBase64 = Buffer.from(derBytes, "binary").toString("base64");
-		const signBytesPayload: Record<string, unknown> = {};
-		signBytesPayload.input = inputBase64;
-		signBytesPayload.hash_algorithm = "sha2-256";
+		const result = await this._postSign(name, {
+			input: Buffer.from(derBytes, "binary").toString("base64"),
+			hash_algorithm: "sha2-256",
+		});
+		const signatureBase64 = this._extractSignature(result);
+		return Buffer.from(signatureBase64, "base64").toString("binary");
+	}
+
+	private async _postSign(
+		name: string,
+		payload: Record<string, unknown>,
+	): Promise<{ data: { signature: string } }> {
 		const result = await this._httpClient.post<{ data: { signature: string } }>(
 			`${this._baseUrl}/v1/transit/sign/${encodeURIComponent(name)}`,
-			signBytesPayload,
-			{ headers: this._getHeaders(), timeoutMs: this._timeoutMs }
+			payload,
+			{ headers: this._getHeaders(), timeoutMs: this._timeoutMs },
 		);
 		if (!result) {
 			throw new Error("Empty response from Vault Transit sign");
 		}
-		const raw = result.data.signature;
-		const colonIdx = raw.lastIndexOf(":");
-		const signatureBase64 = colonIdx >= 0 ? raw.slice(colonIdx + 1) : raw;
-		const signature = Buffer.from(signatureBase64, "base64");
-		return signature.toString("binary");
+		return result;
 	}
 
 	async readPublicKey(name: string): Promise<string> {
@@ -93,14 +92,15 @@ export class VaultTransitClient {
 		if (!result) {
 			throw new Error(`Key "${name}" not found in Vault Transit`);
 		}
-		const keys = result.data.keys;
+		return this._getLatestKeyVersion(name, result.data.keys);
+	}
+
+	private _getLatestKeyVersion(name: string, keys: Record<string, string>): string {
 		const versions = Object.keys(keys);
 		if (versions.length === 0) {
 			throw new Error(`Key "${name}" has no versions`);
 		}
-		const latestVersion = versions.sort(
-			(_prev, _next) => Number(_next) - Number(_prev)
-		)[0];
+		const latestVersion = versions.sort((_prev, _next) => Number(_next) - Number(_prev))[0];
 		return keys[latestVersion];
 	}
 

@@ -21,20 +21,28 @@ export interface PrecomputeRewardsContext {
 	runStats?: RunningStats;
 }
 
+function _computePrecomputedReward(
+	backend: RLBackend,
+	step: MarketStep,
+	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>,
+	runStats?: RunningStats
+): number {
+	const { reward } = backend.step(step.features, step.price);
+	let shaped = shapeReward(reward, rShape);
+	if (rShape.normalize) {
+		runStats?.update(shaped);
+		shaped = runStats?.normalize(shaped) ?? shaped;
+	}
+	return shaped;
+}
+
 export function precomputeRewards(
 	ctx: PrecomputeRewardsContext
 ): Float32Array {
 	const { backend, data, genome, runStats } = ctx;
-	const rShape = genome.rl.rewardShaping;
 	const buf = new Float32Array(data.length);
 	for (let index = 0; index < data.length; index++) {
-		const { reward } = backend.step(data[index].features, data[index].price);
-		let shaped = shapeReward(reward, rShape);
-		if (rShape.normalize) {
-			runStats?.update(shaped);
-			shaped = runStats?.normalize(shaped) ?? shaped;
-		}
-		buf[index] = shaped;
+		buf[index] = _computePrecomputedReward(backend, data[index], genome.rl.rewardShaping, runStats);
 	}
 	return buf;
 }
@@ -59,6 +67,27 @@ export interface TrainPhaseContext {
 	genome: DeepReadonly<LamarckGenome>;
 }
 
+function _shouldSkipStep(index: number, frameSkip: number): boolean {
+	return index % frameSkip !== 0;
+}
+
+function _buildQLearningExperience(
+	prev: Experience,
+	index: number,
+	rewardBuf: Float32Array,
+	genome: DeepReadonly<LamarckGenome>,
+	trainData: MarketStep[],
+	maxT: number
+): Experience {
+	return {
+		...prev,
+		kind: "qlearning" as const,
+		reward: nStepReturn(rewardBuf, index, genome),
+		nextState: trainData[index].features,
+		done: index === maxT - 1,
+	};
+}
+
 export function trainPhase(
 	ctx: TrainPhaseContext
 ): void {
@@ -67,23 +96,15 @@ export function trainPhase(
 	const maxT = Math.min(trainData.length, horizon.maxEpisodeLength);
 
 	for (let index = 0; index < maxT; index++) {
-		if (index % horizon.frameSkip !== 0) {
+		if (_shouldSkipStep(index, horizon.frameSkip)) {
 			continue;
 		}
-
 		backend.step(trainData[index].features, trainData[index].price);
 
 		const pool = backend.getExperiencePool();
 		if (pool.length >= 2) {
-			const prev = pool[pool.length - 2];
 			backend.train(
-				{
-					...prev,
-					kind: "qlearning" as const,
-					reward: nStepReturn(rewardBuf, index, genome),
-					nextState: trainData[index].features,
-					done: index === maxT - 1,
-				},
+				_buildQLearningExperience(pool[pool.length - 2], index, rewardBuf, genome, trainData, maxT),
 				genome.rl.gamma
 			);
 		}

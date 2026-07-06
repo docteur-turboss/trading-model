@@ -72,45 +72,99 @@ function extractError(
 	}
 }
 
+function _buildDocService(
+	entry: z.infer<typeof LOG_ENTRY_SCHEMA>
+): ServiceLogDocument["service"] {
+	return {
+		name: entry.serviceName ?? "unknown",
+		instanceId: entry.instanceId ?? "unknown",
+	};
+}
+
+function _buildDocUser(
+	entry: z.infer<typeof LOG_ENTRY_SCHEMA>
+): ServiceLogDocument["user"] | undefined {
+	if (!entry.userId && !entry.sessionId) {
+		return undefined;
+	}
+	return {
+		id: entry.userId ?? undefined,
+		sessionId: entry.sessionId ?? undefined,
+	};
+}
+
+function _buildDocContext(
+	entry: z.infer<typeof LOG_ENTRY_SCHEMA>
+): ServiceLogDocument["context"] {
+	const context = entry.context ?? {};
+	const hasErrorKeys = context.err || context.error;
+	if (Object.keys(context).length === 0 || hasErrorKeys) {
+		return undefined;
+	}
+	return context;
+}
+
 function buildLogDocument(
 	entry: z.infer<typeof LOG_ENTRY_SCHEMA>,
 	receivedAt: Date,
 	ttlDays: number
 ): ServiceLogDocument {
-	const context = entry.context ?? {};
-	const errorObj = extractError(entry);
-	const cleanContext =
-		Object.keys(context).length > 0 && !context.err && !context.error
-			? context
-			: undefined;
-
 	const doc: ServiceLogDocument = {
 		receivedAt,
 		ttl: new Date(Date.now() + ttlDays * 86400_000),
 		level: entry.level,
 		message: entry.message,
-		service: {
-			name: entry.serviceName ?? "unknown",
-			instanceId: entry.instanceId ?? "unknown",
-		},
+		service: _buildDocService(entry),
 		module: entry.module,
 		correlationId: entry.correlationId,
-		context: cleanContext,
-		error: errorObj,
+		context: _buildDocContext(entry),
+		error: extractError(entry),
 		environment: entry.environment,
 	};
 
 	if (entry.request) {
 		doc.request = entry.request;
 	}
-	if (entry.userId || entry.sessionId) {
-		doc.user = {
-			id: entry.userId ?? undefined,
-			sessionId: entry.sessionId ?? undefined,
-		};
+	const user = _buildDocUser(entry);
+	if (user) {
+		doc.user = user;
 	}
 
 	return doc;
+}
+
+function _buildLogDocuments(
+	entries: z.infer<typeof LOG_ENTRY_SCHEMA>[],
+	receivedAt: Date,
+	ttlDays: number
+): ServiceLogDocument[] {
+	const docs: ServiceLogDocument[] = [];
+	for (const entry of entries) {
+		const doc = buildLogDocument(entry, receivedAt, ttlDays);
+		LOGS_INGESTED_TOTAL.inc({
+			level: entry.level,
+			service_name: entry.serviceName ?? "unknown",
+		});
+		docs.push(doc);
+	}
+	return docs;
+}
+
+async function _storeLogs(
+	logRepo: LogRepository,
+	docs: ServiceLogDocument[]
+): Promise<import("@trading-model/common/middleware/response-exception").ResponseObject> {
+	try {
+		await logRepo.insertBatch(docs);
+		LOGS_STORED_TOTAL.inc({ status: "success" }, docs.length);
+		return sendResponse({ stored: docs.length }, 200);
+	} catch (err) {
+		logger.error("Failed to store service logs", { context: {
+			error: normalizeError(err),
+		} });
+		LOGS_STORED_TOTAL.inc({ status: "error" }, docs.length);
+		return sendResponse({ error: "Storage unavailable" }, 503);
+	}
 }
 
 export function createLogHandler(logRepo: LogRepository) {
@@ -122,27 +176,8 @@ export function createLogHandler(logRepo: LogRepository) {
 
 		const receivedAt = new Date();
 		const ttlDays = ENV.LOG_RETENTION_DAYS ?? 1827;
-		const docs: ServiceLogDocument[] = [];
+		const docs = _buildLogDocuments(parsed.data.logs, receivedAt, ttlDays);
 
-		for (const entry of parsed.data.logs) {
-			const doc = buildLogDocument(entry, receivedAt, ttlDays);
-			LOGS_INGESTED_TOTAL.inc({
-				level: entry.level,
-				service_name: entry.serviceName ?? "unknown",
-			});
-			docs.push(doc);
-		}
-
-		try {
-			await logRepo.insertBatch(docs);
-			LOGS_STORED_TOTAL.inc({ status: "success" }, docs.length);
-			return sendResponse({ stored: docs.length }, 200);
-		} catch (err) {
-			logger.error("Failed to store service logs", { context: {
-				error: normalizeError(err),
-			} });
-			LOGS_STORED_TOTAL.inc({ status: "error" }, docs.length);
-			return sendResponse({ error: "Storage unavailable" }, 503);
-		}
+		return _storeLogs(logRepo, docs);
 	});
 }
