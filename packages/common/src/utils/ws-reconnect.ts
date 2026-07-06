@@ -25,8 +25,8 @@ export function scheduleWsReconnect(
 	config: WsReconnectConfig,
 	onReconnect: () => void,
 	logger: {
-		info: (msg: string, context?: Record<string, unknown>) => void;
-		warn: (msg: string, context?: Record<string, unknown>) => void;
+		info: (msg: string, opts?: import("../config/log-types").LogOptions) => void;
+		warn: (msg: string, opts?: import("../config/log-types").LogOptions) => void;
 	}
 ): void {
 	if (state.destroyed) {
@@ -36,7 +36,9 @@ export function scheduleWsReconnect(
 	const maxAttempts = config.maxAttempts;
 	if (maxAttempts !== undefined && state.attempt >= maxAttempts) {
 		logger.warn("WebSocket max reconnect attempts reached", {
-			attempts: state.attempt,
+			context: {
+				attempts: state.attempt,
+			},
 		});
 		return;
 	}

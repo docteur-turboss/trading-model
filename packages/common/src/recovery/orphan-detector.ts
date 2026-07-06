@@ -48,8 +48,10 @@ export class OrphanDetector {
 		}
 
 		logger.warn("Stale workers detected — scanning for orphaned jobs", {
-			workerCount: staleWorkerIds.length,
-			workers: staleWorkerIds,
+			context: {
+				workerCount: staleWorkerIds.length,
+				workers: staleWorkerIds,
+			},
 		});
 
 		for (const workerId of staleWorkerIds) {

@@ -85,7 +85,7 @@ export const handleDBError = (file: string) => (err: unknown) => {
 		}
 	}
 
-	logger.error("Model operation failed", { file, err: normalizeError(err) });
+	logger.error("Model operation failed", { context: { file, err: normalizeError(err) } });
 	throw err;
 };
 
@@ -133,9 +133,11 @@ export const handleCoreError = (
 	}
 
 	logger.error("Core operation failed", {
-		file: ctx.file,
-		context: ctx.context,
-		err: normalizeError(err),
+		context: {
+			file: ctx.file,
+			context: ctx.context,
+			err: normalizeError(err),
+		},
 	});
 	throw err;
 };
