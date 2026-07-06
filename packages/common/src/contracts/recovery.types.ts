@@ -45,6 +45,10 @@ export interface Job<TData = unknown> {
 	history: JobEvent[];
 }
 
+export type JobUpdateExtras = Partial<
+	Pick<Job, "result" | "error" | "assignedWorkerId" | "ackDeadline">
+>;
+
 export const JOB_STATUS_NON_TERMINAL: readonly JobStatus[] = [
 	"pending",
 	"queued",

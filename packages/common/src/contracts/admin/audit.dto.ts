@@ -7,6 +7,12 @@ export enum Severity {
 	Critical = "CRITICAL",
 }
 
+export interface AuditFilter {
+	topic?: string;
+	publisher?: string;
+	correlationId?: string;
+}
+
 export interface AuditEvent {
 	timestamp: UnixTimestamp;
 	topic: Topic;
