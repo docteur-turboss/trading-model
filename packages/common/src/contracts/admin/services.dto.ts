@@ -1,4 +1,10 @@
-import type { IPAddress, Port } from "../../domain/primitives";
+import type { IPAddress, Port, ServiceId } from "../../domain/primitives";
+
+export enum ServiceStatus {
+	Healthy = "healthy",
+	Degraded = "degraded",
+	Down = "down",
+}
 
 export interface ServiceRegistryEntry {
 	serviceName: string;
@@ -12,11 +18,11 @@ export interface ServiceInstance {
 	port: Port;
 	version: string;
 	heartbeat: string;
-	status: "healthy" | "degraded" | "down";
+	status: ServiceStatus;
 }
 
 export interface TopologyLink {
-	source: string;
-	target: string;
-	status: "healthy" | "degraded" | "down";
+	source: ServiceId;
+	target: ServiceId;
+	status: ServiceStatus;
 }

@@ -1,26 +1,35 @@
-export type LayerType =
-	| "dense"
-	| "lstm"
-	| "gru"
-	| "dropout"
-	| "attention"
-	| "normalization"
-	| "conv1d";
+import type { ModelId, TradingSymbol } from "../../domain/primitives";
 
-export type ActivationFn =
-	| "relu"
-	| "sigmoid"
-	| "tanh"
-	| "softmax"
-	| "linear"
-	| "leaky_relu"
-	| "gelu";
+export enum LayerType {
+	Dense = "dense",
+	Lstm = "lstm",
+	Gru = "gru",
+	Dropout = "dropout",
+	Attention = "attention",
+	Normalization = "normalization",
+	Conv1d = "conv1d",
+}
 
-export type Optimizer = "adam" | "sgd" | "rmsprop" | "adamw";
+export enum ActivationFn {
+	Relu = "relu",
+	Sigmoid = "sigmoid",
+	Tanh = "tanh",
+	Softmax = "softmax",
+	Linear = "linear",
+	LeakyRelu = "leaky_relu",
+	Gelu = "gelu",
+}
+
+export enum Optimizer {
+	Adam = "adam",
+	Sgd = "sgd",
+	Rmsprop = "rmsprop",
+	Adamw = "adamw",
+}
 
 export interface TrainingResult {
-	id: string;
-	symbol: string;
+	id: ModelId;
+	symbol: TradingSymbol;
 	generation: number;
 	fitness: number;
 	sharpe: number;
@@ -28,7 +37,7 @@ export interface TrainingResult {
 }
 
 export interface TrainingGenome {
-	modelId: string;
+	modelId: ModelId;
 	layers: TrainingLayer[];
 	optimizer: Optimizer;
 	learningRate: number;

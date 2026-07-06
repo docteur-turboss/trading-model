@@ -1,8 +1,17 @@
+import type { ServiceId } from "../../domain/primitives";
+
+export enum ConfigSource {
+	Vault = "Vault",
+	ConfigMap = "ConfigMap",
+	EnvVar = "EnvVar",
+	Local = "Local",
+}
+
 export interface ConfigEntry {
 	key: string;
 	value: string;
 	masked: boolean;
-	source: "Vault" | "ConfigMap" | "EnvVar" | "Local";
-	service: string;
+	source: ConfigSource;
+	service: ServiceId;
 	updatedAt: string;
 }

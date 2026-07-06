@@ -1,5 +1,8 @@
 import {
+	type BookTickerData,
 	type CandleData,
+	type OrderBookData,
+	type TickerData,
 	type TradeData,
 } from "@trading-model/common/config/event.types";
 

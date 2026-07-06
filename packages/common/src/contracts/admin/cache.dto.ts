@@ -1,10 +1,14 @@
+import type { ServiceId } from "../../domain/primitives";
+
+export type CacheStatus = "active" | "expired" | "evicted" | "unknown";
+
 export interface CacheEntry {
 	key: string;
-	service: string;
+	service: ServiceId;
 	expiration: string;
 	size: string;
 	lastAccess: string;
-	status?: string;
+	status?: CacheStatus;
 }
 
 export interface CacheStats {
