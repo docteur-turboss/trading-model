@@ -19,7 +19,9 @@ import type {
 	SignedCertificate,
 } from "@trading-model/certificate-utils/types";
 
+import type { SignServiceCertRequest } from "../domain/cert-renewal-service";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { CaStore } from "../persistence/ca-store";
 import type { CertificateStore } from "../persistence/certificate-store";
@@ -42,7 +44,7 @@ export interface CertBodyInput {
 }
 
 export class CertificateAuthority {
-	private _caKeyPair!: KeyPair;
+	private _caKeyPair: KeyPair | null = null;
 	private _caCertPem = "";
 	private readonly _options: CaOptions;
 	private readonly _certBodyBuilder = new CertBodyBuilder();
@@ -59,12 +61,6 @@ export class CertificateAuthority {
 
 	async initialize(): Promise<void> {
 		await this._loadOrBootstrapCa();
-	}
-
-	private _ensureInitialized(): void {
-		if (!this._caKeyPair) {
-			throw new Error("CA not initialized. Call initialize() or use CertificateAuthority.create().");
-		}
 	}
 
 	private _loadKeyFromDisk(): boolean {
@@ -100,9 +96,9 @@ export class CertificateAuthority {
 		const serialNumber = this._generateSerialNumber();
 		const now = new Date();
 		const expiresAt = new Date(now.getTime() + this._options.caCertTtlMs);
-		const certBody = this._certBodyBuilder.buildCertBody({ serialNumber, now, expiresAt, publicKey: this._caKeyPair.publicKey });
-		this._caCertPem = this._certBodyBuilder.signCertBody(certBody, this._caKeyPair.privateKey);
-		this._saveCaKey(this._caKeyPair.privateKey);
+		const certBody = this._certBodyBuilder.buildCertBody({ serialNumber, now, expiresAt, publicKey: this._caKeyPair!.publicKey });
+		this._caCertPem = this._certBodyBuilder.signCertBody(certBody, this._caKeyPair!.privateKey);
+		this._saveCaKey(this._caKeyPair!.privateKey);
 		await this._saveCaCert(this._caCertPem, serialNumber, now, expiresAt);
 	}
 
@@ -135,14 +131,15 @@ export class CertificateAuthority {
 	}
 
 	async signServiceCertificate(
-		serviceId: string,
-		csr: string,
-		ttlMs?: number
+		request: SignServiceCertRequest
 	): Promise<SignedCertificate> {
-		this._ensureInitialized();
+		const { serviceId, csr, ttlMs } = request;
+		if (!this._caKeyPair) {
+			throw new Error("CA not initialized. Call initialize() or use CertificateAuthority.create().");
+		}
 		const options: SignOptions = {
 			csr,
-			serviceId,
+			serviceId: toServiceId(serviceId),
 			caKeyPair: this._caKeyPair,
 			caCertPem: this._caCertPem,
 			ttlMs: ttlMs ?? ENV.CERT_DEFAULT_TTL_MS,
@@ -158,7 +155,7 @@ export class CertificateAuthority {
 	private _buildRevokedCertificate(request: RevocationRequest, serviceId: string): RevokedCertificate {
 		return {
 			serialNumber: request.serialNumber,
-			serviceId,
+			serviceId: toServiceId(serviceId),
 			revokedAt: new Date(),
 			reason: request.reason,
 		};

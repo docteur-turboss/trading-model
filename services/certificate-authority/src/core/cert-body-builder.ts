@@ -1,50 +1,25 @@
-import { createSign } from "node:crypto";
+import { CertBodyBuilder as CommonCertBodyBuilder } from "@trading-model/certificate-utils/cert-body-builder";
 
 import type { CertBodyInput } from "./ca";
 
-export class CertBodyBuilder {
+export class CertBodyBuilder extends CommonCertBodyBuilder {
 	buildCertBody({
 		serialNumber,
 		now,
 		expiresAt,
 		publicKey,
 	}: CertBodyInput): string {
-		return [
-			`Serial: ${serialNumber}`,
-			"Issuer: CN=TradingModelCA",
-			"Subject: CN=TradingModelCA",
-			`Not Before: ${now.toISOString()}`,
-			`Not After: ${expiresAt.toISOString()}`,
-			"CA: TRUE",
-			`Public Key: ${publicKey}`,
-		].join("\n");
-	}
-
-	createCertBody(certBody: string, signature: string): string {
-		return [
-			"-----BEGIN CERTIFICATE-----",
-			...chunks(
-				Buffer.from(JSON.stringify({ body: certBody, signature })).toString(
-					"base64",
-				),
-				64,
-			),
-			"-----END CERTIFICATE-----",
-		].join("\n");
+		return super.buildCertBody({
+			serialNumber,
+			now,
+			expiresAt,
+			publicKey,
+			isCa: true,
+		});
 	}
 
 	signCertBody(certBody: string, privateKey: string): string {
-		const sign = createSign("sha256");
-		sign.update(certBody);
-		const signature = sign.sign(privateKey, "base64");
-		return this.createCertBody(certBody, signature);
+		const signature = super.signCertBody(certBody, privateKey);
+		return this.buildCertPem(certBody, signature);
 	}
-}
-
-function chunks(str: string, size: number): string[] {
-	const result: string[] = [];
-	for (let i = 0; i < str.length; i += size) {
-		result.push(str.slice(i, i + size));
-	}
-	return result;
 }
