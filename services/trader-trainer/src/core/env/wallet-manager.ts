@@ -1,20 +1,12 @@
-import { Cash, Percentage, Price, Volume } from "@trading-model/common/domain/primitives";
+import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
 import { type PortfolioState } from "./portfolio-state";
 import { TradeHistory, type TradeRecord } from "./trade-history";
 import { ValuationTracker } from "./valuation-tracker";
 import { computeWalletMetrics, type WalletMetrics } from "./wallet-metrics";
-import { validateConfig } from "./wallet-validation";
-import { computeBuyCosts, computeSellProceeds, roundValue } from "./wallet-costs";
+import { WalletConfig, type WalletConfigParams } from "./wallet-config";
 
 export type { TradeRecord, WalletMetrics };
-
-export interface WalletConfig {
-	initialCash: Cash;
-	initialPrice: Price;
-	feeRate?: Percentage;
-	maxPosition?: Volume;
-	decimals?: number;
-}
+export type { WalletConfigParams as WalletConfig };
 
 export interface WalletAPI {
 	buy: (amount: Volume) => boolean;
@@ -31,42 +23,21 @@ export interface WalletAPI {
 }
 
 export class Wallet implements WalletAPI {
-	private readonly _initialCash: Cash;
-	private readonly _initialPrice: Price;
-	private readonly _feeRate: Percentage;
-	private readonly _maxPosition: Volume;
-	private readonly _decimals: number;
-
+	private readonly _config: WalletConfig;
 	private _price: Price;
 	private _cash: Cash;
 	private _position: Volume = Volume.zero();
 	private readonly _valuationTracker: ValuationTracker;
 	private readonly _tradeHistory = new TradeHistory();
 
-	constructor(config: WalletConfig) {
-		const {
-			initialCash,
-			initialPrice,
-			feeRate = Percentage.zero(),
-			maxPosition = Volume.of(Number.MAX_VALUE),
-			decimals = 8,
-		} = config;
-		const resolved: Required<WalletConfig> = {
-			initialCash: Cash.of(+initialCash),
-			initialPrice: Price.of(+initialPrice),
-			feeRate: Percentage.of(+feeRate),
-			maxPosition: Volume.of(+maxPosition),
-			decimals,
-		};
-		validateConfig(resolved);
-		this._initialCash = resolved.initialCash;
-		this._initialPrice = resolved.initialPrice;
-		this._feeRate = resolved.feeRate;
-		this._maxPosition = resolved.maxPosition;
-		this._decimals = resolved.decimals;
-		this._price = resolved.initialPrice;
-		this._cash = resolved.initialCash;
-		this._valuationTracker = new ValuationTracker(resolved.initialCash, resolved.decimals);
+	constructor(params: WalletConfigParams) {
+		this._config = new WalletConfig(params);
+		this._price = this._config.initialPrice;
+		this._cash = this._config.initialCash;
+		this._valuationTracker = new ValuationTracker(
+			this._config.initialCash,
+			this._config.decimals
+		);
 	}
 
 	private _getState(): PortfolioState {
@@ -83,22 +54,19 @@ export class Wallet implements WalletAPI {
 			return false;
 		}
 		const newPosition = Volume.of(
-			roundValue(+this._position + amt, this._decimals)
+			this._config.roundValue(+this._position + amt)
 		);
-		if (+newPosition > +this._maxPosition) {
+		if (+newPosition > +this._config.maxPosition) {
 			return false;
 		}
-		const { totalCost, fee } = computeBuyCosts({
-			amount,
-			price: this._price,
-			feeRate: this._feeRate,
-			decimals: this._decimals,
-		});
+		const { totalCost, fee } = this._config.computeBuyCosts(amount, this._price);
 		if (+totalCost > +this._cash) {
 			return false;
 		}
 		this._position = newPosition;
-		this._cash = Cash.of(roundValue(+this._cash - +totalCost, this._decimals));
+		this._cash = Cash.of(
+			this._config.roundValue(+this._cash - +totalCost)
+		);
 		this._recordTrade("buy", amount, fee);
 		return true;
 	}
@@ -108,17 +76,15 @@ export class Wallet implements WalletAPI {
 		if (!Number.isFinite(amt) || amt <= 0 || amt > +this._position) {
 			return false;
 		}
-		const { netProceeds, fee } = computeSellProceeds({
+		const { netProceeds, fee } = this._config.computeSellProceeds(
 			amount,
-			price: this._price,
-			feeRate: this._feeRate,
-			decimals: this._decimals,
-		});
+			this._price
+		);
 		this._position = Volume.of(
-			roundValue(+this._position - amt, this._decimals)
+			this._config.roundValue(+this._position - amt)
 		);
 		this._cash = Cash.of(
-			roundValue(+this._cash + netProceeds, this._decimals)
+			this._config.roundValue(+this._cash + netProceeds)
 		);
 		this._recordTrade("sell", amount, fee);
 		return true;
@@ -132,7 +98,7 @@ export class Wallet implements WalletAPI {
 		this._tradeHistory.record({
 			action,
 			amount,
-			fee: Cash.of(roundValue(+fee, this._decimals)),
+			fee: Cash.of(this._config.roundValue(+fee)),
 			price: this._price,
 			cashAfter: this._cash,
 			positionAfter: this._position,
@@ -175,10 +141,10 @@ export class Wallet implements WalletAPI {
 			position: this._position,
 			price: this._price,
 			peakValuation: this._valuationTracker.getPeakValuation(),
-			initialCash: this._initialCash,
+			initialCash: this._config.initialCash,
 			totalFeesPaid: this._tradeHistory.getTotalFeesPaid(),
 			tradeCount: this._tradeHistory.getTradeCount(),
-			decimals: this._decimals,
+			decimals: this._config.decimals,
 		});
 	}
 
@@ -187,13 +153,13 @@ export class Wallet implements WalletAPI {
 	}
 
 	reset(): void {
-		this._price = this._initialPrice;
-		this._cash = this._initialCash;
+		this._price = this._config.initialPrice;
+		this._cash = this._config.initialCash;
 		this._position = Volume.zero();
 		this._valuationTracker.reset();
 		this._tradeHistory.reset();
 	}
 }
 
-export const createWallet = (config: WalletConfig): WalletAPI =>
-	new Wallet(config);
+export const createWallet = (params: WalletConfigParams): WalletAPI =>
+	new Wallet(params);

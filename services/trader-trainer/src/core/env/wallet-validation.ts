@@ -1,5 +1,5 @@
 import { Cash, Percentage, Price, Volume } from "@trading-model/common/domain/primitives";
-import type { WalletConfig } from "./wallet-manager";
+import type { WalletConfigParams } from "./wallet-config";
 
 function _validateInitialCash(initialCash: Cash): void {
 	if (!Number.isFinite(+initialCash) || +initialCash < 0) {
@@ -33,7 +33,7 @@ function _validateDecimals(decimals: number): void {
 	}
 }
 
-export function validateConfig(config: Required<WalletConfig>): void {
+export function validateConfig(config: Required<WalletConfigParams>): void {
 	_validateInitialCash(config.initialCash);
 	_validateInitialPrice(config.initialPrice);
 	_validateFeeRate(config.feeRate);
