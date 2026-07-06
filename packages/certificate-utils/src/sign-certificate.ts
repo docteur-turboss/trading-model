@@ -5,11 +5,12 @@ import {
 	randomUUID,
 } from "node:crypto";
 
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { KeyPair, SignedCertificate } from "./types";
 
 export interface SignOptions {
 	csr: string;
-	serviceId: string;
+	serviceId: ServiceId;
 	caKeyPair: KeyPair;
 	caCertPem: string;
 	ttlMs: number;

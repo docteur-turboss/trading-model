@@ -4,9 +4,10 @@ import {
 } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import { WssTransport } from "./wss-transport";
+import { CaWssTransport } from "./wss-transport";
 
 export type TransportMode = "wss" | "https";
 
@@ -20,7 +21,7 @@ export interface TransportConfig {
 
 export class TransportManager {
 	private _mode: TransportMode;
-	private _wssTransport: WssTransport | null = null;
+	private _wssTransport: CaWssTransport | null = null;
 	private readonly _httpsClient: CaClient;
 	private readonly _config: TransportConfig;
 	private _unauthRejects = 0;
@@ -32,7 +33,7 @@ export class TransportManager {
 			this._mode = "https";
 		} else {
 			this._mode = "wss";
-			this._wssTransport = new WssTransport(
+			this._wssTransport = new CaWssTransport(
 				this._buildWsUrl(config.caUrl),
 				config.tls,
 				config.bootstrapToken,
@@ -52,7 +53,7 @@ export class TransportManager {
 	}
 
 	async signCertificate(
-		serviceId: string,
+		serviceId: ServiceId,
 		csr: string,
 		options?: { ttlMs?: number }
 	): Promise<SignCertificateResponse> {
@@ -81,7 +82,7 @@ export class TransportManager {
 	}
 
 	async getCertificate(
-		serviceId: string
+		serviceId: ServiceId
 	): Promise<
 		import("@trading-model/common/ca/ca-client").GetCertificateResponse | null
 	> {
@@ -95,7 +96,7 @@ export class TransportManager {
 	async getCrl(since?: string): Promise<
 		Array<{
 			serialNumber: string;
-			serviceId: string;
+			serviceId: ServiceId;
 			revokedAt: string;
 			reason: string;
 		}>

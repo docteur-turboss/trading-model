@@ -1,3 +1,4 @@
+import type { ServiceId } from "../domain/primitives";
 import { HttpClient } from "../config/http-client";
 import type { RevocationRequest } from "../domain/revocation-request";
 import type { TlsPaths } from "../domain/tls-paths";
@@ -8,7 +9,7 @@ export interface CaClientConfig {
 }
 
 export interface SignCertificateRequest {
-	serviceId: string;
+	serviceId: ServiceId;
 	csr: string;
 	ttlMs?: number;
 	bootstrapToken?: string;
@@ -32,7 +33,7 @@ export interface GetCertificateResponse extends CertificateResponse {
 /** A single entry in the Certificate Revocation List. */
 export interface CrlEntry {
 	serialNumber: string;
-	serviceId: string;
+	serviceId: ServiceId;
 	revokedAt: string;
 	reason: string;
 }
@@ -60,7 +61,7 @@ export class CaClient {
 	 * @param options - Optional TTL and bootstrap token for initial provisioning.
 	 */
 	async signCertificate(
-		serviceId: string,
+		serviceId: ServiceId,
 		csr: string,
 		options?: { ttlMs?: number; bootstrapToken?: string }
 	): Promise<SignCertificateResponse> {
@@ -88,7 +89,7 @@ export class CaClient {
 	 * Returns null when no certificate has been issued yet (204 No Content).
 	 */
 	async getCertificate(
-		serviceId: string
+		serviceId: ServiceId
 	): Promise<GetCertificateResponse | null> {
 		const result = await this._httpClient.get<GetCertificateResponse>(
 			`${this._baseUrl}/api/v1/certificate/${encodeURIComponent(serviceId)}`

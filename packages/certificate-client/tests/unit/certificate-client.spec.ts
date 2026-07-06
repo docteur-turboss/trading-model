@@ -1,3 +1,4 @@
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import {
 	afterEach,
 	beforeEach,
@@ -63,7 +64,7 @@ function mockImplementation(
 describe("CertificateClient", () => {
 	const defaultConfig = {
 		caUrl: "https://ca:8447",
-		serviceId: "my-service",
+		serviceId: "my-service" as ServiceId,
 		commonName: "my-service",
 		san: ["my-service"],
 		tlsPaths: {

@@ -13,7 +13,7 @@ interface PendingRequest {
 	timer: ReturnType<typeof setTimeout>;
 }
 
-export class WssTransport {
+export class CaWssTransport {
 	private _wsAuthSent = false;
 	private readonly _pending = new Map<string, PendingRequest>();
 	private _destroyed = false;
@@ -100,7 +100,7 @@ export class WssTransport {
 	// ── Public API ─────────────────────────────────────────────────────────────
 
 	async signCertificate(
-		serviceId: string,
+		serviceId: ServiceId,
 		csr: string,
 		options?: { ttlMs?: number }
 	): Promise<SignCertificateResponse> {
