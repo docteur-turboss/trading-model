@@ -67,4 +67,8 @@ export class HttpTlsLoader {
 	get hasTlsConfig(): boolean {
 		return !!this._tlsConfig;
 	}
+
+	get loaded(): boolean {
+		return this._tlsLoaded;
+	}
 }
