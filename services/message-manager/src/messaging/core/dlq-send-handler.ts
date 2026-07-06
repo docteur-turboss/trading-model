@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
+import type { HttpMethod, HttpRequestOptions } from "@trading-model/common/config/http-types";
 import type {
 	HttpRoute,
 	Signature,
@@ -125,7 +125,7 @@ export class DlqSendHandler {
 			`${this._serviceUrl}/dlq`,
 			entry,
 			signedOptions({
-				method: "POST",
+				method: "POST" as HttpMethod,
 				path: "/dlq",
 				body: entry,
 				extra: { timeoutMs: 5000 },

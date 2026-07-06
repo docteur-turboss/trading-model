@@ -1,7 +1,7 @@
 import Redis from "ioredis";
 
 export class RedisClientManager {
-	private _client!: Redis;
+	private _client: Redis | null = null;
 
 	async createClient(url: string): Promise<Redis> {
 		const client = new Redis(url, {
@@ -13,12 +13,15 @@ export class RedisClientManager {
 		return client;
 	}
 
-	getClient(): Redis {
+	getClient(): Redis | null {
 		return this._client;
 	}
 
 	async closeClient(): Promise<void> {
 		const client = this._client;
+		if (!client) {
+			return;
+		}
 		try {
 			if (client.status === "ready") {
 				await client.quit();
@@ -31,6 +34,6 @@ export class RedisClientManager {
 	}
 
 	removeAllListeners(): void {
-		this._client.removeAllListeners();
+		this._client?.removeAllListeners();
 	}
 }

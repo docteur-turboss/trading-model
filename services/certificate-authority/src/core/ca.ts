@@ -28,17 +28,14 @@ export interface CertBodyInput {
 }
 
 export class CertificateAuthority {
-	private _state!: BootstrapResult;
-	private readonly _bootstrapper: CaBootstrapper;
+	private readonly _state: BootstrapResult;
 	private readonly _operator: CertificateOperator;
-	private readonly _caStore: CaStore;
 
-	private constructor(options: CaOptions) {
-		this._caStore = options.caStore;
-		this._bootstrapper = new CaBootstrapper(
-			options.caKeyPath,
-			options.caCertTtlMs
-		);
+	private constructor(
+		state: BootstrapResult,
+		options: CaOptions
+	) {
+		this._state = state;
 		this._operator = new CertificateOperator(
 			options.certificateStore,
 			options.crlStore
@@ -46,13 +43,12 @@ export class CertificateAuthority {
 	}
 
 	static async create(options: CaOptions): Promise<CertificateAuthority> {
-		const ca = new CertificateAuthority(options);
-		await ca.initialize();
-		return ca;
-	}
-
-	async initialize(): Promise<void> {
-		this._state = await this._bootstrapper.loadOrBootstrap(this._caStore);
+		const bootstrapper = new CaBootstrapper(
+			options.caKeyPath,
+			options.caCertTtlMs
+		);
+		const state = await bootstrapper.loadOrBootstrap(options.caStore);
+		return new CertificateAuthority(state, options);
 	}
 
 	async signServiceCertificate(

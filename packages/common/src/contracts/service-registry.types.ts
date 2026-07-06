@@ -5,6 +5,7 @@ import type {
 	Port,
 	Region,
 	ServiceId,
+	Version,
 } from "../domain/primitives";
 import type {
 	ServiceEndpoint,

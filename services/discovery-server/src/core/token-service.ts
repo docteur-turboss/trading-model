@@ -1,10 +1,11 @@
 import { createHmac } from "node:crypto";
 
 import { logger } from "@trading-model/common/config/logger";
-import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { generateRandomStr } from "@trading-model/common/crypto/random";
 import {
+	generateInstanceToken as commonGenerateToken,
 	validInstanceToken as commonValidateToken,
+	verifyInstanceName as commonVerifyName,
 	type TokenValidationInput,
 } from "@trading-model/common/crypto/token-service";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
@@ -67,8 +68,33 @@ export class TokenService {
 	}
 
 	verifyInstanceName(serviceName: string): boolean {
-		return (Object.values(ServiceInstanceName) as readonly string[]).includes(
-			serviceName
-		);
+		return commonVerifyName(serviceName as never);
+	}
+
+	/**
+	 * Generate an instance token using an explicitly provided signing secret.
+	 * Matches the signature of `@trading-model/common/crypto/token-service#generateInstanceToken`.
+	 */
+	static generateInstanceToken(
+		instanceId: InstanceId,
+		signingSecret: string
+	): string {
+		return commonGenerateToken(instanceId, signingSecret);
+	}
+
+	/**
+	 * Validate a token using an explicitly provided signing secret.
+	 * Matches the signature of `@trading-model/common/crypto/token-service#validInstanceToken`.
+	 */
+	static validInstanceToken(input: TokenValidationInput): boolean {
+		return commonValidateToken(input);
+	}
+
+	/**
+	 * Verify an instance name against known service names.
+	 * Matches the signature of `@trading-model/common/crypto/token-service#verifyInstanceName`.
+	 */
+	static verifyInstanceName(serviceName: string): boolean {
+		return commonVerifyName(serviceName as never);
 	}
 }

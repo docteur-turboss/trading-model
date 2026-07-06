@@ -40,39 +40,66 @@ export class MarketDataBuffer {
 		return this._stateManager.getMaxSize();
 	}
 
+	addData(
+		dataType: string,
+		symbol: TradingSymbol,
+		data: unknown
+	): void {
+		this._stateManager.addData(dataType, symbol, data);
+	}
+
+	/**
+	 * @deprecated Use addData("candle", symbol, candle) for individual items.
+	 */
 	addCandles(
 		symbol: TradingSymbol,
 		candles: import("@trading-model/common/config/event.types").CandleData[]
 	): void {
-		this._stateManager.addCandles(symbol, candles);
+		for (const c of candles) {
+			this._stateManager.addData("candle", symbol, c);
+		}
 	}
 
+	/**
+	 * @deprecated Use addData("trade", symbol, trade) for individual items.
+	 */
 	addTrades(
 		symbol: TradingSymbol,
 		trades: import("@trading-model/common/config/event.types").TradeData[]
 	): void {
-		this._stateManager.addTrades(symbol, trades);
+		for (const t of trades) {
+			this._stateManager.addData("trade", symbol, t);
+		}
 	}
 
+	/**
+	 * @deprecated Use addData("orderBook", symbol, data).
+	 */
 	setOrderBook(
 		symbol: TradingSymbol,
 		orderBook: import("@trading-model/common/config/event.types").OrderBookData
 	): void {
-		this._stateManager.setOrderBook(symbol, orderBook);
+		this._stateManager.addData("orderBook", symbol, orderBook);
 	}
 
+	/**
+	 * @deprecated Use addData("bookTicker", symbol, data).
+	 */
 	setBookTicker(
 		symbol: TradingSymbol,
 		bt: import("@trading-model/common/config/event.types").BookTickerData
 	): void {
-		this._stateManager.setBookTicker(symbol, bt);
+		this._stateManager.addData("bookTicker", symbol, bt);
 	}
 
+	/**
+	 * @deprecated Use addData("ticker", symbol, data).
+	 */
 	setTicker24h(
 		symbol: TradingSymbol,
 		ticker: import("@trading-model/common/config/event.types").TickerData
 	): void {
-		this._stateManager.setTicker24h(symbol, ticker);
+		this._stateManager.addData("ticker", symbol, ticker);
 	}
 
 	setPriceSnapshot(prices: Record<TradingSymbol, Price>): void {

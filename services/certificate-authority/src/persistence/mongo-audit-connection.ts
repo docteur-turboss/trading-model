@@ -6,15 +6,8 @@ import { MONGO_MANAGER } from "./mongo-manager";
 
 export class MongoAuditConnection {
 	private _client: MongoClient;
-	private _collection: Collection<AuditEntry> | null = null;
+	private _collection!: Collection<AuditEntry>;
 	private _mongoConnected = false;
-
-	private get _requiredCollection(): Collection<AuditEntry> {
-		if (!this._collection) {
-			throw new Error("AuditStore not connected");
-		}
-		return this._collection;
-	}
 
 	constructor(uri: string) {
 		this._client = MONGO_MANAGER.isInitialized()
@@ -26,8 +19,8 @@ export class MongoAuditConnection {
 		await this._tryConnect();
 	}
 
-	get collection(): Collection<AuditEntry> | null {
-		return this._collection;
+	get collection(): Collection<AuditEntry> | undefined {
+		return this._mongoConnected ? this._collection : undefined;
 	}
 
 	get mongoConnected(): boolean {
@@ -47,15 +40,18 @@ export class MongoAuditConnection {
 	}
 
 	private async _createAuditIndexes(): Promise<void> {
-		await this._requiredCollection.createIndex(
+		if (!this._mongoConnected) {
+			return;
+		}
+		await this._collection.createIndex(
 			{ timestamp: -1 },
 			{ expireAfterSeconds: 90 * 86400 }
 		);
-		await this._requiredCollection.createIndex({
+		await this._collection.createIndex({
 			serviceId: 1,
 			timestamp: -1,
 		});
-		await this._requiredCollection.createIndex({ serialNumber: 1 });
+		await this._collection.createIndex({ serialNumber: 1 });
 	}
 
 	async ensureMongo(): Promise<boolean> {
@@ -69,8 +65,8 @@ export class MongoAuditConnection {
 		try {
 			await this._ensureClientConnected();
 			this._collection = this._resolveDb().collection<AuditEntry>("audit_log");
-			await this._createAuditIndexes();
 			this._mongoConnected = true;
+			await this._createAuditIndexes();
 			return true;
 		} catch (err) {
 			logger.error(

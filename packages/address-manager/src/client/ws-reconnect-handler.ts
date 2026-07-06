@@ -3,8 +3,9 @@ import {
 	scheduleWsReconnect,
 	type WsReconnectState,
 } from "@trading-model/common/utils/ws-reconnect";
+import type { IWsReconnector } from "@trading-model/common/ws/i-ws-reconnector";
 
-export class WsReconnectHandler {
+export class WsReconnectHandler implements IWsReconnector {
 	private _shouldReconnect = true;
 	private _wsReconnectState: WsReconnectState = {
 		attempt: 0,
@@ -79,7 +80,7 @@ export class WsReconnectHandler {
 
 	/** @deprecated Use {@link scheduleReconnect} instead */
 	schedule(connectFn?: () => void): void {
-		return this.scheduleReconnect(connectFn);
+		this.scheduleReconnect(connectFn);
 	}
 
 	/** @deprecated Use {@link cancel} instead */

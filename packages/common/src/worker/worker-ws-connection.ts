@@ -1,44 +1,45 @@
 import WebSocket from "ws";
-
-import type {
-	SchedulerOutgoingMessage,
-	WorkerIncomingMessage,
-	WorkerWsRegisterMessage,
-} from "../contracts/worker-protocol.types";
+import type { WorkerWsRegisterMessage } from "../contracts/worker-protocol.types";
+import type { Capability } from "../domain/primitives";
 import { type IPAddress, type Port, toInstanceId } from "../domain/primitives";
+import type { IWsConnection } from "../ws/i-ws-connection";
 
 export interface WorkerWsConnectionConfig {
 	workerId: string;
 	serverUrl: string;
-	capabilities: string[];
+	capabilities: Capability[];
 	maxConcurrency: number;
 }
 
-export class WorkerWsConnection {
-	private _ws!: WebSocket;
+export class WorkerWsConnection implements IWsConnection {
+	private _ws: WebSocket | null = null;
 	rejectOnError = true;
 	onOpen?: () => void;
 	onMessage?: (data: WebSocket.Data) => void;
 	onClose?: () => void;
 	onError?: (err: Error) => void;
 
+	onCloseHandler?: () => void;
+
 	constructor(private readonly _cfg: WorkerWsConnectionConfig) {}
 
 	connect(): Promise<void> {
 		return new Promise((resolve, reject) => {
-			this._ws = new WebSocket(this._cfg.serverUrl);
-			this._ws.on("open", () => {
+			const ws = new WebSocket(this._cfg.serverUrl);
+			this._ws = ws;
+			ws.on("open", () => {
 				this._sendRegister();
 				this.onOpen?.();
 				resolve();
 			});
-			this._ws.on("message", (data: WebSocket.Data) => {
+			ws.on("message", (data: WebSocket.Data) => {
 				this.onMessage?.(data);
 			});
-			this._ws.on("close", () => {
+			ws.on("close", () => {
 				this.onClose?.();
+				this.onCloseHandler?.();
 			});
-			this._ws.on("error", (err) => {
+			ws.on("error", (err) => {
 				this.onError?.(err);
 				if (this.rejectOnError) {
 					reject(err);
@@ -47,18 +48,20 @@ export class WorkerWsConnection {
 		});
 	}
 
-	send(data: SchedulerOutgoingMessage | WorkerIncomingMessage): void {
-		if (this._ws.readyState === WebSocket.OPEN) {
+	send(data: unknown): boolean {
+		if (this._ws?.readyState === WebSocket.OPEN) {
 			this._ws.send(JSON.stringify(data));
+			return true;
 		}
+		return false;
 	}
 
-	disconnect(): void {
-		this._ws.close();
+	disconnect(closeCode?: number, reason?: string): void {
+		this._ws?.close(closeCode, reason);
 	}
 
 	get isConnected(): boolean {
-		return this._ws.readyState === WebSocket.OPEN;
+		return this._ws?.readyState === WebSocket.OPEN;
 	}
 
 	private _sendRegister(): void {

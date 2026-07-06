@@ -1,7 +1,7 @@
-import type { z } from "zod";
-
-import type { TlsCredentials } from "../domain/tls-paths";
+import type { TlsPemBundle } from "../domain/tls-paths";
 import { sleep } from "../utils/sleep";
+import type { RequestContext, ServiceRoute } from "./http-request-executor";
+import type { HttpRequestOptions } from "./http-types";
 import {
 	checkHostnameCircuit,
 	checkServiceCircuit,
@@ -16,30 +16,16 @@ import {
 	DEFAULT_RETRY_COUNT,
 	isRetryableStatus,
 } from "./http-retry";
-import type { HttpMethod, HttpRequestOptions } from "./http-types";
-
-export interface RequestContext<TResponse> {
-	method: HttpMethod;
-	urlStr: string;
-	body?: unknown;
-	options?: HttpRequestOptions;
-	schema?: z.ZodType<TResponse>;
-}
-
-export interface ServiceRoute {
-	hostname: string;
-	serviceName?: string;
-}
 
 export class RetryCircuitHandler {
 	async executeWithRetry<TResponse>(
 		context: RequestContext<TResponse>,
 		execute: (
 			ctx: RequestContext<TResponse>,
-			tls?: TlsCredentials
+			tls?: Partial<TlsPemBundle>
 		) => Promise<TResponse | undefined>,
 		route: ServiceRoute,
-		tls?: TlsCredentials
+		tls?: Partial<TlsPemBundle>
 	): Promise<TResponse | undefined> {
 		const retryCount = context.options?.retryCount ?? DEFAULT_RETRY_COUNT;
 		let lastError: Error | null = null;

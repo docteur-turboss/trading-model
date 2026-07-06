@@ -291,6 +291,22 @@ function _rateLimited(ws: WebSocket, session: WssSession): boolean {
 	return true;
 }
 
+type WsMessageHandler = (
+	ws: WebSocket,
+	msg: Record<string, unknown>,
+	session: WssSession
+) => Promise<void> | void;
+
+const WS_MESSAGE_HANDLERS: Record<string, WsMessageHandler> = {
+	auth: async (
+		ws: WebSocket,
+		msg: Record<string, unknown>,
+		session: WssSession
+	): Promise<void> => {
+		_handleAuthWsMessage(ws, msg, session);
+	},
+};
+
 async function handleWsMessage(
 	ws: WebSocket,
 	raw: RawData,
@@ -302,8 +318,9 @@ async function handleWsMessage(
 		return;
 	}
 
-	if (msg.type === "auth") {
-		_handleAuthWsMessage(ws, msg, session);
+	const handler = WS_MESSAGE_HANDLERS[msg.type as string];
+	if (handler) {
+		await handler(ws, msg, session);
 		return;
 	}
 

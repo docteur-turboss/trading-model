@@ -3,7 +3,7 @@ import { URL } from "node:url";
 
 import type { z } from "zod";
 
-import type { TlsCredentials } from "../domain/tls-paths";
+import type { TlsPemBundle } from "../domain/tls-paths";
 import { HttpClientTimeoutError } from "./http-client-errors";
 import { collectResponseBody } from "./http-response";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
@@ -30,7 +30,7 @@ export class HttpRequestExecutor {
 
 	async execute<TResponse>(
 		context: RequestContext<TResponse>,
-		tls?: TlsCredentials
+		tls?: Partial<TlsPemBundle>
 	): Promise<TResponse | undefined> {
 		const timeoutMs = context.options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 		const url = new URL(context.urlStr);
@@ -79,7 +79,7 @@ export class HttpRequestExecutor {
 	async executeWithRetry<TResponse>(
 		context: RequestContext<TResponse>,
 		route: ServiceRoute,
-		tls?: TlsCredentials
+		tls?: Partial<TlsPemBundle>
 	): Promise<TResponse | undefined> {
 		return this._retryHandler.executeWithRetry(
 			context,

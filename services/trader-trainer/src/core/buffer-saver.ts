@@ -4,9 +4,14 @@ import { logger } from "@trading-model/common/config/logger";
 import type { TradingSymbol } from "@trading-model/common/domain/primitives";
 import type { SymbolStateSerializable } from "./buffer-serializable-types";
 import type { MarketDataBuffer } from "./market-data-buffer";
+import { createDefaultHandlers, serializeAllNorms, type DataHandler } from "./data-handlers/data-handler";
 
 export class BufferSaver {
-	constructor(private readonly _checkpointDir: string) {}
+	private readonly _handlers: DataHandler[];
+
+	constructor(private readonly _checkpointDir: string) {
+		this._handlers = createDefaultHandlers();
+	}
 
 	private _bufferStatePath(): string {
 		return join(this._checkpointDir, "market_data_buffer.json");
@@ -30,24 +35,15 @@ export class BufferSaver {
 			if (!state) {
 				continue;
 			}
+			const norms = serializeAllNorms(state, this._handlers);
 			symbolsData[sym] = {
 				candles: state.candles,
 				trades: state.trades,
 				orderBook: state.orderBook,
 				bookTicker: state.bookTicker,
 				ticker24h: state.ticker24h,
-				closeNorm: state.norm.candleClose.toJSON(),
-				volumeNorm: state.norm.candleVolume.toJSON(),
-				openNorm: state.norm.candleOpen.toJSON(),
-				highNorm: state.norm.candleHigh.toJSON(),
-				lowNorm: state.norm.candleLow.toJSON(),
-				tradePriceNorm: state.norm.tradePrice.toJSON(),
-				tradeQtyNorm: state.norm.tradeQty.toJSON(),
-				bidNorm: state.norm.bid.toJSON(),
-				askNorm: state.norm.ask.toJSON(),
-				spreadNorm: state.norm.spread.toJSON(),
-				tickerVolumeNorm: state.norm.tickerVolume.toJSON(),
-			};
+				...norms,
+			} as SymbolStateSerializable;
 		}
 		return symbolsData;
 	}

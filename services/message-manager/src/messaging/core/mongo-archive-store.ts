@@ -28,7 +28,8 @@ export class MongoArchiveStore {
 	}
 
 	private async _archiveBatch(): Promise<void> {
-		if (!this._clientManager.client) {
+		const client = this._clientManager.client;
+		if (!client) {
 			return;
 		}
 
@@ -38,11 +39,11 @@ export class MongoArchiveStore {
 		}
 
 		for (const topic of topics) {
-			await this._archiveTopic(topic);
+			await this._archiveTopic(topic, client);
 		}
 	}
 
-	private async _archiveTopic(topic: string): Promise<void> {
+	private async _archiveTopic(topic: string, client: NonNullable<typeof this._clientManager.client>): Promise<void> {
 		try {
 			const messages = await messageStore.getMessagesAfter(
 				topic,
@@ -56,11 +57,11 @@ export class MongoArchiveStore {
 			const { MongoArchiveBatchWriter } = await import(
 				"./mongo-archive-batch.js"
 			);
-			const writer = new MongoArchiveBatchWriter(
-				this._clientManager.requiredClient,
-				ENV.MONGO_ARCHIVE_DB,
-				ENV.MONGO_ARCHIVE_COLLECTION
-			);
+			const writer = new MongoArchiveBatchWriter({
+				client,
+				dbName: ENV.MONGO_ARCHIVE_DB,
+				collectionName: ENV.MONGO_ARCHIVE_COLLECTION,
+			});
 			await writer.writeArchiveBatch(messages);
 		} catch {
 			// continue to next topic

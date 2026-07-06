@@ -18,8 +18,8 @@ export interface UsedToken {
 }
 
 export class TokenStore {
-	private _client!: MongoClient;
-	private _collection!: Collection<UsedToken>;
+	private _client: MongoClient | null = null;
+	private _collection: Collection<UsedToken> | null = null;
 	private readonly _uri: string;
 	private readonly _dbName: string;
 	private readonly _defaultTtlMs: number;
@@ -28,6 +28,13 @@ export class TokenStore {
 		this._uri = uri;
 		this._dbName = dbName ?? "certificate-authority";
 		this._defaultTtlMs = defaultTtlMs ?? 604_800_000; // 7 days default TTL
+	}
+
+	private get _requiredCollection(): Collection<UsedToken> {
+		if (!this._collection) {
+			throw new Error("TokenStore not connected");
+		}
+		return this._collection;
 	}
 
 	async connect(): Promise<void> {
@@ -48,24 +55,27 @@ export class TokenStore {
 	async disconnect(): Promise<void> {
 		if (!MONGO_MANAGER.isInitialized()) {
 			await this._client?.close();
+			this._client = null;
 		}
 	}
 
 	private async _createIndexes(): Promise<void> {
-		await this._collection.createIndex(
+		const col = this._requiredCollection;
+		await col.createIndex(
 			{ expiresAt: 1 },
 			{ expireAfterSeconds: 0 }
 		);
-		await this._collection.createIndex({ tokenHash: 1 }, { unique: true });
+		await col.createIndex({ tokenHash: 1 }, { unique: true });
 	}
 
 	async tryUseToken(request: TokenUseRequest): Promise<boolean> {
 		const { token, serviceId, ttlMs } = request;
 		const ttl = ttlMs ?? this._defaultTtlMs;
 		const hash = await this._hashToken(token);
+		const col = this._requiredCollection;
 
 		try {
-			await this._collection.insertOne({
+			await col.insertOne({
 				tokenHash: hash,
 				serviceId,
 				usedAt: new Date(),
@@ -89,7 +99,8 @@ export class TokenStore {
 
 	async isUsed(token: string): Promise<boolean> {
 		const hash = await this._hashToken(token);
-		const found = await this._collection.findOne({ tokenHash: hash });
+		const col = this._requiredCollection;
+		const found = await col.findOne({ tokenHash: hash });
 		return found !== null;
 	}
 

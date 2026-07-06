@@ -3,8 +3,9 @@ import {
 	scheduleWsReconnect,
 	type WsReconnectState,
 } from "@trading-model/common/utils/ws-reconnect";
+import type { IWsReconnector } from "@trading-model/common/ws/i-ws-reconnector";
 
-export class CertWsReconnectHandler {
+export class CertWsReconnectHandler implements IWsReconnector {
 	private _destroyed = false;
 	readonly reconnectState: WsReconnectState = {
 		attempt: 0,
@@ -14,6 +15,14 @@ export class CertWsReconnectHandler {
 
 	get isDestroyed(): boolean {
 		return this._destroyed;
+	}
+
+	get shouldReconnect(): boolean {
+		return !this._destroyed;
+	}
+
+	get attempt(): number {
+		return this.reconnectState.attempt;
 	}
 
 	scheduleReconnect(onReconnect: () => void): void {

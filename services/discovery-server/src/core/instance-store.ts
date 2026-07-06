@@ -1,6 +1,18 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { ServiceInstance } from "./types";
 
+/**
+ * In-memory server-side registry of discovered service instances.
+ *
+ * CRUD pattern:
+ *   - Create: `registerInstance(instance)`
+ *   - Read:   `getInstance(identity)`, `getInstances(serviceName)`, `listServiceNames()`, `dump()`
+ *   - Update: `updateHeartbeat(identity)`
+ *   - Delete: `removeInstance(identity)`
+ *
+ * @see RedisInstanceStore — Redis-backed counterpart
+ * @see CacheStore — client-side cache (address-manager)
+ */
 export class InstanceStore {
 	private _services: Map<string, Map<string, ServiceInstance>> = new Map();
 

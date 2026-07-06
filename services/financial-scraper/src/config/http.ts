@@ -1,3 +1,4 @@
+import { DataSource } from "@trading-model/common/domain/primitives";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import axios, {
 	type AxiosError,
@@ -165,7 +166,6 @@ function _attachRetryInterceptor(instance: AxiosInstance): void {
  * ----------------------------------------------------- */
 
 /** Pre-built HTTP clients for supported data sources (e.g. Binance). */
-export const httpClients = {
-	binance: createHttpClient("https://api.binance.com"),
-	// otherApi: createHttpClient("https://example.com/api"),
+export const httpClients: Record<DataSource, AxiosInstance> = {
+	[DataSource.Binance]: createHttpClient("https://api.binance.com"),
 };

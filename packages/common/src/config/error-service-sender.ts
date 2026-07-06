@@ -1,3 +1,4 @@
+import type { HttpMethod } from "./http-types";
 import { normalizeError } from "../utils/errors";
 import type { LogEntry } from "./log-types";
 import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
@@ -32,7 +33,7 @@ export class ErrorServiceSender {
 
 	private async _postEntry(entry: LogEntry): Promise<void> {
 		await fetch(process.env.ERROR_URL_WEBHOOK ?? "/", {
-			method: "POST",
+			method: "POST" as HttpMethod,
 			headers: { "Content-Type": "application/json" },
 			body: this._sanitizer.safeStringify(entry),
 		});

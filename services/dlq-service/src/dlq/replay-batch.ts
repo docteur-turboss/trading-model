@@ -7,22 +7,22 @@ import {
 	isShuttingDown,
 	recordMMResult,
 } from "./shared/index";
-import type { DlqEntryRef, DlqError, ReplayBatchOptions } from "./types";
+import type {
+	BatchContext,
+	BatchReplayContext,
+	DlqEntryRef,
+	DlqError,
+	ReplayBatchOptions,
+} from "./types";
 
-export interface ReplayContext {
-	client: import("@trading-model/common/config/http-client").HttpClient;
-	messageManagerUrl: string;
-	batchId: string;
-	instanceId: string;
+export interface ReplayContext extends BatchReplayContext {
 	isTimedOut: () => boolean;
 	successCount: { value: number };
 	errors: DlqError[];
 }
 
-export interface DeliveryFailureContext {
+export interface DeliveryFailureContext extends BatchContext {
 	entryId: string;
-	instanceId: string;
-	batchId: string;
 	httpError: string;
 }
 
@@ -206,12 +206,7 @@ function _rejectAll(
 
 async function _runBatchWithTimeout(
 	entries: DlqEntryRef[],
-	ctxBase: {
-		client: import("@trading-model/common/config/http-client").HttpClient;
-		messageManagerUrl: string;
-		batchId: string;
-		instanceId: string;
-	}
+	ctxBase: BatchReplayContext
 ): Promise<{ success: number; errors: DlqError[] }> {
 	const ReplayConcurrency = 10;
 	const ReplayBatchTimeoutMs = 120_000;
@@ -253,15 +248,14 @@ export type { DlqEntryRef, DlqError, ReplayBatchOptions } from "./types";
 export async function doReplayBatch(
 	options: ReplayBatchOptions
 ): Promise<{ success: number; errors: DlqError[] }> {
-	const { entries, messageManagerUrl, batchId, instanceId } = options;
-	const rejection = _checkBatchRejection(entries, batchId);
+	const rejection = _checkBatchRejection(options.entries, options.batchId);
 	if (rejection) {
 		return rejection;
 	}
 
 	activeBatches++;
 	try {
-		return await _executeBatch(entries, messageManagerUrl, batchId, instanceId);
+		return await _executeBatch(options);
 	} finally {
 		activeBatches--;
 	}
@@ -293,17 +287,14 @@ function _checkBatchRejection(
 }
 
 async function _executeBatch(
-	entries: DlqEntryRef[],
-	messageManagerUrl: string,
-	batchId: string,
-	instanceId: string
+	options: ReplayBatchOptions
 ): Promise<{ success: number; errors: DlqError[] }> {
 	const client = await getHttpClient();
-	const { success, errors } = await _runBatchWithTimeout(entries, {
+	const { success, errors } = await _runBatchWithTimeout(options.entries, {
 		client,
-		messageManagerUrl,
-		batchId,
-		instanceId,
+		messageManagerUrl: options.messageManagerUrl,
+		batchId: options.batchId,
+		instanceId: options.instanceId,
 	});
 	recordMMResult(success > 0);
 	return { success, errors };

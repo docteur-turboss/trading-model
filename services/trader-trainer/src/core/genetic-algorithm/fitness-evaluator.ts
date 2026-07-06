@@ -8,8 +8,8 @@ import type { DeepReadonly } from "./shared-types";
 import { StagnationTracker } from "./stagnation-tracker";
 
 export class FitnessEvaluator {
-	_archive = new ParetoArchive();
-	_stagnationTracker = new StagnationTracker();
+	private _archive = new ParetoArchive();
+	private _stagnationTracker = new StagnationTracker();
 	private _lastBestGenome: DeepReadonly<LamarckGenome> | undefined;
 
 	constructor(
@@ -30,8 +30,12 @@ export class FitnessEvaluator {
 		return this._lastBestGenome;
 	}
 
-	set lastBestGenome(g: DeepReadonly<LamarckGenome> | undefined) {
-		this._lastBestGenome = g;
+	updateBestGenome(
+		candidate: DeepReadonly<LamarckGenome> | undefined
+	): void {
+		if (candidate !== undefined) {
+			this._lastBestGenome = candidate;
+		}
 	}
 
 	async evaluate(population: DeepReadonly<LamarckGenome>[]): Promise<{

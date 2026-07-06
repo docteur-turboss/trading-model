@@ -69,10 +69,14 @@
       "types": "./dist/crypto/*.d.ts",
       "default": "./dist/crypto/*.js"
     },
-    "./tests/*": {
-      "types": "./tests/*.d.ts",
-      "default": "./tests/*.js"
-    }
+	"./ws/*": {
+			"types": "./dist/ws/*.d.ts",
+			"default": "./dist/ws/*.js"
+		},
+		"./tests/*": {
+			"types": "./tests/*.d.ts",
+			"default": "./tests/*.js"
+		}
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

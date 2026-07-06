@@ -14,6 +14,7 @@ import type {
 	MutationGenome,
 	NetworkGenome,
 	RLGenome,
+	RLScalars,
 } from "./genome-types";
 import {
 	MutationAdaptation,
@@ -224,7 +225,7 @@ function _mutateGammaAndLR(
 	rl: RLGenome,
 	mutation: MutationGenome,
 	rng: () => number
-): Pick<RLGenome, "gamma" | "learningRate"> {
+): RLScalars {
 	const perturb = (value: number, scale: number) =>
 		value + sampleNoise(mutation.distribution, scale, rng);
 

@@ -3,45 +3,34 @@ import {
 	setupProcessHandlers,
 } from "@trading-model/common/server/signal-handler";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-import type { AddressManagerClient } from "./client/address-manager-client";
-import type { WebSocketClient } from "./client/websocket-client";
-import type { CircuitBreaker } from "./discovery/circuit-breaker";
-import type { IServiceCache } from "./discovery/service-cache.interface";
+import type { ShutdownHandlerDeps } from "./types";
 
 export class ShutdownHandler {
 	private readonly _metricsTimer = new TimerHandle();
 	private _signalHandlersRegistered = false;
 
-	constructor(
-		private readonly _registrationManager: {
-			shouldRetryRegistration: boolean;
-		},
-		private readonly _wsClient: WebSocketClient | undefined,
-		private readonly _addressManagerClient: AddressManagerClient,
-		private readonly _serviceCache: IServiceCache,
-		private readonly _circuitBreaker: CircuitBreaker
-	) {}
+	constructor(private readonly _deps: ShutdownHandlerDeps) {}
 
 	shutdown(): void {
-		this._registrationManager.shouldRetryRegistration = false;
+		this._deps.registrationManager.shouldRetryRegistration = false;
 	}
 
 	async fullStop(): Promise<void> {
 		this.shutdown();
 		this._disconnectWs();
 		await this._unregisterService();
-		this._serviceCache.stop();
-		this._circuitBreaker.clear();
+		this._deps.serviceCache.stop();
+		this._deps.circuitBreaker.clear();
 		this._metricsTimer.stop();
 	}
 
 	private _disconnectWs(): void {
-		this._wsClient?.disconnect();
+		this._deps.wsClient?.disconnect();
 	}
 
 	private async _unregisterService(): Promise<void> {
 		try {
-			await this._addressManagerClient.unregisterService();
+			await this._deps.addressManagerClient.unregisterService();
 		} catch {
 			/* best-effort */
 		}

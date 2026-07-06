@@ -4,6 +4,7 @@
 	WorkerIncomingMessage,
 	WorkerWsHeartbeatMessage,
 } from "../contracts/worker-protocol.types";
+import type { Capability, JobType } from "../domain/primitives";
 import { TypedEventEmitter } from "./typed-event-emitter";
 import { WorkerHeartbeat } from "./worker-heartbeat";
 import { WorkerMessageRouter } from "./worker-message-router";
@@ -13,7 +14,7 @@ import { WorkerWsConnection } from "./worker-ws-connection";
 export interface WorkerClientConfig {
 	workerId: string;
 	serverUrl: string;
-	capabilities: string[];
+	capabilities: Capability[];
 	maxConcurrency: number;
 	heartbeatIntervalMs?: number;
 	reconnectBaseDelayMs?: number;

@@ -1,8 +1,8 @@
 export class TimerHandle {
-	private _handle!: ReturnType<typeof setInterval>;
+	private _handle: ReturnType<typeof setInterval> | null = null;
 
 	get isRunning(): boolean {
-		return Boolean(this._handle);
+		return this._handle !== null;
 	}
 
 	startInterval(callback: () => void, intervalMs: number): void {
@@ -16,10 +16,15 @@ export class TimerHandle {
 	}
 
 	stop(): void {
-		clearInterval(this._handle);
+		if (this._handle !== null) {
+			clearInterval(this._handle);
+			this._handle = null;
+		}
 	}
 
 	unref(): void {
-		this._handle.unref();
+		if (this._handle !== null) {
+			this._handle.unref();
+		}
 	}
 }

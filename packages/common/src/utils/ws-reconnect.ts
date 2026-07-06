@@ -34,11 +34,8 @@ export interface WsReconnectOptions {
 	};
 }
 
-function _checkMaxAttempts(
-	state: WsReconnectState,
-	config: WsReconnectConfig,
-	logger: WsReconnectOptions["logger"]
-): boolean {
+function _checkMaxAttempts(options: WsReconnectOptions): boolean {
+	const { state, config, logger } = options;
 	const maxAttempts = config.maxAttempts;
 	if (maxAttempts !== undefined && state.attempt >= maxAttempts) {
 		logger.warn("WebSocket max reconnect attempts reached", {
@@ -49,13 +46,8 @@ function _checkMaxAttempts(
 	return false;
 }
 
-function _scheduleWithDelay(
-	state: WsReconnectState,
-	config: WsReconnectConfig,
-	onReconnect: () => void,
-	onSchedule: WsReconnectOptions["onSchedule"],
-	logger: WsReconnectOptions["logger"]
-): void {
+function _scheduleWithDelay(options: WsReconnectOptions): void {
+	const { state, config, onReconnect, onSchedule, logger } = options;
 	state.attempt++;
 	const delay = calculateDelay(config, state.attempt);
 	onSchedule?.({ attempt: state.attempt, delay });
@@ -74,7 +66,7 @@ export function scheduleWsReconnect(options: WsReconnectOptions): void {
 	if (state.destroyed) {
 		return;
 	}
-	if (_checkMaxAttempts(state, config, logger)) {
+	if (_checkMaxAttempts(options)) {
 		return;
 	}
 
@@ -82,7 +74,7 @@ export function scheduleWsReconnect(options: WsReconnectOptions): void {
 		clearTimeout(state.timer);
 		state.timer = null;
 	}
-	_scheduleWithDelay(state, config, onReconnect, onSchedule, logger);
+	_scheduleWithDelay(options);
 }
 
 export function createWsConnectTimeout(

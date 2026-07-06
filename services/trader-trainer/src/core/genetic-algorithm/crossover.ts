@@ -11,9 +11,10 @@ import type {
 	LayerGenome,
 	MutationGenome,
 	NetworkGenome,
+	RLGenome,
+	RLScalars,
 	ReplayBufferGenome,
 	RewardShapingGenome,
-	RLGenome,
 } from "./genome-types";
 import { CrossoverType } from "./genome-types";
 
@@ -311,7 +312,7 @@ function _crossoverGammaAndLR(
 	left: RLGenome,
 	right: RLGenome,
 	crossoverFn: (valueA: number, valueB: number) => number
-): Pick<RLGenome, "gamma" | "learningRate"> {
+): RLScalars {
 	return {
 		gamma: crossoverFn(left.gamma, right.gamma),
 		learningRate: crossoverFn(left.learningRate, right.learningRate),

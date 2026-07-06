@@ -36,7 +36,6 @@ export interface CronConfig {
 
 export class BinanceCronOrchestrator {
 	private readonly _maxConcurrency: number;
-	private _isRunning = false;
 
 	constructor(private readonly _config: CronConfig) {
 		/**
@@ -54,26 +53,26 @@ export class BinanceCronOrchestrator {
 	 * Starts the cron scheduler.
 	 */
 	public start(): void {
-		cron.schedule(this._config.schedule, () => this._executeCronTick());
+		let isRunning = false;
+
+		cron.schedule(this._config.schedule, async () => {
+			if (isRunning) {
+				logger.warn("Previous execution still running");
+				return;
+			}
+
+			isRunning = true;
+
+			try {
+				await this._executeBatch();
+			} catch (err) {
+				_logBatchError(err);
+			} finally {
+				isRunning = false;
+			}
+		});
 
 		logger.info("Scheduler started", { maxConcurrency: this._maxConcurrency });
-	}
-
-	private async _executeCronTick(): Promise<void> {
-		if (this._isRunning) {
-			logger.warn("Previous execution still running");
-			return;
-		}
-
-		this._isRunning = true;
-
-		try {
-			await this._executeBatch();
-		} catch (err) {
-			_logBatchError(err);
-		} finally {
-			this._isRunning = false;
-		}
 	}
 }
 

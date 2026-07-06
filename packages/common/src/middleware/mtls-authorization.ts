@@ -1,5 +1,6 @@
 import type { Request } from "express";
 
+import type { ServiceId } from "../domain/primitives";
 import { catchSync } from "./catch-error";
 import { ResponseException } from "./response-exception";
 
@@ -7,19 +8,21 @@ import { ResponseException } from "./response-exception";
  * Default ACL: target service name → list of allowed caller service names.
  * '*' means any authenticated service is allowed.
  */
-const DEFAULT_ACL: Record<string, string[]> = {
-	"certificate-authority": ["*"],
-	"discovery-server": ["*"],
-	"audit-logger": ["*"],
+function svc(s: string): ServiceId { return s as ServiceId; }
+
+const DEFAULT_ACL: Record<string, readonly ServiceId[]> = {
+	"certificate-authority": [svc("*")],
+	"discovery-server": [svc("*")],
+	"audit-logger": [svc("*")],
 	"message-manager": [
-		"discovery-server",
-		"financial-scraper",
-		"trader-trainer",
-		"api-gateway",
+		svc("discovery-server"),
+		svc("financial-scraper"),
+		svc("trader-trainer"),
+		svc("api-gateway"),
 	],
-	"financial-scraper": ["api-gateway"],
-	"trader-trainer": ["api-gateway", "financial-scraper", "discovery-server"],
-	"api-gateway": ["admin-interface"],
+	"financial-scraper": [svc("api-gateway")],
+	"trader-trainer": [svc("api-gateway"), svc("financial-scraper"), svc("discovery-server")],
+	"api-gateway": [svc("admin-interface")],
 };
 
 function extractServiceName(clientIdentity: string): string | null {
@@ -50,7 +53,7 @@ function extractServiceName(clientIdentity: string): string | null {
  */
 export function MTLSAuthorizationMiddleware(
 	targetService: string,
-	allowedCallers?: string[]
+	allowedCallers?: ServiceId[]
 ) {
 	return catchSync((req: Request, _res, next) => {
 		const callerName = _resolveCallerName(req);
@@ -83,8 +86,8 @@ function _resolveCallerName(req: Request): string {
 
 function _getAllowedCallers(
 	targetService: string,
-	allowedCallers?: string[]
-): string[] {
+	allowedCallers?: readonly ServiceId[],
+): readonly ServiceId[] {
 	const allowed = allowedCallers ?? DEFAULT_ACL[targetService];
 	if (!allowed) {
 		_throwForbidden(`No authorization policy for "${targetService}"`);
@@ -95,10 +98,10 @@ function _getAllowedCallers(
 function _authorizeCaller(
 	callerName: string,
 	targetService: string,
-	allowedCallers?: string[]
+	allowedCallers?: readonly ServiceId[],
 ): void {
 	const allowed = _getAllowedCallers(targetService, allowedCallers);
-	if (!(allowed.includes("*") || allowed.includes(callerName))) {
+	if (!(allowed.includes("*" as ServiceId) || allowed.includes(callerName as ServiceId))) {
 		_throwForbidden(
 			`"${callerName}" is not authorized to access "${targetService}"`
 		);

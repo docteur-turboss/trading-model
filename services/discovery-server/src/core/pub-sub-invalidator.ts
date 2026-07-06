@@ -17,20 +17,18 @@ function createNullRedis(): Redis {
 
 export class PubSubInvalidator {
 	private readonly _pubSub: Redis;
-	private readonly _redisUrlForPubSub?: string;
 
 	constructor(redisUrlForPubSub?: string) {
-		this._redisUrlForPubSub = redisUrlForPubSub;
 		this._pubSub = redisUrlForPubSub
-			? new Redis(this._redisUrlForPubSub!, {
+			? new Redis(redisUrlForPubSub, {
 					lazyConnect: true,
 					maxRetriesPerRequest: 3,
 				})
 			: createNullRedis();
 	}
 
-	get client(): Redis | undefined {
-		return this._redisUrlForPubSub ? this._pubSub : undefined;
+	get client(): Redis {
+		return this._pubSub;
 	}
 
 	private _onPubSubMessage(
@@ -54,9 +52,6 @@ export class PubSubInvalidator {
 	}
 
 	async start(cacheManager: CacheManager): Promise<void> {
-		if (!this._redisUrlForPubSub) {
-			return;
-		}
 		try {
 			await this._setupPubSub(cacheManager);
 		} catch (err) {
@@ -81,9 +76,6 @@ export class PubSubInvalidator {
 	}
 
 	stop(): void {
-		if (!this._redisUrlForPubSub) {
-			return;
-		}
 		try {
 			this._pubSub.unsubscribe("cache:invalidate");
 		} catch {

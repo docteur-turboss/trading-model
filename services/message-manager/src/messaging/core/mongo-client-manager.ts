@@ -1,12 +1,12 @@
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
-import type { MongoClient } from "./mongo-archive-batch";
+import type { MongoClient } from "mongodb";
 
 export class MongoClientManager {
-	private _client!: MongoClient;
+	private _client: MongoClient | null = null;
 	private _started = false;
 
-	get client(): MongoClient {
+	get client(): MongoClient | null {
 		return this._client;
 	}
 
@@ -44,15 +44,19 @@ export class MongoClientManager {
 	}
 
 	async ensureIndexes(): Promise<void> {
+		if (!this._client) {
+			logger.warn("MongoDB client not initialized — skipping index creation");
+			return;
+		}
 		try {
 			const { MongoArchiveBatchWriter } = await import(
 				"./mongo-archive-batch.js"
 			);
-			const writer = new MongoArchiveBatchWriter(
-				this._client,
-				ENV.MONGO_ARCHIVE_DB,
-				ENV.MONGO_ARCHIVE_COLLECTION
-			);
+			const writer = new MongoArchiveBatchWriter({
+				client: this._client,
+				dbName: ENV.MONGO_ARCHIVE_DB,
+				collectionName: ENV.MONGO_ARCHIVE_COLLECTION,
+			});
 			await writer.createIndexes();
 			logger.info("MongoDB archive indexes ensured");
 		} catch (err) {
@@ -65,6 +69,9 @@ export class MongoClientManager {
 	}
 
 	async closeClient(): Promise<void> {
+		if (!this._client) {
+			return;
+		}
 		try {
 			await this._client.close();
 		} catch {

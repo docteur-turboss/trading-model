@@ -1,11 +1,12 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { PendingPublishQueue } from "./pending-publish-queue";
 import { TopicSubscriptionManager } from "./topic-subscription-manager";
 import { WsConnectionEventHandler } from "./ws-connection-event-handler";
 import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
+import type { WssClientConfig } from "./wss-connection-lifecycle";
 import { WssReconnector } from "./wss-reconnector";
+import type { IWsReconnector } from "@trading-model/common/ws/i-ws-reconnector";
 
 export class WssConnectionOrchestrator {
 	private readonly _lifecycle: WssConnectionLifecycle;
@@ -15,12 +16,7 @@ export class WssConnectionOrchestrator {
 	private readonly _onConnect: () => void;
 
 	constructor(
-		config: {
-			wssUrl: string;
-			tlsConfig?: Partial<TlsPaths>;
-			serviceName: string;
-			instanceId: string;
-		},
+		config: WssClientConfig,
 		onMessage: (raw: string) => void,
 		private readonly _queue: PendingPublishQueue
 	) {
@@ -70,7 +66,7 @@ export class WssConnectionOrchestrator {
 	}
 
 	isConnected(): boolean {
-		return this._lifecycle.isConnected();
+		return this._lifecycle.isConnected;
 	}
 
 	send(data: unknown): boolean {

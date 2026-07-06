@@ -4,11 +4,13 @@ import type { TlsPemBundle } from "../domain/tls-paths";
 import { JobAssignmentHandler } from "./job-assignment-handler";
 import { WorkerClient, type WorkerClientConfig } from "./worker-client";
 
+import type { Capability, JobType } from "../domain/primitives";
+
 export interface BaseWorkerConfig {
 	workerId?: string;
 	serverUrl: string;
 	schedulerHttpUrl: string;
-	capabilities: string[];
+	capabilities: Capability[];
 	maxConcurrency: number;
 	heartbeatIntervalMs?: number;
 	tlsConfig?: TlsPemBundle;

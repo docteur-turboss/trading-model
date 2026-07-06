@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { Request } from "express";
 
 import { HTTP_HEADERS } from "../http-headers";
+import type { CorrelationId } from "../domain/primitives";
 
 /**
  * Per-request storage for propagating identity and metadata
@@ -10,8 +11,8 @@ import { HTTP_HEADERS } from "../http-headers";
  */
 export interface RequestStore {
 	clientIdentity: string;
-	requestId: string;
-	correlationId: string;
+	requestId: CorrelationId;
+	correlationId: CorrelationId;
 }
 
 export const REQUEST_CONTEXT = new AsyncLocalStorage<RequestStore>();
@@ -28,12 +29,14 @@ export function requestContextMiddleware(
 	const store: RequestStore = {
 		clientIdentity:
 			(req as unknown as Record<string, string>).clientIdentity ?? "unknown",
-		requestId:
+		requestId: ((
 			(req.headers[HTTP_HEADERS.X_REQUEST_ID] as string) ??
 			(req as unknown as Record<string, string>).correlationId ??
-			"",
-		correlationId:
-			(req as unknown as Record<string, string>).correlationId ?? "",
+			""
+		) as CorrelationId),
+		correlationId: ((
+			(req as unknown as Record<string, string>).correlationId ?? ""
+		) as CorrelationId),
 	};
 	REQUEST_CONTEXT.run(store, next);
 }

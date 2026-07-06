@@ -17,14 +17,15 @@ const HTTP_RESPONSE_DEFINITIONS = [
 	{ key: "ok", code: 201 },
 	{ key: "success", code: 200 },
 ] as const;
+type ResponseMethodKey = (typeof HTTP_RESPONSE_DEFINITIONS)[number]["key"];
 
 export const HTTP_CODE = Object.fromEntries(
 	HTTP_RESPONSE_DEFINITIONS.map(({ key }) => [key, key])
-) as { [TKey in (typeof HTTP_RESPONSE_DEFINITIONS)[number]["key"]]: TKey };
+) as { [TKey in ResponseMethodKey]: TKey };
 
 export const ResponseCodes = Object.fromEntries(
 	HTTP_RESPONSE_DEFINITIONS.map(({ key, code }) => [key, code])
-) as { [TKey in (typeof HTTP_RESPONSE_DEFINITIONS)[number]["key"]]: number };
+) as { [TKey in ResponseMethodKey]: number };
 
 export type ResponseCodeKey = keyof typeof ResponseCodes;
 export type ResponseCodeValue =
@@ -35,9 +36,9 @@ export interface ResponseObject {
 	data: unknown;
 }
 
-function _buildResponse(reason: string, code: number): ResponseObject {
-	return { status: code, data: reason };
-}
+type ResponseMethods = {
+	[K in ResponseMethodKey]: () => ResponseObject;
+};
 
 export class ClassResponseExceptions extends Error {
 	readonly reason: string;
@@ -47,62 +48,29 @@ export class ClassResponseExceptions extends Error {
 		this.name = "ClassResponseExceptions";
 		this.reason = typeof reason === "string" ? reason : JSON.stringify(reason);
 	}
-
-	serviceUnavailable() {
-		return _buildResponse(this.reason, ResponseCodes.serviceUnavailable);
-	}
-	unknownError() {
-		return _buildResponse(this.reason, ResponseCodes.unknownError);
-	}
-	invalidToken() {
-		return _buildResponse(this.reason, ResponseCodes.invalidToken);
-	}
-	tooManyRequests() {
-		return _buildResponse(this.reason, ResponseCodes.tooManyRequests);
-	}
-	imaTeapot() {
-		return _buildResponse(this.reason, ResponseCodes.imaTeapot);
-	}
-	payloadTooLarge() {
-		return _buildResponse(this.reason, ResponseCodes.payloadTooLarge);
-	}
-	gone() {
-		return _buildResponse(this.reason, ResponseCodes.gone);
-	}
-	conflict() {
-		return _buildResponse(this.reason, ResponseCodes.conflict);
-	}
-	methodNotAllowed() {
-		return _buildResponse(this.reason, ResponseCodes.methodNotAllowed);
-	}
-	notFound() {
-		return _buildResponse(this.reason, ResponseCodes.notFound);
-	}
-	forbidden() {
-		return _buildResponse(this.reason, ResponseCodes.forbidden);
-	}
-	paymentRequired() {
-		return _buildResponse(this.reason, ResponseCodes.paymentRequired);
-	}
-	unauthorized() {
-		return _buildResponse(this.reason, ResponseCodes.unauthorized);
-	}
-	badRequest() {
-		return _buildResponse(this.reason, ResponseCodes.badRequest);
-	}
-	noContent() {
-		return { status: ResponseCodes.noContent, data: undefined };
-	}
-	ok() {
-		return _buildResponse(this.reason, ResponseCodes.ok);
-	}
-	success() {
-		return _buildResponse(this.reason, ResponseCodes.success);
-	}
 }
 
-export const ResponseException = (reason: unknown = "") =>
-	new ClassResponseExceptions(reason);
+const _responseMethodProxyHandler: ProxyHandler<ClassResponseExceptions> = {
+	get(target, prop) {
+		if (typeof prop === "symbol" || prop in target) {
+			return Reflect.get(target, prop);
+		}
+		const def = HTTP_RESPONSE_DEFINITIONS.find((d) => d.key === prop);
+		if (!def) return undefined;
+		if (def.key === "noContent") {
+			return () => ({ status: def.code, data: undefined });
+		}
+		return () => ({ status: def.code, data: target.reason });
+	},
+};
+
+export const ResponseException = (
+	reason: unknown = ""
+): ClassResponseExceptions & ResponseMethods =>
+	new Proxy(
+		new ClassResponseExceptions(reason),
+		_responseMethodProxyHandler
+	) as ClassResponseExceptions & ResponseMethods;
 
 export const sendResponse = (
 	data: unknown,

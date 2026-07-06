@@ -6,7 +6,7 @@ import { JobHandlerRegistry } from "./job-handler-registry";
 export class JobAssignmentHandler {
 	private readonly _handlerRegistry = new JobHandlerRegistry();
 	private readonly _jobManager: ActiveJobManager;
-	private _drainRequested = false;
+	private _state: "running" | "draining" = "running";
 
 	constructor(httpClient: HttpClient, schedulerHttpUrl: string) {
 		this._jobManager = new ActiveJobManager(httpClient, schedulerHttpUrl);
@@ -26,7 +26,7 @@ export class JobAssignmentHandler {
 	async onJobAssigned(
 		job: SchedulerWsJobAssignedMessage["job"]
 	): Promise<void> {
-		if (this._drainRequested) {
+		if (this._state === "draining") {
 			await this._jobManager.failJob(job.id, "Worker is draining");
 			return;
 		}
@@ -56,7 +56,7 @@ export class JobAssignmentHandler {
 	}
 
 	onDrain(): void {
-		this._drainRequested = true;
+		this._state = "draining";
 	}
 
 	stopAll(): void {
@@ -68,6 +68,6 @@ export class JobAssignmentHandler {
 	}
 
 	get isDraining(): boolean {
-		return this._drainRequested;
+		return this._state === "draining";
 	}
 }

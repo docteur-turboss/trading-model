@@ -2,6 +2,7 @@ import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { MongoBatchWriter } from "./mongo-batch-writer";
 import { MongoIndexCreator } from "./mongo-index-creator";
+import type { MongoCollectionConfig } from "./mongo-types";
 
 export interface ArchiveEntry {
 	messageId: string;
@@ -36,9 +37,9 @@ export class MongoArchiveBatchWriter {
 	private readonly _indexCreator: MongoIndexCreator;
 	private readonly _batchWriter: MongoBatchWriter;
 
-	constructor(client: MongoClient, dbName: string, collectionName: string) {
-		this._indexCreator = new MongoIndexCreator(client, dbName, collectionName);
-		this._batchWriter = new MongoBatchWriter(client, dbName, collectionName);
+	constructor(config: MongoCollectionConfig) {
+		this._indexCreator = new MongoIndexCreator(config);
+		this._batchWriter = new MongoBatchWriter(config);
 	}
 
 	async createIndexes(): Promise<void> {

@@ -1,6 +1,6 @@
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { PendingPublishQueue } from "./pending-publish-queue";
+import type { WssClientConfig } from "./wss-connection-lifecycle";
 import { WssConnectionOrchestrator } from "./wss-connection-orchestrator";
 import {
 	WssMessageDispatcher,
@@ -16,11 +16,7 @@ export class WssClient {
 	private readonly _queue: PendingPublishQueue;
 	private readonly _publisher: WssPublisher;
 
-	constructor(config: {
-		wssUrl: string;
-		tlsConfig?: Partial<TlsPaths>;
-		serviceName: string;
-		instanceId: string;
+	constructor(config: WssClientConfig & {
 		httpFallback?: (
 			payload: unknown,
 			metadata: MessageMetadata
@@ -52,7 +48,7 @@ export class WssClient {
 	}
 
 	get messageHandler(): WssMessageHandler | null {
-		return this._dispatcher._messageHandler as WssMessageHandler | null;
+		return this._dispatcher.messageHandler as WssMessageHandler | null;
 	}
 
 	onMessage(handler: WssMessageHandler): void {

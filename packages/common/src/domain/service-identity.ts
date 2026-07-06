@@ -14,6 +14,11 @@ export interface ServiceIdentity {
 	region?: Region;
 }
 
+/** Builds a compound string key from a service identity. */
+export function toServiceIdentityKey(identity: ServiceIdentity): string {
+	return `${identity.serviceName}:${identity.instanceId}`;
+}
+
 /** Host and port pair for network endpoints. */
 export interface HostPort {
 	host: IPAddress;

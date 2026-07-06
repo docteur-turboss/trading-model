@@ -83,7 +83,7 @@ import { env } from "../../config/env";
 import { logger } from "../../config/logger";
 
 class SharedHttpClientManager {
-	private _httpClient!: HttpClient;
+	private _httpClient: HttpClient | null = null;
 
 	async get(): Promise<HttpClient> {
 		this._httpClient = new HttpClient({
@@ -95,6 +95,9 @@ class SharedHttpClientManager {
 	}
 
 	async reloadTls(): Promise<void> {
+		if (!this._httpClient) {
+			return;
+		}
 		const client = this._httpClient as { reloadTlsPaths?: () => Promise<void> };
 		if (typeof client.reloadTlsPaths === "function") {
 			try {

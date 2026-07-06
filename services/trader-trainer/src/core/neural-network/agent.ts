@@ -126,6 +126,6 @@ export class Agent {
 	}
 
 	public learnQLearning(exp: Experience, gamma = 0.99): void {
-		this._experienceHandler.learnQLearning(this._nn, exp, gamma);
+		this._experienceHandler.learnExperience(this._nn, exp, gamma);
 	}
 }

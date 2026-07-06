@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as https from "node:https";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import WebSocket from "ws";
 
 export interface WssConnectionEvents {
@@ -10,11 +11,15 @@ export interface WssConnectionEvents {
 	onError: (err: Error) => void;
 }
 
-export class WssConnection {
-	private _ws!: WebSocket;
+export class WssConnection implements IWsConnection {
+	private _ws: WebSocket | undefined;
 	private readonly _tlsCa?: string;
 	private readonly _tlsCert?: string;
 	private readonly _tlsKey?: string;
+	private _lastUrl?: string;
+	private _lastEvents?: WssConnectionEvents;
+
+	onCloseHandler?: () => void;
 
 	constructor(tlsConfig?: Partial<TlsPaths>) {
 		this._tlsCa = tlsConfig?.caPath
@@ -28,45 +33,56 @@ export class WssConnection {
 			: undefined;
 	}
 
-	connect(wsUrl: string, events: WssConnectionEvents): void {
+	connect(wsUrl: string, events: WssConnectionEvents): void;
+	connect(): void;
+	connect(wsUrl?: string, events?: WssConnectionEvents): void {
+		const url = wsUrl ?? this._lastUrl;
+		const evts = events ?? this._lastEvents;
+		if (!(url && evts)) {
+			return;
+		}
+		this._lastUrl = url;
+		this._lastEvents = evts;
+
 		try {
-			this._ws.close();
+			this._ws?.close();
 		} catch {
 			/* ignore */
 		}
 
 		const agent = this._setupWsTls();
-		this._ws = new WebSocket(wsUrl, { agent });
+		this._ws = new WebSocket(url, { agent });
 
 		this._ws.on("open", () => {
-			events.onOpen();
+			evts.onOpen();
 		});
 		this._ws.on("message", (raw: WebSocket.RawData) => {
-			events.onMessage(raw.toString());
+			evts.onMessage(raw.toString());
 		});
 		this._ws.on("close", (code: number, reason: Buffer) => {
-			events.onClose(code, reason);
+			evts.onClose(code, reason);
+			this.onCloseHandler?.();
 		});
 		this._ws.on("error", (err: Error) => {
 			try {
-				this._ws.close();
+				this._ws?.close();
 			} catch {
 				/* ignore */
 			}
-			events.onError(err);
+			evts.onError(err);
 		});
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {
 		try {
-			this._ws.close(closeCode, reason);
+			this._ws?.close(closeCode, reason);
 		} catch {
 			/* ignore */
 		}
 	}
 
 	send(data: unknown): boolean {
-		if (this._ws.readyState !== WebSocket.OPEN) {
+		if (this._ws?.readyState !== WebSocket.OPEN) {
 			return false;
 		}
 		try {
@@ -78,10 +94,10 @@ export class WssConnection {
 	}
 
 	get isConnected(): boolean {
-		return this._ws.readyState === WebSocket.OPEN;
+		return this._ws?.readyState === WebSocket.OPEN;
 	}
 
-	get ws(): WebSocket {
+	get ws(): WebSocket | undefined {
 		return this._ws;
 	}
 

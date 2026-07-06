@@ -4,6 +4,7 @@ import type {
 	IPAddress,
 	Port,
 	ServiceId,
+	Version,
 } from "../../domain/primitives";
 
 export enum ServiceStatus {

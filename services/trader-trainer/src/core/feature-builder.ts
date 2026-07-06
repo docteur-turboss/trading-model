@@ -11,6 +11,7 @@ import {
 import type {
 	CandleFeatureContext,
 	FeatureBuilderContext,
+	FeatureContext,
 	PriceSnapshotFeatureContext,
 } from "./feature-context";
 import { FeatureVector } from "./feature-vector";
@@ -22,27 +23,25 @@ function _initFeatures(
 	idx: number
 ): {
 	features: FeatureVector;
-	cur: CandleData;
 	prev: CandleData | undefined;
 } {
 	return {
 		features: new FeatureVector(),
-		cur: state.candles[idx],
 		prev: state.candles[idx - 1],
 	};
 }
 
 export function buildFeatures(ctx: FeatureBuilderContext): FeatureVector {
 	const { state, idx, priceSnapshot } = ctx;
-	const { features, cur, prev } = _initFeatures(state, idx);
+	const { features, prev } = _initFeatures(state, idx);
 
 	_buildCandleFeatures({ features, state, idx, prev });
-	_buildOrderBookFeatures(features, state);
-	_buildBookTickerFeatures(features, state);
-	_buildTradeFeatures(features, state, cur);
-	_buildTickerFeatures(features, state);
+	_buildOrderBookFeatures({ features, state, idx });
+	_buildBookTickerFeatures({ features, state, idx });
+	_buildTradeFeatures({ features, state, idx });
+	_buildTickerFeatures({ features, state, idx });
 	_buildPriceSnapshotFeature({ features, state, idx, priceSnapshot });
-	_buildSlidingWindowFeatures(features, state, idx);
+	_buildSlidingWindowFeatures({ features, state, idx });
 
 	features.bias = 1.0;
 	return features;
@@ -81,10 +80,8 @@ function _buildCandleFeatures(ctx: CandleFeatureContext): void {
 	features.candleVolumeRatio = _candleVolumeRatio(cur, state);
 }
 
-function _buildOrderBookFeatures(
-	features: FeatureVector,
-	state: SymbolState
-): void {
+function _buildOrderBookFeatures(ctx: FeatureContext): void {
+	const { features, state } = ctx;
 	const obAvg = orderBookAverages(state);
 	if (obAvg) {
 		features.orderBookAvgBid = state.norm.bid.normalize(obAvg.avgBid);
@@ -99,10 +96,8 @@ function _buildOrderBookFeatures(
 	}
 }
 
-function _buildBookTickerFeatures(
-	features: FeatureVector,
-	state: SymbolState
-): void {
+function _buildBookTickerFeatures(ctx: FeatureContext): void {
+	const { features, state } = ctx;
 	if (state.bookTicker) {
 		const bt = state.bookTicker;
 		features.bookTickerBid = state.norm.bid.normalize(bt.bid);
@@ -136,11 +131,9 @@ function _setTradeFeatures(
 	features.tradeBuyRatio = totalQty > 0 ? buyQty / totalQty : 0.5;
 }
 
-function _buildTradeFeatures(
-	features: FeatureVector,
-	state: SymbolState,
-	cur: CandleData
-): void {
+function _buildTradeFeatures(ctx: FeatureContext): void {
+	const { features, state, idx } = ctx;
+	const cur = state.candles[idx];
 	const recentTrades = _filterRecentTrades(state.trades, cur.timestamp - 60000);
 	if (recentTrades.length > 0) {
 		_setTradeFeatures(features, state, recentTrades);

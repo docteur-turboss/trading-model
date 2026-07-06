@@ -29,7 +29,7 @@ export class CachedRegistryCore {
 		this.pingManager = new BackendPingManager(
 			options.backend,
 			this.pubSub,
-			options.redisUrlForPubSub
+			Boolean(options.redisUrlForPubSub)
 		);
 		this.healthMonitor = new RedisHealthMonitor({
 			failureThreshold: options.redisFailureThreshold ?? 3,

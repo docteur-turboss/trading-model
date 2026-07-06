@@ -1,5 +1,13 @@
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import { WssConnection } from "./wss-connection";
+
+export interface WssClientConfig {
+	wssUrl: string;
+	tlsConfig?: Partial<TlsPaths>;
+	serviceName: string;
+	instanceId: string;
+}
 
 export interface WsConnectionLifecycleCallbacks {
 	onOpen: () => void;
@@ -8,23 +16,21 @@ export interface WsConnectionLifecycleCallbacks {
 	onError: (err: Error) => void;
 }
 
-export class WssConnectionLifecycle {
+export class WssConnectionLifecycle implements IWsConnection {
 	private readonly _connection: WssConnection;
 	private readonly _wsUrl: string;
 	private readonly _serviceName: string;
 	private readonly _instanceId: string;
 	private readonly _callbacks: WsConnectionLifecycleCallbacks;
 
+	onCloseHandler?: () => void;
+
 	constructor(
-		config: {
-			wssUrl: string;
-			tlsConfig?: Partial<TlsPaths>;
-			serviceName: string;
-			instanceId: string;
-		},
+		config: WssClientConfig,
 		callbacks: WsConnectionLifecycleCallbacks
 	) {
 		this._connection = new WssConnection(config.tlsConfig);
+		this._connection.onCloseHandler = () => this.onCloseHandler?.();
 		this._wsUrl = config.wssUrl;
 		this._serviceName = config.serviceName;
 		this._instanceId = config.instanceId;
@@ -53,7 +59,7 @@ export class WssConnectionLifecycle {
 		return this._connection.send(data);
 	}
 
-	isConnected(): boolean {
+	get isConnected(): boolean {
 		return this._connection.isConnected;
 	}
 

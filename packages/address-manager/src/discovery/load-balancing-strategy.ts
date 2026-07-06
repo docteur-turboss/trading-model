@@ -1,4 +1,5 @@
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 
 export interface LoadBalancingStrategy {
@@ -6,8 +7,8 @@ export interface LoadBalancingStrategy {
 }
 
 export interface ConnectionCountingStrategy extends LoadBalancingStrategy {
-	acquire(instanceId: string): void;
-	release(instanceId: string): void;
+	acquire(instanceId: InstanceId): void;
+	release(instanceId: InstanceId): void;
 	dispose(): void;
 }
 
@@ -45,7 +46,7 @@ export class RoundRobinStrategy implements LoadBalancingStrategy {
  * for most high-throughput scenarios.
  */
 export class LeastConnectionsStrategy implements ConnectionCountingStrategy {
-	private readonly _connections = new Map<string, number>();
+	private readonly _connections = new Map<InstanceId, number>();
 	private readonly _sweepHandle = new TimerHandle();
 
 	constructor() {
@@ -80,14 +81,14 @@ export class LeastConnectionsStrategy implements ConnectionCountingStrategy {
 		return selected;
 	}
 
-	acquire(instanceId: string): void {
+	acquire(instanceId: InstanceId): void {
 		this._connections.set(
 			instanceId,
 			(this._connections.get(instanceId) ?? 0) + 1
 		);
 	}
 
-	release(instanceId: string): void {
+	release(instanceId: InstanceId): void {
 		const current = this._connections.get(instanceId) ?? 0;
 		if (current <= 1) {
 			this._connections.delete(instanceId);
@@ -97,18 +98,19 @@ export class LeastConnectionsStrategy implements ConnectionCountingStrategy {
 	}
 }
 
-export type LoadBalancingStrategyType =
-	| "random"
-	| "round-robin"
-	| "least-connections";
+export enum LoadBalancingStrategyType {
+	Random = "random",
+	RoundRobin = "round-robin",
+	LeastConnections = "least-connections",
+}
 
 const LOAD_BALANCER_REGISTRY: Record<
 	LoadBalancingStrategyType,
 	LoadBalancingStrategy
 > = {
-	random: new RandomStrategy(),
-	"round-robin": new RoundRobinStrategy(),
-	"least-connections": new LeastConnectionsStrategy(),
+	[LoadBalancingStrategyType.Random]: new RandomStrategy(),
+	[LoadBalancingStrategyType.RoundRobin]: new RoundRobinStrategy(),
+	[LoadBalancingStrategyType.LeastConnections]: new LeastConnectionsStrategy(),
 };
 
 export function createLoadBalancer(

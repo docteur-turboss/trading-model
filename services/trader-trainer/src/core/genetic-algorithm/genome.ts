@@ -1,4 +1,4 @@
-import type { Price } from "@trading-model/common/domain/primitives";
+import type { GenomeId, Price } from "@trading-model/common/domain/primitives";
 import type { FeatureVector } from "../feature-vector.js";
 
 import type {
@@ -87,10 +87,14 @@ export interface ReplayBufferGenome {
 	betaAnneal: boolean;
 }
 
-/** Complete reinforcement learning hyperparameter set. */
-export interface RLGenome {
+/** Shared scalar hyperparameters: discount factor and step size. */
+export interface RLScalars {
 	gamma: number;
 	learningRate: number;
+}
+
+/** Complete reinforcement learning hyperparameter set. */
+export interface RLGenome extends RLScalars {
 	rewardShaping: RewardShapingGenome;
 	horizon: HorizonGenome;
 	discretePolicy: DiscretePolicyGenome;
@@ -202,7 +206,7 @@ export interface GenomeFitnessMeta {
 
 /** Top-level genome: network architecture, RL hyperparameters, mutation, crossover, and GA control. */
 export interface Genome {
-	id: string;
+	id: GenomeId;
 	generation: number;
 	network: NetworkGenome;
 	rl: RLGenome;

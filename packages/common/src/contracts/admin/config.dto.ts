@@ -1,4 +1,4 @@
-import type { ServiceId } from "../../domain/primitives";
+import type { ServiceId, UnixTimestamp } from "../../domain/primitives";
 
 export enum ConfigSource {
 	Vault = "Vault",
@@ -13,5 +13,5 @@ export interface ConfigEntry {
 	masked: boolean;
 	source: ConfigSource;
 	service: ServiceId;
-	updatedAt: string;
+	updatedAt: UnixTimestamp;
 }

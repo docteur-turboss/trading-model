@@ -6,18 +6,17 @@ export class BackendPingManager {
 	constructor(
 		private readonly _backend: RegistryBackend,
 		private readonly _pubSub: PubSubInvalidator,
-		private readonly _redisUrlForPubSub?: string
+		private readonly _isRedisBackend: boolean
 	) {}
 
 	isRedisBackend(): boolean {
-		return typeof (this._backend as { ping?: unknown }).ping === "function";
+		return this._isRedisBackend;
 	}
 
 	async pingPubSub(): Promise<void> {
-		const pubSubClient = this._pubSub.client;
-		if (pubSubClient?.status === "ready") {
+		if (this._pubSub.client.status === "ready") {
 			try {
-				await pubSubClient.ping();
+				await this._pubSub.client.ping();
 			} catch {
 				logger.warn("PubSub ping failed — cache invalidation degraded");
 			}
@@ -33,7 +32,7 @@ export class BackendPingManager {
 				return false;
 			}
 		}
-		if (this._redisUrlForPubSub) {
+		if (this._isRedisBackend) {
 			return false;
 		}
 		try {

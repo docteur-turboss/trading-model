@@ -1,6 +1,7 @@
-import type { Document } from "mongodb";
+import type { Document, Filter } from "mongodb";
 import { ObjectId, type WithId } from "mongodb";
 
+import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
 import {
@@ -22,7 +23,7 @@ export interface DlqEntry {
 	message: unknown;
 	reason?: string;
 	deliveryAttempt: number;
-	timestamp: string;
+	timestamp: UnixTimestamp;
 	messageId?: string;
 }
 
@@ -37,7 +38,7 @@ export interface StoredDlqEntry {
 	message: unknown;
 	reason: string | null;
 	deliveryAttempt: number;
-	createdAt: string;
+	createdAt: UnixTimestamp;
 }
 
 export interface DlqListOptions {
@@ -60,28 +61,60 @@ export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 	};
 }
 
+export class DlqQueryBuilder {
+	buildListQuery(options?: DlqListOptions): Filter<Document> {
+		const query: Filter<Document> = {};
+		if (options?.topic) {
+			query.topic = options.topic;
+		}
+		if (options?.before && ObjectId.isValid(options.before)) {
+			query._id = { $lt: new ObjectId(options.before) };
+		}
+		return query;
+	}
+
+	buildQueuableQuery(): Filter<Document> {
+		return {
+			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
+			processingAt: { $exists: false },
+			status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
+			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
+		};
+	}
+
+	buildActiveClaimQuery(): Filter<Document> {
+		return {
+			processingAt: { $exists: true },
+			status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
+		};
+	}
+
+	buildDeleteQuery(ids: string[]): Filter<Document> {
+		const objectIds = ids.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
+		return {
+			_id: { $in: objectIds },
+			processingAt: { $exists: false },
+		};
+	}
+}
+
 export class DlqRepository {
 	private _entryWriter = new DlqEntryWriter();
+	private _queryBuilder = new DlqQueryBuilder();
 
 	async add(entry: DlqEntry): Promise<string> {
 		return this._entryWriter.add(entry);
 	}
 
 	async list(options?: DlqListOptions): Promise<StoredDlqEntry[]> {
-		const { topic, limit = 100, offset = 0, before } = options ?? {};
+		const { limit = 100, offset = 0 } = options ?? {};
 		const col = await getCollection();
-		const query: Record<string, unknown> = {};
-		if (topic) {
-			query.topic = topic;
-		}
-		if (before && ObjectId.isValid(before)) {
-			query._id = { $lt: new ObjectId(before) };
-		}
+		const query = this._queryBuilder.buildListQuery(options);
 
 		const docs = await col
 			.find(query, {
 				sort: { createdAt: -1 },
-				skip: before ? 0 : offset,
+				skip: options?.before ? 0 : offset,
 				limit: Math.min(limit, 1000),
 			})
 			.toArray();
@@ -91,14 +124,8 @@ export class DlqRepository {
 
 	async delete(ids: string[]): Promise<number> {
 		const col = await getCollection();
-		const objectIds = _toValidObjectIds(ids);
-		if (objectIds.length === 0) {
-			return 0;
-		}
-		const result = await col.deleteMany({
-			_id: { $in: objectIds },
-			processingAt: { $exists: false },
-		});
+		const query = this._queryBuilder.buildDeleteQuery(ids);
+		const result = await col.deleteMany(query);
 		return result.deletedCount;
 	}
 
@@ -109,78 +136,46 @@ export class DlqRepository {
 
 	async prune(maxEntries: number): Promise<number> {
 		const col = await getCollection();
-		const docs = await _findEldestDocs(col, maxEntries);
-		if (docs.length === 0) {
-			return 0;
-		}
-		return _deleteOlderThan(col, docs[0].createdAt);
+		const eldest = await col
+			.find(
+				{},
+				{
+					sort: { createdAt: -1 },
+					skip: maxEntries,
+					limit: 1,
+					projection: { createdAt: 1 },
+				}
+			)
+			.toArray();
+		if (eldest.length === 0) return 0;
+		const result = await col.deleteMany({
+			createdAt: { $lt: eldest[0].createdAt },
+			processingAt: { $exists: false },
+		});
+		return result.deletedCount;
 	}
 
 	async listQueuable(): Promise<string[]> {
 		const col = await getCollection();
+		const query = this._queryBuilder.buildQueuableQuery();
 		const docs = await col
-			.find(
-				{
-					retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
-					processingAt: { $exists: false },
-					status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
-					consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
-				},
-				{
-					sort: { createdAt: -1 },
-					limit: env.DLQ_AUTO_RETRY_LIMIT * 10,
-					projection: { _id: 1 },
-				}
-			)
+			.find(query, {
+				sort: { createdAt: -1 },
+				limit: env.DLQ_AUTO_RETRY_LIMIT * 10,
+				projection: { _id: 1 },
+			})
 			.toArray();
 		return docs.map((doc) => doc._id.toHexString());
 	}
 
 	async listActiveClaimIds(): Promise<string[]> {
 		const col = await getCollection();
+		const query = this._queryBuilder.buildActiveClaimQuery();
 		const docs = await col
-			.find(
-				{
-					processingAt: { $exists: true },
-					status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
-				},
-				{ projection: { _id: 1 } }
-			)
+			.find(query, { projection: { _id: 1 } })
 			.toArray();
 		return docs.map((doc) => doc._id.toHexString());
 	}
-}
-
-function _toValidObjectIds(ids: string[]): ObjectId[] {
-	return ids.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
-}
-
-async function _findEldestDocs(
-	col: import("mongodb").Collection,
-	maxEntries: number
-): Promise<Array<{ createdAt: unknown }>> {
-	return col
-		.find(
-			{},
-			{
-				sort: { createdAt: -1 },
-				skip: maxEntries,
-				limit: 1,
-				projection: { createdAt: 1 },
-			}
-		)
-		.toArray() as Promise<Array<{ createdAt: unknown }>>;
-}
-
-async function _deleteOlderThan(
-	col: import("mongodb").Collection,
-	eldestToKeep: unknown
-): Promise<number> {
-	const result = await col.deleteMany({
-		createdAt: { $lt: eldestToKeep },
-		processingAt: { $exists: false },
-	});
-	return result.deletedCount;
 }
 
 export const dlqRepository = new DlqRepository();

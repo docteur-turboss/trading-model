@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import { WsAuthSender } from "./ws-auth-sender";
 import { WsConnectionManager } from "./ws-connection-manager";
 import { CertWsReconnectHandler } from "./ws-reconnect-handler";
@@ -10,12 +11,14 @@ export type ConnectionState =
 	| "connected"
 	| "reconnecting";
 
-export class WssTransportConnection {
+export class WssTransportConnection implements IWsConnection {
 	private _emitter = new EventEmitter();
 	private _state: ConnectionState = "disconnected";
 	private readonly _connectionManager: WsConnectionManager;
 	private readonly _reconnectHandler = new CertWsReconnectHandler();
 	private readonly _authSender: WsAuthSender;
+
+	onCloseHandler?: () => void;
 
 	on(event: string, listener: (...args: unknown[]) => void): this {
 		this._emitter.on(event, listener);
@@ -46,6 +49,10 @@ export class WssTransportConnection {
 		return this._state;
 	}
 
+	get isConnected(): boolean {
+		return this._state === "connected";
+	}
+
 	get ws() {
 		return this._connectionManager.ws;
 	}
@@ -55,10 +62,10 @@ export class WssTransportConnection {
 			return;
 		}
 		this._state = "connecting";
-		this._connectionManager.connect(
+		this._connectionManager.connectWithCallbacks(
 			() => {
 				this._state = "connected";
-				this._reconnectHandler.resetAttempt();
+				this._reconnectHandler.reset();
 				this._authSender.send(this._connectionManager.ws);
 				this._emitter.emit("open");
 			},
@@ -90,20 +97,29 @@ export class WssTransportConnection {
 
 	private _scheduleReconnect(): void {
 		this._state = "reconnecting";
-		this._reconnectHandler.schedule(() => {
-			this._connectionManager.cleanup();
+		this._reconnectHandler.scheduleReconnect(() => {
+			this._connectionManager.disconnect();
 			this._connectWs();
 		});
 	}
 
-	disconnect(): void {
-		this._connectionManager.cleanup();
-		this._reconnectHandler.cancelTimer();
+	send(data: unknown): boolean {
+		const ws = this._connectionManager.ws;
+		if (!ws || ws.readyState !== ws.OPEN) {
+			return false;
+		}
+		try {
+			ws.send(typeof data === "string" ? data : JSON.stringify(data));
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	disconnect(closeCode?: number, reason?: string): void {
+		this._connectionManager.disconnect(closeCode, reason);
+		this._reconnectHandler.cancel();
 		this._state = "disconnected";
 	}
 
-	destroy(): void {
-		this._reconnectHandler.destroy();
-		this.disconnect();
-	}
 }

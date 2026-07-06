@@ -7,6 +7,17 @@ export interface CircuitStateConfig {
 	name: string;
 }
 
+/**
+ * A component of CircuitBreaker — manages failure count, open/half-open timing,
+ * and threshold checks for a single circuit (no key-based isolation).
+ *
+ * @remarks This class is intentionally kept as a component rather than
+ * implementing ICircuitBreaker because its methods operate with timestamps
+ * (`now: number`) rather than string keys. It is owned by
+ * MessageManagerCircuitBreaker which provides the ICircuitBreaker contract.
+ *
+ * @see MessageManagerCircuitBreaker
+ */
 export class DlqCircuitBreakerState {
 	private _failures = 0;
 	private _openUntil = 0;

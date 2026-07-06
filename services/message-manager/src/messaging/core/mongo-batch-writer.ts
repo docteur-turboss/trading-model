@@ -1,24 +1,21 @@
 import { logger } from "../../config/logger";
-import type { ArchiveEntry, MongoClient } from "./mongo-archive-batch";
+import type { ArchiveEntry } from "./mongo-archive-batch";
+import type { MongoCollectionConfig } from "./mongo-types";
 
 const MaxBatchSize = 1000;
 const MaxRetries = 3;
 const RetryDelayMs = 1000;
 
 export class MongoBatchWriter {
-	constructor(
-		private readonly _client: MongoClient,
-		private readonly _dbName: string,
-		private readonly _collectionName: string
-	) {}
+	constructor(private readonly _config: MongoCollectionConfig) {}
 
 	private _getCollection(): ReturnType<
-		ReturnType<MongoClient["db"]>["collection"]
+		ReturnType<MongoCollectionConfig["client"]["db"]>["collection"]
 	> {
-		return this._client
-			.db(this._dbName)
-			.collection(this._collectionName) as ReturnType<
-			ReturnType<MongoClient["db"]>["collection"]
+		return this._config.client
+			.db(this._config.dbName)
+			.collection(this._config.collectionName) as ReturnType<
+			ReturnType<MongoCollectionConfig["client"]["db"]>["collection"]
 		>;
 	}
 
@@ -28,12 +25,12 @@ export class MongoBatchWriter {
 	}
 
 	private async _insertWithRetry(
-		col: ReturnType<ReturnType<MongoClient["db"]>["collection"]>,
+		col: ReturnType<ReturnType<MongoCollectionConfig["client"]["db"]>["collection"]>,
 		docs: unknown[],
 		attempt: number
 	): Promise<void> {
 		try {
-			await col.insertMany(docs);
+			await (col as any).insertMany(docs);
 		} catch (err) {
 			this._handleInsertError(err, attempt);
 		}
@@ -54,7 +51,7 @@ export class MongoBatchWriter {
 
 		for (let attempt = 0; attempt < MaxRetries; attempt++) {
 			try {
-				await col.bulkWrite(bulkOps);
+				await (col as any).bulkWrite(bulkOps);
 				return;
 			} catch (err) {
 				lastError = err as Error;

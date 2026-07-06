@@ -1,5 +1,6 @@
 import type { Application } from "express";
 import promClient from "prom-client";
+import { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { CircuitBreaker } from "../discovery/circuit-breaker";
 import type { IServiceCache } from "../discovery/service-cache.interface";
 import { METRICS_ROUTES } from "../http/routes/metrics.routes";
@@ -49,8 +50,8 @@ export class MetricsCollector {
 		CIRCUIT_BREAKER_INSTANCES_TOTAL.set({ state: "closed" }, summary.closed);
 		CIRCUIT_BREAKER_INSTANCES_TOTAL.set({ state: "open" }, summary.open);
 		CIRCUIT_BREAKER_INSTANCES_TOTAL.set(
-			{ state: "half-open" },
-			summary["half-open"]
+			{ state: CircuitState.HALF_OPEN },
+			summary[CircuitState.HALF_OPEN]
 		);
 
 		const entries = await this._serviceCache.entries();

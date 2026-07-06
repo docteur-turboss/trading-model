@@ -38,16 +38,16 @@ export class GenerationProcessor {
 		return this._generation;
 	}
 	get archive(): import("./pareto-engine").ParetoArchive {
-		return this._evaluator._archive;
+		return this._evaluator.archive;
 	}
 	get lastBestGenome(): DeepReadonly<LamarckGenome> | undefined {
 		return this._evaluator.lastBestGenome;
 	}
 	get bestFitness(): number {
-		return this._evaluator._stagnationTracker.bestFitness;
+		return this._evaluator.stagnationTracker.bestFitness;
 	}
 	get stagnation(): number {
-		return this._evaluator._stagnationTracker.stagnation;
+		return this._evaluator.stagnationTracker.stagnation;
 	}
 
 	initialise(baseControl?: Partial<GAControlGenome>): void {
@@ -82,13 +82,13 @@ export class GenerationProcessor {
 		);
 		const newCtrl = adaptGAControl(
 			ctrl,
-			this._evaluator._stagnationTracker.efficiencyHistory,
-			this._evaluator._stagnationTracker.stagnation
+			this._evaluator.stagnationTracker.efficiencyHistory,
+			this._evaluator.stagnationTracker.stagnation
 		);
 
-		this._evaluator.lastBestGenome =
-			this._evaluator._stagnationTracker.track(popWithMeta, metas, avgEff) ??
-			this._evaluator.lastBestGenome;
+		this._evaluator.updateBestGenome(
+			this._evaluator.stagnationTracker.track(popWithMeta, metas, avgEff)
+		);
 
 		const ranked = sortPopulation(popWithMeta, popMeta);
 		const elites = selectElites(ranked, newCtrl);
@@ -103,13 +103,13 @@ export class GenerationProcessor {
 		const ctx: GenerationContext = {
 			generation: this._generation,
 			population: this._population,
-			archive: this._evaluator._archive.members,
-			bestFitness: this._evaluator._stagnationTracker.bestFitness,
+			archive: this._evaluator.archive.members,
+			bestFitness: this._evaluator.stagnationTracker.bestFitness,
 			bestGenome: this._evaluator.lastBestGenome as DeepReadonly<LamarckGenome>,
 			avgFitness: avgFit,
 			efficiencyScore: avgEff,
 			elapsedMs: Date.now() - (startTime ?? Date.now()),
-			stagnation: this._evaluator._stagnationTracker.stagnation,
+			stagnation: this._evaluator.stagnationTracker.stagnation,
 			gaControl: newCtrl,
 		};
 

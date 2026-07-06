@@ -1,12 +1,12 @@
-import type { InstanceId, IPAddress, JobId, Port } from "../domain/primitives";
-
-export type WorkerStatus = "active" | "draining" | "offline";
+import type { Capability, InstanceId, IPAddress, JobId, JobType, Port } from "../domain/primitives";
+import type { WorkerStatus } from "../domain/primitives";
+export type { WorkerStatus };
 
 export interface WorkerRegistrationBase {
 	workerId: InstanceId;
 	address: IPAddress;
 	port: Port;
-	capabilities: string[];
+	capabilities: Capability[];
 	maxConcurrency: number;
 }
 
@@ -41,7 +41,7 @@ export interface SchedulerWsJobAssignedMessage {
 	type: "job.assigned";
 	job: {
 		id: JobId;
-		type: string;
+		type: JobType;
 		payload: unknown;
 		ackDeadline: number;
 	};

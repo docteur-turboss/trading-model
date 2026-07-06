@@ -7,6 +7,10 @@ import { AddressManagerClient } from "./client/address-manager-client";
 import { TokenManager } from "./client/token-manager";
 import { WebSocketClient, type WsMessage } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
+import type {
+	AddressManagerDeps,
+	ShutdownHandlerDeps,
+} from "./types";
 import { CircuitBreaker } from "./discovery/circuit-breaker";
 import { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
 import { MapResolver } from "./discovery/dns-resolver";
@@ -101,52 +105,34 @@ function createDiscoveryInfra(
 }
 
 function _buildRegistrationManager(
-	addressManagerClient: AddressManagerClient,
-	tokenManager: TokenManager,
-	wsClient: WebSocketClient | undefined
+	deps: AddressManagerDeps
 ): RegistrationManager {
 	return new RegistrationManager({
-		addressManagerClient,
-		tokenManager,
-		wsClient,
+		...deps,
 		onSuccess: () => REGISTRATION_TOTAL.inc({ result: "success" }),
 		onFailure: () => REGISTRATION_TOTAL.inc({ result: "failure" }),
 	});
 }
 
 function _buildHeartbeatManager(
-	addressManagerClient: AddressManagerClient,
-	tokenManager: TokenManager,
-	wsClient: WebSocketClient | undefined
+	deps: AddressManagerDeps
 ): HeartbeatManager {
 	return new HeartbeatManager({
-		addressManagerClient,
-		tokenManager,
-		wsClient,
+		...deps,
 		onSuccess: () => HEARTBEAT_TOTAL.inc({ result: "success" }),
 		onFailure: () => HEARTBEAT_TOTAL.inc({ result: "failure" }),
 	});
 }
 
 function createRegistrationAndHeartbeat(
-	addressManagerClient: AddressManagerClient,
-	tokenManager: TokenManager,
-	wsClient: WebSocketClient | undefined
+	deps: AddressManagerDeps
 ): {
 	registrationManager: RegistrationManager;
 	heartbeatManager: HeartbeatManager;
 } {
 	return {
-		registrationManager: _buildRegistrationManager(
-			addressManagerClient,
-			tokenManager,
-			wsClient
-		),
-		heartbeatManager: _buildHeartbeatManager(
-			addressManagerClient,
-			tokenManager,
-			wsClient
-		),
+		registrationManager: _buildRegistrationManager(deps),
+		heartbeatManager: _buildHeartbeatManager(deps),
 	};
 }
 
@@ -175,12 +161,11 @@ function onCacheInvalidateMessage(
 
 function _handleRegistrationSuccess(
 	res: { token?: string } | undefined,
-	tokenManager: TokenManager,
-	wsClient: WebSocketClient
+	deps: AddressManagerDeps
 ): void {
 	if (res?.token) {
-		tokenManager.setToken(res.token);
-		wsClient.updateToken(res.token);
+		deps.tokenManager.setToken(res.token);
+		deps.wsClient?.updateToken(res.token);
 		REGISTRATION_TOTAL.inc({ result: "success" });
 		logger.info("Re-registered after WS auth failure");
 	}
@@ -192,20 +177,17 @@ function _handleRegistrationError(err: unknown): void {
 	});
 }
 
-function onWsAuthFailure(
-	addressManagerClient: AddressManagerClient,
-	tokenManager: TokenManager,
-	wsClient: WebSocketClient
-): void {
+function onWsAuthFailure(deps: AddressManagerDeps): void {
 	logger.warn("WebSocket auth failure \u2014 forcing re-registration");
-	addressManagerClient
+	deps.addressManagerClient
 		.registerService()
-		.then((res) => _handleRegistrationSuccess(res, tokenManager, wsClient))
+		.then((res) => _handleRegistrationSuccess(res, deps))
 		.catch((err) => _handleRegistrationError(err));
 }
 
 function createWsClient(ctx: WsClientContext): WebSocketClient {
 	const { config, addressManagerClient, tokenManager, serviceCache } = ctx;
+	const deps: AddressManagerDeps = { addressManagerClient, tokenManager };
 	let wsClient: WebSocketClient;
 
 	wsClient = new WebSocketClient({
@@ -216,7 +198,7 @@ function createWsClient(ctx: WsClientContext): WebSocketClient {
 			onCacheInvalidateMessage(message, serviceCache);
 		},
 		onAuthFailure: () => {
-			onWsAuthFailure(addressManagerClient, tokenManager, wsClient);
+			onWsAuthFailure({ ...deps, wsClient });
 		},
 	});
 
@@ -251,13 +233,14 @@ function createLifecycleManager(
 	addressManagerClient: AddressManagerClient,
 	healthChecker: ServiceHealthChecker
 ): LifecycleManager {
-	const shutdownHandler = new ShutdownHandler(
+	const shutdownHandlerDeps: ShutdownHandlerDeps = {
 		registrationManager,
 		wsClient,
 		addressManagerClient,
 		serviceCache,
-		circuitBreaker
-	);
+		circuitBreaker,
+	};
+	const shutdownHandler = new ShutdownHandler(shutdownHandlerDeps);
 
 	return new LifecycleManager({
 		registrationManager,
@@ -310,12 +293,13 @@ export function buildAddressManagerDependencies(
 		serviceCache
 	);
 
+	const baseDeps: AddressManagerDeps = {
+		addressManagerClient,
+		tokenManager,
+		wsClient,
+	};
 	const { registrationManager, heartbeatManager } =
-		createRegistrationAndHeartbeat(
-			addressManagerClient,
-			tokenManager,
-			wsClient
-		);
+		createRegistrationAndHeartbeat(baseDeps);
 
 	const lifecycleManager = createLifecycleManager(
 		config,

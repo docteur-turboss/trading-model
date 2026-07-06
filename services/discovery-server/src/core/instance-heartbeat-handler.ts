@@ -1,26 +1,25 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type Redis from "ioredis";
+import { toServiceIdentityKey, type ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { InstanceMetadataReader } from "./instance-metadata-reader";
-import type { RedisKeyBuilder } from "./redis-key-builder";
+import type { RedisDepsWithoutToken } from "./redis-deps";
 
 export class InstanceHeartbeatHandler {
 	private readonly _reader: InstanceMetadataReader;
 
 	constructor(
-		private readonly _redis: Redis,
-		private readonly _keyBuilder: RedisKeyBuilder,
+		private readonly _deps: RedisDepsWithoutToken,
 		reader?: InstanceMetadataReader
 	) {
-		this._reader = reader ?? new InstanceMetadataReader(_redis, _keyBuilder);
+		this._reader = reader ?? new InstanceMetadataReader(_deps);
 	}
 
 	async updateHeartbeat(
 		serviceName: string,
 		instanceId: string
 	): Promise<number | false> {
-		const exists = await this._redis.sismember(
-			this._keyBuilder.serviceInstancesSet(serviceName),
+		const exists = await this._deps.redis.sismember(
+			this._deps.keyBuilder.serviceInstancesSet(serviceName),
 			instanceId
 		);
 
@@ -36,14 +35,14 @@ export class InstanceHeartbeatHandler {
 		try {
 			instance.lastHeartbeat = Math.max(instance.lastHeartbeat, Date.now());
 
-			const multi = this._redis.multi();
+			const multi = this._deps.redis.multi();
 			multi.set(
-				this._keyBuilder.instanceMetadata(instanceId),
+				this._deps.keyBuilder.instanceMetadata(instanceId),
 				JSON.stringify(instance)
 			);
 			multi.set(
-				this._keyBuilder.instanceUpdatedBy(instanceId),
-				`${serviceName}:${instanceId}`
+				this._deps.keyBuilder.instanceUpdatedBy(instanceId),
+				toServiceIdentityKey({ serviceName, instanceId } as ServiceIdentity)
 			);
 			await multi.exec();
 

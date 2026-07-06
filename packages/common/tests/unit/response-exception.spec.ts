@@ -1,6 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
 import {
-	ClassResponseExceptions,
 	HTTP_CODE,
 	ResponseCodes,
 	ResponseException,

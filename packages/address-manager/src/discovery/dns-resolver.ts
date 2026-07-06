@@ -1,4 +1,7 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import {
+	type ServiceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 
 /**
  * Strategy for resolving a logical service name to a DNS-resolvable hostname.
@@ -11,6 +14,9 @@ import type { ServiceId } from "@trading-model/common/domain/primitives";
 export interface DnsResolver {
 	/** Resolve a logical service name to a DNS hostname. */
 	resolve(serviceName: ServiceId): string;
+
+	/** Resolve a service instance descriptor to a DNS hostname. */
+	locate(instance: { serviceName: string }): string;
 }
 
 /**
@@ -20,6 +26,10 @@ export interface DnsResolver {
 export class IdentityResolver implements DnsResolver {
 	resolve(serviceName: ServiceId): string {
 		return serviceName;
+	}
+
+	locate(instance: { serviceName: string }): string {
+		return instance.serviceName;
 	}
 }
 
@@ -34,5 +44,12 @@ export class MapResolver implements DnsResolver {
 
 	resolve(serviceName: ServiceId): string {
 		return this._dnsNameMap[serviceName] ?? serviceName;
+	}
+
+	locate(instance: { serviceName: string }): string {
+		return (
+			this._dnsNameMap[toServiceId(instance.serviceName)] ??
+			instance.serviceName
+		);
 	}
 }

@@ -106,10 +106,11 @@ export class TransportManager {
 	}
 
 	disconnect(): void {
-		this.destroy();
+		this._wssTransport.disconnect();
 	}
 
+	/** @deprecated Use {@link disconnect()} instead */
 	destroy(): void {
-		this._wssTransport.destroy();
+		this.disconnect();
 	}
 }

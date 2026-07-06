@@ -23,6 +23,10 @@ export class WssMessageDispatcher {
 		this._messageHandler = handler;
 	}
 
+	get messageHandler(): WssMessageHandler {
+		return this._messageHandler;
+	}
+
 	private _onMessage(msg: Record<string, unknown>): void {
 		if (!msg.topic) {
 			return;

@@ -1,9 +1,10 @@
 import type { WsReconnectState } from "@trading-model/common/utils/ws-reconnect";
+import type { IWsReconnector } from "@trading-model/common/ws/i-ws-reconnector";
 import { WsReconnectManager } from "./ws-reconnect-manager";
 
 type ConnectFn = () => void;
 
-export class WssReconnector {
+export class WssReconnector implements IWsReconnector {
 	private readonly _manager = new WsReconnectManager();
 
 	get shouldReconnect(): boolean {

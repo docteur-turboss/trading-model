@@ -3,6 +3,7 @@ import {
 	scheduleWsReconnect,
 	type WsReconnectState,
 } from "@trading-model/common/utils/ws-reconnect";
+import type { IWsReconnector } from "@trading-model/common/ws/i-ws-reconnector";
 import { ReconnectFallbackHandler } from "./reconnect-fallback-handler";
 
 const WSS_RECONNECT_BASE_MS = 1000;
@@ -11,7 +12,7 @@ const WSS_MAX_RECONNECT_ATTEMPTS = 20;
 
 type ConnectFn = () => void;
 
-export class WsReconnectManager {
+export class WsReconnectManager implements IWsReconnector {
 	private _shouldReconnect = true;
 	private _wsReconnectState: WsReconnectState = {
 		attempt: 0,

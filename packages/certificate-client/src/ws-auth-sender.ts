@@ -5,7 +5,7 @@ import type WebSocket from "ws";
 export class WsAuthSender {
 	constructor(private readonly _bootstrapToken?: string) {}
 
-	send(ws: WebSocket | null): void {
+	send(ws: WebSocket | null | undefined): void {
 		const token = this._bootstrapToken;
 		if (!token || token.length === 0 || !isWsConnected(ws)) {
 			return;

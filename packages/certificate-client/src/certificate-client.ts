@@ -31,7 +31,8 @@ export class CertificateClient {
 	private readonly _config: CertificateClientConfig;
 	private readonly _caClient: CaClient;
 	private readonly _lifecycle: CertificateLifecycle;
-	private _obtainedCert: ObtainedCertificate | null;
+	private _obtainedCert!: ObtainedCertificate;
+	private _hasCert: boolean;
 	private _renewScheduler: CertRenewScheduler;
 
 	constructor(
@@ -39,7 +40,10 @@ export class CertificateClient {
 		initialCert?: ObtainedCertificate
 	) {
 		this._config = config;
-		this._obtainedCert = initialCert ?? null;
+		this._hasCert = initialCert !== undefined;
+		if (initialCert) {
+			this._obtainedCert = initialCert;
+		}
 		this._caClient = new CaClient({
 			baseUrl: config.caUrl,
 			tls: config.tls,
@@ -50,13 +54,6 @@ export class CertificateClient {
 			config.renewMarginMs ?? 86400000,
 			() => this.obtainCertificate().then(() => {})
 		);
-	}
-
-	private get _requiredCert(): ObtainedCertificate {
-		if (!this._obtainedCert) {
-			throw new Error("Certificate not yet obtained");
-		}
-		return this._obtainedCert;
 	}
 
 	static async createObtained(
@@ -72,13 +69,14 @@ export class CertificateClient {
 		const response = await this._lifecycle.signWithCa(csr);
 		await this._lifecycle.writeCertificates(keyPair, response);
 		this._obtainedCert = this._lifecycle.buildObtainedCert(keyPair, response);
+		this._hasCert = true;
 		logger.info("Certificate obtained", {
 			serviceId: this._config.serviceId,
 			serialNumber: response.serialNumber,
 			expiresAt: response.expiresAt,
 		});
-		this._lifecycle.notifyOnRenew(this._config.onRenew, this._requiredCert);
-		return this._requiredCert;
+		this._lifecycle.notifyOnRenew(this._config.onRenew, this._obtainedCert);
+		return this._obtainedCert;
 	}
 
 	async signCertificate(
@@ -98,7 +96,7 @@ export class CertificateClient {
 	}
 
 	startAutoRenew(): void {
-		if (this._obtainedCert) {
+		if (this._hasCert) {
 			this._renewScheduler.scheduleRenew(this._obtainedCert);
 		}
 		this._renewScheduler.start();
@@ -108,7 +106,7 @@ export class CertificateClient {
 		this._renewScheduler.stop();
 	}
 
-	getCurrentCert(): ObtainedCertificate | null {
-		return this._obtainedCert;
+	getCurrentCert(): ObtainedCertificate | undefined {
+		return this._hasCert ? this._obtainedCert : undefined;
 	}
 }

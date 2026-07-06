@@ -34,26 +34,26 @@ export type TrainingResult = TrainingSuccess | TrainingFailure;
 
 /** Orchestrates GA training cycles: feeds market data, runs generations, tracks best genome. */
 export class Trainer {
-	private _training = false;
+	private _status: "idle" | "training" = "idle";
 	private readonly _trainingState = new TrainingState();
 	private readonly _validator: TrainingPrerequisiteValidator;
 
 	constructor(private readonly _dataBuffer: MarketDataBuffer) {
 		this._validator = new TrainingPrerequisiteValidator(
 			this._dataBuffer,
-			() => this._training
+			() => this._status === "training"
 		);
 	}
 
 	isTraining(): boolean {
-		return this._training;
+		return this._status === "training";
 	}
 
-	getCurrentSymbol(): TradingSymbol {
+	getCurrentSymbol(): TradingSymbol | undefined {
 		return this._trainingState.getCurrentSymbol();
 	}
 
-	getGeneration(): number {
+	getGeneration(): number | undefined {
 		return this._trainingState.getGeneration();
 	}
 
@@ -63,7 +63,7 @@ export class Trainer {
 			return validation.error;
 		}
 
-		this._training = true;
+		this._status = "training";
 		const session = new TrainingSession(validation.windowSet);
 
 		try {
@@ -85,7 +85,7 @@ export class Trainer {
 			});
 			return { success: false, symbol, error };
 		} finally {
-			this._training = false;
+			this._status = "idle";
 		}
 	}
 
@@ -93,7 +93,7 @@ export class Trainer {
 		return this._trainingState.getBestAgentSummary();
 	}
 
-	getGenerationContext(): GenerationContext | null {
+	getGenerationContext(): GenerationContext | null | undefined {
 		return this._trainingState.getGenerationContext();
 	}
 

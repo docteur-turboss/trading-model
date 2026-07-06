@@ -3,6 +3,18 @@ import type { ServiceInstance } from "../client/type";
 import type { CacheSetEntry } from "./service-cache.interface";
 import type { ServiceCacheEntry } from "./type";
 
+/**
+ * In-memory cache store for service instances.
+ *
+ * CRUD pattern:
+ *   - Create/Update: `set(entry)`
+ *   - Read:          `get(serviceName)`, `entries()`
+ *   - Delete:        `invalidate(serviceName)` / `delete(serviceName)` (alias)
+ *   - Clear:         `clear()`
+ *
+ * @see IServiceCache — async interface with circuit-breaker support
+ * @see InstanceStore — server-side instance registry (discovery-server)
+ */
 export class CacheStore {
 	private readonly _cache: Map<ServiceId, ServiceCacheEntry>;
 	private readonly _ttlMs: number;
@@ -33,6 +45,14 @@ export class CacheStore {
 
 	invalidate(serviceName: ServiceId): void {
 		this._cache.delete(serviceName);
+	}
+
+	/**
+	 * @deprecated Use `invalidate` instead.
+	 * Alias provided for naming consistency with other cache implementations.
+	 */
+	delete(serviceName: ServiceId): void {
+		this.invalidate(serviceName);
 	}
 
 	clear(): void {

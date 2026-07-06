@@ -1,20 +1,14 @@
-import {
-	type BookTickerData,
-	type CandleData,
-	getAvgAsk,
-	getAvgBid,
-	type OrderBookData,
-	type TickerData,
-	type TradeData,
-} from "@trading-model/common/config/event.types";
-
-import {
-	NormalizationStats,
-	type SymbolNormalizers,
-	type SymbolState,
-} from "./market-data-types";
+import { NormalizationStats, type SymbolNormalizers, type SymbolState } from "./market-data-types";
+import { createDefaultHandlers, type DataHandler } from "./data-handlers/data-handler";
 
 export class NormalizationManager {
+	private readonly _handlerMap: Record<string, DataHandler>;
+
+	constructor(handlers?: DataHandler[]) {
+		const h = handlers ?? createDefaultHandlers();
+		this._handlerMap = Object.fromEntries(h.map((x) => [x.dataType, x]));
+	}
+
 	createNormStats(): SymbolNormalizers {
 		return {
 			candleClose: new NormalizationStats(),
@@ -31,46 +25,7 @@ export class NormalizationManager {
 		};
 	}
 
-	updateCandleNorms(state: SymbolState, candle: CandleData): void {
-		state.norm.candleClose.update(candle.close);
-		state.norm.candleVolume.update(candle.volume);
-		state.norm.candleOpen.update(candle.open);
-		state.norm.candleHigh.update(candle.high);
-		state.norm.candleLow.update(candle.low);
-	}
-
-	updateTradeNorms(state: SymbolState, trade: TradeData): void {
-		state.norm.tradePrice.update(trade.price);
-		state.norm.tradeQty.update(trade.quantity);
-	}
-
-	updateOrderBookNorms(state: SymbolState, orderBook: OrderBookData): void {
-		const avgBid = getAvgBid(orderBook);
-		const avgAsk = getAvgAsk(orderBook);
-		if (avgBid > 0) {
-			state.norm.bid.update(avgBid);
-		}
-		if (avgAsk > 0) {
-			state.norm.ask.update(avgAsk);
-		}
-		if (avgAsk > 0 && avgBid > 0) {
-			state.norm.spread.update(avgAsk - avgBid);
-		}
-	}
-
-	updateBookTickerNorms(state: SymbolState, bt: BookTickerData): void {
-		if (bt.bid > 0) {
-			state.norm.bid.update(bt.bid);
-		}
-		if (bt.ask > 0) {
-			state.norm.ask.update(bt.ask);
-		}
-		if (bt.ask > 0 && bt.bid > 0) {
-			state.norm.spread.update(bt.ask - bt.bid);
-		}
-	}
-
-	updateTicker24hNorms(state: SymbolState, ticker: TickerData): void {
-		state.norm.tickerVolume.update(ticker.volume);
+	updateNorms(dataType: string, state: SymbolState, data: unknown): void {
+		this._handlerMap[dataType]?.updateNorms(state, data);
 	}
 }

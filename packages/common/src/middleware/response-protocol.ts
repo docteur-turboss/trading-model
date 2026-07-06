@@ -10,7 +10,7 @@ import {
 	isServiceUnreachableError,
 } from "../utils/errors";
 import {
-	ClassResponseExceptions,
+	ResponseException,
 	type ResponseObject,
 } from "./response-exception";
 
@@ -26,7 +26,7 @@ function _isServiceError(err: Error): boolean {
 }
 
 function mapErrorToResponse(err: Error): ResponseObject {
-	const response = new ClassResponseExceptions(err.message);
+	const response = ResponseException(err.message);
 	if (isServiceNotFoundError(err)) {
 		return response.notFound();
 	}

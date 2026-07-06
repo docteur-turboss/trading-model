@@ -28,3 +28,6 @@ export {
 export { sleep } from "./utils/sleep";
 // === validation/ — Zod schemas & env ===
 export { BaseEnvSchema, validateEnv } from "./validation/env";
+// === ws/ — WebSocket interfaces ===
+export type { IWsConnection } from "./ws/i-ws-connection";
+export type { IWsReconnector } from "./ws/i-ws-reconnector";

@@ -1,8 +1,8 @@
-import type { MessageId, Topic } from "../../domain/primitives";
+import type { MessageId, Topic, UnixTimestamp } from "../../domain/primitives";
 
 export interface DlqMessage {
 	id: MessageId;
-	timestamp: string;
+	timestamp: UnixTimestamp;
 	topic: Topic;
 	messageId: MessageId;
 	failureReason: string;
@@ -14,5 +14,5 @@ export interface DlqStats {
 	pending: number;
 	retryRate: number;
 	totalSize: number;
-	lastIncident: string;
+	lastIncident: UnixTimestamp;
 }

@@ -1,21 +1,19 @@
-import type Redis from "ioredis";
-import type { RedisKeyBuilder } from "./redis-key-builder";
+import type { RedisDepsWithoutToken } from "./redis-deps";
 
 export class InstanceCleanupHandler {
 	constructor(
-		private readonly _redis: Redis,
-		private readonly _keyBuilder: RedisKeyBuilder
+		private readonly _deps: RedisDepsWithoutToken
 	) {}
 
 	async removeInstanceSetAndMetadata(
 		serviceName: string,
 		instanceId: string
 	): Promise<boolean> {
-		const multi = this._redis.multi();
-		multi.srem(this._keyBuilder.serviceInstancesSet(serviceName), instanceId);
-		multi.del(this._keyBuilder.instanceMetadata(instanceId));
-		multi.del(this._keyBuilder.instanceToken(instanceId));
-		multi.del(this._keyBuilder.instanceUpdatedBy(instanceId));
+		const multi = this._deps.redis.multi();
+		multi.srem(this._deps.keyBuilder.serviceInstancesSet(serviceName), instanceId);
+		multi.del(this._deps.keyBuilder.instanceMetadata(instanceId));
+		multi.del(this._deps.keyBuilder.instanceToken(instanceId));
+		multi.del(this._deps.keyBuilder.instanceUpdatedBy(instanceId));
 
 		const results = await multi.exec();
 		if (!results) {

@@ -22,7 +22,7 @@ interface CloseHandlerContext {
 }
 
 export class WssConnectionHandler {
-	private _wss!: WebSocketServer;
+	private _wss: WebSocketServer | null = null;
 
 	constructor(
 		private readonly _subscriptionManager: WssSubscriptionManager,
@@ -122,18 +122,21 @@ export class WssConnectionHandler {
 	}
 
 	private async _closeServer(): Promise<void> {
+		if (!this._wss) {
+			return;
+		}
 		await new Promise<void>((resolve) => {
 			const timer = setTimeout(() => {
 				resolve();
 			}, WSS_SHUTDOWN_TIMEOUT_MS);
-			this._wss.close(() => {
+			this._wss!.close(() => {
 				clearTimeout(timer);
 				resolve();
 			});
 		});
 	}
 
-	get wss(): WebSocketServer {
+	get wss(): WebSocketServer | null {
 		return this._wss;
 	}
 }

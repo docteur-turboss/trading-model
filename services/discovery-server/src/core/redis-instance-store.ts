@@ -1,12 +1,22 @@
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
-import type Redis from "ioredis";
 import { InstanceCleanupHandler } from "./instance-cleanup-handler";
 import { InstanceHeartbeatHandler } from "./instance-heartbeat-handler";
 import { InstanceMetadataReader } from "./instance-metadata-reader";
 import { InstanceRegistrar } from "./instance-registrar";
-import type { RedisKeyBuilder } from "./redis-key-builder";
-import type { TokenService } from "./token-service";
+import type { RedisDeps, RedisDepsWithoutToken } from "./redis-deps";
 
+/**
+ * Redis-backed server-side registry of discovered service instances.
+ *
+ * CRUD pattern:
+ *   - Create: `registerInstance(instance)`
+ *   - Read:   `getMetadata(instanceId)`, `getServiceInstanceIds(serviceName)`, `getMetadatas(keys)`, `listServiceNames()`
+ *   - Update: `updateHeartbeat(serviceName, instanceId)`
+ *   - Delete: `removeInstanceSetAndMetadata(serviceName, instanceId)`
+ *
+ * @see InstanceStore — in-memory counterpart
+ * @see CacheStore — client-side cache (address-manager)
+ */
 export class RedisInstanceStore {
 	private readonly _reader: InstanceMetadataReader;
 	private readonly _registrar: InstanceRegistrar;
@@ -14,18 +24,16 @@ export class RedisInstanceStore {
 	private readonly _cleanupHandler: InstanceCleanupHandler;
 
 	constructor(
-		readonly _redis: Redis,
-		readonly _keyBuilder: RedisKeyBuilder,
-		readonly _tokenService: TokenService
+		readonly _deps: RedisDeps
 	) {
-		this._reader = new InstanceMetadataReader(_redis, _keyBuilder);
-		this._registrar = new InstanceRegistrar(_redis, _keyBuilder, _tokenService);
+		const { redis, keyBuilder } = _deps;
+		this._reader = new InstanceMetadataReader({ redis, keyBuilder });
+		this._registrar = new InstanceRegistrar(_deps);
 		this._heartbeatHandler = new InstanceHeartbeatHandler(
-			_redis,
-			_keyBuilder,
+			{ redis, keyBuilder },
 			this._reader
 		);
-		this._cleanupHandler = new InstanceCleanupHandler(_redis, _keyBuilder);
+		this._cleanupHandler = new InstanceCleanupHandler({ redis, keyBuilder });
 	}
 
 	async resolveToken(instanceId: string): Promise<string> {

@@ -8,7 +8,7 @@ interface WsDiscoveryServerOptions {
 }
 
 export class WsDiscoveryServer {
-	private _wss!: WebSocketServer;
+	private _wss: WebSocketServer | null = null;
 	private readonly _path: string;
 	private readonly _clientManager = new ClientConnectionManager();
 	private readonly _protocolHandler: WsProtocolHandler;
@@ -42,6 +42,6 @@ export class WsDiscoveryServer {
 
 	stop(): void {
 		this._clientManager.clearAll();
-		this._wss.close();
+		this._wss?.close();
 	}
 }

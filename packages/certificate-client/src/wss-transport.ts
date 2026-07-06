@@ -10,6 +10,8 @@ import { AuthHandler } from "./auth-handler";
 import { PendingRequestManager } from "./pending-request-manager";
 import { WssTransportConnection } from "./wss-transport-connection";
 
+type WsMessageHandler = (msg: Record<string, unknown>) => void;
+
 export class NullCaWssTransport {
 	get isConnected(): boolean {
 		return false;
@@ -30,12 +32,19 @@ export class CaWssTransport {
 	private readonly _connection: WssTransportConnection;
 	private readonly _pendingManager = new PendingRequestManager();
 	private readonly _authHandler = new AuthHandler();
+	private readonly _messageHandlers: Record<string, WsMessageHandler>;
 
 	constructor(
 		wsUrl: string,
 		tlsConfig?: import("@trading-model/common/domain/tls-paths").TlsPaths,
 		bootstrapToken?: string
 	) {
+		this._messageHandlers = {
+			"auth:response": (msg) => this._authHandler.handleResponse(msg, () => this._close()),
+			"sign:response": (msg) => this._pendingManager.handleResponse(msg),
+			response: (msg) => this._pendingManager.handleResponse(msg),
+		};
+
 		this._connection = new WssTransportConnection(
 			wsUrl,
 			tlsConfig,
@@ -65,12 +74,9 @@ export class CaWssTransport {
 	private _onWsMessage(data: import("ws").Data): void {
 		try {
 			const msg = JSON.parse(data.toString());
-			if (msg.type === "auth:response") {
-				this._authHandler.handleResponse(msg, () => this._close());
-				return;
-			}
-			if (msg.type === "sign:response" || msg.type === "response") {
-				this._pendingManager.handleResponse(msg);
+			const handler = this._messageHandlers[msg.type as string];
+			if (handler) {
+				handler(msg);
 			}
 		} catch {
 			logger.error("Invalid WSS message from CA");
@@ -78,7 +84,14 @@ export class CaWssTransport {
 	}
 
 	disconnect(): void {
-		this.destroy();
+		this._destroyed = true;
+		this._connection.disconnect();
+		this._pendingManager.rejectAll(new Error("Transport disconnected"));
+	}
+
+	/** @deprecated Use {@link disconnect()} instead */
+	destroy(): void {
+		this.disconnect();
 	}
 
 	async signCertificate(
@@ -108,12 +121,6 @@ export class CaWssTransport {
 		);
 
 		return promise;
-	}
-
-	destroy(): void {
-		this._destroyed = true;
-		this._connection.destroy();
-		this._pendingManager.rejectAll(new Error("Transport destroyed"));
 	}
 
 	private _close(): void {

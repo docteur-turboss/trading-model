@@ -1,13 +1,8 @@
 import { GradientApplier } from "./gradient-applier";
 import { HiddenDeltaComputer } from "./hidden-delta-computer";
-import type { OptimizerHyperparams } from "./optimizer";
 import { OutputDeltaComputer } from "./output-delta-computer";
-import type {
-	ActivationType,
-	ForwardContext,
-	LayerMemory,
-	NeuralNetworkConfig,
-} from "./type";
+import type { ActivationType, ForwardContext } from "./type";
+import type { NnTrainingDeps } from "./nn-training-deps";
 
 export interface OutputDeltasContext {
 	outputZ: Float32Array;
@@ -36,33 +31,25 @@ export class BackpropEngine {
 	private readonly _hiddenDeltaComputer: HiddenDeltaComputer;
 	private readonly _gradientApplier: GradientApplier;
 
-	constructor(
-		private readonly _config: Required<NeuralNetworkConfig>,
-		private readonly _layers: LayerMemory[],
-		private readonly _optimizerHp: OptimizerHyperparams
-	) {
-		this._outputDeltaComputer = new OutputDeltaComputer(this._config);
+	constructor(private readonly _deps: NnTrainingDeps) {
+		this._outputDeltaComputer = new OutputDeltaComputer(this._deps.config);
 		this._hiddenDeltaComputer = new HiddenDeltaComputer(
-			this._layers,
-			this._config
+			this._deps.layers,
+			this._deps.config
 		);
-		this._gradientApplier = new GradientApplier(
-			this._layers,
-			this._config,
-			this._optimizerHp
-		);
+		this._gradientApplier = new GradientApplier(this._deps);
 	}
 
 	private _computeOutputDelta(
 		context: ForwardContext,
 		target: Float32Array
 	): Float32Array {
-		const lastLayerIndex = this._layers.length - 1;
+		const lastLayerIndex = this._deps.layers.length - 1;
 		return this._outputDeltaComputer.compute({
 			outputZ: context.layerZValues[lastLayerIndex],
 			output: context.layerOutputs[lastLayerIndex],
 			target,
-			activation: this._config.activationType[lastLayerIndex],
+			activation: this._deps.config.activationType[lastLayerIndex],
 		});
 	}
 
@@ -71,7 +58,7 @@ export class BackpropEngine {
 		allDeltas: Float32Array[],
 		applyImmediately: boolean
 	): void {
-		for (let layerIdx = 0; layerIdx < this._layers.length; layerIdx++) {
+		for (let layerIdx = 0; layerIdx < this._deps.layers.length; layerIdx++) {
 			const layerInput =
 				layerIdx === 0 ? context.input : context.layerOutputs[layerIdx - 1];
 			this._gradientApplier.computeGradients({
@@ -89,7 +76,7 @@ export class BackpropEngine {
 		applyImmediately: boolean
 	): void {
 		const outputDelta = this._computeOutputDelta(context, target);
-		const lastLayerIndex = this._layers.length - 1;
+		const lastLayerIndex = this._deps.layers.length - 1;
 		const hiddenDeltas = this._hiddenDeltaComputer.compute(
 			lastLayerIndex,
 			outputDelta,

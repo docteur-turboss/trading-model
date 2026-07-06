@@ -1,6 +1,7 @@
 import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
 import {
 	createWallet,
+	type WalletAPI,
 	type WalletConfig,
 	type WalletMetrics,
 } from "../env/wallet-manager";
@@ -17,10 +18,18 @@ export interface TradingAgentConfig {
 	stateManagerCfg?: StateManagerConfig;
 }
 
+type ActionExecutor = (wallet: WalletAPI, amount: Volume) => boolean;
+
+const ACTION_EXECUTORS: Record<string, ActionExecutor> = {
+	buy: (wallet: WalletAPI, amount: Volume) => wallet.buy(Volume.of(amount)),
+	sell: (wallet: WalletAPI, amount: Volume) => wallet.sell(Volume.of(amount)),
+	hold: () => false,
+};
+
 export class TradingAgent {
 	private readonly _agent: Agent;
 	private readonly _actionMapper: ActionMapper;
-	public readonly wallet: ReturnType<typeof createWallet>;
+	public readonly wallet: WalletAPI;
 	public readonly state: StateManager;
 
 	constructor(cfg: TradingAgentConfig) {
@@ -54,12 +63,8 @@ export class TradingAgent {
 
 		const output = this._agent.fastForward({ input });
 		const { action, amount } = this._actionMapper.map(output);
-		const executed =
-			action === "buy"
-				? this.wallet.buy(Volume.of(amount))
-				: action === "sell"
-					? this.wallet.sell(Volume.of(amount))
-					: false;
+		const executor = ACTION_EXECUTORS[action] ?? ACTION_EXECUTORS.hold;
+		const executed = executor(this.wallet, amount);
 
 		const reward = this.wallet.getPnL() - currentPnL;
 		this.state.decayEpsilon();

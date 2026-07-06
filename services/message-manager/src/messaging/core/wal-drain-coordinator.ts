@@ -9,9 +9,11 @@ interface DrainDeferred {
 }
 
 export class WalDrainCoordinator {
-	private _walDrainRequested = false;
-	private _pendingDrain: DrainDeferred | null = null;
-	private readonly _drainTimer = new TimerHandle();
+	private _drainState:
+		| { kind: "idle" }
+		| { kind: "draining"; deferred: DrainDeferred; timer: TimerHandle }
+		| { kind: "drain-requested" }
+		= { kind: "idle" };
 	private _walFlushWaiters: Array<() => void> = [];
 
 	constructor(
@@ -21,14 +23,14 @@ export class WalDrainCoordinator {
 	) {}
 
 	get isDrainRequested(): boolean {
-		return this._walDrainRequested;
+		return this._drainState.kind !== "idle";
 	}
 
 	async drain(timeoutMs = 10_000): Promise<void> {
-		if (this._walDrainRequested) {
+		if (this._drainState.kind !== "idle") {
 			return;
 		}
-		this._walDrainRequested = true;
+		this._drainState = { kind: "drain-requested" };
 
 		try {
 			const done = await this._tryDrainAll();
@@ -36,16 +38,28 @@ export class WalDrainCoordinator {
 				return;
 			}
 			await this._performFlush();
-			const deferred = Promise.withResolvers<void>();
-			this._pendingDrain = deferred;
-			this._drainTimer.startTimeout(() => {
-				this._pendingDrain = null;
-				logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
-				deferred.resolve();
+			let resolveDeferred: (() => void) | undefined;
+			const deferred = new Promise<void>((resolve) => {
+				resolveDeferred = resolve;
+			});
+			const timer = new TimerHandle();
+			timer.startTimeout(() => {
+				if (this._drainState.kind === "draining") {
+					logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
+					this._drainState = { kind: "idle" };
+					resolveDeferred!();
+				}
 			}, timeoutMs);
-			return deferred.promise;
+			this._drainState = {
+				kind: "draining",
+				deferred: { promise: deferred, resolve: resolveDeferred! },
+				timer,
+			};
+			return deferred;
 		} finally {
-			this._walDrainRequested = false;
+			if (this._drainState.kind === "drain-requested") {
+				this._drainState = { kind: "idle" };
+			}
 		}
 	}
 
@@ -55,10 +69,11 @@ export class WalDrainCoordinator {
 	}
 
 	resolveDrain(): void {
-		this._drainTimer.stop();
-		const deferred = this._pendingDrain;
-		this._pendingDrain = null;
-		deferred?.resolve();
+		if (this._drainState.kind === "draining") {
+			this._drainState.timer.stop();
+			this._drainState.deferred.resolve();
+			this._drainState = { kind: "idle" };
+		}
 	}
 
 	notifyWaiters(): void {

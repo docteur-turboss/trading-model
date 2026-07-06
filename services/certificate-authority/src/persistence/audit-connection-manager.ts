@@ -6,6 +6,7 @@ import { MONGO_MANAGER } from "./mongo-manager";
 export class AuditConnectionManager {
 	private _client: MongoClient;
 	private _collection!: Collection<AuditEntry>;
+	private _mongoConnected = false;
 
 	constructor(uri: string) {
 		this._client = MONGO_MANAGER.isInitialized()
@@ -13,8 +14,8 @@ export class AuditConnectionManager {
 			: new MongoClient(uri);
 	}
 
-	get collection(): Collection<AuditEntry> {
-		return this._collection;
+	get collection(): Collection<AuditEntry> | undefined {
+		return this._mongoConnected ? this._collection : undefined;
 	}
 
 	private _resolveDb(): import("mongodb").Db {
@@ -30,6 +31,9 @@ export class AuditConnectionManager {
 	}
 
 	private async _createAuditIndexes(): Promise<void> {
+		if (!this._mongoConnected) {
+			return;
+		}
 		await this._collection.createIndex(
 			{ timestamp: -1 },
 			{ expireAfterSeconds: 90 * 86400 }
@@ -42,6 +46,7 @@ export class AuditConnectionManager {
 		try {
 			await this._ensureClientConnected();
 			this._collection = this._resolveDb().collection<AuditEntry>("audit_log");
+			this._mongoConnected = true;
 			await this._createAuditIndexes();
 			return true;
 		} catch (err) {
@@ -49,6 +54,7 @@ export class AuditConnectionManager {
 				"AuditStore: MongoDB connection failed — using local buffer",
 				{ context: { err } }
 			);
+			this._mongoConnected = false;
 			return false;
 		}
 	}
@@ -56,6 +62,7 @@ export class AuditConnectionManager {
 	async ensureMongo(): Promise<boolean> {
 		try {
 			this._collection = this._resolveDb().collection<AuditEntry>("audit_log");
+			this._mongoConnected = true;
 			await this._createAuditIndexes();
 			return true;
 		} catch {

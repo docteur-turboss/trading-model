@@ -45,11 +45,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 		const tokenService = new TokenService(
 			signingSecret ?? randomBytes(32).toString("hex")
 		);
-		this._instances = new RedisInstanceRepository(
-			redis,
-			keyBuilder,
-			tokenService
-		);
+		this._instances = new RedisInstanceRepository({ redis, keyBuilder, tokenService });
 		const cleaner = new StaleInstanceCleaner(
 			this._instances,
 			cleanupIntervalMs

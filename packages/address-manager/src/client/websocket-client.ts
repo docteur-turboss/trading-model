@@ -41,25 +41,17 @@ export class WebSocketClient {
 			options.url,
 			() => this.connect()
 		);
-	}
-
-	private _setupWsHandlers(ws: WebSocket): void {
-		ws.on("open", () => this._onOpen());
-		ws.on("message", (data: WebSocket.Data) => this._onMessage(data));
-		ws.on("close", (code: number) => this._onClose(code));
-		ws.on("error", (error: Error) => this._onError(error));
+		this._connection.onOpen = () => this._onOpen();
+		this._connection.onMessage = (data) => this._onMessage(data);
+		this._connection.onCloseHandler = () => this._onClose();
+		this._connection.onError = (error) => this._onError(error);
 	}
 
 	connect(): void {
 		if (this._connection.isConnected) {
 			return;
 		}
-		const ws = this._connection.connect();
-		if (ws) {
-			this._setupWsHandlers(ws);
-		} else {
-			this._reconnectHandler.scheduleReconnect();
-		}
+		this._connection.connect();
 	}
 
 	private _onOpen(): void {
@@ -81,9 +73,8 @@ export class WebSocketClient {
 		}
 	}
 
-	private _onClose(code: number): void {
-		this._connection.onClose();
-		if (code === 4001) {
+	private _onClose(): void {
+		if (this._connection.lastCloseCode === 4001) {
 			this._authFailureHandler();
 			return;
 		}
@@ -100,9 +91,9 @@ export class WebSocketClient {
 		typeOrData: WsMessageType | unknown,
 		payload?: Record<string, unknown>
 	): boolean {
-		if (arguments.length >= 2) {
+		if (payload !== undefined) {
 			return this._connection.send(
-				JSON.stringify({ type: typeOrData as WsMessageType, payload: payload! })
+				JSON.stringify({ type: typeOrData as WsMessageType, payload })
 			);
 		}
 		return this._connection.send(JSON.stringify(typeOrData));

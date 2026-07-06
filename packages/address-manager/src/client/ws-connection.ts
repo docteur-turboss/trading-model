@@ -1,7 +1,14 @@
+import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import WebSocket from "ws";
 
-export class WsConnection {
-	private _ws!: WebSocket;
+export class WsConnection implements IWsConnection {
+	private _ws: WebSocket | null = null;
+
+	onOpen?: () => void;
+	onMessage?: (data: WebSocket.Data) => void;
+	onError?: (err: Error) => void;
+	onCloseHandler?: () => void;
+	lastCloseCode?: number;
 
 	constructor(
 		private readonly _baseUrl: string,
@@ -21,34 +28,40 @@ export class WsConnection {
 		return this._url;
 	}
 
-	connect(): WebSocket | null {
+	connect(): void {
 		try {
 			this._ws = new WebSocket(this._url);
-			return this._ws;
+			this._ws.on("open", () => this.onOpen?.());
+			this._ws.on("message", (data: WebSocket.Data) => this.onMessage?.(data));
+			this._ws.on("close", (code: number) => {
+				this.lastCloseCode = code;
+				this.onCloseHandler?.();
+			});
+			this._ws.on("error", (err: Error) => this.onError?.(err));
 		} catch {
-			return null;
+			/* connection failed */
 		}
 	}
 
-	disconnect(): void {
-		this._ws.close();
+	disconnect(closeCode?: number, reason?: string): void {
+		if (this._ws) {
+			this._ws.close(closeCode, reason);
+		}
 	}
 
 	get isConnected(): boolean {
-		return this._ws.readyState === WebSocket.OPEN;
+		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
 	}
 
-	send(data: string): boolean {
-		if (this._ws.readyState !== WebSocket.OPEN) {
-			return false;
+	send(data: unknown): boolean {
+		if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+			this._ws.send(typeof data === "string" ? data : JSON.stringify(data));
+			return true;
 		}
-		this._ws.send(data);
-		return true;
+		return false;
 	}
 
 	updateToken(token: string): void {
 		this._token = token;
 	}
-
-	onClose(): void {}
 }

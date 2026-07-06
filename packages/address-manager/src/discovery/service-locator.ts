@@ -17,6 +17,9 @@ import type { DnsResolver } from "./dns-resolver";
 export interface ServiceLocator {
 	/** Resolve the hostname for a service instance. */
 	locate(instance: ServiceInstance): string;
+
+	/** Resolve a service name to a DNS hostname. */
+	resolve(serviceName: string): string;
 }
 
 /**
@@ -28,6 +31,10 @@ export interface ServiceLocator {
 export class ServiceNameLocator implements ServiceLocator {
 	locate(instance: ServiceInstance): string {
 		return instance.serviceName;
+	}
+
+	resolve(serviceName: string): string {
+		return serviceName;
 	}
 }
 
@@ -41,6 +48,10 @@ export class IpAddressLocator implements ServiceLocator {
 	locate(instance: ServiceInstance): string {
 		return instance.ip;
 	}
+
+	resolve(serviceName: string): string {
+		return serviceName;
+	}
 }
 
 /**
@@ -52,5 +63,9 @@ export class MappingServiceLocator implements ServiceLocator {
 
 	locate(instance: ServiceInstance): string {
 		return this._dnsResolver.resolve(toServiceId(instance.serviceName));
+	}
+
+	resolve(serviceName: string): string {
+		return this._dnsResolver.resolve(toServiceId(serviceName));
 	}
 }

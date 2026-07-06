@@ -8,25 +8,20 @@ export class LockConnectionManager {
 	private _client: MongoClient;
 	private _collection!: Collection<LockDocument>;
 	readonly mongoBackend: MongoLockBackend;
+	private _mongoAvailable = false;
 
 	constructor(uri: string, _fallbackDir?: string) {
 		this._client = new MongoClient(uri);
-		this.mongoBackend = this._createMongoBackend();
-	}
-
-	get isAvailable(): boolean {
-		return this._mongoAvailable;
-	}
-
-	private _mongoAvailable = false;
-
-	private _createMongoBackend(): MongoLockBackend {
-		return new MongoLockBackend(
-			() => this._collection,
+		this.mongoBackend = new MongoLockBackend(
+			() => (this._mongoAvailable ? this._collection : null),
 			() => {
 				this._mongoAvailable = false;
 			}
 		);
+	}
+
+	get isAvailable(): boolean {
+		return this._mongoAvailable;
 	}
 
 	private async _connectViaManager(): Promise<void> {
@@ -42,6 +37,9 @@ export class LockConnectionManager {
 	}
 
 	private async _createLockIndexes(): Promise<void> {
+		if (!this._mongoAvailable) {
+			return;
+		}
 		await this._collection.createIndex({ name: 1 }, { unique: true });
 		await this._collection.createIndex(
 			{ expiresAt: 1 },

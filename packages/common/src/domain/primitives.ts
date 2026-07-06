@@ -288,3 +288,23 @@ export function toKeyVersion(value: number): KeyVersion {
 export function fromKeyVersion(value: KeyVersion): number {
 	return value;
 }
+
+export type GenomeId = string & { readonly __brand: "GenomeId" };
+export function toGenomeId(value: string): GenomeId {
+	return value as GenomeId;
+}
+export function fromGenomeId(value: GenomeId): string {
+	return value;
+}
+
+export type WorkerStatus = "active" | "draining" | "offline";
+
+export enum WorkerStatusCode {
+	Active = "active",
+	Draining = "draining",
+	Offline = "offline",
+}
+
+export enum DataSource {
+	Binance = "binance",
+}

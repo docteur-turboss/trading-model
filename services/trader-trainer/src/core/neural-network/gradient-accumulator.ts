@@ -1,6 +1,7 @@
 import type { WeightGradientContext } from "./backprop-engine";
-import { OPTIMIZERS, type OptimizerHyperparams } from "./optimizer";
-import type { LayerMemory, NeuralNetworkConfig } from "./type";
+import { OPTIMIZERS } from "./optimizer";
+import type { LayerMemory } from "./type";
+import type { NnTrainingDeps } from "./nn-training-deps";
 
 function computeWeightGradient(ctx: WeightGradientContext): void {
 	const { weightBuf, rowOffset, deltaJ, input, fanIn } = ctx;
@@ -12,11 +13,7 @@ function computeWeightGradient(ctx: WeightGradientContext): void {
 export { computeWeightGradient };
 
 export class GradientAccumulator {
-	constructor(
-		private readonly _layers: LayerMemory[],
-		private readonly _config: Required<NeuralNetworkConfig>,
-		private readonly _optimizerHp: OptimizerHyperparams
-	) {}
+	constructor(private readonly _deps: NnTrainingDeps) {}
 
 	accumulate(
 		layer: LayerMemory,
@@ -50,7 +47,7 @@ export class GradientAccumulator {
 			wState,
 			bState,
 		} = layer;
-		const opt = OPTIMIZERS[this._config.optimizerType];
+		const opt = OPTIMIZERS[this._deps.config.optimizerType];
 
 		const scale = 1 / numSamples;
 		for (let i = 0; i < accumGradW.length; i++) {
@@ -64,17 +61,17 @@ export class GradientAccumulator {
 			params: weights,
 			grads: gradW,
 			state: wState,
-			lr: this._config.learningRate,
-			hp: this._optimizerHp,
+			lr: this._deps.config.learningRate,
+			hp: this._deps.optimizerHp,
 		});
 
-		if (this._config.useBias) {
+		if (this._deps.config.useBias) {
 			opt.step({
 				params: bias,
 				grads: gradB,
 				state: bState,
-				lr: this._config.learningRate,
-				hp: this._optimizerHp,
+				lr: this._deps.config.learningRate,
+				hp: this._deps.optimizerHp,
 			});
 		}
 
@@ -83,9 +80,9 @@ export class GradientAccumulator {
 	}
 
 	resetAccumulators(): void {
-		for (let layerIdx = 0; layerIdx < this._layers.length; layerIdx++) {
-			this._layers[layerIdx].accumGradW.fill(0);
-			this._layers[layerIdx].accumGradB.fill(0);
+		for (let layerIdx = 0; layerIdx < this._deps.layers.length; layerIdx++) {
+			this._deps.layers[layerIdx].accumGradW.fill(0);
+			this._deps.layers[layerIdx].accumGradB.fill(0);
 		}
 	}
 }

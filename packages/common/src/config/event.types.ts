@@ -1,5 +1,7 @@
 import type {
 	InstanceId,
+	KeyId,
+	KeyVersion,
 	SerialNumber,
 	ServiceId,
 	TradingSymbol,
@@ -205,12 +207,12 @@ export interface EventMap {
 		serialNumber: SerialNumber;
 		serviceId: ServiceId;
 		reason: RevocationReason;
-		revokedAt: string;
+		revokedAt: UnixTimestamp;
 		instanceId: InstanceId;
 	};
 	[EnumEventMessage.caKeyRotated]: {
-		keyId: string;
-		keyVersion: number;
+		keyId: KeyId;
+		keyVersion: KeyVersion;
 		instanceId: InstanceId;
 	};
 }

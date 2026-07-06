@@ -39,10 +39,10 @@ export default class AddressManager {
 		this._serviceDiscovery = this._createServiceDiscovery(config);
 		this._tokenRefreshIntervalMs = config.tokenRefreshIntervalMs;
 		this._ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
-		this._registrationManager = new RegistrationManager(
-			this._addressManagerClient,
-			this._tokenManager
-		);
+		this._registrationManager = new RegistrationManager({
+			addressManagerClient: this._addressManagerClient,
+			tokenManager: this._tokenManager,
+		});
 	}
 
 	private _createHealthChecker(

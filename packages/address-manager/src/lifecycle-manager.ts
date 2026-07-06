@@ -124,6 +124,6 @@ export class LifecycleManager {
 			serviceName: toServiceId(this._options.serviceName),
 			instanceId: toInstanceId(this._options.instanceId),
 		};
-		await this._options.heartbeatManager.performHeartbeat(identity);
+		await this._options.heartbeatManager.sendHeartbeat(identity);
 	}
 }

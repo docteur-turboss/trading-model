@@ -1,4 +1,4 @@
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import { toServiceIdentityKey, type ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
 import { TopicSubscriptionHandler } from "./topic-subscription-handler";
 import type { IncomingWssMessage } from "./wss-message.types";
@@ -26,15 +26,11 @@ export class WssSubscriptionManager {
 	}
 
 	get(identity: ServiceIdentity): WebSocket | undefined {
-		return this._subscriptions.get(
-			`${identity.serviceName}:${identity.instanceId}`
-		)?.ws;
+		return this._subscriptions.get(toServiceIdentityKey(identity))?.ws;
 	}
 
 	has(identity: ServiceIdentity): boolean {
-		return this._subscriptions.has(
-			`${identity.serviceName}:${identity.instanceId}`
-		);
+		return this._subscriptions.has(toServiceIdentityKey(identity));
 	}
 
 	enforceCapacity(ws: WebSocket): boolean {
@@ -47,7 +43,7 @@ export class WssSubscriptionManager {
 
 	add(ctx: SubscriptionContext): string {
 		const { ws, identity, topics } = ctx;
-		const subKey = `${identity.serviceName}:${identity.instanceId}`;
+		const subKey = toServiceIdentityKey(identity);
 		this._subscriptions.set(subKey, { identity, topics, ws });
 		return subKey;
 	}

@@ -16,16 +16,16 @@ export class MessageManagerCircuitBreaker implements ICircuitBreaker {
 		});
 	}
 
-	isOpen(_key?: string): boolean {
+	isOpen(_key: string): boolean {
 		return this._state.isOpen(Date.now());
 	}
 
-	isAllowed(_key?: string): boolean {
+	isAllowed(_key: string): boolean {
 		return !this._state.isOpen(Date.now());
 	}
 
 	check(
-		_key?: string
+		_key: string
 	): import("@trading-model/common/domain/circuit-state").CircuitState {
 		const now = Date.now();
 		const state = this._state.getState(now);
@@ -35,21 +35,21 @@ export class MessageManagerCircuitBreaker implements ICircuitBreaker {
 		return state;
 	}
 
-	recordSuccess(_key?: string): void {
+	recordSuccess(_key: string): void {
 		this._state.recordSuccess();
 	}
 
-	recordFailure(_key?: string): void {
+	recordFailure(_key: string, _count?: number, _threshold?: number): void {
 		this._state.recordFailure(Date.now(), this._logOpened);
 	}
 
 	getState(
-		_key?: string
+		_key: string
 	): import("@trading-model/common/domain/circuit-state").CircuitState {
 		return this._state.getState(Date.now());
 	}
 
-	getFailureCount(_key?: string): number {
+	getFailureCount(_key: string): number {
 		return this._state.failures;
 	}
 

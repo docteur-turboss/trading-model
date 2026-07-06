@@ -1,19 +1,17 @@
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import type Redis from "ioredis";
 import { RedisInstanceStore } from "./redis-instance-store";
-import type { RedisKeyBuilder } from "./redis-key-builder";
-import type { TokenService } from "./token-service";
+import type { RedisDeps } from "./redis-deps";
 
 export class RedisInstanceRepository {
 	private readonly _store: RedisInstanceStore;
+	private readonly _deps: RedisDeps;
 
 	constructor(
-		readonly _redis: Redis,
-		private readonly _keyBuilder: RedisKeyBuilder,
-		readonly _tokenService: TokenService
+		deps: RedisDeps
 	) {
-		this._store = new RedisInstanceStore(_redis, _keyBuilder, _tokenService);
+		this._deps = deps;
+		this._store = new RedisInstanceStore(deps);
 	}
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {
@@ -34,7 +32,7 @@ export class RedisInstanceRepository {
 			return [];
 		}
 
-		const keys = instanceIds.map((id) => this._keyBuilder.instanceMetadata(id));
+		const keys = instanceIds.map((id) => this._deps.keyBuilder.instanceMetadata(id));
 		return this._store.getMetadatas(keys);
 	}
 

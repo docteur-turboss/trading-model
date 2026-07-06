@@ -18,6 +18,7 @@ import {
 import { LearningPool } from "./pool-manager";
 import { PooledTrainer } from "./pooled-trainer";
 import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
+import type { NnTrainingDeps } from "./nn-training-deps";
 import {
 	ActivationType,
 	ConnectionType,
@@ -230,11 +231,11 @@ export class NeuralNetwork {
 		this._layers.push(...createLayerMemories(this._config, this._optimizerHp));
 		validateActivationLoss(this._config, this._layers.length);
 		this._feedForward = new FeedForwardEngine(this._config, this._layers);
-		this._backprop = new BackpropEngine(
-			this._config,
-			this._layers,
-			this._optimizerHp
-		);
+		this._backprop = new BackpropEngine({
+			config: this._config,
+			layers: this._layers,
+			optimizerHp: this._optimizerHp,
+		});
 		this._trainer = new PooledTrainer(
 			this._feedForward,
 			this._backprop,

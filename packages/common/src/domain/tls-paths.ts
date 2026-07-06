@@ -12,12 +12,7 @@ export interface TlsPemBundle {
 	ca: string;
 }
 
-/** @deprecated Use TlsPemBundle instead (fields were optional for historical reasons). */
-export interface TlsCredentials {
-	ca?: string;
-	cert?: string;
-	key?: string;
-}
+
 
 /**
  * Build a TlsPaths object from an env dictionary that contains

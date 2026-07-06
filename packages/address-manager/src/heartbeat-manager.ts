@@ -24,14 +24,10 @@ export class HeartbeatManager {
 		this._wsClient = deps.wsClient;
 		this._onSuccess = deps.onSuccess;
 		this._onFailure = deps.onFailure;
-		this._failureHandler = new HeartbeatFailureHandler(
-			this._addressManagerClient,
-			this._tokenManager,
-			this._wsClient
-		);
+		this._failureHandler = new HeartbeatFailureHandler(deps);
 	}
 
-	async performHeartbeat(identity: ServiceIdentity): Promise<void> {
+	async sendHeartbeat(identity: ServiceIdentity): Promise<void> {
 		if (this._heartbeatViaWs(identity)) {
 			return;
 		}

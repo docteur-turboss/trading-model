@@ -1,5 +1,7 @@
 import { appendFile } from "node:fs/promises";
 
+import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+
 /** Single entry written to the Dead Letter Queue. */
 export interface DlqEntry {
 	/** The failed message payload and metadata. */
@@ -12,7 +14,7 @@ export interface DlqEntry {
 	deliveryAttempt: number;
 
 	/** ISO-8601 timestamp when the entry was created. */
-	timestamp: string;
+	timestamp: UnixTimestamp;
 }
 
 /**

@@ -33,65 +33,79 @@ interface JobDocument {
 	history: JobEvent[];
 }
 
-function _buildJobDocumentBase(job: Job): JobDocument {
-	return {
-		jobId: job.id,
-		type: job.type,
-		payload: job.payload,
-		priority: job.priority,
-		status: job.status,
-		assignedWorkerId: job.assignedWorkerId,
-		ackDeadline: job.ackDeadline,
-		maxRetries: job.maxRetries,
-		retryCount: job.retryCount,
-		createdAt: job.createdAt,
-		startedAt: job.startedAt,
-		completedAt: job.completedAt,
-		result: job.result,
-		error: job.error,
-		history: job.history.map(_mapHistoryEntry),
-	};
+export class JobDocumentMapper {
+	toDocument(job: Job): JobDocument {
+		return {
+			jobId: job.id,
+			type: job.type,
+			payload: job.payload,
+			priority: job.priority,
+			status: job.status,
+			assignedWorkerId: job.assignedWorkerId,
+			ackDeadline: job.ackDeadline,
+			maxRetries: job.maxRetries,
+			retryCount: job.retryCount,
+			createdAt: job.createdAt,
+			startedAt: job.startedAt,
+			completedAt: job.completedAt,
+			result: job.result,
+			error: job.error,
+			history: job.history.map((e) => ({ ...e })),
+		};
+	}
+
+	fromDocument(doc: JobDocument): Job {
+		return {
+			id: doc.jobId as JobId,
+			type: doc.type,
+			payload: doc.payload as Job["payload"],
+			priority: doc.priority as JobPriority,
+			status: doc.status,
+			assignedWorkerId: doc.assignedWorkerId as InstanceId | undefined,
+			ackDeadline: doc.ackDeadline,
+			maxRetries: doc.maxRetries,
+			retryCount: doc.retryCount,
+			createdAt: doc.createdAt,
+			startedAt: doc.startedAt,
+			completedAt: doc.completedAt,
+			result: doc.result,
+			error: doc.error,
+			history: doc.history.map((e) => ({ ...e })),
+		};
+	}
 }
 
-function toDocument(job: Job): JobDocument {
-	return _buildJobDocumentBase(job);
-}
+export class JobStatusUpdater {
+	buildUpdateSet(
+		status: JobStatus,
+		extras?: JobUpdateExtras,
+	): Record<string, unknown> {
+		const updateSet: Record<string, unknown> = {
+			status,
+			...(status === JOB_STATUS.RUNNING ? { startedAt: new Date() } : {}),
+			...(isTerminalStatus(status) ? { completedAt: new Date() } : {}),
+		};
+		if (extras?.result !== undefined) updateSet.result = extras.result;
+		if (extras?.error !== undefined) updateSet.error = extras.error;
+		if (extras?.assignedWorkerId !== undefined) updateSet.assignedWorkerId = extras.assignedWorkerId;
+		if (extras?.ackDeadline !== undefined) updateSet.ackDeadline = extras.ackDeadline;
+		return updateSet;
+	}
 
-function _buildJobBase(doc: JobDocument): Job {
-	return {
-		id: doc.jobId as JobId,
-		type: doc.type,
-		payload: doc.payload as Job["payload"],
-		priority: doc.priority as JobPriority,
-		status: doc.status,
-		assignedWorkerId: doc.assignedWorkerId as InstanceId | undefined,
-		ackDeadline: doc.ackDeadline,
-		maxRetries: doc.maxRetries,
-		retryCount: doc.retryCount,
-		createdAt: doc.createdAt,
-		startedAt: doc.startedAt,
-		completedAt: doc.completedAt,
-		result: doc.result,
-		error: doc.error,
-		history: doc.history.map(_mapHistoryEntry),
-	};
-}
-
-function fromDocument(doc: JobDocument): Job {
-	return _buildJobBase(doc);
-}
-
-function _mapHistoryEntry(entry: JobEvent): JobEvent {
-	return {
-		fromStatus: entry.fromStatus,
-		toStatus: entry.toStatus,
-		timestamp: entry.timestamp,
-		reason: entry.reason,
-	};
+	buildHistoryEntry(fromStatus: JobStatus, toStatus: JobStatus, extras?: JobUpdateExtras): JobEvent {
+		return {
+			fromStatus,
+			toStatus,
+			timestamp: new Date(),
+			reason: extras?.error || toStatus,
+		};
+	}
 }
 
 export class JobRepository {
 	private readonly _collection: Collection<JobDocument>;
+	private readonly _mapper = new JobDocumentMapper();
+	private readonly _statusUpdater = new JobStatusUpdater();
 
 	constructor(db: Db) {
 		this._collection = db.collection<JobDocument>(COLLECTION);
@@ -100,63 +114,29 @@ export class JobRepository {
 	async ensureIndexes(): Promise<void> {
 		await this._collection.createIndex({ jobId: 1 }, { unique: true });
 		await this._collection.createIndex({ status: 1 });
-		await this._collection.createIndex(
-			{ assignedWorkerId: 1 },
-			{ sparse: true }
-		);
+		await this._collection.createIndex({ assignedWorkerId: 1 }, { sparse: true });
 		await this._collection.createIndex({ type: 1, status: 1 });
 	}
 
 	async insert(job: Job): Promise<void> {
-		await this._collection.insertOne(toDocument(job));
+		await this._collection.insertOne(this._mapper.toDocument(job));
 	}
 
 	async findById(jobId: string): Promise<Job | null> {
 		const doc = await this._collection.findOne({ jobId });
-		return doc ? fromDocument(doc) : null;
+		return doc ? this._mapper.fromDocument(doc) : null;
 	}
 
-	async updateStatus(
-		jobId: string,
-		status: JobStatus,
-		extras?: JobUpdateExtras
-	): Promise<void> {
+	async updateStatus(jobId: string, status: JobStatus, extras?: JobUpdateExtras): Promise<void> {
 		const current = await this._collection.findOne({ jobId });
-		if (!current) {
-			return;
-		}
+		if (!current) return;
 
-		const updateSet: Record<string, unknown> = {
-			status,
-			...(status === JOB_STATUS.RUNNING ? { startedAt: new Date() } : {}),
-			...(isTerminalStatus(status) ? { completedAt: new Date() } : {}),
-		};
-		if (extras?.result !== undefined) {
-			updateSet.result = extras.result;
-		}
-		if (extras?.error !== undefined) {
-			updateSet.error = extras.error;
-		}
-		if (extras?.assignedWorkerId !== undefined) {
-			updateSet.assignedWorkerId = extras.assignedWorkerId;
-		}
-		if (extras?.ackDeadline !== undefined) {
-			updateSet.ackDeadline = extras.ackDeadline;
-		}
+		const updateSet = this._statusUpdater.buildUpdateSet(status, extras);
+		const historyEntry = this._statusUpdater.buildHistoryEntry(current.status, status, extras);
 
 		await this._collection.updateOne(
 			{ jobId },
-			{
-				$set: updateSet,
-				$push: {
-					history: {
-						fromStatus: current.status,
-						toStatus: status,
-						timestamp: new Date(),
-						reason: extras?.error || status,
-					},
-				},
-			}
+			{ $set: updateSet, $push: { history: historyEntry } },
 		);
 	}
 
@@ -167,23 +147,21 @@ export class JobRepository {
 	async findNonTerminal(): Promise<Job[]> {
 		const docs = await this._collection
 			.find({
-				status: {
-					$nin: [JOB_STATUS.COMPLETED, JOB_STATUS.FAILED, JOB_STATUS.CANCELLED],
-				},
+				status: { $nin: [JOB_STATUS.COMPLETED, JOB_STATUS.FAILED, JOB_STATUS.CANCELLED] },
 			})
 			.toArray();
-		return docs.map(fromDocument);
+		return docs.map((d) => this._mapper.fromDocument(d));
 	}
 
 	async findByWorker(workerId: string, statuses: JobStatus[]): Promise<Job[]> {
 		const docs = await this._collection
 			.find({ assignedWorkerId: workerId, status: { $in: statuses } })
 			.toArray();
-		return docs.map(fromDocument);
+		return docs.map((d) => this._mapper.fromDocument(d));
 	}
 
 	async findByStatus(status: JobStatus): Promise<Job[]> {
 		const docs = await this._collection.find({ status }).toArray();
-		return docs.map(fromDocument);
+		return docs.map((d) => this._mapper.fromDocument(d));
 	}
 }

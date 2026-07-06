@@ -4,6 +4,7 @@ import {
 	scheduleWsReconnect,
 	type WsReconnectConfig,
 } from "../utils/ws-reconnect";
+import type { IWsReconnector } from "../ws/i-ws-reconnector";
 import { ReconnectStateManager } from "./reconnect-state-manager";
 
 export interface WorkerReconnectorConfig {
@@ -11,7 +12,7 @@ export interface WorkerReconnectorConfig {
 	reconnectMaxDelayMs: number;
 }
 
-export class WorkerReconnector {
+export class WorkerReconnector implements IWsReconnector {
 	private readonly _stateManager = new ReconnectStateManager();
 	private readonly _config: WsReconnectConfig;
 	private readonly _onReconnect: () => Promise<void>;

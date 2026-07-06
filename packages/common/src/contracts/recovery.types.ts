@@ -1,4 +1,4 @@
-import type { InstanceId, JobId } from "../domain/primitives";
+import type { InstanceId, JobId, JobType } from "../domain/primitives";
 
 /**
  * Job priority levels.
@@ -34,7 +34,7 @@ export interface JobEvent {
 
 export interface Job<TData = unknown> {
 	id: JobId;
-	type: string;
+	type: JobType;
 	payload: TData;
 	priority: JobPriority;
 	status: JobStatus;

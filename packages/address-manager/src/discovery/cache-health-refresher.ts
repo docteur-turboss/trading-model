@@ -6,10 +6,30 @@ import type { ScheduledJob } from "../scheduler/scheduler";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceHealthChecker } from "./service-health-checker";
 
-export class CacheHealthRefresher implements ScheduledJob {
-	public readonly schedule: string;
+class BatchSelector {
 	private _offset = 0;
 	private _previousEntriesLength = 0;
+
+	select(
+		entries: { serviceName: string; instance: ServiceInstance }[]
+	): { serviceName: string; instance: ServiceInstance }[] {
+		if (entries.length !== this._previousEntriesLength) {
+			this._offset = 0;
+			this._previousEntriesLength = entries.length;
+		}
+		const fraction = Math.max(1, Math.floor(entries.length / 3));
+		if (this._offset >= entries.length) {
+			this._offset = 0;
+		}
+		const batch = entries.slice(this._offset, this._offset + fraction);
+		this._offset = (this._offset + fraction) % entries.length;
+		return batch;
+	}
+}
+
+export class CacheHealthRefresher implements ScheduledJob {
+	public readonly schedule: string;
+	private readonly _batchSelector = new BatchSelector();
 	private _running = false;
 
 	constructor(
@@ -33,22 +53,6 @@ export class CacheHealthRefresher implements ScheduledJob {
 		} finally {
 			this._running = false;
 		}
-	}
-
-	private _selectBatch(
-		entries: { serviceName: string; instance: ServiceInstance }[]
-	): { serviceName: string; instance: ServiceInstance }[] {
-		if (entries.length !== this._previousEntriesLength) {
-			this._offset = 0;
-			this._previousEntriesLength = entries.length;
-		}
-		const fraction = Math.max(1, Math.floor(entries.length / 3));
-		if (this._offset >= entries.length) {
-			this._offset = 0;
-		}
-		const batch = entries.slice(this._offset, this._offset + fraction);
-		this._offset = (this._offset + fraction) % entries.length;
-		return batch;
 	}
 
 	private async _checkEntry(entry: {
@@ -89,7 +93,7 @@ export class CacheHealthRefresher implements ScheduledJob {
 			return;
 		}
 
-		const batch = this._selectBatch(entries);
+		const batch = this._batchSelector.select(entries);
 		const errors = await this._executeBatch(batch, 10);
 
 		for (const error of errors) {

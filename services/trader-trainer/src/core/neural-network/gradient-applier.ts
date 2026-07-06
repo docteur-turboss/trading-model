@@ -3,27 +3,20 @@ import {
 	computeWeightGradient,
 	GradientAccumulator,
 } from "./gradient-accumulator";
-import { OPTIMIZERS, type OptimizerHyperparams } from "./optimizer";
-import type { LayerMemory, NeuralNetworkConfig } from "./type";
+import { OPTIMIZERS } from "./optimizer";
+import type { LayerMemory } from "./type";
+import type { NnTrainingDeps } from "./nn-training-deps";
 
 export class GradientApplier {
 	private readonly _accumulator: GradientAccumulator;
 
-	constructor(
-		private readonly _layers: LayerMemory[],
-		private readonly _config: Required<NeuralNetworkConfig>,
-		private readonly _optimizerHp: OptimizerHyperparams
-	) {
-		this._accumulator = new GradientAccumulator(
-			this._layers,
-			this._config,
-			this._optimizerHp
-		);
+	constructor(private readonly _deps: NnTrainingDeps) {
+		this._accumulator = new GradientAccumulator(this._deps);
 	}
 
 	computeGradients(ctx: LayerGradientContext): void {
 		const { layerIndex, delta, layerInput, applyImmediately } = ctx;
-		const layer = this._layers[layerIndex];
+		const layer = this._deps.layers[layerIndex];
 
 		if (applyImmediately) {
 			this._applyGradientsToLayer(layer, delta, layerInput);
@@ -37,8 +30,8 @@ export class GradientApplier {
 			return;
 		}
 
-		for (let layerIdx = 0; layerIdx < this._layers.length; layerIdx++) {
-			this._accumulator.averageAndApply(this._layers[layerIdx], numSamples);
+		for (let layerIdx = 0; layerIdx < this._deps.layers.length; layerIdx++) {
+			this._accumulator.averageAndApply(this._deps.layers[layerIdx], numSamples);
 		}
 	}
 
@@ -66,24 +59,24 @@ export class GradientApplier {
 			});
 		}
 
-		const opt = OPTIMIZERS[this._config.optimizerType];
+		const opt = OPTIMIZERS[this._deps.config.optimizerType];
 		const { weights, bias, wState, bState } = layer;
 
 		opt.step({
 			params: weights,
 			grads: gradW,
 			state: wState,
-			lr: this._config.learningRate,
-			hp: this._optimizerHp,
+			lr: this._deps.config.learningRate,
+			hp: this._deps.optimizerHp,
 		});
 
-		if (this._config.useBias) {
+		if (this._deps.config.useBias) {
 			opt.step({
 				params: bias,
 				grads: gradB,
 				state: bState,
-				lr: this._config.learningRate,
-				hp: this._optimizerHp,
+				lr: this._deps.config.learningRate,
+				hp: this._deps.optimizerHp,
 			});
 		}
 	}

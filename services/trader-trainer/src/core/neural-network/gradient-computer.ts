@@ -5,9 +5,9 @@ import type {
 } from "./backprop-engine";
 import { GradientApplier } from "./gradient-applier";
 import { HiddenDeltaComputer } from "./hidden-delta-computer";
-import type { OptimizerHyperparams } from "./optimizer";
 import { OutputDeltaComputer } from "./output-delta-computer";
-import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
+import type { ForwardContext, LayerMemory } from "./type";
+import type { NnTrainingDeps } from "./nn-training-deps";
 
 export type {
 	LayerGradientContext,
@@ -20,21 +20,13 @@ export class GradientComputer {
 	private readonly _hiddenDeltaComputer: HiddenDeltaComputer;
 	private readonly _gradientApplier: GradientApplier;
 
-	constructor(
-		private readonly _config: Required<NeuralNetworkConfig>,
-		private readonly _layers: LayerMemory[],
-		private readonly _optimizerHp: OptimizerHyperparams
-	) {
-		this._outputDeltaComputer = new OutputDeltaComputer(this._config);
+	constructor(private readonly _deps: NnTrainingDeps) {
+		this._outputDeltaComputer = new OutputDeltaComputer(this._deps.config);
 		this._hiddenDeltaComputer = new HiddenDeltaComputer(
-			this._layers,
-			this._config
+			this._deps.layers,
+			this._deps.config
 		);
-		this._gradientApplier = new GradientApplier(
-			this._layers,
-			this._config,
-			this._optimizerHp
-		);
+		this._gradientApplier = new GradientApplier(this._deps);
 	}
 
 	computeOutputDeltas(ctx: OutputDeltasContext): Float32Array {
@@ -69,7 +61,7 @@ export class GradientComputer {
 		delta: Float32Array,
 		layerInput: Float32Array
 	): void {
-		const layerIndex = this._layers.indexOf(layer);
+		const layerIndex = this._deps.layers.indexOf(layer);
 		this._gradientApplier.computeGradients({
 			layerIndex,
 			delta,
@@ -83,7 +75,7 @@ export class GradientComputer {
 		delta: Float32Array,
 		layerInput: Float32Array
 	): void {
-		const layerIndex = this._layers.indexOf(layer);
+		const layerIndex = this._deps.layers.indexOf(layer);
 		this._gradientApplier.computeGradients({
 			layerIndex,
 			delta,

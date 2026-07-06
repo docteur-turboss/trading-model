@@ -6,8 +6,6 @@ import { RedisConnection } from "./redis-connection";
 export class DlqRedisQueue {
 	private readonly _connection: RedisConnection;
 	private readonly _queueKey: string;
-	private _popScriptHashPromise!: Promise<string>;
-
 	private static readonly _POP_SCRIPT = `
     local entries = redis.call('LRANGE', KEYS[1], -1, -1)
     if #entries > 0 then
@@ -78,11 +76,7 @@ export class DlqRedisQueue {
 	}
 
 	private async _getPopScriptHash(client: Redis): Promise<string> {
-		this._popScriptHashPromise = client.script(
-			"LOAD",
-			DlqRedisQueue._POP_SCRIPT
-		) as Promise<string>;
-		return this._popScriptHashPromise;
+		return client.script("LOAD", DlqRedisQueue._POP_SCRIPT) as Promise<string>;
 	}
 
 	private _extractFirstEntry(entries: string[]): string | null {

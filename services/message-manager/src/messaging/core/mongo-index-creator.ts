@@ -1,19 +1,15 @@
-import type { MongoClient } from "./mongo-archive-batch";
+import type { MongoCollectionConfig } from "./mongo-types";
 
 export class MongoIndexCreator {
-	constructor(
-		private readonly _client: MongoClient,
-		private readonly _dbName: string,
-		private readonly _collectionName: string
-	) {}
+	constructor(private readonly _config: MongoCollectionConfig) {}
 
 	private _getCollection(): ReturnType<
-		ReturnType<MongoClient["db"]>["collection"]
+		ReturnType<MongoCollectionConfig["client"]["db"]>["collection"]
 	> {
-		return this._client
-			.db(this._dbName)
-			.collection(this._collectionName) as ReturnType<
-			ReturnType<MongoClient["db"]>["collection"]
+		return this._config.client
+			.db(this._config.dbName)
+			.collection(this._config.collectionName) as ReturnType<
+			ReturnType<MongoCollectionConfig["client"]["db"]>["collection"]
 		>;
 	}
 

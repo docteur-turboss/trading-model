@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import type { TlsCredentials, TlsPaths } from "../domain/tls-paths";
+import type { TlsPemBundle, TlsPaths } from "../domain/tls-paths";
 import { isServiceCircuitOpen } from "./http-circuit-breaker";
 import { HttpClientError, HttpClientTimeoutError } from "./http-client-errors";
 import {
@@ -8,13 +8,13 @@ import {
 	type RequestContext,
 } from "./http-request-executor";
 import { HttpTlsLoader } from "./http-tls-loader";
-import type { HttpRequestOptions } from "./http-types";
+import type { HttpMethod, HttpRequestOptions } from "./http-types";
 
 export class HttpClient {
 	private readonly _tlsLoader: HttpTlsLoader;
 	private readonly _executor: HttpRequestExecutor;
 
-	constructor(tlsConfig?: TlsCredentials) {
+	constructor(tlsConfig?: Partial<TlsPemBundle>) {
 		this._tlsLoader = new HttpTlsLoader(tlsConfig);
 		this._executor = new HttpRequestExecutor();
 	}
@@ -25,7 +25,7 @@ export class HttpClient {
 		schema?: z.ZodType<TResponse>
 	): Promise<TResponse | undefined> {
 		return await this._request<TResponse>({
-			method: "GET",
+			method: "GET" as HttpMethod,
 			urlStr: url,
 			body: undefined,
 			options,
@@ -40,7 +40,7 @@ export class HttpClient {
 		schema?: z.ZodType<TResponse>
 	): Promise<TResponse | undefined> {
 		return await this._request<TResponse>({
-			method: "POST",
+			method: "POST" as HttpMethod,
 			urlStr: url,
 			body,
 			options,
@@ -55,7 +55,7 @@ export class HttpClient {
 		schema?: z.ZodType<TResponse>
 	): Promise<TResponse | undefined> {
 		return await this._request<TResponse>({
-			method: "DELETE",
+			method: "DELETE" as HttpMethod,
 			urlStr: url,
 			body,
 			options,
@@ -74,10 +74,6 @@ export class HttpClient {
 	private async _request<TResponse>(
 		context: RequestContext<TResponse>
 	): Promise<TResponse | undefined> {
-		if (this._tlsLoader.hasTlsConfig) {
-			await this._tlsLoader.ensureLoaded();
-		}
-
 		const route = this._executor.checkPreconditions(
 			context.urlStr,
 			context.options

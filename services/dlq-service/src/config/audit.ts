@@ -1,4 +1,5 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
+import type { CorrelationId, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 
 import { findAService } from "./address-manager";
@@ -7,75 +8,64 @@ import { logger } from "./logger";
 import { MessageManagerCircuitBreaker } from "./mm-circuit-breaker";
 
 export interface AuditEvent {
-	timestamp: string;
+	timestamp: UnixTimestamp;
 	topic: string;
 	publisher: string;
-	correlationId: string;
+	correlationId: CorrelationId;
 	summary: string;
 	severity: "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 }
 
 class AuditClientManager {
 	private _httpClient: HttpClient | null = null;
-	private _httpClientPromise: Promise<HttpClient> | null = null;
-	private _auditLoggerUrl: string | null | undefined;
-	private _auditUrlPromise: Promise<string | null> | null = null;
+	private _resolveHttpClientPromise: Promise<void> | null = null;
+	private _auditLoggerUrl: string | null = null;
+	private _resolveAuditUrlPromise: Promise<void> | null = null;
 
 	async getHttpClient(): Promise<HttpClient> {
 		if (this._httpClient) {
 			return this._httpClient;
 		}
-		const existingClient = await this._resolveExistingPromise(
-			this._httpClientPromise
-		);
-		if (existingClient) {
-			return existingClient;
+		if (this._resolveHttpClientPromise) {
+			await this._resolveHttpClientPromise;
+			return this._httpClient!;
 		}
 
-		this._httpClientPromise = this._createHttpClientPromise();
-		return this._httpClientPromise;
+		this._resolveHttpClientPromise = this._resolveHttpClient();
+		await this._resolveHttpClientPromise;
+		return this._httpClient!;
 	}
 
-	private _createHttpClientPromise(): Promise<HttpClient> {
-		const client = new HttpClient({
+	private async _resolveHttpClient(): Promise<void> {
+		this._httpClient = new HttpClient({
 			ca: env.TLS_CA_PATH,
 			cert: env.TLS_CERT_PATH,
 			key: env.TLS_KEY_PATH,
 		});
-		this._httpClient = client;
-		return Promise.resolve(client);
 	}
 
 	async resolveAuditLoggerUrl(): Promise<string | null> {
-		if (this._auditLoggerUrl !== undefined) {
+		if (this._resolveAuditUrlPromise) {
+			await this._resolveAuditUrlPromise;
 			return this._auditLoggerUrl;
 		}
-		if (await this._auditUrlPromise) {
-			return this._auditUrlPromise;
-		}
 
-		this._auditUrlPromise = this._resolveUrlOrNull();
-		return this._auditUrlPromise;
+		this._resolveAuditUrlPromise = this._resolveUrl();
+		await this._resolveAuditUrlPromise;
+		return this._auditLoggerUrl;
 	}
 
-	private async _resolveUrlOrNull(): Promise<string | null> {
+	private async _resolveUrl(): Promise<void> {
 		try {
 			const target = await findAService(ServiceInstanceName.AuditLoggerService);
 			if (target) {
 				this._auditLoggerUrl = `https://${target.ip}:${target.port}`;
-				return this._auditLoggerUrl;
+				return;
 			}
 		} catch {
 			logger.warn("Cannot resolve audit-logger URL via address-manager");
 		}
 		this._auditLoggerUrl = null;
-		return null;
-	}
-
-	private async _resolveExistingPromise<T>(
-		promise: Promise<T> | null
-	): Promise<T | null> {
-		return promise === null ? null : await promise;
 	}
 }
 

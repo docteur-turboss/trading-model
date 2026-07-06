@@ -3,6 +3,7 @@ import {
 	type CircuitState,
 	CircuitBreaker as SharedCB,
 } from "@trading-model/common/reliability/circuit-breaker";
+import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 
 interface BinanceCircuitBreakerConfig {
 	failureThreshold: number;
@@ -14,7 +15,7 @@ interface BinanceCircuitBreakerConfig {
  * High-level circuit breaker wrapping the shared CircuitBreaker.
  * Adds async call() with automatic fallback and half-open probing.
  */
-export class BinanceCircuitBreaker {
+export class BinanceCircuitBreaker implements ICircuitBreaker {
 	private readonly _inner: SharedCB;
 	private _halfOpenProbes = 0;
 
@@ -30,6 +31,42 @@ export class BinanceCircuitBreaker {
 			failureThreshold: _config.failureThreshold,
 			cooldownMs: _config.recoveryTimeoutMs,
 		});
+	}
+
+	check(_key: string): CircuitState {
+		return this._inner.check(this._name);
+	}
+
+	isAllowed(_key: string): boolean {
+		const state = this._inner.check(this._name);
+		return state !== "open";
+	}
+
+	recordSuccess(_key: string): void {
+		this._inner.recordSuccess(this._name);
+		this._halfOpenProbes = 0;
+	}
+
+	recordFailure(_key: string, _count?: number, _threshold?: number): void {
+		this._inner.recordFailure(this._name);
+		logger.warn(`Circuit breaker recorded failure: ${this._name}`);
+	}
+
+	isOpen(_key: string): boolean {
+		return this._inner.isOpen(this._name);
+	}
+
+	getState(_key: string): CircuitState {
+		return this._inner.check(this._name);
+	}
+
+	getFailureCount(_key: string): number {
+		return this._inner.getFailureCount(this._name);
+	}
+
+	clear(): void {
+		this._halfOpenProbes = 0;
+		this._inner.clear();
 	}
 
 	async call<TValue>(
@@ -68,10 +105,6 @@ export class BinanceCircuitBreaker {
 			}
 			throw error;
 		}
-	}
-
-	getState(): CircuitState {
-		return this._inner.check(this._name);
 	}
 }
 

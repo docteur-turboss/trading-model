@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
+import type { HttpMethod, HttpRequestOptions } from "@trading-model/common/config/http-types";
 import type {
 	HttpRoute,
 	Signature,
@@ -192,7 +192,7 @@ export class DlqServiceClient implements IDlqServiceClient {
 			const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
 				url,
 				signedOptions({
-					method: "GET",
+					method: "GET" as HttpMethod,
 					path: "/dlq",
 					body: undefined,
 					extra: { timeoutMs: 5000 },
@@ -220,7 +220,7 @@ export class DlqServiceClient implements IDlqServiceClient {
 				`${this._serviceUrl}/dlq/delete`,
 				body,
 				signedOptions({
-					method: "POST",
+					method: "POST" as HttpMethod,
 					path: "/dlq/delete",
 					body,
 					extra: { timeoutMs: 5000 },

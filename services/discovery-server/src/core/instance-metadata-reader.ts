@@ -1,18 +1,16 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type Redis from "ioredis";
-import type { RedisKeyBuilder } from "./redis-key-builder";
+import type { RedisDepsWithoutToken } from "./redis-deps";
 
 export class InstanceMetadataReader {
 	constructor(
-		private readonly _redis: Redis,
-		private readonly _keyBuilder: RedisKeyBuilder
+		private readonly _deps: RedisDepsWithoutToken
 	) {}
 
 	async getMetadata(instanceId: string): Promise<ServiceInstance | undefined> {
-		const json = await this._redis.get(
-			this._keyBuilder.instanceMetadata(instanceId)
+		const json = await this._deps.redis.get(
+			this._deps.keyBuilder.instanceMetadata(instanceId)
 		);
 		if (!json) {
 			return;
@@ -28,13 +26,13 @@ export class InstanceMetadataReader {
 	}
 
 	async getServiceInstanceIds(serviceName: string): Promise<string[]> {
-		return this._redis.smembers(
-			this._keyBuilder.serviceInstancesSet(serviceName)
+		return this._deps.redis.smembers(
+			this._deps.keyBuilder.serviceInstancesSet(serviceName)
 		);
 	}
 
 	async getMetadatas(keys: string[]): Promise<ServiceInstance[]> {
-		const results = await this._redis.mget(keys);
+		const results = await this._deps.redis.mget(keys);
 		const instances: ServiceInstance[] = [];
 		for (const json of results) {
 			if (json) {
@@ -51,9 +49,9 @@ export class InstanceMetadataReader {
 	}
 
 	async listServiceNames(): Promise<string[]> {
-		const keys = await this._redis.keys(this._keyBuilder.servicePattern());
+		const keys = await this._deps.redis.keys(this._deps.keyBuilder.servicePattern());
 		return keys
-			.map((key) => this._keyBuilder.parseServiceName(key))
+			.map((key) => this._deps.keyBuilder.parseServiceName(key))
 			.filter((name): name is string => name !== null);
 	}
 }

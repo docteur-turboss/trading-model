@@ -1,20 +1,16 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
-import type { AddressManagerClient } from "./client/address-manager-client";
-import type { TokenManager } from "./client/token-manager";
+import type { AddressManagerDeps } from "./types";
 
 const MAX_REGISTRATION_RETRIES = 10;
 const REGISTRATION_BASE_DELAY_MS = 1000;
 const REGISTRATION_MAX_DELAY_MS = 30_000;
 
 export class RegistrationManager {
-	private _shouldRetryRegistration = true;
+	shouldRetryRegistration = true;
 
-	constructor(
-		private readonly _addressManagerClient: AddressManagerClient,
-		private readonly _tokenManager: TokenManager
-	) {}
+	constructor(private readonly _deps: AddressManagerDeps) {}
 
 	private _computeDelay(attempt: number): number {
 		return Math.min(
@@ -25,11 +21,11 @@ export class RegistrationManager {
 
 	private async _attemptRegistration(attempt: number): Promise<boolean> {
 		try {
-			const res = await this._addressManagerClient.registerService();
+			const res = await this._deps.addressManagerClient.registerService();
 			if (!res) {
 				throw new Error("Registration returned no content");
 			}
-			this._tokenManager.setToken(res.token);
+			this._deps.tokenManager.setToken(res.token);
 			return true;
 		} catch (error) {
 			logger.error("Service registration failed", {
@@ -46,7 +42,7 @@ export class RegistrationManager {
 
 	private async _retryRegistration(): Promise<void> {
 		for (let attempt = 1; attempt <= MAX_REGISTRATION_RETRIES; attempt++) {
-			if (!this._shouldRetryRegistration) {
+			if (!this.shouldRetryRegistration) {
 				return;
 			}
 			if (await this._attemptRegistration(attempt)) {
@@ -58,11 +54,15 @@ export class RegistrationManager {
 		});
 	}
 
+	async tryStickyRegistration(): Promise<void> {
+		await this._retryRegistration();
+	}
+
 	start(): { stop: () => void } {
 		void this._retryRegistration();
 		return {
 			stop: () => {
-				this._shouldRetryRegistration = false;
+				this.shouldRetryRegistration = false;
 			},
 		};
 	}

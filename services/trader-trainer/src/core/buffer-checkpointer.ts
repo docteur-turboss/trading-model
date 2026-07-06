@@ -18,15 +18,7 @@ export class BufferCheckpointer {
 		this._saver.save(buffer);
 	}
 
-	save(buffer: MarketDataBuffer): void {
-		this._saver.save(buffer);
-	}
-
 	loadBuffer(config?: MarketDataBufferConfig): MarketDataBuffer | null {
-		return this._loader.load(config);
-	}
-
-	load(config?: MarketDataBufferConfig): MarketDataBuffer | null {
 		return this._loader.load(config);
 	}
 }

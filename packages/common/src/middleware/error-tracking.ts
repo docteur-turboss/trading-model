@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import { logger } from "../config/logger";
-import type { InstanceId } from "../domain/primitives";
+import type { CorrelationId, InstanceId, Version } from "../domain/primitives";
 import { normalizeError } from "../utils/errors";
 import { TimerHandle } from "../utils/timer-handle";
 
@@ -14,17 +14,17 @@ interface ErrorReport {
 	url: string;
 	method: string;
 	statusCode: number;
-	correlationId: string;
+	correlationId: CorrelationId;
 	timestamp: string;
 	serviceName: string;
-	serviceVersion: string;
+	serviceVersion: Version;
 	instanceId: InstanceId;
 }
 
 interface ErrorTrackingConfig {
 	endpoint?: string;
 	serviceName?: string;
-	serviceVersion?: string;
+	serviceVersion?: Version;
 	instanceId?: InstanceId;
 	flushIntervalMs?: number;
 	batchSize?: number;
@@ -33,7 +33,7 @@ interface ErrorTrackingConfig {
 let config: Required<ErrorTrackingConfig> = {
 	endpoint: "",
 	serviceName: "unknown",
-	serviceVersion: "0.0.0",
+	serviceVersion: "0.0.0" as Version,
 	instanceId: "unknown" as InstanceId,
 	flushIntervalMs: DEFAULT_FLUSH_INTERVAL_MS,
 	batchSize: DEFAULT_BATCH_SIZE,
@@ -58,7 +58,7 @@ function _buildConfig(
 	return {
 		endpoint: opts.endpoint ?? process.env.ERROR_URL_WEBHOOK ?? "",
 		serviceName: opts.serviceName ?? process.env.APP_NAME ?? "unknown",
-		serviceVersion: opts.serviceVersion ?? process.env.APP_VERSION ?? "0.0.0",
+		serviceVersion: opts.serviceVersion ?? (process.env.APP_VERSION ?? "0.0.0") as Version,
 		instanceId:
 			opts.instanceId ?? ((process.env.INSTANCE_ID ?? "unknown") as InstanceId),
 		flushIntervalMs: opts.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS,
@@ -114,7 +114,7 @@ function _buildErrorReport(
 		method: req.method,
 		statusCode,
 		correlationId:
-			(req as unknown as { correlationId?: string }).correlationId ?? "",
+			(req as unknown as { correlationId?: CorrelationId }).correlationId ?? "" as CorrelationId,
 		timestamp: new Date().toISOString(),
 		serviceName: config.serviceName,
 		serviceVersion: config.serviceVersion,
