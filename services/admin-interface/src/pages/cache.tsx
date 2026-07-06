@@ -23,6 +23,33 @@ function PageLoading() {
 	);
 }
 
+function HitRateCard({ hitRate, label }: { hitRate: number; label: string }) {
+	return (
+		<Box sx={{ flex: 1 }}>
+			<StatsCard
+				icon={<RefreshIcon />}
+				value={`${hitRate}%`}
+				label={label}
+				delta="Based on last 5 minutes"
+			/>
+		</Box>
+	);
+}
+
+function ActiveEntriesCard({ count, label }: { count: number; label: string }) {
+	return (
+		<Box sx={{ flex: 1 }}>
+			<StatsCard
+				icon={<StorageIcon />}
+				value={count.toLocaleString()}
+				label={label}
+				delta="5% increase today"
+				deltaColor="warning.main"
+			/>
+		</Box>
+	);
+}
+
 function CacheStats({
 	data,
 	translate,
@@ -35,44 +62,73 @@ function CacheStats({
 }) {
 	return (
 		<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-			<Box sx={{ flex: 1 }}>
-				<StatsCard
-					icon={<RefreshIcon />}
-					value={`${data?.stats.hitRate ?? 0}%`}
-					label={translate("hitRate")}
-					delta="Based on last 5 minutes"
-				/>
+			<HitRateCard
+				hitRate={data?.stats.hitRate ?? 0}
+				label={translate("hitRate")}
+			/>
+			<ActiveEntriesCard
+				count={data?.stats.activeEntries ?? 0}
+				label={translate("activeEntries")}
+			/>
+		</Box>
+	);
+}
+
+function CachePageHeader({
+	title,
+	subtitle,
+	onInvalidate,
+}: {
+	title: string;
+	subtitle: string;
+	onInvalidate: () => void;
+}) {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+			<Box>
+				<Typography variant="h4" fontWeight={700}>
+					{title}
+				</Typography>
+				<Typography variant="body2" color="text.secondary">
+					{subtitle}
+				</Typography>
 			</Box>
-			<Box sx={{ flex: 1 }}>
-				<StatsCard
-					icon={<StorageIcon />}
-					value={(data?.stats.activeEntries ?? 0).toLocaleString()}
-					label={translate("activeEntries")}
-					delta="5% increase today"
-					deltaColor="warning.main"
-				/>
+			<Box sx={{ display: "flex", gap: 1 }}>
+				<Button variant="outlined" startIcon={<HistoryIcon />}>
+					Invalidation History
+				</Button>
+				<Button
+					variant="contained"
+					color="error"
+					startIcon={<DeleteSweepIcon />}
+					onClick={onInvalidate}
+				>
+					Invalidate All
+				</Button>
 			</Box>
 		</Box>
 	);
 }
 
-export function Cache() {
-	const { t } = useTranslation("cache");
-	const { data, loading, refetch } = useApi(() => API_CLIENT.getCacheEntries());
-	const [confirmOpen, setConfirmOpen] = useState(false);
-
-	const columns: Column<CacheEntry>[] = [
-		{ id: "key", label: t("cacheKey"), render: (row) => row.key },
-		{ id: "service", label: t("service"), render: (row) => row.service },
+function useCacheColumns(
+	translate: (key: string) => string
+): Column<CacheEntry>[] {
+	return [
+		{ id: "key", label: translate("cacheKey"), render: (row) => row.key },
+		{
+			id: "service",
+			label: translate("service"),
+			render: (row) => row.service,
+		},
 		{
 			id: "expiration",
-			label: t("expiration"),
+			label: translate("expiration"),
 			render: (row) => row.expiration,
 		},
-		{ id: "size", label: t("size"), render: (row) => row.size },
+		{ id: "size", label: translate("size"), render: (row) => row.size },
 		{
 			id: "lastAccess",
-			label: t("lastAccess"),
+			label: translate("lastAccess"),
 			render: (row) => row.lastAccess,
 		},
 		{
@@ -82,6 +138,44 @@ export function Cache() {
 				row.status ? <StatusBadge status={row.status} /> : null,
 		},
 	];
+}
+
+function CacheInvalidateModal({
+	open,
+	onConfirm,
+	onCancel,
+	entryCount,
+	translate,
+}: {
+	open: boolean;
+	onConfirm: () => void;
+	onCancel: () => void;
+	entryCount: number;
+	translate: (key: string, opts?: Record<string, unknown>) => string;
+}) {
+	return (
+		<ModalConfirm
+			open={open}
+			title={translate("criticalAction")}
+			description={translate("confirmDescription")}
+			confirmLabel={translate("confirmLabel")}
+			confirmColor="error"
+			impactItems={[
+				translate("entriesDeleted", { count: entryCount }),
+				translate("latencyWarning"),
+				translate("clustersAffected"),
+			]}
+			onConfirm={onConfirm}
+			onCancel={onCancel}
+		/>
+	);
+}
+
+export function Cache() {
+	const { t } = useTranslation("cache");
+	const { data, loading, refetch } = useApi(() => API_CLIENT.getCacheEntries());
+	const [confirmOpen, setConfirmOpen] = useState(false);
+	const columns = useCacheColumns(t);
 
 	if (loading) {
 		return <PageLoading />;
@@ -89,29 +183,11 @@ export function Cache() {
 
 	return (
 		<Box>
-			<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-				<Box>
-					<Typography variant="h4" fontWeight={700}>
-						{t("title")}
-					</Typography>
-					<Typography variant="body2" color="text.secondary">
-						{t("subtitle")}
-					</Typography>
-				</Box>
-				<Box sx={{ display: "flex", gap: 1 }}>
-					<Button variant="outlined" startIcon={<HistoryIcon />}>
-						{t("invalidationHistory")}
-					</Button>
-					<Button
-						variant="contained"
-						color="error"
-						startIcon={<DeleteSweepIcon />}
-						onClick={() => setConfirmOpen(true)}
-					>
-						{t("invalidateAll")}
-					</Button>
-				</Box>
-			</Box>
+			<CachePageHeader
+				title={t("title")}
+				subtitle={t("subtitle")}
+				onInvalidate={() => setConfirmOpen(true)}
+			/>
 
 			<CacheStats data={data} translate={t} />
 
@@ -122,17 +198,10 @@ export function Cache() {
 				total={data?.entries.length ?? 0}
 			/>
 
-			<ModalConfirm
+			<CacheInvalidateModal
 				open={confirmOpen}
-				title={t("criticalAction")}
-				description={t("confirmDescription")}
-				confirmLabel={t("confirmLabel")}
-				confirmColor="error"
-				impactItems={[
-					t("entriesDeleted", { count: data?.stats.activeEntries ?? 0 }),
-					t("latencyWarning"),
-					t("clustersAffected"),
-				]}
+				entryCount={data?.stats.activeEntries ?? 0}
+				translate={t}
 				onConfirm={() => {
 					void API_CLIENT.invalidateCache().then(() => {
 						setConfirmOpen(false);

@@ -9,8 +9,8 @@ export type Protocol = "http" | "https" | "mtls";
 /** Payload for registering a new service instance in the registry. */
 export interface ServiceRegisterPayload {
 	name: string;
-	address: string;
-	port: number;
+	address: IPAddress;
+	port: Port;
 	protocol: Protocol;
 	env?: string;
 	version?: string;

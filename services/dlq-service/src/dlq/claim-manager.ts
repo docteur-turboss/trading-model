@@ -1,15 +1,10 @@
-import {
-	type AnyBulkWriteOperation,
-	type Document,
-	ObjectId,
-	type WithId,
-} from "mongodb";
+import { ObjectId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
 import type { StoredDlqEntry } from "./repository";
-
-const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
+import { ClaimFilterBuilder } from "./claim-filter-builder";
+import { ClaimQueryExecutor } from "./claim-query-executor";
 
 export interface ClaimEntriesOptions {
 	limit: number;
@@ -18,71 +13,39 @@ export interface ClaimEntriesOptions {
 	topic?: string;
 }
 
-interface BulkUpdateOptions {
-	candidates: Pick<{ _id: ObjectId }, "_id">[];
-	now: Date;
-	instanceId: string;
-	batchId: string;
-}
+const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 
 export class DlqClaimManager {
+	private readonly _filterBuilder = new ClaimFilterBuilder();
+	private readonly _queryExecutor = new ClaimQueryExecutor();
+
 	async claimEntriesForRetry(
 		options: ClaimEntriesOptions
 	): Promise<StoredDlqEntry[]> {
 		const { limit, batchId, instanceId, topic } = options;
 		const col = await getCollection();
-		const filter = this._buildClaimFilter(topic);
+		const filter = this._filterBuilder.buildClaimFilter(topic);
 
-		const candidates = await this._findClaimCandidates(col, filter, limit);
+		const candidates = await this._queryExecutor.findClaimCandidates(
+			col,
+			filter,
+			limit,
+			this._claimProjection
+		);
 		if (candidates.length === 0) {
 			return [];
 		}
 
-		const claimed = await this._executeBulkClaim(
+		const claimed = await this._queryExecutor.executeBulkClaim(
 			col,
 			candidates,
 			batchId,
-			instanceId
+			instanceId,
+			this._claimProjection,
+			this._filterBuilder.buildBulkUpdateOps.bind(this._filterBuilder)
 		);
 
-		return claimed.map((doc) => this._toStoredDlqEntry(doc));
-	}
-
-	private async _findClaimCandidates(
-		col: import("mongodb").Collection,
-		filter: Record<string, unknown>,
-		limit: number
-	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
-		return await col
-			.find(filter, {
-				sort: { createdAt: -1 },
-				limit,
-				projection: this._claimProjection,
-			})
-			.toArray();
-	}
-
-	private async _executeBulkClaim(
-		col: import("mongodb").Collection,
-		candidates: import("mongodb").WithId<import("mongodb").Document>[],
-		batchId: string,
-		instanceId: string
-	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
-		const now = new Date();
-		const operations = this._buildBulkUpdateOps({
-			candidates,
-			now,
-			instanceId,
-			batchId,
-		});
-
-		const bulkResult = await col.bulkWrite(operations, { ordered: false });
-		if (bulkResult.modifiedCount === 0) {
-			return [];
-		}
-
-		const candidateIds = candidates.map((doc) => doc._id);
-		return await this._fetchClaimedByIds(col, candidateIds, batchId);
+		return claimed.map((doc) => this._filterBuilder.toStoredDlqEntry(doc));
 	}
 
 	async claimEntriesByIds(
@@ -93,65 +56,25 @@ export class DlqClaimManager {
 			return [];
 		}
 		const col = await getCollection();
-		const objectIds = this._toValidObjectIds(ids);
+		const objectIds = this._filterBuilder.toValidObjectIds(ids);
 		if (objectIds.length === 0) {
 			return [];
 		}
 
-		await this._claimByIds(col, objectIds, ctx);
+		await this._queryExecutor.claimByIds(
+			col,
+			objectIds,
+			ctx,
+			() => this._filterBuilder.buildAtomicCondition()
+		);
 
-		const claimed = await this._fetchClaimedByIds(col, objectIds, ctx.batchId);
-		return claimed.map((doc) => this._toStoredDlqEntry(doc));
-	}
-
-	private readonly _claimProjection = {
-		_id: 1,
-		topic: 1,
-		message: 1,
-		reason: 1,
-		deliveryAttempt: 1,
-		createdAt: 1,
-	} as const;
-
-	private _toValidObjectIds(ids: string[]): ObjectId[] {
-		return ids
-			.filter((id) => ObjectId.isValid(id))
-			.map((id) => new ObjectId(id));
-	}
-
-	private async _claimByIds(
-		col: import("mongodb").Collection,
-		objectIds: ObjectId[],
-		ctx: import("./types").BatchContext
-	): Promise<void> {
-		const now = new Date();
-		const atomicCond = this._buildAtomicCondition();
-		const operations = objectIds.map((id) => ({
-			updateOne: {
-				filter: { _id: id, ...atomicCond },
-				update: {
-					$set: {
-						processingAt: now,
-						processingInstance: ctx.instanceId,
-						lastBatchId: ctx.batchId,
-					},
-				},
-			},
-		}));
-		await col.bulkWrite(operations, { ordered: false });
-	}
-
-	private async _fetchClaimedByIds(
-		col: import("mongodb").Collection,
-		ids: ObjectId[],
-		batchId: string
-	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
-		return await col
-			.find(
-				{ _id: { $in: ids }, lastBatchId: batchId },
-				{ projection: this._claimProjection }
-			)
-			.toArray();
+		const claimed = await this._queryExecutor.fetchClaimedByIds(
+			col,
+			objectIds,
+			ctx.batchId,
+			this._claimProjection
+		);
+		return claimed.map((doc) => this._filterBuilder.toStoredDlqEntry(doc));
 	}
 
 	async claimEntry(
@@ -182,7 +105,7 @@ export class DlqClaimManager {
 		if (!result) {
 			return null;
 		}
-		return this._toStoredDlqEntry(result);
+		return this._filterBuilder.toStoredDlqEntry(result);
 	}
 
 	async releaseStaleClaims(staleThresholdMs = 60_000): Promise<number> {
@@ -230,62 +153,14 @@ export class DlqClaimManager {
 		return result.modifiedCount > 0;
 	}
 
-	private _toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
-		return {
-			id: doc._id.toHexString(),
-			topic: (doc.topic as string | null) ?? null,
-			message: doc.message,
-			reason: (doc.reason as string | null) ?? null,
-			deliveryAttempt: doc.deliveryAttempt as number,
-			createdAt:
-				(doc.createdAt as Date | undefined)?.toISOString() ??
-				new Date().toISOString(),
-		};
-	}
-
-	private _buildClaimFilter(topic?: string): Record<string, unknown> {
-		const statusFilter: Record<string, unknown> = {
-			$nin: ["completed", "abandoned"],
-		};
-		const filter: Record<string, unknown> = {
-			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
-			processingAt: { $exists: false },
-			status: statusFilter,
-			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
-		};
-		if (topic) {
-			filter.topic = topic;
-		}
-		return filter;
-	}
-
-	private _buildAtomicCondition(): Record<string, unknown> {
-		return {
-			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
-			processingAt: { $exists: false },
-			status: { $nin: ["completed", "abandoned"] },
-			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
-		};
-	}
-
-	private _buildBulkUpdateOps(
-		options: BulkUpdateOptions
-	): AnyBulkWriteOperation[] {
-		const { candidates, now, instanceId, batchId } = options;
-		const atomicCond = this._buildAtomicCondition();
-		return candidates.map((doc) => ({
-			updateOne: {
-				filter: { _id: doc._id, ...atomicCond },
-				update: {
-					$set: {
-						processingAt: now,
-						processingInstance: instanceId,
-						lastBatchId: batchId,
-					},
-				},
-			},
-		}));
-	}
+	private readonly _claimProjection = {
+		_id: 1,
+		topic: 1,
+		message: 1,
+		reason: 1,
+		deliveryAttempt: 1,
+		createdAt: 1,
+	} as const;
 }
 
 export const dlqClaimManager = new DlqClaimManager();

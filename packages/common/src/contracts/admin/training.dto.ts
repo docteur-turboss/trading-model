@@ -1,3 +1,23 @@
+export type LayerType =
+	| "dense"
+	| "lstm"
+	| "gru"
+	| "dropout"
+	| "attention"
+	| "normalization"
+	| "conv1d";
+
+export type ActivationFn =
+	| "relu"
+	| "sigmoid"
+	| "tanh"
+	| "softmax"
+	| "linear"
+	| "leaky_relu"
+	| "gelu";
+
+export type Optimizer = "adam" | "sgd" | "rmsprop" | "adamw";
+
 export interface TrainingResult {
 	id: string;
 	symbol: string;
@@ -10,14 +30,14 @@ export interface TrainingResult {
 export interface TrainingGenome {
 	modelId: string;
 	layers: TrainingLayer[];
-	optimizer: string;
+	optimizer: Optimizer;
 	learningRate: number;
 	mutationRate: number;
 }
 
 export interface TrainingLayer {
-	type: string;
+	type: LayerType;
 	units?: number;
-	activation?: string;
+	activation?: ActivationFn;
 	rate?: number;
 }

@@ -11,6 +11,17 @@ const GRACE_PERIOD_MS = ENV.STALE_GRACE_PERIOD_MS;
 
 export const LEASE_HEARTBEAT_FIELD = "heartbeat";
 
+function isHeartbeatExpired(lastBeat: number): boolean {
+	const elapsed = Date.now() - lastBeat;
+	if (elapsed <= HEARTBEAT_INTERVAL_MS * MISSED_HEARTBEAT_THRESHOLD) {
+		return false;
+	}
+	if (elapsed < GRACE_PERIOD_MS) {
+		return false;
+	}
+	return true;
+}
+
 export class InstanceLifecycleManager {
 	constructor(private _prefix: string) {}
 
@@ -43,79 +54,80 @@ export class InstanceLifecycleManager {
 
 	async isStaleByHeartbeat(instanceId: string): Promise<boolean> {
 		const redis = await getSubscriptionClient();
-		const leaseKey = `${this._prefix}lease:${instanceId}`;
-		const heartbeat = await redis.hget(leaseKey, LEASE_HEARTBEAT_FIELD);
+		const heartbeat = await redis.hget(
+			`${this._prefix}lease:${instanceId}`,
+			LEASE_HEARTBEAT_FIELD
+		);
 		if (!heartbeat) {
 			return true;
 		}
-		const lastBeat = Number.parseInt(heartbeat, 10);
-		const elapsed = Date.now() - lastBeat;
-		if (elapsed <= HEARTBEAT_INTERVAL_MS * MISSED_HEARTBEAT_THRESHOLD) {
-			return false;
-		}
-		if (elapsed < GRACE_PERIOD_MS) {
-			return false;
-		}
-		return true;
+		return isHeartbeatExpired(Number.parseInt(heartbeat, 10));
+	}
+
+	private _leaseKey(instanceId: string): string {
+		return `${this._prefix}lease:${instanceId}`;
 	}
 
 	async renewLease(instanceId: string, topics: string[]): Promise<void> {
-		const redis = await getSubscriptionClient();
 		if (topics.length === 0) {
 			return;
 		}
-
+		const redis = await getSubscriptionClient();
 		const multi = redis.multi();
 		const now = Date.now().toString();
 		for (const topic of topics) {
-			multi.hset(`${this._prefix}lease:${instanceId}`, topic, now);
-			multi.hset(
-				`${this._prefix}lease:${instanceId}`,
-				LEASE_HEARTBEAT_FIELD,
-				now
-			);
-			multi.expire(
-				`${this._prefix}lease:${instanceId}`,
-				Math.ceil(SUBSCRIPTION_TTL_MS / 1000)
-			);
-			const subKey = this._subKey(topic, instanceId);
-			multi.expire(subKey, Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
+			this._addRenewCommands(multi, instanceId, topic, now);
 		}
 		await multi.exec();
 	}
 
+	private _addRenewCommands(
+		multi: ReturnType<import("ioredis").Redis["multi"]>,
+		instanceId: string,
+		topic: string,
+		now: string
+	): void {
+		multi.hset(this._leaseKey(instanceId), topic, now);
+		multi.hset(this._leaseKey(instanceId), LEASE_HEARTBEAT_FIELD, now);
+		multi.expire(this._leaseKey(instanceId), Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
+		multi.expire(this._subKey(topic, instanceId), Math.ceil(SUBSCRIPTION_TTL_MS / 1000));
+	}
+
 	async removeStaleInstances(): Promise<number> {
 		const redis = await getSubscriptionClient();
-		let removed = 0;
-		let scanCursor = "0";
+		let totalRemoved = 0;
+		let cursor = "0";
 
 		do {
-			const [nextCursor, instanceIds] = await redis.sscan(
-				this._activeInstancesKey(),
-				scanCursor,
-				"COUNT",
-				100
-			);
-			scanCursor = nextCursor;
+			const result = await this._scanAndRemoveStale(redis, cursor);
+			cursor = result.cursor;
+			totalRemoved += result.removed;
+		} while (cursor !== "0");
 
-			for (const instanceId of instanceIds) {
-				if (!(await this._isInstanceStale(redis, instanceId))) {
-					continue;
-				}
-				const topics = await this._removeInstanceSubscriptions(
-					redis,
-					instanceId
-				);
-				await this._cleanupOrphanedTopics(redis, topics);
-				removed += topics.length;
-				logger.info("Removed stale subscription by heartbeat", {
-					instanceId,
-					topics: topics.join(","),
-				});
+		return totalRemoved;
+	}
+
+	private async _scanAndRemoveStale(
+		redis: Redis,
+		cursor: string
+	): Promise<{ cursor: string; removed: number }> {
+		const [nextCursor, instanceIds] = await redis.sscan(
+			this._activeInstancesKey(),
+			cursor,
+			"COUNT",
+			100
+		);
+		let removed = 0;
+		for (const instanceId of instanceIds) {
+			if (!(await this._isInstanceStale(redis, instanceId))) {
+				continue;
 			}
-		} while (scanCursor !== "0");
-
-		return removed;
+			const topics = await this._removeInstanceSubscriptions(redis, instanceId);
+			await this._cleanupOrphanedTopics(redis, topics);
+			removed += topics.length;
+			logger.info("Removed stale subscription by heartbeat", { instanceId, topics: topics.join(",") });
+		}
+		return { cursor: nextCursor, removed };
 	}
 
 	private async _isInstanceStale(

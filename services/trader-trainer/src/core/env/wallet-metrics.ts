@@ -23,27 +23,39 @@ export interface ComputeWalletMetricsParams {
 	decimals: number;
 }
 
+function _computeValuation(params: ComputeWalletMetricsParams): number {
+	return round(params.cash + params.position * params.price, params.decimals);
+}
+
+function _computePnL(valuation: number, params: ComputeWalletMetricsParams): number {
+	return round(valuation - params.initialCash, params.decimals);
+}
+
+function _computeReturnRate(valuation: number, params: ComputeWalletMetricsParams): number {
+	return round(
+		(valuation - params.initialCash) / params.initialCash,
+		params.decimals
+	);
+}
+
+function _computeDrawdown(valuation: number, params: ComputeWalletMetricsParams): number {
+	return params.peakValuation > 0
+		? round(
+				(params.peakValuation - valuation) / params.peakValuation,
+				params.decimals
+			)
+		: 0;
+}
+
 export function computeWalletMetrics(
 	params: ComputeWalletMetricsParams
 ): WalletMetrics {
-	const valuation = round(
-		params.cash + params.position * params.price,
-		params.decimals
-	);
+	const valuation = _computeValuation(params);
 	return {
-		pnl: round(valuation - params.initialCash, params.decimals),
-		returnRate: round(
-			(valuation - params.initialCash) / params.initialCash,
-			params.decimals
-		),
+		pnl: _computePnL(valuation, params),
+		returnRate: _computeReturnRate(valuation, params),
 		peakValuation: params.peakValuation,
-		drawdown:
-			params.peakValuation > 0
-				? round(
-						(params.peakValuation - valuation) / params.peakValuation,
-						params.decimals
-					)
-				: 0,
+		drawdown: _computeDrawdown(valuation, params),
 		totalFeesPaid: params.totalFeesPaid,
 		tradeCount: params.tradeCount,
 	};

@@ -1,85 +1,30 @@
 import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
-import WebSocket, { WebSocketServer } from "ws";
+import WebSocket from "ws";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import type { Dispatcher } from "../core/dispatcher";
-import type { IncomingWssMessage, WssMessageType } from "./wss-message.types";
+import { WssConnectionHandler } from "./wss-connection-handler";
+import { WssMessageRouter } from "./wss-message-router";
 import { WssPublisher } from "./wss-publisher";
 import { WssRateLimiter } from "./wss-rate-limiter";
 import { WssSubscriptionManager } from "./wss-subscription-manager";
 
-const WSS_SHUTDOWN_TIMEOUT_MS = 5_000;
-
-interface CloseHandlerContext {
-	ws: WebSocket;
-	subKey: string;
-	serviceName: string;
-	instanceId: string;
-}
-
-type MessageHandler = (
-	msg: IncomingWssMessage,
-	ws: WebSocket,
-	ctx: {
-		instanceId: string;
-		serviceName: string;
-		topics: Set<string>;
-		subKey: string;
-	}
-) => Promise<void> | void;
-
 export class WssTransport {
-	private _wss: WebSocketServer | null = null;
-	private _dispatcher: Dispatcher;
+	private _connectionHandler: WssConnectionHandler;
+	private _messageRouter: WssMessageRouter;
 	private _rateLimiter = new WssRateLimiter();
 	private _subscriptionManager = new WssSubscriptionManager();
 	private _publisher: WssPublisher;
 
 	constructor(dispatcher: Dispatcher) {
-		this._dispatcher = dispatcher;
 		this._publisher = new WssPublisher(dispatcher, this._rateLimiter);
+		this._messageRouter = new WssMessageRouter(dispatcher, this._subscriptionManager, this._publisher);
+		this._connectionHandler = new WssConnectionHandler(this._subscriptionManager, this._rateLimiter);
 	}
 
 	attach(server: HttpsServer): void {
-		this._rateLimiter.ensureCleanupTimer();
-		this._wss = new WebSocketServer({
-			server,
-			path: "/ws",
-			maxPayload: ENV.MAX_PAYLOAD_BYTES,
-			verifyClient: (info, cb) => {
-				const serviceName = info.req.headers["x-service-name"] as string;
-				const instanceId = info.req.headers["x-instance-id"] as string;
-				if (!(serviceName && instanceId)) {
-					cb(false, 400, "Missing x-service-name or x-instance-id headers");
-					return;
-				}
-				cb(true);
-			},
-		});
-
-		this._wss.on("connection", (ws, req) => this._handleConnection(ws, req));
-
-		logger.info("WSS transport attached at /ws");
-	}
-
-	private _parseConnectionHeaders(req: IncomingMessage): {
-		serviceName: string;
-		instanceId: string;
-		topics: Set<string>;
-	} {
-		const serviceName = req.headers["x-service-name"] as string;
-		const instanceId = req.headers["x-instance-id"] as string;
-		const topicsHeader = req.headers["x-subscribed-topics"] as string;
-		const topics = new Set(
-			topicsHeader
-				? topicsHeader
-						.split(",")
-						.map((part) => part.trim())
-						.filter(Boolean)
-				: []
-		);
-		return { serviceName, instanceId, topics };
+		this._connectionHandler.attach(server, (ws, req) => this._handleConnection(ws, req));
 	}
 
 	private _handleConnection(ws: WebSocket, req: IncomingMessage): void {
@@ -88,7 +33,7 @@ export class WssTransport {
 		}
 
 		const { serviceName, instanceId, topics } =
-			this._parseConnectionHeaders(req);
+			this._connectionHandler.parseConnectionHeaders(req);
 		const subKey = this._subscriptionManager.add({ ws, serviceName, instanceId, topics });
 
 		logger.info("WSS client connecting", { context: {
@@ -97,169 +42,18 @@ export class WssTransport {
 			topics: [...topics],
 		} });
 
-		this._registerMessageHandler(ws, {
+		this._messageRouter.registerMessageHandler(ws, {
 			instanceId,
 			serviceName,
 			topics,
 			subKey,
 		});
-		this._registerCloseHandler({ ws, subKey, serviceName, instanceId });
-		this._registerErrorHandler(ws, serviceName, instanceId);
+		this._connectionHandler.registerCloseHandler(ws, subKey, serviceName, instanceId);
+		this._connectionHandler.registerErrorHandler(ws, serviceName, instanceId);
 
 		ws.send(
 			JSON.stringify({ type: "connected", instanceId: ENV.BROKER_INSTANCE_ID })
 		);
-	}
-
-	private _registerMessageHandler(
-		ws: WebSocket,
-		ctx: {
-			instanceId: string;
-			serviceName: string;
-			topics: Set<string>;
-			subKey: string;
-		}
-	): void {
-		ws.on("message", async (raw: WebSocket.RawData) => {
-			const incoming = this._parseWsMessage(raw, ws);
-			if (!incoming) {
-				return;
-			}
-
-			const handler = this._buildHandlerMap().get(incoming.type);
-			if (handler) {
-				try {
-					await handler(incoming, ws, ctx);
-				} catch {
-					ws.send(
-						JSON.stringify({
-							type: "error",
-							message: "Server error processing message",
-						})
-					);
-				}
-			} else {
-				ws.send(
-					JSON.stringify({
-						type: "error",
-						message: `Unknown message type: ${incoming.type}`,
-					})
-				);
-			}
-		});
-	}
-
-	private _buildHandlerMap(): Map<WssMessageType, MessageHandler> {
-		return new Map<WssMessageType, MessageHandler>([
-			[
-				"subscribe",
-				(_msg, _ws, _ctx) =>
-					this._subscriptionManager.handleSubscribe(
-						_msg,
-						{ ws: _ws, serviceName: _ctx.serviceName, instanceId: _ctx.instanceId, topics: _ctx.topics }
-					),
-			],
-			[
-				"unsubscribe",
-				(_msg, _ws, _ctx) =>
-					this._subscriptionManager.handleUnsubscribe(
-						_msg,
-						{ ws: _ws, serviceName: _ctx.serviceName, instanceId: _ctx.instanceId, topics: _ctx.topics }
-					),
-			],
-			[
-				"publish",
-				(_msg, _ws, _ctx) =>
-					this._publisher.handlePublish(_msg, _ws, _ctx),
-			],
-			["ack", (_msg, _ws, _ctx) => this._handleAck(_msg, _ws, _ctx)],
-			["nack", (_msg, _ws, _ctx) => this._handleNack(_msg, _ws, _ctx)],
-		]);
-	}
-
-	private _parseWsMessage(
-		raw: WebSocket.RawData,
-		ws: WebSocket
-	): IncomingWssMessage | null {
-		let msg: Record<string, unknown>;
-		try {
-			msg = JSON.parse(raw.toString());
-		} catch {
-			ws.send(JSON.stringify({ type: "error", message: "Invalid JSON" }));
-			return null;
-		}
-		if (typeof msg.type !== "string") {
-			ws.send(
-				JSON.stringify({ type: "error", message: "Missing message type" })
-			);
-			return null;
-		}
-
-		return {
-			type: msg.type as WssMessageType,
-			instanceId: msg.instanceId as string | undefined,
-			topics: msg.topics as string[] | undefined,
-			payload: msg.payload,
-			metadata: msg.metadata,
-			traceparent: msg.traceparent as string | undefined,
-			messageId: msg.messageId as string | undefined,
-		};
-	}
-
-	private _registerCloseHandler({
-		ws,
-		subKey,
-		serviceName,
-		instanceId,
-	}: CloseHandlerContext): void {
-		ws.on("close", () => {
-			this._subscriptionManager.remove(subKey);
-			ws.removeAllListeners();
-			logger.info("WSS client disconnected", { context: { serviceName, instanceId } });
-		});
-	}
-
-	private _registerErrorHandler(
-		ws: WebSocket,
-		serviceName: string,
-		instanceId: string
-	): void {
-		ws.on("error", (err) => {
-			logger.warn("WSS connection error", { context: {
-				error: err.message,
-				serviceName,
-				instanceId,
-			} });
-			ws.close(1011, "Internal server error");
-		});
-	}
-
-	private _handleAck(
-		msg: IncomingWssMessage,
-		ws: WebSocket,
-		ctx: { instanceId: string }
-	): void {
-		if (typeof msg.messageId !== "string") {
-			ws.send(
-				JSON.stringify({ type: "error", message: "messageId must be a string" })
-			);
-			return;
-		}
-		this._dispatcher.handleAck(msg.messageId, ctx.instanceId).catch(() => {});
-	}
-
-	private _handleNack(
-		msg: IncomingWssMessage,
-		ws: WebSocket,
-		ctx: { instanceId: string }
-	): void {
-		if (typeof msg.messageId !== "string") {
-			ws.send(
-				JSON.stringify({ type: "error", message: "messageId must be a string" })
-			);
-			return;
-		}
-		this._dispatcher.handleNack(msg.messageId, ctx.instanceId).catch(() => {});
 	}
 
 	getSubscriber(
@@ -286,23 +80,7 @@ export class WssTransport {
 	}
 
 	async shutdown(): Promise<void> {
-		if (this._wss) {
-			for (const [, sub] of this._subscriptionManager.entries()) {
-				sub.ws.close(1001, "Server shutdown");
-			}
-			this._subscriptionManager.clear();
-			await new Promise<void>((resolve) => {
-				const timer = setTimeout(() => {
-					this._wss = null;
-					resolve();
-				}, WSS_SHUTDOWN_TIMEOUT_MS);
-				this._wss!.close(() => {
-					clearTimeout(timer);
-					this._wss = null;
-					resolve();
-				});
-			});
-		}
+		await this._connectionHandler.shutdown();
 		this._rateLimiter.shutdown();
 		this._publisher.shutdown();
 	}

@@ -1,7 +1,7 @@
 import WebSocket from "ws";
 import type { IncomingWssMessage } from "./wss-message.types";
 
-interface WsSubscription {
+export interface WsSubscription {
 	instanceId: string;
 	serviceName: string;
 	topics: Set<string>;

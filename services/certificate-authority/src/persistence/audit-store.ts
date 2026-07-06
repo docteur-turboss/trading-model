@@ -35,28 +35,31 @@ export class AuditStore {
 		await this._tryConnect();
 	}
 
+	private _resolveDb(): import("mongodb").Db {
+		return MONGO_MANAGER.isInitialized() ? MONGO_MANAGER.getDb() : this._client.db();
+	}
+
+	private async _ensureClientConnected(): Promise<void> {
+		if (!MONGO_MANAGER.isInitialized()) {
+			await this._client.connect();
+		}
+	}
+
+	private async _createAuditIndexes(): Promise<void> {
+		await this._collection!.createIndex({ timestamp: -1 }, { expireAfterSeconds: 90 * 86400 });
+		await this._collection!.createIndex({ serviceId: 1, timestamp: -1 });
+		await this._collection!.createIndex({ serialNumber: 1 });
+	}
+
 	private async _tryConnect(): Promise<boolean> {
 		try {
-			if (!MONGO_MANAGER.isInitialized()) {
-				await this._client.connect();
-			}
-			const db = MONGO_MANAGER.isInitialized()
-				? MONGO_MANAGER.getDb()
-				: this._client.db();
-			this._collection = db.collection<AuditEntry>("audit_log");
-			await this._collection.createIndex(
-				{ timestamp: -1 },
-				{ expireAfterSeconds: 90 * 86400 }
-			);
-			await this._collection.createIndex({ serviceId: 1, timestamp: -1 });
-			await this._collection.createIndex({ serialNumber: 1 });
+			await this._ensureClientConnected();
+			this._collection = this._resolveDb().collection<AuditEntry>("audit_log");
+			await this._createAuditIndexes();
 			this._mongoConnected = true;
 			return true;
 		} catch (err) {
-			logger.error(
-				"AuditStore: MongoDB connection failed — using local buffer",
-				{ context: { err } }
-			);
+			logger.error("AuditStore: MongoDB connection failed — using local buffer", { context: { err } });
 			this._mongoConnected = false;
 			return false;
 		}
@@ -92,11 +95,7 @@ export class AuditStore {
 		try {
 			await this._collection.insertOne(entry);
 		} catch (err) {
-			logger.error("AuditStore: MongoDB write failed — buffering entry", {
-				context: {
-					err,
-				},
-			});
+			logger.error("AuditStore: MongoDB write failed — buffering entry", { context: { err } });
 			this._mongoConnected = false;
 			this._buffer(entry);
 		}

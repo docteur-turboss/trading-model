@@ -50,37 +50,47 @@ export class CircuitBreaker {
 		this._loadFromStoreCacheTtlMs = options.loadFromStoreCacheTtlMs ?? DEFAULT_LOAD_CACHE_TTL_MS;
 		this._latencyWindowSize = options.latencyWindowSize ?? DEFAULT_LATENCY_WINDOW_SIZE;
 		this._latencyP99ThresholdMs = options.latencyP99ThresholdMs ?? DEFAULT_LATENCY_P99_THRESHOLD_MS;
+		this._startSweeper();
+	}
+
+	private _startSweeper(): void {
 		this._sweepHandle = setInterval(
 			() => this._sweepStaleEntries(),
-			SWEEP_INTERVAL_MS
+			SWEEP_INTERVAL_MS,
 		);
 		this._sweepHandle.unref();
+	}
+
+	private _isCacheValid(instanceId: string): boolean {
+		const lastLoad = this._lastLoadTimes.get(instanceId) ?? 0;
+		return (
+			this._loadFromStoreCacheTtlMs > 0 &&
+			Date.now() - lastLoad < this._loadFromStoreCacheTtlMs
+		);
+	}
+
+	private _updateFromPersisted(instanceId: string, persisted: CircuitState): void {
+		const existing = this._instances.get(instanceId);
+		if (!existing || persisted.lastFailureTime > existing.lastFailureTime) {
+			this._instances.set(instanceId, {
+				failures: persisted.failures,
+				lastFailureTime: persisted.lastFailureTime,
+				state: persisted.state,
+			});
+		}
 	}
 
 	async loadFromStore(instanceId: string): Promise<void> {
 		if (!this._stateStore) {
 			return;
 		}
-
-		const lastLoad = this._lastLoadTimes.get(instanceId) ?? 0;
-		if (
-			this._loadFromStoreCacheTtlMs > 0 &&
-			Date.now() - lastLoad < this._loadFromStoreCacheTtlMs
-		) {
+		if (this._isCacheValid(instanceId)) {
 			return;
 		}
 		this._lastLoadTimes.set(instanceId, Date.now());
-
 		const persisted = await this._stateStore.getCircuitState(instanceId);
 		if (persisted) {
-			const existing = this._instances.get(instanceId);
-			if (!existing || persisted.lastFailureTime > existing.lastFailureTime) {
-				this._instances.set(instanceId, {
-					failures: persisted.failures,
-					lastFailureTime: persisted.lastFailureTime,
-					state: persisted.state,
-				});
-			}
+			this._updateFromPersisted(instanceId, persisted);
 		}
 	}
 
@@ -89,32 +99,41 @@ export class CircuitBreaker {
 		if (!state || state.state === "closed") {
 			return true;
 		}
-
 		if (state.state === "open") {
-			if (Date.now() - state.lastFailureTime >= this._halfOpenTimeoutMs) {
-				state.state = "half-open";
-				this._persistState(instanceId, state);
-				logger.info("Circuit breaker half-open for instance", { instanceId });
-				return true;
-			}
-			return false;
+			return this._tryHalfOpen(instanceId, state);
 		}
-
 		return true;
+	}
+
+	private _tryHalfOpen(instanceId: string, state: INstanceState): boolean {
+		if (Date.now() - state.lastFailureTime >= this._halfOpenTimeoutMs) {
+			state.state = "half-open";
+			this._persistState(instanceId, state);
+			logger.info("Circuit breaker half-open for instance", { instanceId });
+			return true;
+		}
+		return false;
 	}
 
 	recordFailure(instanceId: string): void {
 		const now = Date.now();
-		let state = this._instances.get(instanceId);
+		const state = this._getOrCreateState(instanceId, now);
+		state.failures++;
+		state.lastFailureTime = now;
+		this._checkOpenThreshold(instanceId, state);
+		this._persistState(instanceId, state);
+	}
 
+	private _getOrCreateState(instanceId: string, now: number): INstanceState {
+		let state = this._instances.get(instanceId);
 		if (!state) {
 			state = { failures: 0, lastFailureTime: now, state: "closed" };
 			this._instances.set(instanceId, state);
 		}
+		return state;
+	}
 
-		state.failures++;
-		state.lastFailureTime = now;
-
+	private _checkOpenThreshold(instanceId: string, state: INstanceState): void {
 		if (state.failures >= this._failureThreshold) {
 			state.state = "open";
 			logger.warn("Circuit breaker opened for instance", {
@@ -122,8 +141,12 @@ export class CircuitBreaker {
 				failures: state.failures,
 			});
 		}
+	}
 
-		this._persistState(instanceId, state);
+	private _logHalfOpenClose(instanceId: string, state: INstanceState): void {
+		if (state.state === "half-open") {
+			logger.info("Circuit breaker closed for instance", { instanceId });
+		}
 	}
 
 	recordSuccess(instanceId: string): void {
@@ -131,11 +154,7 @@ export class CircuitBreaker {
 		if (!state) {
 			return;
 		}
-
-		if (state.state === "half-open") {
-			logger.info("Circuit breaker closed for instance", { instanceId });
-		}
-
+		this._logHalfOpenClose(instanceId, state);
 		state.state = "closed";
 		state.failures = 0;
 		this._lastLoadTimes.delete(instanceId);
@@ -167,7 +186,7 @@ export class CircuitBreaker {
 		return summary;
 	}
 
-	recordLatency(instanceId: string, durationMs: number): void {
+	private _getOrCreateLatencyWindow(instanceId: string): LatencyWindow {
 		let window = this._latencyWindows.get(instanceId);
 		if (!window) {
 			window = {
@@ -177,26 +196,33 @@ export class CircuitBreaker {
 			};
 			this._latencyWindows.set(instanceId, window);
 		}
+		return window;
+	}
 
+	private _recordSample(window: LatencyWindow, durationMs: number): void {
 		window.samples[window.cursor] = durationMs;
 		window.cursor = (window.cursor + 1) % this._latencyWindowSize;
 		if (window.count < this._latencyWindowSize) {
 			window.count++;
 		}
+	}
 
+	recordLatency(instanceId: string, durationMs: number): void {
+		const window = this._getOrCreateLatencyWindow(instanceId);
+		this._recordSample(window, durationMs);
 		if (window.count >= 10) {
-			const p99 = this._computeP99(window);
-			if (p99 > this._latencyP99ThresholdMs) {
-				this.recordFailure(instanceId);
-				logger.warn(
-					"Circuit breaker: latency threshold exceeded, treating as failure",
-					{
-						instanceId,
-						p99,
-						threshold: this._latencyP99ThresholdMs,
-					}
-				);
-			}
+			this._checkLatencyThreshold(instanceId, window);
+		}
+	}
+
+	private _checkLatencyThreshold(instanceId: string, window: LatencyWindow): void {
+		const p99 = this._computeP99(window);
+		if (p99 > this._latencyP99ThresholdMs) {
+			this.recordFailure(instanceId);
+			logger.warn(
+				"Circuit breaker: latency threshold exceeded, treating as failure",
+				{ instanceId, p99, threshold: this._latencyP99ThresholdMs },
+			);
 		}
 	}
 
@@ -208,13 +234,21 @@ export class CircuitBreaker {
 		return sorted[Math.max(0, idx)];
 	}
 
-	clear(): void {
+	private _clearPersistedStates(): void {
 		for (const instanceId of this._instances.keys()) {
 			this._deletePersistedState(instanceId);
 		}
+	}
+
+	clear(): void {
+		this._clearPersistedStates();
 		this._instances.clear();
 		this._lastLoadTimes.clear();
 		this._latencyWindows.clear();
+		this._stopSweeper();
+	}
+
+	private _stopSweeper(): void {
 		if (this._sweepHandle) {
 			clearInterval(this._sweepHandle);
 			this._sweepHandle = undefined;
@@ -237,18 +271,17 @@ export class CircuitBreaker {
 		if (!this._stateStore) {
 			return;
 		}
-		this._stateStore
-			.setCircuitState(instanceId, {
-				failures: state.failures,
-				lastFailureTime: state.lastFailureTime,
-				state: state.state,
-			})
-			.catch((err) => {
-				logger.warn("Failed to persist circuit breaker state", {
-					instanceId,
-					error: normalizeError(err),
-				});
+		const circuitState: CircuitState = {
+			failures: state.failures,
+			lastFailureTime: state.lastFailureTime,
+			state: state.state,
+		};
+		this._stateStore.setCircuitState(instanceId, circuitState).catch((err) => {
+			logger.warn("Failed to persist circuit breaker state", {
+				instanceId,
+				error: normalizeError(err),
 			});
+		});
 	}
 
 	private _deletePersistedState(instanceId: string): void {

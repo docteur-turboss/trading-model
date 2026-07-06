@@ -29,38 +29,51 @@ function PageLoading() {
 	);
 }
 
-function TrainingStats() {
+function FitnessCard() {
 	return (
-		<Grid container spacing={2} sx={{ mb: 3 }}>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<TrackChangesIcon />}
-					value="0.824"
-					label="FITNESS MOYEN"
-					delta="+4.2% vs yesterday"
-					deltaColor="success.main"
-				/>
-			</Grid>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<TrendingUpIcon />}
-					value="2.14"
-					label="SHARPE MAX"
-					delta="Generation #142"
-				/>
-			</Grid>
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<TrackChangesIcon />}
+				value="0.824"
+				label="FITNESS MOYEN"
+				delta="+4.2% vs yesterday"
+				deltaColor="success.main"
+			/>
 		</Grid>
 	);
 }
 
-function GenomeViewer({ genome }: { genome: unknown }) {
-	if (!genome) {
-		return (
-			<Typography variant="body2" color="text.secondary">
-				No genome data available.
-			</Typography>
-		);
-	}
+function SharpeCard() {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<TrendingUpIcon />}
+				value="2.14"
+				label="SHARPE MAX"
+				delta="Generation #142"
+			/>
+		</Grid>
+	);
+}
+
+function TrainingStats() {
+	return (
+		<Grid container spacing={2} sx={{ mb: 3 }}>
+			<FitnessCard />
+			<SharpeCard />
+		</Grid>
+	);
+}
+
+function GenomeEmptyState() {
+	return (
+		<Typography variant="body2" color="text.secondary">
+			No genome data available.
+		</Typography>
+	);
+}
+
+function GenomeJson({ genome }: { genome: unknown }) {
 	return (
 		<Typography
 			variant="body2"
@@ -80,6 +93,24 @@ function GenomeViewer({ genome }: { genome: unknown }) {
 	);
 }
 
+function GenomeViewer({ genome }: { genome: unknown }) {
+	if (!genome) {
+		return <GenomeEmptyState />;
+	}
+	return <GenomeJson genome={genome} />;
+}
+
+function SharpeChip({ sharpe }: { sharpe: number }) {
+	return (
+		<Chip
+			size="small"
+			label={sharpe.toFixed(2)}
+			color={sharpe >= 1.5 ? "success" : sharpe >= 1 ? "warning" : "error"}
+			variant="outlined"
+		/>
+	);
+}
+
 function createTrainingResultColumns(): Column<TrainingResult>[] {
 	return [
 		{ id: "id", label: "ID", render: (row) => row.id },
@@ -93,20 +124,7 @@ function createTrainingResultColumns(): Column<TrainingResult>[] {
 		{
 			id: "sharpe",
 			label: "Sharpe",
-			render: (row) => (
-				<Chip
-					size="small"
-					label={row.sharpe.toFixed(2)}
-					color={
-						row.sharpe >= 1.5
-							? "success"
-							: row.sharpe >= 1
-								? "warning"
-								: "error"
-					}
-					variant="outlined"
-				/>
-			),
+			render: (row) => <SharpeChip sharpe={row.sharpe} />,
 		},
 	];
 }
@@ -138,6 +156,62 @@ function TrainingResultDrawer({
 	);
 }
 
+function TrainingPageHeader({ onRefresh }: { onRefresh: () => void }) {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+			<Box>
+				<Typography variant="h4" fontWeight={700}>
+					Training Results
+				</Typography>
+				<Typography variant="body2" color="text.secondary">
+					Monitor and analyze genetic algorithm performance.
+				</Typography>
+			</Box>
+			<Box sx={{ display: "flex", gap: 1 }}>
+				<Button
+					variant="outlined"
+					startIcon={<RefreshIcon />}
+					onClick={onRefresh}
+				>
+					Refresh
+				</Button>
+				<Button
+					variant="contained"
+					color="success"
+					startIcon={<PlayArrowIcon />}
+				>
+					Start Training
+				</Button>
+				<Button variant="contained" color="error" startIcon={<StopIcon />}>
+					Stop
+				</Button>
+			</Box>
+		</Box>
+	);
+}
+
+function TrainingResultsTable({
+	data,
+	selectedId,
+	onSelectId,
+}: {
+	data: { results: TrainingResult[]; total: number } | null | undefined;
+	selectedId: string | null;
+	onSelectId: (id: string) => void;
+}) {
+	return (
+		<DataTable
+			columns={createTrainingResultColumns()}
+			rows={data?.results ?? []}
+			getId={(row) => row.id}
+			total={data?.total ?? 0}
+			onSelectOne={onSelectId}
+			selectedIds={selectedId ? new Set([selectedId]) : new Set()}
+			selectable
+		/>
+	);
+}
+
 export function TrainingResults() {
 	const { data, loading, refetch } = useApi(() =>
 		API_CLIENT.getTrainingResults()
@@ -152,48 +226,13 @@ export function TrainingResults() {
 
 	return (
 		<Box>
-			<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-				<Box>
-					<Typography variant="h4" fontWeight={700}>
-						Training Results
-					</Typography>
-					<Typography variant="body2" color="text.secondary">
-						Monitor and analyze genetic algorithm performance.
-					</Typography>
-				</Box>
-				<Box sx={{ display: "flex", gap: 1 }}>
-					<Button
-						variant="outlined"
-						startIcon={<RefreshIcon />}
-						onClick={refetch}
-					>
-						Refresh
-					</Button>
-					<Button
-						variant="contained"
-						color="success"
-						startIcon={<PlayArrowIcon />}
-					>
-						Start Training
-					</Button>
-					<Button variant="contained" color="error" startIcon={<StopIcon />}>
-						Stop
-					</Button>
-				</Box>
-			</Box>
-
+			<TrainingPageHeader onRefresh={refetch} />
 			<TrainingStats />
-
-			<DataTable
-				columns={createTrainingResultColumns()}
-				rows={data?.results ?? []}
-				getId={(row) => row.id}
-				total={data?.total ?? 0}
-				onSelectOne={(id) => setSelectedId(id)}
-				selectedIds={selectedId ? new Set([selectedId]) : new Set()}
-				selectable
+			<TrainingResultsTable
+				data={data}
+				selectedId={selectedId}
+				onSelectId={setSelectedId}
 			/>
-
 			<TrainingResultDrawer
 				selected={selected}
 				onClose={() => setSelectedId(null)}

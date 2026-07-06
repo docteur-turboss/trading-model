@@ -25,14 +25,22 @@ interface StatusBadgeProps {
 	label?: string;
 }
 
-/** Renders a colored chip representing a service or instance health status. */
-export function StatusBadge({ status, label }: StatusBadgeProps) {
-	const color = STATUS_COLORS[status.toLowerCase()] ?? "default";
+function StatusChip({
+	label,
+	color,
+}: {
+	label: string;
+	color: string | undefined;
+}) {
 	return (
 		<Chip
 			size="small"
-			label={label ?? status}
-			color={color === "default" ? undefined : color}
+			label={label}
+			color={
+				color === "default"
+					? undefined
+					: (color as "success" | "warning" | "error" | "info")
+			}
 			variant="outlined"
 			sx={{
 				fontWeight: 600,
@@ -44,4 +52,10 @@ export function StatusBadge({ status, label }: StatusBadgeProps) {
 			}}
 		/>
 	);
+}
+
+/** Renders a colored chip representing a service or instance health status. */
+export function StatusBadge({ status, label }: StatusBadgeProps) {
+	const color = STATUS_COLORS[status.toLowerCase()] ?? "default";
+	return <StatusChip label={label ?? status} color={color} />;
 }

@@ -31,27 +31,33 @@ export class DistributedLock {
 	}
 
 	private _startRenewal(instanceId: string): void {
-		if (this._renewalInterval) {
-			clearInterval(this._renewalInterval);
-		}
+		this._clearExistingRenewal();
 		this._renewalInterval = setInterval(
-			async () => {
-				try {
-					await this._redis.set(this._key, instanceId, "EX", LOCK_TTL, "XX");
-				} catch {
-					// Logged by caller
-				}
-			},
+			() => this._renewLock(instanceId),
 			(LOCK_TTL / 2) * 1000
 		);
 	}
 
-	async release(instanceId: string): Promise<void> {
+	private _clearExistingRenewal(): void {
 		if (this._renewalInterval) {
 			clearInterval(this._renewalInterval);
-			this._renewalInterval = null;
 		}
-		// Lua script: only delete if we still own the lock
+	}
+
+	private async _renewLock(instanceId: string): Promise<void> {
+		try {
+			await this._redis.set(this._key, instanceId, "EX", LOCK_TTL, "XX");
+		} catch {
+			// Logged by caller
+		}
+	}
+
+	async release(instanceId: string): Promise<void> {
+		this._clearExistingRenewal();
+		await this._execReleaseScript(instanceId);
+	}
+
+	private async _execReleaseScript(instanceId: string): Promise<void> {
 		const script = `
       if redis.call("get", KEYS[1]) == ARGV[1] then
         return redis.call("del", KEYS[1])

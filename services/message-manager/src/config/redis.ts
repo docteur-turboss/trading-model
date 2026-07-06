@@ -49,29 +49,35 @@ function destroyClient(client: Redis): void {
 }
 
 async function waitForReconnect(slot: ManagedRedis): Promise<Redis | null> {
-	if (
-		slot.client &&
-		(slot.client.status === "connecting" ||
-			slot.client.status === "reconnecting")
-	) {
-		try {
-			const ReconnectTimeoutMs = 30000;
-			await new Promise<void>((resolve, reject) => {
-				const timeoutId = setTimeout(
-					() => reject(new Error("timeout")),
-					ReconnectTimeoutMs
-				);
-				slot.client!.once("ready", () => {
-					clearTimeout(timeoutId);
-					resolve();
-				});
-			});
-			return slot.client;
-		} catch {
-			// Reconnection timed out — fall through to create new client
-		}
+	if (!isReconnecting(slot)) {
+		return null;
 	}
-	return null;
+	try {
+		return await waitForClientReady(slot);
+	} catch {
+		return null;
+	}
+}
+
+function isReconnecting(slot: ManagedRedis): boolean {
+	return !!(slot.client &&
+		(slot.client.status === "connecting" ||
+			slot.client.status === "reconnecting"));
+}
+
+async function waitForClientReady(slot: ManagedRedis): Promise<Redis> {
+	const ReconnectTimeoutMs = 30000;
+	await new Promise<void>((resolve, reject) => {
+		const timeoutId = setTimeout(
+			() => reject(new Error("timeout")),
+			ReconnectTimeoutMs
+		);
+		slot.client!.once("ready", () => {
+			clearTimeout(timeoutId);
+			resolve();
+		});
+	});
+	return slot.client!;
 }
 
 async function createAndConnectClient(slot: ManagedRedis): Promise<Redis> {
@@ -82,16 +88,7 @@ async function createAndConnectClient(slot: ManagedRedis): Promise<Redis> {
 	attachEventHandlers(client, handlers);
 
 	try {
-		await client.connect();
-		if (redisClosed) {
-			destroyClient(client);
-			throw new Error("Redis has been closed");
-		}
-		if (slot.client && slot.client !== client) {
-			destroyClient(slot.client);
-		}
-		slot.client = client;
-		return client;
+		return await connectAndReplace(slot, client, handlers);
 	} catch (err) {
 		if (!redisClosed) {
 			logger.error(`${slot.name}: failed to connect`, {
@@ -104,15 +101,32 @@ async function createAndConnectClient(slot: ManagedRedis): Promise<Redis> {
 	}
 }
 
+async function connectAndReplace(
+	slot: ManagedRedis,
+	client: Redis,
+	handlers: ReturnType<typeof createEventHandlers>
+): Promise<Redis> {
+	await client.connect();
+	if (redisClosed) {
+		destroyClient(client);
+		throw new Error("Redis has been closed");
+	}
+	if (slot.client && slot.client !== client) {
+		destroyClient(slot.client);
+	}
+	slot.client = client;
+	return client;
+}
+
 async function getOrCreateClient(slot: ManagedRedis): Promise<Redis> {
 	if (redisClosed) {
 		throw new Error("Redis has been closed — cannot create new client");
 	}
-	if (slot.client && slot.client.status === "ready") {
-		return slot.client;
+	if (isReady(slot)) {
+		return slot.client!;
 	}
 
-	const existing = slot.promise === null ? null : await slot.promise;
+	const existing = await resolvePendingPromise(slot);
 	if (existing) {
 		return existing;
 	}
@@ -122,10 +136,21 @@ async function getOrCreateClient(slot: ManagedRedis): Promise<Redis> {
 		return reconnected;
 	}
 
+	return startNewConnection(slot);
+}
+
+function isReady(slot: ManagedRedis): boolean {
+	return !!(slot.client && slot.client.status === "ready");
+}
+
+async function resolvePendingPromise(slot: ManagedRedis): Promise<Redis | null> {
+	return slot.promise === null ? null : await slot.promise;
+}
+
+function startNewConnection(slot: ManagedRedis): Promise<Redis> {
 	slot.promise = createAndConnectClient(slot).finally(() => {
 		slot.promise = null;
 	});
-
 	return slot.promise;
 }
 
@@ -143,6 +168,11 @@ export async function getSubscriptionClient(): Promise<Redis> {
 
 export function closeRedis(): void {
 	redisClosed = true;
+	destroyAllClients();
+	resetAllSlots();
+}
+
+function destroyAllClients(): void {
 	for (const client of ALL_CLIENTS) {
 		try {
 			client.removeAllListeners();
@@ -156,6 +186,9 @@ export function closeRedis(): void {
 		}
 	}
 	ALL_CLIENTS.clear();
+}
+
+function resetAllSlots(): void {
 	for (const [, slot] of Object.entries(CLIENTS)) {
 		slot.client = null;
 		slot.promise = null;

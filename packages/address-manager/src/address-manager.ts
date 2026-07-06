@@ -101,26 +101,50 @@ function createDiscoveryInfra(
 	});
 }
 
-function createRegistrationAndHeartbeat(
+function _buildRegistrationManager(
 	addressManagerClient: AddressManagerClient,
 	tokenManager: TokenManager,
 	wsClient: WebSocketClient | undefined,
-): { registrationManager: RegistrationManager; heartbeatManager: HeartbeatManager } {
-	const registrationManager = new RegistrationManager({
+): RegistrationManager {
+	return new RegistrationManager({
 		addressManagerClient,
 		tokenManager,
 		wsClient,
 		onSuccess: () => REGISTRATION_TOTAL.inc({ result: "success" }),
 		onFailure: () => REGISTRATION_TOTAL.inc({ result: "failure" }),
 	});
-	const heartbeatManager = new HeartbeatManager({
+}
+
+function _buildHeartbeatManager(
+	addressManagerClient: AddressManagerClient,
+	tokenManager: TokenManager,
+	wsClient: WebSocketClient | undefined,
+): HeartbeatManager {
+	return new HeartbeatManager({
 		addressManagerClient,
 		tokenManager,
 		wsClient,
 		onSuccess: () => HEARTBEAT_TOTAL.inc({ result: "success" }),
 		onFailure: () => HEARTBEAT_TOTAL.inc({ result: "failure" }),
 	});
-	return { registrationManager, heartbeatManager };
+}
+
+function createRegistrationAndHeartbeat(
+	addressManagerClient: AddressManagerClient,
+	tokenManager: TokenManager,
+	wsClient: WebSocketClient | undefined,
+): { registrationManager: RegistrationManager; heartbeatManager: HeartbeatManager } {
+	return {
+		registrationManager: _buildRegistrationManager(addressManagerClient, tokenManager, wsClient),
+		heartbeatManager: _buildHeartbeatManager(addressManagerClient, tokenManager, wsClient),
+	};
+}
+
+function _logCacheInvalidationError(serviceName: string, err: unknown): void {
+	logger.warn("WebSocket cache invalidation failed", {
+		serviceName,
+		error: normalizeError(err),
+	});
 }
 
 function onCacheInvalidateMessage(
@@ -135,10 +159,26 @@ function onCacheInvalidateMessage(
 		return;
 	}
 	serviceCache.invalidate(serviceName).catch((err) => {
-		logger.warn("WebSocket cache invalidation failed", {
-			serviceName,
-			error: normalizeError(err),
-		});
+		_logCacheInvalidationError(serviceName, err);
+	});
+}
+
+function _handleRegistrationSuccess(
+	res: { token?: string } | undefined,
+	tokenManager: TokenManager,
+	wsClient: WebSocketClient,
+): void {
+	if (res?.token) {
+		tokenManager.setToken(res.token);
+		wsClient.updateToken(res.token);
+		REGISTRATION_TOTAL.inc({ result: "success" });
+		logger.info("Re-registered after WS auth failure");
+	}
+}
+
+function _handleRegistrationError(err: unknown): void {
+	logger.error("Re-registration after WS auth failure failed", {
+		error: normalizeError(err),
 	});
 }
 
@@ -150,28 +190,21 @@ function onWsAuthFailure(
 	logger.warn("WebSocket auth failure \u2014 forcing re-registration");
 	addressManagerClient
 		.registerService()
-		.then((res) => {
-			if (res?.token) {
-				tokenManager.setToken(res.token);
-				wsClient.updateToken(res.token);
-				REGISTRATION_TOTAL.inc({ result: "success" });
-				logger.info("Re-registered after WS auth failure");
-			}
-		})
-		.catch((err) => {
-			logger.error("Re-registration after WS auth failure failed", {
-				error: normalizeError(err),
-			});
-		});
+		.then((res) => _handleRegistrationSuccess(res, tokenManager, wsClient))
+		.catch((err) => _handleRegistrationError(err));
 }
 
-function createWsClient(ctx: WsClientContext): WebSocketClient {
-	const { config, addressManagerClient, tokenManager, serviceCache } = ctx;
-	const wsClient = new WebSocketClient({
+function _buildWsClient(config: AddressManagerConfig, tokenManager: TokenManager): WebSocketClient {
+	return new WebSocketClient({
 		url: config.wsUrl!,
 		subscribedServices: config.wsSubscribedServices ?? ["*"],
 		token: tokenManager.getTokenOrNull() ?? undefined,
 	});
+}
+
+function createWsClient(ctx: WsClientContext): WebSocketClient {
+	const { config, addressManagerClient, tokenManager, serviceCache } = ctx;
+	const wsClient = _buildWsClient(config, tokenManager);
 
 	wsClient.onMessage((message: WsMessage) => {
 		onCacheInvalidateMessage(message, serviceCache);
@@ -256,34 +289,61 @@ export default class AddressManager {
 		);
 		this._serviceCache = createServiceCache(config);
 
-		const circuitBreaker = createCircuitBreaker(config, this._serviceCache);
+		const circuitBreaker = this._initCircuitBreaker(config);
 		this._healthChecker = createHealthChecker(this._httpClient, config);
-		this._discoveryOrchestrator = createDiscoveryInfra(
+		this._discoveryOrchestrator = this._initDiscoveryOrchestrator(config, circuitBreaker);
+		this._metricsCollector = this._initMetricsCollector(config, circuitBreaker);
+		this._wsClient = this._initWsClient(config);
+		this._lifecycleManager = this._initLifecycleManager(config, circuitBreaker);
+	}
+
+	private _initCircuitBreaker(config: AddressManagerConfig): CircuitBreaker {
+		return createCircuitBreaker(config, this._serviceCache);
+	}
+
+	private _initDiscoveryOrchestrator(
+		config: AddressManagerConfig,
+		circuitBreaker: CircuitBreaker,
+	): DiscoveryOrchestrator {
+		return createDiscoveryInfra(
 			this._httpClient,
 			this._serviceCache,
 			this._healthChecker,
 			config,
 			circuitBreaker,
 		);
-		this._metricsCollector = new MetricsCollector(
+	}
+
+	private _initMetricsCollector(
+		config: AddressManagerConfig,
+		circuitBreaker: CircuitBreaker,
+	): MetricsCollector {
+		return new MetricsCollector(
 			circuitBreaker,
 			this._serviceCache,
 			config.maxCallRecords,
 		);
-		this._wsClient = maybeCreateWsClient(
+	}
+
+	private _initWsClient(config: AddressManagerConfig): WebSocketClient | undefined {
+		return maybeCreateWsClient(
 			config,
 			this._addressManagerClient,
 			this._tokenManager,
 			this._serviceCache,
 		);
+	}
 
+	private _initLifecycleManager(
+		config: AddressManagerConfig,
+		circuitBreaker: CircuitBreaker,
+	): LifecycleManager {
 		const { registrationManager, heartbeatManager } = createRegistrationAndHeartbeat(
 			this._addressManagerClient,
 			this._tokenManager,
 			this._wsClient,
 		);
-
-		this._lifecycleManager = createLifecycleManager(
+		return createLifecycleManager(
 			config,
 			circuitBreaker,
 			registrationManager,

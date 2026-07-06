@@ -10,12 +10,49 @@ import { DrawerPanel } from "../components/drawer-panel";
 import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useJobDetail, useJobs } from "../hooks/use-jobs";
-import type { JobEntry, JobTimelineEntry } from "../types/dtos";
+import type { JobEntry, JobList, JobTimelineEntry } from "../types/dtos";
 
 function PageLoading() {
 	return (
 		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
 			<CircularProgress />
+		</Box>
+	);
+}
+
+function PendingJobsCard({ count }: { count: number }) {
+	return (
+		<Box sx={{ flex: 1 }}>
+			<StatsCard
+				icon={<ScheduleIcon />}
+				value={String(count)}
+				label="PENDING"
+			/>
+		</Box>
+	);
+}
+
+function InProgressJobsCard({ count }: { count: number }) {
+	return (
+		<Box sx={{ flex: 1 }}>
+			<StatsCard
+				icon={<SyncIcon />}
+				value={String(count)}
+				label="IN PROGRESS"
+			/>
+		</Box>
+	);
+}
+
+function FailedJobsCard({ count }: { count: number }) {
+	return (
+		<Box sx={{ flex: 1 }}>
+			<StatsCard
+				icon={<ErrorOutlineIcon />}
+				value={String(count)}
+				label="FAILED (1H)"
+				deltaColor="error.main"
+			/>
 		</Box>
 	);
 }
@@ -27,27 +64,65 @@ function JobStats({
 }) {
 	return (
 		<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-			<Box sx={{ flex: 1 }}>
-				<StatsCard
-					icon={<ScheduleIcon />}
-					value={String(stats.pending)}
-					label="PENDING"
-				/>
+			<PendingJobsCard count={stats.pending} />
+			<InProgressJobsCard count={stats.inProgress} />
+			<FailedJobsCard count={stats.failed} />
+		</Box>
+	);
+}
+
+function TimelineDot({ active }: { active?: boolean }) {
+	return (
+		<Box
+			sx={{
+				width: 12,
+				height: 12,
+				borderRadius: "50%",
+				bgcolor: active ? "primary.main" : "grey.400",
+				flexShrink: 0,
+			}}
+		/>
+	);
+}
+
+function TimelineConnector() {
+	return (
+		<Box
+			sx={{
+				width: 2,
+				flexGrow: 1,
+				bgcolor: "divider",
+				minHeight: 20,
+			}}
+		/>
+	);
+}
+
+function TimelineEntry({
+	entry,
+	isLast,
+}: {
+	entry: JobTimelineEntry;
+	isLast: boolean;
+}) {
+	return (
+		<Box sx={{ display: "flex", gap: 2, pb: isLast ? 0 : 2 }}>
+			<Box
+				sx={{
+					display: "flex",
+					flexDirection: "column",
+					alignItems: "center",
+				}}
+			>
+				<TimelineDot active={entry.active} />
+				{!isLast && <TimelineConnector />}
 			</Box>
-			<Box sx={{ flex: 1 }}>
-				<StatsCard
-					icon={<SyncIcon />}
-					value={String(stats.inProgress)}
-					label="IN PROGRESS"
-				/>
-			</Box>
-			<Box sx={{ flex: 1 }}>
-				<StatsCard
-					icon={<ErrorOutlineIcon />}
-					value={String(stats.failed)}
-					label="FAILED (1H)"
-					deltaColor="error.main"
-				/>
+			<Box>
+				<Typography variant="subtitle2">{entry.event}</Typography>
+				<Typography variant="caption" color="text.secondary">
+					{entry.timestamp}
+				</Typography>
+				<Typography variant="body2">{entry.description}</Typography>
 			</Box>
 		</Box>
 	);
@@ -57,52 +132,35 @@ function JobTimeline({ entries }: { entries: JobTimelineEntry[] }) {
 	return (
 		<Box>
 			{entries.map((entry, index) => (
-				<Box
+				<TimelineEntry
 					key={`${entry.event}-${entry.timestamp}`}
-					sx={{
-						display: "flex",
-						gap: 2,
-						pb: index < entries.length - 1 ? 2 : 0,
-					}}
-				>
-					<Box
-						sx={{
-							display: "flex",
-							flexDirection: "column",
-							alignItems: "center",
-						}}
-					>
-						<Box
-							sx={{
-								width: 12,
-								height: 12,
-								borderRadius: "50%",
-								bgcolor: entry.active ? "primary.main" : "grey.400",
-								flexShrink: 0,
-							}}
-						/>
-						{index < entries.length - 1 && (
-							<Box
-								sx={{
-									width: 2,
-									flexGrow: 1,
-									bgcolor: "divider",
-									minHeight: 20,
-								}}
-							/>
-						)}
-					</Box>
-					<Box>
-						<Typography variant="subtitle2">{entry.event}</Typography>
-						<Typography variant="caption" color="text.secondary">
-							{entry.timestamp}
-						</Typography>
-						<Typography variant="body2">{entry.description}</Typography>
-					</Box>
-				</Box>
+					entry={entry}
+					isLast={index === entries.length - 1}
+				/>
 			))}
 		</Box>
 	);
+}
+
+function PriorityChip({ priority }: { priority: string }) {
+	return (
+		<Chip
+			size="small"
+			label={priority}
+			color={
+				priority === "CRITICAL"
+					? "error"
+					: priority === "HIGH"
+						? "warning"
+						: "default"
+			}
+			variant="outlined"
+		/>
+	);
+}
+
+function WorkerCell({ worker }: { worker: string | null | undefined }) {
+	return <>{worker ?? "Unassigned"}</>;
 }
 
 function createJobColumns(): Column<JobEntry>[] {
@@ -112,20 +170,7 @@ function createJobColumns(): Column<JobEntry>[] {
 		{
 			id: "priority",
 			label: "Priority",
-			render: (row) => (
-				<Chip
-					size="small"
-					label={row.priority}
-					color={
-						row.priority === "CRITICAL"
-							? "error"
-							: row.priority === "HIGH"
-								? "warning"
-								: "default"
-					}
-					variant="outlined"
-				/>
-			),
+			render: (row) => <PriorityChip priority={row.priority} />,
 		},
 		{
 			id: "status",
@@ -135,7 +180,7 @@ function createJobColumns(): Column<JobEntry>[] {
 		{
 			id: "worker",
 			label: "Worker",
-			render: (row) => row.worker ?? "Unassigned",
+			render: (row) => <WorkerCell worker={row.worker} />,
 		},
 	];
 }
@@ -165,6 +210,38 @@ function JobDetailLogs({ logs }: { logs: string[] }) {
 	));
 }
 
+function JobDrawerActions() {
+	return (
+		<>
+			<Button variant="contained" color="primary">
+				Restart Job
+			</Button>
+			<Button variant="contained" color="error">
+				Cancel Job
+			</Button>
+		</>
+	);
+}
+
+function JobDrawerTabs(
+	jobDetail: NonNullable<ReturnType<typeof useJobDetail>["data"]>
+) {
+	return [
+		{
+			label: "Timeline",
+			content: <JobTimeline entries={jobDetail.timeline} />,
+		},
+		{
+			label: "Payload",
+			content: <JobDetailPayload payload={jobDetail.payload} />,
+		},
+		{
+			label: "Logs",
+			content: <JobDetailLogs logs={jobDetail.logs} />,
+		},
+	];
+}
+
 function JobDetailDrawer({
 	selectedJobId,
 	jobDetail,
@@ -180,34 +257,51 @@ function JobDetailDrawer({
 			title={`Job Details - ${selectedJobId ?? ""}`}
 			subtitle={`ID: ${selectedJobId ?? ""}`}
 			onClose={onClose}
-			tabs={
-				jobDetail
-					? [
-							{
-								label: "Timeline",
-								content: <JobTimeline entries={jobDetail.timeline} />,
-							},
-							{
-								label: "Payload",
-								content: <JobDetailPayload payload={jobDetail.payload} />,
-							},
-							{
-								label: "Logs",
-								content: <JobDetailLogs logs={jobDetail.logs} />,
-							},
-						]
-					: []
-			}
-			actions={
-				<>
-					<Button variant="contained" color="primary">
-						Restart Job
-					</Button>
-					<Button variant="contained" color="error">
-						Cancel Job
-					</Button>
-				</>
-			}
+			tabs={jobDetail ? JobDrawerTabs(jobDetail) : []}
+			actions={<JobDrawerActions />}
+		/>
+	);
+}
+
+function JobsPageHeader({ onRefresh }: { onRefresh: () => void }) {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+			<Box>
+				<Typography variant="h4" fontWeight={700}>
+					Job Management
+				</Typography>
+				<Typography variant="body2" color="text.secondary">
+					Real-time monitoring of the distributed job queue.
+				</Typography>
+			</Box>
+			<Button
+				variant="outlined"
+				startIcon={<RefreshIcon />}
+				onClick={onRefresh}
+			>
+				Refresh
+			</Button>
+		</Box>
+	);
+}
+
+function JobsTable({
+	data,
+	selectedJobId,
+	onSelectJob,
+}: {
+	data: JobList | null | undefined;
+	selectedJobId: string | null;
+	onSelectJob: (id: string) => void;
+}) {
+	return (
+		<DataTable
+			columns={createJobColumns()}
+			rows={data?.jobs ?? []}
+			getId={(row) => row.id}
+			onSelectOne={onSelectJob}
+			selectedIds={selectedJobId ? new Set([selectedJobId]) : new Set()}
+			selectable
 		/>
 	);
 }
@@ -221,37 +315,17 @@ export function Jobs() {
 		return <PageLoading />;
 	}
 
+	const stats = data?.stats ?? { pending: 0, inProgress: 0, failed: 0 };
+
 	return (
 		<Box>
-			<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-				<Box>
-					<Typography variant="h4" fontWeight={700}>
-						Job Management
-					</Typography>
-					<Typography variant="body2" color="text.secondary">
-						Real-time monitoring of the distributed job queue.
-					</Typography>
-				</Box>
-				<Button
-					variant="outlined"
-					startIcon={<RefreshIcon />}
-					onClick={refetch}
-				>
-					Refresh
-				</Button>
-			</Box>
-
-			<JobStats stats={data!.stats} />
-
-			<DataTable
-				columns={createJobColumns()}
-				rows={data?.jobs ?? []}
-				getId={(row) => row.id}
-				onSelectOne={(id) => setSelectedJobId(id)}
-				selectedIds={selectedJobId ? new Set([selectedJobId]) : new Set()}
-				selectable
+			<JobsPageHeader onRefresh={refetch} />
+			<JobStats stats={stats} />
+			<JobsTable
+				data={data}
+				selectedJobId={selectedJobId}
+				onSelectJob={setSelectedJobId}
 			/>
-
 			<JobDetailDrawer
 				selectedJobId={selectedJobId}
 				jobDetail={jobDetail}

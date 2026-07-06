@@ -22,23 +22,23 @@ async function getAuditHttpClient(): Promise<HttpClient> {
 	if (httpClient) {
 		return httpClient;
 	}
-	const existingClient =
-		httpClientPromise === null ? null : await httpClientPromise;
+	const existingClient = await _resolveExistingPromise(httpClientPromise);
 	if (existingClient) {
 		return existingClient;
 	}
 
-	httpClientPromise = (() => {
-		const client = new HttpClient({
-			ca: env.TLS_CA_PATH,
-			cert: env.TLS_CERT_PATH,
-			key: env.TLS_KEY_PATH,
-		});
-		httpClient = client;
-		return Promise.resolve(client);
-	})();
-
+	httpClientPromise = _createHttpClientPromise();
 	return httpClientPromise;
+}
+
+function _createHttpClientPromise(): Promise<HttpClient> {
+	const client = new HttpClient({
+		ca: env.TLS_CA_PATH,
+		cert: env.TLS_CERT_PATH,
+		key: env.TLS_KEY_PATH,
+	});
+	httpClient = client;
+	return Promise.resolve(client);
 }
 
 let auditLoggerUrl: string | null | undefined;
@@ -52,21 +52,28 @@ async function resolveAuditLoggerUrl(): Promise<string | null> {
 		return auditUrlPromise;
 	}
 
-	auditUrlPromise = (async () => {
-		try {
-			const target = await findAService(ServiceInstanceName.AuditLoggerService);
-			if (target) {
-				auditLoggerUrl = `https://${target.ip}:${target.port}`;
-				return auditLoggerUrl;
-			}
-		} catch {
-			logger.warn("Cannot resolve audit-logger URL via address-manager");
-		}
-		auditLoggerUrl = null;
-		return null;
-	})();
-
+	auditUrlPromise = _resolveUrlOrNull();
 	return auditUrlPromise;
+}
+
+async function _resolveUrlOrNull(): Promise<string | null> {
+	try {
+		const target = await findAService(ServiceInstanceName.AuditLoggerService);
+		if (target) {
+			auditLoggerUrl = `https://${target.ip}:${target.port}`;
+			return auditLoggerUrl;
+		}
+	} catch {
+		logger.warn("Cannot resolve audit-logger URL via address-manager");
+	}
+	auditLoggerUrl = null;
+	return null;
+}
+
+async function _resolveExistingPromise<T>(
+	promise: Promise<T> | null
+): Promise<T | null> {
+	return promise === null ? null : await promise;
 }
 
 const auditCircuitBreaker = new MessageManagerCircuitBreaker({
@@ -82,23 +89,30 @@ export async function notifyAudit(event: AuditEvent): Promise<void> {
 	}
 
 	try {
-		const url = await resolveAuditLoggerUrl();
-		if (!url) {
-			return;
-		}
-
-		const client = await getAuditHttpClient();
-		await client.post(`${url}/audit`, event, {
-			timeoutMs: 5000,
-			serviceName: ServiceInstanceName.AuditLoggerService,
-			retryCount: 2,
-		});
+		await _sendAuditEvent(event);
 		auditCircuitBreaker.recordResult(true);
 	} catch (err) {
 		auditCircuitBreaker.recordResult(false);
-		logger.warn("Audit notification failed (non-fatal)", {
-			error: (err as Error)?.message,
-			topic: event.topic,
-		});
+		_logAuditFailure(err, event);
 	}
+}
+
+async function _sendAuditEvent(event: AuditEvent): Promise<void> {
+	const url = await resolveAuditLoggerUrl();
+	if (!url) {
+		return;
+	}
+	const client = await getAuditHttpClient();
+	await client.post(`${url}/audit`, event, {
+		timeoutMs: 5000,
+		serviceName: ServiceInstanceName.AuditLoggerService,
+		retryCount: 2,
+	});
+}
+
+function _logAuditFailure(err: unknown, event: AuditEvent): void {
+	logger.warn("Audit notification failed (non-fatal)", {
+		error: (err as Error)?.message,
+		topic: event.topic,
+	});
 }

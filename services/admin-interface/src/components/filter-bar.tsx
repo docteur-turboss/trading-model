@@ -10,6 +10,53 @@ interface FilterBarProps {
 	onReset?: () => void;
 }
 
+function SearchField({
+	placeholder,
+	value,
+	onChange,
+}: {
+	placeholder: string;
+	value?: string;
+	onChange?: (value: string) => void;
+}) {
+	return (
+		<TextField
+			size="small"
+			placeholder={placeholder}
+			value={value ?? ""}
+			onChange={(event) => onChange?.(event.target.value)}
+			sx={{ minWidth: 240 }}
+		/>
+	);
+}
+
+function ApplyButton({ onClick }: { onClick?: () => void }) {
+	if (!onClick) {
+		return null;
+	}
+	return (
+		<Button variant="contained" size="small" onClick={onClick}>
+			Apply
+		</Button>
+	);
+}
+
+function ResetLink({ onClick }: { onClick?: () => void }) {
+	if (!onClick) {
+		return null;
+	}
+	return (
+		<Link
+			component="button"
+			variant="body2"
+			onClick={onClick}
+			sx={{ cursor: "pointer" }}
+		>
+			Reset
+		</Link>
+	);
+}
+
 /** Search bar with optional filter controls and apply/reset actions. */
 export function FilterBar({
 	searchPlaceholder = "Search...",
@@ -29,29 +76,14 @@ export function FilterBar({
 				flexWrap: "wrap",
 			}}
 		>
-			<TextField
-				size="small"
+			<SearchField
 				placeholder={searchPlaceholder}
-				value={searchValue ?? ""}
-				onChange={(event) => onSearchChange?.(event.target.value)}
-				sx={{ minWidth: 240 }}
+				value={searchValue}
+				onChange={onSearchChange}
 			/>
 			{filters}
-			{onApply && (
-				<Button variant="contained" size="small" onClick={onApply}>
-					Apply
-				</Button>
-			)}
-			{onReset && (
-				<Link
-					component="button"
-					variant="body2"
-					onClick={onReset}
-					sx={{ cursor: "pointer" }}
-				>
-					Reset
-				</Link>
-			)}
+			<ApplyButton onClick={onApply} />
+			<ResetLink onClick={onReset} />
 		</Box>
 	);
 }

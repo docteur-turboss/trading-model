@@ -16,46 +16,54 @@ export function createEventHandlers(
 	onReconnectedCallbacks: Array<() => void>
 ): EventHandlers {
 	return {
-		onError: (err: Error) => {
-			if (redisClosed()) {
-				return;
-			}
-			logger.error(`${name} client error`, {
-				error: (err as Error).message,
-			});
-		},
-		onConnect: () => {
-			if (redisClosed()) {
-				return;
-			}
-			logger.info(`${name}: connected`);
-		},
-		onReady: () => {
-			if (redisClosed()) {
-				return;
-			}
-			logger.info(`${name}: ready`);
-			for (const cb of onReconnectedCallbacks) {
-				try {
-					cb();
-				} catch {
-					/* best-effort */
-				}
-			}
-		},
-		onClose: () => {
-			if (redisClosed()) {
-				return;
-			}
-			logger.warn(`${name}: connection closed`);
-		},
-		onReconnecting: (delay: number) => {
-			if (redisClosed()) {
-				return;
-			}
-			logger.warn(`${name}: reconnecting in ${delay}ms`);
-		},
+		onError: (err: Error) => handleError(name, redisClosed, err),
+		onConnect: () => handleConnect(name, redisClosed),
+		onReady: () => handleReady(name, redisClosed, onReconnectedCallbacks),
+		onClose: () => handleClose(name, redisClosed),
+		onReconnecting: (delay: number) => handleReconnecting(name, redisClosed, delay),
 	};
+}
+
+function handleError(name: string, redisClosed: () => boolean, err: Error) {
+	if (redisClosed()) {
+		return;
+	}
+	logger.error(`${name} client error`, { error: err.message });
+}
+
+function handleConnect(name: string, redisClosed: () => boolean) {
+	if (redisClosed()) {
+		return;
+	}
+	logger.info(`${name}: connected`);
+}
+
+function handleReady(name: string, redisClosed: () => boolean, onReconnectedCallbacks: Array<() => void>) {
+	if (redisClosed()) {
+		return;
+	}
+	logger.info(`${name}: ready`);
+	for (const cb of onReconnectedCallbacks) {
+		try {
+			cb();
+		} catch {
+			/* best-effort */
+		}
+	}
+}
+
+function handleClose(name: string, redisClosed: () => boolean) {
+	if (redisClosed()) {
+		return;
+	}
+	logger.warn(`${name}: connection closed`);
+}
+
+function handleReconnecting(name: string, redisClosed: () => boolean, delay: number) {
+	if (redisClosed()) {
+		return;
+	}
+	logger.warn(`${name}: reconnecting in ${delay}ms`);
 }
 
 export function attachEventHandlers(client: Redis, handlers: EventHandlers): void {

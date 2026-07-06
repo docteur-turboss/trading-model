@@ -47,22 +47,32 @@ export class MemoryManager {
 			return;
 		}
 
+		let total = this._computeTotalMemoryBytes();
+
+		while (total > this._maxMemoryBytes && this._accessOrder.length > 1) {
+			total = this._evictLeastRecent(total);
+		}
+	}
+
+	private _computeTotalMemoryBytes(): number {
 		let total = 0;
 		for (const state of this._states.values()) {
 			total += this._estimateMemoryBytes(state);
 		}
+		return total;
+	}
 
-		while (total > this._maxMemoryBytes && this._accessOrder.length > 1) {
-			const victim = this._accessOrder.shift();
-			if (!victim) {
-				break;
-			}
-			const state = this._states.get(victim);
-			if (state) {
-				total -= this._estimateMemoryBytes(state);
-			}
-			this._states.delete(victim);
+	private _evictLeastRecent(total: number): number {
+		const victim = this._accessOrder.shift();
+		if (!victim) {
+			return total;
 		}
+		const state = this._states.get(victim);
+		if (state) {
+			total -= this._estimateMemoryBytes(state);
+		}
+		this._states.delete(victim);
+		return total;
 	}
 
 	private _estimateMemoryBytes(state: SymbolState): number {

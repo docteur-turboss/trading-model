@@ -49,6 +49,18 @@ const NAV_ITEMS: NavItem[] = [
 	{ label: "Config", path: "/config", icon: <SettingsIcon /> },
 ];
 
+function EnvChip() {
+	return (
+		<Chip
+			label="PRODUCTION"
+			size="small"
+			color="success"
+			variant="outlined"
+			sx={{ fontWeight: 600, fontSize: "0.65rem" }}
+		/>
+	);
+}
+
 function SidebarHeader() {
 	return (
 		<Box sx={{ padding: 2, borderBottom: 1, borderColor: "divider" }}>
@@ -58,52 +70,110 @@ function SidebarHeader() {
 					Admin Dashboard
 				</Typography>
 			</Box>
-			<Chip
-				label="PRODUCTION"
-				size="small"
-				color="success"
-				variant="outlined"
-				sx={{ fontWeight: 600, fontSize: "0.65rem" }}
-			/>
+			<EnvChip />
 		</Box>
+	);
+}
+
+function NotificationBadge() {
+	return (
+		<Badge badgeContent={3} color="error">
+			<NotificationsNoneIcon color="action" />
+		</Badge>
+	);
+}
+
+function UserAvatar() {
+	return (
+		<Avatar
+			sx={{
+				width: 28,
+				height: 28,
+				bgcolor: "primary.main",
+				fontSize: "0.8rem",
+			}}
+		>
+			AU
+		</Avatar>
+	);
+}
+
+function UserInfo() {
+	return (
+		<Box>
+			<Typography variant="caption" fontWeight={600} display="block">
+				Admin User
+			</Typography>
+			<Typography variant="caption" color="text.secondary">
+				Super Admin
+			</Typography>
+		</Box>
+	);
+}
+
+function StatusDot() {
+	return (
+		<Box
+			sx={{
+				width: 8,
+				height: 8,
+				borderRadius: "50%",
+				bgcolor: "success.main",
+			}}
+		/>
 	);
 }
 
 function SidebarUserInfo() {
 	return (
 		<Box sx={{ px: 2, pb: 1, display: "flex", alignItems: "center", gap: 1 }}>
-			<Badge badgeContent={3} color="error">
-				<NotificationsNoneIcon color="action" />
-			</Badge>
+			<NotificationBadge />
 			<Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: "auto" }}>
-				<Avatar
-					sx={{
-						width: 28,
-						height: 28,
-						bgcolor: "primary.main",
-						fontSize: "0.8rem",
-					}}
-				>
-					AU
-				</Avatar>
-				<Box>
-					<Typography variant="caption" fontWeight={600} display="block">
-						Admin User
-					</Typography>
-					<Typography variant="caption" color="text.secondary">
-						Super Admin
-					</Typography>
-				</Box>
-				<Box
-					sx={{
-						width: 8,
-						height: 8,
-						borderRadius: "50%",
-						bgcolor: "success.main",
-					}}
-				/>
+				<UserAvatar />
+				<UserInfo />
+				<StatusDot />
 			</Box>
 		</Box>
+	);
+}
+
+function NavItem({
+	item,
+	active,
+	onClick,
+}: {
+	item: { label: string; path: string; icon: React.ReactNode; badge?: number };
+	active: boolean;
+	onClick: () => void;
+}) {
+	return (
+		<ListItemButton
+			selected={active}
+			onClick={onClick}
+			sx={{ borderRadius: 1, mb: 0.25 }}
+		>
+			<ListItemIcon
+				sx={{
+					minWidth: 36,
+					color: active ? "primary.main" : undefined,
+				}}
+			>
+				{item.badge ? (
+					<Badge badgeContent={item.badge} color="error">
+						{item.icon}
+					</Badge>
+				) : (
+					item.icon
+				)}
+			</ListItemIcon>
+			<ListItemText
+				primary={item.label}
+				primaryTypographyProps={{
+					variant: "body2",
+					fontWeight: active ? 600 : 400,
+				}}
+			/>
+		</ListItemButton>
 	);
 }
 
@@ -123,40 +193,44 @@ function NavItemList({
 }) {
 	return (
 		<List sx={{ flexGrow: 1, px: 1 }} dense>
-			{items.map((item) => {
-				const active = location.pathname === item.path;
-				return (
-					<ListItemButton
-						key={item.path}
-						selected={active}
-						onClick={() => navigate(item.path)}
-						sx={{ borderRadius: 1, mb: 0.25 }}
-					>
-						<ListItemIcon
-							sx={{
-								minWidth: 36,
-								color: active ? "primary.main" : undefined,
-							}}
-						>
-							{item.badge ? (
-								<Badge badgeContent={item.badge} color="error">
-									{item.icon}
-								</Badge>
-							) : (
-								item.icon
-							)}
-						</ListItemIcon>
-						<ListItemText
-							primary={item.label}
-							primaryTypographyProps={{
-								variant: "body2",
-								fontWeight: active ? 600 : 400,
-							}}
-						/>
-					</ListItemButton>
-				);
-			})}
+			{items.map((item) => (
+				<NavItem
+					key={item.path}
+					item={item}
+					active={location.pathname === item.path}
+					onClick={() => navigate(item.path)}
+				/>
+			))}
 		</List>
+	);
+}
+
+function SearchInput() {
+	return (
+		<Box sx={{ px: 2, py: 1 }}>
+			<TextField
+				size="small"
+				placeholder="Search resources..."
+				fullWidth
+				slotProps={{ input: { sx: { fontSize: "0.8rem" } } }}
+			/>
+		</Box>
+	);
+}
+
+function LogoutButton() {
+	return (
+		<Box sx={{ padding: 2, borderTop: 1, borderColor: "divider" }}>
+			<ListItemButton sx={{ borderRadius: 1, color: "error.main" }}>
+				<ListItemIcon sx={{ minWidth: 36, color: "error.main" }}>
+					<LogoutIcon />
+				</ListItemIcon>
+				<ListItemText
+					primary="Logout"
+					primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}
+				/>
+			</ListItemButton>
+		</Box>
 	);
 }
 
@@ -177,31 +251,10 @@ export function Sidebar() {
 			}}
 		>
 			<SidebarHeader />
-
-			<Box sx={{ px: 2, py: 1 }}>
-				<TextField
-					size="small"
-					placeholder="Search resources..."
-					fullWidth
-					slotProps={{ input: { sx: { fontSize: "0.8rem" } } }}
-				/>
-			</Box>
-
+			<SearchInput />
 			<SidebarUserInfo />
-
 			<NavItemList items={NAV_ITEMS} location={location} navigate={navigate} />
-
-			<Box sx={{ padding: 2, borderTop: 1, borderColor: "divider" }}>
-				<ListItemButton sx={{ borderRadius: 1, color: "error.main" }}>
-					<ListItemIcon sx={{ minWidth: 36, color: "error.main" }}>
-						<LogoutIcon />
-					</ListItemIcon>
-					<ListItemText
-						primary="Logout"
-						primaryTypographyProps={{ variant: "body2", fontWeight: 600 }}
-					/>
-				</ListItemButton>
-			</Box>
+			<LogoutButton />
 		</Box>
 	);
 }

@@ -10,18 +10,11 @@ import { NormalizationStats } from "./normalization-stats";
 
 export { NormalizationStats };
 
-/** A branded string representing a trading pair symbol (e.g. "BTCUSDT"). */
-export type TradingSymbol = string & { readonly brand: unique symbol };
-
-/** Convert a plain string to a TradingSymbol (runtime identity, compile-time type safety). */
-export function toSymbol(_symbol: string): TradingSymbol {
-	return _symbol as TradingSymbol;
-}
-
-/** Convert a TradingSymbol back to a plain string for external use. */
-export function fromSymbol(_symbol: TradingSymbol): string {
-	return _symbol;
-}
+export {
+	type TradingSymbol,
+	toSymbol,
+	fromSymbol,
+} from "@trading-model/common/domain/primitives";
 
 /** Number of features produced by buildFeatures per market step. */
 export const FEATURE_DIM = 32;

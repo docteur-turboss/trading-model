@@ -30,6 +30,74 @@ function PageLoading() {
 	);
 }
 
+function ActiveServicesCard({
+	count,
+	label,
+}: {
+	count: number;
+	label: string;
+}) {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<DnsIcon />}
+				value={`${count} / ${count}`}
+				label={label}
+				delta="+2.5% vs last hour"
+				deltaColor="success.main"
+			/>
+		</Grid>
+	);
+}
+
+function TotalInstancesCard({
+	total,
+	label,
+}: {
+	total: number;
+	label: string;
+}) {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<ActivityIcon />}
+				value={String(total)}
+				label={label}
+				delta="+12 vs last hour"
+				deltaColor="success.main"
+			/>
+		</Grid>
+	);
+}
+
+function Errors5xxCard({ label }: { label: string }) {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<ShieldIcon />}
+				value="0.04%"
+				label={label}
+				delta="-0.01% vs last hour"
+				deltaColor="success.main"
+			/>
+		</Grid>
+	);
+}
+
+function AvgLatencyCard({ label }: { label: string }) {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<BoltIcon />}
+				value="42ms"
+				label={label}
+				delta="-4ms vs last hour"
+				deltaColor="success.main"
+			/>
+		</Grid>
+	);
+}
+
 function ServiceStats({
 	data,
 	flatServices,
@@ -42,45 +110,58 @@ function ServiceStats({
 	flatServices: { instances: number }[];
 	translate: (key: string) => string;
 }) {
+	const totalInstances = flatServices.reduce(
+		(acc, svc) => acc + svc.instances,
+		0
+	);
 	return (
 		<Grid container spacing={2} sx={{ mb: 3 }}>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<DnsIcon />}
-					value={`${data?.services.length ?? 0} / ${data?.services.length ?? 0}`}
-					label={translate("activeServices")}
-					delta="+2.5% vs last hour"
-					deltaColor="success.main"
-				/>
-			</Grid>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<ActivityIcon />}
-					value={`${flatServices.reduce((acc, svc) => acc + svc.instances, 0)}`}
-					label={translate("totalInstances")}
-					delta="+12 vs last hour"
-					deltaColor="success.main"
-				/>
-			</Grid>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<ShieldIcon />}
-					value="0.04%"
-					label={translate("errors5xx")}
-					delta="-0.01% vs last hour"
-					deltaColor="success.main"
-				/>
-			</Grid>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<BoltIcon />}
-					value="42ms"
-					label={translate("avgLatency")}
-					delta="-4ms vs last hour"
-					deltaColor="success.main"
-				/>
-			</Grid>
+			<ActiveServicesCard
+				count={data?.services.length ?? 0}
+				label={translate("activeServices")}
+			/>
+			<TotalInstancesCard
+				total={totalInstances}
+				label={translate("totalInstances")}
+			/>
+			<Errors5xxCard label={translate("errors5xx")} />
+			<AvgLatencyCard label={translate("avgLatency")} />
 		</Grid>
+	);
+}
+
+function ServiceSearchField({
+	placeholder,
+	value,
+	onChange,
+}: {
+	placeholder: string;
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	return (
+		<TextField
+			size="small"
+			placeholder={placeholder}
+			value={value}
+			onChange={(evt) => onChange(evt.target.value)}
+			sx={{ minWidth: 240 }}
+		/>
+	);
+}
+
+function StatusFilterSelect({
+	translate,
+}: {
+	translate: (key: string) => string;
+}) {
+	return (
+		<TextField size="small" select defaultValue="" sx={{ minWidth: 140 }}>
+			<MenuItem value="">{translate("allStatuses")}</MenuItem>
+			<MenuItem value="healthy">{translate("healthy")}</MenuItem>
+			<MenuItem value="degraded">{translate("degraded")}</MenuItem>
+			<MenuItem value="down">{translate("down")}</MenuItem>
+		</TextField>
 	);
 }
 
@@ -95,19 +176,12 @@ function ServiceFilter({
 }) {
 	return (
 		<Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-			<TextField
-				size="small"
+			<ServiceSearchField
 				placeholder={translate("filterPlaceholder")}
 				value={filter}
-				onChange={(evt) => onFilterChange(evt.target.value)}
-				sx={{ minWidth: 240 }}
+				onChange={onFilterChange}
 			/>
-			<TextField size="small" select defaultValue="" sx={{ minWidth: 140 }}>
-				<MenuItem value="">{translate("allStatuses")}</MenuItem>
-				<MenuItem value="healthy">{translate("healthy")}</MenuItem>
-				<MenuItem value="degraded">{translate("degraded")}</MenuItem>
-				<MenuItem value="down">{translate("down")}</MenuItem>
-			</TextField>
+			<StatusFilterSelect translate={translate} />
 		</Box>
 	);
 }
@@ -158,6 +232,10 @@ function filterServices(services: ServiceRow[], filter: string): ServiceRow[] {
 		: services;
 }
 
+function ServiceStatusCell({ status }: { status: string }) {
+	return <StatusBadge status={status} />;
+}
+
 function createServiceColumns(
 	translate: (key: string) => string
 ): Column<ServiceRow>[] {
@@ -186,9 +264,63 @@ function createServiceColumns(
 		{
 			id: "status",
 			label: translate("status"),
-			render: (row) => <StatusBadge status={row.status} />,
+			render: (row) => <ServiceStatusCell status={row.status} />,
 		},
 	];
+}
+
+function ServicesPageHeader({
+	title,
+	subtitle,
+	onRefresh,
+	refreshLabel,
+	newServiceLabel,
+}: {
+	title: string;
+	subtitle: string;
+	onRefresh: () => void;
+	refreshLabel: string;
+	newServiceLabel: string;
+}) {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+			<Box>
+				<Typography variant="h4" fontWeight={700}>
+					{title}
+				</Typography>
+				<Typography variant="body2" color="text.secondary">
+					{subtitle}
+				</Typography>
+			</Box>
+			<Box sx={{ display: "flex", gap: 1 }}>
+				<Button
+					variant="outlined"
+					startIcon={<RefreshIcon />}
+					onClick={onRefresh}
+				>
+					{refreshLabel}
+				</Button>
+				<Button variant="contained" startIcon={<AddIcon />}>
+					{newServiceLabel}
+				</Button>
+			</Box>
+		</Box>
+	);
+}
+
+function NetworkTopologyCard({ label }: { label: string }) {
+	return (
+		<>
+			<Typography variant="h6" sx={{ mb: 1 }}>
+				{label}
+			</Typography>
+			<Card variant="outlined" sx={{ mb: 3, padding: 2, minHeight: 100 }}>
+				<Typography variant="body2" color="text.secondary">
+					Network topology visualization
+				</Typography>
+			</Card>
+		</>
+	);
 }
 
 export function Services() {
@@ -204,39 +336,17 @@ export function Services() {
 
 	return (
 		<Box>
-			<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-				<Box>
-					<Typography variant="h4" fontWeight={700}>
-						{t("title")}
-					</Typography>
-					<Typography variant="body2" color="text.secondary">
-						{t("subtitle")}
-					</Typography>
-				</Box>
-				<Box sx={{ display: "flex", gap: 1 }}>
-					<Button
-						variant="outlined"
-						startIcon={<RefreshIcon />}
-						onClick={refetch}
-					>
-						{t("refresh")}
-					</Button>
-					<Button variant="contained" startIcon={<AddIcon />}>
-						{t("newService")}
-					</Button>
-				</Box>
-			</Box>
+			<ServicesPageHeader
+				title={t("title")}
+				subtitle={t("subtitle")}
+				onRefresh={refetch}
+				refreshLabel={t("refresh")}
+				newServiceLabel={t("newService")}
+			/>
 
 			<ServiceStats data={data} flatServices={flatServices} translate={t} />
 
-			<Typography variant="h6" sx={{ mb: 1 }}>
-				{t("networkTopology")}
-			</Typography>
-			<Card variant="outlined" sx={{ mb: 3, padding: 2, minHeight: 100 }}>
-				<Typography variant="body2" color="text.secondary">
-					{t("topologyPlaceholder")}
-				</Typography>
-			</Card>
+			<NetworkTopologyCard label={t("networkTopology")} />
 
 			<ServiceFilter filter={filter} onFilterChange={setFilter} translate={t} />
 

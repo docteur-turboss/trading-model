@@ -50,6 +50,14 @@ export class MemoryWalBuffer {
 	}
 
 	push(topic: string, serialized: string, message: Message): void {
+		this._warnIfNearCapacity();
+		if (this._buffer.length >= ENV.MEMORY_WAL_BUFFER_SIZE) {
+			this._evictExcess();
+		}
+		this._buffer.push({ topic, serialized, message });
+	}
+
+	private _warnIfNearCapacity(): void {
 		const warnThreshold = Math.floor(
 			ENV.MEMORY_WAL_BUFFER_SIZE * ENV.MEMORY_WAL_BUFFER_WARN_PCT
 		);
@@ -60,10 +68,6 @@ export class MemoryWalBuffer {
 				threshold: ENV.MEMORY_WAL_BUFFER_WARN_PCT,
 			} });
 		}
-		if (this._buffer.length >= ENV.MEMORY_WAL_BUFFER_SIZE) {
-			this._evictExcess();
-		}
-		this._buffer.push({ topic, serialized, message });
 	}
 
 	drainAll(): Promise<void> {
@@ -78,36 +82,51 @@ export class MemoryWalBuffer {
 	}
 
 	private async _flush(): Promise<void> {
-		if (this._flushing) {
-			return;
-		}
-		if (
-			this._redisDownSince > 0 &&
-			Date.now() - this._redisDownSince < MEMORY_WAL_REDIS_RETRY_AFTER_MS
-		) {
-			return;
-		}
-		if (this._buffer.length === 0) {
-			this._backoff = WAL_FLUSH_RETRY_BASE_MS;
+		if (this._shouldSkipFlush()) {
 			return;
 		}
 
 		this._flushing = true;
 		try {
-			const { batch, multi } = await this._buildFlushBatch();
-			try {
-				const ok = await this._executeFlushBatch(multi);
-				if (ok) {
-					this._redisDownSince = 0;
-					this._backoff = WAL_FLUSH_RETRY_BASE_MS;
-					return;
-				}
-				await this._handleFlushFailure(batch);
-			} catch (err) {
-				await this._handleFlushFailure(batch, err as Error);
-			}
+			await this._flushBatch();
 		} finally {
 			this._flushing = false;
+		}
+	}
+
+	private _shouldSkipFlush(): boolean {
+		if (this._flushing) {
+			return true;
+		}
+		if (this._isInRetryWindow()) {
+			return true;
+		}
+		if (this._buffer.length === 0) {
+			this._backoff = WAL_FLUSH_RETRY_BASE_MS;
+			return true;
+		}
+		return false;
+	}
+
+	private _isInRetryWindow(): boolean {
+		return (
+			this._redisDownSince > 0 &&
+			Date.now() - this._redisDownSince < MEMORY_WAL_REDIS_RETRY_AFTER_MS
+		);
+	}
+
+	private async _flushBatch(): Promise<void> {
+		const { batch, multi } = await this._buildFlushBatch();
+		try {
+			const ok = await this._executeFlushBatch(multi);
+			if (ok) {
+				this._redisDownSince = 0;
+				this._backoff = WAL_FLUSH_RETRY_BASE_MS;
+				return;
+			}
+			await this._handleFlushFailure(batch);
+		} catch (err) {
+			await this._handleFlushFailure(batch, err as Error);
 		}
 	}
 
@@ -156,14 +175,25 @@ export class MemoryWalBuffer {
 	}
 
 	private async _evictExcess(): Promise<void> {
-		const excess = this._buffer.length - ENV.MEMORY_WAL_BUFFER_SIZE + 1;
-		const removed = this._buffer.splice(0, excess);
+		const { excess, removed } = this._spliceExcess();
 		BUFFER_DROPPED_TOTAL.inc(
 			{ buffer: "memory-wal", reason: "buffer-full" },
 			excess
 		);
 
-		let saved: boolean;
+		const saved = await this._trySaveToRedis(removed);
+		if (!saved) {
+			await this._trySaveToFallback(removed);
+		}
+	}
+
+	private _spliceExcess(): { excess: number; removed: MemoryWalEntry[] } {
+		const excess = this._buffer.length - ENV.MEMORY_WAL_BUFFER_SIZE + 1;
+		const removed = this._buffer.splice(0, excess);
+		return { excess, removed };
+	}
+
+	private async _trySaveToRedis(removed: MemoryWalEntry[]): Promise<boolean> {
 		try {
 			const redis = await getStreamClient();
 			const multi = redis.multi();
@@ -174,23 +204,23 @@ export class MemoryWalBuffer {
 				);
 			}
 			await multi.exec();
-			saved = true;
+			return true;
 		} catch {
-			saved = false;
+			return false;
 		}
+	}
 
-		if (!saved) {
-			const lines = removed.map((entry) => JSON.stringify(entry)).join("\n");
-			const fileWritten = await retryFileAppend(
-				ENV.DLQ_LOCAL_FALLBACK_PATH,
-				lines
+	private async _trySaveToFallback(removed: MemoryWalEntry[]): Promise<void> {
+		const lines = removed.map((entry) => JSON.stringify(entry)).join("\n");
+		const fileWritten = await retryFileAppend(
+			ENV.DLQ_LOCAL_FALLBACK_PATH,
+			lines
+		);
+		if (!fileWritten) {
+			logger.error(
+				"Memory WAL buffer eviction: all persistence layers exhausted — messages lost",
+				{ evictedCount: removed.length, buffer: "memory-wal" }
 			);
-			if (!fileWritten) {
-				logger.error(
-					"Memory WAL buffer eviction: all persistence layers exhausted — messages lost",
-					{ evictedCount: removed.length, buffer: "memory-wal" }
-				);
-			}
 		}
 	}
 
@@ -201,18 +231,28 @@ export class MemoryWalBuffer {
 			if (!content) {
 				return 0;
 			}
-			const { walEntries, remaining } = this._parseFallbackLines(content);
-			if (walEntries.length > 0) {
-				this._buffer.push(...walEntries);
-				logger.info(
-					`Recovered ${walEntries.length} WAL entries from fallback file`
-				);
-			}
-			await this._writeRemainingLines(fs, remaining);
-			return walEntries.length;
+			return await this._processRecoveredContent(fs, content);
 		} catch {
 			return 0;
 		}
+	}
+
+	private async _processRecoveredContent(
+		fs: typeof import("node:fs/promises"),
+		content: string
+	): Promise<number> {
+		const { walEntries, remaining } = this._parseFallbackLines(content);
+		this._replayWalEntries(walEntries);
+		await this._writeRemainingLines(fs, remaining);
+		return walEntries.length;
+	}
+
+	private _replayWalEntries(walEntries: MemoryWalEntry[]): void {
+		if (walEntries.length === 0) {
+			return;
+		}
+		this._buffer.push(...walEntries);
+		logger.info(`Recovered ${walEntries.length} WAL entries from fallback file`);
 	}
 
 	private async _readFallbackFile(
@@ -233,22 +273,30 @@ export class MemoryWalBuffer {
 		const walEntries: MemoryWalEntry[] = [];
 		const remaining: string[] = [];
 		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line);
-				if (
-					parsed?.topic &&
-					parsed.message &&
-					parsed.deliveryAttempt === undefined
-				) {
-					walEntries.push(parsed as MemoryWalEntry);
-				} else {
-					remaining.push(line);
-				}
-			} catch {
-				remaining.push(line);
-			}
+			this._classifyLine(line, walEntries, remaining);
 		}
 		return { walEntries, remaining };
+	}
+
+	private _classifyLine(
+		line: string,
+		walEntries: MemoryWalEntry[],
+		remaining: string[]
+	): void {
+		try {
+			const parsed = JSON.parse(line);
+			if (this._isValidWalEntry(parsed)) {
+				walEntries.push(parsed as MemoryWalEntry);
+			} else {
+				remaining.push(line);
+			}
+		} catch {
+			remaining.push(line);
+		}
+	}
+
+	private _isValidWalEntry(parsed: Record<string, unknown>): boolean {
+		return !!(parsed?.topic && parsed.message && parsed.deliveryAttempt === undefined);
 	}
 
 	private async _writeRemainingLines(

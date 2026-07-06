@@ -99,37 +99,44 @@ export class OidcVerifier {
 		if (parts.length !== 3) {
 			throw new Error("Invalid JWT format");
 		}
-
-		const header = this._parseBase64Json<JwtHeader>(parts[0]);
-		const payload = this._parseBase64Json<OidcClaims>(parts[1]);
-		const message = `${parts[0]}.${parts[1]}`;
-		const signature = Buffer.from(parts[2], "base64url");
-
-		return { header, payload, message, signature };
+		return {
+			header: this._parseBase64Json<JwtHeader>(parts[0]),
+			payload: this._parseBase64Json<OidcClaims>(parts[1]),
+			message: `${parts[0]}.${parts[1]}`,
+			signature: Buffer.from(parts[2], "base64url"),
+		};
 	}
 
-	private _validateClaims(payload: OidcClaims): void {
+	private _assertIssuer(payload: OidcClaims): void {
 		if (payload.iss !== this._config.issuer) {
-			throw new Error(
-				`JWT issuer mismatch: expected ${this._config.issuer}, got ${payload.iss}`
-			);
+			throw new Error(`JWT issuer mismatch: expected ${this._config.issuer}, got ${payload.iss}`);
 		}
+	}
 
-		const aud = payload.aud;
-		const audiences = Array.isArray(aud) ? aud : [aud];
+	private _assertAudience(payload: OidcClaims): void {
+		const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
 		if (!audiences.includes(this._config.audience)) {
-			throw new Error(
-				`JWT audience mismatch: expected ${this._config.audience}`
-			);
+			throw new Error(`JWT audience mismatch: expected ${this._config.audience}`);
 		}
+	}
 
+	private _assertNotExpired(payload: OidcClaims): void {
 		if (payload.exp * 1000 < Date.now()) {
 			throw new Error("JWT expired");
 		}
+	}
 
+	private _assertNotBefore(payload: OidcClaims): void {
 		if (payload.nbf && payload.nbf * 1000 > Date.now()) {
 			throw new Error("JWT not yet valid (nbf)");
 		}
+	}
+
+	private _validateClaims(payload: OidcClaims): void {
+		this._assertIssuer(payload);
+		this._assertAudience(payload);
+		this._assertNotExpired(payload);
+		this._assertNotBefore(payload);
 	}
 
 	private async _verifySignature(
@@ -149,55 +156,58 @@ export class OidcVerifier {
 		}
 	}
 
+	private _lookupByKid(kid: string): KeyObject | undefined {
+		return this._cachedKeys?.get(kid);
+	}
+
+	private _lookupSingleKey(): KeyObject | undefined {
+		if (this._cachedKeys && this._cachedKeys.size === 1) {
+			return this._cachedKeys.values().next().value;
+		}
+	}
+
 	private async _resolveSigningKey(kid?: string): Promise<KeyObject> {
 		await this._refreshKeys();
 		if (this._cachedKeys) {
 			if (kid) {
-				const key = this._cachedKeys.get(kid);
-				if (key) {
-					return key;
-				}
+				const key = this._lookupByKid(kid);
+				if (key) return key;
 			}
-			if (!kid && this._cachedKeys.size === 1) {
-				const firstKey = this._cachedKeys.values().next().value;
-				if (firstKey) {
-					return firstKey;
-				}
-			}
+			const singleKey = this._lookupSingleKey();
+			if (singleKey) return singleKey;
 		}
 		throw new Error(`Signing key not found (kid: ${kid ?? "none"})`);
 	}
 
+	private _shouldRefresh(): boolean {
+		return !this._cachedKeys || Date.now() - this._lastFetch >= this._cacheTtlMs;
+	}
+
+	private async _fetchAndCacheKeys(): Promise<void> {
+		const jwks = await this._fetchJwks(this._config.jwksUri);
+		this._cachedKeys = new Map<string, KeyObject>();
+		for (const entry of jwks.keys) {
+			const parsed = this._parseJwkKey(entry);
+			if (parsed) {
+				this._cachedKeys.set(parsed.kid, parsed.key);
+			}
+		}
+		this._lastFetch = Date.now();
+		logger.info("JWKS keys refreshed", { context: { count: this._cachedKeys.size } });
+	}
+
 	private async _refreshKeys(): Promise<void> {
-		if (this._cachedKeys && Date.now() - this._lastFetch < this._cacheTtlMs) {
+		if (!this._shouldRefresh()) {
 			return;
 		}
-
-		const jwksUri = this._config.jwksUri;
-		if (!jwksUri) {
+		if (!this._config.jwksUri) {
 			throw new Error("JWKS URI not configured");
 		}
-
 		try {
-			const jwks = await this._fetchJwks(jwksUri);
-			this._cachedKeys = new Map<string, KeyObject>();
-
-			for (const entry of jwks.keys) {
-				const parsed = this._parseJwkKey(entry);
-				if (parsed) {
-					this._cachedKeys.set(parsed.kid, parsed.key);
-				}
-			}
-
-			this._lastFetch = Date.now();
-			logger.info("JWKS keys refreshed", {
-				context: { count: this._cachedKeys.size },
-			});
+			await this._fetchAndCacheKeys();
 		} catch (err) {
 			if (this._cachedKeys && this._cachedKeys.size > 0) {
-				logger.warn("JWKS refresh failed, using cached keys", {
-					context: { err },
-				});
+				logger.warn("JWKS refresh failed, using cached keys", { context: { err } });
 				return;
 			}
 			throw err;

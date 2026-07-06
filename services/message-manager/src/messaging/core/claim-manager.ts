@@ -29,16 +29,24 @@ export class ClaimManager {
 		const topics: string[] = [];
 		let cursor = "0";
 		do {
-			const [nextCursor, batch] = await redis.sscan(
-				`${this._prefix}topics`,
-				cursor,
-				"COUNT",
-				100
-			);
-			cursor = nextCursor;
-			topics.push(...batch);
+			cursor = await this._scanPage(redis, cursor, topics);
 		} while (cursor !== "0");
 		return topics;
+	}
+
+	private async _scanPage(
+		redis: Redis,
+		cursor: string,
+		topics: string[]
+	): Promise<string> {
+		const [nextCursor, batch] = await redis.sscan(
+			`${this._prefix}topics`,
+			cursor,
+			"COUNT",
+			100
+		);
+		topics.push(...batch);
+		return nextCursor;
 	}
 
 	private async _claimForTopic(

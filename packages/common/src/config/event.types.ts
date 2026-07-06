@@ -1,4 +1,5 @@
 import type { Price, UnixTimestamp, Volume } from "../domain/primitives";
+import type { RevocationReason } from "../domain/revocation-request";
 
 /** Supported financial market categories. */
 export enum MarketType {
@@ -170,7 +171,7 @@ export interface EventMap {
 	[EnumEventMessage.fetchCandlestickSeries]: { candle: CandleData[] };
 	[EnumEventMessage.fetchOrderBookSnapshot]: { orderBook: OrderBookData[] };
 	[EnumEventMessage.fetchPriceTickerSnapshot]: {
-		price: Record<string, number>;
+		price: Record<string, Price>;
 	};
 	[EnumEventMessage.fetchOrderBookTickerSnapshot]: {
 		bookTicker: BookTickerData[];
@@ -191,7 +192,7 @@ export interface EventMap {
 	[EnumEventMessage.certificateRevoked]: {
 		serialNumber: string;
 		serviceId: string;
-		reason: string;
+		reason: RevocationReason;
 		revokedAt: string;
 		instanceId: string;
 	};

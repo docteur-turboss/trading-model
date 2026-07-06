@@ -1,7 +1,10 @@
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 
+import type { Message } from "@trading-model/common/contracts/message.types";
+
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
+import { WalEntryParser } from "./wal-entry-parser";
 
 const WAL_BATCH_SIZE = 50;
 const ATOMIC_WAL_READ_LUA = `
@@ -133,32 +136,11 @@ export class WalListFlusher {
 		);
 	}
 
-	private _drainWalEntry(
-		entry: string
-	): { topic: string; data: string } | null {
-		try {
-			const parsed = JSON.parse(entry) as {
-				topic: string;
-				serialized?: string;
-				message?: Record<string, unknown>;
-			};
-			return {
-				topic: parsed.topic,
-				data: parsed.serialized ?? JSON.stringify(parsed.message!),
-			};
-		} catch {
-			logger.warn("WAL flush: malformed entry dropped", { context: {
-				entry: entry.substring(0, 200),
-			} });
-			return null;
-		}
-	}
-
 	private async _flushWalBatch(raw: string[]): Promise<boolean> {
 		const redis = await getStreamClient();
 		const multi = redis.multi();
 		for (const entry of raw) {
-			const parsed = this._drainWalEntry(entry);
+			const parsed = WalEntryParser.parse(entry);
 			if (!parsed) {
 				continue;
 			}
@@ -189,24 +171,6 @@ export class WalListFlusher {
 		}
 	}
 
-	private _bufferWalEntries(raw: string[]): void {
-		for (const entry of raw) {
-			try {
-				const parsed = JSON.parse(entry) as {
-					topic: string;
-					serialized?: string;
-					message?: Record<string, unknown>;
-				};
-				const topic = parsed.topic;
-				const serialized = parsed.serialized ?? JSON.stringify(parsed.message!);
-				const message = parsed.message ?? JSON.parse(parsed.serialized!);
-				this._memoryWalBuffer.push(topic, serialized, message);
-			} catch {
-				// best-effort
-			}
-		}
-	}
-
 	private async _handleWalFlushError(
 		raw: string[],
 		consecutiveErrors: number
@@ -215,7 +179,12 @@ export class WalListFlusher {
 			logger.error(
 				"WAL flush: too many consecutive errors — switching to memory buffer"
 			);
-			this._bufferWalEntries(raw);
+			for (const entry of raw) {
+				const parsed = WalEntryParser.parseWithMessage(entry);
+				if (parsed) {
+					this._memoryWalBuffer.push(parsed.topic, parsed.serialized, parsed.message as Message);
+				}
+			}
 			return "memory-buffer";
 		}
 
@@ -228,7 +197,12 @@ export class WalListFlusher {
 				}
 				await restore.exec();
 			} catch {
-				this._bufferWalEntries(raw);
+				for (const entry of raw) {
+					const parsed = WalEntryParser.parseWithMessage(entry);
+					if (parsed) {
+						this._memoryWalBuffer.push(parsed.topic, parsed.serialized, parsed.message as Message);
+					}
+				}
 			}
 		}
 

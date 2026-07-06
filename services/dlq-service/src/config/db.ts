@@ -44,17 +44,7 @@ function _registerMongoEvents(newClient: MongoClient): void {
 
 async function _connectToMongo(): Promise<Db> {
 	const { result: dbInstance, lastError } = await retryWithBackoff(async () => {
-		const newClient = new MongoClient(env.MONGO_URI, {
-			minPoolSize: 2,
-			maxPoolSize: 10,
-			retryWrites: true,
-			serverSelectionTimeoutMS: 5000,
-			connectTimeoutMS: 5000,
-		});
-		await newClient.connect();
-		const database = newClient.db(env.MONGO_DB);
-		_registerMongoEvents(newClient);
-		return { newClient, database };
+		return _tryConnect();
 	}, {
 		maxRetries: 10,
 		baseDelayMs: 1000,
@@ -62,8 +52,7 @@ async function _connectToMongo(): Promise<Db> {
 	});
 
 	if (!dbInstance) {
-		connected = false;
-		throw lastError ?? new Error("Failed to connect to MongoDB after retries");
+		return _throwConnectError(lastError);
 	}
 
 	client = dbInstance.newClient;
@@ -71,6 +60,30 @@ async function _connectToMongo(): Promise<Db> {
 	connected = true;
 	logger.info("MongoDB connected", { database: env.MONGO_DB });
 	return dbInstance.database;
+}
+
+function _throwConnectError(
+	lastError: Error | undefined
+): never {
+	connected = false;
+	throw lastError ?? new Error("Failed to connect to MongoDB after retries");
+}
+
+async function _tryConnect(): Promise<{
+	newClient: MongoClient;
+	database: Db;
+}> {
+	const newClient = new MongoClient(env.MONGO_URI, {
+		minPoolSize: 2,
+		maxPoolSize: 10,
+		retryWrites: true,
+		serverSelectionTimeoutMS: 5000,
+		connectTimeoutMS: 5000,
+	});
+	await newClient.connect();
+	const database = newClient.db(env.MONGO_DB);
+	_registerMongoEvents(newClient);
+	return { newClient, database };
 }
 
 async function _createIndex(
@@ -104,11 +117,11 @@ async function _createIndex(
 	}
 }
 
-async function createCollectionIndexes(col: Collection): Promise<void> {
-	const indexSpecs: {
-		key: Record<string, 1 | -1>;
-		options?: Record<string, unknown>;
-	}[] = [
+function _buildIndexSpecs(): {
+	key: Record<string, 1 | -1>;
+	options?: Record<string, unknown>;
+}[] {
+	return [
 		{ key: { topic: 1, createdAt: -1 } },
 		{ key: { createdAt: -1 } },
 		{ key: { createdAt: 1 }, options: { expireAfterSeconds: 30 * 86400 } },
@@ -131,7 +144,10 @@ async function createCollectionIndexes(col: Collection): Promise<void> {
 		},
 		{ key: { contentHash: 1, status: 1 }, options: { sparse: true } },
 	];
+}
 
+async function createCollectionIndexes(col: Collection): Promise<void> {
+	const indexSpecs = _buildIndexSpecs();
 	const criticalKeys = new Set(
 		CRITICAL_INDEX_KEYS.map((key) => JSON.stringify({ key }))
 	);
@@ -152,20 +168,21 @@ export async function getCollection(): Promise<Collection> {
 		return existingCollection;
 	}
 
-	collectionPromise = (async () => {
-		const database = await getDb();
-		const col = database.collection(env.MONGO_COLLECTION);
-
-		await createCollectionIndexes(col);
-
-		collection = col;
-		logger.info("MongoDB collection ready", {
-			collection: env.MONGO_COLLECTION,
-		});
-		return collection;
-	})();
-
+	collectionPromise = _initCollection();
 	return collectionPromise;
+}
+
+async function _initCollection(): Promise<Collection> {
+	const database = await getDb();
+	const col = database.collection(env.MONGO_COLLECTION);
+
+	await createCollectionIndexes(col);
+
+	collection = col;
+	logger.info("MongoDB collection ready", {
+		collection: env.MONGO_COLLECTION,
+	});
+	return collection;
 }
 
 export function isDbConnected(): boolean {
@@ -184,13 +201,7 @@ export async function resetDbState(): Promise<void> {
 			// ignore close error during reset
 		}
 	}
-	client = null;
-	db = null;
-	collection = null;
-	dbPromise = null;
-	collectionPromise = null;
-	connected = false;
-	missingCriticalIndexes = [];
+	_clearDbState();
 }
 
 export async function closeDb(): Promise<void> {
@@ -202,13 +213,17 @@ export async function closeDb(): Promise<void> {
 				error: (err as Error).message,
 			});
 		}
-		client = null;
-		db = null;
-		collection = null;
-		dbPromise = null;
-		collectionPromise = null;
-		connected = false;
-		missingCriticalIndexes = [];
+		_clearDbState();
 		logger.info("MongoDB connection closed");
 	}
+}
+
+function _clearDbState(): void {
+	client = null;
+	db = null;
+	collection = null;
+	dbPromise = null;
+	collectionPromise = null;
+	connected = false;
+	missingCriticalIndexes = [];
 }

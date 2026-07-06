@@ -1,10 +1,10 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
-import { safeStringify } from "@trading-model/common/utils/safe-stringify";
-
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
+import { WalEntryParser } from "./wal-entry-parser";
+import { WalFlushErrorHandler } from "./wal-flush-error-handler";
 
 const WAL_BATCH_SIZE = 50;
 const WAL_LIST_MAX_LEN = 1_000_000;
@@ -24,10 +24,16 @@ export class WalFlusherService {
 	private _walDrainGen = 0;
 	private _walFlushWaiters: Array<() => void> = [];
 
+	private readonly _entryParser: WalEntryParser;
+	private readonly _errorHandler: WalFlushErrorHandler;
+
 	constructor(
 		private readonly _prefix: string,
 		private readonly _memoryWalBuffer: MemoryWalBuffer
-	) {}
+	) {
+		this._entryParser = new WalEntryParser(this._memoryWalBuffer);
+		this._errorHandler = new WalFlushErrorHandler(this._entryParser);
+	}
 
 	private _walKey(): string {
 		return `${this._prefix}wal_buffer`;
@@ -169,32 +175,11 @@ export class WalFlusherService {
 		this._memoryWalBuffer.push(topic, serialized, message);
 	}
 
-	private _drainWalEntry(
-		entry: string
-	): { topic: string; data: string } | null {
-		try {
-			const parsed = JSON.parse(entry) as {
-				topic: string;
-				serialized?: string;
-				message?: Message;
-			};
-			return {
-				topic: parsed.topic,
-				data: parsed.serialized ?? safeStringify(parsed.message!),
-			};
-		} catch {
-			logger.warn("WAL flush: malformed entry dropped", { context: {
-				entry: entry.substring(0, 200),
-			} });
-			return null;
-		}
-	}
-
 	private async _flushWalBatch(raw: string[]): Promise<boolean> {
 		const redis = await getStreamClient();
 		const multi = redis.multi();
 		for (const entry of raw) {
-			const parsed = this._drainWalEntry(entry);
+			const parsed = this._entryParser.drainEntry(entry);
 			if (!parsed) {
 				continue;
 			}
@@ -223,50 +208,6 @@ export class WalFlusherService {
 		} catch {
 			return false;
 		}
-	}
-
-	private _bufferWalEntries(raw: string[]): void {
-		for (const entry of raw) {
-			try {
-				const parsed = JSON.parse(entry) as {
-					topic: string;
-					serialized?: string;
-					message?: Message;
-				};
-				const topic = parsed.topic;
-				const serialized = parsed.serialized ?? safeStringify(parsed.message!);
-				const message = parsed.message ?? JSON.parse(parsed.serialized!);
-				this._memoryWalBuffer.push(topic, serialized, message);
-			} catch {}
-		}
-	}
-
-	private async _handleWalFlushError(
-		raw: string[],
-		consecutiveErrors: number
-	): Promise<"retry" | "memory-buffer" | "abort"> {
-		if (consecutiveErrors >= 5) {
-			logger.error(
-				"WAL flush: too many consecutive errors — switching to memory buffer"
-			);
-			this._bufferWalEntries(raw);
-			return "memory-buffer";
-		}
-
-		if (raw.length > 0) {
-			try {
-				const redis = await getStreamClient();
-				const restore = redis.multi();
-				for (const entry of raw) {
-					restore.rpush(this._walKey(), entry);
-				}
-				await restore.exec();
-			} catch {
-				this._bufferWalEntries(raw);
-			}
-		}
-
-		return "retry";
 	}
 
 	private _completeWalFlush(): void {
@@ -331,7 +272,7 @@ export class WalFlusherService {
 					batchSize: raw.length,
 				}
 			);
-			const action = await this._handleWalFlushError(raw, consecutiveErrors);
+			const action = await this._errorHandler.handle(raw, consecutiveErrors, this._walKey(), this._prefix, this._memoryWalBuffer);
 			const backoff = Math.min(1000 * 2 ** consecutiveErrors, 30000);
 			await this._sleepWithJitter(backoff);
 			if (action === "abort") {

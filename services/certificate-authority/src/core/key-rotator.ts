@@ -21,23 +21,26 @@ export class KeyRotator {
 		this._options = options;
 	}
 
-	start(): void {
-		if (this._timer) {
-			return;
-		}
-
+	private _logRotationStart(): void {
 		logger.info("Starting CA key rotator", {
-			context: {
-				intervalMs: this._options.intervalMs,
-				retentionCount: this._options.retentionCount,
-			},
+			context: { intervalMs: this._options.intervalMs, retentionCount: this._options.retentionCount },
 		});
+	}
 
+	private _scheduleRotation(): void {
 		this._timer = setInterval(() => {
 			this._rotate().catch((err) => {
 				logger.error("CA key rotation failed", { context: { err } });
 			});
 		}, this._options.intervalMs);
+	}
+
+	start(): void {
+		if (this._timer) {
+			return;
+		}
+		this._logRotationStart();
+		this._scheduleRotation();
 	}
 
 	stop(): void {
@@ -51,17 +54,10 @@ export class KeyRotator {
 	private async _rotate(): Promise<void> {
 		const previousKeyId = this._options.ca.getCurrentKeyId();
 		const previousVersion = this._options.ca.getKeyVersion();
-
 		const newKeyId = await this._options.ca.rotateKey();
 		await this._options.ca.cleanupKeyHistory(this._options.retentionCount);
-
 		logger.info("CA key rotated", {
-			context: {
-				previousKeyId,
-				previousVersion,
-				newKeyId,
-				newVersion: this._options.ca.getKeyVersion(),
-			},
+			context: { previousKeyId, previousVersion, newKeyId, newVersion: this._options.ca.getKeyVersion() },
 		});
 	}
 }

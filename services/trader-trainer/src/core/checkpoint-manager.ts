@@ -14,6 +14,7 @@ import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "./market-data-buffer";
+import type { SymbolState } from "./market-data-types";
 import { NormalizationStats } from "./normalization-stats";
 
 export interface CheckpointManagerConfig {
@@ -45,53 +46,65 @@ export class CheckpointManager {
 
 	save(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
 		try {
-			const path = this._checkpointPath(symbol);
-			writeFileSync(path, JSON.stringify(genome, null, 2), "utf-8");
-			writeFileSync(
-				this._metadataPath(symbol),
-				JSON.stringify({
-					savedAt: Date.now(),
-					symbol,
-					generation: genome.generation,
-					fitness: genome.fitness,
-				}),
-				"utf-8"
-			);
-			logger.info("Checkpoint saved", { context: {
+			this._doSave(symbol, genome);
+		} catch (err) {
+			this._logSaveError(symbol, err);
+		}
+	}
+
+	private _doSave(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
+		const path = this._checkpointPath(symbol);
+		writeFileSync(path, JSON.stringify(genome, null, 2), "utf-8");
+		this._writeMetadata(symbol, genome);
+		logger.info("Checkpoint saved", { context: { symbol, generation: genome.generation, path } });
+	}
+
+	private _writeMetadata(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
+		writeFileSync(
+			this._metadataPath(symbol),
+			JSON.stringify({
+				savedAt: Date.now(),
 				symbol,
 				generation: genome.generation,
-				path,
-			} });
-		} catch (err) {
-			logger.error("Failed to save checkpoint", { context: {
-				symbol,
-				error: err instanceof Error ? err.message : String(err),
-			} });
-		}
+				fitness: genome.fitness,
+			}),
+			"utf-8"
+		);
+	}
+
+	private _logSaveError(symbol: string, err: unknown): void {
+		logger.error("Failed to save checkpoint", { context: {
+			symbol,
+			error: err instanceof Error ? err.message : String(err),
+		} });
 	}
 
 	load(symbol: string): DeepReadonly<LamarckGenome> | null {
 		try {
-			const path = this._checkpointPath(symbol);
-			if (!existsSync(path)) {
-				logger.info("No checkpoint found for symbol", { context: { symbol } });
-				return null;
-			}
-			const raw = readFileSync(path, "utf-8");
-			const genome = JSON.parse(raw) as DeepReadonly<LamarckGenome>;
-			logger.info("Checkpoint loaded", { context: {
-				symbol,
-				generation: genome.generation,
-				fitness: genome.fitness,
-			} });
-			return genome;
+			return this._doLoad(symbol);
 		} catch (err) {
-			logger.error("Failed to load checkpoint", { context: {
-				symbol,
-				error: err instanceof Error ? err.message : String(err),
-			} });
+			this._logLoadError(symbol, err);
 			return null;
 		}
+	}
+
+	private _doLoad(symbol: string): DeepReadonly<LamarckGenome> | null {
+		const path = this._checkpointPath(symbol);
+		if (!existsSync(path)) {
+			logger.info("No checkpoint found for symbol", { context: { symbol } });
+			return null;
+		}
+		const raw = readFileSync(path, "utf-8");
+		const genome = JSON.parse(raw) as DeepReadonly<LamarckGenome>;
+		logger.info("Checkpoint loaded", { context: { symbol, generation: genome.generation, fitness: genome.fitness } });
+		return genome;
+	}
+
+	private _logLoadError(symbol: string, err: unknown): void {
+		logger.error("Failed to load checkpoint", { context: {
+			symbol,
+			error: err instanceof Error ? err.message : String(err),
+		} });
 	}
 
 	list(): {
@@ -103,12 +116,33 @@ export class CheckpointManager {
 		if (!existsSync(this._checkpointDir)) {
 			return [];
 		}
-		const files = readdirSync(this._checkpointDir).filter((file) =>
+		const files = this._listMetadataFiles();
+		return this._readMetadataFiles(files)
+			.sort((a, b) => b.savedAt - a.savedAt)
+			.slice(0, this._maxCheckpoints);
+	}
+
+	private _listMetadataFiles(): string[] {
+		return readdirSync(this._checkpointDir).filter((file) =>
 			file.startsWith("metadata_")
 		);
-		return this._readMetadataFiles(files)
-			.sort((_prev, _next) => _next.savedAt - _prev.savedAt)
-			.slice(0, this._maxCheckpoints);
+	}
+
+	private _readSingleMetadataFile(file: string): {
+		symbol: string; generation: number; fitness: number; savedAt: number;
+	} | null {
+		try {
+			const raw = readFileSync(join(this._checkpointDir, file), "utf-8");
+			const meta = JSON.parse(raw);
+			return {
+				symbol: meta.symbol,
+				generation: meta.generation,
+				fitness: meta.fitness,
+				savedAt: meta.savedAt,
+			};
+		} catch {
+			return null;
+		}
 	}
 
 	private _readMetadataFiles(
@@ -121,17 +155,9 @@ export class CheckpointManager {
 			savedAt: number;
 		}[] = [];
 		for (const file of files) {
-			try {
-				const raw = readFileSync(join(this._checkpointDir, file), "utf-8");
-				const meta = JSON.parse(raw);
-				results.push({
-					symbol: meta.symbol,
-					generation: meta.generation,
-					fitness: meta.fitness,
-					savedAt: meta.savedAt,
-				});
-			} catch {
-				/* skip unreadable */
+			const meta = this._readSingleMetadataFile(file);
+			if (meta) {
+				results.push(meta);
 			}
 		}
 		return results;
@@ -175,52 +201,64 @@ export class CheckpointManager {
 
 	saveBuffer(buffer: MarketDataBuffer): void {
 		try {
-			const symbols = buffer.getSymbols();
-			const priceSnapshot = buffer.getPriceSnapshot();
-			const symbolsData = this._serializeSymbols(buffer, symbols);
-
-			writeFileSync(
-				this._bufferStatePath(),
-				JSON.stringify(
-					{ symbols: symbolsData, priceSnapshot, savedAt: Date.now() },
-					null,
-					2
-				),
-				"utf-8"
-			);
-			logger.info("Market data buffer checkpoint saved", { context: {
-				symbols: symbols.length,
-				path: this._bufferStatePath(),
-			} });
+			this._doSaveBuffer(buffer);
 		} catch (err) {
-			logger.error("Failed to save market data buffer checkpoint", { context: {
-				error: err instanceof Error ? err.message : String(err),
-			} });
+			this._logBufferSaveError(err);
 		}
+	}
+
+	private _doSaveBuffer(buffer: MarketDataBuffer): void {
+		const symbols = buffer.getSymbols();
+		const symbolsData = this._serializeSymbols(buffer, symbols);
+		writeFileSync(
+			this._bufferStatePath(),
+			JSON.stringify(
+				{ symbols: symbolsData, priceSnapshot: buffer.getPriceSnapshot(), savedAt: Date.now() },
+				null,
+				2
+			),
+			"utf-8"
+		);
+		logger.info("Market data buffer checkpoint saved", { context: {
+			symbols: symbols.length,
+			path: this._bufferStatePath(),
+		} });
+	}
+
+	private _logBufferSaveError(err: unknown): void {
+		logger.error("Failed to save market data buffer checkpoint", { context: {
+			error: err instanceof Error ? err.message : String(err),
+		} });
 	}
 
 	loadBuffer(config?: MarketDataBufferConfig): MarketDataBuffer | null {
 		try {
-			const path = this._bufferStatePath();
-			if (!existsSync(path)) {
-				logger.info("No market data buffer checkpoint found");
-				return null;
-			}
-
-			const data = this._readBufferState(path);
-			const buffer = this._restoreBuffer(data, config);
-
-			logger.info("Market data buffer checkpoint loaded", { context: {
-				symbols: Object.keys(data.symbols).length,
-				path,
-			} });
-			return buffer;
+			return this._doLoadBuffer(config);
 		} catch (err) {
-			logger.error("Failed to load market data buffer checkpoint", { context: {
-				error: err instanceof Error ? err.message : String(err),
-			} });
+			this._logBufferLoadError(err);
 			return null;
 		}
+	}
+
+	private _doLoadBuffer(config?: MarketDataBufferConfig): MarketDataBuffer | null {
+		const path = this._bufferStatePath();
+		if (!existsSync(path)) {
+			logger.info("No market data buffer checkpoint found");
+			return null;
+		}
+		const data = this._readBufferState(path);
+		const buffer = this._restoreBuffer(data, config);
+		logger.info("Market data buffer checkpoint loaded", { context: {
+			symbols: Object.keys(data.symbols).length,
+			path,
+		} });
+		return buffer;
+	}
+
+	private _logBufferLoadError(err: unknown): void {
+		logger.error("Failed to load market data buffer checkpoint", { context: {
+			error: err instanceof Error ? err.message : String(err),
+		} });
 	}
 
 	private _readBufferState(path: string): {
@@ -250,6 +288,24 @@ export class CheckpointManager {
 	}
 }
 
+function _deserializeNormState(
+	sd: SymbolStateSerializable
+): SymbolState["norm"] {
+	return {
+		candleClose: NormalizationStats.fromJSON(sd.closeNorm),
+		candleVolume: NormalizationStats.fromJSON(sd.volumeNorm),
+		candleOpen: NormalizationStats.fromJSON(sd.openNorm),
+		candleHigh: NormalizationStats.fromJSON(sd.highNorm),
+		candleLow: NormalizationStats.fromJSON(sd.lowNorm),
+		tradePrice: NormalizationStats.fromJSON(sd.tradePriceNorm),
+		tradeQty: NormalizationStats.fromJSON(sd.tradeQtyNorm),
+		bid: NormalizationStats.fromJSON(sd.bidNorm),
+		ask: NormalizationStats.fromJSON(sd.askNorm),
+		spread: NormalizationStats.fromJSON(sd.spreadNorm),
+		tickerVolume: NormalizationStats.fromJSON(sd.tickerVolumeNorm),
+	};
+}
+
 function _deserializeSymbolState(
 	sd: SymbolStateSerializable
 ): Parameters<MarketDataBuffer["restoreSymbolState"]>[1] {
@@ -259,19 +315,7 @@ function _deserializeSymbolState(
 		orderBook: sd.orderBook,
 		bookTicker: sd.bookTicker,
 		ticker24h: sd.ticker24h,
-		norm: {
-			candleClose: NormalizationStats.fromJSON(sd.closeNorm),
-			candleVolume: NormalizationStats.fromJSON(sd.volumeNorm),
-			candleOpen: NormalizationStats.fromJSON(sd.openNorm),
-			candleHigh: NormalizationStats.fromJSON(sd.highNorm),
-			candleLow: NormalizationStats.fromJSON(sd.lowNorm),
-			tradePrice: NormalizationStats.fromJSON(sd.tradePriceNorm),
-			tradeQty: NormalizationStats.fromJSON(sd.tradeQtyNorm),
-			bid: NormalizationStats.fromJSON(sd.bidNorm),
-			ask: NormalizationStats.fromJSON(sd.askNorm),
-			spread: NormalizationStats.fromJSON(sd.spreadNorm),
-			tickerVolume: NormalizationStats.fromJSON(sd.tickerVolumeNorm),
-		},
+		norm: _deserializeNormState(sd),
 	};
 }
 

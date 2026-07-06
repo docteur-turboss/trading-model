@@ -14,13 +14,61 @@ import { InfoBox } from "../components/info-box";
 import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useApi } from "../hooks/use-api";
-import type { DlqMessage } from "../types/dtos";
+import type { DlqMessage, DlqMessageList } from "../types/dtos";
 
 function PageLoading() {
 	return (
 		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
 			<CircularProgress />
 		</Box>
+	);
+}
+
+function PendingMessagesCard({ count }: { count: number }) {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<WarningAmberIcon />}
+				value={String(count)}
+				label="MESSAGES EN ATTENTE"
+			/>
+		</Grid>
+	);
+}
+
+function RetryRateCard({ rate }: { rate: number }) {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<RefreshIcon />}
+				value={`${rate}%`}
+				label="TAUX DE RETRY"
+			/>
+		</Grid>
+	);
+}
+
+function TotalSizeCard({ size }: { size: number }) {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<StorageIcon />}
+				value={`${size} MB`}
+				label="TAILLE TOTALE"
+			/>
+		</Grid>
+	);
+}
+
+function LastIncidentCard({ incident }: { incident: string }) {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<AccessTimeIcon />}
+				value={incident}
+				label="DERNIER INCIDENT"
+			/>
+		</Grid>
 	);
 }
 
@@ -41,59 +89,78 @@ function DlqStats({
 }) {
 	return (
 		<Grid container spacing={2} sx={{ mb: 3 }}>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<WarningAmberIcon />}
-					value={String(data?.stats.pending ?? 0)}
-					label="MESSAGES EN ATTENTE"
-				/>
-			</Grid>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<RefreshIcon />}
-					value={`${data?.stats.retryRate ?? 0}%`}
-					label="TAUX DE RETRY"
-				/>
-			</Grid>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<StorageIcon />}
-					value={`${data?.stats.totalSize ?? 0} MB`}
-					label="TAILLE TOTALE"
-				/>
-			</Grid>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<AccessTimeIcon />}
-					value={data?.stats.lastIncident ?? "-"}
-					label="DERNIER INCIDENT"
-				/>
-			</Grid>
+			<PendingMessagesCard count={data?.stats.pending ?? 0} />
+			<RetryRateCard rate={data?.stats.retryRate ?? 0} />
+			<TotalSizeCard size={data?.stats.totalSize ?? 0} />
+			<LastIncidentCard incident={data?.stats.lastIncident ?? "-"} />
 		</Grid>
+	);
+}
+
+function RetryPolicyBox() {
+	return (
+		<InfoBox
+			icon={<RefreshIcon />}
+			title="Retry Policy"
+			description="The system attempts 5 retries with exponential backoff. After the 5th failure, the message is redirected to this DLQ for manual intervention."
+			color="success.main"
+		/>
+	);
+}
+
+function FatalErrorsBox() {
+	return (
+		<InfoBox
+			icon={<DeleteSweepIcon />}
+			title="Fatal Errors"
+			description="'Invalid JSON Schema' errors are never replayed automatically as they indicate a structural problem in the emitter."
+			color="error.main"
+		/>
+	);
+}
+
+function RetentionBox() {
+	return (
+		<InfoBox
+			icon={<StorageIcon />}
+			title="Retention"
+			description="DLQ messages are kept for 14 days before being automatically archived to cold storage (S3 Glacier)."
+		/>
 	);
 }
 
 function DlqInfoBoxes() {
 	return (
 		<Box sx={{ display: "flex", gap: 2, mt: 3 }}>
-			<InfoBox
-				icon={<RefreshIcon />}
-				title="Retry Policy"
-				description="The system attempts 5 retries with exponential backoff. After the 5th failure, the message is redirected to this DLQ for manual intervention."
-				color="success.main"
-			/>
-			<InfoBox
-				icon={<DeleteSweepIcon />}
-				title="Fatal Errors"
-				description="'Invalid JSON Schema' errors are never replayed automatically as they indicate a structural problem in the emitter."
-				color="error.main"
-			/>
-			<InfoBox
-				icon={<StorageIcon />}
-				title="Retention"
-				description="DLQ messages are kept for 14 days before being automatically archived to cold storage (S3 Glacier)."
-			/>
+			<RetryPolicyBox />
+			<FatalErrorsBox />
+			<RetentionBox />
 		</Box>
+	);
+}
+
+function FailureReasonCell({ reason }: { reason: string }) {
+	return (
+		<Typography variant="body2" color="error.main">
+			{reason}
+		</Typography>
+	);
+}
+
+function AttemptsBadge({ attempts }: { attempts: number }) {
+	return (
+		<StatusBadge
+			status={attempts >= 5 ? "error" : "info"}
+			label={String(attempts)}
+		/>
+	);
+}
+
+function PayloadPreview({ preview }: { preview: string }) {
+	return (
+		<Typography variant="caption" sx={{ fontFamily: "monospace" }}>
+			{preview}
+		</Typography>
 	);
 }
 
@@ -105,30 +172,17 @@ function createDlqColumns(): Column<DlqMessage>[] {
 		{
 			id: "reason",
 			label: "Failure Reason",
-			render: (row) => (
-				<Typography variant="body2" color="error.main">
-					{row.failureReason}
-				</Typography>
-			),
+			render: (row) => <FailureReasonCell reason={row.failureReason} />,
 		},
 		{
 			id: "attempts",
 			label: "Attempts",
-			render: (row) => (
-				<StatusBadge
-					status={row.attempts >= 5 ? "error" : "info"}
-					label={String(row.attempts)}
-				/>
-			),
+			render: (row) => <AttemptsBadge attempts={row.attempts} />,
 		},
 		{
 			id: "payload",
 			label: "Payload",
-			render: (row) => (
-				<Typography variant="caption" sx={{ fontFamily: "monospace" }}>
-					{row.payloadPreview}
-				</Typography>
-			),
+			render: (row) => <PayloadPreview preview={row.payloadPreview} />,
 		},
 	];
 }
@@ -159,6 +213,58 @@ function useDlqSelection(
 	return { selectedIds, handleSelectAll, handleSelectOne };
 }
 
+function DlqPageHeader() {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+			<Box>
+				<Typography variant="h4" fontWeight={700}>
+					Broker DLQ
+				</Typography>
+				<Typography variant="body2" color="text.secondary">
+					Failed message management on the Message Broker.
+				</Typography>
+			</Box>
+			<Box sx={{ display: "flex", gap: 1 }}>
+				<Button variant="outlined" startIcon={<GetAppIcon />}>
+					Export CSV
+				</Button>
+				<Button
+					variant="contained"
+					color="error"
+					startIcon={<DeleteSweepIcon />}
+				>
+					Purge DLQ
+				</Button>
+			</Box>
+		</Box>
+	);
+}
+
+function DlqDataTable({
+	data,
+	selectedIds,
+	onSelectAll,
+	onSelectOne,
+}: {
+	data: DlqMessageList | null | undefined;
+	selectedIds: Set<string>;
+	onSelectAll: (checked: boolean) => void;
+	onSelectOne: (id: string) => void;
+}) {
+	return (
+		<DataTable
+			columns={createDlqColumns()}
+			rows={data?.messages ?? []}
+			getId={(row) => row.messageId}
+			total={data?.messages.length ?? 0}
+			selectable
+			selectedIds={selectedIds}
+			onSelectAll={onSelectAll}
+			onSelectOne={onSelectOne}
+		/>
+	);
+}
+
 export function Dlq() {
 	const { data, loading } = useApi(() => API_CLIENT.getDlqMessages());
 	const { selectedIds, handleSelectAll, handleSelectOne } =
@@ -170,42 +276,14 @@ export function Dlq() {
 
 	return (
 		<Box>
-			<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-				<Box>
-					<Typography variant="h4" fontWeight={700}>
-						Broker DLQ
-					</Typography>
-					<Typography variant="body2" color="text.secondary">
-						Failed message management on the Message Broker.
-					</Typography>
-				</Box>
-				<Box sx={{ display: "flex", gap: 1 }}>
-					<Button variant="outlined" startIcon={<GetAppIcon />}>
-						Export CSV
-					</Button>
-					<Button
-						variant="contained"
-						color="error"
-						startIcon={<DeleteSweepIcon />}
-					>
-						Purge DLQ
-					</Button>
-				</Box>
-			</Box>
-
+			<DlqPageHeader />
 			<DlqStats data={data} />
-
-			<DataTable
-				columns={createDlqColumns()}
-				rows={data?.messages ?? []}
-				getId={(row) => row.messageId}
-				total={data?.messages.length ?? 0}
-				selectable
+			<DlqDataTable
+				data={data}
 				selectedIds={selectedIds}
 				onSelectAll={handleSelectAll}
 				onSelectOne={handleSelectOne}
 			/>
-
 			<DlqInfoBoxes />
 		</Box>
 	);

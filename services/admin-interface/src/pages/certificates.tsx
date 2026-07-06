@@ -9,12 +9,43 @@ import { StatusBadge } from "../components/status-badge";
 import { useApi } from "../hooks/use-api";
 import type { CertificateEntry } from "../types/dtos";
 
-export function Certificates() {
-	const { data, loading, refetch } = useApi<CertificateEntry[]>(() =>
-		API_CLIENT.getCertificates()
+function LoadingBox() {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+			<CircularProgress />
+		</Box>
 	);
+}
 
-	const columns: Column<CertificateEntry>[] = [
+function CertificatesPageHeader({ onRefresh }: { onRefresh: () => void }) {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+			<Box>
+				<Typography variant="h4" fontWeight={700}>
+					Certificates
+				</Typography>
+				<Typography variant="body2" color="text.secondary">
+					Manage X.509 certificate lifecycle and CRL.
+				</Typography>
+			</Box>
+			<Box sx={{ display: "flex", gap: 1 }}>
+				<Button
+					variant="outlined"
+					startIcon={<RefreshIcon />}
+					onClick={onRefresh}
+				>
+					Refresh
+				</Button>
+				<Button variant="contained" startIcon={<AddIcon />}>
+					Sign Certificate
+				</Button>
+			</Box>
+		</Box>
+	);
+}
+
+function useCertificateColumns(): Column<CertificateEntry>[] {
+	return [
 		{ id: "cn", label: "Common Name", render: (row) => row.commonName },
 		{ id: "issuer", label: "Issuer", render: (row) => row.issuer },
 		{
@@ -29,39 +60,21 @@ export function Certificates() {
 			render: (row) => <StatusBadge status={row.status} />,
 		},
 	];
+}
+
+export function Certificates() {
+	const { data, loading, refetch } = useApi<CertificateEntry[]>(() =>
+		API_CLIENT.getCertificates()
+	);
+	const columns = useCertificateColumns();
 
 	if (loading) {
-		return (
-			<Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-				<CircularProgress />
-			</Box>
-		);
+		return <LoadingBox />;
 	}
 
 	return (
 		<Box>
-			<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-				<Box>
-					<Typography variant="h4" fontWeight={700}>
-						Certificates
-					</Typography>
-					<Typography variant="body2" color="text.secondary">
-						Manage X.509 certificate lifecycle and CRL.
-					</Typography>
-				</Box>
-				<Box sx={{ display: "flex", gap: 1 }}>
-					<Button
-						variant="outlined"
-						startIcon={<RefreshIcon />}
-						onClick={refetch}
-					>
-						Refresh
-					</Button>
-					<Button variant="contained" startIcon={<AddIcon />}>
-						Sign Certificate
-					</Button>
-				</Box>
-			</Box>
+			<CertificatesPageHeader onRefresh={refetch} />
 
 			<DataTable
 				columns={columns}

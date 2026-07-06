@@ -76,12 +76,8 @@ async function _executeAutoRetryCycle(
 ): Promise<void> {
 	await dlqClaimManager.releaseStaleClaims();
 
-	const batchId = `auto-retry-${Date.now()}-${randomUUID().slice(0, 8)}`;
-	const entries = await dlqClaimManager.claimEntriesForRetry({
-		limit: env.DLQ_AUTO_RETRY_LIMIT,
-		batchId,
-		instanceId: env.INSTANCE_ID,
-	});
+	const batchId = _generateBatchId("auto-retry");
+	const entries = await _claimEntriesForRetry(batchId);
 	if (entries.length === 0) {
 		await handleAbandonedEntries("DLQ auto-retry");
 		return;
@@ -93,20 +89,42 @@ async function _executeAutoRetryCycle(
 		batchId
 	);
 
-	void notifyAudit({
-		timestamp: new Date().toISOString(),
-		topic: "dlq-service",
-		publisher: "dlq-service",
-		correlationId: batchId,
-		summary: `DLQ replay: ${success} succeeded, ${errors.length} failed`,
-		severity: errors.length > 0 ? "ERROR" : "INFO",
-	});
+	_notifyAutoRetryResult(batchId, success, errors.length);
 
 	if (errors.length > 0) {
 		await handleAbandonedEntries("DLQ auto-retry");
 	}
 
 	logger.info(`DLQ auto-retry: ${success} replayed, ${errors.length} failed`);
+}
+
+function _generateBatchId(prefix: string): string {
+	return `${prefix}-${Date.now()}-${randomUUID().slice(0, 8)}`;
+}
+
+async function _claimEntriesForRetry(batchId: string): Promise<
+	Array<{ id: string; message: unknown }>
+> {
+	return dlqClaimManager.claimEntriesForRetry({
+		limit: env.DLQ_AUTO_RETRY_LIMIT,
+		batchId,
+		instanceId: env.INSTANCE_ID,
+	});
+}
+
+function _notifyAutoRetryResult(
+	batchId: string,
+	success: number,
+	errorsCount: number
+): void {
+	void notifyAudit({
+		timestamp: new Date().toISOString(),
+		topic: "dlq-service",
+		publisher: "dlq-service",
+		correlationId: batchId,
+		summary: `DLQ replay: ${success} succeeded, ${errorsCount} failed`,
+		severity: errorsCount > 0 ? "ERROR" : "INFO",
+	});
 }
 
 export async function autoRetryTick(): Promise<void> {
@@ -151,27 +169,42 @@ async function claimBatchEntries(
 	entryIds: string[],
 	batchId: string
 ): Promise<Array<{ id: string; message: unknown }> | null> {
-	const validIds = entryIds.filter((id) => ObjectId.isValid(id));
+	const validIds = _filterValidObjectIds(entryIds);
 	if (validIds.length === 0) {
 		return null;
 	}
 
-	const claimed = await dlqClaimManager.claimEntriesByIds(validIds, {
-		batchId,
-		instanceId: env.INSTANCE_ID,
-	});
+	const claimed = await _claimByIds(validIds, batchId);
 	if (claimed.length === 0) {
 		return null;
 	}
 
 	if (isShuttingDown()) {
-		for (const remaining of entryIds) {
-			void dlqRedisQueue.push(remaining);
-		}
+		_requeueRemaining(entryIds);
 		return null;
 	}
 
 	return claimed.map((entry) => ({ id: entry.id, message: entry.message }));
+}
+
+function _filterValidObjectIds(ids: string[]): string[] {
+	return ids.filter((id) => ObjectId.isValid(id));
+}
+
+async function _claimByIds(
+	validIds: string[],
+	batchId: string
+): Promise<Array<{ id: string; message: unknown }>> {
+	return dlqClaimManager.claimEntriesByIds(validIds, {
+		batchId,
+		instanceId: env.INSTANCE_ID,
+	});
+}
+
+function _requeueRemaining(entryIds: string[]): void {
+	for (const remaining of entryIds) {
+		void dlqRedisQueue.push(remaining);
+	}
 }
 
 async function executeClaimReplay(
@@ -214,10 +247,7 @@ async function _claimAndReplayEntries(
 }
 
 async function processRedisQueue(): Promise<void> {
-	if (isShuttingDown()) {
-		return;
-	}
-	if (!dlqRedisQueue.isAvailable()) {
+	if (_shouldSkipRedisProcessing()) {
 		return;
 	}
 
@@ -237,6 +267,16 @@ async function processRedisQueue(): Promise<void> {
 	await _claimAndReplayEntries(entryIds, messageManagerUrl);
 }
 
+function _shouldSkipRedisProcessing(): boolean {
+	if (isShuttingDown()) {
+		return true;
+	}
+	if (!dlqRedisQueue.isAvailable()) {
+		return true;
+	}
+	return false;
+}
+
 function scheduleAutoRetryTick(): void {
 	const baseInterval = env.DLQ_AUTO_RETRY_INTERVAL_MS;
 	const jitter =
@@ -251,39 +291,56 @@ function scheduleAutoRetryTick(): void {
 export async function rebuildQueueFromMongo(): Promise<void> {
 	try {
 		const entries = await dlqRepository.listQueuable();
-		for (const entryId of entries) {
-			void dlqRedisQueue.push(entryId);
-		}
+		_pushAllToRedis(entries);
 		logger.info("Redis queue rebuilt from MongoDB", {
 			pushedCount: entries.length,
 		});
 	} catch (err) {
-		logger.warn("Failed to rebuild Redis queue from MongoDB", {
-			error: (err as Error)?.message,
-		});
+		_logRebuildError(err);
 	}
+}
+
+function _pushAllToRedis(entries: string[]): void {
+	for (const entryId of entries) {
+		void dlqRedisQueue.push(entryId);
+	}
+}
+
+function _logRebuildError(err: unknown): void {
+	logger.warn("Failed to rebuild Redis queue from MongoDB", {
+		error: (err as Error)?.message,
+	});
 }
 
 const RedisWorkerIntervalMs = 1000;
 
 function startRedisWorkerLoop(): void {
-	async function redisWorkerLoop(): Promise<void> {
-		if (isShuttingDown()) {
-			return;
-		}
-		try {
-			await processRedisQueue();
-		} catch (err) {
-			logger.error("DLQ Redis queue worker error", {
-				error: (err as Error)?.message,
-			});
-		}
-		if (!isShuttingDown()) {
-			redisRetryTimer = setTimeout(redisWorkerLoop, RedisWorkerIntervalMs);
-			redisRetryTimer.unref();
-		}
+	void _redisWorkerLoop();
+}
+
+async function _redisWorkerLoop(): Promise<void> {
+	if (isShuttingDown()) {
+		return;
 	}
-	void redisWorkerLoop();
+	try {
+		await processRedisQueue();
+	} catch (err) {
+		_logRedisWorkerError(err);
+	}
+	if (!isShuttingDown()) {
+		_scheduleRedisTick();
+	}
+}
+
+function _logRedisWorkerError(err: unknown): void {
+	logger.error("DLQ Redis queue worker error", {
+		error: (err as Error)?.message,
+	});
+}
+
+function _scheduleRedisTick(): void {
+	redisRetryTimer = setTimeout(_redisWorkerLoop, RedisWorkerIntervalMs);
+	redisRetryTimer.unref();
 }
 
 export function startAutoRetry(): void {
@@ -293,17 +350,24 @@ export function startAutoRetry(): void {
 	if (autoRetryTimer) {
 		return;
 	}
+	_logAutoRetryStart();
+	_scheduleInitialTick();
+	void startRedisWorkerLoop();
+}
+
+function _logAutoRetryStart(): void {
 	logger.info("Starting DLQ auto-retry scheduler", {
 		intervalMs: env.DLQ_AUTO_RETRY_INTERVAL_MS,
 	});
+}
+
+function _scheduleInitialTick(): void {
 	const jitterMs = Math.floor(Math.random() * env.DLQ_AUTO_RETRY_INTERVAL_MS);
 	autoRetryStartTimer = setTimeout(() => {
 		autoRetryStartTimer = null;
 		scheduleAutoRetryTick();
 	}, jitterMs);
 	autoRetryStartTimer.unref();
-
-	void startRedisWorkerLoop();
 }
 
 export function stopAutoRetry(): void {

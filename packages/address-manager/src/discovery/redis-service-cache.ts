@@ -25,6 +25,13 @@ export class RedisServiceCache implements IServiceCache {
 
 	constructor(config: RedisCacheConfig) {
 		const { redisUrl, prefix = "discovery:cache:", ttlMs = 5000, cacheOptions } = config;
+		this._prefix = prefix;
+		this._ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
+		this._redis = new Redis(redisUrl, this._buildRedisOptions(cacheOptions));
+		this._connectRedis();
+	}
+
+	private _buildRedisOptions(cacheOptions?: RedisServiceCacheOptions): RedisOptions {
 		const baseOptions: RedisOptions = {
 			lazyConnect: true,
 			retryStrategy: (times: number) => {
@@ -34,16 +41,18 @@ export class RedisServiceCache implements IServiceCache {
 				return Math.min(times * 200, 5000);
 			},
 			maxRetriesPerRequest: 3,
+		};
+		return {
+			...baseOptions,
 			...(cacheOptions?.password ? { password: cacheOptions.password } : {}),
 			...(cacheOptions?.tls ? { tls: cacheOptions.tls } : {}),
 			...(cacheOptions?.sentinels
 				? { sentinels: cacheOptions.sentinels, name: "mymaster" }
 				: {}),
 		};
-		this._redis = new Redis(redisUrl, baseOptions);
-		this._prefix = prefix;
-		this._ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
+	}
 
+	private _connectRedis(): void {
 		this._redis.connect().catch((err) => {
 			logger.error("Failed to connect Redis service cache", {
 				error: normalizeError(err),
@@ -126,29 +135,38 @@ export class RedisServiceCache implements IServiceCache {
 		}
 	}
 
+	private async _scanAllKeys(): Promise<string[]> {
+		let cursor = "0";
+		const keysToDelete: string[] = [];
+		do {
+			const [nextCursor, batch] = await this._redis.scan(
+				cursor,
+				"MATCH",
+				`${this._prefix}*`,
+				"COUNT",
+				200,
+			);
+			cursor = nextCursor;
+			keysToDelete.push(...batch);
+		} while (cursor !== "0");
+		return keysToDelete;
+	}
+
+	private async _deleteKeys(keys: string[]): Promise<void> {
+		if (keys.length === 0) {
+			return;
+		}
+		const pipeline = this._redis.pipeline();
+		for (const key of keys) {
+			pipeline.del(key);
+		}
+		await pipeline.exec();
+	}
+
 	async clear(): Promise<void> {
 		try {
-			let cursor = "0";
-			const keysToDelete: string[] = [];
-			do {
-				const [nextCursor, batch] = await this._redis.scan(
-					cursor,
-					"MATCH",
-					`${this._prefix}*`,
-					"COUNT",
-					200
-				);
-				cursor = nextCursor;
-				keysToDelete.push(...batch);
-			} while (cursor !== "0");
-
-			if (keysToDelete.length > 0) {
-				const pipeline = this._redis.pipeline();
-				for (const key of keysToDelete) {
-					pipeline.del(key);
-				}
-				await pipeline.exec();
-			}
+			const keys = await this._scanAllKeys();
+			await this._deleteKeys(keys);
 		} catch (err) {
 			logger.warn("Redis cache clear failed", { error: normalizeError(err) });
 		}
@@ -225,9 +243,13 @@ export class RedisServiceCache implements IServiceCache {
 		}
 	}
 
+	private _circuitKey(instanceId: string): string {
+		return `${this._prefix}circuit:${instanceId}`;
+	}
+
 	async getCircuitState(instanceId: string): Promise<CircuitState | null> {
 		try {
-			const raw = await this._redis.get(`${this._prefix}circuit:${instanceId}`);
+			const raw = await this._redis.get(this._circuitKey(instanceId));
 			if (!raw) {
 				return null;
 			}

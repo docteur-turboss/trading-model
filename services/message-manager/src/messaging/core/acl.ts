@@ -25,42 +25,67 @@ function aclTtlWithJitter(): number {
 async function doLoadAllowedServices(
 	topic: string
 ): Promise<string[] | "deny"> {
-	const now = Date.now();
 	try {
 		const redis = await getRedisClient();
 		const aclKey = `${ENV.REDIS_PREFIX}acl:${topic}`;
 		const services = await redis.smembers(aclKey);
-		if (ACL_CACHE.size >= ACL_CACHE_MAX_SIZE) {
-			const evictCount = Math.ceil(ACL_CACHE_MAX_SIZE * 0.25);
-			const keys = [...ACL_CACHE.keys()];
-			for (let i = 0; i < evictCount && i < keys.length; i++) {
-				ACL_CACHE.delete(keys[i]);
-			}
-		}
-		ACL_CACHE.set(topic, { services, expiresAt: now + aclTtlWithJitter() });
-		return services;
+		return cacheAndReturn(topic, services);
 	} catch {
 		logger.warn("ACL: Redis unavailable — deny access for topic", { topic });
 		return "deny";
 	}
 }
 
+function cacheAndReturn(topic: string, services: string[]): string[] {
+	evictIfNeeded();
+	ACL_CACHE.set(topic, { services, expiresAt: Date.now() + aclTtlWithJitter() });
+	return services;
+}
+
+function evictIfNeeded(): void {
+	if (ACL_CACHE.size < ACL_CACHE_MAX_SIZE) {
+		return;
+	}
+	const evictCount = Math.ceil(ACL_CACHE_MAX_SIZE * 0.25);
+	const keys = [...ACL_CACHE.keys()];
+	for (let i = 0; i < evictCount && i < keys.length; i++) {
+		ACL_CACHE.delete(keys[i]);
+	}
+}
+
 async function getAllowedServices(topic: string): Promise<string[] | "deny"> {
+	const cached = getFromCache(topic);
+	if (cached) {
+		return cached;
+	}
+
+	const inFlight = await waitForInFlight(topic);
+	if (inFlight) {
+		return inFlight;
+	}
+
+	return loadAndCache(topic);
+}
+
+function getFromCache(topic: string): string[] | null {
 	const now = Date.now();
 	const cached = ACL_CACHE.get(topic);
 	if (cached && now < cached.expiresAt) {
 		return cached.services;
 	}
+	return null;
+}
 
+async function waitForInFlight(topic: string): Promise<string[] | null> {
 	const inFlight = ACL_LOADING.get(topic);
-	if (inFlight) {
-		await inFlight;
-		const refreshed = ACL_CACHE.get(topic);
-		if (refreshed && now < refreshed.expiresAt) {
-			return refreshed.services;
-		}
+	if (!inFlight) {
+		return null;
 	}
+	await inFlight;
+	return getFromCache(topic);
+}
 
+async function loadAndCache(topic: string): Promise<string[] | "deny"> {
 	const loadPromise = doLoadAllowedServices(topic);
 	ACL_LOADING.set(topic, loadPromise);
 	try {

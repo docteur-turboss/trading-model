@@ -65,17 +65,23 @@ export class WebSocketClient {
 		this._eventHandler = handler;
 	}
 
+	private _setupWsHandlers(): void {
+		if (!this._ws) {
+			return;
+		}
+		this._ws.on("open", () => this._onOpen());
+		this._ws.on("message", (data: WebSocket.Data) => this._onMessage(data));
+		this._ws.on("close", (code: number) => this._onClose(code));
+		this._ws.on("error", (error: Error) => this._onError(error));
+	}
+
 	connect(): void {
 		if (this._ws) {
 			return;
 		}
-
 		try {
 			this._ws = new WebSocket(this._url);
-			this._ws.on("open", () => this._onOpen());
-			this._ws.on("message", (data: WebSocket.Data) => this._onMessage(data));
-			this._ws.on("close", (code: number) => this._onClose(code));
-			this._ws.on("error", (error: Error) => this._onError(error));
+			this._setupWsHandlers();
 		} catch (error) {
 			logger.error("WebSocket connection failed", {
 				error: normalizeError(error),
@@ -145,15 +151,19 @@ export class WebSocketClient {
 		return this._ws !== null && this._ws.readyState === WebSocket.OPEN;
 	}
 
+	private _logMaxReconnectAttempts(): void {
+		logger.warn("WebSocket max reconnect attempts reached", {
+			url: this._url,
+			attempts: this._wsReconnectState.attempt,
+		});
+	}
+
 	private _scheduleReconnect(): void {
 		if (!this._shouldReconnect) {
 			return;
 		}
 		if (this._wsReconnectState.attempt >= this._maxReconnectAttempts) {
-			logger.warn("WebSocket max reconnect attempts reached", {
-				url: this._url,
-				attempts: this._wsReconnectState.attempt,
-			});
+			this._logMaxReconnectAttempts();
 			return;
 		}
 		scheduleWsReconnect({

@@ -20,7 +20,7 @@ export class LatencyMonitor {
 		this._p99ThresholdMs = p99ThresholdMs;
 	}
 
-	record(instanceId: string, durationMs: number): boolean {
+	private _getOrCreateWindow(instanceId: string): LatencyWindow {
 		let window = this._windows.get(instanceId);
 		if (!window) {
 			window = {
@@ -30,18 +30,24 @@ export class LatencyMonitor {
 			};
 			this._windows.set(instanceId, window);
 		}
+		return window;
+	}
 
+	private _addSample(window: LatencyWindow, durationMs: number): void {
 		window.samples[window.cursor] = durationMs;
 		window.cursor = (window.cursor + 1) % this._windowSize;
 		if (window.count < this._windowSize) {
 			window.count++;
 		}
+	}
 
+	record(instanceId: string, durationMs: number): boolean {
+		const window = this._getOrCreateWindow(instanceId);
+		this._addSample(window, durationMs);
 		if (window.count >= 10) {
 			const p99 = this._computeP99(window);
 			return p99 > this._p99ThresholdMs;
 		}
-
 		return false;
 	}
 

@@ -102,22 +102,27 @@ function validateAddEntryBody(
 
 async function pushToRedisQueue(id: string): Promise<void> {
 	try {
-		await Promise.race([
-			dlqRedisQueue.push(id),
-			new Promise<void>((_, reject) => {
-				const timer = setTimeout(
-					() => reject(new Error("Redis push timeout")),
-					2000
-				);
-				timer.unref();
-			}),
-		]);
+		await Promise.race([dlqRedisQueue.push(id), _redisPushTimeout()]);
 	} catch (err) {
-		logger.warn("Failed to push entry to Redis queue", {
-			entryId: id,
-			error: (err as Error)?.message,
-		});
+		_logRedisPushError(id, err);
 	}
+}
+
+function _redisPushTimeout(): Promise<void> {
+	return new Promise<void>((_, reject) => {
+		const timer = setTimeout(
+			() => reject(new Error("Redis push timeout")),
+			2000
+		);
+		timer.unref();
+	});
+}
+
+function _logRedisPushError(entryId: string, err: unknown): void {
+	logger.warn("Failed to push entry to Redis queue", {
+		entryId,
+		error: (err as Error)?.message,
+	});
 }
 
 function handleAddEntryError(
@@ -125,16 +130,29 @@ function handleAddEntryError(
 	span: import("@opentelemetry/api").Span
 ): ResponseObject {
 	if (err instanceof DlqCapacityError) {
-		span.setStatus({
-			code: SpanStatusCode.ERROR,
-			message: "DLQ capacity limit reached",
-		});
-		span.end();
-		return sendResponse(
-			{ error: "DLQ capacity limit reached, entry rejected" },
-			429
-		);
+		return _handleCapacityError(span);
 	}
+	return _handleStorageError(err, span);
+}
+
+function _handleCapacityError(
+	span: import("@opentelemetry/api").Span
+): ResponseObject {
+	span.setStatus({
+		code: SpanStatusCode.ERROR,
+		message: "DLQ capacity limit reached",
+	});
+	span.end();
+	return sendResponse(
+		{ error: "DLQ capacity limit reached, entry rejected" },
+		429
+	);
+}
+
+function _handleStorageError(
+	err: unknown,
+	span: import("@opentelemetry/api").Span
+): ResponseObject {
 	logger.error("Failed to persist DLQ entry — storage error", {
 		error: normalizeError(err).message,
 	});
@@ -272,29 +290,41 @@ export async function pruneOldEntries(): Promise<number> {
 		}
 		return pruned;
 	} catch (err) {
-		logger.error("DLQ periodic prune failed", {
-			error: (err as Error)?.message,
-		});
-		metrics.pruneErrors.inc(1);
-		return 0;
+		return _handlePruneError(err);
 	}
+}
+
+function _handlePruneError(err: unknown): number {
+	logger.error("DLQ periodic prune failed", {
+		error: (err as Error)?.message,
+	});
+	metrics.pruneErrors.inc(1);
+	return 0;
 }
 
 export function startPeriodicPrune(): void {
 	if (pruneTimer) {
 		return;
 	}
-	logger.info("Starting periodic DLQ prune", {
-		intervalMs: env.DLQ_PRUNE_INTERVAL_MS,
-	});
+	_logPruneStart();
 	pruneTimer = setInterval(() => {
 		pruneOldEntries().catch((err) => {
-			logger.warn("Periodic prune iteration failed", {
-				error: (err as Error)?.message,
-			});
+			_logPruneIterationError(err);
 		});
 	}, env.DLQ_PRUNE_INTERVAL_MS);
 	pruneTimer.unref();
+}
+
+function _logPruneStart(): void {
+	logger.info("Starting periodic DLQ prune", {
+		intervalMs: env.DLQ_PRUNE_INTERVAL_MS,
+	});
+}
+
+function _logPruneIterationError(err: unknown): void {
+	logger.warn("Periodic prune iteration failed", {
+		error: (err as Error)?.message,
+	});
 }
 
 export function stopPeriodicPrune(): void {
@@ -312,28 +342,37 @@ async function drainActiveReplays(): Promise<void> {
 	logger.info(
 		`Waiting for ${activeReplays.count} in-flight replays to complete`
 	);
-	const drainTimeout = 10_000;
-	const deadline = Date.now() + drainTimeout;
-	while (activeReplays.count > 0 && Date.now() < deadline) {
-		await new Promise<void>((resolve) => {
-			const timer = setTimeout(resolve, 100);
-			timer.unref();
-		});
-	}
+	await _waitForReplays();
 
 	if (activeReplays.count === 0) {
 		return;
 	}
 
+	await _forceReleaseClaims();
+}
+
+async function _waitForReplays(): Promise<void> {
+	const drainTimeout = 10_000;
+	const deadline = Date.now() + drainTimeout;
+	while (activeReplays.count > 0 && Date.now() < deadline) {
+		await _sleep(100);
+	}
+}
+
+async function _forceReleaseClaims(): Promise<void> {
 	logger.warn(
 		`${activeReplays.count} replays did not complete within drain timeout — releasing their claims`
 	);
 	await dlqClaimManager.releaseAllActiveClaims();
-	await new Promise<void>((resolve) => {
-		const timer = setTimeout(resolve, 500);
+	await _sleep(500);
+	await dlqClaimManager.releaseAllActiveClaims();
+}
+
+function _sleep(ms: number): Promise<void> {
+	return new Promise<void>((resolve) => {
+		const timer = setTimeout(resolve, ms);
 		timer.unref();
 	});
-	await dlqClaimManager.releaseAllActiveClaims();
 }
 
 async function releaseAndRequeueClaims(): Promise<void> {
@@ -341,17 +380,18 @@ async function releaseAndRequeueClaims(): Promise<void> {
 		env.INSTANCE_ID
 	);
 	if (releasedCount > 0 && dlqRedisQueue.isAvailable()) {
-		const allQueuable = await dlqRepository.listQueuable();
-		const uniqueIds = [...new Set(allQueuable)];
-		const toPush = uniqueIds.slice(
-			0,
-			Math.min(releasedCount, uniqueIds.length)
-		);
+		const toPush = await _computeRequeueBatch(releasedCount);
 		for (const id of toPush) {
 			dlqRedisQueue.push(id).catch(() => {});
 		}
 		logger.info(`Re-queued up to ${toPush.length} entries after shutdown`);
 	}
+}
+
+async function _computeRequeueBatch(releasedCount: number): Promise<string[]> {
+	const allQueuable = await dlqRepository.listQueuable();
+	const uniqueIds = [...new Set(allQueuable)];
+	return uniqueIds.slice(0, Math.min(releasedCount, uniqueIds.length));
 }
 
 export async function releaseStaleClaims(

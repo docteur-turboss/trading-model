@@ -37,35 +37,53 @@ export class MessageManagerCircuitBreaker {
 
 	recordResult(success: boolean): void {
 		if (success) {
-			if (this._failures > 0) {
-				this._failures = 0;
-			}
-			this._openUntil = 0;
-			this._halfOpenAttempts = 0;
+			this._resetOnSuccess();
 		} else {
-			this._failures++;
-			if (this._openUntil > 0) {
-				this._halfOpenAttempts++;
-				if (this._halfOpenAttempts >= this._config.halfOpenMaxAttempts) {
-					this._openUntil = Date.now() + this._config.resetMs;
-					logger.warn(
-						`${this._config.name} circuit breaker re-opened during half-open`,
-						{
-							failures: this._failures,
-							halfOpenAttempts: this._halfOpenAttempts,
-							resetMs: this._config.resetMs,
-						}
-					);
-				}
-			}
-			if (this._failures >= this._config.failureThreshold) {
-				this._openUntil = Date.now() + this._config.resetMs;
-				logger.warn(`${this._config.name} circuit breaker opened`, {
-					failures: this._failures,
-					resetMs: this._config.resetMs,
-				});
-			}
+			this._handleFailure();
 		}
+	}
+
+	private _resetOnSuccess(): void {
+		if (this._failures > 0) {
+			this._failures = 0;
+		}
+		this._openUntil = 0;
+		this._halfOpenAttempts = 0;
+	}
+
+	private _handleFailure(): void {
+		this._failures++;
+		this._checkHalfOpenReopen();
+		this._checkThresholdOpen();
+	}
+
+	private _checkHalfOpenReopen(): void {
+		if (this._openUntil <= 0) {
+			return;
+		}
+		this._halfOpenAttempts++;
+		if (this._halfOpenAttempts >= this._config.halfOpenMaxAttempts) {
+			this._openUntil = Date.now() + this._config.resetMs;
+			logger.warn(
+				`${this._config.name} circuit breaker re-opened during half-open`,
+				{
+					failures: this._failures,
+					halfOpenAttempts: this._halfOpenAttempts,
+					resetMs: this._config.resetMs,
+				}
+			);
+		}
+	}
+
+	private _checkThresholdOpen(): void {
+		if (this._failures < this._config.failureThreshold) {
+			return;
+		}
+		this._openUntil = Date.now() + this._config.resetMs;
+		logger.warn(`${this._config.name} circuit breaker opened`, {
+			failures: this._failures,
+			resetMs: this._config.resetMs,
+		});
 	}
 
 	reset(): void {

@@ -27,14 +27,23 @@ export function notifyReplayAudit(result: ReplayAuditResult): void {
 	if (success === 0 && failed === 0) {
 		return;
 	}
-	void notifyAudit({
+	void notifyAudit(_buildReplayAuditEvent(batchId, topic, success, failed));
+}
+
+function _buildReplayAuditEvent(
+	batchId: string,
+	topic: string | undefined,
+	success: number,
+	failed: number
+): Parameters<typeof notifyAudit>[0] {
+	return {
 		timestamp: new Date().toISOString(),
 		topic: topic ?? "unknown",
 		publisher: "dlq-service",
 		correlationId: batchId,
 		summary: `DLQ replay: ${success} succeeded, ${failed} failed`,
 		severity: failed > 0 ? "ERROR" : "INFO",
-	});
+	};
 }
 
 export function notifyAbandonAudit(count: number): void {

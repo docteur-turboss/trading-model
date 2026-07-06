@@ -5,11 +5,7 @@ export interface PaginationQuery {
 	offset?: number;
 }
 
-/** Date range filter for time-series queries. */
-export interface DateRange {
-	start?: Date;
-	end?: Date;
-}
+export type { DateRange } from "../domain/date-range";
 
 /** Standard paginated response wrapper. */
 export interface PaginatedResponse<T> {

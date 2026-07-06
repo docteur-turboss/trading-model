@@ -30,42 +30,54 @@ async function ensureRedisQueue(): Promise<void> {
 			void rebuildQueueFromMongo();
 		});
 	} catch (err) {
-		logger.warn(
-			"Redis queue unavailable on start — operations continue in DEGRADED mode",
-			{
-				error: normalizeError(err),
-			}
-		);
+		_logRedisQueueWarning(normalizeError(err));
 	}
+}
+
+function _logRedisQueueWarning(error: { message: string }): void {
+	logger.warn(
+		"Redis queue unavailable on start — operations continue in DEGRADED mode",
+		{
+			error,
+		}
+	);
 }
 
 function createResilientTlsBootstrap(): TlsBootstrapOptions | null {
 	try {
 		const tls = createTlsBootstrap(process.env as Record<string, string>);
 		if (tls?.setupAutoRenew) {
-			const originalSetupAutoRenew = tls.setupAutoRenew.bind(tls);
-			tls.setupAutoRenew = (server: import("node:https").Server) => {
-				originalSetupAutoRenew(server);
-				reloadHttpClientTls().catch((err: unknown) => {
-					logger.warn(
-						"Failed to reload HTTP client TLS after certificate renewal",
-						{
-							error: normalizeError(err),
-						}
-					);
-				});
-			};
+			_wrapAutoRenew(tls);
 		}
 		return tls;
 	} catch (err) {
-		logger.warn(
-			"TLS bootstrap from CA unavailable — falling back to file-based TLS config",
-			{
-				error: normalizeError(err),
-			}
-		);
+		_logTlsFallback(normalizeError(err));
 		return null;
 	}
+}
+
+function _wrapAutoRenew(tls: TlsBootstrapOptions): void {
+	const originalSetupAutoRenew = tls.setupAutoRenew.bind(tls);
+	tls.setupAutoRenew = (server: import("node:https").Server) => {
+		originalSetupAutoRenew(server);
+		reloadHttpClientTls().catch((err: unknown) => {
+			_logTlsReloadError(normalizeError(err));
+		});
+	};
+}
+
+function _logTlsReloadError(error: { message: string }): void {
+	logger.warn(
+		"Failed to reload HTTP client TLS after certificate renewal",
+		{ error }
+	);
+}
+
+function _logTlsFallback(error: { message: string }): void {
+	logger.warn(
+		"TLS bootstrap from CA unavailable — falling back to file-based TLS config",
+		{ error }
+	);
 }
 
 createBootstrap({

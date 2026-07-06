@@ -2,6 +2,7 @@ import { createHmac, randomBytes } from "node:crypto";
 
 import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { ServiceInstance } from "./types";
+import { RegistryStore } from "./registry-store";
 import { TokenService } from "./token-service";
 
 /**
@@ -26,28 +27,14 @@ import { TokenService } from "./token-service";
  * - Lease expiration is enforced externally by the LeaseManager
  */
 export class ServiceRegistry {
-	/**
-	 * -------------------------
-	 * Internal Storage
-	 * -------------------------
-	 *
-	 * services:
-	 * - Map<serviceName, Map<instanceId, ServiceInstance>>
-	 *
-	 * token:
-	 * - Map<instanceId, instanceToken>
-	 *
-	 * Tokens are stored separately to allow rotation and validation
-	 * without mutating the instance metadata.
-	 */
 	private readonly _tokenService: TokenService;
-	private _services: Map<string, Map<string, ServiceInstance>> = new Map();
-	private _token: Map<string, string> = new Map();
+	private readonly _store: RegistryStore;
 
 	constructor(signingSecret?: string) {
 		this._tokenService = new TokenService(
 			signingSecret ?? randomBytes(32).toString("hex")
 		);
+		this._store = new RegistryStore(this._tokenService);
 	}
 
 	/**
@@ -66,44 +53,10 @@ export class ServiceRegistry {
 	 * Returns:
 	 * - The effective ServiceInstance plus its issued token
 	 */
-	private _ensureBucket(serviceName: string): Map<string, ServiceInstance> {
-		if (!this._services.has(serviceName)) {
-			this._services.set(serviceName, new Map());
-		}
-		return this._services.get(serviceName)!;
-	}
-
-	private _mergeOrCreateInstance(
-		instances: Map<string, ServiceInstance>,
-		instance: ServiceInstance
-	): ServiceInstance {
-		const { instanceId } = instance;
-		if (instances.has(instanceId)) {
-			const existing = instances.get(instanceId)!;
-			instances.set(instanceId, {
-				...existing,
-				...instance,
-				lastHeartbeat: Date.now(),
-			});
-		} else {
-			instances.set(instanceId, {
-				...instance,
-				registeredAt: Date.now(),
-				lastHeartbeat: Date.now(),
-			});
-		}
-		return instances.get(instanceId)!;
-	}
-
 	registerInstance(instance: ServiceInstance) {
-		const { serviceName, instanceId } = instance;
-		const instances = this._ensureBucket(serviceName);
-		const token = this._tokenService.generateInstanceToken(instanceId);
-
-		this._mergeOrCreateInstance(instances, instance);
-		this._token.set(instanceId, token);
-
-		return { ...instances.get(instanceId), token };
+		const { instance: storedInstance, token } =
+			this._store.registerInstance(instance);
+		return { ...storedInstance, token };
 	}
 
 	/**
@@ -119,21 +72,8 @@ export class ServiceRegistry {
 	 * - The instance TTL if successful
 	 * - false if the service or instance does not exist
 	 */
-	updateHeartbeat({ serviceName, instanceId }: ServiceIdentity): number | false {
-		const service = this._services.get(serviceName);
-		if (!service) {
-			return false;
-		}
-
-		const instance = service.get(instanceId);
-		if (!instance) {
-			return false;
-		}
-
-		instance.lastHeartbeat = Date.now();
-		service.set(instanceId, instance);
-
-		return instance.ttl;
+	updateHeartbeat(identity: ServiceIdentity): number | false {
+		return this._store.updateHeartbeat(identity);
 	}
 
 	/**
@@ -148,7 +88,7 @@ export class ServiceRegistry {
 	 */
 	updateToken(instanceId: string): string {
 		const newToken = this._tokenService.generateInstanceToken(instanceId);
-		this._token.set(instanceId, newToken);
+		this._store.storeToken(instanceId, newToken);
 		return newToken;
 	}
 
@@ -163,21 +103,14 @@ export class ServiceRegistry {
 	 * Liveness filtering is handled by higher-level components.
 	 */
 	getInstances(serviceName: string): ServiceInstance[] {
-		const service = this._services.get(serviceName);
-		if (!service) {
-			return [];
-		}
-		return [...service.values()];
+		return this._store.getInstances(serviceName);
 	}
 
 	/**
 	 * Returns a single service instance by service name and instanceId.
 	 */
-	getInstance({
-		serviceName,
-		instanceId,
-	}: ServiceIdentity): ServiceInstance | undefined {
-		return this._services.get(serviceName)?.get(instanceId);
+	getInstance(identity: ServiceIdentity): ServiceInstance | undefined {
+		return this._store.getInstance(identity);
 	}
 
 	/**
@@ -190,24 +123,8 @@ export class ServiceRegistry {
 	 * Typically invoked by the LeaseManager when a lease expires.
 	 * Automatically cleans up empty service entries.
 	 */
-	removeInstance({ serviceName, instanceId }: ServiceIdentity): boolean {
-		const service = this._services.get(serviceName);
-		if (!service) {
-			return false;
-		}
-
-		const deleted = service.delete(instanceId);
-
-		/**
-		 * Remove the service bucket if no instances remain.
-		 */
-		if (service.size === 0) {
-			this._services.delete(serviceName);
-		}
-
-		this._token.delete(instanceId);
-
-		return deleted;
+	removeInstance(identity: ServiceIdentity): boolean {
+		return this._store.removeInstance(identity);
 	}
 
 	/**
@@ -220,7 +137,7 @@ export class ServiceRegistry {
 	 * Returns the list of all registered service names.
 	 */
 	listServiceNames(): string[] {
-		return [...this._services.keys()];
+		return this._store.listServiceNames();
 	}
 
 	/**
@@ -235,13 +152,7 @@ export class ServiceRegistry {
 	 * Should not be exposed publicly without proper access controls.
 	 */
 	dump(): Record<string, ServiceInstance[]> {
-		const snapshot: Record<string, ServiceInstance[]> = {};
-
-		for (const [serviceName, instances] of this._services.entries()) {
-			snapshot[serviceName] = [...instances.values()];
-		}
-
-		return snapshot;
+		return this._store.dump();
 	}
 
 	/**
@@ -283,8 +194,12 @@ export class ServiceRegistry {
 	}
 
 	validInstanceToken(token: string, instanceId: string): boolean {
-		const storedToken = this._token.get(instanceId);
-		return this._tokenService.validInstanceToken(token, instanceId, storedToken);
+		const storedToken = this._store.getStoredToken(instanceId);
+		return this._tokenService.validInstanceToken(
+			token,
+			instanceId,
+			storedToken
+		);
 	}
 
 	verifyInstanceName(serviceName: string): boolean {

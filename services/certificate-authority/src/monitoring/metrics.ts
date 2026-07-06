@@ -117,6 +117,16 @@ function logWebhookError(err: unknown, webhookUrl: string): void {
 	});
 }
 
+async function _doPostWebhook(webhookUrl: string, body: string): Promise<void> {
+	const res = await fetch(webhookUrl, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body,
+		signal: AbortSignal.timeout(10_000),
+	});
+	logWebhookResult(res, webhookUrl);
+}
+
 export async function sendAlertWebhook(options: {
 	webhookUrl: string | undefined;
 	title: string;
@@ -128,16 +138,8 @@ export async function sendAlertWebhook(options: {
 	if (!webhookUrl) {
 		return;
 	}
-
 	try {
-		const body = buildWebhookPayload(title, message, severity, labels);
-		const res = await fetch(webhookUrl, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body,
-			signal: AbortSignal.timeout(10_000),
-		});
-		logWebhookResult(res, webhookUrl);
+		await _doPostWebhook(webhookUrl, buildWebhookPayload(title, message, severity, labels));
 	} catch (err) {
 		logWebhookError(err, webhookUrl);
 	}

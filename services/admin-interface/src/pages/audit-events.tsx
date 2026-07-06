@@ -33,27 +33,54 @@ function PageLoading() {
 	);
 }
 
+function TotalEventsCard({ total }: { total: number }) {
+	return (
+		<Box sx={{ flex: 1 }}>
+			<StatsCard
+				icon={<MonitorHeartIcon />}
+				value={total.toLocaleString()}
+				label="TOTAL EVENTS (24H)"
+				delta="+12.4% vs yesterday"
+				deltaColor="success.main"
+			/>
+		</Box>
+	);
+}
+
+function ErrorRateCard() {
+	return (
+		<Box sx={{ flex: 1 }}>
+			<StatsCard
+				icon={<WarningAmberIcon />}
+				value="0.04%"
+				label="ERROR RATE"
+				delta="Stability: Optimal"
+				deltaColor="success.main"
+			/>
+		</Box>
+	);
+}
+
 function AuditStats({ data }: { data: { total: number } | null | undefined }) {
 	return (
 		<Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-			<Box sx={{ flex: 1 }}>
-				<StatsCard
-					icon={<MonitorHeartIcon />}
-					value={(data?.total ?? 0).toLocaleString()}
-					label="TOTAL EVENTS (24H)"
-					delta="+12.4% vs yesterday"
-					deltaColor="success.main"
-				/>
-			</Box>
-			<Box sx={{ flex: 1 }}>
-				<StatsCard
-					icon={<WarningAmberIcon />}
-					value="0.04%"
-					label="ERROR RATE"
-					delta="Stability: Optimal"
-					deltaColor="success.main"
-				/>
-			</Box>
+			<TotalEventsCard total={data?.total ?? 0} />
+			<ErrorRateCard />
+		</Box>
+	);
+}
+
+function ChartArea({ data }: { data: { topic: string; count: number }[] }) {
+	return (
+		<Box sx={{ height: 200, mb: 3 }}>
+			<ResponsiveContainer width="100%" height="100%">
+				<BarChart data={data}>
+					<XAxis dataKey="topic" />
+					<YAxis />
+					<Tooltip />
+					<Bar dataKey="count" fill="#1976d2" />
+				</BarChart>
+			</ResponsiveContainer>
 		</Box>
 	);
 }
@@ -68,17 +95,59 @@ function VolumeByTopicChart({
 			<Typography variant="subtitle2" sx={{ mb: 1 }}>
 				Volume by Topic
 			</Typography>
-			<Box sx={{ height: 200, mb: 3 }}>
-				<ResponsiveContainer width="100%" height="100%">
-					<BarChart data={data}>
-						<XAxis dataKey="topic" />
-						<YAxis />
-						<Tooltip />
-						<Bar dataKey="count" fill="#1976d2" />
-					</BarChart>
-				</ResponsiveContainer>
-			</Box>
+			<ChartArea data={data} />
 		</>
+	);
+}
+
+function EventSearchField({
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	return (
+		<TextField
+			size="small"
+			placeholder="Search by Correlation ID, Payload or Message..."
+			value={value}
+			onChange={(evt) => onChange(evt.target.value)}
+			sx={{ minWidth: 300 }}
+		/>
+	);
+}
+
+function TopicSelect({
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	return (
+		<TextField
+			size="small"
+			select
+			value={value}
+			onChange={(evt) => onChange(evt.target.value || "")}
+			sx={{ minWidth: 140 }}
+		>
+			<MenuItem value="">All Topics</MenuItem>
+			<MenuItem value="AUTH">AUTH</MenuItem>
+			<MenuItem value="ORDER">ORDER</MenuItem>
+			<MenuItem value="PAYMENT">PAYMENT</MenuItem>
+			<MenuItem value="INVENTORY">INVENTORY</MenuItem>
+			<MenuItem value="NOTIF">NOTIF</MenuItem>
+		</TextField>
+	);
+}
+
+function ApplyFilterButton({ onClick }: { onClick: () => void }) {
+	return (
+		<Button variant="contained" size="small" onClick={onClick}>
+			Apply
+		</Button>
 	);
 }
 
@@ -93,46 +162,47 @@ function AuditFilterBar({
 }) {
 	return (
 		<Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
-			<TextField
-				size="small"
-				placeholder="Search by Correlation ID, Payload or Message..."
+			<EventSearchField
 				value={filter.correlationId ?? ""}
-				onChange={(evt) =>
-					onFilterChange({ ...filter, correlationId: evt.target.value })
+				onChange={(value) =>
+					onFilterChange({ ...filter, correlationId: value })
 				}
-				sx={{ minWidth: 300 }}
 			/>
-			<TextField
-				size="small"
-				select
+			<TopicSelect
 				value={filter.topic ?? ""}
-				onChange={(evt) =>
-					onFilterChange({
-						...filter,
-						topic: evt.target.value || undefined,
-					})
+				onChange={(value) =>
+					onFilterChange({ ...filter, topic: value || undefined })
 				}
-				sx={{ minWidth: 140 }}
+			/>
+			<ApplyFilterButton onClick={onApply} />
+		</Box>
+	);
+}
+
+function AuditPageHeader({ onRefresh }: { onRefresh: () => void }) {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+			<Box>
+				<Typography variant="h4" fontWeight={700}>
+					Audit Events
+				</Typography>
+				<Typography variant="body2" color="text.secondary">
+					Distributed observability and real-time log streams.
+				</Typography>
+			</Box>
+			<Button
+				variant="outlined"
+				startIcon={<RefreshIcon />}
+				onClick={onRefresh}
 			>
-				<MenuItem value="">All Topics</MenuItem>
-				<MenuItem value="AUTH">AUTH</MenuItem>
-				<MenuItem value="ORDER">ORDER</MenuItem>
-				<MenuItem value="PAYMENT">PAYMENT</MenuItem>
-				<MenuItem value="INVENTORY">INVENTORY</MenuItem>
-				<MenuItem value="NOTIF">NOTIF</MenuItem>
-			</TextField>
-			<Button variant="contained" size="small" onClick={onApply}>
-				Apply
+				Refresh
 			</Button>
 		</Box>
 	);
 }
 
-export function AuditEvents() {
-	const [filter, setFilter] = useState<AuditFilter>({});
-	const { data, loading, refetch } = useAuditEvents(filter);
-
-	const columns: Column<AuditEvent>[] = [
+function useAuditColumns(): Column<AuditEvent>[] {
+	return [
 		{ id: "timestamp", label: "Timestamp", render: (row) => row.timestamp },
 		{ id: "topic", label: "Topic", render: (row) => row.topic },
 		{ id: "publisher", label: "Publisher", render: (row) => row.publisher },
@@ -144,7 +214,12 @@ export function AuditEvents() {
 			render: (row) => <SeverityBadge severity={row.severity} />,
 		},
 	];
+}
 
+export function AuditEvents() {
+	const [filter, setFilter] = useState<AuditFilter>({});
+	const { data, loading, refetch } = useAuditEvents(filter);
+	const columns = useAuditColumns();
 	const chartData = data?.volumeByTopic ?? [];
 
 	if (loading) {
@@ -153,23 +228,7 @@ export function AuditEvents() {
 
 	return (
 		<Box>
-			<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-				<Box>
-					<Typography variant="h4" fontWeight={700}>
-						Audit Events
-					</Typography>
-					<Typography variant="body2" color="text.secondary">
-						Distributed observability and real-time log streams.
-					</Typography>
-				</Box>
-				<Button
-					variant="outlined"
-					startIcon={<RefreshIcon />}
-					onClick={refetch}
-				>
-					Refresh
-				</Button>
-			</Box>
+			<AuditPageHeader onRefresh={refetch} />
 
 			<AuditStats data={data} />
 

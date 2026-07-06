@@ -39,6 +39,66 @@ function PageLoading() {
 	);
 }
 
+function SymbolSelect({
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	return (
+		<TextField
+			size="small"
+			select
+			value={value}
+			onChange={(evt) => onChange(evt.target.value)}
+			sx={{ minWidth: 120 }}
+		>
+			<MenuItem value="BTCUSDT">BTC / USD</MenuItem>
+			<MenuItem value="ETHUSDT">ETH / USD</MenuItem>
+			<MenuItem value="SOLUSDT">SOL / USD</MenuItem>
+		</TextField>
+	);
+}
+
+function IntervalSelect({
+	value,
+	onChange,
+}: {
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	return (
+		<TextField
+			size="small"
+			select
+			value={value}
+			onChange={(evt) => onChange(evt.target.value)}
+			sx={{ minWidth: 100 }}
+		>
+			<MenuItem value="1m">1 Minute</MenuItem>
+			<MenuItem value="5m">5 Minutes</MenuItem>
+			<MenuItem value="15m">15 Minutes</MenuItem>
+			<MenuItem value="1h">1 Hour</MenuItem>
+			<MenuItem value="4h">4 Hours</MenuItem>
+			<MenuItem value="1d">1 Day</MenuItem>
+		</TextField>
+	);
+}
+
+function AggregationSelect() {
+	return (
+		<TextField
+			size="small"
+			select
+			defaultValue="aggregated"
+			sx={{ minWidth: 140 }}
+		>
+			<MenuItem value="aggregated">Aggregated</MenuItem>
+		</TextField>
+	);
+}
+
 function MarketDataControls({
 	symbol,
 	onSymbolChange,
@@ -52,40 +112,64 @@ function MarketDataControls({
 }) {
 	return (
 		<Box sx={{ display: "flex", gap: 2 }}>
-			<TextField
-				size="small"
-				select
-				value={symbol}
-				onChange={(evt) => onSymbolChange(evt.target.value)}
-				sx={{ minWidth: 120 }}
-			>
-				<MenuItem value="BTCUSDT">BTC / USD</MenuItem>
-				<MenuItem value="ETHUSDT">ETH / USD</MenuItem>
-				<MenuItem value="SOLUSDT">SOL / USD</MenuItem>
-			</TextField>
-			<TextField
-				size="small"
-				select
-				value={interval}
-				onChange={(evt) => onIntervalChange(evt.target.value)}
-				sx={{ minWidth: 100 }}
-			>
-				<MenuItem value="1m">1 Minute</MenuItem>
-				<MenuItem value="5m">5 Minutes</MenuItem>
-				<MenuItem value="15m">15 Minutes</MenuItem>
-				<MenuItem value="1h">1 Hour</MenuItem>
-				<MenuItem value="4h">4 Hours</MenuItem>
-				<MenuItem value="1d">1 Day</MenuItem>
-			</TextField>
-			<TextField
-				size="small"
-				select
-				defaultValue="aggregated"
-				sx={{ minWidth: 140 }}
-			>
-				<MenuItem value="aggregated">Aggregated</MenuItem>
-			</TextField>
+			<SymbolSelect value={symbol} onChange={onSymbolChange} />
+			<IntervalSelect value={interval} onChange={onIntervalChange} />
+			<AggregationSelect />
 		</Box>
+	);
+}
+
+function LastPriceCard({
+	lastPrice,
+	change,
+}: {
+	lastPrice?: number;
+	change: number;
+}) {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={
+					change >= 0 ? (
+						<TrendingUpIcon color="success" />
+					) : (
+						<TrendingDownIcon color="error" />
+					)
+				}
+				value={lastPrice ? `$${lastPrice.toLocaleString()}` : "-"}
+				label="DERNIER PRIX"
+				delta={`${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}
+				deltaColor={change >= 0 ? "success.main" : "error.main"}
+			/>
+		</Grid>
+	);
+}
+
+function High24hCard() {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard icon={<InfoIcon />} value={"-"} label="HAUT 24H" />
+		</Grid>
+	);
+}
+
+function Low24hCard() {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard
+				icon={<WarningAmberIcon color="error" />}
+				value={"-"}
+				label="BAS 24H"
+			/>
+		</Grid>
+	);
+}
+
+function Volume24hCard() {
+	return (
+		<Grid size={{ xs: 3 }}>
+			<StatsCard icon={<StorageIcon />} value={"-"} label="VOLUME 24H" />
+		</Grid>
 	);
 }
 
@@ -98,42 +182,62 @@ function MarketDataStats({
 }) {
 	return (
 		<Grid container spacing={2} sx={{ mb: 3 }}>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={
-						change >= 0 ? (
-							<TrendingUpIcon color="success" />
-						) : (
-							<TrendingDownIcon color="error" />
-						)
-					}
-					value={lastPrice ? `$${lastPrice.toLocaleString()}` : "-"}
-					label="DERNIER PRIX"
-					delta={`${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}
-					deltaColor={change >= 0 ? "success.main" : "error.main"}
-				/>
-			</Grid>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard icon={<InfoIcon />} value={"-"} label="HAUT 24H" />
-			</Grid>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard
-					icon={<WarningAmberIcon color="error" />}
-					value={"-"}
-					label="BAS 24H"
-				/>
-			</Grid>
-			<Grid size={{ xs: 3 }}>
-				<StatsCard icon={<StorageIcon />} value={"-"} label="VOLUME 24H" />
-			</Grid>
+			<LastPriceCard lastPrice={lastPrice} change={change} />
+			<High24hCard />
+			<Low24hCard />
+			<Volume24hCard />
 		</Grid>
+	);
+}
+
+function PriceAreaChart({ data }: { data: { time: number; price: number }[] }) {
+	return (
+		<ResponsiveContainer width="100%" height="100%">
+			<AreaChart data={data}>
+				<defs>
+					<linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+						<stop offset="5%" stopColor="#1976d2" stopOpacity={0.3} />
+						<stop offset="95%" stopColor="#1976d2" stopOpacity={0} />
+					</linearGradient>
+				</defs>
+				<XAxis dataKey="time" />
+				<YAxis domain={["auto", "auto"]} />
+				<Tooltip />
+				<Area
+					type="monotone"
+					dataKey="price"
+					stroke="#1976d2"
+					fill="url(#colorPrice)"
+				/>
+			</AreaChart>
+		</ResponsiveContainer>
+	);
+}
+
+function NoDataFallback() {
+	return (
+		<Typography variant="body2" color="text.secondary">
+			No data available
+		</Typography>
+	);
+}
+
+function ChartContent({
+	chartData,
+}: {
+	chartData?: { time: number; price: number }[];
+}) {
+	return chartData && chartData.length > 0 ? (
+		<PriceAreaChart data={chartData} />
+	) : (
+		<NoDataFallback />
 	);
 }
 
 function PriceChart({
 	chartData,
 }: {
-	chartData?: { time: string; price: number }[];
+	chartData?: { time: number; price: number }[];
 }) {
 	return (
 		<Box sx={{ height: 300, mb: 3 }}>
@@ -141,38 +245,14 @@ function PriceChart({
 				Price Chart
 			</Typography>
 			<Box sx={{ height: 260 }}>
-				{chartData && chartData.length > 0 ? (
-					<ResponsiveContainer width="100%" height="100%">
-						<AreaChart data={chartData}>
-							<defs>
-								<linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-									<stop offset="5%" stopColor="#1976d2" stopOpacity={0.3} />
-									<stop offset="95%" stopColor="#1976d2" stopOpacity={0} />
-								</linearGradient>
-							</defs>
-							<XAxis dataKey="time" />
-							<YAxis domain={["auto", "auto"]} />
-							<Tooltip />
-							<Area
-								type="monotone"
-								dataKey="price"
-								stroke="#1976d2"
-								fill="url(#colorPrice)"
-							/>
-						</AreaChart>
-					</ResponsiveContainer>
-				) : (
-					<Typography variant="body2" color="text.secondary">
-						No data available
-					</Typography>
-				)}
+				<ChartContent chartData={chartData} />
 			</Box>
 		</Box>
 	);
 }
 
 function computePriceChange(candles: Candle[] | null | undefined): {
-	chartData?: { time: string; price: number }[];
+	chartData?: { time: number; price: number }[];
 	lastPrice?: number;
 	change: number;
 } {
@@ -251,6 +331,50 @@ function MarketDataTabs({
 	);
 }
 
+function MarketDataToolbar({
+	symbol,
+	onSymbolChange,
+	interval,
+	onIntervalChange,
+}: {
+	symbol: string;
+	onSymbolChange: (value: string) => void;
+	interval: string;
+	onIntervalChange: (value: string) => void;
+}) {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+			<MarketDataHeader />
+			<MarketDataControls
+				symbol={symbol}
+				onSymbolChange={onSymbolChange}
+				interval={interval}
+				onIntervalChange={onIntervalChange}
+			/>
+		</Box>
+	);
+}
+
+function CandleDataTable({
+	candles,
+}: {
+	candles: Candle[] | null | undefined;
+}) {
+	return (
+		<>
+			<Typography variant="subtitle2" sx={{ mb: 1 }}>
+				Historical Candle Data
+			</Typography>
+			<DataTable
+				columns={createCandleColumns()}
+				rows={candles ?? []}
+				getId={(row) => String(row.timestamp)}
+				total={candles?.length ?? 0}
+			/>
+		</>
+	);
+}
+
 export function MarketData() {
 	const [symbol, setSymbol] = useState("BTCUSDT");
 	const [interval, setInterval] = useState("1h");
@@ -267,15 +391,12 @@ export function MarketData() {
 
 	return (
 		<Box>
-			<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-				<MarketDataHeader />
-				<MarketDataControls
-					symbol={symbol}
-					onSymbolChange={setSymbol}
-					interval={interval}
-					onIntervalChange={setInterval}
-				/>
-			</Box>
+			<MarketDataToolbar
+				symbol={symbol}
+				onSymbolChange={setSymbol}
+				interval={interval}
+				onIntervalChange={setInterval}
+			/>
 
 			<MarketDataStats lastPrice={lastPrice} change={change} />
 
@@ -283,15 +404,7 @@ export function MarketData() {
 
 			<PriceChart chartData={chartData} />
 
-			<Typography variant="subtitle2" sx={{ mb: 1 }}>
-				Historical Candle Data
-			</Typography>
-			<DataTable
-				columns={createCandleColumns()}
-				rows={candles ?? []}
-				getId={(row) => row.timestamp}
-				total={candles?.length ?? 0}
-			/>
+			<CandleDataTable candles={candles} />
 		</Box>
 	);
 }

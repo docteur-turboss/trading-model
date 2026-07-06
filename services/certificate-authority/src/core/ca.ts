@@ -54,41 +54,40 @@ export class CertificateAuthority {
 		await this._loadOrBootstrapCa();
 	}
 
-	private async _loadOrBootstrapCa(): Promise<void> {
-		if (existsSync(this._options.caKeyPath)) {
-			const privateKey = readFileSync(this._options.caKeyPath, "utf8");
-			const publicKey = createPublicKey(privateKey).export({
-				type: "spki",
-				format: "pem",
-			});
-			this._caKeyPair = { publicKey, privateKey };
+	private _loadKeyFromDisk(): boolean {
+		if (!existsSync(this._options.caKeyPath)) {
+			return false;
+		}
+		const privateKey = readFileSync(this._options.caKeyPath, "utf8");
+		const publicKey = createPublicKey(privateKey).export({
+			type: "spki",
+			format: "pem",
+		});
+		this._caKeyPair = { publicKey, privateKey };
+		return true;
+	}
 
+	private async _loadOrBootstrapCa(): Promise<void> {
+		if (this._loadKeyFromDisk()) {
 			const storedCa = await this._options.caStore.getLatest();
 			if (storedCa) {
 				this._caCertPem = storedCa.caCertPem;
 				return;
 			}
 		}
-
 		await this._bootstrapCa();
+	}
+
+	private _generateSerialNumber(): string {
+		return randomUUID().replace(/-/g, "").substring(0, 16).toUpperCase();
 	}
 
 	private async _bootstrapCa(): Promise<void> {
 		this._caKeyPair = generateKeyPair(KeyAlgorithm.rsa4096);
-
-		const serialNumber = randomUUID()
-			.replace(/-/g, "")
-			.substring(0, 16)
-			.toUpperCase();
+		const serialNumber = this._generateSerialNumber();
 		const now = new Date();
 		const expiresAt = new Date(now.getTime() + this._options.caCertTtlMs);
-
-		const certBody = this._buildCertBody({
-			serialNumber,
-			now,
-			expiresAt,
-			publicKey: this._caKeyPair.publicKey,
-		});
+		const certBody = this._buildCertBody({ serialNumber, now, expiresAt, publicKey: this._caKeyPair.publicKey });
 		this._caCertPem = this._signCertBody(certBody, this._caKeyPair.privateKey);
 		this._saveCaKey(this._caKeyPair.privateKey);
 		await this._saveCaCert(this._caCertPem, serialNumber, now, expiresAt);
@@ -111,21 +110,19 @@ export class CertificateAuthority {
 		].join("\n");
 	}
 
+	private _createCertBody(certBody: string, signature: string): string {
+		return [
+			"-----BEGIN CERTIFICATE-----",
+			...chunks(Buffer.from(JSON.stringify({ body: certBody, signature })).toString("base64"), 64),
+			"-----END CERTIFICATE-----",
+		].join("\n");
+	}
+
 	private _signCertBody(certBody: string, privateKey: string): string {
 		const sign = createSign("sha256");
 		sign.update(certBody);
 		const signature = sign.sign(privateKey, "base64");
-
-		return [
-			"-----BEGIN CERTIFICATE-----",
-			...chunks(
-				Buffer.from(JSON.stringify({ body: certBody, signature })).toString(
-					"base64"
-				),
-				64
-			),
-			"-----END CERTIFICATE-----",
-		].join("\n");
+		return this._createCertBody(certBody, signature);
 	}
 
 	private _saveCaKey(privateKey: string): void {
@@ -180,21 +177,21 @@ export class CertificateAuthority {
 		return signed;
 	}
 
-	async revokeCertificate(request: RevocationRequest): Promise<void> {
-		const cert = await this._options.certificateStore.getBySerial(
-			request.serialNumber
-		);
-		if (!cert) {
-			throw new Error(`Certificate ${request.serialNumber} not found`);
-		}
-
-		const revoked: RevokedCertificate = {
+	private _buildRevokedCertificate(request: RevocationRequest, serviceId: string): RevokedCertificate {
+		return {
 			serialNumber: request.serialNumber,
-			serviceId: cert.serviceId,
+			serviceId,
 			revokedAt: new Date(),
 			reason: request.reason,
 		};
+	}
 
+	async revokeCertificate(request: RevocationRequest): Promise<void> {
+		const cert = await this._options.certificateStore.getBySerial(request.serialNumber);
+		if (!cert) {
+			throw new Error(`Certificate ${request.serialNumber} not found`);
+		}
+		const revoked = this._buildRevokedCertificate(request, cert.serviceId);
 		await this._options.crlStore.add(revoked);
 	}
 

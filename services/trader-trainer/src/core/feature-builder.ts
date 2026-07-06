@@ -33,13 +33,23 @@ export interface PriceSnapshotContext {
 	priceSnapshot: Record<TradingSymbol, number>;
 }
 
+function _initFeatures(state: SymbolState, idx: number): {
+	features: Float32Array;
+	cur: import("@trading-model/common/config/event.types").CandleData;
+	prev: import("@trading-model/common/config/event.types").CandleData | undefined;
+} {
+	return {
+		features: new Float32Array(FEATURE_DIM),
+		cur: state.candles[idx],
+		prev: state.candles[idx - 1],
+	};
+}
+
 export function buildFeatures(
 	ctx: FeatureBuilderContext
 ): Float32Array {
 	const { state, idx, priceSnapshot } = ctx;
-	const features = new Float32Array(FEATURE_DIM);
-	const cur = state.candles[idx];
-	const prev = state.candles[idx - 1];
+	const { features, cur, prev } = _initFeatures(state, idx);
 
 	_buildCandleFeatures({ features, state, idx, prev });
 	_buildOrderBookFeatures(features, state);
@@ -50,8 +60,24 @@ export function buildFeatures(
 	_buildSlidingWindowFeatures(features, state, idx);
 
 	features[31] = 1.0;
-
 	return features;
+}
+
+function _candleReturnRatio(cur: import("@trading-model/common/config/event.types").CandleData, prev?: import("@trading-model/common/config/event.types").CandleData): number {
+	return prev && prev.close > 0 ? (cur.close - prev.close) / prev.close : 0;
+}
+
+function _candlePositionRatio(cur: import("@trading-model/common/config/event.types").CandleData): number {
+	return cur.high - cur.low > 0 ? (cur.close - cur.open) / (cur.high - cur.low) : 0;
+}
+
+function _candleRangeRatio(cur: import("@trading-model/common/config/event.types").CandleData): number {
+	return cur.close > 0 ? (cur.high - cur.low) / cur.close : 0;
+}
+
+function _candleVolumeRatio(cur: import("@trading-model/common/config/event.types").CandleData, state: SymbolState): number {
+	const volStd = state.norm.candleVolume.getStd();
+	return volStd > 1e-10 ? cur.volume / volStd : 0;
 }
 
 function _buildCandleFeatures(
@@ -61,18 +87,13 @@ function _buildCandleFeatures(
 	const cur = state.candles[idx];
 	features[0] = state.norm.candleClose.normalize(cur.close);
 	features[1] = state.norm.candleVolume.normalize(cur.volume);
-	const prev = ctx.prev;
-	features[2] =
-		prev && prev.close > 0 ? (cur.close - prev.close) / prev.close : 0;
-	features[3] =
-		cur.high - cur.low > 0 ? (cur.close - cur.open) / (cur.high - cur.low) : 0;
-	features[4] = cur.close > 0 ? (cur.high - cur.low) / cur.close : 0;
+	features[2] = _candleReturnRatio(cur, ctx.prev);
+	features[3] = _candlePositionRatio(cur);
+	features[4] = _candleRangeRatio(cur);
 	features[5] = state.norm.candleOpen.normalize(cur.open);
 	features[6] = state.norm.candleHigh.normalize(cur.high);
 	features[7] = state.norm.candleLow.normalize(cur.low);
-
-	const volStd = state.norm.candleVolume.getStd();
-	features[8] = volStd > 1e-10 ? cur.volume / volStd : 0;
+	features[8] = _candleVolumeRatio(cur, state);
 }
 
 function _buildOrderBookFeatures(
@@ -105,28 +126,36 @@ function _buildBookTickerFeatures(
 	}
 }
 
+function _filterRecentTrades(
+	trades: import("@trading-model/common/config/event.types").TradeData[],
+	sinceTimestamp: number
+): import("@trading-model/common/config/event.types").TradeData[] {
+	return trades.filter((trade) => trade.timestamp >= sinceTimestamp);
+}
+
+function _setTradeFeatures(
+	features: Float32Array,
+	state: SymbolState,
+	recentTrades: import("@trading-model/common/config/event.types").TradeData[]
+): void {
+	const avgPrice = recentTrades.reduce((acc, trade) => acc + trade.price, 0) / recentTrades.length;
+	const totalQty = recentTrades.reduce((acc, trade) => acc + trade.quantity, 0);
+	const buyQty = recentTrades
+		.filter((trade) => trade.side === "buy")
+		.reduce((acc, trade) => acc + trade.quantity, 0);
+	features[16] = state.norm.tradePrice.normalize(avgPrice);
+	features[17] = state.norm.tradeQty.normalize(totalQty);
+	features[18] = totalQty > 0 ? buyQty / totalQty : 0.5;
+}
+
 function _buildTradeFeatures(
 	features: Float32Array,
 	state: SymbolState,
 	cur: CandleData
 ): void {
-	const recentTrades = state.trades.filter(
-		(trade) => trade.timestamp >= cur.timestamp - 60000
-	);
+	const recentTrades = _filterRecentTrades(state.trades, cur.timestamp - 60000);
 	if (recentTrades.length > 0) {
-		const avgPrice =
-			recentTrades.reduce((acc, trade) => acc + trade.price, 0) /
-			recentTrades.length;
-		const totalQty = recentTrades.reduce(
-			(acc, trade) => acc + trade.quantity,
-			0
-		);
-		const buyQty = recentTrades
-			.filter((trade) => trade.side === "buy")
-			.reduce((acc, trade) => acc + trade.quantity, 0);
-		features[16] = state.norm.tradePrice.normalize(avgPrice);
-		features[17] = state.norm.tradeQty.normalize(totalQty);
-		features[18] = totalQty > 0 ? buyQty / totalQty : 0.5;
+		_setTradeFeatures(features, state, recentTrades);
 	}
 }
 
@@ -167,20 +196,28 @@ function _buildSlidingWindowFeatures(
 	}
 }
 
+function _computeOrderBookAverages(ob: import("@trading-model/common/config/event.types").OrderBookData): {
+	avgBid: number;
+	avgAsk: number;
+	bidQty: number;
+	askQty: number;
+} {
+	return {
+		avgBid: getAvgBid(ob),
+		avgAsk: getAvgAsk(ob),
+		bidQty: getBidTotalQty(ob),
+		askQty: getAskTotalQty(ob),
+	};
+}
+
 function orderBookAverages(state: SymbolState): {
 	avgBid: number;
 	avgAsk: number;
 	bidQty: number;
 	askQty: number;
 } | null {
-	if (state.orderBook) {
-		const ob = state.orderBook;
-		return {
-			avgBid: getAvgBid(ob),
-			avgAsk: getAvgAsk(ob),
-			bidQty: getBidTotalQty(ob),
-			askQty: getAskTotalQty(ob),
-		};
+	if (!state.orderBook) {
+		return null;
 	}
-	return null;
+	return _computeOrderBookAverages(state.orderBook);
 }

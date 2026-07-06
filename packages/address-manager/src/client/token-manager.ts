@@ -87,34 +87,46 @@ export class TokenManager {
 	 * const token = tokenManager.getToken();
 	 * ```
 	 */
+	private _buildAuthHeaders(): Record<string, string> {
+		const headers: Record<string, string> = {};
+		if (this._token) {
+			headers["x-instance-token"] = this._token;
+		}
+		return headers;
+	}
+
+	private _buildTokenPayload(): { instanceId: string; serviceName: string } {
+		return {
+			instanceId: this._config.identity.instanceId,
+			serviceName: this._config.identity.serviceName,
+		};
+	}
+
 	async refreshToken(): Promise<void> {
 		try {
-			const headers: Record<string, string> = {};
-			if (this._token) {
-				headers["x-instance-token"] = this._token;
-			}
-
-			const response = await this._httpClient.post<{ token: string }>(
-				`${this._config.addressManagerUrl}/token/rotate`,
-				{
-					instanceId: this._config.identity.instanceId,
-					serviceName: this._config.identity.serviceName,
-				},
-				{ headers }
-			);
-
-			if (!response?.token) {
-				throw new AuthenticationError("Invalid token response from Address Manager");
-			}
-
-			this._token = response.token;
+			await this._doRefreshToken();
 		} catch (err) {
-			if (
-				err instanceof AuthenticationError
-			) {
+			if (err instanceof AuthenticationError) {
 				throw err;
 			}
-			throw new AuthenticationError("Failed to refresh authentication token",{cause: err})
+			throw new AuthenticationError(
+				"Failed to refresh authentication token",
+				{ cause: err },
+			);
 		}
+	}
+
+	private async _doRefreshToken(): Promise<void> {
+		const response = await this._httpClient.post<{ token: string }>(
+			`${this._config.addressManagerUrl}/token/rotate`,
+			this._buildTokenPayload(),
+			{ headers: this._buildAuthHeaders() },
+		);
+		if (!response?.token) {
+			throw new AuthenticationError(
+				"Invalid token response from Address Manager",
+			);
+		}
+		this._token = response.token;
 	}
 }

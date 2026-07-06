@@ -38,34 +38,77 @@ function PageLoading() {
 	);
 }
 
+function SecretSecurityBox() {
+	return (
+		<InfoBox
+			icon={<LockIcon />}
+			title="Secret Security"
+			description="Vault-sourced secrets are injected at startup and never stored in plaintext on the pod filesystem."
+			color="info.main"
+		/>
+	);
+}
+
+function ConfigMapPropagationBox() {
+	return (
+		<InfoBox
+			icon={<CheckCircleIcon color="success" />}
+			title="ConfigMap Propagation"
+			description="ConfigMap changes may take up to 60 seconds to propagate to all active instances."
+			color="success.main"
+		/>
+	);
+}
+
+function AuditLogBox() {
+	return (
+		<InfoBox
+			icon={<SyncIcon />}
+			title="Audit Log"
+			description="All secret reveal actions are logged in the audit registry with user ID and timestamp."
+		/>
+	);
+}
+
 function ConfigInfoBoxes() {
 	return (
 		<Box sx={{ display: "flex", gap: 2, mt: 3 }}>
-			<InfoBox
-				icon={<LockIcon />}
-				title="Secret Security"
-				description="Vault-sourced secrets are injected at startup and never stored in plaintext on the pod filesystem."
-				color="info.main"
-			/>
-			<InfoBox
-				icon={<CheckCircleIcon color="success" />}
-				title="ConfigMap Propagation"
-				description="ConfigMap changes may take up to 60 seconds to propagate to all active instances."
-				color="success.main"
-			/>
-			<InfoBox
-				icon={<SyncIcon />}
-				title="Audit Log"
-				description="All secret reveal actions are logged in the audit registry with user ID and timestamp."
-			/>
+			<SecretSecurityBox />
+			<ConfigMapPropagationBox />
+			<AuditLogBox />
 		</Box>
 	);
 }
 
-export function Config() {
-	const { data, loading, refetch } = useApi(() => API_CLIENT.getConfig());
+function ConfigPageHeader({ onRefresh }: { onRefresh: () => void }) {
+	return (
+		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+			<Box>
+				<Typography variant="h4" fontWeight={700}>
+					Configuration Variables
+				</Typography>
+				<Typography variant="body2" color="text.secondary">
+					Manage secrets and environment variables for your microservices.
+				</Typography>
+			</Box>
+			<Box sx={{ display: "flex", gap: 1 }}>
+				<Button
+					variant="outlined"
+					startIcon={<RefreshIcon />}
+					onClick={onRefresh}
+				>
+					Refresh
+				</Button>
+				<Button variant="contained" startIcon={<AddIcon />}>
+					New Variable
+				</Button>
+			</Box>
+		</Box>
+	);
+}
 
-	const columns: Column<ConfigEntry>[] = [
+function useConfigColumns(): Column<ConfigEntry>[] {
+	return [
 		{
 			id: "key",
 			label: "Config Key",
@@ -105,6 +148,11 @@ export function Config() {
 		{ id: "service", label: "Service", render: (row) => row.service },
 		{ id: "updated", label: "Updated", render: (row) => row.updatedAt },
 	];
+}
+
+export function Config() {
+	const { data, loading, refetch } = useApi(() => API_CLIENT.getConfig());
+	const columns = useConfigColumns();
 
 	if (loading) {
 		return <PageLoading />;
@@ -112,28 +160,7 @@ export function Config() {
 
 	return (
 		<Box>
-			<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-				<Box>
-					<Typography variant="h4" fontWeight={700}>
-						Configuration Variables
-					</Typography>
-					<Typography variant="body2" color="text.secondary">
-						Manage secrets and environment variables for your microservices.
-					</Typography>
-				</Box>
-				<Box sx={{ display: "flex", gap: 1 }}>
-					<Button
-						variant="outlined"
-						startIcon={<RefreshIcon />}
-						onClick={refetch}
-					>
-						Refresh
-					</Button>
-					<Button variant="contained" startIcon={<AddIcon />}>
-						New Variable
-					</Button>
-				</Box>
-			</Box>
+			<ConfigPageHeader onRefresh={refetch} />
 
 			<DataTable
 				columns={columns}

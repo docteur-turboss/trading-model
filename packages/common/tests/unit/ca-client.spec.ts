@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { RevocationReason } from "../../src/domain/revocation-request";
 
 const MOCK_GET = jest.fn<any>();
 const MOCK_POST = jest.fn<any>();
@@ -155,12 +156,12 @@ describe("CaClient", () => {
 
 			await client.revokeCertificate({
 				serialNumber: "serial-123",
-				reason: "compromised",
+				reason: RevocationReason.KEY_COMPROMISE,
 			});
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://ca.example.com:8443/api/v1/certificate/revoke",
-				{ serialNumber: "serial-123", reason: "compromised" }
+				{ serialNumber: "serial-123", reason: RevocationReason.KEY_COMPROMISE }
 			);
 		});
 
@@ -170,7 +171,7 @@ describe("CaClient", () => {
 			await expect(
 				client.revokeCertificate({
 					serialNumber: "serial-123",
-					reason: "key-compromise",
+					reason: RevocationReason.KEY_COMPROMISE,
 				})
 			).rejects.toThrow("Timeout");
 		});

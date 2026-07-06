@@ -66,40 +66,55 @@ export interface AddressManagerEnv {
 export function createAddressManager(env: AddressManagerEnv) {
 	const discoveryUrls = resolveDiscoveryUrls(
 		env.ADDRESS_MANAGER_URL,
-		env.ADDRESS_MANAGER_URLS
+		env.ADDRESS_MANAGER_URLS,
 	);
 	const wsSubscribedServices = resolveWsSubscribedServices(
-		env.WS_SUBSCRIBED_SERVICES
+		env.WS_SUBSCRIBED_SERVICES,
 	);
+	return new AddressManager(_buildAddressManagerConfig(env, discoveryUrls, wsSubscribedServices));
+}
 
-	return new AddressManager({
+function _buildAddressManagerConfig(
+	env: AddressManagerEnv,
+	discoveryUrls: string[],
+	wsSubscribedServices: string[] | undefined,
+): ConstructorParameters<typeof AddressManager>[0] {
+	return {
 		addressManagerUrl: env.ADDRESS_MANAGER_URL,
 		discoveryUrls,
 		localDiscoveryUrl: env.LOCAL_DISCOVERY_URL,
 		cacheTtlMs: env.CACHE_TTL_MS,
 		discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
-		identity: {
-			serviceName: env.SERVICE_NAME,
-			instanceId: env.INSTANCE_ID,
-			region: env.REGION,
-		},
+		identity: _buildIdentity(env),
 		servicePingTimeoutMs: env.SERVICE_PING_TIMEOUT_MS,
 		servicePort: env.PORT,
 		publicIp: env.PUBLIC_IP,
 		tokenRefreshIntervalMs: env.TOKEN_REFRESH_INTERVAL_MS,
 		ttlRefreshIntervalMs: env.TTL_REFRESH_INTERVAL_MS,
-		tls: {
-			caPath: env.TLS_CA_PATH,
-			certPath: env.TLS_CERT_PATH,
-			keyPath: env.TLS_KEY_PATH,
-		},
+		tls: _buildTls(env),
 		dnsNameMap: env.DNS_NAME_MAP,
 		metricsIntervalMs: env.METRICS_INTERVAL_MS,
 		wsUrl: env.WS_URL,
 		wsSubscribedServices,
 		maxCallRecords: env.MAX_CALL_RECORDS,
 		preferredNetworkInterface: env.PREFERRED_NETWORK_INTERFACE,
-	});
+	};
+}
+
+function _buildIdentity(env: AddressManagerEnv) {
+	return {
+		serviceName: env.SERVICE_NAME,
+		instanceId: env.INSTANCE_ID,
+		region: env.REGION,
+	};
+}
+
+function _buildTls(env: AddressManagerEnv) {
+	return {
+		caPath: env.TLS_CA_PATH,
+		certPath: env.TLS_CERT_PATH,
+		keyPath: env.TLS_KEY_PATH,
+	};
 }
 
 /**

@@ -19,7 +19,15 @@ export function initializeTelemetry(): void {
 
 	diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
 
-	sdk = new NodeSDK({
+	sdk = new NodeSDK(buildSdkOptions());
+	sdk.start();
+	logger.info("OpenTelemetry initialized", { context: {
+		endpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
+	} });
+}
+
+function buildSdkOptions(): ConstructorParameters<typeof NodeSDK>[0] {
+	return {
 		resource: resourceFromAttributes({
 			"service.name": ENV.APP_NAME,
 			"service.version": ENV.APP_VERSION,
@@ -33,12 +41,7 @@ export function initializeTelemetry(): void {
 			new ExpressInstrumentation(),
 			new IORedisInstrumentation(),
 		],
-	});
-
-	sdk.start();
-	logger.info("OpenTelemetry initialized", { context: {
-		endpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
-	} });
+	};
 }
 
 export async function shutdownTelemetry(): Promise<void> {

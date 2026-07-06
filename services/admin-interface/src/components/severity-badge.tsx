@@ -21,8 +21,13 @@ interface SeverityBadgeProps {
 	severity: string;
 }
 
-export function SeverityBadge({ severity }: SeverityBadgeProps) {
-	const style = getSeverityStyle(severity);
+function SeverityChip({
+	severity,
+	style,
+}: {
+	severity: string;
+	style: { color: string; bg: string };
+}) {
 	return (
 		<Chip
 			size="small"
@@ -35,4 +40,9 @@ export function SeverityBadge({ severity }: SeverityBadgeProps) {
 			}}
 		/>
 	);
+}
+
+export function SeverityBadge({ severity }: SeverityBadgeProps) {
+	const style = getSeverityStyle(severity);
+	return <SeverityChip severity={severity} style={style} />;
 }

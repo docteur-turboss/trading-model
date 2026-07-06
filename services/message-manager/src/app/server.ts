@@ -8,15 +8,21 @@ import { MESSAGE_MANAGER_ROUTES } from "../config/message-manager";
 export function createServer() {
 	return createSecureServer({
 		port: ENV.PORT,
-		tls: {
-			keyPath: ENV.TLS_KEY_PATH,
-			certPath: ENV.TLS_CERT_PATH,
-			caPath: ENV.TLS_CA_PATH,
-		},
+		tls: tlsConfig(),
 		trustProxy: true,
-		routes: (app) => {
-			ADDRESS_MANAGER_ROUTES(app);
-			MESSAGE_MANAGER_ROUTES(app);
-		},
+		routes: mountRoutes,
 	});
+}
+
+function tlsConfig() {
+	return {
+		keyPath: ENV.TLS_KEY_PATH,
+		certPath: ENV.TLS_CERT_PATH,
+		caPath: ENV.TLS_CA_PATH,
+	};
+}
+
+function mountRoutes(app: ReturnType<typeof import("express")>) {
+	ADDRESS_MANAGER_ROUTES(app);
+	MESSAGE_MANAGER_ROUTES(app);
 }

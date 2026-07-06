@@ -85,17 +85,9 @@ export class CertRenewalService {
 	 */
 	async renew(request: RenewCertRequest): Promise<SignedCertificate> {
 		const { serviceId, oldSerialNumber, nonce, signature, csr } = request;
-
 		await this._consumeNonce(nonce, serviceId);
 		const oldCert = await this._getOldCertificate(oldSerialNumber);
-		this._verifyPop({
-			certPem: oldCert.certPem,
-			nonce,
-			signature,
-			serviceId,
-			oldSerialNumber,
-		});
-
+		this._verifyPop({ certPem: oldCert.certPem, nonce, signature, serviceId, oldSerialNumber });
 		return this._issueCertificate(serviceId, csr);
 	}
 

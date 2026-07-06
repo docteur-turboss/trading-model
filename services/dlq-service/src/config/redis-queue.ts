@@ -33,32 +33,39 @@ export class DlqRedisQueue {
 		}
 
 		await this._closeExistingClient();
-
 		this._connecting = true;
 		try {
-			const url = env.REDIS_URL;
-			if (!url) {
-				logger.info("No REDIS_URL configured — Redis queue unavailable");
-				return false;
-			}
-
-			this._client = this._createClient(url);
-			this._attachEventHandlers();
-			await this._client.connect();
-
-			this._connected = true;
-			this._wasEverConnected = true;
-			return true;
+			return await this._tryConnect();
 		} catch (err) {
-			logger.warn("Redis queue unavailable — falling back to MongoDB polling", {
-				error: (err as Error).message,
-			});
-			this._client = null;
-			this._connected = false;
+			this._handleConnectError(err);
 			return false;
 		} finally {
 			this._connecting = false;
 		}
+	}
+
+	private async _tryConnect(): Promise<boolean> {
+		const url = env.REDIS_URL;
+		if (!url) {
+			logger.info("No REDIS_URL configured — Redis queue unavailable");
+			return false;
+		}
+
+		this._client = this._createClient(url);
+		this._attachEventHandlers();
+		await this._client.connect();
+
+		this._connected = true;
+		this._wasEverConnected = true;
+		return true;
+	}
+
+	private _handleConnectError(err: unknown): void {
+		logger.warn("Redis queue unavailable — falling back to MongoDB polling", {
+			error: (err as Error).message,
+		});
+		this._client = null;
+		this._connected = false;
 	}
 
 	private _isConnected(): boolean {
@@ -82,21 +89,27 @@ export class DlqRedisQueue {
 		if (!this._client) {
 			return;
 		}
-		this._client.on("connect", () => {
-			this._connected = true;
-			if (this._wasEverConnected) {
-				logger.info("Redis queue reconnected — triggering queue rebuild");
-				this._onReconnectCb?.();
-			}
-			this._wasEverConnected = true;
-		});
-		this._client.on("close", () => {
-			this._connected = false;
-		});
-		this._client.on("error", (err) => {
-			logger.error("Redis queue client error", { error: err.message });
-			this._connected = false;
-		});
+		this._client.on("connect", () => this._onConnect());
+		this._client.on("close", () => this._onClose());
+		this._client.on("error", (err) => this._onError(err));
+	}
+
+	private _onConnect(): void {
+		this._connected = true;
+		if (this._wasEverConnected) {
+			logger.info("Redis queue reconnected — triggering queue rebuild");
+			this._onReconnectCb?.();
+		}
+		this._wasEverConnected = true;
+	}
+
+	private _onClose(): void {
+		this._connected = false;
+	}
+
+	private _onError(err: Error): void {
+		logger.error("Redis queue client error", { error: err.message });
+		this._connected = false;
 	}
 
 	async push(entryId: string, maxQueueSize = 50_000): Promise<boolean> {
@@ -104,20 +117,27 @@ export class DlqRedisQueue {
 			return false;
 		}
 		try {
-			const size = await this._client.llen(this._queueKey);
-			if (size >= maxQueueSize) {
-				logger.warn("Redis queue size limit reached — dropping push", {
-					queueKey: this._queueKey,
-					size,
-					maxSize: maxQueueSize,
-				});
-				return false;
-			}
-			await this._client.lpush(this._queueKey, entryId);
-			return true;
+			return await this._tryPush(entryId, maxQueueSize);
 		} catch {
 			return false;
 		}
+	}
+
+	private async _tryPush(
+		entryId: string,
+		maxQueueSize: number
+	): Promise<boolean> {
+		const size = await this._client.llen(this._queueKey);
+		if (size >= maxQueueSize) {
+			logger.warn("Redis queue size limit reached — dropping push", {
+				queueKey: this._queueKey,
+				size,
+				maxSize: maxQueueSize,
+			});
+			return false;
+		}
+		await this._client.lpush(this._queueKey, entryId);
+		return true;
 	}
 
 	async pop(): Promise<string | null> {
@@ -125,22 +145,29 @@ export class DlqRedisQueue {
 			return null;
 		}
 		try {
-			if (!this._popScriptHash) {
-				this._popScriptHash = (await this._client.script(
-					"LOAD",
-					DlqRedisQueue._POP_SCRIPT
-				)) as string;
-			}
+			await this._ensurePopScript();
 			const result = await this._client.evalsha(
 				this._popScriptHash!,
 				1,
 				this._queueKey
 			);
-			const entries = result as string[];
-			return entries.length > 0 ? (entries[0] ?? null) : null;
+			return this._extractFirstEntry(result as string[]);
 		} catch {
 			return null;
 		}
+	}
+
+	private async _ensurePopScript(): Promise<void> {
+		if (!this._popScriptHash) {
+			this._popScriptHash = (await this._client.script(
+				"LOAD",
+				DlqRedisQueue._POP_SCRIPT
+			)) as string;
+		}
+	}
+
+	private _extractFirstEntry(entries: string[]): string | null {
+		return entries.length > 0 ? (entries[0] ?? null) : null;
 	}
 
 	setOnReconnect(cb: () => void): void {
@@ -153,20 +180,24 @@ export class DlqRedisQueue {
 
 	async close(): Promise<void> {
 		if (this._client) {
-			try {
-				if (this._client.status === "ready") {
-					await this._client.quit();
-				} else {
-					this._client.disconnect();
-				}
-			} catch {
-				this._client.disconnect();
-			}
+			await this._closeClient();
 			this._client.removeAllListeners();
 			this._client = null;
 		}
 		this._connected = false;
 		this._popScriptHash = null;
+	}
+
+	private async _closeClient(): Promise<void> {
+		try {
+			if (this._client.status === "ready") {
+				await this._client.quit();
+			} else {
+				this._client.disconnect();
+			}
+		} catch {
+			this._client.disconnect();
+		}
 	}
 }
 

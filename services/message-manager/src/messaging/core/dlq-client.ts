@@ -43,26 +43,35 @@ function signRequest({
 	secretBuf,
 }: SignRequestInput): { timestamp: string; signature: string } {
 	const timestamp = String(Date.now());
-	const parts = [
-		serviceName,
-		timestamp,
-		deterministicStringify(normalizeBody(body)),
-		method,
-		path,
-	].join(":");
 	const buf = secretBuf ?? getHmacSecretBuffer();
 	try {
 		if (buf.length < 16) {
-			logger.warn(
-				"DLQ HMAC secret is too short or empty — requests will not be signed"
-			);
-			return { timestamp, signature: "" };
+			return warnAndSkip(timestamp);
 		}
-		const signature = createHmac("sha256", buf).update(parts).digest("hex");
-		return { timestamp, signature };
+		return {
+			timestamp,
+			signature: computeSignature(serviceName, timestamp, method, path, body, buf),
+		};
 	} finally {
 		buf.fill(0);
 	}
+}
+
+function computeSignature(
+	serviceName: string,
+	timestamp: string,
+	method: string,
+	path: string,
+	body: unknown,
+	buf: Buffer
+): string {
+	const parts = [serviceName, timestamp, deterministicStringify(normalizeBody(body)), method, path].join(":");
+	return createHmac("sha256", buf).update(parts).digest("hex");
+}
+
+function warnAndSkip(timestamp: string): { timestamp: string; signature: string } {
+	logger.warn("DLQ HMAC secret is too short or empty — requests will not be signed");
+	return { timestamp, signature: "" };
 }
 
 interface SignedOptionsInput {
@@ -78,24 +87,40 @@ function signedOptions({
 	body,
 	extra,
 }: SignedOptionsInput): HttpRequestOptions {
-	const opts: HttpRequestOptions & { headers: Record<string, string> } = {
+	const opts = buildBaseOptions(extra);
+	const secretBuf = getHmacSecretBuffer();
+	if (secretBuf.length >= 16) {
+		addSignature(opts, method, path, body, secretBuf);
+	}
+	return opts;
+}
+
+function buildBaseOptions(
+	extra?: Partial<HttpRequestOptions>
+): HttpRequestOptions & { headers: Record<string, string> } {
+	return {
 		timeoutMs: 5000,
 		...extra,
 		headers: { "x-service-name": "message-manager", ...(extra?.headers ?? {}) },
 	};
-	const secretBuf = getHmacSecretBuffer();
-	if (secretBuf.length >= 16) {
-		const { timestamp, signature } = signRequest({
-			serviceName: "message-manager",
-			method,
-			path,
-			body,
-			secretBuf,
-		});
-		opts.headers["x-timestamp"] = timestamp;
-		opts.headers["x-signature"] = signature;
-	}
-	return opts;
+}
+
+function addSignature(
+	opts: HttpRequestOptions & { headers: Record<string, string> },
+	method: string,
+	path: string,
+	body: unknown,
+	secretBuf: Buffer
+): void {
+	const { timestamp, signature } = signRequest({
+		serviceName: "message-manager",
+		method,
+		path,
+		body,
+		secretBuf,
+	});
+	opts.headers["x-timestamp"] = timestamp;
+	opts.headers["x-signature"] = signature;
 }
 
 export class DlqServiceClient {
@@ -113,45 +138,67 @@ export class DlqServiceClient {
 
 	async send(entry: DlqEntry, attempt = 1, MaxRetries = 3): Promise<void> {
 		if (!this.isEnabled) {
-			logger.warn("DLQ Service not configured, dropping dead letter entry", { context: {
-				reason: entry.reason,
-			} });
-			MESSAGES_DLQ_ERROR_TOTAL.inc({ target: "not-configured" });
+			this._logNotConfigured(entry);
 			return;
 		}
 
 		try {
-			await this._httpClient.post(
-				`${this._serviceUrl}/dlq`,
-				entry,
-				signedOptions({ method: "POST", path: "/dlq", body: entry, extra: { timeoutMs: 5000 } })
-			);
-			logger.info("DLQ entry sent to DLQ service", { context: { reason: entry.reason } });
+			await this._doSend(entry);
 		} catch (err) {
-			if (attempt <= MaxRetries) {
-				const delay = Math.round(
-					Math.min(200 * 2 ** (attempt - 1), 5000) * (0.5 + Math.random() * 0.5)
-				);
-				logger.warn("Retrying DLQ send after error", { context: {
-					attempt,
-					delay,
-					reason: entry.reason,
-					error: normalizeError(err as Error),
-				} });
-				await new Promise((resolve) => setTimeout(resolve, delay));
-				return this.send(entry, attempt + 1, MaxRetries);
-			}
-			logger.error("Failed to send DLQ entry to service after retries", { context: {
-				error: normalizeError(err as Error),
-				reason: entry.reason,
-			} });
-			throw new MessageManagerError(
-				"Failed to send DLQ entry",
-				{
-					cause: err,
-				}
-			);
+			return this._handleSendError(entry, err as Error, attempt, MaxRetries);
 		}
+	}
+
+	private _logNotConfigured(entry: DlqEntry): void {
+		logger.warn("DLQ Service not configured, dropping dead letter entry", { context: {
+			reason: entry.reason,
+		} });
+		MESSAGES_DLQ_ERROR_TOTAL.inc({ target: "not-configured" });
+	}
+
+	private async _doSend(entry: DlqEntry): Promise<void> {
+		await this._httpClient.post(
+			`${this._serviceUrl}/dlq`,
+			entry,
+			signedOptions({ method: "POST", path: "/dlq", body: entry, extra: { timeoutMs: 5000 } })
+		);
+		logger.info("DLQ entry sent to DLQ service", { context: { reason: entry.reason } });
+	}
+
+	private async _handleSendError(
+		entry: DlqEntry,
+		err: Error,
+		attempt: number,
+		MaxRetries: number
+	): Promise<void> {
+		if (attempt <= MaxRetries) {
+			await this._retrySend(entry, err, attempt, MaxRetries);
+			return;
+		}
+		logger.error("Failed to send DLQ entry to service after retries", { context: {
+			error: normalizeError(err),
+			reason: entry.reason,
+		} });
+		throw new MessageManagerError("Failed to send DLQ entry", { cause: err });
+	}
+
+	private async _retrySend(
+		entry: DlqEntry,
+		err: Error,
+		attempt: number,
+		MaxRetries: number
+	): Promise<void> {
+		const delay = Math.round(
+			Math.min(200 * 2 ** (attempt - 1), 5000) * (0.5 + Math.random() * 0.5)
+		);
+		logger.warn("Retrying DLQ send after error", { context: {
+			attempt,
+			delay,
+			reason: entry.reason,
+			error: normalizeError(err),
+		} });
+		await new Promise((resolve) => setTimeout(resolve, delay));
+		return this.send(entry, attempt + 1, MaxRetries);
 	}
 
 	async replay(topic?: string, limit = 100): Promise<DlqEntry[]> {
@@ -160,13 +207,9 @@ export class DlqServiceClient {
 		}
 
 		try {
-			const params = new URLSearchParams();
-			if (topic) {
-				params.set("topic", topic);
-			}
-			params.set("limit", limit.toString());
+			const url = this._buildReplayUrl(topic, limit);
 			const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
-				`${this._serviceUrl}/dlq?${params.toString()}`,
+				url,
 				signedOptions({ method: "GET", path: "/dlq", body: undefined, extra: { timeoutMs: 5000 } })
 			);
 			return result?.entries ?? [];
@@ -176,6 +219,15 @@ export class DlqServiceClient {
 			} });
 			return [];
 		}
+	}
+
+	private _buildReplayUrl(topic?: string, limit = 100): string {
+		const params = new URLSearchParams();
+		if (topic) {
+			params.set("topic", topic);
+		}
+		params.set("limit", limit.toString());
+		return `${this._serviceUrl}/dlq?${params.toString()}`;
 	}
 
 	async delete(entryIds: string[]): Promise<void> {

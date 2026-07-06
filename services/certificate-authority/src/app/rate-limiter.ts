@@ -18,22 +18,27 @@ setInterval(() => {
 	}
 }, UNAUTH_CLEANUP_MS).unref();
 
+function _resetEntry(clientIdentity: string): void {
+	UNAUTH_SIGN_ATTEMPTS.set(clientIdentity, {
+		count: 1,
+		resetAt: Date.now() + UNAUTH_WINDOW_MS,
+	});
+}
+
+function _isBanned(entry: { count: number; resetAt: number }): boolean {
+	return Date.now() > entry.resetAt + UNAUTH_BAN_MS;
+}
+
 export function checkUnauthRateLimit(clientIdentity: string): boolean {
 	const now = Date.now();
 	const entry = UNAUTH_SIGN_ATTEMPTS.get(clientIdentity);
 	if (!entry || now > entry.resetAt) {
-		UNAUTH_SIGN_ATTEMPTS.set(clientIdentity, {
-			count: 1,
-			resetAt: now + UNAUTH_WINDOW_MS,
-		});
+		_resetEntry(clientIdentity);
 		return true;
 	}
 	if (entry.count >= UNAUTH_RATE_LIMIT) {
-		if (now > entry.resetAt + UNAUTH_BAN_MS) {
-			UNAUTH_SIGN_ATTEMPTS.set(clientIdentity, {
-				count: 1,
-				resetAt: now + UNAUTH_WINDOW_MS,
-			});
+		if (_isBanned(entry)) {
+			_resetEntry(clientIdentity);
 			return true;
 		}
 		return false;
@@ -53,6 +58,29 @@ export interface ConnectionState {
 	requestWindowStart: number;
 }
 
+function _checkConnectionRateLimit(
+	connectionState: ConnectionState,
+	clientIdentity: string | undefined
+): boolean {
+	const elapsed = Date.now() - connectionState.requestWindowStart;
+	if (elapsed > AUTH_RATE_LIMIT_MS) {
+		connectionState.requestCount = 1;
+		connectionState.requestWindowStart = Date.now();
+		return true;
+	}
+	connectionState.requestCount++;
+	if (connectionState.requestCount > AUTH_RATE_LIMIT_MAX) {
+		logger.warn("WSS per-connection rate limit exceeded", {
+			context: {
+				clientIdentity,
+				requestCount: connectionState.requestCount,
+			},
+		});
+		return false;
+	}
+	return true;
+}
+
 export function checkSignRequestRateLimit(
 	connectionState: ConnectionState,
 	clientIdentity: string | undefined,
@@ -61,24 +89,7 @@ export function checkSignRequestRateLimit(
 	if (!(connectionState.tokenProvided || checkUnauthRateLimit(limiterKey))) {
 		return false;
 	}
-
-	const elapsed = Date.now() - connectionState.requestWindowStart;
-	if (elapsed > AUTH_RATE_LIMIT_MS) {
-		connectionState.requestCount = 1;
-		connectionState.requestWindowStart = Date.now();
-	} else {
-		connectionState.requestCount++;
-		if (connectionState.requestCount > AUTH_RATE_LIMIT_MAX) {
-			logger.warn("WSS per-connection rate limit exceeded", {
-				context: {
-					clientIdentity,
-					requestCount: connectionState.requestCount,
-				},
-			});
-			return false;
-		}
-	}
-	return true;
+	return _checkConnectionRateLimit(connectionState, clientIdentity);
 }
 
 export function clearRateLimiterKey(key: string): void {

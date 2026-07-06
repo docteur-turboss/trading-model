@@ -26,12 +26,22 @@ export function classifyDeliveryFailure({
 	deliveryAttempt,
 	maxRetries,
 }: DeliveryFailureInput): DeliveryDecision {
-	// DEAD_LETTER from subscriber
+	return (
+		checkDeadLetter(error) ??
+		checkFatalClientError(error) ??
+		checkAtMostOnce(deliveryMode) ??
+		checkMaxRetries(deliveryAttempt, maxRetries) ?? { retry: true }
+	);
+}
+
+function checkDeadLetter(error: Error & { statusCode?: number; reason?: string }): DeliveryDecision | null {
 	if (error instanceof DeadLetterError) {
 		return { retry: false, deadLetterReason: error.reason ?? "DEAD_LETTER" };
 	}
+	return null;
+}
 
-	// Fatal client error (4xx except 429)
+function checkFatalClientError(error: Error & { statusCode?: number; reason?: string }): DeliveryDecision | null {
 	if (
 		error.statusCode !== undefined &&
 		error.statusCode >= 400 &&
@@ -40,19 +50,22 @@ export function classifyDeliveryFailure({
 	) {
 		return { retry: false, deadLetterReason: `FATAL_${error.statusCode}` };
 	}
+	return null;
+}
 
-	// At-most-once / exactly-once — no retry
+function checkAtMostOnce(deliveryMode: DeliveryMode): DeliveryDecision | null {
 	if (
 		deliveryMode === DeliveryMode.AT_MOST_ONCE ||
 		deliveryMode === DeliveryMode.EXACTLY_ONCE
 	) {
 		return { retry: false, deadLetterReason: "AT_MOST_ONCE" };
 	}
+	return null;
+}
 
-	// Max retries exceeded
+function checkMaxRetries(deliveryAttempt: number, maxRetries: number): DeliveryDecision | null {
 	if (deliveryAttempt >= maxRetries) {
 		return { retry: false, deadLetterReason: "MAX_RETRIES" };
 	}
-
-	return { retry: true };
+	return null;
 }

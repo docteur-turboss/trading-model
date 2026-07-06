@@ -34,25 +34,44 @@ export interface WalletAPI {
 	reset: () => void;
 }
 
-function validateConfig(config: Required<WalletConfig>): void {
-	const { initialCash, initialPrice, feeRate, maxPosition, decimals } = config;
+function _validateInitialCash(initialCash: number): void {
 	if (!Number.isFinite(initialCash) || initialCash < 0) {
 		throw new Error(`Invalid initialCash: ${initialCash}`);
 	}
+}
+
+function _validateInitialPrice(initialPrice: number): void {
 	if (!Number.isFinite(initialPrice) || initialPrice <= 0) {
 		throw new Error(`Invalid initialPrice: ${initialPrice}`);
 	}
+}
+
+function _validateFeeRate(feeRate: number): void {
 	if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate >= 1) {
 		throw new Error(`Invalid feeRate: ${feeRate}. Must be in [0, 1[`);
 	}
+}
+
+function _validateMaxPosition(maxPosition: number): void {
 	if (maxPosition <= 0) {
 		throw new Error(`Invalid maxPosition: ${maxPosition}`);
 	}
+}
+
+function _validateDecimals(decimals: number): void {
 	if (!Number.isInteger(decimals) || decimals < 1 || decimals > 15) {
 		throw new Error(
 			`Invalid decimals: ${decimals}. Must be an integer in [1, 15]`
 		);
 	}
+}
+
+function validateConfig(config: Required<WalletConfig>): void {
+	_validateInitialCash(config.initialCash);
+	_validateInitialPrice(config.initialPrice);
+	_validateFeeRate(config.feeRate);
+	_validateMaxPosition(config.maxPosition);
+	_validateDecimals(config.decimals);
 }
 
 export class Wallet implements WalletAPI {
@@ -72,28 +91,30 @@ export class Wallet implements WalletAPI {
 	private readonly _history: TradeRecord[] = [];
 
 	constructor(config: WalletConfig) {
-		const {
-			initialCash,
-			initialPrice,
-			feeRate = 0,
-			maxPosition = Number.POSITIVE_INFINITY,
-			decimals = 8,
-		} = config;
-		validateConfig({
-			initialCash,
-			initialPrice,
-			feeRate,
-			maxPosition,
-			decimals,
-		});
-		this._initialCash = initialCash;
-		this._initialPrice = initialPrice;
-		this._feeRate = feeRate;
-		this._maxPosition = maxPosition;
-		this._decimals = decimals;
-		this._price = initialPrice;
-		this._cash = initialCash;
-		this._peakValuation = initialCash;
+		const resolved = this._resolveConfig(config);
+		validateConfig(resolved);
+		this._assignFields(resolved);
+	}
+
+	private _resolveConfig(config: WalletConfig): Required<WalletConfig> {
+		return {
+			initialCash: config.initialCash,
+			initialPrice: config.initialPrice,
+			feeRate: config.feeRate ?? 0,
+			maxPosition: config.maxPosition ?? Number.POSITIVE_INFINITY,
+			decimals: config.decimals ?? 8,
+		};
+	}
+
+	private _assignFields(resolved: Required<WalletConfig>): void {
+		this._initialCash = resolved.initialCash;
+		this._initialPrice = resolved.initialPrice;
+		this._feeRate = resolved.feeRate;
+		this._maxPosition = resolved.maxPosition;
+		this._decimals = resolved.decimals;
+		this._price = resolved.initialPrice;
+		this._cash = resolved.initialCash;
+		this._peakValuation = resolved.initialCash;
 	}
 
 	private _round(value: number): number {
@@ -120,9 +141,7 @@ export class Wallet implements WalletAPI {
 		if (newPosition > this._maxPosition) {
 			return false;
 		}
-		const baseCost = this._round(amount * this._price);
-		const fee = this._round(baseCost * this._feeRate);
-		const totalCost = this._round(baseCost + fee);
+		const { totalCost, fee } = this._computeBuyCosts(amount);
 		if (totalCost > this._cash) {
 			return false;
 		}
@@ -130,6 +149,13 @@ export class Wallet implements WalletAPI {
 		this._cash = this._round(this._cash - totalCost);
 		this._recordTrade("buy", amount, fee);
 		return true;
+	}
+
+	private _computeBuyCosts(amount: number): { totalCost: number; fee: number } {
+		const baseCost = this._round(amount * this._price);
+		const fee = this._round(baseCost * this._feeRate);
+		const totalCost = this._round(baseCost + fee);
+		return { totalCost, fee };
 	}
 
 	sell(amount: number): boolean {

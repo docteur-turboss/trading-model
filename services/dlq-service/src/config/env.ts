@@ -50,19 +50,9 @@ export function resolveAuthHmacSecret(): string {
 		return secretCache.value;
 	}
 
-	const path = env.DLQ_AUTH_HMAC_SECRET_PATH;
-	if (path) {
-		try {
-			if (existsSync(path)) {
-				const value = readFileSync(path, "utf8").trim();
-				if (value.length >= 16) {
-					secretCache.value = value;
-					return value;
-				}
-			}
-		} catch {
-			// fall through to env var
-		}
+	const fromPath = _readSecretFromPath();
+	if (fromPath) {
+		return fromPath;
 	}
 
 	if (env.DLQ_AUTH_HMAC_SECRET) {
@@ -73,4 +63,23 @@ export function resolveAuthHmacSecret(): string {
 	throw new Error(
 		"DLQ_AUTH_HMAC_SECRET is required (set env var or DLQ_AUTH_HMAC_SECRET_PATH)"
 	);
+}
+
+function _readSecretFromPath(): string | null {
+	const path = env.DLQ_AUTH_HMAC_SECRET_PATH;
+	if (!path) {
+		return null;
+	}
+	try {
+		if (existsSync(path)) {
+			const value = readFileSync(path, "utf8").trim();
+			if (value.length >= 16) {
+				secretCache.value = value;
+				return value;
+			}
+		}
+	} catch {
+		// fall through to env var
+	}
+	return null;
 }

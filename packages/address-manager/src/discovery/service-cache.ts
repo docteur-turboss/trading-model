@@ -44,24 +44,31 @@ export class ServiceCache {
 	 * }
 	 * ```
 	 */
-	async get(serviceName: string): Promise<ServiceInstance | null> {
+	private async _withLock<TValue>(
+		fn: () => TValue,
+	): Promise<TValue> {
 		const release = await this._mutex.acquire();
 		try {
-			const entry = this._cache.get(serviceName);
-
-			if (!entry) {
-				return null;
-			}
-
-			if (this._isExpired(entry)) {
-				this._cache.delete(serviceName);
-				return null;
-			}
-
-			return entry.instance;
+			return fn();
 		} finally {
 			release();
 		}
+	}
+
+	async get(serviceName: string): Promise<ServiceInstance | null> {
+		return this._withLock(() => this._getEntry(serviceName));
+	}
+
+	private _getEntry(serviceName: string): ServiceInstance | null {
+		const entry = this._cache.get(serviceName);
+		if (!entry) {
+			return null;
+		}
+		if (this._isExpired(entry)) {
+			this._cache.delete(serviceName);
+			return null;
+		}
+		return entry.instance;
 	}
 
 	/**

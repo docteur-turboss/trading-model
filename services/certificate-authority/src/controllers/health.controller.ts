@@ -8,22 +8,23 @@ export function ping(_req: Request, res: Response): void {
 	res.status(200).json({ status: "ok" });
 }
 
-export function health(_req: Request, res: Response): void {
-	const isReady = CONTAINER.ca.isInitialized();
+function _computeCaFingerprint(): string | null {
+	const caCertPem = CONTAINER.ca.getCaCertPem();
+	return caCertPem ? createHash("sha256").update(caCertPem).digest("hex") : null;
+}
 
-	if (!isReady) {
-		res.status(503).json({
-			status: "unavailable",
-			caInitialized: false,
-		});
+function _sendUnhealthy(res: Response): void {
+	res.status(503).json({ status: "unavailable", caInitialized: false });
+}
+
+export function health(_req: Request, res: Response): void {
+	if (!CONTAINER.ca.isInitialized()) {
+		_sendUnhealthy(res);
 		return;
 	}
-
 	res.status(200).json({
 		status: "ok",
 		caInitialized: true,
-		caFingerprint: CONTAINER.ca.getCaCertPem()
-			? createHash("sha256").update(CONTAINER.ca.getCaCertPem()).digest("hex")
-			: null,
+		caFingerprint: _computeCaFingerprint(),
 	});
 }

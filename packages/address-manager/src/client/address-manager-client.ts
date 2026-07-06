@@ -42,31 +42,45 @@ export class AddressManagerClient {
 		return "127.0.0.1";
 	}
 
-	async registerService(): Promise<ServiceRegistrationResponse | undefined> {
-		const payload: RegisterServicePayload = {
+	private _buildRegistrationPayload(): RegisterServicePayload {
+		return {
 			serviceName: this._config.identity.serviceName,
 			port: this._config.servicePort,
 			ip: AddressManagerClient._getLocalIP(),
 		};
+	}
 
-		const urls = this._config.discoveryUrls?.length
+	private _getUrls(): string[] {
+		return this._config.discoveryUrls?.length
 			? this._config.discoveryUrls
 			: [this._config.addressManagerUrl];
+	}
 
+	async registerService(): Promise<ServiceRegistrationResponse | undefined> {
+		const payload = this._buildRegistrationPayload();
+		const urls = this._getUrls();
+		return this._tryRegisterUrls(payload, urls);
+	}
+
+	private async _tryRegisterUrls(
+		payload: RegisterServicePayload,
+		urls: string[],
+	): Promise<ServiceRegistrationResponse | undefined> {
 		let lastError: unknown;
-
 		for (const url of urls) {
 			try {
 				return await this._httpClient.post<ServiceRegistrationResponse>(
 					`${url}/register`,
-					payload
+					payload,
 				);
 			} catch (error) {
 				lastError = error;
 			}
 		}
-
-		throw new AddressManagerError("Failed to register service to Address Manager",{cause: normalizeError(lastError)})
+		throw new AddressManagerError(
+			"Failed to register service to Address Manager",
+			{ cause: normalizeError(lastError) },
+		);
 	}
 
 	private _buildHeartbeatPayload(): {
@@ -91,53 +105,60 @@ export class AddressManagerClient {
 		);
 	}
 
-	private _getDiscoveryUrls(): string[] {
-		return this._config.discoveryUrls?.length
-			? this._config.discoveryUrls
-			: [this._config.addressManagerUrl];
+	async refreshTTL(): Promise<void> {
+		const urls = this._getUrls();
+		if (urls.length === 1) {
+			return await this._refreshSingleUrl(urls[0]);
+		}
+		return await this._refreshMultipleUrls(urls);
 	}
 
-	async refreshTTL(): Promise<void> {
-		const urls = this._getDiscoveryUrls();
-
-		if (urls.length === 1) {
-			try {
-				await this._sendHeartbeat(urls[0]);
-			} catch (error) {
-				throw new AddressManagerError("Failed to refresh service TTL",{cause: normalizeError(error)})
-			}
-			return;
-		}
-
-		const results = await Promise.allSettled(
-			urls.map((url) => this._sendHeartbeat(url))
-		);
-		const failures = results.filter((result) => result.status === "rejected");
-		if (failures.length === results.length) {
+	private async _refreshSingleUrl(url: string): Promise<void> {
+		try {
+			await this._sendHeartbeat(url);
+		} catch (error) {
 			throw new AddressManagerError(
 				"Failed to refresh service TTL",
-				{
-					cause: normalizeError((failures[0] as PromiseRejectedResult).reason),
-				}
+				{ cause: normalizeError(error) },
 			);
+		}
+	}
+
+	private async _refreshMultipleUrls(urls: string[]): Promise<void> {
+		const results = await Promise.allSettled(
+			urls.map((url) => this._sendHeartbeat(url)),
+		);
+		const failures = results.filter(
+			(result) => result.status === "rejected",
+		);
+		if (failures.length === results.length) {
+			throw new AddressManagerError("Failed to refresh service TTL", {
+				cause: normalizeError(
+					(failures[0] as PromiseRejectedResult).reason,
+				),
+			});
 		}
 	}
 
 	async unregisterService(): Promise<void> {
 		const token = this._tokenManager.getToken();
-		const urls = this._config.discoveryUrls?.length
-			? this._config.discoveryUrls
-			: [this._config.addressManagerUrl];
+		const urls = this._getUrls();
+		await this._tryUnregisterUrls(token, urls);
+	}
 
+	private async _tryUnregisterUrls(
+		token: string,
+		urls: string[],
+	): Promise<void> {
 		for (const url of urls) {
 			try {
 				await this._httpClient.post(
 					`${url}/unregister`,
 					{
-			serviceName: this._config.identity.serviceName,
-			instanceId: this._config.identity.instanceId,
+						serviceName: this._config.identity.serviceName,
+						instanceId: this._config.identity.instanceId,
 					},
-					{ headers: { "x-instance-token": token } }
+					{ headers: { "x-instance-token": token } },
 				);
 				return;
 			} catch {

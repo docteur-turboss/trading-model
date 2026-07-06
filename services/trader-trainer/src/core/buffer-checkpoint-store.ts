@@ -6,6 +6,7 @@ import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "./market-data-buffer";
+import type { SymbolState } from "./market-data-types";
 import { NormalizationStats } from "./normalization-stats";
 
 export interface BufferCheckpointStoreConfig {
@@ -46,60 +47,90 @@ export class BufferCheckpointStore {
 
 	saveBuffer(buffer: MarketDataBuffer): void {
 		try {
-			const symbols = buffer.getSymbols();
-			const priceSnapshot = buffer.getPriceSnapshot();
-			const symbolsData = this._serializeSymbols(buffer, symbols);
-
-			writeFileSync(
-				this._bufferStatePath(),
-				JSON.stringify(
-					{ symbols: symbolsData, priceSnapshot, savedAt: Date.now() },
-					null,
-					2
-				),
-				"utf-8"
-			);
-			logger.info("Market data buffer checkpoint saved", {
-				context: {
-					symbols: symbols.length,
-					path: this._bufferStatePath(),
-				},
-			});
+			this._doSaveBuffer(buffer);
 		} catch (err) {
-			logger.error("Failed to save market data buffer checkpoint", {
-				context: {
-					error: err instanceof Error ? err.message : String(err),
-				},
-			});
+			this._logSaveError(err);
 		}
+	}
+
+	private _doSaveBuffer(buffer: MarketDataBuffer): void {
+		const symbols = buffer.getSymbols();
+		const symbolsData = this._serializeSymbols(buffer, symbols);
+		this._writeBufferState(symbolsData, buffer.getPriceSnapshot());
+		this._logSaveSuccess(symbols.length);
+	}
+
+	private _writeBufferState(
+		symbolsData: Record<string, SymbolStateSerializable>,
+		priceSnapshot: Record<string, number>
+	): void {
+		writeFileSync(
+			this._bufferStatePath(),
+			JSON.stringify(
+				{ symbols: symbolsData, priceSnapshot, savedAt: Date.now() },
+				null,
+				2
+			),
+			"utf-8"
+		);
+	}
+
+	private _logSaveSuccess(symbolCount: number): void {
+		logger.info("Market data buffer checkpoint saved", {
+			context: {
+				symbols: symbolCount,
+				path: this._bufferStatePath(),
+			},
+		});
+	}
+
+	private _logSaveError(err: unknown): void {
+		logger.error("Failed to save market data buffer checkpoint", {
+			context: {
+				error: err instanceof Error ? err.message : String(err),
+			},
+		});
 	}
 
 	loadBuffer(config?: MarketDataBufferConfig): MarketDataBuffer | null {
 		try {
-			const path = this._bufferStatePath();
-			if (!existsSync(path)) {
-				logger.info("No market data buffer checkpoint found");
-				return null;
-			}
-
-			const data = this._readBufferState(path);
-			const buffer = this._restoreBuffer(data, config);
-
-			logger.info("Market data buffer checkpoint loaded", {
-				context: {
-					symbols: Object.keys(data.symbols).length,
-					path,
-				},
-			});
-			return buffer;
+			return this._doLoadBuffer(config);
 		} catch (err) {
-			logger.error("Failed to load market data buffer checkpoint", {
-				context: {
-					error: err instanceof Error ? err.message : String(err),
-				},
-			});
+			this._logLoadError(err);
 			return null;
 		}
+	}
+
+	private _doLoadBuffer(config?: MarketDataBufferConfig): MarketDataBuffer | null {
+		const path = this._bufferStatePath();
+		if (!existsSync(path)) {
+			logger.info("No market data buffer checkpoint found");
+			return null;
+		}
+		const data = this._readBufferState(path);
+		const buffer = this._restoreBuffer(data, config);
+		this._logLoadSuccess(data, path);
+		return buffer;
+	}
+
+	private _logLoadSuccess(
+		data: { symbols: Record<string, SymbolStateSerializable> },
+		path: string
+	): void {
+		logger.info("Market data buffer checkpoint loaded", {
+			context: {
+				symbols: Object.keys(data.symbols).length,
+				path,
+			},
+		});
+	}
+
+	private _logLoadError(err: unknown): void {
+		logger.error("Failed to load market data buffer checkpoint", {
+			context: {
+				error: err instanceof Error ? err.message : String(err),
+			},
+		});
 	}
 
 	private _serializeSymbols(
@@ -161,6 +192,24 @@ export class BufferCheckpointStore {
 	}
 }
 
+function _deserializeNormState(
+	sd: SymbolStateSerializable
+): SymbolState["norm"] {
+	return {
+		candleClose: NormalizationStats.fromJSON(sd.closeNorm),
+		candleVolume: NormalizationStats.fromJSON(sd.volumeNorm),
+		candleOpen: NormalizationStats.fromJSON(sd.openNorm),
+		candleHigh: NormalizationStats.fromJSON(sd.highNorm),
+		candleLow: NormalizationStats.fromJSON(sd.lowNorm),
+		tradePrice: NormalizationStats.fromJSON(sd.tradePriceNorm),
+		tradeQty: NormalizationStats.fromJSON(sd.tradeQtyNorm),
+		bid: NormalizationStats.fromJSON(sd.bidNorm),
+		ask: NormalizationStats.fromJSON(sd.askNorm),
+		spread: NormalizationStats.fromJSON(sd.spreadNorm),
+		tickerVolume: NormalizationStats.fromJSON(sd.tickerVolumeNorm),
+	};
+}
+
 function _deserializeSymbolState(
 	sd: SymbolStateSerializable
 ): Parameters<MarketDataBuffer["restoreSymbolState"]>[1] {
@@ -170,18 +219,6 @@ function _deserializeSymbolState(
 		orderBook: sd.orderBook,
 		bookTicker: sd.bookTicker,
 		ticker24h: sd.ticker24h,
-		norm: {
-			candleClose: NormalizationStats.fromJSON(sd.closeNorm),
-			candleVolume: NormalizationStats.fromJSON(sd.volumeNorm),
-			candleOpen: NormalizationStats.fromJSON(sd.openNorm),
-			candleHigh: NormalizationStats.fromJSON(sd.highNorm),
-			candleLow: NormalizationStats.fromJSON(sd.lowNorm),
-			tradePrice: NormalizationStats.fromJSON(sd.tradePriceNorm),
-			tradeQty: NormalizationStats.fromJSON(sd.tradeQtyNorm),
-			bid: NormalizationStats.fromJSON(sd.bidNorm),
-			ask: NormalizationStats.fromJSON(sd.askNorm),
-			spread: NormalizationStats.fromJSON(sd.spreadNorm),
-			tickerVolume: NormalizationStats.fromJSON(sd.tickerVolumeNorm),
-		},
+		norm: _deserializeNormState(sd),
 	};
 }

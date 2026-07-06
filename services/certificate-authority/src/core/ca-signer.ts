@@ -55,26 +55,31 @@ function _extractTbsDer(cert: forge.pki.Certificate): Buffer {
 	return Buffer.from(tbsDer, "binary");
 }
 
+function _buildSigAsn1(sigBytes: string): forge.asn1.Asn1 {
+	return forge.asn1.create(
+		forge.asn1.Class.UNIVERSAL,
+		forge.asn1.Type.BITSTRING,
+		false,
+		`\x00${sigBytes}`
+	);
+}
+
+function _parseSignedCert(fullAsn1: forge.asn1.Asn1): forge.pki.Certificate {
+	const fullDer = forge.asn1.toDer(fullAsn1).getBytes();
+	return forge.pki.certificateFromAsn1(
+		forge.asn1.fromDer(forge.util.createBuffer(fullDer))
+	);
+}
+
 function _applyAsn1Signature(
 	cert: forge.pki.Certificate,
 	sigBytes: string
 ): void {
 	const fullAsn1 = forge.pki.certificateToAsn1(cert);
 	const asn1Values = fullAsn1.value as forge.asn1.Asn1[];
+	asn1Values[2] = _buildSigAsn1(sigBytes);
 
-	const asn1Sig = forge.asn1.create(
-		forge.asn1.Class.UNIVERSAL,
-		forge.asn1.Type.BITSTRING,
-		false,
-		`\x00${sigBytes}`
-	);
-	asn1Values[2] = asn1Sig;
-
-	const fullDer = forge.asn1.toDer(fullAsn1).getBytes();
-	const signedCert = forge.pki.certificateFromAsn1(
-		forge.asn1.fromDer(forge.util.createBuffer(fullDer))
-	);
-
+	const signedCert = _parseSignedCert(fullAsn1);
 	cert.signature = signedCert.signature;
 	cert.signatureOid = signedCert.signatureOid;
 	(cert as unknown as Record<string, unknown>).siginfo = (

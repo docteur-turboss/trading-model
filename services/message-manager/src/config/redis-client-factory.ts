@@ -4,39 +4,60 @@ import { ENV } from "./env";
 import { logger } from "./logger";
 
 export function redisRetryDelay(retries: number): number | null {
-	const maxAttempts = ENV.REDIS_MAX_RECONNECT_ATTEMPTS;
-	if (maxAttempts === 0 || (maxAttempts > 0 && retries >= maxAttempts)) {
-		if (retries > 0 || maxAttempts === 0) {
-			logger.error(
-				`Redis: max reconnection attempts (${maxAttempts}) reached, giving up`
-			);
-		}
+	if (isMaxAttemptsReached(retries)) {
+		logExhausted(retries);
 		return null;
 	}
-	const baseDelay = Math.min(1000 * 2 ** (retries - 1), 30000);
-	const jitter = baseDelay * 0.2 * (Math.random() * 2 - 1);
-	const delay = Math.max(100, Math.round(baseDelay + jitter));
+	const delay = computeDelay(retries);
 	if (retries > 1) {
 		logger.warn(`Redis: reconnecting in ${delay}ms (attempt ${retries})`);
 	}
 	return delay;
 }
 
+function isMaxAttemptsReached(retries: number): boolean {
+	const maxAttempts = ENV.REDIS_MAX_RECONNECT_ATTEMPTS;
+	return maxAttempts === 0 || (maxAttempts > 0 && retries >= maxAttempts);
+}
+
+function logExhausted(retries: number): void {
+	if (retries > 0 || ENV.REDIS_MAX_RECONNECT_ATTEMPTS === 0) {
+		logger.error(
+			`Redis: max reconnection attempts (${ENV.REDIS_MAX_RECONNECT_ATTEMPTS}) reached, giving up`
+		);
+	}
+}
+
+function computeDelay(retries: number): number {
+	const baseDelay = Math.min(1000 * 2 ** (retries - 1), 30000);
+	const jitter = baseDelay * 0.2 * (Math.random() * 2 - 1);
+	return Math.max(100, Math.round(baseDelay + jitter));
+}
+
 function buildRedisOptions(): Record<string, unknown> {
-	const url = ENV.REDIS_URL;
+	const opts = baseRedisOptions();
+	if (ENV.REDIS_URL) {
+		return opts;
+	}
+	return withConnectionDetails(opts);
+}
+
+function baseRedisOptions(): Record<string, unknown> {
 	const tls = ENV.REDIS_TLS_ENABLED
 		? { tls: { rejectUnauthorized: true } }
 		: {};
-	const opts: Record<string, unknown> = {
+	return {
 		retryStrategy: (retries: number) => redisRetryDelay(retries),
 		lazyConnect: true,
 		maxRetriesPerRequest: null,
 		enableReadyCheck: true,
 		...tls,
 	};
-	if (url) {
-		return opts;
-	}
+}
+
+function withConnectionDetails(
+	opts: Record<string, unknown>
+): Record<string, unknown> {
 	return {
 		...opts,
 		host: ENV.REDIS_HOST,
@@ -47,21 +68,33 @@ function buildRedisOptions(): Record<string, unknown> {
 }
 
 function buildSentinelClient(): Redis {
-	let sentinelNodes: Array<{ host: string; port: number }>;
+	const sentinelNodes = parseSentinelNodes();
+	const sentinelOpts = buildSentinelOptions(sentinelNodes);
+	return new Redis(sentinelOpts as RedisOptions) as unknown as Redis;
+}
+
+function parseSentinelNodes(): Array<{ host: string; port: number }> {
 	try {
-		sentinelNodes = ENV.REDIS_SENTINEL_NODES
+		return ENV.REDIS_SENTINEL_NODES
 			? (JSON.parse(ENV.REDIS_SENTINEL_NODES) as Array<{
 					host: string;
 					port: number;
 				}>)
 			: [{ host: ENV.REDIS_HOST, port: ENV.REDIS_PORT }];
 	} catch (cause) {
-		const err = new Error(
-			`Invalid REDIS_SENTINEL_NODES JSON: ${(cause as Error).message}`
-		);
-		(err as { cause?: unknown }).cause = cause;
-		throw err;
+		throw wrapParseError(cause as Error, "REDIS_SENTINEL_NODES");
 	}
+}
+
+function wrapParseError(cause: Error, name: string): never {
+	const err = new Error(`Invalid ${name} JSON: ${cause.message}`);
+	(err as { cause?: unknown }).cause = cause;
+	throw err;
+}
+
+function buildSentinelOptions(
+	sentinelNodes: Array<{ host: string; port: number }>
+): Record<string, unknown> {
 	const sentinelOpts: Record<string, unknown> = {
 		sentinels: sentinelNodes,
 		name: ENV.REDIS_SENTINEL_MASTER_NAME,
@@ -75,7 +108,7 @@ function buildSentinelClient(): Redis {
 	if (ENV.REDIS_TLS_ENABLED) {
 		sentinelOpts.tls = { rejectUnauthorized: true };
 	}
-	return new Redis(sentinelOpts as RedisOptions) as unknown as Redis;
+	return sentinelOpts;
 }
 
 function parseClusterNodes(): Array<{ host: string; port: number }> {
@@ -85,11 +118,7 @@ function parseClusterNodes(): Array<{ host: string; port: number }> {
 			port: number;
 		}>;
 	} catch (cause) {
-		const err = new Error(
-			`Invalid REDIS_CLUSTER_NODES JSON: ${(cause as Error).message}`
-		);
-		(err as { cause?: unknown }).cause = cause;
-		throw err;
+		throw wrapParseError(cause as Error, "REDIS_CLUSTER_NODES");
 	}
 }
 
@@ -108,7 +137,11 @@ function clusterRetryStrategy(retries: number): number | null {
 
 function buildClusterClient(): Redis {
 	const clusterNodes = parseClusterNodes();
-	return new Cluster(clusterNodes, {
+	return new Cluster(clusterNodes, clusterOptions()) as unknown as Redis;
+}
+
+function clusterOptions(): Record<string, unknown> {
+	return {
 		redisOptions: {
 			password: ENV.REDIS_PASSWORD ?? undefined,
 			lazyConnect: true,
@@ -118,7 +151,7 @@ function buildClusterClient(): Redis {
 		clusterRetryStrategy,
 		scaleReads: "slave",
 		enableAutoPipelining: true,
-	}) as unknown as Redis;
+	};
 }
 
 function buildStandaloneClient(): Redis {

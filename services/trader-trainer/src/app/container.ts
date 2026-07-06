@@ -103,24 +103,33 @@ export class ApplicationContainer {
 	}
 
 	startTrainingLoop(symbols: string[], intervalMs: number): void {
-		const runTraining = async (): Promise<void> => {
-			if (this.trainer.isTraining()) {
-				return;
-			}
-
-			for (const symbol of symbols) {
-				if (
-					this.dataBuffer.getCandleCount(symbol) >=
-					this.dataBuffer.getMaxSize() * MIN_CANDLE_RATIO
-				) {
-					await this.trainer.train(symbol);
-					break;
-				}
-			}
-		};
+		const runTraining = () => this._runTrainingForSymbols(symbols);
 
 		void runTraining();
 		this._trainingInterval = setInterval(runTraining, intervalMs);
+	}
+
+	private _hasEnoughData(symbol: string): boolean {
+		return (
+			this.dataBuffer.getCandleCount(symbol) >=
+			this.dataBuffer.getMaxSize() * MIN_CANDLE_RATIO
+		);
+	}
+
+	private async _trainSymbol(symbol: string): Promise<void> {
+		await this.trainer.train(symbol);
+	}
+
+	private async _runTrainingForSymbols(symbols: string[]): Promise<void> {
+		if (this.trainer.isTraining()) {
+			return;
+		}
+		for (const symbol of symbols) {
+			if (this._hasEnoughData(symbol)) {
+				await this._trainSymbol(symbol);
+				break;
+			}
+		}
 	}
 
 	stopTrainingLoop(): void {

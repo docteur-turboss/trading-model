@@ -5,6 +5,7 @@ import type {
 } from "@trading-model/common/contracts/service-registry.types";
 import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { CacheManager } from "./cache-manager";
+import { CacheOrchestrator } from "./cache-orchestrator";
 import { PubSubInvalidator } from "./pub-sub-invalidator";
 import { RedisHealthMonitor } from "./redis-health-monitor";
 
@@ -21,8 +22,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 	private _backend: RegistryBackend;
 	private _cache: CacheManager;
 	private _pubSub: PubSubInvalidator;
-	private readonly _heartbeatInvalidationThrottleMs = 5000;
-	private _lastHeartbeatInvalidation = new Map<string, number>();
+	private readonly _orchestrator: CacheOrchestrator;
 	private readonly _healthMonitor: RedisHealthMonitor;
 	private readonly _redisUrlForPubSub?: string;
 
@@ -56,11 +56,17 @@ export class CachedRegistryBackend implements RegistryBackend {
 			},
 			backend: this._backend,
 		});
+
+		this._orchestrator = new CacheOrchestrator(
+			this._backend,
+			this._cache,
+			this._healthMonitor
+		);
 	}
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {
 		const token = await this._backend.registerInstance(instance);
-		await this._refreshCache(instance.serviceName);
+		await this._orchestrator.refreshCache(instance.serviceName);
 		await this._pubSub.publish(instance.serviceName);
 		return token;
 	}
@@ -71,13 +77,10 @@ export class CachedRegistryBackend implements RegistryBackend {
 		const { serviceName } = id;
 		const result = await this._backend.updateHeartbeat(id);
 		if (result !== false) {
-			await this._refreshCache(serviceName);
-			const now = Date.now();
-			const last = this._lastHeartbeatInvalidation.get(serviceName) ?? 0;
-			if (now - last >= this._heartbeatInvalidationThrottleMs) {
-				this._lastHeartbeatInvalidation.set(serviceName, now);
-				await this._pubSub.publish(serviceName);
-			}
+			await this._orchestrator.refreshCache(serviceName);
+			await this._orchestrator.onHeartbeatUpdate(serviceName, (name) =>
+				this._pubSub.publish(name)
+			);
 		}
 		return result;
 	}
@@ -96,65 +99,13 @@ export class CachedRegistryBackend implements RegistryBackend {
 		offset?: number,
 		limit?: number
 	): Promise<ServiceInstance[]> {
-		if (offset !== undefined || limit !== undefined) {
-			const all = await this._backend.getInstances(serviceName);
-			const start = offset ?? 0;
-			return all.slice(start, limit === undefined ? undefined : start + limit);
-		}
-
-		if (this._healthMonitor.fallbackActive) {
-			return this._backend.getInstances(serviceName);
-		}
-
-		const cached = this._cache.get(serviceName);
-		if (cached) {
-			return cached;
-		}
-
-		if (!this._healthMonitor.isHealthy) {
-			const stale = this._cache.getStale(serviceName);
-			if (stale) {
-				logger.warn(
-					"Backend unhealthy — serving stale cached instance list for",
-					{ serviceName }
-				);
-				return stale;
-			}
-			logger.warn(
-				"Backend unhealthy — no stale data available, returning empty list for",
-				{ serviceName }
-			);
-			return [];
-		}
-
-		const instances = await this._backend.getInstances(serviceName);
-		this._cache.set(serviceName, instances);
-		return instances;
+		return this._orchestrator.getInstances(serviceName, offset, limit);
 	}
 
 	async getInstance(
 		id: ServiceIdentity
 	): Promise<ServiceInstance | undefined> {
-		const { serviceName, instanceId } = id;
-		if (this._healthMonitor.fallbackActive) {
-			return await this._backend.getInstance(id);
-		}
-
-		const cached = this._cache.get(serviceName);
-		if (cached) {
-			return cached.find(
-				(inst: ServiceInstance) => inst.instanceId === instanceId
-			);
-		}
-		if (!this._healthMonitor.isHealthy) {
-			const stale = this._cache.getStale(serviceName);
-			if (stale) {
-				return stale.find(
-					(inst: ServiceInstance) => inst.instanceId === instanceId
-				);
-			}
-		}
-		return await this._backend.getInstance(id);
+		return this._orchestrator.getInstance(id);
 	}
 
 	async removeInstance(
@@ -162,7 +113,7 @@ export class CachedRegistryBackend implements RegistryBackend {
 	): Promise<boolean> {
 		const { serviceName } = id;
 		const result = await this._backend.removeInstance(id);
-		await this._refreshCache(serviceName);
+		await this._orchestrator.refreshCache(serviceName);
 		await this._pubSub.publish(serviceName);
 		return result;
 	}
@@ -202,22 +153,6 @@ export class CachedRegistryBackend implements RegistryBackend {
 		endpoint: ServiceEndpoint
 	): string {
 		return this._backend.generateInstanceId(endpoint);
-	}
-
-	private async _refreshCache(serviceName: string): Promise<void> {
-		if (!(this._healthMonitor.isHealthy || this._healthMonitor.fallbackActive)) {
-			logger.warn(
-				"Backend unhealthy — skipping cache refresh, serving stale data",
-				{ serviceName }
-			);
-			return;
-		}
-		try {
-			const instances = await this._backend.getInstances(serviceName);
-			this._cache.set(serviceName, instances);
-		} catch {
-			logger.warn("Cache refresh failed, serving stale data", { serviceName });
-		}
 	}
 
 	async start(): Promise<void> {
