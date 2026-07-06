@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { Collection } from "mongodb";
-import type { LockBackend, LockDocument } from "./lock-backends";
+import type { LockBackend, LockContext, LockDocument } from "./lock-backends";
 
 export class MongoLockBackend implements LockBackend {
 	private _connected = false;
@@ -15,13 +15,13 @@ export class MongoLockBackend implements LockBackend {
 	}
 
 	async acquire(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		ttlMs: number
 	): Promise<number | null> {
 		if (!this._connected) {
 			return null;
 		}
+		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
 			return null;
@@ -59,13 +59,13 @@ export class MongoLockBackend implements LockBackend {
 	}
 
 	async release(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<boolean> {
 		if (!this._connected) {
 			return false;
 		}
+		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
 			return false;
@@ -85,13 +85,13 @@ export class MongoLockBackend implements LockBackend {
 	}
 
 	async verifyOwnership(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<number> {
 		if (!this._connected) {
 			return -1;
 		}
+		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
 			return -1;
