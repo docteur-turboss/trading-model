@@ -1,22 +1,20 @@
 export interface BackoffConfig {
 	baseDelayMs?: number;
 	maxDelayMs?: number;
+	jitterMs?: number;
 }
 
 export function computeExponentialBackoff(
-	baseDelayMs: number,
 	attempt: number,
-	maxDelayMs: number,
+	options: { baseDelayMs: number; maxDelayMs: number },
 ): number {
-	return Math.min(baseDelayMs * 2 ** attempt, maxDelayMs);
+	return Math.min(options.baseDelayMs * 2 ** attempt, options.maxDelayMs);
 }
 
 export function computeExponentialBackoffWithJitter(
-	baseDelayMs: number,
 	attempt: number,
-	maxDelayMs: number,
-	jitterMs: number,
+	options: { baseDelayMs: number; maxDelayMs: number; jitterMs: number },
 ): number {
-	const delay = computeExponentialBackoff(baseDelayMs, attempt, maxDelayMs);
-	return delay + (jitterMs > 0 ? Math.random() * jitterMs : 0);
+	const delay = computeExponentialBackoff(attempt, options);
+	return delay + (options.jitterMs > 0 ? Math.random() * options.jitterMs : 0);
 }

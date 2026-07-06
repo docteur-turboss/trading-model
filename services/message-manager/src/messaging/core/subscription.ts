@@ -103,7 +103,7 @@ export class Subscription {
 	 * @returns Delay in milliseconds.
 	 */
 	static backoffDelay(deliveryAttempt: number): number {
-		const delay = computeExponentialBackoff(BaseDelayMs, deliveryAttempt, MaxDelayMs);
+		const delay = computeExponentialBackoff(deliveryAttempt, { baseDelayMs: BaseDelayMs, maxDelayMs: MaxDelayMs });
 		const jitter = delay * JitterFactor * (Math.random() * 2 - 1);
 		return Math.max(0, Math.round(delay + jitter));
 	}

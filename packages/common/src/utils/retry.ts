@@ -41,7 +41,7 @@ export async function retryWithBackoff<T>(
 			attempt++;
 			lastError = err as Error;
 			if (attempt < maxRetries) {
-				await sleep(computeExponentialBackoff(baseDelayMs, attempt, maxDelayMs));
+				await sleep(computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs }));
 			}
 		}
 	}

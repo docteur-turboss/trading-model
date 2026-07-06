@@ -10,9 +10,13 @@ export interface RetryConfig {
 	backgroundIntervalMs: number;
 }
 
+interface PendingStop {
+	resolve: () => void;
+}
+
 export class RetryScheduler {
 	private _shouldRetry = true;
-	private _resolveStop: (() => void) | null = null;
+	private _pendingStop: PendingStop | null = null;
 
 	constructor(private readonly _config: RetryConfig) {}
 
@@ -25,17 +29,21 @@ export class RetryScheduler {
 	}
 
 	resolveStop(): void {
-		this._resolveStop?.();
+		if (this._pendingStop) {
+			const resolve = this._pendingStop.resolve;
+			this._pendingStop = null;
+			resolve();
+		}
 	}
 
 	createStopPromise(): Promise<void> {
 		return new Promise<void>((resolve) => {
-			this._resolveStop = resolve;
+			this._pendingStop = { resolve };
 		});
 	}
 
 	computeJitteredDelay(attempt: number): number {
-		return computeExponentialBackoff(this._config.baseDelayMs, attempt, this._config.maxDelayMs) + Math.random() * 1000;
+		return computeExponentialBackoff(attempt, { baseDelayMs: this._config.baseDelayMs, maxDelayMs: this._config.maxDelayMs }) + Math.random() * 1000;
 	}
 
 	createStopWait(): Promise<void> {

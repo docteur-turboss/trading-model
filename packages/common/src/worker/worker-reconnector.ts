@@ -56,9 +56,8 @@ export class WorkerReconnector {
 
 	scheduleReconnect(): void {
 		const delay = computeExponentialBackoff(
-			this._baseDelayMs,
 			this._attempt,
-			this._maxDelayMs,
+			{ baseDelayMs: this._baseDelayMs, maxDelayMs: this._maxDelayMs },
 		);
 		this._attempt++;
 		this._emitReconnecting({ attempt: this._attempt, delay });

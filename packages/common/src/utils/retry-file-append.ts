@@ -1,4 +1,5 @@
 import { computeExponentialBackoff } from "./backoff-config";
+import type { RetryOptions } from "./retry";
 
 /**
  * Appends content to a file with exponential backoff retry.
@@ -6,23 +7,26 @@ import { computeExponentialBackoff } from "./backoff-config";
  *
  * @param filePath — Absolute path to the fallback file
  * @param content — String to append (newline appended automatically)
- * @param maxAttempts — Maximum retry attempts (default: 3)
+ * @param options — Retry options (maxRetries, baseDelayMs, maxDelayMs)
  * @returns true if the write succeeded, false if all attempts failed
  */
 export async function retryFileAppend(
 	filePath: string,
 	content: string,
-	maxAttempts = 3
+	options?: Partial<RetryOptions>
 ): Promise<boolean> {
-	for (let attempt = 0; attempt < maxAttempts; attempt++) {
+	const maxRetries = options?.maxRetries ?? 3;
+	const baseDelayMs = options?.baseDelayMs ?? 100;
+	const maxDelayMs = options?.maxDelayMs ?? 800;
+	for (let attempt = 0; attempt < maxRetries; attempt++) {
 		try {
 			const fs = await import("node:fs/promises");
 			await fs.appendFile(filePath, `${content}\n`, "utf-8");
 			return true;
 		} catch {
-			if (attempt < maxAttempts - 1) {
+			if (attempt < maxRetries - 1) {
 				await new Promise((resolve) =>
-					setTimeout(resolve, computeExponentialBackoff(100, attempt, 800))
+					setTimeout(resolve, computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs }))
 				);
 			}
 		}

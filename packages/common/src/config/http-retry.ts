@@ -1,15 +1,19 @@
-import { computeExponentialBackoff } from "../utils/backoff-config";
+import { computeExponentialBackoff, type BackoffConfig } from "../utils/backoff-config";
 
 const DEFAULT_RETRY_COUNT = 3;
-const RETRY_BASE_DELAY_MS = 200;
-const RETRY_MAX_DELAY_MS = 5_000;
 
 function isRetryableStatus(code: number): boolean {
 	return code >= 500 || code === 429;
 }
 
-function computeRetryDelay(attempt: number): number {
-	return computeExponentialBackoff(RETRY_BASE_DELAY_MS, attempt, RETRY_MAX_DELAY_MS);
+function computeRetryDelay(attempt: number, options?: BackoffConfig): number {
+	const baseDelayMs = options?.baseDelayMs ?? 200;
+	const maxDelayMs = options?.maxDelayMs ?? 5_000;
+	const delay = computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs });
+	if (options?.jitterMs && options.jitterMs > 0) {
+		return delay + Math.random() * options.jitterMs;
+	}
+	return delay;
 }
 
 function computeAdaptiveTimeout(

@@ -18,7 +18,7 @@ function calculateDelay(config: WsReconnectConfig, attempt: number): number {
 	const baseDelayMs = config.baseDelayMs ?? 1000;
 	const maxDelayMs = config.maxDelayMs ?? 60000;
 	const jitterMs = config.jitterMs ?? 500;
-	const delay = computeExponentialBackoff(baseDelayMs, attempt, maxDelayMs);
+	const delay = computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs });
 	const jitter = jitterMs > 0 ? Math.random() * jitterMs : 0;
 	return delay + jitter;
 }
