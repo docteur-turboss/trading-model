@@ -63,11 +63,11 @@ export class CircuitBreaker {
 		entry.state = "closed";
 	}
 
-	recordFailure(key: string, count = 1): void {
+	recordFailure(key: string, count = 1, threshold?: number): void {
 		const entry = this._getEntry(key);
 		entry.failures += count;
 		entry.lastFailureTime = Date.now();
-		if (entry.failures >= this._config.failureThreshold) {
+		if (entry.failures >= (threshold ?? this._config.failureThreshold)) {
 			entry.state = "open";
 		}
 	}
