@@ -14,30 +14,13 @@ export class ExperiencePool {
 		this._poolMaxSize = poolMaxSize;
 	}
 
-	public add(
-		input: Float32Array,
-		output: Float32Array,
-		reward?: number,
-		nextState?: Float32Array,
-		done?: boolean,
-	): void {
+	public add(experience: Experience): void {
 		if (!this._enablePool) {
 			return;
 		}
 		const id = this._nextPoolId++;
-		const exp: Experience =
-			reward !== undefined && nextState !== undefined
-				? {
-						kind: "qlearning",
-						input,
-						output: output.slice(),
-						reward,
-						nextState,
-						done: done ?? false,
-					}
-				: { kind: "bare", input, output: output.slice() };
-		this._poolMap.set(id, exp);
-		this._poolInputToId.set(input, id);
+		this._poolMap.set(id, experience);
+		this._poolInputToId.set(experience.input, id);
 		if (this._poolMap.size > this._poolMaxSize) {
 			const firstKey = this._poolMap.keys().next().value!;
 			const oldest = this._poolMap.get(firstKey);

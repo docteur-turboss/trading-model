@@ -75,7 +75,18 @@ export class Agent {
 		const { input, reward, nextState, done } = ff;
 		const { output } = this._nn.forward(input);
 
-		this._pool.add(input, output, reward, nextState, done);
+		const experience: Experience =
+			reward !== undefined && nextState !== undefined
+				? {
+						kind: "qlearning",
+						input,
+						output: output.slice(),
+						reward,
+						nextState,
+						done: done ?? false,
+					}
+				: { kind: "bare", input, output: output.slice() };
+		this._pool.add(experience);
 
 		return output;
 	}
