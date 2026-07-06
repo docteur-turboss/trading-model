@@ -17,7 +17,7 @@ interface JwksResponse {
 }
 
 export class JwksKeyProvider {
-	private _cachedKeys: Map<string, KeyObject> | null = null;
+	private _cachedKeys: Map<string, KeyObject> = new Map();
 	private _lastFetch = 0;
 	private readonly _cacheTtlMs = 3_600_000;
 	private readonly _config: Pick<OidcConfig, "jwksUri">;
@@ -28,19 +28,17 @@ export class JwksKeyProvider {
 
 	async resolveSigningKey(kid?: string): Promise<KeyObject> {
 		await this._refreshKeys();
-		if (this._cachedKeys) {
-			if (kid) {
-				const key = this._lookupByKid(kid);
-				if (key) return key;
-			}
-			const singleKey = this._lookupSingleKey();
-			if (singleKey) return singleKey;
+		if (kid) {
+			const key = this._lookupByKid(kid);
+			if (key) return key;
 		}
+		const singleKey = this._lookupSingleKey();
+		if (singleKey) return singleKey;
 		throw new Error(`Signing key not found (kid: ${kid ?? "none"})`);
 	}
 
 	private _shouldRefresh(): boolean {
-		return !this._cachedKeys || Date.now() - this._lastFetch >= this._cacheTtlMs;
+		return this._cachedKeys.size === 0 || Date.now() - this._lastFetch >= this._cacheTtlMs;
 	}
 
 	private async _refreshKeys(): Promise<void> {
@@ -53,7 +51,7 @@ export class JwksKeyProvider {
 		try {
 			await this._fetchAndCacheKeys();
 		} catch (err) {
-			if (this._cachedKeys && this._cachedKeys.size > 0) {
+			if (this._cachedKeys.size > 0) {
 				logger.warn("JWKS refresh failed, using cached keys", {
 					context: { err },
 				});
@@ -91,35 +89,18 @@ export class JwksKeyProvider {
 	private _parseJwkKey(
 		entry: Jwk,
 	): { kid: string; key: KeyObject } | null {
-		const fieldN = "n";
-		const fieldE = "e";
-		const fieldX = "x";
-		const fieldY = "y";
-		const jwkAny = entry as Record<string, string | undefined>;
-		const modulus = jwkAny[fieldN];
-		const exponent = jwkAny[fieldE];
-		const xCoord = jwkAny[fieldX];
-		const yCoord = jwkAny[fieldY];
+		const { n: modulus, e: exponent, x: xCoord, y: yCoord } = entry as Record<string, string | undefined>;
 		if (entry.kty === "RSA" && modulus && exponent) {
-			const rsaKey: Record<string, string> = { kty: entry.kty };
-			rsaKey[fieldN] = modulus;
-			rsaKey[fieldE] = exponent;
 			const key = createPublicKey({
-				key: rsaKey,
+				key: { kty: entry.kty, n: modulus, e: exponent },
 				format: "jwk",
 			});
 			const kid = entry.kid ?? modulus.slice(0, 16);
 			return { kid, key };
 		}
 		if (entry.kty === "EC" && xCoord && yCoord && entry.crv) {
-			const ecKey: Record<string, string> = {
-				kty: entry.kty,
-				crv: entry.crv,
-			};
-			ecKey[fieldX] = xCoord;
-			ecKey[fieldY] = yCoord;
 			const key = createPublicKey({
-				key: ecKey,
+				key: { kty: entry.kty, crv: entry.crv, x: xCoord, y: yCoord },
 				format: "jwk",
 			});
 			const kid = entry.kid ?? xCoord.slice(0, 16);
@@ -129,11 +110,11 @@ export class JwksKeyProvider {
 	}
 
 	private _lookupByKid(kid: string): KeyObject | undefined {
-		return this._cachedKeys?.get(kid);
+		return this._cachedKeys.get(kid);
 	}
 
 	private _lookupSingleKey(): KeyObject | undefined {
-		if (this._cachedKeys && this._cachedKeys.size === 1) {
+		if (this._cachedKeys.size === 1) {
 			return this._cachedKeys.values().next().value;
 		}
 	}
