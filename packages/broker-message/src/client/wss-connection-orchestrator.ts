@@ -1,69 +1,55 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
-import { WssConnection } from "./wss-connection";
 import { WssReconnector } from "./wss-reconnector";
 import { PendingPublishQueue } from "./pending-publish-queue";
+import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
+import { TopicSubscriptionManager } from "./topic-subscription-manager";
 
 export class WssConnectionOrchestrator {
-	private readonly _connection: WssConnection;
+	private readonly _lifecycle: WssConnectionLifecycle;
 	private readonly _reconnector = new WssReconnector();
-	private readonly _wsUrl: string;
-	private readonly _serviceName: string;
-	private readonly _instanceId: string;
-	private _subscribedTopics: string[] = [];
+	private readonly _topicManager = new TopicSubscriptionManager();
+	private readonly _queue: PendingPublishQueue;
 
 	constructor(
 		config: {
 			wssUrl: string;
-			tlsConfig?: Partial<TlsPaths>;
+			tlsConfig?: Partial<import("@trading-model/common/domain/tls-paths").TlsPaths>;
 			serviceName: string;
 			instanceId: string;
 		},
 		onMessage: (raw: string) => void,
-		private readonly _queue: PendingPublishQueue
+		queue: PendingPublishQueue
 	) {
-		this._connection = new WssConnection(config.tlsConfig);
-		this._wsUrl = config.wssUrl;
-		this._serviceName = config.serviceName;
-		this._instanceId = config.instanceId;
-
-		const callbacks = {
+		this._queue = queue;
+		this._lifecycle = new WssConnectionLifecycle(config, {
 			onOpen: () => this._onWsOpen(),
 			onMessage: (raw: string) => onMessage(raw),
 			onClose: (code: number, reason: Buffer) => this._onWsClose(code, reason),
 			onError: (err: Error) => this._onWsError(err),
-		};
+		});
 
 		this._onConnect = () => {
-			const url = this._buildUrl();
-			this._connection.connect(url, callbacks);
+			this._lifecycle.connect();
 		};
 	}
 
 	private readonly _onConnect: () => void;
 
-	private _buildUrl(): string {
-		const url = new URL(this._wsUrl);
-		url.searchParams.set("service", this._serviceName);
-		url.searchParams.set("instance", this._instanceId);
-		return url.toString();
-	}
-
 	get builtUrl(): string {
-		return this._buildUrl();
+		return this._lifecycle.builtUrl;
 	}
 
 	connect(topics: string[]): void {
-		this._subscribedTopics = topics;
+		this._topicManager.setTopics(topics);
 		this._reconnector.shouldReconnect = true;
 		this._connectWs();
 	}
 
 	private _connectWs(): void {
 		logger.info("WSS connecting", {
-			url: this._buildUrl(),
+			url: this._lifecycle.builtUrl,
 			attempt: this._reconnector.attempt + 1,
 		});
 		try {
@@ -80,10 +66,10 @@ export class WssConnectionOrchestrator {
 		this._reconnector.reset();
 		logger.info("WSS connected");
 
-		if (this._subscribedTopics.length > 0) {
+		if (this._topicManager.topics.length > 0) {
 			this.send({
 				type: "subscribe",
-				topics: this._subscribedTopics,
+				topics: this._topicManager.topics,
 			});
 		}
 
@@ -109,15 +95,15 @@ export class WssConnectionOrchestrator {
 	}
 
 	isConnected(): boolean {
-		return this._connection.isConnected;
+		return this._lifecycle.isConnected();
 	}
 
 	send(data: unknown): boolean {
-		return this._connection.send(data);
+		return this._lifecycle.send(data);
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {
-		this._connection.disconnect(closeCode, reason);
+		this._lifecycle.disconnect(closeCode, reason);
 	}
 
 	private _flushPending(): void {
@@ -125,15 +111,11 @@ export class WssConnectionOrchestrator {
 	}
 
 	addTopics(topics: string[]): void {
-		this._subscribedTopics = [
-			...new Set([...this._subscribedTopics, ...topics]),
-		];
+		this._topicManager.addTopics(topics);
 	}
 
 	removeTopics(topics: string[]): void {
-		this._subscribedTopics = this._subscribedTopics.filter(
-			(topic) => !topics.includes(topic)
-		);
+		this._topicManager.removeTopics(topics);
 	}
 
 	get shouldReconnect(): boolean {

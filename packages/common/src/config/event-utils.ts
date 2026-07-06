@@ -1,57 +1,58 @@
-import type { CandleData, OrderBookData, TradeData } from "./event.types";
+import { Price, Volume } from "../domain/primitives";
+import type { CandleData, OrderBookData, TradeData, TradeSide } from "./event.types";
 
-export function getAvgBid(ob: OrderBookData): number {
+export function getAvgBid(ob: OrderBookData): Price {
 	let sum = 0;
 	for (const bid of ob.bids) {
 		sum += bid.price;
 	}
-	return ob.bids.size > 0 ? sum / ob.bids.size : 0;
+	return Price.of(ob.bids.size > 0 ? sum / ob.bids.size : 0);
 }
 
-export function getAvgAsk(ob: OrderBookData): number {
+export function getAvgAsk(ob: OrderBookData): Price {
 	let sum = 0;
 	for (const ask of ob.asks) {
 		sum += ask.price;
 	}
-	return ob.asks.size > 0 ? sum / ob.asks.size : 0;
+	return Price.of(ob.asks.size > 0 ? sum / ob.asks.size : 0);
 }
 
-export function getSpread(ob: OrderBookData): number {
-	return getAvgAsk(ob) - getAvgBid(ob);
+export function getSpread(ob: OrderBookData): Price {
+	return Price.of(+getAvgAsk(ob) - +getAvgBid(ob));
 }
 
-export function getMidPrice(ob: OrderBookData): number {
-	return (getAvgBid(ob) + getAvgAsk(ob)) / 2;
+export function getMidPrice(ob: OrderBookData): Price {
+	return Price.of((+getAvgBid(ob) + +getAvgAsk(ob)) / 2);
 }
 
-export function getBidTotalQty(ob: OrderBookData): number {
+export function getBidTotalQty(ob: OrderBookData): Volume {
 	let qty = 0;
 	for (const bid of ob.bids) {
 		qty += bid.quantity;
 	}
-	return qty;
+	return Volume.of(qty);
 }
 
-export function getAskTotalQty(ob: OrderBookData): number {
+export function getAskTotalQty(ob: OrderBookData): Volume {
 	let qty = 0;
 	for (const ask of ob.asks) {
 		qty += ask.quantity;
 	}
-	return qty;
+	return Volume.of(qty);
 }
 
 export function isBullish(candle: CandleData): boolean {
 	return candle.close >= candle.open;
 }
 
-export function getCandleBodySize(candle: CandleData): number {
-	return Math.abs(candle.close - candle.open);
+export function getCandleBodySize(candle: CandleData): Price {
+	return Price.of(Math.abs(+candle.close - +candle.open));
 }
 
 export function isBuyTrade(trade: TradeData): boolean {
-	return trade.side === "buy";
+	return trade.side === TradeSide.BUY;
 }
 
 export function isSellTrade(trade: TradeData): boolean {
-	return trade.side === "sell";
+	return trade.side === TradeSide.SELL;
 }

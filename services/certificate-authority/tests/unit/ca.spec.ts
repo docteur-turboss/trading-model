@@ -71,8 +71,8 @@ const MOCK_CA_STORE = {
 	getLatest: jest.fn(),
 };
 
-function createCa() {
-	return CertificateAuthority.createUninitialized({
+async function createCa() {
+	return CertificateAuthority.create({
 		caKeyPath: "/etc/ca-keys/ca-key.pem",
 		caCertTtlMs: 31536000000,
 		certificateStore: MOCK_CERT_STORE as any,
@@ -117,8 +117,7 @@ describe("CertificateAuthority", () => {
 			MOCK_CA_STORE.getLatest.mockResolvedValue(null);
 			MOCK_CA_STORE.save.mockResolvedValue(undefined);
 
-			const ca = createCa();
-			await ca.initialize();
+			const ca = await createCa();
 
 			expect(mockExistsSync).toHaveBeenCalledWith("/etc/ca-keys/ca-key.pem");
 			expect(generateKeyPair).toHaveBeenCalled();

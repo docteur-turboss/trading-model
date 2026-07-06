@@ -5,6 +5,7 @@ import { type IServiceCache, NullServiceCache } from "./service-cache.interface"
 import { CircuitBreakerState } from "./circuit-breaker-state";
 import { CircuitBreakerLatency } from "./circuit-breaker-latency";
 import { CircuitBreakerPersistence } from "./circuit-breaker-persistence";
+import { CircuitBreakerRecorder } from "./circuit-breaker-recorder";
 
 const DEFAULT_LATENCY_WINDOW_SIZE = 100;
 const DEFAULT_LATENCY_P99_THRESHOLD_MS = 5000;
@@ -23,6 +24,7 @@ export class CircuitBreaker implements ICircuitBreaker {
 	private readonly _state: CircuitBreakerState;
 	private readonly _latency: CircuitBreakerLatency;
 	private readonly _persistence: CircuitBreakerPersistence;
+	private readonly _recorder: CircuitBreakerRecorder;
 
 	constructor(options: CircuitBreakerOptions = {}) {
 		const failureThreshold = options.failureThreshold ?? 3;
@@ -43,10 +45,11 @@ export class CircuitBreaker implements ICircuitBreaker {
 		);
 		this._latency = new CircuitBreakerLatency(latencyWindowSize, latencyP99ThresholdMs);
 		this._persistence = new CircuitBreakerPersistence(stateStore ?? new NullServiceCache(), loadFromStoreCacheTtlMs);
+		this._recorder = new CircuitBreakerRecorder(this._state, this._latency, this._persistence);
 	}
 
 	async loadFromStore(instanceId: string): Promise<void> {
-		await this._persistence.loadFromStore(instanceId, this._state.instances);
+		await this._recorder.loadFromStore(instanceId);
 	}
 
 	check(instanceId: string): CircuitState {
@@ -69,31 +72,15 @@ export class CircuitBreaker implements ICircuitBreaker {
 	}
 
 	recordFailure(instanceId: string): void {
-		const now = Date.now();
-		const state = this._state.getOrCreateState(instanceId, now);
-		state.failures++;
-		state.lastFailureTime = now;
-		this._state.checkOpenThreshold(instanceId, state);
-		this._persistence.persistState(instanceId, state);
+		this._recorder.recordFailure(instanceId);
 	}
 
 	recordSuccess(instanceId: string): void {
-		const state = this._state.getInstanceState(instanceId);
-		if (!state) {
-			return;
-		}
-		this._state.logHalfOpenClose(instanceId, state);
-		state.state = "closed";
-		state.failures = 0;
-		this._persistence.deleteLastLoadTime(instanceId);
-		this._latency.deleteWindow(instanceId);
-		this._persistence.deletePersistedState(instanceId);
+		this._recorder.recordSuccess(instanceId);
 	}
 
 	recordLatency(instanceId: string, durationMs: number): void {
-		this._latency.recordLatency(instanceId, durationMs, (id) => {
-			this.recordFailure(id);
-		});
+		this._recorder.recordLatency(instanceId, durationMs);
 	}
 
 	isOpen(instanceId: string): boolean {
@@ -109,21 +96,10 @@ export class CircuitBreaker implements ICircuitBreaker {
 	}
 
 	getStateSummary(): Record<CircuitState, number> {
-		const summary: Record<CircuitState, number> = {
-			closed: 0,
-			open: 0,
-			"half-open": 0,
-		};
-		for (const [, state] of this._state.instances) {
-			summary[state.state]++;
-		}
-		return summary;
+		return this._recorder.getStateSummary();
 	}
 
 	clear(): void {
-		this._persistence.clearPersistedStates(this._state.instances);
-		this._state.clear();
-		this._persistence.clear();
-		this._latency.clear();
+		this._recorder.clear();
 	}
 }

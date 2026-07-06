@@ -27,7 +27,7 @@ export interface CertBodyInput {
 }
 
 export class CertificateAuthority {
-	private _state: BootstrapResult | null = null;
+	private _state!: BootstrapResult;
 	private readonly _bootstrapper: CaBootstrapper;
 	private readonly _operator: CertificateOperator;
 	private readonly _caStore: CaStore;
@@ -50,11 +50,6 @@ export class CertificateAuthority {
 		return ca;
 	}
 
-	/** @internal For testing – prefer CertificateAuthority.create(). */
-	static createUninitialized(options: CaOptions): CertificateAuthority {
-		return new CertificateAuthority(options);
-	}
-
 	async initialize(): Promise<void> {
 		this._state = await this._bootstrapper.loadOrBootstrap(this._caStore);
 	}
@@ -62,11 +57,6 @@ export class CertificateAuthority {
 	async signServiceCertificate(
 		request: SignServiceCertRequest
 	): Promise<SignedCertificate> {
-		if (!this._state) {
-			throw new Error(
-				"CA not initialized. Call initialize() or use CertificateAuthority.create()."
-			);
-		}
 		return this._operator.signServiceCertificate(
 			request,
 			this._state.caKeyPair,
@@ -83,10 +73,10 @@ export class CertificateAuthority {
 	}
 
 	getCaCertPem(): string {
-		return this._state?.caCertPem ?? "";
+		return this._state.caCertPem;
 	}
 
 	isInitialized(): boolean {
-		return this._state !== null;
+		return true;
 	}
 }

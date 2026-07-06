@@ -1,12 +1,12 @@
 import type { LockBackend, LockContext } from "./lock-backends";
-import { FileSystemLockBackend, NullLockBackend, RedisLockBackend } from "./lock-backends";
+import { RedisLockBackend } from "./lock-backends";
 import { LockConnectionManager } from "./lock-connection-manager";
 
 export class LockAcquisitionChain {
 	constructor(
 		private readonly _connectionManager: LockConnectionManager,
 		private readonly _redisBackend: LockBackend,
-		private readonly _filesystemBackend: FileSystemLockBackend,
+		private readonly _filesystemBackend: LockBackend,
 	) {}
 
 	async acquire(

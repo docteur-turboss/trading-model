@@ -1,4 +1,3 @@
-import { context, propagation } from "@opentelemetry/api";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { PendingPublishQueue } from "./pending-publish-queue";
@@ -7,6 +6,7 @@ import {
 	type WssMessageHandler,
 } from "./wss-message-dispatcher";
 import { WssConnectionOrchestrator } from "./wss-connection-orchestrator";
+import { WssPublisher } from "./wss-publisher";
 
 export type { WssMessageHandler } from "./wss-message-dispatcher";
 
@@ -14,7 +14,7 @@ export class WssClient {
 	private readonly _orchestrator: WssConnectionOrchestrator;
 	private readonly _dispatcher: WssMessageDispatcher;
 	private readonly _queue: PendingPublishQueue;
-	private readonly _hasHttpFallback: boolean;
+	private readonly _publisher: WssPublisher;
 
 	constructor(config: {
 		wssUrl: string;
@@ -23,7 +23,6 @@ export class WssClient {
 		instanceId: string;
 		httpFallback?: (payload: unknown, metadata: MessageMetadata) => Promise<void>;
 	}) {
-		this._hasHttpFallback = config.httpFallback !== undefined;
 		this._queue = new PendingPublishQueue(config.httpFallback);
 		this._dispatcher = new WssMessageDispatcher();
 		this._orchestrator = new WssConnectionOrchestrator(
@@ -36,6 +35,7 @@ export class WssClient {
 			(raw) => this._dispatcher.dispatch(raw),
 			this._queue
 		);
+		this._publisher = new WssPublisher(this._orchestrator, this._queue);
 	}
 
 	connect(topics: string[] = []): void {
@@ -45,7 +45,7 @@ export class WssClient {
 	get httpFallback():
 		| ((payload: unknown, metadata: MessageMetadata) => Promise<void>)
 		| null {
-		return this._queue.httpFallback;
+		return this._publisher.httpFallback;
 	}
 
 	get messageHandler(): WssMessageHandler | null {
@@ -57,27 +57,11 @@ export class WssClient {
 	}
 
 	publish(payload: unknown, metadata: MessageMetadata): Promise<void> {
-		const carrier: Record<string, string> = {};
-		propagation.inject(context.active(), carrier);
-		if (
-			this._orchestrator.isConnected() &&
-			this._orchestrator.send({
-				type: "publish",
-				payload,
-				metadata,
-				traceparent: carrier.traceparent,
-			})
-		) {
-			return Promise.resolve();
-		}
-		if (this._hasHttpFallback) {
-			return this._queue.enqueueOrFallback(payload, metadata);
-		}
-		return Promise.reject(new Error("WSS not connected and no HTTP fallback"));
+		return this._publisher.publish(payload, metadata);
 	}
 
 	send(data: unknown): Promise<void> {
-		return this.publish(data, {} as MessageMetadata);
+		return this._publisher.send(data);
 	}
 
 	subscribe(topics: string[]): Promise<void> {

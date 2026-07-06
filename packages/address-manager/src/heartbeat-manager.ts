@@ -5,6 +5,7 @@ import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
 import type { WebSocketClient } from "./client/websocket-client";
 import type { AddressManagerDeps } from "./types";
+import { HeartbeatFailureHandler } from "./heartbeat-failure-handler";
 
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = 3;
 
@@ -15,6 +16,7 @@ export class HeartbeatManager {
 	private _onSuccess?: () => void;
 	private _onFailure?: () => void;
 	private _consecutiveHeartbeatFailures = 0;
+	private readonly _failureHandler: HeartbeatFailureHandler;
 
 	constructor(deps: AddressManagerDeps) {
 		this._addressManagerClient = deps.addressManagerClient;
@@ -22,6 +24,11 @@ export class HeartbeatManager {
 		this._wsClient = deps.wsClient;
 		this._onSuccess = deps.onSuccess;
 		this._onFailure = deps.onFailure;
+		this._failureHandler = new HeartbeatFailureHandler(
+			this._addressManagerClient,
+			this._tokenManager,
+			this._wsClient,
+		);
 	}
 
 	async performHeartbeat(
@@ -61,25 +68,9 @@ export class HeartbeatManager {
 		});
 		if (this._consecutiveHeartbeatFailures >= MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER) {
 			this._consecutiveHeartbeatFailures = 0;
-			await this._forceReRegistration();
+			await this._failureHandler.handleError(err, this._onSuccess, this._onFailure);
 		}
-		await this._handleHeartbeatFailure();
-	}
-
-	private async _forceReRegistration(): Promise<void> {
-		logger.warn("Too many heartbeat failures — forcing re-registration");
-		try {
-			const res = await this._addressManagerClient.registerService();
-			if (res?.token) {
-				this._onSuccess?.();
-				this._tokenManager.setToken(res.token);
-				this._wsClient?.updateToken(res.token);
-			}
-		} catch (registerErr) {
-			logger.error("Re-registration after heartbeat failures failed", {
-				error: normalizeError(registerErr),
-			});
-		}
+		await this._heartbeatViaHttpAfterFailure();
 	}
 
 	private async _heartbeatViaHttp(): Promise<void> {
@@ -91,7 +82,7 @@ export class HeartbeatManager {
 		}
 	}
 
-	private async _handleHeartbeatFailure(): Promise<void> {
+	private async _heartbeatViaHttpAfterFailure(): Promise<void> {
 		if (!this._addressManagerClient.hasIpChanged()) {
 			return;
 		}

@@ -1,8 +1,8 @@
 import { Cash, Percentage, Price, Volume } from "@trading-model/common/domain/primitives";
 
 export interface WalletMetrics {
-	pnl: number;
-	returnRate: number;
+	pnl: Cash;
+	returnRate: Percentage;
 	peakValuation: Cash;
 	drawdown: Percentage;
 	totalFeesPaid: Cash;
@@ -25,25 +25,27 @@ export interface ComputeWalletMetricsParams {
 	decimals: number;
 }
 
-function _computeValuation(params: ComputeWalletMetricsParams): number {
-	return round(+params.cash + params.position * +params.price, params.decimals);
+function _computeValuation(params: ComputeWalletMetricsParams): Cash {
+	return Cash.of(round(+params.cash + params.position * +params.price, params.decimals));
 }
 
-function _computePnL(valuation: number, params: ComputeWalletMetricsParams): number {
-	return round(valuation - +params.initialCash, params.decimals);
+function _computePnL(valuation: Cash, params: ComputeWalletMetricsParams): Cash {
+	return Cash.of(round(+valuation - +params.initialCash, params.decimals));
 }
 
-function _computeReturnRate(valuation: number, params: ComputeWalletMetricsParams): number {
-	return round(
-		(valuation - +params.initialCash) / +params.initialCash,
-		params.decimals
+function _computeReturnRate(valuation: Cash, params: ComputeWalletMetricsParams): Percentage {
+	return Percentage.of(
+		round(
+			(+valuation - +params.initialCash) / +params.initialCash,
+			params.decimals
+		)
 	);
 }
 
-function _computeDrawdown(valuation: number, params: ComputeWalletMetricsParams): number {
+function _computeDrawdown(valuation: Cash, params: ComputeWalletMetricsParams): number {
 	return +params.peakValuation > 0
 		? round(
-				(+params.peakValuation - valuation) / +params.peakValuation,
+				(+params.peakValuation - +valuation) / +params.peakValuation,
 				params.decimals
 			)
 		: 0;
@@ -52,7 +54,7 @@ function _computeDrawdown(valuation: number, params: ComputeWalletMetricsParams)
 export function computeWalletMetrics(
 	params: ComputeWalletMetricsParams
 ): WalletMetrics {
-	const valuation = _computeValuation(params);
+	const valuation: Cash = _computeValuation(params);
 	return {
 		pnl: _computePnL(valuation, params),
 		returnRate: _computeReturnRate(valuation, params),
