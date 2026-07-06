@@ -42,11 +42,7 @@ export class MongoArchiveStore {
 	private _topicsCacheTimer: ReturnType<typeof setInterval> | null = null;
 
 	async start(): Promise<void> {
-		if (!ENV.MONGO_ARCHIVE_URI) {
-			logger.info("MongoDB archival not configured — skipping");
-			return;
-		}
-		if (this._started) {
+		if (!this._canStart()) {
 			return;
 		}
 		this._started = true;
@@ -57,14 +53,27 @@ export class MongoArchiveStore {
 			this._startArchiveTimer();
 			this._startTopicsCacheRefresh();
 		} catch (err) {
-			logger.warn(
-				"MongoDB archival store failed to start — continuing without archival",
-				{
-					error: (err as Error).message,
-				}
-			);
-			this._client = null;
+			this._handleStartError(err as Error);
 		}
+	}
+
+	private _canStart(): boolean {
+		if (!ENV.MONGO_ARCHIVE_URI) {
+			logger.info("MongoDB archival not configured — skipping");
+			return false;
+		}
+		if (this._started) {
+			return false;
+		}
+		return true;
+	}
+
+	private _handleStartError(err: Error): void {
+		logger.warn(
+			"MongoDB archival store failed to start — continuing without archival",
+			{ error: err.message }
+		);
+		this._client = null;
 	}
 
 	private async _connectClient(): Promise<void> {

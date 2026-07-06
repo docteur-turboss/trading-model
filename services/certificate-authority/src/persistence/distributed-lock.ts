@@ -159,32 +159,15 @@ export class DistributedLock {
 		return false;
 	}
 
+	private async _releaseOnBackend(backend: { release(name: string, instanceId: string, token: number): Promise<boolean> }, token: number): Promise<boolean> {
+		return backend.release(this._lockName, this._instanceId, token);
+	}
+
 	async release(): Promise<void> {
 		const savedToken = this._currentFencingToken;
 		this._currentFencingToken = -1;
-
-		if (
-			await this._mongoBackend.release(
-				this._lockName,
-				this._instanceId,
-				savedToken
-			)
-		) {
-			return;
-		}
-		if (
-			await this._redisBackend.release(
-				this._lockName,
-				this._instanceId,
-				savedToken
-			)
-		) {
-			return;
-		}
-		await this._filesystemBackend.release(
-			this._lockName,
-			this._instanceId,
-			savedToken
-		);
+		if (await this._releaseOnBackend(this._mongoBackend, savedToken)) return;
+		if (await this._releaseOnBackend(this._redisBackend, savedToken)) return;
+		await this._filesystemBackend.release(this._lockName, this._instanceId, savedToken);
 	}
 }

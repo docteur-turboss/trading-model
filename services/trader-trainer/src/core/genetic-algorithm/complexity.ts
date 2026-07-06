@@ -103,13 +103,12 @@ export interface TopologyViolation {
  * Returns a list of constraint violations.
  * Empty list means the network is within bounds.
  */
-function checkLayerViolations(
+function _checkNeuronBounds(
 	layer: NetworkGenome["hiddenLayers"][number],
 	index: number,
 	constraints: TopologyConstraints
 ): TopologyViolation[] {
 	const violations: TopologyViolation[] = [];
-
 	if (layer.neurons > constraints.maxNeuronsPerLayer) {
 		violations.push({
 			rule: `layer[${index}].maxNeuronsPerLayer`,
@@ -124,49 +123,81 @@ function checkLayerViolations(
 			limit: constraints.minNeuronsPerLayer,
 		});
 	}
+	return violations;
+}
+
+function _checkSkipConnectionConstraint(
+	layer: NetworkGenome["hiddenLayers"][number],
+	index: number,
+	constraints: TopologyConstraints
+): TopologyViolation[] {
 	if (
 		constraints.skipConnectionsFromLayer1Only &&
 		index === 0 &&
-		(layer.connectionType === "dense-skip" ||
-			layer.connectionType === "residual-connection")
+		(layer.connectionType === "dense-skip" || layer.connectionType === "residual-connection")
 	) {
-		violations.push({
+		return [{
 			rule: `layer[${index}].skipConnectionsFromLayer1Only`,
 			actual: layer.connectionType,
 			limit: "fully-connected at layer 0",
-		});
+		}];
 	}
+	return [];
+}
 
-	return violations;
+function checkLayerViolations(
+	layer: NetworkGenome["hiddenLayers"][number],
+	index: number,
+	constraints: TopologyConstraints
+): TopologyViolation[] {
+	return [
+		..._checkNeuronBounds(layer, index, constraints),
+		..._checkSkipConnectionConstraint(layer, index, constraints),
+	];
+}
+
+function _checkMaxDepth(
+	layers: NetworkGenome["hiddenLayers"],
+	constraints: TopologyConstraints
+): TopologyViolation[] {
+	if (layers.length > constraints.maxDepth) {
+		return [{
+			rule: "maxDepth",
+			actual: layers.length,
+			limit: constraints.maxDepth,
+		}];
+	}
+	return [];
+}
+
+function _checkMaxTotalParams(
+	net: NetworkGenome,
+	constraints: TopologyConstraints
+): TopologyViolation[] {
+	const totalParams = countParams(net);
+	if (totalParams > constraints.maxTotalParams) {
+		return [{
+			rule: "maxTotalParams",
+			actual: totalParams,
+			limit: constraints.maxTotalParams,
+		}];
+	}
+	return [];
 }
 
 export function checkTopologyConstraints(
 	net: NetworkGenome,
 	constraints: TopologyConstraints = DEFAULT_TOPOLOGY_CONSTRAINTS
 ): TopologyViolation[] {
-	const violations: TopologyViolation[] = [];
 	const layers = net.hiddenLayers;
-
-	if (layers.length > constraints.maxDepth) {
-		violations.push({
-			rule: "maxDepth",
-			actual: layers.length,
-			limit: constraints.maxDepth,
-		});
-	}
+	const violations: TopologyViolation[] = [
+		..._checkMaxDepth(layers, constraints),
+		..._checkMaxTotalParams(net, constraints),
+	];
 
 	layers.forEach((layer, index) => {
 		violations.push(...checkLayerViolations(layer, index, constraints));
 	});
-
-	const totalParams = countParams(net);
-	if (totalParams > constraints.maxTotalParams) {
-		violations.push({
-			rule: "maxTotalParams",
-			actual: totalParams,
-			limit: constraints.maxTotalParams,
-		});
-	}
 
 	return violations;
 }

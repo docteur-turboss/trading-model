@@ -55,32 +55,36 @@ export default class AddressManager {
 
 	constructor(config: AddressManagerConfig) {
 		this._httpClient = HttpClient.createWithTls(config.tls);
-
 		this._tokenManager = new TokenManager(this._httpClient, config);
 		this._addressManagerClient = new AddressManagerClient(
 			this._httpClient,
 			this._tokenManager,
-			config
+			config,
 		);
-
 		this._serviceCache = new ServiceCache(config.cacheTtlMs);
-		this._healthChecker = new ServiceHealthChecker(
+		this._healthChecker = this._createHealthChecker(config);
+		this._serviceDiscovery = this._createServiceDiscovery(config);
+		this._tokenRefreshIntervalMs = config.tokenRefreshIntervalMs;
+		this._ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
+	}
+
+	private _createHealthChecker(config: AddressManagerConfig): ServiceHealthChecker {
+		return new ServiceHealthChecker(
 			this._httpClient,
 			config.servicePingTimeoutMs,
 			config.dnsNameMap
 				? new MappingServiceLocator(new MapResolver(config.dnsNameMap))
-				: undefined
+				: undefined,
 		);
+	}
 
-		this._serviceDiscovery = new ServiceDiscovery({
+	private _createServiceDiscovery(config: AddressManagerConfig): ServiceDiscovery {
+		return new ServiceDiscovery({
 			httpClient: this._httpClient,
 			serviceCache: this._serviceCache,
 			config,
 			healthChecker: this._healthChecker,
 		});
-
-		this._tokenRefreshIntervalMs = config.tokenRefreshIntervalMs;
-		this._ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
 	}
 
 	getToken(): string {
@@ -103,36 +107,43 @@ export default class AddressManager {
 	 * Attempts to register until success, max retries are exhausted,
 	 * or `stop()` is called. Each failure is logged with attempt count.
 	 */
+	private _computeDelay(attempt: number): number {
+		return Math.min(
+			REGISTRATION_BASE_DELAY_MS * 2 ** attempt,
+			REGISTRATION_MAX_DELAY_MS,
+		);
+	}
+
+	private async _attemptRegistration(attempt: number): Promise<boolean> {
+		try {
+			const res = await this._addressManagerClient.registerService();
+			if (!res) {
+				throw new Error("Registration returned no content");
+			}
+			this._tokenManager.setToken(res.token);
+			return true;
+		} catch (error) {
+			logger.error("Service registration failed", {
+				attempt,
+				maxRetries: MAX_REGISTRATION_RETRIES,
+				error: normalizeError(error),
+			});
+			if (attempt < MAX_REGISTRATION_RETRIES) {
+				await sleep(this._computeDelay(attempt));
+			}
+			return false;
+		}
+	}
+
 	private async _retryRegistration(): Promise<void> {
 		for (let attempt = 1; attempt <= MAX_REGISTRATION_RETRIES; attempt++) {
 			if (!this._shouldRetryRegistration) {
 				return;
 			}
-
-			try {
-				const res = await this._addressManagerClient.registerService();
-				if (!res) {
-					throw new Error("Registration returned no content");
-				}
-				this._tokenManager.setToken(res.token);
+			if (await this._attemptRegistration(attempt)) {
 				return;
-			} catch (error) {
-				logger.error("Service registration failed", {
-					attempt,
-					maxRetries: MAX_REGISTRATION_RETRIES,
-					error: normalizeError(error),
-				});
-
-				if (attempt < MAX_REGISTRATION_RETRIES) {
-					const delay = Math.min(
-						REGISTRATION_BASE_DELAY_MS * 2 ** attempt,
-						REGISTRATION_MAX_DELAY_MS
-					);
-					await sleep(delay);
-				}
 			}
 		}
-
 		logger.error("Service registration failed after max retries", {
 			maxRetries: MAX_REGISTRATION_RETRIES,
 		});
