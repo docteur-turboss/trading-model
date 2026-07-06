@@ -37,7 +37,7 @@ export class LruCache<TValue> {
 		return entry.value;
 	}
 
-	private _evictOldestIfNeeded(): void {
+	private _evictIfNeeded(key: string): void {
 		if (this._store.has(key)) {
 			this._store.delete(key);
 		} else if (this._store.size >= this._maxSize) {

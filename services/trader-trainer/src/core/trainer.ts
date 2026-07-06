@@ -116,20 +116,25 @@ export class Trainer {
 		this._runner = this._createRunner(validation.windowSet);
 
 		try {
-			const result = await this._runner.run();
-			this._bestGenome = result;
-			logger.info("Training complete", { context: {
-				symbol,
-				bestFitness: result.fitness ?? 0,
-			} });
-			return { success: true, symbol, bestGenome: result };
+			return await this._runTraining(symbol);
 		} catch (err) {
-			const error = err instanceof Error ? err : new Error(String(err));
-			logger.error("Training failed", { context: { symbol, err: error.message } });
-			return { success: false, symbol, error };
+			return this._handleTrainingError(symbol, err);
 		} finally {
 			this._training = false;
 		}
+	}
+
+	private async _runTraining(symbol: string): Promise<TrainingSuccess> {
+		const result = await this._runner!.run();
+		this._bestGenome = result;
+		logger.info("Training complete", { context: { symbol, bestFitness: result.fitness ?? 0 } });
+		return { success: true, symbol, bestGenome: result };
+	}
+
+	private _handleTrainingError(symbol: string, err: unknown): TrainingFailure {
+		const error = err instanceof Error ? err : new Error(String(err));
+		logger.error("Training failed", { context: { symbol, err: error.message } });
+		return { success: false, symbol, error };
 	}
 
 	private _createRunner(windowSet: WindowSet): GeneticAlgorithmRunner {

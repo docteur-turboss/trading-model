@@ -1,9 +1,7 @@
 import { createHmac } from "node:crypto";
 
-import type {
-	HttpClient,
-	HttpRequestOptions,
-} from "@trading-model/common/config/http-client";
+import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import {
 	AppError,
