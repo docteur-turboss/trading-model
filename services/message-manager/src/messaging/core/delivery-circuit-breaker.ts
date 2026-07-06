@@ -50,11 +50,11 @@ export class DeliveryCircuitBreaker {
 			service: this._serviceName,
 			failureCount: this._failureCount,
 		});
-		await deliveryPort.markDeadLetter(
+		await deliveryPort.markDeadLetter({
 			message,
-			"CIRCUIT_OPEN",
-			this._failureCount
-		);
+			reason: "CIRCUIT_OPEN",
+			deliveryAttempt: this._failureCount,
+		});
 		return true;
 	}
 }

@@ -32,6 +32,7 @@ import { FIND_A_SERVICE } from "../../config/address-manager";
 import { DeliveryCircuitBreaker } from "./delivery-circuit-breaker";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
 import type {
+	DeliverySendInput,
 	MessageDeliveryContext,
 	MessageDeliveryPort,
 } from "./message-delivery-port";
@@ -223,7 +224,8 @@ export class Subscription {
 				deliveryAttempt: context.deliveryAttempt,
 				consumerGroup: context.consumerGroup,
 			};
-			await this._deliveryPort.send(target, message, deliveryContext);
+			const sendInput: DeliverySendInput = { url: target, message, context: deliveryContext };
+			await this._deliveryPort.send(sendInput);
 
 			context.receivedAt = new Date();
 			await context.ack();

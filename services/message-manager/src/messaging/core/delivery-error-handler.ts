@@ -50,20 +50,20 @@ export class DeliveryErrorHandler {
 	): Promise<boolean> {
 		if (isDeadLetterError(err)) {
 			const reason: string = err.reason ?? "NO_REASON";
-			await this._deliveryPort.markDeadLetter(
+			await this._deliveryPort.markDeadLetter({
 				message,
 				reason,
-				context.deliveryAttempt
-			);
+				deliveryAttempt: context.deliveryAttempt,
+			});
 			return true;
 		}
 
 		if (this._isExpired(ttl, emittedAt)) {
-			await this._deliveryPort.markDeadLetter(
+			await this._deliveryPort.markDeadLetter({
 				message,
-				"TTL_EXPIRED",
-				context.deliveryAttempt
-			);
+				reason: "TTL_EXPIRED",
+				deliveryAttempt: context.deliveryAttempt,
+			});
 			return true;
 		}
 
@@ -78,11 +78,11 @@ export class DeliveryErrorHandler {
 				service: this._serviceName,
 				deliveryAttempt: context.deliveryAttempt,
 			});
-			await this._deliveryPort.markDeadLetter(
+			await this._deliveryPort.markDeadLetter({
 				message,
-				"MAX_RETRIES_EXCEEDED",
-				context.deliveryAttempt
-			);
+				reason: "MAX_RETRIES_EXCEEDED",
+				deliveryAttempt: context.deliveryAttempt,
+			});
 			return true;
 		}
 

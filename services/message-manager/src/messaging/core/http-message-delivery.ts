@@ -3,7 +3,8 @@ import type { Message } from "@trading-model/common/contracts/message.types";
 
 import type { DlqRepository } from "./dlq-repository";
 import type {
-	MessageDeliveryContext,
+	DeadLetterInput,
+	DeliverySendInput,
 	MessageDeliveryPort,
 } from "./message-delivery-port";
 
@@ -13,19 +14,13 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 		private readonly _dqlRepository: DlqRepository
 	) {}
 
-	async send(
-		url: string,
-		message: Message,
-		context: MessageDeliveryContext
-	): Promise<void> {
+	async send(input: DeliverySendInput): Promise<void> {
+		const { url, message, context } = input;
 		await this._httpClient.post(url, { message, context });
 	}
 
-	async markDeadLetter(
-		message: Message,
-		reason: string,
-		deliveryAttempt: number
-	): Promise<void> {
+	async markDeadLetter(input: DeadLetterInput): Promise<void> {
+		const { message, reason, deliveryAttempt } = input;
 		await this._dqlRepository.add({
 			message,
 			reason,

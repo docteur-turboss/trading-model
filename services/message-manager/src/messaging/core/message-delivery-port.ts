@@ -5,15 +5,19 @@ export interface MessageDeliveryContext {
 	consumerGroup: string;
 }
 
+export interface DeliverySendInput {
+	url: string;
+	message: Message;
+	context: MessageDeliveryContext;
+}
+
+export interface DeadLetterInput {
+	message: Message;
+	reason: string;
+	deliveryAttempt: number;
+}
+
 export interface MessageDeliveryPort {
-	send(
-		url: string,
-		message: Message,
-		context: MessageDeliveryContext
-	): Promise<void>;
-	markDeadLetter(
-		message: Message,
-		reason: string,
-		deliveryAttempt: number
-	): Promise<void>;
+	send(input: DeliverySendInput): Promise<void>;
+	markDeadLetter(input: DeadLetterInput): Promise<void>;
 }

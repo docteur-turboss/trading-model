@@ -1,3 +1,4 @@
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { env } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
@@ -11,7 +12,7 @@ import {
 } from "./shared/index";
 import { stopAutoRetry } from "./auto-retry";
 
-let pruneTimer: ReturnType<typeof setInterval> | null = null;
+const pruneTimer = new TimerHandle();
 
 async function pruneOldEntries(): Promise<number> {
 	try {
@@ -35,11 +36,11 @@ function _handlePruneError(err: unknown): number {
 }
 
 function startPeriodicPrune(): void {
-	if (pruneTimer) {
+	if (pruneTimer.isRunning) {
 		return;
 	}
 	_logPruneStart();
-	pruneTimer = setInterval(() => {
+	pruneTimer.startInterval(() => {
 		pruneOldEntries().catch((err) => {
 			_logPruneIterationError(err);
 		});
@@ -60,10 +61,7 @@ function _logPruneIterationError(err: unknown): void {
 }
 
 function stopPeriodicPrune(): void {
-	if (pruneTimer) {
-		clearInterval(pruneTimer);
-		pruneTimer = null;
-	}
+	pruneTimer.stop();
 }
 
 async function drainActiveReplays(): Promise<void> {
