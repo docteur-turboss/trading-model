@@ -5,8 +5,10 @@ import { ServiceInstanceName } from "@trading-model/common/config/services.types
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import {
 	AppError,
-	ServiceUnreachableError,
-	MessageManagerError,
+	serviceUnreachableError,
+	isServiceUnreachableError,
+	messageManagerError,
+	isMessageManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 
@@ -43,7 +45,7 @@ export class MessageManagerClient {
 		try {
 			return await this._httpClient.post(targetUrl, payload);
 		} catch (error) {
-			throw new MessageManagerError(
+			throw messageManagerError(
 				"Failed to subscribe topic to Message Manager",
 				{ cause: normalizeError(error) }
 			);
@@ -63,7 +65,7 @@ export class MessageManagerClient {
 		try {
 			return await this._httpClient.delete(targetUrl, payload);
 		} catch (error) {
-			throw new MessageManagerError(
+			throw messageManagerError(
 				"Failed to unsubscribe topic to Message Manager",
 				{ cause: normalizeError(error) }
 			);
@@ -80,7 +82,7 @@ export class MessageManagerClient {
 			ServiceInstanceName.MessageDeliveryService,
 		);
 		if (!target) {
-			throw new ServiceUnreachableError("Unable to contact the message manager");
+			throw serviceUnreachableError("Unable to contact the message manager");
 		}
 		return target;
 	}
@@ -128,13 +130,13 @@ export class MessageManagerClient {
 	}
 
 	private _handleSubscribeError(err: unknown, action: string): never {
-		if (err instanceof ServiceUnreachableError) {
+		if (isServiceUnreachableError(err)) {
 			throw err;
 		}
-		if (err instanceof MessageManagerError) {
+		if (isMessageManagerError(err)) {
 			return undefined as never;
 		}
-		throw new MessageManagerError(
+		throw messageManagerError(
 			`Failed to ${action} topic to Message Manager`,
 			{ cause: normalizeError(err) },
 		);
