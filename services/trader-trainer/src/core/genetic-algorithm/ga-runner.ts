@@ -97,14 +97,13 @@ export class GeneticAlgorithmRunner {
 
 		const ranked = sortPopulation(popWithMeta, popMeta);
 		const elites = selectElites(ranked, newCtrl);
-		this._population = buildNextPopulation(
-			elites,
+		this._population = buildNextPopulation(elites, {
 			ranked,
 			newCtrl,
 			ctrl,
 			rng,
-			this._generation
-		);
+			generation: this._generation,
+		});
 
 		const ctx: GenerationContext = {
 			generation: this._generation,

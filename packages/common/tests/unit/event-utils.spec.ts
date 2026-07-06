@@ -28,8 +28,8 @@ function makeOb(
 	asks: Array<OrderBookLevel>
 ): OrderBookData {
 	return {
-		bids: new Set(bids.map((b) => ({ price: Price.of(b.price), quantity: Volume.of(b.quantity) }))),
-		asks: new Set(asks.map((a) => ({ price: Price.of(a.price), quantity: Volume.of(a.quantity) }))),
+		bids: new Set(bids),
+		asks: new Set(asks),
 		symbol: "BTCUSDT",
 		source: SourceType.BINANCE,
 		market: MarketType.CRYPTO,
@@ -106,8 +106,8 @@ describe("event-utils", () => {
 	describe("getSpread", () => {
 		it("should compute spread as ask - bid", () => {
 			const ob = makeOb(
-				[{ price: 100, quantity: 1 }],
-				[{ price: 110, quantity: 1 }]
+				[{ price: Price.of(100), quantity: Volume.of(1) }],
+				[{ price: Price.of(110), quantity: Volume.of(1) }]
 			);
 			expect(getSpread(ob)).toBe(10);
 		});
@@ -116,8 +116,8 @@ describe("event-utils", () => {
 	describe("getMidPrice", () => {
 		it("should compute mid price as (bid + ask) / 2", () => {
 			const ob = makeOb(
-				[{ price: 100, quantity: 1 }],
-				[{ price: 110, quantity: 1 }]
+				[{ price: Price.of(100), quantity: Volume.of(1) }],
+				[{ price: Price.of(110), quantity: Volume.of(1) }]
 			);
 			expect(getMidPrice(ob)).toBe(105);
 		});
@@ -127,8 +127,8 @@ describe("event-utils", () => {
 		it("should sum all bid quantities", () => {
 			const ob = makeOb(
 				[
-					{ price: 100, quantity: 0.5 },
-					{ price: 101, quantity: 1.5 },
+					{ price: Price.of(100), quantity: Volume.of(0.5) },
+					{ price: Price.of(101), quantity: Volume.of(1.5) },
 				],
 				[]
 			);
@@ -141,8 +141,8 @@ describe("event-utils", () => {
 			const ob = makeOb(
 				[],
 				[
-					{ price: 110, quantity: 2 },
-					{ price: 111, quantity: 3 },
+					{ price: Price.of(110), quantity: Volume.of(2) },
+					{ price: Price.of(111), quantity: Volume.of(3) },
 				]
 			);
 			expect(getAskTotalQty(ob)).toBe(5);

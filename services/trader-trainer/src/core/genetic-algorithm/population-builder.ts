@@ -1,6 +1,6 @@
 import { createDefaultGenome } from "./factory";
-import type { GAControlGenome, Genome, LamarckGenome } from "./genome-types";
-import { createOffspring } from "./offspring-factory";
+import type { GAControlGenome, LamarckGenome } from "./genome-types";
+import { createOffspring, type OffspringContext } from "./offspring-factory";
 import { type DeepReadonly, deepFreeze } from "./shared-types";
 
 export function createInitialPopulation(
@@ -18,12 +18,8 @@ export function createInitialPopulation(
 
 export function buildNextPopulation(
 	elites: DeepReadonly<LamarckGenome>[],
-	ranked: Genome[],
-	newCtrl: Readonly<GAControlGenome>,
-	ctrl: DeepReadonly<GAControlGenome>,
-	rng: () => number,
-	generation: number
+	ctx: OffspringContext
 ): DeepReadonly<LamarckGenome>[] {
-	const offspring = createOffspring({ ranked, newCtrl, ctrl, rng, generation });
-	return [...elites, ...offspring].slice(0, newCtrl.populationSize);
+	const offspring = createOffspring(ctx);
+	return [...elites, ...offspring].slice(0, ctx.newCtrl.populationSize);
 }
