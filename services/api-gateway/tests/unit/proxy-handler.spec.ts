@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { createReq } from "../helpers/express";
 
 jest.mock("../../src/config/env", () => ({

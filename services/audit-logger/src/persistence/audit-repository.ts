@@ -18,14 +18,12 @@ export interface AuditEventDocument {
 	payload: unknown;
 }
 
-export interface AuditEventQuery {
+export interface AuditEventQuery extends PaginationQuery {
 	topic?: string;
 	publisher?: string;
 	correlationId?: string;
 	startDate?: Date;
 	endDate?: Date;
-	page?: number;
-	limit?: number;
 }
 
 export interface AuditStats {
@@ -94,7 +92,7 @@ export class AuditRepository {
 
 	async query(
 		query: AuditEventQuery
-	): Promise<PaginatedResponse<AuditEventDocument>> {
+	): Promise<PaginationResult<AuditEventDocument>> {
 		const page = query.page ?? 1;
 		const limit = Math.min(query.limit ?? 100, 1000);
 		const skip = (page - 1) * limit;
@@ -131,13 +129,10 @@ export class AuditRepository {
 		]);
 
 		return {
-			data,
-			pagination: {
-				page,
-				limit,
-				total,
-				totalPages: Math.ceil(total / limit),
-			},
+			docs: data,
+			total,
+			page,
+			limit,
 		};
 	}
 

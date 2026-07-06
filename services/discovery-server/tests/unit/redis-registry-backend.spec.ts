@@ -6,6 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 
 jest.mock("@trading-model/common/config/logger", () => ({

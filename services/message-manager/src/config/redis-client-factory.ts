@@ -77,10 +77,7 @@ function buildSentinelClient(): Redis {
 function parseSentinelNodes(): Array<HostPort> {
 	try {
 		return ENV.REDIS_SENTINEL_NODES
-			? (JSON.parse(ENV.REDIS_SENTINEL_NODES) as Array<{
-					host: string;
-					port: number;
-				}>)
+			? (JSON.parse(ENV.REDIS_SENTINEL_NODES) as Array<HostPort>)
 			: [{ host: ENV.REDIS_HOST, port: ENV.REDIS_PORT }];
 	} catch (cause) {
 		throw wrapParseError(cause as Error, "REDIS_SENTINEL_NODES");
@@ -94,7 +91,7 @@ function wrapParseError(cause: Error, name: string): never {
 }
 
 function buildSentinelOptions(
-	sentinelNodes: Array<{ host: string; port: number }>
+	sentinelNodes: Array<HostPort>
 ): Record<string, unknown> {
 	const sentinelOpts: Record<string, unknown> = {
 		sentinels: sentinelNodes,
@@ -114,10 +111,7 @@ function buildSentinelOptions(
 
 function parseClusterNodes(): Array<HostPort> {
 	try {
-		return JSON.parse(ENV.REDIS_CLUSTER_NODES!) as Array<{
-			host: string;
-			port: number;
-		}>;
+		return JSON.parse(ENV.REDIS_CLUSTER_NODES!) as Array<HostPort>;
 	} catch (cause) {
 		throw wrapParseError(cause as Error, "REDIS_CLUSTER_NODES");
 	}
