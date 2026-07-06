@@ -10,9 +10,9 @@ export function createServer() {
 	return createSecureServer({
 		port: env.PORT,
 		tls: {
-			key: env.TLS_KEY_PATH,
-			cert: env.TLS_CERT_PATH,
-			ca: env.TLS_CA_PATH,
+			keyPath: env.TLS_KEY_PATH,
+			certPath: env.TLS_CERT_PATH,
+			caPath: env.TLS_CA_PATH,
 		},
 		routes: (app) => {
 			app.use("/", FINANCIAL_ROUTES());

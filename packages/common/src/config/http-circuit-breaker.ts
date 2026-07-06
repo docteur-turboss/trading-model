@@ -1,10 +1,5 @@
+import type { CircuitState } from "../domain/circuit-state";
 import { HttpClientError } from "./http-client-errors";
-
-export type CircuitState = "closed" | "open" | "half-open";
-
-export const CIRCUIT_CLOSED: CircuitState = "closed";
-export const CIRCUIT_OPEN: CircuitState = "open";
-export const CIRCUIT_HALF_OPEN: CircuitState = "half-open";
 
 interface CircuitBreakerEntry {
 	failures: number;

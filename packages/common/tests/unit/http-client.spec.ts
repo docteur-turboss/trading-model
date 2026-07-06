@@ -308,9 +308,9 @@ describe("HttpClient", () => {
 			(fs as any).promises.access.mockClear();
 
 			const client = HttpClient.createWithTls({
-				rootCACertPath: "/etc/ca.pem",
-				certificatePath: "/etc/cert.pem",
-				keyCertificatePath: "/etc/key.pem",
+	caPath: "/etc/ca.pem",
+	certPath: "/etc/cert.pem",
+	keyPath: "/etc/key.pem",
 			});
 
 			expect(client).toBeInstanceOf(HttpClient);

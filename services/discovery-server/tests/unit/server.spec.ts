@@ -40,9 +40,9 @@ describe("createServer", () => {
 		expect(createSecureServer).toHaveBeenCalledWith({
 			port: 8443,
 			tls: {
-				key: "/certs/key.pem",
-				cert: "/certs/cert.pem",
-				ca: "/certs/ca.pem",
+				keyPath: "/certs/key.pem",
+				certPath: "/certs/cert.pem",
+				caPath: "/certs/ca.pem",
 			},
 			routes: expect.any(Function),
 		});

@@ -1,3 +1,17 @@
+/**
+ * Job priority levels.
+ * Higher numeric value = higher priority.
+ */
+export type JobPriority = 1 | 2 | 3 | 4 | 5;
+
+export const JobPriority = {
+	LOWEST: 1 as JobPriority,
+	LOW: 2 as JobPriority,
+	MEDIUM: 3 as JobPriority,
+	HIGH: 4 as JobPriority,
+	HIGHEST: 5 as JobPriority,
+};
+
 export type JobStatus =
 	| "pending"
 	| "queued"
@@ -19,7 +33,7 @@ export interface Job<TData = unknown> {
 	id: string;
 	type: string;
 	payload: TData;
-	priority: 1 | 2 | 3 | 4 | 5;
+	priority: JobPriority;
 	status: JobStatus;
 	assignedWorkerId?: string;
 	ackDeadline: number;

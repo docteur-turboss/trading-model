@@ -8,6 +8,7 @@ import {
 	type TradeData,
 	TradeSide,
 } from "../../src/config/event.types";
+import { Price, UnixTimestamp, Volume } from "../../src/domain/primitives";
 import {
 	getAskTotalQty,
 	getAvgAsk,
@@ -26,37 +27,37 @@ function makeOb(
 	asks: Array<{ price: number; quantity: number }>
 ): OrderBookData {
 	return {
-		bids: new Set(bids),
-		asks: new Set(asks),
+		bids: new Set(bids.map((b) => ({ price: Price.of(b.price), quantity: Volume.of(b.quantity) }))),
+		asks: new Set(asks.map((a) => ({ price: Price.of(a.price), quantity: Volume.of(a.quantity) }))),
 		symbol: "BTCUSDT",
 		source: SourceType.BINANCE,
 		market: MarketType.CRYPTO,
-		timestamp: Date.now(),
+		timestamp: UnixTimestamp.now(),
 	};
 }
 
 function makeCandle(open: number, close: number): CandleData {
 	return {
-		open,
-		close,
-		high: Math.max(open, close),
-		low: Math.min(open, close),
-		volume: 1000,
+		open: Price.of(open),
+		close: Price.of(close),
+		high: Price.of(Math.max(open, close)),
+		low: Price.of(Math.min(open, close)),
+		volume: Volume.of(1000),
 		symbol: "BTCUSDT",
 		source: SourceType.BINANCE,
 		market: MarketType.CRYPTO,
 		interval: CandleInterval.MIN1,
-		timestamp: Date.now(),
-		closeTimestamp: Date.now() + 60000,
+		timestamp: UnixTimestamp.now(),
+		closeTimestamp: UnixTimestamp.of(Date.now() + 60000),
 	};
 }
 
 function makeTrade(side: TradeSide): TradeData {
 	return {
 		side,
-		price: 50000,
-		quantity: 0.1,
-		timestamp: Date.now(),
+		price: Price.of(50000),
+		quantity: Volume.of(0.1),
+		timestamp: UnixTimestamp.now(),
 		symbol: "BTCUSDT",
 		source: SourceType.BINANCE,
 		market: MarketType.CRYPTO,

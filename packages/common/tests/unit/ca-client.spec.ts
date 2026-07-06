@@ -53,11 +53,11 @@ describe("CaClient", () => {
 		it("should create with TLS config", () => {
 			const c = new CaClient({
 				baseUrl: "https://ca.example.com",
-				tls: {
-					ca: "/etc/ca.pem",
-					cert: "/etc/cert.pem",
-					key: "/etc/key.pem",
-				},
+		tls: {
+				caPath: "/etc/ca.pem",
+				certPath: "/etc/cert.pem",
+				keyPath: "/etc/key.pem",
+			},
 			});
 			expect(c).toBeInstanceOf(CaClient);
 		});

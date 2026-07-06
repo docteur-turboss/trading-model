@@ -95,9 +95,9 @@ describe("AddressManager", () => {
 		servicePingTimeoutMs: 2000,
 		discoveryTimeoutMs: 5000,
 		cacheTtlMs: 60000,
-		rootCACertPath: "/path/to/ca.pem",
-		certificatePath: "/path/to/cert.pem",
-		keyCertificatePath: "/path/to/key.pem",
+		caPath: "/path/to/ca.pem",
+		certPath: "/path/to/cert.pem",
+		keyPath: "/path/to/key.pem",
 		discoveryUrls: ["http://localhost:8443"],
 	};
 

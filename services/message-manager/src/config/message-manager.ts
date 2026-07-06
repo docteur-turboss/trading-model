@@ -39,9 +39,9 @@ import { ENV } from "./env";
  * This instance is shared across the entire application lifecycle.
  */
 const BROKER = new BrokerModule({
-	certificatePath: ENV.TLS_CERT_PATH,
-	keyCertificatePath: ENV.TLS_KEY_PATH,
-	rootCACertPath: ENV.TLS_CA_PATH,
+	certPath: ENV.TLS_CERT_PATH,
+	keyPath: ENV.TLS_KEY_PATH,
+	caPath: ENV.TLS_CA_PATH,
 });
 
 /**

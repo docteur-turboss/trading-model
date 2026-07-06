@@ -5,34 +5,34 @@ export const BINANCE_ENDPOINTS = {
 	 * @param symbol {string} - the symbol to fetch (e.g., BTCUSDT)
 	 * @returns {string} - the full endpoint
 	 */
-	depth: (limit?: number, symbol?: string): string =>
-		limit && symbol
-			? `/api/v3/depth?limit=${limit}&symbol=${symbol}`
+	depth: (symbol?: string, limit?: number): string =>
+		symbol && limit
+			? `/api/v3/depth?symbol=${symbol}&limit=${limit}`
 			: "/api/v3/depth",
 	/**
 	 * List of recent trades, to use only for real-time data. Weight: 25.
-	 * @param limit {number} - maximum 500–1000
 	 * @param symbol {string} - the symbol to fetch (e.g., BTCUSDT)
+	 * @param limit {number} - maximum 500–1000
 	 * @returns {string} - the full endpoint
 	 */
-	trades: (limit?: number, symbol?: string): string =>
-		limit && symbol
-			? `/api/v3/trades?limit=${limit}&symbol=${symbol}`
+	trades: (symbol?: string, limit?: number): string =>
+		symbol && limit
+			? `/api/v3/trades?symbol=${symbol}&limit=${limit}`
 			: "/api/v3/trades",
 	/**
 	 * Historical trade list. Weight: 25.
-	 * @param limit {number} - maximum 500–1000
 	 * @param symbol {string} - the symbol to fetch (e.g., BTCUSDT)
+	 * @param limit {number} - maximum 500–1000
 	 * @param fromId {string|number} - trade ID from which to start fetching
 	 * @returns {string} - the full endpoint
 	 */
 	historicalTrades: (
-		limit?: number,
 		symbol?: string,
+		limit?: number,
 		fromId?: string | number
 	): string =>
-		limit && symbol && fromId
-			? `/api/v3/historicalTrades?limit=${limit}&symbol=${symbol}&fromId=${fromId}`
+		symbol && limit && fromId
+			? `/api/v3/historicalTrades?symbol=${symbol}&limit=${limit}&fromId=${fromId}`
 			: "/api/v3/historicalTrades",
 	/**
 	 * Compressed/Aggregate trades list. Weight: 4.

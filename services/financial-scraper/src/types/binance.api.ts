@@ -37,7 +37,8 @@ export interface BinanceAggregateTrade {
 
 export type BinanceAggregateTradeResponse = BinanceAggregateTrade[];
 
-export type BinanceCandlestickData = [
+/** Raw Binance API candlestick tuple (12 positional fields). */
+export type BinanceCandlestickTuple = [
 	number, // OpenTime
 	string, // Open
 	string, // High
@@ -52,7 +53,41 @@ export type BinanceCandlestickData = [
 	string, // Ignore
 ];
 
-export type BinanceCandlestickDataResponse = BinanceCandlestickData[];
+/** Parsed candlestick with named fields. */
+export interface BinanceCandlestickData {
+	openTime: number;
+	open: string;
+	high: string;
+	low: string;
+	close: string;
+	volume: string;
+	closeTime: number;
+	quoteAssetVolume: string;
+	numberOfTrades: number;
+	takerBuyBaseAssetVolume: string;
+	takerBuyQuoteAssetVolume: string;
+	ignore: string;
+}
+
+export type BinanceCandlestickDataResponse = BinanceCandlestickTuple[];
+
+/** Convert a raw API tuple to a named-field object. */
+export function parseCandlestick(raw: BinanceCandlestickTuple): BinanceCandlestickData {
+	return {
+		openTime: raw[0],
+		open: raw[1],
+		high: raw[2],
+		low: raw[3],
+		close: raw[4],
+		volume: raw[5],
+		closeTime: raw[6],
+		quoteAssetVolume: raw[7],
+		numberOfTrades: raw[8],
+		takerBuyBaseAssetVolume: raw[9],
+		takerBuyQuoteAssetVolume: raw[10],
+		ignore: raw[11],
+	};
+}
 
 export interface Binance24hrTickerStats {
 	symbol: string;

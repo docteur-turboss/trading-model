@@ -4,8 +4,8 @@ import { BINANCE_ENDPOINTS } from "../../../../src/clients/binance/endpoints";
 describe("BINANCE_ENDPOINTS", () => {
 	describe("depth", () => {
 		it("should build order book URL with limit and symbol", () => {
-			const url = BINANCE_ENDPOINTS.depth(100, "BTCUSDT");
-			expect(url).toBe("/api/v3/depth?limit=100&symbol=BTCUSDT");
+			const url = BINANCE_ENDPOINTS.depth("BTCUSDT", 100);
+			expect(url).toBe("/api/v3/depth?symbol=BTCUSDT&limit=100");
 		});
 
 		it("should build order book URL without params", () => {
@@ -16,8 +16,8 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("trades", () => {
 		it("should build recent trades URL with limit and symbol", () => {
-			const url = BINANCE_ENDPOINTS.trades(500, "ETHUSDT");
-			expect(url).toBe("/api/v3/trades?limit=500&symbol=ETHUSDT");
+			const url = BINANCE_ENDPOINTS.trades("ETHUSDT", 500);
+			expect(url).toBe("/api/v3/trades?symbol=ETHUSDT&limit=500");
 		});
 
 		it("should build recent trades URL without params", () => {
@@ -28,9 +28,9 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("historicalTrades", () => {
 		it("should build historical trades URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.historicalTrades(500, "BTCUSDT", 12345);
+			const url = BINANCE_ENDPOINTS.historicalTrades("BTCUSDT", 500, 12345);
 			expect(url).toBe(
-				"/api/v3/historicalTrades?limit=500&symbol=BTCUSDT&fromId=12345"
+				"/api/v3/historicalTrades?symbol=BTCUSDT&limit=500&fromId=12345"
 			);
 		});
 

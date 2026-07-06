@@ -9,8 +9,8 @@ import type { ServiceInstance } from "./client/type";
 import { WebSocketClient, type WsMessage } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
 import { CircuitBreaker } from "./discovery/circuit-breaker";
-import { MapResolver } from "./discovery/dns-resolver";
 import { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
+import { MapResolver } from "./discovery/dns-resolver";
 import { RedisServiceCache } from "./discovery/redis-service-cache";
 import { ServiceCache } from "./discovery/service-cache";
 import type { IServiceCache } from "./discovery/service-cache.interface";
@@ -18,8 +18,8 @@ import { ServiceDiscovery } from "./discovery/service-discovery";
 import { ServiceHealthChecker } from "./discovery/service-health-checker";
 import { MappingServiceLocator } from "./discovery/service-locator";
 import { HeartbeatManager } from "./heartbeat-manager";
+import { LifecycleManager } from "./lifecycle-manager";
 import { HEARTBEAT_TOTAL, REGISTRATION_TOTAL } from "./metrics";
-import { type LifecycleManagerOptions, LifecycleManager } from "./lifecycle-manager";
 import { MetricsCollector } from "./monitoring/metrics-collector";
 import { RegistrationManager } from "./registration-manager";
 import { ShutdownHandler } from "./shutdown-handler";
@@ -34,14 +34,14 @@ export interface WsClientContext {
 function createHttpClient(config: AddressManagerConfig): HttpClient {
 	return config.pems
 		? HttpClient.createWithTls({
-				rootCACertPath: config.pems.ca,
-				certificatePath: config.pems.cert,
-				keyCertificatePath: config.pems.key,
+				caPath: config.pems.caPath,
+				certPath: config.pems.certPath,
+				keyPath: config.pems.keyPath,
 			})
 		: HttpClient.createWithTls({
-				rootCACertPath: config.rootCACertPath,
-				certificatePath: config.certificatePath,
-				keyCertificatePath: config.keyCertificatePath,
+				caPath: config.caPath,
+				certPath: config.certPath,
+				keyPath: config.keyPath,
 			});
 }
 
@@ -206,24 +206,48 @@ export default class AddressManager {
 		this._serviceCache = createServiceCache(config);
 		const circuitBreaker = createCircuitBreaker(config, this._serviceCache);
 		this._healthChecker = createHealthChecker(this._httpClient, config);
-		this._discoveryOrchestrator = this._createDiscoveryInfra(config, circuitBreaker);
+		this._discoveryOrchestrator = this._createDiscoveryInfra(
+			config,
+			circuitBreaker
+		);
 		this._metricsCollector = new MetricsCollector(
 			circuitBreaker,
 			this._serviceCache,
 			config.maxCallRecords
 		);
-		this._wsClient = config.wsUrl
-			? createWsClient({
-					config,
-					addressManagerClient: this._addressManagerClient,
-					tokenManager: this._tokenManager,
-					serviceCache: this._serviceCache,
-				})
-			: undefined;
+		this._wsClient = this._createWsClient(config);
 
 		const { registrationManager, heartbeatManager } =
 			this._createRegistrationAndHeartbeat();
 
+		this._lifecycleManager = this._createLifecycleManager(
+			config,
+			circuitBreaker,
+			registrationManager,
+			heartbeatManager
+		);
+	}
+
+	private _createWsClient(
+		config: AddressManagerConfig
+	): WebSocketClient | undefined {
+		if (!config.wsUrl) {
+			return;
+		}
+		return createWsClient({
+			config,
+			addressManagerClient: this._addressManagerClient,
+			tokenManager: this._tokenManager,
+			serviceCache: this._serviceCache,
+		});
+	}
+
+	private _createLifecycleManager(
+		config: AddressManagerConfig,
+		circuitBreaker: CircuitBreaker,
+		registrationManager: RegistrationManager,
+		heartbeatManager: HeartbeatManager
+	): LifecycleManager {
 		const shutdownHandler = new ShutdownHandler(
 			registrationManager,
 			this._wsClient,
@@ -232,7 +256,7 @@ export default class AddressManager {
 			circuitBreaker
 		);
 
-		const lifecycleOptions: LifecycleManagerOptions = {
+		return new LifecycleManager({
 			registrationManager,
 			heartbeatManager,
 			shutdownHandler,
@@ -246,8 +270,7 @@ export default class AddressManager {
 			tokenManager: this._tokenManager,
 			addressManagerClient: this._addressManagerClient,
 			healthChecker: this._healthChecker,
-		};
-		this._lifecycleManager = new LifecycleManager(lifecycleOptions);
+		});
 	}
 
 	get circuitBreaker(): CircuitBreaker {

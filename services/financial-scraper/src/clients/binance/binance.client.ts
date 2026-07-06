@@ -39,7 +39,7 @@ export async function getOrderBook(
 ): Promise<BinanceDepthResponse> {
 	assertNonEmptySymbol(symbol, "getOrderBook");
 	const weight = BINANCE_WEIGHTS.depth(limit);
-	const url = BINANCE_ENDPOINTS.depth(limit, symbol);
+	const url = BINANCE_ENDPOINTS.depth(symbol, limit);
 	return (await BINANCE.get(url, { weight })).data;
 }
 
@@ -56,7 +56,7 @@ export async function getRecentTrades(
 ): Promise<BinanceTradeResponse> {
 	assertNonEmptySymbol(symbol, "getRecentTrades");
 	const weight = BINANCE_WEIGHTS.trades();
-	const url = BINANCE_ENDPOINTS.trades(limit, symbol);
+	const url = BINANCE_ENDPOINTS.trades(symbol, limit);
 	return (await BINANCE.get(url, { weight })).data;
 }
 
@@ -74,7 +74,7 @@ export async function getHistoricalTrades(
 	fromId: number | string
 ): Promise<BinanceHistoricalTradeResponse> {
 	assertNonEmptySymbol(symbol, "getHistoricalTrades");
-	const url = BINANCE_ENDPOINTS.historicalTrades(limit, symbol, fromId);
+	const url = BINANCE_ENDPOINTS.historicalTrades(symbol, limit, fromId);
 	const weight = BINANCE_WEIGHTS.historicalTrades();
 	return (await BINANCE.get(url, { weight })).data;
 }

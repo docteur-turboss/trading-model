@@ -25,48 +25,27 @@ export class DlqRedisQueue {
 	}
 
 	async connect(): Promise<boolean> {
-		if (this._client && this._connected) {
+		if (this._isConnected()) {
 			return true;
 		}
 		if (this._connecting) {
 			return false;
 		}
 
-		if (this._client && !this._connected) {
-			await this.close();
-		}
+		await this._closeExistingClient();
 
 		this._connecting = true;
 		try {
 			const url = env.REDIS_URL;
 			if (!url) {
 				logger.info("No REDIS_URL configured — Redis queue unavailable");
-				this._connected = false;
 				return false;
 			}
-			this._client = new Redis(url, {
-				lazyConnect: true,
-				retryStrategy: (times) => {
-					const delay = Math.min(times * 200, 5_000);
-					return delay;
-				},
-			});
-			this._client.on("connect", () => {
-				this._connected = true;
-				if (this._wasEverConnected) {
-					logger.info("Redis queue reconnected — triggering queue rebuild");
-					this._onReconnectCb?.();
-				}
-				this._wasEverConnected = true;
-			});
-			this._client.on("close", () => {
-				this._connected = false;
-			});
-			this._client.on("error", (err) => {
-				logger.error("Redis queue client error", { error: err.message });
-				this._connected = false;
-			});
+
+			this._client = this._createClient(url);
+			this._attachEventHandlers();
 			await this._client.connect();
+
 			this._connected = true;
 			this._wasEverConnected = true;
 			return true;
@@ -80,6 +59,44 @@ export class DlqRedisQueue {
 		} finally {
 			this._connecting = false;
 		}
+	}
+
+	private _isConnected(): boolean {
+		return Boolean(this._client && this._connected);
+	}
+
+	private async _closeExistingClient(): Promise<void> {
+		if (this._client && !this._connected) {
+			await this.close();
+		}
+	}
+
+	private _createClient(url: string): Redis {
+		return new Redis(url, {
+			lazyConnect: true,
+			retryStrategy: (times) => Math.min(times * 200, 5_000),
+		});
+	}
+
+	private _attachEventHandlers(): void {
+		if (!this._client) {
+			return;
+		}
+		this._client.on("connect", () => {
+			this._connected = true;
+			if (this._wasEverConnected) {
+				logger.info("Redis queue reconnected — triggering queue rebuild");
+				this._onReconnectCb?.();
+			}
+			this._wasEverConnected = true;
+		});
+		this._client.on("close", () => {
+			this._connected = false;
+		});
+		this._client.on("error", (err) => {
+			logger.error("Redis queue client error", { error: err.message });
+			this._connected = false;
+		});
 	}
 
 	async push(entryId: string, maxQueueSize = 50_000): Promise<boolean> {

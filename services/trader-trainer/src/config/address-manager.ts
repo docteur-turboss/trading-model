@@ -13,9 +13,9 @@ const ADDRESS_MANAGER = new AddressManagerClass({
 	servicePort: env.PORT,
 	tokenRefreshIntervalMs: env.TOKEN_REFRESH_INTERVAL_MS,
 	ttlRefreshIntervalMs: env.TTL_REFRESH_INTERVAL_MS,
-	certificatePath: env.TLS_CERT_PATH,
-	keyCertificatePath: env.TLS_KEY_PATH,
-	rootCACertPath: env.TLS_CA_PATH,
+	certPath: env.TLS_CERT_PATH,
+	keyPath: env.TLS_KEY_PATH,
+	caPath: env.TLS_CA_PATH,
 });
 
 const BOOTSTRAP_ADDRESS_MANAGER = ADDRESS_MANAGER.start;

@@ -55,15 +55,15 @@ describe("VaultTransitClient", () => {
 			vaultUrl: "https://vault.example.com",
 			token: "s.test",
 			tls: {
-				rootCACertPath: "/ca.pem",
-				certificatePath: "/cert.pem",
-				keyCertificatePath: "/key.pem",
+				caPath: "/ca.pem",
+				certPath: "/cert.pem",
+				keyPath: "/key.pem",
 			},
 		});
 		expect(MOCK_HTTP_CLIENT.createWithTls).toHaveBeenCalledWith({
-			rootCACertPath: "/ca.pem",
-			certificatePath: "/cert.pem",
-			keyCertificatePath: "/key.pem",
+			caPath: "/ca.pem",
+			certPath: "/cert.pem",
+			keyPath: "/key.pem",
 		});
 		expect(client).toBeDefined();
 	});

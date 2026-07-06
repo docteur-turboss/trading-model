@@ -25,11 +25,6 @@ export interface DlqEntry {
 
 export type DlqStatus = "completed" | "abandoned";
 
-export const DLQ_STATUS: Record<DlqStatus, DlqStatus> = {
-	completed: "completed",
-	abandoned: "abandoned",
-};
-
 export const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 
 export interface StoredDlqEntry {
@@ -118,7 +113,7 @@ export class DlqRepository {
 		const prevCompleted = await col.findOne(
 			{
 				contentHash,
-				status: { $in: [DLQ_STATUS.completed, DLQ_STATUS.abandoned] },
+				status: { $in: ["completed", "abandoned"] },
 			},
 			{ sort: { createdAt: -1 }, projection: { dlqPassCount: 1, _id: 1 } }
 		);
@@ -137,7 +132,7 @@ export class DlqRepository {
 		};
 
 		if (dlqPassCount >= DLQ_MAX_PASS_COUNT) {
-			doc.status = DLQ_STATUS.abandoned;
+			doc.status = "abandoned";
 			doc.abandonedAt = new Date();
 			doc.lastError = `Ping-pong detected: message entered DLQ ${dlqPassCount} times`;
 		}
@@ -254,7 +249,7 @@ export class DlqRepository {
 				{
 					retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
 					processingAt: { $exists: false },
-					status: { $nin: [DLQ_STATUS.completed, DLQ_STATUS.abandoned] },
+					status: { $nin: ["completed", "abandoned"] },
 					consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
 				},
 				{
@@ -273,7 +268,7 @@ export class DlqRepository {
 			.find(
 				{
 					processingAt: { $exists: true },
-					status: { $nin: [DLQ_STATUS.completed, DLQ_STATUS.abandoned] },
+					status: { $nin: ["completed", "abandoned"] },
 				},
 				{ projection: { _id: 1 } }
 			)

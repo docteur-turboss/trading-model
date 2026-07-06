@@ -1,9 +1,8 @@
+import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import type { IServiceCache } from "./service-cache.interface";
-
-export type CircuitState = "closed" | "open" | "half-open";
 
 interface INstanceState {
 	failures: number;

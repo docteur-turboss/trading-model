@@ -60,8 +60,7 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			const result = await backend.updateHeartbeat(
-				"financial-scraper-service",
-				"test-instance-1"
+				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
 			);
 			expect(result).toBe(30000);
 		});
@@ -69,8 +68,7 @@ describe("InMemoryRegistryBackend", () => {
 		it("should return false for unknown service", async () => {
 			const backend = new InMemoryRegistryBackend();
 			const result = await backend.updateHeartbeat(
-				"unknown-service",
-				"test-instance-1"
+				{ serviceName: "unknown-service", instanceId: "test-instance-1" }
 			);
 			expect(result).toBe(false);
 		});
@@ -79,8 +77,7 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			const result = await backend.updateHeartbeat(
-				"financial-scraper-service",
-				"unknown-instance"
+				{ serviceName: "financial-scraper-service", instanceId: "unknown-instance" }
 			);
 			expect(result).toBe(false);
 		});
@@ -123,8 +120,7 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			const instance = await backend.getInstance(
-				"financial-scraper-service",
-				"test-instance-1"
+				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
 			);
 			expect(instance).toBeDefined();
 			expect(instance!.instanceId).toBe("test-instance-1");
@@ -133,8 +129,7 @@ describe("InMemoryRegistryBackend", () => {
 		it("should return undefined for unknown service", async () => {
 			const backend = new InMemoryRegistryBackend();
 			const instance = await backend.getInstance(
-				"unknown-service",
-				"test-instance-1"
+				{ serviceName: "unknown-service", instanceId: "test-instance-1" }
 			);
 			expect(instance).toBeUndefined();
 		});
@@ -143,8 +138,7 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			const instance = await backend.getInstance(
-				"financial-scraper-service",
-				"unknown-instance"
+				{ serviceName: "financial-scraper-service", instanceId: "unknown-instance" }
 			);
 			expect(instance).toBeUndefined();
 		});
@@ -155,8 +149,7 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			const result = await backend.removeInstance(
-				"financial-scraper-service",
-				"test-instance-1"
+				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
 			);
 			expect(result).toBe(true);
 			const instances = await backend.getInstances("financial-scraper-service");
@@ -167,8 +160,7 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			await backend.removeInstance(
-				"financial-scraper-service",
-				"test-instance-1"
+				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
 			);
 			const names = await backend.listServiceNames();
 			expect(names).not.toContain("financial-scraper-service");
@@ -177,8 +169,7 @@ describe("InMemoryRegistryBackend", () => {
 		it("should return false for unknown service", async () => {
 			const backend = new InMemoryRegistryBackend();
 			const result = await backend.removeInstance(
-				"unknown-service",
-				"test-instance-1"
+				{ serviceName: "unknown-service", instanceId: "test-instance-1" }
 			);
 			expect(result).toBe(false);
 		});
@@ -187,8 +178,7 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			const result = await backend.removeInstance(
-				"financial-scraper-service",
-				"unknown-instance"
+				{ serviceName: "financial-scraper-service", instanceId: "unknown-instance" }
 			);
 			expect(result).toBe(false);
 		});

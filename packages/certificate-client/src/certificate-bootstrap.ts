@@ -76,6 +76,21 @@ export async function bootstrapFromEnv(
 export async function bootstrapCertificate(
 	config: BootstrapConfig
 ): Promise<TlsConfig> {
+	const existing = await _tryLoadExistingCert(config);
+	if (existing) {
+		return existing;
+	}
+
+	const { keyPair, csr } = await _generateKeyAndCsr(config);
+	const response = await _signWithCa(config, csr);
+	await _writeCertFiles(config, keyPair.privateKey, response);
+
+	return { key: config.keyPath, cert: config.certPath, ca: config.caPath };
+}
+
+async function _tryLoadExistingCert(
+	config: BootstrapConfig
+): Promise<TlsConfig | null> {
 	try {
 		await fs.access(config.certPath);
 		await fs.access(config.keyPath);
@@ -87,8 +102,14 @@ export async function bootstrapCertificate(
 		logger.warn("TLS certificate files not found — proceeding with bootstrap", {
 			err: normalizeError(err),
 		});
+		return null;
 	}
+}
 
+async function _generateKeyAndCsr(config: BootstrapConfig): Promise<{
+	keyPair: import("@trading-model/certificate-utils/generate-key-pair").KeyPair;
+	csr: string;
+}> {
 	logger.info("Obtaining TLS certificate from CA", {
 		serviceId: config.serviceId,
 		caUrl: config.caUrl,
@@ -100,20 +121,33 @@ export async function bootstrapCertificate(
 		san: config.san,
 		keyPem: keyPair.privateKey,
 	});
+	return { keyPair, csr };
+}
 
+async function _signWithCa(
+	config: BootstrapConfig,
+	csr: string
+): Promise<
+	import("@trading-model/common/ca/ca-client").SignCertificateResponse
+> {
 	const caClient = new CaClient({
 		baseUrl: config.caUrl,
 		tls: config.tls,
 	});
-
-	const response = await caClient.signCertificate(config.serviceId, csr, {
+	return await caClient.signCertificate(config.serviceId, csr, {
 		bootstrapToken: config.bootstrapToken,
 	});
+}
 
+async function _writeCertFiles(
+	config: BootstrapConfig,
+	privateKey: string,
+	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse
+): Promise<void> {
 	const certDir = path.dirname(config.certPath);
 	await fs.mkdir(certDir, { recursive: true });
 
-	await fs.writeFile(config.keyPath, keyPair.privateKey, { mode: 0o600 });
+	await fs.writeFile(config.keyPath, privateKey, { mode: 0o600 });
 	await fs.writeFile(config.certPath, response.cert, { mode: 0o644 });
 	await fs.writeFile(config.caPath, response.caPem, { mode: 0o644 });
 
@@ -123,8 +157,6 @@ export async function bootstrapCertificate(
 		serialNumber: response.serialNumber,
 		expiresAt: response.expiresAt,
 	});
-
-	return { key: config.keyPath, cert: config.certPath, ca: config.caPath };
 }
 
 export interface CreateHttpsServerOptions {

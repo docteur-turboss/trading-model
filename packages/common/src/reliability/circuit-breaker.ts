@@ -1,4 +1,6 @@
-export type CircuitState = "closed" | "open" | "half-open";
+import type { CircuitState } from "../domain/circuit-state";
+
+export type { CircuitState };
 
 interface CircuitBreakerEntry {
 	failures: number;

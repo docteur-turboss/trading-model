@@ -2,7 +2,7 @@ import type { TlsPaths } from "../domain/tls-paths";
 import { AuditServiceClient } from "./audit-service-client";
 import { ErrorServiceSender } from "./error-service-sender";
 import { LogFileWriter } from "./log-file-writer";
-import { type LogEntry, LogLevel, type LogOptions } from "./log-types";
+import { LOG_LEVEL_PRIORITY, type LogEntry, LogLevel, type LogOptions } from "./log-types";
 
 export type { LogEntry, LogOptions };
 export { LogLevel };
@@ -21,7 +21,7 @@ export class Logger {
 	private readonly _logFileWriter: LogFileWriter;
 	private readonly _errorServiceSender: ErrorServiceSender;
 
-	constructor(logLevel: LogLevel = LogLevel.Info) {
+	constructor(logLevel: LogLevel = "info") {
 		this._logLevel = logLevel;
 		this._sessionId = this._generateSessionId();
 		this._sanitizer = new SensitiveDataSanitizer();
@@ -39,11 +39,11 @@ export class Logger {
 	}
 
 	private _shouldLog(level: LogLevel): boolean {
-		return level >= this._logLevel;
+		return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[this._logLevel];
 	}
 
 	private _maybeSendToAudit(data: LogEntry, level: LogLevel): void {
-		if (level >= LogLevel.Info) {
+		if (LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY["info"]) {
 			void this._auditClient.send(data as unknown as Record<string, unknown>);
 		}
 	}
@@ -79,21 +79,12 @@ export class Logger {
 		}
 	}
 
-	debug(
-		message: string,
-		context?: Record<string, unknown>,
-		url?: string,
-		serviceInCharge?: string
-	) {
+	debug(message: string, context?: Record<string, unknown>) {
 		if (!this._shouldLog(LogLevel.Debug)) {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Debug, message, {
-			context,
-			url,
-			serviceInCharge,
-		});
+		const logEntry = this._createLogEntry(LogLevel.Debug, message, { context });
 		this._addToBuffer(logEntry);
 		console.debug(
 			`[DEBUG] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -101,21 +92,12 @@ export class Logger {
 		);
 	}
 
-	info(
-		message: string,
-		context?: Record<string, unknown>,
-		url?: string,
-		serviceInCharge?: string
-	) {
+	info(message: string, context?: Record<string, unknown>) {
 		if (!this._shouldLog(LogLevel.Info)) {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Info, message, {
-			context,
-			url,
-			serviceInCharge,
-		});
+		const logEntry = this._createLogEntry(LogLevel.Info, message, { context });
 		this._addToBuffer(logEntry);
 		console.info(
 			`[INFO] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -123,21 +105,12 @@ export class Logger {
 		);
 	}
 
-	warn(
-		message: string,
-		context?: Record<string, unknown>,
-		url?: string,
-		serviceInCharge?: string
-	) {
+	warn(message: string, context?: Record<string, unknown>) {
 		if (!this._shouldLog(LogLevel.Warn)) {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Warn, message, {
-			context,
-			url,
-			serviceInCharge,
-		});
+		const logEntry = this._createLogEntry(LogLevel.Warn, message, { context });
 		this._addToBuffer(logEntry);
 		console.warn(
 			`[WARN] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -145,21 +118,12 @@ export class Logger {
 		);
 	}
 
-	error(
-		message: string,
-		context?: Record<string, unknown>,
-		url?: string,
-		serviceInCharge?: string
-	) {
+	error(message: string, context?: Record<string, unknown>) {
 		if (!this._shouldLog(LogLevel.Error)) {
 			return;
 		}
 
-		const logEntry = this._createLogEntry(LogLevel.Error, message, {
-			context,
-			url,
-			serviceInCharge,
-		});
+		const logEntry = this._createLogEntry(LogLevel.Error, message, { context });
 		this._addToBuffer(logEntry);
 		console.error(
 			`[ERROR] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -194,10 +158,10 @@ export class Logger {
 /** Global logger instance pre-configured based on the current environment. */
 export const logger = new Logger(
 	process.env.NODE_ENV === "development"
-		? LogLevel.Debug
+		? "debug"
 		: process.env.NODE_ENV === "staging"
-			? LogLevel.Info
-			: LogLevel.Warn
+			? "info"
+			: "warn"
 );
 
 export const LOGGER = Logger;

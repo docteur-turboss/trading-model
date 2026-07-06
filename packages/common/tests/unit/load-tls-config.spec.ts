@@ -10,16 +10,16 @@ describe("loadTlsConfig", () => {
 		);
 
 		expect(result).toEqual({
-			key: "/etc/tls/key.pem",
-			cert: "/etc/tls/cert.pem",
-			ca: "/etc/tls/ca.pem",
+			keyPath: "/etc/tls/key.pem",
+			certPath: "/etc/tls/cert.pem",
+			caPath: "/etc/tls/ca.pem",
 		});
 	});
 
 	it("should return empty strings when paths are empty", () => {
 		const result = loadTlsConfig("", "", "");
 
-		expect(result).toEqual({ key: "", cert: "", ca: "" });
+		expect(result).toEqual({ keyPath: "", certPath: "", caPath: "" });
 	});
 
 	it("should return TLS config with special characters in paths", () => {
@@ -30,9 +30,9 @@ describe("loadTlsConfig", () => {
 		);
 
 		expect(result).toEqual({
-			key: "C:\\Program Files\\app\\tls\\key.pem",
-			cert: "/path/with spaces/cert.pem",
-			ca: "/path/with/dashes/ca.pem",
+			keyPath: "C:\\Program Files\\app\\tls\\key.pem",
+			certPath: "/path/with spaces/cert.pem",
+			caPath: "/path/with/dashes/ca.pem",
 		});
 	});
 });

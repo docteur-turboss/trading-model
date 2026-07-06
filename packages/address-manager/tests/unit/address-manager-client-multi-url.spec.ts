@@ -23,9 +23,9 @@ describe("AddressManagerClient Multi-URL", () => {
 			servicePingTimeoutMs: 2000,
 			tokenRefreshIntervalMs: 60000,
 			ttlRefreshIntervalMs: 15000,
-			rootCACertPath: "/certs/ca.crt",
-			certificatePath: "/certs/server.crt",
-			keyCertificatePath: "/certs/server.key",
+			caPath: "/certs/ca.crt",
+			certPath: "/certs/server.crt",
+			keyPath: "/certs/server.key",
 			...overrides,
 		};
 	}

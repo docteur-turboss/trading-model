@@ -1,6 +1,6 @@
 import type { Collection, Db } from "mongodb";
 
-import { isTerminalStatus, type Job, type JobStatus } from "@trading-model/common/contracts/recovery.types";
+import { isTerminalStatus, type Job, type JobPriority, type JobStatus } from "@trading-model/common/contracts/recovery.types";
 
 const MSET = "$set";
 const MPUSH = "$push";
@@ -62,7 +62,7 @@ function fromDocument(doc: JobDocument): Job {
 		id: doc.jobId,
 		type: doc.type,
 		payload: doc.payload as Job["payload"],
-		priority: doc.priority as 1 | 2 | 3 | 4 | 5,
+		priority: doc.priority as JobPriority,
 		status: doc.status,
 		assignedWorkerId: doc.assignedWorkerId,
 		ackDeadline: doc.ackDeadline,

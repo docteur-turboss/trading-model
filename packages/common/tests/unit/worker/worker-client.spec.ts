@@ -33,6 +33,7 @@ import WebSocket from "ws";
 
 const MOCK_WEB_SOCKET = WebSocket as unknown as jest.Mock<any>;
 
+import type { IPAddress, Port } from "../../../src/domain/primitives";
 import { WorkerClient } from "../../../src/worker/worker-client";
 
 function getWs(): any {
@@ -117,8 +118,8 @@ describe("WorkerClient", () => {
 				JSON.stringify({
 					type: "register",
 					workerId: "test-worker",
-					address: "",
-					port: 0,
+					address: "" as IPAddress,
+					port: 0 as Port,
 					capabilities: ["type-a", "type-b"],
 					maxConcurrency: 5,
 				})

@@ -20,10 +20,7 @@
  * Acts as a **data contract enforcement** component.
  */
 
-import {
-	DeliveryMode,
-	type DeliveryModeEnum,
-} from "@trading-model/common/config/delivery-mode.types";
+import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { z } from "zod";
 
@@ -91,7 +88,7 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 	delivery: z
 		.object({
 			mode: z.enum(
-				Object.values(DeliveryMode) as [DeliveryModeEnum, ...DeliveryModeEnum[]]
+				Object.values(DeliveryMode) as [DeliveryMode, ...DeliveryMode[]]
 			),
 			ttl: z.number().int().positive().optional(),
 			deduplicationId: z.string().optional(),

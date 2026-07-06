@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { CircuitState } from "@trading-model/common/reliability/circuit-breaker";
+import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 
 /**
  * Pure application orchestration for DLQ replay.

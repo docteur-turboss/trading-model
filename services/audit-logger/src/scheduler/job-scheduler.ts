@@ -5,7 +5,7 @@ import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
 import { ReAllocator } from "../recovery/re-allocator";
-import type { Job } from "../types/job.types";
+import type { Job, JobPriority } from "../types/job.types";
 import type { WorkerProtocol } from "../worker/worker-protocol";
 import { WorkerRegistry } from "../worker/worker-registry";
 import { BackPressure } from "./back-pressure";
@@ -65,7 +65,7 @@ export class JobScheduler {
 	async submit(
 		type: string,
 		payload: unknown,
-		priority: 1 | 2 | 3 | 4 | 5 = 3,
+		priority: JobPriority = 3,
 		maxRetries: number = ENV.MAX_RETRIES_PER_JOB
 	): Promise<string> {
 		if (!this.backPressure.canAccept()) {

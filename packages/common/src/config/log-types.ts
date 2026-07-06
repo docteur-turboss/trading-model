@@ -1,9 +1,18 @@
-export enum LogLevel {
-	Debug = 0,
-	Info = 1,
-	Warn = 2,
-	Error = 3,
-}
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
+export const LogLevel = {
+	Debug: "debug" as LogLevel,
+	Info: "info" as LogLevel,
+	Warn: "warn" as LogLevel,
+	Error: "error" as LogLevel,
+};
+
+export const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+	debug: 0,
+	info: 1,
+	warn: 2,
+	error: 3,
+};
 
 export interface LogOptions {
 	context?: Record<string, unknown>;

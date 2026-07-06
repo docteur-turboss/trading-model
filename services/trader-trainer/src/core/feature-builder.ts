@@ -10,12 +10,13 @@ import {
 	FEATURE_DIM,
 	type SymbolState,
 	type TradingSymbol,
+	toSymbol,
 } from "./market-data-types";
 
 export interface FeatureBuilderContext {
 	state: SymbolState;
 	idx: number;
-	priceSnapshot: Record<string, number>;
+	priceSnapshot: Record<TradingSymbol, number>;
 }
 
 export interface CandleFeatureContext {
@@ -29,7 +30,7 @@ export interface PriceSnapshotContext {
 	features: Float32Array;
 	state: SymbolState;
 	idx: number;
-	priceSnapshot: Record<string, number>;
+	priceSnapshot: Record<TradingSymbol, number>;
 }
 
 export function buildFeatures(
@@ -147,7 +148,7 @@ function _buildPriceSnapshotFeature(
 	const { features, state, idx, priceSnapshot } = ctx;
 	const cur = state.candles[idx];
 	const snapPrice =
-		priceSnapshot[state.candles[idx].symbol as TradingSymbol] ?? cur.close;
+		priceSnapshot[toSymbol(state.candles[idx].symbol)] ?? cur.close;
 	features[22] = state.norm.candleClose.normalize(snapPrice);
 }
 

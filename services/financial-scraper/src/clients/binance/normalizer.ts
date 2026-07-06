@@ -1,4 +1,5 @@
 import type { CandleInterval } from "@trading-model/common/config/event.types";
+import { Price, UnixTimestamp, Volume } from "@trading-model/common/domain/primitives";
 import {
 	type CandleData,
 	MarketType,
@@ -7,16 +8,17 @@ import {
 	type TickerData,
 	type TradeData,
 } from "../../infra/market-data/market-data.types";
-import type {
-	Binance24hrTickerStatsResponse,
-	BinanceAggregateTradeResponse,
-	BinanceCandlestickDataResponse,
-	BinanceDepthResponse,
-	BinanceHistoricalTradeResponse,
-	BinanceSymbolOrderBookTickerResponse,
-	BinanceSymbolPriceTickerResponse,
-	BinanceTradeResponse,
-	BinanceTradingDayTickerResponse,
+import {
+	parseCandlestick,
+	type Binance24hrTickerStatsResponse,
+	type BinanceAggregateTradeResponse,
+	type BinanceCandlestickDataResponse,
+	type BinanceDepthResponse,
+	type BinanceHistoricalTradeResponse,
+	type BinanceSymbolOrderBookTickerResponse,
+	type BinanceSymbolPriceTickerResponse,
+	type BinanceTradeResponse,
+	type BinanceTradingDayTickerResponse,
 } from "../../types/binance.api";
 
 /** Normalize raw Binance API responses into internal market-data entities. */
@@ -27,15 +29,15 @@ export const BinanceNormalizer = {
 	orderBook(symbol: string, payload: BinanceDepthResponse): OrderBookData {
 		const bids = new Set(
 			payload.bids.map(([price, qty]) => ({
-				price: Number(price),
-				quantity: Number(qty),
+				price: Price.of(Number(price)),
+				quantity: Volume.of(Number(qty)),
 			}))
 		);
 
 		const asks = new Set(
 			payload.asks.map(([price, qty]) => ({
-				price: Number(price),
-				quantity: Number(qty),
+				price: Price.of(Number(price)),
+				quantity: Volume.of(Number(qty)),
 			}))
 		);
 
@@ -45,7 +47,7 @@ export const BinanceNormalizer = {
 			market: MarketType.CRYPTO,
 			bids: bids,
 			asks: asks,
-			timestamp: Date.now(),
+			timestamp: UnixTimestamp.now(),
 		};
 	},
 
@@ -59,9 +61,9 @@ export const BinanceNormalizer = {
 		return payload.map((trade) => ({
 			symbol,
 			tradeId: BigInt(trade.id),
-			price: Number(trade.price),
-			quantity: Number(trade.qty),
-			timestamp: trade.time,
+			price: Price.of(Number(trade.price)),
+			quantity: Volume.of(Number(trade.qty)),
+			timestamp: UnixTimestamp.of(trade.time),
 			side: trade.isBuyerMaker ? "sell" : "buy",
 			source: SourceType.BINANCE,
 			market: MarketType.CRYPTO,
@@ -78,9 +80,9 @@ export const BinanceNormalizer = {
 		return payload.map((trade) => ({
 			symbol,
 			tradeId: BigInt(trade.aggregateTradeId),
-			price: Number(trade.price),
-			quantity: Number(trade.quantity),
-			timestamp: trade.time,
+			price: Price.of(Number(trade.price)),
+			quantity: Volume.of(Number(trade.quantity)),
+			timestamp: UnixTimestamp.of(trade.time),
 			side: trade.isBuyerMaker ? "sell" : "buy",
 			source: SourceType.BINANCE,
 			market: MarketType.CRYPTO,
@@ -95,20 +97,23 @@ export const BinanceNormalizer = {
 		interval: CandleInterval,
 		payload: BinanceCandlestickDataResponse
 	): CandleData[] {
-		return payload.map((candle) => ({
-			symbol,
-			interval,
-			open: Number(candle[1]),
-			high: Number(candle[2]),
-			low: Number(candle[3]),
-			close: Number(candle[4]),
-			volume: Number(candle[5]),
-			closeTimestamp: Number(candle[6]),
-			trades: candle[8],
-			timestamp: candle[0],
-			source: SourceType.BINANCE,
-			market: MarketType.CRYPTO,
-		}));
+		return payload.map((raw) => {
+			const candle = parseCandlestick(raw);
+			return {
+				symbol,
+				interval,
+				open: Price.of(Number(candle.open)),
+				high: Price.of(Number(candle.high)),
+				low: Price.of(Number(candle.low)),
+				close: Price.of(Number(candle.close)),
+				volume: Volume.of(Number(candle.volume)),
+				closeTimestamp: UnixTimestamp.of(Number(candle.closeTime)),
+				trades: candle.numberOfTrades,
+				timestamp: UnixTimestamp.of(candle.openTime),
+				source: SourceType.BINANCE,
+				market: MarketType.CRYPTO,
+			};
+		});
 	},
 
 	/**
@@ -118,14 +123,14 @@ export const BinanceNormalizer = {
 		return payload.map((item) => ({
 			market: MarketType.CRYPTO,
 			source: SourceType.BINANCE,
-			timestamp: item.openTime,
+			timestamp: UnixTimestamp.of(item.openTime),
 			symbol: item.symbol,
-			open: Number(item.openPrice),
-			high: Number(item.highPrice),
-			low: Number(item.lowPrice),
-			last: Number(item.lastPrice),
-			volume: Number(item.volume),
-			closeTimestamp: item.closeTime,
+			open: Price.of(Number(item.openPrice)),
+			high: Price.of(Number(item.highPrice)),
+			low: Price.of(Number(item.lowPrice)),
+			last: Price.of(Number(item.lastPrice)),
+			volume: Volume.of(Number(item.volume)),
+			closeTimestamp: UnixTimestamp.of(item.closeTime),
 		}));
 	},
 
@@ -133,14 +138,14 @@ export const BinanceNormalizer = {
 		return payload.map((item) => ({
 			market: MarketType.CRYPTO,
 			source: SourceType.BINANCE,
-			timestamp: item.openTime,
+			timestamp: UnixTimestamp.of(item.openTime),
 			symbol: item.symbol,
-			open: Number(item.openPrice),
-			high: Number(item.highPrice),
-			low: Number(item.lowPrice),
-			last: Number(item.lastPrice),
-			volume: Number(item.volume),
-			closeTimestamp: item.closeTime,
+			open: Price.of(Number(item.openPrice)),
+			high: Price.of(Number(item.highPrice)),
+			low: Price.of(Number(item.lowPrice)),
+			last: Price.of(Number(item.lastPrice)),
+			volume: Volume.of(Number(item.volume)),
+			closeTimestamp: UnixTimestamp.of(item.closeTime),
 		}));
 	},
 
@@ -158,10 +163,10 @@ export const BinanceNormalizer = {
 	bookTicker(payload: BinanceSymbolOrderBookTickerResponse) {
 		return payload.map((item) => ({
 			symbol: item.symbol,
-			bid: Number(item.bidPrice),
-			ask: Number(item.askPrice),
-			bidQty: Number(item.bidQty),
-			askQty: Number(item.askQty),
+			bid: Price.of(Number(item.bidPrice)),
+			ask: Price.of(Number(item.askPrice)),
+			bidQty: Volume.of(Number(item.bidQty)),
+			askQty: Volume.of(Number(item.askQty)),
 		}));
 	},
 };

@@ -73,9 +73,9 @@ describe("createSecureServer", () => {
 	const defaultOptions = {
 		port: 8443,
 		tls: {
-			key: "/path/to/key.pem",
-			cert: "/path/to/cert.pem",
-			ca: "/path/to/ca.pem",
+			keyPath: "/path/to/key.pem",
+			certPath: "/path/to/cert.pem",
+			caPath: "/path/to/ca.pem",
 		},
 		routes: jest.fn(),
 	};

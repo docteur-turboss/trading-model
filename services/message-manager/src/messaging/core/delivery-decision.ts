@@ -1,6 +1,6 @@
 import {
 	DeliveryMode,
-	type DeliveryModeEnum,
+	type DeliveryMode,
 } from "@trading-model/common/config/delivery-mode.types";
 import { DeadLetterError } from "@trading-model/common/utils/errors";
 
@@ -15,7 +15,7 @@ interface DeliveryDecision {
  */
 export interface DeliveryFailureInput {
 	error: Error & { statusCode?: number; reason?: string };
-	deliveryMode: DeliveryModeEnum;
+	deliveryMode: DeliveryMode;
 	deliveryAttempt: number;
 	maxRetries: number;
 }

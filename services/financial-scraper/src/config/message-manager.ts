@@ -9,10 +9,10 @@ export const {
 	messageManagerListenExpress: MessageManagerListenExpress,
 } = createMessageManager({
 	addressManagerClient: AddressManager,
-	certificatePath: env.TLS_CERT_PATH,
+	certPath: env.TLS_CERT_PATH,
 	instanceId: env.INSTANCE_ID,
-	keyCertificatePath: env.TLS_KEY_PATH,
-	rootCACertPath: env.TLS_CA_PATH,
+	keyPath: env.TLS_KEY_PATH,
+	caPath: env.TLS_CA_PATH,
 	serviceName: env.SERVICE_NAME as ServiceInstanceName,
 	callbackPath: env.MESSAGE_CALLBACK_PATH,
 });

@@ -21,19 +21,22 @@
  * Infrastructure / messaging layer component.
  * Acts as a delivery orchestrator for the Broker service.
  */
-import { DeliveryMode, type DeliveryModeEnum } from "@trading-model/common/config/delivery-mode.types";
+import {
+	DeliveryMode,
+	type DeliveryMode,
+} from "@trading-model/common/config/delivery-mode.types";
 import type {
 	Message,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
 import { sleep } from "@trading-model/common/utils/sleep";
 import { FIND_A_SERVICE } from "../../config/address-manager";
+import { DeliveryCircuitBreaker } from "./delivery-circuit-breaker";
+import { DeliveryErrorHandler } from "./delivery-error-handler";
 import type {
 	MessageDeliveryContext,
 	MessageDeliveryPort,
 } from "./message-delivery-port";
-import { DeliveryCircuitBreaker } from "./delivery-circuit-breaker";
-import { DeliveryErrorHandler } from "./delivery-error-handler";
 
 /** Base delay (ms) for exponential backoff between retries. */
 const BaseDelayMs = 1000;
@@ -147,70 +150,113 @@ export class Subscription {
 	 * @param message - Message to dispatch.
 	 */
 	async dispatch<TData>(message: Message<TData>): Promise<void> {
-		const ttl = message.metadata.delivery?.ttl ?? 0;
-		const deliveryMode =
-			message.metadata.delivery?.mode ?? DeliveryMode.AT_LEAST_ONCE;
+		const { ttl, deliveryMode, emittedAt } =
+			this._extractDeliveryMetadata(message);
 
-		const emittedAt = new Date(message.metadata.emittedAt ?? 0).getTime();
-
-		if (
-			await this._circuitBreaker.check(message, this._deliveryPort)
-		) {
+		if (await this._circuitBreaker.check(message, this._deliveryPort)) {
 			return;
 		}
 
 		let acknowledged = false;
-
-		const context: SubscribersContext = {
-			receivedAt: null,
-			consumerGroup: this.serviceIdentity.serviceName,
-			deliveryAttempt: 0,
-
-			ack: () => {
-				acknowledged = true;
-				return Promise.resolve();
-			},
-		};
+		const context = this._buildSubscriberContext(() => {
+			acknowledged = true;
+		});
 
 		while (!acknowledged) {
-			try {
-				const target = await this._resolveTarget();
-
-				const deliveryContext: MessageDeliveryContext = {
-					deliveryAttempt: context.deliveryAttempt,
-					consumerGroup: context.consumerGroup,
-				};
-				await this._deliveryPort.send(target, message, deliveryContext);
-
-				context.receivedAt = new Date();
-				await context.ack();
-			} catch (err) {
-				context.deliveryAttempt++;
-
-				const handled = await this._errorHandler.handleDeliveryError(
-					err,
-					message,
-					context,
-					ttl,
-					emittedAt,
-					deliveryMode
-				);
-				if (handled) {
-					return;
-				}
-
-				await sleep(Subscription.backoffDelay(context.deliveryAttempt));
-			}
-
-			if (
-				deliveryMode === DeliveryMode.EXACTLY_ONCE ||
-				deliveryMode === DeliveryMode.AT_MOST_ONCE
-			) {
+			const shouldRetry = await this._attemptDelivery(
+				message,
+				context,
+				ttl,
+				emittedAt,
+				deliveryMode
+			);
+			if (!shouldRetry) {
 				return;
 			}
 		}
 
 		this._circuitBreaker.reset();
+	}
+
+	/**
+	 * Extracts delivery metadata from message headers.
+	 */
+	private _extractDeliveryMetadata<TData>(message: Message<TData>): {
+		ttl: number;
+		deliveryMode: DeliveryMode;
+		emittedAt: number;
+	} {
+		const ttl = message.metadata.delivery?.ttl ?? 0;
+		const deliveryMode =
+			message.metadata.delivery?.mode ?? DeliveryMode.AT_LEAST_ONCE;
+		const emittedAt = new Date(message.metadata.emittedAt ?? 0).getTime();
+		return { ttl, deliveryMode, emittedAt };
+	}
+
+	/**
+	 * Builds a subscriber context with an ack callback.
+	 */
+	private _buildSubscriberContext(onAck: () => void): SubscribersContext {
+		return {
+			receivedAt: null,
+			consumerGroup: this.serviceIdentity.serviceName,
+			deliveryAttempt: 0,
+			ack: () => {
+				onAck();
+				return Promise.resolve();
+			},
+		};
+	}
+
+	/**
+	 * Attempts a single delivery. Returns true if the caller should retry,
+	 * false if the message was acked or delivery mode prohibits retries.
+	 */
+	private async _attemptDelivery<TData>(
+		message: Message<TData>,
+		context: SubscribersContext,
+		ttl: number,
+		emittedAt: number,
+		deliveryMode: DeliveryMode
+	): Promise<boolean> {
+		try {
+			const target = await this._resolveTarget();
+
+			const deliveryContext: MessageDeliveryContext = {
+				deliveryAttempt: context.deliveryAttempt,
+				consumerGroup: context.consumerGroup,
+			};
+			await this._deliveryPort.send(target, message, deliveryContext);
+
+			context.receivedAt = new Date();
+			await context.ack();
+			return false;
+		} catch (err) {
+			context.deliveryAttempt++;
+
+			const handled = await this._errorHandler.handleDeliveryError(
+				err,
+				message,
+				context,
+				ttl,
+				emittedAt,
+				deliveryMode
+			);
+			if (handled) {
+				return false;
+			}
+
+			await sleep(Subscription.backoffDelay(context.deliveryAttempt));
+		}
+
+		if (
+			deliveryMode === DeliveryMode.EXACTLY_ONCE ||
+			deliveryMode === DeliveryMode.AT_MOST_ONCE
+		) {
+			return false;
+		}
+
+		return true;
 	}
 
 	/**

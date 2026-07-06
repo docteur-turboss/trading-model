@@ -1,5 +1,5 @@
 /**
- * DeliveryModeEnum
+ * Delivery mode
  *
  * @description
  * Enumerates possible **message delivery semantics** supported by the broker.
@@ -7,18 +7,18 @@
  */
 
 /** Union type of all delivery modes */
-export type DeliveryModeEnum =
+export type DeliveryMode =
 	| "at-most-once"
 	| "at-least-once"
 	| "exactly-once";
 
-export enum DeliveryMode {
-	/** Deliver messages at most once (no retries) */
-	AT_MOST_ONCE = "at-most-once",
-
-	/** Deliver messages at least once (retry until ACK or TTL) */
-	AT_LEAST_ONCE = "at-least-once",
-
-	/** Deliver messages exactly once (idempotent delivery) */
-	EXACTLY_ONCE = "exactly-once",
-}
+/** Runtime delivery mode constants for use in comparisons and schema validation. */
+export const DeliveryMode: {
+	AT_MOST_ONCE: DeliveryMode;
+	AT_LEAST_ONCE: DeliveryMode;
+	EXACTLY_ONCE: DeliveryMode;
+} = {
+	AT_MOST_ONCE: "at-most-once",
+	AT_LEAST_ONCE: "at-least-once",
+	EXACTLY_ONCE: "exactly-once",
+};

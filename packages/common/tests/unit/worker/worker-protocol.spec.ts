@@ -36,6 +36,7 @@ jest.mock("ws", () => {
 import { WebSocketServer } from "ws";
 import { logger } from "../../../src/config/logger";
 
+import type { IPAddress, Port } from "../../../src/domain/primitives";
 import { WorkerProtocol } from "../../../src/worker/worker-protocol";
 import type { WorkerRegistry } from "../../../src/worker/worker-registry";
 
@@ -134,8 +135,8 @@ describe("WorkerProtocol", () => {
 					JSON.stringify({
 						type: "register",
 						workerId: "w1",
-						address: "10.0.0.1",
-						port: 9000,
+						address: "10.0.0.1" as IPAddress,
+						port: 9000 as Port,
 						capabilities: ["type-a"],
 						maxConcurrency: 5,
 					})
@@ -143,8 +144,8 @@ describe("WorkerProtocol", () => {
 
 				expect(mockRegistry.register).toHaveBeenCalledWith("w1", {
 					workerId: "w1",
-					address: "10.0.0.1",
-					port: 9000,
+					address: "10.0.0.1" as IPAddress,
+					port: 9000 as Port,
 					capabilities: ["type-a"],
 					maxConcurrency: 5,
 					currentLoad: 0,
@@ -166,8 +167,8 @@ describe("WorkerProtocol", () => {
 					JSON.stringify({
 						type: "register",
 						workerId: "w1",
-						address: "10.0.0.1",
-						port: 9000,
+						address: "10.0.0.1" as IPAddress,
+						port: 9000 as Port,
 						capabilities: ["type-a"],
 						maxConcurrency: 5,
 					})
@@ -199,8 +200,8 @@ describe("WorkerProtocol", () => {
 					JSON.stringify({
 						type: "register",
 						workerId: "w1",
-						address: "10.0.0.1",
-						port: 9000,
+						address: "10.0.0.1" as IPAddress,
+						port: 9000 as Port,
 						capabilities: [],
 						maxConcurrency: 5,
 					})
@@ -228,8 +229,8 @@ describe("WorkerProtocol", () => {
 					JSON.stringify({
 						type: "register",
 						workerId: "w1",
-						address: "10.0.0.1",
-						port: 9000,
+						address: "10.0.0.1" as IPAddress,
+						port: 9000 as Port,
 						capabilities: [],
 						maxConcurrency: 5,
 					})
@@ -311,8 +312,8 @@ describe("WorkerProtocol", () => {
 					JSON.stringify({
 						type: "register",
 						workerId: "w1",
-						address: "10.0.0.1",
-						port: 9000,
+						address: "10.0.0.1" as IPAddress,
+						port: 9000 as Port,
 						capabilities: ["type-a"],
 						maxConcurrency: 5,
 					})
@@ -344,8 +345,8 @@ describe("WorkerProtocol", () => {
 					JSON.stringify({
 						type: "register",
 						workerId: "w1",
-						address: "10.0.0.1",
-						port: 9000,
+						address: "10.0.0.1" as IPAddress,
+						port: 9000 as Port,
 						capabilities: [],
 						maxConcurrency: 5,
 					})
@@ -375,8 +376,8 @@ describe("WorkerProtocol", () => {
 				JSON.stringify({
 					type: "register",
 					workerId: "w1",
-					address: "10.0.0.1",
-					port: 9000,
+					address: "10.0.0.1" as IPAddress,
+					port: 9000 as Port,
 					capabilities: [],
 					maxConcurrency: 5,
 				})
@@ -405,8 +406,8 @@ describe("WorkerProtocol", () => {
 				JSON.stringify({
 					type: "register",
 					workerId: "w1",
-					address: "10.0.0.1",
-					port: 9000,
+					address: "10.0.0.1" as IPAddress,
+					port: 9000 as Port,
 					capabilities: [],
 					maxConcurrency: 5,
 				})
@@ -440,8 +441,8 @@ describe("WorkerProtocol", () => {
 				JSON.stringify({
 					type: "register",
 					workerId: "w1",
-					address: "10.0.0.1",
-					port: 9000,
+					address: "10.0.0.1" as IPAddress,
+					port: 9000 as Port,
 					capabilities: [],
 					maxConcurrency: 5,
 				})
@@ -453,8 +454,8 @@ describe("WorkerProtocol", () => {
 				JSON.stringify({
 					type: "register",
 					workerId: "w2",
-					address: "10.0.0.2",
-					port: 9000,
+					address: "10.0.0.2" as IPAddress,
+					port: 9000 as Port,
 					capabilities: [],
 					maxConcurrency: 5,
 				})
@@ -479,8 +480,8 @@ describe("WorkerProtocol", () => {
 				JSON.stringify({
 					type: "register",
 					workerId: "w1",
-					address: "10.0.0.1",
-					port: 9000,
+					address: "10.0.0.1" as IPAddress,
+					port: 9000 as Port,
 					capabilities: [],
 					maxConcurrency: 5,
 				})
@@ -492,8 +493,8 @@ describe("WorkerProtocol", () => {
 				JSON.stringify({
 					type: "register",
 					workerId: "w2",
-					address: "10.0.0.2",
-					port: 9000,
+					address: "10.0.0.2" as IPAddress,
+					port: 9000 as Port,
 					capabilities: [],
 					maxConcurrency: 5,
 				})

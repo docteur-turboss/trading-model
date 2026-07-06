@@ -33,15 +33,15 @@ describe("RemoteSigningClient", () => {
 	it("should create with TLS config", () => {
 		const c = getClient({
 			tls: {
-				rootCACertPath: "/ca.pem",
-				certificatePath: "/cert.pem",
-				keyCertificatePath: "/key.pem",
+				caPath: "/ca.pem",
+				certPath: "/cert.pem",
+				keyPath: "/key.pem",
 			},
 		});
 		expect(MOCK_HTTP_CLIENT.createWithTls).toHaveBeenCalledWith({
-			rootCACertPath: "/ca.pem",
-			certificatePath: "/cert.pem",
-			keyCertificatePath: "/key.pem",
+			caPath: "/ca.pem",
+			certPath: "/cert.pem",
+			keyPath: "/key.pem",
 		});
 		expect(MOCK_HTTP_CLIENT).not.toHaveBeenCalled();
 		expect(c).toBeDefined();

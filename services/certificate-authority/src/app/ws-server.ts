@@ -210,6 +210,20 @@ function sendSignError(ws: WebSocket, id: string, message: string): void {
 	);
 }
 
+function sendRateLimitError(ws: WebSocket): void {
+	ws.send(
+		JSON.stringify({
+			type: "sign:response",
+			id: "unknown",
+			success: false,
+			error: {
+				message: "Rate limit exceeded for unauthenticated requests",
+				code: 429,
+			},
+		})
+	);
+}
+
 async function handleWsMessage(
 	ws: WebSocket,
 	raw: RawData,
@@ -234,9 +248,7 @@ async function handleWsMessage(
 	const parsed = WS_SIGN_SCHEMA.safeParse(msg);
 	if (!parsed.success) {
 		logger.warn("WSS invalid sign request", {
-			context: {
-				issues: parsed.error.issues,
-			},
+			context: { issues: parsed.error.issues },
 		});
 		sendSignError(ws, (msg.id as string) ?? "unknown", "Invalid request");
 		return;
@@ -249,18 +261,7 @@ async function handleWsMessage(
 			session.limiterKey
 		)
 	) {
-		ws.send(
-			JSON.stringify({
-				type: "sign:response",
-				id: "unknown",
-				success: false,
-				error: {
-					message: "Rate limit exceeded for unauthenticated requests",
-					code: 429,
-				},
-			})
-		);
-		return;
+		return sendRateLimitError(ws);
 	}
 
 	await handleSignRequest(ws, parsed.data, session);

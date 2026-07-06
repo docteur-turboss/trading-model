@@ -9,6 +9,7 @@ import {
 import type { Job } from "../../../src/contracts/recovery.types";
 import type { IJobQueue } from "../../../src/recovery/job-queue.interface";
 import type { IJobRepository } from "../../../src/recovery/job-repository.interface";
+import type { IPAddress, Port } from "../../../src/domain/primitives";
 import { OrphanDetector } from "../../../src/recovery/orphan-detector";
 import { ReAllocator } from "../../../src/recovery/re-allocator";
 import { WorkerRegistry } from "../../../src/worker/worker-registry";
@@ -104,8 +105,8 @@ describe("OrphanDetector (shared)", () => {
 		it("should detect orphaned jobs from stale workers", () => {
 			registry.register("stale-worker", {
 				workerId: "stale-worker",
-				address: "10.0.0.1",
-				port: 9000,
+				address: "10.0.0.1" as IPAddress,
+				port: 9000 as Port,
 				capabilities: ["type-a"],
 				maxConcurrency: 5,
 				currentLoad: 0,
@@ -136,8 +137,8 @@ describe("OrphanDetector (shared)", () => {
 		it("should update status to orphaned and reallocate stale jobs", async () => {
 			registry.register("stale-w", {
 				workerId: "stale-w",
-				address: "10.0.0.2",
-				port: 9001,
+				address: "10.0.0.2" as IPAddress,
+				port: 9001 as Port,
 				capabilities: ["type-a"],
 				maxConcurrency: 5,
 				currentLoad: 0,
@@ -172,8 +173,8 @@ describe("OrphanDetector (shared)", () => {
 
 			registry.register("bad-worker", {
 				workerId: "bad-worker",
-				address: "10.0.0.1",
-				port: 9000,
+				address: "10.0.0.1" as IPAddress,
+				port: 9000 as Port,
 				capabilities: ["type-a"],
 				maxConcurrency: 5,
 				currentLoad: 0,
@@ -215,8 +216,8 @@ describe("OrphanDetector (shared)", () => {
 
 			registry.register("w1", {
 				workerId: "w1",
-				address: "10.0.0.1",
-				port: 9000,
+				address: "10.0.0.1" as IPAddress,
+				port: 9000 as Port,
 				capabilities: ["type-a"],
 				maxConcurrency: 5,
 				currentLoad: 0,

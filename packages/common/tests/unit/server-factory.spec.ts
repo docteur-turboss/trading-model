@@ -43,9 +43,9 @@ import { logger } from "../../src/config/logger";
 import { setupTlsWatcher } from "../../src/server/server-factory";
 
 const TLS_CONFIG = {
-	key: "/path/to/key.pem",
-	cert: "/path/to/cert.pem",
-	ca: "/path/to/ca.pem",
+	keyPath: "/path/to/key.pem",
+	certPath: "/path/to/cert.pem",
+	caPath: "/path/to/ca.pem",
 };
 
 const MOCK_SERVER = {
@@ -77,9 +77,9 @@ describe("setupTlsWatcher", () => {
 
 	it("should set up watchers for multiple unique directories", async () => {
 		const multiDirConfig = {
-			key: "/dir1/key.pem",
-			cert: "/dir2/cert.pem",
-			ca: "/dir3/ca.pem",
+			keyPath: "/dir1/key.pem",
+			certPath: "/dir2/cert.pem",
+			caPath: "/dir3/ca.pem",
 		};
 
 		await setupTlsWatcher(MOCK_SERVER, multiDirConfig);

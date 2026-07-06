@@ -33,25 +33,41 @@ export class DlqClaimManager {
 		const col = await getCollection();
 		const filter = this._buildClaimFilter(topic);
 
-		const candidates = await col
-			.find(filter, {
-				sort: { createdAt: -1 },
-				limit,
-				projection: {
-					_id: 1,
-					topic: 1,
-					message: 1,
-					reason: 1,
-					deliveryAttempt: 1,
-					createdAt: 1,
-				},
-			})
-			.toArray();
-
+		const candidates = await this._findClaimCandidates(col, filter, limit);
 		if (candidates.length === 0) {
 			return [];
 		}
 
+		const claimed = await this._executeBulkClaim(
+			col,
+			candidates,
+			batchId,
+			instanceId
+		);
+
+		return claimed.map((doc) => this._toStoredDlqEntry(doc));
+	}
+
+	private async _findClaimCandidates(
+		col: import("mongodb").Collection,
+		filter: Record<string, unknown>,
+		limit: number
+	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
+		return await col
+			.find(filter, {
+				sort: { createdAt: -1 },
+				limit,
+				projection: this._claimProjection,
+			})
+			.toArray();
+	}
+
+	private async _executeBulkClaim(
+		col: import("mongodb").Collection,
+		candidates: import("mongodb").WithId<import("mongodb").Document>[],
+		batchId: string,
+		instanceId: string
+	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
 		const now = new Date();
 		const operations = this._buildBulkUpdateOps({
 			candidates,
@@ -66,23 +82,7 @@ export class DlqClaimManager {
 		}
 
 		const candidateIds = candidates.map((doc) => doc._id);
-		const claimedDocs = await col
-			.find(
-				{ _id: { $in: candidateIds }, lastBatchId: batchId },
-				{
-					projection: {
-						_id: 1,
-						topic: 1,
-						message: 1,
-						reason: 1,
-						deliveryAttempt: 1,
-						createdAt: 1,
-					},
-				}
-			)
-			.toArray();
-
-		return claimedDocs.map((doc) => this._toStoredDlqEntry(doc));
+		return await this._fetchClaimedByIds(col, candidateIds, batchId);
 	}
 
 	async claimEntriesByIds(
@@ -93,16 +93,39 @@ export class DlqClaimManager {
 			return [];
 		}
 		const col = await getCollection();
-		const objectIds = ids
-			.filter((id) => ObjectId.isValid(id))
-			.map((id) => new ObjectId(id));
+		const objectIds = this._toValidObjectIds(ids);
 		if (objectIds.length === 0) {
 			return [];
 		}
 
+		await this._claimByIds(col, objectIds, ctx);
+
+		const claimed = await this._fetchClaimedByIds(col, objectIds, ctx.batchId);
+		return claimed.map((doc) => this._toStoredDlqEntry(doc));
+	}
+
+	private readonly _claimProjection = {
+		_id: 1,
+		topic: 1,
+		message: 1,
+		reason: 1,
+		deliveryAttempt: 1,
+		createdAt: 1,
+	} as const;
+
+	private _toValidObjectIds(ids: string[]): ObjectId[] {
+		return ids
+			.filter((id) => ObjectId.isValid(id))
+			.map((id) => new ObjectId(id));
+	}
+
+	private async _claimByIds(
+		col: import("mongodb").Collection,
+		objectIds: ObjectId[],
+		ctx: import("./types").BatchContext
+	): Promise<void> {
 		const now = new Date();
 		const atomicCond = this._buildAtomicCondition();
-
 		const operations = objectIds.map((id) => ({
 			updateOne: {
 				filter: { _id: id, ...atomicCond },
@@ -115,26 +138,20 @@ export class DlqClaimManager {
 				},
 			},
 		}));
-
 		await col.bulkWrite(operations, { ordered: false });
+	}
 
-		const claimed = await col
+	private async _fetchClaimedByIds(
+		col: import("mongodb").Collection,
+		ids: ObjectId[],
+		batchId: string
+	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
+		return await col
 			.find(
-				{ _id: { $in: objectIds }, lastBatchId: ctx.batchId },
-				{
-					projection: {
-						_id: 1,
-						topic: 1,
-						message: 1,
-						reason: 1,
-						deliveryAttempt: 1,
-						createdAt: 1,
-					},
-				}
+				{ _id: { $in: ids }, lastBatchId: batchId },
+				{ projection: this._claimProjection }
 			)
 			.toArray();
-
-		return claimed.map((doc) => this._toStoredDlqEntry(doc));
 	}
 
 	async claimEntry(
@@ -159,14 +176,7 @@ export class DlqClaimManager {
 			},
 			{
 				returnDocument: "after",
-				projection: {
-					_id: 1,
-					topic: 1,
-					message: 1,
-					reason: 1,
-					deliveryAttempt: 1,
-					createdAt: 1,
-				},
+				projection: this._claimProjection,
 			}
 		);
 		if (!result) {

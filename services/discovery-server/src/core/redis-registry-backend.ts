@@ -12,6 +12,8 @@ import {
 	createRedisClient,
 	type RedisConnectionConfig,
 } from "./redis-client-factory";
+import { RedisKeyBuilder } from "./redis-key-builder";
+import { StaleInstanceCleaner } from "./stale-instance-cleaner";
 import { TokenService } from "./token-service";
 
 export type { RedisSentinelConfig, RedisClusterNodesConfig, RedisConnectionConfig } from "./redis-client-factory";
@@ -46,10 +48,9 @@ export type { RedisSentinelConfig, RedisClusterNodesConfig, RedisConnectionConfi
  */
 export class RedisRegistryBackend implements RegistryBackend {
 	private readonly _redis: Redis;
-	private readonly _prefix: string;
+	private readonly _keyBuilder: RedisKeyBuilder;
 	private readonly _tokenService: TokenService;
-	private readonly _cleanupIntervalMs: number;
-	private _cleanupHandle?: NodeJS.Timeout;
+	private readonly _cleaner: StaleInstanceCleaner;
 
 	constructor(
 		configOrUrl: string | RedisConnectionConfig,
@@ -57,18 +58,19 @@ export class RedisRegistryBackend implements RegistryBackend {
 		signingSecret?: string,
 		cleanupIntervalMs = 10_000
 	) {
-		this._prefix = computePrefix(prefix, configOrUrl);
+		const resolvedPrefix = computePrefix(prefix, configOrUrl);
+		this._keyBuilder = new RedisKeyBuilder(resolvedPrefix);
 		this._redis = createRedisClient(configOrUrl) as Redis;
 		this._tokenService = new TokenService(
 			signingSecret ?? randomBytes(32).toString("hex")
 		);
-		this._cleanupIntervalMs = cleanupIntervalMs;
+		this._cleaner = new StaleInstanceCleaner(this, cleanupIntervalMs);
 	}
 
 	// ─── Registration ──────────────────────────────────────────────────────────
 
 	private async _resolveToken(instanceId: string): Promise<string> {
-		const tokenKey = `${this._prefix}instance:${instanceId}:token`;
+		const tokenKey = this._keyBuilder.instanceToken(instanceId);
 		const token = this._tokenService.generateInstanceToken(instanceId);
 		const tokenSet = await this._redis.set(tokenKey, token, "NX");
 		return tokenSet === "OK"
@@ -86,7 +88,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 			lastHeartbeat: now,
 		};
 		const existingJson = await this._redis.get(
-			`${this._prefix}instance:${instance.instanceId}:metadata`
+			this._keyBuilder.instanceMetadata(instance.instanceId)
 		);
 		if (existingJson) {
 			try {
@@ -112,10 +114,10 @@ export class RedisRegistryBackend implements RegistryBackend {
 		const finalToken = await this._resolveToken(instanceId);
 
 		const multi = this._redis.multi();
-		multi.sadd(`${this._prefix}service:${serviceName}:instances`, instanceId);
+		multi.sadd(this._keyBuilder.serviceInstancesSet(serviceName), instanceId);
 		const storedInstance = await this._buildStoredInstance(instance, now);
 		multi.set(
-			`${this._prefix}instance:${instanceId}:metadata`,
+			this._keyBuilder.instanceMetadata(instanceId),
 			JSON.stringify(storedInstance)
 		);
 		await multi.exec();
@@ -130,7 +132,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 		instanceId,
 	}: ServiceIdentity): Promise<number | false> {
 		const exists = await this._redis.sismember(
-			`${this._prefix}service:${serviceName}:instances`,
+			this._keyBuilder.serviceInstancesSet(serviceName),
 			instanceId
 		);
 
@@ -139,7 +141,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 		}
 
 		const json = await this._redis.get(
-			`${this._prefix}instance:${instanceId}:metadata`
+			this._keyBuilder.instanceMetadata(instanceId)
 		);
 		if (!json) {
 			return false;
@@ -153,12 +155,12 @@ export class RedisRegistryBackend implements RegistryBackend {
 
 			const multi = this._redis.multi();
 			multi.set(
-				`${this._prefix}instance:${instanceId}:metadata`,
+				this._keyBuilder.instanceMetadata(instanceId),
 				JSON.stringify(instance)
 			);
 			// Tag which server last updated this instance for skew attribution
 			multi.set(
-				`${this._prefix}instance:${instanceId}:updatedBy`,
+				this._keyBuilder.instanceUpdatedBy(instanceId),
 				`${serviceName}:${instanceId}`
 			);
 			await multi.exec();
@@ -179,7 +181,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 	async updateToken(instanceId: string): Promise<string> {
 		const newToken = this._tokenService.generateInstanceToken(instanceId);
 		await this._redis.set(
-			`${this._prefix}instance:${instanceId}:token`,
+			this._keyBuilder.instanceToken(instanceId),
 			newToken
 		);
 		return newToken;
@@ -189,7 +191,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 
 	async getInstances(serviceName: string): Promise<ServiceInstance[]> {
 		const instanceIds = await this._redis.smembers(
-			`${this._prefix}service:${serviceName}:instances`
+			this._keyBuilder.serviceInstancesSet(serviceName)
 		);
 
 		if (instanceIds.length === 0) {
@@ -197,7 +199,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 		}
 
 		const keys = instanceIds.map(
-			(id) => `${this._prefix}instance:${id}:metadata`
+			(id) => this._keyBuilder.instanceMetadata(id)
 		);
 		const results = await this._redis.mget(keys);
 
@@ -221,7 +223,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 		instanceId,
 	}: ServiceIdentity): Promise<ServiceInstance | undefined> {
 		const json = await this._redis.get(
-			`${this._prefix}instance:${instanceId}:metadata`
+			this._keyBuilder.instanceMetadata(instanceId)
 		);
 		if (!json) {
 			return;
@@ -244,10 +246,10 @@ export class RedisRegistryBackend implements RegistryBackend {
 		instanceId,
 	}: ServiceIdentity): Promise<boolean> {
 		const multi = this._redis.multi();
-		multi.srem(`${this._prefix}service:${serviceName}:instances`, instanceId);
-		multi.del(`${this._prefix}instance:${instanceId}:metadata`);
-		multi.del(`${this._prefix}instance:${instanceId}:token`);
-		multi.del(`${this._prefix}instance:${instanceId}:updatedBy`);
+		multi.srem(this._keyBuilder.serviceInstancesSet(serviceName), instanceId);
+		multi.del(this._keyBuilder.instanceMetadata(instanceId));
+		multi.del(this._keyBuilder.instanceToken(instanceId));
+		multi.del(this._keyBuilder.instanceUpdatedBy(instanceId));
 
 		const results = await multi.exec();
 		if (!results) {
@@ -262,14 +264,9 @@ export class RedisRegistryBackend implements RegistryBackend {
 	// ─── Introspection ──────────────────────────────────────────────────────────
 
 	async listServiceNames(): Promise<string[]> {
-		const keys = await this._redis.keys(`${this._prefix}service:*:instances`);
+		const keys = await this._redis.keys(this._keyBuilder.servicePattern());
 		return keys
-			.map((key) => {
-				const match = key.match(
-					new RegExp(`^${this._prefix}service:(.+):instances$`)
-				);
-				return match ? match[1] : null;
-			})
+			.map((key) => this._keyBuilder.parseServiceName(key))
 			.filter((name): name is string => name !== null);
 	}
 
@@ -295,7 +292,7 @@ export class RedisRegistryBackend implements RegistryBackend {
 		instanceId: string
 	): Promise<boolean> {
 		const storedToken = await this._redis.get(
-			`${this._prefix}instance:${instanceId}:token`
+			this._keyBuilder.instanceToken(instanceId)
 		);
 		return this._tokenService.validInstanceToken(token, instanceId, storedToken ?? undefined);
 	}
@@ -323,59 +320,19 @@ export class RedisRegistryBackend implements RegistryBackend {
 			});
 		});
 
-		// F38: Add a random initial delay (0 … cleanupIntervalMs) so that
-		// multiple discovery-server instances don't run cleanup simultaneously.
-		// Clock skew is already handled by a 2000ms tolerance in
-		// cleanupExpiredInstances().
-		const initialDelay = Math.floor(Math.random() * this._cleanupIntervalMs);
-		setTimeout(() => {
-			this._cleanupHandle = setInterval(() => {
-				this._cleanupExpiredInstances().catch((err) => {
-					logger.error("Redis cleanup error", { error: normalizeError(err) });
-				});
-			}, this._cleanupIntervalMs);
-		}, initialDelay);
+		this._cleaner.start();
 
-		logger.info("RedisRegistryBackend started", {
-			cleanupIntervalMs: this._cleanupIntervalMs,
-			initialDelay,
-		});
+		logger.info("RedisRegistryBackend started");
 	}
 
 	stop(): void {
-		if (this._cleanupHandle) {
-			clearInterval(this._cleanupHandle);
-			this._cleanupHandle = undefined;
-		}
+		this._cleaner.stop();
 		this._redis.disconnect();
 		logger.info("RedisRegistryBackend stopped");
 	}
 
-	private async _cleanupExpiredInstances(): Promise<void> {
-		const ClockSkewToleranceMs = 2000;
-		const now = Date.now();
-		const serviceNames = await this.listServiceNames();
-
-		for (const serviceName of serviceNames) {
-			const instances = await this.getInstances(serviceName);
-
-			for (const instance of instances) {
-				if (
-					now - instance.lastHeartbeat >
-					instance.ttl + ClockSkewToleranceMs
-				) {
-					logger.warn("Expired instance removed", {
-						serviceName,
-						instanceId: instance.instanceId,
-						heartbeatAge: now - instance.lastHeartbeat,
-						ttl: instance.ttl,
-					});
-					await this.removeInstance({
-						serviceName,
-						instanceId: instance.instanceId,
-					});
-				}
-			}
-		}
+	/** Exposed for testing — triggers stale-instance cleanup immediately. */
+	async forceCleanup(): Promise<void> {
+		await this._cleaner.cleanupNow();
 	}
 }

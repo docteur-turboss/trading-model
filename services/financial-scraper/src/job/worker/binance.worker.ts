@@ -19,7 +19,7 @@ import type { MessageMetadata } from "@trading-model/broker-message/shared/helpe
 import type { CandleInterval } from "@trading-model/common/config/event.types";
 import {
 	DeliveryMode,
-	type DeliveryModeEnum,
+	type DeliveryMode,
 } from "@trading-model/common/config/delivery-mode.types";
 import { EnumEventMessage } from "@trading-model/common/config/event.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
@@ -44,7 +44,7 @@ export interface BinanceWorkerOptions {
 	candleLimit?: number;
 	tradeLimit?: number;
 	orderBookLimit?: number;
-	deliveryMode?: DeliveryModeEnum;
+	deliveryMode?: DeliveryMode;
 }
 
 /** Normalized market data returned by a BinanceWorker execution, ready for persistence. */

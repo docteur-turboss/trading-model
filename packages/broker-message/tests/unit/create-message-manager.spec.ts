@@ -18,10 +18,10 @@ import { createMessageManager } from "../../src/shared/helper/create-message-man
 describe("createMessageManager", () => {
 	const options = {
 		addressManagerClient: {} as any,
-		certificatePath: "/path/to/cert.pem",
+		certPath: "/path/to/cert.pem",
 		instanceId: "550e8400-e29b-41d4-a716-446655440000",
-		keyCertificatePath: "/path/to/key.pem",
-		rootCACertPath: "/path/to/ca.pem",
+		keyPath: "/path/to/key.pem",
+		caPath: "/path/to/ca.pem",
 		serviceName: ServiceInstanceName.MessageDeliveryService,
 		callbackPath: "/callback",
 	};
@@ -37,10 +37,10 @@ describe("createMessageManager", () => {
 
 		expect(MessageManagerClass).toHaveBeenCalledWith({
 			addressManagerClient: options.addressManagerClient,
-			certificatePath: options.certificatePath,
+			certPath: options.certPath,
 			instanceId: options.instanceId,
-			keyCertificatePath: options.keyCertificatePath,
-			rootCACertPath: options.rootCACertPath,
+			keyPath: options.keyPath,
+			caPath: options.caPath,
 			serviceName: options.serviceName,
 			callbackPath: options.callbackPath,
 		});

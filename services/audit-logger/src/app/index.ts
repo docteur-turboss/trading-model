@@ -46,9 +46,9 @@ createBootstrap({
 		const { AddressManager } = await import("../config/address-manager.js");
 		brokerMessage = new BrokerMessage({
 			addressManagerClient: AddressManager,
-			keyCertificatePath: ENV.TLS_KEY_PATH,
-			rootCACertPath: ENV.TLS_CA_PATH,
-			certificatePath: ENV.TLS_CERT_PATH,
+			keyPath: ENV.TLS_KEY_PATH,
+			caPath: ENV.TLS_CA_PATH,
+			certPath: ENV.TLS_CERT_PATH,
 			instanceId: ENV.INSTANCE_ID,
 			serviceName: ServiceInstanceName.AuditLoggerService,
 		});

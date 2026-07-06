@@ -456,10 +456,10 @@ describe("RedisRegistryBackend", () => {
 	describe("removeInstance", () => {
 		it("should remove an instance and return true", async () => {
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
-			const result = await backend.removeInstance(
-				"financial-scraper-service",
-				"test-instance-1"
-			);
+			const result = await backend.removeInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(true);
 			expect(MOCK_MULTI.srem).toHaveBeenCalledWith(
 				expect.stringContaining(":service:financial-scraper-service:instances"),
@@ -684,7 +684,7 @@ describe("RedisRegistryBackend", () => {
 
 			jest.advanceTimersByTime(0);
 
-			expect((backend as any)._cleanupHandle).toBeDefined();
+			expect((backend as any)._cleaner.isRunning).toBe(true);
 
 			Math.random = origRandom;
 		});
@@ -705,7 +705,7 @@ describe("RedisRegistryBackend", () => {
 
 			const { logger } = require("@trading-model/common/config/logger");
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
-			await (backend as any)._cleanupExpiredInstances();
+			await backend.forceCleanup();
 
 			expect(logger.warn).toHaveBeenCalledWith(
 				"Expired instance removed",
@@ -729,7 +729,7 @@ describe("RedisRegistryBackend", () => {
 
 			const { logger } = require("@trading-model/common/config/logger");
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
-			await (backend as any)._cleanupExpiredInstances();
+			await backend.forceCleanup();
 
 			expect(logger.warn).not.toHaveBeenCalledWith(
 				"Expired instance removed",

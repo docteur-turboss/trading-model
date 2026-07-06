@@ -35,10 +35,7 @@ export interface MarketDataBufferConfig {
 export class MarketDataBuffer {
 	private _states: Map<TradingSymbol, SymbolState> = new Map();
 	private _accessOrder: TradingSymbol[] = [];
-	private _priceSnapshot: Record<TradingSymbol, number> = {} as Record<
-		TradingSymbol,
-		number
-	>;
+	private _priceSnapshot: Record<TradingSymbol, number> = {} as Record<TradingSymbol, number>;
 	private _memoryManager: MemoryManager;
 	private _windowSplitter: WindowSplitter;
 
@@ -169,15 +166,12 @@ export class MarketDataBuffer {
 	}
 
 	/** Merge a snapshot of latest prices into the internal price map. */
-	setPriceSnapshot(prices: Record<string, number>): void {
-		this._priceSnapshot = { ...this._priceSnapshot, ...prices } as Record<
-			TradingSymbol,
-			number
-		>;
+	setPriceSnapshot(prices: Record<TradingSymbol, number>): void {
+		this._priceSnapshot = { ...this._priceSnapshot, ...prices };
 	}
 
 	/** Return a copy of the current price snapshot. */
-	getPriceSnapshot(): Record<string, number> {
+	getPriceSnapshot(): Record<TradingSymbol, number> {
 		return { ...this._priceSnapshot };
 	}
 

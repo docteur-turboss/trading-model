@@ -139,8 +139,7 @@ describe("Discovery Service — Full Flow Integration", () => {
 		});
 
 		const removed = registry.removeInstance(
-			"financial-scraper-service",
-			"node-1"
+			{ serviceName: "financial-scraper-service", instanceId: "node-1" }
 		);
 		expect(removed).toBe(true);
 		expect(registry.getInstances("financial-scraper-service")).toHaveLength(0);

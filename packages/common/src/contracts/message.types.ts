@@ -21,7 +21,7 @@
  * Shared data model used across producers, broker, and consumers.
  */
 
-import type { DeliveryModeEnum } from "../config/delivery-mode.types";
+import type { DeliveryMode } from "../config/delivery-mode.types";
 import type { ServiceInstanceName } from "../config/services.types";
 import type { ServiceIdentity as DomainServiceIdentity } from "../domain/service-identity";
 
@@ -52,7 +52,7 @@ export interface RoutingType {
  */
 export interface DeliveryType {
 	/** Delivery semantics to apply. */
-	mode: DeliveryModeEnum;
+	mode: DeliveryMode;
 
 	/** Message expiration in milliseconds. */
 	ttl?: number;

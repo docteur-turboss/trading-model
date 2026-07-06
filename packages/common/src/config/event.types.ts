@@ -71,10 +71,16 @@ export interface TradeData extends BaseMarketData {
 	side: TradeSide;
 }
 
+/** A single price level in the order book. */
+export interface OrderBookLevel {
+	price: Price;
+	quantity: Volume;
+}
+
 /** Snapshot of the order book depth at a point in time. */
 export interface OrderBookData extends BaseMarketData {
-	bids: Set<{ price: Price; quantity: Volume }>;
-	asks: Set<{ price: Price; quantity: Volume }>;
+	bids: Set<OrderBookLevel>;
+	asks: Set<OrderBookLevel>;
 }
 
 /** Best bid / ask ticker snapshot. */

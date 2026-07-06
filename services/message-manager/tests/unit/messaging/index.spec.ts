@@ -17,9 +17,9 @@ jest.mock("@trading-model/common/config/http-client", () => {
 describe("BrokerModule", () => {
 	it("should construct without error", () => {
 		const module = new BrokerModule({
-			rootCACertPath: "/certs/ca.pem",
-			CertificatPath: "/certs/cert.pem",
-			KeyCertificatPath: "/certs/key.pem",
+			caPath: "/certs/ca.pem",
+			certPath: "/certs/cert.pem",
+			keyPath: "/certs/key.pem",
 		});
 
 		expect(module).toBeDefined();
@@ -27,9 +27,9 @@ describe("BrokerModule", () => {
 
 	it("should expose a listen method", () => {
 		const module = new BrokerModule({
-			rootCACertPath: "/certs/ca.pem",
-			CertificatPath: "/certs/cert.pem",
-			KeyCertificatPath: "/certs/key.pem",
+			caPath: "/certs/ca.pem",
+			certPath: "/certs/cert.pem",
+			keyPath: "/certs/key.pem",
 		});
 
 		expect(module.listen).toBeDefined();
@@ -38,9 +38,9 @@ describe("BrokerModule", () => {
 
 	it("should accept an Express app in listen method", () => {
 		const module = new BrokerModule({
-			rootCACertPath: "/certs/ca.pem",
-			CertificatPath: "/certs/cert.pem",
-			KeyCertificatPath: "/certs/key.pem",
+			caPath: "/certs/ca.pem",
+			certPath: "/certs/cert.pem",
+			keyPath: "/certs/key.pem",
 		});
 
 		const mockApp = { use: jest.fn() };

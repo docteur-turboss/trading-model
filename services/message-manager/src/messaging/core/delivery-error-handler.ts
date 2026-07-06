@@ -1,4 +1,4 @@
-import { DeliveryMode, type DeliveryModeEnum } from "@trading-model/common/config/delivery-mode.types";
+import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
 import { AppError, DeadLetterError } from "@trading-model/common/utils/errors";
 import type { MessageDeliveryPort } from "./message-delivery-port";
@@ -46,7 +46,7 @@ export class DeliveryErrorHandler {
 		context: { deliveryAttempt: number },
 		ttl: number,
 		emittedAt: number,
-		deliveryMode: DeliveryModeEnum
+		deliveryMode: DeliveryMode
 	): Promise<boolean> {
 		if (err instanceof DeadLetterError) {
 			const reason: string = err.reason ?? "NO_REASON";

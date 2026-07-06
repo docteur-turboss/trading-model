@@ -17,9 +17,9 @@ interface AddressManagerConfig {
 	servicePingTimeoutMs: number;
 	discoveryTimeoutMs: number;
 
-	rootCACertPath: string;
-	certificatePath: string;
-	keyCertificatePath: string;
+	caPath: string;
+	certPath: string;
+	keyPath: string;
 
 	cacheTtlMs: number;
 	dnsNameMap?: Record<string, string>;
@@ -31,7 +31,7 @@ interface AddressManagerConfig {
 	preferredNetworkInterface?: string;
 
 	// TLS cert PEM overrides (inline, not file paths)
-	pems?: { ca: string; cert: string; key: string };
+	pems?: { caPath: string; certPath: string; keyPath: string };
 
 	// Redis cache config
 	redisCacheUrl?: string;
