@@ -5,43 +5,35 @@ import { normalizeError } from "../utils/errors";
 import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 type AuditTarget = { url: string; tls: TlsPaths };
+type AuditResolver = () => Promise<AuditTarget | null>;
 
 export class AuditServiceClient {
-	private _auditResolver?: () => Promise<AuditTarget | null>;
-
 	private readonly _sanitizer: SensitiveDataSanitizer;
+	private readonly _auditResolver?: AuditResolver;
 
-	constructor(sanitizer: SensitiveDataSanitizer) {
+	constructor(
+		sanitizer: SensitiveDataSanitizer,
+		auditResolver?: AuditResolver
+	) {
 		this._sanitizer = sanitizer;
-	}
-
-	setAuditResolver(resolver: () => Promise<AuditTarget | null>): void {
-		this._auditResolver = resolver;
+		this._auditResolver = auditResolver;
 	}
 
 	async send(entry: Record<string, unknown>): Promise<void> {
-		const auditTarget = await this._resolveAuditTarget();
-		if (!auditTarget) {
+		if (!this._auditResolver) {
 			return;
 		}
 		try {
+			const auditTarget = await this._auditResolver();
+			if (!auditTarget) {
+				return;
+			}
 			await this._postToAuditEndpoint(auditTarget, entry);
 		} catch (err) {
 			console.error(
 				"Failed to send log to audit service:",
 				normalizeError(err).message,
 			);
-		}
-	}
-
-	private async _resolveAuditTarget(): Promise<AuditTarget | null> {
-		if (!this._auditResolver) {
-			return null;
-		}
-		try {
-			return await this._auditResolver();
-		} catch {
-			return null;
 		}
 	}
 

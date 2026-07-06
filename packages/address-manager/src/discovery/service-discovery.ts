@@ -1,8 +1,8 @@
 ﻿import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	AppError,
-	ServiceNotFoundError,
-	ServiceUnreachableError,
+	serviceNotFoundError,
+	serviceUnreachableError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "../client/type";

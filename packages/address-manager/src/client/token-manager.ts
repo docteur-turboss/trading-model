@@ -127,7 +127,7 @@ export class TokenManager {
 			{ headers: this._buildAuthHeaders() },
 		);
 		if (!response?.token) {
-			throw new AuthenticationError(
+			throw authenticationError(
 				"Invalid token response from Address Manager",
 			);
 		}

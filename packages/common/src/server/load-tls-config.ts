@@ -13,10 +13,19 @@ export function loadTlsConfig(
 	keyPath: string,
 	certPath: string,
 	caPath: string
+): TlsPaths;
+export function loadTlsConfig(paths: TlsPaths): TlsPaths;
+export function loadTlsConfig(
+	keyPathOrPaths: string | TlsPaths,
+	certPath?: string,
+	caPath?: string
 ): TlsPaths {
+	if (typeof keyPathOrPaths === "object") {
+		return keyPathOrPaths;
+	}
 	return {
-		keyPath,
-		certPath,
-		caPath,
+		keyPath: keyPathOrPaths,
+		certPath: certPath!,
+		caPath: caPath!,
 	};
 }
