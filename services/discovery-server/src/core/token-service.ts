@@ -1,7 +1,10 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+
 import { logger } from "@trading-model/common/config/logger";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { generateRandomStr } from "@trading-model/common/crypto/random";
+import { validInstanceToken as commonValidateToken } from "@trading-model/common/crypto/token-service";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 
 export class TokenService {
 	private readonly _signingSecret: string;
@@ -29,45 +32,21 @@ export class TokenService {
 		instanceId: string,
 		storedToken?: string
 	): boolean {
-		const parts = token.split(".");
-		if (parts.length !== 4) {
-			return false;
+		const result = commonValidateToken({
+			token,
+			instanceId: instanceId as InstanceId,
+			signingSecret: this._signingSecret,
+			storedToken,
+		});
+		if (!result) {
+			logger.warn("Token validation failed", { instanceId });
 		}
-
-		const [encodedId, timestamp, nonce, signature] = parts;
-
-		const decodedId = Buffer.from(encodedId, "base64url").toString("utf8");
-		if (decodedId !== instanceId) {
-			return false;
-		}
-
-		const expectedHmac = createHmac("sha256", this._signingSecret)
-			.update(`${encodedId}.${timestamp}.${nonce}`)
-			.digest("base64url");
-
-		try {
-			if (
-				!timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(signature))
-			) {
-				return false;
-			}
-		} catch (err) {
-			logger.warn("Token validation failed", {
-				instanceId,
-				err,
-			});
-			return false;
-		}
-
-		if (storedToken !== undefined) {
-			return storedToken === token;
-		}
-		return true;
+		return result;
 	}
 
 	verifyInstanceName(serviceName: string): boolean {
-		return (
-			Object.values(ServiceInstanceName) as readonly string[]
-		).includes(serviceName);
+		return (Object.values(ServiceInstanceName) as readonly string[]).includes(
+			serviceName
+		);
 	}
 }

@@ -30,9 +30,13 @@ export class CacheManager {
 		return this._staleData.get(serviceName);
 	}
 
-	invalidate(serviceName: string): void {
+	delete(serviceName: string): void {
 		this._cache.delete(serviceName);
 		this._staleData.delete(serviceName);
+	}
+
+	invalidate(serviceName: string): void {
+		this.delete(serviceName);
 	}
 
 	get size(): number {
