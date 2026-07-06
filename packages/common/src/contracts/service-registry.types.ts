@@ -1,5 +1,11 @@
-import type { InstanceId, IPAddress, Port, Region, ServiceId } from "../domain/primitives";
 import type { ServiceInstanceName } from "../config/services.types";
+import type {
+	InstanceId,
+	IPAddress,
+	Port,
+	Region,
+	ServiceId,
+} from "../domain/primitives";
 import type {
 	ServiceEndpoint,
 	ServiceIdentity,
@@ -15,7 +21,7 @@ export interface ServiceRegisterPayload {
 	port: Port;
 	protocol: Protocol;
 	env?: string;
-	version?: string;
+	version?: Version;
 }
 
 /** Payload sent periodically to signal that a service instance is alive. */
@@ -39,7 +45,7 @@ export interface ServiceInstance extends ServiceIdentity {
 	env?: string;
 	ttl: number;
 	ip: IPAddress;
-	version: string;
+	version: Version;
 	/** Deployment region / datacenter for multi-region failover. */
 	region?: Region;
 }

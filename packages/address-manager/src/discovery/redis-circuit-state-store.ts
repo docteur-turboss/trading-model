@@ -7,15 +7,18 @@ export class RedisCircuitStateStore {
 	constructor(
 		private readonly _redis: Redis,
 		private readonly _prefix: string,
-		private readonly _ttlSec: number,
+		private readonly _ttlSec: number
 	) {}
 
-	async setCircuitState(instanceId: string, state: CircuitState): Promise<void> {
+	async setCircuitState(
+		instanceId: string,
+		state: CircuitState
+	): Promise<void> {
 		try {
 			await this._redis.setex(
 				this._circuitKey(instanceId),
 				this._ttlSec * 2,
-				JSON.stringify(state),
+				JSON.stringify(state)
 			);
 		} catch (err) {
 			logger.warn("Redis circuit state set failed", {

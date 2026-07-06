@@ -14,7 +14,11 @@ export class ActionMapper {
 	private readonly _config: ActionMapperConfig;
 
 	constructor(config?: ActionMapperConfig) {
-		this._config = { actionSpace: "discrete", tradeAmount: Volume.of(1), ...config };
+		this._config = {
+			actionSpace: "discrete",
+			tradeAmount: Volume.of(1),
+			...config,
+		};
 	}
 
 	map(output: Float32Array): ActionMap {
@@ -30,12 +34,15 @@ export class ActionMapper {
 	private _mapContinuous(output: Float32Array, amount: Volume): ActionMap {
 		const val = output[0] ?? 0;
 		if (val > 0.25) {
-			return { action: "buy", amount: Volume.of(Math.max(1, Math.round(val * +amount))) };
+			return {
+				action: "buy",
+				amount: Volume.of(Math.max(1, Math.round(val * Number(amount)))),
+			};
 		}
 		if (val < -0.25) {
 			return {
 				action: "sell",
-				amount: Volume.of(Math.max(1, Math.round(-val * +amount))),
+				amount: Volume.of(Math.max(1, Math.round(-val * Number(amount)))),
 			};
 		}
 		return { action: "hold", amount: Volume.zero() };

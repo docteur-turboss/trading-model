@@ -67,12 +67,26 @@ export async function getCandlestickData(
 	query: CandlestickQuery
 ): Promise<BinanceCandlestickDataResponse> {
 	const { symbol, interval, startTime, limit = 500 } = query;
-	const url = BINANCE_ENDPOINTS.candlesticks({ symbol, interval, startTime, limit });
-	const raw = await _getWithWeight(url, BINANCE_WEIGHTS.candlesticks()) as Array<[
-		number, string, string, string, string,
-		string, number, string, number, string,
-		string, string,
-	]>;
+	const url = BINANCE_ENDPOINTS.candlesticks({
+		symbol,
+		interval,
+		startTime,
+		limit,
+	});
+	const raw = (await _getWithWeight(url, BINANCE_WEIGHTS.candlesticks())) as [
+		number,
+		string,
+		string,
+		string,
+		string,
+		string,
+		number,
+		string,
+		number,
+		string,
+		string,
+		string,
+	][];
 	return raw.map((tuple) => parseCandlestick(tuple));
 }
 
@@ -85,7 +99,11 @@ export async function getCompressedAggregateTrades(
 ): Promise<BinanceAggregateTradeResponse> {
 	const { symbol, fromId, limit = 500 } = query;
 	const weight = BINANCE_WEIGHTS.compressedAggregateTrades();
-	const url = BINANCE_ENDPOINTS.compressedAggregateTrades({ symbol, fromId, limit });
+	const url = BINANCE_ENDPOINTS.compressedAggregateTrades({
+		symbol,
+		fromId,
+		limit,
+	});
 	return (await BINANCE.get(url, { weight })).data;
 }
 

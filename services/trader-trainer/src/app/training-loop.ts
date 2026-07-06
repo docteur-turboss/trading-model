@@ -1,7 +1,7 @@
-import type { TradingSymbol } from "../core/market-data-types";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-import { Trainer } from "../core/trainer";
 import type { MarketDataBuffer } from "../core/market-data-buffer";
+import type { TradingSymbol } from "../core/market-data-types";
+import type { Trainer } from "../core/trainer";
 
 const MIN_CANDLE_RATIO = 0.1;
 
@@ -10,7 +10,7 @@ export class TrainingLoop {
 
 	constructor(
 		private readonly _trainer: Trainer,
-		private readonly _dataBuffer: MarketDataBuffer,
+		private readonly _dataBuffer: MarketDataBuffer
 	) {}
 
 	start(symbols: TradingSymbol[], intervalMs: number): void {
@@ -31,7 +31,9 @@ export class TrainingLoop {
 		await this._trainer.train(symbol);
 	}
 
-	private async _runTrainingForSymbols(symbols: TradingSymbol[]): Promise<void> {
+	private async _runTrainingForSymbols(
+		symbols: TradingSymbol[]
+	): Promise<void> {
 		if (this._trainer.isTraining()) {
 			return;
 		}

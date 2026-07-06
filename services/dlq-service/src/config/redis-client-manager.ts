@@ -1,7 +1,5 @@
 import Redis from "ioredis";
 
-import { logger } from "./logger";
-
 export class RedisClientManager {
 	private _client!: Redis;
 

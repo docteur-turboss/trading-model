@@ -18,7 +18,9 @@ export class AuditConnectionManager {
 	}
 
 	private _resolveDb(): import("mongodb").Db {
-		return MONGO_MANAGER.isInitialized() ? MONGO_MANAGER.getDb() : this._client.db();
+		return MONGO_MANAGER.isInitialized()
+			? MONGO_MANAGER.getDb()
+			: this._client.db();
 	}
 
 	private async _ensureClientConnected(): Promise<void> {
@@ -28,7 +30,10 @@ export class AuditConnectionManager {
 	}
 
 	private async _createAuditIndexes(): Promise<void> {
-		await this._collection.createIndex({ timestamp: -1 }, { expireAfterSeconds: 90 * 86400 });
+		await this._collection.createIndex(
+			{ timestamp: -1 },
+			{ expireAfterSeconds: 90 * 86400 }
+		);
 		await this._collection.createIndex({ serviceId: 1, timestamp: -1 });
 		await this._collection.createIndex({ serialNumber: 1 });
 	}
@@ -40,7 +45,10 @@ export class AuditConnectionManager {
 			await this._createAuditIndexes();
 			return true;
 		} catch (err) {
-			logger.error("AuditStore: MongoDB connection failed — using local buffer", { context: { err } });
+			logger.error(
+				"AuditStore: MongoDB connection failed — using local buffer",
+				{ context: { err } }
+			);
 			return false;
 		}
 	}

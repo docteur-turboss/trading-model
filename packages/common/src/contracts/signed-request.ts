@@ -1,7 +1,14 @@
 import type { ServiceId } from "../domain/primitives";
 
 /** Standard HTTP method verbs. */
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+export type HttpMethod =
+	| "GET"
+	| "POST"
+	| "PUT"
+	| "PATCH"
+	| "DELETE"
+	| "HEAD"
+	| "OPTIONS";
 
 export interface HttpRoute {
 	method: HttpMethod;

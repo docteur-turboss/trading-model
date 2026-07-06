@@ -1,4 +1,8 @@
-import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
+import {
+	Cash,
+	type Price,
+	type Volume,
+} from "@trading-model/common/domain/primitives";
 
 export interface TradeRecord {
 	step: number;
@@ -37,7 +41,9 @@ export class TradeHistory {
 	}
 
 	record(trade: Omit<TradeRecord, "step">): void {
-		this._totalFeesPaid = Cash.of(+this._totalFeesPaid + +trade.fee);
+		this._totalFeesPaid = Cash.of(
+			Number(this._totalFeesPaid) + Number(trade.fee)
+		);
 		this._tradeCount++;
 		this._history.push({
 			step: this._step,

@@ -38,7 +38,11 @@ export const VALID_NORM_TYPES = new Set([
 	NormalisationType.ZScore,
 ]);
 
-export function err(ctx: ValidationContext, message: string, actual: unknown): void {
+export function err(
+	ctx: ValidationContext,
+	message: string,
+	actual: unknown
+): void {
 	const { errors, path } = ctx;
 	errors.push({ path, message, actual });
 }

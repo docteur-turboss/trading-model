@@ -23,7 +23,11 @@ describe("HttpMessageDelivery", () => {
 			const message = createMockMessage({ key: "value" });
 			const context = { deliveryAttempt: 1, consumerGroup: "test-group" };
 
-			await delivery.send({ url: "http://example.com/callback", message, context });
+			await delivery.send({
+				url: "http://example.com/callback",
+				message,
+				context,
+			});
 
 			expect(mockHttpClient.post).toHaveBeenCalledWith(
 				"http://example.com/callback",
@@ -39,7 +43,11 @@ describe("HttpMessageDelivery", () => {
 		it("should add the message to the DLQ repository", async () => {
 			const message = createMockMessage({ key: "value" });
 
-			await delivery.markDeadLetter({ message, reason: "REASON", deliveryAttempt: 3 });
+			await delivery.markDeadLetter({
+				message,
+				reason: "REASON",
+				deliveryAttempt: 3,
+			});
 
 			expect(appendFile).toHaveBeenCalledWith(
 				"/tmp/test-dlq.jsonl",

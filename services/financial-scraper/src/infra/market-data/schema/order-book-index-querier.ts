@@ -1,5 +1,11 @@
-import type { MarketType, SourceType } from "@trading-model/common/config/event.types";
-import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type {
+	MarketType,
+	SourceType,
+} from "@trading-model/common/config/event.types";
+import type {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import zod from "zod";
 
 import type { OrderBookData } from "../market-data.types";
@@ -58,7 +64,11 @@ export class OrderBookIndexQuerier {
 		}
 	}
 
-	private _addToIndex(storage: Map<string, number[]>, key: string, id: number): void {
+	private _addToIndex(
+		storage: Map<string, number[]>,
+		key: string,
+		id: number
+	): void {
 		if (storage.has(key)) {
 			storage.get(key)!.push(id);
 		} else {
@@ -66,36 +76,67 @@ export class OrderBookIndexQuerier {
 		}
 	}
 
-	getBySymbol(symbol: TradingSymbol, storage: Map<number, OrderBookData>): (OrderBookData | undefined)[] | null {
-		if (!this._symbolStorage.has(symbol)) return null;
-		return this._symbolStorage.get(symbol)!.map((entryId) => storage.get(entryId));
+	getBySymbol(
+		symbol: TradingSymbol,
+		storage: Map<number, OrderBookData>
+	): (OrderBookData | undefined)[] | null {
+		if (!this._symbolStorage.has(symbol)) {
+			return null;
+		}
+		return this._symbolStorage
+			.get(symbol)!
+			.map((entryId) => storage.get(entryId));
 	}
 
-	getByMarket(market: MarketType, storage: Map<number, OrderBookData>): (OrderBookData | undefined)[] | null {
-		if (!this._marketStorage.has(market)) return null;
-		return this._marketStorage.get(market)!.map((entryId) => storage.get(entryId));
+	getByMarket(
+		market: MarketType,
+		storage: Map<number, OrderBookData>
+	): (OrderBookData | undefined)[] | null {
+		if (!this._marketStorage.has(market)) {
+			return null;
+		}
+		return this._marketStorage
+			.get(market)!
+			.map((entryId) => storage.get(entryId));
 	}
 
-	getBySource(source: SourceType, storage: Map<number, OrderBookData>): (OrderBookData | undefined)[] | null {
-		if (!this._sourceStorage.has(source)) return null;
-		return this._sourceStorage.get(source)!.map((entryId) => storage.get(entryId));
+	getBySource(
+		source: SourceType,
+		storage: Map<number, OrderBookData>
+	): (OrderBookData | undefined)[] | null {
+		if (!this._sourceStorage.has(source)) {
+			return null;
+		}
+		return this._sourceStorage
+			.get(source)!
+			.map((entryId) => storage.get(entryId));
 	}
 
-	getAfterTimestamp(timestamp: UnixTimestamp, storage: Map<number, OrderBookData>): OrderBookData[] {
+	getAfterTimestamp(
+		timestamp: UnixTimestamp,
+		storage: Map<number, OrderBookData>
+	): OrderBookData[] {
 		const result: OrderBookData[] = [];
 		for (const [storedTs, entryIds] of this._timestampStorage.entries()) {
 			if (storedTs > timestamp) {
-				for (const entryId of entryIds) result.push(storage.get(entryId)!);
+				for (const entryId of entryIds) {
+					result.push(storage.get(entryId)!);
+				}
 			}
 		}
 		return result.sort((left, right) => left.timestamp - right.timestamp);
 	}
 
-	getBeforeTimestamp(timestamp: UnixTimestamp, storage: Map<number, OrderBookData>): OrderBookData[] {
+	getBeforeTimestamp(
+		timestamp: UnixTimestamp,
+		storage: Map<number, OrderBookData>
+	): OrderBookData[] {
 		const result: OrderBookData[] = [];
 		for (const [storedTs, entryIds] of this._timestampStorage.entries()) {
 			if (storedTs < timestamp) {
-				for (const entryId of entryIds) result.push(storage.get(entryId)!);
+				for (const entryId of entryIds) {
+					result.push(storage.get(entryId)!);
+				}
 			}
 		}
 		return result.sort((left, right) => left.timestamp - right.timestamp);

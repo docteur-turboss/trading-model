@@ -1,5 +1,5 @@
-import { CandleInterval } from "@trading-model/common/config/event.types";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { CandleInterval } from "@trading-model/common/config/event.types";
 
 jest.mock("os", () => ({
 	cpus: jest.fn(() => new Array(4).fill({})),

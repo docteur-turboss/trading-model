@@ -80,13 +80,16 @@ class AdamOptimizer implements Optimizer {
 		const { params, grads, state, lr, hp } = options;
 		state.stepCount++;
 		const stepT = state.stepCount as number;
-		const lrT = (lr * Math.sqrt(1 - hp.beta2 ** stepT)) / (1 - hp.beta1 ** stepT);
+		const lrT =
+			(lr * Math.sqrt(1 - hp.beta2 ** stepT)) / (1 - hp.beta1 ** stepT);
 
 		for (let i = 0; i < params.length; i++) {
 			const grad = grads[i];
 			state.moment1![i] = hp.beta1 * state.moment1![i] + (1 - hp.beta1) * grad;
-			state.moment2![i] = hp.beta2 * state.moment2![i] + (1 - hp.beta2) * grad * grad;
-			params[i] -= (lrT * state.moment1![i]) / (Math.sqrt(state.moment2![i]) + hp.epsilon);
+			state.moment2![i] =
+				hp.beta2 * state.moment2![i] + (1 - hp.beta2) * grad * grad;
+			params[i] -=
+				(lrT * state.moment1![i]) / (Math.sqrt(state.moment2![i]) + hp.epsilon);
 		}
 	}
 }
@@ -101,7 +104,8 @@ class RmspropOptimizer implements Optimizer {
 		state.stepCount++;
 		for (let i = 0; i < params.length; i++) {
 			const grad = grads[i];
-			state.moment2![i] = hp.beta2 * state.moment2![i] + (1 - hp.beta2) * grad * grad;
+			state.moment2![i] =
+				hp.beta2 * state.moment2![i] + (1 - hp.beta2) * grad * grad;
 			params[i] -= (lr / (Math.sqrt(state.moment2![i]) + hp.epsilon)) * grad;
 		}
 	}

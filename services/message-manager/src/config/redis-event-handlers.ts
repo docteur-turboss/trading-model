@@ -20,7 +20,8 @@ export function createEventHandlers(
 		onConnect: () => handleConnect(name, redisClosed),
 		onReady: () => handleReady(name, redisClosed, onReconnectedCallbacks),
 		onClose: () => handleClose(name, redisClosed),
-		onReconnecting: (delay: number) => handleReconnecting(name, redisClosed, delay),
+		onReconnecting: (delay: number) =>
+			handleReconnecting(name, redisClosed, delay),
 	};
 }
 
@@ -38,7 +39,11 @@ function handleConnect(name: string, redisClosed: () => boolean) {
 	logger.info(`${name}: connected`);
 }
 
-function handleReady(name: string, redisClosed: () => boolean, onReconnectedCallbacks: Array<() => void>) {
+function handleReady(
+	name: string,
+	redisClosed: () => boolean,
+	onReconnectedCallbacks: Array<() => void>
+) {
 	if (redisClosed()) {
 		return;
 	}
@@ -59,14 +64,21 @@ function handleClose(name: string, redisClosed: () => boolean) {
 	logger.warn(`${name}: connection closed`);
 }
 
-function handleReconnecting(name: string, redisClosed: () => boolean, delay: number) {
+function handleReconnecting(
+	name: string,
+	redisClosed: () => boolean,
+	delay: number
+) {
 	if (redisClosed()) {
 		return;
 	}
 	logger.warn(`${name}: reconnecting in ${delay}ms`);
 }
 
-export function attachEventHandlers(client: Redis, handlers: EventHandlers): void {
+export function attachEventHandlers(
+	client: Redis,
+	handlers: EventHandlers
+): void {
 	client.on("error", handlers.onError);
 	client.on("connect", handlers.onConnect);
 	client.on("ready", handlers.onReady);
@@ -74,7 +86,10 @@ export function attachEventHandlers(client: Redis, handlers: EventHandlers): voi
 	client.on("reconnecting", handlers.onReconnecting);
 }
 
-export function detachEventHandlers(client: Redis, handlers: EventHandlers): void {
+export function detachEventHandlers(
+	client: Redis,
+	handlers: EventHandlers
+): void {
 	client.off("error", handlers.onError);
 	client.off("connect", handlers.onConnect);
 	client.off("ready", handlers.onReady);

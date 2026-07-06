@@ -6,14 +6,20 @@ import {
 	generateKeyPairAsync,
 } from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
+import type {
+	CaClient,
+	SignCertificateRequest,
+} from "@trading-model/common/ca/ca-client";
 import { toSerialNumber } from "@trading-model/common/domain/primitives";
-import type { CaClient, SignCertificateRequest } from "@trading-model/common/ca/ca-client";
-import type { ObtainedCertificate, CertificateClientConfig } from "./certificate-client";
+import type {
+	CertificateClientConfig,
+	ObtainedCertificate,
+} from "./certificate-client";
 
 export class CertificateLifecycle {
 	constructor(
 		private readonly _config: CertificateClientConfig,
-		private readonly _caClient: CaClient,
+		private readonly _caClient: CaClient
 	) {}
 
 	async generateKeyAndCsr(): Promise<{
@@ -21,7 +27,7 @@ export class CertificateLifecycle {
 		csr: string;
 	}> {
 		const keyPair = await generateKeyPairAsync(
-			this._config.keyAlgorithm ?? KeyAlgorithm.ecP384,
+			this._config.keyAlgorithm ?? KeyAlgorithm.ecP384
 		);
 		const csr = await createCsrAsync({
 			commonName: this._config.commonName,
@@ -40,7 +46,10 @@ export class CertificateLifecycle {
 		return await this._caClient.signCertificate(request);
 	}
 
-	async writeCertificates(keyPair: { privateKey: string }, response: { cert: string; caPem: string }): Promise<void> {
+	async writeCertificates(
+		keyPair: { privateKey: string },
+		response: { cert: string; caPem: string }
+	): Promise<void> {
 		const { tlsPaths } = this._config;
 		const certDir = path.dirname(tlsPaths.certPath);
 		await fs.mkdir(certDir, { recursive: true });
@@ -49,7 +58,15 @@ export class CertificateLifecycle {
 		await fs.writeFile(tlsPaths.caPath, response.caPem, { mode: 0o644 });
 	}
 
-	buildObtainedCert(keyPair: { privateKey: string }, response: { cert: string; caPem: string; serialNumber: string; expiresAt: string }): ObtainedCertificate {
+	buildObtainedCert(
+		keyPair: { privateKey: string },
+		response: {
+			cert: string;
+			caPem: string;
+			serialNumber: string;
+			expiresAt: string;
+		}
+	): ObtainedCertificate {
 		return {
 			certPem: response.cert,
 			keyPem: keyPair.privateKey,
@@ -59,7 +76,10 @@ export class CertificateLifecycle {
 		};
 	}
 
-	notifyOnRenew(onRenew: ((cert: ObtainedCertificate) => void) | undefined, cert: ObtainedCertificate): void {
+	notifyOnRenew(
+		onRenew: ((cert: ObtainedCertificate) => void) | undefined,
+		cert: ObtainedCertificate
+	): void {
 		if (onRenew) {
 			setImmediate(() => onRenew(cert));
 		}

@@ -1,7 +1,7 @@
-import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { Message } from "@trading-model/common/contracts/message.types";
-import type { MessageDeliveryPort } from "./message-delivery-port";
+import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 import { logger } from "../../config/logger";
+import type { MessageDeliveryPort } from "./message-delivery-port";
 
 const CIRCUIT_BREAKER_THRESHOLD = 5;
 

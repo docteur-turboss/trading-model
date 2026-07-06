@@ -1,7 +1,7 @@
 import { SpanStatusCode, trace } from "@opentelemetry/api";
+import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
-import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import { getMissingCriticalIndexes, isDbConnected } from "../config/db";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
@@ -69,15 +69,20 @@ export const AddEntry = catchSync((req) => {
 export const ListEntries = catchSync(async (req) => {
 	const topic = req.query.topic as string | undefined;
 	const cursor = req.query.cursor as string | undefined;
-		const limit: PaginationQuery["limit"] = Math.min(
-			Number.parseInt(req.query.limit as string, 10) || 100,
-			1000
-		);
-		const offset = cursor
-			? 0
-			: Math.max(Number.parseInt(req.query.offset as string, 10) || 0, 0);
+	const limit: PaginationQuery["limit"] = Math.min(
+		Number.parseInt(req.query.limit as string, 10) || 100,
+		1000
+	);
+	const offset = cursor
+		? 0
+		: Math.max(Number.parseInt(req.query.offset as string, 10) || 0, 0);
 
-		const entries = await dlqRepository.list({ topic, limit, offset, before: cursor });
+	const entries = await dlqRepository.list({
+		topic,
+		limit,
+		offset,
+		before: cursor,
+	});
 	const hasMore = entries.length === limit;
 	const response: Record<string, unknown> = {
 		entries,

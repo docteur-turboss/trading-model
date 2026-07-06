@@ -155,7 +155,11 @@ function makeConfig(
 		tokenRefreshIntervalMs: 60000,
 		ttlRefreshIntervalMs: 15000,
 		identity: { serviceName: "test-service", instanceId: "instance-1" },
-		tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+		tls: {
+			caPath: "/path/to/ca.pem",
+			certPath: "/path/to/cert.pem",
+			keyPath: "/path/to/key.pem",
+		},
 		...overrides,
 	};
 }

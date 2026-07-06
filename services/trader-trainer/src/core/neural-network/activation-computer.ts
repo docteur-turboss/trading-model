@@ -1,5 +1,5 @@
 import { ACTIVATIONS } from "./activation";
-import { ActivationType } from "./type";
+import type { ActivationType } from "./type";
 
 export class ActivationComputer {
 	findMax(preActivations: Float32Array): number {

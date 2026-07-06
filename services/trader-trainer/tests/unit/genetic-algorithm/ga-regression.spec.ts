@@ -4,11 +4,11 @@ import {
 	crossoverScalar,
 } from "../../../src/core/genetic-algorithm/crossover";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
+import { CrossoverType } from "../../../src/core/genetic-algorithm/genome";
 import type {
 	CrossoverGenome,
 	LamarckGenome,
 } from "../../../src/core/genetic-algorithm/genome-types";
-import { CrossoverType } from "../../../src/core/genetic-algorithm/genome";
 
 describe("GA Regression — Crossover", () => {
 	describe("crossoverScalar", () => {

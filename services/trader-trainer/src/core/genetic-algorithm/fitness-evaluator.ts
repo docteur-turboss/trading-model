@@ -1,16 +1,11 @@
 import { evaluateFitness } from "./evaluation-pipeline";
-import type {
-	GAControlGenome,
-	GenomeFitnessMeta,
-	LamarckGenome,
-	MarketStep,
-} from "./genome-types";
+import type { WindowSet } from "./generation-types";
+import type { GenomeFitnessMeta, LamarckGenome } from "./genome-types";
 import type { ObjectiveVector } from "./nsga2";
 import { ParetoArchive } from "./pareto-engine";
+import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 import { StagnationTracker } from "./stagnation-tracker";
-import type { BackendFactory } from "./rl-backend";
-import type { WindowSet } from "./generation-types";
 
 export class FitnessEvaluator {
 	_archive = new ParetoArchive();
@@ -20,7 +15,7 @@ export class FitnessEvaluator {
 	constructor(
 		private readonly _windowSets: WindowSet[],
 		private readonly _backendFactory: BackendFactory,
-		private readonly _evalConcurrency: number,
+		private readonly _evalConcurrency: number
 	) {}
 
 	get archive(): ParetoArchive {
@@ -56,7 +51,7 @@ export class FitnessEvaluator {
 		popWithMeta: DeepReadonly<LamarckGenome>[],
 		objectives: ObjectiveVector[],
 		popMeta: import("./nsga2").PopulationMeta,
-		onArchiveUpdate?: (archive: DeepReadonly<LamarckGenome>[]) => void,
+		onArchiveUpdate?: (archive: DeepReadonly<LamarckGenome>[]) => void
 	): void {
 		const frontIdx = popMeta.paretoRank.reduce((acc, rank, idx) => {
 			if (rank === 0) {

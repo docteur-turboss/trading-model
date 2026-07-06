@@ -20,13 +20,13 @@ interface ServiceResolver {
 export function setupAuditLogging(
 	loggerInstance: typeof logger,
 	addressManager: ServiceResolver,
-	tlsPaths: TlsPaths,
+	tlsPaths: TlsPaths
 ): void {
 	let connected = false;
 	loggerInstance.setAuditResolver(async () => {
 		try {
 			const target = await addressManager.findService(
-				ServiceInstanceName.AuditLoggerService,
+				ServiceInstanceName.AuditLoggerService
 			);
 			if (!target) {
 				return null;
@@ -43,7 +43,7 @@ export function setupAuditLogging(
 function _logFirstConnection(
 	loggerInstance: typeof logger,
 	target: { ip: IPAddress; port: Port },
-	alreadyConnected: boolean,
+	alreadyConnected: boolean
 ): void {
 	if (!alreadyConnected) {
 		loggerInstance.info("audit-logger: connected", {

@@ -1,6 +1,4 @@
-import Redis from "ioredis";
-
-import { ENV } from "./env";
+import type Redis from "ioredis";
 import { logger } from "./logger";
 import { createRedisClient } from "./redis-client-factory";
 import {
@@ -60,9 +58,11 @@ async function waitForReconnect(slot: ManagedRedis): Promise<Redis | null> {
 }
 
 function isReconnecting(slot: ManagedRedis): boolean {
-	return !!(slot.client &&
-		(slot.client.status === "connecting" ||
-			slot.client.status === "reconnecting"));
+	return Boolean(
+		slot.client &&
+			(slot.client.status === "connecting" ||
+				slot.client.status === "reconnecting")
+	);
 }
 
 async function waitForClientReady(slot: ManagedRedis): Promise<Redis> {
@@ -84,7 +84,11 @@ async function createAndConnectClient(slot: ManagedRedis): Promise<Redis> {
 	const client = createRedisClient();
 	ALL_CLIENTS.add(client);
 
-	const handlers = createEventHandlers(slot.name, () => redisClosed, ON_RECONNECTED_CALLBACKS);
+	const handlers = createEventHandlers(
+		slot.name,
+		() => redisClosed,
+		ON_RECONNECTED_CALLBACKS
+	);
 	attachEventHandlers(client, handlers);
 
 	try {
@@ -104,7 +108,7 @@ async function createAndConnectClient(slot: ManagedRedis): Promise<Redis> {
 async function connectAndReplace(
 	slot: ManagedRedis,
 	client: Redis,
-	handlers: ReturnType<typeof createEventHandlers>
+	_handlers: ReturnType<typeof createEventHandlers>
 ): Promise<Redis> {
 	await client.connect();
 	if (redisClosed) {
@@ -140,10 +144,12 @@ async function getOrCreateClient(slot: ManagedRedis): Promise<Redis> {
 }
 
 function isReady(slot: ManagedRedis): boolean {
-	return !!(slot.client && slot.client.status === "ready");
+	return Boolean(slot.client && slot.client.status === "ready");
 }
 
-async function resolvePendingPromise(slot: ManagedRedis): Promise<Redis | null> {
+async function resolvePendingPromise(
+	slot: ManagedRedis
+): Promise<Redis | null> {
 	return slot.promise === null ? null : await slot.promise;
 }
 

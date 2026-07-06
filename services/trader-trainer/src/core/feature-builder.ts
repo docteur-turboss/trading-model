@@ -1,30 +1,26 @@
 import {
 	type CandleData,
-	type OrderBookData,
-	type TradeData,
 	getAskTotalQty,
 	getAvgAsk,
 	getAvgBid,
 	getBidTotalQty,
+	type OrderBookData,
+	type TradeData,
 } from "@trading-model/common/config/event.types";
-
-import {
-	FEATURE_DIM,
-	type SymbolState,
-	toSymbol,
-} from "./market-data-types";
 
 import type {
 	CandleFeatureContext,
 	FeatureBuilderContext,
 	PriceSnapshotFeatureContext,
 } from "./feature-context";
-
-import type { Price, Volume } from "@trading-model/common/domain/primitives";
-import type { OrderBookAverages } from "./order-book-averages";
 import { FeatureVector } from "./feature-vector";
+import { type SymbolState, toSymbol } from "./market-data-types";
+import type { OrderBookAverages } from "./order-book-averages";
 
-function _initFeatures(state: SymbolState, idx: number): {
+function _initFeatures(
+	state: SymbolState,
+	idx: number
+): {
 	features: FeatureVector;
 	cur: CandleData;
 	prev: CandleData | undefined;
@@ -36,9 +32,7 @@ function _initFeatures(state: SymbolState, idx: number): {
 	};
 }
 
-export function buildFeatures(
-	ctx: FeatureBuilderContext
-): FeatureVector {
+export function buildFeatures(ctx: FeatureBuilderContext): FeatureVector {
 	const { state, idx, priceSnapshot } = ctx;
 	const { features, cur, prev } = _initFeatures(state, idx);
 
@@ -59,7 +53,9 @@ function _candleReturnRatio(cur: CandleData, prev?: CandleData): number {
 }
 
 function _candlePositionRatio(cur: CandleData): number {
-	return cur.high - cur.low > 0 ? (cur.close - cur.open) / (cur.high - cur.low) : 0;
+	return cur.high - cur.low > 0
+		? (cur.close - cur.open) / (cur.high - cur.low)
+		: 0;
 }
 
 function _candleRangeRatio(cur: CandleData): number {
@@ -71,9 +67,7 @@ function _candleVolumeRatio(cur: CandleData, state: SymbolState): number {
 	return volStd > 1e-10 ? cur.volume / volStd : 0;
 }
 
-function _buildCandleFeatures(
-	ctx: CandleFeatureContext
-): void {
+function _buildCandleFeatures(ctx: CandleFeatureContext): void {
 	const { features, state, idx } = ctx;
 	const cur = state.candles[idx];
 	features.candleClose = state.norm.candleClose.normalize(cur.close);
@@ -100,7 +94,8 @@ function _buildOrderBookFeatures(
 				? (obAvg.avgAsk - obAvg.avgBid) / obAvg.avgAsk
 				: 0;
 		const totalQty = obAvg.bidQty + obAvg.askQty;
-		features.orderBookImbalance = totalQty > 0 ? (obAvg.bidQty - obAvg.askQty) / totalQty : 0;
+		features.orderBookImbalance =
+			totalQty > 0 ? (obAvg.bidQty - obAvg.askQty) / totalQty : 0;
 	}
 }
 
@@ -129,7 +124,9 @@ function _setTradeFeatures(
 	state: SymbolState,
 	recentTrades: TradeData[]
 ): void {
-	const avgPrice = recentTrades.reduce((acc, trade) => acc + trade.price, 0) / recentTrades.length;
+	const avgPrice =
+		recentTrades.reduce((acc, trade) => acc + trade.price, 0) /
+		recentTrades.length;
 	const totalQty = recentTrades.reduce((acc, trade) => acc + trade.quantity, 0);
 	const buyQty = recentTrades
 		.filter((trade) => trade.side === "buy")
@@ -156,15 +153,14 @@ function _buildTickerFeatures(
 ): void {
 	if (state.ticker24h) {
 		const tk = state.ticker24h;
-		features.tickerPriceChange = tk.open > 0 ? (tk.last - tk.open) / tk.open : 0;
+		features.tickerPriceChange =
+			tk.open > 0 ? (tk.last - tk.open) / tk.open : 0;
 		features.tickerVolume = state.norm.tickerVolume.normalize(tk.volume);
 		features.tickerDailyRange = tk.open > 0 ? (tk.high - tk.low) / tk.open : 0;
 	}
 }
 
-function _buildPriceSnapshotFeature(
-	ctx: PriceSnapshotFeatureContext
-): void {
+function _buildPriceSnapshotFeature(ctx: PriceSnapshotFeatureContext): void {
 	const { features, state, idx, priceSnapshot } = ctx;
 	const cur = state.candles[idx];
 	const snapPrice =

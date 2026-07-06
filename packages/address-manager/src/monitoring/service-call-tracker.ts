@@ -1,4 +1,7 @@
-import type { ServiceId, UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type {
+	ServiceId,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 
 export interface CallRecord {
 	targetService: ServiceId;
@@ -85,13 +88,20 @@ export class ServiceCallTracker {
 			bytesSent += record.bytesSent ?? 0;
 			bytesReceived += record.bytesReceived ?? 0;
 		}
-		return { callsByService, callsByEndpoint, errorsTotal, totalLatency, bytesSent, bytesReceived };
+		return {
+			callsByService,
+			callsByEndpoint,
+			errorsTotal,
+			totalLatency,
+			bytesSent,
+			bytesReceived,
+		};
 	}
 
 	private _aggregateRecord(
 		record: CallRecord,
 		callsByService: Record<ServiceId, number>,
-		callsByEndpoint: Record<string, number>,
+		callsByEndpoint: Record<string, number>
 	): void {
 		callsByService[record.targetService] =
 			(callsByService[record.targetService] ?? 0) + 1;

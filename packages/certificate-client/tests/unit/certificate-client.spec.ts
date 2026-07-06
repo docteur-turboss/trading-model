@@ -1,4 +1,3 @@
-import type { ServiceId } from "@trading-model/common/domain/primitives";
 import {
 	afterEach,
 	beforeEach,
@@ -7,6 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 
 jest.mock("node:fs/promises", () => ({
 	mkdir: jest.fn(),
@@ -93,7 +93,11 @@ describe("CertificateClient", () => {
 		});
 
 		it("should pass TLS config to CaClient when provided", () => {
-			const tlsPaths = { caPath: "/etc/tls/ca.pem", certPath: "/etc/tls/cert.pem", keyPath: "/etc/tls/key.pem" };
+			const tlsPaths = {
+				caPath: "/etc/tls/ca.pem",
+				certPath: "/etc/tls/cert.pem",
+				keyPath: "/etc/tls/key.pem",
+			};
 			const configWithTls = { ...defaultConfig, tls: tlsPaths };
 			new CertificateClient(configWithTls);
 			expect(CaClient).toHaveBeenCalledWith({

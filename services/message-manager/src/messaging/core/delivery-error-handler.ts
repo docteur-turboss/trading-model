@@ -1,8 +1,8 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
-import { AppError, isDeadLetterError } from "@trading-model/common/utils/errors";
-import type { MessageDeliveryPort } from "./message-delivery-port";
+import { isDeadLetterError } from "@trading-model/common/utils/errors";
 import { logger } from "../../config/logger";
+import type { MessageDeliveryPort } from "./message-delivery-port";
 
 /** Maximum number of delivery retries before routing to DLQ. */
 const MAX_RETRIES = 10;

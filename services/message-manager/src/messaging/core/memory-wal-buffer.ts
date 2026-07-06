@@ -2,9 +2,9 @@ import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { BUFFER_DROPPED_TOTAL } from "../../config/metrics";
+import type { MemoryWalEntry } from "./memory-wal-entry";
 import { MemoryWalFallback } from "./memory-wal-fallback";
 import { MemoryWalFlusher } from "./memory-wal-flusher";
-import type { MemoryWalEntry } from "./memory-wal-entry";
 
 export class MemoryWalBuffer {
 	private _buffer: MemoryWalEntry[] = [];
@@ -41,11 +41,13 @@ export class MemoryWalBuffer {
 			ENV.MEMORY_WAL_BUFFER_SIZE * ENV.MEMORY_WAL_BUFFER_WARN_PCT
 		);
 		if (this._buffer.length >= warnThreshold) {
-			logger.warn("In-memory WAL buffer approaching capacity", { context: {
-				bufferSize: this._buffer.length,
-				maxSize: ENV.MEMORY_WAL_BUFFER_SIZE,
-				threshold: ENV.MEMORY_WAL_BUFFER_WARN_PCT,
-			} });
+			logger.warn("In-memory WAL buffer approaching capacity", {
+				context: {
+					bufferSize: this._buffer.length,
+					maxSize: ENV.MEMORY_WAL_BUFFER_SIZE,
+					threshold: ENV.MEMORY_WAL_BUFFER_WARN_PCT,
+				},
+			});
 		}
 	}
 

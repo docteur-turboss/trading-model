@@ -63,9 +63,18 @@ export type BinanceCandlestickDataResponse = BinanceCandlestickData[];
 /** Convert a raw API tuple to a named-field object. */
 export function parseCandlestick(
 	raw: [
-		number, string, string, string, string,
-		string, number, string, number, string,
-		string, string,
+		number,
+		string,
+		string,
+		string,
+		string,
+		string,
+		number,
+		string,
+		number,
+		string,
+		string,
+		string,
 	]
 ): BinanceCandlestickData {
 	return {
@@ -142,4 +151,5 @@ export interface BinanceSymbolOrderBookTicker {
 	askQty: string;
 }
 
-export type BinanceSymbolOrderBookTickerResponse = BinanceSymbolOrderBookTicker[];
+export type BinanceSymbolOrderBookTickerResponse =
+	BinanceSymbolOrderBookTicker[];

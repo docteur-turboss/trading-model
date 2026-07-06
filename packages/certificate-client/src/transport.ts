@@ -5,7 +5,10 @@ import {
 } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 
-import type { SerialNumber, ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	SerialNumber,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { CaWssTransport, NullCaWssTransport } from "./wss-transport";
@@ -24,12 +27,14 @@ export class TransportManager {
 	private _mode: TransportMode;
 	private _wssTransport: CaWssTransport | NullCaWssTransport;
 	private readonly _httpsClient: CaClient;
-	private readonly _config: TransportConfig;
 	private _unauthRejects = 0;
 
 	constructor(config: TransportConfig) {
 		this._config = config;
-		this._httpsClient = new CaClient({ baseUrl: config.caUrl, tls: config.tls });
+		this._httpsClient = new CaClient({
+			baseUrl: config.caUrl,
+			tls: config.tls,
+		});
 		if (config.forceHttps) {
 			this._mode = "https";
 			this._wssTransport = new NullCaWssTransport();
@@ -38,7 +43,7 @@ export class TransportManager {
 			this._wssTransport = new CaWssTransport(
 				this._buildWsUrl(config.caUrl),
 				config.tls,
-				config.bootstrapToken,
+				config.bootstrapToken
 			);
 		}
 	}

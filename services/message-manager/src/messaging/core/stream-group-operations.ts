@@ -1,10 +1,9 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
-
+import { StreamGroupFacade } from "./stream-group-facade";
 import type {
 	GetMessagesBetweenParams,
 	ReadFromGroupParams,
 } from "./stream-group-manager";
-import { StreamGroupFacade } from "./stream-group-facade";
 
 export class StreamGroupOperations {
 	private readonly _streamGroup: StreamGroupFacade;
@@ -13,15 +12,12 @@ export class StreamGroupOperations {
 		this._streamGroup = new StreamGroupFacade(prefix);
 	}
 
-	async ensureConsumerGroup(
-		topic: string,
-		groupName: string,
-	): Promise<void> {
+	async ensureConsumerGroup(topic: string, groupName: string): Promise<void> {
 		await this._streamGroup.ensureConsumerGroup(topic, groupName);
 	}
 
 	async readFromGroup(
-		params: ReadFromGroupParams,
+		params: ReadFromGroupParams
 	): Promise<Array<{ id: string; data: string }>> {
 		return this._streamGroup.readFromGroup(params);
 	}
@@ -29,36 +25,30 @@ export class StreamGroupOperations {
 	async ackMessage(
 		topic: string,
 		groupName: string,
-		messageId: string,
+		messageId: string
 	): Promise<void> {
 		await this._streamGroup.ackMessage(topic, groupName, messageId);
 	}
 
-	async getPendingCount(
-		topic: string,
-		groupName: string,
-	): Promise<number> {
+	async getPendingCount(topic: string, groupName: string): Promise<number> {
 		return this._streamGroup.getPendingCount(topic, groupName);
 	}
 
 	async getMessagesAfter(
 		topic: string,
 		afterTimestamp: number,
-		limit = 100,
+		limit = 100
 	): Promise<Message[]> {
 		return this._streamGroup.getMessagesAfter(topic, afterTimestamp, limit);
 	}
 
 	async getMessagesBetween(
-		params: GetMessagesBetweenParams,
+		params: GetMessagesBetweenParams
 	): Promise<Message[]> {
 		return this._streamGroup.getMessagesBetween(params);
 	}
 
-	async getStreamLag(
-		topic: string,
-		groupName: string,
-	): Promise<number> {
+	async getStreamLag(topic: string, groupName: string): Promise<number> {
 		return this._streamGroup.getStreamLag(topic, groupName);
 	}
 }

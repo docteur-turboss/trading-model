@@ -12,7 +12,10 @@ export class TokenBucket {
 	private _lastRefill: number;
 	private readonly _metricCallback: ((usage: number) => void) | null;
 
-	constructor(config: TokenBucketConfig, metricCallback?: ((usage: number) => void) | null) {
+	constructor(
+		config: TokenBucketConfig,
+		metricCallback?: ((usage: number) => void) | null
+	) {
 		this._capacity = config.capacity;
 		this._refillRate = config.refillRate;
 		this._refillIntervalMs = config.refillIntervalMs;

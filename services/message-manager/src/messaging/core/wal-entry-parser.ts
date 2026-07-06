@@ -33,9 +33,11 @@ export class WalEntryParser {
 				data: parsed.serialized ?? safeStringify(parsed.message!),
 			};
 		} catch {
-			logger.warn("WAL flush: malformed entry dropped", { context: {
-				entry: entry.substring(0, 200),
-			} });
+			logger.warn("WAL flush: malformed entry dropped", {
+				context: {
+					entry: entry.substring(0, 200),
+				},
+			});
 			return null;
 		}
 	}
@@ -62,9 +64,11 @@ export class WalEntryParser {
 		try {
 			return _parseEntry(entry);
 		} catch {
-			logger.warn("WAL flush: malformed entry dropped", { context: {
-				entry: entry.substring(0, 200),
-			} });
+			logger.warn("WAL flush: malformed entry dropped", {
+				context: {
+					entry: entry.substring(0, 200),
+				},
+			});
 			return null;
 		}
 	}

@@ -1,7 +1,7 @@
 import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
-import { logger } from "./logger";
-import { DlqCircuitBreakerState } from "./circuit-breaker-state";
 import type { CircuitStateConfig } from "./circuit-breaker-state";
+import { DlqCircuitBreakerState } from "./circuit-breaker-state";
+import { logger } from "./logger";
 
 export class MessageManagerCircuitBreaker implements ICircuitBreaker {
 	private readonly _state: DlqCircuitBreakerState;
@@ -24,7 +24,9 @@ export class MessageManagerCircuitBreaker implements ICircuitBreaker {
 		return !this._state.isOpen(Date.now());
 	}
 
-	check(_key?: string): import("@trading-model/common/domain/circuit-state").CircuitState {
+	check(
+		_key?: string
+	): import("@trading-model/common/domain/circuit-state").CircuitState {
 		const now = Date.now();
 		const state = this._state.getState(now);
 		if (state === "half-open") {
@@ -41,7 +43,9 @@ export class MessageManagerCircuitBreaker implements ICircuitBreaker {
 		this._state.recordFailure(Date.now(), this._logOpened);
 	}
 
-	getState(_key?: string): import("@trading-model/common/domain/circuit-state").CircuitState {
+	getState(
+		_key?: string
+	): import("@trading-model/common/domain/circuit-state").CircuitState {
 		return this._state.getState(Date.now());
 	}
 

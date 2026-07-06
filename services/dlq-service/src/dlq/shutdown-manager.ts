@@ -3,6 +3,7 @@ import { env } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
+import { stopAutoRetry } from "./auto-retry";
 import { dlqClaimManager } from "./claim-manager";
 import { dlqRepository } from "./repository";
 import {
@@ -10,7 +11,6 @@ import {
 	closeHttpClient,
 	setShuttingDown,
 } from "./shared/index";
-import { stopAutoRetry } from "./auto-retry";
 
 const pruneTimer = new TimerHandle();
 
@@ -124,9 +124,7 @@ async function _computeRequeueBatch(releasedCount: number): Promise<string[]> {
 	return uniqueIds.slice(0, Math.min(releasedCount, uniqueIds.length));
 }
 
-async function releaseStaleClaims(
-	staleThresholdMs?: number
-): Promise<void> {
+async function releaseStaleClaims(staleThresholdMs?: number): Promise<void> {
 	const released = await dlqClaimManager.releaseStaleClaims(staleThresholdMs);
 	if (released > 0) {
 		logger.info(`Released ${released} stale claims from previous instance`);

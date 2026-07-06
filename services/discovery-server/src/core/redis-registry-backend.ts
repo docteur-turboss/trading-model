@@ -3,10 +3,14 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	ServiceEndpoint,
+	ServiceIdentity,
+} from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
-import Redis from "ioredis";
+import type Redis from "ioredis";
+import { RedisBackendLifecycle } from "./redis-backend-lifecycle";
 import {
 	computePrefix,
 	createRedisClient,
@@ -17,9 +21,12 @@ import { RedisKeyBuilder } from "./redis-key-builder";
 import { StaleInstanceCleaner } from "./stale-instance-cleaner";
 import { TokenHandler } from "./token-handler";
 import { TokenService } from "./token-service";
-import { RedisBackendLifecycle } from "./redis-backend-lifecycle";
 
-export type { RedisSentinelConfig, RedisClusterNodesConfig, RedisConnectionConfig } from "./redis-client-factory";
+export type {
+	RedisClusterNodesConfig,
+	RedisConnectionConfig,
+	RedisSentinelConfig,
+} from "./redis-client-factory";
 
 export class RedisRegistryBackend implements RegistryBackend {
 	private readonly _instances: RedisInstanceRepository;
@@ -38,8 +45,15 @@ export class RedisRegistryBackend implements RegistryBackend {
 		const tokenService = new TokenService(
 			signingSecret ?? randomBytes(32).toString("hex")
 		);
-		this._instances = new RedisInstanceRepository(redis, keyBuilder, tokenService);
-		const cleaner = new StaleInstanceCleaner(this._instances, cleanupIntervalMs);
+		this._instances = new RedisInstanceRepository(
+			redis,
+			keyBuilder,
+			tokenService
+		);
+		const cleaner = new StaleInstanceCleaner(
+			this._instances,
+			cleanupIntervalMs
+		);
 		this._tokenHandler = new TokenHandler(redis, keyBuilder, tokenService);
 		this._lifecycle = new RedisBackendLifecycle(redis, cleaner);
 	}

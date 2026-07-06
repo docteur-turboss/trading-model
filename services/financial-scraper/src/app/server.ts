@@ -1,4 +1,7 @@
-import { createSecureServer, buildTlsFromEnv } from "@trading-model/common/server/create-secure-server";
+import {
+	buildTlsFromEnv,
+	createSecureServer,
+} from "@trading-model/common/server/create-secure-server";
 
 import { FINANCIAL_ROUTES } from "../clients/http/routes";
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";

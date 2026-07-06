@@ -1,4 +1,4 @@
-import { HttpClient } from "@trading-model/common/config/http-client";
+import type { HttpClient } from "@trading-model/common/config/http-client";
 import { KeyAlgorithm } from "./generate-key-pair";
 import type { KeyPair, KeyPairWithId } from "./types";
 
@@ -6,7 +6,7 @@ export class KeyPairClient {
 	constructor(
 		private readonly _httpClient: HttpClient,
 		private readonly _baseUrl: string,
-		private readonly _timeoutMs: number,
+		private readonly _timeoutMs: number
 	) {}
 
 	async generateKeyPair(

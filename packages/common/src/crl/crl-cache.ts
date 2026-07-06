@@ -37,7 +37,9 @@ export class CrlCache implements ICrlChecker {
 	/**
 	 * Bulk-load revoked entries from a CRL or any list of objects with a serialNumber field.
 	 */
-	addRevokedFromEntries(entries: ReadonlyArray<{ serialNumber: SerialNumber }>): void {
+	addRevokedFromEntries(
+		entries: ReadonlyArray<{ serialNumber: SerialNumber }>
+	): void {
 		for (const entry of entries) {
 			this.addRevoked(entry.serialNumber);
 		}
@@ -53,7 +55,9 @@ export class CrlCache implements ICrlChecker {
 	/**
 	 * Create a CrlCache pre-populated from a list of revoked entries.
 	 */
-	static fromCrlEntries(entries: ReadonlyArray<{ serialNumber: SerialNumber }>): CrlCache {
+	static fromCrlEntries(
+		entries: ReadonlyArray<{ serialNumber: SerialNumber }>
+	): CrlCache {
 		const cache = new CrlCache();
 		cache.addRevokedFromEntries(entries);
 		return cache;

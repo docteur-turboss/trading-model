@@ -59,7 +59,9 @@ export class PersistenceRetryQueue {
 		return batch;
 	}
 
-	private async _executeBatch(batch: PersistenceOp[]): Promise<PersistenceOp[]> {
+	private async _executeBatch(
+		batch: PersistenceOp[]
+	): Promise<PersistenceOp[]> {
 		const failed: PersistenceOp[] = [];
 		for (const op of batch) {
 			try {
@@ -68,7 +70,10 @@ export class PersistenceRetryQueue {
 				if (op.retries < this._maxRetries) {
 					failed.push({ ...op, retries: op.retries + 1 });
 				} else {
-					logger.error("Persistence operation failed after max retries — giving up", { label: op.label });
+					logger.error(
+						"Persistence operation failed after max retries — giving up",
+						{ label: op.label }
+					);
 				}
 			}
 		}

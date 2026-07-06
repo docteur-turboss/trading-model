@@ -7,11 +7,7 @@ import {
 	isShuttingDown,
 	recordMMResult,
 } from "./shared/index";
-import type {
-	DlqEntryRef,
-	DlqError,
-	ReplayBatchOptions,
-} from "./types";
+import type { DlqEntryRef, DlqError, ReplayBatchOptions } from "./types";
 
 export interface ReplayContext {
 	client: import("@trading-model/common/config/http-client").HttpClient;
@@ -20,7 +16,7 @@ export interface ReplayContext {
 	instanceId: string;
 	isTimedOut: () => boolean;
 	successCount: { value: number };
-	errors: Array<DlqError>;
+	errors: DlqError[];
 }
 
 export interface DeliveryFailureContext {
@@ -31,7 +27,7 @@ export interface DeliveryFailureContext {
 }
 
 export interface ProcessBatchResultsOptions {
-	batch: Array<DlqEntryRef>;
+	batch: DlqEntryRef[];
 	batchResults: PromiseSettledResult<void>[];
 	ctx: Pick<ReplayContext, "batchId" | "successCount" | "errors">;
 }
@@ -166,9 +162,10 @@ function _recordFailedEntry(
 	result: PromiseSettledResult<void>,
 	ctx: ProcessBatchResultsOptions["ctx"]
 ): void {
-	const errorMsg = result.status === "rejected"
-		? (result.reason as Error)?.message ?? "unknown error"
-		: "unknown error";
+	const errorMsg =
+		result.status === "rejected"
+			? ((result.reason as Error)?.message ?? "unknown error")
+			: "unknown error";
 	ctx.errors.push({
 		id: entry?.id ?? "unknown",
 		error: errorMsg,

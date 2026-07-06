@@ -30,7 +30,7 @@ export class FeatureFlags {
 
 	constructor(
 		definitions: FeatureFlagDefinition[],
-		options?: FeatureFlagOptions,
+		options?: FeatureFlagOptions
 	) {
 		this._envPrefix = options?.envPrefix ?? ENV_PREFIX_DEFAULT;
 		this._initFromDefinitions(definitions);
@@ -64,7 +64,7 @@ export class FeatureFlags {
 			return false;
 		}
 		logger.warn(
-			`FeatureFlags: invalid env value for ${envName}=${raw}, using default`,
+			`FeatureFlags: invalid env value for ${envName}=${raw}, using default`
 		);
 	}
 

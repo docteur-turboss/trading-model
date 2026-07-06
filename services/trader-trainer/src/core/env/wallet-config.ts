@@ -1,6 +1,15 @@
-import { Cash, Percentage, Price, Volume } from "@trading-model/common/domain/primitives";
+import {
+	Cash,
+	Percentage,
+	Price,
+	Volume,
+} from "@trading-model/common/domain/primitives";
+import {
+	computeBuyCosts,
+	computeSellProceeds,
+	roundValue,
+} from "./wallet-costs";
 import { validateConfig } from "./wallet-validation";
-import { computeBuyCosts, computeSellProceeds, roundValue } from "./wallet-costs";
 
 export interface WalletConfigParams {
 	initialCash: Cash;
@@ -19,8 +28,8 @@ export class WalletConfig {
 
 	constructor(params: WalletConfigParams) {
 		const resolved: Required<WalletConfigParams> = {
-			initialCash: Cash.of(+params.initialCash),
-			initialPrice: Price.of(+params.initialPrice),
+			initialCash: Cash.of(Number(params.initialCash)),
+			initialPrice: Price.of(Number(params.initialPrice)),
 			feeRate: Percentage.of(params.feeRate ?? Percentage.zero()),
 			maxPosition: Volume.of(params.maxPosition ?? Volume.of(Number.MAX_VALUE)),
 			decimals: params.decimals ?? 8,
@@ -37,7 +46,10 @@ export class WalletConfig {
 		return roundValue(value, this.decimals);
 	}
 
-	computeBuyCosts(amount: Volume, price: Price): { totalCost: Cash; fee: Cash } {
+	computeBuyCosts(
+		amount: Volume,
+		price: Price
+	): { totalCost: Cash; fee: Cash } {
 		return computeBuyCosts({
 			amount,
 			price,

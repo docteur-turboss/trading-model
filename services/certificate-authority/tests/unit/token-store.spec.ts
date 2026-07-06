@@ -59,37 +59,45 @@ describe("TokenStore", () => {
 	});
 
 	it("should throw tryUseToken when not connected", async () => {
-		await expect(store.tryUseToken({ token: "tok", serviceId: "svc-1" })).rejects.toThrow(
-			"not connected"
-		);
+		await expect(
+			store.tryUseToken({ token: "tok", serviceId: "svc-1" })
+		).rejects.toThrow("not connected");
 	});
 
 	it("should return true when insertOne succeeds", async () => {
 		mockInsertOne.mockResolvedValue({ acknowledged: true });
 		await store.connect();
-		const result = await store.tryUseToken({ token: "token-123", serviceId: "svc-1" });
+		const result = await store.tryUseToken({
+			token: "token-123",
+			serviceId: "svc-1",
+		});
 		expect(result).toBe(true);
 	});
 
 	it("should return false on duplicate key error (code 11000)", async () => {
 		mockInsertOne.mockRejectedValue({ code: 11000 });
 		await store.connect();
-		const result = await store.tryUseToken({ token: "token-123", serviceId: "svc-1" });
+		const result = await store.tryUseToken({
+			token: "token-123",
+			serviceId: "svc-1",
+		});
 		expect(result).toBe(false);
 	});
 
 	it("should rethrow non-duplicate errors", async () => {
 		mockInsertOne.mockRejectedValue(new Error("DB error"));
 		await store.connect();
-		await expect(store.tryUseToken({ token: "tok", serviceId: "svc-1" })).rejects.toThrow("DB error");
+		await expect(
+			store.tryUseToken({ token: "tok", serviceId: "svc-1" })
+		).rejects.toThrow("DB error");
 	});
 
 	it("should markAsUsed throw if already used", async () => {
 		mockInsertOne.mockRejectedValue({ code: 11000 });
 		await store.connect();
-		await expect(store.markAsUsed({ token: "tok", serviceId: "svc-1" })).rejects.toThrow(
-			"already been used"
-		);
+		await expect(
+			store.markAsUsed({ token: "tok", serviceId: "svc-1" })
+		).rejects.toThrow("already been used");
 	});
 
 	it("should return isUsed true when token found", async () => {
@@ -118,6 +126,8 @@ describe("TokenStore", () => {
 	it("should markAsUsed return true when successful", async () => {
 		mockInsertOne.mockResolvedValue({ acknowledged: true });
 		await store.connect();
-		await expect(store.markAsUsed({ token: "tok", serviceId: "svc-1" })).resolves.toBeUndefined();
+		await expect(
+			store.markAsUsed({ token: "tok", serviceId: "svc-1" })
+		).resolves.toBeUndefined();
 	});
 });

@@ -27,7 +27,8 @@ export const ResponseCodes = Object.fromEntries(
 ) as { [TKey in (typeof HTTP_RESPONSE_DEFINITIONS)[number]["key"]]: number };
 
 export type ResponseCodeKey = keyof typeof ResponseCodes;
-export type ResponseCodeValue = (typeof HTTP_RESPONSE_DEFINITIONS)[number]["code"];
+export type ResponseCodeValue =
+	(typeof HTTP_RESPONSE_DEFINITIONS)[number]["code"];
 
 export interface ResponseObject {
 	status: number;
@@ -47,23 +48,57 @@ export class ClassResponseExceptions extends Error {
 		this.reason = typeof reason === "string" ? reason : JSON.stringify(reason);
 	}
 
-	serviceUnavailable() { return _buildResponse(this.reason, ResponseCodes.serviceUnavailable); }
-	unknownError() { return _buildResponse(this.reason, ResponseCodes.unknownError); }
-	invalidToken() { return _buildResponse(this.reason, ResponseCodes.invalidToken); }
-	tooManyRequests() { return _buildResponse(this.reason, ResponseCodes.tooManyRequests); }
-	imaTeapot() { return _buildResponse(this.reason, ResponseCodes.imaTeapot); }
-	payloadTooLarge() { return _buildResponse(this.reason, ResponseCodes.payloadTooLarge); }
-	gone() { return _buildResponse(this.reason, ResponseCodes.gone); }
-	conflict() { return _buildResponse(this.reason, ResponseCodes.conflict); }
-	methodNotAllowed() { return _buildResponse(this.reason, ResponseCodes.methodNotAllowed); }
-	notFound() { return _buildResponse(this.reason, ResponseCodes.notFound); }
-	forbidden() { return _buildResponse(this.reason, ResponseCodes.forbidden); }
-	paymentRequired() { return _buildResponse(this.reason, ResponseCodes.paymentRequired); }
-	unauthorized() { return _buildResponse(this.reason, ResponseCodes.unauthorized); }
-	badRequest() { return _buildResponse(this.reason, ResponseCodes.badRequest); }
-	noContent() { return { status: ResponseCodes.noContent, data: undefined }; }
-	ok() { return _buildResponse(this.reason, ResponseCodes.ok); }
-	success() { return _buildResponse(this.reason, ResponseCodes.success); }
+	serviceUnavailable() {
+		return _buildResponse(this.reason, ResponseCodes.serviceUnavailable);
+	}
+	unknownError() {
+		return _buildResponse(this.reason, ResponseCodes.unknownError);
+	}
+	invalidToken() {
+		return _buildResponse(this.reason, ResponseCodes.invalidToken);
+	}
+	tooManyRequests() {
+		return _buildResponse(this.reason, ResponseCodes.tooManyRequests);
+	}
+	imaTeapot() {
+		return _buildResponse(this.reason, ResponseCodes.imaTeapot);
+	}
+	payloadTooLarge() {
+		return _buildResponse(this.reason, ResponseCodes.payloadTooLarge);
+	}
+	gone() {
+		return _buildResponse(this.reason, ResponseCodes.gone);
+	}
+	conflict() {
+		return _buildResponse(this.reason, ResponseCodes.conflict);
+	}
+	methodNotAllowed() {
+		return _buildResponse(this.reason, ResponseCodes.methodNotAllowed);
+	}
+	notFound() {
+		return _buildResponse(this.reason, ResponseCodes.notFound);
+	}
+	forbidden() {
+		return _buildResponse(this.reason, ResponseCodes.forbidden);
+	}
+	paymentRequired() {
+		return _buildResponse(this.reason, ResponseCodes.paymentRequired);
+	}
+	unauthorized() {
+		return _buildResponse(this.reason, ResponseCodes.unauthorized);
+	}
+	badRequest() {
+		return _buildResponse(this.reason, ResponseCodes.badRequest);
+	}
+	noContent() {
+		return { status: ResponseCodes.noContent, data: undefined };
+	}
+	ok() {
+		return _buildResponse(this.reason, ResponseCodes.ok);
+	}
+	success() {
+		return _buildResponse(this.reason, ResponseCodes.success);
+	}
 }
 
 export const ResponseException = (reason: unknown = "") =>

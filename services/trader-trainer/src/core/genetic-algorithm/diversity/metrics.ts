@@ -1,6 +1,6 @@
+import type { Genome } from "../genome-types";
 import { genomicDistance } from "./distance";
 import { type Species, speciate } from "./speciation";
-import type { Genome } from "../genome-types";
 
 export interface DiversityMetrics {
 	meanPairwiseDistance: number;
@@ -15,10 +15,15 @@ export function diversityMetrics(
 	samplePairs = 200
 ): DiversityMetrics {
 	const count = population.length;
-	const meanPairwiseDistance = _sampleMeanPairwiseDistance(population, samplePairs, count);
+	const meanPairwiseDistance = _sampleMeanPairwiseDistance(
+		population,
+		samplePairs,
+		count
+	);
 
 	const sp = species ?? speciate(population);
-	const { speciesCount, speciesEntropy, dominanceFraction } = _computeSpeciesMetrics(sp, count);
+	const { speciesCount, speciesEntropy, dominanceFraction } =
+		_computeSpeciesMetrics(sp, count);
 
 	return {
 		meanPairwiseDistance,

@@ -1,5 +1,3 @@
-import { context, propagation } from "@opentelemetry/api";
-import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
@@ -13,17 +11,19 @@ import type { WssRateLimiter } from "./wss-rate-limiter";
 
 function extractDedupId(msg: IncomingWssMessage): string | undefined {
 	const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
-	return (
-		wssMetadata?.delivery as Record<string, unknown> | undefined
-	)?.deduplicationId as string | undefined;
+	return (wssMetadata?.delivery as Record<string, unknown> | undefined)
+		?.deduplicationId as string | undefined;
 }
 
 export class PublishGuard {
-	private _processedWssDeduplicationIds = new LruCache<true>({ maxSize: 50000, ttlMs: 300_000 });
+	private _processedWssDeduplicationIds = new LruCache<true>({
+		maxSize: 50000,
+		ttlMs: 300_000,
+	});
 
 	constructor(
 		private readonly _dispatcher: Dispatcher,
-		private readonly _rateLimiter: WssRateLimiter,
+		readonly _rateLimiter: WssRateLimiter
 	) {}
 
 	async checkTopicAuth(
@@ -35,7 +35,9 @@ export class PublishGuard {
 			return true;
 		}
 		const result = await authorizeTopic(
-			{ headers: { [HTTP_HEADERS.X_SERVICE_NAME]: ctx.identity.serviceName } } as never,
+			{
+				headers: { [HTTP_HEADERS.X_SERVICE_NAME]: ctx.identity.serviceName },
+			} as never,
 			topic
 		);
 		if (result.allowed) {
@@ -61,7 +63,7 @@ export class PublishGuard {
 		try {
 			const redis = await getStreamClient();
 			const key = `${ENV.REDIS_PREFIX}wss-dedup:${dedupId}`;
-			return !!(await redis.set(key, "1", "EX", 300, "NX"));
+			return Boolean(await redis.set(key, "1", "EX", 300, "NX"));
 		} catch {
 			return true;
 		}

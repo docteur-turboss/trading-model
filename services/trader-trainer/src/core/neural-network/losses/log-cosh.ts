@@ -1,6 +1,6 @@
 import type { LossConfig } from "../type";
-import { validateLengths } from "./validate-lengths";
 import type { LossDefinition } from "./loss-definition";
+import { validateLengths } from "./validate-lengths";
 
 export class LogCoshLoss implements LossDefinition {
 	loss(

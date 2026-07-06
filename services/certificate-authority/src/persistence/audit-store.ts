@@ -43,14 +43,18 @@ export class AuditStore {
 	}
 
 	async log(entry: AuditEntry): Promise<void> {
-		if (!((await this._mongoConn.ensureMongo()) && this._mongoConn.collection)) {
+		if (
+			!((await this._mongoConn.ensureMongo()) && this._mongoConn.collection)
+		) {
 			this._buffer.buffer(entry);
 			return;
 		}
 		try {
 			await this._mongoConn.collection!.insertOne(entry);
 		} catch (err) {
-			logger.error("AuditStore: MongoDB write failed — buffering entry", { context: { err } });
+			logger.error("AuditStore: MongoDB write failed — buffering entry", {
+				context: { err },
+			});
 			this._buffer.buffer(entry);
 		}
 	}
@@ -59,7 +63,9 @@ export class AuditStore {
 		if (this._buffer.pendingCount === 0) {
 			return;
 		}
-		if (!((await this._mongoConn.ensureMongo()) && this._mongoConn.collection)) {
+		if (
+			!((await this._mongoConn.ensureMongo()) && this._mongoConn.collection)
+		) {
 			return;
 		}
 		const batch = this._buffer.drain();

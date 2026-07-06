@@ -2,13 +2,12 @@ import {
 	EnumEventMessage,
 	type EventEnumMap,
 } from "@trading-model/common/config/event.types";
-
+import type { Price } from "@trading-model/common/domain/primitives";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "../core/market-data-buffer";
 import type { TradingSymbol } from "../core/market-data-types";
-import { Price } from "@trading-model/common/domain/primitives";
 import { Trainer } from "../core/trainer";
 import { TrainingLoop } from "./training-loop";
 
@@ -39,7 +38,9 @@ export class ApplicationContainer {
 		this._trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer);
 	}
 
-	onCandlestickSeries(data: { candle: import("@trading-model/common/config/event.types").CandleData[] }): void {
+	onCandlestickSeries(data: {
+		candle: import("@trading-model/common/config/event.types").CandleData[];
+	}): void {
 		if (!data?.candle || data.candle.length === 0) {
 			return;
 		}
@@ -47,7 +48,9 @@ export class ApplicationContainer {
 		this.dataBuffer.addCandles(symbol, data.candle);
 	}
 
-	onRecentTrades(data: { trades: import("@trading-model/common/config/event.types").TradeData[] }): void {
+	onRecentTrades(data: {
+		trades: import("@trading-model/common/config/event.types").TradeData[];
+	}): void {
 		if (!data?.trades || data.trades.length === 0) {
 			return;
 		}
@@ -55,14 +58,18 @@ export class ApplicationContainer {
 		this.dataBuffer.addTrades(symbol, data.trades);
 	}
 
-	onOrderBookSnapshot(data: { orderBook: import("@trading-model/common/config/event.types").OrderBookData[] }): void {
+	onOrderBookSnapshot(data: {
+		orderBook: import("@trading-model/common/config/event.types").OrderBookData[];
+	}): void {
 		if (!data?.orderBook || data.orderBook.length === 0) {
 			return;
 		}
 		this.dataBuffer.setOrderBook(data.orderBook[0].symbol, data.orderBook[0]);
 	}
 
-	onOrderBookTickerSnapshot(data: { bookTicker: import("@trading-model/common/config/event.types").BookTickerData[] }): void {
+	onOrderBookTickerSnapshot(data: {
+		bookTicker: import("@trading-model/common/config/event.types").BookTickerData[];
+	}): void {
 		if (!data?.bookTicker || data.bookTicker.length === 0) {
 			return;
 		}
@@ -71,7 +78,9 @@ export class ApplicationContainer {
 		}
 	}
 
-	on24hrTickerStats(data: { ticker: import("@trading-model/common/config/event.types").TickerData[] }): void {
+	on24hrTickerStats(data: {
+		ticker: import("@trading-model/common/config/event.types").TickerData[];
+	}): void {
 		if (!data?.ticker || data.ticker.length === 0) {
 			return;
 		}

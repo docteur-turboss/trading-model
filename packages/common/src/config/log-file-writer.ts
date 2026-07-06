@@ -9,7 +9,10 @@ export class LogFileWriter {
 	constructor(private readonly _sanitizer: SensitiveDataSanitizer) {}
 
 	private _buildLogFileName(data: LogEntry, level: LogLevel): string {
-		const ts = data.timestamp instanceof Date ? data.timestamp : new Date(data.timestamp);
+		const ts =
+			data.timestamp instanceof Date
+				? data.timestamp
+				: new Date(data.timestamp);
 		return `${ts.getFullYear()}.${ts.getMonth() + 1}.${ts.getDate()}-${level}.log`;
 	}
 
@@ -28,6 +31,9 @@ export class LogFileWriter {
 		}
 		const logFilePath = path.resolve(logDir);
 		mkdir(logFilePath, { recursive: true }).catch(() => {});
-		this._appendToFile(path.resolve(logFilePath, this._buildLogFileName(data, level)), data);
+		this._appendToFile(
+			path.resolve(logFilePath, this._buildLogFileName(data, level)),
+			data
+		);
 	}
 }

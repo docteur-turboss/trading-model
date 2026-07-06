@@ -1,24 +1,24 @@
 import { createHmac, randomBytes } from "node:crypto";
-import { toServiceId, type ServiceId } from "@trading-model/common/domain/primitives";
+import {
+	type ServiceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
-import Redis from "ioredis";
-import { RedisKeyBuilder } from "./redis-key-builder";
-import { TokenService } from "./token-service";
+import type Redis from "ioredis";
+import type { RedisKeyBuilder } from "./redis-key-builder";
+import type { TokenService } from "./token-service";
 
 export class TokenHandler {
 	constructor(
 		private readonly _redis: Redis,
 		private readonly _keyBuilder: RedisKeyBuilder,
-		private readonly _tokenService: TokenService,
+		private readonly _tokenService: TokenService
 	) {}
 
 	async updateToken(instanceId: string): Promise<string> {
 		const newToken = this._tokenService.generateInstanceToken(instanceId);
-		await this._redis.set(
-			this._keyBuilder.instanceToken(instanceId),
-			newToken
-		);
+		await this._redis.set(this._keyBuilder.instanceToken(instanceId), newToken);
 		return newToken;
 	}
 
@@ -33,7 +33,11 @@ export class TokenHandler {
 		const storedToken = await this._redis.get(
 			this._keyBuilder.instanceToken(instanceId)
 		);
-		return this._tokenService.validInstanceToken(token, instanceId, storedToken ?? undefined);
+		return this._tokenService.validInstanceToken(
+			token,
+			instanceId,
+			storedToken ?? undefined
+		);
 	}
 
 	generateInstanceId({

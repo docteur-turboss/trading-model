@@ -5,12 +5,8 @@ import type {
 	TickerData,
 	TradeData,
 } from "@trading-model/common/config/event.types";
-
-import type {
-	SymbolState,
-	TradingSymbol,
-} from "./market-data-types";
 import { MemoryManager } from "./market-data/memory-manager";
+import type { SymbolState, TradingSymbol } from "./market-data-types";
 import { NormalizationManager } from "./normalization-manager";
 import { SymbolDataMutator } from "./symbol-data-mutator";
 import { SymbolStateAccessor } from "./symbol-state-accessor";
@@ -26,7 +22,7 @@ export class SymbolStateManager {
 	constructor(
 		maxSize: number,
 		maxMemoryBytes: number,
-		evictionPolicy: "LRU" | "none",
+		evictionPolicy: "LRU" | "none"
 	) {
 		this._memoryManager = new MemoryManager({
 			states: this.states,
@@ -36,8 +32,14 @@ export class SymbolStateManager {
 			evictionPolicy,
 		});
 		this._normManager = new NormalizationManager();
-		this._dataMutator = new SymbolDataMutator(this._memoryManager, this._normManager);
-		this._stateAccessor = new SymbolStateAccessor(this._normManager, this._memoryManager);
+		this._dataMutator = new SymbolDataMutator(
+			this._memoryManager,
+			this._normManager
+		);
+		this._stateAccessor = new SymbolStateAccessor(
+			this._normManager,
+			this._memoryManager
+		);
 	}
 
 	getMemoryManager(): MemoryManager {
@@ -57,27 +59,37 @@ export class SymbolStateManager {
 	}
 
 	addCandles(symbol: TradingSymbol, candles: CandleData[]): void {
-		const state = this._getState(symbol);
-		this._dataMutator.addCandles(symbol, candles, this.states, this._memoryManager.getMaxSize());
+		const _state = this._getState(symbol);
+		this._dataMutator.addCandles(
+			symbol,
+			candles,
+			this.states,
+			this._memoryManager.getMaxSize()
+		);
 	}
 
 	addTrades(symbol: TradingSymbol, trades: TradeData[]): void {
-		const state = this._getState(symbol);
-		this._dataMutator.addTrades(symbol, trades, this.states, this._memoryManager.getMaxSize());
+		const _state = this._getState(symbol);
+		this._dataMutator.addTrades(
+			symbol,
+			trades,
+			this.states,
+			this._memoryManager.getMaxSize()
+		);
 	}
 
 	setOrderBook(symbol: TradingSymbol, orderBook: OrderBookData): void {
-		const state = this._getState(symbol);
+		const _state = this._getState(symbol);
 		this._dataMutator.setOrderBook(symbol, orderBook, this.states);
 	}
 
 	setBookTicker(symbol: TradingSymbol, bt: BookTickerData): void {
-		const state = this._getState(symbol);
+		const _state = this._getState(symbol);
 		this._dataMutator.setBookTicker(symbol, bt, this.states);
 	}
 
 	setTicker24h(symbol: TradingSymbol, ticker: TickerData): void {
-		const state = this._getState(symbol);
+		const _state = this._getState(symbol);
 		this._dataMutator.setTicker24h(symbol, ticker, this.states);
 	}
 

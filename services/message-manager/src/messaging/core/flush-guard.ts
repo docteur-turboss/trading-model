@@ -1,5 +1,5 @@
-import type { RedisBackoff } from "./redis-backoff";
 import type { MemoryWalEntry } from "./memory-wal-entry";
+import type { RedisBackoff } from "./redis-backoff";
 
 export class FlushGuard {
 	private _flushing = false;

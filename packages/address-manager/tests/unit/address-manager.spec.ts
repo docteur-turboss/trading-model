@@ -95,7 +95,11 @@ describe("AddressManager", () => {
 		cacheTtlMs: 60000,
 		discoveryUrls: ["http://localhost:8443"],
 		identity: { serviceName: "test-service", instanceId: "instance-1" },
-		tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+		tls: {
+			caPath: "/path/to/ca.pem",
+			certPath: "/path/to/cert.pem",
+			keyPath: "/path/to/key.pem",
+		},
 	};
 
 	beforeEach(() => {

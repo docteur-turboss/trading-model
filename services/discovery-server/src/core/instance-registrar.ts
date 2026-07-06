@@ -1,15 +1,15 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import Redis from "ioredis";
-import { RedisKeyBuilder } from "./redis-key-builder";
-import { TokenService } from "./token-service";
+import type Redis from "ioredis";
+import type { RedisKeyBuilder } from "./redis-key-builder";
+import type { TokenService } from "./token-service";
 
 export class InstanceRegistrar {
 	constructor(
 		private readonly _redis: Redis,
 		private readonly _keyBuilder: RedisKeyBuilder,
-		private readonly _tokenService: TokenService,
+		private readonly _tokenService: TokenService
 	) {}
 
 	async resolveToken(instanceId: string): Promise<string> {
@@ -23,7 +23,7 @@ export class InstanceRegistrar {
 
 	async buildStoredInstance(
 		instance: ServiceInstance,
-		now: number,
+		now: number
 	): Promise<ServiceInstance> {
 		const storedInstance: ServiceInstance = {
 			...instance,
@@ -31,7 +31,7 @@ export class InstanceRegistrar {
 			lastHeartbeat: now,
 		};
 		const existingJson = await this._redis.get(
-			this._keyBuilder.instanceMetadata(instance.instanceId),
+			this._keyBuilder.instanceMetadata(instance.instanceId)
 		);
 		if (existingJson) {
 			try {
@@ -39,7 +39,7 @@ export class InstanceRegistrar {
 				storedInstance.registeredAt = existing.registeredAt;
 				storedInstance.lastHeartbeat = Math.max(
 					storedInstance.lastHeartbeat,
-					existing.lastHeartbeat,
+					existing.lastHeartbeat
 				);
 			} catch (err) {
 				logger.warn("Failed to parse existing instance metadata", {
@@ -61,7 +61,7 @@ export class InstanceRegistrar {
 		const storedInstance = await this.buildStoredInstance(instance, now);
 		multi.set(
 			this._keyBuilder.instanceMetadata(instanceId),
-			JSON.stringify(storedInstance),
+			JSON.stringify(storedInstance)
 		);
 		await multi.exec();
 

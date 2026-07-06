@@ -3,8 +3,8 @@ import { retryFileAppend } from "@trading-model/common/utils/retry-file-append";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
-import type { MemoryWalEntry } from "./memory-wal-entry";
 import { FallbackFileRecovery } from "./fallback-file-recovery";
+import type { MemoryWalEntry } from "./memory-wal-entry";
 
 export class MemoryWalFallback {
 	private readonly _fileRecovery = new FallbackFileRecovery();

@@ -8,7 +8,7 @@ export class WalErrorHandler {
 
 	constructor(
 		private readonly _walKey: () => string,
-		_entryParser: WalEntryParser,
+		_entryParser: WalEntryParser
 	) {
 		this._delegate = new WalFlushErrorHandler(_entryParser);
 	}

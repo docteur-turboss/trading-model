@@ -76,7 +76,9 @@ export class Dispatcher {
 
 		for (const result of results) {
 			if (result.status === "rejected") {
-				logger.error("Message delivery failed", { context: { error: result.reason } });
+				logger.error("Message delivery failed", {
+					context: { error: result.reason },
+				});
 			}
 		}
 	}

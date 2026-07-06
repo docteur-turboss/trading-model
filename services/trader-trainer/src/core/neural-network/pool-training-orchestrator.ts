@@ -1,7 +1,7 @@
-import type { FeedForwardEngine } from "./feed-forward-engine";
 import type { BackpropEngine } from "./backprop-engine";
-import { LearningPool } from "./pool-manager";
-import type { ForwardContext, NeuralNetworkConfig } from "./type";
+import type { FeedForwardEngine } from "./feed-forward-engine";
+import type { LearningPool } from "./pool-manager";
+import type { NeuralNetworkConfig } from "./type";
 
 export interface PoolTrainingOrchestratorOptions {
 	config: Required<NeuralNetworkConfig>;
@@ -23,10 +23,7 @@ export class PoolTrainingOrchestrator {
 		this._poolManager = options.poolManager;
 	}
 
-	forwardAndPool(
-		input: Float32Array,
-		target: Float32Array,
-	): number {
+	forwardAndPool(input: Float32Array, target: Float32Array): number {
 		const context = this._feedForward.forward(input);
 		const loss = this._backprop.computeLoss(context.output, target);
 
@@ -41,12 +38,17 @@ export class PoolTrainingOrchestrator {
 		return loss;
 	}
 
-	private _accumulatePoolGradients(pool: import("./type").PooledExperience[]): number {
+	private _accumulatePoolGradients(
+		pool: import("./type").PooledExperience[]
+	): number {
 		this._backprop.resetAccumulators();
 		let totalLoss = 0;
 		for (const exp of pool) {
 			totalLoss += exp.loss;
-			this._backprop.backpropAccumulate(this._poolManager.experienceToContext(exp), exp.target);
+			this._backprop.backpropAccumulate(
+				this._poolManager.experienceToContext(exp),
+				exp.target
+			);
 		}
 		return totalLoss;
 	}

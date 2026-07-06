@@ -11,10 +11,13 @@ export class CircuitBreakerPersistence {
 
 	constructor(
 		private readonly _stateStore: IServiceCache,
-		private readonly _loadFromStoreCacheTtlMs: number = DEFAULT_LOAD_CACHE_TTL_MS,
+		private readonly _loadFromStoreCacheTtlMs: number = DEFAULT_LOAD_CACHE_TTL_MS
 	) {}
 
-	async loadFromStore(instanceId: string, instances: Map<string, INstanceState>): Promise<void> {
+	async loadFromStore(
+		instanceId: string,
+		instances: Map<string, INstanceState>
+	): Promise<void> {
 		if (this._isCacheValid(instanceId)) {
 			return;
 		}
@@ -36,7 +39,7 @@ export class CircuitBreakerPersistence {
 	private _updateFromPersisted(
 		instanceId: string,
 		persisted: { failures: number; lastFailureTime: number; state: string },
-		instances: Map<string, INstanceState>,
+		instances: Map<string, INstanceState>
 	): void {
 		const existing = instances.get(instanceId);
 		if (!existing || persisted.lastFailureTime > existing.lastFailureTime) {
@@ -49,16 +52,18 @@ export class CircuitBreakerPersistence {
 	}
 
 	persistState(instanceId: string, state: INstanceState): void {
-		this._stateStore.setCircuitState(instanceId, {
-			failures: state.failures,
-			lastFailureTime: state.lastFailureTime,
-			state: state.state,
-		}).catch((err) => {
-			logger.warn("Failed to persist circuit breaker state", {
-				instanceId,
-				error: normalizeError(err),
+		this._stateStore
+			.setCircuitState(instanceId, {
+				failures: state.failures,
+				lastFailureTime: state.lastFailureTime,
+				state: state.state,
+			})
+			.catch((err) => {
+				logger.warn("Failed to persist circuit breaker state", {
+					instanceId,
+					error: normalizeError(err),
+				});
 			});
-		});
 	}
 
 	deletePersistedState(instanceId: string): void {

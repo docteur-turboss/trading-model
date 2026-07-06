@@ -1,8 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { CertificateStore } from "../persistence/certificate-store";
-import type { CertificateAuthority } from "./ca";
 import type { SerialNumber } from "@trading-model/common/domain/primitives";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { CertificateStore } from "../persistence/certificate-store";
+import type { CertificateAuthority } from "./ca";
 
 export interface RotatorOptions {
 	ca: CertificateAuthority;
@@ -22,7 +22,10 @@ export class Rotator {
 
 	private _logRotatorStart(): void {
 		logger.info("Starting certificate rotator", {
-			context: { intervalMs: this._options.intervalMs, marginMs: this._options.marginMs },
+			context: {
+				intervalMs: this._options.intervalMs,
+				marginMs: this._options.marginMs,
+			},
 		});
 	}
 
@@ -47,24 +50,40 @@ export class Rotator {
 		logger.info("Certificate rotator stopped");
 	}
 
-	private _rotateSingleCert(cert: { serviceId: string; serialNumber: SerialNumber; expiresAt: Date }): void {
+	private _rotateSingleCert(cert: {
+		serviceId: string;
+		serialNumber: SerialNumber;
+		expiresAt: Date;
+	}): void {
 		logger.info("Rotating certificate", {
-			context: { serviceId: cert.serviceId, serialNumber: cert.serialNumber, expiresAt: cert.expiresAt },
+			context: {
+				serviceId: cert.serviceId,
+				serialNumber: cert.serialNumber,
+				expiresAt: cert.expiresAt,
+			},
 		});
 	}
 
 	private async _rotate(): Promise<void> {
-		const expiringCerts = await this._options.certificateStore.getExpiring(this._options.marginMs);
+		const expiringCerts = await this._options.certificateStore.getExpiring(
+			this._options.marginMs
+		);
 		if (expiringCerts.length === 0) {
 			return;
 		}
-		logger.info("Rotating expiring certificates", { context: { count: expiringCerts.length } });
+		logger.info("Rotating expiring certificates", {
+			context: { count: expiringCerts.length },
+		});
 		for (const cert of expiringCerts) {
 			try {
 				this._rotateSingleCert(cert);
 			} catch (err) {
 				logger.error("Failed to rotate certificate", {
-					context: { serviceId: cert.serviceId, serialNumber: cert.serialNumber, err },
+					context: {
+						serviceId: cert.serviceId,
+						serialNumber: cert.serialNumber,
+						err,
+					},
 				});
 			}
 		}

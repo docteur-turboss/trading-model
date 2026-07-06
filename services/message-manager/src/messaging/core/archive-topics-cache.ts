@@ -1,5 +1,5 @@
-import { ENV } from "../../config/env";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { ENV } from "../../config/env";
 
 export class ArchiveTopicsCache {
 	private _topicsCache: string[] = [];

@@ -4,13 +4,13 @@ import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
-import { Router, type Request } from "express";
+import { type Request, Router } from "express";
 import { ENV } from "../config/env";
 import { AUTH_MIDDLEWARE } from "./auth";
 import { ResponseCache } from "./cache";
 import { forwardRequest } from "./proxy-handler";
 import { DEFAULT_LIMITER } from "./rate-limiter";
-import { ServiceResolver, type ResolvedTarget } from "./service-resolver";
+import { type ResolvedTarget, ServiceResolver } from "./service-resolver";
 
 const RESOLVER = new ServiceResolver(
 	ENV.DISCOVERY_SERVICE_URL,
@@ -36,7 +36,9 @@ const catchAllRoute = catchSync(async (req) => {
 
 	const target = await RESOLVER.resolve(serviceName, majorVersion);
 	if (!target) {
-		logger.warn("Service not found", { context: { serviceName, majorVersion } });
+		logger.warn("Service not found", {
+			context: { serviceName, majorVersion },
+		});
 		return sendResponse(
 			{
 				error: "Service not found",
@@ -53,7 +55,12 @@ const catchAllRoute = catchSync(async (req) => {
 		return cached;
 	}
 
-	return _proxyAndCache(req, target, { serviceName, majorVersion, cacheKey, path });
+	return _proxyAndCache(req, target, {
+		serviceName,
+		majorVersion,
+		cacheKey,
+		path,
+	});
 });
 
 interface ProxyContext {
@@ -63,16 +70,33 @@ interface ProxyContext {
 	path: string;
 }
 
-function _tryCacheResponse(req: Request, ctx: ProxyContext, result: { body: string; status: number }): void {
+function _tryCacheResponse(
+	req: Request,
+	ctx: ProxyContext,
+	result: { body: string; status: number }
+): void {
 	if (req.method === "GET" && result.status === 200) {
 		const parsed = tryParseJson(result.body);
-		if (parsed) CACHE.set(ctx.cacheKey, { data: parsed, status: result.status });
+		if (parsed) {
+			CACHE.set(ctx.cacheKey, { data: parsed, status: result.status });
+		}
 	}
 }
 
-function _buildProxyErrorResponse(err: unknown, ctx: ProxyContext, target: ResolvedTarget): ResponseObject {
+function _buildProxyErrorResponse(
+	err: unknown,
+	ctx: ProxyContext,
+	target: ResolvedTarget
+): ResponseObject {
 	const message = err instanceof Error ? err.message : "Unknown error";
-	logger.error("Proxy error", { context: { serviceName: ctx.serviceName, majorVersion: ctx.majorVersion, target: `${target.host}:${target.port}`, error: message } });
+	logger.error("Proxy error", {
+		context: {
+			serviceName: ctx.serviceName,
+			majorVersion: ctx.majorVersion,
+			target: `${target.host}:${target.port}`,
+			error: message,
+		},
+	});
 	return sendResponse({ error: "Service unavailable", details: message }, 503);
 }
 
@@ -109,7 +133,11 @@ type ParsedRequestPath =
 	| { valid: false }
 	| { valid: true; majorVersion: number; serviceName: string; path: string };
 
-function _extractPathComponents(match: RegExpMatchArray): { majorVersion: number; serviceName: string; path: string } {
+function _extractPathComponents(match: RegExpMatchArray): {
+	majorVersion: number;
+	serviceName: string;
+	path: string;
+} {
 	return {
 		majorVersion: Number.parseInt(match[1], 10),
 		serviceName: match[2],
@@ -122,9 +150,13 @@ function _parseRequestPath(req: {
 	method: string;
 }): ParsedRequestPath | null {
 	const match = req.path.match(VERSION_PATH_REGEX);
-	if (!match) return null;
+	if (!match) {
+		return null;
+	}
 	const { majorVersion, serviceName, path } = _extractPathComponents(match);
-	if (Number.isNaN(majorVersion) || majorVersion < 1) return { valid: false };
+	if (Number.isNaN(majorVersion) || majorVersion < 1) {
+		return { valid: false };
+	}
 	return { valid: true, majorVersion, serviceName, path };
 }
 

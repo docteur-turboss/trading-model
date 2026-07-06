@@ -2,7 +2,6 @@
 //                        crossover operators
 // ================================================================
 
-import { CrossoverType } from "./genome-types";
 import type {
 	ContinuousPolicyGenome,
 	CrossoverGenome,
@@ -16,6 +15,7 @@ import type {
 	RewardShapingGenome,
 	RLGenome,
 } from "./genome-types";
+import { CrossoverType } from "./genome-types";
 
 // ----------------------------------------------------------------
 // Crossover strategy interface & implementations
@@ -54,7 +54,9 @@ class BlendCrossover implements CrossoverStrategy {
 		const lo = Math.min(left, right);
 		const hi = Math.max(left, right);
 		const diff = hi - lo;
-		return lo - co.blendAlpha * diff + rng() * (diff + 2 * co.blendAlpha * diff);
+		return (
+			lo - co.blendAlpha * diff + rng() * (diff + 2 * co.blendAlpha * diff)
+		);
 	}
 }
 
@@ -99,14 +101,15 @@ class TwoPointCrossover implements CrossoverStrategy {
 	}
 }
 
-const CROSSOVER_STRATEGIES: Record<CrossoverGenome["type"], CrossoverStrategy> = {
-	[CrossoverType.Arithmetic]: new ArithmeticCrossover(),
-	[CrossoverType.Blend]: new BlendCrossover(),
-	[CrossoverType.Sbx]: new SBXCrossover(),
-	[CrossoverType.Uniform]: new UniformCrossover(),
-	[CrossoverType.OnePoint]: new OnePointCrossover(),
-	[CrossoverType.TwoPoint]: new TwoPointCrossover(),
-};
+const CROSSOVER_STRATEGIES: Record<CrossoverGenome["type"], CrossoverStrategy> =
+	{
+		[CrossoverType.Arithmetic]: new ArithmeticCrossover(),
+		[CrossoverType.Blend]: new BlendCrossover(),
+		[CrossoverType.Sbx]: new SBXCrossover(),
+		[CrossoverType.Uniform]: new UniformCrossover(),
+		[CrossoverType.OnePoint]: new OnePointCrossover(),
+		[CrossoverType.TwoPoint]: new TwoPointCrossover(),
+	};
 
 // ----------------------------------------------------------------
 // Scalar crossover primitives
@@ -133,14 +136,14 @@ export interface HorizonCrossoverContext<TLeft = unknown, TRight = unknown> {
 }
 
 /** Crossover two scalar values using the given strategy and return the offspring. */
-export function crossoverScalar(
-	ctx: CrossoverContext<number, number>
-): number {
+export function crossoverScalar(ctx: CrossoverContext<number, number>): number {
 	const { left, right, co, rng } = ctx;
 	const strategy = CROSSOVER_STRATEGIES[co.type];
 	return strategy
 		? strategy.crossover({ left, right, co, rng })
-		: rng() < 0.5 ? left : right;
+		: rng() < 0.5
+			? left
+			: right;
 }
 
 // ----------------------------------------------------------------
@@ -156,7 +159,8 @@ function _crossoverLayerPair(
 	return {
 		neurons: Math.round(crossoverFn(layerLeft.neurons, layerRight.neurons)),
 		activation: rng() < 0.5 ? layerLeft.activation : layerRight.activation,
-		connectionType: rng() < 0.5 ? layerLeft.connectionType : layerRight.connectionType,
+		connectionType:
+			rng() < 0.5 ? layerLeft.connectionType : layerRight.connectionType,
 		biasType: rng() < 0.5 ? layerLeft.biasType : layerRight.biasType,
 	};
 }
@@ -186,7 +190,14 @@ function _crossoverHiddenLayers(
 				hiddenLayers.push(layer);
 			}
 		} else {
-			hiddenLayers.push(_crossoverLayerPair(left.hiddenLayers[i], right.hiddenLayers[i], crossoverFn, rng));
+			hiddenLayers.push(
+				_crossoverLayerPair(
+					left.hiddenLayers[i],
+					right.hiddenLayers[i],
+					crossoverFn,
+					rng
+				)
+			);
 		}
 	}
 	return hiddenLayers;
@@ -198,14 +209,25 @@ function crossoverNetwork(
 	const { left, right, co, rng } = ctx;
 	const minLen = Math.min(left.hiddenLayers.length, right.hiddenLayers.length);
 	const maxLen = Math.max(left.hiddenLayers.length, right.hiddenLayers.length);
-	const longer = left.hiddenLayers.length >= right.hiddenLayers.length ? left.hiddenLayers : right.hiddenLayers;
+	const longer =
+		left.hiddenLayers.length >= right.hiddenLayers.length
+			? left.hiddenLayers
+			: right.hiddenLayers;
 
 	const crossoverFn = (valueA: number, valueB: number) =>
 		crossoverScalar({ left: valueA, right: valueB, co, rng });
 
 	return {
 		...left,
-		hiddenLayers: _crossoverHiddenLayers(minLen, maxLen, longer, left, right, crossoverFn, rng),
+		hiddenLayers: _crossoverHiddenLayers(
+			minLen,
+			maxLen,
+			longer,
+			left,
+			right,
+			crossoverFn,
+			rng
+		),
 		normalization: rng() < 0.5 ? left.normalization : right.normalization,
 	};
 }
@@ -296,19 +318,41 @@ function _crossoverGammaAndLR(
 	};
 }
 
-function crossoverRL(
-	ctx: CrossoverContext<RLGenome, RLGenome>
-): RLGenome {
+function crossoverRL(ctx: CrossoverContext<RLGenome, RLGenome>): RLGenome {
 	const { left, right, co, rng } = ctx;
 	const crossoverFn = _makeCrossoverFn(co, rng);
 
 	return {
 		..._crossoverGammaAndLR(left, right, crossoverFn),
-		rewardShaping: crossoverRewardShaping({ left: left.rewardShaping, right: right.rewardShaping, crossoverFn, rng }),
-		horizon: crossoverHorizon({ left: left.horizon, right: right.horizon, crossoverFn }),
-		discretePolicy: crossoverDiscretePolicy({ left: left.discretePolicy, right: right.discretePolicy, crossoverFn, rng }),
-		continuousPolicy: crossoverContinuousPolicy({ left: left.continuousPolicy, right: right.continuousPolicy, crossoverFn, rng }),
-		replayBuffer: crossoverReplayBuffer({ left: left.replayBuffer, right: right.replayBuffer, crossoverFn, rng }),
+		rewardShaping: crossoverRewardShaping({
+			left: left.rewardShaping,
+			right: right.rewardShaping,
+			crossoverFn,
+			rng,
+		}),
+		horizon: crossoverHorizon({
+			left: left.horizon,
+			right: right.horizon,
+			crossoverFn,
+		}),
+		discretePolicy: crossoverDiscretePolicy({
+			left: left.discretePolicy,
+			right: right.discretePolicy,
+			crossoverFn,
+			rng,
+		}),
+		continuousPolicy: crossoverContinuousPolicy({
+			left: left.continuousPolicy,
+			right: right.continuousPolicy,
+			crossoverFn,
+			rng,
+		}),
+		replayBuffer: crossoverReplayBuffer({
+			left: left.replayBuffer,
+			right: right.replayBuffer,
+			crossoverFn,
+			rng,
+		}),
 	};
 }
 
@@ -317,7 +361,8 @@ function crossoverMutation(
 	right: MutationGenome,
 	rng: () => number
 ): MutationGenome {
-	const coin = <TValue>(valueA: TValue, valueB: TValue): TValue => rng() < 0.5 ? valueA : valueB;
+	const coin = <TValue>(valueA: TValue, valueB: TValue): TValue =>
+		rng() < 0.5 ? valueA : valueB;
 	return {
 		rate: coin(left.rate, right.rate),
 		sigma: coin(left.sigma, right.sigma),
@@ -327,14 +372,20 @@ function crossoverMutation(
 		scope: coin(left.scope, right.scope),
 		selfSigma: coin(left.selfSigma, right.selfSigma),
 		mutateActivations: coin(left.mutateActivations, right.mutateActivations),
-		activationMutationRate: coin(left.activationMutationRate, right.activationMutationRate),
+		activationMutationRate: coin(
+			left.activationMutationRate,
+			right.activationMutationRate
+		),
 		mutateHyperparams: coin(left.mutateHyperparams, right.mutateHyperparams),
 		addNeuronRate: coin(left.addNeuronRate, right.addNeuronRate),
 		removeNeuronRate: coin(left.removeNeuronRate, right.removeNeuronRate),
 		addLayerRate: coin(left.addLayerRate, right.addLayerRate),
 		removeLayerRate: coin(left.removeLayerRate, right.removeLayerRate),
 		addConnectionRate: coin(left.addConnectionRate, right.addConnectionRate),
-		removeConnectionRate: coin(left.removeConnectionRate, right.removeConnectionRate),
+		removeConnectionRate: coin(
+			left.removeConnectionRate,
+			right.removeConnectionRate
+		),
 	};
 }
 
@@ -355,7 +406,12 @@ export function crossoverGenomes(
 
 	return {
 		...parentA,
-		network: crossoverNetwork({ left: parentA.network, right: parentB.network, co, rng }),
+		network: crossoverNetwork({
+			left: parentA.network,
+			right: parentB.network,
+			co,
+			rng,
+		}),
 		rl: crossoverRL({ left: parentA.rl, right: parentB.rl, co, rng }),
 		mutation: crossoverMutation(parentA.mutation, parentB.mutation, rng),
 	};

@@ -1,9 +1,9 @@
 import { recordDiscoveryMetrics } from "../metrics";
-import { CircuitBreaker } from "./circuit-breaker";
-import type { IServiceCache } from "./service-cache.interface";
-import { ServiceDiscovery } from "./service-discovery";
-import { ServiceHealthChecker } from "./service-health-checker";
+import type { CircuitBreaker } from "./circuit-breaker";
 import { DiscoveryRetryHandler } from "./discovery-retry-handler";
+import type { IServiceCache } from "./service-cache.interface";
+import type { ServiceDiscovery } from "./service-discovery";
+import type { ServiceHealthChecker } from "./service-health-checker";
 
 export interface DiscoveryOrchestratorDeps {
 	serviceDiscovery: ServiceDiscovery;
@@ -25,17 +25,22 @@ export class DiscoveryOrchestrator {
 		this._retryHandler = new DiscoveryRetryHandler(
 			deps.serviceDiscovery,
 			deps.serviceCache,
-			deps.circuitBreaker,
+			deps.circuitBreaker
 		);
 	}
 
-	async findService(serviceName: string): Promise<import("../client/type").ServiceInstance> {
+	async findService(
+		serviceName: string
+	): Promise<import("../client/type").ServiceInstance> {
 		const startTime = Date.now();
 
 		try {
 			return await this._retryHandler.attemptDiscovery(serviceName, startTime);
 		} catch (lastError) {
-			const staleInstance = await this._retryHandler.fallbackToStaleCache(serviceName, startTime);
+			const staleInstance = await this._retryHandler.fallbackToStaleCache(
+				serviceName,
+				startTime
+			);
 			if (staleInstance) {
 				return staleInstance;
 			}
@@ -45,7 +50,9 @@ export class DiscoveryOrchestrator {
 		}
 	}
 
-	async findAllServices(serviceName: string): Promise<import("../client/type").ServiceInstance[]> {
+	async findAllServices(
+		serviceName: string
+	): Promise<import("../client/type").ServiceInstance[]> {
 		return this._serviceDiscovery.findAllServices(serviceName);
 	}
 

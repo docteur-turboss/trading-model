@@ -12,6 +12,7 @@ import type {
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 
 export type {
+	AdminServiceInstance,
 	AuditEvent,
 	AuditFilter,
 	AuditVolumeByTopic,
@@ -26,7 +27,6 @@ export type {
 	JobEntry,
 	JobStats,
 	JobTimelineEntry,
-	AdminServiceInstance,
 	ServiceRegistryEntry,
 	Ticker,
 	TopologyLink,

@@ -16,9 +16,9 @@ const MOCK_RELEASE_CLAIMS_BY_INSTANCE = jest.fn();
 
 jest.mock("../../src/dlq/repository", () => ({
 	DlqCapacityError: class DlqCapacityError {
-			constructor(public readonly message: string) {}
-			public name = "DlqCapacityError";
-		},
+		constructor(public readonly message: string) {}
+		public name = "DlqCapacityError";
+	},
 	dlqRepository: {
 		add: MOCK_ADD,
 		list: MOCK_LIST,

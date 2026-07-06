@@ -1,10 +1,10 @@
-import type { DeepReadonly } from "./shared-types";
 import type {
 	GAControlGenome,
 	LamarckGenome,
 	MarketStep,
 } from "./genome-types";
 import type { BackendFactory } from "./rl-backend";
+import type { DeepReadonly } from "./shared-types";
 
 export interface WindowSet {
 	id: string;

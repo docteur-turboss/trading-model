@@ -3,8 +3,16 @@ import { KeyAlgorithm } from "./generate-key-pair";
 import { getPool } from "./lazy-pool";
 import type { RemoteSigningClient } from "./remote-signing-client";
 import type { SignOptions } from "./sign-certificate";
-import type { KeyPair, KeyPairWithId, SignInput, SignedCertificate } from "./types";
-import type { CertificateValidationInput, ValidationResult } from "./validate-certificate";
+import type {
+	KeyPair,
+	KeyPairWithId,
+	SignedCertificate,
+	SignInput,
+} from "./types";
+import type {
+	CertificateValidationInput,
+	ValidationResult,
+} from "./validate-certificate";
 
 let remoteClient: RemoteSigningClient | null = null;
 
@@ -57,7 +65,7 @@ export async function createCsrAsync(options: CsrOptions): Promise<string> {
 }
 
 export async function validateCertificateAsync(
-	input: CertificateValidationInput,
+	input: CertificateValidationInput
 ): Promise<ValidationResult> {
 	const { certPem, caCertPem } = input;
 	if (remoteClient) {
@@ -80,5 +88,8 @@ export async function signAsync(input: SignInput): Promise<string> {
 	if (remoteClient) {
 		return await remoteClient.sign(input);
 	}
-	return await getPool().execute<string>("sign", input as unknown as Record<string, unknown>);
+	return await getPool().execute<string>(
+		"sign",
+		input as unknown as Record<string, unknown>
+	);
 }

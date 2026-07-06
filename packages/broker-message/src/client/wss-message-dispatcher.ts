@@ -10,7 +10,10 @@ export type WssMessageHandler = (
 
 export class WssMessageDispatcher {
 	private _messageHandler: WssMessageHandler = () => {};
-	private readonly _handlers: Record<string, (msg: Record<string, unknown>) => void>;
+	private readonly _handlers: Record<
+		string,
+		(msg: Record<string, unknown>) => void
+	>;
 
 	constructor() {
 		this._handlers = this._buildHandlers();
@@ -30,7 +33,7 @@ export class WssMessageDispatcher {
 		this._messageHandler(
 			msg.topic as string,
 			message?.payload,
-			message?.metadata as MessageMetadata,
+			message?.metadata as MessageMetadata
 		);
 	}
 
@@ -46,7 +49,10 @@ export class WssMessageDispatcher {
 		logger.warn("WSS server error", { message: msg.message });
 	}
 
-	private _buildHandlers(): Record<string, (msg: Record<string, unknown>) => void> {
+	private _buildHandlers(): Record<
+		string,
+		(msg: Record<string, unknown>) => void
+	> {
 		return {
 			message: (msg) => this._onMessage(msg),
 			connected: (msg) => this._onConnected(msg),

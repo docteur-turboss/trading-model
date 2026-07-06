@@ -1,6 +1,6 @@
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type WebSocket from "ws";
 import { Deque } from "./deque";
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 interface RateLimitEntry {
 	timestamps: Deque<number>;
@@ -41,7 +41,10 @@ export class WssRateLimiter {
 
 	private _pruneOldTimestamps(entry: RateLimitEntry): void {
 		const cutoff = Date.now() - RATE_LIMIT_WINDOW_MS;
-		while (entry.timestamps.length > 0 && entry.timestamps.peekFront()! < cutoff) {
+		while (
+			entry.timestamps.length > 0 &&
+			entry.timestamps.peekFront()! < cutoff
+		) {
 			entry.timestamps.shift();
 		}
 	}
@@ -58,7 +61,10 @@ export class WssRateLimiter {
 		if (this._cleanupTimer.isRunning) {
 			return;
 		}
-		this._cleanupTimer.startInterval(() => this._cleanupWindows(), RATE_LIMIT_CLEANUP_INTERVAL_MS);
+		this._cleanupTimer.startInterval(
+			() => this._cleanupWindows(),
+			RATE_LIMIT_CLEANUP_INTERVAL_MS
+		);
 		this._cleanupTimer.unref();
 	}
 
@@ -75,7 +81,10 @@ export class WssRateLimiter {
 	}
 
 	private _pruneEntryTimestamps(entry: RateLimitEntry, cutoff: number): void {
-		while (entry.timestamps.length > 0 && entry.timestamps.peekFront()! < cutoff) {
+		while (
+			entry.timestamps.length > 0 &&
+			entry.timestamps.peekFront()! < cutoff
+		) {
 			entry.timestamps.shift();
 		}
 	}

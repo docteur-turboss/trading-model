@@ -42,7 +42,10 @@ const HANDLERS: [string, JobHandler<unknown>][] = [
 		"validateCertificate",
 		(job: { payload: { certPem: string; caCertPem?: string } }) =>
 			Promise.resolve(
-				validateCertificate({ certPem: job.payload.certPem, caCertPem: job.payload.caCertPem ?? "" })
+				validateCertificate({
+					certPem: job.payload.certPem,
+					caCertPem: job.payload.caCertPem ?? "",
+				})
 			),
 	],
 	[
@@ -50,11 +53,7 @@ const HANDLERS: [string, JobHandler<unknown>][] = [
 		(job: { payload: { privateKey: string } }) =>
 			Promise.resolve(parseKey(job.payload.privateKey)),
 	],
-	[
-		"sign",
-		(job: { payload: SignInput }) =>
-			Promise.resolve(sign(job.payload)),
-	],
+	["sign", (job: { payload: SignInput }) => Promise.resolve(sign(job.payload))],
 ];
 
 export function createCryptoWorker(config: BaseWorkerConfig): BaseWorker {

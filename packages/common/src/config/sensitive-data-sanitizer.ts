@@ -21,7 +21,7 @@ export class SensitiveDataSanitizer {
 
 	static _isSensitiveKey(key: string): boolean {
 		return SensitiveDataSanitizer.SENSITIVE_KEY_PATTERNS.some((pattern) =>
-			pattern.test(key),
+			pattern.test(key)
 		);
 	}
 

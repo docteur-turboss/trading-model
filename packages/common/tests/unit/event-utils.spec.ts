@@ -2,18 +2,17 @@ import { describe, expect, it } from "@jest/globals";
 import {
 	type CandleData,
 	CandleInterval,
+	getAskTotalQty,
+	getAvgAsk,
+	getAvgBid,
+	getBidTotalQty,
 	MarketType,
 	type OrderBookData,
 	type OrderBookLevel,
 	SourceType,
 	type TradeData,
 	TradeSide,
-	getAskTotalQty,
-	getAvgAsk,
-	getAvgBid,
-	getBidTotalQty,
 } from "../../src/config/event.types";
-import { Price, UnixTimestamp, Volume } from "../../src/domain/primitives";
 import {
 	getCandleBodySize,
 	getMidPrice,
@@ -22,11 +21,9 @@ import {
 	isBuyTrade,
 	isSellTrade,
 } from "../../src/config/event-utils";
+import { Price, UnixTimestamp, Volume } from "../../src/domain/primitives";
 
-function makeOb(
-	bids: Array<OrderBookLevel>,
-	asks: Array<OrderBookLevel>
-): OrderBookData {
+function makeOb(bids: OrderBookLevel[], asks: OrderBookLevel[]): OrderBookData {
 	return {
 		bids: new Set(bids),
 		asks: new Set(asks),

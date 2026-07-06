@@ -1,10 +1,13 @@
 import { createHmac, randomBytes } from "node:crypto";
 
-import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type {
+	ServiceEndpoint,
+	ServiceIdentity,
+} from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
-import type { ServiceInstance } from "./types";
-import { TokenService } from "./token-service";
 import { InstanceStore } from "./instance-store";
+import { TokenService } from "./token-service";
+import type { ServiceInstance } from "./types";
 
 export class ServiceRegistry {
 	private readonly _tokenService: TokenService;
@@ -65,11 +68,7 @@ export class ServiceRegistry {
 		return this._tokenService.generateInstanceToken(instanceId);
 	}
 
-	generateInstanceId({
-		serviceName,
-		address,
-		port,
-	}: ServiceEndpoint): string {
+	generateInstanceId({ serviceName, address, port }: ServiceEndpoint): string {
 		return createHmac("sha256", randomBytes(32).toString("hex"))
 			.update(`${serviceName}-${address}:${port}-${Date.now()}`)
 			.digest("base64");

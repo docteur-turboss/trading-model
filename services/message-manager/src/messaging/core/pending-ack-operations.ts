@@ -10,7 +10,7 @@ export class PendingAckOperations {
 
 	async recoverPendingAcks(
 		ownInstanceId: string,
-		maxAgeMs = 120_000,
+		maxAgeMs = 120_000
 	): Promise<number> {
 		return this._pendingAck.recoverStale(ownInstanceId, maxAgeMs);
 	}
@@ -22,20 +22,17 @@ export class PendingAckOperations {
 			topic: string;
 			subscriberUrl: string;
 			message: Message;
-		},
+		}
 	): Promise<void> {
 		await this._pendingAck.add(instanceId, messageId, data);
 	}
 
-	async removePendingAck(
-		instanceId: string,
-		messageId: string,
-	): Promise<void> {
+	async removePendingAck(instanceId: string, messageId: string): Promise<void> {
 		await this._pendingAck.remove(instanceId, messageId);
 	}
 
 	async getPendingAcks(
-		instanceId: string,
+		instanceId: string
 	): Promise<
 		Record<string, { topic: string; subscriberUrl: string; message: Message }>
 	> {

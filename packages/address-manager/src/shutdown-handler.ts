@@ -1,9 +1,12 @@
-import { setupProcessHandlers, removeProcessHandlers } from "@trading-model/common/server/signal-handler";
-import type { IServiceCache } from "./discovery/service-cache.interface";
-import type { CircuitBreaker } from "./discovery/circuit-breaker";
-import type { WebSocketClient } from "./client/websocket-client";
-import type { AddressManagerClient } from "./client/address-manager-client";
+import {
+	removeProcessHandlers,
+	setupProcessHandlers,
+} from "@trading-model/common/server/signal-handler";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { AddressManagerClient } from "./client/address-manager-client";
+import type { WebSocketClient } from "./client/websocket-client";
+import type { CircuitBreaker } from "./discovery/circuit-breaker";
+import type { IServiceCache } from "./discovery/service-cache.interface";
 
 export class ShutdownHandler {
 	private readonly _metricsTimer = new TimerHandle();
@@ -56,7 +59,7 @@ export class ShutdownHandler {
 			},
 			() => {
 				process.exitCode = 1;
-			},
+			}
 		);
 	}
 

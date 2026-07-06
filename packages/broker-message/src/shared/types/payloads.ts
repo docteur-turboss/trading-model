@@ -1,5 +1,5 @@
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { Topic } from "@trading-model/common/domain/primitives";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 
 /** Payload sent when subscribing to a topic. */
 export interface SubscribesTopicsPayload {

@@ -1,17 +1,17 @@
+import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { getSubscriptionClient } from "../../config/redis";
 import {
 	InstanceLifecycleManager,
 	LEASE_HEARTBEAT_FIELD,
 } from "./instance-lifecycle-manager";
-import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 import {
-	SubscriptionEntry,
+	type SubscriptionEntry,
 	SubscriptionRedisStore,
 } from "./subscription-redis-store";
 
-export { LEASE_HEARTBEAT_FIELD };
 export type { SubscriptionEntry };
+export { LEASE_HEARTBEAT_FIELD };
 
 export class SubscriptionStore {
 	private _redisStore: SubscriptionRedisStore;

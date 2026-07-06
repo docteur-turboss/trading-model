@@ -20,7 +20,11 @@ describe("TokenManager", () => {
 			servicePingTimeoutMs: 2000,
 			cacheTtlMs: 60_000,
 			identity: { serviceName: "test-service", instanceId: "instance-1" },
-			tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+			tls: {
+				caPath: "/path/to/ca.pem",
+				certPath: "/path/to/cert.pem",
+				keyPath: "/path/to/key.pem",
+			},
 			discoveryUrls: ["http://localhost:8443"],
 			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;

@@ -1,8 +1,8 @@
 import { logger } from "../config/logger";
+import { TimerHandle } from "../utils/timer-handle";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { IJobRepository } from "./job-repository.interface";
 import type { ReAllocator } from "./re-allocator";
-import { TimerHandle } from "../utils/timer-handle";
 
 export interface OrphanDetectorDeps {
 	workers: WorkerRegistry;
@@ -31,7 +31,7 @@ export class OrphanDetector {
 		}
 		this._intervalHandle.startInterval(
 			() => this._runDetection(),
-			this._intervalMs,
+			this._intervalMs
 		);
 		logger.info("Orphan detector started", {
 			context: { intervalMs: this._intervalMs },

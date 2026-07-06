@@ -1,7 +1,4 @@
-import {
-	ActivationType,
-	ConnectionType,
-} from "../neural-network/type";
+import { ActivationType, ConnectionType } from "../neural-network/type";
 import { SCALAR_DIM } from "./encoding-indices";
 
 export const MAX_DEPTH = 12;

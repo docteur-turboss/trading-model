@@ -79,11 +79,15 @@ describe("Multi-Region Support", () => {
 			lastHeartbeat: Date.now(),
 		});
 
-		registry.updateHeartbeat({ serviceName: "financial-scraper-service", instanceId: "node-us" });
+		registry.updateHeartbeat({
+			serviceName: "financial-scraper-service",
+			instanceId: "node-us",
+		});
 
-const instance = registry.getInstance(
-			{ serviceName: "financial-scraper-service", instanceId: "node-us" }
-		);
+		const instance = registry.getInstance({
+			serviceName: "financial-scraper-service",
+			instanceId: "node-us",
+		});
 		expect(instance?.region).toBe("us-east-1");
 	});
 
@@ -114,10 +118,10 @@ const instance = registry.getInstance(
 			lastHeartbeat: Date.now(),
 		});
 
-const instance = registry.getInstance(
-			{ serviceName: "financial-scraper-service", instanceId: "node-1" }
-		);
+		const instance = registry.getInstance({
+			serviceName: "financial-scraper-service",
+			instanceId: "node-1",
+		});
 		expect(instance?.region).toBe("eu-west-1");
 	});
 });
-

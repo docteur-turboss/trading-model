@@ -58,9 +58,11 @@ export class SubscriptionCleanupHandler {
 		}
 	}
 
-	private _isZeroScard(
-		result: [Error | null, unknown]
-	): boolean {
-		return result[0] === null && typeof result[1] === "number" && (result[1] as number) === 0;
+	private _isZeroScard(result: [Error | null, unknown]): boolean {
+		return (
+			result[0] === null &&
+			typeof result[1] === "number" &&
+			(result[1] as number) === 0
+		);
 	}
 }

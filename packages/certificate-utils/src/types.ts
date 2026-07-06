@@ -1,4 +1,8 @@
-import type { Fingerprint, SerialNumber, ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	Fingerprint,
+	SerialNumber,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 
 export interface CertificateRequest {
 	serviceId: ServiceId;

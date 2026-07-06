@@ -1,11 +1,13 @@
 import { EventEmitter } from "node:events";
 
-export class TypedEventEmitter<Events extends { [K in keyof Events]: unknown[] }> {
+export class TypedEventEmitter<
+	Events extends { [K in keyof Events]: unknown[] },
+> {
 	readonly raw = new EventEmitter();
 
 	on<Event extends keyof Events>(
 		event: Event,
-		listener: (...args: Events[Event]) => void,
+		listener: (...args: Events[Event]) => void
 	): this {
 		this.raw.on(event as string, listener as (...args: unknown[]) => void);
 		return this;
@@ -13,7 +15,7 @@ export class TypedEventEmitter<Events extends { [K in keyof Events]: unknown[] }
 
 	off<Event extends keyof Events>(
 		event: Event,
-		listener: (...args: Events[Event]) => void,
+		listener: (...args: Events[Event]) => void
 	): this {
 		this.raw.off(event as string, listener as (...args: unknown[]) => void);
 		return this;

@@ -1,26 +1,35 @@
-import { Cash, Percentage, Price, Volume } from "@trading-model/common/domain/primitives";
+import type {
+	Cash,
+	Percentage,
+	Price,
+	Volume,
+} from "@trading-model/common/domain/primitives";
 import type { WalletConfigParams } from "./wallet-config";
 
 function _validateInitialCash(initialCash: Cash): void {
-	if (!Number.isFinite(+initialCash) || +initialCash < 0) {
+	if (!Number.isFinite(Number(initialCash)) || Number(initialCash) < 0) {
 		throw new Error(`Invalid initialCash: ${initialCash}`);
 	}
 }
 
 function _validateInitialPrice(initialPrice: Price): void {
-	if (!Number.isFinite(+initialPrice) || +initialPrice <= 0) {
+	if (!Number.isFinite(Number(initialPrice)) || Number(initialPrice) <= 0) {
 		throw new Error(`Invalid initialPrice: ${initialPrice}`);
 	}
 }
 
 function _validateFeeRate(feeRate: Percentage): void {
-	if (!Number.isFinite(+feeRate) || +feeRate < 0 || +feeRate >= 1) {
+	if (
+		!Number.isFinite(Number(feeRate)) ||
+		Number(feeRate) < 0 ||
+		Number(feeRate) >= 1
+	) {
 		throw new Error(`Invalid feeRate: ${feeRate}. Must be in [0, 1[`);
 	}
 }
 
 function _validateMaxPosition(maxPosition: Volume): void {
-	if (+maxPosition <= 0) {
+	if (Number(maxPosition) <= 0) {
 		throw new Error(`Invalid maxPosition: ${maxPosition}`);
 	}
 }

@@ -10,7 +10,7 @@ export class JobStatusManager {
 		private readonly _queue: InternalQueue,
 		private readonly _repository: JobRepository,
 		private readonly _assignmentManager: JobAssignmentManager,
-		private readonly _failureHandler: JobFailureHandler,
+		private readonly _failureHandler: JobFailureHandler
 	) {}
 
 	async ack(jobId: string): Promise<void> {
@@ -54,7 +54,10 @@ export class JobStatusManager {
 			return;
 		}
 
-		if (job.status === JOB_STATUS.RUNNING || job.status === JOB_STATUS.COMPLETED) {
+		if (
+			job.status === JOB_STATUS.RUNNING ||
+			job.status === JOB_STATUS.COMPLETED
+		) {
 			throw new Error("Cannot cancel a running or completed job");
 		}
 

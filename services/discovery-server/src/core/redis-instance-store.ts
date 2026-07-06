@@ -1,11 +1,11 @@
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
-import Redis from "ioredis";
-import { RedisKeyBuilder } from "./redis-key-builder";
-import { TokenService } from "./token-service";
+import type Redis from "ioredis";
+import { InstanceCleanupHandler } from "./instance-cleanup-handler";
+import { InstanceHeartbeatHandler } from "./instance-heartbeat-handler";
 import { InstanceMetadataReader } from "./instance-metadata-reader";
 import { InstanceRegistrar } from "./instance-registrar";
-import { InstanceHeartbeatHandler } from "./instance-heartbeat-handler";
-import { InstanceCleanupHandler } from "./instance-cleanup-handler";
+import type { RedisKeyBuilder } from "./redis-key-builder";
+import type { TokenService } from "./token-service";
 
 export class RedisInstanceStore {
 	private readonly _reader: InstanceMetadataReader;
@@ -14,13 +14,17 @@ export class RedisInstanceStore {
 	private readonly _cleanupHandler: InstanceCleanupHandler;
 
 	constructor(
-		private readonly _redis: Redis,
-		private readonly _keyBuilder: RedisKeyBuilder,
-		private readonly _tokenService: TokenService,
+		readonly _redis: Redis,
+		readonly _keyBuilder: RedisKeyBuilder,
+		readonly _tokenService: TokenService
 	) {
 		this._reader = new InstanceMetadataReader(_redis, _keyBuilder);
 		this._registrar = new InstanceRegistrar(_redis, _keyBuilder, _tokenService);
-		this._heartbeatHandler = new InstanceHeartbeatHandler(_redis, _keyBuilder, this._reader);
+		this._heartbeatHandler = new InstanceHeartbeatHandler(
+			_redis,
+			_keyBuilder,
+			this._reader
+		);
 		this._cleanupHandler = new InstanceCleanupHandler(_redis, _keyBuilder);
 	}
 
@@ -28,7 +32,10 @@ export class RedisInstanceStore {
 		return this._registrar.resolveToken(instanceId);
 	}
 
-	async buildStoredInstance(instance: ServiceInstance, now: number): Promise<ServiceInstance> {
+	async buildStoredInstance(
+		instance: ServiceInstance,
+		now: number
+	): Promise<ServiceInstance> {
 		return this._registrar.buildStoredInstance(instance, now);
 	}
 
@@ -48,12 +55,21 @@ export class RedisInstanceStore {
 		return this._registrar.registerInstance(instance);
 	}
 
-	async updateHeartbeat(serviceName: string, instanceId: string): Promise<number | false> {
+	async updateHeartbeat(
+		serviceName: string,
+		instanceId: string
+	): Promise<number | false> {
 		return this._heartbeatHandler.updateHeartbeat(serviceName, instanceId);
 	}
 
-	async removeInstanceSetAndMetadata(serviceName: string, instanceId: string): Promise<boolean> {
-		return this._cleanupHandler.removeInstanceSetAndMetadata(serviceName, instanceId);
+	async removeInstanceSetAndMetadata(
+		serviceName: string,
+		instanceId: string
+	): Promise<boolean> {
+		return this._cleanupHandler.removeInstanceSetAndMetadata(
+			serviceName,
+			instanceId
+		);
 	}
 
 	async listServiceNames(): Promise<string[]> {

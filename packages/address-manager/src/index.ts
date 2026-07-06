@@ -11,9 +11,9 @@ import { ServiceDiscovery } from "./discovery/service-discovery";
 import { ServiceHealthChecker } from "./discovery/service-health-checker";
 import { MappingServiceLocator } from "./discovery/service-locator";
 import { PING_ROUTES } from "./http/routes/ping.routes";
+import { RegistrationManager } from "./registration-manager";
 import { RefreshJob } from "./scheduler/refresh-job";
 import { Scheduler } from "./scheduler/scheduler";
-import { RegistrationManager } from "./registration-manager";
 
 export default class AddressManager {
 	private readonly _addressManagerClient: AddressManagerClient;
@@ -32,7 +32,7 @@ export default class AddressManager {
 		this._addressManagerClient = new AddressManagerClient(
 			this._httpClient,
 			this._tokenManager,
-			config,
+			config
 		);
 		this._serviceCache = new ServiceCache(config.cacheTtlMs);
 		this._healthChecker = this._createHealthChecker(config);
@@ -41,21 +41,25 @@ export default class AddressManager {
 		this._ttlRefreshIntervalMs = config.ttlRefreshIntervalMs;
 		this._registrationManager = new RegistrationManager(
 			this._addressManagerClient,
-			this._tokenManager,
+			this._tokenManager
 		);
 	}
 
-	private _createHealthChecker(config: AddressManagerConfig): ServiceHealthChecker {
+	private _createHealthChecker(
+		config: AddressManagerConfig
+	): ServiceHealthChecker {
 		return new ServiceHealthChecker(
 			this._httpClient,
 			config.servicePingTimeoutMs,
 			config.dnsNameMap
 				? new MappingServiceLocator(new MapResolver(config.dnsNameMap))
-				: undefined,
+				: undefined
 		);
 	}
 
-	private _createServiceDiscovery(config: AddressManagerConfig): ServiceDiscovery {
+	private _createServiceDiscovery(
+		config: AddressManagerConfig
+	): ServiceDiscovery {
 		return new ServiceDiscovery({
 			httpClient: this._httpClient,
 			serviceCache: this._serviceCache,

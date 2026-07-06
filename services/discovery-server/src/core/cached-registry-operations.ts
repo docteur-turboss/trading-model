@@ -3,9 +3,12 @@ import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
-import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	ServiceEndpoint,
+	ServiceIdentity,
+} from "@trading-model/common/domain/service-identity";
+import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { CachedRegistryBackendProxy } from "./cached-registry-backend-proxy";
 import { CachedRegistryCore } from "./cached-registry-core";
 import { CachedRegistryLifecycle } from "./cached-registry-lifecycle";
@@ -32,7 +35,7 @@ export class CachedRegistryOperations implements RegistryBackend {
 			this._core.pingManager,
 			this._core.pubSub,
 			this._core.cache,
-			options.backend,
+			options.backend
 		);
 	}
 
@@ -44,7 +47,10 @@ export class CachedRegistryOperations implements RegistryBackend {
 		return this._core.updateHeartbeat(id);
 	}
 
-	async getInstances(serviceName: string, pagination?: PaginationQuery): Promise<ServiceInstance[]> {
+	async getInstances(
+		serviceName: string,
+		pagination?: PaginationQuery
+	): Promise<ServiceInstance[]> {
 		return this._core.getInstances(serviceName, pagination);
 	}
 

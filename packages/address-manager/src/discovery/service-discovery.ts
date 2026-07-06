@@ -2,9 +2,9 @@
 import type { ServiceInstance } from "../client/type";
 import type { AddressManagerConfig } from "../config/address-manager-config";
 import type { IServiceCache } from "./service-cache.interface";
+import { ServiceFinder } from "./service-finder";
 import type { ServiceHealthChecker } from "./service-health-checker";
 import { ServiceResolver } from "./service-resolver";
-import { ServiceFinder } from "./service-finder";
 
 export interface ServiceDiscoveryDeps {
 	httpClient: HttpClient;
@@ -29,13 +29,13 @@ export class ServiceDiscovery {
 			deps.config,
 			deps.serviceCache,
 			deps.healthChecker,
-			deps.config.discoveryTimeoutMs,
+			deps.config.discoveryTimeoutMs
 		);
 		this._finder = new ServiceFinder(
 			this._serviceCache,
 			this._healthChecker,
 			this._resolver,
-			this._config,
+			this._config
 		);
 	}
 
@@ -50,11 +50,9 @@ export class ServiceDiscovery {
 		return this._finder.findServiceInRegion(serviceName, region);
 	}
 
-	acquireConnection(_instanceId: string): void {
-	}
+	acquireConnection(_instanceId: string): void {}
 
-	releaseConnection(_instanceId: string): void {
-	}
+	releaseConnection(_instanceId: string): void {}
 
 	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {
 		return this._finder.findAllServices(serviceName);

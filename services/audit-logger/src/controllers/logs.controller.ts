@@ -1,5 +1,5 @@
-import { toServiceId } from "@trading-model/common/domain/primitives";
 import { DateRange } from "@trading-model/common/domain/date-range";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 
@@ -16,7 +16,7 @@ function _buildLogQueryParams(
 		correlationId: req.query.correlationId as string | undefined,
 		dateRange: DateRange.fromQueryParams(
 			req.query.startDate as string | undefined,
-			req.query.endDate as string | undefined,
+			req.query.endDate as string | undefined
 		),
 		search: req.query.search as string | undefined,
 		page: req.query.page

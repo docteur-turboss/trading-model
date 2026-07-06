@@ -1,21 +1,20 @@
 import { randomUUID } from "node:crypto";
-
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { findAService } from "../config/address-manager";
 import { notifyAudit } from "../config/audit";
 import { env } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
-import { dlqClaimManager } from "./claim-manager";
 import { dlqRedisQueue } from "../config/redis-queue";
-import { doReplayBatch } from "./replay-pipeline";
-import { dlqRepository } from "./repository";
-import { dlqRetryManager } from "./retry-manager";
-import { isShuttingDown } from "./shared/index";
+import { dlqClaimManager } from "./claim-manager";
 import {
 	startRedisWorkerLoop,
 	stopRedisWorkerTimer,
 } from "./redis-queue-processor";
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { doReplayBatch } from "./replay-pipeline";
+import { dlqRepository } from "./repository";
+import { dlqRetryManager } from "./retry-manager";
+import { isShuttingDown } from "./shared/index";
 
 const autoRetryTimer = new TimerHandle();
 const autoRetryStartTimer = new TimerHandle();
@@ -223,4 +222,7 @@ export function stopAutoRetry(): void {
 	stopRedisWorkerTimer();
 }
 
-export { processRedisQueue, startRedisWorkerLoop } from "./redis-queue-processor";
+export {
+	processRedisQueue,
+	startRedisWorkerLoop,
+} from "./redis-queue-processor";

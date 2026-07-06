@@ -2,7 +2,7 @@ import { createPool, type Pool } from "mysql2";
 import { MySqlConnection } from "ts-sql-query/connections/MySqlConnection";
 import { MySql2PoolQueryRunner } from "ts-sql-query/queryRunners/MySql2PoolQueryRunner";
 
-import { env, dbConfig } from "./env";
+import { dbConfig } from "./env";
 
 // Centralises MySQL connection parameters from validated environment variables.
 const POOL: Pool = createPool({

@@ -1,5 +1,5 @@
-import { DateRange } from "@trading-model/common/domain/date-range";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { DateRange } from "@trading-model/common/domain/date-range";
 
 const mockInsertOne = jest.fn<any>();
 const mockInsertMany = jest.fn<any>();

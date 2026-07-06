@@ -23,7 +23,10 @@ export const BINARY_CROSS_ENTROPY = new BinaryCrossEntropyLoss();
 export const HINGE_LOSS = new HingeLoss();
 export const KL_DIVERGENCE = new KLDivergenceLoss();
 
-export const LOSSES: Record<LossFunctionType, import("./loss-definition").LossDefinition> = {
+export const LOSSES: Record<
+	LossFunctionType,
+	import("./loss-definition").LossDefinition
+> = {
 	[LossFunctionType.MeanSquaredError]: MEAN_SQUARED_ERROR,
 	[LossFunctionType.MeanAbsoluteError]: MEAN_ABSOLUTE_ERROR,
 	[LossFunctionType.RootMeanSquaredError]: ROOT_MEAN_SQUARED_ERROR,

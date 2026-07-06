@@ -19,9 +19,9 @@ const TRAINER_ENV_SHAPE = {
 		.default(3),
 } satisfies Record<string, z.ZodTypeAny>;
 
-const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(AddressManagerEnvSchema).extend(
-	TRAINER_ENV_SHAPE
-);
+const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
+	AddressManagerEnvSchema
+).extend(TRAINER_ENV_SHAPE);
 
 export type Env = z.infer<typeof TRADER_TRAINER_ENV_SCHEMA>;
 

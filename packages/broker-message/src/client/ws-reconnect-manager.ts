@@ -1,8 +1,8 @@
+import { logger } from "@trading-model/common/config/logger";
 import {
 	scheduleWsReconnect,
 	type WsReconnectState,
 } from "@trading-model/common/utils/ws-reconnect";
-import { logger } from "@trading-model/common/config/logger";
 import { ReconnectFallbackHandler } from "./reconnect-fallback-handler";
 
 const WSS_RECONNECT_BASE_MS = 1000;
@@ -40,12 +40,18 @@ export class WsReconnectManager {
 		return this._wsReconnectState;
 	}
 
-	scheduleReconnect(connectFn: ConnectFn, onPermanentFallback?: () => void): void {
+	scheduleReconnect(
+		connectFn: ConnectFn,
+		onPermanentFallback?: () => void
+	): void {
 		if (!this._shouldReconnect) {
 			return;
 		}
 		if (this._wsReconnectState.attempt >= WSS_MAX_RECONNECT_ATTEMPTS) {
-			this._fallbackHandler.handleMaxAttemptsReached(connectFn, onPermanentFallback);
+			this._fallbackHandler.handleMaxAttemptsReached(
+				connectFn,
+				onPermanentFallback
+			);
 			return;
 		}
 		scheduleWsReconnect({

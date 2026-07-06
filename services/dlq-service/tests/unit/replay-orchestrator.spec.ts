@@ -1,8 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import {
-	ReplayOrchestrator,
-	type ReplayOrchestratorConfig,
-} from "../../src/domain/replay-orchestrator";
+import { ReplayOrchestrator } from "../../src/domain/replay-orchestrator";
 
 describe("ReplayOrchestrator", () => {
 	describe("canProceed", () => {

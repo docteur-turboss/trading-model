@@ -5,12 +5,12 @@ export interface WorkerEntry {
 	busy: boolean;
 }
 
-type WorkerMessage = {
+interface WorkerMessage {
 	id: string;
 	success: boolean;
 	data?: unknown;
 	error?: string;
-};
+}
 
 export class WorkerLifecycle {
 	private readonly _workers: WorkerEntry[] = [];

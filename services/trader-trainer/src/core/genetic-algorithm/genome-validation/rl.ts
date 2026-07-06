@@ -1,7 +1,3 @@
-import {
-	ContinuousPolicyType,
-	DiscretePolicyType,
-} from "../genome";
 import type {
 	ContinuousPolicyGenome,
 	DiscretePolicyGenome,
@@ -11,6 +7,7 @@ import type {
 	RLGenome,
 	ValidationContext,
 } from "../genome";
+import { ContinuousPolicyType, DiscretePolicyType } from "../genome";
 import { clamp } from "../utils";
 import { checkPositiveInt, checkRange, err } from "./utils";
 
@@ -24,40 +21,108 @@ export function validateRL(ctx: ValidationContext, rl: RLGenome): void {
 	validateReplayBuffer(ctx, rl.replayBuffer);
 }
 
-function validateRewardShaping(ctx: ValidationContext, rs: RewardShapingGenome): void {
+function validateRewardShaping(
+	ctx: ValidationContext,
+	rs: RewardShapingGenome
+): void {
 	if (rs.clipMin >= rs.clipMax) {
-		err({ ...ctx, path: "rl.rewardShapingenome.clip" }, "clipMin must be < clipMax", {
-			clipMin: rs.clipMin, clipMax: rs.clipMax,
-		});
+		err(
+			{ ...ctx, path: "rl.rewardShapingenome.clip" },
+			"clipMin must be < clipMax",
+			{
+				clipMin: rs.clipMin,
+				clipMax: rs.clipMax,
+			}
+		);
 	}
-	checkRange({ ...ctx, path: "rl.rewardShapingenome.scaleFactor" }, rs.scaleFactor, 0.001, 1000);
+	checkRange(
+		{ ...ctx, path: "rl.rewardShapingenome.scaleFactor" },
+		rs.scaleFactor,
+		0.001,
+		1000
+	);
 }
 
 function validateHorizon(ctx: ValidationContext, horizon: HorizonGenome): void {
-	checkPositiveInt({ ...ctx, path: "rl.horizon.maxEpisodeLength" }, horizon.maxEpisodeLength, 10);
-	checkPositiveInt({ ...ctx, path: "rl.horizon.nStepReturn" }, horizon.nStepReturn);
+	checkPositiveInt(
+		{ ...ctx, path: "rl.horizon.maxEpisodeLength" },
+		horizon.maxEpisodeLength,
+		10
+	);
+	checkPositiveInt(
+		{ ...ctx, path: "rl.horizon.nStepReturn" },
+		horizon.nStepReturn
+	);
 	checkPositiveInt({ ...ctx, path: "rl.horizon.frameSkip" }, horizon.frameSkip);
 }
 
-function validateDiscretePolicy(ctx: ValidationContext, dp: DiscretePolicyGenome): void {
-	checkRange({ ...ctx, path: "rl.discretePolicy.epsilonStart" }, dp.epsilonStart, 0.1, 1.0);
-	checkRange({ ...ctx, path: "rl.discretePolicy.epsilonMin" }, dp.epsilonMin, 0.001, 0.2);
-	checkRange({ ...ctx, path: "rl.discretePolicy.epsilonDecay" }, dp.epsilonDecay, 0.9, 0.9999);
-	checkRange({ ...ctx, path: "rl.discretePolicy.temperature" }, dp.temperature, 0.01, 100);
+function validateDiscretePolicy(
+	ctx: ValidationContext,
+	dp: DiscretePolicyGenome
+): void {
+	checkRange(
+		{ ...ctx, path: "rl.discretePolicy.epsilonStart" },
+		dp.epsilonStart,
+		0.1,
+		1.0
+	);
+	checkRange(
+		{ ...ctx, path: "rl.discretePolicy.epsilonMin" },
+		dp.epsilonMin,
+		0.001,
+		0.2
+	);
+	checkRange(
+		{ ...ctx, path: "rl.discretePolicy.epsilonDecay" },
+		dp.epsilonDecay,
+		0.9,
+		0.9999
+	);
+	checkRange(
+		{ ...ctx, path: "rl.discretePolicy.temperature" },
+		dp.temperature,
+		0.01,
+		100
+	);
 }
 
-function validateContinuousPolicy(ctx: ValidationContext, cp: ContinuousPolicyGenome): void {
+function validateContinuousPolicy(
+	ctx: ValidationContext,
+	cp: ContinuousPolicyGenome
+): void {
 	if (cp.clipMin >= cp.clipMax) {
-		err({ ...ctx, path: "rl.continuousPolicy.clip" }, "clipMin must be < clipMax", {
-			clipMin: cp.clipMin, clipMax: cp.clipMax,
-		});
+		err(
+			{ ...ctx, path: "rl.continuousPolicy.clip" },
+			"clipMin must be < clipMax",
+			{
+				clipMin: cp.clipMin,
+				clipMax: cp.clipMax,
+			}
+		);
 	}
-	checkRange({ ...ctx, path: "rl.continuousPolicy.noiseStd" }, cp.noiseStd, 0.001, 5);
-	checkRange({ ...ctx, path: "rl.continuousPolicy.noiseDecay" }, cp.noiseDecay, 0.9, 0.9999);
+	checkRange(
+		{ ...ctx, path: "rl.continuousPolicy.noiseStd" },
+		cp.noiseStd,
+		0.001,
+		5
+	);
+	checkRange(
+		{ ...ctx, path: "rl.continuousPolicy.noiseDecay" },
+		cp.noiseDecay,
+		0.9,
+		0.9999
+	);
 }
 
-function validateReplayBuffer(ctx: ValidationContext, rb: ReplayBufferGenome): void {
-	checkPositiveInt({ ...ctx, path: "rl.replayBuffer.bufferSize" }, rb.bufferSize, 100);
+function validateReplayBuffer(
+	ctx: ValidationContext,
+	rb: ReplayBufferGenome
+): void {
+	checkPositiveInt(
+		{ ...ctx, path: "rl.replayBuffer.bufferSize" },
+		rb.bufferSize,
+		100
+	);
 	checkRange({ ...ctx, path: "rl.replayBuffer.alphaPER" }, rb.alphaPER, 0, 1);
 	checkRange({ ...ctx, path: "rl.replayBuffer.betaPER" }, rb.betaPER, 0, 1);
 }
@@ -94,7 +159,9 @@ function repairDiscretePolicy(dp: DiscretePolicyGenome): DiscretePolicyGenome {
 	};
 }
 
-function repairContinuousPolicy(cp: ContinuousPolicyGenome): ContinuousPolicyGenome {
+function repairContinuousPolicy(
+	cp: ContinuousPolicyGenome
+): ContinuousPolicyGenome {
 	const cpClipMin = Math.min(cp.clipMin ?? -1, (cp.clipMax ?? 1) - 1e-6);
 	const cpClipMax = Math.max(cp.clipMax ?? 1, (cp.clipMin ?? -1) + 1e-6);
 	return {

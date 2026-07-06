@@ -1,14 +1,14 @@
 import type addressManagerClient from "@trading-model/address-manager";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import type { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import {
-	serviceUnreachableError,
 	isServiceUnreachableError,
 	messageManagerError,
 	normalizeError,
+	serviceUnreachableError,
 } from "@trading-model/common/utils/errors";
-import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { MessageManagerConfig } from "../shared/types/config";
 import { TopicSubscriptionService } from "./topic-subscription-service";
 
@@ -18,13 +18,13 @@ export class MessageManagerClient {
 
 	constructor(
 		private readonly _httpClient: HttpClient,
-		private readonly _config: MessageManagerConfig,
-		private readonly _addressManagerClient: addressManagerClient,
+		readonly _config: MessageManagerConfig,
+		private readonly _addressManagerClient: addressManagerClient
 	) {
 		this._subscriptionService = new TopicSubscriptionService(
 			_httpClient,
 			_config,
-			_addressManagerClient,
+			_addressManagerClient
 		);
 	}
 
@@ -45,9 +45,7 @@ export class MessageManagerClient {
 				ServiceInstanceName.MessageDeliveryService
 			);
 			if (!target) {
-				throw serviceUnreachableError(
-					"Unable to contact the message manager"
-				);
+				throw serviceUnreachableError("Unable to contact the message manager");
 			}
 
 			const Messagepayload = {
@@ -98,10 +96,9 @@ export class MessageManagerClient {
 				throw error;
 			}
 
-			throw messageManagerError(
-				`Failed to publish message to ${service}`,
-				{ cause: normalizeError(error) }
-			);
+			throw messageManagerError(`Failed to publish message to ${service}`, {
+				cause: normalizeError(error),
+			});
 		}
 	}
 }

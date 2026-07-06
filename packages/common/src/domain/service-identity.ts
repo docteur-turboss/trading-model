@@ -1,4 +1,10 @@
-import type { IPAddress, InstanceId, Port, Region, ServiceId } from "./primitives";
+import type {
+	InstanceId,
+	IPAddress,
+	Port,
+	Region,
+	ServiceId,
+} from "./primitives";
 
 /** Uniquely identifies a service instance in the distributed system. */
 export interface ServiceIdentity {

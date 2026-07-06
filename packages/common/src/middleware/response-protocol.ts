@@ -1,7 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../config/logger";
 import {
-	AppError,
 	isAddressManagerError,
 	isAgentError,
 	isAuthenticationError,
@@ -28,14 +27,26 @@ function _isServiceError(err: Error): boolean {
 
 function mapErrorToResponse(err: Error): ResponseObject {
 	const response = new ClassResponseExceptions(err.message);
-	if (isServiceNotFoundError(err)) return response.notFound();
-	if (isServiceUnreachableError(err)) return response.gone();
-	if (isAuthenticationError(err)) return response.invalidToken();
-	if (_isServiceError(err)) return response.serviceUnavailable();
+	if (isServiceNotFoundError(err)) {
+		return response.notFound();
+	}
+	if (isServiceUnreachableError(err)) {
+		return response.gone();
+	}
+	if (isAuthenticationError(err)) {
+		return response.invalidToken();
+	}
+	if (_isServiceError(err)) {
+		return response.serviceUnavailable();
+	}
 	return response.unknownError();
 }
 
-function logServerError(err: ErrorInput, req: Request, response: ResponseObject): void {
+function logServerError(
+	err: ErrorInput,
+	req: Request,
+	response: ResponseObject
+): void {
 	if (response.status < 500) {
 		return;
 	}

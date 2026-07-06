@@ -1,6 +1,10 @@
-import { toServiceId, toInstanceId, toRegion } from "@trading-model/common/domain/primitives";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/common/config/logger";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
+import {
+	toInstanceId,
+	toRegion,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import AddressManager from "./index";
@@ -68,18 +72,20 @@ export interface AddressManagerEnv {
 export function createAddressManager(env: AddressManagerEnv) {
 	const discoveryUrls = resolveDiscoveryUrls(
 		env.ADDRESS_MANAGER_URL,
-		env.ADDRESS_MANAGER_URLS,
+		env.ADDRESS_MANAGER_URLS
 	);
 	const wsSubscribedServices = resolveWsSubscribedServices(
-		env.WS_SUBSCRIBED_SERVICES,
+		env.WS_SUBSCRIBED_SERVICES
 	);
-	return new AddressManager(_buildAddressManagerConfig(env, discoveryUrls, wsSubscribedServices));
+	return new AddressManager(
+		_buildAddressManagerConfig(env, discoveryUrls, wsSubscribedServices)
+	);
 }
 
 function _buildAddressManagerConfig(
 	env: AddressManagerEnv,
 	discoveryUrls: string[],
-	wsSubscribedServices: string[] | undefined,
+	wsSubscribedServices: string[] | undefined
 ): ConstructorParameters<typeof AddressManager>[0] {
 	return {
 		addressManagerUrl: env.ADDRESS_MANAGER_URL,

@@ -7,12 +7,15 @@ import {
 	encodePopulation,
 } from "../../../src/core/genetic-algorithm/encoding";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
+import type {
+	Genome,
+	LayerGenome,
+} from "../../../src/core/genetic-algorithm/genome";
 import {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 } from "../../../src/core/genetic-algorithm/genome";
-import type { Genome, LayerGenome } from "../../../src/core/genetic-algorithm/genome";
 
 describe("encoding", () => {
 	describe("encodeGenome", () => {
@@ -201,7 +204,9 @@ describe("encoding", () => {
 			vec.data[23 + 1 + 7] = 1;
 			vec.data[23 + 1 + 0] = 0.5; // ReLu gets 0.5 but softmax gets 1 — argmax wins
 			const decoded = decodeGenome(vec.data, original);
-			expect(decoded.network.hiddenLayers[0].activation).toBe(ActivationType.Softmax);
+			expect(decoded.network.hiddenLayers[0].activation).toBe(
+				ActivationType.Softmax
+			);
 		});
 
 		test("should decode argmax for one-hot connection types", () => {

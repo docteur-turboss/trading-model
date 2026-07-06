@@ -28,7 +28,9 @@ export class IdentityResolver implements DnsResolver {
  * The map is typically loaded from environment configuration at startup.
  */
 export class MapResolver implements DnsResolver {
-	constructor(private readonly _dnsNameMap: Partial<Record<ServiceId, string>>) {}
+	constructor(
+		private readonly _dnsNameMap: Partial<Record<ServiceId, string>>
+	) {}
 
 	resolve(serviceName: ServiceId): string {
 		return this._dnsNameMap[serviceName] ?? serviceName;

@@ -26,9 +26,7 @@ class DisabledExperiencePool implements IExperiencePool {
 	}
 
 	samplePool(batchSize: number): Experience[] {
-		throw agentError(
-			`Requested batch size ${batchSize} exceeds pool size 0.`
-		);
+		throw agentError(`Requested batch size ${batchSize} exceeds pool size 0.`);
 	}
 
 	clearPool(): void {
@@ -107,7 +105,10 @@ export class ExperiencePool implements IExperiencePool {
 	}
 }
 
-export function createExperiencePool(enablePool: boolean, poolMaxSize: number): IExperiencePool {
+export function createExperiencePool(
+	enablePool: boolean,
+	poolMaxSize: number
+): IExperiencePool {
 	if (!enablePool) {
 		return new DisabledExperiencePool();
 	}

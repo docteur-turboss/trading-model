@@ -165,11 +165,15 @@ describe("WssTransport", () => {
 	});
 
 	it("should return undefined for unknown subscriber", () => {
-		expect(transport.getSubscriber({ serviceName: "unknown", instanceId: "none" })).toBeUndefined();
+		expect(
+			transport.getSubscriber({ serviceName: "unknown", instanceId: "none" })
+		).toBeUndefined();
 	});
 
 	it("should return false for unknown subscriber", () => {
-		expect(transport.hasSubscriber({ serviceName: "unknown", instanceId: "none" })).toBe(false);
+		expect(
+			transport.hasSubscriber({ serviceName: "unknown", instanceId: "none" })
+		).toBe(false);
 	});
 
 	it("should broadcast to no one when no connections", () => {

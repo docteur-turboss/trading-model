@@ -1,5 +1,8 @@
 import type { SourceType } from "@trading-model/common/config/event.types";
-import { toSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
+import {
+	toSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import zod from "zod";
@@ -61,7 +64,8 @@ export const GET_TRADE_BY_SYMBOL_CONTROLLER = createController(
 /** Controller that returns trades at the given timestamp. */
 export const GET_TRADE_BY_TIMESTAMP_CONTROLLER = createController(
 	TIMESTAMP_SCHEMA,
-	(params) => selectTradesBy.timestamp(UnixTimestamp.of(params.timestamp.getTime()))
+	(params) =>
+		selectTradesBy.timestamp(UnixTimestamp.of(params.timestamp.getTime()))
 );
 
 /** Controller that returns trades from the given source. */
@@ -83,7 +87,8 @@ export const GET_TICKER_BY_SYMBOL_CONTROLLER = createController(
 /** Controller that returns tickers at the given timestamp. */
 export const GET_TICKER_BY_TIMESTAMP_CONTROLLER = createController(
 	TIMESTAMP_SCHEMA,
-	(params) => selectTickerBy.timestamp(UnixTimestamp.of(params.timestamp.getTime()))
+	(params) =>
+		selectTickerBy.timestamp(UnixTimestamp.of(params.timestamp.getTime()))
 );
 
 /** Controller that returns tickers from the given source. */
@@ -105,13 +110,15 @@ export const GET_ORDER_BOOK_BY_SYMBOL_CONTROLLER = createController(
 /** Controller that returns order-book snapshots after the given timestamp. */
 export const GET_ORDER_BOOK_BY_TIMESTAMP_AFTER_CONTROLLER = createController(
 	ORDER_BOOK_TIMESTAMP_SCHEMA,
-	(params) => selectOrderBookBy.timestamp.after(UnixTimestamp.of(params.timestamp))
+	(params) =>
+		selectOrderBookBy.timestamp.after(UnixTimestamp.of(params.timestamp))
 );
 
 /** Controller that returns order-book snapshots before the given timestamp. */
 export const GET_ORDER_BOOK_BY_TIMESTAMP_BEFORE_CONTROLLER = createController(
 	ORDER_BOOK_TIMESTAMP_SCHEMA,
-	(params) => selectOrderBookBy.timestamp.before(UnixTimestamp.of(params.timestamp))
+	(params) =>
+		selectOrderBookBy.timestamp.before(UnixTimestamp.of(params.timestamp))
 );
 
 /** Controller that returns order-book snapshots from the given source. */
@@ -133,7 +140,10 @@ export const GET_CANDLES_BY_SYMBOL_CONTROLLER = createController(
 /** Controller that returns candles after the given timestamp. */
 export const GET_CANDLES_BY_TIMESTAMP_CONTROLLER = createController(
 	TIMESTAMP_SCHEMA,
-	(params) => selectCandlesBy.timestamp.after(UnixTimestamp.of(params.timestamp.getTime()))
+	(params) =>
+		selectCandlesBy.timestamp.after(
+			UnixTimestamp.of(params.timestamp.getTime())
+		)
 );
 
 /** Controller that returns candles from the given source. */

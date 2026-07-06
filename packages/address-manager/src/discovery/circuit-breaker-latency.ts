@@ -14,13 +14,13 @@ export class CircuitBreakerLatency {
 
 	constructor(
 		private readonly _latencyWindowSize: number = DEFAULT_LATENCY_WINDOW_SIZE,
-		private readonly _latencyP99ThresholdMs: number = DEFAULT_LATENCY_P99_THRESHOLD_MS,
+		private readonly _latencyP99ThresholdMs: number = DEFAULT_LATENCY_P99_THRESHOLD_MS
 	) {}
 
 	recordLatency(
 		instanceId: string,
 		durationMs: number,
-		onThresholdExceeded: (instanceId: string) => void,
+		onThresholdExceeded: (instanceId: string) => void
 	): void {
 		const window = this._getOrCreateLatencyWindow(instanceId);
 		this._recordSample(window, durationMs);
@@ -53,14 +53,14 @@ export class CircuitBreakerLatency {
 	private _checkLatencyThreshold(
 		instanceId: string,
 		window: LatencyWindow,
-		onThresholdExceeded: (instanceId: string) => void,
+		onThresholdExceeded: (instanceId: string) => void
 	): void {
 		const p99 = this._computeP99(window);
 		if (p99 > this._latencyP99ThresholdMs) {
 			onThresholdExceeded(instanceId);
 			logger.warn(
 				"Circuit breaker: latency threshold exceeded, treating as failure",
-				{ instanceId, p99, threshold: this._latencyP99ThresholdMs },
+				{ instanceId, p99, threshold: this._latencyP99ThresholdMs }
 			);
 		}
 	}

@@ -108,8 +108,7 @@ class SharedHttpClientManager {
 		}
 	}
 
-	close(): void {
-	}
+	close(): void {}
 }
 
 const sharedHttpClient = new SharedHttpClientManager();

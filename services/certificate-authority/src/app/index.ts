@@ -33,7 +33,13 @@ createBootstrap({
 			crlStore,
 		});
 
-		CONTAINER = new Container(ca, certificateStore, crlStore, caStore, distributor);
+		CONTAINER = new Container(
+			ca,
+			certificateStore,
+			crlStore,
+			caStore,
+			distributor
+		);
 
 		const rotator = new Rotator({
 			ca,

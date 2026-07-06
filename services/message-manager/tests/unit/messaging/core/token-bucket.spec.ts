@@ -65,7 +65,7 @@ describe("TokenBucket", () => {
 		const cb = jest.fn();
 		const bucket = new TokenBucket(
 			{ capacity: 100, refillRate: 10, refillIntervalMs: 1000 },
-			cb,
+			cb
 		);
 
 		bucket.tryConsume(50);

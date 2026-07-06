@@ -21,9 +21,11 @@ export function initializeTelemetry(): void {
 
 	sdk = new NodeSDK(buildSdkOptions());
 	sdk.start();
-	logger.info("OpenTelemetry initialized", { context: {
-		endpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
-	} });
+	logger.info("OpenTelemetry initialized", {
+		context: {
+			endpoint: ENV.OTEL_EXPORTER_OTLP_ENDPOINT,
+		},
+	});
 }
 
 function buildSdkOptions(): ConstructorParameters<typeof NodeSDK>[0] {
@@ -50,9 +52,11 @@ export async function shutdownTelemetry(): Promise<void> {
 			await sdk.shutdown();
 			logger.info("OpenTelemetry shut down");
 		} catch (err) {
-			logger.warn("OpenTelemetry shutdown error", { context: {
-			error: (err as Error).message,
-		} });
+			logger.warn("OpenTelemetry shutdown error", {
+				context: {
+					error: (err as Error).message,
+				},
+			});
 		}
 		sdk = null;
 	}

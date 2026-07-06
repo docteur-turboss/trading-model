@@ -116,14 +116,23 @@ describe("Agent", () => {
 
 		it("should push experience into the pool when pool is enabled", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			agent.fastForward({ input, reward: 1, nextState: new Float32Array([0.1, 0.2, 0.3]) });
+			agent.fastForward({
+				input,
+				reward: 1,
+				nextState: new Float32Array([0.1, 0.2, 0.3]),
+			});
 
 			expect(agent.getPoolSize()).toBe(1);
 		});
 
 		it("should accept reward, nextState, and done parameters", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			agent.fastForward({ input, reward: 1.5, nextState: new Float32Array([0.1, 0.2, 0.3]), done: false });
+			agent.fastForward({
+				input,
+				reward: 1.5,
+				nextState: new Float32Array([0.1, 0.2, 0.3]),
+				done: false,
+			});
 
 			const pool = agent.getPool();
 			const exp = pool[0];
@@ -140,7 +149,11 @@ describe("Agent", () => {
 			const noPool = new Agent(makeConfig({ enablePool: false }));
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 
-			noPool.fastForward({ input, reward: 1, nextState: new Float32Array([0.1, 0.2, 0.3]) });
+			noPool.fastForward({
+				input,
+				reward: 1,
+				nextState: new Float32Array([0.1, 0.2, 0.3]),
+			});
 
 			expect(noPool.getPoolSize()).toBe(0);
 		});
@@ -151,7 +164,11 @@ describe("Agent", () => {
 			const agent = new Agent(cfg);
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 
-			agent.fastForward({ input, reward: 1, nextState: new Float32Array([0.1, 0.2, 0.3]) });
+			agent.fastForward({
+				input,
+				reward: 1,
+				nextState: new Float32Array([0.1, 0.2, 0.3]),
+			});
 
 			expect(agent.getPoolSize()).toBe(1);
 		});
@@ -182,7 +199,9 @@ describe("Agent", () => {
 
 		it("samplePool should return requested batch size", () => {
 			for (let i = 0; i < 10; i++) {
-				agent.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, i * 0.1]) });
+				agent.fastForward({
+					input: new Float32Array([0.5, -0.3, 0.1, i * 0.1]),
+				});
 			}
 
 			const batch = agent.samplePool(3);
@@ -197,7 +216,9 @@ describe("Agent", () => {
 		it("should enforce FIFO poolMaxSize eviction", () => {
 			const small = new Agent(makeConfig({ poolMaxSize: 3 }));
 			for (let i = 0; i < 10; i++) {
-				small.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, i * 0.1]) });
+				small.fastForward({
+					input: new Float32Array([0.5, -0.3, 0.1, i * 0.1]),
+				});
 			}
 
 			expect(small.getPoolSize()).toBe(3);
@@ -284,7 +305,12 @@ describe("Agent", () => {
 		});
 
 		it("should process Q-learning update without error", () => {
-			agent.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, 0.8]), reward: 1.0, nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]), done: false });
+			agent.fastForward({
+				input: new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				reward: 1.0,
+				nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]),
+				done: false,
+			});
 
 			const pool = agent.getPool();
 			const exp = pool[0];
@@ -293,7 +319,12 @@ describe("Agent", () => {
 		});
 
 		it("should process Q-learning update with done=true", () => {
-			agent.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, 0.8]), reward: 1.0, nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]), done: true });
+			agent.fastForward({
+				input: new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				reward: 1.0,
+				nextState: new Float32Array([0.1, 0.2, 0.3, 0.9]),
+				done: true,
+			});
 
 			const pool = agent.getPool();
 			const exp = pool[0];

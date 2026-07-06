@@ -151,7 +151,10 @@ describe("WebSocketClient", () => {
 	describe("onMessage", () => {
 		test("should invoke handler when message is received", () => {
 			const handler = jest.fn();
-			client = new WebSocketClient({ url: "ws://localhost:3000", onMessage: handler });
+			client = new WebSocketClient({
+				url: "ws://localhost:3000",
+				onMessage: handler,
+			});
 			client.connect();
 
 			const onMock = MOCK_WEB_SOCKET_INSTANCE.on as jest.Mock;
@@ -173,7 +176,10 @@ describe("WebSocketClient", () => {
 
 		test("should not throw on invalid JSON", () => {
 			const handler = jest.fn();
-			client = new WebSocketClient({ url: "ws://localhost:3000", onMessage: handler });
+			client = new WebSocketClient({
+				url: "ws://localhost:3000",
+				onMessage: handler,
+			});
 			client.connect();
 
 			const onMock = MOCK_WEB_SOCKET_INSTANCE.on as jest.Mock;
@@ -291,7 +297,10 @@ describe("WebSocketClient", () => {
 
 		test("should call auth failure handler on close with code 4001", () => {
 			const authHandler = jest.fn();
-			client = new WebSocketClient({ url: "ws://localhost:3000", onAuthFailure: authHandler });
+			client = new WebSocketClient({
+				url: "ws://localhost:3000",
+				onAuthFailure: authHandler,
+			});
 			client.connect();
 
 			const onMock = MOCK_WEB_SOCKET_INSTANCE.on as jest.Mock;
@@ -305,7 +314,10 @@ describe("WebSocketClient", () => {
 
 		test("should not call auth failure handler on normal close", () => {
 			const authHandler = jest.fn();
-			client = new WebSocketClient({ url: "ws://localhost:3000", onAuthFailure: authHandler });
+			client = new WebSocketClient({
+				url: "ws://localhost:3000",
+				onAuthFailure: authHandler,
+			});
 			client.connect();
 
 			const onMock = MOCK_WEB_SOCKET_INSTANCE.on as jest.Mock;
@@ -331,7 +343,10 @@ describe("WebSocketClient", () => {
 	describe("sendHeartbeat", () => {
 		test("should send heartbeat message when connected", () => {
 			client.connect();
-			const result = client.sendHeartbeat({ serviceName: "test-service", instanceId: "instance-1" });
+			const result = client.sendHeartbeat({
+				serviceName: "test-service",
+				instanceId: "instance-1",
+			});
 			expect(result).toBe(true);
 			const sendMock = MOCK_WEB_SOCKET_INSTANCE.send as jest.Mock;
 			expect(sendMock).toHaveBeenCalledWith(
@@ -343,7 +358,10 @@ describe("WebSocketClient", () => {
 		});
 
 		test("should return false when not connected", () => {
-			const result = client.sendHeartbeat({ serviceName: "test-service", instanceId: "instance-1" });
+			const result = client.sendHeartbeat({
+				serviceName: "test-service",
+				instanceId: "instance-1",
+			});
 			expect(result).toBe(false);
 		});
 	});

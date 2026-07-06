@@ -1,8 +1,12 @@
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
-import type { CacheSetEntry, CircuitState, IServiceCache } from "./service-cache.interface";
 import { CacheStore } from "./cache-store";
 import { CircuitStateStore } from "./circuit-state-store";
+import type {
+	CacheSetEntry,
+	CircuitState,
+	IServiceCache,
+} from "./service-cache.interface";
 
 class SimpleMutex {
 	private _promise: Promise<void> = Promise.resolve();
@@ -45,9 +49,7 @@ export class ServiceCache implements IServiceCache {
 	 * }
 	 * ```
 	 */
-	private async _withLock<TValue>(
-		fn: () => TValue,
-	): Promise<TValue> {
+	private async _withLock<TValue>(fn: () => TValue): Promise<TValue> {
 		const release = await this._mutex.acquire();
 		try {
 			return fn();
@@ -56,7 +58,10 @@ export class ServiceCache implements IServiceCache {
 		}
 	}
 
-	async get(serviceName: ServiceId, _region?: string): Promise<ServiceInstance | null> {
+	async get(
+		serviceName: ServiceId,
+		_region?: string
+	): Promise<ServiceInstance | null> {
 		return this._withLock(() => this._cacheStore.get(serviceName));
 	}
 
@@ -94,7 +99,11 @@ export class ServiceCache implements IServiceCache {
 	}
 
 	async entries(): Promise<
-		Array<{ serviceName: ServiceId; instance: ServiceInstance; region?: string }>
+		Array<{
+			serviceName: ServiceId;
+			instance: ServiceInstance;
+			region?: string;
+		}>
 	> {
 		return this._withLock(() => this._cacheStore.entries());
 	}

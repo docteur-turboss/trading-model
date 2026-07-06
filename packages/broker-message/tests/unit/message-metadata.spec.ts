@@ -20,7 +20,9 @@ describe("MessageMetadata", () => {
 			expect(m).toBeInstanceOf(MessageMetadata);
 			expect(m.topic).toBe(TEST_TOPIC);
 			expect(m.eventType).toBe(TEST_EVENT);
-			expect(m.publisher.serviceName).toBe(ServiceInstanceName.DiscoveryService);
+			expect(m.publisher.serviceName).toBe(
+				ServiceInstanceName.DiscoveryService
+			);
 		});
 
 		it("should throw on invalid topic format", () => {
@@ -34,7 +36,7 @@ describe("MessageMetadata", () => {
 				TEST_TOPIC,
 				TEST_EVENT,
 				TEST_PUBLISHER,
-				{ delivery: { mode: "at-least-once" } },
+				{ delivery: { mode: "at-least-once" } }
 			);
 			const result = withData.toJSON();
 			expect(result.topic).toBe(TEST_TOPIC);

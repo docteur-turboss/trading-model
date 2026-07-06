@@ -1,5 +1,5 @@
-import type WebSocket from "ws";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type WebSocket from "ws";
 import type { IncomingWssMessage } from "./wss-message.types";
 
 interface SubscriptionContext {

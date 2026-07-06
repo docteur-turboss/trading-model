@@ -1,17 +1,24 @@
 import { logger } from "@trading-model/common/config/logger";
+import {
+	type ServiceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { HostPort } from "@trading-model/common/domain/service-identity";
-import { type ServiceId, toServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis, { type RedisOptions } from "ioredis";
 import type { ServiceInstance } from "../client/type";
-import type { CacheSetEntry, CircuitState, IServiceCache } from "./service-cache.interface";
 import { RedisCacheOperations } from "./redis-cache-operations";
 import { RedisCircuitStateStore } from "./redis-circuit-state-store";
+import type {
+	CacheSetEntry,
+	CircuitState,
+	IServiceCache,
+} from "./service-cache.interface";
 
 export interface RedisServiceCacheOptions {
 	password?: string;
 	tls?: Record<string, unknown>;
-	sentinels?: Array<HostPort>;
+	sentinels?: HostPort[];
 	enableTLSForSentinelMode?: boolean;
 }
 
@@ -30,16 +37,31 @@ export class RedisServiceCache implements IServiceCache {
 	private readonly _circuitState: RedisCircuitStateStore;
 
 	constructor(config: RedisCacheConfig) {
-		const { redisUrl, prefix = "discovery:cache:", ttlMs = 5000, cacheOptions } = config;
+		const {
+			redisUrl,
+			prefix = "discovery:cache:",
+			ttlMs = 5000,
+			cacheOptions,
+		} = config;
 		this._prefix = prefix;
 		this._ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
 		this._redis = new Redis(redisUrl, this._buildRedisOptions(cacheOptions));
 		this._connectRedis();
-		this._cacheOps = new RedisCacheOperations(this._redis, this._prefix, this._ttlSec);
-		this._circuitState = new RedisCircuitStateStore(this._redis, this._prefix, this._ttlSec);
+		this._cacheOps = new RedisCacheOperations(
+			this._redis,
+			this._prefix,
+			this._ttlSec
+		);
+		this._circuitState = new RedisCircuitStateStore(
+			this._redis,
+			this._prefix,
+			this._ttlSec
+		);
 	}
 
-	private _buildRedisOptions(cacheOptions?: RedisServiceCacheOptions): RedisOptions {
+	private _buildRedisOptions(
+		cacheOptions?: RedisServiceCacheOptions
+	): RedisOptions {
 		const baseOptions: RedisOptions = {
 			lazyConnect: true,
 			retryStrategy: (times: number) => {
@@ -70,7 +92,7 @@ export class RedisServiceCache implements IServiceCache {
 
 	async get(
 		serviceName: ServiceId,
-		region?: string,
+		region?: string
 	): Promise<ServiceInstance | null> {
 		return this._cacheOps.get(serviceName, region);
 	}
@@ -92,13 +114,20 @@ export class RedisServiceCache implements IServiceCache {
 	}
 
 	async entries(): Promise<
-		Array<{ serviceName: ServiceId; instance: ServiceInstance; region?: string }>
+		Array<{
+			serviceName: ServiceId;
+			instance: ServiceInstance;
+			region?: string;
+		}>
 	> {
 		const raw = await this._cacheOps.entries();
 		return raw.map((e) => ({ ...e, serviceName: toServiceId(e.serviceName) }));
 	}
 
-	async setCircuitState(instanceId: string, state: CircuitState): Promise<void> {
+	async setCircuitState(
+		instanceId: string,
+		state: CircuitState
+	): Promise<void> {
 		return this._circuitState.setCircuitState(instanceId, state);
 	}
 

@@ -1,7 +1,7 @@
-import { logger } from "../../config/logger";
-import { WalDrainCoordinator } from "./wal-drain-coordinator";
-import { WalFlushLoop } from "./wal-flush-loop";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { logger } from "../../config/logger";
+import type { WalDrainCoordinator } from "./wal-drain-coordinator";
+import type { WalFlushLoop } from "./wal-flush-loop";
 
 export class WalFlushManager {
 	private _walFlushing = false;
@@ -9,7 +9,7 @@ export class WalFlushManager {
 
 	constructor(
 		private readonly _flushLoop: WalFlushLoop,
-		private readonly _drainCoordinator: WalDrainCoordinator,
+		private readonly _drainCoordinator: WalDrainCoordinator
 	) {}
 
 	start(): void {
@@ -31,7 +31,9 @@ export class WalFlushManager {
 		try {
 			await this._flushLoop.drainAll();
 		} catch (err) {
-			logger.error("WAL flush error", { context: { error: (err as Error).message } });
+			logger.error("WAL flush error", {
+				context: { error: (err as Error).message },
+			});
 		} finally {
 			this._completeWalFlush();
 		}

@@ -1,4 +1,4 @@
-import type { IPAddress, ModelId, Port, Region } from "../../domain/primitives";
+import type { IPAddress, ModelId, Region } from "../../domain/primitives";
 
 export enum AdminWorkerStatus {
 	Online = "Online",

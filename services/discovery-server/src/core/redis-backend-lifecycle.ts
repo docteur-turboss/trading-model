@@ -1,12 +1,12 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import Redis from "ioredis";
-import { StaleInstanceCleaner } from "./stale-instance-cleaner";
+import type Redis from "ioredis";
+import type { StaleInstanceCleaner } from "./stale-instance-cleaner";
 
 export class RedisBackendLifecycle {
 	constructor(
 		private readonly _redis: Redis,
-		private readonly _cleaner: StaleInstanceCleaner,
+		private readonly _cleaner: StaleInstanceCleaner
 	) {}
 
 	start(): void {

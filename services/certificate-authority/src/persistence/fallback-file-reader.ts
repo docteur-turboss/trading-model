@@ -8,7 +8,7 @@ import { decrypt } from "./fallback-crypto";
 export class FallbackFileReader {
 	constructor(
 		private readonly _baseDir: string,
-		private readonly _encryptionKey: Buffer | null,
+		private readonly _encryptionKey: Buffer | null
 	) {}
 
 	async readAll<TData>(): Promise<TData[]> {

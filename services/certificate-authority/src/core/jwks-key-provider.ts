@@ -1,10 +1,9 @@
-import { type KeyObject } from "node:crypto";
+import type { KeyObject } from "node:crypto";
 
 import { logger } from "@trading-model/common/config/logger";
-
-import type { OidcConfig } from "./oidc-verifier";
 import { JwkCache } from "./jwk-cache";
 import { JwkFetcher } from "./jwk-fetcher";
+import type { OidcConfig } from "./oidc-verifier";
 
 export class JwksKeyProvider {
 	private readonly _cache = new JwkCache();
@@ -19,10 +18,14 @@ export class JwksKeyProvider {
 		await this._refreshKeys();
 		if (kid) {
 			const key = this._cache.lookupByKid(kid);
-			if (key) return key;
+			if (key) {
+				return key;
+			}
 		}
 		const singleKey = this._cache.lookupSingleKey();
-		if (singleKey) return singleKey;
+		if (singleKey) {
+			return singleKey;
+		}
 		throw new Error(`Signing key not found (kid: ${kid ?? "none"})`);
 	}
 

@@ -6,13 +6,10 @@ import type { LockContext, LockDocument } from "./lock-backends";
 export class MongoLockExecutor {
 	constructor(
 		private readonly _collection: () => Collection<LockDocument> | null,
-		private readonly _onDisconnect: () => void,
+		private readonly _onDisconnect: () => void
 	) {}
 
-	async acquire(
-		context: LockContext,
-		ttlMs: number,
-	): Promise<number | null> {
+	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
 		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
@@ -37,7 +34,7 @@ export class MongoLockExecutor {
 						fencingToken: nextFencingToken,
 					},
 				},
-				{ upsert: true, returnDocument: "before" },
+				{ upsert: true, returnDocument: "before" }
 			);
 			const acquired =
 				result === null || (result.expiresAt && result.expiresAt < now);
@@ -49,10 +46,7 @@ export class MongoLockExecutor {
 		}
 	}
 
-	async release(
-		context: LockContext,
-		fencingToken: number,
-	): Promise<boolean> {
+	async release(context: LockContext, fencingToken: number): Promise<boolean> {
 		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
@@ -73,7 +67,7 @@ export class MongoLockExecutor {
 
 	async verifyOwnership(
 		context: LockContext,
-		fencingToken: number,
+		fencingToken: number
 	): Promise<number> {
 		const { lockName, instanceId } = context;
 		const collection = this._collection();

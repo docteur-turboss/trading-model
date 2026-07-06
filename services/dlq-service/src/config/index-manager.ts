@@ -1,5 +1,5 @@
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { type Collection } from "mongodb";
+import type { Collection } from "mongodb";
 
 import { logger } from "./logger";
 

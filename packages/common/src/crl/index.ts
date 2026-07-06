@@ -1,1 +1,1 @@
-export { type ICrlChecker, CrlCache, GLOBAL_CRL_CACHE } from "./crl-cache";
+export { CrlCache, GLOBAL_CRL_CACHE, type ICrlChecker } from "./crl-cache";

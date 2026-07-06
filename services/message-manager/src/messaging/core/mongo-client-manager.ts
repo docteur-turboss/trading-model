@@ -45,7 +45,9 @@ export class MongoClientManager {
 
 	async ensureIndexes(): Promise<void> {
 		try {
-			const { MongoArchiveBatchWriter } = await import("./mongo-archive-batch.js");
+			const { MongoArchiveBatchWriter } = await import(
+				"./mongo-archive-batch.js"
+			);
 			const writer = new MongoArchiveBatchWriter(
 				this._client,
 				ENV.MONGO_ARCHIVE_DB,
@@ -54,9 +56,11 @@ export class MongoClientManager {
 			await writer.createIndexes();
 			logger.info("MongoDB archive indexes ensured");
 		} catch (err) {
-			logger.warn("Failed to create archive indexes", { context: {
-				error: (err as Error).message,
-			} });
+			logger.warn("Failed to create archive indexes", {
+				context: {
+					error: (err as Error).message,
+				},
+			});
 		}
 	}
 

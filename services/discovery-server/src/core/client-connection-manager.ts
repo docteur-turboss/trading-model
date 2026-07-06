@@ -15,7 +15,10 @@ export interface ConnectedClient {
 
 export class ClientConnectionManager {
 	private readonly _clients = new Map<string, ConnectedClient>();
-	private readonly _clientTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+	private readonly _clientTimeouts = new Map<
+		string,
+		ReturnType<typeof setTimeout>
+	>();
 
 	add(clientId: string, client: ConnectedClient): void {
 		this._clients.set(clientId, client);
@@ -40,11 +43,20 @@ export class ClientConnectionManager {
 	}
 
 	isSubscribed(client: ConnectedClient, serviceName: string): boolean {
-		return client.subscribedServices.has("*") || client.subscribedServices.has(serviceName);
+		return (
+			client.subscribedServices.has("*") ||
+			client.subscribedServices.has(serviceName)
+		);
 	}
 
-	sendToClient(clientId: string, client: ConnectedClient, message: string): void {
-		if (client.ws.readyState !== WebSocket.OPEN) return;
+	sendToClient(
+		clientId: string,
+		client: ConnectedClient,
+		message: string
+	): void {
+		if (client.ws.readyState !== WebSocket.OPEN) {
+			return;
+		}
 		try {
 			client.ws.send(message);
 		} catch (error) {
@@ -65,7 +77,10 @@ export class ClientConnectionManager {
 
 	resetTimeout(clientId: string, ws: WebSocket): void {
 		this._removeExistingTimeout(clientId);
-		const timer = setTimeout(() => this._onTimeout(clientId, ws), CLIENT_TIMEOUT_MS);
+		const timer = setTimeout(
+			() => this._onTimeout(clientId, ws),
+			CLIENT_TIMEOUT_MS
+		);
 		this._clientTimeouts.set(clientId, timer);
 	}
 
@@ -80,7 +95,9 @@ export class ClientConnectionManager {
 
 	private _removeExistingTimeout(clientId: string): void {
 		const existing = this._clientTimeouts.get(clientId);
-		if (existing) clearTimeout(existing);
+		if (existing) {
+			clearTimeout(existing);
+		}
 	}
 
 	private _clearTimeout(clientId: string): void {

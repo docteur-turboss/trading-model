@@ -3,10 +3,16 @@ import type {
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
-import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
-import { CachedRegistryOperations, type CachedRegistryBackendOptions } from "./cached-registry-operations";
+import type {
+	ServiceEndpoint,
+	ServiceIdentity,
+} from "@trading-model/common/domain/service-identity";
+import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+import {
+	type CachedRegistryBackendOptions,
+	CachedRegistryOperations,
+} from "./cached-registry-operations";
 
 export type { CachedRegistryBackendOptions };
 
@@ -33,7 +39,10 @@ export class CachedRegistryBackend implements RegistryBackend {
 		return this._ops.getInstanceCount(serviceName);
 	}
 
-	async getInstances(serviceName: string, pagination?: PaginationQuery): Promise<ServiceInstance[]> {
+	async getInstances(
+		serviceName: string,
+		pagination?: PaginationQuery
+	): Promise<ServiceInstance[]> {
 		return this._ops.getInstances(serviceName, pagination);
 	}
 

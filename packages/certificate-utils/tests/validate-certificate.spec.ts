@@ -51,7 +51,7 @@ describe("validateCertificate", () => {
 		const reEncoded = Buffer.from(JSON.stringify(parsed)).toString("base64");
 		const tamperedCertPem = `-----BEGIN CERTIFICATE-----\n${reEncoded}\n-----END CERTIFICATE-----`;
 
-		const result = 	validateCertificate({ certPem: tamperedCertPem, caCertPem });
+		const result = validateCertificate({ certPem: tamperedCertPem, caCertPem });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toBe("Signature verification failed");
@@ -68,7 +68,7 @@ describe("validateCertificate", () => {
 		const reEncoded = Buffer.from(JSON.stringify(parsed)).toString("base64");
 		const tamperedCertPem = `-----BEGIN CERTIFICATE-----\n${reEncoded}\n-----END CERTIFICATE-----`;
 
-		const result = 	validateCertificate({ certPem: tamperedCertPem, caCertPem });
+		const result = validateCertificate({ certPem: tamperedCertPem, caCertPem });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toBe("Signature verification failed");
@@ -82,7 +82,7 @@ describe("validateCertificate", () => {
 		).toString("base64");
 		const certPem = `-----BEGIN CERTIFICATE-----\n${pemContent}\n-----END CERTIFICATE-----`;
 
-		const result = 	validateCertificate({ certPem, caCertPem: "" });
+		const result = validateCertificate({ certPem, caCertPem: "" });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error");
@@ -99,21 +99,24 @@ describe("validateCertificate", () => {
 		).toString("base64");
 		const certPem = `-----BEGIN CERTIFICATE-----\n${pemContent}\n-----END CERTIFICATE-----`;
 
-		const result = 	validateCertificate({ certPem, caCertPem: "" });
+		const result = validateCertificate({ certPem, caCertPem: "" });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error");
 	});
 
 	it("should return invalid for malformed PEM input", () => {
-		const result = 	validateCertificate({ certPem: "not-a-pem", caCertPem: "not-a-ca-pem" });
+		const result = validateCertificate({
+			certPem: "not-a-pem",
+			caCertPem: "not-a-ca-pem",
+		});
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error:");
 	});
 
 	it("should return invalid for an empty string", () => {
-		const result = 	validateCertificate({ certPem: "", caCertPem: "" });
+		const result = validateCertificate({ certPem: "", caCertPem: "" });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error:");
@@ -122,7 +125,10 @@ describe("validateCertificate", () => {
 	it("should return invalid for truncated PEM data", () => {
 		const truncatedPem = signed.certPem.substring(0, 100);
 
-		const result = 	validateCertificate({ certPem: truncatedPem, caCertPem: "" });
+		const result = validateCertificate({
+			certPem: truncatedPem,
+			caCertPem: "",
+		});
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error:");

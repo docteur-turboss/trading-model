@@ -1,16 +1,19 @@
 import { logger } from "@trading-model/common/config/logger";
+import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
 import { ReAllocator } from "../recovery/re-allocator";
-import { JobPriority, type Job, type JobStatus } from "../types/job.types";
-import { NullWorkerProtocol, type IWorkerProtocol } from "../worker/worker-protocol";
+import { type Job, JobPriority, type JobStatus } from "../types/job.types";
+import {
+	type IWorkerProtocol,
+	NullWorkerProtocol,
+} from "../worker/worker-protocol";
 import { WorkerRegistry } from "../worker/worker-registry";
 import { BackPressure } from "./back-pressure";
 import { InternalQueue } from "./internal-queue";
 import { JobAssignmentManager } from "./job-assignment-manager";
 import { JobFailureHandler } from "./job-failure-handler";
 import { JobLifecycle } from "./job-lifecycle";
-import { ENV } from "../config/env";
 
 function _createInternalQueue(): InternalQueue {
 	return new InternalQueue(ENV.ACK_TIMEOUT_MS);
@@ -78,7 +81,7 @@ async function _recoverJobs(
 	repository: JobRepository,
 	reAllocator: ReAllocator
 ): Promise<void> {
-	const STATUS_HANDLERS: Partial<
+	const StatusHandlers: Partial<
 		Record<JobStatus, (job: Job) => Promise<void>>
 	> = {
 		pending: async (job) => {
@@ -101,7 +104,7 @@ async function _recoverJobs(
 	};
 
 	for (const job of nonTerminal) {
-		await STATUS_HANDLERS[job.status]?.(job);
+		await StatusHandlers[job.status]?.(job);
 	}
 }
 
@@ -146,7 +149,7 @@ export class JobScheduler {
 			this.backPressure,
 			repository,
 			this._assignmentManager,
-			this._failureHandler,
+			this._failureHandler
 		);
 		this.orphanDetector = _createOrphanDetector(
 			this.workers,
@@ -192,7 +195,12 @@ export class JobScheduler {
 	async start(): Promise<void> {
 		const nonTerminal = await this.repository.findNonTerminal();
 
-		await _recoverJobs(nonTerminal, this.queue, this.repository, this.reAllocator);
+		await _recoverJobs(
+			nonTerminal,
+			this.queue,
+			this.repository,
+			this.reAllocator
+		);
 		this.backPressure.updateQueueDepth(this.queue.depth());
 
 		_logSchedulerStart(nonTerminal.length);

@@ -1,6 +1,6 @@
+import { describe, expect, it } from "@jest/globals";
 import { CandleInterval } from "@trading-model/common/config/event.types";
 import { toSymbol } from "@trading-model/common/domain/primitives";
-import { describe, expect, it } from "@jest/globals";
 import { BINANCE_ENDPOINTS } from "../../../../src/clients/binance/endpoints";
 
 const BTC = toSymbol("BTCUSDT");
@@ -33,7 +33,11 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("historicalTrades", () => {
 		it("should build historical trades URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.historicalTrades({ symbol: BTC, limit: 500, fromId: 12345 });
+			const url = BINANCE_ENDPOINTS.historicalTrades({
+				symbol: BTC,
+				limit: 500,
+				fromId: 12345,
+			});
 			expect(url).toBe(
 				"/api/v3/historicalTrades?symbol=BTCUSDT&limit=500&fromId=12345"
 			);
@@ -50,7 +54,8 @@ describe("BINANCE_ENDPOINTS", () => {
 			const url = BINANCE_ENDPOINTS.candlesticks({
 				symbol: BTC,
 				interval: CandleInterval.MIN1,
-				startTime: 1620000000000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
+				startTime:
+					1620000000000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
 				limit: 100,
 			});
 			expect(url).toBe(
@@ -79,7 +84,11 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("compressedAggregateTrades", () => {
 		it("should build aggTrades URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.compressedAggregateTrades({ symbol: BTC, fromId: 12345, limit: 100 });
+			const url = BINANCE_ENDPOINTS.compressedAggregateTrades({
+				symbol: BTC,
+				fromId: 12345,
+				limit: 100,
+			});
 			expect(url).toBe(
 				"/api/v3/aggTrades?symbol=BTCUSDT&fromId=12345&limit=100"
 			);

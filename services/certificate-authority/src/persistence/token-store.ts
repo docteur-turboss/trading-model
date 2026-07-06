@@ -59,9 +59,7 @@ export class TokenStore {
 		await this._collection.createIndex({ tokenHash: 1 }, { unique: true });
 	}
 
-	async tryUseToken(
-		request: TokenUseRequest
-	): Promise<boolean> {
+	async tryUseToken(request: TokenUseRequest): Promise<boolean> {
 		const { token, serviceId, ttlMs } = request;
 		const ttl = ttlMs ?? this._defaultTtlMs;
 		const hash = await this._hashToken(token);
@@ -82,9 +80,7 @@ export class TokenStore {
 		}
 	}
 
-	async markAsUsed(
-		request: TokenUseRequest
-	): Promise<void> {
+	async markAsUsed(request: TokenUseRequest): Promise<void> {
 		const ok = await this.tryUseToken(request);
 		if (!ok) {
 			throw new Error("Bootstrap token has already been used");

@@ -1,7 +1,13 @@
+import type {
+	InstanceId,
+	SerialNumber,
+	ServiceId,
+	TradingSymbol,
+	UnixTimestamp,
+} from "../domain/primitives";
 import { Price, Volume } from "../domain/primitives";
-import type { InstanceId, SerialNumber, ServiceId, TradingSymbol, UnixTimestamp } from "../domain/primitives";
-import type { ServiceInstanceName } from "./services.types";
 import type { RevocationReason } from "../domain/revocation-request";
+import type { ServiceInstanceName } from "./services.types";
 
 /** Supported financial market categories. */
 export enum MarketType {
@@ -113,8 +119,8 @@ export function getAvgBid(orderBook: OrderBookData): Price {
 	let totalQty = 0;
 	let totalValue = 0;
 	for (const { price, quantity } of orderBook.bids) {
-		totalValue += +price * +quantity;
-		totalQty += +quantity;
+		totalValue += Number(price) * Number(quantity);
+		totalQty += Number(quantity);
 	}
 	return Price.of(totalQty > 0 ? totalValue / totalQty : 0);
 }
@@ -124,8 +130,8 @@ export function getAvgAsk(orderBook: OrderBookData): Price {
 	let totalQty = 0;
 	let totalValue = 0;
 	for (const { price, quantity } of orderBook.asks) {
-		totalValue += +price * +quantity;
-		totalQty += +quantity;
+		totalValue += Number(price) * Number(quantity);
+		totalQty += Number(quantity);
 	}
 	return Price.of(totalQty > 0 ? totalValue / totalQty : 0);
 }
@@ -134,7 +140,7 @@ export function getAvgAsk(orderBook: OrderBookData): Price {
 export function getBidTotalQty(orderBook: OrderBookData): Volume {
 	let total = 0;
 	for (const { quantity } of orderBook.bids) {
-		total += +quantity;
+		total += Number(quantity);
 	}
 	return Volume.of(total);
 }
@@ -143,7 +149,7 @@ export function getBidTotalQty(orderBook: OrderBookData): Volume {
 export function getAskTotalQty(orderBook: OrderBookData): Volume {
 	let total = 0;
 	for (const { quantity } of orderBook.asks) {
-		total += +quantity;
+		total += Number(quantity);
 	}
 	return Volume.of(total);
 }

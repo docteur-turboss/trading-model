@@ -2,7 +2,6 @@ import { logger } from "@trading-model/common/config/logger";
 
 export class AuthHandler {
 	private _wsAuthSent = false;
-	private _unauthRejects = 0;
 
 	get isAuthSent(): boolean {
 		return this._wsAuthSent;

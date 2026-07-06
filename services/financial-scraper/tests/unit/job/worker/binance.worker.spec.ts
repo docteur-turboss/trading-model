@@ -1,6 +1,6 @@
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CandleInterval } from "@trading-model/common/config/event.types";
 import { toSymbol } from "@trading-model/common/domain/primitives";
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("../../../../src/clients/binance/binance.client", () => ({
 	getOrderBook: jest.fn(),
@@ -139,9 +139,19 @@ describe("BinanceWorker", () => {
 		it("should call all 6 Binance client functions in parallel", async () => {
 			await worker.run();
 
-			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith({ symbol: BTC, limit: 10 });
-			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({ symbol: BTC, limit: 50 });
-			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({ symbol: BTC, limit: 50, interval: CandleInterval.MIN1 });
+			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith({
+				symbol: BTC,
+				limit: 10,
+			});
+			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({
+				symbol: BTC,
+				limit: 50,
+			});
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({
+				symbol: BTC,
+				limit: 50,
+				interval: CandleInterval.MIN1,
+			});
 			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC]);
 			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledWith([BTC]);
 			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledWith([BTC]);
@@ -180,8 +190,15 @@ describe("BinanceWorker", () => {
 			const defaultWorker = new BinanceWorker({ symbol: ETH });
 			await defaultWorker.run();
 
-			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({ symbol: ETH, limit: 100 });
-			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({ symbol: ETH, limit: 100, interval: CandleInterval.MIN1 });
+			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({
+				symbol: ETH,
+				limit: 100,
+			});
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({
+				symbol: ETH,
+				limit: 100,
+				interval: CandleInterval.MIN1,
+			});
 		});
 
 		it("should create a fresh MetadataBuilder per invocation (not shared singleton)", async () => {

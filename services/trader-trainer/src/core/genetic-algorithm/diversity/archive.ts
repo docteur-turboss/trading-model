@@ -1,5 +1,5 @@
-import { noveltyScore } from "./novelty";
 import type { Genome } from "../genome-types";
+import { noveltyScore } from "./novelty";
 
 export interface NoveltyArchiveConfig {
 	threshold?: number;
@@ -14,7 +14,9 @@ export interface NoveltyArchiveUpdateContext {
 	config?: NoveltyArchiveConfig;
 }
 
-function _resolveArchiveConfig(configArg?: NoveltyArchiveConfig): Required<NoveltyArchiveConfig> {
+function _resolveArchiveConfig(
+	configArg?: NoveltyArchiveConfig
+): Required<NoveltyArchiveConfig> {
 	return {
 		threshold: configArg?.threshold ?? 0.1,
 		maxSize: configArg?.maxSize ?? 500,

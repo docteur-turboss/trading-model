@@ -66,10 +66,18 @@ function _geluTanhVal(sqrt2Pi: number, preActivation: number): number {
 	return Math.tanh(sqrt2Pi * (preActivation + 0.044715 * preActivation ** 3));
 }
 
-function _geluDerivative(tanhVal: number, preActivation: number, sqrt2Pi: number): number {
+function _geluDerivative(
+	tanhVal: number,
+	preActivation: number,
+	sqrt2Pi: number
+): number {
 	return (
 		0.5 * (1 + tanhVal) +
-		0.5 * preActivation * (1 - tanhVal ** 2) * sqrt2Pi * (1 + 3 * 0.044715 * preActivation ** 2)
+		0.5 *
+			preActivation *
+			(1 - tanhVal ** 2) *
+			sqrt2Pi *
+			(1 + 3 * 0.044715 * preActivation ** 2)
 	);
 }
 

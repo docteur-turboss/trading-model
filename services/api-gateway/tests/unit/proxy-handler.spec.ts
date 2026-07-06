@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { createReq } from "../helpers/express";
 
 jest.mock("../../src/config/env", () => ({
@@ -105,7 +104,11 @@ describe("proxy-handler", () => {
 			method: "GET",
 			headers: { "x-request-id": "req-123" },
 		});
-		const result = await forward({ req, target: MOCK_TARGET, path: "/v1/api/data" });
+		const result = await forward({
+			req,
+			target: MOCK_TARGET,
+			path: "/v1/api/data",
+		});
 
 		expect(result.status).toBe(200);
 		expect(JSON.parse(result.body)).toEqual({ data: "ok" });
@@ -167,9 +170,9 @@ describe("proxy-handler", () => {
 			require("../../src/core/proxy-handler")
 		);
 		const req = createReq({ method: "GET" });
-		await expect(forward({ req, target: MOCK_TARGET, path: "/test" })).rejects.toThrow(
-			"ECONNREFUSED"
-		);
+		await expect(
+			forward({ req, target: MOCK_TARGET, path: "/test" })
+		).rejects.toThrow("ECONNREFUSED");
 	});
 
 	it("should reject on timeout", async () => {
@@ -199,7 +202,9 @@ describe("proxy-handler", () => {
 			require("../../src/core/proxy-handler")
 		);
 		const req = createReq({ method: "GET" });
-		await expect(forward({ req, target: MOCK_TARGET, path: "/test" })).rejects.toThrow("timeout");
+		await expect(
+			forward({ req, target: MOCK_TARGET, path: "/test" })
+		).rejects.toThrow("timeout");
 	});
 
 	it("should handle array headers by joining with comma", async () => {
@@ -402,7 +407,11 @@ describe("proxy-handler", () => {
 			body: { name: "test" },
 			headers: { "content-type": "application/json" },
 		});
-		const result = await forward({ req, target: MOCK_TARGET, path: "/v1/api/create" });
+		const result = await forward({
+			req,
+			target: MOCK_TARGET,
+			path: "/v1/api/create",
+		});
 
 		expect(result.status).toBe(200);
 		expect(mockReq.write).toHaveBeenCalledWith(

@@ -1,6 +1,10 @@
-import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
-import { WalletConfig } from "./wallet-config";
-import { TradeRecorder } from "./trade-recorder";
+import {
+	Cash,
+	type Price,
+	Volume,
+} from "@trading-model/common/domain/primitives";
+import type { TradeRecorder } from "./trade-recorder";
+import type { WalletConfig } from "./wallet-config";
 
 export class TradeExecutor {
 	constructor(
@@ -8,7 +12,7 @@ export class TradeExecutor {
 		private _price: Price,
 		private _cash: Cash,
 		private _position: Volume,
-		private readonly _recorder: TradeRecorder,
+		private readonly _recorder: TradeRecorder
 	) {}
 
 	get price(): Price {
@@ -36,34 +40,41 @@ export class TradeExecutor {
 	}
 
 	buy(amount: Volume): boolean {
-		const amt = +amount;
+		const amt = Number(amount);
 		if (!Number.isFinite(amt) || amt <= 0) {
 			return false;
 		}
 		const newPosition = Volume.of(
-			this._config.roundValue(+this._position + amt)
+			this._config.roundValue(Number(this._position) + amt)
 		);
-		if (+newPosition > +this._config.maxPosition) {
+		if (Number(newPosition) > Number(this._config.maxPosition)) {
 			return false;
 		}
-		const { totalCost, fee } = this._config.computeBuyCosts(amount, this._price);
-		if (+totalCost > +this._cash) {
+		const { totalCost, fee } = this._config.computeBuyCosts(
+			amount,
+			this._price
+		);
+		if (Number(totalCost) > Number(this._cash)) {
 			return false;
 		}
 		this._position = newPosition;
 		this._cash = Cash.of(
-			this._config.roundValue(+this._cash - +totalCost)
+			this._config.roundValue(Number(this._cash) - Number(totalCost))
 		);
 		this._recorder.recordTrade(
-			"buy", amount, Cash.of(this._config.roundValue(+fee)),
-			this._price, this._cash, this._position
+			"buy",
+			amount,
+			Cash.of(this._config.roundValue(Number(fee))),
+			this._price,
+			this._cash,
+			this._position
 		);
 		return true;
 	}
 
 	sell(amount: Volume): boolean {
-		const amt = +amount;
-		if (!Number.isFinite(amt) || amt <= 0 || amt > +this._position) {
+		const amt = Number(amount);
+		if (!Number.isFinite(amt) || amt <= 0 || amt > Number(this._position)) {
 			return false;
 		}
 		const { netProceeds, fee } = this._config.computeSellProceeds(
@@ -71,20 +82,24 @@ export class TradeExecutor {
 			this._price
 		);
 		this._position = Volume.of(
-			this._config.roundValue(+this._position - amt)
+			this._config.roundValue(Number(this._position) - amt)
 		);
 		this._cash = Cash.of(
-			this._config.roundValue(+this._cash + netProceeds)
+			this._config.roundValue(Number(this._cash) + netProceeds)
 		);
 		this._recorder.recordTrade(
-			"sell", amount, Cash.of(this._config.roundValue(+fee)),
-			this._price, this._cash, this._position
+			"sell",
+			amount,
+			Cash.of(this._config.roundValue(Number(fee))),
+			this._price,
+			this._cash,
+			this._position
 		);
 		return true;
 	}
 
 	setPrice(newPrice: Price): void {
-		if (!Number.isFinite(+newPrice) || +newPrice <= 0) {
+		if (!Number.isFinite(Number(newPrice)) || Number(newPrice) <= 0) {
 			throw new Error(`setPrice received invalid value: ${newPrice}`);
 		}
 		this._price = newPrice;

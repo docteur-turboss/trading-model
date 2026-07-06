@@ -1,5 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
-import { toServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
+import {
+	toInstanceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
@@ -78,8 +81,8 @@ export class LifecycleManager {
 			new RefreshJob(
 				this._options.tokenManager,
 				() => this._options.tokenManager.refreshToken(),
-				this._options.tokenRefreshIntervalMs,
-			),
+				this._options.tokenRefreshIntervalMs
+			)
 		);
 	}
 
@@ -88,8 +91,8 @@ export class LifecycleManager {
 			new RefreshJob(
 				this._options.addressManagerClient,
 				() => this._performHeartbeat(),
-				this._options.ttlRefreshIntervalMs,
-			),
+				this._options.ttlRefreshIntervalMs
+			)
 		);
 	}
 
@@ -101,8 +104,8 @@ export class LifecycleManager {
 			new CacheHealthRefresher(
 				this._options.serviceCache,
 				this._options.healthChecker,
-				this._options.cacheTtlMs / 2,
-			),
+				this._options.cacheTtlMs / 2
+			)
 		);
 	}
 

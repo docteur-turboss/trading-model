@@ -39,7 +39,10 @@ async function doLoadAllowedServices(
 
 function cacheAndReturn(topic: string, services: string[]): string[] {
 	evictIfNeeded();
-	ACL_CACHE.set(topic, { services, expiresAt: Date.now() + aclTtlWithJitter() });
+	ACL_CACHE.set(topic, {
+		services,
+		expiresAt: Date.now() + aclTtlWithJitter(),
+	});
 	return services;
 }
 

@@ -21,7 +21,7 @@ export class WorkerTaskQueue {
 	enqueue(
 		type: string,
 		data: Record<string, unknown>,
-		onDispatch: (task: TaskEntry) => boolean,
+		onDispatch: (task: TaskEntry) => boolean
 	): Promise<unknown> {
 		return new Promise((resolve, reject) => {
 			if (this._queue.length >= this._maxQueueSize) {
@@ -51,7 +51,7 @@ export class WorkerTaskQueue {
 		id: string,
 		success: boolean,
 		data?: unknown,
-		error?: string,
+		error?: string
 	): void {
 		const task = this._pendingTasks.get(id);
 		if (task) {

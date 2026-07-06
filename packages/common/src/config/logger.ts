@@ -1,5 +1,10 @@
 import type { TlsPaths } from "../domain/tls-paths";
-import { type LogEntry, LogLevel, type LogOptions, isLogLevelAtLeast } from "./log-types";
+import {
+	isLogLevelAtLeast,
+	type LogEntry,
+	LogLevel,
+	type LogOptions,
+} from "./log-types";
 
 export type { LogEntry, LogOptions };
 export { LogLevel };
@@ -10,7 +15,7 @@ import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 export class Logger {
 	private _logLevel: LogLevel;
-	private _userId = '';
+	private _userId = "";
 	private readonly _sessionId: string;
 	private readonly _buffer: LogBuffer;
 	private readonly _dispatcher: LogDispatcher;
@@ -19,7 +24,10 @@ export class Logger {
 		this._logLevel = logLevel;
 		this._sessionId = this._generateSessionId();
 		this._buffer = new LogBuffer();
-		this._dispatcher = new LogDispatcher(new SensitiveDataSanitizer(), this._sessionId);
+		this._dispatcher = new LogDispatcher(
+			new SensitiveDataSanitizer(),
+			this._sessionId
+		);
 	}
 
 	private _generateSessionId(): string {
@@ -36,7 +44,12 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._dispatcher.createLogEntry(LogLevel.Debug, message, this._userId, { context });
+		const logEntry = this._dispatcher.createLogEntry(
+			LogLevel.Debug,
+			message,
+			this._userId,
+			{ context }
+		);
 		this._buffer.add(logEntry);
 		console.debug(
 			`[DEBUG] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -49,7 +62,12 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._dispatcher.createLogEntry(LogLevel.Info, message, this._userId, { context });
+		const logEntry = this._dispatcher.createLogEntry(
+			LogLevel.Info,
+			message,
+			this._userId,
+			{ context }
+		);
 		this._buffer.add(logEntry);
 		console.info(
 			`[INFO] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -62,7 +80,12 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._dispatcher.createLogEntry(LogLevel.Warn, message, this._userId, { context });
+		const logEntry = this._dispatcher.createLogEntry(
+			LogLevel.Warn,
+			message,
+			this._userId,
+			{ context }
+		);
 		this._buffer.add(logEntry);
 		console.warn(
 			`[WARN] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -75,7 +98,12 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._dispatcher.createLogEntry(LogLevel.Error, message, this._userId, { context });
+		const logEntry = this._dispatcher.createLogEntry(
+			LogLevel.Error,
+			message,
+			this._userId,
+			{ context }
+		);
 		this._buffer.add(logEntry);
 		console.error(
 			`[ERROR] [${logEntry.timestamp.toISOString()}] ${message}`,

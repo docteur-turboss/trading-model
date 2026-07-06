@@ -1,8 +1,8 @@
 import { NormalizationStats } from "../normalization-stats";
-import type { DeepReadonly } from "./shared-types";
 import type { LamarckGenome, MarketStep } from "./genome-types";
-import type { BackendFactory, RLBackend } from "./rl-backend";
 import { _stepAndShapeReward } from "./reward-shaping";
+import type { BackendFactory, RLBackend } from "./rl-backend";
+import type { DeepReadonly } from "./shared-types";
 
 function _runEvalEpisode(
 	genome: DeepReadonly<LamarckGenome>,
@@ -38,7 +38,7 @@ function _finalizeEpisodeReward(
 	epReward: number
 ): number {
 	if (rShape.sparse) {
-		epReward = +backend.getPnL();
+		epReward = Number(backend.getPnL());
 	}
 	backend.resetEpisode();
 	return epReward;

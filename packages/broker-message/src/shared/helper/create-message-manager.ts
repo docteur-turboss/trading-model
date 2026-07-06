@@ -1,9 +1,8 @@
 import type addressManagerClient from "@trading-model/address-manager";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import type { MessageManagerConfig } from "../types/config";
-
 import MessageManagerClass from "../../index";
+import type { MessageManagerConfig } from "../types/config";
 
 /** Configuration options for creating a MessageManager instance. */
 export interface MessageManagerOptions extends MessageManagerConfig {
@@ -47,7 +46,7 @@ interface ServiceEnv {
  */
 export function createServiceMessageManager(
 	addressManagerClient: addressManagerClient,
-	env: ServiceEnv,
+	env: ServiceEnv
 ) {
 	return createMessageManager({
 		addressManagerClient,

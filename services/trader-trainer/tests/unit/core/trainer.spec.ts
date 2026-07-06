@@ -1,12 +1,4 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { LamarckGenome } from "../../../src/core/genetic-algorithm/genome-types";
-import type { DeepReadonly } from "../../../src/core/genetic-algorithm/shared-types";
-import { MarketDataBuffer } from "../../../src/core/market-data-buffer";
-import {
-	makeBestGenomeNoMeta,
-	makeMinimalBestGenome,
-} from "../../fixtures/genome.fixture";
-import { feedCandles } from "../../fixtures/market-data.fixture";
 import {
 	ActivationType,
 	ConnectionType,
@@ -21,6 +13,14 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/core/genetic-algorithm/genome";
+import type { LamarckGenome } from "../../../src/core/genetic-algorithm/genome-types";
+import type { DeepReadonly } from "../../../src/core/genetic-algorithm/shared-types";
+import { MarketDataBuffer } from "../../../src/core/market-data-buffer";
+import {
+	makeBestGenomeNoMeta,
+	makeMinimalBestGenome,
+} from "../../fixtures/genome.fixture";
+import { feedCandles } from "../../fixtures/market-data.fixture";
 
 jest.mock<{ env: any }>("../../../src/config/env", () => ({
 	env: {
@@ -410,7 +410,12 @@ describe("Trainer", () => {
 			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			const bestGenome = makeMinimalBestGenome() as DeepReadonly<LamarckGenome>;
-			(trainer as any)._trainingState.update({ symbol: "BTCUSDT", bestGenome, generation: 5, generationContext: null });
+			(trainer as any)._trainingState.update({
+				symbol: "BTCUSDT",
+				bestGenome,
+				generation: 5,
+				generationContext: null,
+			});
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -430,7 +435,12 @@ describe("Trainer", () => {
 			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			const bestGenome = makeBestGenomeNoMeta() as DeepReadonly<LamarckGenome>;
-			(trainer as any)._trainingState.update({ symbol: "BTCUSDT", bestGenome, generation: 5, generationContext: null });
+			(trainer as any)._trainingState.update({
+				symbol: "BTCUSDT",
+				bestGenome,
+				generation: 5,
+				generationContext: null,
+			});
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -454,7 +464,12 @@ describe("Trainer", () => {
 				variance: 0.05,
 				rawScores: [1],
 			};
-			(trainer as any)._trainingState.update({ symbol: "BTCUSDT", bestGenome: g as DeepReadonly<LamarckGenome>, generation: 5, generationContext: null });
+			(trainer as any)._trainingState.update({
+				symbol: "BTCUSDT",
+				bestGenome: g as DeepReadonly<LamarckGenome>,
+				generation: 5,
+				generationContext: null,
+			});
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -470,7 +485,12 @@ describe("Trainer", () => {
 			);
 			const g = createDefaultGenome("test", 3) as LamarckGenome;
 			(g as LamarckGenome).fitness = undefined as unknown as number;
-			(trainer as any)._trainingState.update({ symbol: "BTCUSDT", bestGenome: g as DeepReadonly<LamarckGenome>, generation: 5, generationContext: null });
+			(trainer as any)._trainingState.update({
+				symbol: "BTCUSDT",
+				bestGenome: g as DeepReadonly<LamarckGenome>,
+				generation: 5,
+				generationContext: null,
+			});
 
 			const summary = trainer.getBestAgentSummary();
 

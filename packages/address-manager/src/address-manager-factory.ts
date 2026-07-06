@@ -5,7 +5,6 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 
 import { AddressManagerClient } from "./client/address-manager-client";
 import { TokenManager } from "./client/token-manager";
-import type { ServiceInstance } from "./client/type";
 import { WebSocketClient, type WsMessage } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
 import { CircuitBreaker } from "./discovery/circuit-breaker";
@@ -39,7 +38,7 @@ export interface WsClientContext {
 }
 
 function createHttpClient(config: AddressManagerConfig): HttpClient {
-	return HttpClient.createWithTls(config.pems ?? config.tls)
+	return HttpClient.createWithTls(config.pems ?? config.tls);
 }
 
 function createServiceCache(config: AddressManagerConfig): IServiceCache {
@@ -55,7 +54,7 @@ function createServiceCache(config: AddressManagerConfig): IServiceCache {
 
 function createCircuitBreaker(
 	config: AddressManagerConfig,
-	serviceCache: IServiceCache,
+	serviceCache: IServiceCache
 ): CircuitBreaker {
 	return new CircuitBreaker({
 		failureThreshold: config.circuitBreakerFailureThreshold ?? 3,
@@ -69,14 +68,14 @@ function createCircuitBreaker(
 
 function createHealthChecker(
 	httpClient: HttpClient,
-	config: AddressManagerConfig,
+	config: AddressManagerConfig
 ): ServiceHealthChecker {
 	return new ServiceHealthChecker(
 		httpClient,
 		config.servicePingTimeoutMs,
 		config.dnsNameMap
 			? new MappingServiceLocator(new MapResolver(config.dnsNameMap))
-			: undefined,
+			: undefined
 	);
 }
 
@@ -85,7 +84,7 @@ function createDiscoveryInfra(
 	serviceCache: IServiceCache,
 	healthChecker: ServiceHealthChecker,
 	config: AddressManagerConfig,
-	circuitBreaker: CircuitBreaker,
+	circuitBreaker: CircuitBreaker
 ): DiscoveryOrchestrator {
 	const discovery = new ServiceDiscovery({
 		httpClient,
@@ -104,7 +103,7 @@ function createDiscoveryInfra(
 function _buildRegistrationManager(
 	addressManagerClient: AddressManagerClient,
 	tokenManager: TokenManager,
-	wsClient: WebSocketClient | undefined,
+	wsClient: WebSocketClient | undefined
 ): RegistrationManager {
 	return new RegistrationManager({
 		addressManagerClient,
@@ -118,7 +117,7 @@ function _buildRegistrationManager(
 function _buildHeartbeatManager(
 	addressManagerClient: AddressManagerClient,
 	tokenManager: TokenManager,
-	wsClient: WebSocketClient | undefined,
+	wsClient: WebSocketClient | undefined
 ): HeartbeatManager {
 	return new HeartbeatManager({
 		addressManagerClient,
@@ -132,11 +131,22 @@ function _buildHeartbeatManager(
 function createRegistrationAndHeartbeat(
 	addressManagerClient: AddressManagerClient,
 	tokenManager: TokenManager,
-	wsClient: WebSocketClient | undefined,
-): { registrationManager: RegistrationManager; heartbeatManager: HeartbeatManager } {
+	wsClient: WebSocketClient | undefined
+): {
+	registrationManager: RegistrationManager;
+	heartbeatManager: HeartbeatManager;
+} {
 	return {
-		registrationManager: _buildRegistrationManager(addressManagerClient, tokenManager, wsClient),
-		heartbeatManager: _buildHeartbeatManager(addressManagerClient, tokenManager, wsClient),
+		registrationManager: _buildRegistrationManager(
+			addressManagerClient,
+			tokenManager,
+			wsClient
+		),
+		heartbeatManager: _buildHeartbeatManager(
+			addressManagerClient,
+			tokenManager,
+			wsClient
+		),
 	};
 }
 
@@ -149,7 +159,7 @@ function _logCacheInvalidationError(serviceName: string, err: unknown): void {
 
 function onCacheInvalidateMessage(
 	message: WsMessage,
-	serviceCache: IServiceCache,
+	serviceCache: IServiceCache
 ): void {
 	if (message.type !== "cache.invalidate") {
 		return;
@@ -166,7 +176,7 @@ function onCacheInvalidateMessage(
 function _handleRegistrationSuccess(
 	res: { token?: string } | undefined,
 	tokenManager: TokenManager,
-	wsClient: WebSocketClient,
+	wsClient: WebSocketClient
 ): void {
 	if (res?.token) {
 		tokenManager.setToken(res.token);
@@ -185,7 +195,7 @@ function _handleRegistrationError(err: unknown): void {
 function onWsAuthFailure(
 	addressManagerClient: AddressManagerClient,
 	tokenManager: TokenManager,
-	wsClient: WebSocketClient,
+	wsClient: WebSocketClient
 ): void {
 	logger.warn("WebSocket auth failure \u2014 forcing re-registration");
 	addressManagerClient
@@ -217,12 +227,17 @@ function maybeCreateWsClient(
 	config: AddressManagerConfig,
 	addressManagerClient: AddressManagerClient,
 	tokenManager: TokenManager,
-	serviceCache: IServiceCache,
+	serviceCache: IServiceCache
 ): WebSocketClient | undefined {
 	if (!config.wsUrl) {
-		return undefined;
+		return;
 	}
-	return createWsClient({ config, addressManagerClient, tokenManager, serviceCache });
+	return createWsClient({
+		config,
+		addressManagerClient,
+		tokenManager,
+		serviceCache,
+	});
 }
 
 function createLifecycleManager(
@@ -234,14 +249,14 @@ function createLifecycleManager(
 	serviceCache: IServiceCache,
 	tokenManager: TokenManager,
 	addressManagerClient: AddressManagerClient,
-	healthChecker: ServiceHealthChecker,
+	healthChecker: ServiceHealthChecker
 ): LifecycleManager {
 	const shutdownHandler = new ShutdownHandler(
 		registrationManager,
 		wsClient,
 		addressManagerClient,
 		serviceCache,
-		circuitBreaker,
+		circuitBreaker
 	);
 
 	return new LifecycleManager({
@@ -261,13 +276,15 @@ function createLifecycleManager(
 	});
 }
 
-export function buildAddressManagerDependencies(config: AddressManagerConfig): AddressManagerDependencies {
+export function buildAddressManagerDependencies(
+	config: AddressManagerConfig
+): AddressManagerDependencies {
 	const httpClient = createHttpClient(config);
 	const tokenManager = new TokenManager(httpClient, config);
 	const addressManagerClient = new AddressManagerClient(
 		httpClient,
 		tokenManager,
-		config,
+		config
 	);
 	const serviceCache = createServiceCache(config);
 
@@ -278,26 +295,27 @@ export function buildAddressManagerDependencies(config: AddressManagerConfig): A
 		serviceCache,
 		healthChecker,
 		config,
-		circuitBreaker,
+		circuitBreaker
 	);
 	const metricsCollector = new MetricsCollector(
 		circuitBreaker,
 		serviceCache,
-		config.maxCallRecords,
+		config.maxCallRecords
 	);
 
 	const wsClient = maybeCreateWsClient(
 		config,
 		addressManagerClient,
 		tokenManager,
-		serviceCache,
+		serviceCache
 	);
 
-	const { registrationManager, heartbeatManager } = createRegistrationAndHeartbeat(
-		addressManagerClient,
-		tokenManager,
-		wsClient,
-	);
+	const { registrationManager, heartbeatManager } =
+		createRegistrationAndHeartbeat(
+			addressManagerClient,
+			tokenManager,
+			wsClient
+		);
 
 	const lifecycleManager = createLifecycleManager(
 		config,
@@ -308,7 +326,7 @@ export function buildAddressManagerDependencies(config: AddressManagerConfig): A
 		serviceCache,
 		tokenManager,
 		addressManagerClient,
-		healthChecker,
+		healthChecker
 	);
 
 	return {

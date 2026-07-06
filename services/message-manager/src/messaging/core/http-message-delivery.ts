@@ -1,5 +1,4 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { Message } from "@trading-model/common/contracts/message.types";
 
 import type { FileDlqRepository } from "./dlq-repository";
 import type {

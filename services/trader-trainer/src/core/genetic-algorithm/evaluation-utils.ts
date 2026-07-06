@@ -2,9 +2,9 @@ import {
 	computeAdjustedFitness,
 	estimateComplexity,
 } from "./complexity-estimator";
-import type { DeepReadonly } from "./shared-types";
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
+import type { DeepReadonly } from "./shared-types";
 import { computeSharpe, computeVariance } from "./utils";
 
 export interface GenomeFitnessMeta {
@@ -128,16 +128,13 @@ function _buildObjectives(
 	complexity: import("./complexity-estimator").ComplexityProfile
 ): { avgPnl: number; sharpe: number; negFlops: number } {
 	return {
-		avgPnl:
-			allPnL.reduce((sum, value) => sum + value, 0) / allPnL.length,
+		avgPnl: allPnL.reduce((sum, value) => sum + value, 0) / allPnL.length,
 		sharpe: computeSharpe(allRaw),
 		negFlops: -complexity.inferenceFLOPs,
 	};
 }
 
-export function _computeAllResults(
-	ctx: ComputeAllResultsContext
-): {
+export function _computeAllResults(ctx: ComputeAllResultsContext): {
 	updatedGenome: DeepReadonly<LamarckGenome>;
 	meta: GenomeFitnessMeta;
 	objectives: { avgPnl: number; sharpe: number; negFlops: number };

@@ -1,5 +1,5 @@
-import type WebSocket from "ws";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import type WebSocket from "ws";
 
 export class TlsConfigBuilder {
 	constructor(private readonly _tlsConfig?: TlsPaths) {}

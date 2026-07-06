@@ -9,6 +9,10 @@ import {
 	TextField,
 	Typography,
 } from "@mui/material";
+import {
+	toCorrelationId,
+	toTopic,
+} from "@trading-model/common/domain/primitives";
 import { useState } from "react";
 import {
 	Bar,
@@ -23,7 +27,6 @@ import { DataTable } from "../components/data-table";
 import { SeverityBadge } from "../components/severity-badge";
 import { StatsCard } from "../components/stats-card";
 import { useAuditEvents } from "../hooks/use-audit-events";
-import { toCorrelationId, toTopic } from "@trading-model/common/domain/primitives";
 import type { AuditEvent, AuditFilter } from "../types/dtos";
 
 function PageLoading() {
@@ -172,7 +175,10 @@ function AuditFilterBar({
 			<TopicSelect
 				value={filter.topic ?? ""}
 				onChange={(value) =>
-					onFilterChange({ ...filter, topic: value ? toTopic(value) : undefined })
+					onFilterChange({
+						...filter,
+						topic: value ? toTopic(value) : undefined,
+					})
 				}
 			/>
 			<ApplyFilterButton onClick={onApply} />

@@ -1,6 +1,5 @@
 import type { JobRepository } from "../persistence/job-repository";
-import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
-import { type IWorkerProtocol } from "../worker/worker-protocol";
+import type { IWorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
@@ -23,7 +22,11 @@ export class JobAssignmentManager {
 		this._queue = deps.queue;
 		this._backPressure = deps.backPressure;
 		this._workers = deps.workers;
-		this._assigner = new JobAssigner(deps.queue, deps.backPressure, deps.repository);
+		this._assigner = new JobAssigner(
+			deps.queue,
+			deps.backPressure,
+			deps.repository
+		);
 	}
 
 	setWorkerProtocol(protocol: IWorkerProtocol): void {

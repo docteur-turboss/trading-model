@@ -1,11 +1,11 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import WebSocket from "ws";
+import type WebSocket from "ws";
 import type { Dispatcher } from "../core/dispatcher";
-import type { IncomingWssMessage, WssMessageType } from "./wss-message.types";
-import { WssPublisher } from "./wss-publisher";
-import { WssSubscriptionManager } from "./wss-subscription-manager";
-import { WssMessageParser } from "./wss-message-parser";
 import { AckNackHandler } from "./ack-nack-handler";
+import type { IncomingWssMessage, WssMessageType } from "./wss-message.types";
+import { WssMessageParser } from "./wss-message-parser";
+import type { WssPublisher } from "./wss-publisher";
+import type { WssSubscriptionManager } from "./wss-subscription-manager";
 
 type MessageHandler = (
 	msg: IncomingWssMessage,
@@ -76,8 +76,12 @@ export class WssMessageRouter {
 		map.set("publish", (msg, ws, ctx) =>
 			this._publisher.handlePublish(msg, ws, ctx)
 		);
-		map.set("ack", (msg, ws, ctx) => this._ackNackHandler.handleAck(msg, ws, ctx));
-		map.set("nack", (msg, ws, ctx) => this._ackNackHandler.handleNack(msg, ws, ctx));
+		map.set("ack", (msg, ws, ctx) =>
+			this._ackNackHandler.handleAck(msg, ws, ctx)
+		);
+		map.set("nack", (msg, ws, ctx) =>
+			this._ackNackHandler.handleNack(msg, ws, ctx)
+		);
 		return map;
 	}
 }

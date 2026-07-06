@@ -6,14 +6,22 @@ import {
 	generateKeyPairAsync,
 } from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
-import { CaClient, type SignCertificateRequest } from "@trading-model/common/ca/ca-client";
+import {
+	CaClient,
+	type SignCertificateRequest,
+} from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
+import type {
+	TlsPaths,
+	TlsPemBundle,
+} from "@trading-model/common/domain/tls-paths";
 import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
-import type { TlsPaths, TlsPemBundle } from "@trading-model/common/domain/tls-paths";
 import type { SecureServerOptions } from "@trading-model/common/server/create-secure-server";
-import type { HttpServer, HttpsServerOptions } from "@trading-model/common/server/server-factory";
+import type {
+	HttpServer,
+	HttpsServerOptions,
+} from "@trading-model/common/server/server-factory";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type { Application } from "express";
 
 import { CertificateClient } from "./certificate-client";
 
@@ -28,7 +36,7 @@ export interface BootstrapConfig {
 }
 
 export function bootstrapConfigFromEnv(
-	env: Record<string, string | undefined>,
+	env: Record<string, string | undefined>
 ): BootstrapConfig | null {
 	const caUrl = env.CERT_CLIENT_CA_URL;
 	if (!caUrl) {
@@ -37,8 +45,14 @@ export function bootstrapConfigFromEnv(
 	return {
 		caUrl,
 		serviceId: env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown",
-		commonName: env.CERT_CLIENT_COMMON_NAME ?? env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown",
-		san: env.CERT_CLIENT_SANS?.split(",").map((entry) => entry.trim()) ?? [env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown"],
+		commonName:
+			env.CERT_CLIENT_COMMON_NAME ??
+			env.CERT_CLIENT_SERVICE_ID ??
+			env.APP_NAME ??
+			"unknown",
+		san: env.CERT_CLIENT_SANS?.split(",").map((entry) => entry.trim()) ?? [
+			env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown",
+		],
 		tlsPaths: {
 			certPath: env.TLS_CERT_PATH ?? "/etc/tls/cert.pem",
 			keyPath: env.TLS_KEY_PATH ?? "/etc/tls/key.pem",
@@ -50,10 +64,10 @@ export function bootstrapConfigFromEnv(
 }
 
 function _buildClientTls(
-	env: Record<string, string | undefined>,
+	env: Record<string, string | undefined>
 ): BootstrapConfig["tls"] {
 	if (!env.CA_CLIENT_TLS_KEY) {
-		return undefined;
+		return;
 	}
 	return {
 		keyPath: env.CA_CLIENT_TLS_KEY,
@@ -88,7 +102,7 @@ export async function bootstrapCertificate(
 }
 
 async function _tryLoadExistingCert(
-	config: BootstrapConfig,
+	config: BootstrapConfig
 ): Promise<TlsPaths | null> {
 	try {
 		await fs.access(config.tlsPaths.certPath);
@@ -124,11 +138,14 @@ async function _generateKeyAndCsr(config: BootstrapConfig): Promise<{
 
 async function _signWithCa(
 	config: BootstrapConfig,
-	csr: string,
-): Promise<import("@trading-model/common/ca/ca-client").SignCertificateResponse> {
+	csr: string
+): Promise<
+	import("@trading-model/common/ca/ca-client").SignCertificateResponse
+> {
 	const caClient = new CaClient({ baseUrl: config.caUrl, tls: config.tls });
 	const request: SignCertificateRequest = {
-		serviceId: config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
+		serviceId:
+			config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
 		csr,
 		bootstrapToken: config.bootstrapToken,
 	};
@@ -138,7 +155,7 @@ async function _signWithCa(
 async function _writeCertFiles(
 	config: BootstrapConfig,
 	privateKey: string,
-	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse,
+	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse
 ): Promise<void> {
 	const certDir = path.dirname(config.tlsPaths.certPath);
 	await fs.mkdir(certDir, { recursive: true });
@@ -148,13 +165,17 @@ async function _writeCertFiles(
 	_logCertWritten(config, response);
 }
 
-async function _writeCertFile(filePath: string, content: string, mode: number): Promise<void> {
+async function _writeCertFile(
+	filePath: string,
+	content: string,
+	mode: number
+): Promise<void> {
 	await fs.writeFile(filePath, content, { mode });
 }
 
 function _logCertWritten(
 	config: BootstrapConfig,
-	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse,
+	response: import("@trading-model/common/ca/ca-client").SignCertificateResponse
 ): void {
 	logger.info("TLS certificate obtained and written to disk", {
 		serviceId: config.serviceId,
@@ -182,7 +203,7 @@ export interface CreateHttpsServerOptions extends SecureServerOptions {
  */
 function _setupAutoRenewCallback(
 	server: https.Server,
-	cert: TlsPemBundle,
+	cert: TlsPemBundle
 ): void {
 	try {
 		server.setSecureContext(cert);
@@ -193,7 +214,7 @@ function _setupAutoRenewCallback(
 }
 
 export function createTlsBootstrap(
-	env: Record<string, string | undefined>,
+	env: Record<string, string | undefined>
 ): TlsBootstrapOptions | null {
 	const config = bootstrapConfigFromEnv(env);
 	if (!config) {
@@ -202,24 +223,41 @@ export function createTlsBootstrap(
 	return {
 		ensure: () => bootstrapCertificate(config),
 		setupAutoRenew: (server: https.Server) => {
-			const client = new CertificateClient({ ...config, serviceId: config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId, onRenew: (cert) => _setupAutoRenewCallback(server, { key: cert.keyPem, cert: cert.certPem, ca: cert.caPem }) });
+			const client = new CertificateClient({
+				...config,
+				serviceId:
+					config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
+				onRenew: (cert) =>
+					_setupAutoRenewCallback(server, {
+						key: cert.keyPem,
+						cert: cert.certPem,
+						ca: cert.caPem,
+					}),
+			});
 			setTimeout(() => client.startAutoRenew(), 1000);
 		},
 	};
 }
 
 async function loadServerDependencies(): Promise<{
-	configureApp: (opts: { rateLimit?: import("@trading-model/common/server/configure-app").RateLimitConfig; trustProxy?: boolean }) => import("express").Application;
+	configureApp: (opts: {
+		rateLimit?: import("@trading-model/common/server/configure-app").RateLimitConfig;
+		trustProxy?: boolean;
+	}) => import("express").Application;
 	mtlsAuthMiddleware: import("express").RequestHandler;
 	responseProtocol: import("express").RequestHandler;
-	createAndStartHttpsServer: (app: import("express").Application, opts: HttpsServerOptions) => Promise<HttpServer>;
+	createAndStartHttpsServer: (
+		app: import("express").Application,
+		opts: HttpsServerOptions
+	) => Promise<HttpServer>;
 }> {
-	const [configureAppMod, mtlsAuthMod, responseProtocolMod, serverFactoryMod] = await Promise.all([
-		import("@trading-model/common/server/configure-app"),
-		import("@trading-model/common/middleware/mtls-auth"),
-		import("@trading-model/common/middleware/response-protocol"),
-		import("@trading-model/common/server/server-factory"),
-	]);
+	const [configureAppMod, mtlsAuthMod, responseProtocolMod, serverFactoryMod] =
+		await Promise.all([
+			import("@trading-model/common/server/configure-app"),
+			import("@trading-model/common/middleware/mtls-auth"),
+			import("@trading-model/common/middleware/response-protocol"),
+			import("@trading-model/common/server/server-factory"),
+		]);
 	return {
 		configureApp: configureAppMod.configureApp,
 		mtlsAuthMiddleware: mtlsAuthMod.MTLSAuthMiddleware,
@@ -231,25 +269,47 @@ async function loadServerDependencies(): Promise<{
 function setupAutoRenew(server: HttpServer, config: BootstrapConfig): void {
 	const client = new CertificateClient({
 		...config,
-		serviceId: config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
-		onRenew: (cert) => server.raw.setSecureContext({ key: cert.keyPem, cert: cert.certPem, ca: cert.caPem }),
+		serviceId:
+			config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
+		onRenew: (cert) =>
+			server.raw.setSecureContext({
+				key: cert.keyPem,
+				cert: cert.certPem,
+				ca: cert.caPem,
+			}),
 	});
 	setTimeout(() => client.startAutoRenew(), 1000);
 }
 
-async function _createServerApp(options: CreateHttpsServerOptions, tls: TlsPaths): Promise<HttpServer> {
-	const { configureApp, mtlsAuthMiddleware, responseProtocol, createAndStartHttpsServer } =
-		await loadServerDependencies();
-	const app = configureApp({ rateLimit: options.rateLimit, trustProxy: options.trustProxy });
+async function _createServerApp(
+	options: CreateHttpsServerOptions,
+	tls: TlsPaths
+): Promise<HttpServer> {
+	const {
+		configureApp,
+		mtlsAuthMiddleware,
+		responseProtocol,
+		createAndStartHttpsServer,
+	} = await loadServerDependencies();
+	const app = configureApp({
+		rateLimit: options.rateLimit,
+		trustProxy: options.trustProxy,
+	});
 	app.use(mtlsAuthMiddleware);
 	options.routes(app);
 	app.use(responseProtocol);
-	const server = await createAndStartHttpsServer(app, { port: options.port, tls, watchTls: options.watchTls ?? true });
+	const server = await createAndStartHttpsServer(app, {
+		port: options.port,
+		tls,
+		watchTls: options.watchTls ?? true,
+	});
 	options.onServerReady?.(server.raw);
 	return server;
 }
 
-export async function createHttpsServer(options: CreateHttpsServerOptions): Promise<HttpServer> {
+export async function createHttpsServer(
+	options: CreateHttpsServerOptions
+): Promise<HttpServer> {
 	const env = options.env ?? {};
 	const tls = (await bootstrapFromEnv(env)) ?? options.tls;
 	const server = await _createServerApp(options, tls);

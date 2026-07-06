@@ -32,9 +32,7 @@ export class GenomeSummaryBuilder {
 		};
 	}
 
-	buildRLSummary(
-		genome: DeepReadonly<LamarckGenome>
-	): BestAgentSummary["rl"] {
+	buildRLSummary(genome: DeepReadonly<LamarckGenome>): BestAgentSummary["rl"] {
 		return {
 			gamma: genome.rl.gamma,
 			learningRate: genome.rl.learningRate,
@@ -44,9 +42,7 @@ export class GenomeSummaryBuilder {
 		};
 	}
 
-	buildBestAgentSummary(
-		genome: DeepReadonly<LamarckGenome>
-	): BestAgentSummary {
+	buildBestAgentSummary(genome: DeepReadonly<LamarckGenome>): BestAgentSummary {
 		const meta = genome.fitnessMeta;
 		return {
 			id: genome.id,
@@ -76,10 +72,12 @@ export class GenomeSummaryBuilder {
 	}
 
 	static computeVariance(scores: readonly number[], mean: number): number {
-		return scores
-			.map((val) => (val - mean) ** 2)
-			.reduce((sum, val) => sum + val, 0) /
-			(scores.length - 1);
+		return (
+			scores
+				.map((val) => (val - mean) ** 2)
+				.reduce((sum, val) => sum + val, 0) /
+			(scores.length - 1)
+		);
 	}
 
 	static computeSharpe(scores: readonly number[]): number {

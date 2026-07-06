@@ -25,7 +25,9 @@ class AuditClientManager {
 		if (this._httpClient) {
 			return this._httpClient;
 		}
-		const existingClient = await this._resolveExistingPromise(this._httpClientPromise);
+		const existingClient = await this._resolveExistingPromise(
+			this._httpClientPromise
+		);
 		if (existingClient) {
 			return existingClient;
 		}

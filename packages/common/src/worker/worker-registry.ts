@@ -1,6 +1,4 @@
-import type {
-	WorkerRegistration,
-} from "../contracts/worker-protocol.types";
+import type { WorkerRegistration } from "../contracts/worker-protocol.types";
 import { WorkerStore } from "./worker-store";
 
 export class WorkerRegistry {
@@ -33,11 +31,17 @@ export class WorkerRegistry {
 		this._store.updateLoad(workerId, currentLoad);
 	}
 
-	setStatus(workerId: string, status: import("../contracts/worker-protocol.types").WorkerStatus): void {
+	setStatus(
+		workerId: string,
+		status: import("../contracts/worker-protocol.types").WorkerStatus
+	): void {
 		this._store.setStatus(workerId, status);
 	}
 
-	private _isWorkerSuitable(worker: WorkerRegistration, jobType: string): boolean {
+	private _isWorkerSuitable(
+		worker: WorkerRegistration,
+		jobType: string
+	): boolean {
 		return (
 			worker.status === "active" &&
 			worker.capabilities.includes(jobType) &&

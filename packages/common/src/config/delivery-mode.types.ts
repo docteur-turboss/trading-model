@@ -7,10 +7,7 @@
  */
 
 /** Union type of all delivery modes */
-export type DeliveryMode =
-	| "at-most-once"
-	| "at-least-once"
-	| "exactly-once";
+export type DeliveryMode = "at-most-once" | "at-least-once" | "exactly-once";
 
 /** Runtime delivery mode constants for use in comparisons and schema validation. */
 export const DeliveryMode: {

@@ -121,7 +121,7 @@ describe("metrics", () => {
 		it("should log warning on non-OK response", async () => {
 			mockFetch.mockResolvedValue({ ok: false, status: 500 });
 
-			sendAlertWebhook({
+			await sendAlertWebhook({
 				webhookUrl: "https://hooks.example.com/alert",
 				title: "Alert",
 				message: "msg",
@@ -133,7 +133,7 @@ describe("metrics", () => {
 		it("should log warning on fetch error", async () => {
 			mockFetch.mockRejectedValue(new Error("Network failure"));
 
-			sendAlertWebhook({
+			await sendAlertWebhook({
 				webhookUrl: "https://hooks.example.com/alert",
 				title: "Alert",
 				message: "msg",

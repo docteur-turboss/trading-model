@@ -4,21 +4,21 @@
  */
 
 import { NormalizationStats } from "../normalization-stats";
-import { precomputeRewards } from "./reward-shaping";
-import { trainPhase } from "./training-phase";
+import type { EvaluationResult } from "./evaluation-phase";
 import { evalPhase } from "./evaluation-phase";
+import type { GenomeFitnessMeta } from "./evaluation-utils";
 import {
+	_computeAllResults,
+	_validateEvalResult,
+	_validateGenomeInputs,
 	deepFreeze,
 	lamarckianUpdate,
-	_validateGenomeInputs,
-	_validateEvalResult,
-	_computeAllResults,
 } from "./evaluation-utils";
-import type { DeepReadonly } from "./shared-types";
 import type { LamarckGenome, MarketStep } from "./genome-types";
+import { precomputeRewards } from "./reward-shaping";
 import type { BackendFactory } from "./rl-backend";
-import type { EvaluationResult } from "./evaluation-phase";
-import type { GenomeFitnessMeta } from "./evaluation-utils";
+import type { DeepReadonly } from "./shared-types";
+import { trainPhase } from "./training-phase";
 
 // Re-export public types for consumers
 export type { EvaluationResult, GenomeFitnessMeta };
@@ -167,9 +167,7 @@ function _makeEvalFn(
 		evaluateGenomeAllWindows(genome, windowSets, backendFactory);
 }
 
-export async function evaluateFitness(
-	ctx: EvaluateFitnessContext
-): Promise<{
+export async function evaluateFitness(ctx: EvaluateFitnessContext): Promise<{
 	updatedPop: DeepReadonly<LamarckGenome>[];
 	objectives: { avgPnl: number; sharpe: number; negFlops: number }[];
 	metas: GenomeFitnessMeta[];

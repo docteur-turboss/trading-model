@@ -3,11 +3,11 @@ import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
-	serviceUnreachableError,
-	isServiceUnreachableError,
 	isMessageManagerError,
+	isServiceUnreachableError,
 	messageManagerError,
 	normalizeError,
+	serviceUnreachableError,
 } from "@trading-model/common/utils/errors";
 import type { MessageManagerConfig } from "../shared/types/config";
 import { TopicRequestBuilder } from "./topic-request-builder";
@@ -16,9 +16,9 @@ export class TopicSubscriptionService {
 	private readonly _requestBuilder: TopicRequestBuilder;
 
 	constructor(
-		private readonly _httpClient: HttpClient,
-		private readonly _config: MessageManagerConfig,
-		private readonly _addressManagerClient: addressManagerClient,
+		readonly _httpClient: HttpClient,
+		readonly _config: MessageManagerConfig,
+		private readonly _addressManagerClient: addressManagerClient
 	) {
 		this._requestBuilder = new TopicRequestBuilder(_httpClient, _config);
 	}
@@ -43,7 +43,7 @@ export class TopicSubscriptionService {
 
 	private async _findMessageService(): Promise<{ ip: string; port: number }> {
 		const target = await this._addressManagerClient.findService(
-			ServiceInstanceName.MessageDeliveryService,
+			ServiceInstanceName.MessageDeliveryService
 		);
 		if (!target) {
 			throw serviceUnreachableError("Unable to contact the message manager");
@@ -58,9 +58,8 @@ export class TopicSubscriptionService {
 		if (isMessageManagerError(err)) {
 			return undefined as never;
 		}
-		throw messageManagerError(
-			`Failed to ${action} topic to Message Manager`,
-			{ cause: normalizeError(err) },
-		);
+		throw messageManagerError(`Failed to ${action} topic to Message Manager`, {
+			cause: normalizeError(err),
+		});
 	}
 }

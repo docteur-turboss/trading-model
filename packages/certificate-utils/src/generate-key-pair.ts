@@ -12,7 +12,9 @@ export const KeyAlgorithm = {
 
 export type KeyAlgorithm = (typeof KeyAlgorithm)[keyof typeof KeyAlgorithm];
 
-function _getAlgorithmOptions(algorithm: KeyAlgorithm): Record<string, unknown> {
+function _getAlgorithmOptions(
+	algorithm: KeyAlgorithm
+): Record<string, unknown> {
 	return algorithm === KeyAlgorithm.rsa4096
 		? { modulusLength: 4096 }
 		: { namedCurve: "P-384" };
@@ -26,13 +28,15 @@ function _getKeyEncoding() {
 }
 
 export function generateKeyPair(
-	algorithm: KeyAlgorithm = KeyAlgorithm.ecP384,
+	algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
 ): KeyPair {
 	const algorithmOptions = _getAlgorithmOptions(algorithm);
-	const { publicKey, privateKey } = (nodeGenerateKeyPairSync as (
-		type: string,
-		options: Record<string, unknown>,
-	) => { publicKey: unknown; privateKey: unknown })(algorithm, {
+	const { publicKey, privateKey } = (
+		nodeGenerateKeyPairSync as (
+			type: string,
+			options: Record<string, unknown>
+		) => { publicKey: unknown; privateKey: unknown }
+	)(algorithm, {
 		...algorithmOptions,
 		..._getKeyEncoding(),
 	});

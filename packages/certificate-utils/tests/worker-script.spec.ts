@@ -173,7 +173,10 @@ describe("worker-script", () => {
 			data: { certPem: "cert", caCertPem: "ca" },
 		});
 
-		expect(validateCertificate).toHaveBeenCalledWith({ certPem: "cert", caCertPem: "ca" });
+		expect(validateCertificate).toHaveBeenCalledWith({
+			certPem: "cert",
+			caCertPem: "ca",
+		});
 		expect(mockPostMessage).toHaveBeenCalledWith({
 			id: "task-5",
 			success: true,
@@ -190,7 +193,10 @@ describe("worker-script", () => {
 			data: { certPem: "cert" },
 		});
 
-		expect(validateCertificate).toHaveBeenCalledWith({ certPem: "cert", caCertPem: "" });
+		expect(validateCertificate).toHaveBeenCalledWith({
+			certPem: "cert",
+			caCertPem: "",
+		});
 	});
 
 	it("should handle parseKey", () => {

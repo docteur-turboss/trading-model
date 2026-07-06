@@ -60,12 +60,17 @@ export class SubscriptionRedisWriter {
 	async remove(topic: string, instanceId: string): Promise<void> {
 		const redis = await getSubscriptionClient();
 		const subKey = this._keys.subKey(topic, instanceId);
-		const multi = this._cleanup.buildRemovePipeline(redis, topic, instanceId, subKey);
+		const multi = this._cleanup.buildRemovePipeline(
+			redis,
+			topic,
+			instanceId,
+			subKey
+		);
 		const results = await multi.exec();
 		if (!results) {
 			return;
 		}
-		this._cleanup.cleanupInstanceIfEmpty(redis, results, instanceId);
-		this._cleanup.cleanupTopicIfEmpty(redis, results, topic);
+		await this._cleanup.cleanupInstanceIfEmpty(redis, results, instanceId);
+		await this._cleanup.cleanupTopicIfEmpty(redis, results, topic);
 	}
 }

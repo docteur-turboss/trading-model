@@ -1,5 +1,8 @@
 import type { CandleData } from "@trading-model/common/config/event.types";
-import type { Price, TradingSymbol } from "@trading-model/common/domain/primitives";
+import type {
+	Price,
+	TradingSymbol,
+} from "@trading-model/common/domain/primitives";
 import type { FeatureVector } from "./feature-vector";
 import type { SymbolState } from "./market-data-types";
 

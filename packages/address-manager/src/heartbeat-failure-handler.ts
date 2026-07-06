@@ -12,13 +12,13 @@ export class HeartbeatFailureHandler {
 	constructor(
 		private readonly _addressManagerClient: AddressManagerClient,
 		private readonly _tokenManager: TokenManager,
-		private readonly _wsClient?: WebSocketClient,
+		private readonly _wsClient?: WebSocketClient
 	) {}
 
 	async handleError(
 		err: unknown,
 		onSuccess?: () => void,
-		onFailure?: () => void,
+		onFailure?: () => void
 	): Promise<void> {
 		onFailure?.();
 		this._consecutiveHeartbeatFailures++;
@@ -26,7 +26,10 @@ export class HeartbeatFailureHandler {
 			consecutiveFailures: this._consecutiveHeartbeatFailures,
 			error: normalizeError(err),
 		});
-		if (this._consecutiveHeartbeatFailures >= MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER) {
+		if (
+			this._consecutiveHeartbeatFailures >=
+			MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
+		) {
 			this._consecutiveHeartbeatFailures = 0;
 			await this._forceReRegistration(onSuccess);
 		}

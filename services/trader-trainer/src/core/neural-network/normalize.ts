@@ -48,8 +48,12 @@ function _findMinMax(data: Float32Array): NormalizeParams {
 	let min = data[0];
 	let max = data[0];
 	for (const value of data) {
-		if (value < min) min = value;
-		if (value > max) max = value;
+		if (value < min) {
+			min = value;
+		}
+		if (value > max) {
+			max = value;
+		}
 	}
 	return new NumericRange(min, max);
 }

@@ -1,13 +1,12 @@
 import { agentError } from "@trading-model/common/utils/errors";
-
+import { AgentExperienceHandler } from "./agent-experience-handler";
 import { NeuralNetwork } from "./neural-network";
+import { ScoreTracker } from "./score-tracker";
 import type {
 	Experience,
 	NetworkArchitecture,
 	NeuralNetworkConfig,
 } from "./type";
-import { ScoreTracker } from "./score-tracker";
-import { AgentExperienceHandler } from "./agent-experience-handler";
 
 /**
  * High-level agent that wraps a {@link NeuralNetwork} and adds:
@@ -43,7 +42,7 @@ export class Agent {
 	constructor(readonly cfg: NetworkArchitecture) {
 		if (cfg.neuronsByLayer.length < 2) {
 			throw agentError(
-				"neuronsByLayer must contain at least 2 entries (input + output).",
+				"neuronsByLayer must contain at least 2 entries (input + output)."
 			);
 		}
 
@@ -71,7 +70,13 @@ export class Agent {
 	public fastForward(ff: FastForwardInput): Float32Array {
 		const { input, reward, nextState, done } = ff;
 		const { output } = this._nn.forward(input);
-		this._experienceHandler.recordExperience(input, output, reward, nextState, done);
+		this._experienceHandler.recordExperience(
+			input,
+			output,
+			reward,
+			nextState,
+			done
+		);
 		return output;
 	}
 

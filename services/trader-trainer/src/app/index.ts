@@ -8,11 +8,14 @@ import { createServer } from "./server";
 
 const NULL_ADDRESS_MANAGER = { stop() {} };
 
-let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> = NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
+let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> =
+	NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
 
 const CONTAINER = new ApplicationContainer({
 	bufferSize: env.TRAINER_DATA_WINDOW,
-	symbols: env.TRAINER_SYMBOLS.split(",").map((symbol) => toSymbol(symbol.trim())),
+	symbols: env.TRAINER_SYMBOLS.split(",").map((symbol) =>
+		toSymbol(symbol.trim())
+	),
 	validationSplit: env.TRAINER_VALIDATION_SPLIT,
 	generations: env.TRAINER_GENERATIONS,
 	populationSize: env.TRAINER_POPULATION_SIZE,

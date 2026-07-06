@@ -1,16 +1,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
-import { Price, toSymbol } from "@trading-model/common/domain/primitives";
 import type { TradingSymbol } from "@trading-model/common/domain/primitives";
-
+import { type Price, toSymbol } from "@trading-model/common/domain/primitives";
+import type { SymbolStateSerializable } from "./buffer-serializable-types";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "./market-data-buffer";
 import type { SymbolState } from "./market-data-types";
 import { NormalizationStats } from "./normalization-stats";
-import type { SymbolStateSerializable } from "./buffer-serializable-types";
 
 export class BufferLoader {
 	constructor(private readonly _checkpointDir: string) {}

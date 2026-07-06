@@ -8,8 +8,8 @@ export class PeakTracker {
 	}
 
 	update(currentValuation: Cash): void {
-		if (+currentValuation > +this._peakValuation) {
-			this._peakValuation = Cash.of(+currentValuation);
+		if (Number(currentValuation) > Number(this._peakValuation)) {
+			this._peakValuation = Cash.of(Number(currentValuation));
 		}
 	}
 

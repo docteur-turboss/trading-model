@@ -1,14 +1,18 @@
+import type { GARunnerConfig, GenerationContext } from "./generation-processor";
+import { GenerationProcessor } from "./generation-processor";
 import type {
 	GAControlGenome,
 	GenomeFitnessMeta,
 	LamarckGenome,
 } from "./genome-types";
 import type { ObjectiveVector } from "./nsga2";
-import { type DeepReadonly } from "./shared-types";
-import { GenerationProcessor } from "./generation-processor";
-import type { GenerationContext, GARunnerConfig } from "./generation-processor";
+import type { DeepReadonly } from "./shared-types";
 
-export type { WindowSet, GARunnerConfig, GenerationContext } from "./generation-processor";
+export type {
+	GARunnerConfig,
+	GenerationContext,
+	WindowSet,
+} from "./generation-processor";
 
 export interface ParetoFrontContext {
 	updatedPop: DeepReadonly<LamarckGenome>[];

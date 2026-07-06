@@ -65,7 +65,9 @@ export class FallbackFileRecovery {
 	}
 
 	private _isValidWalEntry(parsed: Record<string, unknown>): boolean {
-		return !!(parsed?.topic && parsed.message && parsed.deliveryAttempt === undefined);
+		return Boolean(
+			parsed?.topic && parsed.message && parsed.deliveryAttempt === undefined
+		);
 	}
 
 	private async _writeRemainingLines(

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "@jest/globals";
+import { MutationDistribution } from "../../../src/core/genetic-algorithm/genome";
 import {
 	sampleCauchy,
 	sampleGaussian,
@@ -6,7 +7,6 @@ import {
 	sampleNoise,
 	sampleUniform,
 } from "../../../src/core/genetic-algorithm/noise";
-import { MutationDistribution } from "../../../src/core/genetic-algorithm/genome";
 
 describe("Noise Samplers", () => {
 	const rng = () => 0.5;

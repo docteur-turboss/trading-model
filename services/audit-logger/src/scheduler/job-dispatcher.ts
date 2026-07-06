@@ -1,13 +1,16 @@
+import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";
-import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
-import { type IWorkerProtocol, NullWorkerProtocol } from "../worker/worker-protocol";
+import {
+	type IWorkerProtocol,
+	NullWorkerProtocol,
+} from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
+import { AckTimeoutHandler } from "./ack-timeout-handler";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
-import { AckTimeoutHandler } from "./ack-timeout-handler";
 import { WorkerLoadUpdater } from "./worker-load-updater";
 
 export interface JobDispatcherDeps {
@@ -35,7 +38,7 @@ export class JobDispatcher {
 			deps.repository,
 			deps.workers,
 			deps.backPressure,
-			deps.reAllocator,
+			deps.reAllocator
 		);
 		this._onAckTimeout = (jobId) => this._ackTimeoutHandler.onTimeout(jobId);
 		this._loadUpdater = new WorkerLoadUpdater(deps.backPressure, deps.workers);
@@ -47,7 +50,10 @@ export class JobDispatcher {
 
 	assignJob(
 		queued: { job: Job },
-		worker: Pick<WorkerRegistration, "workerId" | "currentLoad" | "maxConcurrency">
+		worker: Pick<
+			WorkerRegistration,
+			"workerId" | "currentLoad" | "maxConcurrency"
+		>
 	): void {
 		const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
 		const assignedJob: Job = {
@@ -60,7 +66,11 @@ export class JobDispatcher {
 		this._queue.markDelivered(assignedJob.id, this._onAckTimeout);
 		this._sendAssignment(worker.workerId, assignedJob, deadline);
 		this._incrementWorkerLoad(worker);
-		this._ackTimeoutHandler.persistAssignment(assignedJob.id, worker.workerId, deadline);
+		this._ackTimeoutHandler.persistAssignment(
+			assignedJob.id,
+			worker.workerId,
+			deadline
+		);
 	}
 
 	distributeNext(): void {

@@ -1,16 +1,4 @@
 import { describe, expect, test } from "@jest/globals";
-import {
-	Price,
-	toSymbol,
-	UnixTimestamp,
-	Volume,
-} from "@trading-model/common/domain/primitives";
-import {
-	CandleInterval,
-	MarketType,
-	SourceType,
-	TradeSide,
-} from "@trading-model/common/config/event.types";
 import type {
 	BookTickerData,
 	CandleData,
@@ -18,6 +6,18 @@ import type {
 	TickerData,
 	TradeData,
 } from "@trading-model/common/config/event.types";
+import {
+	CandleInterval,
+	MarketType,
+	SourceType,
+	TradeSide,
+} from "@trading-model/common/config/event.types";
+import {
+	Price,
+	toSymbol,
+	UnixTimestamp,
+	Volume,
+} from "@trading-model/common/domain/primitives";
 import { buildFeatures } from "../../../src/core/feature-builder";
 import { FEATURE_DIM } from "../../../src/core/market-data-types";
 import { NormalizationStats } from "../../../src/core/normalization-stats";
@@ -142,13 +142,27 @@ function makeState(overrides: {
 	tickerVolume?: NormalizationStats;
 }) {
 	const norm = defaultNorm();
-	if (overrides.candleClose) norm.candleClose = overrides.candleClose;
-	if (overrides.tradePrice) norm.tradePrice = overrides.tradePrice;
-	if (overrides.tradeQty) norm.tradeQty = overrides.tradeQty;
-	if (overrides.bid) norm.bid = overrides.bid;
-	if (overrides.ask) norm.ask = overrides.ask;
-	if (overrides.spread) norm.spread = overrides.spread;
-	if (overrides.tickerVolume) norm.tickerVolume = overrides.tickerVolume;
+	if (overrides.candleClose) {
+		norm.candleClose = overrides.candleClose;
+	}
+	if (overrides.tradePrice) {
+		norm.tradePrice = overrides.tradePrice;
+	}
+	if (overrides.tradeQty) {
+		norm.tradeQty = overrides.tradeQty;
+	}
+	if (overrides.bid) {
+		norm.bid = overrides.bid;
+	}
+	if (overrides.ask) {
+		norm.ask = overrides.ask;
+	}
+	if (overrides.spread) {
+		norm.spread = overrides.spread;
+	}
+	if (overrides.tickerVolume) {
+		norm.tickerVolume = overrides.tickerVolume;
+	}
 	return {
 		candles: overrides.candles,
 		trades: overrides.trades ?? [],
@@ -163,7 +177,13 @@ describe("buildFeatures", () => {
 	test("returns Float32Array of correct dimension", () => {
 		const s = makeState({
 			candles: [
-				baseCandle({ close: Price.of(100), open: Price.of(95), high: Price.of(105), low: Price.of(92), volume: Volume.of(800) }),
+				baseCandle({
+					close: Price.of(100),
+					open: Price.of(95),
+					high: Price.of(105),
+					low: Price.of(92),
+					volume: Volume.of(800),
+				}),
 				baseCandle({
 					close: Price.of(105),
 					open: Price.of(102),
@@ -174,7 +194,11 @@ describe("buildFeatures", () => {
 			],
 		});
 
-		const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+		const f = buildFeatures({
+			state: s,
+			idx: 1,
+			priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+		});
 		expect(f.buffer).toBeInstanceOf(Float32Array);
 		expect(f.buffer.length).toBe(FEATURE_DIM);
 		expect(f.buffer[31]).toBe(1.0);
@@ -184,7 +208,13 @@ describe("buildFeatures", () => {
 		test("computes candle-derived features", () => {
 			const s = makeState({
 				candles: [
-					baseCandle({ close: Price.of(100), open: Price.of(98), high: Price.of(102), low: Price.of(97), volume: Volume.of(500) }),
+					baseCandle({
+						close: Price.of(100),
+						open: Price.of(98),
+						high: Price.of(102),
+						low: Price.of(97),
+						volume: Volume.of(500),
+					}),
 					baseCandle({
 						close: Price.of(105),
 						open: Price.of(102),
@@ -195,7 +225,11 @@ describe("buildFeatures", () => {
 				],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 
 			expect(f.buffer[0]).toBe(0);
 			expect(f.buffer[1]).toBe(0);
@@ -208,11 +242,21 @@ describe("buildFeatures", () => {
 		test("handles idx=0 (no prev candle)", () => {
 			const s = makeState({
 				candles: [
-					baseCandle({ close: Price.of(100), open: Price.of(95), high: Price.of(105), low: Price.of(92), volume: Volume.of(800) }),
+					baseCandle({
+						close: Price.of(100),
+						open: Price.of(95),
+						high: Price.of(105),
+						low: Price.of(92),
+						volume: Volume.of(800),
+					}),
 				],
 			});
 
-			const f = buildFeatures({ state: s, idx: 0, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(100) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 0,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(100) },
+			});
 			expect(f.buffer[2]).toBe(0);
 		});
 	});
@@ -229,7 +273,11 @@ describe("buildFeatures", () => {
 				ask: an,
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 			expect(f.buffer[9]).toBeCloseTo(cn.normalize(100), 5);
 			expect(f.buffer[10]).toBeCloseTo(an.normalize(110), 5);
 			expect(f.buffer[11]).toBeCloseTo((110 - 100) / 110, 5);
@@ -241,7 +289,11 @@ describe("buildFeatures", () => {
 				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 			expect(f.buffer[9]).toBe(0);
 			expect(f.buffer[10]).toBe(0);
 			expect(f.buffer[11]).toBe(0);
@@ -260,7 +312,11 @@ describe("buildFeatures", () => {
 				ask: cn,
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 			expect(f.buffer[13]).toBeCloseTo(cn.normalize(102), 5);
 			expect(f.buffer[14]).toBeCloseTo(cn.normalize(108), 5);
 			expect(f.buffer[15]).toBeCloseTo((108 - 102) / 108, 5);
@@ -271,7 +327,11 @@ describe("buildFeatures", () => {
 				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 			expect(f.buffer[13]).toBe(0);
 			expect(f.buffer[14]).toBe(0);
 			expect(f.buffer[15]).toBe(0);
@@ -282,16 +342,36 @@ describe("buildFeatures", () => {
 		test("computes features from recent trades", () => {
 			const s = makeState({
 				candles: [
-					baseCandle({ timestamp: UnixTimestamp.of(0), closeTimestamp: UnixTimestamp.of(1000) }),
-					baseCandle({ timestamp: UnixTimestamp.of(1000), closeTimestamp: UnixTimestamp.of(2000) }),
+					baseCandle({
+						timestamp: UnixTimestamp.of(0),
+						closeTimestamp: UnixTimestamp.of(1000),
+					}),
+					baseCandle({
+						timestamp: UnixTimestamp.of(1000),
+						closeTimestamp: UnixTimestamp.of(2000),
+					}),
 				],
 				trades: [
-					baseTrade({ timestamp: UnixTimestamp.of(1500), price: Price.of(104), quantity: Volume.of(10), side: TradeSide.BUY }),
-					baseTrade({ timestamp: UnixTimestamp.of(1600), price: Price.of(106), quantity: Volume.of(5), side: TradeSide.SELL }),
+					baseTrade({
+						timestamp: UnixTimestamp.of(1500),
+						price: Price.of(104),
+						quantity: Volume.of(10),
+						side: TradeSide.BUY,
+					}),
+					baseTrade({
+						timestamp: UnixTimestamp.of(1600),
+						price: Price.of(106),
+						quantity: Volume.of(5),
+						side: TradeSide.SELL,
+					}),
 				],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 			expect(f.buffer[16]).toBe(0);
 			expect(f.buffer[17]).toBe(0);
 			expect(f.buffer[18]).toBeCloseTo(10 / 15, 5);
@@ -300,13 +380,25 @@ describe("buildFeatures", () => {
 		test("skips trades outside 60s window", () => {
 			const s = makeState({
 				candles: [
-					baseCandle({ timestamp: UnixTimestamp.of(0), closeTimestamp: UnixTimestamp.of(1000) }),
-					baseCandle({ timestamp: UnixTimestamp.of(100000), closeTimestamp: UnixTimestamp.of(101000) }),
+					baseCandle({
+						timestamp: UnixTimestamp.of(0),
+						closeTimestamp: UnixTimestamp.of(1000),
+					}),
+					baseCandle({
+						timestamp: UnixTimestamp.of(100000),
+						closeTimestamp: UnixTimestamp.of(101000),
+					}),
 				],
-				trades: [baseTrade({ timestamp: UnixTimestamp.of(100), price: Price.of(100) })],
+				trades: [
+					baseTrade({ timestamp: UnixTimestamp.of(100), price: Price.of(100) }),
+				],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 			expect(f.buffer[16]).toBe(0);
 			expect(f.buffer[17]).toBe(0);
 			expect(f.buffer[18]).toBe(0);
@@ -320,7 +412,11 @@ describe("buildFeatures", () => {
 				ticker24h: makeTicker24h(100, 120, 90, 110, 50000),
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 			expect(f.buffer[19]).toBeCloseTo((110 - 100) / 100, 5);
 			expect(f.buffer[20]).toBe(0);
 			expect(f.buffer[21]).toBeCloseTo((120 - 90) / 100, 5);
@@ -331,7 +427,11 @@ describe("buildFeatures", () => {
 				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 			expect(f.buffer[19]).toBe(0);
 			expect(f.buffer[20]).toBe(0);
 			expect(f.buffer[21]).toBe(0);
@@ -344,14 +444,21 @@ describe("buildFeatures", () => {
 				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(107) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(107) },
+			});
 			expect(f.buffer[22]).toBe(0);
 		});
 
 		test("falls back to close price when snapshot missing", () => {
 			const cn = trainedNorm([100, 105]);
 			const s = makeState({
-				candles: [baseCandle({ close: Price.of(100) }), baseCandle({ close: Price.of(105) })],
+				candles: [
+					baseCandle({ close: Price.of(100) }),
+					baseCandle({ close: Price.of(105) }),
+				],
 				candleClose: cn,
 			});
 
@@ -363,10 +470,17 @@ describe("buildFeatures", () => {
 	describe("lookback window (indices 23-30)", () => {
 		test("pads with zeros when fewer than 8 preceding candles", () => {
 			const s = makeState({
-				candles: [baseCandle({ close: Price.of(100) }), baseCandle({ close: Price.of(105) })],
+				candles: [
+					baseCandle({ close: Price.of(100) }),
+					baseCandle({ close: Price.of(105) }),
+				],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 			expect(f.buffer[23]).toBe(0);
 			expect(f.buffer[24]).toBe(0);
 			expect(f.buffer[25]).toBe(0);
@@ -389,7 +503,11 @@ describe("buildFeatures", () => {
 				candleClose: cn,
 			});
 
-			const f = buildFeatures({ state: s, idx: 9, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(109) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 9,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(109) },
+			});
 			for (let j = 1; j <= 8; j++) {
 				expect(f.buffer[22 + j]).toBeCloseTo(cn.normalize(100 + j), 5);
 			}
@@ -402,7 +520,11 @@ describe("buildFeatures", () => {
 				candles: [baseCandle(), baseCandle({ close: Price.of(105) })],
 			});
 
-			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) } });
+			const f = buildFeatures({
+				state: s,
+				idx: 1,
+				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
+			});
 			expect(f.buffer[31]).toBe(1.0);
 		});
 	});

@@ -2,7 +2,6 @@ import { randomInt } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { logger } from "@trading-model/common/config/logger";
-import Redis from "ioredis";
 import type { Collection } from "mongodb";
 
 import { MongoLockExecutor } from "./mongo-lock-executor";
@@ -22,26 +21,14 @@ export interface LockDocument {
 }
 
 export interface LockBackend {
-	acquire(
-		context: LockContext,
-		ttlMs: number
-	): Promise<number | null>;
-	release(
-		context: LockContext,
-		fencingToken: number
-	): Promise<boolean>;
-	verifyOwnership(
-		context: LockContext,
-		fencingToken: number
-	): Promise<number>;
+	acquire(context: LockContext, ttlMs: number): Promise<number | null>;
+	release(context: LockContext, fencingToken: number): Promise<boolean>;
+	verifyOwnership(context: LockContext, fencingToken: number): Promise<number>;
 	disconnect?(): void;
 }
 
 export class NullLockBackend implements LockBackend {
-	async acquire(
-		_context: LockContext,
-		_ttlMs: number
-	): Promise<number | null> {
+	async acquire(_context: LockContext, _ttlMs: number): Promise<number | null> {
 		return null;
 	}
 
@@ -70,27 +57,24 @@ export class MongoLockBackend implements LockBackend {
 		private readonly _collection: () => Collection<LockDocument> | null,
 		private readonly _onDisconnect: () => void
 	) {
-		this._executor = new MongoLockExecutor(this._collection, this._onDisconnect);
+		this._executor = new MongoLockExecutor(
+			this._collection,
+			this._onDisconnect
+		);
 	}
 
 	setConnected(value: boolean): void {
 		this._connected = value;
 	}
 
-	async acquire(
-		context: LockContext,
-		ttlMs: number
-	): Promise<number | null> {
+	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
 		if (!this._connected) {
 			return null;
 		}
 		return this._executor.acquire(context, ttlMs);
 	}
 
-	async release(
-		context: LockContext,
-		fencingToken: number
-	): Promise<boolean> {
+	async release(context: LockContext, fencingToken: number): Promise<boolean> {
 		if (!this._connected) {
 			return false;
 		}
@@ -115,10 +99,7 @@ export class RedisLockBackend implements LockBackend {
 		this._connector = new RedisLockConnector(redisUrl);
 	}
 
-	async acquire(
-		context: LockContext,
-		ttlMs: number
-	): Promise<number | null> {
+	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
 		const { lockName, instanceId } = context;
 		try {
 			const lockKey = `lock:${lockName}`;
@@ -147,10 +128,7 @@ export class RedisLockBackend implements LockBackend {
 		}
 	}
 
-	async release(
-		context: LockContext,
-		fencingToken: number
-	): Promise<boolean> {
+	async release(context: LockContext, fencingToken: number): Promise<boolean> {
 		if (!this._connector.available) {
 			return false;
 		}
@@ -204,10 +182,7 @@ export class RedisLockBackend implements LockBackend {
 export class FileSystemLockBackend implements LockBackend {
 	constructor(private readonly _fallbackDir: string) {}
 
-	async acquire(
-		context: LockContext,
-		ttlMs: number
-	): Promise<number | null> {
+	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
 		const { lockName, instanceId } = context;
 		if (
 			process.env.NODE_ENV !== "development" &&
@@ -248,10 +223,7 @@ export class FileSystemLockBackend implements LockBackend {
 		}
 	}
 
-	async release(
-		context: LockContext,
-		_fencingToken: number
-	): Promise<boolean> {
+	async release(context: LockContext, _fencingToken: number): Promise<boolean> {
 		const { lockName } = context;
 		try {
 			const lockFile = path.join(this._fallbackDir, `${lockName}.lock`);
@@ -271,7 +243,10 @@ export class FileSystemLockBackend implements LockBackend {
 			const lockFile = path.join(this._fallbackDir, `${lockName}.lock`);
 			const content = await fs.readFile(lockFile, "utf8");
 			const data = JSON.parse(content);
-			if (data.instanceId === instanceId && data.fencingToken === fencingToken) {
+			if (
+				data.instanceId === instanceId &&
+				data.fencingToken === fencingToken
+			) {
 				return fencingToken;
 			}
 			return -1;

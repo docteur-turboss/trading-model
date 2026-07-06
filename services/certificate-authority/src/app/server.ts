@@ -1,5 +1,8 @@
-import { createSecureServer, buildTlsFromEnv } from "@trading-model/common/server/create-secure-server";
 import { Port } from "@trading-model/common/domain/primitives";
+import {
+	buildTlsFromEnv,
+	createSecureServer,
+} from "@trading-model/common/server/create-secure-server";
 
 import { ENV } from "../config/env";
 import { certificateRoutes } from "../routes/certificate.routes";

@@ -1,7 +1,6 @@
-import WebSocket from "ws";
-
 import { logger } from "@trading-model/common/config/logger";
 import { isWsConnected } from "@trading-model/common/domain/ws-connection";
+import type WebSocket from "ws";
 
 export class WsAuthSender {
 	constructor(private readonly _bootstrapToken?: string) {}
@@ -20,7 +19,7 @@ export class WsAuthSender {
 				if (err) {
 					logger.error("Failed to send WSS auth message", { err: err.message });
 				}
-			},
+			}
 		);
 	}
 }

@@ -1,8 +1,7 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
-
-import { MongoIndexCreator } from "./mongo-index-creator";
 import { MongoBatchWriter } from "./mongo-batch-writer";
+import { MongoIndexCreator } from "./mongo-index-creator";
 
 export interface ArchiveEntry {
 	messageId: string;

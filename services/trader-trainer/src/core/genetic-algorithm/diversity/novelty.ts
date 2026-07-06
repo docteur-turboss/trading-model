@@ -1,5 +1,5 @@
-import { genomicDistance } from "./distance";
 import type { Genome } from "../genome-types";
+import { genomicDistance } from "./distance";
 
 export interface NoveltyScoreOptions {
 	neighbors?: number;

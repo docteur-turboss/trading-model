@@ -147,10 +147,7 @@ function _addIfPresent(
 	}
 }
 
-function _addDateRangeFilter(
-	filter: MongoDoc,
-	params: LogQuery
-): void {
+function _addDateRangeFilter(filter: MongoDoc, params: LogQuery): void {
 	const dr = params.dateRange;
 	if (!dr) {
 		return;
@@ -165,10 +162,7 @@ function _addDateRangeFilter(
 	filter.receivedAt = rangeFilter;
 }
 
-function _addSearchFilter(
-	filter: MongoDoc,
-	params: LogQuery
-): void {
+function _addSearchFilter(filter: MongoDoc, params: LogQuery): void {
 	if (!params.search) {
 		return;
 	}

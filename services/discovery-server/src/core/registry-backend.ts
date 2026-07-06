@@ -1,9 +1,15 @@
-import { toServiceId, type ServiceId } from "@trading-model/common/domain/primitives";
 import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import {
+	type ServiceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
+import type {
+	ServiceEndpoint,
+	ServiceIdentity,
+} from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { ServiceRegistry } from "./service-registry";
 
@@ -32,9 +38,7 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 		return Promise.resolve(result.token);
 	}
 
-	updateHeartbeat(
-		id: ServiceIdentity
-	): Promise<number | false> {
+	updateHeartbeat(id: ServiceIdentity): Promise<number | false> {
 		return Promise.resolve(this._registry.updateHeartbeat(id));
 	}
 

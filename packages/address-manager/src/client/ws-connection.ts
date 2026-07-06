@@ -5,7 +5,7 @@ export class WsConnection {
 
 	constructor(
 		private readonly _baseUrl: string,
-		private _token?: string,
+		private _token?: string
 	) {}
 
 	private get _url(): string {
@@ -50,6 +50,5 @@ export class WsConnection {
 		this._token = token;
 	}
 
-	onClose(): void {
-	}
+	onClose(): void {}
 }

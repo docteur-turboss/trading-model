@@ -5,7 +5,7 @@ import type {
 	DiscoveryWsSubscribeMessage,
 } from "@trading-model/common/contracts/discovery-ws-message.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import WebSocket from "ws";
+import type WebSocket from "ws";
 import type { ConnectedClient } from "./client-connection-manager";
 
 export class WsMessageDispatcher {
@@ -14,7 +14,7 @@ export class WsMessageDispatcher {
 		(
 			clientId: string,
 			client: ConnectedClient,
-			message: DiscoveryWsClientMessage,
+			message: DiscoveryWsClientMessage
 		) => void
 	> = {
 		subscribe: (clientId, client, message) =>
@@ -26,7 +26,7 @@ export class WsMessageDispatcher {
 	handleMessage(
 		clientId: string,
 		client: ConnectedClient,
-		data: WebSocket.Data,
+		data: WebSocket.Data
 	): void {
 		try {
 			const parsed = JSON.parse(data.toString()) as {
@@ -45,7 +45,7 @@ export class WsMessageDispatcher {
 	private _dispatch(
 		clientId: string,
 		client: ConnectedClient,
-		message: DiscoveryWsClientMessage,
+		message: DiscoveryWsClientMessage
 	): void {
 		const handler = this._messageHandlers[message.type];
 		if (handler) {
@@ -61,7 +61,7 @@ export class WsMessageDispatcher {
 	private _handleSubscribe(
 		clientId: string,
 		client: ConnectedClient,
-		message: DiscoveryWsSubscribeMessage,
+		message: DiscoveryWsSubscribeMessage
 	): void {
 		const services = message.payload?.services;
 		if (Array.isArray(services)) {
@@ -79,7 +79,7 @@ export class WsMessageDispatcher {
 
 	private _handleHeartbeat(
 		client: ConnectedClient,
-		message: DiscoveryWsHeartbeatMessage,
+		message: DiscoveryWsHeartbeatMessage
 	): void {
 		if (message.payload?.serviceName) {
 			client.serviceName = message.payload.serviceName;

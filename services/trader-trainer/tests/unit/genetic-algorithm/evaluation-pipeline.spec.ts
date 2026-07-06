@@ -1,12 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { Price } from "@trading-model/common/domain/primitives";
 import { FeatureVector } from "../../../src/core/feature-vector";
-import type { RLBackend } from "../../../src/core/genetic-algorithm/rl-backend";
 import {
 	evaluateGenomeAllWindows,
 	pooledEval,
 } from "../../../src/core/genetic-algorithm/evaluation-pipeline";
-import type { Experience } from "../../../src/core/genetic-algorithm/shared-types";
 import {
 	ActivationType,
 	ContinuousPolicyType,
@@ -19,6 +17,8 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/core/genetic-algorithm/genome";
+import type { RLBackend } from "../../../src/core/genetic-algorithm/rl-backend";
+import type { Experience } from "../../../src/core/genetic-algorithm/shared-types";
 
 const MINIMAL_GENOME = {
 	id: "test",
@@ -110,7 +110,10 @@ const MINIMAL_GENOME = {
 };
 
 function makeStep(features: number[]) {
-	return { features: new FeatureVector(new Float32Array(features)), price: Price.of(100) };
+	return {
+		features: new FeatureVector(new Float32Array(features)),
+		price: Price.of(100),
+	};
 }
 
 function makeMockBackend(poolSize: number): RLBackend {

@@ -1,19 +1,12 @@
 import type { Application } from "express";
 import promClient from "prom-client";
-
-import { METRICS_ROUTES } from "../http/routes/metrics.routes";
-import { PING_ROUTES } from "../http/routes/ping.routes";
-import {
-	CACHE_ENTRY_COUNT,
-	CIRCUIT_BREAKER_INSTANCES_TOTAL,
-} from "../metrics";
 import type { CircuitBreaker } from "../discovery/circuit-breaker";
 import type { IServiceCache } from "../discovery/service-cache.interface";
+import { METRICS_ROUTES } from "../http/routes/metrics.routes";
+import { PING_ROUTES } from "../http/routes/ping.routes";
+import { CACHE_ENTRY_COUNT, CIRCUIT_BREAKER_INSTANCES_TOTAL } from "../metrics";
 import { ServiceCallTracker } from "./service-call-tracker";
-import {
-	SystemMetrics,
-	type SystemMetricsPayload,
-} from "./system-metrics";
+import { SystemMetrics, type SystemMetricsPayload } from "./system-metrics";
 
 export class MetricsCollector {
 	private readonly _systemMetrics: SystemMetrics;

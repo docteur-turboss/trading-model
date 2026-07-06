@@ -1,13 +1,19 @@
 import type { Price } from "@trading-model/common/domain/primitives";
 import type { FeatureVector } from "../feature-vector.js";
 
-import {
+import type {
 	ActivationType,
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
 } from "../neural-network/type";
-export { ActivationType, ConnectionType, InitialisationType, NormalisationType } from "../neural-network/type";
+
+export {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	NormalisationType,
+} from "../neural-network/type";
 
 /** Configuration for a single neural network hidden layer. */
 export interface LayerGenome {

@@ -1,5 +1,8 @@
 import type { SourceType } from "@trading-model/common/config/event.types";
-import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
 import { DBConnection } from "../../../config/db";

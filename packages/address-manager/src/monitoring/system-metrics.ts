@@ -38,7 +38,10 @@ export function computeCpuPercent(
 }
 
 export class SystemMetrics {
-	private _previousCpuTimes: { idle: number; total: number } = { idle: 0, total: 0 };
+	private _previousCpuTimes: { idle: number; total: number } = {
+		idle: 0,
+		total: 0,
+	};
 
 	private _collectMemory(): SystemMetricsPayload["memory"] {
 		const mem = process.memoryUsage();
@@ -62,9 +65,10 @@ export class SystemMetrics {
 		};
 	}
 
-	private _collectCpu(
-		previousCpuTimes: { idle: number; total: number }
-	): SystemMetricsPayload["cpu"] {
+	private _collectCpu(previousCpuTimes: {
+		idle: number;
+		total: number;
+	}): SystemMetricsPayload["cpu"] {
 		const cpuPercent = this._calculateCpuPercent(os.cpus(), previousCpuTimes);
 		const loads = os.loadavg();
 		return {
@@ -75,12 +79,20 @@ export class SystemMetrics {
 		};
 	}
 
-	private _sumCpuTimes(cpus: os.CpuInfo[]): { totalIdle: number; totalTick: number } {
+	private _sumCpuTimes(cpus: os.CpuInfo[]): {
+		totalIdle: number;
+		totalTick: number;
+	} {
 		let totalIdle = 0;
 		let totalTick = 0;
 		for (const cpu of cpus) {
 			totalIdle += cpu.times.idle;
-			totalTick += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
+			totalTick +=
+				cpu.times.user +
+				cpu.times.nice +
+				cpu.times.sys +
+				cpu.times.idle +
+				cpu.times.irq;
 		}
 		return { totalIdle, totalTick };
 	}
@@ -93,7 +105,7 @@ export class SystemMetrics {
 		const { percent, previousCpuTimes: newCpuTimes } = computeCpuPercent(
 			totalIdle,
 			totalTick,
-			previousCpuTimes,
+			previousCpuTimes
 		);
 		this._previousCpuTimes = newCpuTimes;
 		return percent;

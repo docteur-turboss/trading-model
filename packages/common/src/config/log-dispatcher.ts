@@ -2,8 +2,13 @@ import type { TlsPaths } from "../domain/tls-paths";
 import { AuditServiceClient } from "./audit-service-client";
 import { ErrorServiceSender } from "./error-service-sender";
 import { LogFileWriter } from "./log-file-writer";
-import { type LogEntry, LogLevel, type LogOptions, isLogLevelAtLeast } from "./log-types";
-import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
+import {
+	isLogLevelAtLeast,
+	type LogEntry,
+	type LogLevel,
+	type LogOptions,
+} from "./log-types";
+import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 export class LogDispatcher {
 	private readonly _sanitizer: SensitiveDataSanitizer;

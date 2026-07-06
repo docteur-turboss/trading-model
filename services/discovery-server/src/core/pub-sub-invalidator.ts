@@ -33,7 +33,11 @@ export class PubSubInvalidator {
 		return this._redisUrlForPubSub ? this._pubSub : undefined;
 	}
 
-	private _onPubSubMessage(cacheManager: CacheManager, channel: string, message: string): void {
+	private _onPubSubMessage(
+		cacheManager: CacheManager,
+		channel: string,
+		message: string
+	): void {
 		if (channel === "cache:invalidate") {
 			cacheManager.invalidate(message);
 			logger.debug("Cache invalidated via Pub/Sub", { serviceName: message });
@@ -42,17 +46,23 @@ export class PubSubInvalidator {
 
 	private async _setupPubSub(cacheManager: CacheManager): Promise<void> {
 		await this._pubSub.connect();
-		this._pubSub.on("message", (ch: string, msg: string) => this._onPubSubMessage(cacheManager, ch, msg));
+		this._pubSub.on("message", (ch: string, msg: string) =>
+			this._onPubSubMessage(cacheManager, ch, msg)
+		);
 		await this._pubSub.subscribe("cache:invalidate");
 		logger.info("Redis Pub/Sub connected for cache invalidation");
 	}
 
 	async start(cacheManager: CacheManager): Promise<void> {
-		if (!this._redisUrlForPubSub) return;
+		if (!this._redisUrlForPubSub) {
+			return;
+		}
 		try {
 			await this._setupPubSub(cacheManager);
 		} catch (err) {
-			logger.error("Failed to connect Redis Pub/Sub for cache invalidation", { error: normalizeError(err) });
+			logger.error("Failed to connect Redis Pub/Sub for cache invalidation", {
+				error: normalizeError(err),
+			});
 		}
 	}
 
@@ -71,7 +81,9 @@ export class PubSubInvalidator {
 	}
 
 	stop(): void {
-		if (!this._redisUrlForPubSub) return;
+		if (!this._redisUrlForPubSub) {
+			return;
+		}
 		try {
 			this._pubSub.unsubscribe("cache:invalidate");
 		} catch {

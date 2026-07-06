@@ -1,15 +1,19 @@
-import type { OptimizerHyperparams } from "./optimizer";
 import type {
-	ForwardContext,
-	LayerMemory,
-	NeuralNetworkConfig,
-} from "./type";
-import type { OutputDeltasContext, LayerGradientContext, WeightGradientContext } from "./backprop-engine";
-import { OutputDeltaComputer } from "./output-delta-computer";
-import { HiddenDeltaComputer } from "./hidden-delta-computer";
+	LayerGradientContext,
+	OutputDeltasContext,
+	WeightGradientContext,
+} from "./backprop-engine";
 import { GradientApplier } from "./gradient-applier";
+import { HiddenDeltaComputer } from "./hidden-delta-computer";
+import type { OptimizerHyperparams } from "./optimizer";
+import { OutputDeltaComputer } from "./output-delta-computer";
+import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
 
-export type { OutputDeltasContext, LayerGradientContext, WeightGradientContext };
+export type {
+	LayerGradientContext,
+	OutputDeltasContext,
+	WeightGradientContext,
+};
 
 export class GradientComputer {
 	private readonly _outputDeltaComputer: OutputDeltaComputer;
@@ -22,8 +26,15 @@ export class GradientComputer {
 		private readonly _optimizerHp: OptimizerHyperparams
 	) {
 		this._outputDeltaComputer = new OutputDeltaComputer(this._config);
-		this._hiddenDeltaComputer = new HiddenDeltaComputer(this._layers, this._config);
-		this._gradientApplier = new GradientApplier(this._layers, this._config, this._optimizerHp);
+		this._hiddenDeltaComputer = new HiddenDeltaComputer(
+			this._layers,
+			this._config
+		);
+		this._gradientApplier = new GradientApplier(
+			this._layers,
+			this._config,
+			this._optimizerHp
+		);
 	}
 
 	computeOutputDeltas(ctx: OutputDeltasContext): Float32Array {
@@ -35,7 +46,11 @@ export class GradientComputer {
 		nextDeltas: Float32Array,
 		context: ForwardContext
 	): Float32Array[] {
-		return this._hiddenDeltaComputer.compute(nextLayerIndex, nextDeltas, context);
+		return this._hiddenDeltaComputer.compute(
+			nextLayerIndex,
+			nextDeltas,
+			context
+		);
 	}
 
 	computeLayerGradients(ctx: LayerGradientContext): void {
@@ -55,7 +70,12 @@ export class GradientComputer {
 		layerInput: Float32Array
 	): void {
 		const layerIndex = this._layers.indexOf(layer);
-		this._gradientApplier.computeGradients({ layerIndex, delta, layerInput, applyImmediately: true });
+		this._gradientApplier.computeGradients({
+			layerIndex,
+			delta,
+			layerInput,
+			applyImmediately: true,
+		});
 	}
 
 	accumulateGradients(
@@ -64,13 +84,15 @@ export class GradientComputer {
 		layerInput: Float32Array
 	): void {
 		const layerIndex = this._layers.indexOf(layer);
-		this._gradientApplier.computeGradients({ layerIndex, delta, layerInput, applyImmediately: false });
+		this._gradientApplier.computeGradients({
+			layerIndex,
+			delta,
+			layerInput,
+			applyImmediately: false,
+		});
 	}
 
-	averageAndApplyGradients(
-		layer: LayerMemory,
-		numSamples: number
-	): void {
+	averageAndApplyGradients(_layer: LayerMemory, numSamples: number): void {
 		this._gradientApplier.applyAccumulatedGradients(numSamples);
 	}
 

@@ -75,7 +75,11 @@ describe("RedisServiceCache", () => {
 
 		it("should use region-prefixed keys when region provided", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockResolvedValue("OK");
-			await cache.set({ serviceName: "svc", instance: { serviceName: "svc" } as any, region: "us-east" });
+			await cache.set({
+				serviceName: "svc",
+				instance: { serviceName: "svc" } as any,
+				region: "us-east",
+			});
 			expect(MOCK_REDIS_INSTANCE.setex).toHaveBeenCalledWith(
 				"discovery:cache:svc::us-east",
 				expect.any(Number),
@@ -179,16 +183,32 @@ describe("RedisServiceCache", () => {
 
 	describe("constructor", () => {
 		it("should compute ttlSec as Math.max(1, ceil(ttlMs/1000))", () => {
-			const c = new RedisServiceCache({ redisUrl: "redis://localhost:6379", prefix: "p:", ttlMs: 1 });
+			const c = new RedisServiceCache({
+				redisUrl: "redis://localhost:6379",
+				prefix: "p:",
+				ttlMs: 1,
+			});
 			expect((c as any)._ttlSec).toBe(1);
 
-			const c2 = new RedisServiceCache({ redisUrl: "redis://localhost:6379", prefix: "p:", ttlMs: 999 });
+			const c2 = new RedisServiceCache({
+				redisUrl: "redis://localhost:6379",
+				prefix: "p:",
+				ttlMs: 999,
+			});
 			expect((c2 as any)._ttlSec).toBe(1);
 
-			const c3 = new RedisServiceCache({ redisUrl: "redis://localhost:6379", prefix: "p:", ttlMs: 1000 });
+			const c3 = new RedisServiceCache({
+				redisUrl: "redis://localhost:6379",
+				prefix: "p:",
+				ttlMs: 1000,
+			});
 			expect((c3 as any)._ttlSec).toBe(1);
 
-			const c4 = new RedisServiceCache({ redisUrl: "redis://localhost:6379", prefix: "p:", ttlMs: 1500 });
+			const c4 = new RedisServiceCache({
+				redisUrl: "redis://localhost:6379",
+				prefix: "p:",
+				ttlMs: 1500,
+			});
 			expect((c4 as any)._ttlSec).toBe(2);
 		});
 	});
@@ -240,7 +260,10 @@ describe("RedisServiceCache", () => {
 		it("should handle set failure gracefully", async () => {
 			MOCK_REDIS_INSTANCE.setex.mockRejectedValue(new Error("write error"));
 			await expect(
-				cache.set({ serviceName: "svc", instance: { serviceName: "svc" } as any })
+				cache.set({
+					serviceName: "svc",
+					instance: { serviceName: "svc" } as any,
+				})
 			).resolves.toBeUndefined();
 		});
 	});

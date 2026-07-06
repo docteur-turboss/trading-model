@@ -1,5 +1,5 @@
-import { genomicDistance } from "./distance";
 import type { Genome } from "../genome-types";
+import { genomicDistance } from "./distance";
 
 export interface Species {
 	representativeIndex: number;
@@ -41,7 +41,8 @@ function _computeAverageFitnessPerSpecies(
 			.map((idx) => population[idx].fitness ?? 0)
 			.filter((fit) => Number.isFinite(fit));
 		if (fits.length > 0) {
-			sp.averageFitness = fits.reduce((sum, value) => sum + value, 0) / fits.length;
+			sp.averageFitness =
+				fits.reduce((sum, value) => sum + value, 0) / fits.length;
 		}
 	}
 }

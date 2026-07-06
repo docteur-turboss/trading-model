@@ -5,7 +5,7 @@ import type {
 	WorkerIncomingMessage,
 	WorkerWsRegisterMessage,
 } from "../contracts/worker-protocol.types";
-import { toInstanceId, type IPAddress, type Port } from "../domain/primitives";
+import { type IPAddress, type Port, toInstanceId } from "../domain/primitives";
 
 export interface WorkerWsConnectionConfig {
 	workerId: string;

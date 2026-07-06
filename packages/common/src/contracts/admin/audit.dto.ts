@@ -1,4 +1,9 @@
-import type { CorrelationId, ServiceId, Topic, UnixTimestamp } from "../../domain/primitives";
+import type {
+	CorrelationId,
+	ServiceId,
+	Topic,
+	UnixTimestamp,
+} from "../../domain/primitives";
 
 export enum Severity {
 	Info = "INFO",

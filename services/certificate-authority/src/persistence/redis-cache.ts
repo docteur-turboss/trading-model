@@ -16,7 +16,10 @@ export interface CacheSetEntry {
 export interface RedisCache {
 	disconnect(): Promise<void>;
 	publish(channel: string, message: string): Promise<void>;
-	subscribe(channel: string, handler: (message: string) => void): Promise<() => void>;
+	subscribe(
+		channel: string,
+		handler: (message: string) => void
+	): Promise<() => void>;
 	isAvailable(): boolean;
 	get<TData>(key: string): Promise<TData | null>;
 	set(entry: CacheSetEntry): Promise<void>;
@@ -30,7 +33,10 @@ export class NullCache implements RedisCache {
 
 	async publish(_channel: string, _message: string): Promise<void> {}
 
-	async subscribe(_channel: string, _handler: (message: string) => void): Promise<() => void> {
+	async subscribe(
+		_channel: string,
+		_handler: (message: string) => void
+	): Promise<() => void> {
 		return () => {};
 	}
 
@@ -55,23 +61,30 @@ export class NullCache implements RedisCache {
 
 class RealRedisCache implements RedisCache {
 	private readonly _client: Redis;
-	private readonly _options: CacheOptions;
 	private readonly _subscriberManager: RedisSubscriberManager;
 
 	private _createClient(redisUrl: string): Redis {
 		const client = new Redis(redisUrl, {
 			enableReadyCheck: true,
 			maxRetriesPerRequest: 3,
-			retryStrategy: (times) => (times > 10 ? null : Math.min(times * 1000, 30000)),
+			retryStrategy: (times) =>
+				times > 10 ? null : Math.min(times * 1000, 30000),
 			lazyConnect: true,
 		});
-		client.on("error", (err) => logger.warn("Redis cache error (falling through to DB)", { context: { err } }));
+		client.on("error", (err) =>
+			logger.warn("Redis cache error (falling through to DB)", {
+				context: { err },
+			})
+		);
 		return client;
 	}
 
 	constructor(redisUrl: string, options?: Partial<CacheOptions>) {
 		this._client = this._createClient(redisUrl);
-		this._options = { ttlMs: options?.ttlMs ?? 300_000, prefix: options?.prefix ?? "ca-cache" };
+		this._options = {
+			ttlMs: options?.ttlMs ?? 300_000,
+			prefix: options?.prefix ?? "ca-cache",
+		};
 		this._subscriberManager = new RedisSubscriberManager(this._client);
 	}
 
@@ -91,7 +104,10 @@ class RealRedisCache implements RedisCache {
 		}
 	}
 
-	async subscribe(channel: string, handler: (message: string) => void): Promise<() => void> {
+	async subscribe(
+		channel: string,
+		handler: (message: string) => void
+	): Promise<() => void> {
 		return this._subscriberManager.subscribe(channel, handler);
 	}
 
@@ -111,7 +127,11 @@ class RealRedisCache implements RedisCache {
 	async set(entry: CacheSetEntry): Promise<void> {
 		const { key, value, ttlMs } = entry;
 		try {
-			await this._client.setex(key, Math.ceil(ttlMs / 1000), JSON.stringify(value));
+			await this._client.setex(
+				key,
+				Math.ceil(ttlMs / 1000),
+				JSON.stringify(value)
+			);
 		} catch (err) {
 			logger.warn("Redis cache set failed", { context: { err } });
 		}
@@ -128,7 +148,13 @@ class RealRedisCache implements RedisCache {
 	private async _scanAndDelete(): Promise<void> {
 		let cursor = "0";
 		do {
-			const result = await this._client.scan(cursor, "MATCH", "ca-cache:*", "COUNT", "100");
+			const result = await this._client.scan(
+				cursor,
+				"MATCH",
+				"ca-cache:*",
+				"COUNT",
+				"100"
+			);
 			cursor = result[0];
 			const keys = result[1];
 			if (keys.length > 0) {

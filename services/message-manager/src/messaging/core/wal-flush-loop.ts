@@ -1,7 +1,6 @@
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
-import type { MemoryWalBuffer } from "./memory-wal-buffer";
-import { WalBatchFlusher } from "./wal-batch-flusher";
+import type { WalBatchFlusher } from "./wal-batch-flusher";
 import type { WalFlushErrorHandler } from "./wal-flush-error-handler";
 
 const WAL_BATCH_SIZE = 50;
@@ -17,7 +16,7 @@ export class WalFlushLoop {
 	constructor(
 		private readonly _batchFlusher: WalBatchFlusher,
 		private readonly _errorHandler: WalFlushErrorHandler,
-		private readonly _walKey: () => string,
+		private readonly _walKey: () => string
 	) {}
 
 	async drainAll(): Promise<void> {
@@ -42,8 +41,15 @@ export class WalFlushLoop {
 		}
 	}
 
-	private async _readWalEntries(redis: import("ioredis").Redis): Promise<string[]> {
-		return (await redis.eval(ATOMIC_WAL_READ_LUA, 1, this._walKey(), WAL_BATCH_SIZE.toString())) as string[];
+	private async _readWalEntries(
+		redis: import("ioredis").Redis
+	): Promise<string[]> {
+		return (await redis.eval(
+			ATOMIC_WAL_READ_LUA,
+			1,
+			this._walKey(),
+			WAL_BATCH_SIZE.toString()
+		)) as string[];
 	}
 
 	private async _handleBatchError(
@@ -55,7 +61,11 @@ export class WalFlushLoop {
 			consecutiveErrors: nextErrors,
 			batchSize: raw.length,
 		});
-		const action = await this._errorHandler.handle(raw, nextErrors, this._walKey());
+		const action = await this._errorHandler.handle(
+			raw,
+			nextErrors,
+			this._walKey()
+		);
 		const backoff = Math.min(1000 * 2 ** nextErrors, 30000);
 		await this._sleepWithJitter(backoff);
 		return action !== "abort";

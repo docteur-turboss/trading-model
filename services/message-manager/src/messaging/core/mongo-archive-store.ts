@@ -1,7 +1,7 @@
 import { ENV } from "../../config/env";
-import { messageStore } from "./message-store";
 import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
 import { ArchiveTopicsCache } from "./archive-topics-cache";
+import { messageStore } from "./message-store";
 import { MongoClientManager } from "./mongo-client-manager";
 
 export class MongoArchiveStore {
@@ -53,7 +53,9 @@ export class MongoArchiveStore {
 				return;
 			}
 
-			const { MongoArchiveBatchWriter } = await import("./mongo-archive-batch.js");
+			const { MongoArchiveBatchWriter } = await import(
+				"./mongo-archive-batch.js"
+			);
 			const writer = new MongoArchiveBatchWriter(
 				this._clientManager.requiredClient,
 				ENV.MONGO_ARCHIVE_DB,

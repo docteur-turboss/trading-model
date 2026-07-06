@@ -321,7 +321,9 @@ const RICH_DATA = {
 
 function mockFetch(extraJobs?: boolean) {
 	const routes: [string, unknown][] = [
-		...(extraJobs ? [["/jobs/", RICH_DATA.jobDetail] as [string, unknown]] : []),
+		...(extraJobs
+			? [["/jobs/", RICH_DATA.jobDetail] as [string, unknown]]
+			: []),
 		["/discovery/registry", RICH_DATA.services],
 		["/discovery/config", RICH_DATA.config],
 		["/discovery/stats", RICH_DATA.stats],
@@ -525,7 +527,10 @@ describe("Page interactions", () => {
 				["/audit/events", RICH_DATA.audit],
 			];
 			const route = routes.find(([key]) => url.includes(key));
-			return Promise.resolve({ ok: true, json: () => Promise.resolve(route?.[1] ?? {}) });
+			return Promise.resolve({
+				ok: true,
+				json: () => Promise.resolve(route?.[1] ?? {}),
+			});
 		});
 		render(<App />);
 		fireEvent.click(screen.getByText("Market Data"));
@@ -653,7 +658,10 @@ describe("Page interactions", () => {
 				["/audit/events", RICH_DATA.audit],
 			];
 			const route = routes.find(([key]) => url.includes(key));
-			return Promise.resolve({ ok: true, json: () => Promise.resolve(route?.[1] ?? {}) });
+			return Promise.resolve({
+				ok: true,
+				json: () => Promise.resolve(route?.[1] ?? {}),
+			});
 		});
 		render(<App />);
 		fireEvent.click(screen.getByText("Market Data"));

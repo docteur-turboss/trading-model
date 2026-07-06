@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import { ServiceCache } from "../../src/discovery/service-cache";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
@@ -57,7 +57,10 @@ describe("ServiceCache", () => {
 
 	it("should clear all entries", async () => {
 		await cache.set({ serviceName: "svc", instance: makeInstance() });
-		await cache.set({ serviceName: "svc2", instance: makeInstance({ serviceName: "svc2", instanceId: "i-2" }) });
+		await cache.set({
+			serviceName: "svc2",
+			instance: makeInstance({ serviceName: "svc2", instanceId: "i-2" }),
+		});
 		await cache.clear();
 		expect(await cache.get("svc")).toBeNull();
 		expect(await cache.get("svc2")).toBeNull();

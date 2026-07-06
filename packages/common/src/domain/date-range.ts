@@ -16,16 +16,22 @@ export class DateRange {
 		startDate?: string,
 		endDate?: string
 	): DateRange | undefined {
-		if (!startDate && !endDate) return undefined;
+		if (!(startDate || endDate)) {
+			return;
+		}
 		return new DateRange(
 			startDate ? new Date(startDate) : undefined,
-			endDate ? new Date(endDate) : undefined,
+			endDate ? new Date(endDate) : undefined
 		);
 	}
 
 	contains(date: Date): boolean {
-		if (this.start && date < this.start) return false;
-		if (this.end && date > this.end) return false;
+		if (this.start && date < this.start) {
+			return false;
+		}
+		if (this.end && date > this.end) {
+			return false;
+		}
 		return true;
 	}
 
@@ -33,18 +39,16 @@ export class DateRange {
 		if (this.start && this.end) {
 			return this.end.getTime() - this.start.getTime();
 		}
-		return undefined;
 	}
 
 	overlaps(other: DateRange): boolean {
-		if (!this.start || !this.end || !other.start || !other.end) return false;
+		if (!(this.start && this.end && other.start && other.end)) {
+			return false;
+		}
 		return this.start <= other.end && other.start <= this.end;
 	}
 
-	static fromUnixTimestamps(
-		fromMs: number,
-		toMs: number
-	): DateRange {
+	static fromUnixTimestamps(fromMs: number, toMs: number): DateRange {
 		return new DateRange(new Date(fromMs), new Date(toMs));
 	}
 }

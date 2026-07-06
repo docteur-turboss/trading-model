@@ -139,7 +139,10 @@ export async function sendAlertWebhook(options: {
 		return;
 	}
 	try {
-		await _doPostWebhook(webhookUrl, buildWebhookPayload(title, message, severity, labels));
+		await _doPostWebhook(
+			webhookUrl,
+			buildWebhookPayload(title, message, severity, labels)
+		);
 	} catch (err) {
 		logWebhookError(err, webhookUrl);
 	}

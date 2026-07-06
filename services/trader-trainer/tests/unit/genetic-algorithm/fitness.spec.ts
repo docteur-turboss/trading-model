@@ -3,8 +3,8 @@ import {
 	computeFitness,
 	shapeReward,
 } from "../../../src/core/genetic-algorithm/fitness";
-import type { RewardShapingGenome } from "../../../src/core/genetic-algorithm/genome-types";
 import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
+import type { RewardShapingGenome } from "../../../src/core/genetic-algorithm/genome-types";
 
 describe("Fitness - computeFitness", () => {
 	const scores = [100, 120, 110, 130, 140];

@@ -1,7 +1,10 @@
-import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
-import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
-import { CaClient, type SignCertificateRequest } from "@trading-model/common/ca/ca-client";
+import type { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
+import {
+	CaClient,
+	type SignCertificateRequest,
+} from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
+import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { CertRenewScheduler } from "./cert-renew-scheduler";
@@ -31,7 +34,10 @@ export class CertificateClient {
 	private _obtainedCert: ObtainedCertificate | null;
 	private _renewScheduler: CertRenewScheduler;
 
-	constructor(config: CertificateClientConfig, initialCert?: ObtainedCertificate) {
+	constructor(
+		config: CertificateClientConfig,
+		initialCert?: ObtainedCertificate
+	) {
 		this._config = config;
 		this._obtainedCert = initialCert ?? null;
 		this._caClient = new CaClient({
@@ -42,16 +48,20 @@ export class CertificateClient {
 		this._renewScheduler = new CertRenewScheduler(
 			config.serviceId,
 			config.renewMarginMs ?? 86400000,
-			() => this.obtainCertificate().then(() => {}),
+			() => this.obtainCertificate().then(() => {})
 		);
 	}
 
 	private get _requiredCert(): ObtainedCertificate {
-		if (!this._obtainedCert) throw new Error("Certificate not yet obtained");
+		if (!this._obtainedCert) {
+			throw new Error("Certificate not yet obtained");
+		}
 		return this._obtainedCert;
 	}
 
-	static async createObtained(config: CertificateClientConfig): Promise<CertificateClient> {
+	static async createObtained(
+		config: CertificateClientConfig
+	): Promise<CertificateClient> {
 		const client = new CertificateClient(config);
 		await client.obtainCertificate();
 		return client;
@@ -71,11 +81,19 @@ export class CertificateClient {
 		return this._requiredCert;
 	}
 
-	async signCertificate(request: SignCertificateRequest): Promise<import("@trading-model/common/ca/ca-client").SignCertificateResponse> {
+	async signCertificate(
+		request: SignCertificateRequest
+	): Promise<
+		import("@trading-model/common/ca/ca-client").SignCertificateResponse
+	> {
 		return this._caClient.signCertificate(request);
 	}
 
-	async getCertificate(serviceId: ServiceId): Promise<import("@trading-model/common/ca/ca-client").GetCertificateResponse | null> {
+	async getCertificate(
+		serviceId: ServiceId
+	): Promise<
+		import("@trading-model/common/ca/ca-client").GetCertificateResponse | null
+	> {
 		return this._caClient.getCertificate(serviceId);
 	}
 

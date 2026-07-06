@@ -16,12 +16,17 @@ export class TokenManager {
 		private readonly _config: AddressManagerConfig
 	) {
 		this._token = null;
-		this._refreshClient = new TokenRefreshClient(this._httpClient, this._config);
+		this._refreshClient = new TokenRefreshClient(
+			this._httpClient,
+			this._config
+		);
 	}
 
 	getToken(): string {
 		if (!this._token) {
-			throw authenticationError("Token is not available. Did you call refreshToken()?");
+			throw authenticationError(
+				"Token is not available. Did you call refreshToken()?"
+			);
 		}
 
 		return this._token;
@@ -46,10 +51,9 @@ export class TokenManager {
 			if (isAuthenticationError(err)) {
 				throw err;
 			}
-			throw authenticationError(
-				"Failed to refresh authentication token",
-				{ cause: err },
-			);
+			throw authenticationError("Failed to refresh authentication token", {
+				cause: err,
+			});
 		}
 	}
 }

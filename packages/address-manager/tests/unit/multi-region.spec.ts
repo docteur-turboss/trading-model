@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 import type { ServiceCache } from "../../src/discovery/service-cache";
 import { ServiceDiscovery } from "../../src/discovery/service-discovery";
 import type { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 const FIXED_TIMESTAMP = 1_700_000_000_000;
 
@@ -110,8 +110,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 					ttlRefreshIntervalMs: 0,
 					servicePingTimeoutMs: 0,
 					cacheTtlMs: 0,
-					identity: { serviceName: "test-service", instanceId: "test-instance" },
-					tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+					identity: {
+						serviceName: "test-service",
+						instanceId: "test-instance",
+					},
+					tls: {
+						caPath: "/path/to/ca.pem",
+						certPath: "/path/to/cert.pem",
+						keyPath: "/path/to/key.pem",
+					},
 					discoveryUrls: ["http://localhost:8443"],
 				} as AddressManagerConfig,
 				healthChecker,
@@ -146,8 +153,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 					ttlRefreshIntervalMs: 0,
 					servicePingTimeoutMs: 0,
 					cacheTtlMs: 0,
-					identity: { serviceName: "test-service", instanceId: "test-instance" },
-					tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+					identity: {
+						serviceName: "test-service",
+						instanceId: "test-instance",
+					},
+					tls: {
+						caPath: "/path/to/ca.pem",
+						certPath: "/path/to/cert.pem",
+						keyPath: "/path/to/key.pem",
+					},
 					discoveryUrls: ["http://localhost:8443"],
 				} as AddressManagerConfig,
 				healthChecker,
@@ -178,8 +192,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 					servicePingTimeoutMs: 0,
 					cacheTtlMs: 0,
 					region: "us-east-1",
-					identity: { serviceName: "test-service", instanceId: "test-instance" },
-					tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+					identity: {
+						serviceName: "test-service",
+						instanceId: "test-instance",
+					},
+					tls: {
+						caPath: "/path/to/ca.pem",
+						certPath: "/path/to/cert.pem",
+						keyPath: "/path/to/key.pem",
+					},
 					discoveryUrls: ["http://localhost:8443"],
 				} as AddressManagerConfig,
 				healthChecker,
@@ -208,8 +229,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 					ttlRefreshIntervalMs: 0,
 					servicePingTimeoutMs: 0,
 					cacheTtlMs: 0,
-					identity: { serviceName: "test-service", instanceId: "test-instance" },
-					tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+					identity: {
+						serviceName: "test-service",
+						instanceId: "test-instance",
+					},
+					tls: {
+						caPath: "/path/to/ca.pem",
+						certPath: "/path/to/cert.pem",
+						keyPath: "/path/to/key.pem",
+					},
 					discoveryUrls: ["http://localhost:8443"],
 				} as AddressManagerConfig,
 				healthChecker,
@@ -239,8 +267,15 @@ describe("Multi-Region ServiceDiscovery", () => {
 					ttlRefreshIntervalMs: 0,
 					servicePingTimeoutMs: 0,
 					cacheTtlMs: 0,
-					identity: { serviceName: "test-service", instanceId: "test-instance" },
-					tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+					identity: {
+						serviceName: "test-service",
+						instanceId: "test-instance",
+					},
+					tls: {
+						caPath: "/path/to/ca.pem",
+						certPath: "/path/to/cert.pem",
+						keyPath: "/path/to/key.pem",
+					},
 					discoveryUrls: ["http://localhost:8443"],
 				} as AddressManagerConfig,
 				healthChecker,

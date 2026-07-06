@@ -8,15 +8,15 @@ import type {
 
 import { NormalizationStats } from "./normalization-stats";
 
-export { NormalizationStats };
-
 export {
+	fromSymbol,
 	type TradingSymbol,
 	toSymbol,
-	fromSymbol,
 } from "@trading-model/common/domain/primitives";
+export { NormalizationStats };
 
 import { FEATURE_DIM } from "./feature-vector";
+
 export { FEATURE_DIM };
 
 /** Running normalisation statistics grouped by market-data context. */

@@ -59,9 +59,6 @@ export {
 // Genome lifecycle
 export { createDefaultGenome } from "./factory";
 export { computeFitness, shapeReward } from "./fitness";
-export type { RLBackend } from "./rl-backend";
-export type { BackendFactory } from "./rl-backend";
-export { makeTradingAgentBackend } from "./rl-backend";
 export type {
 	GARunnerConfig,
 	GenerationContext,
@@ -81,6 +78,8 @@ export type { ObjectiveVector, PopulationMeta } from "./pareto-engine";
 // Pareto optimization (NSGA-II)
 export { buildPopulationMeta, dominates, ParetoArchive } from "./pareto-engine";
 export { makePRNG } from "./prng";
+export type { BackendFactory, RLBackend } from "./rl-backend";
+export { makeTradingAgentBackend } from "./rl-backend";
 export { selectParent } from "./selection";
 // Core primitives
 export { clamp, generateId } from "./utils";

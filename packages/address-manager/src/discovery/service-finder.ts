@@ -10,11 +10,15 @@ export class ServiceFinder {
 		private readonly _serviceCache: IServiceCache,
 		private readonly _healthChecker: ServiceHealthChecker,
 		private readonly _resolver: ServiceResolver,
-		private readonly _config: AddressManagerConfig,
+		private readonly _config: AddressManagerConfig
 	) {}
 
-	private async _getHealthyCachedInstance(serviceName: string): Promise<ServiceInstance | null> {
-		const cachedInstance = await this._serviceCache.get(toServiceId(serviceName));
+	private async _getHealthyCachedInstance(
+		serviceName: string
+	): Promise<ServiceInstance | null> {
+		const cachedInstance = await this._serviceCache.get(
+			toServiceId(serviceName)
+		);
 		if (!cachedInstance) {
 			return null;
 		}
@@ -28,7 +32,10 @@ export class ServiceFinder {
 
 	async findService(serviceName: string): Promise<ServiceInstance> {
 		if (this._config.identity.region) {
-			return this.findServiceInRegion(serviceName, this._config.identity.region);
+			return this.findServiceInRegion(
+				serviceName,
+				this._config.identity.region
+			);
 		}
 
 		const cached = await this._getHealthyCachedInstance(serviceName);
@@ -48,7 +55,10 @@ export class ServiceFinder {
 			return cached;
 		}
 
-		return this._resolver.resolveAndValidateServiceInRegion(serviceName, region);
+		return this._resolver.resolveAndValidateServiceInRegion(
+			serviceName,
+			region
+		);
 	}
 
 	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {

@@ -1,7 +1,7 @@
-import { NormalizationStats } from "../normalization-stats";
-import type { DeepReadonly } from "./shared-types";
+import type { NormalizationStats } from "../normalization-stats";
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
+import type { DeepReadonly } from "./shared-types";
 import type { RunningStats } from "./utils";
 
 function shapeReward(
@@ -37,9 +37,7 @@ export function _computeShapedReward(
 	return shaped;
 }
 
-export function precomputeRewards(
-	ctx: PrecomputeRewardsContext
-): Float32Array {
+export function precomputeRewards(ctx: PrecomputeRewardsContext): Float32Array {
 	const { backend, data, genome, runStats } = ctx;
 	const buf = new Float32Array(data.length);
 	for (let index = 0; index < data.length; index++) {

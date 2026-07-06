@@ -1,12 +1,15 @@
-import type { GAControlGenome, LamarckGenome } from "./genome-types";
-import { mutateGenome } from "./mutation";
 import { crossoverGenomes } from "./crossover";
-import { crossoverWeights, type MutateWeightsContext, mutateWeights } from "./evolution-engine";
-import { selectParent } from "./selection";
+import {
+	crossoverWeights,
+	type MutateWeightsContext,
+	mutateWeights,
+} from "./evolution-engine";
+import type { GAControlGenome, Genome, LamarckGenome } from "./genome-types";
+import { mutateGenome } from "./mutation";
 import { makePRNG } from "./prng";
+import { selectParent } from "./selection";
+import { type DeepReadonly, deepFreeze, withGenome } from "./shared-types";
 import { generateId } from "./utils";
-import { deepFreeze, type DeepReadonly, withGenome } from "./shared-types";
-import type { Genome } from "./genome-types";
 
 export function selectElites(
 	ranked: Genome[],
@@ -39,11 +42,15 @@ function _crossoverAndMutateWeights(
 	coRng: () => number,
 	mutRng: () => number
 ): Float32Array | undefined {
-	if (!pA.trainedWeights || !pB.trainedWeights) {
+	if (!(pA.trainedWeights && pB.trainedWeights)) {
 		return;
 	}
 	const childWeightsCtx: MutateWeightsContext = {
-		weights: crossoverWeights(pA.trainedWeights as Float32Array, pB.trainedWeights as Float32Array, coRng),
+		weights: crossoverWeights(
+			pA.trainedWeights as Float32Array,
+			pB.trainedWeights as Float32Array,
+			coRng
+		),
 		rate: newCtrl.mutationRate ?? 0.1,
 		std: newCtrl.mutationStd ?? 0.05,
 		rng: mutRng,
@@ -76,7 +83,13 @@ function produceOneOffspring(
 	const pB = selectParent(ranked, newCtrl.selectionType, rng);
 
 	const childStruct = mutateGenome(crossoverGenomes(pA, pB, coRng), mutRng);
-	const childWeights = _crossoverAndMutateWeights(pA, pB, newCtrl, coRng, mutRng);
+	const childWeights = _crossoverAndMutateWeights(
+		pA,
+		pB,
+		newCtrl,
+		coRng,
+		mutRng
+	);
 
 	return _buildOffspringGenome(childStruct, newCtrl, generation, childWeights);
 }
@@ -90,7 +103,10 @@ export interface OffspringContext {
 }
 
 function _computeOffspringCount(newCtrl: Readonly<GAControlGenome>): number {
-	const nElite = Math.max(1, Math.round(newCtrl.elitismFraction * newCtrl.populationSize));
+	const nElite = Math.max(
+		1,
+		Math.round(newCtrl.elitismFraction * newCtrl.populationSize)
+	);
 	return newCtrl.populationSize - nElite;
 }
 

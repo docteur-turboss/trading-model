@@ -1,7 +1,7 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { getStreamClient } from "../../config/redis";
-import { MemoryWalBuffer } from "./memory-wal-buffer";
+import type { MemoryWalBuffer } from "./memory-wal-buffer";
 import { WalBatchFlusher } from "./wal-batch-flusher";
 import { WalDrainCoordinator } from "./wal-drain-coordinator";
 import { WalEntryParser } from "./wal-entry-parser";
@@ -29,23 +29,21 @@ export class WalFlusherService {
 		);
 		const entryParser = new WalEntryParser(this._memoryWalBuffer);
 		const errorHandler = new WalFlushErrorHandler(entryParser);
-		this._flushLoop = new WalFlushLoop(
-			batchFlusher,
-			errorHandler,
-			() => this._walKey(),
+		this._flushLoop = new WalFlushLoop(batchFlusher, errorHandler, () =>
+			this._walKey()
 		);
 		this._drainCoordinator = new WalDrainCoordinator(
 			this._memoryWalBuffer,
 			() => this._walKey(),
-			() => this._flushManager.flush(),
+			() => this._flushManager.flush()
 		);
 		this._flushManager = new WalFlushManager(
 			this._flushLoop,
-			this._drainCoordinator,
+			this._drainCoordinator
 		);
 		this._shutdownDrainer = new WalShutdownDrainer(
 			this._drainCoordinator,
-			this._memoryWalBuffer,
+			this._memoryWalBuffer
 		);
 	}
 
@@ -61,10 +59,7 @@ export class WalFlusherService {
 		this._flushManager.stop();
 	}
 
-	async storeInWal(
-		topic: string,
-		serialized: string
-	): Promise<void> {
+	async storeInWal(topic: string, serialized: string): Promise<void> {
 		const redis = await getStreamClient();
 		const walEntry = JSON.stringify({ topic, serialized });
 		await redis.rpush(this._walKey(), walEntry);

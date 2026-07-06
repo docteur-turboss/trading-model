@@ -1,5 +1,8 @@
 import { Port } from "@trading-model/common/domain/primitives";
-import { createSecureServer, buildTlsFromEnv } from "@trading-model/common/server/create-secure-server";
+import {
+	buildTlsFromEnv,
+	createSecureServer,
+} from "@trading-model/common/server/create-secure-server";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { ENV } from "../config/env";

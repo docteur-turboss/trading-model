@@ -1,11 +1,14 @@
-import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
-import { computeWalletMetrics, type WalletMetrics } from "./wallet-metrics";
-import { WalletConfig, type WalletConfigParams } from "./wallet-config";
-import { TradeRecorder, type TradeRecord } from "./trade-recorder";
+import {
+	type Cash,
+	type Price,
+	Volume,
+} from "@trading-model/common/domain/primitives";
 import { TradeExecutor } from "./trade-executor";
+import { type TradeRecord, TradeRecorder } from "./trade-recorder";
+import { WalletConfig, type WalletConfigParams } from "./wallet-config";
+import { computeWalletMetrics, type WalletMetrics } from "./wallet-metrics";
 
-export type { TradeRecord, WalletMetrics };
-export type { WalletConfigParams as WalletConfig };
+export type { TradeRecord, WalletConfigParams as WalletConfig, WalletMetrics };
 
 export interface WalletAPI {
 	buy: (amount: Volume) => boolean;
@@ -29,16 +32,13 @@ export class Wallet implements WalletAPI {
 		const config = new WalletConfig(params);
 		const price = config.initialPrice;
 		const cash = config.initialCash;
-		this._recorder = new TradeRecorder(
-			config.initialCash,
-			config.decimals
-		);
+		this._recorder = new TradeRecorder(config.initialCash, config.decimals);
 		this._executor = new TradeExecutor(
 			config,
 			price,
 			cash,
 			Volume.zero(),
-			this._recorder,
+			this._recorder
 		);
 	}
 
@@ -63,7 +63,11 @@ export class Wallet implements WalletAPI {
 	}
 
 	getValuation(): Cash {
-		return this._recorder.computeValuation(this._executor.cash, this._executor.position, this._executor.price);
+		return this._recorder.computeValuation(
+			this._executor.cash,
+			this._executor.position,
+			this._executor.price
+		);
 	}
 
 	getPrice(): Price {
@@ -71,7 +75,11 @@ export class Wallet implements WalletAPI {
 	}
 
 	getPnL(): Cash {
-		return this._recorder.computePnL(this._executor.cash, this._executor.position, this._executor.price);
+		return this._recorder.computePnL(
+			this._executor.cash,
+			this._executor.position,
+			this._executor.price
+		);
 	}
 
 	getMetrics(): WalletMetrics {

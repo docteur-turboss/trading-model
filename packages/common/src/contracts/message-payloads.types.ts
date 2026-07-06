@@ -10,5 +10,3 @@ export interface TopicsSubscribePayload {
 export interface TopicsUnsubscribePayload {
 	topics: Topic[];
 }
-
-

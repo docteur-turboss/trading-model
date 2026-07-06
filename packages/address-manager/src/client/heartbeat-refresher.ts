@@ -1,7 +1,10 @@
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import { toServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
+import {
+	toInstanceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import {
 	addressManagerError,
 	normalizeError,
@@ -13,7 +16,7 @@ export class HeartbeatRefresher {
 		private readonly _httpClient: HttpClient,
 		private readonly _tokenManager: TokenManager,
 		private readonly _serviceName: string,
-		private readonly _instanceId: string,
+		private readonly _instanceId: string
 	) {}
 
 	async refresh(urls: string[]): Promise<void> {
@@ -36,9 +39,9 @@ export class HeartbeatRefresher {
 			`${url}/heartbeat`,
 			this._buildHeartbeatPayload(),
 			{
-			headers: {
-				[HTTP_HEADERS.X_INSTANCE_TOKEN]: this._tokenManager.getToken(),
-			},
+				headers: {
+					[HTTP_HEADERS.X_INSTANCE_TOKEN]: this._tokenManager.getToken(),
+				},
 			}
 		);
 	}
@@ -47,25 +50,20 @@ export class HeartbeatRefresher {
 		try {
 			await this._sendHeartbeat(url);
 		} catch (error) {
-			throw addressManagerError(
-				"Failed to refresh service TTL",
-				{ cause: normalizeError(error) },
-			);
+			throw addressManagerError("Failed to refresh service TTL", {
+				cause: normalizeError(error),
+			});
 		}
 	}
 
 	private async _refreshMultipleUrls(urls: string[]): Promise<void> {
 		const results = await Promise.allSettled(
-			urls.map((url) => this._sendHeartbeat(url)),
+			urls.map((url) => this._sendHeartbeat(url))
 		);
-		const failures = results.filter(
-			(result) => result.status === "rejected",
-		);
+		const failures = results.filter((result) => result.status === "rejected");
 		if (failures.length === results.length) {
 			throw addressManagerError("Failed to refresh service TTL", {
-				cause: normalizeError(
-					(failures[0] as PromiseRejectedResult).reason,
-				),
+				cause: normalizeError((failures[0] as PromiseRejectedResult).reason),
 			});
 		}
 	}

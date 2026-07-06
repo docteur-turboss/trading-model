@@ -10,7 +10,9 @@ export class MongoAuditConnection {
 	private _mongoConnected = false;
 
 	private get _requiredCollection(): Collection<AuditEntry> {
-		if (!this._collection) throw new Error("AuditStore not connected");
+		if (!this._collection) {
+			throw new Error("AuditStore not connected");
+		}
 		return this._collection;
 	}
 
@@ -47,7 +49,7 @@ export class MongoAuditConnection {
 	private async _createAuditIndexes(): Promise<void> {
 		await this._requiredCollection.createIndex(
 			{ timestamp: -1 },
-			{ expireAfterSeconds: 90 * 86400 },
+			{ expireAfterSeconds: 90 * 86400 }
 		);
 		await this._requiredCollection.createIndex({
 			serviceId: 1,
@@ -66,15 +68,14 @@ export class MongoAuditConnection {
 	private async _tryConnect(): Promise<boolean> {
 		try {
 			await this._ensureClientConnected();
-			this._collection =
-				this._resolveDb().collection<AuditEntry>("audit_log");
+			this._collection = this._resolveDb().collection<AuditEntry>("audit_log");
 			await this._createAuditIndexes();
 			this._mongoConnected = true;
 			return true;
 		} catch (err) {
 			logger.error(
 				"AuditStore: MongoDB connection failed — using local buffer",
-				{ context: { err } },
+				{ context: { err } }
 			);
 			this._mongoConnected = false;
 			return false;

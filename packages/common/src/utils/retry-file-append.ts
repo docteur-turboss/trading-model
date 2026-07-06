@@ -26,7 +26,10 @@ export async function retryFileAppend(
 		} catch {
 			if (attempt < maxRetries - 1) {
 				await new Promise((resolve) =>
-					setTimeout(resolve, computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs }))
+					setTimeout(
+						resolve,
+						computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs })
+					)
 				);
 			}
 		}

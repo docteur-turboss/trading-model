@@ -6,8 +6,8 @@ import {
 } from "../env/wallet-manager";
 import { Agent } from "../neural-network/agent";
 import type { Experience, NeuralNetworkConfig } from "../neural-network/type";
-import StateManager, { type StateManagerConfig } from "./state-manager";
 import { ActionMapper } from "./action-mapper";
+import StateManager, { type StateManagerConfig } from "./state-manager";
 
 export interface TradingAgentConfig {
 	nnConfig: NeuralNetworkConfig;
@@ -54,11 +54,12 @@ export class TradingAgent {
 
 		const output = this._agent.fastForward({ input });
 		const { action, amount } = this._actionMapper.map(output);
-		const executed = action === "buy"
-			? this.wallet.buy(Volume.of(amount))
-			: action === "sell"
-				? this.wallet.sell(Volume.of(amount))
-				: false;
+		const executed =
+			action === "buy"
+				? this.wallet.buy(Volume.of(amount))
+				: action === "sell"
+					? this.wallet.sell(Volume.of(amount))
+					: false;
 
 		const reward = this.wallet.getPnL() - currentPnL;
 		this.state.decayEpsilon();

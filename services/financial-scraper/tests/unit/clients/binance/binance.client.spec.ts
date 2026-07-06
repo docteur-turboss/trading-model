@@ -103,21 +103,33 @@ describe("BinanceClient", () => {
 	});
 
 	it("getCandlestickData should call candlesticks endpoint with weight", async () => {
-		await getCandlestickData({ symbol: BTC, limit: 100, interval: CandleInterval.MIN1 });
+		await getCandlestickData({
+			symbol: BTC,
+			limit: 100,
+			interval: CandleInterval.MIN1,
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/klines", {
 			weight: 2,
 		} as never);
 	});
 
 	it("getCandlestickData should use default limit", async () => {
-		await getCandlestickData({ symbol: BTC, limit: 500, interval: CandleInterval.MIN1 });
+		await getCandlestickData({
+			symbol: BTC,
+			limit: 500,
+			interval: CandleInterval.MIN1,
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/klines", {
 			weight: 2,
 		} as never);
 	});
 
 	it("getCompressedAggregateTrades should call aggTrades endpoint with weight", async () => {
-		await getCompressedAggregateTrades({ symbol: BTC, fromId: 12345, limit: 100 });
+		await getCompressedAggregateTrades({
+			symbol: BTC,
+			fromId: 12345,
+			limit: 100,
+		});
 		expect(MOCK_GET).toHaveBeenCalledWith("/api/v3/aggTrades", {
 			weight: 4,
 		} as never);

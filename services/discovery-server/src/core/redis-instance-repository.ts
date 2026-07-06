@@ -1,19 +1,17 @@
-import Redis from "ioredis";
-import type {
-	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
+import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type Redis from "ioredis";
 import { RedisInstanceStore } from "./redis-instance-store";
-import { RedisKeyBuilder } from "./redis-key-builder";
-import { TokenService } from "./token-service";
+import type { RedisKeyBuilder } from "./redis-key-builder";
+import type { TokenService } from "./token-service";
 
 export class RedisInstanceRepository {
 	private readonly _store: RedisInstanceStore;
 
 	constructor(
-		private readonly _redis: Redis,
+		readonly _redis: Redis,
 		private readonly _keyBuilder: RedisKeyBuilder,
-		private readonly _tokenService: TokenService,
+		readonly _tokenService: TokenService
 	) {
 		this._store = new RedisInstanceStore(_redis, _keyBuilder, _tokenService);
 	}
@@ -36,9 +34,7 @@ export class RedisInstanceRepository {
 			return [];
 		}
 
-		const keys = instanceIds.map((id) =>
-			this._keyBuilder.instanceMetadata(id),
-		);
+		const keys = instanceIds.map((id) => this._keyBuilder.instanceMetadata(id));
 		return this._store.getMetadatas(keys);
 	}
 

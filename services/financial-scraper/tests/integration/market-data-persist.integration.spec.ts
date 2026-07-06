@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import type { Mock } from "jest-mock";
 import { CandleInterval } from "@trading-model/common/config/event.types";
+import type { Mock } from "jest-mock";
 
 jest.mock("../../src/infra/market-data/market-data.model", () => ({
 	MarketDataModel: {

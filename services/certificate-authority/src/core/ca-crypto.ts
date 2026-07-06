@@ -13,7 +13,9 @@ import {
 function _validateKeyLength(keyBase64: string): Buffer {
 	const key = Buffer.from(keyBase64, "base64");
 	if (key.length !== 32) {
-		throw new Error("CA_KEY_ENCRYPTION_KEY must be 32 bytes (256 bits), encoded as base64");
+		throw new Error(
+			"CA_KEY_ENCRYPTION_KEY must be 32 bytes (256 bits), encoded as base64"
+		);
 	}
 	return key;
 }
@@ -43,7 +45,9 @@ export function encryptKey(pem: string, keyBase64: string | undefined): string {
  * @param keyBase64 - Base64-encoded 32-byte (256-bit) decryption key
  * @returns Original PEM text, or the input unchanged if not encrypted
  */
-function _parseEncryptedData(data: string): { iv: Buffer; tag: Buffer; encrypted: string } | null {
+function _parseEncryptedData(
+	data: string
+): { iv: Buffer; tag: Buffer; encrypted: string } | null {
 	const prefix = "aes256gcm:";
 	if (!data.startsWith(prefix)) {
 		return null;
@@ -59,7 +63,12 @@ function _parseEncryptedData(data: string): { iv: Buffer; tag: Buffer; encrypted
 	};
 }
 
-function _decryptAes256Gcm(encrypted: string, key: Buffer, iv: Buffer, tag: Buffer): string {
+function _decryptAes256Gcm(
+	encrypted: string,
+	key: Buffer,
+	iv: Buffer,
+	tag: Buffer
+): string {
 	const decipher = createDecipheriv("aes-256-gcm", key, iv);
 	decipher.setAuthTag(tag);
 	let decrypted = decipher.update(encrypted, "hex", "utf8");
@@ -79,7 +88,12 @@ export function decryptKey(
 		return data;
 	}
 	const key = _validateKeyLength(keyBase64);
-	const result = _decryptAes256Gcm(parsed.encrypted, key, parsed.iv, parsed.tag);
+	const result = _decryptAes256Gcm(
+		parsed.encrypted,
+		key,
+		parsed.iv,
+		parsed.tag
+	);
 	key.fill(0);
 	parsed.iv.fill(0);
 	parsed.tag.fill(0);

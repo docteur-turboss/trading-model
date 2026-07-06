@@ -1,8 +1,8 @@
 import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
-import { BackendPingManager } from "./backend-ping-manager";
-import { CacheManager } from "./cache-manager";
-import { PubSubInvalidator } from "./pub-sub-invalidator";
-import { RedisHealthMonitor } from "./redis-health-monitor";
+import type { BackendPingManager } from "./backend-ping-manager";
+import type { CacheManager } from "./cache-manager";
+import type { PubSubInvalidator } from "./pub-sub-invalidator";
+import type { RedisHealthMonitor } from "./redis-health-monitor";
 
 export class CachedRegistryLifecycle {
 	constructor(
@@ -10,7 +10,7 @@ export class CachedRegistryLifecycle {
 		private readonly _pingManager: BackendPingManager,
 		private readonly _pubSub: PubSubInvalidator,
 		private readonly _cache: CacheManager,
-		private readonly _backend: RegistryBackend,
+		private readonly _backend: RegistryBackend
 	) {}
 
 	async start(): Promise<void> {
@@ -22,7 +22,9 @@ export class CachedRegistryLifecycle {
 	}
 
 	async ping(): Promise<boolean> {
-		if (this._healthMonitor.fallbackActive) return false;
+		if (this._healthMonitor.fallbackActive) {
+			return false;
+		}
 		await this._pingManager.pingPubSub();
 		return this._pingManager.pingBackend();
 	}

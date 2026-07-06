@@ -1,14 +1,7 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
-import { serviceAuth } from "./auth";
-import {
-	_createHealthLimiter,
-	_createReplayLimiter,
-	_createWriteLimiter,
-	closeRateLimiters,
-	closeRedisClient,
-} from "./rate-limiter";
+import type rateLimit from "express-rate-limit";
 import { metricsHandler } from "../config/metrics";
+import { serviceAuth } from "./auth";
 import {
 	AddEntry,
 	DeleteEntries,
@@ -17,6 +10,13 @@ import {
 	ReadyCheck,
 	ReplayEntries,
 } from "./controller";
+import {
+	_createHealthLimiter,
+	_createReplayLimiter,
+	_createWriteLimiter,
+	closeRateLimiters,
+	closeRedisClient,
+} from "./rate-limiter";
 
 function _registerDlqRoutes(
 	router: Router,
@@ -46,4 +46,4 @@ export const DlqRoutes = (): Router => {
 	return router;
 };
 
-export { closeRedisClient, closeRateLimiters };
+export { closeRateLimiters, closeRedisClient };

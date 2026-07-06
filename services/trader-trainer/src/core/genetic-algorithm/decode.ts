@@ -1,14 +1,4 @@
-import {
-	InitialisationType,
-} from "../neural-network/type";
-import type {
-	Genome,
-	MutationGenome,
-	NetworkGenome,
-	RLGenome,
-} from "./genome-types";
-import { clamp } from "./utils";
-import { SCALAR_DIM, EncodingVector } from "./encoding-vector";
+import { InitialisationType } from "../neural-network/type";
 import {
 	ACTIVATIONS,
 	CONNECTION_TYPES,
@@ -18,6 +8,14 @@ import {
 	N_ACT,
 	N_CT,
 } from "./encoding-constants";
+import { EncodingVector, SCALAR_DIM } from "./encoding-vector";
+import type {
+	Genome,
+	MutationGenome,
+	NetworkGenome,
+	RLGenome,
+} from "./genome-types";
+import { clamp } from "./utils";
 
 interface DecodedRLScalars {
 	gamma: number;
@@ -51,7 +49,9 @@ interface DecodedNetworkScalars {
 	depth: number;
 }
 
-type DecodedScalars = DecodedRLScalars & DecodedMutationScalars & DecodedNetworkScalars;
+type DecodedScalars = DecodedRLScalars &
+	DecodedMutationScalars &
+	DecodedNetworkScalars;
 
 function argmax(arr: Float32Array, start: number, len: number): number {
 	let best = start;
@@ -70,7 +70,11 @@ function _decodeRLScalars(vec: EncodingVector) {
 		clipMin: vec.clipMin,
 		clipMax: vec.clipMax,
 		scaleFactor: clamp(10 ** ((vec.scaleFactor - 1) * 3), 0.001, 1000),
-		maxEpisodeLength: clamp(Math.round(vec.maxEpisodeLength * 2_000), 10, 20_000),
+		maxEpisodeLength: clamp(
+			Math.round(vec.maxEpisodeLength * 2_000),
+			10,
+			20_000
+		),
 		nStepReturn: clamp(Math.round(vec.nStepReturn * 20), 1, 20),
 		frameSkip: clamp(Math.round(vec.frameSkip * 10), 1, 10),
 		epsilonStart: clamp(vec.epsilonStart, 0.1, 1.0),
@@ -126,8 +130,11 @@ function decodeLayers(vec: EncodingVector, depth: number, template: Genome) {
 	const hiddenLayers: Genome["network"]["hiddenLayers"] = [];
 
 	for (let i = 0; i < depth; i++) {
-		const biasType = template.network.hiddenLayers[i]?.biasType ?? InitialisationType.Zeros;
-		hiddenLayers.push(_decodeSingleLayer(vec, SCALAR_DIM + i * LAYER_DIM, biasType));
+		const biasType =
+			template.network.hiddenLayers[i]?.biasType ?? InitialisationType.Zeros;
+		hiddenLayers.push(
+			_decodeSingleLayer(vec, SCALAR_DIM + i * LAYER_DIM, biasType)
+		);
 	}
 	return hiddenLayers;
 }
@@ -246,7 +253,11 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 	const ev = new EncodingVector(vec.length);
 	ev.data.set(vec);
 	const scalars = decodeScalars(ev);
-	return _buildDecodedGenome(scalars, decodeLayers(ev, scalars.depth, template), template);
+	return _buildDecodedGenome(
+		scalars,
+		decodeLayers(ev, scalars.depth, template),
+		template
+	);
 }
 
 export function decodePopulation(
@@ -256,10 +267,7 @@ export function decodePopulation(
 	const length = templates.length;
 	const out: Genome[] = [];
 	for (let i = 0; i < length; i++) {
-		const row = mat.subarray(
-			i * ENCODED_DIM,
-			(i + 1) * ENCODED_DIM
-		);
+		const row = mat.subarray(i * ENCODED_DIM, (i + 1) * ENCODED_DIM);
 		out.push(decodeGenome(row, templates[i]));
 	}
 	return out;

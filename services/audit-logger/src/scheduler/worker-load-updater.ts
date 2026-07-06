@@ -1,10 +1,10 @@
-import type { BackPressure } from "./back-pressure";
 import type { WorkerRegistry } from "../worker/worker-registry";
+import type { BackPressure } from "./back-pressure";
 
 export class WorkerLoadUpdater {
 	constructor(
 		private readonly _backPressure: BackPressure,
-		private readonly _workers: WorkerRegistry,
+		private readonly _workers: WorkerRegistry
 	) {}
 
 	decrement(workerId: string | undefined): void {

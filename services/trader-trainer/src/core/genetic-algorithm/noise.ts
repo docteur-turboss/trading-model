@@ -108,7 +108,5 @@ export function sampleNoise(
 	rng: () => number
 ): number {
 	const sampler = NOISE_SAMPLERS[dist];
-	return sampler
-		? sampler.sample(rng, sigma)
-		: sampleGaussian(rng, sigma);
+	return sampler ? sampler.sample(rng, sigma) : sampleGaussian(rng, sigma);
 }

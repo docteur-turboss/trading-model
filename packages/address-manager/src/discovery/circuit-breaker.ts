@@ -1,11 +1,13 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
-
-import { type IServiceCache, NullServiceCache } from "./service-cache.interface";
-import { CircuitBreakerState } from "./circuit-breaker-state";
 import { CircuitBreakerLatency } from "./circuit-breaker-latency";
 import { CircuitBreakerPersistence } from "./circuit-breaker-persistence";
 import { CircuitBreakerRecorder } from "./circuit-breaker-recorder";
+import { CircuitBreakerState } from "./circuit-breaker-state";
+import {
+	type IServiceCache,
+	NullServiceCache,
+} from "./service-cache.interface";
 
 const DEFAULT_LATENCY_WINDOW_SIZE = 100;
 const DEFAULT_LATENCY_P99_THRESHOLD_MS = 5000;
@@ -30,9 +32,12 @@ export class CircuitBreaker implements ICircuitBreaker {
 		const failureThreshold = options.failureThreshold ?? 3;
 		const halfOpenTimeoutMs = options.halfOpenTimeoutMs ?? 10_000;
 		const stateStore = options.stateStore;
-		const loadFromStoreCacheTtlMs = options.loadFromStoreCacheTtlMs ?? DEFAULT_LOAD_CACHE_TTL_MS;
-		const latencyWindowSize = options.latencyWindowSize ?? DEFAULT_LATENCY_WINDOW_SIZE;
-		const latencyP99ThresholdMs = options.latencyP99ThresholdMs ?? DEFAULT_LATENCY_P99_THRESHOLD_MS;
+		const loadFromStoreCacheTtlMs =
+			options.loadFromStoreCacheTtlMs ?? DEFAULT_LOAD_CACHE_TTL_MS;
+		const latencyWindowSize =
+			options.latencyWindowSize ?? DEFAULT_LATENCY_WINDOW_SIZE;
+		const latencyP99ThresholdMs =
+			options.latencyP99ThresholdMs ?? DEFAULT_LATENCY_P99_THRESHOLD_MS;
 
 		this._state = new CircuitBreakerState(
 			failureThreshold,
@@ -41,11 +46,21 @@ export class CircuitBreaker implements ICircuitBreaker {
 				this._persistence.deleteLastLoadTime(instanceId);
 				this._persistence.deletePersistedState(instanceId);
 				this._latency.deleteWindow(instanceId);
-			},
+			}
 		);
-		this._latency = new CircuitBreakerLatency(latencyWindowSize, latencyP99ThresholdMs);
-		this._persistence = new CircuitBreakerPersistence(stateStore ?? new NullServiceCache(), loadFromStoreCacheTtlMs);
-		this._recorder = new CircuitBreakerRecorder(this._state, this._latency, this._persistence);
+		this._latency = new CircuitBreakerLatency(
+			latencyWindowSize,
+			latencyP99ThresholdMs
+		);
+		this._persistence = new CircuitBreakerPersistence(
+			stateStore ?? new NullServiceCache(),
+			loadFromStoreCacheTtlMs
+		);
+		this._recorder = new CircuitBreakerRecorder(
+			this._state,
+			this._latency,
+			this._persistence
+		);
 	}
 
 	async loadFromStore(instanceId: string): Promise<void> {

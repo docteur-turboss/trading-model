@@ -1,6 +1,9 @@
-import { CrlCache, type ICrlChecker } from "@trading-model/common/crl/crl-cache";
-import type { RevokedCertificate } from "./types";
+import {
+	CrlCache,
+	type ICrlChecker,
+} from "@trading-model/common/crl/crl-cache";
 import type { SerialNumber } from "@trading-model/common/domain/primitives";
+import type { RevokedCertificate } from "./types";
 
 export interface Crl {
 	entries: RevokedCertificate[];

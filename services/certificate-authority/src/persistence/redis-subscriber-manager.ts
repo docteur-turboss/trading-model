@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import Redis from "ioredis";
+import type Redis from "ioredis";
 
 export class RedisSubscriberManager {
 	constructor(private readonly _client: Redis) {}
@@ -15,7 +15,10 @@ export class RedisSubscriberManager {
 		});
 	}
 
-	async subscribe(channel: string, handler: (message: string) => void): Promise<() => void> {
+	async subscribe(
+		channel: string,
+		handler: (message: string) => void
+	): Promise<() => void> {
 		const subscriber = this._duplicateSubscriber();
 		let unsubscribed = false;
 		const onMessage = (_ch: string, msg: string) => {
@@ -27,7 +30,10 @@ export class RedisSubscriberManager {
 			await _doSubscribe(subscriber, channel);
 			subscriber.on("message", onMessage);
 			subscriber.on("reconnecting", () => {
-				logger.info("Redis subscriber reconnecting, will re-subscribe to channel", { context: { channel } });
+				logger.info(
+					"Redis subscriber reconnecting, will re-subscribe to channel",
+					{ context: { channel } }
+				);
 			});
 			subscriber.on("connect", () => {
 				if (!unsubscribed) {
@@ -64,7 +70,12 @@ interface UnsubscriberContext {
 	onClose?: () => void;
 }
 
-function _createUnsubscriber({ subscriber, channel, onMessage, onClose }: UnsubscriberContext): () => void {
+function _createUnsubscriber({
+	subscriber,
+	channel,
+	onMessage,
+	onClose,
+}: UnsubscriberContext): () => void {
 	return () => {
 		onClose?.();
 		subscriber.removeListener("message", onMessage);

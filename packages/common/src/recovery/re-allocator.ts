@@ -45,7 +45,9 @@ export class ReAllocator {
 		const newDeadline = Date.now() + this._ackTimeoutMs;
 		const updatedJob = this._buildReallocatedJob(job, newDeadline);
 		this._queue.enqueue(updatedJob);
-		await this._repository.updateStatus(job.id, "queued", { ackDeadline: newDeadline });
+		await this._repository.updateStatus(job.id, "queued", {
+			ackDeadline: newDeadline,
+		});
 		logger.info("Job re-allocated to queue", {
 			context: { jobId: job.id, retryCount: updatedJob.retryCount },
 		});

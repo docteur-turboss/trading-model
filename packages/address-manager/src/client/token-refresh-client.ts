@@ -1,16 +1,14 @@
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import {
-	authenticationError,
-} from "@trading-model/common/utils/errors";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import { authenticationError } from "@trading-model/common/utils/errors";
 
 import type { AddressManagerConfig } from "../config/address-manager-config";
 
 export class TokenRefreshClient {
 	constructor(
 		private readonly _httpClient: HttpClient,
-		private readonly _config: AddressManagerConfig,
+		private readonly _config: AddressManagerConfig
 	) {}
 
 	private _buildAuthHeaders(token: string | null): Record<string, string> {
@@ -32,12 +30,10 @@ export class TokenRefreshClient {
 		const response = await this._httpClient.post<{ token: string }>(
 			`${this._config.addressManagerUrl}/token/rotate`,
 			this._buildTokenPayload(),
-			{ headers: this._buildAuthHeaders(currentToken) },
+			{ headers: this._buildAuthHeaders(currentToken) }
 		);
 		if (!response?.token) {
-			throw authenticationError(
-				"Invalid token response from Address Manager",
-			);
+			throw authenticationError("Invalid token response from Address Manager");
 		}
 		return response.token;
 	}

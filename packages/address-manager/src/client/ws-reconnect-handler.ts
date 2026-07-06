@@ -1,8 +1,8 @@
+import { logger } from "@trading-model/common/config/logger";
 import {
 	scheduleWsReconnect,
 	type WsReconnectState,
 } from "@trading-model/common/utils/ws-reconnect";
-import { logger } from "@trading-model/common/config/logger";
 
 export class WsReconnectHandler {
 	private _shouldReconnect = true;
@@ -16,7 +16,7 @@ export class WsReconnectHandler {
 		private readonly _maxAttempts: number,
 		private readonly _intervalMs: number,
 		private readonly _url: string,
-		private readonly _onReconnect: () => void,
+		private readonly _onReconnect: () => void
 	) {}
 
 	get shouldReconnect(): boolean {

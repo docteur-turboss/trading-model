@@ -39,8 +39,14 @@ function _extractSanFromX509(x509: X509Certificate): string[] {
 		.map((name) => name.slice(4));
 }
 
-import { toFingerprint, toSerialNumber } from "@trading-model/common/domain/primitives";
-import type { Fingerprint, SerialNumber } from "@trading-model/common/domain/primitives";
+import type {
+	Fingerprint,
+	SerialNumber,
+} from "@trading-model/common/domain/primitives";
+import {
+	toFingerprint,
+	toSerialNumber,
+} from "@trading-model/common/domain/primitives";
 
 export function parseCertInfo(pem: string): {
 	subject: string;
@@ -59,7 +65,9 @@ export function parseCertInfo(pem: string): {
 		serialNumber: toSerialNumber(forgeCert.serialNumber),
 		notBefore: new Date(x509.validFrom),
 		notAfter: new Date(x509.validTo),
-		fingerprint: toFingerprint(x509.fingerprint256.replace(/:/g, "").toLowerCase()),
+		fingerprint: toFingerprint(
+			x509.fingerprint256.replace(/:/g, "").toLowerCase()
+		),
 		san: _extractSanFromX509(x509),
 	};
 }
@@ -94,13 +102,14 @@ export function parseCsrInfo(csrPem: string): {
 }
 
 function _extractSanFromCsr(
-	csr: ReturnType<typeof forge.pki.certificationRequestFromPem>,
+	csr: ReturnType<typeof forge.pki.certificationRequestFromPem>
 ): string[] {
 	const sanAttr = csr.getAttribute({ name: "extensionRequest" });
 	if (!sanAttr) {
 		return [];
 	}
-	const extensions = (sanAttr as unknown as { extensions: CsrExtension[] }).extensions;
+	const extensions = (sanAttr as unknown as { extensions: CsrExtension[] })
+		.extensions;
 	if (!extensions) {
 		return [];
 	}

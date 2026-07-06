@@ -2,13 +2,11 @@ import type {
 	Message,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
+import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
 import { DeliveryCircuitBreaker } from "./delivery-circuit-breaker";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
 import { DeliveryMetadataExtractor } from "./delivery-metadata-extractor";
-import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
-import type {
-	MessageDeliveryPort,
-} from "./message-delivery-port";
+import type { MessageDeliveryPort } from "./message-delivery-port";
 
 export interface SubscriptionConfig {
 	topic: string;
@@ -55,11 +53,13 @@ export class Subscription {
 			config.deliveryPort,
 			this._errorHandler,
 			config.callbackURL,
-			config.serviceIdentity.serviceName,
+			config.serviceIdentity.serviceName
 		);
 	}
 
-	private _createErrorHandler(config: SubscriptionConfig): DeliveryErrorHandler {
+	private _createErrorHandler(
+		config: SubscriptionConfig
+	): DeliveryErrorHandler {
 		return new DeliveryErrorHandler({
 			deliveryPort: config.deliveryPort,
 			recordFailure: () => this._circuitBreaker.recordFailure(),

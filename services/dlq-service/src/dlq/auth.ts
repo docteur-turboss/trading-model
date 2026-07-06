@@ -1,13 +1,9 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { SignedRequest } from "@trading-model/common/contracts/signed-request";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { toServiceId } from "@trading-model/common/domain/primitives";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
-import {
-	type NextFunction,
-	type Request,
-	type Response,
-} from "express";
+import type { NextFunction, Request, Response } from "express";
 import { env, resolveAuthHmacSecret } from "../config/env";
 import { logger } from "../config/logger";
 
@@ -34,7 +30,12 @@ function verifySignature(req: Request, serviceName: string): boolean {
 		return false;
 	}
 
-	const route: SignedRequest = { serviceName: toServiceId(serviceName), method: req.method as SignedRequest["method"], path: req.path, body: req.body };
+	const route: SignedRequest = {
+		serviceName: toServiceId(serviceName),
+		method: req.method as SignedRequest["method"],
+		path: req.path,
+		body: req.body,
+	};
 	const parts = [serviceName, timestampStr, bodyHash, route.method, route.path];
 	if (_matchSignature(provided, secret, parts)) {
 		return true;
@@ -102,7 +103,9 @@ function _matchSignature(
 }
 
 function serviceAuth(req: Request, res: Response, next: NextFunction): void {
-	const serviceName = req.headers[HTTP_HEADERS.X_SERVICE_NAME] as string | undefined;
+	const serviceName = req.headers[HTTP_HEADERS.X_SERVICE_NAME] as
+		| string
+		| undefined;
 	if (!(serviceName && ALLOWED_SERVICES.includes(serviceName))) {
 		res.status(403).json({ error: "Unauthorized service" });
 		return;

@@ -60,7 +60,11 @@ function _computeReplayBytes(genome: DeepReadonly<LamarckGenome>): number {
 	return genome.rl.replayBuffer.bufferSize * genome.network.inputDim * 4 * 2;
 }
 
-function _computePenalty(effectiveFlops: number, paramBytes: number, replayBytes: number): number {
+function _computePenalty(
+	effectiveFlops: number,
+	paramBytes: number,
+	replayBytes: number
+): number {
 	const flopPenalty = Math.min(1, effectiveFlops / FLOP_SOFT_CAP);
 	const memPenalty = Math.min(1, (paramBytes + replayBytes) / MEM_SOFT_CAP);
 	return 0.6 * flopPenalty + 0.4 * memPenalty;
@@ -75,13 +79,20 @@ export function estimateComplexity(
 		genome.network.outputDim,
 	];
 
-	const { flops, params } = _computeLayerFlopsAndParams(dims, genome.network.hiddenLayers);
+	const { flops, params } = _computeLayerFlopsAndParams(
+		dims,
+		genome.network.hiddenLayers
+	);
 	const effectiveFlops = flops / Math.max(1, genome.rl.horizon.frameSkip);
 	const paramBytes = params * 4;
 
 	return {
 		inferenceFLOPs: flops,
-		penalty: _computePenalty(effectiveFlops, paramBytes, _computeReplayBytes(genome)),
+		penalty: _computePenalty(
+			effectiveFlops,
+			paramBytes,
+			_computeReplayBytes(genome)
+		),
 	};
 }
 

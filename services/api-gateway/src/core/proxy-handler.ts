@@ -15,8 +15,13 @@ export interface ProxyResult {
 
 function _isBlockedHeader(key: string): boolean {
 	const lower = key.toLowerCase();
-	return lower === "x-api-key" || lower === "authorization" || lower === "host" ||
-		lower === "connection" || lower === "keep-alive";
+	return (
+		lower === "x-api-key" ||
+		lower === "authorization" ||
+		lower === "host" ||
+		lower === "connection" ||
+		lower === "keep-alive"
+	);
 }
 
 function _serializeHeaderValue(value: string | string[]): string {
@@ -24,15 +29,19 @@ function _serializeHeaderValue(value: string | string[]): string {
 }
 
 function _addProxyHeaders(headers: Record<string, string>, req: Request): void {
-	headers[HTTP_HEADERS.X_FORWARDED_FOR] = req.ip ?? req.socket.remoteAddress ?? "unknown";
+	headers[HTTP_HEADERS.X_FORWARDED_FOR] =
+		req.ip ?? req.socket.remoteAddress ?? "unknown";
 	headers[HTTP_HEADERS.X_FORWARDED_PROTO] = "https";
-	headers[HTTP_HEADERS.X_REQUEST_ID] = (req.headers[HTTP_HEADERS.X_REQUEST_ID] as string) ?? crypto.randomUUID();
+	headers[HTTP_HEADERS.X_REQUEST_ID] =
+		(req.headers[HTTP_HEADERS.X_REQUEST_ID] as string) ?? crypto.randomUUID();
 }
 
 function buildSafeHeaders(req: Request): Record<string, string> {
 	const headers: Record<string, string> = {};
 	for (const [key, value] of Object.entries(req.headers)) {
-		if (_isBlockedHeader(key)) continue;
+		if (_isBlockedHeader(key)) {
+			continue;
+		}
 		if (typeof value === "string" || Array.isArray(value)) {
 			headers[key] = _serializeHeaderValue(value);
 		}
@@ -41,7 +50,9 @@ function buildSafeHeaders(req: Request): Record<string, string> {
 	return headers;
 }
 
-function _collectResponseChunks(proxyRes: http.IncomingMessage): Promise<Buffer[]> {
+function _collectResponseChunks(
+	proxyRes: http.IncomingMessage
+): Promise<Buffer[]> {
 	return new Promise((resolve) => {
 		const chunks: Buffer[] = [];
 		proxyRes.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -67,19 +78,41 @@ export interface ProxyRequestOptions {
 	timeoutMs?: number;
 }
 
-function _onProxyError(target: ResolvedTarget, path: string, reject: (err: Error) => void): (err: Error) => void {
+function _onProxyError(
+	target: ResolvedTarget,
+	path: string,
+	reject: (err: Error) => void
+): (err: Error) => void {
 	return (err: Error) => {
-		logger.error("Proxy request failed", { context: { target: `${target.host}:${target.port}`, path, error: err.message } });
+		logger.error("Proxy request failed", {
+			context: {
+				target: `${target.host}:${target.port}`,
+				path,
+				error: err.message,
+			},
+		});
 		reject(err);
 	};
 }
 
-function _onProxyTimeout(timeoutMs: number, proxyReq: http.ClientRequest, reject: (err: Error) => void): void {
+function _onProxyTimeout(
+	timeoutMs: number,
+	proxyReq: http.ClientRequest,
+	reject: (err: Error) => void
+): void {
 	proxyReq.destroy();
 	reject(new Error(`Proxy timeout after ${timeoutMs}ms`));
 }
 
-function _executeProxyRequest(options: https.RequestOptions, req: Request, resolve: (result: ProxyResult) => void, reject: (err: Error) => void, target: ResolvedTarget, path: string, timeoutMs: number): void {
+function _executeProxyRequest(
+	options: https.RequestOptions,
+	req: Request,
+	resolve: (result: ProxyResult) => void,
+	reject: (err: Error) => void,
+	target: ResolvedTarget,
+	path: string,
+	timeoutMs: number
+): void {
 	const proxyReq = https.request(options, (proxyRes) => {
 		void handleProxyResponse(proxyRes).then(resolve);
 	});
@@ -95,19 +128,29 @@ export function forwardRequest(
 	const { req, target, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
 	return new Promise((resolve, reject) => {
 		const options = _buildProxyOptions({ target, req, path, timeoutMs });
-		_executeProxyRequest(options, req, resolve, reject, target, path, timeoutMs);
+		_executeProxyRequest(
+			options,
+			req,
+			resolve,
+			reject,
+			target,
+			path,
+			timeoutMs
+		);
 	});
 }
 
-function _buildProxyOptions(
-	opts: ProxyRequestOptions
-): https.RequestOptions {
+function _buildProxyOptions(opts: ProxyRequestOptions): https.RequestOptions {
 	const { target, req, path, timeoutMs = ENV.PROXY_TIMEOUT_MS } = opts;
 	const url = new URL(path, `https://${target.host}:${target.port}`);
 	return {
-		hostname: target.host, port: target.port, path: url.pathname + url.search,
-		method: req.method, headers: buildSafeHeaders(req),
-		rejectUnauthorized: true, timeout: timeoutMs,
+		hostname: target.host,
+		port: target.port,
+		path: url.pathname + url.search,
+		method: req.method,
+		headers: buildSafeHeaders(req),
+		rejectUnauthorized: true,
+		timeout: timeoutMs,
 	};
 }
 

@@ -1,7 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import WebSocket from "ws";
+import type WebSocket from "ws";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import type { Dispatcher } from "../core/dispatcher";
@@ -20,12 +20,21 @@ export class WssTransport {
 
 	constructor(dispatcher: Dispatcher) {
 		this._publisher = new WssPublisher(dispatcher, this._rateLimiter);
-		this._messageRouter = new WssMessageRouter(dispatcher, this._subscriptionManager, this._publisher);
-		this._connectionHandler = new WssConnectionHandler(this._subscriptionManager, this._rateLimiter);
+		this._messageRouter = new WssMessageRouter(
+			dispatcher,
+			this._subscriptionManager,
+			this._publisher
+		);
+		this._connectionHandler = new WssConnectionHandler(
+			this._subscriptionManager,
+			this._rateLimiter
+		);
 	}
 
 	attach(server: HttpsServer): void {
-		this._connectionHandler.attach(server, (ws, req) => this._handleConnection(ws, req));
+		this._connectionHandler.attach(server, (ws, req) =>
+			this._handleConnection(ws, req)
+		);
 	}
 
 	private _handleConnection(ws: WebSocket, req: IncomingMessage): void {
@@ -39,13 +48,21 @@ export class WssTransport {
 		}
 
 		const { subKey, identity } = ctx;
-		logger.info("WSS client connecting", { context: { serviceName: identity.serviceName, instanceId: identity.instanceId, topics: [...ctx.topics] } });
+		logger.info("WSS client connecting", {
+			context: {
+				serviceName: identity.serviceName,
+				instanceId: identity.instanceId,
+				topics: [...ctx.topics],
+			},
+		});
 
 		this._messageRouter.registerMessageHandler(ws, ctx);
 		this._connectionHandler.registerCloseHandler(ws, subKey, identity);
 		this._connectionHandler.registerErrorHandler(ws, identity);
 
-		ws.send(JSON.stringify({ type: "connected", instanceId: ENV.BROKER_INSTANCE_ID }));
+		ws.send(
+			JSON.stringify({ type: "connected", instanceId: ENV.BROKER_INSTANCE_ID })
+		);
 	}
 
 	private _buildConnectionContext(

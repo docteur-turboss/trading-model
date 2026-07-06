@@ -22,8 +22,8 @@
  */
 
 import type { DeliveryMode } from "../config/delivery-mode.types";
-import type { ServiceIdentity as DomainServiceIdentity } from "../domain/service-identity";
 import type { CorrelationId, MessageId, Topic } from "../domain/primitives";
+import type { ServiceIdentity as DomainServiceIdentity } from "../domain/service-identity";
 
 /**
  * Identity of a service instance within the broker system.

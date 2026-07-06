@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import {
 	IdentityResolver,
 	MapResolver,
 } from "../../src/discovery/dns-resolver";
 import { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import {
 	IpAddressLocator,
 	MappingServiceLocator,

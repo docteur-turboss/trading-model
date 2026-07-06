@@ -3,8 +3,8 @@ import type Redis from "ioredis";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getSubscriptionClient } from "../../config/redis";
-import { LEASE_HEARTBEAT_FIELD } from "./subscription-store";
 import { StaleInstanceRemover } from "./stale-instance-remover";
+import { LEASE_HEARTBEAT_FIELD } from "./subscription-store";
 
 const HEARTBEAT_INTERVAL_MS = ENV.STALE_HEARTBEAT_INTERVAL_MS;
 const MISSED_HEARTBEAT_THRESHOLD = ENV.STALE_MISSED_HEARTBEAT_THRESHOLD;

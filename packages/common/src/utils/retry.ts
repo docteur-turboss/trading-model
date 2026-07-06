@@ -1,8 +1,8 @@
-import { sleep } from "./sleep";
 import {
-	computeExponentialBackoff,
 	type BackoffConfig,
+	computeExponentialBackoff,
 } from "./backoff-config";
+import { sleep } from "./sleep";
 
 export interface RetryOptions extends BackoffConfig {
 	maxRetries: number;
@@ -49,12 +49,20 @@ export async function retryWithBackoff<T>(
 		}
 		try {
 			const result = await fn();
-			return { result, lastError: null, attempts: attempt + 1, timedOut: false };
+			return {
+				result,
+				lastError: null,
+				attempts: attempt + 1,
+				timedOut: false,
+			};
 		} catch (err) {
 			attempt++;
 			lastError = err as Error;
 			if (attempt < maxRetries) {
-				const delay = computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs });
+				const delay = computeExponentialBackoff(attempt, {
+					baseDelayMs,
+					maxDelayMs,
+				});
 				await sleep(_addJitter(delay, jitterMs));
 			}
 		}
@@ -70,7 +78,10 @@ export function withTimeout<T>(
 	return Promise.race([
 		promise,
 		new Promise<T>((_, reject) => {
-			const timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+			const timer = setTimeout(
+				() => reject(new Error(timeoutMessage)),
+				timeoutMs
+			);
 			timer.unref();
 		}),
 	]);

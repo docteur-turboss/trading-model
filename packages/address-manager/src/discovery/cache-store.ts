@@ -40,7 +40,8 @@ export class CacheStore {
 	}
 
 	entries(): Array<{ serviceName: ServiceId; instance: ServiceInstance }> {
-		const result: Array<{ serviceName: ServiceId; instance: ServiceInstance }> = [];
+		const result: Array<{ serviceName: ServiceId; instance: ServiceInstance }> =
+			[];
 		for (const [serviceName, entry] of this._cache) {
 			if (!this._isExpired(entry)) {
 				result.push({ serviceName, instance: entry.instance });

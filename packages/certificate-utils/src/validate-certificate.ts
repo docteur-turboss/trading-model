@@ -19,7 +19,11 @@ function _extractDateField(body: string, pattern: RegExp): Date {
 	return new Date(body.match(pattern)?.[1] ?? "");
 }
 
-function _verifySignature(body: string, signature: string, issuerCert: string): boolean {
+function _verifySignature(
+	body: string,
+	signature: string,
+	issuerCert: string
+): boolean {
 	const caKey = createPublicKey(issuerCert);
 	const verify = createVerify("sha256");
 	verify.update(body);
@@ -41,7 +45,7 @@ function _validateCertTiming(body: string): ValidationResult | null {
 }
 
 export function validateCertificate(
-	input: CertificateValidationInput,
+	input: CertificateValidationInput
 ): ValidationResult {
 	const { certPem } = input;
 	try {
@@ -50,12 +54,19 @@ export function validateCertificate(
 		if (timingResult) {
 			return timingResult;
 		}
-		const isValid = _verifySignature(certData.body, certData.signature, certData.issuerCert);
+		const isValid = _verifySignature(
+			certData.body,
+			certData.signature,
+			certData.issuerCert
+		);
 		return isValid
 			? { valid: true }
 			: { valid: false, reason: "Signature verification failed" };
 	} catch (err) {
-		return { valid: false, reason: `Validation error: ${(err as Error).message}` };
+		return {
+			valid: false,
+			reason: `Validation error: ${(err as Error).message}`,
+		};
 	}
 }
 
@@ -63,7 +74,7 @@ function _decodePemBody(pem: string): string {
 	const lines = pem
 		.split("\n")
 		.filter(
-			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END")),
+			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
 		);
 	return Buffer.from(lines.join(""), "base64").toString("utf8");
 }

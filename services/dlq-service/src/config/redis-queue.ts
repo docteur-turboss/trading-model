@@ -27,7 +27,7 @@ export class DlqRedisQueue {
 
 	async push(entryId: string, maxQueueSize = 50_000): Promise<boolean> {
 		const client = this._connection.getClient();
-		if (!client || !this._connection.isAvailable()) {
+		if (!(client && this._connection.isAvailable())) {
 			return false;
 		}
 		try {
@@ -39,16 +39,12 @@ export class DlqRedisQueue {
 
 	async pop(): Promise<string | null> {
 		const client = this._connection.getClient();
-		if (!client || !this._connection.isAvailable()) {
+		if (!(client && this._connection.isAvailable())) {
 			return null;
 		}
 		try {
 			const scriptHash = await this._getPopScriptHash(client);
-			const result = await client.evalsha(
-				scriptHash,
-				1,
-				this._queueKey
-			);
+			const result = await client.evalsha(scriptHash, 1, this._queueKey);
 			return this._extractFirstEntry(result as string[]);
 		} catch {
 			return null;
@@ -82,10 +78,10 @@ export class DlqRedisQueue {
 	}
 
 	private async _getPopScriptHash(client: Redis): Promise<string> {
-		this._popScriptHashPromise = (client.script(
+		this._popScriptHashPromise = client.script(
 			"LOAD",
 			DlqRedisQueue._POP_SCRIPT
-		)) as Promise<string>;
+		) as Promise<string>;
 		return this._popScriptHashPromise;
 	}
 

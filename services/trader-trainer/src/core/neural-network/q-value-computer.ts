@@ -4,7 +4,7 @@ import type { QLearningExperience } from "./type";
 export function computeQLearningTarget(
 	nn: NeuralNetwork,
 	exp: QLearningExperience,
-	gamma: number,
+	gamma: number
 ): Float32Array {
 	const target = exp.output.slice();
 	const nextQ = nn.forward(exp.nextState).output;

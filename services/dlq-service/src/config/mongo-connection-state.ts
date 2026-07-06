@@ -1,6 +1,4 @@
-import { type Db, MongoClient } from "mongodb";
-
-import { logger } from "./logger";
+import type { Db, MongoClient } from "mongodb";
 
 export class MongoConnectionState {
 	private _client: MongoClient | null = null;

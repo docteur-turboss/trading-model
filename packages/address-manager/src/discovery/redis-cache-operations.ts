@@ -2,8 +2,8 @@ import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type Redis from "ioredis";
 import type { ServiceInstance } from "../client/type";
-import type { CacheSetEntry } from "./service-cache.interface";
 import { RedisCacheScanner } from "./redis-cache-scanner";
+import type { CacheSetEntry } from "./service-cache.interface";
 
 export class RedisCacheOperations {
 	private readonly _scanner: RedisCacheScanner;
@@ -11,14 +11,14 @@ export class RedisCacheOperations {
 	constructor(
 		private readonly _redis: Redis,
 		private readonly _prefix: string,
-		private readonly _ttlSec: number,
+		private readonly _ttlSec: number
 	) {
 		this._scanner = new RedisCacheScanner(this._redis, this._prefix);
 	}
 
 	async get(
 		serviceName: string,
-		region?: string,
+		region?: string
 	): Promise<ServiceInstance | null> {
 		try {
 			const raw = await this._redis.get(this._cacheKey(serviceName, region));
@@ -62,7 +62,7 @@ export class RedisCacheOperations {
 			await this._redis.setex(
 				this._cacheKey(serviceName, region),
 				this._ttlSec,
-				JSON.stringify(data),
+				JSON.stringify(data)
 			);
 		} catch (err) {
 			logger.warn("Redis cache set failed", {

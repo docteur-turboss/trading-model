@@ -107,11 +107,7 @@ function DataTableRow<TData>({
 	const id = getId(row);
 	const isSelected = selectedIds?.has(id);
 	return (
-		<TableRow
-			hover
-			selected={isSelected}
-			sx={{ cursor: "pointer" }}
-		>
+		<TableRow hover selected={isSelected} sx={{ cursor: "pointer" }}>
 			{selectable && (
 				<TableCell padding="checkbox">
 					<Checkbox

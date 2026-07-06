@@ -2,7 +2,10 @@ import { normalizeError } from "../utils/errors";
 import { HttpClient } from "./http-client";
 import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
-type AuditTarget = { url: string; tls: { caPath: string; certPath: string; keyPath: string } };
+interface AuditTarget {
+	url: string;
+	tls: { caPath: string; certPath: string; keyPath: string };
+}
 type AuditResolver = () => Promise<AuditTarget | null>;
 
 export class AuditServiceClient {
@@ -27,7 +30,7 @@ export class AuditServiceClient {
 		} catch (err) {
 			console.error(
 				"Failed to send log to audit service:",
-				normalizeError(err).message,
+				normalizeError(err).message
 			);
 		}
 	}

@@ -1,8 +1,15 @@
+import type {
+	InstanceId,
+	IPAddress,
+} from "@trading-model/common/domain/primitives";
+import {
+	Port,
+	toInstanceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import { isNonEmptyString } from "@trading-model/common/validation/primitives";
-import type { InstanceId, IPAddress } from "@trading-model/common/domain/primitives";
-import { Port, toInstanceId, toServiceId } from "@trading-model/common/domain/primitives";
 import type { RequestHandler } from "express";
 import { z } from "zod";
 
@@ -26,7 +33,9 @@ interface RegisterController {
 	getInstance: RequestHandler;
 }
 
-function _parseRegisterBody(req: import("express").Request): z.infer<typeof REGISTER_SCHEMA> | null {
+function _parseRegisterBody(
+	req: import("express").Request
+): z.infer<typeof REGISTER_SCHEMA> | null {
 	const parsed = REGISTER_SCHEMA.safeParse(req.body);
 	return parsed.success ? parsed.data : null;
 }
@@ -35,7 +44,14 @@ function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 	return catchSync((req) => {
 		const data = _parseRegisterBody(req);
 		if (!data) {
-			return sendResponse({ error: "Invalid request body", details: REGISTER_SCHEMA.safeParse(req.body).error!.flatten().fieldErrors }, 400);
+			return sendResponse(
+				{
+					error: "Invalid request body",
+					details: REGISTER_SCHEMA.safeParse(req.body).error!.flatten()
+						.fieldErrors,
+				},
+				400
+			);
 		}
 		if (!registry.verifyInstanceName(data.serviceName)) {
 			return sendResponse({ error: "Invalid service name" }, 400);
@@ -50,7 +66,14 @@ function _resolveInstanceId(
 	registry: ServiceRegistry
 ): InstanceId {
 	const { serviceName, instanceId, ip, port } = data;
-	return toInstanceId(instanceId ?? registry.generateInstanceId({ serviceName: toServiceId(serviceName), address: ip as IPAddress, port: Port.of(port) }));
+	return toInstanceId(
+		instanceId ??
+			registry.generateInstanceId({
+				serviceName: toServiceId(serviceName),
+				address: ip as IPAddress,
+				port: Port.of(port),
+			})
+	);
 }
 
 function _buildServiceInstance(
@@ -60,10 +83,14 @@ function _buildServiceInstance(
 	const { serviceName, ip, port, version } = data;
 	return {
 		instanceId: _resolveInstanceId(data, registry),
-		serviceName: toServiceId(serviceName), ip: ip as IPAddress, port: Port.of(port),
+		serviceName: toServiceId(serviceName),
+		ip: ip as IPAddress,
+		port: Port.of(port),
 		version: version ?? "1.0.0",
-		ttl: 30_000, protocol: "mtls",
-		registeredAt: Date.now(), lastHeartbeat: Date.now(),
+		ttl: 30_000,
+		protocol: "mtls",
+		registeredAt: Date.now(),
+		lastHeartbeat: Date.now(),
 	};
 }
 
@@ -99,7 +126,10 @@ function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
 			return sendResponse({ error: "Invalid route parameters" }, 400);
 		}
 
-		const instance = registry.getInstance({ serviceName: toServiceId(serviceName), instanceId: toInstanceId(instanceId) });
+		const instance = registry.getInstance({
+			serviceName: toServiceId(serviceName),
+			instanceId: toInstanceId(instanceId),
+		});
 
 		if (!instance) {
 			return sendResponse({ error: "Instance not found" }, 404);

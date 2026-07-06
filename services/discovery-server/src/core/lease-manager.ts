@@ -1,11 +1,10 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-
-import type { ServiceRegistry } from "./service-registry";
-import type { ServiceInstance } from "./types";
 import { isAliveInstance } from "./expiration";
 import { ExpiredInstanceCleaner } from "./expired-instance-cleaner";
+import type { ServiceRegistry } from "./service-registry";
+import type { ServiceInstance } from "./types";
 
 export class LeaseManager {
 	private _cleanupIntervalMs: number;
@@ -13,7 +12,7 @@ export class LeaseManager {
 	private readonly _expiredCleaner: ExpiredInstanceCleaner;
 
 	constructor(
-		private readonly _registry: ServiceRegistry,
+		readonly _registry: ServiceRegistry,
 		options?: { cleanupIntervalMs?: number }
 	) {
 		this._cleanupIntervalMs = options?.cleanupIntervalMs ?? 5000;
@@ -21,13 +20,19 @@ export class LeaseManager {
 	}
 
 	start(): void {
-		if (this._intervalHandle.isRunning) return;
+		if (this._intervalHandle.isRunning) {
+			return;
+		}
 		this._intervalHandle.startInterval(() => {
-			try { this._expiredCleaner.cleanupExpiredInstances(); } catch (err) {
+			try {
+				this._expiredCleaner.cleanupExpiredInstances();
+			} catch (err) {
 				logger.error("Cleanup error", { error: normalizeError(err) });
 			}
 		}, this._cleanupIntervalMs);
-		logger.info("Cleanup loop started", { cleanupIntervalMs: this._cleanupIntervalMs });
+		logger.info("Cleanup loop started", {
+			cleanupIntervalMs: this._cleanupIntervalMs,
+		});
 	}
 
 	stop(): void {

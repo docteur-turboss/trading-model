@@ -12,7 +12,7 @@ export class AckTimeoutHandler {
 		private readonly _repository: JobRepository,
 		private readonly _workers: WorkerRegistry,
 		private readonly _backPressure: BackPressure,
-		private readonly _reAllocator: ReAllocator,
+		private readonly _reAllocator: ReAllocator
 	) {}
 
 	onTimeout(jobId: string): void {
@@ -31,10 +31,7 @@ export class AckTimeoutHandler {
 			});
 	}
 
-	private _onJobFound(
-		job: Job | null,
-		jobId: string
-	): void {
+	private _onJobFound(job: Job | null, jobId: string): void {
 		if (!job || isTerminalStatus(job.status)) {
 			return;
 		}

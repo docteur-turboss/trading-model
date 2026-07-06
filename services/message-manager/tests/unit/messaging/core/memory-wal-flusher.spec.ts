@@ -15,8 +15,8 @@ jest.mock("../../../../src/config/redis", () => ({
 	getStreamClient: jest.fn(),
 }));
 
-import type { MemoryWalEntry } from "../../../../src/messaging/core/memory-wal-entry";
 import { getStreamClient } from "../../../../src/config/redis";
+import type { MemoryWalEntry } from "../../../../src/messaging/core/memory-wal-entry";
 import { MemoryWalFlusher } from "../../../../src/messaging/core/memory-wal-flusher";
 
 function createMockRedis() {
@@ -40,7 +40,9 @@ function makeEntry(overrides?: Partial<MemoryWalEntry>): MemoryWalEntry {
 	return {
 		topic: "test.topic",
 		serialized: '{"hello":"world"}',
-		message: { type: "test" } as unknown as import("@trading-model/common/contracts/message.types").Message,
+		message: {
+			type: "test",
+		} as unknown as import("@trading-model/common/contracts/message.types").Message,
 		...overrides,
 	};
 }
@@ -53,7 +55,7 @@ describe("MemoryWalFlusher", () => {
 	beforeEach(() => {
 		mockRedis = createMockRedis();
 		(getStreamClient as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
-			mockRedis,
+			mockRedis
 		);
 		flusher = new MemoryWalFlusher("test:");
 		buffer = [];
@@ -72,11 +74,11 @@ describe("MemoryWalFlusher", () => {
 			1000,
 			"*",
 			"data",
-			'{"hello":"world"}',
+			'{"hello":"world"}'
 		);
 		expect(mockRedis.mockMulti.expire).toHaveBeenCalledWith(
 			"test:stream:test.topic",
-			3600,
+			3600
 		);
 		expect(mockRedis.mockMulti.exec).toHaveBeenCalled();
 	});

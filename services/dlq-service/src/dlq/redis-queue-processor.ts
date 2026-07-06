@@ -5,10 +5,10 @@ import { env } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
+import { handleAbandonedEntries, resolveMessageManagerUrl } from "./auto-retry";
 import { dlqClaimManager } from "./claim-manager";
 import { doReplayBatch } from "./replay-pipeline";
 import { isShuttingDown } from "./shared/index";
-import { handleAbandonedEntries, resolveMessageManagerUrl } from "./auto-retry";
 
 export let redisRetryTimer: ReturnType<typeof setTimeout> | null = null;
 

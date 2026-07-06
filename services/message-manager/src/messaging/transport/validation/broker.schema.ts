@@ -22,7 +22,13 @@
 
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { toCorrelationId, toInstanceId, toMessageId, toServiceId, toTopic } from "@trading-model/common/domain/primitives";
+import {
+	toCorrelationId,
+	toInstanceId,
+	toMessageId,
+	toServiceId,
+	toTopic,
+} from "@trading-model/common/domain/primitives";
 import { z } from "zod";
 
 /**
@@ -38,12 +44,14 @@ const INSTANCE_ID_SCHEMA = z.string().min(1);
  * Schema for identifying a service instance in the broker
  */
 const IDENTIFY_SCHEMA = z.object({
-	serviceName: z.enum(
-		Object.values(ServiceInstanceName) as [
-			ServiceInstanceName,
-			...ServiceInstanceName[],
-		]
-	).transform(toServiceId),
+	serviceName: z
+		.enum(
+			Object.values(ServiceInstanceName) as [
+				ServiceInstanceName,
+				...ServiceInstanceName[],
+			]
+		)
+		.transform(toServiceId),
 	instanceId: INSTANCE_ID_SCHEMA.transform(toInstanceId),
 });
 
@@ -71,9 +79,15 @@ export const UNSUBSCRIBE_SCHEMA = z.object({
  * Schema for the metadata portion of published messages
  */
 export const PUBLISH_METADATA_SCHEMA = z.object({
-	correlationId: z.string().optional().transform((v) => (v ? toCorrelationId(v) : undefined)),
+	correlationId: z
+		.string()
+		.optional()
+		.transform((v) => (v ? toCorrelationId(v) : undefined)),
 	schemaVersion: z.string().min(1),
-	causationId: z.string().optional().transform((v) => (v ? toCorrelationId(v) : undefined)),
+	causationId: z
+		.string()
+		.optional()
+		.transform((v) => (v ? toCorrelationId(v) : undefined)),
 	eventType: z.string().min(1),
 	topic: TOPIC_SCHEMA.transform(toTopic),
 
@@ -81,7 +95,10 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 
 	routing: z
 		.object({
-			partitionKey: z.string().optional().transform((v) => (v ? toCorrelationId(v) : undefined)),
+			partitionKey: z
+				.string()
+				.optional()
+				.transform((v) => (v ? toCorrelationId(v) : undefined)),
 			priority: z.number().int().optional(),
 		})
 		.optional(),
@@ -92,7 +109,10 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 				Object.values(DeliveryMode) as [DeliveryMode, ...DeliveryMode[]]
 			),
 			ttl: z.number().int().positive().optional(),
-			deduplicationId: z.string().optional().transform((v) => (v ? toMessageId(v) : undefined)),
+			deduplicationId: z
+				.string()
+				.optional()
+				.transform((v) => (v ? toMessageId(v) : undefined)),
 		})
 		.optional(),
 

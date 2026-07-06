@@ -1,13 +1,13 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
-import type { CircuitBreakerState } from "./circuit-breaker-state";
 import type { CircuitBreakerLatency } from "./circuit-breaker-latency";
 import type { CircuitBreakerPersistence } from "./circuit-breaker-persistence";
+import type { CircuitBreakerState } from "./circuit-breaker-state";
 
 export class CircuitBreakerRecorder {
 	constructor(
 		private readonly _state: CircuitBreakerState,
 		private readonly _latency: CircuitBreakerLatency,
-		private readonly _persistence: CircuitBreakerPersistence,
+		private readonly _persistence: CircuitBreakerPersistence
 	) {}
 
 	async loadFromStore(instanceId: string): Promise<void> {

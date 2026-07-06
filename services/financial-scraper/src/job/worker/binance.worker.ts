@@ -3,10 +3,21 @@ import { createHash, randomUUID } from "node:crypto";
 import { HELPER } from "@trading-model/broker-message";
 import type { MessageMetadata } from "@trading-model/broker-message/shared/helper/messages/message";
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import { CandleInterval } from "@trading-model/common/config/event.types";
-import { EnumEventMessage } from "@trading-model/common/config/event.types";
-import { toInstanceId, toMessageId, toServiceId } from "@trading-model/common/domain/primitives";
-import type { InstanceId, MessageId, ServiceId, TradingSymbol } from "@trading-model/common/domain/primitives";
+import {
+	CandleInterval,
+	EnumEventMessage,
+} from "@trading-model/common/config/event.types";
+import type {
+	InstanceId,
+	MessageId,
+	ServiceId,
+	TradingSymbol,
+} from "@trading-model/common/domain/primitives";
+import {
+	toInstanceId,
+	toMessageId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 
 import {
@@ -61,7 +72,10 @@ export class BinanceWorker {
 		const response = _buildResponse(opts.symbol, opts.interval, rawData);
 
 		this._configureMetadata(builderMetadata);
-		this._sendAllMarketData(this._buildMarketDataEntries(response), builderMetadata);
+		this._sendAllMarketData(
+			this._buildMarketDataEntries(response),
+			builderMetadata
+		);
 
 		return response;
 	}
@@ -105,7 +119,9 @@ export class BinanceWorker {
 			.setPublisher(_buildPublisher());
 	}
 
-	private _buildMarketDataEntries(response: BinanceWorkerResult): MarketDataEntry[] {
+	private _buildMarketDataEntries(
+		response: BinanceWorkerResult
+	): MarketDataEntry[] {
 		return [
 			_makeEntry(
 				response.candles,
@@ -235,7 +251,10 @@ function _computeSignature(authContext: unknown): string {
 
 function _buildDeliveryConfig(
 	deliveryMode?: import("@trading-model/common/config/delivery-mode.types").DeliveryMode
-): { mode: import("@trading-model/common/config/delivery-mode.types").DeliveryMode; deduplicationId: MessageId } {
+): {
+	mode: import("@trading-model/common/config/delivery-mode.types").DeliveryMode;
+	deduplicationId: MessageId;
+} {
 	return {
 		mode: deliveryMode ?? DeliveryMode.AT_LEAST_ONCE,
 		deduplicationId: toMessageId(randomUUID()),

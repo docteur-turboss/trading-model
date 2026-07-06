@@ -93,10 +93,22 @@ function _buildAdjustedControl(
 ): GAControlGenome {
 	return {
 		...ctrl,
-		populationSize: adjustPopulationSize(ctrl.populationSize, stagnation, isImproving),
-		elitismFraction: adjustElitism(ctrl.elitismFraction, stagnation, isImproving),
+		populationSize: adjustPopulationSize(
+			ctrl.populationSize,
+			stagnation,
+			isImproving
+		),
+		elitismFraction: adjustElitism(
+			ctrl.elitismFraction,
+			stagnation,
+			isImproving
+		),
 		survivorFraction: adjustSurvivors(ctrl.survivorFraction, stagnation),
-		episodesPerIndividual: adjustEpisodes(ctrl.episodesPerIndividual, stagnation, isImproving),
+		episodesPerIndividual: adjustEpisodes(
+			ctrl.episodesPerIndividual,
+			stagnation,
+			isImproving
+		),
 	} as GAControlGenome;
 }
 
@@ -108,7 +120,9 @@ export function adaptGAControl(
 	if (effHistory.length < 3) {
 		return ctrl;
 	}
-	return deepFreeze(_buildAdjustedControl(ctrl, stagnation, _isImproving(effHistory)));
+	return deepFreeze(
+		_buildAdjustedControl(ctrl, stagnation, _isImproving(effHistory))
+	);
 }
 
 export type StopCondition =

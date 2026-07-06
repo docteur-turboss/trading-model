@@ -59,26 +59,29 @@ describe("InMemoryRegistryBackend", () => {
 		it("should update heartbeat and return TTL", async () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
-			const result = await backend.updateHeartbeat(
-				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
-			);
+			const result = await backend.updateHeartbeat({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(30000);
 		});
 
 		it("should return false for unknown service", async () => {
 			const backend = new InMemoryRegistryBackend();
-			const result = await backend.updateHeartbeat(
-				{ serviceName: "unknown-service", instanceId: "test-instance-1" }
-			);
+			const result = await backend.updateHeartbeat({
+				serviceName: "unknown-service",
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 		});
 
 		it("should return false for unknown instance", async () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
-			const result = await backend.updateHeartbeat(
-				{ serviceName: "financial-scraper-service", instanceId: "unknown-instance" }
-			);
+			const result = await backend.updateHeartbeat({
+				serviceName: "financial-scraper-service",
+				instanceId: "unknown-instance",
+			});
 			expect(result).toBe(false);
 		});
 	});
@@ -119,27 +122,30 @@ describe("InMemoryRegistryBackend", () => {
 		it("should return a specific instance", async () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
-			const instance = await backend.getInstance(
-				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
-			);
+			const instance = await backend.getInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			});
 			expect(instance).toBeDefined();
 			expect(instance!.instanceId).toBe("test-instance-1");
 		});
 
 		it("should return undefined for unknown service", async () => {
 			const backend = new InMemoryRegistryBackend();
-			const instance = await backend.getInstance(
-				{ serviceName: "unknown-service", instanceId: "test-instance-1" }
-			);
+			const instance = await backend.getInstance({
+				serviceName: "unknown-service",
+				instanceId: "test-instance-1",
+			});
 			expect(instance).toBeUndefined();
 		});
 
 		it("should return undefined for unknown instance", async () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
-			const instance = await backend.getInstance(
-				{ serviceName: "financial-scraper-service", instanceId: "unknown-instance" }
-			);
+			const instance = await backend.getInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "unknown-instance",
+			});
 			expect(instance).toBeUndefined();
 		});
 	});
@@ -148,9 +154,10 @@ describe("InMemoryRegistryBackend", () => {
 		it("should remove an instance and return true", async () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
-			const result = await backend.removeInstance(
-				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
-			);
+			const result = await backend.removeInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(true);
 			const instances = await backend.getInstances("financial-scraper-service");
 			expect(instances).toHaveLength(0);
@@ -159,27 +166,30 @@ describe("InMemoryRegistryBackend", () => {
 		it("should remove the service map when last instance is removed", async () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
-			await backend.removeInstance(
-				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
-			);
+			await backend.removeInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			});
 			const names = await backend.listServiceNames();
 			expect(names).not.toContain("financial-scraper-service");
 		});
 
 		it("should return false for unknown service", async () => {
 			const backend = new InMemoryRegistryBackend();
-			const result = await backend.removeInstance(
-				{ serviceName: "unknown-service", instanceId: "test-instance-1" }
-			);
+			const result = await backend.removeInstance({
+				serviceName: "unknown-service",
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 		});
 
 		it("should return false for unknown instance", async () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
-			const result = await backend.removeInstance(
-				{ serviceName: "financial-scraper-service", instanceId: "unknown-instance" }
-			);
+			const result = await backend.removeInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "unknown-instance",
+			});
 			expect(result).toBe(false);
 		});
 	});
@@ -267,7 +277,10 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			const token = await backend.updateToken("test-instance-1");
-			const result = await backend.validInstanceToken({ token, instanceId: "test-instance-1" });
+			const result = await backend.validInstanceToken({
+				token,
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(true);
 		});
 
@@ -302,7 +315,10 @@ describe("InMemoryRegistryBackend", () => {
 			const backend = new InMemoryRegistryBackend();
 			await backend.registerInstance(makeInstance());
 			const token = backend.generateInstanceToken("test-instance-1");
-			const result = await backend.validInstanceToken({ token, instanceId: "test-instance-1" });
+			const result = await backend.validInstanceToken({
+				token,
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 		});
 

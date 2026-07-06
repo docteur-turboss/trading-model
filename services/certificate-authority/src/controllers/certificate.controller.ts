@@ -1,11 +1,15 @@
-import type { CertificateResponse } from "@trading-model/common/domain/certificate-base";
 import { logger } from "@trading-model/common/config/logger";
+import type { CertificateResponse } from "@trading-model/common/domain/certificate-base";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { Request, Response } from "express";
 
 import { CONTAINER } from "../app";
 
-function _validateSignRequest(serviceId: unknown, csr: unknown, res: Response): boolean {
+function _validateSignRequest(
+	serviceId: unknown,
+	csr: unknown,
+	res: Response
+): boolean {
 	if (serviceId && csr) {
 		return true;
 	}
@@ -13,13 +17,20 @@ function _validateSignRequest(serviceId: unknown, csr: unknown, res: Response): 
 	return false;
 }
 
-function _sendSignResponse(res: Response, signed: CertificateResponse, serviceId: string): void {
+function _sendSignResponse(
+	res: Response,
+	signed: CertificateResponse,
+	serviceId: string
+): void {
 	logger.info("Certificate signed", {
 		context: { serviceId, serialNumber: signed.serialNumber },
 	});
 	res.status(200).json({
-		cert: signed.certPem, caPem: signed.caPem, serialNumber: signed.serialNumber,
-		expiresAt: signed.expiresAt, fingerprint: signed.fingerprint,
+		cert: signed.certPem,
+		caPem: signed.caPem,
+		serialNumber: signed.serialNumber,
+		expiresAt: signed.expiresAt,
+		fingerprint: signed.fingerprint,
 	});
 }
 
@@ -32,7 +43,11 @@ export async function signCertificate(
 		if (!_validateSignRequest(serviceId, csr, res)) {
 			return;
 		}
-		const signed = await CONTAINER.ca.signServiceCertificate({ serviceId, csr, ttlMs });
+		const signed = await CONTAINER.ca.signServiceCertificate({
+			serviceId,
+			csr,
+			ttlMs,
+		});
 		_sendSignResponse(res, signed, serviceId);
 	} catch (err) {
 		logger.error("Failed to sign certificate", { context: { err } });
@@ -40,7 +55,10 @@ export async function signCertificate(
 	}
 }
 
-function _validateGetRequest(serviceId: string | string[] | undefined, res: Response): string | null {
+function _validateGetRequest(
+	serviceId: string | string[] | undefined,
+	res: Response
+): string | null {
 	if (!serviceId) {
 		res.status(400).json({ error: "serviceId is required" });
 		return null;
@@ -50,8 +68,12 @@ function _validateGetRequest(serviceId: string | string[] | undefined, res: Resp
 
 function _sendCertResponse(res: Response, cert: CertificateResponse): void {
 	res.status(200).json({
-		cert: cert.certPem, caPem: cert.caPem, serialNumber: cert.serialNumber,
-		issuedAt: cert.issuedAt, expiresAt: cert.expiresAt, fingerprint: cert.fingerprint,
+		cert: cert.certPem,
+		caPem: cert.caPem,
+		serialNumber: cert.serialNumber,
+		issuedAt: cert.issuedAt,
+		expiresAt: cert.expiresAt,
+		fingerprint: cert.fingerprint,
 	});
 }
 
@@ -76,7 +98,10 @@ export async function getCertificate(
 	}
 }
 
-function _validateRevocationRequest(req: RevocationRequest, res: Response): boolean {
+function _validateRevocationRequest(
+	req: RevocationRequest,
+	res: Response
+): boolean {
 	if (req.serialNumber && req.reason) {
 		return true;
 	}
@@ -95,7 +120,10 @@ export async function revokeCertificate(
 		}
 		await CONTAINER.ca.revokeCertificate(revocationRequest);
 		logger.info("Certificate revoked", {
-			context: { serialNumber: revocationRequest.serialNumber, reason: revocationRequest.reason },
+			context: {
+				serialNumber: revocationRequest.serialNumber,
+				reason: revocationRequest.reason,
+			},
 		});
 		res.status(200).json({ message: "Certificate revoked" });
 	} catch (err) {

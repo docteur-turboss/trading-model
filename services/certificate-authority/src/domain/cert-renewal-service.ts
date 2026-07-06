@@ -24,7 +24,9 @@ export interface SignServiceCertRequest {
 }
 
 interface CertificateAuthority {
-	signServiceCertificate(request: SignServiceCertRequest): Promise<SignedCertificate>;
+	signServiceCertificate(
+		request: SignServiceCertRequest
+	): Promise<SignedCertificate>;
 }
 
 class NullDistributedLock implements IDistributedLock {
@@ -94,7 +96,13 @@ export class CertRenewalService {
 		const { serviceId, oldSerialNumber, nonce, signature, csr } = request;
 		await this._consumeNonce(nonce, serviceId);
 		const oldCert = await this._getOldCertificate(oldSerialNumber);
-		this._verifyPop({ certPem: oldCert.certPem, nonce, signature, serviceId, oldSerialNumber });
+		this._verifyPop({
+			certPem: oldCert.certPem,
+			nonce,
+			signature,
+			serviceId,
+			oldSerialNumber,
+		});
 		return this._issueCertificate(serviceId, csr);
 	}
 
@@ -114,9 +122,7 @@ export class CertRenewalService {
 		return oldCert;
 	}
 
-	private _verifyPop(
-		input: RenewalPopInput
-	): void {
+	private _verifyPop(input: RenewalPopInput): void {
 		const { certPem, nonce, signature, serviceId, oldSerialNumber } = input;
 		if (!this._popVerifier.verify({ certPem, nonce, signature })) {
 			logger.warn("Proof-of-possession failed", {

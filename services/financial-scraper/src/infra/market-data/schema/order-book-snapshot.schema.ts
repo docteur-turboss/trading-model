@@ -1,5 +1,12 @@
-import type { MarketType, OrderBookLevel, SourceType } from "@trading-model/common/config/event.types";
-import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type {
+	MarketType,
+	OrderBookLevel,
+	SourceType,
+} from "@trading-model/common/config/event.types";
+import type {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
 import { DBConnection } from "../../../config/db";
@@ -40,9 +47,7 @@ const SELECT = {
 	timestamp: T_ORDER_BOOK.timestamp,
 };
 
-function serializeSet(
-	entries: Set<OrderBookLevel>
-): string {
+function serializeSet(entries: Set<OrderBookLevel>): string {
 	return JSON.stringify(
 		Array.from(entries).map((entry) => [entry.price, entry.quantity])
 	);

@@ -69,7 +69,10 @@ describe("WssClient", () => {
 
 	it("should set HTTP fallback function", () => {
 		const fallback = jest.fn();
-		const clientWithFallback = new WssClient({ ...mockConfig, httpFallback: fallback });
+		const clientWithFallback = new WssClient({
+			...mockConfig,
+			httpFallback: fallback,
+		});
 		expect(clientWithFallback.httpFallback).toBe(fallback);
 	});
 
@@ -204,8 +207,13 @@ describe("WssClient", () => {
 
 	it("should queue publish when not connected with HTTP fallback", async () => {
 		const fallback = jest.fn<any>().mockResolvedValue(undefined);
-		const clientWithFallback = new WssClient({ ...mockConfig, httpFallback: fallback });
-		const result = clientWithFallback.publish({ data: "test" }, { id: "msg-1" } as any);
+		const clientWithFallback = new WssClient({
+			...mockConfig,
+			httpFallback: fallback,
+		});
+		const result = clientWithFallback.publish({ data: "test" }, {
+			id: "msg-1",
+		} as any);
 		clientWithFallback.connect();
 		const openHandler = MOCK_WS_INSTANCE.on.mock.calls.find(
 			(c: string[]) => c[0] === "open"
@@ -222,9 +230,14 @@ describe("WssClient", () => {
 
 	it("should use HTTP fallback when queue is full", async () => {
 		const fallback = jest.fn<any>().mockResolvedValue(undefined);
-		const clientWithFallback = new WssClient({ ...mockConfig, httpFallback: fallback });
+		const clientWithFallback = new WssClient({
+			...mockConfig,
+			httpFallback: fallback,
+		});
 		for (let i = 0; i < 1000; i++) {
-			clientWithFallback.publish({ n: i }, { id: `msg-${i}` } as any).catch(() => {});
+			clientWithFallback
+				.publish({ n: i }, { id: `msg-${i}` } as any)
+				.catch(() => {});
 		}
 		await expect(
 			clientWithFallback.publish({ data: "last" }, { id: "msg-last" } as any)
@@ -308,8 +321,13 @@ describe("WssClient", () => {
 
 	it("should flush pending on open", async () => {
 		const fallback = jest.fn<any>().mockResolvedValue(undefined);
-		const clientWithFallback = new WssClient({ ...mockConfig, httpFallback: fallback });
-		const promise = clientWithFallback.publish({ data: "test" }, { id: "msg-1" } as any);
+		const clientWithFallback = new WssClient({
+			...mockConfig,
+			httpFallback: fallback,
+		});
+		const promise = clientWithFallback.publish({ data: "test" }, {
+			id: "msg-1",
+		} as any);
 		clientWithFallback.connect();
 		const openHandler = MOCK_WS_INSTANCE.on.mock.calls.find(
 			(c: string[]) => c[0] === "open"

@@ -1,7 +1,4 @@
-import {
-	type SymbolState,
-	type TradingSymbol,
-} from "../market-data-types";
+import type { SymbolState, TradingSymbol } from "../market-data-types";
 
 export interface MemoryManagerConfig {
 	states: Map<TradingSymbol, SymbolState>;

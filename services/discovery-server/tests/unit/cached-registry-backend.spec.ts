@@ -129,7 +129,10 @@ describe("CachedRegistryBackend", () => {
 			await cachedBackend.getInstances("svc");
 
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-2")]);
-			await cachedBackend.removeInstance({ serviceName: "svc", instanceId: "i-1" });
+			await cachedBackend.removeInstance({
+				serviceName: "svc",
+				instanceId: "i-1",
+			});
 
 			const result = await cachedBackend.getInstances("svc");
 
@@ -144,7 +147,10 @@ describe("CachedRegistryBackend", () => {
 			await cachedBackend.getInstances("svc");
 
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
-			await cachedBackend.updateHeartbeat({ serviceName: "svc", instanceId: "i-1" });
+			await cachedBackend.updateHeartbeat({
+				serviceName: "svc",
+				instanceId: "i-1",
+			});
 
 			await cachedBackend.getInstances("svc");
 
@@ -156,7 +162,10 @@ describe("CachedRegistryBackend", () => {
 			mockBackend.updateHeartbeat.mockResolvedValue(false);
 
 			await cachedBackend.getInstances("svc");
-			await cachedBackend.updateHeartbeat({ serviceName: "svc", instanceId: "i-1" });
+			await cachedBackend.updateHeartbeat({
+				serviceName: "svc",
+				instanceId: "i-1",
+			});
 
 			const result = await cachedBackend.getInstances("svc");
 
@@ -203,7 +212,10 @@ describe("CachedRegistryBackend", () => {
 			mockBackend.getInstances.mockResolvedValue([instance]);
 
 			await cachedBackend.getInstances("svc");
-			const result = await cachedBackend.getInstance({ serviceName: "svc", instanceId: "i-1" });
+			const result = await cachedBackend.getInstance({
+				serviceName: "svc",
+				instanceId: "i-1",
+			});
 
 			expect(mockBackend.getInstance).not.toHaveBeenCalled();
 			expect(result).toEqual(instance);
@@ -211,8 +223,14 @@ describe("CachedRegistryBackend", () => {
 
 		it("should fall through to backend when cache missed", async () => {
 			mockBackend.getInstance.mockResolvedValue(MAKE_INSTANCE("i-1"));
-			const result = await cachedBackend.getInstance({ serviceName: "svc", instanceId: "i-1" });
-			expect(mockBackend.getInstance).toHaveBeenCalledWith({ serviceName: "svc", instanceId: "i-1" });
+			const result = await cachedBackend.getInstance({
+				serviceName: "svc",
+				instanceId: "i-1",
+			});
+			expect(mockBackend.getInstance).toHaveBeenCalledWith({
+				serviceName: "svc",
+				instanceId: "i-1",
+			});
 			expect(result).toBeDefined();
 		});
 	});
@@ -232,7 +250,10 @@ describe("CachedRegistryBackend", () => {
 
 		it("should delegate validInstanceToken", async () => {
 			mockBackend.validInstanceToken.mockResolvedValue(true);
-			const result = await cachedBackend.validInstanceToken({ token: "tok", instanceId: "i-1" });
+			const result = await cachedBackend.validInstanceToken({
+				token: "tok",
+				instanceId: "i-1",
+			});
 			expect(result).toBe(true);
 		});
 
@@ -258,4 +279,3 @@ describe("CachedRegistryBackend", () => {
 		});
 	});
 });
-

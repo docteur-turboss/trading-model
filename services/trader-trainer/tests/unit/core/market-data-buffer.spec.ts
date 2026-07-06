@@ -1,4 +1,15 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import {
+	MarketType,
+	SourceType,
+	TradeSide,
+} from "@trading-model/common/config/event.types";
+import {
+	Price,
+	toSymbol,
+	UnixTimestamp,
+	Volume,
+} from "@trading-model/common/domain/primitives";
 import { MarketDataBuffer } from "../../../src/core/market-data-buffer";
 import {
 	fromSymbol,
@@ -16,9 +27,6 @@ import {
 	makeTrade,
 	resetFixtureSeq,
 } from "../../fixtures/market-data.fixture";
-import { Price, UnixTimestamp, Volume, toSymbol } from "@trading-model/common/domain/primitives";
-import { FeatureVector } from "../../../src/core/feature-vector";
-import { CandleInterval, MarketType, SourceType, TradeSide } from "@trading-model/common/config/event.types";
 
 describe("TradingSymbol", () => {
 	it("should create branded symbol via toSymbol", () => {
@@ -72,10 +80,18 @@ describe("MarketDataBuffer", () => {
 			evictionPolicy: "LRU",
 		});
 		buf.addCandles("BTCUSDT", [
-			makeCandle({ symbol: "BTCUSDT", close: Price.of(50000), timestamp: UnixTimestamp.of(1) }),
+			makeCandle({
+				symbol: "BTCUSDT",
+				close: Price.of(50000),
+				timestamp: UnixTimestamp.of(1),
+			}),
 		]);
 		buf.addCandles("ETHUSDT", [
-			makeCandle({ symbol: "ETHUSDT", close: Price.of(3000), timestamp: UnixTimestamp.of(1) }),
+			makeCandle({
+				symbol: "ETHUSDT",
+				close: Price.of(3000),
+				timestamp: UnixTimestamp.of(1),
+			}),
 		]);
 		expect(buf.getCandleCount("BTCUSDT")).toBe(1);
 	});
@@ -134,7 +150,11 @@ describe("MarketDataBuffer", () => {
 			feedCandles(buf, "ETHUSDT", 3);
 			(buf as any)._accessOrder[0] = undefined as any;
 			buf.addCandles("SOLUSDT", [
-				makeCandle({ symbol: "SOLUSDT", close: Price.of(100), timestamp: UnixTimestamp.of(1) }),
+				makeCandle({
+					symbol: "SOLUSDT",
+					close: Price.of(100),
+					timestamp: UnixTimestamp.of(1),
+				}),
 			]);
 			expect(buf.getSymbols().length).toBeGreaterThan(0);
 		});
@@ -171,10 +191,18 @@ describe("MarketDataBuffer", () => {
 
 		it("should set step price from candle close", () => {
 			buffer.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: Price.of(100), timestamp: UnixTimestamp.of(1) }),
+				makeCandle({
+					symbol: "BTCUSDT",
+					close: Price.of(100),
+					timestamp: UnixTimestamp.of(1),
+				}),
 			]);
 			buffer.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: Price.of(150), timestamp: UnixTimestamp.of(2) }),
+				makeCandle({
+					symbol: "BTCUSDT",
+					close: Price.of(150),
+					timestamp: UnixTimestamp.of(2),
+				}),
 			]);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
@@ -210,10 +238,18 @@ describe("MarketDataBuffer", () => {
 
 		it("should compute price change correctly", () => {
 			buffer.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: Price.of(100), timestamp: UnixTimestamp.of(1) }),
+				makeCandle({
+					symbol: "BTCUSDT",
+					close: Price.of(100),
+					timestamp: UnixTimestamp.of(1),
+				}),
 			]);
 			buffer.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: Price.of(110), timestamp: UnixTimestamp.of(2) }),
+				makeCandle({
+					symbol: "BTCUSDT",
+					close: Price.of(110),
+					timestamp: UnixTimestamp.of(2),
+				}),
 			]);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
@@ -234,7 +270,11 @@ describe("MarketDataBuffer", () => {
 
 		it("should handle edge case feature values gracefully", () => {
 			buffer.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: Price.of(0), timestamp: UnixTimestamp.of(1) }),
+				makeCandle({
+					symbol: "BTCUSDT",
+					close: Price.of(0),
+					timestamp: UnixTimestamp.of(1),
+				}),
 			]);
 			buffer.addCandles("BTCUSDT", [
 				makeCandle({
@@ -259,7 +299,10 @@ describe("MarketDataBuffer", () => {
 				},
 			]);
 
-			buffer.setTicker24h("BTCUSDT", { ...makeTicker24h("BTCUSDT"), open: Price.of(0) });
+			buffer.setTicker24h("BTCUSDT", {
+				...makeTicker24h("BTCUSDT"),
+				open: Price.of(0),
+			});
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 			expect(steps.length).toBe(1);
@@ -291,11 +334,19 @@ describe("MarketDataBuffer", () => {
 				evictionPolicy: "LRU",
 			});
 			buf.addCandles("BTCUSDT", [
-				makeCandle({ symbol: "BTCUSDT", close: Price.of(50000), timestamp: UnixTimestamp.of(1) }),
+				makeCandle({
+					symbol: "BTCUSDT",
+					close: Price.of(50000),
+					timestamp: UnixTimestamp.of(1),
+				}),
 			]);
 			buf.setOrderBook("BTCUSDT", makeOrderBook("BTCUSDT"));
 			buf.addCandles("ETHUSDT", [
-				makeCandle({ symbol: "ETHUSDT", close: Price.of(3000), timestamp: UnixTimestamp.of(1) }),
+				makeCandle({
+					symbol: "ETHUSDT",
+					close: Price.of(3000),
+					timestamp: UnixTimestamp.of(1),
+				}),
 			]);
 			expect(buf.getCandleCount("BTCUSDT")).toBe(0);
 		});
@@ -387,7 +438,9 @@ describe("MarketDataBuffer", () => {
 			const buf = new MarketDataBuffer({ maxSize: 5 });
 			buf.addTrades(
 				"BTCUSDT",
-				Array.from({ length: 10 }, (_, _i) => makeTrade("BTCUSDT", TradeSide.BUY))
+				Array.from({ length: 10 }, (_, _i) =>
+					makeTrade("BTCUSDT", TradeSide.BUY)
+				)
 			);
 
 			expect((buf as any)._states.get(toSymbol("BTCUSDT"))!.trades.length).toBe(

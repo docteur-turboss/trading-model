@@ -1,12 +1,15 @@
-import type { RegistryBackend, ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type {
+	RegistryBackend,
+	ServiceInstance,
+} from "@trading-model/common/contracts/service-registry.types";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { BackendPingManager } from "./backend-ping-manager";
 import { CacheManager } from "./cache-manager";
 import { CacheOrchestrator } from "./cache-orchestrator";
+import type { CachedRegistryBackendOptions } from "./cached-registry-operations";
 import { PubSubInvalidator } from "./pub-sub-invalidator";
 import { RedisHealthMonitor } from "./redis-health-monitor";
-import type { CachedRegistryBackendOptions } from "./cached-registry-operations";
 
 export class CachedRegistryCore {
 	readonly cache: CacheManager;
@@ -26,13 +29,13 @@ export class CachedRegistryCore {
 		this.pingManager = new BackendPingManager(
 			options.backend,
 			this.pubSub,
-			options.redisUrlForPubSub,
+			options.redisUrlForPubSub
 		);
 		this.healthMonitor = new RedisHealthMonitor({
 			failureThreshold: options.redisFailureThreshold ?? 3,
 			healthCheckIntervalMs: options.redisHealthCheckIntervalMs ?? 15_000,
 			shouldRun: () =>
-				!!(options.redisUrlForPubSub || this.pingManager.isRedisBackend()),
+				Boolean(options.redisUrlForPubSub || this.pingManager.isRedisBackend()),
 			callbacks: {
 				ping: () => this._directPing(),
 				onHealthLost: () => {},
@@ -51,12 +54,14 @@ export class CachedRegistryCore {
 		this.orchestrator = new CacheOrchestrator(
 			this._backend,
 			this.cache,
-			this.healthMonitor,
+			this.healthMonitor
 		);
 	}
 
 	private async _directPing(): Promise<boolean> {
-		if (this.healthMonitor.fallbackActive) return false;
+		if (this.healthMonitor.fallbackActive) {
+			return false;
+		}
 		await this.pingManager.pingPubSub();
 		return this.pingManager.pingBackend();
 	}
@@ -74,7 +79,7 @@ export class CachedRegistryCore {
 		if (result !== false) {
 			await this.orchestrator.refreshCache(serviceName);
 			await this.orchestrator.onHeartbeatUpdate(serviceName, (name) =>
-				this.pubSub.publish(name),
+				this.pubSub.publish(name)
 			);
 		}
 		return result;
@@ -82,7 +87,7 @@ export class CachedRegistryCore {
 
 	async getInstances(
 		serviceName: string,
-		pagination?: PaginationQuery,
+		pagination?: PaginationQuery
 	): Promise<ServiceInstance[]> {
 		return this.orchestrator.getInstances(serviceName, pagination);
 	}

@@ -1,14 +1,13 @@
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import {
-	AppError,
 	addressManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import type { AddressManagerConfig } from "../config/address-manager-config";
-import type { TokenManager } from "./token-manager";
-import { LocalIPDetector } from "./local-ip-detector";
 import { HeartbeatRefresher } from "./heartbeat-refresher";
+import { LocalIPDetector } from "./local-ip-detector";
+import type { TokenManager } from "./token-manager";
 import type {
 	RegisterServicePayload,
 	ServiceRegistrationResponse,
@@ -26,7 +25,7 @@ export class AddressManagerClient {
 			this._httpClient,
 			this._tokenManager,
 			this._config.identity.serviceName,
-			this._config.identity.instanceId,
+			this._config.identity.instanceId
 		);
 	}
 
@@ -36,7 +35,8 @@ export class AddressManagerClient {
 
 	private _buildRegistrationPayload(): RegisterServicePayload {
 		return {
-			serviceName: this._config.identity.serviceName as import("@trading-model/common/config/services.types").ServiceInstanceName,
+			serviceName: this._config.identity
+				.serviceName as import("@trading-model/common/config/services.types").ServiceInstanceName,
 			port: this._config.servicePort,
 			ip: LocalIPDetector.getIP() as import("@trading-model/common/domain/primitives").IPAddress,
 		};
@@ -56,23 +56,22 @@ export class AddressManagerClient {
 
 	private async _tryRegisterUrls(
 		payload: RegisterServicePayload,
-		urls: string[],
+		urls: string[]
 	): Promise<ServiceRegistrationResponse | undefined> {
 		let lastError: unknown;
 		for (const url of urls) {
 			try {
 				return await this._httpClient.post<ServiceRegistrationResponse>(
 					`${url}/register`,
-					payload,
+					payload
 				);
 			} catch (error) {
 				lastError = error;
 			}
 		}
-		throw addressManagerError(
-			"Failed to register service to Address Manager",
-			{ cause: normalizeError(lastError) },
-		);
+		throw addressManagerError("Failed to register service to Address Manager", {
+			cause: normalizeError(lastError),
+		});
 	}
 
 	async refreshTTL(): Promise<void> {
@@ -88,7 +87,7 @@ export class AddressManagerClient {
 
 	private async _tryUnregisterUrls(
 		token: string,
-		urls: string[],
+		urls: string[]
 	): Promise<void> {
 		for (const url of urls) {
 			try {
@@ -98,7 +97,7 @@ export class AddressManagerClient {
 						serviceName: this._config.identity.serviceName,
 						instanceId: this._config.identity.instanceId,
 					},
-					{ headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token } },
+					{ headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token } }
 				);
 				return;
 			} catch {

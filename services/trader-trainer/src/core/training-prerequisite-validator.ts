@@ -1,8 +1,8 @@
 import { env } from "../config/env";
 import type { WindowSet } from "./genetic-algorithm/ga-runner";
 import {
-	MIN_TRAINING_STEPS,
 	type MarketDataBuffer,
+	MIN_TRAINING_STEPS,
 } from "./market-data-buffer";
 import type { TradingSymbol } from "./market-data-types";
 import type { TrainingFailure } from "./trainer";

@@ -1,6 +1,6 @@
-import { ActivationType, ConnectionType } from "./type";
-import type { LayerMemory } from "./type";
 import { ActivationComputer } from "./activation-computer";
+import type { LayerMemory } from "./type";
+import { ActivationType, ConnectionType } from "./type";
 
 export class LayerComputer {
 	private readonly _activationType: ActivationType[];
@@ -18,10 +18,7 @@ export class LayerComputer {
 		this._useBias = useBias;
 	}
 
-	computePreActivations(
-		layer: LayerMemory,
-		input: Float32Array
-	): Float32Array {
+	computePreActivations(layer: LayerMemory, input: Float32Array): Float32Array {
 		const fanIn = layer.fanIn;
 		const fanOut = layer.fanOut;
 		const weights = layer.weights;
@@ -52,7 +49,10 @@ export class LayerComputer {
 		if (activation === ActivationType.Softmax) {
 			output = this._activationComputer.applySoftmax(preActivations);
 		} else {
-			output = this._activationComputer.applyElementWiseActivation(preActivations, activation);
+			output = this._activationComputer.applyElementWiseActivation(
+				preActivations,
+				activation
+			);
 		}
 
 		if (

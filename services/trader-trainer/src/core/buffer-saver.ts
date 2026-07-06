@@ -2,9 +2,8 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 import type { TradingSymbol } from "@trading-model/common/domain/primitives";
-
-import { MarketDataBuffer } from "./market-data-buffer";
 import type { SymbolStateSerializable } from "./buffer-serializable-types";
+import type { MarketDataBuffer } from "./market-data-buffer";
 
 export class BufferSaver {
 	constructor(private readonly _checkpointDir: string) {}

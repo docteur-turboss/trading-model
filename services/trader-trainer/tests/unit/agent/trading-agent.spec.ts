@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
+import { Cash, Price } from "@trading-model/common/domain/primitives";
 import type { TradingAgentConfig } from "../../../src/core/agent/trading-agent";
 import { TradingAgent } from "../../../src/core/agent/trading-agent";
-import { Cash, Price } from "@trading-model/common/domain/primitives";
 import {
 	ActivationType,
 	ConnectionType,
@@ -188,7 +188,10 @@ describe("TradingAgent", () => {
 		});
 
 		it("should return an action, reward, and metrics", () => {
-			const result = agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
+			const result = agent.step(
+				new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				Price.of(105)
+			);
 
 			expect(result).toHaveProperty("action");
 			expect(result).toHaveProperty("reward");
@@ -230,7 +233,10 @@ describe("TradingAgent", () => {
 			buf[50] = 5; // output biases: idx 0/1 low, idx 2 high
 			agent.setWeights(buf);
 
-			const result = agent.step(new Float32Array([0.5, -0.3, 0.1, 0.8]), Price.of(105));
+			const result = agent.step(
+				new Float32Array([0.5, -0.3, 0.1, 0.8]),
+				Price.of(105)
+			);
 
 			expect(result.action).toBe("buy");
 		});

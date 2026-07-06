@@ -42,12 +42,17 @@ export function countParams(net: NetworkGenome): number {
 	if (layers.length === 0) {
 		return net.inputDim * net.outputDim + net.outputDim;
 	}
-	return _countInputToFirstHidden(net, layers) +
+	return (
+		_countInputToFirstHidden(net, layers) +
 		_countHiddenToHidden(layers) +
-		_countLastHiddenToOutput(layers, net.outputDim);
+		_countLastHiddenToOutput(layers, net.outputDim)
+	);
 }
 
-function _countInputToFirstHidden(net: NetworkGenome, layers: NetworkGenome["hiddenLayers"]): number {
+function _countInputToFirstHidden(
+	net: NetworkGenome,
+	layers: NetworkGenome["hiddenLayers"]
+): number {
 	return net.inputDim * layers[0].neurons + layers[0].neurons;
 }
 
@@ -55,14 +60,20 @@ function _countHiddenToHidden(layers: NetworkGenome["hiddenLayers"]): number {
 	let total = 0;
 	for (let i = 1; i < layers.length; i++) {
 		total += layers[i - 1].neurons * layers[i].neurons + layers[i].neurons;
-		if (layers[i].connectionType !== ConnectionType.FullyConnected && layers[i - 1].neurons !== layers[i].neurons) {
+		if (
+			layers[i].connectionType !== ConnectionType.FullyConnected &&
+			layers[i - 1].neurons !== layers[i].neurons
+		) {
 			total += layers[i - 1].neurons * layers[i].neurons;
 		}
 	}
 	return total;
 }
 
-function _countLastHiddenToOutput(layers: NetworkGenome["hiddenLayers"], outputDim: number): number {
+function _countLastHiddenToOutput(
+	layers: NetworkGenome["hiddenLayers"],
+	outputDim: number
+): number {
 	return layers[layers.length - 1].neurons * outputDim + outputDim;
 }
 
@@ -135,13 +146,16 @@ function _checkSkipConnectionConstraint(
 	if (
 		constraints.skipConnectionsFromLayer1Only &&
 		index === 0 &&
-		(layer.connectionType === ConnectionType.DenseSkip || layer.connectionType === ConnectionType.ResidualConnection)
+		(layer.connectionType === ConnectionType.DenseSkip ||
+			layer.connectionType === ConnectionType.ResidualConnection)
 	) {
-		return [{
-			rule: `layer[${index}].skipConnectionsFromLayer1Only`,
-			actual: layer.connectionType,
-			limit: "fully-connected at layer 0",
-		}];
+		return [
+			{
+				rule: `layer[${index}].skipConnectionsFromLayer1Only`,
+				actual: layer.connectionType,
+				limit: "fully-connected at layer 0",
+			},
+		];
 	}
 	return [];
 }
@@ -162,11 +176,13 @@ function _checkMaxDepth(
 	constraints: TopologyConstraints
 ): TopologyViolation[] {
 	if (layers.length > constraints.maxDepth) {
-		return [{
-			rule: "maxDepth",
-			actual: layers.length,
-			limit: constraints.maxDepth,
-		}];
+		return [
+			{
+				rule: "maxDepth",
+				actual: layers.length,
+				limit: constraints.maxDepth,
+			},
+		];
 	}
 	return [];
 }
@@ -177,11 +193,13 @@ function _checkMaxTotalParams(
 ): TopologyViolation[] {
 	const totalParams = countParams(net);
 	if (totalParams > constraints.maxTotalParams) {
-		return [{
-			rule: "maxTotalParams",
-			actual: totalParams,
-			limit: constraints.maxTotalParams,
-		}];
+		return [
+			{
+				rule: "maxTotalParams",
+				actual: totalParams,
+				limit: constraints.maxTotalParams,
+			},
+		];
 	}
 	return [];
 }

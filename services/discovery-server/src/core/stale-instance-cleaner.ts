@@ -1,8 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
-import { toServiceId, toInstanceId } from "@trading-model/common/domain/primitives";
-import type {
-	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
+import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import {
+	toInstanceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
@@ -24,7 +25,7 @@ export class StaleInstanceCleaner {
 
 	constructor(
 		private readonly _deps: CleanupDeps,
-		private readonly _intervalMs: number,
+		private readonly _intervalMs: number
 	) {}
 
 	start(): void {
@@ -59,11 +60,21 @@ export class StaleInstanceCleaner {
 		return isAliveInstance(instance);
 	}
 
-	private async _removeExpiredInstance(serviceName: string, instance: ServiceInstance, now: number): Promise<void> {
+	private async _removeExpiredInstance(
+		serviceName: string,
+		instance: ServiceInstance,
+		now: number
+	): Promise<void> {
 		logger.warn("Expired instance removed", {
-			serviceName, instanceId: instance.instanceId, heartbeatAge: now - instance.lastHeartbeat, ttl: instance.ttl,
+			serviceName,
+			instanceId: instance.instanceId,
+			heartbeatAge: now - instance.lastHeartbeat,
+			ttl: instance.ttl,
 		});
-		await this._deps.removeInstance({ serviceName: toServiceId(serviceName), instanceId: toInstanceId(instance.instanceId) });
+		await this._deps.removeInstance({
+			serviceName: toServiceId(serviceName),
+			instanceId: toInstanceId(instance.instanceId),
+		});
 	}
 
 	private async _cleanup(): Promise<void> {

@@ -23,7 +23,7 @@ function _buildCleanupFn(
 	onSigTerm: () => Promise<void>,
 	onSigInt: () => Promise<void>,
 	onUncaughtException: (error: Error) => void,
-	onUnhandledRejection: (reason: unknown) => void,
+	onUnhandledRejection: (reason: unknown) => void
 ): () => void {
 	return () => {
 		process.removeListener("SIGTERM", onSigTerm);
@@ -35,7 +35,7 @@ function _buildCleanupFn(
 
 export function setupProcessHandlers(
 	shutdown: ShutdownHandler,
-	hardShutdown: HardShutdownHandler,
+	hardShutdown: HardShutdownHandler
 ): void {
 	if (handlersRegistered) {
 		return;
@@ -53,7 +53,12 @@ export function setupProcessHandlers(
 	process.on("unhandledRejection", onUnhandledRejection);
 
 	CLEANUP_FNS.push(
-		_buildCleanupFn(onSigTerm, onSigInt, onUncaughtException, onUnhandledRejection),
+		_buildCleanupFn(
+			onSigTerm,
+			onSigInt,
+			onUncaughtException,
+			onUnhandledRejection
+		)
 	);
 }
 

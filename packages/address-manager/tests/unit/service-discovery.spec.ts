@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "../../src/client/type";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
 import type { ServiceCache } from "../../src/discovery/service-cache";
 import { ServiceDiscovery } from "../../src/discovery/service-discovery";
 import type { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 describe("ServiceDiscovery", () => {
 	let discovery: ServiceDiscovery;
@@ -79,7 +79,11 @@ describe("ServiceDiscovery", () => {
 				cacheTtlMs: 0,
 				discoveryUrls: ["http://localhost:8443"],
 				identity: { serviceName: "test-service", instanceId: "test-instance" },
-				tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+				tls: {
+					caPath: "/path/to/ca.pem",
+					certPath: "/path/to/cert.pem",
+					keyPath: "/path/to/key.pem",
+				},
 			} as AddressManagerConfig,
 			healthChecker,
 		});

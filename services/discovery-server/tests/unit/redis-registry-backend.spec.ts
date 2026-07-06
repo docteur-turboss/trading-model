@@ -6,7 +6,6 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import type { HostPort } from "@trading-model/common/domain/service-identity";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 
 jest.mock("@trading-model/common/config/logger", () => ({
@@ -555,7 +554,10 @@ describe("RedisRegistryBackend", () => {
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
 			const token = backend.generateInstanceToken("test-instance-1");
 			MOCK_REDIS.get.mockResolvedValue(token);
-			const result = await backend.validInstanceToken({ token, instanceId: "test-instance-1" });
+			const result = await backend.validInstanceToken({
+				token,
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(true);
 		});
 
@@ -594,7 +596,10 @@ describe("RedisRegistryBackend", () => {
 			const backend = new RedisRegistryBackend("redis://localhost:6379");
 			const token = backend.generateInstanceToken("test-instance-1");
 			MOCK_REDIS.get.mockResolvedValue("different-stored-token");
-			const result = await backend.validInstanceToken({ token, instanceId: "test-instance-1" });
+			const result = await backend.validInstanceToken({
+				token,
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 		});
 
@@ -768,4 +773,3 @@ describe("RedisRegistryBackend", () => {
 		});
 	});
 });
-

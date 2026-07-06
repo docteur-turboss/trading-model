@@ -2,10 +2,10 @@ export {
 	type DeliveryFailureContext,
 	type DlqEntryRef,
 	type DlqError,
+	doReplayBatch,
 	type ProcessBatchResultsOptions,
 	type ReplayBatchOptions,
 	type ReplayContext,
-	doReplayBatch,
 } from "./replay-batch";
 
 export {

@@ -8,17 +8,17 @@ import {
 	InitialisationType,
 	NormalisationType,
 } from "../neural-network/type";
-import {
-	MutationAdaptation,
-	MutationDistribution,
-	MutationScope,
-} from "./genome-types";
 import type {
 	LamarckGenome,
 	LayerGenome,
 	MutationGenome,
 	NetworkGenome,
 	RLGenome,
+} from "./genome-types";
+import {
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
 } from "./genome-types";
 import { sampleGaussian, sampleNoise } from "./noise";
 import { clamp } from "./utils";
@@ -144,7 +144,9 @@ function _mutateNeuronCount(
 	rng: () => number
 ): number {
 	if (rng() < mutation.rate) {
-		const delta = Math.round(sampleNoise(mutation.distribution, sigma * 10, rng));
+		const delta = Math.round(
+			sampleNoise(mutation.distribution, sigma * 10, rng)
+		);
 		return Math.max(1, layer.neurons + delta);
 	}
 	return layer.neurons;
@@ -166,7 +168,9 @@ function _mutateConnectionType(
 	mutation: MutationGenome,
 	rng: () => number
 ): ConnectionType {
-	return rng() < mutation.rate * 0.3 ? pick(CONNECTION_TYPES, rng) : layer.connectionType;
+	return rng() < mutation.rate * 0.3
+		? pick(CONNECTION_TYPES, rng)
+		: layer.connectionType;
 }
 
 function _mutateBiasType(
@@ -204,9 +208,7 @@ export interface MutateRLContext {
 	rng: () => number;
 }
 
-function mutateRL(
-	ctx: MutateRLContext
-): RLGenome {
+function mutateRL(ctx: MutateRLContext): RLGenome {
 	const { rl, mutation, rng } = ctx;
 	return {
 		..._mutateGammaAndLR(rl, mutation, rng),
@@ -259,11 +261,19 @@ function _mutateMaxEpisodeLength(
 	mutation: MutationGenome,
 	rng: () => number
 ): number {
-	return Math.max(10, Math.round(horizon.maxEpisodeLength + sampleNoise(mutation.distribution, 20, rng)));
+	return Math.max(
+		10,
+		Math.round(
+			horizon.maxEpisodeLength + sampleNoise(mutation.distribution, 20, rng)
+		)
+	);
 }
 
 function _mutateDiscreteStepParam(value: number, rng: () => number): number {
-	return Math.max(1, Math.round(value + (rng() < 0.1 ? (rng() < 0.5 ? 1 : -1) : 0)));
+	return Math.max(
+		1,
+		Math.round(value + (rng() < 0.1 ? (rng() < 0.5 ? 1 : -1) : 0))
+	);
 }
 
 function _mutateHorizon(
@@ -284,7 +294,8 @@ function _makePerturbFn(
 	mutation: MutationGenome,
 	rng: () => number
 ): (value: number, scale: number) => number {
-	return (value: number, scale: number) => value + sampleNoise(mutation.distribution, scale, rng);
+	return (value: number, scale: number) =>
+		value + sampleNoise(mutation.distribution, scale, rng);
 }
 
 function _mutateDiscretePolicy(
@@ -296,9 +307,21 @@ function _mutateDiscretePolicy(
 	return {
 		discretePolicy: {
 			...rl.discretePolicy,
-			epsilonStart: clamp(perturb(rl.discretePolicy.epsilonStart, 0.05), 0.1, 1.0),
-			epsilonMin: clamp(perturb(rl.discretePolicy.epsilonMin, 0.01), 0.001, 0.2),
-			epsilonDecay: clamp(perturb(rl.discretePolicy.epsilonDecay, 0.002), 0.9, 0.9999),
+			epsilonStart: clamp(
+				perturb(rl.discretePolicy.epsilonStart, 0.05),
+				0.1,
+				1.0
+			),
+			epsilonMin: clamp(
+				perturb(rl.discretePolicy.epsilonMin, 0.01),
+				0.001,
+				0.2
+			),
+			epsilonDecay: clamp(
+				perturb(rl.discretePolicy.epsilonDecay, 0.002),
+				0.9,
+				0.9999
+			),
 			temperature: Math.max(0.01, perturb(rl.discretePolicy.temperature, 0.1)),
 		},
 	};
@@ -314,12 +337,19 @@ function _mutateContinuousPolicy(
 		continuousPolicy: {
 			...rl.continuousPolicy,
 			noiseStd: Math.max(0.001, perturb(rl.continuousPolicy.noiseStd, 0.02)),
-			noiseDecay: clamp(perturb(rl.continuousPolicy.noiseDecay, 0.001), 0.9, 0.9999),
+			noiseDecay: clamp(
+				perturb(rl.continuousPolicy.noiseDecay, 0.001),
+				0.9,
+				0.9999
+			),
 		},
 	};
 }
 
-function _mutateReplayBufferSize(bufferSize: number, rng: () => number): number {
+function _mutateReplayBufferSize(
+	bufferSize: number,
+	rng: () => number
+): number {
 	return Math.max(500, Math.round(bufferSize * (0.8 + rng() * 0.4)));
 }
 
@@ -351,7 +381,12 @@ export function mutateGenome(
 	const mutationConfig = genome.mutation;
 	const sigma = adaptSigma(mutationConfig, rng);
 
-	const network = _mutateNetworkStructure({ genome, mutationConfig, _sigma: sigma, rng });
+	const network = _mutateNetworkStructure({
+		genome,
+		mutationConfig,
+		_sigma: sigma,
+		rng,
+	});
 
 	const rl: RLGenome = mutationConfig.mutateHyperparams
 		? mutateRL({ rl: genome.rl, mutation: mutationConfig, _sigma: sigma, rng })
@@ -400,7 +435,10 @@ function _maybeRemoveNeuron(
 ): void {
 	if (layers.length > 0 && rng() < mutationConfig.removeNeuronRate) {
 		const li = Math.floor(rng() * layers.length);
-		layers[li] = { ...layers[li], neurons: Math.max(1, layers[li].neurons - 1) };
+		layers[li] = {
+			...layers[li],
+			neurons: Math.max(1, layers[li].neurons - 1),
+		};
 	}
 }
 
@@ -419,7 +457,11 @@ function _maybeAddLayer(
 	rng: () => number
 ): void {
 	if (rng() < mutationConfig.addLayerRate) {
-		layers.splice(Math.floor(rng() * (layers.length + 1)), 0, _createRandomLayer(rng));
+		layers.splice(
+			Math.floor(rng() * (layers.length + 1)),
+			0,
+			_createRandomLayer(rng)
+		);
 	}
 }
 
@@ -443,11 +485,13 @@ function _maybeMutateNormalization(
 		: genome.network.normalization;
 }
 
-function _mutateNetworkStructure(
-	ctx: MutateNetworkContext
-): NetworkGenome {
+function _mutateNetworkStructure(ctx: MutateNetworkContext): NetworkGenome {
 	const { genome, mutationConfig, rng } = ctx;
-	const layers = _mutateLayers(genome.network.hiddenLayers, mutationConfig, rng);
+	const layers = _mutateLayers(
+		genome.network.hiddenLayers,
+		mutationConfig,
+		rng
+	);
 
 	_maybeAddNeuron(layers, mutationConfig, rng);
 	_maybeRemoveNeuron(layers, mutationConfig, rng);
@@ -466,7 +510,11 @@ function _mutateSigma(
 	sigma: number,
 	rng: () => number
 ): number {
-	return Math.max(1e-5, mutationConfig.sigma + sampleNoise(mutationConfig.distribution, sigma * 0.1, rng));
+	return Math.max(
+		1e-5,
+		mutationConfig.sigma +
+			sampleNoise(mutationConfig.distribution, sigma * 0.1, rng)
+	);
 }
 
 function _mutateSelfSigma(
@@ -474,7 +522,11 @@ function _mutateSelfSigma(
 	sigma: number,
 	rng: () => number
 ): number {
-	return Math.max(1e-5, mutationConfig.selfSigma + sampleNoise(MutationDistribution.Gaussian, sigma * 0.05, rng));
+	return Math.max(
+		1e-5,
+		mutationConfig.selfSigma +
+			sampleNoise(MutationDistribution.Gaussian, sigma * 0.05, rng)
+	);
 }
 
 function _mutateSelfAdaptiveParams(

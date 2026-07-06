@@ -2,9 +2,15 @@ import { createHmac } from "node:crypto";
 
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
-import type { HttpRoute, Signature, SignedRequest, SignedRequestAuth, Timestamp } from "@trading-model/common/contracts/signed-request";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import type {
+	HttpRoute,
+	Signature,
+	SignedRequest,
+	SignedRequestAuth,
+	Timestamp,
+} from "@trading-model/common/contracts/signed-request";
 import { toServiceId } from "@trading-model/common/domain/primitives";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import {
 	messageManagerError,
@@ -12,7 +18,6 @@ import {
 } from "@trading-model/common/utils/errors";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
-import { MESSAGES_DLQ_ERROR_TOTAL } from "../../config/metrics";
 import type { DlqEntry } from "./dlq-repository";
 
 function getHmacSecretBuffer(): Buffer {
@@ -31,9 +36,7 @@ interface SignRequestInput extends SignedRequest {
 	secretBuf?: Buffer;
 }
 
-function signRequest(
-	input: SignRequestInput
-): SignedRequestAuth {
+function signRequest(input: SignRequestInput): SignedRequestAuth {
 	const timestamp = String(Date.now()) as Timestamp;
 	const buf = input.secretBuf ?? getHmacSecretBuffer();
 	try {
@@ -53,12 +56,20 @@ function computeSignature(
 	input: SignedRequest & { timestamp: Timestamp },
 	buf: Buffer
 ): string {
-	const parts = [input.serviceName, input.timestamp, deterministicStringify(normalizeBody(input.body)), input.method, input.path].join(":");
+	const parts = [
+		input.serviceName,
+		input.timestamp,
+		deterministicStringify(normalizeBody(input.body)),
+		input.method,
+		input.path,
+	].join(":");
 	return createHmac("sha256", buf).update(parts).digest("hex");
 }
 
 function warnAndSkip(timestamp: Timestamp): SignedRequestAuth {
-	logger.warn("DLQ HMAC secret is too short or empty — requests will not be signed");
+	logger.warn(
+		"DLQ HMAC secret is too short or empty — requests will not be signed"
+	);
 	return { timestamp, signature: "" as Signature };
 }
 
@@ -67,9 +78,7 @@ interface SignedOptionsInput extends HttpRoute {
 	extra?: Partial<HttpRequestOptions>;
 }
 
-function signedOptions(
-	input: SignedOptionsInput
-): HttpRequestOptions {
+function signedOptions(input: SignedOptionsInput): HttpRequestOptions {
 	const opts = buildBaseOptions(input.extra);
 	const secretBuf = getHmacSecretBuffer();
 	if (secretBuf.length >= 16) {
@@ -84,7 +93,10 @@ function buildBaseOptions(
 	return {
 		timeoutMs: 5000,
 		...extra,
-		headers: { [HTTP_HEADERS.X_SERVICE_NAME]: "message-manager", ...(extra?.headers ?? {}) },
+		headers: {
+			[HTTP_HEADERS.X_SERVICE_NAME]: "message-manager",
+			...(extra?.headers ?? {}),
+		},
 	};
 }
 
@@ -105,16 +117,23 @@ function addSignature(
 export class DlqSendHandler {
 	constructor(
 		private readonly _httpClient: HttpClient,
-		private readonly _serviceUrl: string,
+		private readonly _serviceUrl: string
 	) {}
 
 	async doSend(entry: DlqEntry): Promise<void> {
 		await this._httpClient.post(
 			`${this._serviceUrl}/dlq`,
 			entry,
-			signedOptions({ method: "POST", path: "/dlq", body: entry, extra: { timeoutMs: 5000 } })
+			signedOptions({
+				method: "POST",
+				path: "/dlq",
+				body: entry,
+				extra: { timeoutMs: 5000 },
+			})
 		);
-		logger.info("DLQ entry sent to DLQ service", { context: { reason: entry.reason } });
+		logger.info("DLQ entry sent to DLQ service", {
+			context: { reason: entry.reason },
+		});
 	}
 
 	async handleSendError(
@@ -127,10 +146,12 @@ export class DlqSendHandler {
 			await this._retrySend(entry, err, attempt, maxRetries);
 			return;
 		}
-		logger.error("Failed to send DLQ entry to service after retries", { context: {
-			error: normalizeError(err),
-			reason: entry.reason,
-		} });
+		logger.error("Failed to send DLQ entry to service after retries", {
+			context: {
+				error: normalizeError(err),
+				reason: entry.reason,
+			},
+		});
 		throw messageManagerError("Failed to send DLQ entry", { cause: err });
 	}
 
@@ -143,22 +164,34 @@ export class DlqSendHandler {
 		const delay = Math.round(
 			Math.min(200 * 2 ** (attempt - 1), 5000) * (0.5 + Math.random() * 0.5)
 		);
-		logger.warn("Retrying DLQ send after error", { context: {
-			attempt,
-			delay,
-			reason: entry.reason,
-			error: normalizeError(err),
-		} });
+		logger.warn("Retrying DLQ send after error", {
+			context: {
+				attempt,
+				delay,
+				reason: entry.reason,
+				error: normalizeError(err),
+			},
+		});
 		await new Promise((resolve) => setTimeout(resolve, delay));
-		return this._httpClient.post(
-			`${this._serviceUrl}/dlq`,
-			entry,
-			signedOptions({ method: "POST", path: "/dlq", body: entry, extra: { timeoutMs: 5000 } })
-		).then(() => {
-			logger.info("DLQ entry sent to DLQ service", { context: { reason: entry.reason } });
-		}).catch((retryErr) =>
-			this.handleSendError(entry, retryErr as Error, attempt + 1, maxRetries)
-		);
+		return this._httpClient
+			.post(
+				`${this._serviceUrl}/dlq`,
+				entry,
+				signedOptions({
+					method: "POST",
+					path: "/dlq",
+					body: entry,
+					extra: { timeoutMs: 5000 },
+				})
+			)
+			.then(() => {
+				logger.info("DLQ entry sent to DLQ service", {
+					context: { reason: entry.reason },
+				});
+			})
+			.catch((retryErr) =>
+				this.handleSendError(entry, retryErr as Error, attempt + 1, maxRetries)
+			);
 	}
 
 	buildReplayUrl(topic?: string, limit = 100): string {

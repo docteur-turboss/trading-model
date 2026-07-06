@@ -56,7 +56,7 @@ export default class BrokerMessage {
 		this._messageManagerClient = this._createMessageManagerClient(
 			addressManagerClient,
 			instanceId,
-			serviceName,
+			serviceName
 		);
 	}
 
@@ -67,12 +67,12 @@ export default class BrokerMessage {
 	private _createMessageManagerClient(
 		addressManagerClient: addressManagerClient,
 		instanceId: string,
-		serviceName: ServiceInstanceName,
+		serviceName: ServiceInstanceName
 	): MessageManagerClient {
 		return new MessageManagerClient(
 			this._httpClient,
 			{ callbackPath: this._callbackPath, instanceId, serviceName },
-			addressManagerClient,
+			addressManagerClient
 		);
 	}
 
@@ -109,14 +109,23 @@ export default class BrokerMessage {
 	/** Publishes messages directly or indirectly to services. */
 	get post() {
 		return {
-			direct: <TPayload = Parameters<MessageManagerClient["publishDirectMessage"]>[1]>(
+			direct: <
+				TPayload = Parameters<MessageManagerClient["publishDirectMessage"]>[1],
+			>(
 				service: Parameters<MessageManagerClient["publishDirectMessage"]>[0],
 				payload: TPayload,
-				metadata: Parameters<MessageManagerClient["publishDirectMessage"]>[2],
-			) => this._messageManagerClient.publishDirectMessage(service, payload, metadata),
-			indirect: <TPayload = Parameters<MessageManagerClient["publishAsyncMessage"]>[0]>(
+				metadata: Parameters<MessageManagerClient["publishDirectMessage"]>[2]
+			) =>
+				this._messageManagerClient.publishDirectMessage(
+					service,
+					payload,
+					metadata
+				),
+			indirect: <
+				TPayload = Parameters<MessageManagerClient["publishAsyncMessage"]>[0],
+			>(
 				payload: TPayload,
-				metadata: Parameters<MessageManagerClient["publishAsyncMessage"]>[1],
+				metadata: Parameters<MessageManagerClient["publishAsyncMessage"]>[1]
 			) => this._messageManagerClient.publishAsyncMessage(payload, metadata),
 		};
 	}

@@ -2,8 +2,8 @@
 //            fitness computation & reward shaping
 // ================================================================
 
-import { FitnessType } from "./genome-types";
 import type { RewardShapingGenome } from "./genome-types";
+import { FitnessType } from "./genome-types";
 import { clamp } from "./utils";
 
 // ----------------------------------------------------------------
@@ -28,7 +28,8 @@ class SharpeStrategy implements FitnessStrategy {
 		const variance =
 			scores
 				.map((value) => (value - mean) ** 2)
-				.reduce((sum, value) => sum + value, 0) / Math.max(1, scores.length - 1);
+				.reduce((sum, value) => sum + value, 0) /
+			Math.max(1, scores.length - 1);
 		const std = Math.sqrt(variance);
 		return std < 1e-10 ? mean : mean / std;
 	}

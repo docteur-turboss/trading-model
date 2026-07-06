@@ -1,8 +1,7 @@
-import type { CacheConfig } from "@trading-model/common/utils/cache-config";
-import type { ICache } from "@trading-model/common/utils/cache";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type { ICache } from "@trading-model/common/utils/cache";
+import type { CacheConfig } from "@trading-model/common/utils/cache-config";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
-import { logger } from "@trading-model/common/config/logger";
 
 export class CacheManager implements ICache<ServiceInstance[]> {
 	private _cache: LruCache<ServiceInstance[]>;
@@ -10,7 +9,9 @@ export class CacheManager implements ICache<ServiceInstance[]> {
 
 	constructor(config: CacheConfig) {
 		this._cache = new LruCache<ServiceInstance[]>(config);
-		this._staleData = new LruCache<ServiceInstance[]>({ maxSize: config.maxSize });
+		this._staleData = new LruCache<ServiceInstance[]>({
+			maxSize: config.maxSize,
+		});
 	}
 
 	get(serviceName: string): ServiceInstance[] | undefined {

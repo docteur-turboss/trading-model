@@ -8,13 +8,13 @@ import {
 	test,
 } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
 import { AddressManagerClient } from "../../src/client/address-manager-client";
 import { LocalIPDetector } from "../../src/client/local-ip-detector";
 import type { TokenManager } from "../../src/client/token-manager";
 import type { ServiceRegistrationResponse } from "../../src/client/type";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 jest.mock("os");
 
@@ -52,7 +52,11 @@ describe("AddressManagerClient", () => {
 			servicePingTimeoutMs: 2000,
 			cacheTtlMs: 60_000,
 			identity: { serviceName: "test-service", instanceId: "test-instance" },
-			tls: { caPath: "/path/to/ca.pem", certPath: "/path/to/cert.pem", keyPath: "/path/to/key.pem" },
+			tls: {
+				caPath: "/path/to/ca.pem",
+				certPath: "/path/to/cert.pem",
+				keyPath: "/path/to/key.pem",
+			},
 			discoveryUrls: ["http://localhost:8443"],
 			discoveryTimeoutMs: 5000,
 		} as AddressManagerConfig;
@@ -192,9 +196,9 @@ describe("AddressManagerClient", () => {
 			expect(httpClient.post).toHaveBeenCalledWith(
 				`${config.addressManagerUrl}/register`,
 				{
-				serviceName: config.identity.serviceName,
-				port: config.servicePort,
-				ip: "192.168.1.100",
+					serviceName: config.identity.serviceName,
+					port: config.servicePort,
+					ip: "192.168.1.100",
 				}
 			);
 		});
@@ -217,7 +221,10 @@ describe("AddressManagerClient", () => {
 
 			expect(httpClient.post).toHaveBeenCalledWith(
 				`${config.addressManagerUrl}/heartbeat`,
-				{ serviceName: config.identity.serviceName, instanceId: config.identity.instanceId },
+				{
+					serviceName: config.identity.serviceName,
+					instanceId: config.identity.instanceId,
+				},
 				{ headers: { "x-instance-token": "mock-token" } }
 			);
 		});

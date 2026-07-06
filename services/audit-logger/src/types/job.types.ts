@@ -1,11 +1,11 @@
 import {
 	JOB_STATUS,
+	JOB_STATUS_NON_TERMINAL,
 	type Job,
 	type JobEvent,
 	JobPriority,
 	type JobStatus,
 } from "@trading-model/common/contracts/recovery.types";
-import { JOB_STATUS_NON_TERMINAL } from "@trading-model/common/contracts/recovery.types";
 
 export type { Job, JobEvent, JobStatus };
 export { JOB_STATUS, JOB_STATUS_NON_TERMINAL, JobPriority };

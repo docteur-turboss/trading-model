@@ -54,7 +54,10 @@ export class RedisStreamStore {
 			"data",
 			serialized
 		);
-		await redis.expire(`${this._prefix}stream:${topic}`, ENV.REDIS_MESSAGE_TTL_S);
+		await redis.expire(
+			`${this._prefix}stream:${topic}`,
+			ENV.REDIS_MESSAGE_TTL_S
+		);
 		return entryId ?? "";
 	}
 }

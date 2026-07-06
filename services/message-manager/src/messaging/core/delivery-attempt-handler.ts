@@ -1,15 +1,15 @@
-import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
+import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import { sleep } from "@trading-model/common/utils/sleep";
 import { FIND_A_SERVICE } from "../../config/address-manager";
 import type { DeliveryErrorHandler } from "./delivery-error-handler";
+import type { SubscribersContext } from "./delivery-metadata-extractor";
 import type {
 	DeliverySendInput,
 	MessageDeliveryContext,
 	MessageDeliveryPort,
 } from "./message-delivery-port";
-import type { SubscribersContext } from "./delivery-metadata-extractor";
 
 const BaseDelayMs = 1000;
 const MaxDelayMs = 60_000;

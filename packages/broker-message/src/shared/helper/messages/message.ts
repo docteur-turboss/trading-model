@@ -5,10 +5,7 @@ import type {
 	SecurityType,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
-import {
-	type Topic,
-	toTopic,
-} from "@trading-model/common/domain/primitives";
+import { type Topic, toTopic } from "@trading-model/common/domain/primitives";
 
 import {
 	EVENT_TYPE_METADATA_PREDICATE,
@@ -31,7 +28,7 @@ export class MessageMetadata {
 		topic: string,
 		eventType: string,
 		publisher: ServiceIdentity,
-		data: Partial<Omit<MetadataType, "topic" | "eventType" | "publisher">> = {},
+		data: Partial<Omit<MetadataType, "topic" | "eventType" | "publisher">> = {}
 	) {
 		TOPIC_METADATA_PREDICATE.parse(topic);
 		EVENT_TYPE_METADATA_PREDICATE.parse(eventType);

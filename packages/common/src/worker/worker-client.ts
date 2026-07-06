@@ -8,9 +8,7 @@ import { TypedEventEmitter } from "./typed-event-emitter";
 import { WorkerHeartbeat } from "./worker-heartbeat";
 import { WorkerMessageRouter } from "./worker-message-router";
 import { WorkerReconnector } from "./worker-reconnector";
-import {
-	WorkerWsConnection,
-} from "./worker-ws-connection";
+import { WorkerWsConnection } from "./worker-ws-connection";
 
 export interface WorkerClientConfig {
 	workerId: string;
@@ -34,7 +32,7 @@ export interface WorkerClientEvents {
 }
 
 function normalizeConfig(
-	config: WorkerClientConfig,
+	config: WorkerClientConfig
 ): Required<WorkerClientConfig> {
 	return {
 		workerId: config.workerId,
@@ -52,7 +50,7 @@ export class WorkerClient {
 
 	on<Event extends keyof WorkerClientEvents>(
 		event: Event,
-		listener: (...args: WorkerClientEvents[Event]) => void,
+		listener: (...args: WorkerClientEvents[Event]) => void
 	): this {
 		this._events.on(event, listener);
 		return this;
@@ -60,7 +58,7 @@ export class WorkerClient {
 
 	off<Event extends keyof WorkerClientEvents>(
 		event: Event,
-		listener: (...args: WorkerClientEvents[Event]) => void,
+		listener: (...args: WorkerClientEvents[Event]) => void
 	): this {
 		this._events.off(event, listener);
 		return this;
@@ -88,18 +86,41 @@ export class WorkerClient {
 			maxConcurrency: this._cfg.maxConcurrency,
 		});
 		this._reconnector = new WorkerReconnector(
-			{ reconnectBaseDelayMs: this._cfg.reconnectBaseDelayMs, reconnectMaxDelayMs: this._cfg.reconnectMaxDelayMs },
+			{
+				reconnectBaseDelayMs: this._cfg.reconnectBaseDelayMs,
+				reconnectMaxDelayMs: this._cfg.reconnectMaxDelayMs,
+			},
 			() => this._doConnect(),
-			(info) => this.emit("reconnecting", info),
+			(info) => this.emit("reconnecting", info)
 		);
-		this._heartbeat = new WorkerHeartbeat(this._cfg.workerId, (msg: WorkerWsHeartbeatMessage) => this.send(msg), this._cfg.heartbeatIntervalMs);
+		this._heartbeat = new WorkerHeartbeat(
+			this._cfg.workerId,
+			(msg: WorkerWsHeartbeatMessage) => this.send(msg),
+			this._cfg.heartbeatIntervalMs
+		);
 		this._messageRouter = new WorkerMessageRouter(this._events.raw);
-		this._connection.onOpen = () => { this._heartbeat.start(); this.emit("connected"); };
-		this._connection.onClose = () => { this._heartbeat.stop(); this.emit("disconnected"); if (!this._reconnector.intentionalClose) { this._reconnector.scheduleReconnect(); } };
-		this._connection.onMessage = (data) => {
-			try { const message: Record<string, unknown> = JSON.parse(data.toString()); this._messageRouter.handle(message, (msg) => this.emit("unknown", msg)); } catch (err) { this.emit("error", new Error(`Invalid message from server: ${err}`)); }
+		this._connection.onOpen = () => {
+			this._heartbeat.start();
+			this.emit("connected");
 		};
-		this._connection.onError = (err) => { this.emit("error", err); };
+		this._connection.onClose = () => {
+			this._heartbeat.stop();
+			this.emit("disconnected");
+			if (!this._reconnector.intentionalClose) {
+				this._reconnector.scheduleReconnect();
+			}
+		};
+		this._connection.onMessage = (data) => {
+			try {
+				const message: Record<string, unknown> = JSON.parse(data.toString());
+				this._messageRouter.handle(message, (msg) => this.emit("unknown", msg));
+			} catch (err) {
+				this.emit("error", new Error(`Invalid message from server: ${err}`));
+			}
+		};
+		this._connection.onError = (err) => {
+			this.emit("error", err);
+		};
 	}
 
 	async connect(): Promise<void> {

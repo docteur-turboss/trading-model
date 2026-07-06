@@ -1,5 +1,5 @@
-import type { CacheConfig } from "./cache-config";
 import type { ICache } from "./cache";
+import type { CacheConfig } from "./cache-config";
 
 export class LruCache<TValue> implements ICache<TValue> {
 	private readonly _maxSize: number;

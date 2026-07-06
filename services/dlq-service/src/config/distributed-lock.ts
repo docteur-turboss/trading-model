@@ -1,6 +1,6 @@
-import type { Redis } from "ioredis";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { Redis } from "ioredis";
 
 const LOCK_PREFIX = "dlq:lock:";
 const LOCK_TTL = 30; // Seconds — auto-release if process crashes
@@ -20,13 +20,7 @@ export class DistributedLock implements IDistributedLock {
 
 	async acquire(lockId?: string): Promise<boolean> {
 		const id = lockId ?? "";
-		const acquired = await this._redis.set(
-			this._key,
-			id,
-			"EX",
-			LOCK_TTL,
-			"NX"
-		);
+		const acquired = await this._redis.set(this._key, id, "EX", LOCK_TTL, "NX");
 		if (acquired === "OK") {
 			this._currentLockId = id;
 			this._startRenewal(id);
@@ -53,7 +47,9 @@ export class DistributedLock implements IDistributedLock {
 	async release(lockId?: string): Promise<void> {
 		this._renewalInterval.stop();
 		const id = lockId ?? this._currentLockId;
-		if (id === undefined) return;
+		if (id === undefined) {
+			return;
+		}
 		await this._execReleaseScript(id);
 	}
 

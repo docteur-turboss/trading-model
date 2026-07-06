@@ -1,4 +1,4 @@
-import { AppError, agentError } from "@trading-model/common/utils/errors";
+import { agentError } from "@trading-model/common/utils/errors";
 
 import type { LayerMemory } from "./type";
 import { GAUSSIAN_NOISE as gaussianNoise } from "./utils";
@@ -41,7 +41,10 @@ export function getWeights(layers: LayerMemory[]): Float32Array {
  *
  * @throws {AgentError} When the buffer length does not match the total parameter count.
  */
-function _validateBufferLength(layers: LayerMemory[], buffer: Float32Array): void {
+function _validateBufferLength(
+	layers: LayerMemory[],
+	buffer: Float32Array
+): void {
 	const expected = parameterCount(layers);
 	if (buffer.length !== expected) {
 		throw agentError(

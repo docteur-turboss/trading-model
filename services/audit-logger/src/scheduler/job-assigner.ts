@@ -1,11 +1,13 @@
-import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/common/config/logger";
-
+import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
+import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { Job } from "../types/job.types";
-import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
-import { NullWorkerProtocol, type IWorkerProtocol } from "../worker/worker-protocol";
+import {
+	type IWorkerProtocol,
+	NullWorkerProtocol,
+} from "../worker/worker-protocol";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
 
@@ -15,7 +17,7 @@ export class JobAssigner {
 	constructor(
 		private readonly _queue: InternalQueue,
 		private readonly _backPressure: BackPressure,
-		private readonly _repository: JobRepository,
+		private readonly _repository: JobRepository
 	) {}
 
 	setWorkerProtocol(protocol: IWorkerProtocol): void {
@@ -24,7 +26,10 @@ export class JobAssigner {
 
 	assign(
 		queued: { job: Job },
-		worker: Pick<WorkerRegistration, "workerId" | "currentLoad" | "maxConcurrency">
+		worker: Pick<
+			WorkerRegistration,
+			"workerId" | "currentLoad" | "maxConcurrency"
+		>
 	): void {
 		const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
 		const assignedJob: Job = {

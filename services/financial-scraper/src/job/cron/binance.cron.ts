@@ -17,17 +17,13 @@ import { logger } from "@trading-model/common/config/logger";
 import cron from "node-cron";
 
 import { MarketDataController } from "../../infra/market-data/market-data.controller";
-import {
-	BinanceWorker,
-	type BinanceWorkerResult,
-} from "../worker/binance.worker";
+import type { BinanceWorkerResult } from "../worker/binance.worker";
 
 type LimitFunction = <TArgs extends unknown[], TResult>(
 	fn: (...args: TArgs) => PromiseLike<TResult> | TResult,
 	...args: TArgs
 ) => Promise<TResult>;
 
-import { toSymbol } from "@trading-model/common/domain/primitives";
 import type { CandleInterval } from "@trading-model/common/config/event.types";
 
 /** Configuration for scheduling a BinanceCronOrchestrator instance. */
@@ -89,29 +85,7 @@ function _logBatchError(err: unknown): void {
 	}
 }
 
-export class BinanceCronOrchestrator {
-	/**
-	 * Batch execution with concurrency limiting.
-	 */
-	private async _executeBatch(): Promise<void> {
-		const limiter = await _createLimiter(this._maxConcurrency);
-		const tasks = this._config.symbols.map((symbol) =>
-			limiter(() => this._processSymbol(symbol))
-		);
-
-		await Promise.all(tasks);
-	}
-
-	private async _processSymbol(symbol: string): Promise<void> {
-		const worker = new BinanceWorker({
-			symbol: toSymbol(symbol),
-			interval: this._config.candleInterval ?? "1m",
-		});
-
-		const result = await worker.run();
-		await this.persist(result);
-	}
-}
+export class BinanceCronOrchestrator {}
 
 async function _createLimiter(maxConcurrency: number): Promise<LimitFunction> {
 	const { default: pLimit } = (await import("p-limit")) as unknown as {

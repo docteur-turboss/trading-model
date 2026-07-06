@@ -1,20 +1,27 @@
 import type https from "node:https";
-import WebSocket, { WebSocketServer } from "ws";
-import type { ConnectedClient } from "./client-connection-manager";
-import { ClientConnectionManager } from "./client-connection-manager";
+import type WebSocket from "ws";
+import type { WebSocketServer } from "ws";
+import type {
+	ClientConnectionManager,
+	ConnectedClient,
+} from "./client-connection-manager";
 
 export class WsConnectionSetup {
 	constructor(
 		private readonly _clientManager: ClientConnectionManager,
-		private readonly _onMessage: (clientId: string, client: ConnectedClient, data: WebSocket.Data) => void,
+		private readonly _onMessage: (
+			clientId: string,
+			client: ConnectedClient,
+			data: WebSocket.Data
+		) => void,
 		private readonly _onClose: (clientId: string) => void,
-		private readonly _onError: (clientId: string, error: unknown) => void,
+		private readonly _onError: (clientId: string, error: unknown) => void
 	) {}
 
 	setupUpgradeHandler(
 		rawServer: https.Server,
 		wss: WebSocketServer,
-		path: string,
+		path: string
 	): void {
 		rawServer.on("upgrade", (request, socket, head) => {
 			if (request.url?.startsWith(path)) {

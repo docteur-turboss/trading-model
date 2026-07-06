@@ -1,12 +1,11 @@
 import type { Application } from "express";
-
+import { buildAddressManagerDependencies } from "./address-manager-factory";
+import type { TokenManager } from "./client/token-manager";
 import type { ServiceInstance } from "./client/type";
 import type { AddressManagerConfig } from "./config/address-manager-config";
-import { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
-import { LifecycleManager } from "./lifecycle-manager";
-import { MetricsCollector } from "./monitoring/metrics-collector";
-import { TokenManager } from "./client/token-manager";
-import { buildAddressManagerDependencies } from "./address-manager-factory";
+import type { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
+import type { LifecycleManager } from "./lifecycle-manager";
+import type { MetricsCollector } from "./monitoring/metrics-collector";
 
 export default class AddressManager {
 	private readonly _tokenManager: TokenManager;

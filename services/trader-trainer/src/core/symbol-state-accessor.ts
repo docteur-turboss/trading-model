@@ -1,16 +1,16 @@
+import type { MemoryManager } from "./market-data/memory-manager";
 import type { SymbolState, TradingSymbol } from "./market-data-types";
-import { MemoryManager } from "./market-data/memory-manager";
-import { NormalizationManager } from "./normalization-manager";
+import type { NormalizationManager } from "./normalization-manager";
 
 export class SymbolStateAccessor {
 	constructor(
 		private readonly _normManager: NormalizationManager,
-		private readonly _memoryManager: MemoryManager,
+		private readonly _memoryManager: MemoryManager
 	) {}
 
 	getOrCreate(
 		symbol: TradingSymbol,
-		states: Map<TradingSymbol, SymbolState>,
+		states: Map<TradingSymbol, SymbolState>
 	): SymbolState {
 		let state = states.get(symbol);
 		if (!state) {
@@ -23,7 +23,7 @@ export class SymbolStateAccessor {
 
 	getState(
 		symbol: TradingSymbol,
-		states: Map<TradingSymbol, SymbolState>,
+		states: Map<TradingSymbol, SymbolState>
 	): SymbolState {
 		return this.getOrCreate(symbol, states);
 	}

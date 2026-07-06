@@ -1,15 +1,15 @@
-import {
-	MarketDataBuffer,
-	type MarketDataBufferConfig,
-} from "./market-data-buffer";
-import { BufferSaver } from "./buffer-saver";
 import { BufferLoader } from "./buffer-loader";
+import { BufferSaver } from "./buffer-saver";
+import type {
+	MarketDataBuffer,
+	MarketDataBufferConfig,
+} from "./market-data-buffer";
 
 export class BufferCheckpointer {
 	private readonly _saver: BufferSaver;
 	private readonly _loader: BufferLoader;
 
-	constructor(private readonly _checkpointDir: string) {
+	constructor(readonly _checkpointDir: string) {
 		this._saver = new BufferSaver(_checkpointDir);
 		this._loader = new BufferLoader(_checkpointDir);
 	}

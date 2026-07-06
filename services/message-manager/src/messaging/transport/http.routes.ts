@@ -81,7 +81,10 @@ function registerSubscribeRoute(router: Router, dispatcher: Dispatcher): void {
 	);
 }
 
-function registerUnsubscribeRoute(router: Router, dispatcher: Dispatcher): void {
+function registerUnsubscribeRoute(
+	router: Router,
+	dispatcher: Dispatcher
+): void {
 	router.delete(
 		"/subscription",
 		WITH_TIMEOUT(SUBSCRIPTION_TIMEOUT_MS),

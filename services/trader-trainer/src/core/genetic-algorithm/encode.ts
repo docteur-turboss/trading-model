@@ -1,5 +1,3 @@
-import type { Genome } from "./genome-types";
-import { SCALAR_DIM, EncodingVector } from "./encoding-vector";
 import {
 	ACTIVATIONS,
 	CONNECTION_TYPES,
@@ -7,22 +5,25 @@ import {
 	LAYER_DIM,
 	MAX_DEPTH,
 	N_ACT,
-	N_CT,
 } from "./encoding-constants";
+import { EncodingVector, SCALAR_DIM } from "./encoding-vector";
+import type { Genome } from "./genome-types";
 
 function _encodeRLScalars(vec: EncodingVector, rl: Genome["rl"]): void {
 	vec.gamma = rl.gamma;
 	vec.learningRate = Math.log10(Math.max(1e-6, rl.learningRate)) / 6 + 1;
 	vec.clipMin = rl.rewardShaping.clipMin;
 	vec.clipMax = rl.rewardShaping.clipMax;
-	vec.scaleFactor = Math.log10(Math.max(0.001, rl.rewardShaping.scaleFactor)) / 3 + 1;
+	vec.scaleFactor =
+		Math.log10(Math.max(0.001, rl.rewardShaping.scaleFactor)) / 3 + 1;
 	vec.maxEpisodeLength = rl.horizon.maxEpisodeLength / 2_000;
 	vec.nStepReturn = rl.horizon.nStepReturn / 20;
 	vec.frameSkip = rl.horizon.frameSkip / 10;
 	vec.epsilonStart = rl.discretePolicy.epsilonStart;
 	vec.epsilonMin = rl.discretePolicy.epsilonMin / 0.2;
 	vec.epsilonDecay = rl.discretePolicy.epsilonDecay;
-	vec.temperature = Math.log10(Math.max(0.01, rl.discretePolicy.temperature)) / 2 + 0.5;
+	vec.temperature =
+		Math.log10(Math.max(0.01, rl.discretePolicy.temperature)) / 2 + 0.5;
 	vec.noiseStd = rl.continuousPolicy.noiseStd / 5;
 	vec.noiseDecay = rl.continuousPolicy.noiseDecay;
 	vec.bufferSize = Math.log10(Math.max(100, rl.replayBuffer.bufferSize)) / 6;
@@ -30,13 +31,20 @@ function _encodeRLScalars(vec: EncodingVector, rl: Genome["rl"]): void {
 	vec.betaPER = rl.replayBuffer.betaPER;
 }
 
-function _encodeMutationScalars(vec: EncodingVector, mutation: Genome["mutation"]): void {
+function _encodeMutationScalars(
+	vec: EncodingVector,
+	mutation: Genome["mutation"]
+): void {
 	vec.mutationRate = mutation.rate / 0.5;
 	vec.mutationSigma = Math.log10(Math.max(1e-5, mutation.sigma)) / 4 + 1.25;
-	vec.mutationSelfSigma = Math.log10(Math.max(1e-5, mutation.selfSigma)) / 4 + 1.25;
+	vec.mutationSelfSigma =
+		Math.log10(Math.max(1e-5, mutation.selfSigma)) / 4 + 1.25;
 }
 
-function _encodeNetworkScalars(vec: EncodingVector, net: Genome["network"]): void {
+function _encodeNetworkScalars(
+	vec: EncodingVector,
+	net: Genome["network"]
+): void {
 	vec.networkInputDim = net.inputDim / 256;
 	vec.networkOutputDim = net.outputDim / 64;
 	vec.networkDepth = net.hiddenLayers.length / MAX_DEPTH;
@@ -48,7 +56,11 @@ function _encodeScalars(vec: EncodingVector, genome: Genome): void {
 	_encodeNetworkScalars(vec, genome.network);
 }
 
-function _encodeSingleLayer(vec: EncodingVector, base: number, layer: Genome["network"]["hiddenLayers"][number]): void {
+function _encodeSingleLayer(
+	vec: EncodingVector,
+	base: number,
+	layer: Genome["network"]["hiddenLayers"][number]
+): void {
 	vec.data[base] = layer.neurons / 512;
 
 	const actIdx = ACTIVATIONS.indexOf(layer.activation);

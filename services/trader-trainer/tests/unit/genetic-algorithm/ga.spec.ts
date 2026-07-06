@@ -12,12 +12,12 @@ import { beforeEach, describe, expect, test } from "@jest/globals";
 import { crossoverGenomes } from "../../../src/core/genetic-algorithm/crossover";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import { computeFitness } from "../../../src/core/genetic-algorithm/fitness";
+import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
 import { mutateGenome } from "../../../src/core/genetic-algorithm/mutation";
 import {
 	repairGenome,
 	validateGenome,
 } from "../../../src/core/genetic-algorithm/validation";
-import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
 
 describe("Genetic Algorithm - Core Operators", () => {
 	let baseGenome: any;
@@ -150,7 +150,9 @@ describe("Genetic Algorithm - Core Operators", () => {
 			const negativeScores = [-100, -50, -30];
 
 			const fitness = computeFitness(FitnessType.TotalPnl, negativeScores);
-			expect(fitness).toBeLessThan(computeFitness(FitnessType.TotalPnl, scores));
+			expect(fitness).toBeLessThan(
+				computeFitness(FitnessType.TotalPnl, scores)
+			);
 		});
 
 		test("should reward higher Sharpe ratio", () => {

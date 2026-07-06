@@ -1,4 +1,4 @@
-import { HttpClient } from "../config/http-client";
+import type { HttpClient } from "../config/http-client";
 import type { SchedulerWsJobAssignedMessage } from "../contracts/worker-protocol.types";
 import { ActiveJobManager } from "./active-job-manager";
 import { JobHandlerRegistry } from "./job-handler-registry";
@@ -18,13 +18,13 @@ export class JobAssignmentHandler {
 			id: string;
 			type: string;
 			payload: TPayload;
-		}) => Promise<unknown>,
+		}) => Promise<unknown>
 	): void {
 		this._handlerRegistry.register(jobType, handler);
 	}
 
 	async onJobAssigned(
-		job: SchedulerWsJobAssignedMessage["job"],
+		job: SchedulerWsJobAssignedMessage["job"]
 	): Promise<void> {
 		if (this._drainRequested) {
 			await this._jobManager.failJob(job.id, "Worker is draining");
@@ -37,7 +37,7 @@ export class JobAssignmentHandler {
 			if (!handler) {
 				await this._jobManager.failJob(
 					job.id,
-					`No handler registered for job type: ${job.type}`,
+					`No handler registered for job type: ${job.type}`
 				);
 				return;
 			}

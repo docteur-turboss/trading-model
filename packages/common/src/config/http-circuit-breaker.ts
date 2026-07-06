@@ -52,15 +52,16 @@ export function recordServiceFailure(
 	instanceCount?: number
 ): void {
 	const cb = getServiceCircuit(serviceName);
-	const threshold = instanceCount !== undefined
-		? Math.max(2, instanceCount * 2)
-		: undefined;
+	const threshold =
+		instanceCount === undefined ? undefined : Math.max(2, instanceCount * 2);
 	cb.recordFailure(serviceName, 1, threshold);
 }
 
 export function isServiceCircuitOpen(serviceName: string): boolean {
 	const cb = SERVICE_CIRCUITS.get(serviceName);
-	if (!cb) return false;
+	if (!cb) {
+		return false;
+	}
 	const state = cb.check(serviceName);
 	return state === "open" || state === "half-open";
 }

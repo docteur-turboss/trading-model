@@ -1,6 +1,6 @@
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { HttpClient } from "@trading-model/common/config/http-client";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 
 export interface VaultTransitConfig {
 	vaultUrl: string;
@@ -50,12 +50,12 @@ export class VaultTransitHttp {
 
 	async postSign(
 		name: string,
-		payload: Record<string, unknown>,
+		payload: Record<string, unknown>
 	): Promise<{ data: { signature: string } }> {
 		const result = await this._httpClient.post<{ data: { signature: string } }>(
 			`${this._baseUrl}/v1/transit/sign/${encodeURIComponent(name)}`,
 			payload,
-			{ headers: this._getHeaders(), timeoutMs: this._timeoutMs },
+			{ headers: this._getHeaders(), timeoutMs: this._timeoutMs }
 		);
 		if (!result) {
 			throw new Error("Empty response from Vault Transit sign");
@@ -92,12 +92,17 @@ export class VaultTransitHttp {
 		return this._getLatestKeyVersion(name, result.data.keys);
 	}
 
-	private _getLatestKeyVersion(name: string, keys: Record<string, string>): string {
+	private _getLatestKeyVersion(
+		name: string,
+		keys: Record<string, string>
+	): string {
 		const versions = Object.keys(keys);
 		if (versions.length === 0) {
 			throw new Error(`Key "${name}" has no versions`);
 		}
-		const latestVersion = versions.sort((_prev, _next) => Number(_next) - Number(_prev))[0];
+		const latestVersion = versions.sort(
+			(_prev, _next) => Number(_next) - Number(_prev)
+		)[0];
 		return keys[latestVersion];
 	}
 

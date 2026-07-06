@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { RegistryBackend } from "@trading-model/common/contracts/service-registry.types";
-import type { HealthCheckCallbacks } from "./redis-health-monitor";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { HealthCheckCallbacks } from "./redis-health-monitor";
 
 export class FallbackManager {
 	private _fallbackActive = false;
@@ -13,7 +13,7 @@ export class FallbackManager {
 	constructor(
 		backend: RegistryBackend,
 		private readonly _restoreIntervalMs: number,
-		callbacks: HealthCheckCallbacks,
+		callbacks: HealthCheckCallbacks
 	) {
 		this._primaryBackend = backend;
 		this._currentBackend = backend;
@@ -30,7 +30,7 @@ export class FallbackManager {
 
 	setFallbackBackend(fallback: RegistryBackend): void {
 		logger.warn(
-			"FallbackManager.setFallbackBackend — swapping to fallback backend",
+			"FallbackManager.setFallbackBackend — swapping to fallback backend"
 		);
 		this._fallbackActive = true;
 		this._currentBackend = fallback;
@@ -45,7 +45,7 @@ export class FallbackManager {
 	startRestoreLoop(restoreFn: () => Promise<void>): void {
 		this._restoreHandle.startInterval(
 			() => restoreFn(),
-			this._restoreIntervalMs,
+			this._restoreIntervalMs
 		);
 	}
 
@@ -54,7 +54,9 @@ export class FallbackManager {
 	}
 
 	restoreOriginalBackend(): void {
-		if (!this._fallbackActive) return;
+		if (!this._fallbackActive) {
+			return;
+		}
 		this._currentBackend = this._primaryBackend;
 		this._fallbackActive = false;
 		this._callbacks.onFallbackRestored(this._currentBackend);

@@ -5,7 +5,8 @@ import "../config/env";
 
 const NULL_ADDRESS_MANAGER = { stop() {} };
 
-let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> = NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
+let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> =
+	NULL_ADDRESS_MANAGER as ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER>;
 
 createBootstrap({
 	name: "Message Manager",

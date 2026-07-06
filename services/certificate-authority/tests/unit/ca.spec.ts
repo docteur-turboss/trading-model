@@ -164,7 +164,7 @@ describe("CertificateAuthority", () => {
 				privateKey: "sk",
 			});
 
-			const ca = await createCa();
+			const _ca = await createCa();
 
 			expect(generateKeyPair).toHaveBeenCalled();
 			expect(MOCK_CA_STORE.save).toHaveBeenCalled();
@@ -196,7 +196,10 @@ describe("CertificateAuthority", () => {
 
 			const ca = await createCa();
 
-			const result = await ca.signServiceCertificate({ serviceId: "svc-1", csr: "csr-data" });
+			const result = await ca.signServiceCertificate({
+				serviceId: "svc-1",
+				csr: "csr-data",
+			});
 
 			expect(signCertificate).toHaveBeenCalled();
 			expect(MOCK_CERT_STORE.save).toHaveBeenCalled();

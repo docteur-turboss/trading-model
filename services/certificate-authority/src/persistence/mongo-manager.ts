@@ -30,10 +30,14 @@ let initialized = false;
  * Call once at service startup (from CA bootstrap).
  */
 function _resolvePoolSize(poolSizeParam?: number): number {
-	return poolSizeParam ?? Number.parseInt(process.env.MONGO_POOL_SIZE ?? "50", 10);
+	return (
+		poolSizeParam ?? Number.parseInt(process.env.MONGO_POOL_SIZE ?? "50", 10)
+	);
 }
 
-function _createPoolOptions(poolSize: number): import("mongodb").MongoClientOptions {
+function _createPoolOptions(
+	poolSize: number
+): import("mongodb").MongoClientOptions {
 	return {
 		maxPoolSize: poolSize,
 		minPoolSize: Math.max(2, Math.floor(poolSize / 5)),
@@ -57,7 +61,9 @@ async function initialize(
 	await client.connect();
 	db = client.db();
 	initialized = true;
-	logger.info("MONGO_MANAGER initialized", { context: { poolSize, database: db.databaseName } });
+	logger.info("MONGO_MANAGER initialized", {
+		context: { poolSize, database: db.databaseName },
+	});
 }
 
 /** Returns the shared MongoClient instance. */
@@ -95,8 +101,14 @@ function isInitialized(): boolean {
  * Called by persistence stores when an operation fails.
  */
 async function _closeAndReset(): Promise<void> {
-	if (!client) return;
-	try { await client.close(); } catch { /* ignore */ }
+	if (!client) {
+		return;
+	}
+	try {
+		await client.close();
+	} catch {
+		/* ignore */
+	}
 	client = null;
 	db = null;
 	initialized = false;

@@ -1,13 +1,13 @@
 import { Price } from "../domain/primitives";
 import type { CandleData, OrderBookData, TradeData } from "./event.types";
-import { TradeSide, getAvgBid, getAvgAsk, getBidTotalQty, getAskTotalQty } from "./event.types";
+import { getAvgAsk, getAvgBid, TradeSide } from "./event.types";
 
 export function getSpread(ob: OrderBookData): Price {
-	return Price.of(+getAvgAsk(ob) - +getAvgBid(ob));
+	return Price.of(Number(getAvgAsk(ob)) - Number(getAvgBid(ob)));
 }
 
 export function getMidPrice(ob: OrderBookData): Price {
-	return Price.of((+getAvgBid(ob) + +getAvgAsk(ob)) / 2);
+	return Price.of((Number(getAvgBid(ob)) + Number(getAvgAsk(ob))) / 2);
 }
 
 export function isBullish(candle: CandleData): boolean {
@@ -15,7 +15,7 @@ export function isBullish(candle: CandleData): boolean {
 }
 
 export function getCandleBodySize(candle: CandleData): Price {
-	return Price.of(Math.abs(+candle.close - +candle.open));
+	return Price.of(Math.abs(Number(candle.close) - Number(candle.open)));
 }
 
 export function isBuyTrade(trade: TradeData): boolean {

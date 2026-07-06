@@ -27,7 +27,6 @@ export class NullCaWssTransport {
 }
 
 export class CaWssTransport {
-	private _destroyed = false;
 	private readonly _connection: WssTransportConnection;
 	private readonly _pendingManager = new PendingRequestManager();
 	private readonly _authHandler = new AuthHandler();

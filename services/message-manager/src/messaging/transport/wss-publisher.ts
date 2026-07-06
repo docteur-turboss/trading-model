@@ -4,9 +4,9 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import type WebSocket from "ws";
 import { logger } from "../../config/logger";
 import type { Dispatcher } from "../core/dispatcher";
+import { PublishGuard } from "./publish-guard";
 import type { IncomingWssMessage } from "./wss-message.types";
 import type { WssRateLimiter } from "./wss-rate-limiter";
-import { PublishGuard } from "./publish-guard";
 
 export class WssPublisher {
 	private _dispatcher: Dispatcher;
@@ -51,14 +51,19 @@ export class WssPublisher {
 			const messageId = await publishPromise;
 			ws.send(JSON.stringify({ type: "published", messageId }));
 		} catch (err) {
-			logger.warn("WSS publish error", { context: { error: (err as Error).message } });
+			logger.warn("WSS publish error", {
+				context: { error: (err as Error).message },
+			});
 			ws.send(JSON.stringify({ type: "error", message: "Publish failed" }));
 		}
 	}
 
 	private _buildPublishPromise(msg: IncomingWssMessage): Promise<string> {
 		const traceparent = msg.traceparent as string | undefined;
-		const metadata = msg.metadata as Omit<MessageMetadata, "messageId" | "emittedAt">;
+		const metadata = msg.metadata as Omit<
+			MessageMetadata,
+			"messageId" | "emittedAt"
+		>;
 		if (traceparent) {
 			const carrier = { traceparent };
 			const extractedCtx = propagation.extract(context.active(), carrier);

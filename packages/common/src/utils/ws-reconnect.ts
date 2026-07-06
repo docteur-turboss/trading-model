@@ -1,6 +1,6 @@
 import {
-	computeExponentialBackoff,
 	type BackoffConfig,
+	computeExponentialBackoff,
 } from "./backoff-config";
 
 export interface WsReconnectConfig extends BackoffConfig {
@@ -37,7 +37,7 @@ export interface WsReconnectOptions {
 function _checkMaxAttempts(
 	state: WsReconnectState,
 	config: WsReconnectConfig,
-	logger: WsReconnectOptions["logger"],
+	logger: WsReconnectOptions["logger"]
 ): boolean {
 	const maxAttempts = config.maxAttempts;
 	if (maxAttempts !== undefined && state.attempt >= maxAttempts) {
@@ -54,13 +54,13 @@ function _scheduleWithDelay(
 	config: WsReconnectConfig,
 	onReconnect: () => void,
 	onSchedule: WsReconnectOptions["onSchedule"],
-	logger: WsReconnectOptions["logger"],
+	logger: WsReconnectOptions["logger"]
 ): void {
 	state.attempt++;
 	const delay = calculateDelay(config, state.attempt);
 	onSchedule?.({ attempt: state.attempt, delay });
 	logger.info(
-		`WebSocket reconnecting in ${Math.round(delay)}ms (attempt ${state.attempt})`,
+		`WebSocket reconnecting in ${Math.round(delay)}ms (attempt ${state.attempt})`
 	);
 	state.timer = setTimeout(() => {
 		state.timer = null;
@@ -71,8 +71,12 @@ function _scheduleWithDelay(
 
 export function scheduleWsReconnect(options: WsReconnectOptions): void {
 	const { state, config, onReconnect, onSchedule, logger } = options;
-	if (state.destroyed) return;
-	if (_checkMaxAttempts(state, config, logger)) return;
+	if (state.destroyed) {
+		return;
+	}
+	if (_checkMaxAttempts(state, config, logger)) {
+		return;
+	}
 
 	if (state.timer) {
 		clearTimeout(state.timer);

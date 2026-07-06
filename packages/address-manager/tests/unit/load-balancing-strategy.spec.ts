@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import {
 	createLoadBalancer,
@@ -6,7 +7,6 @@ import {
 	RandomStrategy,
 	RoundRobinStrategy,
 } from "../../src/discovery/load-balancing-strategy";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {

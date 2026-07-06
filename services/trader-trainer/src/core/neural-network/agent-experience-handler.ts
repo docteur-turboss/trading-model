@@ -1,13 +1,12 @@
 import { agentError } from "@trading-model/common/utils/errors";
-
-import { NeuralNetwork } from "./neural-network";
+import { createExperiencePool, type IExperiencePool } from "./experience-pool";
+import type { NeuralNetwork } from "./neural-network";
+import { computeQLearningTarget } from "./q-value-computer";
 import type {
 	Experience,
 	NetworkArchitecture,
 	QLearningExperience,
 } from "./type";
-import { createExperiencePool, type IExperiencePool } from "./experience-pool";
-import { computeQLearningTarget } from "./q-value-computer";
 
 export class AgentExperienceHandler {
 	private readonly _pool: IExperiencePool;
@@ -26,7 +25,14 @@ export class AgentExperienceHandler {
 		done?: boolean
 	): Experience {
 		return reward !== undefined && nextState !== undefined
-			? { kind: "qlearning", input, output: output.slice(), reward, nextState, done: done ?? false }
+			? {
+					kind: "qlearning",
+					input,
+					output: output.slice(),
+					reward,
+					nextState,
+					done: done ?? false,
+				}
 			: { kind: "bare", input, output: output.slice() };
 	}
 
@@ -37,7 +43,9 @@ export class AgentExperienceHandler {
 		nextState?: Float32Array,
 		done?: boolean
 	): void {
-		this._pool.add(this._buildExperience(input, output, reward, nextState, done));
+		this._pool.add(
+			this._buildExperience(input, output, reward, nextState, done)
+		);
 	}
 
 	getPool(): Experience[] {
@@ -63,7 +71,10 @@ export class AgentExperienceHandler {
 	learnFromPool(nn: NeuralNetwork): void {
 		for (const exp of this._pool.values()) {
 			if (exp.kind === "supervised") {
-				nn.train(exp.input, (exp as import("./type").SupervisedExperience).target);
+				nn.train(
+					exp.input,
+					(exp as import("./type").SupervisedExperience).target
+				);
 			}
 		}
 		this._pool.clearPool();
@@ -72,10 +83,14 @@ export class AgentExperienceHandler {
 	learnQLearning(nn: NeuralNetwork, exp: Experience, gamma = 0.99): void {
 		if (exp.kind !== "qlearning") {
 			throw agentError(
-				"Q-learning requires `reward` and `nextState` in the experience.",
+				"Q-learning requires `reward` and `nextState` in the experience."
 			);
 		}
-		const target = computeQLearningTarget(nn, exp as QLearningExperience, gamma);
+		const target = computeQLearningTarget(
+			nn,
+			exp as QLearningExperience,
+			gamma
+		);
 		nn.train(exp.input, target);
 		this._pool.remove(exp.input);
 	}

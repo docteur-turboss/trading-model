@@ -1,4 +1,4 @@
-import https from "node:https";
+import type https from "node:https";
 
 type HttpMethod = "GET" | "POST" | "DELETE";
 

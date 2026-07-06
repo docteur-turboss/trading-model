@@ -61,7 +61,9 @@ export class ResponseCache implements ICache<ResponseCacheEntry> {
 	}
 
 	has(key: string): boolean {
-		return this._store.has(key) && Date.now() <= this._store.get(key)!.expiresAt;
+		return (
+			this._store.has(key) && Date.now() <= this._store.get(key)!.expiresAt
+		);
 	}
 
 	get size(): number {

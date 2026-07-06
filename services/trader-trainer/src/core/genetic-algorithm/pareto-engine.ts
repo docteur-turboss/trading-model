@@ -59,9 +59,10 @@ function _comparePair(
 	}
 }
 
-function buildDominationMatrix(
-	objectives: ObjectiveVector[]
-): { dominated: Int32Array; dominates: number[][] } {
+function buildDominationMatrix(objectives: ObjectiveVector[]): {
+	dominated: Int32Array;
+	dominates: number[][];
+} {
 	const length = objectives.length;
 	const dominated = new Int32Array(length);
 	const dominates = Array.from({ length }, () => [] as number[]);
@@ -77,16 +78,17 @@ function buildDominationMatrix(
 	return { dominated, dominates };
 }
 
-function _findInitialFront(
-	dominated: Int32Array,
-	length: number
-): number[] {
+function _findInitialFront(dominated: Int32Array, length: number): number[] {
 	return Array.from({ length }, (_unused, index) => index).filter(
 		(idx) => dominated[idx] === 0
 	);
 }
 
-function _buildNextFront(current: number[], dominates: number[][], dominated: Int32Array): number[] {
+function _buildNextFront(
+	current: number[],
+	dominates: number[][],
+	dominated: Int32Array
+): number[] {
 	const next: number[] = [];
 	for (const i of current) {
 		for (const j of dominates[i]) {
@@ -191,15 +193,20 @@ function _computeCrowdingForObjective(
 	crowding: number[],
 	indices: number[]
 ): void {
-	const sorted = [...indices].sort((left, right) => objectives[left][key] - objectives[right][key]);
+	const sorted = [...indices].sort(
+		(left, right) => objectives[left][key] - objectives[right][key]
+	);
 	crowding[sorted[0]] = Number.POSITIVE_INFINITY;
 	crowding[sorted[sorted.length - 1]] = Number.POSITIVE_INFINITY;
-	const range = objectives[sorted[sorted.length - 1]][key] - objectives[sorted[0]][key];
+	const range =
+		objectives[sorted[sorted.length - 1]][key] - objectives[sorted[0]][key];
 	if (range === 0) {
 		return;
 	}
 	for (let mid = 1; mid < sorted.length - 1; mid++) {
-		crowding[sorted[mid]] += (objectives[sorted[mid + 1]][key] - objectives[sorted[mid - 1]][key]) / range;
+		crowding[sorted[mid]] +=
+			(objectives[sorted[mid + 1]][key] - objectives[sorted[mid - 1]][key]) /
+			range;
 	}
 }
 
@@ -215,7 +222,11 @@ function assignCrowding(
 	for (const idx of indices) {
 		crowding[idx] = 0;
 	}
-	for (const key of ["avgPnl", "sharpe", "negFlops"] as (keyof ObjectiveVector)[]) {
+	for (const key of [
+		"avgPnl",
+		"sharpe",
+		"negFlops",
+	] as (keyof ObjectiveVector)[]) {
 		_computeCrowdingForObjective(key, objectives, crowding, indices);
 	}
 }
@@ -250,7 +261,11 @@ export function buildPopulationMeta(
 	const crowdingDist = new Array<number>(count).fill(0);
 
 	for (let rankIdx = 0; rankIdx <= Math.max(...paretoRank); rankIdx++) {
-		assignCrowding(_collectFront(paretoRank, rankIdx), objectives, crowdingDist);
+		assignCrowding(
+			_collectFront(paretoRank, rankIdx),
+			objectives,
+			crowdingDist
+		);
 	}
 
 	return { objectives, paretoRank, crowdingDist };

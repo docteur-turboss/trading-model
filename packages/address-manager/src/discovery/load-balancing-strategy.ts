@@ -1,5 +1,5 @@
-import type { ServiceInstance } from "../client/type";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { ServiceInstance } from "../client/type";
 
 export interface LoadBalancingStrategy {
 	select(instances: ServiceInstance[]): ServiceInstance;
@@ -97,14 +97,22 @@ export class LeastConnectionsStrategy implements ConnectionCountingStrategy {
 	}
 }
 
-export type LoadBalancingStrategyType = "random" | "round-robin" | "least-connections";
+export type LoadBalancingStrategyType =
+	| "random"
+	| "round-robin"
+	| "least-connections";
 
-const LOAD_BALANCER_REGISTRY: Record<LoadBalancingStrategyType, LoadBalancingStrategy> = {
+const LOAD_BALANCER_REGISTRY: Record<
+	LoadBalancingStrategyType,
+	LoadBalancingStrategy
+> = {
 	random: new RandomStrategy(),
 	"round-robin": new RoundRobinStrategy(),
 	"least-connections": new LeastConnectionsStrategy(),
 };
 
-export function createLoadBalancer(strategy: LoadBalancingStrategyType): LoadBalancingStrategy {
+export function createLoadBalancer(
+	strategy: LoadBalancingStrategyType
+): LoadBalancingStrategy {
 	return LOAD_BALANCER_REGISTRY[strategy] ?? new RoundRobinStrategy();
 }

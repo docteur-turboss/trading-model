@@ -1,5 +1,4 @@
-import { EventEmitter } from "events";
-
+import { EventEmitter } from "node:events";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { WsAuthSender } from "./ws-auth-sender";
 import { WsConnectionManager } from "./ws-connection-manager";
@@ -33,7 +32,11 @@ export class WssTransportConnection {
 	}
 
 	connect(): void {
-		if (this._reconnectHandler.isDestroyed || this._state === "connected" || this._state === "connecting") {
+		if (
+			this._reconnectHandler.isDestroyed ||
+			this._state === "connected" ||
+			this._state === "connecting"
+		) {
 			return;
 		}
 		this._connectWs();
@@ -70,14 +73,18 @@ export class WssTransportConnection {
 				this._emitter.emit("close");
 			},
 			(err) => {
-				if (!this._connectionManager.ws || this._connectionManager.ws.readyState !== this._connectionManager.ws.OPEN) {
+				if (
+					!this._connectionManager.ws ||
+					this._connectionManager.ws.readyState !==
+						this._connectionManager.ws.OPEN
+				) {
 					this._scheduleReconnect();
 				}
 				this._emitter.emit("error", err);
 			},
 			() => {
 				this._scheduleReconnect();
-			},
+			}
 		);
 	}
 

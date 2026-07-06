@@ -1,5 +1,5 @@
 import type https from "node:https";
-import WebSocket, { WebSocketServer } from "ws";
+import { WebSocketServer } from "ws";
 import { ClientConnectionManager } from "./client-connection-manager";
 import { WsProtocolHandler } from "./ws-protocol-handler";
 

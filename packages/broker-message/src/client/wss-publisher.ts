@@ -1,13 +1,12 @@
 import { context, propagation } from "@opentelemetry/api";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import type { PendingPublishQueue } from "./pending-publish-queue";
 import type { WssConnectionOrchestrator } from "./wss-connection-orchestrator";
-import { PendingPublishQueue } from "./pending-publish-queue";
 
 export class WssPublisher {
-
 	constructor(
 		private readonly _orchestrator: WssConnectionOrchestrator,
-		private readonly _queue: PendingPublishQueue,
+		private readonly _queue: PendingPublishQueue
 	) {}
 
 	get httpFallback():

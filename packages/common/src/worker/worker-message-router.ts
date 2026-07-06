@@ -1,4 +1,4 @@
-import { EventEmitter } from "node:events";
+import type { EventEmitter } from "node:events";
 
 import type {
 	SchedulerOutgoingMessage,
@@ -18,14 +18,17 @@ export class WorkerMessageRouter {
 			"job.assigned": (msg) =>
 				emitter.emit(
 					"job.assigned",
-					(msg as unknown as SchedulerWsJobAssignedMessage).job,
+					(msg as unknown as SchedulerWsJobAssignedMessage).job
 				),
 			"heartbeat.ack": () => emitter.emit("heartbeat.ack"),
 			drain: () => emitter.emit("drain"),
 		};
 	}
 
-	handle(message: Record<string, unknown>, onUnknown: (msg: Record<string, unknown>) => void): void {
+	handle(
+		message: Record<string, unknown>,
+		onUnknown: (msg: Record<string, unknown>) => void
+	): void {
 		const handler =
 			this._handlers[message.type as SchedulerOutgoingMessage["type"]];
 		if (handler) {

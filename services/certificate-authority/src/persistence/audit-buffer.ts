@@ -50,9 +50,13 @@ export class AuditBuffer {
 		this._pendingEntries.unshift(...entries);
 		if (this._pendingEntries.length > this._maxBuffer) {
 			const dropped = this._pendingEntries.splice(this._maxBuffer);
-			logger.warn("AuditStore: flush failed, dropped entries", { context: { count: dropped.length, err } });
+			logger.warn("AuditStore: flush failed, dropped entries", {
+				context: { count: dropped.length, err },
+			});
 		} else {
-			logger.error("AuditStore: flush failed, entries re-buffered", { context: { count: entries.length, err } });
+			logger.error("AuditStore: flush failed, entries re-buffered", {
+				context: { count: entries.length, err },
+			});
 		}
 	}
 }

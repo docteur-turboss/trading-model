@@ -20,7 +20,7 @@ export class RegistrationAttemptHandler {
 		private readonly _tokenManager: TokenManager,
 		private readonly _wsClient?: WebSocketClient,
 		private readonly _onSuccess?: () => void,
-		private readonly _onFailure?: () => void,
+		private readonly _onFailure?: () => void
 	) {}
 
 	get shouldRetry(): boolean {
@@ -49,7 +49,10 @@ export class RegistrationAttemptHandler {
 			if (attempt < RETRY_CONFIG.maxRetries) {
 				await Promise.race([
 					new Promise<void>((resolve) =>
-						setTimeout(resolve, this._retryScheduler.computeJitteredDelay(attempt)),
+						setTimeout(
+							resolve,
+							this._retryScheduler.computeJitteredDelay(attempt)
+						)
 					),
 					this._retryScheduler.createStopWait(),
 				]);

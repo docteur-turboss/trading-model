@@ -1,9 +1,9 @@
 import { logger } from "../../config/logger";
-import type { MongoClient, ArchiveEntry } from "./mongo-archive-batch";
+import type { ArchiveEntry, MongoClient } from "./mongo-archive-batch";
 
-const _MAX_BATCH_SIZE = 1000;
-const _MAX_RETRIES = 3;
-const _RETRY_DELAY_MS = 1000;
+const MaxBatchSize = 1000;
+const MaxRetries = 3;
+const RetryDelayMs = 1000;
 
 export class MongoBatchWriter {
 	constructor(
@@ -18,8 +18,8 @@ export class MongoBatchWriter {
 		return this._client
 			.db(this._dbName)
 			.collection(this._collectionName) as ReturnType<
-				ReturnType<MongoClient["db"]>["collection"]
-			>;
+			ReturnType<MongoClient["db"]>["collection"]
+		>;
 	}
 
 	async insertBatch(docs: unknown[]): Promise<void> {
@@ -39,10 +39,7 @@ export class MongoBatchWriter {
 		}
 	}
 
-	private _handleInsertError(
-		err: unknown,
-		attempt: number
-	): void {
+	private _handleInsertError(err: unknown, attempt: number): void {
 		logger.warn("MongoDB insert failed", {
 			context: {
 				error: (err as Error).message,
@@ -55,7 +52,7 @@ export class MongoBatchWriter {
 		const col = this._getCollection();
 		let lastError: Error | null = null;
 
-		for (let attempt = 0; attempt < _MAX_RETRIES; attempt++) {
+		for (let attempt = 0; attempt < MaxRetries; attempt++) {
 			try {
 				await col.bulkWrite(bulkOps);
 				return;
@@ -65,13 +62,11 @@ export class MongoBatchWriter {
 					context: {
 						error: lastError.message,
 						attempt: attempt + 1,
-						maxRetries: _MAX_RETRIES,
+						maxRetries: MaxRetries,
 					},
 				});
-				if (attempt < _MAX_RETRIES - 1) {
-					await new Promise((resolve) =>
-						setTimeout(resolve, _RETRY_DELAY_MS)
-					);
+				if (attempt < MaxRetries - 1) {
+					await new Promise((resolve) => setTimeout(resolve, RetryDelayMs));
 				}
 			}
 		}
@@ -80,8 +75,8 @@ export class MongoBatchWriter {
 	}
 
 	async archiveToMongo(entries: ArchiveEntry[]): Promise<void> {
-		for (let i = 0; i < entries.length; i += _MAX_BATCH_SIZE) {
-			const batch = entries.slice(i, i + _MAX_BATCH_SIZE);
+		for (let i = 0; i < entries.length; i += MaxBatchSize) {
+			const batch = entries.slice(i, i + MaxBatchSize);
 			const bulkOps = buildBulkUpserts(batch);
 			if (bulkOps.length > 0) {
 				await this.bulkWriteWithRetry(bulkOps);

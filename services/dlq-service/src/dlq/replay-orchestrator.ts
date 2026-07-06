@@ -11,14 +11,10 @@ import { env } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqClaimManager } from "./claim-manager";
+import { type DlqEntryRef, type DlqError, doReplayBatch } from "./replay-batch";
 import { dlqRetryManager } from "./retry-manager";
-import {
-	type DlqEntryRef,
-	type DlqError,
-	doReplayBatch,
-} from "./replay-batch";
-import type { ClaimAndReplayOptions } from "./types";
 import { resolveMessageManagerUrl } from "./shared/index";
+import type { ClaimAndReplayOptions } from "./types";
 
 const ReplaySchema = z.object({
 	topic: z.string().optional(),

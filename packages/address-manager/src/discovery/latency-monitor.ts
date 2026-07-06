@@ -14,7 +14,7 @@ export class LatencyMonitor {
 
 	constructor(
 		windowSize = DEFAULT_LATENCY_WINDOW_SIZE,
-		p99ThresholdMs = DEFAULT_LATENCY_P99_THRESHOLD_MS,
+		p99ThresholdMs = DEFAULT_LATENCY_P99_THRESHOLD_MS
 	) {
 		this._windowSize = windowSize;
 		this._p99ThresholdMs = p99ThresholdMs;

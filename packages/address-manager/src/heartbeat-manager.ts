@@ -4,8 +4,8 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
 import type { WebSocketClient } from "./client/websocket-client";
-import type { AddressManagerDeps } from "./types";
 import { HeartbeatFailureHandler } from "./heartbeat-failure-handler";
+import type { AddressManagerDeps } from "./types";
 
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = 3;
 
@@ -27,22 +27,18 @@ export class HeartbeatManager {
 		this._failureHandler = new HeartbeatFailureHandler(
 			this._addressManagerClient,
 			this._tokenManager,
-			this._wsClient,
+			this._wsClient
 		);
 	}
 
-	async performHeartbeat(
-		identity: ServiceIdentity,
-	): Promise<void> {
+	async performHeartbeat(identity: ServiceIdentity): Promise<void> {
 		if (this._heartbeatViaWs(identity)) {
 			return;
 		}
 		await this._heartbeatViaHttp();
 	}
 
-	private _heartbeatViaWs(
-		identity: ServiceIdentity,
-	): boolean {
+	private _heartbeatViaWs(identity: ServiceIdentity): boolean {
 		if (this._wsClient?.isConnected) {
 			const sent = this._wsClient.sendHeartbeat(identity);
 			if (sent) {
@@ -66,9 +62,16 @@ export class HeartbeatManager {
 			consecutiveFailures: this._consecutiveHeartbeatFailures,
 			error: normalizeError(err),
 		});
-		if (this._consecutiveHeartbeatFailures >= MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER) {
+		if (
+			this._consecutiveHeartbeatFailures >=
+			MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
+		) {
 			this._consecutiveHeartbeatFailures = 0;
-			await this._failureHandler.handleError(err, this._onSuccess, this._onFailure);
+			await this._failureHandler.handleError(
+				err,
+				this._onSuccess,
+				this._onFailure
+			);
 		}
 		await this._heartbeatViaHttpAfterFailure();
 	}

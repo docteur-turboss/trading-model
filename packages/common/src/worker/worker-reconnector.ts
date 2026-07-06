@@ -1,8 +1,8 @@
 import { logger } from "../config/logger";
 import { normalizeError } from "../utils/errors";
 import {
-	type WsReconnectConfig,
 	scheduleWsReconnect,
+	type WsReconnectConfig,
 } from "../utils/ws-reconnect";
 import { ReconnectStateManager } from "./reconnect-state-manager";
 
@@ -23,7 +23,7 @@ export class WorkerReconnector {
 	constructor(
 		config: WorkerReconnectorConfig,
 		onReconnect: () => Promise<void>,
-		emitReconnecting: (info: { attempt: number; delay: number }) => void,
+		emitReconnecting: (info: { attempt: number; delay: number }) => void
 	) {
 		this._config = {
 			baseDelayMs: config.reconnectBaseDelayMs,
@@ -104,7 +104,7 @@ export class WorkerReconnector {
 					attempt: this._stateManager.attempt,
 					err: normalizeError(err),
 				},
-			}),
+			})
 		);
 	}
 }

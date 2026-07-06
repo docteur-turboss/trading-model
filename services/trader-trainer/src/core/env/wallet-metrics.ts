@@ -1,4 +1,9 @@
-import { Cash, Percentage, Price, Volume } from "@trading-model/common/domain/primitives";
+import {
+	Cash,
+	Percentage,
+	type Price,
+	type Volume,
+} from "@trading-model/common/domain/primitives";
 
 export interface WalletMetrics {
 	pnl: Cash;
@@ -26,26 +31,44 @@ export interface ComputeWalletMetricsParams {
 }
 
 function _computeValuation(params: ComputeWalletMetricsParams): Cash {
-	return Cash.of(round(+params.cash + params.position * +params.price, params.decimals));
-}
-
-function _computePnL(valuation: Cash, params: ComputeWalletMetricsParams): Cash {
-	return Cash.of(round(+valuation - +params.initialCash, params.decimals));
-}
-
-function _computeReturnRate(valuation: Cash, params: ComputeWalletMetricsParams): Percentage {
-	return Percentage.of(
+	return Cash.of(
 		round(
-			(+valuation - +params.initialCash) / +params.initialCash,
+			Number(params.cash) + params.position * Number(params.price),
 			params.decimals
 		)
 	);
 }
 
-function _computeDrawdown(valuation: Cash, params: ComputeWalletMetricsParams): number {
-	return +params.peakValuation > 0
+function _computePnL(
+	valuation: Cash,
+	params: ComputeWalletMetricsParams
+): Cash {
+	return Cash.of(
+		round(Number(valuation) - Number(params.initialCash), params.decimals)
+	);
+}
+
+function _computeReturnRate(
+	valuation: Cash,
+	params: ComputeWalletMetricsParams
+): Percentage {
+	return Percentage.of(
+		round(
+			(Number(valuation) - Number(params.initialCash)) /
+				Number(params.initialCash),
+			params.decimals
+		)
+	);
+}
+
+function _computeDrawdown(
+	valuation: Cash,
+	params: ComputeWalletMetricsParams
+): number {
+	return Number(params.peakValuation) > 0
 		? round(
-				(+params.peakValuation - +valuation) / +params.peakValuation,
+				(Number(params.peakValuation) - Number(valuation)) /
+					Number(params.peakValuation),
 				params.decimals
 			)
 		: 0;

@@ -14,6 +14,7 @@ import {
 	TextField,
 	Typography,
 } from "@mui/material";
+import { CandleInterval } from "@trading-model/common/config/event.types";
 import { useState } from "react";
 import {
 	Area,
@@ -23,8 +24,6 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-
-import { CandleInterval } from "@trading-model/common/config/event.types";
 
 import { API_CLIENT } from "../api/api-client";
 import type { Column } from "../components/data-table";
@@ -379,7 +378,9 @@ function CandleDataTable({
 
 export function MarketData() {
 	const [symbol, setSymbol] = useState("BTCUSDT");
-	const [candleInterval, setCandleInterval] = useState<CandleInterval>(CandleInterval.H1);
+	const [candleInterval, setCandleInterval] = useState<CandleInterval>(
+		CandleInterval.H1
+	);
 	const [tab, setTab] = useState(0);
 	const { data: candles, loading } = useApi(
 		() => API_CLIENT.getCandles(symbol, candleInterval),

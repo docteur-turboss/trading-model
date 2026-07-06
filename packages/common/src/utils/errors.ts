@@ -28,7 +28,10 @@ export class AppError extends Error {
 	public readonly reason?: string;
 	public readonly code: string;
 
-	constructor(message: string, options?: { cause?: unknown; reason?: string; code?: string }) {
+	constructor(
+		message: string,
+		options?: { cause?: unknown; reason?: string; code?: string }
+	) {
 		super(message);
 		this.name = "AppError";
 		this.code = options?.code ?? "AppError";
@@ -38,12 +41,15 @@ export class AppError extends Error {
 }
 
 function makeErrorCode(code: string) {
-	return (message: string, options?: { cause?: unknown; reason?: string }): AppError =>
-		new AppError(message, { ...options, code });
+	return (
+		message: string,
+		options?: { cause?: unknown; reason?: string }
+	): AppError => new AppError(message, { ...options, code });
 }
 
 function makeGuard(code: string) {
-	return (err: unknown): err is AppError => err instanceof AppError && err.code === code;
+	return (err: unknown): err is AppError =>
+		err instanceof AppError && err.code === code;
 }
 
 export const serviceNotFoundError = makeErrorCode("ServiceNotFoundError");

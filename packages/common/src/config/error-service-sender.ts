@@ -25,19 +25,16 @@ export class ErrorServiceSender {
 		} catch (err) {
 			console.error(
 				"Failed to send log to service:",
-				normalizeError(err).message,
+				normalizeError(err).message
 			);
 		}
 	}
 
 	private async _postEntry(entry: LogEntry): Promise<void> {
-		await fetch(
-			process.env.ERROR_URL_WEBHOOK ?? "/",
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: this._sanitizer.safeStringify(entry),
-			},
-		);
+		await fetch(process.env.ERROR_URL_WEBHOOK ?? "/", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: this._sanitizer.safeStringify(entry),
+		});
 	}
 }

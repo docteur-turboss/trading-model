@@ -3,10 +3,10 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
-import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { toInstanceId } from "@trading-model/common/domain/primitives";
+import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
+import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 
 export class CachedRegistryBackendProxy {
 	constructor(private readonly _backend: RegistryBackend) {}
@@ -16,12 +16,16 @@ export class CachedRegistryBackendProxy {
 	}
 
 	async getInstanceCount(serviceName: string): Promise<number> {
-		const instances = await this._backend.getInstances(serviceName as ServiceInstanceName);
+		const instances = await this._backend.getInstances(
+			serviceName as ServiceInstanceName
+		);
 		return instances.length;
 	}
 
 	async getServiceVersion(serviceName: string): Promise<number> {
-		const instances = await this._backend.getInstances(serviceName as ServiceInstanceName);
+		const instances = await this._backend.getInstances(
+			serviceName as ServiceInstanceName
+		);
 		return instances.reduce((max, inst) => {
 			const major = Number.parseInt((inst.version ?? "").split(".")[0], 10);
 			return Number.isNaN(major) ? max : Math.max(max, major);

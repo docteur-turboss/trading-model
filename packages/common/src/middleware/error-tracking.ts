@@ -52,12 +52,15 @@ export function configureErrorTracking(opts: ErrorTrackingConfig): void {
 	}
 }
 
-function _buildConfig(opts: ErrorTrackingConfig): Required<ErrorTrackingConfig> {
+function _buildConfig(
+	opts: ErrorTrackingConfig
+): Required<ErrorTrackingConfig> {
 	return {
 		endpoint: opts.endpoint ?? process.env.ERROR_URL_WEBHOOK ?? "",
 		serviceName: opts.serviceName ?? process.env.APP_NAME ?? "unknown",
 		serviceVersion: opts.serviceVersion ?? process.env.APP_VERSION ?? "0.0.0",
-		instanceId: opts.instanceId ?? (process.env.INSTANCE_ID ?? "unknown") as InstanceId,
+		instanceId:
+			opts.instanceId ?? ((process.env.INSTANCE_ID ?? "unknown") as InstanceId),
 		flushIntervalMs: opts.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS,
 		batchSize: opts.batchSize ?? DEFAULT_BATCH_SIZE,
 	};
@@ -93,12 +96,16 @@ async function flush(): Promise<void> {
 	} catch (err) {
 		console.error(
 			"[ErrorTracking] Failed to flush error reports:",
-			normalizeError(err).message,
+			normalizeError(err).message
 		);
 	}
 }
 
-function _buildErrorReport(err: unknown, req: Request, statusCode: number): ErrorReport {
+function _buildErrorReport(
+	err: unknown,
+	req: Request,
+	statusCode: number
+): ErrorReport {
 	const normalized = normalizeError(err);
 	return {
 		message: normalized.message,
@@ -106,7 +113,8 @@ function _buildErrorReport(err: unknown, req: Request, statusCode: number): Erro
 		url: req.originalUrl ?? req.url,
 		method: req.method,
 		statusCode,
-		correlationId: (req as unknown as { correlationId?: string }).correlationId ?? "",
+		correlationId:
+			(req as unknown as { correlationId?: string }).correlationId ?? "",
 		timestamp: new Date().toISOString(),
 		serviceName: config.serviceName,
 		serviceVersion: config.serviceVersion,
@@ -114,7 +122,11 @@ function _buildErrorReport(err: unknown, req: Request, statusCode: number): Erro
 	};
 }
 
-export function reportError(err: unknown, req: Request, statusCode: number): void {
+export function reportError(
+	err: unknown,
+	req: Request,
+	statusCode: number
+): void {
 	const report = _buildErrorReport(err, req, statusCode);
 	BUFFER.push(report);
 	if (BUFFER.length >= config.batchSize) {
@@ -123,14 +135,19 @@ export function reportError(err: unknown, req: Request, statusCode: number): voi
 }
 
 export function errorTrackingMiddleware(
-	endpoint?: string,
+	endpoint?: string
 ): (err: Error, req: Request, res: Response, next: NextFunction) => void {
 	if (endpoint) {
 		configureErrorTracking({
 			endpoint: endpoint || process.env.ERROR_URL_WEBHOOK,
 		});
 	}
-	return (err: Error, req: Request, res: Response, next: NextFunction): void => {
+	return (
+		err: Error,
+		req: Request,
+		res: Response,
+		next: NextFunction
+	): void => {
 		const statusCode = res.statusCode >= 400 ? res.statusCode : 500;
 		if (statusCode >= 500) {
 			reportError(err, req, statusCode);

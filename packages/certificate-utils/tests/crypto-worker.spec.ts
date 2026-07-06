@@ -133,7 +133,10 @@ describe("createCryptoWorker", () => {
 			payload: { certPem: "cert", caCertPem: "ca" },
 		});
 
-		expect(validateCertificate).toHaveBeenCalledWith({ certPem: "cert", caCertPem: "ca" });
+		expect(validateCertificate).toHaveBeenCalledWith({
+			certPem: "cert",
+			caCertPem: "ca",
+		});
 		expect(result.valid).toBe(true);
 	});
 
@@ -142,7 +145,10 @@ describe("createCryptoWorker", () => {
 		const handler = getHandler("validateCertificate");
 		const result = await handler({ payload: { certPem: "cert" } });
 
-		expect(validateCertificate).toHaveBeenCalledWith({ certPem: "cert", caCertPem: "" });
+		expect(validateCertificate).toHaveBeenCalledWith({
+			certPem: "cert",
+			caCertPem: "",
+		});
 		expect(result.valid).toBe(true);
 	});
 
@@ -162,7 +168,11 @@ describe("createCryptoWorker", () => {
 			payload: { algorithm: "sha256", body: "body", privateKey: "key" },
 		});
 
-		expect(sign).toHaveBeenCalledWith({ algorithm: "sha256", body: "body", privateKey: "key" });
+		expect(sign).toHaveBeenCalledWith({
+			algorithm: "sha256",
+			body: "body",
+			privateKey: "key",
+		});
 		expect(result).toBe("signature");
 	});
 

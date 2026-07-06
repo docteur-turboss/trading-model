@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
 import { CacheHealthRefresher } from "../../src/discovery/cache-health-refresher";
 import type { IServiceCache } from "../../src/discovery/service-cache.interface";
 import type { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {

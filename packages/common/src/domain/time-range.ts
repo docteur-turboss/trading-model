@@ -1,4 +1,4 @@
-import { UnixTimestamp } from "./primitives";
+import type { UnixTimestamp } from "./primitives";
 
 /**
  * @deprecated Use DateRange instead (see date-range.ts). DateRange now supports
@@ -19,10 +19,7 @@ export class TimeRange {
 		this.toMs = toMs;
 	}
 
-	static fromUnixTimestamps(
-		from: UnixTimestamp,
-		to: UnixTimestamp
-	): TimeRange {
+	static fromUnixTimestamps(from: UnixTimestamp, to: UnixTimestamp): TimeRange {
 		return new TimeRange(from, to);
 	}
 

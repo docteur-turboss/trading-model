@@ -17,7 +17,7 @@ import { randomBytes } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
-import type { NonceContext, NonceDocument, NoncePersistence } from "./nonce-persister";
+import type { NonceContext, NoncePersistence } from "./nonce-persister";
 import { MongoNoncePersister, NullNoncePersister } from "./nonce-persister";
 
 interface NonceEntry {
@@ -44,9 +44,14 @@ export class NonceStore {
 		try {
 			await this._persister.connect();
 			await this._loadFromPersister();
-			logger.info("NonceStore connected to MongoDB", { context: { existingNonces: this._l1.size } });
+			logger.info("NonceStore connected to MongoDB", {
+				context: { existingNonces: this._l1.size },
+			});
 		} catch (err) {
-			logger.warn("NonceStore MongoDB connection failed, operating in memory-only mode", { context: { err } });
+			logger.warn(
+				"NonceStore MongoDB connection failed, operating in memory-only mode",
+				{ context: { err } }
+			);
 		}
 	}
 
@@ -81,7 +86,10 @@ export class NonceStore {
 		const context: NonceContext = { nonce, serviceId };
 		const doc = await this._persister.consume(context);
 		if (doc) {
-			if (doc.serviceId !== serviceId || this._isExpired(doc.createdAt.getTime())) {
+			if (
+				doc.serviceId !== serviceId ||
+				this._isExpired(doc.createdAt.getTime())
+			) {
 				return false;
 			}
 			this._l1.delete(nonce);
@@ -107,7 +115,11 @@ export class NonceStore {
 		const threshold = new Date(Date.now() - this._ttlMs);
 		const docs = await this._persister.loadAll(threshold);
 		for (const doc of docs) {
-			this._l1.set(doc.nonce, { nonce: doc.nonce, serviceId: doc.serviceId, createdAt: doc.createdAt.getTime() });
+			this._l1.set(doc.nonce, {
+				nonce: doc.nonce,
+				serviceId: doc.serviceId,
+				createdAt: doc.createdAt.getTime(),
+			});
 		}
 	}
 
@@ -122,7 +134,10 @@ export class NonceStore {
 
 	private _startCleanup(): void {
 		const interval = Math.min(this._ttlMs / 2, 60_000);
-		this._cleanupTimer.startInterval(() => this._cleanupExpiredL1Entries(), interval);
+		this._cleanupTimer.startInterval(
+			() => this._cleanupExpiredL1Entries(),
+			interval
+		);
 		this._cleanupTimer.unref();
 	}
 }

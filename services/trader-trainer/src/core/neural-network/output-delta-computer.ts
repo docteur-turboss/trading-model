@@ -1,13 +1,11 @@
 import { ACTIVATIONS } from "./activation";
-import { LOSSES } from "./losses";
-import { ActivationType } from "./type";
-import type { NeuralNetworkConfig } from "./type";
 import type { OutputDeltasContext } from "./backprop-engine";
+import { LOSSES } from "./losses";
+import type { NeuralNetworkConfig } from "./type";
+import { ActivationType } from "./type";
 
 export class OutputDeltaComputer {
-	constructor(
-		private readonly _config: Required<NeuralNetworkConfig>
-	) {}
+	constructor(private readonly _config: Required<NeuralNetworkConfig>) {}
 
 	compute(ctx: OutputDeltasContext): Float32Array {
 		const { outputZ, output, target, activation } = ctx;

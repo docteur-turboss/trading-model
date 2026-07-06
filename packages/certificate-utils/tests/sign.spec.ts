@@ -21,7 +21,11 @@ describe("parseKey", () => {
 describe("sign", () => {
 	it("should sign data with EC private key", () => {
 		const kp = generateKeyPair(KeyAlgorithm.ecP384);
-		const signature = sign({ algorithm: "sha256", body: "test body", privateKey: kp.privateKey });
+		const signature = sign({
+			algorithm: "sha256",
+			body: "test body",
+			privateKey: kp.privateKey,
+		});
 		expect(signature).toBeDefined();
 		expect(typeof signature).toBe("string");
 		expect(signature.length).toBeGreaterThan(0);
@@ -29,7 +33,11 @@ describe("sign", () => {
 
 	it("should sign data with RSA private key", () => {
 		const kp = generateKeyPair(KeyAlgorithm.rsa4096);
-		const signature = sign({ algorithm: "sha256", body: "test body", privateKey: kp.privateKey });
+		const signature = sign({
+			algorithm: "sha256",
+			body: "test body",
+			privateKey: kp.privateKey,
+		});
 		expect(signature).toBeDefined();
 		expect(typeof signature).toBe("string");
 		expect(signature.length).toBeGreaterThan(0);
@@ -37,8 +45,16 @@ describe("sign", () => {
 
 	it("should produce different signatures for different inputs", () => {
 		const kp = generateKeyPair(KeyAlgorithm.ecP384);
-		const sig1 = sign({ algorithm: "sha256", body: "body1", privateKey: kp.privateKey });
-		const sig2 = sign({ algorithm: "sha256", body: "body2", privateKey: kp.privateKey });
+		const sig1 = sign({
+			algorithm: "sha256",
+			body: "body1",
+			privateKey: kp.privateKey,
+		});
+		const sig2 = sign({
+			algorithm: "sha256",
+			body: "body2",
+			privateKey: kp.privateKey,
+		});
 		expect(sig1).not.toBe(sig2);
 	});
 });

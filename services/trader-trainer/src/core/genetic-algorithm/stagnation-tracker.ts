@@ -34,7 +34,6 @@ export class StagnationTracker {
 		}
 		this._stagnation++;
 		this._efficiencyHistory.push(avgEff);
-		return undefined;
 	}
 
 	get bestFitness(): number {

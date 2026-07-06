@@ -20,7 +20,7 @@ function _buildCsrBody(
 	commonName: string,
 	san: string[],
 	keyPem: string,
-	signature: string,
+	signature: string
 ): string {
 	const publicKey = createPublicKey(keyPem);
 	return Buffer.from(
@@ -29,7 +29,7 @@ function _buildCsrBody(
 			san,
 			publicKey: publicKey.export({ type: "spki", format: "pem" }),
 			signature,
-		}),
+		})
 	).toString("base64");
 }
 

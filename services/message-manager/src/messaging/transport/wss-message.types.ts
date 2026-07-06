@@ -1,6 +1,15 @@
-import type { InstanceId, MessageId, Topic } from "@trading-model/common/domain/primitives";
+import type {
+	InstanceId,
+	MessageId,
+	Topic,
+} from "@trading-model/common/domain/primitives";
 
-export type WssMessageType = "subscribe" | "unsubscribe" | "publish" | "ack" | "nack";
+export type WssMessageType =
+	| "subscribe"
+	| "unsubscribe"
+	| "publish"
+	| "ack"
+	| "nack";
 
 export interface IncomingWssMessage {
 	type: WssMessageType;

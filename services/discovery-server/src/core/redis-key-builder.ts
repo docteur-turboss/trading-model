@@ -23,7 +23,7 @@ export class RedisKeyBuilder {
 
 	parseServiceName(key: string): string | null {
 		const match = key.match(
-			new RegExp(`^${this._prefix}service:(.+):instances$`),
+			new RegExp(`^${this._prefix}service:(.+):instances$`)
 		);
 		return match ? match[1] : null;
 	}

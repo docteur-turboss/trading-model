@@ -1,4 +1,4 @@
-import { type KeyObject } from "node:crypto";
+import type { KeyObject } from "node:crypto";
 
 interface Jwk extends Record<string, string | undefined> {
 	kid?: string;
@@ -19,7 +19,10 @@ export class JwkCache {
 	private readonly _cacheTtlMs = 3_600_000;
 
 	shouldRefresh(): boolean {
-		return this._cachedKeys.size === 0 || Date.now() - this._lastFetch >= this._cacheTtlMs;
+		return (
+			this._cachedKeys.size === 0 ||
+			Date.now() - this._lastFetch >= this._cacheTtlMs
+		);
 	}
 
 	update(entries: ParsedJwk[]): void {

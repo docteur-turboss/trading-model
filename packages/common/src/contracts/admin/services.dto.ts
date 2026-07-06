@@ -1,5 +1,10 @@
-import type { InstanceId, IPAddress, Port, ServiceId } from "../../domain/primitives";
 import type { ServiceInstanceName } from "../../config/services.types";
+import type {
+	InstanceId,
+	IPAddress,
+	Port,
+	ServiceId,
+} from "../../domain/primitives";
 
 export enum ServiceStatus {
 	Healthy = "healthy",
@@ -17,7 +22,7 @@ export interface AdminServiceInstance {
 	instanceId: InstanceId;
 	host: IPAddress;
 	port: Port;
-	version: string;
+	version: Version;
 	heartbeat: string;
 	status: ServiceStatus;
 }

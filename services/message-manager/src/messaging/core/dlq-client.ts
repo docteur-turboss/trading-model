@@ -2,14 +2,17 @@ import { createHmac } from "node:crypto";
 
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { HttpRequestOptions } from "@trading-model/common/config/http-types";
-import type { HttpRoute, Signature, SignedRequest, SignedRequestAuth, Timestamp } from "@trading-model/common/contracts/signed-request";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import type {
+	HttpRoute,
+	Signature,
+	SignedRequest,
+	SignedRequestAuth,
+	Timestamp,
+} from "@trading-model/common/contracts/signed-request";
 import { toServiceId } from "@trading-model/common/domain/primitives";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
-import {
-	messageManagerError,
-	normalizeError,
-} from "@trading-model/common/utils/errors";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { MESSAGES_DLQ_ERROR_TOTAL } from "../../config/metrics";
@@ -32,9 +35,7 @@ interface SignRequestInput extends SignedRequest {
 	secretBuf?: Buffer;
 }
 
-function signRequest(
-	input: SignRequestInput
-): SignedRequestAuth {
+function signRequest(input: SignRequestInput): SignedRequestAuth {
 	const timestamp = String(Date.now()) as Timestamp;
 	const buf = input.secretBuf ?? getHmacSecretBuffer();
 	try {
@@ -54,12 +55,20 @@ function computeSignature(
 	input: SignedRequest & { timestamp: Timestamp },
 	buf: Buffer
 ): string {
-	const parts = [input.serviceName, input.timestamp, deterministicStringify(normalizeBody(input.body)), input.method, input.path].join(":");
+	const parts = [
+		input.serviceName,
+		input.timestamp,
+		deterministicStringify(normalizeBody(input.body)),
+		input.method,
+		input.path,
+	].join(":");
 	return createHmac("sha256", buf).update(parts).digest("hex");
 }
 
 function warnAndSkip(timestamp: Timestamp): SignedRequestAuth {
-	logger.warn("DLQ HMAC secret is too short or empty — requests will not be signed");
+	logger.warn(
+		"DLQ HMAC secret is too short or empty — requests will not be signed"
+	);
 	return { timestamp, signature: "" as Signature };
 }
 
@@ -68,9 +77,7 @@ interface SignedOptionsInput extends HttpRoute {
 	extra?: Partial<HttpRequestOptions>;
 }
 
-function signedOptions(
-	input: SignedOptionsInput
-): HttpRequestOptions {
+function signedOptions(input: SignedOptionsInput): HttpRequestOptions {
 	const opts = buildBaseOptions(input.extra);
 	const secretBuf = getHmacSecretBuffer();
 	if (secretBuf.length >= 16) {
@@ -85,7 +92,10 @@ function buildBaseOptions(
 	return {
 		timeoutMs: 5000,
 		...extra,
-		headers: { [HTTP_HEADERS.X_SERVICE_NAME]: "message-manager", ...(extra?.headers ?? {}) },
+		headers: {
+			[HTTP_HEADERS.X_SERVICE_NAME]: "message-manager",
+			...(extra?.headers ?? {}),
+		},
 	};
 }
 
@@ -123,9 +133,11 @@ class NullDlqServiceClient implements IDlqServiceClient {
 	}
 
 	private _logNotConfigured(entry: DlqEntry): void {
-		logger.warn("DLQ Service not configured, dropping dead letter entry", { context: {
-			reason: entry.reason,
-		} });
+		logger.warn("DLQ Service not configured, dropping dead letter entry", {
+			context: {
+				reason: entry.reason,
+			},
+		});
 		MESSAGES_DLQ_ERROR_TOTAL.inc({ target: "not-configured" });
 	}
 
@@ -162,7 +174,12 @@ export class DlqServiceClient implements IDlqServiceClient {
 		try {
 			await this._sendHandler.doSend(entry);
 		} catch (err) {
-			return this._sendHandler.handleSendError(entry, err as Error, attempt, maxRetries);
+			return this._sendHandler.handleSendError(
+				entry,
+				err as Error,
+				attempt,
+				maxRetries
+			);
 		}
 	}
 
@@ -174,13 +191,20 @@ export class DlqServiceClient implements IDlqServiceClient {
 			const url = this._sendHandler.buildReplayUrl(topic, limit);
 			const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
 				url,
-				signedOptions({ method: "GET", path: "/dlq", body: undefined, extra: { timeoutMs: 5000 } })
+				signedOptions({
+					method: "GET",
+					path: "/dlq",
+					body: undefined,
+					extra: { timeoutMs: 5000 },
+				})
 			);
 			return result?.entries ?? [];
 		} catch (err) {
-			logger.error("Failed to fetch DLQ entries for replay", { context: {
-				error: normalizeError(err as Error),
-			} });
+			logger.error("Failed to fetch DLQ entries for replay", {
+				context: {
+					error: normalizeError(err as Error),
+				},
+			});
 			return [];
 		}
 	}
@@ -195,17 +219,26 @@ export class DlqServiceClient implements IDlqServiceClient {
 			await this._httpClient.post(
 				`${this._serviceUrl}/dlq/delete`,
 				body,
-				signedOptions({ method: "POST", path: "/dlq/delete", body, extra: { timeoutMs: 5000 } })
+				signedOptions({
+					method: "POST",
+					path: "/dlq/delete",
+					body,
+					extra: { timeoutMs: 5000 },
+				})
 			);
 		} catch (err) {
-			logger.error("Failed to delete DLQ entries", { context: {
-				error: normalizeError(err as Error),
-			} });
+			logger.error("Failed to delete DLQ entries", {
+				context: {
+					error: normalizeError(err as Error),
+				},
+			});
 		}
 	}
 }
 
-export function createDlqServiceClient(httpClient: HttpClient): IDlqServiceClient {
+export function createDlqServiceClient(
+	httpClient: HttpClient
+): IDlqServiceClient {
 	const url = ENV.DLQ_SERVICE_URL || "";
 	if (!url) {
 		return new NullDlqServiceClient();

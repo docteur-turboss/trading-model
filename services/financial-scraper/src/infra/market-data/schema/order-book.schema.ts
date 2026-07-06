@@ -1,5 +1,11 @@
-import type { MarketType, SourceType } from "@trading-model/common/config/event.types";
-import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type {
+	MarketType,
+	SourceType,
+} from "@trading-model/common/config/event.types";
+import type {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import type { OrderBookData } from "../market-data.types";

@@ -31,7 +31,7 @@ export class MongoConnectionManager {
 				maxRetries: 10,
 				baseDelayMs: 1000,
 				maxDelayMs: 30000,
-			},
+			}
 		);
 
 		if (!dbInstance) {
@@ -70,8 +70,7 @@ export class MongoConnectionManager {
 		if (this._state.client) {
 			try {
 				await this._state.client.close();
-			} catch {
-			}
+			} catch {}
 		}
 		this._state.clearState();
 	}

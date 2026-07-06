@@ -13,13 +13,13 @@ export class RegistrationManager {
 
 	constructor(
 		private readonly _addressManagerClient: AddressManagerClient,
-		private readonly _tokenManager: TokenManager,
+		private readonly _tokenManager: TokenManager
 	) {}
 
 	private _computeDelay(attempt: number): number {
 		return Math.min(
 			REGISTRATION_BASE_DELAY_MS * 2 ** attempt,
-			REGISTRATION_MAX_DELAY_MS,
+			REGISTRATION_MAX_DELAY_MS
 		);
 	}
 

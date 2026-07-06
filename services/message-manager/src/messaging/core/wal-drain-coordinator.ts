@@ -1,7 +1,7 @@
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
-import { MemoryWalBuffer } from "./memory-wal-buffer";
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { MemoryWalBuffer } from "./memory-wal-buffer";
 
 interface DrainDeferred {
 	promise: Promise<void>;
@@ -17,7 +17,7 @@ export class WalDrainCoordinator {
 	constructor(
 		private readonly _memoryWalBuffer: MemoryWalBuffer,
 		private readonly _walKey: () => string,
-		private readonly _performFlush: () => Promise<void>,
+		private readonly _performFlush: () => Promise<void>
 	) {}
 
 	get isDrainRequested(): boolean {
@@ -91,7 +91,9 @@ export class WalDrainCoordinator {
 			const redis = await getStreamClient();
 			const len = await redis.llen(this._walKey());
 			if (len > 0) {
-				logger.info(`WAL buffer has ${len} pending entries from previous run — draining`);
+				logger.info(
+					`WAL buffer has ${len} pending entries from previous run — draining`
+				);
 				await this._performFlush();
 			}
 		} catch {

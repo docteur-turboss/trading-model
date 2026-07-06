@@ -1,5 +1,5 @@
-import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { logger } from "@trading-model/common/config/logger";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 
@@ -45,17 +45,25 @@ interface RedisClientCreator {
 
 const REDIS_CLIENT_CREATORS: Record<string, RedisClientCreator> = {
 	single: {
-		create: (config) => new Redis((config as RedisConnectionConfig & { mode: "single" }).url, BASE_OPTIONS),
+		create: (config) =>
+			new Redis(
+				(config as RedisConnectionConfig & { mode: "single" }).url,
+				BASE_OPTIONS
+			),
 	},
 	sentinel: {
 		create: (config) => {
-			const { sentinels, name, password } = (config as RedisConnectionConfig & { mode: "sentinel" }).config;
+			const { sentinels, name, password } = (
+				config as RedisConnectionConfig & { mode: "sentinel" }
+			).config;
 			return new Redis({ ...BASE_OPTIONS, sentinels, name, password });
 		},
 	},
 	cluster: {
 		create: (config) => {
-			const { nodes, password } = (config as RedisConnectionConfig & { mode: "cluster" }).config;
+			const { nodes, password } = (
+				config as RedisConnectionConfig & { mode: "cluster" }
+			).config;
 			return new Cluster(nodes, {
 				redisOptions: { ...BASE_OPTIONS, password },
 				clusterRetryStrategy: (times: number) => Math.min(times * 200, 5000),
@@ -79,7 +87,9 @@ function _createFromUrl(configOrUrl: string): Redis | Cluster {
 function _createFromConfig(config: RedisConnectionConfig): Redis | Cluster {
 	const creator = REDIS_CLIENT_CREATORS[config.mode];
 	if (!creator) {
-		throw new Error(`Unknown Redis connection mode: ${(config as RedisConnectionConfig).mode}`);
+		throw new Error(
+			`Unknown Redis connection mode: ${(config as RedisConnectionConfig).mode}`
+		);
 	}
 	const client = creator.create(config);
 	attachErrorHandler(client);

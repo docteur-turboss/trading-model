@@ -1,5 +1,5 @@
-import { toInstanceId } from "../domain/primitives";
 import type { WorkerWsHeartbeatMessage } from "../contracts/worker-protocol.types";
+import { toInstanceId } from "../domain/primitives";
 import { TimerHandle } from "../utils/timer-handle";
 
 export class WorkerHeartbeat {
@@ -12,7 +12,7 @@ export class WorkerHeartbeat {
 	constructor(
 		workerId: string,
 		send: (msg: WorkerWsHeartbeatMessage) => void,
-		intervalMs: number,
+		intervalMs: number
 	) {
 		this._workerId = workerId;
 		this._send = send;

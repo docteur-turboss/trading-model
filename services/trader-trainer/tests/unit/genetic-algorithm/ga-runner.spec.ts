@@ -74,7 +74,6 @@ jest.mock("../../../src/core/neural-network/neural-network", () => ({
 }));
 
 import { GeneticAlgorithmRunner } from "../../../src/core/genetic-algorithm/ga-runner";
-import { makeTradingAgentBackend } from "../../../src/core/genetic-algorithm/rl-backend";
 import {
 	ActivationType,
 	ConnectionType,
@@ -82,6 +81,7 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/core/genetic-algorithm/genome";
+import { makeTradingAgentBackend } from "../../../src/core/genetic-algorithm/rl-backend";
 
 describe("makeTradingAgentBackend", () => {
 	it("should create an RLBackend from a genome", () => {
@@ -234,7 +234,10 @@ describe("makeTradingAgentBackend", () => {
 	it("should call step and return reward", () => {
 		const genome = getMinimalGenome();
 		const backend = makeTradingAgentBackend(genome as any);
-		const result = backend.step(new FeatureVector(new Float32Array([0.5, 0.5, 0.5])), Price.of(100));
+		const result = backend.step(
+			new FeatureVector(new Float32Array([0.5, 0.5, 0.5])),
+			Price.of(100)
+		);
 		expect(result.reward).toBe(1);
 	});
 
@@ -338,7 +341,9 @@ describe("GeneticAlgorithmRunner", () => {
 				{
 					id: "w1",
 					train: [{ features: new FeatureVector(3), price: Price.of(100) }],
-					validation: [{ features: new FeatureVector(3), price: Price.of(100) }],
+					validation: [
+						{ features: new FeatureVector(3), price: Price.of(100) },
+					],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
@@ -548,8 +553,14 @@ describe("full GA loop", () => {
 				{
 					id: "w1",
 					train: [
-						{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])), price: Price.of(100) },
-						{ features: new FeatureVector(new Float32Array([0.4, 0.5, 0.6])), price: Price.of(101) },
+						{
+							features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])),
+							price: Price.of(100),
+						},
+						{
+							features: new FeatureVector(new Float32Array([0.4, 0.5, 0.6])),
+							price: Price.of(101),
+						},
 					],
 					validation: [
 						{ features, price: Price.of(100) },
@@ -599,8 +610,14 @@ describe("full GA loop", () => {
 				{
 					id: "w1",
 					train: [
-						{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])), price: Price.of(100) },
-						{ features: new FeatureVector(new Float32Array([0.4, 0.5, 0.6])), price: Price.of(101) },
+						{
+							features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])),
+							price: Price.of(100),
+						},
+						{
+							features: new FeatureVector(new Float32Array([0.4, 0.5, 0.6])),
+							price: Price.of(101),
+						},
 					],
 					validation: [
 						{ features, price: Price.of(100) },
@@ -636,7 +653,12 @@ describe("full GA loop", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])), price: Price.of(100) }],
+					train: [
+						{
+							features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])),
+							price: Price.of(100),
+						},
+					],
 					validation: [{ features, price: Price.of(100) }],
 				},
 			],
@@ -670,7 +692,12 @@ describe("full GA loop", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])), price: Price.of(100) }],
+					train: [
+						{
+							features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])),
+							price: Price.of(100),
+						},
+					],
 					validation: [{ features, price: Price.of(100) }],
 				},
 			],
@@ -704,7 +731,12 @@ describe("full GA loop", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])), price: Price.of(100) }],
+					train: [
+						{
+							features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])),
+							price: Price.of(100),
+						},
+					],
 					validation: [{ features, price: Price.of(100) }],
 				},
 			],
@@ -766,8 +798,14 @@ describe("full GA loop", () => {
 				{
 					id: "w1",
 					train: [
-						{ features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])), price: Price.of(100) },
-						{ features: new FeatureVector(new Float32Array([0.4, 0.5, 0.6])), price: Price.of(101) },
+						{
+							features: new FeatureVector(new Float32Array([0.1, 0.2, 0.3])),
+							price: Price.of(100),
+						},
+						{
+							features: new FeatureVector(new Float32Array([0.4, 0.5, 0.6])),
+							price: Price.of(101),
+						},
 					],
 					validation: [
 						{ features, price: Price.of(100) },

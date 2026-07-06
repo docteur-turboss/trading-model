@@ -12,7 +12,11 @@ export class VaultSigningProvider implements SigningProvider {
 	private readonly _keyName: string;
 	private _publicKeyPem: string;
 
-	constructor(vault: VaultTransitClient, keyName: string, publicKeyPem: string) {
+	constructor(
+		vault: VaultTransitClient,
+		keyName: string,
+		publicKeyPem: string
+	) {
 		this._vault = vault;
 		this._keyName = keyName;
 		this._publicKeyPem = publicKeyPem;
@@ -22,7 +26,10 @@ export class VaultSigningProvider implements SigningProvider {
 		return this._publicKeyPem;
 	}
 
-	static async create(vault: VaultTransitClient, keyName: string): Promise<VaultSigningProvider> {
+	static async create(
+		vault: VaultTransitClient,
+		keyName: string
+	): Promise<VaultSigningProvider> {
 		const publicKeyPem = await vault.readPublicKey(keyName);
 		return new VaultSigningProvider(vault, keyName, publicKeyPem);
 	}

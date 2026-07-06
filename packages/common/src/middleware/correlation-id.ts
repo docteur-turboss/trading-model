@@ -16,7 +16,8 @@ export function correlationIdMiddleware(
 	next: NextFunction
 ): void {
 	const existing =
-		req.headers[HTTP_HEADERS.CORRELATION_ID] ?? req.headers[HTTP_HEADERS.X_REQUEST_ID];
+		req.headers[HTTP_HEADERS.CORRELATION_ID] ??
+		req.headers[HTTP_HEADERS.X_REQUEST_ID];
 	const correlationId =
 		typeof existing === "string" && existing.length > 0
 			? existing

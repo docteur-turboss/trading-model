@@ -6,7 +6,7 @@ import path from "node:path";
 import type { Application } from "express";
 import { logger } from "../config/logger";
 import type { Port } from "../domain/primitives";
-import type { TlsPemBundle, TlsPaths } from "../domain/tls-paths";
+import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
 
 export interface HttpsServerOptions {
@@ -38,9 +38,7 @@ export async function createAndStartHttpsServer(
 	};
 }
 
-async function _loadTlsFiles(
-	tls: TlsPaths
-): Promise<TlsPemBundle> {
+async function _loadTlsFiles(tls: TlsPaths): Promise<TlsPemBundle> {
 	const [key, cert, ca] = await Promise.all([
 		fsPromises.readFile(path.resolve(tls.keyPath), "utf8"),
 		fsPromises.readFile(path.resolve(tls.certPath), "utf8"),
@@ -145,7 +143,7 @@ function createDebouncedReload(
 
 async function _watchDirectory(
 	dir: string,
-	debouncedReload: (eventType: string, filename: string | null) => void,
+	debouncedReload: (eventType: string, filename: string | null) => void
 ): Promise<void> {
 	try {
 		await fsPromises.access(dir, fs.constants.R_OK);
@@ -158,14 +156,17 @@ async function _watchDirectory(
 	}
 }
 
-export async function setupTlsWatcher(server: https.Server, tls: TlsPaths): Promise<void> {
+export async function setupTlsWatcher(
+	server: https.Server,
+	tls: TlsPaths
+): Promise<void> {
 	const dirs = new Set(
 		[tls.keyPath, tls.certPath, tls.caPath].map((file) =>
-			path.dirname(path.resolve(file)),
-		),
+			path.dirname(path.resolve(file))
+		)
 	);
 	const debouncedReload = createDebouncedReload(server, tls);
 	await Promise.all(
-		[...dirs].map((dir) => _watchDirectory(dir, debouncedReload)),
+		[...dirs].map((dir) => _watchDirectory(dir, debouncedReload))
 	);
 }

@@ -30,13 +30,13 @@ function checkTokenFormat(token: string): TokenFormat | null {
 function _decodeTimestamp(timestampB64: string): number {
 	return Number.parseInt(
 		Buffer.from(timestampB64, "base64url").toString("utf8"),
-		10,
+		10
 	);
 }
 
 function validateTimestamp(
 	timestampB64: string,
-	options?: TokenValidationOptions,
+	options?: TokenValidationOptions
 ): boolean {
 	const ts = _decodeTimestamp(timestampB64);
 	if (Number.isNaN(ts)) {
@@ -80,27 +80,30 @@ function _decodeInstanceId(format: TokenFormat): string {
 	return Buffer.from(format.encodedId, "base64url").toString("utf8");
 }
 
-function _checkLegacyTimestamp(format: TokenFormat, options?: TokenValidationOptions): boolean {
+function _checkLegacyTimestamp(
+	format: TokenFormat,
+	options?: TokenValidationOptions
+): boolean {
 	return !format.isLegacy || validateTimestamp(format.payloadParts[0], options);
 }
 
 function _verifyStoredToken(
 	storedToken: string | undefined | null,
 	signingSecret: string,
-	options?: TokenValidationOptions,
+	options?: TokenValidationOptions
 ): boolean {
-	if (!options?.allowSlidingExpiry || !storedToken) {
+	if (!(options?.allowSlidingExpiry && storedToken)) {
 		return false;
 	}
 	const storedFormat = checkTokenFormat(storedToken);
-	return !!(
+	return Boolean(
 		storedFormat &&
-		verifyHmac({
-			encodedId: storedFormat.encodedId,
-			payloadParts: storedFormat.payloadParts,
-			signature: storedFormat.signature,
-			signingSecret,
-		})
+			verifyHmac({
+				encodedId: storedFormat.encodedId,
+				payloadParts: storedFormat.payloadParts,
+				signature: storedFormat.signature,
+				signingSecret,
+			})
 	);
 }
 

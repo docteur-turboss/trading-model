@@ -1,6 +1,6 @@
 import type { LossConfig } from "../type";
-import { validateLengths } from "./validate-lengths";
 import type { LossDefinition } from "./loss-definition";
+import { validateLengths } from "./validate-lengths";
 
 const EPSILON = 1e-10;
 
@@ -36,8 +36,7 @@ export class BinaryCrossEntropyLoss implements LossDefinition {
 			const outVal = output[i];
 			const tgt = target[i];
 			out[i] =
-				(-tgt / (outVal + EPSILON) + (1 - tgt) / (1 - outVal + EPSILON)) *
-				invN;
+				(-tgt / (outVal + EPSILON) + (1 - tgt) / (1 - outVal + EPSILON)) * invN;
 		}
 		return out;
 	}

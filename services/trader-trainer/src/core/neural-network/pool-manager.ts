@@ -50,9 +50,7 @@ export class LearningPool {
 			layerZValues: exp.layerActivations.map(
 				(activation) => activation.zValues
 			),
-			layerOutputs: exp.layerActivations.map(
-				(activation) => activation.output
-			),
+			layerOutputs: exp.layerActivations.map((activation) => activation.output),
 		};
 	}
 }

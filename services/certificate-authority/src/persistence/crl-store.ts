@@ -1,6 +1,6 @@
 import type { RevokedCertificate } from "@trading-model/certificate-utils/types";
-import { type Collection, MongoClient } from "mongodb";
 import type { SerialNumber } from "@trading-model/common/domain/primitives";
+import { type Collection, MongoClient } from "mongodb";
 
 export class CrlStore {
 	private readonly _client: MongoClient;

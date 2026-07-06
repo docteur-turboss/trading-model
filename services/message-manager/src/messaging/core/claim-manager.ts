@@ -13,7 +13,12 @@ export class ClaimManager {
 		minIdleMs = 60_000,
 		count = 100
 	): Promise<number> {
-		return this._executor.claimPendingMessages(groupName, consumerId, minIdleMs, count);
+		return this._executor.claimPendingMessages(
+			groupName,
+			consumerId,
+			minIdleMs,
+			count
+		);
 	}
 
 	async claimEntriesForRetry(options: {

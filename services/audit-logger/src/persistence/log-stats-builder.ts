@@ -8,9 +8,7 @@ export class LogStatsBuilder {
 		return [
 			{
 				$facet: {
-					byService: [
-						{ $group: { _id: "$service.name", count: { $sum: 1 } } },
-					],
+					byService: [{ $group: { _id: "$service.name", count: { $sum: 1 } } }],
 					byLevel: [{ $group: { _id: "$level", count: { $sum: 1 } } }],
 					dateRange: [
 						{
@@ -30,7 +28,10 @@ export class LogStatsBuilder {
 	parseResult(aggResult: Record<string, unknown>): LogStats {
 		return {
 			total: this._extractTotal(aggResult),
-			byService: this._extractMap(aggResult, "byService") as Record<ServiceId, number>,
+			byService: this._extractMap(aggResult, "byService") as Record<
+				ServiceId,
+				number
+			>,
 			byLevel: this._extractMap(aggResult, "byLevel"),
 			dateRange: this._extractDateRange(aggResult),
 		};

@@ -64,7 +64,9 @@ function _throwUnauthorized(message: string): never {
 }
 
 function _throwForbidden(reason: string): never {
-	throw ResponseException(JSON.stringify({ error: "Forbidden", reason })).forbidden();
+	throw ResponseException(
+		JSON.stringify({ error: "Forbidden", reason })
+	).forbidden();
 }
 
 function _resolveCallerName(req: Request): string {
@@ -81,7 +83,7 @@ function _resolveCallerName(req: Request): string {
 
 function _getAllowedCallers(
 	targetService: string,
-	allowedCallers?: string[],
+	allowedCallers?: string[]
 ): string[] {
 	const allowed = allowedCallers ?? DEFAULT_ACL[targetService];
 	if (!allowed) {
@@ -93,12 +95,12 @@ function _getAllowedCallers(
 function _authorizeCaller(
 	callerName: string,
 	targetService: string,
-	allowedCallers?: string[],
+	allowedCallers?: string[]
 ): void {
 	const allowed = _getAllowedCallers(targetService, allowedCallers);
 	if (!(allowed.includes("*") || allowed.includes(callerName))) {
 		_throwForbidden(
-			`"${callerName}" is not authorized to access "${targetService}"`,
+			`"${callerName}" is not authorized to access "${targetService}"`
 		);
 	}
 }

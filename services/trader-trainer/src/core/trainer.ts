@@ -1,16 +1,16 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { TradingSymbol } from "./market-data-types";
 import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import { GenomeSummaryBuilder } from "./genome-summary-builder";
 import type { MarketDataBuffer } from "./market-data-buffer";
+import type { TradingSymbol } from "./market-data-types";
 import { TrainingPrerequisiteValidator } from "./training-prerequisite-validator";
 import {
 	TrainingSession,
 	type TrainingSessionResult,
 } from "./training-session";
-import { TrainingState, type BestAgentSummary } from "./training-state";
+import { type BestAgentSummary, TrainingState } from "./training-state";
 
 export { TrainingState } from "./training-state";
 export type { BestAgentSummary };

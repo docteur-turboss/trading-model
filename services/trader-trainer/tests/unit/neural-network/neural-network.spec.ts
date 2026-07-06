@@ -54,7 +54,13 @@ describe("NeuralNetwork", () => {
 			expect(
 				() =>
 					new NeuralNetwork(
-						makeConfig({ activationType: [ActivationType.Relu, ActivationType.Tanh, ActivationType.Sigmoid] })
+						makeConfig({
+							activationType: [
+								ActivationType.Relu,
+								ActivationType.Tanh,
+								ActivationType.Sigmoid,
+							],
+						})
 					)
 			).toThrow();
 		});
@@ -273,7 +279,10 @@ describe("NeuralNetwork", () => {
 		it("should throw when reference network has different parameter count", () => {
 			const nn = new NeuralNetwork(makeConfig());
 			const reference = new NeuralNetwork(
-				makeConfig({ neuronsByLayer: [4, 3], activationType: [ActivationType.Relu] })
+				makeConfig({
+					neuronsByLayer: [4, 3],
+					activationType: [ActivationType.Relu],
+				})
 			);
 
 			expect(() => nn.distributeAroundWeights(reference, 0.01)).toThrow();

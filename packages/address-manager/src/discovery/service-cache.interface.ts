@@ -20,7 +20,11 @@ export interface IServiceCache {
 	invalidate(serviceName: ServiceId, region?: string): Promise<void>;
 	clear(): Promise<void>;
 	entries(): Promise<
-		Array<{ serviceName: ServiceId; instance: ServiceInstance; region?: string }>
+		Array<{
+			serviceName: ServiceId;
+			instance: ServiceInstance;
+			region?: string;
+		}>
 	>;
 	/** Return the cached version for a service, or 0 if not cached / stale. */
 	getVersion(serviceName: ServiceId, region?: string): Promise<number>;
@@ -35,20 +39,32 @@ export interface IServiceCache {
 }
 
 export class NullServiceCache implements IServiceCache {
-	async get(_serviceName: ServiceId, _region?: string): Promise<ServiceInstance | null> {
+	async get(
+		_serviceName: ServiceId,
+		_region?: string
+	): Promise<ServiceInstance | null> {
 		return null;
 	}
 	async set(_entry: CacheSetEntry): Promise<void> {}
 	async invalidate(_serviceName: ServiceId, _region?: string): Promise<void> {}
 	async clear(): Promise<void> {}
-	async entries(): Promise<Array<{ serviceName: ServiceId; instance: ServiceInstance; region?: string }>> {
+	async entries(): Promise<
+		Array<{
+			serviceName: ServiceId;
+			instance: ServiceInstance;
+			region?: string;
+		}>
+	> {
 		return [];
 	}
 	async getVersion(_serviceName: ServiceId, _region?: string): Promise<number> {
 		return 0;
 	}
 	stop(): void {}
-	async setCircuitState(_instanceId: string, _state: CircuitState): Promise<void> {}
+	async setCircuitState(
+		_instanceId: string,
+		_state: CircuitState
+	): Promise<void> {}
 	async getCircuitState(_instanceId: string): Promise<CircuitState | null> {
 		return null;
 	}

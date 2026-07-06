@@ -3,8 +3,8 @@
  * Handles both structural genome mutations and weight-level operations.
  */
 
-import { SelectionType } from "./genome-types";
 import type { Genome } from "./genome-types";
+import { SelectionType } from "./genome-types";
 
 /** Per-weight uniform crossover using separate RNG to produce a child weight vector. */
 export function crossoverWeights(
@@ -30,9 +30,7 @@ export interface MutateWeightsContext {
 }
 
 /** Apply Gaussian weight mutation (Box-Muller) to each element with probability `rate`. */
-export function mutateWeights(
-	ctx: MutateWeightsContext
-): Float32Array {
+export function mutateWeights(ctx: MutateWeightsContext): Float32Array {
 	const { weights, rate, std, rng } = ctx;
 	const out = weights.slice();
 	for (let i = 0; i < out.length; i++) {
@@ -54,17 +52,17 @@ function _tournamentSelect(
 	let best = population[Math.floor(rng() * population.length)];
 	for (let i = 1; i < tournamentSize; i++) {
 		const cand = population[Math.floor(rng() * population.length)];
-		if ((cand.fitness ?? Number.NEGATIVE_INFINITY) > (best.fitness ?? Number.NEGATIVE_INFINITY)) {
+		if (
+			(cand.fitness ?? Number.NEGATIVE_INFINITY) >
+			(best.fitness ?? Number.NEGATIVE_INFINITY)
+		) {
 			best = cand;
 		}
 	}
 	return best;
 }
 
-function _randomSelect(
-	population: Genome[],
-	rng: () => number
-): Genome {
+function _randomSelect(population: Genome[], rng: () => number): Genome {
 	return population[Math.floor(rng() * population.length)];
 }
 

@@ -1,6 +1,9 @@
-import { toInstanceId, toServiceId } from "@trading-model/common/domain/primitives";
-import type { Port } from "@trading-model/common/domain/primitives";
 import AddressManagerClass from "@trading-model/address-manager";
+import type { Port } from "@trading-model/common/domain/primitives";
+import {
+	toInstanceId,
+	toServiceId,
+} from "@trading-model/common/domain/primitives";
 
 import { env } from "./env";
 

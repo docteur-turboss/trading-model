@@ -4,8 +4,14 @@ import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 
 export class DeduplicationService {
-	private _localDedupCache = new LruCache<boolean>({ maxSize: 10000, ttlMs: 300_000 });
-	private _degradedDedupCache = new LruCache<boolean>({ maxSize: 50000, ttlMs: 3600_000 });
+	private _localDedupCache = new LruCache<boolean>({
+		maxSize: 10000,
+		ttlMs: 300_000,
+	});
+	private _degradedDedupCache = new LruCache<boolean>({
+		maxSize: 50000,
+		ttlMs: 3600_000,
+	});
 
 	constructor(private readonly _prefix: string) {}
 

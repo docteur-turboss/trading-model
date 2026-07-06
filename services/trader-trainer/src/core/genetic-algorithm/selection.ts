@@ -2,8 +2,8 @@
 //                   parent selection operators
 // ================================================================
 
-import { SelectionType } from "./genome-types";
 import type { LamarckGenome } from "./genome-types";
+import { SelectionType } from "./genome-types";
 
 // ----------------------------------------------------------------
 // Selection strategy interface & implementations
@@ -43,10 +43,7 @@ class TournamentSelection implements SelectionStrategy {
 class RouletteSelection implements SelectionStrategy {
 	readonly type: SelectionType = SelectionType.Roulette;
 
-	select(
-		population: LamarckGenome[],
-		rng: () => number
-	): LamarckGenome {
+	select(population: LamarckGenome[], rng: () => number): LamarckGenome {
 		const fits = population.map((genome) => Math.max(0, genome.fitness ?? 0));
 		const total = fits.reduce((sum, value) => sum + value, 0) || 1;
 		let pick = rng() * total;
@@ -63,10 +60,7 @@ class RouletteSelection implements SelectionStrategy {
 class RankSelection implements SelectionStrategy {
 	readonly type: SelectionType = SelectionType.Rank;
 
-	select(
-		population: LamarckGenome[],
-		rng: () => number
-	): LamarckGenome {
+	select(population: LamarckGenome[], rng: () => number): LamarckGenome {
 		const sorted = [...population].sort(
 			(left, right) => (left.fitness ?? 0) - (right.fitness ?? 0)
 		);
@@ -85,10 +79,7 @@ class RankSelection implements SelectionStrategy {
 class TruncationSelection implements SelectionStrategy {
 	readonly type: SelectionType = SelectionType.Truncation;
 
-	select(
-		population: LamarckGenome[],
-		rng: () => number
-	): LamarckGenome {
+	select(population: LamarckGenome[], rng: () => number): LamarckGenome {
 		return population[Math.floor(rng() * population.length)];
 	}
 }
@@ -96,10 +87,7 @@ class TruncationSelection implements SelectionStrategy {
 class SUSSelection implements SelectionStrategy {
 	readonly type: SelectionType = SelectionType.Sus;
 
-	select(
-		population: LamarckGenome[],
-		rng: () => number
-	): LamarckGenome {
+	select(population: LamarckGenome[], rng: () => number): LamarckGenome {
 		const fits = population.map((genome) => Math.max(0, genome.fitness ?? 0));
 		const total = fits.reduce((sum, value) => sum + value, 0) || 1;
 		const spacing = total / population.length;

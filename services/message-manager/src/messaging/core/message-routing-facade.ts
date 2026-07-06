@@ -62,20 +62,28 @@ export class MessageRoutingFacade {
 		topic: string,
 		afterTimestamp: number,
 		limit = 100
-	): Promise<import("@trading-model/common/contracts/message.types").Message[]> {
+	): Promise<
+		import("@trading-model/common/contracts/message.types").Message[]
+	> {
 		return this._streamOps.getMessagesAfter(topic, afterTimestamp, limit);
 	}
 
 	async getMessagesBetween(
 		params: import("./stream-group-manager").GetMessagesBetweenParams
-	): Promise<import("@trading-model/common/contracts/message.types").Message[]> {
+	): Promise<
+		import("@trading-model/common/contracts/message.types").Message[]
+	> {
 		return this._streamOps.getMessagesBetween(params);
 	}
 
 	async addPendingAck(
 		instanceId: string,
 		messageId: string,
-		data: { topic: string; subscriberUrl: string; message: import("@trading-model/common/contracts/message.types").Message }
+		data: {
+			topic: string;
+			subscriberUrl: string;
+			message: import("@trading-model/common/contracts/message.types").Message;
+		}
 	): Promise<void> {
 		await this._pendingAckOps.addPendingAck(instanceId, messageId, data);
 	}
@@ -84,10 +92,15 @@ export class MessageRoutingFacade {
 		await this._pendingAckOps.removePendingAck(instanceId, messageId);
 	}
 
-	async getPendingAcks(
-		instanceId: string
-	): Promise<
-		Record<string, { topic: string; subscriberUrl: string; message: import("@trading-model/common/contracts/message.types").Message }>
+	async getPendingAcks(instanceId: string): Promise<
+		Record<
+			string,
+			{
+				topic: string;
+				subscriberUrl: string;
+				message: import("@trading-model/common/contracts/message.types").Message;
+			}
+		>
 	> {
 		return this._pendingAckOps.getPendingAcks(instanceId);
 	}

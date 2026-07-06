@@ -1,10 +1,10 @@
-import { ENV } from "../../config/env";
-import { WalBatchFlusher } from "./wal-batch-flusher";
-import { RedisBackoff } from "./redis-backoff";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-import { FlushGuard } from "./flush-guard";
+import { ENV } from "../../config/env";
 import { FlushFailureHandler } from "./flush-failure-handler";
+import { FlushGuard } from "./flush-guard";
 import type { MemoryWalEntry } from "./memory-wal-entry";
+import { RedisBackoff } from "./redis-backoff";
+import { WalBatchFlusher } from "./wal-batch-flusher";
 
 const WAL_BATCH_SIZE = 50;
 
@@ -15,7 +15,7 @@ export class MemoryWalFlusher {
 	private readonly _flushGuard: FlushGuard;
 	private readonly _flushFailureHandler: FlushFailureHandler;
 
-	constructor(private readonly _prefix: string) {
+	constructor(readonly _prefix: string) {
 		this._walBatchFlusher = new WalBatchFlusher(
 			_prefix,
 			ENV.REDIS_STREAM_MAXLEN,
@@ -57,7 +57,11 @@ export class MemoryWalFlusher {
 		try {
 			const batch = buffer.splice(0, WAL_BATCH_SIZE);
 			const serialized = batch.map((e) =>
-				JSON.stringify({ topic: e.topic, serialized: e.serialized, message: e.message })
+				JSON.stringify({
+					topic: e.topic,
+					serialized: e.serialized,
+					message: e.message,
+				})
 			);
 			const ok = await this._walBatchFlusher.flushBatch(serialized);
 			if (ok) {

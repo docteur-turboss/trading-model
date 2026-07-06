@@ -1,7 +1,7 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
-import type { IncomingWssMessage } from "./wss-message.types";
 import { TopicSubscriptionHandler } from "./topic-subscription-handler";
+import type { IncomingWssMessage } from "./wss-message.types";
 
 export interface WsSubscription {
 	identity: ServiceIdentity;
@@ -26,11 +26,15 @@ export class WssSubscriptionManager {
 	}
 
 	get(identity: ServiceIdentity): WebSocket | undefined {
-		return this._subscriptions.get(`${identity.serviceName}:${identity.instanceId}`)?.ws;
+		return this._subscriptions.get(
+			`${identity.serviceName}:${identity.instanceId}`
+		)?.ws;
 	}
 
 	has(identity: ServiceIdentity): boolean {
-		return this._subscriptions.has(`${identity.serviceName}:${identity.instanceId}`);
+		return this._subscriptions.has(
+			`${identity.serviceName}:${identity.instanceId}`
+		);
 	}
 
 	enforceCapacity(ws: WebSocket): boolean {
@@ -52,17 +56,11 @@ export class WssSubscriptionManager {
 		this._subscriptions.delete(subKey);
 	}
 
-	handleSubscribe(
-		msg: IncomingWssMessage,
-		ctx: SubscriptionContext
-	): void {
+	handleSubscribe(msg: IncomingWssMessage, ctx: SubscriptionContext): void {
 		this._topicHandler.handleSubscribe(msg, ctx);
 	}
 
-	handleUnsubscribe(
-		msg: IncomingWssMessage,
-		ctx: SubscriptionContext
-	): void {
+	handleUnsubscribe(msg: IncomingWssMessage, ctx: SubscriptionContext): void {
 		this._topicHandler.handleUnsubscribe(msg, ctx);
 	}
 

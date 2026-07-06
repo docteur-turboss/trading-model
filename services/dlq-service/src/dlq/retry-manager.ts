@@ -69,15 +69,6 @@ export class DlqRetryManager {
 		);
 	}
 
-	private _abandonCondition(): Record<string, unknown> {
-		return {
-			$or: [
-				{ $gte: ["$retryCount", env.DLQ_RETRY_MAX_ATTEMPTS] },
-				{ $gte: ["$consecutiveErrors", DLQ_MAX_CONSECUTIVE_ERRORS] },
-			],
-		};
-	}
-
 	private _buildFailPipeline(errorMsg?: string): Record<string, unknown>[] {
 		return [
 			_buildErrorStage(errorMsg),

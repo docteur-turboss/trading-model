@@ -1,5 +1,9 @@
-import type { Fingerprint, SerialNumber, ServiceId } from "../domain/primitives";
 import { HttpClient } from "../config/http-client";
+import type {
+	Fingerprint,
+	SerialNumber,
+	ServiceId,
+} from "../domain/primitives";
 import type { RevocationRequest } from "../domain/revocation-request";
 import type { TlsPaths } from "../domain/tls-paths";
 
@@ -114,8 +118,7 @@ export class CaClient {
 		const url = since
 			? `${this._baseUrl}/api/v1/crl?since=${encodeURIComponent(since)}`
 			: `${this._baseUrl}/api/v1/crl`;
-		const result =
-			await this._httpClient.get<CrlEntry[]>(url);
+		const result = await this._httpClient.get<CrlEntry[]>(url);
 		return result ?? [];
 	}
 }

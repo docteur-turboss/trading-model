@@ -147,8 +147,8 @@ function _logRedisPushError(entryId: string, err: unknown): void {
 }
 
 export {
-	DlqEntrySchema,
 	DeleteSchema,
+	DlqEntrySchema,
 	handleAddEntryError,
 	pushToRedisQueue,
 	validateAddEntryBody,

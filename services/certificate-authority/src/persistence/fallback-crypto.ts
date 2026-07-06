@@ -26,7 +26,9 @@ export function encrypt(plaintext: string, key: Buffer): string {
 
 function _validateIv(iv: Buffer): void {
 	if (iv.length !== 12 && iv.length !== 16) {
-		throw new Error(`Invalid IV length: ${iv.length} bytes (expected 12 or 16)`);
+		throw new Error(
+			`Invalid IV length: ${iv.length} bytes (expected 12 or 16)`
+		);
 	}
 }
 
@@ -41,5 +43,7 @@ export function decrypt(ciphertext: string, key: Buffer): string {
 	const encrypted = Buffer.from(parts[2], "base64");
 	const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
 	decipher.setAuthTag(tag);
-	return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+	return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString(
+		"utf8"
+	);
 }

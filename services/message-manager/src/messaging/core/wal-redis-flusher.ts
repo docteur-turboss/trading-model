@@ -1,10 +1,11 @@
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
-import { MemoryWalBuffer } from "./memory-wal-buffer";
+import { WAL_BATCH_SIZE } from "../../config/wal-config";
+import type { MemoryWalBuffer } from "./memory-wal-buffer";
 import { WalBatchFlusher } from "./wal-batch-flusher";
 import { WalEntryParser } from "./wal-entry-parser";
 import { WalErrorHandler } from "./wal-error-handler";
-import { WAL_BATCH_SIZE } from "../../config/wal-config";
+
 const WAL_LIST_MAX_LEN = 1_000_000;
 const ATOMIC_WAL_READ_LUA = `
   local entries = redis.call('LRANGE', KEYS[1], 0, ARGV[1] - 1)
@@ -20,16 +21,12 @@ export class WalRedisFlusher {
 
 	constructor(
 		private readonly _prefix: string,
-		private readonly _memoryWalBuffer: MemoryWalBuffer,
+		private readonly _memoryWalBuffer: MemoryWalBuffer
 	) {
-		this._batchFlusher = new WalBatchFlusher(
-			this._prefix,
-			0,
-			0
-		);
+		this._batchFlusher = new WalBatchFlusher(this._prefix, 0, 0);
 		this._errorHandler = new WalErrorHandler(
 			() => this._walKey(),
-			new WalEntryParser(this._memoryWalBuffer),
+			new WalEntryParser(this._memoryWalBuffer)
 		);
 	}
 
@@ -67,12 +64,14 @@ export class WalRedisFlusher {
 		}
 	}
 
-	private async _readWalBatch(redis: import("ioredis").Redis): Promise<string[]> {
+	private async _readWalBatch(
+		redis: import("ioredis").Redis
+	): Promise<string[]> {
 		return (await redis.eval(
 			ATOMIC_WAL_READ_LUA,
 			1,
 			this._walKey(),
-			WAL_BATCH_SIZE.toString(),
+			WAL_BATCH_SIZE.toString()
 		)) as string[];
 	}
 
@@ -94,7 +93,7 @@ export class WalRedisFlusher {
 	private _sleepWithJitter(ms: number): Promise<void> {
 		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
 		return new Promise((resolve) =>
-			setTimeout(resolve, Math.max(1, Math.round(ms + jitter))),
+			setTimeout(resolve, Math.max(1, Math.round(ms + jitter)))
 		);
 	}
 }

@@ -32,10 +32,7 @@ export class InstanceSubscriptionRemover {
 		return topics;
 	}
 
-	async cleanupOrphanedTopics(
-		redis: Redis,
-		topics: string[]
-	): Promise<void> {
+	async cleanupOrphanedTopics(redis: Redis, topics: string[]): Promise<void> {
 		for (const topic of topics) {
 			if (topic === LEASE_HEARTBEAT_FIELD) {
 				continue;

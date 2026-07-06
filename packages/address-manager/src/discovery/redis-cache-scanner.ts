@@ -6,7 +6,7 @@ import type { ServiceInstance } from "../client/type";
 export class RedisCacheScanner {
 	constructor(
 		private readonly _redis: Redis,
-		private readonly _prefix: string,
+		private readonly _prefix: string
 	) {}
 
 	async clear(): Promise<void> {
@@ -34,7 +34,7 @@ export class RedisCacheScanner {
 					"MATCH",
 					`${this._prefix}*`,
 					"COUNT",
-					200,
+					200
 				);
 				cursor = nextCursor;
 				for (const key of batch) {
@@ -80,7 +80,7 @@ export class RedisCacheScanner {
 				"MATCH",
 				`${this._prefix}*`,
 				"COUNT",
-				200,
+				200
 			);
 			cursor = nextCursor;
 			keysToDelete.push(...batch);

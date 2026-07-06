@@ -13,8 +13,11 @@ export class WorkerWsManager {
 
 	constructor(
 		server: https.Server,
-		private readonly _onMessage: (message: WorkerIncomingMessage, ws: WebSocket) => void,
-		private readonly _onClose: (ws: WebSocket) => void,
+		private readonly _onMessage: (
+			message: WorkerIncomingMessage,
+			ws: WebSocket
+		) => void,
+		private readonly _onClose: (ws: WebSocket) => void
 	) {
 		this._wss = new WebSocketServer({ server });
 		this._wss.on("connection", (ws: WebSocket) => this._onConnection(ws));
@@ -54,7 +57,6 @@ export class WorkerWsManager {
 				return workerId;
 			}
 		}
-		return undefined;
 	}
 
 	sendToWorker(workerId: string, message: SchedulerOutgoingMessage): void {

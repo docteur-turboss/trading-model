@@ -1,7 +1,10 @@
-import { retryWithBackoff as commonRetryWithBackoff, type RetryOptions, type RetryResult } from "@trading-model/common/utils/retry";
 import { logger } from "@trading-model/common/config/logger";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
-import { normalizeError } from "@trading-model/common/utils/errors";
+import {
+	retryWithBackoff as commonRetryWithBackoff,
+	type RetryOptions,
+	type RetryResult,
+} from "@trading-model/common/utils/retry";
 import { sleep } from "@trading-model/common/utils/sleep";
 
 export interface RetryConfig {
@@ -25,16 +28,22 @@ export class RetryScheduler {
 	}
 
 	computeJitteredDelay(attempt: number): number {
-		return computeExponentialBackoff(attempt, { baseDelayMs: this._config.baseDelayMs, maxDelayMs: this._config.maxDelayMs }) + Math.random() * 1000;
+		return (
+			computeExponentialBackoff(attempt, {
+				baseDelayMs: this._config.baseDelayMs,
+				maxDelayMs: this._config.maxDelayMs,
+			}) +
+			Math.random() * 1000
+		);
 	}
 
 	createStopWait(): Promise<void> {
 		return new Promise<void>((resolve) => {
 			const check = () => {
-				if (!this._shouldRetry) {
-					resolve();
-				} else {
+				if (this._shouldRetry) {
 					setImmediate(check);
+				} else {
+					resolve();
 				}
 			};
 			setImmediate(check);
@@ -50,7 +59,7 @@ export class RetryScheduler {
 
 	async retryLoop(
 		attemptFn: (attempt: number) => Promise<boolean>,
-		onExhausted: () => Promise<void>,
+		onExhausted: () => Promise<void>
 	): Promise<void> {
 		for (let attempt = 1; attempt <= this._config.maxRetries; attempt++) {
 			if (!this._shouldRetry) {
@@ -60,15 +69,13 @@ export class RetryScheduler {
 				return;
 			}
 		}
-		logger.warn(
-			"Max retries exhausted — entering background retry mode",
-		);
+		logger.warn("Max retries exhausted — entering background retry mode");
 		return onExhausted();
 	}
 
 	async backgroundRetryLoop(
 		attemptFn: (attempt: number) => Promise<boolean>,
-		onStopped: () => never,
+		onStopped: () => never
 	): Promise<void> {
 		let backgroundAttempts = 0;
 		while (this._shouldRetry) {
@@ -83,7 +90,7 @@ export class RetryScheduler {
 
 	async retryWithBackoff<T>(
 		fn: () => Promise<T>,
-		options?: Partial<RetryOptions>,
+		options?: Partial<RetryOptions>
 	): Promise<RetryResult<T>> {
 		return commonRetryWithBackoff(fn, {
 			maxRetries: options?.maxRetries ?? this._config.maxRetries,

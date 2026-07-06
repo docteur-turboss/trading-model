@@ -89,7 +89,12 @@ describe("EvolutionEngine", () => {
 
 		it("should mutate weights when rng < rate", () => {
 			const w = new Float32Array([1, 1, 1]);
-			const result = mutateWeights({ weights: w, rate: 0.6, std: 0.05, rng: () => 0.3 });
+			const result = mutateWeights({
+				weights: w,
+				rate: 0.6,
+				std: 0.05,
+				rng: () => 0.3,
+			});
 			const allMutated = result[0] !== 1 || result[1] !== 1 || result[2] !== 1;
 			expect(allMutated).toBe(true);
 		});
@@ -162,7 +167,11 @@ describe("EvolutionEngine", () => {
 				}
 				return 0;
 			};
-			const parent = selectParent(population, SelectionType.Tournament, controlledRng);
+			const parent = selectParent(
+				population,
+				SelectionType.Tournament,
+				controlledRng
+			);
 			expect(parent.id).toBe("high");
 		});
 
@@ -188,7 +197,11 @@ describe("EvolutionEngine", () => {
 				}
 				return 0;
 			};
-			const parent = selectParent(population, SelectionType.Tournament, controlledRng);
+			const parent = selectParent(
+				population,
+				SelectionType.Tournament,
+				controlledRng
+			);
 			expect(parent.id).toBe("a");
 		});
 	});

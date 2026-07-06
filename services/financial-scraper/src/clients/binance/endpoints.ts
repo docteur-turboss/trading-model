@@ -1,5 +1,8 @@
-import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import type { CandleInterval } from "@trading-model/common/config/event.types";
+import type {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 
 /** Parameter object for Binance endpoint queries. */
 export interface BinanceEndpointQuery {
@@ -31,7 +34,9 @@ export const BINANCE_ENDPOINTS = {
 			? `/api/v3/aggTrades?symbol=${query.symbol}&fromId=${query.fromId}&limit=${query.limit}`
 			: "/api/v3/aggTrades",
 
-	candlesticks: (query?: BinanceEndpointQuery & { interval?: CandleInterval }): string =>
+	candlesticks: (
+		query?: BinanceEndpointQuery & { interval?: CandleInterval }
+	): string =>
 		query?.symbol && query?.interval && query?.startTime && query?.limit
 			? `/api/v3/klines?symbol=${query.symbol}&interval=${query.interval}&startTime=${query.startTime}&limit=${query.limit}`
 			: "/api/v3/klines",

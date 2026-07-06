@@ -31,14 +31,18 @@ export function classifyDeliveryFailure({
 	);
 }
 
-function checkDeadLetter(error: Error & { statusCode?: number; reason?: string }): DeliveryDecision | null {
+function checkDeadLetter(
+	error: Error & { statusCode?: number; reason?: string }
+): DeliveryDecision | null {
 	if (isDeadLetterError(error)) {
 		return { retry: false, deadLetterReason: error.reason ?? "DEAD_LETTER" };
 	}
 	return null;
 }
 
-function checkFatalClientError(error: Error & { statusCode?: number; reason?: string }): DeliveryDecision | null {
+function checkFatalClientError(
+	error: Error & { statusCode?: number; reason?: string }
+): DeliveryDecision | null {
 	if (
 		error.statusCode !== undefined &&
 		error.statusCode >= 400 &&
@@ -60,7 +64,10 @@ function checkAtMostOnce(deliveryMode: DeliveryMode): DeliveryDecision | null {
 	return null;
 }
 
-function checkMaxRetries(deliveryAttempt: number, maxRetries: number): DeliveryDecision | null {
+function checkMaxRetries(
+	deliveryAttempt: number,
+	maxRetries: number
+): DeliveryDecision | null {
 	if (deliveryAttempt >= maxRetries) {
 		return { retry: false, deadLetterReason: "MAX_RETRIES" };
 	}

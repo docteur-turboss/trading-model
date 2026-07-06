@@ -1,4 +1,4 @@
-import { type Collection } from "mongodb";
+import type { Collection } from "mongodb";
 
 export class DedupInserter {
 	async insert(

@@ -38,7 +38,15 @@ export class DlqCircuitBreakerState {
 		return false;
 	}
 
-	recordFailure(now: number, onOpened: (name: string, failures: number, halfOpenAttempts: number, resetMs: number) => void): void {
+	recordFailure(
+		now: number,
+		onOpened: (
+			name: string,
+			failures: number,
+			halfOpenAttempts: number,
+			resetMs: number
+		) => void
+	): void {
 		this._failures++;
 		this._checkHalfOpenReopen(now, onOpened);
 		this._checkThresholdOpen(now, onOpened);
@@ -58,22 +66,48 @@ export class DlqCircuitBreakerState {
 		this._halfOpenAttempts = 0;
 	}
 
-	private _checkHalfOpenReopen(now: number, onOpened: (name: string, failures: number, halfOpenAttempts: number, resetMs: number) => void): void {
+	private _checkHalfOpenReopen(
+		now: number,
+		onOpened: (
+			name: string,
+			failures: number,
+			halfOpenAttempts: number,
+			resetMs: number
+		) => void
+	): void {
 		if (this._openUntil <= 0) {
 			return;
 		}
 		this._halfOpenAttempts++;
 		if (this._halfOpenAttempts >= this._config.halfOpenMaxAttempts) {
 			this._openUntil = now + this._config.resetMs;
-			onOpened(this._config.name, this._failures, this._halfOpenAttempts, this._config.resetMs);
+			onOpened(
+				this._config.name,
+				this._failures,
+				this._halfOpenAttempts,
+				this._config.resetMs
+			);
 		}
 	}
 
-	private _checkThresholdOpen(now: number, onOpened: (name: string, failures: number, halfOpenAttempts: number, resetMs: number) => void): void {
+	private _checkThresholdOpen(
+		now: number,
+		onOpened: (
+			name: string,
+			failures: number,
+			halfOpenAttempts: number,
+			resetMs: number
+		) => void
+	): void {
 		if (this._failures < this._config.failureThreshold) {
 			return;
 		}
 		this._openUntil = now + this._config.resetMs;
-		onOpened(this._config.name, this._failures, this._halfOpenAttempts, this._config.resetMs);
+		onOpened(
+			this._config.name,
+			this._failures,
+			this._halfOpenAttempts,
+			this._config.resetMs
+		);
 	}
 }

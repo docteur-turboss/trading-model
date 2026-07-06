@@ -1,8 +1,8 @@
 import type { Experience } from "../../core/neural-network/type";
-import type { DeepReadonly } from "./shared-types";
 import type { LamarckGenome, MarketStep } from "./genome-types";
-import type { RLBackend } from "./rl-backend";
 import { nStepReturn } from "./reward-shaping";
+import type { RLBackend } from "./rl-backend";
+import type { DeepReadonly } from "./shared-types";
 
 export interface TrainPhaseContext {
 	backend: RLBackend;

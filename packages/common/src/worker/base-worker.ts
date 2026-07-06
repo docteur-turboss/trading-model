@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { HttpClient } from "../config/http-client";
 import type { TlsPemBundle } from "../domain/tls-paths";
-import { WorkerClient, type WorkerClientConfig } from "./worker-client";
 import { JobAssignmentHandler } from "./job-assignment-handler";
+import { WorkerClient, type WorkerClientConfig } from "./worker-client";
 
 export interface BaseWorkerConfig {
 	workerId?: string;
@@ -32,7 +32,7 @@ export class BaseWorker {
 		this.httpClient = new HttpClient(config.tlsConfig);
 		this._jobHandler = new JobAssignmentHandler(
 			this.httpClient,
-			this.config.schedulerHttpUrl,
+			this.config.schedulerHttpUrl
 		);
 		this.client.on("job.assigned", (job) => this._onJobAssigned(job));
 		this.client.on("drain", () => this._jobHandler.onDrain());
@@ -50,9 +50,16 @@ export class BaseWorker {
 
 	registerHandler<TPayload = unknown>(
 		jobType: string,
-		handler: JobHandler<TPayload>,
+		handler: JobHandler<TPayload>
 	): void {
-		this._jobHandler.registerHandler(jobType, handler as (job: { id: string; type: string; payload: unknown }) => Promise<unknown>);
+		this._jobHandler.registerHandler(
+			jobType,
+			handler as (job: {
+				id: string;
+				type: string;
+				payload: unknown;
+			}) => Promise<unknown>
+		);
 	}
 
 	async start(): Promise<void> {
@@ -65,7 +72,7 @@ export class BaseWorker {
 	}
 
 	private async _onJobAssigned(
-		job: import("../contracts/worker-protocol.types").SchedulerWsJobAssignedMessage["job"],
+		job: import("../contracts/worker-protocol.types").SchedulerWsJobAssignedMessage["job"]
 	): Promise<void> {
 		await this._jobHandler.onJobAssigned(job);
 		this.client.sendHeartbeat(this._jobHandler.activeCount);

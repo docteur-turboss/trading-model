@@ -1,4 +1,7 @@
-import { computeExponentialBackoff, type BackoffConfig } from "../utils/backoff-config";
+import {
+	type BackoffConfig,
+	computeExponentialBackoff,
+} from "../utils/backoff-config";
 
 const DEFAULT_RETRY_COUNT = 3;
 
@@ -16,14 +19,16 @@ function computeRetryDelay(attempt: number, options?: BackoffConfig): number {
 	return delay;
 }
 
-function computeAdaptiveTimeout(
-	baseMs: number,
-	ewmLatencyMs?: number
-): number {
+function computeAdaptiveTimeout(baseMs: number, ewmLatencyMs?: number): number {
 	if (ewmLatencyMs !== undefined) {
 		return Math.max(baseMs, Math.round(ewmLatencyMs * 3));
 	}
 	return baseMs * 2;
 }
 
-export { DEFAULT_RETRY_COUNT, computeAdaptiveTimeout, computeRetryDelay, isRetryableStatus };
+export {
+	computeAdaptiveTimeout,
+	computeRetryDelay,
+	DEFAULT_RETRY_COUNT,
+	isRetryableStatus,
+};

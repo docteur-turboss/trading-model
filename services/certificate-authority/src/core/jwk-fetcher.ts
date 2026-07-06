@@ -40,10 +40,13 @@ export class JwkFetcher {
 		return (await response.json()) as JwksResponse;
 	}
 
-	private _parseJwkKey(
-		entry: Jwk,
-	): ParsedJwk | null {
-		const { n: modulus, e: exponent, x: xCoord, y: yCoord } = entry as Record<string, string | undefined>;
+	private _parseJwkKey(entry: Jwk): ParsedJwk | null {
+		const {
+			n: modulus,
+			e: exponent,
+			x: xCoord,
+			y: yCoord,
+		} = entry as Record<string, string | undefined>;
 		if (entry.kty === "RSA" && modulus && exponent) {
 			const key = createPublicKey({
 				key: { kty: entry.kty, n: modulus, e: exponent },

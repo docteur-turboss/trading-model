@@ -2,8 +2,8 @@ import type {
 	RevokedCertificate,
 	SignedCertificate,
 } from "@trading-model/certificate-utils/types";
-import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { SerialNumber } from "@trading-model/common/domain/primitives";
+import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { SignServiceCertRequest } from "../domain/cert-renewal-service";
 import type { CaStore } from "../persistence/ca-store";
 import type { CertificateStore } from "../persistence/certificate-store";

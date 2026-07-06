@@ -1,4 +1,4 @@
-import { Price } from "@trading-model/common/domain/primitives";
+import type { Price } from "@trading-model/common/domain/primitives";
 import type { WalletMetrics } from "../env/wallet-manager";
 import type TradingAgent from "./trading-agent";
 

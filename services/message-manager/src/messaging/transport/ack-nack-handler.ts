@@ -1,5 +1,5 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import WebSocket from "ws";
+import type WebSocket from "ws";
 import type { Dispatcher } from "../core/dispatcher";
 import type { IncomingWssMessage } from "./wss-message.types";
 
@@ -17,7 +17,9 @@ export class AckNackHandler {
 			);
 			return;
 		}
-		this._dispatcher.handleAck(msg.messageId, ctx.identity.instanceId).catch(() => {});
+		this._dispatcher
+			.handleAck(msg.messageId, ctx.identity.instanceId)
+			.catch(() => {});
 	}
 
 	handleNack(
@@ -31,6 +33,8 @@ export class AckNackHandler {
 			);
 			return;
 		}
-		this._dispatcher.handleNack(msg.messageId, ctx.identity.instanceId).catch(() => {});
+		this._dispatcher
+			.handleNack(msg.messageId, ctx.identity.instanceId)
+			.catch(() => {});
 	}
 }

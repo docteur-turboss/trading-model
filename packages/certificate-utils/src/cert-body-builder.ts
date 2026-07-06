@@ -14,7 +14,8 @@ export interface CertBodyBuilderOptions {
 
 export class CertBodyBuilder {
 	buildCertBody(options: CertBodyBuilderOptions): string {
-		const { serialNumber, now, expiresAt, publicKey, subject, san, isCa } = options;
+		const { serialNumber, now, expiresAt, publicKey, subject, san, isCa } =
+			options;
 		const lines = [
 			`Serial: ${serialNumber}`,
 			"Issuer: CN=TradingModelCA",
@@ -38,22 +39,27 @@ export class CertBodyBuilder {
 		return sign.sign(privateKey, "base64");
 	}
 
-	signAndBuildPem(certBody: string, privateKey: string, issuerCert?: string): string {
+	signAndBuildPem(
+		certBody: string,
+		privateKey: string,
+		issuerCert?: string
+	): string {
 		const signature = this.signCertBody(certBody, privateKey);
 		return this.buildCertPem(certBody, signature, issuerCert);
 	}
 
-	buildCertPem(certBody: string, signature: string, issuerCert?: string): string {
+	buildCertPem(
+		certBody: string,
+		signature: string,
+		issuerCert?: string
+	): string {
 		const payload: Record<string, string> = { body: certBody, signature };
 		if (issuerCert) {
 			payload.issuerCert = issuerCert;
 		}
 		return [
 			"-----BEGIN CERTIFICATE-----",
-			...chunks(
-				Buffer.from(JSON.stringify(payload)).toString("base64"),
-				64,
-			),
+			...chunks(Buffer.from(JSON.stringify(payload)).toString("base64"), 64),
 			"-----END CERTIFICATE-----",
 		].join("\n");
 	}

@@ -20,7 +20,12 @@ export class ClaimExecutor {
 		minIdleMs = 60_000,
 		count = 100
 	): Promise<number> {
-		return this._doClaimPendingMessages(groupName, consumerId, minIdleMs, count);
+		return this._doClaimPendingMessages(
+			groupName,
+			consumerId,
+			minIdleMs,
+			count
+		);
 	}
 
 	async claimEntriesForRetry(options: {
@@ -33,7 +38,7 @@ export class ClaimExecutor {
 			options.groupName,
 			options.consumerId,
 			options.minIdleMs ?? 60_000,
-			options.count ?? 100,
+			options.count ?? 100
 		);
 	}
 
@@ -69,9 +74,11 @@ export class ClaimExecutor {
 			}
 			return total;
 		} catch (err) {
-			logger.warn("Failed to claim pending messages", { context: {
-				error: (err as Error).message,
-			} });
+			logger.warn("Failed to claim pending messages", {
+				context: {
+					error: (err as Error).message,
+				},
+			});
 			return 0;
 		} finally {
 			if (redis) {

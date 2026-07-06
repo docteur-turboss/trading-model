@@ -2,7 +2,7 @@ export class TimerHandle {
 	private _handle!: ReturnType<typeof setInterval>;
 
 	get isRunning(): boolean {
-		return !!this._handle;
+		return Boolean(this._handle);
 	}
 
 	startInterval(callback: () => void, intervalMs: number): void {

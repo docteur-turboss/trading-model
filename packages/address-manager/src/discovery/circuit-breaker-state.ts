@@ -1,5 +1,5 @@
-import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 import { logger } from "@trading-model/common/config/logger";
+import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export interface INstanceState {
@@ -18,7 +18,7 @@ export class CircuitBreakerState {
 	constructor(
 		private readonly _failureThreshold: number,
 		private readonly _halfOpenTimeoutMs: number,
-		private readonly _onSweepInstance?: (instanceId: string) => void,
+		private readonly _onSweepInstance?: (instanceId: string) => void
 	) {
 		this._startSweeper();
 	}
@@ -75,7 +75,10 @@ export class CircuitBreakerState {
 	}
 
 	private _startSweeper(): void {
-		this._sweepHandle.startInterval(() => this._sweepStaleEntries(), SWEEP_INTERVAL_MS);
+		this._sweepHandle.startInterval(
+			() => this._sweepStaleEntries(),
+			SWEEP_INTERVAL_MS
+		);
 		this._sweepHandle.unref();
 	}
 

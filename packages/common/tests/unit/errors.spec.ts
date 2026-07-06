@@ -1,10 +1,18 @@
 import { describe, expect, it } from "@jest/globals";
 import {
+	AppError,
 	addressManagerError,
 	agentError,
-	AppError,
 	authenticationError,
 	deadLetterError,
+	isAddressManagerError,
+	isAgentError,
+	isAuthenticationError,
+	isMessageManagerError,
+	isMetadataBuilderError,
+	isServiceNotFoundError,
+	isServiceUnreachableError,
+	isTimeoutError,
 	messageManagerError,
 	metadataBuilderError,
 	nackError,
@@ -12,16 +20,6 @@ import {
 	serviceNotFoundError,
 	serviceUnreachableError,
 	timeoutError,
-	isServiceNotFoundError,
-	isServiceUnreachableError,
-	isAuthenticationError,
-	isAddressManagerError,
-	isMessageManagerError,
-	isMetadataBuilderError,
-	isTimeoutError,
-	isNackError,
-	isDeadLetterError,
-	isAgentError,
 } from "../../src/utils/errors";
 
 describe("AppError", () => {

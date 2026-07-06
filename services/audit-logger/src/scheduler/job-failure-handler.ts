@@ -18,7 +18,6 @@ export interface JobFailureHandlerDeps {
 export class JobFailureHandler {
 	private readonly _queue: InternalQueue;
 	private readonly _repository: JobRepository;
-	private readonly _reAllocator: ReAllocator;
 	private readonly _assignmentManager: JobAssignmentManager;
 
 	constructor(deps: JobFailureHandlerDeps) {

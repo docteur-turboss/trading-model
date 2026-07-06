@@ -1,5 +1,9 @@
-import { toInstanceId, toMessageId, type Topic } from "@trading-model/common/domain/primitives";
-import WebSocket from "ws";
+import {
+	type Topic,
+	toInstanceId,
+	toMessageId,
+} from "@trading-model/common/domain/primitives";
+import type WebSocket from "ws";
 import type { IncomingWssMessage, WssMessageType } from "./wss-message.types";
 
 export class WssMessageParser {
@@ -23,12 +27,16 @@ export class WssMessageParser {
 
 		return {
 			type: msg.type as WssMessageType,
-			instanceId: msg.instanceId ? toInstanceId(msg.instanceId as string) : undefined,
+			instanceId: msg.instanceId
+				? toInstanceId(msg.instanceId as string)
+				: undefined,
 			topics: msg.topics as Topic[] | undefined,
 			payload: msg.payload,
 			metadata: msg.metadata,
 			traceparent: msg.traceparent as string | undefined,
-			messageId: msg.messageId ? toMessageId(msg.messageId as string) : undefined,
+			messageId: msg.messageId
+				? toMessageId(msg.messageId as string)
+				: undefined,
 		};
 	}
 }

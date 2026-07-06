@@ -1,12 +1,12 @@
-import {
-	createHash,
-	createPublicKey,
-	randomUUID,
-} from "node:crypto";
+import { createHash, createPublicKey, randomUUID } from "node:crypto";
 
-import { toFingerprint, toSerialNumber, type ServiceId } from "@trading-model/common/domain/primitives";
-import type { KeyPair, SignedCertificate } from "./types";
+import {
+	type ServiceId,
+	toFingerprint,
+	toSerialNumber,
+} from "@trading-model/common/domain/primitives";
 import { CertBodyBuilder } from "./cert-body-builder";
+import type { KeyPair, SignedCertificate } from "./types";
 
 export interface SignOptions {
 	csr: string;
@@ -20,7 +20,9 @@ function _buildSerialNumber(): string {
 	return randomUUID().replace(/-/g, "").substring(0, 16).toUpperCase();
 }
 
-function _exportPublicKeyPem(publicKey: ReturnType<typeof createPublicKey>): string {
+function _exportPublicKeyPem(
+	publicKey: ReturnType<typeof createPublicKey>
+): string {
 	return publicKey.export({ type: "spki", format: "pem" });
 }
 
@@ -28,7 +30,7 @@ function _parseCsrBody(csr: string): string {
 	const lines = csr
 		.split("\n")
 		.filter(
-			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END")),
+			(line) => !(line.startsWith("-----BEGIN") || line.startsWith("-----END"))
 		);
 	return Buffer.from(lines.join(""), "base64").toString("utf8");
 }
@@ -62,7 +64,13 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 	const certPem = builder.buildCertPem(certBody, signature, caCertPem);
 	const fingerprint = createHash("sha256").update(certPem).digest("hex");
 
-	return { serialNumber: toSerialNumber(serialNumber), certPem, caPem: caCertPem, serviceId, issuedAt: now, expiresAt, fingerprint: toFingerprint(fingerprint) };
+	return {
+		serialNumber: toSerialNumber(serialNumber),
+		certPem,
+		caPem: caCertPem,
+		serviceId,
+		issuedAt: now,
+		expiresAt,
+		fingerprint: toFingerprint(fingerprint),
+	};
 }
-
-

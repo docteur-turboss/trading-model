@@ -1,7 +1,11 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
-import { VaultTransitHttp, type VaultTransitConfig } from "./vault-transit-http";
+import {
+	type VaultTransitConfig,
+	VaultTransitHttp,
+} from "./vault-transit-http";
+
 export type { VaultTransitConfig } from "./vault-transit-http";
 
 export class VaultTransitClient {

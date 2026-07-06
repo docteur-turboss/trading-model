@@ -8,16 +8,6 @@ import {
 	InitialisationType,
 	NormalisationType,
 } from "../neural-network/type";
-import {
-	ContinuousPolicyType,
-	CrossoverType,
-	DiscretePolicyType,
-	FitnessType,
-	MutationAdaptation,
-	MutationDistribution,
-	MutationScope,
-	SelectionType,
-} from "./genome-types";
 import type {
 	ContinuousPolicyGenome,
 	CrossoverGenome,
@@ -31,11 +21,31 @@ import type {
 	RewardShapingGenome,
 	RLGenome,
 } from "./genome-types";
+import {
+	ContinuousPolicyType,
+	CrossoverType,
+	DiscretePolicyType,
+	FitnessType,
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
+	SelectionType,
+} from "./genome-types";
 
 function _createDefaultHiddenLayers(): NetworkGenome["hiddenLayers"] {
 	return [
-		{ neurons: 64, activation: ActivationType.Relu, connectionType: ConnectionType.DenseSkip, biasType: InitialisationType.Zeros },
-		{ neurons: 32, activation: ActivationType.Relu, connectionType: ConnectionType.DenseSkip, biasType: InitialisationType.Zeros },
+		{
+			neurons: 64,
+			activation: ActivationType.Relu,
+			connectionType: ConnectionType.DenseSkip,
+			biasType: InitialisationType.Zeros,
+		},
+		{
+			neurons: 32,
+			activation: ActivationType.Relu,
+			connectionType: ConnectionType.DenseSkip,
+			biasType: InitialisationType.Zeros,
+		},
 	];
 }
 

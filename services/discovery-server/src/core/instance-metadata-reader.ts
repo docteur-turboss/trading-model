@@ -1,18 +1,18 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import Redis from "ioredis";
-import { RedisKeyBuilder } from "./redis-key-builder";
+import type Redis from "ioredis";
+import type { RedisKeyBuilder } from "./redis-key-builder";
 
 export class InstanceMetadataReader {
 	constructor(
 		private readonly _redis: Redis,
-		private readonly _keyBuilder: RedisKeyBuilder,
+		private readonly _keyBuilder: RedisKeyBuilder
 	) {}
 
 	async getMetadata(instanceId: string): Promise<ServiceInstance | undefined> {
 		const json = await this._redis.get(
-			this._keyBuilder.instanceMetadata(instanceId),
+			this._keyBuilder.instanceMetadata(instanceId)
 		);
 		if (!json) {
 			return;
@@ -29,7 +29,7 @@ export class InstanceMetadataReader {
 
 	async getServiceInstanceIds(serviceName: string): Promise<string[]> {
 		return this._redis.smembers(
-			this._keyBuilder.serviceInstancesSet(serviceName),
+			this._keyBuilder.serviceInstancesSet(serviceName)
 		);
 	}
 

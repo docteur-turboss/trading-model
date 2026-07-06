@@ -1,4 +1,4 @@
-import { type Collection, type Db } from "mongodb";
+import type { Collection, Db } from "mongodb";
 
 import { env } from "./env";
 import { IndexManager } from "./index-manager";

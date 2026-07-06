@@ -1,5 +1,13 @@
 import { describe, expect, test } from "@jest/globals";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	MutationAdaptation,
+	MutationDistribution,
+	MutationScope,
+} from "../../../src/core/genetic-algorithm/genome";
 import type {
 	LayerGenome,
 	MutationGenome,
@@ -9,14 +17,6 @@ import {
 	mutateGenome,
 	mutateLayer,
 } from "../../../src/core/genetic-algorithm/mutation";
-import {
-	ActivationType,
-	ConnectionType,
-	InitialisationType,
-	MutationAdaptation,
-	MutationDistribution,
-	MutationScope,
-} from "../../../src/core/genetic-algorithm/genome";
 
 describe("Mutation - adaptSigma", () => {
 	const rng = () => 0.5;
@@ -31,12 +31,18 @@ describe("Mutation - adaptSigma", () => {
 	}
 
 	test("fixed adaptation returns sigma directly", () => {
-		const m = makeMutationGenome({ adaptation: MutationAdaptation.Fixed, sigma: 0.5 });
+		const m = makeMutationGenome({
+			adaptation: MutationAdaptation.Fixed,
+			sigma: 0.5,
+		});
 		expect(adaptSigma(m, rng)).toBe(0.5);
 	});
 
 	test("sigma_adaptive returns perturbed sigma", () => {
-		const m = makeMutationGenome({ adaptation: MutationAdaptation.SigmaAdaptive, sigma: 0.5 });
+		const m = makeMutationGenome({
+			adaptation: MutationAdaptation.SigmaAdaptive,
+			sigma: 0.5,
+		});
 		const result = adaptSigma(m, rng);
 		expect(result).toBeGreaterThanOrEqual(0.45);
 		expect(result).toBeLessThanOrEqual(0.55);
@@ -54,15 +60,27 @@ describe("Mutation - adaptSigma", () => {
 
 	test("cma adapts sigma via selfSigma path length", () => {
 		// selfSigma ≈ 1.0 → path at expected length → sigma stays ~unchanged
-		const m1 = makeMutationGenome({ adaptation: MutationAdaptation.Cma, sigma: 0.5, selfSigma: 1.0 });
+		const m1 = makeMutationGenome({
+			adaptation: MutationAdaptation.Cma,
+			sigma: 0.5,
+			selfSigma: 1.0,
+		});
 		expect(adaptSigma(m1, rng)).toBeCloseTo(0.5, 5);
 
 		// selfSigma < 1.0 → short path → sigma decreases (exploitation)
-		const m2 = makeMutationGenome({ adaptation: MutationAdaptation.Cma, sigma: 0.5, selfSigma: 0.1 });
+		const m2 = makeMutationGenome({
+			adaptation: MutationAdaptation.Cma,
+			sigma: 0.5,
+			selfSigma: 0.1,
+		});
 		expect(adaptSigma(m2, rng)).toBeLessThan(0.5);
 
 		// selfSigma > 1.0 → long path → sigma increases (exploration)
-		const m3 = makeMutationGenome({ adaptation: MutationAdaptation.Cma, sigma: 0.5, selfSigma: 2.0 });
+		const m3 = makeMutationGenome({
+			adaptation: MutationAdaptation.Cma,
+			sigma: 0.5,
+			selfSigma: 2.0,
+		});
 		expect(adaptSigma(m3, rng)).toBeGreaterThan(0.5);
 	});
 

@@ -2,11 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { logger } from "@trading-model/common/config/logger";
+import { decrypt, deriveKey, encrypt } from "./fallback-crypto";
 import { FallbackFileReader } from "./fallback-file-reader";
-import { deriveKey, encrypt, decrypt } from "./fallback-crypto";
 
-const ALGORITHM = "aes-256-gcm";
-const IV_LENGTH = 12;
+const _ALGORITHM = "aes-256-gcm";
+const _IV_LENGTH = 12;
 
 export interface FsStore {
 	readonly disabled: boolean;
@@ -44,9 +44,13 @@ class RealFsStore implements FsStore {
 	private readonly _fileReader: FallbackFileReader;
 
 	constructor(options: { baseDir?: string; encryptionKey?: string }) {
-		this._baseDir = options.baseDir ?? path.join(process.cwd(), "data", "ca-fallback");
+		this._baseDir =
+			options.baseDir ?? path.join(process.cwd(), "data", "ca-fallback");
 		this._encryptionKey = this._initEncryptionKey(options.encryptionKey);
-		this._fileReader = new FallbackFileReader(this._baseDir, this._encryptionKey);
+		this._fileReader = new FallbackFileReader(
+			this._baseDir,
+			this._encryptionKey
+		);
 	}
 
 	private _initEncryptionKey(encryptionKey?: string): Buffer | null {
@@ -56,12 +60,14 @@ class RealFsStore implements FsStore {
 		if (process.env.NODE_ENV === "production") {
 			throw new Error(
 				"FsStore: FS_ENCRYPTION_KEY is required in production for encrypted fallback storage. " +
-				'Generate with: node -e "console.log(crypto.randomBytes(32).toString(\'base64\'))". ' +
-				"To disable the filesystem fallback entirely (relying solely on MongoDB), set CA_DISABLE_FS_FALLBACK=true. " +
-				"Note: disabling FsStore means the CA will crash if MongoDB becomes unavailable."
+					"Generate with: node -e \"console.log(crypto.randomBytes(32).toString('base64'))\". " +
+					"To disable the filesystem fallback entirely (relying solely on MongoDB), set CA_DISABLE_FS_FALLBACK=true. " +
+					"Note: disabling FsStore means the CA will crash if MongoDB becomes unavailable."
 			);
 		}
-		logger.warn("FsStore: FS_ENCRYPTION_KEY not set — fallback data stored unencrypted. Acceptable for dev only.");
+		logger.warn(
+			"FsStore: FS_ENCRYPTION_KEY not set — fallback data stored unencrypted. Acceptable for dev only."
+		);
 		return null;
 	}
 

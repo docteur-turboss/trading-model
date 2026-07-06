@@ -1,6 +1,6 @@
 import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 
-import { HttpMessageDelivery } from "./http-message-delivery";
+import type { HttpMessageDelivery } from "./http-message-delivery";
 import { Subscription } from "./subscription";
 
 /** Coordinates message delivery between published messages and registered subscriptions. */

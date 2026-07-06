@@ -1,4 +1,3 @@
-import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { WalEntryParser } from "./wal-entry-parser";
 
@@ -31,7 +30,15 @@ export class WalBatchFlusher {
 				continue;
 			}
 			const key = `${this._prefix}stream:${parsed.topic}`;
-			multi.xadd(key, "MAXLEN", "~", this._streamMaxlen, "*", "data", parsed.data);
+			multi.xadd(
+				key,
+				"MAXLEN",
+				"~",
+				this._streamMaxlen,
+				"*",
+				"data",
+				parsed.data
+			);
 			multi.expire(key, this._messageTtlS);
 		}
 	}

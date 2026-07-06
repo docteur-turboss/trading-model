@@ -1,14 +1,15 @@
-import type { AuditFilter } from "@trading-model/common/contracts/admin/audit.dto";
-import type { DateRange } from "@trading-model/common/domain/date-range";
 import {
 	computePagination,
-	type PaginationQuery,
 	type PaginationResult,
 } from "@trading-model/common/domain/pagination";
 import type { ServiceId, Topic } from "@trading-model/common/domain/primitives";
 import type { Collection, Filter } from "mongodb";
 
-import type { AuditEventDocument, AuditEventQuery, AuditStats } from "./audit-repository";
+import type {
+	AuditEventDocument,
+	AuditEventQuery,
+	AuditStats,
+} from "./audit-repository";
 
 export class AuditQuerier {
 	constructor(private readonly _collection: Collection<AuditEventDocument>) {}

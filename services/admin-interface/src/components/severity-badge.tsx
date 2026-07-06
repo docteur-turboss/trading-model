@@ -8,7 +8,12 @@ const SEVERITY_STYLES: Record<string, { color: string; bg: string }> = {
 };
 
 function getSeverityStyle(severity: string): { color: string; bg: string } {
-	return SEVERITY_STYLES[severity.toUpperCase()] ?? { color: "#757575", bg: "#f5f5f5" };
+	return (
+		SEVERITY_STYLES[severity.toUpperCase()] ?? {
+			color: "#757575",
+			bg: "#f5f5f5",
+		}
+	);
 }
 
 interface SeverityBadgeProps {

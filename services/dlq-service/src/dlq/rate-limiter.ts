@@ -132,8 +132,4 @@ function _createHealthLimiter(): ReturnType<typeof rateLimit> {
 	});
 }
 
-export {
-	_createHealthLimiter,
-	_createReplayLimiter,
-	_createWriteLimiter,
-};
+export { _createHealthLimiter, _createReplayLimiter, _createWriteLimiter };

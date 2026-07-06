@@ -4,21 +4,22 @@ import { sleep } from "@trading-model/common/utils/sleep";
 
 import type { ServiceInstance } from "../client/type";
 import { recordDiscoveryMetrics } from "../metrics";
-import { CircuitBreaker } from "./circuit-breaker";
+import type { CircuitBreaker } from "./circuit-breaker";
 import type { IServiceCache } from "./service-cache.interface";
-import { ServiceDiscovery } from "./service-discovery";
+import type { ServiceDiscovery } from "./service-discovery";
 
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY_MS = 100;
 
 export class DiscoveryRetryHandler {
 	private static readonly _CIRCUIT_BREAKER_MAX_RETRIES = MAX_RETRIES;
-	private static readonly _CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS = RETRY_BASE_DELAY_MS;
+	private static readonly _CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS =
+		RETRY_BASE_DELAY_MS;
 
 	constructor(
 		private readonly _serviceDiscovery: ServiceDiscovery,
 		private readonly _serviceCache: IServiceCache,
-		readonly circuitBreaker: CircuitBreaker,
+		readonly circuitBreaker: CircuitBreaker
 	) {}
 
 	async attemptDiscovery(
@@ -47,7 +48,8 @@ export class DiscoveryRetryHandler {
 				lastError = err instanceof Error ? err : new Error(String(err));
 				if (attempt < DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES) {
 					const delay =
-						DiscoveryRetryHandler._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt;
+						DiscoveryRetryHandler._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS *
+						2 ** attempt;
 					await sleep(delay);
 				}
 			}
@@ -75,7 +77,8 @@ export class DiscoveryRetryHandler {
 
 		if (attempt < DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES) {
 			const delay =
-				DiscoveryRetryHandler._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt;
+				DiscoveryRetryHandler._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS *
+				2 ** attempt;
 			await sleep(delay);
 		}
 
@@ -87,7 +90,9 @@ export class DiscoveryRetryHandler {
 		startTime: number
 	): Promise<ServiceInstance | null> {
 		try {
-			const staleInstance = await this._serviceCache.get(toServiceId(serviceName));
+			const staleInstance = await this._serviceCache.get(
+				toServiceId(serviceName)
+			);
 			if (staleInstance) {
 				logger.warn(
 					"Circuit breaker exhausted — returning stale cached instance as fallback",

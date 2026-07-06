@@ -26,18 +26,13 @@ export class StaleInstanceRemover {
 		return topics;
 	}
 
-	async cleanupOrphanedTopics(
-		redis: Redis,
-		topics: string[]
-	): Promise<void> {
+	async cleanupOrphanedTopics(redis: Redis, topics: string[]): Promise<void> {
 		for (const topic of topics) {
 			if (topic === LEASE_HEARTBEAT_FIELD) {
 				continue;
 			}
 			try {
-				const remaining = await redis.scard(
-					`${this._prefix}sub:${topic}`
-				);
+				const remaining = await redis.scard(`${this._prefix}sub:${topic}`);
 				if (remaining === 0) {
 					await redis.srem(`${this._prefix}topics`, topic);
 				}

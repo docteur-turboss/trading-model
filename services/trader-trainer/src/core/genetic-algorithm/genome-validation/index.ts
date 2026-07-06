@@ -1,7 +1,20 @@
-import type { Genome, ValidationError, ValidationContext, ValidationResult } from "../genome";
-import { validateNetwork, repairNetwork } from "./network";
-import { validateRL, repairRL } from "./rl";
-import { validateCrossover, validateGAControl, validateIdentity, validateMutation, repairCrossover, repairGAControl, repairMutation } from "./misc";
+import type {
+	Genome,
+	ValidationContext,
+	ValidationError,
+	ValidationResult,
+} from "../genome";
+import {
+	repairCrossover,
+	repairGAControl,
+	repairMutation,
+	validateCrossover,
+	validateGAControl,
+	validateIdentity,
+	validateMutation,
+} from "./misc";
+import { repairNetwork, validateNetwork } from "./network";
+import { repairRL, validateRL } from "./rl";
 
 export function validateGenome(genome: Genome): ValidationResult {
 	const errors: ValidationError[] = [];
@@ -17,7 +30,10 @@ export function validateGenome(genome: Genome): ValidationResult {
 
 export function repairGenome(genome: Genome): Genome {
 	return {
-		id: typeof genome.id === "string" && genome.id.length > 0 ? genome.id : "repaired",
+		id:
+			typeof genome.id === "string" && genome.id.length > 0
+				? genome.id
+				: "repaired",
 		generation: Math.max(0, Math.round(genome.generation ?? 0)),
 		network: repairNetwork(genome.network),
 		rl: repairRL(genome.rl),

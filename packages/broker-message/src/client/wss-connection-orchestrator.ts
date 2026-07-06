@@ -1,12 +1,11 @@
-import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { logger } from "@trading-model/common/config/logger";
+import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { normalizeError } from "@trading-model/common/utils/errors";
-
-import { WssReconnector } from "./wss-reconnector";
-import { PendingPublishQueue } from "./pending-publish-queue";
-import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
+import type { PendingPublishQueue } from "./pending-publish-queue";
 import { TopicSubscriptionManager } from "./topic-subscription-manager";
 import { WsConnectionEventHandler } from "./ws-connection-event-handler";
+import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
+import { WssReconnector } from "./wss-reconnector";
 
 export class WssConnectionOrchestrator {
 	private readonly _lifecycle: WssConnectionLifecycle;
@@ -26,10 +25,11 @@ export class WssConnectionOrchestrator {
 		private readonly _queue: PendingPublishQueue
 	) {
 		this._lifecycle = new WssConnectionLifecycle(config, {
-			onOpen: () => this._eventHandler.onWsOpen(
-				(data) => this._lifecycle.send(data),
-				this._topicManager.topics,
-			),
+			onOpen: () =>
+				this._eventHandler.onWsOpen(
+					(data) => this._lifecycle.send(data),
+					this._topicManager.topics
+				),
 			onMessage: (raw: string) => onMessage(raw),
 			onClose: () => this._eventHandler.onWsClose(),
 			onError: (err: Error) => this._eventHandler.onWsError(err),
@@ -37,7 +37,7 @@ export class WssConnectionOrchestrator {
 		this._eventHandler = new WsConnectionEventHandler(
 			this._lifecycle,
 			this._reconnector,
-			this._queue,
+			this._queue
 		);
 		this._onConnect = () => {
 			this._lifecycle.connect();

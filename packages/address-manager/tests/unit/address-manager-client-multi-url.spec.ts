@@ -22,7 +22,11 @@ describe("AddressManagerClient Multi-URL", () => {
 			tokenRefreshIntervalMs: 60000,
 			ttlRefreshIntervalMs: 15000,
 			identity: { serviceName: "test-service", instanceId: "test-instance" },
-			tls: { caPath: "/certs/ca.crt", certPath: "/certs/server.crt", keyPath: "/certs/server.key" },
+			tls: {
+				caPath: "/certs/ca.crt",
+				certPath: "/certs/server.crt",
+				keyPath: "/certs/server.key",
+			},
 			...overrides,
 		};
 	}

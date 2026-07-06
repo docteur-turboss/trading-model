@@ -1,4 +1,3 @@
-import path from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 import { type Collection, MongoClient } from "mongodb";
 import type { LockDocument } from "./lock-backends";
@@ -10,10 +9,7 @@ export class LockConnectionManager {
 	private _collection!: Collection<LockDocument>;
 	readonly mongoBackend: MongoLockBackend;
 
-	constructor(
-		uri: string,
-		fallbackDir?: string
-	) {
+	constructor(uri: string, _fallbackDir?: string) {
 		this._client = new MongoClient(uri);
 		this.mongoBackend = this._createMongoBackend();
 	}
@@ -27,12 +23,10 @@ export class LockConnectionManager {
 	private _createMongoBackend(): MongoLockBackend {
 		return new MongoLockBackend(
 			() => this._collection,
-			() => { this._mongoAvailable = false; }
+			() => {
+				this._mongoAvailable = false;
+			}
 		);
-	}
-
-	private _resolveFallbackDir(fallbackDir: string | undefined): string {
-		return fallbackDir ?? path.join(process.cwd(), "data", "ca-fallback", "locks");
 	}
 
 	private async _connectViaManager(): Promise<void> {
@@ -49,7 +43,10 @@ export class LockConnectionManager {
 
 	private async _createLockIndexes(): Promise<void> {
 		await this._collection.createIndex({ name: 1 }, { unique: true });
-		await this._collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+		await this._collection.createIndex(
+			{ expiresAt: 1 },
+			{ expireAfterSeconds: 0 }
+		);
 	}
 
 	async connect(): Promise<void> {

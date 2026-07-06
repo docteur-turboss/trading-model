@@ -5,9 +5,8 @@ import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
-
-import type { InstanceId } from "../domain/primitives";
 import { logger } from "../config/logger";
+import type { InstanceId } from "../domain/primitives";
 
 let sdk: NodeSDK | null = null;
 
@@ -18,7 +17,9 @@ export interface TelemetryConfig {
 	otlpEndpoint?: string;
 }
 
-function _buildSdkResources(config: TelemetryConfig): ReturnType<typeof resourceFromAttributes> {
+function _buildSdkResources(
+	config: TelemetryConfig
+): ReturnType<typeof resourceFromAttributes> {
 	return resourceFromAttributes({
 		[SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,
 		[SemanticResourceAttributes.SERVICE_VERSION]: config.serviceVersion,
@@ -36,7 +37,9 @@ export function initializeTelemetry(config: TelemetryConfig): void {
 	diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.WARN);
 	sdk = new NodeSDK({
 		resource: _buildSdkResources(config),
-		traceExporter: new OTLPTraceExporter({ url: `${config.otlpEndpoint}/v1/traces` }),
+		traceExporter: new OTLPTraceExporter({
+			url: `${config.otlpEndpoint}/v1/traces`,
+		}),
 		instrumentations: [new HttpInstrumentation(), new ExpressInstrumentation()],
 	});
 	sdk.start();

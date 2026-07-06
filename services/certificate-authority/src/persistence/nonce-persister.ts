@@ -55,13 +55,16 @@ export class MongoNoncePersister implements NoncePersistence {
 		await this._createIndexes();
 	}
 
-	async disconnect(): Promise<void> {
-	}
+	async disconnect(): Promise<void> {}
 
 	async persist(context: NonceContext, createdAt: number): Promise<void> {
 		const { nonce, serviceId } = context;
 		try {
-			await this._collection.insertOne({ nonce, serviceId, createdAt: new Date(createdAt) });
+			await this._collection.insertOne({
+				nonce,
+				serviceId,
+				createdAt: new Date(createdAt),
+			});
 		} catch (err) {
 			logger.warn("Failed to persist nonce to MongoDB", { context: { err } });
 			const error = new Error("Failed to persist nonce");
@@ -81,7 +84,9 @@ export class MongoNoncePersister implements NoncePersistence {
 
 	async loadAll(threshold: Date): Promise<NonceDocument[]> {
 		try {
-			return await this._collection.find({ createdAt: { $gt: threshold } }).toArray();
+			return await this._collection
+				.find({ createdAt: { $gt: threshold } })
+				.toArray();
 		} catch (err) {
 			logger.warn("Failed to load nonces from MongoDB", { context: { err } });
 			return [];

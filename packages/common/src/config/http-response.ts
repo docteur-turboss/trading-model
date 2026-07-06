@@ -1,5 +1,5 @@
-import { createGunzip, createInflate } from "node:zlib";
 import type { IncomingMessage } from "node:http";
+import { createGunzip, createInflate } from "node:zlib";
 import type { z } from "zod";
 
 interface ResponseCollectionContext<TResponse> {
@@ -68,5 +68,5 @@ function collectResponseBody<TResponse>(
 	});
 }
 
-export { collectResponseBody, parseResponseBody, decompressResponse };
 export type { ResponseCollectionContext };
+export { collectResponseBody, decompressResponse, parseResponseBody };

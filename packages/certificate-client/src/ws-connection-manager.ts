@@ -1,10 +1,7 @@
-import WebSocket from "ws";
-
 import { logger } from "@trading-model/common/config/logger";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import {
-	createWsConnectTimeout,
-} from "@trading-model/common/utils/ws-reconnect";
+import { createWsConnectTimeout } from "@trading-model/common/utils/ws-reconnect";
+import WebSocket from "ws";
 import { TlsConfigBuilder } from "./tls-config-builder";
 
 export class WsConnectionManager {
@@ -13,7 +10,7 @@ export class WsConnectionManager {
 
 	constructor(
 		private readonly _url: string,
-		tlsConfig?: TlsPaths,
+		tlsConfig?: TlsPaths
 	) {
 		this._tlsBuilder = new TlsConfigBuilder(tlsConfig);
 	}
@@ -23,14 +20,20 @@ export class WsConnectionManager {
 		onMessage: (data: WebSocket.Data) => void,
 		onClose: () => void,
 		onError: (err: Error) => void,
-		onTimeout: () => void,
+		onTimeout: () => void
 	): void {
 		try {
 			this._ws = new WebSocket(this._url, this._tlsBuilder.build());
 			this._ws.binaryType = "nodebuffer";
 
 			const cancelTimeout = this._setupConnectTimeout(onTimeout);
-			this._registerWsEventHandlers(onOpen, onMessage, onClose, onError, cancelTimeout);
+			this._registerWsEventHandlers(
+				onOpen,
+				onMessage,
+				onClose,
+				onError,
+				cancelTimeout
+			);
 		} catch (err) {
 			logger.error("Failed to create WSS connection", { err });
 			onTimeout();
@@ -50,9 +53,8 @@ export class WsConnectionManager {
 		onMessage: (data: WebSocket.Data) => void,
 		onClose: () => void,
 		onError: (err: Error) => void,
-		cancelTimeout: () => void,
+		cancelTimeout: () => void
 	): void {
-
 		this._ws.on("open", () => {
 			cancelTimeout();
 			onOpen();

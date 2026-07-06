@@ -71,11 +71,12 @@ function _getCookieOptions(): Record<string, unknown> {
 
 export async function handleCoreAuthResponse(
 	coreFn: () => Promise<[unknown, string]>,
-	res: Response,
+	res: Response
 ) {
 	const [response, code] = await coreFn();
 	const clientResponse = ResponseException(response)[code as ResponseCodeKey]();
-	res.status(clientResponse.status)
+	res
+		.status(clientResponse.status)
 		.cookie("token", clientResponse.data, _getCookieOptions())
 		.json(clientResponse);
 }

@@ -1,4 +1,4 @@
-export const enum EncodingIndex {
+export enum EncodingIndex {
 	Gamma = 0,
 	LearningRate = 1,
 	ClipMin = 2,

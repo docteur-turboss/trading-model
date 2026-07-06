@@ -1,4 +1,4 @@
-export const enum FeatureIndex {
+export enum FeatureIndex {
 	CandleClose = 0,
 	CandleVolume = 1,
 	CandleReturnRatio = 2,

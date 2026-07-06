@@ -71,13 +71,15 @@ export const mockAggregateTradeResponse: BinanceAggregateTradeResponse = [
 
 export const mockCandlestickResponse: BinanceCandlestickData[] = [
 	{
-		openTime: 1499040000000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
+		openTime:
+			1499040000000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
 		open: "0.01634790",
 		high: "0.80000000",
 		low: "0.01575800",
 		close: "0.01577100",
 		volume: "148976.11427815",
-		closeTime: 1499644799999 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
+		closeTime:
+			1499644799999 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
 		quoteAssetVolume: "2434.19055334",
 		numberOfTrades: 308,
 		takerBuyBaseAssetVolume: "1756.87402397",
@@ -87,7 +89,8 @@ export const mockCandlestickResponse: BinanceCandlestickData[] = [
 
 export const mock24hrTickerResponse: Binance24hrTickerStats[] = [
 	{
-		symbol: "BTCUSDT" as import("@trading-model/common/domain/primitives").TradingSymbol,
+		symbol:
+			"BTCUSDT" as import("@trading-model/common/domain/primitives").TradingSymbol,
 		priceChange: "-94.99999800",
 		priceChangePercent: "-95.960",
 		weightedAvgPrice: "0.29628482",
@@ -101,8 +104,10 @@ export const mock24hrTickerResponse: Binance24hrTickerStats[] = [
 		askPrice: "4.00000200",
 		askQty: "10.00000000",
 		volume: "8913.30000000",
-		openTime: 1499783040000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
-		closeTime: 1499869440000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
+		openTime:
+			1499783040000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
+		closeTime:
+			1499869440000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
 		firstId: 28385,
 		lastId: 28460,
 		count: 76,
@@ -111,7 +116,8 @@ export const mock24hrTickerResponse: Binance24hrTickerStats[] = [
 
 export const mockTradingDayTickerResponse: BinanceTradingDayTicker[] = [
 	{
-		symbol: "BTCUSDT" as import("@trading-model/common/domain/primitives").TradingSymbol,
+		symbol:
+			"BTCUSDT" as import("@trading-model/common/domain/primitives").TradingSymbol,
 		priceChange: "-94.99999800",
 		priceChangePercent: "-95.960",
 		weightedAvgPrice: "0.29628482",
@@ -121,8 +127,10 @@ export const mockTradingDayTickerResponse: BinanceTradingDayTicker[] = [
 		lastPrice: "4.00000200",
 		volume: "8913.30000000",
 		quoteVolume: "15.30000000",
-		openTime: 1499783040000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
-		closeTime: 1499869440000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
+		openTime:
+			1499783040000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
+		closeTime:
+			1499869440000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
 		firstId: 28385,
 		lastId: 28460,
 		count: 76,
@@ -130,12 +138,17 @@ export const mockTradingDayTickerResponse: BinanceTradingDayTicker[] = [
 ];
 
 export const mockPriceTickerResponse: BinanceSymbolPriceTicker[] = [
-	{ symbol: "BTCUSDT" as import("@trading-model/common/domain/primitives").TradingSymbol, price: "50000.00" },
+	{
+		symbol:
+			"BTCUSDT" as import("@trading-model/common/domain/primitives").TradingSymbol,
+		price: "50000.00",
+	},
 ];
 
 export const mockBookTickerResponse: BinanceSymbolOrderBookTicker[] = [
 	{
-		symbol: "BTCUSDT" as import("@trading-model/common/domain/primitives").TradingSymbol,
+		symbol:
+			"BTCUSDT" as import("@trading-model/common/domain/primitives").TradingSymbol,
 		bidPrice: "49990.00",
 		bidQty: "0.50000000",
 		askPrice: "50010.00",

@@ -10,14 +10,10 @@ export class TopicSubscriptionManager {
 	}
 
 	addTopics(topics: string[]): void {
-		this._topics = [
-			...new Set([...this._topics, ...topics]),
-		];
+		this._topics = [...new Set([...this._topics, ...topics])];
 	}
 
 	removeTopics(topics: string[]): void {
-		this._topics = this._topics.filter(
-			(topic) => !topics.includes(topic)
-		);
+		this._topics = this._topics.filter((topic) => !topics.includes(topic));
 	}
 }

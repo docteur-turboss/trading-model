@@ -1,12 +1,12 @@
 import { createTlsBootstrap } from "@trading-model/certificate-client";
 import { logger } from "@trading-model/common/config/logger";
+import { toInstanceId } from "@trading-model/common/domain/primitives";
 import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
 import { createBootstrap } from "@trading-model/common/server/bootstrap";
 import {
 	initializeTelemetry,
 	shutdownTelemetry,
 } from "@trading-model/common/server/telemetry";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { AddressManager } from "../config/address-manager";
 import { closeDb, getDb, resetDbState } from "../config/db";

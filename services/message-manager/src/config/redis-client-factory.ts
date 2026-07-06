@@ -1,6 +1,6 @@
-import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
-import { Port, type IPAddress } from "@trading-model/common/domain/primitives";
+import { type IPAddress, Port } from "@trading-model/common/domain/primitives";
 import type { HostPort } from "@trading-model/common/domain/service-identity";
+import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 
 import { ENV } from "./env";
@@ -32,7 +32,10 @@ function logExhausted(retries: number): void {
 }
 
 function computeDelay(retries: number): number {
-	const baseDelay = computeExponentialBackoff(retries - 1, { baseDelayMs: 1000, maxDelayMs: 30_000 });
+	const baseDelay = computeExponentialBackoff(retries - 1, {
+		baseDelayMs: 1000,
+		maxDelayMs: 30_000,
+	});
 	const jitter = baseDelay * 0.2 * (Math.random() * 2 - 1);
 	return Math.max(100, Math.round(baseDelay + jitter));
 }
@@ -76,11 +79,16 @@ function buildSentinelClient(): Redis {
 	return new Redis(sentinelOpts as RedisOptions) as unknown as Redis;
 }
 
-function parseSentinelNodes(): Array<HostPort> {
+function parseSentinelNodes(): HostPort[] {
 	try {
 		return ENV.REDIS_SENTINEL_NODES
-			? (JSON.parse(ENV.REDIS_SENTINEL_NODES) as Array<HostPort>)
-			: [{ host: ENV.REDIS_HOST as unknown as IPAddress, port: Port.of(ENV.REDIS_PORT) }];
+			? (JSON.parse(ENV.REDIS_SENTINEL_NODES) as HostPort[])
+			: [
+					{
+						host: ENV.REDIS_HOST as unknown as IPAddress,
+						port: Port.of(ENV.REDIS_PORT),
+					},
+				];
 	} catch (cause) {
 		throw wrapParseError(cause as Error, "REDIS_SENTINEL_NODES");
 	}
@@ -93,7 +101,7 @@ function wrapParseError(cause: Error, name: string): never {
 }
 
 function buildSentinelOptions(
-	sentinelNodes: Array<HostPort>
+	sentinelNodes: HostPort[]
 ): Record<string, unknown> {
 	const sentinelOpts: Record<string, unknown> = {
 		sentinels: sentinelNodes,
@@ -111,9 +119,9 @@ function buildSentinelOptions(
 	return sentinelOpts;
 }
 
-function parseClusterNodes(): Array<HostPort> {
+function parseClusterNodes(): HostPort[] {
 	try {
-		return JSON.parse(ENV.REDIS_CLUSTER_NODES!) as Array<HostPort>;
+		return JSON.parse(ENV.REDIS_CLUSTER_NODES!) as HostPort[];
 	} catch (cause) {
 		throw wrapParseError(cause as Error, "REDIS_CLUSTER_NODES");
 	}

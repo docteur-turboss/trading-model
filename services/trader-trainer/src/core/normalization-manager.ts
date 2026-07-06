@@ -8,7 +8,11 @@ import {
 	type TradeData,
 } from "@trading-model/common/config/event.types";
 
-import { NormalizationStats, type SymbolNormalizers, type SymbolState } from "./market-data-types";
+import {
+	NormalizationStats,
+	type SymbolNormalizers,
+	type SymbolState,
+} from "./market-data-types";
 
 export class NormalizationManager {
 	createNormStats(): SymbolNormalizers {

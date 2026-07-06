@@ -271,9 +271,7 @@ describe("Subscription", () => {
 		});
 
 		it("should use NO_REASON fallback when DeadLetterError has no reason", async () => {
-			mockDeliveryPort.send.mockRejectedValue(
-				deadLetterError("Unrecoverable")
-			);
+			mockDeliveryPort.send.mockRejectedValue(deadLetterError("Unrecoverable"));
 
 			const message = createMockMessage("payload", {
 				delivery: { mode: DeliveryMode.AT_LEAST_ONCE, ttl: 60000 },

@@ -7,7 +7,10 @@ import {
 	SourceType,
 } from "@trading-model/common/config/event.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import { PriceSchema, VolumeSchema } from "@trading-model/common/domain/primitives.schema";
+import {
+	PriceSchema,
+	VolumeSchema,
+} from "@trading-model/common/domain/primitives.schema";
 import { z } from "zod";
 
 /** Validates the security metadata context (auth and signature). */

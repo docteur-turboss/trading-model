@@ -1,7 +1,10 @@
 import type { Port } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { ResponseException } from "@trading-model/common/middleware/response-exception";
-import { createSecureServer, buildTlsFromEnv } from "@trading-model/common/server/create-secure-server";
+import {
+	buildTlsFromEnv,
+	createSecureServer,
+} from "@trading-model/common/server/create-secure-server";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { env } from "../config/env";

@@ -5,10 +5,10 @@ import type { JobId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { type Job, JobPriority } from "../types/job.types";
+import type { BackPressure } from "./back-pressure";
+import type { InternalQueue } from "./internal-queue";
 import type { JobAssignmentManager } from "./job-assignment-manager";
 import type { JobFailureHandler } from "./job-failure-handler";
-import { BackPressure } from "./back-pressure";
-import { InternalQueue } from "./internal-queue";
 import { JobStatusManager } from "./job-status-manager";
 
 export class JobLifecycle {
@@ -19,13 +19,13 @@ export class JobLifecycle {
 		private readonly _backPressure: BackPressure,
 		private readonly _repository: JobRepository,
 		private readonly _assignmentManager: JobAssignmentManager,
-		private readonly _failureHandler: JobFailureHandler,
+		private readonly _failureHandler: JobFailureHandler
 	) {
 		this._statusManager = new JobStatusManager(
 			this._queue,
 			this._repository,
 			this._assignmentManager,
-			this._failureHandler,
+			this._failureHandler
 		);
 	}
 

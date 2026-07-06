@@ -26,7 +26,10 @@ export class WssReconnector {
 		return this._manager.reconnectState;
 	}
 
-	scheduleReconnect(connectFn: ConnectFn, onPermanentFallback?: () => void): void {
+	scheduleReconnect(
+		connectFn: ConnectFn,
+		onPermanentFallback?: () => void
+	): void {
 		this._manager.scheduleReconnect(connectFn, onPermanentFallback);
 	}
 

@@ -8,7 +8,7 @@ export class CertRenewScheduler {
 	constructor(
 		private readonly _serviceId: string,
 		private readonly _renewMarginMs: number,
-		private readonly _onRenew: () => Promise<void>,
+		private readonly _onRenew: () => Promise<void>
 	) {}
 
 	start(): void {
@@ -32,10 +32,7 @@ export class CertRenewScheduler {
 				.then(() => this._schedule())
 				.catch((err: Error) => {
 					logger.error("Certificate renewal failed, retrying", { err });
-					this._renewTimer.startTimeout(
-						() => this._schedule(),
-						60000,
-					);
+					this._renewTimer.startTimeout(() => this._schedule(), 60000);
 				});
 		}, delay);
 	}
@@ -60,7 +57,7 @@ export class CertRenewScheduler {
 		} catch (err) {
 			logger.error("Certificate renewal failed", { err });
 		}
-		this._schedule();
+		await this._schedule();
 	}
 
 	private _logScheduled(delay: number, cert: ObtainedCertificate): void {

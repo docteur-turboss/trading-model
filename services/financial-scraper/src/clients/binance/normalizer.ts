@@ -1,4 +1,7 @@
-import { CandleInterval, TradeSide } from "@trading-model/common/config/event.types";
+import {
+	type CandleInterval,
+	TradeSide,
+} from "@trading-model/common/config/event.types";
 import {
 	Price,
 	type TradingSymbol,
@@ -13,17 +16,17 @@ import {
 	type TickerData,
 	type TradeData,
 } from "../../infra/market-data/market-data.types";
-import {
-	type Binance24hrTickerStatsResponse,
-	type BinanceAggregateTradeResponse,
-	type BinanceCandlestickDataResponse,
-	type BinanceDepthResponse,
-	type BinanceDepthEntry,
-	type BinanceHistoricalTradeResponse,
-	type BinanceSymbolOrderBookTickerResponse,
-	type BinanceSymbolPriceTickerResponse,
-	type BinanceTradeResponse,
-	type BinanceTradingDayTickerResponse,
+import type {
+	Binance24hrTickerStatsResponse,
+	BinanceAggregateTradeResponse,
+	BinanceCandlestickDataResponse,
+	BinanceDepthEntry,
+	BinanceDepthResponse,
+	BinanceHistoricalTradeResponse,
+	BinanceSymbolOrderBookTickerResponse,
+	BinanceSymbolPriceTickerResponse,
+	BinanceTradeResponse,
+	BinanceTradingDayTickerResponse,
 } from "../../types/binance.api";
 
 function _parseOrderBookSide(
@@ -42,7 +45,10 @@ export const BinanceNormalizer = {
 	/**
 	 * Normalize a Binance order book into the internal structure.
 	 */
-	orderBook(symbol: TradingSymbol, payload: BinanceDepthResponse): OrderBookData {
+	orderBook(
+		symbol: TradingSymbol,
+		payload: BinanceDepthResponse
+	): OrderBookData {
 		return {
 			symbol,
 			source: SourceType.BINANCE,
@@ -152,7 +158,10 @@ export const BinanceNormalizer = {
 		payload: BinanceSymbolPriceTickerResponse
 	): Record<TradingSymbol, Price> {
 		return Object.fromEntries(
-			payload.map((priceEntry) => [priceEntry.symbol, Price.of(Number(priceEntry.price))])
+			payload.map((priceEntry) => [
+				priceEntry.symbol,
+				Price.of(Number(priceEntry.price)),
+			])
 		);
 	},
 

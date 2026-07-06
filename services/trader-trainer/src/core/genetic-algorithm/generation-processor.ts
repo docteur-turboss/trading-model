@@ -1,9 +1,8 @@
 import { adaptGAControl } from "./adaptive-control-system";
 import { createDefaultGenome } from "./factory";
-import type {
-	GAControlGenome,
-	LamarckGenome,
-} from "./genome-types";
+import { FitnessEvaluator } from "./fitness-evaluator";
+import type { GARunnerConfig, GenerationContext } from "./generation-types";
+import type { GAControlGenome, LamarckGenome } from "./genome-types";
 import { selectElites } from "./offspring-factory";
 import { buildParetoFronts, sortPopulation } from "./pareto-processor";
 import {
@@ -12,10 +11,12 @@ import {
 } from "./population-builder";
 import { makePRNG } from "./prng";
 import { type DeepReadonly, deepFreeze } from "./shared-types";
-import { FitnessEvaluator } from "./fitness-evaluator";
-import type { GARunnerConfig, GenerationContext } from "./generation-types";
 
-export type { GARunnerConfig, GenerationContext, WindowSet } from "./generation-types";
+export type {
+	GARunnerConfig,
+	GenerationContext,
+	WindowSet,
+} from "./generation-types";
 
 export class GenerationProcessor {
 	private _population: DeepReadonly<LamarckGenome>[] = [];
@@ -26,7 +27,7 @@ export class GenerationProcessor {
 		this._evaluator = new FitnessEvaluator(
 			_cfg.windowSets,
 			_cfg.backendFactory,
-			_cfg.evalConcurrency ?? 4,
+			_cfg.evalConcurrency ?? 4
 		);
 	}
 
@@ -63,7 +64,9 @@ export class GenerationProcessor {
 		const ctrl = this._population[0].gaControl;
 		const rng = makePRNG(ctrl.mutationSeed + this._generation);
 
-		const { updatedPop, objectives, metas } = await this._evaluator.evaluate(this._population);
+		const { updatedPop, objectives, metas } = await this._evaluator.evaluate(
+			this._population
+		);
 		const { popWithMeta, popMeta, avgFit, avgEff } = buildParetoFronts(
 			updatedPop,
 			objectives,
@@ -71,14 +74,21 @@ export class GenerationProcessor {
 			rng
 		);
 
-		this._evaluator.updateArchive(popWithMeta, objectives, popMeta, this._cfg.onArchiveUpdate);
+		this._evaluator.updateArchive(
+			popWithMeta,
+			objectives,
+			popMeta,
+			this._cfg.onArchiveUpdate
+		);
 		const newCtrl = adaptGAControl(
 			ctrl,
 			this._evaluator._stagnationTracker.efficiencyHistory,
 			this._evaluator._stagnationTracker.stagnation
 		);
 
-		this._evaluator.lastBestGenome = this._evaluator._stagnationTracker.track(popWithMeta, metas, avgEff) ?? this._evaluator.lastBestGenome;
+		this._evaluator.lastBestGenome =
+			this._evaluator._stagnationTracker.track(popWithMeta, metas, avgEff) ??
+			this._evaluator.lastBestGenome;
 
 		const ranked = sortPopulation(popWithMeta, popMeta);
 		const elites = selectElites(ranked, newCtrl);

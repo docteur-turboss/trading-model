@@ -1,8 +1,8 @@
 import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
-import { ConnectionType, InitialisationType } from "../neural-network/type";
 import type { Experience } from "../../core/neural-network/type";
-import type { FeatureVector } from "../feature-vector";
 import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
+import type { FeatureVector } from "../feature-vector";
+import { ConnectionType, InitialisationType } from "../neural-network/type";
 import type { DeepReadonly, LamarckGenome } from "./shared-types";
 
 export interface RLBackend {
@@ -28,9 +28,14 @@ function _buildNNConfig(
 			...genome.network.hiddenLayers.map((layer) => layer.neurons),
 			genome.network.outputDim,
 		],
-		activationType: genome.network.hiddenLayers.map((layer) => layer.activation),
-		connectionType: genome.network.hiddenLayers[0]?.connectionType ?? ConnectionType.FullyConnected,
-		biasInitialisationType: genome.network.hiddenLayers[0]?.biasType ?? InitialisationType.Random,
+		activationType: genome.network.hiddenLayers.map(
+			(layer) => layer.activation
+		),
+		connectionType:
+			genome.network.hiddenLayers[0]?.connectionType ??
+			ConnectionType.FullyConnected,
+		biasInitialisationType:
+			genome.network.hiddenLayers[0]?.biasType ?? InitialisationType.Random,
 		normalisationType: genome.network.normalization,
 		enablePool: true,
 		poolMaxSize: rb.bufferSize,
@@ -57,7 +62,10 @@ function _buildAgentConfig(
 		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(1) },
 		actionSpace: "discrete",
 		tradeAmount: Volume.of(1),
-		stateManagerCfg: _buildStateManagerCfg(genome.rl.discretePolicy, genome.rl.gamma),
+		stateManagerCfg: _buildStateManagerCfg(
+			genome.rl.discretePolicy,
+			genome.rl.gamma
+		),
 	};
 }
 

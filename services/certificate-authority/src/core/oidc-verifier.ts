@@ -1,8 +1,7 @@
 import { createVerify } from "node:crypto";
-
-import { type JwtHeader, JwtParser } from "./jwt-parser";
 import { ClaimValidator } from "./claim-validator";
 import { JwksKeyProvider } from "./jwks-key-provider";
+import { type JwtHeader, JwtParser } from "./jwt-parser";
 
 export interface OidcConfig {
 	issuer: string;
@@ -43,7 +42,6 @@ const ALGORITHM_MAP = new Map<string, string>([
 ]);
 
 export class OidcVerifier {
-	private readonly _config: OidcConfig;
 	private readonly _allowedAlgorithms: Set<string>;
 	private readonly _jwtParser: JwtParser;
 	private readonly _claimValidator: ClaimValidator;
@@ -52,7 +50,7 @@ export class OidcVerifier {
 	constructor(config: OidcConfig) {
 		this._config = config;
 		this._allowedAlgorithms = new Set(
-			config.allowedAlgorithms ?? ["RS256", "ES256"],
+			config.allowedAlgorithms ?? ["RS256", "ES256"]
 		);
 		this._jwtParser = new JwtParser();
 		this._claimValidator = new ClaimValidator(config);
@@ -65,7 +63,7 @@ export class OidcVerifier {
 
 		if (!this._allowedAlgorithms.has(header.alg)) {
 			throw new Error(
-				`JWT algorithm "${header.alg}" is not allowed. Must be one of: ${[...this._allowedAlgorithms].join(", ")}`,
+				`JWT algorithm "${header.alg}" is not allowed. Must be one of: ${[...this._allowedAlgorithms].join(", ")}`
 			);
 		}
 
@@ -79,7 +77,7 @@ export class OidcVerifier {
 	private async _verifySignature(
 		message: string,
 		signature: Buffer,
-		header: JwtHeader,
+		header: JwtHeader
 	): Promise<void> {
 		const signingKey = await this._keyProvider.resolveSigningKey(header.kid);
 

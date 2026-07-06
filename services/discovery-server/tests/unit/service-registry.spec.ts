@@ -51,24 +51,27 @@ describe("ServiceRegistry", () => {
 	describe("updateHeartbeat", () => {
 		it("should update heartbeat and return TTL", () => {
 			registry.registerInstance(validServiceInstance());
-			const result = registry.updateHeartbeat(
-				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
-			);
+			const result = registry.updateHeartbeat({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(30_000);
 		});
 
 		it("should return false for unknown service", () => {
-			const result = registry.updateHeartbeat(
-				{ serviceName: "unknown-service", instanceId: "test-instance-1" }
-			);
+			const result = registry.updateHeartbeat({
+				serviceName: "unknown-service",
+				instanceId: "test-instance-1",
+			});
 			expect(result).toBe(false);
 		});
 
 		it("should return false for unknown instance", () => {
 			registry.registerInstance(validServiceInstance());
-			const result = registry.updateHeartbeat(
-				{ serviceName: "financial-scraper-service", instanceId: "unknown-instance" }
-			);
+			const result = registry.updateHeartbeat({
+				serviceName: "financial-scraper-service",
+				instanceId: "unknown-instance",
+			});
 			expect(result).toBe(false);
 		});
 	});
@@ -106,25 +109,28 @@ describe("ServiceRegistry", () => {
 	describe("getInstance", () => {
 		it("should return a specific instance", () => {
 			registry.registerInstance(validServiceInstance());
-			const instance = registry.getInstance(
-				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
-			);
+			const instance = registry.getInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			});
 			expect(instance).toBeDefined();
 			expect(instance!.instanceId).toBe("test-instance-1");
 		});
 
 		it("should return undefined for unknown service", () => {
-			const instance = registry.getInstance(
-				{ serviceName: "unknown-service", instanceId: "test-instance-1" }
-			);
+			const instance = registry.getInstance({
+				serviceName: "unknown-service",
+				instanceId: "test-instance-1",
+			});
 			expect(instance).toBeUndefined();
 		});
 
 		it("should return undefined for unknown instance", () => {
 			registry.registerInstance(validServiceInstance());
-			const instance = registry.getInstance(
-				{ serviceName: "financial-scraper-service", instanceId: "unknown-instance" }
-			);
+			const instance = registry.getInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "unknown-instance",
+			});
 			expect(instance).toBeUndefined();
 		});
 	});
@@ -132,9 +138,10 @@ describe("ServiceRegistry", () => {
 	describe("removeInstance", () => {
 		it("should remove an instance and return true", () => {
 			registry.registerInstance(validServiceInstance());
-			const removed = registry.removeInstance(
-				{ serviceName: "financial-scraper-service", instanceId: "test-instance-1" }
-			);
+			const removed = registry.removeInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			});
 			expect(removed).toBe(true);
 			expect(registry.getInstances("financial-scraper-service")).toHaveLength(
 				0
@@ -143,24 +150,29 @@ describe("ServiceRegistry", () => {
 
 		it("should remove the service map when last instance is removed", () => {
 			registry.registerInstance(validServiceInstance());
-			registry.removeInstance({ serviceName: "financial-scraper-service", instanceId: "test-instance-1" });
+			registry.removeInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "test-instance-1",
+			});
 			expect(registry.listServiceNames()).not.toContain(
 				"financial-scraper-service"
 			);
 		});
 
 		it("should return false for unknown service", () => {
-			const removed = registry.removeInstance(
-				{ serviceName: "unknown-service", instanceId: "test-instance-1" }
-			);
+			const removed = registry.removeInstance({
+				serviceName: "unknown-service",
+				instanceId: "test-instance-1",
+			});
 			expect(removed).toBe(false);
 		});
 
 		it("should return false for unknown instance", () => {
 			registry.registerInstance(validServiceInstance());
-			const removed = registry.removeInstance(
-				{ serviceName: "financial-scraper-service", instanceId: "unknown-instance" }
-			);
+			const removed = registry.removeInstance({
+				serviceName: "financial-scraper-service",
+				instanceId: "unknown-instance",
+			});
 			expect(removed).toBe(false);
 		});
 	});
@@ -295,4 +307,3 @@ describe("ServiceRegistry", () => {
 		});
 	});
 });
-

@@ -1,16 +1,16 @@
 import { logger } from "@trading-model/common/config/logger";
-import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
-import { WssReconnector } from "./wss-reconnector";
-import { PendingPublishQueue } from "./pending-publish-queue";
+import type { PendingPublishQueue } from "./pending-publish-queue";
+import type { WssConnectionLifecycle } from "./wss-connection-lifecycle";
+import type { WssReconnector } from "./wss-reconnector";
 
 type ConnectFn = () => void;
 type SendFn = (data: unknown) => boolean;
 
 export class WsConnectionEventHandler {
 	constructor(
-		private readonly _lifecycle: WssConnectionLifecycle,
+		readonly _lifecycle: WssConnectionLifecycle,
 		private readonly _reconnector: WssReconnector,
-		private readonly _queue: PendingPublishQueue,
+		private readonly _queue: PendingPublishQueue
 	) {}
 
 	onWsOpen(sendFn: SendFn, topics: string[]): void {

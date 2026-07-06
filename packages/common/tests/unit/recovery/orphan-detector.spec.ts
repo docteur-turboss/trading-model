@@ -7,9 +7,9 @@ import {
 	jest,
 } from "@jest/globals";
 import type { Job } from "../../../src/contracts/recovery.types";
+import type { IPAddress, Port } from "../../../src/domain/primitives";
 import type { IJobQueue } from "../../../src/recovery/job-queue.interface";
 import type { IJobRepository } from "../../../src/recovery/job-repository.interface";
-import type { IPAddress, Port } from "../../../src/domain/primitives";
 import { OrphanDetector } from "../../../src/recovery/orphan-detector";
 import { ReAllocator } from "../../../src/recovery/re-allocator";
 import { WorkerRegistry } from "../../../src/worker/worker-registry";

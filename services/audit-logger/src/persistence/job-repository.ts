@@ -1,13 +1,16 @@
-import type { InstanceId, JobId } from "@trading-model/common/domain/primitives";
 import {
-	JOB_STATUS,
 	isTerminalStatus,
+	JOB_STATUS,
 	type Job,
 	type JobEvent,
 	type JobPriority,
 	type JobStatus,
 	type JobUpdateExtras,
 } from "@trading-model/common/contracts/recovery.types";
+import type {
+	InstanceId,
+	JobId,
+} from "@trading-model/common/domain/primitives";
 import type { Collection, Db } from "mongodb";
 
 const COLLECTION = "audit_jobs";
@@ -163,7 +166,11 @@ export class JobRepository {
 
 	async findNonTerminal(): Promise<Job[]> {
 		const docs = await this._collection
-			.find({ status: { $nin: [JOB_STATUS.COMPLETED, JOB_STATUS.FAILED, JOB_STATUS.CANCELLED] } })
+			.find({
+				status: {
+					$nin: [JOB_STATUS.COMPLETED, JOB_STATUS.FAILED, JOB_STATUS.CANCELLED],
+				},
+			})
 			.toArray();
 		return docs.map(fromDocument);
 	}

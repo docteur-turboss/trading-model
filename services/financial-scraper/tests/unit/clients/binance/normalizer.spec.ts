@@ -1,5 +1,8 @@
-import { CandleInterval, TradeSide } from "@trading-model/common/config/event.types";
 import { describe, expect, it } from "@jest/globals";
+import {
+	CandleInterval,
+	TradeSide,
+} from "@trading-model/common/config/event.types";
 import { toSymbol } from "@trading-model/common/domain/primitives";
 import { BinanceNormalizer } from "../../../../src/clients/binance/normalizer";
 import {

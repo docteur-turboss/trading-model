@@ -101,8 +101,12 @@ function GenomeViewer({ genome }: { genome: unknown }) {
 }
 
 function sharpeColor(sharpe: number): "success" | "warning" | "error" {
-	if (sharpe >= 1.5) return "success";
-	if (sharpe >= 1) return "warning";
+	if (sharpe >= 1.5) {
+		return "success";
+	}
+	if (sharpe >= 1) {
+		return "warning";
+	}
 	return "error";
 }
 

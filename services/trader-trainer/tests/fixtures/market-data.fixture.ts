@@ -1,10 +1,3 @@
-import { Price, UnixTimestamp, Volume } from "@trading-model/common/domain/primitives";
-import {
-	CandleInterval,
-	MarketType,
-	SourceType,
-	TradeSide,
-} from "@trading-model/common/config/event.types";
 import type {
 	BookTickerData,
 	CandleData,
@@ -12,6 +5,17 @@ import type {
 	TickerData,
 	TradeData,
 } from "@trading-model/common/config/event.types";
+import {
+	CandleInterval,
+	MarketType,
+	SourceType,
+	TradeSide,
+} from "@trading-model/common/config/event.types";
+import {
+	Price,
+	UnixTimestamp,
+	Volume,
+} from "@trading-model/common/domain/primitives";
 
 let seq = 0;
 

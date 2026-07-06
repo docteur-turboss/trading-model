@@ -1,12 +1,7 @@
 import { agentError } from "@trading-model/common/utils/errors";
-
-import { NORMALIZERS, type NormalizeParams } from "./normalize";
-import type {
-	ForwardContext,
-	LayerMemory,
-	NeuralNetworkConfig,
-} from "./type";
 import { LayerComputer } from "./layer-computer";
+import { NORMALIZERS, type NormalizeParams } from "./normalize";
+import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
 
 export interface LayerOutputContext {
 	layer: LayerMemory;
@@ -33,9 +28,7 @@ export class FeedForwardEngine {
 		const expected = this._config.neuronsByLayer[0];
 
 		if (input.length !== expected) {
-			throw agentError(
-				`Expected input size ${expected}, got ${input.length}`
-			);
+			throw agentError(`Expected input size ${expected}, got ${input.length}`);
 		}
 
 		const normalized = this._normalize(input);
