@@ -147,7 +147,7 @@ export class Logger {
 			tls: TlsPaths;
 		} | null>
 	): void {
-		this._auditClient.setAuditResolver(resolver);
+		this._auditClient = new AuditServiceClient(this._sanitizer, resolver);
 	}
 }
 

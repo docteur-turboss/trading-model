@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import {
 	AppError,
-	AddressManagerError,
+	addressManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
@@ -145,7 +145,7 @@ export class RegistrationManager {
 			}
 			await this._waitForBackgroundRetry();
 		}
-		throw new AddressManagerError(
+		throw addressManagerError(
 			"Service registration failed — service stopped during background retry",
 		);
 	}

@@ -24,18 +24,15 @@ const WSS_PENDING_QUEUE_MAX = 1000;
 export class PendingPublishQueue {
 	private _pendingQueue: PendingPublish[] = [];
 	private _flusherTimer: ReturnType<typeof setInterval> | null = null;
-	private _httpFallback: FallbackPublishFn | null = null;
+	private readonly _httpFallback: FallbackPublishFn | null;
 
-	constructor() {
+	constructor(httpFallback?: FallbackPublishFn) {
+		this._httpFallback = httpFallback ?? null;
 		this._startFlusher();
 	}
 
 	get httpFallback(): FallbackPublishFn | null {
 		return this._httpFallback;
-	}
-
-	setHttpFallback(fn: FallbackPublishFn): void {
-		this._httpFallback = fn;
 	}
 
 	get pendingCount(): number {

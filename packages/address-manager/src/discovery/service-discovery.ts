@@ -135,7 +135,7 @@ export class ServiceDiscovery {
 				{ timeoutMs: this._discoveryTimeoutMs }
 			);
 		} catch (error) {
-			throw new ServiceNotFoundError(
+			throw serviceNotFoundError(
 				`Service "${serviceName}" not found`,
 				{
 					cause: normalizeError(error),
@@ -148,7 +148,7 @@ export class ServiceDiscovery {
 			: (instances as ServiceInstance);
 
 		if (!instance) {
-			throw new ServiceNotFoundError(
+			throw serviceNotFoundError(
 				`Service "${serviceName}" has no registered instances`
 			);
 		}
@@ -158,7 +158,7 @@ export class ServiceDiscovery {
 		if (!isHealthy) {
 			await this._serviceCache.invalidate(serviceName);
 
-			throw new ServiceUnreachableError(
+			throw serviceUnreachableError(
 				`Service "${serviceName}" is unreachable`
 			);
 		}

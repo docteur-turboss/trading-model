@@ -4,6 +4,7 @@ import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { WalBatchFlusher } from "./wal-batch-flusher";
+import { WalDrainCoordinator } from "./wal-drain-coordinator";
 import { WalEntryParser } from "./wal-entry-parser";
 import { WalFlushErrorHandler } from "./wal-flush-error-handler";
 
@@ -20,13 +21,10 @@ const ATOMIC_WAL_READ_LUA = `
 export class WalFlusherService {
 	private _walFlushing = false;
 	private _walFlusherTimer: ReturnType<typeof setInterval> | null = null;
-	private _walDrainRequested = false;
-	private _walDrainResolve: (() => void) | null = null;
-	private _walDrainGen = 0;
-	private _walFlushWaiters: Array<() => void> = [];
 
 	private readonly _batchFlusher: WalBatchFlusher;
 	private readonly _errorHandler: WalFlushErrorHandler;
+	private readonly _drainCoordinator: WalDrainCoordinator;
 
 	constructor(
 		private readonly _prefix: string,
@@ -39,6 +37,11 @@ export class WalFlusherService {
 		);
 		const entryParser = new WalEntryParser(this._memoryWalBuffer);
 		this._errorHandler = new WalFlushErrorHandler(entryParser);
+		this._drainCoordinator = new WalDrainCoordinator(
+			this._memoryWalBuffer,
+			() => this._walKey(),
+			() => this._flushWal(),
+		);
 	}
 
 	private _walKey(): string {
@@ -71,29 +74,7 @@ export class WalFlusherService {
 	}
 
 	async drainOnStartup(): Promise<void> {
-		await this._recoverFallback();
-		await this._drainExistingWal();
-	}
-
-	private async _recoverFallback(): Promise<void> {
-		try {
-			await this._memoryWalBuffer.recoverFromFallbackFile();
-		} catch {
-			// best-effort
-		}
-	}
-
-	private async _drainExistingWal(): Promise<void> {
-		try {
-			const redis = await getStreamClient();
-			const len = await redis.llen(this._walKey());
-			if (len > 0) {
-				logger.info(`WAL buffer has ${len} pending entries from previous run — draining`);
-				await this._flushWal();
-			}
-		} catch {
-			// Redis not available
-		}
+		await this._drainCoordinator.drainOnStartup();
 	}
 
 	async drainAndStop(timeoutMs = 10_000): Promise<void> {
@@ -107,7 +88,7 @@ export class WalFlusherService {
 		try {
 			const remaining = deadline - Date.now();
 			if (remaining > 0) {
-				await this.drain(remaining);
+				await this._drainCoordinator.drain(remaining);
 			}
 		} catch (err) {
 			logger.warn("WAL drain failed during shutdown", { context: {
@@ -133,51 +114,7 @@ export class WalFlusherService {
 	}
 
 	async drain(timeoutMs = 10_000): Promise<void> {
-		if (this._walDrainRequested) {
-			return;
-		}
-		this._walDrainRequested = true;
-		const gen = ++this._walDrainGen;
-
-		try {
-			const done = await this._tryDrainAll();
-			if (done) {
-				return;
-			}
-			await this._flushWal();
-			return this._waitForDrainCompletion(gen, timeoutMs);
-		} finally {
-			this._walDrainRequested = false;
-		}
-	}
-
-	private _waitForDrainCompletion(
-		gen: number,
-		timeoutMs: number
-	): Promise<void> {
-		return new Promise<void>((resolve) => {
-			const timer = setTimeout(() => {
-				if (this._walDrainGen === gen) {
-					this._walDrainResolve = null;
-					logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
-					resolve();
-				}
-			}, timeoutMs);
-			this._walDrainResolve = () => {
-				if (this._walDrainGen === gen) {
-					clearTimeout(timer);
-					this._walDrainResolve = null;
-					resolve();
-				}
-			};
-		});
-	}
-
-	private async _tryDrainAll(): Promise<boolean> {
-		await this._memoryWalBuffer.drainAll();
-		const redis = await getStreamClient();
-		const remaining = await redis.llen(this._walKey());
-		return remaining === 0 && this._memoryWalBuffer.length === 0;
+		return this._drainCoordinator.drain(timeoutMs);
 	}
 
 	async flush(): Promise<void> {
@@ -190,24 +127,13 @@ export class WalFlusherService {
 
 	private _completeWalFlush(): void {
 		this._walFlushing = false;
-		if (this._walDrainResolve) {
-			const resolve = this._walDrainResolve;
-			this._walDrainResolve = null;
-			resolve();
-		}
-		const waiters = this._walFlushWaiters.splice(0);
-		for (const waiter of waiters) {
-			try {
-				waiter();
-			} catch {
-				/* best-effort */
-			}
-		}
+		this._drainCoordinator.resolveDrain();
+		this._drainCoordinator.notifyWaiters();
 	}
 
 	private async _flushWal(): Promise<void> {
 		if (this._walFlushing) {
-			return this._enqueueFlushWaiter();
+			return this._drainCoordinator.enqueueFlushWaiter();
 		}
 		this._walFlushing = true;
 
@@ -218,12 +144,6 @@ export class WalFlusherService {
 		} finally {
 			this._completeWalFlush();
 		}
-	}
-
-	private _enqueueFlushWaiter(): Promise<void> {
-		return new Promise<void>((resolve) => {
-			this._walFlushWaiters.push(resolve);
-		});
 	}
 
 	private async _drainWalLoop(): Promise<void> {
