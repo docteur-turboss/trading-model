@@ -76,11 +76,11 @@ export function forwardRequest(
 		});
 
 		proxyReq.on("error", (err) => {
-			logger.error("Proxy request failed", {
+			logger.error("Proxy request failed", { context: {
 				target: `${target.host}:${target.port}`,
 				path,
 				error: err.message,
-			});
+			} });
 			reject(err);
 		});
 

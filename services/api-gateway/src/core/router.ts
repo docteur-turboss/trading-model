@@ -82,12 +82,12 @@ async function _proxyAndCache(
 		return sendResponse(parsedBody ?? result.body, result.status);
 	} catch (err: unknown) {
 		const message = err instanceof Error ? err.message : "Unknown error";
-		logger.error("Proxy error", {
+		logger.error("Proxy error", { context: {
 			serviceName: ctx.serviceName,
 			majorVersion: ctx.majorVersion,
 			target: `${target.host}:${target.port}`,
 			error: message,
-		});
+		} });
 		return sendResponse(
 			{ error: "Service unavailable", details: message },
 			503
