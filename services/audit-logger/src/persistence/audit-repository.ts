@@ -1,4 +1,5 @@
 import { AppError, ErrorCodes } from "@trading-model/common/utils/errors";
+import type { PaginatedResponse } from "@trading-model/common/contracts/pagination.types";
 import type { Collection, Db, Filter } from "mongodb";
 
 export interface AuditEventDocument {
@@ -22,16 +23,6 @@ export interface AuditEventQuery {
 	endDate?: Date;
 	page?: number;
 	limit?: number;
-}
-
-export interface PaginatedResult<TData> {
-	data: TData[];
-	pagination: {
-		page: number;
-		limit: number;
-		total: number;
-		totalPages: number;
-	};
 }
 
 export interface AuditStats {
@@ -108,7 +99,7 @@ export class AuditRepository {
 
 	async query(
 		query: AuditEventQuery
-	): Promise<PaginatedResult<AuditEventDocument>> {
+	): Promise<PaginatedResponse<AuditEventDocument>> {
 		const page = query.page ?? 1;
 		const limit = Math.min(query.limit ?? 100, 1000);
 		const skip = (page - 1) * limit;
