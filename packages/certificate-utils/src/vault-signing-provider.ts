@@ -10,18 +10,21 @@ import type { VaultTransitClient } from "./vault-transit-client";
 export class VaultSigningProvider implements SigningProvider {
 	private readonly _vault: VaultTransitClient;
 	private readonly _keyName: string;
-	private _publicKeyPem: string | null = null;
+	private _publicKeyPem: string;
 
-	constructor(vault: VaultTransitClient, keyName: string) {
+	constructor(vault: VaultTransitClient, keyName: string, publicKeyPem: string) {
 		this._vault = vault;
 		this._keyName = keyName;
+		this._publicKeyPem = publicKeyPem;
 	}
 
 	async getPublicKey(): Promise<string> {
-		if (!this._publicKeyPem) {
-			this._publicKeyPem = await this._vault.readPublicKey(this._keyName);
-		}
 		return this._publicKeyPem;
+	}
+
+	static async create(vault: VaultTransitClient, keyName: string): Promise<VaultSigningProvider> {
+		const publicKeyPem = await vault.readPublicKey(keyName);
+		return new VaultSigningProvider(vault, keyName, publicKeyPem);
 	}
 
 	async sign(tbsDerBytes: Buffer): Promise<Buffer> {
