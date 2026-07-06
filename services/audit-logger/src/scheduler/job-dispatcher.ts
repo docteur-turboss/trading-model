@@ -57,10 +57,10 @@ export class JobDispatcher {
 		this._incrementWorkerLoad(worker);
 		this._persistAssignment(assignedJob.id, worker.workerId, deadline);
 
-		logger.info("Job assigned to worker", {
+		logger.info("Job assigned to worker", { context: {
 			jobId: assignedJob.id,
 			workerId: worker.workerId,
-		});
+		} });
 	}
 
 	distributeNext(): void {
@@ -131,15 +131,15 @@ export class JobDispatcher {
 				ackDeadline: deadline,
 			})
 			.catch((err) => {
-				logger.error("Failed to persist assigned status", {
-					jobId,
-					error: String(err),
-				});
+				logger.error("Failed to persist assigned status", { context: {
+				jobId,
+				error: String(err),
+			} });
 			});
 	}
 
 	private _handleAckTimeout(jobId: string): void {
-		logger.warn("ACK timeout for job", { jobId });
+		logger.warn("ACK timeout for job", { context: { jobId } });
 
 		this._repository
 			.findById(jobId)
@@ -167,10 +167,10 @@ export class JobDispatcher {
 					);
 			})
 			.catch((err) => {
-				logger.error("Failed to find job on ACK timeout", {
-					jobId,
-					error: String(err),
-				});
+				logger.error("Failed to find job on ACK timeout", { context: {
+				jobId,
+				error: String(err),
+			} });
 			});
 	}
 }

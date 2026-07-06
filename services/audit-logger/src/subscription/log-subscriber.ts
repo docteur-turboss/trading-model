@@ -138,9 +138,9 @@ export function createLogHandler(logRepo: LogRepository) {
 			LOGS_STORED_TOTAL.inc({ status: "success" }, docs.length);
 			return sendResponse({ stored: docs.length }, 200);
 		} catch (err) {
-			logger.error("Failed to store service logs", {
+			logger.error("Failed to store service logs", { context: {
 				error: normalizeError(err),
-			});
+			} });
 			LOGS_STORED_TOTAL.inc({ status: "error" }, docs.length);
 			return sendResponse({ error: "Storage unavailable" }, 503);
 		}

@@ -69,7 +69,7 @@ function handleAuthMessage({
 		state.tokenProvided = true;
 		logger.info(
 			"WSS client provided bootstrap token via post-connect auth message",
-			{ clientIdentity }
+			{ context: { clientIdentity } }
 		);
 		ws.send(JSON.stringify({ type: "auth:response", success: true }));
 	} else {

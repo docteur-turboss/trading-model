@@ -34,9 +34,9 @@ export class WorkerProtocol {
 						handler(message, ws);
 					}
 				} catch (err) {
-					logger.error("Invalid WebSocket message from worker", {
-						error: err instanceof Error ? err.message : String(err),
-					});
+					logger.error("Invalid WebSocket message from worker", { context: {
+					error: err instanceof Error ? err.message : String(err),
+				} });
 				}
 			});
 
@@ -67,9 +67,9 @@ export class WorkerProtocol {
 		});
 		this._connections.set(message.workerId, ws);
 
-		logger.info("Worker registered via WebSocket", {
+		logger.info("Worker registered via WebSocket", { context: {
 			workerId: message.workerId,
-		});
+		} });
 	}
 
 	private _handleHeartbeat(
@@ -91,10 +91,10 @@ export class WorkerProtocol {
 		this._workerRegistry.unregister(message.workerId);
 		this._onWorkerDisconnect(message.workerId);
 
-		logger.info("Worker disconnected", {
+		logger.info("Worker disconnected", { context: {
 			workerId: message.workerId,
 			reason: message.reason,
-		});
+		} });
 	}
 
 	sendToWorker(workerId: string, message: SchedulerOutgoingMessage): void {

@@ -95,7 +95,7 @@ export class JobScheduler {
 		await this.repository.insert(job);
 		this._enqueueJob(job);
 
-		logger.info("Job submitted", { jobId, type, priority });
+		logger.info("Job submitted", { context: { jobId, type, priority } });
 		return jobId;
 	}
 
@@ -104,10 +104,10 @@ export class JobScheduler {
 		this.queue.enqueue(updated);
 		this.backPressure.updateQueueDepth(this.queue.depth());
 		this.repository.updateStatus(job.id, "queued").catch((err) => {
-			logger.error("Failed to persist queued status", {
+			logger.error("Failed to persist queued status", { context: {
 				jobId: job.id,
 				error: String(err),
-			});
+			} });
 		});
 		this._assignmentManager.distributeNext();
 	}
@@ -116,7 +116,7 @@ export class JobScheduler {
 		this.queue.ack(jobId);
 		await this.repository.updateStatus(jobId, "running");
 
-		logger.info("Job acknowledged by worker", { jobId });
+		logger.info("Job acknowledged by worker", { context: { jobId } });
 	}
 
 	async complete(jobId: string, result: unknown): Promise<void> {
@@ -126,7 +126,7 @@ export class JobScheduler {
 		const job = await this.repository.findById(jobId);
 		this._assignmentManager.decrementWorkerLoad(job?.assignedWorkerId);
 
-		logger.info("Job completed", { jobId });
+		logger.info("Job completed", { context: { jobId } });
 		this._assignmentManager.distributeNext();
 	}
 
@@ -161,7 +161,7 @@ export class JobScheduler {
 		await this.repository.updateStatus(jobId, "cancelled");
 		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
 
-		logger.info("Job cancelled", { jobId });
+		logger.info("Job cancelled", { context: { jobId } });
 	}
 
 	onWorkerDisconnect(workerId: string): void {

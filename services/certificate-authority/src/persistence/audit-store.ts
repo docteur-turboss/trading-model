@@ -55,7 +55,7 @@ export class AuditStore {
 		} catch (err) {
 			logger.error(
 				"AuditStore: MongoDB connection failed — using local buffer",
-				{ err }
+				{ context: { err } }
 			);
 			this._mongoConnected = false;
 			return false;

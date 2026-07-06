@@ -96,10 +96,10 @@ export class JobAssignmentManager {
 		this.incrementWorkerLoad(worker);
 		this._persistAssignment(assignedJob.id, worker.workerId, deadline);
 
-		logger.info("Job assigned to worker", {
+		logger.info("Job assigned to worker", { context: {
 			jobId: assignedJob.id,
 			workerId: worker.workerId,
-		});
+		} });
 	}
 
 	private _persistAssignment(
@@ -113,10 +113,10 @@ export class JobAssignmentManager {
 				ackDeadline: deadline,
 			})
 			.catch((err) => {
-				logger.error("Failed to persist assigned status", {
-					jobId,
-					error: String(err),
-				});
+				logger.error("Failed to persist assigned status", { context: {
+				jobId,
+				error: String(err),
+			} });
 			});
 	}
 }

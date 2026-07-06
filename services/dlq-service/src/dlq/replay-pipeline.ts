@@ -94,20 +94,20 @@ function recordMMResult(success: boolean): void {
 				mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
 				logger.warn(
 					"Message-manager circuit breaker re-opened during half-open",
-					{
+					{ context: {
 						failures: mmCircuitFailures,
 						halfOpenAttempts: mmHalfOpenAttempts,
 						resetMs: MM_CIRCUIT_RESET_MS,
-					}
+					} }
 				);
 			}
 		}
 		if (mmCircuitFailures >= MM_CIRCUIT_THRESHOLD) {
 			mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
-			logger.warn("Message-manager circuit breaker opened", {
+			logger.warn("Message-manager circuit breaker opened", { context: {
 				failures: mmCircuitFailures,
 				resetMs: MM_CIRCUIT_RESET_MS,
-			});
+			} });
 		}
 	}
 }
@@ -155,9 +155,9 @@ export async function reloadHttpClientTls(): Promise<void> {
 			await client.reloadTlsPaths();
 			logger.info("HTTP client TLS certificates reloaded");
 		} catch (err) {
-			logger.error("Failed to reload HTTP client TLS certificates", {
+			logger.error("Failed to reload HTTP client TLS certificates", { context: {
 				error: (err as Error).message,
-			});
+			} });
 		}
 	}
 }
@@ -238,15 +238,15 @@ async function _handleDeliveryMarkFailed(
 		);
 		await dlqClaimManager.incrementRetryCount(entryId).catch((err) => {
 			logger.error(
-				"CRITICAL: Failed to increment retryCount after markRetried failure",
-				{ entryId, error: (err as Error).message }
-			);
+			"CRITICAL: Failed to increment retryCount after markRetried failure",
+			{ context: { entryId, error: (err as Error).message } }
+		);
 		});
 		await dlqClaimManager.releaseClaimWithoutCount(entryId).catch((err) => {
-			logger.error("CRITICAL: Failed to release claim after error", {
+			logger.error("CRITICAL: Failed to release claim after error", { context: {
 				entryId,
 				error: (err as Error).message,
-			});
+			} });
 		});
 	}
 }
@@ -299,11 +299,11 @@ function processBatchResults(
 				id: entry?.id ?? "unknown",
 				error: (result.reason as Error)?.message ?? "unknown error",
 			});
-			logger.error("DLQ replay entry failed", {
+			logger.error("DLQ replay entry failed", { context: {
 				entryId: entry?.id,
 				error: (result.reason as Error)?.message,
 				batchId: ctx.batchId,
-			});
+			} });
 		}
 	}
 }

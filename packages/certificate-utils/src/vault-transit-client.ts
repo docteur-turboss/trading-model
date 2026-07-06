@@ -1,6 +1,6 @@
 import {
 	HttpClient,
-	type TlsClientPaths,
+	type TlsPaths,
 } from "@trading-model/common/config/http-client";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
@@ -9,7 +9,7 @@ export interface VaultTransitConfig {
 	vaultUrl: string;
 	token: string;
 	namespace?: string;
-	tls?: TlsClientPaths;
+	tls?: TlsPaths;
 	timeoutMs?: number;
 }
 

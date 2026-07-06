@@ -75,7 +75,7 @@ export class RedisCache {
 			subscriber.on("reconnecting", () => {
 				logger.info(
 					"Redis subscriber reconnecting, will re-subscribe to channel",
-					{ channel }
+					{ context: { channel } }
 				);
 			});
 			subscriber.on("connect", () => {

@@ -46,9 +46,9 @@ function verifySignature(req: Request, serviceName: string): boolean {
 	try {
 		bodyString = deterministicStringify(normalizeBody(req.body));
 	} catch {
-		logger.warn("Failed to stringify request body for signature verification", {
+		logger.warn("Failed to stringify request body for signature verification", { context: {
 			serviceName,
-		});
+		} });
 		return false;
 	}
 

@@ -17,7 +17,7 @@ export class JobFailureHandler {
 	) {}
 
 	async handleAckTimeout(jobId: string): Promise<void> {
-		logger.warn("ACK timeout for job", { jobId });
+		logger.warn("ACK timeout for job", { context: { jobId } });
 
 		this._repository
 			.findById(jobId)
@@ -42,16 +42,16 @@ export class JobFailureHandler {
 					);
 			})
 			.catch((err) => {
-				logger.error("Failed to find job on ACK timeout", {
-					jobId,
-					error: String(err),
-				});
+				logger.error("Failed to find job on ACK timeout", { context: {
+				jobId,
+				error: String(err),
+			} });
 			});
 	}
 
 	async handlePermanentFailure(jobId: string, error: string): Promise<void> {
 		await this._repository.updateStatus(jobId, "failed", { error });
-		logger.warn("Job failed permanently", { jobId, error });
+		logger.warn("Job failed permanently", { context: { jobId, error } });
 	}
 
 	async handleRetryableFailure(
@@ -74,10 +74,10 @@ export class JobFailureHandler {
 			ackDeadline: newDeadline,
 		});
 
-		logger.info("Job re-queued after failure", {
+		logger.info("Job re-queued after failure", { context: {
 			jobId,
 			retryCount: updatedJob.retryCount,
-		});
+		} });
 		this._assignmentManager.distributeNext();
 	}
 }

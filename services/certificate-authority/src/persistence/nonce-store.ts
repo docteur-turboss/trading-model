@@ -69,7 +69,7 @@ export class NonceStore {
 		} catch (err) {
 			logger.warn(
 				"NonceStore MongoDB connection failed, operating in memory-only mode",
-				{ err }
+				{ context: { err } }
 			);
 			this._collection = null;
 		}

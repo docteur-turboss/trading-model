@@ -1,6 +1,6 @@
 import {
 	HttpClient,
-	type TlsClientPaths,
+	type TlsPaths as TlsClientPaths,
 } from "@trading-model/common/config/http-client";
 
 import type { CsrOptions } from "./create-csr";
