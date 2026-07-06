@@ -1,3 +1,7 @@
+import type {
+	PaginationQuery,
+	PaginationResult,
+} from "@trading-model/common/domain/pagination";
 import type { Collection, Db } from "mongodb";
 
 const MREGEX = "$regex";
@@ -44,15 +48,13 @@ export interface ServiceLogDocument {
 	environment?: string;
 }
 
-export interface LogQuery {
+export interface LogQuery extends PaginationQuery {
 	serviceName?: string;
 	level?: string;
 	correlationId?: string;
 	startDate?: string;
 	endDate?: string;
 	search?: string;
-	page?: number;
-	limit?: number;
 }
 
 export interface LogStats {

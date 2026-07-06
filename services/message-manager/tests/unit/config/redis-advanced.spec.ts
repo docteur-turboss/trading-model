@@ -1,3 +1,4 @@
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { describe, expect, it, jest } from "@jest/globals";
 
 const mockConnect = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
