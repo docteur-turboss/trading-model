@@ -43,18 +43,17 @@ describe("Subscription", () => {
 			await subscription.dispatch(message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
-			const [targetUrl, body, context] = mockDeliveryPort.send.mock
-				.calls[0] as [
-				string,
-				unknown,
-				{ deliveryAttempt: number; consumerGroup: string },
-			];
+			const sendArg = mockDeliveryPort.send.mock.calls[0][0] as {
+				url: string;
+				message: unknown;
+				context: { deliveryAttempt: number; consumerGroup: string };
+			};
 
-			expect(targetUrl).toContain("10.0.0.1");
-			expect(targetUrl).toContain("8444");
-			expect(targetUrl).toContain("message/callback");
-			expect(body).toBeDefined();
-			expect(context.deliveryAttempt).toBe(0);
+			expect(sendArg.url).toContain("10.0.0.1");
+			expect(sendArg.url).toContain("8444");
+			expect(sendArg.url).toContain("message/callback");
+			expect(sendArg.message).toBeDefined();
+			expect(sendArg.context.deliveryAttempt).toBe(0);
 		});
 
 		it("should retry with exponential backoff on generic error with AT_LEAST_ONCE mode", async () => {
@@ -85,11 +84,11 @@ describe("Subscription", () => {
 			await subscription.dispatch(message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
-			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
-				"Unrecoverable",
-				expect.any(Number)
-			);
+				reason: "Unrecoverable",
+				deliveryAttempt: expect.any(Number),
+			});
 		});
 
 		it("should stop retrying and send to DLQ on TTL expiration", async () => {
@@ -106,11 +105,11 @@ describe("Subscription", () => {
 			await subscription.dispatch(message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
-			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
-				"TTL_EXPIRED",
-				expect.any(Number)
-			);
+				reason: "TTL_EXPIRED",
+				deliveryAttempt: expect.any(Number),
+			});
 			mockDateNow.mockRestore();
 		});
 
@@ -138,11 +137,11 @@ describe("Subscription", () => {
 			await subscription.dispatch(message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
-			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
-				"Unrecoverable",
-				expect.any(Number)
-			);
+				reason: "Unrecoverable",
+				deliveryAttempt: expect.any(Number),
+			});
 		});
 
 		it("should stop after first attempt with EXACTLY_ONCE mode", async () => {
@@ -165,11 +164,11 @@ describe("Subscription", () => {
 
 			await subscription.dispatch(message);
 
-			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
-				"MAX_RETRIES_EXCEEDED",
-				expect.any(Number)
-			);
+				reason: "MAX_RETRIES_EXCEEDED",
+				deliveryAttempt: expect.any(Number),
+			});
 		});
 
 		it("should open circuit breaker after threshold failures and reject directly to DLQ", async () => {
@@ -186,11 +185,11 @@ describe("Subscription", () => {
 			mockDeliveryPort.markDeadLetter.mockClear();
 			await subscription.dispatch(message);
 
-			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
-				"CIRCUIT_OPEN",
-				expect.any(Number)
-			);
+				reason: "CIRCUIT_OPEN",
+				deliveryAttempt: expect.any(Number),
+			});
 		});
 
 		it("should reset circuit breaker on successful delivery", async () => {
@@ -242,14 +241,14 @@ describe("Subscription", () => {
 			const message = createMockMessage("payload");
 			await subscription.dispatch(message);
 
-			const [, , context] = mockDeliveryPort.send.mock.calls[0] as [
-				string,
-				unknown,
-				{ deliveryAttempt: number; consumerGroup: string },
-			];
+			const sendArg = mockDeliveryPort.send.mock.calls[0][0] as {
+				url: string;
+				message: unknown;
+				context: { deliveryAttempt: number; consumerGroup: string };
+			};
 
-			expect(context).toBeDefined();
-			expect(context.deliveryAttempt).toBe(0);
+			expect(sendArg.context).toBeDefined();
+			expect(sendArg.context.deliveryAttempt).toBe(0);
 		});
 
 		it("should use default TTL=0 and AT_LEAST_ONCE when delivery is undefined", async () => {
@@ -282,11 +281,11 @@ describe("Subscription", () => {
 			await subscription.dispatch(message);
 
 			expect(mockDeliveryPort.send).toHaveBeenCalledTimes(1);
-			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith(
+			expect(mockDeliveryPort.markDeadLetter).toHaveBeenCalledWith({
 				message,
-				"NO_REASON",
-				expect.any(Number)
-			);
+				reason: "NO_REASON",
+				deliveryAttempt: expect.any(Number),
+			});
 		});
 	});
 

@@ -1,8 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { ObtainedCertificate } from "./certificate-client";
 
 export class CertRenewScheduler {
-	private _renewTimer: ReturnType<typeof setTimeout> | null = null;
+	private readonly _renewTimer = new TimerHandle();
 
 	constructor(
 		private readonly _serviceId: string,
@@ -11,31 +12,27 @@ export class CertRenewScheduler {
 	) {}
 
 	start(): void {
-		if (this._renewTimer) {
+		if (this._renewTimer.isRunning) {
 			return;
 		}
 		void this._schedule();
 	}
 
 	stop(): void {
-		if (this._renewTimer) {
-			clearTimeout(this._renewTimer);
-			this._renewTimer = null;
-		}
+		this._renewTimer.stop();
 	}
 
 	private async _schedule(): Promise<void> {
-		const delay = this._renewMarginMs;
-		this._setupTimer(delay);
+		this._setupTimer(this._renewMarginMs);
 	}
 
 	private _setupTimer(delay: number): void {
-		this._renewTimer = setTimeout(() => {
+		this._renewTimer.startTimeout(() => {
 			this._onRenew()
 				.then(() => this._schedule())
 				.catch((err: Error) => {
 					logger.error("Certificate renewal failed, retrying", { err });
-					this._renewTimer = setTimeout(
+					this._renewTimer.startTimeout(
 						() => this._schedule(),
 						60000,
 					);
