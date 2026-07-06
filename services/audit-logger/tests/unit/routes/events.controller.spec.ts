@@ -99,8 +99,7 @@ describe("EventsController", () => {
 				topic: undefined,
 				publisher: undefined,
 				correlationId: undefined,
-				startDate: undefined,
-				endDate: undefined,
+				dateRange: undefined,
 				page: undefined,
 				limit: undefined,
 			});

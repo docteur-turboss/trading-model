@@ -117,6 +117,7 @@ jest.mock("../../../../src/config/metrics", () => ({
 	BUFFER_DROPPED_TOTAL: { inc: jest.fn() },
 }));
 
+import { TimeRange } from "@trading-model/common/domain/time-range";
 import { getStreamClient } from "../../../../src/config/redis";
 import { messageStore } from "../../../../src/messaging/core/message-store";
 
@@ -268,8 +269,7 @@ describe("MessageStore", () => {
 
 		const messages = await messageStore.getMessagesBetween({
 			topic: "test.topic",
-			fromMs: Date.now() - 7200000,
-			toMs: Date.now(),
+			timeRange: new TimeRange(Date.now() - 7200000, Date.now()),
 			limit: 10,
 		});
 
