@@ -74,20 +74,27 @@ export class ServiceDiscovery {
 	 * const instance = await discovery.findService("user-service");
 	 * ```
 	 */
+	private async _getHealthyCachedInstance(serviceName: string): Promise<ServiceInstance | null> {
+		const cachedInstance = await this._serviceCache.get(serviceName);
+		if (!cachedInstance) {
+			return null;
+		}
+		const isHealthy = await this._healthChecker.isHealthy(cachedInstance);
+		if (isHealthy) {
+			return cachedInstance;
+		}
+		await this._serviceCache.invalidate(serviceName);
+		return null;
+	}
+
 	async findService(serviceName: string): Promise<ServiceInstance> {
 		if (this._config.identity.region) {
 			return this.findServiceInRegion(serviceName, this._config.identity.region);
 		}
 
-		const cachedInstance = await this._serviceCache.get(serviceName);
-
-		if (cachedInstance) {
-			const isHealthy = await this._healthChecker.isHealthy(cachedInstance);
-			if (isHealthy) {
-				return cachedInstance;
-			}
-
-			await this._serviceCache.invalidate(serviceName);
+		const cached = await this._getHealthyCachedInstance(serviceName);
+		if (cached) {
+			return cached;
 		}
 
 		return this._resolveAndValidateService(serviceName);
@@ -97,15 +104,9 @@ export class ServiceDiscovery {
 		serviceName: string,
 		region: string
 	): Promise<ServiceInstance> {
-		const cachedInstance = await this._serviceCache.get(serviceName);
-
-		if (cachedInstance) {
-			const isHealthy = await this._healthChecker.isHealthy(cachedInstance);
-			if (isHealthy) {
-				return cachedInstance;
-			}
-
-			await this._serviceCache.invalidate(serviceName);
+		const cached = await this._getHealthyCachedInstance(serviceName);
+		if (cached) {
+			return cached;
 		}
 
 		return this._resolveAndValidateServiceInRegion(serviceName, region);
