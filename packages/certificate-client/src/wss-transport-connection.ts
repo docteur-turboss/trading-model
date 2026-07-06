@@ -59,6 +59,53 @@ export class WssTransportConnection extends EventEmitter {
 
 	// ── Connection lifecycle ───────────────────────────────────────────────────
 
+	private _setupConnectTimeout(): () => void {
+		return createWsConnectTimeout(() => {
+			if (this._state !== "connected") {
+				logger.warn("WSS connection timeout");
+				if (this._ws) {
+					this._ws.close();
+				}
+				this._scheduleReconnect();
+			}
+		}, 10_000);
+	}
+
+	private _registerWsEventHandlers(cancelTimeout: () => void): void {
+		if (!this._ws) return;
+
+		this._ws.on("open", () => {
+			cancelTimeout();
+			this._state = "connected";
+			this._wsReconnectState.attempt = 0;
+			logger.info("WSS transport connected to CA");
+			this._sendWsAuth();
+			this.emit("open");
+		});
+
+		this._ws.on("message", (data: WebSocket.Data) => {
+			this.emit("message", data);
+		});
+
+		this._ws.on("close", () => {
+			cancelTimeout();
+			this._state = "disconnected";
+			if (!this._destroyed) {
+				this._scheduleReconnect();
+			}
+			this.emit("close");
+		});
+
+		this._ws.on("error", (err: Error) => {
+			cancelTimeout();
+			logger.error("WSS transport error", { err: err.message });
+			if (!isWsConnected(this._ws)) {
+				this._scheduleReconnect();
+			}
+			this.emit("error", err);
+		});
+	}
+
 	private _connectWs(): void {
 		if (this._destroyed) {
 			return;
@@ -68,46 +115,8 @@ export class WssTransportConnection extends EventEmitter {
 			this._ws = new WebSocket(this._url, this._buildWsOptions());
 			this._ws.binaryType = "nodebuffer";
 
-			const cancelTimeout = createWsConnectTimeout(() => {
-				if (this._state !== "connected") {
-					logger.warn("WSS connection timeout");
-					if (this._ws) {
-						this._ws.close();
-					}
-					this._scheduleReconnect();
-				}
-			}, 10_000);
-
-			this._ws.on("open", () => {
-				cancelTimeout();
-				this._state = "connected";
-				this._wsReconnectState.attempt = 0;
-				logger.info("WSS transport connected to CA");
-				this._sendWsAuth();
-				this.emit("open");
-			});
-
-			this._ws.on("message", (data: WebSocket.Data) => {
-				this.emit("message", data);
-			});
-
-			this._ws.on("close", () => {
-				cancelTimeout();
-				this._state = "disconnected";
-				if (!this._destroyed) {
-					this._scheduleReconnect();
-				}
-				this.emit("close");
-			});
-
-			this._ws.on("error", (err: Error) => {
-				cancelTimeout();
-				logger.error("WSS transport error", { err: err.message });
-				if (!isWsConnected(this._ws)) {
-					this._scheduleReconnect();
-				}
-				this.emit("error", err);
-			});
+			const cancelTimeout = this._setupConnectTimeout();
+			this._registerWsEventHandlers(cancelTimeout);
 		} catch (err) {
 			logger.error("Failed to create WSS connection", { err });
 			this._scheduleReconnect();

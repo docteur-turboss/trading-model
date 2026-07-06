@@ -16,8 +16,9 @@ export {
 	fromSymbol,
 } from "@trading-model/common/domain/primitives";
 
-/** Number of features produced by buildFeatures per market step. */
-export const FEATURE_DIM = 32;
+import { FeatureIndex } from "./feature-indices";
+
+export const FEATURE_DIM = FeatureIndex.Bias + 1;
 
 /** Running normalisation statistics grouped by market-data context. */
 export interface SymbolNormalizers {

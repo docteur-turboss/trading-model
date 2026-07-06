@@ -19,40 +19,35 @@ export interface NoiseSampler {
 
 /** Sample from a Gaussian (normal) distribution with mean 0 and given sigma. */
 class GaussianNoiseSampler implements NoiseSampler {
-	readonly type: MutationDistribution = "gaussian";
+	readonly type: MutationDistribution = MutationDistribution.Gaussian;
 
 	sample(rng: () => number, sigma: number): number {
-		// Box-Muller
 		const u1 = Math.max(1e-10, rng());
 		const u2 = rng();
 		return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * sigma;
 	}
 }
 
-/** Sample from a Cauchy distribution with the given scale. */
 class CauchyNoiseSampler implements NoiseSampler {
-	readonly type: MutationDistribution = "cauchy";
+	readonly type: MutationDistribution = MutationDistribution.Cauchy;
 
 	sample(rng: () => number, sigma: number): number {
 		return sigma * Math.tan(Math.PI * (rng() - 0.5));
 	}
 }
 
-/** Sample uniform noise in the range (-sigma, +sigma). */
 class UniformNoiseSampler implements NoiseSampler {
-	readonly type: MutationDistribution = "uniform";
+	readonly type: MutationDistribution = MutationDistribution.Uniform;
 
 	sample(rng: () => number, sigma: number): number {
 		return (rng() * 2 - 1) * sigma;
 	}
 }
 
-/** Sample Lévy-stable noise (alpha=0.5) with heavy tails for escaping local optima. */
 class LevyNoiseSampler implements NoiseSampler {
-	readonly type: MutationDistribution = "levy";
+	readonly type: MutationDistribution = MutationDistribution.Levy;
 
 	sample(rng: () => number, sigma: number): number {
-		// Lévy via Chambers–Mallows–Stuck with α=0.5
 		const uAngle = Math.PI * (rng() - 0.5);
 		const wValue = -Math.log(Math.max(1e-10, rng()));
 		return (
@@ -72,10 +67,10 @@ export const UNIFORM_SAMPLER = new UniformNoiseSampler();
 export const LEVY_SAMPLER = new LevyNoiseSampler();
 
 const NOISE_SAMPLERS: Record<MutationDistribution, NoiseSampler> = {
-	gaussian: GAUSSIAN_SAMPLER,
-	cauchy: CAUCHY_SAMPLER,
-	uniform: UNIFORM_SAMPLER,
-	levy: LEVY_SAMPLER,
+	[MutationDistribution.Gaussian]: GAUSSIAN_SAMPLER,
+	[MutationDistribution.Cauchy]: CAUCHY_SAMPLER,
+	[MutationDistribution.Uniform]: UNIFORM_SAMPLER,
+	[MutationDistribution.Levy]: LEVY_SAMPLER,
 };
 
 // ----------------------------------------------------------------

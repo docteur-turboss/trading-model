@@ -44,10 +44,9 @@ import type {
 	RLGenome,
 } from "./genome-types";
 import { clamp } from "./utils";
+import { EncodingIndex, SCALAR_DIM } from "./encoding-indices";
 
-// ---- Constants ----
-
-const MAX_DEPTH = 12; // maximum layers we encode
+const MAX_DEPTH = 12;
 
 const ACTIVATIONS: ActivationType[] = [
 	"relu",
@@ -65,9 +64,8 @@ const CONNECTION_TYPES: ConnectionType[] = [
 	"residual-connection",
 ];
 
-const N_ACT = ACTIVATIONS.length; // 8
-const N_CT = CONNECTION_TYPES.length; // 3
-const SCALAR_DIM = 23; // scalars before per-layer section
+const N_ACT = ACTIVATIONS.length;
+const N_CT = CONNECTION_TYPES.length;
 const LAYER_DIM = 1 + N_ACT + N_CT; // neurons + one-hots per layer slot
 
 /** Total encoded vector length */
@@ -94,35 +92,35 @@ export function encodeGenome(genome: Genome): Float32Array {
 }
 
 function _encodeRLScalars(vec: Float32Array, rl: Genome["rl"]): void {
-	vec[0] = rl.gamma;
-	vec[1] = Math.log10(Math.max(1e-6, rl.learningRate)) / 6 + 1;
-	vec[2] = rl.rewardShaping.clipMin;
-	vec[3] = rl.rewardShaping.clipMax;
-	vec[4] = Math.log10(Math.max(0.001, rl.rewardShaping.scaleFactor)) / 3 + 1;
-	vec[5] = rl.horizon.maxEpisodeLength / 2_000;
-	vec[6] = rl.horizon.nStepReturn / 20;
-	vec[7] = rl.horizon.frameSkip / 10;
-	vec[8] = rl.discretePolicy.epsilonStart;
-	vec[9] = rl.discretePolicy.epsilonMin / 0.2;
-	vec[10] = rl.discretePolicy.epsilonDecay;
-	vec[11] = Math.log10(Math.max(0.01, rl.discretePolicy.temperature)) / 2 + 0.5;
-	vec[12] = rl.continuousPolicy.noiseStd / 5;
-	vec[13] = rl.continuousPolicy.noiseDecay;
-	vec[14] = Math.log10(Math.max(100, rl.replayBuffer.bufferSize)) / 6;
-	vec[15] = rl.replayBuffer.alphaPER;
-	vec[16] = rl.replayBuffer.betaPER;
+	vec[EncodingIndex.Gamma] = rl.gamma;
+	vec[EncodingIndex.LearningRate] = Math.log10(Math.max(1e-6, rl.learningRate)) / 6 + 1;
+	vec[EncodingIndex.ClipMin] = rl.rewardShaping.clipMin;
+	vec[EncodingIndex.ClipMax] = rl.rewardShaping.clipMax;
+	vec[EncodingIndex.ScaleFactor] = Math.log10(Math.max(0.001, rl.rewardShaping.scaleFactor)) / 3 + 1;
+	vec[EncodingIndex.MaxEpisodeLength] = rl.horizon.maxEpisodeLength / 2_000;
+	vec[EncodingIndex.NStepReturn] = rl.horizon.nStepReturn / 20;
+	vec[EncodingIndex.FrameSkip] = rl.horizon.frameSkip / 10;
+	vec[EncodingIndex.EpsilonStart] = rl.discretePolicy.epsilonStart;
+	vec[EncodingIndex.EpsilonMin] = rl.discretePolicy.epsilonMin / 0.2;
+	vec[EncodingIndex.EpsilonDecay] = rl.discretePolicy.epsilonDecay;
+	vec[EncodingIndex.Temperature] = Math.log10(Math.max(0.01, rl.discretePolicy.temperature)) / 2 + 0.5;
+	vec[EncodingIndex.NoiseStd] = rl.continuousPolicy.noiseStd / 5;
+	vec[EncodingIndex.NoiseDecay] = rl.continuousPolicy.noiseDecay;
+	vec[EncodingIndex.BufferSize] = Math.log10(Math.max(100, rl.replayBuffer.bufferSize)) / 6;
+	vec[EncodingIndex.AlphaPER] = rl.replayBuffer.alphaPER;
+	vec[EncodingIndex.BetaPER] = rl.replayBuffer.betaPER;
 }
 
 function _encodeMutationScalars(vec: Float32Array, mutation: Genome["mutation"]): void {
-	vec[17] = mutation.rate / 0.5;
-	vec[18] = Math.log10(Math.max(1e-5, mutation.sigma)) / 4 + 1.25;
-	vec[19] = Math.log10(Math.max(1e-5, mutation.selfSigma)) / 4 + 1.25;
+	vec[EncodingIndex.MutationRate] = mutation.rate / 0.5;
+	vec[EncodingIndex.MutationSigma] = Math.log10(Math.max(1e-5, mutation.sigma)) / 4 + 1.25;
+	vec[EncodingIndex.MutationSelfSigma] = Math.log10(Math.max(1e-5, mutation.selfSigma)) / 4 + 1.25;
 }
 
 function _encodeNetworkScalars(vec: Float32Array, net: Genome["network"]): void {
-	vec[20] = net.inputDim / 256;
-	vec[21] = net.outputDim / 64;
-	vec[22] = net.hiddenLayers.length / MAX_DEPTH;
+	vec[EncodingIndex.NetworkInputDim] = net.inputDim / 256;
+	vec[EncodingIndex.NetworkOutputDim] = net.outputDim / 64;
+	vec[EncodingIndex.NetworkDepth] = net.hiddenLayers.length / MAX_DEPTH;
 }
 
 function _encodeScalars(vec: Float32Array, genome: Genome): void {
@@ -172,39 +170,39 @@ function argmax(arr: Float32Array, start: number, len: number): number {
 
 function _decodeRLScalars(vec: Float32Array) {
 	return {
-		gamma: clamp(vec[0], 0.8, 0.9999),
-		learningRate: clamp(10 ** ((vec[1] - 1) * 6), 1e-6, 1e-1),
-		clipMin: vec[2],
-		clipMax: vec[3],
-		scaleFactor: clamp(10 ** ((vec[4] - 1) * 3), 0.001, 1000),
-		maxEpisodeLength: clamp(Math.round(vec[5] * 2_000), 10, 20_000),
-		nStepReturn: clamp(Math.round(vec[6] * 20), 1, 20),
-		frameSkip: clamp(Math.round(vec[7] * 10), 1, 10),
-		epsilonStart: clamp(vec[8], 0.1, 1.0),
-		epsilonMin: clamp(vec[9] * 0.2, 0.001, 0.2),
-		epsilonDecay: clamp(vec[10], 0.9, 0.9999),
-		temperature: clamp(10 ** ((vec[11] - 0.5) * 2), 0.01, 100),
-		noiseStd: clamp(vec[12] * 5, 0.001, 5),
-		noiseDecay: clamp(vec[13], 0.9, 0.9999),
-		bufferSize: clamp(Math.round(10 ** (vec[14] * 6)), 100, 1_000_000),
-		alphaPER: clamp(vec[15], 0, 1),
-		betaPER: clamp(vec[16], 0, 1),
+		gamma: clamp(vec[EncodingIndex.Gamma], 0.8, 0.9999),
+		learningRate: clamp(10 ** ((vec[EncodingIndex.LearningRate] - 1) * 6), 1e-6, 1e-1),
+		clipMin: vec[EncodingIndex.ClipMin],
+		clipMax: vec[EncodingIndex.ClipMax],
+		scaleFactor: clamp(10 ** ((vec[EncodingIndex.ScaleFactor] - 1) * 3), 0.001, 1000),
+		maxEpisodeLength: clamp(Math.round(vec[EncodingIndex.MaxEpisodeLength] * 2_000), 10, 20_000),
+		nStepReturn: clamp(Math.round(vec[EncodingIndex.NStepReturn] * 20), 1, 20),
+		frameSkip: clamp(Math.round(vec[EncodingIndex.FrameSkip] * 10), 1, 10),
+		epsilonStart: clamp(vec[EncodingIndex.EpsilonStart], 0.1, 1.0),
+		epsilonMin: clamp(vec[EncodingIndex.EpsilonMin] * 0.2, 0.001, 0.2),
+		epsilonDecay: clamp(vec[EncodingIndex.EpsilonDecay], 0.9, 0.9999),
+		temperature: clamp(10 ** ((vec[EncodingIndex.Temperature] - 0.5) * 2), 0.01, 100),
+		noiseStd: clamp(vec[EncodingIndex.NoiseStd] * 5, 0.001, 5),
+		noiseDecay: clamp(vec[EncodingIndex.NoiseDecay], 0.9, 0.9999),
+		bufferSize: clamp(Math.round(10 ** (vec[EncodingIndex.BufferSize] * 6)), 100, 1_000_000),
+		alphaPER: clamp(vec[EncodingIndex.AlphaPER], 0, 1),
+		betaPER: clamp(vec[EncodingIndex.BetaPER], 0, 1),
 	};
 }
 
 function _decodeMutationScalars(vec: Float32Array) {
 	return {
-		mutationRate: clamp(vec[17] * 0.5, 0.001, 0.5),
-		sigma: clamp(10 ** ((vec[18] - 1.25) * 4), 1e-5, 10),
-		selfSigma: clamp(10 ** ((vec[19] - 1.25) * 4), 1e-5, 10),
+		mutationRate: clamp(vec[EncodingIndex.MutationRate] * 0.5, 0.001, 0.5),
+		sigma: clamp(10 ** ((vec[EncodingIndex.MutationSigma] - 1.25) * 4), 1e-5, 10),
+		selfSigma: clamp(10 ** ((vec[EncodingIndex.MutationSelfSigma] - 1.25) * 4), 1e-5, 10),
 	};
 }
 
 function _decodeNetworkScalars(vec: Float32Array) {
 	return {
-		inputDim: clamp(Math.round(vec[20] * 256), 1, 256),
-		outputDim: clamp(Math.round(vec[21] * 64), 1, 64),
-		depth: clamp(Math.round(vec[22] * MAX_DEPTH), 1, MAX_DEPTH),
+		inputDim: clamp(Math.round(vec[EncodingIndex.NetworkInputDim] * 256), 1, 256),
+		outputDim: clamp(Math.round(vec[EncodingIndex.NetworkOutputDim] * 64), 1, 64),
+		depth: clamp(Math.round(vec[EncodingIndex.NetworkDepth] * MAX_DEPTH), 1, MAX_DEPTH),
 	};
 }
 
@@ -233,7 +231,7 @@ function decodeLayers(vec: Float32Array, depth: number, template: Genome) {
 	const hiddenLayers: Genome["network"]["hiddenLayers"] = [];
 
 	for (let i = 0; i < depth; i++) {
-		const biasType = template.network.hiddenLayers[i]?.biasType ?? "zeros";
+		const biasType = template.network.hiddenLayers[i]?.biasType ?? InitialisationType.Zeros;
 		hiddenLayers.push(_decodeSingleLayer(vec, SCALAR_DIM + i * LAYER_DIM, biasType));
 	}
 	return hiddenLayers;

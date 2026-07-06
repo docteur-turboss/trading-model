@@ -18,7 +18,7 @@ export interface SelectionStrategy {
 }
 
 class TournamentSelection implements SelectionStrategy {
-	readonly type: SelectionType = "tournament";
+	readonly type: SelectionType = SelectionType.Tournament;
 
 	select(
 		population: LamarckGenome[],
@@ -40,7 +40,7 @@ class TournamentSelection implements SelectionStrategy {
 }
 
 class RouletteSelection implements SelectionStrategy {
-	readonly type: SelectionType = "roulette";
+	readonly type: SelectionType = SelectionType.Roulette;
 
 	select(
 		population: LamarckGenome[],
@@ -60,7 +60,7 @@ class RouletteSelection implements SelectionStrategy {
 }
 
 class RankSelection implements SelectionStrategy {
-	readonly type: SelectionType = "rank";
+	readonly type: SelectionType = SelectionType.Rank;
 
 	select(
 		population: LamarckGenome[],
@@ -77,13 +77,12 @@ class RankSelection implements SelectionStrategy {
 				return sorted[i];
 			}
 		}
-		/* istanbul ignore next */
 		return sorted[sorted.length - 1];
 	}
 }
 
 class TruncationSelection implements SelectionStrategy {
-	readonly type: SelectionType = "truncation";
+	readonly type: SelectionType = SelectionType.Truncation;
 
 	select(
 		population: LamarckGenome[],
@@ -94,7 +93,7 @@ class TruncationSelection implements SelectionStrategy {
 }
 
 class SUSSelection implements SelectionStrategy {
-	readonly type: SelectionType = "sus";
+	readonly type: SelectionType = SelectionType.Sus;
 
 	select(
 		population: LamarckGenome[],
@@ -105,11 +104,11 @@ class SUSSelection implements SelectionStrategy {
 }
 
 const SELECTION_STRATEGIES: Record<SelectionType, SelectionStrategy> = {
-	tournament: new TournamentSelection(),
-	roulette: new RouletteSelection(),
-	rank: new RankSelection(),
-	truncation: new TruncationSelection(),
-	sus: new SUSSelection(),
+	[SelectionType.Tournament]: new TournamentSelection(),
+	[SelectionType.Roulette]: new RouletteSelection(),
+	[SelectionType.Rank]: new RankSelection(),
+	[SelectionType.Truncation]: new TruncationSelection(),
+	[SelectionType.Sus]: new SUSSelection(),
 };
 
 // ----------------------------------------------------------------

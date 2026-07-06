@@ -1,3 +1,4 @@
+import type { DateRange } from "@trading-model/common/domain/date-range";
 import type {
 	PaginationQuery,
 	PaginationResult,
@@ -52,8 +53,7 @@ export interface LogQuery extends PaginationQuery {
 	serviceName?: string;
 	level?: string;
 	correlationId?: string;
-	startDate?: string;
-	endDate?: string;
+	dateRange?: DateRange;
 	search?: string;
 }
 
@@ -198,19 +198,16 @@ function _addDateRangeFilter(
 	filter: Record<string, unknown>,
 	params: LogQuery
 ): void {
-	if (!(params.startDate || params.endDate)) {
+	const dr = params.dateRange;
+	if (!dr) {
 		return;
 	}
 	filter.receivedAt = {} as Record<string, Date>;
-	if (params.startDate) {
-		(filter.receivedAt as Record<string, Date>)[MGTE] = new Date(
-			params.startDate
-		);
+	if (dr.start) {
+		(filter.receivedAt as Record<string, Date>)[MGTE] = dr.start;
 	}
-	if (params.endDate) {
-		(filter.receivedAt as Record<string, Date>)[MLTE] = new Date(
-			params.endDate
-		);
+	if (dr.end) {
+		(filter.receivedAt as Record<string, Date>)[MLTE] = dr.end;
 	}
 }
 

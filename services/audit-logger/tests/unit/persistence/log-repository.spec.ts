@@ -1,3 +1,4 @@
+import { DateRange } from "@trading-model/common/domain/date-range";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockInsertOne = jest.fn<any>();
@@ -116,8 +117,7 @@ describe("LogRepository", () => {
 			serviceName: "svc",
 			level: "info",
 			correlationId: "cid-1",
-			startDate: "2024-01-01",
-			endDate: "2024-12-31",
+			dateRange: new DateRange(new Date("2024-01-01"), new Date("2024-12-31")),
 			page: 1,
 			limit: 10,
 		});

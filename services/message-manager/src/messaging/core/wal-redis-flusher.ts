@@ -1,10 +1,8 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
-import { safeStringify } from "@trading-model/common/utils/safe-stringify";
-
-import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
+import { WalBatchFlusher } from "./wal-batch-flusher";
+import { WalErrorHandler } from "./wal-error-handler";
 import { WAL_BATCH_SIZE } from "../../config/wal-config";
 const WAL_LIST_MAX_LEN = 1_000_000;
 const ATOMIC_WAL_READ_LUA = `
@@ -16,17 +14,26 @@ const ATOMIC_WAL_READ_LUA = `
 `;
 
 export class WalRedisFlusher {
+	private readonly _batchFlusher: WalBatchFlusher;
+	private readonly _errorHandler: WalErrorHandler;
+
 	constructor(
 		private readonly _prefix: string,
 		private readonly _memoryWalBuffer: MemoryWalBuffer,
-	) {}
+	) {
+		this._batchFlusher = new WalBatchFlusher(
+			this._prefix,
+			0,
+			0
+		);
+		this._errorHandler = new WalErrorHandler(
+			() => this._walKey(),
+			this._memoryWalBuffer,
+		);
+	}
 
 	private _walKey(): string {
 		return `${this._prefix}wal_buffer`;
-	}
-
-	private _streamKey(topic: string): string {
-		return `${this._prefix}stream:${topic}`;
 	}
 
 	async store(topic: string, serialized: string): Promise<void> {
@@ -35,112 +42,6 @@ export class WalRedisFlusher {
 		await redis.rpush(this._walKey(), walEntry);
 		await redis.ltrim(this._walKey(), -WAL_LIST_MAX_LEN, -1);
 		await redis.expire(this._walKey(), 7200);
-	}
-
-	private _parseWalEntry(
-		entry: string,
-	): { topic: string; data: string } | null {
-		try {
-			const parsed = JSON.parse(entry) as {
-				topic: string;
-				serialized?: string;
-				message?: Message;
-			};
-			return {
-				topic: parsed.topic,
-				data: parsed.serialized ?? safeStringify(parsed.message!),
-			};
-		} catch {
-			logger.warn("WAL flush: malformed entry dropped", {
-				context: { entry: entry.substring(0, 200) },
-			});
-			return null;
-		}
-	}
-
-	private async _flushBatch(raw: string[]): Promise<boolean> {
-		const redis = await getStreamClient();
-		const multi = redis.multi();
-		this._addParsedCommands(multi, raw);
-
-		try {
-			return await this._execBatch(multi);
-		} catch {
-			return false;
-		}
-	}
-
-	private _addParsedCommands(
-		multi: ReturnType<import("ioredis").Redis["multi"]>,
-		raw: string[]
-	): void {
-		for (const entry of raw) {
-			const parsed = this._parseWalEntry(entry);
-			if (!parsed) {
-				continue;
-			}
-			const key = this._streamKey(parsed.topic);
-			multi.xadd(key, "MAXLEN", "~", ENV.REDIS_STREAM_MAXLEN, "*", "data", parsed.data);
-			multi.expire(key, ENV.REDIS_MESSAGE_TTL_S);
-		}
-	}
-
-	private async _execBatch(
-		multi: ReturnType<import("ioredis").Redis["multi"]>
-	): Promise<boolean> {
-		const results = await multi.exec();
-		if (!results) {
-			return true;
-		}
-		return !results.some((resultItem) => resultItem[0] !== null);
-	}
-
-	private _bufferEntries(raw: string[]): void {
-		for (const entry of raw) {
-			try {
-				const parsed = _parseEntryToBuffer(entry);
-				if (parsed) {
-					this._memoryWalBuffer.push(parsed.topic, parsed.serialized, parsed.message);
-				}
-			} catch {
-				/* best-effort */
-			}
-		}
-	}
-
-	private async _handleError(
-		raw: string[],
-		consecutiveErrors: number,
-	): Promise<"retry" | "memory-buffer" | "abort"> {
-		if (consecutiveErrors >= 5) {
-			logger.error(
-				"WAL flush: too many consecutive errors — switching to memory buffer",
-			);
-			this._bufferEntries(raw);
-			return "memory-buffer";
-		}
-
-		if (raw.length > 0) {
-			try {
-				const redis = await getStreamClient();
-				const restore = redis.multi();
-				for (const entry of raw) {
-					restore.rpush(this._walKey(), entry);
-				}
-				await restore.exec();
-			} catch {
-				this._bufferEntries(raw);
-			}
-		}
-
-		return "retry";
-	}
-
-	private _sleepWithJitter(ms: number): Promise<void> {
-		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
-		return new Promise((resolve) =>
-			setTimeout(resolve, Math.max(1, Math.round(ms + jitter))),
-		);
 	}
 
 	async flushAll(): Promise<void> {
@@ -152,7 +53,7 @@ export class WalRedisFlusher {
 				break;
 			}
 
-			if (await this._flushBatch(raw)) {
+			if (await this._batchFlusher.flushBatch(raw)) {
 				consecutiveErrors = 0;
 				continue;
 			}
@@ -183,25 +84,16 @@ export class WalRedisFlusher {
 			consecutiveErrors: nextErrors,
 			batchSize: raw.length,
 		});
-		const action = await this._handleError(raw, nextErrors);
+		const action = await this._errorHandler.handleFlushError(raw, nextErrors);
 		const backoff = Math.min(1000 * 2 ** nextErrors, 30000);
 		await this._sleepWithJitter(backoff);
 		return action !== "abort";
 	}
-}
 
-function _parseEntryToBuffer(entry: string): { topic: string; serialized: string; message: Message } | null {
-	try {
-		const parsed = JSON.parse(entry) as {
-			topic: string;
-			serialized?: string;
-			message?: Message;
-		};
-		const topic = parsed.topic;
-		const serialized = parsed.serialized ?? safeStringify(parsed.message!);
-		const message = parsed.message ?? JSON.parse(parsed.serialized!);
-		return { topic, serialized, message: message as Message };
-	} catch {
-		return null;
+	private _sleepWithJitter(ms: number): Promise<void> {
+		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
+		return new Promise((resolve) =>
+			setTimeout(resolve, Math.max(1, Math.round(ms + jitter))),
+		);
 	}
 }

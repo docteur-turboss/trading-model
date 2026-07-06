@@ -34,6 +34,99 @@ interface DataTableProps<TData> {
 	selectable?: boolean;
 }
 
+interface DataTableHeadProps<TData> {
+	columns: Column<TData>[];
+	selectable: boolean;
+	allSelected: boolean;
+	indeterminate: boolean;
+	onSelectAll?: (selected: boolean) => void;
+	orderBy: string | null;
+	orderDir: "asc" | "desc";
+	onSort: (colId: string) => void;
+}
+
+function DataTableHead<TData>({
+	columns,
+	selectable,
+	allSelected,
+	indeterminate,
+	onSelectAll,
+	orderBy,
+	orderDir,
+	onSort,
+}: DataTableHeadProps<TData>) {
+	return (
+		<TableHead>
+			<TableRow>
+				{selectable && (
+					<TableCell padding="checkbox">
+						<Checkbox
+							checked={allSelected}
+							indeterminate={indeterminate}
+							onChange={(event) => onSelectAll?.(event.target.checked)}
+						/>
+					</TableCell>
+				)}
+				{columns.map((col) => (
+					<TableCell key={col.id} sx={{ width: col.width }}>
+						{col.sortable ? (
+							<TableSortLabel
+								active={orderBy === col.id}
+								direction={orderBy === col.id ? orderDir : "asc"}
+								onClick={() => onSort(col.id)}
+							>
+								{col.label}
+							</TableSortLabel>
+						) : (
+							col.label
+						)}
+					</TableCell>
+				))}
+			</TableRow>
+		</TableHead>
+	);
+}
+
+interface DataTableRowProps<TData> {
+	row: TData;
+	columns: Column<TData>[];
+	selectable: boolean;
+	selectedIds?: Set<string>;
+	getId: (row: TData) => string;
+	onSelectOne?: (id: string) => void;
+}
+
+function DataTableRow<TData>({
+	row,
+	columns,
+	selectable,
+	selectedIds,
+	getId,
+	onSelectOne,
+}: DataTableRowProps<TData>) {
+	const id = getId(row);
+	const isSelected = selectedIds?.has(id);
+	return (
+		<TableRow
+			hover
+			selected={isSelected}
+			sx={{ cursor: "pointer" }}
+		>
+			{selectable && (
+				<TableCell padding="checkbox">
+					<Checkbox
+						checked={Boolean(isSelected)}
+						onChange={() => onSelectOne?.(id)}
+					/>
+				</TableCell>
+			)}
+			{columns.map((col) => (
+				<TableCell key={col.id}>{col.render(row)}</TableCell>
+			))}
+		</TableRow>
+	);
+}
+
 export function DataTable<TData>({
 	columns,
 	rows,
@@ -65,59 +158,28 @@ export function DataTable<TData>({
 		<Paper variant="outlined">
 			<TableContainer>
 				<Table size="small">
-					<TableHead>
-						<TableRow>
-							{selectable && (
-								<TableCell padding="checkbox">
-									<Checkbox
-										checked={Boolean(allSelected)}
-										indeterminate={indeterminate}
-										onChange={(event) => onSelectAll?.(event.target.checked)}
-									/>
-								</TableCell>
-							)}
-							{columns.map((col) => (
-								<TableCell key={col.id} sx={{ width: col.width }}>
-									{col.sortable ? (
-										<TableSortLabel
-											active={orderBy === col.id}
-											direction={orderBy === col.id ? orderDir : "asc"}
-											onClick={() => handleSort(col.id)}
-										>
-											{col.label}
-										</TableSortLabel>
-									) : (
-										col.label
-									)}
-								</TableCell>
-							))}
-						</TableRow>
-					</TableHead>
+					<DataTableHead
+						columns={columns}
+						selectable={selectable}
+						allSelected={allSelected}
+						indeterminate={indeterminate}
+						onSelectAll={onSelectAll}
+						orderBy={orderBy}
+						orderDir={orderDir}
+						onSort={handleSort}
+					/>
 					<TableBody>
-						{rows.map((row) => {
-							const id = getId(row);
-							const isSelected = selectedIds?.has(id);
-							return (
-								<TableRow
-									key={id}
-									hover
-									selected={isSelected}
-									sx={{ cursor: "pointer" }}
-								>
-									{selectable && (
-										<TableCell padding="checkbox">
-											<Checkbox
-												checked={Boolean(isSelected)}
-												onChange={() => onSelectOne?.(id)}
-											/>
-										</TableCell>
-									)}
-									{columns.map((col) => (
-										<TableCell key={col.id}>{col.render(row)}</TableCell>
-									))}
-								</TableRow>
-							);
-						})}
+						{rows.map((row) => (
+							<DataTableRow
+								key={getId(row)}
+								row={row}
+								columns={columns}
+								selectable={selectable}
+								selectedIds={selectedIds}
+								getId={getId}
+								onSelectOne={onSelectOne}
+							/>
+						))}
 					</TableBody>
 				</Table>
 			</TableContainer>

@@ -1,3 +1,7 @@
+import {
+	ContinuousPolicyType,
+	DiscretePolicyType,
+} from "../genome";
 import type {
 	ContinuousPolicyGenome,
 	DiscretePolicyGenome,
@@ -82,7 +86,7 @@ function repairHorizon(horizon: HorizonGenome): HorizonGenome {
 
 function repairDiscretePolicy(dp: DiscretePolicyGenome): DiscretePolicyGenome {
 	return {
-		type: dp.type ?? "epsilon_greedy",
+		type: dp.type ?? DiscretePolicyType.EpsilonGreedy,
 		epsilonStart: clamp(dp.epsilonStart ?? 1.0, 0.1, 1.0),
 		epsilonMin: clamp(dp.epsilonMin ?? 0.05, 0.001, 0.2),
 		epsilonDecay: clamp(dp.epsilonDecay ?? 0.995, 0.9, 0.9999),
@@ -94,7 +98,7 @@ function repairContinuousPolicy(cp: ContinuousPolicyGenome): ContinuousPolicyGen
 	const cpClipMin = Math.min(cp.clipMin ?? -1, (cp.clipMax ?? 1) - 1e-6);
 	const cpClipMax = Math.max(cp.clipMax ?? 1, (cp.clipMin ?? -1) + 1e-6);
 	return {
-		type: cp.type ?? "tanh_squashing",
+		type: cp.type ?? ContinuousPolicyType.TanhSquashing,
 		clipMin: cpClipMin,
 		clipMax: cpClipMax,
 		noiseStd: Math.max(0.001, cp.noiseStd ?? 0.1),

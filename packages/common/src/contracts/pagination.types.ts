@@ -1,9 +1,4 @@
-/** Query parameters for paginated list endpoints. */
-export interface PaginationQuery {
-	page?: number;
-	limit?: number;
-	offset?: number;
-}
+export type { PaginationQuery } from "../domain/pagination";
 
 export type { DateRange } from "../domain/date-range";
 

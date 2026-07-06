@@ -71,40 +71,39 @@ interface SigmaAdapter {
 }
 
 class FixedSigmaAdapter implements SigmaAdapter {
-	readonly type: MutationAdaptation = "fixed";
+	readonly type: MutationAdaptation = MutationAdaptation.Fixed;
 	adapt(mutation: MutationGenome): number {
 		return mutation.sigma;
 	}
 }
 
 class SigmaAdaptiveAdapter implements SigmaAdapter {
-	readonly type: MutationAdaptation = "sigma_adaptive";
+	readonly type: MutationAdaptation = MutationAdaptation.SigmaAdaptive;
 	adapt(mutation: MutationGenome, rng: () => number): number {
 		return mutation.sigma * (0.9 + 0.2 * rng());
 	}
 }
 
 class SelfAdaptiveAdapter implements SigmaAdapter {
-	readonly type: MutationAdaptation = "self_adaptive";
+	readonly type: MutationAdaptation = MutationAdaptation.SelfAdaptive;
 	adapt(mutation: MutationGenome, rng: () => number): number {
-		// Log-normal perturbation of selfSigma (1/5-rule inspired)
 		const tau = 1 / Math.sqrt(2 * Math.max(1, mutation.sigma));
 		return mutation.selfSigma * Math.exp(tau * sampleGaussian(rng, 1));
 	}
 }
 
 class CmaSigmaAdapter implements SigmaAdapter {
-	readonly type: MutationAdaptation = "cma";
+	readonly type: MutationAdaptation = MutationAdaptation.Cma;
 	adapt(mutation: MutationGenome): number {
-		return mutation.sigma; // Step-size control is external (CMA-ES loop)
+		return mutation.sigma;
 	}
 }
 
 const SIGMA_ADAPTERS: Record<MutationAdaptation, SigmaAdapter> = {
-	fixed: new FixedSigmaAdapter(),
-	sigma_adaptive: new SigmaAdaptiveAdapter(),
-	self_adaptive: new SelfAdaptiveAdapter(),
-	cma: new CmaSigmaAdapter(),
+	[MutationAdaptation.Fixed]: new FixedSigmaAdapter(),
+	[MutationAdaptation.SigmaAdaptive]: new SigmaAdaptiveAdapter(),
+	[MutationAdaptation.SelfAdaptive]: new SelfAdaptiveAdapter(),
+	[MutationAdaptation.Cma]: new CmaSigmaAdapter(),
 };
 
 /** Compute an adapted mutation sigma based on the configured adaptation strategy. */
@@ -357,7 +356,7 @@ function _mutateLayers(
 	mutationConfig: MutationGenome,
 	rng: () => number
 ): LayerGenome[] {
-	const perLayerMode = mutationConfig.scope === "per_layer";
+	const perLayerMode = mutationConfig.scope === MutationScope.PerLayer;
 	return layers.map((layer) =>
 		perLayerMode || rng() < mutationConfig.rate
 			? mutateLayer(layer, mutationConfig, rng)
@@ -457,7 +456,7 @@ function _mutateSelfSigma(
 	sigma: number,
 	rng: () => number
 ): number {
-	return Math.max(1e-5, mutationConfig.selfSigma + sampleNoise("gaussian", sigma * 0.05, rng));
+	return Math.max(1e-5, mutationConfig.selfSigma + sampleNoise(MutationDistribution.Gaussian, sigma * 0.05, rng));
 }
 
 function _mutateSelfAdaptiveParams(

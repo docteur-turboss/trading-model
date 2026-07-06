@@ -131,23 +131,29 @@ export class WsDiscoveryServer {
 		}
 	}
 
+	private readonly _messageHandlers: Record<
+		string,
+		(clientId: string, client: ConnectedClient, message: WsDiscoveryClientMessage) => void
+	> = {
+		subscribe: (clientId, client, message) =>
+			this._handleSubscribe(clientId, client, message as never),
+		heartbeat: (_clientId, client, message) =>
+			this._handleHeartbeat(client, message as never),
+	};
+
 	private _handleMessage(
 		clientId: string,
 		client: ConnectedClient,
 		message: WsDiscoveryClientMessage
 	): void {
-		switch (message.type) {
-			case "subscribe":
-				this._handleSubscribe(clientId, client, message);
-				break;
-			case "heartbeat":
-				this._handleHeartbeat(client, message);
-				break;
-			default:
-				logger.debug("Unknown WS message type", {
-					clientId,
-					type: (message as { type: string }).type,
-				});
+		const handler = this._messageHandlers[message.type];
+		if (handler) {
+			handler(clientId, client, message);
+		} else {
+			logger.debug("Unknown WS message type", {
+				clientId,
+				type: (message as { type: string }).type,
+			});
 		}
 	}
 

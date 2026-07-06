@@ -3,6 +3,7 @@ import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
+import { WalBatchFlusher } from "./wal-batch-flusher";
 import { WalEntryParser } from "./wal-entry-parser";
 import { WalFlushErrorHandler } from "./wal-flush-error-handler";
 
@@ -24,23 +25,24 @@ export class WalFlusherService {
 	private _walDrainGen = 0;
 	private _walFlushWaiters: Array<() => void> = [];
 
-	private readonly _entryParser: WalEntryParser;
+	private readonly _batchFlusher: WalBatchFlusher;
 	private readonly _errorHandler: WalFlushErrorHandler;
 
 	constructor(
 		private readonly _prefix: string,
 		private readonly _memoryWalBuffer: MemoryWalBuffer
 	) {
-		this._entryParser = new WalEntryParser(this._memoryWalBuffer);
-		this._errorHandler = new WalFlushErrorHandler(this._entryParser);
+		this._batchFlusher = new WalBatchFlusher(
+			this._prefix,
+			ENV.REDIS_STREAM_MAXLEN,
+			ENV.REDIS_MESSAGE_TTL_S
+		);
+		const entryParser = new WalEntryParser(this._memoryWalBuffer);
+		this._errorHandler = new WalFlushErrorHandler(entryParser);
 	}
 
 	private _walKey(): string {
 		return `${this._prefix}wal_buffer`;
-	}
-
-	private _streamKey(topic: string): string {
-		return `${this._prefix}stream:${topic}`;
 	}
 
 	start(): void {
@@ -55,13 +57,6 @@ export class WalFlusherService {
 			clearInterval(this._walFlusherTimer);
 			this._walFlusherTimer = null;
 		}
-	}
-
-	private _sleepWithJitter(ms: number): Promise<void> {
-		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
-		return new Promise((resolve) =>
-			setTimeout(resolve, Math.max(1, Math.round(ms + jitter)))
-		);
 	}
 
 	async storeInWal(
@@ -137,28 +132,6 @@ export class WalFlusherService {
 		}
 	}
 
-	private _waitForDrainCompletion(
-		gen: number,
-		timeoutMs: number
-	): Promise<void> {
-		return new Promise<void>((resolve) => {
-			const timer = setTimeout(() => {
-				if (this._walDrainGen === gen) {
-					this._walDrainResolve = null;
-					logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
-					resolve();
-				}
-			}, timeoutMs);
-			this._walDrainResolve = () => {
-				if (this._walDrainGen === gen) {
-					clearTimeout(timer);
-					this._walDrainResolve = null;
-					resolve();
-				}
-			};
-		});
-	}
-
 	async drain(timeoutMs = 10_000): Promise<void> {
 		if (this._walDrainRequested) {
 			return;
@@ -191,43 +164,6 @@ export class WalFlusherService {
 
 	bufferInMemory(topic: string, serialized: string, message: Message): void {
 		this._memoryWalBuffer.push(topic, serialized, message);
-	}
-
-	private async _flushWalBatch(raw: string[]): Promise<boolean> {
-		const redis = await getStreamClient();
-		const multi = redis.multi();
-		this._addParsedBatchEntries(multi, raw);
-
-		try {
-			return await this._executeBatchResults(multi);
-		} catch {
-			return false;
-		}
-	}
-
-	private _addParsedBatchEntries(
-		multi: ReturnType<import("ioredis").Redis["multi"]>,
-		raw: string[]
-	): void {
-		for (const entry of raw) {
-			const parsed = this._entryParser.drainEntry(entry);
-			if (!parsed) {
-				continue;
-			}
-			const key = this._streamKey(parsed.topic);
-			multi.xadd(key, "MAXLEN", "~", ENV.REDIS_STREAM_MAXLEN, "*", "data", parsed.data);
-			multi.expire(key, ENV.REDIS_MESSAGE_TTL_S);
-		}
-	}
-
-	private async _executeBatchResults(
-		multi: ReturnType<import("ioredis").Redis["multi"]>
-	): Promise<boolean> {
-		const results = await multi.exec();
-		if (!results) {
-			return true;
-		}
-		return !results.some((resultItem) => resultItem[0] !== null);
 	}
 
 	private _completeWalFlush(): void {
@@ -277,7 +213,7 @@ export class WalFlusherService {
 				break;
 			}
 
-			if (await this._flushWalBatch(raw)) {
+			if (await this._batchFlusher.flushBatch(raw)) {
 				consecutiveErrors = 0;
 				continue;
 			}
@@ -307,5 +243,12 @@ export class WalFlusherService {
 		const backoff = Math.min(1000 * 2 ** nextErrors, 30000);
 		await this._sleepWithJitter(backoff);
 		return action !== "abort";
+	}
+
+	private _sleepWithJitter(ms: number): Promise<void> {
+		const jitter = ms * 0.2 * (Math.random() * 2 - 1);
+		return new Promise((resolve) =>
+			setTimeout(resolve, Math.max(1, Math.round(ms + jitter)))
+		);
 	}
 }

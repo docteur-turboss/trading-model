@@ -14,7 +14,7 @@ export class OutputDeltaComputer {
 		const lossGrad = this._computeLossGradient(output, target);
 
 		for (let j = 0; j < output.length; j++) {
-			if (activation === "softmax") {
+			if (activation === ActivationType.Softmax) {
 				delta[j] = output[j] - target[j];
 			} else {
 				const actGrad = this._activationDerivative(

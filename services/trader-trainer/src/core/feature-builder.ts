@@ -19,6 +19,7 @@ import type {
 } from "./feature-context";
 
 import type { OrderBookAverages } from "./order-book-averages";
+import { FeatureIndex } from "./feature-indices";
 
 function _initFeatures(state: SymbolState, idx: number): {
 	features: Float32Array;
@@ -46,7 +47,7 @@ export function buildFeatures(
 	_buildPriceSnapshotFeature({ features, state, idx, priceSnapshot });
 	_buildSlidingWindowFeatures(features, state, idx);
 
-	features[31] = 1.0;
+	features[FeatureIndex.Bias] = 1.0;
 	return features;
 }
 
@@ -72,15 +73,15 @@ function _buildCandleFeatures(
 ): void {
 	const { features, state, idx } = ctx;
 	const cur = state.candles[idx];
-	features[0] = state.norm.candleClose.normalize(cur.close);
-	features[1] = state.norm.candleVolume.normalize(cur.volume);
-	features[2] = _candleReturnRatio(cur, ctx.prev);
-	features[3] = _candlePositionRatio(cur);
-	features[4] = _candleRangeRatio(cur);
-	features[5] = state.norm.candleOpen.normalize(cur.open);
-	features[6] = state.norm.candleHigh.normalize(cur.high);
-	features[7] = state.norm.candleLow.normalize(cur.low);
-	features[8] = _candleVolumeRatio(cur, state);
+	features[FeatureIndex.CandleClose] = state.norm.candleClose.normalize(cur.close);
+	features[FeatureIndex.CandleVolume] = state.norm.candleVolume.normalize(cur.volume);
+	features[FeatureIndex.CandleReturnRatio] = _candleReturnRatio(cur, ctx.prev);
+	features[FeatureIndex.CandlePositionRatio] = _candlePositionRatio(cur);
+	features[FeatureIndex.CandleRangeRatio] = _candleRangeRatio(cur);
+	features[FeatureIndex.CandleOpen] = state.norm.candleOpen.normalize(cur.open);
+	features[FeatureIndex.CandleHigh] = state.norm.candleHigh.normalize(cur.high);
+	features[FeatureIndex.CandleLow] = state.norm.candleLow.normalize(cur.low);
+	features[FeatureIndex.CandleVolumeRatio] = _candleVolumeRatio(cur, state);
 }
 
 function _buildOrderBookFeatures(
@@ -89,14 +90,14 @@ function _buildOrderBookFeatures(
 ): void {
 	const obAvg = orderBookAverages(state);
 	if (obAvg) {
-		features[9] = state.norm.bid.normalize(obAvg.avgBid);
-		features[10] = state.norm.ask.normalize(obAvg.avgAsk);
-		features[11] =
+		features[FeatureIndex.OrderBookAvgBid] = state.norm.bid.normalize(obAvg.avgBid);
+		features[FeatureIndex.OrderBookAvgAsk] = state.norm.ask.normalize(obAvg.avgAsk);
+		features[FeatureIndex.OrderBookSpreadRatio] =
 			obAvg.avgAsk > 0 && obAvg.avgBid > 0
 				? (obAvg.avgAsk - obAvg.avgBid) / obAvg.avgAsk
 				: 0;
 		const totalQty = obAvg.bidQty + obAvg.askQty;
-		features[12] = totalQty > 0 ? (obAvg.bidQty - obAvg.askQty) / totalQty : 0;
+		features[FeatureIndex.OrderBookImbalance] = totalQty > 0 ? (obAvg.bidQty - obAvg.askQty) / totalQty : 0;
 	}
 }
 
@@ -106,10 +107,10 @@ function _buildBookTickerFeatures(
 ): void {
 	if (state.bookTicker) {
 		const bt = state.bookTicker;
-		features[13] = state.norm.bid.normalize(bt.bid);
-		features[14] = state.norm.ask.normalize(bt.ask);
+		features[FeatureIndex.BookTickerBid] = state.norm.bid.normalize(bt.bid);
+		features[FeatureIndex.BookTickerAsk] = state.norm.ask.normalize(bt.ask);
 		const spread = bt.ask - bt.bid;
-		features[15] = bt.ask > 0 ? spread / bt.ask : 0;
+		features[FeatureIndex.BookTickerSpreadRatio] = bt.ask > 0 ? spread / bt.ask : 0;
 	}
 }
 
@@ -130,9 +131,9 @@ function _setTradeFeatures(
 	const buyQty = recentTrades
 		.filter((trade) => trade.side === "buy")
 		.reduce((acc, trade) => acc + trade.quantity, 0);
-	features[16] = state.norm.tradePrice.normalize(avgPrice);
-	features[17] = state.norm.tradeQty.normalize(totalQty);
-	features[18] = totalQty > 0 ? buyQty / totalQty : 0.5;
+	features[FeatureIndex.TradeAvgPrice] = state.norm.tradePrice.normalize(avgPrice);
+	features[FeatureIndex.TradeTotalQty] = state.norm.tradeQty.normalize(totalQty);
+	features[FeatureIndex.TradeBuyRatio] = totalQty > 0 ? buyQty / totalQty : 0.5;
 }
 
 function _buildTradeFeatures(
@@ -152,9 +153,9 @@ function _buildTickerFeatures(
 ): void {
 	if (state.ticker24h) {
 		const tk = state.ticker24h;
-		features[19] = tk.open > 0 ? (tk.last - tk.open) / tk.open : 0;
-		features[20] = state.norm.tickerVolume.normalize(tk.volume);
-		features[21] = tk.open > 0 ? (tk.high - tk.low) / tk.open : 0;
+		features[FeatureIndex.TickerPriceChange] = tk.open > 0 ? (tk.last - tk.open) / tk.open : 0;
+		features[FeatureIndex.TickerVolume] = state.norm.tickerVolume.normalize(tk.volume);
+		features[FeatureIndex.TickerDailyRange] = tk.open > 0 ? (tk.high - tk.low) / tk.open : 0;
 	}
 }
 
@@ -165,7 +166,7 @@ function _buildPriceSnapshotFeature(
 	const cur = state.candles[idx];
 	const snapPrice =
 		priceSnapshot[toSymbol(state.candles[idx].symbol)] ?? cur.close;
-	features[22] = state.norm.candleClose.normalize(snapPrice);
+	features[FeatureIndex.PriceSnapshot] = state.norm.candleClose.normalize(snapPrice);
 }
 
 function _buildSlidingWindowFeatures(
@@ -174,11 +175,11 @@ function _buildSlidingWindowFeatures(
 	idx: number
 ): void {
 	const lookbackStart = Math.max(0, idx - 8);
-	let fi = 23;
-	for (let j = lookbackStart; j < idx && fi < 31; j++) {
+	let fi = FeatureIndex.SlidingWindowStart;
+	for (let j = lookbackStart; j < idx && fi < FeatureIndex.SlidingWindowEnd; j++) {
 		features[fi++] = state.norm.candleClose.normalize(state.candles[j].close);
 	}
-	while (fi < 31) {
+	while (fi < FeatureIndex.SlidingWindowEnd) {
 		features[fi++] = 0;
 	}
 }

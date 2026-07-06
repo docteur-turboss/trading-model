@@ -37,7 +37,7 @@ function lerpNum(first: number, second: number, blend: number): number {
 }
 
 class ArithmeticCrossover implements CrossoverStrategy {
-	readonly type = "arithmetic" as const;
+	readonly type = CrossoverType.Arithmetic;
 
 	crossover(ctx: CrossoverStrategyContext): number {
 		const { left, right, co } = ctx;
@@ -46,7 +46,7 @@ class ArithmeticCrossover implements CrossoverStrategy {
 }
 
 class BlendCrossover implements CrossoverStrategy {
-	readonly type = "blend" as const;
+	readonly type = CrossoverType.Blend;
 
 	crossover(ctx: CrossoverStrategyContext): number {
 		const { left, right, co, rng } = ctx;
@@ -58,7 +58,7 @@ class BlendCrossover implements CrossoverStrategy {
 }
 
 class SBXCrossover implements CrossoverStrategy {
-	readonly type = "sbx" as const;
+	readonly type = CrossoverType.Sbx;
 
 	crossover(ctx: CrossoverStrategyContext): number {
 		const { left, right, co, rng } = ctx;
@@ -72,7 +72,7 @@ class SBXCrossover implements CrossoverStrategy {
 }
 
 class UniformCrossover implements CrossoverStrategy {
-	readonly type = "uniform" as const;
+	readonly type = CrossoverType.Uniform;
 
 	crossover(ctx: CrossoverStrategyContext): number {
 		const { left, right, rng } = ctx;
@@ -81,7 +81,7 @@ class UniformCrossover implements CrossoverStrategy {
 }
 
 class OnePointCrossover implements CrossoverStrategy {
-	readonly type = "one_point" as const;
+	readonly type = CrossoverType.OnePoint;
 
 	crossover(ctx: CrossoverStrategyContext): number {
 		const { left, right, rng } = ctx;
@@ -90,7 +90,7 @@ class OnePointCrossover implements CrossoverStrategy {
 }
 
 class TwoPointCrossover implements CrossoverStrategy {
-	readonly type = "two_point" as const;
+	readonly type = CrossoverType.TwoPoint;
 
 	crossover(ctx: CrossoverStrategyContext): number {
 		const { left, right, rng } = ctx;
@@ -99,12 +99,12 @@ class TwoPointCrossover implements CrossoverStrategy {
 }
 
 const CROSSOVER_STRATEGIES: Record<CrossoverGenome["type"], CrossoverStrategy> = {
-	arithmetic: new ArithmeticCrossover(),
-	blend: new BlendCrossover(),
-	sbx: new SBXCrossover(),
-	uniform: new UniformCrossover(),
-	one_point: new OnePointCrossover(),
-	two_point: new TwoPointCrossover(),
+	[CrossoverType.Arithmetic]: new ArithmeticCrossover(),
+	[CrossoverType.Blend]: new BlendCrossover(),
+	[CrossoverType.Sbx]: new SBXCrossover(),
+	[CrossoverType.Uniform]: new UniformCrossover(),
+	[CrossoverType.OnePoint]: new OnePointCrossover(),
+	[CrossoverType.TwoPoint]: new TwoPointCrossover(),
 };
 
 // ----------------------------------------------------------------

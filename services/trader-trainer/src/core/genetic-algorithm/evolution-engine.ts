@@ -73,7 +73,7 @@ export function selectParent(
 	selectionType: string,
 	rng: () => number
 ): Genome {
-	if (selectionType === "tournament") {
+	if (selectionType === SelectionType.Tournament) {
 		return _tournamentSelect(population, rng, 3);
 	}
 	return _randomSelect(population, rng);

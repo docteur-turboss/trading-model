@@ -134,7 +134,7 @@ function _checkSkipConnectionConstraint(
 	if (
 		constraints.skipConnectionsFromLayer1Only &&
 		index === 0 &&
-		(layer.connectionType === "dense-skip" || layer.connectionType === "residual-connection")
+		(layer.connectionType === ConnectionType.DenseSkip || layer.connectionType === ConnectionType.ResidualConnection)
 	) {
 		return [{
 			rule: `layer[${index}].skipConnectionsFromLayer1Only`,

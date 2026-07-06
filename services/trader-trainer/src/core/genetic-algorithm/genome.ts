@@ -39,7 +39,10 @@ export interface HorizonGenome {
 	frameSkip: number;
 }
 
-export type DiscretePolicyType = "epsilon_greedy" | "softmax";
+export enum DiscretePolicyType {
+	EpsilonGreedy = "epsilon_greedy",
+	Softmax = "softmax",
+}
 
 /** Discrete policy hyperparameters for epsilon-greedy or softmax selection. */
 export interface DiscretePolicyGenome {
@@ -50,10 +53,11 @@ export interface DiscretePolicyGenome {
 	temperature: number;
 }
 
-export type ContinuousPolicyType =
-	| "action_clipping"
-	| "tanh_squashing"
-	| "exploration_noise";
+export enum ContinuousPolicyType {
+	ActionClipping = "action_clipping",
+	TanhSquashing = "tanh_squashing",
+	ExplorationNoise = "exploration_noise",
+}
 
 /** Continuous policy hyperparameters for action clipping and exploration noise. */
 export interface ContinuousPolicyGenome {
@@ -84,13 +88,25 @@ export interface RLGenome {
 	replayBuffer: ReplayBufferGenome;
 }
 
-export type MutationDistribution = "gaussian" | "levy" | "uniform" | "cauchy";
-export type MutationAdaptation =
-	| "fixed"
-	| "sigma_adaptive"
-	| "self_adaptive"
-	| "cma";
-export type MutationScope = "global" | "per_layer" | "correlated";
+export enum MutationDistribution {
+	Gaussian = "gaussian",
+	Levy = "levy",
+	Uniform = "uniform",
+	Cauchy = "cauchy",
+}
+
+export enum MutationAdaptation {
+	Fixed = "fixed",
+	SigmaAdaptive = "sigma_adaptive",
+	SelfAdaptive = "self_adaptive",
+	Cma = "cma",
+}
+
+export enum MutationScope {
+	Global = "global",
+	PerLayer = "per_layer",
+	Correlated = "correlated",
+}
 
 /** Mutation operator configuration. */
 export interface MutationGenome {
@@ -112,13 +128,14 @@ export interface MutationGenome {
 	removeConnectionRate: number;
 }
 
-export type CrossoverType =
-	| "one_point"
-	| "two_point"
-	| "uniform"
-	| "arithmetic"
-	| "blend"
-	| "sbx";
+export enum CrossoverType {
+	OnePoint = "one_point",
+	TwoPoint = "two_point",
+	Uniform = "uniform",
+	Arithmetic = "arithmetic",
+	Blend = "blend",
+	Sbx = "sbx",
+}
 
 /** Crossover operator configuration. */
 export interface CrossoverGenome {
@@ -128,18 +145,21 @@ export interface CrossoverGenome {
 	sbxEta: number;
 }
 
-export type SelectionType =
-	| "tournament"
-	| "roulette"
-	| "rank"
-	| "truncation"
-	| "sus";
-export type FitnessType =
-	| "total_pnl"
-	| "sharpe"
-	| "sortino"
-	| "calmar"
-	| "composite";
+export enum SelectionType {
+	Tournament = "tournament",
+	Roulette = "roulette",
+	Rank = "rank",
+	Truncation = "truncation",
+	Sus = "sus",
+}
+
+export enum FitnessType {
+	TotalPnl = "total_pnl",
+	Sharpe = "sharpe",
+	Sortino = "sortino",
+	Calmar = "calmar",
+	Composite = "composite",
+}
 
 /** Self-adaptive GA control parameters. */
 export interface GAControlGenome {

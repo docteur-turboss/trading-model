@@ -8,6 +8,7 @@ jest.mock("@trading-model/common/middleware/response-exception", () => ({
 	sendResponse: (data: any, status: number) => ({ status, data }),
 }));
 
+import { DateRange } from "@trading-model/common/domain/date-range";
 import { getLogsController } from "../../../src/controllers/logs.controller";
 
 describe("logs.controller", () => {
@@ -61,8 +62,7 @@ describe("logs.controller", () => {
 			serviceName: "svc-1",
 			level: "error",
 			correlationId: "cid-1",
-			startDate: "2024-01-01",
-			endDate: "2024-12-31",
+			dateRange: new DateRange(new Date("2024-01-01"), new Date("2024-12-31")),
 			search: "timeout",
 			page: 2,
 			limit: 20,

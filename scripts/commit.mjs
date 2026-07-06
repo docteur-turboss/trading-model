@@ -94,31 +94,21 @@ function rawMode(enable) {
   if (stdin.isTTY) stdin.setRawMode(enable);
 }
 
+const KEY_MAP = {
+  '\x1B[A': 'UP',
+  '\x1B[B': 'DOWN',
+  '\r': 'ENTER',
+  '\n': 'ENTER',
+  '\x1B': 'ESC',
+};
+
 function keypress() {
   return new Promise(resolve => {
     const onData = buf => {
       stdin.removeListener('data', onData);
       const key = buf.toString();
-      switch (key) {
-        case '\x1B[A':
-          resolve('UP');
-          break;
-        case '\x1B[B':
-          resolve('DOWN');
-          break;
-        case '\r':
-        case '\n':
-          resolve('ENTER');
-          break;
-        case '\x03':
-          process.exit(0);
-          break;
-        case '\x1B':
-          resolve('ESC');
-          break;
-        default:
-          resolve(key);
-      }
+      if (key === '\x03') process.exit(0);
+      resolve(KEY_MAP[key] ?? key);
     };
     stdin.once('data', onData);
   });
@@ -176,6 +166,27 @@ function renderMenu(title, items, cursor, offset, renderItem) {
   stdout.write('\n  ↑↓ navigate · Enter select · Esc back\n');
 }
 
+const CONTINUE = Symbol('CONTINUE');
+
+const MENU_ACTIONS = {
+  UP: (cursor, offset, items) => {
+    if (cursor > 0) {
+      cursor--;
+      if (cursor < offset) offset--;
+    }
+    return { type: CONTINUE, cursor, offset };
+  },
+  DOWN: (cursor, offset, items) => {
+    if (cursor < items.length - 1) {
+      cursor++;
+      if (cursor >= offset + PAGE_SIZE) offset++;
+    }
+    return { type: CONTINUE, cursor, offset };
+  },
+  ENTER: (cursor, offset, items) => ({ type: 'return', value: items[cursor] }),
+  ESC: () => ({ type: 'return', value: null }),
+};
+
 async function pickFromList(title, items, renderItem) {
   let cursor = 0;
   let offset = 0;
@@ -184,24 +195,12 @@ async function pickFromList(title, items, renderItem) {
   while (true) {
     renderMenu(title, items, cursor, offset, renderItem);
     const key = await keypress();
-    switch (key) {
-      case 'UP':
-        if (cursor > 0) {
-          cursor--;
-          if (cursor < offset) offset--;
-        }
-        break;
-      case 'DOWN':
-        if (cursor < items.length - 1) {
-          cursor++;
-          if (cursor >= offset + PAGE_SIZE) offset++;
-        }
-        break;
-      case 'ENTER':
-        return items[cursor];
-      case 'ESC':
-        return null;
-    }
+    const action = MENU_ACTIONS[key];
+    if (!action) continue;
+    const result = action(cursor, offset, items);
+    if (result.type === 'return') return result.value;
+    cursor = result.cursor;
+    offset = result.offset;
   }
 }
 

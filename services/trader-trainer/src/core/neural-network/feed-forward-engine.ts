@@ -160,14 +160,14 @@ export class FeedForwardEngine {
 		const activation = this._config.activationType[layerIndex];
 
 		let output: Float32Array;
-		if (activation === "softmax") {
+		if (activation === ActivationType.Softmax) {
 			output = this._applySoftmax(preActivations);
 		} else {
 			output = this._applyElementWiseActivation(preActivations, activation);
 		}
 
 		if (
-			this._config.connectionType === "dense-skip" &&
+			this._config.connectionType === ConnectionType.DenseSkip &&
 			originalInput.length === output.length
 		) {
 			for (let i = 0; i < output.length; i++) {

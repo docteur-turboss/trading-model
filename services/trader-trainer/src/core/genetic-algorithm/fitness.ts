@@ -15,14 +15,14 @@ export interface FitnessStrategy {
 }
 
 class TotalPnlStrategy implements FitnessStrategy {
-	readonly type: FitnessType = "total_pnl";
+	readonly type: FitnessType = FitnessType.TotalPnl;
 	compute(_scores: number[], mean: number): number {
 		return mean;
 	}
 }
 
 class SharpeStrategy implements FitnessStrategy {
-	readonly type: FitnessType = "sharpe";
+	readonly type: FitnessType = FitnessType.Sharpe;
 	compute(scores: number[], mean: number): number {
 		const variance =
 			scores
@@ -34,7 +34,7 @@ class SharpeStrategy implements FitnessStrategy {
 }
 
 class SortinoStrategy implements FitnessStrategy {
-	readonly type: FitnessType = "sortino";
+	readonly type: FitnessType = FitnessType.Sortino;
 	compute(scores: number[], mean: number): number {
 		const negReturns = scores.filter((value) => value < 0);
 		const downDev =
@@ -50,7 +50,7 @@ class SortinoStrategy implements FitnessStrategy {
 }
 
 class CalmarStrategy implements FitnessStrategy {
-	readonly type: FitnessType = "calmar";
+	readonly type: FitnessType = FitnessType.Calmar;
 	compute(scores: number[], mean: number): number {
 		let maxDD = 0;
 		let peak = Number.NEGATIVE_INFINITY;
@@ -70,7 +70,7 @@ class CalmarStrategy implements FitnessStrategy {
 }
 
 class CompositeStrategy implements FitnessStrategy {
-	readonly type: FitnessType = "composite";
+	readonly type: FitnessType = FitnessType.Composite;
 	private readonly _sharpe = new SharpeStrategy();
 	private readonly _sortino = new SortinoStrategy();
 
@@ -82,11 +82,11 @@ class CompositeStrategy implements FitnessStrategy {
 }
 
 const FITNESS_STRATEGIES: Record<FitnessType, FitnessStrategy> = {
-	total_pnl: new TotalPnlStrategy(),
-	sharpe: new SharpeStrategy(),
-	sortino: new SortinoStrategy(),
-	calmar: new CalmarStrategy(),
-	composite: new CompositeStrategy(),
+	[FitnessType.TotalPnl]: new TotalPnlStrategy(),
+	[FitnessType.Sharpe]: new SharpeStrategy(),
+	[FitnessType.Sortino]: new SortinoStrategy(),
+	[FitnessType.Calmar]: new CalmarStrategy(),
+	[FitnessType.Composite]: new CompositeStrategy(),
 };
 
 // ----------------------------------------------------------------

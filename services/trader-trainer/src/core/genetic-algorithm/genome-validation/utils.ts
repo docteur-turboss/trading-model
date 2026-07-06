@@ -1,18 +1,41 @@
-import type { ActivationType, ConnectionType, InitialisationType, NormalisationType } from "../../neural-network/type";
+import {
+	ActivationType,
+	ConnectionType,
+	InitialisationType,
+	NormalisationType,
+} from "../../neural-network/type";
 import type { ValidationContext } from "../genome";
 
-export const VALID_ACTIVATIONS = new Set<ActivationType>([
-	"relu", "sigmoid", "tanh", "leakyReLu", "elu", "mish", "gelu", "softmax",
+export const VALID_ACTIVATIONS = new Set([
+	ActivationType.Relu,
+	ActivationType.Sigmoid,
+	ActivationType.Tanh,
+	ActivationType.LeakyReLu,
+	ActivationType.Elu,
+	ActivationType.Mish,
+	ActivationType.Gelu,
+	ActivationType.Softmax,
 ]);
-export const VALID_CONNECTION_TYPES = new Set<ConnectionType>([
-	"dense-skip", "fully-connected", "residual-connection",
+export const VALID_CONNECTION_TYPES = new Set([
+	ConnectionType.DenseSkip,
+	ConnectionType.FullyConnected,
+	ConnectionType.ResidualConnection,
 ]);
-export const VALID_BIAS_TYPES = new Set<InitialisationType>([
-	"zeros", "random", "xavier", "he", "leCun",
+export const VALID_BIAS_TYPES = new Set([
+	InitialisationType.Zeros,
+	InitialisationType.Random,
+	InitialisationType.Xavier,
+	InitialisationType.He,
+	InitialisationType.LeCun,
 ]);
-export const VALID_NORM_TYPES = new Set<NormalisationType>([
-	"none", "logarithmic-normalization", "decimal-scaling", "border",
-	"min-max", "robust-scaling", "z-score",
+export const VALID_NORM_TYPES = new Set([
+	NormalisationType.None,
+	NormalisationType.LogarithmicNormalization,
+	NormalisationType.DecimalScaling,
+	NormalisationType.Border,
+	NormalisationType.MinMax,
+	NormalisationType.RobustScaling,
+	NormalisationType.ZScore,
 ]);
 
 export function err(ctx: ValidationContext, message: string, actual: unknown): void {
