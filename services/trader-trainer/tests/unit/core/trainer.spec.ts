@@ -410,7 +410,7 @@ describe("Trainer", () => {
 			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			const bestGenome = makeMinimalBestGenome() as DeepReadonly<LamarckGenome>;
-			(trainer as unknown as Record<string, unknown>)._lastInfo = { symbol: "BTCUSDT", bestGenome, generation: 5, generationContext: null };
+			(trainer as any)._trainingState.update({ symbol: "BTCUSDT", bestGenome, generation: 5, generationContext: null });
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -430,7 +430,7 @@ describe("Trainer", () => {
 			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			const bestGenome = makeBestGenomeNoMeta() as DeepReadonly<LamarckGenome>;
-			(trainer as unknown as Record<string, unknown>)._lastInfo = { symbol: "BTCUSDT", bestGenome, generation: 5, generationContext: null };
+			(trainer as any)._trainingState.update({ symbol: "BTCUSDT", bestGenome, generation: 5, generationContext: null });
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -454,7 +454,7 @@ describe("Trainer", () => {
 				variance: 0.05,
 				rawScores: [1],
 			};
-			(trainer as unknown as Record<string, unknown>)._lastInfo = { symbol: "BTCUSDT", bestGenome: g as DeepReadonly<LamarckGenome>, generation: 5, generationContext: null };
+			(trainer as any)._trainingState.update({ symbol: "BTCUSDT", bestGenome: g as DeepReadonly<LamarckGenome>, generation: 5, generationContext: null });
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -470,7 +470,7 @@ describe("Trainer", () => {
 			);
 			const g = createDefaultGenome("test", 3) as LamarckGenome;
 			(g as LamarckGenome).fitness = undefined as unknown as number;
-			(trainer as unknown as Record<string, unknown>)._lastInfo = { symbol: "BTCUSDT", bestGenome: g as DeepReadonly<LamarckGenome>, generation: 5, generationContext: null };
+			(trainer as any)._trainingState.update({ symbol: "BTCUSDT", bestGenome: g as DeepReadonly<LamarckGenome>, generation: 5, generationContext: null });
 
 			const summary = trainer.getBestAgentSummary();
 

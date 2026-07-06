@@ -1,10 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { GenerationContext } from "./genetic-algorithm/ga-runner";
-import type {
-	ActivationType,
-	FitnessType,
-	SelectionType,
-} from "./genetic-algorithm/genome";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import { GenomeSummaryBuilder } from "./genome-summary-builder";
@@ -14,37 +9,10 @@ import {
 	TrainingSession,
 	type TrainingSessionResult,
 } from "./training-session";
+import { TrainingState, type BestAgentSummary } from "./training-state";
 
-/** Summary of the best trained agent for API responses. */
-export interface BestAgentSummary {
-	id: string;
-	generation: number;
-	fitness: number;
-	sharpe: number;
-	avgPnl: number;
-	negFlops: number;
-	complexityPenalty: number;
-	gaControl: {
-		populationSize: number;
-		elitismFraction: number;
-		survivorFraction: number;
-		episodesPerIndividual: number;
-		selectionType: SelectionType;
-		fitnessType: FitnessType;
-	};
-	network: {
-		inputDim: number;
-		outputDim: number;
-		hiddenLayers: { neurons: number; activation: ActivationType }[];
-	};
-	rl: {
-		gamma: number;
-		learningRate: number;
-		epsilonStart: number;
-		epsilonMin: number;
-		epsilonDecay: number;
-	};
-}
+export { TrainingState } from "./training-state";
+export type { BestAgentSummary };
 
 /** Indicates that training completed successfully with the resulting best genome. */
 export interface TrainingSuccess {
@@ -63,27 +31,17 @@ export interface TrainingFailure {
 /** Discriminated result of a training cycle. */
 export type TrainingResult = TrainingSuccess | TrainingFailure;
 
-interface LastTrainingInfo {
-	symbol: string;
-	bestGenome: DeepReadonly<LamarckGenome>;
-	generation: number;
-	generationContext: GenerationContext | null;
-}
-
 /** Orchestrates GA training cycles: feeds market data, runs generations, tracks best genome. */
 export class Trainer {
 	private _training = false;
-	private _lastInfo: LastTrainingInfo | null = null;
-
+	private readonly _trainingState = new TrainingState();
 	private readonly _validator: TrainingPrerequisiteValidator;
-	private readonly _summaryBuilder: GenomeSummaryBuilder;
 
 	constructor(private readonly _dataBuffer: MarketDataBuffer) {
 		this._validator = new TrainingPrerequisiteValidator(
 			this._dataBuffer,
 			() => this._training
 		);
-		this._summaryBuilder = new GenomeSummaryBuilder();
 	}
 
 	isTraining(): boolean {
@@ -91,11 +49,11 @@ export class Trainer {
 	}
 
 	getCurrentSymbol(): string {
-		return this._lastInfo?.symbol ?? "";
+		return this._trainingState.getCurrentSymbol();
 	}
 
 	getGeneration(): number {
-		return this._lastInfo?.generation ?? 0;
+		return this._trainingState.getGeneration();
 	}
 
 	async train(symbol: string): Promise<TrainingResult> {
@@ -109,12 +67,12 @@ export class Trainer {
 
 		try {
 			const result: TrainingSessionResult = await session.run();
-			this._lastInfo = {
+			this._trainingState.update({
 				symbol,
 				bestGenome: result.bestGenome,
 				generation: result.generation,
 				generationContext: result.generationContext,
-			};
+			});
 			logger.info("Training complete", {
 				context: { symbol, bestFitness: result.bestGenome.fitness ?? 0 },
 			});
@@ -131,17 +89,11 @@ export class Trainer {
 	}
 
 	getBestAgentSummary(): BestAgentSummary | null {
-		if (!this._lastInfo) {
-			return null;
-		}
-
-		return this._summaryBuilder.buildBestAgentSummary(
-			this._lastInfo.bestGenome
-		);
+		return this._trainingState.getBestAgentSummary();
 	}
 
 	getGenerationContext(): GenerationContext | null {
-		return this._lastInfo?.generationContext ?? null;
+		return this._trainingState.getGenerationContext();
 	}
 
 	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: Accessed via prototype in tests
