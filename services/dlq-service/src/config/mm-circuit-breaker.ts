@@ -2,7 +2,7 @@ import { logger } from "./logger";
 
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 
-export interface CircuitBreakerConfig {
+export interface MessageManagerCircuitBreakerConfig {
 	failureThreshold: number;
 	resetMs: number;
 	halfOpenMaxAttempts: number;
@@ -13,9 +13,9 @@ export class MessageManagerCircuitBreaker {
 	private _failures = 0;
 	private _openUntil = 0;
 	private _halfOpenAttempts = 0;
-	protected readonly _config: CircuitBreakerConfig;
+	protected readonly _config: MessageManagerCircuitBreakerConfig;
 
-	constructor(config?: Partial<CircuitBreakerConfig>) {
+	constructor(config?: Partial<MessageManagerCircuitBreakerConfig>) {
 		this._config = {
 			failureThreshold: 5,
 			resetMs: 30_000,
