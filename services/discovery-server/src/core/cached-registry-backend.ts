@@ -1,10 +1,9 @@
-import { createHmac, randomBytes } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
 import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { CacheManager } from "./cache-manager";
 import { PubSubInvalidator } from "./pub-sub-invalidator";
 import { RedisHealthMonitor } from "./redis-health-monitor";
@@ -200,13 +199,9 @@ export class CachedRegistryBackend implements RegistryBackend {
 	}
 
 	generateInstanceId(
-		serviceName: string,
-		address: string,
-		port: number
+		endpoint: ServiceEndpoint
 	): string {
-		return createHmac("sha256", randomBytes(32).toString("hex"))
-			.update(`${serviceName}-${address}:${port}-${Date.now()}`)
-			.digest("base64");
+		return this._backend.generateInstanceId(endpoint);
 	}
 
 	private async _refreshCache(serviceName: string): Promise<void> {
