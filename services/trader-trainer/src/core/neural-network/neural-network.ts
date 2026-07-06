@@ -297,7 +297,7 @@ export class NeuralNetwork {
 
 	private _normalize(
 		input: Float32Array,
-		params?: { min: number; max: number }
+		params?: import("./normalize").NormalizeParams
 	): Float32Array {
 		return (this._feedForward as any)._normalize(input, params);
 	}

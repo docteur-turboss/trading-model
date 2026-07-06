@@ -1,10 +1,15 @@
 import { NormalisationType } from "./type";
 
+export interface NormalizeParams {
+	min: number;
+	max: number;
+}
+
 export interface Normalizer {
 	normalize(
 		data: Float32Array,
 		len: number,
-		params?: { min: number; max: number }
+		params?: NormalizeParams
 	): Float32Array;
 }
 
@@ -41,7 +46,7 @@ class LogarithmicNormalizer implements Normalizer {
 	}
 }
 
-function _findMinMax(data: Float32Array): { min: number; max: number } {
+function _findMinMax(data: Float32Array): NormalizeParams {
 	let min = data[0];
 	let max = data[0];
 	for (const value of data) {
@@ -127,7 +132,7 @@ class BorderNormalizer implements Normalizer {
 	normalize(
 		data: Float32Array,
 		len: number,
-		params?: { min: number; max: number }
+		params?: NormalizeParams
 	): Float32Array {
 		let lo = params?.min;
 		let hi = params?.max;

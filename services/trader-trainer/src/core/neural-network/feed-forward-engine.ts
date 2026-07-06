@@ -1,7 +1,7 @@
 import { AppError, agentError } from "@trading-model/common/utils/errors";
 
 import { ACTIVATIONS } from "./activation";
-import { NORMALIZERS } from "./normalize";
+import { NORMALIZERS, type NormalizeParams } from "./normalize";
 import {
 	ActivationType,
 	ConnectionType,
@@ -72,7 +72,7 @@ export class FeedForwardEngine {
 
 	private _normalize(
 		input: Float32Array,
-		params?: { min: number; max: number }
+		params?: NormalizeParams
 	): Float32Array {
 		const data = new Float32Array(input);
 		const len = data.length;

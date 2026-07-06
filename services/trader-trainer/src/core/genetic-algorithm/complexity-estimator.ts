@@ -3,7 +3,7 @@
  * and assigns efficiency penalties for genome architectures.
  */
 
-import type { LamarckGenome } from "./genome-types";
+import { ActivationType, type LamarckGenome } from "./genome-types";
 
 type DeepReadonly<TValue> = TValue extends (infer UItem)[]
 	? readonly DeepReadonly<UItem>[]
@@ -14,12 +14,18 @@ type DeepReadonly<TValue> = TValue extends (infer UItem)[]
 const FLOP_SOFT_CAP = 5_000_000; // 5M MACs
 const MEM_SOFT_CAP = 200_000_000; // 200 MB
 
+type ActivationName = ActivationType | "linear" | "swish";
+
 // Activation cost multipliers (rough relative cost vs linear)
-const ACT_COST: Record<string, number> = {
-	relu: 1,
-	sigmoid: 4,
-	tanh: 4,
-	gelu: 8,
+const ACT_COST: Record<ActivationName, number> = {
+	[ActivationType.Relu]: 1,
+	[ActivationType.Sigmoid]: 4,
+	[ActivationType.Tanh]: 4,
+	[ActivationType.LeakyReLu]: 2,
+	[ActivationType.Gelu]: 8,
+	[ActivationType.Softmax]: 10,
+	[ActivationType.Elu]: 3,
+	[ActivationType.Mish]: 8,
 	swish: 6,
 	linear: 1,
 };
