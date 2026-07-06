@@ -2,7 +2,7 @@ import type { TlsPaths } from "../domain/tls-paths";
 import { AuditServiceClient } from "./audit-service-client";
 import { ErrorServiceSender } from "./error-service-sender";
 import { LogFileWriter } from "./log-file-writer";
-import { LOG_LEVEL_PRIORITY, type LogEntry, LogLevel, type LogOptions } from "./log-types";
+import { type LogEntry, LogLevel, type LogOptions, isLogLevelAtLeast } from "./log-types";
 
 export type { LogEntry, LogOptions };
 export { LogLevel };
@@ -15,7 +15,7 @@ export class Logger {
 	private _logs: LogEntry[] = [];
 	private _maxLogs = 1000;
 	private _sessionId: string | null;
-	private _userId: string | null = null;
+	private _userId = '';
 	private readonly _sanitizer: SensitiveDataSanitizer;
 	private _auditClient: AuditServiceClient;
 	private readonly _logFileWriter: LogFileWriter;
@@ -39,11 +39,11 @@ export class Logger {
 	}
 
 	private _shouldLog(level: LogLevel): boolean {
-		return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[this._logLevel];
+		return isLogLevelAtLeast(level, this._logLevel);
 	}
 
 	private _maybeSendToAudit(data: LogEntry, level: LogLevel): void {
-		if (LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY["info"]) {
+		if (isLogLevelAtLeast(level, "info")) {
 			void this._auditClient.send(data as unknown as Record<string, unknown>);
 		}
 	}
