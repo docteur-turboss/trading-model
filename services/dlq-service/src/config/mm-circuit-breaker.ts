@@ -1,5 +1,7 @@
 import { logger } from "./logger";
 
+import type { CircuitState } from "@trading-model/common/domain/circuit-state";
+
 export interface CircuitBreakerConfig {
 	failureThreshold: number;
 	resetMs: number;
@@ -11,7 +13,7 @@ export class MessageManagerCircuitBreaker {
 	private _failures = 0;
 	private _openUntil = 0;
 	private _halfOpenAttempts = 0;
-	private readonly _config: CircuitBreakerConfig;
+	protected readonly _config: CircuitBreakerConfig;
 
 	constructor(config?: Partial<CircuitBreakerConfig>) {
 		this._config = {
@@ -28,11 +30,14 @@ export class MessageManagerCircuitBreaker {
 			return true;
 		}
 		if (this._openUntil > 0) {
-			this._failures = 0;
-			this._openUntil = 0;
-			this._halfOpenAttempts = 0;
+			this._resetInternal();
 		}
 		return false;
+	}
+
+	/** Alias for !isOpen() — used by ReplayCircuitBreaker. */
+	canProceed(): boolean {
+		return !this.isOpen();
 	}
 
 	recordResult(success: boolean): void {
@@ -41,6 +46,26 @@ export class MessageManagerCircuitBreaker {
 		} else {
 			this._handleFailure();
 		}
+	}
+
+	getCircuitState(): CircuitState {
+		if (this._openUntil > Date.now()) {
+			return "open";
+		}
+		if (this._openUntil > 0) {
+			return "half-open";
+		}
+		return "closed";
+	}
+
+	reset(): void {
+		this._resetInternal();
+	}
+
+	private _resetInternal(): void {
+		this._failures = 0;
+		this._openUntil = 0;
+		this._halfOpenAttempts = 0;
 	}
 
 	private _resetOnSuccess(): void {
@@ -84,11 +109,5 @@ export class MessageManagerCircuitBreaker {
 			failures: this._failures,
 			resetMs: this._config.resetMs,
 		});
-	}
-
-	reset(): void {
-		this._failures = 0;
-		this._openUntil = 0;
-		this._halfOpenAttempts = 0;
 	}
 }
