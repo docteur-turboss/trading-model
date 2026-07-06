@@ -75,17 +75,19 @@ export class GenomeSummaryBuilder {
 		);
 	}
 
+	static computeVariance(scores: readonly number[], mean: number): number {
+		return scores
+			.map((val) => (val - mean) ** 2)
+			.reduce((sum, val) => sum + val, 0) /
+			(scores.length - 1);
+	}
+
 	static computeSharpe(scores: readonly number[]): number {
 		if (scores.length < 2) {
 			return 0;
 		}
-		const mean =
-			scores.reduce((sum, val) => sum + val, 0) / scores.length;
-		const variance =
-			scores
-				.map((val) => (val - mean) ** 2)
-				.reduce((sum, val) => sum + val, 0) /
-			(scores.length - 1);
+		const mean = GenomeSummaryBuilder.computeAvgPnl(scores);
+		const variance = GenomeSummaryBuilder.computeVariance(scores, mean);
 		const std = Math.sqrt(variance);
 		return std < 1e-10 ? mean : mean / std;
 	}

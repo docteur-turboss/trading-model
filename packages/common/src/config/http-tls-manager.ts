@@ -31,26 +31,20 @@ export class TlsManager {
 		if (this._loaded || !this._paths) {
 			return;
 		}
-
-		this._loadPromise ??= (async () => {
-			if (!this._paths) {
-				this._loaded = true;
-				return;
-			}
-			const { caPath, certPath, keyPath } = this._paths;
-			if (caPath) {
-				this._ca = await readTlsFile(caPath, "CA certificate");
-			}
-			if (certPath) {
-				this._cert = await readTlsFile(certPath, "client certificate");
-			}
-			if (keyPath) {
-				this._key = await readTlsFile(keyPath, "client key");
-			}
-			this._loaded = true;
-		})();
-
+		this._loadPromise ??= this._doLoad();
 		return await this._loadPromise;
+	}
+
+	private async _doLoad(): Promise<void> {
+		if (!this._paths) {
+			this._loaded = true;
+			return;
+		}
+		const { caPath, certPath, keyPath } = this._paths;
+		if (caPath) this._ca = await readTlsFile(caPath, "CA certificate");
+		if (certPath) this._cert = await readTlsFile(certPath, "client certificate");
+		if (keyPath) this._key = await readTlsFile(keyPath, "client key");
+		this._loaded = true;
 	}
 
 	get ca(): string | undefined {

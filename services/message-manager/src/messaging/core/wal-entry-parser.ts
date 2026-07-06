@@ -87,3 +87,15 @@ export class WalEntryParser {
 		}
 	}
 }
+
+function _parseEntry(entry: string): ParsedWalEntry {
+	const parsed = JSON.parse(entry) as {
+		topic: string;
+		serialized?: string;
+		message?: Record<string, unknown>;
+	};
+	return {
+		topic: parsed.topic,
+		data: parsed.serialized ?? JSON.stringify(parsed.message!),
+	};
+}
