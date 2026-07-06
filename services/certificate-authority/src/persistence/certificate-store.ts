@@ -2,20 +2,23 @@ import type { SignedCertificate } from "@trading-model/certificate-utils/types";
 import { type Collection, MongoClient } from "mongodb";
 
 export class CertificateStore {
-	private _client: MongoClient;
-	private _collection: Collection | null = null;
+	private readonly _client: MongoClient;
+	private readonly _collection: Collection;
 
-	constructor(uri: string) {
-		this._client = new MongoClient(uri);
+	private constructor(client: MongoClient, collection: Collection) {
+		this._client = client;
+		this._collection = collection;
 	}
 
-	async connect(): Promise<void> {
-		await this._client.connect();
-		const db = this._client.db();
-		this._collection = db.collection("certificates");
-		await this._collection.createIndex({ serialNumber: 1 }, { unique: true });
-		await this._collection.createIndex({ serviceId: 1 });
-		await this._collection.createIndex({ expiresAt: 1 });
+	static async connect(uri: string): Promise<CertificateStore> {
+		const client = new MongoClient(uri);
+		await client.connect();
+		const db = client.db();
+		const collection = db.collection("certificates");
+		await collection.createIndex({ serialNumber: 1 }, { unique: true });
+		await collection.createIndex({ serviceId: 1 });
+		await collection.createIndex({ expiresAt: 1 });
+		return new CertificateStore(client, collection);
 	}
 
 	async disconnect(): Promise<void> {
@@ -23,24 +26,15 @@ export class CertificateStore {
 	}
 
 	async save(cert: SignedCertificate): Promise<void> {
-		if (!this._collection) {
-			throw new Error("Not connected");
-		}
 		await this._collection.insertOne(cert);
 	}
 
 	async getBySerial(serialNumber: string): Promise<SignedCertificate | null> {
-		if (!this._collection) {
-			throw new Error("Not connected");
-		}
 		const doc = await this._collection.findOne({ serialNumber });
 		return doc as unknown as SignedCertificate | null;
 	}
 
 	async getByServiceId(serviceId: string): Promise<SignedCertificate | null> {
-		if (!this._collection) {
-			throw new Error("Not connected");
-		}
 		const doc = await this._collection.findOne(
 			{ serviceId },
 			{ sort: { issuedAt: -1 } }
@@ -49,9 +43,6 @@ export class CertificateStore {
 	}
 
 	async getExpiring(marginMs: number): Promise<SignedCertificate[]> {
-		if (!this._collection) {
-			throw new Error("Not connected");
-		}
 		const threshold = new Date(Date.now() + marginMs);
 		const docs = await this._collection
 			.find({ expiresAt: { $lte: threshold } })

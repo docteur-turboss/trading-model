@@ -26,6 +26,13 @@ interface DistributedLock {
 	release(): Promise<void>;
 }
 
+class NullDistributedLock implements DistributedLock {
+	async acquire(): Promise<boolean> {
+		return true;
+	}
+	async release(): Promise<void> {}
+}
+
 interface PopVerificationInput {
 	certPem: string;
 	nonce: string;
@@ -67,13 +74,13 @@ export class CertRenewalService {
 	private readonly _certStore: CertStore;
 	private readonly _nonceStore: NonceStore;
 	private readonly _ca: CertificateAuthority;
-	private readonly _lock?: DistributedLock;
+	private readonly _lock: DistributedLock;
 
 	constructor(deps: CertRenewalDeps) {
 		this._certStore = deps.certStore;
 		this._nonceStore = deps.nonceStore;
 		this._ca = deps.ca;
-		this._lock = deps.lock;
+		this._lock = deps.lock ?? new NullDistributedLock();
 	}
 
 	/**
@@ -125,21 +132,17 @@ export class CertRenewalService {
 		serviceId: string,
 		csr: string
 	): Promise<SignedCertificate> {
-		if (this._lock) {
-			const acquired = await this._lock.acquire();
-			if (!acquired) {
-				throw new CertRenewalError(
-					"Could not acquire distributed lock for certificate renewal",
-					503
-				);
-			}
-			try {
-				return await this._ca.signServiceCertificate(serviceId, csr);
-			} finally {
-				await this._lock.release();
-			}
+		const acquired = await this._lock.acquire();
+		if (!acquired) {
+			throw new CertRenewalError(
+				"Could not acquire distributed lock for certificate renewal",
+				503
+			);
 		}
-
-		return this._ca.signServiceCertificate(serviceId, csr);
+		try {
+			return await this._ca.signServiceCertificate(serviceId, csr);
+		} finally {
+			await this._lock.release();
+		}
 	}
 }

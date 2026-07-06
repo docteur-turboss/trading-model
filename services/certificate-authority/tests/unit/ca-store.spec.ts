@@ -36,22 +36,19 @@ const SAMPLE_CA_META = {
 describe("CaStore", () => {
 	let store: CaStore;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		jest.clearAllMocks();
-		store = new CaStore("mongodb://localhost:27017/test");
+		store = await CaStore.connect("mongodb://localhost:27017/test");
 	});
 
 	describe("connect", () => {
 		it("should connect to database", async () => {
-			await store.connect();
-
 			expect(MOCK_COLLECTION).toHaveBeenCalledWith("ca_store");
 		});
 	});
 
 	describe("disconnect", () => {
 		it("should close the connection", async () => {
-			await store.connect();
 			await store.disconnect();
 
 			expect(MOCK_CLOSE).toHaveBeenCalled();
@@ -59,12 +56,7 @@ describe("CaStore", () => {
 	});
 
 	describe("save", () => {
-		it("should throw if not connected", async () => {
-			await expect(store.save(SAMPLE_CA_META)).rejects.toThrow("Not connected");
-		});
-
 		it("should insert metadata document", async () => {
-			await store.connect();
 			await store.save(SAMPLE_CA_META);
 
 			expect(MOCK_INSERT_ONE).toHaveBeenCalledWith(SAMPLE_CA_META);
@@ -72,13 +64,8 @@ describe("CaStore", () => {
 	});
 
 	describe("getLatest", () => {
-		it("should throw if not connected", async () => {
-			await expect(store.getLatest()).rejects.toThrow("Not connected");
-		});
-
 		it("should return the latest CA metadata", async () => {
 			MOCK_FIND_ONE.mockResolvedValue(SAMPLE_CA_META);
-			await store.connect();
 
 			const result = await store.getLatest();
 
@@ -91,7 +78,6 @@ describe("CaStore", () => {
 
 		it("should return null when no metadata exists", async () => {
 			MOCK_FIND_ONE.mockResolvedValue(null);
-			await store.connect();
 
 			const result = await store.getLatest();
 

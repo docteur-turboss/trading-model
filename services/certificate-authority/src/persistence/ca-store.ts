@@ -2,17 +2,20 @@ import type { CaMetadata } from "@trading-model/certificate-utils/types";
 import { type Collection, MongoClient } from "mongodb";
 
 export class CaStore {
-	private _client: MongoClient;
-	private _collection: Collection | null = null;
+	private readonly _client: MongoClient;
+	private readonly _collection: Collection;
 
-	constructor(uri: string) {
-		this._client = new MongoClient(uri);
+	private constructor(client: MongoClient, collection: Collection) {
+		this._client = client;
+		this._collection = collection;
 	}
 
-	async connect(): Promise<void> {
-		await this._client.connect();
-		const db = this._client.db();
-		this._collection = db.collection("ca_store");
+	static async connect(uri: string): Promise<CaStore> {
+		const client = new MongoClient(uri);
+		await client.connect();
+		const db = client.db();
+		const collection = db.collection("ca_store");
+		return new CaStore(client, collection);
 	}
 
 	async disconnect(): Promise<void> {
@@ -20,16 +23,10 @@ export class CaStore {
 	}
 
 	async save(metadata: CaMetadata): Promise<void> {
-		if (!this._collection) {
-			throw new Error("Not connected");
-		}
 		await this._collection.insertOne(metadata);
 	}
 
 	async getLatest(): Promise<CaMetadata | null> {
-		if (!this._collection) {
-			throw new Error("Not connected");
-		}
 		const doc = await this._collection.findOne({}, { sort: { createdAt: -1 } });
 		return doc as unknown as CaMetadata | null;
 	}

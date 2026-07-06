@@ -39,15 +39,13 @@ const SAMPLE_REVOKED = {
 describe("CrlStore", () => {
 	let store: CrlStore;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		jest.clearAllMocks();
-		store = new CrlStore("mongodb://localhost:27017/test");
+		store = await CrlStore.connect("mongodb://localhost:27017/test");
 	});
 
 	describe("connect", () => {
 		it("should create indexes on connect", async () => {
-			await store.connect();
-
 			expect(MOCK_CREATE_INDEX).toHaveBeenCalledWith(
 				{ serialNumber: 1 },
 				{ unique: true }
@@ -57,7 +55,6 @@ describe("CrlStore", () => {
 
 	describe("disconnect", () => {
 		it("should close the connection", async () => {
-			await store.connect();
 			await store.disconnect();
 
 			expect(MOCK_CLOSE).toHaveBeenCalled();
@@ -65,12 +62,7 @@ describe("CrlStore", () => {
 	});
 
 	describe("add", () => {
-		it("should throw if not connected", async () => {
-			await expect(store.add(SAMPLE_REVOKED)).rejects.toThrow("Not connected");
-		});
-
 		it("should insert revoked certificate entry", async () => {
-			await store.connect();
 			await store.add(SAMPLE_REVOKED);
 
 			expect(MOCK_INSERT_ONE).toHaveBeenCalledWith(SAMPLE_REVOKED);
@@ -78,15 +70,10 @@ describe("CrlStore", () => {
 	});
 
 	describe("getAll", () => {
-		it("should throw if not connected", async () => {
-			await expect(store.getAll()).rejects.toThrow("Not connected");
-		});
-
 		it("should return all revoked certificates", async () => {
 			MOCK_FIND.mockReturnValue({
 				toArray: jest.fn().mockResolvedValue([SAMPLE_REVOKED]),
 			});
-			await store.connect();
 
 			const result = await store.getAll();
 
@@ -98,7 +85,6 @@ describe("CrlStore", () => {
 			MOCK_FIND.mockReturnValue({
 				toArray: jest.fn().mockResolvedValue([]),
 			});
-			await store.connect();
 
 			const result = await store.getAll();
 
@@ -107,13 +93,8 @@ describe("CrlStore", () => {
 	});
 
 	describe("isRevoked", () => {
-		it("should throw if not connected", async () => {
-			await expect(store.isRevoked("SN-001")).rejects.toThrow("Not connected");
-		});
-
 		it("should return true for revoked serial", async () => {
 			MOCK_FIND_ONE.mockResolvedValue(SAMPLE_REVOKED);
-			await store.connect();
 
 			const result = await store.isRevoked("SN-REVOKED");
 
@@ -122,7 +103,6 @@ describe("CrlStore", () => {
 
 		it("should return false for non-revoked serial", async () => {
 			MOCK_FIND_ONE.mockResolvedValue(null);
-			await store.connect();
 
 			const result = await store.isRevoked("SN-NOT-REVOKED");
 
