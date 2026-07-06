@@ -24,21 +24,27 @@ export class WindowSplitter {
 		if (!state || state.candles.length < 2) {
 			return [];
 		}
+		return this._buildStepsFromState(state);
+	}
 
+	private _buildStepsFromState(state: SymbolState): MarketStep[] {
 		const steps: MarketStep[] = [];
 		for (let i = 1; i < state.candles.length; i++) {
-			const features = buildFeaturesFn({
+			steps.push(this._buildSingleStep(state, i));
+		}
+		return steps;
+	}
+
+	private _buildSingleStep(state: SymbolState, i: number): MarketStep {
+		return {
+			price: state.candles[i].close,
+			features: buildFeaturesFn({
 				state,
 				idx: i,
 				priceSnapshot: this._priceSnapshot,
-			});
-			steps.push({
-				price: state.candles[i].close,
-				features,
-				timestamp: state.candles[i].timestamp,
-			});
-		}
-		return steps;
+			}),
+			timestamp: state.candles[i].timestamp,
+		};
 	}
 
 	splitTrainValidation(

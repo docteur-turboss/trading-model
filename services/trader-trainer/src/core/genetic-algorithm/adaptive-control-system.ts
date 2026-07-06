@@ -81,6 +81,25 @@ function adjustEpisodes(
  * Increases exploration (pop size) when stagnating, decreases when improving.
  * Increases exploitation (elitism, episodes) when stagnating.
  */
+function _isImproving(effHistory: number[]): boolean {
+	const recent = effHistory.slice(-5);
+	return recent[recent.length - 1] > recent[0];
+}
+
+function _buildAdjustedControl(
+	ctrl: DeepReadonly<GAControlGenome>,
+	stagnation: number,
+	isImproving: boolean
+): GAControlGenome {
+	return {
+		...ctrl,
+		populationSize: adjustPopulationSize(ctrl.populationSize, stagnation, isImproving),
+		elitismFraction: adjustElitism(ctrl.elitismFraction, stagnation, isImproving),
+		survivorFraction: adjustSurvivors(ctrl.survivorFraction, stagnation),
+		episodesPerIndividual: adjustEpisodes(ctrl.episodesPerIndividual, stagnation, isImproving),
+	} as GAControlGenome;
+}
+
 export function adaptGAControl(
 	ctrl: DeepReadonly<GAControlGenome>,
 	effHistory: number[],
@@ -89,29 +108,7 @@ export function adaptGAControl(
 	if (effHistory.length < 3) {
 		return ctrl;
 	}
-
-	const recent = effHistory.slice(-5);
-	const isImproving = recent[recent.length - 1] > recent[0];
-
-	return deepFreeze({
-		...ctrl,
-		populationSize: adjustPopulationSize(
-			ctrl.populationSize,
-			stagnation,
-			isImproving
-		),
-		elitismFraction: adjustElitism(
-			ctrl.elitismFraction,
-			stagnation,
-			isImproving
-		),
-		survivorFraction: adjustSurvivors(ctrl.survivorFraction, stagnation),
-		episodesPerIndividual: adjustEpisodes(
-			ctrl.episodesPerIndividual,
-			stagnation,
-			isImproving
-		),
-	} as GAControlGenome);
+	return deepFreeze(_buildAdjustedControl(ctrl, stagnation, _isImproving(effHistory)));
 }
 
 export type StopCondition =

@@ -171,20 +171,26 @@ function processBatchResults(options: ProcessBatchResultsOptions): void {
 	for (let idx = 0; idx < batchResults.length; idx++) {
 		const result = batchResults[idx];
 		const entry = batch[idx];
-		if (result.status === "fulfilled") {
-			// success already counted in replaySingleEntry
-		} else {
-			ctx.errors.push({
-				id: entry?.id ?? "unknown",
-				error: (result.reason as Error)?.message ?? "unknown error",
-			});
-			logger.error("DLQ replay entry failed", {
-				entryId: entry?.id,
-				error: (result.reason as Error)?.message,
-				batchId: ctx.batchId,
-			});
+		if (result.status === "rejected") {
+			_recordFailedEntry(entry, result, ctx);
 		}
 	}
+}
+
+function _recordFailedEntry(
+	entry: { id: string; message: unknown } | undefined,
+	result: PromiseSettledResult<void>,
+	ctx: ProcessBatchResultsOptions["ctx"]
+): void {
+	ctx.errors.push({
+		id: entry?.id ?? "unknown",
+		error: (result.reason as Error)?.message ?? "unknown error",
+	});
+	logger.error("DLQ replay entry failed", {
+		entryId: entry?.id,
+		error: (result.reason as Error)?.message,
+		batchId: ctx.batchId,
+	});
 }
 
 function waitForBatchTimeout(
@@ -348,6 +354,20 @@ function buildReplayResponse(
 	successCount: number,
 	errors: DlqError[]
 ): Record<string, unknown> {
+	const details: Record<string, unknown> = _buildReplayDetails(
+		batchId,
+		successCount,
+		errors
+	);
+	_emitReplayMetrics(successCount, errors.length);
+	return details;
+}
+
+function _buildReplayDetails(
+	batchId: string,
+	successCount: number,
+	errors: DlqError[]
+): Record<string, unknown> {
 	const details: Record<string, unknown> = {
 		batchId,
 		replayed: successCount,
@@ -356,13 +376,16 @@ function buildReplayResponse(
 	if (errors.length > 0) {
 		details.errors = errors;
 	}
+	return details;
+}
+
+function _emitReplayMetrics(successCount: number, errorsCount: number): void {
 	if (successCount > 0) {
 		metrics.entriesReplayed.inc(successCount);
 	}
-	if (errors.length > 0) {
-		metrics.entriesReplayFailed.inc(errors.length);
+	if (errorsCount > 0) {
+		metrics.entriesReplayFailed.inc(errorsCount);
 	}
-	return details;
 }
 
 async function _claimAndReplayBatch(

@@ -88,36 +88,51 @@ export class MemoryWalFlusher {
 	}
 
 	async flush(): Promise<void> {
-		if (this._flushing) {
-			return;
-		}
-		if (
-			this._redisDownSince > 0 &&
-			Date.now() - this._redisDownSince < MEMORY_WAL_REDIS_RETRY_AFTER_MS
-		) {
-			return;
-		}
-		if (this._buffer.length === 0) {
-			this._backoff = WAL_FLUSH_RETRY_BASE_MS;
+		if (this._shouldSkipFlush()) {
 			return;
 		}
 
 		this._flushing = true;
 		try {
-			const batch = this._buffer.splice(0, WAL_BATCH_SIZE);
-			try {
-				const ok = await this._buildAndSendBatch(batch);
-				if (ok) {
-					this._redisDownSince = 0;
-					this._backoff = WAL_FLUSH_RETRY_BASE_MS;
-					return;
-				}
-				await this._handleFlushFailure(batch);
-			} catch (err) {
-				await this._handleFlushFailure(batch, err as Error);
-			}
+			await this._tryFlushBatch();
 		} finally {
 			this._flushing = false;
+		}
+	}
+
+	private _shouldSkipFlush(): boolean {
+		if (this._flushing) {
+			return true;
+		}
+		if (this._isInRetryWindow()) {
+			return true;
+		}
+		if (this._buffer.length === 0) {
+			this._backoff = WAL_FLUSH_RETRY_BASE_MS;
+			return true;
+		}
+		return false;
+	}
+
+	private _isInRetryWindow(): boolean {
+		return (
+			this._redisDownSince > 0 &&
+			Date.now() - this._redisDownSince < MEMORY_WAL_REDIS_RETRY_AFTER_MS
+		);
+	}
+
+	private async _tryFlushBatch(): Promise<void> {
+		const batch = this._buffer.splice(0, WAL_BATCH_SIZE);
+		try {
+			const ok = await this._buildAndSendBatch(batch);
+			if (ok) {
+				this._redisDownSince = 0;
+				this._backoff = WAL_FLUSH_RETRY_BASE_MS;
+				return;
+			}
+			await this._handleFlushFailure(batch);
+		} catch (err) {
+			await this._handleFlushFailure(batch, err as Error);
 		}
 	}
 

@@ -125,6 +125,16 @@ export class AuditStore {
 		}
 	}
 
+	private _rebufferEntries(batch: AuditEntry[], err: unknown): void {
+		this._pendingEntries.unshift(...batch);
+		if (this._pendingEntries.length > this._maxBuffer) {
+			const dropped = this._pendingEntries.splice(this._maxBuffer);
+			logger.warn("AuditStore: flush failed, dropped entries", { context: { count: dropped.length, err } });
+		} else {
+			logger.error("AuditStore: flush failed, entries re-buffered", { context: { count: batch.length, err } });
+		}
+	}
+
 	private async _flush(): Promise<void> {
 		if (this._pendingEntries.length === 0) {
 			return;
@@ -132,29 +142,11 @@ export class AuditStore {
 		if (!((await this._ensureMongo()) && this._collection)) {
 			return;
 		}
-
 		const batch = this._pendingEntries.splice(0, this._batchSize);
 		try {
 			await this._collection.insertMany(batch, { ordered: false });
 		} catch (err) {
-			// Re-buffer entries that failed to write
-			this._pendingEntries.unshift(...batch);
-			if (this._pendingEntries.length > this._maxBuffer) {
-				const dropped = this._pendingEntries.splice(this._maxBuffer);
-				logger.warn("AuditStore: flush failed, dropped entries", {
-					context: {
-						count: dropped.length,
-						err,
-					},
-				});
-			} else {
-				logger.error("AuditStore: flush failed, entries re-buffered", {
-					context: {
-						count: batch.length,
-						err,
-					},
-				});
-			}
+			this._rebufferEntries(batch, err);
 		}
 	}
 }

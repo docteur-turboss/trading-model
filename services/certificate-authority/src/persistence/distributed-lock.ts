@@ -31,24 +31,25 @@ export class DistributedLock {
 	private readonly _redisBackend: RedisLockBackend;
 	private readonly _filesystemBackend: FileSystemLockBackend;
 
+	private _resolveFallbackDir(fallbackDir: string | undefined): string {
+		return fallbackDir ?? path.join(process.cwd(), "data", "ca-fallback", "locks");
+	}
+
+	private _createMongoBackend(): MongoLockBackend {
+		return new MongoLockBackend(
+			() => this._collection,
+			() => { this._mongoAvailable = false; }
+		);
+	}
+
 	constructor(options: DistributedLockOptions) {
 		this._client = new MongoClient(options.uri);
 		this._lockName = options.lockName;
 		this._ttlMs = options.ttlMs;
 		this._instanceId = randomUUID().substring(0, 8);
-
-		const fallbackDir =
-			options.fallbackDir ??
-			path.join(process.cwd(), "data", "ca-fallback", "locks");
-
-		this._mongoBackend = new MongoLockBackend(
-			() => this._collection,
-			() => {
-				this._mongoAvailable = false;
-			}
-		);
+		this._mongoBackend = this._createMongoBackend();
 		this._redisBackend = new RedisLockBackend(options.redisUrl ?? null);
-		this._filesystemBackend = new FileSystemLockBackend(fallbackDir);
+		this._filesystemBackend = new FileSystemLockBackend(this._resolveFallbackDir(options.fallbackDir));
 	}
 
 	async connect(): Promise<void> {
