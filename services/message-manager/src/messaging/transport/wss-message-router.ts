@@ -1,3 +1,4 @@
+import { toInstanceId, toMessageId, type Topic } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
 import type { Dispatcher } from "../core/dispatcher";
@@ -95,12 +96,12 @@ export class WssMessageRouter {
 
 		return {
 			type: msg.type as WssMessageType,
-			instanceId: msg.instanceId as string | undefined,
-			topics: msg.topics as string[] | undefined,
+			instanceId: msg.instanceId ? toInstanceId(msg.instanceId as string) : undefined,
+			topics: msg.topics as Topic[] | undefined,
 			payload: msg.payload,
 			metadata: msg.metadata,
 			traceparent: msg.traceparent as string | undefined,
-			messageId: msg.messageId as string | undefined,
+			messageId: msg.messageId ? toMessageId(msg.messageId as string) : undefined,
 		};
 	}
 

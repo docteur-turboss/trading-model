@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { HostPort } from "@trading-model/common/domain/service-identity";
+import { type ServiceId, toServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis, { type RedisOptions } from "ioredis";
 import type { ServiceInstance } from "../client/type";
@@ -68,13 +69,13 @@ export class RedisServiceCache implements IServiceCache {
 	}
 
 	async get(
-		serviceName: string,
+		serviceName: ServiceId,
 		region?: string,
 	): Promise<ServiceInstance | null> {
 		return this._cacheOps.get(serviceName, region);
 	}
 
-	async getVersion(serviceName: string, region?: string): Promise<number> {
+	async getVersion(serviceName: ServiceId, region?: string): Promise<number> {
 		return this._cacheOps.getVersion(serviceName, region);
 	}
 
@@ -82,7 +83,7 @@ export class RedisServiceCache implements IServiceCache {
 		return this._cacheOps.set(entry);
 	}
 
-	async invalidate(serviceName: string, region?: string): Promise<void> {
+	async invalidate(serviceName: ServiceId, region?: string): Promise<void> {
 		return this._cacheOps.invalidate(serviceName, region);
 	}
 
@@ -91,9 +92,10 @@ export class RedisServiceCache implements IServiceCache {
 	}
 
 	async entries(): Promise<
-		Array<{ serviceName: string; instance: ServiceInstance; region?: string }>
+		Array<{ serviceName: ServiceId; instance: ServiceInstance; region?: string }>
 	> {
-		return this._cacheOps.entries();
+		const raw = await this._cacheOps.entries();
+		return raw.map((e) => ({ ...e, serviceName: toServiceId(e.serviceName) }));
 	}
 
 	async setCircuitState(instanceId: string, state: CircuitState): Promise<void> {

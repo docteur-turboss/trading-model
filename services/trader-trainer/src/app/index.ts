@@ -1,3 +1,4 @@
+import { toSymbol } from "@trading-model/common/domain/primitives";
 import { createBootstrap } from "@trading-model/common/server/bootstrap";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { env } from "../config/env";
@@ -9,7 +10,7 @@ let addressManager: ReturnType<typeof BOOTSTRAP_ADDRESS_MANAGER> | null = null;
 
 const CONTAINER = new ApplicationContainer({
 	bufferSize: env.TRAINER_DATA_WINDOW,
-	symbols: env.TRAINER_SYMBOLS.split(",").map((symbol) => symbol.trim()),
+	symbols: env.TRAINER_SYMBOLS.split(",").map((symbol) => toSymbol(symbol.trim())),
 	validationSplit: env.TRAINER_VALIDATION_SPLIT,
 	generations: env.TRAINER_GENERATIONS,
 	populationSize: env.TRAINER_POPULATION_SIZE,
@@ -47,7 +48,7 @@ createBootstrap({
 		await MessageManager.intents(CONTAINER.getSubscribedIntents());
 
 		CONTAINER.startTrainingLoop(
-			env.TRAINER_SYMBOLS.split(",").map((symbol) => symbol.trim()),
+			env.TRAINER_SYMBOLS.split(",").map((symbol) => toSymbol(symbol.trim())),
 			60_000
 		);
 	},

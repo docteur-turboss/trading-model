@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
-import { Price } from "@trading-model/common/domain/primitives";
+import { Price, toSymbol, type TradingSymbol } from "@trading-model/common/domain/primitives";
 
 import {
 	MarketDataBuffer,
@@ -52,9 +52,9 @@ export class BufferCheckpointer {
 
 	private _serializeSymbols(
 		buffer: MarketDataBuffer,
-		symbols: string[]
-	): Record<string, SymbolStateSerializable> {
-		const symbolsData: Record<string, SymbolStateSerializable> = {};
+		symbols: TradingSymbol[]
+	): Record<TradingSymbol, SymbolStateSerializable> {
+		const symbolsData: Record<TradingSymbol, SymbolStateSerializable> = {};
 		for (const sym of symbols) {
 			const state = buffer.getSymbolState(sym);
 			if (!state) {
@@ -151,26 +151,26 @@ export class BufferCheckpointer {
 	}
 
 	private _readBufferState(path: string): {
-		symbols: Record<string, SymbolStateSerializable>;
-		priceSnapshot: Record<string, Price>;
+		symbols: Record<TradingSymbol, SymbolStateSerializable>;
+		priceSnapshot: Record<TradingSymbol, Price>;
 	} {
 		const raw = readFileSync(path, "utf-8");
 		return JSON.parse(raw) as {
-			symbols: Record<string, SymbolStateSerializable>;
-			priceSnapshot: Record<string, Price>;
+			symbols: Record<TradingSymbol, SymbolStateSerializable>;
+			priceSnapshot: Record<TradingSymbol, Price>;
 		};
 	}
 
 	private _restoreBuffer(
 		data: {
-			symbols: Record<string, SymbolStateSerializable>;
-			priceSnapshot: Record<string, Price>;
+			symbols: Record<TradingSymbol, SymbolStateSerializable>;
+			priceSnapshot: Record<TradingSymbol, Price>;
 		},
 		config?: MarketDataBufferConfig
 	): MarketDataBuffer {
 		const buffer = new MarketDataBuffer(config);
 		for (const [sym, sd] of Object.entries(data.symbols)) {
-			buffer.restoreSymbolState(sym, _deserializeSymbolState(sd));
+			buffer.restoreSymbolState(toSymbol(sym), _deserializeSymbolState(sd));
 		}
 		buffer.setPriceSnapshot(data.priceSnapshot);
 		return buffer;

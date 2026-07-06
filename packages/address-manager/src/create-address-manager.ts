@@ -1,3 +1,4 @@
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
@@ -104,7 +105,7 @@ function _buildAddressManagerConfig(
 
 function _buildIdentity(env: AddressManagerEnv) {
 	return {
-		serviceName: env.SERVICE_NAME,
+		serviceName: toServiceId(env.SERVICE_NAME),
 		instanceId: env.INSTANCE_ID,
 		region: env.REGION,
 	};

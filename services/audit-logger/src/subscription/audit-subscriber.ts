@@ -2,6 +2,7 @@ import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { RequestHandler } from "express";
 
+import { toServiceId, toTopic } from "@trading-model/common/domain/primitives";
 import type {
 	AuditEventDocument,
 	AuditRepository,
@@ -112,9 +113,9 @@ function _buildAuditMetadata(
 ): AuditEventDocument["metadata"] {
 	const publisher = metadata?.publisher;
 	return {
-		topic,
+		topic: toTopic(topic),
 		eventType: metadata?.eventType ?? topic,
-		publisher: publisher?.serviceName ?? "unknown",
+		publisher: toServiceId(publisher?.serviceName ?? "unknown"),
 		instanceId: publisher?.instanceId ?? "unknown",
 		messageId: metadata?.messageId ?? "unknown",
 		correlationId: metadata?.correlationId,

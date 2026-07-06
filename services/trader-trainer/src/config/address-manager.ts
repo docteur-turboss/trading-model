@@ -1,3 +1,4 @@
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import type { Port } from "@trading-model/common/domain/primitives";
 import AddressManagerClass from "@trading-model/address-manager";
 
@@ -9,7 +10,7 @@ const ADDRESS_MANAGER = new AddressManagerClass({
 	cacheTtlMs: env.CACHE_TTL_MS,
 	discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
 	identity: {
-		serviceName: env.SERVICE_NAME,
+		serviceName: toServiceId(env.SERVICE_NAME),
 		instanceId: env.INSTANCE_ID,
 	},
 	servicePingTimeoutMs: env.SERVICE_PING_TIMEOUT_MS,

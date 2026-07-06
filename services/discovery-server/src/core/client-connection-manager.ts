@@ -7,7 +7,9 @@ const CLIENT_TIMEOUT_MS = 60_000;
 export interface ConnectedClient {
 	ws: WebSocket;
 	subscribedServices: Set<string>;
+	/** Populated after the first heartbeat. */
 	instanceId?: string;
+	/** Populated after the first heartbeat. */
 	serviceName?: string;
 }
 

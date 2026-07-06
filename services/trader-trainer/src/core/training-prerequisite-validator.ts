@@ -4,6 +4,7 @@ import {
 	MIN_TRAINING_STEPS,
 	type MarketDataBuffer,
 } from "./market-data-buffer";
+import type { TradingSymbol } from "./market-data-types";
 import type { TrainingFailure } from "./trainer";
 
 export class TrainingPrerequisiteValidator {
@@ -13,7 +14,7 @@ export class TrainingPrerequisiteValidator {
 	) {}
 
 	validate(
-		symbol: string
+		symbol: TradingSymbol
 	):
 		| { ok: true; windowSet: WindowSet }
 		| { ok: false; error: TrainingFailure } {

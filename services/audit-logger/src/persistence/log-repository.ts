@@ -4,6 +4,7 @@ import {
 	type PaginationQuery,
 	type PaginationResult,
 } from "@trading-model/common/domain/pagination";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { Collection, Db } from "mongodb";
 
 type MongoDoc = Record<string, unknown>;
@@ -14,7 +15,7 @@ export interface ServiceLogDocument {
 	level: "debug" | "info" | "warn" | "error";
 	message: string;
 	service: {
-		name: string;
+		name: ServiceId;
 		instanceId: string;
 		version?: string;
 	};
@@ -41,7 +42,7 @@ export interface ServiceLogDocument {
 }
 
 export interface LogQuery extends PaginationQuery {
-	serviceName?: string;
+	serviceName?: ServiceId;
 	level?: string;
 	correlationId?: string;
 	dateRange?: DateRange;
@@ -50,7 +51,7 @@ export interface LogQuery extends PaginationQuery {
 
 export interface LogStats {
 	total: number;
-	byService: Record<string, number>;
+	byService: Record<ServiceId, number>;
 	byLevel: Record<string, number>;
 	dateRange: { earliest?: string; latest?: string };
 }
@@ -166,7 +167,7 @@ export class LogRepository {
 	private _parseStatsResult(aggResult: Record<string, unknown>): LogStats {
 		return {
 			total: _extractTotal(aggResult),
-			byService: _extractMap(aggResult, "byService"),
+			byService: _extractMap(aggResult, "byService") as Record<ServiceId, number>,
 			byLevel: _extractMap(aggResult, "byLevel"),
 			dateRange: _extractDateRange(aggResult),
 		};

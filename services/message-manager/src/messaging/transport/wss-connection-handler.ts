@@ -1,6 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import WebSocket, { WebSocketServer } from "ws";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -59,7 +60,7 @@ export class WssConnectionHandler {
 		const serviceName = req.headers["x-service-name"] as string;
 		const instanceId = req.headers["x-instance-id"] as string;
 		const topics = _parseTopicsHeader(req.headers["x-subscribed-topics"] as string);
-		return { identity: { serviceName, instanceId }, topics };
+		return { identity: { serviceName: toServiceId(serviceName), instanceId }, topics };
 	}
 
 	registerCloseHandler(ws: WebSocket, subKey: string, identity: ServiceIdentity): void {

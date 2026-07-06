@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { TradingSymbol } from "./market-data-types";
 import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
@@ -17,14 +18,14 @@ export type { BestAgentSummary };
 /** Indicates that training completed successfully with the resulting best genome. */
 export interface TrainingSuccess {
 	success: true;
-	symbol: string;
+	symbol: TradingSymbol;
 	bestGenome: DeepReadonly<LamarckGenome>;
 }
 
 /** Indicates that training failed with an error. */
 export interface TrainingFailure {
 	success: false;
-	symbol: string;
+	symbol: TradingSymbol;
 	error: Error;
 }
 
@@ -48,7 +49,7 @@ export class Trainer {
 		return this._training;
 	}
 
-	getCurrentSymbol(): string {
+	getCurrentSymbol(): TradingSymbol {
 		return this._trainingState.getCurrentSymbol();
 	}
 
@@ -56,7 +57,7 @@ export class Trainer {
 		return this._trainingState.getGeneration();
 	}
 
-	async train(symbol: string): Promise<TrainingResult> {
+	async train(symbol: TradingSymbol): Promise<TrainingResult> {
 		const validation = this._validator.validate(symbol);
 		if (!validation.ok) {
 			return validation.error;

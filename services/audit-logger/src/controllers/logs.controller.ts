@@ -1,3 +1,4 @@
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { DateRange } from "@trading-model/common/domain/date-range";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
@@ -8,7 +9,9 @@ function _buildLogQueryParams(
 	req: import("express").Request
 ): Parameters<LogRepository["query"]>[0] {
 	return {
-		serviceName: req.query.serviceName as string | undefined,
+		serviceName: req.query.serviceName
+			? toServiceId(req.query.serviceName as string)
+			: undefined,
 		level: req.query.level as string | undefined,
 		correlationId: req.query.correlationId as string | undefined,
 		dateRange: DateRange.fromQueryParams(

@@ -1,3 +1,4 @@
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../client/type";
 import type { CacheSetEntry, CircuitState, IServiceCache } from "./service-cache.interface";
 import type { CacheEntry } from "./type";
@@ -19,7 +20,7 @@ class SimpleMutex {
 
 export class ServiceCache implements IServiceCache {
 	private readonly _ttlMs: number;
-	private readonly _cache: Map<string, CacheEntry>;
+	private readonly _cache: Map<ServiceId, CacheEntry>;
 	private readonly _mutex = new SimpleMutex();
 
 	constructor(ttlMs: number) {
@@ -55,11 +56,11 @@ export class ServiceCache implements IServiceCache {
 		}
 	}
 
-	async get(serviceName: string, _region?: string): Promise<ServiceInstance | null> {
+	async get(serviceName: ServiceId, _region?: string): Promise<ServiceInstance | null> {
 		return this._withLock(() => this._getEntry(serviceName));
 	}
 
-	private _getEntry(serviceName: string): ServiceInstance | null {
+	private _getEntry(serviceName: ServiceId): ServiceInstance | null {
 		const entry = this._cache.get(serviceName);
 		if (!entry) {
 			return null;
@@ -91,7 +92,7 @@ export class ServiceCache implements IServiceCache {
 		});
 	}
 
-	async invalidate(serviceName: string, _region?: string): Promise<void> {
+	async invalidate(serviceName: ServiceId, _region?: string): Promise<void> {
 		return this._withLock(() => {
 			this._cache.delete(serviceName);
 		});
@@ -108,13 +109,13 @@ export class ServiceCache implements IServiceCache {
 	}
 
 	async entries(): Promise<
-		Array<{ serviceName: string; instance: ServiceInstance; region?: string }>
+		Array<{ serviceName: ServiceId; instance: ServiceInstance; region?: string }>
 	> {
 		return this._withLock(() => this._getEntries());
 	}
 
-	private _getEntries(): Array<{ serviceName: string; instance: ServiceInstance }> {
-		const result: Array<{ serviceName: string; instance: ServiceInstance }> = [];
+	private _getEntries(): Array<{ serviceName: ServiceId; instance: ServiceInstance }> {
+		const result: Array<{ serviceName: ServiceId; instance: ServiceInstance }> = [];
 		for (const [serviceName, entry] of this._cache) {
 			if (!this._isExpired(entry)) {
 				result.push({ serviceName, instance: entry.instance });
@@ -123,7 +124,7 @@ export class ServiceCache implements IServiceCache {
 		return result;
 	}
 
-	getVersion(_serviceName: string, _region?: string): Promise<number> {
+	getVersion(_serviceName: ServiceId, _region?: string): Promise<number> {
 		return Promise.resolve(0);
 	}
 

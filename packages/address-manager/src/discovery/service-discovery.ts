@@ -1,4 +1,5 @@
 ﻿import type { HttpClient } from "@trading-model/common/config/http-client";
+import { type ServiceId, toServiceId } from "@trading-model/common/domain/primitives";
 import {
 	AppError,
 	serviceNotFoundError,
@@ -75,7 +76,7 @@ export class ServiceDiscovery {
 	 * ```
 	 */
 	private async _getHealthyCachedInstance(serviceName: string): Promise<ServiceInstance | null> {
-		const cachedInstance = await this._serviceCache.get(serviceName);
+		const cachedInstance = await this._serviceCache.get(toServiceId(serviceName));
 		if (!cachedInstance) {
 			return null;
 		}
@@ -83,7 +84,7 @@ export class ServiceDiscovery {
 		if (isHealthy) {
 			return cachedInstance;
 		}
-		await this._serviceCache.invalidate(serviceName);
+		await this._serviceCache.invalidate(toServiceId(serviceName));
 		return null;
 	}
 
@@ -157,14 +158,14 @@ export class ServiceDiscovery {
 		const isHealthy = await this._healthChecker.isHealthy(instance);
 
 		if (!isHealthy) {
-			await this._serviceCache.invalidate(serviceName);
+			await this._serviceCache.invalidate(toServiceId(serviceName));
 
 			throw serviceUnreachableError(
 				`Service "${serviceName}" is unreachable`
 			);
 		}
 
-		await this._serviceCache.set({ serviceName, instance });
+		await this._serviceCache.set({ serviceName: toServiceId(serviceName), instance });
 		return instance;
 	}
 
@@ -210,7 +211,7 @@ export class ServiceDiscovery {
 			if (instance) {
 				const isHealthy = await this._healthChecker.isHealthy(instance);
 				if (isHealthy) {
-					await this._serviceCache.set({ serviceName, instance });
+					await this._serviceCache.set({ serviceName: toServiceId(serviceName), instance });
 					return instance;
 				}
 			}

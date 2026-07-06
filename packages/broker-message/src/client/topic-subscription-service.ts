@@ -1,4 +1,5 @@
 import type addressManagerClient from "@trading-model/address-manager";
+import { toTopic } from "@trading-model/common/domain/primitives";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
@@ -60,7 +61,7 @@ export class TopicSubscriptionService {
 				instanceId: this._config.instanceId,
 				serviceName: this._config.serviceName,
 			},
-			topic,
+			topic: toTopic(topic),
 		};
 
 		try {
@@ -79,7 +80,7 @@ export class TopicSubscriptionService {
 	): Promise<void> {
 		const payload: UnSubscribesTopicsPayload = {
 			instanceId: this._config.instanceId,
-			topic,
+			topic: toTopic(topic),
 		};
 
 		try {

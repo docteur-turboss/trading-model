@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { sleep } from "@trading-model/common/utils/sleep";
 
@@ -120,7 +121,7 @@ export class DiscoveryOrchestrator {
 			return instance;
 		}
 
-		await this._serviceCache.invalidate(serviceName);
+		await this._serviceCache.invalidate(toServiceId(serviceName));
 
 		if (attempt < DiscoveryOrchestrator._CIRCUIT_BREAKER_MAX_RETRIES) {
 			const delay =
@@ -136,7 +137,7 @@ export class DiscoveryOrchestrator {
 		startTime: number
 	): Promise<ServiceInstance | null> {
 		try {
-			const staleInstance = await this._serviceCache.get(serviceName);
+			const staleInstance = await this._serviceCache.get(toServiceId(serviceName));
 			if (staleInstance) {
 				logger.warn(
 					"Circuit breaker exhausted — returning stale cached instance as fallback",

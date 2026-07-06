@@ -1,3 +1,5 @@
+import type { ServiceId } from "@trading-model/common/domain/primitives";
+
 /**
  * Strategy for resolving a logical service name to a DNS-resolvable hostname.
  *
@@ -8,7 +10,7 @@
  */
 export interface DnsResolver {
 	/** Resolve a logical service name to a DNS hostname. */
-	resolve(serviceName: string): string;
+	resolve(serviceName: ServiceId): string;
 }
 
 /**
@@ -16,7 +18,7 @@ export interface DnsResolver {
  * Works when service names are already DNS-resolvable (e.g. Docker Compose).
  */
 export class IdentityResolver implements DnsResolver {
-	resolve(serviceName: string): string {
+	resolve(serviceName: ServiceId): string {
 		return serviceName;
 	}
 }
@@ -26,9 +28,9 @@ export class IdentityResolver implements DnsResolver {
  * The map is typically loaded from environment configuration at startup.
  */
 export class MapResolver implements DnsResolver {
-	constructor(private readonly _dnsNameMap: Record<string, string>) {}
+	constructor(private readonly _dnsNameMap: Partial<Record<ServiceId, string>>) {}
 
-	resolve(serviceName: string): string {
+	resolve(serviceName: ServiceId): string {
 		return this._dnsNameMap[serviceName] ?? serviceName;
 	}
 }

@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import { normalizeError } from "@trading-model/common/utils/errors";
@@ -76,7 +77,7 @@ function _buildDocService(
 	entry: z.infer<typeof LOG_ENTRY_SCHEMA>
 ): ServiceLogDocument["service"] {
 	return {
-		name: entry.serviceName ?? "unknown",
+		name: toServiceId(entry.serviceName ?? "unknown"),
 		instanceId: entry.instanceId ?? "unknown",
 	};
 }

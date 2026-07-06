@@ -1,7 +1,7 @@
-import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type { ServiceId, UnixTimestamp } from "@trading-model/common/domain/primitives";
 
 export interface CallRecord {
-	targetService: string;
+	targetService: ServiceId;
 	endpoint: string;
 	method: string;
 	timestamp: UnixTimestamp;
@@ -14,7 +14,7 @@ export interface CallRecord {
 
 export interface CallTrackerSnapshot {
 	totalCalls: number;
-	callsByService: Record<string, number>;
+	callsByService: Record<ServiceId, number>;
 	callsByEndpoint: Record<string, number>;
 	errorsTotal: number;
 	avgLatencyMs: number;
@@ -65,14 +65,14 @@ export class ServiceCallTracker {
 	}
 
 	private _aggregateRecords(): {
-		callsByService: Record<string, number>;
+		callsByService: Record<ServiceId, number>;
 		callsByEndpoint: Record<string, number>;
 		errorsTotal: number;
 		totalLatency: number;
 		bytesSent: number;
 		bytesReceived: number;
 	} {
-		const callsByService: Record<string, number> = {};
+		const callsByService: Record<ServiceId, number> = {};
 		const callsByEndpoint: Record<string, number> = {};
 		let errorsTotal = 0;
 		let totalLatency = 0;
@@ -90,7 +90,7 @@ export class ServiceCallTracker {
 
 	private _aggregateRecord(
 		record: CallRecord,
-		callsByService: Record<string, number>,
+		callsByService: Record<ServiceId, number>,
 		callsByEndpoint: Record<string, number>,
 	): void {
 		callsByService[record.targetService] =

@@ -1,6 +1,7 @@
 import type { CandleInterval } from "@trading-model/common/config/event.types";
 import {
 	Price,
+	type TradingSymbol,
 	UnixTimestamp,
 	Volume,
 } from "@trading-model/common/domain/primitives";
@@ -41,7 +42,7 @@ export const BinanceNormalizer = {
 	/**
 	 * Normalize a Binance order book into the internal structure.
 	 */
-	orderBook(symbol: string, payload: BinanceDepthResponse): OrderBookData {
+	orderBook(symbol: TradingSymbol, payload: BinanceDepthResponse): OrderBookData {
 		return {
 			symbol,
 			source: SourceType.BINANCE,
@@ -56,7 +57,7 @@ export const BinanceNormalizer = {
 	 * Normalize trades (recent + historical).
 	 */
 	trades(
-		symbol: string,
+		symbol: TradingSymbol,
 		payload: BinanceTradeResponse | BinanceHistoricalTradeResponse
 	): TradeData[] {
 		return payload.map((trade) => ({
@@ -75,7 +76,7 @@ export const BinanceNormalizer = {
 	 * Normalize aggregate trades.
 	 */
 	aggregateTrades(
-		symbol: string,
+		symbol: TradingSymbol,
 		payload: BinanceAggregateTradeResponse
 	): TradeData[] {
 		return payload.map((trade) => ({
@@ -94,7 +95,7 @@ export const BinanceNormalizer = {
 	 * Normalize candlesticks.
 	 */
 	candles(
-		symbol: string,
+		symbol: TradingSymbol,
 		interval: CandleInterval,
 		payload: BinanceCandlestickDataResponse
 	): CandleData[] {
@@ -125,7 +126,7 @@ export const BinanceNormalizer = {
 			market: MarketType.CRYPTO,
 			source: SourceType.BINANCE,
 			timestamp: UnixTimestamp.of(item.openTime),
-			symbol: item.symbol,
+			symbol: item.symbol as TradingSymbol,
 			open: Price.of(Number(item.openPrice)),
 			high: Price.of(Number(item.highPrice)),
 			low: Price.of(Number(item.lowPrice)),
@@ -140,7 +141,7 @@ export const BinanceNormalizer = {
 			market: MarketType.CRYPTO,
 			source: SourceType.BINANCE,
 			timestamp: UnixTimestamp.of(item.openTime),
-			symbol: item.symbol,
+			symbol: item.symbol as TradingSymbol,
 			open: Price.of(Number(item.openPrice)),
 			high: Price.of(Number(item.highPrice)),
 			low: Price.of(Number(item.lowPrice)),
@@ -152,7 +153,7 @@ export const BinanceNormalizer = {
 
 	priceTicker(
 		payload: BinanceSymbolPriceTickerResponse
-	): Record<string, Price> {
+	): Record<TradingSymbol, Price> {
 		return Object.fromEntries(
 			payload.map((priceEntry) => [priceEntry.symbol, Price.of(Number(priceEntry.price))])
 		);
@@ -163,7 +164,7 @@ export const BinanceNormalizer = {
 	 */
 	bookTicker(payload: BinanceSymbolOrderBookTickerResponse) {
 		return payload.map((item) => ({
-			symbol: item.symbol,
+			symbol: item.symbol as TradingSymbol,
 			bid: Price.of(Number(item.bidPrice)),
 			ask: Price.of(Number(item.askPrice)),
 			bidQty: Volume.of(Number(item.bidQty)),

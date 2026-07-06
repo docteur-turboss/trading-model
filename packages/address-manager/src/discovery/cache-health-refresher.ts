@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { ServiceInstance } from "../client/type";
 import type { ScheduledJob } from "../scheduler/scheduler";
@@ -56,7 +57,7 @@ export class CacheHealthRefresher implements ScheduledJob {
 	}): Promise<void> {
 		const healthy = await this._healthChecker.isHealthy(entry.instance);
 		if (!healthy) {
-			await this._serviceCache.invalidate(entry.serviceName);
+			await this._serviceCache.invalidate(toServiceId(entry.serviceName));
 			logger.warn("Cache health refresher invalidated unhealthy service", {
 				serviceName: entry.serviceName,
 			});

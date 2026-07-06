@@ -9,10 +9,8 @@ import {
 import type { MarketStep } from "./genetic-algorithm/genome-types";
 import { Price } from "@trading-model/common/domain/primitives";
 import {
-	fromSymbol,
 	type SymbolState,
 	type TradingSymbol,
-	toSymbol,
 } from "./market-data-types";
 import { MemoryManager } from "./market-data/memory-manager";
 import { NormalizationManager } from "./normalization-manager";
@@ -83,12 +81,12 @@ export class MarketDataBuffer {
 		};
 	}
 
-	private _getState(symbol: string): SymbolState {
-		return this._getOrCreate(toSymbol(symbol));
+	private _getState(symbol: TradingSymbol): SymbolState {
+		return this._getOrCreate(symbol);
 	}
 
 	/** Append candlesticks and update running normalisers for price/volume features. */
-	addCandles(symbol: string, candles: CandleData[]): void {
+	addCandles(symbol: TradingSymbol, candles: CandleData[]): void {
 		const state = this._getState(symbol);
 		for (const candle of candles) {
 			state.candles.push(candle);
@@ -99,7 +97,7 @@ export class MarketDataBuffer {
 	}
 
 	/** Append recent trades and update price/quantity normalisers. */
-	addTrades(symbol: string, trades: TradeData[]): void {
+	addTrades(symbol: TradingSymbol, trades: TradeData[]): void {
 		const state = this._getState(symbol);
 		for (const trade of trades) {
 			state.trades.push(trade);
@@ -110,7 +108,7 @@ export class MarketDataBuffer {
 	}
 
 	/** Store an order-book snapshot and update bid/ask/spread normalisers. */
-	setOrderBook(symbol: string, orderBook: OrderBookData): void {
+	setOrderBook(symbol: TradingSymbol, orderBook: OrderBookData): void {
 		const state = this._getState(symbol);
 		state.orderBook = orderBook;
 		this._normManager.updateOrderBookNorms(state, orderBook);
@@ -118,7 +116,7 @@ export class MarketDataBuffer {
 	}
 
 	/** Store a book-ticker snapshot and update bid/ask/spread normalisers. */
-	setBookTicker(symbol: string, bt: BookTickerData): void {
+	setBookTicker(symbol: TradingSymbol, bt: BookTickerData): void {
 		const state = this._getState(symbol);
 		state.bookTicker = bt;
 		this._normManager.updateBookTickerNorms(state, bt);
@@ -126,7 +124,7 @@ export class MarketDataBuffer {
 	}
 
 	/** Store a 24-hour ticker and update volume normaliser. */
-	setTicker24h(symbol: string, ticker: TickerData): void {
+	setTicker24h(symbol: TradingSymbol, ticker: TickerData): void {
 		const state = this._getState(symbol);
 		state.ticker24h = ticker;
 		this._normManager.updateTicker24hNorms(state, ticker);
@@ -138,8 +136,8 @@ export class MarketDataBuffer {
 	}
 
 	/** Merge a snapshot of latest prices into the internal price map. */
-	setPriceSnapshot(prices: Record<string, Price>): void {
-		this._priceSnapshot = { ...this._priceSnapshot, ...prices as Record<TradingSymbol, Price> };
+	setPriceSnapshot(prices: Record<TradingSymbol, Price>): void {
+		this._priceSnapshot = { ...this._priceSnapshot, ...prices };
 	}
 
 	/** Return a copy of the current price snapshot. */
@@ -147,13 +145,13 @@ export class MarketDataBuffer {
 		return { ...this._priceSnapshot };
 	}
 
-	getSymbols(): string[] {
-		return Array.from(this._states.keys()).map(fromSymbol);
+	getSymbols(): TradingSymbol[] {
+		return Array.from(this._states.keys());
 	}
 
 	/** Return a shallow copy of the state for a symbol, or undefined. */
-	getSymbolState(symbol: string): SymbolState | undefined {
-		const state = this._states.get(toSymbol(symbol));
+	getSymbolState(symbol: TradingSymbol): SymbolState | undefined {
+		const state = this._states.get(symbol);
 		if (!state) {
 			return;
 		}
@@ -161,16 +159,16 @@ export class MarketDataBuffer {
 	}
 
 	/** Restore a full symbol state from a previously saved snapshot. */
-	restoreSymbolState(symbol: string, state: SymbolState): void {
-		this._states.set(toSymbol(symbol), state);
+	restoreSymbolState(symbol: TradingSymbol, state: SymbolState): void {
+		this._states.set(symbol, state);
 	}
 
-	getCandleCount(symbol: string): number {
-		return this._states.get(toSymbol(symbol))?.candles.length ?? 0;
+	getCandleCount(symbol: TradingSymbol): number {
+		return this._states.get(symbol)?.candles.length ?? 0;
 	}
 
 	/** Builds a feature vector for each candle step (N candles → N-1 steps). */
-	buildMarketSteps(symbol: string): MarketStep[] {
+	buildMarketSteps(symbol: TradingSymbol): MarketStep[] {
 		return this._windowSplitter.buildMarketSteps(symbol);
 	}
 
@@ -184,7 +182,7 @@ export class MarketDataBuffer {
 
 	/** Build a train/validation split from all available market steps, or null if insufficient data. */
 	getAllWindows(
-		symbol: string,
+		symbol: TradingSymbol,
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
 	): { id: string; train: MarketStep[]; validation: MarketStep[] } | null {
 		return this._windowSplitter.getAllWindows(symbol, validationSplit);

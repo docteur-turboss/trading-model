@@ -1,5 +1,6 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { logger } from "@trading-model/common/config/logger";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import { AddressManagerClient } from "./client/address-manager-client";
@@ -157,7 +158,7 @@ function onCacheInvalidateMessage(
 	if (!serviceName) {
 		return;
 	}
-	serviceCache.invalidate(serviceName).catch((err) => {
+	serviceCache.invalidate(toServiceId(serviceName)).catch((err) => {
 		_logCacheInvalidationError(serviceName, err);
 	});
 }

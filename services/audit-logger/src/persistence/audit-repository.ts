@@ -5,15 +5,16 @@ import {
 	type PaginationQuery,
 	type PaginationResult,
 } from "@trading-model/common/domain/pagination";
+import type { ServiceId, Topic } from "@trading-model/common/domain/primitives";
 import { agentError, AppError } from "@trading-model/common/utils/errors";
 import type { Collection, Db, Filter } from "mongodb";
 
 export interface AuditEventDocument {
 	receivedAt: Date;
 	metadata: {
-		topic: string;
+		topic: Topic;
 		eventType: string;
-		publisher: string;
+		publisher: ServiceId;
 		instanceId: string;
 		messageId: string;
 		correlationId?: string;
@@ -27,8 +28,8 @@ export interface AuditEventQuery extends PaginationQuery, AuditFilter {
 
 export interface AuditStats {
 	totalEvents: number;
-	eventsByTopic: Record<string, number>;
-	eventsByPublisher: Record<string, number>;
+	eventsByTopic: Record<Topic, number>;
+	eventsByPublisher: Record<ServiceId, number>;
 	dateRange: {
 		earliest: Date | null;
 		latest: Date | null;
@@ -136,8 +137,8 @@ export class AuditRepository {
 
 		return {
 			totalEvents,
-			eventsByTopic: _toMap(topicAgg),
-			eventsByPublisher: _toMap(publisherAgg),
+			eventsByTopic: _toMap(topicAgg) as Record<Topic, number>,
+			eventsByPublisher: _toMap(publisherAgg) as Record<ServiceId, number>,
 			dateRange: {
 				earliest: dateRange[0]?.earliest ?? null,
 				latest: dateRange[0]?.latest ?? null,

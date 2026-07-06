@@ -2,7 +2,7 @@ import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import { isNonEmptyString } from "@trading-model/common/validation/primitives";
 import type { IPAddress } from "@trading-model/common/domain/primitives";
-import { Port } from "@trading-model/common/domain/primitives";
+import { Port, toServiceId } from "@trading-model/common/domain/primitives";
 import type { RequestHandler } from "express";
 import { z } from "zod";
 
@@ -50,7 +50,7 @@ function _resolveInstanceId(
 	registry: ServiceRegistry
 ): string {
 	const { serviceName, instanceId, ip, port } = data;
-	return instanceId ?? registry.generateInstanceId({ serviceName, address: ip as IPAddress, port: Port.of(port) });
+	return instanceId ?? registry.generateInstanceId({ serviceName: toServiceId(serviceName), address: ip as IPAddress, port: Port.of(port) });
 }
 
 function _buildServiceInstance(
@@ -60,7 +60,7 @@ function _buildServiceInstance(
 	const { serviceName, ip, port, version } = data;
 	return {
 		instanceId: _resolveInstanceId(data, registry),
-		serviceName, ip: ip as IPAddress, port: Port.of(port),
+		serviceName: toServiceId(serviceName), ip: ip as IPAddress, port: Port.of(port),
 		version: version ?? "1.0.0",
 		ttl: 30_000, protocol: "mtls",
 		registeredAt: Date.now(), lastHeartbeat: Date.now(),
@@ -99,7 +99,7 @@ function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
 			return sendResponse({ error: "Invalid route parameters" }, 400);
 		}
 
-		const instance = registry.getInstance({ serviceName, instanceId });
+		const instance = registry.getInstance({ serviceName: toServiceId(serviceName), instanceId });
 
 		if (!instance) {
 			return sendResponse({ error: "Instance not found" }, 404);

@@ -1,4 +1,5 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { RequestHandler } from "express";
@@ -34,7 +35,7 @@ function _parseHeartbeatBody(req: import("express").Request): ServiceIdentity | 
 	if (!parsed.success) {
 		return null;
 	}
-	return parsed.data;
+	return { ...parsed.data, serviceName: toServiceId(parsed.data.serviceName) };
 }
 
 function _createHeartbeatHandler(registry: ServiceRegistry): RequestHandler {

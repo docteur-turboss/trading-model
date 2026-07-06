@@ -2,7 +2,6 @@ import type { Price } from "@trading-model/common/domain/primitives";
 import { buildFeatures as buildFeaturesFn } from "../feature-builder";
 import type { MarketStep } from "../genetic-algorithm/genome-types";
 import {
-	toSymbol,
 	type SymbolState,
 	type TradingSymbol,
 } from "../market-data-types";
@@ -20,8 +19,8 @@ export class WindowSplitter {
 		private readonly _priceSnapshot: Record<TradingSymbol, Price>,
 	) {}
 
-	buildMarketSteps(symbol: string): MarketStep[] {
-		const state = this._states.get(toSymbol(symbol));
+	buildMarketSteps(symbol: TradingSymbol): MarketStep[] {
+		const state = this._states.get(symbol);
 		if (!state || state.candles.length < 2) {
 			return [];
 		}
@@ -61,7 +60,7 @@ export class WindowSplitter {
 	}
 
 	getAllWindows(
-		symbol: string,
+		symbol: TradingSymbol,
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
 	): { id: string; train: MarketStep[]; validation: MarketStep[] } | null {
 		const steps = this.buildMarketSteps(symbol);
