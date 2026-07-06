@@ -1,3 +1,4 @@
+import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import axios, {
 	type AxiosError,
 	type AxiosInstance,
@@ -89,7 +90,7 @@ function shouldRetry(error: AxiosError): boolean {
 }
 
 function getBackoffDelay(attempt: number): number {
-	return RETRY_CONFIG.baseDelayMs * 2 ** attempt;
+	return computeExponentialBackoff(RETRY_CONFIG.baseDelayMs, attempt, RETRY_CONFIG.maxDelayMs);
 }
 
 /* -------------------------------------------------------

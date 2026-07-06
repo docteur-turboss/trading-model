@@ -21,6 +21,7 @@
  * Infrastructure / messaging layer component.
  * Acts as a delivery orchestrator for the Broker service.
  */
+import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type {
 	Message,
@@ -102,7 +103,7 @@ export class Subscription {
 	 * @returns Delay in milliseconds.
 	 */
 	static backoffDelay(deliveryAttempt: number): number {
-		const delay = Math.min(BaseDelayMs * 2 ** deliveryAttempt, MaxDelayMs);
+		const delay = computeExponentialBackoff(BaseDelayMs, deliveryAttempt, MaxDelayMs);
 		const jitter = delay * JitterFactor * (Math.random() * 2 - 1);
 		return Math.max(0, Math.round(delay + jitter));
 	}

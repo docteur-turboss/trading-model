@@ -1,5 +1,8 @@
 import { sleep } from "./sleep";
-import type { BackoffConfig } from "./backoff-config";
+import {
+	computeExponentialBackoff,
+	type BackoffConfig,
+} from "./backoff-config";
 
 export interface RetryOptions extends BackoffConfig {
 	maxRetries: number;
@@ -38,8 +41,7 @@ export async function retryWithBackoff<T>(
 			attempt++;
 			lastError = err as Error;
 			if (attempt < maxRetries) {
-				const backoff = Math.min(baseDelayMs * 2 ** attempt, maxDelayMs);
-				await sleep(backoff);
+				await sleep(computeExponentialBackoff(baseDelayMs, attempt, maxDelayMs));
 			}
 		}
 	}

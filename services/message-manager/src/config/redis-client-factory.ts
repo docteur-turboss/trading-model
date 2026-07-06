@@ -1,3 +1,4 @@
+import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import type { HostPort } from "@trading-model/common/domain/service-identity";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 
@@ -30,7 +31,7 @@ function logExhausted(retries: number): void {
 }
 
 function computeDelay(retries: number): number {
-	const baseDelay = Math.min(1000 * 2 ** (retries - 1), 30000);
+	const baseDelay = computeExponentialBackoff(1000, retries - 1, 30_000);
 	const jitter = baseDelay * 0.2 * (Math.random() * 2 - 1);
 	return Math.max(100, Math.round(baseDelay + jitter));
 }

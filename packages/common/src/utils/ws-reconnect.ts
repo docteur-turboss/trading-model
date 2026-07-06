@@ -1,4 +1,7 @@
-import type { BackoffConfig } from "./backoff-config";
+import {
+	computeExponentialBackoff,
+	type BackoffConfig,
+} from "./backoff-config";
 
 export interface WsReconnectConfig extends BackoffConfig {
 	maxAttempts?: number;
@@ -15,7 +18,7 @@ function calculateDelay(config: WsReconnectConfig, attempt: number): number {
 	const baseDelayMs = config.baseDelayMs ?? 1000;
 	const maxDelayMs = config.maxDelayMs ?? 60000;
 	const jitterMs = config.jitterMs ?? 500;
-	const delay = Math.min(baseDelayMs * 2 ** attempt, maxDelayMs);
+	const delay = computeExponentialBackoff(baseDelayMs, attempt, maxDelayMs);
 	const jitter = jitterMs > 0 ? Math.random() * jitterMs : 0;
 	return delay + jitter;
 }

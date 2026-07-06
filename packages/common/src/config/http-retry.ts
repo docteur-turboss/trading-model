@@ -1,3 +1,5 @@
+import { computeExponentialBackoff } from "../utils/backoff-config";
+
 const DEFAULT_RETRY_COUNT = 3;
 const RETRY_BASE_DELAY_MS = 200;
 const RETRY_MAX_DELAY_MS = 5_000;
@@ -7,7 +9,7 @@ function isRetryableStatus(code: number): boolean {
 }
 
 function computeRetryDelay(attempt: number): number {
-	return Math.min(RETRY_BASE_DELAY_MS * 2 ** attempt, RETRY_MAX_DELAY_MS);
+	return computeExponentialBackoff(RETRY_BASE_DELAY_MS, attempt, RETRY_MAX_DELAY_MS);
 }
 
 function computeAdaptiveTimeout(

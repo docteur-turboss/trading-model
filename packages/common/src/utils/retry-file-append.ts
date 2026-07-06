@@ -1,3 +1,5 @@
+import { computeExponentialBackoff } from "./backoff-config";
+
 /**
  * Appends content to a file with exponential backoff retry.
  * Used for WAL/DLQ fallback when Redis and memory buffers are exhausted.
@@ -19,7 +21,9 @@ export async function retryFileAppend(
 			return true;
 		} catch {
 			if (attempt < maxAttempts - 1) {
-				await new Promise((resolve) => setTimeout(resolve, 100 * 2 ** attempt));
+				await new Promise((resolve) =>
+					setTimeout(resolve, computeExponentialBackoff(100, attempt, 800))
+				);
 			}
 		}
 	}
