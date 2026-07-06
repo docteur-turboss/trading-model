@@ -1,10 +1,10 @@
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
 import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis from "ioredis";
 import {
@@ -298,6 +298,16 @@ export class RedisRegistryBackend implements RegistryBackend {
 			`${this._prefix}instance:${instanceId}:token`
 		);
 		return this._tokenService.validInstanceToken(token, instanceId, storedToken ?? undefined);
+	}
+
+	generateInstanceId({
+		serviceName,
+		address,
+		port,
+	}: ServiceEndpoint): string {
+		return createHmac("sha256", randomBytes(32).toString("hex"))
+			.update(`${serviceName}-${address}:${port}-${Date.now()}`)
+			.digest("base64");
 	}
 
 	verifyInstanceName(serviceName: string): boolean {
