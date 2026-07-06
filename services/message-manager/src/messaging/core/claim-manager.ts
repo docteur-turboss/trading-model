@@ -116,9 +116,9 @@ export class ClaimManager {
 			}
 			return total;
 		} catch (err) {
-			logger.warn("Failed to claim pending messages", {
+			logger.warn("Failed to claim pending messages", { context: {
 				error: (err as Error).message,
-			});
+			} });
 			return 0;
 		} finally {
 			if (redis) {

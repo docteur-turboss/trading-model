@@ -124,7 +124,7 @@ export class WssPublisher {
 			const messageId = await publishPromise;
 			ws.send(JSON.stringify({ type: "published", messageId }));
 		} catch (err) {
-			logger.warn("WSS publish error", { error: (err as Error).message });
+			logger.warn("WSS publish error", { context: { error: (err as Error).message } });
 			ws.send(JSON.stringify({ type: "error", message: "Publish failed" }));
 		}
 	}

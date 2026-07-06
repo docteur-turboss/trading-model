@@ -91,11 +91,11 @@ export class WssTransport {
 			this._parseConnectionHeaders(req);
 		const subKey = this._subscriptionManager.add(ws, serviceName, instanceId, topics);
 
-		logger.info("WSS client connecting", {
+		logger.info("WSS client connecting", { context: {
 			serviceName,
 			instanceId,
 			topics: [...topics],
-		});
+		} });
 
 		this._registerMessageHandler(ws, {
 			instanceId,
@@ -219,7 +219,7 @@ export class WssTransport {
 		ws.on("close", () => {
 			this._subscriptionManager.remove(subKey);
 			ws.removeAllListeners();
-			logger.info("WSS client disconnected", { serviceName, instanceId });
+			logger.info("WSS client disconnected", { context: { serviceName, instanceId } });
 		});
 	}
 
@@ -229,11 +229,11 @@ export class WssTransport {
 		instanceId: string
 	): void {
 		ws.on("error", (err) => {
-			logger.warn("WSS connection error", {
+			logger.warn("WSS connection error", { context: {
 				error: err.message,
 				serviceName,
 				instanceId,
-			});
+			} });
 			ws.close(1011, "Internal server error");
 		});
 	}

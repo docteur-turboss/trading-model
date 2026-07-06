@@ -113,9 +113,9 @@ export class DlqServiceClient {
 
 	async send(entry: DlqEntry, attempt = 1, MaxRetries = 3): Promise<void> {
 		if (!this.isEnabled) {
-			logger.warn("DLQ Service not configured, dropping dead letter entry", {
+			logger.warn("DLQ Service not configured, dropping dead letter entry", { context: {
 				reason: entry.reason,
-			});
+			} });
 			MESSAGES_DLQ_ERROR_TOTAL.inc({ target: "not-configured" });
 			return;
 		}
@@ -126,25 +126,25 @@ export class DlqServiceClient {
 				entry,
 				signedOptions({ method: "POST", path: "/dlq", body: entry, extra: { timeoutMs: 5000 } })
 			);
-			logger.info("DLQ entry sent to DLQ service", { reason: entry.reason });
+			logger.info("DLQ entry sent to DLQ service", { context: { reason: entry.reason } });
 		} catch (err) {
 			if (attempt <= MaxRetries) {
 				const delay = Math.round(
 					Math.min(200 * 2 ** (attempt - 1), 5000) * (0.5 + Math.random() * 0.5)
 				);
-				logger.warn("Retrying DLQ send after error", {
+				logger.warn("Retrying DLQ send after error", { context: {
 					attempt,
 					delay,
 					reason: entry.reason,
 					error: normalizeError(err as Error),
-				});
+				} });
 				await new Promise((resolve) => setTimeout(resolve, delay));
 				return this.send(entry, attempt + 1, MaxRetries);
 			}
-			logger.error("Failed to send DLQ entry to service after retries", {
+			logger.error("Failed to send DLQ entry to service after retries", { context: {
 				error: normalizeError(err as Error),
 				reason: entry.reason,
-			});
+			} });
 			throw new AppError(
 				"Failed to send DLQ entry",
 				ErrorCodes.MESSAGE_MANAGER_ERROR,
@@ -172,9 +172,9 @@ export class DlqServiceClient {
 			);
 			return result?.entries ?? [];
 		} catch (err) {
-			logger.error("Failed to fetch DLQ entries for replay", {
+			logger.error("Failed to fetch DLQ entries for replay", { context: {
 				error: normalizeError(err as Error),
-			});
+			} });
 			return [];
 		}
 	}
@@ -193,9 +193,9 @@ export class DlqServiceClient {
 				signedOptions({ method: "POST", path: "/dlq/delete", body, extra: { timeoutMs: 5000 } })
 			);
 		} catch (err) {
-			logger.error("Failed to delete DLQ entries", {
+			logger.error("Failed to delete DLQ entries", { context: {
 				error: normalizeError(err as Error),
-			});
+			} });
 		}
 	}
 }
