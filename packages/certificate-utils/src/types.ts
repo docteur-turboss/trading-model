@@ -1,5 +1,7 @@
+import type { ServiceId } from "@trading-model/common/domain/primitives";
+
 export interface CertificateRequest {
-	serviceId: string;
+	serviceId: ServiceId;
 	csr: string;
 	ttlMs: number;
 }
@@ -7,14 +9,14 @@ export interface CertificateRequest {
 import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
 
 export interface SignedCertificate extends CertificateBase {
-	serviceId: string;
+	serviceId: ServiceId;
 	issuedAt: Date;
 	fingerprint: string;
 }
 
 export interface RevokedCertificate {
 	serialNumber: string;
-	serviceId: string;
+	serviceId: ServiceId;
 	revokedAt: Date;
 	reason: string;
 }
@@ -25,6 +27,12 @@ export interface CaMetadata {
 	createdAt: Date;
 	expiresAt: Date;
 	fingerprint: string;
+}
+
+export interface SignInput {
+	algorithm: string;
+	body: string;
+	privateKey: string;
 }
 
 export interface KeyPair {

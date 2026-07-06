@@ -4,7 +4,7 @@ import type { TlsPaths as TlsClientPaths } from "@trading-model/common/domain/tl
 import type { CsrOptions } from "./create-csr";
 import { KeyAlgorithm } from "./generate-key-pair";
 import type { SignOptions } from "./sign-certificate";
-import type { KeyPair, KeyPairWithId, SignedCertificate } from "./types";
+import type { KeyPair, KeyPairWithId, SignInput, SignedCertificate } from "./types";
 import type { ValidationResult } from "./validate-certificate";
 
 export interface RemoteSigningConfig {
@@ -102,14 +102,10 @@ export class RemoteSigningClient {
 		return result;
 	}
 
-	async sign(
-		algorithm: string,
-		body: string,
-		privateKey: string
-	): Promise<string> {
+	async sign(input: SignInput): Promise<string> {
 		const result = await this._httpClient.post<string>(
 			`${this._baseUrl}/api/v1/crypto/sign`,
-			{ algorithm, body, privateKey },
+			input,
 			{ timeoutMs: this._timeoutMs }
 		);
 		if (result === undefined) {

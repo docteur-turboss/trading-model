@@ -3,7 +3,7 @@ import { KeyAlgorithm } from "./generate-key-pair";
 import { getPool } from "./lazy-pool";
 import type { RemoteSigningClient } from "./remote-signing-client";
 import type { SignOptions } from "./sign-certificate";
-import type { KeyPair, KeyPairWithId, SignedCertificate } from "./types";
+import type { KeyPair, KeyPairWithId, SignInput, SignedCertificate } from "./types";
 import type { ValidationResult } from "./validate-certificate";
 
 let remoteClient: RemoteSigningClient | null = null;
@@ -76,17 +76,9 @@ export async function parseKeyAsync(privateKey: string): Promise<KeyPair> {
 	return await getPool().execute<KeyPair>("parseKey", { privateKey });
 }
 
-export async function signAsync(
-	algorithm: string,
-	body: string,
-	privateKey: string
-): Promise<string> {
+export async function signAsync(input: SignInput): Promise<string> {
 	if (remoteClient) {
-		return await remoteClient.sign(algorithm, body, privateKey);
+		return await remoteClient.sign(input);
 	}
-	return await getPool().execute<string>("sign", {
-		algorithm,
-		body,
-		privateKey,
-	});
+	return await getPool().execute<string>("sign", input as unknown as Record<string, unknown>);
 }

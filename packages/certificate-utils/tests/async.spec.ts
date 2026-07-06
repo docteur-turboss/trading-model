@@ -121,7 +121,7 @@ describe("async module - pool path", () => {
 
 	it("signAsync should delegate to pool", async () => {
 		MOCK_EXECUTE.mockResolvedValue("signature");
-		const result = await signAsync("sha256", "body", "private-key");
+		const result = await signAsync({ algorithm: "sha256", body: "body", privateKey: "private-key" });
 		expect(MOCK_EXECUTE).toHaveBeenCalledWith("sign", {
 			algorithm: "sha256",
 			body: "body",
@@ -205,8 +205,8 @@ describe("async module - remote client path", () => {
 
 	it("signAsync should delegate to remote client", async () => {
 		MOCK_SIGN.mockResolvedValue("signature");
-		const result = await signAsync("sha256", "body", "private-key");
-		expect(MOCK_SIGN).toHaveBeenCalledWith("sha256", "body", "private-key");
+		const result = await signAsync({ algorithm: "sha256", body: "body", privateKey: "private-key" });
+		expect(MOCK_SIGN).toHaveBeenCalledWith({ algorithm: "sha256", body: "body", privateKey: "private-key" });
 		expect(result).toBe("signature");
 	});
 

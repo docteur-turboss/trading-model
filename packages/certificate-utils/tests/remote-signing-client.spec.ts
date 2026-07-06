@@ -212,7 +212,7 @@ describe("RemoteSigningClient", () => {
 		it("should post to sign endpoint", async () => {
 			MOCK_POST.mockResolvedValue("signature");
 			const client = getClient();
-			const result = await client.sign("sha256", "body", "private-key");
+			const result = await client.sign({ algorithm: "sha256", body: "body", privateKey: "private-key" });
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://signer.example.com/api/v1/crypto/sign",
@@ -225,7 +225,7 @@ describe("RemoteSigningClient", () => {
 		it("should throw on undefined response", async () => {
 			MOCK_POST.mockResolvedValue(undefined);
 			const client = getClient();
-			await expect(client.sign("sha256", "body", "key")).rejects.toThrow(
+			await expect(client.sign({ algorithm: "sha256", body: "body", privateKey: "key" })).rejects.toThrow(
 				"Empty response from remote signer"
 			);
 		});

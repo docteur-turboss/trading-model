@@ -11,7 +11,7 @@ import {
 } from "./generate-key-pair";
 import { parseKey, sign } from "./sign";
 import { type SignOptions, signCertificate } from "./sign-certificate";
-import type { KeyPair, KeyPairWithId } from "./types";
+import type { KeyPair, KeyPairWithId, SignInput } from "./types";
 import { validateCertificate } from "./validate-certificate";
 
 type JobHandler<TPayload> = (job: { payload: TPayload }) => Promise<unknown>;
@@ -52,12 +52,8 @@ const HANDLERS: [string, JobHandler<unknown>][] = [
 	],
 	[
 		"sign",
-		(job: {
-			payload: { algorithm: string; body: string; privateKey: string };
-		}) =>
-			Promise.resolve(
-				sign(job.payload.algorithm, job.payload.body, job.payload.privateKey)
-			),
+		(job: { payload: SignInput }) =>
+			Promise.resolve(sign(job.payload)),
 	],
 ];
 

@@ -7,6 +7,7 @@ import {
 	generateKeyPairWithIdSync,
 } from "./generate-key-pair";
 import { type SignOptions, signCertificate } from "./sign-certificate";
+import type { SignInput } from "./types";
 import { validateCertificate } from "./validate-certificate";
 
 interface WorkerTask {
@@ -66,14 +67,10 @@ function _handleParseKey(data: Record<string, unknown>): unknown {
 }
 
 function _handleSign(data: Record<string, unknown>): unknown {
-	const { algorithm, body, privateKey } = data as {
-		algorithm: string;
-		body: string;
-		privateKey: string;
-	};
-	const sign = createSign(algorithm);
-	sign.update(body);
-	return sign.sign(privateKey, "base64");
+	const input = data as unknown as SignInput;
+	const sign = createSign(input.algorithm);
+	sign.update(input.body);
+	return sign.sign(input.privateKey, "base64");
 }
 
 const HANDLERS: Partial<Record<WorkerTask["type"], (data: Record<string, unknown>) => unknown>> = {

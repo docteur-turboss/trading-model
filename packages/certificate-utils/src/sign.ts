@@ -1,6 +1,6 @@
 import { createPublicKey, createSign } from "node:crypto";
 
-import type { KeyPair } from "./types";
+import type { KeyPair, SignInput } from "./types";
 
 export function parseKey(privateKey: string): KeyPair {
 	const publicKey = createPublicKey(privateKey).export({
@@ -10,12 +10,8 @@ export function parseKey(privateKey: string): KeyPair {
 	return { publicKey, privateKey };
 }
 
-export function sign(
-	algorithm: string,
-	body: string,
-	privateKey: string
-): string {
-	const sign = createSign(algorithm);
-	sign.update(body);
-	return sign.sign(privateKey, "base64");
+export function sign(input: SignInput): string {
+	const sign = createSign(input.algorithm);
+	sign.update(input.body);
+	return sign.sign(input.privateKey, "base64");
 }

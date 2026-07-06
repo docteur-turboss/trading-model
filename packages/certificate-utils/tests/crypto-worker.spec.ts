@@ -162,7 +162,7 @@ describe("createCryptoWorker", () => {
 			payload: { algorithm: "sha256", body: "body", privateKey: "key" },
 		});
 
-		expect(sign).toHaveBeenCalledWith("sha256", "body", "key");
+		expect(sign).toHaveBeenCalledWith({ algorithm: "sha256", body: "body", privateKey: "key" });
 		expect(result).toBe("signature");
 	});
 
