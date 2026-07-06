@@ -30,10 +30,14 @@ export class FeatureFlags {
 
 	constructor(
 		definitions: FeatureFlagDefinition[],
-		options?: FeatureFlagOptions
+		options?: FeatureFlagOptions,
 	) {
 		this._envPrefix = options?.envPrefix ?? ENV_PREFIX_DEFAULT;
+		this._initFromDefinitions(definitions);
+		logger.info(`FeatureFlags initialized with ${this._store.size} flags`);
+	}
 
+	private _initFromDefinitions(definitions: FeatureFlagDefinition[]): void {
 		for (const def of definitions) {
 			const envName = `${this._envPrefix}${def.name}`;
 			const enabled = this._readFromEnv(envName) ?? def.defaultEnabled;
@@ -45,8 +49,6 @@ export class FeatureFlags {
 				owner: def.owner,
 			});
 		}
-
-		logger.info(`FeatureFlags initialized with ${this._store.size} flags`);
 	}
 
 	private _readFromEnv(envName: string): boolean | undefined {
@@ -62,7 +64,7 @@ export class FeatureFlags {
 			return false;
 		}
 		logger.warn(
-			`FeatureFlags: invalid env value for ${envName}=${raw}, using default`
+			`FeatureFlags: invalid env value for ${envName}=${raw}, using default`,
 		);
 	}
 

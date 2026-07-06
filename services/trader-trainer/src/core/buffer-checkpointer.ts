@@ -1,8 +1,4 @@
-import {
-	existsSync,
-	readFileSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 
@@ -91,22 +87,30 @@ export class BufferCheckpointer {
 		writeFileSync(
 			this._bufferStatePath(),
 			JSON.stringify(
-				{ symbols: symbolsData, priceSnapshot: buffer.getPriceSnapshot(), savedAt: Date.now() },
+				{
+					symbols: symbolsData,
+					priceSnapshot: buffer.getPriceSnapshot(),
+					savedAt: Date.now(),
+				},
 				null,
 				2
 			),
 			"utf-8"
 		);
-		logger.info("Market data buffer checkpoint saved", { context: {
-			symbols: symbols.length,
-			path: this._bufferStatePath(),
-		} });
+		logger.info("Market data buffer checkpoint saved", {
+			context: {
+				symbols: symbols.length,
+				path: this._bufferStatePath(),
+			},
+		});
 	}
 
 	private _logBufferSaveError(err: unknown): void {
-		logger.error("Failed to save market data buffer checkpoint", { context: {
-			error: err instanceof Error ? err.message : String(err),
-		} });
+		logger.error("Failed to save market data buffer checkpoint", {
+			context: {
+				error: err instanceof Error ? err.message : String(err),
+			},
+		});
 	}
 
 	load(config?: MarketDataBufferConfig): MarketDataBuffer | null {
@@ -118,7 +122,9 @@ export class BufferCheckpointer {
 		}
 	}
 
-	private _doLoadBuffer(config?: MarketDataBufferConfig): MarketDataBuffer | null {
+	private _doLoadBuffer(
+		config?: MarketDataBufferConfig
+	): MarketDataBuffer | null {
 		const path = this._bufferStatePath();
 		if (!existsSync(path)) {
 			logger.info("No market data buffer checkpoint found");
@@ -126,17 +132,21 @@ export class BufferCheckpointer {
 		}
 		const data = this._readBufferState(path);
 		const buffer = this._restoreBuffer(data, config);
-		logger.info("Market data buffer checkpoint loaded", { context: {
-			symbols: Object.keys(data.symbols).length,
-			path,
-		} });
+		logger.info("Market data buffer checkpoint loaded", {
+			context: {
+				symbols: Object.keys(data.symbols).length,
+				path,
+			},
+		});
 		return buffer;
 	}
 
 	private _logBufferLoadError(err: unknown): void {
-		logger.error("Failed to load market data buffer checkpoint", { context: {
-			error: err instanceof Error ? err.message : String(err),
-		} });
+		logger.error("Failed to load market data buffer checkpoint", {
+			context: {
+				error: err instanceof Error ? err.message : String(err),
+			},
+		});
 	}
 
 	private _readBufferState(path: string): {

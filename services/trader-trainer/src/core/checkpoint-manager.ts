@@ -1,17 +1,13 @@
-import {
-	existsSync,
-	mkdirSync,
-} from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { logger } from "@trading-model/common/config/logger";
-
+import { BufferCheckpointer } from "./buffer-checkpointer";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
-import {
-	MarketDataBuffer,
-	type MarketDataBufferConfig,
-} from "./market-data-buffer";
-import { BufferCheckpointer } from "./buffer-checkpointer";
 import { GenomeCheckpointer } from "./genome-checkpointer";
+import type {
+	MarketDataBuffer,
+	MarketDataBufferConfig,
+} from "./market-data-buffer";
 
 export interface CheckpointManagerConfig {
 	checkpointDir: string;
@@ -30,12 +26,14 @@ export class CheckpointManager {
 
 		if (!existsSync(this._checkpointDir)) {
 			mkdirSync(this._checkpointDir, { recursive: true });
-			logger.info("Created checkpoint directory", { context: { dir: this._checkpointDir } });
+			logger.info("Created checkpoint directory", {
+				context: { dir: this._checkpointDir },
+			});
 		}
 
 		this._genomeCheckpointer = new GenomeCheckpointer(
 			this._checkpointDir,
-			this._maxCheckpoints,
+			this._maxCheckpoints
 		);
 		this._bufferCheckpointer = new BufferCheckpointer(this._checkpointDir);
 	}

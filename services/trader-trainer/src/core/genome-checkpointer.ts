@@ -18,7 +18,9 @@ export class GenomeCheckpointer {
 	) {
 		if (!existsSync(this._checkpointDir)) {
 			mkdirSync(this._checkpointDir, { recursive: true });
-			logger.info("Created checkpoint directory", { context: { dir: this._checkpointDir } });
+			logger.info("Created checkpoint directory", {
+				context: { dir: this._checkpointDir },
+			});
 		}
 	}
 
@@ -42,10 +44,15 @@ export class GenomeCheckpointer {
 		const path = this._checkpointPath(symbol);
 		writeFileSync(path, JSON.stringify(genome, null, 2), "utf-8");
 		this._writeMetadata(symbol, genome);
-		logger.info("Checkpoint saved", { context: { symbol, generation: genome.generation, path } });
+		logger.info("Checkpoint saved", {
+			context: { symbol, generation: genome.generation, path },
+		});
 	}
 
-	private _writeMetadata(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
+	private _writeMetadata(
+		symbol: string,
+		genome: DeepReadonly<LamarckGenome>
+	): void {
 		writeFileSync(
 			this._metadataPath(symbol),
 			JSON.stringify({
@@ -59,10 +66,12 @@ export class GenomeCheckpointer {
 	}
 
 	private _logSaveError(symbol: string, err: unknown): void {
-		logger.error("Failed to save checkpoint", { context: {
-			symbol,
-			error: err instanceof Error ? err.message : String(err),
-		} });
+		logger.error("Failed to save checkpoint", {
+			context: {
+				symbol,
+				error: err instanceof Error ? err.message : String(err),
+			},
+		});
 	}
 
 	load(symbol: string): DeepReadonly<LamarckGenome> | null {
@@ -82,15 +91,23 @@ export class GenomeCheckpointer {
 		}
 		const raw = readFileSync(path, "utf-8");
 		const genome = JSON.parse(raw) as DeepReadonly<LamarckGenome>;
-		logger.info("Checkpoint loaded", { context: { symbol, generation: genome.generation, fitness: genome.fitness } });
+		logger.info("Checkpoint loaded", {
+			context: {
+				symbol,
+				generation: genome.generation,
+				fitness: genome.fitness,
+			},
+		});
 		return genome;
 	}
 
 	private _logLoadError(symbol: string, err: unknown): void {
-		logger.error("Failed to load checkpoint", { context: {
-			symbol,
-			error: err instanceof Error ? err.message : String(err),
-		} });
+		logger.error("Failed to load checkpoint", {
+			context: {
+				symbol,
+				error: err instanceof Error ? err.message : String(err),
+			},
+		});
 	}
 
 	list(): {
@@ -104,7 +121,7 @@ export class GenomeCheckpointer {
 		}
 		const files = this._listMetadataFiles();
 		return this._readMetadataFiles(files)
-			.sort((a, b) => b.savedAt - a.savedAt)
+			.sort((prev, next) => next.savedAt - prev.savedAt)
 			.slice(0, this._maxCheckpoints);
 	}
 
@@ -115,7 +132,10 @@ export class GenomeCheckpointer {
 	}
 
 	private _readSingleMetadataFile(file: string): {
-		symbol: string; generation: number; fitness: number; savedAt: number;
+		symbol: string;
+		generation: number;
+		fitness: number;
+		savedAt: number;
 	} | null {
 		try {
 			const raw = readFileSync(join(this._checkpointDir, file), "utf-8");
@@ -131,9 +151,12 @@ export class GenomeCheckpointer {
 		}
 	}
 
-	private _readMetadataFiles(
-		files: string[]
-	): { symbol: string; generation: number; fitness: number; savedAt: number }[] {
+	private _readMetadataFiles(files: string[]): {
+		symbol: string;
+		generation: number;
+		fitness: number;
+		savedAt: number;
+	}[] {
 		const results: {
 			symbol: string;
 			generation: number;

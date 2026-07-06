@@ -14,10 +14,12 @@ export function createServer() {
 			certPath: env.TLS_CERT_PATH,
 			caPath: env.TLS_CA_PATH,
 		},
-		routes: (app) => {
-			app.use("/", FINANCIAL_ROUTES());
-			ADDRESS_MANAGER_ROUTES(app);
-			MessageManagerListenExpress(app);
-		},
+		routes: _registerScraperRoutes,
 	});
+}
+
+function _registerScraperRoutes(app: import("express").Application): void {
+	app.use("/", FINANCIAL_ROUTES());
+	ADDRESS_MANAGER_ROUTES(app);
+	MessageManagerListenExpress(app);
 }

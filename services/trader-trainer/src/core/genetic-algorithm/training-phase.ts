@@ -180,6 +180,14 @@ export interface EvaluateFitnessContext {
 	concurrency: number;
 }
 
+function _makeEvalFn(
+	windowSets: WindowSet[],
+	backendFactory: BackendFactory
+): (genome: DeepReadonly<LamarckGenome>) => Promise<import("./evaluation-pipeline").EvaluationResult> {
+	return async (genome: DeepReadonly<LamarckGenome>) =>
+		evaluateGenomeAllWindows(genome, windowSets, backendFactory);
+}
+
 export async function evaluateFitness(
 	ctx: EvaluateFitnessContext
 ): Promise<{
@@ -188,12 +196,7 @@ export async function evaluateFitness(
 	metas: GenomeFitnessMeta[];
 }> {
 	const { population, windowSets, backendFactory, concurrency } = ctx;
-	const evalResults = await pooledEval(
-		population,
-		concurrency,
-		async (genome: DeepReadonly<LamarckGenome>) =>
-			evaluateGenomeAllWindows(genome, windowSets, backendFactory)
-	);
+	const evalResults = await pooledEval(population, concurrency, _makeEvalFn(windowSets, backendFactory));
 
 	return {
 		updatedPop: evalResults.map((result) => result.updatedGenome),
