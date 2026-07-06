@@ -2,9 +2,10 @@ import Redis from "ioredis";
 
 import { env } from "./env";
 import { logger } from "./logger";
+import { RedisClientManager } from "./redis-client-manager";
 
 export class RedisConnection {
-	private _client: Redis | null = null;
+	private readonly _clientManager = new RedisClientManager();
 	private _connecting = false;
 	private _connected = false;
 	private _wasEverConnected = false;
@@ -32,10 +33,9 @@ export class RedisConnection {
 	}
 
 	async close(): Promise<void> {
-		if (this._client) {
-			await this._closeClient();
-			this._client.removeAllListeners();
-			this._client = null;
+		if (this._clientManager.getClient()) {
+			await this._clientManager.closeClient();
+			this._clientManager.removeAllListeners();
 		}
 		this._connected = false;
 	}
@@ -45,7 +45,7 @@ export class RedisConnection {
 	}
 
 	getClient(): Redis | null {
-		return this._client;
+		return this._clientManager.getClient();
 	}
 
 	private async _tryConnect(): Promise<boolean> {
@@ -55,9 +55,8 @@ export class RedisConnection {
 			return false;
 		}
 
-		this._client = this._createClient(url);
-		this._attachEventHandlers();
-		await this._client.connect();
+		const client = await this._clientManager.createClient(url);
+		this._attachEventHandlers(client);
 
 		this._connected = true;
 		this._wasEverConnected = true;
@@ -68,34 +67,23 @@ export class RedisConnection {
 		logger.warn("Redis queue unavailable — falling back to MongoDB polling", {
 			error: (err as Error).message,
 		});
-		this._client = null;
 		this._connected = false;
 	}
 
 	private _isConnected(): boolean {
-		return Boolean(this._client && this._connected);
+		return Boolean(this._clientManager.getClient() && this._connected);
 	}
 
 	private async _closeExistingClient(): Promise<void> {
-		if (this._client && !this._connected) {
+		if (this._clientManager.getClient() && !this._connected) {
 			await this.close();
 		}
 	}
 
-	private _createClient(url: string): Redis {
-		return new Redis(url, {
-			lazyConnect: true,
-			retryStrategy: (times) => Math.min(times * 200, 5_000),
-		});
-	}
-
-	private _attachEventHandlers(): void {
-		if (!this._client) {
-			return;
-		}
-		this._client.on("connect", () => this._onConnect());
-		this._client.on("close", () => this._onClose());
-		this._client.on("error", (err) => this._onError(err));
+	private _attachEventHandlers(client: Redis): void {
+		client.on("connect", () => this._onConnect());
+		client.on("close", () => this._onClose());
+		client.on("error", (err) => this._onError(err));
 	}
 
 	private _onConnect(): void {
@@ -114,21 +102,5 @@ export class RedisConnection {
 	private _onError(err: Error): void {
 		logger.error("Redis queue client error", { error: err.message });
 		this._connected = false;
-	}
-
-	private async _closeClient(): Promise<void> {
-		const client = this._client;
-		if (!client) {
-			return;
-		}
-		try {
-			if (client.status === "ready") {
-				await client.quit();
-			} else {
-				client.disconnect();
-			}
-		} catch {
-			client.disconnect();
-		}
 	}
 }

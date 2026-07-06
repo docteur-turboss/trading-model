@@ -1,8 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
 import { agentError } from "@trading-model/common/utils/errors";
 
-import { BackpropEngine } from "./backprop-engine";
 import { FeedForwardEngine } from "./feed-forward-engine";
+import { BackpropEngine } from "./backprop-engine";
 import { INITIALIZERS } from "./initializers";
 import { LearningPool } from "./pool-manager";
 import {
@@ -29,6 +29,7 @@ import {
 	NormalisationType,
 	OptimizerType,
 } from "./type";
+import { PooledTrainer } from "./pooled-trainer";
 
 function _resolveActivationType(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig>["activationType"] {
 	return cfg.activationType ?? new Array(cfg.neuronsByLayer.length - 1).fill(ActivationType.Relu);
@@ -191,25 +192,6 @@ function _validateMinLayers(config: Required<NeuralNetworkConfig>): void {
 	}
 }
 
-function _validateInputDim(input: Float32Array, config: Required<NeuralNetworkConfig>): void {
-	const expectedInput = config.neuronsByLayer[0];
-	if (input.length !== expectedInput) {
-		throw agentError(`Expected input size ${expectedInput}, got ${input.length}`);
-	}
-}
-
-function _validateOutputDim(target: Float32Array, config: Required<NeuralNetworkConfig>): void {
-	const expectedOutput = config.neuronsByLayer[config.neuronsByLayer.length - 1];
-	if (target.length !== expectedOutput) {
-		throw agentError(`Expected target size ${expectedOutput}, got ${target.length}`);
-	}
-}
-
-function _validateDimensions(input: Float32Array, target: Float32Array, config: Required<NeuralNetworkConfig>): void {
-	_validateInputDim(input, config);
-	_validateOutputDim(target, config);
-}
-
 export class NeuralNetwork {
 	private readonly _config: Required<NeuralNetworkConfig>;
 	private readonly _optimizerHp: OptimizerHyperparams;
@@ -217,6 +199,7 @@ export class NeuralNetwork {
 	private readonly _poolManager: LearningPool = new LearningPool();
 	private readonly _feedForward: FeedForwardEngine;
 	private readonly _backprop: BackpropEngine;
+	private readonly _trainer: PooledTrainer;
 
 	constructor(cfg: NeuralNetworkConfig) {
 		this._config = mergeConfig(cfg);
@@ -226,6 +209,12 @@ export class NeuralNetwork {
 		validateActivationLoss(this._config, this._layers.length);
 		this._feedForward = new FeedForwardEngine(this._config, this._layers);
 		this._backprop = new BackpropEngine(this._config, this._layers, this._optimizerHp);
+		this._trainer = new PooledTrainer(
+			this._feedForward,
+			this._backprop,
+			this._poolManager,
+			this._config,
+		);
 	}
 
 	public forward(input: Float32Array): ForwardContext {
@@ -237,54 +226,15 @@ export class NeuralNetwork {
 	}
 
 	public train(inputs: Float32Array, targets: Float32Array): number {
-		_validateDimensions(inputs, targets, this._config);
-		const context = this._feedForward.forward(inputs);
-		this._backprop.backprop(context, targets);
-		return this._backprop.computeLoss(context.output, targets);
+		return this._trainer.train(inputs, targets);
 	}
 
 	public forwardAndPool(input: Float32Array, target: Float32Array): number {
-		if (!this._config.enablePool) {
-			throw agentError(
-				"Learning pool is disabled. Set enablePool: true in config.",
-			);
-		}
-
-		_validateDimensions(input, target, this._config);
-
-		const context = this._feedForward.forward(input);
-		const loss = this._backprop.computeLoss(context.output, target);
-
-		const experience = this._poolManager.createExperience({ input, context, target, loss });
-		this._poolManager.push(experience, this._config.poolMaxSize);
-
-		return loss;
+		return this._trainer.forwardAndPool(input, target);
 	}
 
 	public trainPooled(): number {
-		if (!this._config.enablePool) {
-			throw agentError("Learning pool is disabled. Set enablePool: true in config.");
-		}
-		const pool = this._poolManager.getAll();
-		if (pool.length === 0) {
-			return 0;
-		}
-		return this._trainPooledBatch(pool);
-	}
-
-	private _trainPooledBatch(pool: import("./type").PooledExperience[]): number {
-		const poolSize = pool.length;
-		this._backprop.resetAccumulators();
-
-		let totalLoss = 0;
-		for (const exp of pool) {
-			totalLoss += exp.loss;
-			this._backprop.backpropAccumulate(this._poolManager.experienceToContext(exp), exp.target!);
-		}
-
-		this._backprop.applyAccumulatedGradients(poolSize);
-		this._poolManager.clear();
-		return totalLoss / poolSize;
+		return this._trainer.trainPooled();
 	}
 
 	public getPoolSize(): number {

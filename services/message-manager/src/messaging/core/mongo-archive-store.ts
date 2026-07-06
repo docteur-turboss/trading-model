@@ -1,90 +1,34 @@
 import { ENV } from "../../config/env";
-import { logger } from "../../config/logger";
 import { messageStore } from "./message-store";
 import { ArchiveTimerScheduler } from "./archive-timer-scheduler";
 import { ArchiveTopicsCache } from "./archive-topics-cache";
-import type { MongoClient } from "./mongo-archive-batch";
+import { MongoClientManager } from "./mongo-client-manager";
 
 export class MongoArchiveStore {
-	private _client: MongoClient | null = null;
-	private get _requiredClient(): MongoClient {
-		if (!this._client) throw new Error("MongoArchiveStore not started");
-		return this._client;
-	}
-	private _started = false;
+	private readonly _clientManager = new MongoClientManager();
 	private readonly _timerScheduler = new ArchiveTimerScheduler();
 	private readonly _topicsCache = new ArchiveTopicsCache();
 
 	async start(): Promise<void> {
-		if (!this._canStart()) {
+		if (!this._clientManager.canStart()) {
 			return;
 		}
-		this._started = true;
+		this._clientManager.markStarted();
 
 		try {
-			await this._connectClient();
-			await this._ensureIndexes();
+			await this._clientManager.connectClient();
+			await this._clientManager.ensureIndexes();
 			this._timerScheduler.start(ENV.MONGO_ARCHIVE_INTERVAL_MS, () =>
 				this._archiveBatch()
 			);
 			this._topicsCache.startRefresh();
 		} catch (err) {
-			this._handleStartError(err as Error);
-		}
-	}
-
-	private _canStart(): boolean {
-		if (!ENV.MONGO_ARCHIVE_URI) {
-			logger.info("MongoDB archival not configured — skipping");
-			return false;
-		}
-		if (this._started) {
-			return false;
-		}
-		return true;
-	}
-
-	private _handleStartError(err: Error): void {
-		logger.warn(
-			"MongoDB archival store failed to start — continuing without archival",
-			{ error: err.message }
-		);
-		this._client = null;
-	}
-
-	private async _connectClient(): Promise<void> {
-		const { MongoClient: MongoDriver } = await import("mongodb");
-		this._client = new MongoDriver(
-			ENV.MONGO_ARCHIVE_URI!
-		) as unknown as MongoClient;
-		await (
-			this._client as unknown as { connect: () => Promise<void> }
-		).connect();
-		logger.info("MongoDB archival store connected");
-	}
-
-	private async _ensureIndexes(): Promise<void> {
-		if (!this._client) {
-			return;
-		}
-		try {
-			const { MongoArchiveBatchWriter } = await import("./mongo-archive-batch");
-			const writer = new MongoArchiveBatchWriter(
-				this._client,
-				ENV.MONGO_ARCHIVE_DB,
-				ENV.MONGO_ARCHIVE_COLLECTION
-			);
-			await writer.createIndexes();
-			logger.info("MongoDB archive indexes ensured");
-		} catch (err) {
-			logger.warn("Failed to create archive indexes", { context: {
-				error: (err as Error).message,
-			} });
+			this._clientManager.handleStartError(err as Error);
 		}
 	}
 
 	private async _archiveBatch(): Promise<void> {
-		if (!this._client) {
+		if (!this._clientManager.client) {
 			return;
 		}
 
@@ -109,9 +53,9 @@ export class MongoArchiveStore {
 				return;
 			}
 
-			const { MongoArchiveBatchWriter } = await import("./mongo-archive-batch");
+			const { MongoArchiveBatchWriter } = await import("./mongo-archive-batch.js");
 			const writer = new MongoArchiveBatchWriter(
-				this._requiredClient,
+				this._clientManager.requiredClient,
 				ENV.MONGO_ARCHIVE_DB,
 				ENV.MONGO_ARCHIVE_COLLECTION
 			);
@@ -124,20 +68,7 @@ export class MongoArchiveStore {
 	async stop(): Promise<void> {
 		this._timerScheduler.stop();
 		this._topicsCache.stopRefresh();
-		await this._closeClient();
-		this._started = false;
-	}
-
-	private async _closeClient(): Promise<void> {
-		if (!this._client) {
-			return;
-		}
-		try {
-			await this._client.close();
-		} catch {
-			// best-effort
-		}
-		this._client = null;
+		await this._clientManager.closeClient();
 	}
 }
 

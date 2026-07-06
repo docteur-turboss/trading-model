@@ -84,33 +84,16 @@ import { logger } from "../../config/logger";
 
 class SharedHttpClientManager {
 	private _httpClient: HttpClient | null = null;
-	private _httpClientPromise: Promise<HttpClient> | null = null;
 
 	async get(): Promise<HttpClient> {
-		if (this._httpClient) {
-			return this._httpClient;
+		if (!this._httpClient) {
+			this._httpClient = new HttpClient({
+				ca: env.TLS_CA_PATH,
+				cert: env.TLS_CERT_PATH,
+				key: env.TLS_KEY_PATH,
+			});
 		}
-		const existingClient = await this._resolveExisting();
-		if (existingClient) {
-			return existingClient;
-		}
-
-		this._httpClientPromise = this._build();
-		return this._httpClientPromise;
-	}
-
-	private async _resolveExisting(): Promise<HttpClient | null> {
-		return this._httpClientPromise === null ? null : await this._httpClientPromise;
-	}
-
-	private _build(): Promise<HttpClient> {
-		const client = new HttpClient({
-			ca: env.TLS_CA_PATH,
-			cert: env.TLS_CERT_PATH,
-			key: env.TLS_KEY_PATH,
-		});
-		this._httpClient = client;
-		return Promise.resolve(client);
+		return this._httpClient;
 	}
 
 	async reloadTls(): Promise<void> {
@@ -129,7 +112,6 @@ class SharedHttpClientManager {
 
 	close(): void {
 		this._httpClient = null;
-		this._httpClientPromise = null;
 	}
 }
 

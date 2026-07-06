@@ -17,19 +17,20 @@ export class DeliveryCircuitBreaker {
 		private readonly _serviceName: string
 	) {}
 
-	/** Increments the consecutive-failure counter. */
-	recordFailure(_key?: string, _count?: number): void {
+	recordFailure(): void {
 		this._failureCount++;
 	}
 
-	/** Resets the consecutive-failure counter after a successful delivery. */
-	recordSuccess(_key?: string): void {
+	recordSuccess(): void {
 		this.reset();
 	}
 
-	/** Returns true when the circuit has reached the open threshold. */
 	isOpen(): boolean {
 		return this._failureCount >= CIRCUIT_BREAKER_THRESHOLD;
+	}
+
+	isAllowed(): boolean {
+		return !this.isOpen();
 	}
 
 	getState(): string {
@@ -40,13 +41,8 @@ export class DeliveryCircuitBreaker {
 		return this._failureCount;
 	}
 
-	/** Resets the consecutive-failure counter after a successful delivery. */
 	reset(): void {
 		this._failureCount = 0;
-	}
-
-	clear(): void {
-		this.reset();
 	}
 
 	/**

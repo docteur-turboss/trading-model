@@ -1,10 +1,7 @@
-import { ObjectId } from "mongodb";
-
 import { getCollection } from "../config/db";
-import { env } from "../config/env";
 import { ClaimFilterBuilder } from "./claim-filter-builder";
 import { ClaimQueryExecutor } from "./claim-query-executor";
-import { DLQ_STATUS } from "./dlq-status";
+import { ClaimReleaseManager } from "./claim-release-manager";
 import type { StoredDlqEntry } from "./repository";
 
 export interface ClaimEntriesOptions {
@@ -14,11 +11,37 @@ export interface ClaimEntriesOptions {
 	topic?: string;
 }
 
-const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
-
 export class DlqClaimManager {
 	private readonly _filterBuilder = new ClaimFilterBuilder();
 	private readonly _queryExecutor = new ClaimQueryExecutor();
+	private readonly _releaseManager = new ClaimReleaseManager();
+
+	async releaseStaleClaims(staleThresholdMs?: number): Promise<number> {
+		return this._releaseManager.releaseStaleClaims(staleThresholdMs);
+	}
+
+	async releaseAllActiveClaims(): Promise<number> {
+		return this._releaseManager.releaseAllActiveClaims();
+	}
+
+	async releaseClaimsByInstance(instanceId: string): Promise<number> {
+		return this._releaseManager.releaseClaimsByInstance(instanceId);
+	}
+
+	async releaseClaimWithoutCount(id: string): Promise<void> {
+		return this._releaseManager.releaseClaimWithoutCount(id);
+	}
+
+	async incrementRetryCount(id: string): Promise<boolean> {
+		return this._releaseManager.incrementRetryCount(id);
+	}
+
+	async claimEntry(
+		id: string,
+		ctx: import("./types").BatchContext
+	): Promise<StoredDlqEntry | null> {
+		return this._releaseManager.claimEntry(id, ctx);
+	}
 
 	async claimEntriesForRetry(
 		options: ClaimEntriesOptions
@@ -73,82 +96,6 @@ export class DlqClaimManager {
 			this._claimProjection
 		);
 		return claimed.map((doc) => this._filterBuilder.toStoredDlqEntry(doc));
-	}
-
-	async claimEntry(
-		id: string,
-		ctx: import("./types").BatchContext
-	): Promise<StoredDlqEntry | null> {
-		const col = await getCollection();
-		const result = await col.findOneAndUpdate(
-			{
-				_id: new ObjectId(id),
-				retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
-				processingAt: { $exists: false },
-				status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
-				consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
-			},
-			{
-				$set: {
-					processingAt: new Date(),
-					processingInstance: ctx.instanceId,
-					lastBatchId: ctx.batchId,
-				},
-			},
-			{
-				returnDocument: "after",
-				projection: this._claimProjection,
-			}
-		);
-		if (!result) {
-			return null;
-		}
-		return this._filterBuilder.toStoredDlqEntry(result);
-	}
-
-	async releaseStaleClaims(staleThresholdMs = 60_000): Promise<number> {
-		const col = await getCollection();
-		const staleThreshold = new Date(Date.now() - staleThresholdMs);
-		const result = await col.updateMany(
-			{ processingAt: { $lt: staleThreshold } },
-			{ $unset: { processingAt: "", processingInstance: "" } }
-		);
-		return result.modifiedCount;
-	}
-
-	async releaseAllActiveClaims(): Promise<number> {
-		const col = await getCollection();
-		const result = await col.updateMany(
-			{ processingAt: { $exists: true } },
-			{ $unset: { processingAt: "", processingInstance: "" } }
-		);
-		return result.modifiedCount;
-	}
-
-	async releaseClaimsByInstance(instanceId: string): Promise<number> {
-		const col = await getCollection();
-		const result = await col.updateMany(
-			{ processingInstance: instanceId },
-			{ $unset: { processingAt: "", processingInstance: "" } }
-		);
-		return result.modifiedCount;
-	}
-
-	async releaseClaimWithoutCount(id: string): Promise<void> {
-		const col = await getCollection();
-		await col.updateOne(
-			{ _id: new ObjectId(id) },
-			{ $unset: { processingAt: "", processingInstance: "" } }
-		);
-	}
-
-	async incrementRetryCount(id: string): Promise<boolean> {
-		const col = await getCollection();
-		const result = await col.updateOne(
-			{ _id: new ObjectId(id) },
-			{ $inc: { retryCount: 1 } }
-		);
-		return result.modifiedCount > 0;
 	}
 
 	private readonly _claimProjection = {

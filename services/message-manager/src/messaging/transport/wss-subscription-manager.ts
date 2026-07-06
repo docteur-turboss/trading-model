@@ -1,6 +1,7 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
 import type { IncomingWssMessage } from "./wss-message.types";
+import { TopicSubscriptionHandler } from "./topic-subscription-handler";
 
 export interface WsSubscription {
 	identity: ServiceIdentity;
@@ -18,6 +19,7 @@ const MAX_CONNECTIONS = 10000;
 
 export class WssSubscriptionManager {
 	private _subscriptions = new Map<string, WsSubscription>();
+	private readonly _topicHandler = new TopicSubscriptionHandler();
 
 	get size(): number {
 		return this._subscriptions.size;
@@ -54,66 +56,14 @@ export class WssSubscriptionManager {
 		msg: IncomingWssMessage,
 		ctx: SubscriptionContext
 	): void {
-		const { ws, topics, identity } = ctx;
-		const msgInstanceId = msg.instanceId;
-		if (msgInstanceId && msgInstanceId !== identity.instanceId) {
-			ws.send(
-				JSON.stringify({ type: "error", message: "instanceId mismatch" })
-			);
-			return;
-		}
-		const rawTopics = msg.topics;
-		if (
-			!(
-				Array.isArray(rawTopics) &&
-				rawTopics.every((topic) => typeof topic === "string")
-			)
-		) {
-			ws.send(
-				JSON.stringify({
-					type: "error",
-					message: "topics must be an array of strings",
-				})
-			);
-			return;
-		}
-		for (const topic of rawTopics as string[]) {
-			topics.add(topic);
-		}
-		ws.send(JSON.stringify({ type: "subscribed", topics: [...topics] }));
+		this._topicHandler.handleSubscribe(msg, ctx);
 	}
 
 	handleUnsubscribe(
 		msg: IncomingWssMessage,
 		ctx: SubscriptionContext
 	): void {
-		const { ws, topics, identity } = ctx;
-		const msgInstanceId = msg.instanceId;
-		if (msgInstanceId && msgInstanceId !== identity.instanceId) {
-			ws.send(
-				JSON.stringify({ type: "error", message: "instanceId mismatch" })
-			);
-			return;
-		}
-		const rawTopics = msg.topics;
-		if (
-			!(
-				Array.isArray(rawTopics) &&
-				rawTopics.every((topic) => typeof topic === "string")
-			)
-		) {
-			ws.send(
-				JSON.stringify({
-					type: "error",
-					message: "topics must be an array of strings",
-				})
-			);
-			return;
-		}
-		for (const topic of rawTopics as string[]) {
-			topics.delete(topic);
-		}
-		ws.send(JSON.stringify({ type: "unsubscribed", topics: [...topics] }));
+		this._topicHandler.handleUnsubscribe(msg, ctx);
 	}
 
 	broadcastToTopic(topic: string, message: unknown): number {

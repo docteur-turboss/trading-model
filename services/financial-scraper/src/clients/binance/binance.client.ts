@@ -1,4 +1,5 @@
 import type { CandlestickQuery } from "@trading-model/common/domain/candlestick-query";
+import type { TradingSymbol } from "@trading-model/common/domain/primitives";
 import { httpClients } from "../../config/http";
 import type {
 	Binance24hrTickerStatsResponse,
@@ -11,193 +12,111 @@ import type {
 	BinanceTradeResponse,
 	BinanceTradingDayTickerResponse,
 } from "../../types/binance.api";
+import { parseCandlestick } from "../../types/binance.api";
 import { BINANCE_ENDPOINTS } from "./endpoints";
 import { BINANCE_WEIGHTS } from "./weights";
 
 const BINANCE = httpClients.binance;
 
-function assertNonEmptySymbol(symbol: string, context: string): void {
-	if (!symbol || symbol.trim().length === 0) {
-		throw new Error(`${context}: symbol must be a non-empty string`);
-	}
+/** Parameter object for Binance market-data queries. */
+export interface BinanceMarketQuery {
+	symbol: TradingSymbol;
+	limit?: number;
 }
 
-/**
- * Fetch order book
- * Weight varies by limit:
- *  - 1–100 → 5
- *  - 101–500 → 25
- *  - 501–1000 → 50
- *  - 1001–5000 → 250
- * @param symbol {string} - the symbol to fetch (e.g., BTCUSDT)
- * @param limit {number} - maximum 500 - 1000
- * @returns {Promise<BinanceDepthResponse>}
- */
+/** Parameter object for Binance historical trade queries. */
+export interface BinanceHistoricalTradeQuery extends BinanceMarketQuery {
+	fromId: string | number;
+}
+
+/** Parameter object for Binance aggregate trade queries. */
+export interface BinanceAggregateTradeQuery {
+	symbol: TradingSymbol;
+	fromId: string | number;
+	limit?: number;
+}
+
 export async function getOrderBook(
-	symbol: string,
-	limit = 100
+	query: BinanceMarketQuery
 ): Promise<BinanceDepthResponse> {
-	assertNonEmptySymbol(symbol, "getOrderBook");
+	const { symbol, limit = 100 } = query;
 	const weight = BINANCE_WEIGHTS.depth(limit);
-	const url = BINANCE_ENDPOINTS.depth(symbol, limit);
+	const url = BINANCE_ENDPOINTS.depth({ symbol, limit });
 	return (await BINANCE.get(url, { weight })).data;
 }
 
-/**
- * Fetch recent trades
- * Weight: 25
- * @param symbol {string} - the symbol to fetch (e.g., BTCUSDT)
- * @param limit {number} - maximum 500 - 1000
- * @returns {Promise<BinanceTradeResponse>}
- */
 export async function getRecentTrades(
-	symbol: string,
-	limit = 500
+	query: BinanceMarketQuery
 ): Promise<BinanceTradeResponse> {
-	assertNonEmptySymbol(symbol, "getRecentTrades");
+	const { symbol, limit = 500 } = query;
 	const weight = BINANCE_WEIGHTS.trades();
-	const url = BINANCE_ENDPOINTS.trades(symbol, limit);
+	const url = BINANCE_ENDPOINTS.trades({ symbol, limit });
 	return (await BINANCE.get(url, { weight })).data;
 }
 
-/**
- * Fetch historical trades
- * Weight: 25
- * @param symbol {string} - the symbol to fetch (e.g., BTCUSDT)
- * @param limit {number} - maximum 500 - 1000
- * @param fromId {string|number} - trade ID from which to start fetching
- * @returns {Promise<BinanceHistoricalTradeResponse>}
- */
 export async function getHistoricalTrades(
-	symbol: string,
-	limit: number,
-	fromId: number | string
+	query: BinanceHistoricalTradeQuery
 ): Promise<BinanceHistoricalTradeResponse> {
-	assertNonEmptySymbol(symbol, "getHistoricalTrades");
-	const url = BINANCE_ENDPOINTS.historicalTrades(symbol, limit, fromId);
+	const { symbol, limit, fromId } = query;
 	const weight = BINANCE_WEIGHTS.historicalTrades();
+	const url = BINANCE_ENDPOINTS.historicalTrades({ symbol, limit, fromId });
 	return (await BINANCE.get(url, { weight })).data;
 }
 
-export async function getCandlestickData({
-	symbol,
-	interval,
-	startTime,
-	limit = 500,
-}: CandlestickQuery): Promise<BinanceCandlestickDataResponse> {
-	assertNonEmptySymbol(symbol, "getCandlestickData");
-	const url = BINANCE_ENDPOINTS.candlesticks(
-		symbol,
-		interval,
-		startTime,
-		limit
-	);
-	return _getWithWeight(url, BINANCE_WEIGHTS.candlesticks()) as Promise<BinanceCandlestickDataResponse>;
+export async function getCandlestickData(
+	query: CandlestickQuery
+): Promise<BinanceCandlestickDataResponse> {
+	const { symbol, interval, startTime, limit = 500 } = query;
+	const url = BINANCE_ENDPOINTS.candlesticks({ symbol, interval, startTime, limit });
+	const raw = await _getWithWeight(url, BINANCE_WEIGHTS.candlesticks()) as Array<[
+		number, string, string, string, string,
+		string, number, string, number, string,
+		string, string,
+	]>;
+	return raw.map((tuple) => parseCandlestick(tuple));
 }
 
 async function _getWithWeight(url: string, weight: number): Promise<unknown> {
 	return (await BINANCE.get(url, { weight })).data;
 }
 
-/**
- * Fetch compressed aggregate trades
- * Weight : 4.
- * @param symbol {string} - the symbol to fetch (e.g., BTCUSDT)
- * @param limit {number} - maximum 500 - 1000
- * @param fromId {string|number} - trade ID from which to start fetching
- * @param startTime {number} - timestamp in ms to start from (inclusive)
- * @returns {Promise<BinanceAggregateTradeResponse>}
- */
 export async function getCompressedAggregateTrades(
-	symbol: string,
-	fromId: string | number,
-	limit = 500
+	query: BinanceAggregateTradeQuery
 ): Promise<BinanceAggregateTradeResponse> {
-	assertNonEmptySymbol(symbol, "getCompressedAggregateTrades");
-	const url = BINANCE_ENDPOINTS.compressedAggregateTrades(
-		symbol,
-		fromId,
-		limit
-	);
+	const { symbol, fromId, limit = 500 } = query;
 	const weight = BINANCE_WEIGHTS.compressedAggregateTrades();
+	const url = BINANCE_ENDPOINTS.compressedAggregateTrades({ symbol, fromId, limit });
 	return (await BINANCE.get(url, { weight })).data;
 }
 
-/**
- * Fetch 24hr ticker stats
- * Weight varies by number of symbols:
- *  - up to 20 symbols → 2
- *  - 21–100 symbols → 40
- *  - more than 100 symbols → 80
- * @param symbol {string[]} - the symbols to fetch (e.g., ["BTCUSDT"])
- * @returns
- */
 export async function get24hrTickerStats(
-	symbol?: string[]
+	symbol?: TradingSymbol[]
 ): Promise<Binance24hrTickerStatsResponse> {
-	if (symbol) {
-		symbol.forEach((sym) => {
-			assertNonEmptySymbol(sym, "get24hrTickerStats");
-		});
-	}
 	const weight = BINANCE_WEIGHTS.change24hrStats((symbol ?? []).length);
 	const url = BINANCE_ENDPOINTS.change24hrStats(symbol);
 	return (await BINANCE.get(url, { weight })).data;
 }
 
-/**
- * Fetch 24hr ticker stats
- * Weight varies by number of symbols:
- *  - up to 50 symbols → 4 * number of symbols
- *  - less than 100 symbols → 200
- * @param symbol {string[]} - the symbols to fetch (e.g., ["BTCUSDT"])
- * @returns
- */
 export async function getTradingDayTicker(
-	symbol: string[]
+	symbol: TradingSymbol[]
 ): Promise<BinanceTradingDayTickerResponse> {
-	symbol.forEach((sym) => {
-		assertNonEmptySymbol(sym, "getTradingDayTicker");
-	});
 	const weight = BINANCE_WEIGHTS.tradingDayTicker(symbol.length);
 	const url = BINANCE_ENDPOINTS.tradingDayTicker(symbol);
 	return (await BINANCE.get(url, { weight })).data;
 }
 
-/**
- * Fetch symbol price ticker
- * Weight: 4.
- * @param symbol {string[]} - the symbols to fetch (e.g., ["BTCUSDT"])
- * @returns {Promise<BinanceSymbolPriceTickerResponse>}
- */
 export async function getSymbolPriceTicker(
-	symbol?: string[]
+	symbol?: TradingSymbol[]
 ): Promise<BinanceSymbolPriceTickerResponse> {
-	if (symbol) {
-		symbol.forEach((sym) => {
-			assertNonEmptySymbol(sym, "getSymbolPriceTicker");
-		});
-	}
 	const weight = BINANCE_WEIGHTS.symbolPriceTicker((symbol ?? []).length);
 	const url = BINANCE_ENDPOINTS.symbolPriceTicker(symbol);
 	return (await BINANCE.get(url, { weight })).data;
 }
 
-/**
- * Fetch order book ticker
- * Weight: 4.
- * @param symbol {string[]} - the symbols to fetch (e.g., ["BTCUSDT"])
- * @returns {Promise<BinanceSymbolPriceTickerResponse>}
- */
 export async function getOrderBookTicker(
-	symbol?: string[]
+	symbol?: TradingSymbol[]
 ): Promise<BinanceSymbolOrderBookTickerResponse> {
-	if (symbol) {
-		symbol.forEach((sym) => {
-			assertNonEmptySymbol(sym, "getOrderBookTicker");
-		});
-	}
 	const weight = BINANCE_WEIGHTS.orderBookTicker((symbol ?? []).length);
 	const url = BINANCE_ENDPOINTS.orderBookTicker(symbol);
 	return (await BINANCE.get(url, { weight })).data;
-} // 205
+}

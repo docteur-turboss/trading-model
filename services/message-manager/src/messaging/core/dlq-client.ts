@@ -7,7 +7,6 @@ import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import {
-	AppError,
 	messageManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
@@ -15,6 +14,7 @@ import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { MESSAGES_DLQ_ERROR_TOTAL } from "../../config/metrics";
 import type { DlqEntry } from "./dlq-repository";
+import { DlqSendHandler } from "./dlq-send-handler";
 
 function getHmacSecretBuffer(): Buffer {
 	const raw = ENV.DLQ_AUTH_HMAC_SECRET ?? "";
@@ -139,12 +139,14 @@ class NullDlqServiceClient implements IDlqServiceClient {
 }
 
 export class DlqServiceClient implements IDlqServiceClient {
-	private _httpClient: HttpClient;
+	private readonly _httpClient: HttpClient;
+	private readonly _sendHandler: DlqSendHandler;
 	private readonly _serviceUrl: string;
 
 	constructor(httpClient: HttpClient) {
 		this._httpClient = httpClient;
 		this._serviceUrl = ENV.DLQ_SERVICE_URL || "";
+		this._sendHandler = new DlqSendHandler(this._httpClient, this._serviceUrl);
 	}
 
 	get isEnabled(): boolean {
@@ -158,55 +160,10 @@ export class DlqServiceClient implements IDlqServiceClient {
 		const attempt = options?.attempt ?? 1;
 		const maxRetries = options?.maxRetries ?? 3;
 		try {
-			await this._doSend(entry);
+			await this._sendHandler.doSend(entry);
 		} catch (err) {
-			return this._handleSendError(entry, err as Error, attempt, maxRetries);
+			return this._sendHandler.handleSendError(entry, err as Error, attempt, maxRetries);
 		}
-	}
-
-	private async _doSend(entry: DlqEntry): Promise<void> {
-		await this._httpClient.post(
-			`${this._serviceUrl}/dlq`,
-			entry,
-			signedOptions({ method: "POST", path: "/dlq", body: entry, extra: { timeoutMs: 5000 } })
-		);
-		logger.info("DLQ entry sent to DLQ service", { context: { reason: entry.reason } });
-	}
-
-	private async _handleSendError(
-		entry: DlqEntry,
-		err: Error,
-		attempt: number,
-		maxRetries: number
-	): Promise<void> {
-		if (attempt <= maxRetries) {
-			await this._retrySend(entry, err, attempt, maxRetries);
-			return;
-		}
-		logger.error("Failed to send DLQ entry to service after retries", { context: {
-			error: normalizeError(err),
-			reason: entry.reason,
-		} });
-		throw messageManagerError("Failed to send DLQ entry", { cause: err });
-	}
-
-	private async _retrySend(
-		entry: DlqEntry,
-		err: Error,
-		attempt: number,
-		maxRetries: number
-	): Promise<void> {
-		const delay = Math.round(
-			Math.min(200 * 2 ** (attempt - 1), 5000) * (0.5 + Math.random() * 0.5)
-		);
-		logger.warn("Retrying DLQ send after error", { context: {
-			attempt,
-			delay,
-			reason: entry.reason,
-			error: normalizeError(err),
-		} });
-		await new Promise((resolve) => setTimeout(resolve, delay));
-		return this.send(entry, { attempt: attempt + 1, maxRetries });
 	}
 
 	async replay(topic?: string, limit = 100): Promise<DlqEntry[]> {
@@ -214,7 +171,7 @@ export class DlqServiceClient implements IDlqServiceClient {
 			return [];
 		}
 		try {
-			const url = this._buildReplayUrl(topic, limit);
+			const url = this._sendHandler.buildReplayUrl(topic, limit);
 			const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
 				url,
 				signedOptions({ method: "GET", path: "/dlq", body: undefined, extra: { timeoutMs: 5000 } })
@@ -226,15 +183,6 @@ export class DlqServiceClient implements IDlqServiceClient {
 			} });
 			return [];
 		}
-	}
-
-	private _buildReplayUrl(topic?: string, limit = 100): string {
-		const params = new URLSearchParams();
-		if (topic) {
-			params.set("topic", topic);
-		}
-		params.set("limit", limit.toString());
-		return `${this._serviceUrl}/dlq?${params.toString()}`;
 	}
 
 	async delete(entryIds: string[]): Promise<void> {

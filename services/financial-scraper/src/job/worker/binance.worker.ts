@@ -1,29 +1,13 @@
-/**
- * BinanceWorker
- * -------------
- * Orchestration-oriented worker intended to be executed via node-cron.
- *
- * Responsibilities:
- *  - Orchestrating Binance API calls
- *  - Data normalization
- *  - Returning a unified payload ready for persistence
- *
- * The worker is deliberately stateless to simplify usage
- * in distributed environments.
- */
-
 import { createHash, randomUUID } from "node:crypto";
 
 import { HELPER } from "@trading-model/broker-message";
 import type { MessageMetadata } from "@trading-model/broker-message/shared/helper/messages/message";
-import {
-	DeliveryMode,
-	type DeliveryMode,
-} from "@trading-model/common/config/delivery-mode.types";
-import type { CandleInterval } from "@trading-model/common/config/event.types";
+import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import { CandleInterval } from "@trading-model/common/config/event.types";
 import { EnumEventMessage } from "@trading-model/common/config/event.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { TradingSymbol } from "@trading-model/common/domain/primitives";
+import type { MessageId, TradingSymbol } from "@trading-model/common/domain/primitives";
+import { toMessageId } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 
 import {
@@ -38,7 +22,6 @@ import { BinanceNormalizer } from "../../clients/binance/normalizer";
 import { env } from "../../config/env";
 import { MessageManager } from "../../config/message-manager";
 
-/** Configuration options for a single BinanceWorker execution against one symbol. */
 export interface BinanceWorkerOptions {
 	symbol: TradingSymbol;
 	interval?: CandleInterval;
@@ -48,7 +31,6 @@ export interface BinanceWorkerOptions {
 	deliveryMode?: DeliveryMode;
 }
 
-/** Normalized market data returned by a BinanceWorker execution, ready for persistence. */
 export interface BinanceWorkerResult {
 	orderBook?: ReturnType<typeof BinanceNormalizer.orderBook>;
 	recentTrades?: ReturnType<typeof BinanceNormalizer.trades>;
@@ -72,11 +54,6 @@ export interface MarketDataContext extends MarketDataEntry {
 export class BinanceWorker {
 	constructor(private readonly _options: BinanceWorkerOptions) {}
 
-	/**
-	 * Main worker execution.
-	 * Can be directly invoked from node-cron.
-	 *
-	 */
 	public async run(): Promise<BinanceWorkerResult> {
 		const builderMetadata = new HELPER.metadataBuilder();
 		const opts = this._options;
@@ -85,7 +62,7 @@ export class BinanceWorker {
 		const response = _buildResponse(opts.symbol, opts.interval, rawData);
 
 		this._configureMetadata(builderMetadata);
-		_sendAllMarketData(this._buildMarketDataEntries(response), builderMetadata);
+		this._sendAllMarketData(this._buildMarketDataEntries(response), builderMetadata);
 
 		return response;
 	}
@@ -103,73 +80,16 @@ export class BinanceWorker {
 			});
 		}
 	}
-}
 
-interface RawBinanceData {
-	orderBookRaw: Awaited<ReturnType<typeof getOrderBook>>;
-	tradesRaw: Awaited<ReturnType<typeof getRecentTrades>>;
-	candlesRaw: Awaited<ReturnType<typeof getCandlestickData>>;
-	ticker24hRaw: Awaited<ReturnType<typeof get24hrTickerStats>>;
-	priceTickerRaw: Awaited<ReturnType<typeof getSymbolPriceTicker>>;
-	bookTickerRaw: Awaited<ReturnType<typeof getOrderBookTicker>>;
-}
-
-async function _fetchAllRawData(
-	opts: BinanceWorkerOptions
-): Promise<RawBinanceData> {
-	const {
-		symbol,
-		candleLimit = 100,
-		tradeLimit = 100,
-		orderBookLimit = 100,
-	} = opts;
-	const interval = opts.interval ?? CandleInterval.MIN1;
-
-	const [
-		orderBookRaw,
-		tradesRaw,
-		candlesRaw,
-		ticker24hRaw,
-		priceTickerRaw,
-		bookTickerRaw,
-	] = await Promise.all([
-		getOrderBook(symbol, orderBookLimit),
-		getRecentTrades(symbol, tradeLimit),
-		getCandlestickData({ symbol, limit: candleLimit, interval }),
-		get24hrTickerStats([symbol]),
-		getSymbolPriceTicker([symbol]),
-		getOrderBookTicker([symbol]),
-	]);
-
-	return {
-		orderBookRaw,
-		tradesRaw,
-		candlesRaw,
-		ticker24hRaw,
-		priceTickerRaw,
-		bookTickerRaw,
-	};
-}
-
-function _buildResponse(
-	symbol: TradingSymbol,
-	interval: CandleInterval | undefined,
-	raw: RawBinanceData
-): BinanceWorkerResult {
-	return {
-		orderBook: BinanceNormalizer.orderBook(symbol, raw.orderBookRaw),
-		recentTrades: BinanceNormalizer.trades(symbol, raw.tradesRaw),
-		candles: BinanceNormalizer.candles(
-			symbol,
-			interval ?? CandleInterval.MIN1,
-			raw.candlesRaw
-		),
-		ticker24h: BinanceNormalizer.ticker24h(raw.ticker24hRaw),
-		priceTicker: BinanceNormalizer.priceTicker(raw.priceTickerRaw),
-		bookTicker: BinanceNormalizer.bookTicker(raw.bookTickerRaw),
-		fetchedAt: Date.now(),
-	};
-}
+	private _sendMarketData({
+		data,
+		topic,
+		eventType,
+		builder,
+	}: MarketDataContext): void {
+		builder.setTopic(topic).setEventType(eventType);
+		MessageManager.post.indirect(data, builder.toJSON());
+	}
 
 	private _configureMetadata(
 		builder: typeof HELPER.metadataBuilder.prototype
@@ -186,51 +106,6 @@ function _buildResponse(
 			.setPublisher(_buildPublisher());
 	}
 
-function _buildAuthContext(): {
-	roles: string[];
-	subject: string;
-	tenantId: string;
-} {
-	return {
-		roles: ["Data", "Financial", "Scraper"],
-		subject: env.SERVICE_NAME,
-		tenantId: env.INSTANCE_ID,
-	};
-}
-
-function _computeSignature(authContext: unknown): string {
-	return createHash("sha256")
-		.update(deterministicStringify(authContext))
-		.digest("base64url");
-}
-
-function _buildDeliveryConfig(
-	deliveryMode?: import("@trading-model/common/config/delivery-mode.types").DeliveryMode
-): { mode: string; deduplicationId: string } {
-	return {
-		mode: deliveryMode ?? DeliveryMode.AT_LEAST_ONCE,
-		deduplicationId: randomUUID(),
-	};
-}
-
-function _buildIds(): { causationId: string; correlationId: string } {
-	return {
-		causationId: randomUUID(),
-		correlationId: randomUUID(),
-	};
-}
-
-function _buildPublisher(): {
-	instanceId: string;
-	serviceName: ServiceInstanceName;
-} {
-	return {
-		instanceId: env.INSTANCE_ID,
-		serviceName: env.SERVICE_NAME as ServiceInstanceName,
-	};
-}
-
-export class BinanceWorker {
 	private _buildMarketDataEntries(response: BinanceWorkerResult): MarketDataEntry[] {
 		return [
 			_makeEntry(
@@ -267,6 +142,72 @@ export class BinanceWorker {
 	}
 }
 
+interface RawBinanceData {
+	orderBookRaw: Awaited<ReturnType<typeof getOrderBook>>;
+	tradesRaw: Awaited<ReturnType<typeof getRecentTrades>>;
+	candlesRaw: Awaited<ReturnType<typeof getCandlestickData>>;
+	ticker24hRaw: Awaited<ReturnType<typeof get24hrTickerStats>>;
+	priceTickerRaw: Awaited<ReturnType<typeof getSymbolPriceTicker>>;
+	bookTickerRaw: Awaited<ReturnType<typeof getOrderBookTicker>>;
+}
+
+async function _fetchAllRawData(
+	opts: BinanceWorkerOptions
+): Promise<RawBinanceData> {
+	const {
+		symbol,
+		candleLimit = 100,
+		tradeLimit = 100,
+		orderBookLimit = 100,
+	} = opts;
+	const interval = opts.interval ?? CandleInterval.MIN1;
+
+	const [
+		orderBookRaw,
+		tradesRaw,
+		candlesRaw,
+		ticker24hRaw,
+		priceTickerRaw,
+		bookTickerRaw,
+	] = await Promise.all([
+		getOrderBook({ symbol, limit: orderBookLimit }),
+		getRecentTrades({ symbol, limit: tradeLimit }),
+		getCandlestickData({ symbol, limit: candleLimit, interval }),
+		get24hrTickerStats([symbol]),
+		getSymbolPriceTicker([symbol]),
+		getOrderBookTicker([symbol]),
+	]);
+
+	return {
+		orderBookRaw,
+		tradesRaw,
+		candlesRaw,
+		ticker24hRaw,
+		priceTickerRaw,
+		bookTickerRaw,
+	};
+}
+
+function _buildResponse(
+	symbol: TradingSymbol,
+	interval: CandleInterval | undefined,
+	raw: RawBinanceData
+): BinanceWorkerResult {
+	return {
+		orderBook: BinanceNormalizer.orderBook(symbol, raw.orderBookRaw),
+		recentTrades: BinanceNormalizer.trades(symbol, raw.tradesRaw),
+		candles: BinanceNormalizer.candles(
+			symbol,
+			interval ?? CandleInterval.MIN1,
+			raw.candlesRaw
+		),
+		ticker24h: BinanceNormalizer.ticker24h(raw.ticker24hRaw),
+		priceTicker: BinanceNormalizer.priceTicker(raw.priceTickerRaw),
+		bookTicker: BinanceNormalizer.bookTicker(raw.bookTickerRaw),
+		fetchedAt: Date.now(),
+	};
+}
+
 function _makeEntry(
 	data: unknown,
 	topic: string,
@@ -275,14 +216,46 @@ function _makeEntry(
 	return { data, topic, eventType };
 }
 
-export class BinanceWorker {
-	private _sendMarketData({
-		data,
-		topic,
-		eventType,
-		builder,
-	}: MarketDataContext): void {
-		builder.setTopic(topic).setEventType(eventType);
-		MessageManager.post.indirect(data, builder.toJSON());
-	}
+function _buildAuthContext(): {
+	roles: string[];
+	subject: string;
+	tenantId: string;
+} {
+	return {
+		roles: ["Data", "Financial", "Scraper"],
+		subject: env.SERVICE_NAME,
+		tenantId: env.INSTANCE_ID,
+	};
+}
+
+function _computeSignature(authContext: unknown): string {
+	return createHash("sha256")
+		.update(deterministicStringify(authContext))
+		.digest("base64url");
+}
+
+function _buildDeliveryConfig(
+	deliveryMode?: import("@trading-model/common/config/delivery-mode.types").DeliveryMode
+): { mode: import("@trading-model/common/config/delivery-mode.types").DeliveryMode; deduplicationId: MessageId } {
+	return {
+		mode: deliveryMode ?? DeliveryMode.AT_LEAST_ONCE,
+		deduplicationId: toMessageId(randomUUID()),
+	};
+}
+
+function _buildIds(): { causationId: string; correlationId: string } {
+	return {
+		causationId: randomUUID(),
+		correlationId: randomUUID(),
+	};
+}
+
+function _buildPublisher(): {
+	instanceId: string;
+	serviceName: ServiceInstanceName;
+} {
+	return {
+		instanceId: env.INSTANCE_ID,
+		serviceName: env.SERVICE_NAME as ServiceInstanceName,
+	};
 }

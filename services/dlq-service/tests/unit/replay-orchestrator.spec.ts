@@ -16,22 +16,22 @@ describe("ReplayOrchestrator", () => {
 				circuitThreshold: 3,
 				circuitCooldownMs: 60000,
 			});
-			orch.recordResult(false);
-			orch.recordResult(false);
-			orch.recordResult(false);
+			orch.recordFailure();
+			orch.recordFailure();
+			orch.recordFailure();
 			expect(orch.canProceed()).toBe(false);
 		});
 	});
 
-	describe("recordResult", () => {
+	describe("recordFailure / recordSuccess", () => {
 		it("should reset failures on success", () => {
 			const orch = new ReplayOrchestrator({
 				circuitThreshold: 5,
 				circuitCooldownMs: 60000,
 				halfOpenMaxAttempts: 2,
 			});
-			orch.recordResult(false);
-			orch.recordResult(true);
+			orch.recordFailure();
+			orch.recordSuccess();
 			expect(orch.canProceed()).toBe(true);
 		});
 
@@ -40,9 +40,9 @@ describe("ReplayOrchestrator", () => {
 				circuitThreshold: 3,
 				circuitCooldownMs: 60000,
 			});
-			orch.recordResult(false);
-			orch.recordResult(false);
-			orch.recordResult(false);
+			orch.recordFailure();
+			orch.recordFailure();
+			orch.recordFailure();
 			expect(orch.canProceed()).toBe(false);
 		});
 
@@ -52,9 +52,9 @@ describe("ReplayOrchestrator", () => {
 				circuitCooldownMs: 60000,
 				halfOpenMaxAttempts: 2,
 			});
-			orch.recordResult(false);
-			orch.recordResult(false);
-			orch.recordResult(false);
+			orch.recordFailure();
+			orch.recordFailure();
+			orch.recordFailure();
 			expect(orch.canProceed()).toBe(false);
 		});
 	});

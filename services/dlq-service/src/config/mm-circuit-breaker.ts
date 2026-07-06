@@ -1,127 +1,66 @@
 import { logger } from "./logger";
-
-import type { CircuitState } from "@trading-model/common/domain/circuit-state";
-
-export interface MessageManagerCircuitBreakerConfig {
-	failureThreshold: number;
-	resetMs: number;
-	halfOpenMaxAttempts: number;
-	name: string;
-}
+import { CircuitBreakerState } from "./circuit-breaker-state";
+import type { CircuitStateConfig } from "./circuit-breaker-state";
 
 export class MessageManagerCircuitBreaker {
-	private _failures = 0;
-	private _openUntil = 0;
-	private _halfOpenAttempts = 0;
-	protected readonly _config: MessageManagerCircuitBreakerConfig;
+	private readonly _state: CircuitBreakerState;
 
-	constructor(config?: Partial<MessageManagerCircuitBreakerConfig>) {
-		this._config = {
+	constructor(config?: Partial<CircuitStateConfig>) {
+		this._state = new CircuitBreakerState({
 			failureThreshold: 5,
 			resetMs: 30_000,
 			halfOpenMaxAttempts: 2,
 			name: "message-manager",
 			...config,
-		};
+		});
 	}
 
 	isOpen(_key?: string): boolean {
-		if (this._openUntil > Date.now()) {
-			return true;
-		}
-		if (this._openUntil > 0) {
-			this._resetInternal();
-		}
-		return false;
+		return this._state.isOpen(Date.now());
 	}
 
 	isAllowed(_key?: string): boolean {
-		return !this.isOpen();
+		return !this._state.isOpen(Date.now());
 	}
 
-	check(_key?: string): CircuitState {
-		if (this._openUntil > Date.now()) {
-			return "open";
+	check(_key?: string): import("@trading-model/common/domain/circuit-state").CircuitState {
+		const now = Date.now();
+		const state = this._state.getState(now);
+		if (state === "half-open") {
+			this._state.reset();
 		}
-		if (this._openUntil > 0) {
-			this._resetInternal();
-			return "half-open";
-		}
-		return "closed";
+		return state;
 	}
 
-	recordResult(success: boolean): void {
-		if (success) {
-			this._resetOnSuccess();
-		} else {
-			this._handleFailure();
-		}
+	recordSuccess(): void {
+		this._state.recordSuccess();
 	}
 
-	getState(_key?: string): CircuitState {
-		if (this._openUntil > Date.now()) {
-			return "open";
-		}
-		if (this._openUntil > 0) {
-			return "half-open";
-		}
-		return "closed";
+	recordFailure(): void {
+		this._state.recordFailure(Date.now(), this._logOpened);
+	}
+
+	getState(_key?: string): import("@trading-model/common/domain/circuit-state").CircuitState {
+		return this._state.getState(Date.now());
 	}
 
 	getFailureCount(_key?: string): number {
-		return this._failures;
+		return this._state.failures;
 	}
 
 	clear(): void {
-		this._resetInternal();
+		this._state.reset();
 	}
 
-	private _resetInternal(): void {
-		this._failures = 0;
-		this._openUntil = 0;
-		this._halfOpenAttempts = 0;
-	}
-
-	private _resetOnSuccess(): void {
-		if (this._failures > 0) {
-			this._failures = 0;
-		}
-		this._openUntil = 0;
-		this._halfOpenAttempts = 0;
-	}
-
-	private _handleFailure(): void {
-		this._failures++;
-		this._checkHalfOpenReopen();
-		this._checkThresholdOpen();
-	}
-
-	private _checkHalfOpenReopen(): void {
-		if (this._openUntil <= 0) {
-			return;
-		}
-		this._halfOpenAttempts++;
-		if (this._halfOpenAttempts >= this._config.halfOpenMaxAttempts) {
-			this._openUntil = Date.now() + this._config.resetMs;
-			logger.warn(
-				`${this._config.name} circuit breaker re-opened during half-open`,
-				{
-					failures: this._failures,
-					halfOpenAttempts: this._halfOpenAttempts,
-					resetMs: this._config.resetMs,
-				}
-			);
-		}
-	}
-
-	private _checkThresholdOpen(): void {
-		if (this._failures < this._config.failureThreshold) {
-			return;
-		}
-		this._openUntil = Date.now() + this._config.resetMs;
-		logger.warn(`${this._config.name} circuit breaker opened`, {
-			failures: this._failures,
-			resetMs: this._config.resetMs,
-		});
-	}
+	private readonly _logOpened = (
+		name: string,
+		failures: number,
+		halfOpenAttempts: number,
+		resetMs: number
+	): void => {
+		logger.warn(
+			`${name} circuit breaker ${halfOpenAttempts > 0 ? "re-opened during half-open" : "opened"}`,
+			{ failures, halfOpenAttempts, resetMs }
+		);
+	};
 }

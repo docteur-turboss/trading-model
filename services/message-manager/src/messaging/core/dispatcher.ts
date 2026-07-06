@@ -20,14 +20,11 @@ import { toMessageId } from "@trading-model/common/domain/primitives";
 import type { FileDlqRepository } from "./dlq-repository";
 import { HttpMessageDelivery } from "./http-message-delivery";
 import { sanitizePayload } from "./payload-sanitizer";
-import { Subscription } from "./subscription";
+import { SubscriptionRegistry } from "./subscription-registry";
 
 /** Coordinates message delivery between published messages and registered subscriptions. */
 export class Dispatcher {
-	/**
-	 * In-memory mapping of topics to subscriptions.
-	 */
-	private _subscriptionsByTopic = new Map<string, readonly Subscription[]>();
+	private readonly _registry: SubscriptionRegistry;
 	private readonly _deliveryPort: HttpMessageDelivery;
 
 	constructor(
@@ -35,6 +32,7 @@ export class Dispatcher {
 		readonly dlqRepository: FileDlqRepository
 	) {
 		this._deliveryPort = new HttpMessageDelivery(httpClient, dlqRepository);
+		this._registry = new SubscriptionRegistry(this._deliveryPort);
 	}
 
 	/** Publish a message to subscribers. */
@@ -61,32 +59,13 @@ export class Dispatcher {
 		callbackPath: string;
 		consumerIdentity: ServiceIdentity;
 	}): void {
-		const { topic, consumerIdentity, callbackPath } = params;
-
-		const current = this._subscriptionsByTopic.get(topic) ?? [];
-
-		if (
-			current.some(
-				(sub) => sub.serviceIdentity.instanceId === consumerIdentity.instanceId
-			)
-		) {
-			return;
-		}
-
-		const subscription = new Subscription({
-			topic,
-			callbackURL: callbackPath,
-			serviceIdentity: consumerIdentity,
-			deliveryPort: this._deliveryPort,
-		});
-
-		this._subscriptionsByTopic.set(topic, [...current, subscription]);
+		this._registry.subscribe(params);
 	}
 
 	/** Dispatch a message to all subscribers of its topic. */
 	async dispatch<TData>(message: Message<TData>) {
 		const { topic } = message.metadata;
-		const subscriptions = this._subscriptionsByTopic.get(topic);
+		const subscriptions = this._registry.getSubscriptions(topic);
 		if (!subscriptions?.length) {
 			return;
 		}
@@ -137,20 +116,6 @@ export class Dispatcher {
 
 	/** Unregister a subscription from a topic. */
 	unsubscribe(params: { topic: string; instanceId: string }): void {
-		const { topic, instanceId } = params;
-
-		const current = this._subscriptionsByTopic.get(topic);
-		if (!current) {
-			return;
-		}
-
-		const remaining = current.filter(
-			(sub) => sub.serviceIdentity.instanceId !== instanceId
-		);
-
-		if (remaining.length === 0) {
-			this._subscriptionsByTopic.delete(topic);
-		}
-		this._subscriptionsByTopic.set(topic, remaining);
+		this._registry.unsubscribe(params);
 	}
 }

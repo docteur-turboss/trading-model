@@ -1,7 +1,7 @@
 import type { Port } from "@trading-model/common/domain/primitives";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { ResponseException } from "@trading-model/common/middleware/response-exception";
-import { createSecureServer } from "@trading-model/common/server/create-secure-server";
+import { createSecureServer, buildTlsFromEnv } from "@trading-model/common/server/create-secure-server";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { env } from "../config/env";
@@ -12,7 +12,7 @@ import type { Trainer } from "../core/trainer";
 export function createServer(trainer: Trainer) {
 	return createSecureServer({
 		port: env.PORT as Port,
-		tls: _buildTlsConfig(),
+		tls: buildTlsFromEnv(env),
 		routes: (app) => {
 			app.get("/best-agent", createBestAgentHandler(trainer));
 			app.get("/training-status", createTrainingStatusHandler(trainer));
@@ -21,14 +21,6 @@ export function createServer(trainer: Trainer) {
 			MessageManagerListenExpress(app);
 		},
 	});
-}
-
-function _buildTlsConfig() {
-	return {
-		keyPath: env.TLS_KEY_PATH,
-		certPath: env.TLS_CERT_PATH,
-		caPath: env.TLS_CA_PATH,
-	};
 }
 
 function createBestAgentHandler(trainer: Trainer) {

@@ -1,4 +1,4 @@
-import { createSecureServer } from "@trading-model/common/server/create-secure-server";
+import { createSecureServer, buildTlsFromEnv } from "@trading-model/common/server/create-secure-server";
 
 import { FINANCIAL_ROUTES } from "../clients/http/routes";
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
@@ -9,11 +9,7 @@ import { MessageManagerListenExpress } from "../config/message-manager";
 export function createServer() {
 	return createSecureServer({
 		port: env.PORT,
-		tls: {
-			keyPath: env.TLS_KEY_PATH,
-			certPath: env.TLS_CERT_PATH,
-			caPath: env.TLS_CA_PATH,
-		},
+		tls: buildTlsFromEnv(env),
 		routes: _registerScraperRoutes,
 	});
 }

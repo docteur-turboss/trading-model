@@ -1,6 +1,5 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
-import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { WalBatchFlusher } from "./wal-batch-flusher";
@@ -8,16 +7,16 @@ import { WalDrainCoordinator } from "./wal-drain-coordinator";
 import { WalEntryParser } from "./wal-entry-parser";
 import { WalFlushErrorHandler } from "./wal-flush-error-handler";
 import { WalFlushLoop } from "./wal-flush-loop";
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import { WalFlushManager } from "./wal-flush-manager";
+import { WalShutdownDrainer } from "./wal-shutdown-drainer";
 
 const WAL_LIST_MAX_LEN = 1_000_000;
 
 export class WalFlusherService {
-	private _walFlushing = false;
-	private readonly _walFlusherTimer = new TimerHandle();
-
+	private readonly _flushManager: WalFlushManager;
 	private readonly _flushLoop: WalFlushLoop;
 	private readonly _drainCoordinator: WalDrainCoordinator;
+	private readonly _shutdownDrainer: WalShutdownDrainer;
 
 	constructor(
 		private readonly _prefix: string,
@@ -38,7 +37,15 @@ export class WalFlusherService {
 		this._drainCoordinator = new WalDrainCoordinator(
 			this._memoryWalBuffer,
 			() => this._walKey(),
-			() => this._flushWal(),
+			() => this._flushManager.flush(),
+		);
+		this._flushManager = new WalFlushManager(
+			this._flushLoop,
+			this._drainCoordinator,
+		);
+		this._shutdownDrainer = new WalShutdownDrainer(
+			this._drainCoordinator,
+			this._memoryWalBuffer,
 		);
 	}
 
@@ -47,14 +54,11 @@ export class WalFlusherService {
 	}
 
 	start(): void {
-		this._walFlusherTimer.startInterval(() => {
-			this._flushWal().catch(() => {});
-		}, 1000);
-		this._walFlusherTimer.unref();
+		this._flushManager.start();
 	}
 
 	stop(): void {
-		this._walFlusherTimer.stop();
+		this._flushManager.stop();
 	}
 
 	async storeInWal(
@@ -74,38 +78,9 @@ export class WalFlusherService {
 
 	async drainAndStop(timeoutMs = 10_000): Promise<void> {
 		const deadline = Date.now() + timeoutMs;
-		await this._drainWalWithDeadline(deadline);
-		await this._drainMemoryWithDeadline(deadline);
+		await this._shutdownDrainer.drainWalWithDeadline(deadline);
+		await this._shutdownDrainer.drainMemoryWithDeadline(deadline);
 		this.stop();
-	}
-
-	private async _drainWalWithDeadline(deadline: number): Promise<void> {
-		try {
-			const remaining = deadline - Date.now();
-			if (remaining > 0) {
-				await this._drainCoordinator.drain(remaining);
-			}
-		} catch (err) {
-			logger.warn("WAL drain failed during shutdown", { context: {
-				error: (err as Error).message,
-			} });
-		}
-	}
-
-	private async _drainMemoryWithDeadline(deadline: number): Promise<void> {
-		while (this._memoryWalBuffer.length > 0) {
-			if (Date.now() >= deadline) {
-				logger.warn("Memory WAL drain timed out", { context: {
-				remaining: this._memoryWalBuffer.length,
-			} });
-				break;
-			}
-			try {
-				await this._memoryWalBuffer.drainAll();
-			} catch {
-				break;
-			}
-		}
 	}
 
 	async drain(timeoutMs = 10_000): Promise<void> {
@@ -113,31 +88,10 @@ export class WalFlusherService {
 	}
 
 	async flush(): Promise<void> {
-		await this._flushWal();
+		await this._flushManager.flush();
 	}
 
 	bufferInMemory(topic: string, serialized: string, message: Message): void {
 		this._memoryWalBuffer.push(topic, serialized, message);
-	}
-
-	private _completeWalFlush(): void {
-		this._walFlushing = false;
-		this._drainCoordinator.resolveDrain();
-		this._drainCoordinator.notifyWaiters();
-	}
-
-	private async _flushWal(): Promise<void> {
-		if (this._walFlushing) {
-			return this._drainCoordinator.enqueueFlushWaiter();
-		}
-		this._walFlushing = true;
-
-		try {
-			await this._flushLoop.drainAll();
-		} catch (err) {
-			logger.error("WAL flush error", { context: { error: (err as Error).message } });
-		} finally {
-			this._completeWalFlush();
-		}
 	}
 }

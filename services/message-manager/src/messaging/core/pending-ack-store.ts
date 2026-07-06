@@ -2,9 +2,11 @@ import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import { StaleEntryScanner } from "./stale-entry-scanner";
 
 export class PendingAckStore {
 	private readonly _prefix: string;
+	private readonly _staleScanner = new StaleEntryScanner();
 
 	constructor(prefix: string) {
 		this._prefix = prefix;
@@ -70,7 +72,7 @@ export class PendingAckStore {
 			const pendingKey = this._pendingKey(ownInstanceId);
 			const now = Date.now();
 
-			const staleIds = await this._scanStaleEntries(
+			const staleIds = await this._staleScanner.scan(
 				redis,
 				pendingKey,
 				now,
@@ -91,56 +93,4 @@ export class PendingAckStore {
 			return 0;
 		}
 	}
-
-	private async _scanStaleEntries(
-		redis: import("ioredis").Redis,
-		pendingKey: string,
-		now: number,
-		maxAgeMs: number
-	): Promise<string[]> {
-		const toDelete: string[] = [];
-		let cursor = "0";
-
-		do {
-			const [nextCursor, batch] = await redis.hscan(
-				pendingKey,
-				cursor,
-				"COUNT",
-				200
-			);
-			cursor = nextCursor;
-
-			for (let i = 0; i < batch.length; i += 2) {
-				const msgId = batch[i];
-				const data = batch[i + 1];
-				if (this._isStaleEntry(data, now, maxAgeMs)) {
-					toDelete.push(msgId);
-				}
-			}
-		} while (cursor !== "0");
-
-		return toDelete;
-	}
-
-	private _isStaleEntry(data: string, now: number, maxAgeMs: number): boolean {
-		try {
-			const entry = JSON.parse(data) as StaleEntryData;
-			return computeEntryAge(entry, now) > maxAgeMs;
-		} catch {
-			return true;
-		}
-	}
-}
-
-interface StaleEntryData {
-	topic: string;
-	subscriberUrl: string;
-	message: Message;
-	pendingAt?: number;
-}
-
-function computeEntryAge(entry: StaleEntryData, now: number): number {
-	return entry.pendingAt === undefined
-		? now - new Date(entry.message.metadata.emittedAt ?? 0).getTime()
-		: now - entry.pendingAt;
 }

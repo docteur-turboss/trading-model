@@ -1,4 +1,4 @@
-import { AppError, agentError } from "@trading-model/common/utils/errors";
+import { agentError } from "@trading-model/common/utils/errors";
 
 import { NeuralNetwork } from "./neural-network";
 import type {
@@ -6,8 +6,8 @@ import type {
 	NetworkArchitecture,
 	NeuralNetworkConfig,
 } from "./type";
-import { createExperiencePool, type IExperiencePool } from "./experience-pool";
 import { ScoreTracker } from "./score-tracker";
+import { AgentExperienceHandler } from "./agent-experience-handler";
 
 /**
  * High-level agent that wraps a {@link NeuralNetwork} and adds:
@@ -34,7 +34,7 @@ export interface FastForwardInput {
 export class Agent {
 	private readonly _nn: NeuralNetwork;
 	private readonly _scoreTracker: ScoreTracker;
-	private readonly _pool: IExperiencePool;
+	private readonly _experienceHandler: AgentExperienceHandler;
 
 	/**
 	 * @param cfg - Architecture settings consumed by the agent layer;
@@ -47,9 +47,7 @@ export class Agent {
 			);
 		}
 
-		const enablePool = cfg.enablePool ?? true;
-		const poolMaxSize = cfg.poolMaxSize ?? 10_000;
-		this._pool = createExperiencePool(enablePool, poolMaxSize);
+		this._experienceHandler = new AgentExperienceHandler(cfg);
 		this._scoreTracker = new ScoreTracker();
 		this._nn = new NeuralNetwork(cfg as NeuralNetworkConfig);
 	}
@@ -70,31 +68,19 @@ export class Agent {
 		this._scoreTracker.resetScores();
 	}
 
-	private _buildExperience(
-		input: Float32Array,
-		output: Float32Array,
-		reward?: number,
-		nextState?: Float32Array,
-		done?: boolean
-	): Experience {
-		return reward !== undefined && nextState !== undefined
-			? { kind: "qlearning", input, output: output.slice(), reward, nextState, done: done ?? false }
-			: { kind: "bare", input, output: output.slice() };
-	}
-
 	public fastForward(ff: FastForwardInput): Float32Array {
 		const { input, reward, nextState, done } = ff;
 		const { output } = this._nn.forward(input);
-		this._pool.add(this._buildExperience(input, output, reward, nextState, done));
+		this._experienceHandler.recordExperience(input, output, reward, nextState, done);
 		return output;
 	}
 
 	public getPool(): Experience[] {
-		return this._pool.getPool();
+		return this._experienceHandler.getPool();
 	}
 
 	public getPoolSize(): number {
-		return this._pool.getPoolSize();
+		return this._experienceHandler.getPoolSize();
 	}
 
 	public forward(input: Float32Array): { output: Float32Array } {
@@ -118,45 +104,23 @@ export class Agent {
 	}
 
 	public clearPool(): void {
-		this._pool.clearPool();
+		this._experienceHandler.clearPool();
 	}
 
 	public samplePool(batchSize: number): Experience[] {
-		return this._pool.samplePool(batchSize);
+		return this._experienceHandler.samplePool(batchSize);
 	}
 
 	public learnSupervised(input: Float32Array, target: Float32Array): void {
 		this._nn.train(input, target);
-		this._pool.remove(input);
+		this._experienceHandler.removeFromPool(input);
 	}
 
 	public learnFromPool(): void {
-		for (const exp of this._pool.values()) {
-			if (exp.kind === "supervised") {
-				this._nn.train(exp.input, exp.target);
-			}
-		}
-		this._pool.clearPool();
+		this._experienceHandler.learnFromPool(this._nn);
 	}
 
 	public learnQLearning(exp: Experience, gamma = 0.99): void {
-		if (exp.kind !== "qlearning") {
-			throw agentError(
-				"Q-learning requires `reward` and `nextState` in the experience.",
-			);
-		}
-		const target = this._computeQTarget(exp, gamma);
-		this._nn.train(exp.input, target);
-		this._pool.remove(exp.input);
-	}
-
-	private _computeQTarget(exp: Experience, gamma: number): Float32Array {
-		const target = exp.output.slice();
-		const qExp = exp as import("./type").QLearningExperience;
-		const nextQ = this._nn.forward(qExp.nextState).output;
-		const maxNextQ = qExp.done ? 0 : Math.max(...nextQ);
-		const actionIdx = target.indexOf(Math.max(...target));
-		target[actionIdx] = qExp.reward + gamma * maxNextQ;
-		return target;
+		this._experienceHandler.learnQLearning(this._nn, exp, gamma);
 	}
 }

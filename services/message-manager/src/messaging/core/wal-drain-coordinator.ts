@@ -5,7 +5,7 @@ import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export class WalDrainCoordinator {
 	private _walDrainRequested = false;
-	private _drainResolve: () => void = () => {};
+	private _pendingDrainResolve: (() => void) | null = null;
 	private readonly _drainTimer = new TimerHandle();
 	private _walFlushWaiters: Array<() => void> = [];
 
@@ -31,7 +31,14 @@ export class WalDrainCoordinator {
 				return;
 			}
 			await this._performFlush();
-			return this._waitForDrainCompletion(timeoutMs);
+			return new Promise<void>((resolve) => {
+				this._pendingDrainResolve = resolve;
+				this._drainTimer.startTimeout(() => {
+					this._pendingDrainResolve = null;
+					logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
+					resolve();
+				}, timeoutMs);
+			});
 		} finally {
 			this._walDrainRequested = false;
 		}
@@ -44,9 +51,9 @@ export class WalDrainCoordinator {
 
 	resolveDrain(): void {
 		this._drainTimer.stop();
-		const resolve = this._drainResolve;
-		this._drainResolve = () => {};
-		resolve();
+		const resolve = this._pendingDrainResolve;
+		this._pendingDrainResolve = null;
+		resolve?.();
 	}
 
 	notifyWaiters(): void {
@@ -92,16 +99,5 @@ export class WalDrainCoordinator {
 		const redis = await getStreamClient();
 		const remaining = await redis.llen(this._walKey());
 		return remaining === 0 && this._memoryWalBuffer.length === 0;
-	}
-
-	private _waitForDrainCompletion(timeoutMs: number): Promise<void> {
-		return new Promise<void>((resolve) => {
-			this._drainTimer.startTimeout(() => {
-				this._drainResolve = () => {};
-				logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
-				resolve();
-			}, timeoutMs);
-			this._drainResolve = resolve;
-		});
 	}
 }

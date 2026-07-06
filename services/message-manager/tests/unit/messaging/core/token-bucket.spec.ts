@@ -62,9 +62,11 @@ describe("TokenBucket", () => {
 	});
 
 	it("should track usage ratio via callback", () => {
-		const bucket = createBucket();
 		const cb = jest.fn();
-		bucket.onMetric(cb);
+		const bucket = new TokenBucket(
+			{ capacity: 100, refillRate: 10, refillIntervalMs: 1000 },
+			cb,
+		);
 
 		bucket.tryConsume(50);
 		expect(cb).toHaveBeenCalledWith(0.5);

@@ -1,10 +1,15 @@
+import { CandleInterval } from "@trading-model/common/config/event.types";
+import { toSymbol } from "@trading-model/common/domain/primitives";
 import { describe, expect, it } from "@jest/globals";
 import { BINANCE_ENDPOINTS } from "../../../../src/clients/binance/endpoints";
+
+const BTC = toSymbol("BTCUSDT");
+const ETH = toSymbol("ETHUSDT");
 
 describe("BINANCE_ENDPOINTS", () => {
 	describe("depth", () => {
 		it("should build order book URL with limit and symbol", () => {
-			const url = BINANCE_ENDPOINTS.depth("BTCUSDT", 100);
+			const url = BINANCE_ENDPOINTS.depth({ symbol: BTC, limit: 100 });
 			expect(url).toBe("/api/v3/depth?symbol=BTCUSDT&limit=100");
 		});
 
@@ -16,7 +21,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("trades", () => {
 		it("should build recent trades URL with limit and symbol", () => {
-			const url = BINANCE_ENDPOINTS.trades("ETHUSDT", 500);
+			const url = BINANCE_ENDPOINTS.trades({ symbol: ETH, limit: 500 });
 			expect(url).toBe("/api/v3/trades?symbol=ETHUSDT&limit=500");
 		});
 
@@ -28,7 +33,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("historicalTrades", () => {
 		it("should build historical trades URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.historicalTrades("BTCUSDT", 500, 12345);
+			const url = BINANCE_ENDPOINTS.historicalTrades({ symbol: BTC, limit: 500, fromId: 12345 });
 			expect(url).toBe(
 				"/api/v3/historicalTrades?symbol=BTCUSDT&limit=500&fromId=12345"
 			);
@@ -42,12 +47,12 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("candlesticks", () => {
 		it("should build candlestick URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.candlesticks(
-				"BTCUSDT",
-				"1m",
-				1620000000000,
-				100
-			);
+			const url = BINANCE_ENDPOINTS.candlesticks({
+				symbol: BTC,
+				interval: CandleInterval.MIN1,
+				startTime: 1620000000000 as unknown as import("@trading-model/common/domain/primitives").UnixTimestamp,
+				limit: 100,
+			});
 			expect(url).toBe(
 				"/api/v3/klines?symbol=BTCUSDT&interval=1m&startTime=1620000000000&limit=100"
 			);
@@ -74,11 +79,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("compressedAggregateTrades", () => {
 		it("should build aggTrades URL with all params", () => {
-			const url = BINANCE_ENDPOINTS.compressedAggregateTrades(
-				"BTCUSDT",
-				12345,
-				100
-			);
+			const url = BINANCE_ENDPOINTS.compressedAggregateTrades({ symbol: BTC, fromId: 12345, limit: 100 });
 			expect(url).toBe(
 				"/api/v3/aggTrades?symbol=BTCUSDT&fromId=12345&limit=100"
 			);

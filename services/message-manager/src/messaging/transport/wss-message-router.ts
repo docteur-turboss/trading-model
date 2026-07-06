@@ -1,10 +1,11 @@
-import { toInstanceId, toMessageId, type Topic } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
 import type { Dispatcher } from "../core/dispatcher";
 import type { IncomingWssMessage, WssMessageType } from "./wss-message.types";
 import { WssPublisher } from "./wss-publisher";
 import { WssSubscriptionManager } from "./wss-subscription-manager";
+import { WssMessageParser } from "./wss-message-parser";
+import { AckNackHandler } from "./ack-nack-handler";
 
 type MessageHandler = (
 	msg: IncomingWssMessage,
@@ -17,11 +18,15 @@ type MessageHandler = (
 ) => Promise<void> | void;
 
 export class WssMessageRouter {
+	private readonly _ackNackHandler: AckNackHandler;
+
 	constructor(
 		private readonly _dispatcher: Dispatcher,
 		private readonly _subscriptionManager: WssSubscriptionManager,
 		private readonly _publisher: WssPublisher
-	) {}
+	) {
+		this._ackNackHandler = new AckNackHandler(this._dispatcher);
+	}
 
 	registerMessageHandler(
 		ws: WebSocket,
@@ -32,7 +37,7 @@ export class WssMessageRouter {
 		}
 	): void {
 		ws.on("message", async (raw: WebSocket.RawData) => {
-			const incoming = this.parseWsMessage(raw, ws);
+			const incoming = WssMessageParser.parse(raw, ws);
 			if (!incoming) {
 				return;
 			}
@@ -71,65 +76,8 @@ export class WssMessageRouter {
 		map.set("publish", (msg, ws, ctx) =>
 			this._publisher.handlePublish(msg, ws, ctx)
 		);
-		map.set("ack", (msg, ws, ctx) => this.handleAck(msg, ws, ctx));
-		map.set("nack", (msg, ws, ctx) => this.handleNack(msg, ws, ctx));
+		map.set("ack", (msg, ws, ctx) => this._ackNackHandler.handleAck(msg, ws, ctx));
+		map.set("nack", (msg, ws, ctx) => this._ackNackHandler.handleNack(msg, ws, ctx));
 		return map;
-	}
-
-	parseWsMessage(
-		raw: WebSocket.RawData,
-		ws: WebSocket
-	): IncomingWssMessage | null {
-		let msg: Record<string, unknown>;
-		try {
-			msg = JSON.parse(raw.toString());
-		} catch {
-			ws.send(JSON.stringify({ type: "error", message: "Invalid JSON" }));
-			return null;
-		}
-		if (typeof msg.type !== "string") {
-			ws.send(
-				JSON.stringify({ type: "error", message: "Missing message type" })
-			);
-			return null;
-		}
-
-		return {
-			type: msg.type as WssMessageType,
-			instanceId: msg.instanceId ? toInstanceId(msg.instanceId as string) : undefined,
-			topics: msg.topics as Topic[] | undefined,
-			payload: msg.payload,
-			metadata: msg.metadata,
-			traceparent: msg.traceparent as string | undefined,
-			messageId: msg.messageId ? toMessageId(msg.messageId as string) : undefined,
-		};
-	}
-
-	handleAck(
-		msg: IncomingWssMessage,
-		ws: WebSocket,
-		ctx: { identity: ServiceIdentity }
-	): void {
-		if (typeof msg.messageId !== "string") {
-			ws.send(
-				JSON.stringify({ type: "error", message: "messageId must be a string" })
-			);
-			return;
-		}
-		this._dispatcher.handleAck(msg.messageId, ctx.identity.instanceId).catch(() => {});
-	}
-
-	handleNack(
-		msg: IncomingWssMessage,
-		ws: WebSocket,
-		ctx: { identity: ServiceIdentity }
-	): void {
-		if (typeof msg.messageId !== "string") {
-			ws.send(
-				JSON.stringify({ type: "error", message: "messageId must be a string" })
-			);
-			return;
-		}
-		this._dispatcher.handleNack(msg.messageId, ctx.identity.instanceId).catch(() => {});
 	}
 }

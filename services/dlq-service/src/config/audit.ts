@@ -93,9 +93,9 @@ export async function notifyAudit(event: AuditEvent): Promise<void> {
 
 	try {
 		await _sendAuditEvent(event);
-		auditCircuitBreaker.recordResult(true);
+		auditCircuitBreaker.recordSuccess();
 	} catch (err) {
-		auditCircuitBreaker.recordResult(false);
+		auditCircuitBreaker.recordFailure();
 		_logAuditFailure(err, event);
 	}
 }

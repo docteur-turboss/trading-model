@@ -1,4 +1,5 @@
 import { CandleInterval } from "@trading-model/common/config/event.types";
+import { toSymbol } from "@trading-model/common/domain/primitives";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("../../../../src/clients/binance/binance.client", () => ({
@@ -61,6 +62,9 @@ import { BinanceNormalizer } from "../../../../src/clients/binance/normalizer";
 import { MessageManager } from "../../../../src/config/message-manager";
 import { BinanceWorker } from "../../../../src/job/worker/binance.worker";
 
+const BTC = toSymbol("BTCUSDT");
+const ETH = toSymbol("ETHUSDT");
+
 const MOCK_GET_ORDER_BOOK = jest.mocked(binanceClient.getOrderBook);
 const MOCK_CANDLESTICK_DATA = jest.mocked(binanceClient.getCandlestickData);
 const MOCK_RECENT_TRADES = jest.mocked(binanceClient.getRecentTrades);
@@ -83,12 +87,12 @@ describe("BinanceWorker", () => {
 	let worker: BinanceWorker;
 
 	const mockNormalized = {
-		orderBook: { symbol: "BTCUSDT" },
+		orderBook: { symbol: BTC },
 		recentTrades: [{ tradeId: 1 }],
-		candles: [{ symbol: "BTCUSDT", interval: CandleInterval.MIN1 }],
-		ticker24h: [{ symbol: "BTCUSDT" }],
+		candles: [{ symbol: BTC, interval: CandleInterval.MIN1 }],
+		ticker24h: [{ symbol: BTC }],
 		priceTicker: { BTCUSDT: 50000 },
-		bookTicker: [{ symbol: "BTCUSDT" }],
+		bookTicker: [{ symbol: BTC }],
 	};
 
 	beforeEach(() => {
@@ -123,7 +127,7 @@ describe("BinanceWorker", () => {
 		);
 
 		worker = new BinanceWorker({
-			symbol: "BTCUSDT",
+			symbol: BTC,
 			interval: CandleInterval.MIN1,
 			candleLimit: 50,
 			tradeLimit: 50,
@@ -135,12 +139,12 @@ describe("BinanceWorker", () => {
 		it("should call all 6 Binance client functions in parallel", async () => {
 			await worker.run();
 
-			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith("BTCUSDT", 10);
-			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith("BTCUSDT", 50);
-			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({ symbol: "BTCUSDT", limit: 50, interval: CandleInterval.MIN1 });
-			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith(["BTCUSDT"]);
-			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledWith(["BTCUSDT"]);
-			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledWith(["BTCUSDT"]);
+			expect(MOCK_GET_ORDER_BOOK).toHaveBeenCalledWith({ symbol: BTC, limit: 10 });
+			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({ symbol: BTC, limit: 50 });
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({ symbol: BTC, limit: 50, interval: CandleInterval.MIN1 });
+			expect(MOCK24HR_TICKER_STATS).toHaveBeenCalledWith([BTC]);
+			expect(MOCK_SYMBOL_PRICE_TICKER).toHaveBeenCalledWith([BTC]);
+			expect(MOCK_ORDER_BOOK_TICKER).toHaveBeenCalledWith([BTC]);
 		});
 
 		it("should normalize all raw responses", async () => {
@@ -173,11 +177,11 @@ describe("BinanceWorker", () => {
 		});
 
 		it("should use default options when not provided", async () => {
-			const defaultWorker = new BinanceWorker({ symbol: "ETHUSDT" });
+			const defaultWorker = new BinanceWorker({ symbol: ETH });
 			await defaultWorker.run();
 
-			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith("ETHUSDT", 100);
-			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({ symbol: "ETHUSDT", limit: 100, interval: CandleInterval.MIN1 });
+			expect(MOCK_RECENT_TRADES).toHaveBeenCalledWith({ symbol: ETH, limit: 100 });
+			expect(MOCK_CANDLESTICK_DATA).toHaveBeenCalledWith({ symbol: ETH, limit: 100, interval: CandleInterval.MIN1 });
 		});
 
 		it("should create a fresh MetadataBuilder per invocation (not shared singleton)", async () => {

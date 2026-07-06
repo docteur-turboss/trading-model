@@ -1,4 +1,4 @@
-import type { CandleInterval } from "@trading-model/common/config/event.types";
+import { CandleInterval, TradeSide } from "@trading-model/common/config/event.types";
 import {
 	Price,
 	type TradingSymbol,
@@ -18,21 +18,21 @@ import {
 	type BinanceAggregateTradeResponse,
 	type BinanceCandlestickDataResponse,
 	type BinanceDepthResponse,
+	type BinanceDepthEntry,
 	type BinanceHistoricalTradeResponse,
 	type BinanceSymbolOrderBookTickerResponse,
 	type BinanceSymbolPriceTickerResponse,
 	type BinanceTradeResponse,
 	type BinanceTradingDayTickerResponse,
-	parseCandlestick,
 } from "../../types/binance.api";
 
 function _parseOrderBookSide(
-	entries: [string, string][]
+	entries: BinanceDepthEntry[]
 ): Set<{ price: Price; quantity: Volume }> {
 	return new Set(
-		entries.map(([price, qty]) => ({
-			price: Price.of(Number(price)),
-			quantity: Volume.of(Number(qty)),
+		entries.map((entry) => ({
+			price: Price.of(Number(entry.price)),
+			quantity: Volume.of(Number(entry.qty)),
 		}))
 	);
 }
@@ -66,7 +66,7 @@ export const BinanceNormalizer = {
 			price: Price.of(Number(trade.price)),
 			quantity: Volume.of(Number(trade.qty)),
 			timestamp: UnixTimestamp.of(trade.time),
-			side: trade.isBuyerMaker ? "sell" : "buy",
+			side: trade.isBuyerMaker ? TradeSide.SELL : TradeSide.BUY,
 			source: SourceType.BINANCE,
 			market: MarketType.CRYPTO,
 		}));
@@ -85,7 +85,7 @@ export const BinanceNormalizer = {
 			price: Price.of(Number(trade.price)),
 			quantity: Volume.of(Number(trade.quantity)),
 			timestamp: UnixTimestamp.of(trade.time),
-			side: trade.isBuyerMaker ? "sell" : "buy",
+			side: trade.isBuyerMaker ? TradeSide.SELL : TradeSide.BUY,
 			source: SourceType.BINANCE,
 			market: MarketType.CRYPTO,
 		}));
@@ -99,23 +99,20 @@ export const BinanceNormalizer = {
 		interval: CandleInterval,
 		payload: BinanceCandlestickDataResponse
 	): CandleData[] {
-		return payload.map((raw) => {
-			const candle = parseCandlestick(raw);
-			return {
-				symbol,
-				interval,
-				open: Price.of(Number(candle.open)),
-				high: Price.of(Number(candle.high)),
-				low: Price.of(Number(candle.low)),
-				close: Price.of(Number(candle.close)),
-				volume: Volume.of(Number(candle.volume)),
-				closeTimestamp: UnixTimestamp.of(Number(candle.closeTime)),
-				trades: candle.numberOfTrades,
-				timestamp: UnixTimestamp.of(candle.openTime),
-				source: SourceType.BINANCE,
-				market: MarketType.CRYPTO,
-			};
-		});
+		return payload.map((candle) => ({
+			symbol,
+			interval,
+			open: Price.of(Number(candle.open)),
+			high: Price.of(Number(candle.high)),
+			low: Price.of(Number(candle.low)),
+			close: Price.of(Number(candle.close)),
+			volume: Volume.of(Number(candle.volume)),
+			closeTimestamp: UnixTimestamp.of(candle.closeTime),
+			trades: candle.numberOfTrades,
+			timestamp: UnixTimestamp.of(candle.openTime),
+			source: SourceType.BINANCE,
+			market: MarketType.CRYPTO,
+		}));
 	},
 
 	/**

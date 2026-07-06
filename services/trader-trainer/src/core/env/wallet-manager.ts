@@ -1,9 +1,8 @@
 import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
-import { type PortfolioState } from "./portfolio-state";
-import { TradeHistory, type TradeRecord } from "./trade-history";
-import { ValuationTracker } from "./valuation-tracker";
 import { computeWalletMetrics, type WalletMetrics } from "./wallet-metrics";
 import { WalletConfig, type WalletConfigParams } from "./wallet-config";
+import { TradeRecorder, type TradeRecord } from "./trade-recorder";
+import { TradeExecutor } from "./trade-executor";
 
 export type { TradeRecord, WalletMetrics };
 export type { WalletConfigParams as WalletConfig };
@@ -23,141 +22,77 @@ export interface WalletAPI {
 }
 
 export class Wallet implements WalletAPI {
-	private readonly _config: WalletConfig;
-	private _price: Price;
-	private _cash: Cash;
-	private _position: Volume = Volume.zero();
-	private readonly _valuationTracker: ValuationTracker;
-	private readonly _tradeHistory = new TradeHistory();
+	private readonly _executor: TradeExecutor;
+	private readonly _recorder: TradeRecorder;
 
 	constructor(params: WalletConfigParams) {
-		this._config = new WalletConfig(params);
-		this._price = this._config.initialPrice;
-		this._cash = this._config.initialCash;
-		this._valuationTracker = new ValuationTracker(
-			this._config.initialCash,
-			this._config.decimals
+		const config = new WalletConfig(params);
+		const price = config.initialPrice;
+		const cash = config.initialCash;
+		this._recorder = new TradeRecorder(
+			config.initialCash,
+			config.decimals
 		);
-	}
-
-	private _getState(): PortfolioState {
-		return { cash: this._cash, position: this._position, price: this._price };
-	}
-
-	private _recordValuation(): void {
-		this._valuationTracker.record(this._getState());
+		this._executor = new TradeExecutor(
+			config,
+			price,
+			cash,
+			Volume.zero(),
+			this._recorder,
+		);
 	}
 
 	buy(amount: Volume): boolean {
-		const amt = +amount;
-		if (!Number.isFinite(amt) || amt <= 0) {
-			return false;
-		}
-		const newPosition = Volume.of(
-			this._config.roundValue(+this._position + amt)
-		);
-		if (+newPosition > +this._config.maxPosition) {
-			return false;
-		}
-		const { totalCost, fee } = this._config.computeBuyCosts(amount, this._price);
-		if (+totalCost > +this._cash) {
-			return false;
-		}
-		this._position = newPosition;
-		this._cash = Cash.of(
-			this._config.roundValue(+this._cash - +totalCost)
-		);
-		this._recordTrade("buy", amount, fee);
-		return true;
+		return this._executor.buy(amount);
 	}
 
 	sell(amount: Volume): boolean {
-		const amt = +amount;
-		if (!Number.isFinite(amt) || amt <= 0 || amt > +this._position) {
-			return false;
-		}
-		const { netProceeds, fee } = this._config.computeSellProceeds(
-			amount,
-			this._price
-		);
-		this._position = Volume.of(
-			this._config.roundValue(+this._position - amt)
-		);
-		this._cash = Cash.of(
-			this._config.roundValue(+this._cash + netProceeds)
-		);
-		this._recordTrade("sell", amount, fee);
-		return true;
-	}
-
-	private _recordTrade(
-		action: "buy" | "sell",
-		amount: Volume,
-		fee: Cash
-	): void {
-		this._tradeHistory.record({
-			action,
-			amount,
-			fee: Cash.of(this._config.roundValue(+fee)),
-			price: this._price,
-			cashAfter: this._cash,
-			positionAfter: this._position,
-		});
-		this._recordValuation();
+		return this._executor.sell(amount);
 	}
 
 	setPrice(newPrice: Price): void {
-		if (!Number.isFinite(+newPrice) || +newPrice <= 0) {
-			throw new Error(`setPrice received invalid value: ${newPrice}`);
-		}
-		this._price = newPrice;
-		this._tradeHistory.incrementStep();
-		this._recordValuation();
+		this._executor.setPrice(newPrice);
 	}
 
 	getPosition(): Volume {
-		return this._position;
+		return this._executor.position;
 	}
 
 	getCash(): Cash {
-		return this._cash;
+		return this._executor.cash;
 	}
 
 	getValuation(): Cash {
-		return this._valuationTracker.computeValuation(this._getState());
+		return this._recorder.computeValuation(this._executor.cash, this._executor.position, this._executor.price);
 	}
 
 	getPrice(): Price {
-		return this._price;
+		return this._executor.price;
 	}
 
 	getPnL(): number {
-		return this._valuationTracker.computePnL(this._getState());
+		return this._recorder.computePnL(this._executor.cash, this._executor.position, this._executor.price);
 	}
 
 	getMetrics(): WalletMetrics {
 		return computeWalletMetrics({
-			cash: this._cash,
-			position: this._position,
-			price: this._price,
-			peakValuation: this._valuationTracker.getPeakValuation(),
-			initialCash: this._config.initialCash,
-			totalFeesPaid: this._tradeHistory.getTotalFeesPaid(),
-			tradeCount: this._tradeHistory.getTradeCount(),
-			decimals: this._config.decimals,
+			cash: this._executor.cash,
+			position: this._executor.position,
+			price: this._executor.price,
+			peakValuation: this._recorder.getPeakValuation(),
+			initialCash: this._executor.config.initialCash,
+			totalFeesPaid: this._recorder.getTotalFeesPaid(),
+			tradeCount: this._recorder.getTradeCount(),
+			decimals: this._executor.config.decimals,
 		});
 	}
 
 	getHistory(): Readonly<TradeRecord[]> {
-		return this._tradeHistory.getHistory();
+		return this._recorder.getHistory();
 	}
 
 	reset(): void {
-		this._price = this._config.initialPrice;
-		this._cash = this._config.initialCash;
-		this._position = Volume.zero();
-		this._valuationTracker.reset();
-		this._tradeHistory.reset();
+		this._executor.reset();
 	}
 }
 

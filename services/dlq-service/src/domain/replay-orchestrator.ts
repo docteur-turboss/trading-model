@@ -28,9 +28,12 @@ export class ReplayOrchestrator {
 		return this._circuitBreaker.isAllowed();
 	}
 
-	/** Record the result of a batch replay. */
-	recordResult(success: boolean): void {
-		this._circuitBreaker.recordResult(success);
+	recordSuccess(): void {
+		this._circuitBreaker.recordSuccess();
+	}
+
+	recordFailure(): void {
+		this._circuitBreaker.recordFailure();
 	}
 
 	/** Check if batch concurrency limit has been reached. */

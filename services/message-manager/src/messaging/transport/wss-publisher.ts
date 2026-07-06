@@ -1,25 +1,22 @@
 import { context, propagation } from "@opentelemetry/api";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
-import { LruCache } from "@trading-model/common/utils/lru-cache";
 import type WebSocket from "ws";
-import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
-import { getStreamClient } from "../../config/redis";
-import { authorizeTopic } from "../core/acl";
 import type { Dispatcher } from "../core/dispatcher";
 import type { IncomingWssMessage } from "./wss-message.types";
 import type { WssRateLimiter } from "./wss-rate-limiter";
+import { PublishGuard } from "./publish-guard";
 
 export class WssPublisher {
 	private _dispatcher: Dispatcher;
 	private _rateLimiter: WssRateLimiter;
-	private _processedWssDeduplicationIds = new LruCache<true>({ maxSize: 50000, ttlMs: 300_000 });
+	private _guard: PublishGuard;
 
 	constructor(dispatcher: Dispatcher, rateLimiter: WssRateLimiter) {
 		this._dispatcher = dispatcher;
 		this._rateLimiter = rateLimiter;
+		this._guard = new PublishGuard(dispatcher, rateLimiter);
 	}
 
 	async handlePublish(
@@ -33,71 +30,16 @@ export class WssPublisher {
 		const topic = (msg.metadata as Record<string, unknown>)?.topic as
 			| string
 			| undefined;
-		if (!(await this._checkPublishTopicAuth(topic, ctx, ws))) {
+		if (!(await this._guard.checkTopicAuth(topic, ctx, ws))) {
 			return;
 		}
-		if (!(await this._checkPublishDedup(msg))) {
+		if (!(await this._guard.checkDedup(msg))) {
 			return;
 		}
-		if (!this._checkPublishBackpressure(ws)) {
+		if (!this._guard.checkBackpressure(ws)) {
 			return;
 		}
 		await this._executePublish(msg, ws);
-	}
-
-	private async _checkPublishTopicAuth(
-		topic: string | undefined,
-		ctx: { identity: ServiceIdentity },
-		ws: WebSocket
-	): Promise<boolean> {
-		if (!topic) {
-			return true;
-		}
-		const result = await authorizeTopic(
-			{ headers: { [HTTP_HEADERS.X_SERVICE_NAME]: ctx.identity.serviceName } } as never,
-			topic
-		);
-		if (result.allowed) {
-			return true;
-		}
-		ws.send(JSON.stringify({ type: "error", message: result.reason }));
-		return false;
-	}
-
-	private async _checkPublishDedup(msg: IncomingWssMessage): Promise<boolean> {
-		const dedupId = extractDedupId(msg);
-		if (!dedupId) {
-			return true;
-		}
-		if (this._processedWssDeduplicationIds.has(dedupId)) {
-			return false;
-		}
-		this._processedWssDeduplicationIds.set(dedupId, true);
-		return this._checkRedisDedup(dedupId);
-	}
-
-	private async _checkRedisDedup(dedupId: string): Promise<boolean> {
-		try {
-			const redis = await getStreamClient();
-			const key = `${ENV.REDIS_PREFIX}wss-dedup:${dedupId}`;
-			return !!(await redis.set(key, "1", "EX", 300, "NX"));
-		} catch {
-			return true;
-		}
-	}
-
-	private _checkPublishBackpressure(ws: WebSocket): boolean {
-		const bpRatio = this._dispatcher.getBackpressureRatio();
-		if (bpRatio <= 0.9) {
-			return true;
-		}
-		ws.send(
-			JSON.stringify({
-				type: "error",
-				message: "Server backpressure too high — try again later",
-			})
-		);
-		return false;
 	}
 
 	private async _executePublish(
@@ -128,17 +70,10 @@ export class WssPublisher {
 	}
 
 	clearDedupCache(): void {
-		this._processedWssDeduplicationIds.clear();
+		this._guard.clearDedupCache();
 	}
 
 	shutdown(): void {
-		this._processedWssDeduplicationIds.clear();
+		this._guard.shutdown();
 	}
-}
-
-function extractDedupId(msg: IncomingWssMessage): string | undefined {
-	const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
-	return (
-		wssMetadata?.delivery as Record<string, unknown> | undefined
-	)?.deduplicationId as string | undefined;
 }

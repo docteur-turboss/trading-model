@@ -6,7 +6,7 @@ import { RedisConnection } from "./redis-connection";
 export class DlqRedisQueue {
 	private readonly _connection: RedisConnection;
 	private readonly _queueKey: string;
-	private _popScriptHash: string | null = null;
+	private _popScriptHashPromise: Promise<string> | null = null;
 
 	private static readonly _POP_SCRIPT = `
     local entries = redis.call('LRANGE', KEYS[1], -1, -1)
@@ -43,9 +43,9 @@ export class DlqRedisQueue {
 			return null;
 		}
 		try {
-			await this._ensurePopScript(client);
+			const scriptHash = await this._getPopScriptHash(client);
 			const result = await client.evalsha(
-				this._popScriptHash!,
+				scriptHash,
 				1,
 				this._queueKey
 			);
@@ -61,7 +61,7 @@ export class DlqRedisQueue {
 
 	async close(): Promise<void> {
 		await this._connection.close();
-		this._popScriptHash = null;
+		this._popScriptHashPromise = null;
 	}
 
 	private async _tryPush(
@@ -82,13 +82,14 @@ export class DlqRedisQueue {
 		return true;
 	}
 
-	private async _ensurePopScript(client: Redis): Promise<void> {
-		if (!this._popScriptHash) {
-			this._popScriptHash = (await client.script(
+	private async _getPopScriptHash(client: Redis): Promise<string> {
+		if (!this._popScriptHashPromise) {
+			this._popScriptHashPromise = (client.script(
 				"LOAD",
 				DlqRedisQueue._POP_SCRIPT
-			)) as string;
+			)) as Promise<string>;
 		}
+		return this._popScriptHashPromise;
 	}
 
 	private _extractFirstEntry(entries: string[]): string | null {

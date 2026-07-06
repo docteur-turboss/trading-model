@@ -1,4 +1,4 @@
-import { createSecureServer } from "@trading-model/common/server/create-secure-server";
+import { createSecureServer, buildTlsFromEnv } from "@trading-model/common/server/create-secure-server";
 import { Port } from "@trading-model/common/domain/primitives";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
@@ -9,18 +9,10 @@ import { MESSAGE_MANAGER_ROUTES } from "../config/message-manager";
 export function createServer() {
 	return createSecureServer({
 		port: Port.of(ENV.PORT),
-		tls: tlsConfig(),
+		tls: buildTlsFromEnv(ENV),
 		trustProxy: true,
 		routes: mountRoutes,
 	});
-}
-
-function tlsConfig() {
-	return {
-		keyPath: ENV.TLS_KEY_PATH,
-		certPath: ENV.TLS_CERT_PATH,
-		caPath: ENV.TLS_CA_PATH,
-	};
 }
 
 function mountRoutes(app: import("express").Application) {
