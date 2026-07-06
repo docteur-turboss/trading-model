@@ -9,14 +9,14 @@ export type WssMessageHandler = (
 ) => void;
 
 export class WssMessageDispatcher {
-	private _messageHandler: WssMessageHandler | null = null;
+	private _messageHandler: WssMessageHandler = () => {};
 	private readonly _handlers: Record<string, (msg: Record<string, unknown>) => void>;
 
 	constructor() {
 		this._handlers = this._buildHandlers();
 	}
 
-	setMessageHandler(handler: WssMessageHandler | null): void {
+	setMessageHandler(handler: WssMessageHandler): void {
 		this._messageHandler = handler;
 	}
 
@@ -27,7 +27,7 @@ export class WssMessageDispatcher {
 		const message = msg.message as
 			| { payload?: unknown; metadata?: MessageMetadata }
 			| undefined;
-		this._messageHandler?.(
+		this._messageHandler(
 			msg.topic as string,
 			message?.payload,
 			message?.metadata as MessageMetadata,

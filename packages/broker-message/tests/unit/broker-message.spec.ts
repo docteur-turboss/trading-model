@@ -107,10 +107,10 @@ describe("BrokerMessage", () => {
 			expect(killFn).toHaveBeenCalled();
 		});
 
-		it("should set topics to null", async () => {
+		it("should reset topics to empty", async () => {
 			broker.topics = ["example.debug.create"];
 			await broker.stopMessageManager();
-			expect(broker.topics).toBeNull();
+			expect(broker.topics).toEqual([]);
 		});
 	});
 

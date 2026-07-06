@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 
@@ -7,7 +8,7 @@ interface PendingPublish {
 	metadata: MessageMetadata;
 	resolve: () => void;
 	reject: (err: Error) => void;
-	timestamp: number;
+	timestamp: UnixTimestamp;
 }
 
 type SendJsonFn = (data: unknown) => boolean;
@@ -44,7 +45,7 @@ export class PendingPublishQueue {
 		metadata: MessageMetadata
 	): Promise<void> {
 		return new Promise<void>((resolve, reject) => {
-			this._pendingQueue.push({ payload, metadata, resolve, reject, timestamp: Date.now() });
+			this._pendingQueue.push({ payload, metadata, resolve, reject, timestamp: Date.now() as UnixTimestamp });
 		});
 	}
 
@@ -59,7 +60,7 @@ export class PendingPublishQueue {
 					metadata,
 					resolve: () => {},
 					reject: () => {},
-					timestamp: Date.now(),
+					timestamp: Date.now() as UnixTimestamp,
 				},
 				0
 			);

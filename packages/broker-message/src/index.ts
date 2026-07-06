@@ -27,8 +27,8 @@ import { MessageMetadata } from "./shared/helper/messages/message";
 export default class BrokerMessage {
 	private _messageManagerClient: MessageManagerClient;
 
-	/** Currently subscribed topics (null when not subscribed). */
-	topics: EventEnumMap[] | null = null;
+	/** Currently subscribed topics (empty when not subscribed). */
+	topics: EventEnumMap[] = [];
 
 	/** Cleanup functions to be called on stop. */
 	cleanupFns: (() => void)[] = [];
@@ -86,11 +86,11 @@ export default class BrokerMessage {
 
 	/** Unsubscribes from all topics and cleans up event listeners. */
 	async stopMessageManager(): Promise<void> {
-		await this._messageManagerClient.unSubscribeToTopic(this.topics ?? []);
+		await this._messageManagerClient.unSubscribeToTopic(this.topics);
 		this.cleanupFns.forEach((fn) => {
 			fn();
 		});
-		this.topics = null;
+		this.topics = [];
 	}
 
 	/** Registers a listener for a broker message event. */
