@@ -201,7 +201,7 @@ function _addDateRangeFilter(
 	filter: Record<string, unknown>,
 	params: LogQuery
 ): void {
-	if (!params.startDate && !params.endDate) {
+	if (!(params.startDate || params.endDate)) {
 		return;
 	}
 	filter.receivedAt = {} as Record<string, Date>;
@@ -227,9 +227,7 @@ function _addSearchFilter(
 	filter.message = { [MREGEX]: params.search, [MOPTIONS]: "i" };
 }
 
-function _extractTotal(
-	aggResult: Record<string, unknown>
-): number {
+function _extractTotal(aggResult: Record<string, unknown>): number {
 	return (aggResult?.total as Array<{ count: number }>)?.[0]?.count ?? 0;
 }
 
@@ -247,9 +245,10 @@ function _extractMap(
 	return result;
 }
 
-function _extractDateRange(
-	aggResult: Record<string, unknown>
-): { earliest?: string; latest?: string } {
+function _extractDateRange(aggResult: Record<string, unknown>): {
+	earliest?: string;
+	latest?: string;
+} {
 	const dr = (
 		aggResult?.dateRange as Array<{ earliest?: Date; latest?: Date }>
 	)?.[0];
@@ -258,5 +257,3 @@ function _extractDateRange(
 		latest: dr?.latest?.toISOString(),
 	};
 }
-
-

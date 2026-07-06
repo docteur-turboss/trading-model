@@ -49,13 +49,13 @@ function _comparePair(
 	i: number,
 	j: number,
 	objectives: ObjectiveVector[],
-	dominated: Int32Array,
-	dominates: number[][]
+	dominatedCount: Int32Array,
+	dominateMap: number[][]
 ): void {
 	if (dominates(objectives[i], objectives[j])) {
-		dominates[i].push(j);
+		dominateMap[i].push(j);
 	} else if (dominates(objectives[j], objectives[i])) {
-		dominated[i]++;
+		dominatedCount[i]++;
 	}
 }
 

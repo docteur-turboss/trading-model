@@ -13,12 +13,13 @@ import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
 import { notifyAddAudit, notifyDeleteAudit } from "./audit-notifier";
 import {
+	autoRetryTick,
+	rebuildQueueFromMongo,
 	startAutoRetry,
 	stopAutoRetry,
-	rebuildQueueFromMongo,
-	autoRetryTick,
 } from "./auto-retry";
 import { dlqClaimManager } from "./claim-manager";
+import { executeReplayPipeline } from "./replay-pipeline";
 import { DlqCapacityError, dlqRepository } from "./repository";
 import {
 	activeReplays,
@@ -26,10 +27,14 @@ import {
 	reloadHttpClientTls,
 	setShuttingDown,
 } from "./shared/index";
-import { executeReplayPipeline } from "./replay-pipeline";
 
-export { autoRetryTick, rebuildQueueFromMongo, reloadHttpClientTls };
-export { startAutoRetry, stopAutoRetry };
+export {
+	autoRetryTick,
+	rebuildQueueFromMongo,
+	reloadHttpClientTls,
+	startAutoRetry,
+	stopAutoRetry,
+};
 
 const tracer = trace.getTracer("dlq-service");
 

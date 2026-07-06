@@ -8,10 +8,10 @@ import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
 import { dlqClaimManager } from "./claim-manager";
-import { isShuttingDown } from "./shared/index";
 import { doReplayBatch } from "./replay-pipeline";
 import { dlqRepository } from "./repository";
 import { dlqRetryManager } from "./retry-manager";
+import { isShuttingDown } from "./shared/index";
 
 let autoRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let autoRetryStartTimer: ReturnType<typeof setTimeout> | null = null;
@@ -102,9 +102,9 @@ function _generateBatchId(prefix: string): string {
 	return `${prefix}-${Date.now()}-${randomUUID().slice(0, 8)}`;
 }
 
-async function _claimEntriesForRetry(batchId: string): Promise<
-	Array<{ id: string; message: unknown }>
-> {
+async function _claimEntriesForRetry(
+	batchId: string
+): Promise<Array<{ id: string; message: unknown }>> {
 	return dlqClaimManager.claimEntriesForRetry({
 		limit: env.DLQ_AUTO_RETRY_LIMIT,
 		batchId,

@@ -119,7 +119,6 @@ function _createOrphanDetector(
 }
 
 export class JobScheduler {
-
 	setWorkerProtocol(protocol: WorkerProtocol): void {
 		this._workerProtocol = protocol;
 		this._assignmentManager.setWorkerProtocol(protocol);
@@ -167,10 +166,12 @@ export class JobScheduler {
 		this.queue.enqueue(updated);
 		this.backPressure.updateQueueDepth(this.queue.depth());
 		this.repository.updateStatus(job.id, "queued").catch((err) => {
-			logger.error("Failed to persist queued status", { context: {
-				jobId: job.id,
-				error: String(err),
-			} });
+			logger.error("Failed to persist queued status", {
+				context: {
+					jobId: job.id,
+					error: String(err),
+				},
+			});
 		});
 		this._assignmentManager.distributeNext();
 	}
@@ -264,7 +265,6 @@ function _logSchedulerStart(recovered: number): void {
 }
 
 export class JobScheduler {
-
 	stop(): void {
 		this.orphanDetector.stop();
 		this.queue.stop();

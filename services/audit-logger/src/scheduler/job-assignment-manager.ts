@@ -5,8 +5,8 @@ import type { JobRepository } from "../persistence/job-repository";
 import type { Job } from "../types/job.types";
 import type { WorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
-import { BackPressure } from "./back-pressure";
-import { InternalQueue } from "./internal-queue";
+import type { BackPressure } from "./back-pressure";
+import type { InternalQueue } from "./internal-queue";
 
 export interface JobAssignmentManagerDeps {
 	queue: InternalQueue;
@@ -101,7 +101,6 @@ function _sendAssignmentMessage(
 }
 
 export class JobAssignmentManager {
-
 	private _assignJob(
 		queued: { job: Job },
 		worker: { workerId: string; currentLoad: number; maxConcurrency: number }
@@ -119,10 +118,12 @@ export class JobAssignmentManager {
 		this.incrementWorkerLoad(worker);
 		this._persistAssignment(assignedJob.id, worker.workerId, deadline);
 
-		logger.info("Job assigned to worker", { context: {
-			jobId: assignedJob.id,
-			workerId: worker.workerId,
-		} });
+		logger.info("Job assigned to worker", {
+			context: {
+				jobId: assignedJob.id,
+				workerId: worker.workerId,
+			},
+		});
 	}
 
 	private _persistAssignment(
@@ -136,10 +137,12 @@ export class JobAssignmentManager {
 				ackDeadline: deadline,
 			})
 			.catch((err) => {
-				logger.error("Failed to persist assigned status", { context: {
-				jobId,
-				error: String(err),
-			} });
+				logger.error("Failed to persist assigned status", {
+					context: {
+						jobId,
+						error: String(err),
+					},
+				});
 			});
 	}
 }

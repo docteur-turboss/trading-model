@@ -52,7 +52,7 @@ function _pingPongReason(
 	dlqPassCount: number
 ): string | undefined {
 	if (!pingPongAbandon) {
-		return undefined;
+		return;
 	}
 	return `Ping-pong detected: message entered DLQ ${dlqPassCount} times`;
 }

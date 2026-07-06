@@ -1,6 +1,10 @@
+import {
+	isTerminalStatus,
+	type Job,
+	type JobPriority,
+	type JobStatus,
+} from "@trading-model/common/contracts/recovery.types";
 import type { Collection, Db } from "mongodb";
-
-import { isTerminalStatus, type Job, type JobPriority, type JobStatus } from "@trading-model/common/contracts/recovery.types";
 
 const MSET = "$set";
 const MPUSH = "$push";

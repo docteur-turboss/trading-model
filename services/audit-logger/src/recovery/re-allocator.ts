@@ -33,17 +33,16 @@ function _isRetryExhausted(job: Job): boolean {
 	return job.retryCount >= job.maxRetries;
 }
 
-async function _failJob(
-	repository: JobRepository,
-	job: Job
-): Promise<void> {
+async function _failJob(repository: JobRepository, job: Job): Promise<void> {
 	await repository.updateStatus(job.id, "failed", {
 		error: `Exceeded max retries (${job.maxRetries})`,
 	});
-	logger.warn("Job failed after max retries", { context: {
-		jobId: job.id,
-		retryCount: job.retryCount,
-	} });
+	logger.warn("Job failed after max retries", {
+		context: {
+			jobId: job.id,
+			retryCount: job.retryCount,
+		},
+	});
 }
 
 function _buildReallocatedJob(job: Job, newDeadline: number): Job {
@@ -66,8 +65,10 @@ function _buildReallocatedJob(job: Job, newDeadline: number): Job {
 }
 
 function _logReallocation(jobId: string, retryCount: number): void {
-	logger.info("Job re-allocated to queue", { context: {
-		jobId,
-		retryCount,
-	} });
+	logger.info("Job re-allocated to queue", {
+		context: {
+			jobId,
+			retryCount,
+		},
+	});
 }

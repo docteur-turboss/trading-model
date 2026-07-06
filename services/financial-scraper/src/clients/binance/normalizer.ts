@@ -1,5 +1,9 @@
 import type { CandleInterval } from "@trading-model/common/config/event.types";
-import { Price, UnixTimestamp, Volume } from "@trading-model/common/domain/primitives";
+import {
+	Price,
+	UnixTimestamp,
+	Volume,
+} from "@trading-model/common/domain/primitives";
 import {
 	type CandleData,
 	MarketType,
@@ -9,7 +13,6 @@ import {
 	type TradeData,
 } from "../../infra/market-data/market-data.types";
 import {
-	parseCandlestick,
 	type Binance24hrTickerStatsResponse,
 	type BinanceAggregateTradeResponse,
 	type BinanceCandlestickDataResponse,
@@ -19,6 +22,7 @@ import {
 	type BinanceSymbolPriceTickerResponse,
 	type BinanceTradeResponse,
 	type BinanceTradingDayTickerResponse,
+	parseCandlestick,
 } from "../../types/binance.api";
 
 function _parseOrderBookSide(

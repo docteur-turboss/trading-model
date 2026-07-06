@@ -37,7 +37,9 @@ export class OrphanDetector {
 			}
 		}, this._intervalMs);
 
-		logger.info("Orphan detector started", { context: { intervalMs: this._intervalMs } });
+		logger.info("Orphan detector started", {
+			context: { intervalMs: this._intervalMs },
+		});
 	}
 
 	stop(): void {
@@ -74,9 +76,11 @@ export class OrphanDetector {
 }
 
 function _logOrphanCycleError(err: unknown): void {
-	logger.error("Orphan detection cycle failed", { context: {
-		error: err instanceof Error ? err.message : String(err),
-	} });
+	logger.error("Orphan detection cycle failed", {
+		context: {
+			error: err instanceof Error ? err.message : String(err),
+		},
+	});
 }
 
 function _logOrphanWarning(staleWorkerIds: string[]): void {

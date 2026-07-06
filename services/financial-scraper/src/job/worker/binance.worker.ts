@@ -16,11 +16,11 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { HELPER } from "@trading-model/broker-message";
 import type { MessageMetadata } from "@trading-model/broker-message/shared/helper/messages/message";
-import type { CandleInterval } from "@trading-model/common/config/event.types";
 import {
 	DeliveryMode,
 	type DeliveryMode,
 } from "@trading-model/common/config/delivery-mode.types";
+import type { CandleInterval } from "@trading-model/common/config/event.types";
 import { EnumEventMessage } from "@trading-model/common/config/event.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
@@ -81,10 +81,7 @@ export class BinanceWorker {
 		const response = _buildResponse(opts.symbol, opts.interval, rawData);
 
 		this._configureMetadata(builderMetadata);
-		_sendAllMarketData(
-			this._buildMarketDataEntries(response),
-			builderMetadata
-		);
+		_sendAllMarketData(this._buildMarketDataEntries(response), builderMetadata);
 
 		return response;
 	}
@@ -116,7 +113,12 @@ interface RawBinanceData {
 async function _fetchAllRawData(
 	opts: BinanceWorkerOptions
 ): Promise<RawBinanceData> {
-	const { symbol, candleLimit = 100, tradeLimit = 100, orderBookLimit = 100 } = opts;
+	const {
+		symbol,
+		candleLimit = 100,
+		tradeLimit = 100,
+		orderBookLimit = 100,
+	} = opts;
 	const interval = opts.interval ?? "1m";
 
 	const [
@@ -135,7 +137,14 @@ async function _fetchAllRawData(
 		getOrderBookTicker([symbol]),
 	]);
 
-	return { orderBookRaw, tradesRaw, candlesRaw, ticker24hRaw, priceTickerRaw, bookTickerRaw };
+	return {
+		orderBookRaw,
+		tradesRaw,
+		candlesRaw,
+		ticker24hRaw,
+		priceTickerRaw,
+		bookTickerRaw,
+	};
 }
 
 function _buildResponse(
@@ -146,7 +155,11 @@ function _buildResponse(
 	return {
 		orderBook: BinanceNormalizer.orderBook(symbol, raw.orderBookRaw),
 		recentTrades: BinanceNormalizer.trades(symbol, raw.tradesRaw),
-		candles: BinanceNormalizer.candles(symbol, interval ?? "1m", raw.candlesRaw),
+		candles: BinanceNormalizer.candles(
+			symbol,
+			interval ?? "1m",
+			raw.candlesRaw
+		),
 		ticker24h: BinanceNormalizer.ticker24h(raw.ticker24hRaw),
 		priceTicker: BinanceNormalizer.priceTicker(raw.priceTickerRaw),
 		bookTicker: BinanceNormalizer.bookTicker(raw.bookTickerRaw),
@@ -155,8 +168,9 @@ function _buildResponse(
 }
 
 export class BinanceWorker {
-
-	private _configureMetadata(builder: typeof HELPER.metadataBuilder.prototype): void {
+	private _configureMetadata(
+		builder: typeof HELPER.metadataBuilder.prototype
+	): void {
 		const authContext = _buildAuthContext();
 		const signature = _computeSignature(authContext);
 
@@ -215,19 +229,42 @@ function _buildPublisher(): {
 }
 
 export class BinanceWorker {
-
 	private _buildMarketDataEntries(response: BinanceWorkerResult): {
 		data: unknown;
 		topic: string;
 		eventType: string;
 	}[] {
 		return [
-			_makeEntry(response.candles, EnumEventMessage.fetchCandlestickSeries, "FetchCandlestick"),
-			_makeEntry(response.orderBook, EnumEventMessage.fetchOrderBookSnapshot, "FetchOrderbook"),
-			_makeEntry(response.ticker24h, EnumEventMessage.fetch24hrTickerStats, "FetchTicker24hr"),
-			_makeEntry(response.bookTicker, EnumEventMessage.fetchOrderBookTickerSnapshot, "FetchBookTicker"),
-			_makeEntry(response.priceTicker, EnumEventMessage.fetchPriceTickerSnapshot, "FetchPriceTicker"),
-			_makeEntry(response.recentTrades, EnumEventMessage.fetchRecentTrades, "FetchRecentTrades"),
+			_makeEntry(
+				response.candles,
+				EnumEventMessage.fetchCandlestickSeries,
+				"FetchCandlestick"
+			),
+			_makeEntry(
+				response.orderBook,
+				EnumEventMessage.fetchOrderBookSnapshot,
+				"FetchOrderbook"
+			),
+			_makeEntry(
+				response.ticker24h,
+				EnumEventMessage.fetch24hrTickerStats,
+				"FetchTicker24hr"
+			),
+			_makeEntry(
+				response.bookTicker,
+				EnumEventMessage.fetchOrderBookTickerSnapshot,
+				"FetchBookTicker"
+			),
+			_makeEntry(
+				response.priceTicker,
+				EnumEventMessage.fetchPriceTickerSnapshot,
+				"FetchPriceTicker"
+			),
+			_makeEntry(
+				response.recentTrades,
+				EnumEventMessage.fetchRecentTrades,
+				"FetchRecentTrades"
+			),
 		];
 	}
 }
@@ -241,7 +278,6 @@ function _makeEntry(
 }
 
 export class BinanceWorker {
-
 	private _sendMarketData({
 		data,
 		topic,

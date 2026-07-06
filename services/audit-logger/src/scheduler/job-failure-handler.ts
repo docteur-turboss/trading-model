@@ -5,8 +5,8 @@ import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";
+import type { InternalQueue } from "./internal-queue";
 import type { JobAssignmentManager } from "./job-assignment-manager";
-import { InternalQueue } from "./internal-queue";
 
 export interface JobFailureHandlerDeps {
 	queue: InternalQueue;
@@ -64,19 +64,23 @@ export class JobFailureHandler {
 			ackDeadline: newDeadline,
 		});
 
-		logger.info("Job re-queued after failure", { context: {
-			jobId,
-			retryCount: updatedJob.retryCount,
-		} });
+		logger.info("Job re-queued after failure", {
+			context: {
+				jobId,
+				retryCount: updatedJob.retryCount,
+			},
+		});
 		this._assignmentManager.distributeNext();
 	}
 }
 
 function _logFindJobError(jobId: string, err: unknown): void {
-	logger.error("Failed to find job on ACK timeout", { context: {
-		jobId,
-		error: String(err),
-	} });
+	logger.error("Failed to find job on ACK timeout", {
+		context: {
+			jobId,
+			error: String(err),
+		},
+	});
 }
 
 function _onAckTimeoutJobFound(

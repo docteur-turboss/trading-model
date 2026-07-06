@@ -80,7 +80,6 @@ function _isBetterWorker(
 }
 
 export class WorkerRegistry {
-
 	purgeStaleWorkers(): string[] {
 		const now = Date.now();
 		const stale: string[] = [];

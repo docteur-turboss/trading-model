@@ -1,9 +1,9 @@
-import { ObjectId, type WithId } from "mongodb";
 import type { Document } from "mongodb";
+import { ObjectId, type WithId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
-import { DlqEntryWriter, DlqCapacityError } from "./dlq-entry-writer";
+import { DlqCapacityError, DlqEntryWriter } from "./dlq-entry-writer";
 
 export { DlqCapacityError };
 
@@ -139,9 +139,7 @@ export class DlqRepository {
 }
 
 function _toValidObjectIds(ids: string[]): ObjectId[] {
-	return ids
-		.filter((id) => ObjectId.isValid(id))
-		.map((id) => new ObjectId(id));
+	return ids.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
 }
 
 async function _findEldestDocs(

@@ -84,8 +84,8 @@ function _buildDocService(
 function _buildDocUser(
 	entry: z.infer<typeof LOG_ENTRY_SCHEMA>
 ): ServiceLogDocument["user"] | undefined {
-	if (!entry.userId && !entry.sessionId) {
-		return undefined;
+	if (!(entry.userId || entry.sessionId)) {
+		return;
 	}
 	return {
 		id: entry.userId ?? undefined,
@@ -99,7 +99,7 @@ function _buildDocContext(
 	const context = entry.context ?? {};
 	const hasErrorKeys = context.err || context.error;
 	if (Object.keys(context).length === 0 || hasErrorKeys) {
-		return undefined;
+		return;
 	}
 	return context;
 }
@@ -153,15 +153,19 @@ function _buildLogDocuments(
 async function _storeLogs(
 	logRepo: LogRepository,
 	docs: ServiceLogDocument[]
-): Promise<import("@trading-model/common/middleware/response-exception").ResponseObject> {
+): Promise<
+	import("@trading-model/common/middleware/response-exception").ResponseObject
+> {
 	try {
 		await logRepo.insertBatch(docs);
 		LOGS_STORED_TOTAL.inc({ status: "success" }, docs.length);
 		return sendResponse({ stored: docs.length }, 200);
 	} catch (err) {
-		logger.error("Failed to store service logs", { context: {
-			error: normalizeError(err),
-		} });
+		logger.error("Failed to store service logs", {
+			context: {
+				error: normalizeError(err),
+			},
+		});
 		LOGS_STORED_TOTAL.inc({ status: "error" }, docs.length);
 		return sendResponse({ error: "Storage unavailable" }, 503);
 	}

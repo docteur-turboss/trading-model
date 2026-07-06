@@ -89,7 +89,6 @@ function _logBatchError(err: unknown): void {
 }
 
 export class BinanceCronOrchestrator {
-
 	/**
 	 * Batch execution with concurrency limiting.
 	 */
@@ -113,9 +112,7 @@ export class BinanceCronOrchestrator {
 	}
 }
 
-async function _createLimiter(
-	maxConcurrency: number
-): Promise<LimitFunction> {
+async function _createLimiter(maxConcurrency: number): Promise<LimitFunction> {
 	const { default: pLimit } = (await import("p-limit")) as unknown as {
 		default: (concurrency: number) => LimitFunction;
 	};
@@ -123,7 +120,6 @@ async function _createLimiter(
 }
 
 export class BinanceCronOrchestrator {
-
 	/**
 	 * Extension point for persistence.
 	 * Can be overridden or injected.

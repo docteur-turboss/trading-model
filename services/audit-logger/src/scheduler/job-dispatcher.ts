@@ -2,12 +2,12 @@ import { logger } from "@trading-model/common/config/logger";
 import { isTerminalStatus } from "@trading-model/common/contracts/recovery.types";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
+import type { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";
 import type { WorkerProtocol } from "../worker/worker-protocol";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
-import type { ReAllocator } from "../recovery/re-allocator";
 
 export interface JobDispatcherDeps {
 	queue: InternalQueue;
@@ -57,10 +57,12 @@ export class JobDispatcher {
 		this._incrementWorkerLoad(worker);
 		this._persistAssignment(assignedJob.id, worker.workerId, deadline);
 
-		logger.info("Job assigned to worker", { context: {
-			jobId: assignedJob.id,
-			workerId: worker.workerId,
-		} });
+		logger.info("Job assigned to worker", {
+			context: {
+				jobId: assignedJob.id,
+				workerId: worker.workerId,
+			},
+		});
 	}
 
 	distributeNext(): void {
@@ -148,17 +150,21 @@ export class JobDispatcher {
 }
 
 function _logFindJobError(jobId: string, err: unknown): void {
-	logger.error("Failed to find job on ACK timeout", { context: {
-		jobId,
-		error: String(err),
-	} });
+	logger.error("Failed to find job on ACK timeout", {
+		context: {
+			jobId,
+			error: String(err),
+		},
+	});
 }
 
 function _logPersistError(jobId: string, err: unknown): void {
-	logger.error("Failed to persist assigned status", { context: {
-		jobId,
-		error: String(err),
-	} });
+	logger.error("Failed to persist assigned status", {
+		context: {
+			jobId,
+			error: String(err),
+		},
+	});
 }
 
 function _onAckTimeoutJobFound(
@@ -182,5 +188,3 @@ function _onAckTimeoutJobFound(
 			});
 		});
 }
-
-

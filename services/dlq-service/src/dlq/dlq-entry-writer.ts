@@ -58,7 +58,7 @@ export class DlqEntryWriter {
 	}
 
 	private async _isCapacityReached(
-		col: import("mongodb").Collection,
+		col: import("mongodb").Collection
 	): Promise<boolean> {
 		const currentCount = await col.estimatedDocumentCount();
 		return currentCount >= env.MAX_ENTRIES;
@@ -76,7 +76,7 @@ export class DlqEntryWriter {
 	}
 
 	private async _checkPingPong(
-		options: PingPongCheck,
+		options: PingPongCheck
 	): Promise<Record<string, unknown>> {
 		const { col, contentHash, entry, messageId, serialized } = options;
 		const prevCompleted = await col.findOne(
@@ -84,7 +84,7 @@ export class DlqEntryWriter {
 				contentHash,
 				status: { $in: ["completed", "abandoned"] },
 			},
-			{ sort: { createdAt: -1 }, projection: { dlqPassCount: 1, _id: 1 } },
+			{ sort: { createdAt: -1 }, projection: { dlqPassCount: 1, _id: 1 } }
 		);
 		const dlqPassCount = (prevCompleted?.dlqPassCount ?? 0) + 1;
 
@@ -112,11 +112,11 @@ export class DlqEntryWriter {
 	private async _insertWithDedup(
 		col: import("mongodb").Collection,
 		doc: Record<string, unknown>,
-		messageId: string,
+		messageId: string
 	): Promise<string> {
 		const existing = await col.findOne(
 			{ messageId },
-			{ projection: { _id: 1 } },
+			{ projection: { _id: 1 } }
 		);
 		if (existing) {
 			return existing._id.toHexString();
@@ -133,7 +133,7 @@ export class DlqEntryWriter {
 			) {
 				const existingAfterRace = await col.findOne(
 					{ messageId },
-					{ projection: { _id: 1 } },
+					{ projection: { _id: 1 } }
 				);
 				return existingAfterRace!._id.toHexString();
 			}

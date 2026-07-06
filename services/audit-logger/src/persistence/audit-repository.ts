@@ -1,5 +1,5 @@
-import { AppError, AgentError } from "@trading-model/common/utils/errors";
 import type { PaginatedResponse } from "@trading-model/common/contracts/pagination.types";
+import { AgentError, AppError } from "@trading-model/common/utils/errors";
 import type { Collection, Db, Filter } from "mongodb";
 
 export interface AuditEventDocument {
@@ -66,12 +66,9 @@ export class AuditRepository {
 		try {
 			await this._collection.insertOne(event);
 		} catch (err) {
-			throw new AgentError(
-				"Failed to persist audit event",
-				{
-					cause: err,
-				}
-			);
+			throw new AgentError("Failed to persist audit event", {
+				cause: err,
+			});
 		}
 	}
 
@@ -82,12 +79,9 @@ export class AuditRepository {
 		try {
 			await this._collection.insertMany(events, { ordered: false });
 		} catch (err) {
-			throw new AgentError(
-				"Failed to persist audit event batch",
-				{
-					cause: err,
-				}
-			);
+			throw new AgentError("Failed to persist audit event batch", {
+				cause: err,
+			});
 		}
 	}
 
@@ -145,13 +139,12 @@ export class AuditRepository {
 	}
 
 	async getStats(): Promise<AuditStats> {
-		const [totalEvents, topicAgg, publisherAgg, dateRange] =
-			await Promise.all([
-				this._collection.estimatedDocumentCount(),
-				_aggregateByField(this._collection, "topic"),
-				_aggregateByField(this._collection, "publisher"),
-				_aggregateDateRange(this._collection),
-			]);
+		const [totalEvents, topicAgg, publisherAgg, dateRange] = await Promise.all([
+			this._collection.estimatedDocumentCount(),
+			_aggregateByField(this._collection, "topic"),
+			_aggregateByField(this._collection, "publisher"),
+			_aggregateDateRange(this._collection),
+		]);
 
 		return {
 			totalEvents,
@@ -202,5 +195,3 @@ function _toMap(
 ): Record<string, number> {
 	return Object.fromEntries(items.map((item) => [item[MID], item.count]));
 }
-
-

@@ -244,7 +244,12 @@ function _rejectAll(
 
 async function _runBatchWithTimeout(
 	entries: DlqEntryRef[],
-	ctxBase: { client: import("@trading-model/common/config/http-client").HttpClient; messageManagerUrl: string; batchId: string; instanceId: string }
+	ctxBase: {
+		client: import("@trading-model/common/config/http-client").HttpClient;
+		messageManagerUrl: string;
+		batchId: string;
+		instanceId: string;
+	}
 ): Promise<{ success: number; errors: DlqError[] }> {
 	const ReplayConcurrency = 10;
 	const ReplayBatchTimeoutMs = 120_000;
@@ -311,10 +316,13 @@ function _checkBatchRejection(
 		return _rejectAll(entries, "Too many concurrent replay batches");
 	}
 	if (isMMCircuitOpen() && entries.length > 0) {
-		logger.warn("Message-manager circuit breaker open — rejecting replay batch", {
-			batchId,
-			entryCount: entries.length,
-		});
+		logger.warn(
+			"Message-manager circuit breaker open — rejecting replay batch",
+			{
+				batchId,
+				entryCount: entries.length,
+			}
+		);
 		return _rejectAll(entries, "Message-manager circuit breaker open");
 	}
 	return null;
@@ -428,9 +436,7 @@ function _emitReplayMetrics(successCount: number, errorsCount: number): void {
 	}
 }
 
-async function _claimAndReplayBatch(
-	options: ClaimAndReplayOptions
-): Promise<{
+async function _claimAndReplayBatch(options: ClaimAndReplayOptions): Promise<{
 	response: ResponseObject | null;
 	successCount: number;
 	errors: DlqError[];
@@ -530,14 +536,20 @@ export async function executeReplayPipeline(
 	}
 
 	const details = buildReplayResponse(batchId, successCount, errors);
-	_notifyReplayAudit(batchId, validation.data.topic, successCount, errors.length);
+	_notifyReplayAudit(
+		batchId,
+		validation.data.topic,
+		successCount,
+		errors.length
+	);
 	return sendResponse(details, 200);
 }
 
 function _mmResolveError(): ResponseObject {
 	return sendResponse(
 		{
-			error: "Cannot resolve message-manager URL (no env var, no address-manager)",
+			error:
+				"Cannot resolve message-manager URL (no env var, no address-manager)",
 		},
 		500
 	);

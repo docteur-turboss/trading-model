@@ -1,5 +1,5 @@
-import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import { type Collection, type Db, MongoClient } from "mongodb";
 
 import { env } from "./env";
@@ -43,13 +43,16 @@ function _registerMongoEvents(newClient: MongoClient): void {
 }
 
 async function _connectToMongo(): Promise<Db> {
-	const { result: dbInstance, lastError } = await retryWithBackoff(async () => {
-		return _tryConnect();
-	}, {
-		maxRetries: 10,
-		baseDelayMs: 1000,
-		maxDelayMs: 30000,
-	});
+	const { result: dbInstance, lastError } = await retryWithBackoff(
+		async () => {
+			return _tryConnect();
+		},
+		{
+			maxRetries: 10,
+			baseDelayMs: 1000,
+			maxDelayMs: 30000,
+		}
+	);
 
 	if (!dbInstance) {
 		return _throwConnectError(lastError);
@@ -62,9 +65,7 @@ async function _connectToMongo(): Promise<Db> {
 	return dbInstance.database;
 }
 
-function _throwConnectError(
-	lastError: Error | undefined
-): never {
+function _throwConnectError(lastError: Error | undefined): never {
 	connected = false;
 	throw lastError ?? new Error("Failed to connect to MongoDB after retries");
 }

@@ -152,10 +152,11 @@ export class Agent {
 
 	private _computeQTarget(exp: Experience, gamma: number): Float32Array {
 		const target = exp.output.slice();
-		const nextQ = this._nn.forward(exp.nextState).output;
-		const maxNextQ = exp.done ? 0 : Math.max(...nextQ);
+		const qExp = exp as import("./type").QLearningExperience;
+		const nextQ = this._nn.forward(qExp.nextState).output;
+		const maxNextQ = qExp.done ? 0 : Math.max(...nextQ);
 		const actionIdx = target.indexOf(Math.max(...target));
-		target[actionIdx] = exp.reward + gamma * maxNextQ;
+		target[actionIdx] = qExp.reward + gamma * maxNextQ;
 		return target;
 	}
 }

@@ -53,14 +53,11 @@ function _checkHalfOpenReopen(): void {
 	mmHalfOpenAttempts++;
 	if (mmHalfOpenAttempts >= MM_CIRCUIT_HALF_OPEN_MAX_ATTEMPTS) {
 		mmCircuitOpenUntil = Date.now() + MM_CIRCUIT_RESET_MS;
-		logger.warn(
-			"Message-manager circuit breaker re-opened during half-open",
-			{
-				failures: mmCircuitFailures,
-				halfOpenAttempts: mmHalfOpenAttempts,
-				resetMs: MM_CIRCUIT_RESET_MS,
-			}
-		);
+		logger.warn("Message-manager circuit breaker re-opened during half-open", {
+			failures: mmCircuitFailures,
+			halfOpenAttempts: mmHalfOpenAttempts,
+			resetMs: MM_CIRCUIT_RESET_MS,
+		});
 	}
 }
 

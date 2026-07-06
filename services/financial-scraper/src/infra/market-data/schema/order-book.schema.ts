@@ -88,10 +88,7 @@ const MARKER_ORDER_BOOKS = new (class MarketOrderBooksStore {
 		this._id++;
 	}
 
-	private _addToIndex(
-		storage: Map<string, number[]>,
-		key: string
-	): void {
+	private _addToIndex(storage: Map<string, number[]>, key: string): void {
 		if (storage.has(key)) {
 			storage.get(key)!.push(this._id);
 		} else {

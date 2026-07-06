@@ -67,10 +67,9 @@ function _wrapAutoRenew(tls: TlsBootstrapOptions): void {
 }
 
 function _logTlsReloadError(error: { message: string }): void {
-	logger.warn(
-		"Failed to reload HTTP client TLS after certificate renewal",
-		{ error }
-	);
+	logger.warn("Failed to reload HTTP client TLS after certificate renewal", {
+		error,
+	});
 }
 
 function _logTlsFallback(error: { message: string }): void {

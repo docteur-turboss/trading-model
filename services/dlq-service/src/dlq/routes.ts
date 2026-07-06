@@ -62,10 +62,7 @@ function verifySignature(req: Request, serviceName: string): boolean {
 	return _matchSignature(provided, secret, oldParts);
 }
 
-function _computeBodyString(
-	req: Request,
-	serviceName: string
-): string | null {
+function _computeBodyString(req: Request, serviceName: string): string | null {
 	try {
 		return deterministicStringify(normalizeBody(req.body));
 	} catch {
@@ -222,9 +219,7 @@ function createDlqRateLimiter(opts: {
 	return limiter;
 }
 
-function _trackLimiter(
-	limiter: ReturnType<typeof rateLimit>
-): void {
+function _trackLimiter(limiter: ReturnType<typeof rateLimit>): void {
 	if (typeof limiter === "function" && "resetKey" in limiter) {
 		activeRateLimiters.push(
 			limiter as unknown as { resetKey: (key: string) => void }

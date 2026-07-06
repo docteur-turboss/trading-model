@@ -36,10 +36,9 @@ export class DlqRetryManager {
 
 	async abandonExhaustedEntries(): Promise<number> {
 		const col = await getCollection();
-		const result = await col.updateMany(
-			_buildAbandonFilter(),
-			{ $set: { status: "abandoned", abandonedAt: new Date() } }
-		);
+		const result = await col.updateMany(_buildAbandonFilter(), {
+			$set: { status: "abandoned", abandonedAt: new Date() },
+		});
 		return result.modifiedCount;
 	}
 
@@ -132,9 +131,7 @@ function _buildRetryStage(errorMsg?: string): Record<string, unknown> {
 	};
 }
 
-function _buildStatusStage(
-	self: DlqRetryManager
-): Record<string, unknown> {
+function _buildStatusStage(self: DlqRetryManager): Record<string, unknown> {
 	return {
 		$set: {
 			status: {

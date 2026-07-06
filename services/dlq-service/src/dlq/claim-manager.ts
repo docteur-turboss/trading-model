@@ -2,9 +2,9 @@ import { ObjectId } from "mongodb";
 
 import { getCollection } from "../config/db";
 import { env } from "../config/env";
-import type { StoredDlqEntry } from "./repository";
 import { ClaimFilterBuilder } from "./claim-filter-builder";
 import { ClaimQueryExecutor } from "./claim-query-executor";
+import type { StoredDlqEntry } from "./repository";
 
 export interface ClaimEntriesOptions {
 	limit: number;
@@ -61,11 +61,8 @@ export class DlqClaimManager {
 			return [];
 		}
 
-		await this._queryExecutor.claimByIds(
-			col,
-			objectIds,
-			ctx,
-			() => this._filterBuilder.buildAtomicCondition()
+		await this._queryExecutor.claimByIds(col, objectIds, ctx, () =>
+			this._filterBuilder.buildAtomicCondition()
 		);
 
 		const claimed = await this._queryExecutor.fetchClaimedByIds(

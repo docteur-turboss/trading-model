@@ -124,7 +124,9 @@ function _executeRetry(
 ): Promise<unknown> {
 	config.retryCount!++;
 	const delay = getBackoffDelay(config.retryCount!);
-	return new Promise((res) => setTimeout(res, delay)).then(() => instance(config));
+	return new Promise((res) => setTimeout(res, delay)).then(() =>
+		instance(config)
+	);
 }
 
 /** Create a configured Axios instance with rate-limiting and retry logic for the given API base URL. */

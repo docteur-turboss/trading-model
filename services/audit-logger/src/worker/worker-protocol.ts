@@ -10,7 +10,10 @@ import type { WorkerRegistry } from "./worker-registry";
 export class WorkerProtocol {
 	private readonly _wss: WebSocketServer;
 	private readonly _connections: Map<string, WebSocket> = new Map();
-	private readonly _handlers: Record<string, (message: WorkerIncomingMessage, ws?: WebSocket) => void>;
+	private readonly _handlers: Record<
+		string,
+		(message: WorkerIncomingMessage, ws?: WebSocket) => void
+	>;
 
 	constructor(
 		server: https.Server,
@@ -30,7 +33,12 @@ export class WorkerProtocol {
 		});
 
 		ws.on("close", () => {
-			_handleWsClose(ws, this._connections, this._workerRegistry, this._onWorkerDisconnect);
+			_handleWsClose(
+				ws,
+				this._connections,
+				this._workerRegistry,
+				this._onWorkerDisconnect
+			);
 		});
 	}
 }
@@ -39,15 +47,26 @@ function _buildHandlers(
 	self: WorkerProtocol
 ): Record<string, (message: WorkerIncomingMessage, ws?: WebSocket) => void> {
 	return {
-		register: (msg, ws) => self._handleRegister(msg as Parameters<typeof self._handleRegister>[0], ws!),
-		heartbeat: (msg) => self._handleHeartbeat(msg as Parameters<typeof self._handleHeartbeat>[0]),
-		disconnect: (msg) => self._handleDisconnect(msg as Parameters<typeof self._handleDisconnect>[0]),
+		register: (msg, ws) =>
+			self._handleRegister(
+				msg as Parameters<typeof self._handleRegister>[0],
+				ws!
+			),
+		heartbeat: (msg) =>
+			self._handleHeartbeat(msg as Parameters<typeof self._handleHeartbeat>[0]),
+		disconnect: (msg) =>
+			self._handleDisconnect(
+				msg as Parameters<typeof self._handleDisconnect>[0]
+			),
 	};
 }
 
 function _handleWsMessage(
 	data: WebSocket.Data,
-	handlers: Record<string, (message: WorkerIncomingMessage, ws?: WebSocket) => void>,
+	handlers: Record<
+		string,
+		(message: WorkerIncomingMessage, ws?: WebSocket) => void
+	>,
 	ws: WebSocket
 ): void {
 	try {
@@ -57,9 +76,11 @@ function _handleWsMessage(
 			handler(message, ws);
 		}
 	} catch (err) {
-		logger.error("Invalid WebSocket message from worker", { context: {
-			error: err instanceof Error ? err.message : String(err),
-		} });
+		logger.error("Invalid WebSocket message from worker", {
+			context: {
+				error: err instanceof Error ? err.message : String(err),
+			},
+		});
 	}
 }
 
@@ -80,7 +101,6 @@ function _handleWsClose(
 }
 
 export class WorkerProtocol {
-
 	private _handleRegister(
 		message: WorkerIncomingMessage & { type: "register" },
 		ws: WebSocket
@@ -95,9 +115,11 @@ export class WorkerProtocol {
 		});
 		this._connections.set(message.workerId, ws);
 
-		logger.info("Worker registered via WebSocket", { context: {
-			workerId: message.workerId,
-		} });
+		logger.info("Worker registered via WebSocket", {
+			context: {
+				workerId: message.workerId,
+			},
+		});
 	}
 
 	private _handleHeartbeat(
@@ -119,10 +141,12 @@ export class WorkerProtocol {
 		this._workerRegistry.unregister(message.workerId);
 		this._onWorkerDisconnect(message.workerId);
 
-		logger.info("Worker disconnected", { context: {
-			workerId: message.workerId,
-			reason: message.reason,
-		} });
+		logger.info("Worker disconnected", {
+			context: {
+				workerId: message.workerId,
+				reason: message.reason,
+			},
+		});
 	}
 
 	sendToWorker(workerId: string, message: SchedulerOutgoingMessage): void {
