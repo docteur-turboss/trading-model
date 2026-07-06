@@ -1,3 +1,6 @@
+import type { CandleInterval } from "@trading-model/common/config/event.types";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+
 import type {
 	AuditFilter,
 	CacheEntryList,
@@ -46,8 +49,8 @@ async function request<TData>(
 	const res = await fetch(`${API_BASE}${path}`, {
 		method,
 		headers: {
-			"Content-Type": "application/json",
-			"x-api-key": adminToken,
+			[HTTP_HEADERS.CONTENT_TYPE]: "application/json",
+			[HTTP_HEADERS.X_API_KEY]: adminToken,
 		},
 		body: body ? JSON.stringify(body) : undefined,
 	});
@@ -100,7 +103,7 @@ export const API_CLIENT = {
 	drainWorker: (id: string) =>
 		request<void>("PATCH", `/workers/${id}/status`, { status: "draining" }),
 
-	getCandles: (symbol: string, interval: string) =>
+	getCandles: (symbol: string, interval: CandleInterval) =>
 		request<Candle[]>(
 			"GET",
 			`/scraper/candles?symbol=${symbol}&interval=${interval}`

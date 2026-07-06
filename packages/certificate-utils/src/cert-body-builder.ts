@@ -36,6 +36,11 @@ export class CertBodyBuilder {
 		return sign.sign(privateKey, "base64");
 	}
 
+	signAndBuildPem(certBody: string, privateKey: string, issuerCert?: string): string {
+		const signature = this.signCertBody(certBody, privateKey);
+		return this.buildCertPem(certBody, signature, issuerCert);
+	}
+
 	buildCertPem(certBody: string, signature: string, issuerCert?: string): string {
 		const payload: Record<string, string> = { body: certBody, signature };
 		if (issuerCert) {

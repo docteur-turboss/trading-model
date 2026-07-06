@@ -24,6 +24,8 @@ import {
 	YAxis,
 } from "recharts";
 
+import { CandleInterval } from "@trading-model/common/config/event.types";
+
 import { API_CLIENT } from "../api/api-client";
 import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";
@@ -65,8 +67,8 @@ function IntervalSelect({
 	value,
 	onChange,
 }: {
-	value: string;
-	onChange: (value: string) => void;
+	value: CandleInterval;
+	onChange: (value: CandleInterval) => void;
 }) {
 	return (
 		<TextField
@@ -107,8 +109,8 @@ function MarketDataControls({
 }: {
 	symbol: string;
 	onSymbolChange: (value: string) => void;
-	interval: string;
-	onIntervalChange: (value: string) => void;
+	interval: CandleInterval;
+	onIntervalChange: (value: CandleInterval) => void;
 }) {
 	return (
 		<Box sx={{ display: "flex", gap: 2 }}>
@@ -339,8 +341,8 @@ function MarketDataToolbar({
 }: {
 	symbol: string;
 	onSymbolChange: (value: string) => void;
-	interval: string;
-	onIntervalChange: (value: string) => void;
+	interval: CandleInterval;
+	onIntervalChange: (value: CandleInterval) => void;
 }) {
 	return (
 		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
@@ -377,7 +379,7 @@ function CandleDataTable({
 
 export function MarketData() {
 	const [symbol, setSymbol] = useState("BTCUSDT");
-	const [interval, setInterval] = useState("1h");
+	const [candleInterval, setCandleInterval] = useState<CandleInterval>(CandleInterval.H1);
 	const [tab, setTab] = useState(0);
 	const { data: candles, loading } = useApi(
 		() => API_CLIENT.getCandles(symbol, interval),
