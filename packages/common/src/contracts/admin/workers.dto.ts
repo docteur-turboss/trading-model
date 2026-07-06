@@ -1,6 +1,6 @@
 import type { IPAddress, ModelId, Port, Region } from "../../domain/primitives";
 
-export enum WorkerStatus {
+export enum AdminWorkerStatus {
 	Online = "Online",
 	Draining = "Draining",
 	Offline = "Offline",
@@ -12,7 +12,7 @@ export interface WorkerEntry {
 	region: Region;
 	cpu: number;
 	ram: number;
-	status: WorkerStatus;
+	status: AdminWorkerStatus;
 	heartbeat: string;
 	activeJobs: number;
 }

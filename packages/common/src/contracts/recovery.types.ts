@@ -12,15 +12,18 @@ export enum JobPriority {
 	HIGHEST = 5,
 }
 
-export type JobStatus =
-	| "pending"
-	| "queued"
-	| "assigned"
-	| "running"
-	| "completed"
-	| "failed"
-	| "cancelled"
-	| "orphaned";
+export const JOB_STATUS = {
+	PENDING: "pending",
+	QUEUED: "queued",
+	ASSIGNED: "assigned",
+	RUNNING: "running",
+	COMPLETED: "completed",
+	FAILED: "failed",
+	CANCELLED: "cancelled",
+	ORPHANED: "orphaned",
+} as const satisfies Record<string, string>;
+
+export type JobStatus = (typeof JOB_STATUS)[keyof typeof JOB_STATUS];
 
 export interface JobEvent {
 	fromStatus: JobStatus;
@@ -52,17 +55,17 @@ export type JobUpdateExtras = Partial<
 >;
 
 export const JOB_STATUS_NON_TERMINAL: readonly JobStatus[] = [
-	"pending",
-	"queued",
-	"assigned",
-	"running",
-	"orphaned",
+	JOB_STATUS.PENDING,
+	JOB_STATUS.QUEUED,
+	JOB_STATUS.ASSIGNED,
+	JOB_STATUS.RUNNING,
+	JOB_STATUS.ORPHANED,
 ];
 
 export const JOB_STATUS_TERMINAL: readonly JobStatus[] = [
-	"completed",
-	"failed",
-	"cancelled",
+	JOB_STATUS.COMPLETED,
+	JOB_STATUS.FAILED,
+	JOB_STATUS.CANCELLED,
 ];
 
 const TERMINAL_SET = new Set(JOB_STATUS_TERMINAL);

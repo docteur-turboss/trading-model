@@ -2,13 +2,13 @@ import { randomUUID } from "node:crypto";
 
 import type { NextFunction, Request, Response } from "express";
 
+import { HTTP_HEADERS } from "../http-headers";
+
 declare module "express-serve-static-core" {
 	interface Request {
 		correlationId: string;
 	}
 }
-
-const CORRELATION_ID_HEADER = "x-correlation-id";
 
 export function correlationIdMiddleware(
 	req: Request,
@@ -16,14 +16,14 @@ export function correlationIdMiddleware(
 	next: NextFunction
 ): void {
 	const existing =
-		req.headers[CORRELATION_ID_HEADER] ?? req.headers["x-request-id"];
+		req.headers[HTTP_HEADERS.CORRELATION_ID] ?? req.headers[HTTP_HEADERS.X_REQUEST_ID];
 	const correlationId =
 		typeof existing === "string" && existing.length > 0
 			? existing
 			: randomUUID();
 
 	req.correlationId = correlationId;
-	res.setHeader(CORRELATION_ID_HEADER, correlationId);
+	res.setHeader(HTTP_HEADERS.CORRELATION_ID, correlationId);
 
 	next();
 }

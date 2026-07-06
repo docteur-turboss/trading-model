@@ -1,13 +1,13 @@
 import type { JobId } from "../../domain/primitives";
 
-export enum JobPriority {
+export enum AdminJobPriority {
 	High = "HIGH",
 	Medium = "MEDIUM",
 	Low = "LOW",
 	Critical = "CRITICAL",
 }
 
-export enum JobStatus {
+export enum AdminJobStatus {
 	Pending = "pending",
 	InProgress = "in_progress",
 	Completed = "completed",
@@ -18,16 +18,16 @@ export enum JobStatus {
 export interface JobEntry {
 	id: JobId;
 	type: string;
-	priority: JobPriority;
-	status: JobStatus;
+	priority: AdminJobPriority;
+	status: AdminJobStatus;
 	worker: string | null;
 }
 
 export interface JobDetail {
 	id: JobId;
 	type: string;
-	priority: JobPriority;
-	status: JobStatus;
+	priority: AdminJobPriority;
+	status: AdminJobStatus;
 	worker: string | null;
 	timeline: JobTimelineEntry[];
 	payload: Record<string, unknown>;

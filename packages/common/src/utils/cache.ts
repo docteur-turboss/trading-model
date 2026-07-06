@@ -4,4 +4,5 @@ export interface ICache<TValue = unknown> {
 	delete(key: string): void | Promise<void>;
 	clear(): void | Promise<void>;
 	has?(key: string): boolean | Promise<boolean>;
+	invalidate?(pattern: string): void | Promise<void>;
 }

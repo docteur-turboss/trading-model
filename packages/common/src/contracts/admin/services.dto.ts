@@ -9,11 +9,11 @@ export enum ServiceStatus {
 
 export interface ServiceRegistryEntry {
 	serviceName: ServiceInstanceName;
-	instances: ServiceInstance[];
+	instances: AdminServiceInstance[];
 	topology?: TopologyLink[];
 }
 
-export interface ServiceInstance {
+export interface AdminServiceInstance {
 	instanceId: InstanceId;
 	host: IPAddress;
 	port: Port;

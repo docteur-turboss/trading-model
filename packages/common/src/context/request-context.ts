@@ -2,6 +2,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { Request } from "express";
 
+import { HTTP_HEADERS } from "../http-headers";
+
 /**
  * Per-request storage for propagating identity and metadata
  * across async boundaries (e.g., when making outbound HTTP calls).
@@ -27,7 +29,7 @@ export function requestContextMiddleware(
 		clientIdentity:
 			(req as unknown as Record<string, string>).clientIdentity ?? "unknown",
 		requestId:
-			(req.headers["x-request-id"] as string) ??
+			(req.headers[HTTP_HEADERS.X_REQUEST_ID] as string) ??
 			(req as unknown as Record<string, string>).correlationId ??
 			"",
 		correlationId:

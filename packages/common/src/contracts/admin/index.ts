@@ -11,7 +11,7 @@ export type {
 } from "./jobs.dto";
 export type { Candle, Ticker } from "./market-data.dto";
 export type {
-	ServiceInstance,
+	AdminServiceInstance,
 	ServiceRegistryEntry,
 	TopologyLink,
 } from "./services.dto";

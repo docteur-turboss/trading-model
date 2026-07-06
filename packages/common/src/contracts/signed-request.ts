@@ -1,7 +1,10 @@
 import type { ServiceId } from "../domain/primitives";
 
+/** Standard HTTP method verbs. */
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+
 export interface HttpRoute {
-	method: string;
+	method: HttpMethod;
 	path: string;
 }
 
@@ -10,7 +13,12 @@ export interface SignedRequest extends HttpRoute {
 	body: unknown;
 }
 
+/** A cryptographic signature string (HMAC-SHA256 hex or base64). */
+export type Signature = string & { readonly __brand: "Signature" };
+/** A UNIX-millisecond timestamp string used in request signing. */
+export type Timestamp = string & { readonly __brand: "Timestamp" };
+
 export interface SignedRequestAuth {
-	timestamp: string;
-	signature: string;
+	timestamp: Timestamp;
+	signature: Signature;
 }
