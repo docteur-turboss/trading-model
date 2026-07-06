@@ -183,7 +183,7 @@ export interface EvaluateFitnessContext {
 function _makeEvalFn(
 	windowSets: WindowSet[],
 	backendFactory: BackendFactory
-): (genome: DeepReadonly<LamarckGenome>) => Promise<import("./evaluation-pipeline").EvaluationResult> {
+): (genome: DeepReadonly<LamarckGenome>) => ReturnType<typeof evaluateGenomeAllWindows> {
 	return async (genome: DeepReadonly<LamarckGenome>) =>
 		evaluateGenomeAllWindows(genome, windowSets, backendFactory);
 }

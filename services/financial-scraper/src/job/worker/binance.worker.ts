@@ -18,8 +18,8 @@ import { HELPER } from "@trading-model/broker-message";
 import type { MessageMetadata } from "@trading-model/broker-message/shared/helper/messages/message";
 import {
 	DeliveryMode,
+	type DeliveryMode,
 } from "@trading-model/common/config/delivery-mode.types";
-import type { DeliveryMode as DeliveryModeType } from "@trading-model/common/config/delivery-mode.types";
 import type { CandleInterval } from "@trading-model/common/config/event.types";
 import { EnumEventMessage } from "@trading-model/common/config/event.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
@@ -167,7 +167,6 @@ function _buildResponse(
 	};
 }
 
-export class BinanceWorker {
 	private _configureMetadata(
 		builder: typeof HELPER.metadataBuilder.prototype
 	): void {
@@ -182,7 +181,6 @@ export class BinanceWorker {
 			.setIds(_buildIds())
 			.setPublisher(_buildPublisher());
 	}
-}
 
 function _buildAuthContext(): {
 	roles: string[];
