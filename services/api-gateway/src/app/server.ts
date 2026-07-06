@@ -1,3 +1,4 @@
+import { Port } from "@trading-model/common/domain/primitives";
 import { createSecureServer } from "@trading-model/common/server/create-secure-server";
 
 import { ENV } from "../config/env";
@@ -9,7 +10,7 @@ function _mountGatewayRoutes(app: import("express").Application): void {
 
 export function createServer() {
 	return createSecureServer({
-		port: ENV.PORT,
+		port: Port.of(ENV.PORT),
 		tls: {
 			keyPath: ENV.TLS_KEY_PATH,
 			certPath: ENV.TLS_CERT_PATH,

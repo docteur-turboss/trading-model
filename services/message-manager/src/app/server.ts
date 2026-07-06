@@ -1,4 +1,5 @@
 import { createSecureServer } from "@trading-model/common/server/create-secure-server";
+import { Port } from "@trading-model/common/domain/primitives";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
 import { ENV } from "../config/env";
@@ -7,7 +8,7 @@ import { MESSAGE_MANAGER_ROUTES } from "../config/message-manager";
 /** Create and return an HTTPS server with mounted address-manager and message-manager routes. */
 export function createServer() {
 	return createSecureServer({
-		port: ENV.PORT,
+		port: Port.of(ENV.PORT),
 		tls: tlsConfig(),
 		trustProxy: true,
 		routes: mountRoutes,

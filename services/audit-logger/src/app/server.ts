@@ -1,3 +1,4 @@
+import { Port } from "@trading-model/common/domain/primitives";
 import { createSecureServer } from "@trading-model/common/server/create-secure-server";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
@@ -15,7 +16,7 @@ export function createServer(
 	const messageHandler = createMessageHandler(auditRepo);
 
 	return createSecureServer({
-		port: ENV.PORT,
+		port: Port.of(ENV.PORT),
 		tls: {
 			keyPath: ENV.TLS_KEY_PATH,
 			certPath: ENV.TLS_CERT_PATH,
