@@ -1,3 +1,4 @@
+import type { ServiceId } from "../../src/domain/primitives";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { RevocationReason } from "../../src/domain/revocation-request";
 
@@ -68,10 +69,10 @@ describe("CaClient", () => {
 		it("should POST to the sign endpoint and return the signed certificate", async () => {
 			MOCK_POST.mockResolvedValueOnce(signResponse);
 
-			const result = await client.signCertificate(
-				"my-service",
-				"-----BEGIN CSR-----"
-			);
+			const result = await client.signCertificate({
+				serviceId: "my-service" as unknown as ServiceId,
+				csr: "-----BEGIN CSR-----",
+			});
 
 			expect(MOCK_POST).toHaveBeenCalledWith(
 				"https://ca.example.com:8443/api/v1/certificate/sign",
@@ -86,7 +87,9 @@ describe("CaClient", () => {
 		it("should include optional ttlMs and bootstrapToken", async () => {
 			MOCK_POST.mockResolvedValueOnce(signResponse);
 
-			await client.signCertificate("my-service", "csr", {
+			await client.signCertificate({
+				serviceId: "my-service" as unknown as ServiceId,
+				csr: "csr",
 				ttlMs: 86400000,
 				bootstrapToken: "token-123",
 			});
@@ -105,7 +108,7 @@ describe("CaClient", () => {
 		it("should throw when response is empty", async () => {
 			MOCK_POST.mockResolvedValueOnce(undefined);
 
-			await expect(client.signCertificate("my-service", "csr")).rejects.toThrow(
+			await expect(client.signCertificate({ serviceId: "my-service" as unknown as ServiceId, csr: "csr" })).rejects.toThrow(
 				"Empty response from CA sign endpoint"
 			);
 		});
@@ -113,7 +116,7 @@ describe("CaClient", () => {
 		it("should propagate HttpClient errors", async () => {
 			MOCK_POST.mockRejectedValueOnce(new Error("Connection refused"));
 
-			await expect(client.signCertificate("my-service", "csr")).rejects.toThrow(
+			await expect(client.signCertificate({ serviceId: "my-service" as unknown as ServiceId, csr: "csr" })).rejects.toThrow(
 				"Connection refused"
 			);
 		});

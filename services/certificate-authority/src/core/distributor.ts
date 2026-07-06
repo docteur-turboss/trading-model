@@ -24,10 +24,10 @@ export class Distributor {
 			return null;
 		}
 
-		const validation = validateCertificate(
-			cert.certPem,
-			this._options.ca.getCaCertPem()
-		);
+		const validation = validateCertificate({
+			certPem: cert.certPem,
+			caCertPem: this._options.ca.getCaCertPem(),
+		});
 		if (!validation.valid) {
 			return null;
 		}

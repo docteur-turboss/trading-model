@@ -92,7 +92,7 @@ describe("async module - pool path", () => {
 
 	it("validateCertificateAsync should delegate to pool", async () => {
 		MOCK_EXECUTE.mockResolvedValue({ valid: true });
-		const result = await validateCertificateAsync("cert");
+		const result = await validateCertificateAsync({ certPem: "cert" });
 		expect(MOCK_EXECUTE).toHaveBeenCalledWith("validateCertificate", {
 			certPem: "cert",
 			caCertPem: undefined,
@@ -102,7 +102,7 @@ describe("async module - pool path", () => {
 
 	it("validateCertificateAsync with caCertPem should delegate to pool", async () => {
 		MOCK_EXECUTE.mockResolvedValue({ valid: true });
-		const result = await validateCertificateAsync("cert", "ca-cert");
+		const result = await validateCertificateAsync({ certPem: "cert", caCertPem: "ca-cert" });
 		expect(MOCK_EXECUTE).toHaveBeenCalledWith("validateCertificate", {
 			certPem: "cert",
 			caCertPem: "ca-cert",
@@ -192,7 +192,7 @@ describe("async module - remote client path", () => {
 
 	it("validateCertificateAsync should delegate to remote client", async () => {
 		MOCK_VALIDATE_CERTIFICATE.mockResolvedValue({ valid: true });
-		const result = await validateCertificateAsync("cert");
+		const result = await validateCertificateAsync({ certPem: "cert" });
 		expect(MOCK_VALIDATE_CERTIFICATE).toHaveBeenCalledWith("cert");
 		expect(result.valid).toBe(true);
 	});

@@ -42,7 +42,7 @@ const HANDLERS: [string, JobHandler<unknown>][] = [
 		"validateCertificate",
 		(job: { payload: { certPem: string; caCertPem?: string } }) =>
 			Promise.resolve(
-				validateCertificate(job.payload.certPem, job.payload.caCertPem ?? "")
+				validateCertificate({ certPem: job.payload.certPem, caCertPem: job.payload.caCertPem ?? "" })
 			),
 	],
 	[

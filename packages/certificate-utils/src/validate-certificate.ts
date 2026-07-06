@@ -1,5 +1,10 @@
 import { createPublicKey, createVerify } from "node:crypto";
 
+export interface CertificateValidationInput {
+	certPem: string;
+	caCertPem?: string;
+}
+
 /** Clears any cached validation results. */
 export function clearValidationCache(): void {
 	// no-op: validation cache is managed by consumers
@@ -36,9 +41,9 @@ function _validateCertTiming(body: string): ValidationResult | null {
 }
 
 export function validateCertificate(
-	certPem: string,
-	_caCertPem: string,
+	input: CertificateValidationInput,
 ): ValidationResult {
+	const { certPem } = input;
 	try {
 		const certData = parseCert(certPem);
 		const timingResult = _validateCertTiming(certData.body);

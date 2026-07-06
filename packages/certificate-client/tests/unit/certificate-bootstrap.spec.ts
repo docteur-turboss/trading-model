@@ -315,7 +315,9 @@ describe("bootstrapCertificate", () => {
 			bootstrapToken: "btoken",
 		});
 
-		expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith("svc", "csr", {
+		expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith({
+			serviceId: "svc",
+			csr: "csr",
 			bootstrapToken: "btoken",
 		});
 	});

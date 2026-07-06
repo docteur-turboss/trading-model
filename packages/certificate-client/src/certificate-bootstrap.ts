@@ -6,7 +6,7 @@ import {
 	generateKeyPairAsync,
 } from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
-import { CaClient } from "@trading-model/common/ca/ca-client";
+import { CaClient, type SignCertificateRequest } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap";
 import type { TlsPaths, TlsPemBundle } from "@trading-model/common/domain/tls-paths";
@@ -126,9 +126,12 @@ async function _signWithCa(
 	csr: string,
 ): Promise<import("@trading-model/common/ca/ca-client").SignCertificateResponse> {
 	const caClient = new CaClient({ baseUrl: config.caUrl, tls: config.tls });
-	return await caClient.signCertificate(config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId, csr, {
+	const request: SignCertificateRequest = {
+		serviceId: config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
+		csr,
 		bootstrapToken: config.bootstrapToken,
-	});
+	};
+	return await caClient.signCertificate(request);
 }
 
 async function _writeCertFiles(

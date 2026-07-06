@@ -386,7 +386,7 @@ describe("WorkerClient defaults and reconnection", () => {
 		callbacks.close();
 
 		expect(onDisconnected).toHaveBeenCalled();
-		expect(onReconnecting).toHaveBeenCalledWith({ attempt: 1, delay: 1000 });
+		expect(onReconnecting).toHaveBeenCalledWith({ attempt: 1, delay: 2000 });
 	});
 
 	it("should emit error on reconnect failure without rejecting", async () => {

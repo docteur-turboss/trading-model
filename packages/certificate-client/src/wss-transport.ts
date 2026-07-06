@@ -1,9 +1,8 @@
 ﻿import { randomUUID } from "node:crypto";
 
-import type { SignCertificateResponse } from "@trading-model/common/ca/ca-client";
+import type { SignCertificateRequest, SignCertificateResponse } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import { isWsConnected } from "@trading-model/common/domain/ws-connection";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
 import WebSocket from "ws";
 
 import { WssTransportConnection } from "./wss-transport-connection";
@@ -122,10 +121,9 @@ export class CaWssTransport {
 	}
 
 	async signCertificate(
-		serviceId: ServiceId,
-		csr: string,
-		options?: { ttlMs?: number }
+		request: SignCertificateRequest
 	): Promise<SignCertificateResponse> {
+		const { serviceId, csr, ttlMs } = request;
 		const id = randomUUID();
 		return new Promise<SignCertificateResponse>((resolve, reject) => {
 			const timer = setTimeout(() => {
@@ -147,7 +145,7 @@ export class CaWssTransport {
 				JSON.stringify({
 					type: "sign",
 					id,
-					data: { serviceId, csr, ttlMs: options?.ttlMs },
+					data: { serviceId, csr, ttlMs },
 				}),
 				(err) => {
 					if (err) {

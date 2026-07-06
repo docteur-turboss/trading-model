@@ -125,13 +125,11 @@ describe("CertificateClient", () => {
 				san: ["my-service"],
 				keyPem: "private-key-pem",
 			});
-			expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith(
-				"my-service",
-				"csr-pem-content",
-				{
-					bootstrapToken: undefined,
-				}
-			);
+			expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith({
+				serviceId: "my-service",
+				csr: "csr-pem-content",
+				bootstrapToken: undefined,
+			});
 			expect(result).toEqual({
 				certPem: "signed-cert-pem",
 				keyPem: "private-key-pem",
@@ -182,7 +180,9 @@ describe("CertificateClient", () => {
 			});
 			await client.obtainCertificate();
 
-			expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith("my-service", "csr", {
+			expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith({
+				serviceId: "my-service",
+				csr: "csr",
 				bootstrapToken: "my-bootstrap-token",
 			});
 		});
@@ -331,7 +331,9 @@ describe("CertificateClient", () => {
 			await Promise.resolve();
 			await Promise.resolve();
 
-			expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith("my-service", "csr2", {
+			expect(MOCK_SIGN_CERTIFICATE).toHaveBeenCalledWith({
+				serviceId: "my-service",
+				csr: "csr2",
 				bootstrapToken: undefined,
 			});
 		});

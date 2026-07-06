@@ -54,7 +54,7 @@ function _handleValidateCertificate(data: Record<string, unknown>): unknown {
 		certPem: string;
 		caCertPem?: string;
 	};
-	return validateCertificate(certPem, caCertPem ?? "");
+	return validateCertificate({ certPem, caCertPem: caCertPem ?? "" });
 }
 
 function _handleParseKey(data: Record<string, unknown>): unknown {

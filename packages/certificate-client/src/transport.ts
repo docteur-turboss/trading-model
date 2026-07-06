@@ -1,5 +1,6 @@
 import {
 	CaClient,
+	type SignCertificateRequest,
 	type SignCertificateResponse,
 } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
@@ -54,9 +55,7 @@ export class TransportManager {
 	}
 
 	async signCertificate(
-		serviceId: ServiceId,
-		csr: string,
-		options?: { ttlMs?: number }
+		request: SignCertificateRequest
 	): Promise<SignCertificateResponse> {
 		if (this._mode === "wss" && this._wssTransport.isConnected) {
 			if (!this._wssTransport.isAuthSent) {
@@ -66,20 +65,16 @@ export class TransportManager {
 						"WSS not authenticated after 3 attempts, falling back to HTTPS"
 					);
 					this._mode = "https";
-					return this._httpsClient.signCertificate(serviceId, csr, options);
+					return this._httpsClient.signCertificate(request);
 				}
 			}
 			try {
-				return await this._wssTransport.signCertificate(
-					serviceId,
-					csr,
-					options
-				);
+				return await this._wssTransport.signCertificate(request);
 			} catch (err) {
 				logger.error("WSS sign failed, falling back to HTTPS", { err });
 			}
 		}
-		return this._httpsClient.signCertificate(serviceId, csr, options);
+		return this._httpsClient.signCertificate(request);
 	}
 
 	async getCertificate(

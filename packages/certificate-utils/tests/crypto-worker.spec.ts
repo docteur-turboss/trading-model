@@ -133,7 +133,7 @@ describe("createCryptoWorker", () => {
 			payload: { certPem: "cert", caCertPem: "ca" },
 		});
 
-		expect(validateCertificate).toHaveBeenCalledWith("cert", "ca");
+		expect(validateCertificate).toHaveBeenCalledWith({ certPem: "cert", caCertPem: "ca" });
 		expect(result.valid).toBe(true);
 	});
 
@@ -142,7 +142,7 @@ describe("createCryptoWorker", () => {
 		const handler = getHandler("validateCertificate");
 		const result = await handler({ payload: { certPem: "cert" } });
 
-		expect(validateCertificate).toHaveBeenCalledWith("cert", "");
+		expect(validateCertificate).toHaveBeenCalledWith({ certPem: "cert", caCertPem: "" });
 		expect(result.valid).toBe(true);
 	});
 

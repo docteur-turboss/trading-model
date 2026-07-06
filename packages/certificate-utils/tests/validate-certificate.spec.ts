@@ -35,7 +35,7 @@ beforeAll(() => {
 
 describe("validateCertificate", () => {
 	it("should return valid for a properly signed certificate", () => {
-		const result = validateCertificate(signed.certPem, caCertPem);
+		const result = validateCertificate({ certPem: signed.certPem, caCertPem });
 
 		expect(result.valid).toBe(true);
 		expect(result.reason).toBeUndefined();
@@ -51,7 +51,7 @@ describe("validateCertificate", () => {
 		const reEncoded = Buffer.from(JSON.stringify(parsed)).toString("base64");
 		const tamperedCertPem = `-----BEGIN CERTIFICATE-----\n${reEncoded}\n-----END CERTIFICATE-----`;
 
-		const result = validateCertificate(tamperedCertPem, caCertPem);
+		const result = 	validateCertificate({ certPem: tamperedCertPem, caCertPem });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toBe("Signature verification failed");
@@ -68,7 +68,7 @@ describe("validateCertificate", () => {
 		const reEncoded = Buffer.from(JSON.stringify(parsed)).toString("base64");
 		const tamperedCertPem = `-----BEGIN CERTIFICATE-----\n${reEncoded}\n-----END CERTIFICATE-----`;
 
-		const result = validateCertificate(tamperedCertPem, caCertPem);
+		const result = 	validateCertificate({ certPem: tamperedCertPem, caCertPem });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toBe("Signature verification failed");
@@ -82,7 +82,7 @@ describe("validateCertificate", () => {
 		).toString("base64");
 		const certPem = `-----BEGIN CERTIFICATE-----\n${pemContent}\n-----END CERTIFICATE-----`;
 
-		const result = validateCertificate(certPem, "");
+		const result = 	validateCertificate({ certPem, caCertPem: "" });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error");
@@ -99,21 +99,21 @@ describe("validateCertificate", () => {
 		).toString("base64");
 		const certPem = `-----BEGIN CERTIFICATE-----\n${pemContent}\n-----END CERTIFICATE-----`;
 
-		const result = validateCertificate(certPem, "");
+		const result = 	validateCertificate({ certPem, caCertPem: "" });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error");
 	});
 
 	it("should return invalid for malformed PEM input", () => {
-		const result = validateCertificate("not-a-pem", "not-a-ca-pem");
+		const result = 	validateCertificate({ certPem: "not-a-pem", caCertPem: "not-a-ca-pem" });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error:");
 	});
 
 	it("should return invalid for an empty string", () => {
-		const result = validateCertificate("", "");
+		const result = 	validateCertificate({ certPem: "", caCertPem: "" });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error:");
@@ -122,7 +122,7 @@ describe("validateCertificate", () => {
 	it("should return invalid for truncated PEM data", () => {
 		const truncatedPem = signed.certPem.substring(0, 100);
 
-		const result = validateCertificate(truncatedPem, "");
+		const result = 	validateCertificate({ certPem: truncatedPem, caCertPem: "" });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toContain("Validation error:");
@@ -148,7 +148,7 @@ describe("validateCertificate", () => {
 		).toString("base64");
 		const certPem = `-----BEGIN CERTIFICATE-----\n${pemContent}\n-----END CERTIFICATE-----`;
 
-		const result = validateCertificate(certPem, caCertPem);
+		const result = validateCertificate({ certPem, caCertPem });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toBe("Certificate expired");
@@ -175,7 +175,7 @@ describe("validateCertificate", () => {
 		).toString("base64");
 		const certPem = `-----BEGIN CERTIFICATE-----\n${pemContent}\n-----END CERTIFICATE-----`;
 
-		const result = validateCertificate(certPem, caCertPem);
+		const result = validateCertificate({ certPem, caCertPem });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toBe("Certificate not yet valid");
@@ -203,7 +203,7 @@ describe("validateCertificate", () => {
 		).toString("base64");
 		const certPem = `-----BEGIN CERTIFICATE-----\n${pemContent}\n-----END CERTIFICATE-----`;
 
-		const result = validateCertificate(certPem, caCertPem);
+		const result = validateCertificate({ certPem, caCertPem });
 
 		expect(result.valid).toBe(true);
 	});
@@ -229,7 +229,7 @@ describe("validateCertificate", () => {
 		).toString("base64");
 		const certPem = `-----BEGIN CERTIFICATE-----\n${pemContent}\n-----END CERTIFICATE-----`;
 
-		const result = validateCertificate(certPem, caCertPem);
+		const result = validateCertificate({ certPem, caCertPem });
 
 		expect(result.valid).toBe(false);
 		expect(result.reason).toBe("Signature verification failed");

@@ -55,22 +55,17 @@ export class CaClient {
 	/**
 	 * Submits a Certificate Signing Request (CSR) to the CA service.
 	 * Returns the signed certificate, CA PEM, and metadata.
-	 *
-	 * @param serviceId - Logical service name requesting the certificate.
-	 * @param csr - PEM-encoded CSR.
-	 * @param options - Optional TTL and bootstrap token for initial provisioning.
 	 */
 	async signCertificate(
-		serviceId: ServiceId,
-		csr: string,
-		options?: { ttlMs?: number; bootstrapToken?: string }
+		request: SignCertificateRequest
 	): Promise<SignCertificateResponse> {
+		const { serviceId, csr, ttlMs, bootstrapToken } = request;
 		const body: Record<string, unknown> = { serviceId, csr };
-		if (options?.ttlMs) {
-			body.ttlMs = options.ttlMs;
+		if (ttlMs) {
+			body.ttlMs = ttlMs;
 		}
-		if (options?.bootstrapToken) {
-			body.bootstrapToken = options.bootstrapToken;
+		if (bootstrapToken) {
+			body.bootstrapToken = bootstrapToken;
 		}
 
 		const result = await this._httpClient.post<SignCertificateResponse>(

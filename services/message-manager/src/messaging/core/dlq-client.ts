@@ -102,9 +102,14 @@ function addSignature(
 	opts.headers["x-signature"] = signature;
 }
 
+export interface DlqSendOptions {
+	attempt?: number;
+	maxRetries?: number;
+}
+
 export interface IDlqServiceClient {
 	readonly isEnabled: boolean;
-	send(entry: DlqEntry, attempt?: number, MaxRetries?: number): Promise<void>;
+	send(entry: DlqEntry, options?: DlqSendOptions): Promise<void>;
 	replay(topic?: string, limit?: number): Promise<DlqEntry[]>;
 	delete(entryIds: string[]): Promise<void>;
 }
@@ -112,7 +117,7 @@ export interface IDlqServiceClient {
 class NullDlqServiceClient implements IDlqServiceClient {
 	readonly isEnabled = false;
 
-	async send(entry: DlqEntry, _attempt?: number, _MaxRetries?: number): Promise<void> {
+	async send(entry: DlqEntry, _options?: DlqSendOptions): Promise<void> {
 		this._logNotConfigured(entry);
 	}
 
@@ -145,14 +150,16 @@ export class DlqServiceClient implements IDlqServiceClient {
 		return Boolean(this._serviceUrl);
 	}
 
-	async send(entry: DlqEntry, attempt = 1, MaxRetries = 3): Promise<void> {
+	async send(entry: DlqEntry, options?: DlqSendOptions): Promise<void> {
 		if (!this.isEnabled) {
 			return;
 		}
+		const attempt = options?.attempt ?? 1;
+		const maxRetries = options?.maxRetries ?? 3;
 		try {
 			await this._doSend(entry);
 		} catch (err) {
-			return this._handleSendError(entry, err as Error, attempt, MaxRetries);
+			return this._handleSendError(entry, err as Error, attempt, maxRetries);
 		}
 	}
 
@@ -169,10 +176,10 @@ export class DlqServiceClient implements IDlqServiceClient {
 		entry: DlqEntry,
 		err: Error,
 		attempt: number,
-		MaxRetries: number
+		maxRetries: number
 	): Promise<void> {
-		if (attempt <= MaxRetries) {
-			await this._retrySend(entry, err, attempt, MaxRetries);
+		if (attempt <= maxRetries) {
+			await this._retrySend(entry, err, attempt, maxRetries);
 			return;
 		}
 		logger.error("Failed to send DLQ entry to service after retries", { context: {
@@ -186,7 +193,7 @@ export class DlqServiceClient implements IDlqServiceClient {
 		entry: DlqEntry,
 		err: Error,
 		attempt: number,
-		MaxRetries: number
+		maxRetries: number
 	): Promise<void> {
 		const delay = Math.round(
 			Math.min(200 * 2 ** (attempt - 1), 5000) * (0.5 + Math.random() * 0.5)
@@ -198,7 +205,7 @@ export class DlqServiceClient implements IDlqServiceClient {
 			error: normalizeError(err),
 		} });
 		await new Promise((resolve) => setTimeout(resolve, delay));
-		return this.send(entry, attempt + 1, MaxRetries);
+		return this.send(entry, { attempt: attempt + 1, maxRetries });
 	}
 
 	async replay(topic?: string, limit = 100): Promise<DlqEntry[]> {
