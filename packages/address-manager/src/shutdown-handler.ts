@@ -4,7 +4,7 @@ import type { WebSocketClient } from "./client/websocket-client";
 import type { AddressManagerClient } from "./client/address-manager-client";
 
 export class ShutdownHandler {
-	private _cleanupHandlers?: () => void;
+	private _cleanupHandlers: () => void = () => {};
 	private _metricsTimer?: NodeJS.Timeout;
 
 	constructor(
@@ -75,11 +75,11 @@ export class ShutdownHandler {
 		this._cleanupHandlers = () => {
 			process.removeListener("SIGTERM", onSigTerm);
 			process.removeListener("SIGINT", onSigInt);
-			this._cleanupHandlers = undefined;
+			this._cleanupHandlers = () => {};
 		};
 	}
 
 	removeSignalHandlers(): void {
-		this._cleanupHandlers?.();
+		this._cleanupHandlers();
 	}
 }
