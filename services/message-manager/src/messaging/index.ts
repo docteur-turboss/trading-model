@@ -29,7 +29,7 @@ import type { Application } from "express";
 
 import type { BrokerConfig } from "./broker.type";
 import { Dispatcher } from "./core/dispatcher";
-import { DlqRepository } from "./core/dlq-repository";
+import { FileDlqRepository } from "./core/dlq-repository";
 import { BROKER_ROUTES } from "./transport/http.routes";
 
 /**
@@ -56,7 +56,7 @@ export default class BrokerModule {
 	constructor(config: BrokerConfig) {
 		this._httpClient = HttpClient.createWithTls(config);
 
-		const dqlRepository = new DlqRepository();
+		const dqlRepository = new FileDlqRepository();
 		this._dispatcher = new Dispatcher(this._httpClient, dqlRepository);
 
 		this.listen = (app) => app.use(BROKER_ROUTES(this._dispatcher));

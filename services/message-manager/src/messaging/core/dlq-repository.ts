@@ -21,7 +21,7 @@ export interface DlqEntry {
  * Appends dead-lettered messages as JSON Lines (NDJSON) to a file.
  * Each line is a JSON-serialized DlqEntry.
  */
-export class DlqRepository {
+export class FileDlqRepository {
 	constructor(
 		private readonly _filePath: string = "./dead-letter-queue.jsonl"
 	) {}
