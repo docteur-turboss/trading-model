@@ -117,7 +117,7 @@ export class AddressManagerClient {
 		try {
 			await this._sendHeartbeat(url);
 		} catch (error) {
-			throw new AddressManagerError(
+			throw addressManagerError(
 				"Failed to refresh service TTL",
 				{ cause: normalizeError(error) },
 			);
@@ -132,7 +132,7 @@ export class AddressManagerClient {
 			(result) => result.status === "rejected",
 		);
 		if (failures.length === results.length) {
-			throw new AddressManagerError("Failed to refresh service TTL", {
+			throw addressManagerError("Failed to refresh service TTL", {
 				cause: normalizeError(
 					(failures[0] as PromiseRejectedResult).reason,
 				),

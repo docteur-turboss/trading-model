@@ -21,17 +21,14 @@ export interface BatchReplayContext extends BatchContext {
 	messageManagerUrl: string;
 }
 
-export interface ReplayBatchOptions {
+export interface ReplayBatchOptions extends BatchContext {
 	entries: DlqEntryRef[];
 	messageManagerUrl: string;
-	batchId: string;
-	instanceId: string;
 }
 
-export interface ClaimAndReplayOptions {
+export interface ClaimAndReplayOptions extends Partial<BatchContext> {
 	messageManagerUrl: string;
 	limit: number;
-	batchId: string;
 	topic: string | undefined;
 	span: Span;
 }

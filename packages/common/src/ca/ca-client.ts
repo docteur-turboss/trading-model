@@ -29,6 +29,14 @@ export interface GetCertificateResponse extends CertificateResponse {
 	issuedAt: string;
 }
 
+/** A single entry in the Certificate Revocation List. */
+export interface CrlEntry {
+	serialNumber: string;
+	serviceId: string;
+	revokedAt: string;
+	reason: string;
+}
+
 export class CaClient {
 	private readonly _httpClient: HttpClient;
 	private readonly _baseUrl: string;

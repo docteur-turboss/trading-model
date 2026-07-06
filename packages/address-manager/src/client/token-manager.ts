@@ -1,5 +1,9 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import { AppError, AuthenticationError } from "@trading-model/common/utils/errors";
+import {
+	AppError,
+	authenticationError,
+	isAuthenticationError,
+} from "@trading-model/common/utils/errors";
 
 import type { AddressManagerConfig } from "../config/address-manager-config";
 
