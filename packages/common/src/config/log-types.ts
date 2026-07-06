@@ -5,6 +5,12 @@ export enum LogLevel {
 	Error = 3,
 }
 
+export interface LogOptions {
+	context?: Record<string, unknown>;
+	url?: string;
+	serviceInCharge?: string;
+}
+
 export interface LogEntry {
 	timestamp: Date;
 	level: LogLevel;

@@ -1,8 +1,8 @@
 import { AuditServiceClient } from "./audit-service-client";
 import { ErrorServiceSender } from "./error-service-sender";
 import { LogFileWriter } from "./log-file-writer";
-import { LogLevel, type LogEntry } from "./log-types";
-export type { LogEntry };
+import { LogLevel, type LogEntry, type LogOptions } from "./log-types";
+export type { LogEntry, LogOptions };
 export { LogLevel };
 import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
@@ -45,13 +45,8 @@ export class Logger {
 		}
 	}
 
-	private _createLogEntry(input: {
-		level: LogLevel;
-		message: string;
-		context?: Record<string, unknown>;
-		url?: string;
-		serviceInCharge?: string;
-	}): LogEntry {
+	private _createLogEntry(level: LogLevel, message: string, opts?: LogOptions): LogEntry {
+		const { context, url = "", serviceInCharge = "" } = opts ?? {};
 		const { level, message, context, url = "", serviceInCharge = "" } = input;
 		const now = new Date();
 		const data = {

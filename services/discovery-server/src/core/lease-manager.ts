@@ -146,7 +146,10 @@ export class LeaseManager {
 					});
 
 					try {
-						this._registry.removeInstance(serviceName, instance.instanceId);
+						this._registry.removeInstance({
+							serviceName,
+							instanceId: instance.instanceId,
+						});
 					} catch (err) {
 						logger.error("Failed to remove expired instance", {
 							serviceName,
