@@ -31,7 +31,7 @@ describe("Message Broker Integration", () => {
 
 	beforeEach(() => {
 		httpClient = createMockHttpClient();
-		const dqlRepository = new DlqRepository(dlqFilePath);
+		const dqlRepository = new FileDlqRepository(dlqFilePath);
 		dispatcher = new Dispatcher(httpClient as never, dqlRepository);
 	});
 

@@ -15,14 +15,9 @@ jest.mock("../../../../src/config/redis", () => ({
 	getStreamClient: jest.fn(),
 }));
 
+import type { MemoryWalEntry } from "../../../../src/messaging/core/memory-wal-entry";
 import { getStreamClient } from "../../../../src/config/redis";
 import { MemoryWalFlusher } from "../../../../src/messaging/core/memory-wal-flusher";
-
-interface MemoryWalEntry {
-	topic: string;
-	serialized: string;
-	message: import("@trading-model/common/contracts/message.types").Message;
-}
 
 function createMockRedis() {
 	const mockMulti = {

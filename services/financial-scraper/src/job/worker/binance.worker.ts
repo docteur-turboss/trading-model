@@ -23,6 +23,7 @@ import {
 import type { CandleInterval } from "@trading-model/common/config/event.types";
 import { EnumEventMessage } from "@trading-model/common/config/event.types";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { TradingSymbol } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 
 import {
@@ -39,7 +40,7 @@ import { MessageManager } from "../../config/message-manager";
 
 /** Configuration options for a single BinanceWorker execution against one symbol. */
 export interface BinanceWorkerOptions {
-	symbol: string;
+	symbol: TradingSymbol;
 	interval?: CandleInterval;
 	candleLimit?: number;
 	tradeLimit?: number;
@@ -122,7 +123,7 @@ async function _fetchAllRawData(
 		tradeLimit = 100,
 		orderBookLimit = 100,
 	} = opts;
-	const interval = opts.interval ?? "1m";
+	const interval = opts.interval ?? CandleInterval.MIN1;
 
 	const [
 		orderBookRaw,
@@ -151,8 +152,8 @@ async function _fetchAllRawData(
 }
 
 function _buildResponse(
-	symbol: string,
-	interval: string | undefined,
+	symbol: TradingSymbol,
+	interval: CandleInterval | undefined,
 	raw: RawBinanceData
 ): BinanceWorkerResult {
 	return {
@@ -160,7 +161,7 @@ function _buildResponse(
 		recentTrades: BinanceNormalizer.trades(symbol, raw.tradesRaw),
 		candles: BinanceNormalizer.candles(
 			symbol,
-			interval ?? "1m",
+			interval ?? CandleInterval.MIN1,
 			raw.candlesRaw
 		),
 		ticker24h: BinanceNormalizer.ticker24h(raw.ticker24hRaw),

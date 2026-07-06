@@ -68,7 +68,7 @@ describe("FileDlqRepository", () => {
 		});
 
 		it("should work with default file path when no path provided", () => {
-			const repo = new DlqRepository();
+			const repo = new FileDlqRepository();
 			expect(repo).toBeInstanceOf(FileDlqRepository);
 		});
 

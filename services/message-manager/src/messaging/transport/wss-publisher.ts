@@ -1,6 +1,7 @@
 import { context, propagation } from "@opentelemetry/api";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { LruCache } from "@trading-model/common/utils/lru-cache";
 import type WebSocket from "ws";
 import { ENV } from "../../config/env";
@@ -53,7 +54,7 @@ export class WssPublisher {
 			return true;
 		}
 		const result = await authorizeTopic(
-			{ headers: { "x-service-name": ctx.identity.serviceName } } as never,
+			{ headers: { [HTTP_HEADERS.X_SERVICE_NAME]: ctx.identity.serviceName } } as never,
 			topic
 		);
 		if (result.allowed) {

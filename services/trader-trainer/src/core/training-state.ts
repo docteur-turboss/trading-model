@@ -47,37 +47,35 @@ export interface LastTrainingInfo {
 	generationContext: GenerationContext | null;
 }
 
+const NULL_TRAINING_INFO: LastTrainingInfo = {
+	symbol: "" as TradingSymbol,
+	bestGenome: undefined as unknown as DeepReadonly<LamarckGenome>,
+	generation: 0,
+	generationContext: null,
+};
+
 export class TrainingState {
-	private _lastInfo: LastTrainingInfo | null = null;
-	private readonly _summaryBuilder: GenomeSummaryBuilder;
-
-	private get _requiredLastInfo(): LastTrainingInfo {
-		if (!this._lastInfo) throw new Error("Training info not yet available");
-		return this._lastInfo;
-	}
-
-	constructor() {
-		this._summaryBuilder = new GenomeSummaryBuilder();
-	}
+	private _lastInfo: LastTrainingInfo = NULL_TRAINING_INFO;
+	private readonly _summaryBuilder = new GenomeSummaryBuilder();
 
 	update(info: LastTrainingInfo): void {
 		this._lastInfo = info;
 	}
 
 	getCurrentSymbol(): TradingSymbol {
-		return this._lastInfo?.symbol ?? ("" as TradingSymbol);
+		return this._lastInfo.symbol;
 	}
 
 	getGeneration(): number {
-		return this._lastInfo?.generation ?? 0;
+		return this._lastInfo.generation;
 	}
 
 	getGenerationContext(): GenerationContext | null {
-		return this._lastInfo?.generationContext ?? null;
+		return this._lastInfo.generationContext;
 	}
 
 	getBestAgentSummary(): BestAgentSummary | null {
-		if (!this._lastInfo) {
+		if (this._lastInfo.bestGenome === undefined) {
 			return null;
 		}
 

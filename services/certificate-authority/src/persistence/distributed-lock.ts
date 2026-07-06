@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import type { LockBackend, LockContext } from "./lock-backends";
 import {
 	FileSystemLockBackend,
@@ -16,7 +17,7 @@ export interface DistributedLockOptions {
 	fallbackDir?: string;
 }
 
-export class DistributedLock {
+export class DistributedLock implements IDistributedLock {
 	private readonly _context: LockContext;
 	private readonly _ttlMs: number;
 	private _currentFencingToken = -1;

@@ -60,6 +60,7 @@ export class GeneticAlgorithmRunner {
 	private _generation = 0;
 	private _archive = new ParetoArchive();
 	private _stagnationTracker = new StagnationTracker();
+	private _lastBestGenome: DeepReadonly<LamarckGenome> | undefined;
 
 	constructor(private readonly _cfg: GARunnerConfig) {}
 
@@ -93,7 +94,7 @@ export class GeneticAlgorithmRunner {
 			this._stagnationTracker.stagnation
 		);
 
-		this._stagnationTracker.track(popWithMeta, metas, avgEff);
+		this._lastBestGenome = this._stagnationTracker.track(popWithMeta, metas, avgEff) ?? this._lastBestGenome;
 
 		const ranked = sortPopulation(popWithMeta, popMeta);
 		const elites = selectElites(ranked, newCtrl);
@@ -110,8 +111,7 @@ export class GeneticAlgorithmRunner {
 			population: this._population,
 			archive: this._archive.members,
 			bestFitness: this._stagnationTracker.bestFitness,
-			bestGenome: this._stagnationTracker
-				.bestGenome as DeepReadonly<LamarckGenome>,
+			bestGenome: this._lastBestGenome as DeepReadonly<LamarckGenome>,
 			avgFitness: avgFit,
 			efficiencyScore: avgEff,
 			elapsedMs: Date.now() - (startTime ?? Date.now()),
@@ -175,7 +175,7 @@ export class GeneticAlgorithmRunner {
 
 		return (
 			this._archive.members[0] ??
-			this._stagnationTracker.bestGenome ??
+			this._lastBestGenome ??
 			this._population[0]
 		);
 	}
@@ -184,7 +184,7 @@ export class GeneticAlgorithmRunner {
 		return this._population;
 	}
 	public getBestGenome(): DeepReadonly<LamarckGenome> | null {
-		return this._stagnationTracker.bestGenome;
+		return this._lastBestGenome ?? null;
 	}
 	public getArchive(): DeepReadonly<LamarckGenome>[] {
 		return this._archive.members;

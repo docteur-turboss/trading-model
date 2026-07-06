@@ -1,3 +1,4 @@
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getRedisClient } from "../../config/redis";
@@ -10,7 +11,7 @@ const ACL_LOADING = new Map<string, Promise<string[] | "deny">>();
 function extractServiceName(req: {
 	headers: Record<string, string | string[] | undefined>;
 }): string | null {
-	const cn = req.headers["x-service-name"];
+	const cn = req.headers[HTTP_HEADERS.X_SERVICE_NAME];
 	if (cn) {
 		return Array.isArray(cn) ? cn[0] : cn;
 	}

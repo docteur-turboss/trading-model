@@ -1,16 +1,10 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
-
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { BUFFER_DROPPED_TOTAL } from "../../config/metrics";
 import { MemoryWalFallback } from "./memory-wal-fallback";
 import { MemoryWalFlusher } from "./memory-wal-flusher";
-
-interface MemoryWalEntry {
-	topic: string;
-	serialized: string;
-	message: Message;
-}
+import type { MemoryWalEntry } from "./memory-wal-entry";
 
 export class MemoryWalBuffer {
 	private _buffer: MemoryWalEntry[] = [];

@@ -1,15 +1,9 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
 import { retryFileAppend } from "@trading-model/common/utils/retry-file-append";
 
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
-
-interface MemoryWalEntry {
-	topic: string;
-	serialized: string;
-	message: Message;
-}
+import type { MemoryWalEntry } from "./memory-wal-entry";
 
 export class MemoryWalFallback {
 	constructor(private readonly _prefix: string) {}

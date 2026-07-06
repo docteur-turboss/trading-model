@@ -3,14 +3,9 @@ import { logger } from "../../config/logger";
 import { WalBatchFlusher } from "./wal-batch-flusher";
 import { RedisBackoff } from "./redis-backoff";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
+import type { MemoryWalEntry } from "./memory-wal-entry";
 
 const WAL_BATCH_SIZE = 50;
-
-interface MemoryWalEntry {
-	topic: string;
-	serialized: string;
-	message: import("@trading-model/common/contracts/message.types").Message;
-}
 
 export class MemoryWalFlusher {
 	private _flushing = false;
