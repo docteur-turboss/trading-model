@@ -28,33 +28,25 @@ export function createHeartbeatController(
 	};
 }
 
+function _parseHeartbeatBody(req: import("express").Request): { serviceName: string; instanceId: string } | null {
+	const parsed = HEARTBEAT_SCHEMA.safeParse(req.body);
+	if (!parsed.success) {
+		return null;
+	}
+	return parsed.data;
+}
+
 function _createHeartbeatHandler(registry: ServiceRegistry): RequestHandler {
 	return catchSync((req) => {
-		const parsed = HEARTBEAT_SCHEMA.safeParse(req.body);
-		if (!parsed.success) {
-			return sendResponse(
-				{
-					error: "Invalid request body",
-					details: parsed.error.flatten().fieldErrors,
-				},
-				400
-			);
+		const data = _parseHeartbeatBody(req);
+		if (!data) {
+			return sendResponse({ error: "Invalid request body", details: HEARTBEAT_SCHEMA.safeParse(req.body).error!.flatten().fieldErrors }, 400);
 		}
-
-		const { serviceName, instanceId } = parsed.data;
-
-		validateInstanceToken(
-			registry,
-			req.headers["x-instance-token"],
-			instanceId
-		);
-
-		const ttl = registry.updateHeartbeat({ serviceName, instanceId });
-
+		validateInstanceToken(registry, req.headers["x-instance-token"], data.instanceId);
+		const ttl = registry.updateHeartbeat({ serviceName: data.serviceName, instanceId: data.instanceId });
 		if (!ttl) {
 			return sendResponse({ error: "Instance not found" }, 404);
 		}
-
 		return sendResponse({ ttl }, 200);
 	});
 }

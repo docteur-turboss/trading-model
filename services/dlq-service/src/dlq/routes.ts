@@ -169,11 +169,19 @@ function _newRedisClient(): Redis {
 function createStore(): undefined | RedisStore {
 	const client = getOrCreateRedis();
 	if (!client) {
-		logger.warn(
-			"Redis unavailable — rate limiting falls back to per-instance memory store"
-		);
+		_logStoreFallback();
 		return;
 	}
+	return _buildRedisStore(client);
+}
+
+function _logStoreFallback(): void {
+	logger.warn(
+		"Redis unavailable — rate limiting falls back to per-instance memory store"
+	);
+}
+
+function _buildRedisStore(client: Redis): RedisStore {
 	const sendCommand = (...args: string[]): Promise<number> => {
 		return client.call(
 			args[0],
@@ -210,12 +218,18 @@ function createDlqRateLimiter(opts: {
 		legacyHeaders: false,
 		store: createStore(),
 	});
+	_trackLimiter(limiter);
+	return limiter;
+}
+
+function _trackLimiter(
+	limiter: ReturnType<typeof rateLimit>
+): void {
 	if (typeof limiter === "function" && "resetKey" in limiter) {
 		activeRateLimiters.push(
 			limiter as unknown as { resetKey: (key: string) => void }
 		);
 	}
-	return limiter;
 }
 
 export const DlqRoutes = (): Router => {

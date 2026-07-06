@@ -170,7 +170,7 @@ function argmax(arr: Float32Array, start: number, len: number): number {
 	return best - start;
 }
 
-function decodeScalars(vec: Float32Array) {
+function _decodeRLScalars(vec: Float32Array) {
 	return {
 		gamma: clamp(vec[0], 0.8, 0.9999),
 		learningRate: clamp(10 ** ((vec[1] - 1) * 6), 1e-6, 1e-1),
@@ -189,12 +189,30 @@ function decodeScalars(vec: Float32Array) {
 		bufferSize: clamp(Math.round(10 ** (vec[14] * 6)), 100, 1_000_000),
 		alphaPER: clamp(vec[15], 0, 1),
 		betaPER: clamp(vec[16], 0, 1),
+	};
+}
+
+function _decodeMutationScalars(vec: Float32Array) {
+	return {
 		mutationRate: clamp(vec[17] * 0.5, 0.001, 0.5),
 		sigma: clamp(10 ** ((vec[18] - 1.25) * 4), 1e-5, 10),
 		selfSigma: clamp(10 ** ((vec[19] - 1.25) * 4), 1e-5, 10),
+	};
+}
+
+function _decodeNetworkScalars(vec: Float32Array) {
+	return {
 		inputDim: clamp(Math.round(vec[20] * 256), 1, 256),
 		outputDim: clamp(Math.round(vec[21] * 64), 1, 64),
 		depth: clamp(Math.round(vec[22] * MAX_DEPTH), 1, MAX_DEPTH),
+	};
+}
+
+function decodeScalars(vec: Float32Array) {
+	return {
+		..._decodeRLScalars(vec),
+		..._decodeMutationScalars(vec),
+		..._decodeNetworkScalars(vec),
 	};
 }
 

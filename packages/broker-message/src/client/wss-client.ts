@@ -112,35 +112,36 @@ export class WssClient {
 		this._reconnector.schedule(() => this._connectWs());
 	}
 
-	private _connectWs(): void {
-		if (this._ws) {
-			try {
-				this._ws.close();
-			} catch {
-				logger.warn("Failed to close existing WSS connection");
-			}
-			this._ws = null;
+	private _closeExistingWs(): void {
+		if (!this._ws) {
+			return;
 		}
+		try {
+			this._ws.close();
+		} catch {
+			logger.warn("Failed to close existing WSS connection");
+		}
+		this._ws = null;
+	}
 
+	private _setupNewWs(wsUrl: string): void {
+		const agent = this._setupWsTls();
+		this._ws = new WebSocket(wsUrl, { agent });
+		this._ws.on("open", () => this._onWsOpen());
+		this._ws.on("message", (raw: WebSocket.RawData) => this._onWsMessage(raw));
+		this._ws.on("close", (code: number, reason: Buffer) => this._onWsClose(code, reason));
+		this._ws.on("error", (err: Error) => this._onWsError(err));
+	}
+
+	private _connectWs(): void {
+		this._closeExistingWs();
 		const wsUrl = this._buildWsUrl();
 		logger.info("WSS connecting", {
 			url: wsUrl,
 			attempt: this._reconnector.attempt + 1,
 		});
-
 		try {
-			const agent = this._setupWsTls();
-
-			this._ws = new WebSocket(wsUrl, { agent });
-
-			this._ws.on("open", () => this._onWsOpen());
-			this._ws.on("message", (raw: WebSocket.RawData) =>
-				this._onWsMessage(raw)
-			);
-			this._ws.on("close", (code: number, reason: Buffer) =>
-				this._onWsClose(code, reason)
-			);
-			this._ws.on("error", (err: Error) => this._onWsError(err));
+			this._setupNewWs(wsUrl);
 		} catch (err) {
 			this._connected = false;
 			logger.warn("WSS connection failed", {
@@ -178,22 +179,23 @@ export class WssClient {
 		this._dispatcher.setMessageHandler(handler);
 	}
 
-	publish(payload: unknown, metadata: MessageMetadata): Promise<void> {
+	private _injectTraceparent(): string | undefined {
 		const carrier: Record<string, string> = {};
 		propagation.inject(context.active(), carrier);
-		const traceparent = carrier.traceparent;
+		return carrier.traceparent;
+	}
 
+	publish(payload: unknown, metadata: MessageMetadata): Promise<void> {
+		const traceparent = this._injectTraceparent();
 		if (
 			this._connected &&
 			this._sendJson({ type: "publish", payload, metadata, traceparent })
 		) {
 			return Promise.resolve();
 		}
-
 		if (this._queue.httpFallback) {
 			return this._queue.enqueueOrFallback(payload, metadata);
 		}
-
 		return Promise.reject(new Error("WSS not connected and no HTTP fallback"));
 	}
 

@@ -26,23 +26,25 @@ export class StreamGroupManager {
 	}
 
 	async ensureConsumerGroup(topic: string, groupName: string): Promise<void> {
-		const redis = await getStreamClient();
 		try {
-			await redis.xgroup(
-				"CREATE",
-				this._streamKey(topic),
-				groupName,
-				"$",
-				"MKSTREAM"
-			);
+			await this._createGroup(topic, groupName);
 		} catch (err: unknown) {
-			if (err instanceof Error && !err.message.includes("BUSYGROUP")) {
-				logger.warn("Failed to create consumer group", { context: {
-					topic,
-					groupName,
-					error: err.message,
-				} });
-			}
+			this._handleGroupError(topic, groupName, err);
+		}
+	}
+
+	private async _createGroup(topic: string, groupName: string): Promise<void> {
+		const redis = await getStreamClient();
+		await redis.xgroup("CREATE", this._streamKey(topic), groupName, "$", "MKSTREAM");
+	}
+
+	private _handleGroupError(topic: string, groupName: string, err: unknown): void {
+		if (err instanceof Error && !err.message.includes("BUSYGROUP")) {
+			logger.warn("Failed to create consumer group", { context: {
+				topic,
+				groupName,
+				error: err.message,
+			} });
 		}
 	}
 

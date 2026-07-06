@@ -6,6 +6,11 @@ import { HEARTBEAT_ROUTES } from "../routes/heartbeat.routes";
 import { REGISTRY_ROUTES } from "../routes/register.routes";
 
 /** Create and return an HTTPS server with mounted registry and heartbeat routes. */
+function _mountDiscoveryRoutes(app: import("express").Application, registry: ServiceRegistry): void {
+	app.use("/", REGISTRY_ROUTES(registry));
+	app.use("/", HEARTBEAT_ROUTES(registry));
+}
+
 export function createServer(registry: ServiceRegistry) {
 	return createSecureServer({
 		port: ENV.PORT,
@@ -14,9 +19,6 @@ export function createServer(registry: ServiceRegistry) {
 			certPath: ENV.TLS_CERT_PATH,
 			caPath: ENV.TLS_CA_PATH,
 		},
-		routes: (app) => {
-			app.use("/", REGISTRY_ROUTES(registry));
-			app.use("/", HEARTBEAT_ROUTES(registry));
-		},
+		routes: (app) => _mountDiscoveryRoutes(app, registry),
 	});
 }
