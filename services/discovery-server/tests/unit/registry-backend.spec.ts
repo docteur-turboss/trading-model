@@ -262,11 +262,11 @@ describe("InMemoryRegistryBackend", () => {
 	describe("generateInstanceId", () => {
 		it("should return a non-empty base64 string", () => {
 			const backend = new InMemoryRegistryBackend();
-			const id = backend.generateInstanceId(
-				"financial-scraper-service",
-				"192.168.1.10",
-				8444
-			);
+			const id = backend.generateInstanceId({
+				serviceName: "financial-scraper-service",
+				address: "192.168.1.10",
+				port: 8444,
+			});
 			expect(typeof id).toBe("string");
 			expect(id.length).toBeGreaterThan(0);
 		});

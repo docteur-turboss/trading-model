@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-declaration-merging */
+﻿/* eslint-disable @typescript-eslint/no-unsafe-declaration-merging */
 import { EventEmitter } from "node:events";
 
 import WebSocket from "ws";
@@ -196,8 +196,10 @@ export class WorkerClient extends EventEmitter {
 		this._reconnectTimer = setTimeout(() => {
 			this._doConnect().catch((err) =>
 				logger.warn("Failed to reconnect worker client", {
-					attempt: this._reconnectAttempt,
-					err: normalizeError(err),
+					context: {
+						attempt: this._reconnectAttempt,
+						err: normalizeError(err),
+					},
 				})
 			);
 		}, delay);

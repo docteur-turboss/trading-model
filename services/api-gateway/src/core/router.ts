@@ -36,7 +36,7 @@ const catchAllRoute = catchSync(async (req) => {
 
 	const target = await RESOLVER.resolve(serviceName, majorVersion);
 	if (!target) {
-		logger.warn("Service not found", { serviceName, majorVersion });
+		logger.warn("Service not found", { context: { serviceName, majorVersion } });
 		return sendResponse(
 			{
 				error: "Service not found",

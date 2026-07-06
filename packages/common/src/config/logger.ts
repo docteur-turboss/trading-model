@@ -47,7 +47,6 @@ export class Logger {
 
 	private _createLogEntry(level: LogLevel, message: string, opts?: LogOptions): LogEntry {
 		const { context, url = "", serviceInCharge = "" } = opts ?? {};
-		const { level, message, context, url = "", serviceInCharge = "" } = input;
 		const now = new Date();
 		const data = {
 			timestamp: now,
@@ -83,13 +82,7 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry({
-			level: LogLevel.Debug,
-			message,
-			context,
-			url,
-			serviceInCharge,
-		});
+		const logEntry = this._createLogEntry(LogLevel.Debug, message, { context, url, serviceInCharge });
 		this._addToBuffer(logEntry);
 		console.debug(
 			`[DEBUG] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -107,13 +100,7 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry({
-			level: LogLevel.Info,
-			message,
-			context,
-			url,
-			serviceInCharge,
-		});
+		const logEntry = this._createLogEntry(LogLevel.Info, message, { context, url, serviceInCharge });
 		this._addToBuffer(logEntry);
 		console.info(
 			`[INFO] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -131,13 +118,7 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry({
-			level: LogLevel.Warn,
-			message,
-			context,
-			url,
-			serviceInCharge,
-		});
+		const logEntry = this._createLogEntry(LogLevel.Warn, message, { context, url, serviceInCharge });
 		this._addToBuffer(logEntry);
 		console.warn(
 			`[WARN] [${logEntry.timestamp.toISOString()}] ${message}`,
@@ -155,13 +136,7 @@ export class Logger {
 			return;
 		}
 
-		const logEntry = this._createLogEntry({
-			level: LogLevel.Error,
-			message,
-			context,
-			url,
-			serviceInCharge,
-		});
+		const logEntry = this._createLogEntry(LogLevel.Error, message, { context, url, serviceInCharge });
 		this._addToBuffer(logEntry);
 		console.error(
 			`[ERROR] [${logEntry.timestamp.toISOString()}] ${message}`,

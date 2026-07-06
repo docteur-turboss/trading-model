@@ -54,7 +54,7 @@ function _buildServiceInstance(
 ): ServiceInstance {
 	const { serviceName, instanceId, ip, port, version } = data;
 	const safeInstanceId =
-		instanceId ?? registry.generateInstanceId(serviceName, ip, port);
+		instanceId ?? registry.generateInstanceId({ serviceName, address: ip, port });
 
 	return {
 		instanceId: safeInstanceId,

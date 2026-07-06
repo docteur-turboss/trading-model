@@ -222,11 +222,11 @@ describe("ServiceRegistry", () => {
 
 	describe("generateInstanceId", () => {
 		it("should return a non-empty base64 string", () => {
-			const id = registry.generateInstanceId(
-				"financial-scraper-service",
-				"192.168.1.10",
-				8444
-			);
+			const id = registry.generateInstanceId({
+				serviceName: "financial-scraper-service",
+				address: "192.168.1.10",
+				port: 8444,
+			});
 			expect(typeof id).toBe("string");
 			expect(id.length).toBeGreaterThan(0);
 		});
