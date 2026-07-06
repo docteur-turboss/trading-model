@@ -254,7 +254,7 @@ describe("Logger", () => {
 			const obj: Record<string, unknown> = { name: "parent" };
 			obj.self = obj;
 
-			logger.info("circular test", obj);
+			logger.info("circular test", { context: obj });
 
 			expect(MOCK_APPEND_FILE).toHaveBeenCalled();
 			const writtenData = MOCK_APPEND_FILE.mock.calls[0][1];
@@ -272,7 +272,7 @@ describe("Logger", () => {
 				normalKey: "visible",
 			};
 
-			logger.info("test sensitive redaction", context);
+			logger.info("test sensitive redaction", { context });
 
 			expect(MOCK_APPEND_FILE).toHaveBeenCalled();
 			const writtenData = MOCK_APPEND_FILE.mock.calls[0][1];
@@ -299,7 +299,7 @@ describe("Logger", () => {
 				normalField: "visible",
 			};
 
-			logger.info("test tls redaction", context);
+			logger.info("test tls redaction", { context });
 
 			expect(MOCK_APPEND_FILE).toHaveBeenCalled();
 			const writtenData = MOCK_APPEND_FILE.mock.calls[0][1];
