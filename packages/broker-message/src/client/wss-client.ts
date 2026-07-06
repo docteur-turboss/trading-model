@@ -85,6 +85,12 @@ export class WssClient {
 		this._reconnector.schedule(() => this._connectWs());
 	}
 
+	get httpFallback():
+		| ((payload: unknown, metadata: MessageMetadata) => Promise<void>)
+		| null {
+		return this._queue.httpFallback;
+	}
+
 	get messageHandler(): WssMessageHandler | null {
 		return this._dispatcher["_messageHandler"] as WssMessageHandler | null;
 	}
