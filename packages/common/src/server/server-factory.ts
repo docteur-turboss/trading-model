@@ -142,28 +142,29 @@ function createDebouncedReload(
 	};
 }
 
-export async function setupTlsWatcher(
-	server: https.Server,
-	tls: TlsPaths
+async function _watchDirectory(
+	dir: string,
+	debouncedReload: (eventType: string, filename: string | null) => void,
 ): Promise<void> {
-	const files = [tls.keyPath, tls.certPath, tls.caPath];
-	const dirs = new Set(files.map((file) => path.dirname(path.resolve(file))));
-	const debouncedReload = createDebouncedReload(server, tls);
+	try {
+		await fsPromises.access(dir, fs.constants.R_OK);
+		const watcher = fs.watch(dir, debouncedReload);
+		watcher.unref();
+	} catch (err) {
+		logger.warn("Cannot watch TLS directory", {
+			context: { dir, err: normalizeError(err) },
+		});
+	}
+}
 
+export async function setupTlsWatcher(server: https.Server, tls: TlsPaths): Promise<void> {
+	const dirs = new Set(
+		[tls.keyPath, tls.certPath, tls.caPath].map((file) =>
+			path.dirname(path.resolve(file)),
+		),
+	);
+	const debouncedReload = createDebouncedReload(server, tls);
 	await Promise.all(
-		[...dirs].map(async (dir) => {
-			try {
-				await fsPromises.access(dir, fs.constants.R_OK);
-				const watcher = fs.watch(dir, debouncedReload);
-				watcher.unref();
-			} catch (err) {
-				logger.warn("Cannot watch TLS directory", {
-					context: {
-						dir,
-						err: normalizeError(err),
-					},
-				});
-			}
-		})
+		[...dirs].map((dir) => _watchDirectory(dir, debouncedReload)),
 	);
 }

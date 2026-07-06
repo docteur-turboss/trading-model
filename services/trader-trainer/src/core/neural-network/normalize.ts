@@ -41,25 +41,23 @@ class LogarithmicNormalizer implements Normalizer {
 	}
 }
 
+function _findMinMax(data: Float32Array): { min: number; max: number } {
+	let min = data[0];
+	let max = data[0];
+	for (const value of data) {
+		if (value < min) min = value;
+		if (value > max) max = value;
+	}
+	return { min, max };
+}
+
 class MinMaxNormalizer implements Normalizer {
 	normalize(data: Float32Array, len: number): Float32Array {
-		let min = data[0];
-		let max = data[0];
-
-		for (const value of data) {
-			if (value < min) {
-				min = value;
-			}
-			if (value > max) {
-				max = value;
-			}
-		}
+		const { min, max } = _findMinMax(data);
 		const range = 1 / (max - min) || 1;
-
 		for (let i = 0; i < len; i++) {
 			data[i] = (data[i] - min) * range;
 		}
-
 		return data;
 	}
 }
@@ -94,26 +92,29 @@ class RobustScalingNormalizer implements Normalizer {
 
 class ZScoreNormalizer implements Normalizer {
 	normalize(data: Float32Array, len: number): Float32Array {
-		let sum = 0;
-		for (const value of data) {
-			sum += value;
-		}
-
-		const mean = sum / len;
-
-		let variance = 0;
-
-		for (const value of data) {
-			variance += (value - mean) ** 2;
-		}
-		const invStd = 1 / (Math.sqrt(variance / len) || 1);
-
+		const mean = _computeMean(data, len);
+		const invStd = _computeInvStd(data, mean, len);
 		for (let i = 0; i < len; i++) {
 			data[i] = (data[i] - mean) * invStd;
 		}
-
 		return data;
 	}
+}
+
+function _computeMean(data: Float32Array, len: number): number {
+	let sum = 0;
+	for (const value of data) {
+		sum += value;
+	}
+	return sum / len;
+}
+
+function _computeInvStd(data: Float32Array, mean: number, len: number): number {
+	let variance = 0;
+	for (const value of data) {
+		variance += (value - mean) ** 2;
+	}
+	return 1 / (Math.sqrt(variance / len) || 1);
 }
 
 class NoneNormalizer implements Normalizer {

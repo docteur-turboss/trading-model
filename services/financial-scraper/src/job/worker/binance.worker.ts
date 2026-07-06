@@ -157,36 +157,64 @@ function _buildResponse(
 export class BinanceWorker {
 
 	private _configureMetadata(builder: typeof HELPER.metadataBuilder.prototype): void {
-		const authContext = {
-			roles: ["Data", "Financial", "Scraper"],
-			subject: env.SERVICE_NAME,
-			tenantId: env.INSTANCE_ID,
-		};
-
-		const signature = createHash("sha256")
-			.update(deterministicStringify(authContext))
-			.digest("base64url");
+		const authContext = _buildAuthContext();
+		const signature = _computeSignature(authContext);
 
 		builder
-			.setDelivery({
-				mode: this._options.deliveryMode ?? DeliveryMode.AT_LEAST_ONCE,
-				deduplicationId: randomUUID(),
-			})
+			.setDelivery(_buildDeliveryConfig(this._options.deliveryMode))
 			.setEventType("FetchCandlestick")
 			.setTopic(EnumEventMessage.fetchCandlestickSeries)
-			.setSecurity({
-				authContext,
-				signature,
-			})
-			.setIds({
-				causationId: randomUUID(),
-				correlationId: randomUUID(),
-			})
-			.setPublisher({
-				instanceId: env.INSTANCE_ID,
-				serviceName: env.SERVICE_NAME as ServiceInstanceName,
-			});
+			.setSecurity({ authContext, signature })
+			.setIds(_buildIds())
+			.setPublisher(_buildPublisher());
 	}
+}
+
+function _buildAuthContext(): {
+	roles: string[];
+	subject: string;
+	tenantId: string;
+} {
+	return {
+		roles: ["Data", "Financial", "Scraper"],
+		subject: env.SERVICE_NAME,
+		tenantId: env.INSTANCE_ID,
+	};
+}
+
+function _computeSignature(authContext: unknown): string {
+	return createHash("sha256")
+		.update(deterministicStringify(authContext))
+		.digest("base64url");
+}
+
+function _buildDeliveryConfig(
+	deliveryMode?: import("@trading-model/common/config/delivery-mode.types").DeliveryMode
+): { mode: string; deduplicationId: string } {
+	return {
+		mode: deliveryMode ?? DeliveryMode.AT_LEAST_ONCE,
+		deduplicationId: randomUUID(),
+	};
+}
+
+function _buildIds(): { causationId: string; correlationId: string } {
+	return {
+		causationId: randomUUID(),
+		correlationId: randomUUID(),
+	};
+}
+
+function _buildPublisher(): {
+	instanceId: string;
+	serviceName: ServiceInstanceName;
+} {
+	return {
+		instanceId: env.INSTANCE_ID,
+		serviceName: env.SERVICE_NAME as ServiceInstanceName,
+	};
+}
+
+export class BinanceWorker {
 
 	private _buildMarketDataEntries(response: BinanceWorkerResult): {
 		data: unknown;
@@ -194,38 +222,25 @@ export class BinanceWorker {
 		eventType: string;
 	}[] {
 		return [
-			{
-				data: response.candles,
-				topic: EnumEventMessage.fetchCandlestickSeries,
-				eventType: "FetchCandlestick",
-			},
-			{
-				data: response.orderBook,
-				topic: EnumEventMessage.fetchOrderBookSnapshot,
-				eventType: "FetchOrderbook",
-			},
-			{
-				data: response.ticker24h,
-				topic: EnumEventMessage.fetch24hrTickerStats,
-				eventType: "FetchTicker24hr",
-			},
-			{
-				data: response.bookTicker,
-				topic: EnumEventMessage.fetchOrderBookTickerSnapshot,
-				eventType: "FetchBookTicker",
-			},
-			{
-				data: response.priceTicker,
-				topic: EnumEventMessage.fetchPriceTickerSnapshot,
-				eventType: "FetchPriceTicker",
-			},
-			{
-				data: response.recentTrades,
-				topic: EnumEventMessage.fetchRecentTrades,
-				eventType: "FetchRecentTrades",
-			},
+			_makeEntry(response.candles, EnumEventMessage.fetchCandlestickSeries, "FetchCandlestick"),
+			_makeEntry(response.orderBook, EnumEventMessage.fetchOrderBookSnapshot, "FetchOrderbook"),
+			_makeEntry(response.ticker24h, EnumEventMessage.fetch24hrTickerStats, "FetchTicker24hr"),
+			_makeEntry(response.bookTicker, EnumEventMessage.fetchOrderBookTickerSnapshot, "FetchBookTicker"),
+			_makeEntry(response.priceTicker, EnumEventMessage.fetchPriceTickerSnapshot, "FetchPriceTicker"),
+			_makeEntry(response.recentTrades, EnumEventMessage.fetchRecentTrades, "FetchRecentTrades"),
 		];
 	}
+}
+
+function _makeEntry(
+	data: unknown,
+	topic: string,
+	eventType: string
+): { data: unknown; topic: string; eventType: string } {
+	return { data, topic, eventType };
+}
+
+export class BinanceWorker {
 
 	private _sendMarketData({
 		data,
