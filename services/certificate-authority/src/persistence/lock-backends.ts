@@ -5,6 +5,11 @@ import { logger } from "@trading-model/common/config/logger";
 import Redis from "ioredis";
 import type { Collection } from "mongodb";
 
+export interface LockContext {
+	lockName: string;
+	instanceId: string;
+}
+
 export interface LockDocument {
 	name: string;
 	acquiredAt: Date;
@@ -15,18 +20,15 @@ export interface LockDocument {
 
 export interface LockBackend {
 	acquire(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		ttlMs: number
 	): Promise<number | null>;
 	release(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<boolean>;
 	verifyOwnership(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<number>;
 	disconnect?(): void;
@@ -34,24 +36,21 @@ export interface LockBackend {
 
 export class NullLockBackend implements LockBackend {
 	async acquire(
-		_lockName: string,
-		_instanceId: string,
+		_context: LockContext,
 		_ttlMs: number
 	): Promise<number | null> {
 		return null;
 	}
 
 	async release(
-		_lockName: string,
-		_instanceId: string,
+		_context: LockContext,
 		_fencingToken: number
 	): Promise<boolean> {
 		return false;
 	}
 
 	async verifyOwnership(
-		_lockName: string,
-		_instanceId: string,
+		_context: LockContext,
 		_fencingToken: number
 	): Promise<number> {
 		return -1;
@@ -73,13 +72,13 @@ export class MongoLockBackend implements LockBackend {
 	}
 
 	async acquire(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		ttlMs: number
 	): Promise<number | null> {
 		if (!this._connected) {
 			return null;
 		}
+		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
 			return null;
@@ -117,13 +116,13 @@ export class MongoLockBackend implements LockBackend {
 	}
 
 	async release(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<boolean> {
 		if (!this._connected) {
 			return false;
 		}
+		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
 			return false;
@@ -143,13 +142,13 @@ export class MongoLockBackend implements LockBackend {
 	}
 
 	async verifyOwnership(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<number> {
 		if (!this._connected) {
 			return -1;
 		}
+		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
 			return -1;
@@ -192,10 +191,10 @@ export class RedisLockBackend implements LockBackend {
 	}
 
 	async acquire(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		ttlMs: number
 	): Promise<number | null> {
+		const { lockName, instanceId } = context;
 		try {
 			const lockKey = `lock:${lockName}`;
 			const nextFencingToken = randomInt(1, 2_147_483_647);
@@ -213,7 +212,7 @@ export class RedisLockBackend implements LockBackend {
 			}
 			const existing = await this._client.get(lockKey);
 			if (existing === null) {
-				return this.acquire(lockName, instanceId, ttlMs);
+				return this.acquire(context, ttlMs);
 			}
 			return null;
 		} catch (err) {
@@ -224,13 +223,13 @@ export class RedisLockBackend implements LockBackend {
 	}
 
 	async release(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<boolean> {
 		if (!this._available) {
 			return false;
 		}
+		const { lockName, instanceId } = context;
 		try {
 			const lockKey = `lock:${lockName}`;
 			const script = `
@@ -253,13 +252,13 @@ export class RedisLockBackend implements LockBackend {
 	}
 
 	async verifyOwnership(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<number> {
 		if (!this._available) {
 			return -1;
 		}
+		const { lockName, instanceId } = context;
 		try {
 			const lockKey = `lock:${lockName}`;
 			const val = await this._client.get(lockKey);
@@ -281,10 +280,10 @@ export class FileSystemLockBackend implements LockBackend {
 	constructor(private readonly _fallbackDir: string) {}
 
 	async acquire(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		ttlMs: number
 	): Promise<number | null> {
+		const { lockName, instanceId } = context;
 		if (
 			process.env.NODE_ENV !== "development" &&
 			process.env.NODE_ENV !== "test"
@@ -325,10 +324,10 @@ export class FileSystemLockBackend implements LockBackend {
 	}
 
 	async release(
-		lockName: string,
-		_instanceId: string,
+		context: LockContext,
 		_fencingToken: number
 	): Promise<boolean> {
+		const { lockName } = context;
 		try {
 			const lockFile = path.join(this._fallbackDir, `${lockName}.lock`);
 			await fs.unlink(lockFile);
@@ -339,10 +338,10 @@ export class FileSystemLockBackend implements LockBackend {
 	}
 
 	async verifyOwnership(
-		lockName: string,
-		instanceId: string,
+		context: LockContext,
 		fencingToken: number
 	): Promise<number> {
+		const { lockName, instanceId } = context;
 		try {
 			const lockFile = path.join(this._fallbackDir, `${lockName}.lock`);
 			const content = await fs.readFile(lockFile, "utf8");
