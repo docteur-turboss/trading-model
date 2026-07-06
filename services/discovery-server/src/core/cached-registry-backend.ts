@@ -26,42 +26,29 @@ export class CachedRegistryBackend implements RegistryBackend {
 	private readonly _healthMonitor: RedisHealthMonitor;
 	private readonly _redisUrlForPubSub?: string;
 
+	private _createHealthMonitorCallbacks(): import("./redis-health-monitor").HealthCheckCallbacks {
+		return {
+			ping: () => this.ping(),
+			onHealthLost: () => {},
+			onHealthRestored: () => { this._cache.clear(); },
+			onFallbackActivated: () => { this._cache.clear(); },
+			onFallbackRestored: () => { this._cache.clear(); },
+		};
+	}
+
 	constructor(options: CachedRegistryBackendOptions) {
 		this._backend = options.backend;
 		this._redisUrlForPubSub = options.redisUrlForPubSub;
-		const failureThreshold = options.redisFailureThreshold ?? 3;
-		const healthCheckIntervalMs = options.redisHealthCheckIntervalMs ?? 15_000;
-		this._cache = new CacheManager(
-			options.maxEntries ?? 5000,
-			options.cacheTtlMs
-		);
+		this._cache = new CacheManager(options.maxEntries ?? 5000, options.cacheTtlMs);
 		this._pubSub = new PubSubInvalidator(options.redisUrlForPubSub);
-
 		this._healthMonitor = new RedisHealthMonitor({
-			failureThreshold,
-			healthCheckIntervalMs,
+			failureThreshold: options.redisFailureThreshold ?? 3,
+			healthCheckIntervalMs: options.redisHealthCheckIntervalMs ?? 15_000,
 			shouldRun: () => !!(options.redisUrlForPubSub || this._isRedisBackend()),
-			callbacks: {
-				ping: () => this.ping(),
-				onHealthLost: () => {},
-				onHealthRestored: () => {
-					this._cache.clear();
-				},
-				onFallbackActivated: () => {
-					this._cache.clear();
-				},
-				onFallbackRestored: () => {
-					this._cache.clear();
-				},
-			},
+			callbacks: this._createHealthMonitorCallbacks(),
 			backend: this._backend,
 		});
-
-		this._orchestrator = new CacheOrchestrator(
-			this._backend,
-			this._cache,
-			this._healthMonitor
-		);
+		this._orchestrator = new CacheOrchestrator(this._backend, this._cache, this._healthMonitor);
 	}
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {

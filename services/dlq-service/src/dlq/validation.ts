@@ -79,16 +79,29 @@ export function handleAddEntryError(
 	span: import("@opentelemetry/api").Span
 ): ResponseObject {
 	if (err instanceof DlqCapacityError) {
-		span.setStatus({
-			code: SpanStatusCode.ERROR,
-			message: "DLQ capacity limit reached",
-		});
-		span.end();
-		return sendResponse(
-			{ error: "DLQ capacity limit reached, entry rejected" },
-			429
-		);
+		return _capacityErrorResponse(span);
 	}
+	return _storageErrorResponse(err, span);
+}
+
+function _capacityErrorResponse(
+	span: import("@opentelemetry/api").Span
+): ResponseObject {
+	span.setStatus({
+		code: SpanStatusCode.ERROR,
+		message: "DLQ capacity limit reached",
+	});
+	span.end();
+	return sendResponse(
+		{ error: "DLQ capacity limit reached, entry rejected" },
+		429
+	);
+}
+
+function _storageErrorResponse(
+	err: unknown,
+	span: import("@opentelemetry/api").Span
+): ResponseObject {
 	logger.error("Failed to persist DLQ entry — storage error", {
 		error: normalizeError(err).message,
 	});

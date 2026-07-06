@@ -35,7 +35,10 @@ export class MessageMetadata {
 
 	public constructor(data: Partial<MetadataType> = {}) {
 		MESSAGE_METADATA_SCHEMA.partial().parse(data);
+		this._assignFromData(data);
+	}
 
+	private _assignFromData(data: Partial<MetadataType>): void {
 		const {
 			topic,
 			routing,
@@ -46,7 +49,6 @@ export class MessageMetadata {
 			causationId,
 			correlationId,
 		} = data;
-
 		this.routing = routing;
 		this.delivery = delivery;
 		this.security = security;
@@ -55,9 +57,6 @@ export class MessageMetadata {
 		this.topic = topic!;
 		this.eventType = eventType!;
 		this.publisher = publisher!;
-
-		void this._causationId;
-		void this._correlationId;
 	}
 
 	/**

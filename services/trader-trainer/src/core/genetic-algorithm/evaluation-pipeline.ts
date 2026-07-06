@@ -50,21 +50,28 @@ interface PrecomputeRewardsContext {
 	runStats?: RunningStats;
 }
 
+function _computeShapedReward(
+	backend: RLBackend,
+	step: MarketStep,
+	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>,
+	runStats?: RunningStats
+): number {
+	const { reward } = backend.step(step.features, step.price);
+	let shaped = shapeReward(reward, rShape);
+	if (rShape.normalize) {
+		runStats?.update(shaped);
+		shaped = runStats?.normalize(shaped) ?? shaped;
+	}
+	return shaped;
+}
+
 function precomputeRewards(
 	ctx: PrecomputeRewardsContext
 ): Float32Array {
 	const { backend, data, genome, runStats } = ctx;
-	const rShape = genome.rl.rewardShaping;
 	const buf = new Float32Array(data.length);
 	for (let index = 0; index < data.length; index++) {
-		const { reward } = backend.step(data[index].features, data[index].price);
-		let shaped = shapeReward(reward, rShape);
-		if (rShape.normalize) {
-			runStats?.update(shaped);
-			/* istanbul ignore next */
-			shaped = runStats?.normalize(shaped) ?? shaped;
-		}
-		buf[index] = shaped;
+		buf[index] = _computeShapedReward(backend, data[index], genome.rl.rewardShaping, runStats);
 	}
 	return buf;
 }

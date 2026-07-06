@@ -204,16 +204,24 @@ export class SubscriptionStore {
 		const topics: string[] = [];
 		let cursor = "0";
 		do {
-			const [nextCursor, batch] = await redis.sscan(
-				this._topicsSetKey(),
-				cursor,
-				"COUNT",
-				100
-			);
-			topics.push(...batch);
-			cursor = nextCursor;
+			cursor = await this._scanTopicPage(redis, cursor, topics);
 		} while (cursor !== "0");
 		return topics;
+	}
+
+	private async _scanTopicPage(
+		redis: import("ioredis").Redis,
+		cursor: string,
+		topics: string[]
+	): Promise<string> {
+		const [nextCursor, batch] = await redis.sscan(
+			this._topicsSetKey(),
+			cursor,
+			"COUNT",
+			100
+		);
+		topics.push(...batch);
+		return nextCursor;
 	}
 
 	private _topicsSetKey(): string {

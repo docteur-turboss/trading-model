@@ -43,24 +43,25 @@ function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 	});
 }
 
+function _resolveInstanceId(
+	data: z.infer<typeof REGISTER_SCHEMA>,
+	registry: ServiceRegistry
+): string {
+	const { serviceName, instanceId, ip, port } = data;
+	return instanceId ?? registry.generateInstanceId({ serviceName, address: ip, port });
+}
+
 function _buildServiceInstance(
 	data: z.infer<typeof REGISTER_SCHEMA>,
 	registry: ServiceRegistry
 ): ServiceInstance {
-	const { serviceName, instanceId, ip, port, version } = data;
-	const safeInstanceId =
-		instanceId ?? registry.generateInstanceId({ serviceName, address: ip, port });
-
+	const { serviceName, ip, port, version } = data;
 	return {
-		instanceId: safeInstanceId,
-		serviceName,
-		ip,
-		port,
+		instanceId: _resolveInstanceId(data, registry),
+		serviceName, ip, port,
 		version: version ?? "1.0.0",
-		ttl: 30_000,
-		protocol: "mtls",
-		registeredAt: Date.now(),
-		lastHeartbeat: Date.now(),
+		ttl: 30_000, protocol: "mtls",
+		registeredAt: Date.now(), lastHeartbeat: Date.now(),
 	};
 }
 

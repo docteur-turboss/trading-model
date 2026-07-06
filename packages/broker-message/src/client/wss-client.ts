@@ -1,13 +1,10 @@
-import * as fs from "node:fs";
-import * as https from "node:https";
 import { context, propagation } from "@opentelemetry/api";
 import { logger } from "@trading-model/common/config/logger";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import { isWsConnected } from "@trading-model/common/domain/ws-connection";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import WebSocket from "ws";
 import { PendingPublishQueue } from "./pending-publish-queue";
+import { WssConnection } from "./wss-connection";
 import { WssReconnector } from "./wss-reconnector";
 import { WssMessageDispatcher, type WssMessageHandler } from "./wss-message-dispatcher";
 

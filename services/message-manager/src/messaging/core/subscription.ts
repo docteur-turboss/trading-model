@@ -110,25 +110,24 @@ export class Subscription {
 		return Math.max(0, Math.round(delay + jitter));
 	}
 
-	constructor({
-		topic,
-		callbackURL,
-		serviceIdentity,
-		deliveryPort,
-	}: SubscriptionConfig) {
-		this.topic = topic;
-		this.callbackURL = callbackURL;
-		this.serviceIdentity = serviceIdentity;
-		this._deliveryPort = deliveryPort;
+	constructor(config: SubscriptionConfig) {
+		this.topic = config.topic;
+		this.callbackURL = config.callbackURL;
+		this.serviceIdentity = config.serviceIdentity;
+		this._deliveryPort = config.deliveryPort;
 		this._circuitBreaker = new DeliveryCircuitBreaker(
-			topic,
-			serviceIdentity.serviceName
+			config.topic,
+			config.serviceIdentity.serviceName
 		);
-		this._errorHandler = new DeliveryErrorHandler({
-			deliveryPort,
+		this._errorHandler = this._createErrorHandler(config);
+	}
+
+	private _createErrorHandler(config: SubscriptionConfig): DeliveryErrorHandler {
+		return new DeliveryErrorHandler({
+			deliveryPort: config.deliveryPort,
 			recordFailure: () => this._circuitBreaker.recordFailure(),
-			topic,
-			serviceName: serviceIdentity.serviceName,
+			topic: config.topic,
+			serviceName: config.serviceIdentity.serviceName,
 		});
 	}
 
