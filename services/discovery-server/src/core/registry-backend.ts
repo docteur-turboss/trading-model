@@ -1,3 +1,4 @@
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -66,7 +67,7 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 	}
 
 	generateInstanceId(endpoint: ServiceEndpoint): string {
-		return this._registry.generateInstanceId(endpoint);
+		return toServiceId(this._registry.generateInstanceId(endpoint));
 	}
 
 	validInstanceToken(validation: TokenValidation): Promise<boolean> {
