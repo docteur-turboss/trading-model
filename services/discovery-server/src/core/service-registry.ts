@@ -1,6 +1,7 @@
 import { createHmac, randomBytes } from "node:crypto";
 
 import type { ServiceEndpoint, ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import type { ServiceInstance } from "./types";
 import { RegistryStore } from "./registry-store";
 import { TokenService } from "./token-service";
@@ -193,7 +194,7 @@ export class ServiceRegistry {
 			.digest("base64");
 	}
 
-	validInstanceToken(token: string, instanceId: string): boolean {
+	validInstanceToken({ token, instanceId }: TokenValidation): boolean {
 		const storedToken = this._store.getStoredToken(instanceId);
 		return this._tokenService.validInstanceToken(
 			token,

@@ -1,3 +1,4 @@
+import type { DateRange } from "@trading-model/common/domain/date-range";
 import type {
 	PaginationQuery,
 	PaginationResult,
@@ -22,8 +23,7 @@ export interface AuditEventQuery extends PaginationQuery {
 	topic?: string;
 	publisher?: string;
 	correlationId?: string;
-	startDate?: Date;
-	endDate?: Date;
+	dateRange?: DateRange;
 }
 
 export interface AuditStats {
@@ -108,13 +108,13 @@ export class AuditRepository {
 		if (query.correlationId) {
 			filter["metadata.correlationId"] = query.correlationId;
 		}
-		if (query.startDate || query.endDate) {
+		if (query.dateRange) {
 			filter.receivedAt = {};
-			if (query.startDate) {
-				filter.receivedAt[MGTE] = query.startDate;
+			if (query.dateRange.start) {
+				filter.receivedAt[MGTE] = query.dateRange.start;
 			}
-			if (query.endDate) {
-				filter.receivedAt[MLTE] = query.endDate;
+			if (query.dateRange.end) {
+				filter.receivedAt[MLTE] = query.dateRange.end;
 			}
 		}
 

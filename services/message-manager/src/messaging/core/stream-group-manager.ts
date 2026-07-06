@@ -1,3 +1,4 @@
+import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { Message } from "@trading-model/common/contracts/message.types";
 
 import { logger } from "../../config/logger";
@@ -15,7 +16,7 @@ export interface GetMessagesBetweenParams {
 	topic: string;
 	fromMs: number;
 	toMs: number;
-	limit?: number;
+	limit?: PaginationQuery["limit"];
 }
 
 export class StreamGroupManager {

@@ -622,7 +622,7 @@ describe("HttpClient", () => {
 				key: "/etc/key.pem",
 			}) as any;
 
-			await (tlsClient as any)._ensureTlsLoaded();
+			await (tlsClient as any)._tlsLoader.ensureLoaded();
 
 			expect((fs as any).promises.readFile).toHaveBeenCalledWith(
 				"/etc/ca.pem",
@@ -642,7 +642,7 @@ describe("HttpClient", () => {
 			(fs as any).promises.readFile.mockClear();
 			const tlsClient = new HttpClient({ ca: "/etc/ca.pem" }) as any;
 
-			await (tlsClient as any)._ensureTlsLoaded();
+			await (tlsClient as any)._tlsLoader.ensureLoaded();
 
 			expect((fs as any).promises.readFile).toHaveBeenCalledTimes(1);
 			expect((fs as any).promises.readFile).toHaveBeenCalledWith(
@@ -654,9 +654,9 @@ describe("HttpClient", () => {
 		it("should set tlsLoaded flag after loading completes", async () => {
 			const tlsClient = new HttpClient({ ca: "/etc/ca.pem" }) as any;
 
-			expect((tlsClient as any)._tlsLoaded).toBe(false);
-			await (tlsClient as any)._ensureTlsLoaded();
-			expect((tlsClient as any)._tlsLoaded).toBe(true);
+			expect((tlsClient as any)._tlsLoader._tlsLoaded).toBe(false);
+			await (tlsClient as any)._tlsLoader.ensureLoaded();
+			expect((tlsClient as any)._tlsLoader._tlsLoaded).toBe(true);
 		});
 	});
 

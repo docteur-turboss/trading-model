@@ -1,4 +1,5 @@
 import { ResponseException } from "@trading-model/common/middleware/response-exception";
+import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { isNonEmptyString } from "@trading-model/common/validation/primitives";
 
 import type { ServiceRegistry } from "../core/service-registry";
@@ -13,7 +14,8 @@ export function validateInstanceToken(
 		throw ResponseException("Missing or invalid instance token").unauthorized();
 	}
 
-	if (!registry.validInstanceToken(tokenHeader, instanceId)) {
+	const validation: TokenValidation = { token: tokenHeader, instanceId };
+	if (!registry.validInstanceToken(validation)) {
 		throw ResponseException("Invalid instance token").unauthorized();
 	}
 }
