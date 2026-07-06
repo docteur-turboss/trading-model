@@ -1,5 +1,6 @@
 import type https from "node:https";
 import { logger } from "@trading-model/common/config/logger";
+import type { IWorkerProtocol } from "@trading-model/common/worker/worker-protocol";
 import WebSocket, { WebSocketServer } from "ws";
 import type {
 	SchedulerOutgoingMessage,
@@ -7,12 +8,7 @@ import type {
 } from "../types/worker.types";
 import type { WorkerRegistry } from "./worker-registry";
 
-export interface IWorkerProtocol {
-	sendToWorker(workerId: string, message: SchedulerOutgoingMessage): void;
-	sendDrain(workerId: string): void;
-	broadcastDrain(): void;
-	close(): void;
-}
+export type { IWorkerProtocol };
 
 export class NullWorkerProtocol implements IWorkerProtocol {
 	sendToWorker(): void {}

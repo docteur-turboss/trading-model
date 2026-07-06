@@ -31,19 +31,27 @@ export interface ObtainedCertificate extends CertificateBase {
 }
 
 export class CertificateClient {
+	private static _NULL_CERT: ObtainedCertificate = {
+		certPem: "",
+		keyPem: "",
+		caPem: "",
+		serialNumber: "",
+		expiresAt: new Date(0),
+	};
+
 	private readonly _config: CertificateClientConfig;
 	private readonly _caClient: CaClient;
-	private _obtainedCert: ObtainedCertificate | null = null;
+	private _obtainedCert: ObtainedCertificate;
 	private _renewScheduler: CertRenewScheduler;
 
 	private get _requiredCert(): ObtainedCertificate {
-		if (!this._obtainedCert) throw new Error("Certificate not yet obtained");
+		if (this._obtainedCert === CertificateClient._NULL_CERT) throw new Error("Certificate not yet obtained");
 		return this._obtainedCert;
 	}
 
 	constructor(config: CertificateClientConfig, initialCert?: ObtainedCertificate) {
 		this._config = config;
-		this._obtainedCert = initialCert ?? null;
+		this._obtainedCert = initialCert ?? CertificateClient._NULL_CERT;
 		this._caClient = new CaClient({
 			baseUrl: config.caUrl,
 			tls: config.tls,
@@ -134,7 +142,7 @@ export class CertificateClient {
 	}
 
 	startAutoRenew(): void {
-		if (this._obtainedCert) {
+		if (this._obtainedCert !== CertificateClient._NULL_CERT) {
 			this._renewScheduler.scheduleRenew(this._obtainedCert);
 		}
 		this._renewScheduler.start();
@@ -145,6 +153,6 @@ export class CertificateClient {
 	}
 
 	getCurrentCert(): ObtainedCertificate | null {
-		return this._obtainedCert;
+		return this._obtainedCert === CertificateClient._NULL_CERT ? null : this._obtainedCert;
 	}
 }

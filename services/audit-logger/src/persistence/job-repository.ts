@@ -1,5 +1,6 @@
 import type { InstanceId, JobId } from "@trading-model/common/domain/primitives";
 import {
+	JOB_STATUS,
 	isTerminalStatus,
 	type Job,
 	type JobEvent,
@@ -124,7 +125,7 @@ export class JobRepository {
 
 		const updateSet: Record<string, unknown> = {
 			status,
-			...(status === "running" ? { startedAt: new Date() } : {}),
+			...(status === JOB_STATUS.RUNNING ? { startedAt: new Date() } : {}),
 			...(isTerminalStatus(status) ? { completedAt: new Date() } : {}),
 		};
 		if (extras?.result !== undefined) {
@@ -162,7 +163,7 @@ export class JobRepository {
 
 	async findNonTerminal(): Promise<Job[]> {
 		const docs = await this._collection
-			.find({ status: { $nin: ["completed", "failed", "cancelled"] } })
+			.find({ status: { $nin: [JOB_STATUS.COMPLETED, JOB_STATUS.FAILED, JOB_STATUS.CANCELLED] } })
 			.toArray();
 		return docs.map(fromDocument);
 	}

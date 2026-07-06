@@ -18,9 +18,21 @@ export function createCrl(
 	};
 }
 
+export function isRevoked(serialNumber: string, crl: Crl): boolean {
+	return crl.entries.some(
+		(entry) =>
+			entry.serialNumber === serialNumber && !isExpiredRevocation(entry)
+	);
+}
+
+function isExpiredRevocation(entry: RevokedCertificate): boolean {
+	const maxAge = 365 * 24 * 60 * 60 * 1000;
+	return Date.now() - entry.revokedAt.getTime() > maxAge;
+}
+
 /**
  * Wrap a Crl object as an ICrlChecker so it can be used interchangeably with CrlCache.
- * Delegates to CrlCache.fromCrlEntries to share the same revocation-check logic.
+ * Delegates to CrlCache.fromCrlEntries to share the same revocation-check implementation pattern.
  */
 export function createCrlChecker(crl: Crl): ICrlChecker {
 	return CrlCache.fromCrlEntries(crl.entries);

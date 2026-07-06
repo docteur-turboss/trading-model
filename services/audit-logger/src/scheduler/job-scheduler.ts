@@ -6,7 +6,7 @@ import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
 import { ReAllocator } from "../recovery/re-allocator";
-import type { Job, JobPriority, JobStatus } from "../types/job.types";
+import { JOB_STATUS, type Job, JobPriority, type JobStatus } from "../types/job.types";
 import { NullWorkerProtocol, type IWorkerProtocol } from "../worker/worker-protocol";
 import { WorkerRegistry } from "../worker/worker-registry";
 import { BackPressure } from "./back-pressure";
@@ -247,12 +247,12 @@ export class JobScheduler {
 			return;
 		}
 
-		if (job.status === "running" || job.status === "completed") {
+		if (job.status === JOB_STATUS.RUNNING || job.status === JOB_STATUS.COMPLETED) {
 			throw new Error("Cannot cancel a running or completed job");
 		}
 
 		this.queue.ack(jobId);
-		await this.repository.updateStatus(jobId, "cancelled");
+		await this.repository.updateStatus(jobId, JOB_STATUS.CANCELLED);
 		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
 
 		logger.info("Job cancelled", { context: { jobId } });

@@ -1,5 +1,6 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
 import { logger } from "@trading-model/common/config/logger";
+import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 
 import { PopVerifier } from "./pop-verifier";
 
@@ -25,16 +26,11 @@ interface CertificateAuthority {
 	signServiceCertificate(request: SignServiceCertRequest): Promise<SignedCertificate>;
 }
 
-interface DistributedLock {
-	acquire(): Promise<boolean>;
-	release(): Promise<void>;
-}
-
-class NullDistributedLock implements DistributedLock {
-	async acquire(): Promise<boolean> {
+class NullDistributedLock implements IDistributedLock {
+	async acquire(_lockId?: string): Promise<boolean> {
 		return true;
 	}
-	async release(): Promise<void> {}
+	async release(_lockId?: string): Promise<void> {}
 }
 
 interface RenewalPopInput {
@@ -66,7 +62,7 @@ export interface CertRenewalDeps {
 	certStore: CertStore;
 	nonceStore: NonceStore;
 	ca: CertificateAuthority;
-	lock?: DistributedLock;
+	lock?: IDistributedLock;
 }
 
 /**
@@ -78,7 +74,7 @@ export class CertRenewalService {
 	private readonly _certStore: CertStore;
 	private readonly _nonceStore: NonceStore;
 	private readonly _ca: CertificateAuthority;
-	private readonly _lock: DistributedLock;
+	private readonly _lock: IDistributedLock;
 
 	constructor(deps: CertRenewalDeps) {
 		this._certStore = deps.certStore;

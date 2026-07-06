@@ -72,7 +72,7 @@ const MOCK_CA_STORE = {
 };
 
 function createCa() {
-	return new CertificateAuthority({
+	return CertificateAuthority.createUninitialized({
 		caKeyPath: "/etc/ca-keys/ca-key.pem",
 		caCertTtlMs: 31536000000,
 		certificateStore: MOCK_CERT_STORE as any,
