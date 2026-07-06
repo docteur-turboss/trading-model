@@ -14,7 +14,8 @@ export interface SignCertificateRequest {
 	bootstrapToken?: string;
 }
 
-export interface SignCertificateResponse {
+/** Fields shared by all certificate response types. */
+export interface CertificateResponse {
 	cert: string;
 	caPem: string;
 	serialNumber: string;
@@ -22,13 +23,10 @@ export interface SignCertificateResponse {
 	fingerprint: string;
 }
 
-export interface GetCertificateResponse {
-	cert: string;
-	caPem: string;
-	serialNumber: string;
+export interface SignCertificateResponse extends CertificateResponse {}
+
+export interface GetCertificateResponse extends CertificateResponse {
 	issuedAt: string;
-	expiresAt: string;
-	fingerprint: string;
 }
 
 export class CaClient {
@@ -108,26 +106,12 @@ export class CaClient {
 	 *
 	 * @param since - Optional timestamp to filter entries after a given time.
 	 */
-	async getCrl(since?: string): Promise<
-		Array<{
-			serialNumber: string;
-			serviceId: string;
-			revokedAt: string;
-			reason: string;
-		}>
-	> {
+	async getCrl(since?: string): Promise<CrlEntry[]> {
 		const url = since
 			? `${this._baseUrl}/api/v1/crl?since=${encodeURIComponent(since)}`
 			: `${this._baseUrl}/api/v1/crl`;
 		const result =
-			await this._httpClient.get<
-				Array<{
-					serialNumber: string;
-					serviceId: string;
-					revokedAt: string;
-					reason: string;
-				}>
-			>(url);
+			await this._httpClient.get<CrlEntry[]>(url);
 		return result ?? [];
 	}
 }

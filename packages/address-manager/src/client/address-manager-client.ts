@@ -2,7 +2,7 @@ import { networkInterfaces } from "node:os";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	AppError,
-	AddressManagerError,
+	addressManagerError,
 	normalizeError,
 } from "@trading-model/common/utils/errors";
 import type { AddressManagerConfig } from "../config/address-manager-config";
@@ -77,7 +77,7 @@ export class AddressManagerClient {
 				lastError = error;
 			}
 		}
-		throw new AddressManagerError(
+		throw addressManagerError(
 			"Failed to register service to Address Manager",
 			{ cause: normalizeError(lastError) },
 		);

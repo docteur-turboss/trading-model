@@ -1,14 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../config/logger";
 import {
-	AddressManagerError,
-	AgentError,
 	AppError,
-	AuthenticationError,
-	DeadLetterError,
-	MessageManagerError,
-	ServiceNotFoundError,
-	ServiceUnreachableError,
+	isAddressManagerError,
+	isAgentError,
+	isAuthenticationError,
+	isDeadLetterError,
+	isMessageManagerError,
+	isServiceNotFoundError,
+	isServiceUnreachableError,
 } from "../utils/errors";
 import {
 	ClassResponseExceptions,
@@ -19,18 +19,18 @@ type ErrorInput = Error | ResponseObject;
 
 function _isServiceError(err: Error): boolean {
 	return (
-		err instanceof AddressManagerError ||
-		err instanceof MessageManagerError ||
-		err instanceof DeadLetterError ||
-		err instanceof AgentError
+		isAddressManagerError(err) ||
+		isMessageManagerError(err) ||
+		isDeadLetterError(err) ||
+		isAgentError(err)
 	);
 }
 
 function mapErrorToResponse(err: Error): ResponseObject {
 	const response = new ClassResponseExceptions(err.message);
-	if (err instanceof ServiceNotFoundError) return response.notFound();
-	if (err instanceof ServiceUnreachableError) return response.gone();
-	if (err instanceof AuthenticationError) return response.invalidToken();
+	if (isServiceNotFoundError(err)) return response.notFound();
+	if (isServiceUnreachableError(err)) return response.gone();
+	if (isAuthenticationError(err)) return response.invalidToken();
 	if (_isServiceError(err)) return response.serviceUnavailable();
 	return response.unknownError();
 }
