@@ -1,6 +1,6 @@
 import { appendFile } from "node:fs/promises";
 import { describe, expect, it, jest } from "@jest/globals";
-import { DlqRepository } from "../../../../src/messaging/core/dlq-repository";
+import { FileDlqRepository } from "../../../../src/messaging/core/dlq-repository";
 import { HttpMessageDelivery } from "../../../../src/messaging/core/http-message-delivery";
 import { createMockMessage } from "../../../fixtures/broker.fixture";
 import { createMockHttpClient } from "../../../helpers/broker.helper";
@@ -9,12 +9,12 @@ jest.mock("node:fs/promises");
 
 describe("HttpMessageDelivery", () => {
 	let mockHttpClient: ReturnType<typeof createMockHttpClient>;
-	let dqlRepository: DlqRepository;
+	let dqlRepository: FileDlqRepository;
 	let delivery: HttpMessageDelivery;
 
 	beforeEach(() => {
 		mockHttpClient = createMockHttpClient();
-		dqlRepository = new DlqRepository("/tmp/test-dlq.jsonl");
+		dqlRepository = new FileDlqRepository("/tmp/test-dlq.jsonl");
 		delivery = new HttpMessageDelivery(mockHttpClient as never, dqlRepository);
 	});
 
