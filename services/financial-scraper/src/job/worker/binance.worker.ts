@@ -58,10 +58,13 @@ export interface BinanceWorkerResult {
 	fetchedAt: number;
 }
 
-export interface MarketDataContext {
+interface MarketDataEntry {
 	data: unknown;
 	topic: string;
 	eventType: string;
+}
+
+export interface MarketDataContext extends MarketDataEntry {
 	builder: MessageMetadata;
 }
 
@@ -227,11 +230,7 @@ function _buildPublisher(): {
 }
 
 export class BinanceWorker {
-	private _buildMarketDataEntries(response: BinanceWorkerResult): {
-		data: unknown;
-		topic: string;
-		eventType: string;
-	}[] {
+	private _buildMarketDataEntries(response: BinanceWorkerResult): MarketDataEntry[] {
 		return [
 			_makeEntry(
 				response.candles,
@@ -271,7 +270,7 @@ function _makeEntry(
 	data: unknown,
 	topic: string,
 	eventType: string
-): { data: unknown; topic: string; eventType: string } {
+): MarketDataEntry {
 	return { data, topic, eventType };
 }
 
