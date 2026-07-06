@@ -3,6 +3,7 @@
 import type { SignCertificateResponse } from "@trading-model/common/ca/ca-client";
 import { logger } from "@trading-model/common/config/logger";
 import { isWsConnected } from "@trading-model/common/domain/ws-connection";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
 import WebSocket from "ws";
 
 import { WssTransportConnection } from "./wss-transport-connection";
@@ -11,6 +12,22 @@ interface PendingRequest {
 	resolve: (value: SignCertificateResponse) => void;
 	reject: (reason: Error) => void;
 	timer: ReturnType<typeof setTimeout>;
+}
+
+export class NullCaWssTransport {
+	get isConnected(): boolean {
+		return false;
+	}
+
+	get isAuthSent(): boolean {
+		return false;
+	}
+
+	async signCertificate(): Promise<SignCertificateResponse> {
+		throw new Error("WSS transport not available");
+	}
+
+	destroy(): void {}
 }
 
 export class CaWssTransport {
@@ -36,6 +53,7 @@ export class CaWssTransport {
 		this._connection.on("message", (data: WebSocket.Data) =>
 			this._onWsMessage(data)
 		);
+		this._connection.connect();
 	}
 
 	get isConnected(): boolean {
@@ -98,6 +116,10 @@ export class CaWssTransport {
 	}
 
 	// ── Public API ─────────────────────────────────────────────────────────────
+
+	disconnect(): void {
+		this.destroy();
+	}
 
 	async signCertificate(
 		serviceId: ServiceId,

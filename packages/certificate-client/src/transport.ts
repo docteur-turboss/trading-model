@@ -7,7 +7,7 @@ import { logger } from "@trading-model/common/config/logger";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import { CaWssTransport } from "./wss-transport";
+import { CaWssTransport, NullCaWssTransport } from "./wss-transport";
 
 export type TransportMode = "wss" | "https";
 
@@ -21,7 +21,7 @@ export interface TransportConfig {
 
 export class TransportManager {
 	private _mode: TransportMode;
-	private _wssTransport: CaWssTransport | null = null;
+	private _wssTransport: CaWssTransport | NullCaWssTransport;
 	private readonly _httpsClient: CaClient;
 	private readonly _config: TransportConfig;
 	private _unauthRejects = 0;
@@ -31,6 +31,7 @@ export class TransportManager {
 		this._httpsClient = new CaClient({ baseUrl: config.caUrl, tls: config.tls });
 		if (config.forceHttps) {
 			this._mode = "https";
+			this._wssTransport = new NullCaWssTransport();
 		} else {
 			this._mode = "wss";
 			this._wssTransport = new CaWssTransport(
@@ -57,7 +58,7 @@ export class TransportManager {
 		csr: string,
 		options?: { ttlMs?: number }
 	): Promise<SignCertificateResponse> {
-		if (this._mode === "wss" && this._wssTransport?.isConnected) {
+		if (this._mode === "wss" && this._wssTransport.isConnected) {
 			if (!this._wssTransport.isAuthSent) {
 				this._unauthRejects++;
 				if (this._unauthRejects > 3) {
@@ -104,7 +105,11 @@ export class TransportManager {
 		return await this._httpsClient.getCrl(since);
 	}
 
+	disconnect(): void {
+		this.destroy();
+	}
+
 	destroy(): void {
-		this._wssTransport?.destroy();
+		this._wssTransport.destroy();
 	}
 }

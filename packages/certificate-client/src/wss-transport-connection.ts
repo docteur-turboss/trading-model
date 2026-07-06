@@ -40,6 +40,12 @@ export class WssTransportConnection {
 		private readonly _bootstrapToken?: string
 	) {
 		this._tlsBuilder = new TlsConfigBuilder(tlsConfig);
+	}
+
+	connect(): void {
+		if (this._destroyed || this._state === "connected" || this._state === "connecting") {
+			return;
+		}
 		this._connectWs();
 	}
 
