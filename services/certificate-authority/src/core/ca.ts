@@ -44,7 +44,7 @@ export interface CertBodyInput {
 }
 
 export class CertificateAuthority {
-	private _caKeyPair: KeyPair | null = null;
+	private _caKeyPair!: KeyPair;
 	private _caCertPem = "";
 	private readonly _options: CaOptions;
 	private readonly _certBodyBuilder = new CertBodyBuilder();
@@ -59,8 +59,8 @@ export class CertificateAuthority {
 		return ca;
 	}
 
-	async initialize(): Promise<void> {
-		await this._loadOrBootstrapCa();
+	initialize(): Promise<void> {
+		return this._loadOrBootstrapCa();
 	}
 
 	private _loadKeyFromDisk(): boolean {
@@ -134,9 +134,6 @@ export class CertificateAuthority {
 		request: SignServiceCertRequest
 	): Promise<SignedCertificate> {
 		const { serviceId, csr, ttlMs } = request;
-		if (!this._caKeyPair) {
-			throw new Error("CA not initialized. Call initialize() or use CertificateAuthority.create().");
-		}
 		const options: SignOptions = {
 			csr,
 			serviceId: toServiceId(serviceId),
