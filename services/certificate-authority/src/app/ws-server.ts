@@ -4,7 +4,7 @@ import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { type RawData, type WebSocket, WebSocketServer } from "ws";
 import { z } from "zod";
-import { CONTAINER } from "./container";
+import { CONTAINER } from "./index";
 import {
 	type ConnectionState,
 	checkSignRequestRateLimit,
