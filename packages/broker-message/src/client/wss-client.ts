@@ -25,8 +25,9 @@ export class WssClient {
 		tlsConfig?: Partial<TlsPaths>;
 		serviceName: string;
 		instanceId: string;
+		httpFallback?: (payload: unknown, metadata: MessageMetadata) => Promise<void>;
 	}) {
-		this._queue = new PendingPublishQueue();
+		this._queue = new PendingPublishQueue(config.httpFallback);
 		this._reconnector = new WssReconnector();
 		this._reconnector.onPermanentFallback(() => this._queue.drainToHttp());
 		this._dispatcher = new WssMessageDispatcher();
@@ -82,18 +83,6 @@ export class WssClient {
 	private _onWsError(err: Error): void {
 		logger.warn("WSS error", { error: err.message });
 		this._reconnector.schedule(() => this._connectWs());
-	}
-
-	get httpFallback():
-		| ((payload: unknown, metadata: MessageMetadata) => Promise<void>)
-		| null {
-		return this._queue.httpFallback;
-	}
-
-	setHttpFallback(
-		fn: (payload: unknown, metadata: MessageMetadata) => Promise<void>
-	): void {
-		this._queue.setHttpFallback(fn);
 	}
 
 	get messageHandler(): WssMessageHandler | null {

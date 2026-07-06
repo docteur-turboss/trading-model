@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { Price } from "@trading-model/common/domain/primitives";
 
 jest.mock("../../../src/core/agent/trading-agent", () => {
 	const makeMockAgent = () => ({
@@ -28,7 +29,7 @@ jest.mock("../../../src/core/env/wallet-manager", () => ({
 		getPosition: jest.fn(() => 0),
 		getCash: jest.fn(() => 1000),
 		getValuation: jest.fn(() => 1000),
-		getPrice: jest.fn(() => 100),
+		getPrice: jest.fn(() => Price.of(100)),
 		getPnL: jest.fn(() => 0),
 		getMetrics: jest.fn(() => ({
 			pnl: 0,
@@ -337,8 +338,8 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array(3), price: 100 }],
-					validation: [{ features: new Float32Array(3), price: 100 }],
+					train: [{ features: new Float32Array(3), price: Price.of(100) }],
+					validation: [{ features: new Float32Array(3), price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
@@ -386,8 +387,8 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features, price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
@@ -411,8 +412,8 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features, price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
@@ -434,8 +435,8 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features, price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
@@ -457,8 +458,8 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features, price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
@@ -476,8 +477,8 @@ describe("GeneticAlgorithmRunner", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features, price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features, price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: mockBackendFactory as any,
@@ -494,8 +495,8 @@ describe("GeneticAlgorithmRunner", () => {
 		const windowSets = [
 			{
 				id: "w1",
-				train: [{ features, price: 100 }],
-				validation: [{ features, price: 100 }],
+				train: [{ features, price: Price.of(100) }],
+				validation: [{ features, price: Price.of(100) }],
 			},
 		];
 		const onGeneration = jest.fn();
@@ -548,12 +549,12 @@ describe("full GA loop", () => {
 				{
 					id: "w1",
 					train: [
-						{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 },
-						{ features: new Float32Array([0.4, 0.5, 0.6]), price: 101 },
+						{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) },
+						{ features: new Float32Array([0.4, 0.5, 0.6]), price: Price.of(101) },
 					],
 					validation: [
-						{ features, price: 100 },
-						{ features, price: 101 },
+						{ features, price: Price.of(100) },
+						{ features, price: Price.of(101) },
 					],
 				},
 			],
@@ -599,12 +600,12 @@ describe("full GA loop", () => {
 				{
 					id: "w1",
 					train: [
-						{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 },
-						{ features: new Float32Array([0.4, 0.5, 0.6]), price: 101 },
+						{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) },
+						{ features: new Float32Array([0.4, 0.5, 0.6]), price: Price.of(101) },
 					],
 					validation: [
-						{ features, price: 100 },
-						{ features, price: 101 },
+						{ features, price: Price.of(100) },
+						{ features, price: Price.of(101) },
 					],
 				},
 			],
@@ -636,8 +637,8 @@ describe("full GA loop", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: (() => ({
@@ -670,8 +671,8 @@ describe("full GA loop", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: (() => ({
@@ -704,8 +705,8 @@ describe("full GA loop", () => {
 			windowSets: [
 				{
 					id: "w1",
-					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 }],
-					validation: [{ features, price: 100 }],
+					train: [{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) }],
+					validation: [{ features, price: Price.of(100) }],
 				},
 			],
 			backendFactory: (() => ({
@@ -766,12 +767,12 @@ describe("full GA loop", () => {
 				{
 					id: "w1",
 					train: [
-						{ features: new Float32Array([0.1, 0.2, 0.3]), price: 100 },
-						{ features: new Float32Array([0.4, 0.5, 0.6]), price: 101 },
+						{ features: new Float32Array([0.1, 0.2, 0.3]), price: Price.of(100) },
+						{ features: new Float32Array([0.4, 0.5, 0.6]), price: Price.of(101) },
 					],
 					validation: [
-						{ features, price: 100 },
-						{ features, price: 101 },
+						{ features, price: Price.of(100) },
+						{ features, price: Price.of(101) },
 					],
 				},
 			],

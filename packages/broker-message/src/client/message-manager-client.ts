@@ -157,7 +157,7 @@ export class MessageManagerClient {
 				ServiceInstanceName.MessageDeliveryService
 			);
 			if (!target) {
-				throw new ServiceUnreachableError(
+				throw serviceUnreachableError(
 					"Unable to contact the message manager"
 				);
 			}
@@ -172,11 +172,11 @@ export class MessageManagerClient {
 				Messagepayload
 			);
 		} catch (error) {
-			if (error instanceof ServiceUnreachableError) {
+			if (isServiceUnreachableError(error)) {
 				throw error;
 			}
 
-			throw new MessageManagerError(
+			throw messageManagerError(
 				"Failed to publish message to Message Manager",
 				{ cause: normalizeError(error) }
 			);
@@ -198,7 +198,7 @@ export class MessageManagerClient {
 		try {
 			const target = await this._addressManagerClient.findService(service);
 			if (!target) {
-				throw new ServiceUnreachableError(
+				throw serviceUnreachableError(
 					`Unable to contact the service: ${service}`
 				);
 			}
@@ -213,11 +213,11 @@ export class MessageManagerClient {
 				Messagepayload
 			);
 		} catch (error) {
-			if (error instanceof ServiceUnreachableError) {
+			if (isServiceUnreachableError(error)) {
 				throw error;
 			}
 
-			throw new MessageManagerError(
+			throw messageManagerError(
 				`Failed to publish message to ${service}`,
 				{ cause: normalizeError(error) }
 			);
