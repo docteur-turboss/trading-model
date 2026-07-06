@@ -12,36 +12,21 @@ const ALLOWED_HOSTNAMES = new Set<string>(["localhost"]);
  *
  * @returns true if the address is safe, false if it resolves to an internal IP
  */
+function _matchesAnyPrefix(value: string, prefixes: string[], normalize?: (s: string) => string): boolean {
+	const normalized = normalize ? normalize(value) : value;
+	for (const prefix of prefixes) {
+		if (normalized.startsWith(prefix)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 export function isInternalAddress(hostname: string): boolean {
-	if (!hostname) {
-		return true;
-	}
-
-	if (ALLOWED_HOSTNAMES.has(hostname)) {
-		return false;
-	}
-
-	// Check direct IPv4
-	if (isIP(hostname) === 4) {
-		for (const prefix of BLOCKED_IPV4_PREFIXES) {
-			if (hostname.startsWith(prefix)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	// Check direct IPv6
-	if (isIP(hostname) === 6) {
-		for (const prefix of BLOCKED_IPV6) {
-			if (hostname.toLowerCase().startsWith(prefix)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	// Hostname — allow (DNS resolution is done by the caller)
+	if (!hostname) return true;
+	if (ALLOWED_HOSTNAMES.has(hostname)) return false;
+	if (isIP(hostname) === 4) return _matchesAnyPrefix(hostname, BLOCKED_IPV4_PREFIXES);
+	if (isIP(hostname) === 6) return _matchesAnyPrefix(hostname, BLOCKED_IPV6, (s) => s.toLowerCase());
 	return false;
 }
 

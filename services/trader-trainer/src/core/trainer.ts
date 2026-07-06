@@ -137,37 +137,44 @@ export class Trainer {
 		return { success: false, symbol, error };
 	}
 
-	private _createRunner(windowSet: WindowSet): GeneticAlgorithmRunner {
+	private _buildInitialControl(): Partial<GAControlGenome> {
 		const defaultControl = createDefaultGenome("ctrl").gaControl;
+		return {
+			...defaultControl,
+			populationSize: env.TRAINER_POPULATION_SIZE,
+			maxGenerations: env.TRAINER_GENERATIONS,
+			timeBudgetMs: env.TRAINER_TIME_BUDGET_MS,
+			episodesPerIndividual: env.TRAINER_EPISODES_PER_INDIVIDUAL,
+		};
+	}
 
+	private _onGeneration(ctx: GenerationContext): void {
+		this._generationContext = ctx;
+		this._bestGenome = ctx.bestGenome;
+		logger.info("Generation completed", { context: {
+			generation: ctx.generation,
+			bestFitness: ctx.bestFitness,
+			avgFitness: ctx.avgFitness,
+			archiveSize: ctx.archive.length,
+			stagnation: ctx.stagnation,
+			elapsedSec: ctx.elapsedMs / 1000,
+		} });
+	}
+
+	private _onArchiveUpdate(archive: DeepReadonly<LamarckGenome>[]): void {
+		if (archive.length > 0) {
+			this._bestGenome = archive[0];
+		}
+	}
+
+	private _createRunner(windowSet: WindowSet): GeneticAlgorithmRunner {
 		return new GeneticAlgorithmRunner({
 			windowSets: [windowSet],
 			backendFactory: makeTradingAgentBackend,
 			evalConcurrency: 4,
-			initialControl: {
-				...defaultControl,
-				populationSize: env.TRAINER_POPULATION_SIZE,
-				maxGenerations: env.TRAINER_GENERATIONS,
-				timeBudgetMs: env.TRAINER_TIME_BUDGET_MS,
-				episodesPerIndividual: env.TRAINER_EPISODES_PER_INDIVIDUAL,
-			},
-			onGeneration: (ctx: GenerationContext) => {
-				this._generationContext = ctx;
-				this._bestGenome = ctx.bestGenome;
-				logger.info("Generation completed", { context: {
-					generation: ctx.generation,
-					bestFitness: ctx.bestFitness,
-					avgFitness: ctx.avgFitness,
-					archiveSize: ctx.archive.length,
-					stagnation: ctx.stagnation,
-					elapsedSec: ctx.elapsedMs / 1000,
-				} });
-			},
-			onArchiveUpdate: (archive: DeepReadonly<LamarckGenome>[]) => {
-				if (archive.length > 0) {
-					this._bestGenome = archive[0];
-				}
-			},
+			initialControl: this._buildInitialControl(),
+			onGeneration: (ctx) => this._onGeneration(ctx),
+			onArchiveUpdate: (archive) => this._onArchiveUpdate(archive),
 		});
 	}
 
