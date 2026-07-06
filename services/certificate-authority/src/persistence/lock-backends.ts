@@ -83,7 +83,7 @@ export class MongoLockBackend implements LockBackend {
 				result === null || (result.expiresAt && result.expiresAt < now);
 			return acquired ? nextFencingToken : null;
 		} catch (err) {
-			logger.warn("MongoDB lock acquire failed", { err });
+			logger.warn("MongoDB lock acquire failed", { context: { err } });
 			this._connected = false;
 			this._onDisconnect();
 			return null;
@@ -201,7 +201,7 @@ export class RedisLockBackend implements LockBackend {
 			}
 			return null;
 		} catch (err) {
-			logger.warn("Redis lock acquire failed", { err });
+			logger.warn("Redis lock acquire failed", { context: { err } });
 			this._client = null;
 			return null;
 		}

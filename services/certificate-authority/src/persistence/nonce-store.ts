@@ -63,9 +63,9 @@ export class NonceStore {
 				{ expireAfterSeconds: Math.ceil(this._ttlMs / 1000) }
 			);
 			await this._loadFromMongo();
-			logger.info("NonceStore connected to MongoDB", {
+			logger.info("NonceStore connected to MongoDB", { context: {
 				existingNonces: this._l1.size,
-			});
+			} });
 		} catch (err) {
 			logger.warn(
 				"NonceStore MongoDB connection failed, operating in memory-only mode",
@@ -95,7 +95,7 @@ export class NonceStore {
 					createdAt: new Date(entry.createdAt),
 				});
 			} catch (err) {
-				logger.warn("Failed to persist nonce to MongoDB", { err });
+				logger.warn("Failed to persist nonce to MongoDB", { context: { err } });
 				const error = new Error("Failed to persist nonce");
 				(error as { cause?: unknown }).cause = err;
 				throw error;
@@ -178,7 +178,7 @@ export class NonceStore {
 				});
 			}
 		} catch (err) {
-			logger.warn("Failed to load nonces from MongoDB", { err });
+			logger.warn("Failed to load nonces from MongoDB", { context: { err } });
 		}
 	}
 

@@ -21,10 +21,10 @@ export async function signCertificate(
 			ttlMs
 		);
 
-		logger.info("Certificate signed", {
+		logger.info("Certificate signed", { context: {
 			serviceId,
 			serialNumber: signed.serialNumber,
-		});
+		} });
 
 		res.status(200).json({
 			cert: signed.certPem,
@@ -34,7 +34,7 @@ export async function signCertificate(
 			fingerprint: signed.fingerprint,
 		});
 	} catch (err) {
-		logger.error("Failed to sign certificate", { err });
+		logger.error("Failed to sign certificate", { context: { err } });
 		res.status(500).json({ error: "Failed to sign certificate" });
 	}
 }
@@ -67,7 +67,7 @@ export async function getCertificate(
 			fingerprint: cert.fingerprint,
 		});
 	} catch (err) {
-		logger.error("Failed to get certificate", { err });
+		logger.error("Failed to get certificate", { context: { err } });
 		res.status(500).json({ error: "Failed to get certificate" });
 	}
 }
@@ -86,11 +86,11 @@ export async function revokeCertificate(
 
 		await CONTAINER.ca.revokeCertificate(serialNumber, reason);
 
-		logger.info("Certificate revoked", { serialNumber, reason });
+		logger.info("Certificate revoked", { context: { serialNumber, reason } });
 
 		res.status(200).json({ message: "Certificate revoked" });
 	} catch (err) {
-		logger.error("Failed to revoke certificate", { err });
+		logger.error("Failed to revoke certificate", { context: { err } });
 		res.status(500).json({ error: "Failed to revoke certificate" });
 	}
 }

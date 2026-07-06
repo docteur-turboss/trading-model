@@ -92,9 +92,9 @@ export class AuditStore {
 		try {
 			await this._collection.insertOne(entry);
 		} catch (err) {
-			logger.error("AuditStore: MongoDB write failed — buffering entry", {
+			logger.error("AuditStore: MongoDB write failed — buffering entry", { context: {
 				err,
-			});
+			} });
 			this._mongoConnected = false;
 			this._buffer(entry);
 		}
@@ -103,10 +103,10 @@ export class AuditStore {
 	private _buffer(entry: AuditEntry): void {
 		if (this._pendingEntries.length >= this._maxBuffer) {
 			const dropped = this._pendingEntries.shift()!;
-			logger.warn("AuditStore: buffer full, dropping oldest entry", {
+			logger.warn("AuditStore: buffer full, dropping oldest entry", { context: {
 				action: dropped.action,
 				serialNumber: dropped.serialNumber,
-			});
+			} });
 		}
 		this._pendingEntries.push(entry);
 	}
@@ -138,15 +138,15 @@ export class AuditStore {
 			this._pendingEntries.unshift(...batch);
 			if (this._pendingEntries.length > this._maxBuffer) {
 				const dropped = this._pendingEntries.splice(this._maxBuffer);
-				logger.warn("AuditStore: flush failed, dropped entries", {
+				logger.warn("AuditStore: flush failed, dropped entries", { context: {
 					count: dropped.length,
 					err,
-				});
+				} });
 			} else {
-				logger.error("AuditStore: flush failed, entries re-buffered", {
+				logger.error("AuditStore: flush failed, entries re-buffered", { context: {
 					count: batch.length,
 					err,
-				});
+				} });
 			}
 		}
 	}

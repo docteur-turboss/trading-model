@@ -110,17 +110,17 @@ export function sendAlertWebhook(options: {
 	})
 		.then((res) => {
 			if (!res.ok) {
-				logger.warn("Alert webhook returned non-OK status", {
+				logger.warn("Alert webhook returned non-OK status", { context: {
 					status: res.status,
 					webhookUrl,
-				});
+				} });
 			}
 		})
 		.catch((err) => {
-			logger.warn("Alert webhook delivery failed", {
+			logger.warn("Alert webhook delivery failed", { context: {
 				err: (err as Error).message,
 				webhookUrl,
-			});
+			} });
 		});
 }
 

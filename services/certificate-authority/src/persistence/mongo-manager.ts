@@ -53,10 +53,10 @@ async function initialize(
 	db = client.db();
 	initialized = true;
 
-	logger.info("MONGO_MANAGER initialized", {
+	logger.info("MONGO_MANAGER initialized", { context: {
 		poolSize,
 		database: db.databaseName,
-	});
+	} });
 }
 
 /** Returns the shared MongoClient instance. */
@@ -119,7 +119,7 @@ async function close(): Promise<void> {
 		try {
 			await client.close();
 		} catch (err) {
-			logger.warn("MONGO_MANAGER close error", { err });
+			logger.warn("MONGO_MANAGER close error", { context: { err } });
 		}
 		client = null;
 		db = null;

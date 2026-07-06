@@ -71,7 +71,7 @@ export class DistributedLock {
 				{ expireAfterSeconds: 0 }
 			);
 		} catch (err) {
-			logger.warn("MongoDB lock connection failed", { err });
+			logger.warn("MongoDB lock connection failed", { context: { err } });
 		}
 	}
 

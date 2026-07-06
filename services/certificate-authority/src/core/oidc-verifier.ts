@@ -191,10 +191,10 @@ export class OidcVerifier {
 			}
 
 			this._lastFetch = Date.now();
-			logger.info("JWKS keys refreshed", { count: this._cachedKeys.size });
+			logger.info("JWKS keys refreshed", { context: { count: this._cachedKeys.size } });
 		} catch (err) {
 			if (this._cachedKeys && this._cachedKeys.size > 0) {
-				logger.warn("JWKS refresh failed, using cached keys", { err });
+				logger.warn("JWKS refresh failed, using cached keys", { context: { err } });
 				return;
 			}
 			throw err;

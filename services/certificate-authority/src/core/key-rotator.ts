@@ -26,14 +26,14 @@ export class KeyRotator {
 			return;
 		}
 
-		logger.info("Starting CA key rotator", {
+		logger.info("Starting CA key rotator", { context: {
 			intervalMs: this._options.intervalMs,
 			retentionCount: this._options.retentionCount,
-		});
+		} });
 
 		this._timer = setInterval(() => {
 			this._rotate().catch((err) => {
-				logger.error("CA key rotation failed", { err });
+				logger.error("CA key rotation failed", { context: { err } });
 			});
 		}, this._options.intervalMs);
 	}
@@ -53,11 +53,11 @@ export class KeyRotator {
 		const newKeyId = await this._options.ca.rotateKey();
 		await this._options.ca.cleanupKeyHistory(this._options.retentionCount);
 
-		logger.info("CA key rotated", {
+		logger.info("CA key rotated", { context: {
 			previousKeyId,
 			previousVersion,
 			newKeyId,
 			newVersion: this._options.ca.getKeyVersion(),
-		});
+		} });
 	}
 }

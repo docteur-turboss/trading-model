@@ -58,7 +58,7 @@ export class RedisLockBackend implements LockBackend {
 			}
 			return null;
 		} catch (err) {
-			logger.warn("Redis lock acquire failed", { err });
+			logger.warn("Redis lock acquire failed", { context: { err } });
 			this._client = null;
 			return null;
 		}

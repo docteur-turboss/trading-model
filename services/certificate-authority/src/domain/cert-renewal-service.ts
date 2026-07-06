@@ -92,7 +92,7 @@ export class CertRenewalService {
 
 		// 3. Verify proof-of-possession (client still holds the private _key)
 		if (!this._popVerifier.verify(oldCert.certPem, nonce, signature)) {
-			logger.warn("Proof-of-possession failed", { serviceId, oldSerialNumber });
+			logger.warn("Proof-of-possession failed", { context: { serviceId, oldSerialNumber } });
 			throw new CertRenewalError(
 				"Proof-of-possession failed — signature does not match certificate public key",
 				403

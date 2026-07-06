@@ -51,7 +51,7 @@ export class MongoLockBackend implements LockBackend {
 				result === null || (result.expiresAt && result.expiresAt < now);
 			return acquired ? nextFencingToken : null;
 		} catch (err) {
-			logger.warn("MongoDB lock acquire failed", { err });
+			logger.warn("MongoDB lock acquire failed", { context: { err } });
 			this._connected = false;
 			this._onDisconnect();
 			return null;

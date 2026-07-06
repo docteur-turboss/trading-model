@@ -69,10 +69,10 @@ export function checkSignRequestRateLimit(
 	} else {
 		connectionState.requestCount++;
 		if (connectionState.requestCount > AUTH_RATE_LIMIT_MAX) {
-			logger.warn("WSS per-connection rate limit exceeded", {
+			logger.warn("WSS per-connection rate limit exceeded", { context: {
 				clientIdentity,
 				requestCount: connectionState.requestCount,
-			});
+			} });
 			return false;
 		}
 	}

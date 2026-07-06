@@ -12,7 +12,7 @@ export async function getCrl(_req: Request, res: Response): Promise<void> {
 			entries: crl,
 		});
 	} catch (err) {
-		logger.error("Failed to get CRL", { err });
+		logger.error("Failed to get CRL", { context: { err } });
 		res.status(500).json({ error: "Failed to get CRL" });
 	}
 }

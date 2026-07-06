@@ -23,14 +23,14 @@ export class Rotator {
 			return;
 		}
 
-		logger.info("Starting certificate rotator", {
+		logger.info("Starting certificate rotator", { context: {
 			intervalMs: this._options.intervalMs,
 			marginMs: this._options.marginMs,
-		});
+		} });
 
 		this._timer = setInterval(() => {
 			this._rotate().catch((err) => {
-				logger.error("Certificate rotation failed", { err });
+				logger.error("Certificate rotation failed", { context: { err } });
 			});
 		}, this._options.intervalMs);
 	}
@@ -52,23 +52,23 @@ export class Rotator {
 			return;
 		}
 
-		logger.info("Rotating expiring certificates", {
+		logger.info("Rotating expiring certificates", { context: {
 			count: expiringCerts.length,
-		});
+		} });
 
 		for (const cert of expiringCerts) {
 			try {
-				logger.info("Rotating certificate", {
+				logger.info("Rotating certificate", { context: {
 					serviceId: cert.serviceId,
 					serialNumber: cert.serialNumber,
 					expiresAt: cert.expiresAt,
-				});
+				} });
 			} catch (err) {
-				logger.error("Failed to rotate certificate", {
+				logger.error("Failed to rotate certificate", { context: {
 					serviceId: cert.serviceId,
 					serialNumber: cert.serialNumber,
 					err,
-				});
+				} });
 			}
 		}
 	}
