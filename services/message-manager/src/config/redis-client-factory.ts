@@ -74,7 +74,7 @@ function buildSentinelClient(): Redis {
 	return new Redis(sentinelOpts as RedisOptions) as unknown as Redis;
 }
 
-function parseSentinelNodes(): Array<{ host: string; port: number }> {
+function parseSentinelNodes(): Array<HostPort> {
 	try {
 		return ENV.REDIS_SENTINEL_NODES
 			? (JSON.parse(ENV.REDIS_SENTINEL_NODES) as Array<{
@@ -112,7 +112,7 @@ function buildSentinelOptions(
 	return sentinelOpts;
 }
 
-function parseClusterNodes(): Array<{ host: string; port: number }> {
+function parseClusterNodes(): Array<HostPort> {
 	try {
 		return JSON.parse(ENV.REDIS_CLUSTER_NODES!) as Array<{
 			host: string;

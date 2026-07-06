@@ -192,12 +192,7 @@ function _computeOrderBookAverages(ob: import("@trading-model/common/config/even
 	};
 }
 
-function orderBookAverages(state: SymbolState): {
-	avgBid: number;
-	avgAsk: number;
-	bidQty: number;
-	askQty: number;
-} | null {
+function orderBookAverages(state: SymbolState): OrderBookAverages | null {
 	if (!state.orderBook) {
 		return null;
 	}

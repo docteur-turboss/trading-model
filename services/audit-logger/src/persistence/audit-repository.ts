@@ -1,4 +1,7 @@
-import type { PaginatedResponse } from "@trading-model/common/contracts/pagination.types";
+import type {
+	PaginationQuery,
+	PaginationResult,
+} from "@trading-model/common/domain/pagination";
 import { AgentError, AppError } from "@trading-model/common/utils/errors";
 import type { Collection, Db, Filter } from "mongodb";
 
