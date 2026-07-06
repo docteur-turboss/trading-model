@@ -53,23 +53,25 @@ export class SystemMetrics {
 		};
 	}
 
-	private _collectCpu(): SystemMetricsPayload["cpu"] {
-		const cpuPercent = this._calculateCpuPercent(os.cpus());
+	collect(): SystemMetricsPayload {
+		return {
+			memory: this._collectMemory(),
+			cpu: this._collectCpu(this._previousCpuTimes),
+			uptime: os.uptime(),
+			collectedAt: Date.now(),
+		};
+	}
+
+	private _collectCpu(
+		previousCpuTimes: { idle: number; total: number } | null
+	): SystemMetricsPayload["cpu"] {
+		const cpuPercent = this._calculateCpuPercent(os.cpus(), previousCpuTimes);
 		const loads = os.loadavg();
 		return {
 			percent: cpuPercent,
 			loadAvg1m: loads[0],
 			loadAvg5m: loads[1],
 			loadAvg15m: loads[2],
-		};
-	}
-
-	collect(): SystemMetricsPayload {
-		return {
-			memory: this._collectMemory(),
-			cpu: this._collectCpu(),
-			uptime: os.uptime(),
-			collectedAt: Date.now(),
 		};
 	}
 
@@ -83,14 +85,17 @@ export class SystemMetrics {
 		return { totalIdle, totalTick };
 	}
 
-	private _calculateCpuPercent(cpus: os.CpuInfo[]): number {
+	private _calculateCpuPercent(
+		cpus: os.CpuInfo[],
+		previousCpuTimes: { idle: number; total: number } | null
+	): number {
 		const { totalIdle, totalTick } = this._sumCpuTimes(cpus);
-		const { percent, previousCpuTimes } = computeCpuPercent(
+		const { percent, previousCpuTimes: newCpuTimes } = computeCpuPercent(
 			totalIdle,
 			totalTick,
-			this._previousCpuTimes,
+			previousCpuTimes,
 		);
-		this._previousCpuTimes = previousCpuTimes;
+		this._previousCpuTimes = newCpuTimes;
 		return percent;
 	}
 
