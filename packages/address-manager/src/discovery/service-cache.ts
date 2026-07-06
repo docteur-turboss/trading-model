@@ -98,6 +98,10 @@ export class ServiceCache implements IServiceCache {
 		});
 	}
 
+	async delete(serviceName: ServiceId, region?: string): Promise<void> {
+		return this.invalidate(serviceName, region);
+	}
+
 	async clear(): Promise<void> {
 		return this._withLock(() => {
 			this._cache.clear();
