@@ -1,3 +1,4 @@
+import type { IPAddress, Port } from "./primitives";
 import type { HostPort } from "./service-identity";
 
 export interface DbConnectionConfig extends HostPort {
