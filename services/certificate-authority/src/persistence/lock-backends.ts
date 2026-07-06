@@ -119,9 +119,6 @@ export class RedisLockBackend implements LockBackend {
 		context: LockContext,
 		ttlMs: number
 	): Promise<number | null> {
-		if (!this._connector.client) {
-			return null;
-		}
 		const { lockName, instanceId } = context;
 		try {
 			const lockKey = `lock:${lockName}`;
@@ -154,7 +151,7 @@ export class RedisLockBackend implements LockBackend {
 		context: LockContext,
 		fencingToken: number
 	): Promise<boolean> {
-		if (!this._connector.available || !this._connector.client) {
+		if (!this._connector.available) {
 			return false;
 		}
 		const { lockName, instanceId } = context;
@@ -183,7 +180,7 @@ export class RedisLockBackend implements LockBackend {
 		context: LockContext,
 		fencingToken: number
 	): Promise<number> {
-		if (!this._connector.available || !this._connector.client) {
+		if (!this._connector.available) {
 			return -1;
 		}
 		const { lockName, instanceId } = context;
