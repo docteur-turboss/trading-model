@@ -1,7 +1,14 @@
 /**
+ * Shared interface for checking certificate revocation status.
+ */
+export interface ICrlChecker {
+	isRevoked(serialNumber: string): boolean;
+}
+
+/**
  * In-memory CRL cache that stores revoked certificate serial numbers.
  */
-export class CrlCache {
+export class CrlCache implements ICrlChecker {
 	private _revoked = new Set<string>();
 
 	/**
@@ -26,10 +33,28 @@ export class CrlCache {
 	}
 
 	/**
+	 * Bulk-load revoked entries from a CRL or any list of objects with a serialNumber field.
+	 */
+	addRevokedFromEntries(entries: ReadonlyArray<{ serialNumber: string }>): void {
+		for (const entry of entries) {
+			this.addRevoked(entry.serialNumber);
+		}
+	}
+
+	/**
 	 * Removes all entries from the local cache.
 	 */
 	clear(): void {
 		this._revoked.clear();
+	}
+
+	/**
+	 * Create a CrlCache pre-populated from a list of revoked entries.
+	 */
+	static fromCrlEntries(entries: ReadonlyArray<{ serialNumber: string }>): CrlCache {
+		const cache = new CrlCache();
+		cache.addRevokedFromEntries(entries);
+		return cache;
 	}
 }
 

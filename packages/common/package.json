@@ -53,6 +53,10 @@
       "types": "./dist/ca/*.d.ts",
       "default": "./dist/ca/*.js"
     },
+    "./crl/*": {
+      "types": "./dist/crl/*.d.ts",
+      "default": "./dist/crl/*.js"
+    },
     "./crypto/*": {
       "types": "./dist/crypto/*.d.ts",
       "default": "./dist/crypto/*.js"

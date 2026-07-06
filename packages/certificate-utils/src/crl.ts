@@ -1,3 +1,4 @@
+import type { ICrlChecker } from "@trading-model/common/crl/crl-cache";
 import type { RevokedCertificate } from "./types";
 
 export interface Crl {
@@ -27,4 +28,15 @@ export function isRevoked(serialNumber: string, crl: Crl): boolean {
 function isExpiredRevocation(entry: RevokedCertificate): boolean {
 	const maxAge = 365 * 24 * 60 * 60 * 1000;
 	return Date.now() - entry.revokedAt.getTime() > maxAge;
+}
+
+/**
+ * Wrap a Crl object as an ICrlChecker so it can be used interchangeably with CrlCache.
+ */
+export function createCrlChecker(crl: Crl): ICrlChecker {
+	return {
+		isRevoked(serialNumber: string): boolean {
+			return isRevoked(serialNumber, crl);
+		},
+	};
 }
