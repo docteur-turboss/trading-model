@@ -12,29 +12,31 @@ export const KeyAlgorithm = {
 
 export type KeyAlgorithm = (typeof KeyAlgorithm)[keyof typeof KeyAlgorithm];
 
-export function generateKeyPair(
-	algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
-): KeyPair {
-	const algorithmOptions: Record<string, unknown> =
-		algorithm === KeyAlgorithm.rsa4096
-			? { modulusLength: 4096 }
-			: { namedCurve: "P-384" };
+function _getAlgorithmOptions(algorithm: KeyAlgorithm): Record<string, unknown> {
+	return algorithm === KeyAlgorithm.rsa4096
+		? { modulusLength: 4096 }
+		: { namedCurve: "P-384" };
+}
 
-	const { publicKey, privateKey } = (
-		nodeGenerateKeyPairSync as (
-			type: string,
-			options: Record<string, unknown>
-		) => { publicKey: unknown; privateKey: unknown }
-	)(algorithm, {
-		...algorithmOptions,
-		publicKeyEncoding: { type: "spki", format: "pem" },
-		privateKeyEncoding: { type: "pkcs8", format: "pem" },
-	});
-
+function _getKeyEncoding() {
 	return {
-		publicKey: publicKey as string,
-		privateKey: privateKey as string,
+		publicKeyEncoding: { type: "spki" as const, format: "pem" as const },
+		privateKeyEncoding: { type: "pkcs8" as const, format: "pem" as const },
 	};
+}
+
+export function generateKeyPair(
+	algorithm: KeyAlgorithm = KeyAlgorithm.ecP384,
+): KeyPair {
+	const algorithmOptions = _getAlgorithmOptions(algorithm);
+	const { publicKey, privateKey } = (nodeGenerateKeyPairSync as (
+		type: string,
+		options: Record<string, unknown>,
+	) => { publicKey: unknown; privateKey: unknown })(algorithm, {
+		...algorithmOptions,
+		..._getKeyEncoding(),
+	});
+	return { publicKey: publicKey as string, privateKey: privateKey as string };
 }
 
 export function generateKeyPairSync(

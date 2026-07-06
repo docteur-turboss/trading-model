@@ -183,5 +183,4 @@ function _onAckTimeoutJobFound(
 		});
 }
 
-export class JobDispatcher {
-}
+

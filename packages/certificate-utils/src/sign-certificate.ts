@@ -34,8 +34,12 @@ function _buildCertBody(options: {
 		`Not Before: ${now.toISOString()}`,
 		`Not After: ${expiresAt.toISOString()}`,
 		`SAN: ${csrData.san.join(", ")}`,
-		`Public Key: ${publicKey.export({ type: "spki", format: "pem" })}`,
+		`Public Key: ${_exportPublicKeyPem(publicKey)}`,
 	].join("\n");
+}
+
+function _exportPublicKeyPem(publicKey: ReturnType<typeof createPublicKey>): string {
+	return publicKey.export({ type: "spki", format: "pem" });
 }
 
 function _signCertBody(certBody: string, privateKey: string): string {

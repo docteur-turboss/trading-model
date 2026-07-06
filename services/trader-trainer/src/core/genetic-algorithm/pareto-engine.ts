@@ -77,27 +77,38 @@ function buildDominationMatrix(
 	return { dominated, dominates };
 }
 
+function _findInitialFront(
+	dominated: Int32Array,
+	length: number
+): number[] {
+	return Array.from({ length }, (_unused, index) => index).filter(
+		(idx) => dominated[idx] === 0
+	);
+}
+
+function _buildNextFront(current: number[], dominates: number[][], dominated: Int32Array): number[] {
+	const next: number[] = [];
+	for (const i of current) {
+		for (const j of dominates[i]) {
+			if (--dominated[j] === 0) {
+				next.push(j);
+			}
+		}
+	}
+	return next;
+}
+
 function computeParetoFronts(
 	dominated: Int32Array,
 	dominates: number[][],
 	length: number
 ): number[][] {
 	const fronts: number[][] = [];
-	let current = Array.from({ length }, (_unused, index) => index).filter(
-		(idx) => dominated[idx] === 0
-	);
+	let current = _findInitialFront(dominated, length);
 
 	while (current.length > 0) {
 		fronts.push(current);
-		const next: number[] = [];
-		for (const i of current) {
-			for (const j of dominates[i]) {
-				if (--dominated[j] === 0) {
-					next.push(j);
-				}
-			}
-		}
-		current = next;
+		current = _buildNextFront(current, dominates, dominated);
 	}
 
 	return fronts;
@@ -126,6 +137,29 @@ function nondominatedSortExact(objectives: ObjectiveVector[]): number[] {
  * Approximate O(n·k) non-dominated sorting (for large populations).
  * Samples k random comparisons per individual.
  */
+function _buildPool(count: number, i: number): number[] {
+	return Array.from({ length: count - 1 }, (_unused, jdx) =>
+		jdx >= i ? jdx + 1 : jdx
+	);
+}
+
+function _sampleDomination(
+	objectives: ObjectiveVector[],
+	dominated: Int32Array,
+	i: number,
+	sampleSize: number,
+	rng: () => number
+): void {
+	const pool = _buildPool(objectives.length, i);
+	for (let sample = 0; sample < sampleSize; sample++) {
+		const idx = sample + Math.floor(rng() * (pool.length - sample));
+		[pool[sample], pool[idx]] = [pool[idx], pool[sample]];
+		if (dominates(objectives[pool[sample]], objectives[i])) {
+			dominated[i]++;
+		}
+	}
+}
+
 function nondominatedSortApprox(
 	objectives: ObjectiveVector[],
 	rng: () => number
@@ -135,16 +169,7 @@ function nondominatedSortApprox(
 	const dominated = new Int32Array(count);
 
 	for (let i = 0; i < count; i++) {
-		const pool = Array.from({ length: count - 1 }, (_unused, jdx) =>
-			jdx >= i ? jdx + 1 : jdx
-		);
-		for (let sample = 0; sample < sampleSize; sample++) {
-			const idx = sample + Math.floor(rng() * (pool.length - sample));
-			[pool[sample], pool[idx]] = [pool[idx], pool[sample]];
-			if (dominates(objectives[pool[sample]], objectives[i])) {
-				dominated[i]++;
-			}
-		}
+		_sampleDomination(objectives, dominated, i, sampleSize, rng);
 	}
 
 	return Array.from(dominated);
