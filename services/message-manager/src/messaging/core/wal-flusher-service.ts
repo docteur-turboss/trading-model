@@ -97,15 +97,15 @@ export class WalFlusherService {
 				await this.drain(remaining);
 			}
 		} catch (err) {
-			logger.warn("WAL drain failed during shutdown", {
+			logger.warn("WAL drain failed during shutdown", { context: {
 				error: (err as Error).message,
-			});
+			} });
 		}
 		while (this._memoryWalBuffer.length > 0) {
 			if (Date.now() >= deadline) {
-				logger.warn("Memory WAL drain timed out", {
-					remaining: this._memoryWalBuffer.length,
-				});
+				logger.warn("Memory WAL drain timed out", { context: {
+				remaining: this._memoryWalBuffer.length,
+			} });
 				break;
 			}
 			try {
@@ -177,9 +177,9 @@ export class WalFlusherService {
 				data: parsed.serialized ?? safeStringify(parsed.message!),
 			};
 		} catch {
-			logger.warn("WAL flush: malformed entry dropped", {
+			logger.warn("WAL flush: malformed entry dropped", { context: {
 				entry: entry.substring(0, 200),
-			});
+			} });
 			return null;
 		}
 	}
@@ -291,7 +291,7 @@ export class WalFlusherService {
 		try {
 			await this._drainWalLoop();
 		} catch (err) {
-			logger.error("WAL flush error", { error: (err as Error).message });
+			logger.error("WAL flush error", { context: { error: (err as Error).message } });
 		} finally {
 			this._completeWalFlush();
 		}

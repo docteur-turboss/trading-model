@@ -30,11 +30,11 @@ export class StreamGroupManager {
 			);
 		} catch (err: unknown) {
 			if (err instanceof Error && !err.message.includes("BUSYGROUP")) {
-				logger.warn("Failed to create consumer group", {
+				logger.warn("Failed to create consumer group", { context: {
 					topic,
 					groupName,
 					error: err.message,
-				});
+				} });
 			}
 		}
 	}

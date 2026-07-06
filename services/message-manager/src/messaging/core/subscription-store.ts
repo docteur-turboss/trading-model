@@ -150,9 +150,9 @@ export class SubscriptionStore {
 				const entry = JSON.parse(data as string) as SubscriptionEntry;
 				entries.push(entry);
 			} catch (parseErr) {
-				logger.warn("Failed to parse subscription entry", {
+				logger.warn("Failed to parse subscription entry", { context: {
 					error: normalizeError(parseErr as Error),
-				});
+				} });
 			}
 		}
 		return entries;
