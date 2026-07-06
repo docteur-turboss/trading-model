@@ -10,6 +10,7 @@ import {
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { AppError } from "@trading-model/common/utils/errors";
 import { AddressManagerClient } from "../../src/client/address-manager-client";
+import { LocalIPDetector } from "../../src/client/local-ip-detector";
 import type { TokenManager } from "../../src/client/token-manager";
 import type { ServiceRegistrationResponse } from "../../src/client/type";
 import type { AddressManagerConfig } from "../../src/config/address-manager-config";
@@ -32,8 +33,7 @@ describe("AddressManagerClient", () => {
 		(networkInterfaces as jest.Mock).mockReturnValue({
 			eth0: [{ family: "IPv4", internal: false, address: "192.168.1.100" }],
 		});
-		// Reset hasIpChanged internal cache
-		(AddressManagerClient as any)._cachedLocalIP = null;
+		LocalIPDetector.reset();
 
 		httpClient = {
 			get: jest.fn(),

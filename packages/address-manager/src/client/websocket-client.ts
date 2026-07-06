@@ -6,7 +6,7 @@ import { WsReconnectHandler } from "./ws-reconnect-handler";
 
 import type { DiscoveryWsMessage, DiscoveryWsMessageType } from "@trading-model/common/contracts/discovery-ws-message.types";
 
-export type { DiscoveryWsMessageType as WsMessageType };
+export type WsMessageType = DiscoveryWsMessageType;
 export type WsMessage = DiscoveryWsMessage;
 export type WsEventHandler = (message: WsMessage) => void;
 

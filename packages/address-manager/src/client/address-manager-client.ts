@@ -1,4 +1,4 @@
-import { networkInterfaces } from "node:os";
+import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import {
 	AppError,
@@ -7,6 +7,7 @@ import {
 } from "@trading-model/common/utils/errors";
 import type { AddressManagerConfig } from "../config/address-manager-config";
 import type { TokenManager } from "./token-manager";
+import { LocalIPDetector } from "./local-ip-detector";
 import type {
 	RegisterServicePayload,
 	ServiceRegistrationResponse,
@@ -19,34 +20,15 @@ export class AddressManagerClient {
 		private readonly _config: AddressManagerConfig
 	) {}
 
-	private static _localIP: string | null = null;
-
 	static resetLocalIP(): void {
-		AddressManagerClient._localIP = null;
-	}
-
-	private static _getLocalIP(): string {
-		if (AddressManagerClient._localIP) {
-			return AddressManagerClient._localIP;
-		}
-		const nets = networkInterfaces();
-		for (const name of Object.keys(nets)) {
-			for (const net of nets[name] ?? []) {
-				if (net.family === "IPv4" && !net.internal) {
-					AddressManagerClient._localIP = net.address;
-					return net.address;
-				}
-			}
-		}
-		AddressManagerClient._localIP = "127.0.0.1";
-		return "127.0.0.1";
+		LocalIPDetector.reset();
 	}
 
 	private _buildRegistrationPayload(): RegisterServicePayload {
 		return {
 			serviceName: this._config.identity.serviceName as import("@trading-model/common/config/services.types").ServiceInstanceName,
 			port: this._config.servicePort,
-			ip: AddressManagerClient._getLocalIP() as import("@trading-model/common/domain/primitives").IPAddress,
+			ip: LocalIPDetector.getIP() as import("@trading-model/common/domain/primitives").IPAddress,
 		};
 	}
 
@@ -98,9 +80,9 @@ export class AddressManagerClient {
 			`${url}/heartbeat`,
 			this._buildHeartbeatPayload(),
 			{
-				headers: {
-					"x-instance-token": this._tokenManager.getToken(),
-				},
+			headers: {
+				[HTTP_HEADERS.X_INSTANCE_TOKEN]: this._tokenManager.getToken(),
+			},
 			}
 		);
 	}
@@ -158,7 +140,7 @@ export class AddressManagerClient {
 						serviceName: this._config.identity.serviceName,
 						instanceId: this._config.identity.instanceId,
 					},
-					{ headers: { "x-instance-token": token } },
+					{ headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token } },
 				);
 				return;
 			} catch {
@@ -167,21 +149,7 @@ export class AddressManagerClient {
 		}
 	}
 
-	private static _cachedLocalIP: string | null = null;
-
 	hasIpChanged(): boolean {
-		const nets = networkInterfaces();
-		for (const name of Object.keys(nets)) {
-			for (const net of nets[name] ?? []) {
-				if (net.family === "IPv4" && !net.internal) {
-					if (AddressManagerClient._cachedLocalIP === null) {
-						AddressManagerClient._cachedLocalIP = net.address;
-						return false;
-					}
-					return net.address !== AddressManagerClient._cachedLocalIP;
-				}
-			}
-		}
-		return false;
+		return LocalIPDetector.hasChanged();
 	}
 }
