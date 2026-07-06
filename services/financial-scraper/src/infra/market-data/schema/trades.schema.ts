@@ -36,6 +36,19 @@ const SELECT = {
 	timestamp: T_MARKET_TRADES.timestamp,
 };
 
+function _toTradeRow(item: TradeData): Record<string, unknown> {
+	return {
+		side: item.side,
+		price: item.price,
+		market: item.market,
+		source: item.source,
+		symbol: item.symbol,
+		tradeId: item.tradeId,
+		quantity: item.quantity,
+		timestamp: new Date(item.timestamp),
+	};
+}
+
 /** Insert trade records into the market_trades table. */
 export const insertTrades = async (data: TradeData[]): Promise<void> => {
 	if (!data.length) {
@@ -44,18 +57,7 @@ export const insertTrades = async (data: TradeData[]): Promise<void> => {
 
 	await new DBConnection()
 		.insertInto(T_MARKET_TRADES)
-		.values(
-			data.map((item) => ({
-				side: item.side,
-				price: item.price,
-				market: item.market,
-				source: item.source,
-				symbol: item.symbol,
-				tradeId: item.tradeId,
-				quantity: item.quantity,
-				timestamp: new Date(item.timestamp),
-			}))
-		)
+		.values(data.map(_toTradeRow))
 		.executeInsert();
 };
 

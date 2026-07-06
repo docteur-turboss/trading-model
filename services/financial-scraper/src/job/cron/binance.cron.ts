@@ -57,31 +57,38 @@ export class BinanceCronOrchestrator {
 	 * Starts the cron scheduler.
 	 */
 	public start(): void {
-		cron.schedule(this._config.schedule, async () => {
-			if (this._isRunning) {
-				logger.warn("Previous execution still running");
-				return;
-			}
-
-			this._isRunning = true;
-
-			try {
-				await this._executeBatch();
-			} catch (err) {
-				if (err instanceof Error) {
-					logger.error("Batch execution error", {
-						err: err.message,
-					});
-				} else {
-					logger.error("Unknown batch execution error", { err: String(err) });
-				}
-			} finally {
-				this._isRunning = false;
-			}
-		});
+		cron.schedule(this._config.schedule, () => this._executeCronTick());
 
 		logger.info("Scheduler started", { maxConcurrency: this._maxConcurrency });
 	}
+
+	private async _executeCronTick(): Promise<void> {
+		if (this._isRunning) {
+			logger.warn("Previous execution still running");
+			return;
+		}
+
+		this._isRunning = true;
+
+		try {
+			await this._executeBatch();
+		} catch (err) {
+			_logBatchError(err);
+		} finally {
+			this._isRunning = false;
+		}
+	}
+}
+
+function _logBatchError(err: unknown): void {
+	if (err instanceof Error) {
+		logger.error("Batch execution error", { err: err.message });
+	} else {
+		logger.error("Unknown batch execution error", { err: String(err) });
+	}
+}
+
+export class BinanceCronOrchestrator {
 
 	/**
 	 * Batch execution with concurrency limiting.

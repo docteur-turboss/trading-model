@@ -56,30 +56,27 @@ export class OrphanDetector {
 		}
 	}
 
+	private async _processOrphanedWorker(workerId: string): Promise<void> {
+		const orphanedJobs = await this._repository.findByWorker(workerId, [
+			"assigned",
+			"running",
+		]);
+		for (const job of orphanedJobs) {
+			await this._repository.updateStatus(job.id, "orphaned");
+			await this._reAllocator.reallocate(job);
+		}
+	}
+
 	private async _detectOrphans(): Promise<void> {
 		const staleWorkerIds = this._workers.purgeStaleWorkers();
-
 		if (staleWorkerIds.length === 0) {
 			return;
 		}
-
 		logger.warn("Stale workers detected — scanning for orphaned jobs", {
-			context: {
-				workerCount: staleWorkerIds.length,
-				workers: staleWorkerIds,
-			},
+			context: { workerCount: staleWorkerIds.length, workers: staleWorkerIds },
 		});
-
 		for (const workerId of staleWorkerIds) {
-			const orphanedJobs = await this._repository.findByWorker(workerId, [
-				"assigned",
-				"running",
-			]);
-
-			for (const job of orphanedJobs) {
-				await this._repository.updateStatus(job.id, "orphaned");
-				await this._reAllocator.reallocate(job);
-			}
+			await this._processOrphanedWorker(workerId);
 		}
 	}
 }

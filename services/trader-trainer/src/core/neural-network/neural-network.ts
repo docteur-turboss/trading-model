@@ -182,29 +182,28 @@ export class NeuralNetwork {
 
 	constructor(cfg: NeuralNetworkConfig) {
 		this._config = mergeConfig(cfg);
+		this._optimizerHp = this._resolveOptimizerHp();
+		this._validateMinLayers();
+		this._initialiseLayers();
+		this._feedForward = new FeedForwardEngine(this._config, this._layers);
+		this._backprop = new BackpropEngine(this._config, this._layers, this._optimizerHp);
+	}
 
-		this._optimizerHp = {
-			...DEFAULT_HYPERPARAMS,
-			...this._config.optimizerHyperparams,
-		};
+	private _resolveOptimizerHp(): OptimizerHyperparams {
+		return { ...DEFAULT_HYPERPARAMS, ...this._config.optimizerHyperparams };
+	}
 
-		const sizes = this._config.neuronsByLayer;
-
-		if (sizes.length < 2) {
+	private _validateMinLayers(): void {
+		if (this._config.neuronsByLayer.length < 2) {
 			throw new AgentError(
 				"Neural network must have at least 2 layers (input + output)",
 			);
 		}
+	}
 
+	private _initialiseLayers(): void {
 		this._layers.push(...createLayerMemories(this._config, this._optimizerHp));
 		validateActivationLoss(this._config, this._layers.length);
-
-		this._feedForward = new FeedForwardEngine(this._config, this._layers);
-		this._backprop = new BackpropEngine(
-			this._config,
-			this._layers,
-			this._optimizerHp
-		);
 	}
 
 	public forward(input: Float32Array): ForwardContext {
@@ -216,25 +215,9 @@ export class NeuralNetwork {
 	}
 
 	public train(inputs: Float32Array, targets: Float32Array): number {
-		const expectedInput = this._config.neuronsByLayer[0];
-		const expectedOutput =
-			this._config.neuronsByLayer[this._config.neuronsByLayer.length - 1];
-
-		if (inputs.length !== expectedInput) {
-			throw new AgentError(
-				`Expected input size ${expectedInput}, got ${inputs.length}`,
-			);
-		}
-
-		if (targets.length !== expectedOutput) {
-			throw new AgentError(
-				`Expected target size ${expectedOutput}, got ${targets.length}`,
-			);
-		}
-
+		this._validateDimensions(inputs, targets);
 		const context = this._feedForward.forward(inputs);
 		this._backprop.backprop(context, targets);
-
 		return this._backprop.computeLoss(context.output, targets);
 	}
 
