@@ -27,9 +27,9 @@ export class WssClient {
 		instanceId: string;
 		httpFallback?: (payload: unknown, metadata: MessageMetadata) => Promise<void>;
 	}) {
-		this._queue = new PendingPublishQueue(config.httpFallback);
+		const httpFallback = config.httpFallback;
+		this._queue = new PendingPublishQueue(httpFallback);
 		this._reconnector = new WssReconnector();
-		this._reconnector.onPermanentFallback(() => this._queue.drainToHttp());
 		this._dispatcher = new WssMessageDispatcher();
 		this._lifecycle = new WssConnectionLifecycle(config, {
 			onOpen: () => this._onWsOpen(),

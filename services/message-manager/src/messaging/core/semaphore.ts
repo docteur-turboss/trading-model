@@ -15,7 +15,7 @@ export class Semaphore {
 			return Promise.resolve();
 		}
 		if (this._queue.length >= this._maxQueue) {
-			throw new BackpressureError(
+			throw backpressureError(
 				"Semaphore queue full — too many pending operations"
 			);
 		}

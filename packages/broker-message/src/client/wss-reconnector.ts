@@ -41,16 +41,12 @@ export class WssReconnector {
 		return this._wsReconnectState;
 	}
 
-	onPermanentFallback(cb: () => void): void {
-		this._onPermanentFallback = cb;
-	}
-
-	schedule(connectFn: ConnectFn): void {
+	schedule(connectFn: ConnectFn, onPermanentFallback?: () => void): void {
 		if (!this._shouldReconnect) {
 			return;
 		}
 		if (this._wsReconnectState.attempt >= WSS_MAX_RECONNECT_ATTEMPTS) {
-			this._handleMaxAttemptsReached(connectFn);
+			this._handleMaxAttemptsReached(connectFn, onPermanentFallback);
 			return;
 		}
 		scheduleWsReconnect({
@@ -65,7 +61,7 @@ export class WssReconnector {
 		});
 	}
 
-	private _handleMaxAttemptsReached(connectFn: ConnectFn): void {
+	private _handleMaxAttemptsReached(connectFn: ConnectFn, onPermanentFallback?: () => void): void {
 		if (this._permanentlyFellBack) {
 			return;
 		}
@@ -73,7 +69,7 @@ export class WssReconnector {
 		logger.warn(
 			"WSS max reconnect attempts reached, falling back to HTTP — will periodically retry WSS",
 		);
-		this._onPermanentFallback?.();
+		onPermanentFallback?.();
 		this._startReconnectPolling(connectFn);
 	}
 

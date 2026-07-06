@@ -3,7 +3,7 @@ import type {
 	PaginationQuery,
 	PaginationResult,
 } from "@trading-model/common/domain/pagination";
-import { AgentError, AppError } from "@trading-model/common/utils/errors";
+import { agentError, AppError } from "@trading-model/common/utils/errors";
 import type { Collection, Db, Filter } from "mongodb";
 
 export interface AuditEventDocument {

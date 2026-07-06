@@ -1,105 +1,36 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { CircuitState } from "@trading-model/common/domain/circuit-state";
+import {
+	ReplayCircuitBreaker,
+	type ReplayCircuitBreakerConfig,
+} from "./replay-circuit-breaker";
 
 /**
  * Pure application orchestration for DLQ replay.
- * Coordinates batch replay with circuit breaking, concurrency control, and timeout handling.
+ * Coordinates batch replay with concurrency control, delegating circuit breaking.
  * No HTTP, no MongoDB, no Redis — receives pre-resolved dependencies.
  */
-export interface ReplayOrchestratorConfig {
-	circuitThreshold?: number;
-	circuitCooldownMs?: number;
-	halfOpenMaxAttempts?: number;
+export interface ReplayOrchestratorConfig extends ReplayCircuitBreakerConfig {
 	maxConcurrentBatches?: number;
 }
 
 export class ReplayOrchestrator {
-	private readonly _circuitThreshold: number;
-	private readonly _circuitCooldownMs: number;
-	private readonly _halfOpenMaxAttempts: number;
 	private readonly _maxConcurrentBatches: number;
-	private _circuitState: CircuitState = "closed";
-	private _circuitFailures = 0;
-	private _circuitOpenUntil = 0;
-	private _halfOpenAttempts = 0;
+	private readonly _circuitBreaker: ReplayCircuitBreaker;
 	private _activeBatches = 0;
 
 	constructor(config: ReplayOrchestratorConfig = {}) {
-		const {
-			circuitThreshold = 5,
-			circuitCooldownMs = 30_000,
-			halfOpenMaxAttempts = 2,
-			maxConcurrentBatches = 2,
-		} = config;
-		this._circuitThreshold = circuitThreshold;
-		this._circuitCooldownMs = circuitCooldownMs;
-		this._halfOpenMaxAttempts = halfOpenMaxAttempts;
-		this._maxConcurrentBatches = maxConcurrentBatches;
+		this._maxConcurrentBatches = config.maxConcurrentBatches ?? 2;
+		this._circuitBreaker = new ReplayCircuitBreaker(config);
 	}
 
 	/** Check if the circuit allows a request. Returns false if OPEN. */
 	canProceed(): boolean {
-		if (this._circuitOpenUntil > Date.now()) {
-			return false;
-		}
-		if (this._circuitOpenUntil > 0) {
-			this._circuitFailures = 0;
-			this._circuitOpenUntil = 0;
-			this._halfOpenAttempts = 0;
-		}
-		return true;
+		return this._circuitBreaker.canProceed();
 	}
 
 	/** Record the result of a batch replay. */
 	recordResult(success: boolean): void {
-		if (success) {
-			this._resetOnSuccess();
-		} else {
-			this._handleFailure();
-		}
-	}
-
-	private _resetOnSuccess(): void {
-		if (this._circuitFailures > 0) {
-			this._circuitFailures = 0;
-		}
-		this._circuitOpenUntil = 0;
-		this._halfOpenAttempts = 0;
-	}
-
-	private _handleFailure(): void {
-		this._circuitFailures++;
-		this._checkHalfOpenReopen();
-		this._checkThresholdOpen();
-	}
-
-	private _checkHalfOpenReopen(): void {
-		if (this._circuitOpenUntil <= 0) {
-			return;
-		}
-		this._halfOpenAttempts++;
-		if (this._halfOpenAttempts >= this._halfOpenMaxAttempts) {
-			this._circuitOpenUntil = Date.now() + this._circuitCooldownMs;
-			logger.warn("Replay circuit breaker re-opened during half-open", {
-				context: {
-					failures: this._circuitFailures,
-					halfOpenAttempts: this._halfOpenAttempts,
-				},
-			});
-		}
-	}
-
-	private _checkThresholdOpen(): void {
-		if (this._circuitFailures < this._circuitThreshold) {
-			return;
-		}
-		this._circuitOpenUntil = Date.now() + this._circuitCooldownMs;
-		logger.warn("Replay circuit breaker opened", {
-			context: {
-				failures: this._circuitFailures,
-				cooldownMs: this._circuitCooldownMs,
-			},
-		});
+		this._circuitBreaker.recordResult(success);
 	}
 
 	/** Check if batch concurrency limit has been reached. */
@@ -126,7 +57,7 @@ export class ReplayOrchestrator {
 		}
 	}
 
-	getCircuitState(): CircuitState {
-		return this._circuitState;
+	getCircuitState(): import("@trading-model/common/domain/circuit-state").CircuitState {
+		return this._circuitBreaker.getCircuitState();
 	}
 }
