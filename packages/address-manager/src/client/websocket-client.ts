@@ -29,8 +29,8 @@ export class WebSocketClient {
 	private _ws: WebSocket | null = null;
 	private readonly _baseUrl: string;
 	private readonly _subscribedServices: string[];
-	private _eventHandler: WsEventHandler | null = null;
-	private _authFailureHandler: (() => void) | null = null;
+	private _eventHandler: WsEventHandler = () => {};
+	private _authFailureHandler: () => void = () => {};
 	private _token?: string;
 	private _reconnectHandler: WsReconnectHandler;
 
@@ -81,7 +81,7 @@ export class WebSocketClient {
 				error: normalizeError(error),
 			});
 			this._ws = null;
-			this._reconnectHandler.schedule();
+			this._reconnectHandler.scheduleReconnect();
 		}
 	}
 
@@ -96,7 +96,7 @@ export class WebSocketClient {
 	private _onMessage(data: WebSocket.Data): void {
 		try {
 			const message = JSON.parse(data.toString()) as WsMessage;
-			this._eventHandler?.(message);
+			this._eventHandler(message);
 		} catch (err) {
 			logger.warn("Failed to parse WebSocket message", {
 				data: data.toString(),
@@ -108,10 +108,10 @@ export class WebSocketClient {
 	private _onClose(code: number): void {
 		this._ws = null;
 		if (code === 4001) {
-			this._authFailureHandler?.();
+			this._authFailureHandler();
 			return;
 		}
-		this._reconnectHandler.schedule();
+		this._reconnectHandler.scheduleReconnect();
 	}
 
 	private _onError(error: Error): void {

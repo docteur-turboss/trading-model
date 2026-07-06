@@ -39,7 +39,7 @@ export class WsReconnectHandler {
 		this.cancel();
 	}
 
-	schedule(): void {
+	scheduleReconnect(): void {
 		if (!this._shouldReconnect) {
 			return;
 		}
@@ -60,6 +60,11 @@ export class WsReconnectHandler {
 			onReconnect: () => this._onReconnect(),
 			logger,
 		});
+	}
+
+	/** @deprecated Use {@link scheduleReconnect} instead */
+	schedule(): void {
+		return this.scheduleReconnect();
 	}
 
 	cancel(): void {

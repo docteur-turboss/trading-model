@@ -27,6 +27,7 @@ export interface WsReconnectOptions {
 	state: WsReconnectState;
 	config: WsReconnectConfig;
 	onReconnect: () => void;
+	onSchedule?: (info: { attempt: number; delay: number }) => void;
 	logger: {
 		info: (msg: string, context?: Record<string, unknown>) => void;
 		warn: (msg: string, context?: Record<string, unknown>) => void;
@@ -52,10 +53,12 @@ function _scheduleWithDelay(
 	state: WsReconnectState,
 	config: WsReconnectConfig,
 	onReconnect: () => void,
+	onSchedule: WsReconnectOptions["onSchedule"],
 	logger: WsReconnectOptions["logger"],
 ): void {
 	state.attempt++;
 	const delay = calculateDelay(config, state.attempt);
+	onSchedule?.({ attempt: state.attempt, delay });
 	logger.info(
 		`WebSocket reconnecting in ${Math.round(delay)}ms (attempt ${state.attempt})`,
 	);
@@ -67,7 +70,7 @@ function _scheduleWithDelay(
 }
 
 export function scheduleWsReconnect(options: WsReconnectOptions): void {
-	const { state, config, onReconnect, logger } = options;
+	const { state, config, onReconnect, onSchedule, logger } = options;
 	if (state.destroyed) return;
 	if (_checkMaxAttempts(state, config, logger)) return;
 
@@ -75,7 +78,7 @@ export function scheduleWsReconnect(options: WsReconnectOptions): void {
 		clearTimeout(state.timer);
 		state.timer = null;
 	}
-	_scheduleWithDelay(state, config, onReconnect, logger);
+	_scheduleWithDelay(state, config, onReconnect, onSchedule, logger);
 }
 
 export function createWsConnectTimeout(
