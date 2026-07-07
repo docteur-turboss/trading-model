@@ -2,7 +2,7 @@ import type addressManagerClient from "@trading-model/address-manager";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import {
 	isMessageManagerError,
 	isServiceUnreachableError,
@@ -42,14 +42,14 @@ export class TopicSubscriptionService {
 		}
 	}
 
-	private async _findMessageService(): Promise<{ ip: IPAddress; port: Port }> {
+	private async _findMessageService(): Promise<HostPort> {
 		const target = await this._addressManagerClient.findService(
 			ServiceInstanceName.MessageDeliveryService
 		);
 		if (!target) {
 			throw serviceUnreachableError("Unable to contact the message manager");
 		}
-		return target;
+		return { host: target.ip, port: target.port };
 	}
 
 	private _handleSubscribeError(err: unknown, action: string): never {

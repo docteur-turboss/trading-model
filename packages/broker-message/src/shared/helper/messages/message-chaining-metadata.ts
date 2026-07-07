@@ -8,8 +8,8 @@ export class MessageChainingMetadata {
 	private _causationId?: CorrelationId;
 	private _correlationId?: CorrelationId;
 
-	public constructor(data?: { causationId?: string; correlationId?: string }) {
-		this.setIds(data ?? {});
+	public constructor(data: { causationId?: string; correlationId?: string }) {
+		this.setIds(data);
 	}
 
 	public get causationId(): CorrelationId | undefined {
@@ -20,17 +20,10 @@ export class MessageChainingMetadata {
 		return this._correlationId;
 	}
 
-	public setIds(
-		context: {
-			causationId?: string;
-			correlationId?: string;
-		} | null
-	): void {
-		if (context === null) {
-			this._causationId = undefined;
-			this._correlationId = undefined;
-			return;
-		}
+	public setIds(context: {
+		causationId?: string;
+		correlationId?: string;
+	}): void {
 		if (context.causationId) {
 			IDS_METADATA_PREDICATE.parse(context.causationId);
 			this._causationId = toCorrelationId(context.causationId);

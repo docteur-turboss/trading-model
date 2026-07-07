@@ -10,8 +10,7 @@ import { handleAbandonedEntries } from "./auto-retry";
 import { dlqClaimManager } from "./claim-manager";
 import { doReplayBatch } from "./replay-pipeline";
 import { isShuttingDown } from "./shared/shutdown-flag";
-
-export let redisRetryTimer: ReturnType<typeof setTimeout> | null = null;
+import { RedisWorkerTimer } from "./redis-worker-timer";
 
 async function _popRedisQueueEntries(): Promise<string[]> {
 	const entryIds: string[] = [];
@@ -137,40 +136,12 @@ function _shouldSkipRedisProcessing(): boolean {
 	return false;
 }
 
-const RedisWorkerIntervalMs = 1000;
+export const redisWorkerTimer = new RedisWorkerTimer(processRedisQueue);
 
 export function startRedisWorkerLoop(): void {
-	void _redisWorkerLoop();
-}
-
-async function _redisWorkerLoop(): Promise<void> {
-	if (isShuttingDown()) {
-		return;
-	}
-	try {
-		await processRedisQueue();
-	} catch (err) {
-		_logRedisWorkerError(err);
-	}
-	if (!isShuttingDown()) {
-		_scheduleRedisTick();
-	}
-}
-
-function _logRedisWorkerError(err: unknown): void {
-	logger.error("DLQ Redis queue worker error", {
-		error: (err as Error)?.message,
-	});
-}
-
-function _scheduleRedisTick(): void {
-	redisRetryTimer = setTimeout(_redisWorkerLoop, RedisWorkerIntervalMs);
-	redisRetryTimer.unref();
+	redisWorkerTimer.start();
 }
 
 export function stopRedisWorkerTimer(): void {
-	if (redisRetryTimer) {
-		clearTimeout(redisRetryTimer);
-		redisRetryTimer = null;
-	}
+	redisWorkerTimer.stop();
 }

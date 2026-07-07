@@ -4,13 +4,12 @@ import type {
 	ModelId,
 	Region,
 } from "../../domain/primitives";
-import { WorkerStatusCode } from "../../domain/primitives";
+import {
+	WorkerStatusCode,
+	formatWorkerDisplayName,
+	parseWorkerDisplayName,
+} from "../../domain/primitives";
 
-/**
- * Admin-facing worker status display values (PascalCase strings).
- * Backed by WorkerStatusCode (lowercase) in @trading-model/common/domain/primitives/enums.
- * Use toWorkerStatusCode() to convert AdminWorkerStatus → WorkerStatusCode.
- */
 export enum AdminWorkerStatus {
 	Online = "Online",
 	Draining = "Draining",
@@ -21,16 +20,18 @@ export enum AdminWorkerStatus {
 export function toWorkerStatusCode(
 	status: AdminWorkerStatus
 ): WorkerStatusCode {
-	switch (status) {
-		case AdminWorkerStatus.Online:
-			return WorkerStatusCode.Active;
-		case AdminWorkerStatus.Draining:
-			return WorkerStatusCode.Draining;
-		case AdminWorkerStatus.Offline:
-			return WorkerStatusCode.Offline;
-		default:
-			throw new Error(`Unknown AdminWorkerStatus: ${status satisfies never}`);
+	const parsed = parseWorkerDisplayName(status);
+	if (!parsed) {
+		throw new Error(`Unknown AdminWorkerStatus: ${status}`);
 	}
+	return parsed;
+}
+
+/** Convert WorkerStatusCode (lowercase) to AdminWorkerStatus (PascalCase). */
+export function fromWorkerStatusCode(
+	status: WorkerStatusCode
+): AdminWorkerStatus {
+	return formatWorkerDisplayName(status) as AdminWorkerStatus;
 }
 
 export interface WorkerEntry {

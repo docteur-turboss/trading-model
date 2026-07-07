@@ -11,6 +11,7 @@ import type {
 	CaClient,
 	SignCertificateRequest,
 } from "@trading-model/common/ca/ca-client";
+import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
 import { toSerialNumber } from "@trading-model/common/domain/primitives";
 import type {
 	CertificateClientConfig,
@@ -49,7 +50,7 @@ export class CertificateLifecycle {
 
 	async writeCertificates(
 		keyPair: { privateKey: string },
-		response: { certPem: string; caPem: string }
+		response: Pick<CertificateBase, "certPem" | "caPem">
 	): Promise<void> {
 		const { tlsPaths } = this._config;
 		const certDir = path.dirname(tlsPaths.certPath);
@@ -61,12 +62,7 @@ export class CertificateLifecycle {
 
 	buildObtainedCert(
 		keyPair: { privateKey: string },
-		response: {
-			certPem: string;
-			caPem: string;
-			serialNumber: string;
-			expiresAt: string;
-		}
+		response: Omit<CertificateBase, "expiresAt"> & { expiresAt: string }
 	): ObtainedCertificate {
 		return {
 			certPem: response.certPem,

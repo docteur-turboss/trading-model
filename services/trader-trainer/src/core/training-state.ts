@@ -48,29 +48,27 @@ export interface LastTrainingInfo {
 }
 
 export class TrainingState {
-	private _hasInfo = false;
-	private _lastInfo: LastTrainingInfo = null as unknown as LastTrainingInfo;
+	private _lastInfo?: LastTrainingInfo;
 	private readonly _summaryBuilder = new GenomeSummaryBuilder();
 
 	update(info: LastTrainingInfo): void {
 		this._lastInfo = info;
-		this._hasInfo = true;
 	}
 
 	getCurrentSymbol(): TradingSymbol | undefined {
-		return this._hasInfo ? this._lastInfo.symbol : undefined;
+		return this._lastInfo?.symbol;
 	}
 
 	getGeneration(): number | undefined {
-		return this._hasInfo ? this._lastInfo.generation : undefined;
+		return this._lastInfo?.generation;
 	}
 
 	getGenerationContext(): GenerationContext | null | undefined {
-		return this._hasInfo ? this._lastInfo.generationContext : undefined;
+		return this._lastInfo?.generationContext;
 	}
 
 	getBestAgentSummary(): BestAgentSummary | null {
-		if (!this._hasInfo) {
+		if (!this._lastInfo) {
 			return null;
 		}
 		return this._summaryBuilder.build(

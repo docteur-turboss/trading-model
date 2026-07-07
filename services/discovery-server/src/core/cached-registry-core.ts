@@ -1,7 +1,4 @@
-import type {
-	RegistryBackend,
-	ServiceInstance,
-} from "@trading-model/common/contracts/service-registry.types";
+import type { RegistryBackend, ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { BackendPingManager } from "./backend-ping-manager";
@@ -21,67 +18,27 @@ export class CachedRegistryCore {
 
 	constructor(options: CachedRegistryBackendOptions) {
 		this._backend = options.backend;
-		this.cache = this._createCache(options);
+		this.cache = new CacheManager({ maxSize: options.maxEntries ?? 5000, ttlMs: options.cacheTtlMs });
 		this.pubSub = new PubSubInvalidator(options.redisUrlForPubSub);
-		this.pingManager = this._createPingManager(options);
-		this.healthMonitor = this._createHealthMonitor(options);
-		this.orchestrator = new CacheOrchestrator(
-			this._backend,
-			this.cache,
-			this.healthMonitor
-		);
-	}
-
-	private _createCache(options: CachedRegistryBackendOptions): CacheManager {
-		return new CacheManager({
-			maxSize: options.maxEntries ?? 5000,
-			ttlMs: options.cacheTtlMs,
-		});
-	}
-
-	private _createPingManager(
-		options: CachedRegistryBackendOptions
-	): BackendPingManager {
-		return new BackendPingManager(
-			options.backend,
-			this.pubSub,
-			Boolean(options.redisUrlForPubSub)
-		);
-	}
-
-	private _createHealthMonitor(
-		options: CachedRegistryBackendOptions
-	): RedisHealthMonitor {
-		return new RedisHealthMonitor({
+		this.pingManager = new BackendPingManager(options.backend, this.pubSub, Boolean(options.redisUrlForPubSub));
+		this.healthMonitor = new RedisHealthMonitor({
 			failureThreshold: options.redisFailureThreshold ?? 3,
 			healthCheckIntervalMs: options.redisHealthCheckIntervalMs ?? 15_000,
-			shouldRun: () =>
-				Boolean(options.redisUrlForPubSub || this.pingManager.isRedisBackend()),
-			callbacks: this._buildHealthCallbacks(),
+			shouldRun: () => Boolean(options.redisUrlForPubSub || this.pingManager.isRedisBackend()),
+			callbacks: {
+				ping: () => this._directPing(),
+				onHealthLost: () => {},
+				onHealthRestored: () => { this.cache.clear(); },
+				onFallbackActivated: () => { this.cache.clear(); },
+				onFallbackRestored: () => { this.cache.clear(); },
+			},
 			backend: this._backend,
 		});
-	}
-
-	private _buildHealthCallbacks() {
-		return {
-			ping: () => this._directPing(),
-			onHealthLost: () => {},
-			onHealthRestored: () => {
-				this.cache.clear();
-			},
-			onFallbackActivated: () => {
-				this.cache.clear();
-			},
-			onFallbackRestored: () => {
-				this.cache.clear();
-			},
-		};
+		this.orchestrator = new CacheOrchestrator(this._backend, this.cache, this.healthMonitor);
 	}
 
 	private async _directPing(): Promise<boolean> {
-		if (this.healthMonitor.fallbackActive) {
-			return false;
-		}
+		if (this.healthMonitor.fallbackActive) return false;
 		await this.pingManager.pingPubSub();
 		return this.pingManager.pingBackend();
 	}
@@ -92,30 +49,21 @@ export class CachedRegistryCore {
 		await this.pubSub.publish(instance.serviceName);
 		return token;
 	}
-
 	async updateHeartbeat(id: ServiceIdentity): Promise<number | false> {
 		const { serviceName } = id;
 		const result = await this._backend.updateHeartbeat(id);
 		if (result !== false) {
 			await this.orchestrator.refreshCache(serviceName);
-			await this.orchestrator.onHeartbeatUpdate(serviceName, (name) =>
-				this.pubSub.publish(name)
-			);
+			await this.orchestrator.onHeartbeatUpdate(serviceName, (name) => this.pubSub.publish(name));
 		}
 		return result;
 	}
-
-	async getInstances(
-		serviceName: string,
-		pagination?: PaginationQuery
-	): Promise<ServiceInstance[]> {
+	async getInstances(serviceName: string, pagination?: PaginationQuery): Promise<ServiceInstance[]> {
 		return this.orchestrator.getInstances(serviceName, pagination);
 	}
-
 	async getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
 		return this.orchestrator.getInstance(id);
 	}
-
 	async removeInstance(id: ServiceIdentity): Promise<boolean> {
 		const { serviceName } = id;
 		const result = await this._backend.removeInstance(id);

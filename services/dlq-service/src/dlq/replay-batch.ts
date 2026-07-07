@@ -1,11 +1,8 @@
 import { logger } from "../config/logger";
-import { dlqClaimManager } from "./claim-manager";
-import { dlqRetryManager } from "./retry-manager";
 import { getHttpClient } from "./shared/http-client-manager";
 import { isMMCircuitOpen, recordMMResult } from "./shared/mm-circuit-breaker";
-import { isShuttingDown } from "./shared/shutdown-flag";
+import { deliverEntry } from "./delivery-executor";
 import type {
-	BatchContext,
 	BatchReplayContext,
 	DlqEntryRef,
 	DlqError,
@@ -18,11 +15,6 @@ export interface ReplayContext extends BatchReplayContext {
 	errors: DlqError[];
 }
 
-export interface DeliveryFailureContext extends BatchContext {
-	entryId: string;
-	httpError: string;
-}
-
 export interface ProcessBatchResultsOptions {
 	batch: DlqEntryRef[];
 	batchResults: PromiseSettledResult<void>[];
@@ -32,68 +24,13 @@ export interface ProcessBatchResultsOptions {
 let activeBatches = 0;
 const MAX_CONCURRENT_BATCHES = 2;
 
-async function _deliverMessage(
-	entry: DlqEntryRef,
-	messageManagerUrl: string,
-	client: import("@trading-model/common/config/http-client").HttpClient
-): Promise<void> {
-	if (isShuttingDown()) {
-		throw new Error("Server shutting down");
-	}
-	await client.post(`${messageManagerUrl}/message`, entry.message, {
-		timeoutMs: 10_000,
-		serviceName: "message-manager" as never,
-		retryCount: 3,
-	});
-}
-
-async function _handleDeliveryMarkFailed(
-	options: DeliveryFailureContext
-): Promise<void> {
-	const { entryId, instanceId, batchId, httpError } = options;
-	try {
-		await dlqRetryManager.markRetried({
-			id: entryId,
-			instanceId,
-			batchId,
-			success: false,
-			errorMsg: httpError,
-		});
-	} catch (markErr) {
-		await _forceReleaseClaim(entryId, markErr);
-	}
-}
-
-async function _forceReleaseClaim(
-	entryId: string,
-	markErr: unknown
-): Promise<void> {
-	logger.error(
-		"Failed to mark entry as failed — releasing claim without count",
-		{ entryId, error: (markErr as Error).message }
-	);
-	await dlqClaimManager.incrementRetryCount(entryId).catch((err) => {
-		logger.error(
-			"CRITICAL: Failed to increment retryCount after markRetried failure",
-			{ entryId, error: (err as Error).message }
-		);
-	});
-	await dlqClaimManager.releaseClaimWithoutCount(entryId).catch((err) => {
-		logger.error("CRITICAL: Failed to release claim after error", {
-			entryId,
-			error: (err as Error).message,
-		});
-	});
-}
-
 async function replaySingleEntry(
 	entry: DlqEntryRef,
 	ctx: ReplayContext
 ): Promise<void> {
 	ctx.successCount.value++;
 	try {
-		await _deliverMessage(entry, ctx.messageManagerUrl, ctx.client);
-		await _markEntrySuccess(entry, ctx);
+		await deliverEntry(entry, ctx);
 	} catch (err) {
 		if (ctx.isTimedOut()) {
 			throw err;
@@ -103,29 +40,20 @@ async function replaySingleEntry(
 	}
 }
 
-async function _markEntrySuccess(
-	entry: DlqEntryRef,
-	ctx: ReplayContext
-): Promise<void> {
-	await dlqRetryManager.markRetried({
-		id: entry.id,
-		instanceId: ctx.instanceId,
-		batchId: ctx.batchId,
-		success: true,
-	});
-}
-
 async function _handleEntryFailure(
 	entry: DlqEntryRef,
 	ctx: ReplayContext,
 	err: unknown
 ): Promise<void> {
 	const httpError = (err as Error).message;
-	await _handleDeliveryMarkFailed({
+	ctx.errors.push({
+		id: entry.id,
+		error: httpError,
+	});
+	logger.error("DLQ replay entry failed", {
 		entryId: entry.id,
-		instanceId: ctx.instanceId,
+		error: httpError,
 		batchId: ctx.batchId,
-		httpError,
 	});
 }
 

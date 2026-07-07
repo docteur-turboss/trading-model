@@ -1,8 +1,7 @@
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import type {
-	IPAddress,
-	Port,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
 import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
@@ -66,24 +65,24 @@ export class TopicRequestBuilder {
 
 	async subscribeAll(
 		topics: EventEnumMap[],
-		target: { ip: IPAddress; port: Port }
+		target: HostPort
 	): Promise<void> {
 		for (const topic of topics) {
 			await this.subscribeToSingleTopic(
 				topic,
-				`https://${target.ip}:${target.port}/subscribe`
+				`https://${target.host}:${target.port}/subscribe`
 			);
 		}
 	}
 
 	async unsubscribeAll(
 		topics: EventEnumMap[],
-		target: { ip: IPAddress; port: Port }
+		target: HostPort
 	): Promise<void> {
 		for (const topic of topics) {
 			await this.unsubscribeToSingleTopic(
 				topic,
-				`https://${target.ip}:${target.port}/subscribe`
+				`https://${target.host}:${target.port}/subscribe`
 			);
 		}
 	}

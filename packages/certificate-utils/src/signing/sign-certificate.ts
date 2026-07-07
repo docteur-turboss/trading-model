@@ -1,16 +1,14 @@
 import { createHash, createPublicKey, randomUUID } from "node:crypto";
 
+import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import {
-	type ServiceId,
 	toFingerprint,
 	toSerialNumber,
 } from "@trading-model/common/domain/primitives";
 import { CertBodyBuilder, type CertBodyBuilderOptions } from "../validation/cert-body-builder";
 import type { KeyPair, SignedCertificate } from "../types";
 
-export interface SignOptions {
-	csr: string;
-	serviceId: ServiceId;
+export interface SignOptions extends CertSignRequest {
 	caKeyPair: KeyPair;
 	caCertPem: string;
 	ttlMs: number;

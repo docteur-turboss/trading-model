@@ -16,6 +16,12 @@ export interface CleanupDeps {
 	removeInstance(id: ServiceIdentity): Promise<boolean>;
 }
 
+export interface SyncCleanupDeps {
+	listServiceNames(): string[];
+	getInstances(serviceName: string): ServiceInstance[];
+	removeInstance(id: ServiceIdentity): void;
+}
+
 export class StaleInstanceCleaner {
 	private readonly _handle = new TimerHandle();
 
@@ -58,6 +64,26 @@ export class StaleInstanceCleaner {
 
 	isAlive(instance: ServiceInstance): boolean {
 		return isAliveInstance(instance);
+	}
+
+	static cleanupSync(deps: SyncCleanupDeps): void {
+		const now = Date.now();
+		for (const serviceName of deps.listServiceNames()) {
+			for (const instance of deps.getInstances(serviceName)) {
+				if (isExpiredInstance(instance, now)) {
+					logger.warn("Expired instance removed", {
+						serviceName,
+						instanceId: instance.instanceId,
+						heartbeatAge: now - instance.lastHeartbeat,
+						ttl: instance.ttl,
+					});
+					deps.removeInstance({
+						serviceName: toServiceId(serviceName),
+						instanceId: toInstanceId(instance.instanceId),
+					});
+				}
+			}
+		}
 	}
 
 	private async _removeExpiredInstance(

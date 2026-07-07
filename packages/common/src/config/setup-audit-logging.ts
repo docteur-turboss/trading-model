@@ -1,10 +1,10 @@
-import type { IPAddress, Port } from "../domain/primitives";
+import type { HostPort } from "../domain/service-identity";
 import type { TlsPaths } from "../domain/tls-paths";
 import type { logger } from "./logger";
 import { ServiceInstanceName } from "./services.types";
 
 interface ServiceResolver {
-	findService(name: string): Promise<{ ip: IPAddress; port: Port } | null>;
+	findService(name: string): Promise<HostPort | null>;
 }
 
 /**
@@ -33,7 +33,7 @@ export function setupAuditLogging(
 			}
 			_logFirstConnection(loggerInstance, target, connected);
 			connected = true;
-			return { url: `https://${target.ip}:${target.port}`, tls: tlsPaths };
+			return { url: `https://${target.host}:${target.port}`, tls: tlsPaths };
 		} catch {
 			return null;
 		}
@@ -42,12 +42,12 @@ export function setupAuditLogging(
 
 function _logFirstConnection(
 	loggerInstance: typeof logger,
-	target: { ip: IPAddress; port: Port },
+	target: HostPort,
 	alreadyConnected: boolean
 ): void {
 	if (!alreadyConnected) {
 		loggerInstance.info("audit-logger: connected", {
-			url: `${target.ip}:${target.port}`,
+			url: `${target.host}:${target.port}`,
 		});
 	}
 }

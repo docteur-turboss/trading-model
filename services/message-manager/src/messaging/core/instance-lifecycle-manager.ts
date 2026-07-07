@@ -1,5 +1,5 @@
 import { getSubscriptionClient } from "../../config/redis";
-import { InstanceStaleScanner } from "./instance-stale-scanner";
+import { StaleInstanceScanner } from "./stale-instance-scanner";
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 
@@ -7,11 +7,11 @@ const SUBSCRIPTION_TTL_MS = 30_000;
 
 export class InstanceLifecycleManager {
 	private _keys: RedisSubscriptionKeys;
-	private _scanner: InstanceStaleScanner;
+	private _scanner: StaleInstanceScanner;
 
 	constructor(prefix: string) {
 		this._keys = new RedisSubscriptionKeys(prefix);
-		this._scanner = new InstanceStaleScanner(prefix);
+		this._scanner = new StaleInstanceScanner(prefix);
 	}
 
 	async heartbeat(instanceId: string): Promise<void> {

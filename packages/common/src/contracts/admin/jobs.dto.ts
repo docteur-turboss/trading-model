@@ -5,6 +5,17 @@ import type {
 	UnixTimestamp,
 } from "../../domain/primitives";
 
+export type JobTimelineEvent =
+	| "created"
+	| "queued"
+	| "assigned"
+	| "started"
+	| "completed"
+	| "failed"
+	| "cancelled"
+	| "orphaned"
+	| "retrying";
+
 export enum AdminJobPriority {
 	High = "HIGH",
 	Medium = "MEDIUM",
@@ -40,7 +51,7 @@ export interface JobDetail {
 }
 
 export interface JobTimelineEntry {
-	event: string;
+	event: JobTimelineEvent;
 	timestamp: UnixTimestamp;
 	description: string;
 	active?: boolean;

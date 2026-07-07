@@ -1,7 +1,4 @@
-import { createHmac } from "node:crypto";
-
 import { logger } from "@trading-model/common/config/logger";
-import { generateRandomStr } from "@trading-model/common/crypto/random";
 import {
 	generateInstanceToken as commonGenerateToken,
 	validInstanceToken as commonValidateToken,
@@ -18,17 +15,10 @@ export class TokenService {
 	}
 
 	generateInstanceToken(instanceId: string): string {
-		const encodedId = Buffer.from(instanceId, "utf8").toString("base64url");
-		const timestamp = Buffer.from(`${Date.now()}`, "utf8").toString(
-			"base64url"
+		return commonGenerateToken(
+			instanceId as InstanceId,
+			this._signingSecret
 		);
-		const nonce = generateRandomStr();
-
-		const hmac = createHmac("sha256", this._signingSecret)
-			.update(`${encodedId}.${timestamp}.${nonce}`)
-			.digest("base64url");
-
-		return `${encodedId}.${timestamp}.${nonce}.${hmac}`;
 	}
 
 	validInstanceToken(input: TokenValidationInput): boolean;

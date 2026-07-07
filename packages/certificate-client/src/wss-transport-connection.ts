@@ -23,20 +23,6 @@ export class WssTransportConnection implements IWsConnection {
 	});
 	private readonly _authSender: WsAuthSender;
 
-	/** @deprecated Use `.on("close", ...)` instead */
-	onCloseHandler?: () => void;
-	/** @deprecated Use `.on("open", ...)` instead */
-	onOpen?: () => void;
-	/** @deprecated Use `.on("message", ...)` instead */
-	onMessage?: (data: unknown) => void;
-	/** @deprecated Use `.on("error", ...)` instead */
-	onError?: (err: Error) => void;
-
-	on(event: string, listener: (...args: unknown[]) => void): this {
-		this._emitter.on(event, listener);
-		return this;
-	}
-
 	constructor(
 		private readonly _url: string,
 		tlsConfig?: TlsPaths,
@@ -47,72 +33,45 @@ export class WssTransportConnection implements IWsConnection {
 	}
 
 	connect(): void {
-		if (
-			this._reconnectHandler.isDestroyed ||
-			this._state === "connected" ||
-			this._state === "connecting"
-		) {
-			return;
-		}
+		if (this._reconnectHandler.isDestroyed || this._state === "connected" || this._state === "connecting") return;
 		this._connectWs();
 	}
+	get state(): ConnectionState { return this._state; }
+	get isConnected(): boolean { return this._state === "connected"; }
+	get ws() { return this._connectionManager.ws; }
 
-	get state(): ConnectionState {
-		return this._state;
-	}
-
-	get isConnected(): boolean {
-		return this._state === "connected";
-	}
-
-	get ws() {
-		return this._connectionManager.ws;
+	on(event: string, listener: (...args: unknown[]) => void): this {
+		this._emitter.on(event, listener);
+		return this;
 	}
 
 	private _connectWs(): void {
-		if (this._reconnectHandler.isDestroyed) {
-			return;
-		}
+		if (this._reconnectHandler.isDestroyed) return;
 		this._state = "connecting";
 		this._connectionManager.onOpen = () => this._onWsOpen();
 		this._connectionManager.onMessage = (data) => {
 			this._emitter.emit("message", data);
-			this.onMessage?.(data);
 		};
 		this._connectionManager.onCloseHandler = () => this._onWsClose();
 		this._connectionManager.onError = (err) => this._onWsError(err);
 		this._connectionManager.onTimeout = () => this._scheduleReconnect();
 		this._connectionManager.connect();
 	}
-
 	private _onWsOpen(): void {
 		this._state = "connected";
 		this._reconnectHandler.reset();
 		this._authSender.send(this._connectionManager.ws);
 		this._emitter.emit("open");
-		this.onOpen?.();
 	}
-
 	private _onWsClose(): void {
 		this._state = "disconnected";
-		if (!this._reconnectHandler.isDestroyed) {
-			this._scheduleReconnect();
-		}
+		if (!this._reconnectHandler.isDestroyed) this._scheduleReconnect();
 		this._emitter.emit("close");
-		this.onCloseHandler?.();
 	}
-
 	private _onWsError(err: Error): void {
-		if (
-			!this._connectionManager.ws ||
-			this._connectionManager.ws.readyState !== this._connectionManager.ws.OPEN
-		) {
-			this._scheduleReconnect();
-		}
+		if (!this._connectionManager.ws || this._connectionManager.ws.readyState !== this._connectionManager.ws.OPEN) this._scheduleReconnect();
 		this._emitter.emit("error", err);
-		this.onError?.(err);
 	}
-
 	private _scheduleReconnect(): void {
 		this._state = "reconnecting";
 		this._reconnectHandler.scheduleReconnect(() => {
@@ -123,15 +82,11 @@ export class WssTransportConnection implements IWsConnection {
 
 	send(data: unknown): boolean {
 		const ws = this._connectionManager.ws;
-		if (!ws || ws.readyState !== ws.OPEN) {
-			return false;
-		}
+		if (!ws || ws.readyState !== ws.OPEN) return false;
 		try {
 			ws.send(typeof data === "string" ? data : JSON.stringify(data));
 			return true;
-		} catch {
-			return false;
-		}
+		} catch { return false; }
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {

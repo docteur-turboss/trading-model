@@ -1,5 +1,4 @@
 export {
-	type DeliveryFailureContext,
 	type DlqEntryRef,
 	type DlqError,
 	doReplayBatch,

@@ -165,3 +165,67 @@ export function toAuthToken(value: string): AuthToken {
 export function fromAuthToken(value: AuthToken): string {
 	return value;
 }
+
+export type Subject = string & { readonly __brand: "Subject" };
+export function toSubject(value: string): Subject {
+	return value as Subject;
+}
+export function fromSubject(value: Subject): string {
+	return value;
+}
+
+export type Role = string & { readonly __brand: "Role" };
+export function toRole(value: string): Role {
+	return value as Role;
+}
+export function fromRole(value: Role): string {
+	return value;
+}
+
+export type RetryCount = number & { readonly __brand: "RetryCount" };
+export function toRetryCount(value: number): RetryCount {
+	return value as RetryCount;
+}
+export function fromRetryCount(value: RetryCount): number {
+	return value;
+}
+
+export type MaxRetries = number & { readonly __brand: "MaxRetries" };
+export function toMaxRetries(value: number): MaxRetries {
+	return value as MaxRetries;
+}
+export function fromMaxRetries(value: MaxRetries): number {
+	return value;
+}
+
+export type DurationMs = number & { readonly __brand: "DurationMs" };
+export function toDurationMs(value: number): DurationMs {
+	return value as DurationMs;
+}
+export function fromDurationMs(value: DurationMs): number {
+	return value;
+}
+
+export type SequenceNumber = number & { readonly __brand: "SequenceNumber" };
+export function toSequenceNumber(value: number): SequenceNumber {
+	return value as SequenceNumber;
+}
+export function fromSequenceNumber(value: SequenceNumber): number {
+	return value;
+}
+
+export type MessagePriority = number & { readonly __brand: "MessagePriority" };
+export function toMessagePriority(value: number): MessagePriority {
+	return value as MessagePriority;
+}
+export function fromMessagePriority(value: MessagePriority): number {
+	return value;
+}
+
+export type Environment = string & { readonly __brand: "Environment" };
+export function toEnvironment(value: string): Environment {
+	return value as Environment;
+}
+export function fromEnvironment(value: Environment): string {
+	return value;
+}

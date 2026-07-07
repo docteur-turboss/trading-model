@@ -14,12 +14,12 @@ export interface WorkerWsConnectionConfig {
 export class WorkerWsConnection implements IWsConnection {
 	private _ws: WebSocket | null = null;
 	rejectOnError = true;
-	onOpen?: () => void;
-	onMessage?: (data: unknown) => void;
-	onClose?: () => void;
-	onError?: (err: Error) => void;
+	onOpen: () => void = () => {};
+	onMessage: (data: unknown) => void = () => {};
+	onClose: () => void = () => {};
+	onError: (err: Error) => void = () => {};
 
-	onCloseHandler?: () => void;
+	onCloseHandler: () => void = () => {};
 
 	constructor(private readonly _cfg: WorkerWsConnectionConfig) {}
 

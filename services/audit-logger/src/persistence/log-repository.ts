@@ -4,9 +4,21 @@ import {
 	type PaginationQuery,
 	type PaginationResult,
 } from "@trading-model/common/domain/pagination";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	CorrelationId,
+	DurationMs,
+	Environment,
+	InstanceId,
+	ServiceId,
+	SessionId,
+	URLString,
+	UserId,
+	Version,
+} from "@trading-model/common/domain/primitives";
+import { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import type { Collection, Db } from "mongodb";
 
+import { LogIndexManager } from "./log-index-manager";
 import { LogStatsBuilder } from "./log-stats-builder";
 
 type MongoDoc = Record<string, unknown>;
@@ -18,11 +30,11 @@ export interface ServiceLogDocument {
 	message: string;
 	service: {
 		name: ServiceId;
-		instanceId: string;
-		version?: string;
+		instanceId: InstanceId;
+		version?: Version;
 	};
 	module?: string;
-	correlationId?: string;
+	correlationId?: CorrelationId;
 	context?: Record<string, unknown>;
 	error?: {
 		name: string;
@@ -31,16 +43,16 @@ export interface ServiceLogDocument {
 		code?: string;
 	};
 	request?: {
-		method?: string;
-		url?: string;
+		method?: HttpMethod;
+		url?: URLString;
 		statusCode?: number;
-		durationMs?: number;
+		durationMs?: DurationMs;
 	};
 	user?: {
-		id?: string;
-		sessionId?: string;
+		id?: UserId;
+		sessionId?: SessionId;
 	};
-	environment?: string;
+	environment?: Environment;
 }
 
 export interface LogQuery extends PaginationQuery {
@@ -104,21 +116,15 @@ export class LogRepository {
 	private readonly _collection: Collection<ServiceLogDocument>;
 	private readonly _statsBuilder = new LogStatsBuilder();
 	private readonly _queryBuilder = new LogQueryBuilder();
-	private _indexesEnsured = false;
+	private readonly _indexManager: LogIndexManager;
 
 	constructor(private readonly _db: Db) {
 		this._collection = this._db.collection<ServiceLogDocument>("service_logs");
+		this._indexManager = new LogIndexManager(this._db);
 	}
 
 	async ensureIndexes(): Promise<void> {
-		if (this._indexesEnsured) return;
-		this._indexesEnsured = true;
-
-		await this._collection.createIndex({ ttl: 1 }, { expireAfterSeconds: 0 });
-		await this._collection.createIndex({ "service.name": 1, receivedAt: -1 });
-		await this._collection.createIndex({ level: 1, receivedAt: -1 });
-		await this._collection.createIndex({ correlationId: 1 });
-		await this._collection.createIndex({ receivedAt: -1 });
+		await this._indexManager.ensure();
 	}
 
 	async insert(doc: ServiceLogDocument): Promise<void> {

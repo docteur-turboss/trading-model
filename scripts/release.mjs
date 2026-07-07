@@ -143,6 +143,11 @@ function formatChangelogLine(c) {
   return `- ${c.hash} ${scope}${c.subject}`;
 }
 
+const TYPE_ORDER = [
+  'breaking', 'feat', 'fix', 'perf', 'refactor', 'style',
+  'docs', 'test', 'chore', 'ci', 'security', 'other',
+];
+
 function parseArgs() {
   const args = { dryRun: false, bump: null, version: null, publish: false };
   const argv = process.argv.slice(2);
@@ -167,51 +172,42 @@ function parseArgs() {
   return args;
 }
 
-function main() {
-  const args = parseArgs();
-  if (args.dryRun) console.log('\n  ⚠️  DRY RUN — no files will be modified\n');
-
-  // ── When --publish: merge development first, then collect commits ──
-  if (args.publish && !args.dryRun) {
-    const branch = run('git rev-parse --abbrev-ref HEAD');
-    if (branch !== 'main') {
-      console.error(`  --publish requires being on main branch (currently on ${branch}).\n`);
-      process.exit(1);
-    }
-    console.log('\n  → Merging development into main...');
-    const mergeOut = run('git merge development --no-edit');
-    if (mergeOut === '' && run('git diff --name-only --diff-filter=U')) {
-      console.error('  ✖ Merge conflicts detected. Resolve them and retry.\n');
-      process.exit(1);
-    }
-    console.log('  ✓ Merged development into main\n');
+function handlePublishMerge(args) {
+  if (!args.publish || args.dryRun) return;
+  const branch = run('git rev-parse --abbrev-ref HEAD');
+  if (branch !== 'main') {
+    console.error(`  --publish requires being on main branch (currently on ${branch}).\n`);
+    process.exit(1);
   }
+  console.log('\n  → Merging development into main...');
+  const mergeOut = run('git merge development --no-edit');
+  if (mergeOut === '' && run('git diff --name-only --diff-filter=U')) {
+    console.error('  ✖ Merge conflicts detected. Resolve them and retry.\n');
+    process.exit(1);
+  }
+  console.log('  ✓ Merged development into main\n');
+}
 
-  // ── Collect commits ──
+function collectCommits(args) {
   const lastTag = run('git describe --tags --abbrev=0');
-  const range = lastTag ? `${lastTag}..HEAD` : 'HEAD';
   let rawCommits;
-
   if (args.version) {
     console.log(`\n  Explicit version: ${args.version} (skipping commit auto-detection)\n`);
   } else if (lastTag) {
-    rawCommits = run(`git log ${range} --format="%H %s" --no-merges`);
+    rawCommits = run(`git log ${lastTag}..HEAD --format="%H %s" --no-merges`);
     console.log(`\n  Since tag: ${lastTag}`);
   } else {
     rawCommits = run('git log --format="%H %s" --no-merges');
     console.log('\n  No tags found — using full history');
   }
-
   const allCommits = rawCommits ? parseCommits(rawCommits) : [];
-  if (!args.version && allCommits.length === 0) {
-    console.log('  No new commits to release.\n');
-    return;
-  }
+  return { allCommits, lastTag };
+}
 
-  // Group commits by scope
+function groupByScope(commits) {
   const scoped = {};
   const unscoped = [];
-  for (const c of allCommits) {
+  for (const c of commits) {
     if (c.scope) {
       if (!scoped[c.scope]) scoped[c.scope] = [];
       scoped[c.scope].push(c);
@@ -219,106 +215,74 @@ function main() {
       unscoped.push(c);
     }
   }
+  return { scoped, unscoped };
+}
 
-  // ── Determine bump type ──
+function handleExplicitVersion(args) {
+  const rootPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
+  console.log(`  Root: ${rootPkg.version} → ${args.version}\n`);
+  if (!args.dryRun) {
+    rootPkg.version = args.version;
+    writeFileSync(join(ROOT, 'package.json'), `${JSON.stringify(rootPkg, null, 2)}\n`, 'utf-8');
+  }
+  console.log(`\n  ── Release ${args.version} ──\n`);
+  if (args.dryRun) console.log(`  ⚠️  Dry run — no files written\n`);
+  else console.log(`  ✓ package.json updated`);
+  console.log();
+}
+
+function resolveVersion(args, allCommits) {
   const rootPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'));
   const oldRootVer = rootPkg.version;
-
-  if (args.version) {
-    // Skip per-package version bumps when using --version
-    console.log(`  Root: ${oldRootVer} → ${args.version}\n`);
-    if (!args.dryRun) {
-      rootPkg.version = args.version;
-      writeFileSync(join(ROOT, 'package.json'), `${JSON.stringify(rootPkg, null, 2)}\n`, 'utf-8');
-    }
-    // Output summary
-    console.log(`\n  ── Release ${args.version} ──\n`);
-    if (args.dryRun) console.log(`  ⚠️  Dry run — no files written\n`);
-    else console.log(`  ✓ package.json updated`);
-    console.log();
-    return;
-  }
-
   const rootBump = args.bump || getBumpType(allCommits);
-  const newRootVer = bumpVersion(oldRootVer, rootBump);
+  const newVersion = bumpVersion(oldRootVer, rootBump);
+  return { rootPkg, oldRootVer, rootBump, newVersion };
+}
 
-  // Bump versions per package
+function bumpPackages(scoped, args, dryRun) {
   const bumps = [];
   for (const [scope, commits] of Object.entries(scoped)) {
     const pkgPath = SCOPE_TO_PACKAGE[scope];
     if (!pkgPath) continue;
     const type = args.bump || getBumpType(commits);
-    const filePath = join(ROOT, pkgPath, 'package.json');
-    const pkg = JSON.parse(readFileSync(filePath, 'utf-8'));
+    const pkg = JSON.parse(readFileSync(join(ROOT, pkgPath, 'package.json'), 'utf-8'));
     const newVersion = bumpVersion(pkg.version, type);
-    const oldVersion = args.dryRun ? pkg.version : updatePackageJson(pkgPath, newVersion);
+    const oldVersion = dryRun ? pkg.version : updatePackageJson(pkgPath, newVersion);
     bumps.push({ scope, pkg: pkg.name, path: pkgPath, oldVersion, newVersion, type });
   }
+  return bumps;
+}
 
-  // Root version bump
-  if (!args.dryRun) {
-    rootPkg.version = newRootVer;
-    writeFileSync(join(ROOT, 'package.json'), `${JSON.stringify(rootPkg, null, 2)}\n`, 'utf-8');
+function bumpRoot(rootPkg, newVersion, dryRun) {
+  if (dryRun) return;
+  rootPkg.version = newVersion;
+  writeFileSync(join(ROOT, 'package.json'), `${JSON.stringify(rootPkg, null, 2)}\n`, 'utf-8');
+}
+
+function writeChangelogSection(entries, header) {
+  if (entries.length === 0) return '';
+  let section = `### ${header}\n\n`;
+  for (const t of TYPE_ORDER) {
+    const filtered = entries.filter(c => c.type === t);
+    if (filtered.length === 0) continue;
+    const label = t === 'breaking' ? '💥 Breaking' : `${t.charAt(0).toUpperCase() + t.slice(1)}`;
+    section += `#### ${label}\n\n`;
+    for (const c of filtered) section += `${formatChangelogLine(c)}\n`;
+    section += '\n';
   }
+  return section;
+}
 
-  // Build CHANGELOG
+function buildChangelog(bumps, scoped, unscoped, newVersion, dryRun) {
   const date = new Date().toISOString().slice(0, 10);
-  const newVersion = newRootVer;
   let changelog = `## [${newVersion}] - ${date}\n\n`;
-
   for (const b of bumps) {
-    changelog += `### ${b.pkg} (${b.oldVersion} → ${b.newVersion})\n\n`;
-    const typeOrder = [
-      'breaking',
-      'feat',
-      'fix',
-      'perf',
-      'refactor',
-      'style',
-      'docs',
-      'test',
-      'chore',
-      'ci',
-      'security',
-      'other',
-    ];
-    for (const t of typeOrder) {
-      const filtered = scoped[b.scope].filter(c => c.type === t);
-      if (filtered.length === 0) continue;
-      const label = t === 'breaking' ? '💥 Breaking' : `${t.charAt(0).toUpperCase() + t.slice(1)}`;
-      changelog += `#### ${label}\n\n`;
-      for (const c of filtered) changelog += `${formatChangelogLine(c)}\n`;
-      changelog += '\n';
-    }
+    changelog += writeChangelogSection(scoped[b.scope], `${b.pkg} (${b.oldVersion} → ${b.newVersion})`);
   }
-
   if (unscoped.length > 0) {
-    changelog += '### Root\n\n';
-    const typeOrder = [
-      'breaking',
-      'feat',
-      'fix',
-      'perf',
-      'refactor',
-      'style',
-      'docs',
-      'test',
-      'chore',
-      'ci',
-      'security',
-      'other',
-    ];
-    for (const t of typeOrder) {
-      const filtered = unscoped.filter(c => c.type === t);
-      if (filtered.length === 0) continue;
-      const label = t === 'breaking' ? '💥 Breaking' : `${t.charAt(0).toUpperCase() + t.slice(1)}`;
-      changelog += `#### ${label}\n\n`;
-      for (const c of filtered) changelog += `${formatChangelogLine(c)}\n`;
-      changelog += '\n';
-    }
+    changelog += writeChangelogSection(unscoped, 'Root');
   }
-
-  if (!args.dryRun) {
+  if (!dryRun) {
     const changelogPath = join(ROOT, 'CHANGELOG.md');
     let existing = '';
     if (existsSync(changelogPath)) {
@@ -326,10 +290,12 @@ function main() {
     }
     writeFileSync(changelogPath, changelog + (existing ? `\n${existing}` : ''), 'utf-8');
   }
+  return changelog;
+}
 
-  // Output summary
+function printSummary(bumps, oldRootVer, newVersion, rootBump, dryRun) {
   console.log(`\n  ── Release ${newVersion} ──\n`);
-  if (args.dryRun) console.log(`  ⚠️  Dry run — no files written\n`);
+  if (dryRun) console.log(`  ⚠️  Dry run — no files written\n`);
   else console.log(`  ✓ CHANGELOG.md updated\n`);
   if (bumps.length > 0) {
     console.log('  Package bumps:');
@@ -339,33 +305,49 @@ function main() {
     console.log();
   }
   console.log(`  Root: ${oldRootVer} → ${newVersion} (${rootBump})\n`);
+}
 
-  // ── Publish (commit, tag, push) ──
-  if (args.publish && !args.dryRun) {
-    console.log('\n  ── Publishing release ──\n');
+function publishRelease(newVersion, args) {
+  if (!args.publish || args.dryRun) return;
+  console.log('\n  ── Publishing release ──\n');
+  console.log('  → Generating documentation...');
+  run('npm run docs:generate');
+  console.log('  → Staging files...');
+  run('git add -A');
+  const commitMsg = `:rocket:(release): v${newVersion}`;
+  console.log(`  → Committing: ${commitMsg}`);
+  run(`git commit --no-verify -m "${commitMsg}"`);
+  console.log(`  → Tagging v${newVersion}...`);
+  run(`git tag -a v${newVersion} -m "${commitMsg}"`);
+  console.log('  → Pushing commits and tags...');
+  run('git push --follow-tags');
+  console.log(`  ✓ Release v${newVersion} published.\n`);
+}
 
-    // Generate docs
-    console.log('  → Generating documentation...');
-    run('npm run docs:generate');
+function main() {
+  const args = parseArgs();
+  if (args.dryRun) console.log('\n  ⚠️  DRY RUN — no files will be modified\n');
 
-    // Stage all changes
-    console.log('  → Staging files...');
-    run('git add -A');
+  handlePublishMerge(args);
 
-    // Commit
-    const commitMsg = `:rocket:(release): v${newVersion}`;
-    console.log(`  → Committing: ${commitMsg}`);
-    run(`git commit --no-verify -m "${commitMsg}"`);
-
-    // Tag
-    console.log(`  → Tagging v${newVersion}...`);
-    run(`git tag -a v${newVersion} -m "${commitMsg}"`);
-
-    // Push
-    console.log('  → Pushing commits and tags...');
-    run('git push --follow-tags');
-    console.log(`  ✓ Release v${newVersion} published.\n`);
+  const { allCommits } = collectCommits(args);
+  if (!args.version && allCommits.length === 0) {
+    console.log('  No new commits to release.\n');
+    return;
   }
+
+  if (args.version) {
+    handleExplicitVersion(args);
+    return;
+  }
+
+  const { scoped, unscoped } = groupByScope(allCommits);
+  const { rootPkg, oldRootVer, rootBump, newVersion } = resolveVersion(args, allCommits);
+  const bumps = bumpPackages(scoped, args, args.dryRun);
+  bumpRoot(rootPkg, newVersion, args.dryRun);
+  buildChangelog(bumps, scoped, unscoped, newVersion, args.dryRun);
+  printSummary(bumps, oldRootVer, newVersion, rootBump, args.dryRun);
+  publishRelease(newVersion, args);
 }
 
 main();

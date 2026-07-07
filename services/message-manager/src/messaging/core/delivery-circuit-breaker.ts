@@ -1,6 +1,6 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
 import { CircuitState } from "@trading-model/common/domain/circuit-state";
-import { BaseCircuitBreaker } from "@trading-model/common/reliability/base-circuit-breaker";
+import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 import { logger } from "../../config/logger";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 
@@ -11,15 +11,13 @@ const CIRCUIT_BREAKER_THRESHOLD = 5;
  * threshold is reached, preventing cascading failures and routing
  * subsequent messages directly to the DLQ.
  */
-export class DeliveryCircuitBreaker extends BaseCircuitBreaker {
+export class DeliveryCircuitBreaker implements ICircuitBreaker {
 	private _failureCount = 0;
 
 	constructor(
 		private readonly _topic: string,
 		private readonly _serviceName: string
-	) {
-		super({ failureThreshold: CIRCUIT_BREAKER_THRESHOLD, cooldownMs: 0 });
-	}
+	) {}
 
 	clear(): void {
 		this._failureCount = 0;

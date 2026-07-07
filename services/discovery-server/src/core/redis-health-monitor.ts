@@ -11,7 +11,6 @@ export interface HealthCheckCallbacks {
 	onFallbackActivated: (fallback: RegistryBackend) => void;
 	onFallbackRestored: (original: RegistryBackend) => void;
 }
-
 export interface RedisHealthMonitorConfig {
 	failureThreshold: number;
 	healthCheckIntervalMs: number;
@@ -34,93 +33,32 @@ export class RedisHealthMonitor {
 		this._healthCheckIntervalMs = config.healthCheckIntervalMs;
 		this._shouldRun = config.shouldRun;
 		this._callbacks = config.callbacks;
-		this._fallbackManager = new FallbackManager(
-			config.backend,
-			config.healthCheckIntervalMs * 6,
-			config.callbacks
-		);
-		this._restoreHandler = new FallbackRestoreHandler(
-			this._healthState,
-			this._fallbackManager,
-			config.callbacks
-		);
+		this._fallbackManager = new FallbackManager(config.backend, config.healthCheckIntervalMs * 6, config.callbacks);
+		this._restoreHandler = new FallbackRestoreHandler(this._healthState, this._fallbackManager, config.callbacks);
 	}
-
-	get isHealthy(): boolean {
-		return this._healthState.isHealthy;
-	}
-
-	get consecutiveFailures(): number {
-		return this._healthState.consecutiveFailures;
-	}
-
-	get fallbackActive(): boolean {
-		return this._fallbackManager.fallbackActive;
-	}
+	get isHealthy(): boolean { return this._healthState.isHealthy; }
+	get consecutiveFailures(): number { return this._healthState.consecutiveFailures; }
+	get fallbackActive(): boolean { return this._fallbackManager.fallbackActive; }
 
 	start(): void {
-		if (!this._shouldRun()) {
-			return;
-		}
+		if (!this._shouldRun()) return;
 		this._clearTimers();
-		this._startHealthCheckLoop();
-		this._fallbackManager.startRestoreLoop(() =>
-			this._restoreHandler.performRestoreCheck()
-		);
-	}
-
-	private _startHealthCheckLoop(): void {
 		let healthCheckRunning = false;
 		this._healthCheckHandle.startInterval(async () => {
-			if (healthCheckRunning) {
-				return;
-			}
+			if (healthCheckRunning) return;
 			healthCheckRunning = true;
 			try {
-				await this._runSingleHealthCheck();
-			} finally {
-				healthCheckRunning = false;
-			}
+				const healthy = await this._callbacks.ping();
+				if (healthy) { this._healthState.handleHealthSuccess(() => this._callbacks.onHealthRestored()); }
+				else { this._healthState.handleHealthFailure(() => this._callbacks.onHealthLost()); }
+			} catch { this._healthState.handleHealthFailure(() => this._callbacks.onHealthLost()); }
+			finally { healthCheckRunning = false; }
 		}, this._healthCheckIntervalMs);
+		this._fallbackManager.startRestoreLoop(() => this._restoreHandler.performRestoreCheck());
 	}
-
-	private async _runSingleHealthCheck(): Promise<void> {
-		try {
-			const healthy = await this._callbacks.ping();
-			if (healthy) {
-				this._healthState.handleHealthSuccess(() =>
-					this._callbacks.onHealthRestored()
-				);
-			} else {
-				this._healthState.handleHealthFailure(() =>
-					this._callbacks.onHealthLost()
-				);
-			}
-		} catch {
-			this._healthState.handleHealthFailure(() =>
-				this._callbacks.onHealthLost()
-			);
-		}
-	}
-
-	stop(): void {
-		this._clearTimers();
-	}
-
-	markUnhealthy(): void {
-		this._healthState.markUnhealthy();
-	}
-
-	setFallbackBackend(fallback: RegistryBackend): void {
-		this._fallbackManager.setFallbackBackend(fallback);
-	}
-
-	stopBackend(): void {
-		this._fallbackManager.stopBackend();
-	}
-
-	private _clearTimers(): void {
-		this._healthCheckHandle.stop();
-		this._fallbackManager.clearRestoreTimer();
-	}
+	stop(): void { this._clearTimers(); }
+	markUnhealthy(): void { this._healthState.markUnhealthy(); }
+	setFallbackBackend(fallback: RegistryBackend): void { this._fallbackManager.setFallbackBackend(fallback); }
+	stopBackend(): void { this._fallbackManager.stopBackend(); }
+	private _clearTimers(): void { this._healthCheckHandle.stop(); this._fallbackManager.clearRestoreTimer(); }
 }

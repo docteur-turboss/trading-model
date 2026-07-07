@@ -1,18 +1,13 @@
-import { BaseCircuitBreaker } from "@trading-model/common/reliability/base-circuit-breaker";
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
+import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 import type { CircuitStateConfig } from "./circuit-breaker-state";
 import { DlqCircuitBreakerState } from "./circuit-breaker-state";
 import { logger } from "./logger";
 
-export class MessageManagerCircuitBreaker extends BaseCircuitBreaker {
+export class MessageManagerCircuitBreaker implements ICircuitBreaker {
 	private readonly _state: DlqCircuitBreakerState;
 
 	constructor(config?: Partial<CircuitStateConfig>) {
-		super({
-			failureThreshold: config?.failureThreshold ?? 5,
-			cooldownMs: config?.resetMs ?? 30_000,
-			halfOpenMaxAttempts: config?.halfOpenMaxAttempts,
-		});
 		this._state = new DlqCircuitBreakerState({
 			failureThreshold: 5,
 			resetMs: 30_000,

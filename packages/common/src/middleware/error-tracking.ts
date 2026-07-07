@@ -4,22 +4,10 @@ import { logger } from "../config/logger";
 import type { CorrelationId, InstanceId, Version } from "../domain/primitives";
 import { normalizeError } from "../utils/errors";
 import { TimerHandle } from "../utils/timer-handle";
+import { ErrorBuffer } from "./error-buffer";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 5000;
 const DEFAULT_BATCH_SIZE = 50;
-
-interface ErrorReport {
-	message: string;
-	stack?: string;
-	url: string;
-	method: string;
-	statusCode: number;
-	correlationId: CorrelationId;
-	timestamp: string;
-	serviceName: string;
-	serviceVersion: Version;
-	instanceId: InstanceId;
-}
 
 interface ErrorTrackingConfig {
 	endpoint?: string;
@@ -39,12 +27,18 @@ let config: Required<ErrorTrackingConfig> = {
 	batchSize: DEFAULT_BATCH_SIZE,
 };
 
-const BUFFER: ErrorReport[] = [];
+let errorBuffer: ErrorBuffer | null = null;
 const flushTimer = new TimerHandle();
 
 export function configureErrorTracking(opts: ErrorTrackingConfig): void {
 	config = _buildConfig(opts);
 	if (config.endpoint) {
+		errorBuffer = new ErrorBuffer(
+			config.endpoint,
+			config.batchSize,
+			config.serviceName,
+			config.instanceId
+		);
 		startFlushTimer();
 		logger.info("Error tracking configured", {
 			context: { endpoint: config.endpoint, service: config.serviceName },
@@ -71,7 +65,7 @@ function startFlushTimer(): void {
 	if (flushTimer.isRunning) {
 		return;
 	}
-	flushTimer.startInterval(() => flush(), config.flushIntervalMs);
+	flushTimer.startInterval(() => errorBuffer?.flush(), config.flushIntervalMs);
 	flushTimer.unref();
 }
 
@@ -79,38 +73,22 @@ function stopFlushTimer(): void {
 	flushTimer.stop();
 }
 
-async function _postErrorBatch(batch: ErrorReport[]): Promise<void> {
-	try {
-		await fetch(config.endpoint, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				errors: batch,
-				service: config.serviceName,
-				instanceId: config.instanceId,
-			}),
-		});
-	} catch (err) {
-		console.error(
-			"[ErrorTracking] Failed to flush error reports:",
-			normalizeError(err).message
-		);
-	}
-}
-
-async function flush(): Promise<void> {
-	if (BUFFER.length === 0) {
-		return;
-	}
-	const batch = BUFFER.splice(0, config.batchSize);
-	await _postErrorBatch(batch);
-}
-
 function _buildErrorReport(
 	err: unknown,
 	req: Request,
 	statusCode: number
-): ErrorReport {
+): {
+	message: string;
+	stack?: string;
+	url: string;
+	method: string;
+	statusCode: number;
+	correlationId: string;
+	timestamp: string;
+	serviceName: string;
+	serviceVersion: string;
+	instanceId: string;
+} {
 	const normalized = normalizeError(err);
 	return {
 		message: normalized.message,
@@ -120,7 +98,7 @@ function _buildErrorReport(
 		statusCode,
 		correlationId:
 			(req as unknown as { correlationId?: CorrelationId }).correlationId ??
-			("" as CorrelationId),
+			"",
 		timestamp: new Date().toISOString(),
 		serviceName: config.serviceName,
 		serviceVersion: config.serviceVersion,
@@ -133,11 +111,11 @@ export function reportError(
 	req: Request,
 	statusCode: number
 ): void {
-	const report = _buildErrorReport(err, req, statusCode);
-	BUFFER.push(report);
-	if (BUFFER.length >= config.batchSize) {
-		void flush();
+	if (!errorBuffer) {
+		return;
 	}
+	const report = _buildErrorReport(err, req, statusCode);
+	errorBuffer.add(report);
 }
 
 export function errorTrackingMiddleware(
@@ -164,7 +142,7 @@ export function errorTrackingMiddleware(
 
 export function shutdownErrorTracking(): void {
 	stopFlushTimer();
-	if (BUFFER.length > 0) {
-		void flush();
+	if (errorBuffer && errorBuffer.pendingCount > 0) {
+		void errorBuffer.flush();
 	}
 }

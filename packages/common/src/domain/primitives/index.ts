@@ -44,14 +44,37 @@ export {
 	fromISODateTime,
 	toKeyVersion,
 	fromKeyVersion,
+	toSubject,
+	fromSubject,
+	toRole,
+	fromRole,
+	toRetryCount,
+	fromRetryCount,
+	toMaxRetries,
+	fromMaxRetries,
+	toDurationMs,
+	fromDurationMs,
+	toEnvironment,
+	fromEnvironment,
+	toSequenceNumber,
+	fromSequenceNumber,
+	toMessagePriority,
+	fromMessagePriority,
 } from "./string-ids";
-export { WorkerStatusCode, DataSource } from "./enums";
+export {
+	WorkerStatusCode,
+	DataSource,
+	formatWorkerDisplayName,
+	parseWorkerDisplayName,
+} from "./enums";
 
 export type { TradingSymbol } from "./trading-symbol";
 export type {
 	AuthToken,
 	Capability,
 	CorrelationId,
+	DurationMs,
+	Environment,
 	Fingerprint,
 	GenomeId,
 	InstanceId,
@@ -70,5 +93,11 @@ export type {
 	Topic,
 	UserId,
 	Version,
+	Subject,
+	Role,
+	RetryCount,
+	MaxRetries,
+	SequenceNumber,
+	MessagePriority,
 } from "./string-ids";
 export type { WorkerStatus } from "./enums";

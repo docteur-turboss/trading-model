@@ -1,28 +1,20 @@
 /**
- * @file message.types.ts
- *
- * @description
- * Canonical message contract definitions shared across the messaging system.
- * This is the single source of truth for message envelope types, metadata,
- * routing, delivery, and security contracts.
- *
- * @responsability
- * - Define the canonical message envelope structure
- * - Standardize message metadata across all services
- * - Provide strong typing for message producers and consumers
- *
- * @restrictions
- * - This file must not contain any runtime logic
- * - Interfaces must remain backward-compatible when possible
- * - No side effects or validation are performed here
- *
- * @architecture
- * Messaging / contract layer.
- * Shared data model used across producers, broker, and consumers.
+ * Canonical message envelope contracts. Single source of truth for type-safe
+ * messaging types shared across all services. No runtime logic.
  */
 
 import type { DeliveryMode } from "../config/delivery-mode.types";
-import type { CorrelationId, MessageId, Topic } from "../domain/primitives";
+import type {
+	CorrelationId,
+	DurationMs,
+	MessageId,
+	MessagePriority,
+	Role,
+	SequenceNumber,
+	Subject,
+	TenantId,
+	Topic,
+} from "../domain/primitives";
 import type { ServiceIdentity as DomainServiceIdentity } from "../domain/service-identity";
 import type { Signature } from "./signed-request";
 import type { EventEnumMap } from "../config/event.types";
@@ -41,21 +33,20 @@ export interface RoutingType {
 	partitionKey?: CorrelationId;
 
 	/** Monotonically increasing sequence number per partition key. */
-	sequenceNumber?: number;
+	sequenceNumber?: SequenceNumber;
 
 	/** Influences delivery scheduling priority. */
-	priority?: number;
+	priority?: MessagePriority;
 }
 
 /**
  * Delivery settings applied to a message.
  */
 export interface DeliveryType {
-	/** Delivery semantics to apply. */
 	mode: DeliveryMode;
 
 	/** Message expiration in milliseconds. */
-	ttl?: number;
+	ttl?: DurationMs;
 
 	/** Identifier used to prevent duplicate processing. */
 	deduplicationId?: MessageId;
@@ -65,16 +56,13 @@ export interface DeliveryType {
  * Security context attached to a message.
  */
 export interface AuthContext {
-	subject: string;
-	roles: string[];
-	tenantId: string;
+	subject: Subject;
+	roles: Role[];
+	tenantId: TenantId;
 }
 
 export interface SecurityType {
-	/** Authentication / authorization context. */
 	authContext?: AuthContext;
-
-	/** Message integrity signature. */
 	signature?: Signature;
 }
 
@@ -92,10 +80,7 @@ export type BrokerConfig = import("../domain/tls-paths").TlsPaths;
  * @template T - Type of the business payload.
  */
 export interface Message<TData = unknown> {
-	/** Technical and routing metadata. */
 	metadata: MessageMetadata;
-
-	/** Business data carried by the message. */
 	payload: TData;
 }
 

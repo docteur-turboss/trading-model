@@ -12,25 +12,47 @@ interface BinanceCircuitBreakerConfig {
 }
 
 /**
+ * Tracks concurrent probe requests when the circuit is in half-open state.
+ * Only meaningful during half-open — resets on success, failure, or explicit clear.
+ */
+class HalfOpenProbeTracker {
+	private _probes = 0;
+
+	constructor(private readonly _maxRequests: number) {}
+
+	tryProbe(): boolean {
+		this._probes++;
+		return this._probes <= this._maxRequests;
+	}
+
+	reset(): void {
+		this._probes = 0;
+	}
+}
+
+/**
  * High-level circuit breaker wrapping the shared CircuitBreaker.
  * Adds async call() with automatic fallback and half-open probing.
  */
 export class BinanceCircuitBreaker implements ICircuitBreaker {
 	private readonly _inner: SharedCB;
-	private _halfOpenProbes = 0;
+	private readonly _halfOpenTracker: HalfOpenProbeTracker;
 
 	constructor(
 		private readonly _name: string,
-		private readonly _config: BinanceCircuitBreakerConfig = {
+		config: BinanceCircuitBreakerConfig = {
 			failureThreshold: 5,
 			recoveryTimeoutMs: 30_000,
 			halfOpenMaxRequests: 3,
 		}
 	) {
 		this._inner = new SharedCB({
-			failureThreshold: _config.failureThreshold,
-			cooldownMs: _config.recoveryTimeoutMs,
+			failureThreshold: config.failureThreshold,
+			cooldownMs: config.recoveryTimeoutMs,
 		});
+		this._halfOpenTracker = new HalfOpenProbeTracker(
+			config.halfOpenMaxRequests
+		);
 	}
 
 	check(_key: string): CircuitState {
@@ -43,11 +65,12 @@ export class BinanceCircuitBreaker implements ICircuitBreaker {
 
 	recordSuccess(_key: string): void {
 		this._inner.recordSuccess(this._name);
-		this._halfOpenProbes = 0;
+		this._halfOpenTracker.reset();
 	}
 
 	recordFailure(_key: string, _count?: number, _threshold?: number): void {
 		this._inner.recordFailure(this._name);
+		this._halfOpenTracker.reset();
 		logger.warn(`Circuit breaker recorded failure: ${this._name}`);
 	}
 
@@ -64,7 +87,7 @@ export class BinanceCircuitBreaker implements ICircuitBreaker {
 	}
 
 	clear(): void {
-		this._halfOpenProbes = 0;
+		this._halfOpenTracker.reset();
 		this._inner.clear();
 	}
 
@@ -81,23 +104,21 @@ export class BinanceCircuitBreaker implements ICircuitBreaker {
 			throw new Error(`Circuit breaker OPEN: ${this._name}`);
 		}
 
-		if (state === "half-open") {
-			this._halfOpenProbes++;
-			if (this._halfOpenProbes > this._config.halfOpenMaxRequests) {
-				if (fallback) {
-					return fallback();
-				}
-				throw new Error(`Circuit breaker OPEN: ${this._name}`);
+		if (state === "half-open" && !this._halfOpenTracker.tryProbe()) {
+			if (fallback) {
+				return fallback();
 			}
+			throw new Error(`Circuit breaker OPEN: ${this._name}`);
 		}
 
 		try {
 			const result = await fn();
 			this._inner.recordSuccess(this._name);
-			this._halfOpenProbes = 0;
+			this._halfOpenTracker.reset();
 			return result;
 		} catch (error) {
 			this._inner.recordFailure(this._name);
+			this._halfOpenTracker.reset();
 			logger.warn(`Circuit breaker recorded failure: ${this._name}`);
 			if (fallback) {
 				return fallback();

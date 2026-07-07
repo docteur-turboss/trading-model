@@ -7,22 +7,22 @@ export interface CircuitBreakerEntry {
 	lastFailureTime: number;
 }
 
-export interface BaseCircuitBreakerConfig {
+export interface CircuitBreakerConfig {
 	failureThreshold: number;
 	cooldownMs: number;
 	halfOpenMaxAttempts?: number;
 }
 
-const DEFAULT_CONFIG: BaseCircuitBreakerConfig = {
+const DEFAULT_CONFIG: CircuitBreakerConfig = {
 	failureThreshold: 5,
 	cooldownMs: 30_000,
 };
 
 export abstract class BaseCircuitBreaker implements ICircuitBreaker {
 	protected readonly _entries = new Map<string, CircuitBreakerEntry>();
-	protected readonly _config: BaseCircuitBreakerConfig;
+	protected readonly _config: CircuitBreakerConfig;
 
-	constructor(config?: Partial<BaseCircuitBreakerConfig>) {
+	constructor(config?: Partial<CircuitBreakerConfig>) {
 		this._config = { ...DEFAULT_CONFIG, ...config };
 	}
 

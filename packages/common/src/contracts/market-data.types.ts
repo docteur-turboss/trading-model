@@ -80,10 +80,8 @@ export enum TradeSide {
 }
 
 /** Represents an executed trade on a market. */
-export interface TradeData extends BaseMarketData {
-	price: Price;
+export interface TradeData extends BaseMarketData, OrderBookLevel {
 	tradeId: bigint;
-	quantity: Volume;
 	side: TradeSide;
 }
 

@@ -2,6 +2,9 @@ import type {
 	ServiceId,
 	UnixTimestamp,
 } from "@trading-model/common/domain/primitives";
+import {
+	CallRecordAggregator,
+} from "./call-record-aggregator";
 
 export interface CallRecord {
 	targetService: ServiceId;
@@ -38,6 +41,7 @@ const EMPTY_SNAPSHOT: CallTrackerSnapshot = {
 export class ServiceCallTracker {
 	private _records: CallRecord[] = [];
 	private readonly _maxRecords: number;
+	private readonly _aggregator = new CallRecordAggregator();
 
 	constructor(maxRecords = 1000) {
 		this._maxRecords = maxRecords;
@@ -55,7 +59,7 @@ export class ServiceCallTracker {
 		if (total === 0) {
 			return EMPTY_SNAPSHOT;
 		}
-		const agg = this._aggregateRecords();
+		const agg = this._aggregator.aggregate(this._records);
 		return {
 			totalCalls: total,
 			callsByService: agg.callsByService,
@@ -64,51 +68,6 @@ export class ServiceCallTracker {
 			avgLatencyMs: Math.round(agg.totalLatency / total),
 			totalBytesSent: agg.bytesSent,
 			totalBytesReceived: agg.bytesReceived,
-		};
-	}
-
-	private _aggregateRecords(): {
-		callsByService: Record<ServiceId, number>;
-		callsByEndpoint: Record<string, number>;
-		errorsTotal: number;
-		totalLatency: number;
-		bytesSent: number;
-		bytesReceived: number;
-	} {
-		const callsByService: Record<ServiceId, number> = {};
-		const callsByEndpoint: Record<string, number> = {};
-		let totals = { errorsTotal: 0, totalLatency: 0, bytesSent: 0, bytesReceived: 0 };
-		for (const record of this._records) {
-			this._aggregateRecord(record, callsByService, callsByEndpoint);
-			totals = this._aggregateTotals(record, totals);
-		}
-		return {
-			callsByService,
-			callsByEndpoint,
-			...totals,
-		};
-	}
-
-	private _aggregateRecord(
-		record: CallRecord,
-		callsByService: Record<ServiceId, number>,
-		callsByEndpoint: Record<string, number>
-	): void {
-		callsByService[record.targetService] =
-			(callsByService[record.targetService] ?? 0) + 1;
-		const ep = `${record.method} ${record.endpoint}`;
-		callsByEndpoint[ep] = (callsByEndpoint[ep] ?? 0) + 1;
-	}
-
-	private _aggregateTotals(
-		record: CallRecord,
-		totals: { errorsTotal: number; totalLatency: number; bytesSent: number; bytesReceived: number }
-	): { errorsTotal: number; totalLatency: number; bytesSent: number; bytesReceived: number } {
-		return {
-			errorsTotal: totals.errorsTotal + (record.status === "error" ? 1 : 0),
-			totalLatency: totals.totalLatency + record.durationMs,
-			bytesSent: totals.bytesSent + (record.bytesSent ?? 0),
-			bytesReceived: totals.bytesReceived + (record.bytesReceived ?? 0),
 		};
 	}
 

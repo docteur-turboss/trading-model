@@ -10,7 +10,10 @@ import type {
 import {
 	toInstanceId,
 	toMessageId,
+	toRole,
 	toServiceId,
+	toSubject,
+	toTenantId,
 } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 
@@ -32,9 +35,9 @@ export function makeEntry(
 
 export function buildAuthContext(): AuthContext {
 	return {
-		roles: ["Data", "Financial", "Scraper"],
-		subject: ENV.SERVICE_NAME,
-		tenantId: ENV.INSTANCE_ID,
+		roles: ["Data", "Financial", "Scraper"].map(toRole),
+		subject: toSubject(ENV.SERVICE_NAME),
+		tenantId: toTenantId(ENV.INSTANCE_ID),
 	};
 }
 

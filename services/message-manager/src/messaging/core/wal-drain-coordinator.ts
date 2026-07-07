@@ -21,35 +21,24 @@ export class WalDrainCoordinator {
 		private readonly _performFlush: () => Promise<void>
 	) {}
 
-	get isDrainRequested(): boolean {
-		return this._drainState.kind !== "idle";
-	}
+	get isDrainRequested(): boolean { return this._drainState.kind !== "idle"; }
 
 	async drain(timeoutMs = 10_000): Promise<void> {
-		if (this._drainState.kind !== "idle") {
-			return;
-		}
+		if (this._drainState.kind !== "idle") return;
 		this._drainState = { kind: "drain-requested" };
-
 		try {
 			const done = await this._tryDrainAll();
-			if (done) {
-				return;
-			}
+			if (done) return;
 			await this._performFlush();
 			return this._waitForDrainComplete(timeoutMs);
 		} finally {
-			if (this._drainState.kind === "drain-requested") {
-				this._drainState = { kind: "idle" };
-			}
+			if (this._drainState.kind === "drain-requested") this._drainState = { kind: "idle" };
 		}
 	}
 
 	private _waitForDrainComplete(timeoutMs: number): Promise<void> {
 		let resolveDeferred: (() => void) | undefined;
-		const deferred = new Promise<void>((resolve) => {
-			resolveDeferred = resolve;
-		});
+		const deferred = new Promise<void>((resolve) => { resolveDeferred = resolve; });
 		const timer = new TimerHandle();
 		timer.startTimeout(() => {
 			if (this._drainState.kind === "draining") {
@@ -58,11 +47,7 @@ export class WalDrainCoordinator {
 				resolveDeferred!();
 			}
 		}, timeoutMs);
-		this._drainState = {
-			kind: "draining",
-			deferred: { promise: deferred, resolve: resolveDeferred! },
-			timer,
-		};
+		this._drainState = { kind: "draining", deferred: { promise: deferred, resolve: resolveDeferred! }, timer };
 		return deferred;
 	}
 
@@ -70,7 +55,6 @@ export class WalDrainCoordinator {
 		await this._recoverFallback();
 		await this._drainExistingWal();
 	}
-
 	resolveDrain(): void {
 		if (this._drainState.kind === "draining") {
 			this._drainState.timer.stop();
@@ -78,47 +62,27 @@ export class WalDrainCoordinator {
 			this._drainState = { kind: "idle" };
 		}
 	}
-
 	notifyWaiters(): void {
 		const waiters = this._walFlushWaiters.splice(0);
-		for (const waiter of waiters) {
-			try {
-				waiter();
-			} catch {
-				logger.debug("Waiter callback failed (best-effort)");
-			}
-		}
+		for (const waiter of waiters) { try { waiter(); } catch { logger.debug("Waiter callback failed (best-effort)"); } }
 	}
-
 	enqueueFlushWaiter(): Promise<void> {
-		return new Promise<void>((resolve) => {
-			this._walFlushWaiters.push(resolve);
-		});
+		return new Promise<void>((resolve) => { this._walFlushWaiters.push(resolve); });
 	}
 
 	private async _recoverFallback(): Promise<void> {
-		try {
-			await this._memoryWalBuffer.recoverFromFallbackFile();
-		} catch {
-			logger.debug("WAL fallback recovery failed (best-effort)");
-		}
+		try { await this._memoryWalBuffer.recoverFromFallbackFile(); } catch { logger.debug("WAL fallback recovery failed (best-effort)"); }
 	}
-
 	private async _drainExistingWal(): Promise<void> {
 		try {
 			const redis = await getStreamClient();
 			const len = await redis.llen(this._walKey());
 			if (len > 0) {
-				logger.info(
-					`WAL buffer has ${len} pending entries from previous run — draining`
-				);
+				logger.info(`WAL buffer has ${len} pending entries from previous run — draining`);
 				await this._performFlush();
 			}
-		} catch {
-			logger.debug("Redis not available for WAL drain");
-		}
+		} catch { logger.debug("Redis not available for WAL drain"); }
 	}
-
 	private async _tryDrainAll(): Promise<boolean> {
 		await this._memoryWalBuffer.drainAll();
 		const redis = await getStreamClient();

@@ -4,10 +4,10 @@ import type { IWsConnection } from "./i-ws-connection";
 export abstract class WsConnectionBase implements IWsConnection {
 	protected _ws: WebSocket | null | undefined = null;
 
-	onOpen?: () => void;
-	onMessage?: (data: unknown) => void;
-	onCloseHandler?: () => void;
-	onError?: (err: Error) => void;
+	onOpen: () => void = () => {};
+	onMessage: (data: unknown) => void = () => {};
+	onCloseHandler: () => void = () => {};
+	onError: (err: Error) => void = () => {};
 
 	abstract connect(): void | Promise<void>;
 

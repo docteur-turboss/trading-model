@@ -4,10 +4,10 @@ import WebSocket from "ws";
 export class WsConnection implements IWsConnection {
 	private _ws: WebSocket | null = null;
 
-	onOpen?: () => void;
-	onMessage?: (data: unknown) => void;
-	onError?: (err: Error) => void;
-	onCloseHandler?: () => void;
+	onOpen: () => void = () => {};
+	onMessage: (data: unknown) => void = () => {};
+	onError: (err: Error) => void = () => {};
+	onCloseHandler: () => void = () => {};
 	lastCloseCode?: number;
 
 	constructor(

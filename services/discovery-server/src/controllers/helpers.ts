@@ -1,4 +1,7 @@
-import { toInstanceId } from "@trading-model/common/domain/primitives";
+import {
+	toAuthToken,
+	toInstanceId,
+} from "@trading-model/common/domain/primitives";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { ResponseException } from "@trading-model/common/middleware/response-exception";
 import { isNonEmptyString } from "@trading-model/common/validation/primitives";
@@ -16,7 +19,7 @@ export function validateInstanceToken(
 	}
 
 	const validation: TokenValidation = {
-		token: tokenHeader,
+		token: toAuthToken(tokenHeader),
 		instanceId: toInstanceId(instanceId),
 	};
 	if (!registry.validInstanceToken(validation)) {

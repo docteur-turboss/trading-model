@@ -1,12 +1,13 @@
 import { MarketType, SourceType } from "@trading-model/common/config/event.types";
 import { Price, UnixTimestamp, Volume } from "@trading-model/common/domain/primitives";
+import type { OrderBookLevel } from "@trading-model/common/contracts/market-data.types";
 import type { OrderBookData } from "../../../infra/market-data/market-data.types";
 import type { BinanceDepthEntry, BinanceDepthResponse } from "../../../types/binance.api";
 import type { SymbolQuery } from "./query-types";
 
 function parseOrderBookSide(
 	entries: BinanceDepthEntry[]
-): Set<{ price: Price; quantity: Volume }> {
+): Set<OrderBookLevel> {
 	return new Set(
 		entries.map((entry) => ({
 			price: Price.of(Number(entry.price)),

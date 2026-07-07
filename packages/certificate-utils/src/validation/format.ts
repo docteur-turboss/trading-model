@@ -47,6 +47,7 @@ import {
 	toFingerprint,
 	toSerialNumber,
 } from "@trading-model/common/domain/primitives";
+import type { CertificateInfo } from "../types";
 
 function _parseSerialNumber(pem: string): SerialNumber {
 	const forgeCert = forge.pki.certificateFromPem(pem);
@@ -66,15 +67,7 @@ function _parseValidity(
 	};
 }
 
-export function parseCertInfo(pem: string): {
-	subject: string;
-	issuer: string;
-	serialNumber: SerialNumber;
-	notBefore: Date;
-	notAfter: Date;
-	fingerprint: Fingerprint;
-	san: string[];
-} {
+export function parseCertInfo(pem: string): CertificateInfo {
 	const x509 = new X509Certificate(pem);
 	const { validFrom, validTo } = _parseValidity(x509);
 	return {

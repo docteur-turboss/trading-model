@@ -89,7 +89,7 @@ export interface NetworkArchitecture {
 	 */
 	enablePool?: boolean;
 
-	/** Maximum number of experiences kept in the pool (FIFO). @default 10_000 */
+	/** @default 10_000 */
 	poolMaxSize?: number;
 }
 
@@ -98,7 +98,7 @@ export interface LossConfig {
 	/** Loss function used during backpropagation. */
 	lossFunctionType?: LossFunctionType;
 
-	/** Delta threshold for Huber loss. @default 1 */
+	/** @default 1 */
 	deltaHuber?: number;
 }
 
@@ -128,10 +128,7 @@ export interface NetworkInitConfig {
 	/** Strategy used to initialise weight matrices. */
 	initialisationType?: InitialisationType;
 
-	/**
-	 * When `false` bias vectors are zeroed and never updated.
-	 * @default true
-	 */
+	/** @default true */
 	useBias?: boolean;
 
 	/**
@@ -143,17 +140,10 @@ export interface NetworkInitConfig {
 
 /** Mutation scale factors for genetic algorithm operators. */
 export interface MutationConfig {
-	/**
-	 * Scale factor applied to bias mutations when calling Agent.mutate.
-	 * Weights use their own scale; biases can be mutated at a different rate.
-	 * @default 0.05
-	 */
+	/** @default 0.05 */
 	biasMutationScale?: number;
 
-	/**
-	 * Scale factor applied to weight mutations when calling Agent.mutate.
-	 * @default 0.1
-	 */
+	/** @default 0.1 */
 	weightMutationScale?: number;
 }
 
@@ -173,9 +163,7 @@ export interface NeuralNetworkConfig
  */
 export interface BareExperience {
 	kind: "bare";
-	/** Raw input fed to the network. */
 	input: Float32Array;
-	/** Output produced by the network for that input. */
 	output: Float32Array;
 }
 
@@ -184,15 +172,10 @@ export interface BareExperience {
  */
 export interface QLearningExperience {
 	kind: "qlearning";
-	/** Raw input fed to the network. */
 	input: Float32Array;
-	/** Output produced by the network for that input. */
 	output: Float32Array;
-	/** Reward received after the action (Q-learning). */
 	reward: number;
-	/** Next state observed after the action (Q-learning). */
 	nextState: Float32Array;
-	/** Whether the episode terminated after this step (Q-learning). */
 	done: boolean;
 }
 
@@ -201,11 +184,8 @@ export interface QLearningExperience {
  */
 export interface SupervisedExperience {
 	kind: "supervised";
-	/** Raw input fed to the network. */
 	input: Float32Array;
-	/** Output produced by the network for that input. */
 	output: Float32Array;
-	/** Target label for supervised learning. */
 	target: Float32Array;
 }
 
@@ -227,13 +207,9 @@ export type Experience =
  * Backprop uses this context as explicit input (no global state mutation).
  */
 export interface ForwardContext {
-	/** Raw input that was fed to the network (post-normalization). */
 	input: Float32Array;
-	/** Final network output. */
 	output: Float32Array;
-	/** Pre-activations (z values) for each layer. */
 	layerZValues: Float32Array[];
-	/** Post-activations (outputs) for each layer. */
 	layerOutputs: Float32Array[];
 }
 
@@ -247,7 +223,6 @@ export interface LayerActivation {
 export interface PooledExperience extends SupervisedExperience {
 	/** Cached activations for each layer from the forward pass. */
 	layerActivations: LayerActivation[];
-	/** Loss computed during the forward pass. */
 	loss: number;
 }
 

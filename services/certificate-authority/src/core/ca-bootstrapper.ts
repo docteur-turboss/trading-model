@@ -68,6 +68,7 @@ export class CaBootstrapper {
 			now,
 			expiresAt,
 			publicKey: caKeyPair.publicKey,
+			isCa: true,
 		});
 		return this._certBodyBuilder.signAndBuildPem(certBody, caKeyPair.privateKey);
 	}

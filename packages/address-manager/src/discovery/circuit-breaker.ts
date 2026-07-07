@@ -1,5 +1,5 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
-import { BaseCircuitBreaker } from "@trading-model/common/reliability/base-circuit-breaker";
+import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 import { CircuitBreakerLatency } from "./circuit-breaker-latency";
 import { CircuitBreakerPersistence } from "./circuit-breaker-persistence";
 import { CircuitBreakerRecorder } from "./circuit-breaker-recorder";
@@ -22,7 +22,7 @@ export interface CircuitBreakerOptions {
 	latencyP99ThresholdMs?: number;
 }
 
-export class DiscoveryCircuitBreaker extends BaseCircuitBreaker {
+export class DiscoveryCircuitBreaker implements ICircuitBreaker {
 	private readonly _state: CircuitBreakerState;
 	private readonly _latency: CircuitBreakerLatency;
 	private readonly _persistence: CircuitBreakerPersistence;
@@ -38,11 +38,6 @@ export class DiscoveryCircuitBreaker extends BaseCircuitBreaker {
 			options.latencyWindowSize ?? DEFAULT_LATENCY_WINDOW_SIZE;
 		const latencyP99ThresholdMs =
 			options.latencyP99ThresholdMs ?? DEFAULT_LATENCY_P99_THRESHOLD_MS;
-
-		super({
-			failureThreshold,
-			cooldownMs: halfOpenTimeoutMs,
-		});
 
 		this._state = new CircuitBreakerState(
 			failureThreshold,
@@ -83,7 +78,6 @@ export class DiscoveryCircuitBreaker extends BaseCircuitBreaker {
 			return true;
 		}
 		if (currentState === "open") {
-			const now = Date.now();
 			const state = this._state.getInstanceState(instanceId);
 			const allowed = state
 				? this._state.tryHalfOpen(instanceId, state)

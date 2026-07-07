@@ -1,13 +1,11 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
-import { LruCache } from "@trading-model/common/utils/lru-cache";
 import type WebSocket from "ws";
-import { ENV } from "../../config/env";
-import { getStreamClient } from "../../config/redis";
 import { authorizeTopic } from "../core/acl";
 import type { Dispatcher } from "../core/dispatcher";
 import type { IncomingWssMessage } from "./wss-message.types";
 import type { WssRateLimiter } from "./wss-rate-limiter";
+import { WssDedup } from "./wss-dedup";
 
 function extractDedupId(msg: IncomingWssMessage): string | undefined {
 	const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
@@ -16,10 +14,7 @@ function extractDedupId(msg: IncomingWssMessage): string | undefined {
 }
 
 export class PublishGuard {
-	private _processedWssDeduplicationIds = new LruCache<true>({
-		maxSize: 50000,
-		ttlMs: 300_000,
-	});
+	private readonly _dedup = new WssDedup();
 
 	constructor(
 		private readonly _dispatcher: Dispatcher,
@@ -52,21 +47,7 @@ export class PublishGuard {
 		if (!dedupId) {
 			return true;
 		}
-		if (this._processedWssDeduplicationIds.has(dedupId)) {
-			return false;
-		}
-		this._processedWssDeduplicationIds.set(dedupId, true);
-		return this._checkRedisDedup(dedupId);
-	}
-
-	private async _checkRedisDedup(dedupId: string): Promise<boolean> {
-		try {
-			const redis = await getStreamClient();
-			const key = `${ENV.REDIS_PREFIX}wss-dedup:${dedupId}`;
-			return Boolean(await redis.set(key, "1", "EX", 300, "NX"));
-		} catch {
-			return true;
-		}
+		return this._dedup.check(dedupId);
 	}
 
 	checkBackpressure(ws: WebSocket): boolean {
@@ -84,10 +65,10 @@ export class PublishGuard {
 	}
 
 	clearDedupCache(): void {
-		this._processedWssDeduplicationIds.clear();
+		this._dedup.clear();
 	}
 
 	shutdown(): void {
-		this._processedWssDeduplicationIds.clear();
+		this._dedup.clear();
 	}
 }

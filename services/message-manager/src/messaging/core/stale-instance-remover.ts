@@ -1,27 +1,32 @@
 import type Redis from "ioredis";
 
-import { LEASE_HEARTBEAT_FIELD } from "./subscription-store";
+import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
+import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 
 export class StaleInstanceRemover {
-	constructor(private readonly _prefix: string) {}
+	private readonly _keys: RedisSubscriptionKeys;
+
+	constructor(prefix: string) {
+		this._keys = new RedisSubscriptionKeys(prefix);
+	}
 
 	async removeSubscriptions(
 		redis: Redis,
 		instanceId: string
 	): Promise<string[]> {
-		const leaseKey = `${this._prefix}lease:${instanceId}`;
+		const leaseKey = this._keys.leaseKey(instanceId);
 		const topics = await redis.hkeys(leaseKey);
 		const multi = redis.multi();
 		for (const topic of topics) {
 			if (topic === LEASE_HEARTBEAT_FIELD) {
 				continue;
 			}
-			multi.del(`${this._prefix}sub:${topic}:${instanceId}`);
-			multi.srem(`${this._prefix}sub:${topic}`, instanceId);
+			multi.del(this._keys.subKey({ topic, instanceId }));
+			multi.srem(this._keys.topicKey(topic), instanceId);
 		}
 		multi.del(leaseKey);
-		multi.del(`${this._prefix}instance:${instanceId}`);
-		multi.srem(`${this._prefix}active-instances`, instanceId);
+		multi.del(this._keys.instanceKey(instanceId));
+		multi.srem(this._keys.activeInstancesKey(), instanceId);
 		await multi.exec();
 		return topics;
 	}
@@ -32,9 +37,9 @@ export class StaleInstanceRemover {
 				continue;
 			}
 			try {
-				const remaining = await redis.scard(`${this._prefix}sub:${topic}`);
+				const remaining = await redis.scard(this._keys.topicKey(topic));
 				if (remaining === 0) {
-					await redis.srem(`${this._prefix}topics`, topic);
+					await redis.srem(this._keys.topicsSetKey(), topic);
 				}
 			} catch {}
 		}

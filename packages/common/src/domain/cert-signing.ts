@@ -1,6 +1,8 @@
+import type { AuthToken, ServiceId } from "./primitives";
+
 export interface CertSignRequest {
-	serviceId: string;
+	serviceId: ServiceId;
 	csr: string;
 	ttlMs?: number;
-	bootstrapToken?: string;
+	bootstrapToken?: AuthToken;
 }
