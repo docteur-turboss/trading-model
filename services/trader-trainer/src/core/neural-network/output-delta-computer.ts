@@ -7,24 +7,38 @@ import { ActivationType } from "./type";
 export class OutputDeltaComputer {
 	constructor(private readonly _config: Required<NeuralNetworkConfig>) {}
 
+	private _computeOutputDeltaForNeuron(
+		idx: number,
+		output: Float32Array,
+		target: Float32Array,
+		outputZ: Float32Array,
+		lossGrad: Float32Array,
+		activation: ActivationType
+	): number {
+		if (activation === ActivationType.Softmax) {
+			return output[idx] - target[idx];
+		}
+		return lossGrad[idx] * this._activationDerivative(output[idx], outputZ[idx], activation);
+	}
+
+	private _computeOutputDeltas(
+		output: Float32Array,
+		target: Float32Array,
+		outputZ: Float32Array,
+		lossGrad: Float32Array,
+		activation: ActivationType
+	): Float32Array {
+		const delta = new Float32Array(output.length);
+		for (let j = 0; j < output.length; j++) {
+			delta[j] = this._computeOutputDeltaForNeuron(j, output, target, outputZ, lossGrad, activation);
+		}
+		return delta;
+	}
+
 	compute(ctx: OutputDeltasContext): Float32Array {
 		const { outputZ, output, target, activation } = ctx;
-		const delta = new Float32Array(output.length);
 		const lossGrad = this._computeLossGradient(output, target);
-
-		for (let j = 0; j < output.length; j++) {
-			if (activation === ActivationType.Softmax) {
-				delta[j] = output[j] - target[j];
-			} else {
-				const actGrad = this._activationDerivative(
-					output[j],
-					outputZ[j],
-					activation
-				);
-				delta[j] = lossGrad[j] * actGrad;
-			}
-		}
-
+		const delta = this._computeOutputDeltas(output, target, outputZ, lossGrad, activation);
 		return this._clipGradients(delta);
 	}
 

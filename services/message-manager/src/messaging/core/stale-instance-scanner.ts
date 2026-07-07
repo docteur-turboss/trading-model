@@ -76,19 +76,34 @@ export class StaleInstanceScanner {
 			"COUNT",
 			100
 		);
+		const removed = await this._processStaleInstances(redis, instanceIds);
+		return { cursor: nextCursor, removed };
+	}
+
+	private async _processStaleInstances(
+		redis: import("ioredis").Redis,
+		instanceIds: string[]
+	): Promise<number> {
 		let removed = 0;
 		for (const instanceId of instanceIds) {
 			if (!(await this._isInstanceStale(redis, instanceId))) {
 				continue;
 			}
-			const topics = await this._remover.removeSubscriptions(redis, instanceId);
-			await this._remover.cleanupOrphanedTopics(redis, topics);
-			removed += topics.length;
-			logger.info("Removed stale subscription by heartbeat", {
-				instanceId,
-				topics: topics.join(","),
-			});
+			removed += await this._removeStaleInstance(redis, instanceId);
 		}
-		return { cursor: nextCursor, removed };
+		return removed;
+	}
+
+	private async _removeStaleInstance(
+		redis: import("ioredis").Redis,
+		instanceId: string
+	): Promise<number> {
+		const topics = await this._remover.removeSubscriptions(redis, instanceId);
+		await this._remover.cleanupOrphanedTopics(redis, topics);
+		logger.info("Removed stale subscription by heartbeat", {
+			instanceId,
+			topics: topics.join(","),
+		});
+		return topics.length;
 	}
 }

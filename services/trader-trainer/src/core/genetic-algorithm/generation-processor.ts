@@ -49,18 +49,46 @@ export class GenerationProcessor {
 	}
 
 	async runGeneration(startTime?: number): Promise<GenerationContext> {
+		const { ctrl, rng } = this._initRunParams();
+		const evalResult = await this._evaluator.evaluate(this._population);
+		const paretoResult = buildParetoFronts(evalResult.updatedPop, evalResult.objectives, evalResult.metas, rng);
+		this._evaluator.updateArchive(paretoResult.popWithMeta, evalResult.objectives, paretoResult.popMeta, this._cfg.onArchiveUpdate);
+		const newCtrl = this._adaptControl(ctrl);
+		const lastBestGenome = this._evaluator.stagnationTracker.track(paretoResult.popWithMeta, evalResult.metas, paretoResult.avgEff);
+		this._evolvePopulation(paretoResult, newCtrl, ctrl, rng);
+		const ctx = this._buildContext(paretoResult, lastBestGenome, newCtrl, startTime);
+		this._cfg.onGeneration?.(ctx);
+		return ctx;
+	}
+
+	private _initRunParams(): { ctrl: DeepReadonly<GAControlGenome>; rng: () => number } {
 		const ctrl = this._population[0].gaControl;
 		const rng = makePRNG(ctrl.mutationSeed + this._generation);
-		const evalResult = await this._evaluator.evaluate(this._population);
-		const { updatedPop, objectives, metas } = evalResult;
-		const result = buildParetoFronts(updatedPop, objectives, metas, rng);
-		this._evaluator.updateArchive(result.popWithMeta, objectives, result.popMeta, this._cfg.onArchiveUpdate);
-		const newCtrl = adaptGAControl(ctrl, this._evaluator.stagnationTracker.efficiencyHistory, this._evaluator.stagnationTracker.stagnation);
-		const lastBestGenome = this._evaluator.stagnationTracker.track(result.popWithMeta, evalResult.metas, result.avgEff);
+		return { ctrl, rng };
+	}
+
+	private _adaptControl(ctrl: DeepReadonly<GAControlGenome>): Readonly<GAControlGenome> {
+		return adaptGAControl(ctrl, this._evaluator.stagnationTracker.efficiencyHistory, this._evaluator.stagnationTracker.stagnation);
+	}
+
+	private _evolvePopulation(
+		result: { popWithMeta: DeepReadonly<LamarckGenome>[]; popMeta: import("./pareto").PopulationMeta },
+		newCtrl: Readonly<GAControlGenome>,
+		ctrl: DeepReadonly<GAControlGenome>,
+		rng: () => number
+	): void {
 		const ranked = sortPopulation(result.popWithMeta, result.popMeta);
 		const elites = selectElites(ranked, newCtrl);
 		this._population = buildNextPopulation(elites, { ranked, newCtrl, ctrl, rng, generation: this._generation });
-		const ctx: GenerationContext = {
+	}
+
+	private _buildContext(
+		result: { avgFit: number; avgEff: number; popWithMeta: DeepReadonly<LamarckGenome>[] },
+		lastBestGenome: DeepReadonly<LamarckGenome> | undefined,
+		newCtrl: Readonly<GAControlGenome>,
+		startTime?: number
+	): GenerationContext {
+		return {
 			generation: this._generation,
 			population: this._population,
 			archive: this._evaluator.archive.members,
@@ -72,7 +100,5 @@ export class GenerationProcessor {
 			stagnation: this._evaluator.stagnationTracker.stagnation,
 			gaControl: newCtrl,
 		};
-		this._cfg.onGeneration?.(ctx);
-		return ctx;
 	}
 }

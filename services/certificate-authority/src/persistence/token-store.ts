@@ -51,24 +51,31 @@ export class TokenStore {
 		this._collection = collection;
 	}
 
+	private _buildUsedToken(hash: string, serviceId: string, ttl: number): UsedToken {
+		return {
+			tokenHash: hash,
+			serviceId,
+			usedAt: new Date(),
+			expiresAt: new Date(Date.now() + ttl),
+		};
+	}
+
+	private _handleInsertError(err: unknown): boolean | never {
+		if ((err as Record<string, unknown>)?.code === 11000) {
+			return false;
+		}
+		throw err;
+	}
+
 	async tryUseToken(request: TokenUseRequest): Promise<boolean> {
 		const { token, serviceId, ttlMs } = request;
 		const ttl = ttlMs ?? this._defaultTtlMs;
 		const hash = await this._hashToken(token);
-
 		try {
-			await this._collection.insertOne({
-				tokenHash: hash,
-				serviceId,
-				usedAt: new Date(),
-				expiresAt: new Date(Date.now() + ttl),
-			});
+			await this._collection.insertOne(this._buildUsedToken(hash, serviceId, ttl));
 			return true;
 		} catch (err: unknown) {
-			if ((err as Record<string, unknown>)?.code === 11000) {
-				return false;
-			}
-			throw err;
+			return this._handleInsertError(err);
 		}
 	}
 

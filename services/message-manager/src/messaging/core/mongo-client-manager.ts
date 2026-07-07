@@ -40,27 +40,39 @@ export class MongoClientManager {
 
 	async ensureIndexes(): Promise<void> {
 		if (!this._client) {
-			logger.warn("MongoDB client not initialized — skipping index creation");
+			this._logMissingClient();
 			return;
 		}
 		try {
-			const { MongoArchiveBatchWriter } = await import(
-				"./mongo-archive-batch.js"
-			);
-			const writer = new MongoArchiveBatchWriter({
-				client: this._client,
-				dbName: ENV.MONGO_ARCHIVE_DB,
-				collectionName: ENV.MONGO_ARCHIVE_COLLECTION,
-			});
-			await writer.createIndexes();
-			logger.info("MongoDB archive indexes ensured");
+			await this._ensureArchiveWriter();
 		} catch (err) {
-			logger.warn("Failed to create archive indexes", {
-				context: {
-					error: (err as Error).message,
-				},
-			});
+			this._logIndexError(err as Error);
 		}
+	}
+
+	private _logMissingClient(): void {
+		logger.warn("MongoDB client not initialized — skipping index creation");
+	}
+
+	private async _ensureArchiveWriter(): Promise<void> {
+		const { MongoArchiveBatchWriter } = await import(
+			"./mongo-archive-batch.js"
+		);
+		const writer = new MongoArchiveBatchWriter({
+			client: this._client!,
+			dbName: ENV.MONGO_ARCHIVE_DB,
+			collectionName: ENV.MONGO_ARCHIVE_COLLECTION,
+		});
+		await writer.createIndexes();
+		logger.info("MongoDB archive indexes ensured");
+	}
+
+	private _logIndexError(err: Error): void {
+		logger.warn("Failed to create archive indexes", {
+			context: {
+				error: err.message,
+			},
+		});
 	}
 
 	async closeClient(): Promise<void> {

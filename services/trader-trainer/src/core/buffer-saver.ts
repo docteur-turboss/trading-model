@@ -29,50 +29,57 @@ export class BufferSaver {
 		}
 	}
 
+	private _serializeSymbol(
+		buffer: MarketDataBuffer,
+		sym: TradingSymbol
+	): SymbolStateSerializable | undefined {
+		const state = buffer.getSymbolState(sym);
+		if (!state) {
+			return;
+		}
+		const norms = serializeAllNorms(state, this._handlers);
+		return {
+			candles: state.candles,
+			trades: state.trades,
+			orderBook: state.orderBook,
+			bookTicker: state.bookTicker,
+			ticker24h: state.ticker24h,
+			...norms,
+		} as SymbolStateSerializable;
+	}
+
 	private _serializeSymbols(
 		buffer: MarketDataBuffer,
 		symbols: TradingSymbol[]
 	): Record<TradingSymbol, SymbolStateSerializable> {
 		const symbolsData: Record<TradingSymbol, SymbolStateSerializable> = {};
 		for (const sym of symbols) {
-			const state = buffer.getSymbolState(sym);
-			if (!state) {
-				continue;
+			const serialized = this._serializeSymbol(buffer, sym);
+			if (serialized) {
+				symbolsData[sym] = serialized;
 			}
-			const norms = serializeAllNorms(state, this._handlers);
-			symbolsData[sym] = {
-				candles: state.candles,
-				trades: state.trades,
-				orderBook: state.orderBook,
-				bookTicker: state.bookTicker,
-				ticker24h: state.ticker24h,
-				...norms,
-			} as SymbolStateSerializable;
 		}
 		return symbolsData;
 	}
 
-	private _doSaveBuffer(buffer: MarketDataBuffer): void {
-		const symbols = buffer.getSymbols();
-		const symbolsData = this._serializeSymbols(buffer, symbols);
+	private _writeBufferState(symbols: TradingSymbol[], symbolsData: Record<TradingSymbol, SymbolStateSerializable>, priceSnapshot: Record<TradingSymbol, import("@trading-model/common/domain/primitives").Price>): void {
 		writeFileSync(
 			this._bufferStatePath(),
 			JSON.stringify(
-				{
-					symbols: symbolsData,
-					priceSnapshot: buffer.getPriceSnapshot(),
-					savedAt: Date.now(),
-				},
+				{ symbols: symbolsData, priceSnapshot, savedAt: Date.now() },
 				null,
 				2
 			),
 			"utf-8"
 		);
+	}
+
+	private _doSaveBuffer(buffer: MarketDataBuffer): void {
+		const symbols = buffer.getSymbols();
+		const symbolsData = this._serializeSymbols(buffer, symbols);
+		this._writeBufferState(symbols, symbolsData, buffer.getPriceSnapshot());
 		logger.info("Market data buffer checkpoint saved", {
-			context: {
-				symbols: symbols.length,
-				path: this._bufferStatePath(),
-			},
+			context: { symbols: symbols.length, path: this._bufferStatePath() },
 		});
 	}
 

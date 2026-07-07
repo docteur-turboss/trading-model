@@ -13,7 +13,7 @@ export interface CertBodyBuilderOptions {
 }
 
 export class CertBodyBuilder {
-	build(options: CertBodyBuilderOptions): string {
+	private _buildLines(options: CertBodyBuilderOptions): string[] {
 		const { serialNumber, now, expiresAt, publicKey, subject, san, isCa } =
 			options;
 		const lines = [
@@ -30,7 +30,11 @@ export class CertBodyBuilder {
 			lines.push("CA: TRUE");
 		}
 		lines.push(`Public Key: ${publicKey}`);
-		return lines.join("\n");
+		return lines;
+	}
+
+	build(options: CertBodyBuilderOptions): string {
+		return this._buildLines(options).join("\n");
 	}
 
 	signCertBody(certBody: string, privateKey: string): string {
@@ -48,15 +52,24 @@ export class CertBodyBuilder {
 		return this.buildCertPem(certBody, signature, issuerCert);
 	}
 
+	private _buildPayload(
+		certBody: string,
+		signature: string,
+		issuerCert?: string
+	): Record<string, string> {
+		const payload: Record<string, string> = { body: certBody, signature };
+		if (issuerCert) {
+			payload.issuerCert = issuerCert;
+		}
+		return payload;
+	}
+
 	buildCertPem(
 		certBody: string,
 		signature: string,
 		issuerCert?: string
 	): string {
-		const payload: Record<string, string> = { body: certBody, signature };
-		if (issuerCert) {
-			payload.issuerCert = issuerCert;
-		}
+		const payload = this._buildPayload(certBody, signature, issuerCert);
 		return [
 			"-----BEGIN CERTIFICATE-----",
 			...chunks(Buffer.from(JSON.stringify(payload)).toString("base64"), 64),

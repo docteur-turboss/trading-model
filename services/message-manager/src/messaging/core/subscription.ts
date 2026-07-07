@@ -1,3 +1,4 @@
+import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type {
 	Message,
 	ServiceIdentity,
@@ -6,6 +7,7 @@ import { DeliveryAttemptHandler } from "./delivery-attempt-handler";
 import { DeliveryCircuitBreaker } from "./delivery-circuit-breaker";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
 import { DeliveryMetadataExtractor } from "./delivery-metadata-extractor";
+import type { SubscribersContext } from "./delivery-metadata-extractor";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 import { backoffDelay as computeBackoffDelay } from "./backoff-calculator";
 
@@ -44,13 +46,21 @@ export class Subscription {
 		this.callbackURL = config.callbackURL;
 		this.serviceIdentity = config.serviceIdentity;
 		this._deliveryPort = config.deliveryPort;
-		this._circuitBreaker = new DeliveryCircuitBreaker(
+		this._circuitBreaker = this._createCircuitBreaker(config);
+		this._errorHandler = this._createErrorHandler(config);
+		this._metadataExtractor = new DeliveryMetadataExtractor();
+		this._attemptHandler = this._createAttemptHandler(config);
+	}
+
+	private _createCircuitBreaker(config: SubscriptionConfig): DeliveryCircuitBreaker {
+		return new DeliveryCircuitBreaker(
 			config.topic,
 			config.serviceIdentity.serviceName
 		);
-		this._errorHandler = this._createErrorHandler(config);
-		this._metadataExtractor = new DeliveryMetadataExtractor();
-		this._attemptHandler = new DeliveryAttemptHandler(
+	}
+
+	private _createAttemptHandler(config: SubscriptionConfig): DeliveryAttemptHandler {
+		return new DeliveryAttemptHandler(
 			config.deliveryPort,
 			this._errorHandler,
 			config.callbackURL,
@@ -77,27 +87,40 @@ export class Subscription {
 			return;
 		}
 
+		const { context, isAcknowledged } = this._buildSubscriberContext();
+		await this._deliverUntilAcknowledged(
+			message, context, ttl, emittedAt, deliveryMode, isAcknowledged
+		);
+		this._circuitBreaker.clear();
+	}
+
+	private _buildSubscriberContext(): {
+		context: SubscribersContext;
+		isAcknowledged: () => boolean;
+	} {
 		let acknowledged = false;
 		const context = this._metadataExtractor.buildSubscriberContext(
 			this.serviceIdentity.serviceName,
-			() => {
-				acknowledged = true;
-			}
+			() => { acknowledged = true; }
 		);
+		return { context, isAcknowledged: () => acknowledged };
+	}
 
-		while (!acknowledged) {
+	private async _deliverUntilAcknowledged<TData>(
+		message: Message<TData>,
+		context: SubscribersContext,
+		ttl: number,
+		emittedAt: number,
+		deliveryMode: DeliveryMode,
+		isAcknowledged: () => boolean
+	): Promise<void> {
+		while (!isAcknowledged()) {
 			const shouldRetry = await this._attemptHandler.attempt(
-				message,
-				context,
-				ttl,
-				emittedAt,
-				deliveryMode
+				message, context, ttl, emittedAt, deliveryMode
 			);
 			if (!shouldRetry) {
 				return;
 			}
 		}
-
-		this._circuitBreaker.clear();
 	}
 }

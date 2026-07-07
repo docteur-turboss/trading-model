@@ -34,8 +34,14 @@ export class StreamMessageReader {
 		if (!rawResult) {
 			return [];
 		}
+		return this._parseStreamGroupResult(
+			rawResult as [string, [string, string[]][]][]
+		);
+	}
 
-		const result = rawResult as [string, [string, string[]][]][];
+	private _parseStreamGroupResult(
+		result: [string, [string, string[]][]][]
+	): Array<{ id: string; data: string }> {
 		const messages: Array<{ id: string; data: string }> = [];
 		for (const [, entries] of result) {
 			for (const [id, fields] of entries) {
@@ -59,15 +65,7 @@ export class StreamMessageReader {
 			"COUNT",
 			query.limit ?? 100
 		);
-		return results
-			.map(([, fields]) => {
-				const dataIdx = fields.indexOf("data");
-				if (dataIdx === -1) {
-					return null;
-				}
-				return JSON.parse(fields[dataIdx + 1]) as Message;
-			})
-			.filter(Boolean) as Message[];
+		return this._parseMessageResults(results);
 	}
 
 	async getMessagesBetween(
@@ -84,6 +82,12 @@ export class StreamMessageReader {
 			"COUNT",
 			limit
 		);
+		return this._parseMessageResults(results);
+	}
+
+	private _parseMessageResults(
+		results: [string, string[]][]
+	): Message[] {
 		return results
 			.map(([, fields]) => {
 				const dataIdx = fields.indexOf("data");

@@ -14,7 +14,10 @@ import type {
 	PaginationQuery,
 	PaginationResult,
 } from "@trading-model/common/domain/pagination";
-import type { Percentage } from "@trading-model/common/domain/primitives";
+import type {
+	Percentage,
+	TradingSymbol,
+} from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
 
 export type {
@@ -56,10 +59,7 @@ export interface StatsSummary {
 	avgLatency: number;
 }
 
-export interface OrderBookLevel {
-	price: string;
-	quantity: string;
-}
+export type OrderBookLevel = import("@trading-model/common/contracts/market-data.types").OrderBookLevel;
 
 export interface OrderBook {
 	bids: OrderBookLevel[];
@@ -95,7 +95,7 @@ export interface PaginatedResults {
 }
 
 export interface TrainingFilter {
-	symbol?: string;
+	symbol?: TradingSymbol;
 	generation?: number;
 }
 

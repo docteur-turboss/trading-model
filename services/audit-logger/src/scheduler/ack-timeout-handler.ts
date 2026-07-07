@@ -70,23 +70,14 @@ export class AckTimeoutHandler {
 		);
 	}
 
-	persistAssignment(
-		jobId: JobId,
-		assignedWorkerId: string,
-		deadline: number
-	): void {
-		this._repository
-			.updateStatus(jobId, JOB_STATUS.ASSIGNED, {
-				assignedWorkerId: toInstanceId(assignedWorkerId),
-				ackDeadline: deadline,
-			})
-			.catch((err) => {
-				logger.error("Failed to persist assigned status", {
-					context: {
-						jobId,
-						error: String(err),
-					},
-				});
-			});
+	persistAssignment(jobId: JobId, assignedWorkerId: string, deadline: number): void {
+		this._repository.updateStatus(jobId, JOB_STATUS.ASSIGNED, {
+			assignedWorkerId: toInstanceId(assignedWorkerId),
+			ackDeadline: deadline,
+		}).catch((err) => this._logPersistError(jobId, err));
+	}
+
+	private _logPersistError(jobId: JobId, err: unknown): void {
+		logger.error("Failed to persist assigned status", { context: { jobId, error: String(err) } });
 	}
 }

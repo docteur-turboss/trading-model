@@ -17,18 +17,22 @@ interface RegisterController {
 	getInstance: RequestHandler;
 }
 
+function _buildValidationError(req: import("express").Request): ReturnType<typeof sendResponse> {
+	return sendResponse(
+		{
+			error: "Invalid request body",
+			details: REGISTER_SCHEMA.safeParse(req.body).error!.flatten()
+				.fieldErrors,
+		},
+		400
+	);
+}
+
 function createRegisterHandler(registry: ServiceRegistry): RequestHandler {
 	return catchSync((req) => {
 		const data = parseRegisterBody(req);
 		if (!data) {
-			return sendResponse(
-				{
-					error: "Invalid request body",
-					details: REGISTER_SCHEMA.safeParse(req.body).error!.flatten()
-						.fieldErrors,
-				},
-				400
-			);
+			return _buildValidationError(req);
 		}
 		if (!registry.verifyInstanceName(data.serviceName)) {
 			return sendResponse({ error: "Invalid service name" }, 400);
@@ -44,12 +48,22 @@ function createListServicesHandler(registry: ServiceRegistry): RequestHandler {
 	});
 }
 
+function _validateServiceNameParam(
+	req: import("express").Request
+): string | null {
+	const { serviceName } = req.params;
+	if (!isNonEmptyString(serviceName)) {
+		return null;
+	}
+	return serviceName;
+}
+
 function createGetServiceInstancesHandler(
 	registry: ServiceRegistry
 ): RequestHandler {
 	return catchSync((req) => {
-		const { serviceName } = req.params;
-		if (!isNonEmptyString(serviceName)) {
+		const serviceName = _validateServiceNameParam(req);
+		if (!serviceName) {
 			return sendResponse({ error: "serviceName is required" }, 400);
 		}
 		if (!registry.verifyInstanceName(serviceName)) {
@@ -59,15 +73,23 @@ function createGetServiceInstancesHandler(
 	});
 }
 
+function _validateRouteParams(req: import("express").Request): { serviceName: string; instanceId: string } | null {
+	const { serviceName, instanceId } = req.params;
+	if (!(isNonEmptyString(serviceName) && isNonEmptyString(instanceId))) {
+		return null;
+	}
+	return { serviceName, instanceId };
+}
+
 function createGetInstanceHandler(registry: ServiceRegistry): RequestHandler {
 	return catchSync((req) => {
-		const { serviceName, instanceId } = req.params;
-		if (!(isNonEmptyString(serviceName) && isNonEmptyString(instanceId))) {
+		const params = _validateRouteParams(req);
+		if (!params) {
 			return sendResponse({ error: "Invalid route parameters" }, 400);
 		}
 		const instance = registry.getInstance({
-			serviceName: toServiceId(serviceName),
-			instanceId: toInstanceId(instanceId),
+			serviceName: toServiceId(params.serviceName),
+			instanceId: toInstanceId(params.instanceId),
 		});
 		if (!instance) {
 			return sendResponse({ error: "Instance not found" }, 404);

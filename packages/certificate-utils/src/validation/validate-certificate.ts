@@ -42,24 +42,28 @@ function _validateCertTiming(body: string): ValidationResult | null {
 	return null;
 }
 
+function _tryValidate(certPem: string): ValidationResult {
+	const certData = parseCert(certPem);
+	const timingResult = _validateCertTiming(certData.body);
+	if (timingResult) {
+		return timingResult;
+	}
+	const isValid = _verifySignature(
+		certData.body,
+		certData.signature,
+		certData.issuerCert
+	);
+	return isValid
+		? { valid: true }
+		: { valid: false, reason: "Signature verification failed" };
+}
+
 export function validateCertificate(
 	input: CertificateValidationInput
 ): ValidationResult {
 	const { certPem } = input;
 	try {
-		const certData = parseCert(certPem);
-		const timingResult = _validateCertTiming(certData.body);
-		if (timingResult) {
-			return timingResult;
-		}
-		const isValid = _verifySignature(
-			certData.body,
-			certData.signature,
-			certData.issuerCert
-		);
-		return isValid
-			? { valid: true }
-			: { valid: false, reason: "Signature verification failed" };
+		return _tryValidate(certPem);
 	} catch (err) {
 		return {
 			valid: false,

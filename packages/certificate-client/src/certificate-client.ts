@@ -58,24 +58,30 @@ export class CertificateClient {
 		return client.obtainCertificate();
 	}
 
-	async obtainCertificate(): Promise<CertificateHolder> {
-		const { keyPair, csr } = await this._keyGenerator.generateKeyAndCsr();
-		const response = await this._signer.signWithCa(csr);
-		await this._store.writeCertificates(keyPair, response);
-		const cert = this._store.buildObtainedCert(keyPair, response);
+	private _logCertObtained(response: { serialNumber: string; expiresAt: string }): void {
 		logger.info("Certificate obtained", {
 			serviceId: this._config.serviceId,
 			serialNumber: response.serialNumber,
 			expiresAt: response.expiresAt,
 		});
-		this._eventEmitter.notifyOnRenew(this._config.onRenew, cert);
+	}
 
-		const scheduler = new CertRenewScheduler(
+	private _createRenewScheduler(): CertRenewScheduler {
+		return new CertRenewScheduler(
 			this._config.serviceId,
 			this._config.renewMarginMs ?? 86400000,
 			() => this.obtainCertificate().then(() => {})
 		);
+	}
 
+	async obtainCertificate(): Promise<CertificateHolder> {
+		const { keyPair, csr } = await this._keyGenerator.generateKeyAndCsr();
+		const response = await this._signer.signWithCa(csr);
+		await this._store.writeCertificates(keyPair, response);
+		const cert = this._store.buildObtainedCert(keyPair, response);
+		this._logCertObtained(response);
+		this._eventEmitter.notifyOnRenew(this._config.onRenew, cert);
+		const scheduler = this._createRenewScheduler();
 		return new CertificateHolder(cert, scheduler);
 	}
 

@@ -56,9 +56,11 @@ export class ServiceCallTracker {
 
 	snapshot(): CallTrackerSnapshot {
 		const total = this._records.length;
-		if (total === 0) {
-			return EMPTY_SNAPSHOT;
-		}
+		if (total === 0) return EMPTY_SNAPSHOT;
+		return this._buildSnapshot(total);
+	}
+
+	private _buildSnapshot(total: number): CallTrackerSnapshot {
 		const agg = this._aggregator.aggregate(this._records);
 		return {
 			totalCalls: total,

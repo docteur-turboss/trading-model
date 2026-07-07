@@ -38,14 +38,11 @@ export class CertRenewScheduler {
 	}
 
 	scheduleRenew(cert: ObtainedCertificate): void {
-		const expiresAt = cert.expiresAt.getTime();
-		const remaining = expiresAt - Date.now();
-
+		const remaining = cert.expiresAt.getTime() - Date.now();
 		if (remaining <= this._renewMarginMs) {
 			this._handleExpired();
 			return;
 		}
-
 		const delay = remaining - this._renewMarginMs;
 		this._setupTimer(delay);
 		this._logScheduled(delay, cert);

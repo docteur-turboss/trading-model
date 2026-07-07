@@ -1,12 +1,13 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
 import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { logger } from "@trading-model/common/config/logger";
-import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import type { SerialNumber } from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
 
 import { PopVerifier } from "./pop-verifier";
+import { NonceConsumer } from "./nonce-consumer";
+import { CertificateIssuer } from "./certificate-issuer";
 
 interface CertStore {
 	getBySerial(
@@ -26,13 +27,6 @@ interface CertificateAuthority {
 	signServiceCertificate(
 		request: SignServiceCertRequest
 	): Promise<SignedCertificate>;
-}
-
-class NullDistributedLock implements IDistributedLock {
-	async acquire(_lockId?: string): Promise<boolean> {
-		return true;
-	}
-	async release(_lockId?: string): Promise<void> {}
 }
 
 interface RenewalPopInput {
@@ -64,36 +58,24 @@ export interface CertRenewalDeps {
 	certStore: CertStore;
 	nonceStore: NonceStore;
 	ca: CertificateAuthority;
-	lock?: IDistributedLock;
+	lock?: import("@trading-model/common/contracts/distributed-lock.types").IDistributedLock;
 }
 
-/**
- * Domain service orchestrating certificate renewal with proof-of-possession verification.
- * Pure domain logic — no HTTP, no Express, no MongoDB.
- */
 export class CertRenewalService {
 	private readonly _popVerifier = new PopVerifier();
 	private readonly _certStore: CertStore;
-	private readonly _nonceStore: NonceStore;
-	private readonly _ca: CertificateAuthority;
-	private readonly _lock: IDistributedLock;
+	private readonly _nonceConsumer: NonceConsumer;
+	private readonly _certificateIssuer: CertificateIssuer;
 
 	constructor(deps: CertRenewalDeps) {
 		this._certStore = deps.certStore;
-		this._nonceStore = deps.nonceStore;
-		this._ca = deps.ca;
-		this._lock = deps.lock ?? new NullDistributedLock();
+		this._nonceConsumer = new NonceConsumer(deps.nonceStore);
+		this._certificateIssuer = new CertificateIssuer(deps.ca, deps.lock);
 	}
 
-	/**
-	 * Renews a certificate after verifying the client still holds the private key.
-	 *
-	 * @returns The newly issued signed certificate
-	 * @throws CertRenewalError on validation failure
-	 */
 	async renew(request: RenewCertRequest): Promise<SignedCertificate> {
 		const { serviceId, oldSerialNumber, nonce, signature, csr } = request;
-		await this._consumeNonce(nonce, serviceId);
+		await this._nonceConsumer.consume(nonce, serviceId);
 		const oldCert = await this._getOldCertificate(oldSerialNumber);
 		this._verifyPop({
 			certPem: oldCert.certPem,
@@ -102,13 +84,7 @@ export class CertRenewalService {
 			serviceId,
 			oldSerialNumber,
 		});
-		return this._issueCertificate(serviceId, csr);
-	}
-
-	private async _consumeNonce(nonce: string, serviceId: string): Promise<void> {
-		if (!(await this._nonceStore.consume({ nonce, serviceId }))) {
-			throw new CertRenewalError("Invalid or expired nonce", HTTP_STATUS.UNAUTHORIZED);
-		}
+		return this._certificateIssuer.issue(serviceId, csr);
 	}
 
 	private async _getOldCertificate(
@@ -131,24 +107,6 @@ export class CertRenewalService {
 				"Proof-of-possession failed — signature does not match certificate public key",
 				HTTP_STATUS.FORBIDDEN
 			);
-		}
-	}
-
-	private async _issueCertificate(
-		serviceId: string,
-		csr: string
-	): Promise<SignedCertificate> {
-		const acquired = await this._lock.acquire();
-		if (!acquired) {
-			throw new CertRenewalError(
-				"Could not acquire distributed lock for certificate renewal",
-				HTTP_STATUS.SERVICE_UNAVAILABLE
-			);
-		}
-		try {
-			return await this._ca.signServiceCertificate({ serviceId, csr });
-		} finally {
-			await this._lock.release();
 		}
 	}
 }

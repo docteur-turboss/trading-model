@@ -36,36 +36,47 @@ export class MessageManagerClient {
 		return this._subscriptionService.unSubscribeToTopic(topics);
 	}
 
+	private async _findService(
+		service: ServiceInstanceName
+	): Promise<{ ip: string; port: number }> {
+		const target = await this._addressManagerClient.findService(service);
+		if (!target) {
+			throw serviceUnreachableError(`Unable to contact the service: ${service}`);
+		}
+		return target;
+	}
+
+	private async _publishToService<TPayload = unknown>(
+		target: { ip: string; port: number },
+		payload: TPayload,
+		metadata: MessageMetadata
+	): Promise<void> {
+		return await this._httpClient.post(
+			`https://${target.ip}:${target.port}/message`,
+			{ payload, metadata }
+		);
+	}
+
+	private _wrapPublishError(error: unknown, service: string): never {
+		if (isServiceUnreachableError(error)) {
+			throw error;
+		}
+		throw messageManagerError(`Failed to publish message to ${service}`, {
+			cause: normalizeError(error),
+		});
+	}
+
 	async publishAsyncMessage<TPayload = unknown>(
 		payload: TPayload,
 		metadata: MessageMetadata
 	): Promise<void> {
 		try {
-			const target = await this._addressManagerClient.findService(
+			const target = await this._findService(
 				ServiceInstanceName.MessageDeliveryService
 			);
-			if (!target) {
-				throw serviceUnreachableError("Unable to contact the message manager");
-			}
-
-			const Messagepayload = {
-				payload,
-				metadata,
-			};
-
-			return await this._httpClient.post(
-				`https://${target.ip}:${target.port}/message`,
-				Messagepayload
-			);
+			return await this._publishToService(target, payload, metadata);
 		} catch (error) {
-			if (isServiceUnreachableError(error)) {
-				throw error;
-			}
-
-			throw messageManagerError(
-				"Failed to publish message to Message Manager",
-				{ cause: normalizeError(error) }
-			);
+			this._wrapPublishError(error, "Message Manager");
 		}
 	}
 
@@ -75,30 +86,10 @@ export class MessageManagerClient {
 		metadata: MessageMetadata
 	): Promise<void> {
 		try {
-			const target = await this._addressManagerClient.findService(service);
-			if (!target) {
-				throw serviceUnreachableError(
-					`Unable to contact the service: ${service}`
-				);
-			}
-
-			const Messagepayload = {
-				payload,
-				metadata,
-			};
-
-			return await this._httpClient.post(
-				`https://${target.ip}:${target.port}/message`,
-				Messagepayload
-			);
+			const target = await this._findService(service);
+			return await this._publishToService(target, payload, metadata);
 		} catch (error) {
-			if (isServiceUnreachableError(error)) {
-				throw error;
-			}
-
-			throw messageManagerError(`Failed to publish message to ${service}`, {
-				cause: normalizeError(error),
-			});
+			this._wrapPublishError(error, service);
 		}
 	}
 }

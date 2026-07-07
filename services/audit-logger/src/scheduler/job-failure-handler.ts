@@ -48,33 +48,24 @@ export class JobFailureHandler {
 		logger.warn("Job failed permanently", { context: { jobId, error } });
 	}
 
-	async handleRetryableFailure(
-		jobId: JobId,
-		job: Job,
-		_error: string
-	): Promise<void> {
+	async handleRetryableFailure(jobId: JobId, job: Job, _error: string): Promise<void> {
 		const newDeadline = Date.now() + ENV.ACK_TIMEOUT_MS;
-		const updatedJob: Job = {
+		const updatedJob = this._buildRetryJob(job, newDeadline);
+		this._queue.enqueue(updatedJob);
+		await this._repository.incrementRetry(jobId);
+		await this._repository.updateStatus(jobId, JOB_STATUS.QUEUED, { ackDeadline: newDeadline });
+		logger.info("Job re-queued after failure", { context: { jobId, retryCount: updatedJob.retryCount } });
+		this._assignmentManager.distributeNext();
+	}
+
+	private _buildRetryJob(job: Job, newDeadline: number): Job {
+		return {
 			...job,
 			status: JOB_STATUS.QUEUED,
 			ackDeadline: newDeadline,
 			retryCount: job.retryCount + 1,
 			assignedWorkerId: undefined,
 		};
-
-		this._queue.enqueue(updatedJob);
-		await this._repository.incrementRetry(jobId);
-		await this._repository.updateStatus(jobId, JOB_STATUS.QUEUED, {
-			ackDeadline: newDeadline,
-		});
-
-		logger.info("Job re-queued after failure", {
-			context: {
-				jobId,
-				retryCount: updatedJob.retryCount,
-			},
-		});
-		this._assignmentManager.distributeNext();
 	}
 
 	private _logFindJobError(jobId: JobId, err: unknown): void {

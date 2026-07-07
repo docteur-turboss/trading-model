@@ -7,7 +7,7 @@ import {
 	SCHEMA_METADATA_VERSION_PREDICATE, SECURITY_METADATA_CONTEXT_PREDICATE,
 	TOPIC_METADATA_PREDICATE,
 } from "./message.schema";
-import { MessageChainingMetadata } from "./message-chaining-metadata";
+import { type ChainingMetadata, MessageChainingMetadata, NullMessageChainingMetadata } from "./message-chaining-metadata";
 
 export class MessageMetadata {
 	public topic: Topic;
@@ -17,7 +17,7 @@ export class MessageMetadata {
 	public security?: SecurityType;
 	public delivery?: DeliveryType;
 	public routing?: RoutingType;
-	private _chaining?: MessageChainingMetadata;
+	private _chaining: ChainingMetadata;
 
 	public constructor(topic: string, eventType: EventEnumMap, publisher: ServiceIdentity, data: Partial<Omit<MetadataType, "topic" | "eventType" | "publisher">> = {}) {
 		TOPIC_METADATA_PREDICATE.parse(topic);
@@ -29,11 +29,13 @@ export class MessageMetadata {
 		if (data.routing) this.routing = data.routing;
 		if (data.delivery) this.delivery = data.delivery;
 		if (data.security) this.security = data.security;
-		if (data.causationId || data.correlationId) this._chaining = new MessageChainingMetadata({ causationId: data.causationId, correlationId: data.correlationId });
+		this._chaining = (data.causationId || data.correlationId)
+			? new MessageChainingMetadata({ causationId: data.causationId, correlationId: data.correlationId })
+			: new NullMessageChainingMetadata();
 	}
 
-	public get causationId(): CorrelationId | undefined { return this._chaining?.causationId; }
-	public get correlationId(): CorrelationId | undefined { return this._chaining?.correlationId; }
+	public get causationId(): CorrelationId | undefined { return this._chaining.causationId; }
+	public get correlationId(): CorrelationId | undefined { return this._chaining.correlationId; }
 
 	public setSecurity(context: SecurityType | null): this {
 		if (context === null) { this.security = undefined; return this; }
@@ -76,19 +78,15 @@ export class MessageMetadata {
 	}
 	public setIds(context: { causationId?: string; correlationId?: string } | null): this {
 		if (context === null) {
-			this._chaining = undefined;
+			this._chaining = new NullMessageChainingMetadata();
 			return this;
 		}
-		if (!this._chaining) {
-			if (!(context.causationId || context.correlationId)) return this;
-			this._chaining = new MessageChainingMetadata(context);
-			return this;
-		}
-		this._chaining.setIds(context);
+		if (!(context.causationId || context.correlationId)) return this;
+		this._chaining = new MessageChainingMetadata(context);
 		return this;
 	}
 
 	public toJSON(): MetadataType {
-		return { eventType: this.eventType, publisher: this.publisher, schemaVersion: this.schemaVersion, topic: this.topic, ...this._chaining?.toJSON(), delivery: this.delivery, routing: this.routing, security: this.security };
+		return { eventType: this.eventType, publisher: this.publisher, schemaVersion: this.schemaVersion, topic: this.topic, ...this._chaining.toJSON(), delivery: this.delivery, routing: this.routing, security: this.security };
 	}
 }

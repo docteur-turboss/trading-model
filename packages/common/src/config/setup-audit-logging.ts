@@ -17,13 +17,13 @@ interface ServiceResolver {
  *     key: env.TLS_KEY_PATH, cert: env.TLS_CERT_PATH, ca: env.TLS_CA_PATH,
  *   });
  */
-export function setupAuditLogging(
+function _buildAuditResolver(
 	loggerInstance: typeof logger,
 	addressManager: ServiceResolver,
 	tlsPaths: TlsPaths
-): void {
+): () => Promise<{ url: string; tls: TlsPaths } | null> {
 	let connected = false;
-	loggerInstance.setAuditResolver(async () => {
+	return async () => {
 		try {
 			const target = await addressManager.findService(
 				ServiceInstanceName.AuditLoggerService
@@ -37,7 +37,17 @@ export function setupAuditLogging(
 		} catch {
 			return null;
 		}
-	});
+	};
+}
+
+export function setupAuditLogging(
+	loggerInstance: typeof logger,
+	addressManager: ServiceResolver,
+	tlsPaths: TlsPaths
+): void {
+	loggerInstance.setAuditResolver(
+		_buildAuditResolver(loggerInstance, addressManager, tlsPaths)
+	);
 }
 
 function _logFirstConnection(

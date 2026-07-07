@@ -48,13 +48,20 @@ async function executeAutoRetryReplay(
 		batchId,
 		instanceId: ENV.INSTANCE_ID,
 	});
+	_emitRetryMetrics(result);
+	return result;
+}
+
+function _emitRetryMetrics(result: {
+	success: number;
+	errors: Array<{ id: string; error: string }>;
+}): void {
 	if (result.success > 0) {
 		metrics.entriesReplayed.inc(result.success);
 	}
 	if (result.errors.length > 0) {
 		metrics.entriesReplayFailed.inc(result.errors.length);
 	}
-	return result;
 }
 
 async function _executeAutoRetryCycle(

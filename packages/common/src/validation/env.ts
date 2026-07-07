@@ -112,25 +112,30 @@ export function validateEnv<TSchema extends z.ZodType>(
 	schema: TSchema
 ): z.infer<TSchema> {
 	const parsed = schema.safeParse(process.env);
-
 	if (!parsed.success) {
-		let errors: unknown = parsed.error;
-		if (typeof z.treeifyError === "function") {
-			try {
-				errors = z.treeifyError(parsed.error);
-			} catch (err) {
-				logger.warn("Failed to treeify Zod error, using raw format", {
-					context: {
-						err: normalizeError(err),
-					},
-				});
-			}
-		}
-		console.error("Invalid environment configuration", { errors });
-		throw configurationError("Environment validation failed", {
-			cause: parsed.error,
-		});
+		_handleValidationError(parsed.error);
 	}
-
 	return parsed.data;
+}
+
+function _treeifyErrors(error: z.ZodError): unknown {
+	if (typeof z.treeifyError !== "function") {
+		return error;
+	}
+	try {
+		return z.treeifyError(error);
+	} catch (err) {
+		logger.warn("Failed to treeify Zod error, using raw format", {
+			context: { err: normalizeError(err) },
+		});
+		return error;
+	}
+}
+
+function _handleValidationError(error: z.ZodError): never {
+	const errors = _treeifyErrors(error);
+	console.error("Invalid environment configuration", { errors });
+	throw configurationError("Environment validation failed", {
+		cause: error,
+	});
 }

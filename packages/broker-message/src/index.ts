@@ -5,6 +5,7 @@ import type {
 } from "@trading-model/common/config/event.types";
 import { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type { Application } from "express";
 
@@ -38,7 +39,7 @@ export default class BrokerMessage {
 		instanceId,
 		serviceName,
 	}: {
-		instanceId: string;
+		instanceId: InstanceId;
 		callbackPath?: string;
 		tlsPaths: TlsPaths;
 		addressManagerClient: addressManagerClient;

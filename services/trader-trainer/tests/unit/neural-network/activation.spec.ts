@@ -123,12 +123,12 @@ describe("Activation Functions", () => {
 	});
 
 	describe("softmax", () => {
-		test("fn should return input unchanged", () => {
-			expect(ACTIVATIONS.softmax.fn(5)).toBe(5);
+		test("fn should throw when called directly (use ActivationComputer.applySoftmax instead)", () => {
+			expect(() => ACTIVATIONS.softmax.fn(5)).toThrow();
 		});
 
-		test("derivative should return 1", () => {
-			expect(ACTIVATIONS.softmax.derivative(0, 0)).toBe(1);
+		test("derivative should throw when called directly (use OutputDeltaComputer instead)", () => {
+			expect(() => ACTIVATIONS.softmax.derivative(0, 0)).toThrow();
 		});
 	});
 });

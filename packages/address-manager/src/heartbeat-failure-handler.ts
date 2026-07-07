@@ -9,21 +9,11 @@ export class HeartbeatFailureHandler {
 
 	constructor(private readonly _deps: AddressManagerDeps) {}
 
-	async handleError(
-		err: unknown,
-		onSuccess?: () => void,
-		onFailure?: () => void
-	): Promise<void> {
+	async handleError(err: unknown, onSuccess?: () => void, onFailure?: () => void): Promise<void> {
 		onFailure?.();
 		this._consecutiveHeartbeatFailures++;
-		logger.error("Heartbeat failed", {
-			consecutiveFailures: this._consecutiveHeartbeatFailures,
-			error: normalizeError(err),
-		});
-		if (
-			this._consecutiveHeartbeatFailures >=
-			MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
-		) {
+		logger.error("Heartbeat failed", { consecutiveFailures: this._consecutiveHeartbeatFailures, error: normalizeError(err) });
+		if (this._consecutiveHeartbeatFailures >= MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER) {
 			this._consecutiveHeartbeatFailures = 0;
 			await this._forceReRegistration(onSuccess);
 		}
@@ -36,6 +26,16 @@ export class HeartbeatFailureHandler {
 
 	private async _forceReRegistration(onSuccess?: () => void): Promise<void> {
 		logger.warn("Too many heartbeat failures — forcing re-registration");
+		await this._tryReRegistration(onSuccess);
+	}
+
+	private async _handleHeartbeatFailure(): Promise<void> {
+		if (!this._deps.addressManagerClient.hasIpChanged()) return;
+		logger.warn("Local IP changed, re-registering service");
+		await this._tryReRegistration();
+	}
+
+	private async _tryReRegistration(onSuccess?: () => void): Promise<void> {
 		try {
 			const res = await this._deps.addressManagerClient.registerService();
 			if (res?.token) {
@@ -43,28 +43,8 @@ export class HeartbeatFailureHandler {
 				this._deps.tokenManager.setToken(res.token);
 				this._deps.wsClient?.updateToken(res.token);
 			}
-		} catch (registerErr) {
-			logger.error("Re-registration after heartbeat failures failed", {
-				error: normalizeError(registerErr),
-			});
-		}
-	}
-
-	private async _handleHeartbeatFailure(): Promise<void> {
-		if (!this._deps.addressManagerClient.hasIpChanged()) {
-			return;
-		}
-		logger.warn("Local IP changed, re-registering service");
-		try {
-			const res = await this._deps.addressManagerClient.registerService();
-			if (res) {
-				this._deps.tokenManager.setToken(res.token);
-				this._deps.wsClient?.updateToken(res.token);
-			}
 		} catch (err) {
-			logger.error("Re-registration after IP change failed", {
-				error: normalizeError(err),
-			});
+			logger.error("Re-registration failed", { error: normalizeError(err) });
 		}
 	}
 }

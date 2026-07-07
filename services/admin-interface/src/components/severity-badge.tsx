@@ -8,9 +8,9 @@ const SEVERITY_STYLES: Record<Severity, { color: string; bg: string }> = {
 	CRITICAL: { color: "#b71c1c", bg: "#fce4ec" },
 };
 
-function getSeverityStyle(severity: string): { color: string; bg: string } {
+function getSeverityStyle(severity: Severity): { color: string; bg: string } {
 	return (
-		SEVERITY_STYLES[severity.toUpperCase() as Severity] ?? {
+		SEVERITY_STYLES[severity] ?? {
 			color: "#757575",
 			bg: "#f5f5f5",
 		}
@@ -18,14 +18,14 @@ function getSeverityStyle(severity: string): { color: string; bg: string } {
 }
 
 interface SeverityBadgeProps {
-	severity: string;
+	severity: Severity;
 }
 
 function SeverityChip({
 	severity,
 	style,
 }: {
-	severity: string;
+	severity: Severity;
 	style: { color: string; bg: string };
 }) {
 	return (

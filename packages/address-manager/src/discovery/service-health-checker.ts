@@ -75,6 +75,10 @@ export class ServiceHealthChecker {
 	 *
 	 * @private
 	 */
+	/**
+	 * Stub: latency tracking is delegated to the circuit breaker.
+	 * Override in subclasses that need per-instance latency histograms.
+	 */
 	recordLatency(
 		_instanceId: string,
 		_durationMs: number,

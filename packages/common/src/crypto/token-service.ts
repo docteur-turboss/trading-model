@@ -119,20 +119,25 @@ export function validInstanceToken(input: TokenValidationInput): boolean {
 	if (!_checkLegacyTimestamp(format, options)) {
 		return false;
 	}
-	if (
-		!verifyHmac({
-			encodedId: format.encodedId,
-			payloadParts: format.payloadParts,
-			signature: format.signature,
-			signingSecret,
-		})
-	) {
+	if (!_verifyFormatHmac(format, signingSecret)) {
 		return false;
 	}
 	if (storedToken === token) {
 		return true;
 	}
 	return _verifyStoredToken(storedToken, signingSecret, options);
+}
+
+function _verifyFormatHmac(
+	format: TokenFormat,
+	signingSecret: string
+): boolean {
+	return verifyHmac({
+		encodedId: format.encodedId,
+		payloadParts: format.payloadParts,
+		signature: format.signature,
+		signingSecret,
+	});
 }
 
 interface HmacVerificationInput {

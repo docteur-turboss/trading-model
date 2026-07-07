@@ -102,31 +102,9 @@ describe("RedisCache", () => {
 		expect(mockRedisInstance.setex).not.toHaveBeenCalled();
 	});
 
-	it("should publish message", async () => {
-		const cache = createCache("redis://localhost:6379");
-		await cache.publish("chan", "msg");
-		expect(mockRedisInstance.publish).toHaveBeenCalledWith("chan", "msg");
-	});
-
 	it("should make prefixed key", () => {
 		const cache = new NullCache();
 		expect(cache.makeKey(["a", "b"])).toBe("ca-cache:a:b");
-	});
-
-	it("should subscribe and return unsubscribe function", async () => {
-		const cache = createCache("redis://localhost:6379");
-		const handler = jest.fn();
-		const unsub = await cache.subscribe("chan", handler);
-		expect(mockRedisInstance.duplicate).toHaveBeenCalled();
-		expect(typeof unsub).toBe("function");
-		unsub();
-		expect(mockRedisInstance.removeListener).toHaveBeenCalled();
-	});
-
-	it("should return noop unsubscribe when disabled", async () => {
-		const cache = new NullCache();
-		const unsub = await cache.subscribe("chan", jest.fn());
-		expect(unsub).toBeDefined();
 	});
 
 	it("should clear all cache keys with SCAN", async () => {

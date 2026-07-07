@@ -64,17 +64,11 @@ export class WssSubscriptionManager {
 	}
 
 	broadcastToTopic(topic: string, message: unknown): number {
-		let count = 0;
 		const payload = JSON.stringify({ type: "message", topic, message });
-		const entries = [...this._subscriptions];
-		for (const [key, sub] of entries) {
-			if (sub.topics.has(topic) && sub.ws.readyState === WebSocket.OPEN) {
-				try {
-					sub.ws.send(payload);
-					count++;
-				} catch {
-					this._subscriptions.delete(key);
-				}
+		let count = 0;
+		for (const [key, sub] of [...this._subscriptions]) {
+			if (this._isSubscribedToTopic(sub, topic)) {
+				count += this._trySendAndTrack(key, sub, payload) ? 1 : 0;
 			}
 		}
 		return count;
@@ -82,15 +76,44 @@ export class WssSubscriptionManager {
 
 	broadcast(message: unknown): void {
 		const payload = JSON.stringify(message);
-		const entries = [...this._subscriptions];
-		for (const [key, sub] of entries) {
-			if (sub.ws.readyState === WebSocket.OPEN) {
-				try {
-					sub.ws.send(payload);
-				} catch {
-					this._subscriptions.delete(key);
-				}
-			}
+		for (const [key, sub] of [...this._subscriptions]) {
+			this._trySend(key, sub, payload);
+		}
+	}
+
+	private _isSubscribedToTopic(
+		sub: WsSubscription,
+		topic: string
+	): boolean {
+		return sub.topics.has(topic) && sub.ws.readyState === WebSocket.OPEN;
+	}
+
+	private _trySendAndTrack(
+		key: string,
+		sub: WsSubscription,
+		payload: string
+	): boolean {
+		try {
+			sub.ws.send(payload);
+			return true;
+		} catch {
+			this._subscriptions.delete(key);
+			return false;
+		}
+	}
+
+	private _trySend(
+		key: string,
+		sub: WsSubscription,
+		payload: string
+	): void {
+		if (sub.ws.readyState !== WebSocket.OPEN) {
+			return;
+		}
+		try {
+			sub.ws.send(payload);
+		} catch {
+			this._subscriptions.delete(key);
 		}
 	}
 

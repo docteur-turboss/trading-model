@@ -8,7 +8,7 @@ import {
 	OPTIMIZERS,
 	type OptimizerHyperparams,
 } from "./optimizer";
-import type { LayerMemory, NeuralNetworkConfig } from "./type";
+import type { LayerMemory, LayerWeights, NeuralNetworkConfig } from "./type";
 import {
 	ActivationType,
 	ConnectionType,
@@ -87,7 +87,7 @@ function _initializeBiases(
 function _initLayerParams(
 	dims: LayerDims,
 	config: Required<NeuralNetworkConfig>
-): { weights: Float32Array; bias: Float32Array } {
+): LayerWeights {
 	return {
 		weights: _initializeWeights(dims, config),
 		bias: _initializeBiases(dims, config),

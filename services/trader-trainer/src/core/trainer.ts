@@ -64,29 +64,37 @@ export class Trainer {
 		}
 
 		this._status = "training";
-		const session = new TrainingSession(validation.windowSet);
 
 		try {
-			const result: TrainingSessionResult = await session.run();
-			this._trainingState.update({
-				symbol,
-				bestGenome: result.bestGenome,
-				generation: result.generation,
-				generationContext: result.generationContext,
-			});
-			logger.info("Training complete", {
-				context: { symbol, bestFitness: result.bestGenome.fitness ?? 0 },
-			});
-			return { success: true, symbol, bestGenome: result.bestGenome };
+			return await this._runSession(symbol, validation.windowSet);
 		} catch (err) {
-			const error = err instanceof Error ? err : new Error(String(err));
-			logger.error("Training failed", {
-				context: { symbol, err: error.message },
-			});
-			return { success: false, symbol, error };
+			return this._handleTrainingError(symbol, err);
 		} finally {
 			this._status = "idle";
 		}
+	}
+
+	private async _runSession(symbol: TradingSymbol, windowSet: import("./genetic-algorithm/ga-runner").WindowSet): Promise<TrainingSuccess> {
+		const session = new TrainingSession(windowSet);
+		const result: TrainingSessionResult = await session.run();
+		this._trainingState.update({
+			symbol,
+			bestGenome: result.bestGenome,
+			generation: result.generation,
+			generationContext: result.generationContext,
+		});
+		logger.info("Training complete", {
+			context: { symbol, bestFitness: result.bestGenome.fitness ?? 0 },
+		});
+		return { success: true, symbol, bestGenome: result.bestGenome };
+	}
+
+	private _handleTrainingError(symbol: TradingSymbol, err: unknown): TrainingFailure {
+		const error = err instanceof Error ? err : new Error(String(err));
+		logger.error("Training failed", {
+			context: { symbol, err: error.message },
+		});
+		return { success: false, symbol, error };
 	}
 
 	getBestAgentSummary(): BestAgentSummary | null {

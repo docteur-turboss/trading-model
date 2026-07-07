@@ -1,6 +1,13 @@
 import { Chip } from "@mui/material";
+import type {
+	AdminJobStatus,
+	AdminWorkerStatus,
+	ServiceStatus,
+} from "@trading-model/common/contracts/admin";
 
 type MuiColor = "success" | "warning" | "error" | "default" | "info";
+
+type StatusValue = AdminJobStatus | AdminWorkerStatus | ServiceStatus | (string & {});
 
 const STATUS_COLORS: Record<string, MuiColor> = {
 	healthy: "success",
@@ -20,7 +27,7 @@ const STATUS_COLORS: Record<string, MuiColor> = {
 };
 
 interface StatusBadgeProps {
-	status: string;
+	status: StatusValue;
 	label?: string;
 }
 

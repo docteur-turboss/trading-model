@@ -1,4 +1,3 @@
-import { logger } from "@trading-model/common/config/logger";
 import {
 	type CircuitState,
 	CircuitBreaker as SharedCB,
@@ -13,7 +12,6 @@ interface BinanceCircuitBreakerConfig {
 
 /**
  * Tracks concurrent probe requests when the circuit is in half-open state.
- * Only meaningful during half-open — resets on success, failure, or explicit clear.
  */
 class HalfOpenProbeTracker {
 	private _probes = 0;
@@ -32,7 +30,7 @@ class HalfOpenProbeTracker {
 
 /**
  * High-level circuit breaker wrapping the shared CircuitBreaker.
- * Adds async call() with automatic fallback and half-open probing.
+ * Adds half-open probe limiting on top of the base call().
  */
 export class BinanceCircuitBreaker implements ICircuitBreaker {
 	private readonly _inner: SharedCB;
@@ -71,7 +69,6 @@ export class BinanceCircuitBreaker implements ICircuitBreaker {
 	recordFailure(_key: string, _count?: number, _threshold?: number): void {
 		this._inner.recordFailure(this._name);
 		this._halfOpenTracker.reset();
-		logger.warn(`Circuit breaker recorded failure: ${this._name}`);
 	}
 
 	isOpen(_key: string): boolean {
@@ -91,40 +88,19 @@ export class BinanceCircuitBreaker implements ICircuitBreaker {
 		this._inner.clear();
 	}
 
-	async call<TValue>(
-		fn: () => Promise<TValue>,
-		fallback?: () => TValue
-	): Promise<TValue> {
+	async call<TResult>(
+		_key: string,
+		fn: () => Promise<TResult>,
+		fallback?: () => TResult,
+	): Promise<TResult> {
 		const state = this._inner.check(this._name);
-
-		if (state === "open") {
-			if (fallback) {
-				return fallback();
-			}
-			throw new Error(`Circuit breaker OPEN: ${this._name}`);
-		}
-
 		if (state === "half-open" && !this._halfOpenTracker.tryProbe()) {
 			if (fallback) {
 				return fallback();
 			}
 			throw new Error(`Circuit breaker OPEN: ${this._name}`);
 		}
-
-		try {
-			const result = await fn();
-			this._inner.recordSuccess(this._name);
-			this._halfOpenTracker.reset();
-			return result;
-		} catch (error) {
-			this._inner.recordFailure(this._name);
-			this._halfOpenTracker.reset();
-			logger.warn(`Circuit breaker recorded failure: ${this._name}`);
-			if (fallback) {
-				return fallback();
-			}
-			throw error;
-		}
+		return this._inner.call(this._name, fn, fallback);
 	}
 }
 

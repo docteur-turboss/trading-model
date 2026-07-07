@@ -78,7 +78,7 @@ export function createTlsBootstrap(
 	return _createTlsBootstrap(config);
 }
 
-async function loadServerDependencies(): Promise<{
+interface ServerDeps {
 	configureApp: (opts: {
 		rateLimit?: import("@trading-model/common/server/configure-app").RateLimitConfig;
 		trustProxy?: boolean;
@@ -89,20 +89,25 @@ async function loadServerDependencies(): Promise<{
 		app: import("express").Application,
 		opts: HttpsServerOptions
 	) => Promise<HttpServer>;
-}> {
-	const [configureAppMod, mtlsAuthMod, responseProtocolMod, serverFactoryMod] =
-		await Promise.all([
-			import("@trading-model/common/server/configure-app"),
-			import("@trading-model/common/middleware/mtls-auth"),
-			import("@trading-model/common/middleware/response-protocol"),
-			import("@trading-model/common/server/server-factory"),
-		]);
+}
+
+function _extractServerDeps(modules: [typeof import("@trading-model/common/server/configure-app"), typeof import("@trading-model/common/middleware/mtls-auth"), typeof import("@trading-model/common/middleware/response-protocol"), typeof import("@trading-model/common/server/server-factory")]): ServerDeps {
 	return {
-		configureApp: configureAppMod.configureApp,
-		mtlsAuthMiddleware: mtlsAuthMod.MTLSAuthMiddleware,
-		responseProtocol: responseProtocolMod.ResponseProtocol as unknown as import("express").RequestHandler,
-		createAndStartHttpsServer: serverFactoryMod.createAndStartHttpsServer,
+		configureApp: modules[0].configureApp,
+		mtlsAuthMiddleware: modules[1].MTLSAuthMiddleware,
+		responseProtocol: modules[2].ResponseProtocol as unknown as import("express").RequestHandler,
+		createAndStartHttpsServer: modules[3].createAndStartHttpsServer,
 	};
+}
+
+async function loadServerDependencies(): Promise<ServerDeps> {
+	const modules = await Promise.all([
+		import("@trading-model/common/server/configure-app"),
+		import("@trading-model/common/middleware/mtls-auth"),
+		import("@trading-model/common/middleware/response-protocol"),
+		import("@trading-model/common/server/server-factory"),
+	]);
+	return _extractServerDeps(modules);
 }
 
 function setupAutoRenew(server: HttpServer, config: BootstrapConfig): void {
@@ -120,16 +125,12 @@ function setupAutoRenew(server: HttpServer, config: BootstrapConfig): void {
 	_startAutoRenew(client);
 }
 
-async function _createServerApp(
-	options: CreateHttpsServerOptions,
-	tls: TlsPaths
-): Promise<HttpServer> {
-	const {
-		configureApp,
-		mtlsAuthMiddleware,
-		responseProtocol,
-		createAndStartHttpsServer,
-	} = await loadServerDependencies();
+function _configureAppWithMiddleware(
+	configureApp: ServerDeps["configureApp"],
+	mtlsAuthMiddleware: ServerDeps["mtlsAuthMiddleware"],
+	responseProtocol: ServerDeps["responseProtocol"],
+	options: CreateHttpsServerOptions
+): import("express").Application {
 	const app = configureApp({
 		rateLimit: options.rateLimit,
 		trustProxy: options.trustProxy,
@@ -137,7 +138,21 @@ async function _createServerApp(
 	app.use(mtlsAuthMiddleware);
 	options.routes(app);
 	app.use(responseProtocol);
-	const server = await createAndStartHttpsServer(app, {
+	return app;
+}
+
+async function _createServerApp(
+	options: CreateHttpsServerOptions,
+	tls: TlsPaths
+): Promise<HttpServer> {
+	const deps = await loadServerDependencies();
+	const app = _configureAppWithMiddleware(
+		deps.configureApp,
+		deps.mtlsAuthMiddleware,
+		deps.responseProtocol,
+		options
+	);
+	const server = await deps.createAndStartHttpsServer(app, {
 		port: options.port,
 		tls,
 		watchTls: options.watchTls ?? true,

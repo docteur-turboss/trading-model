@@ -30,7 +30,7 @@ jest.mock("@trading-model/common/utils/errors", () => ({
 	),
 }));
 
-import { VaultTransitClient } from "../src/vault-transit-client";
+import { VaultTransitClient } from "../src/vault/vault-transit-client";
 
 function createClient(overrides: Record<string, any> = {}): VaultTransitClient {
 	return new VaultTransitClient({

@@ -62,7 +62,7 @@ function _refillBucket(bucket: RateLimitBucket): void {
 
 function shouldRetry(error: AxiosError): boolean {
 	if (!error.response) {
-		return true; // network error → retry
+		return true;
 	}
 
 	return isRetryableStatusPermissive(error.response.status);

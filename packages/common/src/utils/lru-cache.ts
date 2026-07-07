@@ -31,10 +31,24 @@ export class LruCache<TValue> implements ICache<TValue> {
 		if (!entry) {
 			return;
 		}
-		if (this._ttlMs > 0 && Date.now() > entry.expiresAt) {
+		if (this._isExpired(entry)) {
 			this._store.delete(key);
 			return;
 		}
+		return this._touchAndReturn(key, entry);
+	}
+
+	private _isExpired(entry: {
+		value: TValue;
+		expiresAt: number;
+	}): boolean {
+		return this._ttlMs > 0 && Date.now() > entry.expiresAt;
+	}
+
+	private _touchAndReturn(
+		key: string,
+		entry: { value: TValue; expiresAt: number }
+	): TValue {
 		this._store.delete(key);
 		this._store.set(key, entry);
 		return entry.value;

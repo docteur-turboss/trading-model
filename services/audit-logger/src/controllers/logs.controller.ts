@@ -26,22 +26,32 @@ function _buildLogQueryParams(
 
 export function getLogsController(logRepo: LogRepository) {
 	return {
-		listLogs: catchSync(async (req) => {
-			const result = await logRepo.query(_buildLogQueryParams(req));
-			return sendResponse(result, 200);
-		}),
-
-		getLogStats: catchSync(async () => {
-			const stats = await logRepo.getStats();
-			return sendResponse(stats, 200);
-		}),
-
-		getLogById: catchSync(async (req) => {
-			const doc = await logRepo.findById(String(req.params.id));
-			if (!doc) {
-				return sendResponse({ error: "Log entry not found" }, 404);
-			}
-			return sendResponse(doc, 200);
-		}),
+		listLogs: _createListLogsHandler(logRepo),
+		getLogStats: _createGetLogStatsHandler(logRepo),
+		getLogById: _createGetLogByIdHandler(logRepo),
 	};
+}
+
+function _createListLogsHandler(logRepo: LogRepository): import("express").RequestHandler {
+	return catchSync(async (req) => {
+		const result = await logRepo.query(_buildLogQueryParams(req));
+		return sendResponse(result, 200);
+	});
+}
+
+function _createGetLogStatsHandler(logRepo: LogRepository): import("express").RequestHandler {
+	return catchSync(async () => {
+		const stats = await logRepo.getStats();
+		return sendResponse(stats, 200);
+	});
+}
+
+function _createGetLogByIdHandler(logRepo: LogRepository): import("express").RequestHandler {
+	return catchSync(async (req) => {
+		const doc = await logRepo.findById(String(req.params.id));
+		if (!doc) {
+			return sendResponse({ error: "Log entry not found" }, 404);
+		}
+		return sendResponse(doc, 200);
+	});
 }

@@ -127,22 +127,19 @@ async function _doPostWebhook(webhookUrl: string, body: string): Promise<void> {
 	logWebhookResult(res, webhookUrl);
 }
 
-export async function sendAlertWebhook(options: {
+interface SendAlertWebhookOptions {
 	webhookUrl: string | undefined;
 	title: string;
 	message: string;
 	severity?: "info" | "warning" | "error";
 	labels?: Record<string, string>;
-}): Promise<void> {
+}
+
+export async function sendAlertWebhook(options: SendAlertWebhookOptions): Promise<void> {
 	const { webhookUrl, title, message, severity = "error", labels } = options;
-	if (!webhookUrl) {
-		return;
-	}
+	if (!webhookUrl) return;
 	try {
-		await _doPostWebhook(
-			webhookUrl,
-			buildWebhookPayload(title, message, severity, labels)
-		);
+		await _doPostWebhook(webhookUrl, buildWebhookPayload(title, message, severity, labels));
 	} catch (err) {
 		logWebhookError(err, webhookUrl);
 	}

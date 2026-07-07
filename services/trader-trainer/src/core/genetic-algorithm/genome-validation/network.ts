@@ -14,32 +14,35 @@ import {
 	VALID_NORM_TYPES,
 } from "./utils";
 
+function _createDefaultHiddenLayer(): LayerGenome {
+	return {
+		neurons: 32,
+		activation: ActivationType.Relu,
+		connectionType: ConnectionType.DenseSkip,
+		biasType: InitialisationType.Zeros,
+	};
+}
+
+function _validateEnumField(
+	ctx: ValidationContext,
+	path: string,
+	value: unknown,
+	validSet: Set<unknown>,
+	label: string
+): void {
+	if (!validSet.has(value)) {
+		err({ ...ctx, path }, `unknown ${label}`, value);
+	}
+}
+
 export function validateLayer(
 	ctx: ValidationContext,
 	layer: LayerGenome
 ): void {
 	checkPositiveInt({ ...ctx, path: `${ctx.path}.neurons` }, layer.neurons);
-	if (!VALID_ACTIVATIONS.has(layer.activation)) {
-		err(
-			{ ...ctx, path: `${ctx.path}.activation` },
-			"unknown activation type",
-			layer.activation
-		);
-	}
-	if (!VALID_CONNECTION_TYPES.has(layer.connectionType)) {
-		err(
-			{ ...ctx, path: `${ctx.path}.connectionType` },
-			"unknown connection type",
-			layer.connectionType
-		);
-	}
-	if (!VALID_BIAS_TYPES.has(layer.biasType)) {
-		err(
-			{ ...ctx, path: `${ctx.path}.biasType` },
-			"unknown bias type",
-			layer.biasType
-		);
-	}
+	_validateEnumField(ctx, `${ctx.path}.activation`, layer.activation, VALID_ACTIVATIONS, "activation type");
+	_validateEnumField(ctx, `${ctx.path}.connectionType`, layer.connectionType, VALID_CONNECTION_TYPES, "connection type");
+	_validateEnumField(ctx, `${ctx.path}.biasType`, layer.biasType, VALID_BIAS_TYPES, "bias type");
 }
 
 export function validateNetwork(
@@ -86,26 +89,16 @@ function repairLayer(layer: LayerGenome): LayerGenome {
 	};
 }
 
+function _repairHiddenLayers(network: NetworkGenome): LayerGenome[] {
+	const layers = (Array.isArray(network.hiddenLayers) ? network.hiddenLayers : []).map(repairLayer);
+	return layers.length > 0 ? layers : [_createDefaultHiddenLayer()];
+}
+
 export function repairNetwork(network: NetworkGenome): NetworkGenome {
-	let hiddenLayers: LayerGenome[] = (
-		Array.isArray(network.hiddenLayers) ? network.hiddenLayers : []
-	).map((layer) => repairLayer(layer));
-
-	if (hiddenLayers.length === 0) {
-		hiddenLayers = [
-			{
-				neurons: 32,
-				activation: ActivationType.Relu,
-				connectionType: ConnectionType.DenseSkip,
-				biasType: InitialisationType.Zeros,
-			},
-		];
-	}
-
 	return {
 		inputDim: Math.max(1, Math.round(network.inputDim ?? 1)),
 		outputDim: Math.max(1, Math.round(network.outputDim ?? 1)),
-		hiddenLayers,
+		hiddenLayers: _repairHiddenLayers(network),
 		normalization: VALID_NORM_TYPES.has(network.normalization)
 			? network.normalization
 			: NormalisationType.None,

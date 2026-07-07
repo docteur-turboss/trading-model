@@ -42,7 +42,7 @@ jest.mock("../src/generate-key-pair", () => ({
 }));
 
 import { generateKeyPairWithId } from "../src/generate-key-pair";
-import { FileKeyVault } from "../src/key-vault";
+import { FileKeyVault } from "../src/vault/key-vault";
 
 describe("FileKeyVault", () => {
 	let vault: FileKeyVault;

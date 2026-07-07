@@ -1,6 +1,10 @@
 import { randomBytes } from "node:crypto";
 import type { RedisConnectionConfig } from "@trading-model/common/config/redis-config";
 import type {
+	IInstanceQuery,
+	IInstanceRegistration,
+	ILifecycle,
+	ITokenManager,
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
@@ -26,7 +30,9 @@ import { StaleInstanceCleaner } from "./stale-instance-cleaner";
 import { TokenHandler } from "./token-handler";
 import { TokenService } from "./token-service";
 
-export class RedisRegistryBackend implements RegistryBackend {
+export class RedisRegistryBackend
+	implements IInstanceRegistration, IInstanceQuery, ITokenManager, ILifecycle
+{
 	private readonly _instances: RedisInstanceRepository;
 	private readonly _tokenHandler: TokenHandler;
 	private readonly _lifecycle: RedisBackendLifecycle;

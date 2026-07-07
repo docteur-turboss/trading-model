@@ -18,6 +18,36 @@ function getKeepAliveAgent(): https.Agent {
 	return sharedAgent;
 }
 
+function _buildDefaultHeaders(
+	options: HttpRequestOptions & Partial<TlsPemBundle>
+): Record<string, string> {
+	return {
+		"Content-Type": "application/json",
+		"Accept-Encoding": "gzip, deflate",
+		...(options?.headers ?? {}),
+	};
+}
+
+function _buildUrlParts(url: URL): { hostname: string; port: number; path: string } {
+	return {
+		hostname: url.hostname,
+		port: Number(url.port) || 443,
+		path: url.pathname + url.search,
+	};
+}
+
+function _buildTlsOptions(
+	options: HttpRequestOptions & Partial<TlsPemBundle>
+): Partial<https.RequestOptions> {
+	return {
+		cert: options.cert,
+		key: options.key,
+		ca: options.ca,
+		rejectUnauthorized: true,
+		agent: options?.agent ?? getKeepAliveAgent(),
+	};
+}
+
 function buildRequestOptions(
 	method: HttpMethod,
 	url: URL,
@@ -25,19 +55,9 @@ function buildRequestOptions(
 ): https.RequestOptions {
 	return {
 		method,
-		hostname: url.hostname,
-		port: url.port || 443,
-		path: url.pathname + url.search,
-		headers: {
-			"Content-Type": "application/json",
-			"Accept-Encoding": "gzip, deflate",
-			...(options?.headers ?? {}),
-		},
-		cert: options.cert,
-		key: options.key,
-		ca: options.ca,
-		rejectUnauthorized: true,
-		agent: options?.agent ?? getKeepAliveAgent(),
+		..._buildUrlParts(url),
+		headers: _buildDefaultHeaders(options),
+		..._buildTlsOptions(options),
 	};
 }
 

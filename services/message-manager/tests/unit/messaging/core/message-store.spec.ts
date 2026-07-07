@@ -119,9 +119,10 @@ jest.mock("../../../../src/config/metrics", () => ({
 
 import { DateRange } from "@trading-model/common/domain/date-range";
 import { getStreamClient } from "../../../../src/config/redis";
-import { messageStore } from "../../../../src/messaging/core/message-store";
+import { MessageStore } from "../../../../src/messaging/core/message-store";
 
 describe("MessageStore", () => {
+	let messageStore: MessageStore;
 	let mockRedis: ReturnType<typeof createMockRedis>;
 
 	beforeEach(() => {
@@ -130,6 +131,7 @@ describe("MessageStore", () => {
 			mockRedis
 		);
 		mockSet.mockResolvedValue("OK");
+		messageStore = new MessageStore();
 	});
 
 	afterEach(async () => {

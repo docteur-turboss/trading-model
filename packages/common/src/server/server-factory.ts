@@ -1,4 +1,5 @@
 import https from "node:https";
+import type { ServerOptions } from "node:https";
 
 import type { Application } from "express";
 import { logger } from "../config/logger";
@@ -18,46 +19,59 @@ export interface HttpServer {
 	raw: https.Server;
 }
 
+function _buildServerOptions(tlsContext: {
+	key: string;
+	cert: string;
+	ca?: string;
+}): ServerOptions {
+	return {
+		key: tlsContext.key,
+		cert: tlsContext.cert,
+		ca: tlsContext.ca,
+		requestCert: true,
+		rejectUnauthorized: true,
+		minVersion: "TLSv1.3",
+	};
+}
+
+function _startListening(server: https.Server, port: number): void {
+	server.listen(port, () => {
+		logger.info("HTTPS server listening", {
+			context: { port, mtls: true },
+		});
+	});
+}
+
+function _watchTlsAsync(server: https.Server, tls: TlsPaths): void {
+	setupTlsWatcher(server, tls).catch((err) => {
+		logger.error("Failed to start TLS watcher", { context: { err } });
+	});
+}
+
+function _createCloseHandle(server: https.Server): () => Promise<void> {
+	return () =>
+		new Promise<void>((resolve, reject) => {
+			server.close((err) => {
+				if (err) reject(err);
+				else resolve();
+			});
+		});
+}
+
 export async function createAndStartHttpsServer(
 	app: Application,
 	options: HttpsServerOptions
 ): Promise<HttpServer> {
 	const tlsContext = await loadTlsFiles(options.tls);
+	const httpsServer = https.createServer(_buildServerOptions(tlsContext), app);
 
-	const httpsServer = https.createServer(
-		{
-			key: tlsContext.key,
-			cert: tlsContext.cert,
-			ca: tlsContext.ca,
-			requestCert: true,
-			rejectUnauthorized: true,
-			minVersion: "TLSv1.3",
-		},
-		app
-	);
-
-	httpsServer.listen(options.port, () => {
-		logger.info("HTTPS server listening", {
-			context: { port: options.port, mtls: true },
-		});
-	});
+	_startListening(httpsServer, options.port);
 
 	if (options.watchTls) {
-		setupTlsWatcher(httpsServer, options.tls).catch((err) => {
-			logger.error("Failed to start TLS watcher", { context: { err } });
-		});
+		_watchTlsAsync(httpsServer, options.tls);
 	}
 
-	return {
-		raw: httpsServer,
-		close: () =>
-			new Promise<void>((resolve, reject) => {
-				httpsServer.close((err) => {
-					if (err) reject(err);
-					else resolve();
-				});
-			}),
-	};
+	return { raw: httpsServer, close: _createCloseHandle(httpsServer) };
 }
 
 export { setupTlsWatcher } from "./tls-watcher";

@@ -18,33 +18,22 @@ export class JobStatusManager {
 	async ack(jobId: JobId): Promise<void> {
 		this._queue.ack(jobId);
 		await this._repository.updateStatus(jobId, JOB_STATUS.RUNNING);
-
 		logger.info("Job acknowledged by worker", { context: { jobId } });
 	}
 
 	async complete(jobId: JobId, result: unknown): Promise<void> {
 		this._queue.ack(jobId);
-		await this._repository.updateStatus(jobId, JOB_STATUS.COMPLETED, {
-			result,
-		});
-
-		const job = await this._repository.findById(jobId);
-		this._assignmentManager.decrementWorkerLoad(job?.assignedWorkerId);
-
+		await this._repository.updateStatus(jobId, JOB_STATUS.COMPLETED, { result });
+		await this._releaseWorker(jobId);
 		logger.info("Job completed", { context: { jobId } });
 		this._assignmentManager.distributeNext();
 	}
 
 	async fail(jobId: JobId, error: string): Promise<void> {
 		this._queue.ack(jobId);
-
 		const job = await this._repository.findById(jobId);
-		if (!job) {
-			return;
-		}
-
+		if (!job) return;
 		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-
 		if (hasExceededMaxRetries(job)) {
 			await this._failureHandler.handlePermanentFailure(jobId, error);
 		} else {
@@ -54,21 +43,22 @@ export class JobStatusManager {
 
 	async cancel(jobId: JobId): Promise<void> {
 		const job = await this._repository.findById(jobId);
-		if (!job) {
-			return;
-		}
-
-		if (
-			job.status === JOB_STATUS.RUNNING ||
-			job.status === JOB_STATUS.COMPLETED
-		) {
-			throw new Error("Cannot cancel a running or completed job");
-		}
-
+		if (!job) return;
+		this._assertCancellable(job);
 		this._queue.ack(jobId);
 		await this._repository.updateStatus(jobId, JOB_STATUS.CANCELLED);
 		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-
 		logger.info("Job cancelled", { context: { jobId } });
+	}
+
+	private async _releaseWorker(jobId: JobId): Promise<void> {
+		const job = await this._repository.findById(jobId);
+		this._assignmentManager.decrementWorkerLoad(job?.assignedWorkerId);
+	}
+
+	private _assertCancellable(job: { status: string }): void {
+		if (job.status === JOB_STATUS.RUNNING || job.status === JOB_STATUS.COMPLETED) {
+			throw new Error("Cannot cancel a running or completed job");
+		}
 	}
 }

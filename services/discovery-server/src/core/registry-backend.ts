@@ -1,4 +1,8 @@
 import type {
+	IInstanceQuery,
+	IInstanceRegistration,
+	ILifecycle,
+	ITokenManager,
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
@@ -26,7 +30,9 @@ import { ServiceRegistry } from "./service-registry";
  * Delegates all storage to ServiceRegistry to avoid duplicating
  * the in-memory map logic.
  */
-export class InMemoryRegistryBackend implements RegistryBackend {
+export class InMemoryRegistryBackend
+	implements IInstanceRegistration, IInstanceQuery, ITokenManager, ILifecycle
+{
 	private readonly _registry: ServiceRegistry;
 
 	constructor(signingSecret?: string) {
@@ -82,7 +88,9 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 		return this._registry.verifyInstanceName(serviceName);
 	}
 
+	/** In-memory backend has no lifecycle to manage. */
 	start(): void {}
 
+	/** In-memory backend has no lifecycle to manage. */
 	stop(): void {}
 }

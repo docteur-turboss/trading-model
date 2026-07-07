@@ -18,33 +18,57 @@ export class WorkerTaskQueue {
 		this._maxQueueSize = maxQueueSize ?? Number.POSITIVE_INFINITY;
 	}
 
+	private _checkQueueCapacity(): void {
+		if (this._queue.length >= this._maxQueueSize) {
+			throw new Error("WorkerPool queue is full");
+		}
+	}
+
+	private _createEntry(
+		type: string,
+		data: Record<string, unknown>,
+		resolve: (value: unknown) => void,
+		reject: (reason: unknown) => void
+	): TaskEntry {
+		return {
+			id: randomUUID(),
+			type,
+			data,
+			resolve: resolve as (value: unknown) => void,
+			reject,
+		};
+	}
+
+	private _addToQueueOrDispatch(
+		entry: TaskEntry,
+		onDispatch: (task: TaskEntry) => boolean
+	): void {
+		this._pendingTasks.set(entry.id, entry);
+		if (onDispatch(entry)) {
+			this._activeCount++;
+		} else {
+			this._queue.push(entry);
+		}
+	}
+
 	enqueue(
 		type: string,
 		data: Record<string, unknown>,
 		onDispatch: (task: TaskEntry) => boolean
 	): Promise<unknown> {
 		return new Promise((resolve, reject) => {
-			if (this._queue.length >= this._maxQueueSize) {
-				reject(new Error("WorkerPool queue is full"));
-				return;
-			}
-
-			const entry: TaskEntry = {
-				id: randomUUID(),
-				type,
-				data,
-				resolve: resolve as (value: unknown) => void,
-				reject,
-			};
-
-			this._pendingTasks.set(entry.id, entry);
-
-			if (onDispatch(entry)) {
-				this._activeCount++;
-			} else {
-				this._queue.push(entry);
-			}
+			this._checkQueueCapacity();
+			const entry = this._createEntry(type, data, resolve, reject);
+			this._addToQueueOrDispatch(entry, onDispatch);
 		});
+	}
+
+	private _handleTaskOutcome(task: TaskEntry, success: boolean, data?: unknown, error?: string): void {
+		if (success) {
+			task.resolve(data);
+		} else {
+			task.reject(new Error(error ?? "Unknown worker error"));
+		}
 	}
 
 	resolveTask(
@@ -54,15 +78,12 @@ export class WorkerTaskQueue {
 		error?: string
 	): void {
 		const task = this._pendingTasks.get(id);
-		if (task) {
-			this._pendingTasks.delete(id);
-			this._activeCount--;
-			if (success) {
-				task.resolve(data);
-			} else {
-				task.reject(new Error(error ?? "Unknown worker error"));
-			}
+		if (!task) {
+			return;
 		}
+		this._pendingTasks.delete(id);
+		this._activeCount--;
+		this._handleTaskOutcome(task, success, data, error);
 	}
 
 	processQueue(onDispatch: (task: TaskEntry) => boolean): void {

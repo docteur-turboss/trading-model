@@ -12,16 +12,39 @@ import { WalShutdownDrainer } from "./wal-shutdown-drainer";
 
 const WAL_LIST_MAX_LEN = 1_000_000;
 
+export class WalStorage {
+	private readonly _prefix: string;
+
+	constructor(prefix: string) {
+		this._prefix = prefix;
+	}
+
+	walKey(): string {
+		return `${this._prefix}wal_buffer`;
+	}
+
+	async storeInWal(topic: string, serialized: string): Promise<void> {
+		const redis = await getStreamClient();
+		const walEntry = JSON.stringify({ topic, serialized });
+		const key = this.walKey();
+		await redis.rpush(key, walEntry);
+		await redis.ltrim(key, -WAL_LIST_MAX_LEN, -1);
+		await redis.expire(key, 7200);
+	}
+}
+
 export class WalFlusherService {
 	private readonly _flushManager: WalFlushManager;
 	private readonly _flushLoop: WalFlushLoop;
 	private readonly _drainCoordinator: WalDrainCoordinator;
 	private readonly _shutdownDrainer: WalShutdownDrainer;
+	private readonly _walStorage: WalStorage;
 
 	constructor(
 		private readonly _prefix: string,
 		private readonly _memoryWalBuffer: MemoryWalBuffer
 	) {
+		this._walStorage = new WalStorage(this._prefix);
 		const batchFlusher = new WalBatchFlusher(
 			this._prefix,
 			ENV.REDIS_STREAM_MAXLEN,
@@ -30,11 +53,11 @@ export class WalFlusherService {
 		const entryParser = new WalEntryParser(this._memoryWalBuffer);
 		const errorHandler = new WalFlushErrorHandler(entryParser);
 		this._flushLoop = new WalFlushLoop(batchFlusher, errorHandler, () =>
-			this._walKey()
+			this._walStorage.walKey()
 		);
 		this._drainCoordinator = new WalDrainCoordinator(
 			this._memoryWalBuffer,
-			() => this._walKey(),
+			() => this._walStorage.walKey(),
 			() => this._flushManager.flush()
 		);
 		this._flushManager = new WalFlushManager(
@@ -47,8 +70,20 @@ export class WalFlusherService {
 		);
 	}
 
-	private _walKey(): string {
-		return `${this._prefix}wal_buffer`;
+	get flushManager(): WalFlushManager {
+		return this._flushManager;
+	}
+
+	get drainCoordinator(): WalDrainCoordinator {
+		return this._drainCoordinator;
+	}
+
+	get shutdownDrainer(): WalShutdownDrainer {
+		return this._shutdownDrainer;
+	}
+
+	get walStorage(): WalStorage {
+		return this._walStorage;
 	}
 
 	start(): void {
@@ -60,11 +95,7 @@ export class WalFlusherService {
 	}
 
 	async storeInWal(topic: string, serialized: string): Promise<void> {
-		const redis = await getStreamClient();
-		const walEntry = JSON.stringify({ topic, serialized });
-		await redis.rpush(this._walKey(), walEntry);
-		await redis.ltrim(this._walKey(), -WAL_LIST_MAX_LEN, -1);
-		await redis.expire(this._walKey(), 7200);
+		await this._walStorage.storeInWal(topic, serialized);
 	}
 
 	async drainOnStartup(): Promise<void> {

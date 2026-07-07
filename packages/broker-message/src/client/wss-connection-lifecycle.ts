@@ -1,4 +1,5 @@
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import { WssConnection, type WssConnectionEvents } from "./wss-connection";
 
@@ -6,7 +7,7 @@ export interface WssClientConfig {
 	wssUrl: string;
 	tlsConfig?: Partial<TlsPaths>;
 	serviceName: string;
-	instanceId: string;
+	instanceId: InstanceId;
 }
 
 export type WsConnectionLifecycleCallbacks = WssConnectionEvents;
@@ -15,7 +16,7 @@ export class WssConnectionLifecycle implements IWsConnection {
 	private readonly _connection: WssConnection;
 	private readonly _wsUrl: string;
 	private readonly _serviceName: string;
-	private readonly _instanceId: string;
+	private readonly _instanceId: InstanceId;
 	private readonly _callbacks: WsConnectionLifecycleCallbacks;
 
 	onCloseHandler?: () => void;
@@ -42,21 +43,32 @@ export class WssConnectionLifecycle implements IWsConnection {
 		return this._buildUrl();
 	}
 
-	connect(): void {
-		const url = this._buildUrl();
+	private _setupOpenHandler(): void {
 		this._connection.onOpen = () => {
 			this._callbacks.onOpen();
 			this.onOpen?.();
 		};
+	}
+
+	private _setupMessageHandler(): void {
 		this._connection.onMessage = (data) => {
 			this._callbacks.onMessage(data as string);
 			this.onMessage?.(data);
 		};
+	}
+
+	private _setupErrorHandler(): void {
 		this._connection.onError = (err) => {
 			this._callbacks.onError(err);
 			this.onError?.(err);
 		};
-		this._connection.connect(url);
+	}
+
+	connect(): void {
+		this._setupOpenHandler();
+		this._setupMessageHandler();
+		this._setupErrorHandler();
+		this._connection.connect(this._buildUrl());
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {

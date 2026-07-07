@@ -61,39 +61,33 @@ export class CacheHealthRefresher implements ScheduledJob {
 		}
 	}
 
-	private async _executeBatch(
-		batch: { serviceName: string; instance: ServiceInstance }[],
-		concurrencyLimit: number
-	): Promise<PromiseRejectedResult[]> {
+	private async _executeBatch(batch: { serviceName: string; instance: ServiceInstance }[], concurrencyLimit: number): Promise<PromiseRejectedResult[]> {
 		const errors: PromiseRejectedResult[] = [];
 		for (let i = 0; i < batch.length; i += concurrencyLimit) {
 			const chunk = batch.slice(i, i + concurrencyLimit);
-			const results = await Promise.allSettled(
-				chunk.map((entry) => this._checkEntry(entry))
-			);
-			for (const result of results) {
-				if (result.status === "rejected") {
-					errors.push(result);
-				}
-			}
+			const results = await Promise.allSettled(chunk.map((entry) => this._checkEntry(entry)));
+			errors.push(...this._collectRejections(results));
 		}
 		return errors;
 	}
 
+	private _collectRejections(results: PromiseSettledResult<void>[]): PromiseRejectedResult[] {
+		return results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+	}
+
 	private async _doExecute(): Promise<void> {
 		const entries = await this._serviceCache.entries();
-		if (entries.length === 0) {
-			return;
-		}
+		if (entries.length === 0) return;
 
 		const { batch, nextOffset } = selectBatchSlice(entries, this._batchOffset);
 		this._batchOffset = nextOffset;
 		const errors = await this._executeBatch(batch, 10);
+		this._logBatchErrors(errors);
+	}
 
+	private _logBatchErrors(errors: PromiseRejectedResult[]): void {
 		for (const error of errors) {
-			logger.error("Cache health refresher check failed", {
-				error: normalizeError(error.reason),
-			});
+			logger.error("Cache health refresher check failed", { error: normalizeError(error.reason) });
 		}
 	}
 }

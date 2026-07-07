@@ -29,23 +29,35 @@ export class DeliveryAttemptHandler {
 		try {
 			return await this._tryDeliver(message, context);
 		} catch (err) {
-			context.deliveryAttempt++;
-
-			const handled = await this._errorHandler.handleDeliveryError(
-				err,
-				message,
-				context,
-				ttl,
-				emittedAt,
-				deliveryMode
+			return this._handleDeliveryError(
+				err, message, context, ttl, emittedAt, deliveryMode
 			);
-			if (handled) {
-				return false;
-			}
+		}
+	}
 
-			await sleep(backoffDelay(context.deliveryAttempt));
+	private async _handleDeliveryError<TData>(
+		err: unknown,
+		message: Message<TData>,
+		context: SubscribersContext,
+		ttl: number,
+		emittedAt: number,
+		deliveryMode: DeliveryMode
+	): Promise<boolean> {
+		context.deliveryAttempt++;
+
+		const handled = await this._errorHandler.handleDeliveryError(
+			err,
+			message,
+			context,
+			ttl,
+			emittedAt,
+			deliveryMode
+		);
+		if (handled) {
+			return false;
 		}
 
+		await sleep(backoffDelay(context.deliveryAttempt));
 		return this._shouldRetry(deliveryMode);
 	}
 

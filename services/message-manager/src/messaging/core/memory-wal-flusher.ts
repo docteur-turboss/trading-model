@@ -67,17 +67,21 @@ export class MemoryWalFlusher {
 
 		this._flushGuard.setFlushing(true);
 		try {
-			const batch = buffer.splice(0, WAL_BATCH_SIZE);
-			const ok = await this._flushBatch(batch);
-			if (ok) {
-				this._redisBackoff.markUp();
-				this._redisBackoff.resetBackoff();
-				return;
-			}
-			await this._flushFailureHandler.handle(batch, this._redisBackoff, buffer);
+			await this._flushBufferBatch(buffer);
 		} finally {
 			this._flushGuard.setFlushing(false);
 		}
+	}
+
+	private async _flushBufferBatch(buffer: MemoryWalEntry[]): Promise<void> {
+		const batch = buffer.splice(0, WAL_BATCH_SIZE);
+		const ok = await this._flushBatch(batch);
+		if (ok) {
+			this._redisBackoff.markUp();
+			this._redisBackoff.resetBackoff();
+			return;
+		}
+		await this._flushFailureHandler.handle(batch, this._redisBackoff, buffer);
 	}
 
 	drainAll(buffer: MemoryWalEntry[]): Promise<void> {

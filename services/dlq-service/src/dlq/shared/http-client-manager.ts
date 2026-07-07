@@ -33,7 +33,10 @@ class SharedHttpClientManager {
 		}
 	}
 
-	close(): void {}
+	/** HttpClient manages its own request lifecycle — no persistent connections to tear down. */
+	close(): void {
+		this._httpClient = null;
+	}
 }
 
 const sharedHttpClient = new SharedHttpClientManager();

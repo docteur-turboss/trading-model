@@ -96,24 +96,24 @@ export class CaWssTransport {
 		this.disconnect();
 	}
 
-	async signCertificate(
-		request: SignCertificateRequest
-	): Promise<SignCertificateResponse> {
-		const { serviceId, csr, ttlMs } = request;
-		const id = randomUUID();
-		const promise = this._pendingManager.create(id);
-
+	private _sendSignRequest(
+		id: string,
+		request: Pick<SignCertificateRequest, "serviceId" | "csr" | "ttlMs">
+	): void {
 		const ws = this._connection.ws;
 		if (!isWsConnected(ws)) {
 			this._pendingManager.cancel(id);
 			throw new Error("WebSocket not connected");
 		}
-
 		ws.send(
 			JSON.stringify({
 				type: "sign",
 				id,
-				data: { serviceId, csr, ttlMs },
+				data: {
+					serviceId: request.serviceId,
+					csr: request.csr,
+					ttlMs: request.ttlMs,
+				},
 			}),
 			(err) => {
 				if (err) {
@@ -121,7 +121,14 @@ export class CaWssTransport {
 				}
 			}
 		);
+	}
 
+	async signCertificate(
+		request: SignCertificateRequest
+	): Promise<SignCertificateResponse> {
+		const id = randomUUID();
+		const promise = this._pendingManager.create(id);
+		this._sendSignRequest(id, request);
 		return promise;
 	}
 

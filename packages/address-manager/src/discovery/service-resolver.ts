@@ -19,79 +19,62 @@ export class ServiceResolver {
 		private readonly _discoveryTimeoutMs: number
 	) {}
 
-	async resolveAndValidateService(
-		serviceName: string
-	): Promise<ServiceInstance> {
-		let instances: unknown;
-
-		try {
-			instances = await this._httpClient.get<unknown>(
-				`${this._config.addressManagerUrl}/services/${serviceName}`,
-				{ timeoutMs: this._discoveryTimeoutMs }
-			);
-		} catch (error) {
-			throw serviceNotFoundError(`Service "${serviceName}" not found`, {
-				cause: normalizeError(error),
-			});
-		}
-
-		const instance = Array.isArray(instances)
-			? (instances as ServiceInstance[])[0]
-			: (instances as ServiceInstance);
-
-		if (!instance) {
-			throw serviceNotFoundError(
-				`Service "${serviceName}" has no registered instances`
-			);
-		}
-
-		const isHealthy = await this._healthChecker.isHealthy(instance);
-
-		if (!isHealthy) {
-			await this._serviceCache.invalidate(toServiceId(serviceName));
-
-			throw serviceUnreachableError(`Service "${serviceName}" is unreachable`);
-		}
-
-		await this._serviceCache.set({
-			serviceName: toServiceId(serviceName),
-			instance,
-		});
+	async resolveAndValidateService(serviceName: string): Promise<ServiceInstance> {
+		const instances = await this._fetchService(serviceName);
+		const instance = this._extractFirstInstance(instances, serviceName);
+		await this._validateAndCache(instance, serviceName);
 		return instance;
 	}
 
-	async resolveAndValidateServiceInRegion(
-		serviceName: string,
-		region: string
-	): Promise<ServiceInstance> {
+	async resolveAndValidateServiceInRegion(serviceName: string, region: string): Promise<ServiceInstance> {
 		let instances: unknown;
 		try {
-			instances = await this._httpClient.get<unknown>(
-				`${this._config.addressManagerUrl}/services/${serviceName}/region/${region}`,
-				{ timeoutMs: this._discoveryTimeoutMs }
-			);
+			instances = await this._httpClient.get<unknown>(`${this._config.addressManagerUrl}/services/${serviceName}/region/${region}`, { timeoutMs: this._discoveryTimeoutMs });
 		} catch {
 			return this.resolveAndValidateService(serviceName);
 		}
+		const found = await this._findHealthyInstance(instances, serviceName);
+		if (found) return found;
+		return this.resolveAndValidateService(serviceName);
+	}
 
-		const instanceList = Array.isArray(instances)
-			? (instances as ServiceInstance[])
-			: [instances as ServiceInstance];
+	private async _fetchService(serviceName: string): Promise<unknown> {
+		try {
+			return await this._httpClient.get<unknown>(`${this._config.addressManagerUrl}/services/${serviceName}`, { timeoutMs: this._discoveryTimeoutMs });
+		} catch (error) {
+			throw serviceNotFoundError(`Service "${serviceName}" not found`, { cause: normalizeError(error) });
+		}
+	}
 
-		for (const instance of instanceList) {
+	private _extractFirstInstance(instances: unknown, serviceName: string): ServiceInstance {
+		const instance = Array.isArray(instances) ? (instances as ServiceInstance[])[0] : (instances as ServiceInstance);
+		if (!instance) {
+			throw serviceNotFoundError(`Service "${serviceName}" has no registered instances`);
+		}
+		return instance;
+	}
+
+	private async _validateAndCache(instance: ServiceInstance, serviceName: string): Promise<void> {
+		const isHealthy = await this._healthChecker.isHealthy(instance);
+		if (!isHealthy) {
+			await this._serviceCache.invalidate(toServiceId(serviceName));
+			throw serviceUnreachableError(`Service "${serviceName}" is unreachable`);
+		}
+		await this._serviceCache.set({ serviceName: toServiceId(serviceName), instance });
+	}
+
+	private async _findHealthyInstance(instances: unknown, serviceName: string): Promise<ServiceInstance | null> {
+		const list = Array.isArray(instances) ? (instances as ServiceInstance[]) : [instances as ServiceInstance];
+		for (const instance of list) {
 			if (instance) {
 				const isHealthy = await this._healthChecker.isHealthy(instance);
 				if (isHealthy) {
-					await this._serviceCache.set({
-						serviceName: toServiceId(serviceName),
-						instance,
-					});
+					await this._serviceCache.set({ serviceName: toServiceId(serviceName), instance });
 					return instance;
 				}
 			}
 		}
-
-		return this.resolveAndValidateService(serviceName);
+		return null;
 	}
 
 	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {

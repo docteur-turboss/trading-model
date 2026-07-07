@@ -1,4 +1,4 @@
-﻿import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 
 import { logger } from "../config/logger";
 import type { CorrelationId, InstanceId, Version } from "../domain/primitives";
@@ -73,11 +73,7 @@ function stopFlushTimer(): void {
 	flushTimer.stop();
 }
 
-function _buildErrorReport(
-	err: unknown,
-	req: Request,
-	statusCode: number
-): {
+interface ErrorReportBody {
 	message: string;
 	stack?: string;
 	url: string;
@@ -88,17 +84,35 @@ function _buildErrorReport(
 	serviceName: string;
 	serviceVersion: string;
 	instanceId: string;
-} {
+}
+
+function _extractCorrelationId(req: Request): string {
+	return (
+		(req as unknown as { correlationId?: CorrelationId }).correlationId ?? ""
+	);
+}
+
+function _buildErrorReport(
+	err: unknown,
+	req: Request,
+	statusCode: number
+): ErrorReportBody {
 	const normalized = normalizeError(err);
+	return _intoErrorReport(normalized, req, statusCode);
+}
+
+function _intoErrorReport(
+	normalized: ReturnType<typeof normalizeError>,
+	req: Request,
+	statusCode: number
+): ErrorReportBody {
 	return {
 		message: normalized.message,
 		stack: normalized.stack,
 		url: req.originalUrl ?? req.url,
 		method: req.method,
 		statusCode,
-		correlationId:
-			(req as unknown as { correlationId?: CorrelationId }).correlationId ??
-			"",
+		correlationId: _extractCorrelationId(req),
 		timestamp: new Date().toISOString(),
 		serviceName: config.serviceName,
 		serviceVersion: config.serviceVersion,
@@ -118,26 +132,38 @@ export function reportError(
 	errorBuffer.add(report);
 }
 
-export function errorTrackingMiddleware(
-	endpoint?: string
-): (err: Error, req: Request, res: Response, next: NextFunction) => void {
-	if (endpoint) {
-		configureErrorTracking({
-			endpoint: endpoint || process.env.ERROR_URL_WEBHOOK,
-		});
-	}
-	return (
-		err: Error,
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): void => {
-		const statusCode = res.statusCode >= 400 ? res.statusCode : 500;
+function _configureIfEndpoint(endpoint: string): void {
+	configureErrorTracking({
+		endpoint: endpoint || process.env.ERROR_URL_WEBHOOK,
+	});
+}
+
+function _createTrackingHandler(): (
+	err: Error,
+	req: Request,
+	res: Response,
+	next: NextFunction
+) => void {
+	return (err, req, res, next) => {
+		const statusCode = _determineStatusCode(res);
 		if (statusCode >= 500) {
 			reportError(err, req, statusCode);
 		}
 		next(err);
 	};
+}
+
+function _determineStatusCode(res: Response): number {
+	return res.statusCode >= 400 ? res.statusCode : 500;
+}
+
+export function errorTrackingMiddleware(
+	endpoint?: string
+): (err: Error, req: Request, res: Response, next: NextFunction) => void {
+	if (endpoint) {
+		_configureIfEndpoint(endpoint);
+	}
+	return _createTrackingHandler();
 }
 
 export function shutdownErrorTracking(): void {

@@ -17,20 +17,24 @@ export interface TradeCostParams {
 	decimals: number;
 }
 
+function _computeBaseCost(params: TradeCostParams): number {
+	return roundValue(
+		Number(params.amount) * Number(params.price),
+		params.decimals
+	);
+}
+
+function _computeFee(base: number, params: TradeCostParams): Cash {
+	return Cash.of(roundValue(base * Number(params.feeRate), params.decimals));
+}
+
 export function computeBuyCosts(params: TradeCostParams): {
 	totalCost: Cash;
 	fee: Cash;
 } {
-	const baseCost = roundValue(
-		Number(params.amount) * Number(params.price),
-		params.decimals
-	);
-	const fee = Cash.of(
-		roundValue(baseCost * Number(params.feeRate), params.decimals)
-	);
-	const totalCost = Cash.of(
-		roundValue(baseCost + Number(fee), params.decimals)
-	);
+	const baseCost = _computeBaseCost(params);
+	const fee = _computeFee(baseCost, params);
+	const totalCost = Cash.of(roundValue(baseCost + Number(fee), params.decimals));
 	return { totalCost, fee };
 }
 
@@ -38,13 +42,8 @@ export function computeSellProceeds(params: TradeCostParams): {
 	netProceeds: Cash;
 	fee: Cash;
 } {
-	const baseProceeds = roundValue(
-		Number(params.amount) * Number(params.price),
-		params.decimals
-	);
-	const fee = Cash.of(
-		roundValue(baseProceeds * Number(params.feeRate), params.decimals)
-	);
+	const baseProceeds = _computeBaseCost(params);
+	const fee = _computeFee(baseProceeds, params);
 	const netProceeds = Cash.of(
 		roundValue(baseProceeds - Number(fee), params.decimals)
 	);

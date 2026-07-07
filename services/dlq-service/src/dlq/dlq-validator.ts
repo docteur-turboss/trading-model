@@ -23,7 +23,20 @@ export function validateAddEntryBody(
 	span.setAttribute("topic", parsed.data.topic ?? "");
 	span.setAttribute("reason", parsed.data.reason ?? "");
 
-	const messageStr = JSON.stringify(parsed.data.message);
+	const sizeFail = _checkMessageSize(parsed.data.message, span);
+	if (sizeFail) return sizeFail;
+
+	const dbFail = _checkDbAvailable(span);
+	if (dbFail) return dbFail;
+
+	return { valid: true, data: parsed.data };
+}
+
+function _checkMessageSize(
+	message: unknown,
+	span: import("@opentelemetry/api").Span
+): { valid: false; response: ResponseObject } | null {
+	const messageStr = JSON.stringify(message);
 	const msgSize = Buffer.byteLength(messageStr, "utf8");
 	if (msgSize > MAX_MESSAGE_BYTES) {
 		return _validationFail(
@@ -32,7 +45,12 @@ export function validateAddEntryBody(
 			400
 		);
 	}
+	return null;
+}
 
+function _checkDbAvailable(
+	span: import("@opentelemetry/api").Span
+): { valid: false; response: ResponseObject } | null {
 	if (!isDbConnected()) {
 		return _validationFail(
 			span,
@@ -41,8 +59,7 @@ export function validateAddEntryBody(
 			{ code: "STORAGE_UNAVAILABLE" }
 		);
 	}
-
-	return { valid: true, data: parsed.data };
+	return null;
 }
 
 function _validationFail(

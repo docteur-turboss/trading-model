@@ -15,6 +15,7 @@ export class CaStore {
 		return new CaStore(collection);
 	}
 
+	/** Connection lifecycle is managed externally by MONGO_MANAGER. */
 	async disconnect(): Promise<void> {}
 
 	async save(metadata: CaMetadata): Promise<void> {

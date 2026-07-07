@@ -24,42 +24,48 @@ createBootstrap({
 	name: "DLQ Service",
 	createServer,
 	tlsBootstrap: createResilientTlsBootstrap(),
-	onBeforeServer: async () => {
-		try {
-			await getDb();
-			logger.info("DLQ Service database connected", { mongoDb: ENV.MONGO_DB });
-			await releaseStaleClaims();
-		} catch (err) {
-			logger.error(
-				"MongoDB unavailable — service cannot persist messages. Rejecting incoming entries.",
-				{ error: normalizeError(err) }
-			);
-			await resetDbState();
-		}
-	},
-	onStart: () => {
-		initializeTelemetry({
-			serviceName: "dlq-service",
-			serviceVersion: "2.0.0",
-			instanceId: toInstanceId(process.env.INSTANCE_ID ?? "dlq-1"),
-			otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-		});
-		AddressManager.start();
-		void ensureRedisQueue();
-		startPeriodicPrune();
-		if (ENV.DLQ_AUTO_RETRY_ENABLED) {
-			startAutoRetry();
-		}
-		logger.info("DLQ Service started", { port: ENV.PORT });
-	},
-	onStop: async () => {
-		await shutdownTelemetry();
-		await shutdownSchedulers();
-		await closeRedisClient();
-		try {
-			await closeDb();
-		} catch (err) {
-			logger.warn("Error closing database", { error: normalizeError(err) });
-		}
-	},
+	onBeforeServer: () => _onBeforeServer(),
+	onStart: () => _onStart(),
+	onStop: () => _onStop(),
 });
+
+async function _onBeforeServer(): Promise<void> {
+	try {
+		await getDb();
+		logger.info("DLQ Service database connected", { mongoDb: ENV.MONGO_DB });
+		await releaseStaleClaims();
+	} catch (err) {
+		logger.error(
+			"MongoDB unavailable — service cannot persist messages. Rejecting incoming entries.",
+			{ error: normalizeError(err) }
+		);
+		await resetDbState();
+	}
+}
+
+function _onStart(): void {
+	initializeTelemetry({
+		serviceName: "dlq-service",
+		serviceVersion: "2.0.0",
+		instanceId: toInstanceId(process.env.INSTANCE_ID ?? "dlq-1"),
+		otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+	});
+	AddressManager.start();
+	void ensureRedisQueue();
+	startPeriodicPrune();
+	if (ENV.DLQ_AUTO_RETRY_ENABLED) {
+		startAutoRetry();
+	}
+	logger.info("DLQ Service started", { port: ENV.PORT });
+}
+
+async function _onStop(): Promise<void> {
+	await shutdownTelemetry();
+	await shutdownSchedulers();
+	await closeRedisClient();
+	try {
+		await closeDb();
+	} catch (err) {
+		logger.warn("Error closing database", { error: normalizeError(err) });
+	}
+}

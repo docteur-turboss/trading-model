@@ -12,45 +12,49 @@ import { createServer } from "./server";
 
 let CONTAINER: Container;
 
+async function _initStores() {
+	const certificateStore = await CertificateStore.connect();
+	const crlStore = await CrlStore.connect();
+	const caStore = await CaStore.connect();
+	return { certificateStore, crlStore, caStore };
+}
+
+async function _initCertificateAuthority(stores: Awaited<ReturnType<typeof _initStores>>) {
+	return CertificateAuthority.create({
+		caKeyPath: ENV.CA_KEY_PATH,
+		caCertTtlMs: ENV.CA_CERT_TTL_MS,
+		certificateStore: stores.certificateStore,
+		crlStore: stores.crlStore,
+		caStore: stores.caStore,
+	});
+}
+
+function _initRotator(ca: CertificateAuthority, certificateStore: CertificateStore): Rotator {
+	const rotator = new Rotator({
+		ca,
+		certificateStore,
+		intervalMs: ENV.CERT_ROTATION_INTERVAL_MS,
+		marginMs: ENV.CERT_ROTATION_MARGIN_MS,
+		defaultTtlMs: ENV.CERT_DEFAULT_TTL_MS,
+	});
+	rotator.start();
+	return rotator;
+}
+
 createBootstrap({
 	name: "CertificateAuthority",
 	createServer,
 	onStart: async () => {
 		await MONGO_MANAGER.initialize(ENV.MONGODB_URI);
-		const certificateStore = await CertificateStore.connect();
-		const crlStore = await CrlStore.connect();
-		const caStore = await CaStore.connect();
-
-		const ca = await CertificateAuthority.create({
-			caKeyPath: ENV.CA_KEY_PATH,
-			caCertTtlMs: ENV.CA_CERT_TTL_MS,
-			certificateStore,
-			crlStore,
-			caStore,
-		});
-
+		const stores = await _initStores();
+		const ca = await _initCertificateAuthority(stores);
 		const distributor = new Distributor({
 			ca,
-			certificateStore,
-			crlStore,
+			certificateStore: stores.certificateStore,
+			crlStore: stores.crlStore,
 		});
-
-		CONTAINER = new Container(
-			ca,
-			certificateStore,
-			crlStore,
-			caStore,
-			distributor
-		);
-
-		const rotator = new Rotator({
-			ca,
-			certificateStore,
-			intervalMs: ENV.CERT_ROTATION_INTERVAL_MS,
-			marginMs: ENV.CERT_ROTATION_MARGIN_MS,
-			defaultTtlMs: ENV.CERT_DEFAULT_TTL_MS,
-		});
-		rotator.start();
+		CONTAINER = new Container(ca, stores.certificateStore, stores.crlStore, stores.caStore, distributor);
+		_initRotator(ca, stores.certificateStore);
 	},
 	onStop: async () => {
 		if (CONTAINER) {

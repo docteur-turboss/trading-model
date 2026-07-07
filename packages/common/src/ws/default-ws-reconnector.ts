@@ -86,12 +86,7 @@ export class DefaultWsReconnector implements IWsReconnector {
 		if (!this._stateManager.shouldReconnect) {
 			return;
 		}
-		if (
-			this._maxAttempts !== undefined &&
-			this._stateManager.attempt >= this._maxAttempts
-		) {
-			this._permanentlyFellBack = true;
-			this._onPermanentFallback?.();
+		if (this._hasReachedMaxAttempts()) {
 			return;
 		}
 		scheduleWsReconnect({
@@ -101,5 +96,14 @@ export class DefaultWsReconnector implements IWsReconnector {
 			onSchedule: this._onSchedule,
 			logger,
 		});
+	}
+
+	private _hasReachedMaxAttempts(): boolean {
+		if (this._maxAttempts !== undefined && this._stateManager.attempt >= this._maxAttempts) {
+			this._permanentlyFellBack = true;
+			this._onPermanentFallback?.();
+			return true;
+		}
+		return false;
 	}
 }

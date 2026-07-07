@@ -26,8 +26,7 @@ function _extractSan(body: string): string[] {
 		.filter(Boolean);
 }
 
-export function certificateInfo(certPem: string): CertificateInfo {
-	const body = _decodeCertBody(certPem);
+function _parseCertFields(body: string, certPem: string): CertificateInfo {
 	return {
 		serialNumber: toSerialNumber(_extractField(body, /Serial: (.+)/)),
 		subject: _extractField(body, /Subject: (.+)/),
@@ -39,4 +38,9 @@ export function certificateInfo(certPem: string): CertificateInfo {
 		),
 		san: _extractSan(body),
 	};
+}
+
+export function certificateInfo(certPem: string): CertificateInfo {
+	const body = _decodeCertBody(certPem);
+	return _parseCertFields(body, certPem);
 }

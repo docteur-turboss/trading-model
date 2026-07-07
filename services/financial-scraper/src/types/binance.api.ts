@@ -43,6 +43,24 @@ export interface BinanceAggregateTrade {
 
 export type BinanceAggregateTradeResponse = BinanceAggregateTrade[];
 
+/** OHLCV + last price fields shared by Binance ticker responses (all strings as received from API). */
+export interface BinanceTickerBaseStats {
+	symbol: TradingSymbol;
+	priceChange: string;
+	priceChangePercent: string;
+	weightedAvgPrice: string;
+	lastPrice: string;
+	openPrice: string;
+	highPrice: string;
+	lowPrice: string;
+	volume: string;
+	openTime: UnixTimestamp;
+	closeTime: UnixTimestamp;
+	firstId: number;
+	lastId: number;
+	count: number;
+}
+
 /** Parsed candlestick with named fields and branded types. */
 export interface BinanceCandlestickData {
 	openTime: UnixTimestamp;
@@ -92,46 +110,18 @@ export function parseCandlestick(
 	};
 }
 
-export interface Binance24hrTickerStats {
-	symbol: TradingSymbol;
-	priceChange: string;
-	priceChangePercent: string;
-	weightedAvgPrice: string;
+export interface Binance24hrTickerStats extends BinanceTickerBaseStats {
 	prevClosePrice: string;
-	lastPrice: string;
 	bidPrice: string;
 	bidQty: string;
 	askPrice: string;
 	askQty: string;
-	openPrice: string;
-	highPrice: string;
-	lowPrice: string;
-	volume: string;
-	openTime: UnixTimestamp;
-	closeTime: UnixTimestamp;
-	firstId: number;
-	lastId: number;
-	count: number;
 }
 
 export type Binance24hrTickerStatsResponse = Binance24hrTickerStats[];
 
-export interface BinanceTradingDayTicker {
-	symbol: TradingSymbol;
-	priceChange: string;
-	priceChangePercent: string;
-	weightedAvgPrice: string;
-	openPrice: string;
-	highPrice: string;
-	lowPrice: string;
-	lastPrice: string;
-	volume: string;
+export interface BinanceTradingDayTicker extends BinanceTickerBaseStats {
 	quoteVolume: string;
-	openTime: UnixTimestamp;
-	closeTime: UnixTimestamp;
-	firstId: number;
-	lastId: number;
-	count: number;
 }
 
 export type BinanceTradingDayTickerResponse = BinanceTradingDayTicker[];

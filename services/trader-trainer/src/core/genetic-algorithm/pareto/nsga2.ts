@@ -69,6 +69,19 @@ function _buildPool(count: number, i: number): number[] {
 	);
 }
 
+function _isDominated(
+	objectives: ObjectiveVector[],
+	candidateIdx: number,
+	targetIdx: number
+): boolean {
+	return objectives[candidateIdx].avgPnl >= objectives[targetIdx].avgPnl &&
+		objectives[candidateIdx].sharpe >= objectives[targetIdx].sharpe &&
+		objectives[candidateIdx].negFlops >= objectives[targetIdx].negFlops &&
+		(objectives[candidateIdx].avgPnl > objectives[targetIdx].avgPnl ||
+			objectives[candidateIdx].sharpe > objectives[targetIdx].sharpe ||
+			objectives[candidateIdx].negFlops > objectives[targetIdx].negFlops);
+}
+
 function _sampleDomination(
 	objectives: ObjectiveVector[],
 	dominated: Int32Array,
@@ -80,12 +93,7 @@ function _sampleDomination(
 	for (let sample = 0; sample < sampleSize; sample++) {
 		const idx = sample + Math.floor(rng() * (pool.length - sample));
 		[pool[sample], pool[idx]] = [pool[idx], pool[sample]];
-		if (objectives[pool[sample]].avgPnl >= objectives[i].avgPnl &&
-			objectives[pool[sample]].sharpe >= objectives[i].sharpe &&
-			objectives[pool[sample]].negFlops >= objectives[i].negFlops &&
-			(objectives[pool[sample]].avgPnl > objectives[i].avgPnl ||
-				objectives[pool[sample]].sharpe > objectives[i].sharpe ||
-				objectives[pool[sample]].negFlops > objectives[i].negFlops)) {
+		if (_isDominated(objectives, pool[sample], i)) {
 			dominated[i]++;
 		}
 	}
@@ -121,27 +129,52 @@ function _setInfiniteCrowding(indices: number[], crowding: number[]): void {
 	}
 }
 
+function _sortIndicesByObjective(
+	indices: number[],
+	key: keyof ObjectiveVector,
+	objectives: ObjectiveVector[]
+): number[] {
+	return [...indices].sort(
+		(left, right) => objectives[left][key] - objectives[right][key]
+	);
+}
+
+function _computeCrowdingRange(
+	sorted: number[],
+	key: keyof ObjectiveVector,
+	objectives: ObjectiveVector[]
+): number {
+	return objectives[sorted[sorted.length - 1]][key] - objectives[sorted[0]][key];
+}
+
+function _accumulateCrowdingDistances(
+	sorted: number[],
+	key: keyof ObjectiveVector,
+	objectives: ObjectiveVector[],
+	crowding: number[],
+	range: number
+): void {
+	for (let mid = 1; mid < sorted.length - 1; mid++) {
+		crowding[sorted[mid]] +=
+			(objectives[sorted[mid + 1]][key] - objectives[sorted[mid - 1]][key]) /
+			range;
+	}
+}
+
 function _computeCrowdingForObjective(
 	key: keyof ObjectiveVector,
 	objectives: ObjectiveVector[],
 	crowding: number[],
 	indices: number[]
 ): void {
-	const sorted = [...indices].sort(
-		(left, right) => objectives[left][key] - objectives[right][key]
-	);
+	const sorted = _sortIndicesByObjective(indices, key, objectives);
 	crowding[sorted[0]] = Number.POSITIVE_INFINITY;
 	crowding[sorted[sorted.length - 1]] = Number.POSITIVE_INFINITY;
-	const range =
-		objectives[sorted[sorted.length - 1]][key] - objectives[sorted[0]][key];
+	const range = _computeCrowdingRange(sorted, key, objectives);
 	if (range === 0) {
 		return;
 	}
-	for (let mid = 1; mid < sorted.length - 1; mid++) {
-		crowding[sorted[mid]] +=
-			(objectives[sorted[mid + 1]][key] - objectives[sorted[mid - 1]][key]) /
-			range;
-	}
+	_accumulateCrowdingDistances(sorted, key, objectives, crowding, range);
 }
 
 function assignCrowding(
@@ -174,6 +207,24 @@ function _collectFront(paretoRank: number[], rankIdx: number): number[] {
 	}, [] as number[]);
 }
 
+function _computeMaxRank(paretoRank: number[]): number {
+	return Math.max(...paretoRank);
+}
+
+function _assignCrowdingForAllFronts(
+	paretoRank: number[],
+	objectives: ObjectiveVector[],
+	crowdingDist: number[]
+): void {
+	for (let rankIdx = 0; rankIdx <= _computeMaxRank(paretoRank); rankIdx++) {
+		assignCrowding(
+			_collectFront(paretoRank, rankIdx),
+			objectives,
+			crowdingDist
+		);
+	}
+}
+
 export function buildPopulationMeta(
 	objectives: ObjectiveVector[],
 	rng: () => number
@@ -181,14 +232,6 @@ export function buildPopulationMeta(
 	const count = objectives.length;
 	const paretoRank = _computeParetoRank(objectives, rng);
 	const crowdingDist = new Array<number>(count).fill(0);
-
-	for (let rankIdx = 0; rankIdx <= Math.max(...paretoRank); rankIdx++) {
-		assignCrowding(
-			_collectFront(paretoRank, rankIdx),
-			objectives,
-			crowdingDist
-		);
-	}
-
+	_assignCrowdingForAllFronts(paretoRank, objectives, crowdingDist);
 	return { objectives, paretoRank, crowdingDist };
 }

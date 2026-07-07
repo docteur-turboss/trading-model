@@ -17,7 +17,7 @@ import { ServiceDiscovery } from "./discovery/service-discovery";
 import { ServiceHealthChecker } from "./discovery/service-health-checker";
 import { MappingServiceLocator } from "./discovery/service-locator";
 import { HeartbeatManager } from "./heartbeat-manager";
-import { LifecycleManager } from "./lifecycle-manager";
+import { type LifecycleManagerOptions, LifecycleManager } from "./lifecycle-manager";
 import { HEARTBEAT_TOTAL, REGISTRATION_TOTAL } from "./metrics";
 import { MetricsCollector } from "./monitoring/metrics-collector";
 import { RegistrationManager } from "./registration-manager";
@@ -226,30 +226,45 @@ function createLifecycleManager(
 	addressManagerClient: AddressManagerClient,
 	healthChecker: ServiceHealthChecker
 ): LifecycleManager {
-	const shutdownHandlerDeps: ShutdownHandlerDeps = {
-		registrationManager,
-		wsClient,
-		addressManagerClient,
-		serviceCache,
-		circuitBreaker,
-	};
-	const shutdownHandler = new ShutdownHandler(shutdownHandlerDeps);
+	const shutdownHandler = _buildShutdownHandler({ registrationManager, wsClient, addressManagerClient, serviceCache, circuitBreaker });
 
-	return new LifecycleManager({
-		registrationManager,
-		heartbeatManager,
-		shutdownHandler,
-		wsClient,
-		serviceCache,
+	return new LifecycleManager(_buildLifecycleOptions(config, {
+		registrationManager, heartbeatManager, shutdownHandler, wsClient, serviceCache, tokenManager, addressManagerClient, healthChecker,
+	}));
+}
+
+function _buildShutdownHandler(deps: ShutdownHandlerDeps): ShutdownHandler {
+	return new ShutdownHandler(deps);
+}
+
+function _buildLifecycleOptions(
+	config: AddressManagerConfig,
+	deps: {
+		registrationManager: RegistrationManager;
+		heartbeatManager: HeartbeatManager;
+		shutdownHandler: ShutdownHandler;
+		wsClient?: WebSocketClient;
+		serviceCache: IServiceCache;
+		tokenManager: TokenManager;
+		addressManagerClient: AddressManagerClient;
+		healthChecker: ServiceHealthChecker;
+	}
+): LifecycleManagerOptions {
+	return {
+		registrationManager: deps.registrationManager,
+		heartbeatManager: deps.heartbeatManager,
+		shutdownHandler: deps.shutdownHandler,
+		wsClient: deps.wsClient,
+		serviceCache: deps.serviceCache,
 		serviceName: config.identity.serviceName,
 		instanceId: config.identity.instanceId,
 		tokenRefreshIntervalMs: config.tokenRefreshIntervalMs,
 		ttlRefreshIntervalMs: config.ttlRefreshIntervalMs,
 		cacheTtlMs: config.cacheTtlMs,
-		tokenManager,
-		addressManagerClient,
-		healthChecker,
-	});
+		tokenManager: deps.tokenManager,
+		addressManagerClient: deps.addressManagerClient,
+		healthChecker: deps.healthChecker,
+	};
 }
 
 function _buildHttpLayer(config: AddressManagerConfig) {
@@ -271,58 +286,23 @@ function _buildDiscoveryLayer(
 ) {
 	const circuitBreaker = createCircuitBreaker(config, serviceCache);
 	const healthChecker = createHealthChecker(httpClient, config);
-	const discoveryOrchestrator = createDiscoveryInfra(
-		httpClient,
-		serviceCache,
-		healthChecker,
-		config,
-		circuitBreaker
-	);
-	const metricsCollector = new MetricsCollector(
-		circuitBreaker,
-		serviceCache,
-		config.maxCallRecords
-	);
-	return {
-		circuitBreaker,
-		healthChecker,
-		discoveryOrchestrator,
-		metricsCollector,
-	};
+	const discoveryOrchestrator = createDiscoveryInfra(httpClient, serviceCache, healthChecker, config, circuitBreaker);
+	const metricsCollector = new MetricsCollector(circuitBreaker, serviceCache, config.maxCallRecords);
+	return { circuitBreaker, healthChecker, discoveryOrchestrator, metricsCollector };
 }
 
 function _buildClientInfrastructure(config: AddressManagerConfig) {
 	const http = _buildHttpLayer(config);
-	const discovery = _buildDiscoveryLayer(
-		http.httpClient,
-		http.serviceCache,
-		config
-	);
-	const wsClient = maybeCreateWsClient(
-		config,
-		http.addressManagerClient,
-		http.tokenManager,
-		http.serviceCache
-	);
-
-	return {
-		...http,
-		...discovery,
-		wsClient,
-	};
+	const discovery = _buildDiscoveryLayer(http.httpClient, http.serviceCache, config);
+	const wsClient = maybeCreateWsClient(config, http.addressManagerClient, http.tokenManager, http.serviceCache);
+	return { ...http, ...discovery, wsClient };
 }
 
 function _buildLifecycleManager(
 	config: AddressManagerConfig,
 	infra: ReturnType<typeof _buildClientInfrastructure>
 ): LifecycleManager {
-	const baseDeps: AddressManagerDeps = {
-		addressManagerClient: infra.addressManagerClient,
-		tokenManager: infra.tokenManager,
-		wsClient: infra.wsClient,
-	};
-	const { registrationManager, heartbeatManager } =
-		createRegistrationAndHeartbeat(baseDeps);
+	const { registrationManager, heartbeatManager } = _createRegistrationAndHeartbeat(infra);
 
 	return createLifecycleManager(
 		config,
@@ -335,6 +315,18 @@ function _buildLifecycleManager(
 		infra.addressManagerClient,
 		infra.healthChecker
 	);
+}
+
+function _createRegistrationAndHeartbeat(infra: ReturnType<typeof _buildClientInfrastructure>): {
+	registrationManager: RegistrationManager;
+	heartbeatManager: HeartbeatManager;
+} {
+	const baseDeps: AddressManagerDeps = {
+		addressManagerClient: infra.addressManagerClient,
+		tokenManager: infra.tokenManager,
+		wsClient: infra.wsClient,
+	};
+	return createRegistrationAndHeartbeat(baseDeps);
 }
 
 export function buildAddressManagerDependencies(

@@ -51,6 +51,27 @@ export class DeliveryCircuitBreaker implements ICircuitBreaker {
 		return this.isOpen(_key) ? CircuitState.OPEN : CircuitState.CLOSED;
 	}
 
+	async call<TResult>(
+		key: string,
+		fn: () => Promise<TResult>,
+		fallback?: () => TResult
+	): Promise<TResult> {
+		if (!this.isAllowed(key)) {
+			if (fallback) {
+				return Promise.resolve(fallback());
+			}
+			throw new Error(`Circuit breaker is open for key: ${key}`);
+		}
+		try {
+			const result = await fn();
+			this.recordSuccess(key);
+			return result;
+		} catch (error) {
+			this.recordFailure(key);
+			throw error;
+		}
+	}
+
 	/**
 	 * Checks whether the circuit is open. If so, logs a warning and routes
 	 * the message to the DLQ without attempting delivery.

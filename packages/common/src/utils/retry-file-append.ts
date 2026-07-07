@@ -16,23 +16,49 @@ export async function retryFileAppend(
 	options?: Partial<RetryOptions>
 ): Promise<boolean> {
 	const maxRetries = options?.maxRetries ?? 3;
-	const baseDelayMs = options?.baseDelayMs ?? 100;
-	const maxDelayMs = options?.maxDelayMs ?? 800;
+	const retryCfg = _retryConfig(options);
 	for (let attempt = 0; attempt < maxRetries; attempt++) {
-		try {
-			const fs = await import("node:fs/promises");
-			await fs.appendFile(filePath, `${content}\n`, "utf-8");
+		if (await _tryAppend(filePath, content)) {
 			return true;
-		} catch {
-			if (attempt < maxRetries - 1) {
-				await new Promise((resolve) =>
-					setTimeout(
-						resolve,
-						computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs })
-					)
-				);
-			}
+		}
+		if (attempt < maxRetries - 1) {
+			await _backoffDelay(attempt, retryCfg);
 		}
 	}
 	return false;
+}
+
+function _retryConfig(options?: Partial<RetryOptions>): {
+	baseDelayMs: number;
+	maxDelayMs: number;
+} {
+	return {
+		baseDelayMs: options?.baseDelayMs ?? 100,
+		maxDelayMs: options?.maxDelayMs ?? 800,
+	};
+}
+
+async function _tryAppend(filePath: string, content: string): Promise<boolean> {
+	try {
+		const fs = await import("node:fs/promises");
+		await fs.appendFile(filePath, `${content}\n`, "utf-8");
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+async function _backoffDelay(
+	attempt: number,
+	cfg: { baseDelayMs: number; maxDelayMs: number }
+): Promise<void> {
+	await new Promise((resolve) =>
+		setTimeout(
+			resolve,
+			computeExponentialBackoff(attempt, {
+				baseDelayMs: cfg.baseDelayMs,
+				maxDelayMs: cfg.maxDelayMs,
+			})
+		)
+	);
 }

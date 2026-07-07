@@ -28,34 +28,27 @@ export class DiscoveryRetryHandler {
 	): Promise<ServiceInstance> {
 		let lastError: Error | null = null;
 
-		for (
-			let attempt = 0;
-			attempt <= DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES;
-			attempt++
-		) {
+		for (let attempt = 0; attempt <= DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES; attempt++) {
 			try {
 				const instance = await this._serviceDiscovery.findService(serviceName);
-				const result = await this._checkServiceCircuitBreaker({
-					instance,
-					serviceName,
-					startTime,
-					attempt,
-				});
-				if (result) {
-					return result;
-				}
+				const result = await this._checkServiceCircuitBreaker({ instance, serviceName, startTime, attempt });
+				if (result) return result;
 			} catch (err) {
-				lastError = err instanceof Error ? err : new Error(String(err));
+				lastError = this._captureError(err);
 				if (attempt < DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES) {
-					const delay =
-						DiscoveryRetryHandler._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS *
-						2 ** attempt;
-					await sleep(delay);
+					await sleep(this._backoffDelay(attempt));
 				}
 			}
 		}
-
 		throw lastError ?? new Error("Discovery failed");
+	}
+
+	private _captureError(err: unknown): Error {
+		return err instanceof Error ? err : new Error(String(err));
+	}
+
+	private _backoffDelay(attempt: number): number {
+		return DiscoveryRetryHandler._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS * 2 ** attempt;
 	}
 
 	private async _checkServiceCircuitBreaker(params: {
@@ -74,39 +67,29 @@ export class DiscoveryRetryHandler {
 		}
 
 		await this._serviceCache.invalidate(toServiceId(serviceName));
-
 		if (attempt < DiscoveryRetryHandler._CIRCUIT_BREAKER_MAX_RETRIES) {
-			const delay =
-				DiscoveryRetryHandler._CIRCUIT_BREAKER_RETRY_BASE_DELAY_MS *
-				2 ** attempt;
-			await sleep(delay);
+			await sleep(this._backoffDelay(attempt));
 		}
-
 		return null;
 	}
 
-	async fallbackToStaleCache(
-		serviceName: string,
-		startTime: number
-	): Promise<ServiceInstance | null> {
+	async fallbackToStaleCache(serviceName: string, startTime: number): Promise<ServiceInstance | null> {
 		try {
-			const staleInstance = await this._serviceCache.get(
-				toServiceId(serviceName)
-			);
+			const staleInstance = await this._serviceCache.get(toServiceId(serviceName));
 			if (staleInstance) {
-				logger.warn(
-					"Circuit breaker exhausted — returning stale cached instance as fallback",
-					{
-						serviceName,
-						instanceId: staleInstance.instanceId,
-					}
-				);
-				recordDiscoveryMetrics({ serviceName, startTime }, "degraded");
-				return staleInstance;
+				return this._returnStaleInstance(staleInstance, serviceName, startTime);
 			}
 		} catch (err) {
 			logger.debug("Cache lookup failed in fallback path", { error: err });
 		}
 		return null;
+	}
+
+	private _returnStaleInstance(staleInstance: ServiceInstance, serviceName: string, startTime: number): ServiceInstance {
+		logger.warn("Circuit breaker exhausted — returning stale cached instance as fallback", {
+			serviceName, instanceId: staleInstance.instanceId,
+		});
+		recordDiscoveryMetrics({ serviceName, startTime }, "degraded");
+		return staleInstance;
 	}
 }

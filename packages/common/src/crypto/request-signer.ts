@@ -44,10 +44,26 @@ export function verifySignature(
 	if (!(timestamp && signature)) {
 		return false;
 	}
-	const ts = Number.parseInt(timestamp, 10);
-	if (Number.isNaN(ts) || Math.abs(Date.now() - ts) > toleranceMs) {
+	if (!_isTimestampValid(timestamp, toleranceMs)) {
 		return false;
 	}
+	return _verifyHmacMatch(input, timestamp, secret, signature);
+}
+
+function _isTimestampValid(
+	timestamp: string,
+	toleranceMs: number
+): boolean {
+	const ts = Number.parseInt(timestamp, 10);
+	return !Number.isNaN(ts) && Math.abs(Date.now() - ts) <= toleranceMs;
+}
+
+function _verifyHmacMatch(
+	input: SignedRequest,
+	timestamp: string,
+	secret: string,
+	signature: string
+): boolean {
 	const parts = _buildSignParts(input, timestamp, secret);
 	const expected = createHmac("sha256", secret)
 		.update(parts.join(":"))

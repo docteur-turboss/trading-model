@@ -50,16 +50,33 @@ export async function getCachedOrLoad(
 		return cached;
 	}
 
-	const inFlight = peekInFlight(topic);
-	if (inFlight) {
-		await inFlight;
-		const fromCache = getFromCache(topic);
-		if (fromCache) {
-			return fromCache;
-		}
-		return "deny";
+	const fromInFlight = await _waitForInFlight(topic);
+	if (fromInFlight !== undefined) {
+		return fromInFlight;
 	}
 
+	return _loadAndCache(topic, loader);
+}
+
+async function _waitForInFlight(
+	topic: string
+): Promise<string[] | "deny" | undefined> {
+	const inFlight = peekInFlight(topic);
+	if (!inFlight) {
+		return undefined;
+	}
+	await inFlight;
+	const fromCache = getFromCache(topic);
+	if (fromCache) {
+		return fromCache;
+	}
+	return "deny";
+}
+
+async function _loadAndCache(
+	topic: string,
+	loader: (topic: string) => Promise<string[] | "deny">
+): Promise<string[] | "deny"> {
 	const loadPromise = loader(topic);
 	ACL_LOADING.set(topic, loadPromise);
 	try {

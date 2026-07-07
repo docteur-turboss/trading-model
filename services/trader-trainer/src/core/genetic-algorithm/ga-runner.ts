@@ -42,16 +42,24 @@ export class GeneticAlgorithmRunner {
 
 		while (true) {
 			const ctx = await this.runGeneration(startTime);
-			if (
-				ctx.bestFitness >= ctx.gaControl.rewardThreshold ||
-				ctx.stagnation >= ctx.gaControl.stagnationPatience ||
-				ctx.generation >= ctx.gaControl.maxGenerations ||
-				ctx.elapsedMs >= ctx.gaControl.timeBudgetMs
-			) {
+			if (this._shouldTerminate(ctx)) {
 				break;
 			}
 		}
 
+		return this._bestGenome();
+	}
+
+	private _shouldTerminate(ctx: GenerationContext): boolean {
+		return (
+			ctx.bestFitness >= ctx.gaControl.rewardThreshold ||
+			ctx.stagnation >= ctx.gaControl.stagnationPatience ||
+			ctx.generation >= ctx.gaControl.maxGenerations ||
+			ctx.elapsedMs >= ctx.gaControl.timeBudgetMs
+		);
+	}
+
+	private _bestGenome(): DeepReadonly<LamarckGenome> {
 		return (
 			this._processor.archive.members[0] ??
 			this._processor.lastBestGenome ??

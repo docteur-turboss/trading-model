@@ -42,16 +42,16 @@ export class RedisServiceCache implements IServiceCache {
 		this._prefix = prefix;
 		this._ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
 		this._connectionManager = new RedisConnectionManager(redisUrl, cacheOptions);
-		this._cacheOps = new RedisCacheOperations(
-			this._connectionManager.client,
-			this._prefix,
-			this._ttlSec
-		);
-		this._circuitState = new RedisCircuitStateStore(
-			this._connectionManager.client,
-			this._prefix,
-			this._ttlSec
-		);
+		this._cacheOps = this._createCacheOps();
+		this._circuitState = this._createCircuitState();
+	}
+
+	private _createCacheOps(): RedisCacheOperations {
+		return new RedisCacheOperations(this._connectionManager.client, this._prefix, this._ttlSec);
+	}
+
+	private _createCircuitState(): RedisCircuitStateStore {
+		return new RedisCircuitStateStore(this._connectionManager.client, this._prefix, this._ttlSec);
 	}
 
 	async get(

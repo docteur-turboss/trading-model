@@ -30,12 +30,16 @@ export class JobLifecycle {
 		);
 	}
 
-	async submit(
-		type: string,
-		payload: unknown,
-		priority: JobPriority = JobPriority.MEDIUM,
-		maxRetries: number = ENV.MAX_RETRIES_PER_JOB
-	): Promise<string> {
+	async submit(type: string, payload: unknown, priority: JobPriority = JobPriority.MEDIUM, maxRetries: number = ENV.MAX_RETRIES_PER_JOB): Promise<string> {
+		this._checkBackPressure();
+		const job = this._createJob(type, payload, priority, maxRetries);
+		await this._repository.insert(job);
+		this._enqueueJob(job);
+		logger.info("Job submitted", { context: { jobId: job.id, type, priority } });
+		return job.id;
+	}
+
+	private _checkBackPressure(): void {
 		if (!this._backPressure.canAccept()) {
 			logger.warn("Back pressure active — rejecting job submission");
 			throw Object.assign(new Error("Job scheduler at capacity"), {
@@ -43,12 +47,11 @@ export class JobLifecycle {
 				retryAfter: this._backPressure.retryAfterSeconds(),
 			});
 		}
+	}
 
-		const jobId = randomUUID();
-		const now = new Date();
-
-		const job: Job = {
-			id: jobId as JobId,
+	private _createJob(type: string, payload: unknown, priority: JobPriority, maxRetries: number): Job {
+		return {
+			id: randomUUID() as JobId,
 			type: toJobType(type),
 			payload,
 			priority,
@@ -56,15 +59,9 @@ export class JobLifecycle {
 			ackDeadline: 0,
 			maxRetries,
 			retryCount: 0,
-			createdAt: now,
+			createdAt: new Date(),
 			history: [],
 		};
-
-		await this._repository.insert(job);
-		this._enqueueJob(job);
-
-		logger.info("Job submitted", { context: { jobId, type, priority } });
-		return jobId;
 	}
 
 	private _enqueueJob(job: Job): void {

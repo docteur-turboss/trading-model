@@ -94,9 +94,46 @@ export class DlqQueryBuilder {
 	}
 }
 
+export class DlqQueueRepository {
+	private readonly _queryBuilder: DlqQueryBuilder;
+
+	constructor(queryBuilder?: DlqQueryBuilder) {
+		this._queryBuilder = queryBuilder ?? new DlqQueryBuilder();
+	}
+
+	async listQueuable(): Promise<string[]> {
+		const col = await getCollection();
+		const query = this._queryBuilder.buildQueuableQuery();
+		const docs = await col
+			.find(query, {
+				sort: { createdAt: -1 },
+				limit: ENV.DLQ_AUTO_RETRY_LIMIT * 10,
+				projection: { _id: 1 },
+			})
+			.toArray();
+		return docs.map((doc) => doc._id.toHexString());
+	}
+
+	async listActiveClaimIds(): Promise<string[]> {
+		const col = await getCollection();
+		const query = this._queryBuilder.buildActiveClaimQuery();
+		const docs = await col.find(query, { projection: { _id: 1 } }).toArray();
+		return docs.map((doc) => doc._id.toHexString());
+	}
+}
+
 export class DlqRepository {
 	private _entryWriter = new DlqEntryWriter();
 	private _queryBuilder = new DlqQueryBuilder();
+	private _queueRepository = new DlqQueueRepository(this._queryBuilder);
+
+	get queryBuilder(): DlqQueryBuilder {
+		return this._queryBuilder;
+	}
+
+	get queueRepository(): DlqQueueRepository {
+		return this._queueRepository;
+	}
 
 	async insert(entry: DlqEntry): Promise<string> {
 		return this._entryWriter.insert(entry);
@@ -135,23 +172,11 @@ export class DlqRepository {
 	}
 
 	async listQueuable(): Promise<string[]> {
-		const col = await getCollection();
-		const query = this._queryBuilder.buildQueuableQuery();
-		const docs = await col
-			.find(query, {
-				sort: { createdAt: -1 },
-				limit: ENV.DLQ_AUTO_RETRY_LIMIT * 10,
-				projection: { _id: 1 },
-			})
-			.toArray();
-		return docs.map((doc) => doc._id.toHexString());
+		return this._queueRepository.listQueuable();
 	}
 
 	async listActiveClaimIds(): Promise<string[]> {
-		const col = await getCollection();
-		const query = this._queryBuilder.buildActiveClaimQuery();
-		const docs = await col.find(query, { projection: { _id: 1 } }).toArray();
-		return docs.map((doc) => doc._id.toHexString());
+		return this._queueRepository.listActiveClaimIds();
 	}
 }
 

@@ -23,18 +23,24 @@ export class MetricsCollector {
 	}
 
 	listenExpress(app: Application): void {
+		this._setupMetricsSnapshot(app);
+		this._setupPrometheusEndpoint(app);
+		app.use(PING_ROUTES);
+		app.use(METRICS_ROUTES);
+	}
+
+	private _setupMetricsSnapshot(app: Application): void {
 		app.locals.metricsSnapshot = () => ({
 			...this._systemMetrics.collect(),
 			callTracker: this._serviceCallTracker.snapshot(),
 		});
+	}
 
+	private _setupPrometheusEndpoint(app: Application): void {
 		app.get("/prometheus", async (_req, res) => {
 			res.set("Content-Type", promClient.register.contentType);
 			res.end(await promClient.register.metrics());
 		});
-
-		app.use(PING_ROUTES);
-		app.use(METRICS_ROUTES);
 	}
 
 	getMetrics(): SystemMetricsPayload {

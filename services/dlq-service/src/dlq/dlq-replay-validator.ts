@@ -19,17 +19,24 @@ export function validateReplayQuery(
 	| { valid: true; data: z.infer<typeof ReplaySchema> } {
 	const parsed = ReplaySchema.safeParse(query);
 	if (!parsed.success) {
-		span.setStatus({
-			code: SpanStatusCode.ERROR,
-			message: parsed.error.message,
-		});
-		span.end();
-		return {
-			valid: false,
-			response: sendResponse({ error: parsed.error.message }, 400),
-		};
+		return _replayValidationFail(span, parsed.error.message);
 	}
 	span.setAttribute("topic", parsed.data.topic ?? "all");
 	span.setAttribute("limit", parsed.data.limit);
 	return { valid: true, data: parsed.data };
+}
+
+function _replayValidationFail(
+	span: import("@opentelemetry/api").Span,
+	message: string
+): { valid: false; response: ResponseObject } {
+	span.setStatus({
+		code: SpanStatusCode.ERROR,
+		message,
+	});
+	span.end();
+	return {
+		valid: false,
+		response: sendResponse({ error: message }, 400),
+	};
 }

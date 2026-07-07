@@ -3,7 +3,7 @@ import { ENV } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
-import { stopAutoRetry } from "./auto-retry";
+import { stopAutoRetry } from "./auto-retry-scheduler";
 import { dlqClaimManager } from "./claim-manager";
 import { dlqRepository } from "./repository";
 import { activeReplays } from "./shared/active-replay-counter";
@@ -63,18 +63,14 @@ function stopPeriodicPrune(): void {
 }
 
 async function drainActiveReplays(): Promise<void> {
-	if (activeReplays.count === 0) {
-		return;
-	}
+	if (activeReplays.count === 0) return;
 
 	logger.info(
 		`Waiting for ${activeReplays.count} in-flight replays to complete`
 	);
 	await _waitForReplays();
 
-	if (activeReplays.count === 0) {
-		return;
-	}
+	if (activeReplays.count === 0) return;
 
 	await _forceReleaseClaims();
 }
@@ -108,12 +104,16 @@ async function releaseAndRequeueClaims(): Promise<void> {
 		ENV.INSTANCE_ID
 	);
 	if (releasedCount > 0 && dlqRedisQueue.isAvailable()) {
-		const toPush = await _computeRequeueBatch(releasedCount);
-		for (const id of toPush) {
-			dlqRedisQueue.push(id).catch(() => {});
-		}
-		logger.info(`Re-queued up to ${toPush.length} entries after shutdown`);
+		await _requeueReleasedEntries(releasedCount);
 	}
+}
+
+async function _requeueReleasedEntries(releasedCount: number): Promise<void> {
+	const toPush = await _computeRequeueBatch(releasedCount);
+	for (const id of toPush) {
+		dlqRedisQueue.push(id).catch(() => {});
+	}
+	logger.info(`Re-queued up to ${toPush.length} entries after shutdown`);
 }
 
 async function _computeRequeueBatch(releasedCount: number): Promise<string[]> {
@@ -135,6 +135,10 @@ async function shutdownSchedulers(): Promise<void> {
 	stopAutoRetry();
 	await drainActiveReplays();
 	await releaseAndRequeueClaims();
+	await _closeResources();
+}
+
+async function _closeResources(): Promise<void> {
 	await dlqRedisQueue.close();
 	await closeHttpClient();
 }

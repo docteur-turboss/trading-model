@@ -182,22 +182,6 @@ export function fromRole(value: Role): string {
 	return value;
 }
 
-export type RetryCount = number & { readonly __brand: "RetryCount" };
-export function toRetryCount(value: number): RetryCount {
-	return value as RetryCount;
-}
-export function fromRetryCount(value: RetryCount): number {
-	return value;
-}
-
-export type MaxRetries = number & { readonly __brand: "MaxRetries" };
-export function toMaxRetries(value: number): MaxRetries {
-	return value as MaxRetries;
-}
-export function fromMaxRetries(value: MaxRetries): number {
-	return value;
-}
-
 export type DurationMs = number & { readonly __brand: "DurationMs" };
 export function toDurationMs(value: number): DurationMs {
 	return value as DurationMs;

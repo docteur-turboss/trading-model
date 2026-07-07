@@ -24,46 +24,62 @@ export class WalEntryParser {
 
 	drainEntry(entry: string): ParsedEntry | null {
 		try {
-			const parsed = JSON.parse(entry) as {
-				topic: string;
-				serialized?: string;
-				message?: Message;
-			};
-			return {
-				topic: parsed.topic,
-				data: parsed.serialized ?? safeStringify(parsed.message!),
-			};
+			return this._tryParseDrainEntry(entry);
 		} catch {
-			logger.warn("WAL flush: malformed entry dropped", {
-				context: {
-					entry: entry.substring(0, 200),
-				},
-			});
-			return null;
+			return this._logMalformedEntry(entry);
 		}
+	}
+
+	private _tryParseDrainEntry(entry: string): ParsedEntry {
+		const parsed = JSON.parse(entry) as {
+			topic: string;
+			serialized?: string;
+			message?: Message;
+		};
+		return {
+			topic: parsed.topic,
+			data: parsed.serialized ?? safeStringify(parsed.message!),
+		};
+	}
+
+	private _logMalformedEntry(entry: string): null {
+		logger.warn("WAL flush: malformed entry dropped", {
+			context: {
+				entry: entry.substring(0, 200),
+			},
+		});
+		return null;
 	}
 
 	parseAndBuffer(raw: string[]): void {
 		for (const entry of raw) {
-			try {
-				const parsed = JSON.parse(entry) as {
-					topic: string;
-					serialized?: string;
-					message?: unknown;
-				};
-				const topic = parsed.topic;
-				const serialized = parsed.serialized ?? safeStringify(parsed.message!);
-				const message = parsed.message ?? JSON.parse(parsed.serialized!);
-				const walEntry: MemoryWalEntry = {
-					topic,
-					serialized,
-					message: message as Message,
-				};
-				this._memoryWalBuffer.push(walEntry);
-			} catch {
-				logger.debug("WAL entry parse failed (best-effort)");
-			}
+			this._tryParseAndBuffer(entry);
 		}
+	}
+
+	private _tryParseAndBuffer(entry: string): void {
+		try {
+			const walEntry = this._buildWalEntry(entry);
+			this._memoryWalBuffer.push(walEntry);
+		} catch {
+			logger.debug("WAL entry parse failed (best-effort)");
+		}
+	}
+
+	private _buildWalEntry(entry: string): MemoryWalEntry {
+		const parsed = JSON.parse(entry) as {
+			topic: string;
+			serialized?: string;
+			message?: unknown;
+		};
+		const topic = parsed.topic;
+		const serialized = parsed.serialized ?? safeStringify(parsed.message!);
+		const message = parsed.message ?? JSON.parse(parsed.serialized!);
+		return {
+			topic,
+			serialized,
+			message: message as Message,
+		};
 	}
 
 	static parse(entry: string): ParsedWalEntry | null {

@@ -39,6 +39,8 @@ export class ServiceDiscovery {
 		);
 	}
 
+	private readonly _connections = new Map<string, number>();
+
 	async findService(serviceName: string): Promise<ServiceInstance> {
 		return this._finder.findService(serviceName);
 	}
@@ -50,9 +52,23 @@ export class ServiceDiscovery {
 		return this._finder.findServiceInRegion(serviceName, region);
 	}
 
-	acquireConnection(_instanceId: string): void {}
+	acquireConnection(instanceId: string): void {
+		this._connections.set(
+			instanceId,
+			(this._connections.get(instanceId) ?? 0) + 1
+		);
+	}
 
-	releaseConnection(_instanceId: string): void {}
+	releaseConnection(instanceId: string): void {
+		const count = this._connections.get(instanceId);
+		if (count !== undefined) {
+			if (count <= 1) {
+				this._connections.delete(instanceId);
+			} else {
+				this._connections.set(instanceId, count - 1);
+			}
+		}
+	}
 
 	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {
 		return this._finder.findAllServices(serviceName);

@@ -30,18 +30,25 @@ export function createBootstrap(options: BootstrapOptions): {
 	shutdown: (signal: string) => Promise<void>;
 } {
 	let server: HttpServer | null = null;
-	const doHardShutdown = (code: number) => hardShutdown(code, server, options);
+	const svrRef: { current: HttpServer | null } = { current: server };
+	const doHardShutdown = (code: number) => hardShutdown(code, svrRef.current, options);
 	const doShutdown = (signal: string) =>
-		gracefulShutdown(signal, server, options);
+		gracefulShutdown(signal, svrRef.current, options);
 	setupProcessHandlers(doShutdown, doHardShutdown);
-	runBootstrap(
+	_startBootstrap(
 		options,
-		(svr) => {
-			server = svr;
-		},
+		(svr) => { svrRef.current = svr; },
 		doHardShutdown
 	);
 	return { server, shutdown: doShutdown };
+}
+
+function _startBootstrap(
+	options: BootstrapOptions,
+	setServer: (server: HttpServer) => void,
+	doHardShutdown: (code: number) => void
+): void {
+	runBootstrap(options, setServer, doHardShutdown);
 }
 
 function _closeServerOnShutdown(server: HttpServer | null): void {

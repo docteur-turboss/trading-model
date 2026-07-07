@@ -26,6 +26,7 @@
  * No business logic is performed here; purely request/response orchestration.
  */
 
+import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
@@ -82,7 +83,10 @@ export const DELETE_A_SUBSCRIPTION = (dispatcher: Dispatcher) =>
 			return sendResponse({ error: parsed.error.message }, 400);
 		}
 
-		dispatcher.unsubscribe(parsed.data);
+		dispatcher.unsubscribe({
+			topic: toTopic(parsed.data.topic),
+			instanceId: toInstanceId(parsed.data.instanceId),
+		});
 
 		return sendResponse(undefined, 204);
 	});

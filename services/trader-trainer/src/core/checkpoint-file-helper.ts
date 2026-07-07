@@ -1,15 +1,19 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
+import type {
+	TradingSymbol,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 
 export interface CheckpointMetadata {
-	symbol: string;
+	symbol: TradingSymbol;
 	generation: number;
 	fitness: number;
-	savedAt: number;
+	savedAt: UnixTimestamp;
 }
 
 export interface CheckpointIO {
@@ -40,11 +44,11 @@ export class CheckpointSerializer {
 	}
 
 	buildMetadata(
-		symbol: string,
+		symbol: TradingSymbol,
 		genome: DeepReadonly<LamarckGenome>
 	): CheckpointMetadata {
 		return {
-			savedAt: Date.now(),
+			savedAt: Date.now() as UnixTimestamp,
 			symbol,
 			generation: (genome.generation as number | undefined) ?? 0,
 			fitness: (genome.fitness as number | undefined) ?? 0,
@@ -55,10 +59,10 @@ export class CheckpointSerializer {
 		try {
 			const meta = JSON.parse(raw);
 			return {
-				symbol: meta.symbol,
+				symbol: meta.symbol as TradingSymbol,
 				generation: meta.generation,
 				fitness: meta.fitness,
-				savedAt: meta.savedAt,
+				savedAt: meta.savedAt as UnixTimestamp,
 			};
 		} catch {
 			return null;
@@ -79,15 +83,15 @@ export class CheckpointFileHelper {
 		this._serializer = serializer ?? new CheckpointSerializer();
 	}
 
-	checkpointPath(symbol: string): string {
+	checkpointPath(symbol: TradingSymbol): string {
 		return join(this._checkpointDir, `best_genome_${symbol}.json`);
 	}
 
-	metadataPath(symbol: string): string {
+	metadataPath(symbol: TradingSymbol): string {
 		return join(this._checkpointDir, `metadata_${symbol}.json`);
 	}
 
-	save(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
+	save(symbol: TradingSymbol, genome: DeepReadonly<LamarckGenome>): void {
 		const path = this.checkpointPath(symbol);
 		this._io.writeFile(path, this._serializer.toJson(genome));
 		this._writeMetadata(symbol, genome);
@@ -97,14 +101,14 @@ export class CheckpointFileHelper {
 	}
 
 	private _writeMetadata(
-		symbol: string,
+		symbol: TradingSymbol,
 		genome: DeepReadonly<LamarckGenome>
 	): void {
 		const meta = this._serializer.buildMetadata(symbol, genome);
 		this._io.writeFile(this.metadataPath(symbol), JSON.stringify(meta));
 	}
 
-	load(symbol: string): DeepReadonly<LamarckGenome> | null {
+	load(symbol: TradingSymbol): DeepReadonly<LamarckGenome> | null {
 		const path = this.checkpointPath(symbol);
 		if (!this._io.fileExists(path)) {
 			logger.info("No checkpoint found for symbol", { context: { symbol } });

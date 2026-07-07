@@ -49,12 +49,20 @@ async function _forceReleaseClaim(
 		"Failed to mark entry as failed — releasing claim without count",
 		{ entryId, error: (markErr as Error).message }
 	);
+	await _forceIncrementRetry(entryId);
+	await _forceReleaseClaimWithoutCount(entryId);
+}
+
+async function _forceIncrementRetry(entryId: string): Promise<void> {
 	await dlqClaimManager.incrementRetryCount(entryId).catch((err) => {
 		logger.error(
 			"CRITICAL: Failed to increment retryCount after markRetried failure",
 			{ entryId, error: (err as Error).message }
 		);
 	});
+}
+
+async function _forceReleaseClaimWithoutCount(entryId: string): Promise<void> {
 	await dlqClaimManager.releaseClaimWithoutCount(entryId).catch((err) => {
 		logger.error("CRITICAL: Failed to release claim after error", {
 			entryId,

@@ -48,10 +48,6 @@ export {
 	fromSubject,
 	toRole,
 	fromRole,
-	toRetryCount,
-	fromRetryCount,
-	toMaxRetries,
-	fromMaxRetries,
 	toDurationMs,
 	fromDurationMs,
 	toEnvironment,
@@ -60,6 +56,12 @@ export {
 	fromSequenceNumber,
 	toMessagePriority,
 	fromMessagePriority,
+	toUserId,
+	fromUserId,
+	toSessionId,
+	fromSessionId,
+	toAuthToken,
+	fromAuthToken,
 } from "./string-ids";
 export {
 	WorkerStatusCode,
@@ -95,8 +97,6 @@ export type {
 	Version,
 	Subject,
 	Role,
-	RetryCount,
-	MaxRetries,
 	SequenceNumber,
 	MessagePriority,
 } from "./string-ids";

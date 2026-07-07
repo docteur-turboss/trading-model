@@ -25,22 +25,28 @@ export async function addEntry(req: {
 	return tracer.startActiveSpan("dlq-add-entry", async (span) => {
 		try {
 			const validation = validateAddEntryBody(req.body, span);
-			if (!validation.valid) {
-				return validation.response;
-			}
+			if (!validation.valid) return validation.response;
 
 			const id = await dlqRepository.insert(validation.data);
-			span.setAttribute("entryId", id);
-			metrics.entriesAdded.inc(1);
-			await pushToRedisQueue(id);
-			notifyAddAudit(id, validation.data.topic, validation.data.reason);
-			span.setStatus({ code: SpanStatusCode.OK });
-			span.end();
-			return sendResponse({ id }, 201);
+			return _handleAddSuccess(id, validation.data, span);
 		} catch (err) {
 			return handleAddEntryError(err, span);
 		}
 	});
+}
+
+async function _handleAddSuccess(
+	id: string,
+	data: import("zod").infer<typeof import("./dlq-schemas").DlqEntrySchema>,
+	span: import("@opentelemetry/api").Span
+): Promise<ResponseObject> {
+	span.setAttribute("entryId", id);
+	metrics.entriesAdded.inc(1);
+	await pushToRedisQueue(id);
+	notifyAddAudit(id, data.topic, data.reason);
+	span.setStatus({ code: SpanStatusCode.OK });
+	span.end();
+	return sendResponse({ id }, 201);
 }
 
 function _buildPaginationQuery(query: Record<string, unknown>): {
@@ -75,6 +81,15 @@ export async function listEntries(req: {
 		offset,
 		before: cursor,
 	});
+	return sendResponse(_buildListResponse(entries, limit, offset, cursor), 200);
+}
+
+function _buildListResponse(
+	entries: import("./repository").StoredDlqEntry[],
+	limit: number,
+	offset: number | undefined,
+	cursor: string | undefined
+): Record<string, unknown> {
 	const hasMore = entries.length === limit;
 	const response: Record<string, unknown> = {
 		entries,
@@ -87,7 +102,7 @@ export async function listEntries(req: {
 	if (hasMore && entries.length > 0) {
 		response.cursor = entries[entries.length - 1].id;
 	}
-	return sendResponse(response, 200);
+	return response;
 }
 
 export async function deleteEntries(req: {
@@ -110,13 +125,26 @@ export async function healthCheck(): Promise<ResponseObject> {
 }
 
 export async function readyCheck(): Promise<ResponseObject> {
-	const dbOk = isDbConnected();
-	if (!dbOk) {
+	const dbResponse = _checkDbReady();
+	if (dbResponse) return dbResponse;
+
+	const indexResponse = _checkIndexesReady();
+	if (indexResponse) return indexResponse;
+
+	return _buildReadyResponse();
+}
+
+function _checkDbReady(): ResponseObject | null {
+	if (!isDbConnected()) {
 		return sendResponse(
 			{ status: "not ready", reason: "Database not connected" },
 			503
 		);
 	}
+	return null;
+}
+
+function _checkIndexesReady(): ResponseObject | null {
 	const missingIndexes = getMissingCriticalIndexes();
 	if (missingIndexes.length > 0) {
 		return sendResponse(
@@ -127,6 +155,10 @@ export async function readyCheck(): Promise<ResponseObject> {
 			503
 		);
 	}
+	return null;
+}
+
+async function _buildReadyResponse(): Promise<ResponseObject> {
 	const redisOk = dlqRedisQueue.isAvailable();
 	const status = redisOk ? "ready" : "degraded";
 	const count = await dlqRepository.count();

@@ -1,6 +1,5 @@
 ﻿import { logger } from "@trading-model/common/config/logger";
 import Redis from "ioredis";
-import { RedisSubscriberManager } from "./redis-subscriber-manager";
 
 export interface CacheOptions {
 	ttlMs: number;
@@ -15,11 +14,6 @@ export interface CacheSetEntry {
 
 export interface RedisCache {
 	disconnect(): Promise<void>;
-	publish(channel: string, message: string): Promise<void>;
-	subscribe(
-		channel: string,
-		handler: (message: string) => void
-	): Promise<() => void>;
 	isAvailable(): boolean;
 	get<TData>(key: string): Promise<TData | null>;
 	set(entry: CacheSetEntry): Promise<void>;
@@ -30,15 +24,6 @@ export interface RedisCache {
 
 export class NullCache implements RedisCache {
 	async disconnect(): Promise<void> {}
-
-	async publish(_channel: string, _message: string): Promise<void> {}
-
-	async subscribe(
-		_channel: string,
-		_handler: (message: string) => void
-	): Promise<() => void> {
-		return () => {};
-	}
 
 	isAvailable(): boolean {
 		return false;
@@ -61,31 +46,26 @@ export class NullCache implements RedisCache {
 
 class RealRedisCache implements RedisCache {
 	private readonly _client: Redis;
-	private readonly _subscriberManager: RedisSubscriberManager;
 
-	private _createClient(redisUrl: string): Redis {
-		const client = new Redis(redisUrl, {
+	private _buildCacheRedisOptions() {
+		return {
 			enableReadyCheck: true,
 			maxRetriesPerRequest: 3,
-			retryStrategy: (times) =>
-				times > 10 ? null : Math.min(times * 1000, 30000),
+			retryStrategy: (times: number) => (times > 10 ? null : Math.min(times * 1000, 30000)),
 			lazyConnect: true,
-		});
+		};
+	}
+
+	private _createClient(redisUrl: string): Redis {
+		const client = new Redis(redisUrl, this._buildCacheRedisOptions());
 		client.on("error", (err) =>
-			logger.warn("Redis cache error (falling through to DB)", {
-				context: { err },
-			})
+			logger.warn("Redis cache error (falling through to DB)", { context: { err } })
 		);
 		return client;
 	}
 
-	constructor(redisUrl: string, options?: Partial<CacheOptions>) {
+	constructor(redisUrl: string) {
 		this._client = this._createClient(redisUrl);
-		this._options = {
-			ttlMs: options?.ttlMs ?? 300_000,
-			prefix: options?.prefix ?? "ca-cache",
-		};
-		this._subscriberManager = new RedisSubscriberManager(this._client);
 	}
 
 	async disconnect(): Promise<void> {
@@ -94,21 +74,6 @@ class RealRedisCache implements RedisCache {
 		} catch {
 			logger.debug("Redis quit error during disconnect");
 		}
-	}
-
-	async publish(channel: string, message: string): Promise<void> {
-		try {
-			await this._client.publish(channel, message);
-		} catch {
-			logger.debug("Redis publish failed (best-effort)");
-		}
-	}
-
-	async subscribe(
-		channel: string,
-		handler: (message: string) => void
-	): Promise<() => void> {
-		return this._subscriberManager.subscribe(channel, handler);
 	}
 
 	isAvailable(): boolean {

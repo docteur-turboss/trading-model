@@ -15,6 +15,11 @@ import {
 	Typography,
 } from "@mui/material";
 import { CandleInterval } from "@trading-model/common/config/event.types";
+import type {
+	Percentage,
+	Price,
+	TradingSymbol,
+} from "@trading-model/common/domain/primitives";
 import { useState } from "react";
 import {
 	Area,
@@ -44,15 +49,15 @@ function SymbolSelect({
 	value,
 	onChange,
 }: {
-	value: string;
-	onChange: (value: string) => void;
+	value: TradingSymbol;
+	onChange: (value: TradingSymbol) => void;
 }) {
 	return (
 		<TextField
 			size="small"
 			select
 			value={value}
-			onChange={(evt) => onChange(evt.target.value)}
+			onChange={(evt) => onChange(evt.target.value as TradingSymbol)}
 			sx={{ minWidth: 120 }}
 		>
 			<MenuItem value="BTCUSDT">BTC / USD</MenuItem>
@@ -106,8 +111,8 @@ function MarketDataControls({
 	interval,
 	onIntervalChange,
 }: {
-	symbol: string;
-	onSymbolChange: (value: string) => void;
+	symbol: TradingSymbol;
+	onSymbolChange: (value: TradingSymbol) => void;
 	interval: CandleInterval;
 	onIntervalChange: (value: CandleInterval) => void;
 }) {
@@ -124,8 +129,8 @@ function LastPriceCard({
 	lastPrice,
 	change,
 }: {
-	lastPrice?: number;
-	change: number;
+	lastPrice?: Price;
+	change: Percentage;
 }) {
 	return (
 		<Grid size={{ xs: 3 }}>
@@ -178,8 +183,8 @@ function MarketDataStats({
 	lastPrice,
 	change,
 }: {
-	lastPrice?: number;
-	change: number;
+	lastPrice?: Price;
+	change: Percentage;
 }) {
 	return (
 		<Grid container spacing={2} sx={{ mb: 3 }}>
@@ -191,7 +196,7 @@ function MarketDataStats({
 	);
 }
 
-function PriceAreaChart({ data }: { data: { time: number; price: number }[] }) {
+function PriceAreaChart({ data }: { data: { time: number; price: Price }[] }) {
 	return (
 		<ResponsiveContainer width="100%" height="100%">
 			<AreaChart data={data}>
@@ -226,7 +231,7 @@ function NoDataFallback() {
 function ChartContent({
 	chartData,
 }: {
-	chartData?: { time: number; price: number }[];
+	chartData?: { time: number; price: Price }[];
 }) {
 	return chartData && chartData.length > 0 ? (
 		<PriceAreaChart data={chartData} />
@@ -238,7 +243,7 @@ function ChartContent({
 function PriceChart({
 	chartData,
 }: {
-	chartData?: { time: number; price: number }[];
+	chartData?: { time: number; price: Price }[];
 }) {
 	return (
 		<Box sx={{ height: 300, mb: 3 }}>
@@ -253,18 +258,19 @@ function PriceChart({
 }
 
 function computePriceChange(candles: Candle[] | null | undefined): {
-	chartData?: { time: number; price: number }[];
-	lastPrice?: number;
-	change: number;
+	chartData?: { time: number; price: Price }[];
+	lastPrice?: Price;
+	change: Percentage;
 } {
 	const chartData = candles?.map((candle) => ({
-		time: candle.timestamp,
+		time: candle.timestamp as number,
 		price: candle.close,
 	}));
 	const lastPrice = candles?.[candles.length - 1]?.close;
 	const prevPrice = candles?.[0]?.close;
-	const change =
-		lastPrice && prevPrice ? ((lastPrice - prevPrice) / prevPrice) * 100 : 0;
+	const change = (
+		lastPrice && prevPrice ? ((lastPrice - prevPrice) / prevPrice) * 100 : 0
+	) as Percentage;
 	return { chartData, lastPrice, change };
 }
 
@@ -338,8 +344,8 @@ function MarketDataToolbar({
 	interval,
 	onIntervalChange,
 }: {
-	symbol: string;
-	onSymbolChange: (value: string) => void;
+	symbol: TradingSymbol;
+	onSymbolChange: (value: TradingSymbol) => void;
 	interval: CandleInterval;
 	onIntervalChange: (value: CandleInterval) => void;
 }) {
@@ -377,7 +383,7 @@ function CandleDataTable({
 }
 
 export function MarketData() {
-	const [symbol, setSymbol] = useState("BTCUSDT");
+	const [symbol, setSymbol] = useState<TradingSymbol>("BTCUSDT" as TradingSymbol);
 	const [candleInterval, setCandleInterval] = useState<CandleInterval>(
 		CandleInterval.H1
 	);

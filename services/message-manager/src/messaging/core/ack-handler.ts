@@ -1,5 +1,15 @@
-export class AckHandler {
-	async handleAck(_messageId: string, _instanceId: string): Promise<void> {}
+import { logger } from "../../config/logger";
 
-	async handleNack(_messageId: string, _instanceId: string): Promise<void> {}
+export class AckHandler {
+	async handleAck(messageId: string, instanceId: string): Promise<void> {
+		logger.info("Message acknowledged", {
+			context: { messageId, instanceId },
+		});
+	}
+
+	async handleNack(messageId: string, instanceId: string): Promise<void> {
+		logger.warn("Message negatively acknowledged", {
+			context: { messageId, instanceId },
+		});
+	}
 }

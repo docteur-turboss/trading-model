@@ -48,45 +48,78 @@ export class DeliveryErrorHandler {
 		emittedAt: number,
 		deliveryMode: DeliveryMode
 	): Promise<boolean> {
-		if (isDeadLetterError(err)) {
-			const reason: string = err.reason ?? "NO_REASON";
-			await this._deliveryPort.markDeadLetter({
-				message,
-				reason,
-				deliveryAttempt: context.deliveryAttempt,
-			});
+		if (await this._isDeadLetterError(err, message, context)) {
 			return true;
 		}
-
-		if (this._isExpired(ttl, emittedAt)) {
-			await this._deliveryPort.markDeadLetter({
-				message,
-				reason: "TTL_EXPIRED",
-				deliveryAttempt: context.deliveryAttempt,
-			});
+		if (await this._isExpiredAndDlq(ttl, emittedAt, message, context)) {
 			return true;
 		}
-
-		if (deliveryMode === DeliveryMode.AT_MOST_ONCE) {
+		if (this._isAtMostOnce(deliveryMode)) {
 			return true;
 		}
-
-		if (context.deliveryAttempt >= MAX_RETRIES) {
-			this._recordFailure();
-			logger.error("Max retries exceeded — routing to DLQ", {
-				topic: this._topic,
-				service: this._serviceName,
-				deliveryAttempt: context.deliveryAttempt,
-			});
-			await this._deliveryPort.markDeadLetter({
-				message,
-				reason: "MAX_RETRIES_EXCEEDED",
-				deliveryAttempt: context.deliveryAttempt,
-			});
+		if (await this._isMaxRetries(message, context)) {
 			return true;
 		}
-
 		return false;
+	}
+
+	private async _isDeadLetterError<TData>(
+		err: unknown,
+		message: Message<TData>,
+		context: { deliveryAttempt: number }
+	): Promise<boolean> {
+		if (!isDeadLetterError(err)) {
+			return false;
+		}
+		const reason: string = err.reason ?? "NO_REASON";
+		await this._deliveryPort.markDeadLetter({
+			message,
+			reason,
+			deliveryAttempt: context.deliveryAttempt,
+		});
+		return true;
+	}
+
+	private async _isExpiredAndDlq<TData>(
+		ttl: number,
+		emittedAt: number,
+		message: Message<TData>,
+		context: { deliveryAttempt: number }
+	): Promise<boolean> {
+		if (!this._isExpired(ttl, emittedAt)) {
+			return false;
+		}
+		await this._deliveryPort.markDeadLetter({
+			message,
+			reason: "TTL_EXPIRED",
+			deliveryAttempt: context.deliveryAttempt,
+		});
+		return true;
+	}
+
+	private _isAtMostOnce(deliveryMode: DeliveryMode): boolean {
+		return deliveryMode === DeliveryMode.AT_MOST_ONCE;
+	}
+
+	private async _isMaxRetries<TData>(
+		message: Message<TData>,
+		context: { deliveryAttempt: number }
+	): Promise<boolean> {
+		if (context.deliveryAttempt < MAX_RETRIES) {
+			return false;
+		}
+		this._recordFailure();
+		logger.error("Max retries exceeded — routing to DLQ", {
+			topic: this._topic,
+			service: this._serviceName,
+			deliveryAttempt: context.deliveryAttempt,
+		});
+		await this._deliveryPort.markDeadLetter({
+			message,
+			reason: "MAX_RETRIES_EXCEEDED",
+			deliveryAttempt: context.deliveryAttempt,
+		});
+		return true;
 	}
 
 	/**

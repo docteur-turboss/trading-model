@@ -57,20 +57,19 @@ export class OidcVerifier {
 		this._keyProvider = new JwksKeyProvider(config);
 	}
 
-	async verifyAndExtract(token: string): Promise<OidcClaims> {
-		const { header, payload, message, signature } =
-			this._jwtParser.parse<OidcClaims>(token);
-
-		if (!this._allowedAlgorithms.has(header.alg)) {
+	private _assertAllowedAlgorithm(alg: string): void {
+		if (!this._allowedAlgorithms.has(alg)) {
 			throw new Error(
-				`JWT algorithm "${header.alg}" is not allowed. Must be one of: ${[...this._allowedAlgorithms].join(", ")}`
+				`JWT algorithm "${alg}" is not allowed. Must be one of: ${[...this._allowedAlgorithms].join(", ")}`
 			);
 		}
+	}
 
+	async verifyAndExtract(token: string): Promise<OidcClaims> {
+		const { header, payload, message, signature } = this._jwtParser.parse<OidcClaims>(token);
+		this._assertAllowedAlgorithm(header.alg);
 		this._claimValidator.validate(payload);
-
 		await this._verifySignature(message, signature, header);
-
 		return payload;
 	}
 

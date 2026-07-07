@@ -50,15 +50,8 @@ function handleStorageError(
 	err: unknown,
 	span: import("@opentelemetry/api").Span
 ): ResponseObject {
-	logger.error("Failed to persist DLQ entry — storage error", {
-		error: normalizeError(err).message,
-	});
-	span.recordException(err as Error);
-	span.setStatus({
-		code: SpanStatusCode.ERROR,
-		message: (err as Error).message,
-	});
-	span.end();
+	_logStorageError(err);
+	_spanError(span, err);
 	return sendResponse(
 		{
 			error: "Storage unavailable — message not persisted. Retry later.",
@@ -66,4 +59,22 @@ function handleStorageError(
 		},
 		HTTP_STATUS.SERVICE_UNAVAILABLE
 	);
+}
+
+function _logStorageError(err: unknown): void {
+	logger.error("Failed to persist DLQ entry — storage error", {
+		error: normalizeError(err).message,
+	});
+}
+
+function _spanError(
+	span: import("@opentelemetry/api").Span,
+	err: unknown
+): void {
+	span.recordException(err as Error);
+	span.setStatus({
+		code: SpanStatusCode.ERROR,
+		message: (err as Error).message,
+	});
+	span.end();
 }

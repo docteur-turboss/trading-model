@@ -52,25 +52,40 @@ export class MongoBatchWriter {
 		let lastError: Error | null = null;
 
 		for (let attempt = 0; attempt < MaxRetries; attempt++) {
-			try {
-				await (col as any).bulkWrite(bulkOps);
+			lastError = await this._tryBulkWrite(col, bulkOps, attempt);
+			if (!lastError) {
 				return;
-			} catch (err) {
-				lastError = err as Error;
-				logger.warn("MongoDB bulkWrite failed — retrying", {
-					context: {
-						error: lastError.message,
-						attempt: attempt + 1,
-						maxRetries: MaxRetries,
-					},
-				});
-				if (attempt < MaxRetries - 1) {
-					await new Promise((resolve) => setTimeout(resolve, RetryDelayMs));
-				}
 			}
 		}
 
 		throw lastError;
+	}
+
+	private async _tryBulkWrite(
+		col: any,
+		bulkOps: unknown[],
+		attempt: number
+	): Promise<Error | null> {
+		try {
+			await col.bulkWrite(bulkOps);
+			return null;
+		} catch (err) {
+			this._logBulkWriteWarning(err as Error, attempt);
+			if (attempt < MaxRetries - 1) {
+				await new Promise((resolve) => setTimeout(resolve, RetryDelayMs));
+			}
+			return err as Error;
+		}
+	}
+
+	private _logBulkWriteWarning(err: Error, attempt: number): void {
+		logger.warn("MongoDB bulkWrite failed — retrying", {
+			context: {
+				error: err.message,
+				attempt: attempt + 1,
+				maxRetries: MaxRetries,
+			},
+		});
 	}
 
 	async archiveToMongo(entries: ArchiveEntry[]): Promise<void> {

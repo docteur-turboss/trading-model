@@ -10,7 +10,7 @@ export const BINANCE_WEIGHTS = {
 		if (limit <= 1000) {
 			return 50;
 		}
-		return 250; // 1001–5000
+		return 250;
 	},
 	trades: (): number => 25,
 	historicalTrades: (): number => 25,

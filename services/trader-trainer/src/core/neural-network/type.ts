@@ -226,9 +226,12 @@ export interface PooledExperience extends SupervisedExperience {
 	loss: number;
 }
 
-export interface LayerMemory {
+export interface LayerWeights {
 	weights: Float32Array;
 	bias: Float32Array;
+}
+
+export interface LayerMemory extends LayerWeights {
 
 	output: Float32Array;
 	preActivation: Float32Array;

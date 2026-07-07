@@ -59,15 +59,16 @@ function _buildCertificateOptions(params: {
 	};
 }
 
-export function signCertificate(options: SignOptions): SignedCertificate {
-	const { csr, serviceId, caKeyPair, caCertPem, ttlMs } = options;
-	const csrData = parseCsr(csr);
-	const serialNumber = _buildSerialNumber();
-	const now = new Date();
-	const expiresAt = new Date(now.getTime() + ttlMs);
-	const publicKeyPem = _exportPublicKeyPem(createPublicKey(csrData.publicKey));
-
-	const builder = new CertBodyBuilder();
+function _buildCert(
+	builder: CertBodyBuilder,
+	csrData: ReturnType<typeof parseCsr>,
+	serialNumber: string,
+	now: Date,
+	expiresAt: Date,
+	publicKeyPem: string,
+	caKeyPair: KeyPair,
+	caCertPem: string
+): { certBody: string; signature: string; certPem: string } {
 	const certBody = builder.build(
 		_buildCertificateOptions({
 			serialNumber,
@@ -80,8 +81,18 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 	);
 	const signature = builder.signCertBody(certBody, caKeyPair.privateKey);
 	const certPem = builder.buildCertPem(certBody, signature, caCertPem);
-	const fingerprint = createHash("sha256").update(certPem).digest("hex");
+	return { certBody, signature, certPem };
+}
 
+function _buildSignedCertificateResult(
+	serialNumber: string,
+	certPem: string,
+	caCertPem: string,
+	serviceId: import("@trading-model/common/domain/primitives").ServiceId,
+	now: Date,
+	expiresAt: Date
+): SignedCertificate {
+	const fingerprint = createHash("sha256").update(certPem).digest("hex");
 	return {
 		serialNumber: toSerialNumber(serialNumber),
 		certPem,
@@ -91,4 +102,25 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 		expiresAt,
 		fingerprint: toFingerprint(fingerprint),
 	};
+}
+
+export function signCertificate(options: SignOptions): SignedCertificate {
+	const { csr, serviceId, caKeyPair, caCertPem, ttlMs } = options;
+	const csrData = parseCsr(csr);
+	const serialNumber = _buildSerialNumber();
+	const now = new Date();
+	const expiresAt = new Date(now.getTime() + ttlMs);
+	const publicKeyPem = _exportPublicKeyPem(createPublicKey(csrData.publicKey));
+	const builder = new CertBodyBuilder();
+	const { certPem } = _buildCert(
+		builder,
+		csrData,
+		serialNumber,
+		now,
+		expiresAt,
+		publicKeyPem,
+		caKeyPair,
+		caCertPem
+	);
+	return _buildSignedCertificateResult(serialNumber, certPem, caCertPem, serviceId, now, expiresAt);
 }

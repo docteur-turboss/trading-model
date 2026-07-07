@@ -8,8 +8,9 @@ import type {
 	JobId,
 	JobType,
 } from "@trading-model/common/domain/primitives";
+import type { RetryPolicy } from "@trading-model/common/domain/retry-policy";
 
-export interface JobDocument {
+export interface JobDocument extends RetryPolicy {
 	jobId: JobId;
 	type: JobType;
 	payload: unknown;
@@ -17,8 +18,6 @@ export interface JobDocument {
 	status: JOB_STATUS;
 	assignedWorkerId?: InstanceId;
 	ackDeadline: number;
-	maxRetries: number;
-	retryCount: number;
 	createdAt: Date;
 	startedAt?: Date;
 	completedAt?: Date;

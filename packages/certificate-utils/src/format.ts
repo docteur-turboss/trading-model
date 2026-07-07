@@ -106,17 +106,23 @@ interface CsrExtension {
 	altNames?: Array<{ type: number; value: string }>;
 }
 
+function _parseCsrResult(
+	csr: ReturnType<typeof forge.pki.certificationRequestFromPem>
+): { commonName: string; san: string[]; publicKeyPem: string } {
+	return {
+		commonName: csr.subject.getField("CN")?.value ?? "",
+		san: _extractSanFromCsr(csr),
+		publicKeyPem: csr.publicKey ? forge.pki.publicKeyToPem(csr.publicKey) : "",
+	};
+}
+
 export function parseCsrInfo(csrPem: string): {
 	commonName: string;
 	san: string[];
 	publicKeyPem: string;
 } {
 	const csr = forge.pki.certificationRequestFromPem(csrPem);
-	return {
-		commonName: csr.subject.getField("CN")?.value ?? "",
-		san: _extractSanFromCsr(csr),
-		publicKeyPem: csr.publicKey ? forge.pki.publicKeyToPem(csr.publicKey) : "",
-	};
+	return _parseCsrResult(csr);
 }
 
 function _extractSanFromCsr(

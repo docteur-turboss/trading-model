@@ -1,5 +1,6 @@
 import type addressManagerClient from "@trading-model/address-manager";
 import { parseServiceName } from "@trading-model/common/config/services.types";
+import { toInstanceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import MessageManagerClass from "../../index";
 import type { MessageManagerConfig } from "../types/config";
@@ -55,7 +56,7 @@ export function createServiceMessageManager(
 			keyPath: env.TLS_KEY_PATH,
 			caPath: env.TLS_CA_PATH,
 		},
-		instanceId: env.INSTANCE_ID,
+		instanceId: toInstanceId(env.INSTANCE_ID),
 		serviceName: parseServiceName(env.SERVICE_NAME),
 		callbackPath: env.MESSAGE_CALLBACK_PATH,
 	});

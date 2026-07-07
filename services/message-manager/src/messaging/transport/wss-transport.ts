@@ -41,13 +41,31 @@ export class WssTransport {
 		if (!this._subscriptionManager.enforceCapacity(ws)) {
 			return;
 		}
-
-		const ctx = this._buildConnectionContext(ws, req);
-		if (!ctx) {
+		if (!this._tryRegisterConnection(ws, req)) {
 			return;
 		}
+	}
 
-		const { subKey, identity } = ctx;
+	private _tryRegisterConnection(
+		ws: WebSocket,
+		req: IncomingMessage
+	): boolean {
+		const ctx = this._buildConnectionContext(ws, req);
+		if (!ctx) {
+			return false;
+		}
+		this._logConnection(ctx);
+		this._setupConnectionHandlers(ws, ctx);
+		this._sendConnectedResponse(ws);
+		return true;
+	}
+
+	private _logConnection(ctx: {
+		subKey: string;
+		identity: ServiceIdentity;
+		topics: Set<string>;
+	}): void {
+		const { identity } = ctx;
 		logger.info("WSS client connecting", {
 			context: {
 				serviceName: identity.serviceName,
@@ -55,11 +73,18 @@ export class WssTransport {
 				topics: [...ctx.topics],
 			},
 		});
+	}
 
+	private _setupConnectionHandlers(
+		ws: WebSocket,
+		ctx: { subKey: string; identity: ServiceIdentity; topics: Set<string> }
+	): void {
 		this._messageRouter.registerMessageHandler(ws, ctx);
-		this._connectionHandler.registerCloseHandler(ws, subKey, identity);
-		this._connectionHandler.registerErrorHandler(ws, identity);
+		this._connectionHandler.registerCloseHandler(ws, ctx.subKey, ctx.identity);
+		this._connectionHandler.registerErrorHandler(ws, ctx.identity);
+	}
 
+	private _sendConnectedResponse(ws: WebSocket): void {
 		ws.send(
 			JSON.stringify({ type: "connected", instanceId: ENV.BROKER_INSTANCE_ID })
 		);

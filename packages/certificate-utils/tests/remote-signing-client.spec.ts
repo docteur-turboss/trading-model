@@ -11,7 +11,7 @@ jest.mock("@trading-model/common/config/http-client", () => ({
 }));
 
 import { KeyAlgorithm } from "../src/generate-key-pair";
-import { RemoteSigningClient } from "../src/remote-signing-client";
+import { RemoteSigningClient } from "../src/signing/remote-signing-client";
 
 function getClient(options: Record<string, any> = {}): RemoteSigningClient {
 	return new RemoteSigningClient({

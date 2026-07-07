@@ -16,7 +16,7 @@ const RESOLVER = new ServiceResolver(
 );
 const CACHE = new ResponseCache(ENV.CACHE_TTL_MS);
 
-const catchAllRoute = catchSync(async (req) => {
+function _validatePath(req: import("express").Request): ReturnType<typeof sendResponse> | { majorVersion: number; serviceName: string; path: string } {
 	const parsed = parseRequestPath(req);
 	if (!parsed) {
 		return sendResponse(
@@ -27,7 +27,14 @@ const catchAllRoute = catchSync(async (req) => {
 	if (!parsed.valid) {
 		return sendResponse({ error: "Invalid version number" }, 400);
 	}
+	return parsed;
+}
 
+const catchAllRoute = catchSync(async (req) => {
+	const parsed = _validatePath(req);
+	if (typeof parsed === "object" && "status" in parsed) {
+		return parsed;
+	}
 	const { majorVersion, serviceName, path } = parsed;
 
 	const target = await RESOLVER.resolve(serviceName, majorVersion);

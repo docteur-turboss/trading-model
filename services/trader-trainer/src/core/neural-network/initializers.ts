@@ -7,7 +7,7 @@ export interface WeightInitializer {
 }
 
 class ZerosInitializer implements WeightInitializer {
-	initialize(): number {
+	initialize(_dims: LayerDims): number {
 		return 0;
 	}
 }
@@ -34,7 +34,7 @@ class LeCunInitializer implements WeightInitializer {
 }
 
 class RandomInitializer implements WeightInitializer {
-	initialize(): number {
+	initialize(_dims: LayerDims): number {
 		return Math.random() * 2 - 1;
 	}
 }

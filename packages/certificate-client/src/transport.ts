@@ -51,20 +51,27 @@ class WssFallbackStrategy {
 		return this._mode;
 	}
 
+	private _checkWssAuthThreshold(): boolean {
+		if (!this._wssTransport.isAuthSent) {
+			this._unauthRejects++;
+			if (this._unauthRejects > MAX_UNAUTH_REJECTS) {
+				logger.warn(
+					`WSS not authenticated after ${MAX_UNAUTH_REJECTS} attempts, falling back to HTTPS`
+				);
+				this._mode = TransportMode.Https;
+				return true;
+			}
+		}
+		return false;
+	}
+
 	async signCertificate(
 		request: SignCertificateRequest,
 		httpsClient: CaClient
 	): Promise<SignCertificateResponse> {
 		if (this._mode === TransportMode.Wss && this._wssTransport.isConnected) {
-			if (!this._wssTransport.isAuthSent) {
-				this._unauthRejects++;
-				if (this._unauthRejects > MAX_UNAUTH_REJECTS) {
-					logger.warn(
-						`WSS not authenticated after ${MAX_UNAUTH_REJECTS} attempts, falling back to HTTPS`
-					);
-					this._mode = TransportMode.Https;
-					return httpsClient.signCertificate(request);
-				}
+			if (this._checkWssAuthThreshold()) {
+				return httpsClient.signCertificate(request);
 			}
 			try {
 				return await this._wssTransport.signCertificate(request);

@@ -1,8 +1,6 @@
-import type { MaxRetries, RetryCount } from "./primitives";
-
 export interface RetryPolicy {
-	retryCount: RetryCount;
-	maxRetries: MaxRetries;
+	retryCount: number;
+	maxRetries: number;
 }
 
 export function hasExceededMaxRetries(policy: RetryPolicy): boolean {

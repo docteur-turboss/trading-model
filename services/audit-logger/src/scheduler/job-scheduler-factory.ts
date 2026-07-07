@@ -77,9 +77,18 @@ export async function recoverJobs(
 	repository: JobRepository,
 	reAllocator: ReAllocator
 ): Promise<void> {
-	const StatusHandlers: Partial<
-		Record<JOB_STATUS, (job: Job) => Promise<void>>
-	> = {
+	const handlers = _buildRecoveryHandlers(queue, repository, reAllocator);
+	for (const job of nonTerminal) {
+		await handlers[job.status]?.(job);
+	}
+}
+
+function _buildRecoveryHandlers(
+	queue: InternalQueue,
+	repository: JobRepository,
+	reAllocator: ReAllocator
+): Partial<Record<JOB_STATUS, (job: Job) => Promise<void>>> {
+	return {
 		[JOB_STATUS.PENDING]: async (job) => {
 			queue.enqueue({ ...job, status: JOB_STATUS.QUEUED });
 		},
@@ -98,10 +107,6 @@ export async function recoverJobs(
 			await reAllocator.reallocate(job);
 		},
 	};
-
-	for (const job of nonTerminal) {
-		await StatusHandlers[job.status]?.(job);
-	}
 }
 
 export function logSchedulerStart(recovered: number): void {

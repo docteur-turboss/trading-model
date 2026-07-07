@@ -1,5 +1,7 @@
 import { describe, expect, test } from "@jest/globals";
 import {
+	type AdamState,
+	type RmspropState,
 	DEFAULT_HYPERPARAMS,
 	OPTIMIZERS,
 } from "../../../src/core/neural-network/optimizer";
@@ -33,10 +35,10 @@ describe("Optimizers", () => {
 
 	describe("Adam", () => {
 		test("initState should return moment1 and moment2 arrays", () => {
-			const state = OPTIMIZERS.adam.initState(5);
+			const state = OPTIMIZERS.adam.initState(5) as AdamState;
 			expect(state.stepCount).toBe(0);
-			expect((state.moment1 as Float32Array).length).toBe(5);
-			expect((state.moment2 as Float32Array).length).toBe(5);
+			expect(state.moment1.length).toBe(5);
+			expect(state.moment2.length).toBe(5);
 		});
 
 		test("step should update params", () => {
@@ -80,9 +82,9 @@ describe("Optimizers", () => {
 
 	describe("RMSProp", () => {
 		test("initState should return moment2 array", () => {
-			const state = OPTIMIZERS.rmsprop.initState(5);
+			const state = OPTIMIZERS.rmsprop.initState(5) as RmspropState;
 			expect(state.stepCount).toBe(0);
-			expect((state.moment2 as Float32Array).length).toBe(5);
+			expect(state.moment2.length).toBe(5);
 		});
 
 		test("step should update params", () => {

@@ -84,21 +84,26 @@ export class MongoNoncePersister implements NoncePersistence {
 		await this._createIndexes();
 	}
 
+	/** Connection lifecycle is managed externally by MONGO_MANAGER. */
 	async disconnect(): Promise<void> {}
+
+	private _buildNonceDocument(nonce: string, serviceId: string, createdAt: number): NonceDocument {
+		return { nonce, serviceId, createdAt: new Date(createdAt) };
+	}
+
+	private _rethrowWithCause(err: unknown): never {
+		logger.warn("Failed to persist nonce to MongoDB", { context: { err } });
+		const error = new Error("Failed to persist nonce");
+		(error as { cause?: unknown }).cause = err;
+		throw error;
+	}
 
 	async persist(context: NonceContext, createdAt: number): Promise<void> {
 		const { nonce, serviceId } = context;
 		try {
-			await this._collection.insertOne({
-				nonce,
-				serviceId,
-				createdAt: new Date(createdAt),
-			});
+			await this._collection.insertOne(this._buildNonceDocument(nonce, serviceId, createdAt));
 		} catch (err) {
-			logger.warn("Failed to persist nonce to MongoDB", { context: { err } });
-			const error = new Error("Failed to persist nonce");
-			(error as { cause?: unknown }).cause = err;
-			throw error;
+			this._rethrowWithCause(err);
 		}
 	}
 

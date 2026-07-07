@@ -56,35 +56,41 @@ export class HttpFallbackHandler {
 		return httpBatch;
 	}
 
-	retry(entry: PendingPublish, attempt: number): Promise<void> {
-		return this._httpFallback(entry.payload, entry.metadata)
-			.then(() => {
-				entry.resolve();
-			})
-			.catch((err) => {
-				if (attempt === 0 && this._httpFallback === NULL_HTTP_FALLBACK) {
-					entry.reject(
-						new Error("WSS disconnected and no HTTP fallback configured")
-					);
-					return;
-				}
-				if (attempt < HTTP_RETRY_MAX_ATTEMPTS) {
-					const delay = _computeRetryDelay(attempt);
-					logger.warn(
-						`HTTP fallback attempt ${attempt + 1} failed, retrying in ${delay}ms`,
-						{ error: normalizeError(err) }
-					);
-					return new Promise<void>((resolve) => {
-						setTimeout(() => {
-							resolve(this.retry(entry, attempt + 1));
-						}, delay).unref();
-					});
-				}
-				logger.error("HTTP fallback max retries exceeded", {
-					error: normalizeError(err),
-				});
-				entry.reject(new Error("HTTP fallback failed after max retries"));
+	private _rejectNoFallback(entry: PendingPublish): void {
+		entry.reject(
+			new Error("WSS disconnected and no HTTP fallback configured")
+		);
+	}
+
+	private async _retryWithBackoff(entry: PendingPublish, attempt: number, err: unknown): Promise<void> {
+		if (attempt < HTTP_RETRY_MAX_ATTEMPTS) {
+			const delay = _computeRetryDelay(attempt);
+			logger.warn(
+				`HTTP fallback attempt ${attempt + 1} failed, retrying in ${delay}ms`,
+				{ error: normalizeError(err) }
+			);
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, delay).unref();
 			});
+			return this.retry(entry, attempt + 1);
+		}
+		logger.error("HTTP fallback max retries exceeded", {
+			error: normalizeError(err),
+		});
+		entry.reject(new Error("HTTP fallback failed after max retries"));
+	}
+
+	async retry(entry: PendingPublish, attempt: number): Promise<void> {
+		try {
+			await this._httpFallback(entry.payload, entry.metadata);
+			entry.resolve();
+		} catch (err) {
+			if (attempt === 0 && this._httpFallback === NULL_HTTP_FALLBACK) {
+				this._rejectNoFallback(entry);
+				return;
+			}
+			await this._retryWithBackoff(entry, attempt, err);
+		}
 	}
 
 	drainToHttp(entries: PendingPublish[]): void {

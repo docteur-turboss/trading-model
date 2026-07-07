@@ -27,24 +27,32 @@ export class WorkerWsConnection implements IWsConnection {
 		return new Promise((resolve, reject) => {
 			const ws = new WebSocket(this._cfg.serverUrl);
 			this._ws = ws;
-			ws.on("open", () => {
-				this._sendRegister();
-				this.onOpen?.();
-				resolve();
-			});
-			ws.on("message", (data: WebSocket.Data) => {
-				this.onMessage?.(data);
-			});
-			ws.on("close", () => {
-				this.onClose?.();
-				this.onCloseHandler?.();
-			});
-			ws.on("error", (err) => {
-				this.onError?.(err);
-				if (this.rejectOnError) {
-					reject(err);
-				}
-			});
+			this._setupWsHandlers(ws, resolve, reject);
+		});
+	}
+
+	private _setupWsHandlers(
+		ws: WebSocket,
+		resolve: () => void,
+		reject: (err: Error) => void
+	): void {
+		ws.on("open", () => {
+			this._sendRegister();
+			this.onOpen?.();
+			resolve();
+		});
+		ws.on("message", (data: WebSocket.Data) => {
+			this.onMessage?.(data);
+		});
+		ws.on("close", () => {
+			this.onClose?.();
+			this.onCloseHandler?.();
+		});
+		ws.on("error", (err) => {
+			this.onError?.(err);
+			if (this.rejectOnError) {
+				reject(err);
+			}
 		});
 	}
 

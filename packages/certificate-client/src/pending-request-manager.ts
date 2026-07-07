@@ -20,21 +20,26 @@ export class PendingRequestManager {
 		});
 	}
 
+	private _resolvePending(pending: PendingRequest, msg: Record<string, unknown>): void {
+		if (msg.success) {
+			pending.resolve(msg.data as SignCertificateResponse);
+		} else {
+			pending.reject(
+				new Error(
+					(msg.error as { message?: string })?.message ?? "WSS request failed"
+				)
+			);
+		}
+	}
+
 	handleResponse(msg: Record<string, unknown>): void {
 		const pending = this._pending.get(msg.id as string);
-		if (pending) {
-			clearTimeout(pending.timer);
-			this._pending.delete(msg.id as string);
-			if (msg.success) {
-				pending.resolve(msg.data as SignCertificateResponse);
-			} else {
-				pending.reject(
-					new Error(
-						(msg.error as { message?: string })?.message ?? "WSS request failed"
-					)
-				);
-			}
+		if (!pending) {
+			return;
 		}
+		clearTimeout(pending.timer);
+		this._pending.delete(msg.id as string);
+		this._resolvePending(pending, msg);
 	}
 
 	cancel(id: string, err?: Error): void {

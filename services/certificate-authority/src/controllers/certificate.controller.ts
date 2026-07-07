@@ -110,25 +110,25 @@ function _validateRevocationRequest(
 	return false;
 }
 
-export async function revokeCertificate(
-	req: Request,
-	res: Response
-): Promise<void> {
+function _sendRevokeSuccess(res: Response, revocationRequest: RevocationRequest): void {
+	logger.info("Certificate revoked", {
+		context: { serialNumber: revocationRequest.serialNumber, reason: revocationRequest.reason },
+	});
+	res.status(HTTP_STATUS.OK).json({ message: "Certificate revoked" });
+}
+
+function _sendRevokeError(res: Response, err: unknown): void {
+	logger.error("Failed to revoke certificate", { context: { err } });
+	res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to revoke certificate" });
+}
+
+export async function revokeCertificate(req: Request, res: Response): Promise<void> {
 	try {
 		const revocationRequest = req.body as RevocationRequest;
-		if (!_validateRevocationRequest(revocationRequest, res)) {
-			return;
-		}
+		if (!_validateRevocationRequest(revocationRequest, res)) return;
 		await CONTAINER.ca.revokeCertificate(revocationRequest);
-		logger.info("Certificate revoked", {
-			context: {
-				serialNumber: revocationRequest.serialNumber,
-				reason: revocationRequest.reason,
-			},
-		});
-		res.status(HTTP_STATUS.OK).json({ message: "Certificate revoked" });
+		_sendRevokeSuccess(res, revocationRequest);
 	} catch (err) {
-		logger.error("Failed to revoke certificate", { context: { err } });
-		res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to revoke certificate" });
+		_sendRevokeError(res, err);
 	}
 }

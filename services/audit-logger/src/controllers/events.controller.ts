@@ -32,13 +32,23 @@ function _buildAuditEventQuery(
 }
 
 export function createEventsController(auditRepo: AuditRepository) {
-	const listEvents: RequestHandler = catchSync(async (req) => {
+	const listEvents = _createListEventsHandler(auditRepo);
+	const getEvent = _createGetEventHandler(auditRepo);
+	const getStats = _createGetStatsHandler(auditRepo);
+
+	return { listEvents, getEvent, getStats };
+}
+
+function _createListEventsHandler(auditRepo: AuditRepository): RequestHandler {
+	return catchSync(async (req) => {
 		const query = _buildAuditEventQuery(req);
 		const result = await auditRepo.query(query);
 		return sendResponse(result, 200);
 	});
+}
 
-	const getEvent: RequestHandler = catchSync(async (req) => {
+function _createGetEventHandler(auditRepo: AuditRepository): RequestHandler {
+	return catchSync(async (req) => {
 		const { messageId } = req.params as { messageId: string };
 		const event = await auditRepo.findById(messageId);
 
@@ -48,11 +58,11 @@ export function createEventsController(auditRepo: AuditRepository) {
 
 		return sendResponse(event, 200);
 	});
+}
 
-	const getStats: RequestHandler = catchSync(async () => {
+function _createGetStatsHandler(auditRepo: AuditRepository): RequestHandler {
+	return catchSync(async () => {
 		const stats = await auditRepo.getStats();
 		return sendResponse(stats, 200);
 	});
-
-	return { listEvents, getEvent, getStats };
 }

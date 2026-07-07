@@ -42,45 +42,46 @@ export class GradientApplier {
 		this._accumulator.resetAccumulators();
 	}
 
-	private _applyGradientsToLayer(
+	private _computeGradientsForLayer(
 		layer: LayerMemory,
 		delta: Float32Array,
 		layerInput: Float32Array
 	): void {
 		const { fanIn, fanOut, gradW, gradB } = layer;
-
 		for (let j = 0; j < fanOut; j++) {
 			const rowOffset = j * fanIn;
 			const deltaJ = delta[j];
 			gradB[j] = deltaJ;
-			computeWeightGradient({
-				weightBuf: gradW,
-				rowOffset,
-				deltaJ,
-				input: layerInput,
-				fanIn,
-			});
+			computeWeightGradient({ weightBuf: gradW, rowOffset, deltaJ, input: layerInput, fanIn });
 		}
+	}
 
+	private _applyOptimizerStepToLayer(layer: LayerMemory): void {
 		const opt = OPTIMIZERS[this._deps.config.optimizerType];
-		const { weights, bias, wState, bState } = layer;
-
 		opt.step({
-			params: weights,
-			grads: gradW,
-			state: wState,
+			params: layer.weights,
+			grads: layer.gradW,
+			state: layer.wState,
 			lr: this._deps.config.learningRate,
 			hp: this._deps.optimizerHp,
 		});
-
 		if (this._deps.config.useBias) {
 			opt.step({
-				params: bias,
-				grads: gradB,
-				state: bState,
+				params: layer.bias,
+				grads: layer.gradB,
+				state: layer.bState,
 				lr: this._deps.config.learningRate,
 				hp: this._deps.optimizerHp,
 			});
 		}
+	}
+
+	private _applyGradientsToLayer(
+		layer: LayerMemory,
+		delta: Float32Array,
+		layerInput: Float32Array
+	): void {
+		this._computeGradientsForLayer(layer, delta, layerInput);
+		this._applyOptimizerStepToLayer(layer);
 	}
 }

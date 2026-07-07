@@ -1,3 +1,4 @@
+import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import { logger } from "../../config/logger";
@@ -49,7 +50,13 @@ export class SubscriptionRedisReader {
 	): Promise<[Error | null, unknown][] | null> {
 		const pipeline = redis.pipeline();
 		for (const id of instanceIds) {
-			pipeline.hget(this._keys.subKey({ topic, instanceId: id }), "data");
+			pipeline.hget(
+				this._keys.subKey({
+					topic: toTopic(topic),
+					instanceId: toInstanceId(id),
+				}),
+				"data"
+			);
 		}
 		return await pipeline.exec();
 	}

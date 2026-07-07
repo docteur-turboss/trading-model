@@ -15,18 +15,19 @@ export class WssPublishClient {
 		return this._queue.httpFallback;
 	}
 
+	private _trySendWs(payload: unknown, metadata: MessageMetadata, carrier: Record<string, string>): boolean {
+		return this._orchestrator.isConnected() && this._orchestrator.send({
+			type: "publish",
+			payload,
+			metadata,
+			traceparent: carrier.traceparent,
+		});
+	}
+
 	publish(payload: unknown, metadata: MessageMetadata): Promise<void> {
 		const carrier: Record<string, string> = {};
 		propagation.inject(context.active(), carrier);
-		if (
-			this._orchestrator.isConnected() &&
-			this._orchestrator.send({
-				type: "publish",
-				payload,
-				metadata,
-				traceparent: carrier.traceparent,
-			})
-		) {
+		if (this._trySendWs(payload, metadata, carrier)) {
 			return Promise.resolve();
 		}
 		if (this._queue.hasHttpFallback) {

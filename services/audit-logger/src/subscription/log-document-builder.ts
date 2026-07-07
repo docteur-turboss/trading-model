@@ -1,4 +1,12 @@
-import { toServiceId } from "@trading-model/common/domain/primitives";
+import {
+	toCorrelationId,
+	toEnvironment,
+	toInstanceId,
+	toServiceId,
+	toSessionId,
+	toUserId,
+} from "@trading-model/common/domain/primitives";
+import { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import type { z } from "zod";
 
 import { LOGS_INGESTED_TOTAL } from "../config/metrics";
@@ -37,7 +45,7 @@ function _buildDocService(
 ): ServiceLogDocument["service"] {
 	return {
 		name: toServiceId(entry.serviceName ?? "unknown"),
-		instanceId: entry.instanceId ?? "unknown",
+		instanceId: toInstanceId(entry.instanceId ?? "unknown"),
 	};
 }
 
@@ -48,8 +56,8 @@ function _buildDocUser(
 		return;
 	}
 	return {
-		id: entry.userId ?? undefined,
-		sessionId: entry.sessionId ?? undefined,
+		id: entry.userId ? toUserId(entry.userId) : undefined,
+		sessionId: entry.sessionId ? toSessionId(entry.sessionId) : undefined,
 	};
 }
 
@@ -76,21 +84,37 @@ function buildLogDocument(
 		message: entry.message,
 		service: _buildDocService(entry),
 		module: entry.module,
-		correlationId: entry.correlationId,
+		correlationId: entry.correlationId
+			? toCorrelationId(entry.correlationId)
+			: undefined,
 		context: _buildDocContext(entry),
 		error: extractError(entry),
-		environment: entry.environment,
+		environment: entry.environment
+			? toEnvironment(entry.environment)
+			: undefined,
 	};
 
+	return _addOptionalFields(doc, entry);
+}
+
+function _addOptionalFields(doc: ServiceLogDocument, entry: z.infer<typeof LOG_ENTRY_SCHEMA>): ServiceLogDocument {
 	if (entry.request) {
-		doc.request = entry.request;
+		doc.request = _buildDocRequest(entry);
 	}
 	const user = _buildDocUser(entry);
 	if (user) {
 		doc.user = user;
 	}
-
 	return doc;
+}
+
+function _buildDocRequest(entry: z.infer<typeof LOG_ENTRY_SCHEMA>): ServiceLogDocument["request"] {
+	return {
+		method: entry.request!.method as HttpMethod,
+		url: entry.request!.url as never,
+		statusCode: entry.request!.statusCode,
+		durationMs: entry.request!.durationMs as never,
+	};
 }
 
 function _buildLogDocuments(

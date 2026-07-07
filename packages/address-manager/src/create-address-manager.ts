@@ -88,24 +88,36 @@ function _buildAddressManagerConfig(
 	wsSubscribedServices: string[] | undefined
 ): ConstructorParameters<typeof AddressManager>[0] {
 	return {
+		..._buildCoreConfig(env, discoveryUrls),
+		identity: _buildIdentity(env),
+		tls: _buildTls(env),
+		..._buildOptionalConfig(env, wsSubscribedServices),
+	};
+}
+
+function _buildCoreConfig(env: AddressManagerEnv, discoveryUrls: string[]) {
+	return {
 		addressManagerUrl: env.ADDRESS_MANAGER_URL,
 		discoveryUrls,
 		localDiscoveryUrl: env.LOCAL_DISCOVERY_URL,
 		cacheTtlMs: env.CACHE_TTL_MS,
 		discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
-		identity: _buildIdentity(env),
 		servicePingTimeoutMs: env.SERVICE_PING_TIMEOUT_MS,
 		servicePort: env.PORT as Port,
 		publicIp: env.PUBLIC_IP as IPAddress | undefined,
 		tokenRefreshIntervalMs: env.TOKEN_REFRESH_INTERVAL_MS,
 		ttlRefreshIntervalMs: env.TTL_REFRESH_INTERVAL_MS,
-		tls: _buildTls(env),
+		preferredNetworkInterface: env.PREFERRED_NETWORK_INTERFACE,
+	};
+}
+
+function _buildOptionalConfig(env: AddressManagerEnv, wsSubscribedServices: string[] | undefined) {
+	return {
 		dnsNameMap: env.DNS_NAME_MAP,
 		metricsIntervalMs: env.METRICS_INTERVAL_MS,
 		wsUrl: env.WS_URL,
 		wsSubscribedServices,
 		maxCallRecords: env.MAX_CALL_RECORDS,
-		preferredNetworkInterface: env.PREFERRED_NETWORK_INTERFACE,
 	};
 }
 

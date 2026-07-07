@@ -9,4 +9,9 @@ export interface ICircuitBreaker {
 	getState(key: string): CircuitState;
 	getFailureCount(key: string): number;
 	clear(): void;
+	call<TResult>(
+		key: string,
+		fn: () => Promise<TResult>,
+		fallback?: () => TResult,
+	): Promise<TResult>;
 }

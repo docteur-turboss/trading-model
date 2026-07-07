@@ -39,16 +39,20 @@ function _signData(data: string, keyPem: string): string {
 	return sign.sign(keyPem, "base64");
 }
 
-export function createCsr(options: CsrOptions): string {
-	const { commonName, san, keyPem } = options;
-	const csrData = _buildCsrData(commonName, san);
-	const signature = _signData(csrData, keyPem);
-	const csrBody = _buildCsrBody(commonName, san, keyPem, signature);
+function _formatCsrOutput(csrBody: string): string {
 	return [
 		"-----BEGIN CERTIFICATE REQUEST-----",
 		...chunks(csrBody, 64),
 		"-----END CERTIFICATE REQUEST-----",
 	].join("\n");
+}
+
+export function createCsr(options: CsrOptions): string {
+	const { commonName, san, keyPem } = options;
+	const csrData = _buildCsrData(commonName, san);
+	const signature = _signData(csrData, keyPem);
+	const csrBody = _buildCsrBody(commonName, san, keyPem, signature);
+	return _formatCsrOutput(csrBody);
 }
 
 function chunks(str: string, size: number): string[] {

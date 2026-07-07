@@ -1,4 +1,5 @@
 import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
+import type { Topic } from "@trading-model/common/domain/primitives";
 
 import type { TopicSubscription } from "./messaging-types";
 import { SubscriptionRedisReader } from "./subscription-redis-reader";
@@ -6,7 +7,7 @@ import { SubscriptionRedisWriter } from "./subscription-redis-writer";
 
 export interface SubscriptionEntry {
 	id: string;
-	topic: string;
+	topic: Topic;
 	callbackPath: string;
 	serviceIdentity: ServiceIdentity;
 	createdAt: string;

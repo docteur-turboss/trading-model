@@ -27,10 +27,11 @@ function _getKeyEncoding() {
 	};
 }
 
-export function generateKeyPair(
-	algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
+function _runKeyGeneration(
+	algorithm: KeyAlgorithm,
+	algorithmOptions: Record<string, unknown>,
+	encoding: ReturnType<typeof _getKeyEncoding>
 ): KeyPair {
-	const algorithmOptions = _getAlgorithmOptions(algorithm);
 	const { publicKey, privateKey } = (
 		nodeGenerateKeyPairSync as (
 			type: string,
@@ -38,9 +39,16 @@ export function generateKeyPair(
 		) => { publicKey: unknown; privateKey: unknown }
 	)(algorithm, {
 		...algorithmOptions,
-		..._getKeyEncoding(),
+		...encoding,
 	});
 	return { publicKey: publicKey as string, privateKey: privateKey as string };
+}
+
+export function generateKeyPair(
+	algorithm: KeyAlgorithm = KeyAlgorithm.ecP384
+): KeyPair {
+	const algorithmOptions = _getAlgorithmOptions(algorithm);
+	return _runKeyGeneration(algorithm, algorithmOptions, _getKeyEncoding());
 }
 
 export function generateKeyPairSync(

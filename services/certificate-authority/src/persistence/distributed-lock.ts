@@ -73,35 +73,34 @@ export class DistributedLock implements IDistributedLock {
 		await this._acquisitionChain.release(this._context, savedToken);
 	}
 
-	static fromOptions(options: DistributedLockOptions): DistributedLock {
-		const context: LockContext = {
+	private static _buildContext(options: DistributedLockOptions): LockContext {
+		return {
 			lockName: options.lockName,
 			instanceId: randomUUID().substring(0, 8),
 		};
+	}
 
-		const connectionManager = new LockConnectionManager(
-			options.uri,
-			options.fallbackDir
-		);
-
+	private static _buildBackends(
+		options: DistributedLockOptions,
+		connectionManager: LockConnectionManager
+	): LockBackend[] {
 		const backends: LockBackend[] = [connectionManager.mongoBackend];
-
 		if (options.redisUrl) {
 			backends.push(new RedisLockBackend(options.redisUrl));
 		}
-
 		backends.push(
 			new FileSystemLockBackend(
 				options.fallbackDir ??
 					path.join(process.cwd(), "data", "ca-fallback", "locks")
 			)
 		);
+		return backends;
+	}
 
-		return new DistributedLock(
-			context,
-			options.ttlMs,
-			backends,
-			connectionManager
-		);
+	static fromOptions(options: DistributedLockOptions): DistributedLock {
+		const context = DistributedLock._buildContext(options);
+		const connectionManager = new LockConnectionManager(options.uri, options.fallbackDir);
+		const backends = DistributedLock._buildBackends(options, connectionManager);
+		return new DistributedLock(context, options.ttlMs, backends, connectionManager);
 	}
 }

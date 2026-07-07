@@ -64,28 +64,32 @@ export class Rotator {
 		});
 	}
 
+	private _rotateCertWithLogging(cert: {
+		serviceId: string;
+		serialNumber: SerialNumber;
+		expiresAt: Date;
+	}): void {
+		try {
+			this._rotateSingleCert(cert);
+		} catch (err) {
+			logger.error("Failed to rotate certificate", {
+				context: {
+					serviceId: cert.serviceId,
+					serialNumber: cert.serialNumber,
+					err,
+				},
+			});
+		}
+	}
+
 	private async _rotate(): Promise<void> {
-		const expiringCerts = await this._options.certificateStore.getExpiring(
-			this._options.marginMs
-		);
+		const expiringCerts = await this._options.certificateStore.getExpiring(this._options.marginMs);
 		if (expiringCerts.length === 0) {
 			return;
 		}
-		logger.info("Rotating expiring certificates", {
-			context: { count: expiringCerts.length },
-		});
+		logger.info("Rotating expiring certificates", { context: { count: expiringCerts.length } });
 		for (const cert of expiringCerts) {
-			try {
-				this._rotateSingleCert(cert);
-			} catch (err) {
-				logger.error("Failed to rotate certificate", {
-					context: {
-						serviceId: cert.serviceId,
-						serialNumber: cert.serialNumber,
-						err,
-					},
-				});
-			}
+			this._rotateCertWithLogging(cert);
 		}
 	}
 }

@@ -18,15 +18,11 @@ function verifySignature(req: Request, serviceName: string): boolean {
 	const provided = _extractSignatureHeader(req);
 	const timestampStr = _extractTimestampHeader(req);
 
-	if (!_validateTimestamp(timestampStr, provided)) {
-		return false;
-	}
+	if (!_validateTimestamp(timestampStr, provided)) return false;
 
 	const route = _buildSignedRequest(req, serviceName);
 
-	if (sharedVerifySignature(route, provided, timestampStr, secret)) {
-		return true;
-	}
+	if (sharedVerifySignature(route, provided, timestampStr, secret)) return true;
 
 	return _matchFallbackSignature(
 		req,
@@ -111,10 +107,8 @@ function _matchSignature(
 }
 
 function serviceAuth(req: Request, res: Response, next: NextFunction): void {
-	const serviceName = req.headers[HTTP_HEADERS.X_SERVICE_NAME] as
-		| string
-		| undefined;
-	if (!(serviceName && ALLOWED_SERVICES.includes(serviceName))) {
+	const serviceName = _resolveServiceName(req);
+	if (!serviceName) {
 		res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Unauthorized service" });
 		return;
 	}
@@ -123,6 +117,16 @@ function serviceAuth(req: Request, res: Response, next: NextFunction): void {
 		return;
 	}
 	next();
+}
+
+function _resolveServiceName(req: Request): string | undefined {
+	const serviceName = req.headers[HTTP_HEADERS.X_SERVICE_NAME] as
+		| string
+		| undefined;
+	if (serviceName && ALLOWED_SERVICES.includes(serviceName)) {
+		return serviceName;
+	}
+	return undefined;
 }
 
 export { serviceAuth };

@@ -8,16 +8,7 @@ export function createResilientTlsBootstrap(): TlsBootstrapOptions | null {
 	try {
 		const tls = createTlsBootstrap(process.env as Record<string, string>);
 		if (tls?.setupAutoRenew) {
-			const originalSetupAutoRenew = tls.setupAutoRenew.bind(tls);
-			tls.setupAutoRenew = (server: import("node:https").Server) => {
-				originalSetupAutoRenew(server);
-				reloadHttpClientTls().catch((err: unknown) => {
-					logger.warn(
-						"Failed to reload HTTP client TLS after certificate renewal",
-						{ error: normalizeError(err) }
-					);
-				});
-			};
+			_wrapAutoRenew(tls);
 		}
 		return tls;
 	} catch (err) {
@@ -27,4 +18,17 @@ export function createResilientTlsBootstrap(): TlsBootstrapOptions | null {
 		);
 		return null;
 	}
+}
+
+function _wrapAutoRenew(tls: TlsBootstrapOptions): void {
+	const originalSetupAutoRenew = tls.setupAutoRenew!.bind(tls);
+	tls.setupAutoRenew = (server: import("node:https").Server) => {
+		originalSetupAutoRenew(server);
+		reloadHttpClientTls().catch((err: unknown) => {
+			logger.warn(
+				"Failed to reload HTTP client TLS after certificate renewal",
+				{ error: normalizeError(err) }
+			);
+		});
+	};
 }

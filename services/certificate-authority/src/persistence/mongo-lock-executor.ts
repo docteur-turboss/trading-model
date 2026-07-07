@@ -38,8 +38,7 @@ export class MongoLockExecutor {
 			_buildLockUpdate(lockName, instanceId, now, expiresAt, nextFencingToken),
 			{ upsert: true, returnDocument: "before" }
 		);
-		const acquired =
-			result === null || (result.expiresAt && result.expiresAt < now);
+		const acquired = result === null || (result.expiresAt && result.expiresAt < now);
 		return acquired ? nextFencingToken : null;
 	}
 

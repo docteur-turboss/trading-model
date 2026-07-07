@@ -22,7 +22,7 @@ export enum Protocol {
 
 /** Payload for registering a new service instance in the registry. */
 export interface ServiceRegisterPayload {
-	name: ServiceInstanceName;
+	serviceName: ServiceInstanceName;
 	address: IPAddress;
 	port: Port;
 	protocol: Protocol;
@@ -57,7 +57,45 @@ export interface ServiceInstance extends ServiceIdentity {
 }
 
 /**
- * Abstract backend interface for ServiceInstance storage.
+ * Role interface: service instance registration and heartbeat lifecycle.
+ */
+export interface IInstanceRegistration {
+	registerInstance(instance: ServiceInstance): Promise<string>;
+	updateHeartbeat(id: ServiceIdentity): Promise<number | false>;
+	removeInstance(id: ServiceIdentity): Promise<boolean>;
+}
+
+/**
+ * Role interface: querying registered instances and service names.
+ */
+export interface IInstanceQuery {
+	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]>;
+	getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined>;
+	listServiceNames(): Promise<string[]>;
+	dump(): Promise<Record<ServiceInstanceName, ServiceInstance[]>>;
+}
+
+/**
+ * Role interface: authentication token and instance ID management.
+ */
+export interface ITokenManager {
+	updateToken(instanceId: InstanceId): Promise<string>;
+	validInstanceToken(validation: TokenValidation): Promise<boolean>;
+	generateInstanceToken(instanceId: InstanceId): string;
+	generateInstanceId(endpoint: ServiceEndpoint): ServiceId;
+	verifyInstanceName(serviceName: ServiceInstanceName): boolean;
+}
+
+/**
+ * Role interface: backend lifecycle (start / stop).
+ */
+export interface ILifecycle {
+	start(): void;
+	stop(): void;
+}
+
+/**
+ * Aggregate backend interface for ServiceInstance storage.
  *
  * All methods return Promises to support both synchronous
  * (InMemoryRegistryBackend) and asynchronous (RedisRegistryBackend)
@@ -69,33 +107,15 @@ export interface ServiceInstance extends ServiceIdentity {
  *
  * Design goal: controllers and routes are decoupled from storage;
  * swapping the backend requires no changes above the core/ layer.
+ *
+ * For narrower contracts, use the role interfaces directly:
+ * - {@link IInstanceRegistration}
+ * - {@link IInstanceQuery}
+ * - {@link ITokenManager}
+ * - {@link ILifecycle}
  */
-export interface RegistryBackend {
-	registerInstance(instance: ServiceInstance): Promise<string>;
-
-	updateHeartbeat(id: ServiceIdentity): Promise<number | false>;
-
-	updateToken(instanceId: InstanceId): Promise<string>;
-
-	getInstances(serviceName: ServiceInstanceName): Promise<ServiceInstance[]>;
-
-	getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined>;
-
-	removeInstance(id: ServiceIdentity): Promise<boolean>;
-
-	listServiceNames(): Promise<string[]>;
-
-	dump(): Promise<Record<ServiceInstanceName, ServiceInstance[]>>;
-
-	validInstanceToken(validation: TokenValidation): Promise<boolean>;
-
-	generateInstanceToken(instanceId: InstanceId): string;
-
-	generateInstanceId(endpoint: ServiceEndpoint): ServiceId;
-
-	verifyInstanceName(serviceName: ServiceInstanceName): boolean;
-
-	start(): void;
-
-	stop(): void;
-}
+export interface RegistryBackend
+	extends IInstanceRegistration,
+		IInstanceQuery,
+		ITokenManager,
+		ILifecycle {}

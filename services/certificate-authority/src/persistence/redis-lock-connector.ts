@@ -8,14 +8,18 @@ export class RedisLockConnector {
 		this._connect(redisUrl);
 	}
 
+	private _buildRedisOptions() {
+		return {
+			enableReadyCheck: true,
+			maxRetriesPerRequest: 1,
+			retryStrategy: () => null,
+			lazyConnect: true,
+		};
+	}
+
 	private _connect(redisUrl: string): void {
 		try {
-			this._client = new Redis(redisUrl, {
-				enableReadyCheck: true,
-				maxRetriesPerRequest: 1,
-				retryStrategy: () => null,
-				lazyConnect: true,
-			});
+			this._client = new Redis(redisUrl, this._buildRedisOptions());
 			this._client.on("error", () => {
 				this._available = false;
 			});

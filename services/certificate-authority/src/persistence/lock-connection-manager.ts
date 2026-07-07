@@ -6,22 +6,21 @@ import { MONGO_MANAGER } from "./mongo-manager";
 
 export class LockConnectionManager {
 	private _client: MongoClient;
-	private _collection!: Collection<LockDocument>;
+	private _collection: Collection<LockDocument> | null = null;
 	readonly mongoBackend: MongoLockBackend;
-	private _mongoAvailable = false;
 
 	constructor(uri: string, _fallbackDir?: string) {
 		this._client = new MongoClient(uri);
 		this.mongoBackend = new MongoLockBackend(
-			() => (this._mongoAvailable ? this._collection : null),
+			() => this._collection,
 			() => {
-				this._mongoAvailable = false;
+				this._collection = null;
 			}
 		);
 	}
 
 	get isAvailable(): boolean {
-		return this._mongoAvailable;
+		return this._collection !== null;
 	}
 
 	private async _connectViaManager(): Promise<void> {
@@ -37,7 +36,7 @@ export class LockConnectionManager {
 	}
 
 	private async _createLockIndexes(): Promise<void> {
-		if (!this._mongoAvailable) {
+		if (!this._collection) {
 			return;
 		}
 		await this._collection.createIndex({ name: 1 }, { unique: true });
@@ -54,7 +53,6 @@ export class LockConnectionManager {
 			} else {
 				await this._connectDirectly();
 			}
-			this._mongoAvailable = true;
 			this.mongoBackend.setConnected(true);
 			await this._createLockIndexes();
 		} catch (err) {

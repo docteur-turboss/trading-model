@@ -12,18 +12,18 @@ export type PlatformFlagName =
 	| "ENABLE_TELEMETRY_DETAILED"
 	| "ENFORCE_MTLS_STRICT";
 
-export interface FeatureFlagDefinition {
+export interface FeatureFlagBase {
 	name: PlatformFlagName;
-	defaultEnabled: boolean;
 	description: string;
 	owner: string;
 }
 
-export interface FeatureFlag {
-	name: PlatformFlagName;
+export interface FeatureFlagDefinition extends FeatureFlagBase {
+	defaultEnabled: boolean;
+}
+
+export interface FeatureFlag extends FeatureFlagBase {
 	enabled: boolean;
-	description: string;
-	owner: string;
 }
 
 export const PLATFORM_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [

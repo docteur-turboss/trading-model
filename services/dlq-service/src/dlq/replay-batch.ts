@@ -135,37 +135,50 @@ async function _runBatchWithTimeout(
 ): Promise<{ success: number; errors: DlqError[] }> {
 	const ReplayConcurrency = 10;
 	const ReplayBatchTimeoutMs = 120_000;
-	let batchTimedOut = false;
-	const successCount = { value: 0 };
-	const errors: DlqError[] = [];
-	const ctx: ReplayContext = {
-		...ctxBase,
-		isTimedOut: () => batchTimedOut,
-		successCount,
-		errors,
-	};
+
+	const { ctx, setTimedOut } = _createReplayContext(ctxBase);
 
 	const batchLoop = runBatchLoop(entries, ctx, ReplayConcurrency);
-
 	const timeoutPromise = waitForBatchTimeout(
 		ctxBase.batchId,
 		ReplayBatchTimeoutMs,
-		() => {
-			batchTimedOut = true;
-		}
+		setTimedOut
 	);
 
 	await Promise.race([batchLoop, timeoutPromise]);
 
-	if (batchTimedOut) {
-		try {
-			await batchLoop;
-		} catch {
-			logger.debug("Batch loop error already handled internally");
-		}
+	if (ctx.isTimedOut()) {
+		await _drainBatchLoop(batchLoop);
 	}
 
-	return { success: successCount.value, errors };
+	return { success: ctx.successCount.value, errors: ctx.errors };
+}
+
+function _createReplayContext(
+	ctxBase: BatchReplayContext
+): { ctx: ReplayContext; setTimedOut: () => void } {
+	let batchTimedOut = false;
+	const successCount = { value: 0 };
+	const errors: DlqError[] = [];
+	return {
+		ctx: {
+			...ctxBase,
+			isTimedOut: () => batchTimedOut,
+			successCount,
+			errors,
+		},
+		setTimedOut: () => {
+			batchTimedOut = true;
+		},
+	};
+}
+
+async function _drainBatchLoop(batchLoop: Promise<void>): Promise<void> {
+	try {
+		await batchLoop;
+	} catch {
+		logger.debug("Batch loop error already handled internally");
+	}
 }
 
 export type { DlqEntryRef, DlqError, ReplayBatchOptions } from "./types";

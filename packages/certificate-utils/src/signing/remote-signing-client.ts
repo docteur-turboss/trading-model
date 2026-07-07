@@ -53,65 +53,55 @@ export class RemoteSigningClient {
 		return this._keyPairClient.generateKeyPairWithId(algorithm);
 	}
 
-	async signCertificate(options: SignOptions): Promise<SignedCertificate> {
-		const result = await this._httpClient.post<SignedCertificate>(
-			`${this._baseUrl}/api/v1/crypto/sign-certificate`,
-			options as unknown as Record<string, unknown>,
+	private async _postAndCheck<TValue>(
+		path: string,
+		body: Record<string, unknown>
+	): Promise<TValue> {
+		const result = await this._httpClient.post<TValue>(
+			`${this._baseUrl}${path}`,
+			body,
 			{ timeoutMs: this._timeoutMs }
 		);
-		if (!result) {
+		if (result === undefined || result === null) {
 			throw new Error("Empty response from remote signer");
 		}
 		return result;
 	}
 
-	async createCsr(options: CsrOptions): Promise<string> {
-		const result = await this._httpClient.post<string>(
-			`${this._baseUrl}/api/v1/crypto/create-csr`,
-			options as unknown as Record<string, unknown>,
-			{ timeoutMs: this._timeoutMs }
+	async signCertificate(options: SignOptions): Promise<SignedCertificate> {
+		return this._postAndCheck<SignedCertificate>(
+			"/api/v1/crypto/sign-certificate",
+			options as unknown as Record<string, unknown>
 		);
-		if (result === undefined) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
+	}
+
+	async createCsr(options: CsrOptions): Promise<string> {
+		return this._postAndCheck<string>(
+			"/api/v1/crypto/create-csr",
+			options as unknown as Record<string, unknown>
+		);
 	}
 
 	async validateCertificate(
 		input: CertificateValidationInput
 	): Promise<ValidationResult> {
-		const result = await this._httpClient.post<ValidationResult>(
-			`${this._baseUrl}/api/v1/crypto/validate-certificate`,
-			input,
-			{ timeoutMs: this._timeoutMs }
+		return this._postAndCheck<ValidationResult>(
+			"/api/v1/crypto/validate-certificate",
+			input as unknown as Record<string, unknown>
 		);
-		if (!result) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
 	}
 
 	async parseKey(privateKey: string): Promise<KeyPair> {
-		const result = await this._httpClient.post<KeyPair>(
-			`${this._baseUrl}/api/v1/crypto/parse-key`,
-			{ privateKey },
-			{ timeoutMs: this._timeoutMs }
+		return this._postAndCheck<KeyPair>(
+			"/api/v1/crypto/parse-key",
+			{ privateKey }
 		);
-		if (!result) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
 	}
 
 	async sign(input: SignInput): Promise<string> {
-		const result = await this._httpClient.post<string>(
-			`${this._baseUrl}/api/v1/crypto/sign`,
-			input,
-			{ timeoutMs: this._timeoutMs }
+		return this._postAndCheck<string>(
+			"/api/v1/crypto/sign",
+			input as unknown as Record<string, unknown>
 		);
-		if (result === undefined) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
 	}
 }

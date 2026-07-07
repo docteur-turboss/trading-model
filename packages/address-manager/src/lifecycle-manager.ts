@@ -40,39 +40,48 @@ export class LifecycleManager {
 
 	start(): { stop: () => void; ready: Promise<void> } {
 		if (this._started) {
-			logger.warn("AddressManager already started — returning existing handle");
-			return {
-				ready: Promise.resolve(),
-				stop: () => {
-					this._options.shutdownHandler.shutdown();
-				},
-			};
+			return this._returnExistingHandle();
 		}
 		this._options.shutdownHandler.removeSignalHandlers();
 		this._started = true;
 
 		const scheduler = new Scheduler();
-
 		this._setupSchedulers(scheduler);
+		const registrationPromise = this._startRegistration(scheduler);
+		this._options.shutdownHandler.setupSignalHandlers(scheduler);
 
-		const registrationPromise = this._register().then(() => {
+		return {
+			ready: registrationPromise,
+			stop: this._createStopHandler(scheduler),
+		};
+	}
+
+	private _returnExistingHandle(): { stop: () => void; ready: Promise<void> } {
+		logger.warn("AddressManager already started — returning existing handle");
+		return {
+			ready: Promise.resolve(),
+			stop: () => {
+				this._options.shutdownHandler.shutdown();
+			},
+		};
+	}
+
+	private _startRegistration(scheduler: Scheduler): Promise<void> {
+		return this._register().then(() => {
 			if (!this._started) {
 				return;
 			}
 			this._options.wsClient?.connect();
 			scheduler.start();
 		});
+	}
 
-		this._options.shutdownHandler.setupSignalHandlers(scheduler);
-
-		return {
-			ready: registrationPromise,
-			stop: async () => {
-				this._started = false;
-				this._options.shutdownHandler.removeSignalHandlers();
-				scheduler.stop();
-				await this._options.shutdownHandler.fullStop();
-			},
+	private _createStopHandler(scheduler: Scheduler): () => Promise<void> {
+		return async () => {
+			this._started = false;
+			this._options.shutdownHandler.removeSignalHandlers();
+			scheduler.stop();
+			await this._options.shutdownHandler.fullStop();
 		};
 	}
 

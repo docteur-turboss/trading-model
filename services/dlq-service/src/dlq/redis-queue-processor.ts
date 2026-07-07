@@ -29,14 +29,10 @@ async function claimBatchEntries(
 	batchId: string
 ): Promise<Array<{ id: string; message: unknown }> | null> {
 	const validIds = _filterValidObjectIds(entryIds);
-	if (validIds.length === 0) {
-		return null;
-	}
+	if (validIds.length === 0) return null;
 
 	const claimed = await _claimByIds(validIds, batchId);
-	if (claimed.length === 0) {
-		return null;
-	}
+	if (claimed.length === 0) return null;
 
 	if (isShuttingDown()) {
 		_requeueRemaining(entryIds);
@@ -106,22 +102,15 @@ async function _claimAndReplayEntries(
 }
 
 export async function processRedisQueue(): Promise<void> {
-	if (_shouldSkipRedisProcessing()) {
-		return;
-	}
+	if (_shouldSkipRedisProcessing()) return;
 
 	const messageManagerUrl = await resolveMessageManagerUrl();
-	if (!messageManagerUrl) {
-		return;
-	}
+	if (!messageManagerUrl) return;
 
 	await dlqClaimManager.releaseStaleClaims();
 
 	const entryIds = await _popRedisQueueEntries();
-
-	if (entryIds.length === 0) {
-		return;
-	}
+	if (entryIds.length === 0) return;
 
 	await _claimAndReplayEntries(entryIds, messageManagerUrl);
 }

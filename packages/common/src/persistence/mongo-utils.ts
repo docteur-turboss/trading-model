@@ -22,10 +22,13 @@ export function resolvePoolSize(poolSizeParam?: number): number {
 	);
 }
 
-export function createPoolOptions(poolSize: number): MongoPoolOptions {
+export function createPoolOptions(
+	poolSize: number,
+	minPoolSize?: number
+): MongoPoolOptions {
 	return {
 		...DEFAULT_MONGO_POOL_OPTIONS,
 		maxPoolSize: poolSize,
-		minPoolSize: Math.max(2, Math.floor(poolSize / 5)),
+		minPoolSize: minPoolSize ?? Math.max(2, Math.floor(poolSize / 5)),
 	};
 }

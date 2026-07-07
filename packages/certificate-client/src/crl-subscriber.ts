@@ -33,18 +33,24 @@ function _onCaKeyRotated(
 	callbacks?.onCaKeyRotated?.(payload as { keyId: string });
 }
 
+function _buildCleanup(callbacks?: CrlSubscriberCallbacks): { cleanupRevoked: () => void; cleanupRotated: () => void } {
+	return {
+		cleanupRevoked: EVENT_MANAGER.on(
+			CertificateEvent.certificateRevoked,
+			(payload: unknown) => _onCertificateRevoked(payload, callbacks)
+		),
+		cleanupRotated: EVENT_MANAGER.on(
+			CertificateEvent.caKeyRotated,
+			(payload: unknown) => _onCaKeyRotated(payload, callbacks)
+		),
+	};
+}
+
 export async function subscribeToCertificateEvents(
 	messageManager: BrokerMessage,
 	callbacks?: CrlSubscriberCallbacks
 ): Promise<() => void> {
-	const cleanupRevoked = EVENT_MANAGER.on(
-		CertificateEvent.certificateRevoked,
-		(payload: unknown) => _onCertificateRevoked(payload, callbacks)
-	);
-	const cleanupRotated = EVENT_MANAGER.on(
-		CertificateEvent.caKeyRotated,
-		(payload: unknown) => _onCaKeyRotated(payload, callbacks)
-	);
+	const { cleanupRevoked, cleanupRotated } = _buildCleanup(callbacks);
 	await messageManager.intents([
 		CertificateEvent.certificateRevoked,
 		CertificateEvent.caKeyRotated,

@@ -29,19 +29,14 @@ export class CircuitBreakerPersistence {
 	}
 
 	persistMachineState(instanceId: string, machine: CircuitStateMachine): void {
-		const state = machine.getState(Date.now());
-		this._stateStore
-			.setCircuitState(instanceId, {
-				failures: machine.failures,
-				lastFailureTime: Date.now(),
-				state,
-			})
-			.catch((err) => {
-				logger.warn("Failed to persist circuit breaker state", {
-					instanceId,
-					error: normalizeError(err),
-				});
-			});
+		const stateData = this._buildStateData(machine);
+		this._stateStore.setCircuitState(instanceId, stateData).catch((err) => {
+			logger.warn("Failed to persist circuit breaker state", { instanceId, error: normalizeError(err) });
+		});
+	}
+
+	private _buildStateData(machine: CircuitStateMachine): import("./service-cache.interface").CircuitState {
+		return { failures: machine.failures, lastFailureTime: Date.now(), state: machine.getState(Date.now()) as "closed" | "open" | "half-open" };
 	}
 
 	private _isCacheValid(instanceId: string): boolean {
@@ -54,20 +49,24 @@ export class CircuitBreakerPersistence {
 
 	private _updateFromPersisted(
 		instanceId: string,
-		persisted: { failures: number; lastFailureTime: number; state: string },
+		persisted: import("./service-cache.interface").CircuitState,
 		instances: Map<string, CircuitStateMachine>
 	): void {
-		const existing = instances.get(instanceId);
-		if (!existing || persisted.lastFailureTime > Date.now()) {
-			const machine = new CircuitStateMachine({
-				failureThreshold: 3,
-				cooldownMs: 10_000,
-			});
-			for (let i = 0; i < persisted.failures; i++) {
-				machine.recordFailure(Date.now());
-			}
-			instances.set(instanceId, machine);
+		if (this._shouldRestoreFromPersisted(instances.get(instanceId), persisted)) {
+			instances.set(instanceId, this._replayMachine(persisted));
 		}
+	}
+
+	private _shouldRestoreFromPersisted(existing: CircuitStateMachine | undefined, persisted: { lastFailureTime: number }): boolean {
+		return !existing || persisted.lastFailureTime > Date.now();
+	}
+
+	private _replayMachine(persisted: { failures: number }): CircuitStateMachine {
+		const machine = new CircuitStateMachine({ failureThreshold: 3, cooldownMs: 10_000 });
+		for (let i = 0; i < persisted.failures; i++) {
+			machine.recordFailure(Date.now());
+		}
+		return machine;
 	}
 
 	deletePersistedState(instanceId: string): void {

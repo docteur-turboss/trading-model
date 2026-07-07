@@ -13,19 +13,12 @@ interface WssServerLike {
 	close(callback?: () => void): void;
 }
 
-class NullWssServer implements WssServerLike {
-	on(): void {}
-	close(callback?: () => void): void {
-		callback?.();
-	}
-}
-
 interface WsDiscoveryServerOptions {
 	path?: string;
 }
 
 export class WsDiscoveryServer {
-	private _wss: WssServerLike = new NullWssServer();
+	private _wss: WssServerLike | undefined;
 	private readonly _path: string;
 	private readonly _clientManager = new ClientConnectionManager();
 	private readonly _protocolHandler: WsProtocolHandler;
@@ -59,6 +52,6 @@ export class WsDiscoveryServer {
 
 	stop(): void {
 		this._clientManager.clearAll();
-		this._wss.close();
+		this._wss?.close();
 	}
 }

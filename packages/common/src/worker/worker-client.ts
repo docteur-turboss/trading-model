@@ -30,6 +30,41 @@ function normalizeConfig(config: WorkerClientConfig): Required<WorkerClientConfi
 	return { workerId: config.workerId, serverUrl: config.serverUrl, capabilities: config.capabilities, maxConcurrency: config.maxConcurrency, heartbeatIntervalMs: config.heartbeatIntervalMs ?? 15000, reconnectBaseDelayMs: config.reconnectBaseDelayMs ?? 1000, reconnectMaxDelayMs: config.reconnectMaxDelayMs ?? 30000 };
 }
 
+function _buildConnection(cfg: Required<WorkerClientConfig>): WorkerWsConnection {
+	return new WorkerWsConnection({
+		workerId: cfg.workerId,
+		serverUrl: cfg.serverUrl,
+		capabilities: cfg.capabilities,
+		maxConcurrency: cfg.maxConcurrency,
+	});
+}
+
+function _buildReconnector(
+	cfg: Required<WorkerClientConfig>,
+	onReconnect: () => Promise<void>,
+	onSchedule: (info: { attempt: number; delay: number }) => void
+): DefaultWsReconnector {
+	return new DefaultWsReconnector({
+		config: {
+			baseDelayMs: cfg.reconnectBaseDelayMs,
+			maxDelayMs: cfg.reconnectMaxDelayMs,
+		},
+		onReconnect,
+		onSchedule,
+	});
+}
+
+function _buildHeartbeat(
+	cfg: Required<WorkerClientConfig>,
+	send: (msg: WorkerWsHeartbeatMessage) => void
+): WorkerHeartbeat {
+	return new WorkerHeartbeat(
+		cfg.workerId,
+		(msg: WorkerWsHeartbeatMessage) => send(msg),
+		cfg.heartbeatIntervalMs
+	);
+}
+
 export class WorkerClient extends TypedEventEmitter<WorkerClientEvents> {
 	private readonly _cfg: Required<WorkerClientConfig>;
 	private readonly _connection: WorkerWsConnection;
@@ -40,10 +75,14 @@ export class WorkerClient extends TypedEventEmitter<WorkerClientEvents> {
 	constructor(config: WorkerClientConfig) {
 		super();
 		this._cfg = normalizeConfig(config);
-		this._connection = new WorkerWsConnection({ workerId: this._cfg.workerId, serverUrl: this._cfg.serverUrl, capabilities: this._cfg.capabilities, maxConcurrency: this._cfg.maxConcurrency });
-		this._reconnector = new DefaultWsReconnector({ config: { baseDelayMs: this._cfg.reconnectBaseDelayMs, maxDelayMs: this._cfg.reconnectMaxDelayMs }, onReconnect: () => this._doConnect(), onSchedule: (info) => this.emit("reconnecting", info) });
-		this._heartbeat = new WorkerHeartbeat(this._cfg.workerId, (msg: WorkerWsHeartbeatMessage) => this.send(msg), this._cfg.heartbeatIntervalMs);
+		this._connection = _buildConnection(this._cfg);
+		this._reconnector = _buildReconnector(this._cfg, () => this._doConnect(), (info) => this.emit("reconnecting", info));
+		this._heartbeat = _buildHeartbeat(this._cfg, (msg) => this.send(msg));
 		this._messageRouter = new WorkerMessageRouter(this.raw);
+		this._wireConnectionEvents();
+	}
+
+	private _wireConnectionEvents(): void {
 		this._connection.onOpen = () => { this._heartbeat.start(); this.emit("connected"); };
 		this._connection.onClose = () => {
 			this._heartbeat.stop();

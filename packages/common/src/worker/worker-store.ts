@@ -3,6 +3,30 @@ import type {
 	WorkerStatus,
 } from "../contracts/worker-protocol.types";
 
+function _findStaleWorkers(
+	workers: Map<string, WorkerRegistration>,
+	heartbeatTtlMs: number
+): string[] {
+	const now = Date.now();
+	const stale: string[] = [];
+	for (const [id, worker] of workers) {
+		if (now - worker.lastHeartbeat.getTime() > heartbeatTtlMs) {
+			worker.status = "offline";
+			stale.push(id);
+		}
+	}
+	return stale;
+}
+
+function _removeWorkers(
+	workers: Map<string, WorkerRegistration>,
+	ids: string[]
+): void {
+	for (const id of ids) {
+		workers.delete(id);
+	}
+}
+
 export class WorkerStore {
 	private readonly _workers: Map<string, WorkerRegistration> = new Map();
 	private readonly _heartbeatTtlMs: number;
@@ -52,17 +76,8 @@ export class WorkerStore {
 	}
 
 	purgeStaleWorkers(): string[] {
-		const now = Date.now();
-		const stale: string[] = [];
-		for (const [id, worker] of this._workers) {
-			if (now - worker.lastHeartbeat.getTime() > this._heartbeatTtlMs) {
-				worker.status = "offline";
-				stale.push(id);
-			}
-		}
-		for (const id of stale) {
-			this._workers.delete(id);
-		}
+		const stale = _findStaleWorkers(this._workers, this._heartbeatTtlMs);
+		_removeWorkers(this._workers, stale);
 		return stale;
 	}
 

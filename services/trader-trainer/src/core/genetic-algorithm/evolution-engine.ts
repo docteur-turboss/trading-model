@@ -31,16 +31,18 @@ export interface MutateWeightsContext {
 	rng: () => number;
 }
 
+function _boxMullerSample(rng: () => number): number {
+	const u1 = Math.max(1e-10, rng());
+	return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * rng());
+}
+
 /** Apply Gaussian weight mutation (Box-Muller) to each element with probability `rate`. */
 export function mutateWeights(ctx: MutateWeightsContext): Float32Array {
 	const { weights, rate, std, rng } = ctx;
 	const out = weights.slice();
 	for (let i = 0; i < out.length; i++) {
 		if (rng() < rate) {
-			const u1 = Math.max(1e-10, rng());
-			const gauss =
-				Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * rng());
-			out[i] += std * gauss;
+			out[i] += std * _boxMullerSample(rng);
 		}
 	}
 	return out;

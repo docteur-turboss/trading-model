@@ -64,20 +64,30 @@ export class PersistenceRetryQueue {
 	): Promise<PersistenceOp[]> {
 		const failed: PersistenceOp[] = [];
 		for (const op of batch) {
-			try {
-				await op.fn();
-			} catch {
-				if (op.retries < this._maxRetries) {
-					failed.push({ ...op, retries: op.retries + 1 });
-				} else {
-					logger.error(
-						"Persistence operation failed after max retries — giving up",
-						{ label: op.label }
-					);
-				}
+			const result = await this._tryExecuteOp(op);
+			if (result) {
+				failed.push(result);
 			}
 		}
 		return failed;
+	}
+
+	private async _tryExecuteOp(
+		op: PersistenceOp
+	): Promise<PersistenceOp | null> {
+		try {
+			await op.fn();
+			return null;
+		} catch {
+			if (op.retries < this._maxRetries) {
+				return { ...op, retries: op.retries + 1 };
+			}
+			logger.error(
+				"Persistence operation failed after max retries — giving up",
+				{ label: op.label }
+			);
+			return null;
+		}
 	}
 
 	private _reEnqueueFailed(failed: PersistenceOp[]): void {

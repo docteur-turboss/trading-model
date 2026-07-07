@@ -28,32 +28,18 @@ export class JobAssigner {
 		this._workerProtocol = protocol;
 	}
 
-	assign(
-		queued: { job: Job },
-		worker: Pick<
-			WorkerRegistration,
-			"workerId" | "currentLoad" | "maxConcurrency"
-		>
-	): void {
+	assign(queued: { job: Job }, worker: Pick<WorkerRegistration, "workerId" | "currentLoad" | "maxConcurrency">): void {
 		const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
-		const assignedJob: Job = {
-			...queued.job,
-			status: JOB_STATUS.ASSIGNED,
-			assignedWorkerId: worker.workerId,
-			ackDeadline: deadline,
-		};
-
+		const assignedJob = this._buildAssignedJob(queued.job, worker.workerId, deadline);
 		this._queue.markDelivered(assignedJob.id);
 		this._sendAssignment(worker.workerId, assignedJob, deadline);
 		this._incrementWorkerLoad(worker);
 		this._persistAssignment(assignedJob.id, worker.workerId, deadline);
+		logger.info("Job assigned to worker", { context: { jobId: assignedJob.id, workerId: worker.workerId } });
+	}
 
-		logger.info("Job assigned to worker", {
-			context: {
-				jobId: assignedJob.id,
-				workerId: worker.workerId,
-			},
-		});
+	private _buildAssignedJob(job: Job, workerId: import("@trading-model/common/domain/primitives").InstanceId, deadline: number): Job {
+		return { ...job, status: JOB_STATUS.ASSIGNED, assignedWorkerId: workerId, ackDeadline: deadline };
 	}
 
 	private _sendAssignment(workerId: string, job: Job, deadline: number): void {

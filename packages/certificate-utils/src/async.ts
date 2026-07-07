@@ -1,7 +1,7 @@
 import type { CsrOptions } from "./create-csr";
 import { KeyAlgorithm } from "./generate-key-pair";
-import { getPool } from "./lazy-pool";
-import type { RemoteSigningClient } from "./remote-signing-client";
+import { getPool } from "./workers/lazy-pool";
+import type { RemoteSigningClient } from "./signing/remote-signing-client";
 import type { SignOptions } from "./sign-certificate";
 import type {
 	KeyPair,

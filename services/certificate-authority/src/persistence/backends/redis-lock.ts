@@ -28,32 +28,58 @@ export class RedisLockBackend implements LockBackend {
         `;
 	}
 
+	private async _trySetLock(
+		lockKey: string,
+		value: string,
+		ttlMs: number,
+		nextFencingToken: number
+	): Promise<number | null | undefined> {
+		const acquired = await this._connector.client.set(lockKey, value, "PX", ttlMs, "NX");
+		if (acquired === "OK") {
+			this._connector.available = true;
+			return nextFencingToken;
+		}
+		return undefined;
+	}
+
+	private async _retryOrNull(
+		context: LockContext,
+		ttlMs: number,
+		lockKey: string
+	): Promise<number | null> {
+		const existing = await this._connector.client.get(lockKey);
+		if (existing === null) {
+			return this.acquire(context, ttlMs);
+		}
+		return null;
+	}
+
+	private _handleAcquireError(err: unknown): void {
+		logger.warn("Redis lock acquire failed", { context: { err } });
+		this._connector.available = false;
+	}
+
 	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
 		const { lockName, instanceId } = context;
 		try {
 			const lockKey = this._buildLockKey(lockName);
 			const nextFencingToken = randomInt(1, 2_147_483_647);
 			const value = this._buildLockValue(instanceId, nextFencingToken);
-			const acquired = await this._connector.client.set(
-				lockKey,
-				value,
-				"PX",
-				ttlMs,
-				"NX"
-			);
-			if (acquired === "OK") {
-				this._connector.available = true;
-				return nextFencingToken;
-			}
-			const existing = await this._connector.client.get(lockKey);
-			if (existing === null) {
-				return this.acquire(context, ttlMs);
-			}
-			return null;
+			const result = await this._trySetLock(lockKey, value, ttlMs, nextFencingToken);
+			if (result !== undefined) return result;
+			return this._retryOrNull(context, ttlMs, lockKey);
 		} catch (err) {
-			logger.warn("Redis lock acquire failed", { context: { err } });
-			this._connector.available = false;
+			this._handleAcquireError(err);
 			return null;
+		}
+	}
+
+	private async _executeRelease(lockKey: string, value: string): Promise<boolean> {
+		try {
+			await this._connector.client.eval(this._releaseScript(), 1, lockKey, value);
+			return true;
+		} catch {
+			return false;
 		}
 	}
 
@@ -62,18 +88,10 @@ export class RedisLockBackend implements LockBackend {
 			return false;
 		}
 		const { lockName, instanceId } = context;
-		try {
-			const lockKey = this._buildLockKey(lockName);
-			await this._connector.client.eval(
-				this._releaseScript(),
-				1,
-				lockKey,
-				this._buildLockValue(instanceId, fencingToken)
-			);
-			return true;
-		} catch {
-			return false;
-		}
+		return this._executeRelease(
+			this._buildLockKey(lockName),
+			this._buildLockValue(instanceId, fencingToken)
+		);
 	}
 
 	async verifyOwnership(

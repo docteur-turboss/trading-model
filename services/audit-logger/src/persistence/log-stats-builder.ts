@@ -5,24 +5,38 @@ type MongoDoc = Record<string, unknown>;
 
 export class LogStatsBuilder {
 	build(): MongoDoc[] {
-		return [
-			{
-				$facet: {
-					byService: [{ $group: { _id: "$service.name", count: { $sum: 1 } } }],
-					byLevel: [{ $group: { _id: "$level", count: { $sum: 1 } } }],
-					dateRange: [
-						{
-							$group: {
-								_id: null,
-								earliest: { $min: "$receivedAt" },
-								latest: { $max: "$receivedAt" },
-							},
-						},
-					],
-					total: [{ $count: "count" }],
-				},
+		return [{ $facet: this._buildFacets() }];
+	}
+
+	private _buildFacets(): MongoDoc {
+		return {
+			byService: this._buildByServiceFacet(),
+			byLevel: this._buildByLevelFacet(),
+			dateRange: this._buildDateRangeFacet(),
+			total: this._buildTotalFacet(),
+		};
+	}
+
+	private _buildByServiceFacet(): MongoDoc[] {
+		return [{ $group: { _id: "$service.name", count: { $sum: 1 } } }];
+	}
+
+	private _buildByLevelFacet(): MongoDoc[] {
+		return [{ $group: { _id: "$level", count: { $sum: 1 } } }];
+	}
+
+	private _buildDateRangeFacet(): MongoDoc[] {
+		return [{
+			$group: {
+				_id: null,
+				earliest: { $min: "$receivedAt" },
+				latest: { $max: "$receivedAt" },
 			},
-		];
+		}];
+	}
+
+	private _buildTotalFacet(): MongoDoc[] {
+		return [{ $count: "count" }];
 	}
 
 	parseResult(aggResult: Record<string, unknown>): LogStats {

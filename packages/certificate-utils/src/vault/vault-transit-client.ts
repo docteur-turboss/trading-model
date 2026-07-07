@@ -4,15 +4,21 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import {
 	type VaultTransitConfig,
 	VaultTransitHttp,
+	HashAlgorithmMapper,
+	VaultResponseParser,
 } from "./vault-transit-http";
 
 export type { VaultTransitConfig } from "./vault-transit-http";
 
 export class VaultTransitClient {
 	private readonly _http: VaultTransitHttp;
+	private readonly _algorithmMapper: HashAlgorithmMapper;
+	private readonly _responseParser: VaultResponseParser;
 
 	constructor(config: VaultTransitConfig) {
 		this._http = new VaultTransitHttp(config);
+		this._algorithmMapper = new HashAlgorithmMapper();
+		this._responseParser = new VaultResponseParser();
 	}
 
 	async createKey(
@@ -26,9 +32,9 @@ export class VaultTransitClient {
 	async sign(name: string, algorithm: string, input: string): Promise<string> {
 		const result = await this._http.postSign(name, {
 			input: Buffer.from(input, "utf8").toString("base64"),
-			hash_algorithm: this._http.getHashAlgorithm(algorithm),
+			hash_algorithm: this._algorithmMapper.getHashAlgorithm(algorithm),
 		});
-		return this._http.getSignatureString(result);
+		return this._responseParser.getSignatureString(result);
 	}
 
 	async signBytes(name: string, derBytes: string): Promise<string> {
@@ -36,7 +42,7 @@ export class VaultTransitClient {
 			input: Buffer.from(derBytes, "binary").toString("base64"),
 			hash_algorithm: "sha2-256",
 		});
-		const signatureBase64 = this._http.getSignatureString(result);
+		const signatureBase64 = this._responseParser.getSignatureString(result);
 		return Buffer.from(signatureBase64, "base64").toString("binary");
 	}
 

@@ -20,6 +20,49 @@ export function dlqCapacityError(message: string): DlqCapacityError {
 
 const DLQ_MAX_PASS_COUNT = 3;
 
+async function _computeDlqPassCount(
+	col: import("mongodb").Collection,
+	contentHash: string
+): Promise<number> {
+	const prevCompleted = await col.findOne(
+		{
+			contentHash,
+			status: { $in: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
+		},
+		{ sort: { createdAt: -1 }, projection: { dlqPassCount: 1, _id: 1 } }
+	);
+	return (prevCompleted?.dlqPassCount ?? 0) + 1;
+}
+
+function _buildBaseDoc(
+	entry: DlqEntry,
+	hash: { messageId: string; contentHash: string },
+	dlqPassCount: number
+): Record<string, unknown> {
+	return {
+		messageId: hash.messageId,
+		contentHash: hash.contentHash,
+		topic: entry.topic ?? null,
+		message: entry.message,
+		reason: entry.reason ?? null,
+		deliveryAttempt: entry.deliveryAttempt,
+		retryCount: 0,
+		dlqPassCount,
+		createdAt: new Date(entry.timestamp),
+	};
+}
+
+function _applyPingPongAbandon(
+	doc: Record<string, unknown>,
+	dlqPassCount: number
+): void {
+	if (dlqPassCount >= DLQ_MAX_PASS_COUNT) {
+		doc.status = DLQ_STATUS.ABANDONED;
+		doc.abandonedAt = new Date();
+		doc.lastError = `Ping-pong detected: message entered DLQ ${dlqPassCount} times`;
+	}
+}
+
 export class DlqEntryWriter {
 	private readonly _serializer = new EntrySerializer();
 	private readonly _inserter = new DedupInserter();
@@ -49,33 +92,9 @@ export class DlqEntryWriter {
 		entry: DlqEntry,
 		hash: { messageId: string; contentHash: string }
 	): Promise<Record<string, unknown>> {
-		const prevCompleted = await col.findOne(
-			{
-				contentHash: hash.contentHash,
-				status: { $in: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
-			},
-			{ sort: { createdAt: -1 }, projection: { dlqPassCount: 1, _id: 1 } }
-		);
-		const dlqPassCount = (prevCompleted?.dlqPassCount ?? 0) + 1;
-
-		const doc: Record<string, unknown> = {
-			messageId: hash.messageId,
-			contentHash: hash.contentHash,
-			topic: entry.topic ?? null,
-			message: entry.message,
-			reason: entry.reason ?? null,
-			deliveryAttempt: entry.deliveryAttempt,
-			retryCount: 0,
-			dlqPassCount,
-			createdAt: new Date(entry.timestamp),
-		};
-
-		if (dlqPassCount >= DLQ_MAX_PASS_COUNT) {
-			doc.status = DLQ_STATUS.ABANDONED;
-			doc.abandonedAt = new Date();
-			doc.lastError = `Ping-pong detected: message entered DLQ ${dlqPassCount} times`;
-		}
-
+		const dlqPassCount = await _computeDlqPassCount(col, hash.contentHash);
+		const doc = _buildBaseDoc(entry, hash, dlqPassCount);
+		_applyPingPongAbandon(doc, dlqPassCount);
 		return doc;
 	}
 }

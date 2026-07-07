@@ -16,17 +16,21 @@ export class CallRecordAggregator {
 	aggregate(records: CallRecord[]): AggregationTotals {
 		const callsByService: Record<ServiceId, number> = {};
 		const callsByEndpoint: Record<string, number> = {};
-		let totals = {
-			errorsTotal: 0,
-			totalLatency: 0,
-			bytesSent: 0,
-			bytesReceived: 0,
-		};
+		const totals = this._reduceRecords(records, callsByService, callsByEndpoint);
+		return { callsByService, callsByEndpoint, ...totals };
+	}
+
+	private _reduceRecords(
+		records: CallRecord[],
+		callsByService: Record<ServiceId, number>,
+		callsByEndpoint: Record<string, number>
+	): { errorsTotal: number; totalLatency: number; bytesSent: number; bytesReceived: number } {
+		let totals = { errorsTotal: 0, totalLatency: 0, bytesSent: 0, bytesReceived: 0 };
 		for (const record of records) {
 			this._aggregateRecord(record, callsByService, callsByEndpoint);
 			totals = this._aggregateTotals(record, totals);
 		}
-		return { callsByService, callsByEndpoint, ...totals };
+		return totals;
 	}
 
 	private _aggregateRecord(

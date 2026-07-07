@@ -1,5 +1,6 @@
 import type { CandleInterval } from "@trading-model/common/config/event.types";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import type { TradingSymbol } from "@trading-model/common/domain/primitives";
 
 import type {
 	AdminAuditFilter,
@@ -104,14 +105,14 @@ export const API_CLIENT = {
 	drainWorker: (id: string) =>
 		request<void>("PATCH", `/workers/${id}/status`, { status: "draining" }),
 
-	getCandles: (params: { symbol: string; interval: CandleInterval }) =>
+	getCandles: (params: { symbol: TradingSymbol; interval: CandleInterval }) =>
 		request<Candle[]>(
 			"GET",
 			`/scraper/candles?symbol=${params.symbol}&interval=${params.interval}`
 		),
-	getTickers: (symbol: string) =>
+	getTickers: (symbol: TradingSymbol) =>
 		request<Ticker>("GET", `/scraper/tickers/${symbol}`),
-	getOrderBook: (symbol: string) =>
+	getOrderBook: (symbol: TradingSymbol) =>
 		request<OrderBook>("GET", `/scraper/orderbook/${symbol}`),
 
 	getConfig: (service?: string) =>

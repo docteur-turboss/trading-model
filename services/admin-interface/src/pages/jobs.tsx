@@ -10,6 +10,7 @@ import { DrawerPanel } from "../components/drawer-panel";
 import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useJobDetail, useJobs } from "../hooks/use-jobs";
+import { AdminJobPriority } from "@trading-model/common/contracts/admin";
 import type { JobEntry, JobList, JobTimelineEntry } from "../types/dtos";
 
 function PageLoading() {
@@ -148,15 +149,15 @@ function JobTimeline({ entries }: { entries: JobTimelineEntry[] }) {
 	);
 }
 
-function PriorityChip({ priority }: { priority: string }) {
+function PriorityChip({ priority }: { priority: AdminJobPriority }) {
 	return (
 		<Chip
 			size="small"
 			label={priority}
 			color={
-				priority === "CRITICAL"
+				priority === AdminJobPriority.Critical
 					? "error"
-					: priority === "HIGH"
+					: priority === AdminJobPriority.High
 						? "warning"
 						: "default"
 			}

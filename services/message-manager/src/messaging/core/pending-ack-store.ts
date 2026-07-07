@@ -47,20 +47,29 @@ export class PendingAckStore {
 		> = {};
 		let cursor = "0";
 		do {
-			const [nextCursor, batch] = await redis.hscan(
-				this._pendingKey(instanceId),
-				cursor,
-				"COUNT",
-				200
-			);
-			cursor = nextCursor;
-			for (let i = 0; i < batch.length; i += 2) {
-				try {
-					result[batch[i]] = JSON.parse(batch[i + 1]);
-				} catch {}
-			}
+			cursor = await this._scanPendingBatch(redis, instanceId, cursor, result);
 		} while (cursor !== "0");
 		return result;
+	}
+
+	private async _scanPendingBatch(
+		redis: import("ioredis").Redis,
+		instanceId: string,
+		cursor: string,
+		result: Record<string, { topic: string; subscriberUrl: string; message: Message }>
+	): Promise<string> {
+		const [nextCursor, batch] = await redis.hscan(
+			this._pendingKey(instanceId),
+			cursor,
+			"COUNT",
+			200
+		);
+		for (let i = 0; i < batch.length; i += 2) {
+			try {
+				result[batch[i]] = JSON.parse(batch[i + 1]);
+			} catch {}
+		}
+		return nextCursor;
 	}
 
 	async recoverStale(
@@ -68,29 +77,36 @@ export class PendingAckStore {
 		maxAgeMs = 120_000
 	): Promise<number> {
 		try {
-			const redis = await getStreamClient();
-			const pendingKey = this._pendingKey(ownInstanceId);
-			const now = Date.now();
-
-			const staleIds = await this._staleScanner.scan(
-				redis,
-				pendingKey,
-				now,
-				maxAgeMs
-			);
-
-			if (staleIds.length > 0) {
-				await redis.hdel(pendingKey, ...staleIds);
-				logger.info(
-					`Recovered ${staleIds.length} stale pending acks for instance ${ownInstanceId}`
-				);
-			}
-			return staleIds.length;
+			return await this._doRecoverStale(ownInstanceId, maxAgeMs);
 		} catch (err) {
 			logger.warn("Failed to recover pending acks", {
 				context: { error: (err as Error).message },
 			});
 			return 0;
 		}
+	}
+
+	private async _doRecoverStale(
+		ownInstanceId: string,
+		maxAgeMs: number
+	): Promise<number> {
+		const redis = await getStreamClient();
+		const pendingKey = this._pendingKey(ownInstanceId);
+		const now = Date.now();
+
+		const staleIds = await this._staleScanner.scan(
+			redis,
+			pendingKey,
+			now,
+			maxAgeMs
+		);
+
+		if (staleIds.length > 0) {
+			await redis.hdel(pendingKey, ...staleIds);
+			logger.info(
+				`Recovered ${staleIds.length} stale pending acks for instance ${ownInstanceId}`
+			);
+		}
+		return staleIds.length;
 	}
 }

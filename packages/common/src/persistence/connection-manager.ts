@@ -1,4 +1,4 @@
-import { retryWithBackoff } from "../utils/retry";
+import { retryWithBackoff, type RetryResult } from "../utils/retry";
 
 export interface ConnectionFactory<T> {
 	connect(): Promise<T>;
@@ -15,6 +15,21 @@ export const DEFAULT_CONNECTION_OPTIONS: ConnectionManagerOptions = {
 	baseDelayMs: 1000,
 	maxDelayMs: 30000,
 };
+
+function _executeRetry<T>(
+	connectFn: () => Promise<T>,
+	options: ConnectionManagerOptions
+): Promise<RetryResult<T>> {
+	return retryWithBackoff(connectFn, {
+		maxRetries: options.maxRetries,
+		baseDelayMs: options.baseDelayMs,
+		maxDelayMs: options.maxDelayMs,
+	});
+}
+
+function _throwConnectFailed<T>(lastError: Error | null): T {
+	throw lastError ?? new Error("Failed to connect after retries");
+}
 
 export class ConnectionManager<T> {
 	protected _connection: T | null = null;
@@ -48,17 +63,12 @@ export class ConnectionManager<T> {
 	}
 
 	protected async _connectWithRetry(): Promise<T> {
-		const { result: conn, lastError } = await retryWithBackoff(
-			async () => this._connectFn(),
-			{
-				maxRetries: this._options.maxRetries,
-				baseDelayMs: this._options.baseDelayMs,
-				maxDelayMs: this._options.maxDelayMs,
-			}
+		const { result: conn, lastError } = await _executeRetry(
+			() => this._connectFn(),
+			this._options
 		);
 		if (!conn) {
-			this._connected = false;
-			throw lastError ?? new Error("Failed to connect after retries");
+			return _throwConnectFailed(lastError);
 		}
 		this._connection = conn;
 		this._connected = true;

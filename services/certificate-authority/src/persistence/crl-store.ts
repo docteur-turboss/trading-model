@@ -17,6 +17,7 @@ export class CrlStore {
 		return new CrlStore(collection);
 	}
 
+	/** Connection lifecycle is managed externally by MONGO_MANAGER. */
 	async disconnect(): Promise<void> {}
 
 	async save(entry: RevokedCertificate): Promise<void> {

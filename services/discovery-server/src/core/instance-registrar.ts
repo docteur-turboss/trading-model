@@ -15,6 +15,31 @@ export class InstanceRegistrar {
 			: ((await this._deps.redis.get(tokenKey)) ?? token);
 	}
 
+	private async _mergeExistingMetadata(
+		instanceId: string,
+		storedInstance: ServiceInstance
+	): Promise<void> {
+		const existingJson = await this._deps.redis.get(
+			this._deps.keyBuilder.instanceMetadata(instanceId)
+		);
+		if (!existingJson) {
+			return;
+		}
+		try {
+			const existing: ServiceInstance = JSON.parse(existingJson);
+			storedInstance.registeredAt = existing.registeredAt;
+			storedInstance.lastHeartbeat = Math.max(
+				storedInstance.lastHeartbeat,
+				existing.lastHeartbeat
+			);
+		} catch (err) {
+			logger.warn("Failed to parse existing instance metadata", {
+				instanceId,
+				err: normalizeError(err),
+			});
+		}
+	}
+
 	async buildStoredInstance(
 		instance: ServiceInstance,
 		now: number
@@ -24,24 +49,7 @@ export class InstanceRegistrar {
 			registeredAt: instance.registeredAt ?? now,
 			lastHeartbeat: now,
 		};
-		const existingJson = await this._deps.redis.get(
-			this._deps.keyBuilder.instanceMetadata(instance.instanceId)
-		);
-		if (existingJson) {
-			try {
-				const existing: ServiceInstance = JSON.parse(existingJson);
-				storedInstance.registeredAt = existing.registeredAt;
-				storedInstance.lastHeartbeat = Math.max(
-					storedInstance.lastHeartbeat,
-					existing.lastHeartbeat
-				);
-			} catch (err) {
-				logger.warn("Failed to parse existing instance metadata", {
-					instanceId: instance.instanceId,
-					err: normalizeError(err),
-				});
-			}
-		}
+		await this._mergeExistingMetadata(instance.instanceId, storedInstance);
 		return storedInstance;
 	}
 
@@ -49,7 +57,6 @@ export class InstanceRegistrar {
 		const { serviceName, instanceId } = instance;
 		const now = Date.now();
 		const finalToken = await this.resolveToken(instanceId);
-
 		const multi = this._deps.redis.multi();
 		multi.sadd(
 			this._deps.keyBuilder.serviceInstancesSet(serviceName),
@@ -61,7 +68,6 @@ export class InstanceRegistrar {
 			JSON.stringify(storedInstance)
 		);
 		await multi.exec();
-
 		return finalToken;
 	}
 }

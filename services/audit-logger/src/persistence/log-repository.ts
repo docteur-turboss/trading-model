@@ -23,16 +23,18 @@ import { LogStatsBuilder } from "./log-stats-builder";
 
 type MongoDoc = Record<string, unknown>;
 
+export interface ServiceInfo {
+	name: ServiceId;
+	instanceId: InstanceId;
+	version?: Version;
+}
+
 export interface ServiceLogDocument {
 	receivedAt: Date;
 	ttl: Date;
 	level: "debug" | "info" | "warn" | "error";
 	message: string;
-	service: {
-		name: ServiceId;
-		instanceId: InstanceId;
-		version?: Version;
-	};
+	service: ServiceInfo;
 	module?: string;
 	correlationId?: CorrelationId;
 	context?: Record<string, unknown>;

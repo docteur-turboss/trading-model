@@ -64,22 +64,17 @@ export class AuditQuerier {
 	}
 
 	async getStats(): Promise<AuditStats> {
-		const [totalEvents, topicAgg, publisherAgg, dateRange] = await Promise.all([
+		const [totalEvents, topicAgg, publisherAgg, dateRange] = await this._fetchStatsData();
+		return _buildStatsResult(totalEvents, topicAgg, publisherAgg, dateRange);
+	}
+
+	private async _fetchStatsData(): Promise<[number, Array<{ _id: string; count: number }>, Array<{ _id: string; count: number }>, Array<{ earliest: Date | null; latest: Date | null }>]> {
+		return Promise.all([
 			this._collection.estimatedDocumentCount(),
 			_aggregateByField(this._collection, "topic"),
 			_aggregateByField(this._collection, "publisher"),
 			_aggregateDateRange(this._collection),
 		]);
-
-		return {
-			totalEvents,
-			eventsByTopic: _toMap(topicAgg) as Record<Topic, number>,
-			eventsByPublisher: _toMap(publisherAgg) as Record<ServiceId, number>,
-			dateRange: {
-				earliest: dateRange[0]?.earliest ?? null,
-				latest: dateRange[0]?.latest ?? null,
-			},
-		};
 	}
 }
 
@@ -113,6 +108,23 @@ function _aggregateDateRange(
 			},
 		])
 		.toArray();
+}
+
+function _buildStatsResult(
+	totalEvents: number,
+	topicAgg: Array<{ _id: string; count: number }>,
+	publisherAgg: Array<{ _id: string; count: number }>,
+	dateRange: Array<{ earliest: Date | null; latest: Date | null }>
+): AuditStats {
+	return {
+		totalEvents,
+		eventsByTopic: _toMap(topicAgg) as Record<Topic, number>,
+		eventsByPublisher: _toMap(publisherAgg) as Record<ServiceId, number>,
+		dateRange: {
+			earliest: dateRange[0]?.earliest ?? null,
+			latest: dateRange[0]?.latest ?? null,
+		},
+	};
 }
 
 function _toMap(

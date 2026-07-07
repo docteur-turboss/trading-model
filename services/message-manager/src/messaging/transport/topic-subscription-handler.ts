@@ -11,65 +11,72 @@ interface SubscriptionContext {
 export class TopicSubscriptionHandler {
 	handleSubscribe(
 		msg: IncomingWssMessage,
-		{ ws, topics, identity }: SubscriptionContext
+		ctx: SubscriptionContext
 	): void {
-		const msgInstanceId = msg.instanceId;
-		if (msgInstanceId && msgInstanceId !== identity.instanceId) {
-			ws.send(
-				JSON.stringify({ type: "error", message: "instanceId mismatch" })
-			);
+		if (!this._validateMessage(msg, ctx)) {
 			return;
 		}
-		const rawTopics = msg.topics;
-		if (
-			!(
-				Array.isArray(rawTopics) &&
-				rawTopics.every((topic) => typeof topic === "string")
-			)
-		) {
-			ws.send(
-				JSON.stringify({
-					type: "error",
-					message: "topics must be an array of strings",
-				})
-			);
-			return;
+		for (const topic of msg.topics as string[]) {
+			ctx.topics.add(topic);
 		}
-		for (const topic of rawTopics as string[]) {
-			topics.add(topic);
-		}
-		ws.send(JSON.stringify({ type: "subscribed", topics: [...topics] }));
+		ctx.ws.send(JSON.stringify({ type: "subscribed", topics: [...ctx.topics] }));
 	}
 
 	handleUnsubscribe(
 		msg: IncomingWssMessage,
-		{ ws, topics, identity }: SubscriptionContext
+		ctx: SubscriptionContext
 	): void {
+		if (!this._validateMessage(msg, ctx)) {
+			return;
+		}
+		for (const topic of msg.topics as string[]) {
+			ctx.topics.delete(topic);
+		}
+		ctx.ws.send(JSON.stringify({ type: "unsubscribed", topics: [...ctx.topics] }));
+	}
+
+	private _validateMessage(
+		msg: IncomingWssMessage,
+		{ ws, identity }: SubscriptionContext
+	): boolean {
+		if (!this._checkInstanceId(msg, identity, ws)) {
+			return false;
+		}
+		return this._checkTopicsArray(msg, ws);
+	}
+
+	private _checkInstanceId(
+		msg: IncomingWssMessage,
+		identity: ServiceIdentity,
+		ws: WebSocket
+	): boolean {
 		const msgInstanceId = msg.instanceId;
 		if (msgInstanceId && msgInstanceId !== identity.instanceId) {
 			ws.send(
 				JSON.stringify({ type: "error", message: "instanceId mismatch" })
 			);
-			return;
+			return false;
 		}
+		return true;
+	}
+
+	private _checkTopicsArray(
+		msg: IncomingWssMessage,
+		ws: WebSocket
+	): boolean {
 		const rawTopics = msg.topics;
 		if (
-			!(
-				Array.isArray(rawTopics) &&
-				rawTopics.every((topic) => typeof topic === "string")
-			)
+			Array.isArray(rawTopics) &&
+			rawTopics.every((topic) => typeof topic === "string")
 		) {
-			ws.send(
-				JSON.stringify({
-					type: "error",
-					message: "topics must be an array of strings",
-				})
-			);
-			return;
+			return true;
 		}
-		for (const topic of rawTopics as string[]) {
-			topics.delete(topic);
-		}
-		ws.send(JSON.stringify({ type: "unsubscribed", topics: [...topics] }));
+		ws.send(
+			JSON.stringify({
+				type: "error",
+				message: "topics must be an array of strings",
+			})
+		);
+		return false;
 	}
 }

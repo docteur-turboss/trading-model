@@ -1,3 +1,4 @@
+import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
 import type Redis from "ioredis";
 
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
@@ -17,18 +18,32 @@ export class StaleInstanceRemover {
 		const leaseKey = this._keys.leaseKey(instanceId);
 		const topics = await redis.hkeys(leaseKey);
 		const multi = redis.multi();
+		this._addRemovalCommands(multi, instanceId, leaseKey, topics);
+		await multi.exec();
+		return topics;
+	}
+
+	private _addRemovalCommands(
+		multi: ReturnType<Redis["multi"]>,
+		instanceId: string,
+		leaseKey: string,
+		topics: string[]
+	): void {
 		for (const topic of topics) {
 			if (topic === LEASE_HEARTBEAT_FIELD) {
 				continue;
 			}
-			multi.del(this._keys.subKey({ topic, instanceId }));
+			multi.del(
+				this._keys.subKey({
+					topic: toTopic(topic),
+					instanceId: toInstanceId(instanceId),
+				})
+			);
 			multi.srem(this._keys.topicKey(topic), instanceId);
 		}
 		multi.del(leaseKey);
 		multi.del(this._keys.instanceKey(instanceId));
 		multi.srem(this._keys.activeInstancesKey(), instanceId);
-		await multi.exec();
-		return topics;
 	}
 
 	async cleanupOrphanedTopics(redis: Redis, topics: string[]): Promise<void> {

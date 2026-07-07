@@ -4,16 +4,95 @@ import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 import { PendingAckOperations } from "./pending-ack-operations";
 import { StreamGroupOperations } from "./stream-group-operations";
 
+export interface IStreamGroupOps {
+	ensureConsumerGroup(ref: StreamGroupRef): Promise<void>;
+	readFromGroup(
+		params: import("./stream-group-manager").ReadFromGroupParams
+	): Promise<Array<{ id: string; data: string }>>;
+	ackMessage(ref: AckRef): Promise<void>;
+	getPendingCount(ref: StreamGroupRef): Promise<number>;
+	getMessagesAfter(
+		query: MessageQuery
+	): Promise<
+		import("@trading-model/common/contracts/message.types").Message[]
+	>;
+	getMessagesBetween(
+		params: import("./stream-group-manager").GetMessagesBetweenParams
+	): Promise<
+		import("@trading-model/common/contracts/message.types").Message[]
+	>;
+	getStreamLag(ref: StreamGroupRef): Promise<number>;
+}
+
+export interface IPendingAckOps {
+	recoverPendingAcks(
+		ownInstanceId: string,
+		maxAgeMs?: number
+	): Promise<number>;
+	addPendingAck(
+		instanceId: string,
+		messageId: string,
+		data: {
+			topic: string;
+			subscriberUrl: string;
+			message: import("@trading-model/common/contracts/message.types").Message;
+		}
+	): Promise<void>;
+	removePendingAck(instanceId: string, messageId: string): Promise<void>;
+	getPendingAcks(
+		instanceId: string
+	): Promise<
+		Record<
+			string,
+			{
+				topic: string;
+				subscriberUrl: string;
+				message: import("@trading-model/common/contracts/message.types").Message;
+			}
+		>
+	>;
+}
+
+export interface IClaimOps {
+	claimPendingMessages(
+		groupName: string,
+		consumerId: string,
+		minIdleMs?: number,
+		count?: number
+	): Promise<number>;
+}
+
+export interface IDedupOps {
+	tryDeduplicate(deduplicationId: string, ttlS: number): Promise<boolean>;
+}
+
 export class MessageRoutingFacade {
 	private readonly _streamOps: StreamGroupOperations;
 	private readonly _pendingAckOps: PendingAckOperations;
 	private readonly _claimManager: ClaimExecutor;
 	private readonly _dedupService: DeduplicationService;
+
 	constructor(prefix: string) {
 		this._streamOps = new StreamGroupOperations(prefix);
 		this._pendingAckOps = new PendingAckOperations(prefix);
 		this._claimManager = new ClaimExecutor(prefix);
 		this._dedupService = new DeduplicationService(prefix);
+	}
+
+	get streamOps(): StreamGroupOperations {
+		return this._streamOps;
+	}
+
+	get pendingAckOps(): PendingAckOperations {
+		return this._pendingAckOps;
+	}
+
+	get claimManager(): ClaimExecutor {
+		return this._claimManager;
+	}
+
+	get dedupService(): DeduplicationService {
+		return this._dedupService;
 	}
 
 	async recoverPendingAcks(
@@ -103,6 +182,7 @@ export class MessageRoutingFacade {
 	async getStreamLag(ref: StreamGroupRef): Promise<number> {
 		return this._streamOps.getStreamLag(ref);
 	}
+
 	async tryDeduplicate(
 		deduplicationId: string,
 		ttlS: number

@@ -18,7 +18,7 @@ export class JobDocumentMapper {
 			completedAt: job.completedAt,
 			result: job.result,
 			error: job.error,
-			history: job.history.map((e: JobEvent) => ({ ...e })),
+			history: _cloneHistory(job.history),
 		};
 	}
 
@@ -38,7 +38,11 @@ export class JobDocumentMapper {
 			completedAt: doc.completedAt,
 			result: doc.result,
 			error: doc.error,
-			history: doc.history.map((e: JobEvent) => ({ ...e })),
+			history: _cloneHistory(doc.history),
 		};
 	}
+}
+
+function _cloneHistory(history: JobEvent[]): JobEvent[] {
+	return history.map((e: JobEvent) => ({ ...e }));
 }

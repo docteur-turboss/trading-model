@@ -10,6 +10,10 @@ const FIELD_NAMES = [
 	"tickerPriceChange", "tickerVolume", "tickerDailyRange", "priceSnapshot",
 ] as const;
 
+type FeatureFieldName = (typeof FIELD_NAMES)[number];
+
+const _typeCheck: Record<FeatureFieldName, number> extends Partial<FeatureVector> ? true : never = true;
+
 export class FeatureVector {
 	candleClose = 0;
 	candleVolume = 0;
@@ -40,7 +44,8 @@ export class FeatureVector {
 	constructor(data?: Float32Array) {
 		this._slidingWindow = new Float32Array(SLIDING_WINDOW_SIZE);
 		if (data instanceof Float32Array) {
-			for (let i = 0; i < FIELD_NAMES.length; i++) { (this as Record<string, number>)[FIELD_NAMES[i]] = data[i] ?? 0; }
+			const fv = this as unknown as Record<FeatureFieldName, number>;
+			for (let i = 0; i < FIELD_NAMES.length; i++) { fv[FIELD_NAMES[i]] = data[i] ?? 0; }
 			for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) { this._slidingWindow[i] = data[FIELD_NAMES.length + i] ?? 0; }
 			this.bias = data[FEATURE_DIM - 1] ?? 0;
 		}
@@ -50,7 +55,8 @@ export class FeatureVector {
 
 	toFloat32Array(): Float32Array {
 		const arr = new Float32Array(FEATURE_DIM);
-		for (let i = 0; i < FIELD_NAMES.length; i++) { arr[i] = (this as Record<string, number>)[FIELD_NAMES[i]]; }
+		const fv = this as unknown as Record<FeatureFieldName, number>;
+		for (let i = 0; i < FIELD_NAMES.length; i++) { arr[i] = fv[FIELD_NAMES[i]]; }
 		for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) { arr[FIELD_NAMES.length + i] = this._slidingWindow[i]; }
 		arr[FEATURE_DIM - 1] = this.bias;
 		return arr;

@@ -1,4 +1,5 @@
 import type { InstanceId, JobId, JobType } from "../domain/primitives";
+import type { RetryPolicy } from "../domain/retry-policy";
 import { AppError } from "../utils/errors";
 
 /**
@@ -130,7 +131,7 @@ export interface JobEvent {
 	reason: string;
 }
 
-export interface Job<TData = unknown> {
+export interface Job<TData = unknown> extends RetryPolicy {
 	id: JobId;
 	type: JobType;
 	payload: TData;
@@ -138,8 +139,6 @@ export interface Job<TData = unknown> {
 	status: JOB_STATUS;
 	assignedWorkerId?: InstanceId;
 	ackDeadline: number;
-	maxRetries: number;
-	retryCount: number;
 	createdAt: Date;
 	startedAt?: Date;
 	completedAt?: Date;

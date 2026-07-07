@@ -1,6 +1,14 @@
-import { createPrivateKey, createSign } from "node:crypto";
+import { createPrivateKey, createSign, type KeyObject } from "node:crypto";
 
 import forge from "node-forge";
+
+function _selectAlgorithm(nodeKey: KeyObject): string {
+	return nodeKey.asymmetricKeyType === "rsa" ? "RSA-SHA256" : "sha256";
+}
+
+function _signTbs(tbsBuffer: Buffer, nodeKey: KeyObject, algorithm: string): string {
+	return createSign(algorithm).update(tbsBuffer).sign(nodeKey).toString("binary");
+}
 
 /**
  * Signs a forge certificate using node:crypto (not forge's sign()).
@@ -15,16 +23,9 @@ export function signCertWithCaKey(
 	const pem = Buffer.from(getCaPrivateKey(), "utf8");
 	try {
 		const nodeKey = createPrivateKey(pem);
-		const algorithm =
-			nodeKey.asymmetricKeyType === "rsa" ? "RSA-SHA256" : "sha256";
-
+		const algorithm = _selectAlgorithm(nodeKey);
 		_prepareCertForSigning(cert);
-
-		const tbsBuffer = _extractTbsDer(cert);
-
-		const sigBuffer = createSign(algorithm).update(tbsBuffer).sign(nodeKey);
-		const sigBytes = sigBuffer.toString("binary");
-
+		const sigBytes = _signTbs(_extractTbsDer(cert), nodeKey, algorithm);
 		_applyAsn1Signature(cert, sigBytes);
 	} finally {
 		pem.fill(0);

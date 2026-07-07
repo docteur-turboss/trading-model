@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { logger } from "@trading-model/common/config/logger";
+import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { BufferLoader } from "./buffer-loader";
 import { BufferSaver } from "./buffer-saver";
-import { CheckpointFileHelper } from "./checkpoint-file-helper";
+import { CheckpointFileHelper, type CheckpointMetadata } from "./checkpoint-file-helper";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type {
@@ -38,7 +39,7 @@ export class CheckpointManager {
 		this._bufferLoader = new BufferLoader(this._checkpointDir);
 	}
 
-	save(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
+	save(symbol: TradingSymbol, genome: DeepReadonly<LamarckGenome>): void {
 		try {
 			this._fileHelper.save(symbol, genome);
 		} catch (err) {
@@ -51,7 +52,7 @@ export class CheckpointManager {
 		}
 	}
 
-	load(symbol: string): DeepReadonly<LamarckGenome> | null {
+	load(symbol: TradingSymbol): DeepReadonly<LamarckGenome> | null {
 		try {
 			return this._fileHelper.load(symbol);
 		} catch (err) {
@@ -65,12 +66,7 @@ export class CheckpointManager {
 		}
 	}
 
-	list(): {
-		symbol: string;
-		generation: number;
-		fitness: number;
-		savedAt: number;
-	}[] {
+	list(): CheckpointMetadata[] {
 		if (!existsSync(this._checkpointDir)) {
 			return [];
 		}

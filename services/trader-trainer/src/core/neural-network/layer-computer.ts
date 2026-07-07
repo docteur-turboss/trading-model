@@ -43,32 +43,35 @@ export class LayerComputer {
 		return preActivations;
 	}
 
+	private _applyActivation(
+		preActivations: Float32Array,
+		activation: ActivationType
+	): Float32Array {
+		if (activation === ActivationType.Softmax) {
+			return this._activationComputer.applySoftmax(preActivations);
+		}
+		return this._activationComputer.applyElementWiseActivation(preActivations, activation);
+	}
+
+	private _applySkipConnection(
+		output: Float32Array,
+		originalInput: Float32Array
+	): void {
+		if (this._connectionType !== ConnectionType.DenseSkip) return;
+		if (originalInput.length === output.length) {
+			for (let i = 0; i < output.length; i++) {
+				output[i] += originalInput[i];
+			}
+		}
+	}
+
 	computeLayerOutput(
 		ctx: LayerComputationContext
 	): { preActivations: Float32Array; output: Float32Array } {
 		const { layer, current, layerIndex, originalInput } = ctx;
 		const preActivations = this.computePreActivations(layer, current);
-		const activation = this._activationType[layerIndex];
-
-		let output: Float32Array;
-		if (activation === ActivationType.Softmax) {
-			output = this._activationComputer.applySoftmax(preActivations);
-		} else {
-			output = this._activationComputer.applyElementWiseActivation(
-				preActivations,
-				activation
-			);
-		}
-
-		if (
-			this._connectionType === ConnectionType.DenseSkip &&
-			originalInput.length === output.length
-		) {
-			for (let i = 0; i < output.length; i++) {
-				output[i] += originalInput[i];
-			}
-		}
-
+		const output = this._applyActivation(preActivations, this._activationType[layerIndex]);
+		this._applySkipConnection(output, originalInput);
 		return { preActivations, output };
 	}
 }

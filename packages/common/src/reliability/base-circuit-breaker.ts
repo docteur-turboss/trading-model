@@ -1,3 +1,4 @@
+import { logger } from "../config/logger";
 import type { CircuitState } from "../domain/circuit-state";
 import type { ICircuitBreaker } from "./circuit-breaker.interface";
 
@@ -13,10 +14,7 @@ export interface CircuitBreakerConfig {
 	halfOpenMaxAttempts?: number;
 }
 
-const DEFAULT_CONFIG: CircuitBreakerConfig = {
-	failureThreshold: 5,
-	cooldownMs: 30_000,
-};
+const DEFAULT_CONFIG: CircuitBreakerConfig = { failureThreshold: 5, cooldownMs: 30_000 };
 
 export abstract class BaseCircuitBreaker implements ICircuitBreaker {
 	protected readonly _entries = new Map<string, CircuitBreakerEntry>();
@@ -87,6 +85,32 @@ export abstract class BaseCircuitBreaker implements ICircuitBreaker {
 	getFailureCount(key: string): number {
 		const entry = this._entries.get(key);
 		return entry?.failures ?? 0;
+	}
+
+	async call<TResult>(
+		key: string,
+		fn: () => Promise<TResult>,
+		fallback?: () => TResult,
+	): Promise<TResult> {
+		const state = this.check(key);
+		if (state === "open") {
+			if (fallback) {
+				return fallback();
+			}
+			throw new Error(`Circuit breaker OPEN: ${key}`);
+		}
+		try {
+			const result = await fn();
+			this.recordSuccess(key);
+			return result;
+		} catch (error) {
+			this.recordFailure(key);
+			logger.warn(`Circuit breaker recorded failure for: ${key}`);
+			if (fallback) {
+				return fallback();
+			}
+			throw error;
+		}
 	}
 
 	clear(): void {

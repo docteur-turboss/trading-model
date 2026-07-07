@@ -6,6 +6,37 @@ import { DLQ_STATUS } from "./dlq-status";
 
 const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 
+function _isEntryAbandoned(
+	col: import("mongodb").Collection,
+	id: string
+): Promise<boolean> {
+	return col
+		.findOne(
+			{ _id: new ObjectId(id) },
+			{ projection: { status: 1 } }
+		)
+		.then((entry) => entry?.status === DLQ_STATUS.ABANDONED);
+}
+
+async function _updateEntryCompleted(
+	col: import("mongodb").Collection,
+	id: string,
+	instanceId: string,
+	batchId?: string
+): Promise<void> {
+	await col.updateOne(
+		{ _id: new ObjectId(id), processingInstance: instanceId },
+		{
+			$set: {
+				status: DLQ_STATUS.COMPLETED,
+				completedAt: new Date(),
+				lastBatchId: batchId,
+			},
+			$unset: { processingAt: "", processingInstance: "" },
+		}
+	);
+}
+
 export interface MarkRetriedParams {
 	id: string;
 	instanceId: string;
@@ -49,24 +80,19 @@ export class DlqRetryManager {
 		batchId?: string
 	): Promise<void> {
 		const col = await getCollection();
-		const entry = await col.findOne(
-			{ _id: new ObjectId(id) },
-			{ projection: { status: 1, processingInstance: 1 } }
-		);
-		if (entry?.status === DLQ_STATUS.ABANDONED) {
-			return;
-		}
-		await col.updateOne(
-			{ _id: new ObjectId(id), processingInstance: instanceId },
-			{
-				$set: {
-					status: DLQ_STATUS.COMPLETED,
-					completedAt: new Date(),
-					lastBatchId: batchId,
-				},
-				$unset: { processingAt: "", processingInstance: "" },
-			}
-		);
+		if (await _isEntryAbandoned(col, id)) return;
+		await _updateEntryCompleted(col, id, instanceId, batchId);
+	}
+
+	private _buildCompletedUpdate(batchId?: string): Record<string, unknown> {
+		return {
+			$set: {
+				status: DLQ_STATUS.COMPLETED,
+				completedAt: new Date(),
+				lastBatchId: batchId,
+			},
+			$unset: { processingAt: "", processingInstance: "" },
+		};
 	}
 
 	private _buildFailPipeline(errorMsg?: string): Record<string, unknown>[] {
@@ -76,6 +102,15 @@ export class DlqRetryManager {
 			_buildStatusStage(this),
 			{ $unset: ["processingAt", "processingInstance"] },
 		];
+	}
+
+	_abandonCondition(): Record<string, unknown> {
+		return {
+			$or: [
+				{ $gte: ["$retryCount", ENV.DLQ_RETRY_MAX_ATTEMPTS] },
+				{ $gte: ["$consecutiveErrors", DLQ_MAX_CONSECUTIVE_ERRORS] },
+			],
+		};
 	}
 
 	private async _markAsFailed(id: string, errorMsg?: string): Promise<void> {

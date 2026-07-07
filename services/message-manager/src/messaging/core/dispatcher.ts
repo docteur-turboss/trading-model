@@ -41,6 +41,22 @@ export class Dispatcher {
 		this._backpressureMonitor = new BackpressureMonitor();
 	}
 
+	get registry(): SubscriptionRegistry {
+		return this._registry;
+	}
+
+	get deliveryPort(): HttpMessageDelivery {
+		return this._deliveryPort;
+	}
+
+	get ackHandler(): AckHandler {
+		return this._ackHandler;
+	}
+
+	get backpressureMonitor(): BackpressureMonitor {
+		return this._backpressureMonitor;
+	}
+
 	async publish(
 		payload: unknown,
 		metadata: Omit<MessageMetadata, "emittedAt" | "messageId">
@@ -67,16 +83,31 @@ export class Dispatcher {
 	}
 
 	async dispatch<TData>(message: Message<TData>) {
+		const subscriptions = this._getSubscriptionsForMessage(message);
+		if (!subscriptions) {
+			return;
+		}
+		await this._deliverToAll(message, subscriptions);
+	}
+
+	private _getSubscriptionsForMessage<TData>(
+		message: Message<TData>
+	): readonly import("./subscription").Subscription[] | undefined {
 		const { topic } = message.metadata;
 		const subscriptions = this._registry.getSubscriptions(topic);
 		if (!subscriptions?.length) {
-			return;
+			return undefined;
 		}
+		return subscriptions;
+	}
 
+	private async _deliverToAll<TData>(
+		message: Message<TData>,
+		subscriptions: readonly import("./subscription").Subscription[]
+	): Promise<void> {
 		const results = await Promise.allSettled(
 			subscriptions.map((subscription) => subscription.dispatch(message))
 		);
-
 		for (const result of results) {
 			if (result.status === "rejected") {
 				logger.error("Message delivery failed", {

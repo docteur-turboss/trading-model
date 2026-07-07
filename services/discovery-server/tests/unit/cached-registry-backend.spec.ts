@@ -28,12 +28,7 @@ function createMockBackend(): jest.Mocked<RegistryBackend> {
 		generateInstanceId: jest.fn(),
 		start: jest.fn(),
 		stop: jest.fn(),
-		getInstanceCount: jest.fn(),
-		getServiceVersion: jest.fn(),
-		ping: jest.fn(),
-		markUnhealthy: jest.fn(),
-		setFallbackBackend: jest.fn(),
-	} as unknown as jest.Mocked<RegistryBackend>;
+	} as jest.Mocked<RegistryBackend>;
 }
 
 const MAKE_INSTANCE = (id: string): ServiceInstance => ({

@@ -45,6 +45,13 @@ function _checkMaxAttempts(options: WsReconnectOptions): boolean {
 	return false;
 }
 
+function _cancelExistingTimer(state: WsReconnectState): void {
+	if (state.timer) {
+		clearTimeout(state.timer);
+		state.timer = null;
+	}
+}
+
 function _scheduleWithDelay(options: WsReconnectOptions): void {
 	const { state, config, onReconnect, onSchedule, logger } = options;
 	state.attempt++;
@@ -61,18 +68,14 @@ function _scheduleWithDelay(options: WsReconnectOptions): void {
 }
 
 export function scheduleWsReconnect(options: WsReconnectOptions): void {
-	const { state, config, onReconnect, onSchedule, logger } = options;
+	const { state } = options;
 	if (state.destroyed) {
 		return;
 	}
 	if (_checkMaxAttempts(options)) {
 		return;
 	}
-
-	if (state.timer) {
-		clearTimeout(state.timer);
-		state.timer = null;
-	}
+	_cancelExistingTimer(state);
 	_scheduleWithDelay(options);
 }
 

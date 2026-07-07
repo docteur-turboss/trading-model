@@ -76,26 +76,21 @@ function _decryptAes256Gcm(
 	return decrypted;
 }
 
+function _zeroBuffers(key: Buffer, iv: Buffer, tag: Buffer): void {
+	key.fill(0);
+	iv.fill(0);
+	tag.fill(0);
+}
+
 export function decryptKey(
 	data: string,
 	keyBase64: string | undefined
 ): string {
-	if (!keyBase64) {
-		return data;
-	}
+	if (!keyBase64) return data;
 	const parsed = _parseEncryptedData(data);
-	if (!parsed) {
-		return data;
-	}
+	if (!parsed) return data;
 	const key = _validateKeyLength(keyBase64);
-	const result = _decryptAes256Gcm(
-		parsed.encrypted,
-		key,
-		parsed.iv,
-		parsed.tag
-	);
-	key.fill(0);
-	parsed.iv.fill(0);
-	parsed.tag.fill(0);
+	const result = _decryptAes256Gcm(parsed.encrypted, key, parsed.iv, parsed.tag);
+	_zeroBuffers(key, parsed.iv, parsed.tag);
 	return result;
 }

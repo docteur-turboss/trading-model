@@ -85,14 +85,18 @@ const HANDLERS: Partial<
 	sign: _handleSign,
 };
 
+function _handleTask(task: WorkerTask): void {
+	const handler = HANDLERS[task.type];
+	if (!handler) {
+		throw new Error(`Unknown task type: ${task.type}`);
+	}
+	const result = handler(task.data);
+	PP.postMessage({ id: task.id, success: true, data: result });
+}
+
 PP.on("message", (task: WorkerTask) => {
 	try {
-		const handler = HANDLERS[task.type];
-		if (!handler) {
-			throw new Error(`Unknown task type: ${task.type}`);
-		}
-		const result = handler(task.data);
-		PP.postMessage({ id: task.id, success: true, data: result });
+		_handleTask(task);
 	} catch (err) {
 		PP.postMessage({
 			id: task.id,

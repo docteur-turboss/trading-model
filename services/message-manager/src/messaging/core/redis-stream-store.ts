@@ -27,17 +27,21 @@ export class RedisStreamStore {
 			return entryId;
 		}
 
-		if (lastError) {
-			logger.warn(
-				"Stream store failed after retries — falling through to WAL",
-				{
-					topic,
-					error: lastError.message,
-				}
-			);
-		}
-
+		this._logStoreFailure(topic, lastError);
 		return null;
+	}
+
+	private _logStoreFailure(topic: string, lastError: Error | null): void {
+		if (!lastError) {
+			return;
+		}
+		logger.warn(
+			"Stream store failed after retries — falling through to WAL",
+			{
+				topic,
+				error: lastError.message,
+			}
+		);
 	}
 
 	private async _tryStoreOnce(

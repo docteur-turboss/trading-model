@@ -67,6 +67,12 @@ function _parseValidity(
 	};
 }
 
+function _toFingerprint(x509: X509Certificate): Fingerprint {
+	return toFingerprint(
+		x509.fingerprint256.replace(/:/g, "").toLowerCase()
+	);
+}
+
 export function parseCertInfo(pem: string): CertificateInfo {
 	const x509 = new X509Certificate(pem);
 	const { validFrom, validTo } = _parseValidity(x509);
@@ -76,9 +82,7 @@ export function parseCertInfo(pem: string): CertificateInfo {
 		serialNumber: _parseSerialNumber(pem),
 		notBefore: validFrom,
 		notAfter: validTo,
-		fingerprint: toFingerprint(
-			x509.fingerprint256.replace(/:/g, "").toLowerCase()
-		),
+		fingerprint: _toFingerprint(x509),
 		san: _extractSanFromX509(x509),
 	};
 }

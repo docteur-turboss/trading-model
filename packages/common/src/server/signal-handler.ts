@@ -42,22 +42,44 @@ export function setupProcessHandlers(
 	}
 	handlersRegistered = true;
 
-	const onSigTerm = _createSigTermHandler(shutdown);
-	const onSigInt = _createSigIntHandler(shutdown);
-	const onUncaughtException = _createUncaughtExceptionHandler(hardShutdown);
-	const onUnhandledRejection = _createUnhandledRejectionHandler(hardShutdown);
+	const handlers = _createHandlers(shutdown, hardShutdown);
+	_registerHandlers(handlers);
+	_registerCleanup(handlers);
+}
 
-	process.on("SIGTERM", onSigTerm);
-	process.on("SIGINT", onSigInt);
-	process.on("uncaughtException", onUncaughtException);
-	process.on("unhandledRejection", onUnhandledRejection);
+interface _Handlers {
+	onSigTerm: () => Promise<void>;
+	onSigInt: () => Promise<void>;
+	onUncaughtException: (error: Error) => void;
+	onUnhandledRejection: (reason: unknown) => void;
+}
 
+function _createHandlers(
+	shutdown: ShutdownHandler,
+	hardShutdown: HardShutdownHandler
+): _Handlers {
+	return {
+		onSigTerm: _createSigTermHandler(shutdown),
+		onSigInt: _createSigIntHandler(shutdown),
+		onUncaughtException: _createUncaughtExceptionHandler(hardShutdown),
+		onUnhandledRejection: _createUnhandledRejectionHandler(hardShutdown),
+	};
+}
+
+function _registerHandlers(handlers: _Handlers): void {
+	process.on("SIGTERM", handlers.onSigTerm);
+	process.on("SIGINT", handlers.onSigInt);
+	process.on("uncaughtException", handlers.onUncaughtException);
+	process.on("unhandledRejection", handlers.onUnhandledRejection);
+}
+
+function _registerCleanup(handlers: _Handlers): void {
 	CLEANUP_FNS.push(
 		_buildCleanupFn(
-			onSigTerm,
-			onSigInt,
-			onUncaughtException,
-			onUnhandledRejection
+			handlers.onSigTerm,
+			handlers.onSigInt,
+			handlers.onUncaughtException,
+			handlers.onUnhandledRejection
 		)
 	);
 }

@@ -25,7 +25,7 @@ const MOCK_REMOTE_SIGNING_CLIENT = {
 	sign: MOCK_SIGN,
 };
 
-jest.mock("../src/remote-signing-client", () => ({
+jest.mock("../src/signing/remote-signing-client", () => ({
 	RemoteSigningClient: jest.fn(() => MOCK_REMOTE_SIGNING_CLIENT),
 }));
 

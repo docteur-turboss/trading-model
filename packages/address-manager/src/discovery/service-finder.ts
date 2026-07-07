@@ -13,52 +13,32 @@ export class ServiceFinder {
 		private readonly _config: AddressManagerConfig
 	) {}
 
-	private async _getHealthyCachedInstance(
-		serviceName: string
-	): Promise<ServiceInstance | null> {
-		const cachedInstance = await this._serviceCache.get(
-			toServiceId(serviceName)
-		);
-		if (!cachedInstance) {
-			return null;
-		}
+	private async _getHealthyCachedInstance(serviceName: string): Promise<ServiceInstance | null> {
+		const cachedInstance = await this._serviceCache.get(toServiceId(serviceName));
+		if (!cachedInstance) return null;
 		const isHealthy = await this._healthChecker.isHealthy(cachedInstance);
-		if (isHealthy) {
-			return cachedInstance;
-		}
+		if (isHealthy) return cachedInstance;
 		await this._serviceCache.invalidate(toServiceId(serviceName));
 		return null;
 	}
 
 	async findService(serviceName: string): Promise<ServiceInstance> {
 		if (this._config.identity.region) {
-			return this.findServiceInRegion(
-				serviceName,
-				this._config.identity.region
-			);
+			return this.findServiceInRegion(serviceName, this._config.identity.region);
 		}
-
-		const cached = await this._getHealthyCachedInstance(serviceName);
-		if (cached) {
-			return cached;
-		}
-
-		return this._resolver.resolveAndValidateService(serviceName);
+		return this._findFromCacheOrResolve(serviceName);
 	}
 
-	async findServiceInRegion(
-		serviceName: string,
-		region: string
-	): Promise<ServiceInstance> {
-		const cached = await this._getHealthyCachedInstance(serviceName);
-		if (cached) {
-			return cached;
-		}
+	async findServiceInRegion(serviceName: string, region: string): Promise<ServiceInstance> {
+		return this._findFromCacheOrResolve(serviceName, region);
+	}
 
-		return this._resolver.resolveAndValidateServiceInRegion(
-			serviceName,
-			region
-		);
+	private async _findFromCacheOrResolve(serviceName: string, region?: string): Promise<ServiceInstance> {
+		const cached = await this._getHealthyCachedInstance(serviceName);
+		if (cached) return cached;
+		return region
+			? this._resolver.resolveAndValidateServiceInRegion(serviceName, region)
+			: this._resolver.resolveAndValidateService(serviceName);
 	}
 
 	async findAllServices(serviceName: string): Promise<ServiceInstance[]> {

@@ -84,51 +84,66 @@ export class DlqServiceClient implements IDlqServiceClient {
 			return [];
 		}
 		try {
-			const url = this._sendHandler.buildReplayUrl(topic, limit);
-			const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
-				url,
-				signedOptions({
-					method: HttpMethod.GET,
-					path: "/dlq",
-					body: undefined,
-					extra: { timeoutMs: 5000 },
-				})
-			);
-			return result?.entries ?? [];
+			return await this._doReplay(topic, limit);
 		} catch (err) {
-			logger.error("Failed to fetch DLQ entries for replay", {
-				context: {
-					error: normalizeError(err as Error),
-				},
-			});
-			return [];
+			return this._logReplayError(err as Error);
 		}
+	}
+
+	private async _doReplay(topic?: string, limit = 100): Promise<DlqEntry[]> {
+		const url = this._sendHandler.buildReplayUrl(topic, limit);
+		const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
+			url,
+			signedOptions({
+				method: HttpMethod.GET,
+				path: "/dlq",
+				body: undefined,
+				extra: { timeoutMs: 5000 },
+			})
+		);
+		return result?.entries ?? [];
+	}
+
+	private _logReplayError(err: Error): DlqEntry[] {
+		logger.error("Failed to fetch DLQ entries for replay", {
+			context: {
+				error: normalizeError(err),
+			},
+		});
+		return [];
 	}
 
 	async delete(entryIds: string[]): Promise<void> {
 		if (!this.isEnabled) {
 			return;
 		}
-		const body = { ids: entryIds };
-
 		try {
-			await this._httpClient.post(
-				`${this._serviceUrl}/dlq/delete`,
-				body,
-				signedOptions({
-					method: HttpMethod.POST,
-					path: "/dlq/delete",
-					body,
-					extra: { timeoutMs: 5000 },
-				})
-			);
+			await this._doDelete(entryIds);
 		} catch (err) {
-			logger.error("Failed to delete DLQ entries", {
-				context: {
-					error: normalizeError(err as Error),
-				},
-			});
+			this._logDeleteError(err as Error);
 		}
+	}
+
+	private async _doDelete(entryIds: string[]): Promise<void> {
+		const body = { ids: entryIds };
+		await this._httpClient.post(
+			`${this._serviceUrl}/dlq/delete`,
+			body,
+			signedOptions({
+				method: HttpMethod.POST,
+				path: "/dlq/delete",
+				body,
+				extra: { timeoutMs: 5000 },
+			})
+		);
+	}
+
+	private _logDeleteError(err: Error): void {
+		logger.error("Failed to delete DLQ entries", {
+			context: {
+				error: normalizeError(err),
+			},
+		});
 	}
 }
 

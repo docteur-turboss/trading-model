@@ -57,23 +57,31 @@ export class RetryExecutor {
 	}
 }
 
+function _isSocketError(error: Error): boolean {
+	return (
+		error.message.includes("ECONNRESET") ||
+		error.message.includes("ETIMEDOUT") ||
+		error.message.includes("ECONNREFUSED")
+	);
+}
+
 export function shouldRetry(error: Error): boolean {
 	if (error instanceof HttpClientTimeoutError) {
 		return true;
 	}
-	if (
-		error instanceof HttpClientError &&
-		error.statusCode &&
-		isRetryableStatus(error.statusCode)
-	) {
+	if (_isRetryableHttpError(error)) {
 		return true;
 	}
-	if (
-		error.message.includes("ECONNRESET") ||
-		error.message.includes("ETIMEDOUT") ||
-		error.message.includes("ECONNREFUSED")
-	) {
+	if (_isSocketError(error)) {
 		return true;
 	}
 	return false;
+}
+
+function _isRetryableHttpError(error: Error): boolean {
+	return (
+		error instanceof HttpClientError &&
+		error.statusCode !== undefined &&
+		isRetryableStatus(error.statusCode)
+	);
 }

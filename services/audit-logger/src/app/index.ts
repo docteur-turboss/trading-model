@@ -47,39 +47,26 @@ async function _createAndStartScheduler(
 	server: Awaited<ReturnType<typeof createServer>>;
 }> {
 	const scheduler = new JobScheduler(jobRepo);
-	let workerProtocol = new WorkerProtocol(
-		null!,
-		scheduler.workers,
-		(workerId: string) => scheduler.onWorkerDisconnect(workerId)
-	);
 	const server = await createServer(scheduler, auditRepo);
-	workerProtocol = new WorkerProtocol(
-		server.raw,
-		scheduler.workers,
-		(workerId: string) => scheduler.onWorkerDisconnect(workerId)
-	);
+	const workerProtocol = _createWorkerProtocol(server, scheduler);
 	scheduler.setWorkerProtocol(workerProtocol);
 	await scheduler.start();
 	return { scheduler, workerProtocol, server };
 }
 
-async function _createBrokerMessage(): Promise<BrokerMessage> {
-	const { AddressManager } = await import("../config/address-manager.js");
-	const brokerMessage = new BrokerMessage({
-		addressManagerClient: AddressManager,
-		tlsPaths: {
-			keyPath: ENV.TLS_KEY_PATH,
-			caPath: ENV.TLS_CA_PATH,
-			certPath: ENV.TLS_CERT_PATH,
-		},
-		instanceId: ENV.INSTANCE_ID,
-		serviceName: ServiceInstanceName.AuditLoggerService,
-	});
-	const [
-		{ MarketEvent },
-		{ AuditEvent },
-		{ CertificateEvent },
-	] = await Promise.all([
+function _createWorkerProtocol(
+	server: Awaited<ReturnType<typeof createServer>>,
+	scheduler: JobScheduler
+): WorkerProtocol {
+	return new WorkerProtocol(
+		server.raw,
+		scheduler.workers,
+		(workerId: string) => scheduler.onWorkerDisconnect(workerId)
+	);
+}
+
+async function _subscribeToAllTopics(brokerMessage: BrokerMessage): Promise<void> {
+	const [{ MarketEvent }, { AuditEvent }, { CertificateEvent }] = await Promise.all([
 		import("@trading-model/common/contracts/market-events"),
 		import("@trading-model/common/contracts/audit-events"),
 		import("@trading-model/common/contracts/certificate-events"),
@@ -91,10 +78,27 @@ async function _createBrokerMessage(): Promise<BrokerMessage> {
 	];
 	await brokerMessage.intents(AllTopics);
 	logger.info("Subscribed to all event topics", {
-		context: {
-			topicCount: AllTopics.length,
-		},
+		context: { topicCount: AllTopics.length },
 	});
+}
+
+async function _initBrokerMessageConfig(): Promise<BrokerMessage> {
+	const { AddressManager } = await import("../config/address-manager.js");
+	return new BrokerMessage({
+		addressManagerClient: AddressManager,
+		tlsPaths: {
+			keyPath: ENV.TLS_KEY_PATH,
+			caPath: ENV.TLS_CA_PATH,
+			certPath: ENV.TLS_CERT_PATH,
+		},
+		instanceId: ENV.INSTANCE_ID,
+		serviceName: ServiceInstanceName.AuditLoggerService,
+	});
+}
+
+async function _createBrokerMessage(): Promise<BrokerMessage> {
+	const brokerMessage = await _initBrokerMessageConfig();
+	await _subscribeToAllTopics(brokerMessage);
 	return brokerMessage;
 }
 

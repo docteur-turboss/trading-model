@@ -41,8 +41,7 @@ async function _claimAndReplayBatch(options: ClaimAndReplayOptions): Promise<{
 	errors: DlqError[];
 }> {
 	const { messageManagerUrl, limit, batchId, topic, span } = options;
-	await dlqClaimManager.releaseStaleClaims();
-	const entries = await _claimRetryEntries(limit, batchId, topic);
+	const entries = await _releaseAndClaimEntries(limit, batchId, topic);
 
 	if (entries.length === 0) {
 		return noEntriesResponse();
@@ -50,19 +49,35 @@ async function _claimAndReplayBatch(options: ClaimAndReplayOptions): Promise<{
 
 	span.setAttribute("entriesClaimed", entries.length);
 
-	const { success: successCount, errors } = await doReplayBatch({
+	const result = await _executeBatchReplay(entries, messageManagerUrl, batchId);
+	await abandonExhaustedIfNeeded(result.errors);
+
+	span.setAttribute("replayed", result.success);
+	span.setAttribute("failed", result.errors.length);
+
+	return { response: null, successCount: result.success, errors: result.errors };
+}
+
+async function _releaseAndClaimEntries(
+	limit: number,
+	batchId: string,
+	topic: string | undefined
+): Promise<Array<{ id: string; message: unknown }>> {
+	await dlqClaimManager.releaseStaleClaims();
+	return _claimRetryEntries(limit, batchId, topic);
+}
+
+async function _executeBatchReplay(
+	entries: Array<{ id: string; message: unknown }>,
+	messageManagerUrl: string,
+	batchId: string
+): Promise<{ success: number; errors: DlqError[] }> {
+	return doReplayBatch({
 		entries: _toEntryRefs(entries),
 		messageManagerUrl,
 		batchId,
 		instanceId: ENV.INSTANCE_ID,
 	});
-
-	await abandonExhaustedIfNeeded(errors);
-
-	span.setAttribute("replayed", successCount);
-	span.setAttribute("failed", errors.length);
-
-	return { response: null, successCount, errors };
 }
 
 async function _claimRetryEntries(
@@ -92,39 +107,38 @@ export async function executeReplayPipeline(
 	span: import("@opentelemetry/api").Span
 ): Promise<ResponseObject> {
 	const validation = validateReplayQuery(query, span);
-	if (!validation.valid) {
-		return validation.response;
-	}
+	if (!validation.valid) return validation.response;
 
 	const messageManagerUrl = await resolveMMUrlOrFail(span);
-	if (!messageManagerUrl) {
-		return mmResolveError();
-	}
+	if (!messageManagerUrl) return mmResolveError();
 
 	const batchId = validation.data.batchId || randomUUID();
 	span.setAttribute("batchId", batchId);
 
-	const {
-		response: earlyResponse,
-		successCount,
-		errors,
-	} = await _claimAndReplayBatch({
+	const result = await _claimAndReplayBatch({
 		messageManagerUrl,
 		limit: validation.data.limit,
 		batchId,
 		topic: validation.data.topic,
 		span,
 	});
-	if (earlyResponse) {
-		return earlyResponse;
-	}
+	if (result.response) return result.response;
 
-	const details = buildReplayResponse(batchId, successCount, errors);
-	notifyReplayAudit(
+	return _buildSuccessResponse(
 		batchId,
 		validation.data.topic,
-		successCount,
-		errors.length
+		result.successCount,
+		result.errors
 	);
+}
+
+function _buildSuccessResponse(
+	batchId: string,
+	topic: string | undefined,
+	successCount: number,
+	errors: DlqError[]
+): ResponseObject {
+	const details = buildReplayResponse(batchId, successCount, errors);
+	notifyReplayAudit(batchId, topic, successCount, errors.length);
 	return sendResponse(details, 200);
 }

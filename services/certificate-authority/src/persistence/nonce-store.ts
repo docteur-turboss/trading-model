@@ -4,9 +4,7 @@ import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { NonceContext, NoncePersistence } from "./nonce-persister";
 import { MongoNoncePersister, NullNoncePersister } from "./nonce-persister";
 
-interface NonceEntry {
-	nonce: string;
-	serviceId: string;
+interface NonceEntry extends NonceContext {
 	createdAt: number;
 }
 

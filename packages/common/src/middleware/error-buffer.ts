@@ -44,20 +44,28 @@ export class ErrorBuffer {
 
 	private async _post(batch: ErrorReport[]): Promise<void> {
 		try {
-			await fetch(this._endpoint, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					errors: batch,
-					service: this._serviceName,
-					instanceId: this._instanceId,
-				}),
-			});
+			await this._sendBatch(batch);
 		} catch (err) {
-			console.error(
-				"[ErrorTracking] Failed to flush error reports:",
-				normalizeError(err).message
-			);
+			this._logFlushError(err);
 		}
+	}
+
+	private async _sendBatch(batch: ErrorReport[]): Promise<Response> {
+		return fetch(this._endpoint, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				errors: batch,
+				service: this._serviceName,
+				instanceId: this._instanceId,
+			}),
+		});
+	}
+
+	private _logFlushError(err: unknown): void {
+		console.error(
+			"[ErrorTracking] Failed to flush error reports:",
+			normalizeError(err).message
+		);
 	}
 }

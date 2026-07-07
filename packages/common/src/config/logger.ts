@@ -46,22 +46,35 @@ export class Logger {
 		if (!isLogLevelAtLeast(level, this._logLevel)) {
 			return;
 		}
+		const logEntry = this._buildLogEntry(level, message, context);
+		this._emitLog(logEntry, label, message, consoleFn, context);
+		if (level === LogLevel.Error) {
+			this._dispatcher.sendError(logEntry);
+		}
+	}
 
-		const logEntry = this._dispatcher.createLogEntry(
-			level,
-			message,
-			this._userId,
-			{ context },
-		);
+	private _buildLogEntry(
+		level: LogLevel,
+		message: string,
+		context?: Record<string, unknown>
+	): import("./log-types").LogEntry {
+		return this._dispatcher.createLogEntry(level, message, this._userId, {
+			context,
+		});
+	}
+
+	private _emitLog(
+		logEntry: import("./log-types").LogEntry,
+		label: string,
+		message: string,
+		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void,
+		context?: Record<string, unknown>
+	): void {
 		this._buffer.add(logEntry);
 		consoleFn(
 			`[${label}] [${logEntry.timestamp.toISOString()}] ${message}`,
 			context || "",
 		);
-
-		if (level === LogLevel.Error) {
-			this._dispatcher.sendError(logEntry);
-		}
 	}
 
 	debug(message: string, context?: Record<string, unknown>) {

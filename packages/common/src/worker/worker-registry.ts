@@ -1,6 +1,17 @@
 import type { WorkerRegistration } from "../contracts/worker-protocol.types";
 import { WorkerStore } from "./worker-store";
 
+function _pickLowerLoad(
+	candidate: WorkerRegistration,
+	best: WorkerRegistration | null,
+	bestLoad: number
+): WorkerRegistration | null {
+	if (candidate.currentLoad < bestLoad) {
+		return candidate;
+	}
+	return best;
+}
+
 export class WorkerRegistry {
 	private readonly _store: WorkerStore;
 
@@ -58,8 +69,8 @@ export class WorkerRegistry {
 			if (!this._isWorkerSuitable(worker, jobType)) {
 				continue;
 			}
-			if (worker.currentLoad < bestLoad) {
-				best = worker;
+			best = _pickLowerLoad(worker, best, bestLoad);
+			if (best === worker) {
 				bestLoad = worker.currentLoad;
 			}
 		}

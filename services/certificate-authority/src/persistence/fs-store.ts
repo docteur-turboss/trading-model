@@ -53,21 +53,25 @@ class RealFsStore implements FsStore {
 		);
 	}
 
-	private _initEncryptionKey(encryptionKey?: string): Buffer | null {
-		if (encryptionKey) {
-			return deriveKey(encryptionKey);
-		}
-		if (getNodeEnv() === "production") {
-			throw new Error(
-				"FsStore: FS_ENCRYPTION_KEY is required in production for encrypted fallback storage. " +
-					"Generate with: node -e \"console.log(crypto.randomBytes(32).toString('base64'))\". " +
-					"To disable the filesystem fallback entirely (relying solely on MongoDB), set CA_DISABLE_FS_FALLBACK=true. " +
-					"Note: disabling FsStore means the CA will crash if MongoDB becomes unavailable."
-			);
-		}
+	private _throwMissingKeyError(): never {
+		throw new Error(
+			"FsStore: FS_ENCRYPTION_KEY is required in production for encrypted fallback storage. " +
+				"Generate with: node -e \"console.log(crypto.randomBytes(32).toString('base64'))\". " +
+				"To disable the filesystem fallback entirely (relying solely on MongoDB), set CA_DISABLE_FS_FALLBACK=true. " +
+				"Note: disabling FsStore means the CA will crash if MongoDB becomes unavailable."
+		);
+	}
+
+	private _logUnencryptedWarning(): void {
 		logger.warn(
 			"FsStore: FS_ENCRYPTION_KEY not set — fallback data stored unencrypted. Acceptable for dev only."
 		);
+	}
+
+	private _initEncryptionKey(encryptionKey?: string): Buffer | null {
+		if (encryptionKey) return deriveKey(encryptionKey);
+		if (getNodeEnv() === "production") this._throwMissingKeyError();
+		this._logUnencryptedWarning();
 		return null;
 	}
 

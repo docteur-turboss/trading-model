@@ -136,36 +136,24 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 	};
 }
 
-export function decodePopulation(mat: Float32Array, templates: Genome[]): Genome[] {
-	const length = templates.length;
+function _computeEncodedDims(templates: Genome[]): number[] {
+	return templates.map((t) =>
+		SCALAR_DIM + Math.min(t.network.hiddenLayers.length, MAX_DEPTH) * 3
+	);
+}
+
+function _decodeAll(mat: Float32Array, templates: Genome[], dims: number[]): Genome[] {
 	const out: Genome[] = [];
 	let offset = 0;
-	const dims: number[] = [];
-	for (let i = 0; i < length; i++) {
-		const encodedDim = SCALAR_DIM + Math.min(templates[i].network.hiddenLayers.length, MAX_DEPTH) * 3;
-		dims.push(encodedDim);
-	}
-	for (let i = 0; i < length; i++) {
+	for (let i = 0; i < templates.length; i++) {
 		const vec = mat.subarray(offset, offset + dims[i]);
-		const s = _decodeScalars(vec);
-		const hiddenLayers = _decodeLayers(vec, s.depth, templates[i]);
-		const network: NetworkGenome = {
-			inputDim: s.inputDim,
-			outputDim: s.outputDim,
-			hiddenLayers,
-			normalization: templates[i].network.normalization,
-		};
-		out.push({
-			id: templates[i].id,
-			generation: templates[i].generation,
-			fitness: templates[i].fitness,
-			network,
-			rl: _decodeRL(s, templates[i]),
-			mutation: _decodeMutation(s, templates[i]),
-			crossover: { ...templates[i].crossover },
-			gaControl: { ...templates[i].gaControl },
-		});
+		out.push(decodeGenome(vec, templates[i]));
 		offset += dims[i];
 	}
 	return out;
+}
+
+export function decodePopulation(mat: Float32Array, templates: Genome[]): Genome[] {
+	const dims = _computeEncodedDims(templates);
+	return _decodeAll(mat, templates, dims);
 }

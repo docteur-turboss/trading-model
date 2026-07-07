@@ -58,24 +58,32 @@ export interface ConnectionState {
 	requestWindowStart: number;
 }
 
+function _resetRequestWindow(connectionState: ConnectionState): void {
+	connectionState.requestCount = 1;
+	connectionState.requestWindowStart = Date.now();
+}
+
+function _logRateLimitExceeded(
+	clientIdentity: string | undefined,
+	requestCount: number
+): void {
+	logger.warn("WSS per-connection rate limit exceeded", {
+		context: { clientIdentity, requestCount },
+	});
+}
+
 function _checkConnectionRateLimit(
 	connectionState: ConnectionState,
 	clientIdentity: string | undefined
 ): boolean {
 	const elapsed = Date.now() - connectionState.requestWindowStart;
 	if (elapsed > AUTH_RATE_LIMIT_MS) {
-		connectionState.requestCount = 1;
-		connectionState.requestWindowStart = Date.now();
+		_resetRequestWindow(connectionState);
 		return true;
 	}
 	connectionState.requestCount++;
 	if (connectionState.requestCount > AUTH_RATE_LIMIT_MAX) {
-		logger.warn("WSS per-connection rate limit exceeded", {
-			context: {
-				clientIdentity,
-				requestCount: connectionState.requestCount,
-			},
-		});
+		_logRateLimitExceeded(clientIdentity, connectionState.requestCount);
 		return false;
 	}
 	return true;

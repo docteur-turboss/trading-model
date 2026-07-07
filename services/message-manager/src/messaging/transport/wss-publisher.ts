@@ -24,22 +24,33 @@ export class WssPublisher {
 		ws: WebSocket,
 		ctx: { identity: ServiceIdentity }
 	): Promise<void> {
-		if (!this._rateLimiter.checkAndReject(ctx.identity.serviceName, ws)) {
+		if (!(await this._checkPublishGuards(msg, ws, ctx))) {
 			return;
+		}
+		await this._executePublish(msg, ws);
+	}
+
+	private async _checkPublishGuards(
+		msg: IncomingWssMessage,
+		ws: WebSocket,
+		ctx: { identity: ServiceIdentity }
+	): Promise<boolean> {
+		if (!this._rateLimiter.checkAndReject(ctx.identity.serviceName, ws)) {
+			return false;
 		}
 		const topic = (msg.metadata as Record<string, unknown>)?.topic as
 			| string
 			| undefined;
 		if (!(await this._guard.checkTopicAuth(topic, ctx, ws))) {
-			return;
+			return false;
 		}
 		if (!(await this._guard.checkDedup(msg))) {
-			return;
+			return false;
 		}
 		if (!this._guard.checkBackpressure(ws)) {
-			return;
+			return false;
 		}
-		await this._executePublish(msg, ws);
+		return true;
 	}
 
 	private async _executePublish(

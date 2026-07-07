@@ -46,15 +46,19 @@ export class ExperiencePool implements IExperiencePool {
 		this._poolMaxSize = poolMaxSize;
 	}
 
+	private _evictOldest(): void {
+		const firstKey = this._poolMap.keys().next().value!;
+		const oldest = this._poolMap.get(firstKey);
+		this._poolMap.delete(firstKey);
+		this._poolInputToId.delete(oldest!.input);
+	}
+
 	public add(experience: Experience): void {
 		const id = this._nextPoolId++;
 		this._poolMap.set(id, experience);
 		this._poolInputToId.set(experience.input, id);
 		if (this._poolMap.size > this._poolMaxSize) {
-			const firstKey = this._poolMap.keys().next().value!;
-			const oldest = this._poolMap.get(firstKey);
-			this._poolMap.delete(firstKey);
-			this._poolInputToId.delete(oldest!.input);
+			this._evictOldest();
 		}
 	}
 
@@ -66,18 +70,25 @@ export class ExperiencePool implements IExperiencePool {
 		return this._poolMap.size;
 	}
 
-	public samplePool(batchSize: number): Experience[] {
-		const entries = [...this._poolMap.values()];
+	private _validateBatchSize(entries: Experience[], batchSize: number): void {
 		if (batchSize > entries.length) {
 			throw agentError(
 				`Requested batch size ${batchSize} exceeds pool size ${entries.length}.`
 			);
 		}
+	}
 
+	private _shuffleEntries(entries: Experience[]): void {
 		for (let i = entries.length - 1; i > 0; i--) {
 			const j = Math.floor(Math.random() * (i + 1));
 			[entries[i], entries[j]] = [entries[j], entries[i]];
 		}
+	}
+
+	public samplePool(batchSize: number): Experience[] {
+		const entries = [...this._poolMap.values()];
+		this._validateBatchSize(entries, batchSize);
+		this._shuffleEntries(entries);
 		return entries.slice(0, batchSize);
 	}
 

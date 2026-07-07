@@ -48,7 +48,7 @@ export interface LastTrainingInfo {
 }
 
 export class TrainingState {
-	private _lastInfo?: LastTrainingInfo;
+	private _lastInfo: LastTrainingInfo | null = null;
 	private readonly _summaryBuilder = new GenomeSummaryBuilder();
 
 	update(info: LastTrainingInfo): void {

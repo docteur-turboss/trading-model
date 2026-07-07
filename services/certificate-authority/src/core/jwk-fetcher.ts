@@ -40,28 +40,27 @@ export class JwkFetcher {
 		return (await response.json()) as JwksResponse;
 	}
 
+	private _parseRsaKey(
+		entry: Jwk,
+		modulus: string,
+		exponent: string
+	): ParsedJwk {
+		const key = createPublicKey({ key: { kty: entry.kty, n: modulus, e: exponent }, format: "jwk" });
+		return { kid: entry.kid ?? modulus.slice(0, 16), key };
+	}
+
+	private _parseEcKey(entry: Jwk, xCoord: string, yCoord: string): ParsedJwk {
+		const key = createPublicKey({ key: { kty: entry.kty, crv: entry.crv!, x: xCoord, y: yCoord }, format: "jwk" });
+		return { kid: entry.kid ?? xCoord.slice(0, 16), key };
+	}
+
 	private _parseJwkKey(entry: Jwk): ParsedJwk | null {
-		const {
-			n: modulus,
-			e: exponent,
-			x: xCoord,
-			y: yCoord,
-		} = entry as Record<string, string | undefined>;
+		const { n: modulus, e: exponent, x: xCoord, y: yCoord } = entry as Record<string, string | undefined>;
 		if (entry.kty === "RSA" && modulus && exponent) {
-			const key = createPublicKey({
-				key: { kty: entry.kty, n: modulus, e: exponent },
-				format: "jwk",
-			});
-			const kid = entry.kid ?? modulus.slice(0, 16);
-			return { kid, key };
+			return this._parseRsaKey(entry, modulus, exponent);
 		}
 		if (entry.kty === "EC" && xCoord && yCoord && entry.crv) {
-			const key = createPublicKey({
-				key: { kty: entry.kty, crv: entry.crv, x: xCoord, y: yCoord },
-				format: "jwk",
-			});
-			const kid = entry.kid ?? xCoord.slice(0, 16);
-			return { kid, key };
+			return this._parseEcKey(entry, xCoord, yCoord);
 		}
 		return null;
 	}

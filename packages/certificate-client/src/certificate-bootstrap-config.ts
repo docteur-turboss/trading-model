@@ -10,6 +10,35 @@ export interface BootstrapConfig {
 	tls?: TlsPaths;
 }
 
+function _resolveServiceId(env: Record<string, string | undefined>): string {
+	return env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown";
+}
+
+function _resolveCommonName(env: Record<string, string | undefined>): string {
+	return (
+		env.CERT_CLIENT_COMMON_NAME ??
+		env.CERT_CLIENT_SERVICE_ID ??
+		env.APP_NAME ??
+		"unknown"
+	);
+}
+
+function _resolveSan(env: Record<string, string | undefined>): string[] {
+	const raw = env.CERT_CLIENT_SANS;
+	if (raw) {
+		return raw.split(",").map((entry) => entry.trim());
+	}
+	return [env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown"];
+}
+
+function _resolveTlsPaths(env: Record<string, string | undefined>): BootstrapConfig["tlsPaths"] {
+	return {
+		certPath: env.TLS_CERT_PATH ?? "/etc/tls/cert.pem",
+		keyPath: env.TLS_KEY_PATH ?? "/etc/tls/key.pem",
+		caPath: env.TLS_CA_PATH ?? "/etc/tls/ca.pem",
+	};
+}
+
 export function bootstrapConfigFromEnv(
 	env: Record<string, string | undefined>
 ): BootstrapConfig | null {
@@ -19,20 +48,10 @@ export function bootstrapConfigFromEnv(
 	}
 	return {
 		caUrl,
-		serviceId: env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown",
-		commonName:
-			env.CERT_CLIENT_COMMON_NAME ??
-			env.CERT_CLIENT_SERVICE_ID ??
-			env.APP_NAME ??
-			"unknown",
-		san: env.CERT_CLIENT_SANS?.split(",").map((entry) => entry.trim()) ?? [
-			env.CERT_CLIENT_SERVICE_ID ?? env.APP_NAME ?? "unknown",
-		],
-		tlsPaths: {
-			certPath: env.TLS_CERT_PATH ?? "/etc/tls/cert.pem",
-			keyPath: env.TLS_KEY_PATH ?? "/etc/tls/key.pem",
-			caPath: env.TLS_CA_PATH ?? "/etc/tls/ca.pem",
-		},
+		serviceId: _resolveServiceId(env),
+		commonName: _resolveCommonName(env),
+		san: _resolveSan(env),
+		tlsPaths: _resolveTlsPaths(env),
 		bootstrapToken: env.CERT_CLIENT_BOOTSTRAP_TOKEN,
 		tls: _buildClientTls(env),
 	};

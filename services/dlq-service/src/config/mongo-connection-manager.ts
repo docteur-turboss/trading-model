@@ -1,50 +1,24 @@
-import { ConnectionManager } from "@trading-model/common/persistence/connection-manager";
-import { type Collection, type Db, MongoClient } from "mongodb";
-
+import {
+	MongoConnectionManager as CommonMongoConnectionManager,
+} from "@trading-model/common/persistence/mongo-connection-manager";
+import { type Collection, type Db } from "mongodb";
 import { ENV } from "./env";
 import { IndexManager } from "./index-manager";
 import { logger } from "./logger";
 
-export class MongoConnectionManager extends ConnectionManager<MongoClient> {
+export class MongoConnectionManager extends CommonMongoConnectionManager {
 	private _collection: Collection | null = null;
 	private _collectionPromise: Promise<Collection> | null = null;
 	private readonly _indexManager = new IndexManager();
 	private _missingCriticalIndexes: string[] = [];
 
 	constructor() {
-		super(
-			async () => {
-				const newClient = new MongoClient(ENV.MONGO_URI, {
-					minPoolSize: 2,
-					maxPoolSize: 10,
-					retryWrites: true,
-					serverSelectionTimeoutMS: 5000,
-					connectTimeoutMS: 5000,
-				});
-				await newClient.connect();
-				newClient.on("close", () => {
-					this._connected = false;
-				});
-				newClient.on("reconnect", () => {
-					this._connected = true;
-				});
-				logger.info("MongoDB connected", { database: ENV.MONGO_DB });
-				return newClient;
-			},
-			async (client: MongoClient) => {
-				await client.close();
-			},
-			{
-				maxRetries: 10,
-				baseDelayMs: 1000,
-				maxDelayMs: 30000,
-			}
-		);
-	}
-
-	async getDb(): Promise<Db> {
-		const client = await this.getConnection();
-		return client.db(ENV.MONGO_DB);
+		super({
+			uri: ENV.MONGO_URI,
+			dbName: ENV.MONGO_DB,
+			minPoolSize: 2,
+			poolSize: 10,
+		});
 	}
 
 	async getCollection(): Promise<Collection> {
@@ -80,7 +54,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 		return this._missingCriticalIndexes;
 	}
 
-	private _clearState(): void {
+	protected _clearState(): void {
 		this._collection = null;
 		this._collectionPromise = null;
 	}

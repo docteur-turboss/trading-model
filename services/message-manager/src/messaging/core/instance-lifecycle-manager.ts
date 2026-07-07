@@ -1,3 +1,4 @@
+import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
 import { getSubscriptionClient } from "../../config/redis";
 import { StaleInstanceScanner } from "./stale-instance-scanner";
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
@@ -51,7 +52,7 @@ export class InstanceLifecycleManager {
 			Math.ceil(SUBSCRIPTION_TTL_MS / 1000)
 		);
 		multi.expire(
-			this._keys.subKey({ topic, instanceId }),
+			this._keys.subKey({ topic: toTopic(topic), instanceId: toInstanceId(instanceId) }),
 			Math.ceil(SUBSCRIPTION_TTL_MS / 1000)
 		);
 	}

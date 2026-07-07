@@ -33,21 +33,20 @@ export class DiscoveryOrchestrator {
 		serviceName: string
 	): Promise<import("../client/type").ServiceInstance> {
 		const startTime = Date.now();
-
 		try {
 			return await this._retryHandler.attemptDiscovery(serviceName, startTime);
 		} catch (lastError) {
-			const staleInstance = await this._retryHandler.fallbackToStaleCache(
-				serviceName,
-				startTime
-			);
-			if (staleInstance) {
-				return staleInstance;
-			}
-
-			recordDiscoveryMetrics({ serviceName, startTime }, "failure");
-			throw lastError;
+			return this._handleDiscoveryFailure(serviceName, startTime, lastError);
 		}
+	}
+
+	private async _handleDiscoveryFailure(serviceName: string, startTime: number, lastError: unknown): Promise<import("../client/type").ServiceInstance> {
+		const staleInstance = await this._retryHandler.fallbackToStaleCache(serviceName, startTime);
+		if (staleInstance) {
+			return staleInstance;
+		}
+		recordDiscoveryMetrics({ serviceName, startTime }, "failure");
+		throw lastError;
 	}
 
 	async findAllServices(

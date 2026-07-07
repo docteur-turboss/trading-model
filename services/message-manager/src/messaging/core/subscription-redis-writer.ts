@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { toTopic } from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 
 import { getSubscriptionClient } from "../../config/redis";
@@ -26,7 +27,7 @@ export class SubscriptionRedisWriter {
 	): Promise<void> {
 		const redis = await getSubscriptionClient();
 		const subKey = this._keys.subKey({
-			topic,
+			topic: toTopic(topic),
 			instanceId: serviceIdentity.instanceId,
 		});
 		const exists = await redis.exists(subKey);
@@ -36,7 +37,7 @@ export class SubscriptionRedisWriter {
 
 		const entry: SubscriptionEntry = {
 			id: randomUUID(),
-			topic,
+			topic: toTopic(topic),
 			callbackPath,
 			serviceIdentity,
 			createdAt: new Date().toISOString(),

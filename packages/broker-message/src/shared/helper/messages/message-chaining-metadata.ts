@@ -4,7 +4,14 @@ import {
 } from "@trading-model/common/domain/primitives";
 import { IDS_METADATA_PREDICATE } from "./message.schema";
 
-export class MessageChainingMetadata {
+export interface ChainingMetadata {
+	readonly causationId: CorrelationId | undefined;
+	readonly correlationId: CorrelationId | undefined;
+	setIds(context: { causationId?: string; correlationId?: string }): void;
+	toJSON(): { causationId?: CorrelationId; correlationId?: CorrelationId };
+}
+
+export class MessageChainingMetadata implements ChainingMetadata {
 	private _causationId?: CorrelationId;
 	private _correlationId?: CorrelationId;
 
@@ -42,5 +49,28 @@ export class MessageChainingMetadata {
 			causationId: this._causationId,
 			correlationId: this._correlationId,
 		};
+	}
+}
+
+export class NullMessageChainingMetadata implements ChainingMetadata {
+	public get causationId(): CorrelationId | undefined {
+		return undefined;
+	}
+
+	public get correlationId(): CorrelationId | undefined {
+		return undefined;
+	}
+
+	public setIds(_context: {
+		causationId?: string;
+		correlationId?: string;
+	}): void {
+	}
+
+	public toJSON(): {
+		causationId?: CorrelationId;
+		correlationId?: CorrelationId;
+	} {
+		return {};
 	}
 }

@@ -31,16 +31,18 @@ export class WorkerPool {
 		this._workerLifecycle.ensureStarted();
 	}
 
+	private _rejectIfTerminated(): void {
+		if (this._workerLifecycle.terminated) {
+			throw new Error("WorkerPool is terminated");
+		}
+	}
+
 	execute<TValue>(
 		type: string,
 		data: Record<string, unknown>
 	): Promise<TValue> {
-		if (this._workerLifecycle.terminated) {
-			return Promise.reject(new Error("WorkerPool is terminated"));
-		}
-
+		this._rejectIfTerminated();
 		this._workerLifecycle.ensureStarted();
-
 		return this._taskQueue.enqueue(type, data, (task) =>
 			this._tryDispatch(task)
 		) as Promise<TValue>;
@@ -76,6 +78,10 @@ export class WorkerPool {
 	): void {
 		entry.busy = false;
 		this._taskQueue.resolveTask(msg.id, msg.success, msg.data, msg.error);
+		this._tryDispatchNext();
+	}
+
+	private _tryDispatchNext(): void {
 		this._taskQueue.processQueue((task) => this._tryDispatch(task));
 	}
 
