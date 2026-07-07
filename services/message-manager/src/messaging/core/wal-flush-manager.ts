@@ -4,13 +4,32 @@ import type { WalDrainCoordinator } from "./wal-drain-coordinator";
 import type { WalFlushLoop } from "./wal-flush-loop";
 
 export class WalFlushManager {
-	private _walFlushing = false;
+	private readonly _flushImpl: () => Promise<void>;
 	private readonly _walFlusherTimer = new TimerHandle();
 
 	constructor(
 		private readonly _flushLoop: WalFlushLoop,
 		private readonly _drainCoordinator: WalDrainCoordinator
-	) {}
+	) {
+		let walFlushing = false;
+		this._flushImpl = async () => {
+			if (walFlushing) {
+				return this._drainCoordinator.enqueueFlushWaiter();
+			}
+			walFlushing = true;
+			try {
+				await this._flushLoop.drainAll();
+			} catch (err) {
+				logger.error("WAL flush error", {
+					context: { error: (err as Error).message },
+				});
+			} finally {
+				walFlushing = false;
+				this._drainCoordinator.resolveDrain();
+				this._drainCoordinator.notifyWaiters();
+			}
+		};
+	}
 
 	start(): void {
 		this._walFlusherTimer.startInterval(() => {
@@ -24,24 +43,6 @@ export class WalFlushManager {
 	}
 
 	async flush(): Promise<void> {
-		if (this._walFlushing) {
-			return this._drainCoordinator.enqueueFlushWaiter();
-		}
-		this._walFlushing = true;
-		try {
-			await this._flushLoop.drainAll();
-		} catch (err) {
-			logger.error("WAL flush error", {
-				context: { error: (err as Error).message },
-			});
-		} finally {
-			this._completeWalFlush();
-		}
-	}
-
-	private _completeWalFlush(): void {
-		this._walFlushing = false;
-		this._drainCoordinator.resolveDrain();
-		this._drainCoordinator.notifyWaiters();
+		return this._flushImpl();
 	}
 }

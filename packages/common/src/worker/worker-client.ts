@@ -80,13 +80,24 @@ export class WorkerClient {
 
 	constructor(config: WorkerClientConfig) {
 		this._cfg = normalizeConfig(config);
-		this._connection = new WorkerWsConnection({
+		this._connection = this._createConnection();
+		this._reconnector = this._createReconnector();
+		this._heartbeat = this._createHeartbeat();
+		this._messageRouter = new WorkerMessageRouter(this._events.raw);
+		this._wireConnectionEvents();
+	}
+
+	private _createConnection(): WorkerWsConnection {
+		return new WorkerWsConnection({
 			workerId: this._cfg.workerId,
 			serverUrl: this._cfg.serverUrl,
 			capabilities: this._cfg.capabilities,
 			maxConcurrency: this._cfg.maxConcurrency,
 		});
-		this._reconnector = new WorkerReconnector(
+	}
+
+	private _createReconnector(): WorkerReconnector {
+		return new WorkerReconnector(
 			{
 				reconnectBaseDelayMs: this._cfg.reconnectBaseDelayMs,
 				reconnectMaxDelayMs: this._cfg.reconnectMaxDelayMs,
@@ -94,12 +105,17 @@ export class WorkerClient {
 			() => this._doConnect(),
 			(info) => this.emit("reconnecting", info)
 		);
-		this._heartbeat = new WorkerHeartbeat(
+	}
+
+	private _createHeartbeat(): WorkerHeartbeat {
+		return new WorkerHeartbeat(
 			this._cfg.workerId,
 			(msg: WorkerWsHeartbeatMessage) => this.send(msg),
 			this._cfg.heartbeatIntervalMs
 		);
-		this._messageRouter = new WorkerMessageRouter(this._events.raw);
+	}
+
+	private _wireConnectionEvents(): void {
 		this._connection.onOpen = () => {
 			this._heartbeat.start();
 			this.emit("connected");

@@ -3,7 +3,7 @@ import type { CorrelationId, UnixTimestamp } from "@trading-model/common/domain/
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 
 import { findAService } from "./address-manager";
-import { env } from "./env";
+import { ENV } from "./env";
 import { logger } from "./logger";
 import { MessageManagerCircuitBreaker } from "./mm-circuit-breaker";
 
@@ -38,9 +38,9 @@ class AuditClientManager {
 
 	private async _resolveHttpClient(): Promise<void> {
 		this._httpClient = new HttpClient({
-			ca: env.TLS_CA_PATH,
-			cert: env.TLS_CERT_PATH,
-			key: env.TLS_KEY_PATH,
+			ca: ENV.TLS_CA_PATH,
+			cert: ENV.TLS_CERT_PATH,
+			key: ENV.TLS_KEY_PATH,
 		});
 	}
 
@@ -111,3 +111,4 @@ function _logAuditFailure(err: unknown, event: AuditEvent): void {
 		topic: event.topic,
 	});
 }
+

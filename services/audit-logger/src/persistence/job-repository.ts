@@ -4,24 +4,24 @@ import {
 	type Job,
 	type JobEvent,
 	type JobPriority,
-	type JobStatus,
 	type JobUpdateExtras,
 } from "@trading-model/common/contracts/recovery.types";
 import type {
 	InstanceId,
 	JobId,
+	JobType,
 } from "@trading-model/common/domain/primitives";
 import type { Collection, Db } from "mongodb";
 
 const COLLECTION = "audit_jobs";
 
 interface JobDocument {
-	jobId: string;
-	type: string;
+	jobId: JobId;
+	type: JobType;
 	payload: unknown;
-	priority: number;
-	status: JobStatus;
-	assignedWorkerId?: string;
+	priority: JobPriority;
+	status: JOB_STATUS;
+	assignedWorkerId?: InstanceId;
 	ackDeadline: number;
 	maxRetries: number;
 	retryCount: number;
@@ -56,12 +56,12 @@ export class JobDocumentMapper {
 
 	fromDocument(doc: JobDocument): Job {
 		return {
-			id: doc.jobId as JobId,
+			id: doc.jobId,
 			type: doc.type,
 			payload: doc.payload as Job["payload"],
-			priority: doc.priority as JobPriority,
+			priority: doc.priority,
 			status: doc.status,
-			assignedWorkerId: doc.assignedWorkerId as InstanceId | undefined,
+			assignedWorkerId: doc.assignedWorkerId,
 			ackDeadline: doc.ackDeadline,
 			maxRetries: doc.maxRetries,
 			retryCount: doc.retryCount,
@@ -122,12 +122,12 @@ export class JobRepository {
 		await this._collection.insertOne(this._mapper.toDocument(job));
 	}
 
-	async findById(jobId: string): Promise<Job | null> {
+	async findById(jobId: JobId): Promise<Job | null> {
 		const doc = await this._collection.findOne({ jobId });
 		return doc ? this._mapper.fromDocument(doc) : null;
 	}
 
-	async updateStatus(jobId: string, status: JobStatus, extras?: JobUpdateExtras): Promise<void> {
+	async updateStatus(jobId: JobId, status: JOB_STATUS, extras?: JobUpdateExtras): Promise<void> {
 		const current = await this._collection.findOne({ jobId });
 		if (!current) return;
 
@@ -140,7 +140,7 @@ export class JobRepository {
 		);
 	}
 
-	async incrementRetry(jobId: string): Promise<void> {
+	async incrementRetry(jobId: JobId): Promise<void> {
 		await this._collection.updateOne({ jobId }, { $inc: { retryCount: 1 } });
 	}
 
@@ -153,14 +153,14 @@ export class JobRepository {
 		return docs.map((d) => this._mapper.fromDocument(d));
 	}
 
-	async findByWorker(workerId: string, statuses: JobStatus[]): Promise<Job[]> {
+	async findByWorker(workerId: InstanceId, statuses: JOB_STATUS[]): Promise<Job[]> {
 		const docs = await this._collection
 			.find({ assignedWorkerId: workerId, status: { $in: statuses } })
 			.toArray();
 		return docs.map((d) => this._mapper.fromDocument(d));
 	}
 
-	async findByStatus(status: JobStatus): Promise<Job[]> {
+	async findByStatus(status: JOB_STATUS): Promise<Job[]> {
 		const docs = await this._collection.find({ status }).toArray();
 		return docs.map((d) => this._mapper.fromDocument(d));
 	}

@@ -1,7 +1,7 @@
 import { retryWithBackoff } from "@trading-model/common/utils/retry";
 import { type Db, MongoClient } from "mongodb";
 
-import { env } from "./env";
+import { ENV } from "./env";
 import { logger } from "./logger";
 import { MongoConnectionState } from "./mongo-connection-state";
 
@@ -41,7 +41,7 @@ export class MongoConnectionManager {
 		this._state.client = dbInstance.newClient;
 		this._state.db = dbInstance.database;
 		this._state.connected = true;
-		logger.info("MongoDB connected", { database: env.MONGO_DB });
+		logger.info("MongoDB connected", { database: ENV.MONGO_DB });
 		return dbInstance.database;
 	}
 
@@ -49,7 +49,7 @@ export class MongoConnectionManager {
 		newClient: MongoClient;
 		database: Db;
 	}> {
-		const newClient = new MongoClient(env.MONGO_URI, {
+		const newClient = new MongoClient(ENV.MONGO_URI, {
 			minPoolSize: 2,
 			maxPoolSize: 10,
 			retryWrites: true,
@@ -57,7 +57,7 @@ export class MongoConnectionManager {
 			connectTimeoutMS: 5000,
 		});
 		await newClient.connect();
-		const database = newClient.db(env.MONGO_DB);
+		const database = newClient.db(ENV.MONGO_DB);
 		this._state.registerMongoEvents(newClient);
 		return { newClient, database };
 	}
@@ -89,3 +89,4 @@ export class MongoConnectionManager {
 		}
 	}
 }
+

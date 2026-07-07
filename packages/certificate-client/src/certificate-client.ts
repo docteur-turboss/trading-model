@@ -31,8 +31,7 @@ export class CertificateClient {
 	private readonly _config: CertificateClientConfig;
 	private readonly _caClient: CaClient;
 	private readonly _lifecycle: CertificateLifecycle;
-	private _obtainedCert!: ObtainedCertificate;
-	private _hasCert: boolean;
+	private _obtainedCert?: ObtainedCertificate;
 	private _renewScheduler: CertRenewScheduler;
 
 	constructor(
@@ -40,7 +39,6 @@ export class CertificateClient {
 		initialCert?: ObtainedCertificate
 	) {
 		this._config = config;
-		this._hasCert = initialCert !== undefined;
 		if (initialCert) {
 			this._obtainedCert = initialCert;
 		}
@@ -69,7 +67,6 @@ export class CertificateClient {
 		const response = await this._lifecycle.signWithCa(csr);
 		await this._lifecycle.writeCertificates(keyPair, response);
 		this._obtainedCert = this._lifecycle.buildObtainedCert(keyPair, response);
-		this._hasCert = true;
 		logger.info("Certificate obtained", {
 			serviceId: this._config.serviceId,
 			serialNumber: response.serialNumber,
@@ -96,7 +93,7 @@ export class CertificateClient {
 	}
 
 	startAutoRenew(): void {
-		if (this._hasCert) {
+		if (this._obtainedCert) {
 			this._renewScheduler.scheduleRenew(this._obtainedCert);
 		}
 		this._renewScheduler.start();
@@ -107,6 +104,6 @@ export class CertificateClient {
 	}
 
 	getCurrentCert(): ObtainedCertificate | undefined {
-		return this._hasCert ? this._obtainedCert : undefined;
+		return this._obtainedCert;
 	}
 }

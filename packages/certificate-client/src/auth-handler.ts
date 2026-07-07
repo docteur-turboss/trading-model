@@ -14,7 +14,6 @@ export class AuthHandler {
 	handleResponse(msg: Record<string, unknown>, onRejected: () => void): void {
 		if (msg.success) {
 			this._wsAuthSent = true;
-			this._unauthRejects = 0;
 			logger.info("WSS auth token delivered to CA");
 		} else {
 			logger.error("WSS auth message rejected by CA", {

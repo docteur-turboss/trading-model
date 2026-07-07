@@ -6,8 +6,8 @@ import type {
 } from "./genetic-algorithm/genome";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
-import { GenomeSummaryBuilder } from "./genome-summary-builder";
 import type { TradingSymbol } from "./market-data-types";
+import { LastTrainingInfoHolder } from "./last-training-info-holder";
 
 /** Summary of the best trained agent for API responses. */
 export interface BestAgentSummary {
@@ -48,31 +48,25 @@ export interface LastTrainingInfo {
 }
 
 export class TrainingState {
-	private _lastInfo: LastTrainingInfo | null = null;
-	private readonly _summaryBuilder = new GenomeSummaryBuilder();
+	private readonly _lastInfoHolder = new LastTrainingInfoHolder();
 
 	update(info: LastTrainingInfo): void {
-		this._lastInfo = info;
+		this._lastInfoHolder.update(info);
 	}
 
 	getCurrentSymbol(): TradingSymbol | undefined {
-		return this._lastInfo?.symbol;
+		return this._lastInfoHolder.getCurrentSymbol();
 	}
 
 	getGeneration(): number | undefined {
-		return this._lastInfo?.generation;
+		return this._lastInfoHolder.getGeneration();
 	}
 
 	getGenerationContext(): GenerationContext | null | undefined {
-		return this._lastInfo?.generationContext;
+		return this._lastInfoHolder.getGenerationContext();
 	}
 
 	getBestAgentSummary(): BestAgentSummary | null {
-		if (!this._lastInfo) {
-			return null;
-		}
-		return this._summaryBuilder.buildBestAgentSummary(
-			this._lastInfo.bestGenome
-		);
+		return this._lastInfoHolder.getBestAgentSummary();
 	}
 }

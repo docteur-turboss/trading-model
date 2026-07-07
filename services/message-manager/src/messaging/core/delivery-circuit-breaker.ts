@@ -19,13 +19,8 @@ export class DeliveryCircuitBreaker implements ICircuitBreaker {
 		private readonly _serviceName: string
 	) {}
 
-	/** @deprecated Use {@link clear} instead. */
-	reset(): void {
-		this._failureCount = 0;
-	}
-
 	clear(): void {
-		this.reset();
+		this._failureCount = 0;
 	}
 
 	// --- ICircuitBreaker implementation (key-based overloads delegate to no-arg impl) ---
@@ -39,7 +34,7 @@ export class DeliveryCircuitBreaker implements ICircuitBreaker {
 	recordSuccess(): void;
 	recordSuccess(_key: string): void;
 	recordSuccess(_key?: string): void {
-		this.reset();
+		this.clear();
 	}
 
 	isOpen(): boolean;
@@ -66,9 +61,11 @@ export class DeliveryCircuitBreaker implements ICircuitBreaker {
 		return this._failureCount;
 	}
 
-	// --- ICircuitBreaker check (different from legacy check that takes message+deliveryPort) ---
+	// --- ICircuitBreaker check ---
 
-	check(_key: string): CircuitState;
+	check(_key: string): CircuitState {
+		return this.isOpen() ? CircuitState.OPEN : CircuitState.CLOSED;
+	}
 
 	/**
 	 * Checks whether the circuit is open. If so, logs a warning and routes
@@ -76,24 +73,12 @@ export class DeliveryCircuitBreaker implements ICircuitBreaker {
 	 *
 	 * @returns `true` when the circuit is open (caller should skip delivery).
 	 */
-	check<TData>(
+	checkDelivery<TData>(
 		message: Message<TData>,
 		deliveryPort: MessageDeliveryPort
-	): Promise<boolean>;
-
-	check<TData>(
-		keyOrMessage?: string | Message<TData>,
-		deliveryPort?: MessageDeliveryPort
-	): CircuitState | Promise<boolean> {
-		if (typeof keyOrMessage === "string") {
-			return this.isOpen() ? CircuitState.OPEN : CircuitState.CLOSED;
-		}
-		const message = keyOrMessage as Message<TData> | undefined;
-		if (!(message && deliveryPort)) {
-			return this.isOpen() ? CircuitState.OPEN : CircuitState.CLOSED;
-		}
+	): Promise<boolean> {
 		if (!this.isOpen()) {
-			return false;
+			return Promise.resolve(false);
 		}
 		logger.warn("Circuit breaker open — rejecting dispatch", {
 			topic: this._topic,

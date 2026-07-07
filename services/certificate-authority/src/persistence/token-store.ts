@@ -1,8 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { type Collection, type Db, MongoClient } from "mongodb";
-
-import { MONGO_MANAGER } from "./mongo-manager";
+import { type Collection } from "mongodb";
 
 export interface TokenUseRequest {
 	token: string;
@@ -17,65 +15,52 @@ export interface UsedToken {
 	expiresAt: Date;
 }
 
+interface ICollection {
+	insertOne(doc: UsedToken): Promise<{ acknowledged: boolean }>;
+	findOne(filter: Record<string, unknown>): Promise<UsedToken | null>;
+	createIndex(
+		keys: Record<string, unknown>,
+		options?: Record<string, unknown>
+	): Promise<string>;
+}
+
+class NullCollection implements ICollection {
+	async insertOne(): Promise<{ acknowledged: boolean }> {
+		throw new Error("TokenStore not connected");
+	}
+	async findOne(): Promise<UsedToken | null> {
+		throw new Error("TokenStore not connected");
+	}
+	async createIndex(): Promise<string> {
+		throw new Error("TokenStore not connected");
+	}
+}
+
 export class TokenStore {
-	private _client: MongoClient | null = null;
-	private _collection: Collection<UsedToken> | null = null;
-	private readonly _uri: string;
-	private readonly _dbName: string;
+	private _collection: ICollection = new NullCollection();
 	private readonly _defaultTtlMs: number;
 
-	constructor(uri: string, dbName?: string, defaultTtlMs?: number) {
-		this._uri = uri;
-		this._dbName = dbName ?? "certificate-authority";
-		this._defaultTtlMs = defaultTtlMs ?? 604_800_000; // 7 days default TTL
-	}
-
-	private get _requiredCollection(): Collection<UsedToken> {
-		if (!this._collection) {
-			throw new Error("TokenStore not connected");
+	constructor(
+		collection?: Collection<UsedToken>,
+		defaultTtlMs?: number
+	) {
+		if (collection) {
+			this._collection = collection;
 		}
-		return this._collection;
+		this._defaultTtlMs = defaultTtlMs ?? 604_800_000;
 	}
 
-	async connect(): Promise<void> {
-		if (MONGO_MANAGER.isInitialized()) {
-			const db: Db = MONGO_MANAGER.getDb();
-			this._collection = db.collection<UsedToken>("used_tokens");
-			await this._createIndexes();
-			return;
-		}
-		this._client = new MongoClient(this._uri);
-		await this._client.connect();
-		const db: Db = this._client.db(this._dbName);
-		this._collection = db.collection<UsedToken>("used_tokens");
-
-		await this._createIndexes();
-	}
-
-	async disconnect(): Promise<void> {
-		if (!MONGO_MANAGER.isInitialized()) {
-			await this._client?.close();
-			this._client = null;
-		}
-	}
-
-	private async _createIndexes(): Promise<void> {
-		const col = this._requiredCollection;
-		await col.createIndex(
-			{ expiresAt: 1 },
-			{ expireAfterSeconds: 0 }
-		);
-		await col.createIndex({ tokenHash: 1 }, { unique: true });
+	setCollection(collection: Collection<UsedToken>): void {
+		this._collection = collection;
 	}
 
 	async tryUseToken(request: TokenUseRequest): Promise<boolean> {
 		const { token, serviceId, ttlMs } = request;
 		const ttl = ttlMs ?? this._defaultTtlMs;
 		const hash = await this._hashToken(token);
-		const col = this._requiredCollection;
 
 		try {
-			await col.insertOne({
+			await this._collection.insertOne({
 				tokenHash: hash,
 				serviceId,
 				usedAt: new Date(),
@@ -99,8 +84,7 @@ export class TokenStore {
 
 	async isUsed(token: string): Promise<boolean> {
 		const hash = await this._hashToken(token);
-		const col = this._requiredCollection;
-		const found = await col.findOne({ tokenHash: hash });
+		const found = await this._collection.findOne({ tokenHash: hash });
 		return found !== null;
 	}
 

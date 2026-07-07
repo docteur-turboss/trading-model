@@ -1,14 +1,28 @@
 import type https from "node:https";
+import type { IncomingMessage } from "node:http";
 import { WebSocketServer } from "ws";
+import type WebSocket from "ws";
 import { ClientConnectionManager } from "./client-connection-manager";
 import { WsProtocolHandler } from "./ws-protocol-handler";
+
+interface WssServerLike {
+	on(event: "connection", listener: (ws: WebSocket, req: IncomingMessage) => void): void;
+	close(callback?: () => void): void;
+}
+
+class NullWssServer implements WssServerLike {
+	on(): void {}
+	close(callback?: () => void): void {
+		callback?.();
+	}
+}
 
 interface WsDiscoveryServerOptions {
 	path?: string;
 }
 
 export class WsDiscoveryServer {
-	private _wss: WebSocketServer | null = null;
+	private _wss: WssServerLike = new NullWssServer();
 	private readonly _path: string;
 	private readonly _clientManager = new ClientConnectionManager();
 	private readonly _protocolHandler: WsProtocolHandler;
@@ -42,6 +56,6 @@ export class WsDiscoveryServer {
 
 	stop(): void {
 		this._clientManager.clearAll();
-		this._wss?.close();
+		this._wss.close();
 	}
 }

@@ -1,10 +1,9 @@
 import { getSubscriptionClient } from "../../config/redis";
 import { InstanceStaleScanner } from "./instance-stale-scanner";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
+import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 
 const SUBSCRIPTION_TTL_MS = 30_000;
-
-export const LEASE_HEARTBEAT_FIELD = "heartbeat" as const;
 
 export class InstanceLifecycleManager {
 	private _keys: RedisSubscriptionKeys;

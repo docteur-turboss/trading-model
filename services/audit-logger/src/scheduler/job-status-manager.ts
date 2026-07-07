@@ -1,6 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { JobRepository } from "../persistence/job-repository";
 import { JOB_STATUS } from "../types/job.types";
+import type { JobId } from "@trading-model/common/domain/primitives";
 import type { InternalQueue } from "./internal-queue";
 import type { JobAssignmentManager } from "./job-assignment-manager";
 import type { JobFailureHandler } from "./job-failure-handler";
@@ -13,16 +14,16 @@ export class JobStatusManager {
 		private readonly _failureHandler: JobFailureHandler
 	) {}
 
-	async ack(jobId: string): Promise<void> {
+	async ack(jobId: JobId): Promise<void> {
 		this._queue.ack(jobId);
-		await this._repository.updateStatus(jobId, "running");
+		await this._repository.updateStatus(jobId, JOB_STATUS.RUNNING);
 
 		logger.info("Job acknowledged by worker", { context: { jobId } });
 	}
 
-	async complete(jobId: string, result: unknown): Promise<void> {
+	async complete(jobId: JobId, result: unknown): Promise<void> {
 		this._queue.ack(jobId);
-		await this._repository.updateStatus(jobId, "completed", { result });
+		await this._repository.updateStatus(jobId, JOB_STATUS.COMPLETED, { result });
 
 		const job = await this._repository.findById(jobId);
 		this._assignmentManager.decrementWorkerLoad(job?.assignedWorkerId);
@@ -31,7 +32,7 @@ export class JobStatusManager {
 		this._assignmentManager.distributeNext();
 	}
 
-	async fail(jobId: string, error: string): Promise<void> {
+	async fail(jobId: JobId, error: string): Promise<void> {
 		this._queue.ack(jobId);
 
 		const job = await this._repository.findById(jobId);
@@ -48,7 +49,7 @@ export class JobStatusManager {
 		}
 	}
 
-	async cancel(jobId: string): Promise<void> {
+	async cancel(jobId: JobId): Promise<void> {
 		const job = await this._repository.findById(jobId);
 		if (!job) {
 			return;

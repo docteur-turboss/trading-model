@@ -161,7 +161,7 @@ describe("LogRepository", () => {
 			service: { name: "svc", instanceId: "i1" },
 		});
 
-		const doc = await repo.getById("507f1f77bcf86cd799439011");
+		const doc = await repo.findById("507f1f77bcf86cd799439011");
 		expect(doc).not.toBeNull();
 	});
 
@@ -169,7 +169,7 @@ describe("LogRepository", () => {
 		const { ObjectId } = require("mongodb");
 		ObjectId.isValid.mockReturnValue(false);
 
-		const doc = await repo.getById("invalid-id");
+		const doc = await repo.findById("invalid-id");
 		expect(doc).toBeNull();
 	});
 });

@@ -4,10 +4,10 @@ import {
 	type Job,
 	type JobEvent,
 	JobPriority,
-	type JobStatus,
 } from "@trading-model/common/contracts/recovery.types";
 
-export type { Job, JobEvent, JobStatus };
+export type { Job, JobEvent };
+export type { JOB_STATUS };
 export { JOB_STATUS, JOB_STATUS_NON_TERMINAL, JobPriority };
 
 export interface QueuedJob<TData = unknown> {

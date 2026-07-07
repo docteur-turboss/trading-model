@@ -12,22 +12,20 @@ export enum JobPriority {
 	HIGHEST = 5,
 }
 
-export const JOB_STATUS = {
-	PENDING: "pending",
-	QUEUED: "queued",
-	ASSIGNED: "assigned",
-	RUNNING: "running",
-	COMPLETED: "completed",
-	FAILED: "failed",
-	CANCELLED: "cancelled",
-	ORPHANED: "orphaned",
-} as const;
-
-export type JobStatus = (typeof JOB_STATUS)[keyof typeof JOB_STATUS];
+export enum JOB_STATUS {
+	PENDING = "pending",
+	QUEUED = "queued",
+	ASSIGNED = "assigned",
+	RUNNING = "running",
+	COMPLETED = "completed",
+	FAILED = "failed",
+	CANCELLED = "cancelled",
+	ORPHANED = "orphaned",
+}
 
 export interface JobEvent {
-	fromStatus: JobStatus;
-	toStatus: JobStatus;
+	fromStatus: JOB_STATUS;
+	toStatus: JOB_STATUS;
 	timestamp: Date;
 	reason: string;
 }
@@ -37,7 +35,7 @@ export interface Job<TData = unknown> {
 	type: JobType;
 	payload: TData;
 	priority: JobPriority;
-	status: JobStatus;
+	status: JOB_STATUS;
 	assignedWorkerId?: InstanceId;
 	ackDeadline: number;
 	maxRetries: number;
@@ -54,7 +52,7 @@ export type JobUpdateExtras = Partial<
 	Pick<Job, "result" | "error" | "assignedWorkerId" | "ackDeadline">
 >;
 
-export const JOB_STATUS_NON_TERMINAL: readonly JobStatus[] = [
+export const JOB_STATUS_NON_TERMINAL: readonly JOB_STATUS[] = [
 	JOB_STATUS.PENDING,
 	JOB_STATUS.QUEUED,
 	JOB_STATUS.ASSIGNED,
@@ -62,7 +60,7 @@ export const JOB_STATUS_NON_TERMINAL: readonly JobStatus[] = [
 	JOB_STATUS.ORPHANED,
 ];
 
-export const JOB_STATUS_TERMINAL: readonly JobStatus[] = [
+export const JOB_STATUS_TERMINAL: readonly JOB_STATUS[] = [
 	JOB_STATUS.COMPLETED,
 	JOB_STATUS.FAILED,
 	JOB_STATUS.CANCELLED,
@@ -70,6 +68,6 @@ export const JOB_STATUS_TERMINAL: readonly JobStatus[] = [
 
 const TERMINAL_SET = new Set(JOB_STATUS_TERMINAL);
 
-export function isTerminalStatus(status: JobStatus): boolean {
+export function isTerminalStatus(status: JOB_STATUS): boolean {
 	return TERMINAL_SET.has(status);
 }

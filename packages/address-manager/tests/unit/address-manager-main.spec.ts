@@ -56,7 +56,7 @@ jest.mock("../../src/client/address-manager-client", () => ({
 
 const MOCK_TOKEN_MANAGER = (() => {
 	const impl = {
-		getTokenOrNull: jest.fn<any>().mockReturnValue(null),
+		getTokenOrUndefined: jest.fn<any>().mockReturnValue(undefined),
 		getToken: jest.fn<any>().mockReturnValue("tok"),
 		refreshToken: jest.fn<any>().mockResolvedValue(undefined),
 		setToken: jest.fn<any>(),
@@ -167,7 +167,7 @@ function makeConfig(
 describe("AddressManager (main)", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-		MOCK_TOKEN_MANAGER.getTokenOrNull.mockReturnValue(null);
+		MOCK_TOKEN_MANAGER.getTokenOrUndefined.mockReturnValue(undefined);
 		MOCK_ADDRESS_MANAGER_CLIENT.registerService.mockResolvedValue({
 			token: "test-token",
 		});
@@ -275,7 +275,7 @@ describe("AddressManager (main)", () => {
 	});
 
 	it("should not crash on start with existing token (sticky registration)", async () => {
-		MOCK_TOKEN_MANAGER.getTokenOrNull.mockReturnValue("existing-token");
+		MOCK_TOKEN_MANAGER.getTokenOrUndefined.mockReturnValue("existing-token");
 		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
 		const am = new AddressManager(makeConfig());
 		const handle = am.start();
@@ -289,7 +289,7 @@ describe("AddressManager (main)", () => {
 	});
 
 	it("should retry findService when circuit breaker is open", async () => {
-		MOCK_TOKEN_MANAGER.getTokenOrNull.mockReturnValue("existing-token");
+		MOCK_TOKEN_MANAGER.getTokenOrUndefined.mockReturnValue("existing-token");
 		MOCK_ADDRESS_MANAGER_CLIENT.refreshTTL.mockResolvedValue(undefined);
 		const am = new AddressManager(makeConfig());
 

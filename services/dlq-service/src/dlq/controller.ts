@@ -7,12 +7,6 @@ import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
 import { notifyAddAudit, notifyDeleteAudit } from "./audit-notifier";
 import {
-	autoRetryTick,
-	rebuildQueueFromMongo,
-	startAutoRetry,
-	stopAutoRetry,
-} from "./auto-retry";
-import {
 	DeleteSchema,
 	handleAddEntryError,
 	pushToRedisQueue,
@@ -20,27 +14,6 @@ import {
 } from "./entry-validation";
 import { executeReplayPipeline } from "./replay-pipeline";
 import { dlqRepository } from "./repository";
-import { reloadHttpClientTls } from "./shared/index";
-import {
-	pruneOldEntries,
-	releaseStaleClaims,
-	shutdownSchedulers,
-	startPeriodicPrune,
-	stopPeriodicPrune,
-} from "./shutdown-manager";
-
-export {
-	autoRetryTick,
-	pruneOldEntries,
-	rebuildQueueFromMongo,
-	releaseStaleClaims,
-	reloadHttpClientTls,
-	shutdownSchedulers,
-	startAutoRetry,
-	startPeriodicPrune,
-	stopAutoRetry,
-	stopPeriodicPrune,
-};
 
 const tracer = trace.getTracer("dlq-service");
 
@@ -52,7 +25,7 @@ export const AddEntry = catchSync((req) => {
 				return validation.response;
 			}
 
-			const id = await dlqRepository.add(validation.data);
+			const id = await dlqRepository.insert(validation.data);
 			span.setAttribute("entryId", id);
 			metrics.entriesAdded.inc(1);
 			await pushToRedisQueue(id);
@@ -77,7 +50,7 @@ export const ListEntries = catchSync(async (req) => {
 		? 0
 		: Math.max(Number.parseInt(req.query.offset as string, 10) || 0, 0);
 
-	const entries = await dlqRepository.list({
+	const entries = await dlqRepository.query({
 		topic,
 		limit,
 		offset,

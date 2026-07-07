@@ -22,8 +22,35 @@ export interface NoncePersistence {
 	loadAll(threshold: Date): Promise<NonceDocument[]>;
 }
 
+interface INonceCollection {
+	insertOne(doc: NonceDocument): Promise<{ acknowledged: boolean }>;
+	findOneAndDelete(filter: Record<string, unknown>): Promise<NonceDocument | null>;
+	find(filter: Record<string, unknown>): {
+		toArray(): Promise<NonceDocument[]>;
+	};
+	createIndex(
+		keys: Record<string, unknown>,
+		options?: Record<string, unknown>
+	): Promise<string>;
+}
+
+class NullNonceCollection implements INonceCollection {
+	async insertOne(): Promise<{ acknowledged: boolean }> {
+		throw new Error("Nonce persister not connected");
+	}
+	async findOneAndDelete(): Promise<NonceDocument | null> {
+		return null;
+	}
+	find(): { toArray(): Promise<NonceDocument[]> } {
+		return { toArray: async () => [] };
+	}
+	async createIndex(): Promise<string> {
+		return "";
+	}
+}
+
 export class MongoNoncePersister implements NoncePersistence {
-	private _collection: Collection<NonceDocument> | null = null;
+	private _collection: INonceCollection = new NullNonceCollection();
 	private readonly _mongoUri: string;
 	private readonly _ttlMs: number;
 
@@ -42,9 +69,6 @@ export class MongoNoncePersister implements NoncePersistence {
 	}
 
 	private async _createIndexes(): Promise<void> {
-		if (!this._collection) {
-			return;
-		}
 		await this._collection.createIndex({ nonce: 1 }, { unique: true });
 		await this._collection.createIndex(
 			{ createdAt: 1 },
@@ -61,9 +85,6 @@ export class MongoNoncePersister implements NoncePersistence {
 	async disconnect(): Promise<void> {}
 
 	async persist(context: NonceContext, createdAt: number): Promise<void> {
-		if (!this._collection) {
-			throw new Error("Nonce persister not connected");
-		}
 		const { nonce, serviceId } = context;
 		try {
 			await this._collection.insertOne({
@@ -80,9 +101,6 @@ export class MongoNoncePersister implements NoncePersistence {
 	}
 
 	async consume(context: NonceContext): Promise<NonceDocument | null> {
-		if (!this._collection) {
-			return null;
-		}
 		const { nonce } = context;
 		try {
 			return await this._collection.findOneAndDelete({ nonce });
@@ -92,9 +110,6 @@ export class MongoNoncePersister implements NoncePersistence {
 	}
 
 	async loadAll(threshold: Date): Promise<NonceDocument[]> {
-		if (!this._collection) {
-			return [];
-		}
 		try {
 			return await this._collection
 				.find({ createdAt: { $gt: threshold } })

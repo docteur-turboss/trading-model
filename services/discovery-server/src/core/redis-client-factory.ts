@@ -1,23 +1,11 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import type {
+	RedisClusterNodesConfig,
+	RedisConnectionConfig,
+	RedisSentinelConfig,
+} from "@trading-model/common/config/redis-config";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
-
-export interface RedisSentinelConfig {
-	sentinels: HostPort[];
-	name: string;
-	password?: string;
-}
-
-export interface RedisClusterNodesConfig {
-	nodes: HostPort[];
-	password?: string;
-}
-
-export type RedisConnectionConfig =
-	| { mode: "single"; url: string }
-	| { mode: "sentinel"; config: RedisSentinelConfig }
-	| { mode: "cluster"; config: RedisClusterNodesConfig };
 
 const BASE_OPTIONS: RedisOptions = {
 	retryStrategy: (times: number) => {

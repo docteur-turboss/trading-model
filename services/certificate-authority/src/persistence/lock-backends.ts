@@ -183,7 +183,22 @@ export class FileSystemLockBackend implements LockBackend {
 	constructor(private readonly _fallbackDir: string) {}
 
 	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
-		const { lockName, instanceId } = context;
+		if (!this._isFsBackendAllowed()) {
+			return null;
+		}
+		try {
+			const lockFile = await this._ensureLockDir(context.lockName);
+			if (await this._isLockHeld(lockFile, ttlMs)) {
+				return null;
+			}
+			return await this._writeNewLock(lockFile, context.instanceId, ttlMs);
+		} catch {
+			logger.error("Filesystem lock acquire failed");
+			return null;
+		}
+	}
+
+	private _isFsBackendAllowed(): boolean {
 		if (
 			process.env.NODE_ENV !== "development" &&
 			process.env.NODE_ENV !== "test"
@@ -191,36 +206,38 @@ export class FileSystemLockBackend implements LockBackend {
 			logger.error(
 				"No lock backend available (MongoDB, Redis) and filesystem fallback is disabled in production"
 			);
-			return null;
+			return false;
 		}
+		return true;
+	}
+
+	private async _ensureLockDir(lockName: string): Promise<string> {
+		await fs.mkdir(this._fallbackDir, { recursive: true });
+		return path.join(this._fallbackDir, `${lockName}.lock`);
+	}
+
+	private async _isLockHeld(lockFile: string, ttlMs: number): Promise<boolean> {
 		try {
-			await fs.mkdir(this._fallbackDir, { recursive: true });
-			const lockFile = path.join(this._fallbackDir, `${lockName}.lock`);
-			try {
-				const existing = await fs.readFile(lockFile, "utf8");
-				const data = JSON.parse(existing);
-				if (Date.now() - data.acquiredAt < ttlMs) {
-					return null;
-				}
-			} catch {
-				// file doesn't exist or is invalid
-			}
-			const fencingToken = Date.now();
-			await fs.writeFile(
-				lockFile,
-				JSON.stringify({
-					instanceId,
-					acquiredAt: Date.now(),
-					ttlMs,
-					fencingToken,
-				}),
-				{ mode: 0o600 }
-			);
-			return fencingToken;
+			const existing = await fs.readFile(lockFile, "utf8");
+			const data = JSON.parse(existing);
+			return Date.now() - data.acquiredAt < ttlMs;
 		} catch {
-			logger.error("Filesystem lock acquire failed");
-			return null;
+			return false;
 		}
+	}
+
+	private async _writeNewLock(
+		lockFile: string,
+		instanceId: string,
+		ttlMs: number
+	): Promise<number> {
+		const fencingToken = Date.now();
+		await fs.writeFile(
+			lockFile,
+			JSON.stringify({ instanceId, acquiredAt: Date.now(), ttlMs, fencingToken }),
+			{ mode: 0o600 }
+		);
+		return fencingToken;
 	}
 
 	async release(context: LockContext, _fencingToken: number): Promise<boolean> {

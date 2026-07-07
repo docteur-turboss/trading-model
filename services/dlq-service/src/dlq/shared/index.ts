@@ -79,18 +79,20 @@ function _checkThresholdOpen(): void {
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { findAService } from "../../config/address-manager";
-import { env } from "../../config/env";
+import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 
 class SharedHttpClientManager {
 	private _httpClient: HttpClient | null = null;
 
 	async get(): Promise<HttpClient> {
-		this._httpClient = new HttpClient({
-			ca: env.TLS_CA_PATH,
-			cert: env.TLS_CERT_PATH,
-			key: env.TLS_KEY_PATH,
-		});
+		if (!this._httpClient) {
+			this._httpClient = new HttpClient({
+				ca: ENV.TLS_CA_PATH,
+				cert: ENV.TLS_CERT_PATH,
+				key: ENV.TLS_KEY_PATH,
+			});
+		}
 		return this._httpClient;
 	}
 
@@ -129,7 +131,7 @@ export async function closeHttpClient(): Promise<void> {
 }
 
 export async function resolveMessageManagerUrl(): Promise<string | null> {
-	let url: string | null = env.MESSAGE_MANAGER_URL ?? null;
+	let url: string | null = ENV.MESSAGE_MANAGER_URL ?? null;
 	if (!url) {
 		url = await _resolveViaAddressManager();
 	}
@@ -184,3 +186,4 @@ export function setShuttingDown(value: boolean): void {
 export function isShuttingDown(): boolean {
 	return shuttingDown;
 }
+

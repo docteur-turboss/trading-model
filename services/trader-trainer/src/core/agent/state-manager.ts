@@ -1,4 +1,11 @@
-import type { Agent } from "../neural-network/agent";
+import type { NeuralNetwork } from "../neural-network/neural-network";
+
+interface GenomeTarget {
+	nn: Pick<
+		NeuralNetwork,
+		"setWeights" | "distributeAroundWeights"
+	>;
+}
 
 /** Configuration for epsilon-greedy exploration decay and discount factor. */
 export interface StateManagerConfig {
@@ -40,18 +47,16 @@ export class StateManager {
 
 	/** Initialise agent weights from a flat genome buffer or broadcast a scalar with noise. */
 	public initialiseFromGenome(
-		agent: Agent,
+		agent: GenomeTarget,
 		genome: Float32Array | number
 	): void {
 		if (typeof genome === "number") {
-			// broadcast scalar around weights
-			agent.distributeAroundWeights(genome, 0.1);
+			agent.nn.distributeAroundWeights(genome, 0.1);
 		} else {
-			// direct weight copy if length matches
 			try {
-				agent.setWeights(genome);
+				agent.nn.setWeights(genome);
 			} catch {
-				agent.distributeAroundWeights(0, 0.01);
+				agent.nn.distributeAroundWeights(0, 0.01);
 			}
 		}
 	}

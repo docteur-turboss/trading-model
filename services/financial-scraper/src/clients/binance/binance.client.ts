@@ -1,4 +1,7 @@
-import type { CandlestickQuery } from "@trading-model/common/domain/candlestick-query";
+import type {
+	CandlestickQuery,
+	MarketDataQuery,
+} from "@trading-model/common/domain/candlestick-query";
 import type { TradingSymbol } from "@trading-model/common/domain/primitives";
 import { httpClients } from "../../config/http";
 import type {
@@ -18,26 +21,19 @@ import { BINANCE_WEIGHTS } from "./weights";
 
 const BINANCE = httpClients.binance;
 
-/** Parameter object for Binance market-data queries. */
-export interface BinanceMarketQuery {
-	symbol: TradingSymbol;
-	limit?: number;
-}
-
-/** Parameter object for Binance historical trade queries. */
-export interface BinanceHistoricalTradeQuery extends BinanceMarketQuery {
+/** Parameter object for Binance trade queries (historical or aggregate). */
+export interface BinanceTradeQuery extends MarketDataQuery {
 	fromId: string | number;
 }
 
-/** Parameter object for Binance aggregate trade queries. */
-export interface BinanceAggregateTradeQuery {
-	symbol: TradingSymbol;
-	fromId: string | number;
-	limit?: number;
-}
+/** @deprecated Use BinanceTradeQuery instead. */
+export type BinanceHistoricalTradeQuery = BinanceTradeQuery;
+
+/** @deprecated Use BinanceTradeQuery instead. */
+export type BinanceAggregateTradeQuery = BinanceTradeQuery;
 
 export async function getOrderBook(
-	query: BinanceMarketQuery
+	query: MarketDataQuery
 ): Promise<BinanceDepthResponse> {
 	const { symbol, limit = 100 } = query;
 	const weight = BINANCE_WEIGHTS.depth(limit);
@@ -46,7 +42,7 @@ export async function getOrderBook(
 }
 
 export async function getRecentTrades(
-	query: BinanceMarketQuery
+	query: MarketDataQuery
 ): Promise<BinanceTradeResponse> {
 	const { symbol, limit = 500 } = query;
 	const weight = BINANCE_WEIGHTS.trades();
@@ -55,7 +51,7 @@ export async function getRecentTrades(
 }
 
 export async function getHistoricalTrades(
-	query: BinanceHistoricalTradeQuery
+	query: BinanceTradeQuery
 ): Promise<BinanceHistoricalTradeResponse> {
 	const { symbol, limit, fromId } = query;
 	const weight = BINANCE_WEIGHTS.historicalTrades();
@@ -95,7 +91,7 @@ async function _getWithWeight(url: string, weight: number): Promise<unknown> {
 }
 
 export async function getCompressedAggregateTrades(
-	query: BinanceAggregateTradeQuery
+	query: BinanceTradeQuery
 ): Promise<BinanceAggregateTradeResponse> {
 	const { symbol, fromId, limit = 500 } = query;
 	const weight = BINANCE_WEIGHTS.compressedAggregateTrades();

@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 
 import { getCollection } from "../config/db";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { ClaimFilterBuilder } from "./claim-filter-builder";
 import { DLQ_STATUS } from "./dlq-status";
 
@@ -18,7 +18,7 @@ export class ClaimReleaseManager {
 		const result = await col.findOneAndUpdate(
 			{
 				_id: new ObjectId(id),
-				retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
+				retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
 				processingAt: { $exists: false },
 				status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
 				consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
@@ -95,3 +95,4 @@ export class ClaimReleaseManager {
 		createdAt: 1,
 	} as const;
 }
+

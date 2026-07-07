@@ -8,25 +8,23 @@ import type {
 	ServiceEndpoint,
 	ServiceIdentity,
 } from "@trading-model/common/domain/service-identity";
-import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+import type { RedisConnectionConfig } from "@trading-model/common/config/redis-config";
+import type {
+	TokenValidation,
+} from "@trading-model/common/domain/token-validation";
+export type {
+	RedisClusterNodesConfig,
+	RedisConnectionConfig,
+	RedisSentinelConfig,
+} from "@trading-model/common/config/redis-config";
 import type Redis from "ioredis";
 import { RedisBackendLifecycle } from "./redis-backend-lifecycle";
-import {
-	computePrefix,
-	createRedisClient,
-	type RedisConnectionConfig,
-} from "./redis-client-factory";
+import { computePrefix, createRedisClient } from "./redis-client-factory";
 import { RedisInstanceRepository } from "./redis-instance-repository";
 import { RedisKeyBuilder } from "./redis-key-builder";
 import { StaleInstanceCleaner } from "./stale-instance-cleaner";
 import { TokenHandler } from "./token-handler";
 import { TokenService } from "./token-service";
-
-export type {
-	RedisClusterNodesConfig,
-	RedisConnectionConfig,
-	RedisSentinelConfig,
-} from "./redis-client-factory";
 
 export class RedisRegistryBackend implements RegistryBackend {
 	private readonly _instances: RedisInstanceRepository;

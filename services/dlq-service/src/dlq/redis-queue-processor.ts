@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import { ObjectId } from "mongodb";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
-import { handleAbandonedEntries, resolveMessageManagerUrl } from "./auto-retry";
+import { handleAbandonedEntries } from "./auto-retry";
+import { resolveMessageManagerUrl } from "./address-resolver";
 import { dlqClaimManager } from "./claim-manager";
 import { doReplayBatch } from "./replay-pipeline";
 import { isShuttingDown } from "./shared/index";
@@ -14,7 +15,7 @@ export let redisRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function _popRedisQueueEntries(): Promise<string[]> {
 	const entryIds: string[] = [];
-	for (let i = 0; i < env.DLQ_AUTO_RETRY_LIMIT; i++) {
+	for (let i = 0; i < ENV.DLQ_AUTO_RETRY_LIMIT; i++) {
 		const entryId = await dlqRedisQueue.pop();
 		if (!entryId) {
 			break;
@@ -56,7 +57,7 @@ async function _claimByIds(
 ): Promise<Array<{ id: string; message: unknown }>> {
 	return dlqClaimManager.claimEntriesByIds(validIds, {
 		batchId,
-		instanceId: env.INSTANCE_ID,
+		instanceId: ENV.INSTANCE_ID,
 	});
 }
 
@@ -76,7 +77,7 @@ async function executeClaimReplay(
 		entries,
 		messageManagerUrl,
 		batchId,
-		instanceId: env.INSTANCE_ID,
+		instanceId: ENV.INSTANCE_ID,
 	});
 
 	if (success > 0) {
@@ -173,3 +174,4 @@ export function stopRedisWorkerTimer(): void {
 		redisRetryTimer = null;
 	}
 }
+

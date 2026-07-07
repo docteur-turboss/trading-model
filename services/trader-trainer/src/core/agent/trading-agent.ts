@@ -77,32 +77,32 @@ export class TradingAgent {
 	}
 
 	public forwardPass(input: Float32Array): { output: Float32Array } {
-		return this._agent.forward(input);
+		return this._agent.nn.forward(input);
 	}
 
 	public getWeights(): Float32Array {
-		return this._agent.getWeights();
+		return this._agent.nn.getWeights();
 	}
 
 	public setWeights(weights: Float32Array): void {
-		this._agent.setWeights(weights);
+		this._agent.nn.setWeights(weights);
 	}
 
 	public parameterCount(): number {
-		return this._agent.parameterCount();
+		return this._agent.nn.parameterCount();
 	}
 
 	public getExperiencePool(): Experience[] {
-		return this._agent.getPool();
+		return this._agent.experience.getPool();
 	}
 
 	public learnQLearning(exp: Experience, gamma: number): void {
-		this._agent.learnQLearning(exp, gamma);
+		this._agent.experience.learnExperience(this._agent.nn, exp, gamma);
 	}
 
 	public resetEpisode(): void {
 		this.wallet.reset();
-		this._agent.clearPool();
+		this._agent.experience.clearPool();
 		this.state.resetEpsilon();
 	}
 }

@@ -1,9 +1,12 @@
 import type { CandleInterval } from "../config/event.types";
 import type { TradingSymbol, UnixTimestamp } from "./primitives";
 
-export interface CandlestickQuery {
+export interface MarketDataQuery {
 	symbol: TradingSymbol;
-	interval: CandleInterval;
 	limit?: number;
+}
+
+export interface CandlestickQuery extends MarketDataQuery {
+	interval: CandleInterval;
 	startTime?: UnixTimestamp;
 }

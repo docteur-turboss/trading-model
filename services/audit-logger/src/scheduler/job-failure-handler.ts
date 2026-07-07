@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
-import { isTerminalStatus } from "@trading-model/common/contracts/recovery.types";
+import { isTerminalStatus, JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
+import type { JobId } from "@trading-model/common/domain/primitives";
 
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
@@ -27,7 +28,7 @@ export class JobFailureHandler {
 		this._assignmentManager = deps.assignmentManager;
 	}
 
-	handleAckTimeout(jobId: string): void {
+	handleAckTimeout(jobId: JobId): void {
 		logger.warn("ACK timeout for job", { context: { jobId } });
 
 		this._repository
@@ -38,20 +39,20 @@ export class JobFailureHandler {
 			});
 	}
 
-	async handlePermanentFailure(jobId: string, error: string): Promise<void> {
-		await this._repository.updateStatus(jobId, "failed", { error });
+	async handlePermanentFailure(jobId: JobId, error: string): Promise<void> {
+		await this._repository.updateStatus(jobId, JOB_STATUS.FAILED, { error });
 		logger.warn("Job failed permanently", { context: { jobId, error } });
 	}
 
 	async handleRetryableFailure(
-		jobId: string,
+		jobId: JobId,
 		job: Job,
 		_error: string
 	): Promise<void> {
 		const newDeadline = Date.now() + ENV.ACK_TIMEOUT_MS;
 		const updatedJob: Job = {
 			...job,
-			status: "queued",
+			status: JOB_STATUS.QUEUED,
 			ackDeadline: newDeadline,
 			retryCount: job.retryCount + 1,
 			assignedWorkerId: undefined,
@@ -59,7 +60,7 @@ export class JobFailureHandler {
 
 		this._queue.enqueue(updatedJob);
 		await this._repository.incrementRetry(jobId);
-		await this._repository.updateStatus(jobId, "queued", {
+		await this._repository.updateStatus(jobId, JOB_STATUS.QUEUED, {
 			ackDeadline: newDeadline,
 		});
 
@@ -73,7 +74,7 @@ export class JobFailureHandler {
 	}
 }
 
-function _logFindJobError(jobId: string, err: unknown): void {
+function _logFindJobError(jobId: JobId, err: unknown): void {
 	logger.error("Failed to find job on ACK timeout", {
 		context: {
 			jobId,
@@ -83,8 +84,8 @@ function _logFindJobError(jobId: string, err: unknown): void {
 }
 
 function _onAckTimeoutJobFound(
-	job: import("../types/job.types").Job | null,
-	jobId: string,
+	job: Job | null,
+	jobId: JobId,
 	self: JobFailureHandler
 ): void {
 	if (!job || isTerminalStatus(job.status)) {
@@ -94,7 +95,7 @@ function _onAckTimeoutJobFound(
 	self._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
 
 	self._repository
-		.updateStatus(jobId, "orphaned")
+		.updateStatus(jobId, JOB_STATUS.ORPHANED)
 		.then(() => self._reAllocator.reallocate(job))
 		.catch((err) =>
 			logger.error("Failed to persist orphaned status on ACK timeout", {

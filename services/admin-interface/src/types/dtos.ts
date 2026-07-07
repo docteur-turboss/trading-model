@@ -9,6 +9,7 @@ import type {
 	WorkerEntry,
 	WorkerStats,
 } from "@trading-model/common/contracts/admin";
+import type { AuditFilter } from "@trading-model/common/contracts/admin";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 
 export type {
@@ -50,10 +51,17 @@ export interface StatsSummary {
 	avgLatency: number;
 }
 
-export interface AdminAuditFilter extends PaginationQuery {
-	topic?: string;
-	publisher?: string;
-	correlationId?: string;
+export interface OrderBookLevel {
+	price: string;
+	quantity: string;
+}
+
+export interface OrderBook {
+	bids: OrderBookLevel[];
+	asks: OrderBookLevel[];
+}
+
+export interface AdminAuditFilter extends PaginationQuery, AuditFilter {
 	search?: string;
 }
 

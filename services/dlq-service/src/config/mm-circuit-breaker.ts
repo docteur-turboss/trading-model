@@ -27,12 +27,7 @@ export class MessageManagerCircuitBreaker implements ICircuitBreaker {
 	check(
 		_key: string
 	): import("@trading-model/common/domain/circuit-state").CircuitState {
-		const now = Date.now();
-		const state = this._state.getState(now);
-		if (state === "half-open") {
-			this._state.reset();
-		}
-		return state;
+		return this._state.getState(Date.now());
 	}
 
 	recordSuccess(_key: string): void {

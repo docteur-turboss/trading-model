@@ -58,14 +58,29 @@ jest.mock("../../../src/core/agent/state-manager", () => ({
 jest.mock("../../../src/core/neural-network/agent", () => ({
 	Agent: jest.fn().mockImplementation(() => ({
 		nn: {
-			forward: jest.fn(() => new Float32Array([0.5, 0.5, 0.5])),
-			getParameters: jest.fn(() => new Float32Array([0.1, 0.2])),
-			setParameters: jest.fn(),
+			forward: jest.fn(() => ({ output: new Float32Array([0.5, 0.5, 0.5]) })),
+			parameterCount: jest.fn(() => 42),
+			getWeights: jest.fn(() => new Float32Array([0.1, 0.2])),
+			setWeights: jest.fn(),
 			distributeAroundWeights: jest.fn(),
 		},
+		scores: {
+			addScore: jest.fn(),
+			getAverageScore: jest.fn(() => 0),
+			getTotalScore: jest.fn(() => 0),
+			resetScores: jest.fn(),
+		},
+		experience: {
+			getPool: jest.fn(() => []),
+			getPoolSize: jest.fn(() => 0),
+			clearPool: jest.fn(),
+			samplePool: jest.fn(() => []),
+			learnFromPool: jest.fn(),
+			learnExperience: jest.fn(),
+			recordExperience: jest.fn(),
+			removeFromPool: jest.fn(),
+		},
 		fastForward: jest.fn(() => new Float32Array([0.5, 0.5, 0.5])),
-		clearPool: jest.fn(),
-		mutate: jest.fn(),
 	})),
 }));
 

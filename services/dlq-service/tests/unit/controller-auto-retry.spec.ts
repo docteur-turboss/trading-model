@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const MOCK_ADD = jest.fn();
-const MOCK_LIST = jest.fn();
+const MOCK_INSERT = jest.fn();
+const MOCK_QUERY = jest.fn();
 const MOCK_DELETE = jest.fn();
 const MOCK_COUNT = jest.fn();
 const MOCK_PRUNE = jest.fn();
@@ -20,8 +20,8 @@ jest.mock("../../src/dlq/repository", () => ({
 		public name = "DlqCapacityError";
 	},
 	dlqRepository: {
-		add: MOCK_ADD,
-		list: MOCK_LIST,
+		insert: MOCK_INSERT,
+		query: MOCK_QUERY,
 		delete: MOCK_DELETE,
 		count: MOCK_COUNT,
 		prune: MOCK_PRUNE,
@@ -47,7 +47,7 @@ jest.mock("../../src/dlq/retry-manager", () => ({
 }));
 
 jest.mock("../../src/config/env", () => ({
-	env: {
+	ENV: {
 		MAX_ENTRIES: 100,
 		MESSAGE_MANAGER_URL: "https://message-manager:3000",
 		DLQ_RETRY_MAX_ATTEMPTS: 3,
@@ -124,7 +124,7 @@ describe("Controller - Auto Retry", () => {
 	let controller: Record<string, unknown>;
 
 	beforeAll(() => {
-		controller = jest.requireActual("../../src/dlq/controller") as Record<
+		controller = jest.requireActual("../../src/dlq/controller-reexports") as Record<
 			string,
 			unknown
 		>;

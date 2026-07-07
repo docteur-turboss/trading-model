@@ -1,5 +1,5 @@
 import { getCollection } from "../config/db";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { DedupInserter } from "./dedup-inserter";
 import { DLQ_STATUS } from "./dlq-status";
 import { EntrySerializer } from "./entry-serializer";
@@ -28,7 +28,7 @@ export class DlqEntryWriter {
 	private readonly _serializer = new EntrySerializer();
 	private readonly _inserter = new DedupInserter();
 
-	async add(entry: DlqEntry): Promise<string> {
+	async insert(entry: DlqEntry): Promise<string> {
 		const col = await getCollection();
 
 		if (await this._isCapacityReached(col)) {
@@ -45,7 +45,7 @@ export class DlqEntryWriter {
 		col: import("mongodb").Collection
 	): Promise<boolean> {
 		const currentCount = await col.estimatedDocumentCount();
-		return currentCount >= env.MAX_ENTRIES;
+		return currentCount >= ENV.MAX_ENTRIES;
 	}
 
 	private async _buildDoc(
@@ -83,3 +83,4 @@ export class DlqEntryWriter {
 		return doc;
 	}
 }
+

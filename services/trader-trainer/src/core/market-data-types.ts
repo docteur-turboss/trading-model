@@ -34,12 +34,16 @@ export interface SymbolNormalizers {
 	tickerVolume: NormalizationStats;
 }
 
-/** Per-symbol state: candles, trades, order book, ticker, and running normalisers. */
-export interface SymbolState {
+/** Fields shared by SymbolState and SymbolStateSerializable. */
+export interface BaseSymbolState {
 	candles: CandleData[];
 	trades: TradeData[];
 	orderBook: OrderBookData | null;
 	bookTicker: BookTickerData | null;
 	ticker24h: TickerData | null;
+}
+
+/** Per-symbol state: candles, trades, order book, ticker, and running normalisers. */
+export interface SymbolState extends BaseSymbolState {
 	norm: SymbolNormalizers;
 }

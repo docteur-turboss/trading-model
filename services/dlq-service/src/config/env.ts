@@ -40,7 +40,7 @@ const DlqEnvSchema = BaseEnvSchema.extend(AddressManagerEnvSchema.shape).extend(
 	}
 );
 
-export const env = validateEnv(DlqEnvSchema);
+export const ENV = validateEnv(DlqEnvSchema);
 export type Env = z.infer<typeof DlqEnvSchema>;
 
 const secretCache: { value: string | null } = { value: null };
@@ -55,9 +55,9 @@ export function resolveAuthHmacSecret(): string {
 		return fromPath;
 	}
 
-	if (env.DLQ_AUTH_HMAC_SECRET) {
-		secretCache.value = env.DLQ_AUTH_HMAC_SECRET;
-		return env.DLQ_AUTH_HMAC_SECRET;
+	if (ENV.DLQ_AUTH_HMAC_SECRET) {
+		secretCache.value = ENV.DLQ_AUTH_HMAC_SECRET;
+		return ENV.DLQ_AUTH_HMAC_SECRET;
 	}
 
 	throw new Error(
@@ -66,7 +66,7 @@ export function resolveAuthHmacSecret(): string {
 }
 
 function _readSecretFromPath(): string | null {
-	const path = env.DLQ_AUTH_HMAC_SECRET_PATH;
+	const path = ENV.DLQ_AUTH_HMAC_SECRET_PATH;
 	if (!path) {
 		return null;
 	}
@@ -83,3 +83,5 @@ function _readSecretFromPath(): string | null {
 	}
 	return null;
 }
+
+

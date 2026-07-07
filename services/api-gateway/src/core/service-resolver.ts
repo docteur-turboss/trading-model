@@ -1,10 +1,10 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
-import type { IPAddress } from "@trading-model/common/domain/primitives";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
 export interface ResolvedTarget {
 	host: IPAddress;
-	port: number;
+	port: Port;
 	version: string;
 }
 

@@ -62,13 +62,15 @@ export interface DeliveryType {
 /**
  * Security context attached to a message.
  */
+export interface AuthContext {
+	subject: string;
+	roles: string[];
+	tenantId: string;
+}
+
 export interface SecurityType {
 	/** Authentication / authorization context. */
-	authContext?: {
-		subject: string;
-		roles: string[];
-		tenantId: string;
-	};
+	authContext?: AuthContext;
 
 	/** Message integrity signature. */
 	signature?: string;

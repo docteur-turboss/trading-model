@@ -1,6 +1,6 @@
 import {
 	type BackoffConfig,
-	computeExponentialBackoff,
+	computeExponentialBackoffWithJitter,
 } from "../utils/backoff-config";
 
 const DEFAULT_RETRY_COUNT = 3;
@@ -10,13 +10,11 @@ function isRetryableStatus(code: number): boolean {
 }
 
 function computeRetryDelay(attempt: number, options?: BackoffConfig): number {
-	const baseDelayMs = options?.baseDelayMs ?? 200;
-	const maxDelayMs = options?.maxDelayMs ?? 5_000;
-	const delay = computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs });
-	if (options?.jitterMs && options.jitterMs > 0) {
-		return delay + Math.random() * options.jitterMs;
-	}
-	return delay;
+	return computeExponentialBackoffWithJitter(attempt, {
+		baseDelayMs: options?.baseDelayMs ?? 200,
+		maxDelayMs: options?.maxDelayMs ?? 5_000,
+		jitterMs: options?.jitterMs ?? 0,
+	});
 }
 
 function computeAdaptiveTimeout(baseMs: number, ewmLatencyMs?: number): number {

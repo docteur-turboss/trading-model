@@ -38,8 +38,7 @@ export class BinanceCircuitBreaker implements ICircuitBreaker {
 	}
 
 	isAllowed(_key: string): boolean {
-		const state = this._inner.check(this._name);
-		return state !== "open";
+		return this._inner.isAllowed(this._name);
 	}
 
 	recordSuccess(_key: string): void {
@@ -57,7 +56,7 @@ export class BinanceCircuitBreaker implements ICircuitBreaker {
 	}
 
 	getState(_key: string): CircuitState {
-		return this._inner.check(this._name);
+		return this._inner.getState(this._name);
 	}
 
 	getFailureCount(_key: string): number {

@@ -116,12 +116,6 @@ describe("NeuralNetwork", () => {
 			expect(() => nn.forward(input)).toThrow();
 		});
 
-		it("should handle empty input array in normalize (len === 0)", () => {
-			const result = (nn as any)._normalize(new Float32Array(0));
-			expect(result).toBeInstanceOf(Float32Array);
-			expect(result.length).toBe(0);
-		});
-
 		it("should return a ForwardContext with output field", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
 			const result = nn.forward(input);

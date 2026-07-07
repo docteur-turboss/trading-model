@@ -18,7 +18,7 @@ describe("logs.controller", () => {
 	const mockLogRepo = {
 		query: mockQuery,
 		getStats: mockGetStats,
-		getById: mockGetById,
+		findById: mockGetById,
 	};
 
 	beforeEach(() => {

@@ -11,7 +11,7 @@ import {
 } from "../../../src/core/neural-network/type";
 
 jest.mock("../../../src/config/env", () => ({
-	env: {},
+	ENV: {},
 }));
 
 describe("NN Regression — Forward Pass", () => {

@@ -1,9 +1,8 @@
 import { Chip } from "@mui/material";
 
-const STATUS_COLORS: Record<
-	string,
-	"success" | "warning" | "error" | "default" | "info"
-> = {
+type MuiColor = "success" | "warning" | "error" | "default" | "info";
+
+const STATUS_COLORS: Record<string, MuiColor> = {
 	healthy: "success",
 	online: "success",
 	active: "success",
@@ -30,7 +29,7 @@ function StatusChip({
 	color,
 }: {
 	label: string;
-	color: string | undefined;
+	color: MuiColor | undefined;
 }) {
 	return (
 		<Chip
@@ -54,8 +53,7 @@ function StatusChip({
 	);
 }
 
-/** Renders a colored chip representing a service or instance health status. */
 export function StatusBadge({ status, label }: StatusBadgeProps) {
-	const color = STATUS_COLORS[status.toLowerCase()] ?? "default";
+	const color: MuiColor = STATUS_COLORS[status.toLowerCase()] ?? "default";
 	return <StatusChip label={label ?? status} color={color} />;
 }

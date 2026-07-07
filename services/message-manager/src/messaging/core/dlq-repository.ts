@@ -33,7 +33,7 @@ export class FileDlqRepository {
 	 *
 	 * @param entry - The entry to persist.
 	 */
-	async add(entry: DlqEntry): Promise<void> {
+	async insert(entry: DlqEntry): Promise<void> {
 		await appendFile(this._filePath, `${JSON.stringify(entry)}\n`, "utf-8");
 	}
 }

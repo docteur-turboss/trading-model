@@ -1,6 +1,6 @@
 import type { Collection, Db } from "mongodb";
 
-import { env } from "./env";
+import { ENV } from "./env";
 import { IndexManager } from "./index-manager";
 import { logger } from "./logger";
 import { MongoConnectionManager } from "./mongo-connection-manager";
@@ -32,13 +32,13 @@ class MongoManager {
 
 	private async _initCollection(): Promise<Collection> {
 		const database = await this.getDb();
-		const col = database.collection(env.MONGO_COLLECTION);
+		const col = database.collection(ENV.MONGO_COLLECTION);
 
 		await this._indexManager.createCollectionIndexes(col);
 
 		this._collection = col;
 		logger.info("MongoDB collection ready", {
-			collection: env.MONGO_COLLECTION,
+			collection: ENV.MONGO_COLLECTION,
 		});
 		return this._collection;
 	}
@@ -92,3 +92,4 @@ export async function resetDbState(): Promise<void> {
 export async function closeDb(): Promise<void> {
 	return mongoManager.close();
 }
+

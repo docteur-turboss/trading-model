@@ -21,7 +21,6 @@ export interface RedisHealthMonitorConfig {
 }
 
 export class RedisHealthMonitor {
-	private _healthCheckRunning = false;
 	private readonly _healthCheckHandle = new TimerHandle();
 	private readonly _healthState: HealthStateManager;
 	private readonly _healthCheckIntervalMs: number;
@@ -64,10 +63,47 @@ export class RedisHealthMonitor {
 			return;
 		}
 		this._clearTimers();
-		this._startHealthCheck();
+		this._startHealthCheckLoop();
 		this._fallbackManager.startRestoreLoop(() =>
 			this._restoreHandler.performRestoreCheck()
 		);
+	}
+
+	private _startHealthCheckLoop(): void {
+		let healthCheckRunning = false;
+		this._healthCheckHandle.startInterval(
+			async () => {
+				if (healthCheckRunning) {
+					return;
+				}
+				healthCheckRunning = true;
+				try {
+					await this._runSingleHealthCheck();
+				} finally {
+					healthCheckRunning = false;
+				}
+			},
+			this._healthCheckIntervalMs
+		);
+	}
+
+	private async _runSingleHealthCheck(): Promise<void> {
+		try {
+			const healthy = await this._callbacks.ping();
+			if (healthy) {
+				this._healthState.handleHealthSuccess(() =>
+					this._callbacks.onHealthRestored()
+				);
+			} else {
+				this._healthState.handleHealthFailure(() =>
+					this._callbacks.onHealthLost()
+				);
+			}
+		} catch {
+			this._healthState.handleHealthFailure(() =>
+				this._callbacks.onHealthLost()
+			);
+		}
 	}
 
 	stop(): void {
@@ -89,37 +125,5 @@ export class RedisHealthMonitor {
 	private _clearTimers(): void {
 		this._healthCheckHandle.stop();
 		this._fallbackManager.clearRestoreTimer();
-	}
-
-	private _startHealthCheck(): void {
-		this._healthCheckHandle.startInterval(
-			() => this._performHealthCheck(),
-			this._healthCheckIntervalMs
-		);
-	}
-
-	private async _performHealthCheck(): Promise<void> {
-		if (this._healthCheckRunning) {
-			return;
-		}
-		this._healthCheckRunning = true;
-		try {
-			const healthy = await this._callbacks.ping();
-			if (healthy) {
-				this._healthState.handleHealthSuccess(() =>
-					this._callbacks.onHealthRestored()
-				);
-			} else {
-				this._healthState.handleHealthFailure(() =>
-					this._callbacks.onHealthLost()
-				);
-			}
-		} catch {
-			this._healthState.handleHealthFailure(() =>
-				this._callbacks.onHealthLost()
-			);
-		} finally {
-			this._healthCheckRunning = false;
-		}
 	}
 }

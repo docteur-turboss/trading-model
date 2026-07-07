@@ -43,9 +43,13 @@ export const CACHE_ENTRY_COUNT = new promClient.Gauge({
 	labelNames: [] as const,
 });
 
+export interface DiscoveryContext {
+	serviceName: string;
+	startTime: number;
+}
+
 export function recordDiscoveryMetrics(
-	serviceName: string,
-	startTime: number,
+	{ serviceName, startTime }: DiscoveryContext,
 	result: "success" | "failure" | "degraded"
 ): void {
 	DISCOVERY_CALLS_TOTAL.inc({ serviceName, result });

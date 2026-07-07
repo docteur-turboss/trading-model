@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import * as https from "node:https";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import WebSocket from "ws";
 
 export interface WssConnectionEvents {
@@ -11,13 +10,11 @@ export interface WssConnectionEvents {
 	onError: (err: Error) => void;
 }
 
-export class WssConnection implements IWsConnection {
+export class WssConnection {
 	private _ws: WebSocket | undefined;
 	private readonly _tlsCa?: string;
 	private readonly _tlsCert?: string;
 	private readonly _tlsKey?: string;
-	private _lastUrl?: string;
-	private _lastEvents?: WssConnectionEvents;
 
 	onCloseHandler?: () => void;
 
@@ -33,17 +30,7 @@ export class WssConnection implements IWsConnection {
 			: undefined;
 	}
 
-	connect(wsUrl: string, events: WssConnectionEvents): void;
-	connect(): void;
-	connect(wsUrl?: string, events?: WssConnectionEvents): void {
-		const url = wsUrl ?? this._lastUrl;
-		const evts = events ?? this._lastEvents;
-		if (!(url && evts)) {
-			return;
-		}
-		this._lastUrl = url;
-		this._lastEvents = evts;
-
+	connect(wsUrl: string, events: WssConnectionEvents): void {
 		try {
 			this._ws?.close();
 		} catch {
@@ -51,7 +38,7 @@ export class WssConnection implements IWsConnection {
 		}
 
 		const agent = this._setupWsTls();
-		this._ws = new WebSocket(url, { agent });
+		this._ws = new WebSocket(wsUrl, { agent });
 
 		this._ws.on("open", () => {
 			evts.onOpen();

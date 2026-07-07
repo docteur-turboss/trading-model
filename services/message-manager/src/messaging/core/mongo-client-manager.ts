@@ -4,7 +4,6 @@ import type { MongoClient } from "mongodb";
 
 export class MongoClientManager {
 	private _client: MongoClient | null = null;
-	private _started = false;
 
 	get client(): MongoClient | null {
 		return this._client;
@@ -15,14 +14,10 @@ export class MongoClientManager {
 			logger.info("MongoDB archival not configured — skipping");
 			return false;
 		}
-		if (this._started) {
+		if (this._client) {
 			return false;
 		}
 		return true;
-	}
-
-	markStarted(): void {
-		this._started = true;
 	}
 
 	handleStartError(err: Error): void {

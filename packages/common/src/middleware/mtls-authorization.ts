@@ -1,6 +1,7 @@
 import type { Request } from "express";
 
 import type { ServiceId } from "../domain/primitives";
+import { extractServiceName } from "../utils/spiffe";
 import { catchSync } from "./catch-error";
 import { ResponseException } from "./response-exception";
 
@@ -24,17 +25,6 @@ const DEFAULT_ACL: Record<string, readonly ServiceId[]> = {
 	"trader-trainer": [svc("api-gateway"), svc("financial-scraper"), svc("discovery-server")],
 	"api-gateway": [svc("admin-interface")],
 };
-
-function extractServiceName(clientIdentity: string): string | null {
-	if (clientIdentity.startsWith("spiffe://")) {
-		const parts = clientIdentity.split("/");
-		return parts[parts.length - 1] || null;
-	}
-	if (clientIdentity.startsWith("client:")) {
-		return "api-gateway";
-	}
-	return clientIdentity || null;
-}
 
 /**
  * Authorization middleware for mTLS-based service-to-service calls.

@@ -5,25 +5,25 @@ import {
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
 
-import { env } from "./env";
+import { ENV } from "./env";
 
 const ADDRESS_MANAGER = new AddressManagerClass({
-	addressManagerUrl: env.ADDRESS_MANAGER_URL,
-	discoveryUrls: [env.ADDRESS_MANAGER_URL],
-	cacheTtlMs: env.CACHE_TTL_MS,
-	discoveryTimeoutMs: env.DISCOVERY_TIMEOUT_MS,
+	addressManagerUrl: ENV.ADDRESS_MANAGER_URL,
+	discoveryUrls: [ENV.ADDRESS_MANAGER_URL],
+	cacheTtlMs: ENV.CACHE_TTL_MS,
+	discoveryTimeoutMs: ENV.DISCOVERY_TIMEOUT_MS,
 	identity: {
-		serviceName: toServiceId(env.SERVICE_NAME),
-		instanceId: toInstanceId(env.INSTANCE_ID),
+		serviceName: toServiceId(ENV.SERVICE_NAME),
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
 	},
-	servicePingTimeoutMs: env.SERVICE_PING_TIMEOUT_MS,
-	servicePort: env.PORT as Port,
-	tokenRefreshIntervalMs: env.TOKEN_REFRESH_INTERVAL_MS,
-	ttlRefreshIntervalMs: env.TTL_REFRESH_INTERVAL_MS,
+	servicePingTimeoutMs: ENV.SERVICE_PING_TIMEOUT_MS,
+	servicePort: ENV.PORT as Port,
+	tokenRefreshIntervalMs: ENV.TOKEN_REFRESH_INTERVAL_MS,
+	ttlRefreshIntervalMs: ENV.TTL_REFRESH_INTERVAL_MS,
 	tls: {
-		certPath: env.TLS_CERT_PATH,
-		keyPath: env.TLS_KEY_PATH,
-		caPath: env.TLS_CA_PATH,
+		certPath: ENV.TLS_CERT_PATH,
+		keyPath: ENV.TLS_KEY_PATH,
+		caPath: ENV.TLS_CA_PATH,
 	},
 });
 

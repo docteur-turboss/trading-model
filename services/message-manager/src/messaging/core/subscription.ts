@@ -72,7 +72,7 @@ export class Subscription {
 		const { ttl, deliveryMode, emittedAt } =
 			this._metadataExtractor.extract(message);
 
-		if (await this._circuitBreaker.check(message, this._deliveryPort)) {
+		if (await this._circuitBreaker.checkDelivery(message, this._deliveryPort)) {
 			return;
 		}
 
@@ -97,6 +97,6 @@ export class Subscription {
 			}
 		}
 
-		this._circuitBreaker.reset();
+		this._circuitBreaker.clear();
 	}
 }

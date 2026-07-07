@@ -4,6 +4,11 @@ import type { UnixTimestamp } from "./primitives";
  * @deprecated Use DateRange instead (see date-range.ts). DateRange now supports
  * fromUnixTimestamps() and overlaps(), providing the same features with a
  * consistent start/end naming convention and optional bounds.
+ *
+ * TODO: Remove this class once all consumers migrate to DateRange.
+ * Current consumers:
+ *   - services/message-manager/src/messaging/core/stream-group-manager.ts
+ *   - services/message-manager/tests/unit/messaging/core/message-store.spec.ts
  */
 export class TimeRange {
 	readonly fromMs: UnixTimestamp;

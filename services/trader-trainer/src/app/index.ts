@@ -1,7 +1,7 @@
 import { toSymbol } from "@trading-model/common/domain/primitives";
 import { createBootstrap } from "@trading-model/common/server/bootstrap";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { MessageManager } from "../config/message-manager";
 import { ApplicationContainer } from "./container";
 import { createServer } from "./server";

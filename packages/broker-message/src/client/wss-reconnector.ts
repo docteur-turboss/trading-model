@@ -34,11 +34,6 @@ export class WssReconnector implements IWsReconnector {
 		this._manager.scheduleReconnect(connectFn, onPermanentFallback);
 	}
 
-	/** @deprecated Use {@link scheduleReconnect} instead */
-	schedule(connectFn: ConnectFn, onPermanentFallback?: () => void): void {
-		this._manager.scheduleReconnect(connectFn, onPermanentFallback);
-	}
-
 	/**
 	 * Lightweight cancel — clears the pending reconnect timer without altering shouldReconnect.
 	 */

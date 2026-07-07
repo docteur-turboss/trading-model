@@ -1,11 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-const mockAdd = jest.fn();
-const mockList = jest.fn();
+const mockInsert = jest.fn();
+const mockQuery = jest.fn();
 const mockDelete = jest.fn();
 const mockCount = jest.fn();
 const mockPrune = jest.fn();
-const mockListQueuable = jest.fn();
+const mockQueryQueuable = jest.fn();
 
 jest.mock("../../src/dlq/repository", () => ({
 	DlqCapacityError: class DlqCapacityError {
@@ -13,12 +13,12 @@ jest.mock("../../src/dlq/repository", () => ({
 		public name = "DlqCapacityError";
 	},
 	dlqRepository: {
-		add: mockAdd,
-		list: mockList,
+		insert: mockInsert,
+		query: mockQuery,
 		delete: mockDelete,
 		count: mockCount,
 		prune: mockPrune,
-		listQueuable: mockListQueuable,
+		listQueuable: mockQueryQueuable,
 	},
 }));
 
@@ -47,7 +47,7 @@ jest.mock("../../src/dlq/retry-manager", () => ({
 }));
 
 jest.mock("../../src/config/env", () => ({
-	env: {
+	ENV: {
 		MAX_ENTRIES: 100,
 		MESSAGE_MANAGER_URL: "https://message-manager:3000",
 		DLQ_RETRY_MAX_ATTEMPTS: 3,
@@ -183,7 +183,7 @@ describe("DLQ Controller", () => {
 
 	describe("ListEntries", () => {
 		it("should return paginated entries with offset", () => {
-			mockList.mockResolvedValueOnce([{ id: "1", topic: "t1" }]);
+			mockQuery.mockResolvedValueOnce([{ id: "1", topic: "t1" }]);
 
 			const req = { query: { limit: "10", offset: "0" } };
 			return controller
@@ -202,7 +202,7 @@ describe("DLQ Controller", () => {
 		});
 
 		it("should support cursor-based pagination", () => {
-			mockList.mockResolvedValueOnce([
+			mockQuery.mockResolvedValueOnce([
 				{ id: "5", topic: "t1" },
 				{ id: "4", topic: "t1" },
 			]);

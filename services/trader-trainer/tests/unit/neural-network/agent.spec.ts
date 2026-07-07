@@ -34,7 +34,7 @@ describe("Agent", () => {
 
 		it("should delegate to neural network and return output", () => {
 			const input = new Float32Array([0.5, -0.3, 0.1, 0.8]);
-			const result = agent.forward(input);
+			const result = agent.nn.forward(input);
 			expect(result).toHaveProperty("output");
 			expect(result.output).toBeInstanceOf(Float32Array);
 			expect(result.output.length).toBe(3);
@@ -45,7 +45,7 @@ describe("Agent", () => {
 		it("should create an Agent with valid config", () => {
 			const agent = new Agent(makeConfig());
 
-			expect(agent.parameterCount()).toBeGreaterThan(0);
+			expect(agent.nn.parameterCount()).toBeGreaterThan(0);
 		});
 
 		it("should throw when neuronsByLayer has fewer than 2 entries", () => {
@@ -55,7 +55,7 @@ describe("Agent", () => {
 		it("should create neural network inside agent", () => {
 			const agent = new Agent(makeConfig());
 
-			expect(agent.parameterCount()).toBeGreaterThan(0);
+			expect(agent.nn.parameterCount()).toBeGreaterThan(0);
 		});
 	});
 
@@ -67,36 +67,36 @@ describe("Agent", () => {
 		});
 
 		it("should return 0 average when no scores added", () => {
-			expect(agent.getAverageScore()).toBe(0);
+			expect(agent.scores.getAverageScore()).toBe(0);
 		});
 
 		it("should return 0 total when no scores added", () => {
-			expect(agent.getTotalScore()).toBe(0);
+			expect(agent.scores.getTotalScore()).toBe(0);
 		});
 
 		it("should record a single score", () => {
-			agent.addScore(10);
+			agent.scores.addScore(10);
 
-			expect(agent.getAverageScore()).toBe(10);
-			expect(agent.getTotalScore()).toBe(10);
+			expect(agent.scores.getAverageScore()).toBe(10);
+			expect(agent.scores.getTotalScore()).toBe(10);
 		});
 
 		it("should compute average of multiple scores", () => {
-			agent.addScore(10);
-			agent.addScore(20);
-			agent.addScore(30);
+			agent.scores.addScore(10);
+			agent.scores.addScore(20);
+			agent.scores.addScore(30);
 
-			expect(agent.getAverageScore()).toBe(20);
-			expect(agent.getTotalScore()).toBe(60);
+			expect(agent.scores.getAverageScore()).toBe(20);
+			expect(agent.scores.getTotalScore()).toBe(60);
 		});
 
 		it("resetScores should clear all scores", () => {
-			agent.addScore(10);
-			agent.addScore(20);
+			agent.scores.addScore(10);
+			agent.scores.addScore(20);
 
-			agent.resetScores();
+			agent.scores.resetScores();
 
-			expect(agent.getAverageScore()).toBe(0);
+			expect(agent.scores.getAverageScore()).toBe(0);
 		});
 	});
 
@@ -122,7 +122,7 @@ describe("Agent", () => {
 				nextState: new Float32Array([0.1, 0.2, 0.3]),
 			});
 
-			expect(agent.getPoolSize()).toBe(1);
+			expect(agent.experience.getPoolSize()).toBe(1);
 		});
 
 		it("should accept reward, nextState, and done parameters", () => {
@@ -134,7 +134,7 @@ describe("Agent", () => {
 				done: false,
 			});
 
-			const pool = agent.getPool();
+			const pool = agent.experience.getPool();
 			const exp = pool[0];
 
 			if (exp.kind === "qlearning") {
@@ -155,7 +155,7 @@ describe("Agent", () => {
 				nextState: new Float32Array([0.1, 0.2, 0.3]),
 			});
 
-			expect(noPool.getPoolSize()).toBe(0);
+			expect(noPool.experience.getPoolSize()).toBe(0);
 		});
 
 		it("should default enablePool to true", () => {
@@ -170,7 +170,7 @@ describe("Agent", () => {
 				nextState: new Float32Array([0.1, 0.2, 0.3]),
 			});
 
-			expect(agent.getPoolSize()).toBe(1);
+			expect(agent.experience.getPoolSize()).toBe(1);
 		});
 	});
 
@@ -184,7 +184,7 @@ describe("Agent", () => {
 		it("getPool should return a copy of the pool", () => {
 			agent.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, 0.8]) });
 
-			const pool = agent.getPool();
+			const pool = agent.experience.getPool();
 
 			expect(Array.isArray(pool)).toBe(true);
 			expect(pool.length).toBe(1);
@@ -192,9 +192,9 @@ describe("Agent", () => {
 
 		it("clearPool should empty the pool", () => {
 			agent.fastForward({ input: new Float32Array([0.5, -0.3, 0.1, 0.8]) });
-			agent.clearPool();
+			agent.experience.clearPool();
 
-			expect(agent.getPoolSize()).toBe(0);
+			expect(agent.experience.getPoolSize()).toBe(0);
 		});
 
 		it("samplePool should return requested batch size", () => {
@@ -204,13 +204,13 @@ describe("Agent", () => {
 				});
 			}
 
-			const batch = agent.samplePool(3);
+			const batch = agent.experience.samplePool(3);
 
 			expect(batch.length).toBe(3);
 		});
 
 		it("samplePool should throw when batch exceeds pool size", () => {
-			expect(() => agent.samplePool(5)).toThrow();
+			expect(() => agent.experience.samplePool(5)).toThrow();
 		});
 
 		it("should enforce FIFO poolMaxSize eviction", () => {
@@ -221,7 +221,7 @@ describe("Agent", () => {
 				});
 			}
 
-			expect(small.getPoolSize()).toBe(3);
+			expect(small.experience.getPoolSize()).toBe(3);
 		});
 	});
 
@@ -234,7 +234,7 @@ describe("Agent", () => {
 			agent.fastForward({ input });
 			agent.learnSupervised(input, target);
 
-			expect(agent.getPoolSize()).toBe(0);
+			expect(agent.experience.getPoolSize()).toBe(0);
 		});
 
 		it("should handle input not in pool without error", () => {
@@ -254,14 +254,14 @@ describe("Agent", () => {
 			agent.fastForward({ input });
 
 			// Manually attach target to pool entries
-			const pool = agent.getPool();
+			const pool = agent.experience.getPool();
 			(pool[0] as { kind: string; target: Float32Array }).kind = "supervised";
 			(pool[0] as { kind: string; target: Float32Array }).target =
 				new Float32Array([1, 0, 0]);
 
-			agent.learnFromPool();
+			agent.experience.learnFromPool(agent.nn);
 
-			expect(agent.getPoolSize()).toBe(0);
+			expect(agent.experience.getPoolSize()).toBe(0);
 		});
 
 		it("should skip experiences without targets and clear pool", () => {
@@ -271,9 +271,9 @@ describe("Agent", () => {
 			agent.fastForward({ input });
 
 			// No target attached — skipes training but still clears pool
-			agent.learnFromPool();
+			agent.experience.learnFromPool(agent.nn);
 
-			expect(agent.getPoolSize()).toBe(0);
+			expect(agent.experience.getPoolSize()).toBe(0);
 		});
 	});
 
@@ -291,7 +291,7 @@ describe("Agent", () => {
 				output: new Float32Array([0.1, 0.2, 0.3]),
 			};
 
-			expect(() => agent.learnQLearning(exp)).toThrow();
+			expect(() => agent.experience.learnExperience(agent.nn, exp)).toThrow();
 		});
 
 		it("should throw when nextState is missing", () => {
@@ -301,7 +301,7 @@ describe("Agent", () => {
 				output: new Float32Array([0.1, 0.2, 0.3]),
 			};
 
-			expect(() => agent.learnQLearning(exp)).toThrow();
+			expect(() => agent.experience.learnExperience(agent.nn, exp)).toThrow();
 		});
 
 		it("should process Q-learning update without error", () => {
@@ -312,10 +312,10 @@ describe("Agent", () => {
 				done: false,
 			});
 
-			const pool = agent.getPool();
+			const pool = agent.experience.getPool();
 			const exp = pool[0];
 
-			expect(() => agent.learnQLearning(exp)).not.toThrow();
+			expect(() => agent.experience.learnExperience(agent.nn, exp)).not.toThrow();
 		});
 
 		it("should process Q-learning update with done=true", () => {
@@ -326,10 +326,10 @@ describe("Agent", () => {
 				done: true,
 			});
 
-			const pool = agent.getPool();
+			const pool = agent.experience.getPool();
 			const exp = pool[0];
 
-			expect(() => agent.learnQLearning(exp)).not.toThrow();
+			expect(() => agent.experience.learnExperience(agent.nn, exp)).not.toThrow();
 		});
 	});
 });

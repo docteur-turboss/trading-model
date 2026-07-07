@@ -10,7 +10,7 @@ import {
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { AddressManager } from "../config/address-manager";
 import { closeDb, getDb, resetDbState } from "../config/db";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { dlqRedisQueue } from "../config/redis-queue";
 import {
 	rebuildQueueFromMongo,
@@ -19,7 +19,7 @@ import {
 	shutdownSchedulers,
 	startAutoRetry,
 	startPeriodicPrune,
-} from "../dlq/controller";
+} from "../dlq/controller-reexports";
 import { closeRedisClient } from "../dlq/routes";
 import { createServer } from "./server";
 
@@ -85,7 +85,7 @@ createBootstrap({
 	onBeforeServer: async () => {
 		try {
 			await getDb();
-			logger.info("DLQ Service database connected", { mongoDb: env.MONGO_DB });
+			logger.info("DLQ Service database connected", { mongoDb: ENV.MONGO_DB });
 			await releaseStaleClaims();
 		} catch (err) {
 			logger.error(
@@ -107,10 +107,10 @@ createBootstrap({
 		AddressManager.start();
 		void ensureRedisQueue();
 		startPeriodicPrune();
-		if (env.DLQ_AUTO_RETRY_ENABLED) {
+		if (ENV.DLQ_AUTO_RETRY_ENABLED) {
 			startAutoRetry();
 		}
-		logger.info("DLQ Service started", { port: env.PORT });
+		logger.info("DLQ Service started", { port: ENV.PORT });
 	},
 	onStop: async () => {
 		await shutdownTelemetry();
@@ -123,3 +123,4 @@ createBootstrap({
 		}
 	},
 });
+

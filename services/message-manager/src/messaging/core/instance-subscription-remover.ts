@@ -1,8 +1,7 @@
 import type Redis from "ioredis";
 
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
-
-const LEASE_HEARTBEAT_FIELD = "heartbeat" as const;
+import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 
 export class InstanceSubscriptionRemover {
 	private readonly _keys: RedisSubscriptionKeys;

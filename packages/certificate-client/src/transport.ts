@@ -24,6 +24,7 @@ export interface TransportConfig {
 }
 
 export class TransportManager {
+	private readonly _config: TransportConfig;
 	private _mode: TransportMode;
 	private _wssTransport: CaWssTransport | NullCaWssTransport;
 	private readonly _httpsClient: CaClient;

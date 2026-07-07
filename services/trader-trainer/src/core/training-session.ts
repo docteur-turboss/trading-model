@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { createDefaultGenome } from "./genetic-algorithm/factory";
 import {
 	type GenerationContext,

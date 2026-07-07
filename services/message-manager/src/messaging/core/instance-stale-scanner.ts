@@ -4,14 +4,13 @@ import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getSubscriptionClient } from "../../config/redis";
 import { InstanceSubscriptionRemover } from "./instance-subscription-remover";
-
-const LEASE_HEARTBEAT_FIELD = "heartbeat" as const;
+import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
 
 const HEARTBEAT_INTERVAL_MS = ENV.STALE_HEARTBEAT_INTERVAL_MS;
 const MISSED_HEARTBEAT_THRESHOLD = ENV.STALE_MISSED_HEARTBEAT_THRESHOLD;
 const GRACE_PERIOD_MS = ENV.STALE_GRACE_PERIOD_MS;
 
-function _isHeartbeatExpired(lastBeat: number): boolean {
+function isHeartbeatExpired(lastBeat: number): boolean {
 	const elapsed = Date.now() - lastBeat;
 	if (elapsed <= HEARTBEAT_INTERVAL_MS * MISSED_HEARTBEAT_THRESHOLD) {
 		return false;
@@ -38,7 +37,7 @@ export class InstanceStaleScanner {
 		if (!heartbeat) {
 			return true;
 		}
-		return _isHeartbeatExpired(Number.parseInt(heartbeat, 10));
+		return isHeartbeatExpired(Number.parseInt(heartbeat, 10));
 	}
 
 	async removeStaleInstances(): Promise<number> {
@@ -47,7 +46,7 @@ export class InstanceStaleScanner {
 		let cursor = "0";
 
 		do {
-			const result = await this._scanAndRemoveStale(redis, cursor);
+			const result = await this._scanAndRemove(redis, cursor);
 			cursor = result.cursor;
 			totalRemoved += result.removed;
 		} while (cursor !== "0");
@@ -55,7 +54,7 @@ export class InstanceStaleScanner {
 		return totalRemoved;
 	}
 
-	private async _scanAndRemoveStale(
+	private async _scanAndRemove(
 		redis: Redis,
 		cursor: string
 	): Promise<{ cursor: string; removed: number }> {

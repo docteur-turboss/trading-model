@@ -47,8 +47,8 @@ jest.mock("../../src/dlq/repository", () => ({
 		public name = "DlqCapacityError";
 	},
 	dlqRepository: {
-		add: jest.fn(),
-		list: jest.fn(),
+		insert: jest.fn(),
+		query: jest.fn(),
 		delete: jest.fn(),
 		count: jest.fn(),
 		prune: jest.fn(),
@@ -80,7 +80,7 @@ jest.mock("../../src/config/address-manager", () => ({
 }));
 
 jest.mock("../../src/config/env", () => ({
-	env: {
+	ENV: {
 		DLQ_AUTH_HMAC_SECRET: "test-secret-16-chars",
 		DLQ_ALLOWED_SERVICES: "message-manager,admin",
 		MAX_ENTRIES: 100,

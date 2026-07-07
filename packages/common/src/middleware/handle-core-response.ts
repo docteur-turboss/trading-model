@@ -2,20 +2,25 @@ import type { Response } from "express";
 
 import { type ResponseCodeKey, ResponseException } from "./response-exception";
 
+export interface CoreResult<T = unknown> {
+	data: T;
+	code: string;
+}
+
 /**
  * Generic utility for returning a standardized HTTP response from a core service.
  *
  * This function executes a core business operation (`coreFn`), which is expected
- * to return a tuple `[data, responseCode]`. It then delegates the formatting of
+ * to return a `CoreResult`. It then delegates the formatting of
  * the final client-facing response to `ResponseException`, which maps internal
  * codes to structured HTTP responses.
  *
  * @param coreFn - A function representing a core service call. Must resolve to
- *                 a tuple: `[payload, responseCodeKey]`.
+ *                 a `CoreResult` with `data` and `code`.
  * @param res - Express response object used to send the final output.
  *
  * @example
- * const coreFn = async () => ["User created", "SUCCESS"];
+ * const coreFn = async () => ({ data: "User created", code: "SUCCESS" });
  * await handleCoreResponse(coreFn, res);
  *
  * // Sends:
@@ -25,14 +30,22 @@ import { type ResponseCodeKey, ResponseException } from "./response-exception";
  * // });
  */
 export async function handleCoreResponse(
-	coreFn: () => Promise<[unknown, string]>,
+	coreFn: () => Promise<CoreResult>,
 	res: Response
 ) {
-	const [response, code] = await coreFn();
+	const { data, code } = await coreFn();
 
-	const clientResponse = ResponseException(response)[code as ResponseCodeKey]();
+	const clientResponse = ResponseException(data)[code as ResponseCodeKey]();
 
 	res.status(clientResponse.status).json(clientResponse);
+}
+
+export interface CookieOptions {
+	httpOnly: boolean;
+	secure: boolean;
+	sameSite: "strict";
+	maxAge: number;
+	path: string;
 }
 
 /**
@@ -40,7 +53,7 @@ export async function handleCoreResponse(
  * from a core service.
  *
  * This function runs a core authentication-related operation (`coreFn`), which
- * must return a tuple `[payload, responseCode]`. The `ResponseException` mapper
+ * must return a `CoreResult`. The `ResponseException` mapper
  * converts this internal result into a structured HTTP response object.
  *
  * In addition to sending the standardized JSON response, this helper also sets
@@ -48,18 +61,18 @@ export async function handleCoreResponse(
  * `clientResponse.data`. Security attributes such as `httpOnly`, `secure`,
  * `sameSite`, and expiration are applied to enforce safe cookie handling.
  *
- * @param coreFn - A core authentication function that resolves to `[data, responseCodeKey]`.
+ * @param coreFn - A core authentication function that resolves to `CoreResult`.
  * @param res - Express Response object used to set cookies and send the final response.
  *
  * @example
- * const coreFn = async () => ["jwt-token-value", "AUTH_SUCCESS"];
+ * const coreFn = async () => ({ data: "jwt-token-value", code: "AUTH_SUCCESS" });
  * await handleCoreAuthResponse(coreFn, res);
  *
  * // Sends:
  * // Set-Cookie: token=jwt-token-value; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
  * // res.status(200).json({ status: 200, data: "jwt-token-value" });
  */
-function _getCookieOptions(): Record<string, unknown> {
+function _getCookieOptions(): CookieOptions {
 	return {
 		httpOnly: true,
 		secure: process.env.NODE_ENV === "production",
@@ -70,11 +83,11 @@ function _getCookieOptions(): Record<string, unknown> {
 }
 
 export async function handleCoreAuthResponse(
-	coreFn: () => Promise<[unknown, string]>,
+	coreFn: () => Promise<CoreResult>,
 	res: Response
 ) {
-	const [response, code] = await coreFn();
-	const clientResponse = ResponseException(response)[code as ResponseCodeKey]();
+	const { data, code } = await coreFn();
+	const clientResponse = ResponseException(data)[code as ResponseCodeKey]();
 	res
 		.status(clientResponse.status)
 		.cookie("token", clientResponse.data, _getCookieOptions())

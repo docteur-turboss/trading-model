@@ -193,7 +193,7 @@ function createWsClient(ctx: WsClientContext): WebSocketClient {
 	wsClient = new WebSocketClient({
 		url: config.wsUrl!,
 		subscribedServices: config.wsSubscribedServices ?? ["*"],
-		token: tokenManager.getTokenOrNull() ?? undefined,
+		token: tokenManager.getTokenOrUndefined(),
 		onMessage: (message) => {
 			onCacheInvalidateMessage(message, serviceCache);
 		},
@@ -259,9 +259,7 @@ function createLifecycleManager(
 	});
 }
 
-export function buildAddressManagerDependencies(
-	config: AddressManagerConfig
-): AddressManagerDependencies {
+function _buildClientInfrastructure(config: AddressManagerConfig) {
 	const httpClient = createHttpClient(config);
 	const tokenManager = new TokenManager(httpClient, config);
 	const addressManagerClient = new AddressManagerClient(
@@ -293,30 +291,54 @@ export function buildAddressManagerDependencies(
 		serviceCache
 	);
 
-	const baseDeps: AddressManagerDeps = {
-		addressManagerClient,
+	return {
+		httpClient,
 		tokenManager,
+		addressManagerClient,
+		serviceCache,
+		circuitBreaker,
+		healthChecker,
+		discoveryOrchestrator,
+		metricsCollector,
 		wsClient,
+	};
+}
+
+function _buildLifecycleManager(
+	config: AddressManagerConfig,
+	infra: ReturnType<typeof _buildClientInfrastructure>
+): LifecycleManager {
+	const baseDeps: AddressManagerDeps = {
+		addressManagerClient: infra.addressManagerClient,
+		tokenManager: infra.tokenManager,
+		wsClient: infra.wsClient,
 	};
 	const { registrationManager, heartbeatManager } =
 		createRegistrationAndHeartbeat(baseDeps);
 
-	const lifecycleManager = createLifecycleManager(
+	return createLifecycleManager(
 		config,
-		circuitBreaker,
+		infra.circuitBreaker,
 		registrationManager,
 		heartbeatManager,
-		wsClient,
-		serviceCache,
-		tokenManager,
-		addressManagerClient,
-		healthChecker
+		infra.wsClient,
+		infra.serviceCache,
+		infra.tokenManager,
+		infra.addressManagerClient,
+		infra.healthChecker
 	);
+}
+
+export function buildAddressManagerDependencies(
+	config: AddressManagerConfig
+): AddressManagerDependencies {
+	const infra = _buildClientInfrastructure(config);
+	const lifecycleManager = _buildLifecycleManager(config, infra);
 
 	return {
-		tokenManager,
-		discoveryOrchestrator,
-		metricsCollector,
+		tokenManager: infra.tokenManager,
+		discoveryOrchestrator: infra.discoveryOrchestrator,
+		metricsCollector: infra.metricsCollector,
 		lifecycleManager,
 	};
 }

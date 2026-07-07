@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
-import { isTerminalStatus } from "@trading-model/common/contracts/recovery.types";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
+import { isTerminalStatus, JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
+import { toInstanceId, type JobId } from "@trading-model/common/domain/primitives";
 import type { JobRepository } from "../persistence/job-repository";
 import type { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";
@@ -15,7 +15,7 @@ export class AckTimeoutHandler {
 		private readonly _reAllocator: ReAllocator
 	) {}
 
-	onTimeout(jobId: string): void {
+	onTimeout(jobId: JobId): void {
 		logger.warn("ACK timeout for job", { context: { jobId } });
 
 		this._repository
@@ -31,7 +31,7 @@ export class AckTimeoutHandler {
 			});
 	}
 
-	private _onJobFound(job: Job | null, jobId: string): void {
+	private _onJobFound(job: Job | null, jobId: JobId): void {
 		if (!job || isTerminalStatus(job.status)) {
 			return;
 		}
@@ -39,7 +39,7 @@ export class AckTimeoutHandler {
 		this._decrementWorkerLoad(job.assignedWorkerId);
 
 		this._repository
-			.updateStatus(jobId, "orphaned")
+			.updateStatus(jobId, JOB_STATUS.ORPHANED)
 			.then(() => this._reAllocator.reallocate(job))
 			.catch((err) => {
 				logger.error("Failed to persist orphaned status on ACK timeout", {
@@ -65,12 +65,12 @@ export class AckTimeoutHandler {
 	}
 
 	persistAssignment(
-		jobId: string,
+		jobId: JobId,
 		assignedWorkerId: string,
 		deadline: number
 	): void {
 		this._repository
-			.updateStatus(jobId, "assigned", {
+			.updateStatus(jobId, JOB_STATUS.ASSIGNED, {
 				assignedWorkerId: toInstanceId(assignedWorkerId),
 				ackDeadline: deadline,
 			})

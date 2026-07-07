@@ -10,8 +10,8 @@ describe("ReplayOrchestrator", () => {
 
 		it("should return false when circuit is open and cooldown has not expired", () => {
 			const orch = new ReplayOrchestrator({
-				circuitThreshold: 3,
-				circuitCooldownMs: 60000,
+				failureThreshold: 3,
+				resetMs: 60000,
 			});
 			orch.recordFailure();
 			orch.recordFailure();
@@ -23,8 +23,8 @@ describe("ReplayOrchestrator", () => {
 	describe("recordFailure / recordSuccess", () => {
 		it("should reset failures on success", () => {
 			const orch = new ReplayOrchestrator({
-				circuitThreshold: 5,
-				circuitCooldownMs: 60000,
+				failureThreshold: 5,
+				resetMs: 60000,
 				halfOpenMaxAttempts: 2,
 			});
 			orch.recordFailure();
@@ -34,8 +34,8 @@ describe("ReplayOrchestrator", () => {
 
 		it("should open circuit after threshold failures", () => {
 			const orch = new ReplayOrchestrator({
-				circuitThreshold: 3,
-				circuitCooldownMs: 60000,
+				failureThreshold: 3,
+				resetMs: 60000,
 			});
 			orch.recordFailure();
 			orch.recordFailure();
@@ -45,8 +45,8 @@ describe("ReplayOrchestrator", () => {
 
 		it("should re-open circuit during half-open if failures continue", () => {
 			const orch = new ReplayOrchestrator({
-				circuitThreshold: 3,
-				circuitCooldownMs: 60000,
+				failureThreshold: 3,
+				resetMs: 60000,
 				halfOpenMaxAttempts: 2,
 			});
 			orch.recordFailure();
@@ -59,8 +59,8 @@ describe("ReplayOrchestrator", () => {
 	describe("canStartBatch", () => {
 		it("should return true when below max concurrent batches", () => {
 			const orch = new ReplayOrchestrator({
-				circuitThreshold: 5,
-				circuitCooldownMs: 30000,
+				failureThreshold: 5,
+				resetMs: 30000,
 				halfOpenMaxAttempts: 2,
 				maxConcurrentBatches: 2,
 			});
@@ -75,8 +75,8 @@ describe("ReplayOrchestrator", () => {
 	describe("acquireBatch / releaseBatch", () => {
 		it("should track active batch count", () => {
 			const orch = new ReplayOrchestrator({
-				circuitThreshold: 5,
-				circuitCooldownMs: 30000,
+				failureThreshold: 5,
+				resetMs: 30000,
 				halfOpenMaxAttempts: 2,
 				maxConcurrentBatches: 2,
 			});

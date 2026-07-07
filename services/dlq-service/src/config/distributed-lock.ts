@@ -7,7 +7,7 @@ const LOCK_TTL = 30; // Seconds — auto-release if process crashes
 
 export class DistributedLock implements IDistributedLock {
 	private readonly _renewalInterval = new TimerHandle();
-	private _currentLockId: string | undefined;
+	private _currentLockId = "";
 
 	constructor(
 		private readonly _redis: Redis,
@@ -47,7 +47,7 @@ export class DistributedLock implements IDistributedLock {
 	async release(lockId?: string): Promise<void> {
 		this._renewalInterval.stop();
 		const id = lockId ?? this._currentLockId;
-		if (id === undefined) {
+		if (!id) {
 			return;
 		}
 		await this._execReleaseScript(id);

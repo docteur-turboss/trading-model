@@ -42,7 +42,7 @@ jest.mock("../../src/config/db", () => ({
 }));
 
 jest.mock("../../src/config/env", () => ({
-	env: {
+	ENV: {
 		DLQ_RETRY_MAX_ATTEMPTS: 3,
 		MAX_ENTRIES: 100,
 		DLQ_AUTO_RETRY_LIMIT: 50,
@@ -60,8 +60,8 @@ const DlqEntry = {
 describe("DlqRepository", () => {
 	let DlqRepositoryClass: {
 		new (): {
-			add: (...args: never[]) => Promise<string>;
-			list: (...args: never[]) => Promise<Record<string, unknown>[]>;
+			insert: (...args: never[]) => Promise<string>;
+			query: (...args: never[]) => Promise<Record<string, unknown>[]>;
 			delete: (...args: never[]) => Promise<number>;
 			count: (...args: never[]) => Promise<number>;
 			prune: (...args: never[]) => Promise<number>;
@@ -78,7 +78,7 @@ describe("DlqRepository", () => {
 		jest.restoreAllMocks();
 	});
 
-	describe("add", () => {
+	describe("insert", () => {
 		beforeEach(() => {
 			mockFindOne.mockReset();
 			mockInsertOne.mockReset();
@@ -91,7 +91,7 @@ describe("DlqRepository", () => {
 				insertedId: { toHexString: () => "abc123" },
 			});
 
-			return repo.add(DlqEntry).then((id: string) => {
+			return repo.insert(DlqEntry).then((id: string) => {
 				expect(id).toBe("abc123");
 				expect(mockInsertOne).toHaveBeenCalledWith(
 					expect.objectContaining({
@@ -116,7 +116,7 @@ describe("DlqRepository", () => {
 				insertedId: { toHexString: () => "abc123" },
 			});
 
-			return repo.add(DlqEntry).then((id: string) => {
+			return repo.insert(DlqEntry).then((id: string) => {
 				expect(id).toBe("abc123");
 				expect(mockInsertOne).toHaveBeenCalledWith(
 					expect.objectContaining({
@@ -143,7 +143,7 @@ describe("DlqRepository", () => {
 				insertedId: { toHexString: () => "abc123" },
 			});
 
-			return repo.add(DlqEntry).then((id: string) => {
+			return repo.insert(DlqEntry).then((id: string) => {
 				expect(id).toBe("abc123");
 				expect(mockInsertOne).toHaveBeenCalledWith(
 					expect.objectContaining({
@@ -162,7 +162,7 @@ describe("DlqRepository", () => {
 				_id: { toHexString: () => "existing-id" },
 			});
 
-			return repo.add(DlqEntry).then((id: string) => {
+			return repo.insert(DlqEntry).then((id: string) => {
 				expect(id).toBe("existing-id");
 				expect(mockFindOne).toHaveBeenCalledTimes(2);
 				expect(mockInsertOne).not.toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe("DlqRepository", () => {
 				_id: { toHexString: () => "race-id" },
 			});
 
-			return repo.add(DlqEntry).then((id: string) => {
+			return repo.insert(DlqEntry).then((id: string) => {
 				expect(id).toBe("race-id");
 				expect(mockFindOne).toHaveBeenCalledTimes(3);
 				expect(mockInsertOne).toHaveBeenCalledTimes(1);
@@ -188,7 +188,7 @@ describe("DlqRepository", () => {
 		});
 	});
 
-	describe("list", () => {
+	describe("query", () => {
 		beforeEach(() => {
 			mockFind.mockReset();
 			mockFind.mockReturnValue(createCursor([]));
@@ -207,7 +207,7 @@ describe("DlqRepository", () => {
 			mockFind.mockReturnValueOnce(createCursor([fakeDoc]));
 
 			return repo
-				.list({ limit: 10, offset: 0 })
+				.query({ limit: 10, offset: 0 })
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(1);
 					expect(result[0].id).toBe("id1");
@@ -245,7 +245,7 @@ describe("DlqRepository", () => {
 			mockFind.mockReturnValueOnce(createCursor(fakeDocs));
 
 			return repo
-				.list({ limit: 10, offset: 0, before: "aaaaaaaaaaaaaaaaaaaaaaaa" })
+				.query({ limit: 10, offset: 0, before: "aaaaaaaaaaaaaaaaaaaaaaaa" })
 				.then((result: Array<{ id: string }>) => {
 					expect(result).toHaveLength(2);
 					expect(result[0].id).toBe("id2");

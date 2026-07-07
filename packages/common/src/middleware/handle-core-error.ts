@@ -17,6 +17,13 @@ export interface CoreErrorContext {
 	context: string;
 }
 
+export interface ErrorResponse {
+	code: string;
+	message: string;
+}
+
+export type ErrorMapping = Record<string, ErrorResponse>;
+
 export type CoreResponse<TData = string> = Promise<[TData, string]>;
 
 /**
@@ -128,10 +135,11 @@ export const handleDBError = (file: string) => (err: unknown) => {
 export const handleCoreError = (
 	ctx: CoreErrorContext,
 	err: unknown,
-	mapping: Record<string, [string, string]>
+	mapping: ErrorMapping
 ): [string, string] | never => {
 	if (err instanceof Error && mapping[err.message]) {
-		return mapping[err.message];
+		const { code, message } = mapping[err.message];
+		return [code, message];
 	}
 
 	logger.error("Core operation failed", {
@@ -176,7 +184,7 @@ export const handleCoreError = (
  */
 export const handleOnlyDataCore = async <TData>(
 	fn: () => Promise<TData>,
-	errorMap: Record<string, [string, string]>,
+	errorMap: ErrorMapping,
 	ctx: CoreErrorContext
 ): Promise<CoreResponse<TData | string>> => {
 	try {

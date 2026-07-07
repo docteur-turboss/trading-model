@@ -1,4 +1,4 @@
-import type { JobId, JobType, UnixTimestamp } from "../../domain/primitives";
+import type { InstanceId, JobId, JobType, UnixTimestamp } from "../../domain/primitives";
 
 export enum AdminJobPriority {
 	High = "HIGH",

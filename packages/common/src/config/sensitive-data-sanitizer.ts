@@ -1,3 +1,5 @@
+import { safeStringify as baseSafeStringify } from "../utils/safe-stringify";
+
 export class SensitiveDataSanitizer {
 	private static readonly SENSITIVE_KEY_PATTERNS = [
 		/^password$/i,
@@ -26,16 +28,9 @@ export class SensitiveDataSanitizer {
 	}
 
 	safeStringify(value: unknown): string {
-		const seen = new WeakSet<object>();
-		return JSON.stringify(value, (key, val) => {
+		return baseSafeStringify(value, undefined, (key, val) => {
 			if (key && SensitiveDataSanitizer._isSensitiveKey(key)) {
 				return "[REDACTED]";
-			}
-			if (typeof val === "object" && val !== null) {
-				if (seen.has(val)) {
-					return "[Circular]";
-				}
-				seen.add(val);
 			}
 			return val;
 		});

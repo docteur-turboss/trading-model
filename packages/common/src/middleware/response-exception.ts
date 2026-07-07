@@ -1,21 +1,23 @@
+import { HTTP_STATUS } from "../http-status";
+
 const HTTP_RESPONSE_DEFINITIONS = [
-	{ key: "serviceUnavailable", code: 503 },
-	{ key: "unknownError", code: 500 },
+	{ key: "serviceUnavailable", code: HTTP_STATUS.SERVICE_UNAVAILABLE },
+	{ key: "unknownError", code: HTTP_STATUS.INTERNAL_SERVER_ERROR },
 	{ key: "invalidToken", code: 498 },
-	{ key: "tooManyRequests", code: 429 },
+	{ key: "tooManyRequests", code: HTTP_STATUS.TOO_MANY_REQUESTS },
 	{ key: "imaTeapot", code: 418 },
 	{ key: "payloadTooLarge", code: 413 },
 	{ key: "gone", code: 410 },
-	{ key: "conflict", code: 409 },
-	{ key: "methodNotAllowed", code: 405 },
-	{ key: "notFound", code: 404 },
-	{ key: "forbidden", code: 403 },
+	{ key: "conflict", code: HTTP_STATUS.CONFLICT },
+	{ key: "methodNotAllowed", code: HTTP_STATUS.METHOD_NOT_ALLOWED },
+	{ key: "notFound", code: HTTP_STATUS.NOT_FOUND },
+	{ key: "forbidden", code: HTTP_STATUS.FORBIDDEN },
 	{ key: "paymentRequired", code: 402 },
-	{ key: "unauthorized", code: 401 },
-	{ key: "badRequest", code: 400 },
-	{ key: "noContent", code: 204 },
-	{ key: "ok", code: 201 },
-	{ key: "success", code: 200 },
+	{ key: "unauthorized", code: HTTP_STATUS.UNAUTHORIZED },
+	{ key: "badRequest", code: HTTP_STATUS.BAD_REQUEST },
+	{ key: "noContent", code: HTTP_STATUS.NO_CONTENT },
+	{ key: "ok", code: HTTP_STATUS.CREATED },
+	{ key: "success", code: HTTP_STATUS.OK },
 ] as const;
 type ResponseMethodKey = (typeof HTTP_RESPONSE_DEFINITIONS)[number]["key"];
 
@@ -50,13 +52,13 @@ export class ClassResponseExceptions extends Error {
 	}
 }
 
-const _responseMethodProxyHandler: ProxyHandler<ClassResponseExceptions> = {
+const ResponseMethodProxyHandler: ProxyHandler<ClassResponseExceptions> = {
 	get(target, prop) {
 		if (typeof prop === "symbol" || prop in target) {
 			return Reflect.get(target, prop);
 		}
 		const def = HTTP_RESPONSE_DEFINITIONS.find((d) => d.key === prop);
-		if (!def) return undefined;
+		if (!def) { return; }
 		if (def.key === "noContent") {
 			return () => ({ status: def.code, data: undefined });
 		}
@@ -69,7 +71,7 @@ export const ResponseException = (
 ): ClassResponseExceptions & ResponseMethods =>
 	new Proxy(
 		new ClassResponseExceptions(reason),
-		_responseMethodProxyHandler
+		ResponseMethodProxyHandler
 	) as ClassResponseExceptions & ResponseMethods;
 
 export const sendResponse = (

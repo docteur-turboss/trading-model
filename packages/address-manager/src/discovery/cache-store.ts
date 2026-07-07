@@ -47,14 +47,6 @@ export class CacheStore {
 		this._cache.delete(serviceName);
 	}
 
-	/**
-	 * @deprecated Use `invalidate` instead.
-	 * Alias provided for naming consistency with other cache implementations.
-	 */
-	delete(serviceName: ServiceId): void {
-		this.invalidate(serviceName);
-	}
-
 	clear(): void {
 		this._cache.clear();
 	}

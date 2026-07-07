@@ -3,7 +3,7 @@ import { ObjectId, type WithId } from "mongodb";
 
 import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { getCollection } from "../config/db";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import {
 	DlqCapacityError,
 	DlqEntryWriter,
@@ -75,7 +75,7 @@ export class DlqQueryBuilder {
 
 	buildQueuableQuery(): Filter<Document> {
 		return {
-			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
+			retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
 			processingAt: { $exists: false },
 			status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
 			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
@@ -102,11 +102,11 @@ export class DlqRepository {
 	private _entryWriter = new DlqEntryWriter();
 	private _queryBuilder = new DlqQueryBuilder();
 
-	async add(entry: DlqEntry): Promise<string> {
-		return this._entryWriter.add(entry);
+	async insert(entry: DlqEntry): Promise<string> {
+		return this._entryWriter.insert(entry);
 	}
 
-	async list(options?: DlqListOptions): Promise<StoredDlqEntry[]> {
+	async query(options?: DlqListOptions): Promise<StoredDlqEntry[]> {
 		const { limit = 100, offset = 0 } = options ?? {};
 		const col = await getCollection();
 		const query = this._queryBuilder.buildListQuery(options);
@@ -161,7 +161,7 @@ export class DlqRepository {
 		const docs = await col
 			.find(query, {
 				sort: { createdAt: -1 },
-				limit: env.DLQ_AUTO_RETRY_LIMIT * 10,
+				limit: ENV.DLQ_AUTO_RETRY_LIMIT * 10,
 				projection: { _id: 1 },
 			})
 			.toArray();
@@ -179,3 +179,4 @@ export class DlqRepository {
 }
 
 export const dlqRepository = new DlqRepository();
+

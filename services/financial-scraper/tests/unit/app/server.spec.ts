@@ -22,7 +22,7 @@ jest.mock("../../../src/clients/http/routes", () => ({
 }));
 
 jest.mock("../../../src/config/env", () => ({
-	env: {
+	ENV: {
 		PORT: 3000,
 		TLS_KEY_PATH: "/etc/tls/key.pem",
 		TLS_CERT_PATH: "/etc/tls/cert.pem",

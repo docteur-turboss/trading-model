@@ -1,4 +1,3 @@
-import { DateRange } from "@trading-model/common/domain/date-range";
 import {
 	toCorrelationId,
 	toServiceId,
@@ -12,23 +11,26 @@ import type {
 	AuditEventQuery,
 	AuditRepository,
 } from "../persistence/audit-repository";
+import {
+	parseDateRange,
+	parsePageAndLimit,
+} from "../utils/query-params";
 
 function _buildAuditEventQuery(
 	req: import("express").Request
 ): AuditEventQuery {
 	const queryParams = req.query as Record<string, string | undefined>;
-	const { topic, publisher, correlationId, startDate, endDate, page, limit } =
-		queryParams;
-
-	const dateRange = DateRange.fromQueryParams(startDate, endDate);
+	const { topic, publisher, correlationId } = queryParams;
+	const dateRange = parseDateRange(queryParams);
+	const { page, limit } = parsePageAndLimit(queryParams);
 
 	return {
 		topic: topic ? toTopic(topic) : undefined,
 		publisher: publisher ? toServiceId(publisher) : undefined,
 		correlationId: correlationId ? toCorrelationId(correlationId) : undefined,
 		dateRange,
-		page: page ? Number.parseInt(page, 10) : undefined,
-		limit: limit ? Number.parseInt(limit, 10) : undefined,
+		page,
+		limit,
 	};
 }
 

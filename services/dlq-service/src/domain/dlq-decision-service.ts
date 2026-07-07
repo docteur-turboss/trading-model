@@ -92,7 +92,8 @@ export class DlqDecisionService {
 	}
 
 	private _maxRetryAttempts(): number {
-		// env.DLQ_RETRY_MAX_ATTEMPTS — provided by caller via input
+		// ENV.DLQ_RETRY_MAX_ATTEMPTS — provided by caller via input
 		return Number.MAX_SAFE_INTEGER; // Overridden by input value
 	}
 }
+

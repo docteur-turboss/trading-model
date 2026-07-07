@@ -53,10 +53,14 @@
       "types": "./dist/ca/*.d.ts",
       "default": "./dist/ca/*.js"
     },
-    "./crl/*": {
-      "types": "./dist/crl/*.d.ts",
-      "default": "./dist/crl/*.js"
-    },
+	"./crl/*": {
+			"types": "./dist/crl/*.d.ts",
+			"default": "./dist/crl/*.js"
+		},
+		"./persistence/*": {
+			"types": "./dist/persistence/*.d.ts",
+			"default": "./dist/persistence/*.js"
+		},
     "./http-headers": {
       "types": "./dist/http-headers.d.ts",
       "default": "./dist/http-headers.js"

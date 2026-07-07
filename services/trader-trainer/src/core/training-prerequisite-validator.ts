@@ -1,4 +1,4 @@
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import type { WindowSet } from "./genetic-algorithm/ga-runner";
 import {
 	type MarketDataBuffer,

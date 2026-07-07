@@ -1,5 +1,5 @@
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
@@ -16,7 +16,7 @@ const pruneTimer = new TimerHandle();
 
 async function pruneOldEntries(): Promise<number> {
 	try {
-		const pruned = await dlqRepository.prune(env.MAX_ENTRIES);
+		const pruned = await dlqRepository.prune(ENV.MAX_ENTRIES);
 		if (pruned > 0) {
 			metrics.entriesPruned.inc(pruned);
 			logger.info(`Pruned ${pruned} old DLQ entries`);
@@ -44,13 +44,13 @@ function startPeriodicPrune(): void {
 		pruneOldEntries().catch((err) => {
 			_logPruneIterationError(err);
 		});
-	}, env.DLQ_PRUNE_INTERVAL_MS);
+	}, ENV.DLQ_PRUNE_INTERVAL_MS);
 	pruneTimer.unref();
 }
 
 function _logPruneStart(): void {
 	logger.info("Starting periodic DLQ prune", {
-		intervalMs: env.DLQ_PRUNE_INTERVAL_MS,
+		intervalMs: ENV.DLQ_PRUNE_INTERVAL_MS,
 	});
 }
 
@@ -107,7 +107,7 @@ function _sleep(ms: number): Promise<void> {
 
 async function releaseAndRequeueClaims(): Promise<void> {
 	const releasedCount = await dlqClaimManager.releaseClaimsByInstance(
-		env.INSTANCE_ID
+		ENV.INSTANCE_ID
 	);
 	if (releasedCount > 0 && dlqRedisQueue.isAvailable()) {
 		const toPush = await _computeRequeueBatch(releasedCount);
@@ -153,3 +153,5 @@ export {
 export async function shutdown(): Promise<void> {
 	return shutdownSchedulers();
 }
+
+

@@ -63,7 +63,7 @@ describe("TokenManager", () => {
 		test("should clear the stored token", () => {
 			manager.setToken("some-token");
 			manager.clearToken();
-			expect(() => manager.getToken()).toThrow(AppError);
+			expect(manager.getTokenOrUndefined()).toBeUndefined();
 		});
 	});
 

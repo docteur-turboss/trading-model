@@ -7,23 +7,43 @@ import type { WebSocketClient } from "./client/websocket-client";
 import { HeartbeatFailureHandler } from "./heartbeat-failure-handler";
 import type { AddressManagerDeps } from "./types";
 
+interface WsHeartbeatClient {
+	readonly isConnected: boolean;
+	connect(): void;
+	sendHeartbeat(identity: ServiceIdentity): boolean;
+	updateToken(token: string): void;
+}
+
+class NullWsHeartbeatClient implements WsHeartbeatClient {
+	get isConnected(): boolean {
+		return false;
+	}
+	connect(): void {}
+	sendHeartbeat(): boolean {
+		return false;
+	}
+	updateToken(): void {}
+}
+
 const MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER = 3;
 
 export class HeartbeatManager {
 	private _addressManagerClient: AddressManagerClient;
 	private _tokenManager: TokenManager;
-	private _wsClient?: WebSocketClient;
-	private _onSuccess?: () => void;
-	private _onFailure?: () => void;
+	private _wsClient: WsHeartbeatClient = new NullWsHeartbeatClient();
+	private _onSuccess: () => void;
+	private _onFailure: () => void;
 	private _consecutiveHeartbeatFailures = 0;
 	private readonly _failureHandler: HeartbeatFailureHandler;
 
 	constructor(deps: AddressManagerDeps) {
 		this._addressManagerClient = deps.addressManagerClient;
 		this._tokenManager = deps.tokenManager;
-		this._wsClient = deps.wsClient;
-		this._onSuccess = deps.onSuccess;
-		this._onFailure = deps.onFailure;
+		if (deps.wsClient) {
+			this._wsClient = deps.wsClient;
+		}
+		this._onSuccess = deps.onSuccess ?? (() => {});
+		this._onFailure = deps.onFailure ?? (() => {});
 		this._failureHandler = new HeartbeatFailureHandler(deps);
 	}
 
@@ -35,10 +55,10 @@ export class HeartbeatManager {
 	}
 
 	private _heartbeatViaWs(identity: ServiceIdentity): boolean {
-		if (this._wsClient?.isConnected) {
+		if (this._wsClient.isConnected) {
 			const sent = this._wsClient.sendHeartbeat(identity);
 			if (sent) {
-				this._onSuccess?.();
+				this._onSuccess();
 				this._consecutiveHeartbeatFailures = 0;
 				return true;
 			}
@@ -47,12 +67,12 @@ export class HeartbeatManager {
 	}
 
 	private async _handleSuccessfulHeartbeat(): Promise<void> {
-		this._onSuccess?.();
+		this._onSuccess();
 		this._consecutiveHeartbeatFailures = 0;
 	}
 
 	private async _handleHeartbeatError(err: unknown): Promise<void> {
-		this._onFailure?.();
+		this._onFailure();
 		this._consecutiveHeartbeatFailures++;
 		logger.error("Heartbeat failed", {
 			consecutiveFailures: this._consecutiveHeartbeatFailures,
@@ -63,11 +83,7 @@ export class HeartbeatManager {
 			MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
 		) {
 			this._consecutiveHeartbeatFailures = 0;
-			await this._failureHandler.handleError(
-				err,
-				this._onSuccess,
-				this._onFailure
-			);
+			await this._failureHandler.handleError(err, this._onSuccess, this._onFailure);
 		}
 		await this._heartbeatViaHttpAfterFailure();
 	}
@@ -90,7 +106,7 @@ export class HeartbeatManager {
 			const res = await this._addressManagerClient.registerService();
 			if (res) {
 				this._tokenManager.setToken(res.token);
-				this._wsClient?.updateToken(res.token);
+				this._wsClient.updateToken(res.token);
 			}
 		} catch (err) {
 			logger.error("Re-registration after IP change failed", {

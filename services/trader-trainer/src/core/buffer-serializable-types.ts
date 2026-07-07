@@ -6,13 +6,9 @@ import type {
 	TradeData,
 } from "@trading-model/common/config/event.types";
 import type { NormalizationStats } from "./normalization-stats";
+import type { BaseSymbolState } from "./market-data-types";
 
-export interface SymbolStateSerializable {
-	candles: CandleData[];
-	trades: TradeData[];
-	orderBook: OrderBookData | null;
-	bookTicker: BookTickerData | null;
-	ticker24h: TickerData | null;
+export interface SymbolStateSerializable extends BaseSymbolState {
 	closeNorm: ReturnType<NormalizationStats["toJSON"]>;
 	volumeNorm: ReturnType<NormalizationStats["toJSON"]>;
 	openNorm: ReturnType<NormalizationStats["toJSON"]>;

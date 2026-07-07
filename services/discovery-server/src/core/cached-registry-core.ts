@@ -21,41 +21,55 @@ export class CachedRegistryCore {
 
 	constructor(options: CachedRegistryBackendOptions) {
 		this._backend = options.backend;
-		this.cache = new CacheManager({
-			maxSize: options.maxEntries ?? 5000,
-			ttlMs: options.cacheTtlMs,
-		});
+		this.cache = this._createCache(options);
 		this.pubSub = new PubSubInvalidator(options.redisUrlForPubSub);
-		this.pingManager = new BackendPingManager(
-			options.backend,
-			this.pubSub,
-			Boolean(options.redisUrlForPubSub)
-		);
-		this.healthMonitor = new RedisHealthMonitor({
-			failureThreshold: options.redisFailureThreshold ?? 3,
-			healthCheckIntervalMs: options.redisHealthCheckIntervalMs ?? 15_000,
-			shouldRun: () =>
-				Boolean(options.redisUrlForPubSub || this.pingManager.isRedisBackend()),
-			callbacks: {
-				ping: () => this._directPing(),
-				onHealthLost: () => {},
-				onHealthRestored: () => {
-					this.cache.clear();
-				},
-				onFallbackActivated: () => {
-					this.cache.clear();
-				},
-				onFallbackRestored: () => {
-					this.cache.clear();
-				},
-			},
-			backend: this._backend,
-		});
+		this.pingManager = this._createPingManager(options);
+		this.healthMonitor = this._createHealthMonitor(options);
 		this.orchestrator = new CacheOrchestrator(
 			this._backend,
 			this.cache,
 			this.healthMonitor
 		);
+	}
+
+	private _createCache(options: CachedRegistryBackendOptions): CacheManager {
+		return new CacheManager({
+			maxSize: options.maxEntries ?? 5000,
+			ttlMs: options.cacheTtlMs,
+		});
+	}
+
+	private _createPingManager(
+		options: CachedRegistryBackendOptions
+	): BackendPingManager {
+		return new BackendPingManager(
+			options.backend,
+			this.pubSub,
+			Boolean(options.redisUrlForPubSub)
+		);
+	}
+
+	private _createHealthMonitor(
+		options: CachedRegistryBackendOptions
+	): RedisHealthMonitor {
+		return new RedisHealthMonitor({
+			failureThreshold: options.redisFailureThreshold ?? 3,
+			healthCheckIntervalMs: options.redisHealthCheckIntervalMs ?? 15_000,
+			shouldRun: () =>
+				Boolean(options.redisUrlForPubSub || this.pingManager.isRedisBackend()),
+			callbacks: this._buildHealthCallbacks(),
+			backend: this._backend,
+		});
+	}
+
+	private _buildHealthCallbacks() {
+		return {
+			ping: () => this._directPing(),
+			onHealthLost: () => {},
+			onHealthRestored: () => { this.cache.clear(); },
+			onFallbackActivated: () => { this.cache.clear(); },
+			onFallbackRestored: () => { this.cache.clear(); },
+		};
 	}
 
 	private async _directPing(): Promise<boolean> {

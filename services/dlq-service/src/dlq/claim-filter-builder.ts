@@ -5,7 +5,7 @@ import {
 	type WithId,
 } from "mongodb";
 
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { DLQ_STATUS } from "./dlq-status";
 import type { StoredDlqEntry } from "./repository";
 
@@ -17,7 +17,7 @@ export class ClaimFilterBuilder {
 			$nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED],
 		};
 		const filter: Record<string, unknown> = {
-			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
+			retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
 			processingAt: { $exists: false },
 			status: statusFilter,
 			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
@@ -30,7 +30,7 @@ export class ClaimFilterBuilder {
 
 	buildAtomicCondition(): Record<string, unknown> {
 		return {
-			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
+			retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
 			processingAt: { $exists: false },
 			status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
 			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
@@ -77,3 +77,4 @@ export class ClaimFilterBuilder {
 		};
 	}
 }
+

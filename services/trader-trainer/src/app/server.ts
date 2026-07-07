@@ -7,7 +7,7 @@ import {
 } from "@trading-model/common/server/create-secure-server";
 
 import { ADDRESS_MANAGER_ROUTES } from "../config/address-manager";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { MessageManagerListenExpress } from "../config/message-manager";
 import type { Trainer } from "../core/trainer";
 

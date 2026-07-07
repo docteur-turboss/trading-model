@@ -1,4 +1,5 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 
 import type { FileDlqRepository } from "./dlq-repository";
 import type {
@@ -20,11 +21,11 @@ export class HttpMessageDelivery implements MessageDeliveryPort {
 
 	async markDeadLetter(input: DeadLetterInput): Promise<void> {
 		const { message, reason, deliveryAttempt } = input;
-		await this._dqlRepository.add({
+		await this._dqlRepository.insert({
 			message,
 			reason,
 			deliveryAttempt,
-			timestamp: new Date().toISOString(),
+			timestamp: Date.now() as UnixTimestamp,
 		});
 	}
 }

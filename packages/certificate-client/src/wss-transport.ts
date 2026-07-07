@@ -26,6 +26,8 @@ export class NullCaWssTransport {
 	}
 
 	destroy(): void {}
+
+	disconnect(): void {}
 }
 
 export class CaWssTransport {
@@ -84,7 +86,6 @@ export class CaWssTransport {
 	}
 
 	disconnect(): void {
-		this._destroyed = true;
 		this._connection.disconnect();
 		this._pendingManager.rejectAll(new Error("Transport disconnected"));
 	}

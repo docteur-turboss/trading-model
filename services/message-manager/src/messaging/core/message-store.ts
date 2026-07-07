@@ -5,13 +5,14 @@ import { MessageRoutingFacade } from "./message-routing-facade";
 import { MessageStreamWriter } from "./message-stream-writer";
 import { WalFlusherService } from "./wal-flusher-service";
 
-export class MessageStore extends MessageRoutingFacade {
+export class MessageStore {
 	private readonly _memoryWalBuffer: MemoryWalBuffer;
+	private readonly _routingFacade: MessageRoutingFacade;
 	private readonly _walFlusher: WalFlusherService;
 	private readonly _streamWriter: MessageStreamWriter;
 
 	constructor() {
-		super(ENV.REDIS_PREFIX);
+		this._routingFacade = new MessageRoutingFacade(ENV.REDIS_PREFIX);
 		this._memoryWalBuffer = new MemoryWalBuffer(ENV.REDIS_PREFIX);
 		this._walFlusher = new WalFlusherService(
 			ENV.REDIS_PREFIX,
@@ -23,6 +24,103 @@ export class MessageStore extends MessageRoutingFacade {
 		);
 		this._walFlusher.start();
 		this._memoryWalBuffer.startFlusher();
+	}
+
+	async recoverPendingAcks(
+		ownInstanceId: string,
+		maxAgeMs = 120_000
+	): Promise<number> {
+		return this._routingFacade.recoverPendingAcks(ownInstanceId, maxAgeMs);
+	}
+
+	async claimPendingMessages(
+		groupName: string,
+		consumerId: string,
+		minIdleMs = 60_000,
+		count = 100
+	): Promise<number> {
+		return this._routingFacade.claimPendingMessages(
+			groupName,
+			consumerId,
+			minIdleMs,
+			count
+		);
+	}
+
+	async ensureConsumerGroup(topic: string, groupName: string): Promise<void> {
+		await this._routingFacade.ensureConsumerGroup(topic, groupName);
+	}
+
+	async readFromGroup(
+		params: import("./stream-group-manager").ReadFromGroupParams
+	): Promise<Array<{ id: string; data: string }>> {
+		return this._routingFacade.readFromGroup(params);
+	}
+
+	async ackMessage(
+		topic: string,
+		groupName: string,
+		messageId: string
+	): Promise<void> {
+		await this._routingFacade.ackMessage(topic, groupName, messageId);
+	}
+
+	async getPendingCount(topic: string, groupName: string): Promise<number> {
+		return this._routingFacade.getPendingCount(topic, groupName);
+	}
+
+	async getMessagesAfter(
+		topic: string,
+		afterTimestamp: number,
+		limit = 100
+	): Promise<Message[]> {
+		return this._routingFacade.getMessagesAfter(topic, afterTimestamp, limit);
+	}
+
+	async getMessagesBetween(
+		params: import("./stream-group-manager").GetMessagesBetweenParams
+	): Promise<Message[]> {
+		return this._routingFacade.getMessagesBetween(params);
+	}
+
+	async addPendingAck(
+		instanceId: string,
+		messageId: string,
+		data: {
+			topic: string;
+			subscriberUrl: string;
+			message: Message;
+		}
+	): Promise<void> {
+		await this._routingFacade.addPendingAck(instanceId, messageId, data);
+	}
+
+	async removePendingAck(instanceId: string, messageId: string): Promise<void> {
+		await this._routingFacade.removePendingAck(instanceId, messageId);
+	}
+
+	async getPendingAcks(instanceId: string): Promise<
+		Record<
+			string,
+			{
+				topic: string;
+				subscriberUrl: string;
+				message: Message;
+			}
+		>
+	> {
+		return this._routingFacade.getPendingAcks(instanceId);
+	}
+
+	async getStreamLag(topic: string, groupName: string): Promise<number> {
+		return this._routingFacade.getStreamLag(topic, groupName);
+	}
+
+	async tryDeduplicate(
+		deduplicationId: string,
+		ttlS: number
+	): Promise<boolean> {
+		return this._routingFacade.tryDeduplicate(deduplicationId, ttlS);
 	}
 
 	async store(topic: string, message: Message): Promise<string> {

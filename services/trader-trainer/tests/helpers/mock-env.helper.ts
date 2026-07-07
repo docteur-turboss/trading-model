@@ -2,12 +2,12 @@
  * Creates a mock env module for tests.
  * Returns the path to the module and the mock object.
  * Usage:
- *   jest.mock('../../src/config/env', () => mockEnvModule());
+ *   jest.mock('../../src/config/env', () => ({ ENV: createMockEnv() }));
  */
 
 export function createMockEnv(): Record<string, unknown> {
 	return {
-		env: {
+		ENV: {
 			NODE_ENV: "test",
 			PORT: 0,
 			TLS_KEY_PATH: "",

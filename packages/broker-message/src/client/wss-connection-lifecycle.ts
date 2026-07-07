@@ -1,6 +1,6 @@
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
-import { WssConnection } from "./wss-connection";
+import { WssConnection, type WssConnectionEvents } from "./wss-connection";
 
 export interface WssClientConfig {
 	wssUrl: string;
@@ -9,12 +9,7 @@ export interface WssClientConfig {
 	instanceId: string;
 }
 
-export interface WsConnectionLifecycleCallbacks {
-	onOpen: () => void;
-	onMessage: (raw: string) => void;
-	onClose: (code: number, reason: Buffer) => void;
-	onError: (err: Error) => void;
-}
+export type WsConnectionLifecycleCallbacks = WssConnectionEvents;
 
 export class WssConnectionLifecycle implements IWsConnection {
 	private readonly _connection: WssConnection;

@@ -155,11 +155,11 @@ describe("StateManager", () => {
 		it("should initialise agent with scalar genome (broadcast)", () => {
 			const sm = new StateManager();
 			const agent = makeAgent();
-			const weightsBefore = agent.getWeights();
+			const weightsBefore = agent.nn.getWeights();
 
 			sm.initialiseFromGenome(agent, 0);
 
-			const weightsAfter = agent.getWeights();
+			const weightsAfter = agent.nn.getWeights();
 			expect(weightsAfter.length).toBe(weightsBefore.length);
 			expect(weightsAfter).not.toEqual(weightsBefore);
 		});
@@ -167,7 +167,7 @@ describe("StateManager", () => {
 		it("should initialise agent with Float32Array genome (direct setWeights)", () => {
 			const sm = new StateManager();
 			const agent = makeAgent();
-			const genome = agent.getWeights();
+			const genome = agent.nn.getWeights();
 
 			const modifiedGenome = new Float32Array(genome.length);
 			for (let i = 0; i < modifiedGenome.length; i++) {
@@ -176,7 +176,7 @@ describe("StateManager", () => {
 
 			sm.initialiseFromGenome(agent, modifiedGenome);
 
-			const newWeights = agent.getWeights();
+			const newWeights = agent.nn.getWeights();
 			for (let i = 0; i < newWeights.length; i++) {
 				expect(newWeights[i]).toBe(0.5);
 			}
@@ -189,7 +189,7 @@ describe("StateManager", () => {
 
 			sm.initialiseFromGenome(agent, wrongGenome);
 
-			expect(agent.parameterCount()).toBeGreaterThan(0);
+			expect(agent.nn.parameterCount()).toBeGreaterThan(0);
 		});
 	});
 });

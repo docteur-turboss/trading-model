@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
 jest.mock("../../src/config/env", () => ({
-	env: {
+	ENV: {
 		REDIS_URL: "redis://localhost:6379",
 	},
 }));

@@ -19,8 +19,13 @@ export interface SignCertificateRequest {
 	bootstrapToken?: string;
 }
 
-/** Fields shared by all certificate response types. */
+/**
+ * Fields shared by all certificate response types (wire format).
+ * @see CertificateResponse from domain/certificate-base — isomorphic,
+ *      uses `certPem` where this type uses `cert`.
+ */
 export interface CertificateResponse {
+	/** @see CertificateBase.certPem */
 	cert: string;
 	caPem: string;
 	serialNumber: SerialNumber;
@@ -34,7 +39,10 @@ export interface GetCertificateResponse extends CertificateResponse {
 	issuedAt: string;
 }
 
-/** A single entry in the Certificate Revocation List. */
+/**
+ * A single entry in the Certificate Revocation List (wire format).
+ * @see RevokedCertificate — domain equivalent with `revokedAt: Date`.
+ */
 export interface CrlEntry {
 	serialNumber: SerialNumber;
 	serviceId: ServiceId;

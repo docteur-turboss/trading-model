@@ -22,8 +22,8 @@ import {
 } from "../../fixtures/genome.fixture";
 import { feedCandles } from "../../fixtures/market-data.fixture";
 
-jest.mock<{ env: any }>("../../../src/config/env", () => ({
-	env: {
+jest.mock<{ ENV: any }>("../../../src/config/env", () => ({
+	ENV: {
 		TRAINER_SYMBOLS: "BTCUSDT",
 		TRAINER_DATA_WINDOW: 500,
 		TRAINER_VALIDATION_SPLIT: 0.2,

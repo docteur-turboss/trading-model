@@ -49,6 +49,23 @@ export class GradientAccumulator {
 		} = layer;
 		const opt = OPTIMIZERS[this._deps.config.optimizerType];
 
+		this._scaleGradients(accumGradW, accumGradB, gradW, gradB, numSamples);
+		this._applyOptimizerStep(opt, weights, gradW, wState);
+		if (this._deps.config.useBias) {
+			this._applyOptimizerStep(opt, bias, gradB, bState);
+		}
+
+		accumGradW.fill(0);
+		accumGradB.fill(0);
+	}
+
+	private _scaleGradients(
+		accumGradW: Float32Array,
+		accumGradB: Float32Array,
+		gradW: Float32Array,
+		gradB: Float32Array,
+		numSamples: number
+	): void {
 		const scale = 1 / numSamples;
 		for (let i = 0; i < accumGradW.length; i++) {
 			gradW[i] = accumGradW[i] * scale;
@@ -56,27 +73,21 @@ export class GradientAccumulator {
 		for (let i = 0; i < accumGradB.length; i++) {
 			gradB[i] = accumGradB[i] * scale;
 		}
+	}
 
+	private _applyOptimizerStep(
+		opt: { step: (opts: { params: Float32Array; grads: Float32Array; state: Float32Array; lr: number; hp: Record<string, number> }) => void },
+		params: Float32Array,
+		grads: Float32Array,
+		state: Float32Array
+	): void {
 		opt.step({
-			params: weights,
-			grads: gradW,
-			state: wState,
+			params,
+			grads,
+			state,
 			lr: this._deps.config.learningRate,
 			hp: this._deps.optimizerHp,
 		});
-
-		if (this._deps.config.useBias) {
-			opt.step({
-				params: bias,
-				grads: gradB,
-				state: bState,
-				lr: this._deps.config.learningRate,
-				hp: this._deps.optimizerHp,
-			});
-		}
-
-		accumGradW.fill(0);
-		accumGradB.fill(0);
 	}
 
 	resetAccumulators(): void {

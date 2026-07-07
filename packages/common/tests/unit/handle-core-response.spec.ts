@@ -24,7 +24,7 @@ describe("handleCoreResponse", () => {
 
 	describe("handleCoreResponse", () => {
 		it("should format and send a success response", async () => {
-			const coreFn = jest.fn<any>().mockResolvedValue(["data", "success"]);
+			const coreFn = jest.fn<any>().mockResolvedValue({ data: "data", code: "success" });
 
 			await handleCoreResponse(coreFn, res);
 
@@ -37,7 +37,7 @@ describe("handleCoreResponse", () => {
 		it("should handle non-success response codes", async () => {
 			const coreFn = jest
 				.fn<any>()
-				.mockResolvedValue(["not found", "notFound"]);
+				.mockResolvedValue({ data: "not found", code: "notFound" });
 
 			await handleCoreResponse(coreFn, res);
 
@@ -52,7 +52,7 @@ describe("handleCoreResponse", () => {
 		it("should set auth cookie and send response", async () => {
 			const coreFn = jest
 				.fn<any>()
-				.mockResolvedValue(["token-value", "success"]);
+				.mockResolvedValue({ data: "token-value", code: "success" });
 
 			await handleCoreAuthResponse(coreFn, res);
 
@@ -70,7 +70,7 @@ describe("handleCoreResponse", () => {
 		it("should send JSON with correct structure", async () => {
 			const coreFn = jest
 				.fn<any>()
-				.mockResolvedValue(["token-value", "success"]);
+				.mockResolvedValue({ data: "token-value", code: "success" });
 
 			await handleCoreAuthResponse(coreFn, res);
 
@@ -84,7 +84,7 @@ describe("handleCoreResponse", () => {
 		it("should handle auth errors", async () => {
 			const coreFn = jest
 				.fn<any>()
-				.mockResolvedValue(["invalid token", "unauthorized"]);
+				.mockResolvedValue({ data: "invalid token", code: "unauthorized" });
 
 			await handleCoreAuthResponse(coreFn, res);
 
@@ -163,7 +163,7 @@ describe("handleCoreResponse", () => {
 	describe("handleCoreError", () => {
 		it("should return mapped error tuple for known error message", () => {
 			const mapping = {
-				USER_NOT_FOUND: ["404", "User not found"] as [string, string],
+				USER_NOT_FOUND: { code: "404", message: "User not found" },
 			};
 			const result = handleCoreError(
 				{ file: "user" as any, context: "getUser" },
@@ -175,7 +175,7 @@ describe("handleCoreResponse", () => {
 
 		it("should re-throw unmapped error", () => {
 			const mapping = {
-				USER_NOT_FOUND: ["404", "User not found"] as [string, string],
+				USER_NOT_FOUND: { code: "404", message: "User not found" },
 			};
 			expect(() =>
 				handleCoreError(
@@ -212,7 +212,7 @@ describe("handleCoreResponse", () => {
 			const fn = jest.fn<any>().mockRejectedValue(new Error("NOT_FOUND"));
 			const result = await handleOnlyDataCore(
 				fn,
-				{ NOT_FOUND: ["404", "Not found"] } as any,
+				{ NOT_FOUND: { code: "404", message: "Not found" } },
 				{ file: "user" as any, context: "test" }
 			);
 			expect(result).toEqual(["404", "Not found"]);

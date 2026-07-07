@@ -8,14 +8,13 @@ import type { AddressManagerConfig } from "../config/address-manager-config";
 import { TokenRefreshClient } from "./token-refresh-client";
 
 export class TokenManager {
-	private _token: string | null;
+	private _token = "";
 	private readonly _refreshClient: TokenRefreshClient;
 
 	constructor(
 		private readonly _httpClient: HttpClient,
 		private readonly _config: AddressManagerConfig
 	) {
-		this._token = null;
 		this._refreshClient = new TokenRefreshClient(
 			this._httpClient,
 			this._config
@@ -36,12 +35,12 @@ export class TokenManager {
 		this._token = token;
 	}
 
-	getTokenOrNull(): string | null {
-		return this._token;
+	getTokenOrUndefined(): string | undefined {
+		return this._token || undefined;
 	}
 
 	clearToken(): void {
-		this._token = null;
+		this._token = "";
 	}
 
 	async refreshToken(): Promise<void> {

@@ -8,7 +8,7 @@ jest.mock("@trading-model/address-manager/create-address-manager", () => ({
 }));
 
 jest.mock("../../../src/config/env", () => ({
-	env: {},
+	ENV: {},
 }));
 
 import {

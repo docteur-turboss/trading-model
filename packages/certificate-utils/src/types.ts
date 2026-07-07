@@ -1,8 +1,10 @@
+import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
 import type {
 	Fingerprint,
 	SerialNumber,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
+import type { RevokedCertificate } from "@trading-model/common/domain/revoked-certificate";
 
 export interface CertificateRequest {
 	serviceId: ServiceId;
@@ -10,20 +12,13 @@ export interface CertificateRequest {
 	ttlMs: number;
 }
 
-import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
-
 export interface SignedCertificate extends CertificateBase {
 	serviceId: ServiceId;
 	issuedAt: Date;
 	fingerprint: Fingerprint;
 }
 
-export interface RevokedCertificate {
-	serialNumber: SerialNumber;
-	serviceId: ServiceId;
-	revokedAt: Date;
-	reason: string;
-}
+export type { RevokedCertificate };
 
 export interface CaMetadata {
 	id: string;

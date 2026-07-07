@@ -20,10 +20,8 @@ describe("Middleware chain integration", () => {
 
 	it("should handle a full success flow with catchSync + handleCoreResponse", async () => {
 		const handler = catchSync(async (_req: any, _res: any) => {
-			const coreFn: () => Promise<[unknown, string]> = async () => [
-				"user-data",
-				"success",
-			];
+			const coreFn: () => Promise<{ data: unknown; code: string }> =
+				async () => ({ data: "user-data", code: "success" });
 			await handleCoreResponse(coreFn, _res);
 		});
 

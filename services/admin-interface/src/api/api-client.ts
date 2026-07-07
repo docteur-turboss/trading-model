@@ -10,6 +10,7 @@ import type {
 	DlqMessageList,
 	JobDetail,
 	JobList,
+	OrderBook,
 	PaginatedEvents,
 	PaginatedResults,
 	ServiceRegistry,
@@ -111,7 +112,7 @@ export const API_CLIENT = {
 	getTickers: (symbol: string) =>
 		request<Ticker>("GET", `/scraper/tickers/${symbol}`),
 	getOrderBook: (symbol: string) =>
-		request<{ bids: [string, string][]; asks: [string, string][] }>(
+		request<OrderBook>(
 			"GET",
 			`/scraper/orderbook/${symbol}`
 		),

@@ -1,7 +1,7 @@
 import rateLimit from "express-rate-limit";
 import Redis from "ioredis";
 import RedisStore from "rate-limit-redis";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { logger } from "../config/logger";
 
 const activeRateLimiters: Array<{ resetKey: (key: string) => void }> = [];
@@ -18,7 +18,7 @@ function getOrCreateRedis(): Redis | null {
 	}
 	sharedRedisInit = true;
 
-	if (!env.REDIS_URL) {
+	if (!ENV.REDIS_URL) {
 		return null;
 	}
 	return _createRedisClient();
@@ -38,7 +38,7 @@ function _createRedisClient(): Redis | null {
 }
 
 function _newRedisClient(): Redis {
-	return new Redis(env.REDIS_URL!, {
+	return new Redis(ENV.REDIS_URL!, {
 		lazyConnect: true,
 		retryStrategy: (times) => Math.min(times * 200, 5_000),
 	});
@@ -133,3 +133,4 @@ function _createHealthLimiter(): ReturnType<typeof rateLimit> {
 }
 
 export { _createHealthLimiter, _createReplayLimiter, _createWriteLimiter };
+

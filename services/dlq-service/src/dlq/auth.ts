@@ -4,10 +4,10 @@ import { toServiceId } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import type { NextFunction, Request, Response } from "express";
-import { env, resolveAuthHmacSecret } from "../config/env";
+import { ENV, resolveAuthHmacSecret } from "../config/env";
 import { logger } from "../config/logger";
 
-const ALLOWED_SERVICES = env.DLQ_ALLOWED_SERVICES.split(",")
+const ALLOWED_SERVICES = ENV.DLQ_ALLOWED_SERVICES.split(",")
 	.map((service) => service.trim())
 	.filter(Boolean);
 
@@ -118,3 +118,4 @@ function serviceAuth(req: Request, res: Response, next: NextFunction): void {
 }
 
 export { serviceAuth };
+

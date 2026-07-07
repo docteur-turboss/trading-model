@@ -1,5 +1,5 @@
 export interface IWsConnection {
-	connect(): void;
+	connect(): void | Promise<void>;
 	disconnect(closeCode?: number, reason?: string): void;
 	send(data: unknown): boolean;
 	readonly isConnected: boolean;

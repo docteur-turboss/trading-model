@@ -12,7 +12,7 @@ import { ResponseException } from "@trading-model/common/middleware/response-exc
 import express from "express";
 
 jest.mock<{
-	env: {
+	ENV: {
 		NODE_ENV: string;
 		PORT: number;
 		TLS_KEY_PATH: string;
@@ -35,7 +35,7 @@ jest.mock<{
 		TRAINER_EPISODES_PER_INDIVIDUAL: number;
 	};
 }>("../../src/config/env", () => ({
-	env: {
+	ENV: {
 		NODE_ENV: "test",
 		PORT: 0,
 		TLS_KEY_PATH: "",

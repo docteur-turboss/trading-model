@@ -1,6 +1,6 @@
 import {
 	type BackoffConfig,
-	computeExponentialBackoff,
+	computeExponentialBackoffWithJitter,
 } from "./backoff-config";
 
 export interface WsReconnectConfig extends BackoffConfig {
@@ -15,12 +15,11 @@ export interface WsReconnectState {
 }
 
 function calculateDelay(config: WsReconnectConfig, attempt: number): number {
-	const baseDelayMs = config.baseDelayMs ?? 1000;
-	const maxDelayMs = config.maxDelayMs ?? 60000;
-	const jitterMs = config.jitterMs ?? 500;
-	const delay = computeExponentialBackoff(attempt, { baseDelayMs, maxDelayMs });
-	const jitter = jitterMs > 0 ? Math.random() * jitterMs : 0;
-	return delay + jitter;
+	return computeExponentialBackoffWithJitter(attempt, {
+		baseDelayMs: config.baseDelayMs ?? 1000,
+		maxDelayMs: config.maxDelayMs ?? 60000,
+		jitterMs: config.jitterMs ?? 500,
+	});
 }
 
 export interface WsReconnectOptions {

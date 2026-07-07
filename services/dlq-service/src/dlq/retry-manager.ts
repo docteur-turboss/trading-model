@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 
 import { getCollection } from "../config/db";
-import { env } from "../config/env";
+import { ENV } from "../config/env";
 import { DLQ_STATUS } from "./dlq-status";
 
 const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
@@ -19,7 +19,7 @@ function _buildAbandonFilter(): Record<string, unknown> {
 		status: { $ne: DLQ_STATUS.ABANDONED },
 		processingAt: { $exists: false },
 		$or: [
-			{ retryCount: { $gte: env.DLQ_RETRY_MAX_ATTEMPTS } },
+			{ retryCount: { $gte: ENV.DLQ_RETRY_MAX_ATTEMPTS } },
 			{ consecutiveErrors: { $gte: DLQ_MAX_CONSECUTIVE_ERRORS } },
 		],
 	};
@@ -82,7 +82,7 @@ export class DlqRetryManager {
 		const col = await getCollection();
 		const failFilter: Record<string, unknown> = {
 			_id: new ObjectId(id),
-			retryCount: { $lt: env.DLQ_RETRY_MAX_ATTEMPTS },
+			retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
 		};
 		const updated = await col.findOneAndUpdate(
 			failFilter,
@@ -137,3 +137,4 @@ function _buildStatusStage(self: DlqRetryManager): Record<string, unknown> {
 }
 
 export const dlqRetryManager = new DlqRetryManager();
+

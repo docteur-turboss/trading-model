@@ -11,7 +11,7 @@ jest.mock("../../../src/app/server", () => ({
 }));
 
 jest.mock("config/env", () => ({
-	env: {
+	ENV: {
 		NODE_ENV: "test",
 		PORT: 3000,
 		TLS_KEY_PATH: "/etc/tls/key.pem",

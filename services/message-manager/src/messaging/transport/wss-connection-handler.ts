@@ -21,8 +21,20 @@ interface CloseHandlerContext {
 	identity: ServiceIdentity;
 }
 
+interface WssServerLike {
+	on(event: "connection", listener: (ws: WebSocket, req: IncomingMessage) => void): void;
+	close(callback?: () => void): void;
+}
+
+class NullWssServer implements WssServerLike {
+	on(): void {}
+	close(callback?: () => void): void {
+		callback?.();
+	}
+}
+
 export class WssConnectionHandler {
-	private _wss: WebSocketServer | null = null;
+	private _wss: WssServerLike = new NullWssServer();
 
 	constructor(
 		private readonly _subscriptionManager: WssSubscriptionManager,
@@ -39,7 +51,7 @@ export class WssConnectionHandler {
 		logger.info("WSS transport attached at /ws");
 	}
 
-	private _createWss(server: HttpsServer): WebSocketServer {
+	private _createWss(server: HttpsServer): WssServerLike {
 		return new WebSocketServer({
 			server,
 			path: "/ws",
@@ -122,21 +134,18 @@ export class WssConnectionHandler {
 	}
 
 	private async _closeServer(): Promise<void> {
-		if (!this._wss) {
-			return;
-		}
 		await new Promise<void>((resolve) => {
 			const timer = setTimeout(() => {
 				resolve();
 			}, WSS_SHUTDOWN_TIMEOUT_MS);
-			this._wss!.close(() => {
+			this._wss.close(() => {
 				clearTimeout(timer);
 				resolve();
 			});
 		});
 	}
 
-	get wss(): WebSocketServer | null {
+	get wss(): WssServerLike {
 		return this._wss;
 	}
 }

@@ -4,12 +4,15 @@ import type { WebSocketClient } from "./client/websocket-client";
 import type { CircuitBreaker } from "./discovery/circuit-breaker";
 import type { IServiceCache } from "./discovery/service-cache.interface";
 
-export interface AddressManagerDeps {
+export interface RegistrationCallbacks {
+	onSuccess?: () => void;
+	onFailure?: () => void;
+}
+
+export interface AddressManagerDeps extends RegistrationCallbacks {
 	addressManagerClient: AddressManagerClient;
 	tokenManager: TokenManager;
 	wsClient?: WebSocketClient;
-	onSuccess?: () => void;
-	onFailure?: () => void;
 }
 
 export interface ShutdownHandlerDeps {

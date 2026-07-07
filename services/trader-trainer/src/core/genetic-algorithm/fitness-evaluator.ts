@@ -10,7 +10,6 @@ import { StagnationTracker } from "./stagnation-tracker";
 export class FitnessEvaluator {
 	private _archive = new ParetoArchive();
 	private _stagnationTracker = new StagnationTracker();
-	private _lastBestGenome: DeepReadonly<LamarckGenome> | undefined;
 
 	constructor(
 		private readonly _windowSets: WindowSet[],
@@ -24,18 +23,6 @@ export class FitnessEvaluator {
 
 	get stagnationTracker(): StagnationTracker {
 		return this._stagnationTracker;
-	}
-
-	get lastBestGenome(): DeepReadonly<LamarckGenome> | undefined {
-		return this._lastBestGenome;
-	}
-
-	updateBestGenome(
-		candidate: DeepReadonly<LamarckGenome> | undefined
-	): void {
-		if (candidate !== undefined) {
-			this._lastBestGenome = candidate;
-		}
 	}
 
 	async evaluate(population: DeepReadonly<LamarckGenome>[]): Promise<{
@@ -76,6 +63,5 @@ export class FitnessEvaluator {
 	reset(): void {
 		this._archive = new ParetoArchive();
 		this._stagnationTracker = new StagnationTracker();
-		this._lastBestGenome = undefined;
 	}
 }

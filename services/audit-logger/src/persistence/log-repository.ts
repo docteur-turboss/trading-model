@@ -142,10 +142,6 @@ export class LogRepository {
 		return this._statsBuilder.parseResult(aggResult);
 	}
 
-	async getById(id: string): Promise<ServiceLogDocument | null> {
-		return this.findById(id);
-	}
-
 	async findById(id: string): Promise<ServiceLogDocument | null> {
 		const { ObjectId } = await import("mongodb");
 		if (!ObjectId.isValid(id)) return null;

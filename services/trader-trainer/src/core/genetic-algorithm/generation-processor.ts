@@ -21,6 +21,7 @@ export type {
 export class GenerationProcessor {
 	private _population: DeepReadonly<LamarckGenome>[] = [];
 	private _generation = 0;
+	private _lastBestGenome: DeepReadonly<LamarckGenome> | undefined;
 	private readonly _evaluator: FitnessEvaluator;
 
 	constructor(private readonly _cfg: GARunnerConfig) {
@@ -41,7 +42,7 @@ export class GenerationProcessor {
 		return this._evaluator.archive;
 	}
 	get lastBestGenome(): DeepReadonly<LamarckGenome> | undefined {
-		return this._evaluator.lastBestGenome;
+		return this._lastBestGenome;
 	}
 	get bestFitness(): number {
 		return this._evaluator.stagnationTracker.bestFitness;
@@ -86,9 +87,7 @@ export class GenerationProcessor {
 			this._evaluator.stagnationTracker.stagnation
 		);
 
-		this._evaluator.updateBestGenome(
-			this._evaluator.stagnationTracker.track(popWithMeta, metas, avgEff)
-		);
+		this._lastBestGenome = this._evaluator.stagnationTracker.track(popWithMeta, metas, avgEff);
 
 		const ranked = sortPopulation(popWithMeta, popMeta);
 		const elites = selectElites(ranked, newCtrl);
@@ -100,20 +99,28 @@ export class GenerationProcessor {
 			generation: this._generation,
 		});
 
-		const ctx: GenerationContext = {
+		const ctx = this._buildGenerationContext(startTime, avgFit, avgEff, newCtrl);
+		this._cfg.onGeneration?.(ctx);
+		return ctx;
+	}
+
+	private _buildGenerationContext(
+		startTime: number | undefined,
+		avgFit: number,
+		avgEff: number,
+		newCtrl: GAControlGenome
+	): GenerationContext {
+		return {
 			generation: this._generation,
 			population: this._population,
 			archive: this._evaluator.archive.members,
 			bestFitness: this._evaluator.stagnationTracker.bestFitness,
-			bestGenome: this._evaluator.lastBestGenome as DeepReadonly<LamarckGenome>,
+			bestGenome: this._lastBestGenome as DeepReadonly<LamarckGenome>,
 			avgFitness: avgFit,
 			efficiencyScore: avgEff,
 			elapsedMs: Date.now() - (startTime ?? Date.now()),
 			stagnation: this._evaluator.stagnationTracker.stagnation,
 			gaControl: newCtrl,
 		};
-
-		this._cfg.onGeneration?.(ctx);
-		return ctx;
 	}
 }
