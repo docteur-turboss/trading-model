@@ -40,7 +40,7 @@ describe("ClassResponseExceptions", () => {
 
 	describe("response methods", () => {
 		it("Success() should return 200", () => {
-			const result = new ClassResponseExceptions("ok").success();
+			const result = ResponseException("ok").success();
 			expect(result.status).toBe(200);
 			expect(result.data).toBe("ok");
 		});
@@ -52,7 +52,7 @@ describe("ClassResponseExceptions", () => {
 		});
 
 		it("NoContent() should return 204 with undefined data", () => {
-			const result = new ClassResponseExceptions("").noContent();
+			const result = ResponseException("").noContent();
 			expect(result.status).toBe(204);
 			expect(result.data).toBeUndefined();
 		});

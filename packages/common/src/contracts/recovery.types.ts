@@ -73,16 +73,6 @@ export interface StatusTransition {
 	to: JOB_STATUS;
 }
 
-export class JobStatusError extends AppError {
-	readonly transition: StatusTransition;
-
-	constructor(transition: StatusTransition, message: string) {
-		super(message, { code: "JobStatusError" });
-		this.name = "JobStatusError";
-		this.transition = transition;
-	}
-}
-
 export class JobStatusMachine {
 	static canTransition(from: JOB_STATUS, to: JOB_STATUS): boolean {
 		return TRANSITIONS[from]?.has(to) ?? false;
@@ -98,19 +88,19 @@ export class JobStatusMachine {
 		reason?: string
 	): JobEvent {
 		if (to === JOB_STATUS.CANCELLED && !JobStatusMachine.canCancel(from)) {
-			throw new JobStatusError(
-				{ from, to },
-				reason ?? `Cannot cancel job from ${from}`
-			);
+			throw new AppError(reason ?? `Cannot cancel job from ${from}`, {
+				code: "JobStatusError",
+				cause: { from, to },
+			});
 		}
 		if (
 			to !== JOB_STATUS.CANCELLED &&
 			!JobStatusMachine.canTransition(from, to)
 		) {
-			throw new JobStatusError(
-				{ from, to },
-				`Invalid job status transition: ${from} → ${to}`
-			);
+			throw new AppError(`Invalid job status transition: ${from} → ${to}`, {
+				code: "JobStatusError",
+				cause: { from, to },
+			});
 		}
 		return {
 			transition: { from, to },

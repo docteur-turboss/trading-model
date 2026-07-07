@@ -75,6 +75,10 @@ export class ConnectionManager<T> {
 		return conn;
 	}
 
+	getClient(): T | null {
+		return this._connection;
+	}
+
 	isConnected(): boolean {
 		return this._connected && this._connection !== null;
 	}

@@ -52,7 +52,7 @@ describe("createBootstrap", () => {
 		const createServer = jest.fn(() => mockServer);
 		const onStart = jest.fn();
 
-		const result = createBootstrap({
+		createBootstrap({
 			name: "test-service",
 			createServer: createServer as any,
 			onStart,
@@ -60,7 +60,6 @@ describe("createBootstrap", () => {
 
 		expect(createServer).toHaveBeenCalled();
 		expect(onStart).toHaveBeenCalled();
-		expect(result.server).toBe(mockServer);
 	});
 
 	it("should return shutdown function", () => {

@@ -1,18 +1,18 @@
-import { AppError } from "../utils/errors";
-
-export class HttpClientError extends AppError {
+export class HttpClientError extends Error {
 	public readonly statusCode?: number;
+	public readonly code = "HttpClientError";
 	constructor(message: string, statusCode?: number) {
-		super(message, { code: "HttpClientError" });
+		super(message);
 		this.name = "HttpClientError";
 		this.statusCode = statusCode;
 	}
 }
 
-export class HttpClientTimeoutError extends AppError {
+export class HttpClientTimeoutError extends Error {
 	public readonly timeoutMs: number;
+	public readonly code = "HttpClientTimeoutError";
 	constructor(message: string, timeoutMs: number) {
-		super(message, { code: "HttpClientTimeoutError" });
+		super(message);
 		this.name = "HttpClientTimeoutError";
 		this.timeoutMs = timeoutMs;
 	}

@@ -2,7 +2,7 @@ import type {
 	CaClient,
 	SignCertificateRequest,
 } from "@trading-model/common/ca/ca-client";
-import type { ServiceId } from "@trading-model/common/domain/primitives";
+import { toAuthToken, type ServiceId } from "@trading-model/common/domain/primitives";
 
 export interface SignerConfig {
 	serviceId: ServiceId;
@@ -19,7 +19,7 @@ export class CertificateSigner {
 		const request: SignCertificateRequest = {
 			serviceId: this._config.serviceId,
 			csr,
-			bootstrapToken: this._config.bootstrapToken,
+			bootstrapToken: this._config.bootstrapToken ? toAuthToken(this._config.bootstrapToken) : undefined,
 		};
 		return await this._caClient.signCertificate(request);
 	}

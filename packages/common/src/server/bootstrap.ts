@@ -1,36 +1,16 @@
-﻿import type https from "node:https";
-import { logger } from "../config/logger";
+﻿import { logger } from "../config/logger";
 import { normalizeError } from "../utils/errors";
 import type { HttpServer } from "./create-secure-server";
+import { gracefulShutdown, hardShutdown } from "./bootstrap-shutdown";
+import type { BootstrapOptions } from "./bootstrap-types";
 import { setupProcessHandlers } from "./signal-handler";
 
-/** TLS bootstrap configuration for automatic certificate lifecycle management. */
-export interface TlsBootstrapOptions {
-	ensure: () => Promise<void>;
-	setupAutoRenew?: (server: https.Server) => void;
-}
+export type { BootstrapOptions, TlsBootstrapOptions } from "./bootstrap-types";
 
-/** Options for configuring a service bootstrap lifecycle. */
-export interface BootstrapOptions {
-	name: string;
-	createServer: () => HttpServer | Promise<HttpServer>;
-	onBeforeServer?: () => void | Promise<void>;
-	onStart?: () => void;
-	onStop?: () => void;
-	tlsBootstrap?: TlsBootstrapOptions | null;
-}
-
-/**
- * Initializes and starts a service, delegating process signal management to
- * {@link setupProcessHandlers} (SRP).
- * Returns handles to the running server and a shutdown trigger.
- */
 export function createBootstrap(options: BootstrapOptions): {
-	server: HttpServer | null;
 	shutdown: (signal: string) => Promise<void>;
 } {
-	let server: HttpServer | null = null;
-	const svrRef: { current: HttpServer | null } = { current: server };
+	const svrRef: { current: HttpServer | null } = { current: null };
 	const doHardShutdown = (code: number) => hardShutdown(code, svrRef.current, options);
 	const doShutdown = (signal: string) =>
 		gracefulShutdown(signal, svrRef.current, options);
@@ -40,7 +20,7 @@ export function createBootstrap(options: BootstrapOptions): {
 		(svr) => { svrRef.current = svr; },
 		doHardShutdown
 	);
-	return { server, shutdown: doShutdown };
+	return { shutdown: doShutdown };
 }
 
 function _startBootstrap(
@@ -49,41 +29,6 @@ function _startBootstrap(
 	doHardShutdown: (code: number) => void
 ): void {
 	runBootstrap(options, setServer, doHardShutdown);
-}
-
-function _closeServerOnShutdown(server: HttpServer | null): void {
-	if (!server) {
-		return;
-	}
-	server.close().catch((err) =>
-		logger.warn("Server close during forced shutdown failed", {
-			context: { err: normalizeError(err) },
-		})
-	);
-}
-
-function _runOnStop(options: BootstrapOptions): void {
-	if (!options.onStop) {
-		return;
-	}
-	try {
-		options.onStop();
-	} catch (err) {
-		logger.warn("onStop callback failed during forced shutdown", {
-			context: { err: normalizeError(err) },
-		});
-	}
-}
-
-function hardShutdown(
-	code: number,
-	server: HttpServer | null,
-	options: BootstrapOptions
-): void {
-	_closeServerOnShutdown(server);
-	_runOnStop(options);
-	logger.warn("Forced shutdown", { context: { exitCode: code } });
-	process.exitCode = code;
 }
 
 function _onBootstrapError(
@@ -155,41 +100,6 @@ function runSyncOrAsync<TValue>(
 	}
 }
 
-function _createCloseTimeoutPromise(timeoutMs: number): Promise<never> {
-	return new Promise<never>((_, reject) => {
-		setTimeout(() => reject(new Error("Server close timed out")), timeoutMs);
-	});
-}
-
-async function _closeServerWithTimeout(server: HttpServer): Promise<void> {
-	const closeTimeout = 10000;
-	await Promise.race([
-		server.close(),
-		_createCloseTimeoutPromise(closeTimeout),
-	]);
-}
-
-async function gracefulShutdown(
-	signal: string,
-	server: HttpServer | null,
-	options: BootstrapOptions
-): Promise<void> {
-	logger.warn("Shutdown signal received", { context: { signal } });
-	try {
-		if (server) {
-			await _closeServerWithTimeout(server);
-			logger.info("HTTP server closed");
-		}
-		_runOnStop(options);
-		logger.info("Shutdown completed gracefully");
-	} catch (error) {
-		logger.error("Error during graceful shutdown", {
-			context: { err: normalizeError(error) },
-		});
-		hardShutdown(1, server, options);
-	}
-}
-
 function setupAutoRenew(
 	httpServer: HttpServer,
 	options: BootstrapOptions
@@ -210,3 +120,5 @@ function finishBootstrap(
 		context: { name: options.name },
 	});
 }
+
+export { gracefulShutdown, hardShutdown } from "./bootstrap-shutdown";

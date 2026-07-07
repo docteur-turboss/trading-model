@@ -1,4 +1,3 @@
-import { HEARTBEAT } from "../constants";
 import type { WorkerWsHeartbeatMessage } from "../contracts/worker-protocol.types";
 import { toInstanceId } from "../domain/primitives";
 import { TimerHandle } from "../utils/timer-handle";
@@ -22,7 +21,7 @@ export class WorkerHeartbeat {
 	start(): void {
 		this._heartbeatTimer.startInterval(() => {
 			this._send({
-				type: HEARTBEAT,
+				type: "heartbeat",
 				workerId: toInstanceId(this._workerId),
 				currentLoad: 0,
 			});
@@ -35,7 +34,7 @@ export class WorkerHeartbeat {
 
 	sendHeartbeat(currentLoad: number): void {
 		this._send({
-			type: HEARTBEAT,
+			type: "heartbeat",
 			workerId: toInstanceId(this._workerId),
 			currentLoad,
 		});

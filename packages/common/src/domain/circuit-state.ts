@@ -7,9 +7,8 @@
  */
 export type CircuitState = "closed" | "open" | "half-open";
 
-/** Runtime enum-like constants for CircuitState values. */
 export const CircuitState = {
-	CLOSED: "closed" as const,
-	OPEN: "open" as const,
-	HALF_OPEN: "half-open" as const,
-} as const satisfies Record<string, CircuitState>;
+	CLOSED: "closed",
+	OPEN: "open",
+	HALF_OPEN: "half-open",
+} as const;

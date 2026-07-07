@@ -17,7 +17,7 @@ import {
 import {
 	type ChainingMetadata,
 	MessageChainingMetadata,
-	NullMessageChainingMetadata,
+	NULL_MESSAGE_CHAINING_METADATA,
 } from "./message-chaining-metadata";
 import { MessageContext } from "./message-context";
 
@@ -26,7 +26,7 @@ export class MessageMetadata {
 	public eventType: EventEnumMap;
 	public publisher: ServiceIdentity;
 	public schemaVersion = "1.0.0" as const;
-	private readonly _context = new MessageContext();
+	private _context: MessageContext;
 	private _chaining: ChainingMetadata;
 
 	public constructor(
@@ -41,16 +41,18 @@ export class MessageMetadata {
 		this.topic = toTopic(topic);
 		this.eventType = eventType;
 		this.publisher = publisher;
-		if (data.routing) this._context.routing = data.routing;
-		if (data.delivery) this._context.delivery = data.delivery;
-		if (data.security) this._context.security = data.security;
+		this._context = new MessageContext({
+			routing: data.routing,
+			delivery: data.delivery,
+			security: data.security,
+		});
 		this._chaining =
 			data.causationId || data.correlationId
 				? new MessageChainingMetadata({
 						causationId: data.causationId,
 						correlationId: data.correlationId,
 					})
-				: new NullMessageChainingMetadata();
+				: NULL_MESSAGE_CHAINING_METADATA;
 	}
 
 	public get causationId(): CorrelationId | undefined {
@@ -65,7 +67,7 @@ export class MessageMetadata {
 			| import("@trading-model/common/contracts/message.types").SecurityType
 			| null
 	): this {
-		this._context.setSecurity(context);
+		this._context = this._context.withSecurity(context);
 		return this;
 	}
 	public setDelivery(
@@ -73,7 +75,7 @@ export class MessageMetadata {
 			| import("@trading-model/common/contracts/message.types").DeliveryType
 			| null
 	): this {
-		this._context.setDelivery(context);
+		this._context = this._context.withDelivery(context);
 		return this;
 	}
 	public setRouting(
@@ -81,7 +83,7 @@ export class MessageMetadata {
 			| import("@trading-model/common/contracts/message.types").RoutingType
 			| null
 	): this {
-		this._context.setRouting(context);
+		this._context = this._context.withRouting(context);
 		return this;
 	}
 	public setPublisher(context: ServiceIdentity): this {
@@ -112,7 +114,7 @@ export class MessageMetadata {
 		context: { causationId?: string; correlationId?: string } | null
 	): this {
 		if (context === null) {
-			this._chaining = new NullMessageChainingMetadata();
+			this._chaining = NULL_MESSAGE_CHAINING_METADATA;
 			return this;
 		}
 		if (!(context.causationId || context.correlationId)) return this;

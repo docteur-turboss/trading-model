@@ -10,33 +10,42 @@ import {
 } from "./message.schema";
 
 export class MessageContext {
-	public delivery?: DeliveryType;
-	public routing?: RoutingType;
-	public security?: SecurityType;
+	public readonly delivery?: DeliveryType;
+	public readonly routing?: RoutingType;
+	public readonly security?: SecurityType;
 
-	setSecurity(context: SecurityType | null): void {
+	constructor(
+		data: {
+			delivery?: DeliveryType;
+			routing?: RoutingType;
+			security?: SecurityType;
+		} = {}
+	) {
+		this.delivery = data.delivery;
+		this.routing = data.routing;
+		this.security = data.security;
+	}
+
+	withSecurity(context: SecurityType | null): MessageContext {
 		if (context === null) {
-			this.security = undefined;
-			return;
+			return new MessageContext({ delivery: this.delivery, routing: this.routing });
 		}
 		SECURITY_METADATA_CONTEXT_PREDICATE.parse(context);
-		this.security = context;
+		return new MessageContext({ delivery: this.delivery, routing: this.routing, security: context });
 	}
-	setDelivery(context: DeliveryType | null): void {
+	withDelivery(context: DeliveryType | null): MessageContext {
 		if (context === null) {
-			this.delivery = undefined;
-			return;
+			return new MessageContext({ routing: this.routing, security: this.security });
 		}
 		DELIVERY_METADATA_MODE_PREDICATE.parse(context);
-		this.delivery = context;
+		return new MessageContext({ routing: this.routing, security: this.security, delivery: context });
 	}
-	setRouting(context: RoutingType | null): void {
+	withRouting(context: RoutingType | null): MessageContext {
 		if (context === null) {
-			this.routing = undefined;
-			return;
+			return new MessageContext({ delivery: this.delivery, security: this.security });
 		}
 		ROUTING_METADATA_CONTEXT_PREDICATE.parse(context);
-		this.routing = context;
+		return new MessageContext({ delivery: this.delivery, security: this.security, routing: context });
 	}
 
 	toJSON(): {

@@ -109,8 +109,4 @@ export class RedisConnectionManager extends ConnectionManager<Redis | Cluster> {
 			{ maxRetries: 5, baseDelayMs: 1000, maxDelayMs: 30000 }
 		);
 	}
-
-	getClient(): Redis | Cluster | null {
-		return this._connection;
-	}
 }

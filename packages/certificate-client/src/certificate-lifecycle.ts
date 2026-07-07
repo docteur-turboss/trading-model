@@ -12,7 +12,7 @@ import type {
 	SignCertificateRequest,
 } from "@trading-model/common/ca/ca-client";
 import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
-import { toSerialNumber } from "@trading-model/common/domain/primitives";
+import { toAuthToken, toSerialNumber } from "@trading-model/common/domain/primitives";
 import type {
 	CertificateClientConfig,
 	ObtainedCertificate,
@@ -43,7 +43,7 @@ export class CertificateLifecycle {
 		const request: SignCertificateRequest = {
 			serviceId: this._config.serviceId,
 			csr,
-			bootstrapToken: this._config.bootstrapToken,
+			bootstrapToken: this._config.bootstrapToken ? toAuthToken(this._config.bootstrapToken) : undefined,
 		};
 		return await this._caClient.signCertificate(request);
 	}

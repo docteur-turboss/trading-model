@@ -1,4 +1,3 @@
-export { HEARTBEAT, HEARTBEAT_ACK } from "./constants";
 export { HttpClient } from "./config/http-client";
 export { logger } from "./config/logger";
 export type { ServiceInstance } from "./contracts/service-registry.types";

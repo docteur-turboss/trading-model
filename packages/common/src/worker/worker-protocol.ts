@@ -1,6 +1,5 @@
 import type https from "node:https";
 import WebSocket from "ws";
-import { HEARTBEAT_ACK } from "../constants";
 import { logger } from "../config/logger";
 import type { SchedulerOutgoingMessage, WorkerIncomingMessage } from "../contracts/worker-protocol.types";
 import type { WorkerRegistry } from "./worker-registry";
@@ -11,13 +10,6 @@ export interface IWorkerProtocol {
 	sendDrain(workerId: string): void;
 	broadcastDrain(): void;
 	close(): void;
-}
-
-export class NullWorkerProtocol implements IWorkerProtocol {
-	sendToWorker(): void {}
-	sendDrain(): void {}
-	broadcastDrain(): void {}
-	close(): void {}
 }
 
 export class WorkerProtocol implements IWorkerProtocol {
@@ -51,7 +43,7 @@ export class WorkerProtocol implements IWorkerProtocol {
 		this._workerRegistry.heartbeat(message.workerId);
 		this._workerRegistry.updateLoad(message.workerId, message.currentLoad);
 		const ws = this._wsManager.getConnection(message.workerId);
-		if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: HEARTBEAT_ACK }));
+		if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "heartbeat.ack" }));
 	}
 	private _handleDisconnect(message: WorkerIncomingMessage & { type: "disconnect" }): void {
 		this._wsManager.deleteConnection(message.workerId);
