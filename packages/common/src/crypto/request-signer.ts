@@ -1,7 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import type {
-	HttpMethod,
 	Signature,
 	SignedRequest,
 	SignedRequestAuth,
@@ -34,13 +33,23 @@ export function signRequest(
 	return { timestamp, signature };
 }
 
+export interface SignatureVerificationOptions {
+	signature: string;
+	timestamp: string;
+	secret: string;
+	toleranceMs?: number;
+}
+
 export function verifySignature(
 	input: SignedRequest,
-	signature: string,
-	timestamp: string,
-	secret: string,
-	toleranceMs: number = DEFAULT_TIMESTAMP_TOLERANCE_MS
+	options: SignatureVerificationOptions
 ): boolean {
+	const {
+		signature,
+		timestamp,
+		secret,
+		toleranceMs = DEFAULT_TIMESTAMP_TOLERANCE_MS,
+	} = options;
 	if (!(timestamp && signature)) {
 		return false;
 	}
@@ -50,10 +59,7 @@ export function verifySignature(
 	return _verifyHmacMatch(input, timestamp, secret, signature);
 }
 
-function _isTimestampValid(
-	timestamp: string,
-	toleranceMs: number
-): boolean {
+function _isTimestampValid(timestamp: string, toleranceMs: number): boolean {
 	const ts = Number.parseInt(timestamp, 10);
 	return !Number.isNaN(ts) && Math.abs(Date.now() - ts) <= toleranceMs;
 }
@@ -77,7 +83,7 @@ function _verifyHmacMatch(
 function _buildSignParts(
 	input: SignedRequest,
 	timestamp: string,
-	secret: string
+	_secret: string
 ): string[] {
 	const bodyString = deterministicStringify(normalizeBody(input.body));
 	const bodyHash = createHash("sha256").update(bodyString).digest("hex");
@@ -98,9 +104,9 @@ export function buildSignedHeaders(
 
 export function extractRequestParts(
 	headers: Record<string, string | string[] | undefined>,
-	method: string,
-	path: string,
-	body: unknown
+	_method: string,
+	_path: string,
+	_body: unknown
 ): { serviceName: string; signature: string; timestamp: string } | null {
 	const serviceName = headers[HTTP_HEADERS.X_SERVICE_NAME] as
 		| string

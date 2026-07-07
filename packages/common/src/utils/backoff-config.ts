@@ -1,25 +1,25 @@
+import { DelayRange } from "./delay-range";
+
 export interface BackoffConfig {
 	baseDelayMs?: number;
 	maxDelayMs?: number;
 	jitterMs?: number;
 }
 
-export interface BackoffRequired {
-	baseDelayMs: number;
-	maxDelayMs: number;
+export function createDelayRange(baseMs: number, maxMs: number): DelayRange {
+	return new DelayRange(baseMs, maxMs);
 }
 
 export function computeExponentialBackoff(
 	attempt: number,
-	options: BackoffRequired
+	options: { baseDelayMs: number; maxDelayMs: number }
 ): number {
-	return Math.min(options.baseDelayMs * 2 ** attempt, options.maxDelayMs);
+	return new DelayRange(options.baseDelayMs, options.maxDelayMs).backoff(attempt);
 }
 
 export function computeExponentialBackoffWithJitter(
 	attempt: number,
-	options: BackoffRequired & { jitterMs: number }
+	options: { baseDelayMs: number; maxDelayMs: number; jitterMs: number }
 ): number {
-	const delay = computeExponentialBackoff(attempt, options);
-	return delay + (options.jitterMs > 0 ? Math.random() * options.jitterMs : 0);
+	return new DelayRange(options.baseDelayMs, options.maxDelayMs).withJitter(attempt, options.jitterMs);
 }

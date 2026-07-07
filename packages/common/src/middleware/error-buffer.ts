@@ -1,4 +1,5 @@
 import { normalizeError } from "../utils/errors";
+import { CircularBuffer } from "../utils/circular-buffer";
 
 interface ErrorReport {
 	message: string;
@@ -14,32 +15,34 @@ interface ErrorReport {
 }
 
 export class ErrorBuffer {
-	private _buffer: ErrorReport[] = [];
+	private readonly _buffer: CircularBuffer<ErrorReport>;
 
 	constructor(
 		private readonly _endpoint: string,
 		private readonly _batchSize: number,
 		private readonly _serviceName: string,
 		private readonly _instanceId: string
-	) {}
+	) {
+		this._buffer = new CircularBuffer<ErrorReport>(_batchSize * 2);
+	}
 
 	add(report: ErrorReport): void {
-		this._buffer.push(report);
-		if (this._buffer.length >= this._batchSize) {
+		this._buffer.add(report);
+		if (this._buffer.size >= this._batchSize) {
 			void this.flush();
 		}
 	}
 
 	async flush(): Promise<void> {
-		if (this._buffer.length === 0) {
+		if (this._buffer.size === 0) {
 			return;
 		}
-		const batch = this._buffer.splice(0, this._batchSize);
+		const batch = this._buffer.drain();
 		await this._post(batch);
 	}
 
 	get pendingCount(): number {
-		return this._buffer.length;
+		return this._buffer.size;
 	}
 
 	private async _post(batch: ErrorReport[]): Promise<void> {

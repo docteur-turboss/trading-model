@@ -2,6 +2,7 @@
 import type { Capability } from "../domain/primitives";
 import { DefaultWsReconnector } from "../ws/default-ws-reconnector";
 import { TypedEventEmitter } from "./typed-event-emitter";
+import { wireConnectionEvents } from "./connection-wire";
 import { WorkerHeartbeat } from "./worker-heartbeat";
 import { WorkerMessageRouter } from "./worker-message-router";
 import { WorkerWsConnection } from "./worker-ws-connection";
@@ -79,20 +80,7 @@ export class WorkerClient extends TypedEventEmitter<WorkerClientEvents> {
 		this._reconnector = _buildReconnector(this._cfg, () => this._doConnect(), (info) => this.emit("reconnecting", info));
 		this._heartbeat = _buildHeartbeat(this._cfg, (msg) => this.send(msg));
 		this._messageRouter = new WorkerMessageRouter(this.raw);
-		this._wireConnectionEvents();
-	}
-
-	private _wireConnectionEvents(): void {
-		this._connection.onOpen = () => { this._heartbeat.start(); this.emit("connected"); };
-		this._connection.onClose = () => {
-			this._heartbeat.stop();
-			this.emit("disconnected");
-			if (!this._reconnector.intentionalClose) this._reconnector.scheduleReconnect();
-		};
-		this._connection.onMessage = (data) => {
-			try { this._messageRouter.handle(JSON.parse(String(data)), (msg) => this.emit("unknown", msg)); } catch (err) { this.emit("error", new Error(`Invalid message from server: ${err}`)); }
-		};
-		this._connection.onError = (err) => { this.emit("error", err); };
+		wireConnectionEvents(this._connection, this._heartbeat, this._reconnector, this._messageRouter, this);
 	}
 
 	async connect(): Promise<void> { this._reconnector.reset(); return this._doConnect(); }

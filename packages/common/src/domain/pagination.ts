@@ -3,6 +3,11 @@ export interface PaginationQuery {
 	limit?: number;
 }
 
+export interface OffsetPagination {
+	limit?: number;
+	offset?: number;
+}
+
 export interface PaginationResult<T> {
 	docs: T[];
 	total: number;

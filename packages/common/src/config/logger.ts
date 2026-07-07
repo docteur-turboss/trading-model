@@ -13,6 +13,8 @@ export { LogLevel };
 import { LogBuffer } from "./log-buffer";
 import { LogDispatcher } from "./log-dispatcher";
 import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
+import { generateSessionId } from "./session-id-generator";
+import { formatLogEntry } from "./console-formatter";
 
 export class Logger {
 	private _logLevel: LogLevel;
@@ -23,17 +25,12 @@ export class Logger {
 
 	constructor(logLevel: LogLevel = "info") {
 		this._logLevel = logLevel;
-		this._sessionId = this._generateSessionId();
+		this._sessionId = generateSessionId(logLevel);
 		this._buffer = new LogBuffer();
 		this._dispatcher = new LogDispatcher(
 			new SensitiveDataSanitizer(),
 			this._sessionId
 		);
-	}
-
-	private _generateSessionId(): SessionId {
-		const now = new Date();
-		return `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}-${this._logLevel}_${(crypto.getRandomValues(new Uint32Array(10))[0] * 2 ** -32).toString(36).substring(2, 10)}` as SessionId;
 	}
 
 	private _log(
@@ -47,7 +44,7 @@ export class Logger {
 			return;
 		}
 		const logEntry = this._buildLogEntry(level, message, context);
-		this._emitLog(logEntry, label, message, consoleFn, context);
+		this._emitLog(logEntry, label, consoleFn, context);
 		if (level === LogLevel.Error) {
 			this._dispatcher.sendError(logEntry);
 		}
@@ -66,13 +63,12 @@ export class Logger {
 	private _emitLog(
 		logEntry: import("./log-types").LogEntry,
 		label: string,
-		message: string,
 		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void,
 		context?: Record<string, unknown>
 	): void {
 		this._buffer.add(logEntry);
 		consoleFn(
-			`[${label}] [${logEntry.timestamp.toISOString()}] ${message}`,
+			formatLogEntry(label, logEntry.timestamp, logEntry.message),
 			context || "",
 		);
 	}

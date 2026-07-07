@@ -5,7 +5,7 @@ import { logger } from "@trading-model/common/config/logger";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type { Request } from "express";
 import { ENV } from "../config/env";
-import type { ResolvedTarget } from "./service-resolver";
+import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
 
 export interface ProxyResult {
 	status: number;
@@ -73,13 +73,13 @@ async function handleProxyResponse(
 
 export interface ProxyRequestOptions {
 	req: Request;
-	target: ResolvedTarget;
+	target: ServiceEndpoint;
 	path: string;
 	timeoutMs?: number;
 }
 
 function _onProxyError(
-	target: ResolvedTarget,
+	target: ServiceEndpoint,
 	path: string,
 	reject: (err: Error) => void
 ): (err: Error) => void {
@@ -109,7 +109,7 @@ function _executeProxyRequest(
 	req: Request,
 	resolve: (result: ProxyResult) => void,
 	reject: (err: Error) => void,
-	target: ResolvedTarget,
+	target: ServiceEndpoint,
 	path: string,
 	timeoutMs: number
 ): void {

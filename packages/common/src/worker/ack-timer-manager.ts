@@ -1,23 +1,25 @@
+import { TimerHandle } from "../utils/timer-handle";
+
 export class AckTimerManager {
-	private readonly _timers = new Map<string, ReturnType<typeof setTimeout>>();
+	private readonly _timers = new Map<string, TimerHandle>();
 
 	start(jobId: string, ackDeadline: number, onTimeout: () => void): void {
-		const remaining = ackDeadline - Date.now();
-		const timer = setTimeout(onTimeout, Math.max(remaining, 0));
-		this._timers.set(jobId, timer);
+		const handle = new TimerHandle();
+		handle.startTimeout(onTimeout, Math.max(ackDeadline - Date.now(), 0));
+		this._timers.set(jobId, handle);
 	}
 
 	clear(jobId: string): void {
-		const timer = this._timers.get(jobId);
-		if (timer) {
-			clearTimeout(timer);
+		const handle = this._timers.get(jobId);
+		if (handle) {
+			handle.stop();
 			this._timers.delete(jobId);
 		}
 	}
 
 	clearAll(): void {
-		for (const [, timer] of this._timers) {
-			clearTimeout(timer);
+		for (const [, handle] of this._timers) {
+			handle.stop();
 		}
 		this._timers.clear();
 	}

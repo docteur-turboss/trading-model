@@ -1,6 +1,6 @@
 import type { HttpClient } from "../config/http-client";
 import type { SchedulerWsJobAssignedMessage } from "../contracts/worker-protocol.types";
-import { JobTracker, JobHttpClient } from "./active-job-manager";
+import { JobTracker, JobHttpClient } from "./job-tracker";
 import { JobHandlerRegistry } from "./job-handler-registry";
 
 export class JobAssignmentHandler {

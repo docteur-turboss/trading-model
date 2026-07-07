@@ -1,4 +1,5 @@
-const VERSION_PATH_REGEX = /^\/v(\d+)\/([^/]+)(\/.*)?$/;
+const VERSION_PATH_REGEX =
+	/^\/v(?<major>\d+)\/(?<service>[^/]+)(?<path>\/.*)?$/;
 
 type ParsedRequestPath =
 	| { valid: false }
@@ -9,10 +10,15 @@ function extractPathComponents(match: RegExpMatchArray): {
 	serviceName: string;
 	path: string;
 } {
+	const groups = match.groups as {
+		major: string;
+		service: string;
+		path?: string;
+	};
 	return {
-		majorVersion: Number.parseInt(match[1], 10),
-		serviceName: match[2],
-		path: match[3] ?? "/",
+		majorVersion: Number.parseInt(groups.major, 10),
+		serviceName: groups.service,
+		path: groups.path ?? "/",
 	};
 }
 

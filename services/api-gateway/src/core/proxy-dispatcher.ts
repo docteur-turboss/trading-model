@@ -6,7 +6,7 @@ import {
 import type { Request } from "express";
 import type { ResponseCache } from "./cache";
 import { forwardRequest } from "./proxy-handler";
-import type { ResolvedTarget } from "./service-resolver";
+import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
 
 interface ProxyContext {
 	serviceName: string;
@@ -17,7 +17,7 @@ interface ProxyContext {
 
 export async function proxyAndCache(
 	req: Request,
-	target: ResolvedTarget,
+	target: ServiceEndpoint,
 	ctx: ProxyContext,
 	cache: ResponseCache
 ): Promise<ResponseObject> {
@@ -48,7 +48,7 @@ function tryCacheResponse(
 function buildProxyErrorResponse(
 	err: unknown,
 	ctx: ProxyContext,
-	target: ResolvedTarget
+	target: ServiceEndpoint
 ): ResponseObject {
 	const message = err instanceof Error ? err.message : "Unknown error";
 	logger.error("Proxy error", {

@@ -1,14 +1,9 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
+import type { ServiceEndpoint } from "@trading-model/common/contracts/service-resolver.types";
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 
-export interface ResolvedTarget {
-	host: IPAddress;
-	port: Port;
-	version: string;
-}
 interface CachedService {
-	instances: ResolvedTarget[];
+	instances: ServiceEndpoint[];
 	expiresAt: number;
 	nextIndex: number;
 }
@@ -25,14 +20,14 @@ export class ServiceResolver {
 		this._httpClient = httpClient ?? new HttpClient();
 	}
 
-	async resolve(serviceName: string, majorVersion: number): Promise<ResolvedTarget | null> {
+	async resolve(serviceName: string, majorVersion: number): Promise<ServiceEndpoint | null> {
 		const cacheKey = `${serviceName}:v${majorVersion}`;
 		const cached = this._cache.get(cacheKey);
 		if (cached && Date.now() < cached.expiresAt) return cached.instances.length === 0 ? null : this._selectInstance(cached);
 		try { return await this._fetchAndCache(serviceName, majorVersion, cacheKey); } catch { return this._handleFallback(cacheKey); }
 	}
 
-	private async _fetchAndCache(serviceName: string, majorVersion: number, cacheKey: string): Promise<ResolvedTarget | null> {
+	private async _fetchAndCache(serviceName: string, majorVersion: number, cacheKey: string): Promise<ServiceEndpoint | null> {
 		const response = await this._httpClient.get<{ data: ServiceInstance[] }>(`${this._discoveryUrl}/services/${serviceName}`);
 		const instances = Array.isArray(response) ? response : (response as { data: ServiceInstance[] }).data;
 		if (!Array.isArray(instances)) return this._handleFallback(cacheKey);
@@ -42,11 +37,11 @@ export class ServiceResolver {
 		return matching.length === 0 ? null : this._selectInstance(cachedService);
 	}
 
-	private _handleFallback(cacheKey: string): ResolvedTarget | null {
+	private _handleFallback(cacheKey: string): ServiceEndpoint | null {
 		const stale = this._cache.get(cacheKey);
 		return stale && stale.instances.length > 0 ? this._selectInstance(stale) : null;
 	}
-	private _selectInstance(cached: CachedService): ResolvedTarget {
+	private _selectInstance(cached: CachedService): ServiceEndpoint {
 		const index = cached.nextIndex % cached.instances.length;
 		cached.nextIndex = (cached.nextIndex + 1) % cached.instances.length;
 		return cached.instances[index];

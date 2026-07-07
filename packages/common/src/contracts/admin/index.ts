@@ -28,5 +28,4 @@ export type {
 	TrainingLayer,
 	TrainingResult,
 } from "./training.dto";
-export { AdminWorkerStatus } from "./workers.dto";
 export type { WorkerEntry, WorkerStats } from "./workers.dto";

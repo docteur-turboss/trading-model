@@ -7,18 +7,44 @@ export const LogLevel = {
 	Error: "error" as LogLevel,
 };
 
-const LOG_PRIORITY_MAP: Record<LogLevel, number> = {
-	debug: 0,
-	info: 1,
-	warn: 2,
-	error: 3,
-};
+class LogPriority {
+	readonly value: number;
+	private constructor(value: number) {
+		this.value = value;
+	}
+
+	static readonly DEBUG = new LogPriority(0);
+	static readonly INFO = new LogPriority(1);
+	static readonly WARN = new LogPriority(2);
+	static readonly ERROR = new LogPriority(3);
+
+	static fromLogLevel(level: LogLevel): LogPriority {
+		switch (level) {
+			case "debug":
+				return LogPriority.DEBUG;
+			case "info":
+				return LogPriority.INFO;
+			case "warn":
+				return LogPriority.WARN;
+			case "error":
+				return LogPriority.ERROR;
+			default:
+				throw new Error(`Unknown log level: ${level}`);
+		}
+	}
+
+	canLog(threshold: LogPriority): boolean {
+		return this.value >= threshold.value;
+	}
+}
 
 export function isLogLevelAtLeast(
 	level: LogLevel,
 	threshold: LogLevel
 ): boolean {
-	return LOG_PRIORITY_MAP[level] >= LOG_PRIORITY_MAP[threshold];
+	return LogPriority.fromLogLevel(level).canLog(
+		LogPriority.fromLogLevel(threshold)
+	);
 }
 
 export interface LogOptions {

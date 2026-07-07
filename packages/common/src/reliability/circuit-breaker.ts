@@ -1,61 +1,71 @@
 import { logger } from "../config/logger";
 import type { CircuitState } from "../domain/circuit-state";
 import type { ICircuitBreaker } from "./circuit-breaker.interface";
+import { CircuitStateMachine, DEFAULT_CIRCUIT_CONFIG } from "./circuit-state-machine";
+import type { CircuitBreakerConfig } from "./circuit-state-machine";
 
-export interface CircuitBreakerEntry {
-	failures: number;
-	state: CircuitState;
-	lastFailureTime: number;
-}
-
-export interface CircuitBreakerConfig {
-	failureThreshold: number;
-	cooldownMs: number;
-	halfOpenMaxAttempts?: number;
-}
-
-const DEFAULT_CONFIG: CircuitBreakerConfig = { failureThreshold: 5, cooldownMs: 30_000 };
-
-export type { CircuitState };
+export type { CircuitState, CircuitBreakerConfig };
 
 export class CircuitBreaker implements ICircuitBreaker {
-	protected readonly _entries = new Map<string, CircuitBreakerEntry>();
-	protected readonly _config: CircuitBreakerConfig;
+	private readonly _machines = new Map<string, CircuitStateMachine>();
+	private readonly _config: CircuitBreakerConfig;
 
-	constructor(config?: Partial<CircuitBreakerConfig>) { this._config = { ...DEFAULT_CONFIG, ...config }; }
-
-	protected _getEntry(key: string): CircuitBreakerEntry {
-		let entry = this._entries.get(key);
-		if (!entry) { entry = { failures: 0, state: "closed", lastFailureTime: 0 }; this._entries.set(key, entry); }
-		return entry;
+	constructor(config?: Partial<CircuitBreakerConfig>) {
+		this._config = { ...DEFAULT_CIRCUIT_CONFIG, ...config };
 	}
-	protected _getState(key: string): CircuitBreakerEntry | undefined { return this._entries.get(key); }
-	protected _setState(key: string, entry: CircuitBreakerEntry): void { this._entries.set(key, entry); }
+
+	private _getMachine(key: string): CircuitStateMachine {
+		let machine = this._machines.get(key);
+		if (!machine) {
+			machine = new CircuitStateMachine(this._config);
+			this._machines.set(key, machine);
+		}
+		return machine;
+	}
 
 	check(key: string): CircuitState {
-		const entry = this._getEntry(key);
-		if (entry.state === "open") {
-			if (Date.now() - entry.lastFailureTime >= this._config.cooldownMs) { entry.state = "half-open"; return "half-open"; }
-			return "open";
-		}
-		return entry.state;
+		return this._getMachine(key).check();
 	}
-	isAllowed(key: string): boolean { return this.check(key) !== "open"; }
-	recordSuccess(key: string): void { const entry = this._getEntry(key); entry.failures = 0; entry.state = "closed"; }
-	recordFailure(key: string, count = 1, threshold?: number): void {
-		const entry = this._getEntry(key);
-		entry.failures += count;
-		entry.lastFailureTime = Date.now();
-		if (entry.failures >= (threshold ?? this._config.failureThreshold)) entry.state = "open";
+	isAllowed(key: string): boolean {
+		return this._getMachine(key).isAllowed();
 	}
-	isOpen(key: string): boolean { return this._entries.get(key)?.state === "open"; }
-	getState(key: string): CircuitState { return this._entries.get(key)?.state ?? "closed"; }
-	getFailureCount(key: string): number { return this._entries.get(key)?.failures ?? 0; }
+	recordSuccess(key: string): void {
+		this._getMachine(key).recordSuccess();
+	}
+	recordFailure(key: string, count?: number, threshold?: number): void {
+		this._getMachine(key).recordFailure(count ?? 1, threshold);
+	}
+	isOpen(key: string): boolean {
+		return this._getMachine(key).isOpen();
+	}
+	getState(key: string): CircuitState {
+		return this._getMachine(key).getState();
+	}
+	getFailureCount(key: string): number {
+		return this._getMachine(key).getFailureCount();
+	}
 	async call<TResult>(key: string, fn: () => Promise<TResult>, fallback?: () => TResult): Promise<TResult> {
-		const state = this.check(key);
-		if (state === "open") { if (fallback) return fallback(); throw new Error(`Circuit breaker OPEN: ${key}`); }
-		try { const result = await fn(); this.recordSuccess(key); return result; }
-		catch (error) { this.recordFailure(key); logger.warn(`Circuit breaker recorded failure for: ${key}`); if (fallback) return fallback(); throw error; }
+		const machine = this._getMachine(key);
+		const state = machine.check();
+		if (state === "open") {
+			if (fallback) return fallback();
+			throw new Error(`Circuit breaker OPEN: ${key}`);
+		}
+		try {
+			const result = await fn();
+			machine.recordSuccess();
+			return result;
+		} catch (error) {
+			machine.recordFailure();
+			logger.warn(`Circuit breaker recorded failure for: ${key}`);
+			if (fallback) return fallback();
+			throw error;
+		}
 	}
-	clear(): void { this._entries.clear(); }
+	clear(): void {
+		for (const machine of this._machines.values()) {
+			machine.clear();
+		}
+		this._machines.clear();
+	}
 }
