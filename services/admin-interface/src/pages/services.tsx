@@ -98,6 +98,10 @@ function AvgLatencyCard({ label }: { label: string }) {
 	);
 }
 
+function ServiceStatRow({ children }: { children: React.ReactNode }) {
+	return <Grid size={{ xs: 3 }}>{children}</Grid>;
+}
+
 function ServiceStats({
 	data,
 	flatServices,
@@ -116,16 +120,24 @@ function ServiceStats({
 	);
 	return (
 		<Grid container spacing={2} sx={{ mb: 3 }}>
-			<ActiveServicesCard
-				count={data?.services.length ?? 0}
-				label={translate("activeServices")}
-			/>
-			<TotalInstancesCard
-				total={totalInstances}
-				label={translate("totalInstances")}
-			/>
-			<Errors5xxCard label={translate("errors5xx")} />
-			<AvgLatencyCard label={translate("avgLatency")} />
+			<ServiceStatRow>
+				<ActiveServicesCard
+					count={data?.services.length ?? 0}
+					label={translate("activeServices")}
+				/>
+			</ServiceStatRow>
+			<ServiceStatRow>
+				<TotalInstancesCard
+					total={totalInstances}
+					label={translate("totalInstances")}
+				/>
+			</ServiceStatRow>
+			<ServiceStatRow>
+				<Errors5xxCard label={translate("errors5xx")} />
+			</ServiceStatRow>
+			<ServiceStatRow>
+				<AvgLatencyCard label={translate("avgLatency")} />
+			</ServiceStatRow>
 		</Grid>
 	);
 }
@@ -269,6 +281,50 @@ function createServiceColumns(
 	];
 }
 
+function ServicesHeaderTitle({
+	title,
+	subtitle,
+}: {
+	title: string;
+	subtitle: string;
+}) {
+	return (
+		<Box>
+			<Typography variant="h4" fontWeight={700}>
+				{title}
+			</Typography>
+			<Typography variant="body2" color="text.secondary">
+				{subtitle}
+			</Typography>
+		</Box>
+	);
+}
+
+function ServicesHeaderActions({
+	onRefresh,
+	refreshLabel,
+	newServiceLabel,
+}: {
+	onRefresh: () => void;
+	refreshLabel: string;
+	newServiceLabel: string;
+}) {
+	return (
+		<Box sx={{ display: "flex", gap: 1 }}>
+			<Button
+				variant="outlined"
+				startIcon={<RefreshIcon />}
+				onClick={onRefresh}
+			>
+				{refreshLabel}
+			</Button>
+			<Button variant="contained" startIcon={<AddIcon />}>
+				{newServiceLabel}
+			</Button>
+		</Box>
+	);
+}
+
 function ServicesPageHeader({
 	title,
 	subtitle,
@@ -284,26 +340,12 @@ function ServicesPageHeader({
 }) {
 	return (
 		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-			<Box>
-				<Typography variant="h4" fontWeight={700}>
-					{title}
-				</Typography>
-				<Typography variant="body2" color="text.secondary">
-					{subtitle}
-				</Typography>
-			</Box>
-			<Box sx={{ display: "flex", gap: 1 }}>
-				<Button
-					variant="outlined"
-					startIcon={<RefreshIcon />}
-					onClick={onRefresh}
-				>
-					{refreshLabel}
-				</Button>
-				<Button variant="contained" startIcon={<AddIcon />}>
-					{newServiceLabel}
-				</Button>
-			</Box>
+			<ServicesHeaderTitle title={title} subtitle={subtitle} />
+			<ServicesHeaderActions
+				onRefresh={onRefresh}
+				refreshLabel={refreshLabel}
+				newServiceLabel={newServiceLabel}
+			/>
 		</Box>
 	);
 }

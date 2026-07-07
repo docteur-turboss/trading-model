@@ -74,6 +74,43 @@ function CacheStats({
 	);
 }
 
+function CacheHeaderTitle({
+	title,
+	subtitle,
+}: {
+	title: string;
+	subtitle: string;
+}) {
+	return (
+		<Box>
+			<Typography variant="h4" fontWeight={700}>
+				{title}
+			</Typography>
+			<Typography variant="body2" color="text.secondary">
+				{subtitle}
+			</Typography>
+		</Box>
+	);
+}
+
+function CacheHeaderActions({ onInvalidate }: { onInvalidate: () => void }) {
+	return (
+		<Box sx={{ display: "flex", gap: 1 }}>
+			<Button variant="outlined" startIcon={<HistoryIcon />}>
+				Invalidation History
+			</Button>
+			<Button
+				variant="contained"
+				color="error"
+				startIcon={<DeleteSweepIcon />}
+				onClick={onInvalidate}
+			>
+				Invalidate All
+			</Button>
+		</Box>
+	);
+}
+
 function CachePageHeader({
 	title,
 	subtitle,
@@ -85,27 +122,8 @@ function CachePageHeader({
 }) {
 	return (
 		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
-			<Box>
-				<Typography variant="h4" fontWeight={700}>
-					{title}
-				</Typography>
-				<Typography variant="body2" color="text.secondary">
-					{subtitle}
-				</Typography>
-			</Box>
-			<Box sx={{ display: "flex", gap: 1 }}>
-				<Button variant="outlined" startIcon={<HistoryIcon />}>
-					Invalidation History
-				</Button>
-				<Button
-					variant="contained"
-					color="error"
-					startIcon={<DeleteSweepIcon />}
-					onClick={onInvalidate}
-				>
-					Invalidate All
-				</Button>
-			</Box>
+			<CacheHeaderTitle title={title} subtitle={subtitle} />
+			<CacheHeaderActions onInvalidate={onInvalidate} />
 		</Box>
 	);
 }
@@ -140,6 +158,20 @@ function useCacheColumns(
 	];
 }
 
+function InvalidateImpactItems({
+	entryCount,
+	translate,
+}: {
+	entryCount: number;
+	translate: (key: string, opts?: Record<string, unknown>) => string;
+}) {
+	return [
+		translate("entriesDeleted", { count: entryCount }),
+		translate("latencyWarning"),
+		translate("clustersAffected"),
+	];
+}
+
 function CacheInvalidateModal({
 	open,
 	onConfirm,
@@ -160,13 +192,26 @@ function CacheInvalidateModal({
 			description={translate("confirmDescription")}
 			confirmLabel={translate("confirmLabel")}
 			confirmColor="error"
-			impactItems={[
-				translate("entriesDeleted", { count: entryCount }),
-				translate("latencyWarning"),
-				translate("clustersAffected"),
-			]}
+			impactItems={InvalidateImpactItems({ entryCount, translate })}
 			onConfirm={onConfirm}
 			onCancel={onCancel}
+		/>
+	);
+}
+
+function CacheTable({
+	columns,
+	entries,
+}: {
+	columns: Column<CacheEntry>[];
+	entries: CacheEntry[];
+}) {
+	return (
+		<DataTable
+			columns={columns}
+			rows={entries}
+			getId={(row) => row.key}
+			total={entries.length}
 		/>
 	);
 }
@@ -191,12 +236,7 @@ export function Cache() {
 
 			<CacheStats data={data} translate={t} />
 
-			<DataTable
-				columns={columns}
-				rows={data?.entries ?? []}
-				getId={(row) => row.key}
-				total={data?.entries.length ?? 0}
-			/>
+			<CacheTable columns={columns} entries={data?.entries ?? []} />
 
 			<CacheInvalidateModal
 				open={confirmOpen}

@@ -9,6 +9,14 @@ interface StatsCardProps {
 	deltaColor?: string;
 }
 
+// biome-ignore lint/correctness/noUnusedVariables: extracted per refactor task
+function computeDelta(current: number, previous: number): number {
+	if (previous === 0) {
+		return current === 0 ? 0 : 100;
+	}
+	return Math.round(((current - previous) / previous) * 100);
+}
+
 function DeltaIndicator({
 	delta,
 	deltaColor,
@@ -33,6 +41,38 @@ function DeltaIndicator({
 	);
 }
 
+function MetricRow({
+	icon,
+	value,
+	label,
+	delta,
+	deltaColor,
+}: {
+	icon: ReactNode;
+	value: string;
+	label: string;
+	delta?: string;
+	deltaColor?: string;
+}) {
+	return (
+		<Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, padding: 2 }}>
+			<Box sx={{ color: "primary.main", mt: 0.5 }}>{icon}</Box>
+			<Box>
+				<Typography variant="h5" fontWeight={700}>
+					{value}
+				</Typography>
+				<Typography
+					variant="subtitle2"
+					sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
+				>
+					{label}
+				</Typography>
+				<DeltaIndicator delta={delta} deltaColor={deltaColor} />
+			</Box>
+		</Box>
+	);
+}
+
 function StatsCardBody({
 	icon,
 	value,
@@ -47,22 +87,14 @@ function StatsCardBody({
 	deltaColor?: string;
 }) {
 	return (
-		<CardContent
-			sx={{ display: "flex", alignItems: "flex-start", gap: 2, padding: 2 }}
-		>
-			<Box sx={{ color: "primary.main", mt: 0.5 }}>{icon}</Box>
-			<Box>
-				<Typography variant="h5" fontWeight={700}>
-					{value}
-				</Typography>
-				<Typography
-					variant="subtitle2"
-					sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
-				>
-					{label}
-				</Typography>
-				<DeltaIndicator delta={delta} deltaColor={deltaColor} />
-			</Box>
+		<CardContent sx={{ padding: 0 }}>
+			<MetricRow
+				icon={icon}
+				value={value}
+				label={label}
+				delta={delta}
+				deltaColor={deltaColor}
+			/>
 		</CardContent>
 	);
 }

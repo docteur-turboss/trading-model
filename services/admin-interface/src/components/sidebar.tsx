@@ -137,12 +137,56 @@ function SidebarUserInfo() {
 	);
 }
 
+function NavItemIcon({
+	icon,
+	badge,
+	active,
+}: {
+	icon: React.ReactNode;
+	badge?: number;
+	active: boolean;
+}) {
+	return (
+		<ListItemIcon
+			sx={{
+				minWidth: 36,
+				color: active ? "primary.main" : undefined,
+			}}
+		>
+			{badge ? (
+				<Badge badgeContent={badge} color="error">
+					{icon}
+				</Badge>
+			) : (
+				icon
+			)}
+		</ListItemIcon>
+	);
+}
+
+function NavItemLabel({ label, active }: { label: string; active: boolean }) {
+	return (
+		<ListItemText
+			primary={label}
+			primaryTypographyProps={{
+				variant: "body2",
+				fontWeight: active ? 600 : 400,
+			}}
+		/>
+	);
+}
+
 function NavItem({
 	item,
 	active,
 	onClick,
 }: {
-	item: { label: string; path: string; icon: React.ReactNode; badge?: number };
+	item: {
+		label: string;
+		path: string;
+		icon: React.ReactNode;
+		badge?: number;
+	};
 	active: boolean;
 	onClick: () => void;
 }) {
@@ -152,27 +196,8 @@ function NavItem({
 			onClick={onClick}
 			sx={{ borderRadius: 1, mb: 0.25 }}
 		>
-			<ListItemIcon
-				sx={{
-					minWidth: 36,
-					color: active ? "primary.main" : undefined,
-				}}
-			>
-				{item.badge ? (
-					<Badge badgeContent={item.badge} color="error">
-						{item.icon}
-					</Badge>
-				) : (
-					item.icon
-				)}
-			</ListItemIcon>
-			<ListItemText
-				primary={item.label}
-				primaryTypographyProps={{
-					variant: "body2",
-					fontWeight: active ? 600 : 400,
-				}}
-			/>
+			<NavItemIcon icon={item.icon} badge={item.badge} active={active} />
+			<NavItemLabel label={item.label} active={active} />
 		</ListItemButton>
 	);
 }

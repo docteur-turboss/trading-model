@@ -57,15 +57,21 @@ function ResetLink({ onClick }: { onClick?: () => void }) {
 	);
 }
 
-/** Search bar with optional filter controls and apply/reset actions. */
-export function FilterBar({
-	searchPlaceholder = "Search...",
+function FilterRow({
+	searchPlaceholder,
 	searchValue,
 	onSearchChange,
 	filters,
 	onApply,
 	onReset,
-}: FilterBarProps) {
+}: {
+	searchPlaceholder: string;
+	searchValue?: string;
+	onSearchChange?: (value: string) => void;
+	filters?: ReactNode;
+	onApply?: () => void;
+	onReset?: () => void;
+}) {
 	return (
 		<Box
 			sx={{
@@ -85,5 +91,26 @@ export function FilterBar({
 			<ApplyButton onClick={onApply} />
 			<ResetLink onClick={onReset} />
 		</Box>
+	);
+}
+
+/** Search bar with optional filter controls and apply/reset actions. */
+export function FilterBar({
+	searchPlaceholder = "Search...",
+	searchValue,
+	onSearchChange,
+	filters,
+	onApply,
+	onReset,
+}: FilterBarProps) {
+	return (
+		<FilterRow
+			searchPlaceholder={searchPlaceholder}
+			searchValue={searchValue}
+			onSearchChange={onSearchChange}
+			filters={filters}
+			onApply={onApply}
+			onReset={onReset}
+		/>
 	);
 }

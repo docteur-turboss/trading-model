@@ -66,7 +66,7 @@ function DrawerTabs({
 	);
 }
 
-function DrawerContent({
+function DrawerContentSection({
 	tabs,
 	activeTab,
 }: {
@@ -124,7 +124,7 @@ export function DrawerPanel({
 					activeTab={activeTab}
 					onTabChange={onTabChange}
 				/>
-				<DrawerContent tabs={tabs} activeTab={activeTab} />
+				<DrawerContentSection tabs={tabs} activeTab={activeTab} />
 				<DrawerActions actions={actions} />
 			</Box>
 		</Drawer>

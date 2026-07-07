@@ -98,6 +98,18 @@ function TimelineConnector() {
 	);
 }
 
+function TimelineContent({ entry }: { entry: JobTimelineEntry }) {
+	return (
+		<Box>
+			<Typography variant="subtitle2">{entry.event}</Typography>
+			<Typography variant="caption" color="text.secondary">
+				{entry.timestamp}
+			</Typography>
+			<Typography variant="body2">{entry.description}</Typography>
+		</Box>
+	);
+}
+
 function TimelineEntry({
 	entry,
 	isLast,
@@ -117,13 +129,7 @@ function TimelineEntry({
 				<TimelineDot active={entry.active} />
 				{!isLast && <TimelineConnector />}
 			</Box>
-			<Box>
-				<Typography variant="subtitle2">{entry.event}</Typography>
-				<Typography variant="caption" color="text.secondary">
-					{entry.timestamp}
-				</Typography>
-				<Typography variant="body2">{entry.description}</Typography>
-			</Box>
+			<TimelineContent entry={entry} />
 		</Box>
 	);
 }
