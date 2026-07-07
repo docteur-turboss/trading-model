@@ -15,29 +15,8 @@ export interface UsedToken {
 	expiresAt: Date;
 }
 
-interface ICollection {
-	insertOne(doc: UsedToken): Promise<{ acknowledged: boolean }>;
-	findOne(filter: Record<string, unknown>): Promise<UsedToken | null>;
-	createIndex(
-		keys: Record<string, unknown>,
-		options?: Record<string, unknown>
-	): Promise<string>;
-}
-
-class NullCollection implements ICollection {
-	async insertOne(): Promise<{ acknowledged: boolean }> {
-		return { acknowledged: false };
-	}
-	async findOne(): Promise<UsedToken | null> {
-		return null;
-	}
-	async createIndex(): Promise<string> {
-		return "";
-	}
-}
-
 export class TokenStore {
-	private _collection: ICollection = new NullCollection();
+	private _collection?: Collection<UsedToken>;
 	private readonly _defaultTtlMs: number;
 
 	constructor(collection?: Collection<UsedToken>, defaultTtlMs?: number) {
@@ -68,6 +47,7 @@ export class TokenStore {
 	}
 
 	async tryUseToken(request: TokenUseRequest): Promise<boolean> {
+		if (!this._collection) return true;
 		const { token, serviceId, ttlMs } = request;
 		const ttl = ttlMs ?? this._defaultTtlMs;
 		const hash = await this._hashToken(token);
@@ -87,6 +67,7 @@ export class TokenStore {
 	}
 
 	async isUsed(token: string): Promise<boolean> {
+		if (!this._collection) return false;
 		const hash = await this._hashToken(token);
 		const found = await this._collection.findOne({ tokenHash: hash });
 		return found !== null;

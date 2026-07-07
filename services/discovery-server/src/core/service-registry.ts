@@ -1,9 +1,13 @@
 import { generateRandomStr } from "@trading-model/common/crypto/random";
-import { generateInstanceId } from "@trading-model/common/crypto/token-service";
+import {
+	generateInstanceId,
+	type TokenValidationInput,
+} from "@trading-model/common/crypto/token-service";
 import type {
 	ServiceEndpoint,
 	ServiceIdentity,
 } from "@trading-model/common/domain/service-identity";
+import type { InstanceId } from "@trading-model/common/domain/primitives";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import { InstanceStore } from "./instance-store";
 import { TokenService } from "./token-service";
@@ -72,11 +76,13 @@ export class ServiceRegistry {
 
 	validInstanceToken({ token, instanceId }: TokenValidation): boolean {
 		const storedToken = this._token.get(instanceId);
-		return this._tokenService.validInstanceToken(
+		const input: TokenValidationInput = {
 			token,
-			instanceId,
-			storedToken
-		);
+			instanceId: instanceId as InstanceId,
+			signingSecret: "",
+			storedToken,
+		};
+		return this._tokenService.validInstanceToken(input);
 	}
 
 	verifyInstanceName(serviceName: string): boolean {

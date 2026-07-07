@@ -21,38 +21,16 @@ export class TokenService {
 		);
 	}
 
-	validInstanceToken(input: TokenValidationInput): boolean;
-	validInstanceToken(
-		token: string,
-		instanceId: string,
-		storedToken?: string
-	): boolean;
-	validInstanceToken(
-		tokenOrInput: string | TokenValidationInput,
-		instanceId?: string,
-		storedToken?: string
-	): boolean {
-		if (typeof tokenOrInput === "object") {
-			const input = {
-				...tokenOrInput,
-				signingSecret: tokenOrInput.signingSecret ?? this._signingSecret,
-			};
-			const result = commonValidateToken(input);
-			if (!result) {
-				logger.warn("Token validation failed", {
-					instanceId: input.instanceId,
-				});
-			}
-			return result;
-		}
-		const result = commonValidateToken({
-			token: tokenOrInput,
-			instanceId: instanceId as InstanceId,
+	validInstanceToken(input: TokenValidationInput): boolean {
+		const merged: TokenValidationInput = {
+			...input,
 			signingSecret: this._signingSecret,
-			storedToken,
-		});
+		};
+		const result = commonValidateToken(merged);
 		if (!result) {
-			logger.warn("Token validation failed", { instanceId });
+			logger.warn("Token validation failed", {
+				instanceId: input.instanceId,
+			});
 		}
 		return result;
 	}

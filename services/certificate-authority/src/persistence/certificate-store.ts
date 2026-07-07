@@ -26,10 +26,6 @@ export class CertificateStore {
 		await this._collection.insertOne(cert);
 	}
 
-	async add(cert: SignedCertificate): Promise<void> {
-		await this.save(cert);
-	}
-
 	async getBySerial(
 		serialNumber: SerialNumber
 	): Promise<SignedCertificate | null> {

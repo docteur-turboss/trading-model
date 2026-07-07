@@ -57,7 +57,7 @@ export class CertificateOperator {
 			throw new Error(`Certificate ${request.serialNumber} not found`);
 		}
 		const revoked = this._buildRevokedCertificate(request, cert.serviceId);
-		await this._crlStore.add(revoked);
+		await this._crlStore.save(revoked);
 	}
 
 	async getCrl(): Promise<RevokedCertificate[]> {

@@ -31,11 +31,12 @@ export class TokenHandler {
 		const storedToken = await this._redis.get(
 			this._keyBuilder.instanceToken(instanceId)
 		);
-		return this._tokenService.validInstanceToken(
+		return this._tokenService.validInstanceToken({
 			token,
-			instanceId,
-			storedToken ?? undefined
-		);
+			instanceId: instanceId as import("@trading-model/common/domain/primitives").InstanceId,
+			signingSecret: "",
+			storedToken,
+		});
 	}
 
 	generateInstanceId(endpoint: ServiceEndpoint): ServiceId {

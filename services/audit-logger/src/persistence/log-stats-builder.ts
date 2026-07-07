@@ -3,6 +3,12 @@ import type { LogStats } from "./log-repository";
 
 type MongoDoc = Record<string, unknown>;
 
+interface ServiceLogCounts {
+	total: number;
+	byService: Map<ServiceId, number>;
+	dateRange: { earliest?: string; latest?: string };
+}
+
 export class LogStatsBuilder {
 	build(): MongoDoc[] {
 		return [{ $facet: this._buildFacets() }];
@@ -42,10 +48,7 @@ export class LogStatsBuilder {
 	parseResult(aggResult: Record<string, unknown>): LogStats {
 		return {
 			total: this._extractTotal(aggResult),
-			byService: this._extractMap(aggResult, "byService") as Record<
-				ServiceId,
-				number
-			>,
+			byService: this._extractServiceMap(aggResult, "byService"),
 			byLevel: this._extractMap(aggResult, "byLevel"),
 			dateRange: this._extractDateRange(aggResult),
 		};
@@ -53,6 +56,20 @@ export class LogStatsBuilder {
 
 	private _extractTotal(aggResult: Record<string, unknown>): number {
 		return (aggResult?.total as Array<{ count: number }>)?.[0]?.count ?? 0;
+	}
+
+	private _extractServiceMap(
+		aggResult: Record<string, unknown>,
+		key: string
+	): Record<ServiceId, number> {
+		const result: Record<ServiceId, number> = {};
+		for (const item of (aggResult?.[key] as Array<{
+			_id: ServiceId;
+			count: number;
+		}>) ?? []) {
+			result[item._id] = item.count;
+		}
+		return result;
 	}
 
 	private _extractMap(

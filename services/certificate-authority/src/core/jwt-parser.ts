@@ -13,15 +13,15 @@ export interface JwtTokenParts<TData = Record<string, unknown>> {
 
 export class JwtParser {
 	parse<TData = Record<string, unknown>>(token: string): JwtTokenParts<TData> {
-		const parts = token.split(".");
-		if (parts.length !== 3) {
+		const [headerB64, payloadB64, signatureB64] = token.split(".");
+		if (!(headerB64 && payloadB64 && signatureB64)) {
 			throw new Error("Invalid JWT format");
 		}
 		return {
-			header: this.parseBase64Json<JwtHeader>(parts[0]),
-			payload: this.parseBase64Json<TData>(parts[1]),
-			message: `${parts[0]}.${parts[1]}`,
-			signature: Buffer.from(parts[2], "base64url"),
+			header: this.parseBase64Json<JwtHeader>(headerB64),
+			payload: this.parseBase64Json<TData>(payloadB64),
+			message: `${headerB64}.${payloadB64}`,
+			signature: Buffer.from(signatureB64, "base64url"),
 		};
 	}
 

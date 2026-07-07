@@ -32,7 +32,13 @@ function _validateIv(iv: Buffer): void {
 	}
 }
 
-export function decrypt(ciphertext: string, key: Buffer): string {
+interface EncryptedPayload {
+	iv: Buffer;
+	tag: Buffer;
+	encrypted: Buffer;
+}
+
+function _parseEncryptedPayload(ciphertext: string): EncryptedPayload {
 	const parts = ciphertext.split(":");
 	if (parts.length !== 3) {
 		throw new Error("Invalid encrypted payload format");
@@ -41,6 +47,11 @@ export function decrypt(ciphertext: string, key: Buffer): string {
 	_validateIv(iv);
 	const tag = Buffer.from(parts[1], "base64");
 	const encrypted = Buffer.from(parts[2], "base64");
+	return { iv, tag, encrypted };
+}
+
+export function decrypt(ciphertext: string, key: Buffer): string {
+	const { iv, tag, encrypted } = _parseEncryptedPayload(ciphertext);
 	const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
 	decipher.setAuthTag(tag);
 	return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString(

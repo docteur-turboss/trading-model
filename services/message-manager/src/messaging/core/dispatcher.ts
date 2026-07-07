@@ -6,23 +6,19 @@
  * subscribers.
  */
 
-import { randomUUID } from "node:crypto";
-
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { logger } from "@trading-model/common/config/logger";
 import type {
 	Message,
-	MessageMetadata,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
-import { toMessageId } from "@trading-model/common/domain/primitives";
 
 import { AckHandler } from "./ack-handler";
 import { BackpressureMonitor } from "./backpressure-monitor";
 import type { FileDlqRepository } from "./dlq-repository";
 import { HttpMessageDelivery } from "./http-message-delivery";
+import { MessageFactory } from "./message-factory";
 import type { TopicSubscription } from "./messaging-types";
-import { sanitizePayload } from "./payload-sanitizer";
 import { SubscriptionRegistry } from "./subscription-registry";
 
 export class Dispatcher {
@@ -30,6 +26,7 @@ export class Dispatcher {
 	private readonly _deliveryPort: HttpMessageDelivery;
 	private readonly _ackHandler: AckHandler;
 	private readonly _backpressureMonitor: BackpressureMonitor;
+	private readonly _messageFactory: MessageFactory;
 
 	constructor(
 		httpClient: HttpClient,
@@ -39,39 +36,16 @@ export class Dispatcher {
 		this._registry = new SubscriptionRegistry(this._deliveryPort);
 		this._ackHandler = new AckHandler();
 		this._backpressureMonitor = new BackpressureMonitor();
-	}
-
-	get registry(): SubscriptionRegistry {
-		return this._registry;
-	}
-
-	get deliveryPort(): HttpMessageDelivery {
-		return this._deliveryPort;
-	}
-
-	get ackHandler(): AckHandler {
-		return this._ackHandler;
-	}
-
-	get backpressureMonitor(): BackpressureMonitor {
-		return this._backpressureMonitor;
+		this._messageFactory = new MessageFactory();
 	}
 
 	async publish(
 		payload: unknown,
-		metadata: Omit<MessageMetadata, "emittedAt" | "messageId">
+		metadata: Omit<import("@trading-model/common/contracts/message.types").MessageMetadata, "emittedAt" | "messageId">
 	): Promise<string> {
-		const Msg: Message = {
-			metadata: {
-				...metadata,
-				emittedAt: new Date(),
-				messageId: toMessageId(randomUUID()),
-			},
-			payload: sanitizePayload(payload),
-		};
-
-		await this.dispatch(Msg);
-		return Msg.metadata.messageId!;
+		const msg = this._messageFactory.create(payload, metadata);
+		await this.dispatch(msg);
+		return msg.metadata.messageId!;
 	}
 
 	subscribe(params: {

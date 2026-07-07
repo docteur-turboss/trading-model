@@ -29,7 +29,7 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-import { createCache, NullCache } from "../../src/persistence/redis-cache";
+import { createCache, NULL_CACHE } from "../../src/persistence/redis-cache";
 
 describe("RedisCache", () => {
 	beforeEach(() => {
@@ -61,7 +61,7 @@ describe("RedisCache", () => {
 	});
 
 	it("should return null on get when disabled", async () => {
-		const cache = new NullCache();
+		const cache = NULL_CACHE;
 		const result = await cache.get("key");
 		expect(result).toBeNull();
 	});
@@ -97,13 +97,13 @@ describe("RedisCache", () => {
 	});
 
 	it("should do nothing when disabled for set", async () => {
-		const cache = new NullCache();
+		const cache = NULL_CACHE;
 		await cache.set({ key: "key", value: "val", ttlMs: 1000 });
 		expect(mockRedisInstance.setex).not.toHaveBeenCalled();
 	});
 
 	it("should make prefixed key", () => {
-		const cache = new NullCache();
+		const cache = NULL_CACHE;
 		expect(cache.makeKey(["a", "b"])).toBe("ca-cache:a:b");
 	});
 
@@ -121,7 +121,7 @@ describe("RedisCache", () => {
 	});
 
 	it("should handle clear when disabled", async () => {
-		const cache = new NullCache();
+		const cache = NULL_CACHE;
 		await cache.clear();
 		expect(mockRedisInstance.scan).not.toHaveBeenCalled();
 	});

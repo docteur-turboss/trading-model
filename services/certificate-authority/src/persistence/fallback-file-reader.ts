@@ -3,12 +3,17 @@ import path from "node:path";
 
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { decrypt } from "./fallback-crypto";
+
+export interface FileEncryption {
+	readonly extension: string;
+	serialize(plaintext: string): string;
+	deserialize(ciphertext: string): string;
+}
 
 export class FallbackFileReader {
 	constructor(
 		private readonly _baseDir: string,
-		private readonly _encryptionKey: Buffer | null
+		private readonly _encryption: FileEncryption
 	) {}
 
 	async readAll<TData>(): Promise<TData[]> {
@@ -21,7 +26,7 @@ export class FallbackFileReader {
 	}
 
 	private async _readAllFiles<TData>(files: string[]): Promise<TData[]> {
-		const ext = this._encryptionKey ? ".enc" : ".json";
+		const ext = this._encryption.extension;
 		const results: TData[] = [];
 		for (const file of files) {
 			if (!file.endsWith(ext)) {
@@ -38,9 +43,7 @@ export class FallbackFileReader {
 	private async _tryReadFile<TData>(file: string): Promise<TData | undefined> {
 		try {
 			const raw = await fs.readFile(path.join(this._baseDir, file), "utf8");
-			const decrypted = this._encryptionKey
-				? decrypt(raw, this._encryptionKey)
-				: raw;
+			const decrypted = this._encryption.deserialize(raw);
 			return JSON.parse(decrypted) as TData;
 		} catch (err) {
 			logger.warn("Skipping corrupted fallback file", {

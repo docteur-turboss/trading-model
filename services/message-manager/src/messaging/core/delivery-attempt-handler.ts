@@ -77,7 +77,6 @@ export class DeliveryAttemptHandler {
 		};
 		await this._deliveryPort.send(sendInput);
 
-		context.receivedAt = new Date();
 		await context.ack();
 		return false;
 	}

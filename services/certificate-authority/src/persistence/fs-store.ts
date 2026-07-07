@@ -1,12 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { getNodeEnv, logger } from "@trading-model/common/config/logger";
-import { decrypt, deriveKey, encrypt } from "./fallback-crypto";
-import { FallbackFileReader } from "./fallback-file-reader";
+import { logger } from "@trading-model/common/config/logger";
+import { FallbackFileReader, type FileEncryption } from "./fallback-file-reader";
+import { AesEncryption, buildEncryption, NOOP_ENCRYPTION } from "./encryption-strategies";
 
-const _ALGORITHM = "aes-256-gcm";
-const _IV_LENGTH = 12;
+export { AesEncryption, NOOP_ENCRYPTION };
 
 export interface FsStore {
 	readonly disabled: boolean;
@@ -17,62 +16,28 @@ export interface FsStore {
 	delete(key: string): Promise<void>;
 }
 
-export class NullFsStore implements FsStore {
-	readonly disabled = true;
-
-	async init(): Promise<void> {
+export const NULL_FS_STORE: FsStore = {
+	disabled: true,
+	init: async () => {
 		logger.warn("FsStore is DISABLED — no fallback storage available");
-	}
-
-	async save(_key: string, _data: Record<string, unknown>): Promise<void> {}
-
-	async get<TData>(_key: string): Promise<TData | null> {
-		return null;
-	}
-
-	async getAll<TData>(): Promise<TData[]> {
-		return [];
-	}
-
-	async delete(_key: string): Promise<void> {}
-}
+	},
+	save: async () => {},
+	get: async () => null,
+	getAll: async () => [],
+	delete: async () => {},
+};
 
 class RealFsStore implements FsStore {
 	readonly disabled = false;
 	private readonly _baseDir: string;
-	private _encryptionKey: Buffer | null;
+	private readonly _encryption: FileEncryption;
 	private readonly _fileReader: FallbackFileReader;
 
-	constructor(options: { baseDir?: string; encryptionKey?: string }) {
+	constructor(options: { baseDir?: string; encryption?: FileEncryption }) {
 		this._baseDir =
 			options.baseDir ?? path.join(process.cwd(), "data", "ca-fallback");
-		this._encryptionKey = this._initEncryptionKey(options.encryptionKey);
-		this._fileReader = new FallbackFileReader(
-			this._baseDir,
-			this._encryptionKey
-		);
-	}
-
-	private _throwMissingKeyError(): never {
-		throw new Error(
-			"FsStore: FS_ENCRYPTION_KEY is required in production for encrypted fallback storage. " +
-				"Generate with: node -e \"console.log(crypto.randomBytes(32).toString('base64'))\". " +
-				"To disable the filesystem fallback entirely (relying solely on MongoDB), set CA_DISABLE_FS_FALLBACK=true. " +
-				"Note: disabling FsStore means the CA will crash if MongoDB becomes unavailable."
-		);
-	}
-
-	private _logUnencryptedWarning(): void {
-		logger.warn(
-			"FsStore: FS_ENCRYPTION_KEY not set — fallback data stored unencrypted. Acceptable for dev only."
-		);
-	}
-
-	private _initEncryptionKey(encryptionKey?: string): Buffer | null {
-		if (encryptionKey) return deriveKey(encryptionKey);
-		if (getNodeEnv() === "production") this._throwMissingKeyError();
-		this._logUnencryptedWarning();
-		return null;
+		this._encryption = options.encryption ?? NOOP_ENCRYPTION;
+		this._fileReader = new FallbackFileReader(this._baseDir, this._encryption);
 	}
 
 	async init(): Promise<void> {
@@ -80,24 +45,21 @@ class RealFsStore implements FsStore {
 		logger.info("FsStore initialized", {
 			context: {
 				baseDir: this._baseDir,
-				encrypted: this._encryptionKey !== null,
+				encrypted: this._encryption instanceof AesEncryption,
 			},
 		});
 	}
 
 	private _filePath(key: string): string {
 		const safe = key.replace(/[^a-zA-Z0-9_-]/g, "_");
-		const ext = this._encryptionKey ? ".enc" : ".json";
-		return path.join(this._baseDir, `${safe}${ext}`);
+		return path.join(this._baseDir, `${safe}${this._encryption.extension}`);
 	}
 
 	async save(key: string, data: Record<string, unknown>): Promise<void> {
 		const fp = this._filePath(key);
 		const tmp = `${fp}.tmp`;
 		const serialized = JSON.stringify(data, null, 0);
-		const payload = this._encryptionKey
-			? encrypt(serialized, this._encryptionKey)
-			: serialized;
+		const payload = this._encryption.serialize(serialized);
 		await fs.writeFile(tmp, payload, { mode: 0o600 });
 		await fs.rename(tmp, fp);
 	}
@@ -106,9 +68,7 @@ class RealFsStore implements FsStore {
 		try {
 			const fp = this._filePath(key);
 			const raw = await fs.readFile(fp, "utf8");
-			const decrypted = this._encryptionKey
-				? decrypt(raw, this._encryptionKey)
-				: raw;
+			const decrypted = this._encryption.deserialize(raw);
 			return JSON.parse(decrypted) as TData;
 		} catch {
 			return null;
@@ -134,10 +94,10 @@ export function createFsStore(options?: {
 	disableFallback?: boolean;
 }): FsStore {
 	if (options?.disableFallback) {
-		return new NullFsStore();
+		return NULL_FS_STORE;
 	}
 	return new RealFsStore({
 		baseDir: options?.baseDir,
-		encryptionKey: options?.encryptionKey,
+		encryption: buildEncryption(options?.encryptionKey),
 	});
 }

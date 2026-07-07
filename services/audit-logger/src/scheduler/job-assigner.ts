@@ -8,15 +8,12 @@ import {
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { Job } from "../types/job.types";
-import {
-	type IWorkerProtocol,
-	NullWorkerProtocol,
-} from "../worker/worker-protocol";
+import type { IWorkerProtocol } from "../worker/worker-protocol";
 import type { BackPressure } from "./back-pressure";
 import type { InternalQueue } from "./internal-queue";
 
 export class JobAssigner {
-	private _workerProtocol: IWorkerProtocol = new NullWorkerProtocol();
+	private _workerProtocol?: IWorkerProtocol;
 
 	constructor(
 		private readonly _queue: InternalQueue,
@@ -43,7 +40,7 @@ export class JobAssigner {
 	}
 
 	private _sendAssignment(workerId: string, job: Job, deadline: number): void {
-		this._workerProtocol.sendToWorker(workerId, {
+		this._workerProtocol?.sendToWorker(workerId, {
 			type: "job.assigned",
 			job: {
 				id: job.id,

@@ -21,7 +21,7 @@ jest.mock("@trading-model/common/utils/errors", () => ({
 	normalizeError: (err: Error) => err,
 }));
 
-import { createFsStore, NullFsStore } from "../../src/persistence/fs-store";
+import { createFsStore, NULL_FS_STORE } from "../../src/persistence/fs-store";
 
 function validEncryptionKey(): string {
 	return randomBytes(32).toString("base64");
@@ -41,30 +41,30 @@ describe("FsStore", () => {
 	});
 
 	it("should not create directory when disabled", async () => {
-		const store = new NullFsStore();
+		const store = NULL_FS_STORE;
 		await store.init();
 		expect(mockMkdir).not.toHaveBeenCalled();
 	});
 
 	it("should return null from get when disabled", async () => {
-		const store = new NullFsStore();
+		const store = NULL_FS_STORE;
 		const result = await store.get(TEST_KEY);
 		expect(result).toBeNull();
 	});
 
 	it("should silently succeed on save when disabled", async () => {
-		const store = new NullFsStore();
+		const store = NULL_FS_STORE;
 		await expect(store.save(TEST_KEY, TEST_DATA)).resolves.toBeUndefined();
 	});
 
 	it("should return empty array from getAll when disabled", async () => {
-		const store = new NullFsStore();
+		const store = NULL_FS_STORE;
 		const result = await store.getAll();
 		expect(result).toEqual([]);
 	});
 
 	it("should not call unlink when disabled on delete", async () => {
-		const store = new NullFsStore();
+		const store = NULL_FS_STORE;
 		await store.delete(TEST_KEY);
 		expect(mockUnlink).not.toHaveBeenCalled();
 	});

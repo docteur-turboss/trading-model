@@ -11,7 +11,7 @@ function _buildLogQueryParams(
 	const queryParams = req.query as Record<string, string | undefined>;
 	const { search, correlationId, level, serviceName } = queryParams;
 	const dateRange = parseDateRange(queryParams);
-	const { page, limit } = parsePageAndLimit(queryParams);
+	const pagination = parsePageAndLimit(queryParams);
 
 	return {
 		serviceName: serviceName ? toServiceId(serviceName) : undefined,
@@ -19,8 +19,7 @@ function _buildLogQueryParams(
 		correlationId: correlationId as string | undefined,
 		dateRange,
 		search: search as string | undefined,
-		page,
-		limit,
+		...pagination,
 	};
 }
 

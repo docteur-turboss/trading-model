@@ -1,12 +1,9 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import { HttpMethod } from "@trading-model/common/contracts/signed-request";
-import { normalizeError } from "@trading-model/common/utils/errors";
 import { ENV } from "../../config/env";
-import { logger } from "../../config/logger";
-import { MESSAGES_DLQ_ERROR_TOTAL } from "../../config/metrics";
+import { DlqDeleteHandler } from "./dlq-delete-handler";
+import { DlqReplayHandler } from "./dlq-replay-handler";
 import type { DlqEntry } from "./dlq-repository";
 import { DlqSendHandler } from "./dlq-send-handler";
-import { signedOptions } from "./request-signer";
 
 export interface DlqSendOptions {
 	attempt?: number;
@@ -20,41 +17,17 @@ export interface IDlqServiceClient {
 	delete(entryIds: string[]): Promise<void>;
 }
 
-class NullDlqServiceClient implements IDlqServiceClient {
-	readonly isEnabled = false;
-
-	send(entry: DlqEntry, _options?: DlqSendOptions): Promise<void> {
-		this._logNotConfigured(entry);
-		return Promise.resolve();
-	}
-
-	private _logNotConfigured(entry: DlqEntry): void {
-		logger.warn("DLQ Service not configured, dropping dead letter entry", {
-			context: {
-				reason: entry.reason,
-			},
-		});
-		MESSAGES_DLQ_ERROR_TOTAL.inc({ target: "not-configured" });
-	}
-
-	replay(_topic?: string, _limit?: number): Promise<DlqEntry[]> {
-		return Promise.resolve([]);
-	}
-
-	delete(_entryIds: string[]): Promise<void> {
-		return Promise.resolve();
-	}
-}
-
 export class DlqServiceClient implements IDlqServiceClient {
-	private readonly _httpClient: HttpClient;
 	private readonly _sendHandler: DlqSendHandler;
+	private readonly _replayHandler: DlqReplayHandler;
+	private readonly _deleteHandler: DlqDeleteHandler;
 	private readonly _serviceUrl: string;
 
 	constructor(httpClient: HttpClient) {
-		this._httpClient = httpClient;
 		this._serviceUrl = ENV.DLQ_SERVICE_URL || "";
-		this._sendHandler = new DlqSendHandler(this._httpClient, this._serviceUrl);
+		this._sendHandler = new DlqSendHandler(httpClient, this._serviceUrl);
+		this._replayHandler = new DlqReplayHandler(httpClient, this._serviceUrl);
+		this._deleteHandler = new DlqDeleteHandler(httpClient, this._serviceUrl);
 	}
 
 	get isEnabled(): boolean {
@@ -79,80 +52,17 @@ export class DlqServiceClient implements IDlqServiceClient {
 		}
 	}
 
-	async replay(topic?: string, limit = 100): Promise<DlqEntry[]> {
+	replay(topic?: string, limit = 100): Promise<DlqEntry[]> {
 		if (!this.isEnabled) {
-			return [];
+			return Promise.resolve([]);
 		}
-		try {
-			return await this._doReplay(topic, limit);
-		} catch (err) {
-			return this._logReplayError(err as Error);
-		}
-	}
-
-	private async _doReplay(topic?: string, limit = 100): Promise<DlqEntry[]> {
-		const url = this._sendHandler.buildReplayUrl(topic, limit);
-		const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
-			url,
-			signedOptions({
-				method: HttpMethod.GET,
-				path: "/dlq",
-				body: undefined,
-				extra: { timeoutMs: 5000 },
-			})
-		);
-		return result?.entries ?? [];
-	}
-
-	private _logReplayError(err: Error): DlqEntry[] {
-		logger.error("Failed to fetch DLQ entries for replay", {
-			context: {
-				error: normalizeError(err),
-			},
-		});
-		return [];
+		return this._replayHandler.replay(topic, limit);
 	}
 
 	async delete(entryIds: string[]): Promise<void> {
 		if (!this.isEnabled) {
 			return;
 		}
-		try {
-			await this._doDelete(entryIds);
-		} catch (err) {
-			this._logDeleteError(err as Error);
-		}
+		await this._deleteHandler.delete(entryIds);
 	}
-
-	private async _doDelete(entryIds: string[]): Promise<void> {
-		const body = { ids: entryIds };
-		await this._httpClient.post(
-			`${this._serviceUrl}/dlq/delete`,
-			body,
-			signedOptions({
-				method: HttpMethod.POST,
-				path: "/dlq/delete",
-				body,
-				extra: { timeoutMs: 5000 },
-			})
-		);
-	}
-
-	private _logDeleteError(err: Error): void {
-		logger.error("Failed to delete DLQ entries", {
-			context: {
-				error: normalizeError(err),
-			},
-		});
-	}
-}
-
-export function createDlqServiceClient(
-	httpClient: HttpClient
-): IDlqServiceClient {
-	const url = ENV.DLQ_SERVICE_URL || "";
-	if (!url) {
-		return new NullDlqServiceClient();
-	}
-	return new DlqServiceClient(httpClient);
 }

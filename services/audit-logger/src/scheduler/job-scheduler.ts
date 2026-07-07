@@ -2,7 +2,7 @@ import type { JobId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { type Job, JobPriority } from "../types/job.types";
-import { type IWorkerProtocol, NullWorkerProtocol } from "../worker/worker-protocol";
+import type { IWorkerProtocol } from "../worker/worker-protocol";
 import { JobLifecycle } from "./job-lifecycle";
 import {
 	createBackPressure, createInternalQueue, createWorkerRegistry, createReAllocator,
@@ -19,7 +19,7 @@ export class JobScheduler {
 	private readonly _lifecycle: JobLifecycle;
 	private readonly _assignmentManager: JobAssignmentManager;
 	private readonly _failureHandler: JobFailureHandler;
-	private _workerProtocol: IWorkerProtocol = new NullWorkerProtocol();
+	private _workerProtocol?: IWorkerProtocol;
 
 	constructor(repository: JobRepository) {
 		this.queue = createInternalQueue();
@@ -56,7 +56,7 @@ export class JobScheduler {
 	stop(): void {
 		this.orphanDetector.stop();
 		this.queue.stop();
-		this._workerProtocol.close();
+		this._workerProtocol?.close();
 		logger.info("Audit job scheduler stopped");
 	}
 }

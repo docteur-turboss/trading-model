@@ -1,7 +1,7 @@
 import Redis from "ioredis";
 
 export class RedisLockConnector {
-	private _client!: Redis;
+	private _client: Redis | undefined;
 	private _available = true;
 
 	constructor(redisUrl: string) {
@@ -29,6 +29,9 @@ export class RedisLockConnector {
 	}
 
 	get client(): Redis {
+		if (!this._client) {
+			throw new Error("Redis client not initialized");
+		}
 		return this._client;
 	}
 
@@ -41,6 +44,6 @@ export class RedisLockConnector {
 	}
 
 	disconnect(): void {
-		this._client.disconnect();
+		this._client?.disconnect();
 	}
 }

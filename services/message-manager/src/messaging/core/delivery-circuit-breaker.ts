@@ -29,8 +29,8 @@ export class DeliveryCircuitBreaker implements IUnkeyedCircuitBreaker {
 		this._failureCount = 0;
 	}
 
-	recordFailure(_count?: number, _threshold?: number): void {
-		this._failureCount++;
+	recordFailure(count?: number, threshold?: number): void {
+		this._failureCount += count ?? 1;
 	}
 
 	recordSuccess(): void {

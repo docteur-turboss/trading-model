@@ -5,7 +5,6 @@ import type {
 	IInstanceRegistration,
 	ILifecycle,
 	ITokenManager,
-	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
@@ -22,20 +21,25 @@ export type {
 } from "@trading-model/common/config/redis-config";
 
 import type Redis from "ioredis";
+import { InstanceQueryService } from "./instance-query-service";
+import { InstanceRegistrationService } from "./instance-registration-service";
+import { LifecycleService } from "./lifecycle-service";
 import { RedisBackendLifecycle } from "./redis-backend-lifecycle";
 import { computePrefix, createRedisClient } from "./redis-client-factory";
 import { RedisInstanceRepository } from "./redis-instance-repository";
 import { RedisKeyBuilder } from "./redis-key-builder";
 import { StaleInstanceCleaner } from "./stale-instance-cleaner";
 import { TokenHandler } from "./token-handler";
+import { TokenManagerService } from "./token-manager-service";
 import { TokenService } from "./token-service";
 
 export class RedisRegistryBackend
 	implements IInstanceRegistration, IInstanceQuery, ITokenManager, ILifecycle
 {
-	private readonly _instances: RedisInstanceRepository;
-	private readonly _tokenHandler: TokenHandler;
-	private readonly _lifecycle: RedisBackendLifecycle;
+	private readonly _registration: InstanceRegistrationService;
+	private readonly _query: InstanceQueryService;
+	private readonly _tokenManager: TokenManagerService;
+	private readonly _lifecycleService: LifecycleService;
 
 	constructor(
 		configOrUrl: string | RedisConnectionConfig,
@@ -49,76 +53,78 @@ export class RedisRegistryBackend
 		const tokenService = new TokenService(
 			signingSecret ?? randomBytes(32).toString("hex")
 		);
-		this._instances = new RedisInstanceRepository({
+		const instances = new RedisInstanceRepository({
 			redis,
 			keyBuilder,
 			tokenService,
 		});
-		const cleaner = new StaleInstanceCleaner(
-			this._instances,
-			cleanupIntervalMs
-		);
-		this._tokenHandler = new TokenHandler(redis, keyBuilder, tokenService);
-		this._lifecycle = new RedisBackendLifecycle(redis, cleaner);
+		const cleaner = new StaleInstanceCleaner(instances, cleanupIntervalMs);
+		const tokenHandler = new TokenHandler(redis, keyBuilder, tokenService);
+		const lifecycle = new RedisBackendLifecycle(redis, cleaner);
+
+		this._registration = new InstanceRegistrationService(instances);
+		this._query = new InstanceQueryService(instances);
+		this._tokenManager = new TokenManagerService(tokenHandler);
+		this._lifecycleService = new LifecycleService(lifecycle);
 	}
 
 	async registerInstance(instance: ServiceInstance): Promise<string> {
-		return this._instances.registerInstance(instance);
+		return this._registration.registerInstance(instance);
 	}
 
 	async updateHeartbeat(id: ServiceIdentity): Promise<number | false> {
-		return this._instances.updateHeartbeat(id);
+		return this._registration.updateHeartbeat(id);
 	}
 
 	async getInstances(serviceName: string): Promise<ServiceInstance[]> {
-		return this._instances.getInstances(serviceName);
+		return this._query.getInstances(serviceName);
 	}
 
 	async getInstance(id: ServiceIdentity): Promise<ServiceInstance | undefined> {
-		return this._instances.getInstance(id);
+		return this._query.getInstance(id);
 	}
 
 	async removeInstance(id: ServiceIdentity): Promise<boolean> {
-		return this._instances.removeInstance(id);
+		return this._registration.removeInstance(id);
 	}
 
 	async listServiceNames(): Promise<string[]> {
-		return this._instances.listServiceNames();
+		return this._query.listServiceNames();
 	}
 
 	async dump(): Promise<Record<string, ServiceInstance[]>> {
-		return this._instances.dump();
+		return this._query.dump();
 	}
 
 	async updateToken(instanceId: string): Promise<string> {
-		return this._tokenHandler.updateToken(instanceId);
+		return this._tokenManager.updateToken(instanceId);
 	}
 
 	generateInstanceToken(instanceId: string): string {
-		return this._tokenHandler.generateInstanceToken(instanceId);
+		return this._tokenManager.generateInstanceToken(instanceId);
 	}
 
 	async validInstanceToken(validation: TokenValidation): Promise<boolean> {
-		return this._tokenHandler.validInstanceToken(validation);
+		return this._tokenManager.validInstanceToken(validation);
 	}
 
 	generateInstanceId(endpoint: ServiceEndpoint): ServiceId {
-		return this._tokenHandler.generateInstanceId(endpoint);
+		return this._tokenManager.generateInstanceId(endpoint);
 	}
 
 	verifyInstanceName(serviceName: string): boolean {
-		return this._tokenHandler.verifyInstanceName(serviceName);
+		return this._tokenManager.verifyInstanceName(serviceName);
 	}
 
 	start(): void {
-		this._lifecycle.start();
+		this._lifecycleService.start();
 	}
 
 	stop(): void {
-		this._lifecycle.stop();
+		this._lifecycleService.stop();
 	}
 
 	async forceCleanup(): Promise<void> {
-		await this._lifecycle.forceCleanup();
+		await this._lifecycleService.forceCleanup();
 	}
 }

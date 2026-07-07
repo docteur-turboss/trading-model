@@ -2,7 +2,6 @@ import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
 
 interface SubscribersContext {
-	receivedAt: Date | null;
 	consumerGroup: string;
 	deliveryAttempt: number;
 	ack(): Promise<void>;
@@ -28,7 +27,6 @@ export class DeliveryMetadataExtractor {
 		onAck: () => void
 	): SubscribersContext {
 		return {
-			receivedAt: null,
 			consumerGroup: serviceName,
 			deliveryAttempt: 0,
 			ack: () => {

@@ -22,10 +22,6 @@ export class CaStore {
 		await this._collection.insertOne(metadata);
 	}
 
-	async add(metadata: CaMetadata): Promise<void> {
-		await this.save(metadata);
-	}
-
 	async getLatest(): Promise<CaMetadata | null> {
 		const doc = await this._collection.findOne({}, { sort: { createdAt: -1 } });
 		return doc as unknown as CaMetadata | null;

@@ -1,9 +1,9 @@
 import { MarketType, type SourceType } from "@trading-model/common/contracts/market-data.types";
-import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type { Price, TradingSymbol, UnixTimestamp, Volume } from "@trading-model/common/domain/primitives";
 import zod from "zod";
 import type { OrderBookData } from "../market-data.types";
 
-const ASKS_BIDS_DEF = zod.object({ quantity: zod.number(), price: zod.number() });
+const ASKS_BIDS_DEF = zod.object({ quantity: zod.custom<Volume>(), price: zod.custom<Price>() });
 const TABLE_DEF = zod.object({ symbol: zod.string(), market: zod.nativeEnum(MarketType), source: zod.string(), bids: zod.array(ASKS_BIDS_DEF), asks: zod.array(ASKS_BIDS_DEF), timestamp: zod.date() });
 
 export interface OrderBookIndexSnapshot {

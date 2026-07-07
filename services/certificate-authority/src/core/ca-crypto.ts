@@ -45,9 +45,7 @@ export function encryptKey(pem: string, keyBase64: string | undefined): string {
  * @param keyBase64 - Base64-encoded 32-byte (256-bit) decryption key
  * @returns Original PEM text, or the input unchanged if not encrypted
  */
-function _parseEncryptedData(
-	data: string
-): { iv: Buffer; tag: Buffer; encrypted: string } | null {
+function _parseEncryptedData(data: string): EncryptedPayload | null {
 	const prefix = "aes256gcm:";
 	if (!data.startsWith(prefix)) {
 		return null;
@@ -63,15 +61,16 @@ function _parseEncryptedData(
 	};
 }
 
-function _decryptAes256Gcm(
-	encrypted: string,
-	key: Buffer,
-	iv: Buffer,
-	tag: Buffer
-): string {
-	const decipher = createDecipheriv("aes-256-gcm", key, iv);
-	decipher.setAuthTag(tag);
-	let decrypted = decipher.update(encrypted, "hex", "utf8");
+interface EncryptedPayload {
+	iv: Buffer;
+	tag: Buffer;
+	encrypted: string;
+}
+
+function _decryptAes256Gcm(payload: EncryptedPayload, key: Buffer): string {
+	const decipher = createDecipheriv("aes-256-gcm", key, payload.iv);
+	decipher.setAuthTag(payload.tag);
+	let decrypted = decipher.update(payload.encrypted, "hex", "utf8");
 	decrypted += decipher.final("utf8");
 	return decrypted;
 }
@@ -86,11 +85,15 @@ export function decryptKey(
 	data: string,
 	keyBase64: string | undefined
 ): string {
-	if (!keyBase64) return data;
+	if (!keyBase64) {
+		return data;
+	}
 	const parsed = _parseEncryptedData(data);
-	if (!parsed) return data;
+	if (!parsed) {
+		return data;
+	}
 	const key = _validateKeyLength(keyBase64);
-	const result = _decryptAes256Gcm(parsed.encrypted, key, parsed.iv, parsed.tag);
+	const result = _decryptAes256Gcm(parsed, key);
 	_zeroBuffers(key, parsed.iv, parsed.tag);
 	return result;
 }

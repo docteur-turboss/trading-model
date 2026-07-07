@@ -66,8 +66,8 @@ export class BinanceCircuitBreaker implements IUnkeyedCircuitBreaker {
 		this._halfOpenTracker.reset();
 	}
 
-	recordFailure(_count?: number, _threshold?: number): void {
-		this._inner.recordFailure(this._name);
+	recordFailure(count?: number, threshold?: number): void {
+		this._inner.recordFailure(this._name, count, threshold);
 		this._halfOpenTracker.reset();
 	}
 

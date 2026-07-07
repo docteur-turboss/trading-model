@@ -1,3 +1,4 @@
+import type { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import type { DateRange } from "@trading-model/common/domain/date-range";
 import {
 	computePagination,
@@ -15,13 +16,13 @@ import type {
 	UserId,
 	Version,
 } from "@trading-model/common/domain/primitives";
-import { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import type { Collection, Db } from "mongodb";
 
 import { LogIndexManager } from "./log-index-manager";
+import { type LogQuery, LogQueryBuilder } from "./log-query-builder";
 import { LogStatsBuilder } from "./log-stats-builder";
 
-type MongoDoc = Record<string, unknown>;
+export type { LogQuery } from "./log-query-builder";
 
 export interface ServiceInfo {
 	name: ServiceId;
@@ -57,61 +58,11 @@ export interface ServiceLogDocument {
 	environment?: Environment;
 }
 
-export interface LogQuery extends PaginationQuery {
-	serviceName?: ServiceId;
-	level?: string;
-	correlationId?: string;
-	dateRange?: DateRange;
-	search?: string;
-}
-
 export interface LogStats {
 	total: number;
 	byService: Record<ServiceId, number>;
 	byLevel: Record<string, number>;
 	dateRange: { earliest?: string; latest?: string };
-}
-
-export class LogQueryBuilder {
-	build(params: LogQuery): MongoDoc {
-		return this.buildFilter(params);
-	}
-
-	buildFilter(params: LogQuery): MongoDoc {
-		const filter: MongoDoc = {};
-
-		this._addIfPresent(filter, "service.name", params.serviceName);
-		this._addIfPresent(filter, "level", params.level);
-		this._addIfPresent(filter, "correlationId", params.correlationId);
-		this._addDateRangeFilter(filter, params);
-		this._addSearchFilter(filter, params);
-
-		return filter;
-	}
-
-	private _addIfPresent(
-		filter: MongoDoc,
-		key: string,
-		value: string | undefined
-	): void {
-		if (value) {
-			filter[key] = value;
-		}
-	}
-
-	private _addDateRangeFilter(filter: MongoDoc, params: LogQuery): void {
-		const dr = params.dateRange;
-		if (!dr) return;
-		const rangeFilter: { $gte?: Date; $lte?: Date } = {};
-		if (dr.start) rangeFilter.$gte = dr.start;
-		if (dr.end) rangeFilter.$lte = dr.end;
-		filter.receivedAt = rangeFilter;
-	}
-
-	private _addSearchFilter(filter: MongoDoc, params: LogQuery): void {
-		if (!params.search) return;
-		filter.message = { $regex: params.search, $options: "i" };
-	}
 }
 
 export class LogRepository {

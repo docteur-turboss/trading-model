@@ -1,4 +1,5 @@
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
+import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { InstanceCleanupHandler } from "./instance-cleanup-handler";
 import { InstanceHeartbeatHandler } from "./instance-heartbeat-handler";
 import { InstanceMetadataReader } from "./instance-metadata-reader";
@@ -61,10 +62,7 @@ export class RedisInstanceStore {
 		return this._registrar.registerInstance(instance);
 	}
 
-	async updateHeartbeat(
-		serviceName: string,
-		instanceId: string
-	): Promise<number | false> {
+	async updateHeartbeat({ serviceName, instanceId }: ServiceIdentity): Promise<number | false> {
 		return this._heartbeatHandler.updateHeartbeat(serviceName, instanceId);
 	}
 

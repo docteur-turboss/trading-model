@@ -59,7 +59,7 @@ const MOCK_CERT_STORE = {
 const MOCK_CRL_STORE = {
 	connect: jest.fn(),
 	disconnect: jest.fn(),
-	add: jest.fn(),
+	save: jest.fn(),
 	getAll: jest.fn(),
 	isRevoked: jest.fn(),
 };
@@ -227,7 +227,7 @@ describe("CertificateAuthority", () => {
 					reason: "key_compromise",
 				})
 			).rejects.toThrow("Certificate SN-MISSING not found");
-			expect(MOCK_CRL_STORE.add).not.toHaveBeenCalled();
+			expect(MOCK_CRL_STORE.save).not.toHaveBeenCalled();
 		});
 
 		it("should add revoked cert to CRL store", async () => {
@@ -256,7 +256,7 @@ describe("CertificateAuthority", () => {
 				reason: "cessation_of_operation",
 			});
 
-			expect(MOCK_CRL_STORE.add).toHaveBeenCalledWith(
+			expect(MOCK_CRL_STORE.save).toHaveBeenCalledWith(
 				expect.objectContaining({
 					serialNumber: "SN-REVOKE",
 					serviceId: "svc-revoke",

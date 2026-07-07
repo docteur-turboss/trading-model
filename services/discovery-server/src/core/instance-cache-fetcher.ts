@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import { parseServiceName } from "@trading-model/common/config/services.types";
 import type { RegistryBackend, ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
-import type { PaginationQuery } from "@trading-model/common/domain/pagination";
+import { computePagination, type PaginationQuery } from "@trading-model/common/domain/pagination";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import type { CacheManager } from "./cache-manager";
 import type { RedisHealthMonitor } from "./redis-health-monitor";
@@ -25,9 +25,8 @@ export class InstanceCacheFetcher {
 
 	private async _getWithPagination(serviceName: string, pagination: PaginationQuery): Promise<ServiceInstance[]> {
 		const all = await this._backend.getInstances(parseServiceName(serviceName));
-		const page = pagination.page ?? 1;
-		const limit = pagination.limit ?? all.length;
-		return all.slice((page - 1) * limit, (page - 1) * limit + limit);
+		const { skip, limit } = computePagination(pagination, all.length, all.length);
+		return all.slice(skip, skip + limit);
 	}
 	private async _fetchFromBackend(serviceName: string): Promise<ServiceInstance[]> {
 		return this._backend.getInstances(parseServiceName(serviceName));

@@ -19,15 +19,14 @@ function _buildAuditEventQuery(
 	const queryParams = req.query as Record<string, string | undefined>;
 	const { topic, publisher, correlationId } = queryParams;
 	const dateRange = parseDateRange(queryParams);
-	const { page, limit } = parsePageAndLimit(queryParams);
+	const pagination = parsePageAndLimit(queryParams);
 
 	return {
 		topic: topic ? toTopic(topic) : undefined,
 		publisher: publisher ? toServiceId(publisher) : undefined,
 		correlationId: correlationId ? toCorrelationId(correlationId) : undefined,
 		dateRange,
-		page,
-		limit,
+		...pagination,
 	};
 }
 

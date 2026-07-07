@@ -1,13 +1,11 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
-import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { logger } from "@trading-model/common/config/logger";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import type { SerialNumber } from "@trading-model/common/domain/primitives";
-import { AppError } from "@trading-model/common/utils/errors";
-
-import { PopVerifier } from "./pop-verifier";
-import { NonceConsumer } from "./nonce-consumer";
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { CertificateIssuer } from "./certificate-issuer";
+import { NonceConsumer } from "./nonce-consumer";
+import { PopVerifier } from "./pop-verifier";
 
 interface CertStore {
 	getBySerial(
@@ -37,10 +35,11 @@ interface RenewalPopInput {
 	oldSerialNumber: SerialNumber;
 }
 
-export class CertRenewalError extends AppError {
+export class CertRenewalError extends Error {
 	public readonly statusCode: number;
+	public readonly code = "CertRenewalError";
 	constructor(message: string, statusCode: number = HTTP_STATUS.BAD_REQUEST) {
-		super(message, { code: "CertRenewalError" });
+		super(message);
 		this.name = "CertRenewalError";
 		this.statusCode = statusCode;
 	}
@@ -92,7 +91,10 @@ export class CertRenewalService {
 	): Promise<{ certPem: string; serviceId: string }> {
 		const oldCert = await this._certStore.getBySerial(oldSerialNumber);
 		if (!oldCert) {
-			throw new CertRenewalError("Original certificate not found", HTTP_STATUS.NOT_FOUND);
+			throw new CertRenewalError(
+				"Original certificate not found",
+				HTTP_STATUS.NOT_FOUND
+			);
 		}
 		return oldCert;
 	}

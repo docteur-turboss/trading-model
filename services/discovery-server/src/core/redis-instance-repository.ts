@@ -16,11 +16,8 @@ export class RedisInstanceRepository {
 		return this._store.registerInstance(instance);
 	}
 
-	async updateHeartbeat({
-		serviceName,
-		instanceId,
-	}: ServiceIdentity): Promise<number | false> {
-		return this._store.updateHeartbeat(serviceName, instanceId);
+	async updateHeartbeat(identity: ServiceIdentity): Promise<number | false> {
+		return this._store.updateHeartbeat(identity);
 	}
 
 	async getInstances(serviceName: string): Promise<ServiceInstance[]> {
