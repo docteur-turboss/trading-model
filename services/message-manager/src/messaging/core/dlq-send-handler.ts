@@ -7,24 +7,20 @@ import {
 import { logger } from "../../config/logger";
 import type { DlqEntry } from "./dlq-repository";
 import { signedOptions } from "./request-signer";
+import { DlqRetryWithBackoff } from "./dlq-retry-with-backoff";
 
 export class DlqSendHandler {
+	private readonly _retry: DlqRetryWithBackoff;
+
 	constructor(
 		private readonly _httpClient: HttpClient,
 		private readonly _serviceUrl: string
-	) {}
+	) {
+		this._retry = new DlqRetryWithBackoff();
+	}
 
 	async doSend(entry: DlqEntry): Promise<void> {
-		await this._httpClient.post(
-			`${this._serviceUrl}/dlq`,
-			entry,
-			signedOptions({
-				method: "POST" as HttpMethod,
-				path: "/dlq",
-				body: entry,
-				extra: { timeoutMs: 5000 },
-			})
-		);
+		await this._postEntry(entry);
 		logger.info("DLQ entry sent to DLQ service", {
 			context: { reason: entry.reason },
 		});
@@ -37,8 +33,17 @@ export class DlqSendHandler {
 		maxRetries: number
 	): Promise<void> {
 		if (attempt <= maxRetries) {
-			await this._retrySend(entry, err, attempt, maxRetries);
-			return;
+			const delay = this._retry.computeDelay(attempt);
+			logger.warn("Retrying DLQ send after error", {
+				context: {
+					attempt,
+					delay,
+					reason: entry.reason,
+					error: normalizeError(err),
+				},
+			});
+			await this._retry.wait(delay);
+			return this._doRetrySend(entry, attempt, maxRetries);
 		}
 		logger.error("Failed to send DLQ entry to service after retries", {
 			context: {
@@ -49,51 +54,31 @@ export class DlqSendHandler {
 		throw messageManagerError("Failed to send DLQ entry", { cause: err });
 	}
 
-	private async _retrySend(
+	private async _doRetrySend(
 		entry: DlqEntry,
-		err: Error,
 		attempt: number,
 		maxRetries: number
 	): Promise<void> {
-		const delay = Math.round(
-			Math.min(200 * 2 ** (attempt - 1), 5000) * (0.5 + Math.random() * 0.5)
-		);
-		logger.warn("Retrying DLQ send after error", {
-			context: {
-				attempt,
-				delay,
-				reason: entry.reason,
-				error: normalizeError(err),
-			},
-		});
-		await new Promise((resolve) => setTimeout(resolve, delay));
-		return this._httpClient
-			.post(
-				`${this._serviceUrl}/dlq`,
-				entry,
-				signedOptions({
-					method: HttpMethod.POST,
-					path: "/dlq",
-					body: entry,
-					extra: { timeoutMs: 5000 },
-				})
-			)
-			.then(() => {
-				logger.info("DLQ entry sent to DLQ service", {
-					context: { reason: entry.reason },
-				});
-			})
-			.catch((retryErr) =>
-				this.handleSendError(entry, retryErr as Error, attempt + 1, maxRetries)
-			);
+		try {
+			await this._postEntry(entry);
+			logger.info("DLQ entry sent to DLQ service", {
+				context: { reason: entry.reason },
+			});
+		} catch (retryErr) {
+			return this.handleSendError(entry, retryErr as Error, attempt + 1, maxRetries);
+		}
 	}
 
-	buildReplayUrl(topic?: string, limit = 100): string {
-		const params = new URLSearchParams();
-		if (topic) {
-			params.set("topic", topic);
-		}
-		params.set("limit", limit.toString());
-		return `${this._serviceUrl}/dlq?${params.toString()}`;
+	private async _postEntry(entry: DlqEntry): Promise<void> {
+		await this._httpClient.post(
+			`${this._serviceUrl}/dlq`,
+			entry,
+			signedOptions({
+				method: HttpMethod.POST,
+				path: "/dlq",
+				body: entry,
+				extra: { timeoutMs: 5000 },
+			})
+		);
 	}
 }

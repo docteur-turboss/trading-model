@@ -48,7 +48,7 @@ export class LockConnectionManager {
 
 	async connect(): Promise<void> {
 		try {
-			if (MONGO_MANAGER.isInitialized()) {
+			if (MONGO_MANAGER.isConnected()) {
 				await this._connectViaManager();
 			} else {
 				await this._connectDirectly();
@@ -61,7 +61,7 @@ export class LockConnectionManager {
 	}
 
 	async disconnect(): Promise<void> {
-		if (!MONGO_MANAGER.isInitialized()) {
+		if (!MONGO_MANAGER.isConnected()) {
 			try {
 				await this._client.close();
 			} catch {

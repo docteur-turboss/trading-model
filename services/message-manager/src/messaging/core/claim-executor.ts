@@ -4,6 +4,7 @@ import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { ClaimLockManager } from "./claim-lock-manager";
 import { TopicClaimScanner } from "./topic-claim-scanner";
+import type { ClaimParams } from "./messaging-types";
 
 export class ClaimExecutor {
 	private readonly _lockManager: ClaimLockManager;
@@ -15,43 +16,34 @@ export class ClaimExecutor {
 	}
 
 	async claimPendingMessages(
-		groupName: string,
-		consumerId: string,
-		minIdleMs = 60_000,
-		count = 100
+		params: ClaimParams
 	): Promise<number> {
-		return this._doClaimPendingMessages(
-			groupName,
-			consumerId,
-			minIdleMs,
-			count
-		);
+		return this._doClaimPendingMessages({
+			groupName: params.groupName,
+			consumerId: params.consumerId,
+			minIdleMs: params.minIdleMs ?? 60_000,
+			count: params.count ?? 100,
+		});
 	}
 
-	async claimEntriesForRetry(options: {
-		groupName: string;
-		consumerId: string;
-		minIdleMs?: number;
-		count?: number;
-	}): Promise<number> {
-		return this._doClaimPendingMessages(
-			options.groupName,
-			options.consumerId,
-			options.minIdleMs ?? 60_000,
-			options.count ?? 100
-		);
+	async claimEntriesForRetry(
+		params: ClaimParams
+	): Promise<number> {
+		return this._doClaimPendingMessages({
+			groupName: params.groupName,
+			consumerId: params.consumerId,
+			minIdleMs: params.minIdleMs ?? 60_000,
+			count: params.count ?? 100,
+		});
 	}
 
 	private async _doClaimPendingMessages(
-		groupName: string,
-		consumerId: string,
-		minIdleMs: number,
-		count: number
+		params: Required<ClaimParams>
 	): Promise<number> {
 		let redis: Redis | null = null;
 		try {
 			redis = await getStreamClient();
-			return await this._executeClaim(redis, groupName, consumerId, minIdleMs, count);
+			return await this._executeClaim(redis, params);
 		} catch (err) {
 			logger.warn("Failed to claim pending messages", {
 				context: {
@@ -61,19 +53,16 @@ export class ClaimExecutor {
 			return 0;
 		} finally {
 			if (redis) {
-				await this._lockManager.release(redis, consumerId);
+				await this._lockManager.release(redis, params.consumerId);
 			}
 		}
 	}
 
 	private async _executeClaim(
 		redis: Redis,
-		groupName: string,
-		consumerId: string,
-		minIdleMs: number,
-		count: number
+		params: Required<ClaimParams>
 	): Promise<number> {
-		const acquired = await this._lockManager.acquire(redis, consumerId);
+		const acquired = await this._lockManager.acquire(redis, params.consumerId);
 		if (!acquired) {
 			return 0;
 		}
@@ -81,17 +70,12 @@ export class ClaimExecutor {
 		let total = 0;
 
 		for (const topic of topics) {
-			total += await this._topicScanner.claimForTopic(redis, topic, {
-				groupName,
-				consumerId,
-				minIdleMs,
-				count,
-			});
+			total += await this._topicScanner.claimForTopic(redis, topic, params);
 		}
 
 		if (total > 0) {
 			logger.info(
-				`Claimed ${total} pending messages for ${consumerId} across ${topics.length} topics`
+				`Claimed ${total} pending messages for ${params.consumerId} across ${topics.length} topics`
 			);
 		}
 		return total;

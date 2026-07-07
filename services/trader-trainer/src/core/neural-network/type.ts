@@ -11,7 +11,7 @@ export enum LossFunctionType {
 	LogCoshLoss = "log-cosh-loss",
 	BinaryCrossEntropy = "binary-cross-entropy",
 	HingeLoss = "hinge-loss",
-	KullbackLeiblerDivergence = "Kullback-Leibler-divergence",
+	KullbackLeiblerDivergence = "kullback-leibler",
 }
 
 export enum NormalisationType {

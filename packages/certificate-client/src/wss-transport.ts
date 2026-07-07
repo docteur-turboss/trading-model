@@ -92,7 +92,7 @@ export class CaWssTransport {
 
 	private _sendSignRequest(
 		id: string,
-		request: Pick<SignCertificateRequest, "serviceId" | "csr" | "ttlMs">
+		request: SignCertificateRequest
 	): void {
 		const ws = this._connection.ws;
 		if (!isWsConnected(ws)) {

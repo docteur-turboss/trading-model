@@ -1,5 +1,5 @@
 import { InitialisationType } from "../neural-network/type";
-import { ACTIVATIONS, CONNECTION_TYPES, MAX_DEPTH, EncodingIndex, encodedDim, layerOffset, readEncodedLayer } from "./encoding-indices";
+import { ACTIVATIONS, CONNECTION_TYPES, MAX_DEPTH, ENCODING_OFFSETS, encodedDim, layerOffset, readEncodedLayer } from "./encoding-indices";
 import type { Genome, MutationGenome, NetworkGenome, RLGenome } from "./genome-types";
 import { createBounded } from "./bounded";
 import { clamp } from "./utils";
@@ -60,42 +60,42 @@ interface DecodedScalars {
 
 function _decodeScalars(arr: Float32Array): DecodedScalars {
 	return {
-		gamma: clamp(arr[EncodingIndex.Gamma], 0.8, 0.9999),
-		learningRate: clamp(10 ** ((arr[EncodingIndex.LearningRate] - 1) * 6), 1e-6, 1e-1),
+		gamma: clamp(arr[ENCODING_OFFSETS.Gamma], 0.8, 0.9999),
+		learningRate: clamp(10 ** ((arr[ENCODING_OFFSETS.LearningRate] - 1) * 6), 1e-6, 1e-1),
 		rewardShaping: {
-			clipMin: arr[EncodingIndex.ClipMin],
-			clipMax: arr[EncodingIndex.ClipMax],
-			scaleFactor: clamp(10 ** ((arr[EncodingIndex.ScaleFactor] - 1) * 3), 0.001, 1000),
+			clipMin: arr[ENCODING_OFFSETS.ClipMin],
+			clipMax: arr[ENCODING_OFFSETS.ClipMax],
+			scaleFactor: clamp(10 ** ((arr[ENCODING_OFFSETS.ScaleFactor] - 1) * 3), 0.001, 1000),
 		},
 		horizon: {
-			maxEpisodeLength: clamp(Math.round(arr[EncodingIndex.MaxEpisodeLength] * 2_000), 10, 20_000),
-			nStepReturn: clamp(Math.round(arr[EncodingIndex.NStepReturn] * 20), 1, 20),
-			frameSkip: clamp(Math.round(arr[EncodingIndex.FrameSkip] * 10), 1, 10),
+			maxEpisodeLength: clamp(Math.round(arr[ENCODING_OFFSETS.MaxEpisodeLength] * 2_000), 10, 20_000),
+			nStepReturn: clamp(Math.round(arr[ENCODING_OFFSETS.NStepReturn] * 20), 1, 20),
+			frameSkip: clamp(Math.round(arr[ENCODING_OFFSETS.FrameSkip] * 10), 1, 10),
 		},
 		discretePolicy: {
-			epsilonStart: clamp(arr[EncodingIndex.EpsilonStart], 0.1, 1.0),
-			epsilonMin: clamp(arr[EncodingIndex.EpsilonMin] * 0.2, 0.001, 0.2),
-			epsilonDecay: clamp(arr[EncodingIndex.EpsilonDecay], 0.9, 0.9999),
-			temperature: clamp(10 ** ((arr[EncodingIndex.Temperature] - 0.5) * 2), 0.01, 100),
+			epsilonStart: clamp(arr[ENCODING_OFFSETS.EpsilonStart], 0.1, 1.0),
+			epsilonMin: clamp(arr[ENCODING_OFFSETS.EpsilonMin] * 0.2, 0.001, 0.2),
+			epsilonDecay: clamp(arr[ENCODING_OFFSETS.EpsilonDecay], 0.9, 0.9999),
+			temperature: clamp(10 ** ((arr[ENCODING_OFFSETS.Temperature] - 0.5) * 2), 0.01, 100),
 		},
 		continuousPolicy: {
-			noiseStd: clamp(arr[EncodingIndex.NoiseStd] * 5, 0.001, 5),
-			noiseDecay: clamp(arr[EncodingIndex.NoiseDecay], 0.9, 0.9999),
+			noiseStd: clamp(arr[ENCODING_OFFSETS.NoiseStd] * 5, 0.001, 5),
+			noiseDecay: clamp(arr[ENCODING_OFFSETS.NoiseDecay], 0.9, 0.9999),
 		},
 		replayBuffer: {
-			bufferSize: clamp(Math.round(10 ** (arr[EncodingIndex.BufferSize] * 6)), 100, 1_000_000),
-			alphaPER: clamp(arr[EncodingIndex.AlphaPER], 0, 1),
-			betaPER: clamp(arr[EncodingIndex.BetaPER], 0, 1),
+			bufferSize: clamp(Math.round(10 ** (arr[ENCODING_OFFSETS.BufferSize] * 6)), 100, 1_000_000),
+			alphaPER: clamp(arr[ENCODING_OFFSETS.AlphaPER], 0, 1),
+			betaPER: clamp(arr[ENCODING_OFFSETS.BetaPER], 0, 1),
 		},
 		mutation: {
-			rate: clamp(arr[EncodingIndex.MutationRate] * 0.5, 0.001, 0.5),
-			sigma: clamp(10 ** ((arr[EncodingIndex.MutationSigma] - 1.25) * 4), 1e-5, 10),
-			selfSigma: clamp(10 ** ((arr[EncodingIndex.MutationSelfSigma] - 1.25) * 4), 1e-5, 10),
+			rate: clamp(arr[ENCODING_OFFSETS.MutationRate] * 0.5, 0.001, 0.5),
+			sigma: clamp(10 ** ((arr[ENCODING_OFFSETS.MutationSigma] - 1.25) * 4), 1e-5, 10),
+			selfSigma: clamp(10 ** ((arr[ENCODING_OFFSETS.MutationSelfSigma] - 1.25) * 4), 1e-5, 10),
 		},
 		network: {
-			inputDim: clamp(Math.round(arr[EncodingIndex.NetworkInputDim] * 256), 1, 256),
-			outputDim: clamp(Math.round(arr[EncodingIndex.NetworkOutputDim] * 64), 1, 64),
-			depth: clamp(Math.round(arr[EncodingIndex.NetworkDepth] * MAX_DEPTH), 1, MAX_DEPTH),
+			inputDim: clamp(Math.round(arr[ENCODING_OFFSETS.NetworkInputDim] * 256), 1, 256),
+			outputDim: clamp(Math.round(arr[ENCODING_OFFSETS.NetworkOutputDim] * 64), 1, 64),
+			depth: clamp(Math.round(arr[ENCODING_OFFSETS.NetworkDepth] * MAX_DEPTH), 1, MAX_DEPTH),
 		},
 	};
 }

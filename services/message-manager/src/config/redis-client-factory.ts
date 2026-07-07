@@ -1,4 +1,5 @@
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 
 import { ENV } from "./env";
@@ -57,9 +58,9 @@ function buildSentinelClient(): Redis {
 	return new Redis(sentinelOpts as RedisOptions) as unknown as Redis;
 }
 
-function parseSentinelNodes(): { host: string; port: number }[] {
+function parseSentinelNodes(): HostPort[] {
 	try {
-		return JSON.parse(ENV.REDIS_SENTINEL_NODES!) as { host: string; port: number }[];
+		return JSON.parse(ENV.REDIS_SENTINEL_NODES!) as HostPort[];
 	} catch (cause) {
 		throw wrapParseError(cause as Error, "REDIS_SENTINEL_NODES");
 	}
@@ -72,7 +73,7 @@ function wrapParseError(cause: Error, name: string): never {
 }
 
 function buildSentinelOptions(
-	sentinelNodes: { host: string; port: number }[]
+	sentinelNodes: HostPort[]
 ): Record<string, unknown> {
 	const sentinelOpts: Record<string, unknown> = {
 		sentinels: sentinelNodes,
@@ -89,9 +90,9 @@ function buildSentinelOptions(
 	return sentinelOpts;
 }
 
-function parseClusterNodes(): { host: string; port: number }[] {
+function parseClusterNodes(): HostPort[] {
 	try {
-		return JSON.parse(ENV.REDIS_CLUSTER_NODES!) as { host: string; port: number }[];
+		return JSON.parse(ENV.REDIS_CLUSTER_NODES!) as HostPort[];
 	} catch (cause) {
 		throw wrapParseError(cause as Error, "REDIS_CLUSTER_NODES");
 	}

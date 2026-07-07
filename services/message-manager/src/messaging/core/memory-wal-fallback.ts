@@ -1,48 +1,25 @@
-import { retryFileAppend } from "@trading-model/common/utils/retry-file-append";
-
-import { ENV } from "../../config/env";
-import { logger } from "../../config/logger";
-import { getStreamClient } from "../../config/redis";
-import { FallbackFileRecovery } from "./fallback-file-recovery";
+import { FileWalFallback } from "./file-wal-fallback";
 import type { MemoryWalEntry } from "./memory-wal-entry";
+import { RedisWalFallback } from "./redis-wal-fallback";
 
 export class MemoryWalFallback {
-	private readonly _fileRecovery = new FallbackFileRecovery();
+	private readonly _redis: RedisWalFallback;
+	private readonly _file: FileWalFallback;
 
-	constructor(private readonly _prefix: string) {}
+	constructor(prefix: string) {
+		this._redis = new RedisWalFallback(prefix);
+		this._file = new FileWalFallback();
+	}
 
 	async trySaveToRedis(removed: MemoryWalEntry[]): Promise<boolean> {
-		try {
-			const redis = await getStreamClient();
-			const multi = redis.multi();
-			for (const entry of removed) {
-				multi.rpush(
-					`${this._prefix}wal_buffer`,
-					JSON.stringify({ topic: entry.topic, serialized: entry.serialized })
-				);
-			}
-			await multi.exec();
-			return true;
-		} catch {
-			return false;
-		}
+		return this._redis.trySave(removed);
 	}
 
 	async trySaveToFallback(removed: MemoryWalEntry[]): Promise<void> {
-		const lines = removed.map((entry) => JSON.stringify(entry)).join("\n");
-		const fileWritten = await retryFileAppend(
-			ENV.DLQ_LOCAL_FALLBACK_PATH,
-			lines
-		);
-		if (!fileWritten) {
-			logger.error(
-				"Memory WAL buffer eviction: all persistence layers exhausted — messages lost",
-				{ evictedCount: removed.length, buffer: "memory-wal" }
-			);
-		}
+		return this._file.trySave(removed);
 	}
 
 	async recoverFromFallbackFile(): Promise<MemoryWalEntry[]> {
-		return this._fileRecovery.recover();
+		return this._file.recover();
 	}
 }

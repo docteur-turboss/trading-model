@@ -9,7 +9,7 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
-import { DBConnection } from "../../../config/db";
+import { createDBConnection, type DBConnection } from "../../../config/db";
 import type { OrderBookData } from "../market-data.types";
 
 interface OrderBookSnapshotRow {
@@ -69,7 +69,7 @@ export const insertOrderBookSnapshot = async (
 		timestamp: new Date(item.timestamp),
 	}));
 
-	await new DBConnection()
+	await createDBConnection()
 		.insertInto(T_ORDER_BOOK)
 		.values(rows)
 		.executeInsert();
@@ -77,7 +77,7 @@ export const insertOrderBookSnapshot = async (
 
 export const selectOrderBookSnapshotsBy = {
 	symbol: async (symbol: TradingSymbol) => {
-		return await new DBConnection()
+		return await createDBConnection()
 			.selectFrom(T_ORDER_BOOK)
 			.where(T_ORDER_BOOK.symbol.equals(symbol))
 			.select(SELECT)
@@ -85,14 +85,14 @@ export const selectOrderBookSnapshotsBy = {
 	},
 	timestamp: {
 		after: async (timestamp: UnixTimestamp) => {
-			return await new DBConnection()
+			return await createDBConnection()
 				.selectFrom(T_ORDER_BOOK)
 				.where(T_ORDER_BOOK.timestamp.greaterOrEquals(new Date(timestamp)))
 				.select(SELECT)
 				.executeSelectMany();
 		},
 		before: async (timestamp: UnixTimestamp) => {
-			return await new DBConnection()
+			return await createDBConnection()
 				.selectFrom(T_ORDER_BOOK)
 				.where(T_ORDER_BOOK.timestamp.lessOrEquals(new Date(timestamp)))
 				.select(SELECT)
@@ -100,7 +100,7 @@ export const selectOrderBookSnapshotsBy = {
 		},
 	},
 	source: async (source: SourceType) => {
-		return await new DBConnection()
+		return await createDBConnection()
 			.selectFrom(T_ORDER_BOOK)
 			.where(T_ORDER_BOOK.source.equals(source))
 			.select(SELECT)

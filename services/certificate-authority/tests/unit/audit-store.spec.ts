@@ -29,6 +29,7 @@ const mockMongoIsInitialized = jest.fn().mockReturnValue(false);
 jest.mock("../../src/persistence/mongo-manager", () => ({
 	MONGO_MANAGER: {
 		isInitialized: mockMongoIsInitialized,
+		isConnected: mockMongoIsInitialized,
 		getClient: jest.fn(() => ({})),
 		getDb: jest.fn(() => ({
 			collection: jest.fn(() => ({

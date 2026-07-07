@@ -9,11 +9,18 @@ const POOL: Pool = createPool({
 	connectionLimit: 10,
 });
 
-/** MySQL database connection backed by a pooled ts-sql-query runner. */
-export class DBConnection extends MySqlConnection<"DBConnection"> {
+const POOL_RUNNER = new MySql2PoolQueryRunner(POOL);
+
+const _DBConnection = class extends MySqlConnection<"DBConnection"> {
 	constructor() {
-		super(new MySql2PoolQueryRunner(POOL));
+		super(POOL_RUNNER);
 	}
+};
+
+export type DBConnection = MySqlConnection<"DBConnection">;
+
+export function createDBConnection(): DBConnection {
+	return new _DBConnection();
 }
 
 /** Shared MySQL connection pool for direct driver access (migrations, raw queries). */

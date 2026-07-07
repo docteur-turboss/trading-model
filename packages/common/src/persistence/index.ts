@@ -15,7 +15,7 @@ export {
 export type { RedisConnectionConfig } from "../config/redis-config";
 export {
 	createRedisClient,
-	RedisConnectionManager,
+	createRedisConnectionManager,
 } from "./redis-connection-manager";
 export type { MongoConnectionConfig } from "./mongo-connection-manager";
 export { MongoConnectionManager } from "./mongo-connection-manager";

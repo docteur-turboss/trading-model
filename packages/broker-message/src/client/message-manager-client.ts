@@ -3,6 +3,7 @@ import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import {
 	isServiceUnreachableError,
 	messageManagerError,
@@ -38,7 +39,7 @@ export class MessageManagerClient {
 
 	private async _findService(
 		service: ServiceInstanceName
-	): Promise<{ host: string; port: number }> {
+	): Promise<HostPort> {
 		const target = await this._addressManagerClient.findService(service);
 		if (!target) {
 			throw serviceUnreachableError(`Unable to contact the service: ${service}`);
@@ -47,7 +48,7 @@ export class MessageManagerClient {
 	}
 
 	private async _publishToService<TPayload = unknown>(
-		target: { host: string; port: number },
+		target: HostPort,
 		payload: TPayload,
 		metadata: MessageMetadata
 	): Promise<void> {

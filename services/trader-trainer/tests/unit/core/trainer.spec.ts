@@ -410,14 +410,14 @@ describe("Trainer", () => {
 			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			const bestGenome = makeMinimalBestGenome() as DeepReadonly<LamarckGenome>;
-			(trainer as any)._trainingState.update({
+			(trainer as any)._lastInfo = {
 				symbol: "BTCUSDT",
 				bestGenome,
 				bestFitness: 1.5,
 				bestFitnessMeta: makeMinimalFitnessMeta(),
 				generation: 5,
 				generationContext: null,
-			});
+			};
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -437,13 +437,13 @@ describe("Trainer", () => {
 			const { Trainer } = await import("../../../src/core/trainer");
 			const trainer = new Trainer(dataBuffer);
 			const bestGenome = makeBestGenomeNoMeta() as DeepReadonly<LamarckGenome>;
-			(trainer as any)._trainingState.update({
+			(trainer as any)._lastInfo = {
 				symbol: "BTCUSDT",
 				bestGenome,
 				bestFitness: 0.5,
 				generation: 5,
 				generationContext: null,
-			});
+			};
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -459,7 +459,7 @@ describe("Trainer", () => {
 				"../../../src/core/genetic-algorithm/factory"
 			);
 			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
-			(trainer as any)._trainingState.update({
+			(trainer as any)._lastInfo = {
 				symbol: "BTCUSDT",
 				bestGenome: g,
 				bestFitness: 0.5,
@@ -472,7 +472,7 @@ describe("Trainer", () => {
 				},
 				generation: 5,
 				generationContext: null,
-			});
+			};
 
 			const summary = trainer.getBestAgentSummary();
 
@@ -487,13 +487,13 @@ describe("Trainer", () => {
 				"../../../src/core/genetic-algorithm/factory"
 			);
 			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
-			(trainer as any)._trainingState.update({
+			(trainer as any)._lastInfo = {
 				symbol: "BTCUSDT",
 				bestGenome: g,
 				bestFitness: 0,
 				generation: 5,
 				generationContext: null,
-			});
+			};
 
 			const summary = trainer.getBestAgentSummary();
 

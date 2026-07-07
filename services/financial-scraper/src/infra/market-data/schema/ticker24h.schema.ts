@@ -5,7 +5,7 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
-import { DBConnection } from "../../../config/db";
+import { createDBConnection, type DBConnection } from "../../../config/db";
 import type { TickerData } from "../market-data.types";
 
 const T_MARKET_TICKER = new (class TMarketTicker extends Table<
@@ -66,7 +66,7 @@ export const insertTicker = async (data: TickerData[]): Promise<void> => {
 		return;
 	}
 
-	await new DBConnection()
+	await createDBConnection()
 		.insertInto(T_MARKET_TICKER)
 		.values(data.map(_toTickerRow))
 		.executeInsert();
@@ -75,21 +75,21 @@ export const insertTicker = async (data: TickerData[]): Promise<void> => {
 /** Query helpers for the market_tickers table, indexed by symbol, timestamp, and source. */
 export const selectTickerBy = {
 	symbol: async (symbol: TradingSymbol) => {
-		return await new DBConnection()
+		return await createDBConnection()
 			.selectFrom(T_MARKET_TICKER)
 			.where(T_MARKET_TICKER.symbol.equals(symbol))
 			.select(SELECT)
 			.executeSelectMany();
 	},
 	timestamp: async (timestamp: UnixTimestamp) => {
-		return await new DBConnection()
+		return await createDBConnection()
 			.selectFrom(T_MARKET_TICKER)
 			.where(T_MARKET_TICKER.timestamp.equals(new Date(timestamp)))
 			.select(SELECT)
 			.executeSelectMany();
 	},
 	source: async (source: SourceType) => {
-		return await new DBConnection()
+		return await createDBConnection()
 			.selectFrom(T_MARKET_TICKER)
 			.where(T_MARKET_TICKER.source.equals(source))
 			.select(SELECT)

@@ -6,7 +6,7 @@ import {
 	encodeGenome,
 	encodePopulation,
 } from "../../../src/core/genetic-algorithm/encoding";
-import { EncodingIndex, SCALAR_DIM, layerOffset, readEncodedLayer } from "../../../src/core/genetic-algorithm/encoding-indices";
+import { ENCODING_OFFSETS, SCALAR_DIM, layerOffset, readEncodedLayer } from "../../../src/core/genetic-algorithm/encoding-indices";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import type {
 	Genome,
@@ -42,20 +42,20 @@ describe("encoding", () => {
 		test("should encode gamma on the encoding array", () => {
 			const g = createDefaultGenome("gamma-test");
 			const enc = encodeGenome(g);
-			expect(enc[EncodingIndex.Gamma]).toBeCloseTo(g.rl.gamma, 4);
+			expect(enc[ENCODING_OFFSETS.Gamma]).toBeCloseTo(g.rl.gamma, 4);
 		});
 
 		test("should encode learningRate as log-scaled in [0,1]", () => {
 			const g = createDefaultGenome("lr-test");
 			const enc = encodeGenome(g);
 			const expected = Math.log10(Math.max(1e-6, g.rl.learningRate)) / 6 + 1;
-			expect(enc[EncodingIndex.LearningRate]).toBeCloseTo(expected, 6);
+			expect(enc[ENCODING_OFFSETS.LearningRate]).toBeCloseTo(expected, 6);
 		});
 
 		test("should encode depth normalised by MAX_DEPTH", () => {
 			const g = createDefaultGenome("depth-test");
 			const enc = encodeGenome(g);
-			expect(enc[EncodingIndex.NetworkDepth]).toBeCloseTo(g.network.hiddenLayers.length / 12, 4);
+			expect(enc[ENCODING_OFFSETS.NetworkDepth]).toBeCloseTo(g.network.hiddenLayers.length / 12, 4);
 		});
 
 		test("should encode neuron count in layer encoding", () => {
@@ -175,8 +175,8 @@ describe("encoding", () => {
 		test("should clamp extreme encoded values to valid ranges", () => {
 			const original = createDefaultGenome("clamp-test");
 			const enc = encodeGenome(original);
-			enc[EncodingIndex.Gamma] = 10;
-			enc[EncodingIndex.ClipMin] = 100;
+			enc[ENCODING_OFFSETS.Gamma] = 10;
+			enc[ENCODING_OFFSETS.ClipMin] = 100;
 			const decoded = decodeGenome(enc, original);
 			expect(decoded.rl.gamma).toBeCloseTo(0.9999, 4);
 		});

@@ -15,6 +15,19 @@ const SET_OBJECT = z.object({
 	quantity: VolumeSchema,
 });
 
+const MARKET_IDENTITY = {
+	symbol: z.string("Symbol is required and must be a string"),
+	timestamp: z.number("Timestamp is required and must be a number"),
+	source: z.enum(
+		SourceType,
+		`Source is required and must be part of: ${Object.values(SourceType).join(", ")}`
+	),
+	market: z.enum(
+		MarketType,
+		`Market is required and must be part of: ${Object.values(MarketType).join(", ")}`
+	),
+} as const;
+
 export const MARKET_EVENT_VALIDATORS = {
 	[MarketEvent.exampleEvent]: z.void(),
 	[MarketEvent.testEvent]: z.object({
@@ -24,22 +37,13 @@ export const MARKET_EVENT_VALIDATORS = {
 		trades: z.array(
 			z.object({
 				price: PriceSchema,
-				symbol: z.string("Symbol is required and must be a string"),
 				tradeId: z.bigint("TradeId is required and must be a bigint"),
 				quantity: VolumeSchema,
-				timestamp: z.number("Timestamp is required and must be a number"),
 				side: z.enum(
 					["buy", "sell"],
 					"Side is required and must be `buy` or `sell`"
 				),
-				source: z.enum(
-					SourceType,
-					`Source is required and must be part of: ${Object.values(SourceType).join(", ")}`
-				),
-				market: z.enum(
-					MarketType,
-					`Market is required and must be part of: ${Object.values(MarketType).join(", ")}`
-				),
+				...MARKET_IDENTITY,
 			}),
 			"Trades is required and must be a array of object"
 		),
@@ -52,19 +56,10 @@ export const MARKET_EVENT_VALIDATORS = {
 				high: PriceSchema,
 				last: PriceSchema,
 				volume: VolumeSchema,
-				symbol: z.string("Symbol is required and must be a string"),
-				timestamp: z.number("Timestamp is required and must be a number"),
 				closeTimestamp: z.number(
 					"CloseTimestamp is required and must be a number"
 				),
-				source: z.enum(
-					SourceType,
-					`Source is required and must be part of: ${Object.values(SourceType).join(", ")}`
-				),
-				market: z.enum(
-					MarketType,
-					`Market is required and must be part of: ${Object.values(MarketType).join(", ")}`
-				),
+				...MARKET_IDENTITY,
 			}),
 			"Ticker is required and must be a array of object"
 		),
@@ -77,7 +72,6 @@ export const MARKET_EVENT_VALIDATORS = {
 				open: PriceSchema,
 				high: PriceSchema,
 				close: PriceSchema,
-				symbol: z.string("Symbol is required and must be a string"),
 				volume: VolumeSchema,
 				interval: z.enum(
 					Object.values(CandleInterval) as unknown as [
@@ -86,18 +80,10 @@ export const MARKET_EVENT_VALIDATORS = {
 					],
 					"Interval is required and must be a valid candlestick interval"
 				),
-				timestamp: z.number("Timestamp is required and must be a number"),
 				closeTimestamp: z.number(
 					"CloseTimestamp is required and must be a number"
 				),
-				source: z.enum(
-					SourceType,
-					`Source is required and must be part of: ${Object.values(SourceType).join(", ")}`
-				),
-				market: z.enum(
-					MarketType,
-					`Market is required and must be part of: ${Object.values(MarketType).join(", ")}`
-				),
+				...MARKET_IDENTITY,
 			}),
 			"Candle is required and must be a array of object"
 		),
@@ -107,16 +93,7 @@ export const MARKET_EVENT_VALIDATORS = {
 			z.object({
 				bids: z.set(SET_OBJECT),
 				asks: z.set(SET_OBJECT),
-				symbol: z.string("Symbol is required and must be a string"),
-				timestamp: z.number("Timestamp is required and must be a number"),
-				source: z.enum(
-					SourceType,
-					`Source is required and must be part of: ${Object.values(SourceType).join(", ")}`
-				),
-				market: z.enum(
-					MarketType,
-					`Market is required and must be part of: ${Object.values(MarketType).join(", ")}`
-				),
+				...MARKET_IDENTITY,
 			}),
 			"OrderBook is required and must be a array of object"
 		),
@@ -135,16 +112,7 @@ export const MARKET_EVENT_VALIDATORS = {
 				bid: PriceSchema,
 				askQty: VolumeSchema,
 				bidQty: VolumeSchema,
-				symbol: z.string("Symbol is required and must be a string"),
-				timestamp: z.number("Timestamp is required and must be a number"),
-				source: z.enum(
-					SourceType,
-					`Source is required and must be part of: ${Object.values(SourceType).join(", ")}`
-				),
-				market: z.enum(
-					MarketType,
-					`Market is required and must be part of: ${Object.values(MarketType).join(", ")}`
-				),
+				...MARKET_IDENTITY,
 			}),
 			"BookTicker is required and must be a array of object"
 		),

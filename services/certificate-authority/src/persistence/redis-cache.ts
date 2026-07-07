@@ -5,7 +5,6 @@ export { NULL_CACHE } from "./null-cache";
 export { RealRedisCache } from "./real-redis-cache";
 export type {
 	CacheOptions,
-	CacheSetEntry,
 	RedisCache,
 } from "./redis-cache.types";
 

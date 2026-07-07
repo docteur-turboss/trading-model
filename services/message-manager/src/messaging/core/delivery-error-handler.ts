@@ -1,11 +1,8 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
-import { isDeadLetterError } from "@trading-model/common/utils/errors";
 import { logger } from "../../config/logger";
 import type { MessageDeliveryPort } from "./message-delivery-port";
-
-/** Maximum number of delivery retries before routing to DLQ. */
-const MAX_RETRIES = 10;
+import { DeliveryErrorClassifier } from "./delivery-error-classifier";
 
 export interface DeliveryErrorHandlerDeps {
 	deliveryPort: MessageDeliveryPort;
@@ -15,28 +12,25 @@ export interface DeliveryErrorHandlerDeps {
 }
 
 /**
- * Classifies delivery errors and decides whether to DLQ, retry, or
- * silently swallow the message based on delivery mode and TTL.
+ * Routes delivery errors based on classification from DeliveryErrorClassifier.
  */
 export class DeliveryErrorHandler {
 	private readonly _deliveryPort: MessageDeliveryPort;
 	private readonly _recordFailure: () => void;
 	private readonly _topic: string;
 	private readonly _serviceName: string;
+	private readonly _classifier: DeliveryErrorClassifier;
 
 	constructor(deps: DeliveryErrorHandlerDeps) {
 		this._deliveryPort = deps.deliveryPort;
 		this._recordFailure = deps.recordFailure;
 		this._topic = deps.topic;
 		this._serviceName = deps.serviceName;
+		this._classifier = new DeliveryErrorClassifier();
 	}
 
 	/**
-	 * Examines a delivery error and takes the appropriate action:
-	 * - **DEAD_LETTER_ERROR** – routes to DLQ immediately with the error reason.
-	 * - **TTL expired** – routes to DLQ with `TTL_EXPIRED`.
-	 * - **AT_MOST_ONCE** – silently swallows the error.
-	 * - **Max retries exceeded** – increments failure count and routes to DLQ.
+	 * Classifies the error and routes accordingly.
 	 *
 	 * @returns `true` when the error has been fully handled (no retry needed).
 	 */
@@ -48,87 +42,34 @@ export class DeliveryErrorHandler {
 		emittedAt: number,
 		deliveryMode: DeliveryMode
 	): Promise<boolean> {
-		if (await this._isDeadLetterError(err, message, context)) {
-			return true;
-		}
-		if (await this._isExpiredAndDlq(ttl, emittedAt, message, context)) {
-			return true;
-		}
-		if (this._isAtMostOnce(deliveryMode)) {
-			return true;
-		}
-		if (await this._isMaxRetries(message, context)) {
-			return true;
-		}
-		return false;
-	}
+		const classification = this._classifier.classify(
+			err,
+			context.deliveryAttempt,
+			ttl,
+			emittedAt,
+			deliveryMode
+		);
 
-	private async _isDeadLetterError<TData>(
-		err: unknown,
-		message: Message<TData>,
-		context: { deliveryAttempt: number }
-	): Promise<boolean> {
-		if (!isDeadLetterError(err)) {
-			return false;
+		switch (classification.action) {
+			case "dlq":
+				if (classification.reason === "MAX_RETRIES_EXCEEDED") {
+					this._recordFailure();
+					logger.error("Max retries exceeded — routing to DLQ", {
+						topic: this._topic,
+						service: this._serviceName,
+						deliveryAttempt: context.deliveryAttempt,
+					});
+				}
+				await this._deliveryPort.markDeadLetter({
+					message,
+					reason: classification.reason,
+					deliveryAttempt: context.deliveryAttempt,
+				});
+				return true;
+			case "swallow":
+				return true;
+			case "retry":
+				return false;
 		}
-		const reason: string = err.reason ?? "NO_REASON";
-		await this._deliveryPort.markDeadLetter({
-			message,
-			reason,
-			deliveryAttempt: context.deliveryAttempt,
-		});
-		return true;
-	}
-
-	private async _isExpiredAndDlq<TData>(
-		ttl: number,
-		emittedAt: number,
-		message: Message<TData>,
-		context: { deliveryAttempt: number }
-	): Promise<boolean> {
-		if (!this._isExpired(ttl, emittedAt)) {
-			return false;
-		}
-		await this._deliveryPort.markDeadLetter({
-			message,
-			reason: "TTL_EXPIRED",
-			deliveryAttempt: context.deliveryAttempt,
-		});
-		return true;
-	}
-
-	private _isAtMostOnce(deliveryMode: DeliveryMode): boolean {
-		return deliveryMode === DeliveryMode.AT_MOST_ONCE;
-	}
-
-	private async _isMaxRetries<TData>(
-		message: Message<TData>,
-		context: { deliveryAttempt: number }
-	): Promise<boolean> {
-		if (context.deliveryAttempt < MAX_RETRIES) {
-			return false;
-		}
-		this._recordFailure();
-		logger.error("Max retries exceeded — routing to DLQ", {
-			topic: this._topic,
-			service: this._serviceName,
-			deliveryAttempt: context.deliveryAttempt,
-		});
-		await this._deliveryPort.markDeadLetter({
-			message,
-			reason: "MAX_RETRIES_EXCEEDED",
-			deliveryAttempt: context.deliveryAttempt,
-		});
-		return true;
-	}
-
-	/**
-	 * Determines if a message has exceeded its TTL.
-	 */
-	private _isExpired(ttl: number, emittedAt: number): boolean {
-		if (ttl <= 0 || emittedAt <= 0) {
-			return false;
-		}
-		return emittedAt + ttl < Date.now();
 	}
 }

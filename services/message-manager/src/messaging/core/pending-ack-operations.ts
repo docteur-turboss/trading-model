@@ -1,5 +1,5 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
 import { PendingAckFacade } from "./pending-ack-facade";
+import type { PendingAckData } from "./messaging-types";
 
 export class PendingAckOperations {
 	private readonly _pendingAck: PendingAckFacade;
@@ -18,11 +18,7 @@ export class PendingAckOperations {
 	async addPendingAck(
 		instanceId: string,
 		messageId: string,
-		data: {
-			topic: string;
-			subscriberUrl: string;
-			message: Message;
-		}
+		data: PendingAckData
 	): Promise<void> {
 		await this._pendingAck.add(instanceId, messageId, data);
 	}
@@ -34,7 +30,7 @@ export class PendingAckOperations {
 	async getPendingAcks(
 		instanceId: string
 	): Promise<
-		Record<string, { topic: string; subscriberUrl: string; message: Message }>
+		Record<string, PendingAckData>
 	> {
 		return this._pendingAck.getAll(instanceId);
 	}

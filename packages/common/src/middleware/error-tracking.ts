@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import { logger } from "../config/logger";
+import type { URLString } from "../domain/primitives";
 import { TimerHandle } from "../utils/timer-handle";
 import { ErrorBuffer } from "./error-buffer";
 import {
@@ -57,7 +58,7 @@ export function reportError(
 
 function _configureIfEndpoint(endpoint: string): void {
 	configureErrorTracking({
-		endpoint: endpoint || process.env.ERROR_URL_WEBHOOK,
+		endpoint: (endpoint || process.env.ERROR_URL_WEBHOOK) as URLString,
 	});
 }
 

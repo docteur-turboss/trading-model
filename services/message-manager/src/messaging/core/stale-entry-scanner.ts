@@ -1,9 +1,6 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
+import type { PendingAckData } from "./messaging-types";
 
-interface StaleEntryData {
-	topic: string;
-	subscriberUrl: string;
-	message: Message;
+interface StaleEntryData extends PendingAckData {
 	pendingAt?: number;
 }
 

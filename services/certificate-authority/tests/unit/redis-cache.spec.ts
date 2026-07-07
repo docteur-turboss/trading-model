@@ -82,7 +82,7 @@ describe("RedisCache", () => {
 
 	it("should set value with TTL", async () => {
 		const cache = createCache("redis://localhost:6379");
-		await cache.set({ key: "key", value: { foo: "bar" }, ttlMs: 5000 });
+		await cache.set("key", { foo: "bar" }, 5000);
 		expect(mockRedisInstance.setex).toHaveBeenCalledWith(
 			"key",
 			5,
@@ -98,7 +98,7 @@ describe("RedisCache", () => {
 
 	it("should do nothing when disabled for set", async () => {
 		const cache = NULL_CACHE;
-		await cache.set({ key: "key", value: "val", ttlMs: 1000 });
+		await cache.set("key", "val", 1000);
 		expect(mockRedisInstance.setex).not.toHaveBeenCalled();
 	});
 
@@ -136,6 +136,6 @@ describe("RedisCache", () => {
 	it("should handle set errors gracefully", async () => {
 		mockRedisInstance.setex.mockRejectedValue(new Error("Redis error"));
 		const cache = createCache("redis://localhost:6379");
-		await cache.set({ key: "key", value: "val", ttlMs: 1000 });
+		await cache.set("key", "val", 1000);
 	});
 });

@@ -1,6 +1,6 @@
 import { ClaimExecutor } from "./claim-executor";
 import { DeduplicationService } from "./deduplication-service";
-import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
+import type { AckRef, ClaimParams, MessageQuery, PendingAckData, StreamGroupRef } from "./messaging-types";
 import { PendingAckOperations } from "./pending-ack-operations";
 import { StreamGroupOperations } from "./stream-group-operations";
 
@@ -32,33 +32,17 @@ export interface IPendingAckOps {
 	addPendingAck(
 		instanceId: string,
 		messageId: string,
-		data: {
-			topic: string;
-			subscriberUrl: string;
-			message: import("@trading-model/common/contracts/message.types").Message;
-		}
+		data: PendingAckData
 	): Promise<void>;
 	removePendingAck(instanceId: string, messageId: string): Promise<void>;
 	getPendingAcks(
 		instanceId: string
-	): Promise<
-		Record<
-			string,
-			{
-				topic: string;
-				subscriberUrl: string;
-				message: import("@trading-model/common/contracts/message.types").Message;
-			}
-		>
-	>;
+	): Promise<Record<string, PendingAckData>>;
 }
 
 export interface IClaimOps {
 	claimPendingMessages(
-		groupName: string,
-		consumerId: string,
-		minIdleMs?: number,
-		count?: number
+		params: ClaimParams
 	): Promise<number>;
 }
 
@@ -103,17 +87,9 @@ export class MessageRoutingFacade {
 	}
 
 	async claimPendingMessages(
-		groupName: string,
-		consumerId: string,
-		minIdleMs = 60_000,
-		count = 100
+		params: ClaimParams
 	): Promise<number> {
-		return this._claimManager.claimPendingMessages(
-			groupName,
-			consumerId,
-			minIdleMs,
-			count
-		);
+		return this._claimManager.claimPendingMessages(params);
 	}
 
 	async ensureConsumerGroup(ref: StreamGroupRef): Promise<void> {
@@ -153,11 +129,7 @@ export class MessageRoutingFacade {
 	async addPendingAck(
 		instanceId: string,
 		messageId: string,
-		data: {
-			topic: string;
-			subscriberUrl: string;
-			message: import("@trading-model/common/contracts/message.types").Message;
-		}
+		data: PendingAckData
 	): Promise<void> {
 		await this._pendingAckOps.addPendingAck(instanceId, messageId, data);
 	}
@@ -167,14 +139,7 @@ export class MessageRoutingFacade {
 	}
 
 	async getPendingAcks(instanceId: string): Promise<
-		Record<
-			string,
-			{
-				topic: string;
-				subscriberUrl: string;
-				message: import("@trading-model/common/contracts/message.types").Message;
-			}
-		>
+		Record<string, PendingAckData>
 	> {
 		return this._pendingAckOps.getPendingAcks(instanceId);
 	}

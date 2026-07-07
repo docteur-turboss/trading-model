@@ -5,7 +5,7 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
-import { DBConnection } from "../../../config/db";
+import { createDBConnection, type DBConnection } from "../../../config/db";
 import type { TradeData } from "../market-data.types";
 
 const T_MARKET_TRADES = new (class TMarketTrades extends Table<
@@ -60,7 +60,7 @@ export const insertTrades = async (data: TradeData[]): Promise<void> => {
 		return;
 	}
 
-	await new DBConnection()
+	await createDBConnection()
 		.insertInto(T_MARKET_TRADES)
 		.values(data.map(_toTradeRow))
 		.executeInsert();
@@ -69,21 +69,21 @@ export const insertTrades = async (data: TradeData[]): Promise<void> => {
 /** Query helpers for the market_trades table, indexed by symbol, timestamp, and source. */
 export const selectTradesBy = {
 	symbol: async (symbol: TradingSymbol) => {
-		return await new DBConnection()
+		return await createDBConnection()
 			.selectFrom(T_MARKET_TRADES)
 			.where(T_MARKET_TRADES.symbol.equals(symbol))
 			.select(SELECT)
 			.executeSelectMany();
 	},
 	timestamp: async (timestamp: UnixTimestamp) => {
-		return await new DBConnection()
+		return await createDBConnection()
 			.selectFrom(T_MARKET_TRADES)
 			.where(T_MARKET_TRADES.timestamp.equals(new Date(timestamp)))
 			.select(SELECT)
 			.executeSelectMany();
 	},
 	source: async (source: SourceType) => {
-		return await new DBConnection()
+		return await createDBConnection()
 			.selectFrom(T_MARKET_TRADES)
 			.where(T_MARKET_TRADES.source.equals(source))
 			.select(SELECT)

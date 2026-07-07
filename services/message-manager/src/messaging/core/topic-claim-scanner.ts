@@ -1,5 +1,7 @@
 import type Redis from "ioredis";
 
+import type { ClaimParams } from "./messaging-types";
+
 export class TopicClaimScanner {
 	constructor(private readonly _prefix: string) {}
 
@@ -15,12 +17,7 @@ export class TopicClaimScanner {
 	async claimForTopic(
 		redis: Redis,
 		topic: string,
-		claimOpts: {
-			groupName: string;
-			consumerId: string;
-			minIdleMs: number;
-			count: number;
-		}
+		claimOpts: Required<ClaimParams>
 	): Promise<number> {
 		const { groupName, consumerId, minIdleMs, count } = claimOpts;
 		const streamKey = `${this._prefix}stream:${topic}`;

@@ -17,51 +17,49 @@ export class InstanceHeartbeatHandler {
 		this._reader = reader ?? new InstanceMetadataReader(_deps);
 	}
 
-	private async _checkInstanceExists(serviceName: string, instanceId: string): Promise<boolean> {
+	private async _checkInstanceExists(identity: ServiceIdentity): Promise<boolean> {
 		const result = await this._deps.redis.sismember(
-			this._deps.keyBuilder.serviceInstancesSet(serviceName),
-			instanceId
+			this._deps.keyBuilder.serviceInstancesSet(identity.serviceName),
+			identity.instanceId
 		);
 		return result === 1;
 	}
 
 	private async _persistHeartbeat(
-		instanceId: string,
-		instance: import("@trading-model/common/contracts/service-registry.types").ServiceInstance,
-		serviceName: string
+		identity: ServiceIdentity,
+		instance: import("@trading-model/common/contracts/service-registry.types").ServiceInstance
 	): Promise<void> {
 		const multi = this._deps.redis.multi();
 		multi.set(
-			this._deps.keyBuilder.instanceMetadata(instanceId),
+			this._deps.keyBuilder.instanceMetadata(identity.instanceId),
 			JSON.stringify(instance)
 		);
 		multi.set(
-			this._deps.keyBuilder.instanceUpdatedBy(instanceId),
-			toServiceIdentityKey({ serviceName, instanceId } as ServiceIdentity)
+			this._deps.keyBuilder.instanceUpdatedBy(identity.instanceId),
+			toServiceIdentityKey(identity)
 		);
 		await multi.exec();
 	}
 
 	async updateHeartbeat(
-		serviceName: string,
-		instanceId: string
+		identity: ServiceIdentity
 	): Promise<number | false> {
-		const exists = await this._checkInstanceExists(serviceName, instanceId);
+		const exists = await this._checkInstanceExists(identity);
 		if (!exists) {
 			return false;
 		}
-		const instance = await this._reader.getMetadata(instanceId);
+		const instance = await this._reader.getMetadata(identity.instanceId);
 		if (!instance) {
 			return false;
 		}
 		try {
 			instance.lastHeartbeat = Math.max(instance.lastHeartbeat, Date.now());
-			await this._persistHeartbeat(instanceId, instance, serviceName);
+			await this._persistHeartbeat(identity, instance);
 			return instance.ttl;
 		} catch (err) {
 			logger.warn("Failed to update heartbeat in Redis", {
-				serviceName,
-				instanceId,
+				serviceName: identity.serviceName,
+				instanceId: identity.instanceId,
 				err: normalizeError(err),
 			});
 			return false;

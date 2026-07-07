@@ -1,5 +1,5 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
-import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
+import type { AckRef, ClaimParams, MessageQuery, PendingAckData, StreamGroupRef } from "./messaging-types";
 
 export interface IMessageRouting {
 	recoverPendingAcks(
@@ -7,10 +7,7 @@ export interface IMessageRouting {
 		maxAgeMs?: number
 	): Promise<number>;
 	claimPendingMessages(
-		groupName: string,
-		consumerId: string,
-		minIdleMs?: number,
-		count?: number
+		params: ClaimParams
 	): Promise<number>;
 	ensureConsumerGroup(ref: StreamGroupRef): Promise<void>;
 	readFromGroup(
@@ -25,24 +22,13 @@ export interface IMessageRouting {
 	addPendingAck(
 		instanceId: string,
 		messageId: string,
-		data: {
-			topic: string;
-			subscriberUrl: string;
-			message: Message;
-		}
+		data: PendingAckData
 	): Promise<void>;
 	removePendingAck(instanceId: string, messageId: string): Promise<void>;
 	getPendingAcks(
 		instanceId: string
 	): Promise<
-		Record<
-			string,
-			{
-				topic: string;
-				subscriberUrl: string;
-				message: Message;
-			}
-		>
+		Record<string, PendingAckData>
 	>;
 	getStreamLag(ref: StreamGroupRef): Promise<number>;
 	tryDeduplicate(deduplicationId: string, ttlS: number): Promise<boolean>;

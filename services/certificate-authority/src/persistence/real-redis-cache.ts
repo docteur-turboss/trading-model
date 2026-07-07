@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import Redis from "ioredis";
-import type { CacheSetEntry, RedisCache } from "./redis-cache.types";
+import type { RedisCache } from "./redis-cache.types";
 
 export class RealRedisCache implements RedisCache {
 	private readonly _client: Redis;
@@ -50,8 +50,7 @@ export class RealRedisCache implements RedisCache {
 		}
 	}
 
-	async set(entry: CacheSetEntry): Promise<void> {
-		const { key, value, ttlMs } = entry;
+	async set(key: string, value: unknown, ttlMs: number = 300_000): Promise<void> {
 		try {
 			await this._client.setex(
 				key,

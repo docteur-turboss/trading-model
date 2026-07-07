@@ -1,11 +1,11 @@
-import type { InstanceId, Version } from "../domain/primitives";
+import type { InstanceId, ServiceId, URLString, Version } from "../domain/primitives";
 
 const DEFAULT_FLUSH_INTERVAL_MS = 5000;
 const DEFAULT_BATCH_SIZE = 50;
 
 export interface ErrorTrackingConfig {
-	endpoint?: string;
-	serviceName?: string;
+	endpoint?: URLString;
+	serviceName?: ServiceId;
 	serviceVersion?: Version;
 	instanceId?: InstanceId;
 	flushIntervalMs?: number;
@@ -15,8 +15,8 @@ export interface ErrorTrackingConfig {
 export type ResolvedErrorTrackingConfig = Required<ErrorTrackingConfig>;
 
 export const DEFAULT_CONFIG: ResolvedErrorTrackingConfig = {
-	endpoint: "",
-	serviceName: "unknown",
+	endpoint: "" as URLString,
+	serviceName: "unknown" as ServiceId,
 	serviceVersion: "0.0.0" as Version,
 	instanceId: "unknown" as InstanceId,
 	flushIntervalMs: DEFAULT_FLUSH_INTERVAL_MS,
@@ -27,8 +27,8 @@ export function buildConfig(
 	opts: ErrorTrackingConfig
 ): ResolvedErrorTrackingConfig {
 	return {
-		endpoint: opts.endpoint ?? process.env.ERROR_URL_WEBHOOK ?? "",
-		serviceName: opts.serviceName ?? process.env.APP_NAME ?? "unknown",
+		endpoint: (opts.endpoint ?? process.env.ERROR_URL_WEBHOOK ?? "") as URLString,
+		serviceName: (opts.serviceName ?? process.env.APP_NAME ?? "unknown") as ServiceId,
 		serviceVersion:
 			opts.serviceVersion ?? ((process.env.APP_VERSION ?? "0.0.0") as Version),
 		instanceId:

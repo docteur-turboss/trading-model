@@ -62,8 +62,8 @@ export class RedisInstanceStore {
 		return this._registrar.registerInstance(instance);
 	}
 
-	async updateHeartbeat({ serviceName, instanceId }: ServiceIdentity): Promise<number | false> {
-		return this._heartbeatHandler.updateHeartbeat(serviceName, instanceId);
+	async updateHeartbeat(identity: ServiceIdentity): Promise<number | false> {
+		return this._heartbeatHandler.updateHeartbeat(identity);
 	}
 
 	async removeInstanceSetAndMetadata(

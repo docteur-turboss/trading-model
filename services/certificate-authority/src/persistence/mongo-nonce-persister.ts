@@ -48,7 +48,7 @@ export class MongoNoncePersister implements NoncePersistence {
 	}
 
 	private async _resolveDb(): Promise<Db> {
-		if (MONGO_MANAGER.isInitialized()) {
+		if (MONGO_MANAGER.isConnected()) {
 			return MONGO_MANAGER.getDb();
 		}
 		const client = new MongoClient(this._mongoUri);

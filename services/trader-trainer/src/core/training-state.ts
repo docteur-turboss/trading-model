@@ -50,34 +50,9 @@ export interface LastTrainingInfo {
 	generationContext: GenerationContext | null;
 }
 
-export class TrainingState {
-	private _lastInfo: LastTrainingInfo | null = null;
-	private readonly _summaryBuilder = new GenomeSummaryBuilder();
-
-	update(info: LastTrainingInfo): void {
-		this._lastInfo = info;
-	}
-
-	getCurrentSymbol(): TradingSymbol | undefined {
-		return this._lastInfo?.symbol;
-	}
-
-	getGeneration(): number | undefined {
-		return this._lastInfo?.generation;
-	}
-
-	getGenerationContext(): GenerationContext | null | undefined {
-		return this._lastInfo?.generationContext;
-	}
-
-	getBestAgentSummary(): BestAgentSummary | null {
-		if (!this._lastInfo) {
-			return null;
-		}
-		return this._summaryBuilder.build(
-			this._lastInfo.bestGenome,
-			this._lastInfo.bestFitness,
-			this._lastInfo.bestFitnessMeta
-		);
-	}
+export function buildBestAgentSummary(
+	info: LastTrainingInfo,
+	builder: GenomeSummaryBuilder
+): BestAgentSummary {
+	return builder.build(info.bestGenome, info.bestFitness, info.bestFitnessMeta);
 }

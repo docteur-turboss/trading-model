@@ -26,12 +26,7 @@ import type {
 import { maybeCreateWsClient } from "./ws-client.factory";
 
 export class AddressManagerBuilder {
-	private _config!: AddressManagerConfig;
-
-	withConfig(config: AddressManagerConfig): this {
-		this._config = config;
-		return this;
-	}
+	constructor(private readonly _config: AddressManagerConfig) {}
 
 	private _createHttpClient(): HttpClient {
 		return HttpClient.createWithTls(this._config.pems ?? this._config.tls);

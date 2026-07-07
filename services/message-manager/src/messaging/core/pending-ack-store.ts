@@ -1,8 +1,8 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import { StaleEntryScanner } from "./stale-entry-scanner";
+import type { PendingAckData } from "./messaging-types";
 
 export class PendingAckStore {
 	private readonly _prefix: string;
@@ -19,7 +19,7 @@ export class PendingAckStore {
 	async add(
 		instanceId: string,
 		messageId: string,
-		data: { topic: string; subscriberUrl: string; message: Message }
+		data: PendingAckData
 	): Promise<void> {
 		const redis = await getStreamClient();
 		await redis.hset(
@@ -38,13 +38,10 @@ export class PendingAckStore {
 	async getAll(
 		instanceId: string
 	): Promise<
-		Record<string, { topic: string; subscriberUrl: string; message: Message }>
+		Record<string, PendingAckData>
 	> {
 		const redis = await getStreamClient();
-		const result: Record<
-			string,
-			{ topic: string; subscriberUrl: string; message: Message }
-		> = {};
+		const result: Record<string, PendingAckData> = {};
 		let cursor = "0";
 		do {
 			cursor = await this._scanPendingBatch(redis, instanceId, cursor, result);
@@ -56,7 +53,7 @@ export class PendingAckStore {
 		redis: import("ioredis").Redis,
 		instanceId: string,
 		cursor: string,
-		result: Record<string, { topic: string; subscriberUrl: string; message: Message }>
+		result: Record<string, PendingAckData>
 	): Promise<string> {
 		const [nextCursor, batch] = await redis.hscan(
 			this._pendingKey(instanceId),

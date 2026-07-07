@@ -1,23 +1,23 @@
 import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
-import type { OffsetPagination } from "@trading-model/common/domain/pagination";
 import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { AppError } from "@trading-model/common/utils/errors";
-import type { Document, Filter } from "mongodb";
-import { ObjectId, type WithId } from "mongodb";
+import type { Document } from "mongodb";
+import { type WithId } from "mongodb";
 import { getCollection } from "../config/db";
-import { ENV } from "../config/env";
-import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
 import { DlqEntryWriter, dlqCapacityError } from "./dlq-entry-writer";
 import { pruneEntries } from "./dlq-eviction-policy";
-import { DLQ_STATUS } from "./dlq-status";
+import { DlqQueryBuilder, type DlqListOptions } from "./dlq-query-builder";
+import { DlqQueueRepository } from "./dlq-queue-repository";
 
 export { dlqCapacityError };
+export type { DlqListOptions };
+export { DlqQueryBuilder } from "./dlq-query-builder";
+export { DlqQueueRepository } from "./dlq-queue-repository";
 
 export function isDlqCapacityError(err: unknown): err is AppError {
 	return err instanceof AppError && err.code === "DlqCapacityError";
 }
 
-export type { DlqStatus } from "./dlq-status";
 export { DLQ_STATUS } from "./dlq-status";
 export type { DlqEntry };
 
@@ -28,11 +28,6 @@ export interface StoredDlqEntry {
 	reason: string | null;
 	deliveryAttempt: number;
 	createdAt: UnixTimestamp;
-}
-
-export interface DlqListOptions extends OffsetPagination {
-	topic?: string;
-	before?: string;
 }
 
 export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
@@ -46,73 +41,6 @@ export function toStoredDlqEntry(doc: WithId<Document>): StoredDlqEntry {
 			(doc.createdAt as Date | undefined)?.toISOString() ??
 			new Date().toISOString(),
 	};
-}
-
-export class DlqQueryBuilder {
-	buildListQuery(options?: DlqListOptions): Filter<Document> {
-		const query: Filter<Document> = {};
-		if (options?.topic) {
-			query.topic = options.topic;
-		}
-		if (options?.before && ObjectId.isValid(options.before)) {
-			query._id = { $lt: new ObjectId(options.before) };
-		}
-		return query;
-	}
-
-	buildQueuableQuery(): Filter<Document> {
-		return {
-			retryCount: { $lt: ENV.DLQ_RETRY_MAX_ATTEMPTS },
-			processingAt: { $exists: false },
-			status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
-			consecutiveErrors: { $lt: DLQ_MAX_CONSECUTIVE_ERRORS },
-		};
-	}
-
-	buildActiveClaimQuery(): Filter<Document> {
-		return {
-			processingAt: { $exists: true },
-			status: { $nin: [DLQ_STATUS.COMPLETED, DLQ_STATUS.ABANDONED] },
-		};
-	}
-
-	buildDeleteQuery(ids: string[]): Filter<Document> {
-		const objectIds = ids
-			.filter((id) => ObjectId.isValid(id))
-			.map((id) => new ObjectId(id));
-		return {
-			_id: { $in: objectIds },
-			processingAt: { $exists: false },
-		};
-	}
-}
-
-export class DlqQueueRepository {
-	private readonly _queryBuilder: DlqQueryBuilder;
-
-	constructor(queryBuilder?: DlqQueryBuilder) {
-		this._queryBuilder = queryBuilder ?? new DlqQueryBuilder();
-	}
-
-	async listQueuable(): Promise<string[]> {
-		const col = await getCollection();
-		const query = this._queryBuilder.buildQueuableQuery();
-		const docs = await col
-			.find(query, {
-				sort: { createdAt: -1 },
-				limit: ENV.DLQ_AUTO_RETRY_LIMIT * 10,
-				projection: { _id: 1 },
-			})
-			.toArray();
-		return docs.map((doc) => doc._id.toHexString());
-	}
-
-	async listActiveClaimIds(): Promise<string[]> {
-		const col = await getCollection();
-		const query = this._queryBuilder.buildActiveClaimQuery();
-		const docs = await col.find(query, { projection: { _id: 1 } }).toArray();
-		return docs.map((doc) => doc._id.toHexString());
-	}
 }
 
 export class DlqRepository {

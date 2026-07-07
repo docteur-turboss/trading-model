@@ -1,7 +1,7 @@
 import https from "node:https";
 import type { URL } from "node:url";
 import type { TlsPemBundle } from "../domain/tls-paths";
-import type { HttpMethod, HttpRequestOptions } from "./http-types";
+import type { HttpHeaders, HttpMethod, HttpRequestOptions } from "./http-types";
 
 let sharedAgent: https.Agent | null = null;
 
@@ -20,7 +20,7 @@ function getKeepAliveAgent(): https.Agent {
 
 function _buildDefaultHeaders(
 	options: HttpRequestOptions & Partial<TlsPemBundle>
-): Record<string, string> {
+): HttpHeaders {
 	return {
 		"Content-Type": "application/json",
 		"Accept-Encoding": "gzip, deflate",
@@ -28,7 +28,13 @@ function _buildDefaultHeaders(
 	};
 }
 
-function _buildUrlParts(url: URL): { hostname: string; port: number; path: string } {
+interface UrlParts {
+	hostname: string;
+	port: number;
+	path: string;
+}
+
+function _buildUrlParts(url: URL): UrlParts {
 	return {
 		hostname: url.hostname,
 		port: Number(url.port) || 443,

@@ -9,8 +9,8 @@ export class MongoAuditConnection {
 	private _collection: Collection<AuditEntry> | null = null;
 
 	constructor(uri: string) {
-		this._client = MONGO_MANAGER.isInitialized()
-			? MONGO_MANAGER.getClient()
+		this._client = MONGO_MANAGER.isConnected()
+			? MONGO_MANAGER.getClient()!
 			: new MongoClient(uri);
 	}
 
@@ -27,13 +27,13 @@ export class MongoAuditConnection {
 	}
 
 	private _resolveDb(): import("mongodb").Db {
-		return MONGO_MANAGER.isInitialized()
+		return MONGO_MANAGER.isConnected()
 			? MONGO_MANAGER.getDb()
 			: this._client.db();
 	}
 
 	private async _ensureClientConnected(): Promise<void> {
-		if (!MONGO_MANAGER.isInitialized()) {
+		if (!MONGO_MANAGER.isConnected()) {
 			await this._client.connect();
 		}
 	}
@@ -77,7 +77,7 @@ export class MongoAuditConnection {
 	}
 
 	async disconnect(): Promise<void> {
-		if (!MONGO_MANAGER.isInitialized()) {
+		if (!MONGO_MANAGER.isConnected()) {
 			try {
 				await this._client.close();
 			} catch {

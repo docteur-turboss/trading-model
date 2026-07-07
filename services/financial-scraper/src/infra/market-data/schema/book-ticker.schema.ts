@@ -5,7 +5,7 @@ import type {
 } from "@trading-model/common/domain/primitives";
 import { Table } from "ts-sql-query/Table";
 
-import { DBConnection } from "../../../config/db";
+import { createDBConnection, type DBConnection } from "../../../config/db";
 import type { BookTickerData } from "../market-data.types";
 
 const T_BOOK_TICKER = new (class TBookTicker extends Table<
@@ -45,7 +45,7 @@ export const insertBookTicker = async (
 		return;
 	}
 
-	await new DBConnection()
+	await createDBConnection()
 		.insertInto(T_BOOK_TICKER)
 		.values(
 			data.map((item) => ({
@@ -64,7 +64,7 @@ export const insertBookTicker = async (
 
 export const selectBookTickerBy = {
 	symbol: async (symbol: TradingSymbol) => {
-		return await new DBConnection()
+		return await createDBConnection()
 			.selectFrom(T_BOOK_TICKER)
 			.where(T_BOOK_TICKER.symbol.equals(symbol))
 			.select(SELECT)
@@ -72,14 +72,14 @@ export const selectBookTickerBy = {
 	},
 	timestamp: {
 		after: async (timestamp: UnixTimestamp) => {
-			return await new DBConnection()
+			return await createDBConnection()
 				.selectFrom(T_BOOK_TICKER)
 				.where(T_BOOK_TICKER.timestamp.greaterOrEquals(new Date(timestamp)))
 				.select(SELECT)
 				.executeSelectMany();
 		},
 		before: async (timestamp: UnixTimestamp) => {
-			return await new DBConnection()
+			return await createDBConnection()
 				.selectFrom(T_BOOK_TICKER)
 				.where(T_BOOK_TICKER.timestamp.lessOrEquals(new Date(timestamp)))
 				.select(SELECT)
@@ -87,7 +87,7 @@ export const selectBookTickerBy = {
 		},
 	},
 	source: async (source: SourceType) => {
-		return await new DBConnection()
+		return await createDBConnection()
 			.selectFrom(T_BOOK_TICKER)
 			.where(T_BOOK_TICKER.source.equals(source))
 			.select(SELECT)

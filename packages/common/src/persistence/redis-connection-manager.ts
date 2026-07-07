@@ -16,6 +16,11 @@ const BASE_RETRY_STRATEGY = (times: number): number | null => {
 	return Math.min(times * 200, 5000);
 };
 
+const BASE_REDIS_OPTIONS: Partial<RedisOptions> = {
+	lazyConnect: true,
+	retryStrategy: BASE_RETRY_STRATEGY,
+};
+
 function attachErrorHandler(client: Redis | Cluster): void {
 	client.on("error", (err: Error) => {
 		logger.error("Redis connection error", {
@@ -24,35 +29,38 @@ function attachErrorHandler(client: Redis | Cluster): void {
 	});
 }
 
-function createFromUrl(url: string): Redis {
+function createFromUrl(url: string, extraOptions?: Partial<RedisOptions>): Redis {
 	const client = new Redis(url, {
-		lazyConnect: true,
-		retryStrategy: BASE_RETRY_STRATEGY,
+		...BASE_REDIS_OPTIONS,
 		maxRetriesPerRequest: 5,
+		...extraOptions,
 	});
 	attachErrorHandler(client);
 	return client;
 }
 
-function createSentinel(config: {
-	sentinels: HostPort[];
-	name: string;
-	password?: string;
-}): Redis {
+function createSentinel(
+	config: {
+		sentinels: HostPort[];
+		name: string;
+		password?: string;
+	},
+	extraOptions?: Partial<RedisOptions>
+): Redis {
 	const client = new Redis({
 		sentinels: config.sentinels,
 		name: config.name,
 		password: config.password,
-		lazyConnect: true,
-		retryStrategy: BASE_RETRY_STRATEGY,
+		...BASE_REDIS_OPTIONS,
 		maxRetriesPerRequest: null,
+		...extraOptions,
 	} as never);
 	attachErrorHandler(client);
 	return client;
 }
 
 function createClusterClient(nodes: HostPort[], password?: string): Cluster {
-	const client = new Cluster(nodes as unknown as { host: string; port: number }[], {
+	const client = new Cluster(nodes as { host: string; port: number }[], {
 		redisOptions: {
 			lazyConnect: true,
 			password,
@@ -64,49 +72,54 @@ function createClusterClient(nodes: HostPort[], password?: string): Cluster {
 	return client;
 }
 
-function buildFromConfig(config: RedisConnectionConfig): Redis | Cluster {
+function buildFromConfig(
+	config: RedisConnectionConfig,
+	extraOptions?: Partial<RedisOptions>
+): Redis | Cluster {
 	switch (config.mode) {
 		case "single":
-			return createFromUrl(config.url);
+			return createFromUrl(config.url, extraOptions);
 		case "sentinel":
-			return createSentinel(config.config);
+			return createSentinel(config.config, extraOptions);
 		case "cluster":
 			return createClusterClient(config.config.nodes, config.config.password);
 	}
 }
 
 export function createRedisClient(
-	configOrUrl: string | RedisConnectionConfig
+	configOrUrl: string | RedisConnectionConfig,
+	extraOptions?: Partial<RedisOptions>
 ): Redis | Cluster {
 	return typeof configOrUrl === "string"
-		? createFromUrl(configOrUrl)
-		: buildFromConfig(configOrUrl);
+		? createFromUrl(configOrUrl, extraOptions)
+		: buildFromConfig(configOrUrl, extraOptions);
 }
 
 async function connectClient(client: Redis | Cluster): Promise<void> {
 	await client.connect();
 }
 
-export class RedisConnectionManager extends ConnectionManager<Redis | Cluster> {
-	constructor(configOrUrl: string | RedisConnectionConfig) {
-		super(
-			async () => {
-				const client = createRedisClient(configOrUrl);
-				await connectClient(client);
-				return client;
-			},
-			async (client: Redis | Cluster) => {
-				try {
-					if ((client as Redis).status === "ready") {
-						await (client as Redis).quit();
-					} else {
-						client.disconnect();
-					}
-				} catch {
+export function createRedisConnectionManager(
+	configOrUrl: string | RedisConnectionConfig,
+	extraOptions?: Partial<RedisOptions>
+): ConnectionManager<Redis | Cluster> {
+	return new ConnectionManager<Redis | Cluster>(
+		async () => {
+			const client = createRedisClient(configOrUrl, extraOptions);
+			await connectClient(client);
+			return client;
+		},
+		async (client: Redis | Cluster) => {
+			try {
+				if ((client as Redis).status === "ready") {
+					await (client as Redis).quit();
+				} else {
 					client.disconnect();
 				}
-			},
-			{ maxRetries: 5, baseDelayMs: 1000, maxDelayMs: 30000 }
-		);
-	}
+			} catch {
+				client.disconnect();
+			}
+		},
+		{ maxRetries: 5, baseDelayMs: 1000, maxDelayMs: 30000 }
+	);
 }

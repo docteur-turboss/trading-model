@@ -1,112 +1,105 @@
 import { logger } from "@trading-model/common/config/logger";
 import {
-	resolvePoolSize,
-} from "@trading-model/common/persistence/mongo-utils";
-import {
 	MongoConnectionManager,
 } from "@trading-model/common/persistence/mongo-connection-manager";
 import { type Db, MongoClient } from "mongodb";
 
-let _manager: MongoConnectionManager | null = null;
-let _client: MongoClient | null = null;
-let _db: Db | null = null;
-let _uri = "";
-let _poolSize = 50;
-let _initialized = false;
-
-async function initialize(
-	uriParam: string,
-	poolSizeParam?: number
-): Promise<void> {
-	if (_initialized) {
-		return;
-	}
-	_uri = uriParam;
-	_poolSize = resolvePoolSize(poolSizeParam);
-	_manager = new MongoConnectionManager({
-		uri: uriParam,
-		dbName: "",
-		poolSize: _poolSize,
-	});
-	_client = (await _manager.getConnection()) as unknown as MongoClient;
-	_db = _client.db();
-	_initialized = true;
-	logger.info("MONGO_MANAGER initialized", {
-		context: { poolSize: _poolSize, database: _db.databaseName },
-	});
-}
-
-function getClient(): MongoClient {
-	if (!_client) {
-		throw new Error(
-			"MONGO_MANAGER not initialized. Call MONGO_MANAGER.initialize() first."
-		);
-	}
-	return _client;
-}
-
-function getDb(): Db {
-	if (!_db) {
-		throw new Error(
-			"MONGO_MANAGER not initialized. Call MONGO_MANAGER.initialize() first."
-		);
-	}
-	return _db;
-}
-
-function getPoolSize(): number {
-	return _poolSize;
-}
-
-function isInitialized(): boolean {
-	return _initialized;
-}
-
-async function _closeAndReset(): Promise<void> {
-	if (!_client) {
-		return;
-	}
+function _extractDbName(uri: string): string {
 	try {
-		await _client.close();
-	} catch {}
-	_client = null;
-	_db = null;
-	_initialized = false;
-	_manager = null;
-}
-
-async function tryReconnect(): Promise<boolean> {
-	await _closeAndReset();
-	try {
-		await initialize(_uri, _poolSize);
-		return true;
+		const path = new URL(uri).pathname.replace(/^\//, "");
+		return path || "admin";
 	} catch {
-		logger.warn("MONGO_MANAGER reconnection failed");
-		return false;
+		return "admin";
 	}
 }
 
-async function close(): Promise<void> {
-	if (_client) {
+class MongoManager {
+	private _manager: MongoConnectionManager | null = null;
+
+	async initialize(uri: string, poolSizeParam?: number): Promise<void> {
+		if (this._manager) {
+			return;
+		}
+		const dbName = _extractDbName(uri);
+		const poolSize = poolSizeParam ?? 50;
+		this._manager = new MongoConnectionManager({
+			uri,
+			dbName,
+			poolSize,
+		});
+		await this._manager.getConnection();
+		logger.info("MONGO_MANAGER initialized", {
+			context: { poolSize, database: dbName },
+		});
+	}
+
+	private _requireManager(): MongoConnectionManager {
+		if (!this._manager) {
+			throw new Error(
+				"MONGO_MANAGER not initialized. Call MONGO_MANAGER.initialize() first."
+			);
+		}
+		return this._manager;
+	}
+
+	/** @deprecated Use getConnection() instead. */
+	getClient(): MongoClient {
+		const m = this._requireManager();
+		const client = m.getClient();
+		if (!client) {
+			throw new Error("MONGO_MANAGER not initialized");
+		}
+		return client;
+	}
+
+	getDb(): Db {
+		const m = this._requireManager();
+		return m.getDb() as unknown as Db;
+	}
+
+	/** @deprecated Use isConnected() instead. */
+	isInitialized(): boolean {
+		return this._manager?.isConnected() ?? false;
+	}
+
+	isConnected(): boolean {
+		return this._manager?.isConnected() ?? false;
+	}
+
+	getPoolSize(): number {
+		return this._manager?.poolSize ?? 0;
+	}
+
+	getConnection(): Promise<MongoClient> {
+		return this._requireManager().getConnection();
+	}
+
+	async tryReconnect(): Promise<boolean> {
+		if (!this._manager) {
+			return false;
+		}
+		await this._manager.resetState();
 		try {
-			await _client.close();
+			await this._manager.getConnection();
+			return true;
+		} catch {
+			logger.warn("MONGO_MANAGER reconnection failed");
+			return false;
+		}
+	}
+
+	async close(): Promise<void> {
+		if (!this._manager) {
+			return;
+		}
+		try {
+			await this._manager.close();
 		} catch (err) {
 			logger.warn("MONGO_MANAGER close error", { context: { err } });
 		}
-		_client = null;
-		_db = null;
-		_initialized = false;
-		_manager = null;
+		this._manager = null;
 		logger.info("MONGO_MANAGER connection pool closed");
 	}
 }
 
-export const MONGO_MANAGER = {
-	initialize,
-	getClient,
-	getDb,
-	getPoolSize,
-	isInitialized,
-	tryReconnect,
-	close,
-};
+export const MONGO_MANAGER = new MongoManager();

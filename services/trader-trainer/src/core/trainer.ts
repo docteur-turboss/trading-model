@@ -10,9 +10,12 @@ import {
 	TrainingSession,
 	type TrainingSessionResult,
 } from "./training-session";
-import { type BestAgentSummary, TrainingState } from "./training-state";
+import {
+	buildBestAgentSummary,
+	type BestAgentSummary,
+	type LastTrainingInfo,
+} from "./training-state";
 
-export { TrainingState } from "./training-state";
 export type { BestAgentSummary };
 
 /** Indicates that training completed successfully with the resulting best genome. */
@@ -37,7 +40,8 @@ type TrainerStatus = "idle" | "training";
 /** Orchestrates GA training cycles: feeds market data, runs generations, tracks best genome. */
 export class Trainer {
 	private _status: TrainerStatus = "idle";
-	private readonly _trainingState = new TrainingState();
+	private _lastInfo: LastTrainingInfo | null = null;
+	private readonly _summaryBuilder = new GenomeSummaryBuilder();
 	private readonly _validator: TrainingPrerequisiteValidator;
 
 	constructor(private readonly _dataBuffer: MarketDataBuffer	) {
@@ -52,11 +56,11 @@ export class Trainer {
 	}
 
 	getCurrentSymbol(): TradingSymbol | undefined {
-		return this._trainingState.getCurrentSymbol();
+		return this._lastInfo?.symbol;
 	}
 
 	getGeneration(): number | undefined {
-		return this._trainingState.getGeneration();
+		return this._lastInfo?.generation;
 	}
 
 	async train(symbol: TradingSymbol): Promise<TrainingResult> {
@@ -79,14 +83,14 @@ export class Trainer {
 	private async _runSession(symbol: TradingSymbol, windowSet: import("./genetic-algorithm/ga-runner").WindowSet): Promise<TrainingSuccess> {
 		const session = new TrainingSession(windowSet);
 		const result: TrainingSessionResult = await session.run();
-		this._trainingState.update({
+		this._lastInfo = {
 			symbol,
 			bestGenome: result.bestGenome,
 			bestFitness: result.bestFitness,
 			bestFitnessMeta: result.bestFitnessMeta,
 			generation: result.generation,
 			generationContext: result.generationContext,
-		});
+		};
 		logger.info("Training complete", {
 			context: { symbol, bestFitness: result.bestFitness },
 		});
@@ -102,11 +106,14 @@ export class Trainer {
 	}
 
 	getBestAgentSummary(): BestAgentSummary | null {
-		return this._trainingState.getBestAgentSummary();
+		if (!this._lastInfo) {
+			return null;
+		}
+		return buildBestAgentSummary(this._lastInfo, this._summaryBuilder);
 	}
 
 	getGenerationContext(): GenerationContext | null | undefined {
-		return this._trainingState.getGenerationContext();
+		return this._lastInfo?.generationContext;
 	}
 
 	// biome-ignore lint/correctness/noUnusedPrivateClassMembers

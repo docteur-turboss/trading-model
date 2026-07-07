@@ -3,17 +3,11 @@ export interface CacheOptions {
 	prefix: string;
 }
 
-export interface CacheSetEntry {
-	key: string;
-	value: unknown;
-	ttlMs: number;
-}
-
 export interface RedisCache {
 	disconnect(): Promise<void>;
 	isAvailable(): boolean;
 	get<TData>(key: string): Promise<TData | null>;
-	set(entry: CacheSetEntry): Promise<void>;
+	set(key: string, value: unknown, ttlMs?: number): Promise<void>;
 	delete(key: string): Promise<void>;
 	clear(): Promise<void>;
 	makeKey(parts: string[]): string;

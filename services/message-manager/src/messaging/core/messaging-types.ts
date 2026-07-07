@@ -1,3 +1,4 @@
+import type { Message } from "@trading-model/common/contracts/message.types";
 import type {
 	InstanceId,
 	MessageId,
@@ -23,4 +24,19 @@ export interface MessageQuery {
 	topic: Topic;
 	afterTimestamp: UnixTimestamp;
 	limit?: number;
+}
+
+/** Params for claiming pending messages from a consumer group. */
+export interface ClaimParams {
+	groupName: string;
+	consumerId: string;
+	minIdleMs?: number;
+	count?: number;
+}
+
+/** Data stored for a pending ACK entry. */
+export interface PendingAckData {
+	topic: string;
+	subscriberUrl: string;
+	message: Message;
 }
