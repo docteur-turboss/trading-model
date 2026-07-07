@@ -143,21 +143,16 @@ describe("encoding", () => {
 			expect(decoded.rl.horizon.frameSkip).toBe(original.rl.horizon.frameSkip);
 		});
 
-		test("should preserve template identity fields (id, fitness, gaControl)", () => {
+		test("should preserve template identity fields (id, generation, gaControl)", () => {
 			const template = createDefaultGenome("template-test", 5);
-			const modded: Genome = {
-				...template,
-				fitness: 42,
-			};
-			const enc = encodeGenome(modded);
-			const decoded = decodeGenome(enc, modded);
+			const enc = encodeGenome(template);
+			const decoded = decodeGenome(enc, template);
 			expect(decoded.id).toBe("template-test");
 			expect(decoded.generation).toBe(5);
-			expect(decoded.fitness).toBe(42);
-			expect(decoded.gaControl).toEqual(modded.gaControl);
-			expect(decoded.crossover).toEqual(modded.crossover);
-			expect(decoded.mutation.noiseStd).toBe(modded.mutation.noiseStd);
-			expect(decoded.mutation.distribution).toBe(modded.mutation.distribution);
+			expect(decoded.gaControl).toEqual(template.gaControl);
+			expect(decoded.crossover).toEqual(template.crossover);
+			expect(decoded.mutation.noiseStd).toBe(template.mutation.noiseStd);
+			expect(decoded.mutation.distribution).toBe(template.mutation.distribution);
 		});
 
 		test("should recover layer structure (count, neurons, activations)", () => {

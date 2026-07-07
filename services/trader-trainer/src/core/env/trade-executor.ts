@@ -1,4 +1,5 @@
 import { Cash, type Price, Volume } from "@trading-model/common/domain/primitives";
+import { TradeSide } from "@trading-model/common/contracts/market-data.types";
 import type { TradeRecorder } from "./trade-recorder";
 import type { WalletConfig } from "./wallet-config";
 
@@ -27,7 +28,7 @@ export class TradeExecutor {
 		if (Number(totalCost) > Number(this._cash)) return false;
 		this._position = newPosition;
 		this._cash = Cash.of(this._config.roundValue(Number(this._cash) - Number(totalCost)));
-		this._recorder.recordTrade("buy", amount, Cash.of(this._config.roundValue(Number(fee))), this._price, this._cash, this._position);
+		this._recorder.recordTrade(TradeSide.BUY, amount, Cash.of(this._config.roundValue(Number(fee))), this._price, this._cash, this._position);
 		return true;
 	}
 	sell(amount: Volume): boolean {
@@ -36,7 +37,7 @@ export class TradeExecutor {
 		const { netProceeds, fee } = this._config.computeSellProceeds(amount, this._price);
 		this._position = Volume.of(this._config.roundValue(Number(this._position) - amt));
 		this._cash = Cash.of(this._config.roundValue(Number(this._cash) + netProceeds));
-		this._recorder.recordTrade("sell", amount, Cash.of(this._config.roundValue(Number(fee))), this._price, this._cash, this._position);
+		this._recorder.recordTrade(TradeSide.SELL, amount, Cash.of(this._config.roundValue(Number(fee))), this._price, this._cash, this._position);
 		return true;
 	}
 	setPrice(newPrice: Price): void {

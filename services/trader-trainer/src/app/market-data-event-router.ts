@@ -2,7 +2,8 @@ import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "../core/market-data-buffer";
-import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import { DataType } from "../core/data-handlers/data-types";
+import { MarketEvent } from "@trading-model/common/contracts/market-events";
 import { DataEventHandler } from "./event-handlers";
 
 export class MarketDataEventRouter {
@@ -15,30 +16,30 @@ export class MarketDataEventRouter {
 	}
 
 	onCandlestickSeries(data: unknown): void {
-		this._handler.handle("candle", data);
+		this._handler.handle(DataType.Candle, data);
 	}
 
 	onRecentTrades(data: unknown): void {
-		this._handler.handle("trade", data);
+		this._handler.handle(DataType.Trade, data);
 	}
 
 	onOrderBookSnapshot(data: unknown): void {
-		this._handler.handle("orderBook", data);
+		this._handler.handle(DataType.OrderBook, data);
 	}
 
 	onOrderBookTickerSnapshot(data: unknown): void {
-		this._handler.handle("bookTicker", data);
+		this._handler.handle(DataType.BookTicker, data);
 	}
 
 	on24hrTickerStats(data: unknown): void {
-		this._handler.handle("ticker", data);
+		this._handler.handle(DataType.Ticker, data);
 	}
 
 	onPriceTickerSnapshot(data: unknown): void {
-		this._handler.handle("price", data);
+		this._handler.handle(DataType.Price, data);
 	}
 
-	getSubscribedIntents(): EventEnumMap[] {
+	getSubscribedIntents(): MarketEvent[] {
 		return this._handler.getSubscribedIntents();
 	}
 }

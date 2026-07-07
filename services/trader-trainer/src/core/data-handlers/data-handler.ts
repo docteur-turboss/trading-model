@@ -5,14 +5,9 @@ import { tradeHandler } from "./trade-handler";
 import { orderBookHandler } from "./order-book-handler";
 import { bookTickerHandler } from "./book-ticker-handler";
 import { tickerHandler } from "./ticker-handler";
+import { DataType } from "./data-types";
 
-export enum DataType {
-	Candle = "candle",
-	Trade = "trade",
-	OrderBook = "orderBook",
-	BookTicker = "bookTicker",
-	Ticker = "ticker",
-}
+export { DataType };
 
 export interface DataHandler<TData = unknown> {
 	readonly dataType: DataType;

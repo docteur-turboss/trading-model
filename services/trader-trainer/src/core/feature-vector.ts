@@ -1,18 +1,6 @@
 export const FEATURE_DIM = 32;
 const SLIDING_WINDOW_SIZE = 8;
-
-const FIELD_NAMES = [
-	"candleClose", "candleVolume", "candleReturnRatio", "candlePositionRatio",
-	"candleRangeRatio", "candleOpen", "candleHigh", "candleLow", "candleVolumeRatio",
-	"orderBookAvgBid", "orderBookAvgAsk", "orderBookSpreadRatio", "orderBookImbalance",
-	"bookTickerBid", "bookTickerAsk", "bookTickerSpreadRatio",
-	"tradeAvgPrice", "tradeTotalQty", "tradeBuyRatio",
-	"tickerPriceChange", "tickerVolume", "tickerDailyRange", "priceSnapshot",
-] as const;
-
-type FeatureFieldName = (typeof FIELD_NAMES)[number];
-
-const _typeCheck: Record<FeatureFieldName, number> extends Partial<FeatureVector> ? true : never = true;
+const FEATURE_COUNT = 23;
 
 export class FeatureVector {
 	candleClose = 0;
@@ -44,9 +32,30 @@ export class FeatureVector {
 	constructor(data?: Float32Array) {
 		this._slidingWindow = new Float32Array(SLIDING_WINDOW_SIZE);
 		if (data instanceof Float32Array) {
-			const fv = this as unknown as Record<FeatureFieldName, number>;
-			for (let i = 0; i < FIELD_NAMES.length; i++) { fv[FIELD_NAMES[i]] = data[i] ?? 0; }
-			for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) { this._slidingWindow[i] = data[FIELD_NAMES.length + i] ?? 0; }
+			this.candleClose = data[0] ?? 0;
+			this.candleVolume = data[1] ?? 0;
+			this.candleReturnRatio = data[2] ?? 0;
+			this.candlePositionRatio = data[3] ?? 0;
+			this.candleRangeRatio = data[4] ?? 0;
+			this.candleOpen = data[5] ?? 0;
+			this.candleHigh = data[6] ?? 0;
+			this.candleLow = data[7] ?? 0;
+			this.candleVolumeRatio = data[8] ?? 0;
+			this.orderBookAvgBid = data[9] ?? 0;
+			this.orderBookAvgAsk = data[10] ?? 0;
+			this.orderBookSpreadRatio = data[11] ?? 0;
+			this.orderBookImbalance = data[12] ?? 0;
+			this.bookTickerBid = data[13] ?? 0;
+			this.bookTickerAsk = data[14] ?? 0;
+			this.bookTickerSpreadRatio = data[15] ?? 0;
+			this.tradeAvgPrice = data[16] ?? 0;
+			this.tradeTotalQty = data[17] ?? 0;
+			this.tradeBuyRatio = data[18] ?? 0;
+			this.tickerPriceChange = data[19] ?? 0;
+			this.tickerVolume = data[20] ?? 0;
+			this.tickerDailyRange = data[21] ?? 0;
+			this.priceSnapshot = data[22] ?? 0;
+			for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) { this._slidingWindow[i] = data[FEATURE_COUNT + i] ?? 0; }
 			this.bias = data[FEATURE_DIM - 1] ?? 0;
 		}
 	}
@@ -55,9 +64,30 @@ export class FeatureVector {
 
 	toFloat32Array(): Float32Array {
 		const arr = new Float32Array(FEATURE_DIM);
-		const fv = this as unknown as Record<FeatureFieldName, number>;
-		for (let i = 0; i < FIELD_NAMES.length; i++) { arr[i] = fv[FIELD_NAMES[i]]; }
-		for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) { arr[FIELD_NAMES.length + i] = this._slidingWindow[i]; }
+		arr[0] = this.candleClose;
+		arr[1] = this.candleVolume;
+		arr[2] = this.candleReturnRatio;
+		arr[3] = this.candlePositionRatio;
+		arr[4] = this.candleRangeRatio;
+		arr[5] = this.candleOpen;
+		arr[6] = this.candleHigh;
+		arr[7] = this.candleLow;
+		arr[8] = this.candleVolumeRatio;
+		arr[9] = this.orderBookAvgBid;
+		arr[10] = this.orderBookAvgAsk;
+		arr[11] = this.orderBookSpreadRatio;
+		arr[12] = this.orderBookImbalance;
+		arr[13] = this.bookTickerBid;
+		arr[14] = this.bookTickerAsk;
+		arr[15] = this.bookTickerSpreadRatio;
+		arr[16] = this.tradeAvgPrice;
+		arr[17] = this.tradeTotalQty;
+		arr[18] = this.tradeBuyRatio;
+		arr[19] = this.tickerPriceChange;
+		arr[20] = this.tickerVolume;
+		arr[21] = this.tickerDailyRange;
+		arr[22] = this.priceSnapshot;
+		for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) { arr[FEATURE_COUNT + i] = this._slidingWindow[i]; }
 		arr[FEATURE_DIM - 1] = this.bias;
 		return arr;
 	}

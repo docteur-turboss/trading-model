@@ -5,7 +5,7 @@ import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import WebSocket from "ws";
 import { TlsConfigBuilder } from "./tls-config-builder";
 
-export class WsConnectionManager implements IWsConnection {
+export class WsTransport implements IWsConnection {
 	private _ws: WebSocket | undefined;
 	private readonly _tlsBuilder: TlsConfigBuilder;
 	onCloseHandler: () => void = () => {};

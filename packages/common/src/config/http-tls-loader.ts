@@ -1,6 +1,7 @@
 import fs from "node:fs";
+import https from "node:https";
 
-import type { TlsPemBundle } from "../domain/tls-paths";
+import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
 import { normalizeError } from "../utils/errors";
 
 function readTlsFileSync(filePath: string, label: string): string {
@@ -28,4 +29,20 @@ export function loadTlsPemBundle(tlsConfig?: Partial<TlsPemBundle>): Partial<Tls
 		result.key = readTlsFileSync(tlsConfig.key, "client key");
 	}
 	return result;
+}
+
+export function buildHttpsAgentOptions(tlsConfig?: TlsPaths): https.AgentOptions | undefined {
+	if (!tlsConfig) {
+		return undefined;
+	}
+	const bundle = loadTlsPemBundle({
+		ca: tlsConfig.caPath,
+		cert: tlsConfig.certPath,
+		key: tlsConfig.keyPath,
+	});
+	const opts: https.AgentOptions = {};
+	if (bundle.ca) opts.ca = bundle.ca;
+	if (bundle.cert) opts.cert = bundle.cert;
+	if (bundle.key) opts.key = bundle.key;
+	return opts;
 }

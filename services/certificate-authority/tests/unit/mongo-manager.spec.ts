@@ -2,15 +2,24 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockConnect = jest.fn().mockResolvedValue(undefined);
 const mockClose = jest.fn().mockResolvedValue(undefined);
-const mockDb = jest.fn(() => ({ databaseName: "test-db" }));
+const mockGetConnection = jest.fn().mockResolvedValue({
+	db: jest.fn(() => ({ databaseName: "test-db" })),
+	close: mockClose,
+});
+const mockMongoConnectionManager = {
+	getConnection: mockGetConnection,
+	close: jest.fn().mockResolvedValue(undefined),
+};
+const mockManagerClose = mockMongoConnectionManager.close;
 
-jest.mock("mongodb", () => ({
-	MongoClient: jest.fn().mockImplementation(() => ({
-		connect: mockConnect,
-		close: mockClose,
-		db: mockDb,
-	})),
-}));
+jest.mock(
+	"@trading-model/common/persistence/mongo-connection-manager",
+	() => ({
+		MongoConnectionManager: jest
+			.fn()
+			.mockImplementation(() => mockMongoConnectionManager),
+	})
+);
 
 jest.mock("@trading-model/common/config/logger", () => ({
 	logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -31,13 +40,13 @@ describe("MONGO_MANAGER", () => {
 
 	it("should initialize and connect", async () => {
 		await MONGO_MANAGER.initialize(TEST_URI);
-		expect(mockConnect).toHaveBeenCalled();
+		expect(mockGetConnection).toHaveBeenCalled();
 	});
 
 	it("should not re-initialize if already initialized", async () => {
 		await MONGO_MANAGER.initialize(TEST_URI);
 		await MONGO_MANAGER.initialize(TEST_URI);
-		expect(mockConnect).toHaveBeenCalledTimes(1);
+		expect(mockGetConnection).toHaveBeenCalledTimes(1);
 	});
 
 	it("should return isInitialized true after init", async () => {
@@ -76,7 +85,7 @@ describe("MONGO_MANAGER", () => {
 		await MONGO_MANAGER.initialize(TEST_URI);
 		const result = await MONGO_MANAGER.tryReconnect();
 		expect(result).toBe(true);
-		expect(mockConnect).toHaveBeenCalledTimes(2);
+		expect(mockGetConnection).toHaveBeenCalledTimes(2);
 	});
 
 	it("should close and reset state", async () => {

@@ -1,39 +1,37 @@
 import { logger } from "@trading-model/common/config/logger";
-import {
-	ReplayCircuitBreaker,
-	type ReplayCircuitBreakerConfig,
-} from "./replay-circuit-breaker";
+import { MessageManagerCircuitBreaker } from "../config/mm-circuit-breaker";
 
-/**
- * Pure application orchestration for DLQ replay.
- * Coordinates batch replay with concurrency control, delegating circuit breaking.
- * No HTTP, no MongoDB, no Redis — receives pre-resolved dependencies.
- */
-export interface ReplayOrchestratorConfig extends ReplayCircuitBreakerConfig {
+export interface ReplayOrchestratorConfig {
 	maxConcurrentBatches?: number;
+	failureThreshold?: number;
+	resetMs?: number;
+	halfOpenMaxAttempts?: number;
 }
 
 export class ReplayOrchestrator {
 	private readonly _maxConcurrentBatches: number;
-	private readonly _circuitBreaker: ReplayCircuitBreaker;
+	private readonly _circuitBreaker: MessageManagerCircuitBreaker;
 	private _activeBatches = 0;
 
 	constructor(config: ReplayOrchestratorConfig = {}) {
 		this._maxConcurrentBatches = config.maxConcurrentBatches ?? 2;
-		this._circuitBreaker = new ReplayCircuitBreaker(config);
+		this._circuitBreaker = new MessageManagerCircuitBreaker({
+			...config,
+			name: "replay",
+		});
 	}
 
 	/** Check if the circuit allows a request. Returns false if OPEN. */
 	canProceed(): boolean {
-		return this._circuitBreaker.isAllowed("replay");
+		return this._circuitBreaker.isAllowed();
 	}
 
 	recordSuccess(): void {
-		this._circuitBreaker.recordSuccess("replay");
+		this._circuitBreaker.recordSuccess();
 	}
 
 	recordFailure(): void {
-		this._circuitBreaker.recordFailure("replay");
+		this._circuitBreaker.recordFailure();
 	}
 
 	/** Check if batch concurrency limit has been reached. */
@@ -61,6 +59,6 @@ export class ReplayOrchestrator {
 	}
 
 	getCircuitState(): import("@trading-model/common/domain/circuit-state").CircuitState {
-		return this._circuitBreaker.getState("replay");
+		return this._circuitBreaker.getState();
 	}
 }

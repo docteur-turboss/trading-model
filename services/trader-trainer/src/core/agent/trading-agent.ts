@@ -8,22 +8,23 @@ import {
 import { Agent } from "../neural-network/agent";
 import type { Experience, NeuralNetworkConfig } from "../neural-network/type";
 import { ActionMapper } from "./action-mapper";
+import { TradeAction, ActionSpace } from "./action-types";
 import StateManager, { type StateManagerConfig } from "./state-manager";
 
 export interface TradingAgentConfig {
 	nnConfig: NeuralNetworkConfig;
 	wallet?: WalletConfig;
-	actionSpace?: "discrete" | "continuous";
+	actionSpace?: ActionSpace;
 	tradeAmount?: Volume;
 	stateManagerCfg?: StateManagerConfig;
 }
 
 type ActionExecutor = (wallet: WalletAPI, amount: Volume) => boolean;
 
-const ACTION_EXECUTORS: Record<string, ActionExecutor> = {
-	buy: (wallet: WalletAPI, amount: Volume) => wallet.buy(Volume.of(amount)),
-	sell: (wallet: WalletAPI, amount: Volume) => wallet.sell(Volume.of(amount)),
-	hold: () => false,
+const ACTION_EXECUTORS: Record<TradeAction, ActionExecutor> = {
+	[TradeAction.Buy]: (wallet: WalletAPI, amount: Volume) => wallet.buy(Volume.of(amount)),
+	[TradeAction.Sell]: (wallet: WalletAPI, amount: Volume) => wallet.sell(Volume.of(amount)),
+	[TradeAction.Hold]: () => false,
 };
 
 export class TradingAgent {
@@ -44,7 +45,7 @@ export class TradingAgent {
 	public mapOutputToAction(
 		output: Float32Array,
 		cfg?: TradingAgentConfig
-	): { action: "buy" | "sell" | "hold"; amount: Volume } {
+	): { action: TradeAction; amount: Volume } {
 		if (cfg) {
 			const mapper = new ActionMapper(cfg);
 			return mapper.map(output);
@@ -55,7 +56,7 @@ export class TradingAgent {
 	public step(
 		input: Float32Array,
 		price?: Price
-	): { action: string; reward: number; metrics: WalletMetrics } {
+	): { action: TradeAction | "none"; reward: number; metrics: WalletMetrics } {
 		if (price !== undefined) {
 			this.wallet.setPrice(price);
 		}
@@ -63,7 +64,7 @@ export class TradingAgent {
 
 		const output = this._agent.fastForward({ input });
 		const { action, amount } = this._actionMapper.map(output);
-		const executor = ACTION_EXECUTORS[action] ?? ACTION_EXECUTORS.hold;
+		const executor = ACTION_EXECUTORS[action];
 		const executed = executor(this.wallet, amount);
 
 		const reward = this.wallet.getPnL() - currentPnL;

@@ -1,5 +1,3 @@
-import { type IPAddress, Port } from "@trading-model/common/domain/primitives";
-import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 
@@ -40,14 +38,6 @@ function computeDelay(retries: number): number {
 	return Math.max(100, Math.round(baseDelay + jitter));
 }
 
-function buildRedisOptions(): Record<string, unknown> {
-	const opts = baseRedisOptions();
-	if (ENV.REDIS_URL) {
-		return opts;
-	}
-	return withConnectionDetails(opts);
-}
-
 function baseRedisOptions(): Record<string, unknown> {
 	const tls = ENV.REDIS_TLS_ENABLED
 		? { tls: { rejectUnauthorized: true } }
@@ -61,34 +51,15 @@ function baseRedisOptions(): Record<string, unknown> {
 	};
 }
 
-function withConnectionDetails(
-	opts: Record<string, unknown>
-): Record<string, unknown> {
-	return {
-		...opts,
-		host: ENV.REDIS_HOST,
-		port: ENV.REDIS_PORT,
-		password: ENV.REDIS_PASSWORD || undefined,
-		db: ENV.REDIS_DB,
-	};
-}
-
 function buildSentinelClient(): Redis {
 	const sentinelNodes = parseSentinelNodes();
 	const sentinelOpts = buildSentinelOptions(sentinelNodes);
 	return new Redis(sentinelOpts as RedisOptions) as unknown as Redis;
 }
 
-function parseSentinelNodes(): HostPort[] {
+function parseSentinelNodes(): { host: string; port: number }[] {
 	try {
-		return ENV.REDIS_SENTINEL_NODES
-			? (JSON.parse(ENV.REDIS_SENTINEL_NODES) as HostPort[])
-			: [
-					{
-						host: ENV.REDIS_HOST as unknown as IPAddress,
-						port: Port.of(ENV.REDIS_PORT),
-					},
-				];
+		return JSON.parse(ENV.REDIS_SENTINEL_NODES!) as { host: string; port: number }[];
 	} catch (cause) {
 		throw wrapParseError(cause as Error, "REDIS_SENTINEL_NODES");
 	}
@@ -101,13 +72,12 @@ function wrapParseError(cause: Error, name: string): never {
 }
 
 function buildSentinelOptions(
-	sentinelNodes: HostPort[]
+	sentinelNodes: { host: string; port: number }[]
 ): Record<string, unknown> {
 	const sentinelOpts: Record<string, unknown> = {
 		sentinels: sentinelNodes,
 		name: ENV.REDIS_SENTINEL_MASTER_NAME,
 		password: ENV.REDIS_SENTINEL_PASSWORD || undefined,
-		db: ENV.REDIS_DB,
 		retryStrategy: (retries: number) => redisRetryDelay(retries),
 		lazyConnect: true,
 		maxRetriesPerRequest: null,
@@ -119,9 +89,9 @@ function buildSentinelOptions(
 	return sentinelOpts;
 }
 
-function parseClusterNodes(): HostPort[] {
+function parseClusterNodes(): { host: string; port: number }[] {
 	try {
-		return JSON.parse(ENV.REDIS_CLUSTER_NODES!) as HostPort[];
+		return JSON.parse(ENV.REDIS_CLUSTER_NODES!) as { host: string; port: number }[];
 	} catch (cause) {
 		throw wrapParseError(cause as Error, "REDIS_CLUSTER_NODES");
 	}
@@ -160,8 +130,7 @@ function clusterOptions(): Record<string, unknown> {
 }
 
 function buildStandaloneClient(): Redis {
-	const options = buildRedisOptions();
-	return new Redis(options as RedisOptions);
+	return new Redis(ENV.REDIS_URL!, baseRedisOptions() as RedisOptions);
 }
 
 export function createRedisClient(): Redis {

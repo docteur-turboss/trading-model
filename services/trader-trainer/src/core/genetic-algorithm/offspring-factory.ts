@@ -4,7 +4,7 @@ import {
 	type MutateWeightsContext,
 	mutateWeights,
 } from "./evolution-engine";
-import type { GAControlGenome, Genome, LamarckGenome } from "./genome-types";
+import type { GAControlGenome, Genome, LamarckGenome, PopMember } from "./genome-types";
 import { mutateGenome } from "./mutation";
 import { makePRNG } from "./prng";
 import { selectParent } from "./selection";
@@ -12,7 +12,7 @@ import { type DeepReadonly, deepFreeze, withGenome } from "./shared-types";
 import { generateId } from "./utils";
 
 export function selectElites(
-	ranked: Genome[],
+	ranked: PopMember[],
 	newCtrl: Readonly<GAControlGenome>
 ): DeepReadonly<LamarckGenome>[] {
 	const nElite = Math.max(
@@ -21,13 +21,13 @@ export function selectElites(
 	);
 	return ranked
 		.slice(0, nElite)
-		.map((genome) =>
-			withGenome(genome, { gaControl: newCtrl } as Partial<LamarckGenome>)
+		.map((m) =>
+			withGenome(m.genome, { gaControl: newCtrl } as Partial<LamarckGenome>)
 		);
 }
 
 interface ProduceOneOffspringParams {
-	ranked: LamarckGenome[];
+	ranked: PopMember[];
 	newCtrl: Readonly<GAControlGenome>;
 	coRng: () => number;
 	mutRng: () => number;
@@ -70,8 +70,6 @@ function _buildOffspringGenome(
 		generation: generation + 1,
 		gaControl: newCtrl,
 		trainedWeights: childWeights,
-		fitness: undefined,
-		fitnessMeta: undefined,
 	}) as DeepReadonly<LamarckGenome>;
 }
 
@@ -95,7 +93,7 @@ function produceOneOffspring(
 }
 
 export interface OffspringContext {
-	ranked: Genome[];
+	ranked: PopMember[];
 	newCtrl: Readonly<GAControlGenome>;
 	ctrl: DeepReadonly<GAControlGenome>;
 	rng: () => number;
@@ -129,7 +127,7 @@ export function createOffspring(
 
 	return Array.from({ length: nOffspring }, () =>
 		produceOneOffspring({
-			ranked: ranked as LamarckGenome[],
+			ranked,
 			newCtrl,
 			coRng,
 			mutRng,

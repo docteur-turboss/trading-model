@@ -1,6 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
 import type { Experience } from "../../core/neural-network/type";
+import { ActionSpace } from "../agent/action-types";
 import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
 import type { FeatureVector } from "../feature-vector";
 import { ConnectionType, InitialisationType } from "../neural-network/type";
@@ -61,7 +62,7 @@ function _buildAgentConfig(
 	return {
 		nnConfig: _buildNNConfig(genome, genome.rl.replayBuffer),
 		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(1) },
-		actionSpace: "discrete",
+		actionSpace: ActionSpace.Discrete,
 		tradeAmount: Volume.of(1),
 		stateManagerCfg: _buildStateManagerCfg(
 			genome.rl.discretePolicy,

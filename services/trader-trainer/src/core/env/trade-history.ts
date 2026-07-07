@@ -3,10 +3,11 @@ import {
 	type Price,
 	type Volume,
 } from "@trading-model/common/domain/primitives";
+import { TradeSide } from "@trading-model/common/contracts/market-data.types";
 
 export interface TradeRecord {
 	step: number;
-	action: "buy" | "sell";
+	action: TradeSide;
 	amount: Volume;
 	price: Price;
 	fee: Cash;

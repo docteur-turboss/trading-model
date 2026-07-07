@@ -32,16 +32,18 @@ export interface TrainingFailure {
 /** Discriminated result of a training cycle. */
 export type TrainingResult = TrainingSuccess | TrainingFailure;
 
+type TrainerStatus = "idle" | "training";
+
 /** Orchestrates GA training cycles: feeds market data, runs generations, tracks best genome. */
 export class Trainer {
-	private _status: "idle" | "training" = "idle";
+	private _status: TrainerStatus = "idle";
 	private readonly _trainingState = new TrainingState();
 	private readonly _validator: TrainingPrerequisiteValidator;
 
-	constructor(private readonly _dataBuffer: MarketDataBuffer) {
+	constructor(private readonly _dataBuffer: MarketDataBuffer	) {
 		this._validator = new TrainingPrerequisiteValidator(
 			this._dataBuffer,
-			() => this._status === "training"
+			() => this._status === "training" as const
 		);
 	}
 
@@ -80,11 +82,13 @@ export class Trainer {
 		this._trainingState.update({
 			symbol,
 			bestGenome: result.bestGenome,
+			bestFitness: result.bestFitness,
+			bestFitnessMeta: result.bestFitnessMeta,
 			generation: result.generation,
 			generationContext: result.generationContext,
 		});
 		logger.info("Training complete", {
-			context: { symbol, bestFitness: result.bestGenome.fitness ?? 0 },
+			context: { symbol, bestFitness: result.bestFitness },
 		});
 		return { success: true, symbol, bestGenome: result.bestGenome };
 	}

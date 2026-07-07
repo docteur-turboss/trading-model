@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "@jest/globals";
-import { Cash, Price } from "@trading-model/common/domain/primitives";
+import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
+import { ActionSpace } from "../../../src/core/agent/action-types";
 import type { TradingAgentConfig } from "../../../src/core/agent/trading-agent";
 import { TradingAgent } from "../../../src/core/agent/trading-agent";
 import {
@@ -26,8 +27,8 @@ function makeConfig(
 			poolMaxSize: 100,
 		},
 		wallet: { initialCash: Cash.of(1000), initialPrice: Price.of(100) },
-		actionSpace: "discrete",
-		tradeAmount: 1,
+		actionSpace: ActionSpace.Discrete,
+		tradeAmount: Volume.of(1),
 		stateManagerCfg: {
 			epsilonStart: 1.0,
 			epsilonMin: 0.01,
@@ -120,12 +121,12 @@ describe("TradingAgent", () => {
 		});
 
 		it("should use tradeAmount from config for discrete actions", () => {
-			const agentWithAmount = new TradingAgent(makeConfig({ tradeAmount: 5 }));
+			const agentWithAmount = new TradingAgent(makeConfig({ tradeAmount: Volume.of(5) }));
 			const output = new Float32Array([0.0, 0.0, 1.0]);
 
 			const result = agentWithAmount.mapOutputToAction(output, {
 				nnConfig: { neuronsByLayer: [4, 6, 3] },
-				tradeAmount: 5,
+				tradeAmount: Volume.of(5),
 			});
 
 			expect(result.amount).toBe(5);
@@ -136,8 +137,8 @@ describe("TradingAgent", () => {
 
 			const result = agent.mapOutputToAction(output, {
 				nnConfig: { neuronsByLayer: [4, 6, 3] },
-				actionSpace: "continuous",
-				tradeAmount: 2,
+				actionSpace: ActionSpace.Continuous,
+				tradeAmount: Volume.of(2),
 			});
 
 			expect(result.action).toBe("buy");
@@ -149,8 +150,8 @@ describe("TradingAgent", () => {
 
 			const result = agent.mapOutputToAction(output, {
 				nnConfig: { neuronsByLayer: [4, 6, 3] },
-				actionSpace: "continuous",
-				tradeAmount: 1,
+				actionSpace: ActionSpace.Continuous,
+				tradeAmount: Volume.of(1),
 			});
 
 			expect(result.action).toBe("hold");
@@ -161,8 +162,8 @@ describe("TradingAgent", () => {
 
 			const result = agent.mapOutputToAction(output, {
 				nnConfig: { neuronsByLayer: [4, 6, 3] },
-				actionSpace: "continuous",
-				tradeAmount: 2,
+				actionSpace: ActionSpace.Continuous,
+				tradeAmount: Volume.of(2),
 			});
 
 			expect(result.action).toBe("sell");
@@ -173,7 +174,7 @@ describe("TradingAgent", () => {
 
 			const result = agent.mapOutputToAction(output, {
 				nnConfig: { neuronsByLayer: [4, 6, 3] },
-				actionSpace: "continuous",
+				actionSpace: ActionSpace.Continuous,
 			});
 
 			expect(result.action).toBe("hold");

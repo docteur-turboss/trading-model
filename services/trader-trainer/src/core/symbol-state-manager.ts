@@ -1,7 +1,9 @@
+import { DataType } from "./data-handlers/data-types";
 import {
 	createDefaultHandlers,
 	type DataHandler,
 } from "./data-handlers/data-handler";
+import { EvictionPolicy } from "./eviction-policy";
 import { MemoryManager } from "./market-data/memory-manager";
 import type { SymbolState, TradingSymbol } from "./market-data-types";
 import { NormalizationManager } from "./normalization-manager";
@@ -11,12 +13,12 @@ export class SymbolStateManager {
 	readonly accessOrder: TradingSymbol[] = [];
 	private readonly _memoryManager: MemoryManager;
 	private readonly _normManager: NormalizationManager;
-	private readonly _handlerMap: Record<string, DataHandler>;
+	private readonly _handlerMap: Record<DataType, DataHandler>;
 
 	constructor(
 		maxSize: number,
 		maxMemoryBytes: number,
-		evictionPolicy: "LRU" | "none",
+		evictionPolicy: EvictionPolicy,
 		handlers?: DataHandler[]
 	) {
 		this._memoryManager = new MemoryManager({
@@ -28,7 +30,7 @@ export class SymbolStateManager {
 		});
 		this._normManager = new NormalizationManager(handlers);
 		const h = handlers ?? createDefaultHandlers();
-		this._handlerMap = Object.fromEntries(h.map((x) => [x.dataType, x]));
+		this._handlerMap = Object.fromEntries(h.map((x) => [x.dataType, x])) as Record<DataType, DataHandler>;
 	}
 
 	getMemoryManager(): MemoryManager {

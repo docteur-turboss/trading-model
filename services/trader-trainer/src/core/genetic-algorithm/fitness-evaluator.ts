@@ -1,6 +1,6 @@
 import { evaluateFitness } from "./evaluation-pipeline";
 import type { WindowSet } from "./generation-types";
-import type { GenomeFitnessMeta, LamarckGenome } from "./genome-types";
+import type { GenomeFitnessMeta, LamarckGenome, PopMember } from "./genome-types";
 import type { ObjectiveVector } from "./nsga2";
 import { ParetoArchive } from "./pareto";
 import type { BackendFactory } from "./rl-backend";
@@ -48,7 +48,7 @@ export class FitnessEvaluator {
 	}
 
 	updateArchive(
-		popWithMeta: DeepReadonly<LamarckGenome>[],
+		popWithMeta: PopMember[],
 		objectives: ObjectiveVector[],
 		popMeta: import("./nsga2").PopulationMeta,
 		onArchiveUpdate?: (archive: DeepReadonly<LamarckGenome>[]) => void
@@ -61,7 +61,7 @@ export class FitnessEvaluator {
 		}, [] as number[]);
 		if (
 			this._archive.update(
-				frontIdx.map((idx) => popWithMeta[idx]),
+				frontIdx.map((idx) => popWithMeta[idx].genome),
 				frontIdx.map((idx) => objectives[idx])
 			)
 		) {

@@ -3,7 +3,7 @@ import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import { WsAuthSender } from "./ws-auth-sender";
-import { WsConnectionManager } from "./ws-connection-manager";
+import { WsTransport } from "./ws-transport";
 
 export type ConnectionState =
 	| "disconnected"
@@ -14,7 +14,7 @@ export type ConnectionState =
 export class WssTransportConnection implements IWsConnection {
 	private _emitter = new EventEmitter();
 	private _state: ConnectionState = "disconnected";
-	private readonly _connectionManager: WsConnectionManager;
+	private readonly _connectionManager: WsTransport;
 	private readonly _reconnectHandler = new DefaultWsReconnector({
 		onReconnect: () => {
 			this._connectionManager.disconnect();
@@ -28,7 +28,7 @@ export class WssTransportConnection implements IWsConnection {
 		tlsConfig?: TlsPaths,
 		private readonly _bootstrapToken?: string
 	) {
-		this._connectionManager = new WsConnectionManager(this._url, tlsConfig);
+		this._connectionManager = new WsTransport(this._url, tlsConfig);
 		this._authSender = new WsAuthSender(this._bootstrapToken);
 	}
 

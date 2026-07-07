@@ -1,9 +1,10 @@
 import type { TickerData } from "@trading-model/common/config/event.types";
 import type { SymbolState } from "../market-data-types";
+import { DataType } from "./data-types";
 import type { DataHandler } from "./data-handler";
 
 export const tickerHandler: DataHandler<TickerData> = {
-	dataType: "ticker",
+	dataType: DataType.Ticker,
 	updateNorms(state, ticker) {
 		state.norm.tickerVolume.update(ticker.volume);
 	},

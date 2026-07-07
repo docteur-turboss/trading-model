@@ -1,27 +1,35 @@
-import * as fs from "node:fs";
 import * as https from "node:https";
 import type { Buffer as NodeBuffer } from "node:buffer";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import { buildHttpsAgentOptions } from "@trading-model/common/config/http-tls-loader";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import WebSocket from "ws";
+
+export interface WssConnectionEvents {
+	onClose: (code: number, reason: Buffer) => void;
+	onOpen: () => void;
+	onMessage: (data: string) => void;
+	onError: (err: Error) => void;
+}
 
 export class WssConnection implements IWsConnection {
 	private _ws: WebSocket | undefined;
 	private _wsUrl?: string;
 	private _lastCloseCode = 0;
 	private _lastCloseReason = Buffer.alloc(0) as NodeBuffer;
-	private readonly _tlsCa?: string;
-	private readonly _tlsCert?: string;
-	private readonly _tlsKey?: string;
+	private readonly _agent?: https.Agent;
 	onCloseHandler?: () => void;
 	onOpen?: () => void;
 	onMessage?: (data: unknown) => void;
 	onError?: (err: Error) => void;
 
 	constructor(tlsConfig?: Partial<TlsPaths>) {
-		this._tlsCa = tlsConfig?.caPath ? fs.readFileSync(tlsConfig.caPath, "utf8") : undefined;
-		this._tlsCert = tlsConfig?.certPath ? fs.readFileSync(tlsConfig.certPath, "utf8") : undefined;
-		this._tlsKey = tlsConfig?.keyPath ? fs.readFileSync(tlsConfig.keyPath, "utf8") : undefined;
+		const opts = tlsConfig?.caPath && tlsConfig?.certPath && tlsConfig?.keyPath
+			? buildHttpsAgentOptions(tlsConfig as TlsPaths)
+			: undefined;
+		if (opts) {
+			this._agent = new https.Agent(opts);
+		}
 	}
 
 	connect(wsUrl?: string): void {
@@ -29,8 +37,7 @@ export class WssConnection implements IWsConnection {
 		if (!url) return;
 		this._wsUrl = url;
 		try { this._ws?.close(); } catch {}
-		const agent = this._tlsCa ? new https.Agent({ ca: this._tlsCa, cert: this._tlsCert, key: this._tlsKey }) : undefined;
-		this._ws = new WebSocket(url, { agent });
+		this._ws = new WebSocket(url, { agent: this._agent });
 		this._ws.on("open", () => { this.onOpen?.(); });
 		this._ws.on("message", (raw: WebSocket.RawData) => { this.onMessage?.(raw.toString()); });
 		this._ws.on("close", (code: number, reason) => { this._lastCloseCode = code; this._lastCloseReason = reason as unknown as Buffer; this.onCloseHandler?.(); });

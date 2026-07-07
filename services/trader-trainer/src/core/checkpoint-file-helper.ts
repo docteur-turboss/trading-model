@@ -45,13 +45,14 @@ export class CheckpointSerializer {
 
 	buildMetadata(
 		symbol: TradingSymbol,
-		genome: DeepReadonly<LamarckGenome>
+		genome: DeepReadonly<LamarckGenome>,
+		fitness = 0
 	): CheckpointMetadata {
 		return {
 			savedAt: Date.now() as UnixTimestamp,
 			symbol,
 			generation: (genome.generation as number | undefined) ?? 0,
-			fitness: (genome.fitness as number | undefined) ?? 0,
+			fitness,
 		};
 	}
 
@@ -121,7 +122,7 @@ export class CheckpointFileHelper {
 			context: {
 				symbol,
 				generation: genome.generation,
-				fitness: genome.fitness,
+				fitness: (genome as Record<string, unknown>).fitness ?? 0,
 			},
 		});
 		return genome;

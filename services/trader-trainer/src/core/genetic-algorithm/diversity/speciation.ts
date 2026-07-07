@@ -4,13 +4,10 @@ import { genomicDistance } from "./distance";
 export interface Species {
 	representativeIndex: number;
 	memberIndices: number[];
-	averageFitness?: number;
 }
 
 export function speciate(population: Genome[], threshold = 0.3): Species[] {
-	const species = _assignToSpecies(population, threshold);
-	_computeAverageFitnessPerSpecies(population, species);
-	return species;
+	return _assignToSpecies(population, threshold);
 }
 
 function _assignToSpecies(population: Genome[], threshold: number): Species[] {
@@ -30,19 +27,4 @@ function _assignToSpecies(population: Genome[], threshold: number): Species[] {
 		}
 	}
 	return species;
-}
-
-function _computeAverageFitnessPerSpecies(
-	population: Genome[],
-	species: Species[]
-): void {
-	for (const sp of species) {
-		const fits = sp.memberIndices
-			.map((idx) => population[idx].fitness ?? 0)
-			.filter((fit) => Number.isFinite(fit));
-		if (fits.length > 0) {
-			sp.averageFitness =
-				fits.reduce((sum, value) => sum + value, 0) / fits.length;
-		}
-	}
 }

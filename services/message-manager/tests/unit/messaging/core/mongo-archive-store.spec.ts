@@ -10,6 +10,7 @@ jest.mock("mongodb", () => ({
 			})),
 		})),
 		close: jest.fn().mockResolvedValue(undefined),
+		on: jest.fn(),
 	})),
 }));
 
@@ -88,6 +89,7 @@ describe("MongoArchiveStore", () => {
 				})),
 			})),
 			close: jest.fn().mockResolvedValue(undefined),
+			on: jest.fn(),
 		}));
 
 		const store = new MongoArchiveStore();

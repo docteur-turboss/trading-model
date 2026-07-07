@@ -1,5 +1,6 @@
 import type {
 	GAControlGenome,
+	GenomeFitnessMeta,
 	LamarckGenome,
 	MarketStep,
 } from "./genome-types";
@@ -27,6 +28,7 @@ export interface GenerationContext {
 	archive: DeepReadonly<LamarckGenome>[];
 	bestFitness: number;
 	bestGenome: DeepReadonly<LamarckGenome>;
+	bestFitnessMeta?: GenomeFitnessMeta;
 	avgFitness: number;
 	efficiencyScore: number;
 	elapsedMs: number;

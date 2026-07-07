@@ -2,7 +2,7 @@ import {
 	type CircuitState,
 	CircuitBreaker as SharedCB,
 } from "@trading-model/common/reliability/circuit-breaker";
-import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
+import type { IUnkeyedCircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 
 interface BinanceCircuitBreakerConfig {
 	failureThreshold: number;
@@ -32,7 +32,7 @@ class HalfOpenProbeTracker {
  * High-level circuit breaker wrapping the shared CircuitBreaker.
  * Adds half-open probe limiting on top of the base call().
  */
-export class BinanceCircuitBreaker implements ICircuitBreaker {
+export class BinanceCircuitBreaker implements IUnkeyedCircuitBreaker {
 	private readonly _inner: SharedCB;
 	private readonly _halfOpenTracker: HalfOpenProbeTracker;
 
@@ -53,33 +53,33 @@ export class BinanceCircuitBreaker implements ICircuitBreaker {
 		);
 	}
 
-	check(_key: string): CircuitState {
+	check(): CircuitState {
 		return this._inner.check(this._name);
 	}
 
-	isAllowed(_key: string): boolean {
+	isAllowed(): boolean {
 		return this._inner.isAllowed(this._name);
 	}
 
-	recordSuccess(_key: string): void {
+	recordSuccess(): void {
 		this._inner.recordSuccess(this._name);
 		this._halfOpenTracker.reset();
 	}
 
-	recordFailure(_key: string, _count?: number, _threshold?: number): void {
+	recordFailure(_count?: number, _threshold?: number): void {
 		this._inner.recordFailure(this._name);
 		this._halfOpenTracker.reset();
 	}
 
-	isOpen(_key: string): boolean {
+	isOpen(): boolean {
 		return this._inner.isOpen(this._name);
 	}
 
-	getState(_key: string): CircuitState {
+	getState(): CircuitState {
 		return this._inner.getState(this._name);
 	}
 
-	getFailureCount(_key: string): number {
+	getFailureCount(): number {
 		return this._inner.getFailureCount(this._name);
 	}
 
@@ -89,7 +89,6 @@ export class BinanceCircuitBreaker implements ICircuitBreaker {
 	}
 
 	async call<TResult>(
-		_key: string,
 		fn: () => Promise<TResult>,
 		fallback?: () => TResult,
 	): Promise<TResult> {

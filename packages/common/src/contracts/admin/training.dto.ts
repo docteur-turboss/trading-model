@@ -56,9 +56,19 @@ export interface TrainingGenome {
 	mutationRate: Percentage;
 }
 
-export interface TrainingLayer {
-	type: LayerType;
-	units?: number;
-	activation?: ActivationFn;
-	rate?: number;
+export interface DenseLayer {
+	type: LayerType.Dense | LayerType.Lstm | LayerType.Gru | LayerType.Attention | LayerType.Conv1d;
+	units: number;
+	activation: ActivationFn;
 }
+
+export interface DropoutLayer {
+	type: LayerType.Dropout;
+	rate: number;
+}
+
+export interface NormalizationLayer {
+	type: LayerType.Normalization;
+}
+
+export type TrainingLayer = DenseLayer | DropoutLayer | NormalizationLayer;

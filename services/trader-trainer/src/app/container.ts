@@ -1,5 +1,6 @@
 import type { Price } from "@trading-model/common/domain/primitives";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import { EvictionPolicy } from "../core/eviction-policy";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
@@ -29,7 +30,7 @@ export class ApplicationContainer {
 		const bufferConfig: MarketDataBufferConfig = {
 			maxSize: config.bufferSize,
 			maxMemoryMb: config.bufferMemoryLimitMb ?? 512,
-			evictionPolicy: "LRU",
+			evictionPolicy: EvictionPolicy.LRU,
 		};
 		this.eventRouter = new MarketDataEventRouter(bufferConfig);
 		this.trainer = new Trainer(this.eventRouter.dataBuffer);

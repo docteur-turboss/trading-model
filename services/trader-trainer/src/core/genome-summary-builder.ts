@@ -1,4 +1,4 @@
-import type { ActivationType } from "./genetic-algorithm/genome";
+import type { ActivationType, GenomeFitnessMeta } from "./genetic-algorithm/genome";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type { BestAgentSummary } from "./trainer";
@@ -42,17 +42,20 @@ export class GenomeSummaryBuilder {
 		};
 	}
 
-	build(genome: DeepReadonly<LamarckGenome>): BestAgentSummary {
-		const meta = genome.fitnessMeta;
+	build(
+		genome: DeepReadonly<LamarckGenome>,
+		fitness: number,
+		fitnessMeta?: GenomeFitnessMeta
+	): BestAgentSummary {
 		return {
 			id: genome.id,
 			generation: genome.generation,
-			fitness: genome.fitness ?? 0,
-			sharpe: meta?.rawScores
-				? GenomeSummaryBuilder.computeSharpe(meta.rawScores)
+			fitness,
+			sharpe: fitnessMeta?.rawScores
+				? GenomeSummaryBuilder.computeSharpe(fitnessMeta.rawScores)
 				: 0,
-			avgPnl: meta?.rawScores
-				? GenomeSummaryBuilder.computeAvgPnl(meta.rawScores)
+			avgPnl: fitnessMeta?.rawScores
+				? GenomeSummaryBuilder.computeAvgPnl(fitnessMeta.rawScores)
 				: 0,
 			negFlops: 0,
 			complexityPenalty: 0,

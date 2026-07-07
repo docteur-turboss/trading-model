@@ -2,7 +2,7 @@ import { adaptGAControl } from "./adaptive-control-system";
 import { createDefaultGenome } from "./factory";
 import { FitnessEvaluator } from "./fitness-evaluator";
 import type { GARunnerConfig, GenerationContext } from "./generation-types";
-import type { GAControlGenome, LamarckGenome } from "./genome-types";
+import type { GAControlGenome, LamarckGenome, PopMember } from "./genome-types";
 import { selectElites } from "./offspring-factory";
 import { buildParetoFronts, sortPopulation } from "./pareto-processor";
 import {
@@ -72,7 +72,7 @@ export class GenerationProcessor {
 	}
 
 	private _evolvePopulation(
-		result: { popWithMeta: DeepReadonly<LamarckGenome>[]; popMeta: import("./pareto").PopulationMeta },
+		result: { popWithMeta: PopMember[]; popMeta: import("./pareto").PopulationMeta },
 		newCtrl: Readonly<GAControlGenome>,
 		ctrl: DeepReadonly<GAControlGenome>,
 		rng: () => number
@@ -83,7 +83,7 @@ export class GenerationProcessor {
 	}
 
 	private _buildContext(
-		result: { avgFit: number; avgEff: number; popWithMeta: DeepReadonly<LamarckGenome>[] },
+		result: { avgFit: number; avgEff: number; popWithMeta: PopMember[] },
 		lastBestGenome: DeepReadonly<LamarckGenome> | undefined,
 		newCtrl: Readonly<GAControlGenome>,
 		startTime?: number
@@ -94,6 +94,7 @@ export class GenerationProcessor {
 			archive: this._evaluator.archive.members,
 			bestFitness: this._evaluator.stagnationTracker.bestFitness,
 			bestGenome: lastBestGenome ?? this._population[0] as DeepReadonly<LamarckGenome>,
+			bestFitnessMeta: this._evaluator.stagnationTracker.bestFitnessMeta,
 			avgFitness: result.avgFit,
 			efficiencyScore: result.avgEff,
 			elapsedMs: Date.now() - (startTime ?? Date.now()),

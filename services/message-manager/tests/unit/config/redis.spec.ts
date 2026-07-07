@@ -36,11 +36,8 @@ jest.mock("../../../src/config/logger", () => ({
 
 jest.mock("../../../src/config/env", () => ({
 	ENV: {
-		REDIS_URL: undefined,
-		REDIS_HOST: "localhost",
-		REDIS_PORT: 6379,
+		REDIS_URL: "redis://localhost:6379",
 		REDIS_PASSWORD: undefined,
-		REDIS_DB: 0,
 		REDIS_TLS_ENABLED: false,
 		REDIS_SENTINEL_MASTER_NAME: undefined,
 		REDIS_SENTINEL_NODES: undefined,

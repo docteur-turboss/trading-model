@@ -4,10 +4,11 @@ import {
 	type OrderBookData,
 } from "@trading-model/common/config/event.types";
 import type { SymbolState } from "../market-data-types";
+import { DataType } from "./data-types";
 import type { DataHandler } from "./data-handler";
 
 export const orderBookHandler: DataHandler<OrderBookData> = {
-	dataType: "orderBook",
+	dataType: DataType.OrderBook,
 	updateNorms(state, orderBook) {
 		const avgBid = getAvgBid(orderBook);
 		const avgAsk = getAvgAsk(orderBook);

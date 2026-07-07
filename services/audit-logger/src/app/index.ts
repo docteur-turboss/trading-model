@@ -2,7 +2,9 @@ import BrokerMessage from "@trading-model/broker-message";
 import { logger } from "@trading-model/common/config/logger";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import { createBootstrap } from "@trading-model/common/server/bootstrap";
-import { MongoClient } from "mongodb";
+import {
+	MongoConnectionManager,
+} from "@trading-model/common/persistence/mongo-connection-manager";
 import { BOOTSTRAP_ADDRESS_MANAGER } from "../config/address-manager";
 import { ENV } from "../config/env";
 import { AuditRepository } from "../persistence/audit-repository";
@@ -12,7 +14,7 @@ import { WorkerProtocol } from "../worker/worker-protocol";
 import { createServer } from "./server";
 
 interface AppContext {
-	mongoClient: MongoClient;
+	mongoManager: MongoConnectionManager;
 	scheduler: JobScheduler;
 	workerProtocol: WorkerProtocol;
 	brokerMessage: BrokerMessage;
@@ -21,16 +23,10 @@ interface AppContext {
 
 let _appContext: AppContext | null = null;
 
-async function _createMongoConnection(): Promise<MongoClient> {
-	const client = new MongoClient(ENV.MONGODB_URI);
-	await client.connect();
-	return client;
-}
-
 async function _createRepositories(
-	mongo: MongoClient
+	connection: Awaited<ReturnType<MongoConnectionManager["getConnection"]>>
 ): Promise<{ jobRepo: JobRepository; auditRepo: AuditRepository }> {
-	const db = mongo.db();
+	const db = connection.db();
 	const jobRepo = new JobRepository(db);
 	await jobRepo.ensureIndexes();
 	const auditRepo = new AuditRepository(db);
@@ -102,10 +98,6 @@ async function _createBrokerMessage(): Promise<BrokerMessage> {
 	return brokerMessage;
 }
 
-async function _closeMongo(mongoClient: MongoClient): Promise<void> {
-	await mongoClient.close();
-}
-
 function _stopScheduler(scheduler: JobScheduler): void {
 	scheduler.stop();
 }
@@ -113,14 +105,18 @@ function _stopScheduler(scheduler: JobScheduler): void {
 createBootstrap({
 	name: "Audit Logger",
 	createServer: async () => {
-		const mongoClient = await _createMongoConnection();
+		const mongoManager = new MongoConnectionManager({
+			uri: ENV.MONGODB_URI,
+			dbName: "audit-logger",
+		});
+		const mongoClient = await mongoManager.getConnection();
 		const { jobRepo, auditRepo } = await _createRepositories(mongoClient);
 		const { scheduler, workerProtocol, server } =
 			await _createAndStartScheduler(jobRepo, auditRepo);
 		const brokerMessage = await _createBrokerMessage();
 
 		_appContext = {
-			mongoClient,
+			mongoManager,
 			scheduler,
 			workerProtocol,
 			brokerMessage,
@@ -145,13 +141,13 @@ createBootstrap({
 			scheduler,
 			workerProtocol,
 			addressManager,
-			mongoClient,
+			mongoManager,
 		} = _appContext;
 		await brokerMessage.stopMessageManager();
 		_stopScheduler(scheduler);
 		workerProtocol.close();
 		addressManager.stop();
-		await _closeMongo(mongoClient);
+		await mongoManager.close();
 		_appContext = null;
 	},
 });

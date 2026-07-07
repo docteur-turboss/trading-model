@@ -1,65 +1,62 @@
-import type { LamarckGenome } from "./genome-types";
+import type { LamarckGenome, PopMember } from "./genome-types";
 import { SelectionType } from "./genome-types";
 
 export interface SelectionStrategy {
 	readonly type: SelectionType;
 	select(
-		population: LamarckGenome[],
+		population: PopMember[],
 		rng: () => number,
 		tournamentK?: number
 	): LamarckGenome;
 }
 
-function _randomIndex(population: LamarckGenome[], rng: () => number): number {
+function _randomIndex(population: PopMember[], rng: () => number): number {
 	return Math.floor(rng() * population.length);
 }
 
-function _getFitnessWeights(population: LamarckGenome[]): number[] {
-	return population.map((genome) => Math.max(0, genome.fitness ?? 0));
+function _getFitnessWeights(population: PopMember[]): number[] {
+	return population.map((m) => Math.max(0, m.fitness));
 }
 
 function _totalWeight(weights: number[]): number {
 	return weights.reduce((sum, value) => sum + value, 0) || 1;
 }
 
-function _rouletteSelect(population: LamarckGenome[], weights: number[], rng: () => number): LamarckGenome {
+function _rouletteSelect(population: PopMember[], weights: number[], rng: () => number): LamarckGenome {
 	const total = _totalWeight(weights);
 	let pick = rng() * total;
 	for (let i = 0; i < population.length; i++) {
 		pick -= weights[i];
 		if (pick <= 0) {
-			return population[i];
+			return population[i].genome;
 		}
 	}
-	return population[population.length - 1];
+	return population[population.length - 1].genome;
 }
 
 class TournamentSelection implements SelectionStrategy {
 	readonly type: SelectionType = SelectionType.Tournament;
 
 	select(
-		population: LamarckGenome[],
+		population: PopMember[],
 		rng: () => number,
 		tournamentK = 3
 	): LamarckGenome {
 		let best = population[_randomIndex(population, rng)];
 		for (let i = 1; i < tournamentK; i++) {
 			const challenger = population[_randomIndex(population, rng)];
-			if (
-				(challenger.fitness ?? Number.NEGATIVE_INFINITY) >
-				(best.fitness ?? Number.NEGATIVE_INFINITY)
-			) {
+			if (challenger.fitness > best.fitness) {
 				best = challenger;
 			}
 		}
-		return best;
+		return best.genome;
 	}
 }
 
 class RouletteSelection implements SelectionStrategy {
 	readonly type: SelectionType = SelectionType.Roulette;
 
-	select(population: LamarckGenome[], rng: () => number): LamarckGenome {
+	select(population: PopMember[], rng: () => number): LamarckGenome {
 		const weights = _getFitnessWeights(population);
 		return _rouletteSelect(population, weights, rng);
 	}
@@ -68,9 +65,9 @@ class RouletteSelection implements SelectionStrategy {
 class RankSelection implements SelectionStrategy {
 	readonly type: SelectionType = SelectionType.Rank;
 
-	select(population: LamarckGenome[], rng: () => number): LamarckGenome {
+	select(population: PopMember[], rng: () => number): LamarckGenome {
 		const sorted = [...population].sort(
-			(left, right) => (left.fitness ?? 0) - (right.fitness ?? 0)
+			(left, right) => left.fitness - right.fitness
 		);
 		const weights = sorted.map((_unused, i) => i + 1);
 		return _rouletteSelect(sorted, weights, rng);
@@ -81,28 +78,28 @@ class TruncationSelection implements SelectionStrategy {
 	readonly type: SelectionType = SelectionType.Truncation;
 
 	select(
-		population: LamarckGenome[],
+		population: PopMember[],
 		rng: () => number,
 		_tournamentK?: number
 	): LamarckGenome {
-		return population[_randomIndex(population, rng)];
+		return population[_randomIndex(population, rng)].genome;
 	}
 }
 
 class SUSSelection implements SelectionStrategy {
 	readonly type: SelectionType = SelectionType.Sus;
 
-	select(population: LamarckGenome[], rng: () => number): LamarckGenome {
+	select(population: PopMember[], rng: () => number): LamarckGenome {
 		const weights = _getFitnessWeights(population);
 		const spacing = _totalWeight(weights) / population.length;
 		let pointer = rng() * spacing;
 		for (let i = 0; i < population.length; i++) {
 			pointer -= weights[i];
 			if (pointer <= 0) {
-				return population[i];
+				return population[i].genome;
 			}
 		}
-		return population[population.length - 1];
+		return population[population.length - 1].genome;
 	}
 }
 
@@ -117,13 +114,13 @@ const SELECTION_STRATEGIES: Record<SelectionType, SelectionStrategy> = {
 /**
  * Select one parent from `population` using the given strategy.
  *
- * @param population    Current generation (must have `fitness` set).
+ * @param population    Current generation (evaluated PopMembers).
  * @param type          Selection algorithm.
  * @param rng           Seeded RNG.
  * @param tournamentK   Tournament size (default 3).
  */
 export function selectParent(
-	population: LamarckGenome[],
+	population: PopMember[],
 	type: SelectionType,
 	rng: () => number,
 	tournamentK = 3
@@ -131,5 +128,5 @@ export function selectParent(
 	const strategy = SELECTION_STRATEGIES[type];
 	return strategy
 		? strategy.select(population, rng, tournamentK)
-		: population[Math.floor(rng() * population.length)];
+		: population[Math.floor(rng() * population.length)].genome;
 }

@@ -43,7 +43,6 @@ export {
 	crossoverWeights,
 	mutateGenome as mutateGenomeEvolution,
 	mutateWeights,
-	selectParent as selectParentEvolution,
 } from "./evolution-engine";
 export { createDefaultGenome } from "./factory";
 export { computeFitness, shapeReward } from "./fitness";

@@ -1,44 +1,38 @@
-import type { GenomeFitnessMeta, LamarckGenome } from "./genome-types";
+import type { GenomeFitnessMeta, LamarckGenome, PopMember } from "./genome-types";
 import type { DeepReadonly } from "./shared-types";
 
 export class StagnationTracker {
 	private _bestFitness = Number.NEGATIVE_INFINITY;
+	private _bestFitnessMeta: GenomeFitnessMeta | undefined;
 	private _stagnation = 0;
 	private _efficiencyHistory: number[] = [];
 
 	reset(): void {
 		this._bestFitness = Number.NEGATIVE_INFINITY;
+		this._bestFitnessMeta = undefined;
 		this._stagnation = 0;
 		this._efficiencyHistory = [];
 	}
 
-	private _findBestFitness(popWithMeta: DeepReadonly<LamarckGenome>[]): number {
-		return Math.max(
-			...popWithMeta.map((genome) => genome.fitness ?? Number.NEGATIVE_INFINITY)
-		);
-	}
-
-	private _findBestGenome(
-		popWithMeta: DeepReadonly<LamarckGenome>[]
-	): DeepReadonly<LamarckGenome> {
-		return popWithMeta.reduce((best, genome) =>
-			(genome.fitness ?? Number.NEGATIVE_INFINITY) >
-			(best.fitness ?? Number.NEGATIVE_INFINITY)
-				? genome
-				: best
+	private _findBestMember(
+		popWithMeta: PopMember[]
+	): PopMember {
+		return popWithMeta.reduce((best, m) =>
+			m.fitness > best.fitness ? m : best
 		);
 	}
 
 	private _handleImprovement(
 		bestScalar: number,
-		popWithMeta: DeepReadonly<LamarckGenome>[],
+		popWithMeta: PopMember[],
 		avgEff: number
 	): DeepReadonly<LamarckGenome> {
 		this._bestFitness = bestScalar;
-		const bestGenome = this._findBestGenome(popWithMeta);
+		const bestMember = this._findBestMember(popWithMeta);
+		this._bestFitnessMeta = bestMember.fitnessMeta;
 		this._stagnation = 0;
 		this._efficiencyHistory.push(avgEff);
-		return bestGenome;
+		return bestMember.genome;
 	}
 
 	private _handleStagnation(avgEff: number): void {
@@ -47,19 +41,26 @@ export class StagnationTracker {
 	}
 
 	track(
-		popWithMeta: DeepReadonly<LamarckGenome>[],
+		popWithMeta: PopMember[],
 		_metas: GenomeFitnessMeta[],
 		avgEff: number
 	): DeepReadonly<LamarckGenome> | undefined {
-		const bestScalar = this._findBestFitness(popWithMeta);
+		const bestScalar = Math.max(
+			...popWithMeta.map((m) => m.fitness)
+		);
 		if (bestScalar > this._bestFitness + 1e-6) {
 			return this._handleImprovement(bestScalar, popWithMeta, avgEff);
 		}
 		this._handleStagnation(avgEff);
+		this._bestFitnessMeta = undefined;
 	}
 
 	get bestFitness(): number {
 		return this._bestFitness;
+	}
+
+	get bestFitnessMeta(): GenomeFitnessMeta | undefined {
+		return this._bestFitnessMeta;
 	}
 
 	get stagnation(): number {

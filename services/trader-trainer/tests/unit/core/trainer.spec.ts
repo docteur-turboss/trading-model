@@ -19,6 +19,7 @@ import { MarketDataBuffer } from "../../../src/core/market-data-buffer";
 import {
 	makeBestGenomeNoMeta,
 	makeMinimalBestGenome,
+	makeMinimalFitnessMeta,
 } from "../../fixtures/genome.fixture";
 import { feedCandles } from "../../fixtures/market-data.fixture";
 
@@ -413,6 +414,8 @@ describe("Trainer", () => {
 			(trainer as any)._trainingState.update({
 				symbol: "BTCUSDT",
 				bestGenome,
+				bestFitness: 1.5,
+				bestFitnessMeta: makeMinimalFitnessMeta(),
 				generation: 5,
 				generationContext: null,
 			});
@@ -438,6 +441,7 @@ describe("Trainer", () => {
 			(trainer as any)._trainingState.update({
 				symbol: "BTCUSDT",
 				bestGenome,
+				bestFitness: 0.5,
 				generation: 5,
 				generationContext: null,
 			});
@@ -455,18 +459,18 @@ describe("Trainer", () => {
 			const { createDefaultGenome } = await import(
 				"../../../src/core/genetic-algorithm/factory"
 			);
-			const g = createDefaultGenome("test", 3) as LamarckGenome;
-			g.fitness = 0.5;
-			g.fitnessMeta = {
-				episodesRun: 5,
-				computeMs: 2000,
-				efficiencyScore: 1.0,
-				variance: 0.05,
-				rawScores: [1],
-			};
+			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
 			(trainer as any)._trainingState.update({
 				symbol: "BTCUSDT",
-				bestGenome: g as DeepReadonly<LamarckGenome>,
+				bestGenome: g,
+				bestFitness: 0.5,
+				bestFitnessMeta: {
+					episodesRun: 5,
+					computeMs: 2000,
+					efficiencyScore: 1.0,
+					variance: 0.05,
+					rawScores: [1],
+				},
 				generation: 5,
 				generationContext: null,
 			});
@@ -483,11 +487,11 @@ describe("Trainer", () => {
 			const { createDefaultGenome } = await import(
 				"../../../src/core/genetic-algorithm/factory"
 			);
-			const g = createDefaultGenome("test", 3) as LamarckGenome;
-			(g as LamarckGenome).fitness = undefined as unknown as number;
+			const g = createDefaultGenome("test", 3) as DeepReadonly<LamarckGenome>;
 			(trainer as any)._trainingState.update({
 				symbol: "BTCUSDT",
-				bestGenome: g as DeepReadonly<LamarckGenome>,
+				bestGenome: g,
+				bestFitness: 0,
 				generation: 5,
 				generationContext: null,
 			});

@@ -1,9 +1,10 @@
 import type { CandleData } from "@trading-model/common/config/event.types";
 import type { SymbolState } from "../market-data-types";
+import { DataType } from "./data-types";
 import type { DataHandler } from "./data-handler";
 
 export const candleHandler: DataHandler<CandleData> = {
-	dataType: "candle",
+	dataType: DataType.Candle,
 	updateNorms(state, candle) {
 		state.norm.candleClose.update(candle.close);
 		state.norm.candleVolume.update(candle.volume);

@@ -9,45 +9,14 @@ import {
 import { getMissingCriticalIndexes, isDbConnected } from "../config/db";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
-import { notifyAddAudit, notifyDeleteAudit } from "./audit-notifier";
-import { handleAddEntryError } from "./dlq-error-builder";
-import { pushToRedisQueue } from "./dlq-redis-pusher";
+import { notifyDeleteAudit } from "./audit-notifier";
 import { DeleteSchema } from "./dlq-schemas";
-import { validateAddEntryBody } from "./dlq-validator";
 import { executeReplayPipeline } from "./replay-pipeline";
 import { dlqRepository } from "./repository";
 
+export { addEntry } from "./add-entry-pipeline";
+
 const tracer = trace.getTracer("dlq-service");
-
-export async function addEntry(req: {
-	body: unknown;
-}): Promise<ResponseObject> {
-	return tracer.startActiveSpan("dlq-add-entry", async (span) => {
-		try {
-			const validation = validateAddEntryBody(req.body, span);
-			if (!validation.valid) return validation.response;
-
-			const id = await dlqRepository.insert(validation.data);
-			return _handleAddSuccess(id, validation.data, span);
-		} catch (err) {
-			return handleAddEntryError(err, span);
-		}
-	});
-}
-
-async function _handleAddSuccess(
-	id: string,
-	data: import("zod").infer<typeof import("./dlq-schemas").DlqEntrySchema>,
-	span: import("@opentelemetry/api").Span
-): Promise<ResponseObject> {
-	span.setAttribute("entryId", id);
-	metrics.entriesAdded.inc(1);
-	await pushToRedisQueue(id);
-	notifyAddAudit(id, data.topic, data.reason);
-	span.setStatus({ code: SpanStatusCode.OK });
-	span.end();
-	return sendResponse({ id }, 201);
-}
 
 function _buildPaginationQuery(query: Record<string, unknown>): {
 	topic: string | undefined;

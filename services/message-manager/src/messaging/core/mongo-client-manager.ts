@@ -1,8 +1,12 @@
+import {
+	MongoConnectionManager,
+} from "@trading-model/common/persistence/mongo-connection-manager";
 import type { MongoClient } from "mongodb";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 
 export class MongoClientManager {
+	private _manager: MongoConnectionManager | null = null;
 	private _client: MongoClient | null = null;
 
 	get client(): MongoClient | null {
@@ -28,13 +32,11 @@ export class MongoClientManager {
 	}
 
 	async connectClient(): Promise<void> {
-		const { MongoClient: MongoDriver } = await import("mongodb");
-		this._client = new MongoDriver(
-			ENV.MONGO_ARCHIVE_URI!
-		) as unknown as MongoClient;
-		await (
-			this._client as unknown as { connect: () => Promise<void> }
-		).connect();
+		this._manager = new MongoConnectionManager({
+			uri: ENV.MONGO_ARCHIVE_URI!,
+			dbName: ENV.MONGO_ARCHIVE_DB,
+		});
+		this._client = await this._manager.getConnection();
 		logger.info("MongoDB archival store connected");
 	}
 
@@ -76,13 +78,15 @@ export class MongoClientManager {
 	}
 
 	async closeClient(): Promise<void> {
-		if (!this._client) {
+		if (!this._manager) {
 			return;
 		}
 		try {
-			await this._client.close();
+			await this._manager.close();
 		} catch {
 			logger.debug("Mongo client close error (best-effort)");
 		}
+		this._client = null;
+		this._manager = null;
 	}
 }

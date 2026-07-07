@@ -1,3 +1,4 @@
+import { EvictionPolicy } from "../eviction-policy";
 import type { SymbolState, TradingSymbol } from "../market-data-types";
 
 export interface MemoryManagerConfig {
@@ -5,14 +6,14 @@ export interface MemoryManagerConfig {
 	accessOrder: TradingSymbol[];
 	maxSize: number;
 	maxMemoryBytes: number;
-	evictionPolicy: "LRU" | "none";
+	evictionPolicy: EvictionPolicy;
 }
 
 /** Manages in-memory state limits with configurable eviction. */
 export class MemoryManager {
 	private readonly _maxSize: number;
 	private readonly _maxMemoryBytes: number;
-	private readonly _evictionPolicy: "LRU" | "none";
+	private readonly _evictionPolicy: EvictionPolicy;
 	private readonly _accessOrder: TradingSymbol[];
 	private readonly _states: Map<TradingSymbol, SymbolState>;
 
@@ -29,7 +30,7 @@ export class MemoryManager {
 	}
 
 	recordAccess(symbol: TradingSymbol): void {
-		if (this._evictionPolicy !== "LRU") {
+		if (this._evictionPolicy !== EvictionPolicy.LRU) {
 			return;
 		}
 		const idx = this._accessOrder.indexOf(symbol);
@@ -40,7 +41,7 @@ export class MemoryManager {
 	}
 
 	enforceMemoryLimit(): void {
-		if (this._evictionPolicy !== "LRU") {
+		if (this._evictionPolicy !== EvictionPolicy.LRU) {
 			return;
 		}
 

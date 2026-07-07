@@ -8,14 +8,11 @@ describe("env", () => {
 				APP_NAME: "test-app",
 				NODE_ENV: "test",
 				INSTANCE_ID: "test-instance",
-				REDIS_HOST: "localhost",
-				REDIS_PORT: "6379",
+				REDIS_URL: "redis://redis:6379",
 			};
 
 			const { ENV } = require("../../../src/config/env");
-			expect(ENV.REDIS_HOST).toBe("localhost");
-			expect(ENV.REDIS_PORT).toBe(6379);
-			expect(ENV.REDIS_DB).toBe(0);
+			expect(ENV.REDIS_URL).toBe("redis://redis:6379");
 			expect(ENV.BROKER_INSTANCE_ID).toBe("message-manager-1");
 		});
 	});
@@ -42,15 +39,15 @@ describe("env", () => {
 				APP_NAME: "test-app",
 				NODE_ENV: "test",
 				INSTANCE_ID: "test-instance",
-				REDIS_PORT: "6380",
-				REDIS_DB: "2",
+				REDIS_URL: "redis://custom:6380",
+				REDIS_PASSWORD: "secret",
 				REDIS_PREFIX: "custom:",
 				BROKER_INSTANCE_ID: "broker-2",
 			};
 
 			const { ENV } = require("../../../src/config/env");
-			expect(ENV.REDIS_PORT).toBe(6380);
-			expect(ENV.REDIS_DB).toBe(2);
+			expect(ENV.REDIS_URL).toBe("redis://custom:6380");
+			expect(ENV.REDIS_PASSWORD).toBe("secret");
 			expect(ENV.REDIS_PREFIX).toBe("custom:");
 			expect(ENV.BROKER_INSTANCE_ID).toBe("broker-2");
 		});

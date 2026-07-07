@@ -7,10 +7,7 @@ import { z } from "zod";
 
 const MM_EXTRA_SHAPE = {
 	REDIS_URL: z.string().optional(),
-	REDIS_HOST: z.string().default("localhost"),
-	REDIS_PORT: z.coerce.number().int().positive().default(6379),
 	REDIS_PASSWORD: z.string().optional(),
-	REDIS_DB: z.coerce.number().int().min(0).default(0),
 	REDIS_TLS_ENABLED: z
 		.string()
 		.default("false")

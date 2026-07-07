@@ -215,14 +215,19 @@ export interface Genome {
 	mutation: MutationGenome;
 	crossover: CrossoverGenome;
 	gaControl: GAControlGenome;
-	fitness?: number;
-	fitnessMeta?: GenomeFitnessMeta;
 }
 
 /** Genome extended with Lamarckian trained weights. */
 export type LamarckGenome = Genome & {
 	readonly trainedWeights?: Float32Array;
 };
+
+/** An evaluated population member: pairs a genome with its computed fitness data. */
+export interface PopMember {
+	genome: LamarckGenome;
+	fitness: number;
+	fitnessMeta: GenomeFitnessMeta;
+}
 
 /** A single market observation. */
 export interface MarketStep {

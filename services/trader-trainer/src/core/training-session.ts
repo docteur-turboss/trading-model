@@ -8,6 +8,7 @@ import {
 } from "./genetic-algorithm/ga-runner";
 import type {
 	GAControlGenome,
+	GenomeFitnessMeta,
 	LamarckGenome,
 } from "./genetic-algorithm/genome-types";
 import { makeTradingAgentBackend } from "./genetic-algorithm/rl-backend";
@@ -17,6 +18,8 @@ export type { GenerationContext } from "./genetic-algorithm/ga-runner";
 
 export interface TrainingSessionResult {
 	bestGenome: DeepReadonly<LamarckGenome>;
+	bestFitness: number;
+	bestFitnessMeta?: GenomeFitnessMeta;
 	generation: number;
 	generationContext: GenerationContext | null;
 }
@@ -46,10 +49,13 @@ export class TrainingSession {
 		});
 
 		const bestGenome = await runner.run();
+		const ctx = lastCtx as GenerationContext | null;
 		return {
 			bestGenome,
+			bestFitness: ctx?.bestFitness ?? 0,
+			bestFitnessMeta: ctx?.bestFitnessMeta,
 			generation: runner.getGeneration(),
-			generationContext: lastCtx,
+			generationContext: ctx,
 		};
 	}
 

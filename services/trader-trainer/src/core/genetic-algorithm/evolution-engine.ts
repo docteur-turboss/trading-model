@@ -5,7 +5,6 @@
 
 import { logger } from "@trading-model/common/config/logger";
 import type { Genome } from "./genome-types";
-import { SelectionType } from "./genome-types";
 
 /** Per-weight uniform crossover using separate RNG to produce a child weight vector. */
 export function crossoverWeights(
@@ -46,40 +45,6 @@ export function mutateWeights(ctx: MutateWeightsContext): Float32Array {
 		}
 	}
 	return out;
-}
-
-function _tournamentSelect(
-	population: Genome[],
-	rng: () => number,
-	tournamentSize: number
-): Genome {
-	let best = population[Math.floor(rng() * population.length)];
-	for (let i = 1; i < tournamentSize; i++) {
-		const cand = population[Math.floor(rng() * population.length)];
-		if (
-			(cand.fitness ?? Number.NEGATIVE_INFINITY) >
-			(best.fitness ?? Number.NEGATIVE_INFINITY)
-		) {
-			best = cand;
-		}
-	}
-	return best;
-}
-
-function _randomSelect(population: Genome[], rng: () => number): Genome {
-	return population[Math.floor(rng() * population.length)];
-}
-
-/** Select a parent from the population using the given selection strategy. */
-export function selectParent(
-	population: Genome[],
-	selectionType: string,
-	rng: () => number
-): Genome {
-	if (selectionType === SelectionType.Tournament) {
-		return _tournamentSelect(population, rng, 3);
-	}
-	return _randomSelect(population, rng);
 }
 
 /**

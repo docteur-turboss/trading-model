@@ -3,6 +3,7 @@ import type {
 	Price,
 	Volume,
 } from "@trading-model/common/domain/primitives";
+import { TradeSide } from "@trading-model/common/contracts/market-data.types";
 import type { PortfolioState } from "./portfolio-state";
 import { TradeHistory, type TradeRecord } from "./trade-history";
 import { ValuationTracker } from "./valuation-tracker";
@@ -26,7 +27,7 @@ export class TradeRecorder {
 	}
 
 	recordTrade(
-		action: "buy" | "sell",
+		action: TradeSide,
 		amount: Volume,
 		fee: Cash,
 		price: Price,

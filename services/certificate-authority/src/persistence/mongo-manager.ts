@@ -1,10 +1,13 @@
 import { logger } from "@trading-model/common/config/logger";
 import {
-	createPoolOptions,
 	resolvePoolSize,
 } from "@trading-model/common/persistence/mongo-utils";
+import {
+	MongoConnectionManager,
+} from "@trading-model/common/persistence/mongo-connection-manager";
 import { type Db, MongoClient } from "mongodb";
 
+let _manager: MongoConnectionManager | null = null;
 let _client: MongoClient | null = null;
 let _db: Db | null = null;
 let _uri = "";
@@ -20,8 +23,12 @@ async function initialize(
 	}
 	_uri = uriParam;
 	_poolSize = resolvePoolSize(poolSizeParam);
-	_client = new MongoClient(_uri, createPoolOptions(_poolSize));
-	await _client.connect();
+	_manager = new MongoConnectionManager({
+		uri: uriParam,
+		dbName: "",
+		poolSize: _poolSize,
+	});
+	_client = (await _manager.getConnection()) as unknown as MongoClient;
 	_db = _client.db();
 	_initialized = true;
 	logger.info("MONGO_MANAGER initialized", {
@@ -65,6 +72,7 @@ async function _closeAndReset(): Promise<void> {
 	_client = null;
 	_db = null;
 	_initialized = false;
+	_manager = null;
 }
 
 async function tryReconnect(): Promise<boolean> {
@@ -88,6 +96,7 @@ async function close(): Promise<void> {
 		_client = null;
 		_db = null;
 		_initialized = false;
+		_manager = null;
 		logger.info("MONGO_MANAGER connection pool closed");
 	}
 }

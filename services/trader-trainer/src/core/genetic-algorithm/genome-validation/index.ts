@@ -40,6 +40,5 @@ export function repairGenome(genome: Genome): Genome {
 		mutation: repairMutation(genome.mutation),
 		crossover: repairCrossover(genome.crossover),
 		gaControl: repairGAControl(genome.gaControl),
-		fitness: genome.fitness,
 	};
 }

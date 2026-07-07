@@ -7,13 +7,14 @@ import {
 } from "./market-data/window-splitter";
 import type { SymbolState, TradingSymbol } from "./market-data-types";
 import { SymbolStateManager } from "./symbol-state-manager";
+import { EvictionPolicy } from "./eviction-policy";
 
 export { DEFAULT_VALIDATION_SPLIT, MIN_TRAINING_STEPS };
 
 export interface MarketDataBufferConfig {
 	maxSize?: number;
 	maxMemoryMb?: number;
-	evictionPolicy?: "LRU" | "none";
+	evictionPolicy?: EvictionPolicy;
 }
 
 export class MarketDataBuffer {
@@ -28,7 +29,7 @@ export class MarketDataBuffer {
 		this._stateManager = new SymbolStateManager(
 			config.maxSize ?? 10000,
 			(config.maxMemoryMb ?? 512) * 1024 * 1024,
-			config.evictionPolicy ?? "none"
+			config.evictionPolicy ?? EvictionPolicy.None
 		);
 		this._windowSplitter = new WindowSplitter(
 			this._stateManager.states

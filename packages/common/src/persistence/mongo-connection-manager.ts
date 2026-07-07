@@ -18,11 +18,14 @@ export interface MongoConnectionConfig {
 export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	private _db: Db | null = null;
 	private _dbName: string;
+	private readonly _uri: string;
+	private readonly _poolSize: number;
+	private readonly _minPoolSize: number | undefined;
 
 	constructor(config: MongoConnectionConfig) {
+		const poolSize = resolvePoolSize(config.poolSize);
 		super(
 			async () => {
-				const poolSize = resolvePoolSize(config.poolSize);
 				const client = new MongoClient(
 					config.uri,
 					createPoolOptions(poolSize, config.minPoolSize)
@@ -54,6 +57,17 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 			}
 		);
 		this._dbName = config.dbName;
+		this._uri = config.uri;
+		this._poolSize = poolSize;
+		this._minPoolSize = config.minPoolSize;
+	}
+
+	get uri(): string {
+		return this._uri;
+	}
+
+	get poolSize(): number {
+		return this._poolSize;
 	}
 
 	async getDb(): Promise<Db> {

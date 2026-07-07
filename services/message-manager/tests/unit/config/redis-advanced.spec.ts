@@ -36,10 +36,7 @@ jest.mock("../../../src/config/env", () => ({
 
 const BASE_ENV = {
 	REDIS_URL: undefined,
-	REDIS_HOST: "localhost",
-	REDIS_PORT: 6379,
 	REDIS_PASSWORD: undefined,
-	REDIS_DB: 0,
 	REDIS_TLS_ENABLED: false,
 	REDIS_MAX_RECONNECT_ATTEMPTS: 10,
 	REDIS_PREFIX: "mm:",
@@ -130,7 +127,7 @@ describe("redis cluster", () => {
 });
 
 describe("redis sentinel no nodes", () => {
-	it("should use default host/port when no sentinel nodes", () => {
+	it("should throw when sentinel master is set but no nodes configured", () => {
 		jest.isolateModules(() => {
 			const env = require("../../../src/config/env");
 			Object.assign(env.ENV, BASE_ENV, {
@@ -138,9 +135,7 @@ describe("redis sentinel no nodes", () => {
 				REDIS_SENTINEL_NODES: undefined,
 			});
 			const { getRedisClient } = require("../../../src/config/redis");
-			return getRedisClient().then((client: unknown) => {
-				expect(client).toBeDefined();
-			});
+			return expect(getRedisClient()).rejects.toThrow();
 		});
 	});
 });

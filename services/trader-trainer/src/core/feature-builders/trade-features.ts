@@ -1,3 +1,4 @@
+import { TradeSide } from "@trading-model/common/contracts/market-data.types";
 import type { TradeData } from "@trading-model/common/config/event.types";
 import type { FeatureContext } from "../feature-context";
 import type { FeatureVector } from "../feature-vector";
@@ -20,7 +21,7 @@ function setTradeFeatures(
 		recentTrades.length;
 	const totalQty = recentTrades.reduce((acc, trade) => acc + trade.quantity, 0);
 	const buyQty = recentTrades
-		.filter((trade) => trade.side === "buy")
+		.filter((trade) => trade.side === TradeSide.BUY)
 		.reduce((acc, trade) => acc + trade.quantity, 0);
 	features.tradeAvgPrice = state.norm.tradePrice.normalize(avgPrice);
 	features.tradeTotalQty = state.norm.tradeQty.normalize(totalQty);

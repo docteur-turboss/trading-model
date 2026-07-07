@@ -57,15 +57,15 @@ const auditCircuitBreaker = new MessageManagerCircuitBreaker({
 });
 
 export async function notifyAudit(event: AuditEvent): Promise<void> {
-	if (auditCircuitBreaker.isOpen("audit-logger")) {
+	if (auditCircuitBreaker.isOpen()) {
 		return;
 	}
 
 	try {
 		await _sendAuditEvent(event);
-		auditCircuitBreaker.recordSuccess("audit-logger");
+		auditCircuitBreaker.recordSuccess();
 	} catch (err) {
-		auditCircuitBreaker.recordFailure("audit-logger");
+		auditCircuitBreaker.recordFailure();
 		_logAuditFailure(err, event);
 	}
 }

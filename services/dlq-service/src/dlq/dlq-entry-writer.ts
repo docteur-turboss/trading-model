@@ -8,9 +8,8 @@ import type { DlqEntry } from "./repository";
 
 export class DlqCapacityError extends AppError {
 	constructor(message: string) {
-		super(message);
+		super(message, { code: "DlqCapacityError" });
 		this.name = "DlqCapacityError";
-		this.code = "DlqCapacityError";
 	}
 }
 

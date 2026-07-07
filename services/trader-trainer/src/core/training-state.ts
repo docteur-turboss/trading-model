@@ -2,6 +2,7 @@ import type { GenerationContext } from "./genetic-algorithm/ga-runner";
 import type {
 	ActivationType,
 	FitnessType,
+	GenomeFitnessMeta,
 	SelectionType,
 } from "./genetic-algorithm/genome";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
@@ -43,16 +44,20 @@ export interface BestAgentSummary {
 export interface LastTrainingInfo {
 	symbol: TradingSymbol;
 	bestGenome: DeepReadonly<LamarckGenome>;
+	bestFitness: number;
+	bestFitnessMeta?: GenomeFitnessMeta;
 	generation: number;
 	generationContext: GenerationContext | null;
 }
 
 export class TrainingState {
+	private _hasInfo = false;
 	private _lastInfo: LastTrainingInfo | null = null;
 	private readonly _summaryBuilder = new GenomeSummaryBuilder();
 
 	update(info: LastTrainingInfo): void {
 		this._lastInfo = info;
+		this._hasInfo = true;
 	}
 
 	getCurrentSymbol(): TradingSymbol | undefined {
@@ -68,11 +73,13 @@ export class TrainingState {
 	}
 
 	getBestAgentSummary(): BestAgentSummary | null {
-		if (!this._lastInfo) {
+		if (!this._hasInfo || !this._lastInfo) {
 			return null;
 		}
 		return this._summaryBuilder.build(
-			this._lastInfo.bestGenome
+			this._lastInfo.bestGenome,
+			this._lastInfo.bestFitness,
+			this._lastInfo.bestFitnessMeta
 		);
 	}
 }

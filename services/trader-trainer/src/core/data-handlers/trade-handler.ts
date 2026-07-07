@@ -1,9 +1,10 @@
 import type { TradeData } from "@trading-model/common/config/event.types";
 import type { SymbolState } from "../market-data-types";
+import { DataType } from "./data-types";
 import type { DataHandler } from "./data-handler";
 
 export const tradeHandler: DataHandler<TradeData> = {
-	dataType: "trade",
+	dataType: DataType.Trade,
 	updateNorms(state, trade) {
 		state.norm.tradePrice.update(trade.price);
 		state.norm.tradeQty.update(trade.quantity);

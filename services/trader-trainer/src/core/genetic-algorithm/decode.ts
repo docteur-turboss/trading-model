@@ -127,7 +127,6 @@ export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 	return {
 		id: template.id,
 		generation: template.generation,
-		fitness: template.fitness,
 		network,
 		rl: _decodeRL(s, template),
 		mutation: _decodeMutation(s, template),
