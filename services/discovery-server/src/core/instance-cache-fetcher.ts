@@ -21,17 +21,11 @@ export class InstanceCacheFetcher {
 		pagination?: PaginationQuery
 	): Promise<ServiceInstance[]> {
 		if (pagination?.page !== undefined || pagination?.limit !== undefined) {
-			const all = await this._backend.getInstances(
-				parseServiceName(serviceName)
-			);
-			const page = pagination.page ?? 1;
-			const limit = pagination.limit ?? all.length;
-			const start = (page - 1) * limit;
-			return all.slice(start, start + limit);
+			return this._getWithPagination(serviceName, pagination);
 		}
 
 		if (this._healthMonitor.fallbackActive) {
-			return this._backend.getInstances(parseServiceName(serviceName));
+			return this._fetchFromBackend(serviceName);
 		}
 
 		const cached = this._cache.get(serviceName);
@@ -39,6 +33,35 @@ export class InstanceCacheFetcher {
 			return cached;
 		}
 
+		const stale = this._serveStaleIfUnhealthy(serviceName);
+		if (stale !== undefined) {
+			return stale;
+		}
+
+		return this._fetchAndCache(serviceName);
+	}
+
+	private async _getWithPagination(
+		serviceName: string,
+		pagination: PaginationQuery
+	): Promise<ServiceInstance[]> {
+		const all = await this._backend.getInstances(
+			parseServiceName(serviceName)
+		);
+		const page = pagination.page ?? 1;
+		const limit = pagination.limit ?? all.length;
+		return all.slice((page - 1) * limit, (page - 1) * limit + limit);
+	}
+
+	private async _fetchFromBackend(
+		serviceName: string
+	): Promise<ServiceInstance[]> {
+		return this._backend.getInstances(parseServiceName(serviceName));
+	}
+
+	private _serveStaleIfUnhealthy(
+		serviceName: string
+	): ServiceInstance[] | undefined {
 		if (!this._healthMonitor.isHealthy) {
 			const stale = this._cache.getStale(serviceName);
 			if (stale) {
@@ -54,7 +77,12 @@ export class InstanceCacheFetcher {
 			);
 			return [];
 		}
+		return undefined;
+	}
 
+	private async _fetchAndCache(
+		serviceName: string
+	): Promise<ServiceInstance[]> {
 		const instances = await this._backend.getInstances(
 			parseServiceName(serviceName)
 		);

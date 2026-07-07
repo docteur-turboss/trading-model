@@ -67,14 +67,13 @@ export async function createCsrAsync(options: CsrOptions): Promise<string> {
 export async function validateCertificateAsync(
 	input: CertificateValidationInput
 ): Promise<ValidationResult> {
-	const { certPem, caCertPem } = input;
 	if (remoteClient) {
-		return await remoteClient.validateCertificate(certPem);
+		return await remoteClient.validateCertificate(input);
 	}
-	return await getPool().execute<ValidationResult>("validateCertificate", {
-		certPem,
-		caCertPem,
-	});
+		return await getPool().execute<ValidationResult>(
+			"validateCertificate",
+			input as unknown as Record<string, unknown>
+		);
 }
 
 export async function parseKeyAsync(privateKey: string): Promise<KeyPair> {

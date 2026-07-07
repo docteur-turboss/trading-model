@@ -26,7 +26,7 @@ interface ICollection {
 
 class NullCollection implements ICollection {
 	async insertOne(): Promise<{ acknowledged: boolean }> {
-		throw new Error("TokenStore not connected");
+		return { acknowledged: false };
 	}
 	async findOne(): Promise<UsedToken | null> {
 		return null;

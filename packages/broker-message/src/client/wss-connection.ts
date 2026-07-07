@@ -13,18 +13,17 @@ export interface WssConnectionEvents {
 
 export class WssConnection implements IWsConnection {
 	private _ws: WebSocket | undefined;
-	private _wsUrl = "";
-	private _events: WssConnectionEvents = {
-		onOpen: () => {},
-		onMessage: () => {},
-		onClose: () => {},
-		onError: () => {},
-	};
+	private _wsUrl?: string;
+	private _lastCloseCode = 0;
+	private _lastCloseReason = Buffer.alloc(0);
 	private readonly _tlsCa?: string;
 	private readonly _tlsCert?: string;
 	private readonly _tlsKey?: string;
 
 	onCloseHandler?: () => void;
+	onOpen?: () => void;
+	onMessage?: (data: unknown) => void;
+	onError?: (err: Error) => void;
 
 	constructor(tlsConfig?: Partial<TlsPaths>) {
 		this._tlsCa = tlsConfig?.caPath
@@ -38,40 +37,50 @@ export class WssConnection implements IWsConnection {
 			: undefined;
 	}
 
-	connect(): void {
-		this._connect(this._wsUrl, this._events);
-	}
-
-	connectWithEvents(wsUrl: string, events: WssConnectionEvents): void {
-		this._wsUrl = wsUrl;
-		this._events = events;
-		this._connect(wsUrl, events);
-	}
-
-	private _connect(wsUrl: string, events: WssConnectionEvents): void {
+	connect(wsUrl?: string): void {
+		const url = wsUrl ?? this._wsUrl;
+		if (!url) {
+			return;
+		}
+		this._wsUrl = url;
 		try {
 			this._ws?.close();
 		} catch {}
 
 		const agent = this._setupWsTls();
-		this._ws = new WebSocket(wsUrl, { agent });
+		this._ws = new WebSocket(url, { agent });
 
 		this._ws.on("open", () => {
-			events.onOpen();
+			this.onOpen?.();
 		});
 		this._ws.on("message", (raw: WebSocket.RawData) => {
-			events.onMessage(raw.toString());
+			this.onMessage?.(raw.toString());
 		});
 		this._ws.on("close", (code: number, reason: Buffer) => {
-			events.onClose(code, reason);
+			this._lastCloseCode = code;
+			this._lastCloseReason = reason;
 			this.onCloseHandler?.();
 		});
 		this._ws.on("error", (err: Error) => {
 			try {
 				this._ws?.close();
 			} catch {}
-			events.onError(err);
+			this.onError?.(err);
 		});
+	}
+
+	/** @deprecated Use callback properties + connect(wsUrl) instead */
+	connectWithEvents(wsUrl: string, events: WssConnectionEvents): void {
+		this._wsUrl = wsUrl;
+		const origOnClose = this.onCloseHandler;
+		this.onOpen = events.onOpen;
+		this.onMessage = events.onMessage as (data: unknown) => void;
+		this.onError = events.onError;
+		this.onCloseHandler = () => {
+			events.onClose(this._lastCloseCode, this._lastCloseReason);
+			origOnClose?.();
+		};
+		this.connect();
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {

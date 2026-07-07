@@ -31,8 +31,7 @@ export class MarketDataBuffer {
 			config.evictionPolicy ?? "none"
 		);
 		this._windowSplitter = new WindowSplitter(
-			this._stateManager.states,
-			this._priceSnapshot
+			this._stateManager.states
 		);
 	}
 
@@ -40,7 +39,7 @@ export class MarketDataBuffer {
 		return this._stateManager.getMaxSize();
 	}
 
-	addData(dataType: string, symbol: TradingSymbol, data: unknown): void {
+	addData(dataType: import("./data-handlers/data-handler").DataType, symbol: TradingSymbol, data: unknown): void {
 		this._stateManager.addData(dataType, symbol, data);
 	}
 
@@ -123,7 +122,7 @@ export class MarketDataBuffer {
 	}
 
 	buildMarketSteps(symbol: TradingSymbol): MarketStep[] {
-		return this._windowSplitter.buildMarketSteps(symbol);
+		return this._windowSplitter.buildMarketSteps(symbol, this._priceSnapshot);
 	}
 
 	splitTrainValidation(
@@ -137,6 +136,6 @@ export class MarketDataBuffer {
 		symbol: TradingSymbol,
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT
 	): { id: string; train: MarketStep[]; validation: MarketStep[] } | null {
-		return this._windowSplitter.getAllWindows(symbol, validationSplit);
+		return this._windowSplitter.getAllWindows(symbol, validationSplit, this._priceSnapshot);
 	}
 }

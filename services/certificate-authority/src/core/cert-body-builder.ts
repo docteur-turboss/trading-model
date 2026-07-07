@@ -3,13 +3,13 @@ import { CertBodyBuilder as CommonCertBodyBuilder } from "@trading-model/certifi
 import type { CertBodyInput } from "./ca";
 
 export class CertBodyBuilder extends CommonCertBodyBuilder {
-	buildCertBody({
+	build({
 		serialNumber,
 		now,
 		expiresAt,
 		publicKey,
 	}: CertBodyInput): string {
-		return super.buildCertBody({
+		return super.build({
 			serialNumber,
 			now,
 			expiresAt,

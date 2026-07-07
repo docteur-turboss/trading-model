@@ -1,5 +1,4 @@
 import { CandleInterval } from "@trading-model/common/config/event.types";
-import type { TradingSymbol } from "@trading-model/common/domain/primitives";
 
 import {
 	get24hrTickerStats,
@@ -9,7 +8,7 @@ import {
 	getRecentTrades,
 	getSymbolPriceTicker,
 } from "../../clients/binance/binance.client";
-import { BinanceNormalizer } from "../../clients/binance/normalizer";
+import { type CandleQuery, BinanceNormalizer } from "../../clients/binance/normalizer";
 import type {
 	BinanceWorkerOptions,
 	BinanceWorkerResult,
@@ -34,10 +33,10 @@ export async function fetchAllRawData(
 		orderBookLimit = 100,
 	} = opts;
 	const interval = opts.interval ?? CandleInterval.MIN1;
+	const query: CandleQuery = { symbol, interval };
 
 	return _fetchBinanceData(
-		symbol,
-		interval,
+		query,
 		candleLimit,
 		tradeLimit,
 		orderBookLimit
@@ -45,12 +44,12 @@ export async function fetchAllRawData(
 }
 
 async function _fetchBinanceData(
-	symbol: TradingSymbol,
-	interval: CandleInterval,
+	query: CandleQuery,
 	candleLimit: number,
 	tradeLimit: number,
 	orderBookLimit: number
 ): Promise<RawBinanceData> {
+	const { symbol, interval } = query;
 	const [
 		orderBookRaw,
 		tradesRaw,
@@ -78,18 +77,13 @@ async function _fetchBinanceData(
 }
 
 export function buildResponse(
-	symbol: TradingSymbol,
-	interval: CandleInterval | undefined,
+	query: CandleQuery,
 	raw: RawBinanceData
 ): BinanceWorkerResult {
 	return {
-		orderBook: BinanceNormalizer.orderBook(symbol, raw.orderBookRaw),
-		recentTrades: BinanceNormalizer.trades(symbol, raw.tradesRaw),
-		candles: BinanceNormalizer.candles(
-			symbol,
-			interval ?? CandleInterval.MIN1,
-			raw.candlesRaw
-		),
+		orderBook: BinanceNormalizer.orderBook(query, raw.orderBookRaw),
+		recentTrades: BinanceNormalizer.trades(query, raw.tradesRaw),
+		candles: BinanceNormalizer.candles(query, raw.candlesRaw),
 		ticker24h: BinanceNormalizer.ticker24h(raw.ticker24hRaw),
 		priceTicker: BinanceNormalizer.priceTicker(raw.priceTickerRaw),
 		bookTicker: BinanceNormalizer.bookTicker(raw.bookTickerRaw),

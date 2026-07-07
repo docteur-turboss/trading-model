@@ -10,6 +10,10 @@ export class WsConnectionManager implements IWsConnection {
 	private readonly _tlsBuilder: TlsConfigBuilder;
 
 	onCloseHandler?: () => void;
+	onOpen?: () => void;
+	onMessage?: (data: unknown) => void;
+	onError?: (err: Error) => void;
+	onTimeout?: () => void;
 
 	constructor(
 		private readonly _url: string,
@@ -23,12 +27,38 @@ export class WsConnectionManager implements IWsConnection {
 			const ws = new WebSocket(this._url, this._tlsBuilder.build());
 			ws.binaryType = "nodebuffer";
 			this._ws = ws;
-			this._setupInternalHandlers(ws);
+
+			const cancelTimeout = this._setupConnectTimeout(
+				() => this.onTimeout?.(),
+				ws
+			);
+
+			ws.on("open", () => {
+				cancelTimeout();
+				this.onOpen?.();
+			});
+
+			ws.on("message", (data: WebSocket.Data) => {
+				this.onMessage?.(data);
+			});
+
+			ws.on("close", () => {
+				cancelTimeout();
+				this.onCloseHandler?.();
+			});
+
+			ws.on("error", (err: Error) => {
+				cancelTimeout();
+				logger.error("WSS transport error", { err: err.message });
+				this.onError?.(err);
+			});
 		} catch (err) {
 			logger.error("Failed to create WSS connection", { err });
+			this.onTimeout?.();
 		}
 	}
 
+	/** @deprecated Use callback properties + connect() instead */
 	connectWithCallbacks(
 		onOpen: () => void,
 		onMessage: (data: WebSocket.Data) => void,
@@ -36,42 +66,12 @@ export class WsConnectionManager implements IWsConnection {
 		onError: (err: Error) => void,
 		onTimeout: () => void
 	): void {
-		try {
-			const ws = new WebSocket(this._url, this._tlsBuilder.build());
-			ws.binaryType = "nodebuffer";
-			this._ws = ws;
-
-			const cancelTimeout = this._setupConnectTimeout(onTimeout, ws);
-			this._registerWsEventHandlers(
-				onOpen,
-				onMessage,
-				onClose,
-				onError,
-				cancelTimeout,
-				ws
-			);
-		} catch (err) {
-			logger.error("Failed to create WSS connection", { err });
-			onTimeout();
-		}
-	}
-
-	private _setupInternalHandlers(ws: WebSocket): void {
-		ws.on("open", () => {
-			/* connected */
-		});
-
-		ws.on("message", (_data: WebSocket.Data) => {
-			/* message received */
-		});
-
-		ws.on("close", () => {
-			this.onCloseHandler?.();
-		});
-
-		ws.on("error", (err: Error) => {
-			logger.error("WSS transport error", { err: err.message });
-		});
+		this.onOpen = onOpen;
+		this.onMessage = onMessage as (data: unknown) => void;
+		this.onCloseHandler = onClose;
+		this.onError = onError;
+		this.onTimeout = onTimeout;
+		this.connect();
 	}
 
 	private _setupConnectTimeout(
@@ -83,35 +83,6 @@ export class WsConnectionManager implements IWsConnection {
 			ws.close();
 			onTimeout();
 		}, 10_000);
-	}
-
-	private _registerWsEventHandlers(
-		onOpen: () => void,
-		onMessage: (data: WebSocket.Data) => void,
-		onClose: () => void,
-		onError: (err: Error) => void,
-		cancelTimeout: () => void,
-		ws: WebSocket
-	): void {
-		ws.on("open", () => {
-			cancelTimeout();
-			onOpen();
-		});
-
-		ws.on("message", (data: WebSocket.Data) => {
-			onMessage(data);
-		});
-
-		ws.on("close", () => {
-			cancelTimeout();
-			onClose();
-		});
-
-		ws.on("error", (err: Error) => {
-			cancelTimeout();
-			logger.error("WSS transport error", { err: err.message });
-			onError(err);
-		});
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {

@@ -1,12 +1,18 @@
-import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
+import { BaseCircuitBreaker } from "@trading-model/common/reliability/base-circuit-breaker";
+import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { CircuitStateConfig } from "./circuit-breaker-state";
 import { DlqCircuitBreakerState } from "./circuit-breaker-state";
 import { logger } from "./logger";
 
-export class MessageManagerCircuitBreaker implements ICircuitBreaker {
+export class MessageManagerCircuitBreaker extends BaseCircuitBreaker {
 	private readonly _state: DlqCircuitBreakerState;
 
 	constructor(config?: Partial<CircuitStateConfig>) {
+		super({
+			failureThreshold: config?.failureThreshold ?? 5,
+			cooldownMs: config?.resetMs ?? 30_000,
+			halfOpenMaxAttempts: config?.halfOpenMaxAttempts,
+		});
 		this._state = new DlqCircuitBreakerState({
 			failureThreshold: 5,
 			resetMs: 30_000,
@@ -24,9 +30,7 @@ export class MessageManagerCircuitBreaker implements ICircuitBreaker {
 		return !this._state.isOpen(Date.now());
 	}
 
-	check(
-		_key: string
-	): import("@trading-model/common/domain/circuit-state").CircuitState {
+	check(_key: string): CircuitState {
 		return this._state.getState(Date.now());
 	}
 
@@ -38,9 +42,7 @@ export class MessageManagerCircuitBreaker implements ICircuitBreaker {
 		this._state.recordFailure(Date.now(), this._logOpened);
 	}
 
-	getState(
-		_key: string
-	): import("@trading-model/common/domain/circuit-state").CircuitState {
+	getState(_key: string): CircuitState {
 		return this._state.getState(Date.now());
 	}
 

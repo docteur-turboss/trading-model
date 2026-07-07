@@ -42,7 +42,7 @@ export class GenomeSummaryBuilder {
 		};
 	}
 
-	buildBestAgentSummary(genome: DeepReadonly<LamarckGenome>): BestAgentSummary {
+	build(genome: DeepReadonly<LamarckGenome>): BestAgentSummary {
 		const meta = genome.fitnessMeta;
 		return {
 			id: genome.id,

@@ -11,13 +11,7 @@ const CRITICAL_INDEX_KEYS = [
 ];
 
 export class IndexManager {
-	private _missingCriticalIndexes: string[] = [];
-
-	getMissingCriticalIndexes(): string[] {
-		return this._missingCriticalIndexes;
-	}
-
-	async createCollectionIndexes(col: Collection): Promise<void> {
+	async createCollectionIndexes(col: Collection): Promise<string[]> {
 		const indexSpecs = this._buildIndexSpecs();
 		const criticalKeys = new Set(
 			CRITICAL_INDEX_KEYS.map((key) => JSON.stringify({ key }))
@@ -25,7 +19,7 @@ export class IndexManager {
 		const missing = await Promise.all(
 			indexSpecs.map((spec) => this._createIndex(col, spec, criticalKeys))
 		);
-		this._missingCriticalIndexes = missing.filter(Boolean) as string[];
+		return missing.filter(Boolean) as string[];
 	}
 
 	private async _createIndex(

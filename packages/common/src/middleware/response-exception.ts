@@ -42,11 +42,13 @@ type ResponseMethods = {
 	[K in ResponseMethodKey]: () => ResponseObject;
 };
 
-export class ClassResponseExceptions extends Error {
+import { AppError } from "../utils/errors";
+
+export class ClassResponseExceptions extends AppError {
 	readonly reason: string;
 
 	constructor(reason: unknown) {
-		super();
+		super("", { code: "ClassResponseExceptions" });
 		this.name = "ClassResponseExceptions";
 		this.reason = typeof reason === "string" ? reason : JSON.stringify(reason);
 	}

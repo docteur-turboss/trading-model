@@ -15,7 +15,7 @@ export class WorkerWsConnection implements IWsConnection {
 	private _ws: WebSocket | null = null;
 	rejectOnError = true;
 	onOpen?: () => void;
-	onMessage?: (data: WebSocket.Data) => void;
+	onMessage?: (data: unknown) => void;
 	onClose?: () => void;
 	onError?: (err: Error) => void;
 

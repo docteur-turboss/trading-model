@@ -62,7 +62,7 @@ export class Subscription {
 	): DeliveryErrorHandler {
 		return new DeliveryErrorHandler({
 			deliveryPort: config.deliveryPort,
-			recordFailure: () => this._circuitBreaker.recordFailure(),
+			recordFailure: () => this._circuitBreaker.recordFailure(config.topic),
 			topic: config.topic,
 			serviceName: config.serviceIdentity.serviceName,
 		});

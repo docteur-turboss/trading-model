@@ -1,4 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
+import { HEARTBEAT } from "@trading-model/common/constants";
 import type {
 	DiscoveryWsMessage,
 	DiscoveryWsMessageType,
@@ -45,7 +46,7 @@ export class WebSocketClient {
 			onReconnect: () => this.connect(),
 		});
 		this._connection.onOpen = () => this._onOpen();
-		this._connection.onMessage = (data) => this._onMessage(data);
+		this._connection.onMessage = (data) => this._onMessage(data as WebSocket.Data);
 		this._connection.onCloseHandler = () => this._onClose();
 		this._connection.onError = (error) => this._onError(error);
 	}
@@ -117,7 +118,7 @@ export class WebSocketClient {
 	}
 
 	sendHeartbeat(identity: ServiceIdentity): boolean {
-		return this.send("heartbeat", {
+		return this.send(HEARTBEAT, {
 			serviceName: identity.serviceName,
 			instanceId: identity.instanceId,
 		});

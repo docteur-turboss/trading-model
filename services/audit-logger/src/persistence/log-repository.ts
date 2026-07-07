@@ -59,6 +59,10 @@ export interface LogStats {
 }
 
 export class LogQueryBuilder {
+	build(params: LogQuery): MongoDoc {
+		return this.buildFilter(params);
+	}
+
 	buildFilter(params: LogQuery): MongoDoc {
 		const filter: MongoDoc = {};
 
@@ -127,7 +131,7 @@ export class LogRepository {
 	}
 
 	async query(params: LogQuery): Promise<PaginationResult<ServiceLogDocument>> {
-		const filter = this._queryBuilder.buildFilter(params);
+		const filter = this._queryBuilder.build(params);
 		const { page, limit, skip } = computePagination(params);
 		const total = await this._collection.countDocuments(filter);
 		const docs = await this._collection
@@ -141,7 +145,7 @@ export class LogRepository {
 	}
 
 	async getStats(): Promise<LogStats> {
-		const pipeline = this._statsBuilder.buildPipeline();
+		const pipeline = this._statsBuilder.build();
 		const [aggResult] = await this._collection.aggregate(pipeline).toArray();
 		return this._statsBuilder.parseResult(aggResult);
 	}

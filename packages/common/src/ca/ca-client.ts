@@ -1,4 +1,5 @@
 import { HttpClient } from "../config/http-client";
+import type { CertSignRequest } from "../domain/cert-signing";
 import type {
 	Fingerprint,
 	SerialNumber,
@@ -12,30 +13,19 @@ export interface CaClientConfig {
 	tls?: TlsPaths;
 }
 
-export interface SignCertificateRequest {
-	serviceId: ServiceId;
-	csr: string;
-	ttlMs?: number;
-	bootstrapToken?: string;
-}
+export type SignCertificateRequest = CertSignRequest;
 
-/**
- * Fields shared by all certificate response types (wire format).
- * @see CertificateResponse from domain/certificate-base — isomorphic,
- *      uses `certPem` where this type uses `cert`.
- */
-export interface CertificateResponse {
-	/** @see CertificateBase.certPem */
-	cert: string;
+export interface WireCertificateResponse {
+	certPem: string;
 	caPem: string;
 	serialNumber: SerialNumber;
 	expiresAt: string;
 	fingerprint: Fingerprint;
 }
 
-export interface SignCertificateResponse extends CertificateResponse {}
+export interface SignCertificateResponse extends WireCertificateResponse {}
 
-export interface GetCertificateResponse extends CertificateResponse {
+export interface GetCertificateResponse extends WireCertificateResponse {
 	issuedAt: string;
 }
 

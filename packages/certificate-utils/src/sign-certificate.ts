@@ -52,7 +52,7 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 	const publicKeyPem = _exportPublicKeyPem(createPublicKey(csrData.publicKey));
 
 	const builder = new CertBodyBuilder();
-	const certBody = builder.buildCertBody({
+	const certBody = builder.build({
 		serialNumber: toSerialNumber(serialNumber),
 		now,
 		expiresAt,

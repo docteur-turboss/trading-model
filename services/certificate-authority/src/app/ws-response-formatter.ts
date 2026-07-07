@@ -10,7 +10,7 @@ export function buildSignResponsePayload(
 		id,
 		success: true,
 		data: {
-			cert: cert.certPem,
+			certPem: cert.certPem,
 			caPem: cert.caPem,
 			serialNumber: cert.serialNumber,
 			expiresAt: cert.expiresAt.toISOString(),

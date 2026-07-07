@@ -1,4 +1,5 @@
 import type { TlsPaths } from "../domain/tls-paths";
+import type { SessionId, UserId } from "../domain/primitives";
 import {
 	isLogLevelAtLeast,
 	type LogEntry,
@@ -15,8 +16,8 @@ import { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 export class Logger {
 	private _logLevel: LogLevel;
-	private _userId = "";
-	private readonly _sessionId: string;
+	private _userId: UserId = "" as UserId;
+	private readonly _sessionId: SessionId;
 	private readonly _buffer: LogBuffer;
 	private readonly _dispatcher: LogDispatcher;
 
@@ -30,90 +31,56 @@ export class Logger {
 		);
 	}
 
-	private _generateSessionId(): string {
+	private _generateSessionId(): SessionId {
 		const now = new Date();
-		return `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}-${this._logLevel}_${(crypto.getRandomValues(new Uint32Array(10))[0] * 2 ** -32).toString(36).substring(2, 10)}`;
+		return `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}-${this._logLevel}_${(crypto.getRandomValues(new Uint32Array(10))[0] * 2 ** -32).toString(36).substring(2, 10)}` as SessionId;
 	}
 
-	private _shouldLog(level: LogLevel): boolean {
-		return isLogLevelAtLeast(level, this._logLevel);
+	private _log(
+		level: LogLevel,
+		label: string,
+		consoleFn: (message?: unknown, ...optionalParams: unknown[]) => void,
+		message: string,
+		context?: Record<string, unknown>,
+	): void {
+		if (!isLogLevelAtLeast(level, this._logLevel)) {
+			return;
+		}
+
+		const logEntry = this._dispatcher.createLogEntry(
+			level,
+			message,
+			this._userId,
+			{ context },
+		);
+		this._buffer.add(logEntry);
+		consoleFn(
+			`[${label}] [${logEntry.timestamp.toISOString()}] ${message}`,
+			context || "",
+		);
+
+		if (level === LogLevel.Error) {
+			this._dispatcher.sendError(logEntry);
+		}
 	}
 
 	debug(message: string, context?: Record<string, unknown>) {
-		if (!this._shouldLog(LogLevel.Debug)) {
-			return;
-		}
-
-		const logEntry = this._dispatcher.createLogEntry(
-			LogLevel.Debug,
-			message,
-			this._userId,
-			{ context }
-		);
-		this._buffer.add(logEntry);
-		console.debug(
-			`[DEBUG] [${logEntry.timestamp.toISOString()}] ${message}`,
-			context || ""
-		);
+		this._log(LogLevel.Debug, "DEBUG", console.debug, message, context);
 	}
 
 	info(message: string, context?: Record<string, unknown>) {
-		if (!this._shouldLog(LogLevel.Info)) {
-			return;
-		}
-
-		const logEntry = this._dispatcher.createLogEntry(
-			LogLevel.Info,
-			message,
-			this._userId,
-			{ context }
-		);
-		this._buffer.add(logEntry);
-		console.info(
-			`[INFO] [${logEntry.timestamp.toISOString()}] ${message}`,
-			context || ""
-		);
+		this._log(LogLevel.Info, "INFO", console.info, message, context);
 	}
 
 	warn(message: string, context?: Record<string, unknown>) {
-		if (!this._shouldLog(LogLevel.Warn)) {
-			return;
-		}
-
-		const logEntry = this._dispatcher.createLogEntry(
-			LogLevel.Warn,
-			message,
-			this._userId,
-			{ context }
-		);
-		this._buffer.add(logEntry);
-		console.warn(
-			`[WARN] [${logEntry.timestamp.toISOString()}] ${message}`,
-			context || ""
-		);
+		this._log(LogLevel.Warn, "WARN", console.warn, message, context);
 	}
 
 	error(message: string, context?: Record<string, unknown>) {
-		if (!this._shouldLog(LogLevel.Error)) {
-			return;
-		}
-
-		const logEntry = this._dispatcher.createLogEntry(
-			LogLevel.Error,
-			message,
-			this._userId,
-			{ context }
-		);
-		this._buffer.add(logEntry);
-		console.error(
-			`[ERROR] [${logEntry.timestamp.toISOString()}] ${message}`,
-			context || ""
-		);
-
-		this._dispatcher.sendError(logEntry);
+		this._log(LogLevel.Error, "ERROR", console.error, message, context);
 	}
 
-	setUserId(userId: string) {
+	setUserId(userId: UserId) {
 		this._userId = userId;
 	}
 

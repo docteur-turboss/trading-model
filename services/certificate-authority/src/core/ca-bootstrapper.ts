@@ -62,7 +62,7 @@ export class CaBootstrapper {
 		const serialNumber = this._generateSerialNumber();
 		const now = new Date();
 		const expiresAt = new Date(now.getTime() + this._caCertTtlMs);
-		const certBody = this._certBodyBuilder.buildCertBody({
+		const certBody = this._certBodyBuilder.build({
 			serialNumber: toSerialNumber(serialNumber),
 			now,
 			expiresAt,

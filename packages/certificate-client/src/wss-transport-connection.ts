@@ -24,6 +24,9 @@ export class WssTransportConnection implements IWsConnection {
 	private readonly _authSender: WsAuthSender;
 
 	onCloseHandler?: () => void;
+	onOpen?: () => void;
+	onMessage?: (data: unknown) => void;
+	onError?: (err: Error) => void;
 
 	on(event: string, listener: (...args: unknown[]) => void): this {
 		this._emitter.on(event, listener);
@@ -67,13 +70,15 @@ export class WssTransportConnection implements IWsConnection {
 			return;
 		}
 		this._state = "connecting";
-		this._connectionManager.connectWithCallbacks(
-			() => this._onWsOpen(),
-			(data) => this._emitter.emit("message", data),
-			() => this._onWsClose(),
-			(err) => this._onWsError(err),
-			() => this._scheduleReconnect()
-		);
+		this._connectionManager.onOpen = () => this._onWsOpen();
+		this._connectionManager.onMessage = (data) => {
+			this._emitter.emit("message", data);
+			this.onMessage?.(data);
+		};
+		this._connectionManager.onCloseHandler = () => this._onWsClose();
+		this._connectionManager.onError = (err) => this._onWsError(err);
+		this._connectionManager.onTimeout = () => this._scheduleReconnect();
+		this._connectionManager.connect();
 	}
 
 	private _onWsOpen(): void {
@@ -81,6 +86,7 @@ export class WssTransportConnection implements IWsConnection {
 		this._reconnectHandler.reset();
 		this._authSender.send(this._connectionManager.ws);
 		this._emitter.emit("open");
+		this.onOpen?.();
 	}
 
 	private _onWsClose(): void {
@@ -89,6 +95,7 @@ export class WssTransportConnection implements IWsConnection {
 			this._scheduleReconnect();
 		}
 		this._emitter.emit("close");
+		this.onCloseHandler?.();
 	}
 
 	private _onWsError(err: Error): void {
@@ -99,6 +106,7 @@ export class WssTransportConnection implements IWsConnection {
 			this._scheduleReconnect();
 		}
 		this._emitter.emit("error", err);
+		this.onError?.(err);
 	}
 
 	private _scheduleReconnect(): void {

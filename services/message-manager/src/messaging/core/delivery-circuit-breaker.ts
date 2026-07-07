@@ -1,6 +1,6 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
 import { CircuitState } from "@trading-model/common/domain/circuit-state";
-import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
+import { BaseCircuitBreaker } from "@trading-model/common/reliability/base-circuit-breaker";
 import { logger } from "../../config/logger";
 import type { MessageDeliveryPort } from "./message-delivery-port";
 
@@ -11,56 +11,46 @@ const CIRCUIT_BREAKER_THRESHOLD = 5;
  * threshold is reached, preventing cascading failures and routing
  * subsequent messages directly to the DLQ.
  */
-export class DeliveryCircuitBreaker implements ICircuitBreaker {
+export class DeliveryCircuitBreaker extends BaseCircuitBreaker {
 	private _failureCount = 0;
 
 	constructor(
 		private readonly _topic: string,
 		private readonly _serviceName: string
-	) {}
+	) {
+		super({ failureThreshold: CIRCUIT_BREAKER_THRESHOLD, cooldownMs: 0 });
+	}
 
 	clear(): void {
 		this._failureCount = 0;
 	}
 
-	recordFailure(): void;
-	recordFailure(_key: string, _count?: number, _threshold?: number): void;
-	recordFailure(_key?: string, _count?: number, _threshold?: number): void {
+	recordFailure(_key: string, _count?: number, _threshold?: number): void {
 		this._failureCount++;
 	}
 
-	recordSuccess(): void;
-	recordSuccess(_key: string): void;
-	recordSuccess(_key?: string): void {
+	recordSuccess(_key: string): void {
 		this.clear();
 	}
 
-	isOpen(): boolean;
-	isOpen(_key: string): boolean;
-	isOpen(_key?: string): boolean {
+	isOpen(_key: string): boolean {
 		return this._failureCount >= CIRCUIT_BREAKER_THRESHOLD;
 	}
 
-	isAllowed(): boolean;
-	isAllowed(_key: string): boolean;
-	isAllowed(_key?: string): boolean {
-		return !this.isOpen();
+	isAllowed(_key: string): boolean {
+		return !this.isOpen(_key);
 	}
 
-	getState(): CircuitState;
-	getState(_key: string): CircuitState;
-	getState(_key?: string): CircuitState {
-		return this.isOpen() ? CircuitState.OPEN : CircuitState.CLOSED;
+	getState(_key: string): CircuitState {
+		return this.isOpen(_key) ? CircuitState.OPEN : CircuitState.CLOSED;
 	}
 
-	getFailureCount(): number;
-	getFailureCount(_key: string): number;
-	getFailureCount(_key?: string): number {
+	getFailureCount(_key: string): number {
 		return this._failureCount;
 	}
 
 	check(_key: string): CircuitState {
-		return this.isOpen() ? CircuitState.OPEN : CircuitState.CLOSED;
+		return this.isOpen(_key) ? CircuitState.OPEN : CircuitState.CLOSED;
 	}
 
 	/**
@@ -73,7 +63,7 @@ export class DeliveryCircuitBreaker implements ICircuitBreaker {
 		message: Message<TData>,
 		deliveryPort: MessageDeliveryPort
 	): Promise<boolean> {
-		if (!this.isOpen()) {
+		if (!this.isOpen("default")) {
 			return Promise.resolve(false);
 		}
 		logger.warn("Circuit breaker open — rejecting dispatch", {

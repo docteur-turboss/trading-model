@@ -1,6 +1,7 @@
 import type https from "node:https";
 
 import WebSocket from "ws";
+import { HEARTBEAT_ACK } from "../constants";
 import { logger } from "../config/logger";
 import type {
 	SchedulerOutgoingMessage,
@@ -109,7 +110,7 @@ export class WorkerProtocol implements IWorkerProtocol {
 		this._workerRegistry.updateLoad(message.workerId, message.currentLoad);
 		const ws = this._wsManager.getConnection(message.workerId);
 		if (ws && ws.readyState === WebSocket.OPEN) {
-			ws.send(JSON.stringify({ type: "heartbeat.ack" }));
+			ws.send(JSON.stringify({ type: HEARTBEAT_ACK }));
 		}
 	}
 

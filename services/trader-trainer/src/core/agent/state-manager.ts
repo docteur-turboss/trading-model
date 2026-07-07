@@ -8,7 +8,8 @@ interface GenomeTarget {
 export interface StateManagerConfig {
 	epsilonStart?: number;
 	epsilonMin?: number;
-	epsilonDecay?: number; // multiplicative per step
+	/** Multiplicative decay applied per step. */
+	epsilonDecay?: number;
 	gamma?: number;
 }
 

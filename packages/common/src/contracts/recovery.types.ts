@@ -23,6 +23,105 @@ export enum JOB_STATUS {
 	ORPHANED = "orphaned",
 }
 
+export const JOB_STATUS_NON_TERMINAL: readonly JOB_STATUS[] = [
+	JOB_STATUS.PENDING,
+	JOB_STATUS.QUEUED,
+	JOB_STATUS.ASSIGNED,
+	JOB_STATUS.RUNNING,
+	JOB_STATUS.ORPHANED,
+];
+
+export const JOB_STATUS_TERMINAL: readonly JOB_STATUS[] = [
+	JOB_STATUS.COMPLETED,
+	JOB_STATUS.FAILED,
+	JOB_STATUS.CANCELLED,
+];
+
+const TERMINAL_SET = new Set(JOB_STATUS_TERMINAL);
+
+export function isTerminalStatus(status: JOB_STATUS): boolean {
+	return TERMINAL_SET.has(status);
+}
+
+const TRANSITIONS: Record<JOB_STATUS, ReadonlySet<JOB_STATUS>> = {
+	[JOB_STATUS.PENDING]: new Set([JOB_STATUS.QUEUED]),
+	[JOB_STATUS.QUEUED]: new Set([JOB_STATUS.ASSIGNED]),
+	[JOB_STATUS.ASSIGNED]: new Set([JOB_STATUS.RUNNING, JOB_STATUS.ORPHANED]),
+	[JOB_STATUS.RUNNING]: new Set([
+		JOB_STATUS.COMPLETED,
+		JOB_STATUS.FAILED,
+		JOB_STATUS.ORPHANED,
+	]),
+	[JOB_STATUS.ORPHANED]: new Set([JOB_STATUS.QUEUED, JOB_STATUS.FAILED]),
+	[JOB_STATUS.FAILED]: new Set([JOB_STATUS.QUEUED]),
+	[JOB_STATUS.COMPLETED]: new Set(),
+	[JOB_STATUS.CANCELLED]: new Set(),
+};
+
+const CANCELLABLE_FROM = new Set<JOB_STATUS>([
+	JOB_STATUS.PENDING,
+	JOB_STATUS.QUEUED,
+	JOB_STATUS.ASSIGNED,
+	JOB_STATUS.RUNNING,
+	JOB_STATUS.ORPHANED,
+]);
+
+export class JobStatusError extends Error {
+	readonly fromStatus: JOB_STATUS;
+	readonly toStatus: JOB_STATUS;
+
+	constructor(fromStatus: JOB_STATUS, toStatus: JOB_STATUS, message: string) {
+		super(message);
+		this.name = "JobStatusError";
+		this.fromStatus = fromStatus;
+		this.toStatus = toStatus;
+	}
+}
+
+export class JobStatusMachine {
+	static canTransition(from: JOB_STATUS, to: JOB_STATUS): boolean {
+		return TRANSITIONS[from]?.has(to) ?? false;
+	}
+
+	static canCancel(status: JOB_STATUS): boolean {
+		return CANCELLABLE_FROM.has(status);
+	}
+
+	static transition(
+		from: JOB_STATUS,
+		to: JOB_STATUS,
+		reason?: string
+	): JobEvent {
+		if (to === JOB_STATUS.CANCELLED && !JobStatusMachine.canCancel(from)) {
+			throw new JobStatusError(
+				from,
+				to,
+				reason ?? `Cannot cancel job from ${from}`
+			);
+		}
+		if (
+			to !== JOB_STATUS.CANCELLED &&
+			!JobStatusMachine.canTransition(from, to)
+		) {
+			throw new JobStatusError(
+				from,
+				to,
+				`Invalid job status transition: ${from} → ${to}`
+			);
+		}
+		return {
+			fromStatus: from,
+			toStatus: to,
+			timestamp: new Date(),
+			reason: reason ?? "",
+		};
+	}
+
+	static isTerminal(status: JOB_STATUS): boolean {
+		return isTerminalStatus(status);
+	}
+}
+
 export interface JobEvent {
 	fromStatus: JOB_STATUS;
 	toStatus: JOB_STATUS;
@@ -51,23 +150,3 @@ export interface Job<TData = unknown> {
 export type JobUpdateExtras = Partial<
 	Pick<Job, "result" | "error" | "assignedWorkerId" | "ackDeadline">
 >;
-
-export const JOB_STATUS_NON_TERMINAL: readonly JOB_STATUS[] = [
-	JOB_STATUS.PENDING,
-	JOB_STATUS.QUEUED,
-	JOB_STATUS.ASSIGNED,
-	JOB_STATUS.RUNNING,
-	JOB_STATUS.ORPHANED,
-];
-
-export const JOB_STATUS_TERMINAL: readonly JOB_STATUS[] = [
-	JOB_STATUS.COMPLETED,
-	JOB_STATUS.FAILED,
-	JOB_STATUS.CANCELLED,
-];
-
-const TERMINAL_SET = new Set(JOB_STATUS_TERMINAL);
-
-export function isTerminalStatus(status: JOB_STATUS): boolean {
-	return TERMINAL_SET.has(status);
-}

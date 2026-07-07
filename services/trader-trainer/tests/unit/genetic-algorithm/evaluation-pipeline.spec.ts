@@ -111,7 +111,7 @@ const MINIMAL_GENOME = {
 
 function makeStep(features: number[]) {
 	return {
-		features: new FeatureVector(new Float32Array(features)),
+		features: FeatureVector.fromFloat32Array(new Float32Array(features)),
 		price: Price.of(100),
 	};
 }

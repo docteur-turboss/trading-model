@@ -129,7 +129,7 @@ export class WorkerClient {
 		};
 		this._connection.onMessage = (data) => {
 			try {
-				const message: Record<string, unknown> = JSON.parse(data.toString());
+				const message: Record<string, unknown> = JSON.parse(String(data));
 				this._messageRouter.handle(message, (msg) => this.emit("unknown", msg));
 			} catch (err) {
 				this.emit("error", new Error(`Invalid message from server: ${err}`));

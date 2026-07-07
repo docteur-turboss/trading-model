@@ -1,4 +1,4 @@
-export class TopicSubscriptionManager {
+export class TopicSet {
 	private _topics: string[] = [];
 
 	get topics(): string[] {

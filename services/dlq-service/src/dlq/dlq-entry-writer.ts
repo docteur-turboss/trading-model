@@ -5,16 +5,10 @@ import { DLQ_STATUS } from "./dlq-status";
 import { EntrySerializer } from "./entry-serializer";
 import type { DlqEntry } from "./repository";
 
-export class DlqCapacityError {
-	public readonly name: string;
-	public readonly message: string;
-	public readonly stack?: string;
-
+export class DlqCapacityError extends Error {
 	constructor(message: string) {
-		const error = new Error(message);
+		super(message);
 		this.name = "DlqCapacityError";
-		this.message = error.message;
-		this.stack = error.stack;
 	}
 }
 

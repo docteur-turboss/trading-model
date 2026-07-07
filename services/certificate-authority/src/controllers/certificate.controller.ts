@@ -26,7 +26,7 @@ function _sendSignResponse(
 		context: { serviceId, serialNumber: signed.serialNumber },
 	});
 	res.status(200).json({
-		cert: signed.certPem,
+		certPem: signed.certPem,
 		caPem: signed.caPem,
 		serialNumber: signed.serialNumber,
 		expiresAt: signed.expiresAt,
@@ -68,7 +68,7 @@ function _validateGetRequest(
 
 function _sendCertResponse(res: Response, cert: CertificateResponse): void {
 	res.status(200).json({
-		cert: cert.certPem,
+		certPem: cert.certPem,
 		caPem: cert.caPem,
 		serialNumber: cert.serialNumber,
 		issuedAt: cert.issuedAt,

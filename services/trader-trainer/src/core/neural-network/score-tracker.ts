@@ -1,30 +1,22 @@
 export class ScoreTracker {
-	private _scores: number[] = [];
+	private _count = 0;
+	private _sum = 0;
 
 	public addScore(score: number): void {
-		this._scores.push(score);
+		this._count++;
+		this._sum += score;
 	}
 
 	public getAverageScore(): number {
-		if (this._scores.length === 0) {
-			return 0;
-		}
-		let sum = 0;
-		for (let i = 0; i < this._scores.length; i++) {
-			sum += this._scores[i];
-		}
-		return sum / this._scores.length;
+		return this._count === 0 ? 0 : this._sum / this._count;
 	}
 
 	public getTotalScore(): number {
-		let sum = 0;
-		for (let i = 0; i < this._scores.length; i++) {
-			sum += this._scores[i];
-		}
-		return sum;
+		return this._sum;
 	}
 
 	public resetScores(): void {
-		this._scores = [];
+		this._count = 0;
+		this._sum = 0;
 	}
 }

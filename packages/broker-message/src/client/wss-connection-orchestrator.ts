@@ -2,7 +2,7 @@ import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
 import type { PendingPublishQueue } from "./pending-publish-queue";
-import { TopicSubscriptionManager } from "./topic-subscription-manager";
+import { TopicSet } from "./topic-subscription-manager";
 import { WsConnectionEventHandler } from "./ws-connection-event-handler";
 import type { WssClientConfig } from "./wss-connection-lifecycle";
 import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
@@ -15,7 +15,7 @@ export class WssConnectionOrchestrator {
 		onReconnect: () => {},
 		onPermanentFallback: () => this._queue.drainToHttp(),
 	});
-	private readonly _topicManager = new TopicSubscriptionManager();
+	private readonly _topicManager = new TopicSet();
 	private readonly _eventHandler: WsConnectionEventHandler;
 	private readonly _onConnect: () => void;
 

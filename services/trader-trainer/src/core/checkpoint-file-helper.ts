@@ -31,11 +31,11 @@ export class NodeCheckpointIO implements CheckpointIO {
 }
 
 export class CheckpointSerializer {
-	serialize(genome: DeepReadonly<LamarckGenome>): string {
+	toJson(genome: DeepReadonly<LamarckGenome>): string {
 		return JSON.stringify(genome, null, 2);
 	}
 
-	deserialize<T>(raw: string): T {
+	fromJson<T>(raw: string): T {
 		return JSON.parse(raw) as T;
 	}
 
@@ -87,9 +87,9 @@ export class CheckpointFileHelper {
 		return join(this._checkpointDir, `metadata_${symbol}.json`);
 	}
 
-	doSave(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
+	save(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
 		const path = this.checkpointPath(symbol);
-		this._io.writeFile(path, this._serializer.serialize(genome));
+		this._io.writeFile(path, this._serializer.toJson(genome));
 		this._writeMetadata(symbol, genome);
 		logger.info("Checkpoint saved", {
 			context: { symbol, generation: genome.generation, path },
@@ -104,7 +104,7 @@ export class CheckpointFileHelper {
 		this._io.writeFile(this.metadataPath(symbol), JSON.stringify(meta));
 	}
 
-	doLoad(symbol: string): DeepReadonly<LamarckGenome> | null {
+	load(symbol: string): DeepReadonly<LamarckGenome> | null {
 		const path = this.checkpointPath(symbol);
 		if (!this._io.fileExists(path)) {
 			logger.info("No checkpoint found for symbol", { context: { symbol } });
@@ -112,7 +112,7 @@ export class CheckpointFileHelper {
 		}
 		const raw = this._io.readFile(path);
 		const genome =
-			this._serializer.deserialize<DeepReadonly<LamarckGenome>>(raw);
+			this._serializer.fromJson<DeepReadonly<LamarckGenome>>(raw);
 		logger.info("Checkpoint loaded", {
 			context: {
 				symbol,

@@ -101,7 +101,7 @@ async function _writeCertFiles(
 	const certDir = path.dirname(config.tlsPaths.certPath);
 	await fs.mkdir(certDir, { recursive: true });
 	await _writeCertFile(config.tlsPaths.keyPath, privateKey, 0o600);
-	await _writeCertFile(config.tlsPaths.certPath, response.cert, 0o644);
+	await _writeCertFile(config.tlsPaths.certPath, response.certPem, 0o644);
 	await _writeCertFile(config.tlsPaths.caPath, response.caPem, 0o644);
 	_logCertWritten(config, response);
 }

@@ -13,7 +13,7 @@ export interface CertBodyBuilderOptions {
 }
 
 export class CertBodyBuilder {
-	buildCertBody(options: CertBodyBuilderOptions): string {
+	build(options: CertBodyBuilderOptions): string {
 		const { serialNumber, now, expiresAt, publicKey, subject, san, isCa } =
 			options;
 		const lines = [

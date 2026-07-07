@@ -4,7 +4,7 @@ import type { LogStats } from "./log-repository";
 type MongoDoc = Record<string, unknown>;
 
 export class LogStatsBuilder {
-	buildPipeline(): MongoDoc[] {
+	build(): MongoDoc[] {
 		return [
 			{
 				$facet: {

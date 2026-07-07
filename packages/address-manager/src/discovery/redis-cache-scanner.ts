@@ -42,23 +42,9 @@ export class RedisCacheScanner {
 					if (!raw) {
 						continue;
 					}
-					try {
-						const parsed = JSON.parse(raw);
-						const instance = parsed?.instance ?? parsed;
-						if (!instance?.serviceName) {
-							continue;
-						}
-						const suffix = key.slice(this._prefix.length);
-						const [serviceName, region] = suffix.includes("::")
-							? [suffix.split("::")[0], suffix.split("::")[1]]
-							: [suffix, undefined];
-						results.push({
-							serviceName,
-							instance: instance as ServiceInstance,
-							region,
-						});
-					} catch {
-						logger.debug("Skipped corrupt cache entry");
+					const entry = this._parseEntry(key, raw);
+					if (entry) {
+						results.push(entry);
 					}
 				}
 			} while (cursor !== "0");
@@ -68,6 +54,31 @@ export class RedisCacheScanner {
 				error: normalizeError(err),
 			});
 			return [];
+		}
+	}
+
+	private _parseEntry(
+		key: string,
+		raw: string
+	): { serviceName: string; instance: ServiceInstance; region?: string } | null {
+		try {
+			const parsed = JSON.parse(raw);
+			const instance = parsed?.instance ?? parsed;
+			if (!instance?.serviceName) {
+				return null;
+			}
+			const suffix = key.slice(this._prefix.length);
+			const [serviceName, region] = suffix.includes("::")
+				? [suffix.split("::")[0], suffix.split("::")[1]]
+				: [suffix, undefined];
+			return {
+				serviceName,
+				instance: instance as ServiceInstance,
+				region,
+			};
+		} catch {
+			logger.debug("Skipped corrupt cache entry");
+			return null;
 		}
 	}
 

@@ -11,7 +11,10 @@ import type {
 	SignedCertificate,
 	SignInput,
 } from "./types";
-import type { ValidationResult } from "./validate-certificate";
+import type {
+	CertificateValidationInput,
+	ValidationResult,
+} from "./validate-certificate";
 
 export interface RemoteSigningConfig {
 	baseUrl: string;
@@ -74,10 +77,12 @@ export class RemoteSigningClient {
 		return result;
 	}
 
-	async validateCertificate(certPem: string): Promise<ValidationResult> {
+	async validateCertificate(
+		input: CertificateValidationInput
+	): Promise<ValidationResult> {
 		const result = await this._httpClient.post<ValidationResult>(
 			`${this._baseUrl}/api/v1/crypto/validate-certificate`,
-			{ certPem },
+			input,
 			{ timeoutMs: this._timeoutMs }
 		);
 		if (!result) {

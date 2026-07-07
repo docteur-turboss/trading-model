@@ -79,20 +79,24 @@ describe("MarketDataBuffer", () => {
 			maxMemoryMb: 0.001,
 			evictionPolicy: "LRU",
 		});
-		buf.addCandles("BTCUSDT", [
+		buf.addData(
+			"candle",
+			"BTCUSDT",
 			makeCandle({
 				symbol: "BTCUSDT",
 				close: Price.of(50000),
 				timestamp: UnixTimestamp.of(1),
 			}),
-		]);
-		buf.addCandles("ETHUSDT", [
+		);
+		buf.addData(
+			"candle",
+			"ETHUSDT",
 			makeCandle({
 				symbol: "ETHUSDT",
 				close: Price.of(3000),
 				timestamp: UnixTimestamp.of(1),
 			}),
-		]);
+		);
 		expect(buf.getCandleCount("BTCUSDT")).toBe(1);
 	});
 
@@ -131,8 +135,6 @@ describe("MarketDataBuffer", () => {
 		});
 
 		it("should handle empty candle arrays without adding symbol entries", () => {
-			buffer.addCandles("BTCUSDT", []);
-
 			expect(buffer.getCandleCount("BTCUSDT")).toBe(0);
 		});
 
@@ -149,13 +151,15 @@ describe("MarketDataBuffer", () => {
 			feedCandles(buf, "BTCUSDT", 3);
 			feedCandles(buf, "ETHUSDT", 3);
 			(buf as any)._accessOrder[0] = undefined as any;
-			buf.addCandles("SOLUSDT", [
+			buf.addData(
+				"candle",
+				"SOLUSDT",
 				makeCandle({
 					symbol: "SOLUSDT",
 					close: Price.of(100),
 					timestamp: UnixTimestamp.of(1),
 				}),
-			]);
+			);
 			expect(buf.getSymbols().length).toBeGreaterThan(0);
 		});
 
@@ -190,20 +194,20 @@ describe("MarketDataBuffer", () => {
 		});
 
 		it("should set step price from candle close", () => {
-			buffer.addCandles("BTCUSDT", [
+			buffer.addData("candle", "BTCUSDT",
 				makeCandle({
 					symbol: "BTCUSDT",
 					close: Price.of(100),
 					timestamp: UnixTimestamp.of(1),
 				}),
-			]);
-			buffer.addCandles("BTCUSDT", [
+			);
+			buffer.addData("candle", "BTCUSDT",
 				makeCandle({
 					symbol: "BTCUSDT",
 					close: Price.of(150),
 					timestamp: UnixTimestamp.of(2),
 				}),
-			]);
+			);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
@@ -237,20 +241,20 @@ describe("MarketDataBuffer", () => {
 		});
 
 		it("should compute price change correctly", () => {
-			buffer.addCandles("BTCUSDT", [
+			buffer.addData("candle", "BTCUSDT",
 				makeCandle({
 					symbol: "BTCUSDT",
 					close: Price.of(100),
 					timestamp: UnixTimestamp.of(1),
 				}),
-			]);
-			buffer.addCandles("BTCUSDT", [
+			);
+			buffer.addData("candle", "BTCUSDT",
 				makeCandle({
 					symbol: "BTCUSDT",
 					close: Price.of(110),
 					timestamp: UnixTimestamp.of(2),
 				}),
-			]);
+			);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
@@ -269,14 +273,14 @@ describe("MarketDataBuffer", () => {
 		});
 
 		it("should handle edge case feature values gracefully", () => {
-			buffer.addCandles("BTCUSDT", [
+			buffer.addData("candle", "BTCUSDT",
 				makeCandle({
 					symbol: "BTCUSDT",
 					close: Price.of(0),
 					timestamp: UnixTimestamp.of(1),
 				}),
-			]);
-			buffer.addCandles("BTCUSDT", [
+			);
+			buffer.addData("candle", "BTCUSDT",
 				makeCandle({
 					symbol: "BTCUSDT",
 					high: Price.of(60),
@@ -284,22 +288,20 @@ describe("MarketDataBuffer", () => {
 					close: Price.of(0),
 					timestamp: UnixTimestamp.of(2),
 				}),
-			]);
+			);
 
-			buffer.addTrades("BTCUSDT", [
-				{
-					symbol: "BTCUSDT",
-					source: SourceType.BINANCE,
-					timestamp: UnixTimestamp.of(0),
-					market: MarketType.CRYPTO,
-					price: Price.of(100),
-					tradeId: BigInt(999),
-					quantity: Volume.of(0),
-					side: TradeSide.BUY,
-				},
-			]);
+			buffer.addData("trade", "BTCUSDT", {
+				symbol: "BTCUSDT",
+				source: SourceType.BINANCE,
+				timestamp: UnixTimestamp.of(0),
+				market: MarketType.CRYPTO,
+				price: Price.of(100),
+				tradeId: BigInt(999),
+				quantity: Volume.of(0),
+				side: TradeSide.BUY,
+			});
 
-			buffer.setTicker24h("BTCUSDT", {
+			buffer.addData("ticker", "BTCUSDT", {
 				...makeTicker24h("BTCUSDT"),
 				open: Price.of(0),
 			});
@@ -318,7 +320,7 @@ describe("MarketDataBuffer", () => {
 
 	describe("setOrderBook", () => {
 		it("should populate order book features when candles exist", () => {
-			buffer.setOrderBook("BTCUSDT", makeOrderBook("BTCUSDT"));
+			buffer.addData("orderBook", "BTCUSDT", makeOrderBook("BTCUSDT"));
 			feedCandles(buffer, "BTCUSDT", 30);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
@@ -333,26 +335,30 @@ describe("MarketDataBuffer", () => {
 				maxMemoryMb: 0.0001,
 				evictionPolicy: "LRU",
 			});
-			buf.addCandles("BTCUSDT", [
+			buf.addData(
+				"candle",
+				"BTCUSDT",
 				makeCandle({
 					symbol: "BTCUSDT",
 					close: Price.of(50000),
 					timestamp: UnixTimestamp.of(1),
 				}),
-			]);
-			buf.setOrderBook("BTCUSDT", makeOrderBook("BTCUSDT"));
-			buf.addCandles("ETHUSDT", [
+			);
+			buf.addData("orderBook", "BTCUSDT", makeOrderBook("BTCUSDT"));
+			buf.addData(
+				"candle",
+				"ETHUSDT",
 				makeCandle({
 					symbol: "ETHUSDT",
 					close: Price.of(3000),
 					timestamp: UnixTimestamp.of(1),
 				}),
-			]);
+			);
 			expect(buf.getCandleCount("BTCUSDT")).toBe(0);
 		});
 
 		it("should handle empty bids and asks gracefully", () => {
-			buffer.setOrderBook("BTCUSDT", makeOrderBookEmpty("BTCUSDT"));
+			buffer.addData("orderBook", "BTCUSDT", makeOrderBookEmpty("BTCUSDT"));
 			feedCandles(buffer, "BTCUSDT", 30);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
@@ -364,7 +370,7 @@ describe("MarketDataBuffer", () => {
 
 	describe("setBookTicker", () => {
 		it("should populate book ticker features", () => {
-			buffer.setBookTicker("BTCUSDT", makeBookTicker("BTCUSDT"));
+			buffer.addData("bookTicker", "BTCUSDT", makeBookTicker("BTCUSDT"));
 			feedCandles(buffer, "BTCUSDT", 30);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
@@ -375,7 +381,7 @@ describe("MarketDataBuffer", () => {
 		});
 
 		it("should handle zero bid and ask values", () => {
-			buffer.setBookTicker("BTCUSDT", makeBookTickerZeroBidAsk("BTCUSDT"));
+			buffer.addData("bookTicker", "BTCUSDT", makeBookTickerZeroBidAsk("BTCUSDT"));
 			feedCandles(buffer, "BTCUSDT", 30);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
@@ -388,7 +394,7 @@ describe("MarketDataBuffer", () => {
 
 	describe("setTicker24h", () => {
 		it("should populate 24h ticker features", () => {
-			buffer.setTicker24h("BTCUSDT", makeTicker24h("BTCUSDT"));
+			buffer.addData("ticker", "BTCUSDT", makeTicker24h("BTCUSDT"));
 			feedCandles(buffer, "BTCUSDT", 30);
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
@@ -422,10 +428,8 @@ describe("MarketDataBuffer", () => {
 	describe("addTrades", () => {
 		it("should populate trade features when candles exist", () => {
 			feedCandles(buffer, "BTCUSDT", 30);
-			buffer.addTrades("BTCUSDT", [
-				makeTrade("BTCUSDT"),
-				makeTrade("BTCUSDT", TradeSide.SELL),
-			]);
+			buffer.addData("trade", "BTCUSDT", makeTrade("BTCUSDT"));
+			buffer.addData("trade", "BTCUSDT", makeTrade("BTCUSDT", TradeSide.SELL));
 
 			const steps = buffer.buildMarketSteps("BTCUSDT");
 
@@ -436,12 +440,9 @@ describe("MarketDataBuffer", () => {
 
 		it("should bound trade count by maxSize", () => {
 			const buf = new MarketDataBuffer({ maxSize: 5 });
-			buf.addTrades(
-				"BTCUSDT",
-				Array.from({ length: 10 }, (_, _i) =>
-					makeTrade("BTCUSDT", TradeSide.BUY)
-				)
-			);
+			for (let _i = 0; _i < 10; _i++) {
+				buf.addData("trade", "BTCUSDT", makeTrade("BTCUSDT", TradeSide.BUY));
+			}
 
 			expect((buf as any)._states.get(toSymbol("BTCUSDT"))!.trades.length).toBe(
 				5

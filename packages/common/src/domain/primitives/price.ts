@@ -1,0 +1,16 @@
+export type Price = number & { readonly __brand: "Price" };
+
+export const Price = {
+	of(value: number): Price {
+		if (!Number.isFinite(value) || value < 0) {
+			throw new RangeError(
+				`Price must be a non-negative finite number, got ${value}`
+			);
+		}
+		return value as Price;
+	},
+
+	zero(): Price {
+		return 0 as Price;
+	},
+};

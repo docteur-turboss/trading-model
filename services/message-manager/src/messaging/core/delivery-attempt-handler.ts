@@ -27,22 +27,7 @@ export class DeliveryAttemptHandler {
 		deliveryMode: DeliveryMode
 	): Promise<boolean> {
 		try {
-			const target = await resolveTarget(this._serviceName, this._callbackURL);
-
-			const deliveryContext: MessageDeliveryContext = {
-				deliveryAttempt: context.deliveryAttempt,
-				consumerGroup: context.consumerGroup,
-			};
-			const sendInput: DeliverySendInput = {
-				url: target,
-				message,
-				context: deliveryContext,
-			};
-			await this._deliveryPort.send(sendInput);
-
-			context.receivedAt = new Date();
-			await context.ack();
-			return false;
+			return await this._tryDeliver(message, context);
 		} catch (err) {
 			context.deliveryAttempt++;
 
@@ -61,13 +46,37 @@ export class DeliveryAttemptHandler {
 			await sleep(backoffDelay(context.deliveryAttempt));
 		}
 
+		return this._shouldRetry(deliveryMode);
+	}
+
+	private async _tryDeliver<TData>(
+		message: Message<TData>,
+		context: SubscribersContext
+	): Promise<boolean> {
+		const target = await resolveTarget(this._serviceName, this._callbackURL);
+
+		const sendInput: DeliverySendInput = {
+			url: target,
+			message,
+			context: {
+				deliveryAttempt: context.deliveryAttempt,
+				consumerGroup: context.consumerGroup,
+			},
+		};
+		await this._deliveryPort.send(sendInput);
+
+		context.receivedAt = new Date();
+		await context.ack();
+		return false;
+	}
+
+	private _shouldRetry(deliveryMode: DeliveryMode): boolean {
 		if (
 			deliveryMode === DeliveryMode.EXACTLY_ONCE ||
 			deliveryMode === DeliveryMode.AT_MOST_ONCE
 		) {
 			return false;
 		}
-
 		return true;
 	}
 }

@@ -1,5 +1,6 @@
 import type { ServiceInstanceName } from "../config/services.types";
 import type {
+	AuthToken,
 	InstanceId,
 	IPAddress,
 	Port,
@@ -27,7 +28,7 @@ export interface ServiceRegisterPayload {
 
 /** Payload sent periodically to signal that a service instance is alive. */
 export interface HeartbeatPayload extends ServiceIdentity {
-	authToken: string;
+	authToken: AuthToken;
 }
 
 /** Payload for querying registered service instances. */

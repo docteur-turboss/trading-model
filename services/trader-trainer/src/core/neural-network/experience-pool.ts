@@ -23,8 +23,8 @@ class DisabledExperiencePool implements IExperiencePool {
 		return 0;
 	}
 
-	samplePool(batchSize: number): Experience[] {
-		throw agentError(`Requested batch size ${batchSize} exceeds pool size 0.`);
+	samplePool(): Experience[] {
+		return [];
 	}
 
 	clearPool(): void {}

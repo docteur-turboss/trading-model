@@ -3,7 +3,7 @@ import type { MessageMetadata } from "@trading-model/common/contracts/message.ty
 import type { PendingPublishQueue } from "./pending-publish-queue";
 import type { WssConnectionOrchestrator } from "./wss-connection-orchestrator";
 
-export class WssPublisher {
+export class WssPublishClient {
 	constructor(
 		private readonly _orchestrator: WssConnectionOrchestrator,
 		private readonly _queue: PendingPublishQueue

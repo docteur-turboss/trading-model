@@ -21,15 +21,14 @@ export type {
 export class GenerationProcessor {
 	private _population: DeepReadonly<LamarckGenome>[] = [];
 	private _generation = 0;
-	private _lastBestGenome: DeepReadonly<LamarckGenome> | undefined;
 	private readonly _evaluator: FitnessEvaluator;
 
 	constructor(private readonly _cfg: GARunnerConfig) {
-		this._evaluator = new FitnessEvaluator(
-			_cfg.windowSets,
-			_cfg.backendFactory,
-			_cfg.evalConcurrency ?? 4
-		);
+		this._evaluator = new FitnessEvaluator({
+			windowSets: _cfg.windowSets,
+			backendFactory: _cfg.backendFactory,
+			evalConcurrency: _cfg.evalConcurrency ?? 4,
+		});
 	}
 
 	get population(): DeepReadonly<LamarckGenome>[] {
@@ -42,7 +41,7 @@ export class GenerationProcessor {
 		return this._evaluator.archive;
 	}
 	get lastBestGenome(): DeepReadonly<LamarckGenome> | undefined {
-		return this._lastBestGenome;
+		return this._evaluator.archive.members[0];
 	}
 	get bestFitness(): number {
 		return this._evaluator.stagnationTracker.bestFitness;
@@ -68,7 +67,7 @@ export class GenerationProcessor {
 		const evalResult = await this._evaluatePopulation();
 		const rankResult = this._rankAndArchive(evalResult, rng);
 		const newCtrl = this._adaptControl(ctrl);
-		this._trackBestGenome(
+		const lastBestGenome = this._evaluator.stagnationTracker.track(
 			rankResult.popWithMeta,
 			evalResult.metas,
 			rankResult.avgEff
@@ -79,7 +78,8 @@ export class GenerationProcessor {
 			startTime,
 			rankResult.avgFit,
 			rankResult.avgEff,
-			newCtrl
+			newCtrl,
+			lastBestGenome
 		);
 		this._cfg.onGeneration?.(ctx);
 		return ctx;
@@ -114,18 +114,6 @@ export class GenerationProcessor {
 		);
 	}
 
-	private _trackBestGenome(
-		popWithMeta: DeepReadonly<LamarckGenome>[],
-		metas: Record<string, unknown>[],
-		avgEff: number
-	): void {
-		this._lastBestGenome = this._evaluator.stagnationTracker.track(
-			popWithMeta,
-			metas,
-			avgEff
-		);
-	}
-
 	private _evolvePopulation(
 		rankResult: {
 			popWithMeta: DeepReadonly<LamarckGenome>[];
@@ -150,14 +138,15 @@ export class GenerationProcessor {
 		startTime: number | undefined,
 		avgFit: number,
 		avgEff: number,
-		newCtrl: GAControlGenome
+		newCtrl: GAControlGenome,
+		lastBestGenome: DeepReadonly<LamarckGenome> | undefined
 	): GenerationContext {
 		return {
 			generation: this._generation,
 			population: this._population,
 			archive: this._evaluator.archive.members,
 			bestFitness: this._evaluator.stagnationTracker.bestFitness,
-			bestGenome: this._lastBestGenome as DeepReadonly<LamarckGenome>,
+			bestGenome: lastBestGenome ?? this._population[0] as DeepReadonly<LamarckGenome>,
 			avgFitness: avgFit,
 			efficiencyScore: avgEff,
 			elapsedMs: Date.now() - (startTime ?? Date.now()),

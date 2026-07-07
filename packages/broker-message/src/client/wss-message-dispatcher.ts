@@ -9,13 +9,14 @@ export type WssMessageHandler = (
 ) => void;
 
 export class WssMessageDispatcher {
-	private _messageHandler: WssMessageHandler = () => {};
+	private _messageHandler: WssMessageHandler;
 	private readonly _handlers: Record<
 		string,
 		(msg: Record<string, unknown>) => void
 	>;
 
-	constructor() {
+	constructor(messageHandler?: WssMessageHandler) {
+		this._messageHandler = messageHandler ?? (() => {});
 		this._handlers = this._buildHandlers();
 	}
 

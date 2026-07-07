@@ -1,6 +1,7 @@
 import {
 	createDefaultHandlers,
 	type DataHandler,
+	type DataType,
 } from "./data-handlers/data-handler";
 import {
 	NormalizationStats,
@@ -9,11 +10,11 @@ import {
 } from "./market-data-types";
 
 export class NormalizationManager {
-	private readonly _handlerMap: Record<string, DataHandler>;
+	private readonly _handlerMap: Record<DataType, DataHandler>;
 
 	constructor(handlers?: DataHandler[]) {
 		const h = handlers ?? createDefaultHandlers();
-		this._handlerMap = Object.fromEntries(h.map((x) => [x.dataType, x]));
+		this._handlerMap = Object.fromEntries(h.map((x) => [x.dataType, x])) as Record<DataType, DataHandler>;
 	}
 
 	createNormStats(): SymbolNormalizers {
@@ -32,7 +33,7 @@ export class NormalizationManager {
 		};
 	}
 
-	updateNorms(dataType: string, state: SymbolState, data: unknown): void {
+	updateNorms(dataType: DataType, state: SymbolState, data: unknown): void {
 		this._handlerMap[dataType]?.updateNorms(state, data);
 	}
 }

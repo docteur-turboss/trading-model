@@ -17,7 +17,8 @@ const RETRY_CONFIG = {
 interface RateLimitBucket {
 	capacity: number;
 	tokens: number;
-	refillRate: number; // tokens per second
+	/** Tokens added per second. */
+	refillRate: number;
 	lastRefill: number;
 }
 

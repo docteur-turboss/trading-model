@@ -128,12 +128,14 @@ export function makeTicker24h(symbol: string): TickerData {
 }
 
 export function feedCandles(
-	buffer: { addCandles(symbol: string, candles: CandleData[]): void },
+	buffer: { addData(dataType: string, symbol: string, data: CandleData): void },
 	symbol: string,
 	count: number
 ): void {
 	for (let i = 0; i < count; i++) {
-		buffer.addCandles(symbol, [
+		buffer.addData(
+			"candle",
+			symbol,
 			makeCandle({
 				symbol,
 				open: Price.of(100 + i),
@@ -144,6 +146,6 @@ export function feedCandles(
 				timestamp: UnixTimestamp.of(Date.now() + i * 60000),
 				closeTimestamp: UnixTimestamp.of(Date.now() + (i + 1) * 60000),
 			}),
-		]);
+		);
 	}
 }

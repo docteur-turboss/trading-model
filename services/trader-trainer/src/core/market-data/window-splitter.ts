@@ -12,33 +12,42 @@ export const DEFAULT_VALIDATION_SPLIT = 0.2;
 /** Handles building market steps and train/validation window splitting. */
 export class WindowSplitter {
 	constructor(
-		private readonly _states: Map<TradingSymbol, SymbolState>,
-		private readonly _priceSnapshot: Record<TradingSymbol, Price>
+		private readonly _states: Map<TradingSymbol, SymbolState>
 	) {}
 
-	buildMarketSteps(symbol: TradingSymbol): MarketStep[] {
+	buildMarketSteps(
+		symbol: TradingSymbol,
+		priceSnapshot: Record<TradingSymbol, Price>
+	): MarketStep[] {
 		const state = this._states.get(symbol);
 		if (!state || state.candles.length < 2) {
 			return [];
 		}
-		return this._buildStepsFromState(state);
+		return this._buildStepsFromState(state, priceSnapshot);
 	}
 
-	private _buildStepsFromState(state: SymbolState): MarketStep[] {
+	private _buildStepsFromState(
+		state: SymbolState,
+		priceSnapshot: Record<TradingSymbol, Price>
+	): MarketStep[] {
 		const steps: MarketStep[] = [];
 		for (let i = 1; i < state.candles.length; i++) {
-			steps.push(this._buildSingleStep(state, i));
+			steps.push(this._buildSingleStep(state, i, priceSnapshot));
 		}
 		return steps;
 	}
 
-	private _buildSingleStep(state: SymbolState, i: number): MarketStep {
+	private _buildSingleStep(
+		state: SymbolState,
+		i: number,
+		priceSnapshot: Record<TradingSymbol, Price>
+	): MarketStep {
 		return {
 			price: state.candles[i].close,
 			features: buildFeaturesFn({
 				state,
 				idx: i,
-				priceSnapshot: this._priceSnapshot,
+				priceSnapshot,
 			}),
 			timestamp: state.candles[i].timestamp,
 		};
@@ -58,9 +67,10 @@ export class WindowSplitter {
 
 	getAllWindows(
 		symbol: TradingSymbol,
-		validationSplit: number = DEFAULT_VALIDATION_SPLIT
+		validationSplit: number = DEFAULT_VALIDATION_SPLIT,
+		priceSnapshot: Record<TradingSymbol, Price>
 	): { id: string; train: MarketStep[]; validation: MarketStep[] } | null {
-		const steps = this.buildMarketSteps(symbol);
+		const steps = this.buildMarketSteps(symbol, priceSnapshot);
 		if (steps.length < MIN_TRAINING_STEPS) {
 			return null;
 		}

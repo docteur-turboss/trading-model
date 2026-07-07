@@ -1,7 +1,9 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
 import { logger } from "@trading-model/common/config/logger";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
+import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import type { SerialNumber } from "@trading-model/common/domain/primitives";
+import { AppError } from "@trading-model/common/utils/errors";
 
 import { PopVerifier } from "./pop-verifier";
 
@@ -17,11 +19,7 @@ interface NonceStore {
 	consume(context: NonceContext): Promise<boolean>;
 }
 
-export interface SignServiceCertRequest {
-	serviceId: string;
-	csr: string;
-	ttlMs?: number;
-}
+export type SignServiceCertRequest = CertSignRequest;
 
 interface CertificateAuthority {
 	signServiceCertificate(
@@ -44,10 +42,10 @@ interface RenewalPopInput {
 	oldSerialNumber: SerialNumber;
 }
 
-export class CertRenewalError extends Error {
+export class CertRenewalError extends AppError {
 	public readonly statusCode: number;
 	constructor(message: string, statusCode = 400) {
-		super(message);
+		super(message, { code: "CertRenewalError" });
 		this.name = "CertRenewalError";
 		this.statusCode = statusCode;
 	}

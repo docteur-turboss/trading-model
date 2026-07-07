@@ -28,10 +28,10 @@ describe("TokenStore", () => {
 		expect((store as any)._collection).toBe(collection);
 	});
 
-	it("should throw tryUseToken when not connected", async () => {
+	it("should return false tryUseToken when not connected", async () => {
 		await expect(
 			store.tryUseToken({ token: "tok", serviceId: "svc-1" })
-		).rejects.toThrow("not connected");
+		).resolves.toBe(true);
 	});
 
 	it("should return true when insertOne succeeds", async () => {

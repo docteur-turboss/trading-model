@@ -49,27 +49,27 @@ export class CertificateLifecycle {
 
 	async writeCertificates(
 		keyPair: { privateKey: string },
-		response: { cert: string; caPem: string }
+		response: { certPem: string; caPem: string }
 	): Promise<void> {
 		const { tlsPaths } = this._config;
 		const certDir = path.dirname(tlsPaths.certPath);
 		await fs.mkdir(certDir, { recursive: true });
 		await fs.writeFile(tlsPaths.keyPath, keyPair.privateKey, { mode: 0o600 });
-		await fs.writeFile(tlsPaths.certPath, response.cert, { mode: 0o644 });
+		await fs.writeFile(tlsPaths.certPath, response.certPem, { mode: 0o644 });
 		await fs.writeFile(tlsPaths.caPath, response.caPem, { mode: 0o644 });
 	}
 
 	buildObtainedCert(
 		keyPair: { privateKey: string },
 		response: {
-			cert: string;
+			certPem: string;
 			caPem: string;
 			serialNumber: string;
 			expiresAt: string;
 		}
 	): ObtainedCertificate {
 		return {
-			certPem: response.cert,
+			certPem: response.certPem,
 			keyPem: keyPair.privateKey,
 			caPem: response.caPem,
 			serialNumber: toSerialNumber(response.serialNumber),

@@ -1,6 +1,5 @@
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 import {
 	type FallbackPublishFn,
@@ -21,12 +20,10 @@ const WSS_PENDING_QUEUE_MAX = 1000;
 
 export class PendingPublishQueue {
 	private _pendingQueue: PendingPublish[] = [];
-	private readonly _flusherTimer = new TimerHandle();
 	private readonly _httpFallbackHandler: HttpFallbackHandler;
 
 	constructor(httpFallback?: FallbackPublishFn) {
 		this._httpFallbackHandler = new HttpFallbackHandler(httpFallback);
-		this._startFlusher();
 	}
 
 	get httpFallback(): FallbackPublishFn {
@@ -88,12 +85,6 @@ export class PendingPublishQueue {
 		this._httpFallbackHandler.drainToHttp(pending);
 	}
 
-	private _startFlusher(): void {
-		this._flusherTimer.startInterval(() => {}, 50);
-		this._flusherTimer.unref();
-	}
-
 	stop(): void {
-		this._flusherTimer.stop();
 	}
 }

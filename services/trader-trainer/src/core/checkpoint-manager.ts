@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { logger } from "@trading-model/common/config/logger";
-import { BufferCheckpointer } from "./buffer-checkpointer";
+import { BufferLoader } from "./buffer-loader";
+import { BufferSaver } from "./buffer-saver";
+import { CheckpointFileHelper } from "./checkpoint-file-helper";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
-import { GenomeCheckpointer } from "./genome-checkpointer";
 import type {
 	MarketDataBuffer,
 	MarketDataBufferConfig,
@@ -17,8 +18,9 @@ export interface CheckpointManagerConfig {
 export class CheckpointManager {
 	private readonly _checkpointDir: string;
 	private readonly _maxCheckpoints: number;
-	private readonly _genomeCheckpointer: GenomeCheckpointer;
-	private readonly _bufferCheckpointer: BufferCheckpointer;
+	private readonly _fileHelper: CheckpointFileHelper;
+	private readonly _bufferSaver: BufferSaver;
+	private readonly _bufferLoader: BufferLoader;
 
 	constructor(config: CheckpointManagerConfig) {
 		this._checkpointDir = config.checkpointDir;
@@ -31,19 +33,36 @@ export class CheckpointManager {
 			});
 		}
 
-		this._genomeCheckpointer = new GenomeCheckpointer(
-			this._checkpointDir,
-			this._maxCheckpoints
-		);
-		this._bufferCheckpointer = new BufferCheckpointer(this._checkpointDir);
+		this._fileHelper = new CheckpointFileHelper(this._checkpointDir);
+		this._bufferSaver = new BufferSaver(this._checkpointDir);
+		this._bufferLoader = new BufferLoader(this._checkpointDir);
 	}
 
 	save(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
-		this._genomeCheckpointer.save(symbol, genome);
+		try {
+			this._fileHelper.save(symbol, genome);
+		} catch (err) {
+			logger.error("Failed to save checkpoint", {
+				context: {
+					symbol,
+					error: err instanceof Error ? err.message : String(err),
+				},
+			});
+		}
 	}
 
 	load(symbol: string): DeepReadonly<LamarckGenome> | null {
-		return this._genomeCheckpointer.load(symbol);
+		try {
+			return this._fileHelper.load(symbol);
+		} catch (err) {
+			logger.error("Failed to load checkpoint", {
+				context: {
+					symbol,
+					error: err instanceof Error ? err.message : String(err),
+				},
+			});
+			return null;
+		}
 	}
 
 	list(): {
@@ -52,14 +71,21 @@ export class CheckpointManager {
 		fitness: number;
 		savedAt: number;
 	}[] {
-		return this._genomeCheckpointer.list();
+		if (!existsSync(this._checkpointDir)) {
+			return [];
+		}
+		const files = this._fileHelper.listMetadataFiles();
+		return this._fileHelper
+			.readMetadataFiles(files)
+			.sort((prev, next) => next.savedAt - prev.savedAt)
+			.slice(0, this._maxCheckpoints);
 	}
 
 	saveBuffer(buffer: MarketDataBuffer): void {
-		this._bufferCheckpointer.save(buffer);
+		this._bufferSaver.save(buffer);
 	}
 
 	loadBuffer(config?: MarketDataBufferConfig): MarketDataBuffer | null {
-		return this._bufferCheckpointer.load(config);
+		return this._bufferLoader.load(config);
 	}
 }

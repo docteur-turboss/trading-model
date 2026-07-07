@@ -6,7 +6,7 @@ import {
 	WssMessageDispatcher,
 	type WssMessageHandler,
 } from "./wss-message-dispatcher";
-import { WssPublisher } from "./wss-publisher";
+import { WssPublishClient } from "./wss-publisher";
 
 export type { WssMessageHandler } from "./wss-message-dispatcher";
 
@@ -14,7 +14,7 @@ export class WssClient {
 	private readonly _orchestrator: WssConnectionOrchestrator;
 	private readonly _dispatcher: WssMessageDispatcher;
 	private readonly _queue: PendingPublishQueue;
-	private readonly _publisher: WssPublisher;
+	private readonly _publisher: WssPublishClient;
 
 	constructor(
 		config: WssClientConfig & {
@@ -36,7 +36,7 @@ export class WssClient {
 			(raw) => this._dispatcher.dispatch(raw),
 			this._queue
 		);
-		this._publisher = new WssPublisher(this._orchestrator, this._queue);
+		this._publisher = new WssPublishClient(this._orchestrator, this._queue);
 	}
 
 	connect(topics: string[] = []): void {

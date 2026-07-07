@@ -48,43 +48,58 @@ export class ServiceResolver {
 		}
 
 		try {
-			const response = await this._httpClient.get<{ data: ServiceInstance[] }>(
-				`${this._discoveryUrl}/services/${serviceName}`
-			);
-
-			const instances = Array.isArray(response)
-				? response
-				: (response as { data: ServiceInstance[] }).data;
-
-			if (!Array.isArray(instances)) {
-				return this._handleFallback(cacheKey);
-			}
-
-			const matching = instances
-				.filter((inst) => {
-					const major = Number.parseInt(inst.version.split(".")[0], 10);
-					return major === majorVersion;
-				})
-				.map((inst) => ({
-					host: inst.ip,
-					port: inst.port,
-					version: inst.version,
-				}));
-
-			const cachedService: CachedService = {
-				instances: matching,
-				expiresAt: Date.now() + this._cacheTtlMs,
-				nextIndex: 0,
-			};
-			this._cache.set(cacheKey, cachedService);
-
-			if (matching.length === 0) {
-				return null;
-			}
-			return this._selectInstance(cachedService);
+			return await this._fetchAndCache(serviceName, majorVersion, cacheKey);
 		} catch {
 			return this._handleFallback(cacheKey);
 		}
+	}
+
+	private async _fetchAndCache(
+		serviceName: string,
+		majorVersion: number,
+		cacheKey: string
+	): Promise<ResolvedTarget | null> {
+		const response = await this._httpClient.get<{ data: ServiceInstance[] }>(
+			`${this._discoveryUrl}/services/${serviceName}`
+		);
+
+		const instances = Array.isArray(response)
+			? response
+			: (response as { data: ServiceInstance[] }).data;
+
+		if (!Array.isArray(instances)) {
+			return this._handleFallback(cacheKey);
+		}
+
+		const matching = this._filterByVersion(instances, majorVersion);
+
+		const cachedService: CachedService = {
+			instances: matching,
+			expiresAt: Date.now() + this._cacheTtlMs,
+			nextIndex: 0,
+		};
+		this._cache.set(cacheKey, cachedService);
+
+		if (matching.length === 0) {
+			return null;
+		}
+		return this._selectInstance(cachedService);
+	}
+
+	private _filterByVersion(
+		instances: ServiceInstance[],
+		majorVersion: number
+	): ResolvedTarget[] {
+		return instances
+			.filter((inst) => {
+				const major = Number.parseInt(inst.version.split(".")[0], 10);
+				return major === majorVersion;
+			})
+			.map((inst) => ({
+				host: inst.ip,
+				port: inst.port,
+				version: inst.version,
+			}));
 	}
 
 	private _handleFallback(cacheKey: string): ResolvedTarget | null {

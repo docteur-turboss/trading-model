@@ -11,8 +11,8 @@ type DeepReadonly<TValue> = TValue extends (infer UItem)[]
 		? { readonly [KKey in keyof TValue]: DeepReadonly<TValue[KKey]> }
 		: TValue;
 
-const FLOP_SOFT_CAP = 5_000_000; // 5M MACs
-const MEM_SOFT_CAP = 200_000_000; // 200 MB
+const FLOP_SOFT_CAP_MACS_MACS = 5_000_000;
+const MEM_SOFT_CAP_MB_MB = 200_000_000;
 
 type ActivationName = ActivationType | "linear" | "swish";
 
@@ -30,7 +30,8 @@ const ACT_COST: Record<ActivationName, number> = {
 };
 
 export interface ComplexityProfile {
-	inferenceFLOPs: number; // multiply-accumulate ops for one forward pass
+	/** Multiply-accumulate ops for one forward pass. */
+	inferenceFLOPs: number;
 	/** Combined penalty in [0, 1]. */
 	penalty: number;
 }
@@ -64,8 +65,8 @@ function _computePenalty(
 	paramBytes: number,
 	replayBytes: number
 ): number {
-	const flopPenalty = Math.min(1, effectiveFlops / FLOP_SOFT_CAP);
-	const memPenalty = Math.min(1, (paramBytes + replayBytes) / MEM_SOFT_CAP);
+	const flopPenalty = Math.min(1, effectiveFlops / FLOP_SOFT_CAP_MACS);
+	const memPenalty = Math.min(1, (paramBytes + replayBytes) / MEM_SOFT_CAP_MB);
 	return 0.6 * flopPenalty + 0.4 * memPenalty;
 }
 

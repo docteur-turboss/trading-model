@@ -9,6 +9,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	private _collection: Collection | null = null;
 	private _collectionPromise: Promise<Collection> | null = null;
 	private readonly _indexManager = new IndexManager();
+	private _missingCriticalIndexes: string[] = [];
 
 	constructor() {
 		super(
@@ -65,7 +66,8 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 		const database = await this.getDb();
 		const col = database.collection(ENV.MONGO_COLLECTION);
 
-		await this._indexManager.createCollectionIndexes(col);
+		this._missingCriticalIndexes =
+			await this._indexManager.createCollectionIndexes(col);
 
 		this._collection = col;
 		logger.info("MongoDB collection ready", {
@@ -75,7 +77,7 @@ export class MongoConnectionManager extends ConnectionManager<MongoClient> {
 	}
 
 	getMissingCriticalIndexes(): string[] {
-		return this._indexManager.getMissingCriticalIndexes();
+		return this._missingCriticalIndexes;
 	}
 
 	private _clearState(): void {

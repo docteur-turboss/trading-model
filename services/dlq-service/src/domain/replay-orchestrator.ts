@@ -25,15 +25,15 @@ export class ReplayOrchestrator {
 
 	/** Check if the circuit allows a request. Returns false if OPEN. */
 	canProceed(): boolean {
-		return this._circuitBreaker.isAllowed();
+		return this._circuitBreaker.isAllowed("replay");
 	}
 
 	recordSuccess(): void {
-		this._circuitBreaker.recordSuccess();
+		this._circuitBreaker.recordSuccess("replay");
 	}
 
 	recordFailure(): void {
-		this._circuitBreaker.recordFailure();
+		this._circuitBreaker.recordFailure("replay");
 	}
 
 	/** Check if batch concurrency limit has been reached. */
@@ -61,6 +61,6 @@ export class ReplayOrchestrator {
 	}
 
 	getCircuitState(): import("@trading-model/common/domain/circuit-state").CircuitState {
-		return this._circuitBreaker.getState();
+		return this._circuitBreaker.getState("replay");
 	}
 }

@@ -1,21 +1,23 @@
+import {
+	createDefaultHandlers,
+	type DataHandler,
+} from "./data-handlers/data-handler";
 import { MemoryManager } from "./market-data/memory-manager";
 import type { SymbolState, TradingSymbol } from "./market-data-types";
 import { NormalizationManager } from "./normalization-manager";
-import { SymbolDataMutator } from "./symbol-data-mutator";
-import { SymbolStateAccessor } from "./symbol-state-accessor";
 
 export class SymbolStateManager {
 	readonly states: Map<TradingSymbol, SymbolState> = new Map();
 	readonly accessOrder: TradingSymbol[] = [];
 	private readonly _memoryManager: MemoryManager;
 	private readonly _normManager: NormalizationManager;
-	private readonly _dataMutator: SymbolDataMutator;
-	private readonly _stateAccessor: SymbolStateAccessor;
+	private readonly _handlerMap: Record<string, DataHandler>;
 
 	constructor(
 		maxSize: number,
 		maxMemoryBytes: number,
-		evictionPolicy: "LRU" | "none"
+		evictionPolicy: "LRU" | "none",
+		handlers?: DataHandler[]
 	) {
 		this._memoryManager = new MemoryManager({
 			states: this.states,
@@ -24,15 +26,9 @@ export class SymbolStateManager {
 			maxMemoryBytes,
 			evictionPolicy,
 		});
-		this._normManager = new NormalizationManager();
-		this._dataMutator = new SymbolDataMutator(
-			this._memoryManager,
-			this._normManager
-		);
-		this._stateAccessor = new SymbolStateAccessor(
-			this._normManager,
-			this._memoryManager
-		);
+		this._normManager = new NormalizationManager(handlers);
+		const h = handlers ?? createDefaultHandlers();
+		this._handlerMap = Object.fromEntries(h.map((x) => [x.dataType, x]));
 	}
 
 	getMemoryManager(): MemoryManager {
@@ -44,16 +40,39 @@ export class SymbolStateManager {
 	}
 
 	_getOrCreate(symbol: TradingSymbol): SymbolState {
-		return this._stateAccessor.getOrCreate(symbol, this.states);
+		let state = this.states.get(symbol);
+		if (!state) {
+			state = this._createSymbolState();
+			this.states.set(symbol, state);
+		}
+		this._memoryManager.recordAccess(symbol);
+		return state;
 	}
 
 	_getState(symbol: TradingSymbol): SymbolState {
-		return this._stateAccessor.getState(symbol, this.states);
+		return this._getOrCreate(symbol);
 	}
 
-	addData(dataType: string, symbol: TradingSymbol, data: unknown): void {
+	private _createSymbolState(): SymbolState {
+		return {
+			candles: [],
+			trades: [],
+			orderBook: null,
+			bookTicker: null,
+			ticker24h: null,
+			norm: this._normManager.createNormStats(),
+		};
+	}
+
+	addData(dataType: import("./data-handlers/data-handler").DataType, symbol: TradingSymbol, data: unknown): void {
 		const maxSize = this._memoryManager.getMaxSize();
-		this._dataMutator.mutateData(dataType, symbol, data, this.states, maxSize);
+		const state = this.states.get(symbol);
+		if (!state) return;
+		const handler = this._handlerMap[dataType];
+		if (!handler) return;
+		handler.mutateState(symbol, data, state, maxSize);
+		this._normManager.updateNorms(dataType, state, data);
+		this._memoryManager.enforceMemoryLimit();
 	}
 
 	getSymbols(): TradingSymbol[] {

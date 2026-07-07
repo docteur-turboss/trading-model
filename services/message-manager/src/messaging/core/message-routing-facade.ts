@@ -1,4 +1,4 @@
-import { ClaimManager } from "./claim-manager";
+import { ClaimExecutor } from "./claim-executor";
 import { DeduplicationService } from "./deduplication-service";
 import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 import { PendingAckOperations } from "./pending-ack-operations";
@@ -7,12 +7,12 @@ import { StreamGroupOperations } from "./stream-group-operations";
 export class MessageRoutingFacade {
 	private readonly _streamOps: StreamGroupOperations;
 	private readonly _pendingAckOps: PendingAckOperations;
-	private readonly _claimManager: ClaimManager;
+	private readonly _claimManager: ClaimExecutor;
 	private readonly _dedupService: DeduplicationService;
 	constructor(prefix: string) {
 		this._streamOps = new StreamGroupOperations(prefix);
 		this._pendingAckOps = new PendingAckOperations(prefix);
-		this._claimManager = new ClaimManager(prefix);
+		this._claimManager = new ClaimExecutor(prefix);
 		this._dedupService = new DeduplicationService(prefix);
 	}
 

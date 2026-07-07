@@ -5,10 +5,10 @@ import type {
 	RevokedCertificate,
 	SignedCertificate,
 } from "@trading-model/certificate-utils/types";
+import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import { ENV } from "../config/env";
-import type { SignServiceCertRequest } from "../domain/cert-renewal-service";
 import type { CertificateStore } from "../persistence/certificate-store";
 import type { CrlStore } from "../persistence/crl-store";
 
@@ -19,7 +19,7 @@ export class CertificateOperator {
 	) {}
 
 	async signServiceCertificate(
-		request: SignServiceCertRequest,
+		request: CertSignRequest,
 		caKeyPair: KeyPair,
 		caCertPem: string
 	): Promise<SignedCertificate> {

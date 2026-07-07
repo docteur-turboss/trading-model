@@ -6,30 +6,23 @@ import type { ScheduledJob } from "../scheduler/scheduler";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceHealthChecker } from "./service-health-checker";
 
-class BatchSelector {
-	private _offset = 0;
-	private _previousEntriesLength = 0;
-
-	select(
-		entries: { serviceName: string; instance: ServiceInstance }[]
-	): { serviceName: string; instance: ServiceInstance }[] {
-		if (entries.length !== this._previousEntriesLength) {
-			this._offset = 0;
-			this._previousEntriesLength = entries.length;
-		}
-		const fraction = Math.max(1, Math.floor(entries.length / 3));
-		if (this._offset >= entries.length) {
-			this._offset = 0;
-		}
-		const batch = entries.slice(this._offset, this._offset + fraction);
-		this._offset = (this._offset + fraction) % entries.length;
-		return batch;
+function selectBatchSlice(
+	entries: { serviceName: string; instance: ServiceInstance }[],
+	offset: number
+): { batch: { serviceName: string; instance: ServiceInstance }[]; nextOffset: number } {
+	if (entries.length === 0) {
+		return { batch: [], nextOffset: 0 };
 	}
+	const fraction = Math.max(1, Math.floor(entries.length / 3));
+	const safeOffset = offset >= entries.length ? 0 : offset;
+	const batch = entries.slice(safeOffset, safeOffset + fraction);
+	const nextOffset = (safeOffset + fraction) % entries.length;
+	return { batch, nextOffset };
 }
 
 export class CacheHealthRefresher implements ScheduledJob {
 	public readonly schedule: string;
-	private readonly _batchSelector = new BatchSelector();
+	private _batchOffset = 0;
 	private _running = false;
 
 	constructor(
@@ -93,7 +86,8 @@ export class CacheHealthRefresher implements ScheduledJob {
 			return;
 		}
 
-		const batch = this._batchSelector.select(entries);
+		const { batch, nextOffset } = selectBatchSlice(entries, this._batchOffset);
+		this._batchOffset = nextOffset;
 		const errors = await this._executeBatch(batch, 10);
 
 		for (const error of errors) {

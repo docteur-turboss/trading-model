@@ -32,7 +32,7 @@ export class ShutdownHandler {
 		try {
 			await this._deps.addressManagerClient.unregisterService();
 		} catch {
-			// shutdown best-effort
+			// no-op — best-effort unregistration
 		}
 	}
 

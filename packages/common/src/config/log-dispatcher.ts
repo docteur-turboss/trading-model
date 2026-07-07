@@ -1,4 +1,5 @@
 import type { TlsPaths } from "../domain/tls-paths";
+import type { SessionId, UserId } from "../domain/primitives";
 import { AuditServiceClient } from "./audit-service-client";
 import { ErrorServiceSender } from "./error-service-sender";
 import { LogFileWriter } from "./log-file-writer";
@@ -15,9 +16,9 @@ export class LogDispatcher {
 	private _auditClient: AuditServiceClient;
 	private readonly _logFileWriter: LogFileWriter;
 	private readonly _errorServiceSender: ErrorServiceSender;
-	private readonly _sessionId: string;
+	private readonly _sessionId: SessionId;
 
-	constructor(sanitizer: SensitiveDataSanitizer, sessionId: string) {
+	constructor(sanitizer: SensitiveDataSanitizer, sessionId: SessionId) {
 		this._sanitizer = sanitizer;
 		this._sessionId = sessionId;
 		this._auditClient = new AuditServiceClient(this._sanitizer);
@@ -37,7 +38,7 @@ export class LogDispatcher {
 	createLogEntry(
 		level: LogLevel,
 		message: string,
-		userId: string,
+		userId: UserId,
 		opts?: LogOptions
 	): LogEntry {
 		const { context, url = "", serviceInCharge = "" } = opts ?? {};

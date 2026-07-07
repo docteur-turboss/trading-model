@@ -7,15 +7,24 @@ import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 import { StagnationTracker } from "./stagnation-tracker";
 
+export interface FitnessEvaluatorConfig {
+	windowSets: WindowSet[];
+	backendFactory: BackendFactory;
+	evalConcurrency: number;
+}
+
 export class FitnessEvaluator {
 	private _archive = new ParetoArchive();
 	private _stagnationTracker = new StagnationTracker();
+	private readonly _windowSets: WindowSet[];
+	private readonly _backendFactory: BackendFactory;
+	private readonly _evalConcurrency: number;
 
-	constructor(
-		private readonly _windowSets: WindowSet[],
-		private readonly _backendFactory: BackendFactory,
-		private readonly _evalConcurrency: number
-	) {}
+	constructor(config: FitnessEvaluatorConfig) {
+		this._windowSets = config.windowSets;
+		this._backendFactory = config.backendFactory;
+		this._evalConcurrency = config.evalConcurrency;
+	}
 
 	get archive(): ParetoArchive {
 		return this._archive;

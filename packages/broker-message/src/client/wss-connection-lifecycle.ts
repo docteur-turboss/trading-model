@@ -19,13 +19,19 @@ export class WssConnectionLifecycle implements IWsConnection {
 	private readonly _callbacks: WsConnectionLifecycleCallbacks;
 
 	onCloseHandler?: () => void;
+	onOpen?: () => void;
+	onMessage?: (data: unknown) => void;
+	onError?: (err: Error) => void;
 
 	constructor(
 		config: WssClientConfig,
 		callbacks: WsConnectionLifecycleCallbacks
 	) {
 		this._connection = new WssConnection(config.tlsConfig);
-		this._connection.onCloseHandler = () => this.onCloseHandler?.();
+		this._connection.onCloseHandler = () => {
+			this._callbacks.onClose(0, Buffer.alloc(0));
+			this.onCloseHandler?.();
+		};
 		this._wsUrl = config.wssUrl;
 		this._serviceName = config.serviceName;
 		this._instanceId = config.instanceId;
@@ -38,12 +44,19 @@ export class WssConnectionLifecycle implements IWsConnection {
 
 	connect(): void {
 		const url = this._buildUrl();
-		this._connection.connectWithEvents(url, {
-			onOpen: () => this._callbacks.onOpen(),
-			onMessage: (raw) => this._callbacks.onMessage(raw),
-			onClose: (code, reason) => this._callbacks.onClose(code, reason),
-			onError: (err) => this._callbacks.onError(err),
-		});
+		this._connection.onOpen = () => {
+			this._callbacks.onOpen();
+			this.onOpen?.();
+		};
+		this._connection.onMessage = (data) => {
+			this._callbacks.onMessage(data as string);
+			this.onMessage?.(data);
+		};
+		this._connection.onError = (err) => {
+			this._callbacks.onError(err);
+			this.onError?.(err);
+		};
+		this._connection.connect(url);
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {

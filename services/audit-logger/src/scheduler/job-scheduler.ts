@@ -23,9 +23,9 @@ export class JobScheduler {
 	readonly queue: InternalQueue;
 	readonly backPressure: BackPressure;
 	readonly workers: WorkerRegistry;
-	readonly repository: JobRepository;
-	readonly reAllocator: ReAllocator;
-	readonly orphanDetector: OrphanDetector;
+	private readonly repository: JobRepository;
+	private readonly reAllocator: ReAllocator;
+	private readonly orphanDetector: OrphanDetector;
 	private readonly _lifecycle: JobLifecycle;
 	private readonly _assignmentManager: JobAssignmentManager;
 	private readonly _failureHandler: JobFailureHandler;

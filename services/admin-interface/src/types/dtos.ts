@@ -15,6 +15,7 @@ import type {
 	PaginationResult,
 } from "@trading-model/common/domain/pagination";
 import type { Percentage } from "@trading-model/common/domain/primitives";
+import { AppError } from "@trading-model/common/utils/errors";
 
 export type {
 	AdminServiceInstance,
@@ -108,12 +109,12 @@ export interface WorkerList {
 	stats: WorkerStats;
 }
 
-export class ApiError extends Error {
+export class ApiError extends AppError {
 	constructor(
 		public statusCode: number,
 		message: string
 	) {
-		super(message);
+		super(message, { code: "ApiError" });
 		this.name = "ApiError";
 	}
 }
