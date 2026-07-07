@@ -1,5 +1,5 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
-import type { CircuitBreakerConfig } from "@trading-model/common/reliability/circuit-breaker";
+import type { CircuitBreakerConfig } from "@trading-model/common/reliability/circuit-state-machine";
 import type { IUnkeyedCircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { logger } from "./logger";
@@ -39,9 +39,9 @@ export class MessageManagerCircuitBreaker implements IUnkeyedCircuitBreaker {
 		this._machine.recordSuccess();
 	}
 
-	recordFailure(_count?: number, _threshold?: number): void {
+	recordFailure(count?: number, threshold?: number): void {
 		const prevState = this._machine.getState(Date.now());
-		this._machine.recordFailure(Date.now());
+		this._machine.recordFailure(count ?? 1, threshold);
 		const currentState = this._machine.getState(Date.now());
 		if (prevState !== "open" && currentState === "open") {
 			const snapshot = this._machine.snapshot();

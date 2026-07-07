@@ -18,11 +18,21 @@ function verifySignature(req: Request, serviceName: string): boolean {
 	const provided = _extractSignatureHeader(req);
 	const timestampStr = _extractTimestampHeader(req);
 
-	if (!_validateTimestamp(timestampStr, provided)) return false;
+	if (!_validateTimestamp(timestampStr, provided)) {
+		return false;
+	}
 
 	const route = _buildSignedRequest(req, serviceName);
 
-	if (sharedVerifySignature(route, provided, timestampStr, secret)) return true;
+	if (
+		sharedVerifySignature(route, {
+			signature: provided,
+			timestamp: timestampStr,
+			secret,
+		})
+	) {
+		return true;
+	}
 
 	return _matchFallbackSignature(
 		req,
@@ -113,7 +123,9 @@ function serviceAuth(req: Request, res: Response, next: NextFunction): void {
 		return;
 	}
 	if (!verifySignature(req, serviceName)) {
-		res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Invalid or expired signature" });
+		res
+			.status(HTTP_STATUS.UNAUTHORIZED)
+			.json({ error: "Invalid or expired signature" });
 		return;
 	}
 	next();
@@ -126,7 +138,6 @@ function _resolveServiceName(req: Request): string | undefined {
 	if (serviceName && ALLOWED_SERVICES.includes(serviceName)) {
 		return serviceName;
 	}
-	return undefined;
 }
 
 export { serviceAuth };

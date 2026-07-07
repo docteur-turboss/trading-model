@@ -50,26 +50,28 @@ export async function listEntries(req: {
 		offset,
 		before: cursor,
 	});
-	return sendResponse(_buildListResponse(entries, limit, offset, cursor), 200);
+	return sendResponse(_buildListResponse({ entries, limit, offset, cursor }), 200);
 }
 
-function _buildListResponse(
-	entries: import("./repository").StoredDlqEntry[],
-	limit: number,
-	offset: number | undefined,
-	cursor: string | undefined
-): Record<string, unknown> {
-	const hasMore = entries.length === limit;
+interface ListResponseParams {
+	entries: import("./repository").StoredDlqEntry[];
+	limit: number;
+	offset: number | undefined;
+	cursor: string | undefined;
+}
+
+function _buildListResponse(params: ListResponseParams): Record<string, unknown> {
+	const hasMore = params.entries.length === params.limit;
 	const response: Record<string, unknown> = {
-		entries,
-		count: entries.length,
+		entries: params.entries,
+		count: params.entries.length,
 		hasMore,
 	};
-	if (!cursor) {
-		response.offset = offset;
+	if (!params.cursor) {
+		response.offset = params.offset;
 	}
-	if (hasMore && entries.length > 0) {
-		response.cursor = entries[entries.length - 1].id;
+	if (hasMore && params.entries.length > 0) {
+		response.cursor = params.entries[params.entries.length - 1].id;
 	}
 	return response;
 }

@@ -1,28 +1,25 @@
+import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
+import type { OffsetPagination } from "@trading-model/common/domain/pagination";
 import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import { AppError } from "@trading-model/common/utils/errors";
 import type { Document, Filter } from "mongodb";
 import { ObjectId, type WithId } from "mongodb";
-import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
-import {
-	DlqCapacityError,
-	DlqEntryWriter,
-	dlqCapacityError,
-} from "./dlq-entry-writer";
+import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
+import { DlqEntryWriter, dlqCapacityError } from "./dlq-entry-writer";
 import { pruneEntries } from "./dlq-eviction-policy";
 import { DLQ_STATUS } from "./dlq-status";
-import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
 
-export { DlqCapacityError, dlqCapacityError };
+export { dlqCapacityError };
 
-export function isDlqCapacityError(err: unknown): err is DlqCapacityError {
-	return err instanceof DlqCapacityError;
+export function isDlqCapacityError(err: unknown): err is AppError {
+	return err instanceof AppError && err.code === "DlqCapacityError";
 }
-
-export type { DlqEntry };
 
 export type { DlqStatus } from "./dlq-status";
 export { DLQ_STATUS } from "./dlq-status";
+export type { DlqEntry };
 
 export interface StoredDlqEntry {
 	id: string;
@@ -33,10 +30,8 @@ export interface StoredDlqEntry {
 	createdAt: UnixTimestamp;
 }
 
-export interface DlqListOptions {
+export interface DlqListOptions extends OffsetPagination {
 	topic?: string;
-	limit?: number;
-	offset?: number;
 	before?: string;
 }
 

@@ -1,17 +1,18 @@
 import { logger } from "../config/logger";
-import { MessageManagerCircuitBreaker } from "../config/mm-circuit-breaker";
 import { deliverEntry } from "./delivery-executor";
 import { getHttpClient } from "./shared/http-client-manager";
+import {
+	checkBatchRejection,
+	decrementActiveBatches,
+	incrementActiveBatches,
+	recordBatchResult,
+} from "./batch-concurrency-guard";
 import type {
 	BatchReplayContext,
 	DlqEntryRef,
 	DlqError,
 	ReplayBatchOptions,
 } from "./types";
-
-const MmCircuitBreaker = new MessageManagerCircuitBreaker({
-	name: "replay-batch",
-});
 
 export interface ReplayContext extends BatchReplayContext {
 	isTimedOut: () => boolean;
@@ -24,9 +25,6 @@ export interface ProcessBatchResultsOptions {
 	batchResults: PromiseSettledResult<void>[];
 	ctx: Pick<ReplayContext, "batchId" | "successCount" | "errors">;
 }
-
-let activeBatches = 0;
-const MAX_CONCURRENT_BATCHES = 2;
 
 async function replaySingleEntry(
 	entry: DlqEntryRef,
@@ -123,16 +121,6 @@ function waitForBatchTimeout(
 	});
 }
 
-function _rejectAll(
-	entries: DlqEntryRef[],
-	error: string
-): { success: number; errors: DlqError[] } {
-	return {
-		success: 0,
-		errors: entries.map((entry) => ({ id: entry.id, error })),
-	};
-}
-
 async function _runBatchWithTimeout(
 	entries: DlqEntryRef[],
 	ctxBase: BatchReplayContext
@@ -191,42 +179,17 @@ export type { DlqEntryRef, DlqError, ReplayBatchOptions } from "./types";
 export async function doReplayBatch(
 	options: ReplayBatchOptions
 ): Promise<{ success: number; errors: DlqError[] }> {
-	const rejection = _checkBatchRejection(options.entries, options.batchId);
+	const rejection = checkBatchRejection(options.entries, options.batchId);
 	if (rejection) {
 		return rejection;
 	}
 
-	activeBatches++;
+	incrementActiveBatches();
 	try {
 		return await _executeBatch(options);
 	} finally {
-		activeBatches--;
+		decrementActiveBatches();
 	}
-}
-
-function _checkBatchRejection(
-	entries: DlqEntryRef[],
-	batchId: string
-): { success: number; errors: DlqError[] } | null {
-	if (activeBatches >= MAX_CONCURRENT_BATCHES) {
-		logger.warn("Too many concurrent replay batches — rejecting", {
-			batchId,
-			entryCount: entries.length,
-			activeBatches,
-		});
-		return _rejectAll(entries, "Too many concurrent replay batches");
-	}
-	if (MmCircuitBreaker.isOpen() && entries.length > 0) {
-		logger.warn(
-			"Message-manager circuit breaker open — rejecting replay batch",
-			{
-				batchId,
-				entryCount: entries.length,
-			}
-		);
-		return _rejectAll(entries, "Message-manager circuit breaker open");
-	}
-	return null;
 }
 
 async function _executeBatch(
@@ -239,10 +202,6 @@ async function _executeBatch(
 		batchId: options.batchId,
 		instanceId: options.instanceId,
 	});
-	if (success > 0) {
-		MmCircuitBreaker.recordSuccess();
-	} else {
-		MmCircuitBreaker.recordFailure();
-	}
+	recordBatchResult(success);
 	return { success, errors };
 }

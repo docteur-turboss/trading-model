@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import { DLQ_STATUS } from "./dlq-status";
-import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
+import { RetryPipelineBuilder } from "./retry-pipeline-builder";
 
 function _isEntryAbandoned(
 	col: import("mongodb").Collection,
@@ -44,18 +44,9 @@ export interface MarkRetriedParams {
 	errorMsg?: string;
 }
 
-function _buildAbandonFilter(): Record<string, unknown> {
-	return {
-		status: { $ne: DLQ_STATUS.ABANDONED },
-		processingAt: { $exists: false },
-		$or: [
-			{ retryCount: { $gte: ENV.DLQ_RETRY_MAX_ATTEMPTS } },
-			{ consecutiveErrors: { $gte: DLQ_MAX_CONSECUTIVE_ERRORS } },
-		],
-	};
-}
-
 export class DlqRetryManager {
+	private readonly _pipelineBuilder = new RetryPipelineBuilder();
+
 	async markRetried(params: MarkRetriedParams): Promise<void> {
 		const { id, instanceId, batchId, success = true, errorMsg } = params;
 		if (success) {
@@ -67,7 +58,7 @@ export class DlqRetryManager {
 
 	async abandonExhaustedEntries(): Promise<number> {
 		const col = await getCollection();
-		const result = await col.updateMany(_buildAbandonFilter(), {
+		const result = await col.updateMany(this._pipelineBuilder.buildAbandonFilter(), {
 			$set: { status: DLQ_STATUS.ABANDONED, abandonedAt: new Date() },
 		});
 		return result.modifiedCount;
@@ -83,35 +74,6 @@ export class DlqRetryManager {
 		await _updateEntryCompleted(col, id, instanceId, batchId);
 	}
 
-	private _buildCompletedUpdate(batchId?: string): Record<string, unknown> {
-		return {
-			$set: {
-				status: DLQ_STATUS.COMPLETED,
-				completedAt: new Date(),
-				lastBatchId: batchId,
-			},
-			$unset: { processingAt: "", processingInstance: "" },
-		};
-	}
-
-	private _buildFailPipeline(errorMsg?: string): Record<string, unknown>[] {
-		return [
-			_buildErrorStage(errorMsg),
-			_buildRetryStage(errorMsg),
-			_buildStatusStage(this),
-			{ $unset: ["processingAt", "processingInstance"] },
-		];
-	}
-
-	_abandonCondition(): Record<string, unknown> {
-		return {
-			$or: [
-				{ $gte: ["$retryCount", ENV.DLQ_RETRY_MAX_ATTEMPTS] },
-				{ $gte: ["$consecutiveErrors", DLQ_MAX_CONSECUTIVE_ERRORS] },
-			],
-		};
-	}
-
 	private async _markAsFailed(id: string, errorMsg?: string): Promise<void> {
 		const col = await getCollection();
 		const failFilter: Record<string, unknown> = {
@@ -120,7 +82,7 @@ export class DlqRetryManager {
 		};
 		const updated = await col.findOneAndUpdate(
 			failFilter,
-			this._buildFailPipeline(errorMsg),
+			this._pipelineBuilder.buildFailPipeline(errorMsg),
 			{ returnDocument: "after", projection: { _id: 1 } }
 		);
 
@@ -131,43 +93,6 @@ export class DlqRetryManager {
 			);
 		}
 	}
-}
-
-function _buildErrorStage(errorMsg?: string): Record<string, unknown> {
-	return {
-		$set: {
-			consecutiveErrors: {
-				$cond: [
-					{ $eq: ["$lastError", errorMsg ?? "Replay failed"] },
-					{ $add: [{ $ifNull: ["$consecutiveErrors", 0] }, 1] },
-					1,
-				],
-			},
-		},
-	};
-}
-
-function _buildRetryStage(errorMsg?: string): Record<string, unknown> {
-	return {
-		$set: {
-			retryCount: { $add: ["$retryCount", 1] },
-			lastRetryAt: new Date(),
-			lastError: errorMsg ?? "Replay failed",
-		},
-	};
-}
-
-function _buildStatusStage(self: DlqRetryManager): Record<string, unknown> {
-	return {
-		$set: {
-			status: {
-				$cond: [self._abandonCondition(), DLQ_STATUS.ABANDONED, "$$REMOVE"],
-			},
-			abandonedAt: {
-				$cond: [self._abandonCondition(), new Date(), "$$REMOVE"],
-			},
-		},
-	};
 }
 
 export const dlqRetryManager = new DlqRetryManager();

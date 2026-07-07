@@ -8,10 +8,6 @@ const mockPrune = jest.fn();
 const mockQueryQueuable = jest.fn();
 
 jest.mock("../../src/dlq/repository", () => ({
-	DlqCapacityError: class DlqCapacityError {
-		constructor(public readonly message: string) {}
-		public name = "DlqCapacityError";
-	},
 	dlqRepository: {
 		insert: mockInsert,
 		query: mockQuery,
