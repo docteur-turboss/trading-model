@@ -1,11 +1,9 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { logger } from "@trading-model/common/config/logger";
-import { toServiceId } from "@trading-model/common/domain/primitives";
-import { normalizeError } from "@trading-model/common/utils/errors";
 
 import { AddressManagerClient } from "./client/address-manager-client";
 import { TokenManager } from "./client/token-manager";
-import { WebSocketClient, type WsMessage } from "./client/websocket-client";
+import { WebSocketClient } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
 import { DiscoveryCircuitBreaker } from "./discovery/circuit-breaker";
 import { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
@@ -23,6 +21,8 @@ import { MetricsCollector } from "./monitoring/metrics-collector";
 import { RegistrationManager } from "./registration-manager";
 import { ShutdownHandler } from "./shutdown-handler";
 import type { AddressManagerDeps, ShutdownHandlerDeps } from "./types";
+import { CacheInvalidationHandler } from "./cache-invalidation-handler";
+import { WsAuthFailureHandler } from "./ws-auth-failure-handler";
 
 export interface AddressManagerDependencies {
 	tokenManager: TokenManager;
@@ -129,58 +129,11 @@ function createRegistrationAndHeartbeat(deps: AddressManagerDeps): {
 	};
 }
 
-function _logCacheInvalidationError(serviceName: string, err: unknown): void {
-	logger.warn("WebSocket cache invalidation failed", {
-		serviceName,
-		error: normalizeError(err),
-	});
-}
-
-function onCacheInvalidateMessage(
-	message: WsMessage,
-	serviceCache: IServiceCache
-): void {
-	if (message.type !== "cache.invalidate") {
-		return;
-	}
-	const serviceName = message.payload?.serviceName as string | undefined;
-	if (!serviceName) {
-		return;
-	}
-	serviceCache.invalidate(toServiceId(serviceName)).catch((err) => {
-		_logCacheInvalidationError(serviceName, err);
-	});
-}
-
-function _handleRegistrationSuccess(
-	res: { token?: string } | undefined,
-	deps: AddressManagerDeps
-): void {
-	if (res?.token) {
-		deps.tokenManager.setToken(res.token);
-		deps.wsClient?.updateToken(res.token);
-		REGISTRATION_TOTAL.inc({ result: "success" });
-		logger.info("Re-registered after WS auth failure");
-	}
-}
-
-function _handleRegistrationError(err: unknown): void {
-	logger.error("Re-registration after WS auth failure failed", {
-		error: normalizeError(err),
-	});
-}
-
-function onWsAuthFailure(deps: AddressManagerDeps): void {
-	logger.warn("WebSocket auth failure \u2014 forcing re-registration");
-	deps.addressManagerClient
-		.registerService()
-		.then((res) => _handleRegistrationSuccess(res, deps))
-		.catch((err) => _handleRegistrationError(err));
-}
-
 function createWsClient(ctx: WsClientContext): WebSocketClient {
 	const { config, addressManagerClient, tokenManager, serviceCache } = ctx;
-	const deps: AddressManagerDeps = { addressManagerClient, tokenManager };
+	const cacheInvalidationHandler = new CacheInvalidationHandler();
+	const wsAuthFailureHandler = new WsAuthFailureHandler();
+	const deps = { addressManagerClient, tokenManager };
 	let wsClient: WebSocketClient;
 
 	wsClient = new WebSocketClient({
@@ -188,10 +141,10 @@ function createWsClient(ctx: WsClientContext): WebSocketClient {
 		subscribedServices: config.wsSubscribedServices ?? ["*"],
 		token: tokenManager.getTokenOrUndefined(),
 		onMessage: (message) => {
-			onCacheInvalidateMessage(message, serviceCache);
+			cacheInvalidationHandler.handle(message, serviceCache);
 		},
 		onAuthFailure: () => {
-			onWsAuthFailure({ ...deps, wsClient });
+			wsAuthFailureHandler.handle({ ...deps, wsClient });
 		},
 	});
 

@@ -54,9 +54,10 @@ export class RedisConnectionManager extends ConnectionManager<Redis> {
 		);
 	}
 
-	get client(): Redis {
-		if (!this._connection) throw new Error("Redis not connected");
-		return this._connection;
+	getClient(): Redis {
+		const client = super.getClient();
+		if (!client) throw new Error("Redis not connected");
+		return client;
 	}
 
 	disconnect(): void {

@@ -2,14 +2,11 @@ import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import type { ServiceInstance } from "../../src/client/type";
-import {
-	IdentityResolver,
-	MapResolver,
-} from "../../src/discovery/dns-resolver";
 import { ServiceHealthChecker } from "../../src/discovery/service-health-checker";
 import {
 	IpAddressLocator,
-	MappingServiceLocator,
+	MapResolver,
+	ServiceNameLocator,
 } from "../../src/discovery/service-locator";
 
 describe("ServiceHealthChecker", () => {
@@ -90,7 +87,7 @@ describe("ServiceHealthChecker", () => {
 		expect(url).toBe("https://127.0.0.1:8080/ping");
 	});
 
-	describe("DNS name mapping via MappingServiceLocator", () => {
+	describe("DNS name mapping via MapResolver", () => {
 		test("uses custom DNS mapping when provided", () => {
 			const dnsMap = {
 				"user-service": "custom-host",
@@ -99,7 +96,7 @@ describe("ServiceHealthChecker", () => {
 			checker = new ServiceHealthChecker(
 				httpClient,
 				2000,
-				new MappingServiceLocator(new MapResolver(dnsMap))
+				new MapResolver(dnsMap)
 			);
 
 			const customInstance = { ...instance, serviceName: "user-service" };
@@ -112,18 +109,18 @@ describe("ServiceHealthChecker", () => {
 			checker = new ServiceHealthChecker(
 				httpClient,
 				2000,
-				new MappingServiceLocator(new MapResolver(dnsMap))
+				new MapResolver(dnsMap)
 			);
 
 			const url = (checker as any)._buildPingUrl(instance);
 			expect(url).toBe("https://user-service:8080/ping");
 		});
 
-		test("uses IdentityResolver fallback when no mapping resolver provided", () => {
+		test("uses ServiceNameLocator fallback when no mapping resolver provided", () => {
 			checker = new ServiceHealthChecker(
 				httpClient,
 				2000,
-				new MappingServiceLocator(new IdentityResolver())
+				new ServiceNameLocator()
 			);
 
 			const url = (checker as any)._buildPingUrl(instance);
@@ -135,7 +132,7 @@ describe("ServiceHealthChecker", () => {
 			checker = new ServiceHealthChecker(
 				httpClient,
 				2000,
-				new MappingServiceLocator(new MapResolver(dnsMap))
+				new MapResolver(dnsMap)
 			);
 			httpClient.get.mockResolvedValueOnce({});
 

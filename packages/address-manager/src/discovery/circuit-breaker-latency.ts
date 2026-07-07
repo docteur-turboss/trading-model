@@ -1,13 +1,14 @@
 import { logger } from "@trading-model/common/config/logger";
+import {
+	DEFAULT_LATENCY_WINDOW_SIZE,
+	DEFAULT_LATENCY_P99_THRESHOLD_MS,
+} from "./circuit-breaker-constants";
 
 export interface LatencyWindow {
 	samples: number[];
 	cursor: number;
 	count: number;
 }
-
-const DEFAULT_LATENCY_WINDOW_SIZE = 100;
-const DEFAULT_LATENCY_P99_THRESHOLD_MS = 5000;
 
 export class CircuitBreakerLatency {
 	private readonly _latencyWindows = new Map<string, LatencyWindow>();

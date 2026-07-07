@@ -1,19 +1,21 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { ICircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
 import { CircuitBreakerLatency } from "./circuit-breaker-latency";
+import { CircuitStateStore } from "./circuit-state-store";
 import { CircuitBreakerPersistence } from "./circuit-breaker-persistence";
 import { CircuitBreakerRecorder } from "./circuit-breaker-recorder";
 import { CircuitBreakerState } from "./circuit-breaker-state";
-import { type IServiceCache, NullServiceCache } from "./service-cache.interface";
-
-const DEFAULT_LATENCY_WINDOW_SIZE = 100;
-const DEFAULT_LATENCY_P99_THRESHOLD_MS = 5000;
-const DEFAULT_LOAD_CACHE_TTL_MS = 2_000;
+import type { ICircuitStateStore } from "./circuit-state-store";
+import {
+	DEFAULT_LATENCY_WINDOW_SIZE,
+	DEFAULT_LATENCY_P99_THRESHOLD_MS,
+	DEFAULT_LOAD_CACHE_TTL_MS,
+} from "./circuit-breaker-constants";
 
 export interface CircuitBreakerOptions {
 	failureThreshold?: number;
 	halfOpenTimeoutMs?: number;
-	stateStore?: IServiceCache;
+	stateStore?: ICircuitStateStore;
 	loadFromStoreCacheTtlMs?: number;
 	latencyWindowSize?: number;
 	latencyP99ThresholdMs?: number;
@@ -39,7 +41,7 @@ export class DiscoveryCircuitBreaker implements ICircuitBreaker {
 			this._latency.deleteWindow(instanceId);
 		});
 		this._latency = new CircuitBreakerLatency(latencyWindowSize, latencyP99ThresholdMs);
-		this._persistence = new CircuitBreakerPersistence(stateStore ?? new NullServiceCache(), loadFromStoreCacheTtlMs);
+		this._persistence = new CircuitBreakerPersistence(stateStore ?? new CircuitStateStore(), loadFromStoreCacheTtlMs);
 		this._recorder = new CircuitBreakerRecorder(this._state, this._latency, this._persistence);
 	}
 

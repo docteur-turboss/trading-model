@@ -29,44 +29,14 @@ export interface IServiceCache {
 	/** Return the cached version for a service, or 0 if not cached / stale. */
 	getVersion(serviceName: ServiceId, region?: string): Promise<number>;
 	stop(): void;
-
-	/** Persist circuit breaker state for an instance. */
-	setCircuitState(instanceId: string, state: CircuitState): Promise<void>;
-	/** Retrieve circuit breaker state for an instance. */
-	getCircuitState(instanceId: string): Promise<CircuitState | null>;
-	/** Remove circuit breaker state for an instance. */
-	deleteCircuitState(instanceId: string): Promise<void>;
 }
 
-export class NullServiceCache implements IServiceCache {
-	async get(
-		_serviceName: ServiceId,
-		_region?: string
-	): Promise<ServiceInstance | null> {
-		return null;
-	}
-	async set(_entry: CacheSetEntry): Promise<void> {}
-	async invalidate(_serviceName: ServiceId, _region?: string): Promise<void> {}
-	async clear(): Promise<void> {}
-	async entries(): Promise<
-		Array<{
-			serviceName: ServiceId;
-			instance: ServiceInstance;
-			region?: string;
-		}>
-	> {
-		return [];
-	}
-	async getVersion(_serviceName: ServiceId, _region?: string): Promise<number> {
-		return 0;
-	}
-	stop(): void {}
-	async setCircuitState(
-		_instanceId: string,
-		_state: CircuitState
-	): Promise<void> {}
-	async getCircuitState(_instanceId: string): Promise<CircuitState | null> {
-		return null;
-	}
-	async deleteCircuitState(_instanceId: string): Promise<void> {}
-}
+export const NULL_SERVICE_CACHE: IServiceCache = {
+	get: async () => null,
+	set: async () => {},
+	invalidate: async () => {},
+	clear: async () => {},
+	entries: async () => [],
+	getVersion: async () => 0,
+	stop: () => {},
+};

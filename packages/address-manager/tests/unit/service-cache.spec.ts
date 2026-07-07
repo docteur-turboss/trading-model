@@ -47,10 +47,10 @@ describe("ServiceCache", () => {
 		jest.useRealTimers();
 	});
 
-	it("should invalidate entry", async () => {
+	it("should delete entry", async () => {
 		const inst = makeInstance();
 		await cache.set({ serviceName: "svc", instance: inst });
-		await cache.invalidate("svc");
+		await cache.delete("svc");
 		const result = await cache.get("svc");
 		expect(result).toBeNull();
 	});

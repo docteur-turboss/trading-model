@@ -34,12 +34,13 @@ export class ServiceCache implements IServiceCache {
 	async set(entry: CacheSetEntry): Promise<void> {
 		return this._withLock(() => { this._cacheStore.setEntry(entry); });
 	}
-	async invalidate(serviceName: ServiceId, _region?: string): Promise<void> {
-		return this._withLock(() => { this._cacheStore.invalidate(serviceName); });
+	async delete(serviceName: ServiceId, _region?: string): Promise<void> {
+		return this._withLock(() => { this._cacheStore.delete(serviceName); });
 	}
-	async delete(serviceName: ServiceId, region?: string): Promise<void> {
-		return this.invalidate(serviceName, region);
+	async invalidate(serviceName: ServiceId, region?: string): Promise<void> {
+		return this.delete(serviceName, region);
 	}
+
 	async clear(): Promise<void> {
 		return this._withLock(() => { this._cacheStore.clear(); });
 	}

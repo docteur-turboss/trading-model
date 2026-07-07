@@ -2,15 +2,14 @@ import { logger } from "@trading-model/common/config/logger";
 import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
-import type { IServiceCache } from "./service-cache.interface";
-
-const DEFAULT_LOAD_CACHE_TTL_MS = 2_000;
+import type { ICircuitStateStore } from "./circuit-state-store";
+import { DEFAULT_LOAD_CACHE_TTL_MS } from "./circuit-breaker-constants";
 
 export class CircuitBreakerPersistence {
 	private readonly _lastLoadTimes = new Map<string, number>();
 
 	constructor(
-		private readonly _stateStore: IServiceCache,
+		private readonly _stateStore: ICircuitStateStore,
 		private readonly _loadFromStoreCacheTtlMs: number = DEFAULT_LOAD_CACHE_TTL_MS
 	) {}
 
@@ -35,8 +34,8 @@ export class CircuitBreakerPersistence {
 		});
 	}
 
-	private _buildStateData(machine: CircuitStateMachine): import("./service-cache.interface").CircuitState {
-		return { failures: machine.failures, lastFailureTime: Date.now(), state: machine.getState(Date.now()) as "closed" | "open" | "half-open" };
+	private _buildStateData(machine: CircuitStateMachine): import("./circuit-breaker-state").INstanceState {
+		return { failures: machine.failures, lastFailureTime: Date.now(), state: machine.getState(Date.now()) };
 	}
 
 	private _isCacheValid(instanceId: string): boolean {
@@ -49,7 +48,7 @@ export class CircuitBreakerPersistence {
 
 	private _updateFromPersisted(
 		instanceId: string,
-		persisted: import("./service-cache.interface").CircuitState,
+		persisted: import("./circuit-breaker-state").INstanceState,
 		instances: Map<string, CircuitStateMachine>
 	): void {
 		if (this._shouldRestoreFromPersisted(instances.get(instanceId), persisted)) {
