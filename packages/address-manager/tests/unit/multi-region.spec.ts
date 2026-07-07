@@ -11,7 +11,7 @@ const FIXED_TIMESTAMP = 1_700_000_000_000;
 
 function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
-		ip: "127.0.0.1" as unknown as IPAddress,
+		host: "127.0.0.1" as unknown as IPAddress,
 		port: 8080 as unknown as Port,
 		instanceId: "instance-1",
 		lastHeartbeat: FIXED_TIMESTAMP,
@@ -73,19 +73,19 @@ describe("Multi-Region ServiceDiscovery", () => {
 
 	const usInstance = makeInstance({
 		instanceId: "node-us",
-		ip: "10.0.0.1" as unknown as IPAddress,
+		host: "10.0.0.1" as unknown as IPAddress,
 		region: "us-east-1",
 	});
 
 	const euInstance = makeInstance({
 		instanceId: "node-eu",
-		ip: "10.0.1.1" as unknown as IPAddress,
+		host: "10.0.1.1" as unknown as IPAddress,
 		region: "eu-west-1",
 	});
 
 	const noRegionInstance = makeInstance({
 		instanceId: "node-legacy",
-		ip: "10.0.2.1" as unknown as IPAddress,
+		host: "10.0.2.1" as unknown as IPAddress,
 	});
 
 	beforeEach(() => {
@@ -282,7 +282,7 @@ describe("Multi-Region ServiceDiscovery", () => {
 			});
 
 			const result = await discovery.findService("user-service");
-			expect(result.ip).toBe("10.0.2.1");
+			expect(result.host).toBe("10.0.2.1");
 		});
 	});
 });

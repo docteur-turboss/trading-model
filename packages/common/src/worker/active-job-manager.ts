@@ -1,56 +1,44 @@
 import type { HttpClient } from "../config/http-client";
 import type { SchedulerWsJobAssignedMessage } from "../contracts/worker-protocol.types";
+import { AckTimerManager } from "./ack-timer-manager";
 
 interface ActiveJob {
 	id: string;
 	type: string;
 	ackDeadline: number;
-	timer: ReturnType<typeof setTimeout>;
-}
-
-function _createAckTimer(
-	jobId: string,
-	ackDeadline: number,
-	onTimeout: () => void
-): ReturnType<typeof setTimeout> {
-	const remaining = ackDeadline - Date.now();
-	return setTimeout(onTimeout, Math.max(remaining, 0));
 }
 
 function _toActiveJob(
-	job: SchedulerWsJobAssignedMessage["job"],
-	timer: ReturnType<typeof setTimeout>
+	job: SchedulerWsJobAssignedMessage["job"]
 ): ActiveJob {
 	return {
 		id: job.id,
 		type: job.type,
 		ackDeadline: job.ackDeadline,
-		timer,
 	};
 }
 
 export class JobTracker {
 	private readonly _activeJobs = new Map<string, ActiveJob>();
+	private readonly _ackTimers = new AckTimerManager();
 
 	startJob(job: SchedulerWsJobAssignedMessage["job"]): void {
-		const ackTimer = _createAckTimer(job.id, job.ackDeadline, () =>
+		this._ackTimers.start(job.id, job.ackDeadline, () =>
 			this._activeJobs.delete(job.id)
 		);
-		this._activeJobs.set(job.id, _toActiveJob(job, ackTimer));
+		this._activeJobs.set(job.id, _toActiveJob(job));
 	}
 
 	endJob(jobId: string): void {
 		const active = this._activeJobs.get(jobId);
 		if (active) {
-			clearTimeout(active.timer);
+			this._ackTimers.clear(jobId);
 			this._activeJobs.delete(jobId);
 		}
 	}
 
 	stopAll(): void {
-		for (const [, active] of this._activeJobs) {
-			clearTimeout(active.timer);
-		}
+		this._ackTimers.clearAll();
 		this._activeJobs.clear();
 	}
 

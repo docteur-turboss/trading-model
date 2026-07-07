@@ -35,7 +35,11 @@ function _setupAutoRenewCallback(
 	cert: TlsPemBundle
 ): void {
 	try {
-		server.setSecureContext(cert);
+		server.setSecureContext({
+			key: cert.keyPem,
+			cert: cert.certPem,
+			ca: cert.caPem,
+		});
 		logger.info("TLS context hot-reloaded after certificate renewal");
 	} catch (err) {
 		logger.error("Failed to hot-reload TLS context", { err });
@@ -52,9 +56,9 @@ function _createTlsBootstrap(config: BootstrapConfig): TlsBootstrapOptions {
 					config.serviceId as unknown as import("@trading-model/common/domain/primitives").ServiceId,
 				onRenew: (cert) =>
 					_setupAutoRenewCallback(server, {
-						key: cert.keyPem,
-						cert: cert.certPem,
-						ca: cert.caPem,
+						keyPem: cert.keyPem,
+						certPem: cert.certPem,
+						caPem: cert.caPem,
 					}),
 			});
 			_startAutoRenew(client);

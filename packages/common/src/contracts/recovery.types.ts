@@ -68,15 +68,18 @@ const CANCELLABLE_FROM = new Set<JOB_STATUS>([
 	JOB_STATUS.ORPHANED,
 ]);
 
-export class JobStatusError extends AppError {
-	readonly fromStatus: JOB_STATUS;
-	readonly toStatus: JOB_STATUS;
+export interface StatusTransition {
+	from: JOB_STATUS;
+	to: JOB_STATUS;
+}
 
-	constructor(fromStatus: JOB_STATUS, toStatus: JOB_STATUS, message: string) {
+export class JobStatusError extends AppError {
+	readonly transition: StatusTransition;
+
+	constructor(transition: StatusTransition, message: string) {
 		super(message, { code: "JobStatusError" });
 		this.name = "JobStatusError";
-		this.fromStatus = fromStatus;
-		this.toStatus = toStatus;
+		this.transition = transition;
 	}
 }
 
@@ -96,8 +99,7 @@ export class JobStatusMachine {
 	): JobEvent {
 		if (to === JOB_STATUS.CANCELLED && !JobStatusMachine.canCancel(from)) {
 			throw new JobStatusError(
-				from,
-				to,
+				{ from, to },
 				reason ?? `Cannot cancel job from ${from}`
 			);
 		}
@@ -106,14 +108,12 @@ export class JobStatusMachine {
 			!JobStatusMachine.canTransition(from, to)
 		) {
 			throw new JobStatusError(
-				from,
-				to,
+				{ from, to },
 				`Invalid job status transition: ${from} → ${to}`
 			);
 		}
 		return {
-			fromStatus: from,
-			toStatus: to,
+			transition: { from, to },
 			timestamp: new Date(),
 			reason: reason ?? "",
 		};
@@ -125,8 +125,7 @@ export class JobStatusMachine {
 }
 
 export interface JobEvent {
-	fromStatus: JOB_STATUS;
-	toStatus: JOB_STATUS;
+	transition: StatusTransition;
 	timestamp: Date;
 	reason: string;
 }

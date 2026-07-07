@@ -1,60 +1,80 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
+import type { CircuitBreakerConfig } from "@trading-model/common/reliability/circuit-breaker";
 import type { IUnkeyedCircuitBreaker } from "@trading-model/common/reliability/circuit-breaker.interface";
-import type { CircuitStateConfig } from "./circuit-breaker-state";
-import { DlqCircuitBreakerState } from "./circuit-breaker-state";
+import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { logger } from "./logger";
 
-export class MessageManagerCircuitBreaker implements IUnkeyedCircuitBreaker {
-	private readonly _state: DlqCircuitBreakerState;
+interface MessageManagerCircuitBreakerConfig
+	extends Partial<CircuitBreakerConfig> {
+	name?: string;
+	resetMs?: number;
+}
 
-	constructor(config?: Partial<CircuitStateConfig>) {
-		this._state = new DlqCircuitBreakerState({
-			failureThreshold: 5,
-			resetMs: 30_000,
-			halfOpenMaxAttempts: 2,
-			name: "message-manager",
-			...config,
+export class MessageManagerCircuitBreaker implements IUnkeyedCircuitBreaker {
+	private readonly _machine: CircuitStateMachine;
+	private readonly _name: string;
+
+	constructor(config?: MessageManagerCircuitBreakerConfig) {
+		this._machine = new CircuitStateMachine({
+			failureThreshold: config?.failureThreshold ?? 5,
+			cooldownMs: config?.resetMs ?? config?.cooldownMs ?? 30_000,
+			halfOpenMaxAttempts: config?.halfOpenMaxAttempts ?? 2,
 		});
+		this._name = config?.name ?? "message-manager";
 	}
 
 	isOpen(): boolean {
-		return this._state.isOpen(Date.now());
+		return this._machine.isOpen(Date.now());
 	}
 
 	isAllowed(): boolean {
-		return !this._state.isOpen(Date.now());
+		return !this._machine.isOpen(Date.now());
 	}
 
 	check(): CircuitState {
-		return this._state.getState(Date.now());
+		return this._machine.getState(Date.now());
 	}
 
 	recordSuccess(): void {
-		this._state.recordSuccess();
+		this._machine.recordSuccess();
 	}
 
 	recordFailure(_count?: number, _threshold?: number): void {
-		this._state.recordFailure(Date.now(), this._logOpened);
+		const prevState = this._machine.getState(Date.now());
+		this._machine.recordFailure(Date.now());
+		const currentState = this._machine.getState(Date.now());
+		if (prevState !== "open" && currentState === "open") {
+			const snapshot = this._machine.snapshot();
+			logger.warn(
+				`${this._name} circuit breaker ${prevState === "half-open" ? "re-opened during half-open" : "opened"}`,
+				{
+					failures: snapshot.failures,
+					halfOpenAttempts: snapshot.halfOpenAttempts,
+				}
+			);
+		}
 	}
 
 	getState(): CircuitState {
-		return this._state.getState(Date.now());
+		return this._machine.getState(Date.now());
 	}
 
 	getFailureCount(): number {
-		return this._state.failures;
+		return this._machine.failures;
 	}
 
 	clear(): void {
-		this._state.reset();
+		this._machine.reset();
 	}
 
 	async call<TResult>(
 		fn: () => Promise<TResult>,
-		fallback?: () => TResult,
+		fallback?: () => TResult
 	): Promise<TResult> {
 		if (!this.isAllowed()) {
-			if (fallback) return fallback();
+			if (fallback) {
+				return fallback();
+			}
 			throw new Error("Circuit breaker is OPEN");
 		}
 		try {
@@ -66,16 +86,4 @@ export class MessageManagerCircuitBreaker implements IUnkeyedCircuitBreaker {
 			throw error;
 		}
 	}
-
-	private readonly _logOpened = (
-		name: string,
-		failures: number,
-		halfOpenAttempts: number,
-		resetMs: number
-	): void => {
-		logger.warn(
-			`${name} circuit breaker ${halfOpenAttempts > 0 ? "re-opened during half-open" : "opened"}`,
-			{ failures, halfOpenAttempts, resetMs }
-		);
-	};
 }

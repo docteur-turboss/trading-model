@@ -70,8 +70,8 @@ describe("LeaseManager", () => {
 			const instance: ServiceInstance = {
 				serviceName: "test",
 				instanceId: "i1",
-				ip: "1.1.1.1",
-				port: 8080,
+		host: "1.1.1.1",
+		port: 8080,
 				ttl: 30000,
 				protocol: "mtls",
 				version: "1.0.0",
@@ -87,8 +87,8 @@ describe("LeaseManager", () => {
 			const instance: ServiceInstance = {
 				serviceName: "test",
 				instanceId: "i1",
-				ip: "1.1.1.1",
-				port: 8080,
+		host: "1.1.1.1",
+		port: 8080,
 				ttl: 30000,
 				protocol: "mtls",
 				version: "1.0.0",
@@ -104,8 +104,8 @@ describe("LeaseManager", () => {
 			const instance: ServiceInstance = {
 				serviceName: "test",
 				instanceId: "i1",
-				ip: "1.1.1.1",
-				port: 8080,
+		host: "1.1.1.1",
+		port: 8080,
 				ttl: 30000,
 				protocol: "mtls",
 				version: "1.0.0",
@@ -123,8 +123,8 @@ describe("LeaseManager", () => {
 			registry.registerInstance({
 				serviceName: "financial-scraper-service",
 				instanceId: "expired-id",
-				ip: "1.1.1.1",
-				port: 8080,
+		host: "1.1.1.1",
+		port: 8080,
 				ttl: 1,
 				protocol: "mtls",
 			});
@@ -154,8 +154,8 @@ describe("LeaseManager", () => {
 			registry.registerInstance({
 				serviceName: "test-service",
 				instanceId: "test-id",
-				ip: "1.1.1.1",
-				port: 8080,
+		host: "1.1.1.1",
+		port: 8080,
 				ttl: 1,
 				protocol: "mtls",
 			});

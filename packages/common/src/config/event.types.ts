@@ -30,6 +30,8 @@ export type { OrderBookLevel } from "../contracts/market-data.types";
 export type { OrderBookData } from "../contracts/market-data.types";
 /** @deprecated Use BookTickerData from "../contracts/market-data.types" */
 export type { BookTickerData } from "../contracts/market-data.types";
+/** @deprecated Use BidAsk from "../contracts/market-data.types" */
+export type { BidAsk } from "../contracts/market-data.types";
 /** @deprecated Use TickerData from "../contracts/market-data.types" */
 export type { TickerData } from "../contracts/market-data.types";
 

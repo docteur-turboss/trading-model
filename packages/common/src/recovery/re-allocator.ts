@@ -26,8 +26,7 @@ export class ReAllocator {
 
 	private _buildHistoryEntry(): JobEvent {
 		return {
-			fromStatus: JOB_STATUS.ORPHANED,
-			toStatus: JOB_STATUS.QUEUED,
+			transition: { from: JOB_STATUS.ORPHANED, to: JOB_STATUS.QUEUED },
 			timestamp: new Date(),
 			reason: "re-allocated",
 		};

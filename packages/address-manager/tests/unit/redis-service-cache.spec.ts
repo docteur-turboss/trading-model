@@ -43,7 +43,7 @@ describe("RedisServiceCache", () => {
 				JSON.stringify({
 					serviceName: "svc",
 					instanceId: "i-1",
-					ip: "127.0.0.1",
+					host: "127.0.0.1",
 					port: 8080,
 				})
 			);
@@ -53,7 +53,7 @@ describe("RedisServiceCache", () => {
 				instance: {
 					serviceName: "svc",
 					instanceId: "i-1",
-					ip: "127.0.0.1",
+					host: "127.0.0.1",
 					port: 8080,
 				} as any,
 			});

@@ -17,7 +17,7 @@ describe("ServiceHealthChecker", () => {
 	let checker: ServiceHealthChecker;
 
 	const instance: ServiceInstance = {
-		ip: "127.0.0.1" as unknown as IPAddress,
+		host: "127.0.0.1" as unknown as IPAddress,
 		port: 8080 as unknown as Port,
 		instanceId: "instance-1",
 		lastHeartbeat: Date.now(),

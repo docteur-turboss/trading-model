@@ -17,8 +17,8 @@ async function reloadTlsContext(
 		return;
 	}
 	try {
-		const { key, cert, ca } = await loadTlsFiles(tls);
-		server.setSecureContext({ key, cert, ca });
+		const { keyPem, certPem, caPem } = await loadTlsFiles(tls);
+		server.setSecureContext({ key: keyPem, cert: certPem, ca: caPem });
 		logger.info("TLS context reloaded", {
 			context: { event: eventType, file: filename },
 		});

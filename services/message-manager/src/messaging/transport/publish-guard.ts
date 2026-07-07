@@ -1,11 +1,12 @@
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type WebSocket from "ws";
+import { ENV } from "../../config/env";
 import { authorizeTopic } from "../core/acl";
+import { DeduplicationService } from "../core/deduplication-service";
 import type { Dispatcher } from "../core/dispatcher";
 import type { IncomingWssMessage } from "./wss-message.types";
 import type { WssRateLimiter } from "./wss-rate-limiter";
-import { WssDedup } from "./wss-dedup";
 
 function extractDedupId(msg: IncomingWssMessage): string | undefined {
 	const wssMetadata = msg.metadata as Record<string, unknown> | undefined;
@@ -14,12 +15,14 @@ function extractDedupId(msg: IncomingWssMessage): string | undefined {
 }
 
 export class PublishGuard {
-	private readonly _dedup = new WssDedup();
+	private readonly _dedup: DeduplicationService;
 
 	constructor(
 		private readonly _dispatcher: Dispatcher,
 		readonly _rateLimiter: WssRateLimiter
-	) {}
+	) {
+		this._dedup = new DeduplicationService(`${ENV.REDIS_PREFIX}wss-`);
+	}
 
 	async checkTopicAuth(
 		topic: string | undefined,
@@ -47,7 +50,7 @@ export class PublishGuard {
 		if (!dedupId) {
 			return true;
 		}
-		return this._dedup.check(dedupId);
+		return this._dedup.tryDeduplicate(dedupId, 300);
 	}
 
 	checkBackpressure(ws: WebSocket): boolean {

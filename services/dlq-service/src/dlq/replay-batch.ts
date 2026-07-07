@@ -1,13 +1,17 @@
 import { logger } from "../config/logger";
-import { getHttpClient } from "./shared/http-client-manager";
-import { isMMCircuitOpen, recordMMResult } from "./shared/mm-circuit-breaker";
+import { MessageManagerCircuitBreaker } from "../config/mm-circuit-breaker";
 import { deliverEntry } from "./delivery-executor";
+import { getHttpClient } from "./shared/http-client-manager";
 import type {
 	BatchReplayContext,
 	DlqEntryRef,
 	DlqError,
 	ReplayBatchOptions,
 } from "./types";
+
+const MmCircuitBreaker = new MessageManagerCircuitBreaker({
+	name: "replay-batch",
+});
 
 export interface ReplayContext extends BatchReplayContext {
 	isTimedOut: () => boolean;
@@ -154,9 +158,10 @@ async function _runBatchWithTimeout(
 	return { success: ctx.successCount.value, errors: ctx.errors };
 }
 
-function _createReplayContext(
-	ctxBase: BatchReplayContext
-): { ctx: ReplayContext; setTimedOut: () => void } {
+function _createReplayContext(ctxBase: BatchReplayContext): {
+	ctx: ReplayContext;
+	setTimedOut: () => void;
+} {
 	let batchTimedOut = false;
 	const successCount = { value: 0 };
 	const errors: DlqError[] = [];
@@ -211,7 +216,7 @@ function _checkBatchRejection(
 		});
 		return _rejectAll(entries, "Too many concurrent replay batches");
 	}
-	if (isMMCircuitOpen() && entries.length > 0) {
+	if (MmCircuitBreaker.isOpen() && entries.length > 0) {
 		logger.warn(
 			"Message-manager circuit breaker open — rejecting replay batch",
 			{
@@ -234,6 +239,10 @@ async function _executeBatch(
 		batchId: options.batchId,
 		instanceId: options.instanceId,
 	});
-	recordMMResult(success > 0);
+	if (success > 0) {
+		MmCircuitBreaker.recordSuccess();
+	} else {
+		MmCircuitBreaker.recordFailure();
+	}
 	return { success, errors };
 }

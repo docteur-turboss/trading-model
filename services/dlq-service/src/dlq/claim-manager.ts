@@ -3,6 +3,8 @@ import { ClaimFilterBuilder } from "./claim-filter-builder";
 import { ClaimQueryExecutor } from "./claim-query-executor";
 import { ClaimReleaseManager } from "./claim-release-manager";
 import type { StoredDlqEntry } from "./repository";
+import { CLAIM_PROJECTION } from "./dlq-constants";
+import { toStoredDlqEntry } from "./repository";
 
 export interface ClaimEntriesOptions {
 	limit: number;
@@ -75,7 +77,7 @@ export class DlqClaimManager {
 		filter: Record<string, unknown>,
 		limit: number
 	): Promise<import("mongodb").WithId<import("mongodb").Document>[]> {
-		return this._queryExecutor.findClaimCandidates(col, filter, limit, this._claimProjection);
+		return this._queryExecutor.findClaimCandidates(col, filter, limit, CLAIM_PROJECTION);
 	}
 
 	private async _claimAndMapResults(
@@ -88,10 +90,10 @@ export class DlqClaimManager {
 			candidates,
 			options.batchId,
 			options.instanceId,
-			this._claimProjection,
+			CLAIM_PROJECTION,
 			this._filterBuilder.buildBulkUpdateOps.bind(this._filterBuilder)
 		);
-		return claimed.map((doc) => this._filterBuilder.toStoredDlqEntry(doc));
+		return claimed.map((doc) => toStoredDlqEntry(doc));
 	}
 
 	private async _fetchAndMapResults(
@@ -103,19 +105,11 @@ export class DlqClaimManager {
 			col,
 			objectIds,
 			batchId,
-			this._claimProjection
+			CLAIM_PROJECTION
 		);
-		return claimed.map((doc) => this._filterBuilder.toStoredDlqEntry(doc));
+		return claimed.map((doc) => toStoredDlqEntry(doc));
 	}
 
-	private readonly _claimProjection = {
-		_id: 1,
-		topic: 1,
-		message: 1,
-		reason: 1,
-		deliveryAttempt: 1,
-		createdAt: 1,
-	} as const;
 }
 
 export const dlqClaimManager = new DlqClaimManager();

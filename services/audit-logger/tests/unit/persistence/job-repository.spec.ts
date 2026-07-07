@@ -98,14 +98,12 @@ describe("JobRepository", () => {
 			const job = makeJob({
 				history: [
 					{
-						fromStatus: "queued",
-						toStatus: "assigned",
+						transition: { from: "queued", to: "assigned" },
 						timestamp: new Date("2024-01-01"),
 						reason: "assign",
 					},
 					{
-						fromStatus: "assigned",
-						toStatus: "running",
+						transition: { from: "assigned", to: "running" },
 						timestamp: new Date("2024-01-02"),
 						reason: "start",
 					},
@@ -118,13 +116,11 @@ describe("JobRepository", () => {
 				.calls[0][0] as any;
 			expect(doc.history).toHaveLength(2);
 			expect(doc.history[0]).toMatchObject({
-				fromStatus: "queued",
-				toStatus: "assigned",
+				transition: { from: "queued", to: "assigned" },
 				reason: "assign",
 			});
 			expect(doc.history[1]).toMatchObject({
-				fromStatus: "assigned",
-				toStatus: "running",
+				transition: { from: "assigned", to: "running" },
 				reason: "start",
 			});
 		});
@@ -174,8 +170,7 @@ describe("JobRepository", () => {
 				createdAt: new Date(),
 				history: [
 					{
-						fromStatus: "queued",
-						toStatus: "assigned",
+						transition: { from: "queued", to: "assigned" },
 						timestamp: new Date("2024-01-01"),
 						reason: "assign",
 					},
@@ -187,8 +182,7 @@ describe("JobRepository", () => {
 
 			expect(result!.history).toHaveLength(1);
 			expect(result!.history[0]).toMatchObject({
-				fromStatus: "queued",
-				toStatus: "assigned",
+				transition: { from: "queued", to: "assigned" },
 				reason: "assign",
 			});
 		});
@@ -215,8 +209,7 @@ describe("JobRepository", () => {
 					}),
 					$push: expect.objectContaining({
 						history: expect.objectContaining({
-							fromStatus: "queued",
-							toStatus: "assigned",
+							transition: { from: "queued", to: "assigned" },
 						}),
 					}),
 				})

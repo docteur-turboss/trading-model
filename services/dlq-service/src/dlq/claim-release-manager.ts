@@ -4,8 +4,8 @@ import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import { ClaimFilterBuilder } from "./claim-filter-builder";
 import { DLQ_STATUS } from "./dlq-status";
-
-const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
+import { DLQ_MAX_CONSECUTIVE_ERRORS, CLAIM_PROJECTION } from "./dlq-constants";
+import { toStoredDlqEntry } from "./repository";
 
 export class ClaimReleaseManager {
 	private readonly _filterBuilder = new ClaimFilterBuilder();
@@ -32,13 +32,13 @@ export class ClaimReleaseManager {
 			},
 			{
 				returnDocument: "after",
-				projection: this._claimProjection,
+				projection: CLAIM_PROJECTION,
 			}
 		);
 		if (!result) {
 			return null;
 		}
-		return this._filterBuilder.toStoredDlqEntry(result);
+		return toStoredDlqEntry(result);
 	}
 
 	async releaseStaleClaims(staleThresholdMs = 60_000): Promise<number> {
@@ -86,12 +86,4 @@ export class ClaimReleaseManager {
 		return result.modifiedCount > 0;
 	}
 
-	private readonly _claimProjection = {
-		_id: 1,
-		topic: 1,
-		message: 1,
-		reason: 1,
-		deliveryAttempt: 1,
-		createdAt: 1,
-	} as const;
 }

@@ -80,8 +80,8 @@ function makeInstance(overrides?: Partial<ServiceInstance>): ServiceInstance {
 	return {
 		serviceName: "financial-scraper-service",
 		instanceId: "test-instance-1",
-		ip: "192.168.1.10",
-		port: 8444,
+		host: "192.168.1.10",
+	port: 8444,
 		version: "1.0.0",
 		ttl: 30_000,
 		protocol: "mtls",

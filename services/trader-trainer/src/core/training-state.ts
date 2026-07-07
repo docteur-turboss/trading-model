@@ -51,13 +51,11 @@ export interface LastTrainingInfo {
 }
 
 export class TrainingState {
-	private _hasInfo = false;
 	private _lastInfo: LastTrainingInfo | null = null;
 	private readonly _summaryBuilder = new GenomeSummaryBuilder();
 
 	update(info: LastTrainingInfo): void {
 		this._lastInfo = info;
-		this._hasInfo = true;
 	}
 
 	getCurrentSymbol(): TradingSymbol | undefined {
@@ -73,7 +71,7 @@ export class TrainingState {
 	}
 
 	getBestAgentSummary(): BestAgentSummary | null {
-		if (!this._hasInfo || !this._lastInfo) {
+		if (!this._lastInfo) {
 			return null;
 		}
 		return this._summaryBuilder.build(

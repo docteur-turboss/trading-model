@@ -1,14 +1,14 @@
-import { AppError } from "@trading-model/common/utils/errors";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import { DedupInserter } from "./dedup-inserter";
 import { DLQ_STATUS } from "./dlq-status";
 import { EntrySerializer } from "./entry-serializer";
 import type { DlqEntry } from "./repository";
+import { DLQ_MAX_PASS_COUNT } from "./dlq-constants";
 
-export class DlqCapacityError extends AppError {
+export class DlqCapacityError extends Error {
 	constructor(message: string) {
-		super(message, { code: "DlqCapacityError" });
+		super(message);
 		this.name = "DlqCapacityError";
 	}
 }
@@ -16,8 +16,6 @@ export class DlqCapacityError extends AppError {
 export function dlqCapacityError(message: string): DlqCapacityError {
 	return new DlqCapacityError(message);
 }
-
-const DLQ_MAX_PASS_COUNT = 3;
 
 async function _computeDlqPassCount(
 	col: import("mongodb").Collection,

@@ -1,5 +1,4 @@
 import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
-import { AppError } from "@trading-model/common/utils/errors";
 import type { Document, Filter } from "mongodb";
 import { ObjectId, type WithId } from "mongodb";
 import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
@@ -12,19 +11,18 @@ import {
 } from "./dlq-entry-writer";
 import { pruneEntries } from "./dlq-eviction-policy";
 import { DLQ_STATUS } from "./dlq-status";
+import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
 
 export { DlqCapacityError, dlqCapacityError };
 
 export function isDlqCapacityError(err: unknown): err is DlqCapacityError {
-	return err instanceof AppError && err.code === "DlqCapacityError";
+	return err instanceof DlqCapacityError;
 }
 
 export type { DlqEntry };
 
 export type { DlqStatus } from "./dlq-status";
 export { DLQ_STATUS } from "./dlq-status";
-
-export const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
 
 export interface StoredDlqEntry {
 	id: string;

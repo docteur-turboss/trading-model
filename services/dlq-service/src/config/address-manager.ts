@@ -4,4 +4,4 @@ import { ENV } from "./env";
 
 const { AddressManager, FIND_A_SERVICE } = createServiceAddressManager(ENV);
 
-export { AddressManager, FIND_A_SERVICE as findAService };
+export { AddressManager, FIND_A_SERVICE };

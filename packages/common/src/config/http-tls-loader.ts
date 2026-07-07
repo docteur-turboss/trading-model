@@ -19,14 +19,14 @@ export function loadTlsPemBundle(tlsConfig?: Partial<TlsPemBundle>): Partial<Tls
 		return {};
 	}
 	const result: Partial<TlsPemBundle> = {};
-	if (tlsConfig.ca) {
-		result.ca = readTlsFileSync(tlsConfig.ca, "CA certificate");
+	if (tlsConfig.caPem) {
+		result.caPem = readTlsFileSync(tlsConfig.caPem, "CA certificate");
 	}
-	if (tlsConfig.cert) {
-		result.cert = readTlsFileSync(tlsConfig.cert, "client certificate");
+	if (tlsConfig.certPem) {
+		result.certPem = readTlsFileSync(tlsConfig.certPem, "client certificate");
 	}
-	if (tlsConfig.key) {
-		result.key = readTlsFileSync(tlsConfig.key, "client key");
+	if (tlsConfig.keyPem) {
+		result.keyPem = readTlsFileSync(tlsConfig.keyPem, "client key");
 	}
 	return result;
 }
@@ -36,13 +36,13 @@ export function buildHttpsAgentOptions(tlsConfig?: TlsPaths): https.AgentOptions
 		return undefined;
 	}
 	const bundle = loadTlsPemBundle({
-		ca: tlsConfig.caPath,
-		cert: tlsConfig.certPath,
-		key: tlsConfig.keyPath,
+		caPem: tlsConfig.caPath,
+		certPem: tlsConfig.certPath,
+		keyPem: tlsConfig.keyPath,
 	});
 	const opts: https.AgentOptions = {};
-	if (bundle.ca) opts.ca = bundle.ca;
-	if (bundle.cert) opts.cert = bundle.cert;
-	if (bundle.key) opts.key = bundle.key;
+	if (bundle.caPem) opts.ca = bundle.caPem;
+	if (bundle.certPem) opts.cert = bundle.certPem;
+	if (bundle.keyPem) opts.key = bundle.keyPem;
 	return opts;
 }

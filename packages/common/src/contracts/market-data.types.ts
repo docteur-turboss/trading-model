@@ -97,12 +97,18 @@ export interface OrderBookData extends BaseMarketData {
 	asks: Set<OrderBookLevel>;
 }
 
-/** Best bid / ask ticker snapshot. */
-export interface BookTickerData extends BaseMarketData {
-	bidQty: Volume;
-	askQty: Volume;
+/** Best bid / ask pair with optional quantities. */
+export interface BidAsk {
 	bid: Price;
 	ask: Price;
+	bidQty?: Volume;
+	askQty?: Volume;
+}
+
+/** Best bid / ask ticker snapshot. */
+export interface BookTickerData extends BaseMarketData, BidAsk {
+	bidQty: Volume;
+	askQty: Volume;
 }
 
 /** 24-hour price ticker statistics. */

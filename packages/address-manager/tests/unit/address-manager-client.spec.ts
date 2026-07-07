@@ -152,7 +152,7 @@ describe("AddressManagerClient", () => {
 			});
 
 			const response: ServiceRegistrationResponse = {
-				ip: "127.0.0.1" as unknown as IPAddress,
+				host: "127.0.0.1" as unknown as IPAddress,
 				port: 8080 as unknown as Port,
 				instanceId: "instance-1",
 				lastHeartbeat: Date.now(),
@@ -177,7 +177,7 @@ describe("AddressManagerClient", () => {
 
 		test("should call HttpClient.post with correct URL, payload, and headers", async () => {
 			const response: ServiceRegistrationResponse = {
-				ip: "192.168.1.100" as unknown as IPAddress,
+				host: "192.168.1.100" as unknown as IPAddress,
 				port: 8080 as unknown as Port,
 				instanceId: "instance-1",
 				lastHeartbeat: Date.now(),

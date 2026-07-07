@@ -55,6 +55,7 @@ export class MongoConnectionManager extends CommonMongoConnectionManager {
 	}
 
 	protected _clearState(): void {
+		super._clearState();
 		this._collection = null;
 		this._collectionPromise = null;
 	}

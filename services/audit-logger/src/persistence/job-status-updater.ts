@@ -30,8 +30,7 @@ export class JobStatusUpdater {
 		extras?: JobUpdateExtras
 	): JobEvent {
 		return {
-			fromStatus,
-			toStatus,
+			transition: { from: fromStatus, to: toStatus },
 			timestamp: new Date(),
 			reason: extras?.error || toStatus,
 		};

@@ -132,7 +132,7 @@ describe("AddressManager", () => {
 
 	describe("findService", () => {
 		it("should delegate to serviceDiscovery.findService", async () => {
-			const expected = { ip: "192.168.1.1", port: 8080 };
+			const expected = { host: "192.168.1.1", port: 8080 };
 			(MOCK_FIND_SERVICE as any).mockResolvedValue(expected);
 			const result = await am.findService("some-service");
 			expect(result).toBe(expected);

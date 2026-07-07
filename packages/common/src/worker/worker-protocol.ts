@@ -43,7 +43,7 @@ export class WorkerProtocol implements IWorkerProtocol {
 		}
 	}
 	private _handleRegister(message: WorkerIncomingMessage & { type: "register" }, ws: WebSocket): void {
-		this._workerRegistry.register(message.workerId, { workerId: message.workerId, address: message.address, port: message.port, capabilities: message.capabilities, maxConcurrency: message.maxConcurrency, currentLoad: 0 });
+		this._workerRegistry.register(message.workerId, { workerId: message.workerId, host: message.host, port: message.port, capabilities: message.capabilities, maxConcurrency: message.maxConcurrency, currentLoad: 0 });
 		this._wsManager.setConnection(message.workerId, ws);
 		logger.info("Worker registered via WebSocket", { context: { workerId: message.workerId } });
 	}

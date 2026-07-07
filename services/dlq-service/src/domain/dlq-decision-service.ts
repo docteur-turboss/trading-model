@@ -4,9 +4,7 @@
  */
 
 import { DLQ_STATUS } from "../dlq/dlq-status";
-
-const DLQ_MAX_PASS_COUNT = 3;
-const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
+import { DLQ_MAX_CONSECUTIVE_ERRORS, DLQ_MAX_PASS_COUNT } from "../dlq/dlq-constants";
 
 export interface DlqDecisionInput {
 	messageId: string;

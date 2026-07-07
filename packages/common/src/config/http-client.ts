@@ -65,9 +65,9 @@ export class HttpClient {
 
 	static createWithTls(certPaths: TlsPaths): HttpClient {
 		return new HttpClient({
-			ca: certPaths.caPath,
-			cert: certPaths.certPath,
-			key: certPaths.keyPath,
+			caPem: certPaths.caPath,
+			certPem: certPaths.certPath,
+			keyPem: certPaths.keyPath,
 		});
 	}
 
@@ -80,9 +80,9 @@ export class HttpClient {
 		);
 
 		return this._executor.executeWithRetry(context, route, {
-			ca: this._tlsBundle.ca,
-			cert: this._tlsBundle.cert,
-			key: this._tlsBundle.key,
+			caPem: this._tlsBundle.caPem,
+			certPem: this._tlsBundle.certPem,
+			keyPem: this._tlsBundle.keyPem,
 		});
 	}
 }

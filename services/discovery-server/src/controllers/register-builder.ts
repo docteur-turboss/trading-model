@@ -37,7 +37,7 @@ export function buildServiceInstance(
 	return {
 		instanceId: resolveInstanceId(data, registry),
 		serviceName: toServiceId(serviceName),
-		ip: ip as IPAddress,
+		host: ip as IPAddress,
 		port: Port.of(port),
 		version: toVersion(version ?? "1.0.0"),
 		ttl: 30_000,

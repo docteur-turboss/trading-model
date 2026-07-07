@@ -63,7 +63,14 @@ export async function createAndStartHttpsServer(
 	options: HttpsServerOptions
 ): Promise<HttpServer> {
 	const tlsContext = await loadTlsFiles(options.tls);
-	const httpsServer = https.createServer(_buildServerOptions(tlsContext), app);
+	const httpsServer = https.createServer(
+		_buildServerOptions({
+			key: tlsContext.keyPem,
+			cert: tlsContext.certPem,
+			ca: tlsContext.caPem,
+		}),
+		app
+	);
 
 	_startListening(httpsServer, options.port);
 

@@ -38,7 +38,7 @@ export class MessageManagerClient {
 
 	private async _findService(
 		service: ServiceInstanceName
-	): Promise<{ ip: string; port: number }> {
+	): Promise<{ host: string; port: number }> {
 		const target = await this._addressManagerClient.findService(service);
 		if (!target) {
 			throw serviceUnreachableError(`Unable to contact the service: ${service}`);
@@ -47,12 +47,12 @@ export class MessageManagerClient {
 	}
 
 	private async _publishToService<TPayload = unknown>(
-		target: { ip: string; port: number },
+		target: { host: string; port: number },
 		payload: TPayload,
 		metadata: MessageMetadata
 	): Promise<void> {
 		return await this._httpClient.post(
-			`https://${target.ip}:${target.port}/message`,
+			`https://${target.host}:${target.port}/message`,
 			{ payload, metadata }
 		);
 	}

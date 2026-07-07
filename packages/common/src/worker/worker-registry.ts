@@ -1,22 +1,17 @@
 import type { WorkerRegistration } from "../contracts/worker-protocol.types";
 import { WorkerStore } from "./worker-store";
-
-function _pickLowerLoad(
-	candidate: WorkerRegistration,
-	best: WorkerRegistration | null,
-	bestLoad: number
-): WorkerRegistration | null {
-	if (candidate.currentLoad < bestLoad) {
-		return candidate;
-	}
-	return best;
-}
+import { WorkerLoadBalancer } from "./worker-load-balancer";
+import { WorkerHealthMonitor } from "./worker-health-monitor";
 
 export class WorkerRegistry {
 	private readonly _store: WorkerStore;
+	private readonly _loadBalancer: WorkerLoadBalancer;
+	private readonly _healthMonitor: WorkerHealthMonitor;
 
 	constructor(heartbeatTtlMs: number) {
 		this._store = new WorkerStore(heartbeatTtlMs);
+		this._loadBalancer = new WorkerLoadBalancer(this._store);
+		this._healthMonitor = new WorkerHealthMonitor(this._store);
 	}
 
 	register(
@@ -49,36 +44,12 @@ export class WorkerRegistry {
 		this._store.setStatus(workerId, status);
 	}
 
-	private _isWorkerSuitable(
-		worker: WorkerRegistration,
-		jobType: string
-	): boolean {
-		return (
-			worker.status === "active" &&
-			worker.capabilities.includes(
-				jobType as import("../domain/primitives").Capability
-			) &&
-			worker.currentLoad < worker.maxConcurrency
-		);
-	}
-
 	findBestWorker(jobType: string): WorkerRegistration | null {
-		let best: WorkerRegistration | null = null;
-		let bestLoad = Number.POSITIVE_INFINITY;
-		for (const worker of this._store.all().values()) {
-			if (!this._isWorkerSuitable(worker, jobType)) {
-				continue;
-			}
-			best = _pickLowerLoad(worker, best, bestLoad);
-			if (best === worker) {
-				bestLoad = worker.currentLoad;
-			}
-		}
-		return best;
+		return this._loadBalancer.findBestWorker(jobType);
 	}
 
 	purgeStaleWorkers(): string[] {
-		return this._store.purgeStaleWorkers();
+		return this._healthMonitor.purgeStaleWorkers();
 	}
 
 	count(): number {
@@ -86,21 +57,10 @@ export class WorkerRegistry {
 	}
 
 	averageLoad(): number {
-		if (this._store.size() === 0) {
-			return 0;
-		}
-		let total = 0;
-		for (const worker of this._store.all().values()) {
-			if (worker.maxConcurrency > 0) {
-				total += worker.currentLoad / worker.maxConcurrency;
-			}
-		}
-		return total / this._store.size();
+		return this._healthMonitor.averageLoad();
 	}
 
 	getAllActive(): WorkerRegistration[] {
-		return Array.from(this._store.all().values()).filter(
-			(registration) => registration.status === "active"
-		);
+		return this._healthMonitor.getAllActive();
 	}
 }

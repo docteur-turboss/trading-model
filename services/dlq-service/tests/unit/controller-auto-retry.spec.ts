@@ -71,7 +71,7 @@ jest.mock("../../src/config/db", () => ({
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	findAService: jest.fn(),
+	FIND_A_SERVICE: jest.fn(),
 }));
 
 jest.mock("../../src/config/logger", () => ({

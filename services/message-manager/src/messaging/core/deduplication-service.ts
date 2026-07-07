@@ -50,10 +50,12 @@ export class DeduplicationService {
 		return false;
 	}
 
-	private _useDegradedCache(
-		deduplicationId: string,
-		err: Error
-	): boolean {
+	clear(): void {
+		this._localDedupCache.clear();
+		this._degradedDedupCache.clear();
+	}
+
+	private _useDegradedCache(deduplicationId: string, err: Error): boolean {
 		if (this._degradedDedupCache.has(deduplicationId)) {
 			return false;
 		}

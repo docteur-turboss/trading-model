@@ -34,7 +34,7 @@ function createMockBackend(): jest.Mocked<RegistryBackend> {
 const MAKE_INSTANCE = (id: string): ServiceInstance => ({
 	serviceName: "svc",
 	instanceId: id,
-	ip: "127.0.0.1",
+	host: "127.0.0.1",
 	port: 8080,
 	protocol: "http",
 	lastHeartbeat: Date.now(),

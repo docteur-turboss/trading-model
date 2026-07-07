@@ -26,8 +26,6 @@ export interface HostPort {
 }
 
 /** Identifies a service by name, network address, and port. */
-export interface ServiceEndpoint {
+export interface ServiceEndpoint extends HostPort {
 	serviceName: ServiceId;
-	address: IPAddress;
-	port: Port;
 }

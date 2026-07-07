@@ -101,14 +101,14 @@ jest.mock("../../src/discovery/service-cache", () => ({
 jest.mock("../../src/discovery/service-discovery", () => ({
 	ServiceDiscovery: jest.fn<any>().mockReturnValue({
 		findService: jest.fn<any>().mockResolvedValue({
-			ip: "127.0.0.1",
+			host: "127.0.0.1",
 			port: 8080,
 			instanceId: "i-1",
 			serviceName: "test-service",
 		}),
 		findAllServices: jest.fn<any>().mockResolvedValue([
 			{
-				ip: "127.0.0.1",
+				host: "127.0.0.1",
 				port: 8080,
 				instanceId: "i-1",
 				serviceName: "test-service",

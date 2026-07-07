@@ -1,19 +1,16 @@
 import type {
 	Capability,
 	InstanceId,
-	IPAddress,
 	JobId,
 	JobType,
-	Port,
 	WorkerStatus,
 } from "../domain/primitives";
+import type { HostPort } from "../domain/service-identity";
 
 export type { WorkerStatus };
 
-export interface WorkerRegistrationBase {
+export interface WorkerRegistrationBase extends HostPort {
 	workerId: InstanceId;
-	address: IPAddress;
-	port: Port;
 	capabilities: Capability[];
 	maxConcurrency: number;
 }

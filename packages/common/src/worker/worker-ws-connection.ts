@@ -76,7 +76,7 @@ export class WorkerWsConnection implements IWsConnection {
 		const msg: WorkerWsRegisterMessage = {
 			type: "register",
 			workerId: toInstanceId(this._cfg.workerId),
-			address: "" as IPAddress,
+			host: "" as IPAddress,
 			port: 0 as Port,
 			capabilities: this._cfg.capabilities,
 			maxConcurrency: this._cfg.maxConcurrency,

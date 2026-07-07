@@ -40,9 +40,9 @@ function _buildTlsOptions(
 	options: HttpRequestOptions & Partial<TlsPemBundle>
 ): Partial<https.RequestOptions> {
 	return {
-		cert: options.cert,
-		key: options.key,
-		ca: options.ca,
+		cert: options.certPem,
+		key: options.keyPem,
+		ca: options.caPem,
 		rejectUnauthorized: true,
 		agent: options?.agent ?? getKeepAliveAgent(),
 	};

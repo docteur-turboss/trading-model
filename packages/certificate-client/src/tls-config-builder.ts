@@ -9,13 +9,13 @@ export class TlsConfigBuilder {
 		const opts: WebSocket.ClientOptions = {};
 		if (this._tlsConfig) {
 			const bundle = loadTlsPemBundle({
-				ca: this._tlsConfig.caPath,
-				cert: this._tlsConfig.certPath,
-				key: this._tlsConfig.keyPath,
+				caPem: this._tlsConfig.caPath,
+				certPem: this._tlsConfig.certPath,
+				keyPem: this._tlsConfig.keyPath,
 			});
-			if (bundle.ca) opts.ca = bundle.ca;
-			if (bundle.cert) opts.cert = bundle.cert;
-			if (bundle.key) opts.key = bundle.key;
+			if (bundle.caPem) opts.ca = bundle.caPem;
+			if (bundle.certPem) opts.cert = bundle.certPem;
+			if (bundle.keyPem) opts.key = bundle.keyPem;
 			opts.rejectUnauthorized = true;
 		}
 		opts.minVersion = "TLSv1.3";

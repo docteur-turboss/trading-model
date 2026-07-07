@@ -3,8 +3,7 @@ import { ObjectId } from "mongodb";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import { DLQ_STATUS } from "./dlq-status";
-
-const DLQ_MAX_CONSECUTIVE_ERRORS = 3;
+import { DLQ_MAX_CONSECUTIVE_ERRORS } from "./dlq-constants";
 
 function _isEntryAbandoned(
 	col: import("mongodb").Collection,

@@ -15,7 +15,7 @@ describe("MessageManagerClient", () => {
 	};
 
 	const mockServiceInstance = {
-		ip: "192.168.1.100",
+		host: "192.168.1.100",
 		port: 3001,
 	};
 

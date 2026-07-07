@@ -46,7 +46,7 @@ export class ServiceNameLocator implements ServiceLocator {
  */
 export class IpAddressLocator implements ServiceLocator {
 	locate(instance: ServiceInstance): string {
-		return instance.ip;
+		return instance.host;
 	}
 
 	resolve(serviceName: string): string {

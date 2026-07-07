@@ -49,7 +49,7 @@ export class TopicSubscriptionService {
 		if (!target) {
 			throw serviceUnreachableError("Unable to contact the message manager");
 		}
-		return { host: target.ip, port: target.port };
+		return { host: target.host, port: target.port };
 	}
 
 	private _handleSubscribeError(err: unknown, action: string): never {

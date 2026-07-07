@@ -1,8 +1,7 @@
 import type { Job, JobEvent, QueuedJob } from "../../src/types/job.types";
 
 export const createJobEvent = (overrides?: Partial<JobEvent>): JobEvent => ({
-	fromStatus: "pending",
-	toStatus: "queued",
+	transition: { from: "pending", to: "queued" },
 	timestamp: new Date(),
 	reason: "created",
 	...overrides,

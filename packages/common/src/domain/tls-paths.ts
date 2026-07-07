@@ -7,9 +7,9 @@ export interface TlsPaths {
 
 /** In-memory TLS PEM content (key, certificate, CA chain). */
 export interface TlsPemBundle {
-	key: string;
-	cert: string;
-	ca: string;
+	keyPem: string;
+	certPem: string;
+	caPem: string;
 }
 
 /**

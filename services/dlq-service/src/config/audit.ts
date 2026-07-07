@@ -1,9 +1,8 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type { CorrelationId } from "@trading-model/common/domain/primitives";
 import type { AuditEvent } from "@trading-model/common/contracts/admin/audit.dto";
 
-import { findAService } from "./address-manager";
+import { FIND_A_SERVICE } from "./address-manager";
 import { ENV } from "./env";
 import { logger } from "./logger";
 import { MessageManagerCircuitBreaker } from "./mm-circuit-breaker";
@@ -35,7 +34,9 @@ class AuditUrlResolver {
 
 	private async _resolveUrl(): Promise<string | null> {
 		try {
-			const target = await findAService(ServiceInstanceName.AuditLoggerService);
+			const target = await FIND_A_SERVICE(
+				ServiceInstanceName.AuditLoggerService
+			);
 			if (target) {
 				return `https://${target.ip}:${target.port}`;
 			}

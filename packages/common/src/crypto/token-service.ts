@@ -162,11 +162,11 @@ function verifyHmac(input: HmacVerificationInput): boolean {
 
 export function generateInstanceId({
 	serviceName,
-	address,
+	host,
 	port,
 }: ServiceEndpoint): string {
 	return createHmac("sha256", generateRandomStr())
-		.update(`${serviceName}-${address}:${port}-${Date.now()}`)
+		.update(`${serviceName}-${host}:${port}-${Date.now()}`)
 		.digest("base64");
 }
 

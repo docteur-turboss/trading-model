@@ -75,7 +75,7 @@ jest.mock("../../src/dlq/retry-manager", () => ({
 }));
 
 jest.mock("../../src/config/address-manager", () => ({
-	findAService: jest.fn(),
+	FIND_A_SERVICE: jest.fn(),
 	AddressManager: { start: jest.fn() },
 }));
 
