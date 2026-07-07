@@ -17,6 +17,8 @@ import type {
 } from "@trading-model/common/contracts/message.types";
 import { toMessageId } from "@trading-model/common/domain/primitives";
 
+import { AckHandler } from "./ack-handler";
+import { BackpressureMonitor } from "./backpressure-monitor";
 import type { FileDlqRepository } from "./dlq-repository";
 import { HttpMessageDelivery } from "./http-message-delivery";
 import type { TopicSubscription } from "./messaging-types";
@@ -26,6 +28,8 @@ import { SubscriptionRegistry } from "./subscription-registry";
 export class Dispatcher {
 	private readonly _registry: SubscriptionRegistry;
 	private readonly _deliveryPort: HttpMessageDelivery;
+	private readonly _ackHandler: AckHandler;
+	private readonly _backpressureMonitor: BackpressureMonitor;
 
 	constructor(
 		httpClient: HttpClient,
@@ -33,6 +37,8 @@ export class Dispatcher {
 	) {
 		this._deliveryPort = new HttpMessageDelivery(httpClient, dlqRepository);
 		this._registry = new SubscriptionRegistry(this._deliveryPort);
+		this._ackHandler = new AckHandler();
+		this._backpressureMonitor = new BackpressureMonitor();
 	}
 
 	async publish(
@@ -99,12 +105,16 @@ export class Dispatcher {
 	}
 
 	getBackpressureRatio(): number {
-		return 0;
+		return this._backpressureMonitor.getBackpressureRatio();
 	}
 
-	async handleAck(_messageId: string, _instanceId: string): Promise<void> {}
+	async handleAck(messageId: string, instanceId: string): Promise<void> {
+		return this._ackHandler.handleAck(messageId, instanceId);
+	}
 
-	async handleNack(_messageId: string, _instanceId: string): Promise<void> {}
+	async handleNack(messageId: string, instanceId: string): Promise<void> {
+		return this._ackHandler.handleNack(messageId, instanceId);
+	}
 
 	unsubscribe(params: TopicSubscription): void {
 		this._registry.unsubscribe(params);

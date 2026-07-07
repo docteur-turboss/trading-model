@@ -5,6 +5,11 @@ import type {
 	Region,
 } from "../../domain/primitives";
 
+/**
+ * Admin-facing worker status display values.
+ * Backed by WorkerStatusCode in @trading-model/common/domain/primitives/enums.
+ * Keep in sync when adding new worker statuses.
+ */
 export enum AdminWorkerStatus {
 	Online = "Online",
 	Draining = "Draining",

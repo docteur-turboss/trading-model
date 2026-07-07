@@ -1,81 +1,124 @@
-import { EncodingIndex, SCALAR_DIM } from "./encoding-indices";
+import {
+	ACTIVATIONS,
+	CONNECTION_TYPES,
+	EncodingIndex,
+	MAX_DEPTH,
+	SCALAR_DIM,
+} from "./encoding-indices";
 
-export { SCALAR_DIM };
+export { ACTIVATIONS, CONNECTION_TYPES, MAX_DEPTH, SCALAR_DIM, encodedDim } from "./encoding-indices";
+
+export interface LayerEncoding {
+	neurons: number;
+	activationIdx: number;
+	connectionTypeIdx: number;
+}
 
 export class EncodingVector {
-	static readonly SCALAR_DIM = SCALAR_DIM;
-	private readonly _data: Float32Array;
-
-	constructor(dim?: number) {
-		this._data = new Float32Array(dim ?? SCALAR_DIM);
-	}
-
-	static from(data: Float32Array): EncodingVector {
-		const vec = new EncodingVector(data.length);
-		vec._data.set(data);
-		return vec;
-	}
+	gamma = 0;
+	learningRate = 0;
+	clipMin = 0;
+	clipMax = 0;
+	scaleFactor = 0;
+	maxEpisodeLength = 0;
+	nStepReturn = 0;
+	frameSkip = 0;
+	epsilonStart = 0;
+	epsilonMin = 0;
+	epsilonDecay = 0;
+	temperature = 0;
+	noiseStd = 0;
+	noiseDecay = 0;
+	bufferSize = 0;
+	alphaPER = 0;
+	betaPER = 0;
+	mutationRate = 0;
+	mutationSigma = 0;
+	mutationSelfSigma = 0;
+	networkInputDim = 0;
+	networkOutputDim = 0;
+	networkDepth = 0;
+	layers: LayerEncoding[] = [];
 
 	get length(): number {
-		return this._data.length;
+		return SCALAR_DIM + this.layers.length * 3;
 	}
 
 	toFloat32Array(): Float32Array {
-		return this._data;
+		const totalDim = this.length;
+		const arr = new Float32Array(totalDim);
+		arr[EncodingIndex.Gamma] = this.gamma;
+		arr[EncodingIndex.LearningRate] = this.learningRate;
+		arr[EncodingIndex.ClipMin] = this.clipMin;
+		arr[EncodingIndex.ClipMax] = this.clipMax;
+		arr[EncodingIndex.ScaleFactor] = this.scaleFactor;
+		arr[EncodingIndex.MaxEpisodeLength] = this.maxEpisodeLength;
+		arr[EncodingIndex.NStepReturn] = this.nStepReturn;
+		arr[EncodingIndex.FrameSkip] = this.frameSkip;
+		arr[EncodingIndex.EpsilonStart] = this.epsilonStart;
+		arr[EncodingIndex.EpsilonMin] = this.epsilonMin;
+		arr[EncodingIndex.EpsilonDecay] = this.epsilonDecay;
+		arr[EncodingIndex.Temperature] = this.temperature;
+		arr[EncodingIndex.NoiseStd] = this.noiseStd;
+		arr[EncodingIndex.NoiseDecay] = this.noiseDecay;
+		arr[EncodingIndex.BufferSize] = this.bufferSize;
+		arr[EncodingIndex.AlphaPER] = this.alphaPER;
+		arr[EncodingIndex.BetaPER] = this.betaPER;
+		arr[EncodingIndex.MutationRate] = this.mutationRate;
+		arr[EncodingIndex.MutationSigma] = this.mutationSigma;
+		arr[EncodingIndex.MutationSelfSigma] = this.mutationSelfSigma;
+		arr[EncodingIndex.NetworkInputDim] = this.networkInputDim;
+		arr[EncodingIndex.NetworkOutputDim] = this.networkOutputDim;
+		arr[EncodingIndex.NetworkDepth] = this.networkDepth;
+
+		let offset = SCALAR_DIM;
+		for (const layer of this.layers) {
+			arr[offset] = layer.neurons;
+			arr[offset + 1] = layer.activationIdx;
+			arr[offset + 2] = layer.connectionTypeIdx;
+			offset += 3;
+		}
+		return arr;
 	}
 
-	getAt(index: number): number {
-		return this._data[index];
-	}
+	static fromFloat32Array(arr: Float32Array): EncodingVector {
+		const vec = new EncodingVector();
+		vec.gamma = arr[EncodingIndex.Gamma] ?? 0;
+		vec.learningRate = arr[EncodingIndex.LearningRate] ?? 0;
+		vec.clipMin = arr[EncodingIndex.ClipMin] ?? 0;
+		vec.clipMax = arr[EncodingIndex.ClipMax] ?? 0;
+		vec.scaleFactor = arr[EncodingIndex.ScaleFactor] ?? 0;
+		vec.maxEpisodeLength = arr[EncodingIndex.MaxEpisodeLength] ?? 0;
+		vec.nStepReturn = arr[EncodingIndex.NStepReturn] ?? 0;
+		vec.frameSkip = arr[EncodingIndex.FrameSkip] ?? 0;
+		vec.epsilonStart = arr[EncodingIndex.EpsilonStart] ?? 0;
+		vec.epsilonMin = arr[EncodingIndex.EpsilonMin] ?? 0;
+		vec.epsilonDecay = arr[EncodingIndex.EpsilonDecay] ?? 0;
+		vec.temperature = arr[EncodingIndex.Temperature] ?? 0;
+		vec.noiseStd = arr[EncodingIndex.NoiseStd] ?? 0;
+		vec.noiseDecay = arr[EncodingIndex.NoiseDecay] ?? 0;
+		vec.bufferSize = arr[EncodingIndex.BufferSize] ?? 0;
+		vec.alphaPER = arr[EncodingIndex.AlphaPER] ?? 0;
+		vec.betaPER = arr[EncodingIndex.BetaPER] ?? 0;
+		vec.mutationRate = arr[EncodingIndex.MutationRate] ?? 0;
+		vec.mutationSigma = arr[EncodingIndex.MutationSigma] ?? 0;
+		vec.mutationSelfSigma = arr[EncodingIndex.MutationSelfSigma] ?? 0;
+		vec.networkInputDim = arr[EncodingIndex.NetworkInputDim] ?? 0;
+		vec.networkOutputDim = arr[EncodingIndex.NetworkOutputDim] ?? 0;
+		vec.networkDepth = arr[EncodingIndex.NetworkDepth] ?? 0;
 
-	setAt(index: number, value: number): void {
-		this._data[index] = value;
+		const layerCount = Math.round(vec.networkDepth * MAX_DEPTH);
+		let offset = SCALAR_DIM;
+		for (let i = 0; i < layerCount && offset + 2 < arr.length; i++) {
+			vec.layers.push({
+				neurons: arr[offset],
+				activationIdx: arr[offset + 1],
+				connectionTypeIdx: arr[offset + 2],
+			});
+			offset += 3;
+		}
+		return vec;
 	}
-
-	get gamma(): number { return this._data[EncodingIndex.Gamma]; }
-	set gamma(v: number) { this._data[EncodingIndex.Gamma] = v; }
-	get learningRate(): number { return this._data[EncodingIndex.LearningRate]; }
-	set learningRate(v: number) { this._data[EncodingIndex.LearningRate] = v; }
-	get clipMin(): number { return this._data[EncodingIndex.ClipMin]; }
-	set clipMin(v: number) { this._data[EncodingIndex.ClipMin] = v; }
-	get clipMax(): number { return this._data[EncodingIndex.ClipMax]; }
-	set clipMax(v: number) { this._data[EncodingIndex.ClipMax] = v; }
-	get scaleFactor(): number { return this._data[EncodingIndex.ScaleFactor]; }
-	set scaleFactor(v: number) { this._data[EncodingIndex.ScaleFactor] = v; }
-	get maxEpisodeLength(): number { return this._data[EncodingIndex.MaxEpisodeLength]; }
-	set maxEpisodeLength(v: number) { this._data[EncodingIndex.MaxEpisodeLength] = v; }
-	get nStepReturn(): number { return this._data[EncodingIndex.NStepReturn]; }
-	set nStepReturn(v: number) { this._data[EncodingIndex.NStepReturn] = v; }
-	get frameSkip(): number { return this._data[EncodingIndex.FrameSkip]; }
-	set frameSkip(v: number) { this._data[EncodingIndex.FrameSkip] = v; }
-	get epsilonStart(): number { return this._data[EncodingIndex.EpsilonStart]; }
-	set epsilonStart(v: number) { this._data[EncodingIndex.EpsilonStart] = v; }
-	get epsilonMin(): number { return this._data[EncodingIndex.EpsilonMin]; }
-	set epsilonMin(v: number) { this._data[EncodingIndex.EpsilonMin] = v; }
-	get epsilonDecay(): number { return this._data[EncodingIndex.EpsilonDecay]; }
-	set epsilonDecay(v: number) { this._data[EncodingIndex.EpsilonDecay] = v; }
-	get temperature(): number { return this._data[EncodingIndex.Temperature]; }
-	set temperature(v: number) { this._data[EncodingIndex.Temperature] = v; }
-	get noiseStd(): number { return this._data[EncodingIndex.NoiseStd]; }
-	set noiseStd(v: number) { this._data[EncodingIndex.NoiseStd] = v; }
-	get noiseDecay(): number { return this._data[EncodingIndex.NoiseDecay]; }
-	set noiseDecay(v: number) { this._data[EncodingIndex.NoiseDecay] = v; }
-	get bufferSize(): number { return this._data[EncodingIndex.BufferSize]; }
-	set bufferSize(v: number) { this._data[EncodingIndex.BufferSize] = v; }
-	get alphaPER(): number { return this._data[EncodingIndex.AlphaPER]; }
-	set alphaPER(v: number) { this._data[EncodingIndex.AlphaPER] = v; }
-	get betaPER(): number { return this._data[EncodingIndex.BetaPER]; }
-	set betaPER(v: number) { this._data[EncodingIndex.BetaPER] = v; }
-	get mutationRate(): number { return this._data[EncodingIndex.MutationRate]; }
-	set mutationRate(v: number) { this._data[EncodingIndex.MutationRate] = v; }
-	get mutationSigma(): number { return this._data[EncodingIndex.MutationSigma]; }
-	set mutationSigma(v: number) { this._data[EncodingIndex.MutationSigma] = v; }
-	get mutationSelfSigma(): number { return this._data[EncodingIndex.MutationSelfSigma]; }
-	set mutationSelfSigma(v: number) { this._data[EncodingIndex.MutationSelfSigma] = v; }
-	get networkInputDim(): number { return this._data[EncodingIndex.NetworkInputDim]; }
-	set networkInputDim(v: number) { this._data[EncodingIndex.NetworkInputDim] = v; }
-	get networkOutputDim(): number { return this._data[EncodingIndex.NetworkOutputDim]; }
-	set networkOutputDim(v: number) { this._data[EncodingIndex.NetworkOutputDim] = v; }
-	get networkDepth(): number { return this._data[EncodingIndex.NetworkDepth]; }
-	set networkDepth(v: number) { this._data[EncodingIndex.NetworkDepth] = v; }
 }
+
+export { EncodingVector as GenomeEncoding };

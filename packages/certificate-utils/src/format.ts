@@ -48,6 +48,24 @@ import {
 	toSerialNumber,
 } from "@trading-model/common/domain/primitives";
 
+function _parseSerialNumber(pem: string): SerialNumber {
+	const forgeCert = forge.pki.certificateFromPem(pem);
+	return toSerialNumber(forgeCert.serialNumber);
+}
+
+function _parseSubject(cert: X509Certificate): string {
+	return cert.subject;
+}
+
+function _parseValidity(
+	cert: X509Certificate
+): { validFrom: Date; validTo: Date } {
+	return {
+		validFrom: new Date(cert.validFrom),
+		validTo: new Date(cert.validTo),
+	};
+}
+
 export function parseCertInfo(pem: string): {
 	subject: string;
 	issuer: string;
@@ -58,13 +76,13 @@ export function parseCertInfo(pem: string): {
 	san: string[];
 } {
 	const x509 = new X509Certificate(pem);
-	const forgeCert = forge.pki.certificateFromPem(pem);
+	const { validFrom, validTo } = _parseValidity(x509);
 	return {
-		subject: x509.subject,
+		subject: _parseSubject(x509),
 		issuer: x509.issuer,
-		serialNumber: toSerialNumber(forgeCert.serialNumber),
-		notBefore: new Date(x509.validFrom),
-		notAfter: new Date(x509.validTo),
+		serialNumber: _parseSerialNumber(pem),
+		notBefore: validFrom,
+		notAfter: validTo,
 		fingerprint: toFingerprint(
 			x509.fingerprint256.replace(/:/g, "").toLowerCase()
 		),

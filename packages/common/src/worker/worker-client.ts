@@ -115,29 +115,37 @@ export class WorkerClient {
 		);
 	}
 
+	private _handleOpen(): void {
+		this._heartbeat.start();
+		this.emit("connected");
+	}
+
+	private _handleClose(): void {
+		this._heartbeat.stop();
+		this.emit("disconnected");
+		if (!this._reconnector.intentionalClose) {
+			this._reconnector.scheduleReconnect();
+		}
+	}
+
+	private _handleMessage(data: unknown): void {
+		try {
+			const message: Record<string, unknown> = JSON.parse(String(data));
+			this._messageRouter.handle(message, (msg) => this.emit("unknown", msg));
+		} catch (err) {
+			this.emit("error", new Error(`Invalid message from server: ${err}`));
+		}
+	}
+
+	private _handleError(err: Error): void {
+		this.emit("error", err);
+	}
+
 	private _wireConnectionEvents(): void {
-		this._connection.onOpen = () => {
-			this._heartbeat.start();
-			this.emit("connected");
-		};
-		this._connection.onClose = () => {
-			this._heartbeat.stop();
-			this.emit("disconnected");
-			if (!this._reconnector.intentionalClose) {
-				this._reconnector.scheduleReconnect();
-			}
-		};
-		this._connection.onMessage = (data) => {
-			try {
-				const message: Record<string, unknown> = JSON.parse(String(data));
-				this._messageRouter.handle(message, (msg) => this.emit("unknown", msg));
-			} catch (err) {
-				this.emit("error", new Error(`Invalid message from server: ${err}`));
-			}
-		};
-		this._connection.onError = (err) => {
-			this.emit("error", err);
-		};
+		this._connection.onOpen = () => this._handleOpen();
+		this._connection.onClose = () => this._handleClose();
+		this._connection.onMessage = (data) => this._handleMessage(data);
+		this._connection.onError = (err) => this._handleError(err);
 	}
 
 	async connect(): Promise<void> {

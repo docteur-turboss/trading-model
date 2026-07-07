@@ -1,4 +1,3 @@
-import type { Request, Response } from "express";
 import promClient from "prom-client";
 
 promClient.collectDefaultMetrics({ prefix: "scraper_" });
@@ -45,7 +44,4 @@ export const dbWriteLatencySeconds = new promClient.Histogram({
 	buckets: [0.01, 0.05, 0.1, 0.5, 1, 2],
 });
 
-export function metricsHandler(_req: Request, res: Response): void {
-	res.set("Content-Type", promClient.register.contentType);
-	promClient.register.metrics().then((data) => res.send(data));
-}
+export { metricsHandler } from "@trading-model/common/server/metrics-handler";

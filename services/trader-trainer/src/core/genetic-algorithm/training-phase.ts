@@ -36,31 +36,28 @@ function _buildTrainExperience(
 	};
 }
 
+function _trainStep(
+	index: number,
+	backend: RLBackend,
+	trainData: MarketStep[],
+	rewardBuf: Float32Array,
+	genome: DeepReadonly<LamarckGenome>,
+	maxT: number
+): void {
+	if (_shouldSkipFrame(index, genome.rl.horizon.frameSkip)) return;
+	backend.step(trainData[index].features, trainData[index].price);
+	const pool = backend.getExperiencePool();
+	if (!_canTrain(pool)) return;
+	backend.train(
+		_buildTrainExperience(pool[pool.length - 2], index, rewardBuf, genome, trainData, maxT),
+		genome.rl.gamma
+	);
+}
+
 export function trainPhase(ctx: TrainPhaseContext): void {
 	const { backend, trainData, rewardBuf, genome } = ctx;
-	const horizon = genome.rl.horizon;
-	const maxT = Math.min(trainData.length, horizon.maxEpisodeLength);
-
+	const maxT = Math.min(trainData.length, genome.rl.horizon.maxEpisodeLength);
 	for (let index = 0; index < maxT; index++) {
-		if (_shouldSkipFrame(index, horizon.frameSkip)) {
-			continue;
-		}
-		backend.step(trainData[index].features, trainData[index].price);
-
-		const pool = backend.getExperiencePool();
-		if (!_canTrain(pool)) {
-			continue;
-		}
-		backend.train(
-			_buildTrainExperience(
-				pool[pool.length - 2],
-				index,
-				rewardBuf,
-				genome,
-				trainData,
-				maxT
-			),
-			genome.rl.gamma
-		);
+		_trainStep(index, backend, trainData, rewardBuf, genome, maxT);
 	}
 }

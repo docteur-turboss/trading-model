@@ -1,9 +1,10 @@
 import { describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("@trading-model/address-manager/create-address-manager", () => ({
-	createAddressManager: jest.fn(() => ({
-		start: jest.fn(() => ({ stop: jest.fn() })),
-		listenExpress: jest.fn(),
+jest.mock("@trading-model/address-manager/create-service-address-manager", () => ({
+	createServiceAddressManager: jest.fn(() => ({
+		AddressManager: {},
+		BOOTSTRAP_ADDRESS_MANAGER: jest.fn(() => ({ stop: jest.fn() })),
+		ADDRESS_MANAGER_ROUTES: jest.fn(),
 	})),
 }));
 

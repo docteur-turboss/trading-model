@@ -1,5 +1,5 @@
-import type { Request, Response } from "express";
 import promClient from "prom-client";
+import { metricsHandler } from "@trading-model/common/server/metrics-handler";
 
 promClient.collectDefaultMetrics({ prefix: "gw_" });
 
@@ -49,7 +49,4 @@ export const ACTIVE_REQUESTS = new promClient.Gauge({
 	help: "Number of currently active requests",
 });
 
-export function metricsHandler(_req: Request, res: Response): void {
-	res.set("Content-Type", promClient.register.contentType);
-	promClient.register.metrics().then((data) => res.send(data));
-}
+export { metricsHandler };

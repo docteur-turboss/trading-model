@@ -8,8 +8,11 @@ import type { CertificateBase } from "@trading-model/common/domain/certificate-b
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { CertRenewScheduler } from "./cert-renew-scheduler";
+import { CertificateEventEmitter } from "./certificate-event-emitter";
 import { CertificateHolder } from "./certificate-holder";
-import { CertificateLifecycle } from "./certificate-lifecycle";
+import { CertificateSigner } from "./certificate-signer";
+import { CertificateStore } from "./certificate-store";
+import { KeyGenerator } from "./key-generator";
 
 export interface CertificateClientConfig {
 	caUrl: string;
@@ -31,7 +34,10 @@ export interface ObtainedCertificate extends CertificateBase {
 export class CertificateClient {
 	private readonly _config: CertificateClientConfig;
 	private readonly _caClient: CaClient;
-	private readonly _lifecycle: CertificateLifecycle;
+	private readonly _keyGenerator: KeyGenerator;
+	private readonly _signer: CertificateSigner;
+	private readonly _store: CertificateStore;
+	private readonly _eventEmitter: CertificateEventEmitter;
 
 	constructor(config: CertificateClientConfig) {
 		this._config = config;
@@ -39,7 +45,10 @@ export class CertificateClient {
 			baseUrl: config.caUrl,
 			tls: config.tls,
 		});
-		this._lifecycle = new CertificateLifecycle(config, this._caClient);
+		this._keyGenerator = new KeyGenerator(config);
+		this._signer = new CertificateSigner(config, this._caClient);
+		this._store = new CertificateStore(config);
+		this._eventEmitter = new CertificateEventEmitter();
 	}
 
 	static createObtained(
@@ -50,16 +59,16 @@ export class CertificateClient {
 	}
 
 	async obtainCertificate(): Promise<CertificateHolder> {
-		const { keyPair, csr } = await this._lifecycle.generateKeyAndCsr();
-		const response = await this._lifecycle.signWithCa(csr);
-		await this._lifecycle.writeCertificates(keyPair, response);
-		const cert = this._lifecycle.buildObtainedCert(keyPair, response);
+		const { keyPair, csr } = await this._keyGenerator.generateKeyAndCsr();
+		const response = await this._signer.signWithCa(csr);
+		await this._store.writeCertificates(keyPair, response);
+		const cert = this._store.buildObtainedCert(keyPair, response);
 		logger.info("Certificate obtained", {
 			serviceId: this._config.serviceId,
 			serialNumber: response.serialNumber,
 			expiresAt: response.expiresAt,
 		});
-		this._lifecycle.notifyOnRenew(this._config.onRenew, cert);
+		this._eventEmitter.notifyOnRenew(this._config.onRenew, cert);
 
 		const scheduler = new CertRenewScheduler(
 			this._config.serviceId,

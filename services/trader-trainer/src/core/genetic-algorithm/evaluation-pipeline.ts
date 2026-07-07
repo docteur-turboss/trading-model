@@ -4,7 +4,7 @@
  */
 
 import { NormalizationStats } from "../normalization-stats";
-import type { EvaluationResult } from "./evaluation-phase";
+import type { EvaluationResult, GenomeEvaluationContext } from "./evaluation-phase";
 import { evalPhase } from "./evaluation-phase";
 import type { GenomeFitnessMeta } from "./evaluation-utils";
 import {
@@ -52,11 +52,12 @@ export function evaluateSingleGenomeOnWindow(
 
 	const updatedGenome = deepFreeze(lamarckianUpdate(genome, trainBackend));
 
-	const evalResult = evalPhase(
-		updatedGenome,
-		windowSet.validation,
-		backendFactory
-	);
+	const evalCtx: GenomeEvaluationContext = {
+		genome: updatedGenome,
+		validationData: windowSet.validation,
+		backendFactory,
+	};
+	const evalResult = evalPhase(evalCtx);
 
 	_validateEvalResult(evalResult);
 

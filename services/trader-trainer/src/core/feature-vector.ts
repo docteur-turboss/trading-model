@@ -1,75 +1,106 @@
-import { FeatureIndex } from "./feature-indices";
-
 export const FEATURE_DIM = 32;
 
-export class FeatureVector {
-	private readonly _buffer: Float32Array;
+const SLIDING_WINDOW_SIZE = 8;
 
-	constructor(data?: Float32Array | number) {
-		if (typeof data === "number") {
-			this._buffer = new Float32Array(data);
-		} else {
-			this._buffer = data ?? new Float32Array(FEATURE_DIM);
+export class FeatureVector {
+	candleClose = 0;
+	candleVolume = 0;
+	candleReturnRatio = 0;
+	candlePositionRatio = 0;
+	candleRangeRatio = 0;
+	candleOpen = 0;
+	candleHigh = 0;
+	candleLow = 0;
+	candleVolumeRatio = 0;
+	orderBookAvgBid = 0;
+	orderBookAvgAsk = 0;
+	orderBookSpreadRatio = 0;
+	orderBookImbalance = 0;
+	bookTickerBid = 0;
+	bookTickerAsk = 0;
+	bookTickerSpreadRatio = 0;
+	tradeAvgPrice = 0;
+	tradeTotalQty = 0;
+	tradeBuyRatio = 0;
+	tickerPriceChange = 0;
+	tickerVolume = 0;
+	tickerDailyRange = 0;
+	priceSnapshot = 0;
+
+	private readonly _slidingWindow: Float32Array;
+
+	bias = 0;
+
+	constructor(data?: Float32Array) {
+		this._slidingWindow = new Float32Array(SLIDING_WINDOW_SIZE);
+		if (data instanceof Float32Array) {
+			this.candleClose = data[0] ?? 0;
+			this.candleVolume = data[1] ?? 0;
+			this.candleReturnRatio = data[2] ?? 0;
+			this.candlePositionRatio = data[3] ?? 0;
+			this.candleRangeRatio = data[4] ?? 0;
+			this.candleOpen = data[5] ?? 0;
+			this.candleHigh = data[6] ?? 0;
+			this.candleLow = data[7] ?? 0;
+			this.candleVolumeRatio = data[8] ?? 0;
+			this.orderBookAvgBid = data[9] ?? 0;
+			this.orderBookAvgAsk = data[10] ?? 0;
+			this.orderBookSpreadRatio = data[11] ?? 0;
+			this.orderBookImbalance = data[12] ?? 0;
+			this.bookTickerBid = data[13] ?? 0;
+			this.bookTickerAsk = data[14] ?? 0;
+			this.bookTickerSpreadRatio = data[15] ?? 0;
+			this.tradeAvgPrice = data[16] ?? 0;
+			this.tradeTotalQty = data[17] ?? 0;
+			this.tradeBuyRatio = data[18] ?? 0;
+			this.tickerPriceChange = data[19] ?? 0;
+			this.tickerVolume = data[20] ?? 0;
+			this.tickerDailyRange = data[21] ?? 0;
+			this.priceSnapshot = data[22] ?? 0;
+			for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) {
+				this._slidingWindow[i] = data[23 + i] ?? 0;
+			}
+			this.bias = data[31] ?? 0;
 		}
 	}
 
+	static fromFloat32Array(data: Float32Array): FeatureVector {
+		return new FeatureVector(data);
+	}
+
 	toFloat32Array(): Float32Array {
-		return this._buffer;
+		const arr = new Float32Array(FEATURE_DIM);
+		arr[0] = this.candleClose;
+		arr[1] = this.candleVolume;
+		arr[2] = this.candleReturnRatio;
+		arr[3] = this.candlePositionRatio;
+		arr[4] = this.candleRangeRatio;
+		arr[5] = this.candleOpen;
+		arr[6] = this.candleHigh;
+		arr[7] = this.candleLow;
+		arr[8] = this.candleVolumeRatio;
+		arr[9] = this.orderBookAvgBid;
+		arr[10] = this.orderBookAvgAsk;
+		arr[11] = this.orderBookSpreadRatio;
+		arr[12] = this.orderBookImbalance;
+		arr[13] = this.bookTickerBid;
+		arr[14] = this.bookTickerAsk;
+		arr[15] = this.bookTickerSpreadRatio;
+		arr[16] = this.tradeAvgPrice;
+		arr[17] = this.tradeTotalQty;
+		arr[18] = this.tradeBuyRatio;
+		arr[19] = this.tickerPriceChange;
+		arr[20] = this.tickerVolume;
+		arr[21] = this.tickerDailyRange;
+		arr[22] = this.priceSnapshot;
+		for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) {
+			arr[23 + i] = this._slidingWindow[i];
+		}
+		arr[31] = this.bias;
+		return arr;
 	}
 
 	slidingWindow(): Float32Array {
-		return this._buffer.subarray(
-			FeatureIndex.SlidingWindowStart,
-			FeatureIndex.SlidingWindowEnd + 1,
-		);
+		return this._slidingWindow;
 	}
-
-	get candleClose(): number { return this._buffer[FeatureIndex.CandleClose]; }
-	set candleClose(v: number) { this._buffer[FeatureIndex.CandleClose] = v; }
-	get candleVolume(): number { return this._buffer[FeatureIndex.CandleVolume]; }
-	set candleVolume(v: number) { this._buffer[FeatureIndex.CandleVolume] = v; }
-	get candleReturnRatio(): number { return this._buffer[FeatureIndex.CandleReturnRatio]; }
-	set candleReturnRatio(v: number) { this._buffer[FeatureIndex.CandleReturnRatio] = v; }
-	get candlePositionRatio(): number { return this._buffer[FeatureIndex.CandlePositionRatio]; }
-	set candlePositionRatio(v: number) { this._buffer[FeatureIndex.CandlePositionRatio] = v; }
-	get candleRangeRatio(): number { return this._buffer[FeatureIndex.CandleRangeRatio]; }
-	set candleRangeRatio(v: number) { this._buffer[FeatureIndex.CandleRangeRatio] = v; }
-	get candleOpen(): number { return this._buffer[FeatureIndex.CandleOpen]; }
-	set candleOpen(v: number) { this._buffer[FeatureIndex.CandleOpen] = v; }
-	get candleHigh(): number { return this._buffer[FeatureIndex.CandleHigh]; }
-	set candleHigh(v: number) { this._buffer[FeatureIndex.CandleHigh] = v; }
-	get candleLow(): number { return this._buffer[FeatureIndex.CandleLow]; }
-	set candleLow(v: number) { this._buffer[FeatureIndex.CandleLow] = v; }
-	get candleVolumeRatio(): number { return this._buffer[FeatureIndex.CandleVolumeRatio]; }
-	set candleVolumeRatio(v: number) { this._buffer[FeatureIndex.CandleVolumeRatio] = v; }
-	get orderBookAvgBid(): number { return this._buffer[FeatureIndex.OrderBookAvgBid]; }
-	set orderBookAvgBid(v: number) { this._buffer[FeatureIndex.OrderBookAvgBid] = v; }
-	get orderBookAvgAsk(): number { return this._buffer[FeatureIndex.OrderBookAvgAsk]; }
-	set orderBookAvgAsk(v: number) { this._buffer[FeatureIndex.OrderBookAvgAsk] = v; }
-	get orderBookSpreadRatio(): number { return this._buffer[FeatureIndex.OrderBookSpreadRatio]; }
-	set orderBookSpreadRatio(v: number) { this._buffer[FeatureIndex.OrderBookSpreadRatio] = v; }
-	get orderBookImbalance(): number { return this._buffer[FeatureIndex.OrderBookImbalance]; }
-	set orderBookImbalance(v: number) { this._buffer[FeatureIndex.OrderBookImbalance] = v; }
-	get bookTickerBid(): number { return this._buffer[FeatureIndex.BookTickerBid]; }
-	set bookTickerBid(v: number) { this._buffer[FeatureIndex.BookTickerBid] = v; }
-	get bookTickerAsk(): number { return this._buffer[FeatureIndex.BookTickerAsk]; }
-	set bookTickerAsk(v: number) { this._buffer[FeatureIndex.BookTickerAsk] = v; }
-	get bookTickerSpreadRatio(): number { return this._buffer[FeatureIndex.BookTickerSpreadRatio]; }
-	set bookTickerSpreadRatio(v: number) { this._buffer[FeatureIndex.BookTickerSpreadRatio] = v; }
-	get tradeAvgPrice(): number { return this._buffer[FeatureIndex.TradeAvgPrice]; }
-	set tradeAvgPrice(v: number) { this._buffer[FeatureIndex.TradeAvgPrice] = v; }
-	get tradeTotalQty(): number { return this._buffer[FeatureIndex.TradeTotalQty]; }
-	set tradeTotalQty(v: number) { this._buffer[FeatureIndex.TradeTotalQty] = v; }
-	get tradeBuyRatio(): number { return this._buffer[FeatureIndex.TradeBuyRatio]; }
-	set tradeBuyRatio(v: number) { this._buffer[FeatureIndex.TradeBuyRatio] = v; }
-	get tickerPriceChange(): number { return this._buffer[FeatureIndex.TickerPriceChange]; }
-	set tickerPriceChange(v: number) { this._buffer[FeatureIndex.TickerPriceChange] = v; }
-	get tickerVolume(): number { return this._buffer[FeatureIndex.TickerVolume]; }
-	set tickerVolume(v: number) { this._buffer[FeatureIndex.TickerVolume] = v; }
-	get tickerDailyRange(): number { return this._buffer[FeatureIndex.TickerDailyRange]; }
-	set tickerDailyRange(v: number) { this._buffer[FeatureIndex.TickerDailyRange] = v; }
-	get priceSnapshot(): number { return this._buffer[FeatureIndex.PriceSnapshot]; }
-	set priceSnapshot(v: number) { this._buffer[FeatureIndex.PriceSnapshot] = v; }
-	get bias(): number { return this._buffer[FeatureIndex.Bias]; }
-	set bias(v: number) { this._buffer[FeatureIndex.Bias] = v; }
 }

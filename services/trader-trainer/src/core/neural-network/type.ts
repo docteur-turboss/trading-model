@@ -24,6 +24,11 @@ export enum NormalisationType {
 	None = "none",
 }
 
+/**
+ * Must stay in sync with ActivationFn in @trading-model/common/contracts/admin/training.dto.
+ * LeakyReLu uses different string value ("leakyReLu" vs "leaky_relu") for backward
+ * compatibility with persisted genome/config data.
+ */
 export enum ActivationType {
 	Sigmoid = "sigmoid",
 	Tanh = "tanh",
@@ -49,10 +54,14 @@ export enum InitialisationType {
 	Random = "random",
 }
 
+/**
+ * Must stay in sync with Optimizer in @trading-model/common/contracts/admin/training.dto.
+ */
 export enum OptimizerType {
 	Sgd = "sgd",
 	Adam = "adam",
 	Rmsprop = "rmsprop",
+	Adamw = "adamw",
 }
 
 /** Network topology and layer configuration. */

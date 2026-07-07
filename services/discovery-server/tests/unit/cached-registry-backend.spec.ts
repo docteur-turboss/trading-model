@@ -10,7 +10,7 @@ import type {
 	RegistryBackend,
 	ServiceInstance,
 } from "@trading-model/common/contracts/service-registry.types";
-import { CachedRegistryBackend } from "../../src/core/cached-registry-backend";
+import { CachedRegistryOperations } from "../../src/core/cached-registry-operations";
 
 function createMockBackend(): jest.Mocked<RegistryBackend> {
 	return {
@@ -28,6 +28,11 @@ function createMockBackend(): jest.Mocked<RegistryBackend> {
 		generateInstanceId: jest.fn(),
 		start: jest.fn(),
 		stop: jest.fn(),
+		getInstanceCount: jest.fn(),
+		getServiceVersion: jest.fn(),
+		ping: jest.fn(),
+		markUnhealthy: jest.fn(),
+		setFallbackBackend: jest.fn(),
 	} as unknown as jest.Mocked<RegistryBackend>;
 }
 
@@ -43,14 +48,14 @@ const MAKE_INSTANCE = (id: string): ServiceInstance => ({
 	ttl: 30000,
 });
 
-describe("CachedRegistryBackend", () => {
+describe("CachedRegistryOperations", () => {
 	let mockBackend: jest.Mocked<RegistryBackend>;
-	let cachedBackend: CachedRegistryBackend;
+	let cachedBackend: CachedRegistryOperations;
 
 	beforeEach(() => {
 		jest.useFakeTimers();
 		mockBackend = createMockBackend();
-		cachedBackend = new CachedRegistryBackend({
+		cachedBackend = new CachedRegistryOperations({
 			backend: mockBackend,
 			cacheTtlMs: 5000,
 			redisUrlForPubSub: undefined,
@@ -196,7 +201,7 @@ describe("CachedRegistryBackend", () => {
 			await cachedBackend.getInstances("svc-d");
 
 			expect(mockBackend.getInstances).toHaveBeenCalledTimes(4);
-			expect((cachedBackend as any)._ops._cache.size).toBe(3);
+			expect((cachedBackend as any)._core.cache.size).toBe(3);
 
 			mockBackend.getInstances.mockResolvedValue([MAKE_INSTANCE("i-1")]);
 			await cachedBackend.getInstances("svc-a");

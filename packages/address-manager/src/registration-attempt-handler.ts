@@ -39,15 +39,7 @@ export class RegistrationAttemptHandler {
 				error: normalizeError(error),
 			});
 			if (attempt < RETRY_CONFIG.maxRetries) {
-				await Promise.race([
-					new Promise<void>((resolve) =>
-						setTimeout(
-							resolve,
-							this._retryScheduler.computeJitteredDelay(attempt)
-						)
-					),
-					this._retryScheduler.createStopWait(),
-				]);
+				await this._waitWithJitteredDelay(attempt);
 			}
 			return false;
 		}
@@ -70,6 +62,15 @@ export class RegistrationAttemptHandler {
 			});
 			return false;
 		}
+	}
+
+	private async _waitWithJitteredDelay(attempt: number): Promise<void> {
+		await Promise.race([
+			new Promise<void>((resolve) =>
+				setTimeout(resolve, this._retryScheduler.computeJitteredDelay(attempt))
+			),
+			this._retryScheduler.createStopWait(),
+		]);
 	}
 
 	private async _handleSuccess(res: { token: string }): Promise<void> {

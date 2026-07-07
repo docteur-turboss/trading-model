@@ -298,7 +298,7 @@ describe("api-client", () => {
 				},
 			];
 			MOCK_FETCH.mockResolvedValue(mockResponse(candles));
-			const result = await API_CLIENT.getCandles("BTCUSDT", "1h");
+			const result = await API_CLIENT.getCandles({ symbol: "BTCUSDT", interval: "1h" });
 			expect(result).toHaveLength(1);
 			expect(MOCK_FETCH).toHaveBeenCalledWith(
 				"/v1/scraper/candles?symbol=BTCUSDT&interval=1h",

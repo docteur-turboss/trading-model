@@ -42,13 +42,7 @@ function _setupAutoRenewCallback(
 	}
 }
 
-export function createTlsBootstrap(
-	env: Record<string, string | undefined>
-): TlsBootstrapOptions | null {
-	const config = bootstrapConfigFromEnv(env);
-	if (!config) {
-		return null;
-	}
+function _createTlsBootstrap(config: BootstrapConfig): TlsBootstrapOptions {
 	return {
 		ensure: () => bootstrapCertificate(config),
 		setupAutoRenew: (server: https.Server) => {
@@ -63,11 +57,25 @@ export function createTlsBootstrap(
 						ca: cert.caPem,
 					}),
 			});
-			void client.obtainCertificate().then((holder) => {
-				setTimeout(() => holder.startAutoRenew(), 1000);
-			});
+			_startAutoRenew(client);
 		},
 	};
+}
+
+function _startAutoRenew(client: CertificateClient): void {
+	void client.obtainCertificate().then((holder) => {
+		setTimeout(() => holder.startAutoRenew(), 1000);
+	});
+}
+
+export function createTlsBootstrap(
+	env: Record<string, string | undefined>
+): TlsBootstrapOptions | null {
+	const config = bootstrapConfigFromEnv(env);
+	if (!config) {
+		return null;
+	}
+	return _createTlsBootstrap(config);
 }
 
 async function loadServerDependencies(): Promise<{
@@ -109,9 +117,7 @@ function setupAutoRenew(server: HttpServer, config: BootstrapConfig): void {
 				ca: cert.caPem,
 			}),
 	});
-	void client.obtainCertificate().then((holder) => {
-		setTimeout(() => holder.startAutoRenew(), 1000);
-	});
+	_startAutoRenew(client);
 }
 
 async function _createServerApp(

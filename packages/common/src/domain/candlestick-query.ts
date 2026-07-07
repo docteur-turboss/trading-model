@@ -6,7 +6,11 @@ export interface MarketDataQuery {
 	limit?: number;
 }
 
-export interface CandlestickQuery extends MarketDataQuery {
+export interface SymbolInterval {
+	symbol: TradingSymbol;
 	interval: CandleInterval;
+}
+
+export interface CandlestickQuery extends MarketDataQuery, SymbolInterval {
 	startTime?: UnixTimestamp;
 }

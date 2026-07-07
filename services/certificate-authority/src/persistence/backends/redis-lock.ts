@@ -1,4 +1,4 @@
-import { randomInt } from "node:crypto";
+﻿import { randomInt } from "node:crypto";
 import { logger } from "@trading-model/common/config/logger";
 import { RedisLockConnector } from "../redis-lock-connector";
 import type { LockBackend, LockContext } from "./lock-backend-interface";
@@ -10,12 +10,30 @@ export class RedisLockBackend implements LockBackend {
 		this._connector = new RedisLockConnector(redisUrl);
 	}
 
+	private _buildLockKey(lockName: string): string {
+		return `lock:${lockName}`;
+	}
+
+	private _buildLockValue(instanceId: string, token: number): string {
+		return `${instanceId}:${token}`;
+	}
+
+	private _releaseScript(): string {
+		return `
+          if redis.call("get", KEYS[1]) == ARGV[1] then
+            return redis.call("del", KEYS[1])
+          else
+            return 0
+          end
+        `;
+	}
+
 	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
 		const { lockName, instanceId } = context;
 		try {
-			const lockKey = `lock:${lockName}`;
+			const lockKey = this._buildLockKey(lockName);
 			const nextFencingToken = randomInt(1, 2_147_483_647);
-			const value = `${instanceId}:${nextFencingToken}`;
+			const value = this._buildLockValue(instanceId, nextFencingToken);
 			const acquired = await this._connector.client.set(
 				lockKey,
 				value,
@@ -45,19 +63,12 @@ export class RedisLockBackend implements LockBackend {
 		}
 		const { lockName, instanceId } = context;
 		try {
-			const lockKey = `lock:${lockName}`;
-			const script = `
-          if redis.call("get", KEYS[1]) == ARGV[1] then
-            return redis.call("del", KEYS[1])
-          else
-            return 0
-          end
-        `;
+			const lockKey = this._buildLockKey(lockName);
 			await this._connector.client.eval(
-				script,
+				this._releaseScript(),
 				1,
 				lockKey,
-				`${instanceId}:${fencingToken}`
+				this._buildLockValue(instanceId, fencingToken)
 			);
 			return true;
 		} catch {
@@ -74,9 +85,9 @@ export class RedisLockBackend implements LockBackend {
 		}
 		const { lockName, instanceId } = context;
 		try {
-			const lockKey = `lock:${lockName}`;
+			const lockKey = this._buildLockKey(lockName);
 			const val = await this._connector.client.get(lockKey);
-			if (val !== `${instanceId}:${fencingToken}`) {
+			if (val !== this._buildLockValue(instanceId, fencingToken)) {
 				return -1;
 			}
 			return fencingToken;

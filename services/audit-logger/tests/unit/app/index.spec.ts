@@ -33,14 +33,6 @@ jest.mock("../../../src/config/env", () => ({
 	},
 }));
 
-jest.mock("@trading-model/address-manager/create-address-manager", () => ({
-	createAddressManager: jest.fn(() => ({
-		start: jest.fn(),
-		stop: jest.fn(),
-		listenExpress: jest.fn(),
-	})),
-}));
-
 const MOCK_ADDRESS_MANAGER = { stop: jest.fn() };
 jest.mock("../../../src/config/address-manager", () => ({
 	BOOTSTRAP_ADDRESS_MANAGER: jest.fn(() => MOCK_ADDRESS_MANAGER),

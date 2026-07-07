@@ -97,6 +97,13 @@ export class InstanceCacheFetcher {
 			return await this._backend.getInstance(id);
 		}
 
+		return this._fetchWithFallback(serviceName, instanceId);
+	}
+
+	private async _fetchWithFallback(
+		serviceName: string,
+		instanceId: string
+	): Promise<ServiceInstance | undefined> {
 		const cached = this._cache.get(serviceName);
 		if (cached) {
 			return cached.find(
@@ -113,6 +120,6 @@ export class InstanceCacheFetcher {
 			}
 		}
 
-		return await this._backend.getInstance(id);
+		return await this._backend.getInstance({ serviceName, instanceId });
 	}
 }

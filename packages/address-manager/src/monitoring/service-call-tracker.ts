@@ -77,24 +77,15 @@ export class ServiceCallTracker {
 	} {
 		const callsByService: Record<ServiceId, number> = {};
 		const callsByEndpoint: Record<string, number> = {};
-		let errorsTotal = 0;
-		let totalLatency = 0;
-		let bytesSent = 0;
-		let bytesReceived = 0;
+		let totals = { errorsTotal: 0, totalLatency: 0, bytesSent: 0, bytesReceived: 0 };
 		for (const record of this._records) {
 			this._aggregateRecord(record, callsByService, callsByEndpoint);
-			errorsTotal += record.status === "error" ? 1 : 0;
-			totalLatency += record.durationMs;
-			bytesSent += record.bytesSent ?? 0;
-			bytesReceived += record.bytesReceived ?? 0;
+			totals = this._aggregateTotals(record, totals);
 		}
 		return {
 			callsByService,
 			callsByEndpoint,
-			errorsTotal,
-			totalLatency,
-			bytesSent,
-			bytesReceived,
+			...totals,
 		};
 	}
 
@@ -107,6 +98,18 @@ export class ServiceCallTracker {
 			(callsByService[record.targetService] ?? 0) + 1;
 		const ep = `${record.method} ${record.endpoint}`;
 		callsByEndpoint[ep] = (callsByEndpoint[ep] ?? 0) + 1;
+	}
+
+	private _aggregateTotals(
+		record: CallRecord,
+		totals: { errorsTotal: number; totalLatency: number; bytesSent: number; bytesReceived: number }
+	): { errorsTotal: number; totalLatency: number; bytesSent: number; bytesReceived: number } {
+		return {
+			errorsTotal: totals.errorsTotal + (record.status === "error" ? 1 : 0),
+			totalLatency: totals.totalLatency + record.durationMs,
+			bytesSent: totals.bytesSent + (record.bytesSent ?? 0),
+			bytesReceived: totals.bytesReceived + (record.bytesReceived ?? 0),
+		};
 	}
 
 	clear(): void {

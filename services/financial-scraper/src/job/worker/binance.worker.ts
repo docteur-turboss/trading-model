@@ -20,7 +20,10 @@ export class BinanceWorker {
 		const opts = this._options;
 
 		const rawData = await fetchAllRawData(opts);
-		const response = buildResponse(opts.symbol, opts.interval, rawData);
+		const response = buildResponse(
+			{ symbol: opts.symbol, interval: opts.interval ?? CandleInterval.MIN1 },
+			rawData
+		);
 
 		configureMetadata(builderMetadata, opts.deliveryMode);
 		sendAllMarketData(buildMarketDataEntries(response), builderMetadata);

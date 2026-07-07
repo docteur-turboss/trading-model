@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from "express";
+﻿import type { NextFunction, Request, Response } from "express";
 
 import { logger } from "../config/logger";
 import type { CorrelationId, InstanceId, Version } from "../domain/primitives";
@@ -79,11 +79,7 @@ function stopFlushTimer(): void {
 	flushTimer.stop();
 }
 
-async function flush(): Promise<void> {
-	if (BUFFER.length === 0) {
-		return;
-	}
-	const batch = BUFFER.splice(0, config.batchSize);
+async function _postErrorBatch(batch: ErrorReport[]): Promise<void> {
 	try {
 		await fetch(config.endpoint, {
 			method: "POST",
@@ -100,6 +96,14 @@ async function flush(): Promise<void> {
 			normalizeError(err).message
 		);
 	}
+}
+
+async function flush(): Promise<void> {
+	if (BUFFER.length === 0) {
+		return;
+	}
+	const batch = BUFFER.splice(0, config.batchSize);
+	await _postErrorBatch(batch);
 }
 
 function _buildErrorReport(

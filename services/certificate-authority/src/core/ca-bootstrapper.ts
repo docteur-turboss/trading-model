@@ -1,4 +1,4 @@
-import { createHash, createPublicKey, randomUUID } from "node:crypto";
+﻿import { createHash, createPublicKey, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 import {
@@ -57,21 +57,27 @@ export class CaBootstrapper {
 		return randomUUID().replace(/-/g, "").substring(0, 16).toUpperCase();
 	}
 
-	private async _bootstrap(caStore: CaStore): Promise<BootstrapResult> {
-		const caKeyPair = generateKeyPair(KeyAlgorithm.rsa4096);
-		const serialNumber = this._generateSerialNumber();
-		const now = new Date();
-		const expiresAt = new Date(now.getTime() + this._caCertTtlMs);
+	private _buildCaCert(
+		serialNumber: string,
+		now: Date,
+		expiresAt: Date,
+		caKeyPair: KeyPair
+	): string {
 		const certBody = this._certBodyBuilder.build({
 			serialNumber: toSerialNumber(serialNumber),
 			now,
 			expiresAt,
 			publicKey: caKeyPair.publicKey,
 		});
-		const caCertPem = this._certBodyBuilder.signAndBuildPem(
-			certBody,
-			caKeyPair.privateKey
-		);
+		return this._certBodyBuilder.signAndBuildPem(certBody, caKeyPair.privateKey);
+	}
+
+	private async _bootstrap(caStore: CaStore): Promise<BootstrapResult> {
+		const caKeyPair = generateKeyPair(KeyAlgorithm.rsa4096);
+		const serialNumber = this._generateSerialNumber();
+		const now = new Date();
+		const expiresAt = new Date(now.getTime() + this._caCertTtlMs);
+		const caCertPem = this._buildCaCert(serialNumber, now, expiresAt, caKeyPair);
 		this._saveCaKey(caKeyPair.privateKey);
 		await this._saveCaCert(
 			caCertPem,

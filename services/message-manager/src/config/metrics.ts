@@ -1,5 +1,5 @@
-import type { Request, Response } from "express";
 import promClient from "prom-client";
+import { metricsHandler } from "@trading-model/common/server/metrics-handler";
 
 promClient.collectDefaultMetrics({ prefix: "mm_" });
 
@@ -90,59 +90,4 @@ export const BUFFER_DROPPED_TOTAL = new promClient.Counter({
 	labelNames: ["buffer", "reason"] as const,
 });
 
-export function metricsHandler(_req: Request, res: Response): void {
-	res.set("Content-Type", promClient.register.contentType);
-	promClient.register.metrics().then((data) => res.send(data));
-}
-
-/*
- * ─── Recommended Prometheus/Grafana alerting rules ────────────────────────────
- *
- * # Critical: messages being dropped because all persistence layers exhausted
- * - alert: BufferDropped
- *   expr: rate(mm_buffer_dropped_total[5m]) > 0
- *   for: 1m
- *   labels: { severity: critical }
- *
- * # Critical: messages routed to DLQ (may indicate subscriber issues)
- * - alert: HighDLQRate
- *   expr: rate(mm_messages_dlq_total[5m]) > 10
- *   for: 2m
- *   labels: { severity: critical }
- *
- * # Warning: DLQ storage errors (Redis fallback persists but DLQ service down)
- * - alert: DLQStorageErrors
- *   expr: rate(mm_messages_dlq_error_total[5m]) > 0
- *   for: 1m
- *   labels: { severity: warning }
- *
- * # Critical: circuit breaker open — subscriber not receiving messages
- * - alert: CircuitBreakerOpen
- *   expr: mm_circuit_breaker_state == 1
- *   for: 1m
- *   labels: { severity: critical }
- *
- * # Warning: high backpressure ratio (token bucket near capacity)
- * - alert: HighBackpressure
- *   expr: mm_backpressure_ratio > 0.8
- *   for: 5m
- *   labels: { severity: warning }
- *
- * # Critical: Redis stream lag growing (subscriber can't keep up)
- * - alert: StreamLagGrowing
- *   expr: rate(mm_redis_stream_lag_ms[5m]) > 0
- *   for: 5m
- *   labels: { severity: warning }
- *
- * # Warning: subscriber delivery concurrency saturated
- * - alert: SubscriberSaturated
- *   expr: mm_subscriber_delivery_concurrency > 8
- *   for: 5m
- *   labels: { severity: warning }
- *
- * # Critical: WSS connections dropped (network / broker issue)
- * - alert: WSSConnectionsDropped
- *   expr: rate(mm_wss_connections[1m]) < -1
- *   for: 30s
- *   labels: { severity: critical }
- */
+export { metricsHandler };

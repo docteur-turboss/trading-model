@@ -78,10 +78,7 @@ export class HeartbeatManager {
 			consecutiveFailures: this._consecutiveHeartbeatFailures,
 			error: normalizeError(err),
 		});
-		if (
-			this._consecutiveHeartbeatFailures >=
-			MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
-		) {
+		if (this._hasExceededFailureThreshold()) {
 			this._consecutiveHeartbeatFailures = 0;
 			await this._failureHandler.handleError(
 				err,
@@ -90,6 +87,10 @@ export class HeartbeatManager {
 			);
 		}
 		await this._heartbeatViaHttpAfterFailure();
+	}
+
+	private _hasExceededFailureThreshold(): boolean {
+		return this._consecutiveHeartbeatFailures >= MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER;
 	}
 
 	private async _heartbeatViaHttp(): Promise<void> {

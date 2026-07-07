@@ -1,4 +1,4 @@
-import { logger } from "@trading-model/common/config/logger";
+﻿import { logger } from "@trading-model/common/config/logger";
 import Redis from "ioredis";
 import { RedisSubscriberManager } from "./redis-subscriber-manager";
 
@@ -145,18 +145,24 @@ class RealRedisCache implements RedisCache {
 		}
 	}
 
+	private async _scanBatch(
+		cursor: string
+	): Promise<{ nextCursor: string; keys: string[] }> {
+		const result = await this._client.scan(
+			cursor,
+			"MATCH",
+			"ca-cache:*",
+			"COUNT",
+			"100"
+		);
+		return { nextCursor: result[0], keys: result[1] };
+	}
+
 	private async _scanAndDelete(): Promise<void> {
 		let cursor = "0";
 		do {
-			const result = await this._client.scan(
-				cursor,
-				"MATCH",
-				"ca-cache:*",
-				"COUNT",
-				"100"
-			);
-			cursor = result[0];
-			const keys = result[1];
+			const { nextCursor, keys } = await this._scanBatch(cursor);
+			cursor = nextCursor;
 			if (keys.length > 0) {
 				await this._client.del(...keys);
 			}

@@ -10,6 +10,11 @@ export enum LayerType {
 	Conv1d = "conv1d",
 }
 
+/**
+ * Canonical activation function enum.
+ * When adding values here, also add the corresponding runtime implementation
+ * in trader-trainer (ActivationType / ACTIVATIONS map) and keep string values aligned.
+ */
 export enum ActivationFn {
 	Relu = "relu",
 	Sigmoid = "sigmoid",
@@ -18,8 +23,14 @@ export enum ActivationFn {
 	Linear = "linear",
 	LeakyRelu = "leaky_relu",
 	Gelu = "gelu",
+	Elu = "elu",
+	Mish = "mish",
 }
 
+/**
+ * Canonical optimizer enum.
+ * When adding values here, also update OptimizerType in trader-trainer.
+ */
 export enum Optimizer {
 	Adam = "adam",
 	Sgd = "sgd",

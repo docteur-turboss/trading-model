@@ -1,5 +1,5 @@
-import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { logger } from "@trading-model/common/config/logger";
+import type { HostPort } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis, { type RedisOptions } from "ioredis";
 
@@ -25,22 +25,28 @@ export class RedisConnectionManager {
 	private _buildRedisOptions(options?: RedisConnectionOptions): RedisOptions {
 		const baseOptions: RedisOptions = {
 			lazyConnect: true,
-			retryStrategy: (times: number) => {
-				if (times > 20) {
-					return null;
-				}
-				return Math.min(times * 200, 5000);
-			},
+			retryStrategy: this._buildRetryStrategy(),
 			maxRetriesPerRequest: 3,
 		};
 		return {
 			...baseOptions,
 			...(options?.password ? { password: options.password } : {}),
 			...(options?.tls ? { tls: options.tls } : {}),
-			...(options?.sentinels
-				? { sentinels: options.sentinels, name: "mymaster" }
-				: {}),
+			...(options?.sentinels ? this._buildSentinelOptions(options.sentinels) : {}),
 		};
+	}
+
+	private _buildRetryStrategy(): (times: number) => number | null {
+		return (times: number) => {
+			if (times > 20) {
+				return null;
+			}
+			return Math.min(times * 200, 5000);
+		};
+	}
+
+	private _buildSentinelOptions(sentinels: HostPort[]): { sentinels: HostPort[]; name: string } | undefined {
+		return { sentinels, name: "mymaster" };
 	}
 
 	private _connect(): void {

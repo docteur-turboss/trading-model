@@ -383,7 +383,7 @@ export function MarketData() {
 	);
 	const [tab, setTab] = useState(0);
 	const { data: candles, loading } = useApi(
-		() => API_CLIENT.getCandles(symbol, candleInterval),
+		() => API_CLIENT.getCandles({ symbol, interval: candleInterval }),
 		[symbol, candleInterval]
 	);
 	const { chartData, lastPrice, change } = computePriceChange(candles);

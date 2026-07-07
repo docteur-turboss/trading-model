@@ -6,7 +6,8 @@ import type { ServiceIdentity } from "@trading-model/common/domain/service-ident
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler, Response } from "express";
+import type { ResponseObject } from "@trading-model/common/middleware/response-exception";
 import type { ServiceRegistry } from "../core/service-registry";
 import { HEARTBEAT_SCHEMA, ROTATE_TOKEN_SCHEMA } from "./heartbeat-validator";
 import { validateInstanceToken } from "./helpers";
@@ -39,33 +40,39 @@ function _parseHeartbeatBody(
 	};
 }
 
-function _createHeartbeatHandler(registry: ServiceRegistry): RequestHandler {
-	return catchSync((req) => {
-		const data = _parseHeartbeatBody(req);
-		if (!data) {
-			return sendResponse(
-				{
-					error: "Invalid request body",
-					details: HEARTBEAT_SCHEMA.safeParse(req.body).error!.flatten()
-						.fieldErrors,
-				},
-				400
-			);
-		}
-		validateInstanceToken(
-			registry,
-			req.headers[HTTP_HEADERS.X_INSTANCE_TOKEN],
-			data.instanceId
+function _handleHeartbeat(
+	req: Request,
+	res: Response,
+	registry: ServiceRegistry
+): ResponseObject | undefined {
+	const data = _parseHeartbeatBody(req);
+	if (!data) {
+		return sendResponse(
+			{
+				error: "Invalid request body",
+				details: HEARTBEAT_SCHEMA.safeParse(req.body).error!.flatten()
+					.fieldErrors,
+			},
+			400
 		);
-		const ttl = registry.updateHeartbeat({
-			serviceName: data.serviceName,
-			instanceId: data.instanceId,
-		});
-		if (!ttl) {
-			return sendResponse({ error: "Instance not found" }, 404);
-		}
-		return sendResponse({ ttl }, 200);
+	}
+	validateInstanceToken(
+		registry,
+		req.headers[HTTP_HEADERS.X_INSTANCE_TOKEN],
+		data.instanceId
+	);
+	const ttl = registry.updateHeartbeat({
+		serviceName: data.serviceName,
+		instanceId: data.instanceId,
 	});
+	if (!ttl) {
+		return sendResponse({ error: "Instance not found" }, 404);
+	}
+	return sendResponse({ ttl }, 200);
+}
+
+function _createHeartbeatHandler(registry: ServiceRegistry): RequestHandler {
+	return catchSync((req, res) => _handleHeartbeat(req, res, registry));
 }
 
 function _parseRotateBody(req: import("express").Request): string | null {
@@ -76,25 +83,31 @@ function _parseRotateBody(req: import("express").Request): string | null {
 	return parsed.data.instanceId;
 }
 
-function _createRotateTokenHandler(registry: ServiceRegistry): RequestHandler {
-	return catchSync((req) => {
-		const instanceId = _parseRotateBody(req);
-		if (!instanceId) {
-			return sendResponse(
-				{
-					error: "Invalid request body",
-					details: ROTATE_TOKEN_SCHEMA.safeParse(req.body).error!.flatten()
-						.fieldErrors,
-				},
-				400
-			);
-		}
-		validateInstanceToken(
-			registry,
-			req.headers[HTTP_HEADERS.X_INSTANCE_TOKEN],
-			instanceId
+function _handleRotateToken(
+	req: Request,
+	res: Response,
+	registry: ServiceRegistry
+): ResponseObject | undefined {
+	const instanceId = _parseRotateBody(req);
+	if (!instanceId) {
+		return sendResponse(
+			{
+				error: "Invalid request body",
+				details: ROTATE_TOKEN_SCHEMA.safeParse(req.body).error!.flatten()
+					.fieldErrors,
+			},
+			400
 		);
-		const newToken = registry.updateToken(instanceId);
-		return sendResponse({ token: newToken }, 200);
-	});
+	}
+	validateInstanceToken(
+		registry,
+		req.headers[HTTP_HEADERS.X_INSTANCE_TOKEN],
+		instanceId
+	);
+	const newToken = registry.updateToken(instanceId);
+	return sendResponse({ token: newToken }, 200);
+}
+
+function _createRotateTokenHandler(registry: ServiceRegistry): RequestHandler {
+	return catchSync((req, res) => _handleRotateToken(req, res, registry));
 }

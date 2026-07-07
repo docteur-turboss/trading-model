@@ -2,6 +2,13 @@ import { ActivationComputer } from "./activation-computer";
 import type { LayerMemory } from "./type";
 import { ActivationType, ConnectionType } from "./type";
 
+export interface LayerComputationContext {
+	layer: LayerMemory;
+	current: Float32Array;
+	layerIndex: number;
+	originalInput: Float32Array;
+}
+
 export class LayerComputer {
 	private readonly _activationType: ActivationType[];
 	private readonly _connectionType: ConnectionType;
@@ -37,11 +44,9 @@ export class LayerComputer {
 	}
 
 	computeLayerOutput(
-		layer: LayerMemory,
-		current: Float32Array,
-		layerIndex: number,
-		originalInput: Float32Array
+		ctx: LayerComputationContext
 	): { preActivations: Float32Array; output: Float32Array } {
+		const { layer, current, layerIndex, originalInput } = ctx;
 		const preActivations = this.computePreActivations(layer, current);
 		const activation = this._activationType[layerIndex];
 

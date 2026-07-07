@@ -1,4 +1,4 @@
-import type { CandleInterval } from "@trading-model/common/config/event.types";
+import type { SymbolInterval } from "@trading-model/common/domain/candlestick-query";
 import type {
 	TradingSymbol,
 	UnixTimestamp,
@@ -35,7 +35,7 @@ export const BINANCE_ENDPOINTS = {
 			: "/api/v3/aggTrades",
 
 	candlesticks: (
-		query?: BinanceEndpointQuery & { interval?: CandleInterval }
+		query?: BinanceEndpointQuery & SymbolInterval
 	): string =>
 		query?.symbol && query?.interval && query?.startTime && query?.limit
 			? `/api/v3/klines?symbol=${query.symbol}&interval=${query.interval}&startTime=${query.startTime}&limit=${query.limit}`

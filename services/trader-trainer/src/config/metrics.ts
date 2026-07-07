@@ -1,5 +1,5 @@
-import type { Request, Response } from "express";
 import promClient from "prom-client";
+import { metricsHandler } from "@trading-model/common/server/metrics-handler";
 
 promClient.collectDefaultMetrics({ prefix: "trainer_" });
 
@@ -51,7 +51,4 @@ export const MARKET_DATA_PROCESSED = new promClient.Counter({
 	labelNames: ["type"] as const,
 });
 
-export function metricsHandler(_req: Request, res: Response): void {
-	res.set("Content-Type", promClient.register.contentType);
-	promClient.register.metrics().then((data) => res.send(data));
-}
+export { metricsHandler };

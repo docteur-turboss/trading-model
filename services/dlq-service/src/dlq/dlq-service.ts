@@ -1,4 +1,4 @@
-import { SpanStatusCode, trace } from "@opentelemetry/api";
+﻿import { SpanStatusCode, trace } from "@opentelemetry/api";
 
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 import {
@@ -43,21 +43,31 @@ export async function addEntry(req: {
 	});
 }
 
-export async function listEntries(req: {
-	query: Record<string, unknown>;
-}): Promise<ResponseObject> {
-	const topic = req.query.topic as string | undefined;
-	const cursor = req.query.cursor as string | undefined;
-	const limit: PaginationQuery["limit"] = Math.min(
-		Number.parseInt(String(req.query.limit ?? "10"), 10) || 100,
+function _buildPaginationQuery(query: Record<string, unknown>): {
+	topic: string | undefined;
+	limit: PaginationQuery["limit"];
+	offset: number;
+	cursor: string | undefined;
+} {
+	const cursor = query.cursor as string | undefined;
+	const topic = query.topic as string | undefined;
+	const limit = Math.min(
+		Number.parseInt(String(query.limit ?? "10"), 10) || 100,
 		1000
 	);
 	const offset = cursor
 		? 0
 		: Math.max(
-				Number.parseInt((req.query.offset as string) ?? "0", 10) || 0,
+				Number.parseInt((query.offset as string) ?? "0", 10) || 0,
 				0
 			);
+	return { topic, limit, offset, cursor };
+}
+
+export async function listEntries(req: {
+	query: Record<string, unknown>;
+}): Promise<ResponseObject> {
+	const { topic, limit, offset, cursor } = _buildPaginationQuery(req.query);
 
 	const entries = await dlqRepository.query({
 		topic,

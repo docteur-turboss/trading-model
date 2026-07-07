@@ -38,6 +38,17 @@ export class CacheOrchestrator {
 		return this._fetcher.getInstance(id);
 	}
 
+	private async _refreshFromBackend(serviceName: string): Promise<void> {
+		try {
+			const instances = await this._backend.getInstances(
+				parseServiceName(serviceName)
+			);
+			this._cache.set(serviceName, instances);
+		} catch {
+			logger.warn("Cache refresh failed, serving stale data", { serviceName });
+		}
+	}
+
 	async refreshCache(serviceName: string): Promise<void> {
 		if (
 			!(this._healthMonitor.isHealthy || this._healthMonitor.fallbackActive)
@@ -48,14 +59,7 @@ export class CacheOrchestrator {
 			);
 			return;
 		}
-		try {
-			const instances = await this._backend.getInstances(
-				parseServiceName(serviceName)
-			);
-			this._cache.set(serviceName, instances);
-		} catch {
-			logger.warn("Cache refresh failed, serving stale data", { serviceName });
-		}
+		await this._refreshFromBackend(serviceName);
 	}
 
 	async onHeartbeatUpdate(

@@ -1,14 +1,7 @@
 import { agentError } from "@trading-model/common/utils/errors";
-import { LayerComputer } from "./layer-computer";
+import { LayerComputer, type LayerComputationContext } from "./layer-computer";
 import { NORMALIZERS, type NormalizeParams } from "./normalize";
 import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
-
-export interface LayerOutputContext {
-	layer: LayerMemory;
-	current: Float32Array;
-	layerIndex: number;
-	originalInput: Float32Array;
-}
 
 export class FeedForwardEngine {
 	private readonly _layerComputer: LayerComputer;
@@ -42,6 +35,27 @@ export class FeedForwardEngine {
 		};
 	}
 
+	private _computeLayer(
+		layer: LayerMemory,
+		current: Float32Array,
+		layerIndex: number,
+		originalInput: Float32Array,
+		layerZValues: Float32Array[],
+		layerOutputs: Float32Array[]
+	): Float32Array {
+		const ctx: LayerComputationContext = {
+			layer,
+			current,
+			layerIndex,
+			originalInput,
+		};
+		const { preActivations, output } =
+			this._layerComputer.computeLayerOutput(ctx);
+		layerZValues.push(preActivations);
+		layerOutputs.push(output);
+		return output;
+	}
+
 	private _computeLayers(input: Float32Array): {
 		current: Float32Array;
 		layerZValues: Float32Array[];
@@ -53,17 +67,14 @@ export class FeedForwardEngine {
 		let current = input;
 
 		for (let layerIndex = 0; layerIndex < this._layers.length; layerIndex++) {
-			const layer = this._layers[layerIndex];
-			const { preActivations, output } = this._layerComputer.computeLayerOutput(
-				layer,
+			current = this._computeLayer(
+				this._layers[layerIndex],
 				current,
 				layerIndex,
-				originalInput
+				originalInput,
+				layerZValues,
+				layerOutputs
 			);
-
-			layerZValues.push(preActivations);
-			layerOutputs.push(output);
-			current = output;
 		}
 
 		return { current, layerZValues, layerOutputs };

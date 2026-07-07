@@ -22,12 +22,15 @@ export interface PrecomputeRewardsContext {
 	runStats?: RunningStats;
 }
 
-export function _computeShapedReward(
-	backend: RLBackend,
-	step: MarketStep,
-	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>,
-	runStats?: RunningStats
-): number {
+export interface StepRewardContext {
+	backend: RLBackend;
+	step: MarketStep;
+	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>;
+	runStats?: RunningStats;
+}
+
+export function _computeShapedReward(ctx: StepRewardContext): number {
+	const { backend, step, rShape, runStats } = ctx;
 	const { reward } = backend.step(step.features, step.price);
 	let shaped = shapeReward(reward, rShape);
 	if (rShape.normalize) {
@@ -41,12 +44,13 @@ export function precomputeRewards(ctx: PrecomputeRewardsContext): Float32Array {
 	const { backend, data, genome, runStats } = ctx;
 	const buf = new Float32Array(data.length);
 	for (let index = 0; index < data.length; index++) {
-		buf[index] = _computeShapedReward(
+		const stepCtx: StepRewardContext = {
 			backend,
-			data[index],
-			genome.rl.rewardShaping,
-			runStats
-		);
+			step: data[index],
+			rShape: genome.rl.rewardShaping,
+			runStats,
+		};
+		buf[index] = _computeShapedReward(stepCtx);
 	}
 	return buf;
 }
@@ -64,16 +68,12 @@ export function nStepReturn(
 	return ret;
 }
 
-export function _stepAndShapeReward(
-	backend: RLBackend,
-	step: MarketStep,
-	rShape: DeepReadonly<LamarckGenome["rl"]["rewardShaping"]>,
-	runStats: NormalizationStats
-): number {
+export function _stepAndShapeReward(ctx: StepRewardContext): number {
+	const { backend, step, rShape, runStats } = ctx;
 	const { reward } = backend.step(step.features, step.price);
 	const shaped = shapeReward(reward, rShape);
 
-	if (rShape.normalize) {
+	if (rShape.normalize && runStats) {
 		runStats.update(shaped);
 		return runStats.normalize(shaped);
 	}

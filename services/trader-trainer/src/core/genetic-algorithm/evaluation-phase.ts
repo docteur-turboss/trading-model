@@ -1,14 +1,17 @@
 import { NormalizationStats } from "../normalization-stats";
 import type { LamarckGenome, MarketStep } from "./genome-types";
-import { _stepAndShapeReward } from "./reward-shaping";
+import { _stepAndShapeReward, type StepRewardContext } from "./reward-shaping";
 import type { BackendFactory, RLBackend } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 
-function _runEvalEpisode(
-	genome: DeepReadonly<LamarckGenome>,
-	validationData: MarketStep[],
-	backendFactory: BackendFactory
-): number {
+export interface GenomeEvaluationContext {
+	genome: DeepReadonly<LamarckGenome>;
+	validationData: MarketStep[];
+	backendFactory: BackendFactory;
+}
+
+function _runEvalEpisode(ctx: GenomeEvaluationContext): number {
+	const { genome, validationData, backendFactory } = ctx;
 	const backend = backendFactory(genome);
 	const rShape = genome.rl.rewardShaping;
 	const horizon = genome.rl.horizon;
@@ -21,12 +24,13 @@ function _runEvalEpisode(
 		if (index % horizon.frameSkip !== 0) {
 			continue;
 		}
-		epReward += _stepAndShapeReward(
+		const stepCtx: StepRewardContext = {
 			backend,
-			validationData[index],
+			step: validationData[index],
 			rShape,
-			runStats
-		);
+			runStats,
+		};
+		epReward += _stepAndShapeReward(stepCtx);
 	}
 
 	return _finalizeEpisodeReward(backend, rShape, epReward);
@@ -50,16 +54,15 @@ export interface EvaluationResult {
 	finalPnL: number;
 }
 
-export function evalPhase(
-	genome: DeepReadonly<LamarckGenome>,
-	validationData: MarketStep[],
-	backendFactory: BackendFactory
-): { rawScores: number[]; finalPnL: number } {
-	const numEpisodes = genome.gaControl.episodesPerIndividual;
+export function evalPhase(ctx: GenomeEvaluationContext): {
+	rawScores: number[];
+	finalPnL: number;
+} {
+	const numEpisodes = ctx.genome.gaControl.episodesPerIndividual;
 	const rawScores: number[] = [];
 
 	for (let ep = 0; ep < numEpisodes; ep++) {
-		rawScores.push(_runEvalEpisode(genome, validationData, backendFactory));
+		rawScores.push(_runEvalEpisode(ctx));
 	}
 
 	return {

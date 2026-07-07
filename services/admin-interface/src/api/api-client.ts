@@ -104,10 +104,10 @@ export const API_CLIENT = {
 	drainWorker: (id: string) =>
 		request<void>("PATCH", `/workers/${id}/status`, { status: "draining" }),
 
-	getCandles: (symbol: string, interval: CandleInterval) =>
+	getCandles: (params: { symbol: string; interval: CandleInterval }) =>
 		request<Candle[]>(
 			"GET",
-			`/scraper/candles?symbol=${symbol}&interval=${interval}`
+			`/scraper/candles?symbol=${params.symbol}&interval=${params.interval}`
 		),
 	getTickers: (symbol: string) =>
 		request<Ticker>("GET", `/scraper/tickers/${symbol}`),

@@ -48,6 +48,18 @@ export class MemoryWalFlusher {
 		return this._flushGuard.isFlushing;
 	}
 
+	private async _flushBatch(batch: MemoryWalEntry[]): Promise<boolean> {
+		if (batch.length === 0) return false;
+		const serialized = batch.map((e) =>
+			JSON.stringify({
+				topic: e.topic,
+				serialized: e.serialized,
+				message: e.message,
+			})
+		);
+		return this._walBatchFlusher.flushBatch(serialized);
+	}
+
 	async flush(buffer: MemoryWalEntry[]): Promise<void> {
 		if (this._flushGuard.shouldSkip(buffer, this._redisBackoff)) {
 			return;
@@ -56,14 +68,7 @@ export class MemoryWalFlusher {
 		this._flushGuard.setFlushing(true);
 		try {
 			const batch = buffer.splice(0, WAL_BATCH_SIZE);
-			const serialized = batch.map((e) =>
-				JSON.stringify({
-					topic: e.topic,
-					serialized: e.serialized,
-					message: e.message,
-				})
-			);
-			const ok = await this._walBatchFlusher.flushBatch(serialized);
+			const ok = await this._flushBatch(batch);
 			if (ok) {
 				this._redisBackoff.markUp();
 				this._redisBackoff.resetBackoff();

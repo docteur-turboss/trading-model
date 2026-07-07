@@ -1,5 +1,9 @@
 import { logger } from "../config/logger";
-import { JOB_STATUS, type Job } from "../contracts/recovery.types";
+import {
+	JOB_STATUS,
+	type Job,
+	type JobEvent,
+} from "../contracts/recovery.types";
 import { hasExceededMaxRetries } from "../domain/retry-policy";
 import type { IJobQueue } from "./job-queue.interface";
 import type { IJobRepository } from "./job-repository.interface";
@@ -20,6 +24,15 @@ export class ReAllocator {
 		});
 	}
 
+	private _buildHistoryEntry(): JobEvent {
+		return {
+			fromStatus: JOB_STATUS.ORPHANED,
+			toStatus: JOB_STATUS.QUEUED,
+			timestamp: new Date(),
+			reason: "re-allocated",
+		};
+	}
+
 	private _buildReallocatedJob(job: Job, newDeadline: number): Job {
 		return {
 			...job,
@@ -27,15 +40,7 @@ export class ReAllocator {
 			ackDeadline: newDeadline,
 			retryCount: job.retryCount + 1,
 			assignedWorkerId: undefined,
-			history: [
-				...job.history,
-				{
-					fromStatus: JOB_STATUS.ORPHANED,
-					toStatus: JOB_STATUS.QUEUED,
-					timestamp: new Date(),
-					reason: "re-allocated",
-				},
-			],
+			history: [...job.history, this._buildHistoryEntry()],
 		};
 	}
 

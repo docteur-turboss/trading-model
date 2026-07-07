@@ -1,5 +1,5 @@
-import type { Request, Response } from "express";
 import promClient from "prom-client";
+import { metricsHandler } from "@trading-model/common/server/metrics-handler";
 
 promClient.collectDefaultMetrics({ prefix: "audit_" });
 
@@ -55,7 +55,4 @@ export const ORPHAN_JOBS_TOTAL = new promClient.Counter({
 	help: "Total orphan jobs detected and recovered",
 });
 
-export function metricsHandler(_req: Request, res: Response): void {
-	res.set("Content-Type", promClient.register.contentType);
-	promClient.register.metrics().then((data) => res.send(data));
-}
+export { metricsHandler };
