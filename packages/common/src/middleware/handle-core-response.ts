@@ -1,6 +1,7 @@
 import type { Response } from "express";
 
 import { type ResponseCodeKey, ResponseException } from "./response-exception";
+import { getNodeEnv } from "../config/logger";
 
 export interface CoreResult<T = unknown> {
 	data: T;
@@ -75,7 +76,7 @@ export interface CookieOptions {
 function _getCookieOptions(): CookieOptions {
 	return {
 		httpOnly: true,
-		secure: process.env.NODE_ENV === "production",
+		secure: getNodeEnv() === "production",
 		sameSite: "strict" as const,
 		maxAge: 7 * 24 * 60 * 60 * 1000,
 		path: "/",

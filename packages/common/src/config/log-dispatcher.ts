@@ -10,6 +10,7 @@ import {
 	type LogOptions,
 } from "./log-types";
 import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
+import { getNodeEnv } from "./logger";
 
 export class LogDispatcher {
 	private readonly _sanitizer: SensitiveDataSanitizer;
@@ -25,7 +26,7 @@ export class LogDispatcher {
 		this._logFileWriter = new LogFileWriter(this._sanitizer);
 		this._errorServiceSender = new ErrorServiceSender(
 			this._sanitizer,
-			process.env.NODE_ENV
+			getNodeEnv()
 		);
 	}
 

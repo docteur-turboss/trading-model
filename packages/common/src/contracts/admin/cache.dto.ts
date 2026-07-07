@@ -1,6 +1,11 @@
 import type { Percentage, ServiceId } from "../../domain/primitives";
 
-export type CacheStatus = "active" | "expired" | "evicted" | "unknown";
+export enum CacheStatus {
+	Active = "active",
+	Expired = "expired",
+	Evicted = "evicted",
+	Unknown = "unknown",
+}
 
 export interface CacheEntry {
 	key: string;

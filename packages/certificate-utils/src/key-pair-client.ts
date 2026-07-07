@@ -1,6 +1,7 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
 import { KeyAlgorithm } from "./generate-key-pair";
 import type { KeyPair, KeyPairWithId } from "./types";
+import { guardNonEmptyResponse } from "./remote-signing-client";
 
 export class KeyPairClient {
 	constructor(
@@ -17,10 +18,7 @@ export class KeyPairClient {
 			{ algorithm },
 			{ timeoutMs: this._timeoutMs }
 		);
-		if (!result) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
+		return guardNonEmptyResponse(result, "generateKeyPair");
 	}
 
 	async generateKeyPairWithId(
@@ -31,9 +29,6 @@ export class KeyPairClient {
 			{ algorithm },
 			{ timeoutMs: this._timeoutMs }
 		);
-		if (!result) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
+		return guardNonEmptyResponse(result, "generateKeyPairWithId");
 	}
 }

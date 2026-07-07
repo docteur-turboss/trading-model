@@ -1,4 +1,5 @@
 import type { InstanceId, JobId, JobType } from "../domain/primitives";
+import { AppError } from "../utils/errors";
 
 /**
  * Job priority levels.
@@ -66,12 +67,12 @@ const CANCELLABLE_FROM = new Set<JOB_STATUS>([
 	JOB_STATUS.ORPHANED,
 ]);
 
-export class JobStatusError extends Error {
+export class JobStatusError extends AppError {
 	readonly fromStatus: JOB_STATUS;
 	readonly toStatus: JOB_STATUS;
 
 	constructor(fromStatus: JOB_STATUS, toStatus: JOB_STATUS, message: string) {
-		super(message);
+		super(message, { code: "JobStatusError" });
 		this.name = "JobStatusError";
 		this.fromStatus = fromStatus;
 		this.toStatus = toStatus;

@@ -1,5 +1,5 @@
 import type { HELPER } from "@trading-model/broker-message";
-import { EnumEventMessage } from "@trading-model/common/config/event.types";
+import { MarketEvent } from "@trading-model/common/contracts/market-events";
 import { MessageManager } from "../../config/message-manager";
 import { type MarketDataEntry, makeEntry } from "./binance-worker-helpers";
 import type { BinanceWorkerResult } from "./binance-worker-types";
@@ -10,23 +10,23 @@ export interface MarketDataContext extends MarketDataEntry {
 
 const MARKET_DATA_ENTRY_MAP: [
 	keyof BinanceWorkerResult,
-	EnumEventMessage,
+	MarketEvent,
 	string,
 ][] = [
-	["candles", EnumEventMessage.fetchCandlestickSeries, "FetchCandlestick"],
-	["orderBook", EnumEventMessage.fetchOrderBookSnapshot, "FetchOrderbook"],
-	["ticker24h", EnumEventMessage.fetch24hrTickerStats, "FetchTicker24hr"],
+	["candles", MarketEvent.fetchCandlestickSeries, "FetchCandlestick"],
+	["orderBook", MarketEvent.fetchOrderBookSnapshot, "FetchOrderbook"],
+	["ticker24h", MarketEvent.fetch24hrTickerStats, "FetchTicker24hr"],
 	[
 		"bookTicker",
-		EnumEventMessage.fetchOrderBookTickerSnapshot,
+		MarketEvent.fetchOrderBookTickerSnapshot,
 		"FetchBookTicker",
 	],
 	[
 		"priceTicker",
-		EnumEventMessage.fetchPriceTickerSnapshot,
+		MarketEvent.fetchPriceTickerSnapshot,
 		"FetchPriceTicker",
 	],
-	["recentTrades", EnumEventMessage.fetchRecentTrades, "FetchRecentTrades"],
+	["recentTrades", MarketEvent.fetchRecentTrades, "FetchRecentTrades"],
 ];
 
 export function buildMarketDataEntries(

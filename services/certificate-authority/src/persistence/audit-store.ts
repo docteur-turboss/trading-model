@@ -34,14 +34,6 @@ export class AuditStore {
 		await this._mongoConn.disconnect();
 	}
 
-	async add(entry: AuditEntry): Promise<void> {
-		await this.log(entry);
-	}
-
-	async save(entry: AuditEntry): Promise<void> {
-		await this.log(entry);
-	}
-
 	async log(entry: AuditEntry): Promise<void> {
 		if (!(await this._mongoConn.ensureMongo())) {
 			this._buffer.buffer(entry);
@@ -60,6 +52,14 @@ export class AuditStore {
 			});
 			this._buffer.buffer(entry);
 		}
+	}
+
+	async save(entry: AuditEntry): Promise<void> {
+		await this.log(entry);
+	}
+
+	async add(entry: AuditEntry): Promise<void> {
+		await this.log(entry);
 	}
 
 	private async _flush(): Promise<void> {

@@ -19,7 +19,7 @@ import { z } from "zod";
  * expected shape at each interface boundary.
  */
 
-const TOPIC_PATTERN = /^[a-z]+\.[a-z]+\.[a-z]+$/;
+const TOPIC_PATTERN = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+$/;
 
 interface Contract {
 	producer: string;
@@ -74,7 +74,7 @@ const CONTRACTS: Contract[] = [
 	{
 		producer: "financial-scraper",
 		consumers: ["trader-trainer"],
-		topic: "market.data.candle",
+		topic: MarketEvent.fetchCandlestickSeries,
 		eventType: "candle_update",
 		version: "1.0",
 		payloadSchema: CANDLE_PAYLOAD,
@@ -96,7 +96,7 @@ const CONTRACTS: Contract[] = [
 	{
 		producer: "financial-scraper",
 		consumers: ["trader-trainer"],
-		topic: "market.data.trade",
+		topic: MarketEvent.fetchRecentTrades,
 		eventType: "trade_update",
 		version: "1.0",
 		payloadSchema: TRADE_PAYLOAD,
@@ -115,7 +115,7 @@ const CONTRACTS: Contract[] = [
 	{
 		producer: "financial-scraper",
 		consumers: ["trader-trainer"],
-		topic: "market.data.ticker",
+		topic: MarketEvent.fetch24hrTickerStats,
 		eventType: "ticker_update",
 		version: "1.0",
 		payloadSchema: TICKER_PAYLOAD,
@@ -137,7 +137,7 @@ const CONTRACTS: Contract[] = [
 	{
 		producer: "audit-logger",
 		consumers: ["discovery-server", "dlq-service"],
-		topic: "audit.heartbeat.beat",
+		topic: AuditEvent.auditHeartbeat,
 		eventType: "audit_heartbeat",
 		version: "1.0",
 		payloadSchema: z.object({

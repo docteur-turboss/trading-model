@@ -1,7 +1,11 @@
 import type { WalEntryParser } from "./wal-entry-parser";
 import { WalFlushErrorHandler } from "./wal-flush-error-handler";
 
-export type WalErrorAction = "retry" | "memory-buffer" | "abort";
+export enum WalErrorAction {
+	Retry = "retry",
+	MemoryBuffer = "memory-buffer",
+	Abort = "abort",
+}
 
 export class WalErrorHandler {
 	private readonly _delegate: WalFlushErrorHandler;

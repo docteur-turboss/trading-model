@@ -1,6 +1,7 @@
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
 import type { WalEntryParser } from "./wal-entry-parser";
+import { WalErrorAction } from "./wal-error-handler";
 
 export class WalFlushErrorHandler {
 	constructor(private readonly _entryParser: WalEntryParser) {}
@@ -9,13 +10,13 @@ export class WalFlushErrorHandler {
 		raw: string[],
 		consecutiveErrors: number,
 		walKey: string
-	): Promise<"retry" | "memory-buffer" | "abort"> {
+	): Promise<WalErrorAction> {
 		if (consecutiveErrors >= 5) {
 			logger.error(
 				"WAL flush: too many consecutive errors — switching to memory buffer"
 			);
 			this._entryParser.parseAndBuffer(raw);
-			return "memory-buffer";
+			return WalErrorAction.MemoryBuffer;
 		}
 
 		if (raw.length > 0) {
@@ -31,6 +32,6 @@ export class WalFlushErrorHandler {
 			}
 		}
 
-		return "retry";
+		return WalErrorAction.Retry;
 	}
 }

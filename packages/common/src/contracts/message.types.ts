@@ -24,6 +24,8 @@
 import type { DeliveryMode } from "../config/delivery-mode.types";
 import type { CorrelationId, MessageId, Topic } from "../domain/primitives";
 import type { ServiceIdentity as DomainServiceIdentity } from "../domain/service-identity";
+import type { Signature } from "./signed-request";
+import type { EventEnumMap } from "../config/event.types";
 
 /**
  * Identity of a service instance within the broker system.
@@ -73,7 +75,7 @@ export interface SecurityType {
 	authContext?: AuthContext;
 
 	/** Message integrity signature. */
-	signature?: string;
+	signature?: Signature;
 }
 
 /**
@@ -106,7 +108,7 @@ export interface MessageMetadata {
 	correlationId?: CorrelationId;
 
 	/** Version of the payload schema. */
-	schemaVersion: string;
+	schemaVersion: "1.0.0";
 
 	/** Identifier of the message that caused this one. */
 	causationId?: CorrelationId;
@@ -115,7 +117,7 @@ export interface MessageMetadata {
 	messageId?: MessageId;
 
 	/** Business event name (e.g. UserCreated). */
-	eventType: string;
+	eventType: EventEnumMap;
 
 	/** Timestamp indicating when the message was emitted. */
 	emittedAt?: Date;

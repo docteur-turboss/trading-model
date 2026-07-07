@@ -205,7 +205,7 @@ import {
 /** Create a genome with sensible default values for network, RL hyperparameters, mutation, crossover, and GA control. */
 export function createDefaultGenome(id: string, generation = 0): Genome {
 	return {
-		id,
+		id: toGenomeId(id),
 		generation,
 		network: createNetworkGenome(),
 		rl: _createDefaultRLGenome(),

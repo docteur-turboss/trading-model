@@ -1,5 +1,5 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { HttpMethod } from "@trading-model/common/config/http-types";
+import { HttpMethod } from "@trading-model/common/contracts/signed-request";
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
@@ -88,7 +88,7 @@ export class DlqServiceClient implements IDlqServiceClient {
 			const result = await this._httpClient.get<{ entries: DlqEntry[] }>(
 				url,
 				signedOptions({
-					method: "GET" as HttpMethod,
+					method: HttpMethod.GET,
 					path: "/dlq",
 					body: undefined,
 					extra: { timeoutMs: 5000 },
@@ -116,7 +116,7 @@ export class DlqServiceClient implements IDlqServiceClient {
 				`${this._serviceUrl}/dlq/delete`,
 				body,
 				signedOptions({
-					method: "POST" as HttpMethod,
+					method: HttpMethod.POST,
 					path: "/dlq/delete",
 					body,
 					extra: { timeoutMs: 5000 },

@@ -5,6 +5,7 @@ import type {
 	SecurityType,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
+import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import {
 	type CorrelationId,
 	type Topic,
@@ -23,9 +24,9 @@ import { MessageChainingMetadata } from "./message-chaining-metadata";
 
 export class MessageMetadata {
 	public topic: Topic;
-	public eventType: string;
+	public eventType: EventEnumMap;
 	public publisher: ServiceIdentity;
-	public schemaVersion = "1.0.0";
+	public schemaVersion: "1.0.0" = "1.0.0";
 	public security?: SecurityType;
 	public delivery?: DeliveryType;
 	public routing?: RoutingType;
@@ -33,7 +34,7 @@ export class MessageMetadata {
 
 	public constructor(
 		topic: string,
-		eventType: string,
+		eventType: EventEnumMap,
 		publisher: ServiceIdentity,
 		data: Partial<Omit<MetadataType, "topic" | "eventType" | "publisher">> = {}
 	) {
@@ -105,13 +106,13 @@ export class MessageMetadata {
 			return this;
 		}
 		SCHEMA_METADATA_VERSION_PREDICATE.parse(version);
-		this.schemaVersion = version;
+		this.schemaVersion = version as "1.0.0";
 		return this;
 	}
 
 	public setEventType(event: string): this {
 		EVENT_TYPE_METADATA_PREDICATE.parse(event);
-		this.eventType = event;
+		this.eventType = event as EventEnumMap;
 		return this;
 	}
 

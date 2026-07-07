@@ -1,5 +1,5 @@
 import { recordDiscoveryMetrics } from "../metrics";
-import type { CircuitBreaker } from "./circuit-breaker";
+import type { DiscoveryCircuitBreaker } from "./circuit-breaker";
 import { DiscoveryRetryHandler } from "./discovery-retry-handler";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceDiscovery } from "./service-discovery";
@@ -8,12 +8,12 @@ import type { ServiceHealthChecker } from "./service-health-checker";
 export interface DiscoveryOrchestratorDeps {
 	serviceDiscovery: ServiceDiscovery;
 	serviceCache: IServiceCache;
-	circuitBreaker: CircuitBreaker;
+	circuitBreaker: DiscoveryCircuitBreaker;
 	healthChecker: ServiceHealthChecker;
 }
 
 export class DiscoveryOrchestrator {
-	readonly circuitBreaker: CircuitBreaker;
+	readonly circuitBreaker: DiscoveryCircuitBreaker;
 	private readonly _serviceDiscovery: ServiceDiscovery;
 	private readonly _healthChecker: ServiceHealthChecker;
 	private readonly _retryHandler: DiscoveryRetryHandler;
@@ -45,7 +45,7 @@ export class DiscoveryOrchestrator {
 				return staleInstance;
 			}
 
-			recordDiscoveryMetrics(serviceName, startTime, "failure");
+			recordDiscoveryMetrics({ serviceName, startTime }, "failure");
 			throw lastError;
 		}
 	}

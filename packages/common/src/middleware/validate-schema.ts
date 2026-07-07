@@ -1,3 +1,4 @@
+import { HTTP_STATUS } from "../http-status";
 import type { NextFunction, Request, Response } from "express";
 import type { ZodSchema } from "zod";
 
@@ -19,7 +20,7 @@ export function validateSchema(schema: ZodSchema) {
 					issues: Array<{ path: (string | number)[]; message: string }>;
 				}
 			).issues;
-			res.status(400).json({
+			res.status(HTTP_STATUS.BAD_REQUEST).json({
 				error: "Validation failed",
 				details: _buildValidationDetails(issues),
 			});

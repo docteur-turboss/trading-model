@@ -1,3 +1,4 @@
+import { logger } from "@trading-model/common/config/logger";
 import { Cash, Price, Volume } from "@trading-model/common/domain/primitives";
 import type { Experience } from "../../core/neural-network/type";
 import TradingAgent, { type TradingAgentConfig } from "../agent/trading-agent";
@@ -77,7 +78,7 @@ function _tryLamarckianInjection(
 		try {
 			agent.setWeights(new Float32Array(genome.trainedWeights));
 		} catch {
-			// architecture mismatch after structural mutation
+			logger.warn("Failed to inject Lamarckian weights — architecture mismatch");
 		}
 	}
 }

@@ -13,7 +13,10 @@ import type { RevocationRequest } from "@trading-model/common/domain/revocation-
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import { CaWssTransport, NullCaWssTransport } from "./wss-transport";
 
-export type TransportMode = "wss" | "https";
+export enum TransportMode {
+	Wss = "wss",
+	Https = "https",
+}
 
 export interface TransportConfig {
 	caUrl: string;
@@ -23,6 +26,8 @@ export interface TransportConfig {
 	bootstrapToken?: string;
 }
 
+const MAX_UNAUTH_REJECTS = 3;
+
 class WssFallbackStrategy {
 	private _mode: TransportMode;
 	private _wssTransport: CaWssTransport | NullCaWssTransport;
@@ -30,10 +35,10 @@ class WssFallbackStrategy {
 
 	constructor(config: TransportConfig) {
 		if (config.forceHttps) {
-			this._mode = "https";
+			this._mode = TransportMode.Https;
 			this._wssTransport = new NullCaWssTransport();
 		} else {
-			this._mode = "wss";
+			this._mode = TransportMode.Wss;
 			this._wssTransport = new CaWssTransport(
 				this._buildWsUrl(config.caUrl),
 				config.tls,
@@ -50,14 +55,14 @@ class WssFallbackStrategy {
 		request: SignCertificateRequest,
 		httpsClient: CaClient
 	): Promise<SignCertificateResponse> {
-		if (this._mode === "wss" && this._wssTransport.isConnected) {
+		if (this._mode === TransportMode.Wss && this._wssTransport.isConnected) {
 			if (!this._wssTransport.isAuthSent) {
 				this._unauthRejects++;
-				if (this._unauthRejects > 3) {
+				if (this._unauthRejects > MAX_UNAUTH_REJECTS) {
 					logger.warn(
-						"WSS not authenticated after 3 attempts, falling back to HTTPS"
+						`WSS not authenticated after ${MAX_UNAUTH_REJECTS} attempts, falling back to HTTPS`
 					);
-					this._mode = "https";
+					this._mode = TransportMode.Https;
 					return httpsClient.signCertificate(request);
 				}
 			}

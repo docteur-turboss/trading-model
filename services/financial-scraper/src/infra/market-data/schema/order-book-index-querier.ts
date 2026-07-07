@@ -1,7 +1,7 @@
-import type {
+import {
 	MarketType,
-	SourceType,
-} from "@trading-model/common/config/event.types";
+	type SourceType,
+} from "@trading-model/common/contracts/market-data.types";
 import type {
 	TradingSymbol,
 	UnixTimestamp,
@@ -16,7 +16,7 @@ const ASKS_BIDS_DEF = zod.object({
 });
 const TABLE_DEF = zod.object({
 	symbol: zod.string(),
-	market: zod.enum(["crypto", "equity", "bond", "etf", "fx", "future"]),
+	market: zod.nativeEnum(MarketType),
 	source: zod.string(),
 	bids: zod.array(ASKS_BIDS_DEF),
 	asks: zod.array(ASKS_BIDS_DEF),

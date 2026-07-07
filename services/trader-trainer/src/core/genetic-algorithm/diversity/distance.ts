@@ -11,7 +11,7 @@ function _computeL2Squared(va: Float32Array, vb: Float32Array): number {
 }
 
 export function genomicDistance(left: Genome, right: Genome): number {
-	const va = encodeGenome(left).toFloat32Array();
-	const vb = encodeGenome(right).toFloat32Array();
+	const va = encodeGenome(left);
+	const vb = encodeGenome(right);
 	return Math.sqrt(_computeL2Squared(va, vb)) / Math.sqrt(va.length);
 }

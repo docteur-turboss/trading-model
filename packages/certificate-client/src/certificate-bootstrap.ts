@@ -44,7 +44,7 @@ function _setupAutoRenewCallback(
 
 function _createTlsBootstrap(config: BootstrapConfig): TlsBootstrapOptions {
 	return {
-		ensure: () => bootstrapCertificate(config),
+		ensure: () => bootstrapCertificate(config).then(() => {}),
 		setupAutoRenew: (server: https.Server) => {
 			const client = new CertificateClient({
 				...config,
@@ -100,7 +100,7 @@ async function loadServerDependencies(): Promise<{
 	return {
 		configureApp: configureAppMod.configureApp,
 		mtlsAuthMiddleware: mtlsAuthMod.MTLSAuthMiddleware,
-		responseProtocol: responseProtocolMod.ResponseProtocol,
+		responseProtocol: responseProtocolMod.ResponseProtocol as unknown as import("express").RequestHandler,
 		createAndStartHttpsServer: serverFactoryMod.createAndStartHttpsServer,
 	};
 }

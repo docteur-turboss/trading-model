@@ -1,20 +1,11 @@
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
-import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 
 import {
 	type FallbackPublishFn,
+	type PendingPublish,
+	type SendJsonFn,
 	HttpFallbackHandler,
 } from "./http-fallback-handler";
-
-interface PendingPublish {
-	payload: unknown;
-	metadata: MessageMetadata;
-	resolve: () => void;
-	reject: (err: Error) => void;
-	timestamp: UnixTimestamp;
-}
-
-type SendJsonFn = (data: unknown) => boolean;
 
 const WSS_PENDING_QUEUE_MAX = 1000;
 
@@ -45,7 +36,7 @@ export class PendingPublishQueue {
 				metadata,
 				resolve,
 				reject,
-				timestamp: Date.now() as UnixTimestamp,
+				timestamp: Date.now(),
 			});
 		});
 	}

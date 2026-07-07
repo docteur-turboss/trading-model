@@ -1,4 +1,5 @@
 import type { SignedCertificate } from "@trading-model/certificate-utils/types";
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { logger } from "@trading-model/common/config/logger";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import type { CertSignRequest } from "@trading-model/common/domain/cert-signing";
@@ -44,7 +45,7 @@ interface RenewalPopInput {
 
 export class CertRenewalError extends AppError {
 	public readonly statusCode: number;
-	constructor(message: string, statusCode = 400) {
+	constructor(message: string, statusCode: number = HTTP_STATUS.BAD_REQUEST) {
 		super(message, { code: "CertRenewalError" });
 		this.name = "CertRenewalError";
 		this.statusCode = statusCode;
@@ -106,7 +107,7 @@ export class CertRenewalService {
 
 	private async _consumeNonce(nonce: string, serviceId: string): Promise<void> {
 		if (!(await this._nonceStore.consume({ nonce, serviceId }))) {
-			throw new CertRenewalError("Invalid or expired nonce", 401);
+			throw new CertRenewalError("Invalid or expired nonce", HTTP_STATUS.UNAUTHORIZED);
 		}
 	}
 
@@ -115,7 +116,7 @@ export class CertRenewalService {
 	): Promise<{ certPem: string; serviceId: string }> {
 		const oldCert = await this._certStore.getBySerial(oldSerialNumber);
 		if (!oldCert) {
-			throw new CertRenewalError("Original certificate not found", 404);
+			throw new CertRenewalError("Original certificate not found", HTTP_STATUS.NOT_FOUND);
 		}
 		return oldCert;
 	}
@@ -128,7 +129,7 @@ export class CertRenewalService {
 			});
 			throw new CertRenewalError(
 				"Proof-of-possession failed — signature does not match certificate public key",
-				403
+				HTTP_STATUS.FORBIDDEN
 			);
 		}
 	}
@@ -141,7 +142,7 @@ export class CertRenewalService {
 		if (!acquired) {
 			throw new CertRenewalError(
 				"Could not acquire distributed lock for certificate renewal",
-				503
+				HTTP_STATUS.SERVICE_UNAVAILABLE
 			);
 		}
 		try {

@@ -13,27 +13,19 @@ function readTlsFileSync(filePath: string, label: string): string {
 	}
 }
 
-export class HttpTlsLoader {
-	readonly ca: string | undefined;
-	readonly cert: string | undefined;
-	readonly key: string | undefined;
-
-	constructor(tlsConfig?: Partial<TlsPemBundle>) {
-		if (!tlsConfig) {
-			return;
-		}
-		if (tlsConfig.ca) {
-			this.ca = readTlsFileSync(tlsConfig.ca, "CA certificate");
-		}
-		if (tlsConfig.cert) {
-			this.cert = readTlsFileSync(tlsConfig.cert, "client certificate");
-		}
-		if (tlsConfig.key) {
-			this.key = readTlsFileSync(tlsConfig.key, "client key");
-		}
+export function loadTlsPemBundle(tlsConfig?: Partial<TlsPemBundle>): Partial<TlsPemBundle> {
+	if (!tlsConfig) {
+		return {};
 	}
-
-	get hasTlsConfig(): boolean {
-		return Boolean(this.ca || this.cert || this.key);
+	const result: Partial<TlsPemBundle> = {};
+	if (tlsConfig.ca) {
+		result.ca = readTlsFileSync(tlsConfig.ca, "CA certificate");
 	}
+	if (tlsConfig.cert) {
+		result.cert = readTlsFileSync(tlsConfig.cert, "client certificate");
+	}
+	if (tlsConfig.key) {
+		result.key = readTlsFileSync(tlsConfig.key, "client key");
+	}
+	return result;
 }

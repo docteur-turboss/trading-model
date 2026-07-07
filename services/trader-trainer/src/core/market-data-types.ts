@@ -38,9 +38,9 @@ export interface SymbolNormalizers {
 export interface BaseSymbolState {
 	candles: CandleData[];
 	trades: TradeData[];
-	orderBook: OrderBookData | null;
-	bookTicker: BookTickerData | null;
-	ticker24h: TickerData | null;
+	orderBook?: OrderBookData;
+	bookTicker?: BookTickerData;
+	ticker24h?: TickerData;
 }
 
 /** Per-symbol state: candles, trades, order book, ticker, and running normalisers. */

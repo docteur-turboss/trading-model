@@ -2,7 +2,7 @@ import { logger } from "@trading-model/common/config/logger";
 import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
-interface PendingPublish {
+export interface PendingPublish {
 	payload: unknown;
 	metadata: MessageMetadata;
 	resolve: () => void;
@@ -10,7 +10,7 @@ interface PendingPublish {
 	timestamp: number;
 }
 
-type SendJsonFn = (data: unknown) => boolean;
+export type SendJsonFn = (data: unknown) => boolean;
 export type FallbackPublishFn = (
 	payload: unknown,
 	metadata: MessageMetadata

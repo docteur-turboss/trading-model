@@ -1,3 +1,10 @@
+import { type AuditEvent, Severity } from "@trading-model/common/contracts/admin/audit.dto";
+import {
+	toTopic,
+	toServiceId,
+	toCorrelationId,
+	type UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { notifyAudit } from "../config/audit";
 
 export function notifyAddAudit(
@@ -6,12 +13,12 @@ export function notifyAddAudit(
 	reason: string | undefined
 ): void {
 	void notifyAudit({
-		timestamp: new Date().toISOString(),
-		topic: topic ?? "unknown",
-		publisher: "dlq-service",
-		correlationId: id,
+		timestamp: Date.now() as unknown as UnixTimestamp,
+		topic: toTopic(topic ?? "unknown"),
+		publisher: toServiceId("dlq-service"),
+		correlationId: toCorrelationId(id),
 		summary: `DLQ entry added: ${reason ?? "no reason"}`,
-		severity: "WARNING",
+		severity: Severity.Warning,
 	});
 }
 
@@ -35,14 +42,14 @@ function _buildReplayAuditEvent(
 	topic: string | undefined,
 	success: number,
 	failed: number
-): Parameters<typeof notifyAudit>[0] {
+): AuditEvent {
 	return {
-		timestamp: new Date().toISOString(),
-		topic: topic ?? "unknown",
-		publisher: "dlq-service",
-		correlationId: batchId,
+		timestamp: Date.now() as unknown as UnixTimestamp,
+		topic: toTopic(topic ?? "unknown"),
+		publisher: toServiceId("dlq-service"),
+		correlationId: toCorrelationId(batchId),
 		summary: `DLQ replay: ${success} succeeded, ${failed} failed`,
-		severity: failed > 0 ? "ERROR" : "INFO",
+		severity: failed > 0 ? Severity.Error : Severity.Info,
 	};
 }
 
@@ -51,12 +58,12 @@ export function notifyAbandonAudit(count: number): void {
 		return;
 	}
 	void notifyAudit({
-		timestamp: new Date().toISOString(),
-		topic: "dlq-service",
-		publisher: "dlq-service",
-		correlationId: "abandon",
+		timestamp: Date.now() as unknown as UnixTimestamp,
+		topic: toTopic("dlq-service"),
+		publisher: toServiceId("dlq-service"),
+		correlationId: toCorrelationId("abandon"),
 		summary: `${count} DLQ entries abandoned after max retries`,
-		severity: "CRITICAL",
+		severity: Severity.Critical,
 	});
 }
 
@@ -65,11 +72,11 @@ export function notifyDeleteAudit(ids: string[], deleted: number): void {
 		return;
 	}
 	void notifyAudit({
-		timestamp: new Date().toISOString(),
-		topic: "dlq-service",
-		publisher: "dlq-service",
-		correlationId: ids[0],
+		timestamp: Date.now() as unknown as UnixTimestamp,
+		topic: toTopic("dlq-service"),
+		publisher: toServiceId("dlq-service"),
+		correlationId: toCorrelationId(ids[0]),
 		summary: `${deleted} DLQ entries deleted`,
-		severity: "INFO",
+		severity: Severity.Info,
 	});
 }

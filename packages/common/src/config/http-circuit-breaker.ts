@@ -1,3 +1,4 @@
+import { HTTP_STATUS } from "../http-status";
 import { CircuitBreaker } from "../reliability/circuit-breaker";
 import { HttpClientError } from "./http-client-errors";
 
@@ -20,7 +21,7 @@ function getServiceCircuit(serviceName: string): CircuitBreaker {
 export function checkHostnameCircuit(hostname: string): void {
 	const state = HOSTNAME_CIRCUIT.check(hostname);
 	if (state === "open") {
-		throw new HttpClientError(`Circuit breaker open for ${hostname}`, 503);
+		throw new HttpClientError(`Circuit breaker open for ${hostname}`, HTTP_STATUS.SERVICE_UNAVAILABLE);
 	}
 }
 
@@ -38,7 +39,7 @@ export function checkServiceCircuit(serviceName: string): void {
 	if (state === "open") {
 		throw new HttpClientError(
 			`Circuit breaker open for service ${serviceName}`,
-			503
+			HTTP_STATUS.SERVICE_UNAVAILABLE
 		);
 	}
 }

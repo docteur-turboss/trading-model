@@ -13,7 +13,6 @@ export class MongoArchiveStore {
 		if (!this._clientManager.canStart()) {
 			return;
 		}
-		this._clientManager.markStarted();
 
 		try {
 			await this._clientManager.connectClient();

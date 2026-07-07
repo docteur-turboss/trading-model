@@ -1,6 +1,5 @@
 import type https from "node:https";
-
-type HttpMethod = "GET" | "POST" | "DELETE";
+import { HttpMethod } from "../contracts/signed-request";
 
 interface HttpRequestOptions {
 	timeoutMs?: number;
@@ -11,4 +10,5 @@ interface HttpRequestOptions {
 	serviceInstanceCount?: number;
 }
 
-export type { HttpMethod, HttpRequestOptions };
+export type { HttpRequestOptions };
+export { HttpMethod };

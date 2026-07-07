@@ -26,6 +26,7 @@
  * No business logic is performed here; purely request/response orchestration.
  */
 
+import type { MessageMetadata } from "@trading-model/common/contracts/message.types";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { Dispatcher } from "../core/dispatcher";
@@ -105,7 +106,10 @@ export const PUBLISH_A_MESSAGE = (dispatcher: Dispatcher) =>
 			return sendResponse({ error: parsed.error.message }, 400);
 		}
 
-		await dispatcher.publish(parsed.data.payload, parsed.data.metadata);
+		await dispatcher.publish(
+			parsed.data.payload,
+			parsed.data.metadata as Omit<MessageMetadata, "emittedAt" | "messageId">
+		);
 
 		return sendResponse(undefined, 204);
 	});

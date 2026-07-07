@@ -1,7 +1,4 @@
-import {
-	EnumEventMessage,
-	type EventEnumMap,
-} from "@trading-model/common/config/event.types";
+import { MarketEvent } from "@trading-model/common/contracts/market-events";
 import type { DataType } from "../core/data-handlers/data-handler";
 import { MarketDataBuffer } from "../core/market-data-buffer";
 import { processCandle } from "./event-processors/candle-processor";
@@ -12,11 +9,11 @@ import { processTicker } from "./event-processors/ticker-processor";
 import { processPrice } from "./event-processors/price-processor";
 
 export const EVENT_TO_HANDLER: Record<string, DataType> = {
-	[EnumEventMessage.fetchCandlestickSeries]: "candle",
-	[EnumEventMessage.fetchRecentTrades]: "trade",
-	[EnumEventMessage.fetchOrderBookSnapshot]: "orderBook",
-	[EnumEventMessage.fetchOrderBookTickerSnapshot]: "bookTicker",
-	[EnumEventMessage.fetch24hrTickerStats]: "ticker",
+	[MarketEvent.fetchCandlestickSeries]: "candle",
+	[MarketEvent.fetchRecentTrades]: "trade",
+	[MarketEvent.fetchOrderBookSnapshot]: "orderBook",
+	[MarketEvent.fetchOrderBookTickerSnapshot]: "bookTicker",
+	[MarketEvent.fetch24hrTickerStats]: "ticker",
 };
 
 type EventProcessor = (buffer: MarketDataBuffer, data: unknown) => void;
@@ -41,7 +38,7 @@ export class DataEventHandler {
 		EVENT_PROCESSORS[dataType]?.(this._dataBuffer, data);
 	}
 
-	getSubscribedIntents(): EventEnumMap[] {
-		return Object.keys(EVENT_TO_HANDLER) as EventEnumMap[];
+	getSubscribedIntents(): string[] {
+		return Object.keys(EVENT_TO_HANDLER);
 	}
 }

@@ -11,9 +11,10 @@ export enum LayerType {
 }
 
 /**
- * Canonical activation function enum.
- * When adding values here, also add the corresponding runtime implementation
- * in trader-trainer (ActivationType / ACTIVATIONS map) and keep string values aligned.
+ * Canonical activation function enum for the API/training contract.
+ * Runtime uses ActivationType in trader-trainer which intentionally diverges:
+ *   - LeakyRelu → LeakyReLu (backward compat with persisted genomes)
+ *   - Linear     is not exposed at runtime
  */
 export enum ActivationFn {
 	Relu = "relu",
@@ -29,7 +30,7 @@ export enum ActivationFn {
 
 /**
  * Canonical optimizer enum.
- * When adding values here, also update OptimizerType in trader-trainer.
+ * trader-trainer now re-exports this as OptimizerType (identical values).
  */
 export enum Optimizer {
 	Adam = "adam",

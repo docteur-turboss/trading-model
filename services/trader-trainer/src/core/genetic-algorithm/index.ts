@@ -61,8 +61,8 @@ export {
 	sampleNoise,
 	sampleUniform,
 } from "./noise";
-export type { ObjectiveVector, PopulationMeta } from "./pareto-engine";
-export { buildPopulationMeta, dominates, ParetoArchive } from "./pareto-engine";
+export type { ObjectiveVector, PopulationMeta } from "./pareto";
+export { buildPopulationMeta, dominates, ParetoArchive } from "./pareto";
 export { makePRNG } from "./prng";
 export type { BackendFactory, RLBackend } from "./rl-backend";
 export { makeTradingAgentBackend } from "./rl-backend";

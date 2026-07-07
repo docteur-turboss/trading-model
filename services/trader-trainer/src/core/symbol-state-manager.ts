@@ -57,9 +57,6 @@ export class SymbolStateManager {
 		return {
 			candles: [],
 			trades: [],
-			orderBook: null,
-			bookTicker: null,
-			ticker24h: null,
 			norm: this._normManager.createNormStats(),
 		};
 	}

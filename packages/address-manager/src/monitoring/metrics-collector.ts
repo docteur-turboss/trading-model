@@ -1,7 +1,7 @@
 import { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { Application } from "express";
 import promClient from "prom-client";
-import type { CircuitBreaker } from "../discovery/circuit-breaker";
+import type { DiscoveryCircuitBreaker } from "../discovery/circuit-breaker";
 import type { IServiceCache } from "../discovery/service-cache.interface";
 import { METRICS_ROUTES } from "../http/routes/metrics.routes";
 import { PING_ROUTES } from "../http/routes/ping.routes";
@@ -14,7 +14,7 @@ export class MetricsCollector {
 	private readonly _serviceCallTracker: ServiceCallTracker;
 
 	constructor(
-		private readonly _circuitBreaker: CircuitBreaker,
+		private readonly _circuitBreaker: DiscoveryCircuitBreaker,
 		private readonly _serviceCache: IServiceCache,
 		maxCallRecords?: number
 	) {

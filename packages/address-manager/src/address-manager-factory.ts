@@ -7,7 +7,7 @@ import { AddressManagerClient } from "./client/address-manager-client";
 import { TokenManager } from "./client/token-manager";
 import { WebSocketClient, type WsMessage } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
-import { CircuitBreaker } from "./discovery/circuit-breaker";
+import { DiscoveryCircuitBreaker } from "./discovery/circuit-breaker";
 import { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
 import { MapResolver } from "./discovery/dns-resolver";
 import { RedisServiceCache } from "./discovery/redis-service-cache";
@@ -56,8 +56,8 @@ function createServiceCache(config: AddressManagerConfig): IServiceCache {
 function createCircuitBreaker(
 	config: AddressManagerConfig,
 	serviceCache: IServiceCache
-): CircuitBreaker {
-	return new CircuitBreaker({
+): DiscoveryCircuitBreaker {
+	return new DiscoveryCircuitBreaker({
 		failureThreshold: config.circuitBreakerFailureThreshold ?? 3,
 		halfOpenTimeoutMs: config.circuitBreakerHalfOpenTimeoutMs ?? 10_000,
 		stateStore: serviceCache,
@@ -85,7 +85,7 @@ function createDiscoveryInfra(
 	serviceCache: IServiceCache,
 	healthChecker: ServiceHealthChecker,
 	config: AddressManagerConfig,
-	circuitBreaker: CircuitBreaker
+	circuitBreaker: DiscoveryCircuitBreaker
 ): DiscoveryOrchestrator {
 	const discovery = new ServiceDiscovery({
 		httpClient,
@@ -217,7 +217,7 @@ function maybeCreateWsClient(
 
 function createLifecycleManager(
 	config: AddressManagerConfig,
-	circuitBreaker: CircuitBreaker,
+	circuitBreaker: DiscoveryCircuitBreaker,
 	registrationManager: RegistrationManager,
 	heartbeatManager: HeartbeatManager,
 	wsClient: WebSocketClient | undefined,

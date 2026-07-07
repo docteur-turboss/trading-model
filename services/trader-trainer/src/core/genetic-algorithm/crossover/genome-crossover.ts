@@ -11,128 +11,27 @@ import type {
 	RewardShapingGenome,
 	RLGenome,
 	RLScalars,
-} from "./genome-types";
-import { CrossoverType } from "./genome-types";
+} from "../genome-types";
+import { crossoverScalar } from "./strategies";
 
-export interface CrossoverStrategyContext {
-	left: number;
-	right: number;
-	co: CrossoverGenome;
-	rng: () => number;
-}
-
-export interface CrossoverStrategy {
-	readonly type: CrossoverGenome["type"];
-	crossover(ctx: CrossoverStrategyContext): number;
-}
-
-function lerpNum(first: number, second: number, blend: number): number {
-	return first + (second - first) * blend;
-}
-
-class ArithmeticCrossover implements CrossoverStrategy {
-	readonly type = CrossoverType.Arithmetic;
-
-	crossover(ctx: CrossoverStrategyContext): number {
-		const { left, right, co } = ctx;
-		return lerpNum(left, right, co.blendAlpha);
-	}
-}
-
-class BlendCrossover implements CrossoverStrategy {
-	readonly type = CrossoverType.Blend;
-
-	crossover(ctx: CrossoverStrategyContext): number {
-		const { left, right, co, rng } = ctx;
-		const lo = Math.min(left, right);
-		const hi = Math.max(left, right);
-		const diff = hi - lo;
-		return (
-			lo - co.blendAlpha * diff + rng() * (diff + 2 * co.blendAlpha * diff)
-		);
-	}
-}
-
-class SBXCrossover implements CrossoverStrategy {
-	readonly type = CrossoverType.Sbx;
-
-	crossover(ctx: CrossoverStrategyContext): number {
-		const { left, right, co, rng } = ctx;
-		const randomValue = rng();
-		const beta =
-			randomValue < 0.5
-				? (2 * randomValue) ** (1 / (co.sbxEta + 1))
-				: (1 / (2 * (1 - randomValue))) ** (1 / (co.sbxEta + 1));
-		return 0.5 * ((1 + beta) * left + (1 - beta) * right);
-	}
-}
-
-class UniformCrossover implements CrossoverStrategy {
-	readonly type = CrossoverType.Uniform;
-
-	crossover(ctx: CrossoverStrategyContext): number {
-		const { left, right, rng } = ctx;
-		return rng() < 0.5 ? left : right;
-	}
-}
-
-class OnePointCrossover implements CrossoverStrategy {
-	readonly type = CrossoverType.OnePoint;
-
-	crossover(ctx: CrossoverStrategyContext): number {
-		const { left, right, rng } = ctx;
-		return rng() < 0.5 ? left : right;
-	}
-}
-
-class TwoPointCrossover implements CrossoverStrategy {
-	readonly type = CrossoverType.TwoPoint;
-
-	crossover(ctx: CrossoverStrategyContext): number {
-		const { left, right, rng } = ctx;
-		return rng() < 0.5 ? left : right;
-	}
-}
-
-const CROSSOVER_STRATEGIES: Record<CrossoverGenome["type"], CrossoverStrategy> =
-	{
-		[CrossoverType.Arithmetic]: new ArithmeticCrossover(),
-		[CrossoverType.Blend]: new BlendCrossover(),
-		[CrossoverType.Sbx]: new SBXCrossover(),
-		[CrossoverType.Uniform]: new UniformCrossover(),
-		[CrossoverType.OnePoint]: new OnePointCrossover(),
-		[CrossoverType.TwoPoint]: new TwoPointCrossover(),
-	};
-
-export interface CrossoverContext<TLeft = unknown, TRight = unknown> {
+interface CrossoverContext<TLeft = unknown, TRight = unknown> {
 	left: TLeft;
 	right: TRight;
 	co: CrossoverGenome;
 	rng: () => number;
 }
 
-export interface CrossoverFnContext<TLeft = unknown, TRight = unknown> {
+interface CrossoverFnContext<TLeft = unknown, TRight = unknown> {
 	left: TLeft;
 	right: TRight;
 	crossoverFn: (valueA: number, valueB: number) => number;
 	rng: () => number;
 }
 
-export interface HorizonCrossoverContext<TLeft = unknown, TRight = unknown> {
+interface HorizonCrossoverContext<TLeft = unknown, TRight = unknown> {
 	left: TLeft;
 	right: TRight;
 	crossoverFn: (valueA: number, valueB: number) => number;
-}
-
-/** Crossover two scalar values using the given strategy and return the offspring. */
-export function crossoverScalar(ctx: CrossoverContext<number, number>): number {
-	const { left, right, co, rng } = ctx;
-	const strategy = CROSSOVER_STRATEGIES[co.type];
-	return strategy
-		? strategy.crossover({ left, right, co, rng })
-		: rng() < 0.5
-			? left
-			: right;
 }
 
 function _crossoverLayerPair(
@@ -374,7 +273,6 @@ function crossoverMutation(
 	};
 }
 
-/** Produce a child genome via crossover of two parents, with probability governed by parent A's crossover config. */
 export function crossoverGenomes(
 	parentA: LamarckGenome,
 	parentB: LamarckGenome,

@@ -1,21 +1,8 @@
 import { appendFile } from "node:fs/promises";
 
-import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
 
-/** Single entry written to the Dead Letter Queue. */
-export interface DlqEntry {
-	/** The failed message payload and metadata. */
-	message: unknown;
-
-	/** Human-readable reason for the failure. */
-	reason?: string;
-
-	/** Number of delivery attempts made before the message was dead-lettered. */
-	deliveryAttempt: number;
-
-	/** ISO-8601 timestamp when the entry was created. */
-	timestamp: UnixTimestamp;
-}
+export type { DlqEntry };
 
 /**
  * File-based Dead Letter Queue repository.

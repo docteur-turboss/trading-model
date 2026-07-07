@@ -19,12 +19,12 @@ export class CrlStore {
 
 	async disconnect(): Promise<void> {}
 
-	async add(entry: RevokedCertificate): Promise<void> {
+	async save(entry: RevokedCertificate): Promise<void> {
 		await this._collection.insertOne(entry);
 	}
 
-	async save(entry: RevokedCertificate): Promise<void> {
-		await this.add(entry);
+	async add(entry: RevokedCertificate): Promise<void> {
+		await this.save(entry);
 	}
 
 	async getAll(): Promise<RevokedCertificate[]> {

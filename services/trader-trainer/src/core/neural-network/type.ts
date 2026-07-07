@@ -25,9 +25,10 @@ export enum NormalisationType {
 }
 
 /**
- * Must stay in sync with ActivationFn in @trading-model/common/contracts/admin/training.dto.
- * LeakyReLu uses different string value ("leakyReLu" vs "leaky_relu") for backward
- * compatibility with persisted genome/config data.
+ * Runtime activation functions.
+ * Intentionally differs from ActivationFn (canonical API enum):
+ *   - LeakyReLu uses "leakyReLu" (not "leaky_relu") for backward compat with persisted data
+ *   - Linear is not exposed at runtime (ActivationFn has it)
  */
 export enum ActivationType {
 	Sigmoid = "sigmoid",
@@ -55,14 +56,10 @@ export enum InitialisationType {
 }
 
 /**
- * Must stay in sync with Optimizer in @trading-model/common/contracts/admin/training.dto.
+ * Optimizer enum re-exported from common (identical values).
  */
-export enum OptimizerType {
-	Sgd = "sgd",
-	Adam = "adam",
-	Rmsprop = "rmsprop",
-	Adamw = "adamw",
-}
+import { Optimizer as OptimizerType } from "@trading-model/common/contracts/admin/training.dto";
+export { OptimizerType };
 
 /** Network topology and layer configuration. */
 export interface NetworkArchitecture {

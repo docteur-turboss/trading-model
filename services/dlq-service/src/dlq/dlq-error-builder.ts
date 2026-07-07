@@ -1,4 +1,5 @@
 import { SpanStatusCode } from "@opentelemetry/api";
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import {
 	type ResponseObject,
 	sendResponse,
@@ -41,7 +42,7 @@ function handleCapacityError(
 	span.end();
 	return sendResponse(
 		{ error: "DLQ capacity limit reached, entry rejected" },
-		429
+		HTTP_STATUS.TOO_MANY_REQUESTS
 	);
 }
 
@@ -63,6 +64,6 @@ function handleStorageError(
 			error: "Storage unavailable — message not persisted. Retry later.",
 			code: "STORAGE_UNAVAILABLE",
 		},
-		503
+		HTTP_STATUS.SERVICE_UNAVAILABLE
 	);
 }

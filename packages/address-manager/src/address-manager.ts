@@ -21,7 +21,7 @@ export default class AddressManager {
 		this._lifecycleManager = deps.lifecycleManager;
 	}
 
-	get circuitBreaker(): import("./discovery/circuit-breaker").CircuitBreaker {
+	get circuitBreaker(): import("./discovery/circuit-breaker").DiscoveryCircuitBreaker {
 		return this._discoveryOrchestrator.circuitBreaker;
 	}
 

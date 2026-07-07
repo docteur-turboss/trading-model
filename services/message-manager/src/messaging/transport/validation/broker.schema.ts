@@ -22,6 +22,8 @@
 
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { EventEnumMap } from "@trading-model/common/config/event.types";
+import type { Signature } from "@trading-model/common/contracts/signed-request";
 import {
 	toCorrelationId,
 	toInstanceId,
@@ -83,12 +85,12 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 		.string()
 		.optional()
 		.transform((v) => (v ? toCorrelationId(v) : undefined)),
-	schemaVersion: z.string().min(1),
+	schemaVersion: z.string().min(1).transform(() => "1.0.0" as const),
 	causationId: z
 		.string()
 		.optional()
 		.transform((v) => (v ? toCorrelationId(v) : undefined)),
-	eventType: z.string().min(1),
+	eventType: z.string().min(1) as unknown as z.ZodType<EventEnumMap>,
 	topic: TOPIC_SCHEMA.transform(toTopic),
 
 	publisher: IDENTIFY_SCHEMA,
@@ -125,7 +127,7 @@ export const PUBLISH_METADATA_SCHEMA = z.object({
 					tenantId: z.string(),
 				})
 				.optional(),
-			signature: z.string().optional(),
+			signature: z.string().optional() as unknown as z.ZodType<Signature | undefined>,
 		})
 		.optional(),
 });

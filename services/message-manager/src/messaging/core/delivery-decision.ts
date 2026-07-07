@@ -1,3 +1,4 @@
+import { isNonRetryableClientError } from "@trading-model/common/config/http-retry";
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import { isDeadLetterError } from "@trading-model/common/utils/errors";
 
@@ -45,9 +46,7 @@ function checkFatalClientError(
 ): DeliveryDecision | null {
 	if (
 		error.statusCode !== undefined &&
-		error.statusCode >= 400 &&
-		error.statusCode < 500 &&
-		error.statusCode !== 429
+		isNonRetryableClientError(error.statusCode)
 	) {
 		return { retry: false, deadLetterReason: `FATAL_${error.statusCode}` };
 	}

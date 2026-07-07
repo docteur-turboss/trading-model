@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as https from "node:https";
+import type { Buffer as NodeBuffer } from "node:buffer";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
 import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import WebSocket from "ws";
@@ -15,7 +16,7 @@ export class WssConnection implements IWsConnection {
 	private _ws: WebSocket | undefined;
 	private _wsUrl?: string;
 	private _lastCloseCode = 0;
-	private _lastCloseReason = Buffer.alloc(0);
+	private _lastCloseReason = Buffer.alloc(0) as NodeBuffer;
 	private readonly _tlsCa?: string;
 	private readonly _tlsCert?: string;
 	private readonly _tlsKey?: string;
@@ -56,9 +57,9 @@ export class WssConnection implements IWsConnection {
 		this._ws.on("message", (raw: WebSocket.RawData) => {
 			this.onMessage?.(raw.toString());
 		});
-		this._ws.on("close", (code: number, reason: Buffer) => {
+		this._ws.on("close", (code: number, reason) => {
 			this._lastCloseCode = code;
-			this._lastCloseReason = reason;
+			this._lastCloseReason = reason as unknown as Buffer;
 			this.onCloseHandler?.();
 		});
 		this._ws.on("error", (err: Error) => {

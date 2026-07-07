@@ -16,6 +16,16 @@ import type {
 	ValidationResult,
 } from "./validate-certificate";
 
+export function guardNonEmptyResponse<T>(
+	data: T | null | undefined,
+	context: string
+): T {
+	if (data == null || (Array.isArray(data) && data.length === 0)) {
+		throw new Error(`Empty response from remote signer: ${context}`);
+	}
+	return data;
+}
+
 export interface RemoteSigningConfig {
 	baseUrl: string;
 	tls?: TlsClientPaths;
@@ -59,10 +69,7 @@ export class RemoteSigningClient {
 			options as unknown as Record<string, unknown>,
 			{ timeoutMs: this._timeoutMs }
 		);
-		if (!result) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
+		return guardNonEmptyResponse(result, "signCertificate");
 	}
 
 	async createCsr(options: CsrOptions): Promise<string> {
@@ -71,10 +78,7 @@ export class RemoteSigningClient {
 			options as unknown as Record<string, unknown>,
 			{ timeoutMs: this._timeoutMs }
 		);
-		if (result === undefined) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
+		return guardNonEmptyResponse(result, "createCsr");
 	}
 
 	async validateCertificate(
@@ -85,10 +89,7 @@ export class RemoteSigningClient {
 			input,
 			{ timeoutMs: this._timeoutMs }
 		);
-		if (!result) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
+		return guardNonEmptyResponse(result, "validateCertificate");
 	}
 
 	async parseKey(privateKey: string): Promise<KeyPair> {
@@ -97,10 +98,7 @@ export class RemoteSigningClient {
 			{ privateKey },
 			{ timeoutMs: this._timeoutMs }
 		);
-		if (!result) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
+		return guardNonEmptyResponse(result, "parseKey");
 	}
 
 	async sign(input: SignInput): Promise<string> {
@@ -109,9 +107,6 @@ export class RemoteSigningClient {
 			input,
 			{ timeoutMs: this._timeoutMs }
 		);
-		if (result === undefined) {
-			throw new Error("Empty response from remote signer");
-		}
-		return result;
+		return guardNonEmptyResponse(result, "sign");
 	}
 }

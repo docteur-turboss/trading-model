@@ -1,6 +1,8 @@
 import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
+import { AppError } from "@trading-model/common/utils/errors";
 import type { Document, Filter } from "mongodb";
 import { ObjectId, type WithId } from "mongodb";
+import type { DlqEntry } from "@trading-model/common/contracts/dlq.types";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import {
@@ -14,18 +16,10 @@ import { DLQ_STATUS } from "./dlq-status";
 export { DlqCapacityError, dlqCapacityError };
 
 export function isDlqCapacityError(err: unknown): err is DlqCapacityError {
-	return err instanceof DlqCapacityError;
+	return err instanceof AppError && err.code === "DlqCapacityError";
 }
 
-export interface DlqEntry {
-	id?: string;
-	topic?: string;
-	message: unknown;
-	reason?: string;
-	deliveryAttempt: number;
-	timestamp: UnixTimestamp;
-	messageId?: string;
-}
+export type { DlqEntry };
 
 export type { DlqStatus } from "./dlq-status";
 export { DLQ_STATUS } from "./dlq-status";

@@ -1,6 +1,7 @@
 import type { HELPER } from "@trading-model/broker-message";
 import type { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
-import { EnumEventMessage } from "@trading-model/common/config/event.types";
+import type { Signature } from "@trading-model/common/contracts/signed-request";
+import { MarketEvent } from "@trading-model/common/contracts/market-events";
 import {
 	buildAuthContext,
 	buildDeliveryConfig,
@@ -19,8 +20,8 @@ export function configureMetadata(
 	builder
 		.setDelivery(buildDeliveryConfig(deliveryMode))
 		.setEventType("FetchCandlestick")
-		.setTopic(EnumEventMessage.fetchCandlestickSeries)
-		.setSecurity({ authContext, signature })
+		.setTopic(MarketEvent.fetchCandlestickSeries)
+		.setSecurity({ authContext, signature: signature as Signature })
 		.setIds(buildIds())
 		.setPublisher(buildPublisher());
 }

@@ -37,7 +37,7 @@ export class GenerationProcessor {
 	get generation(): number {
 		return this._generation;
 	}
-	get archive(): import("./pareto-engine").ParetoArchive {
+	get archive(): import("./pareto").ParetoArchive {
 		return this._evaluator.archive;
 	}
 	get lastBestGenome(): DeepReadonly<LamarckGenome> | undefined {

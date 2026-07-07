@@ -1,4 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { Severity } from "@trading-model/common/contracts/admin/audit.dto";
+import {
+	toTopic,
+	toServiceId,
+	toCorrelationId,
+	type UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import { notifyAudit } from "../config/audit";
 import { ENV } from "../config/env";
 import { logger } from "../config/logger";
@@ -97,12 +104,12 @@ function _notifyAutoRetryResult(
 	errorsCount: number
 ): void {
 	void notifyAudit({
-		timestamp: new Date().toISOString(),
-		topic: "dlq-service",
-		publisher: "dlq-service",
-		correlationId: batchId,
+		timestamp: Date.now() as unknown as UnixTimestamp,
+		topic: toTopic("dlq-service"),
+		publisher: toServiceId("dlq-service"),
+		correlationId: toCorrelationId(batchId),
 		summary: `DLQ replay: ${success} succeeded, ${errorsCount} failed`,
-		severity: errorsCount > 0 ? "ERROR" : "INFO",
+		severity: errorsCount > 0 ? Severity.Error : Severity.Info,
 	});
 }
 

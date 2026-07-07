@@ -1,3 +1,4 @@
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import { logger } from "@trading-model/common/config/logger";
 import type { CertificateResponse } from "@trading-model/common/domain/certificate-base";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
@@ -13,7 +14,7 @@ function _validateSignRequest(
 	if (serviceId && csr) {
 		return true;
 	}
-	res.status(400).json({ error: "serviceId and csr are required" });
+	res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "serviceId and csr are required" });
 	return false;
 }
 
@@ -25,7 +26,7 @@ function _sendSignResponse(
 	logger.info("Certificate signed", {
 		context: { serviceId, serialNumber: signed.serialNumber },
 	});
-	res.status(200).json({
+	res.status(HTTP_STATUS.OK).json({
 		certPem: signed.certPem,
 		caPem: signed.caPem,
 		serialNumber: signed.serialNumber,
@@ -51,7 +52,7 @@ export async function signCertificate(
 		_sendSignResponse(res, signed, serviceId);
 	} catch (err) {
 		logger.error("Failed to sign certificate", { context: { err } });
-		res.status(500).json({ error: "Failed to sign certificate" });
+		res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to sign certificate" });
 	}
 }
 
@@ -60,14 +61,14 @@ function _validateGetRequest(
 	res: Response
 ): string | null {
 	if (!serviceId) {
-		res.status(400).json({ error: "serviceId is required" });
+		res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "serviceId is required" });
 		return null;
 	}
 	return String(serviceId);
 }
 
 function _sendCertResponse(res: Response, cert: CertificateResponse): void {
-	res.status(200).json({
+	res.status(HTTP_STATUS.OK).json({
 		certPem: cert.certPem,
 		caPem: cert.caPem,
 		serialNumber: cert.serialNumber,
@@ -88,13 +89,13 @@ export async function getCertificate(
 		}
 		const cert = await CONTAINER.certificateStore.getByServiceId(serviceId);
 		if (!cert) {
-			res.status(404).json({ error: "Certificate not found" });
+			res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Certificate not found" });
 			return;
 		}
 		_sendCertResponse(res, cert);
 	} catch (err) {
 		logger.error("Failed to get certificate", { context: { err } });
-		res.status(500).json({ error: "Failed to get certificate" });
+		res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to get certificate" });
 	}
 }
 
@@ -105,7 +106,7 @@ function _validateRevocationRequest(
 	if (req.serialNumber && req.reason) {
 		return true;
 	}
-	res.status(400).json({ error: "serialNumber and reason are required" });
+	res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "serialNumber and reason are required" });
 	return false;
 }
 
@@ -125,9 +126,9 @@ export async function revokeCertificate(
 				reason: revocationRequest.reason,
 			},
 		});
-		res.status(200).json({ message: "Certificate revoked" });
+		res.status(HTTP_STATUS.OK).json({ message: "Certificate revoked" });
 	} catch (err) {
 		logger.error("Failed to revoke certificate", { context: { err } });
-		res.status(500).json({ error: "Failed to revoke certificate" });
+		res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to revoke certificate" });
 	}
 }

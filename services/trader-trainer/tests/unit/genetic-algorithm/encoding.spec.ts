@@ -6,6 +6,7 @@ import {
 	encodeGenome,
 	encodePopulation,
 } from "../../../src/core/genetic-algorithm/encoding";
+import { EncodingIndex, SCALAR_DIM } from "../../../src/core/genetic-algorithm/encoding-indices";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import type {
 	Genome,
@@ -17,38 +18,50 @@ import {
 	InitialisationType,
 } from "../../../src/core/genetic-algorithm/genome";
 
+function layerNeurons(arr: Float32Array, layerIdx: number): number {
+	return arr[SCALAR_DIM + layerIdx * 3];
+}
+
+function layerActivationIdx(arr: Float32Array, layerIdx: number): number {
+	return arr[SCALAR_DIM + layerIdx * 3 + 1];
+}
+
+function layerConnectionTypeIdx(arr: Float32Array, layerIdx: number): number {
+	return arr[SCALAR_DIM + layerIdx * 3 + 2];
+}
+
 describe("encoding", () => {
 	describe("encodeGenome", () => {
-		test("should produce a GenomeEncoding with correct length", () => {
+		test("should produce a Float32Array with correct length", () => {
 			const g = createDefaultGenome("test");
 			const enc = encodeGenome(g);
-			expect(enc.toFloat32Array()).toBeInstanceOf(Float32Array);
+			expect(enc).toBeInstanceOf(Float32Array);
 			expect(enc.length).toBe(ENCODED_DIM(g.network.hiddenLayers.length));
 		});
 
-		test("should encode gamma on the encoding object", () => {
+		test("should encode gamma on the encoding array", () => {
 			const g = createDefaultGenome("gamma-test");
 			const enc = encodeGenome(g);
-			expect(enc.gamma).toBeCloseTo(g.rl.gamma, 4);
+			expect(enc[EncodingIndex.Gamma]).toBeCloseTo(g.rl.gamma, 4);
 		});
 
 		test("should encode learningRate as log-scaled in [0,1]", () => {
 			const g = createDefaultGenome("lr-test");
 			const enc = encodeGenome(g);
 			const expected = Math.log10(Math.max(1e-6, g.rl.learningRate)) / 6 + 1;
-			expect(enc.learningRate).toBeCloseTo(expected, 6);
+			expect(enc[EncodingIndex.LearningRate]).toBeCloseTo(expected, 6);
 		});
 
 		test("should encode depth normalised by MAX_DEPTH", () => {
 			const g = createDefaultGenome("depth-test");
 			const enc = encodeGenome(g);
-			expect(enc.networkDepth).toBeCloseTo(g.network.hiddenLayers.length / 12, 4);
+			expect(enc[EncodingIndex.NetworkDepth]).toBeCloseTo(g.network.hiddenLayers.length / 12, 4);
 		});
 
 		test("should encode neuron count in layer encoding", () => {
 			const g = createDefaultGenome("neuron-test");
 			const enc = encodeGenome(g);
-			expect(enc.layers[0].neurons).toBe(g.network.hiddenLayers[0].neurons / 512);
+			expect(layerNeurons(enc, 0)).toBe(g.network.hiddenLayers[0].neurons / 512);
 		});
 
 		test("should set one-hot for activation type in layer encoding", () => {
@@ -65,7 +78,7 @@ describe("encoding", () => {
 				ActivationType.Softmax,
 			];
 			const expectedIdx = activations.indexOf(g.network.hiddenLayers[0].activation);
-			expect(enc.layers[0].activationIdx).toBe(expectedIdx);
+			expect(layerActivationIdx(enc, 0)).toBe(expectedIdx);
 		});
 
 		test("should set one-hot for connection type in layer encoding", () => {
@@ -77,34 +90,34 @@ describe("encoding", () => {
 				ConnectionType.ResidualConnection,
 			];
 			const expectedIdx = connTypes.indexOf(g.network.hiddenLayers[0].connectionType);
-			expect(enc.layers[0].connectionTypeIdx).toBe(expectedIdx);
+			expect(layerConnectionTypeIdx(enc, 0)).toBe(expectedIdx);
 		});
 
 		test("should not encode layers beyond genome depth", () => {
 			const g = createDefaultGenome("pad-test");
 			const enc = encodeGenome(g);
-			expect(enc.layers.length).toBe(g.network.hiddenLayers.length);
+			const layerCount = enc.length - SCALAR_DIM;
+			expect(layerCount / 3).toBe(g.network.hiddenLayers.length);
 		});
 
 		test("should skip unknown activation type", () => {
 			const g = createDefaultGenome("unknown-act");
 			g.network.hiddenLayers[0].activation = "UnknownAct" as ActivationType;
 			const enc = encodeGenome(g);
-			expect(enc.layers[0].activationIdx).toBe(0);
+			expect(layerActivationIdx(enc, 0)).toBe(0);
 		});
 
 		test("should skip unknown connection type", () => {
 			const g = createDefaultGenome("unknown-ct");
 			g.network.hiddenLayers[0].connectionType = "UnknownConn" as ConnectionType;
 			const enc = encodeGenome(g);
-			expect(enc.layers[0].connectionTypeIdx).toBe(0);
+			expect(layerConnectionTypeIdx(enc, 0)).toBe(0);
 		});
 
 		test("should roundtrip through Float32Array", () => {
 			const g = createDefaultGenome("roundtrip-f32");
 			const enc = encodeGenome(g);
-			const arr = enc.toFloat32Array();
-			const restored = decodeGenome(arr, g);
+			const restored = decodeGenome(enc, g);
 			expect(restored.rl.gamma).toBeCloseTo(g.rl.gamma, 4);
 		});
 	});
@@ -113,7 +126,7 @@ describe("encoding", () => {
 		test("should roundtrip a default genome", () => {
 			const original = createDefaultGenome("roundtrip", 3);
 			const enc = encodeGenome(original);
-			const decoded = decodeGenome(enc.toFloat32Array(), original);
+			const decoded = decodeGenome(enc, original);
 
 			expect(decoded.id).toBe(original.id);
 			expect(decoded.generation).toBe(original.generation);
@@ -137,7 +150,7 @@ describe("encoding", () => {
 				fitness: 42,
 			};
 			const enc = encodeGenome(modded);
-			const decoded = decodeGenome(enc.toFloat32Array(), modded);
+			const decoded = decodeGenome(enc, modded);
 			expect(decoded.id).toBe("template-test");
 			expect(decoded.generation).toBe(5);
 			expect(decoded.fitness).toBe(42);
@@ -150,7 +163,7 @@ describe("encoding", () => {
 		test("should recover layer structure (count, neurons, activations)", () => {
 			const original = createDefaultGenome("layers");
 			const enc = encodeGenome(original);
-			const decoded = decodeGenome(enc.toFloat32Array(), original);
+			const decoded = decodeGenome(enc, original);
 
 			expect(decoded.network.hiddenLayers.length).toBe(
 				original.network.hiddenLayers.length
@@ -167,11 +180,9 @@ describe("encoding", () => {
 		test("should clamp extreme encoded values to valid ranges", () => {
 			const original = createDefaultGenome("clamp-test");
 			const enc = encodeGenome(original);
-			// push gamma way out of range via Float32Array
-			const arr = enc.toFloat32Array();
-			arr[0] = 10;
-			arr[2] = 100;
-			const decoded = decodeGenome(arr, original);
+			enc[EncodingIndex.Gamma] = 10;
+			enc[EncodingIndex.ClipMin] = 100;
+			const decoded = decodeGenome(enc, original);
 			expect(decoded.rl.gamma).toBeCloseTo(0.9999, 4);
 		});
 
@@ -179,7 +190,7 @@ describe("encoding", () => {
 			const original = createDefaultGenome("empty-layers");
 			original.network.hiddenLayers = [];
 			const enc = encodeGenome(original);
-			const decoded = decodeGenome(enc.toFloat32Array(), original);
+			const decoded = decodeGenome(enc, original);
 			expect(decoded.network.hiddenLayers.length).toBe(1);
 		});
 
@@ -196,9 +207,10 @@ describe("encoding", () => {
 			}
 			original.network.hiddenLayers = manyLayers;
 			const enc = encodeGenome(original);
-			expect(enc.layers.length).toBeLessThanOrEqual(12);
+			const layerCount = (enc.length - SCALAR_DIM) / 3;
+			expect(layerCount).toBeLessThanOrEqual(12);
 
-			const decoded = decodeGenome(enc.toFloat32Array(), original);
+			const decoded = decodeGenome(enc, original);
 			expect(decoded.network.hiddenLayers.length).toBeLessThanOrEqual(12);
 		});
 	});
@@ -207,22 +219,22 @@ describe("encoding", () => {
 		test("should roundtrip extreme gamma edges", () => {
 			const g = createDefaultGenome("gamma-edge");
 			g.rl.gamma = 0.8;
-			let dec = decodeGenome(encodeGenome(g).toFloat32Array(), g);
+			let dec = decodeGenome(encodeGenome(g), g);
 			expect(dec.rl.gamma).toBeCloseTo(0.8, 4);
 
 			g.rl.gamma = 0.9999;
-			dec = decodeGenome(encodeGenome(g).toFloat32Array(), g);
+			dec = decodeGenome(encodeGenome(g), g);
 			expect(dec.rl.gamma).toBeCloseTo(0.9999, 4);
 		});
 
 		test("should roundtrip log-scaled learning rate", () => {
 			const g = createDefaultGenome("lr-edge");
 			g.rl.learningRate = 1e-6;
-			let dec = decodeGenome(encodeGenome(g).toFloat32Array(), g);
+			let dec = decodeGenome(encodeGenome(g), g);
 			expect(dec.rl.learningRate).toBeCloseTo(1e-6, 6);
 
 			g.rl.learningRate = 0.1;
-			dec = decodeGenome(encodeGenome(g).toFloat32Array(), g);
+			dec = decodeGenome(encodeGenome(g), g);
 			expect(dec.rl.learningRate).toBeCloseTo(0.1, 4);
 		});
 
@@ -231,7 +243,7 @@ describe("encoding", () => {
 			g.rl.discretePolicy.epsilonStart = 0.1;
 			g.rl.discretePolicy.epsilonMin = 0.001;
 			g.rl.discretePolicy.epsilonDecay = 0.9;
-			const dec = decodeGenome(encodeGenome(g).toFloat32Array(), g);
+			const dec = decodeGenome(encodeGenome(g), g);
 			expect(dec.rl.discretePolicy.epsilonStart).toBeCloseTo(0.1, 4);
 			expect(dec.rl.discretePolicy.epsilonMin).toBeCloseTo(0.001, 4);
 			expect(dec.rl.discretePolicy.epsilonDecay).toBeCloseTo(0.9, 4);
@@ -240,7 +252,7 @@ describe("encoding", () => {
 		test("should roundtrip bufferSize", () => {
 			const g = createDefaultGenome("buf-edge");
 			g.rl.replayBuffer.bufferSize = 1_000_000;
-			const dec = decodeGenome(encodeGenome(g).toFloat32Array(), g);
+			const dec = decodeGenome(encodeGenome(g), g);
 			expect(dec.rl.replayBuffer.bufferSize).toBe(1_000_000);
 		});
 	});

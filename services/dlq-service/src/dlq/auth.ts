@@ -5,6 +5,7 @@ import {
 } from "@trading-model/common/crypto/request-signer";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
+import { HTTP_STATUS } from "@trading-model/common/http-status";
 import type { NextFunction, Request, Response } from "express";
 import { ENV, resolveAuthHmacSecret } from "../config/env";
 
@@ -114,11 +115,11 @@ function serviceAuth(req: Request, res: Response, next: NextFunction): void {
 		| string
 		| undefined;
 	if (!(serviceName && ALLOWED_SERVICES.includes(serviceName))) {
-		res.status(403).json({ error: "Unauthorized service" });
+		res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Unauthorized service" });
 		return;
 	}
 	if (!verifySignature(req, serviceName)) {
-		res.status(401).json({ error: "Invalid or expired signature" });
+		res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Invalid or expired signature" });
 		return;
 	}
 	next();

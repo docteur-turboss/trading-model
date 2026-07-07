@@ -1,7 +1,7 @@
 import type BrokerMessage from "@trading-model/broker-message";
 import { EVENT_MANAGER } from "@trading-model/broker-message";
 import { clearValidationCache } from "@trading-model/certificate-utils/validate-certificate";
-import { EnumEventMessage } from "@trading-model/common/config/event.types";
+import { CertificateEvent } from "@trading-model/common/contracts/certificate-events";
 import type {
 	SerialNumber,
 	ServiceId,
@@ -38,16 +38,16 @@ export async function subscribeToCertificateEvents(
 	callbacks?: CrlSubscriberCallbacks
 ): Promise<() => void> {
 	const cleanupRevoked = EVENT_MANAGER.on(
-		EnumEventMessage.certificateRevoked,
+		CertificateEvent.certificateRevoked,
 		(payload: unknown) => _onCertificateRevoked(payload, callbacks)
 	);
 	const cleanupRotated = EVENT_MANAGER.on(
-		EnumEventMessage.caKeyRotated,
+		CertificateEvent.caKeyRotated,
 		(payload: unknown) => _onCaKeyRotated(payload, callbacks)
 	);
 	await messageManager.intents([
-		EnumEventMessage.certificateRevoked,
-		EnumEventMessage.caKeyRotated,
+		CertificateEvent.certificateRevoked,
+		CertificateEvent.caKeyRotated,
 	]);
 	return () => {
 		cleanupRevoked();

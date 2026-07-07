@@ -1,8 +1,9 @@
-export type DiscoveryWsMessageType =
-	| "heartbeat"
-	| "register"
-	| "subscribe"
-	| "cache.invalidate";
+export enum DiscoveryWsMessageType {
+	Heartbeat = "heartbeat",
+	Register = "register",
+	Subscribe = "subscribe",
+	CacheInvalidate = "cache.invalidate",
+}
 
 export interface DiscoveryWsMessage {
 	type: DiscoveryWsMessageType;
@@ -10,12 +11,12 @@ export interface DiscoveryWsMessage {
 }
 
 export interface DiscoveryWsSubscribeMessage {
-	type: "subscribe";
+	type: DiscoveryWsMessageType.Subscribe;
 	payload?: { services?: string[] };
 }
 
 export interface DiscoveryWsHeartbeatMessage {
-	type: "heartbeat";
+	type: DiscoveryWsMessageType.Heartbeat;
 	payload?: { serviceName?: string; instanceId?: string };
 }
 

@@ -2,13 +2,18 @@ import type { EventEnumMap } from "../config/event.types";
 import type { InstanceId, MessageId } from "../domain/primitives";
 import type { MessageMetadata, ServiceIdentity } from "./message.types";
 
-export type WsClientMessageType =
-	| "subscribe"
-	| "unsubscribe"
-	| "publish_async"
-	| "publish_direct";
+export enum WsClientMessageType {
+	Subscribe = "subscribe",
+	Unsubscribe = "unsubscribe",
+	PublishAsync = "publish_async",
+	PublishDirect = "publish_direct",
+}
 
-export type WsServerMessageType = "ack" | "deliver" | "error";
+export enum WsServerMessageType {
+	Ack = "ack",
+	Deliver = "deliver",
+	Error = "error",
+}
 
 export interface WsClientSubscribePayload {
 	topics: EventEnumMap[];

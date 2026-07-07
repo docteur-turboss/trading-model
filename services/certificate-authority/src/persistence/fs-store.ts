@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { logger } from "@trading-model/common/config/logger";
+import { getNodeEnv, logger } from "@trading-model/common/config/logger";
 import { decrypt, deriveKey, encrypt } from "./fallback-crypto";
 import { FallbackFileReader } from "./fallback-file-reader";
 
@@ -57,7 +57,7 @@ class RealFsStore implements FsStore {
 		if (encryptionKey) {
 			return deriveKey(encryptionKey);
 		}
-		if (process.env.NODE_ENV === "production") {
+		if (getNodeEnv() === "production") {
 			throw new Error(
 				"FsStore: FS_ENCRYPTION_KEY is required in production for encrypted fallback storage. " +
 					"Generate with: node -e \"console.log(crypto.randomBytes(32).toString('base64'))\". " +

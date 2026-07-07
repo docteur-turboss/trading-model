@@ -14,7 +14,11 @@ import type {
 } from "../domain/service-identity";
 import type { TokenValidation } from "../domain/token-validation";
 
-export type Protocol = "http" | "https" | "mtls";
+export enum Protocol {
+	Http = "http",
+	Https = "https",
+	Mtls = "mtls",
+}
 
 /** Payload for registering a new service instance in the registry. */
 export interface ServiceRegisterPayload {

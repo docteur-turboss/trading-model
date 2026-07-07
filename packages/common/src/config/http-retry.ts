@@ -9,6 +9,16 @@ function isRetryableStatus(code: number): boolean {
 	return code >= 500 || code === 429;
 }
 
+/** More permissive check — also retries 403, 408, and 418 (used by financial-scraper). */
+function isRetryableStatusPermissive(code: number): boolean {
+	return isRetryableStatus(code) || [403, 408, 418].includes(code);
+}
+
+/** Checks if a delivery status should NOT be retried (used by message-manager delivery-decision). */
+function isNonRetryableClientError(code: number): boolean {
+	return code >= 400 && code < 500 && code !== 429;
+}
+
 function computeRetryDelay(attempt: number, options?: BackoffConfig): number {
 	return computeExponentialBackoffWithJitter(attempt, {
 		baseDelayMs: options?.baseDelayMs ?? 200,
@@ -29,4 +39,6 @@ export {
 	computeRetryDelay,
 	DEFAULT_RETRY_COUNT,
 	isRetryableStatus,
+	isRetryableStatusPermissive,
+	isNonRetryableClientError,
 };

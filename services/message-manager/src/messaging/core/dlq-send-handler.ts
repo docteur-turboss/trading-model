@@ -1,5 +1,5 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { HttpMethod } from "@trading-model/common/config/http-types";
+import { HttpMethod } from "@trading-model/common/config/http-types";
 import {
 	messageManagerError,
 	normalizeError,
@@ -72,7 +72,7 @@ export class DlqSendHandler {
 				`${this._serviceUrl}/dlq`,
 				entry,
 				signedOptions({
-					method: "POST",
+					method: HttpMethod.POST,
 					path: "/dlq",
 					body: entry,
 					extra: { timeoutMs: 5000 },

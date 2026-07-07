@@ -1,81 +1,12 @@
-/**
- * ParetoEngine: NSGA-II ranking, crowding distance, and persistent archive.
- */
-
-import type { LamarckGenome } from "./genome-types";
-
-type DeepReadonly<TValue> = TValue extends (infer UValue)[]
-	? readonly DeepReadonly<UValue>[]
-	: TValue extends object
-		? { readonly [KValue in keyof TValue]: DeepReadonly<TValue[KValue]> }
-		: TValue;
-
-export interface ObjectiveVector {
-	/** Average PnL across windows. */
-	avgPnl: number;
-	/** Sharpe-like ratio. */
-	sharpe: number;
-	/** −estimated_inference_flops. */
-	negFlops: number;
-}
-
-export interface PopulationMeta {
-	objectives: ObjectiveVector[]; // [i] for genome at index i
-	paretoRank: number[];
-	crowdingDist: number[];
-}
+import type { ObjectiveVector } from "./domination";
+import { buildDominationMatrix } from "./domination";
 
 const EXACT_NSGA2_THRESHOLD = 300;
 
-/**
- * Dominance check: a strictly dominates b if a ≥ b in all objectives
- * and strictly > in at least one.
- */
-export function dominates(
-	first: ObjectiveVector,
-	second: ObjectiveVector
-): boolean {
-	return (
-		first.avgPnl >= second.avgPnl &&
-		first.sharpe >= second.sharpe &&
-		first.negFlops >= second.negFlops &&
-		(first.avgPnl > second.avgPnl ||
-			first.sharpe > second.sharpe ||
-			first.negFlops > second.negFlops)
-	);
-}
-
-function _comparePair(
-	i: number,
-	j: number,
-	objectives: ObjectiveVector[],
-	dominatedCount: Int32Array,
-	dominateMap: number[][]
-): void {
-	if (dominates(objectives[i], objectives[j])) {
-		dominateMap[i].push(j);
-	} else if (dominates(objectives[j], objectives[i])) {
-		dominatedCount[i]++;
-	}
-}
-
-function buildDominationMatrix(objectives: ObjectiveVector[]): {
-	dominated: Int32Array;
-	dominates: number[][];
-} {
-	const length = objectives.length;
-	const dominated = new Int32Array(length);
-	const dominates = Array.from({ length }, () => [] as number[]);
-
-	for (let i = 0; i < length; i++) {
-		for (let j = 0; j < length; j++) {
-			if (i !== j) {
-				_comparePair(i, j, objectives, dominated, dominates);
-			}
-		}
-	}
-
-	return { dominated, dominates };
+export interface PopulationMeta {
+	objectives: ObjectiveVector[];
+	paretoRank: number[];
+	crowdingDist: number[];
 }
 
 function _findInitialFront(dominated: Int32Array, length: number): number[] {
@@ -126,19 +57,12 @@ function assignRanks(fronts: number[][], length: number): number[] {
 	return ranks;
 }
 
-/**
- * Exact O(n²) non-dominated sorting (for small populations).
- */
 function nondominatedSortExact(objectives: ObjectiveVector[]): number[] {
 	const { dominated, dominates } = buildDominationMatrix(objectives);
 	const fronts = computeParetoFronts(dominated, dominates, objectives.length);
 	return assignRanks(fronts, objectives.length);
 }
 
-/**
- * Approximate O(n·k) non-dominated sorting (for large populations).
- * Samples k random comparisons per individual.
- */
 function _buildPool(count: number, i: number): number[] {
 	return Array.from({ length: count - 1 }, (_unused, jdx) =>
 		jdx >= i ? jdx + 1 : jdx
@@ -156,7 +80,12 @@ function _sampleDomination(
 	for (let sample = 0; sample < sampleSize; sample++) {
 		const idx = sample + Math.floor(rng() * (pool.length - sample));
 		[pool[sample], pool[idx]] = [pool[idx], pool[sample]];
-		if (dominates(objectives[pool[sample]], objectives[i])) {
+		if (objectives[pool[sample]].avgPnl >= objectives[i].avgPnl &&
+			objectives[pool[sample]].sharpe >= objectives[i].sharpe &&
+			objectives[pool[sample]].negFlops >= objectives[i].negFlops &&
+			(objectives[pool[sample]].avgPnl > objectives[i].avgPnl ||
+				objectives[pool[sample]].sharpe > objectives[i].sharpe ||
+				objectives[pool[sample]].negFlops > objectives[i].negFlops)) {
 			dominated[i]++;
 		}
 	}
@@ -177,10 +106,15 @@ function nondominatedSortApprox(
 	return Array.from(dominated);
 }
 
-/**
- * Assign crowding distance for individuals on a front.
- * Boundary points get Infinity; interior points get a distance metric.
- */
+function _computeParetoRank(
+	objectives: ObjectiveVector[],
+	rng: () => number
+): number[] {
+	return objectives.length > EXACT_NSGA2_THRESHOLD
+		? nondominatedSortApprox(objectives, rng)
+		: nondominatedSortExact(objectives);
+}
+
 function _setInfiniteCrowding(indices: number[], crowding: number[]): void {
 	for (const idx of indices) {
 		crowding[idx] = Number.POSITIVE_INFINITY;
@@ -231,18 +165,6 @@ function assignCrowding(
 	}
 }
 
-/**
- * Build population metadata: Pareto ranks and crowding distances.
- */
-function _computeParetoRank(
-	objectives: ObjectiveVector[],
-	rng: () => number
-): number[] {
-	return objectives.length > EXACT_NSGA2_THRESHOLD
-		? nondominatedSortApprox(objectives, rng)
-		: nondominatedSortExact(objectives);
-}
-
 function _collectFront(paretoRank: number[], rankIdx: number): number[] {
 	return paretoRank.reduce((acc, rank, index) => {
 		if (rank === rankIdx) {
@@ -269,55 +191,4 @@ export function buildPopulationMeta(
 	}
 
 	return { objectives, paretoRank, crowdingDist };
-}
-
-/**
- * Elitist Pareto archive: persists across generations.
- * Only non-dominated solutions are kept.
- */
-export class ParetoArchive {
-	private _members: DeepReadonly<LamarckGenome>[] = [];
-	private _objs: ObjectiveVector[] = [];
-
-	/**
-	 * Offer new candidates to the archive.
-	 * A candidate is accepted if it is not dominated by any current archive member.
-	 * Any archive members dominated by the new candidate are evicted.
-	 * Returns true if the archive changed.
-	 */
-	update(
-		genomes: DeepReadonly<LamarckGenome>[],
-		objectives: ObjectiveVector[]
-	): boolean {
-		let changed = false;
-
-		for (let ci = 0; ci < genomes.length; ci++) {
-			const cObj = objectives[ci];
-			if (this._objs.some((aObj) => dominates(aObj, cObj))) {
-				continue; // dominated, skip
-			}
-
-			const keep = this._members.map(
-				(_, ai) => !dominates(cObj, this._objs[ai])
-			);
-			this._members = [
-				...this._members.filter((_unused, index) => keep[index]),
-				genomes[ci],
-			];
-			this._objs = [
-				...this._objs.filter((_unused, index) => keep[index]),
-				cObj,
-			];
-			changed = true;
-		}
-
-		return changed;
-	}
-
-	get members(): DeepReadonly<LamarckGenome>[] {
-		return this._members;
-	}
-	get size(): number {
-		return this._members.length;
-	}
 }

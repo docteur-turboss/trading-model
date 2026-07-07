@@ -1,191 +1,69 @@
-import type {
-	InstanceId,
-	KeyId,
-	KeyVersion,
-	SerialNumber,
-	ServiceId,
-	TradingSymbol,
-	UnixTimestamp,
-} from "../domain/primitives";
-import { Price, Volume } from "../domain/primitives";
-import type { RevocationReason } from "../domain/revocation-request";
-import type { ServiceInstanceName } from "./services.types";
+/**
+ * @deprecated Import per-context types directly:
+ *   - MarketEvent, MarketEventMap, market data types from "../contracts/market-data.types"
+ *   - AuditEvent, AuditEventMap from "../contracts/audit-events"
+ *   - CertificateEvent, CertificateEventMap from "../contracts/certificate-events"
+ *   - MarketEventMap, AuditEventMap, CertificateEventMap from their respective files
+ */
 
-export {
-	getAvgAsk,
-	getAvgBid,
-	getAskTotalQty,
-	getBidTotalQty,
-} from "./order-book-utils";
+export { getAvgAsk, getAvgBid, getAskTotalQty, getBidTotalQty } from "../contracts/market-data.types";
 
-/** Supported financial market categories. */
-export enum MarketType {
-	CRYPTO = "crypto",
-	EQUITY = "equity",
-	BOND = "bond",
-	ETF = "etf",
-	FX = "fx",
-	FUTURE = "future",
-}
+/** @deprecated Use MarketType from "../contracts/market-data.types" */
+export { MarketType } from "../contracts/market-data.types";
+/** @deprecated Use SourceType from "../contracts/market-data.types" */
+export { SourceType } from "../contracts/market-data.types";
+/** @deprecated Use BaseMarketData from "../contracts/market-data.types" */
+export type { BaseMarketData } from "../contracts/market-data.types";
+/** @deprecated Use CandleInterval from "../contracts/market-data.types" */
+export { CandleInterval } from "../contracts/market-data.types";
+/** @deprecated Use OhlcvData from "../contracts/market-data.types" */
+export type { OhlcvData } from "../contracts/market-data.types";
+/** @deprecated Use CandleData from "../contracts/market-data.types" */
+export type { CandleData } from "../contracts/market-data.types";
+/** @deprecated Use TradeSide from "../contracts/market-data.types" */
+export { TradeSide } from "../contracts/market-data.types";
+/** @deprecated Use TradeData from "../contracts/market-data.types" */
+export type { TradeData } from "../contracts/market-data.types";
+/** @deprecated Use OrderBookLevel from "../contracts/market-data.types" */
+export type { OrderBookLevel } from "../contracts/market-data.types";
+/** @deprecated Use OrderBookData from "../contracts/market-data.types" */
+export type { OrderBookData } from "../contracts/market-data.types";
+/** @deprecated Use BookTickerData from "../contracts/market-data.types" */
+export type { BookTickerData } from "../contracts/market-data.types";
+/** @deprecated Use TickerData from "../contracts/market-data.types" */
+export type { TickerData } from "../contracts/market-data.types";
 
-/** Supported market data sources / exchanges. */
-export enum SourceType {
-	BLOOMBERG = "bloomberg",
-	BINANCE = "binance",
-	NYSE = "nyse",
-}
+export { MarketEvent } from "../contracts/market-events";
+export { AuditEvent } from "../contracts/audit-events";
+export { CertificateEvent } from "../contracts/certificate-events";
 
-/** Common fields shared by all market data entities. */
-export interface BaseMarketData {
-	symbol: TradingSymbol;
-	source: SourceType;
-	timestamp: UnixTimestamp;
-	market: MarketType;
-}
+import { MarketEvent } from "../contracts/market-events";
+import { AuditEvent } from "../contracts/audit-events";
+import { CertificateEvent } from "../contracts/certificate-events";
 
-/** Supported candlestick intervals. */
-export enum CandleInterval {
-	S1 = "1s",
-	MIN1 = "1m",
-	MIN3 = "3m",
-	MIN5 = "5m",
-	MIN15 = "15m",
-	MIN30 = "30m",
-	H1 = "1h",
-	H2 = "2h",
-	H4 = "4h",
-	H6 = "6h",
-	H8 = "8h",
-	H12 = "12h",
-	D1 = "1d",
-	D3 = "3d",
-	W1 = "1w",
-	MONTH1 = "1M",
-}
+/**
+ * @deprecated Use per-context enums: MarketEvent, AuditEvent, CertificateEvent.
+ */
+export const EnumEventMessage = {
+	...MarketEvent,
+	...AuditEvent,
+	...CertificateEvent,
+} as const;
+/** @deprecated Use MarketEvent | AuditEvent | CertificateEvent as a type. */
+export type EnumEventMessage = (typeof EnumEventMessage)[keyof typeof EnumEventMessage];
 
-/** OHLCV price/volume fields shared by candle and ticker data. */
-export interface OhlcvData {
-	open: Price;
-	high: Price;
-	low: Price;
-	close: Price;
-	volume: Volume;
-}
+import type { MarketEventMap } from "../contracts/market-events";
+import type { AuditEventMap } from "../contracts/audit-events";
+import type { CertificateEventMap } from "../contracts/certificate-events";
 
-/** Represents a single OHLCV candlestick data point. */
-export interface CandleData extends BaseMarketData, OhlcvData {
-	trades?: number;
-	interval: CandleInterval;
-	closeTimestamp: UnixTimestamp;
-}
+/** Union interface combining all per-context event maps. */
+export interface EventMap extends MarketEventMap, AuditEventMap, CertificateEventMap {}
 
-/** Trade direction. */
-export enum TradeSide {
-	BUY = "buy",
-	SELL = "sell",
-}
-
-/** Represents an executed trade on a market. */
-export interface TradeData extends BaseMarketData {
-	price: Price;
-	tradeId: bigint;
-	quantity: Volume;
-	side: TradeSide;
-}
-
-/** A single price level in the order book. */
-export interface OrderBookLevel {
-	price: Price;
-	quantity: Volume;
-}
-
-/** Snapshot of the order book depth at a point in time. */
-export interface OrderBookData extends BaseMarketData {
-	bids: Set<OrderBookLevel>;
-	asks: Set<OrderBookLevel>;
-}
-
-/** Best bid / ask ticker snapshot. */
-export interface BookTickerData extends BaseMarketData {
-	bidQty: Volume;
-	askQty: Volume;
-	bid: Price;
-	ask: Price;
-}
-
-/** 24-hour price ticker statistics. */
-export interface TickerData extends BaseMarketData {
-	low: Price;
-	open: Price;
-	high: Price;
-	last: Price;
-	volume: Volume;
-	closeTimestamp: UnixTimestamp;
-}
-
-/** Named references for all known event message keys. */
-export enum EnumEventMessage {
-	testEvent = "example.debug.create",
-	exampleEvent = "example.show.create",
-	fetchRecentTrades = "market.trade.recent.fetch",
-	fetch24hrTickerStats = "market.ticker.24hr-stats.fetch",
-	fetchCandlestickSeries = "market.candlestick.series.fetch",
-	fetchOrderBookSnapshot = "market.order-book.snapshot.fetch",
-	fetchPriceTickerSnapshot = "market.price-ticker.snapshot.fetch",
-	fetchOrderBookTickerSnapshot = "market.order-book-ticker.snapshot.fetch",
-
-	/** Audit system events */
-	auditHeartbeat = "audit.heartbeat",
-	auditGapDetected = "audit.gap.detected",
-
-	/** CA / Certificate Infrastructure events */
-	certificateRevoked = "certificate.revoked",
-	caKeyRotated = "ca.key.rotated",
-}
-
-/** Maps event names to their associated payload types. */
-export interface EventMap {
-	[EnumEventMessage.testEvent]: { debug: boolean };
-	[EnumEventMessage.exampleEvent]: undefined;
-	[EnumEventMessage.fetchRecentTrades]: { trades: TradeData[] };
-	[EnumEventMessage.fetch24hrTickerStats]: { ticker: TickerData[] };
-	[EnumEventMessage.fetchCandlestickSeries]: { candle: CandleData[] };
-	[EnumEventMessage.fetchOrderBookSnapshot]: { orderBook: OrderBookData[] };
-	[EnumEventMessage.fetchPriceTickerSnapshot]: {
-		price: Record<TradingSymbol, Price>;
-	};
-	[EnumEventMessage.fetchOrderBookTickerSnapshot]: {
-		bookTicker: BookTickerData[];
-	};
-
-	/** Audit system events */
-	[EnumEventMessage.auditHeartbeat]: {
-		serviceName: ServiceInstanceName;
-		instanceId: InstanceId;
-	};
-	[EnumEventMessage.auditGapDetected]: {
-		from: Date;
-		to: Date;
-		lostCount?: number;
-	};
-
-	/** CA / Certificate Infrastructure events */
-	[EnumEventMessage.certificateRevoked]: {
-		serialNumber: SerialNumber;
-		serviceId: ServiceId;
-		reason: RevocationReason;
-		revokedAt: UnixTimestamp;
-		instanceId: InstanceId;
-	};
-	[EnumEventMessage.caKeyRotated]: {
-		keyId: KeyId;
-		keyVersion: KeyVersion;
-		instanceId: InstanceId;
-	};
-}
+/** Union of all valid event message string values. */
+export type EventEnumMap = `${EnumEventMessage}`;
 
 /** Extracts the payload type for a given event message. */
 export type EventMessagesArgs<TValue extends EventEnumMap> =
 	TValue extends keyof EventMap ? EventMap[TValue] : never;
-/** Union of all valid event message string values. */
-export type EventEnumMap = `${EnumEventMessage}`;
+
+export type { MarketEventMap, AuditEventMap, CertificateEventMap };

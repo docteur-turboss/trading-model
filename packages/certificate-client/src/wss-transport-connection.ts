@@ -23,9 +23,13 @@ export class WssTransportConnection implements IWsConnection {
 	});
 	private readonly _authSender: WsAuthSender;
 
+	/** @deprecated Use `.on("close", ...)` instead */
 	onCloseHandler?: () => void;
+	/** @deprecated Use `.on("open", ...)` instead */
 	onOpen?: () => void;
+	/** @deprecated Use `.on("message", ...)` instead */
 	onMessage?: (data: unknown) => void;
+	/** @deprecated Use `.on("error", ...)` instead */
 	onError?: (err: Error) => void;
 
 	on(event: string, listener: (...args: unknown[]) => void): this {

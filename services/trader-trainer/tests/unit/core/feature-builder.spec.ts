@@ -130,9 +130,9 @@ function defaultNorm() {
 function makeState(overrides: {
 	candles: CandleData[];
 	trades?: TradeData[];
-	orderBook?: OrderBookData | null;
-	bookTicker?: BookTickerData | null;
-	ticker24h?: TickerData | null;
+		orderBook?: OrderBookData;
+	bookTicker?: BookTickerData;
+	ticker24h?: TickerData;
 	candleClose?: NormalizationStats;
 	tradePrice?: NormalizationStats;
 	tradeQty?: NormalizationStats;
@@ -166,9 +166,9 @@ function makeState(overrides: {
 	return {
 		candles: overrides.candles,
 		trades: overrides.trades ?? [],
-		orderBook: overrides.orderBook ?? null,
-		bookTicker: overrides.bookTicker ?? null,
-		ticker24h: overrides.ticker24h ?? null,
+		orderBook: overrides.orderBook,
+		bookTicker: overrides.bookTicker,
+		ticker24h: overrides.ticker24h,
 		norm,
 	};
 }

@@ -75,10 +75,20 @@ async function _createBrokerMessage(): Promise<BrokerMessage> {
 		instanceId: ENV.INSTANCE_ID,
 		serviceName: ServiceInstanceName.AuditLoggerService,
 	});
-	const { EnumEventMessage } = await import(
-		"@trading-model/common/config/event.types"
-	);
-	const AllTopics = Object.values(EnumEventMessage);
+	const [
+		{ MarketEvent },
+		{ AuditEvent },
+		{ CertificateEvent },
+	] = await Promise.all([
+		import("@trading-model/common/contracts/market-events"),
+		import("@trading-model/common/contracts/audit-events"),
+		import("@trading-model/common/contracts/certificate-events"),
+	]);
+	const AllTopics = [
+		...Object.values(MarketEvent),
+		...Object.values(AuditEvent),
+		...Object.values(CertificateEvent),
+	];
 	await brokerMessage.intents(AllTopics);
 	logger.info("Subscribed to all event topics", {
 		context: {

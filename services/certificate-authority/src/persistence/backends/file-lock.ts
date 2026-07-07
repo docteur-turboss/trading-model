@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { logger } from "@trading-model/common/config/logger";
+import { getNodeEnv, logger } from "@trading-model/common/config/logger";
 import type { LockBackend, LockContext } from "./lock-backend-interface";
 
 export class FileSystemLockBackend implements LockBackend {
@@ -24,8 +24,8 @@ export class FileSystemLockBackend implements LockBackend {
 
 	private _isFsBackendAllowed(): boolean {
 		if (
-			process.env.NODE_ENV !== "development" &&
-			process.env.NODE_ENV !== "test"
+			getNodeEnv() !== "development" &&
+			getNodeEnv() !== "test"
 		) {
 			logger.error(
 				"No lock backend available (MongoDB, Redis) and filesystem fallback is disabled in production"

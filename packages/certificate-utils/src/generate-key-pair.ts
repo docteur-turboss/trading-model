@@ -7,12 +7,10 @@ import type { KeyPair, KeyPairWithId } from "./types";
 
 export type { KeyPair, KeyPairWithId } from "./types";
 
-export const KeyAlgorithm = {
-	rsa4096: "rsa",
-	ecP384: "ec",
-} as const;
-
-export type KeyAlgorithm = (typeof KeyAlgorithm)[keyof typeof KeyAlgorithm];
+export enum KeyAlgorithm {
+	rsa4096 = "rsa",
+	ecP384 = "ec",
+}
 
 function _getAlgorithmOptions(
 	algorithm: KeyAlgorithm

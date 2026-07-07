@@ -1,6 +1,6 @@
 import { Price } from "../domain/primitives";
-import type { CandleData, OrderBookData, TradeData } from "./event.types";
-import { getAvgAsk, getAvgBid, TradeSide } from "./event.types";
+import type { CandleData, OrderBookData, TradeData } from "../contracts/market-data.types";
+import { getAvgAsk, getAvgBid, TradeSide } from "../contracts/market-data.types";
 
 export function getSpread(ob: OrderBookData): Price {
 	return Price.of(Number(getAvgAsk(ob)) - Number(getAvgBid(ob)));

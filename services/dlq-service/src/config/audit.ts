@@ -1,23 +1,12 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
-import type {
-	CorrelationId,
-	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
+import type { CorrelationId } from "@trading-model/common/domain/primitives";
+import type { AuditEvent } from "@trading-model/common/contracts/admin/audit.dto";
 
 import { findAService } from "./address-manager";
 import { ENV } from "./env";
 import { logger } from "./logger";
 import { MessageManagerCircuitBreaker } from "./mm-circuit-breaker";
-
-export interface AuditEvent {
-	timestamp: UnixTimestamp;
-	topic: string;
-	publisher: string;
-	correlationId: CorrelationId;
-	summary: string;
-	severity: "INFO" | "WARNING" | "ERROR" | "CRITICAL";
-}
 
 class LazyHttpClient {
 	private _client: HttpClient | null = null;

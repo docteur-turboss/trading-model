@@ -22,6 +22,22 @@ export function normalizeError(err: unknown): Error {
 	return new Error(`Unknown error: ${String(err)}`);
 }
 
+export enum ErrorCode {
+	ServiceNotFound = "ServiceNotFoundError",
+	ServiceUnreachable = "ServiceUnreachableError",
+	Authentication = "AuthenticationError",
+	AddressManager = "AddressManagerError",
+	MessageManager = "MessageManagerError",
+	MetadataBuilder = "MetadataBuilderError",
+	Timeout = "TimeoutError",
+	Nack = "NackError",
+	DeadLetter = "DeadLetterError",
+	Agent = "AgentError",
+	Backpressure = "BackpressureError",
+	Configuration = "ConfigurationError",
+	AppError = "AppError",
+}
+
 /** Base application error with optional cause/reason metadata and error code. */
 export class AppError extends Error {
 	public readonly cause?: unknown;
@@ -34,7 +50,7 @@ export class AppError extends Error {
 	) {
 		super(message);
 		this.name = "AppError";
-		this.code = options?.code ?? "AppError";
+		this.code = options?.code ?? ErrorCode.AppError;
 		this.cause = options?.cause;
 		this.reason = options?.reason;
 	}
@@ -52,38 +68,38 @@ function makeGuard(code: string) {
 		err instanceof AppError && err.code === code;
 }
 
-export const serviceNotFoundError = makeErrorCode("ServiceNotFoundError");
-export const isServiceNotFoundError = makeGuard("ServiceNotFoundError");
+export const serviceNotFoundError = makeErrorCode(ErrorCode.ServiceNotFound);
+export const isServiceNotFoundError = makeGuard(ErrorCode.ServiceNotFound);
 
-export const serviceUnreachableError = makeErrorCode("ServiceUnreachableError");
-export const isServiceUnreachableError = makeGuard("ServiceUnreachableError");
+export const serviceUnreachableError = makeErrorCode(ErrorCode.ServiceUnreachable);
+export const isServiceUnreachableError = makeGuard(ErrorCode.ServiceUnreachable);
 
-export const authenticationError = makeErrorCode("AuthenticationError");
-export const isAuthenticationError = makeGuard("AuthenticationError");
+export const authenticationError = makeErrorCode(ErrorCode.Authentication);
+export const isAuthenticationError = makeGuard(ErrorCode.Authentication);
 
-export const addressManagerError = makeErrorCode("AddressManagerError");
-export const isAddressManagerError = makeGuard("AddressManagerError");
+export const addressManagerError = makeErrorCode(ErrorCode.AddressManager);
+export const isAddressManagerError = makeGuard(ErrorCode.AddressManager);
 
-export const messageManagerError = makeErrorCode("MessageManagerError");
-export const isMessageManagerError = makeGuard("MessageManagerError");
+export const messageManagerError = makeErrorCode(ErrorCode.MessageManager);
+export const isMessageManagerError = makeGuard(ErrorCode.MessageManager);
 
-export const metadataBuilderError = makeErrorCode("MetadataBuilderError");
-export const isMetadataBuilderError = makeGuard("MetadataBuilderError");
+export const metadataBuilderError = makeErrorCode(ErrorCode.MetadataBuilder);
+export const isMetadataBuilderError = makeGuard(ErrorCode.MetadataBuilder);
 
-export const timeoutError = makeErrorCode("TimeoutError");
-export const isTimeoutError = makeGuard("TimeoutError");
+export const timeoutError = makeErrorCode(ErrorCode.Timeout);
+export const isTimeoutError = makeGuard(ErrorCode.Timeout);
 
-export const nackError = makeErrorCode("NackError");
-export const isNackError = makeGuard("NackError");
+export const nackError = makeErrorCode(ErrorCode.Nack);
+export const isNackError = makeGuard(ErrorCode.Nack);
 
-export const deadLetterError = makeErrorCode("DeadLetterError");
-export const isDeadLetterError = makeGuard("DeadLetterError");
+export const deadLetterError = makeErrorCode(ErrorCode.DeadLetter);
+export const isDeadLetterError = makeGuard(ErrorCode.DeadLetter);
 
-export const agentError = makeErrorCode("AgentError");
-export const isAgentError = makeGuard("AgentError");
+export const agentError = makeErrorCode(ErrorCode.Agent);
+export const isAgentError = makeGuard(ErrorCode.Agent);
 
-export const backpressureError = makeErrorCode("BackpressureError");
-export const isBackpressureError = makeGuard("BackpressureError");
+export const backpressureError = makeErrorCode(ErrorCode.Backpressure);
+export const isBackpressureError = makeGuard(ErrorCode.Backpressure);
 
-export const configurationError = makeErrorCode("ConfigurationError");
-export const isConfigurationError = makeGuard("ConfigurationError");
+export const configurationError = makeErrorCode(ErrorCode.Configuration);
+export const isConfigurationError = makeGuard(ErrorCode.Configuration);

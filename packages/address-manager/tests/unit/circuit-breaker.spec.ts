@@ -6,7 +6,7 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
-import { CircuitBreaker } from "../../src/discovery/circuit-breaker";
+import { DiscoveryCircuitBreaker } from "../../src/discovery/circuit-breaker";
 import type {
 	CircuitState,
 	IServiceCache,
@@ -34,7 +34,7 @@ function createMockCache(): jest.Mocked<IServiceCache> {
 }
 
 describe("CircuitBreaker", () => {
-	let circuitBreaker: CircuitBreaker;
+	let circuitBreaker: DiscoveryCircuitBreaker;
 
 	beforeEach(() => {
 		jest.useFakeTimers();
@@ -47,7 +47,7 @@ describe("CircuitBreaker", () => {
 
 	describe("default constructor (no stateStore)", () => {
 		beforeEach(() => {
-			circuitBreaker = new CircuitBreaker({
+			circuitBreaker = 	new DiscoveryCircuitBreaker({
 				failureThreshold: 3,
 				halfOpenTimeoutMs: 10_000,
 			});
@@ -143,7 +143,7 @@ describe("CircuitBreaker", () => {
 
 		beforeEach(() => {
 			mockCache = createMockCache();
-			circuitBreaker = new CircuitBreaker({
+			circuitBreaker = 	new DiscoveryCircuitBreaker({
 				failureThreshold: 3,
 				halfOpenTimeoutMs: 10_000,
 				stateStore: mockCache,
@@ -210,7 +210,7 @@ describe("CircuitBreaker", () => {
 
 	describe("sweepStaleEntries", () => {
 		beforeEach(() => {
-			circuitBreaker = new CircuitBreaker({
+			circuitBreaker = 	new DiscoveryCircuitBreaker({
 				failureThreshold: 3,
 				halfOpenTimeoutMs: 10_000,
 			});
@@ -229,7 +229,7 @@ describe("CircuitBreaker", () => {
 
 	describe("additional methods", () => {
 		beforeEach(() => {
-			circuitBreaker = new CircuitBreaker({
+			circuitBreaker = 	new DiscoveryCircuitBreaker({
 				failureThreshold: 3,
 				halfOpenTimeoutMs: 10_000,
 			});
@@ -332,7 +332,7 @@ describe("CircuitBreaker", () => {
 
 		beforeEach(() => {
 			mockCache = createMockCache();
-			circuitBreaker = new CircuitBreaker({
+			circuitBreaker = 	new DiscoveryCircuitBreaker({
 				failureThreshold: 3,
 				halfOpenTimeoutMs: 10_000,
 				stateStore: mockCache,
@@ -355,7 +355,7 @@ describe("CircuitBreaker", () => {
 		});
 
 		it("loadFromStore should no-op when no stateStore", async () => {
-			const cb = new CircuitBreaker();
+			const cb = new DiscoveryCircuitBreaker();
 			await cb.loadFromStore("instance-1");
 			expect(cb.isAllowed("instance-1")).toBe(true);
 		});

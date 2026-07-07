@@ -1,3 +1,4 @@
+import { AppError } from "@trading-model/common/utils/errors";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import { DedupInserter } from "./dedup-inserter";
@@ -5,10 +6,11 @@ import { DLQ_STATUS } from "./dlq-status";
 import { EntrySerializer } from "./entry-serializer";
 import type { DlqEntry } from "./repository";
 
-export class DlqCapacityError extends Error {
+export class DlqCapacityError extends AppError {
 	constructor(message: string) {
 		super(message);
 		this.name = "DlqCapacityError";
+		this.code = "DlqCapacityError";
 	}
 }
 

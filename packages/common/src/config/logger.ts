@@ -99,12 +99,17 @@ export class Logger {
 }
 
 /** Global logger instance pre-configured based on the current environment. */
+const NODE_ENV = getNodeEnv();
 export const logger = new Logger(
-	process.env.NODE_ENV === "development"
+	NODE_ENV === "development"
 		? "debug"
-		: process.env.NODE_ENV === "staging"
+		: NODE_ENV === "staging"
 			? "info"
 			: "warn"
 );
+
+export function getNodeEnv(): string {
+	return process.env.NODE_ENV ?? "development";
+}
 
 export const LOGGER = Logger;

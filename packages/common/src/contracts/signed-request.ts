@@ -1,14 +1,14 @@
 import type { ServiceId } from "../domain/primitives";
 
-/** Standard HTTP method verbs. */
-export type HttpMethod =
-	| "GET"
-	| "POST"
-	| "PUT"
-	| "PATCH"
-	| "DELETE"
-	| "HEAD"
-	| "OPTIONS";
+export enum HttpMethod {
+	GET = "GET",
+	POST = "POST",
+	PUT = "PUT",
+	PATCH = "PATCH",
+	DELETE = "DELETE",
+	HEAD = "HEAD",
+	OPTIONS = "OPTIONS",
+}
 
 export interface HttpRoute {
 	method: HttpMethod;

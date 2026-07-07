@@ -4,7 +4,7 @@
 	WorkerIncomingMessage,
 	WorkerWsHeartbeatMessage,
 } from "../contracts/worker-protocol.types";
-import type { Capability, JobType } from "../domain/primitives";
+import type { Capability } from "../domain/primitives";
 import { DefaultWsReconnector } from "../ws/default-ws-reconnector";
 import { TypedEventEmitter } from "./typed-event-emitter";
 import { WorkerHeartbeat } from "./worker-heartbeat";
@@ -46,32 +46,7 @@ function normalizeConfig(
 	};
 }
 
-export class WorkerClient {
-	private readonly _events = new TypedEventEmitter<WorkerClientEvents>();
-
-	on<Event extends keyof WorkerClientEvents>(
-		event: Event,
-		listener: (...args: WorkerClientEvents[Event]) => void
-	): this {
-		this._events.on(event, listener);
-		return this;
-	}
-
-	off<Event extends keyof WorkerClientEvents>(
-		event: Event,
-		listener: (...args: WorkerClientEvents[Event]) => void
-	): this {
-		this._events.off(event, listener);
-		return this;
-	}
-
-	emit<Event extends keyof WorkerClientEvents>(
-		event: Event,
-		...args: WorkerClientEvents[Event]
-	): boolean {
-		return this._events.emit(event, ...args);
-	}
-
+export class WorkerClient extends TypedEventEmitter<WorkerClientEvents> {
 	private readonly _cfg: Required<WorkerClientConfig>;
 	private readonly _connection: WorkerWsConnection;
 	private readonly _reconnector: DefaultWsReconnector;
@@ -79,11 +54,12 @@ export class WorkerClient {
 	private readonly _messageRouter: WorkerMessageRouter;
 
 	constructor(config: WorkerClientConfig) {
+		super();
 		this._cfg = normalizeConfig(config);
 		this._connection = this._createConnection();
 		this._reconnector = this._createReconnector();
 		this._heartbeat = this._createHeartbeat();
-		this._messageRouter = new WorkerMessageRouter(this._events.raw);
+		this._messageRouter = new WorkerMessageRouter(this.raw);
 		this._wireConnectionEvents();
 	}
 

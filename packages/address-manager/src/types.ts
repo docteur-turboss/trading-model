@@ -1,7 +1,7 @@
 import type { AddressManagerClient } from "./client/address-manager-client";
 import type { TokenManager } from "./client/token-manager";
 import type { WebSocketClient } from "./client/websocket-client";
-import type { CircuitBreaker } from "./discovery/circuit-breaker";
+import type { DiscoveryCircuitBreaker } from "./discovery/circuit-breaker";
 import type { IServiceCache } from "./discovery/service-cache.interface";
 
 export interface RegistrationCallbacks {
@@ -20,5 +20,5 @@ export interface ShutdownHandlerDeps {
 	wsClient: WebSocketClient | undefined;
 	addressManagerClient: AddressManagerClient;
 	serviceCache: IServiceCache;
-	circuitBreaker: CircuitBreaker;
+	circuitBreaker: DiscoveryCircuitBreaker;
 }

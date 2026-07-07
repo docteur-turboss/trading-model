@@ -3,7 +3,7 @@ import {
 	ConnectionType,
 	InitialisationType,
 	NormalisationType,
-} from "../neural-network/type";
+} from "../../neural-network/type";
 import type {
 	LamarckGenome,
 	LayerGenome,
@@ -11,14 +11,14 @@ import type {
 	NetworkGenome,
 	RLGenome,
 	RLScalars,
-} from "./genome-types";
+} from "../genome-types";
 import {
-	MutationAdaptation,
 	MutationDistribution,
 	MutationScope,
-} from "./genome-types";
-import { sampleGaussian, sampleNoise } from "./noise";
-import { clamp } from "./utils";
+} from "../genome-types";
+import { sampleGaussian, sampleNoise } from "../noise";
+import { adaptSigma } from "./sigma-adapters";
+import { clamp } from "../utils";
 
 const NORM_TYPES: NormalisationType[] = [
 	NormalisationType.None,
@@ -54,68 +54,6 @@ const BIAS_TYPES: InitialisationType[] = [
 
 function pick<TValue>(arr: TValue[], rng: () => number): TValue {
 	return arr[Math.floor(rng() * arr.length)];
-}
-
-interface SigmaAdapter {
-	readonly type: MutationAdaptation;
-	adapt(mutation: MutationGenome, rng: () => number): number;
-}
-
-class FixedSigmaAdapter implements SigmaAdapter {
-	readonly type: MutationAdaptation = MutationAdaptation.Fixed;
-	adapt(mutation: MutationGenome): number {
-		return mutation.sigma;
-	}
-}
-
-class SigmaAdaptiveAdapter implements SigmaAdapter {
-	readonly type: MutationAdaptation = MutationAdaptation.SigmaAdaptive;
-	adapt(mutation: MutationGenome, rng: () => number): number {
-		return mutation.sigma * (0.9 + 0.2 * rng());
-	}
-}
-
-class SelfAdaptiveAdapter implements SigmaAdapter {
-	readonly type: MutationAdaptation = MutationAdaptation.SelfAdaptive;
-	adapt(mutation: MutationGenome, rng: () => number): number {
-		const tau = 1 / Math.sqrt(2 * Math.max(1, mutation.sigma));
-		return mutation.selfSigma * Math.exp(tau * sampleGaussian(rng, 1));
-	}
-}
-
-class CmaSigmaAdapter implements SigmaAdapter {
-	readonly type: MutationAdaptation = MutationAdaptation.Cma;
-	adapt(mutation: MutationGenome): number {
-		// Simplified CMA-ES cumulative step-size adaptation.
-		// selfSigma approximates the evolution path magnitude ||p_σ||.
-		// When the path is long (selfSigma > 1), steps are correlated →
-		// increase sigma to explore further.
-		// When short (selfSigma < 1), steps oscillate → decrease sigma
-		// to focus exploitation.
-		const damping = 1.0;
-		const chiN = 1.0;
-		const learningRate = 0.3;
-		const pathRatio = mutation.selfSigma / chiN;
-		const exponent = (learningRate / damping) * (pathRatio - 1);
-		const adapt = Math.exp(Math.max(-3, Math.min(3, exponent)));
-		return mutation.sigma * adapt;
-	}
-}
-
-const SIGMA_ADAPTERS: Record<MutationAdaptation, SigmaAdapter> = {
-	[MutationAdaptation.Fixed]: new FixedSigmaAdapter(),
-	[MutationAdaptation.SigmaAdaptive]: new SigmaAdaptiveAdapter(),
-	[MutationAdaptation.SelfAdaptive]: new SelfAdaptiveAdapter(),
-	[MutationAdaptation.Cma]: new CmaSigmaAdapter(),
-};
-
-/** Compute an adapted mutation sigma based on the configured adaptation strategy. */
-export function adaptSigma(
-	mutation: MutationGenome,
-	rng: () => number
-): number {
-	const adapter = SIGMA_ADAPTERS[mutation.adaptation];
-	return adapter ? adapter.adapt(mutation, rng) : mutation.sigma;
 }
 
 function _mutateNeuronCount(
@@ -162,7 +100,6 @@ function _mutateBiasType(
 	return rng() < mutation.rate * 0.2 ? pick(BIAS_TYPES, rng) : layer.biasType;
 }
 
-/** Mutate a single hidden layer's neuron count, activation, connection type, and bias initialisation. */
 export function mutateLayer(
 	layer: LayerGenome,
 	mutation: MutationGenome,
@@ -346,7 +283,6 @@ function _mutateReplayBuffer(
 	};
 }
 
-/** Apply all configured mutation operators (network structure, RL hyperparameters, self-adaptive params) to a genome. */
 export function mutateGenome(
 	genome: LamarckGenome,
 	rng: () => number

@@ -1,3 +1,10 @@
+import { Severity } from "@trading-model/common/contracts/admin/audit.dto";
+import {
+	toTopic,
+	toServiceId,
+	toCorrelationId,
+	type UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 import {
 	type ResponseObject,
 	sendResponse,
@@ -63,11 +70,11 @@ export function notifyReplayAudit(
 	errorsCount: number
 ): void {
 	void notifyAudit({
-		timestamp: Date.now(),
-		topic: topic ?? "unknown",
-		publisher: "dlq-service",
-		correlationId: batchId,
+		timestamp: Date.now() as unknown as UnixTimestamp,
+		topic: toTopic(topic ?? "unknown"),
+		publisher: toServiceId("dlq-service"),
+		correlationId: toCorrelationId(batchId),
 		summary: `DLQ replay: ${successCount} succeeded, ${errorsCount} failed`,
-		severity: errorsCount > 0 ? "ERROR" : "INFO",
+		severity: errorsCount > 0 ? Severity.Error : Severity.Info,
 	});
 }

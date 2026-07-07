@@ -7,6 +7,7 @@ import { DeliveryCircuitBreaker } from "./delivery-circuit-breaker";
 import { DeliveryErrorHandler } from "./delivery-error-handler";
 import { DeliveryMetadataExtractor } from "./delivery-metadata-extractor";
 import type { MessageDeliveryPort } from "./message-delivery-port";
+import { backoffDelay as computeBackoffDelay } from "./backoff-calculator";
 
 export interface SubscriptionConfig {
 	topic: string;
@@ -35,7 +36,7 @@ export class Subscription {
 	private _attemptHandler: DeliveryAttemptHandler;
 
 	static backoffDelay(deliveryAttempt: number): number {
-		return DeliveryAttemptHandler.backoffDelay(deliveryAttempt);
+		return computeBackoffDelay(deliveryAttempt);
 	}
 
 	constructor(config: SubscriptionConfig) {

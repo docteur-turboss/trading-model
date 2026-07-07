@@ -4,7 +4,7 @@ import { sleep } from "@trading-model/common/utils/sleep";
 
 import type { ServiceInstance } from "../client/type";
 import { recordDiscoveryMetrics } from "../metrics";
-import type { CircuitBreaker } from "./circuit-breaker";
+import type { DiscoveryCircuitBreaker } from "./circuit-breaker";
 import type { IServiceCache } from "./service-cache.interface";
 import type { ServiceDiscovery } from "./service-discovery";
 
@@ -19,7 +19,7 @@ export class DiscoveryRetryHandler {
 	constructor(
 		private readonly _serviceDiscovery: ServiceDiscovery,
 		private readonly _serviceCache: IServiceCache,
-		readonly circuitBreaker: CircuitBreaker
+		readonly circuitBreaker: DiscoveryCircuitBreaker
 	) {}
 
 	async attemptDiscovery(
@@ -69,7 +69,7 @@ export class DiscoveryRetryHandler {
 
 		if (!this.circuitBreaker.isOpen(instance.instanceId)) {
 			this._serviceDiscovery.acquireConnection(instance.instanceId);
-			recordDiscoveryMetrics(serviceName, startTime, "success");
+			recordDiscoveryMetrics({ serviceName, startTime }, "success");
 			return instance;
 		}
 
@@ -101,7 +101,7 @@ export class DiscoveryRetryHandler {
 						instanceId: staleInstance.instanceId,
 					}
 				);
-				recordDiscoveryMetrics(serviceName, startTime, "degraded");
+				recordDiscoveryMetrics({ serviceName, startTime }, "degraded");
 				return staleInstance;
 			}
 		} catch (err) {

@@ -1,4 +1,5 @@
 import { DataSource } from "@trading-model/common/domain/primitives";
+import { isRetryableStatusPermissive } from "@trading-model/common/config/http-retry";
 import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import axios, {
 	type AxiosError,
@@ -64,16 +65,7 @@ function shouldRetry(error: AxiosError): boolean {
 		return true; // network error → retry
 	}
 
-	const status = error.response.status;
-
-	if (status >= 500) {
-		return true;
-	}
-	if ([403, 408, 429, 418].includes(status)) {
-		return true;
-	}
-
-	return false;
+	return isRetryableStatusPermissive(error.response.status);
 }
 
 function getBackoffDelay(attempt: number): number {

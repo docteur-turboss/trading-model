@@ -7,15 +7,15 @@ import {
 	HttpRequestExecutor,
 	type RequestContext,
 } from "./http-request-executor";
-import { HttpTlsLoader } from "./http-tls-loader";
+import { loadTlsPemBundle } from "./http-tls-loader";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
 
 export class HttpClient {
-	private readonly _tlsLoader: HttpTlsLoader;
+	private readonly _tlsBundle: Partial<TlsPemBundle>;
 	private readonly _executor: HttpRequestExecutor;
 
 	constructor(tlsConfig?: Partial<TlsPemBundle>) {
-		this._tlsLoader = new HttpTlsLoader(tlsConfig);
+		this._tlsBundle = loadTlsPemBundle(tlsConfig);
 		this._executor = new HttpRequestExecutor();
 	}
 
@@ -80,9 +80,9 @@ export class HttpClient {
 		);
 
 		return this._executor.executeWithRetry(context, route, {
-			ca: this._tlsLoader.ca,
-			cert: this._tlsLoader.cert,
-			key: this._tlsLoader.key,
+			ca: this._tlsBundle.ca,
+			cert: this._tlsBundle.cert,
+			key: this._tlsBundle.key,
 		});
 	}
 }

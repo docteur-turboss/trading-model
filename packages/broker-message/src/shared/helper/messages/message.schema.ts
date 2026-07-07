@@ -1,11 +1,13 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
+import { MarketEvent } from "@trading-model/common/contracts/market-events";
+import { AuditEvent } from "@trading-model/common/contracts/audit-events";
+import { CertificateEvent } from "@trading-model/common/contracts/certificate-events";
 import {
 	CandleInterval,
-	EnumEventMessage,
-	type EventMap,
 	MarketType,
 	SourceType,
-} from "@trading-model/common/config/event.types";
+} from "@trading-model/common/contracts/market-data.types";
+import type { EventMap } from "@trading-model/common/config/event.types";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
 import {
 	PriceSchema,
@@ -142,11 +144,11 @@ const SET_OBJECT = z.object({
 });
 
 const EVENT_VALIDATORS = {
-	[EnumEventMessage.exampleEvent]: z.void(),
-	[EnumEventMessage.testEvent]: z.object({
+	[MarketEvent.exampleEvent]: z.void(),
+	[MarketEvent.testEvent]: z.object({
 		debug: z.boolean("Debug must be a boolean and is required"),
 	}),
-	[EnumEventMessage.fetchRecentTrades]: z.object({
+	[MarketEvent.fetchRecentTrades]: z.object({
 		trades: z.array(
 			z.object({
 				price: PriceSchema,
@@ -170,7 +172,7 @@ const EVENT_VALIDATORS = {
 			"Trades is required and must be a array of object"
 		),
 	}),
-	[EnumEventMessage.fetch24hrTickerStats]: z.object({
+	[MarketEvent.fetch24hrTickerStats]: z.object({
 		ticker: z.array(
 			z.object({
 				low: PriceSchema,
@@ -195,7 +197,7 @@ const EVENT_VALIDATORS = {
 			"Ticker is required and must be a array of object"
 		),
 	}),
-	[EnumEventMessage.fetchCandlestickSeries]: z.object({
+	[MarketEvent.fetchCandlestickSeries]: z.object({
 		candle: z.array(
 			z.object({
 				low: PriceSchema,
@@ -228,7 +230,7 @@ const EVENT_VALIDATORS = {
 			"Candle is required and must be a array of object"
 		),
 	}),
-	[EnumEventMessage.fetchOrderBookSnapshot]: z.object({
+	[MarketEvent.fetchOrderBookSnapshot]: z.object({
 		orderBook: z.array(
 			z.object({
 				bids: z.set(SET_OBJECT),
@@ -247,14 +249,14 @@ const EVENT_VALIDATORS = {
 			"OrderBook is required and must be a array of object"
 		),
 	}),
-	[EnumEventMessage.fetchPriceTickerSnapshot]: z.object({
+	[MarketEvent.fetchPriceTickerSnapshot]: z.object({
 		price: z.record(
 			z.string("Symbol value must be string"),
 			PriceSchema,
 			"Price param is required and must be a record<string, number>"
 		),
 	}),
-	[EnumEventMessage.fetchOrderBookTickerSnapshot]: z.object({
+	[MarketEvent.fetchOrderBookTickerSnapshot]: z.object({
 		bookTicker: z.array(
 			z.object({
 				ask: PriceSchema,
@@ -276,23 +278,23 @@ const EVENT_VALIDATORS = {
 		),
 	}),
 
-	[EnumEventMessage.auditHeartbeat]: z.object({
+	[AuditEvent.auditHeartbeat]: z.object({
 		serviceName: z.nativeEnum(ServiceInstanceName),
 		instanceId: z.string(),
 	}),
-	[EnumEventMessage.auditGapDetected]: z.object({
+	[AuditEvent.auditGapDetected]: z.object({
 		from: z.string().transform((str) => new Date(str)),
 		to: z.string().transform((str) => new Date(str)),
 		lostCount: z.number().int().optional(),
 	}),
-	[EnumEventMessage.certificateRevoked]: z.object({
+	[CertificateEvent.certificateRevoked]: z.object({
 		serialNumber: z.string(),
 		serviceId: z.string(),
 		reason: z.string(),
 		revokedAt: z.string(),
 		instanceId: z.string(),
 	}),
-	[EnumEventMessage.caKeyRotated]: z.object({
+	[CertificateEvent.caKeyRotated]: z.object({
 		keyId: z.string(),
 		keyVersion: z.number(),
 		instanceId: z.string(),

@@ -1,8 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
-import { HEARTBEAT } from "@trading-model/common/constants";
-import type {
-	DiscoveryWsMessage,
+import {
 	DiscoveryWsMessageType,
+	type DiscoveryWsMessage,
 } from "@trading-model/common/contracts/discovery-ws-message.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
@@ -63,7 +62,7 @@ export class WebSocketClient {
 		logger.info("WebSocket connected to discovery server", {
 			url: this._connection.url,
 		});
-		this.send("subscribe", { services: this._subscribedServices });
+		this.send(DiscoveryWsMessageType.Subscribe, { services: this._subscribedServices });
 	}
 
 	private _onMessage(data: WebSocket.Data): void {
@@ -118,7 +117,7 @@ export class WebSocketClient {
 	}
 
 	sendHeartbeat(identity: ServiceIdentity): boolean {
-		return this.send(HEARTBEAT, {
+		return this.send(DiscoveryWsMessageType.Heartbeat, {
 			serviceName: identity.serviceName,
 			instanceId: identity.instanceId,
 		});

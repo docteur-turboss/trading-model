@@ -2,7 +2,7 @@ import { evaluateFitness } from "./evaluation-pipeline";
 import type { WindowSet } from "./generation-types";
 import type { GenomeFitnessMeta, LamarckGenome } from "./genome-types";
 import type { ObjectiveVector } from "./nsga2";
-import { ParetoArchive } from "./pareto-engine";
+import { ParetoArchive } from "./pareto";
 import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 import { StagnationTracker } from "./stagnation-tracker";

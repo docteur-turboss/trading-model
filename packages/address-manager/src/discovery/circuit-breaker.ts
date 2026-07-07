@@ -22,7 +22,7 @@ export interface CircuitBreakerOptions {
 	latencyP99ThresholdMs?: number;
 }
 
-export class CircuitBreaker extends BaseCircuitBreaker {
+export class DiscoveryCircuitBreaker extends BaseCircuitBreaker {
 	private readonly _state: CircuitBreakerState;
 	private readonly _latency: CircuitBreakerLatency;
 	private readonly _persistence: CircuitBreakerPersistence;

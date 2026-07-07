@@ -1,2 +1,2 @@
-export type { ObjectiveVector, PopulationMeta } from "./pareto-engine";
-export { buildPopulationMeta } from "./pareto-engine";
+export type { ObjectiveVector, PopulationMeta } from "./pareto";
+export { buildPopulationMeta } from "./pareto";

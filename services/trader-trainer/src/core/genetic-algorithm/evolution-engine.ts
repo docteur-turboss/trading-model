@@ -3,6 +3,7 @@
  * Handles both structural genome mutations and weight-level operations.
  */
 
+import { logger } from "@trading-model/common/config/logger";
 import type { Genome } from "./genome-types";
 import { SelectionType } from "./genome-types";
 
@@ -13,7 +14,8 @@ export function crossoverWeights(
 	rng: () => number
 ): Float32Array {
 	if (wa.length !== wb.length) {
-		return wa.slice(); // architecture mismatch
+		logger.warn("Crossover weight length mismatch — falling back to parent weights");
+		return wa.slice();
 	}
 	const out = new Float32Array(wa.length);
 	for (let i = 0; i < out.length; i++) {

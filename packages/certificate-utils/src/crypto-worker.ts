@@ -14,46 +14,53 @@ import { type SignOptions, signCertificate } from "./sign-certificate";
 import type { KeyPair, KeyPairWithId, SignInput } from "./types";
 import { validateCertificate } from "./validate-certificate";
 
-type JobHandler<TPayload> = (job: { payload: TPayload }) => Promise<unknown>;
-
-const HANDLERS: [string, JobHandler<unknown>][] = [
+const HANDLERS: [string, (job: { payload: unknown }) => Promise<unknown>][] = [
 	[
 		"generateKeyPair",
-		(job: { payload: { algorithm: KeyAlgorithm } }) =>
-			Promise.resolve(generateKeyPair(job.payload.algorithm) as KeyPair),
+		(job: { payload: unknown }) =>
+			Promise.resolve(
+				generateKeyPair((job.payload as { algorithm: KeyAlgorithm }).algorithm) as KeyPair
+			),
 	],
 	[
 		"generateKeyPairWithId",
-		(job: { payload: { algorithm: KeyAlgorithm } }) =>
+		(job: { payload: unknown }) =>
 			Promise.resolve(
-				generateKeyPairWithIdSync(job.payload.algorithm) as KeyPairWithId
+				generateKeyPairWithIdSync(
+					(job.payload as { algorithm: KeyAlgorithm }).algorithm
+				) as KeyPairWithId
 			),
 	],
 	[
 		"signCertificate",
-		(job: { payload: SignOptions }) =>
-			Promise.resolve(signCertificate(job.payload)),
+		(job: { payload: unknown }) =>
+			Promise.resolve(signCertificate(job.payload as SignOptions)),
 	],
 	[
 		"createCsr",
-		(job: { payload: CsrOptions }) => Promise.resolve(createCsr(job.payload)),
+		(job: { payload: unknown }) =>
+			Promise.resolve(createCsr(job.payload as CsrOptions)),
 	],
 	[
 		"validateCertificate",
-		(job: { payload: { certPem: string; caCertPem?: string } }) =>
+		(job: { payload: unknown }) =>
 			Promise.resolve(
 				validateCertificate({
-					certPem: job.payload.certPem,
-					caCertPem: job.payload.caCertPem ?? "",
+					certPem: (job.payload as { certPem: string }).certPem,
+					caCertPem: (job.payload as { caCertPem?: string }).caCertPem ?? "",
 				})
 			),
 	],
 	[
 		"parseKey",
-		(job: { payload: { privateKey: string } }) =>
-			Promise.resolve(parseKey(job.payload.privateKey)),
+		(job: { payload: unknown }) =>
+			Promise.resolve(parseKey((job.payload as { privateKey: string }).privateKey)),
 	],
-	["sign", (job: { payload: SignInput }) => Promise.resolve(sign(job.payload))],
+	[
+		"sign",
+		(job: { payload: unknown }) =>
+			Promise.resolve(sign(job.payload as SignInput)),
+	],
 ];
 
 export function createCryptoWorker(config: BaseWorkerConfig): BaseWorker {

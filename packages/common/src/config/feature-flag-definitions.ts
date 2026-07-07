@@ -1,12 +1,26 @@
+export type PlatformFlagName =
+	| "DLQ_AUTO_RETRY"
+	| "CANARY_MIGRATIONS"
+	| "STRICT_CIRCUIT_BREAKER"
+	| "MESSAGE_DEDUPLICATION"
+	| "GRACEFUL_SHUTDOWN_DRAIN"
+	| "ENABLE_REQUEST_LOGGING"
+	| "ENABLE_METRICS_EXPORT"
+	| "ENABLE_DETAILED_ERROR_RESPONSE"
+	| "ENABLE_CACHE_BYPASS"
+	| "WAL_SYNCHRONOUS_FLUSH"
+	| "ENABLE_TELEMETRY_DETAILED"
+	| "ENFORCE_MTLS_STRICT";
+
 export interface FeatureFlagDefinition {
-	name: string;
+	name: PlatformFlagName;
 	defaultEnabled: boolean;
 	description: string;
 	owner: string;
 }
 
 export interface FeatureFlag {
-	name: string;
+	name: PlatformFlagName;
 	enabled: boolean;
 	description: string;
 	owner: string;
