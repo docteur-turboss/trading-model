@@ -21,6 +21,8 @@ import { DataTable } from "../components/data-table";
 import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useServices } from "../hooks/use-services";
+import { flattenServices, filterServices } from "./helpers/services-utils";
+import type { ServiceRow } from "./helpers/services-utils";
 
 function PageLoading() {
 	return (
@@ -196,52 +198,6 @@ function ServiceFilter({
 			<StatusFilterSelect translate={translate} />
 		</Box>
 	);
-}
-
-interface ServiceRow {
-	serviceName: string;
-	instances: number;
-	ipPort: string;
-	version: string;
-	heartbeat: string;
-	status: string;
-}
-
-function flattenServices(
-	data:
-		| { services: { serviceName: string; instances: unknown[] }[] }
-		| null
-		| undefined
-): ServiceRow[] {
-	return (
-		data?.services.map((svc) => {
-			const primary = svc.instances[0] as
-				| {
-						host: string;
-						port: number;
-						version?: string;
-						heartbeat?: string;
-						status?: string;
-				  }
-				| undefined;
-			return {
-				serviceName: svc.serviceName,
-				instances: svc.instances.length,
-				ipPort: primary ? `${primary.host}:${primary.port}` : "-",
-				version: primary?.version ?? "-",
-				heartbeat: primary?.heartbeat ?? "-",
-				status: primary?.status ?? "down",
-			};
-		}) ?? []
-	);
-}
-
-function filterServices(services: ServiceRow[], filter: string): ServiceRow[] {
-	return filter
-		? services.filter((svc) =>
-				svc.serviceName.toLowerCase().includes(filter.toLowerCase())
-			)
-		: services;
 }
 
 function ServiceStatusCell({ status }: { status: string }) {

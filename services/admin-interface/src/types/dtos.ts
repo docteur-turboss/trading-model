@@ -18,7 +18,6 @@ import type {
 	Percentage,
 	TradingSymbol,
 } from "@trading-model/common/domain/primitives";
-import { AppError } from "@trading-model/common/utils/errors";
 
 export type {
 	AdminServiceInstance,
@@ -59,7 +58,8 @@ export interface StatsSummary {
 	avgLatency: number;
 }
 
-export type OrderBookLevel = import("@trading-model/common/contracts/market-data.types").OrderBookLevel;
+export type OrderBookLevel =
+	import("@trading-model/common/contracts/market-data.types").OrderBookLevel;
 
 export interface OrderBook {
 	bids: OrderBookLevel[];
@@ -109,12 +109,13 @@ export interface WorkerList {
 	stats: WorkerStats;
 }
 
-export class ApiError extends AppError {
+export class ApiError extends Error {
+	public readonly code = "ApiError";
 	constructor(
 		public statusCode: number,
 		message: string
 	) {
-		super(message, { code: "ApiError" });
+		super(message);
 		this.name = "ApiError";
 	}
 }

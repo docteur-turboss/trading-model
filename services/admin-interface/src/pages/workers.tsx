@@ -21,16 +21,7 @@ import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useApi } from "../hooks/use-api";
 import type { WorkerEntry } from "../types/dtos";
-
-function getLoadColor(value: number): string {
-	if (value > 80) {
-		return "#d32f2f";
-	}
-	if (value > 60) {
-		return "#ed6c02";
-	}
-	return "#1976d2";
-}
+import { getLoadColor } from "./helpers/workers-utils";
 
 function LoadProgress({ value, color }: { value: number; color?: string }) {
 	return (

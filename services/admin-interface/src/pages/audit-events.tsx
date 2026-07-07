@@ -22,10 +22,10 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";
 import { SeverityBadge } from "../components/severity-badge";
 import { StatsCard } from "../components/stats-card";
+import type { Column } from "../components/data-table";
 import { useAuditEvents } from "../hooks/use-audit-events";
 import type { AuditEvent, AuditFilter } from "../types/dtos";
 
@@ -208,19 +208,14 @@ function AuditPageHeader({ onRefresh }: { onRefresh: () => void }) {
 	);
 }
 
+import { createAuditColumns } from "./helpers/audit-utils";
+
 function useAuditColumns(): Column<AuditEvent>[] {
-	return [
-		{ id: "timestamp", label: "Timestamp", render: (row) => row.timestamp },
-		{ id: "topic", label: "Topic", render: (row) => row.topic },
-		{ id: "publisher", label: "Publisher", render: (row) => row.publisher },
-		{ id: "cid", label: "Correlation ID", render: (row) => row.correlationId },
-		{ id: "summary", label: "Summary", render: (row) => row.summary },
-		{
-			id: "severity",
-			label: "Severity",
-			render: (row) => <SeverityBadge severity={row.severity} />,
-		},
-	];
+	return createAuditColumns().map((col) =>
+		col.id === "severity"
+			? { ...col, render: (row: AuditEvent) => <SeverityBadge severity={row.severity} /> }
+			: col
+	) as Column<AuditEvent>[];
 }
 
 export function AuditEvents() {

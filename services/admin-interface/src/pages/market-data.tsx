@@ -31,10 +31,10 @@ import {
 } from "recharts";
 
 import { API_CLIENT } from "../api/api-client";
-import type { Column } from "../components/data-table";
 import { DataTable } from "../components/data-table";
 import { StatsCard } from "../components/stats-card";
 import { useApi } from "../hooks/use-api";
+import { computePriceChange, createCandleColumns } from "./helpers/market-data-utils";
 import type { Candle } from "../types/dtos";
 
 function PageLoading() {
@@ -255,50 +255,6 @@ function PriceChart({
 			</Box>
 		</Box>
 	);
-}
-
-function computePriceChange(candles: Candle[] | null | undefined): {
-	chartData?: { time: number; price: Price }[];
-	lastPrice?: Price;
-	change: Percentage;
-} {
-	const chartData = candles?.map((candle) => ({
-		time: candle.timestamp as number,
-		price: candle.close,
-	}));
-	const lastPrice = candles?.[candles.length - 1]?.close;
-	const prevPrice = candles?.[0]?.close;
-	const change = (
-		lastPrice && prevPrice ? ((lastPrice - prevPrice) / prevPrice) * 100 : 0
-	) as Percentage;
-	return { chartData, lastPrice, change };
-}
-
-function createCandleColumns(): Column<Candle>[] {
-	return [
-		{ id: "time", label: "Timestamp", render: (row) => row.timestamp },
-		{
-			id: "open",
-			label: "Open",
-			render: (row) => `$${row.open.toLocaleString()}`,
-		},
-		{
-			id: "high",
-			label: "High",
-			render: (row) => `$${row.high.toLocaleString()}`,
-		},
-		{
-			id: "low",
-			label: "Low",
-			render: (row) => `$${row.low.toLocaleString()}`,
-		},
-		{
-			id: "close",
-			label: "Close",
-			render: (row) => `$${row.close.toLocaleString()}`,
-		},
-		{ id: "volume", label: "Volume", render: (row) => row.volume.toFixed(3) },
-	];
 }
 
 function MarketDataHeader() {

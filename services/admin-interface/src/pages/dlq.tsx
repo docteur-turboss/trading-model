@@ -5,7 +5,6 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import StorageIcon from "@mui/icons-material/Storage";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Box, Button, CircularProgress, Grid, Typography } from "@mui/material";
-import { useState } from "react";
 
 import { API_CLIENT } from "../api/api-client";
 import type { Column } from "../components/data-table";
@@ -14,6 +13,7 @@ import { InfoBox } from "../components/info-box";
 import { StatsCard } from "../components/stats-card";
 import { StatusBadge } from "../components/status-badge";
 import { useApi } from "../hooks/use-api";
+import { useDlqSelection } from "./helpers/dlq-utils";
 import type { DlqMessage, DlqMessageList } from "../types/dtos";
 
 function PageLoading() {
@@ -185,32 +185,6 @@ function createDlqColumns(): Column<DlqMessage>[] {
 			render: (row) => <PayloadPreview preview={row.payloadPreview} />,
 		},
 	];
-}
-
-function useDlqSelection(
-	data: { messages: { messageId: string }[] } | null | undefined
-) {
-	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-	const handleSelectAll = (checked: boolean) => {
-		setSelectedIds(
-			checked
-				? new Set((data?.messages ?? []).map((msg) => msg.messageId))
-				: new Set()
-		);
-	};
-
-	const handleSelectOne = (id: string) => {
-		const next = new Set(selectedIds);
-		if (next.has(id)) {
-			next.delete(id);
-		} else {
-			next.add(id);
-		}
-		setSelectedIds(next);
-	};
-
-	return { selectedIds, handleSelectAll, handleSelectOne };
 }
 
 function DlqPageHeader() {
