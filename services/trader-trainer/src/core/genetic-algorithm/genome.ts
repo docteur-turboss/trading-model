@@ -15,11 +15,10 @@ export {
 	NormalisationType,
 } from "../neural-network/type";
 
+import { Bounded } from "./bounded";
+
 /** Clipping bounds for reward shaping and continuous policy. */
-export interface ClipBounds {
-	clipMin: number;
-	clipMax: number;
-}
+export type ClipBounds = Bounded<number>;
 
 /** Configuration for a single neural network hidden layer. */
 export interface LayerGenome {
@@ -38,7 +37,8 @@ export interface NetworkGenome {
 }
 
 /** Reward shaping configuration: clipping, scaling, normalisation, and sparse/dense mode. */
-export interface RewardShapingGenome extends ClipBounds {
+export interface RewardShapingGenome {
+	clipBounds: Bounded<number>;
 	clip: boolean;
 	scale: boolean;
 	scaleFactor: number;
@@ -74,7 +74,8 @@ export enum ContinuousPolicyType {
 }
 
 /** Continuous policy hyperparameters for action clipping and exploration noise. */
-export interface ContinuousPolicyGenome extends ClipBounds {
+export interface ContinuousPolicyGenome {
+	clipBounds: Bounded<number>;
 	type: ContinuousPolicyType;
 	noiseStd: number;
 	noiseDecay: number;

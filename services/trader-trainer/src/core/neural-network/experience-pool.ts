@@ -12,29 +12,15 @@ export interface IExperiencePool {
 	values(): MapIterator<Experience>;
 }
 
-class DisabledExperiencePool implements IExperiencePool {
-	add(_experience: Experience): void {}
-
-	getPool(): Experience[] {
-		return [];
-	}
-
-	getPoolSize(): number {
-		return 0;
-	}
-
-	samplePool(): Experience[] {
-		return [];
-	}
-
-	clearPool(): void {}
-
-	remove(_input: Float32Array): void {}
-
-	values(): MapIterator<Experience> {
-		return new Map().values();
-	}
-}
+const DISABLED_POOL: IExperiencePool = {
+	add: () => {},
+	getPool: () => [],
+	getPoolSize: () => 0,
+	samplePool: () => [],
+	clearPool: () => {},
+	remove: () => {},
+	values: () => new Map().values(),
+};
 
 export class ExperiencePool implements IExperiencePool {
 	private _poolMap = new Map<number, Experience>();
@@ -115,7 +101,7 @@ export function createExperiencePool(
 	poolMaxSize: number
 ): IExperiencePool {
 	if (!enablePool) {
-		return new DisabledExperiencePool();
+		return DISABLED_POOL;
 	}
 	return new ExperiencePool(poolMaxSize);
 }

@@ -1,75 +1,14 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
-import type {
-	TradingSymbol,
-	UnixTimestamp,
-} from "@trading-model/common/domain/primitives";
-
+import type { TradingSymbol } from "@trading-model/common/domain/primitives";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
+import { CheckpointSerializer, type CheckpointMetadata, type CheckpointTarget } from "./checkpoint-serializer";
+import { NodeCheckpointIO, type CheckpointIO } from "./checkpoint-io";
 
-export interface CheckpointMetadata {
-	symbol: TradingSymbol;
-	generation: number;
-	fitness: number;
-	savedAt: UnixTimestamp;
-}
-
-export interface CheckpointIO {
-	readFile(path: string): string;
-	writeFile(path: string, data: string): void;
-	fileExists(path: string): boolean;
-}
-
-export class NodeCheckpointIO implements CheckpointIO {
-	readFile(path: string): string {
-		return readFileSync(path, "utf-8");
-	}
-	writeFile(path: string, data: string): void {
-		writeFileSync(path, data, "utf-8");
-	}
-	fileExists(path: string): boolean {
-		return existsSync(path);
-	}
-}
-
-export class CheckpointSerializer {
-	toJson(genome: DeepReadonly<LamarckGenome>): string {
-		return JSON.stringify(genome, null, 2);
-	}
-
-	fromJson<T>(raw: string): T {
-		return JSON.parse(raw) as T;
-	}
-
-	buildMetadata(
-		symbol: TradingSymbol,
-		genome: DeepReadonly<LamarckGenome>,
-		fitness = 0
-	): CheckpointMetadata {
-		return {
-			savedAt: Date.now() as UnixTimestamp,
-			symbol,
-			generation: (genome.generation as number | undefined) ?? 0,
-			fitness,
-		};
-	}
-
-	parseMetadata(raw: string): CheckpointMetadata | null {
-		try {
-			const meta = JSON.parse(raw);
-			return {
-				symbol: meta.symbol as TradingSymbol,
-				generation: meta.generation,
-				fitness: meta.fitness,
-				savedAt: meta.savedAt as UnixTimestamp,
-			};
-		} catch {
-			return null;
-		}
-	}
-}
+export type { CheckpointMetadata, CheckpointTarget } from "./checkpoint-serializer";
+export { CheckpointSerializer } from "./checkpoint-serializer";
+export { NodeCheckpointIO, type CheckpointIO } from "./checkpoint-io";
 
 export class CheckpointFileHelper {
 	private readonly _io: CheckpointIO;
@@ -92,21 +31,18 @@ export class CheckpointFileHelper {
 		return join(this._checkpointDir, `metadata_${symbol}.json`);
 	}
 
-	save(symbol: TradingSymbol, genome: DeepReadonly<LamarckGenome>): void {
-		const path = this.checkpointPath(symbol);
-		this._io.writeFile(path, this._serializer.toJson(genome));
-		this._writeMetadata(symbol, genome);
+	save(target: CheckpointTarget): void {
+		const path = this.checkpointPath(target.symbol);
+		this._io.writeFile(path, this._serializer.toJson(target.genome));
+		this._writeMetadata(target);
 		logger.info("Checkpoint saved", {
-			context: { symbol, generation: genome.generation, path },
+			context: { symbol: target.symbol, generation: target.genome.generation, path },
 		});
 	}
 
-	private _writeMetadata(
-		symbol: TradingSymbol,
-		genome: DeepReadonly<LamarckGenome>
-	): void {
-		const meta = this._serializer.buildMetadata(symbol, genome);
-		this._io.writeFile(this.metadataPath(symbol), JSON.stringify(meta));
+	private _writeMetadata(target: CheckpointTarget): void {
+		const meta = this._serializer.buildMetadata(target);
+		this._io.writeFile(this.metadataPath(target.symbol), JSON.stringify(meta));
 	}
 
 	load(symbol: TradingSymbol): DeepReadonly<LamarckGenome> | null {

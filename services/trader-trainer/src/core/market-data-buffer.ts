@@ -5,6 +5,7 @@ import {
 	MIN_TRAINING_STEPS,
 	WindowSplitter,
 } from "./market-data/window-splitter";
+import type { MarketDataContext } from "./market-data/market-data-context";
 import type { SymbolState, TradingSymbol } from "./market-data-types";
 import { SymbolStateManager } from "./symbol-state-manager";
 import { EvictionPolicy } from "./eviction-policy";
@@ -26,11 +27,11 @@ export class MarketDataBuffer {
 	private readonly _windowSplitter: WindowSplitter;
 
 	constructor(config: MarketDataBufferConfig = {}) {
-		this._stateManager = new SymbolStateManager(
-			config.maxSize ?? 10000,
-			(config.maxMemoryMb ?? 512) * 1024 * 1024,
-			config.evictionPolicy ?? EvictionPolicy.None
-		);
+		this._stateManager = new SymbolStateManager({
+			maxSize: config.maxSize ?? 10000,
+			maxMemoryBytes: (config.maxMemoryMb ?? 512) * 1024 * 1024,
+			evictionPolicy: config.evictionPolicy ?? EvictionPolicy.None,
+		});
 		this._windowSplitter = new WindowSplitter(
 			this._stateManager.states
 		);
@@ -46,10 +47,6 @@ export class MarketDataBuffer {
 
 	setPriceSnapshot(prices: Record<TradingSymbol, Price>): void {
 		this._priceSnapshot = { ...this._priceSnapshot, ...prices };
-	}
-
-	getPriceSnapshot(): Record<TradingSymbol, Price> {
-		return { ...this._priceSnapshot };
 	}
 
 	getSymbols(): TradingSymbol[] {
@@ -69,7 +66,8 @@ export class MarketDataBuffer {
 	}
 
 	buildMarketSteps(symbol: TradingSymbol): MarketStep[] {
-		return this._windowSplitter.buildMarketSteps(symbol, this._priceSnapshot);
+		const ctx: MarketDataContext = { symbol, priceSnapshot: this._priceSnapshot };
+		return this._windowSplitter.buildMarketSteps(ctx);
 	}
 
 	splitTrainValidation(
@@ -83,6 +81,7 @@ export class MarketDataBuffer {
 		symbol: TradingSymbol,
 		validationSplit: number = DEFAULT_VALIDATION_SPLIT
 	): { id: string; train: MarketStep[]; validation: MarketStep[] } | null {
-		return this._windowSplitter.getAllWindows(symbol, validationSplit, this._priceSnapshot);
+		const ctx: MarketDataContext = { symbol, priceSnapshot: this._priceSnapshot };
+		return this._windowSplitter.getAllWindows(ctx, validationSplit);
 	}
 }

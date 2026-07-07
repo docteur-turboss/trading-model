@@ -7,9 +7,9 @@ export function buildTickerFeatures(
 ): void {
 	if (state.ticker24h) {
 		const tk = state.ticker24h;
-		features.tickerPriceChange =
+		features.ticker.priceChange =
 			tk.open > 0 ? (tk.last - tk.open) / tk.open : 0;
-		features.tickerVolume = state.norm.tickerVolume.normalize(tk.volume);
-		features.tickerDailyRange = tk.open > 0 ? (tk.high - tk.low) / tk.open : 0;
+		features.ticker.volume = state.norm.tickerVolume.normalize(tk.volume);
+		features.ticker.dailyRange = tk.open > 0 ? (tk.high - tk.low) / tk.open : 0;
 	}
 }

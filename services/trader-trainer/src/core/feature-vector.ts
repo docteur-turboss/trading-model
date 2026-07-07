@@ -2,59 +2,130 @@ export const FEATURE_DIM = 32;
 const SLIDING_WINDOW_SIZE = 8;
 const FEATURE_COUNT = 23;
 
+export enum FeatureIndex {
+	Close = 0,
+	Volume = 1,
+	ReturnRatio = 2,
+	PositionRatio = 3,
+	RangeRatio = 4,
+	Open = 5,
+	High = 6,
+	Low = 7,
+	VolumeRatio = 8,
+	AvgBid = 9,
+	AvgAsk = 10,
+	SpreadRatioOb = 11,
+	Imbalance = 12,
+	Bid = 13,
+	Ask = 14,
+	SpreadRatioBt = 15,
+	AvgPrice = 16,
+	TotalQty = 17,
+	BuyRatio = 18,
+	PriceChange = 19,
+	TickerVolume = 20,
+	DailyRange = 21,
+	PriceSnapshot = 22,
+}
+
+export interface CandleFeatures {
+	close: number;
+	volume: number;
+	returnRatio: number;
+	positionRatio: number;
+	rangeRatio: number;
+	open: number;
+	high: number;
+	low: number;
+	volumeRatio: number;
+}
+
+export interface OrderBookFeatures {
+	avgBid: number;
+	avgAsk: number;
+	spreadRatio: number;
+	imbalance: number;
+}
+
+export interface BookTickerFeatures {
+	bid: number;
+	ask: number;
+	spreadRatio: number;
+}
+
+export interface TradeFeatures {
+	avgPrice: number;
+	totalQty: number;
+	buyRatio: number;
+}
+
+export interface TickerFeatures {
+	priceChange: number;
+	volume: number;
+	dailyRange: number;
+}
+
+function emptyCandle(): CandleFeatures {
+	return { close: 0, volume: 0, returnRatio: 0, positionRatio: 0, rangeRatio: 0, open: 0, high: 0, low: 0, volumeRatio: 0 };
+}
+
+function emptyOrderBook(): OrderBookFeatures {
+	return { avgBid: 0, avgAsk: 0, spreadRatio: 0, imbalance: 0 };
+}
+
+function emptyBookTicker(): BookTickerFeatures {
+	return { bid: 0, ask: 0, spreadRatio: 0 };
+}
+
+function emptyTrade(): TradeFeatures {
+	return { avgPrice: 0, totalQty: 0, buyRatio: 0 };
+}
+
+function emptyTicker(): TickerFeatures {
+	return { priceChange: 0, volume: 0, dailyRange: 0 };
+}
+
 export class FeatureVector {
-	candleClose = 0;
-	candleVolume = 0;
-	candleReturnRatio = 0;
-	candlePositionRatio = 0;
-	candleRangeRatio = 0;
-	candleOpen = 0;
-	candleHigh = 0;
-	candleLow = 0;
-	candleVolumeRatio = 0;
-	orderBookAvgBid = 0;
-	orderBookAvgAsk = 0;
-	orderBookSpreadRatio = 0;
-	orderBookImbalance = 0;
-	bookTickerBid = 0;
-	bookTickerAsk = 0;
-	bookTickerSpreadRatio = 0;
-	tradeAvgPrice = 0;
-	tradeTotalQty = 0;
-	tradeBuyRatio = 0;
-	tickerPriceChange = 0;
-	tickerVolume = 0;
-	tickerDailyRange = 0;
+	candle: CandleFeatures;
+	orderBook: OrderBookFeatures;
+	bookTicker: BookTickerFeatures;
+	trade: TradeFeatures;
+	ticker: TickerFeatures;
 	priceSnapshot = 0;
 	private readonly _slidingWindow: Float32Array;
 	bias = 0;
 
 	constructor(data?: Float32Array) {
+		this.candle = emptyCandle();
+		this.orderBook = emptyOrderBook();
+		this.bookTicker = emptyBookTicker();
+		this.trade = emptyTrade();
+		this.ticker = emptyTicker();
 		this._slidingWindow = new Float32Array(SLIDING_WINDOW_SIZE);
 		if (data instanceof Float32Array) {
-			this.candleClose = data[0] ?? 0;
-			this.candleVolume = data[1] ?? 0;
-			this.candleReturnRatio = data[2] ?? 0;
-			this.candlePositionRatio = data[3] ?? 0;
-			this.candleRangeRatio = data[4] ?? 0;
-			this.candleOpen = data[5] ?? 0;
-			this.candleHigh = data[6] ?? 0;
-			this.candleLow = data[7] ?? 0;
-			this.candleVolumeRatio = data[8] ?? 0;
-			this.orderBookAvgBid = data[9] ?? 0;
-			this.orderBookAvgAsk = data[10] ?? 0;
-			this.orderBookSpreadRatio = data[11] ?? 0;
-			this.orderBookImbalance = data[12] ?? 0;
-			this.bookTickerBid = data[13] ?? 0;
-			this.bookTickerAsk = data[14] ?? 0;
-			this.bookTickerSpreadRatio = data[15] ?? 0;
-			this.tradeAvgPrice = data[16] ?? 0;
-			this.tradeTotalQty = data[17] ?? 0;
-			this.tradeBuyRatio = data[18] ?? 0;
-			this.tickerPriceChange = data[19] ?? 0;
-			this.tickerVolume = data[20] ?? 0;
-			this.tickerDailyRange = data[21] ?? 0;
-			this.priceSnapshot = data[22] ?? 0;
+			this.candle.close = data[FeatureIndex.Close] ?? 0;
+			this.candle.volume = data[FeatureIndex.Volume] ?? 0;
+			this.candle.returnRatio = data[FeatureIndex.ReturnRatio] ?? 0;
+			this.candle.positionRatio = data[FeatureIndex.PositionRatio] ?? 0;
+			this.candle.rangeRatio = data[FeatureIndex.RangeRatio] ?? 0;
+			this.candle.open = data[FeatureIndex.Open] ?? 0;
+			this.candle.high = data[FeatureIndex.High] ?? 0;
+			this.candle.low = data[FeatureIndex.Low] ?? 0;
+			this.candle.volumeRatio = data[FeatureIndex.VolumeRatio] ?? 0;
+			this.orderBook.avgBid = data[FeatureIndex.AvgBid] ?? 0;
+			this.orderBook.avgAsk = data[FeatureIndex.AvgAsk] ?? 0;
+			this.orderBook.spreadRatio = data[FeatureIndex.SpreadRatioOb] ?? 0;
+			this.orderBook.imbalance = data[FeatureIndex.Imbalance] ?? 0;
+			this.bookTicker.bid = data[FeatureIndex.Bid] ?? 0;
+			this.bookTicker.ask = data[FeatureIndex.Ask] ?? 0;
+			this.bookTicker.spreadRatio = data[FeatureIndex.SpreadRatioBt] ?? 0;
+			this.trade.avgPrice = data[FeatureIndex.AvgPrice] ?? 0;
+			this.trade.totalQty = data[FeatureIndex.TotalQty] ?? 0;
+			this.trade.buyRatio = data[FeatureIndex.BuyRatio] ?? 0;
+			this.ticker.priceChange = data[FeatureIndex.PriceChange] ?? 0;
+			this.ticker.volume = data[FeatureIndex.TickerVolume] ?? 0;
+			this.ticker.dailyRange = data[FeatureIndex.DailyRange] ?? 0;
+			this.priceSnapshot = data[FeatureIndex.PriceSnapshot] ?? 0;
 			for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) { this._slidingWindow[i] = data[FEATURE_COUNT + i] ?? 0; }
 			this.bias = data[FEATURE_DIM - 1] ?? 0;
 		}
@@ -64,29 +135,29 @@ export class FeatureVector {
 
 	toFloat32Array(): Float32Array {
 		const arr = new Float32Array(FEATURE_DIM);
-		arr[0] = this.candleClose;
-		arr[1] = this.candleVolume;
-		arr[2] = this.candleReturnRatio;
-		arr[3] = this.candlePositionRatio;
-		arr[4] = this.candleRangeRatio;
-		arr[5] = this.candleOpen;
-		arr[6] = this.candleHigh;
-		arr[7] = this.candleLow;
-		arr[8] = this.candleVolumeRatio;
-		arr[9] = this.orderBookAvgBid;
-		arr[10] = this.orderBookAvgAsk;
-		arr[11] = this.orderBookSpreadRatio;
-		arr[12] = this.orderBookImbalance;
-		arr[13] = this.bookTickerBid;
-		arr[14] = this.bookTickerAsk;
-		arr[15] = this.bookTickerSpreadRatio;
-		arr[16] = this.tradeAvgPrice;
-		arr[17] = this.tradeTotalQty;
-		arr[18] = this.tradeBuyRatio;
-		arr[19] = this.tickerPriceChange;
-		arr[20] = this.tickerVolume;
-		arr[21] = this.tickerDailyRange;
-		arr[22] = this.priceSnapshot;
+		arr[FeatureIndex.Close] = this.candle.close;
+		arr[FeatureIndex.Volume] = this.candle.volume;
+		arr[FeatureIndex.ReturnRatio] = this.candle.returnRatio;
+		arr[FeatureIndex.PositionRatio] = this.candle.positionRatio;
+		arr[FeatureIndex.RangeRatio] = this.candle.rangeRatio;
+		arr[FeatureIndex.Open] = this.candle.open;
+		arr[FeatureIndex.High] = this.candle.high;
+		arr[FeatureIndex.Low] = this.candle.low;
+		arr[FeatureIndex.VolumeRatio] = this.candle.volumeRatio;
+		arr[FeatureIndex.AvgBid] = this.orderBook.avgBid;
+		arr[FeatureIndex.AvgAsk] = this.orderBook.avgAsk;
+		arr[FeatureIndex.SpreadRatioOb] = this.orderBook.spreadRatio;
+		arr[FeatureIndex.Imbalance] = this.orderBook.imbalance;
+		arr[FeatureIndex.Bid] = this.bookTicker.bid;
+		arr[FeatureIndex.Ask] = this.bookTicker.ask;
+		arr[FeatureIndex.SpreadRatioBt] = this.bookTicker.spreadRatio;
+		arr[FeatureIndex.AvgPrice] = this.trade.avgPrice;
+		arr[FeatureIndex.TotalQty] = this.trade.totalQty;
+		arr[FeatureIndex.BuyRatio] = this.trade.buyRatio;
+		arr[FeatureIndex.PriceChange] = this.ticker.priceChange;
+		arr[FeatureIndex.TickerVolume] = this.ticker.volume;
+		arr[FeatureIndex.DailyRange] = this.ticker.dailyRange;
+		arr[FeatureIndex.PriceSnapshot] = this.priceSnapshot;
 		for (let i = 0; i < SLIDING_WINDOW_SIZE; i++) { arr[FEATURE_COUNT + i] = this._slidingWindow[i]; }
 		arr[FEATURE_DIM - 1] = this.bias;
 		return arr;

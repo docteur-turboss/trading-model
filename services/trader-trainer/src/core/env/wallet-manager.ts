@@ -35,10 +35,10 @@ export class Wallet implements WalletAPI {
 		this._recorder = new TradeRecorder(config.initialCash, config.decimals);
 		this._executor = new TradeExecutor(
 			config,
+			this._recorder,
 			price,
 			cash,
-			Volume.zero(),
-			this._recorder
+			Volume.zero()
 		);
 	}
 

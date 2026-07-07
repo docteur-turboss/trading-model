@@ -8,6 +8,12 @@ import { MemoryManager } from "./market-data/memory-manager";
 import type { SymbolState, TradingSymbol } from "./market-data-types";
 import { NormalizationManager } from "./normalization-manager";
 
+export interface SymbolStateManagerConfig {
+	maxSize: number;
+	maxMemoryBytes: number;
+	evictionPolicy: EvictionPolicy;
+}
+
 export class SymbolStateManager {
 	readonly states: Map<TradingSymbol, SymbolState> = new Map();
 	readonly accessOrder: TradingSymbol[] = [];
@@ -16,17 +22,13 @@ export class SymbolStateManager {
 	private readonly _handlerMap: Record<DataType, DataHandler>;
 
 	constructor(
-		maxSize: number,
-		maxMemoryBytes: number,
-		evictionPolicy: EvictionPolicy,
+		config: SymbolStateManagerConfig,
 		handlers?: DataHandler[]
 	) {
 		this._memoryManager = new MemoryManager({
 			states: this.states,
 			accessOrder: this.accessOrder,
-			maxSize,
-			maxMemoryBytes,
-			evictionPolicy,
+			...config,
 		});
 		this._normManager = new NormalizationManager(handlers);
 		const h = handlers ?? createDefaultHandlers();

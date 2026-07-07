@@ -29,14 +29,14 @@ export function buildOrderBookFeatures(ctx: FeatureContext): void {
 	const { features, state } = ctx;
 	const obAvg = orderBookAverages(state);
 	if (obAvg) {
-		features.orderBookAvgBid = state.norm.bid.normalize(obAvg.avgBid);
-		features.orderBookAvgAsk = state.norm.ask.normalize(obAvg.avgAsk);
-		features.orderBookSpreadRatio =
+		features.orderBook.avgBid = state.norm.bid.normalize(obAvg.avgBid);
+		features.orderBook.avgAsk = state.norm.ask.normalize(obAvg.avgAsk);
+		features.orderBook.spreadRatio =
 			obAvg.avgAsk > 0 && obAvg.avgBid > 0
 				? (obAvg.avgAsk - obAvg.avgBid) / obAvg.avgAsk
 				: 0;
 		const totalQty = obAvg.bidQty + obAvg.askQty;
-		features.orderBookImbalance =
+		features.orderBook.imbalance =
 			totalQty > 0 ? (obAvg.bidQty - obAvg.askQty) / totalQty : 0;
 	}
 }

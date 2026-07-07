@@ -15,6 +15,7 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/core/genetic-algorithm/genome";
+import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 
 describe("estimateComplexity", () => {
 	const baseGenome = {
@@ -38,8 +39,7 @@ describe("estimateComplexity", () => {
 			},
 			continuousPolicy: {
 				type: ContinuousPolicyType.ActionClipping,
-				clipMin: -1,
-				clipMax: 1,
+				clipBounds: createBounded(-1, 1),
 				noiseStd: 0.1,
 				noiseDecay: 0.995,
 			},
@@ -53,8 +53,7 @@ describe("estimateComplexity", () => {
 			horizon: { maxEpisodeLength: 100, frameSkip: 1, nStepReturn: 3 },
 			rewardShaping: {
 				clip: false,
-				clipMin: -1,
-				clipMax: 1,
+				clipBounds: createBounded(-1, 1),
 				scale: false,
 				scaleFactor: 1,
 				normalize: false,

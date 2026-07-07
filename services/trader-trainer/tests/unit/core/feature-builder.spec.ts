@@ -24,7 +24,7 @@ import { NormalizationStats } from "../../../src/core/normalization-stats";
 
 function baseCandle(overrides?: Partial<CandleData>): CandleData {
 	return {
-		symbol: "BTCUSDT",
+		symbol: toSymbol("BTCUSDT"),
 		source: SourceType.BINANCE,
 		timestamp: UnixTimestamp.of(2000),
 		market: MarketType.CRYPTO,
@@ -41,7 +41,7 @@ function baseCandle(overrides?: Partial<CandleData>): CandleData {
 
 function baseTrade(overrides?: Partial<TradeData>): TradeData {
 	return {
-		symbol: "BTCUSDT",
+		symbol: toSymbol("BTCUSDT"),
 		source: SourceType.BINANCE,
 		timestamp: UnixTimestamp.of(1500),
 		market: MarketType.CRYPTO,
@@ -55,7 +55,7 @@ function baseTrade(overrides?: Partial<TradeData>): TradeData {
 
 function makeOrderBook(bidPrice: number, askPrice: number): OrderBookData {
 	return {
-		symbol: "BTCUSDT",
+		symbol: toSymbol("BTCUSDT"),
 		source: SourceType.BINANCE,
 		timestamp: UnixTimestamp.of(2000),
 		market: MarketType.CRYPTO,
@@ -71,7 +71,7 @@ function makeBookTicker(
 	askQty = 10
 ): BookTickerData {
 	return {
-		symbol: "BTCUSDT",
+		symbol: toSymbol("BTCUSDT"),
 		source: SourceType.BINANCE,
 		timestamp: UnixTimestamp.of(2000),
 		market: MarketType.CRYPTO,
@@ -90,7 +90,7 @@ function makeTicker24h(
 	volume: number
 ): TickerData {
 	return {
-		symbol: "BTCUSDT",
+		symbol: toSymbol("BTCUSDT"),
 		source: SourceType.BINANCE,
 		timestamp: UnixTimestamp.of(2000),
 		market: MarketType.CRYPTO,

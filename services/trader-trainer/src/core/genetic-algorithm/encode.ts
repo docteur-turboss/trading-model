@@ -1,11 +1,11 @@
-import { EncodingIndex, MAX_DEPTH, SCALAR_DIM, ACTIVATIONS, CONNECTION_TYPES, encodedDim } from "./encoding-indices";
+import { EncodingIndex, MAX_DEPTH, ACTIVATIONS, CONNECTION_TYPES, encodedDim, layerOffset, writeEncodedLayer } from "./encoding-indices";
 import type { Genome } from "./genome-types";
 
 function _writeRLScalars(arr: Float32Array, rl: Genome["rl"]): void {
 	arr[EncodingIndex.Gamma] = rl.gamma;
 	arr[EncodingIndex.LearningRate] = Math.log10(Math.max(1e-6, rl.learningRate)) / 6 + 1;
-	arr[EncodingIndex.ClipMin] = rl.rewardShaping.clipMin;
-	arr[EncodingIndex.ClipMax] = rl.rewardShaping.clipMax;
+	arr[EncodingIndex.ClipMin] = rl.rewardShaping.clipBounds.min;
+	arr[EncodingIndex.ClipMax] = rl.rewardShaping.clipBounds.max;
 	arr[EncodingIndex.ScaleFactor] = Math.log10(Math.max(0.001, rl.rewardShaping.scaleFactor)) / 3 + 1;
 	arr[EncodingIndex.MaxEpisodeLength] = rl.horizon.maxEpisodeLength / 2_000;
 	arr[EncodingIndex.NStepReturn] = rl.horizon.nStepReturn / 20;
@@ -35,14 +35,15 @@ function _writeNetworkScalars(arr: Float32Array, net: Genome["network"]): void {
 
 function _writeLayers(arr: Float32Array, net: Genome["network"]): void {
 	const layers = net.hiddenLayers.slice(0, MAX_DEPTH);
-	let offset = SCALAR_DIM;
-	for (const layer of layers) {
+	for (let i = 0; i < layers.length; i++) {
+		const layer = layers[i];
 		const actIdx = ACTIVATIONS.indexOf(layer.activation);
 		const ctIdx = CONNECTION_TYPES.indexOf(layer.connectionType);
-		arr[offset] = layer.neurons / 512;
-		arr[offset + 1] = actIdx >= 0 ? actIdx : 0;
-		arr[offset + 2] = ctIdx >= 0 ? ctIdx : 0;
-		offset += 3;
+		writeEncodedLayer(arr, layerOffset(i), {
+			neurons: layer.neurons / 512,
+			activationIdx: actIdx >= 0 ? actIdx : 0,
+			connectionTypeIdx: ctIdx >= 0 ? ctIdx : 0,
+		});
 	}
 }
 

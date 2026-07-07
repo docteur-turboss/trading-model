@@ -26,6 +26,7 @@ export enum EncodingIndex {
 
 export const SCALAR_DIM = 23;
 export const MAX_DEPTH = 12;
+const LAYER_STRIDE = 3;
 
 import {
 	ActivationType,
@@ -50,5 +51,29 @@ export const CONNECTION_TYPES: ConnectionType[] = [
 ];
 
 export function encodedDim(hiddenLayerCount: number): number {
-	return SCALAR_DIM + hiddenLayerCount * 3;
+	return SCALAR_DIM + hiddenLayerCount * LAYER_STRIDE;
+}
+
+export function layerOffset(layerIndex: number): number {
+	return SCALAR_DIM + layerIndex * LAYER_STRIDE;
+}
+
+export interface EncodedLayer {
+	neurons: number;
+	activationIdx: number;
+	connectionTypeIdx: number;
+}
+
+export function readEncodedLayer(arr: Float32Array, offset: number): EncodedLayer {
+	return {
+		neurons: arr[offset],
+		activationIdx: Math.round(arr[offset + 1]),
+		connectionTypeIdx: Math.round(arr[offset + 2]),
+	};
+}
+
+export function writeEncodedLayer(arr: Float32Array, offset: number, layer: EncodedLayer): void {
+	arr[offset] = layer.neurons;
+	arr[offset + 1] = layer.activationIdx;
+	arr[offset + 2] = layer.connectionTypeIdx;
 }

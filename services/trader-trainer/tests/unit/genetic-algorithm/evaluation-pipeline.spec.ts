@@ -17,6 +17,7 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/core/genetic-algorithm/genome";
+import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import type { RLBackend } from "../../../src/core/genetic-algorithm/rl-backend";
 import type { Experience } from "../../../src/core/genetic-algorithm/shared-types";
 
@@ -41,8 +42,7 @@ const MINIMAL_GENOME = {
 		},
 		continuousPolicy: {
 			type: ContinuousPolicyType.ActionClipping,
-			clipMin: -1,
-			clipMax: 1,
+			clipBounds: createBounded(-1, 1),
 			noiseStd: 0.1,
 			noiseDecay: 0.995,
 		},
@@ -56,8 +56,7 @@ const MINIMAL_GENOME = {
 		horizon: { maxEpisodeLength: 100, frameSkip: 1, nStepReturn: 3 },
 		rewardShaping: {
 			clip: false,
-			clipMin: -1,
-			clipMax: 1,
+			clipBounds: createBounded(-1, 1),
 			scale: false,
 			scaleFactor: 1,
 			normalize: false,
@@ -214,8 +213,7 @@ describe("evaluateGenomeAllWindows", () => {
 				...MINIMAL_GENOME.rl,
 				rewardShaping: {
 					clip: true,
-					clipMin: -1,
-					clipMax: 1,
+					clipBounds: createBounded(-1, 1),
 					scale: false,
 					scaleFactor: 1,
 					normalize: true,
@@ -317,8 +315,7 @@ describe("evaluateGenomeAllWindows", () => {
 				...MINIMAL_GENOME.rl,
 				rewardShaping: {
 					clip: true,
-					clipMin: -1,
-					clipMax: 1,
+					clipBounds: createBounded(-1, 1),
 					scale: false,
 					scaleFactor: 1,
 					normalize: false,

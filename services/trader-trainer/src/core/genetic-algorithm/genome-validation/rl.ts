@@ -8,6 +8,7 @@ import type {
 	ValidationContext,
 } from "../genome";
 import { ContinuousPolicyType, DiscretePolicyType } from "../genome";
+import { createBounded } from "../bounded";
 import { clamp } from "../utils";
 import { checkPositiveInt, checkRange, err } from "./utils";
 
@@ -25,13 +26,13 @@ function validateRewardShaping(
 	ctx: ValidationContext,
 	rs: RewardShapingGenome
 ): void {
-	if (rs.clipMin >= rs.clipMax) {
+	if (!rs.clipBounds || rs.clipBounds.min >= rs.clipBounds.max) {
 		err(
 			{ ...ctx, path: "rl.rewardShapingenome.clip" },
-			"clipMin must be < clipMax",
+			"clipBounds.min must be < clipBounds.max",
 			{
-				clipMin: rs.clipMin,
-				clipMax: rs.clipMax,
+				clipMin: rs.clipBounds?.min,
+				clipMax: rs.clipBounds?.max,
 			}
 		);
 	}
@@ -90,13 +91,13 @@ function validateContinuousPolicy(
 	ctx: ValidationContext,
 	cp: ContinuousPolicyGenome
 ): void {
-	if (cp.clipMin >= cp.clipMax) {
+	if (!cp.clipBounds || cp.clipBounds.min >= cp.clipBounds.max) {
 		err(
 			{ ...ctx, path: "rl.continuousPolicy.clip" },
-			"clipMin must be < clipMax",
+			"clipBounds.min must be < clipBounds.max",
 			{
-				clipMin: cp.clipMin,
-				clipMax: cp.clipMax,
+				clipMin: cp.clipBounds?.min,
+				clipMax: cp.clipBounds?.max,
 			}
 		);
 	}
@@ -128,16 +129,15 @@ function validateReplayBuffer(
 }
 
 function repairRewardShaping(rs: RewardShapingGenome): RewardShapingGenome {
-	const rawClipMin = rs.clipMin ?? -1;
-	const rawClipMax = rs.clipMax ?? 1;
+	const rawMin = rs.clipBounds?.min ?? -1;
+	const rawMax = rs.clipBounds?.max ?? 1;
 	return {
-		clip: rs.clip,
-		clipMin: Math.min(rawClipMin, rawClipMax - 1e-6),
-		clipMax: Math.max(rawClipMax, rawClipMin + 1e-6),
-		scale: rs.scale,
+		...rs,
+		clipBounds: createBounded(
+			Math.min(rawMin, rawMax - 1e-6),
+			Math.max(rawMax, rawMin + 1e-6),
+		),
 		scaleFactor: Math.max(0.001, rs.scaleFactor ?? 1),
-		normalize: rs.normalize,
-		sparse: rs.sparse,
 	};
 }
 
@@ -162,12 +162,14 @@ function repairDiscretePolicy(dp: DiscretePolicyGenome): DiscretePolicyGenome {
 function repairContinuousPolicy(
 	cp: ContinuousPolicyGenome
 ): ContinuousPolicyGenome {
-	const cpClipMin = Math.min(cp.clipMin ?? -1, (cp.clipMax ?? 1) - 1e-6);
-	const cpClipMax = Math.max(cp.clipMax ?? 1, (cp.clipMin ?? -1) + 1e-6);
+	const rawMin = cp.clipBounds?.min ?? -1;
+	const rawMax = cp.clipBounds?.max ?? 1;
 	return {
 		type: cp.type ?? ContinuousPolicyType.TanhSquashing,
-		clipMin: cpClipMin,
-		clipMax: cpClipMax,
+		clipBounds: createBounded(
+			Math.min(rawMin, rawMax - 1e-6),
+			Math.max(rawMax, rawMin + 1e-6),
+		),
 		noiseStd: Math.max(0.001, cp.noiseStd ?? 0.1),
 		noiseDecay: clamp(cp.noiseDecay ?? 0.999, 0.9, 0.9999),
 	};

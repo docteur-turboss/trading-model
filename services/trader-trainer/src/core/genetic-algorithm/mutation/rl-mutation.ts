@@ -1,4 +1,5 @@
 import type { MutationGenome, RLGenome } from "../genome-types";
+import { createBounded } from "../bounded";
 import { sampleGaussian, sampleNoise } from "../noise";
 import { clamp } from "../utils";
 
@@ -56,8 +57,10 @@ function _mutateRewardShaping(
 	return {
 		rewardShaping: {
 			...rl.rewardShaping,
-			clipMin: perturb(rl.rewardShaping.clipMin, 0.1),
-			clipMax: perturb(rl.rewardShaping.clipMax, 0.1),
+			clipBounds: createBounded(
+				perturb(rl.rewardShaping.clipBounds.min, 0.1),
+				perturb(rl.rewardShaping.clipBounds.max, 0.1),
+			),
 			scaleFactor: Math.max(0.01, perturb(rl.rewardShaping.scaleFactor, 0.1)),
 		},
 	};

@@ -13,6 +13,7 @@ import {
 	NormalisationType,
 	SelectionType,
 } from "../../../src/core/genetic-algorithm/genome";
+import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import type { LamarckGenome } from "../../../src/core/genetic-algorithm/genome-types";
 import type { DeepReadonly } from "../../../src/core/genetic-algorithm/shared-types";
 import { MarketDataBuffer } from "../../../src/core/market-data-buffer";
@@ -90,8 +91,7 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 					learningRate: 0.001,
 					rewardShaping: {
 						clip: false,
-						clipMin: -1,
-						clipMax: 1,
+						clipBounds: createBounded(-1, 1),
 						scale: false,
 						scaleFactor: 1,
 						normalize: false,
@@ -107,8 +107,7 @@ jest.mock("../../../src/core/genetic-algorithm/ga-runner", () => {
 					},
 					continuousPolicy: {
 						type: ContinuousPolicyType.TanhSquashing,
-						clipMin: -1,
-						clipMax: 1,
+						clipBounds: createBounded(-1, 1),
 						noiseStd: 0.1,
 						noiseDecay: 0.999,
 					},

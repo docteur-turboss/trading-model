@@ -4,6 +4,7 @@ import {
 	shapeReward,
 } from "../../../src/core/genetic-algorithm/fitness";
 import { FitnessType } from "../../../src/core/genetic-algorithm/genome";
+import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import type { RewardShapingGenome } from "../../../src/core/genetic-algorithm/genome-types";
 
 describe("Fitness - computeFitness", () => {
@@ -68,8 +69,7 @@ describe("Fitness - computeFitness", () => {
 describe("Fitness - shapeReward", () => {
 	const cfg: RewardShapingGenome = {
 		clip: true,
-		clipMin: -1,
-		clipMax: 1,
+		clipBounds: createBounded(-1, 1),
 		scale: true,
 		scaleFactor: 2,
 		normalize: false,

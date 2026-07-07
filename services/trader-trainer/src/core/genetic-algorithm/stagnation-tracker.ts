@@ -65,6 +65,6 @@ export class StagnationTracker {
 	}
 
 	get efficiencyHistory(): number[] {
-		return this._efficiencyHistory;
+		return [...this._efficiencyHistory];
 	}
 }

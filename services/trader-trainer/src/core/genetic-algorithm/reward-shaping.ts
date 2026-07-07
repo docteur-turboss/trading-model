@@ -1,6 +1,7 @@
 import type { NormalizationStats } from "../normalization-stats";
 import type { LamarckGenome, MarketStep } from "./genome-types";
 import type { RLBackend } from "./rl-backend";
+import { clampToBounded } from "./bounded";
 import type { DeepReadonly } from "./shared-types";
 import type { RunningStats } from "./utils";
 
@@ -10,7 +11,7 @@ function shapeReward(
 ): number {
 	let shaped = raw;
 	if (config.clip) {
-		shaped = Math.max(config.clipMin, Math.min(config.clipMax, shaped));
+		shaped = clampToBounded(shaped, config.clipBounds);
 	}
 	return shaped;
 }

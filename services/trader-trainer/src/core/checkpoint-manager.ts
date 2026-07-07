@@ -3,7 +3,7 @@ import { logger } from "@trading-model/common/config/logger";
 import type { TradingSymbol, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { BufferLoader } from "./buffer-loader";
 import { BufferSaver } from "./buffer-saver";
-import { CheckpointFileHelper, type CheckpointMetadata } from "./checkpoint-file-helper";
+import { CheckpointFileHelper, type CheckpointMetadata, type CheckpointTarget } from "./checkpoint-file-helper";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
 import type {
@@ -40,8 +40,9 @@ export class CheckpointManager {
 	}
 
 	save(symbol: TradingSymbol, genome: DeepReadonly<LamarckGenome>): void {
+		const target: CheckpointTarget = { symbol, genome };
 		try {
-			this._fileHelper.save(symbol, genome);
+			this._fileHelper.save(target);
 		} catch (err) {
 			logger.error("Failed to save checkpoint", {
 				context: {

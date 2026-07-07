@@ -49,13 +49,12 @@ export class TrainingSession {
 		});
 
 		const bestGenome = await runner.run();
-		const ctx = lastCtx as GenerationContext | null;
 		return {
 			bestGenome,
-			bestFitness: ctx?.bestFitness ?? 0,
-			bestFitnessMeta: ctx?.bestFitnessMeta,
+			bestFitness: lastCtx?.bestFitness ?? 0,
+			bestFitnessMeta: lastCtx?.bestFitnessMeta,
 			generation: runner.getGeneration(),
-			generationContext: ctx,
+			generationContext: lastCtx,
 		};
 	}
 

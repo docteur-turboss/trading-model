@@ -8,6 +8,7 @@ import {
 	MutationDistribution,
 	MutationScope,
 } from "../../../src/core/genetic-algorithm/genome";
+import { createBounded } from "../../../src/core/genetic-algorithm/bounded";
 import type {
 	LayerGenome,
 	MutationGenome,
@@ -277,8 +278,8 @@ describe("Mutation - mutateGenome", () => {
 		expect(mutated.rl.gamma).toBeLessThanOrEqual(0.9999);
 		expect(mutated.rl.learningRate).toBeGreaterThanOrEqual(1e-6);
 		expect(mutated.rl.learningRate).toBeLessThanOrEqual(1e-1);
-		expect(mutated.rl.rewardShaping.clipMin).toBeDefined();
-		expect(mutated.rl.rewardShaping.clipMax).toBeDefined();
+		expect(mutated.rl.rewardShaping.clipBounds.min).toBeDefined();
+		expect(mutated.rl.rewardShaping.clipBounds.max).toBeDefined();
 		expect(mutated.rl.rewardShaping.scaleFactor).toBeGreaterThanOrEqual(0.01);
 		expect(mutated.rl.discretePolicy.epsilonStart).toBeGreaterThanOrEqual(0.1);
 		expect(mutated.rl.discretePolicy.epsilonStart).toBeLessThanOrEqual(1.0);

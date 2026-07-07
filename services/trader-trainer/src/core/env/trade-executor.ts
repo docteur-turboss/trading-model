@@ -6,14 +6,13 @@ import type { WalletConfig } from "./wallet-config";
 export class TradeExecutor {
 	constructor(
 		private readonly _config: WalletConfig,
+		private readonly _recorder: TradeRecorder,
 		private _price: Price,
 		private _cash: Cash,
-		private _position: Volume,
-		private readonly _recorder: TradeRecorder
+		private _position: Volume
 	) {}
 
-	get price(): Price { return this._price; }
-	set price(value: Price) { this._price = value; }
+	get price(): Price { return this._price; 	}
 	get cash(): Cash { return this._cash; }
 	get position(): Volume { return this._position; }
 	get config(): WalletConfig { return this._config; }
@@ -28,7 +27,7 @@ export class TradeExecutor {
 		if (Number(totalCost) > Number(this._cash)) return false;
 		this._position = newPosition;
 		this._cash = Cash.of(this._config.roundValue(Number(this._cash) - Number(totalCost)));
-		this._recorder.recordTrade(TradeSide.BUY, amount, Cash.of(this._config.roundValue(Number(fee))), this._price, this._cash, this._position);
+		this._recorder.recordTrade({ action: TradeSide.BUY, amount, fee: Cash.of(this._config.roundValue(Number(fee))), price: this._price, cashAfter: this._cash, positionAfter: this._position });
 		return true;
 	}
 	sell(amount: Volume): boolean {
@@ -37,7 +36,7 @@ export class TradeExecutor {
 		const { netProceeds, fee } = this._config.computeSellProceeds(amount, this._price);
 		this._position = Volume.of(this._config.roundValue(Number(this._position) - amt));
 		this._cash = Cash.of(this._config.roundValue(Number(this._cash) + netProceeds));
-		this._recorder.recordTrade(TradeSide.SELL, amount, Cash.of(this._config.roundValue(Number(fee))), this._price, this._cash, this._position);
+		this._recorder.recordTrade({ action: TradeSide.SELL, amount, fee: Cash.of(this._config.roundValue(Number(fee))), price: this._price, cashAfter: this._cash, positionAfter: this._position });
 		return true;
 	}
 	setPrice(newPrice: Price): void {

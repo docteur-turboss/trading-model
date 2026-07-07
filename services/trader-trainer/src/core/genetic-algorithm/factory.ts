@@ -27,6 +27,7 @@ import {
 	MutationScope,
 	SelectionType,
 } from "./genome-types";
+import { createBounded } from "./bounded";
 
 function _createDefaultHiddenLayers(): NetworkGenome["hiddenLayers"] {
 	return [
@@ -57,8 +58,7 @@ export function createNetworkGenome(): NetworkGenome {
 export function createRewardShapingGenome(): RewardShapingGenome {
 	return {
 		clip: false,
-		clipMin: -1,
-		clipMax: 1,
+		clipBounds: createBounded(-1, 1),
 		scale: false,
 		scaleFactor: 1,
 		normalize: false,
@@ -87,8 +87,7 @@ export function createDiscretePolicyGenome(): DiscretePolicyGenome {
 export function createContinuousPolicyGenome(): ContinuousPolicyGenome {
 	return {
 		type: ContinuousPolicyType.TanhSquashing,
-		clipMin: -1,
-		clipMax: 1,
+		clipBounds: createBounded(-1, 1),
 		noiseStd: 0.1,
 		noiseDecay: 0.999,
 	};

@@ -1,9 +1,8 @@
 import {
 	Cash,
 	Percentage,
-	type Price,
-	type Volume,
 } from "@trading-model/common/domain/primitives";
+import type { PortfolioState } from "./portfolio-state";
 
 export interface WalletMetrics {
 	pnl: Cash;
@@ -19,10 +18,7 @@ function round(value: number, decimals: number): number {
 	return Math.round(value * factor) / factor;
 }
 
-export interface ComputeWalletMetricsParams {
-	cash: Cash;
-	position: Volume;
-	price: Price;
+export interface ComputeWalletMetricsParams extends PortfolioState {
 	peakValuation: Cash;
 	initialCash: Cash;
 	totalFeesPaid: Cash;

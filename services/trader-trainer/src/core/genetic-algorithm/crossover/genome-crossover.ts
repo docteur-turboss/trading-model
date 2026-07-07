@@ -12,6 +12,7 @@ import type {
 	RLGenome,
 	RLScalars,
 } from "../genome-types";
+import { createBounded } from "../bounded";
 import { crossoverScalar } from "./strategies";
 
 interface CrossoverContext<TLeft = unknown, TRight = unknown> {
@@ -122,8 +123,10 @@ function crossoverRewardShaping(
 	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		clip: rng() < 0.5 ? left.clip : right.clip,
-		clipMin: crossoverFn(left.clipMin, right.clipMin),
-		clipMax: crossoverFn(left.clipMax, right.clipMax),
+		clipBounds: createBounded(
+			crossoverFn(left.clipBounds.min, right.clipBounds.min),
+			crossoverFn(left.clipBounds.max, right.clipBounds.max),
+		),
 		scale: rng() < 0.5 ? left.scale : right.scale,
 		scaleFactor: crossoverFn(left.scaleFactor, right.scaleFactor),
 		normalize: rng() < 0.5 ? left.normalize : right.normalize,
@@ -163,8 +166,10 @@ function crossoverContinuousPolicy(
 	const { left, right, crossoverFn, rng } = ctx;
 	return {
 		type: rng() < 0.5 ? left.type : right.type,
-		clipMin: crossoverFn(left.clipMin, right.clipMin),
-		clipMax: crossoverFn(left.clipMax, right.clipMax),
+		clipBounds: createBounded(
+			crossoverFn(left.clipBounds.min, right.clipBounds.min),
+			crossoverFn(left.clipBounds.max, right.clipBounds.max),
+		),
 		noiseStd: crossoverFn(left.noiseStd, right.noiseStd),
 		noiseDecay: crossoverFn(left.noiseDecay, right.noiseDecay),
 	};

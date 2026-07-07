@@ -6,7 +6,7 @@ import {
 	encodeGenome,
 	encodePopulation,
 } from "../../../src/core/genetic-algorithm/encoding";
-import { EncodingIndex, SCALAR_DIM } from "../../../src/core/genetic-algorithm/encoding-indices";
+import { EncodingIndex, SCALAR_DIM, layerOffset, readEncodedLayer } from "../../../src/core/genetic-algorithm/encoding-indices";
 import { createDefaultGenome } from "../../../src/core/genetic-algorithm/factory";
 import type {
 	Genome,
@@ -19,15 +19,15 @@ import {
 } from "../../../src/core/genetic-algorithm/genome";
 
 function layerNeurons(arr: Float32Array, layerIdx: number): number {
-	return arr[SCALAR_DIM + layerIdx * 3];
+	return readEncodedLayer(arr, layerOffset(layerIdx)).neurons;
 }
 
 function layerActivationIdx(arr: Float32Array, layerIdx: number): number {
-	return arr[SCALAR_DIM + layerIdx * 3 + 1];
+	return readEncodedLayer(arr, layerOffset(layerIdx)).activationIdx;
 }
 
 function layerConnectionTypeIdx(arr: Float32Array, layerIdx: number): number {
-	return arr[SCALAR_DIM + layerIdx * 3 + 2];
+	return readEncodedLayer(arr, layerOffset(layerIdx)).connectionTypeIdx;
 }
 
 describe("encoding", () => {
