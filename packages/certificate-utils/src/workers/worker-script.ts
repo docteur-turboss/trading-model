@@ -6,7 +6,7 @@ import {
 	generateKeyPair,
 	generateKeyPairWithIdSync,
 } from "../keygen/generate-key-pair";
-import { type SignOptions, signCertificate } from "../signing/sign-certificate";
+import { type SignOptions, signCertificate } from "../sign-certificate";
 import type { SignInput } from "../types";
 import { validateCertificate } from "../validation/validate-certificate";
 

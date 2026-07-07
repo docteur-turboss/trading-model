@@ -4,7 +4,7 @@ import type { TlsPaths as TlsClientPaths } from "@trading-model/common/domain/tl
 import type { CsrOptions } from "./create-csr";
 import { KeyAlgorithm } from "../keygen/generate-key-pair";
 import { KeyPairClient } from "../keygen/key-pair-client";
-import type { SignOptions } from "./sign-certificate";
+import type { SignOptions } from "../sign-certificate";
 import type {
 	KeyPair,
 	KeyPairWithId,

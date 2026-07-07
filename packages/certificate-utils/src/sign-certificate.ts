@@ -59,47 +59,51 @@ function _buildCertificateOptions(params: {
 	};
 }
 
-function _buildCert(
-	builder: CertBodyBuilder,
-	csrData: ReturnType<typeof parseCsr>,
-	serialNumber: string,
-	now: Date,
-	expiresAt: Date,
-	publicKeyPem: string,
-	caKeyPair: KeyPair,
-	caCertPem: string
-): { certBody: string; signature: string; certPem: string } {
-	const certBody = builder.build(
+interface CertBuildParams {
+	builder: CertBodyBuilder;
+	csrData: ReturnType<typeof parseCsr>;
+	serialNumber: string;
+	now: Date;
+	expiresAt: Date;
+	publicKeyPem: string;
+	caKeyPair: KeyPair;
+	caCertPem: string;
+}
+
+function _buildCert(params: CertBuildParams): { certBody: string; signature: string; certPem: string } {
+	const certBody = params.builder.build(
 		_buildCertificateOptions({
-			serialNumber,
-			now,
-			expiresAt,
-			publicKeyPem,
-			commonName: csrData.commonName,
-			san: csrData.san,
+			serialNumber: params.serialNumber,
+			now: params.now,
+			expiresAt: params.expiresAt,
+			publicKeyPem: params.publicKeyPem,
+			commonName: params.csrData.commonName,
+			san: params.csrData.san,
 		})
 	);
-	const signature = builder.signCertBody(certBody, caKeyPair.privateKey);
-	const certPem = builder.buildCertPem(certBody, signature, caCertPem);
+	const signature = params.builder.signCertBody(certBody, params.caKeyPair.privateKey);
+	const certPem = params.builder.buildCertPem(certBody, signature, params.caCertPem);
 	return { certBody, signature, certPem };
 }
 
-function _buildSignedCertificateResult(
-	serialNumber: string,
-	certPem: string,
-	caCertPem: string,
-	serviceId: import("@trading-model/common/domain/primitives").ServiceId,
-	now: Date,
-	expiresAt: Date
-): SignedCertificate {
-	const fingerprint = createHash("sha256").update(certPem).digest("hex");
+interface SignedCertResultParams {
+	serialNumber: string;
+	certPem: string;
+	caCertPem: string;
+	serviceId: import("@trading-model/common/domain/primitives").ServiceId;
+	now: Date;
+	expiresAt: Date;
+}
+
+function _buildSignedCertificateResult(params: SignedCertResultParams): SignedCertificate {
+	const fingerprint = createHash("sha256").update(params.certPem).digest("hex");
 	return {
-		serialNumber: toSerialNumber(serialNumber),
-		certPem,
-		caPem: caCertPem,
-		serviceId,
-		issuedAt: now,
-		expiresAt,
+		serialNumber: toSerialNumber(params.serialNumber),
+		certPem: params.certPem,
+		caPem: params.caCertPem,
+		serviceId: params.serviceId,
+		issuedAt: params.now,
+		expiresAt: params.expiresAt,
 		fingerprint: toFingerprint(fingerprint),
 	};
 }
@@ -112,7 +116,7 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 	const expiresAt = new Date(now.getTime() + ttlMs);
 	const publicKeyPem = _exportPublicKeyPem(createPublicKey(csrData.publicKey));
 	const builder = new CertBodyBuilder();
-	const { certPem } = _buildCert(
+	const { certPem } = _buildCert({
 		builder,
 		csrData,
 		serialNumber,
@@ -120,7 +124,7 @@ export function signCertificate(options: SignOptions): SignedCertificate {
 		expiresAt,
 		publicKeyPem,
 		caKeyPair,
-		caCertPem
-	);
-	return _buildSignedCertificateResult(serialNumber, certPem, caCertPem, serviceId, now, expiresAt);
+		caCertPem,
+	});
+	return _buildSignedCertificateResult({ serialNumber, certPem, caCertPem, serviceId, now, expiresAt });
 }

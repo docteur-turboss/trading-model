@@ -3,13 +3,14 @@ import {
 	CaClient,
 	type SignCertificateRequest,
 } from "@trading-model/common/ca/ca-client";
-import { logger } from "@trading-model/common/config/logger";
-import type { CertificateBase } from "@trading-model/common/domain/certificate-base";
 import type { ServiceId } from "@trading-model/common/domain/primitives";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import { CertRenewScheduler } from "./cert-renew-scheduler";
 import { CertificateEventEmitter } from "./certificate-event-emitter";
-import { CertificateHolder } from "./certificate-holder";
+import type { CertificateHolder } from "./certificate-holder";
+import {
+	CertificateLifecycleOrchestrator,
+	type ObtainedCertificate,
+} from "./certificate-lifecycle-orchestrator";
 import { CertificateSigner } from "./certificate-signer";
 import { CertificateStore } from "./certificate-store";
 import { KeyGenerator } from "./key-generator";
@@ -27,28 +28,32 @@ export interface CertificateClientConfig {
 	onRenew?: (cert: ObtainedCertificate) => void;
 }
 
-export interface ObtainedCertificate extends CertificateBase {
-	keyPem: string;
-}
+export type { ObtainedCertificate };
 
 export class CertificateClient {
-	private readonly _config: CertificateClientConfig;
 	private readonly _caClient: CaClient;
-	private readonly _keyGenerator: KeyGenerator;
-	private readonly _signer: CertificateSigner;
-	private readonly _store: CertificateStore;
-	private readonly _eventEmitter: CertificateEventEmitter;
+	private readonly _orchestrator: CertificateLifecycleOrchestrator;
 
 	constructor(config: CertificateClientConfig) {
-		this._config = config;
 		this._caClient = new CaClient({
 			baseUrl: config.caUrl,
 			tls: config.tls,
 		});
-		this._keyGenerator = new KeyGenerator(config);
-		this._signer = new CertificateSigner(config, this._caClient);
-		this._store = new CertificateStore(config);
-		this._eventEmitter = new CertificateEventEmitter();
+		const keyGenerator = new KeyGenerator(config);
+		const signer = new CertificateSigner(config, this._caClient);
+		const store = new CertificateStore(config);
+		const eventEmitter = new CertificateEventEmitter();
+		this._orchestrator = new CertificateLifecycleOrchestrator(
+			keyGenerator,
+			signer,
+			store,
+			eventEmitter,
+			{
+				serviceId: config.serviceId,
+				onRenew: config.onRenew,
+				renewMarginMs: config.renewMarginMs,
+			}
+		);
 	}
 
 	static createObtained(
@@ -58,31 +63,8 @@ export class CertificateClient {
 		return client.obtainCertificate();
 	}
 
-	private _logCertObtained(response: { serialNumber: string; expiresAt: string }): void {
-		logger.info("Certificate obtained", {
-			serviceId: this._config.serviceId,
-			serialNumber: response.serialNumber,
-			expiresAt: response.expiresAt,
-		});
-	}
-
-	private _createRenewScheduler(): CertRenewScheduler {
-		return new CertRenewScheduler(
-			this._config.serviceId,
-			this._config.renewMarginMs ?? 86400000,
-			() => this.obtainCertificate().then(() => {})
-		);
-	}
-
-	async obtainCertificate(): Promise<CertificateHolder> {
-		const { keyPair, csr } = await this._keyGenerator.generateKeyAndCsr();
-		const response = await this._signer.signWithCa(csr);
-		await this._store.writeCertificates(keyPair, response);
-		const cert = this._store.buildObtainedCert(keyPair, response);
-		this._logCertObtained(response);
-		this._eventEmitter.notifyOnRenew(this._config.onRenew, cert);
-		const scheduler = this._createRenewScheduler();
-		return new CertificateHolder(cert, scheduler);
+	obtainCertificate(): Promise<CertificateHolder> {
+		return this._orchestrator.obtainCertificate();
 	}
 
 	signCertificate(

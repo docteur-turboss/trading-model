@@ -1,104 +1,28 @@
-import {
-	CaClient,
-	type SignCertificateRequest,
-	type SignCertificateResponse,
-} from "@trading-model/common/ca/ca-client";
-import { logger } from "@trading-model/common/config/logger";
-
+import { CaClient } from "@trading-model/common/ca/ca-client";
 import type {
 	SerialNumber,
 	ServiceId,
 } from "@trading-model/common/domain/primitives";
 import type { RevocationRequest } from "@trading-model/common/domain/revocation-request";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
-import { CaWssTransport, NullCaWssTransport } from "./wss-transport";
+import {
+	type TransportMode,
+	WssFallbackStrategy,
+} from "./wss-fallback-strategy";
 
-export enum TransportMode {
-	Wss = "wss",
-	Https = "https",
-}
-
-export interface TransportConfig {
-	caUrl: string;
-	tls?: TlsPaths;
-	retestWssIntervalMs?: number;
-	forceHttps?: boolean;
-	bootstrapToken?: string;
-}
-
-const MAX_UNAUTH_REJECTS = 3;
-
-class WssFallbackStrategy {
-	private _mode: TransportMode;
-	private _wssTransport: CaWssTransport | NullCaWssTransport;
-	private _unauthRejects = 0;
-
-	constructor(config: TransportConfig) {
-		if (config.forceHttps) {
-			this._mode = TransportMode.Https;
-			this._wssTransport = new NullCaWssTransport();
-		} else {
-			this._mode = TransportMode.Wss;
-			this._wssTransport = new CaWssTransport(
-				this._buildWsUrl(config.caUrl),
-				config.tls,
-				config.bootstrapToken
-			);
-		}
-	}
-
-	get currentMode(): TransportMode {
-		return this._mode;
-	}
-
-	private _checkWssAuthThreshold(): boolean {
-		if (!this._wssTransport.isAuthSent) {
-			this._unauthRejects++;
-			if (this._unauthRejects > MAX_UNAUTH_REJECTS) {
-				logger.warn(
-					`WSS not authenticated after ${MAX_UNAUTH_REJECTS} attempts, falling back to HTTPS`
-				);
-				this._mode = TransportMode.Https;
-				return true;
-			}
-		}
-		return false;
-	}
-
-	async signCertificate(
-		request: SignCertificateRequest,
-		httpsClient: CaClient
-	): Promise<SignCertificateResponse> {
-		if (this._mode === TransportMode.Wss && this._wssTransport.isConnected) {
-			if (this._checkWssAuthThreshold()) {
-				return httpsClient.signCertificate(request);
-			}
-			try {
-				return await this._wssTransport.signCertificate(request);
-			} catch (err) {
-				logger.error("WSS sign failed, falling back to HTTPS", { err });
-			}
-		}
-		return httpsClient.signCertificate(request);
-	}
-
-	disconnect(): void {
-		this._wssTransport.disconnect();
-	}
-
-	private _buildWsUrl(caUrl: string): string {
-		return caUrl
-			.replace(/\/+$/, "")
-			.replace(/^https:/, "wss:")
-			.replace(/^http:/, "ws:");
-	}
-}
+export type { TransportConfig } from "./wss-fallback-strategy";
+export { TransportMode } from "./wss-fallback-strategy";
 
 export class TransportManager {
 	private readonly _httpsClient: CaClient;
 	private readonly _strategy: WssFallbackStrategy;
 
-	constructor(config: TransportConfig) {
+	constructor(config: {
+		caUrl: string;
+		tls?: TlsPaths;
+		forceHttps?: boolean;
+		bootstrapToken?: string;
+	}) {
 		this._httpsClient = new CaClient({
 			baseUrl: config.caUrl,
 			tls: config.tls,
@@ -111,8 +35,10 @@ export class TransportManager {
 	}
 
 	signCertificate(
-		request: SignCertificateRequest
-	): Promise<SignCertificateResponse> {
+		request: import("@trading-model/common/ca/ca-client").SignCertificateRequest
+	): Promise<
+		import("@trading-model/common/ca/ca-client").SignCertificateResponse
+	> {
 		return this._strategy.signCertificate(request, this._httpsClient);
 	}
 
@@ -143,7 +69,6 @@ export class TransportManager {
 		this._strategy.disconnect();
 	}
 
-	/** @deprecated Use {@link disconnect()} instead */
 	destroy(): void {
 		this.disconnect();
 	}

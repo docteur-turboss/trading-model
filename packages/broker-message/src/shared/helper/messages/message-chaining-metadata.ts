@@ -52,25 +52,17 @@ export class MessageChainingMetadata implements ChainingMetadata {
 	}
 }
 
-export class NullMessageChainingMetadata implements ChainingMetadata {
-	public get causationId(): CorrelationId | undefined {
+export type NullMessageChainingMetadata = typeof NULL_MESSAGE_CHAINING_METADATA;
+
+export const NULL_MESSAGE_CHAINING_METADATA: ChainingMetadata = {
+	get causationId(): CorrelationId | undefined {
 		return undefined;
-	}
-
-	public get correlationId(): CorrelationId | undefined {
+	},
+	get correlationId(): CorrelationId | undefined {
 		return undefined;
-	}
-
-	public setIds(_context: {
-		causationId?: string;
-		correlationId?: string;
-	}): void {
-	}
-
-	public toJSON(): {
-		causationId?: CorrelationId;
-		correlationId?: CorrelationId;
-	} {
+	},
+	setIds(): void {},
+	toJSON() {
 		return {};
-	}
-}
+	},
+};

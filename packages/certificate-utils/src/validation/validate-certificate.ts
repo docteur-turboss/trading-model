@@ -17,15 +17,17 @@ function _extractDateField(body: string, pattern: RegExp): Date {
 	return new Date(body.match(pattern)?.[1] ?? "");
 }
 
-function _verifySignature(
-	body: string,
-	signature: string,
-	issuerCert: string
-): boolean {
-	const caKey = createPublicKey(issuerCert);
+interface ParsedCertData {
+	body: string;
+	signature: string;
+	issuerCert: string;
+}
+
+function _verifySignature(cert: ParsedCertData): boolean {
+	const caKey = createPublicKey(cert.issuerCert);
 	const verify = createVerify("sha256");
-	verify.update(body);
-	return verify.verify(caKey, signature, "base64");
+	verify.update(cert.body);
+	return verify.verify(caKey, cert.signature, "base64");
 }
 
 function _validateCertTiming(body: string): ValidationResult | null {
@@ -48,11 +50,7 @@ function _tryValidate(certPem: string): ValidationResult {
 	if (timingResult) {
 		return timingResult;
 	}
-	const isValid = _verifySignature(
-		certData.body,
-		certData.signature,
-		certData.issuerCert
-	);
+	const isValid = _verifySignature(certData);
 	return isValid
 		? { valid: true }
 		: { valid: false, reason: "Signature verification failed" };
@@ -81,10 +79,6 @@ function _decodePemBody(pem: string): string {
 	return Buffer.from(lines.join(""), "base64").toString("utf8");
 }
 
-function parseCert(certPem: string): {
-	body: string;
-	signature: string;
-	issuerCert: string;
-} {
+function parseCert(certPem: string): ParsedCertData {
 	return JSON.parse(_decodePemBody(certPem));
 }

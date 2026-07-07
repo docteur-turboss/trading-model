@@ -12,23 +12,17 @@ import { WssTransportConnection } from "./wss-transport-connection";
 
 type WsMessageHandler = (msg: Record<string, unknown>) => void;
 
-export class NullCaWssTransport {
-	get isConnected(): boolean {
-		return false;
-	}
+export type NullCaWssTransport = typeof NULL_CA_WSS_TRANSPORT;
 
-	get isAuthSent(): boolean {
-		return false;
-	}
-
-	async signCertificate(): Promise<SignCertificateResponse> {
-		return Promise.reject(new Error("WSS transport not available"));
-	}
-
-	destroy(): void {}
-
-	disconnect(): void {}
-}
+export const NULL_CA_WSS_TRANSPORT = {
+	isConnected: false,
+	isAuthSent: false,
+	signCertificate: async (): Promise<SignCertificateResponse> => {
+		throw new Error("WSS transport not available");
+	},
+	destroy: () => {},
+	disconnect: () => {},
+};
 
 export class CaWssTransport {
 	private readonly _connection: WssTransportConnection;
