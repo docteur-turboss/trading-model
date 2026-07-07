@@ -77,6 +77,10 @@
 			"types": "./dist/ws/*.d.ts",
 			"default": "./dist/ws/*.js"
 		},
+		"./testing": {
+			"types": "./dist/testing/index.d.ts",
+			"default": "./dist/testing/index.js"
+		},
 		"./tests/*": {
 			"types": "./tests/*.d.ts",
 			"default": "./tests/*.js"

@@ -78,8 +78,6 @@ function _readSecretFromPath(): string | null {
 				return value;
 			}
 		}
-	} catch {
-		// fallback to env var
-	}
+	} catch {}
 	return null;
 }

@@ -1,27 +1,13 @@
-import {
-	EnumEventMessage,
-	type EventEnumMap,
-} from "@trading-model/common/config/event.types";
 import type { Price } from "@trading-model/common/domain/primitives";
-import {
-	createDefaultHandlers,
-	type DataHandler,
-} from "../core/data-handlers/data-handler";
+import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "../core/market-data-buffer";
 import type { TradingSymbol } from "../core/market-data-types";
 import { Trainer } from "../core/trainer";
+import { MarketDataEventRouter } from "./market-data-event-router";
 import { TrainingLoop } from "./training-loop";
-
-const EVENT_TO_HANDLER: Record<string, string> = {
-	[EnumEventMessage.fetchCandlestickSeries]: "candle",
-	[EnumEventMessage.fetchRecentTrades]: "trade",
-	[EnumEventMessage.fetchOrderBookSnapshot]: "orderBook",
-	[EnumEventMessage.fetchOrderBookTickerSnapshot]: "bookTicker",
-	[EnumEventMessage.fetch24hrTickerStats]: "ticker",
-};
 
 export interface AppContainerConfig {
 	bufferSize: number;
@@ -35,9 +21,8 @@ export interface AppContainerConfig {
 }
 
 export class ApplicationContainer {
-	public readonly dataBuffer: MarketDataBuffer;
+	public readonly eventRouter: MarketDataEventRouter;
 	public readonly trainer: Trainer;
-	private readonly _handlers: Record<string, DataHandler>;
 	private readonly _trainingLoop: TrainingLoop;
 
 	constructor(config: AppContainerConfig) {
@@ -46,74 +31,51 @@ export class ApplicationContainer {
 			maxMemoryMb: config.bufferMemoryLimitMb ?? 512,
 			evictionPolicy: "LRU",
 		};
-		this.dataBuffer = new MarketDataBuffer(bufferConfig);
-		this.trainer = new Trainer(this.dataBuffer);
-		this._handlers = Object.fromEntries(
-			createDefaultHandlers().map((h) => [h.dataType, h])
-		);
-		this._trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer);
+		this.eventRouter = new MarketDataEventRouter(bufferConfig);
+		this.trainer = new Trainer(this.eventRouter.dataBuffer);
+		this._trainingLoop = new TrainingLoop(this.trainer, this.eventRouter.dataBuffer);
 	}
 
-	private _addDataForSymbol(
-		dataType: string,
-		data: unknown[],
-		symbol: TradingSymbol
-	): void {
-		for (const item of data) {
-			this.dataBuffer.addData(dataType, symbol, item);
-		}
+	get dataBuffer(): MarketDataBuffer {
+		return this.eventRouter.dataBuffer;
 	}
 
 	onCandlestickSeries(data: {
 		candle: import("@trading-model/common/config/event.types").CandleData[];
 	}): void {
-		if (!data?.candle?.length) return;
-		this._addDataForSymbol("candle", data.candle, data.candle[0].symbol);
+		this.eventRouter.onCandlestickSeries(data);
 	}
 
 	onRecentTrades(data: {
 		trades: import("@trading-model/common/config/event.types").TradeData[];
 	}): void {
-		if (!data?.trades?.length) return;
-		this._addDataForSymbol("trade", data.trades, data.trades[0].symbol);
+		this.eventRouter.onRecentTrades(data);
 	}
 
 	onOrderBookSnapshot(data: {
 		orderBook: import("@trading-model/common/config/event.types").OrderBookData[];
 	}): void {
-		if (!data?.orderBook?.length) return;
-		this.dataBuffer.addData(
-			"orderBook",
-			data.orderBook[0].symbol,
-			data.orderBook[0]
-		);
+		this.eventRouter.onOrderBookSnapshot(data);
 	}
 
 	onOrderBookTickerSnapshot(data: {
 		bookTicker: import("@trading-model/common/config/event.types").BookTickerData[];
 	}): void {
-		if (!data?.bookTicker?.length) return;
-		for (const bt of data.bookTicker) {
-			this.dataBuffer.addData("bookTicker", bt.symbol, bt);
-		}
+		this.eventRouter.onOrderBookTickerSnapshot(data);
 	}
 
 	on24hrTickerStats(data: {
 		ticker: import("@trading-model/common/config/event.types").TickerData[];
 	}): void {
-		if (!data?.ticker?.length) return;
-		for (const tk of data.ticker) {
-			this.dataBuffer.addData("ticker", tk.symbol, tk);
-		}
+		this.eventRouter.on24hrTickerStats(data);
 	}
 
 	onPriceTickerSnapshot(data: { price: Record<TradingSymbol, Price> }): void {
-		if (!data?.price) return;
-		this.dataBuffer.setPriceSnapshot(data.price);
+		this.eventRouter.onPriceTickerSnapshot(data);
 	}
 
 	getSubscribedIntents(): EventEnumMap[] {
-		return Object.keys(EVENT_TO_HANDLER) as EventEnumMap[];
+		return this.eventRouter.getSubscribedIntents();
 	}
 
 	startTrainingLoop(symbols: TradingSymbol[], intervalMs: number): void {

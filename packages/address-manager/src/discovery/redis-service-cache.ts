@@ -1,26 +1,22 @@
-import { logger } from "@trading-model/common/config/logger";
 import {
 	type ServiceId,
 	toServiceId,
 } from "@trading-model/common/domain/primitives";
 import type { HostPort } from "@trading-model/common/domain/service-identity";
-import { normalizeError } from "@trading-model/common/utils/errors";
-import Redis, { type RedisOptions } from "ioredis";
 import type { ServiceInstance } from "../client/type";
 import { RedisCacheOperations } from "./redis-cache-operations";
 import { RedisCircuitStateStore } from "./redis-circuit-state-store";
+import {
+	RedisConnectionManager,
+	type RedisConnectionOptions,
+} from "./redis-connection-manager";
 import type {
 	CacheSetEntry,
 	CircuitState,
 	IServiceCache,
 } from "./service-cache.interface";
 
-export interface RedisServiceCacheOptions {
-	password?: string;
-	tls?: Record<string, unknown>;
-	sentinels?: HostPort[];
-	enableTLSForSentinelMode?: boolean;
-}
+export interface RedisServiceCacheOptions extends RedisConnectionOptions {}
 
 export interface RedisCacheConfig {
 	redisUrl: string;
@@ -30,7 +26,7 @@ export interface RedisCacheConfig {
 }
 
 export class RedisServiceCache implements IServiceCache {
-	private readonly _redis: Redis;
+	private readonly _connectionManager: RedisConnectionManager;
 	private readonly _prefix: string;
 	private readonly _ttlSec: number;
 	private readonly _cacheOps: RedisCacheOperations;
@@ -45,49 +41,17 @@ export class RedisServiceCache implements IServiceCache {
 		} = config;
 		this._prefix = prefix;
 		this._ttlSec = Math.max(1, Math.ceil(ttlMs / 1000));
-		this._redis = new Redis(redisUrl, this._buildRedisOptions(cacheOptions));
-		this._connectRedis();
+		this._connectionManager = new RedisConnectionManager(redisUrl, cacheOptions);
 		this._cacheOps = new RedisCacheOperations(
-			this._redis,
+			this._connectionManager.client,
 			this._prefix,
 			this._ttlSec
 		);
 		this._circuitState = new RedisCircuitStateStore(
-			this._redis,
+			this._connectionManager.client,
 			this._prefix,
 			this._ttlSec
 		);
-	}
-
-	private _buildRedisOptions(
-		cacheOptions?: RedisServiceCacheOptions
-	): RedisOptions {
-		const baseOptions: RedisOptions = {
-			lazyConnect: true,
-			retryStrategy: (times: number) => {
-				if (times > 20) {
-					return null;
-				}
-				return Math.min(times * 200, 5000);
-			},
-			maxRetriesPerRequest: 3,
-		};
-		return {
-			...baseOptions,
-			...(cacheOptions?.password ? { password: cacheOptions.password } : {}),
-			...(cacheOptions?.tls ? { tls: cacheOptions.tls } : {}),
-			...(cacheOptions?.sentinels
-				? { sentinels: cacheOptions.sentinels, name: "mymaster" }
-				: {}),
-		};
-	}
-
-	private _connectRedis(): void {
-		this._redis.connect().catch((err) => {
-			logger.error("Failed to connect Redis service cache", {
-				error: normalizeError(err),
-			});
-		});
 	}
 
 	async get(
@@ -140,10 +104,6 @@ export class RedisServiceCache implements IServiceCache {
 	}
 
 	stop(): void {
-		try {
-			this._redis.disconnect();
-		} catch {
-			logger.debug("Redis disconnect error (best-effort)");
-		}
+		this._connectionManager.disconnect();
 	}
 }

@@ -36,9 +36,7 @@ export class SubscriptionCleanupHandler {
 				return redis
 					.srem(this._keys.activeInstancesKey(), instanceId)
 					.then(() => {});
-			} catch {
-				// best-effort cleanup
-			}
+			} catch {}
 		}
 		return Promise.resolve();
 	}
@@ -52,9 +50,7 @@ export class SubscriptionCleanupHandler {
 		if (this._isZeroScard(scardResult)) {
 			try {
 				await redis.srem(this._keys.topicsSetKey(), topic);
-			} catch {
-				// best-effort cleanup
-			}
+			} catch {}
 		}
 	}
 

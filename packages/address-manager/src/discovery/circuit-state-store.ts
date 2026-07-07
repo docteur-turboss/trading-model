@@ -1,6 +1,12 @@
 import type { CircuitState } from "./service-cache.interface";
 
-export class CircuitStateStore {
+export interface ICircuitStateStore {
+	setCircuitState(instanceId: string, state: CircuitState): Promise<void>;
+	getCircuitState(instanceId: string): Promise<CircuitState | null>;
+	deleteCircuitState(instanceId: string): Promise<void>;
+}
+
+export class CircuitStateStore implements ICircuitStateStore {
 	private readonly _circuitStates = new Map<string, CircuitState>();
 
 	setCircuitState(instanceId: string, state: CircuitState): Promise<void> {

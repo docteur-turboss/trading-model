@@ -8,41 +8,33 @@ export interface MarketDataContext extends MarketDataEntry {
 	builder: typeof HELPER.metadataBuilder.prototype;
 }
 
+const MARKET_DATA_ENTRY_MAP: [
+	keyof BinanceWorkerResult,
+	EnumEventMessage,
+	string,
+][] = [
+	["candles", EnumEventMessage.fetchCandlestickSeries, "FetchCandlestick"],
+	["orderBook", EnumEventMessage.fetchOrderBookSnapshot, "FetchOrderbook"],
+	["ticker24h", EnumEventMessage.fetch24hrTickerStats, "FetchTicker24hr"],
+	[
+		"bookTicker",
+		EnumEventMessage.fetchOrderBookTickerSnapshot,
+		"FetchBookTicker",
+	],
+	[
+		"priceTicker",
+		EnumEventMessage.fetchPriceTickerSnapshot,
+		"FetchPriceTicker",
+	],
+	["recentTrades", EnumEventMessage.fetchRecentTrades, "FetchRecentTrades"],
+];
+
 export function buildMarketDataEntries(
 	response: BinanceWorkerResult
 ): MarketDataEntry[] {
-	return [
-		makeEntry(
-			response.candles,
-			EnumEventMessage.fetchCandlestickSeries,
-			"FetchCandlestick"
-		),
-		makeEntry(
-			response.orderBook,
-			EnumEventMessage.fetchOrderBookSnapshot,
-			"FetchOrderbook"
-		),
-		makeEntry(
-			response.ticker24h,
-			EnumEventMessage.fetch24hrTickerStats,
-			"FetchTicker24hr"
-		),
-		makeEntry(
-			response.bookTicker,
-			EnumEventMessage.fetchOrderBookTickerSnapshot,
-			"FetchBookTicker"
-		),
-		makeEntry(
-			response.priceTicker,
-			EnumEventMessage.fetchPriceTickerSnapshot,
-			"FetchPriceTicker"
-		),
-		makeEntry(
-			response.recentTrades,
-			EnumEventMessage.fetchRecentTrades,
-			"FetchRecentTrades"
-		),
-	];
+	return MARKET_DATA_ENTRY_MAP.map(([key, event, name]) =>
+		makeEntry(response[key], event, name)
+	);
 }
 
 export function sendMarketData({

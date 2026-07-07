@@ -61,9 +61,6 @@ const catchAllRoute = catchSync(async (req) => {
 
 export function createRouter(): Router {
 	const router = Router();
-	router.get("/ping", (_req, res) => {
-		res.json({ status: "ok", service: "api-gateway" });
-	});
 	router.use(AUTH_MIDDLEWARE);
 	router.use(DEFAULT_LIMITER);
 	router.use(catchAllRoute);

@@ -41,13 +41,10 @@ import { BROKER_ROUTES } from "./transport/http.routes";
  * and exposes an Express listener to attach broker routes.
  */
 export default class BrokerModule {
-	/** Dispatcher managing subscriptions and message delivery */
 	private _dispatcher: Dispatcher;
 
-	/** HTTP client for internal broker communication */
 	private _httpClient: HttpClient;
 
-	/** Method to attach broker routes to an Express app */
 	public listen: (app: Application) => void;
 
 	/**

@@ -4,174 +4,192 @@ export { SCALAR_DIM };
 
 export class EncodingVector {
 	static readonly SCALAR_DIM = SCALAR_DIM;
-	readonly data: Float32Array;
+	private readonly _data: Float32Array;
 
 	constructor(dim?: number) {
-		this.data = new Float32Array(dim ?? SCALAR_DIM);
+		this._data = new Float32Array(dim ?? SCALAR_DIM);
+	}
+
+	static from(data: Float32Array): EncodingVector {
+		const vec = new EncodingVector(data.length);
+		vec._data.set(data);
+		return vec;
 	}
 
 	get length(): number {
-		return this.data.length;
+		return this._data.length;
+	}
+
+	toFloat32Array(): Float32Array {
+		return this._data;
+	}
+
+	getAt(index: number): number {
+		return this._data[index];
+	}
+
+	setAt(index: number, value: number): void {
+		this._data[index] = value;
 	}
 
 	get gamma(): number {
-		return this.data[EncodingIndex.Gamma];
+		return this._data[EncodingIndex.Gamma];
 	}
 	set gamma(v: number) {
-		this.data[EncodingIndex.Gamma] = v;
+		this._data[EncodingIndex.Gamma] = v;
 	}
 
 	get learningRate(): number {
-		return this.data[EncodingIndex.LearningRate];
+		return this._data[EncodingIndex.LearningRate];
 	}
 	set learningRate(v: number) {
-		this.data[EncodingIndex.LearningRate] = v;
+		this._data[EncodingIndex.LearningRate] = v;
 	}
 
 	get clipMin(): number {
-		return this.data[EncodingIndex.ClipMin];
+		return this._data[EncodingIndex.ClipMin];
 	}
 	set clipMin(v: number) {
-		this.data[EncodingIndex.ClipMin] = v;
+		this._data[EncodingIndex.ClipMin] = v;
 	}
 
 	get clipMax(): number {
-		return this.data[EncodingIndex.ClipMax];
+		return this._data[EncodingIndex.ClipMax];
 	}
 	set clipMax(v: number) {
-		this.data[EncodingIndex.ClipMax] = v;
+		this._data[EncodingIndex.ClipMax] = v;
 	}
 
 	get scaleFactor(): number {
-		return this.data[EncodingIndex.ScaleFactor];
+		return this._data[EncodingIndex.ScaleFactor];
 	}
 	set scaleFactor(v: number) {
-		this.data[EncodingIndex.ScaleFactor] = v;
+		this._data[EncodingIndex.ScaleFactor] = v;
 	}
 
 	get maxEpisodeLength(): number {
-		return this.data[EncodingIndex.MaxEpisodeLength];
+		return this._data[EncodingIndex.MaxEpisodeLength];
 	}
 	set maxEpisodeLength(v: number) {
-		this.data[EncodingIndex.MaxEpisodeLength] = v;
+		this._data[EncodingIndex.MaxEpisodeLength] = v;
 	}
 
 	get nStepReturn(): number {
-		return this.data[EncodingIndex.NStepReturn];
+		return this._data[EncodingIndex.NStepReturn];
 	}
 	set nStepReturn(v: number) {
-		this.data[EncodingIndex.NStepReturn] = v;
+		this._data[EncodingIndex.NStepReturn] = v;
 	}
 
 	get frameSkip(): number {
-		return this.data[EncodingIndex.FrameSkip];
+		return this._data[EncodingIndex.FrameSkip];
 	}
 	set frameSkip(v: number) {
-		this.data[EncodingIndex.FrameSkip] = v;
+		this._data[EncodingIndex.FrameSkip] = v;
 	}
 
 	get epsilonStart(): number {
-		return this.data[EncodingIndex.EpsilonStart];
+		return this._data[EncodingIndex.EpsilonStart];
 	}
 	set epsilonStart(v: number) {
-		this.data[EncodingIndex.EpsilonStart] = v;
+		this._data[EncodingIndex.EpsilonStart] = v;
 	}
 
 	get epsilonMin(): number {
-		return this.data[EncodingIndex.EpsilonMin];
+		return this._data[EncodingIndex.EpsilonMin];
 	}
 	set epsilonMin(v: number) {
-		this.data[EncodingIndex.EpsilonMin] = v;
+		this._data[EncodingIndex.EpsilonMin] = v;
 	}
 
 	get epsilonDecay(): number {
-		return this.data[EncodingIndex.EpsilonDecay];
+		return this._data[EncodingIndex.EpsilonDecay];
 	}
 	set epsilonDecay(v: number) {
-		this.data[EncodingIndex.EpsilonDecay] = v;
+		this._data[EncodingIndex.EpsilonDecay] = v;
 	}
 
 	get temperature(): number {
-		return this.data[EncodingIndex.Temperature];
+		return this._data[EncodingIndex.Temperature];
 	}
 	set temperature(v: number) {
-		this.data[EncodingIndex.Temperature] = v;
+		this._data[EncodingIndex.Temperature] = v;
 	}
 
 	get noiseStd(): number {
-		return this.data[EncodingIndex.NoiseStd];
+		return this._data[EncodingIndex.NoiseStd];
 	}
 	set noiseStd(v: number) {
-		this.data[EncodingIndex.NoiseStd] = v;
+		this._data[EncodingIndex.NoiseStd] = v;
 	}
 
 	get noiseDecay(): number {
-		return this.data[EncodingIndex.NoiseDecay];
+		return this._data[EncodingIndex.NoiseDecay];
 	}
 	set noiseDecay(v: number) {
-		this.data[EncodingIndex.NoiseDecay] = v;
+		this._data[EncodingIndex.NoiseDecay] = v;
 	}
 
 	get bufferSize(): number {
-		return this.data[EncodingIndex.BufferSize];
+		return this._data[EncodingIndex.BufferSize];
 	}
 	set bufferSize(v: number) {
-		this.data[EncodingIndex.BufferSize] = v;
+		this._data[EncodingIndex.BufferSize] = v;
 	}
 
 	get alphaPER(): number {
-		return this.data[EncodingIndex.AlphaPER];
+		return this._data[EncodingIndex.AlphaPER];
 	}
 	set alphaPER(v: number) {
-		this.data[EncodingIndex.AlphaPER] = v;
+		this._data[EncodingIndex.AlphaPER] = v;
 	}
 
 	get betaPER(): number {
-		return this.data[EncodingIndex.BetaPER];
+		return this._data[EncodingIndex.BetaPER];
 	}
 	set betaPER(v: number) {
-		this.data[EncodingIndex.BetaPER] = v;
+		this._data[EncodingIndex.BetaPER] = v;
 	}
 
 	get mutationRate(): number {
-		return this.data[EncodingIndex.MutationRate];
+		return this._data[EncodingIndex.MutationRate];
 	}
 	set mutationRate(v: number) {
-		this.data[EncodingIndex.MutationRate] = v;
+		this._data[EncodingIndex.MutationRate] = v;
 	}
 
 	get mutationSigma(): number {
-		return this.data[EncodingIndex.MutationSigma];
+		return this._data[EncodingIndex.MutationSigma];
 	}
 	set mutationSigma(v: number) {
-		this.data[EncodingIndex.MutationSigma] = v;
+		this._data[EncodingIndex.MutationSigma] = v;
 	}
 
 	get mutationSelfSigma(): number {
-		return this.data[EncodingIndex.MutationSelfSigma];
+		return this._data[EncodingIndex.MutationSelfSigma];
 	}
 	set mutationSelfSigma(v: number) {
-		this.data[EncodingIndex.MutationSelfSigma] = v;
+		this._data[EncodingIndex.MutationSelfSigma] = v;
 	}
 
 	get networkInputDim(): number {
-		return this.data[EncodingIndex.NetworkInputDim];
+		return this._data[EncodingIndex.NetworkInputDim];
 	}
 	set networkInputDim(v: number) {
-		this.data[EncodingIndex.NetworkInputDim] = v;
+		this._data[EncodingIndex.NetworkInputDim] = v;
 	}
 
 	get networkOutputDim(): number {
-		return this.data[EncodingIndex.NetworkOutputDim];
+		return this._data[EncodingIndex.NetworkOutputDim];
 	}
 	set networkOutputDim(v: number) {
-		this.data[EncodingIndex.NetworkOutputDim] = v;
+		this._data[EncodingIndex.NetworkOutputDim] = v;
 	}
 
 	get networkDepth(): number {
-		return this.data[EncodingIndex.NetworkDepth];
+		return this._data[EncodingIndex.NetworkDepth];
 	}
 	set networkDepth(v: number) {
-		this.data[EncodingIndex.NetworkDepth] = v;
+		this._data[EncodingIndex.NetworkDepth] = v;
 	}
 }

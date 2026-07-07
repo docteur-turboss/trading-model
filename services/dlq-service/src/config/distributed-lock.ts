@@ -39,9 +39,7 @@ export class DistributedLock implements IDistributedLock {
 	private async _renewLock(lockId: string): Promise<void> {
 		try {
 			await this._redis.set(this._key, lockId, "EX", LOCK_TTL, "XX");
-		} catch {
-			// renewal error handled by caller
-		}
+		} catch {}
 	}
 
 	async release(lockId?: string): Promise<void> {

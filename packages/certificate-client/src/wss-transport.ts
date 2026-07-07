@@ -22,7 +22,7 @@ export class NullCaWssTransport {
 	}
 
 	async signCertificate(): Promise<SignCertificateResponse> {
-		throw new Error("WSS transport not available");
+		return Promise.reject(new Error("WSS transport not available"));
 	}
 
 	destroy(): void {}

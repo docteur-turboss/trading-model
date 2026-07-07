@@ -40,9 +40,7 @@ export class InstanceSubscriptionRemover {
 				if (remaining === 0) {
 					await redis.srem(this._keys.topicsSetKey(), topic);
 				}
-			} catch {
-				// best-effort cleanup
-			}
+			} catch {}
 		}
 	}
 }

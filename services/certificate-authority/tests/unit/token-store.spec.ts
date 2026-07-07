@@ -108,8 +108,8 @@ describe("TokenStore", () => {
 		expect(result).toBe(false);
 	});
 
-	it("should throw isUsed when not connected", async () => {
-		await expect(store.isUsed("token")).rejects.toThrow("not connected");
+	it("should return false when not connected", async () => {
+		await expect(store.isUsed("token")).resolves.toBe(false);
 	});
 
 	it("should markAsUsed return true when successful", async () => {

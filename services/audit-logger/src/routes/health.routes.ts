@@ -13,7 +13,6 @@ export function healthRoutes(
 	const router = Router();
 	const controller = createHealthController(queue, backPressure, workers);
 
-	router.get("/ping", controller.ping);
 	router.get("/health", controller.health);
 
 	return router;

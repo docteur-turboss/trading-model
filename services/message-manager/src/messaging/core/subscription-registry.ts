@@ -4,7 +4,6 @@ import type { HttpMessageDelivery } from "./http-message-delivery";
 import type { TopicSubscription } from "./messaging-types";
 import { Subscription } from "./subscription";
 
-/** Coordinates message delivery between published messages and registered subscriptions. */
 export class SubscriptionRegistry {
 	/**
 	 * In-memory mapping of topics to subscriptions.
@@ -13,7 +12,6 @@ export class SubscriptionRegistry {
 
 	constructor(private readonly _deliveryPort: HttpMessageDelivery) {}
 
-	/** Register a subscription for a topic. */
 	subscribe(params: {
 		topic: string;
 		callbackPath: string;
@@ -41,7 +39,6 @@ export class SubscriptionRegistry {
 		this._subscriptionsByTopic.set(topic, [...current, subscription]);
 	}
 
-	/** Unregister a subscription from a topic. */
 	unsubscribe(params: TopicSubscription): void {
 		const { topic, instanceId } = params;
 
@@ -60,7 +57,6 @@ export class SubscriptionRegistry {
 		this._subscriptionsByTopic.set(topic, remaining);
 	}
 
-	/** Get subscriptions for a topic. */
 	getSubscriptions(topic: string): readonly Subscription[] {
 		return this._subscriptionsByTopic.get(topic) ?? [];
 	}

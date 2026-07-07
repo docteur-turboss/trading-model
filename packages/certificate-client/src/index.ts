@@ -14,5 +14,6 @@ export type {
 	ObtainedCertificate,
 } from "./certificate-client";
 export { CertificateClient } from "./certificate-client";
+export { CertificateHolder } from "./certificate-holder";
 export type { CrlSubscriberCallbacks } from "./crl-subscriber";
 export { subscribeToCertificateEvents } from "./crl-subscriber";

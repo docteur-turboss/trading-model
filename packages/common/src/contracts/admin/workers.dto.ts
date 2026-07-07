@@ -1,4 +1,9 @@
-import type { IPAddress, ModelId, Region } from "../../domain/primitives";
+import type {
+	IPAddress,
+	ISODateTime,
+	ModelId,
+	Region,
+} from "../../domain/primitives";
 
 export enum AdminWorkerStatus {
 	Online = "Online",
@@ -13,7 +18,7 @@ export interface WorkerEntry {
 	cpu: number;
 	ram: number;
 	status: AdminWorkerStatus;
-	heartbeat: string;
+	heartbeat: ISODateTime;
 	activeJobs: number;
 }
 

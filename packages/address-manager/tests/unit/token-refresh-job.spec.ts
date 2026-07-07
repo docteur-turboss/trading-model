@@ -11,9 +11,7 @@ describe("RefreshJob<TokenManager>", () => {
 		} as unknown as jest.Mocked<TokenManager>;
 	});
 
-	// -----------------------------------------------------------
-	// CONSTRUCTOR / SCHEDULE
-	// -----------------------------------------------------------
+	describe("constructor / schedule", () => {
 	test("should create a job and generate correct cron expression for normal interval", () => {
 		const job = new RefreshJob(
 			mockTokenManager,
@@ -40,10 +38,9 @@ describe("RefreshJob<TokenManager>", () => {
 		); // 2 min 5 sec
 		expect(job.schedule).toBe("*/2 * * * *");
 	});
+	});
 
-	// -----------------------------------------------------------
-	// EXECUTE
-	// -----------------------------------------------------------
+	describe("execute", () => {
 	test("execute should call tokenManager.refreshToken once", async () => {
 		const job = new RefreshJob(
 			mockTokenManager,
@@ -64,10 +61,9 @@ describe("RefreshJob<TokenManager>", () => {
 
 		await expect(job.execute()).rejects.toThrow("fail");
 	});
+	});
 
-	// -----------------------------------------------------------
-	// EDGE CASES
-	// -----------------------------------------------------------
+	describe("edge cases", () => {
 	test("should handle very large intervals", () => {
 		const intervalMs = 120 * 60_000; // 120 minutes
 		const job = new RefreshJob(
@@ -76,5 +72,6 @@ describe("RefreshJob<TokenManager>", () => {
 			intervalMs
 		);
 		expect(job.schedule).toBe("*/120 * * * *");
+	});
 	});
 });

@@ -8,7 +8,8 @@ import { HttpClientTimeoutError } from "./http-client-errors";
 import { collectResponseBody } from "./http-response";
 import type { HttpMethod, HttpRequestOptions } from "./http-types";
 import { buildRequestOptions } from "./http-utils";
-import { RetryCircuitHandler } from "./retry-circuit-handler";
+import { CircuitRecorder, type ServiceRoute } from "./circuit-recorder";
+import { RetryExecutor, shouldRetry } from "./retry-executor";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -20,13 +21,15 @@ export interface RequestContext<TResponse> {
 	schema?: z.ZodType<TResponse>;
 }
 
-export interface ServiceRoute {
-	hostname: string;
-	serviceName?: string;
-}
+export { type ServiceRoute };
 
 export class HttpRequestExecutor {
-	private readonly _retryHandler = new RetryCircuitHandler();
+	private readonly _executor: RetryExecutor;
+	private readonly _circuitRecorder = new CircuitRecorder();
+
+	constructor() {
+		this._executor = new RetryExecutor(this._circuitRecorder);
+	}
 
 	async execute<TResponse>(
 		context: RequestContext<TResponse>,
@@ -81,7 +84,7 @@ export class HttpRequestExecutor {
 		route: ServiceRoute,
 		tls?: Partial<TlsPemBundle>
 	): Promise<TResponse | undefined> {
-		return this._retryHandler.executeWithRetry(
+		return this._executor.executeWithRetry(
 			context,
 			(ctx, t) => this.execute(ctx, t),
 			route,
@@ -93,15 +96,15 @@ export class HttpRequestExecutor {
 		urlStr: string,
 		options?: HttpRequestOptions
 	): ServiceRoute {
-		return this._retryHandler.checkPreconditions(urlStr, options);
+		return this._circuitRecorder.checkPreconditions(urlStr, options);
 	}
 
 	shouldRetry(error: Error): boolean {
-		return this._retryHandler.shouldRetry(error);
+		return shouldRetry(error);
 	}
 
 	recordSuccess(hostname: string, serviceName: string | undefined): void {
-		this._retryHandler.recordSuccess(hostname, serviceName);
+		this._circuitRecorder.recordSuccess(hostname, serviceName);
 	}
 
 	recordFailure(
@@ -109,7 +112,7 @@ export class HttpRequestExecutor {
 		serviceName: string | undefined,
 		serviceInstanceCount?: number
 	): void {
-		this._retryHandler.recordFailure(
+		this._circuitRecorder.recordFailure(
 			hostname,
 			serviceName,
 			serviceInstanceCount

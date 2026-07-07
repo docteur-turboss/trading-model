@@ -29,10 +29,10 @@ class NullCollection implements ICollection {
 		throw new Error("TokenStore not connected");
 	}
 	async findOne(): Promise<UsedToken | null> {
-		throw new Error("TokenStore not connected");
+		return null;
 	}
 	async createIndex(): Promise<string> {
-		throw new Error("TokenStore not connected");
+		return "";
 	}
 }
 

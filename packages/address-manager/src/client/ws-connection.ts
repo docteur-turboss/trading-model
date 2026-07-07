@@ -38,9 +38,7 @@ export class WsConnection implements IWsConnection {
 				this.onCloseHandler?.();
 			});
 			this._ws.on("error", (err: Error) => this.onError?.(err));
-		} catch {
-			// connection failed
-		}
+		} catch {}
 	}
 
 	disconnect(closeCode?: number, reason?: string): void {

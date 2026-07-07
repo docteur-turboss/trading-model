@@ -23,7 +23,6 @@ import type { TopicSubscription } from "./messaging-types";
 import { sanitizePayload } from "./payload-sanitizer";
 import { SubscriptionRegistry } from "./subscription-registry";
 
-/** Coordinates message delivery between published messages and registered subscriptions. */
 export class Dispatcher {
 	private readonly _registry: SubscriptionRegistry;
 	private readonly _deliveryPort: HttpMessageDelivery;
@@ -36,7 +35,6 @@ export class Dispatcher {
 		this._registry = new SubscriptionRegistry(this._deliveryPort);
 	}
 
-	/** Publish a message to subscribers. */
 	async publish(
 		payload: unknown,
 		metadata: Omit<MessageMetadata, "emittedAt" | "messageId">
@@ -54,7 +52,6 @@ export class Dispatcher {
 		return Msg.metadata.messageId!;
 	}
 
-	/** Register a subscription for a topic. */
 	subscribe(params: {
 		topic: string;
 		callbackPath: string;
@@ -63,7 +60,6 @@ export class Dispatcher {
 		this._registry.subscribe(params);
 	}
 
-	/** Dispatch a message to all subscribers of its topic. */
 	async dispatch<TData>(message: Message<TData>) {
 		const { topic } = message.metadata;
 		const subscriptions = this._registry.getSubscriptions(topic);
@@ -102,18 +98,14 @@ export class Dispatcher {
 		this.unsubscribe(params);
 	}
 
-	/** Ratio of pending dispatches to capacity (0..1). */
 	getBackpressureRatio(): number {
 		return 0;
 	}
 
-	/** Acknowledge a message — remove from pending. */
 	async handleAck(_messageId: string, _instanceId: string): Promise<void> {}
 
-	/** Negatively acknowledge a message — dead-letter it. */
 	async handleNack(_messageId: string, _instanceId: string): Promise<void> {}
 
-	/** Unregister a subscription from a topic. */
 	unsubscribe(params: TopicSubscription): void {
 		this._registry.unsubscribe(params);
 	}

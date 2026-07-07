@@ -1,12 +1,9 @@
 import { logger } from "../config/logger";
 import { dlqClaimManager } from "./claim-manager";
 import { dlqRetryManager } from "./retry-manager";
-import {
-	getHttpClient,
-	isMMCircuitOpen,
-	isShuttingDown,
-	recordMMResult,
-} from "./shared/index";
+import { getHttpClient } from "./shared/http-client-manager";
+import { isMMCircuitOpen, recordMMResult } from "./shared/mm-circuit-breaker";
+import { isShuttingDown } from "./shared/shutdown-flag";
 import type {
 	BatchContext,
 	BatchReplayContext,

@@ -119,9 +119,9 @@ function _decodeSingleLayer(
 	biasType: Genome["network"]["hiddenLayers"][number]["biasType"]
 ): Genome["network"]["hiddenLayers"][number] {
 	return {
-		neurons: clamp(Math.round(vec.data[base] * 512), 1, 512),
-		activation: ACTIVATIONS[argmax(vec.data, base + 1, N_ACT)],
-		connectionType: CONNECTION_TYPES[argmax(vec.data, base + 1 + N_ACT, N_CT)],
+		neurons: clamp(Math.round(vec.getAt(base) * 512), 1, 512),
+		activation: ACTIVATIONS[argmax(vec.toFloat32Array(), base + 1, N_ACT)],
+		connectionType: CONNECTION_TYPES[argmax(vec.toFloat32Array(), base + 1 + N_ACT, N_CT)],
 		biasType,
 	};
 }
@@ -250,8 +250,7 @@ function _buildDecodedGenome(
 
 export function decodeGenome(vec: Float32Array, template: Genome): Genome {
 	_validateVectorLength(vec);
-	const ev = new EncodingVector(vec.length);
-	ev.data.set(vec);
+	const ev = EncodingVector.from(vec);
 	const scalars = decodeScalars(ev);
 	return _buildDecodedGenome(
 		scalars,

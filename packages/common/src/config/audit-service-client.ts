@@ -1,10 +1,11 @@
 import { normalizeError } from "../utils/errors";
+import type { TlsPaths } from "../domain/tls-paths";
 import { HttpClient } from "./http-client";
 import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 
 interface AuditTarget {
 	url: string;
-	tls: { caPath: string; certPath: string; keyPath: string };
+	tls: TlsPaths;
 }
 type AuditResolver = () => Promise<AuditTarget | null>;
 

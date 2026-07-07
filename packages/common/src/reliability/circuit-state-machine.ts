@@ -1,20 +1,7 @@
 import type { CircuitState } from "../domain/circuit-state";
+import type { CircuitBreakerConfig } from "./circuit-breaker";
 
-/**
- * Core circuit-breaker state transitions shared by all CB implementations.
- *
- * Configurable via {@link CircuitStateMachineConfig}:
- * - `failureThreshold`: failures before opening (default 5)
- * - `cooldownMs`: time before transitioning from open → half-open (default 30_000)
- * - `halfOpenMaxAttempts`: optional — max attempts allowed while half-open before re-opening
- */
-export interface CircuitStateMachineConfig {
-	failureThreshold: number;
-	cooldownMs: number;
-	halfOpenMaxAttempts?: number;
-}
-
-export const DEFAULT_CIRCUIT_CONFIG: CircuitStateMachineConfig = {
+export const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
 	failureThreshold: 5,
 	cooldownMs: 30_000,
 };
@@ -30,7 +17,7 @@ export class CircuitStateMachine {
 	protected _openUntil = 0;
 	protected _halfOpenAttempts = 0;
 
-	constructor(protected readonly _config: CircuitStateMachineConfig) {}
+	constructor(protected readonly _config: CircuitBreakerConfig) {}
 
 	get failures(): number {
 		return this._failures;

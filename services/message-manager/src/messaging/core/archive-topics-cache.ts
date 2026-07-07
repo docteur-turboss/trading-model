@@ -12,9 +12,7 @@ export class ArchiveTopicsCache {
 				const redis = await getSubscriptionClient();
 				const topics = await redis.smembers(`${ENV.REDIS_PREFIX}topics`);
 				this._topicsCache = topics;
-			} catch {
-				// topic cache refresh best-effort
-			}
+			} catch {}
 		}, 30_000);
 		this._topicsCacheTimer.unref();
 	}

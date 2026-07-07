@@ -1,97 +1,38 @@
 import type { IncomingMessage } from "node:http";
 import type { Server as HttpsServer } from "node:https";
-import {
-	toInstanceId,
-	toServiceId,
-} from "@trading-model/common/domain/primitives";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import type WebSocket from "ws";
-import { WebSocketServer } from "ws";
-import { ENV } from "../../config/env";
-import { logger } from "../../config/logger";
+import { ClientVerifier } from "./client-verifier";
+import { ConnectionEventHandler } from "./connection-event-handler";
 import type { WssRateLimiter } from "./wss-rate-limiter";
+import { WssServerLifecycle } from "./wss-server-lifecycle";
 import type { WssSubscriptionManager } from "./wss-subscription-manager";
 
-const WSS_SHUTDOWN_TIMEOUT_MS = 5_000;
-
-interface CloseHandlerContext {
-	ws: WebSocket;
-	subKey: string;
-	identity: ServiceIdentity;
-}
-
-interface WssServerLike {
-	on(
-		event: "connection",
-		listener: (ws: WebSocket, req: IncomingMessage) => void
-	): void;
-	close(callback?: () => void): void;
-}
-
-class NullWssServer implements WssServerLike {
-	on(): void {}
-	close(callback?: () => void): void {
-		callback?.();
-	}
-}
-
 export class WssConnectionHandler {
-	private _wss: WssServerLike = new NullWssServer();
+	private readonly _serverLifecycle: WssServerLifecycle;
+	private readonly _clientVerifier = new ClientVerifier();
+	private readonly _connectionEventHandler: ConnectionEventHandler;
 
 	constructor(
-		private readonly _subscriptionManager: WssSubscriptionManager,
-		private readonly _rateLimiter: WssRateLimiter
-	) {}
+		subscriptionManager: WssSubscriptionManager,
+		rateLimiter: WssRateLimiter
+	) {
+		this._serverLifecycle = new WssServerLifecycle(this._clientVerifier);
+		this._connectionEventHandler = new ConnectionEventHandler(subscriptionManager);
+	}
 
 	attach(
 		server: HttpsServer,
 		onConnection: (ws: WebSocket, req: IncomingMessage) => void
 	): void {
-		this._rateLimiter.ensureCleanupTimer();
-		this._wss = this._createWss(server);
-		this._wss.on("connection", (ws, req) => onConnection(ws, req));
-		logger.info("WSS transport attached at /ws");
-	}
-
-	private _createWss(server: HttpsServer): WssServerLike {
-		return new WebSocketServer({
-			server,
-			path: "/ws",
-			maxPayload: ENV.MAX_PAYLOAD_BYTES,
-			verifyClient: this._verifyClient,
-		});
-	}
-
-	private _verifyClient(
-		info: { req: IncomingMessage },
-		cb: (result: boolean, code?: number, message?: string) => void
-	): void {
-		const serviceName = info.req.headers[HTTP_HEADERS.X_SERVICE_NAME] as string;
-		const instanceId = info.req.headers[HTTP_HEADERS.X_INSTANCE_ID] as string;
-		if (!(serviceName && instanceId)) {
-			cb(false, 400, "Missing x-service-name or x-instance-id headers");
-			return;
-		}
-		cb(true);
+		this._serverLifecycle.attach(server, onConnection);
 	}
 
 	parseConnectionHeaders(req: IncomingMessage): {
 		identity: ServiceIdentity;
 		topics: Set<string>;
 	} {
-		const serviceName = req.headers[HTTP_HEADERS.X_SERVICE_NAME] as string;
-		const instanceId = req.headers[HTTP_HEADERS.X_INSTANCE_ID] as string;
-		const topics = _parseTopicsHeader(
-			req.headers[HTTP_HEADERS.X_SUBSCRIBED_TOPICS] as string
-		);
-		return {
-			identity: {
-				serviceName: toServiceId(serviceName),
-				instanceId: toInstanceId(instanceId),
-			},
-			topics,
-		};
+		return this._clientVerifier.parseConnectionHeaders(req);
 	}
 
 	registerCloseHandler(
@@ -99,68 +40,14 @@ export class WssConnectionHandler {
 		subKey: string,
 		identity: ServiceIdentity
 	): void {
-		ws.on("close", () => {
-			this._subscriptionManager.remove(subKey);
-			ws.removeAllListeners();
-			logger.info("WSS client disconnected", {
-				context: {
-					serviceName: identity.serviceName,
-					instanceId: identity.instanceId,
-				},
-			});
-		});
+		this._connectionEventHandler.registerCloseHandler(ws, subKey, identity);
 	}
 
 	registerErrorHandler(ws: WebSocket, identity: ServiceIdentity): void {
-		ws.on("error", (err) => {
-			logger.warn("WSS connection error", {
-				context: {
-					error: err.message,
-					serviceName: identity.serviceName,
-					instanceId: identity.instanceId,
-				},
-			});
-			ws.close(1011, "Internal server error");
-		});
+		this._connectionEventHandler.registerErrorHandler(ws, identity);
 	}
 
 	async shutdown(): Promise<void> {
-		this._closeAllConnections();
-		await this._closeServer();
+		await this._serverLifecycle.shutdown();
 	}
-
-	private _closeAllConnections(): void {
-		for (const [, sub] of this._subscriptionManager.entries()) {
-			sub.ws.close(1001, "Server shutdown");
-		}
-		this._subscriptionManager.clear();
-	}
-
-	private async _closeServer(): Promise<void> {
-		await new Promise<void>((resolve) => {
-			const timer = setTimeout(() => {
-				resolve();
-			}, WSS_SHUTDOWN_TIMEOUT_MS);
-			this._wss.close(() => {
-				clearTimeout(timer);
-				resolve();
-			});
-		});
-	}
-
-	get wss(): WssServerLike {
-		return this._wss;
-	}
-}
-
-function _parseTopicsHeader(header: string | undefined): Set<string> {
-	if (!header) {
-		return new Set();
-	}
-	return new Set(
-		header
-			.split(",")
-			.map((part) => part.trim())
-			.filter(Boolean)
-	);
 }

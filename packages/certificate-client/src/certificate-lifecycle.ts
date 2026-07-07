@@ -6,6 +6,7 @@ import {
 	generateKeyPairAsync,
 } from "@trading-model/certificate-utils/async";
 import { KeyAlgorithm } from "@trading-model/certificate-utils/generate-key-pair";
+import type { KeyPair } from "@trading-model/certificate-utils/types";
 import type {
 	CaClient,
 	SignCertificateRequest,
@@ -23,7 +24,7 @@ export class CertificateLifecycle {
 	) {}
 
 	async generateKeyAndCsr(): Promise<{
-		keyPair: import("@trading-model/certificate-utils/generate-key-pair").KeyPair;
+		keyPair: KeyPair;
 		csr: string;
 	}> {
 		const keyPair = await generateKeyPairAsync(

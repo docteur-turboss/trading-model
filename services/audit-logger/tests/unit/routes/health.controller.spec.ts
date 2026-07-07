@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
+import {
+	mockCatchSyncModule,
+	mockSendResponseModule,
+} from "@trading-model/common/testing";
 import { createNext, createReq, createRes } from "../../helpers/express";
 
-jest.mock("@trading-model/common/middleware/catch-error", () => ({
-	catchSync: (fn: any) => fn,
-}));
-
-jest.mock("@trading-model/common/middleware/response-exception", () => {
-	const sendResponse = (data: any, status: number) => ({ status, data });
-	return { sendResponse };
-});
+jest.mock(
+	"@trading-model/common/middleware/catch-error",
+	() => mockCatchSyncModule
+);
+jest.mock(
+	"@trading-model/common/middleware/response-exception",
+	() => mockSendResponseModule
+);
 
 import { createHealthController } from "../../../src/controllers/health.controller";
 import { BackPressure } from "../../../src/scheduler/back-pressure";
@@ -27,20 +31,6 @@ describe("HealthController", () => {
 		backPressure = new BackPressure(100, 0.85);
 		workers = new WorkerRegistry(30000);
 		controller = createHealthController(queue, backPressure, workers);
-	});
-
-	describe("ping", () => {
-		it("should return 200 with status ok", async () => {
-			const result = await controller.ping(
-				createReq(),
-				createRes(),
-				createNext
-			);
-
-			expect(result).toMatchObject({ status: 200 });
-			expect((result as any).data).toHaveProperty("status", "ok");
-			expect((result as any).data).toHaveProperty("timestamp");
-		});
 	});
 
 	describe("health", () => {

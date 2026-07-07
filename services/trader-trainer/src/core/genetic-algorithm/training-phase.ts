@@ -31,7 +31,7 @@ function _buildTrainExperience(
 		...prev,
 		kind: "qlearning" as const,
 		reward: nStepReturn(rewardBuf, index, genome),
-		nextState: trainData[index].features.buffer,
+		nextState: trainData[index].features.toFloat32Array(),
 		done: index === maxT - 1,
 	};
 }

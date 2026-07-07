@@ -61,10 +61,6 @@ export class WssClient {
 		return this._publisher.publish(payload, metadata);
 	}
 
-	send(data: unknown): Promise<void> {
-		return this._publisher.send(data);
-	}
-
 	subscribe(topics: string[]): Promise<void> {
 		this._orchestrator.addTopics(topics);
 		if (this._orchestrator.isConnected()) {

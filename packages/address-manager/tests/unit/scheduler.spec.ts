@@ -50,9 +50,7 @@ describe("Scheduler", () => {
 		jest.clearAllMocks();
 	});
 
-	// -----------------------------------------------------------
-	// REGISTER
-	// -----------------------------------------------------------
+	describe("register", () => {
 	test("should register a job before starting", () => {
 		scheduler.register(mockJob);
 		// no error should be thrown
@@ -70,10 +68,9 @@ describe("Scheduler", () => {
 			"Cannot register job after scheduler has started"
 		);
 	});
+	});
 
-	// -----------------------------------------------------------
-	// START
-	// -----------------------------------------------------------
+	describe("start", () => {
 	test("start should schedule all registered jobs", () => {
 		scheduler.register(mockJob);
 
@@ -166,10 +163,9 @@ describe("Scheduler", () => {
 
 		expect(cron.schedule).toHaveBeenCalledTimes(1);
 	});
+	});
 
-	// -----------------------------------------------------------
-	// STOP
-	// -----------------------------------------------------------
+	describe("stop", () => {
 	test("stop should call stop on all tasks and reset scheduler", () => {
 		scheduler.register(mockJob);
 		scheduler.start();
@@ -184,5 +180,6 @@ describe("Scheduler", () => {
 			execute: jest.fn() as () => Promise<void>,
 		};
 		expect(() => scheduler.register(newJob)).not.toThrow();
+	});
 	});
 });

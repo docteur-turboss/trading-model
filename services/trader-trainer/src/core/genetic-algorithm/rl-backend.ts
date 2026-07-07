@@ -100,8 +100,8 @@ export function makeTradingAgentBackend(
 	_tryLamarckianInjection(agent, genome);
 
 	return {
-		forwardPass: (features) => agent.forwardPass(features.buffer).output,
-		step: (features, price) => agent.step(features.buffer, price),
+		forwardPass: (features) => agent.forwardPass(features.toFloat32Array()).output,
+		step: (features, price) => agent.step(features.toFloat32Array(), price),
 		train: _makeTrainFn(agent),
 		getWeights: () => agent.getWeights(),
 		setWeights: (weights) => agent.setWeights(weights),

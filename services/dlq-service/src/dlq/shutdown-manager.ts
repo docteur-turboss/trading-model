@@ -6,11 +6,9 @@ import { dlqRedisQueue } from "../config/redis-queue";
 import { stopAutoRetry } from "./auto-retry";
 import { dlqClaimManager } from "./claim-manager";
 import { dlqRepository } from "./repository";
-import {
-	activeReplays,
-	closeHttpClient,
-	setShuttingDown,
-} from "./shared/index";
+import { activeReplays } from "./shared/active-replay-counter";
+import { closeHttpClient } from "./shared/http-client-manager";
+import { setShuttingDown } from "./shared/shutdown-flag";
 
 const pruneTimer = new TimerHandle();
 

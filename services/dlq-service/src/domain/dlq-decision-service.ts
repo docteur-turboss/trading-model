@@ -78,7 +78,6 @@ export class DlqDecisionService {
 		};
 	}
 
-	/** Determines the filter for claiming retryable entries. */
 	buildClaimFilter(): {
 		retryCountMax: number;
 		consecutiveErrorsMax: number;
@@ -92,7 +91,6 @@ export class DlqDecisionService {
 	}
 
 	private _maxRetryAttempts(): number {
-		// ENV.DLQ_RETRY_MAX_ATTEMPTS — provided by caller via input
-		return Number.MAX_SAFE_INTEGER; // Overridden by input value
+			return Number.MAX_SAFE_INTEGER;
 	}
 }

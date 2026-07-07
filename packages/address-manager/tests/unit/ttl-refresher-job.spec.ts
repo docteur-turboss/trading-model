@@ -11,9 +11,7 @@ describe("RefreshJob<AddressManagerClient>", () => {
 		} as unknown as jest.Mocked<AddressManagerClient>;
 	});
 
-	// -----------------------------------------------------------
-	// CONSTRUCTOR & SCHEDULE
-	// -----------------------------------------------------------
+	describe("constructor & schedule", () => {
 	test("should set schedule correctly for given refresh interval", () => {
 		const refreshIntervalMs = 5 * 60_000; // 5 minutes
 		const job = new RefreshJob(
@@ -30,10 +28,9 @@ describe("RefreshJob<AddressManagerClient>", () => {
 		const job = new RefreshJob(mockClient, (c) => c.refreshTTL(), 30_000); // 30 sec
 		expect(job.schedule).toBe("*/30 * * * * *");
 	});
+	});
 
-	// -----------------------------------------------------------
-	// EXECUTE METHOD
-	// -----------------------------------------------------------
+	describe("execute method", () => {
 	test("execute should call refreshTTL on AddressManagerClient", async () => {
 		const job = new RefreshJob(mockClient, (c) => c.refreshTTL(), 60_000);
 
@@ -50,10 +47,9 @@ describe("RefreshJob<AddressManagerClient>", () => {
 
 		await expect(job.execute()).rejects.toThrow("Refresh failed");
 	});
+	});
 
-	// -----------------------------------------------------------
-	// PRIVATE intervalMsToCron METHOD
-	// -----------------------------------------------------------
+	describe("private intervalMsToCron method", () => {
 	test("intervalMsToCron generates correct cron for multiple intervals", () => {
 		const intervals = [
 			{ ms: 60_000, expected: "*/1 * * * *" },
@@ -66,5 +62,6 @@ describe("RefreshJob<AddressManagerClient>", () => {
 			const job = new RefreshJob(mockClient, (c) => c.refreshTTL(), ms);
 			expect(job.schedule).toBe(expected);
 		});
+	});
 	});
 });

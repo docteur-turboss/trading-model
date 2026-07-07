@@ -20,9 +20,7 @@ function globalCleanup(): void {
 	for (const store of STORES) {
 		try {
 			store.destroy();
-		} catch {
-			// cleanup
-		}
+		} catch {}
 	}
 	STORES.clear();
 }

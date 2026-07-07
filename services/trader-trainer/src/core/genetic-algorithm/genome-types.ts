@@ -1,8 +1,4 @@
-// Re-export everything from the project's genome definitions.
-// Adjust the import path to match your monorepo structure.
-export * from "./genome"; // <- points to the provided genome_types file
-
-// ---- Additional runtime types not in the static schema ----
+export * from "./genome";
 
 export interface EpisodeLog {
 	genomeId: string;

@@ -6,10 +6,6 @@ import axios, {
 	type AxiosRequestConfig,
 } from "axios";
 
-/* -------------------------------------------------------
- * CONFIG GLOBAL
- * ----------------------------------------------------- */
-
 const DEFAULT_TIMEOUT = 7000;
 
 const RETRY_CONFIG = {
@@ -26,10 +22,6 @@ interface RateLimitBucket {
 }
 
 const RATE_LIMIT_BUCKETS: Record<string, RateLimitBucket> = {};
-
-/* -------------------------------------------------------
- * RATE LIMITER (PER BASEURL)
- * ----------------------------------------------------- */
 
 function getRateLimitBucket(baseURL: string): RateLimitBucket {
 	if (!RATE_LIMIT_BUCKETS[baseURL]) {
@@ -66,10 +58,6 @@ function _refillBucket(bucket: RateLimitBucket): void {
 	bucket.lastRefill = now;
 }
 
-/* -------------------------------------------------------
- * RETRY LOGIC (WITH BINANCE ERROR HANDLING)
- * ----------------------------------------------------- */
-
 function shouldRetry(error: AxiosError): boolean {
 	if (!error.response) {
 		return true; // network error → retry
@@ -93,10 +81,6 @@ function getBackoffDelay(attempt: number): number {
 		maxDelayMs: RETRY_CONFIG.maxDelayMs,
 	});
 }
-
-/* -------------------------------------------------------
- * AXIOS INSTANCE FACTORY
- * ----------------------------------------------------- */
 
 function createRetryInterceptor(
 	instance: AxiosInstance
@@ -157,10 +141,6 @@ function _attachRetryInterceptor(instance: AxiosInstance): void {
 		createRetryInterceptor(instance)
 	);
 }
-
-/* -------------------------------------------------------
- * PRE-BUILT CLIENTS (CAN ADD MORE LATER)
- * ----------------------------------------------------- */
 
 /** Pre-built HTTP clients for supported data sources (e.g. Binance). */
 export const httpClients: Record<DataSource, AxiosInstance> = {

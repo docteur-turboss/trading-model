@@ -104,7 +104,11 @@ export class TradeExecutor {
 		}
 		this._price = newPrice;
 		this._recorder.incrementStep();
-		this._recorder.recordValuation(this._cash, this._position, this._price);
+		this._recorder.recordValuation({
+			cash: this._cash,
+			position: this._position,
+			price: this._price,
+		});
 	}
 
 	reset(): void {

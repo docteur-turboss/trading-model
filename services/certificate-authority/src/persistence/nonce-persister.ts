@@ -38,7 +38,7 @@ interface INonceCollection {
 
 class NullNonceCollection implements INonceCollection {
 	async insertOne(): Promise<{ acknowledged: boolean }> {
-		throw new Error("Nonce persister not connected");
+		return { acknowledged: false };
 	}
 	async findOneAndDelete(): Promise<NonceDocument | null> {
 		return null;

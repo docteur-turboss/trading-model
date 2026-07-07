@@ -51,9 +51,7 @@ export class WssConnection implements IWsConnection {
 	private _connect(wsUrl: string, events: WssConnectionEvents): void {
 		try {
 			this._ws?.close();
-		} catch {
-			// ignore
-		}
+		} catch {}
 
 		const agent = this._setupWsTls();
 		this._ws = new WebSocket(wsUrl, { agent });
@@ -71,9 +69,7 @@ export class WssConnection implements IWsConnection {
 		this._ws.on("error", (err: Error) => {
 			try {
 				this._ws?.close();
-			} catch {
-				// ignore
-			}
+			} catch {}
 			events.onError(err);
 		});
 	}
@@ -81,9 +77,7 @@ export class WssConnection implements IWsConnection {
 	disconnect(closeCode?: number, reason?: string): void {
 		try {
 			this._ws?.close(closeCode, reason);
-		} catch {
-			// ignore
-		}
+		} catch {}
 	}
 
 	send(data: unknown): boolean {

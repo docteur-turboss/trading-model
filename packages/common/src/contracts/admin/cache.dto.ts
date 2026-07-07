@@ -1,4 +1,4 @@
-import type { ServiceId } from "../../domain/primitives";
+import type { Percentage, ServiceId } from "../../domain/primitives";
 
 export type CacheStatus = "active" | "expired" | "evicted" | "unknown";
 
@@ -12,6 +12,6 @@ export interface CacheEntry {
 }
 
 export interface CacheStats {
-	hitRate: number;
+	hitRate: Percentage;
 	activeEntries: number;
 }

@@ -17,12 +17,12 @@ export class TradeRecorder {
 		this.valuationTracker = new ValuationTracker(initialCash, decimals);
 	}
 
-	getState(cash: Cash, position: Volume, price: Price): PortfolioState {
-		return { cash, position, price };
+	getState(state: PortfolioState): PortfolioState {
+		return state;
 	}
 
-	recordValuation(cash: Cash, position: Volume, price: Price): void {
-		this.valuationTracker.record({ cash, position, price });
+	recordValuation(state: PortfolioState): void {
+		this.valuationTracker.record(state);
 	}
 
 	recordTrade(
@@ -41,15 +41,15 @@ export class TradeRecorder {
 			cashAfter,
 			positionAfter,
 		});
-		this.recordValuation(cashAfter, positionAfter, price);
+		this.recordValuation({ cash: cashAfter, position: positionAfter, price });
 	}
 
-	computeValuation(cash: Cash, position: Volume, price: Price): Cash {
-		return this.valuationTracker.computeValuation({ cash, position, price });
+	computeValuation(state: PortfolioState): Cash {
+		return this.valuationTracker.computeValuation(state);
 	}
 
-	computePnL(cash: Cash, position: Volume, price: Price): Cash {
-		return this.valuationTracker.computePnL({ cash, position, price });
+	computePnL(state: PortfolioState): Cash {
+		return this.valuationTracker.computePnL(state);
 	}
 
 	getPeakValuation(): Cash {

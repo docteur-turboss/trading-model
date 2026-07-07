@@ -36,9 +36,7 @@ export class StaleInstanceRemover {
 				if (remaining === 0) {
 					await redis.srem(`${this._prefix}topics`, topic);
 				}
-			} catch {
-				// best-effort cleanup
-			}
+			} catch {}
 		}
 	}
 }

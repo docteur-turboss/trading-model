@@ -107,44 +107,43 @@ function ConfigPageHeader({ onRefresh }: { onRefresh: () => void }) {
 	);
 }
 
+function _renderKeyColumn(row: ConfigEntry) {
+	return (
+		<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+			{row.masked && (
+				<LockIcon fontSize="small" color="action" sx={{ fontSize: 14 }} />
+			)}
+			{row.key}
+		</Box>
+	);
+}
+
+function _renderValueColumn(row: ConfigEntry) {
+	return row.masked ? (
+		<Typography variant="body2" color="text.disabled">
+			{"•".repeat(20)}
+		</Typography>
+	) : (
+		row.value
+	);
+}
+
+function _renderSourceColumn(row: ConfigEntry) {
+	return (
+		<Chip
+			size="small"
+			label={row.source}
+			color={getSourceColor(row.source)}
+			variant="outlined"
+		/>
+	);
+}
+
 function useConfigColumns(): Column<ConfigEntry>[] {
 	return [
-		{
-			id: "key",
-			label: "Config Key",
-			render: (row) => (
-				<Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-					{row.masked && (
-						<LockIcon fontSize="small" color="action" sx={{ fontSize: 14 }} />
-					)}
-					{row.key}
-				</Box>
-			),
-		},
-		{
-			id: "value",
-			label: "Value",
-			render: (row) =>
-				row.masked ? (
-					<Typography variant="body2" color="text.disabled">
-						{"•".repeat(20)}
-					</Typography>
-				) : (
-					row.value
-				),
-		},
-		{
-			id: "source",
-			label: "Source",
-			render: (row) => (
-				<Chip
-					size="small"
-					label={row.source}
-					color={getSourceColor(row.source)}
-					variant="outlined"
-				/>
-			),
-		},
+		{ id: "key", label: "Config Key", render: _renderKeyColumn },
+		{ id: "value", label: "Value", render: _renderValueColumn },
+		{ id: "source", label: "Source", render: _renderSourceColumn },
 		{ id: "service", label: "Service", render: (row) => row.service },
 		{ id: "updated", label: "Updated", render: (row) => row.updatedAt },
 	];

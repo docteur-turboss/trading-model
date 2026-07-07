@@ -35,7 +35,4 @@ export class WssPublisher {
 		return Promise.reject(new Error("WSS not connected and no HTTP fallback"));
 	}
 
-	send(data: unknown): Promise<void> {
-		return this.publish(data, {} as MessageMetadata);
-	}
 }

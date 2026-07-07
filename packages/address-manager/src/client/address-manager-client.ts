@@ -100,9 +100,7 @@ export class AddressManagerClient {
 					{ headers: { [HTTP_HEADERS.X_INSTANCE_TOKEN]: token } }
 				);
 				return;
-			} catch {
-				// fallback: try next URL
-			}
+			} catch {}
 		}
 	}
 

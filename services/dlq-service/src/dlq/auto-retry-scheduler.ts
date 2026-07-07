@@ -6,7 +6,7 @@ import {
 	startRedisWorkerLoop,
 	stopRedisWorkerTimer,
 } from "./redis-queue-processor";
-import { isShuttingDown } from "./shared/index";
+import { isShuttingDown } from "./shared/shutdown-flag";
 
 const autoRetryTimer = new TimerHandle();
 const autoRetryStartTimer = new TimerHandle();

@@ -265,6 +265,41 @@ export function fromGenomeId(value: GenomeId): string {
 	return value;
 }
 
+export type URLString = string & { readonly __brand: "URLString" };
+
+const URL_RE = /^https?:\/\/.+/;
+
+export const URLString = {
+	of(value: string): URLString {
+		try {
+			new URL(value);
+			return value as URLString;
+		} catch {
+			throw new RangeError(`URLString must be a valid URL, got ${value}`);
+		}
+	},
+};
+
+export type TenantId = string & { readonly __brand: "TenantId" };
+
+export function toTenantId(value: string): TenantId {
+	return value as TenantId;
+}
+
+export function fromTenantId(value: TenantId): string {
+	return value;
+}
+
+export type ISODateTime = string & { readonly __brand: "ISODateTime" };
+
+export function toISODateTime(value: string): ISODateTime {
+	return value as ISODateTime;
+}
+
+export function fromISODateTime(value: ISODateTime): string {
+	return value;
+}
+
 export type WorkerStatus = "active" | "draining" | "offline";
 
 export enum WorkerStatusCode {

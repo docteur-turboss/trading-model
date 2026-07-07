@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { createNext, createReq } from "../helpers/express";
+import { createReq } from "../helpers/express";
 
 jest.mock("../../src/config/env", () => ({
 	ENV: {
@@ -69,31 +69,6 @@ describe("router", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
 		router = createRouter();
-	});
-
-	it("should have a ping route", () => {
-		const pingRoute = router.stack.find(
-			(layer: any) => layer.route && layer.route.path === "/ping"
-		);
-		expect(pingRoute).toBeDefined();
-	});
-
-	it("should respond to /ping", () => {
-		const req = createReq({ method: "GET", url: "/ping", path: "/ping" });
-		const res = { json: jest.fn() };
-
-		const pingLayer = router.stack.find(
-			(layer: any) => layer.route && layer.route.path === "/ping"
-		);
-		expect(pingLayer).toBeDefined();
-
-		if (pingLayer) {
-			pingLayer.route.stack[0].handle(req, res, createNext);
-			expect(res.json).toHaveBeenCalledWith({
-				status: "ok",
-				service: "api-gateway",
-			});
-		}
 	});
 
 	it("should have the catch-all middleware", () => {

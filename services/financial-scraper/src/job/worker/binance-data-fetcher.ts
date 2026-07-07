@@ -45,8 +45,8 @@ export async function fetchAllRawData(
 }
 
 async function _fetchBinanceData(
-	symbol: string,
-	interval: string,
+	symbol: TradingSymbol,
+	interval: CandleInterval,
 	candleLimit: number,
 	tradeLimit: number,
 	orderBookLimit: number

@@ -12,6 +12,7 @@ interface CircuitBreakerEntry {
 export interface CircuitBreakerConfig {
 	failureThreshold: number;
 	cooldownMs: number;
+	halfOpenMaxAttempts?: number;
 }
 
 const DEFAULT_CONFIG: CircuitBreakerConfig = {

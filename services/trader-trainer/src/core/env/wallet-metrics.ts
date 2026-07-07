@@ -64,14 +64,16 @@ function _computeReturnRate(
 function _computeDrawdown(
 	valuation: Cash,
 	params: ComputeWalletMetricsParams
-): number {
-	return Number(params.peakValuation) > 0
-		? round(
-				(Number(params.peakValuation) - Number(valuation)) /
-					Number(params.peakValuation),
-				params.decimals
-			)
-		: 0;
+): Percentage {
+	return Percentage.of(
+		Number(params.peakValuation) > 0
+			? round(
+					(Number(params.peakValuation) - Number(valuation)) /
+						Number(params.peakValuation),
+					params.decimals
+				)
+			: 0
+	);
 }
 
 export function computeWalletMetrics(
@@ -82,7 +84,7 @@ export function computeWalletMetrics(
 		pnl: _computePnL(valuation, params),
 		returnRate: _computeReturnRate(valuation, params),
 		peakValuation: params.peakValuation,
-		drawdown: Percentage.of(_computeDrawdown(valuation, params)),
+		drawdown: _computeDrawdown(valuation, params),
 		totalFeesPaid: params.totalFeesPaid,
 		tradeCount: params.tradeCount,
 	};

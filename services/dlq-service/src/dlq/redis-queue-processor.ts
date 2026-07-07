@@ -9,7 +9,7 @@ import { resolveMessageManagerUrl } from "./address-resolver";
 import { handleAbandonedEntries } from "./auto-retry";
 import { dlqClaimManager } from "./claim-manager";
 import { doReplayBatch } from "./replay-pipeline";
-import { isShuttingDown } from "./shared/index";
+import { isShuttingDown } from "./shared/shutdown-flag";
 
 export let redisRetryTimer: ReturnType<typeof setTimeout> | null = null;
 

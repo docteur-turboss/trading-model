@@ -10,7 +10,11 @@ import type {
 	WorkerEntry,
 	WorkerStats,
 } from "@trading-model/common/contracts/admin";
-import type { PaginationQuery } from "@trading-model/common/domain/pagination";
+import type {
+	PaginationQuery,
+	PaginationResult,
+} from "@trading-model/common/domain/pagination";
+import type { Percentage } from "@trading-model/common/domain/primitives";
 
 export type {
 	AdminServiceInstance,
@@ -65,11 +69,7 @@ export interface AdminAuditFilter extends PaginationQuery, AuditFilter {
 	search?: string;
 }
 
-export interface PaginatedEvents {
-	events: AuditEvent[];
-	total: number;
-	page: number;
-	limit: number;
+export interface PaginatedEvents extends PaginationResult<AuditEvent> {
 	volumeByTopic: { topic: string; count: number }[];
 }
 
@@ -82,7 +82,7 @@ export interface DlqMessageList {
 	messages: DlqMessage[];
 	stats: {
 		pending: number;
-		retryRate: number;
+		retryRate: Percentage;
 		totalSize: number;
 		lastIncident: string;
 	};
@@ -100,7 +100,7 @@ export interface TrainingFilter {
 
 export interface CacheEntryList {
 	entries: CacheEntry[];
-	stats: { hitRate: number; activeEntries: number };
+	stats: { hitRate: Percentage; activeEntries: number };
 }
 
 export interface WorkerList {

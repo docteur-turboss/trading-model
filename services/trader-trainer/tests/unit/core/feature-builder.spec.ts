@@ -199,9 +199,9 @@ describe("buildFeatures", () => {
 			idx: 1,
 			priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 		});
-		expect(f.buffer).toBeInstanceOf(Float32Array);
-		expect(f.buffer.length).toBe(FEATURE_DIM);
-		expect(f.buffer[31]).toBe(1.0);
+		expect(f.toFloat32Array()).toBeInstanceOf(Float32Array);
+		expect(f.toFloat32Array().length).toBe(FEATURE_DIM);
+		expect(f.toFloat32Array()[31]).toBe(1.0);
 	});
 
 	describe("candle features (indices 0-8)", () => {
@@ -231,12 +231,12 @@ describe("buildFeatures", () => {
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
 
-			expect(f.buffer[0]).toBe(0);
-			expect(f.buffer[1]).toBe(0);
-			expect(f.buffer[2]).toBeCloseTo((105 - 100) / 100, 5);
-			expect(f.buffer[3]).toBeCloseTo((105 - 102) / (110 - 100), 5);
-			expect(f.buffer[4]).toBeCloseTo((110 - 100) / 105, 5);
-			expect(f.buffer[8]).toBe(0);
+			expect(f.toFloat32Array()[0]).toBe(0);
+			expect(f.toFloat32Array()[1]).toBe(0);
+			expect(f.toFloat32Array()[2]).toBeCloseTo((105 - 100) / 100, 5);
+			expect(f.toFloat32Array()[3]).toBeCloseTo((105 - 102) / (110 - 100), 5);
+			expect(f.toFloat32Array()[4]).toBeCloseTo((110 - 100) / 105, 5);
+			expect(f.toFloat32Array()[8]).toBe(0);
 		});
 
 		test("handles idx=0 (no prev candle)", () => {
@@ -257,7 +257,7 @@ describe("buildFeatures", () => {
 				idx: 0,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(100) },
 			});
-			expect(f.buffer[2]).toBe(0);
+			expect(f.toFloat32Array()[2]).toBe(0);
 		});
 	});
 
@@ -278,10 +278,10 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
-			expect(f.buffer[9]).toBeCloseTo(cn.normalize(100), 5);
-			expect(f.buffer[10]).toBeCloseTo(an.normalize(110), 5);
-			expect(f.buffer[11]).toBeCloseTo((110 - 100) / 110, 5);
-			expect(f.buffer[12]).toBeCloseTo((5 - 3) / (5 + 3), 5);
+			expect(f.toFloat32Array()[9]).toBeCloseTo(cn.normalize(100), 5);
+			expect(f.toFloat32Array()[10]).toBeCloseTo(an.normalize(110), 5);
+			expect(f.toFloat32Array()[11]).toBeCloseTo((110 - 100) / 110, 5);
+			expect(f.toFloat32Array()[12]).toBeCloseTo((5 - 3) / (5 + 3), 5);
 		});
 
 		test("skips order book features when null", () => {
@@ -294,10 +294,10 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
-			expect(f.buffer[9]).toBe(0);
-			expect(f.buffer[10]).toBe(0);
-			expect(f.buffer[11]).toBe(0);
-			expect(f.buffer[12]).toBe(0);
+			expect(f.toFloat32Array()[9]).toBe(0);
+			expect(f.toFloat32Array()[10]).toBe(0);
+			expect(f.toFloat32Array()[11]).toBe(0);
+			expect(f.toFloat32Array()[12]).toBe(0);
 		});
 	});
 
@@ -317,9 +317,9 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
-			expect(f.buffer[13]).toBeCloseTo(cn.normalize(102), 5);
-			expect(f.buffer[14]).toBeCloseTo(cn.normalize(108), 5);
-			expect(f.buffer[15]).toBeCloseTo((108 - 102) / 108, 5);
+			expect(f.toFloat32Array()[13]).toBeCloseTo(cn.normalize(102), 5);
+			expect(f.toFloat32Array()[14]).toBeCloseTo(cn.normalize(108), 5);
+			expect(f.toFloat32Array()[15]).toBeCloseTo((108 - 102) / 108, 5);
 		});
 
 		test("skips when book ticker is null", () => {
@@ -332,9 +332,9 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
-			expect(f.buffer[13]).toBe(0);
-			expect(f.buffer[14]).toBe(0);
-			expect(f.buffer[15]).toBe(0);
+			expect(f.toFloat32Array()[13]).toBe(0);
+			expect(f.toFloat32Array()[14]).toBe(0);
+			expect(f.toFloat32Array()[15]).toBe(0);
 		});
 	});
 
@@ -372,9 +372,9 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
-			expect(f.buffer[16]).toBe(0);
-			expect(f.buffer[17]).toBe(0);
-			expect(f.buffer[18]).toBeCloseTo(10 / 15, 5);
+			expect(f.toFloat32Array()[16]).toBe(0);
+			expect(f.toFloat32Array()[17]).toBe(0);
+			expect(f.toFloat32Array()[18]).toBeCloseTo(10 / 15, 5);
 		});
 
 		test("skips trades outside 60s window", () => {
@@ -399,9 +399,9 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
-			expect(f.buffer[16]).toBe(0);
-			expect(f.buffer[17]).toBe(0);
-			expect(f.buffer[18]).toBe(0);
+			expect(f.toFloat32Array()[16]).toBe(0);
+			expect(f.toFloat32Array()[17]).toBe(0);
+			expect(f.toFloat32Array()[18]).toBe(0);
 		});
 	});
 
@@ -417,9 +417,9 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
-			expect(f.buffer[19]).toBeCloseTo((110 - 100) / 100, 5);
-			expect(f.buffer[20]).toBe(0);
-			expect(f.buffer[21]).toBeCloseTo((120 - 90) / 100, 5);
+			expect(f.toFloat32Array()[19]).toBeCloseTo((110 - 100) / 100, 5);
+			expect(f.toFloat32Array()[20]).toBe(0);
+			expect(f.toFloat32Array()[21]).toBeCloseTo((120 - 90) / 100, 5);
 		});
 
 		test("skips when ticker is null", () => {
@@ -432,9 +432,9 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
-			expect(f.buffer[19]).toBe(0);
-			expect(f.buffer[20]).toBe(0);
-			expect(f.buffer[21]).toBe(0);
+			expect(f.toFloat32Array()[19]).toBe(0);
+			expect(f.toFloat32Array()[20]).toBe(0);
+			expect(f.toFloat32Array()[21]).toBe(0);
 		});
 	});
 
@@ -449,7 +449,7 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(107) },
 			});
-			expect(f.buffer[22]).toBe(0);
+			expect(f.toFloat32Array()[22]).toBe(0);
 		});
 
 		test("falls back to close price when snapshot missing", () => {
@@ -463,7 +463,7 @@ describe("buildFeatures", () => {
 			});
 
 			const f = buildFeatures({ state: s, idx: 1, priceSnapshot: {} });
-			expect(f.buffer[22]).toBeCloseTo(cn.normalize(105), 5);
+			expect(f.toFloat32Array()[22]).toBeCloseTo(cn.normalize(105), 5);
 		});
 	});
 
@@ -481,14 +481,14 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
-			expect(f.buffer[23]).toBe(0);
-			expect(f.buffer[24]).toBe(0);
-			expect(f.buffer[25]).toBe(0);
-			expect(f.buffer[26]).toBe(0);
-			expect(f.buffer[27]).toBe(0);
-			expect(f.buffer[28]).toBe(0);
-			expect(f.buffer[29]).toBe(0);
-			expect(f.buffer[30]).toBe(0);
+			expect(f.toFloat32Array()[23]).toBe(0);
+			expect(f.toFloat32Array()[24]).toBe(0);
+			expect(f.toFloat32Array()[25]).toBe(0);
+			expect(f.toFloat32Array()[26]).toBe(0);
+			expect(f.toFloat32Array()[27]).toBe(0);
+			expect(f.toFloat32Array()[28]).toBe(0);
+			expect(f.toFloat32Array()[29]).toBe(0);
+			expect(f.toFloat32Array()[30]).toBe(0);
 		});
 
 		test("fills lookback with up to 8 preceding closes", () => {
@@ -509,7 +509,7 @@ describe("buildFeatures", () => {
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(109) },
 			});
 			for (let j = 1; j <= 8; j++) {
-				expect(f.buffer[22 + j]).toBeCloseTo(cn.normalize(100 + j), 5);
+				expect(f.toFloat32Array()[22 + j]).toBeCloseTo(cn.normalize(100 + j), 5);
 			}
 		});
 	});
@@ -525,7 +525,7 @@ describe("buildFeatures", () => {
 				idx: 1,
 				priceSnapshot: { [toSymbol("BTCUSDT")]: Price.of(103) },
 			});
-			expect(f.buffer[31]).toBe(1.0);
+			expect(f.toFloat32Array()[31]).toBe(1.0);
 		});
 	});
 });

@@ -3,7 +3,7 @@ import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
-import { resolveMessageManagerUrl } from "./shared/index";
+import { resolveMessageManagerUrl } from "./shared/message-manager-resolver";
 
 export async function resolveMMUrlOrFail(
 	span: import("@opentelemetry/api").Span

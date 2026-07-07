@@ -4,7 +4,7 @@ import type { TlsBootstrapOptions } from "@trading-model/common/server/bootstrap
 import { normalizeError } from "@trading-model/common/utils/errors";
 import { dlqRedisQueue } from "../config/redis-queue";
 import { rebuildQueueFromMongo } from "../dlq/auto-retry";
-import { reloadHttpClientTls } from "../dlq/shared/index";
+import { reloadHttpClientTls } from "../dlq/shared/http-client-manager";
 
 export async function ensureRedisQueue(): Promise<void> {
 	try {

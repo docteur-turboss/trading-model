@@ -31,9 +31,14 @@ jest.mock("@trading-model/common/config/logger", () => ({
 	},
 }));
 
+const MOCK_HOLDER = {
+	startAutoRenew: jest.fn(),
+	stopAutoRenew: jest.fn(),
+	getCurrentCert: jest.fn(),
+};
 const MOCK_CERTIFICATE_CLIENT_INSTANCE = {
 	startAutoRenew: jest.fn(),
-	obtainCertificate: jest.fn(),
+	obtainCertificate: jest.fn(() => Promise.resolve(MOCK_HOLDER)),
 	stopAutoRenew: jest.fn(),
 	getCurrentCert: jest.fn(),
 };
@@ -354,7 +359,7 @@ describe("createTlsBootstrap", () => {
 		expect(fs.access).toHaveBeenCalledWith("/etc/tls/key.pem");
 	});
 
-	it("setupAutoRenew should create CertificateClient and schedule startAutoRenew after 1s", () => {
+	it("setupAutoRenew should create CertificateClient and schedule startAutoRenew after 1s", async () => {
 		jest.useFakeTimers();
 		const server = { setSecureContext: jest.fn() };
 
@@ -369,10 +374,9 @@ describe("createTlsBootstrap", () => {
 		expect(configArg.serviceId).toBe("unknown");
 		expect(typeof configArg.onRenew).toBe("function");
 
+		await Promise.resolve();
 		jest.advanceTimersByTime(1000);
-		expect(
-			MOCK_CERTIFICATE_CLIENT_INSTANCE.startAutoRenew
-		).toHaveBeenCalledTimes(1);
+		expect(MOCK_HOLDER.startAutoRenew).toHaveBeenCalledTimes(1);
 
 		jest.useRealTimers();
 	});

@@ -252,7 +252,7 @@ function createLifecycleManager(
 	});
 }
 
-function _buildClientInfrastructure(config: AddressManagerConfig) {
+function _buildHttpLayer(config: AddressManagerConfig) {
 	const httpClient = createHttpClient(config);
 	const tokenManager = new TokenManager(httpClient, config);
 	const addressManagerClient = new AddressManagerClient(
@@ -261,7 +261,14 @@ function _buildClientInfrastructure(config: AddressManagerConfig) {
 		config
 	);
 	const serviceCache = createServiceCache(config);
+	return { httpClient, tokenManager, addressManagerClient, serviceCache };
+}
 
+function _buildDiscoveryLayer(
+	httpClient: HttpClient,
+	serviceCache: IServiceCache,
+	config: AddressManagerConfig
+) {
 	const circuitBreaker = createCircuitBreaker(config, serviceCache);
 	const healthChecker = createHealthChecker(httpClient, config);
 	const discoveryOrchestrator = createDiscoveryInfra(
@@ -276,23 +283,31 @@ function _buildClientInfrastructure(config: AddressManagerConfig) {
 		serviceCache,
 		config.maxCallRecords
 	);
-
-	const wsClient = maybeCreateWsClient(
-		config,
-		addressManagerClient,
-		tokenManager,
-		serviceCache
-	);
-
 	return {
-		httpClient,
-		tokenManager,
-		addressManagerClient,
-		serviceCache,
 		circuitBreaker,
 		healthChecker,
 		discoveryOrchestrator,
 		metricsCollector,
+	};
+}
+
+function _buildClientInfrastructure(config: AddressManagerConfig) {
+	const http = _buildHttpLayer(config);
+	const discovery = _buildDiscoveryLayer(
+		http.httpClient,
+		http.serviceCache,
+		config
+	);
+	const wsClient = maybeCreateWsClient(
+		config,
+		http.addressManagerClient,
+		http.tokenManager,
+		http.serviceCache
+	);
+
+	return {
+		...http,
+		...discovery,
 		wsClient,
 	};
 }

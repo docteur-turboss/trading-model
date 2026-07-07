@@ -71,7 +71,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("change24hrStats", () => {
 		it("should build 24hr stats URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.change24hrStats(["BTCUSDT"]);
+			const url = BINANCE_ENDPOINTS.change24hrStats([BTC]);
 			expect(url).toContain("/api/v3/ticker/24hr?symbols=");
 			expect(url).toContain("BTCUSDT");
 		});
@@ -102,7 +102,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("tradingDayTicker", () => {
 		it("should build trading day ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.tradingDayTicker(["BTCUSDT", "ETHUSDT"]);
+			const url = BINANCE_ENDPOINTS.tradingDayTicker([BTC, ETH]);
 			expect(url).toContain("/api/v3/ticker/tradingDay?symbols=");
 			expect(url).toContain("BTCUSDT");
 			expect(url).toContain("ETHUSDT");
@@ -116,7 +116,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("symbolPriceTicker", () => {
 		it("should build price ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.symbolPriceTicker(["BTCUSDT"]);
+			const url = BINANCE_ENDPOINTS.symbolPriceTicker([BTC]);
 			expect(url).toContain("/api/v3/ticker/price?symbols=");
 		});
 
@@ -128,7 +128,7 @@ describe("BINANCE_ENDPOINTS", () => {
 
 	describe("orderBookTicker", () => {
 		it("should build book ticker URL with symbols", () => {
-			const url = BINANCE_ENDPOINTS.orderBookTicker(["BTCUSDT"]);
+			const url = BINANCE_ENDPOINTS.orderBookTicker([BTC]);
 			expect(url).toContain("/api/v3/ticker/bookTicker?symbols=");
 		});
 

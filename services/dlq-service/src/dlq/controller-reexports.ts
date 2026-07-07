@@ -4,7 +4,7 @@ export {
 	rebuildQueueFromMongo,
 } from "./auto-retry";
 export { startAutoRetry, stopAutoRetry } from "./auto-retry-scheduler";
-export { reloadHttpClientTls } from "./shared/index";
+export { reloadHttpClientTls } from "./shared/http-client-manager";
 export {
 	pruneOldEntries,
 	releaseStaleClaims,

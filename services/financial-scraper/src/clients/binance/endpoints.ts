@@ -45,34 +45,19 @@ export const BINANCE_ENDPOINTS = {
 	 * @param symbol {string[]} - list of symbols to fetch stats for
 	 * @returns {string} - the full endpoint
 	 */
-	change24hrStats: (symbol?: string[]): string =>
+	change24hrStats: (symbol?: TradingSymbol[]): string =>
 		symbol && symbol.length > 0
 			? `/api/v3/ticker/24hr?symbols=${encodeURIComponent(`[${symbol.map((entry) => `"${entry}"`)}]`)}`
 			: "/api/v3/ticker/24hr",
-	/**
-	 * Trading day ticker statistics.
-	 * @param symbols {string[]} - list of symbols to fetch stats for
-	 * @returns {string} - the full endpoint
-	 */
-	tradingDayTicker: (symbol?: string[]): string =>
+	tradingDayTicker: (symbol?: TradingSymbol[]): string =>
 		symbol && symbol.length > 0
 			? `/api/v3/ticker/tradingDay?symbols=${encodeURIComponent(`[${symbol.map((entry) => `"${entry}"`)}]`)}`
 			: "/api/v3/ticker/tradingDay",
-	/**
-	 * Symbols price ticker.
-	 * @param symbols {string[]} - list of symbols to fetch stats for
-	 * @returns {string} - the full endpoint
-	 */
-	symbolPriceTicker: (symbol?: string[]): string =>
+	symbolPriceTicker: (symbol?: TradingSymbol[]): string =>
 		symbol && symbol.length > 0
 			? `/api/v3/ticker/price?symbols=${encodeURIComponent(`[${symbol.map((entry) => `"${entry}"`)}]`)}`
 			: "/api/v3/ticker/price",
-	/**
-	 * Order book ticker.
-	 * @param symbols {string[]} - list of symbols to fetch stats for
-	 * @returns {string} - the full endpoint
-	 */
-	orderBookTicker: (symbol?: string[]): string =>
+	orderBookTicker: (symbol?: TradingSymbol[]): string =>
 		symbol && symbol.length > 0
 			? `/api/v3/ticker/bookTicker?symbols=${encodeURIComponent(`[${symbol.map((entry) => `"${entry}"`)}]`)}`
 			: "/api/v3/ticker/bookTicker",

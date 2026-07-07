@@ -5,6 +5,8 @@ import {
 
 import type { KeyPair, KeyPairWithId } from "./types";
 
+export type { KeyPair, KeyPairWithId } from "./types";
+
 export const KeyAlgorithm = {
 	rsa4096: "rsa",
 	ecP384: "ec",

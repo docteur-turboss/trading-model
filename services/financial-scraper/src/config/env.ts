@@ -30,14 +30,14 @@ const FINANCIAL_SCRAPER_ENV_SCHEMA = BaseEnvSchema.extend(
 	DB_PORT: z.coerce.number().int().positive().default(3306),
 });
 
-export const env = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);
+export const ENV = validateEnv(FINANCIAL_SCRAPER_ENV_SCHEMA);
 
 export type Env = z.infer<typeof FINANCIAL_SCRAPER_ENV_SCHEMA>;
 
 export const dbConfig: DbConnectionConfig = {
-	host: env.DB_HOST,
-	port: env.DB_PORT,
-	user: env.DB_USER,
-	password: env.DB_PASSWORD,
-	database: env.DB_NAME,
+	host: ENV.DB_HOST,
+	port: ENV.DB_PORT,
+	user: ENV.DB_USER,
+	password: ENV.DB_PASSWORD,
+	database: ENV.DB_NAME,
 };

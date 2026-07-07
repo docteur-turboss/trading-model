@@ -1,4 +1,4 @@
-import type { ModelId, TradingSymbol } from "../../domain/primitives";
+import type { ModelId, Percentage, TradingSymbol } from "../../domain/primitives";
 
 export enum LayerType {
 	Dense = "dense",
@@ -40,8 +40,8 @@ export interface TrainingGenome {
 	modelId: ModelId;
 	layers: TrainingLayer[];
 	optimizer: Optimizer;
-	learningRate: number;
-	mutationRate: number;
+	learningRate: Percentage;
+	mutationRate: Percentage;
 }
 
 export interface TrainingLayer {

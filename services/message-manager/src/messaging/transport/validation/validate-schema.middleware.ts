@@ -1,14 +1,1 @@
-import type { NextFunction, Request, Response } from "express";
-import type { ZodSchema } from "zod";
-
-export const VALIDATE_SCHEMA = <TData>(schema: ZodSchema<TData>) => {
-	return (req: Request, res: Response, next: NextFunction): void => {
-		const parsed = schema.safeParse(req.body);
-		if (!parsed.success) {
-			res.status(400).json({ error: parsed.error.message });
-			return;
-		}
-		req.body = parsed.data;
-		next();
-	};
-};
+export { validateSchema as VALIDATE_SCHEMA } from "@trading-model/common/middleware/validate-schema";

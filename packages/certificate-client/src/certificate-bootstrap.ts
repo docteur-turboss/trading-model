@@ -63,7 +63,9 @@ export function createTlsBootstrap(
 						ca: cert.caPem,
 					}),
 			});
-			setTimeout(() => client.startAutoRenew(), 1000);
+			void client.obtainCertificate().then((holder) => {
+				setTimeout(() => holder.startAutoRenew(), 1000);
+			});
 		},
 	};
 }
@@ -107,7 +109,9 @@ function setupAutoRenew(server: HttpServer, config: BootstrapConfig): void {
 				ca: cert.caPem,
 			}),
 	});
-	setTimeout(() => client.startAutoRenew(), 1000);
+	void client.obtainCertificate().then((holder) => {
+		setTimeout(() => holder.startAutoRenew(), 1000);
+	});
 }
 
 async function _createServerApp(

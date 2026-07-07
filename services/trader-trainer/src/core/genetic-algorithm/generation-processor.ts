@@ -65,52 +65,85 @@ export class GenerationProcessor {
 		const ctrl = this._population[0].gaControl;
 		const rng = makePRNG(ctrl.mutationSeed + this._generation);
 
-		const { updatedPop, objectives, metas } = await this._evaluator.evaluate(
-			this._population
+		const evalResult = await this._evaluatePopulation();
+		const rankResult = this._rankAndArchive(evalResult, rng);
+		const newCtrl = this._adaptControl(ctrl);
+		this._trackBestGenome(
+			rankResult.popWithMeta,
+			evalResult.metas,
+			rankResult.avgEff
 		);
-		const { popWithMeta, popMeta, avgFit, avgEff } = buildParetoFronts(
-			updatedPop,
-			objectives,
-			metas,
-			rng
+		this._population = this._evolvePopulation(rankResult, newCtrl, ctrl, rng);
+
+		const ctx = this._buildGenerationContext(
+			startTime,
+			rankResult.avgFit,
+			rankResult.avgEff,
+			newCtrl
 		);
+		this._cfg.onGeneration?.(ctx);
+		return ctx;
+	}
+
+	private _evaluatePopulation() {
+		return this._evaluator.evaluate(this._population);
+	}
+
+	private _rankAndArchive(
+		evalResult: Awaited<ReturnType<GenerationProcessor["_evaluatePopulation"]>>,
+		rng: ReturnType<typeof makePRNG>
+	) {
+		const { updatedPop, objectives, metas } = evalResult;
+		const result = buildParetoFronts(updatedPop, objectives, metas, rng);
 
 		this._evaluator.updateArchive(
-			popWithMeta,
+			result.popWithMeta,
 			objectives,
-			popMeta,
+			result.popMeta,
 			this._cfg.onArchiveUpdate
 		);
-		const newCtrl = adaptGAControl(
+
+		return result;
+	}
+
+	private _adaptControl(ctrl: GAControlGenome): GAControlGenome {
+		return adaptGAControl(
 			ctrl,
 			this._evaluator.stagnationTracker.efficiencyHistory,
 			this._evaluator.stagnationTracker.stagnation
 		);
+	}
 
+	private _trackBestGenome(
+		popWithMeta: DeepReadonly<LamarckGenome>[],
+		metas: Record<string, unknown>[],
+		avgEff: number
+	): void {
 		this._lastBestGenome = this._evaluator.stagnationTracker.track(
 			popWithMeta,
 			metas,
 			avgEff
 		);
+	}
 
-		const ranked = sortPopulation(popWithMeta, popMeta);
+	private _evolvePopulation(
+		rankResult: {
+			popWithMeta: DeepReadonly<LamarckGenome>[];
+			popMeta: Record<string, unknown>[];
+		},
+		newCtrl: GAControlGenome,
+		ctrl: GAControlGenome,
+		rng: ReturnType<typeof makePRNG>
+	): DeepReadonly<LamarckGenome>[] {
+		const ranked = sortPopulation(rankResult.popWithMeta, rankResult.popMeta);
 		const elites = selectElites(ranked, newCtrl);
-		this._population = buildNextPopulation(elites, {
+		return buildNextPopulation(elites, {
 			ranked,
 			newCtrl,
 			ctrl,
 			rng,
 			generation: this._generation,
 		});
-
-		const ctx = this._buildGenerationContext(
-			startTime,
-			avgFit,
-			avgEff,
-			newCtrl
-		);
-		this._cfg.onGeneration?.(ctx);
-		return ctx;
 	}
 
 	private _buildGenerationContext(

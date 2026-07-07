@@ -10,25 +10,11 @@ jest.mock("../../src/app", () => ({
 	},
 }));
 
-import { health, ping } from "../../src/controllers/health.controller";
+import { health } from "../../src/controllers/health.controller";
 
 describe("health.controller", () => {
 	beforeEach(() => {
 		jest.clearAllMocks();
-	});
-
-	describe("ping", () => {
-		it("should return ok status", () => {
-			const json = jest.fn();
-			const status = jest.fn(() => ({ json }));
-			const req = {} as any;
-			const res = { status } as any;
-
-			ping(req, res);
-
-			expect(res.status).toHaveBeenCalledWith(200);
-			expect(res.status().json).toHaveBeenCalledWith({ status: "ok" });
-		});
 	});
 
 	describe("health", () => {

@@ -1,4 +1,9 @@
-import type { MessageId, Topic, UnixTimestamp } from "../../domain/primitives";
+import type {
+	MessageId,
+	Percentage,
+	Topic,
+	UnixTimestamp,
+} from "../../domain/primitives";
 
 export interface DlqMessage {
 	id: MessageId;
@@ -12,7 +17,7 @@ export interface DlqMessage {
 
 export interface DlqStats {
 	pending: number;
-	retryRate: number;
+	retryRate: Percentage;
 	totalSize: number;
 	lastIncident: UnixTimestamp;
 }

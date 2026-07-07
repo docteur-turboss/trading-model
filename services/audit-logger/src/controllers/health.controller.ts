@@ -6,13 +6,6 @@ import type { BackPressure } from "../scheduler/back-pressure";
 import type { InternalQueue } from "../scheduler/internal-queue";
 import type { WorkerRegistry } from "../worker/worker-registry";
 
-function _pingResponse(): ResponseObject {
-	return sendResponse(
-		{ status: "ok", timestamp: new Date().toISOString() },
-		200
-	);
-}
-
 function _healthResponse(
 	queue: InternalQueue,
 	backPressure: BackPressure,
@@ -36,11 +29,9 @@ export function createHealthController(
 	backPressure: BackPressure,
 	workers: WorkerRegistry
 ) {
-	const ping: RequestHandler = catchSync(() => _pingResponse());
-
 	const health: RequestHandler = catchSync(() =>
 		_healthResponse(queue, backPressure, workers)
 	);
 
-	return { ping, health };
+	return { health };
 }

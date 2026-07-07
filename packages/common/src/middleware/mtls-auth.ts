@@ -4,7 +4,6 @@ import { catchSync } from "./catch-error";
 import { ResponseException } from "./response-exception";
 
 declare global {
-	// eslint-disable-next-line @typescript-eslint/no-namespace
 	namespace Express {
 		interface Request {
 			/** Logical client identity extracted from the mTLS client certificate. */

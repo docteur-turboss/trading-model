@@ -66,9 +66,7 @@ export class MongoArchiveStore {
 				collectionName: ENV.MONGO_ARCHIVE_COLLECTION,
 			});
 			await writer.writeArchiveBatch(messages);
-		} catch {
-			// skip failed topic, continue to next
-		}
+		} catch {}
 	}
 
 	async stop(): Promise<void> {

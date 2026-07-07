@@ -7,6 +7,7 @@ export type { RevocationRequest } from "./domain/revocation-request";
 export { handleCoreError } from "./middleware/handle-core-error";
 export { MTLSAuthMiddleware } from "./middleware/mtls-auth";
 export { ResponseException } from "./middleware/response-exception";
+export { validateSchema } from "./middleware/validate-schema";
 export { createBootstrap } from "./server/bootstrap";
 export { configureApp } from "./server/configure-app";
 export { PING_PATH } from "./server/constants";

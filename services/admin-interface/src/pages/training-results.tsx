@@ -166,6 +166,26 @@ function TrainingResultDrawer({
 	);
 }
 
+function TrainingActions({ onRefresh }: { onRefresh: () => void }) {
+	return (
+		<Box sx={{ display: "flex", gap: 1 }}>
+			<Button
+				variant="outlined"
+				startIcon={<RefreshIcon />}
+				onClick={onRefresh}
+			>
+				Refresh
+			</Button>
+			<Button variant="contained" color="success" startIcon={<PlayArrowIcon />}>
+				Start Training
+			</Button>
+			<Button variant="contained" color="error" startIcon={<StopIcon />}>
+				Stop
+			</Button>
+		</Box>
+	);
+}
+
 function TrainingPageHeader({ onRefresh }: { onRefresh: () => void }) {
 	return (
 		<Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
@@ -177,25 +197,7 @@ function TrainingPageHeader({ onRefresh }: { onRefresh: () => void }) {
 					Monitor and analyze genetic algorithm performance.
 				</Typography>
 			</Box>
-			<Box sx={{ display: "flex", gap: 1 }}>
-				<Button
-					variant="outlined"
-					startIcon={<RefreshIcon />}
-					onClick={onRefresh}
-				>
-					Refresh
-				</Button>
-				<Button
-					variant="contained"
-					color="success"
-					startIcon={<PlayArrowIcon />}
-				>
-					Start Training
-				</Button>
-				<Button variant="contained" color="error" startIcon={<StopIcon />}>
-					Stop
-				</Button>
-			</Box>
+			<TrainingActions onRefresh={onRefresh} />
 		</Box>
 	);
 }

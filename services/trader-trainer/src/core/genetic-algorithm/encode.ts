@@ -61,16 +61,16 @@ function _encodeSingleLayer(
 	base: number,
 	layer: Genome["network"]["hiddenLayers"][number]
 ): void {
-	vec.data[base] = layer.neurons / 512;
+	vec.setAt(base, layer.neurons / 512);
 
 	const actIdx = ACTIVATIONS.indexOf(layer.activation);
 	if (actIdx >= 0) {
-		vec.data[base + 1 + actIdx] = 1;
+		vec.setAt(base + 1 + actIdx, 1);
 	}
 
 	const ctIdx = CONNECTION_TYPES.indexOf(layer.connectionType);
 	if (ctIdx >= 0) {
-		vec.data[base + 1 + N_ACT + ctIdx] = 1;
+		vec.setAt(base + 1 + N_ACT + ctIdx, 1);
 	}
 }
 
@@ -96,7 +96,7 @@ export function encodePopulation(population: Genome[]): Float32Array {
 	const length = population.length;
 	const mat = new Float32Array(length * ENCODED_DIM);
 	for (let i = 0; i < length; i++) {
-		mat.set(encodeGenome(population[i]).data, i * ENCODED_DIM);
+		mat.set(encodeGenome(population[i]).toFloat32Array(), i * ENCODED_DIM);
 	}
 	return mat;
 }

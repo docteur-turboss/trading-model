@@ -25,4 +25,4 @@ const TRADER_TRAINER_ENV_SCHEMA = BaseEnvSchema.merge(
 
 export type Env = z.infer<typeof TRADER_TRAINER_ENV_SCHEMA>;
 
-export const env = validateEnv(TRADER_TRAINER_ENV_SCHEMA);
+export const ENV = validateEnv(TRADER_TRAINER_ENV_SCHEMA);

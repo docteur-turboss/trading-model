@@ -19,60 +19,46 @@ export interface AuditEvent {
 	severity: "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 }
 
-class AuditClientManager {
-	private _httpClient: HttpClient | null = null;
-	private _resolveHttpClientPromise: Promise<void> | null = null;
-	private _auditLoggerUrl: string | null = null;
-	private _resolveAuditUrlPromise: Promise<void> | null = null;
+class LazyHttpClient {
+	private _client: HttpClient | null = null;
 
-	async getHttpClient(): Promise<HttpClient> {
-		if (this._httpClient) {
-			return this._httpClient;
+	get(): Promise<HttpClient> {
+		if (!this._client) {
+			this._client = new HttpClient({
+				ca: ENV.TLS_CA_PATH,
+				cert: ENV.TLS_CERT_PATH,
+				key: ENV.TLS_KEY_PATH,
+			});
 		}
-		if (this._resolveHttpClientPromise) {
-			await this._resolveHttpClientPromise;
-			return this._httpClient!;
-		}
+		return Promise.resolve(this._client);
+	}
+}
 
-		this._resolveHttpClientPromise = this._resolveHttpClient();
-		await this._resolveHttpClientPromise;
-		return this._httpClient!;
+class AuditUrlResolver {
+	private _urlPromise: Promise<string | null> | null = null;
+
+	resolve(): Promise<string | null> {
+		if (!this._urlPromise) {
+			this._urlPromise = this._resolveUrl();
+		}
+		return this._urlPromise;
 	}
 
-	private async _resolveHttpClient(): Promise<void> {
-		this._httpClient = new HttpClient({
-			ca: ENV.TLS_CA_PATH,
-			cert: ENV.TLS_CERT_PATH,
-			key: ENV.TLS_KEY_PATH,
-		});
-	}
-
-	async resolveAuditLoggerUrl(): Promise<string | null> {
-		if (this._resolveAuditUrlPromise) {
-			await this._resolveAuditUrlPromise;
-			return this._auditLoggerUrl;
-		}
-
-		this._resolveAuditUrlPromise = this._resolveUrl();
-		await this._resolveAuditUrlPromise;
-		return this._auditLoggerUrl;
-	}
-
-	private async _resolveUrl(): Promise<void> {
+	private async _resolveUrl(): Promise<string | null> {
 		try {
 			const target = await findAService(ServiceInstanceName.AuditLoggerService);
 			if (target) {
-				this._auditLoggerUrl = `https://${target.ip}:${target.port}`;
-				return;
+				return `https://${target.ip}:${target.port}`;
 			}
 		} catch {
 			logger.warn("Cannot resolve audit-logger URL via address-manager");
 		}
-		this._auditLoggerUrl = null;
+		return null;
 	}
 }
 
-const auditClientManager = new AuditClientManager();
+const httpClient = new LazyHttpClient();
+const urlResolver = new AuditUrlResolver();
 
 const auditCircuitBreaker = new MessageManagerCircuitBreaker({
 	failureThreshold: 10,
@@ -96,11 +82,11 @@ export async function notifyAudit(event: AuditEvent): Promise<void> {
 }
 
 async function _sendAuditEvent(event: AuditEvent): Promise<void> {
-	const url = await auditClientManager.resolveAuditLoggerUrl();
+	const url = await urlResolver.resolve();
 	if (!url) {
 		return;
 	}
-	const client = await auditClientManager.getHttpClient();
+	const client = await httpClient.get();
 	await client.post(`${url}/audit`, event, {
 		timeoutMs: 5000,
 		serviceName: ServiceInstanceName.AuditLoggerService,

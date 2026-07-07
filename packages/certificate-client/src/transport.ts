@@ -23,19 +23,12 @@ export interface TransportConfig {
 	bootstrapToken?: string;
 }
 
-export class TransportManager {
-	private readonly _config: TransportConfig;
+class WssFallbackStrategy {
 	private _mode: TransportMode;
 	private _wssTransport: CaWssTransport | NullCaWssTransport;
-	private readonly _httpsClient: CaClient;
 	private _unauthRejects = 0;
 
 	constructor(config: TransportConfig) {
-		this._config = config;
-		this._httpsClient = new CaClient({
-			baseUrl: config.caUrl,
-			tls: config.tls,
-		});
 		if (config.forceHttps) {
 			this._mode = "https";
 			this._wssTransport = new NullCaWssTransport();
@@ -49,19 +42,13 @@ export class TransportManager {
 		}
 	}
 
-	private _buildWsUrl(caUrl: string): string {
-		return caUrl
-			.replace(/\/+$/, "")
-			.replace(/^https:/, "wss:")
-			.replace(/^http:/, "ws:");
-	}
-
 	get currentMode(): TransportMode {
 		return this._mode;
 	}
 
 	async signCertificate(
-		request: SignCertificateRequest
+		request: SignCertificateRequest,
+		httpsClient: CaClient
 	): Promise<SignCertificateResponse> {
 		if (this._mode === "wss" && this._wssTransport.isConnected) {
 			if (!this._wssTransport.isAuthSent) {
@@ -71,7 +58,7 @@ export class TransportManager {
 						"WSS not authenticated after 3 attempts, falling back to HTTPS"
 					);
 					this._mode = "https";
-					return this._httpsClient.signCertificate(request);
+					return httpsClient.signCertificate(request);
 				}
 			}
 			try {
@@ -80,7 +67,41 @@ export class TransportManager {
 				logger.error("WSS sign failed, falling back to HTTPS", { err });
 			}
 		}
-		return this._httpsClient.signCertificate(request);
+		return httpsClient.signCertificate(request);
+	}
+
+	disconnect(): void {
+		this._wssTransport.disconnect();
+	}
+
+	private _buildWsUrl(caUrl: string): string {
+		return caUrl
+			.replace(/\/+$/, "")
+			.replace(/^https:/, "wss:")
+			.replace(/^http:/, "ws:");
+	}
+}
+
+export class TransportManager {
+	private readonly _httpsClient: CaClient;
+	private readonly _strategy: WssFallbackStrategy;
+
+	constructor(config: TransportConfig) {
+		this._httpsClient = new CaClient({
+			baseUrl: config.caUrl,
+			tls: config.tls,
+		});
+		this._strategy = new WssFallbackStrategy(config);
+	}
+
+	get currentMode(): TransportMode {
+		return this._strategy.currentMode;
+	}
+
+	signCertificate(
+		request: SignCertificateRequest
+	): Promise<SignCertificateResponse> {
+		return this._strategy.signCertificate(request, this._httpsClient);
 	}
 
 	async getCertificate(
@@ -107,7 +128,7 @@ export class TransportManager {
 	}
 
 	disconnect(): void {
-		this._wssTransport.disconnect();
+		this._strategy.disconnect();
 	}
 
 	/** @deprecated Use {@link disconnect()} instead */

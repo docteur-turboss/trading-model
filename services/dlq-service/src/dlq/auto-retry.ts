@@ -9,7 +9,7 @@ import { dlqClaimManager } from "./claim-manager";
 import { doReplayBatch } from "./replay-pipeline";
 import { dlqRepository } from "./repository";
 import { dlqRetryManager } from "./retry-manager";
-import { isShuttingDown } from "./shared/index";
+import { isShuttingDown } from "./shared/shutdown-flag";
 
 export async function handleAbandonedEntries(source: string): Promise<void> {
 	const abandoned = await dlqRetryManager.abandonExhaustedEntries();

@@ -25,11 +25,12 @@ type LimitFunction = <TArgs extends unknown[], TResult>(
 ) => Promise<TResult>;
 
 import type { CandleInterval } from "@trading-model/common/config/event.types";
+import type { TradingSymbol } from "@trading-model/common/domain/primitives";
 
 /** Configuration for scheduling a BinanceCronOrchestrator instance. */
 export interface CronConfig {
-	schedule: string; // e.g. "*/1 * * * *"
-	symbols: string[];
+	schedule: string;
+	symbols: TradingSymbol[];
 	maxConcurrency?: number;
 	candleInterval?: CandleInterval;
 }

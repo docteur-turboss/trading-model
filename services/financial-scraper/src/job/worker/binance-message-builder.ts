@@ -14,7 +14,7 @@ import {
 } from "@trading-model/common/domain/primitives";
 import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 
-import { env } from "../../config/env";
+import { ENV } from "../../config/env";
 
 export interface MarketDataEntry {
 	data: unknown;
@@ -33,8 +33,8 @@ export function makeEntry(
 export function buildAuthContext(): AuthContext {
 	return {
 		roles: ["Data", "Financial", "Scraper"],
-		subject: env.SERVICE_NAME,
-		tenantId: env.INSTANCE_ID,
+		subject: ENV.SERVICE_NAME,
+		tenantId: ENV.INSTANCE_ID,
 	};
 }
 
@@ -66,7 +66,7 @@ export function buildPublisher(): {
 	serviceName: ServiceId;
 } {
 	return {
-		instanceId: toInstanceId(env.INSTANCE_ID),
-		serviceName: toServiceId(env.SERVICE_NAME),
+		instanceId: toInstanceId(ENV.INSTANCE_ID),
+		serviceName: toServiceId(ENV.SERVICE_NAME),
 	};
 }
