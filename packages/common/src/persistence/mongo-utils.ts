@@ -17,7 +17,9 @@ export const DEFAULT_MONGO_POOL_OPTIONS: MongoPoolOptions = {
 };
 
 export function resolvePoolSize(poolSizeParam?: number): number {
-	return poolSizeParam ?? Number.parseInt(process.env.MONGO_POOL_SIZE ?? "50", 10);
+	return (
+		poolSizeParam ?? Number.parseInt(process.env.MONGO_POOL_SIZE ?? "50", 10)
+	);
 }
 
 export function createPoolOptions(poolSize: number): MongoPoolOptions {

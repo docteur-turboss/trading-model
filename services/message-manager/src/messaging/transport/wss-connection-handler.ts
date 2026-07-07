@@ -22,7 +22,10 @@ interface CloseHandlerContext {
 }
 
 interface WssServerLike {
-	on(event: "connection", listener: (ws: WebSocket, req: IncomingMessage) => void): void;
+	on(
+		event: "connection",
+		listener: (ws: WebSocket, req: IncomingMessage) => void
+	): void;
 	close(callback?: () => void): void;
 }
 

@@ -16,12 +16,14 @@ export class WssClient {
 	private readonly _queue: PendingPublishQueue;
 	private readonly _publisher: WssPublisher;
 
-	constructor(config: WssClientConfig & {
-		httpFallback?: (
-			payload: unknown,
-			metadata: MessageMetadata
-		) => Promise<void>;
-	}) {
+	constructor(
+		config: WssClientConfig & {
+			httpFallback?: (
+				payload: unknown,
+				metadata: MessageMetadata
+			) => Promise<void>;
+		}
+	) {
 		this._queue = new PendingPublishQueue(config.httpFallback);
 		this._dispatcher = new WssMessageDispatcher();
 		this._orchestrator = new WssConnectionOrchestrator(

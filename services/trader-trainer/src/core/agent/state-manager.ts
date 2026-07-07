@@ -1,10 +1,7 @@
 import type { NeuralNetwork } from "../neural-network/neural-network";
 
 interface GenomeTarget {
-	nn: Pick<
-		NeuralNetwork,
-		"setWeights" | "distributeAroundWeights"
-	>;
+	nn: Pick<NeuralNetwork, "setWeights" | "distributeAroundWeights">;
 }
 
 /** Configuration for epsilon-greedy exploration decay and discount factor. */

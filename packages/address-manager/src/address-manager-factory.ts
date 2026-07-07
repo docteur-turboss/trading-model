@@ -7,10 +7,6 @@ import { AddressManagerClient } from "./client/address-manager-client";
 import { TokenManager } from "./client/token-manager";
 import { WebSocketClient, type WsMessage } from "./client/websocket-client";
 import type { AddressManagerConfig } from "./config/address-manager-config";
-import type {
-	AddressManagerDeps,
-	ShutdownHandlerDeps,
-} from "./types";
 import { CircuitBreaker } from "./discovery/circuit-breaker";
 import { DiscoveryOrchestrator } from "./discovery/discovery-orchestrator";
 import { MapResolver } from "./discovery/dns-resolver";
@@ -26,6 +22,7 @@ import { HEARTBEAT_TOTAL, REGISTRATION_TOTAL } from "./metrics";
 import { MetricsCollector } from "./monitoring/metrics-collector";
 import { RegistrationManager } from "./registration-manager";
 import { ShutdownHandler } from "./shutdown-handler";
+import type { AddressManagerDeps, ShutdownHandlerDeps } from "./types";
 
 export interface AddressManagerDependencies {
 	tokenManager: TokenManager;
@@ -114,9 +111,7 @@ function _buildRegistrationManager(
 	});
 }
 
-function _buildHeartbeatManager(
-	deps: AddressManagerDeps
-): HeartbeatManager {
+function _buildHeartbeatManager(deps: AddressManagerDeps): HeartbeatManager {
 	return new HeartbeatManager({
 		...deps,
 		onSuccess: () => HEARTBEAT_TOTAL.inc({ result: "success" }),
@@ -124,9 +119,7 @@ function _buildHeartbeatManager(
 	});
 }
 
-function createRegistrationAndHeartbeat(
-	deps: AddressManagerDeps
-): {
+function createRegistrationAndHeartbeat(deps: AddressManagerDeps): {
 	registrationManager: RegistrationManager;
 	heartbeatManager: HeartbeatManager;
 } {

@@ -1,15 +1,13 @@
 import type { ServiceInstance } from "@trading-model/common/contracts/service-registry.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
-import { RedisInstanceStore } from "./redis-instance-store";
 import type { RedisDeps } from "./redis-deps";
+import { RedisInstanceStore } from "./redis-instance-store";
 
 export class RedisInstanceRepository {
 	private readonly _store: RedisInstanceStore;
 	private readonly _deps: RedisDeps;
 
-	constructor(
-		deps: RedisDeps
-	) {
+	constructor(deps: RedisDeps) {
 		this._deps = deps;
 		this._store = new RedisInstanceStore(deps);
 	}
@@ -32,7 +30,9 @@ export class RedisInstanceRepository {
 			return [];
 		}
 
-		const keys = instanceIds.map((id) => this._deps.keyBuilder.instanceMetadata(id));
+		const keys = instanceIds.map((id) =>
+			this._deps.keyBuilder.instanceMetadata(id)
+		);
 		return this._store.getMetadatas(keys);
 	}
 

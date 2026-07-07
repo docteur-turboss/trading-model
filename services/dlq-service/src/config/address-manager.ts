@@ -7,4 +7,3 @@ const addressManager = createAddressManager(ENV);
 const findAService = addressManager.findService.bind(addressManager);
 
 export { addressManager as AddressManager, findAService };
-

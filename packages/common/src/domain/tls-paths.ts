@@ -12,8 +12,6 @@ export interface TlsPemBundle {
 	ca: string;
 }
 
-
-
 /**
  * Build a TlsPaths object from an env dictionary that contains
  * TLS_CERT_PATH, TLS_KEY_PATH, and TLS_CA_PATH keys.

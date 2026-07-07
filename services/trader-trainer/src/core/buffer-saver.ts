@@ -3,8 +3,12 @@ import { join } from "node:path";
 import { logger } from "@trading-model/common/config/logger";
 import type { TradingSymbol } from "@trading-model/common/domain/primitives";
 import type { SymbolStateSerializable } from "./buffer-serializable-types";
+import {
+	createDefaultHandlers,
+	type DataHandler,
+	serializeAllNorms,
+} from "./data-handlers/data-handler";
 import type { MarketDataBuffer } from "./market-data-buffer";
-import { createDefaultHandlers, serializeAllNorms, type DataHandler } from "./data-handlers/data-handler";
 
 export class BufferSaver {
 	private readonly _handlers: DataHandler[];

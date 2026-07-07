@@ -27,11 +27,12 @@ export class WssReconnector implements IWsReconnector {
 		return this._manager.reconnectState;
 	}
 
-	scheduleReconnect(
-		connectFn: ConnectFn,
-		onPermanentFallback?: () => void
-	): void {
-		this._manager.scheduleReconnect(connectFn, onPermanentFallback);
+	setOnPermanentFallback(cb: () => void): void {
+		this._manager.setOnPermanentFallback(cb);
+	}
+
+	scheduleReconnect(connectFn?: () => void): void {
+		this._manager.scheduleReconnect(connectFn);
 	}
 
 	/**

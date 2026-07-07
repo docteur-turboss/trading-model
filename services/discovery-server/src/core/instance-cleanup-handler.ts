@@ -1,16 +1,17 @@
 import type { RedisDepsWithoutToken } from "./redis-deps";
 
 export class InstanceCleanupHandler {
-	constructor(
-		private readonly _deps: RedisDepsWithoutToken
-	) {}
+	constructor(private readonly _deps: RedisDepsWithoutToken) {}
 
 	async removeInstanceSetAndMetadata(
 		serviceName: string,
 		instanceId: string
 	): Promise<boolean> {
 		const multi = this._deps.redis.multi();
-		multi.srem(this._deps.keyBuilder.serviceInstancesSet(serviceName), instanceId);
+		multi.srem(
+			this._deps.keyBuilder.serviceInstancesSet(serviceName),
+			instanceId
+		);
 		multi.del(this._deps.keyBuilder.instanceMetadata(instanceId));
 		multi.del(this._deps.keyBuilder.instanceToken(instanceId));
 		multi.del(this._deps.keyBuilder.instanceUpdatedBy(instanceId));

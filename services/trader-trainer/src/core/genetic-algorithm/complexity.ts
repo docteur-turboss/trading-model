@@ -1,13 +1,5 @@
-// ================================================================
-//        network complexity scoring & topology constraints
-// ================================================================
-
 import { ConnectionType } from "../neural-network/type";
 import type { Genome, NetworkGenome } from "./genome-types";
-
-// ----------------------------------------------------------------
-// Topology constraints (configurable per experiment)
-// ----------------------------------------------------------------
 
 /** Bounds that define how complex a network topology is allowed to be. */
 export interface TopologyConstraints {
@@ -31,10 +23,6 @@ export const DEFAULT_TOPOLOGY_CONSTRAINTS: TopologyConstraints = {
 	skipConnectionsFromLayer1Only: false,
 	minNeuronsPerLayer: 1,
 };
-
-// ----------------------------------------------------------------
-// Parameter counting
-// ----------------------------------------------------------------
 
 /** Count total trainable parameters (weights + biases) in a network topology. */
 export function countParams(net: NetworkGenome): number {
@@ -77,10 +65,6 @@ function _countLastHiddenToOutput(
 	return layers[layers.length - 1].neurons * outputDim + outputDim;
 }
 
-// ----------------------------------------------------------------
-// Complexity score  ∈ [0, ∞)
-// ----------------------------------------------------------------
-
 /**
  * Returns a scalar representing architectural complexity.
  * Higher = more complex = higher penalty.
@@ -99,10 +83,6 @@ export function complexityScore(
 	const depth = genome.network.hiddenLayers.length;
 	return Math.log1p(params) * (1 + depth / Math.max(1, constraints.maxDepth));
 }
-
-// ----------------------------------------------------------------
-// Topology violation report
-// ----------------------------------------------------------------
 
 /** Describes a single topology constraint that a network violates. */
 export interface TopologyViolation {
@@ -220,10 +200,6 @@ export function checkTopologyConstraints(
 
 	return violations;
 }
-
-// ----------------------------------------------------------------
-// Penalised fitness
-// ----------------------------------------------------------------
 
 export interface PenalisedFitnessOptions {
 	rawFitness: number;

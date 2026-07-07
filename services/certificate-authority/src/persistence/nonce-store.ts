@@ -67,7 +67,7 @@ export class NonceStore {
 		try {
 			await this._persister.persist(context, entry.createdAt);
 		} catch {
-			// fallback to memory-only for this nonce
+			logger.debug("Nonce persist failed, using memory-only fallback");
 		}
 		this._l1.set(nonce, entry);
 		return nonce;

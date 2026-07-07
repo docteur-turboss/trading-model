@@ -45,7 +45,10 @@ export function handleWsClose(
 	clearRateLimiterKey(limiterKey);
 }
 
-export function handleWsError(err: Error, clientIdentity: string | undefined): void {
+export function handleWsError(
+	err: Error,
+	clientIdentity: string | undefined
+): void {
 	logger.error("WSS connection error", {
 		context: {
 			err: err.message,
@@ -54,7 +57,13 @@ export function handleWsError(err: Error, clientIdentity: string | undefined): v
 	});
 }
 
-export function attachWsServer(httpsServer: https.Server, onConnection: (ws: WebSocket, req: import("node:http").IncomingMessage) => void): WebSocketServer {
+export function attachWsServer(
+	httpsServer: https.Server,
+	onConnection: (
+		ws: WebSocket,
+		req: import("node:http").IncomingMessage
+	) => void
+): WebSocketServer {
 	const wss = new WebSocketServer({ server: httpsServer });
 	wss.on("connection", onConnection);
 	logger.info("WebSocket server attached to HTTPS server");

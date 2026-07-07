@@ -3,6 +3,7 @@ import type { Distributor } from "../core/distributor";
 import type { CaStore } from "../persistence/ca-store";
 import type { CertificateStore } from "../persistence/certificate-store";
 import type { CrlStore } from "../persistence/crl-store";
+import { MONGO_MANAGER } from "../persistence/mongo-manager";
 
 export class Container {
 	constructor(
@@ -14,8 +15,6 @@ export class Container {
 	) {}
 
 	async disconnectAll(): Promise<void> {
-		await this.certificateStore.disconnect();
-		await this.crlStore.disconnect();
-		await this.caStore.disconnect();
+		await MONGO_MANAGER.close();
 	}
 }

@@ -143,7 +143,7 @@ export class RedisServiceCache implements IServiceCache {
 		try {
 			this._redis.disconnect();
 		} catch {
-			/* ignore */
+			logger.debug("Redis disconnect error (best-effort)");
 		}
 	}
 }

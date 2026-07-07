@@ -6,9 +6,7 @@ export interface CertificateValidationInput {
 }
 
 /** Clears any cached validation results. */
-export function clearValidationCache(): void {
-	// no-op: validation cache is managed by consumers
-}
+export function clearValidationCache(): void {}
 
 export interface ValidationResult {
 	valid: boolean;

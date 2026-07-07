@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import type { TlsPemBundle, TlsPaths } from "../domain/tls-paths";
+import type { TlsPaths, TlsPemBundle } from "../domain/tls-paths";
 import { isServiceCircuitOpen } from "./http-circuit-breaker";
 import { HttpClientError, HttpClientTimeoutError } from "./http-client-errors";
 import {

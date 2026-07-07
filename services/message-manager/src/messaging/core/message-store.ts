@@ -3,6 +3,7 @@ import { ENV } from "../../config/env";
 import { MemoryWalBuffer } from "./memory-wal-buffer";
 import { MessageRoutingFacade } from "./message-routing-facade";
 import { MessageStreamWriter } from "./message-stream-writer";
+import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 import { WalFlusherService } from "./wal-flusher-service";
 
 export class MessageStore {
@@ -47,8 +48,8 @@ export class MessageStore {
 		);
 	}
 
-	async ensureConsumerGroup(topic: string, groupName: string): Promise<void> {
-		await this._routingFacade.ensureConsumerGroup(topic, groupName);
+	async ensureConsumerGroup(ref: StreamGroupRef): Promise<void> {
+		await this._routingFacade.ensureConsumerGroup(ref);
 	}
 
 	async readFromGroup(
@@ -57,24 +58,16 @@ export class MessageStore {
 		return this._routingFacade.readFromGroup(params);
 	}
 
-	async ackMessage(
-		topic: string,
-		groupName: string,
-		messageId: string
-	): Promise<void> {
-		await this._routingFacade.ackMessage(topic, groupName, messageId);
+	async ackMessage(ref: AckRef): Promise<void> {
+		await this._routingFacade.ackMessage(ref);
 	}
 
-	async getPendingCount(topic: string, groupName: string): Promise<number> {
-		return this._routingFacade.getPendingCount(topic, groupName);
+	async getPendingCount(ref: StreamGroupRef): Promise<number> {
+		return this._routingFacade.getPendingCount(ref);
 	}
 
-	async getMessagesAfter(
-		topic: string,
-		afterTimestamp: number,
-		limit = 100
-	): Promise<Message[]> {
-		return this._routingFacade.getMessagesAfter(topic, afterTimestamp, limit);
+	async getMessagesAfter(query: MessageQuery): Promise<Message[]> {
+		return this._routingFacade.getMessagesAfter(query);
 	}
 
 	async getMessagesBetween(
@@ -112,8 +105,8 @@ export class MessageStore {
 		return this._routingFacade.getPendingAcks(instanceId);
 	}
 
-	async getStreamLag(topic: string, groupName: string): Promise<number> {
-		return this._routingFacade.getStreamLag(topic, groupName);
+	async getStreamLag(ref: StreamGroupRef): Promise<number> {
+		return this._routingFacade.getStreamLag(ref);
 	}
 
 	async tryDeduplicate(

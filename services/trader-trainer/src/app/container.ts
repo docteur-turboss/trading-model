@@ -4,16 +4,16 @@ import {
 } from "@trading-model/common/config/event.types";
 import type { Price } from "@trading-model/common/domain/primitives";
 import {
+	createDefaultHandlers,
+	type DataHandler,
+} from "../core/data-handlers/data-handler";
+import {
 	MarketDataBuffer,
 	type MarketDataBufferConfig,
 } from "../core/market-data-buffer";
 import type { TradingSymbol } from "../core/market-data-types";
 import { Trainer } from "../core/trainer";
 import { TrainingLoop } from "./training-loop";
-import {
-	createDefaultHandlers,
-	type DataHandler,
-} from "../core/data-handlers/data-handler";
 
 const EVENT_TO_HANDLER: Record<string, string> = {
 	[EnumEventMessage.fetchCandlestickSeries]: "candle",
@@ -54,7 +54,11 @@ export class ApplicationContainer {
 		this._trainingLoop = new TrainingLoop(this.trainer, this.dataBuffer);
 	}
 
-	private _addDataForSymbol(dataType: string, data: unknown[], symbol: TradingSymbol): void {
+	private _addDataForSymbol(
+		dataType: string,
+		data: unknown[],
+		symbol: TradingSymbol
+	): void {
 		for (const item of data) {
 			this.dataBuffer.addData(dataType, symbol, item);
 		}
@@ -78,7 +82,11 @@ export class ApplicationContainer {
 		orderBook: import("@trading-model/common/config/event.types").OrderBookData[];
 	}): void {
 		if (!data?.orderBook?.length) return;
-		this.dataBuffer.addData("orderBook", data.orderBook[0].symbol, data.orderBook[0]);
+		this.dataBuffer.addData(
+			"orderBook",
+			data.orderBook[0].symbol,
+			data.orderBook[0]
+		);
 	}
 
 	onOrderBookTickerSnapshot(data: {

@@ -6,8 +6,8 @@ import {
 import { selectTickerBy } from "../../infra/market-data/schema/ticker24h.schema";
 import {
 	createController,
-	SYMBOL_SCHEMA,
 	SOURCE_SCHEMA,
+	SYMBOL_SCHEMA,
 	TIMESTAMP_SCHEMA,
 } from "./controller-utils";
 

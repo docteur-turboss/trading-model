@@ -24,7 +24,9 @@ describe("handleCoreResponse", () => {
 
 	describe("handleCoreResponse", () => {
 		it("should format and send a success response", async () => {
-			const coreFn = jest.fn<any>().mockResolvedValue({ data: "data", code: "success" });
+			const coreFn = jest
+				.fn<any>()
+				.mockResolvedValue({ data: "data", code: "success" });
 
 			await handleCoreResponse(coreFn, res);
 

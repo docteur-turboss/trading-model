@@ -1,6 +1,9 @@
 import { logger } from "@trading-model/common/config/logger";
+import {
+	type ServiceIdentity,
+	toServiceIdentityKey,
+} from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { toServiceIdentityKey, type ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { InstanceMetadataReader } from "./instance-metadata-reader";
 import type { RedisDepsWithoutToken } from "./redis-deps";
 

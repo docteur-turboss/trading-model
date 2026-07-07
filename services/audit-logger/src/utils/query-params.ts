@@ -4,9 +4,7 @@ export function parsePageAndLimit(
 	queryParams: Record<string, string | undefined>
 ): { page: number | undefined; limit: number | undefined } {
 	return {
-		page: queryParams.page
-			? Number.parseInt(queryParams.page, 10)
-			: undefined,
+		page: queryParams.page ? Number.parseInt(queryParams.page, 10) : undefined,
 		limit: queryParams.limit
 			? Number.parseInt(queryParams.limit, 10)
 			: undefined,

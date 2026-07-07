@@ -107,17 +107,3 @@ export const selectOrderBookSnapshotsBy = {
 			.executeSelectMany();
 	},
 };
-
-// CREATE TABLE `order_book_snapshots` (
-//     `id`          INT NOT NULL AUTO_INCREMENT,
-//     `symbol`      VARCHAR(32) NOT NULL,
-//     `market`      VARCHAR(16) NOT NULL,
-//     `source`      VARCHAR(32) NOT NULL,
-//     `bids`        JSON NOT NULL,
-//     `asks`        JSON NOT NULL,
-//     `timestamp`   DATETIME(3) NOT NULL,
-//
-//     PRIMARY KEY (`symbol`, `timestamp`),
-//     INDEX `idx_obs_timestamp` (`timestamp` ASC) INVISIBLE,
-//     INDEX `idx_obs_symbol` (`symbol` ASC) VISIBLE)
-// ) ENGINE=InnoDB;

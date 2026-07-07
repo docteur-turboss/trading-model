@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { HttpClient } from "../config/http-client";
+import type { Capability, JobType } from "../domain/primitives";
 import type { TlsPemBundle } from "../domain/tls-paths";
 import { JobAssignmentHandler } from "./job-assignment-handler";
 import { WorkerClient, type WorkerClientConfig } from "./worker-client";
-
-import type { Capability, JobType } from "../domain/primitives";
 
 export interface BaseWorkerConfig {
 	workerId?: string;

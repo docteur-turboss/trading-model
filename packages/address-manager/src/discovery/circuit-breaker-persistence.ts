@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
+import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
-import type { INstanceState } from "./circuit-breaker-state";
 import type { IServiceCache } from "./service-cache.interface";
 
 const DEFAULT_LOAD_CACHE_TTL_MS = 2_000;
@@ -16,7 +16,7 @@ export class CircuitBreakerPersistence {
 
 	async loadFromStore(
 		instanceId: string,
-		instances: Map<string, INstanceState>
+		instances: Map<string, CircuitStateMachine>
 	): Promise<void> {
 		if (this._isCacheValid(instanceId)) {
 			return;
@@ -26,6 +26,22 @@ export class CircuitBreakerPersistence {
 		if (persisted) {
 			this._updateFromPersisted(instanceId, persisted, instances);
 		}
+	}
+
+	persistMachineState(instanceId: string, machine: CircuitStateMachine): void {
+		const state = machine.getState(Date.now());
+		this._stateStore
+			.setCircuitState(instanceId, {
+				failures: machine.failures,
+				lastFailureTime: Date.now(),
+				state,
+			})
+			.catch((err) => {
+				logger.warn("Failed to persist circuit breaker state", {
+					instanceId,
+					error: normalizeError(err),
+				});
+			});
 	}
 
 	private _isCacheValid(instanceId: string): boolean {
@@ -39,31 +55,19 @@ export class CircuitBreakerPersistence {
 	private _updateFromPersisted(
 		instanceId: string,
 		persisted: { failures: number; lastFailureTime: number; state: string },
-		instances: Map<string, INstanceState>
+		instances: Map<string, CircuitStateMachine>
 	): void {
 		const existing = instances.get(instanceId);
-		if (!existing || persisted.lastFailureTime > existing.lastFailureTime) {
-			instances.set(instanceId, {
-				failures: persisted.failures,
-				lastFailureTime: persisted.lastFailureTime,
-				state: persisted.state as INstanceState["state"],
+		if (!existing || persisted.lastFailureTime > Date.now()) {
+			const machine = new CircuitStateMachine({
+				failureThreshold: 3,
+				cooldownMs: 10_000,
 			});
+			for (let i = 0; i < persisted.failures; i++) {
+				machine.recordFailure(Date.now());
+			}
+			instances.set(instanceId, machine);
 		}
-	}
-
-	persistState(instanceId: string, state: INstanceState): void {
-		this._stateStore
-			.setCircuitState(instanceId, {
-				failures: state.failures,
-				lastFailureTime: state.lastFailureTime,
-				state: state.state,
-			})
-			.catch((err) => {
-				logger.warn("Failed to persist circuit breaker state", {
-					instanceId,
-					error: normalizeError(err),
-				});
-			});
 	}
 
 	deletePersistedState(instanceId: string): void {
@@ -75,7 +79,7 @@ export class CircuitBreakerPersistence {
 		});
 	}
 
-	clearPersistedStates(instances: Map<string, INstanceState>): void {
+	clearPersistedStates(instances: Map<string, CircuitStateMachine>): void {
 		for (const instanceId of instances.keys()) {
 			this.deletePersistedState(instanceId);
 		}

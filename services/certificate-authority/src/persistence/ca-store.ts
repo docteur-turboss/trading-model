@@ -1,26 +1,21 @@
 import type { CaMetadata } from "@trading-model/certificate-utils/types";
-import { type Collection, MongoClient } from "mongodb";
+import type { Collection } from "mongodb";
+import { MONGO_MANAGER } from "./mongo-manager";
 
 export class CaStore {
-	private readonly _client: MongoClient;
 	private readonly _collection: Collection;
 
-	private constructor(client: MongoClient, collection: Collection) {
-		this._client = client;
+	private constructor(collection: Collection) {
 		this._collection = collection;
 	}
 
-	static async connect(uri: string): Promise<CaStore> {
-		const client = new MongoClient(uri);
-		await client.connect();
-		const db = client.db();
+	static async connect(_uri?: string): Promise<CaStore> {
+		const db = MONGO_MANAGER.getDb();
 		const collection = db.collection("ca_store");
-		return new CaStore(client, collection);
+		return new CaStore(collection);
 	}
 
-	async disconnect(): Promise<void> {
-		await this._client.close();
-	}
+	async disconnect(): Promise<void> {}
 
 	async save(metadata: CaMetadata): Promise<void> {
 		await this._collection.insertOne(metadata);

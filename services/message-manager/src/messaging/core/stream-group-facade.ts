@@ -1,4 +1,5 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
+import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 import type {
 	GetMessagesBetweenParams,
 	ReadFromGroupParams,
@@ -12,8 +13,8 @@ export class StreamGroupFacade {
 		this._streamGroupManager = new StreamGroupManager(prefix);
 	}
 
-	async ensureConsumerGroup(topic: string, groupName: string): Promise<void> {
-		await this._streamGroupManager.ensureConsumerGroup(topic, groupName);
+	async ensureConsumerGroup(ref: StreamGroupRef): Promise<void> {
+		await this._streamGroupManager.ensureConsumerGroup(ref);
 	}
 
 	async readFromGroup(
@@ -22,28 +23,16 @@ export class StreamGroupFacade {
 		return this._streamGroupManager.readFromGroup(params);
 	}
 
-	async ackMessage(
-		topic: string,
-		groupName: string,
-		messageId: string
-	): Promise<void> {
-		await this._streamGroupManager.ackMessage(topic, groupName, messageId);
+	async ackMessage(ref: AckRef): Promise<void> {
+		await this._streamGroupManager.ackMessage(ref);
 	}
 
-	async getPendingCount(topic: string, groupName: string): Promise<number> {
-		return this._streamGroupManager.getPendingCount(topic, groupName);
+	async getPendingCount(ref: StreamGroupRef): Promise<number> {
+		return this._streamGroupManager.getPendingCount(ref);
 	}
 
-	async getMessagesAfter(
-		topic: string,
-		afterTimestamp: number,
-		limit = 100
-	): Promise<Message[]> {
-		return this._streamGroupManager.getMessagesAfter(
-			topic,
-			afterTimestamp,
-			limit
-		);
+	async getMessagesAfter(query: MessageQuery): Promise<Message[]> {
+		return this._streamGroupManager.getMessagesAfter(query);
 	}
 
 	async getMessagesBetween(
@@ -52,7 +41,7 @@ export class StreamGroupFacade {
 		return this._streamGroupManager.getMessagesBetween(params);
 	}
 
-	async getStreamLag(topic: string, groupName: string): Promise<number> {
-		return this._streamGroupManager.getStreamLag(topic, groupName);
+	async getStreamLag(ref: StreamGroupRef): Promise<number> {
+		return this._streamGroupManager.getStreamLag(ref);
 	}
 }

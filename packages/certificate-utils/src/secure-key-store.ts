@@ -14,7 +14,6 @@
  *   store.destroy();            // zeroes the buffer
  */
 
-// Track all created stores for cleanup on process exit
 const STORES = new Set<SecureKeyStore>();
 
 function globalCleanup(): void {
@@ -22,7 +21,7 @@ function globalCleanup(): void {
 		try {
 			store.destroy();
 		} catch {
-			/* cleanup */
+			// cleanup
 		}
 	}
 	STORES.clear();
@@ -31,8 +30,6 @@ function globalCleanup(): void {
 process.once("exit", globalCleanup);
 process.once("SIGINT", globalCleanup);
 process.once("SIGTERM", globalCleanup);
-// Zero keys before heap dump to prevent capture via --heapsnapshot
-// Save and chain any existing handler to avoid replacing it
 const PREV_SIG_USR2 = process.listeners("SIGUSR2")[0] as
 	| (() => void)
 	| undefined;

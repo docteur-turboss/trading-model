@@ -16,7 +16,6 @@ const MEM_SOFT_CAP = 200_000_000; // 200 MB
 
 type ActivationName = ActivationType | "linear" | "swish";
 
-// Activation cost multipliers (rough relative cost vs linear)
 const ACT_COST: Record<ActivationName, number> = {
 	[ActivationType.Relu]: 1,
 	[ActivationType.Sigmoid]: 4,

@@ -1,21 +1,9 @@
-// ================================================================
-//                noise samplers for mutation
-// ================================================================
-
 import { MutationDistribution } from "./genome-types";
-
-// ----------------------------------------------------------------
-// Noise sampler interface
-// ----------------------------------------------------------------
 
 export interface NoiseSampler {
 	readonly type: MutationDistribution;
 	sample(rng: () => number, sigma: number): number;
 }
-
-// ----------------------------------------------------------------
-// Sampler implementations
-// ----------------------------------------------------------------
 
 /** Sample from a Gaussian (normal) distribution with mean 0 and given sigma. */
 class GaussianNoiseSampler implements NoiseSampler {
@@ -57,10 +45,6 @@ class LevyNoiseSampler implements NoiseSampler {
 	}
 }
 
-// ----------------------------------------------------------------
-// Singleton instances
-// ----------------------------------------------------------------
-
 export const GAUSSIAN_SAMPLER = new GaussianNoiseSampler();
 export const CAUCHY_SAMPLER = new CauchyNoiseSampler();
 export const UNIFORM_SAMPLER = new UniformNoiseSampler();
@@ -72,10 +56,6 @@ const NOISE_SAMPLERS: Record<MutationDistribution, NoiseSampler> = {
 	[MutationDistribution.Uniform]: UNIFORM_SAMPLER,
 	[MutationDistribution.Levy]: LEVY_SAMPLER,
 };
-
-// ----------------------------------------------------------------
-// Convenience wrappers (backward-compatible API)
-// ----------------------------------------------------------------
 
 /** Sample from a Gaussian (normal) distribution with mean 0 and given sigma. */
 export function sampleGaussian(rng: () => number, sigma: number): number {
@@ -96,10 +76,6 @@ export function sampleUniform(rng: () => number, sigma: number): number {
 export function sampleLevy(rng: () => number, sigma: number): number {
 	return LEVY_SAMPLER.sample(rng, sigma);
 }
-
-// ----------------------------------------------------------------
-// Dispatcher
-// ----------------------------------------------------------------
 
 /** Sample noise from the chosen distribution with the given sigma. */
 export function sampleNoise(

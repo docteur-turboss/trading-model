@@ -89,9 +89,7 @@ export class PendingPublishQueue {
 	}
 
 	private _startFlusher(): void {
-		this._flusherTimer.startInterval(() => {
-			// Flusher is driven externally via flush() calls
-		}, 50);
+		this._flusherTimer.startInterval(() => {}, 50);
 		this._flusherTimer.unref();
 	}
 

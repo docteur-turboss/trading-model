@@ -14,40 +14,42 @@ import type { BinanceWorkerResult } from "../../job/worker/binance.worker";
 import { MarketDataModel } from "./market-data.model";
 
 export const MarketDataController = new (class {
-	/** Persist all normalized market-data entities (candles, trades, order book, ticker) from a worker execution to the database. */
 	async persist(payload: BinanceWorkerResult): Promise<void> {
 		const tasks: Promise<void>[] = [];
 
-		/* ===========================
-		 * Candles
-		 * =========================== */
-		if (payload.candles?.length) {
-			tasks.push(MarketDataModel.insertCandles(payload.candles));
-		}
-
-		/* ===========================
-		 * Trades
-		 * =========================== */
-		if (payload.recentTrades?.length) {
-			tasks.push(MarketDataModel.insertTrades(payload.recentTrades));
-		}
-
-		/* ===========================
-		 * OrderBook
-		 * =========================== */
-		if (payload.orderBook) {
-			tasks.push(MarketDataModel.insertOrderBook(payload.orderBook));
-		}
-
-		// payload.priceTicker
-		// payload.bookTicker
-		/* ===========================
-		 * Ticker
-		 * =========================== */
-		if (payload.ticker24h?.length) {
-			tasks.push(MarketDataModel.insertTicker(payload.ticker24h));
-		}
+		this._pushIfHasData(tasks, payload.candles, MarketDataModel.insertCandles);
+		this._pushIfHasData(
+			tasks,
+			payload.recentTrades,
+			MarketDataModel.insertTrades
+		);
+		this._pushIfDefined(
+			tasks,
+			payload.orderBook,
+			MarketDataModel.insertOrderBook
+		);
+		this._pushIfHasData(tasks, payload.ticker24h, MarketDataModel.insertTicker);
 
 		await Promise.all(tasks);
+	}
+
+	private _pushIfHasData<T>(
+		tasks: Promise<void>[],
+		data: T[] | undefined,
+		insert: (data: T[]) => Promise<void>
+	): void {
+		if (data?.length) {
+			tasks.push(insert(data));
+		}
+	}
+
+	private _pushIfDefined<T>(
+		tasks: Promise<void>[],
+		data: T | undefined,
+		insert: (data: T) => Promise<void>
+	): void {
+		if (data) {
+			tasks.push(insert(data));
+		}
 	}
 })();

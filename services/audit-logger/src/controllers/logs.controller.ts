@@ -3,10 +3,7 @@ import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 
 import type { LogRepository } from "../persistence/log-repository";
-import {
-	parseDateRange,
-	parsePageAndLimit,
-} from "../utils/query-params";
+import { parseDateRange, parsePageAndLimit } from "../utils/query-params";
 
 function _buildLogQueryParams(
 	req: import("express").Request

@@ -1,7 +1,6 @@
+import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import type { Document, Filter } from "mongodb";
 import { ObjectId, type WithId } from "mongodb";
-
-import type { UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { getCollection } from "../config/db";
 import { ENV } from "../config/env";
 import {
@@ -9,6 +8,7 @@ import {
 	DlqEntryWriter,
 	dlqCapacityError,
 } from "./dlq-entry-writer";
+import { pruneEntries } from "./dlq-eviction-policy";
 import { DLQ_STATUS } from "./dlq-status";
 
 export { DlqCapacityError, dlqCapacityError };
@@ -90,7 +90,9 @@ export class DlqQueryBuilder {
 	}
 
 	buildDeleteQuery(ids: string[]): Filter<Document> {
-		const objectIds = ids.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
+		const objectIds = ids
+			.filter((id) => ObjectId.isValid(id))
+			.map((id) => new ObjectId(id));
 		return {
 			_id: { $in: objectIds },
 			processingAt: { $exists: false },
@@ -135,24 +137,7 @@ export class DlqRepository {
 	}
 
 	async prune(maxEntries: number): Promise<number> {
-		const col = await getCollection();
-		const eldest = await col
-			.find(
-				{},
-				{
-					sort: { createdAt: -1 },
-					skip: maxEntries,
-					limit: 1,
-					projection: { createdAt: 1 },
-				}
-			)
-			.toArray();
-		if (eldest.length === 0) return 0;
-		const result = await col.deleteMany({
-			createdAt: { $lt: eldest[0].createdAt },
-			processingAt: { $exists: false },
-		});
-		return result.deletedCount;
+		return pruneEntries(maxEntries);
 	}
 
 	async listQueuable(): Promise<string[]> {
@@ -171,12 +156,9 @@ export class DlqRepository {
 	async listActiveClaimIds(): Promise<string[]> {
 		const col = await getCollection();
 		const query = this._queryBuilder.buildActiveClaimQuery();
-		const docs = await col
-			.find(query, { projection: { _id: 1 } })
-			.toArray();
+		const docs = await col.find(query, { projection: { _id: 1 } }).toArray();
 		return docs.map((doc) => doc._id.toHexString());
 	}
 }
 
 export const dlqRepository = new DlqRepository();
-

@@ -10,40 +10,37 @@ export class MongoLockExecutor {
 	) {}
 
 	async acquire(context: LockContext, ttlMs: number): Promise<number | null> {
-		const { lockName, instanceId } = context;
 		const collection = this._collection();
 		if (!collection) {
 			return null;
 		}
 		try {
-			const now = new Date();
-			const expiresAt = new Date(now.getTime() + ttlMs);
-			const prev = await collection.findOne({ name: lockName });
-			const nextFencingToken = (prev?.fencingToken ?? 0) + 1;
-			const result = await collection.findOneAndUpdate(
-				{
-					name: lockName,
-					$or: [{ expiresAt: { $lt: now } }, { expiresAt: { $exists: false } }],
-				},
-				{
-					$set: {
-						name: lockName,
-						acquiredAt: now,
-						expiresAt,
-						instanceId,
-						fencingToken: nextFencingToken,
-					},
-				},
-				{ upsert: true, returnDocument: "before" }
-			);
-			const acquired =
-				result === null || (result.expiresAt && result.expiresAt < now);
-			return acquired ? nextFencingToken : null;
+			return await this._tryAcquire(collection, context, ttlMs);
 		} catch (err) {
 			logger.warn("MongoDB lock acquire failed", { context: { err } });
 			this._onDisconnect();
 			return null;
 		}
+	}
+
+	private async _tryAcquire(
+		collection: Collection<LockDocument>,
+		context: LockContext,
+		ttlMs: number
+	): Promise<number | null> {
+		const { lockName, instanceId } = context;
+		const now = new Date();
+		const expiresAt = new Date(now.getTime() + ttlMs);
+		const prev = await collection.findOne({ name: lockName });
+		const nextFencingToken = (prev?.fencingToken ?? 0) + 1;
+		const result = await collection.findOneAndUpdate(
+			_buildLockFilter(lockName, now),
+			_buildLockUpdate(lockName, instanceId, now, expiresAt, nextFencingToken),
+			{ upsert: true, returnDocument: "before" }
+		);
+		const acquired =
+			result === null || (result.expiresAt && result.expiresAt < now);
+		return acquired ? nextFencingToken : null;
 	}
 
 	async release(context: LockContext, fencingToken: number): Promise<boolean> {
@@ -89,4 +86,29 @@ export class MongoLockExecutor {
 			return -1;
 		}
 	}
+}
+
+function _buildLockFilter(name: string, now: Date): Record<string, unknown> {
+	return {
+		name,
+		$or: [{ expiresAt: { $lt: now } }, { expiresAt: { $exists: false } }],
+	};
+}
+
+function _buildLockUpdate(
+	name: string,
+	instanceId: string,
+	now: Date,
+	expiresAt: Date,
+	fencingToken: number
+): Record<string, unknown> {
+	return {
+		$set: {
+			name,
+			acquiredAt: now,
+			expiresAt,
+			instanceId,
+			fencingToken,
+		},
+	};
 }

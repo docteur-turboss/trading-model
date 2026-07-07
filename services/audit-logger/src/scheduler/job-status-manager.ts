@@ -1,7 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { JobId } from "@trading-model/common/domain/primitives";
+import { hasExceededMaxRetries } from "@trading-model/common/domain/retry-policy";
 import type { JobRepository } from "../persistence/job-repository";
 import { JOB_STATUS } from "../types/job.types";
-import type { JobId } from "@trading-model/common/domain/primitives";
 import type { InternalQueue } from "./internal-queue";
 import type { JobAssignmentManager } from "./job-assignment-manager";
 import type { JobFailureHandler } from "./job-failure-handler";
@@ -23,7 +24,9 @@ export class JobStatusManager {
 
 	async complete(jobId: JobId, result: unknown): Promise<void> {
 		this._queue.ack(jobId);
-		await this._repository.updateStatus(jobId, JOB_STATUS.COMPLETED, { result });
+		await this._repository.updateStatus(jobId, JOB_STATUS.COMPLETED, {
+			result,
+		});
 
 		const job = await this._repository.findById(jobId);
 		this._assignmentManager.decrementWorkerLoad(job?.assignedWorkerId);
@@ -42,7 +45,7 @@ export class JobStatusManager {
 
 		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
 
-		if (job.retryCount >= job.maxRetries) {
+		if (hasExceededMaxRetries(job)) {
 			await this._failureHandler.handlePermanentFailure(jobId, error);
 		} else {
 			await this._failureHandler.handleRetryableFailure(jobId, job, error);

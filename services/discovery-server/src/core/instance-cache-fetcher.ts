@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { parseServiceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -22,7 +22,7 @@ export class InstanceCacheFetcher {
 	): Promise<ServiceInstance[]> {
 		if (pagination?.page !== undefined || pagination?.limit !== undefined) {
 			const all = await this._backend.getInstances(
-				serviceName as ServiceInstanceName
+				parseServiceName(serviceName)
 			);
 			const page = pagination.page ?? 1;
 			const limit = pagination.limit ?? all.length;
@@ -31,7 +31,7 @@ export class InstanceCacheFetcher {
 		}
 
 		if (this._healthMonitor.fallbackActive) {
-			return this._backend.getInstances(serviceName as ServiceInstanceName);
+			return this._backend.getInstances(parseServiceName(serviceName));
 		}
 
 		const cached = this._cache.get(serviceName);
@@ -56,7 +56,7 @@ export class InstanceCacheFetcher {
 		}
 
 		const instances = await this._backend.getInstances(
-			serviceName as ServiceInstanceName
+			parseServiceName(serviceName)
 		);
 		this._cache.set(serviceName, instances);
 		return instances;

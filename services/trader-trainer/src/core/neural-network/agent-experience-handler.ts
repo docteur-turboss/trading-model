@@ -16,11 +16,7 @@ const LEARN_STRATEGIES: Record<string, LearnStrategy> = {
 		nn.train(exp.input, (exp as SupervisedExperience).target);
 	},
 	qlearning: (nn: NeuralNetwork, exp: Experience) => {
-		const target = computeQLearningTarget(
-			nn,
-			exp as QLearningExperience,
-			0.99,
-		);
+		const target = computeQLearningTarget(nn, exp as QLearningExperience, 0.99);
 		nn.train(exp.input, target);
 	},
 };
@@ -98,7 +94,7 @@ export class AgentExperienceHandler {
 	learnExperience(nn: NeuralNetwork, exp: Experience, gamma = 0.99): void {
 		if (exp.kind !== "qlearning") {
 			throw agentError(
-				"Q-learning requires `reward` and `nextState` in the experience.",
+				"Q-learning requires `reward` and `nextState` in the experience."
 			);
 		}
 		const strategy = LEARN_STRATEGIES[exp.kind];

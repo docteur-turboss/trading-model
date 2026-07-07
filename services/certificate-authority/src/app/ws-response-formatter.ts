@@ -1,5 +1,5 @@
 import type { CertificateResponse } from "@trading-model/common/domain/certificate-base";
-import { WebSocket } from "ws";
+import type { WebSocket } from "ws";
 
 export function buildSignResponsePayload(
 	id: string,
@@ -32,7 +32,11 @@ export function sendJsonError(ws: WebSocket, message: string): void {
 	ws.send(JSON.stringify({ type: "error", error: { message } }));
 }
 
-export function sendSignError(ws: WebSocket, id: string, message: string): void {
+export function sendSignError(
+	ws: WebSocket,
+	id: string,
+	message: string
+): void {
 	ws.send(
 		JSON.stringify({
 			type: "sign:response",

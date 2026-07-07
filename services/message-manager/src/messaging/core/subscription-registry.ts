@@ -1,6 +1,7 @@
 import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 
 import type { HttpMessageDelivery } from "./http-message-delivery";
+import type { TopicSubscription } from "./messaging-types";
 import { Subscription } from "./subscription";
 
 /** Coordinates message delivery between published messages and registered subscriptions. */
@@ -41,7 +42,7 @@ export class SubscriptionRegistry {
 	}
 
 	/** Unregister a subscription from a topic. */
-	unsubscribe(params: { topic: string; instanceId: string }): void {
+	unsubscribe(params: TopicSubscription): void {
 		const { topic, instanceId } = params;
 
 		const current = this._subscriptionsByTopic.get(topic);

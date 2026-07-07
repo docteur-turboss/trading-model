@@ -9,8 +9,8 @@ export class RedisSubscriptionKeys {
 		return `${this._prefix}instance:${instanceId}`;
 	}
 
-	subKey(topic: string, instanceId: string): string {
-		return `${this.topicKey(topic)}:${instanceId}`;
+	subKey(sub: import("./messaging-types").TopicSubscription): string {
+		return `${this.topicKey(sub.topic)}:${sub.instanceId}`;
 	}
 
 	topicsSetKey(): string {

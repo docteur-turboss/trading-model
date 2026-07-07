@@ -89,21 +89,21 @@ describe("DistributedLock", () => {
 	});
 
 	it("should connect to MongoDB and create indexes", async () => {
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		await lock.connect();
 		expect(mockCreateIndex).toHaveBeenCalledTimes(2);
 	});
 
 	it("should use MONGO_MANAGER when initialized", async () => {
 		mockMongoIsInitialized.mockReturnValue(true);
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		await lock.connect();
 		expect(mockCreateIndex).toHaveBeenCalled();
 	});
 
 	it("should acquire lock via MongoDB", async () => {
 		mockFindOneAndUpdate.mockResolvedValue(null);
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		await lock.connect();
 		const acquired = await lock.acquire();
 		expect(acquired).toBe(true);
@@ -116,7 +116,7 @@ describe("DistributedLock", () => {
 			fencingToken: 1,
 			expiresAt: new Date(Date.now() + 100000),
 		});
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		await lock.connect();
 		const acquired = await lock.acquire();
 		expect(acquired).toBe(false);
@@ -129,7 +129,7 @@ describe("DistributedLock", () => {
 			fencingToken: 1,
 			expiresAt: new Date(Date.now() - 100000),
 		});
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		await lock.connect();
 		const acquired = await lock.acquire();
 		expect(acquired).toBe(true);
@@ -138,7 +138,7 @@ describe("DistributedLock", () => {
 	it("should release lock via MongoDB", async () => {
 		mockFindOneAndUpdate.mockResolvedValue(null);
 		mockDeleteOne.mockResolvedValue({ deletedCount: 1 });
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		await lock.connect();
 		await lock.acquire();
 		await lock.release();
@@ -152,7 +152,7 @@ describe("DistributedLock", () => {
 			instanceId: "test-instance",
 			fencingToken: 1,
 		});
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		(lock as any)._context.instanceId = "test-instance";
 		(lock as any)._currentFencingToken = 1;
 		await lock.connect();
@@ -161,13 +161,13 @@ describe("DistributedLock", () => {
 	});
 
 	it("should return -1 from verifyOwnership when not acquired", async () => {
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		const token = await lock.verifyOwnership();
 		expect(token).toBe(-1);
 	});
 
 	it("should disconnect", async () => {
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		await lock.connect();
 		await lock.disconnect();
 		expect(mockClose).toHaveBeenCalled();
@@ -177,7 +177,7 @@ describe("DistributedLock", () => {
 		const oldNodeEnv = process.env.NODE_ENV;
 		process.env.NODE_ENV = "production";
 		mockFindOneAndUpdate.mockRejectedValue(new Error("DB error"));
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		await lock.connect();
 		const result = await lock.acquire();
 		expect(result).toBe(false);
@@ -187,7 +187,7 @@ describe("DistributedLock", () => {
 	it("should try Redis with redisUrl on acquire", async () => {
 		mockFindOneAndUpdate.mockRejectedValue(new Error("DB error"));
 		mockRedisSet.mockResolvedValue("OK");
-		const lock = new DistributedLock({
+		const lock = DistributedLock.fromOptions({
 			...LOCK_OPTS,
 			redisUrl: "redis://localhost:6379",
 		});
@@ -203,7 +203,7 @@ describe("DistributedLock", () => {
 		mockMkdir.mockResolvedValue(undefined);
 		mockWriteFile.mockResolvedValue(undefined);
 
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		await lock.connect();
 		const acquired = await lock.acquire();
 		expect(acquired).toBe(true);
@@ -216,7 +216,7 @@ describe("DistributedLock", () => {
 		process.env.NODE_ENV = "production";
 		mockFindOneAndUpdate.mockRejectedValue(new Error("DB error"));
 
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		await lock.connect();
 		const acquired = await lock.acquire();
 		expect(acquired).toBe(false);
@@ -226,7 +226,7 @@ describe("DistributedLock", () => {
 
 	it("should release using file fallback when MongoDB and Redis unavailable", async () => {
 		mockUnlink.mockResolvedValue(undefined);
-		const lock = new DistributedLock(LOCK_OPTS);
+		const lock = DistributedLock.fromOptions(LOCK_OPTS);
 		(lock as any)._currentFencingToken = -1;
 		await lock.release();
 	});

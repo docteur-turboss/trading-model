@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import { logger } from "@trading-model/common/config/logger";
-import type { JobId } from "@trading-model/common/domain/primitives";
+import { JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
+import { type JobId, toJobType } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { type Job, JobPriority } from "../types/job.types";
@@ -48,10 +49,10 @@ export class JobLifecycle {
 
 		const job: Job = {
 			id: jobId as JobId,
-			type,
+			type: toJobType(type),
 			payload,
 			priority,
-			status: "pending",
+			status: JOB_STATUS.PENDING,
 			ackDeadline: 0,
 			maxRetries,
 			retryCount: 0,
@@ -67,10 +68,10 @@ export class JobLifecycle {
 	}
 
 	private _enqueueJob(job: Job): void {
-		const updated: Job = { ...job, status: "queued" };
+		const updated: Job = { ...job, status: JOB_STATUS.QUEUED };
 		this._queue.enqueue(updated);
 		this._backPressure.updateQueueDepth(this._queue.depth());
-		this._repository.updateStatus(job.id, "queued").catch((err) => {
+		this._repository.updateStatus(job.id, JOB_STATUS.QUEUED).catch((err) => {
 			logger.error("Failed to persist queued status", {
 				context: {
 					jobId: job.id,
@@ -81,19 +82,19 @@ export class JobLifecycle {
 		this._assignmentManager.distributeNext();
 	}
 
-	async ack(jobId: string): Promise<void> {
+	async ack(jobId: JobId): Promise<void> {
 		await this._statusManager.ack(jobId);
 	}
 
-	async complete(jobId: string, result: unknown): Promise<void> {
+	async complete(jobId: JobId, result: unknown): Promise<void> {
 		await this._statusManager.complete(jobId, result);
 	}
 
-	async fail(jobId: string, error: string): Promise<void> {
+	async fail(jobId: JobId, error: string): Promise<void> {
 		await this._statusManager.fail(jobId, error);
 	}
 
-	async cancel(jobId: string): Promise<void> {
+	async cancel(jobId: JobId): Promise<void> {
 		await this._statusManager.cancel(jobId);
 	}
 }

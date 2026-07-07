@@ -67,7 +67,7 @@ export class LockConnectionManager {
 			try {
 				await this._client.close();
 			} catch {
-				/* closing */
+				logger.debug("Mongo client close error during disconnect");
 			}
 		}
 	}

@@ -63,7 +63,7 @@ export function notifyReplayAudit(
 	errorsCount: number
 ): void {
 	void notifyAudit({
-		timestamp: new Date().toISOString(),
+		timestamp: Date.now(),
 		topic: topic ?? "unknown",
 		publisher: "dlq-service",
 		correlationId: batchId,

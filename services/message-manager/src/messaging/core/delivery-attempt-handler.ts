@@ -1,8 +1,8 @@
 import { DeliveryMode } from "@trading-model/common/config/delivery-mode.types";
 import type { Message } from "@trading-model/common/contracts/message.types";
-import { computeExponentialBackoff } from "@trading-model/common/utils/backoff-config";
 import { sleep } from "@trading-model/common/utils/sleep";
-import { FIND_A_SERVICE } from "../../config/address-manager";
+import { resolveTarget } from "./address-resolver";
+import { backoffDelay } from "./backoff-calculator";
 import type { DeliveryErrorHandler } from "./delivery-error-handler";
 import type { SubscribersContext } from "./delivery-metadata-extractor";
 import type {
@@ -10,10 +10,6 @@ import type {
 	MessageDeliveryContext,
 	MessageDeliveryPort,
 } from "./message-delivery-port";
-
-const BaseDelayMs = 1000;
-const MaxDelayMs = 60_000;
-const JitterFactor = 0.2;
 
 export class DeliveryAttemptHandler {
 	constructor(
@@ -23,15 +19,6 @@ export class DeliveryAttemptHandler {
 		private readonly _serviceName: string
 	) {}
 
-	static backoffDelay(deliveryAttempt: number): number {
-		const delay = computeExponentialBackoff(deliveryAttempt, {
-			baseDelayMs: BaseDelayMs,
-			maxDelayMs: MaxDelayMs,
-		});
-		const jitter = delay * JitterFactor * (Math.random() * 2 - 1);
-		return Math.max(0, Math.round(delay + jitter));
-	}
-
 	async attempt<TData>(
 		message: Message<TData>,
 		context: SubscribersContext,
@@ -40,7 +27,7 @@ export class DeliveryAttemptHandler {
 		deliveryMode: DeliveryMode
 	): Promise<boolean> {
 		try {
-			const target = await this._resolveTarget();
+			const target = await resolveTarget(this._serviceName, this._callbackURL);
 
 			const deliveryContext: MessageDeliveryContext = {
 				deliveryAttempt: context.deliveryAttempt,
@@ -71,7 +58,7 @@ export class DeliveryAttemptHandler {
 				return false;
 			}
 
-			await sleep(DeliveryAttemptHandler.backoffDelay(context.deliveryAttempt));
+			await sleep(backoffDelay(context.deliveryAttempt));
 		}
 
 		if (
@@ -82,11 +69,5 @@ export class DeliveryAttemptHandler {
 		}
 
 		return true;
-	}
-
-	private async _resolveTarget(): Promise<string> {
-		const address = await FIND_A_SERVICE(this._serviceName);
-
-		return `https://${address.ip}:${address.port}/${this._callbackURL}`;
 	}
 }

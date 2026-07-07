@@ -297,7 +297,6 @@ export class ParetoArchive {
 				continue; // dominated, skip
 			}
 
-			// Evict dominated archive members
 			const keep = this._members.map(
 				(_, ai) => !dominates(cObj, this._objs[ai])
 			);

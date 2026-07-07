@@ -1,7 +1,3 @@
-// ================================================================
-//                  genome mutation operators
-// ================================================================
-
 import {
 	ActivationType,
 	ConnectionType,
@@ -23,10 +19,6 @@ import {
 } from "./genome-types";
 import { sampleGaussian, sampleNoise } from "./noise";
 import { clamp } from "./utils";
-
-// ----------------------------------------------------------------
-// Enum pools
-// ----------------------------------------------------------------
 
 const NORM_TYPES: NormalisationType[] = [
 	NormalisationType.None,
@@ -63,14 +55,6 @@ const BIAS_TYPES: InitialisationType[] = [
 function pick<TValue>(arr: TValue[], rng: () => number): TValue {
 	return arr[Math.floor(rng() * arr.length)];
 }
-
-// ----------------------------------------------------------------
-// Sigma adaptation strategies
-// ----------------------------------------------------------------
-
-// ----------------------------------------------------------------
-// Sigma adaptation strategy interface & implementations
-// ----------------------------------------------------------------
 
 interface SigmaAdapter {
 	readonly type: MutationAdaptation;
@@ -134,10 +118,6 @@ export function adaptSigma(
 	return adapter ? adapter.adapt(mutation, rng) : mutation.sigma;
 }
 
-// ----------------------------------------------------------------
-// Layer mutation
-// ----------------------------------------------------------------
-
 function _mutateNeuronCount(
 	layer: LayerGenome,
 	sigma: number,
@@ -197,10 +177,6 @@ export function mutateLayer(
 		biasType: _mutateBiasType(layer, mutation, rng),
 	};
 }
-
-// ----------------------------------------------------------------
-// RL hyperparameter mutation
-// ----------------------------------------------------------------
 
 export interface MutateRLContext {
 	rl: RLGenome;
@@ -369,10 +345,6 @@ function _mutateReplayBuffer(
 		},
 	};
 }
-
-// ----------------------------------------------------------------
-// Full genome mutation
-// ----------------------------------------------------------------
 
 /** Apply all configured mutation operators (network structure, RL hyperparameters, self-adaptive params) to a genome. */
 export function mutateGenome(

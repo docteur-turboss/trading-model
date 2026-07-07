@@ -1,9 +1,9 @@
 import { toServiceId } from "@trading-model/common/domain/primitives";
-import { z } from "zod";
+import type { z } from "zod";
 
 import { LOGS_INGESTED_TOTAL } from "../config/metrics";
 import type { ServiceLogDocument } from "../persistence/log-repository";
-import { LOG_ENTRY_SCHEMA } from "./log-schemas";
+import type { LOG_ENTRY_SCHEMA } from "./log-schemas";
 
 function extractError(
 	entry: z.infer<typeof LOG_ENTRY_SCHEMA>
@@ -110,4 +110,4 @@ function _buildLogDocuments(
 	return docs;
 }
 
-export { buildLogDocument, _buildLogDocuments };
+export { _buildLogDocuments, buildLogDocument };

@@ -186,4 +186,3 @@ export function setShuttingDown(value: boolean): void {
 export function isShuttingDown(): boolean {
 	return shuttingDown;
 }
-

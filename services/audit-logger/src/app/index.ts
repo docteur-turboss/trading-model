@@ -96,7 +96,13 @@ createBootstrap({
 	},
 	onStop: async () => {
 		if (!_appContext) return;
-		const { brokerMessage, scheduler, workerProtocol, addressManager, mongoClient } = _appContext;
+		const {
+			brokerMessage,
+			scheduler,
+			workerProtocol,
+			addressManager,
+			mongoClient,
+		} = _appContext;
 		await brokerMessage.stopMessageManager();
 		scheduler.stop();
 		workerProtocol.close();

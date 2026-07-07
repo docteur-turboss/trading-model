@@ -74,7 +74,10 @@ export class WsConnectionManager implements IWsConnection {
 		});
 	}
 
-	private _setupConnectTimeout(onTimeout: () => void, ws: WebSocket): () => void {
+	private _setupConnectTimeout(
+		onTimeout: () => void,
+		ws: WebSocket
+	): () => void {
 		return createWsConnectTimeout(() => {
 			logger.warn("WSS connection timeout");
 			ws.close();
@@ -116,7 +119,7 @@ export class WsConnectionManager implements IWsConnection {
 			this._ws?.removeAllListeners();
 			this._ws?.close(closeCode, reason);
 		} catch {
-			/* closing gracefully */
+			logger.debug("WebSocket close error during disconnect");
 		}
 	}
 

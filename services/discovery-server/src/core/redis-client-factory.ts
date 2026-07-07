@@ -1,10 +1,10 @@
 import { logger } from "@trading-model/common/config/logger";
-import { normalizeError } from "@trading-model/common/utils/errors";
 import type {
 	RedisClusterNodesConfig,
 	RedisConnectionConfig,
 	RedisSentinelConfig,
 } from "@trading-model/common/config/redis-config";
+import { normalizeError } from "@trading-model/common/utils/errors";
 import Redis, { Cluster, type RedisOptions } from "ioredis";
 
 const BASE_OPTIONS: RedisOptions = {

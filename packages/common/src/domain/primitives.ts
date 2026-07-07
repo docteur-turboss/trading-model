@@ -9,10 +9,6 @@
  * Follows the existing `TradingSymbol` pattern from trader-trainer.
  */
 
-// ----------------------------------------------------------------
-// Price
-// ----------------------------------------------------------------
-
 export type Price = number & { readonly __brand: "Price" };
 
 export const Price = {
@@ -29,10 +25,6 @@ export const Price = {
 		return 0 as Price;
 	},
 };
-
-// ----------------------------------------------------------------
-// Cash (monetary amount, non-negative)
-// ----------------------------------------------------------------
 
 export type Cash = number & { readonly __brand: "Cash" };
 
@@ -51,10 +43,6 @@ export const Cash = {
 	},
 };
 
-// ----------------------------------------------------------------
-// Volume
-// ----------------------------------------------------------------
-
 export type Volume = number & { readonly __brand: "Volume" };
 
 export const Volume = {
@@ -71,10 +59,6 @@ export const Volume = {
 		return 0 as Volume;
 	},
 };
-
-// ----------------------------------------------------------------
-// Percentage (decimal ratio)
-// ----------------------------------------------------------------
 
 export type Percentage = number & { readonly __brand: "Percentage" };
 
@@ -97,10 +81,6 @@ export const Percentage = {
 	},
 };
 
-// ----------------------------------------------------------------
-// UnixTimestamp (epoch milliseconds)
-// ----------------------------------------------------------------
-
 export type UnixTimestamp = number & { readonly __brand: "UnixTimestamp" };
 
 export const UnixTimestamp = {
@@ -118,10 +98,6 @@ export const UnixTimestamp = {
 	},
 };
 
-// ----------------------------------------------------------------
-// Port (TCP/UDP port number 0-65535)
-// ----------------------------------------------------------------
-
 export type Port = number & { readonly __brand: "Port" };
 
 export const Port = {
@@ -134,10 +110,6 @@ export const Port = {
 		return value as Port;
 	},
 };
-
-// ----------------------------------------------------------------
-// IPAddress (IPv4 or IPv6)
-// ----------------------------------------------------------------
 
 export type IPAddress = string & { readonly __brand: "IPAddress" };
 
@@ -154,10 +126,6 @@ export const IPAddress = {
 		return value as IPAddress;
 	},
 };
-
-// ----------------------------------------------------------------
-// TradingSymbol
-// ----------------------------------------------------------------
 
 export type TradingSymbol = string & { readonly __brand: "TradingSymbol" };
 

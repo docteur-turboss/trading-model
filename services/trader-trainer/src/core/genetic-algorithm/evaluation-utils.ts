@@ -27,12 +27,10 @@ export function lamarckianUpdate(
 }
 
 export function deepFreeze<TValue>(obj: TValue): DeepReadonly<TValue> {
-	// istanbul ignore if: defensive — always called with a real object
 	if (obj === null || typeof obj !== "object") {
 		return obj as DeepReadonly<TValue>;
 	}
 
-	// istanbul ignore if: defensive — always called with a plain object
 	if (ArrayBuffer.isView(obj)) {
 		return obj as DeepReadonly<TValue>;
 	}

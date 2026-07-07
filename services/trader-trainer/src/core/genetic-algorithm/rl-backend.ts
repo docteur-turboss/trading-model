@@ -77,7 +77,7 @@ function _tryLamarckianInjection(
 		try {
 			agent.setWeights(new Float32Array(genome.trainedWeights));
 		} catch {
-			/* architecture mismatch after structural mutation */
+			// architecture mismatch after structural mutation
 		}
 	}
 }
@@ -87,7 +87,7 @@ function _makeTrainFn(agent: TradingAgent): RLBackend["train"] {
 		try {
 			agent.learnQLearning(experience, gamma);
 		} catch {
-			/* Q-learning error skipped */
+			// Q-learning error skipped
 		}
 	};
 }

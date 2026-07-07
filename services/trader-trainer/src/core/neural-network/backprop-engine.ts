@@ -1,8 +1,8 @@
 import { GradientApplier } from "./gradient-applier";
 import { HiddenDeltaComputer } from "./hidden-delta-computer";
+import type { NnTrainingDeps } from "./nn-training-deps";
 import { OutputDeltaComputer } from "./output-delta-computer";
 import type { ActivationType, ForwardContext } from "./type";
-import type { NnTrainingDeps } from "./nn-training-deps";
 
 export interface OutputDeltasContext {
 	outputZ: Float32Array;

@@ -1,6 +1,6 @@
+import { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { Application } from "express";
 import promClient from "prom-client";
-import { CircuitState } from "@trading-model/common/domain/circuit-state";
 import type { CircuitBreaker } from "../discovery/circuit-breaker";
 import type { IServiceCache } from "../discovery/service-cache.interface";
 import { METRICS_ROUTES } from "../http/routes/metrics.routes";

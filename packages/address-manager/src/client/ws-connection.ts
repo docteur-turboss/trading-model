@@ -39,7 +39,7 @@ export class WsConnection implements IWsConnection {
 			});
 			this._ws.on("error", (err: Error) => this.onError?.(err));
 		} catch {
-			/* connection failed */
+			// connection failed
 		}
 	}
 

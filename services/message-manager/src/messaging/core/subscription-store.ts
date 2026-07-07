@@ -3,6 +3,7 @@ import { ENV } from "../../config/env";
 import { getSubscriptionClient } from "../../config/redis";
 import { InstanceLifecycleManager } from "./instance-lifecycle-manager";
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
+import type { TopicSubscription } from "./messaging-types";
 import {
 	type SubscriptionEntry,
 	SubscriptionRedisStore,
@@ -29,8 +30,8 @@ export class SubscriptionStore {
 		return this._redisStore.add(topic, callbackPath, serviceIdentity);
 	}
 
-	remove(topic: string, instanceId: string): Promise<void> {
-		return this._redisStore.remove(topic, instanceId);
+	remove(sub: TopicSubscription): Promise<void> {
+		return this._redisStore.remove(sub);
 	}
 
 	getByTopic(topic: string): Promise<SubscriptionEntry[]> {

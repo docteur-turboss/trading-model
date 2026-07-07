@@ -58,7 +58,9 @@ const ResponseMethodProxyHandler: ProxyHandler<ClassResponseExceptions> = {
 			return Reflect.get(target, prop);
 		}
 		const def = HTTP_RESPONSE_DEFINITIONS.find((d) => d.key === prop);
-		if (!def) { return; }
+		if (!def) {
+			return;
+		}
 		if (def.key === "noContent") {
 			return () => ({ status: def.code, data: undefined });
 		}

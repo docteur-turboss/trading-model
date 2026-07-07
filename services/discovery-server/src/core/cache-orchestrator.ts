@@ -1,5 +1,5 @@
 import { logger } from "@trading-model/common/config/logger";
-import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { parseServiceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -50,7 +50,7 @@ export class CacheOrchestrator {
 		}
 		try {
 			const instances = await this._backend.getInstances(
-				serviceName as ServiceInstanceName
+				parseServiceName(serviceName)
 			);
 			this._cache.set(serviceName, instances);
 		} catch {

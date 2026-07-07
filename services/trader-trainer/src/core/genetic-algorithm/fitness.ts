@@ -1,14 +1,6 @@
-// ================================================================
-//            fitness computation & reward shaping
-// ================================================================
-
 import type { RewardShapingGenome } from "./genome-types";
 import { FitnessType } from "./genome-types";
 import { clamp } from "./utils";
-
-// ----------------------------------------------------------------
-// Fitness strategy interface & implementations
-// ----------------------------------------------------------------
 
 export interface FitnessStrategy {
 	readonly type: FitnessType;
@@ -91,10 +83,6 @@ const FITNESS_STRATEGIES: Record<FitnessType, FitnessStrategy> = {
 	[FitnessType.Composite]: new CompositeStrategy(),
 };
 
-// ----------------------------------------------------------------
-// Fitness aggregation
-// ----------------------------------------------------------------
-
 /**
  * Aggregate episode scores into a single scalar fitness value.
  *
@@ -113,10 +101,6 @@ export function computeFitness(type: FitnessType, scores: number[]): number {
 	const strategy = FITNESS_STRATEGIES[type];
 	return strategy ? strategy.compute(scores, mean) : mean;
 }
-
-// ----------------------------------------------------------------
-// Reward shaping
-// ----------------------------------------------------------------
 
 /**
  * Apply reward transformations before storing to replay buffer.

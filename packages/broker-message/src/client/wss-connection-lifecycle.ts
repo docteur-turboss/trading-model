@@ -38,7 +38,7 @@ export class WssConnectionLifecycle implements IWsConnection {
 
 	connect(): void {
 		const url = this._buildUrl();
-		this._connection.connect(url, {
+		this._connection.connectWithEvents(url, {
 			onOpen: () => this._callbacks.onOpen(),
 			onMessage: (raw) => this._callbacks.onMessage(raw),
 			onClose: (code, reason) => this._callbacks.onClose(code, reason),

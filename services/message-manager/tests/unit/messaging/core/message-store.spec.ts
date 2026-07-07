@@ -158,7 +158,10 @@ describe("MessageStore", () => {
 	it("should ensure consumer group", async () => {
 		mockRedis.xgroup = jest.fn().mockResolvedValue("OK");
 
-		await messageStore.ensureConsumerGroup("test.topic", "test-group");
+		await messageStore.ensureConsumerGroup({
+			topic: "test.topic",
+			groupName: "test-group",
+		});
 
 		expect(mockRedis.xgroup).toHaveBeenCalledWith(
 			"CREATE",
@@ -173,14 +176,20 @@ describe("MessageStore", () => {
 		const busyError = new Error("BUSYGROUP Consumer Group name already exists");
 		mockRedis.xgroup = jest.fn().mockRejectedValue(busyError);
 
-		await messageStore.ensureConsumerGroup("test.topic", "test-group");
+		await messageStore.ensureConsumerGroup({
+			topic: "test.topic",
+			groupName: "test-group",
+		});
 	});
 
 	it("should warn on non-BUSYGROUP error", async () => {
 		const otherError = new Error("OTHER error");
 		mockRedis.xgroup = jest.fn().mockRejectedValue(otherError);
 
-		await messageStore.ensureConsumerGroup("test.topic", "test-group");
+		await messageStore.ensureConsumerGroup({
+			topic: "test.topic",
+			groupName: "test-group",
+		});
 	});
 
 	it("should read from consumer group", async () => {
@@ -216,11 +225,11 @@ describe("MessageStore", () => {
 	});
 
 	it("should ack a message", async () => {
-		await messageStore.ackMessage(
-			"test.topic",
-			"test-group",
-			"1689000000000-0"
-		);
+		await messageStore.ackMessage({
+			topic: "test.topic",
+			groupName: "test-group",
+			messageId: "1689000000000-0",
+		});
 
 		expect(mockXack).toHaveBeenCalledWith(
 			"mm:stream:test.topic",
@@ -240,11 +249,11 @@ describe("MessageStore", () => {
 			],
 		]);
 
-		const messages = await messageStore.getMessagesAfter(
-			"test.topic",
-			Date.now() - 3600000,
-			10
-		);
+		const messages = await messageStore.getMessagesAfter({
+			topic: "test.topic",
+			afterTimestamp: Date.now() - 3600000,
+			limit: 10,
+		});
 
 		expect(messages).toHaveLength(1);
 	});
@@ -252,7 +261,11 @@ describe("MessageStore", () => {
 	it("should return empty when xrange has no data field", async () => {
 		mockXrange.mockResolvedValue([["id", ["other-field", "value"]]]);
 
-		const messages = await messageStore.getMessagesAfter("test.topic", 0, 10);
+		const messages = await messageStore.getMessagesAfter({
+			topic: "test.topic",
+			afterTimestamp: 0,
+			limit: 10,
+		});
 		expect(messages).toEqual([]);
 	});
 
@@ -279,10 +292,10 @@ describe("MessageStore", () => {
 	it("should get pending count", async () => {
 		mockXpending.mockResolvedValue({ pending: 5 } as never);
 
-		const count = await messageStore.getPendingCount(
-			"test.topic",
-			"test-group"
-		);
+		const count = await messageStore.getPendingCount({
+			topic: "test.topic",
+			groupName: "test-group",
+		});
 
 		expect(count).toBe(5);
 	});
@@ -348,14 +361,20 @@ describe("MessageStore", () => {
 			["name", "test-group", "last-delivered-id", "1689000000000-0"],
 		]);
 
-		const lag = await messageStore.getStreamLag("test.topic", "test-group");
+		const lag = await messageStore.getStreamLag({
+			topic: "test.topic",
+			groupName: "test-group",
+		});
 		expect(typeof lag).toBe("number");
 	});
 
 	it("should return 0 lag when no group info", async () => {
 		mockCall.mockResolvedValue([]);
 
-		const lag = await messageStore.getStreamLag("test.topic", "test-group");
+		const lag = await messageStore.getStreamLag({
+			topic: "test.topic",
+			groupName: "test-group",
+		});
 		expect(lag).toBe(0);
 	});
 
@@ -459,7 +478,10 @@ describe("MessageStore", () => {
 			["name", "wrong-group", "last-delivered-id", "1689000000000-0"],
 		]);
 
-		const lag = await messageStore.getStreamLag("test.topic", "test-group");
+		const lag = await messageStore.getStreamLag({
+			topic: "test.topic",
+			groupName: "test-group",
+		});
 		expect(lag).toBe(0);
 	});
 

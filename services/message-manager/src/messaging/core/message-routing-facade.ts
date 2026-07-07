@@ -1,5 +1,6 @@
 import { ClaimManager } from "./claim-manager";
 import { DeduplicationService } from "./deduplication-service";
+import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 import { PendingAckOperations } from "./pending-ack-operations";
 import { StreamGroupOperations } from "./stream-group-operations";
 
@@ -36,8 +37,8 @@ export class MessageRoutingFacade {
 		);
 	}
 
-	async ensureConsumerGroup(topic: string, groupName: string): Promise<void> {
-		await this._streamOps.ensureConsumerGroup(topic, groupName);
+	async ensureConsumerGroup(ref: StreamGroupRef): Promise<void> {
+		await this._streamOps.ensureConsumerGroup(ref);
 	}
 
 	async readFromGroup(
@@ -46,26 +47,20 @@ export class MessageRoutingFacade {
 		return this._streamOps.readFromGroup(params);
 	}
 
-	async ackMessage(
-		topic: string,
-		groupName: string,
-		messageId: string
-	): Promise<void> {
-		await this._streamOps.ackMessage(topic, groupName, messageId);
+	async ackMessage(ref: AckRef): Promise<void> {
+		await this._streamOps.ackMessage(ref);
 	}
 
-	async getPendingCount(topic: string, groupName: string): Promise<number> {
-		return this._streamOps.getPendingCount(topic, groupName);
+	async getPendingCount(ref: StreamGroupRef): Promise<number> {
+		return this._streamOps.getPendingCount(ref);
 	}
 
 	async getMessagesAfter(
-		topic: string,
-		afterTimestamp: number,
-		limit = 100
+		query: MessageQuery
 	): Promise<
 		import("@trading-model/common/contracts/message.types").Message[]
 	> {
-		return this._streamOps.getMessagesAfter(topic, afterTimestamp, limit);
+		return this._streamOps.getMessagesAfter(query);
 	}
 
 	async getMessagesBetween(
@@ -105,8 +100,8 @@ export class MessageRoutingFacade {
 		return this._pendingAckOps.getPendingAcks(instanceId);
 	}
 
-	async getStreamLag(topic: string, groupName: string): Promise<number> {
-		return this._streamOps.getStreamLag(topic, groupName);
+	async getStreamLag(ref: StreamGroupRef): Promise<number> {
+		return this._streamOps.getStreamLag(ref);
 	}
 	async tryDeduplicate(
 		deduplicationId: string,

@@ -1,5 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
+import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 
 export interface INstanceState {
@@ -12,39 +13,70 @@ const MAX_ENTRY_AGE_MS = 5 * 60_000;
 const SWEEP_INTERVAL_MS = 60_000;
 
 export class CircuitBreakerState {
-	private readonly _instances = new Map<string, INstanceState>();
+	private readonly _instances = new Map<string, CircuitStateMachine>();
+	private readonly _failureThreshold: number;
 	private readonly _sweepHandle = new TimerHandle();
 
 	constructor(
-		private readonly _failureThreshold: number,
+		failureThreshold: number,
 		private readonly _halfOpenTimeoutMs: number,
 		private readonly _onSweepInstance?: (instanceId: string) => void
 	) {
+		this._failureThreshold = failureThreshold;
 		this._startSweeper();
 	}
 
-	getOrCreateState(instanceId: string, now: number): INstanceState {
-		let state = this._instances.get(instanceId);
-		if (!state) {
-			state = { failures: 0, lastFailureTime: now, state: "closed" };
-			this._instances.set(instanceId, state);
+	getOrCreateMachine(instanceId: string): CircuitStateMachine {
+		let machine = this._instances.get(instanceId);
+		if (!machine) {
+			machine = new CircuitStateMachine({
+				failureThreshold: this._failureThreshold,
+				cooldownMs: this._halfOpenTimeoutMs,
+			});
+			this._instances.set(instanceId, machine);
 		}
-		return state;
+		return machine;
 	}
 
-	checkOpenThreshold(instanceId: string, state: INstanceState): void {
-		if (state.failures >= this._failureThreshold) {
-			state.state = "open";
+	recordSuccess(instanceId: string): void {
+		const machine = this._instances.get(instanceId);
+		if (machine) {
+			machine.recordSuccess();
+		}
+	}
+
+	recordFailure(instanceId: string): boolean {
+		const machine = this.getOrCreateMachine(instanceId);
+		return machine.recordFailure(Date.now());
+	}
+
+	getOrCreateState(instanceId: string, now: number): INstanceState {
+		const machine = this.getOrCreateMachine(instanceId);
+		return {
+			failures: machine.failures,
+			lastFailureTime: now,
+			state: machine.getState(now),
+		};
+	}
+
+	checkOpenThreshold(instanceId: string, _state: INstanceState): void {
+		const machine = this._instances.get(instanceId);
+		if (!machine) return;
+		if (machine.failures >= this._failureThreshold) {
 			logger.warn("Circuit breaker opened for instance", {
 				instanceId,
-				failures: state.failures,
+				failures: machine.failures,
 			});
 		}
 	}
 
 	tryHalfOpen(instanceId: string, state: INstanceState): boolean {
-		if (Date.now() - state.lastFailureTime >= this._halfOpenTimeoutMs) {
-			state.state = "half-open";
+		const now = Date.now();
+		const currentState = state.state;
+		if (
+			currentState === "open" &&
+			now - state.lastFailureTime >= this._halfOpenTimeoutMs
+		) {
 			logger.info("Circuit breaker half-open for instance", { instanceId });
 			return true;
 		}
@@ -58,10 +90,17 @@ export class CircuitBreakerState {
 	}
 
 	getInstanceState(instanceId: string): INstanceState | undefined {
-		return this._instances.get(instanceId);
+		const machine = this._instances.get(instanceId);
+		if (!machine) return;
+		const snap = machine.snapshot();
+		return {
+			failures: snap.failures,
+			lastFailureTime: 0,
+			state: machine.getState(Date.now()),
+		};
 	}
 
-	get instances(): Map<string, INstanceState> {
+	get instances(): Map<string, CircuitStateMachine> {
 		return this._instances;
 	}
 
@@ -84,8 +123,8 @@ export class CircuitBreakerState {
 
 	private _sweepStaleEntries(): void {
 		const now = Date.now();
-		for (const [instanceId, state] of this._instances) {
-			if (now - state.lastFailureTime > MAX_ENTRY_AGE_MS) {
+		for (const [instanceId, machine] of this._instances) {
+			if (machine.getState(now) === "closed" && machine.failures === 0) {
 				this._instances.delete(instanceId);
 				this._onSweepInstance?.(instanceId);
 			}

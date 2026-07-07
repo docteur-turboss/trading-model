@@ -28,22 +28,19 @@ export interface LockBackend {
 }
 
 export class NullLockBackend implements LockBackend {
-	async acquire(_context: LockContext, _ttlMs: number): Promise<number | null> {
-		return null;
+	acquire(_context: LockContext, _ttlMs: number): Promise<number | null> {
+		return Promise.resolve(null);
 	}
 
-	async release(
-		_context: LockContext,
-		_fencingToken: number
-	): Promise<boolean> {
-		return false;
+	release(_context: LockContext, _fencingToken: number): Promise<boolean> {
+		return Promise.resolve(false);
 	}
 
-	async verifyOwnership(
+	verifyOwnership(
 		_context: LockContext,
 		_fencingToken: number
 	): Promise<number> {
-		return -1;
+		return Promise.resolve(-1);
 	}
 
 	disconnect(): void {}
@@ -57,10 +54,10 @@ export class MongoLockBackend implements LockBackend {
 		private readonly _collection: () => Collection<LockDocument> | null,
 		private readonly _onDisconnect: () => void
 	) {
-		this._executor = new MongoLockExecutor(
-			this._collection,
-			this._onDisconnect
-		);
+		this._executor = new MongoLockExecutor(this._collection, () => {
+			this._connected = false;
+			this._onDisconnect();
+		});
 	}
 
 	setConnected(value: boolean): void {
@@ -71,14 +68,18 @@ export class MongoLockBackend implements LockBackend {
 		if (!this._connected) {
 			return null;
 		}
-		return this._executor.acquire(context, ttlMs);
+		const result = await this._executor.acquire(context, ttlMs);
+		if (result !== null) {
+			return result;
+		}
+		return this._connected ? -1 : null;
 	}
 
 	async release(context: LockContext, fencingToken: number): Promise<boolean> {
 		if (!this._connected) {
 			return false;
 		}
-		return this._executor.release(context, fencingToken);
+		return await this._executor.release(context, fencingToken);
 	}
 
 	async verifyOwnership(
@@ -88,7 +89,7 @@ export class MongoLockBackend implements LockBackend {
 		if (!this._connected) {
 			return -1;
 		}
-		return this._executor.verifyOwnership(context, fencingToken);
+		return await this._executor.verifyOwnership(context, fencingToken);
 	}
 }
 
@@ -234,7 +235,12 @@ export class FileSystemLockBackend implements LockBackend {
 		const fencingToken = Date.now();
 		await fs.writeFile(
 			lockFile,
-			JSON.stringify({ instanceId, acquiredAt: Date.now(), ttlMs, fencingToken }),
+			JSON.stringify({
+				instanceId,
+				acquiredAt: Date.now(),
+				ttlMs,
+				fencingToken,
+			}),
 			{ mode: 0o600 }
 		);
 		return fencingToken;

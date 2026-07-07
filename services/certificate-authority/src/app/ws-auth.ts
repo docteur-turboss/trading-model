@@ -1,5 +1,5 @@
-import { type WebSocket } from "ws";
 import { logger } from "@trading-model/common/config/logger";
+import type { WebSocket } from "ws";
 import type { ConnectionState } from "./rate-limiter";
 
 const AUTH_ATTEMPT_MAX = 5;

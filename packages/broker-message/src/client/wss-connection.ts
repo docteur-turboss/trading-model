@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as https from "node:https";
 import type { TlsPaths } from "@trading-model/common/domain/tls-paths";
+import type { IWsConnection } from "@trading-model/common/ws/i-ws-connection";
 import WebSocket from "ws";
 
 export interface WssConnectionEvents {
@@ -10,8 +11,15 @@ export interface WssConnectionEvents {
 	onError: (err: Error) => void;
 }
 
-export class WssConnection {
+export class WssConnection implements IWsConnection {
 	private _ws: WebSocket | undefined;
+	private _wsUrl = "";
+	private _events: WssConnectionEvents = {
+		onOpen: () => {},
+		onMessage: () => {},
+		onClose: () => {},
+		onError: () => {},
+	};
 	private readonly _tlsCa?: string;
 	private readonly _tlsCert?: string;
 	private readonly _tlsKey?: string;
@@ -30,33 +38,43 @@ export class WssConnection {
 			: undefined;
 	}
 
-	connect(wsUrl: string, events: WssConnectionEvents): void {
+	connect(): void {
+		this._connect(this._wsUrl, this._events);
+	}
+
+	connectWithEvents(wsUrl: string, events: WssConnectionEvents): void {
+		this._wsUrl = wsUrl;
+		this._events = events;
+		this._connect(wsUrl, events);
+	}
+
+	private _connect(wsUrl: string, events: WssConnectionEvents): void {
 		try {
 			this._ws?.close();
 		} catch {
-			/* ignore */
+			// ignore
 		}
 
 		const agent = this._setupWsTls();
 		this._ws = new WebSocket(wsUrl, { agent });
 
 		this._ws.on("open", () => {
-			evts.onOpen();
+			events.onOpen();
 		});
 		this._ws.on("message", (raw: WebSocket.RawData) => {
-			evts.onMessage(raw.toString());
+			events.onMessage(raw.toString());
 		});
 		this._ws.on("close", (code: number, reason: Buffer) => {
-			evts.onClose(code, reason);
+			events.onClose(code, reason);
 			this.onCloseHandler?.();
 		});
 		this._ws.on("error", (err: Error) => {
 			try {
 				this._ws?.close();
 			} catch {
-				/* ignore */
+				// ignore
 			}
-			evts.onError(err);
+			events.onError(err);
 		});
 	}
 
@@ -64,7 +82,7 @@ export class WssConnection {
 		try {
 			this._ws?.close(closeCode, reason);
 		} catch {
-			/* ignore */
+			// ignore
 		}
 	}
 

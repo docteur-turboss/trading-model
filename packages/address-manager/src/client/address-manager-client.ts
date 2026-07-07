@@ -1,4 +1,5 @@
 import type { HttpClient } from "@trading-model/common/config/http-client";
+import { parseServiceName } from "@trading-model/common/config/services.types";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import {
 	addressManagerError,
@@ -35,8 +36,7 @@ export class AddressManagerClient {
 
 	private _buildRegistrationPayload(): RegisterServicePayload {
 		return {
-			serviceName: this._config.identity
-				.serviceName as import("@trading-model/common/config/services.types").ServiceInstanceName,
+			serviceName: parseServiceName(this._config.identity.serviceName),
 			port: this._config.servicePort,
 			ip: LocalIPDetector.getIP() as import("@trading-model/common/domain/primitives").IPAddress,
 		};
@@ -101,7 +101,7 @@ export class AddressManagerClient {
 				);
 				return;
 			} catch {
-				// try next URL
+				// fallback: try next URL
 			}
 		}
 	}

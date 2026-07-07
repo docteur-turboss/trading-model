@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
+import type { IWsReconnector } from "@trading-model/common/ws/i-ws-reconnector";
 import type { PendingPublishQueue } from "./pending-publish-queue";
 import type { WssConnectionLifecycle } from "./wss-connection-lifecycle";
-import type { WssReconnector } from "./wss-reconnector";
 
 type ConnectFn = () => void;
 type SendFn = (data: unknown) => boolean;
@@ -9,7 +9,7 @@ type SendFn = (data: unknown) => boolean;
 export class WsConnectionEventHandler {
 	constructor(
 		readonly _lifecycle: WssConnectionLifecycle,
-		private readonly _reconnector: WssReconnector,
+		private readonly _reconnector: IWsReconnector,
 		private readonly _queue: PendingPublishQueue
 	) {}
 
@@ -36,9 +36,6 @@ export class WsConnectionEventHandler {
 	}
 
 	scheduleReconnect(connectFn: ConnectFn): void {
-		this._reconnector.scheduleReconnect(
-			() => connectFn(),
-			() => this._queue.drainToHttp()
-		);
+		this._reconnector.scheduleReconnect(() => connectFn());
 	}
 }

@@ -31,10 +31,7 @@ export class CertificateAuthority {
 	private readonly _state: BootstrapResult;
 	private readonly _operator: CertificateOperator;
 
-	private constructor(
-		state: BootstrapResult,
-		options: CaOptions
-	) {
+	private constructor(state: BootstrapResult, options: CaOptions) {
 		this._state = state;
 		this._operator = new CertificateOperator(
 			options.certificateStore,

@@ -1,3 +1,4 @@
+import type { JobId } from "@trading-model/common/domain/primitives";
 import type { Job, QueuedJob } from "../types/job.types";
 
 export class InternalQueue {
@@ -32,7 +33,7 @@ export class InternalQueue {
 		return null;
 	}
 
-	markDelivered(jobId: string, onAckTimeout?: (jobId: string) => void): void {
+	markDelivered(jobId: JobId, onAckTimeout?: (jobId: JobId) => void): void {
 		const timer = setTimeout(() => {
 			this._ackTimers.delete(jobId);
 			onAckTimeout?.(jobId);
@@ -40,7 +41,7 @@ export class InternalQueue {
 		this._ackTimers.set(jobId, timer);
 	}
 
-	ack(jobId: string): void {
+	ack(jobId: JobId): void {
 		const timer = this._ackTimers.get(jobId);
 		if (timer) {
 			clearTimeout(timer);

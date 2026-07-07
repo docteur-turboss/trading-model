@@ -29,6 +29,6 @@ export class MessageStreamWriter {
 			return entryId;
 		}
 
-		return this._walFallback.storeInWal(topic, serialized, message);
+		return this._walFallback.storeInWal({ topic, serialized, message });
 	}
 }

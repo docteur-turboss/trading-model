@@ -1,8 +1,8 @@
 import type addressManagerClient from "@trading-model/address-manager";
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type { IPAddress, Port } from "@trading-model/common/domain/primitives";
 import {
 	isMessageManagerError,
 	isServiceUnreachableError,

@@ -92,4 +92,3 @@ export async function resetDbState(): Promise<void> {
 export async function closeDb(): Promise<void> {
 	return mongoManager.close();
 }
-

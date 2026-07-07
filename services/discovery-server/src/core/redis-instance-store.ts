@@ -23,9 +23,7 @@ export class RedisInstanceStore {
 	private readonly _heartbeatHandler: InstanceHeartbeatHandler;
 	private readonly _cleanupHandler: InstanceCleanupHandler;
 
-	constructor(
-		readonly _deps: RedisDeps
-	) {
+	constructor(readonly _deps: RedisDeps) {
 		const { redis, keyBuilder } = _deps;
 		this._reader = new InstanceMetadataReader({ redis, keyBuilder });
 		this._registrar = new InstanceRegistrar(_deps);

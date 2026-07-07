@@ -1,7 +1,7 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
 import { MESSAGES_DLQ_TOTAL } from "../../config/metrics";
+import type { MemoryWalEntry } from "./memory-wal-entry";
 import type { WalFlusherService } from "./wal-flusher-service";
 
 export class WalFallbackHandler {
@@ -22,21 +22,17 @@ export class WalFallbackHandler {
 		return true;
 	}
 
-	async storeInWal(
-		topic: string,
-		serialized: string,
-		message: Message
-	): Promise<string> {
+	async storeInWal(entry: MemoryWalEntry): Promise<string> {
 		try {
-			await this._walFlusher.storeInWal(topic, serialized);
+			await this._walFlusher.storeInWal(entry.topic, entry.serialized);
 		} catch (err) {
 			logger.warn("Redis WAL list write failed, writing to in-memory buffer", {
 				context: {
-					topic,
+					topic: entry.topic,
 					error: (err as Error).message,
 				},
 			});
-			this._walFlusher.bufferInMemory(topic, serialized, message);
+			this._walFlusher.bufferInMemory(entry);
 			return "memory-buffered";
 		}
 

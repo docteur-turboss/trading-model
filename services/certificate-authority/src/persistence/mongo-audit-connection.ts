@@ -83,7 +83,7 @@ export class MongoAuditConnection {
 			try {
 				await this._client.close();
 			} catch {
-				/* closing */
+				logger.debug("Mongo audit client close error during disconnect");
 			}
 		}
 	}

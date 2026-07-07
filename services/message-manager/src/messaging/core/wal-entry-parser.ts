@@ -3,6 +3,7 @@ import { safeStringify } from "@trading-model/common/utils/safe-stringify";
 
 import { logger } from "../../config/logger";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
+import type { MemoryWalEntry } from "./memory-wal-entry";
 
 export interface ParsedWalEntry {
 	topic: string;
@@ -48,14 +49,19 @@ export class WalEntryParser {
 				const parsed = JSON.parse(entry) as {
 					topic: string;
 					serialized?: string;
-					message?: Message;
+					message?: unknown;
 				};
 				const topic = parsed.topic;
 				const serialized = parsed.serialized ?? safeStringify(parsed.message!);
 				const message = parsed.message ?? JSON.parse(parsed.serialized!);
-				this._memoryWalBuffer.push(topic, serialized, message);
+				const walEntry: MemoryWalEntry = {
+					topic,
+					serialized,
+					message: message as Message,
+				};
+				this._memoryWalBuffer.push(walEntry);
 			} catch {
-				// best-effort
+				logger.debug("WAL entry parse failed (best-effort)");
 			}
 		}
 	}
@@ -73,9 +79,7 @@ export class WalEntryParser {
 		}
 	}
 
-	static parseWithMessage(
-		entry: string
-	): { topic: string; serialized: string; message: unknown } | null {
+	static parseWithMessage(entry: string): MemoryWalEntry | null {
 		try {
 			const parsed = JSON.parse(entry) as {
 				topic: string;
@@ -85,7 +89,7 @@ export class WalEntryParser {
 			const topic = parsed.topic;
 			const serialized = parsed.serialized ?? JSON.stringify(parsed.message);
 			const message = parsed.message ?? JSON.parse(parsed.serialized!);
-			return { topic, serialized, message };
+			return { topic, serialized, message: message as Message };
 		} catch {
 			return null;
 		}

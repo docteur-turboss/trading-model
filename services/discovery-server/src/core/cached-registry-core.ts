@@ -66,9 +66,15 @@ export class CachedRegistryCore {
 		return {
 			ping: () => this._directPing(),
 			onHealthLost: () => {},
-			onHealthRestored: () => { this.cache.clear(); },
-			onFallbackActivated: () => { this.cache.clear(); },
-			onFallbackRestored: () => { this.cache.clear(); },
+			onHealthRestored: () => {
+				this.cache.clear();
+			},
+			onFallbackActivated: () => {
+				this.cache.clear();
+			},
+			onFallbackRestored: () => {
+				this.cache.clear();
+			},
 		};
 	}
 

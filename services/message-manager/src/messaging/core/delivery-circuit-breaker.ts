@@ -23,8 +23,6 @@ export class DeliveryCircuitBreaker implements ICircuitBreaker {
 		this._failureCount = 0;
 	}
 
-	// --- ICircuitBreaker implementation (key-based overloads delegate to no-arg impl) ---
-
 	recordFailure(): void;
 	recordFailure(_key: string, _count?: number, _threshold?: number): void;
 	recordFailure(_key?: string, _count?: number, _threshold?: number): void {
@@ -60,8 +58,6 @@ export class DeliveryCircuitBreaker implements ICircuitBreaker {
 	getFailureCount(_key?: string): number {
 		return this._failureCount;
 	}
-
-	// --- ICircuitBreaker check ---
 
 	check(_key: string): CircuitState {
 		return this.isOpen() ? CircuitState.OPEN : CircuitState.CLOSED;

@@ -71,20 +71,17 @@ export class RedisHealthMonitor {
 
 	private _startHealthCheckLoop(): void {
 		let healthCheckRunning = false;
-		this._healthCheckHandle.startInterval(
-			async () => {
-				if (healthCheckRunning) {
-					return;
-				}
-				healthCheckRunning = true;
-				try {
-					await this._runSingleHealthCheck();
-				} finally {
-					healthCheckRunning = false;
-				}
-			},
-			this._healthCheckIntervalMs
-		);
+		this._healthCheckHandle.startInterval(async () => {
+			if (healthCheckRunning) {
+				return;
+			}
+			healthCheckRunning = true;
+			try {
+				await this._runSingleHealthCheck();
+			} finally {
+				healthCheckRunning = false;
+			}
+		}, this._healthCheckIntervalMs);
 	}
 
 	private async _runSingleHealthCheck(): Promise<void> {

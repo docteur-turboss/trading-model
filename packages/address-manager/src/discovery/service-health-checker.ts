@@ -79,9 +79,7 @@ export class ServiceHealthChecker {
 		_instanceId: string,
 		_durationMs: number,
 		_success: boolean
-	): void {
-		// no-op: latency tracking implemented in higher-level circuit breaker
-	}
+	): void {}
 
 	private _buildPingUrl(instance: ServiceInstance): string {
 		const hostname = this._serviceLocator.locate(instance);

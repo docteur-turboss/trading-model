@@ -1,16 +1,19 @@
 import { logger } from "@trading-model/common/config/logger";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import {
-	sendResponse,
 	type ResponseObject,
+	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
 import { normalizeError } from "@trading-model/common/utils/errors";
 
 import { ENV } from "../config/env";
 import { LOGS_STORED_TOTAL } from "../config/metrics";
-import type { LogRepository, ServiceLogDocument } from "../persistence/log-repository";
-import { LOGS_BATCH_SCHEMA } from "./log-schemas";
+import type {
+	LogRepository,
+	ServiceLogDocument,
+} from "../persistence/log-repository";
 import { _buildLogDocuments } from "./log-document-builder";
+import { LOGS_BATCH_SCHEMA } from "./log-schemas";
 
 async function _storeLogs(
 	logRepo: LogRepository,

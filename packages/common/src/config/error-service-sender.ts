@@ -1,5 +1,5 @@
-import type { HttpMethod } from "./http-types";
 import { normalizeError } from "../utils/errors";
+import type { HttpMethod } from "./http-types";
 import type { LogEntry } from "./log-types";
 import type { SensitiveDataSanitizer } from "./sensitive-data-sanitizer";
 

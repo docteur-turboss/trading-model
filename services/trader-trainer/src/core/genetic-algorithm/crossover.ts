@@ -1,7 +1,3 @@
-// ================================================================
-//                        crossover operators
-// ================================================================
-
 import type {
 	ContinuousPolicyGenome,
 	CrossoverGenome,
@@ -11,16 +7,12 @@ import type {
 	LayerGenome,
 	MutationGenome,
 	NetworkGenome,
-	RLGenome,
-	RLScalars,
 	ReplayBufferGenome,
 	RewardShapingGenome,
+	RLGenome,
+	RLScalars,
 } from "./genome-types";
 import { CrossoverType } from "./genome-types";
-
-// ----------------------------------------------------------------
-// Crossover strategy interface & implementations
-// ----------------------------------------------------------------
 
 export interface CrossoverStrategyContext {
 	left: number;
@@ -112,10 +104,6 @@ const CROSSOVER_STRATEGIES: Record<CrossoverGenome["type"], CrossoverStrategy> =
 		[CrossoverType.TwoPoint]: new TwoPointCrossover(),
 	};
 
-// ----------------------------------------------------------------
-// Scalar crossover primitives
-// ----------------------------------------------------------------
-
 export interface CrossoverContext<TLeft = unknown, TRight = unknown> {
 	left: TLeft;
 	right: TRight;
@@ -146,10 +134,6 @@ export function crossoverScalar(ctx: CrossoverContext<number, number>): number {
 			? left
 			: right;
 }
-
-// ----------------------------------------------------------------
-// Sub-genome crossover helpers
-// ----------------------------------------------------------------
 
 function _crossoverLayerPair(
 	layerLeft: LayerGenome,
@@ -389,10 +373,6 @@ function crossoverMutation(
 		),
 	};
 }
-
-// ----------------------------------------------------------------
-// Public entry point
-// ----------------------------------------------------------------
 
 /** Produce a child genome via crossover of two parents, with probability governed by parent A's crossover config. */
 export function crossoverGenomes(

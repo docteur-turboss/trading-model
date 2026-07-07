@@ -1,6 +1,9 @@
 import { HttpClient } from "@trading-model/common/config/http-client";
-import type { CorrelationId, UnixTimestamp } from "@trading-model/common/domain/primitives";
 import { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import type {
+	CorrelationId,
+	UnixTimestamp,
+} from "@trading-model/common/domain/primitives";
 
 import { findAService } from "./address-manager";
 import { ENV } from "./env";
@@ -111,4 +114,3 @@ function _logAuditFailure(err: unknown, event: AuditEvent): void {
 		topic: event.topic,
 	});
 }
-

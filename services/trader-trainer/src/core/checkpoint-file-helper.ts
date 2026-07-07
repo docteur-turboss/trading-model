@@ -39,7 +39,10 @@ export class CheckpointSerializer {
 		return JSON.parse(raw) as T;
 	}
 
-	buildMetadata(symbol: string, genome: DeepReadonly<LamarckGenome>): CheckpointMetadata {
+	buildMetadata(
+		symbol: string,
+		genome: DeepReadonly<LamarckGenome>
+	): CheckpointMetadata {
 		return {
 			savedAt: Date.now(),
 			symbol,
@@ -70,7 +73,7 @@ export class CheckpointFileHelper {
 	constructor(
 		private readonly _checkpointDir: string,
 		io?: CheckpointIO,
-		serializer?: CheckpointSerializer,
+		serializer?: CheckpointSerializer
 	) {
 		this._io = io ?? new NodeCheckpointIO();
 		this._serializer = serializer ?? new CheckpointSerializer();
@@ -93,12 +96,12 @@ export class CheckpointFileHelper {
 		});
 	}
 
-	private _writeMetadata(symbol: string, genome: DeepReadonly<LamarckGenome>): void {
+	private _writeMetadata(
+		symbol: string,
+		genome: DeepReadonly<LamarckGenome>
+	): void {
 		const meta = this._serializer.buildMetadata(symbol, genome);
-		this._io.writeFile(
-			this.metadataPath(symbol),
-			JSON.stringify(meta),
-		);
+		this._io.writeFile(this.metadataPath(symbol), JSON.stringify(meta));
 	}
 
 	doLoad(symbol: string): DeepReadonly<LamarckGenome> | null {
@@ -108,7 +111,8 @@ export class CheckpointFileHelper {
 			return null;
 		}
 		const raw = this._io.readFile(path);
-		const genome = this._serializer.deserialize<DeepReadonly<LamarckGenome>>(raw);
+		const genome =
+			this._serializer.deserialize<DeepReadonly<LamarckGenome>>(raw);
 		logger.info("Checkpoint loaded", {
 			context: {
 				symbol,

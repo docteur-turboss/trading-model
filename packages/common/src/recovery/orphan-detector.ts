@@ -1,4 +1,5 @@
 import { logger } from "../config/logger";
+import { JOB_STATUS } from "../contracts/recovery.types";
 import { TimerHandle } from "../utils/timer-handle";
 import type { WorkerRegistry } from "../worker/worker-registry";
 import type { IJobRepository } from "./job-repository.interface";
@@ -56,11 +57,11 @@ export class OrphanDetector {
 
 	private async _processOrphanedWorker(workerId: string): Promise<void> {
 		const orphanedJobs = await this._repository.findByWorker(workerId, [
-			"assigned",
-			"running",
+			JOB_STATUS.ASSIGNED,
+			JOB_STATUS.RUNNING,
 		]);
 		for (const job of orphanedJobs) {
-			await this._repository.updateStatus(job.id, "orphaned");
+			await this._repository.updateStatus(job.id, JOB_STATUS.ORPHANED);
 			await this._reAllocator.reallocate(job);
 		}
 	}

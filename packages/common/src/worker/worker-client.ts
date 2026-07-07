@@ -5,10 +5,10 @@
 	WorkerWsHeartbeatMessage,
 } from "../contracts/worker-protocol.types";
 import type { Capability, JobType } from "../domain/primitives";
+import { DefaultWsReconnector } from "../ws/default-ws-reconnector";
 import { TypedEventEmitter } from "./typed-event-emitter";
 import { WorkerHeartbeat } from "./worker-heartbeat";
 import { WorkerMessageRouter } from "./worker-message-router";
-import { WorkerReconnector } from "./worker-reconnector";
 import { WorkerWsConnection } from "./worker-ws-connection";
 
 export interface WorkerClientConfig {
@@ -74,7 +74,7 @@ export class WorkerClient {
 
 	private readonly _cfg: Required<WorkerClientConfig>;
 	private readonly _connection: WorkerWsConnection;
-	private readonly _reconnector: WorkerReconnector;
+	private readonly _reconnector: DefaultWsReconnector;
 	private readonly _heartbeat: WorkerHeartbeat;
 	private readonly _messageRouter: WorkerMessageRouter;
 
@@ -96,15 +96,15 @@ export class WorkerClient {
 		});
 	}
 
-	private _createReconnector(): WorkerReconnector {
-		return new WorkerReconnector(
-			{
-				reconnectBaseDelayMs: this._cfg.reconnectBaseDelayMs,
-				reconnectMaxDelayMs: this._cfg.reconnectMaxDelayMs,
+	private _createReconnector(): DefaultWsReconnector {
+		return new DefaultWsReconnector({
+			config: {
+				baseDelayMs: this._cfg.reconnectBaseDelayMs,
+				maxDelayMs: this._cfg.reconnectMaxDelayMs,
 			},
-			() => this._doConnect(),
-			(info) => this.emit("reconnecting", info)
-		);
+			onReconnect: () => this._doConnect(),
+			onSchedule: (info) => this.emit("reconnecting", info),
+		});
 	}
 
 	private _createHeartbeat(): WorkerHeartbeat {

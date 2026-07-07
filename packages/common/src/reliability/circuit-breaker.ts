@@ -52,7 +52,6 @@ export class CircuitBreaker implements ICircuitBreaker {
 				entry.state = "half-open";
 				return "half-open";
 			}
-			// Circuit is open — caller should throw
 			return "open";
 		}
 		return entry.state;

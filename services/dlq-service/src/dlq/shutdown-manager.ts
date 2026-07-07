@@ -153,5 +153,3 @@ export {
 export async function shutdown(): Promise<void> {
 	return shutdownSchedulers();
 }
-
-

@@ -1,14 +1,14 @@
 import {
-	getAvgAsk,
-	getAvgBid,
 	type BookTickerData,
 	type CandleData,
+	getAvgAsk,
+	getAvgBid,
 	type OrderBookData,
 	type TickerData,
 	type TradeData,
 } from "@trading-model/common/config/event.types";
-import type { NormalizationStats } from "../normalization-stats";
 import type { SymbolState, TradingSymbol } from "../market-data-types";
+import type { NormalizationStats } from "../normalization-stats";
 
 export interface DataHandler<TData = unknown> {
 	readonly dataType: string;
@@ -19,10 +19,12 @@ export interface DataHandler<TData = unknown> {
 		symbol: TradingSymbol,
 		data: TData,
 		state: SymbolState,
-		maxSize?: number,
+		maxSize?: number
 	): void;
 
-	serializeNorms(state: SymbolState): Record<string, ReturnType<NormalizationStats["toJSON"]>>;
+	serializeNorms(
+		state: SymbolState
+	): Record<string, ReturnType<NormalizationStats["toJSON"]>>;
 }
 
 export class CandleHandler implements DataHandler<CandleData> {
@@ -36,14 +38,21 @@ export class CandleHandler implements DataHandler<CandleData> {
 		state.norm.candleLow.update(candle.low);
 	}
 
-	mutateState(_symbol: TradingSymbol, data: CandleData, state: SymbolState, maxSize?: number): void {
+	mutateState(
+		_symbol: TradingSymbol,
+		data: CandleData,
+		state: SymbolState,
+		maxSize?: number
+	): void {
 		state.candles.push(data);
 		if (maxSize !== undefined && state.candles.length > maxSize) {
 			state.candles = state.candles.slice(-maxSize);
 		}
 	}
 
-	serializeNorms(state: SymbolState): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
+	serializeNorms(
+		state: SymbolState
+	): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
 		return {
 			closeNorm: state.norm.candleClose.toJSON(),
 			volumeNorm: state.norm.candleVolume.toJSON(),
@@ -62,14 +71,21 @@ export class TradeHandler implements DataHandler<TradeData> {
 		state.norm.tradeQty.update(trade.quantity);
 	}
 
-	mutateState(_symbol: TradingSymbol, data: TradeData, state: SymbolState, maxSize?: number): void {
+	mutateState(
+		_symbol: TradingSymbol,
+		data: TradeData,
+		state: SymbolState,
+		maxSize?: number
+	): void {
 		state.trades.push(data);
 		if (maxSize !== undefined && state.trades.length > maxSize) {
 			state.trades = state.trades.slice(-maxSize);
 		}
 	}
 
-	serializeNorms(state: SymbolState): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
+	serializeNorms(
+		state: SymbolState
+	): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
 		return {
 			tradePriceNorm: state.norm.tradePrice.toJSON(),
 			tradeQtyNorm: state.norm.tradeQty.toJSON(),
@@ -88,11 +104,18 @@ export class OrderBookHandler implements DataHandler<OrderBookData> {
 		if (avgAsk > 0 && avgBid > 0) state.norm.spread.update(avgAsk - avgBid);
 	}
 
-	mutateState(_symbol: TradingSymbol, data: OrderBookData, state: SymbolState, _maxSize?: number): void {
+	mutateState(
+		_symbol: TradingSymbol,
+		data: OrderBookData,
+		state: SymbolState,
+		_maxSize?: number
+	): void {
 		state.orderBook = data;
 	}
 
-	serializeNorms(state: SymbolState): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
+	serializeNorms(
+		state: SymbolState
+	): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
 		return {
 			bidNorm: state.norm.bid.toJSON(),
 			askNorm: state.norm.ask.toJSON(),
@@ -110,11 +133,18 @@ export class BookTickerHandler implements DataHandler<BookTickerData> {
 		if (bt.ask > 0 && bt.bid > 0) state.norm.spread.update(bt.ask - bt.bid);
 	}
 
-	mutateState(_symbol: TradingSymbol, data: BookTickerData, state: SymbolState, _maxSize?: number): void {
+	mutateState(
+		_symbol: TradingSymbol,
+		data: BookTickerData,
+		state: SymbolState,
+		_maxSize?: number
+	): void {
 		state.bookTicker = data;
 	}
 
-	serializeNorms(_state: SymbolState): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
+	serializeNorms(
+		_state: SymbolState
+	): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
 		return {};
 	}
 }
@@ -126,11 +156,18 @@ export class TickerHandler implements DataHandler<TickerData> {
 		state.norm.tickerVolume.update(ticker.volume);
 	}
 
-	mutateState(_symbol: TradingSymbol, data: TickerData, state: SymbolState, _maxSize?: number): void {
+	mutateState(
+		_symbol: TradingSymbol,
+		data: TickerData,
+		state: SymbolState,
+		_maxSize?: number
+	): void {
 		state.ticker24h = data;
 	}
 
-	serializeNorms(state: SymbolState): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
+	serializeNorms(
+		state: SymbolState
+	): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
 		return {
 			tickerVolumeNorm: state.norm.tickerVolume.toJSON(),
 		};
@@ -139,11 +176,11 @@ export class TickerHandler implements DataHandler<TickerData> {
 
 export function serializeAllNorms(
 	state: SymbolState,
-	handlers?: DataHandler[],
+	handlers?: DataHandler[]
 ): Record<string, ReturnType<NormalizationStats["toJSON"]>> {
 	const all = (handlers ?? createDefaultHandlers()).reduce(
 		(acc, h) => Object.assign(acc, h.serializeNorms(state)),
-		{} as Record<string, ReturnType<NormalizationStats["toJSON"]>>,
+		{} as Record<string, ReturnType<NormalizationStats["toJSON"]>>
 	);
 	return all;
 }

@@ -1,4 +1,7 @@
-import { type CorrelationId, toCorrelationId } from "@trading-model/common/domain/primitives";
+import {
+	type CorrelationId,
+	toCorrelationId,
+} from "@trading-model/common/domain/primitives";
 import { IDS_METADATA_PREDICATE } from "./message.schema";
 
 export class MessageChainingMetadata {
@@ -38,7 +41,10 @@ export class MessageChainingMetadata {
 		}
 	}
 
-	public toJSON(): { causationId?: CorrelationId; correlationId?: CorrelationId } {
+	public toJSON(): {
+		causationId?: CorrelationId;
+		correlationId?: CorrelationId;
+	} {
 		return {
 			causationId: this._causationId,
 			correlationId: this._correlationId,

@@ -28,12 +28,12 @@ export class MemoryWalBuffer {
 		return this._buffer.length;
 	}
 
-	push(topic: string, serialized: string, message: Message): void {
+	push(entry: MemoryWalEntry): void {
 		this._warnIfNearCapacity();
 		if (this._buffer.length >= ENV.MEMORY_WAL_BUFFER_SIZE) {
 			this._evictExcess();
 		}
-		this._buffer.push({ topic, serialized, message });
+		this._buffer.push(entry);
 	}
 
 	private _warnIfNearCapacity(): void {

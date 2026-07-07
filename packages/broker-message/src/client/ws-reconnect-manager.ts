@@ -3,6 +3,7 @@ import {
 	scheduleWsReconnect,
 	type WsReconnectState,
 } from "@trading-model/common/utils/ws-reconnect";
+import { ReconnectStateManager } from "@trading-model/common/worker/reconnect-state-manager";
 import type { IWsReconnector } from "@trading-model/common/ws/i-ws-reconnector";
 import { ReconnectFallbackHandler } from "./reconnect-fallback-handler";
 
@@ -13,20 +14,16 @@ const WSS_MAX_RECONNECT_ATTEMPTS = 20;
 type ConnectFn = () => void;
 
 export class WsReconnectManager implements IWsReconnector {
-	private _shouldReconnect = true;
-	private _wsReconnectState: WsReconnectState = {
-		attempt: 0,
-		timer: null,
-		destroyed: false,
-	};
+	private readonly _state = new ReconnectStateManager();
 	private readonly _fallbackHandler = new ReconnectFallbackHandler();
+	private _onPermanentFallback?: () => void;
 
 	get shouldReconnect(): boolean {
-		return this._shouldReconnect;
+		return this._state.shouldReconnect;
 	}
 
 	set shouldReconnect(value: boolean) {
-		this._shouldReconnect = value;
+		this._state.shouldReconnect = value;
 	}
 
 	get permanentlyFellBack(): boolean {
@@ -34,55 +31,51 @@ export class WsReconnectManager implements IWsReconnector {
 	}
 
 	get attempt(): number {
-		return this._wsReconnectState.attempt;
+		return this._state.attempt;
 	}
 
 	get reconnectState(): WsReconnectState {
-		return this._wsReconnectState;
+		return this._state.state;
 	}
 
-	scheduleReconnect(
-		connectFn: ConnectFn,
-		onPermanentFallback?: () => void
-	): void {
-		if (!this._shouldReconnect) {
+	setOnPermanentFallback(cb: () => void): void {
+		this._onPermanentFallback = cb;
+	}
+
+	scheduleReconnect(connectFn?: () => void): void {
+		if (!this._state.shouldReconnect) {
 			return;
 		}
-		if (this._wsReconnectState.attempt >= WSS_MAX_RECONNECT_ATTEMPTS) {
+		if (this._state.attempt >= WSS_MAX_RECONNECT_ATTEMPTS) {
 			this._fallbackHandler.handleMaxAttemptsReached(
-				connectFn,
-				onPermanentFallback
+				connectFn ?? (() => {}),
+				this._onPermanentFallback
 			);
 			return;
 		}
 		scheduleWsReconnect({
-			state: this._wsReconnectState,
+			state: this._state.state,
 			config: {
 				baseDelayMs: WSS_RECONNECT_BASE_MS,
 				maxDelayMs: WSS_RECONNECT_MAX_MS,
 				jitterMs: 1000,
 			},
-			onReconnect: connectFn,
+			onReconnect: connectFn ?? (() => {}),
 			logger,
 		});
 	}
 
 	cancel(): void {
-		if (this._wsReconnectState.timer) {
-			clearTimeout(this._wsReconnectState.timer);
-			this._wsReconnectState.timer = null;
-		}
+		this._state.cancel();
 	}
 
 	stop(): void {
-		this._shouldReconnect = false;
-		this._wsReconnectState.destroyed = true;
-		this.cancel();
+		this._state.stop();
 		this._fallbackHandler.stop();
 	}
 
 	reset(): void {
 		this._fallbackHandler.reset();
-		this._wsReconnectState.attempt = 0;
+		this._state.reset();
 	}
 }

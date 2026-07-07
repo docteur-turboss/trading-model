@@ -119,7 +119,7 @@ class RealFsStore implements FsStore {
 		try {
 			await fs.unlink(this._filePath(key));
 		} catch {
-			// ignore if already gone
+			logger.debug("File already deleted");
 		}
 	}
 }

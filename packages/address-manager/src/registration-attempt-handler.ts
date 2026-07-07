@@ -1,7 +1,7 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import type { AddressManagerDeps } from "./types";
 import { RetryScheduler } from "./retry-scheduler";
+import type { AddressManagerDeps } from "./types";
 
 const RETRY_CONFIG = {
 	maxRetries: 10,

@@ -104,8 +104,8 @@ export class DiscoveryRetryHandler {
 				recordDiscoveryMetrics(serviceName, startTime, "degraded");
 				return staleInstance;
 			}
-		} catch {
-			// ignore cache errors in fallback path
+		} catch (err) {
+			logger.debug("Cache lookup failed in fallback path", { error: err });
 		}
 		return null;
 	}

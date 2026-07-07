@@ -1,6 +1,7 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
 
 import { getStreamClient } from "../../config/redis";
+import type { MessageQuery } from "./messaging-types";
 import type {
 	GetMessagesBetweenParams,
 	ReadFromGroupParams,
@@ -48,19 +49,15 @@ export class StreamMessageReader {
 		return messages;
 	}
 
-	async getMessagesAfter(
-		topic: string,
-		afterTimestamp: number,
-		limit = 100
-	): Promise<Message[]> {
+	async getMessagesAfter(query: MessageQuery): Promise<Message[]> {
 		const redis = await getStreamClient();
-		const minId = `${afterTimestamp}-0`;
+		const minId = `${query.afterTimestamp}-0`;
 		const results = await redis.xrange(
-			this._streamKey(topic),
+			this._streamKey(query.topic),
 			minId,
 			"+",
 			"COUNT",
-			limit
+			query.limit ?? 100
 		);
 		return results
 			.map(([, fields]) => {
@@ -78,8 +75,8 @@ export class StreamMessageReader {
 	): Promise<Message[]> {
 		const { topic, timeRange, limit = 100 } = params;
 		const redis = await getStreamClient();
-		const minId = `${timeRange.fromMs}-0`;
-		const maxId = `${timeRange.toMs}-0`;
+		const minId = `${timeRange.start?.getTime() ?? 0}-0`;
+		const maxId = `${timeRange.end?.getTime() ?? Date.now()}-0`;
 		const results = await redis.xrange(
 			this._streamKey(topic),
 			minId,

@@ -49,7 +49,7 @@ export class SubscriptionRedisReader {
 	): Promise<[Error | null, unknown][] | null> {
 		const pipeline = redis.pipeline();
 		for (const id of instanceIds) {
-			pipeline.hget(this._keys.subKey(topic, id), "data");
+			pipeline.hget(this._keys.subKey({ topic, instanceId: id }), "data");
 		}
 		return await pipeline.exec();
 	}

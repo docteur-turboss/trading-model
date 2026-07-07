@@ -64,7 +64,5 @@ export class VaultTransitClient {
 		await this._http.deleteKey(name);
 	}
 
-	destroy(): void {
-		// no-op: HttpClient has no connection state to clean up
-	}
+	destroy(): void {}
 }

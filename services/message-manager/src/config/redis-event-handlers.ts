@@ -51,8 +51,8 @@ function handleReady(
 	for (const cb of onReconnectedCallbacks) {
 		try {
 			cb();
-		} catch {
-			/* best-effort */
+		} catch (err) {
+			logger.debug("Reconnected callback failed", { error: err });
 		}
 	}
 }

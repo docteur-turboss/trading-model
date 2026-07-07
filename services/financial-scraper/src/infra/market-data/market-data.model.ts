@@ -24,9 +24,6 @@ import { insertOrderBook as IinsertOrderBook } from "./schema/order-book.schema"
 import { insertTicker as IinsertTicker } from "./schema/ticker24h.schema";
 import { insertTrades as IinsertTrades } from "./schema/trades.schema";
 
-/* ============================================================
- * MODEL
- * ========================================================== */
 export const MarketDataModel = new (class {
 	/** Insert candle records into the database. */
 	async insertCandles(data: CandleData[]): Promise<void> {

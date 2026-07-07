@@ -1,91 +1,97 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { SignedRequest } from "@trading-model/common/contracts/signed-request";
+import {
+	normalizeBody,
+	verifySignature as sharedVerifySignature,
+} from "@trading-model/common/crypto/request-signer";
 import { toServiceId } from "@trading-model/common/domain/primitives";
 import { HTTP_HEADERS } from "@trading-model/common/http-headers";
-import { deterministicStringify } from "@trading-model/common/utils/deterministic-stringify";
 import type { NextFunction, Request, Response } from "express";
 import { ENV, resolveAuthHmacSecret } from "../config/env";
-import { logger } from "../config/logger";
 
 const ALLOWED_SERVICES = ENV.DLQ_ALLOWED_SERVICES.split(",")
 	.map((service) => service.trim())
 	.filter(Boolean);
 
-function normalizeBody(body: unknown): unknown {
-	return body ?? {};
-}
-
 function verifySignature(req: Request, serviceName: string): boolean {
 	const secret = resolveAuthHmacSecret();
-
-	const provided = (req.headers[HTTP_HEADERS.X_SIGNATURE] as string) || "";
-	const timestampStr = (req.headers[HTTP_HEADERS.X_TIMESTAMP] as string) || "";
+	const provided = _extractSignatureHeader(req);
+	const timestampStr = _extractTimestampHeader(req);
 
 	if (!_validateTimestamp(timestampStr, provided)) {
 		return false;
 	}
 
-	const bodyHash = _computeBodyHash(req, serviceName);
-	if (!bodyHash) {
-		return false;
+	const route = _buildSignedRequest(req, serviceName);
+
+	if (sharedVerifySignature(route, provided, timestampStr, secret)) {
+		return true;
 	}
 
-	const route: SignedRequest = {
+	return _matchFallbackSignature(
+		req,
+		serviceName,
+		provided,
+		secret,
+		timestampStr,
+		route
+	);
+}
+
+function _extractSignatureHeader(req: Request): string {
+	return (req.headers[HTTP_HEADERS.X_SIGNATURE] as string) || "";
+}
+
+function _extractTimestampHeader(req: Request): string {
+	return (req.headers[HTTP_HEADERS.X_TIMESTAMP] as string) || "";
+}
+
+function _buildSignedRequest(req: Request, serviceName: string): SignedRequest {
+	return {
 		serviceName: toServiceId(serviceName),
 		method: req.method as SignedRequest["method"],
 		path: req.path,
 		body: req.body,
 	};
-	const parts = [serviceName, timestampStr, bodyHash, route.method, route.path];
-	if (_matchSignature(provided, secret, parts)) {
-		return true;
-	}
+}
 
+function _matchFallbackSignature(
+	req: Request,
+	serviceName: string,
+	provided: string,
+	secret: string,
+	timestampStr: string,
+	route: SignedRequest
+): boolean {
 	const oldParts = [
 		serviceName,
 		timestampStr,
-		_computeBodyString(req, serviceName) ?? "",
+		_computeBodyString(req) ?? "",
 		route.method,
 		route.path,
 	];
-
 	return _matchSignature(provided, secret, oldParts);
 }
 
-function _computeBodyString(req: Request, serviceName: string): string | null {
+function _computeBodyString(req: Request): string | null {
 	try {
-		return deterministicStringify(normalizeBody(req.body));
+		return JSON.stringify(normalizeBody(req.body));
 	} catch {
-		logger.warn("Failed to stringify request body for signature verification", {
-			context: { serviceName },
-		});
 		return null;
 	}
 }
 
-function _computeBodyHash(req: Request, serviceName: string): string | null {
-	const bodyString = _computeBodyString(req, serviceName);
-	if (!bodyString) {
-		return null;
-	}
-	return createHash("sha256").update(bodyString).digest("hex");
-}
-
-function _validateTimestamp(
-	timestampStr: string,
-	provided: string
-): number | null {
+function _validateTimestamp(timestampStr: string, provided: string): boolean {
 	if (!(timestampStr && provided)) {
-		return null;
+		return false;
 	}
 	const timestamp = Number.parseInt(timestampStr, 10);
 	if (Number.isNaN(timestamp)) {
-		return null;
+		return false;
 	}
 	if (Math.abs(Date.now() - timestamp) > 300_000) {
-		return null;
+		return false;
 	}
-	return timestamp;
+	return true;
 }
 
 function _matchSignature(
@@ -93,6 +99,7 @@ function _matchSignature(
 	secret: string,
 	parts: string[]
 ): boolean {
+	const { createHmac, timingSafeEqual } = require("node:crypto");
 	const expected = createHmac("sha256", secret)
 		.update(parts.join(":"))
 		.digest("hex");
@@ -118,4 +125,3 @@ function serviceAuth(req: Request, res: Response, next: NextFunction): void {
 }
 
 export { serviceAuth };
-

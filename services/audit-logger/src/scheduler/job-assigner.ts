@@ -1,6 +1,10 @@
 import { logger } from "@trading-model/common/config/logger";
+import { JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
 import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
-import { toInstanceId } from "@trading-model/common/domain/primitives";
+import {
+	type JobId,
+	toInstanceId,
+} from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { Job } from "../types/job.types";
@@ -34,7 +38,7 @@ export class JobAssigner {
 		const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
 		const assignedJob: Job = {
 			...queued.job,
-			status: "assigned",
+			status: JOB_STATUS.ASSIGNED,
 			assignedWorkerId: worker.workerId,
 			ackDeadline: deadline,
 		};
@@ -77,12 +81,12 @@ export class JobAssigner {
 	}
 
 	private _persistAssignment(
-		jobId: string,
+		jobId: JobId,
 		assignedWorkerId: string,
 		deadline: number
 	): void {
 		this._repository
-			.updateStatus(jobId, "assigned", {
+			.updateStatus(jobId, JOB_STATUS.ASSIGNED, {
 				assignedWorkerId: toInstanceId(assignedWorkerId),
 				ackDeadline: deadline,
 			})

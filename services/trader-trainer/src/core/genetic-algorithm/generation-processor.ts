@@ -87,7 +87,11 @@ export class GenerationProcessor {
 			this._evaluator.stagnationTracker.stagnation
 		);
 
-		this._lastBestGenome = this._evaluator.stagnationTracker.track(popWithMeta, metas, avgEff);
+		this._lastBestGenome = this._evaluator.stagnationTracker.track(
+			popWithMeta,
+			metas,
+			avgEff
+		);
 
 		const ranked = sortPopulation(popWithMeta, popMeta);
 		const elites = selectElites(ranked, newCtrl);
@@ -99,7 +103,12 @@ export class GenerationProcessor {
 			generation: this._generation,
 		});
 
-		const ctx = this._buildGenerationContext(startTime, avgFit, avgEff, newCtrl);
+		const ctx = this._buildGenerationContext(
+			startTime,
+			avgFit,
+			avgEff,
+			newCtrl
+		);
 		this._cfg.onGeneration?.(ctx);
 		return ctx;
 	}

@@ -43,13 +43,16 @@ export class MongoArchiveStore {
 		}
 	}
 
-	private async _archiveTopic(topic: string, client: NonNullable<typeof this._clientManager.client>): Promise<void> {
+	private async _archiveTopic(
+		topic: string,
+		client: NonNullable<typeof this._clientManager.client>
+	): Promise<void> {
 		try {
-			const messages = await messageStore.getMessagesAfter(
+			const messages = await messageStore.getMessagesAfter({
 				topic,
-				Date.now() - 3600_000,
-				ENV.MONGO_ARCHIVE_BATCH_SIZE
-			);
+				afterTimestamp: Date.now() - 3600_000,
+				limit: ENV.MONGO_ARCHIVE_BATCH_SIZE,
+			});
 			if (messages.length === 0) {
 				return;
 			}
@@ -64,7 +67,7 @@ export class MongoArchiveStore {
 			});
 			await writer.writeArchiveBatch(messages);
 		} catch {
-			// continue to next topic
+			// skip failed topic, continue to next
 		}
 	}
 

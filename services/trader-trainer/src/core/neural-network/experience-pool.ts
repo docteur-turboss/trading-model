@@ -13,9 +13,7 @@ export interface IExperiencePool {
 }
 
 class DisabledExperiencePool implements IExperiencePool {
-	add(_experience: Experience): void {
-		// no-op
-	}
+	add(_experience: Experience): void {}
 
 	getPool(): Experience[] {
 		return [];
@@ -29,13 +27,9 @@ class DisabledExperiencePool implements IExperiencePool {
 		throw agentError(`Requested batch size ${batchSize} exceeds pool size 0.`);
 	}
 
-	clearPool(): void {
-		// no-op
-	}
+	clearPool(): void {}
 
-	remove(_input: Float32Array): void {
-		// no-op
-	}
+	remove(_input: Float32Array): void {}
 
 	values(): MapIterator<Experience> {
 		return new Map().values();

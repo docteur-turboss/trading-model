@@ -17,6 +17,10 @@ function _createReplacer(customReplacer?: ReplacerFn): ReplacerFn {
 	};
 }
 
-export function safeStringify(value: unknown, space?: number, customReplacer?: ReplacerFn): string {
+export function safeStringify(
+	value: unknown,
+	space?: number,
+	customReplacer?: ReplacerFn
+): string {
 	return JSON.stringify(value, _createReplacer(customReplacer), space);
 }

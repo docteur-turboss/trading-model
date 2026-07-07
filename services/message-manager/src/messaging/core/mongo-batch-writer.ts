@@ -25,7 +25,9 @@ export class MongoBatchWriter {
 	}
 
 	private async _insertWithRetry(
-		col: ReturnType<ReturnType<MongoCollectionConfig["client"]["db"]>["collection"]>,
+		col: ReturnType<
+			ReturnType<MongoCollectionConfig["client"]["db"]>["collection"]
+		>,
 		docs: unknown[],
 		attempt: number
 	): Promise<void> {

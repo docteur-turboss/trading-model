@@ -1,9 +1,11 @@
 import { logger } from "@trading-model/common/config/logger";
+import { JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
+import type { JobId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import { OrphanDetector } from "../recovery/orphan-detector";
 import { ReAllocator } from "../recovery/re-allocator";
-import { type Job, JobPriority, type JobStatus } from "../types/job.types";
+import { type Job, JobPriority } from "../types/job.types";
 import {
 	type IWorkerProtocol,
 	NullWorkerProtocol,
@@ -82,23 +84,23 @@ async function _recoverJobs(
 	reAllocator: ReAllocator
 ): Promise<void> {
 	const StatusHandlers: Partial<
-		Record<JobStatus, (job: Job) => Promise<void>>
+		Record<JOB_STATUS, (job: Job) => Promise<void>>
 	> = {
-		pending: async (job) => {
-			queue.enqueue({ ...job, status: "queued" });
+		[JOB_STATUS.PENDING]: async (job) => {
+			queue.enqueue({ ...job, status: JOB_STATUS.QUEUED });
 		},
-		queued: async (job) => {
-			queue.enqueue({ ...job, status: "queued" });
+		[JOB_STATUS.QUEUED]: async (job) => {
+			queue.enqueue({ ...job, status: JOB_STATUS.QUEUED });
 		},
-		assigned: async (job) => {
-			await repository.updateStatus(job.id, "orphaned");
+		[JOB_STATUS.ASSIGNED]: async (job) => {
+			await repository.updateStatus(job.id, JOB_STATUS.ORPHANED);
 			await reAllocator.reallocate(job);
 		},
-		running: async (job) => {
-			await repository.updateStatus(job.id, "orphaned");
+		[JOB_STATUS.RUNNING]: async (job) => {
+			await repository.updateStatus(job.id, JOB_STATUS.ORPHANED);
 			await reAllocator.reallocate(job);
 		},
-		orphaned: async (job) => {
+		[JOB_STATUS.ORPHANED]: async (job) => {
 			await reAllocator.reallocate(job);
 		},
 	};
@@ -172,19 +174,19 @@ export class JobScheduler {
 		return this._lifecycle.submit(type, payload, priority, maxRetries);
 	}
 
-	async ack(jobId: string): Promise<void> {
+	async ack(jobId: JobId): Promise<void> {
 		return this._lifecycle.ack(jobId);
 	}
 
-	async complete(jobId: string, result: unknown): Promise<void> {
+	async complete(jobId: JobId, result: unknown): Promise<void> {
 		return this._lifecycle.complete(jobId, result);
 	}
 
-	async fail(jobId: string, error: string): Promise<void> {
+	async fail(jobId: JobId, error: string): Promise<void> {
 		return this._lifecycle.fail(jobId, error);
 	}
 
-	async cancel(jobId: string): Promise<void> {
+	async cancel(jobId: JobId): Promise<void> {
 		return this._lifecycle.cancel(jobId);
 	}
 

@@ -124,10 +124,9 @@ describe("Controller - Auto Retry", () => {
 	let controller: Record<string, unknown>;
 
 	beforeAll(() => {
-		controller = jest.requireActual("../../src/dlq/controller-reexports") as Record<
-			string,
-			unknown
-		>;
+		controller = jest.requireActual(
+			"../../src/dlq/controller-reexports"
+		) as Record<string, unknown>;
 	});
 
 	afterAll(() => {

@@ -5,18 +5,19 @@ import type {
 	SecurityType,
 	ServiceIdentity,
 } from "@trading-model/common/contracts/message.types";
-import { type CorrelationId, type Topic, toTopic } from "@trading-model/common/domain/primitives";
-
 import {
-	EVENT_TYPE_METADATA_PREDICATE,
-	PUBLISHER_METADATA_CONTEXT_PREDICATE,
-	SCHEMA_METADATA_VERSION_PREDICATE,
-	TOPIC_METADATA_PREDICATE,
-} from "./message.schema";
+	type CorrelationId,
+	type Topic,
+	toTopic,
+} from "@trading-model/common/domain/primitives";
 import {
 	DELIVERY_METADATA_MODE_PREDICATE,
+	EVENT_TYPE_METADATA_PREDICATE,
+	PUBLISHER_METADATA_CONTEXT_PREDICATE,
 	ROUTING_METADATA_CONTEXT_PREDICATE,
+	SCHEMA_METADATA_VERSION_PREDICATE,
 	SECURITY_METADATA_CONTEXT_PREDICATE,
+	TOPIC_METADATA_PREDICATE,
 } from "./message.schema";
 import { MessageChainingMetadata } from "./message-chaining-metadata";
 
@@ -127,7 +128,7 @@ export class MessageMetadata {
 		} | null
 	): this {
 		if (!this._chaining) {
-			if (context === null || (!context.causationId && !context.correlationId)) {
+			if (context === null || !(context.causationId || context.correlationId)) {
 				return this;
 			}
 			this._chaining = new MessageChainingMetadata(context);

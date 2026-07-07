@@ -35,6 +35,22 @@ export async function fetchAllRawData(
 	} = opts;
 	const interval = opts.interval ?? CandleInterval.MIN1;
 
+	return _fetchBinanceData(
+		symbol,
+		interval,
+		candleLimit,
+		tradeLimit,
+		orderBookLimit
+	);
+}
+
+async function _fetchBinanceData(
+	symbol: string,
+	interval: string,
+	candleLimit: number,
+	tradeLimit: number,
+	orderBookLimit: number
+): Promise<RawBinanceData> {
 	const [
 		orderBookRaw,
 		tradesRaw,

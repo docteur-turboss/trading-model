@@ -1,6 +1,6 @@
+import type { MongoClient } from "mongodb";
 import { ENV } from "../../config/env";
 import { logger } from "../../config/logger";
-import type { MongoClient } from "mongodb";
 
 export class MongoClientManager {
 	private _client: MongoClient | null = null;
@@ -70,7 +70,7 @@ export class MongoClientManager {
 		try {
 			await this._client.close();
 		} catch {
-			// best-effort
+			logger.debug("Mongo client close error (best-effort)");
 		}
 	}
 }

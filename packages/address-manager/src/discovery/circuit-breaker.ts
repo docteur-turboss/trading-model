@@ -72,14 +72,19 @@ export class CircuitBreaker implements ICircuitBreaker {
 	}
 
 	isAllowed(instanceId: string): boolean {
-		const state = this._state.getInstanceState(instanceId);
-		if (!state || state.state === "closed") {
+		const machine = this._state.getOrCreateMachine(instanceId);
+		const currentState = machine.getState(Date.now());
+		if (currentState === "closed") {
 			return true;
 		}
-		if (state.state === "open") {
-			const allowed = this._state.tryHalfOpen(instanceId, state);
+		if (currentState === "open") {
+			const now = Date.now();
+			const state = this._state.getInstanceState(instanceId);
+			const allowed = state
+				? this._state.tryHalfOpen(instanceId, state)
+				: false;
 			if (allowed) {
-				this._persistence.persistState(instanceId, state);
+				this._persistence.persistMachineState(instanceId, machine);
 			}
 			return allowed;
 		}

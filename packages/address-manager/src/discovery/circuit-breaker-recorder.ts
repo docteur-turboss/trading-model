@@ -15,12 +15,11 @@ export class CircuitBreakerRecorder {
 	}
 
 	recordFailure(instanceId: string): void {
-		const now = Date.now();
-		const state = this._state.getOrCreateState(instanceId, now);
-		state.failures++;
-		state.lastFailureTime = now;
-		this._state.checkOpenThreshold(instanceId, state);
-		this._persistence.persistState(instanceId, state);
+		this._state.recordFailure(instanceId);
+		this._persistence.persistMachineState(
+			instanceId,
+			this._state.getOrCreateMachine(instanceId)
+		);
 	}
 
 	recordSuccess(instanceId: string): void {
@@ -29,8 +28,7 @@ export class CircuitBreakerRecorder {
 			return;
 		}
 		this._state.logHalfOpenClose(instanceId, state);
-		state.state = "closed";
-		state.failures = 0;
+		this._state.recordSuccess(instanceId);
 		this._persistence.deleteLastLoadTime(instanceId);
 		this._latency.deleteWindow(instanceId);
 		this._persistence.deletePersistedState(instanceId);
@@ -50,13 +48,14 @@ export class CircuitBreakerRecorder {
 	}
 
 	getStateSummary(): Record<CircuitState, number> {
+		const now = Date.now();
 		const summary: Record<CircuitState, number> = {
 			closed: 0,
 			open: 0,
 			"half-open": 0,
 		};
-		for (const [, state] of this._state.instances) {
-			summary[state.state]++;
+		for (const [, machine] of this._state.instances) {
+			summary[machine.getState(now)]++;
 		}
 		return summary;
 	}

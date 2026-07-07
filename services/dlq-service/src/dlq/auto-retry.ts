@@ -4,12 +4,12 @@ import { ENV } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
+import { resolveMessageManagerUrl } from "./address-resolver";
 import { dlqClaimManager } from "./claim-manager";
 import { doReplayBatch } from "./replay-pipeline";
 import { dlqRepository } from "./repository";
 import { dlqRetryManager } from "./retry-manager";
 import { isShuttingDown } from "./shared/index";
-import { resolveMessageManagerUrl } from "./address-resolver";
 
 export async function handleAbandonedEntries(source: string): Promise<void> {
 	const abandoned = await dlqRetryManager.abandonExhaustedEntries();

@@ -58,7 +58,8 @@ function _buildConfig(
 	return {
 		endpoint: opts.endpoint ?? process.env.ERROR_URL_WEBHOOK ?? "",
 		serviceName: opts.serviceName ?? process.env.APP_NAME ?? "unknown",
-		serviceVersion: opts.serviceVersion ?? (process.env.APP_VERSION ?? "0.0.0") as Version,
+		serviceVersion:
+			opts.serviceVersion ?? ((process.env.APP_VERSION ?? "0.0.0") as Version),
 		instanceId:
 			opts.instanceId ?? ((process.env.INSTANCE_ID ?? "unknown") as InstanceId),
 		flushIntervalMs: opts.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS,
@@ -114,7 +115,8 @@ function _buildErrorReport(
 		method: req.method,
 		statusCode,
 		correlationId:
-			(req as unknown as { correlationId?: CorrelationId }).correlationId ?? "" as CorrelationId,
+			(req as unknown as { correlationId?: CorrelationId }).correlationId ??
+			("" as CorrelationId),
 		timestamp: new Date().toISOString(),
 		serviceName: config.serviceName,
 		serviceVersion: config.serviceVersion,

@@ -8,12 +8,12 @@ import {
 import { ENV } from "../config/env";
 import { logger } from "../config/logger";
 import { dlqClaimManager } from "./claim-manager";
+import { mmResolveError, resolveMMUrlOrFail } from "./dlq-replay-resolver";
 import {
 	buildReplayResponse,
 	noEntriesResponse,
 	notifyReplayAudit,
 } from "./dlq-replay-response";
-import { mmResolveError, resolveMMUrlOrFail } from "./dlq-replay-resolver";
 import { validateReplayQuery } from "./dlq-replay-validator";
 import { type DlqEntryRef, type DlqError, doReplayBatch } from "./replay-batch";
 import { dlqRetryManager } from "./retry-manager";
@@ -34,7 +34,9 @@ export async function abandonExhaustedIfNeeded(
 }
 
 async function _claimAndReplayBatch(options: ClaimAndReplayOptions): Promise<{
-	response: import("@trading-model/common/middleware/response-exception").ResponseObject | null;
+	response:
+		| import("@trading-model/common/middleware/response-exception").ResponseObject
+		| null;
 	successCount: number;
 	errors: DlqError[];
 }> {

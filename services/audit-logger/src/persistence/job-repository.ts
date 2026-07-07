@@ -77,8 +77,8 @@ export class JobDocumentMapper {
 
 export class JobStatusUpdater {
 	buildUpdateSet(
-		status: JobStatus,
-		extras?: JobUpdateExtras,
+		status: JOB_STATUS,
+		extras?: JobUpdateExtras
 	): Record<string, unknown> {
 		const updateSet: Record<string, unknown> = {
 			status,
@@ -87,12 +87,18 @@ export class JobStatusUpdater {
 		};
 		if (extras?.result !== undefined) updateSet.result = extras.result;
 		if (extras?.error !== undefined) updateSet.error = extras.error;
-		if (extras?.assignedWorkerId !== undefined) updateSet.assignedWorkerId = extras.assignedWorkerId;
-		if (extras?.ackDeadline !== undefined) updateSet.ackDeadline = extras.ackDeadline;
+		if (extras?.assignedWorkerId !== undefined)
+			updateSet.assignedWorkerId = extras.assignedWorkerId;
+		if (extras?.ackDeadline !== undefined)
+			updateSet.ackDeadline = extras.ackDeadline;
 		return updateSet;
 	}
 
-	buildHistoryEntry(fromStatus: JobStatus, toStatus: JobStatus, extras?: JobUpdateExtras): JobEvent {
+	buildHistoryEntry(
+		fromStatus: JOB_STATUS,
+		toStatus: JOB_STATUS,
+		extras?: JobUpdateExtras
+	): JobEvent {
 		return {
 			fromStatus,
 			toStatus,
@@ -114,7 +120,10 @@ export class JobRepository {
 	async ensureIndexes(): Promise<void> {
 		await this._collection.createIndex({ jobId: 1 }, { unique: true });
 		await this._collection.createIndex({ status: 1 });
-		await this._collection.createIndex({ assignedWorkerId: 1 }, { sparse: true });
+		await this._collection.createIndex(
+			{ assignedWorkerId: 1 },
+			{ sparse: true }
+		);
 		await this._collection.createIndex({ type: 1, status: 1 });
 	}
 
@@ -127,16 +136,24 @@ export class JobRepository {
 		return doc ? this._mapper.fromDocument(doc) : null;
 	}
 
-	async updateStatus(jobId: JobId, status: JOB_STATUS, extras?: JobUpdateExtras): Promise<void> {
+	async updateStatus(
+		jobId: JobId,
+		status: JOB_STATUS,
+		extras?: JobUpdateExtras
+	): Promise<void> {
 		const current = await this._collection.findOne({ jobId });
 		if (!current) return;
 
 		const updateSet = this._statusUpdater.buildUpdateSet(status, extras);
-		const historyEntry = this._statusUpdater.buildHistoryEntry(current.status, status, extras);
+		const historyEntry = this._statusUpdater.buildHistoryEntry(
+			current.status,
+			status,
+			extras
+		);
 
 		await this._collection.updateOne(
 			{ jobId },
-			{ $set: updateSet, $push: { history: historyEntry } },
+			{ $set: updateSet, $push: { history: historyEntry } }
 		);
 	}
 
@@ -147,13 +164,18 @@ export class JobRepository {
 	async findNonTerminal(): Promise<Job[]> {
 		const docs = await this._collection
 			.find({
-				status: { $nin: [JOB_STATUS.COMPLETED, JOB_STATUS.FAILED, JOB_STATUS.CANCELLED] },
+				status: {
+					$nin: [JOB_STATUS.COMPLETED, JOB_STATUS.FAILED, JOB_STATUS.CANCELLED],
+				},
 			})
 			.toArray();
 		return docs.map((d) => this._mapper.fromDocument(d));
 	}
 
-	async findByWorker(workerId: InstanceId, statuses: JOB_STATUS[]): Promise<Job[]> {
+	async findByWorker(
+		workerId: InstanceId,
+		statuses: JOB_STATUS[]
+	): Promise<Job[]> {
 		const docs = await this._collection
 			.find({ assignedWorkerId: workerId, status: { $in: statuses } })
 			.toArray();

@@ -1,16 +1,20 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
 import type { PendingPublishQueue } from "./pending-publish-queue";
 import { TopicSubscriptionManager } from "./topic-subscription-manager";
 import { WsConnectionEventHandler } from "./ws-connection-event-handler";
-import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
 import type { WssClientConfig } from "./wss-connection-lifecycle";
-import { WssReconnector } from "./wss-reconnector";
-import type { IWsReconnector } from "@trading-model/common/ws/i-ws-reconnector";
+import { WssConnectionLifecycle } from "./wss-connection-lifecycle";
 
 export class WssConnectionOrchestrator {
 	private readonly _lifecycle: WssConnectionLifecycle;
-	private readonly _reconnector = new WssReconnector();
+	private readonly _reconnector = new DefaultWsReconnector({
+		maxAttempts: 20,
+		config: { baseDelayMs: 1000, maxDelayMs: 30000, jitterMs: 1000 },
+		onReconnect: () => {},
+		onPermanentFallback: () => this._queue.drainToHttp(),
+	});
 	private readonly _topicManager = new TopicSubscriptionManager();
 	private readonly _eventHandler: WsConnectionEventHandler;
 	private readonly _onConnect: () => void;

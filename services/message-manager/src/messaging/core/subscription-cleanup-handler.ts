@@ -1,5 +1,6 @@
 import type Redis from "ioredis";
 
+import type { TopicSubscription } from "./messaging-types";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 
 export class SubscriptionCleanupHandler {
@@ -11,17 +12,16 @@ export class SubscriptionCleanupHandler {
 
 	buildRemovePipeline(
 		redis: Redis,
-		topic: string,
-		instanceId: string,
+		sub: TopicSubscription,
 		subKey: string
 	): ReturnType<Redis["multi"]> {
 		const multi = redis.multi();
 		multi.del(subKey);
-		multi.srem(this._keys.topicKey(topic), instanceId);
-		multi.srem(this._keys.instanceKey(instanceId), topic);
-		multi.hdel(this._keys.leaseKey(instanceId), topic);
-		multi.scard(this._keys.instanceKey(instanceId));
-		multi.scard(this._keys.topicKey(topic));
+		multi.srem(this._keys.topicKey(sub.topic), sub.instanceId);
+		multi.srem(this._keys.instanceKey(sub.instanceId), sub.topic);
+		multi.hdel(this._keys.leaseKey(sub.instanceId), sub.topic);
+		multi.scard(this._keys.instanceKey(sub.instanceId));
+		multi.scard(this._keys.topicKey(sub.topic));
 		return multi;
 	}
 
@@ -37,7 +37,7 @@ export class SubscriptionCleanupHandler {
 					.srem(this._keys.activeInstancesKey(), instanceId)
 					.then(() => {});
 			} catch {
-				/* best-effort */
+				// best-effort cleanup
 			}
 		}
 		return Promise.resolve();
@@ -53,7 +53,7 @@ export class SubscriptionCleanupHandler {
 			try {
 				await redis.srem(this._keys.topicsSetKey(), topic);
 			} catch {
-				/* best-effort */
+				// best-effort cleanup
 			}
 		}
 	}

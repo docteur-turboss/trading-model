@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import type { RedisConnectionConfig } from "@trading-model/common/config/redis-config";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -8,15 +9,14 @@ import type {
 	ServiceEndpoint,
 	ServiceIdentity,
 } from "@trading-model/common/domain/service-identity";
-import type { RedisConnectionConfig } from "@trading-model/common/config/redis-config";
-import type {
-	TokenValidation,
-} from "@trading-model/common/domain/token-validation";
+import type { TokenValidation } from "@trading-model/common/domain/token-validation";
+
 export type {
 	RedisClusterNodesConfig,
 	RedisConnectionConfig,
 	RedisSentinelConfig,
 } from "@trading-model/common/config/redis-config";
+
 import type Redis from "ioredis";
 import { RedisBackendLifecycle } from "./redis-backend-lifecycle";
 import { computePrefix, createRedisClient } from "./redis-client-factory";
@@ -43,7 +43,11 @@ export class RedisRegistryBackend implements RegistryBackend {
 		const tokenService = new TokenService(
 			signingSecret ?? randomBytes(32).toString("hex")
 		);
-		this._instances = new RedisInstanceRepository({ redis, keyBuilder, tokenService });
+		this._instances = new RedisInstanceRepository({
+			redis,
+			keyBuilder,
+			tokenService,
+		});
 		const cleaner = new StaleInstanceCleaner(
 			this._instances,
 			cleanupIntervalMs

@@ -11,10 +11,7 @@ import type {
 	AuditEventQuery,
 	AuditRepository,
 } from "../persistence/audit-repository";
-import {
-	parseDateRange,
-	parsePageAndLimit,
-} from "../utils/query-params";
+import { parseDateRange, parsePageAndLimit } from "../utils/query-params";
 
 function _buildAuditEventQuery(
 	req: import("express").Request

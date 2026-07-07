@@ -24,7 +24,9 @@ export interface NoncePersistence {
 
 interface INonceCollection {
 	insertOne(doc: NonceDocument): Promise<{ acknowledged: boolean }>;
-	findOneAndDelete(filter: Record<string, unknown>): Promise<NonceDocument | null>;
+	findOneAndDelete(
+		filter: Record<string, unknown>
+	): Promise<NonceDocument | null>;
 	find(filter: Record<string, unknown>): {
 		toArray(): Promise<NonceDocument[]>;
 	};

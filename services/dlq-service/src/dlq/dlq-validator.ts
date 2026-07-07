@@ -3,6 +3,7 @@ import {
 	type ResponseObject,
 	sendResponse,
 } from "@trading-model/common/middleware/response-exception";
+import type { z } from "zod";
 import { isDbConnected } from "../config/db";
 import { DlqEntrySchema } from "./dlq-schemas";
 
@@ -13,7 +14,7 @@ export function validateAddEntryBody(
 	span: import("@opentelemetry/api").Span
 ):
 	| { valid: false; response: ResponseObject }
-	| { valid: true; data: unknown } {
+	| { valid: true; data: z.infer<typeof DlqEntrySchema> } {
 	const parsed = DlqEntrySchema.safeParse(body);
 	if (!parsed.success) {
 		return _validationFail(span, parsed.error.message, 400);

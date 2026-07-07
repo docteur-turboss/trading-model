@@ -1,4 +1,5 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
+import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
 import { StreamGroupFacade } from "./stream-group-facade";
 import type {
 	GetMessagesBetweenParams,
@@ -12,8 +13,8 @@ export class StreamGroupOperations {
 		this._streamGroup = new StreamGroupFacade(prefix);
 	}
 
-	async ensureConsumerGroup(topic: string, groupName: string): Promise<void> {
-		await this._streamGroup.ensureConsumerGroup(topic, groupName);
+	async ensureConsumerGroup(ref: StreamGroupRef): Promise<void> {
+		await this._streamGroup.ensureConsumerGroup(ref);
 	}
 
 	async readFromGroup(
@@ -22,24 +23,16 @@ export class StreamGroupOperations {
 		return this._streamGroup.readFromGroup(params);
 	}
 
-	async ackMessage(
-		topic: string,
-		groupName: string,
-		messageId: string
-	): Promise<void> {
-		await this._streamGroup.ackMessage(topic, groupName, messageId);
+	async ackMessage(ref: AckRef): Promise<void> {
+		await this._streamGroup.ackMessage(ref);
 	}
 
-	async getPendingCount(topic: string, groupName: string): Promise<number> {
-		return this._streamGroup.getPendingCount(topic, groupName);
+	async getPendingCount(ref: StreamGroupRef): Promise<number> {
+		return this._streamGroup.getPendingCount(ref);
 	}
 
-	async getMessagesAfter(
-		topic: string,
-		afterTimestamp: number,
-		limit = 100
-	): Promise<Message[]> {
-		return this._streamGroup.getMessagesAfter(topic, afterTimestamp, limit);
+	async getMessagesAfter(query: MessageQuery): Promise<Message[]> {
+		return this._streamGroup.getMessagesAfter(query);
 	}
 
 	async getMessagesBetween(
@@ -48,7 +41,7 @@ export class StreamGroupOperations {
 		return this._streamGroup.getMessagesBetween(params);
 	}
 
-	async getStreamLag(topic: string, groupName: string): Promise<number> {
-		return this._streamGroup.getStreamLag(topic, groupName);
+	async getStreamLag(ref: StreamGroupRef): Promise<number> {
+		return this._streamGroup.getStreamLag(ref);
 	}
 }

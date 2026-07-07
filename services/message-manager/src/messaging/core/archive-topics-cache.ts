@@ -13,7 +13,7 @@ export class ArchiveTopicsCache {
 				const topics = await redis.smembers(`${ENV.REDIS_PREFIX}topics`);
 				this._topicsCache = topics;
 			} catch {
-				// best-effort
+				// topic cache refresh best-effort
 			}
 		}, 30_000);
 		this._topicsCacheTimer.unref();

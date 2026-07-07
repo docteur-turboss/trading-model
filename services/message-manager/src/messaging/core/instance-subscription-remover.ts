@@ -1,7 +1,6 @@
 import type Redis from "ioredis";
-
-import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 import { LEASE_HEARTBEAT_FIELD } from "./messaging-constants";
+import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 
 export class InstanceSubscriptionRemover {
 	private readonly _keys: RedisSubscriptionKeys;
@@ -21,7 +20,7 @@ export class InstanceSubscriptionRemover {
 			if (topic === LEASE_HEARTBEAT_FIELD) {
 				continue;
 			}
-			multi.del(this._keys.subKey(topic, instanceId));
+			multi.del(this._keys.subKey({ topic, instanceId }));
 			multi.srem(this._keys.topicKey(topic), instanceId);
 		}
 		multi.del(leaseKey);
@@ -42,7 +41,7 @@ export class InstanceSubscriptionRemover {
 					await redis.srem(this._keys.topicsSetKey(), topic);
 				}
 			} catch {
-				/* best-effort */
+				// best-effort cleanup
 			}
 		}
 	}

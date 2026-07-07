@@ -1,5 +1,6 @@
 import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 
+import type { TopicSubscription } from "./messaging-types";
 import { SubscriptionRedisReader } from "./subscription-redis-reader";
 import { SubscriptionRedisWriter } from "./subscription-redis-writer";
 
@@ -28,8 +29,8 @@ export class SubscriptionRedisStore {
 		return this._writer.add(topic, callbackPath, serviceIdentity);
 	}
 
-	async remove(topic: string, instanceId: string): Promise<void> {
-		return this._writer.remove(topic, instanceId);
+	async remove(sub: TopicSubscription): Promise<void> {
+		return this._writer.remove(sub);
 	}
 
 	async getByTopic(topic: string): Promise<SubscriptionEntry[]> {

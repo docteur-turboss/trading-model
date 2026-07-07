@@ -1,7 +1,10 @@
+import {
+	createDefaultHandlers,
+	type DataHandler,
+} from "./data-handlers/data-handler";
 import type { MemoryManager } from "./market-data/memory-manager";
 import type { SymbolState, TradingSymbol } from "./market-data-types";
 import type { NormalizationManager } from "./normalization-manager";
-import { createDefaultHandlers, type DataHandler } from "./data-handlers/data-handler";
 
 export class SymbolDataMutator {
 	private readonly _handlerMap: Record<string, DataHandler>;
@@ -9,7 +12,7 @@ export class SymbolDataMutator {
 	constructor(
 		private readonly _memoryManager: MemoryManager,
 		private readonly _normManager: NormalizationManager,
-		handlers?: DataHandler[],
+		handlers?: DataHandler[]
 	) {
 		const h = handlers ?? createDefaultHandlers();
 		this._handlerMap = Object.fromEntries(h.map((x) => [x.dataType, x]));
@@ -20,7 +23,7 @@ export class SymbolDataMutator {
 		symbol: TradingSymbol,
 		data: unknown,
 		states: Map<TradingSymbol, SymbolState>,
-		maxSize?: number,
+		maxSize?: number
 	): void {
 		const state = states.get(symbol);
 		if (!state) return;

@@ -1,16 +1,15 @@
 import { BackpropEngine } from "./backprop-engine";
 import { FeedForwardEngine } from "./feed-forward-engine";
-import { NeuralNetworkBuilder } from "./neural-network-builder";
 import {
 	distributeAroundWeights as distributeAroundWeightsFn,
 	getWeights as getWeightsFn,
 	parameterCount as parameterCountFn,
 	setWeights as setWeightsFn,
 } from "./network-serialization";
+import { NeuralNetworkBuilder } from "./neural-network-builder";
 import { LearningPool } from "./pool-manager";
 import { PooledTrainer } from "./pooled-trainer";
-import type { LayerMemory } from "./type";
-import type { ForwardContext, NeuralNetworkConfig } from "./type";
+import type { ForwardContext, LayerMemory, NeuralNetworkConfig } from "./type";
 
 export class NeuralNetwork {
 	private readonly _layers: LayerMemory[];

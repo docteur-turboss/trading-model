@@ -59,7 +59,7 @@ async function _doSubscribe(subscriber: Redis, channel: string): Promise<void> {
 	try {
 		await subscriber.subscribe(channel);
 	} catch {
-		// retry will handle
+		logger.debug("Redis subscribe failed, retry will handle");
 	}
 }
 

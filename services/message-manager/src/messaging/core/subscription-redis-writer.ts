@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { ServiceIdentity } from "@trading-model/common/contracts/message.types";
 
 import { getSubscriptionClient } from "../../config/redis";
+import type { TopicSubscription } from "./messaging-types";
 import { RedisSubscriptionKeys } from "./redis-subscription-keys";
 import { SubscriptionCleanupHandler } from "./subscription-cleanup-handler";
 import type { SubscriptionEntry } from "./subscription-redis-store";
@@ -24,7 +25,10 @@ export class SubscriptionRedisWriter {
 		serviceIdentity: ServiceIdentity
 	): Promise<void> {
 		const redis = await getSubscriptionClient();
-		const subKey = this._keys.subKey(topic, serviceIdentity.instanceId);
+		const subKey = this._keys.subKey({
+			topic,
+			instanceId: serviceIdentity.instanceId,
+		});
 		const exists = await redis.exists(subKey);
 		if (exists) {
 			return;
@@ -57,20 +61,15 @@ export class SubscriptionRedisWriter {
 		await multi.exec();
 	}
 
-	async remove(topic: string, instanceId: string): Promise<void> {
+	async remove(sub: TopicSubscription): Promise<void> {
 		const redis = await getSubscriptionClient();
-		const subKey = this._keys.subKey(topic, instanceId);
-		const multi = this._cleanup.buildRemovePipeline(
-			redis,
-			topic,
-			instanceId,
-			subKey
-		);
+		const subKey = this._keys.subKey(sub);
+		const multi = this._cleanup.buildRemovePipeline(redis, sub, subKey);
 		const results = await multi.exec();
 		if (!results) {
 			return;
 		}
-		await this._cleanup.cleanupInstanceIfEmpty(redis, results, instanceId);
-		await this._cleanup.cleanupTopicIfEmpty(redis, results, topic);
+		await this._cleanup.cleanupInstanceIfEmpty(redis, results, sub.instanceId);
+		await this._cleanup.cleanupTopicIfEmpty(redis, results, sub.topic);
 	}
 }

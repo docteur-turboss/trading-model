@@ -7,18 +7,9 @@ import { HTTP_HEADERS } from "@trading-model/common/http-headers";
 import { catchSync } from "@trading-model/common/middleware/catch-error";
 import { sendResponse } from "@trading-model/common/middleware/response-exception";
 import type { RequestHandler } from "express";
-import { z } from "zod";
 import type { ServiceRegistry } from "../core/service-registry";
+import { HEARTBEAT_SCHEMA, ROTATE_TOKEN_SCHEMA } from "./heartbeat-validator";
 import { validateInstanceToken } from "./helpers";
-
-const HEARTBEAT_SCHEMA = z.object({
-	serviceName: z.string().min(1, "serviceName is required"),
-	instanceId: z.string().min(1, "instanceId is required"),
-});
-
-const ROTATE_TOKEN_SCHEMA = z.object({
-	instanceId: z.string().min(1, "instanceId is required"),
-});
 
 interface HeartbeatController {
 	heartbeat: RequestHandler;

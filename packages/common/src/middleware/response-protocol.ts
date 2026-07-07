@@ -9,10 +9,7 @@ import {
 	isServiceNotFoundError,
 	isServiceUnreachableError,
 } from "../utils/errors";
-import {
-	ResponseException,
-	type ResponseObject,
-} from "./response-exception";
+import { ResponseException, type ResponseObject } from "./response-exception";
 
 type ErrorInput = Error | ResponseObject;
 

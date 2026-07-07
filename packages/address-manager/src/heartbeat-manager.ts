@@ -83,7 +83,11 @@ export class HeartbeatManager {
 			MAX_HEARTBEAT_FAILURES_BEFORE_RE_REGISTER
 		) {
 			this._consecutiveHeartbeatFailures = 0;
-			await this._failureHandler.handleError(err, this._onSuccess, this._onFailure);
+			await this._failureHandler.handleError(
+				err,
+				this._onSuccess,
+				this._onFailure
+			);
 		}
 		await this._heartbeatViaHttpAfterFailure();
 	}

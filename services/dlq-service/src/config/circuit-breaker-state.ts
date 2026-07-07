@@ -1,4 +1,5 @@
 import type { CircuitState } from "@trading-model/common/domain/circuit-state";
+import { CircuitStateMachine } from "@trading-model/common/reliability/circuit-state-machine";
 
 export interface CircuitStateConfig {
 	failureThreshold: number;
@@ -19,34 +20,30 @@ export interface CircuitStateConfig {
  * @see MessageManagerCircuitBreaker
  */
 export class DlqCircuitBreakerState {
-	private _failures = 0;
-	private _openUntil = 0;
-	private _halfOpenAttempts = 0;
+	private readonly _machine: CircuitStateMachine;
+	private readonly _name: string;
+	private readonly _resetMs: number;
 
-	constructor(private readonly _config: CircuitStateConfig) {}
+	constructor(config: CircuitStateConfig) {
+		this._machine = new CircuitStateMachine({
+			failureThreshold: config.failureThreshold,
+			cooldownMs: config.resetMs,
+			halfOpenMaxAttempts: config.halfOpenMaxAttempts,
+		});
+		this._name = config.name;
+		this._resetMs = config.resetMs;
+	}
 
 	get failures(): number {
-		return this._failures;
+		return this._machine.failures;
 	}
 
 	getState(now: number): CircuitState {
-		if (this._openUntil > now) {
-			return "open";
-		}
-		if (this._openUntil > 0) {
-			return "half-open";
-		}
-		return "closed";
+		return this._machine.getState(now);
 	}
 
 	isOpen(now: number): boolean {
-		if (this._openUntil > now) {
-			return true;
-		}
-		if (this._openUntil > 0) {
-			this.reset();
-		}
-		return false;
+		return this._machine.isOpen(now);
 	}
 
 	recordFailure(
@@ -58,67 +55,23 @@ export class DlqCircuitBreakerState {
 			resetMs: number
 		) => void
 	): void {
-		this._failures++;
-		this._checkHalfOpenReopen(now, onOpened);
-		this._checkThresholdOpen(now, onOpened);
-	}
-
-	recordSuccess(): void {
-		if (this._failures > 0) {
-			this._failures = 0;
-		}
-		this._openUntil = 0;
-		this._halfOpenAttempts = 0;
-	}
-
-	reset(): void {
-		this._failures = 0;
-		this._openUntil = 0;
-		this._halfOpenAttempts = 0;
-	}
-
-	private _checkHalfOpenReopen(
-		now: number,
-		onOpened: (
-			name: string,
-			failures: number,
-			halfOpenAttempts: number,
-			resetMs: number
-		) => void
-	): void {
-		if (this._openUntil <= 0) {
-			return;
-		}
-		this._halfOpenAttempts++;
-		if (this._halfOpenAttempts >= this._config.halfOpenMaxAttempts) {
-			this._openUntil = now + this._config.resetMs;
+		const opened = this._machine.recordFailure(now);
+		if (opened) {
+			const snapshot = this._machine.snapshot();
 			onOpened(
-				this._config.name,
-				this._failures,
-				this._halfOpenAttempts,
-				this._config.resetMs
+				this._name,
+				snapshot.failures,
+				snapshot.halfOpenAttempts,
+				this._resetMs
 			);
 		}
 	}
 
-	private _checkThresholdOpen(
-		now: number,
-		onOpened: (
-			name: string,
-			failures: number,
-			halfOpenAttempts: number,
-			resetMs: number
-		) => void
-	): void {
-		if (this._failures < this._config.failureThreshold) {
-			return;
-		}
-		this._openUntil = now + this._config.resetMs;
-		onOpened(
-			this._config.name,
-			this._failures,
-			this._halfOpenAttempts,
-			this._config.resetMs
-		);
+	recordSuccess(): void {
+		this._machine.recordSuccess();
+	}
+
+	reset(): void {
+		this._machine.reset();
 	}
 }

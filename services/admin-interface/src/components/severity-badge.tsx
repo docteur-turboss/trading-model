@@ -1,11 +1,11 @@
 import { Chip } from "@mui/material";
-import { Severity } from "@trading-model/common/contracts/admin/audit.dto";
+import type { Severity } from "@trading-model/common/contracts/admin";
 
 const SEVERITY_STYLES: Record<Severity, { color: string; bg: string }> = {
-	[Severity.Info]: { color: "#1565c0", bg: "#e3f2fd" },
-	[Severity.Warning]: { color: "#e65100", bg: "#fff3e0" },
-	[Severity.Error]: { color: "#c62828", bg: "#ffebee" },
-	[Severity.Critical]: { color: "#b71c1c", bg: "#fce4ec" },
+	INFO: { color: "#1565c0", bg: "#e3f2fd" },
+	WARNING: { color: "#e65100", bg: "#fff3e0" },
+	ERROR: { color: "#c62828", bg: "#ffebee" },
+	CRITICAL: { color: "#b71c1c", bg: "#fce4ec" },
 };
 
 function getSeverityStyle(severity: string): { color: string; bg: string } {

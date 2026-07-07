@@ -1,8 +1,9 @@
+import type { LayerDims } from "./layer-dims";
 import { InitialisationType } from "./type";
 import { GAUSSIAN_NOISE } from "./utils";
 
 export interface WeightInitializer {
-	initialize(fanIn: number, fanOut: number): number;
+	initialize(dims: LayerDims): number;
 }
 
 class ZerosInitializer implements WeightInitializer {
@@ -12,22 +13,22 @@ class ZerosInitializer implements WeightInitializer {
 }
 
 class HeInitializer implements WeightInitializer {
-	initialize(fanIn: number): number {
-		const scale = Math.sqrt(2 / fanIn);
+	initialize(dims: LayerDims): number {
+		const scale = Math.sqrt(2 / dims.fanIn);
 		return GAUSSIAN_NOISE(scale);
 	}
 }
 
 class XavierInitializer implements WeightInitializer {
-	initialize(fanIn: number, fanOut: number): number {
-		const limit = Math.sqrt(6 / (fanIn + fanOut));
+	initialize(dims: LayerDims): number {
+		const limit = Math.sqrt(6 / (dims.fanIn + dims.fanOut));
 		return (Math.random() * 2 - 1) * limit;
 	}
 }
 
 class LeCunInitializer implements WeightInitializer {
-	initialize(fanIn: number): number {
-		const scale = Math.sqrt(1 / fanIn);
+	initialize(dims: LayerDims): number {
+		const scale = Math.sqrt(1 / dims.fanIn);
 		return GAUSSIAN_NOISE(scale);
 	}
 }

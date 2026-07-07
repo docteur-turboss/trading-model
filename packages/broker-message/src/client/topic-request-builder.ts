@@ -1,6 +1,10 @@
 import type { EventEnumMap } from "@trading-model/common/config/event.types";
 import type { HttpClient } from "@trading-model/common/config/http-client";
-import type { IPAddress, Port, ServiceId } from "@trading-model/common/domain/primitives";
+import type {
+	IPAddress,
+	Port,
+	ServiceId,
+} from "@trading-model/common/domain/primitives";
 import { toInstanceId, toTopic } from "@trading-model/common/domain/primitives";
 import {
 	messageManagerError,
@@ -62,7 +66,7 @@ export class TopicRequestBuilder {
 
 	async subscribeAll(
 		topics: EventEnumMap[],
-		target: { ip: IPAddress; port: Port },
+		target: { ip: IPAddress; port: Port }
 	): Promise<void> {
 		for (const topic of topics) {
 			await this.subscribeToSingleTopic(
@@ -74,7 +78,7 @@ export class TopicRequestBuilder {
 
 	async unsubscribeAll(
 		topics: EventEnumMap[],
-		target: { ip: IPAddress; port: Port },
+		target: { ip: IPAddress; port: Port }
 	): Promise<void> {
 		for (const topic of topics) {
 			await this.unsubscribeToSingleTopic(

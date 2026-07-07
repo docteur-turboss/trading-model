@@ -1,8 +1,10 @@
 import type { Message } from "@trading-model/common/contracts/message.types";
-import type { TimeRange } from "@trading-model/common/domain/time-range";
+import type { DateRange } from "@trading-model/common/domain/date-range";
 
 import { logger } from "../../config/logger";
 import { getStreamClient } from "../../config/redis";
+import type { AckRef, MessageQuery, StreamGroupRef } from "./messaging-types";
+import { computeLag } from "./stream-lag-calculator";
 import { StreamMessageReader } from "./stream-message-reader";
 
 export interface ReadFromGroupParams {
@@ -15,7 +17,7 @@ export interface ReadFromGroupParams {
 
 export interface GetMessagesBetweenParams {
 	topic: string;
-	timeRange: TimeRange;
+	timeRange: DateRange;
 	limit?: number;
 }
 
@@ -30,35 +32,31 @@ export class StreamGroupManager {
 		return `${this._prefix}stream:${topic}`;
 	}
 
-	async ensureConsumerGroup(topic: string, groupName: string): Promise<void> {
+	async ensureConsumerGroup(ref: StreamGroupRef): Promise<void> {
 		try {
-			await this._createGroup(topic, groupName);
+			await this._createGroup(ref);
 		} catch (err: unknown) {
-			this._handleGroupError(topic, groupName, err);
+			this._handleGroupError(ref, err);
 		}
 	}
 
-	private async _createGroup(topic: string, groupName: string): Promise<void> {
+	private async _createGroup(ref: StreamGroupRef): Promise<void> {
 		const redis = await getStreamClient();
 		await redis.xgroup(
 			"CREATE",
-			this._streamKey(topic),
-			groupName,
+			this._streamKey(ref.topic),
+			ref.groupName,
 			"$",
 			"MKSTREAM"
 		);
 	}
 
-	private _handleGroupError(
-		topic: string,
-		groupName: string,
-		err: unknown
-	): void {
+	private _handleGroupError(ref: StreamGroupRef, err: unknown): void {
 		if (err instanceof Error && !err.message.includes("BUSYGROUP")) {
 			logger.warn("Failed to create consumer group", {
 				context: {
-					topic,
-					groupName,
+					topic: ref.topic,
+					groupName: ref.groupName,
 					error: err.message,
 				},
 			});
@@ -71,28 +69,23 @@ export class StreamGroupManager {
 		return this._reader.readFromGroup(params);
 	}
 
-	async ackMessage(
-		topic: string,
-		groupName: string,
-		messageId: string
-	): Promise<void> {
+	async ackMessage(ref: AckRef): Promise<void> {
 		const redis = await getStreamClient();
-		await redis.xack(this._streamKey(topic), groupName, messageId);
+		await redis.xack(this._streamKey(ref.topic), ref.groupName, ref.messageId);
 	}
 
-	async getPendingCount(topic: string, groupName: string): Promise<number> {
+	async getPendingCount(ref: StreamGroupRef): Promise<number> {
 		const redis = await getStreamClient();
-		const rawResult = await redis.xpending(this._streamKey(topic), groupName);
+		const rawResult = await redis.xpending(
+			this._streamKey(ref.topic),
+			ref.groupName
+		);
 		const result = rawResult as unknown as { pending: number };
 		return (result?.pending as number) || 0;
 	}
 
-	async getMessagesAfter(
-		topic: string,
-		afterTimestamp: number,
-		limit = 100
-	): Promise<Message[]> {
-		return this._reader.getMessagesAfter(topic, afterTimestamp, limit);
+	async getMessagesAfter(query: MessageQuery): Promise<Message[]> {
+		return this._reader.getMessagesAfter(query);
 	}
 
 	async getMessagesBetween(
@@ -101,29 +94,17 @@ export class StreamGroupManager {
 		return this._reader.getMessagesBetween(params);
 	}
 
-	async getStreamLag(topic: string, groupName: string): Promise<number> {
+	async getStreamLag(ref: StreamGroupRef): Promise<number> {
 		try {
 			const redis = await getStreamClient();
 			const info = (await redis.call(
 				"XINFO",
 				"GROUPS",
-				this._streamKey(topic)
+				this._streamKey(ref.topic)
 			)) as unknown[];
-			return computeLag(info as unknown[][], groupName);
+			return computeLag(info as unknown[][], ref.groupName);
 		} catch {
 			return 0;
 		}
 	}
-}
-
-function computeLag(groups: unknown[][], groupName: string): number {
-	for (const group of groups) {
-		if (String(group[1]) === groupName) {
-			const lastDelivered = String(group[5] ?? "0-0");
-			const lastTimestamp =
-				Number.parseInt(lastDelivered.split("-")[0], 10) || 0;
-			return Date.now() - lastTimestamp;
-		}
-	}
-	return 0;
 }

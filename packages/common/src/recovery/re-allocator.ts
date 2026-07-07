@@ -1,5 +1,6 @@
 import { logger } from "../config/logger";
-import type { Job } from "../contracts/recovery.types";
+import { JOB_STATUS, type Job } from "../contracts/recovery.types";
+import { hasExceededMaxRetries } from "../domain/retry-policy";
 import type { IJobQueue } from "./job-queue.interface";
 import type { IJobRepository } from "./job-repository.interface";
 
@@ -11,7 +12,7 @@ export class ReAllocator {
 	) {}
 
 	private async _failMaxRetries(job: Job): Promise<void> {
-		await this._repository.updateStatus(job.id, "failed", {
+		await this._repository.updateStatus(job.id, JOB_STATUS.FAILED, {
 			error: `Exceeded max retries (${job.maxRetries})`,
 		});
 		logger.warn("Job failed after max retries", {
@@ -22,15 +23,15 @@ export class ReAllocator {
 	private _buildReallocatedJob(job: Job, newDeadline: number): Job {
 		return {
 			...job,
-			status: "queued",
+			status: JOB_STATUS.QUEUED,
 			ackDeadline: newDeadline,
 			retryCount: job.retryCount + 1,
 			assignedWorkerId: undefined,
 			history: [
 				...job.history,
 				{
-					fromStatus: "orphaned",
-					toStatus: "queued",
+					fromStatus: JOB_STATUS.ORPHANED,
+					toStatus: JOB_STATUS.QUEUED,
 					timestamp: new Date(),
 					reason: "re-allocated",
 				},
@@ -39,13 +40,13 @@ export class ReAllocator {
 	}
 
 	async reallocate(job: Job): Promise<void> {
-		if (job.retryCount >= job.maxRetries) {
+		if (hasExceededMaxRetries(job)) {
 			return this._failMaxRetries(job);
 		}
 		const newDeadline = Date.now() + this._ackTimeoutMs;
 		const updatedJob = this._buildReallocatedJob(job, newDeadline);
 		this._queue.enqueue(updatedJob);
-		await this._repository.updateStatus(job.id, "queued", {
+		await this._repository.updateStatus(job.id, JOB_STATUS.QUEUED, {
 			ackDeadline: newDeadline,
 		});
 		logger.info("Job re-allocated to queue", {

@@ -60,7 +60,8 @@ export class ActionMapper {
 	map(output: Float32Array): ActionMap {
 		const space = this._config.actionSpace ?? "discrete";
 		const amount = this._config.tradeAmount ?? Volume.of(1);
-		const strategy = ACTION_SPACE_STRATEGIES[space] ?? ACTION_SPACE_STRATEGIES.discrete;
+		const strategy =
+			ACTION_SPACE_STRATEGIES[space] ?? ACTION_SPACE_STRATEGIES.discrete;
 		return strategy(output, amount);
 	}
 }

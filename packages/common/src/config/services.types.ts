@@ -14,3 +14,14 @@ export enum ServiceInstanceName {
 	RiskAnalysisService = "risk-analysis-service",
 	TraderTrainingService = "trader-training-service",
 }
+
+const ALL_SERVICE_NAMES = new Set<string>(Object.values(ServiceInstanceName));
+
+export function parseServiceName(value: string): ServiceInstanceName {
+	if (!ALL_SERVICE_NAMES.has(value)) {
+		throw new Error(
+			`Invalid ServiceInstanceName: "${value}". Must be one of: ${Array.from(ALL_SERVICE_NAMES).join(", ")}`
+		);
+	}
+	return value as ServiceInstanceName;
+}

@@ -1,5 +1,8 @@
 import { logger } from "@trading-model/common/config/logger";
-import { isTerminalStatus, JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
+import {
+	isTerminalStatus,
+	JOB_STATUS,
+} from "@trading-model/common/contracts/recovery.types";
 import type { JobId } from "@trading-model/common/domain/primitives";
 
 import { ENV } from "../config/env";
@@ -19,6 +22,7 @@ export interface JobFailureHandlerDeps {
 export class JobFailureHandler {
 	private readonly _queue: InternalQueue;
 	private readonly _repository: JobRepository;
+	private readonly _reAllocator: ReAllocator;
 	private readonly _assignmentManager: JobAssignmentManager;
 
 	constructor(deps: JobFailureHandlerDeps) {
@@ -33,9 +37,9 @@ export class JobFailureHandler {
 
 		this._repository
 			.findById(jobId)
-			.then((job) => _onAckTimeoutJobFound(job, jobId, this))
+			.then((job) => this._onAckTimeoutJobFound(job, jobId))
 			.catch((err) => {
-				_logFindJobError(jobId, err);
+				this._logFindJobError(jobId, err);
 			});
 	}
 
@@ -72,35 +76,31 @@ export class JobFailureHandler {
 		});
 		this._assignmentManager.distributeNext();
 	}
-}
 
-function _logFindJobError(jobId: JobId, err: unknown): void {
-	logger.error("Failed to find job on ACK timeout", {
-		context: {
-			jobId,
-			error: String(err),
-		},
-	});
-}
-
-function _onAckTimeoutJobFound(
-	job: Job | null,
-	jobId: JobId,
-	self: JobFailureHandler
-): void {
-	if (!job || isTerminalStatus(job.status)) {
-		return;
-	}
-
-	self._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
-
-	self._repository
-		.updateStatus(jobId, JOB_STATUS.ORPHANED)
-		.then(() => self._reAllocator.reallocate(job))
-		.catch((err) =>
-			logger.error("Failed to persist orphaned status on ACK timeout", {
+	private _logFindJobError(jobId: JobId, err: unknown): void {
+		logger.error("Failed to find job on ACK timeout", {
+			context: {
 				jobId,
 				error: String(err),
-			})
-		);
+			},
+		});
+	}
+
+	private _onAckTimeoutJobFound(job: Job | null, jobId: JobId): void {
+		if (!job || isTerminalStatus(job.status)) {
+			return;
+		}
+
+		this._assignmentManager.decrementWorkerLoad(job.assignedWorkerId);
+
+		this._repository
+			.updateStatus(jobId, JOB_STATUS.ORPHANED)
+			.then(() => this._reAllocator.reallocate(job))
+			.catch((err) =>
+				logger.error("Failed to persist orphaned status on ACK timeout", {
+					jobId,
+					error: String(err),
+				})
+			);
+	}
 }

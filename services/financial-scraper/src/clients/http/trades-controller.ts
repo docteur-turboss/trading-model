@@ -6,8 +6,8 @@ import {
 import { selectTradesBy } from "../../infra/market-data/schema/trades.schema";
 import {
 	createController,
-	SYMBOL_SCHEMA,
 	SOURCE_SCHEMA,
+	SYMBOL_SCHEMA,
 	TIMESTAMP_SCHEMA,
 } from "./controller-utils";
 

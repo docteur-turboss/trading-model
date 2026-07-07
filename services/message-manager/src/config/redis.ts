@@ -41,7 +41,7 @@ function destroyClient(client: Redis): void {
 	try {
 		client.disconnect();
 	} catch {
-		/* best-effort */
+		logger.debug("Redis client disconnect error (best-effort)");
 	}
 	ALL_CLIENTS.delete(client);
 }
@@ -183,12 +183,12 @@ function destroyAllClients(): void {
 		try {
 			client.removeAllListeners();
 		} catch {
-			/* best-effort */
+			logger.debug("Redis removeAllListeners error (best-effort)");
 		}
 		try {
 			client.disconnect();
 		} catch {
-			/* best-effort */
+			logger.debug("Redis disconnect error (best-effort)");
 		}
 	}
 	ALL_CLIENTS.clear();

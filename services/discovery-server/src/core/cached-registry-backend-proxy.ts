@@ -1,4 +1,5 @@
 import type { ServiceInstanceName } from "@trading-model/common/config/services.types";
+import { parseServiceName } from "@trading-model/common/config/services.types";
 import type {
 	RegistryBackend,
 	ServiceInstance,
@@ -17,14 +18,14 @@ export class CachedRegistryBackendProxy {
 
 	async getInstanceCount(serviceName: string): Promise<number> {
 		const instances = await this._backend.getInstances(
-			serviceName as ServiceInstanceName
+			parseServiceName(serviceName)
 		);
 		return instances.length;
 	}
 
 	async getServiceVersion(serviceName: string): Promise<number> {
 		const instances = await this._backend.getInstances(
-			serviceName as ServiceInstanceName
+			parseServiceName(serviceName)
 		);
 		return instances.reduce((max, inst) => {
 			const major = Number.parseInt((inst.version ?? "").split(".")[0], 10);

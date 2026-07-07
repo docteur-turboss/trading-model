@@ -29,14 +29,11 @@ interface AddressManagerConfig {
 	maxCallRecords?: number;
 	preferredNetworkInterface?: string;
 
-	// TLS cert PEM overrides (inline, not file paths)
 	pems?: TlsPaths;
 
-	// Redis cache config
 	redisCacheUrl?: string;
 	redisCacheOptions?: Record<string, unknown>;
 
-	// Circuit breaker config
 	circuitBreakerFailureThreshold?: number;
 	circuitBreakerHalfOpenTimeoutMs?: number;
 	circuitBreakerCacheTtlMs?: number;

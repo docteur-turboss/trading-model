@@ -2,12 +2,8 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { IDistributedLock } from "@trading-model/common/contracts/distributed-lock.types";
 import { LockAcquisitionChain } from "./lock-acquisition-chain";
-import type { LockContext } from "./lock-backends";
-import {
-	FileSystemLockBackend,
-	NullLockBackend,
-	RedisLockBackend,
-} from "./lock-backends";
+import type { LockBackend, LockContext } from "./lock-backends";
+import { FileSystemLockBackend, RedisLockBackend } from "./lock-backends";
 import { LockConnectionManager } from "./lock-connection-manager";
 
 export interface DistributedLockOptions {
@@ -19,76 +15,50 @@ export interface DistributedLockOptions {
 }
 
 export class DistributedLock implements IDistributedLock {
-	private readonly _context: LockContext;
-	private readonly _ttlMs: number;
 	private _currentFencingToken = -1;
-
-	private readonly _connectionManager: LockConnectionManager;
-	private readonly _redisBackend: RedisLockBackend | NullLockBackend;
-	private readonly _filesystemBackend: FileSystemLockBackend;
 	private readonly _acquisitionChain: LockAcquisitionChain;
 
-	constructor(options: DistributedLockOptions) {
-		this._context = {
-			lockName: options.lockName,
-			instanceId: randomUUID().substring(0, 8),
-		};
-		this._ttlMs = options.ttlMs;
-		this._connectionManager = new LockConnectionManager(
-			options.uri,
-			options.fallbackDir
-		);
-		this._redisBackend = options.redisUrl
-			? new RedisLockBackend(options.redisUrl)
-			: new NullLockBackend();
-		this._filesystemBackend = new FileSystemLockBackend(
-			options.fallbackDir ??
-				path.join(process.cwd(), "data", "ca-fallback", "locks")
-		);
-		this._acquisitionChain = new LockAcquisitionChain(
-			this._connectionManager,
-			this._redisBackend,
-			this._filesystemBackend
-		);
+	constructor(
+		private readonly _context: LockContext,
+		private readonly _ttlMs: number,
+		private readonly _backends: LockBackend[],
+		private readonly _connectionManager?: LockConnectionManager
+	) {
+		this._acquisitionChain = new LockAcquisitionChain(this._backends);
 	}
 
 	async connect(): Promise<void> {
-		return this._connectionManager.connect();
+		await this._connectionManager?.connect();
 	}
 
 	async disconnect(): Promise<void> {
-		await this._connectionManager.disconnect();
-		this._redisBackend.disconnect?.();
+		await this._connectionManager?.disconnect();
+		for (const backend of this._backends) {
+			backend.disconnect?.();
+		}
 	}
 
 	async verifyOwnership(): Promise<number> {
 		if (this._currentFencingToken < 0) {
 			return -1;
 		}
-		const mongoResult =
-			await this._connectionManager.mongoBackend.verifyOwnership(
+		for (const backend of this._backends) {
+			const result = await backend.verifyOwnership(
 				this._context,
 				this._currentFencingToken
 			);
-		if (mongoResult >= 0) {
-			return mongoResult;
-		}
-		const redisResult = await this._redisBackend.verifyOwnership(
-			this._context,
-			this._currentFencingToken
-		);
-		if (redisResult >= 0) {
-			return redisResult;
+			if (result >= 0) {
+				return result;
+			}
 		}
 		this._currentFencingToken = -1;
 		return -1;
 	}
 
-	async acquire(lockId?: string): Promise<boolean> {
+	async acquire(_lockId?: string): Promise<boolean> {
 		const token = await this._acquisitionChain.acquire(
 			this._context,
-			this._ttlMs,
-			lockId
+			this._ttlMs
 		);
 		if (token !== null) {
 			this._currentFencingToken = token;
@@ -101,5 +71,37 @@ export class DistributedLock implements IDistributedLock {
 		const savedToken = this._currentFencingToken;
 		this._currentFencingToken = -1;
 		await this._acquisitionChain.release(this._context, savedToken);
+	}
+
+	static fromOptions(options: DistributedLockOptions): DistributedLock {
+		const context: LockContext = {
+			lockName: options.lockName,
+			instanceId: randomUUID().substring(0, 8),
+		};
+
+		const connectionManager = new LockConnectionManager(
+			options.uri,
+			options.fallbackDir
+		);
+
+		const backends: LockBackend[] = [connectionManager.mongoBackend];
+
+		if (options.redisUrl) {
+			backends.push(new RedisLockBackend(options.redisUrl));
+		}
+
+		backends.push(
+			new FileSystemLockBackend(
+				options.fallbackDir ??
+					path.join(process.cwd(), "data", "ca-fallback", "locks")
+			)
+		);
+
+		return new DistributedLock(
+			context,
+			options.ttlMs,
+			backends,
+			connectionManager
+		);
 	}
 }

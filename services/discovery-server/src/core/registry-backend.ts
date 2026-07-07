@@ -82,11 +82,7 @@ export class InMemoryRegistryBackend implements RegistryBackend {
 		return this._registry.verifyInstanceName(serviceName);
 	}
 
-	start(): void {
-		// no-op for in-memory backend
-	}
+	start(): void {}
 
-	stop(): void {
-		// no-op for in-memory backend
-	}
+	stop(): void {}
 }

@@ -40,7 +40,7 @@ export class DistributedLock implements IDistributedLock {
 		try {
 			await this._redis.set(this._key, lockId, "EX", LOCK_TTL, "XX");
 		} catch {
-			// Logged by caller
+			// renewal error handled by caller
 		}
 	}
 

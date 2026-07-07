@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { type Collection } from "mongodb";
+import type { Collection } from "mongodb";
 
 export interface TokenUseRequest {
 	token: string;
@@ -40,10 +40,7 @@ export class TokenStore {
 	private _collection: ICollection = new NullCollection();
 	private readonly _defaultTtlMs: number;
 
-	constructor(
-		collection?: Collection<UsedToken>,
-		defaultTtlMs?: number
-	) {
+	constructor(collection?: Collection<UsedToken>, defaultTtlMs?: number) {
 		if (collection) {
 			this._collection = collection;
 		}

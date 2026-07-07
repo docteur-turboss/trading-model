@@ -1,5 +1,6 @@
 import type {
 	AuditEvent,
+	AuditFilter,
 	CacheEntry,
 	DlqMessage,
 	JobEntry,
@@ -9,7 +10,6 @@ import type {
 	WorkerEntry,
 	WorkerStats,
 } from "@trading-model/common/contracts/admin";
-import type { AuditFilter } from "@trading-model/common/contracts/admin";
 import type { PaginationQuery } from "@trading-model/common/domain/pagination";
 
 export type {

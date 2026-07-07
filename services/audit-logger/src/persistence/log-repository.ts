@@ -71,7 +71,11 @@ export class LogQueryBuilder {
 		return filter;
 	}
 
-	private _addIfPresent(filter: MongoDoc, key: string, value: string | undefined): void {
+	private _addIfPresent(
+		filter: MongoDoc,
+		key: string,
+		value: string | undefined
+	): void {
 		if (value) {
 			filter[key] = value;
 		}

@@ -58,13 +58,7 @@ export class Agent {
 	public fastForward(ff: FastForwardInput): Float32Array {
 		const { input, reward, nextState, done } = ff;
 		const { output } = this.nn.forward(input);
-		this.experience.recordExperience(
-			input,
-			output,
-			reward,
-			nextState,
-			done
-		);
+		this.experience.recordExperience(input, output, reward, nextState, done);
 		return output;
 	}
 

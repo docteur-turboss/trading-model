@@ -1,6 +1,6 @@
 import { logger } from "@trading-model/common/config/logger";
 import { normalizeError } from "@trading-model/common/utils/errors";
-import { type WebSocket } from "ws";
+import type { WebSocket } from "ws";
 import { z } from "zod";
 import { CONTAINER } from "./index";
 import type { ConnectionState } from "./rate-limiter";

@@ -35,7 +35,7 @@ export class ClaimLockManager {
 				consumerId
 			);
 		} catch {
-			/* best-effort */
+			logger.debug("Claim lock release failed (best-effort)");
 		}
 	}
 }

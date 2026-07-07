@@ -12,8 +12,7 @@ export class WalDrainCoordinator {
 	private _drainState:
 		| { kind: "idle" }
 		| { kind: "draining"; deferred: DrainDeferred; timer: TimerHandle }
-		| { kind: "drain-requested" }
-		= { kind: "idle" };
+		| { kind: "drain-requested" } = { kind: "idle" };
 	private _walFlushWaiters: Array<() => void> = [];
 
 	constructor(
@@ -38,29 +37,33 @@ export class WalDrainCoordinator {
 				return;
 			}
 			await this._performFlush();
-			let resolveDeferred: (() => void) | undefined;
-			const deferred = new Promise<void>((resolve) => {
-				resolveDeferred = resolve;
-			});
-			const timer = new TimerHandle();
-			timer.startTimeout(() => {
-				if (this._drainState.kind === "draining") {
-					logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
-					this._drainState = { kind: "idle" };
-					resolveDeferred!();
-				}
-			}, timeoutMs);
-			this._drainState = {
-				kind: "draining",
-				deferred: { promise: deferred, resolve: resolveDeferred! },
-				timer,
-			};
-			return deferred;
+			return this._waitForDrainComplete(timeoutMs);
 		} finally {
 			if (this._drainState.kind === "drain-requested") {
 				this._drainState = { kind: "idle" };
 			}
 		}
+	}
+
+	private _waitForDrainComplete(timeoutMs: number): Promise<void> {
+		let resolveDeferred: (() => void) | undefined;
+		const deferred = new Promise<void>((resolve) => {
+			resolveDeferred = resolve;
+		});
+		const timer = new TimerHandle();
+		timer.startTimeout(() => {
+			if (this._drainState.kind === "draining") {
+				logger.warn(`WAL drain timed out after ${timeoutMs}ms`);
+				this._drainState = { kind: "idle" };
+				resolveDeferred!();
+			}
+		}, timeoutMs);
+		this._drainState = {
+			kind: "draining",
+			deferred: { promise: deferred, resolve: resolveDeferred! },
+			timer,
+		};
+		return deferred;
 	}
 
 	async drainOnStartup(): Promise<void> {
@@ -82,7 +85,7 @@ export class WalDrainCoordinator {
 			try {
 				waiter();
 			} catch {
-				/* best-effort */
+				logger.debug("Waiter callback failed (best-effort)");
 			}
 		}
 	}
@@ -97,7 +100,7 @@ export class WalDrainCoordinator {
 		try {
 			await this._memoryWalBuffer.recoverFromFallbackFile();
 		} catch {
-			// best-effort
+			logger.debug("WAL fallback recovery failed (best-effort)");
 		}
 	}
 
@@ -112,7 +115,7 @@ export class WalDrainCoordinator {
 				await this._performFlush();
 			}
 		} catch {
-			// Redis not available
+			logger.debug("Redis not available for WAL drain");
 		}
 	}
 

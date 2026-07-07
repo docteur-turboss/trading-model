@@ -1,5 +1,13 @@
-import type { Capability, InstanceId, IPAddress, JobId, JobType, Port } from "../domain/primitives";
-import type { WorkerStatus } from "../domain/primitives";
+import type {
+	Capability,
+	InstanceId,
+	IPAddress,
+	JobId,
+	JobType,
+	Port,
+	WorkerStatus,
+} from "../domain/primitives";
+
 export type { WorkerStatus };
 
 export interface WorkerRegistrationBase {

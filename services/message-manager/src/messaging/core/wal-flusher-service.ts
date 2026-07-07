@@ -1,7 +1,7 @@
-import type { Message } from "@trading-model/common/contracts/message.types";
 import { ENV } from "../../config/env";
 import { getStreamClient } from "../../config/redis";
 import type { MemoryWalBuffer } from "./memory-wal-buffer";
+import type { MemoryWalEntry } from "./memory-wal-entry";
 import { WalBatchFlusher } from "./wal-batch-flusher";
 import { WalDrainCoordinator } from "./wal-drain-coordinator";
 import { WalEntryParser } from "./wal-entry-parser";
@@ -86,7 +86,7 @@ export class WalFlusherService {
 		await this._flushManager.flush();
 	}
 
-	bufferInMemory(topic: string, serialized: string, message: Message): void {
-		this._memoryWalBuffer.push(topic, serialized, message);
+	bufferInMemory(entry: MemoryWalEntry): void {
+		this._memoryWalBuffer.push(entry);
 	}
 }

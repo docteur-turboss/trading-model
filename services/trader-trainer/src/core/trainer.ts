@@ -97,7 +97,7 @@ export class Trainer {
 		return this._trainingState.getGenerationContext();
 	}
 
-	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: Accessed via prototype in tests
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers
 	private _computeSharpe(scores: readonly number[]): number {
 		return GenomeSummaryBuilder.computeSharpe(scores);
 	}

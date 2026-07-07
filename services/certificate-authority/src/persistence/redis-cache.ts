@@ -92,7 +92,7 @@ class RealRedisCache implements RedisCache {
 		try {
 			await this._client.quit();
 		} catch {
-			/* closing */
+			logger.debug("Redis quit error during disconnect");
 		}
 	}
 
@@ -100,7 +100,7 @@ class RealRedisCache implements RedisCache {
 		try {
 			await this._client.publish(channel, message);
 		} catch {
-			// best-effort
+			logger.debug("Redis publish failed (best-effort)");
 		}
 	}
 
@@ -141,7 +141,7 @@ class RealRedisCache implements RedisCache {
 		try {
 			await this._client.del(key);
 		} catch {
-			// ignore
+			logger.debug("Redis delete failed (best-effort)");
 		}
 	}
 
@@ -167,7 +167,7 @@ class RealRedisCache implements RedisCache {
 		try {
 			await this._scanAndDelete();
 		} catch {
-			// best-effort
+			logger.debug("Redis clear failed (best-effort)");
 		}
 	}
 

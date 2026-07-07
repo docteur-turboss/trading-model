@@ -315,7 +315,9 @@ describe("Agent", () => {
 			const pool = agent.experience.getPool();
 			const exp = pool[0];
 
-			expect(() => agent.experience.learnExperience(agent.nn, exp)).not.toThrow();
+			expect(() =>
+				agent.experience.learnExperience(agent.nn, exp)
+			).not.toThrow();
 		});
 
 		it("should process Q-learning update with done=true", () => {
@@ -329,7 +331,9 @@ describe("Agent", () => {
 			const pool = agent.experience.getPool();
 			const exp = pool[0];
 
-			expect(() => agent.experience.learnExperience(agent.nn, exp)).not.toThrow();
+			expect(() =>
+				agent.experience.learnExperience(agent.nn, exp)
+			).not.toThrow();
 		});
 	});
 });

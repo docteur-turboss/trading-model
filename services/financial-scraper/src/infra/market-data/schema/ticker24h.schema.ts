@@ -96,21 +96,3 @@ export const selectTickerBy = {
 			.executeSelectMany();
 	},
 };
-
-// CREATE TABLE IF NOT EXISTS `market_tickers` (
-//   `id`               INT NOT NULL AUTO_INCREMENT,
-//   `symbol`           VARCHAR(32) NOT NULL,
-//   `market`           VARCHAR(16) NOT NULL,
-//   `source`           VARCHAR(32) NOT NULL,
-//   `open`             DECIMAL(20,10) NOT NULL,
-//   `high`             DECIMAL(20,10) NOT NULL,
-//   `low`              DECIMAL(20,10) NOT NULL,
-//   `last`             DECIMAL(20,10) NOT NULL,
-//   `volume`           DECIMAL(30,10) NOT NULL,
-//   `timestamp`        DATETIME(3) NOT NULL,
-//   `close_time`        DATETIME(3) NOT NULL,
-//
-//   PRIMARY KEY (`id`, `symbol`, `market`, `timestamp`, `source`),
-//   INDEX `idx_tickers_timestamp` (`timestamp` ASC) INVISIBLE,
-//   INDEX `idx_tickers_symbol` (`symbol` ASC) VISIBLE)
-// ENGINE = InnoDB;

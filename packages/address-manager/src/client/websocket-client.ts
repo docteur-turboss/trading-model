@@ -5,9 +5,9 @@ import type {
 } from "@trading-model/common/contracts/discovery-ws-message.types";
 import type { ServiceIdentity } from "@trading-model/common/domain/service-identity";
 import { normalizeError } from "@trading-model/common/utils/errors";
+import { DefaultWsReconnector } from "@trading-model/common/ws/default-ws-reconnector";
 import type WebSocket from "ws";
 import { WsConnection } from "./ws-connection";
-import { WsReconnectHandler } from "./ws-reconnect-handler";
 
 export type WsMessageType = DiscoveryWsMessageType;
 export type WsMessage = DiscoveryWsMessage;
@@ -28,19 +28,22 @@ export class WebSocketClient {
 	private readonly _subscribedServices: string[];
 	private readonly _eventHandler: WsEventHandler;
 	private readonly _authFailureHandler: () => void;
-	private readonly _reconnectHandler: WsReconnectHandler;
+	private readonly _reconnectHandler: DefaultWsReconnector;
 
 	constructor(options: WebSocketClientOptions) {
 		this._connection = new WsConnection(options.url, options.token);
 		this._subscribedServices = options.subscribedServices ?? ["*"];
 		this._eventHandler = options.onMessage ?? (() => {});
 		this._authFailureHandler = options.onAuthFailure ?? (() => {});
-		this._reconnectHandler = new WsReconnectHandler(
-			options.maxReconnectAttempts ?? 10,
-			options.reconnectIntervalMs ?? 5000,
-			options.url,
-			() => this.connect()
-		);
+		this._reconnectHandler = new DefaultWsReconnector({
+			maxAttempts: options.maxReconnectAttempts ?? 10,
+			config: {
+				baseDelayMs: options.reconnectIntervalMs ?? 5000,
+				maxDelayMs: options.reconnectIntervalMs ?? 5000,
+				jitterMs: 0,
+			},
+			onReconnect: () => this.connect(),
+		});
 		this._connection.onOpen = () => this._onOpen();
 		this._connection.onMessage = (data) => this._onMessage(data);
 		this._connection.onCloseHandler = () => this._onClose();

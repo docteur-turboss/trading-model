@@ -6,8 +6,8 @@ import type {
 } from "./genetic-algorithm/genome";
 import type { LamarckGenome } from "./genetic-algorithm/genome-types";
 import type { DeepReadonly } from "./genetic-algorithm/shared-types";
-import type { TradingSymbol } from "./market-data-types";
 import { LastTrainingInfoHolder } from "./last-training-info-holder";
+import type { TradingSymbol } from "./market-data-types";
 
 /** Summary of the best trained agent for API responses. */
 export interface BestAgentSummary {

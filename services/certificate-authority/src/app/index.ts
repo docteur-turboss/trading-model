@@ -6,6 +6,7 @@ import { Rotator } from "../core/rotator";
 import { CaStore } from "../persistence/ca-store";
 import { CertificateStore } from "../persistence/certificate-store";
 import { CrlStore } from "../persistence/crl-store";
+import { MONGO_MANAGER } from "../persistence/mongo-manager";
 import { Container } from "./container";
 import { createServer } from "./server";
 
@@ -15,9 +16,10 @@ createBootstrap({
 	name: "CertificateAuthority",
 	createServer,
 	onStart: async () => {
-		const certificateStore = await CertificateStore.connect(ENV.MONGODB_URI);
-		const crlStore = await CrlStore.connect(ENV.MONGODB_URI);
-		const caStore = await CaStore.connect(ENV.MONGODB_URI);
+		await MONGO_MANAGER.initialize(ENV.MONGODB_URI);
+		const certificateStore = await CertificateStore.connect();
+		const crlStore = await CrlStore.connect();
+		const caStore = await CaStore.connect();
 
 		const ca = await CertificateAuthority.create({
 			caKeyPath: ENV.CA_KEY_PATH,

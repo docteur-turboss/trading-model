@@ -62,7 +62,9 @@ export class ServiceCache implements IServiceCache {
 		serviceName: ServiceId,
 		_region?: string
 	): Promise<ServiceInstance | null> {
-		return this._withLock(() => this._cacheStore.get(serviceName));
+		return this._withLock(
+			() => this._cacheStore.getByServiceName(serviceName) ?? null
+		);
 	}
 
 	/**
@@ -78,7 +80,7 @@ export class ServiceCache implements IServiceCache {
 	 */
 	async set(entry: CacheSetEntry): Promise<void> {
 		return this._withLock(() => {
-			this._cacheStore.set(entry);
+			this._cacheStore.setEntry(entry);
 		});
 	}
 

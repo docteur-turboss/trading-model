@@ -69,7 +69,10 @@ export class RedisConnection {
 		logger.warn("Redis queue unavailable — falling back to MongoDB polling", {
 			error: (err as Error).message,
 		});
-		if (this._state === ConnectionState.Connecting && this._wasEverConnected()) {
+		if (
+			this._state === ConnectionState.Connecting &&
+			this._wasEverConnected()
+		) {
 			this._state = ConnectionState.Disconnected;
 		} else {
 			this._state = ConnectionState.Idle;
@@ -121,4 +124,3 @@ export class RedisConnection {
 		}
 	}
 }
-

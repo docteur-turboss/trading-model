@@ -19,6 +19,7 @@ import { toMessageId } from "@trading-model/common/domain/primitives";
 
 import type { FileDlqRepository } from "./dlq-repository";
 import { HttpMessageDelivery } from "./http-message-delivery";
+import type { TopicSubscription } from "./messaging-types";
 import { sanitizePayload } from "./payload-sanitizer";
 import { SubscriptionRegistry } from "./subscription-registry";
 
@@ -97,7 +98,7 @@ export class Dispatcher {
 	/**
 	 * @deprecated Use `unsubscribe` instead.
 	 */
-	unregisterSubscription(params: { topic: string; instanceId: string }): void {
+	unregisterSubscription(params: TopicSubscription): void {
 		this.unsubscribe(params);
 	}
 
@@ -107,17 +108,13 @@ export class Dispatcher {
 	}
 
 	/** Acknowledge a message — remove from pending. */
-	async handleAck(_messageId: string, _instanceId: string): Promise<void> {
-		// Acknowledgement handled downstream by the message store
-	}
+	async handleAck(_messageId: string, _instanceId: string): Promise<void> {}
 
 	/** Negatively acknowledge a message — dead-letter it. */
-	async handleNack(_messageId: string, _instanceId: string): Promise<void> {
-		// NACK handling is delegated to the delivery port
-	}
+	async handleNack(_messageId: string, _instanceId: string): Promise<void> {}
 
 	/** Unregister a subscription from a topic. */
-	unsubscribe(params: { topic: string; instanceId: string }): void {
+	unsubscribe(params: TopicSubscription): void {
 		this._registry.unsubscribe(params);
 	}
 }

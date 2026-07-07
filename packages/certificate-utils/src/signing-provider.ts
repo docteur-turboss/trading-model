@@ -59,7 +59,5 @@ export class LocalSigningProvider implements SigningProvider {
 		return false;
 	}
 
-	destroy(): void {
-		// Nothing to clean up for local provider
-	}
+	destroy(): void {}
 }

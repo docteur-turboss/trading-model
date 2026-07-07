@@ -1,7 +1,7 @@
 import type { WeightGradientContext } from "./backprop-engine";
+import type { NnTrainingDeps } from "./nn-training-deps";
 import { OPTIMIZERS } from "./optimizer";
 import type { LayerMemory } from "./type";
-import type { NnTrainingDeps } from "./nn-training-deps";
 
 function computeWeightGradient(ctx: WeightGradientContext): void {
 	const { weightBuf, rowOffset, deltaJ, input, fanIn } = ctx;
@@ -76,7 +76,15 @@ export class GradientAccumulator {
 	}
 
 	private _applyOptimizerStep(
-		opt: { step: (opts: { params: Float32Array; grads: Float32Array; state: Float32Array; lr: number; hp: Record<string, number> }) => void },
+		opt: {
+			step: (opts: {
+				params: Float32Array;
+				grads: Float32Array;
+				state: Float32Array;
+				lr: number;
+				hp: Record<string, number>;
+			}) => void;
+		},
 		params: Float32Array,
 		grads: Float32Array,
 		state: Float32Array

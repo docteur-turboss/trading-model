@@ -5,8 +5,8 @@ import { ENV } from "../config/env";
 import { logger } from "../config/logger";
 import { metrics } from "../config/metrics";
 import { dlqRedisQueue } from "../config/redis-queue";
-import { handleAbandonedEntries } from "./auto-retry";
 import { resolveMessageManagerUrl } from "./address-resolver";
+import { handleAbandonedEntries } from "./auto-retry";
 import { dlqClaimManager } from "./claim-manager";
 import { doReplayBatch } from "./replay-pipeline";
 import { isShuttingDown } from "./shared/index";
@@ -174,4 +174,3 @@ export function stopRedisWorkerTimer(): void {
 		redisRetryTimer = null;
 	}
 }
-

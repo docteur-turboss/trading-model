@@ -58,7 +58,7 @@ export class RedisCacheScanner {
 							region,
 						});
 					} catch {
-						/* skip corrupt entry */
+						logger.debug("Skipped corrupt cache entry");
 					}
 				}
 			} while (cursor !== "0");

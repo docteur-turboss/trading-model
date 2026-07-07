@@ -42,7 +42,8 @@ export class CaWssTransport {
 		bootstrapToken?: string
 	) {
 		this._messageHandlers = {
-			"auth:response": (msg) => this._authHandler.handleResponse(msg, () => this._close()),
+			"auth:response": (msg) =>
+				this._authHandler.handleResponse(msg, () => this._close()),
 			"sign:response": (msg) => this._pendingManager.handleResponse(msg),
 			response: (msg) => this._pendingManager.handleResponse(msg),
 		};

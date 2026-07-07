@@ -1,7 +1,5 @@
 import type { TlsPemBundle } from "../domain/tls-paths";
 import { sleep } from "../utils/sleep";
-import type { RequestContext, ServiceRoute } from "./http-request-executor";
-import type { HttpRequestOptions } from "./http-types";
 import {
 	checkHostnameCircuit,
 	checkServiceCircuit,
@@ -11,11 +9,13 @@ import {
 	recordServiceSuccess,
 } from "./http-circuit-breaker";
 import { HttpClientError, HttpClientTimeoutError } from "./http-client-errors";
+import type { RequestContext, ServiceRoute } from "./http-request-executor";
 import {
 	computeRetryDelay,
 	DEFAULT_RETRY_COUNT,
 	isRetryableStatus,
 } from "./http-retry";
+import type { HttpRequestOptions } from "./http-types";
 
 export class RetryCircuitHandler {
 	async executeWithRetry<TResponse>(

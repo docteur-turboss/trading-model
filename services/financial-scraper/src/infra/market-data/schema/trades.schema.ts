@@ -90,19 +90,3 @@ export const selectTradesBy = {
 			.executeSelectMany();
 	},
 };
-
-// CREATE TABLE `market_trades` (
-//     `id`          INT NOT NULL AUTO_INCREMENT,
-//     `symbol`      VARCHAR(32) NOT NULL,
-//     `market`      VARCHAR(16) NOT NULL,
-//     `source`      VARCHAR(32) NOT NULL,
-//     `trade_id`    BIGINT NOT NULL,
-//     `price`       DECIMAL(20,10) NOT NULL,
-//     `quantity`    DECIMAL(30,10) NOT NULL,
-//     `side`        ENUM('buy', 'sell') NOT NULL,
-//     `timestamp`   DATETIME(3) NOT NULL,
-//
-//     PRIMARY KEY (`symbol`, `market`, `source`, `trade_id`, `timestamp`),
-//     INDEX `idx_trades_timestamp` (`timestamp` ASC) INVISIBLE,
-//     INDEX `idx_trades_symbol` (`symbol` ASC) VISIBLE)
-// ) ENGINE=InnoDB;

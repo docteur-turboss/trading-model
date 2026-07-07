@@ -1,8 +1,6 @@
-import { createHmac, randomBytes } from "node:crypto";
-import {
-	type ServiceId,
-	toServiceId,
-} from "@trading-model/common/domain/primitives";
+import { generateInstanceId } from "@trading-model/common/crypto/token-service";
+import type { ServiceId } from "@trading-model/common/domain/primitives";
+import { toServiceId } from "@trading-model/common/domain/primitives";
 import type { ServiceEndpoint } from "@trading-model/common/domain/service-identity";
 import type { TokenValidation } from "@trading-model/common/domain/token-validation";
 import type Redis from "ioredis";
@@ -40,16 +38,8 @@ export class TokenHandler {
 		);
 	}
 
-	generateInstanceId({
-		serviceName,
-		address,
-		port,
-	}: ServiceEndpoint): ServiceId {
-		return toServiceId(
-			createHmac("sha256", randomBytes(32).toString("hex"))
-				.update(`${serviceName}-${address}:${port}-${Date.now()}`)
-				.digest("base64")
-		);
+	generateInstanceId(endpoint: ServiceEndpoint): ServiceId {
+		return toServiceId(generateInstanceId(endpoint));
 	}
 
 	verifyInstanceName(serviceName: string): boolean {

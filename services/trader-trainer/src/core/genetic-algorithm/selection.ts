@@ -1,13 +1,5 @@
-// ================================================================
-//                   parent selection operators
-// ================================================================
-
 import type { LamarckGenome } from "./genome-types";
 import { SelectionType } from "./genome-types";
-
-// ----------------------------------------------------------------
-// Selection strategy interface & implementations
-// ----------------------------------------------------------------
 
 export interface SelectionStrategy {
 	readonly type: SelectionType;
@@ -110,10 +102,6 @@ const SELECTION_STRATEGIES: Record<SelectionType, SelectionStrategy> = {
 	[SelectionType.Truncation]: new TruncationSelection(),
 	[SelectionType.Sus]: new SUSSelection(),
 };
-
-// ----------------------------------------------------------------
-// Public API
-// ----------------------------------------------------------------
 
 /**
  * Select one parent from `population` using the given strategy.

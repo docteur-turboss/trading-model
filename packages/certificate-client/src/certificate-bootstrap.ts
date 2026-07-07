@@ -12,12 +12,18 @@ import type {
 } from "@trading-model/common/server/server-factory";
 import type { BootstrapConfig } from "./certificate-bootstrap-config";
 import { bootstrapConfigFromEnv } from "./certificate-bootstrap-config";
-import { bootstrapCertificate, bootstrapFromEnv } from "./certificate-bootstrapper";
+import {
+	bootstrapCertificate,
+	bootstrapFromEnv,
+} from "./certificate-bootstrapper";
 import { CertificateClient } from "./certificate-client";
 
 export type { BootstrapConfig } from "./certificate-bootstrap-config";
 export { bootstrapConfigFromEnv } from "./certificate-bootstrap-config";
-export { bootstrapCertificate, bootstrapFromEnv } from "./certificate-bootstrapper";
+export {
+	bootstrapCertificate,
+	bootstrapFromEnv,
+} from "./certificate-bootstrapper";
 
 export interface CreateHttpsServerOptions extends SecureServerOptions {
 	env?: Record<string, string | undefined>;

@@ -4,9 +4,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import type { RedisDepsWithoutToken } from "./redis-deps";
 
 export class InstanceMetadataReader {
-	constructor(
-		private readonly _deps: RedisDepsWithoutToken
-	) {}
+	constructor(private readonly _deps: RedisDepsWithoutToken) {}
 
 	async getMetadata(instanceId: string): Promise<ServiceInstance | undefined> {
 		const json = await this._deps.redis.get(
@@ -49,7 +47,9 @@ export class InstanceMetadataReader {
 	}
 
 	async listServiceNames(): Promise<string[]> {
-		const keys = await this._deps.redis.keys(this._deps.keyBuilder.servicePattern());
+		const keys = await this._deps.redis.keys(
+			this._deps.keyBuilder.servicePattern()
+		);
 		return keys
 			.map((key) => this._deps.keyBuilder.parseServiceName(key))
 			.filter((name): name is string => name !== null);

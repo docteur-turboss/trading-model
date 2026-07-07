@@ -1,6 +1,14 @@
-export { autoRetryTick } from "./auto-retry";
-export { processRedisQueue } from "./auto-retry";
-export { pruneOldEntries, releaseStaleClaims, shutdownSchedulers, startPeriodicPrune, stopPeriodicPrune } from "./shutdown-manager";
-export { rebuildQueueFromMongo } from "./auto-retry";
-export { reloadHttpClientTls } from "./shared/index";
+export {
+	autoRetryTick,
+	processRedisQueue,
+	rebuildQueueFromMongo,
+} from "./auto-retry";
 export { startAutoRetry, stopAutoRetry } from "./auto-retry-scheduler";
+export { reloadHttpClientTls } from "./shared/index";
+export {
+	pruneOldEntries,
+	releaseStaleClaims,
+	shutdownSchedulers,
+	startPeriodicPrune,
+	stopPeriodicPrune,
+} from "./shutdown-manager";

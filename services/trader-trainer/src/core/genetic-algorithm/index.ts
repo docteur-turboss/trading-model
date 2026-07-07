@@ -1,7 +1,3 @@
-// ================================================================
-//   index.ts — Public API & usage example
-// ================================================================
-
 export type { StopCondition } from "./adaptive-control-system";
 // Adaptive control system
 export {

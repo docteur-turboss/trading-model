@@ -20,7 +20,6 @@ import type { BackendFactory } from "./rl-backend";
 import type { DeepReadonly } from "./shared-types";
 import { trainPhase } from "./training-phase";
 
-// Re-export public types for consumers
 export type { EvaluationResult, GenomeFitnessMeta };
 
 /**
@@ -139,8 +138,6 @@ export async function pooledEval<TItem, TResult>(
 	await Promise.all(workers);
 	return results;
 }
-
-// --- evaluateFitness (preserved from old training-phase.ts) ---
 
 export interface EvaluateFitnessContext {
 	population: DeepReadonly<LamarckGenome>[];

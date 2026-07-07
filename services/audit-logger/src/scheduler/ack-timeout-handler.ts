@@ -1,6 +1,12 @@
 import { logger } from "@trading-model/common/config/logger";
-import { isTerminalStatus, JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
-import { toInstanceId, type JobId } from "@trading-model/common/domain/primitives";
+import {
+	isTerminalStatus,
+	JOB_STATUS,
+} from "@trading-model/common/contracts/recovery.types";
+import {
+	type JobId,
+	toInstanceId,
+} from "@trading-model/common/domain/primitives";
 import type { JobRepository } from "../persistence/job-repository";
 import type { ReAllocator } from "../recovery/re-allocator";
 import type { Job } from "../types/job.types";

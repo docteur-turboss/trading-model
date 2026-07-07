@@ -79,12 +79,12 @@ export class PubSubInvalidator {
 		try {
 			this._pubSub.unsubscribe("cache:invalidate");
 		} catch {
-			/* ignore */
+			logger.debug("PubSub unsubscribe failed during stop");
 		}
 		try {
 			this._pubSub.disconnect();
 		} catch {
-			/* ignore */
+			logger.debug("PubSub disconnect failed during stop");
 		}
 	}
 }

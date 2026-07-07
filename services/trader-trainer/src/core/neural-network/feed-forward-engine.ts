@@ -32,12 +32,25 @@ export class FeedForwardEngine {
 		}
 
 		const normalized = this._normalize(input);
-		const originalInput = normalized;
+		const layerResult = this._computeLayers(normalized);
 
+		return {
+			input: normalized,
+			output: layerResult.current,
+			layerZValues: layerResult.layerZValues,
+			layerOutputs: layerResult.layerOutputs,
+		};
+	}
+
+	private _computeLayers(input: Float32Array): {
+		current: Float32Array;
+		layerZValues: Float32Array[];
+		layerOutputs: Float32Array[];
+	} {
+		const originalInput = input;
 		const layerZValues: Float32Array[] = [];
 		const layerOutputs: Float32Array[] = [];
-
-		let current = normalized;
+		let current = input;
 
 		for (let layerIndex = 0; layerIndex < this._layers.length; layerIndex++) {
 			const layer = this._layers[layerIndex];
@@ -50,16 +63,10 @@ export class FeedForwardEngine {
 
 			layerZValues.push(preActivations);
 			layerOutputs.push(output);
-
 			current = output;
 		}
 
-		return {
-			input: normalized,
-			output: current,
-			layerZValues,
-			layerOutputs,
-		};
+		return { current, layerZValues, layerOutputs };
 	}
 
 	predict(input: Float32Array): Float32Array {

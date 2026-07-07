@@ -1,7 +1,3 @@
-// ================================================================
-//                default genome construction
-// ================================================================
-
 import {
 	ActivationType,
 	ConnectionType,
@@ -201,7 +197,10 @@ function _createDefaultRLGenome(): RLGenome {
 	};
 }
 
-import { type GenomeId, toGenomeId } from "@trading-model/common/domain/primitives";
+import {
+	type GenomeId,
+	toGenomeId,
+} from "@trading-model/common/domain/primitives";
 
 /** Create a genome with sensible default values for network, RL hyperparameters, mutation, crossover, and GA control. */
 export function createDefaultGenome(id: string, generation = 0): Genome {

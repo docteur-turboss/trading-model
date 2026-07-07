@@ -12,14 +12,12 @@ import axios, {
 
 const DEFAULT_TIMEOUT = 7000;
 
-// Retry strategy
 const RETRY_CONFIG = {
 	retries: 5,
 	baseDelayMs: 300,
 	maxDelayMs: 10000,
 };
 
-// Rate limit per API baseURL (token bucket)
 interface RateLimitBucket {
 	capacity: number;
 	tokens: number;
@@ -35,7 +33,6 @@ const RATE_LIMIT_BUCKETS: Record<string, RateLimitBucket> = {};
 
 function getRateLimitBucket(baseURL: string): RateLimitBucket {
 	if (!RATE_LIMIT_BUCKETS[baseURL]) {
-		// Default: safe values. Can be overridden per API later.
 		RATE_LIMIT_BUCKETS[baseURL] = {
 			capacity: 1200,
 			tokens: 1200,

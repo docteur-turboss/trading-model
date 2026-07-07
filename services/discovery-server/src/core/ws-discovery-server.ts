@@ -1,12 +1,15 @@
-import type https from "node:https";
 import type { IncomingMessage } from "node:http";
-import { WebSocketServer } from "ws";
+import type https from "node:https";
 import type WebSocket from "ws";
+import { WebSocketServer } from "ws";
 import { ClientConnectionManager } from "./client-connection-manager";
 import { WsProtocolHandler } from "./ws-protocol-handler";
 
 interface WssServerLike {
-	on(event: "connection", listener: (ws: WebSocket, req: IncomingMessage) => void): void;
+	on(
+		event: "connection",
+		listener: (ws: WebSocket, req: IncomingMessage) => void
+	): void;
 	close(callback?: () => void): void;
 }
 

@@ -4,9 +4,7 @@ import { normalizeError } from "@trading-model/common/utils/errors";
 import type { RedisDeps } from "./redis-deps";
 
 export class InstanceRegistrar {
-	constructor(
-		private readonly _deps: RedisDeps
-	) {}
+	constructor(private readonly _deps: RedisDeps) {}
 
 	async resolveToken(instanceId: string): Promise<string> {
 		const tokenKey = this._deps.keyBuilder.instanceToken(instanceId);
@@ -53,7 +51,10 @@ export class InstanceRegistrar {
 		const finalToken = await this.resolveToken(instanceId);
 
 		const multi = this._deps.redis.multi();
-		multi.sadd(this._deps.keyBuilder.serviceInstancesSet(serviceName), instanceId);
+		multi.sadd(
+			this._deps.keyBuilder.serviceInstancesSet(serviceName),
+			instanceId
+		);
 		const storedInstance = await this.buildStoredInstance(instance, now);
 		multi.set(
 			this._deps.keyBuilder.instanceMetadata(instanceId),

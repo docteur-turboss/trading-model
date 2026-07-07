@@ -9,7 +9,9 @@ import { ResponseException } from "./response-exception";
  * Default ACL: target service name → list of allowed caller service names.
  * '*' means any authenticated service is allowed.
  */
-function svc(s: string): ServiceId { return s as ServiceId; }
+function svc(s: string): ServiceId {
+	return s as ServiceId;
+}
 
 const DEFAULT_ACL: Record<string, readonly ServiceId[]> = {
 	"certificate-authority": [svc("*")],
@@ -22,7 +24,11 @@ const DEFAULT_ACL: Record<string, readonly ServiceId[]> = {
 		svc("api-gateway"),
 	],
 	"financial-scraper": [svc("api-gateway")],
-	"trader-trainer": [svc("api-gateway"), svc("financial-scraper"), svc("discovery-server")],
+	"trader-trainer": [
+		svc("api-gateway"),
+		svc("financial-scraper"),
+		svc("discovery-server"),
+	],
 	"api-gateway": [svc("admin-interface")],
 };
 
@@ -76,7 +82,7 @@ function _resolveCallerName(req: Request): string {
 
 function _getAllowedCallers(
 	targetService: string,
-	allowedCallers?: readonly ServiceId[],
+	allowedCallers?: readonly ServiceId[]
 ): readonly ServiceId[] {
 	const allowed = allowedCallers ?? DEFAULT_ACL[targetService];
 	if (!allowed) {
@@ -88,10 +94,15 @@ function _getAllowedCallers(
 function _authorizeCaller(
 	callerName: string,
 	targetService: string,
-	allowedCallers?: readonly ServiceId[],
+	allowedCallers?: readonly ServiceId[]
 ): void {
 	const allowed = _getAllowedCallers(targetService, allowedCallers);
-	if (!(allowed.includes("*" as ServiceId) || allowed.includes(callerName as ServiceId))) {
+	if (
+		!(
+			allowed.includes("*" as ServiceId) ||
+			allowed.includes(callerName as ServiceId)
+		)
+	) {
 		_throwForbidden(
 			`"${callerName}" is not authorized to access "${targetService}"`
 		);

@@ -112,10 +112,7 @@ export const API_CLIENT = {
 	getTickers: (symbol: string) =>
 		request<Ticker>("GET", `/scraper/tickers/${symbol}`),
 	getOrderBook: (symbol: string) =>
-		request<OrderBook>(
-			"GET",
-			`/scraper/orderbook/${symbol}`
-		),
+		request<OrderBook>("GET", `/scraper/orderbook/${symbol}`),
 
 	getConfig: (service?: string) =>
 		request<ConfigEntry[]>(

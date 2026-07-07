@@ -94,19 +94,3 @@ export const selectBookTickerBy = {
 			.executeSelectMany();
 	},
 };
-
-// CREATE TABLE `market_book_tickers` (
-//     `id`          INT NOT NULL AUTO_INCREMENT,
-//     `symbol`      VARCHAR(32) NOT NULL,
-//     `market`      VARCHAR(16) NOT NULL,
-//     `source`      VARCHAR(32) NOT NULL,
-//     `bid`         DECIMAL(20,10) NOT NULL,
-//     `ask`         DECIMAL(20,10) NOT NULL,
-//     `bid_qty`     DECIMAL(30,10) NOT NULL,
-//     `ask_qty`     DECIMAL(30,10) NOT NULL,
-//     `timestamp`   DATETIME(3) NOT NULL,
-//
-//     PRIMARY KEY (`symbol`, `timestamp`),
-//     INDEX `idx_mbt_timestamp` (`timestamp` ASC) INVISIBLE,
-//     INDEX `idx_mbt_symbol` (`symbol` ASC) VISIBLE)
-// ) ENGINE=InnoDB;

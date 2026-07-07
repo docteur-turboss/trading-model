@@ -1,4 +1,9 @@
-import type { InstanceId, JobId, JobType, UnixTimestamp } from "../../domain/primitives";
+import type {
+	InstanceId,
+	JobId,
+	JobType,
+	UnixTimestamp,
+} from "../../domain/primitives";
 
 export enum AdminJobPriority {
 	High = "HIGH",
@@ -20,7 +25,7 @@ export interface JobEntry {
 	type: JobType;
 	priority: AdminJobPriority;
 	status: AdminJobStatus;
-	worker: string | null;
+	worker: InstanceId | null;
 }
 
 export interface JobDetail {
@@ -28,7 +33,7 @@ export interface JobDetail {
 	type: JobType;
 	priority: AdminJobPriority;
 	status: AdminJobStatus;
-	worker: string | null;
+	worker: InstanceId | null;
 	timeline: JobTimelineEntry[];
 	payload: Record<string, unknown>;
 	logs: string[];

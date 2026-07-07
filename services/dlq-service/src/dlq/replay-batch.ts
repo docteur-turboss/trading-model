@@ -236,7 +236,7 @@ async function _runBatchWithTimeout(
 		try {
 			await batchLoop;
 		} catch {
-			// errors handled internally
+			logger.debug("Batch loop error already handled internally");
 		}
 	}
 

@@ -44,7 +44,9 @@ export class WorkerRegistry {
 	): boolean {
 		return (
 			worker.status === "active" &&
-			worker.capabilities.includes(jobType as import("../domain/primitives").Capability) &&
+			worker.capabilities.includes(
+				jobType as import("../domain/primitives").Capability
+			) &&
 			worker.currentLoad < worker.maxConcurrency
 		);
 	}

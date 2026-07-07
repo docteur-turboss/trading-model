@@ -1,4 +1,4 @@
-import { type RawData, type WebSocket } from "ws";
+import type { RawData, WebSocket } from "ws";
 
 import { checkSignRequestRateLimit } from "./rate-limiter";
 import { handleAuthMessage } from "./ws-auth";
@@ -78,13 +78,22 @@ function _sendJsonError(ws: WebSocket, message: string): void {
 
 function _sendSignError(ws: WebSocket, id: string, message: string): void {
 	ws.send(
-		JSON.stringify({ type: "sign:response", id, success: false, error: { message } })
+		JSON.stringify({
+			type: "sign:response",
+			id,
+			success: false,
+			error: { message },
+		})
 	);
 }
 
 function _isRateLimited(ws: WebSocket, session: WssSession): boolean {
 	if (
-		checkSignRequestRateLimit(session.state, session.clientIdentity, session.limiterKey)
+		checkSignRequestRateLimit(
+			session.state,
+			session.clientIdentity,
+			session.limiterKey
+		)
 	) {
 		return false;
 	}
@@ -93,7 +102,10 @@ function _isRateLimited(ws: WebSocket, session: WssSession): boolean {
 			type: "sign:response",
 			id: "unknown",
 			success: false,
-			error: { message: "Rate limit exceeded for unauthenticated requests", code: 429 },
+			error: {
+				message: "Rate limit exceeded for unauthenticated requests",
+				code: 429,
+			},
 		})
 	);
 	return true;

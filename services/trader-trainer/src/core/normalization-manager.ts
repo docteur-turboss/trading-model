@@ -1,5 +1,12 @@
-import { NormalizationStats, type SymbolNormalizers, type SymbolState } from "./market-data-types";
-import { createDefaultHandlers, type DataHandler } from "./data-handlers/data-handler";
+import {
+	createDefaultHandlers,
+	type DataHandler,
+} from "./data-handlers/data-handler";
+import {
+	NormalizationStats,
+	type SymbolNormalizers,
+	type SymbolState,
+} from "./market-data-types";
 
 export class NormalizationManager {
 	private readonly _handlerMap: Record<string, DataHandler>;

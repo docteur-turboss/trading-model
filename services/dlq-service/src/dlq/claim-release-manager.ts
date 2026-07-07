@@ -95,4 +95,3 @@ export class ClaimReleaseManager {
 		createdAt: 1,
 	} as const;
 }
-

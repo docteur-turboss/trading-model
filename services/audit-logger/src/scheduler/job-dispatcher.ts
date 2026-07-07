@@ -1,4 +1,6 @@
+import { JOB_STATUS } from "@trading-model/common/contracts/recovery.types";
 import type { WorkerRegistration } from "@trading-model/common/contracts/worker-protocol.types";
+import type { JobId } from "@trading-model/common/domain/primitives";
 import { ENV } from "../config/env";
 import type { JobRepository } from "../persistence/job-repository";
 import type { ReAllocator } from "../recovery/re-allocator";
@@ -26,7 +28,7 @@ export class JobDispatcher {
 	private readonly _backPressure: BackPressure;
 	private readonly _workers: WorkerRegistry;
 	private readonly _ackTimeoutHandler: AckTimeoutHandler;
-	private readonly _onAckTimeout: (jobId: string) => void;
+	private readonly _onAckTimeout: (jobId: JobId) => void;
 	private readonly _loadUpdater: WorkerLoadUpdater;
 	private _workerProtocol: IWorkerProtocol = new NullWorkerProtocol();
 
@@ -58,7 +60,7 @@ export class JobDispatcher {
 		const deadline = Date.now() + ENV.ACK_TIMEOUT_MS;
 		const assignedJob: Job = {
 			...queued.job,
-			status: "assigned",
+			status: JOB_STATUS.ASSIGNED,
 			assignedWorkerId: worker.workerId,
 			ackDeadline: deadline,
 		};

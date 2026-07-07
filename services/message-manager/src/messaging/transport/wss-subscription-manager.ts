@@ -1,4 +1,7 @@
-import { toServiceIdentityKey, type ServiceIdentity } from "@trading-model/common/domain/service-identity";
+import {
+	type ServiceIdentity,
+	toServiceIdentityKey,
+} from "@trading-model/common/domain/service-identity";
 import WebSocket from "ws";
 import { TopicSubscriptionHandler } from "./topic-subscription-handler";
 import type { IncomingWssMessage } from "./wss-message.types";

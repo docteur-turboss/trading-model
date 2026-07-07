@@ -2,13 +2,14 @@ import { logger } from "@trading-model/common/config/logger";
 import { NumericRange } from "@trading-model/common/domain/numeric-range";
 import { agentError } from "@trading-model/common/utils/errors";
 import { INITIALIZERS } from "./initializers";
+import type { LayerDims } from "./layer-dims";
+import type { NnTrainingDeps } from "./nn-training-deps";
 import {
 	DEFAULT_HYPERPARAMS,
 	OPTIMIZERS,
 	type OptimizerHyperparams,
 } from "./optimizer";
 import type { LayerMemory, NeuralNetworkConfig } from "./type";
-import type { NnTrainingDeps } from "./nn-training-deps";
 import {
 	ActivationType,
 	ConnectionType,
@@ -63,66 +64,56 @@ function mergeConfig(cfg: NeuralNetworkConfig): Required<NeuralNetworkConfig> {
 }
 
 function _initializeWeights(
-	fanIn: number,
-	fanOut: number,
+	dims: LayerDims,
 	config: Required<NeuralNetworkConfig>
 ): Float32Array {
-	const weights = new Float32Array(fanIn * fanOut);
+	const weights = new Float32Array(dims.fanIn * dims.fanOut);
 	for (let i = 0; i < weights.length; i++) {
-		weights[i] = INITIALIZERS[config.initialisationType].initialize(
-			fanIn,
-			fanOut
-		);
+		weights[i] = INITIALIZERS[config.initialisationType].initialize(dims);
 	}
 	return weights;
 }
 
 function _initializeBiases(
-	fanIn: number,
-	fanOut: number,
+	dims: LayerDims,
 	config: Required<NeuralNetworkConfig>
 ): Float32Array {
-	const bias = new Float32Array(fanOut);
+	const bias = new Float32Array(dims.fanOut);
 	for (let i = 0; i < bias.length; i++) {
-		bias[i] = INITIALIZERS[config.biasInitialisationType].initialize(
-			fanIn,
-			fanOut
-		);
+		bias[i] = INITIALIZERS[config.biasInitialisationType].initialize(dims);
 	}
 	return bias;
 }
 
 function _initLayerParams(
-	fanIn: number,
-	fanOut: number,
+	dims: LayerDims,
 	config: Required<NeuralNetworkConfig>
 ): { weights: Float32Array; bias: Float32Array } {
 	return {
-		weights: _initializeWeights(fanIn, fanOut, config),
-		bias: _initializeBiases(fanIn, fanOut, config),
+		weights: _initializeWeights(dims, config),
+		bias: _initializeBiases(dims, config),
 	};
 }
 
 function _buildLayerMemory(
-	fanIn: number,
-	fanOut: number,
+	dims: LayerDims,
 	config: Required<NeuralNetworkConfig>,
 	opt: import("./optimizer").Optimizer
 ): LayerMemory {
 	return {
-		fanIn,
-		fanOut,
-		weights: _initializeWeights(fanIn, fanOut, config),
-		bias: _initializeBiases(fanIn, fanOut, config),
-		output: new Float32Array(fanOut),
-		preActivation: new Float32Array(fanOut),
-		delta: new Float32Array(fanOut),
-		gradW: new Float32Array(fanIn * fanOut),
-		gradB: new Float32Array(fanOut),
-		accumGradW: new Float32Array(fanIn * fanOut),
-		accumGradB: new Float32Array(fanOut),
-		wState: opt.initState(fanIn * fanOut),
-		bState: opt.initState(fanOut),
+		fanIn: dims.fanIn,
+		fanOut: dims.fanOut,
+		weights: _initializeWeights(dims, config),
+		bias: _initializeBiases(dims, config),
+		output: new Float32Array(dims.fanOut),
+		preActivation: new Float32Array(dims.fanOut),
+		delta: new Float32Array(dims.fanOut),
+		gradW: new Float32Array(dims.fanIn * dims.fanOut),
+		gradB: new Float32Array(dims.fanOut),
+		accumGradW: new Float32Array(dims.fanIn * dims.fanOut),
+		accumGradB: new Float32Array(dims.fanOut),
+		wState: opt.initState(dims.fanIn * dims.fanOut),
+		bState: opt.initState(dims.fanOut),
 	};
 }
 
@@ -142,7 +133,9 @@ function createLayerMemories(
 
 	for (let i = 0; i < sizes.length - 1; i++) {
 		_validateLayerSize(sizes, i);
-		layers.push(_buildLayerMemory(sizes[i], sizes[i + 1], config, opt));
+		layers.push(
+			_buildLayerMemory({ fanIn: sizes[i], fanOut: sizes[i + 1] }, config, opt)
+		);
 	}
 
 	return layers;

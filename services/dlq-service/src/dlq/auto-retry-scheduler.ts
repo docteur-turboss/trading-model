@@ -62,4 +62,3 @@ export function stopAutoRetry(): void {
 	autoRetryTimer.stop();
 	stopRedisWorkerTimer();
 }
-

@@ -1,28 +1,23 @@
 import type { RevokedCertificate } from "@trading-model/certificate-utils/types";
 import type { SerialNumber } from "@trading-model/common/domain/primitives";
-import { type Collection, MongoClient } from "mongodb";
+import type { Collection } from "mongodb";
+import { MONGO_MANAGER } from "./mongo-manager";
 
 export class CrlStore {
-	private readonly _client: MongoClient;
 	private readonly _collection: Collection;
 
-	private constructor(client: MongoClient, collection: Collection) {
-		this._client = client;
+	private constructor(collection: Collection) {
 		this._collection = collection;
 	}
 
-	static async connect(uri: string): Promise<CrlStore> {
-		const client = new MongoClient(uri);
-		await client.connect();
-		const db = client.db();
+	static async connect(_uri?: string): Promise<CrlStore> {
+		const db = MONGO_MANAGER.getDb();
 		const collection = db.collection("crl");
 		await collection.createIndex({ serialNumber: 1 }, { unique: true });
-		return new CrlStore(client, collection);
+		return new CrlStore(collection);
 	}
 
-	async disconnect(): Promise<void> {
-		await this._client.close();
-	}
+	async disconnect(): Promise<void> {}
 
 	async add(entry: RevokedCertificate): Promise<void> {
 		await this._collection.insertOne(entry);

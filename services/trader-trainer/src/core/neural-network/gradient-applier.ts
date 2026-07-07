@@ -3,9 +3,9 @@ import {
 	computeWeightGradient,
 	GradientAccumulator,
 } from "./gradient-accumulator";
+import type { NnTrainingDeps } from "./nn-training-deps";
 import { OPTIMIZERS } from "./optimizer";
 import type { LayerMemory } from "./type";
-import type { NnTrainingDeps } from "./nn-training-deps";
 
 export class GradientApplier {
 	private readonly _accumulator: GradientAccumulator;
@@ -31,7 +31,10 @@ export class GradientApplier {
 		}
 
 		for (let layerIdx = 0; layerIdx < this._deps.layers.length; layerIdx++) {
-			this._accumulator.averageAndApply(this._deps.layers[layerIdx], numSamples);
+			this._accumulator.averageAndApply(
+				this._deps.layers[layerIdx],
+				numSamples
+			);
 		}
 	}
 

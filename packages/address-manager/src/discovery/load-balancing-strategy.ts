@@ -1,5 +1,5 @@
-import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { InstanceId } from "@trading-model/common/domain/primitives";
+import { TimerHandle } from "@trading-model/common/utils/timer-handle";
 import type { ServiceInstance } from "../client/type";
 
 export interface LoadBalancingStrategy {
